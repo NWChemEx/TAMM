@@ -56,6 +56,25 @@ c    copy d_t1 ==> l_t1_local
 ccx        call ga_get(d_t1,1,size_t1,1,1,dbl_mb(k_t1_local),1)
       call get_block(d_t1,dbl_mb(k_t1_local),size_t1,0)
 c -------------------------------
+!#define CTCE 1
+
+#if CTCE
+
+      write(*,*) 'ctce ccsd(t)!'
+      call set_var_cxx(noab, nvab, int_mb, dbl_mb,
+     &k_range, k_spin, k_sym, intorb, restricted,
+     &irrep_v, irrep_t, irrep_f)
+
+      call set_k2_cxx(k_offset, k_evl_sorted)
+
+      call ccsd_t_cxx(
+     &k_t1_local,
+     &d_t1, k_t1_offset, d_t2, k_t2_offset,
+     &d_v2, k_v2_offset, energy1, energy2, size_t1)
+
+#else
+
+      write(*,*) 'nwchem original!'
 C
       nprocs = GA_NNODES()
       count = 0
@@ -224,6 +243,8 @@ c cleanup to dealloc
       call ga_dgop(mt_dbl,energy,2,'+')
       energy1 = energy(1)
       energy2 = energy(2)
+#endif
+
 c - T1/X1 LOCALIZATION ------
          if(.not.MA_POP_STACK(l_t1_local))
      &      call errquit('ccsd_t: l_t1_local',4,MA_ERR)

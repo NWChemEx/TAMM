@@ -1,0 +1,21 @@
+#!/bin/tcsh
+
+#MSUB -A mscfcis
+#MSUB -l "nodes=16:ppn=8"
+#MSUB -l "walltime=00:30:00"
+#MSUB -N nwchem6
+#MSUB -e nw6.err
+#MSUB -o nw6.out
+
+module purge
+module load nwchem
+module list
+#lld nwchem
+
+crun -nodes 16 -cores 128 \
+/mscf/home/laip926/nwchem-6.0-ctce/bin/LINUX64/nwchem \
+#/mscf/home/laip926/nwchem-6.0-ctce/bin/LINUX64/cytosine_oh.nw \
+/mscf/home/laip926/nwchem-6.0-ctce/bin/LINUX64/uracil.nw
+#/mscf/home/laip926/nwchem-6.0-ctce/bin/LINUX64/tce_ozone_2eorb.nw
+#/mscf/home/laip926/nwchem-6.0-ctce/bin/LINUX64/test.nw
+

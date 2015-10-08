@@ -64,7 +64,8 @@ link nwchem_link:
 ifeq ($(TARGET),SOLARIS)
 	/bin/rm -f $(BINDIR)/$(NWBINNAME)
 endif
-	$(PURIFY) $(LINK.f) -o $(BINDIR)/$(NWBINNAME) nwchem.o stubs.o -lnwctask $(LIBS)
+	$(PURIFY) $(LINK.f) -o $(BINDIR)/$(NWBINNAME) nwchem.o stubs.o -lnwctask -L/people/gawa722/stuff/work_nwchem/pai_code/paiwei-ctce/src $(LIBS) -lstdc++
+
 ifdef SUMO
 	$(AR) rcv $(LIBDIR)/libnwchem-sumo.a $(LIBDIR)/objs/*.o
 	$(RANLIB) $(LIBDIR)/libnwchem-sumo.a

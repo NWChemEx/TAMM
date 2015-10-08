@@ -34,7 +34,7 @@ KNOWN_MODULE_LIBS = -ltest -lccsd -lmcscf -lselci -lmp2 -lmoints \
                     -lnwxc -lsmd -lsmddb\
                     -lcafe -lspace -lanalyze -ldiana -lqhop \
                     -lpfft -ldplot -lnwpython -ldrdy -lvscf -lqmmm -lrism -lqmd -letrans\
-                    -lpspw -ltce  -lgeninterface -lbq  -lcons -lperfm -lnbo -ldntmc -lccca\
+                    -lpspw -ltce -lctce -lgeninterface -lbq  -lcons -lperfm -lnbo -ldntmc -lccca\
                     -llucia
 
 # This include file handles configuration of the NW_MODULE_SUBDIRS and
@@ -213,7 +213,7 @@ MOD_LIBS := $(patsubst vib,-lvib,$(MOD_LIBS) )
 MOD_LIBS := $(patsubst prepar,-lprepar,$(MOD_LIBS) )
 MOD_LIBS := $(patsubst esp,-lesp,$(MOD_LIBS) )
 MOD_LIBS := $(patsubst etrans,-letrans,$(MOD_LIBS) )
-MOD_LIBS := $(patsubst tce,-ltce,$(MOD_LIBS) )
+MOD_LIBS := $(patsubst tce,-ltce -lctce,$(MOD_LIBS) )
 MOD_LIBS := $(patsubst argos,-largos,$(MOD_LIBS) )
 MOD_LIBS := $(patsubst cafe,-lcafe,$(MOD_LIBS) )
 MOD_LIBS := $(patsubst space,-lspace,$(MOD_LIBS) )

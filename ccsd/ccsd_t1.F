@@ -56,6 +56,7 @@ c --- PETA -----------------------
 c --------------------------------
 !#define CTCE 1
 
+      write(*,*) 'ctce ccsd(t1)!'
 #if CTCE
       write(*,*) 'ctce ccsd(t1)!'
       call set_var_cxx(noab, nvab, int_mb, dbl_mb,
@@ -194,6 +195,7 @@ c --------------------------------
       IF (.not.MA_POP_STACK(l_i1_offset))
      1     CALL ERRQUIT('ccsd_t1',-1,MA_ERR)
       CALL ccsd_t1_7(d_t2,k_t2_offset,d_v2,k_v2_offset,d_i0,k_i0_offset)
+      write(*,*) 'ctce ccsd(t1)!'
 c --- PETA ----------
 c 9020 format('DIAG-S',i3,1x,'Cpu & wall time / sec',2f15.1)
 c -------------------

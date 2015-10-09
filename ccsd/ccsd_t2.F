@@ -90,6 +90,7 @@ c ---------------------------------------
       nodezero=(ga_nodeid().eq.0)
 !#define CTCE 1
 
+      write(*,*) 'ctce ccsd(t2)!'
 #if CTCE
       write(*,*) 'ctce ccsd(t2)!'
       call set_var_cxx(noab, nvab, int_mb, dbl_mb,
@@ -419,6 +420,7 @@ c -----------------------
       cpusecs(37) = cpu
       cpusecs(38) = wall
       CALL c2d_t2_t12(d_t1,k_t1_offset,d_t2,k_t2_offset)
+      write(*,*) 'ctce ccsd(t2)!'
 c --- PETA ----------
 c 9020 format('DIAG-D',i3,1x,'Cpu & wall time / sec',2f15.4)
 c 9021 format('   DIAG-D',i3,1x,i3,2x,'Cpu & wall time / sec',2f15.4)

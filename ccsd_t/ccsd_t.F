@@ -56,11 +56,11 @@ c    copy d_t1 ==> l_t1_local
 ccx        call ga_get(d_t1,1,size_t1,1,1,dbl_mb(k_t1_local),1)
       call get_block(d_t1,dbl_mb(k_t1_local),size_t1,0)
 c -------------------------------
-!#define CTCE 1
+c#define CTCE 1
 
 #if CTCE
 
-      write(*,*) 'ctce ccsd(t)!'
+      write(*,*) 'new ctce ccsd(t)!'
       call set_var_cxx(noab, nvab, int_mb, dbl_mb,
      &k_range, k_spin, k_sym, intorb, restricted,
      &irrep_v, irrep_t, irrep_f)

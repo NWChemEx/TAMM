@@ -88,10 +88,11 @@ c ---------------------------------------
       double precision cpu     ! CPU sec counter
       double precision wall    ! WALL sec counter
       nodezero=(ga_nodeid().eq.0)
+#define CTCE_OK 1
+#define CTCE_TEST 1
 !#define CTCE 1
 
-      write(*,*) 'ctce ccsd(t2)!'
-#if CTCE
+#if CTCE_OK
       write(*,*) 'ctce ccsd(t2)!'
       call set_var_cxx(noab, nvab, int_mb, dbl_mb,
      &k_range, k_spin, k_sym, intorb, restricted,
@@ -108,7 +109,7 @@ c ---------------------------------------
       CALL OFFSET_ccsd_t2_2_1(l_i1_offset,k_i1_offset,size_i1)
       CALL TCE_FILENAME('ccsd_t2_2_1_i1',filename)
       CALL CREATEFILE(filename,d_i1,size_i1)
-#if CTCE
+#if CTCE_NOT_OK
       CALL ccsd_t2_2_2_1_cxx(d_v2,k_v2_offset,d_i2,k_i2_offset)
 #else
       CALL ccsd_t2_2_1(d_v2,k_v2_offset,d_i1,k_i1_offset)
@@ -124,7 +125,7 @@ c ---------------------------------------
       CALL OFFSET_ccsd_t2_2_2_2_1(l_i3_offset,k_i3_offset,size_i3)
       CALL TCE_FILENAME('ccsd_t2_2_2_2_1_i3',filename)
       CALL CREATEFILE(filename,d_i3,size_i3)
-#if CTCE
+#if CTCE_NOT_OK
       CALL ccsd_t2_2_2_2_1_cxx(d_v2,k_v2_offset,d_i3,k_i3_offset)
       CALL ccsd_t2_2_2_2_2_cxx(d_t1,k_t1_offset,d_v2,k_v2_offset,
      1                     d_i3,k_i3_offset)
@@ -134,7 +135,7 @@ c ---------------------------------------
      1                     d_i3,k_i3_offset)
 #endif
       CALL RECONCILEFILE(d_i3,size_i3)
-#if CTCE
+#if CTCE_OK
       CALL ccsd_t2_2_2_2_cxx(d_t1,k_t1_offset,d_i3,k_i3_offset,
      1                   d_i2,k_i2_offset)
 #else
@@ -144,7 +145,7 @@ c ---------------------------------------
       CALL DELETEFILE(d_i3)
       IF (.not.MA_POP_STACK(l_i3_offset)) 
      1    CALL ERRQUIT('ccsd_t2',-1,MA_ERR)
-#if CTCE
+#if CTCE_NOT_OK
       CALL ccsd_t2_2_2_3_cxx(d_t2,k_t2_offset,d_v2,k_v2_offset,
      1                   d_i2,k_i2_offset)
 #else
@@ -152,7 +153,7 @@ c ---------------------------------------
      1                   d_i2,k_i2_offset)
 #endif
       CALL RECONCILEFILE(d_i2,size_i2)
-#if CTCE
+#if CTCE_OK
       CALL ccsd_t2_2_2_cxx(d_t1,k_t1_offset,d_i2,k_i2_offset,
      1                 d_i1,k_i1_offset)
 #else
@@ -165,7 +166,7 @@ c ---------------------------------------
       CALL OFFSET_ccsd_t2_2_4_1(l_i2_offset,k_i2_offset,size_i2)
       CALL TCE_FILENAME('ccsd_t2_2_4_1_i2',filename)
       CALL CREATEFILE(filename,d_i2,size_i2)
-#if CTCE
+#if CTCE_NOT_OK
       CALL ccsd_t2_2_4_1_cxx(d_f1,k_f1_offset,d_i2,k_i2_offset)
       CALL ccsd_t2_2_4_2_cxx(d_t1,k_t1_offset,d_v2,k_v2_offset,
      1                   d_i2,k_i2_offset)
@@ -175,7 +176,7 @@ c ---------------------------------------
      1                   d_i2,k_i2_offset)
 #endif
       CALL RECONCILEFILE(d_i2,size_i2)
-#if CTCE
+#if CTCE_OK
       CALL ccsd_t2_2_4_cxx(d_t2,k_t2_offset,d_i2,k_i2_offset,
      1                 d_i1,k_i1_offset)
 #else
@@ -188,7 +189,7 @@ c ---------------------------------------
       CALL OFFSET_ccsd_t2_2_5_1(l_i2_offset,k_i2_offset,size_i2)
       CALL TCE_FILENAME('ccsd_t2_2_5_1_i2',filename)
       CALL CREATEFILE(filename,d_i2,size_i2)
-#if CTCE
+#if CTCE_NOT_OK
       CALL ccsd_t2_2_5_1_cxx(d_v2,k_v2_offset,d_i2,k_i2_offset)
       CALL ccsd_t2_2_5_2_cxx(d_t1,k_t1_offset,d_v2,k_v2_offset,
      1                   d_i2,k_i2_offset)
@@ -198,7 +199,7 @@ c ---------------------------------------
      1                   d_i2,k_i2_offset)
 #endif
       CALL RECONCILEFILE(d_i2,size_i2)
-#if CTCE
+#if CTCE_OK
       CALL ccsd_t2_2_5_cxx(d_t2,k_t2_offset,d_i2,k_i2_offset,
      1                 d_i1,k_i1_offset)
 #else
@@ -209,7 +210,7 @@ c ---------------------------------------
       IF (.not.MA_POP_STACK(l_i2_offset)) 
      1    CALL ERRQUIT('ccsd_t2',-1,MA_ERR)
       CALL c2f_t2_t12(d_t1,k_t1_offset,d_t2,k_t2_offset)
-#if CTCE
+#if CTCE_NOT_OK
       CALL ccsd_t2_2_6_cxx(d_t2,k_t2_offset,d_v2,k_v2_offset,
      1                 d_i1,k_i1_offset)
 #else
@@ -218,7 +219,7 @@ c ---------------------------------------
 #endif
       CALL c2d_t2_t12(d_t1,k_t1_offset,d_t2,k_t2_offset) 
       CALL RECONCILEFILE(d_i1,size_i1)
-#if CTCE
+#if CTCE_OK
       CALL ccsd_t2_2_cxx(d_t1,k_t1_offset,d_i1,k_i1_offset,
      1                d_i0,k_i0_offset)
 #else
@@ -232,7 +233,7 @@ c ---------------------------------------
       CALL OFFSET_ccsd_t2_4_1(l_i1_offset,k_i1_offset,size_i1)
       CALL TCE_FILENAME('ccsd_t2_4_1_i1',filename)
       CALL CREATEFILE(filename,d_i1,size_i1)
-#if CTCE
+#if CTCE_OK
       CALL ccsd_t2_4_1_cxx(d_f1,k_f1_offset,d_i1,k_i1_offset)
 #else
       CALL ccsd_t2_4_1(d_f1,k_f1_offset,d_i1,k_i1_offset)
@@ -240,7 +241,7 @@ c ---------------------------------------
       CALL OFFSET_ccsd_t2_4_2_1(l_i2_offset,k_i2_offset,size_i2)
       CALL TCE_FILENAME('ccsd_t2_4_2_1_i2',filename)
       CALL CREATEFILE(filename,d_i2,size_i2)
-#if CTCE
+#if CTCE_NOT_OK
       CALL ccsd_t2_4_2_1_cxx(d_f1,k_f1_offset,d_i2,k_i2_offset)
       CALL ccsd_t2_4_2_2_cxx(d_t1,k_t1_offset,d_v2,k_v2_offset,
      1                   d_i2,k_i2_offset)
@@ -250,7 +251,7 @@ c ---------------------------------------
      1                   d_i2,k_i2_offset)
 #endif
       CALL RECONCILEFILE(d_i2,size_i2)
-#if CTCE
+#if CTCE_OK
       CALL ccsd_t2_4_2_cxx(d_t1,k_t1_offset,d_i2,k_i2_offset,
      1                 d_i1,k_i1_offset)
 #else
@@ -260,7 +261,7 @@ c ---------------------------------------
       CALL DELETEFILE(d_i2)
       IF (.not.MA_POP_STACK(l_i2_offset)) 
      1    CALL ERRQUIT('ccsd_t2',-1,MA_ERR)
-#if CTCE
+#if CTCE_NOT_OK
       CALL ccsd_t2_4_3_cxx(d_t1,k_t1_offset,d_v2,k_v2_offset,
      1                 d_i1,k_i1_offset)
       CALL ccsd_t2_4_4_cxx(d_t2,k_t2_offset,d_v2,k_v2_offset,
@@ -293,7 +294,7 @@ c -----------------------
       CALL OFFSET_ccsd_t2_5_1(l_i1_offset,k_i1_offset,size_i1)
       CALL TCE_FILENAME('ccsd_t2_5_1_i1',filename)
       CALL CREATEFILE(filename,d_i1,size_i1)
-#if CTCE
+#if CTCE_NOT_OK
       CALL ccsd_t2_5_1_cxx(d_f1,k_f1_offset,d_i1,k_i1_offset)
       CALL ccsd_t2_5_2_cxx(d_t1,k_t1_offset,d_v2,k_v2_offset,
      1                 d_i1,k_i1_offset)
@@ -316,7 +317,7 @@ c    copy d_t1 ==> l_t1_local
         call ga_get(d_i1,1,size_i1,1,1,dbl_mb(k_i1_local),1)
 c -------------------------------
 ccx      CALL ccsd_t2_5(d_t2,k_t2_offset,d_i1,k_i1_offset,d_i0,k_i0_offset)
-#if CTCE
+#if CTCE_OK
       CALL ccsd_t2_5_cxx(d_t2,k_t2_offset,k_i1_local,k_i1_offset,
      1               d_i0,k_i0_offset)
 #else
@@ -333,7 +334,7 @@ c -----------------------
       CALL OFFSET_ccsd_t2_6_1(l_i1_offset,k_i1_offset,size_i1)
       CALL TCE_FILENAME('ccsd_t2_6_1_i1',filename)
       CALL CREATEFILE(filename,d_i1,size_i1)
-#if CTCE
+#if CTCE_OK
       CALL ccsd_t2_6_1_cxx(d_v2,k_v2_offset,d_i1,k_i1_offset)
 #else
       CALL ccsd_t2_6_1(d_v2,k_v2_offset,d_i1,k_i1_offset)
@@ -341,7 +342,7 @@ c -----------------------
       CALL OFFSET_ccsd_t2_6_2_1(l_i2_offset,k_i2_offset,size_i2)
       CALL TCE_FILENAME('ccsd_t2_6_2_1_i2',filename)
       CALL CREATEFILE(filename,d_i2,size_i2)
-#if CTCE
+#if CTCE_NOT_OK
       CALL ccsd_t2_6_2_1_cxx(d_v2,k_v2_offset,d_i2,k_i2_offset)
       CALL ccsd_t2_6_2_2_cxx(d_t1,k_t1_offset,d_v2,k_v2_offset,
      1                   d_i2,k_i2_offset)
@@ -351,7 +352,7 @@ c -----------------------
      1                   d_i2,k_i2_offset)
 #endif
       CALL RECONCILEFILE(d_i2,size_i2)
-#if CTCE
+#if CTCE_OK
       CALL ccsd_t2_6_2_cxx(d_t1,k_t1_offset,d_i2,k_i2_offset,
      1                 d_i1,k_i1_offset)
 #else
@@ -361,7 +362,7 @@ c -----------------------
       CALL DELETEFILE(d_i2)
       IF (.not.MA_POP_STACK(l_i2_offset)) 
      1    CALL ERRQUIT('ccsd_t2',-1,MA_ERR)
-#if CTCE
+#if CTCE_NOT_OK
       CALL ccsd_t2_6_3_cxx(d_t2,k_t2_offset,d_v2,k_v2_offset,
      1                 d_i1,k_i1_offset)
 #else
@@ -369,7 +370,7 @@ c -----------------------
      1                 d_i1,k_i1_offset)
 #endif
       CALL RECONCILEFILE(d_i1,size_i1)
-#if CTCE
+#if CTCE_OK
       CALL ccsd_t2_6_cxx(d_t2,k_t2_offset,d_i1,k_i1_offset,
      1                 d_i0,k_i0_offset)
 #else
@@ -407,7 +408,7 @@ c -----------------------
       CALL ccsd_t2_8_spiral(d_t2,k_t2_offset,d_v2,k_v2_offset,
      1                      d_i0,k_i0_offset)
 #else
-#if CTCE
+#if CTCE_NOT_OK
       CALL ccsd_t2_8_cxx(d_t2,k_t2_offset,d_v2,k_v2_offset,
      1               d_i0,k_i0_offset)
 #else
@@ -420,7 +421,6 @@ c -----------------------
       cpusecs(37) = cpu
       cpusecs(38) = wall
       CALL c2d_t2_t12(d_t1,k_t1_offset,d_t2,k_t2_offset)
-      write(*,*) 'ctce ccsd(t2)!'
 c --- PETA ----------
 c 9020 format('DIAG-D',i3,1x,'Cpu & wall time / sec',2f15.4)
 c 9021 format('   DIAG-D',i3,1x,i3,2x,'Cpu & wall time / sec',2f15.4)

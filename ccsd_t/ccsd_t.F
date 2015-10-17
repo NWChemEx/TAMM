@@ -56,7 +56,7 @@ c    copy d_t1 ==> l_t1_local
 ccx        call ga_get(d_t1,1,size_t1,1,1,dbl_mb(k_t1_local),1)
       call get_block(d_t1,dbl_mb(k_t1_local),size_t1,0)
 c -------------------------------
-c#define CTCE 1
+#define CTCE 1
 
 #if CTCE
 

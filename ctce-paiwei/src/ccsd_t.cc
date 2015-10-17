@@ -15,7 +15,7 @@ namespace ctce {
 
     void gen_ccsd_t_cxx_() {
       if (set_ccsd_t) {
-        std::cout << "ctce: generate ccsd_t singles and doubles 1 2.\n";
+        // comment NAG std::cout << "ctce: generate ccsd_t singles and doubles 1 2.\n";
         Tensor tC, tA, tB;
         std::vector<int> cpt;
 
@@ -110,7 +110,9 @@ namespace ctce {
       std::vector<Integer> vec, rvec, ovec;
       out_itr.reset();
 
-      std::cout << "singles sloop, doubles cxx.\n";
+      // comment NAG std::cout << "singles sloop, doubles cxx.\n";
+
+      //std::cout << "NAG at LINE --- "<< __LINE__<<"\n";
 
       while(out_itr.next(vec)) {
 
@@ -133,9 +135,9 @@ namespace ctce {
             ccsd_t_singles_l_(buf_single, k_t1_local, d_v2, k_t1_offset, k_v2_offset,&vec[3], &vec[4], &vec[5], &vec[0], &vec[1], &vec[2], &toggle);
             //ccsd_t_singles_1_cxx_(k_t1_local, k_t1_offset, d_v2, k_v2_offset, buf_single, vec);
 
-            //ccsd_t_doubles_(buf_double, d_t2, d_v2, k_t2_offset, k_v2_offset,&vec[3], &vec[4], &vec[5], &vec[0], &vec[1], &vec[2], &toggle);
-            ccsd_t_doubles_1_cxx_(d_t2, k_t2_offset, d_v2, k_v2_offset, buf_double, vec);
-            ccsd_t_doubles_2_cxx_(d_t2, k_t2_offset, d_v2, k_v2_offset, buf_double, vec);
+            ccsd_t_doubles_(buf_double, d_t2, d_v2, k_t2_offset, k_v2_offset,&vec[3], &vec[4], &vec[5], &vec[0], &vec[1], &vec[2], &toggle);
+            //ccsd_t_doubles_1_cxx_(d_t2, k_t2_offset, d_v2, k_v2_offset, buf_double, vec);
+            //ccsd_t_doubles_2_cxx_(d_t2, k_t2_offset, d_v2, k_v2_offset, buf_double, vec);
 
             double factor = computeFactor(vec);
             computeEnergy(rvec, ovec, energy1, energy2, buf_single, buf_double, factor);
@@ -149,9 +151,13 @@ namespace ctce {
 
         } // if next == count
 
+      //std::cout << "NAG at LINE --- "<< __LINE__<<"\n";
+
         count = count + 1;
 
         } // out_itr
+
+      //std::cout << "NAG at LINE --- "<< __LINE__<<"\n";
 
         GA_Sync();
         GA_Destroy(taskHandle); // free

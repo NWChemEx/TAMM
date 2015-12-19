@@ -1,6 +1,6 @@
 
   #GA_CONFIG = /people/gawa722/stuff/nwchem6dot4_dev/Nwchem-6.5/src/tools/install/bin/ga-config
-  GA_CONFIG = /people/gawa722/stuff/work_nwchem/Nwchem-6.5r/src/tools/install/bin/ga-config
+  GA_CONFIG = $(NWCHEM_TOP)/src/tools/install/bin/ga-config
 
 	CC = $(shell $(GA_CONFIG) --cc)
 	CXX = mpicxx

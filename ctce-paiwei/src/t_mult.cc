@@ -79,7 +79,7 @@ namespace ctce {
             double* buf_b = new double[dimb];
             double* buf_b_sort = new double[dimb];
             tB.sortByValueThenExtSymGroup();
-            if (!tB.isIntermediate() && Variables::intorb()) tB.get_i = true;
+            if (!tB.isIntermediate()) tB.get_i = true;
             tB.get(*d_b,buf_b,dimb,*k_b_offset);
             tce_sort(buf_b, buf_b_sort, tB._value(), tB.sort_ids(), (double)tB.sign());
             delete [] buf_b;
@@ -219,7 +219,7 @@ namespace ctce {
               double* buf_b = new double[dimb];
               double* buf_b_sort = new double[dimb];
               tB.sortByValueThenExtSymGroup();
-              if (!tB.isIntermediate() && Variables::intorb()) tB.get_i = true;
+              if (!tB.isIntermediate()) tB.get_i = true;
               tB.get(*d_b,buf_b,dimb,*k_b_offset);
               tce_sort(buf_b, buf_b_sort, tB._value(), tB.sort_ids(), (double)tB.sign());
               delete [] buf_b;

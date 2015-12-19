@@ -55,6 +55,7 @@ c --- PETA -----------------------
       nodezero=(ga_nodeid().eq.0)
 c --------------------------------
 #define CTCE_OK 1
+#define CTCE_NOT_OK 1
 #define CTCE_TEST 1
 !#define CTCE 1
 

@@ -89,6 +89,7 @@ c ---------------------------------------
       double precision wall    ! WALL sec counter
       nodezero=(ga_nodeid().eq.0)
 #define CTCE_OK 1
+#define CTCE_NOT_OK 1
 #define CTCE_TEST 1
 !#define CTCE 1
 
@@ -110,7 +111,7 @@ c ---------------------------------------
       CALL TCE_FILENAME('ccsd_t2_2_1_i1',filename)
       CALL CREATEFILE(filename,d_i1,size_i1)
 #if CTCE_NOT_OK
-      CALL ccsd_t2_2_2_1_cxx(d_v2,k_v2_offset,d_i2,k_i2_offset)
+      CALL ccsd_t2_2_1_cxx(d_v2,k_v2_offset,d_i1,k_i1_offset)
 #else
       CALL ccsd_t2_2_1(d_v2,k_v2_offset,d_i1,k_i1_offset)
 #endif

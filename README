@@ -1,0 +1,3 @@
+Copy the contents of folder ctce_v6.5 in the nwchem 
+src/tce directory to use the ctce library. 
+Neessary Fortran patchfiles are included here.

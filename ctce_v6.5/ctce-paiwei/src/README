@@ -1,0 +1,44 @@
+This is cTCE beta version 1.0
+=============================
+
+Copyright (c) 2011
+Pacific Northwestern National Laboratory.
+All rights reserved.
+
+
+How to Patch cTCE to NWChem-6.0
+===============================
+
+1.  Download NWChem-6.0 source code. (http://www.nwchem-sw.org/images/Nwchem-6.0.tar.gz)
+    scp NWChem-6.0.tar.gz [username]@chinook.emsl.pnl.gov:/home/[username]/
+    scp ctce-b1.0.zip [username]@chinook.emsl.pnl.gov:/home/[username]/
+    login to Chinook
+    tar -zxvf Nwchem-6.0.tar.gz
+    mv /home/[username]/nwchem-6.0/ /home/[username]/nwchem-6.0-ctce/
+
+2.  Copy and unzip cTCE source code. (ctce-b1.0.zip)
+    mv ctce-b1.0.zip /home/[username]/nwchem-6.0-ctce/
+    cd /home/[username]/nwchem-6.0-ctce/
+    unzip ctce-b1.0.zip
+
+3.  Normal NWChem compilation.
+    cd /home/[username]/nwchem-6.0-ctce/ctce/
+    module purge
+    module load nwchem
+    ./compile_nw6.sh
+
+4.  Patch cTCE and compile.
+    ./patch.sh
+    ./compile.sh
+
+5.  Test case can be found in /ctce/testfile
+
+
+Troubleshooting
+===============
+
+1.  Make sure NWCHEM_TOP path is set properly. (compile.sh)
+2.  Make sure 'module purge' and 'module load nwchem' on Chinook for proper environmental setting.
+3.  Make sure ctce folder is in '/nwchem-6.0-ctce/ctce/', not '/nwchem-6.0-ctce/src/ctce/'.
+4.  Email Pai-Wei Lai (paiwei.lai@gmail.com) for more help.
+

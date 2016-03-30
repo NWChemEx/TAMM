@@ -1,0 +1,12 @@
+# This configuration generated automatically on glogin3 at Thu Feb 4 16:15:56 PST 2016
+# Request modules from user: all python
+The following subdirectories are built:
+NWints analyz atomscf bq cafe ccca ccsd cons cphf dangchang ddscf dntmc dplot drdy driver esp etrans fft gradients hessian mcscf mm moints mp2_grad nwdft nwmd nwpw optim perfm prepar property python qhop qmd qmmm rimp2 selci solvation space stepper symmetry tce vib vscf
+corresponding to these libraries:
+-lnwints -lanalyze -lguess -lbq -lcafe -lccca -lccsd -lcons -lcphf -ldangchang -lddscf -ldntmc -ldplot -ldrdy -ldriver -lesp -letrans -lpfft -lgradients -lhessian -lmcscf -lmm -lmoints -lmp2 -lnwdft -lnwmd -lnwpw -lofpw -lpaw -lpspw -lband -lnwpwlib -loptim -lperfm -lprepar -lproperty -lnwpython -lqhop -lqmd -lqmmm -lrimp2 -lselci -lsolvation -lspace -lstepper -lnwcutil -ltce -lctce -lvib -lvscf
+
+The following directories are excluded from the build:
+develop nwxc scfaux rimp2_grad argos diana uccsdt rism geninterface smd nbo leps lucia
+and these routines will be replaced by stubs:
+argos argos_input crossing debtest dia_input diana gasdev geninterface jantest jvltest jvltest2 kgdtest leps_energy leps_gradient lucia mc_data mc_driver mc_init mc_main md_data md_driver md_set moints_screen mymc_input mymd_input nbo_input nwxc_eval_df nwxc_eval_df2 nwxc_eval_df3 nwxc_get_cam nwxc_get_disp nwxc_getvals nwxc_getwght nwxc_has_2nd nwxc_has_cam nwxc_has_disp nwxc_has_hfx nwxc_has_mp2c nwxc_has_xc nwxc_init nwxc_input nwxc_is_gga nwxc_is_lda nwxc_is_mgga nwxc_is_on nwxc_print nwxc_print_nwpw nwxc_reset_rho_tolerance nwxc_rtdb_delete nwxc_rtdb_load nwxc_rtdb_store nwxc_vdw3_dftd3 nwxc_wght_hfx nwxc_wght_mp2c raktest rimp2g rism_input rjhtest smd_input task_fragment_energy task_nbo task_rism task_smd task_smd_dynamics task_smd_energy task_smd_fragment uccsdt uccsdtest urand
+No extra configuration libraries were added 

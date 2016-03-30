@@ -1,0 +1,46 @@
+This is cTCE beta version 2.0
+=============================
+
+Copyright (c) 2016
+Pacific Northwestern National Laboratory.
+All rights reserved.
+
+
+How to Patch cTCE to NWChem-6.6
+===============================
+
+1.	Download and install NWChem-6.6 code 
+
+2. 	Copy the contents of the folder tce in the folder $(NWCHEM_TOP)/src/tce
+		Here:
+		a) a new folder 'ctce-paiwei' is copied to $(NWCHEM_TOP)/src/tce. 
+		b) file ccsd_t.F is patched in folder $(NWCHEM_TOP)/src/tce/ccsd_t
+		c) files ccsd_t1.F and ccsd_t2.F are patched in  folder $(NWCHEM_TOP)/src/tce/ccsd
+		d) compile these modified files
+
+3.	In folder $(NWCHEM_TOP)/src modify GNUmakefile to include following
+
+		$(PURIFY) $(LINK.f) -o $(BINDIR)/$(NWBINNAME) nwchem.o stubs.o -lnwctask \ 
+		 -L./tce/ctce-paiwei/src $(LIBS) -lstdc++
+
+		Sample GNUmakefile provided here.
+
+4. 	Modifications to file $(NWCHEM_TOP)/src/config/NWCHEM_CONFIG to include
+		-lctce -lvib -lvscf
+
+		Sample NWCHEM_CONFIG file provided here.
+
+5.	Now build the library lctce by running the GNUmakefile in folder
+		$(NWCHEM_TOP)/src/tce/ctce-paiwei/src
+
+6.	Link nwchem from folder $(NWCHEM_TOP)/src
+
+
+Troubleshooting
+===============
+
+1.  Make sure NWCHEM_TOP path is set properly. 
+2.  Make sure 'module purge' and 'module load nwchem' on Chinook for proper environmental setting.
+3.  Make sure the path to ctce library folder.
+4.  Email Sriram Krishnamoorthy (sriram@pnnl.gov) for more help.
+

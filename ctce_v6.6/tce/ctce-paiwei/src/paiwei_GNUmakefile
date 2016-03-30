@@ -1,0 +1,33 @@
+
+	CC = mpicc
+	CXX = mpicxx
+	FC = mpif90
+
+	GA_HOME = /home/laip/nwchem-6.3/src/tools
+	GA_INCLUDE = -I$(GA_HOME)/include -I../src/tce/include
+	GA_LIBS = -L$(GA_HOME)/lib
+
+	CXXINCLUDES = $(GA_INCLUDE) -I. 
+	FINCLUDES = $(GA_INCLUDE) -I../src/tce/include 
+
+default: libctce.a
+
+libctce.a: variables.o dummy.o func.o capi.o preprocess.o expression.o t_mult.o t_assign.o tensor.o \
+ccsd_t1.o \
+ccsd_t2_12.o ccsd_t2_45.o ccsd_t2_68.o ccsd_t2_7.o \
+ccsd_t.o
+	ar cr libctce.a variables.o dummy.o func.o capi.o preprocess.o expression.o t_mult.o t_assign.o tensor.o \
+ccsd_t1.o \
+ccsd_t2_12.o ccsd_t2_45.o ccsd_t2_68.o ccsd_t2_7.o \
+ccsd_t.o
+
+clean:
+	rm -f *~ *.o *.x *.a *.err *.out 
+
+.SUFFIXES: .cc .F
+
+.cc.o:
+	$(CC) $(CXXINCLUDES) -DEXT_INT -DGFORTRAN -c $*.cc -O3
+
+.F.o:
+	$(FC) $(FINCLUDES) -c $*.F

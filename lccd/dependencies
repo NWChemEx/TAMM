@@ -1,2 +1,0 @@
-$(LIBRARY_PATH)(lccd_t2.o):	$(INCDIR)/util.fh ../include/tce.fh $(INCDIR)/sym.fh /people/gawa722/stuff/nwchem6dot4_dev/Nwchem-6.5/src/tools/install/include/mafdecls.fh /people/gawa722/stuff/nwchem6dot4_dev/Nwchem-6.5/src/tools/install/include/global.fh $(INCDIR)/errquit.fh 
-$(LIBRARY_PATH)(lccd_e.o):	$(INCDIR)/util.fh ../include/tce.fh $(INCDIR)/sym.fh /people/gawa722/stuff/nwchem6dot4_dev/Nwchem-6.5/src/tools/install/include/mafdecls.fh /people/gawa722/stuff/nwchem6dot4_dev/Nwchem-6.5/src/tools/install/include/global.fh $(INCDIR)/errquit.fh 

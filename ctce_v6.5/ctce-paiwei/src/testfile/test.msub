@@ -1,0 +1,46 @@
+#!/bin/csh -f
+#MSUB -l nodes=8:ppn=8,walltime=2:00:00
+#MSUB -A mscfcis
+#MSUB -o nw6.out
+#MSUB -e nw6.err
+#MSUB -N nw6
+
+############################################################################
+# Copy NWChem binary to local scratch directory
+############################################################################
+# pdsh -f 30 -w "${SLURM_JOB_NODELIST}" cp /mscf/scicons/apps/nwchem-6.0.oct19//bin/LINUX64/nwchem /scratch/nwchem
+# srun -n ${SLURM_NNODES} -N ${SLURM_NNODES} --wait=600 cp /mscf/scicons/apps/nwchem-6.0.oct19//bin/LINUX64/nwchem /scratch/nwchem
+#bcastf /mscf/scicons/apps/nwchem-6.0.oct19/bin/LINUX64/nwchem /home/laip926/nwchem-6.0-ctce/bin/LINUX64/nw6
+#cp /mscf/scicons/apps/nwchem-6.0.oct19/bin/LINUX64/nwchem /home/laip926/nwchem-6.0-ctce/bin/LINUX64/nw6
+
+############################################################################
+# Actually run the job
+############################################################################
+
+#source /etc/profile.d/modules.csh
+#source /home/scicons/bin/set_modulepath.csh 
+module purge
+module load nwchem
+
+#cd /scratch
+
+unsetenv MA_USE_ARMCI_MEM
+setenv MPI_FLAGS y4
+setenv ARMCI_DEFAULT_SHMMAX 4096
+setenv NWCHEM_BASIS_LIBRARY "/mscf/scicons/apps/nwchem-6.0.oct19/src/basis/libraries/"
+setenv NWCHEM_NWPW_LIBRARY "/mscf/scicons/apps/nwchem-6.0.oct19/src/nwpw/libraryps/"
+
+#setenv MPIRETURN 999
+#mpirun -srun -n 256 -N 64 /scratch/nwchem /mscf/home/kowalski/FOR_SRIRAM/test.nw
+mpirun -srun -n 32 -N 8 \
+/home/laip926/nwchem-6.0-ctce/bin/LINUX64/nwchem \
+/home/laip926/nwchem-6.0-ctce/bin/LINUX64/test.nw
+#setenv MPIRETURN $?
+
+############################################################################
+# End of the job script
+############################################################################
+
+#exit $MPIRETURN
+
+

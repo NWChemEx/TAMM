@@ -1,0 +1,2 @@
+rm *.b *.db *.p *.zmat *.b^-1  *.movecs *.c *.err *.out
+

@@ -14,7 +14,7 @@ extern "C" {
 #include <ga.h>
 
 typedef ga_nbhdl_t GTD_handle;
-typedef Integer    GTD_tensor_mapel;
+typedef Integer    GT_fint;
 typedef int        GTD_procgroup;
 
 #define GT_HANDLE_NULL (0x0)
@@ -26,6 +26,7 @@ typedef int        GTD_procgroup;
 typedef MPI_Request GTD_handle;
 typedef long long    GTD_tensor_mapel;
 typedef MPI_Comm    GTD_procgroup;
+  typedef MPI_Fint    GT_fint;
 
 #define GT_HANDLE_NULL MPI_REQUEST_NULL
 

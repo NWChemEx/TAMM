@@ -14,14 +14,13 @@ extern "C" {
 
 struct GTI_context {
   int noa, nob, nva, nvb;
+  int noA, noB, nvA, nvB;
   int *tiles;
   int *spins;
   int *syms;
 };
 
-#define GTI_CONTEXT_INITIALIZER {0,0,0,0,NULL,NULL,NULL,NULL}
-
-//extern struct GTI_context g_gtcontext;
+#define GTI_CONTEXT_INITIALIZER {0,0,0,0}
 
 /* GTI_tensor*  GTI_tensor_get_ptr(GT_tensor tensor) { */
 /*   return (GTI_tensor*)tensor; */

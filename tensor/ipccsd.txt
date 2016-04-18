@@ -1,0 +1,112 @@
+x1:
+
+C         x1 ( p2 h5 p3 p4 )_xv + = 1 * Sum ( h6 ) * x ( p2 h6 )_x * v ( h5 h6 p3 p4 )_v
+C         x2 ( p2 h4 h1 p3 )_xv + = 1 * Sum ( h6 ) * x ( p2 h6 )_x * v ( h4 h6 h1 p3 )_v         ?
+C         x3 ( p2 h1 )_xf + = 1 * Sum ( h6 ) * x ( p2 h6 )_x * f ( h6 h1 )_f                     ?
+C         x4 ( p2 p7 )_xf + = 1 * Sum ( h6 ) * x ( p2 h6 )_x * f ( h6 p7 )_f                     ?
+C         x5 ( p2 h1 )_xv + = 1 * Sum ( p7 h6 h8 ) * x ( p2 p7 h6 h8 )_x * v ( h6 h8 h1 p7 )_v
+C         x6 ( p2 p3 )_vt + = 1 * Sum ( p7 h6 h8 ) * x ( p2 p7 h6 h8 )_t * v ( h6 h8 p3 p7 )_v
+
+C p3
+C         x7 ( h6 p3 h1 p5 )_vx + = 1 * Sum ( h7 p8 ) * x ( p3 p8 h1 h7 )_x * v ( h6 h7 p5 p8 )_v
+c         x8 ( p3 h10 p5 p6)_vx + = 1 * sum(h8) x ( p3 h8 )_x * v ( h8 h10 p5 p6 )_v
+
+i0 + = 1 * Sum ( h9 h10 ) * x ( p3 p4 h9 h10 )_x *  v ( h9 h10 p5 p6 )_v
+
+C     i0 ( p2 h1 )_xf += 1 * x3 ( p2 h1 )_xf 
+C     i0 ( p2 h1 )_xf += -1 * Sum ( h6 ) * x ( p2 h6 )_x * i1 ( h6 h1 )_f
+C         i1 ( h6 h1 )_ft + = 1 * Sum ( p7 ) * t ( p7 h1 )_t * i2 ( h6 p7 )_f
+C             i2 ( h6 p7 )_f + = 1 * f ( h6 p7 )_f
+C             i2 ( h6 p7 )_vt + = 1 * Sum ( h5 p4 ) * t ( p4 h5 )_t * v ( h5 h6 p4 p7 )_v
+C         i1 ( h6 h1 )_vt + = -1 * Sum ( h4 p3 ) * t ( p3 h4 )_t * v ( h4 h6 h1 p3 )_v
+C     i0 ( p2 h1 )_vt + = -1/2 * Sum ( h5 p3 p4 ) * t ( p3 p4 h1 h5 )_t * x1 ( p2 h5 p3 p4 )_xv
+
+ckbn p2
+C     i0 ( p2 h1 )_xf + = -1 * Sum ( h6 ) * x ( p2 h6 )_x * i1 ( h6 h1 )_f
+C         i1 ( h6 h1 )_f + = 1 * f ( h6 h1 )_f
+C         i1 ( h6 h1 )_ft + = 1 * Sum ( p7 ) * t ( p7 h1 )_t * i2 ( h6 p7 )_f
+C             i2 ( h6 p7 )_f + = 1 * f ( h6 p7 )_f
+C             i2 ( h6 p7 )_vt + = 1 * Sum ( h5 p4 ) * t ( p4 h5 )_t * v ( h5 h6 p4 p7 )_v
+C         i1 ( h6 h1 )_vt + = -1 * Sum ( h4 p3 ) * t ( p3 h4 )_t * v ( h4 h6 h1 p3 )_v
+C     i0 ( p2 h1 )_vt + = -1/2 * Sum ( h5 p3 p4 ) * t ( p3 p4 h1 h5 )_t * x1 ( p2 h5 p3 p4 )_xv
+
+ckbn p2
+C     i0 ( p2 h1 )_xf + = 1 * Sum ( p7 h6 ) * x ( p2 p7 h1 h6 )_x * i1 ( h6 p7 )_f
+C         i1 ( h6 p7 )_f + = 1 * f ( h6 p7 )_f
+C         i1 ( h6 p7 )_vt + = 1 * Sum ( h4 p3 ) * t ( p3 h4 )_t * v ( h4 h6 p3 p7 )_v  //x7
+
+ckbn p2
+C     i0 ( p2 h1 )_xv + = -1/2 * x5 ( p2 h1 )_xv
+C     i0 ( p2 h1 )_xv + = -1/2 * Sum ( p3 ) * t ( p3 h1 )_x * i1 ( p2 p3 )_vt
+C         i1 ( p2 p3 )_vt + = 1 * x6 ( p2 p3 )_vt
+
+
+x2:
+
+ckbn p3
+C     i0 ( p3 p4 h1 h2 )_xv + = -1 * P( 2 ) * Sum ( h9 ) * x ( p3 h9 )_x * i1 ( h9 p4 h1 h2 )_v
+C         i1 ( h9 p3 h1 h2 )_v + = 1 * v ( h9 p3 h1 h2 )_v
+C         i1 ( h9 p3 h1 h2 )_vt + = -1 * P( 2 ) * Sum ( p5 ) * t ( p5 h1 )_t * i2 ( h9 p3 h2 p5 )_v
+C             i2 ( h9 p3 h1 p5 )_v + = 1 * v ( h9 p3 h1 p5 )_v
+C             i2 ( h9 p3 h1 p5 )_vt + = -1/2 * Sum ( p6 ) * t ( p6 h1 )_t * v ( h9 p3 p5 p6 )_v
+C         i1 ( h9 p3 h1 h2 )_ft + = -1 * Sum ( p8 ) * t ( p3 p8 h1 h2 )_t * i2 ( h9 p8 )_f
+C             i2 ( h9 p8 )_f + = 1 * f ( h9 p8 )_f
+C             i2 ( h9 p8 )_vt + = 1 * Sum ( h7 p6 ) * t ( p6 h7 )_t * v ( h7 h9 p6 p8 )_v
+C         i1 ( h9 p3 h1 h2 )_vt + = 1 * P( 2 ) * Sum ( h6 p5 ) * t ( p3 p5 h1 h6 )_t * i2 ( h6 h9 h2 p5 )_v --- o4v2 ->o3v2
+C             i2 ( h6 h9 h1 p5 )_v + = 1 * v ( h6 h9 h1 p5 )_v
+C             i2 ( h6 h9 h1 p5 )_vt + = -1 * Sum ( p7 ) * t ( p7 h1 )_t * v ( h6 h9 p5 p7 )_v
+C         i1 ( h9 p3 h1 h2 )_vt + = 1/2 * Sum ( p5 p6 ) * t ( p5 p6 h1 h2 )_t * v ( h9 p3 p5 p6 )_v   ---o3v3 -> v3o2
+ckbn p4
+C     i0 ( p3 p4 h1 h2 )_xf + = -1 * P( 2 ) * Sum ( h8 ) * x ( p3 p4 h1 h8 )_x * i1 ( h8 h2 )_f
+C         i1 ( h8 h1 )_f + = 1 * f ( h8 h1 )_f
+C         i1 ( h8 h1 )_ft + = 1 * Sum ( p9 ) * t ( p9 h1 )_t * i2 ( h8 p9 )_f
+C             i2 ( h8 p9 )_f + = 1 * f ( h8 p9 )_f
+C             i2 ( h8 p9 )_vt + = 1 * Sum ( h7 p6 ) * t ( p6 h7 )_t * v ( h7 h8 p6 p9 )_v
+C         i1 ( h8 h1 )_vt + = -1 * Sum ( h6 p5 ) * t ( p5 h6 )_t * v ( h6 h8 h1 p5 )_v
+C         i1 ( h8 h1 )_vt + = -1/2 * Sum ( h7 p5 p6 ) * t ( p5 p6 h1 h7 )_t * v ( h7 h8 p5 p6 )_v   ---o3v2
+ckbn p3
+C     i0 ( p3 p4 h1 h2 )_xf + = 1 * P( 2 ) * Sum ( p8 ) * x ( p3 p8 h1 h2 )_x * i1 ( p4 p8 )_f
+C         i1 ( p3 p8 )_f + = 1 * f ( p3 p8 )_f
+C         i1 ( p3 p8 )_vt + = 1 * Sum ( h6 p5 ) * t ( p5 h6 )_t * v ( h6 p3 p5 p8 )_v
+C         i1 ( p3 p8 )_vt + = 1/2 * Sum ( h6 h7 p5 ) * t ( p3 p5 h6 h7 )_t * v ( h6 h7 p5 p8 )_v --- v3o2
+ckbn p4
+C     i0 ( p3 p4 h1 h2 )_xv + = 1/2 * Sum ( h9 h10 ) * x ( p3 p4 h9 h10 )_x * i1 ( h9 h10 h1 h2 )_v   --- o4v?
+C         i1 ( h9 h10 h1 h2 )_v + = 1 * v ( h9 h10 h1 h2 )_v
+C         i1 ( h9 h10 h1 h2 )_vt + = -1 * P( 2 ) * Sum ( p5 ) * t ( p5 h1 )_t * i2 ( h9 h10 h2 p5 )_v
+C             i2 ( h9 h10 h1 p5 )_v + = 1 * v ( h9 h10 h1 p5 )_v
+C             i2 ( h9 h10 h1 p5 )_vt + = -1/2 * Sum ( p6 ) * t ( p6 h1 )_t * v ( h9 h10 p5 p6 )_v       ---o3v2???
+C         i1 ( h9 h10 h1 h2 )_vt + = 1/2 * Sum ( p5 p6 ) * t ( p5 p6 h1 h2 )_t * v ( h9 h10 p5 p6 )_v   ---o4v2?? -> v3o2
+
+ckbn p3
+C     i0 ( p3 p4 h1 h2 )_xv + = -1 * P( 4 ) * Sum ( p8 h7 ) * x ( p3 p8 h1 h7 )_x * i1 ( h7 p4 h2 p8 )_v
+C         i1 ( h7 p3 h1 p8 )_v + = 1 * v ( h7 p3 h1 p8 )_v
+C         i1 ( h7 p3 h1 p8 )_vt + = 1 * Sum ( p5 ) * t ( p5 h1 )_t * v ( h7 p3 p5 p8 )_v   ---v3o2
+
+ckbn p4
+C     i0 ( p3 p4 h1 h2 )_vxt + = 1 * P( 2 ) * Sum ( h10 ) * t ( p3 h10 )_t * i1 ( h10 p4 h1 h2 )_vx
+ckbn p3
+C         i1 ( h10 p3 h1 h2 )_vx + = 1 * Sum ( h8 ) *  x ( p3 h8 )_x * v ( h8 h10 h1 h2 )_v
+C         i1 ( h10 p3 h1 h2 )_vx + = -1 * P ( 2 ) * Sum ( p5 ) * t ( p5 h1 )_t * i2 ( p3 h10 h1 h2 )_v
+C             i2 ( p3 h10 h1 h2 )_vt + = 1 * Sum ( h8 ) * x ( p3 h8 )_x * v ( h8 h10 h1 p5 )_v
+C             i2 ( p3 h10 h1 h2 )_vt + = -1 * Sum ( p6 ) * t ( p6 h1 )_t  * i3 ( p3 h10 h2 p5 )_v
+C                 i3 ( p3 h10 h1 p5 )_vt + = -1/2 * Sum ( h8 ) * x ( p3 h8 )_x * v ( h8 h10 p5 p6 )_v
+C         i1 ( h10 p3 h1 h2 )_vt + = 1/2 * Sum ( p5 p6 ) * t ( p5 p6 h1 h2 )_t * x8 (p3 h10 p5 p6 )_vx --- o3v2
+
+ckbn p3
+C         i1 ( h10 p3 h1 h2 )_fx + = 1 * Sum ( p5 ) * x ( p3 p5 h1 h2 )_x * i2 ( h10 p5 )_f
+C             i2 ( h10 p5 )_f + = 1 * f ( h10 p5 )_f
+C             i2 ( h10 p5 )_vt + = -1 * Sum ( h7 p6 ) * t ( p6 h7 )_t * v ( h7 h10 p5 p6 )_v
+ckbn p3
+C         i1 ( h10 p3 h1 h2 )_vx + = -1 * P( 2 ) * Sum ( h8 p9 ) * x ( p3 p9 h1 h8 )_x * i2 ( h8 h10 h2 p9 )_v  ---o4v
+C             i2 ( h8 h10 h1 p9 )_v + = 1 * v ( h8 h10 h1 p9 )_v
+C             i2 ( h8 h10 h1 p9 )_vt + = 1 * Sum ( p5 ) * t ( p5 h1 )_t * v ( h8 h10 p5 p9 )_v    --o3v2
+
+ckbn p4 m
+C     i0 ( p3 p4 h1 h2 )_vxt + = 1/2 * P( 2 ) * Sum ( p5 ) * t ( p3 p5 h1 h2 )_t * i1 ( p4 p5 )_vx
+ckbn p3 m
+C         i1 ( p3 p5 )_vx + = -1 * x6 ( p3 p5 )_vx
+
+ckbn p4
+C     i0 ( p3 p4 h1 h2 )_vxt + = 1 * P( 4 ) * Sum ( h6 p5 ) * t ( p3 p5 h1 h6 )_t * i1 ( h6 p4 h2 p5 )_vx  --o3v2
+ckbn p3
+C         i1 ( h6 p3 h1 p5 )_vx + = 1 * x7 ( h6 p3 h1 p5 )_vx    --o3v2

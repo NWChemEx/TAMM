@@ -21,43 +21,43 @@ namespace ctce {
         //std::cout << "set t2 6-8.\n";
 
         /* i1 ( h9 h11 h1 h2 )_v + = -1 * v ( h9 h11 h1 h2 )_v */
-        tC = Tensor4(H9B,H11B,H1B,H2B,0,0,1,1,iV_tensor);
-        tA = Tensor4(H9B,H11B,H1B,H2B,0,0,1,1,V_tensor);
+        tC = Tensor4(H9B,H11B,H1B,H2B,0,0,1,1,iV_tensor, dist_nw);
+        tA = Tensor4(H9B,H11B,H1B,H2B,0,0,1,1,V_tensor, dist_nw);
         a_t2_6_1 = Assignment(tC,tA,-1.0);
 
         /* i2 ( h9 h11 h1 p8 )_v + = 1 * v ( h9 h11 h1 p8 )_v */
-        tC = Tensor4(H9B,H11B,H1B,P8B,0,0,1,2,iV_tensor);
-        tA = Tensor4(H9B,H11B,H1B,P8B,0,0,1,2,V_tensor);
+        tC = Tensor4(H9B,H11B,H1B,P8B,0,0,1,2,iV_tensor, dist_nw);
+        tA = Tensor4(H9B,H11B,H1B,P8B,0,0,1,2,V_tensor, dist_nw);
         a_t2_6_2_1 = Assignment(tC,tA,1.0);
 
         /* i2 ( h9 h11 h1 p8 )_vt + = 1/2 * Sum ( p6 ) * t ( p6 h1 )_t * v ( h9 h11 p6 p8 )_v */
-        tC = Tensor4(H9B,H11B,H1B,P8B,0,0,1,2,iV_tensor);
-        tA = Tensor2(P6B,H1B,0,1,T_tensor);
-        tB = Tensor4(H9B,H11B,P6B,P8B,0,0,1,1,V_tensor);
+        tC = Tensor4(H9B,H11B,H1B,P8B,0,0,1,2,iV_tensor, dist_nw);
+        tA = Tensor2(P6B,H1B,0,1,T_tensor, dist_nwma);
+        tB = Tensor4(H9B,H11B,P6B,P8B,0,0,1,1,V_tensor, dist_nwi);
         m_t2_6_2_2 = Multiplication(tC,tA,tB,0.5);
 
         /* i1 ( h9 h11 h1 h2 )_vt + = 1 * P( 2 ) * Sum ( p8 ) * t ( p8 h1 )_t * i2 ( h9 h11 h2 p8 )_v */
-        tC = Tensor4(H9B,H11B,H1B,H2B,0,0,1,1,iVT_tensor);
-        tA = Tensor2(P8B,H1B,0,1,T_tensor);
-        tB = Tensor4(H9B,H11B,H2B,P8B,0,0,1,2,iV_tensor);
+        tC = Tensor4(H9B,H11B,H1B,H2B,0,0,1,1,iVT_tensor, dist_nw);
+        tA = Tensor2(P8B,H1B,0,1,T_tensor, dist_nwma);
+        tB = Tensor4(H9B,H11B,H2B,P8B,0,0,1,2,iV_tensor, dist_nw);
         m_t2_6_2 = Multiplication(tC,tA,tB,1.0);
 
         /* i1 ( h9 h11 h1 h2 )_vt + = -1/2 * Sum ( p5 p6 ) * t ( p5 p6 h1 h2 )_t * v ( h9 h11 p5 p6 )_v */
-        tC = Tensor4(H9B,H11B,H1B,H2B,0,0,1,1,iVT_tensor);
-        tA = Tensor4(P5B,P6B,H1B,H2B,0,0,1,1,T_tensor);
-        tB = Tensor4(H9B,H11B,P5B,P6B,0,0,1,1,V_tensor);
+        tC = Tensor4(H9B,H11B,H1B,H2B,0,0,1,1,iVT_tensor, dist_nw);
+        tA = Tensor4(P5B,P6B,H1B,H2B,0,0,1,1,T_tensor, dist_nw);
+        tB = Tensor4(H9B,H11B,P5B,P6B,0,0,1,1,V_tensor, dist_nwi);
         m_t2_6_3 = Multiplication(tC,tA,tB,-0.5);
 
         /* i0 ( p3 p4 h1 h2 )_vt + = -1/2 * Sum ( h11 h9 ) * t ( p3 p4 h9 h11 )_t * i1 ( h9 h11 h1 h2 )_v */
-        tC = Tensor4(P3B,P4B,H1B,H2B,0,0,1,1,iVT_tensor);
-        tA = Tensor4(P3B,P4B,H9B,H11B,0,0,1,1,T_tensor);
-        tB = Tensor4(H9B,H11B,H1B,H2B,0,0,1,1,iV_tensor);
+        tC = Tensor4(P3B,P4B,H1B,H2B,0,0,1,1,iVT_tensor, dist_nw);
+        tA = Tensor4(P3B,P4B,H9B,H11B,0,0,1,1,T_tensor, dist_nw);
+        tB = Tensor4(H9B,H11B,H1B,H2B,0,0,1,1,iV_tensor, dist_nw);
         m_t2_6 = Multiplication(tC,tA,tB,-0.5);
 
         /* i0 ( p3 p4 h1 h2 )_vt + = 1/2 * Sum ( p5 p6 ) * t ( p5 p6 h1 h2 )_t * v ( p3 p4 p5 p6 )_v */
-        tC = Tensor4(P3B,P4B,H1B,H2B,0,0,1,1,iVT_tensor);
-        tA = Tensor4(P5B,P6B,H1B,H2B,0,0,1,1,T_tensor);
-        tB = Tensor4(P3B,P4B,P5B,P6B,0,0,1,1,V_tensor);
+        tC = Tensor4(P3B,P4B,H1B,H2B,0,0,1,1,iVT_tensor, dist_nw);
+        tA = Tensor4(P5B,P6B,H1B,H2B,0,0,1,1,T_tensor, dist_nw);
+        tB = Tensor4(P3B,P4B,P5B,P6B,0,0,1,1,V_tensor, dist_nwi);
         m_t2_8 = Multiplication(tC,tA,tB,0.5);
 
         set_t2_68 = false;

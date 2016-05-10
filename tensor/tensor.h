@@ -13,6 +13,7 @@ using namespace std;
 
 namespace ctce {
 
+	enum DistType { dist_nwi, dist_nwma, dist_nw};
 
   class Tensor {
     private:
@@ -44,6 +45,8 @@ namespace ctce {
       std::vector<Integer> perm_;
 
     public:
+			DistType dist_type_;
+
       /**
        * Constructor
        */
@@ -62,10 +65,11 @@ namespace ctce {
        * @param[in] ids Indices of this tensor
        * @param[in] type Type of this tensor
        */
-      Tensor(const int& n, Index ids[], TensorType type)
+	Tensor(const int& n, Index ids[], TensorType type, DistType dist_type)
         : dim_(n),
         type_(type),
-        sign_(1) {
+        sign_(1),
+				dist_type_(dist_type) {
           ids_.resize(n);
           name_.resize(n);
           value_.resize(n);
@@ -323,7 +327,7 @@ namespace ctce {
     * @param[in] e2 second index symmetry group, should be 1
     * @param[in] type type of the tensor
     */
-    Tensor Tensor2(IndexName n1, IndexName n2, int e1, int e2, TensorType type);
+    Tensor Tensor2(IndexName n1, IndexName n2, int e1, int e2, TensorType type, DistType dt=dist_nw);
 
     /**
     * Function that can create a 4-d tensor
@@ -338,7 +342,7 @@ namespace ctce {
     * @param[in] type type of the tensor
     */
     Tensor Tensor4(IndexName n1, IndexName n2, IndexName n3, IndexName n4,
-        int e1, int e2, int e3, int e4, TensorType type);
+									 int e1, int e2, int e3, int e4, TensorType type, DistType dt=dist_nw);
 
     /**
     * Function that can create a 6-d tensor
@@ -357,7 +361,7 @@ namespace ctce {
     * @param[in] type type of the tensor
     */
     Tensor Tensor6(IndexName n1, IndexName n2, IndexName n3, IndexName n4, IndexName n5, IndexName n6,
-        int e1, int e2, int e3, int e4, int e5, int e6, TensorType type);
+									 int e1, int e2, int e3, int e4, int e5, int e6, TensorType type, DistType dt=dist_nw);
 
   };
 

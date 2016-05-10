@@ -1,4 +1,6 @@
 #include "tensor.h"
+#include <iostream>
+using namespace std;
 
 namespace ctce {
 
@@ -48,18 +50,22 @@ namespace ctce {
     if (n==2) {
       if (get_ma) {
         double *dbl_mb = Variables::dbl_mb();
+	assert(dist_type_ == dist_nwma);
         get_hash_block_ma_(&dbl_mb[d_a], buf, &size, &int_mb[d_a_offset], &key);
       }
       else {
+	assert(dist_type_ == dist_nw);
         get_hash_block_(&d_a, buf, &size, &int_mb[d_a_offset], &key);
       }
     }
     else if (n==4) {
       if (get_i) {
+	assert(dist_type_ == dist_nwi);
         get_hash_block_i_(&d_a, buf, &size, &int_mb[d_a_offset], &key, 
             &is[3], &is[2], &is[1], &is[0]); // special case
       }
       else {
+	assert(dist_type_ == dist_nw);
         get_hash_block_(&d_a, buf, &size, &int_mb[d_a_offset], &key);
       }
     }
@@ -78,38 +84,42 @@ namespace ctce {
       offset *= noab + nvab;
     }
     if (Variables::intorb()) {
+      assert(dist_type_ == dist_nwi);
       get_hash_block_i_(&d_a, buf, &size, &int_mb[d_a_offset], &key, 
           &is[3], &is[2], &is[1], &is[0]);
     }
     else {
+      assert(dist_type_ == dist_nw);
       get_hash_block_(&d_a, buf, &size, &int_mb[d_a_offset], &key);
     }
   }
 
   extern "C" {
 
-    Tensor Tensor2(IndexName n1, IndexName n2, int e1, int e2, TensorType type) {
+    Tensor Tensor2(IndexName n1, IndexName n2, int e1, int e2, TensorType type,
+		   DistType dt) {
       Index i1 = Index(n1,0);
       Index i2 = Index(n2,1); // prevent error!
       Index ids[] = {i1,i2};
-      Tensor t = Tensor(2,ids,type);
+      Tensor t = Tensor(2,ids,type,dt);
       return t;
     }
 
     Tensor Tensor4(IndexName n1, IndexName n2, IndexName n3, IndexName n4,
-        int e1, int e2, int e3, int e4, TensorType type) {
+		   int e1, int e2, int e3, int e4, TensorType type, DistType dt) {
       assert(e1==0);
       Index i1 = Index(n1,e1);
       Index i2 = Index(n2,e2);
       Index i3 = Index(n3,e3);
       Index i4 = Index(n4,e4);
       Index ids[] = {i1,i2,i3,i4};
-      Tensor t = Tensor(4,ids,type);
+      Tensor t = Tensor(4,ids,type,dt);
       return t;
     }
 
     Tensor Tensor6(IndexName n1, IndexName n2, IndexName n3, IndexName n4, IndexName n5, IndexName n6,
-        int e1, int e2, int e3, int e4, int e5, int e6, TensorType type) {
+		   int e1, int e2, int e3, int e4, int e5, int e6, TensorType type,
+		   DistType dt) {
       assert(e1==0);
       Index i1 = Index(n1,e1);
       Index i2 = Index(n2,e2);
@@ -118,7 +128,7 @@ namespace ctce {
       Index i5 = Index(n5,e5);
       Index i6 = Index(n6,e6);
       Index ids[] = {i1,i2,i3,i4,i5,i6};
-      Tensor t = Tensor(6,ids,type);
+      Tensor t = Tensor(6,ids,type,dt);
       return t;
     }
 

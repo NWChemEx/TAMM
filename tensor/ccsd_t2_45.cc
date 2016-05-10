@@ -60,8 +60,8 @@ namespace ctce {
         /* i0 ( p3 p4 h1 h2 )_tf + = -1 * P( 2 ) * Sum ( h9 ) * t ( p3 p4 h1 h9 )_t * i1 ( h9 h2 )_f */
         tC = Tensor4(P3B,P4B,H1B,H2B,0,0,1,1,iTF_tensor, dist_nw, dim_ov);
         tA = Tensor4(P3B,P4B,H1B,H9B,0,0,1,1,T_tensor, dist_nw, dim_ov);
-        tB = Tensor2(H9B,H2B,0,1,iF_tensor, dist_nw, dim_ov);
-        tB.get_ma = true;
+        tB = Tensor2(H9B,H2B,0,1,iF_tensor, dist_nwma, dim_ov);
+        //tB.get_ma = true;
         m_t2_4 = Multiplication(tC,tA,tB,-1.0);
 
         /* i1 ( p3 p5 )_f + = 1 * f ( p3 p5 )_f */
@@ -85,7 +85,7 @@ namespace ctce {
         tC = Tensor4(P3B,P4B,H1B,H2B,0,0,1,1,iTF_tensor, dist_nw, dim_ov);
         tA = Tensor4(P3B,P5B,H1B,H2B,0,0,1,1,T_tensor, dist_nw, dim_ov);
         tB = Tensor2(P4B,P5B,0,1,iF_tensor, dist_nwma, dim_ov);
-        tB.get_ma = true;
+        //tB.get_ma = true;
         m_t2_5 = Multiplication(tC,tA,tB,1.0);
 
         set_t2_45 = false;

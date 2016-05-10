@@ -58,8 +58,8 @@ namespace ctce {
        */
       ~Tensor() {};
 
-      bool get_ma; /*< if true, will call get_hash_block_ma_ */
-      bool get_i; /*< if true, will call get_hash_block_i */
+      /* bool get_ma; /\*< if true, will call get_hash_block_ma_ *\/ */
+      /* bool get_i; /\*< if true, will call get_hash_block_i *\/ */
 
       /**
        * Constructor. Assign data to this tensor
@@ -101,8 +101,8 @@ namespace ctce {
           _name_ = name_;
           _value_ = value_;
           _value_r_ = value_r_;
-          get_ma = false;
-          get_i = false;
+          /* get_ma = false; */
+          /* get_i = false; */
         }
 
       /**

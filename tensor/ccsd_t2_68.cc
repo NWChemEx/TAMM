@@ -25,12 +25,12 @@ namespace ctce {
         /* i1 ( h9 h11 h1 h2 )_v + = -1 * v ( h9 h11 h1 h2 )_v */
         tC = Tensor4(H9B,H11B,H1B,H2B,0,0,1,1,iV_tensor, dist_nw, dim_ov);
         tA = Tensor4(H9B,H11B,H1B,H2B,0,0,1,1,V_tensor, idist, dim_n);
-        a_t2_6_1 = Assignment(tC,tA,-1.0);
+        a_t2_6_1 = Assignment(tC,tA,-1.0, ivec(H9B,H11B,H1B,H2B), ivec(H9B,H11B,H1B,H2B));
 
         /* i2 ( h9 h11 h1 p8 )_v + = 1 * v ( h9 h11 h1 p8 )_v */
         tC = Tensor4(H9B,H11B,H1B,P8B,0,0,1,2,iV_tensor, dist_nw, dim_ov);
         tA = Tensor4(H9B,H11B,H1B,P8B,0,0,1,2,V_tensor, idist, dim_n);
-        a_t2_6_2_1 = Assignment(tC,tA,1.0);
+        a_t2_6_2_1 = Assignment(tC,tA,1.0, ivec(H9B,H11B,H1B,P8B), ivec(H9B,H11B,H1B,P8B));
 
         /* i2 ( h9 h11 h1 p8 )_vt + = 1/2 * Sum ( p6 ) * t ( p6 h1 )_t * v ( h9 h11 p6 p8 )_v */
         tC = Tensor4(H9B,H11B,H1B,P8B,0,0,1,2,iV_tensor, dist_nw, dim_ov);

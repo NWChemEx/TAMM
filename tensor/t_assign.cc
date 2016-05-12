@@ -41,6 +41,12 @@ namespace ctce {
           }
           for (int i = 0; i < tA.dim(); ++i) {
             tA.setValueByName(a_ids[i], vtab[a_ids[i]]);
+
+	    // int pos = tA.tab_[a_ids[i]];
+	    // assert(pos>=0 && pos <=tA.ids_.size());
+	    // int v;
+	    // tA.ids_[pos].setValue(v);
+	    // a_ids_v[pos]=v;
           }
           vector<Integer> a_ids_v = tA.value();
 
@@ -49,11 +55,12 @@ namespace ctce {
               is_spin_restricted_nonzero(out_vec, 2 * tC.dim())) {
 
             Integer dimc = compute_size(out_vec); if (dimc <= 0) continue;
-            tA.gen_restricted();
+	    vector<Integer> value_r;
+            tA.gen_restricted(a_ids_v, value_r);
 
             double* buf_a = new double[dimc];
             double* buf_a_sort = new double[dimc];
-            tA.get2(*d_a, buf_a, dimc, *k_a_offset); // get2 is for t_assign use
+            tA.get2(*d_a, value_r, buf_a, dimc, *k_a_offset); // get2 is for t_assign use
 
             if (coef == -1.0) { // dscal
               for (int i = 0; i < dimc; ++i) buf_a[i] = -buf_a[i];

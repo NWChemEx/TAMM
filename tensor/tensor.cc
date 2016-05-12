@@ -25,6 +25,23 @@ namespace ctce {
     }
   }
 
+  void Tensor::gen_restricted(const std::vector<Integer>& value,
+			      std::vector<Integer> &pvalue_r) {
+    std::vector<Integer> temp;
+    temp.resize(dim_);
+    if (dim_==2)  
+      tce_restricted_2_(&value[0],&value[1],&temp[0],&temp[1]);
+    if (dim_==4)
+      tce_restricted_4_(&value[0],&value[1],&value_[2],&value_[3],
+          &temp[0],&temp[1],&temp[2],&temp[3]);
+    pvalue_r.clear();
+    for (int i=0; i<dim_; i++) {
+      //ids_[i].setValueR(temp[i]);
+      //value_r_[i] = temp[i];
+      pvalue_r.push_back(temp[i]);
+    }
+  }
+
   void Tensor::get(Integer d_a, double *buf, Integer size, Integer d_a_offset) {
     std::vector<Integer>& is = _value_r_;
     std::vector<IndexName>& ns = _name_;
@@ -113,8 +130,30 @@ namespace ctce {
   }
 
   // for t_assign only, somehow the key is different for non get_i case
-  void Tensor::get2(Integer d_a, double *buf, Integer size, Integer d_a_offset) {
-    std::vector<Integer>& is = value_r_; // <-- not _value_r_
+  // void Tensor::get2(Integer d_a, double *buf, Integer size, Integer d_a_offset) {
+  //   std::vector<Integer>& is = value_r_; // <-- not _value_r_
+  //   Integer key = 0, offset = 1;
+  //   Integer noab = Variables::noab();
+  //   Integer nvab = Variables::nvab();
+  //   Integer *int_mb = Variables::int_mb();
+  //   int n = is.size(); // = dim_;
+
+  //   assert(dim_type_ == dim_n);
+  //   for (int i=n-1; i>=0; i--) {
+  //     key += (is[i]-1) * offset;
+  //     offset *= noab + nvab;
+  //   }
+  //   if(dist_type_ == dist_nwi) {
+  //     get_hash_block_i_(&d_a, buf, &size, &int_mb[d_a_offset], &key, 
+  //         &is[3], &is[2], &is[1], &is[0]);
+  //   }
+  //   else {
+  //     get_hash_block_(&d_a, buf, &size, &int_mb[d_a_offset], &key);
+  //   }
+  // }
+
+  void Tensor::get2(Integer d_a, std::vector<Integer> &pvalue_r, double *buf, Integer size, Integer d_a_offset) {
+    std::vector<Integer>& is = pvalue_r; // <-- not _value_r_ or value_r
     Integer key = 0, offset = 1;
     Integer noab = Variables::noab();
     Integer nvab = Variables::nvab();

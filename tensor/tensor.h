@@ -211,12 +211,17 @@ namespace ctce {
        * @param[in] size size of the buf
        * @param[in] d_a_offset
        */
-      void get2(Integer d_a, double *buf, Integer size, Integer d_a_offset);
+      //void get2(Integer d_a, double *buf, Integer size, Integer d_a_offset);
+
+			void get2(Integer d_a, std::vector<Integer> &pvalue_r, double *buf, Integer size, Integer d_a_offset);
 
       /**
        * Generate restricted value from value by calling tce_restricted2/4
        */
       void gen_restricted();
+
+      void gen_restricted(const std::vector<Integer> &value,
+													std::vector<Integer> &pvalue_r);
 
       /**
        * Set the memory position for the indices

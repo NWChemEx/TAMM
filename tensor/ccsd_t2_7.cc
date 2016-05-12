@@ -14,7 +14,7 @@ namespace ctce {
       DistType idist = (Variables::intorb()) ? dist_nwi : dist_nw;
       Tensor tC = Tensor4(P3B,H1B,P5B,H6B,0,1,2,3,iV_tensor, dist_nw, dim_ov);
       Tensor tA = Tensor4(H6B,P3B,H1B,P5B,0,1,2,3,V_tensor, idist, dim_n);
-      Assignment a = Assignment(tC,tA,1.0);
+      Assignment a = Assignment(tC,tA,1.0, ivec(P3B,H1B,P5B,H6B), ivec(H6B,P3B,H1B,P5B));
       // t_assign4(d_a, k_a_offset, d_c, k_c_offset, a);
       t_assign3(d_a, k_a_offset, d_c, k_c_offset, a);
     } // t2_7_1

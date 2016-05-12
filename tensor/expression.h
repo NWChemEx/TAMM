@@ -4,6 +4,7 @@
 #include "typesf2c.h"
 #include "index.h"
 #include <vector>
+#include <set>
 #include <cassert>
 #include <iostream>
 #include "tensor.h"
@@ -11,6 +12,52 @@
 #include "iterGroup.h"
 
 namespace ctce {
+
+	static inline std::vector<IndexName> ivec(IndexName i1) {
+		return std::vector<IndexName>(i1);
+	}
+	static inline std::vector<IndexName> ivec(IndexName i1, IndexName i2) {
+		std::vector<IndexName> ret = ivec(i1);
+		ret.push_back(i2);
+		return ret;
+	}
+	static inline std::vector<IndexName> ivec(IndexName i1, IndexName i2, IndexName i3) {
+		std::vector<IndexName> ret = ivec(i1,i2);
+		ret.push_back(i3);
+		return ret;
+	}
+	static inline std::vector<IndexName> ivec(IndexName i1, IndexName i2, IndexName i3,
+															IndexName i4) {
+		std::vector<IndexName> ret = ivec(i1,i2,i3);
+		ret.push_back(i4);
+		return ret;
+	}
+	static inline bool is_permutation(const std::vector<IndexName>& ids) {
+		std::set<IndexName> sids;
+		for(int i=0; i<ids.size(); i++) {
+			std::cout<<"is_perm. id="<<ids[i]<<endl;
+			sids.insert(ids[i]);
+		}//ids.begin(), ids.end());
+		return sids.size() == ids.size();
+	}
+	static inline bool is_permutation(const std::vector<IndexName>& ids1, const std::vector<IndexName>& ids2) {
+		std::set<IndexName> sids1;
+		std::set<IndexName> sids2;
+		for(int i=0; i<ids1.size(); i++) {
+			sids1.insert(ids1[i]);
+		}
+		for(int i=0; i<ids2.size(); i++) {
+			sids2.insert(ids2[i]);
+		}
+
+		if(ids1.size() != sids1.size()) return false;
+		if(ids2.size() != sids2.size()) return false;
+		for (int i=0; i<ids1.size(); i++) {
+			if(sids2.find(ids1[i]) == sids2.end())
+				return false;
+		}
+		return true;
+	}
 
   /**
    * Assigment template. tC += coef * tA
@@ -21,6 +68,9 @@ namespace ctce {
       Tensor tA_; /*< rhs tensor */
       double coef_; /*< coefficient */
       IterGroup<triangular> out_itr_; /*< outer loop iterator */
+			std::vector<IndexName> cids_;
+			std::vector<IndexName> aids_;
+			std::vector<int> perm_;
       void init();
 
     public:
@@ -40,9 +90,18 @@ namespace ctce {
        * @param[in] tA right hand side tensor
        * @param[in] coef coefficient. most of time it is 1 or -1.
        */
-      Assignment(const Tensor& tC, const Tensor& tA, double coef)
-        : tC_(tC), tA_(tA), coef_(coef) {
+	Assignment(const Tensor& tC, const Tensor& tA, double coef,
+						 const std::vector<IndexName>& cids,
+						 const std::vector<IndexName>& aids)
+		: tC_(tC), tA_(tA), coef_(coef), cids_(cids), aids_(aids) {
           init();
+					assert(is_permutation(cids_));
+					assert(is_permutation(aids_));
+					assert(is_permutation(cids_, aids_));
+					for(unsigned i=0; i<aids_.size(); i++) {
+						perm_.push_back(std::find(cids_.begin(), cids_.end(), aids_[i])
+														- cids_.begin());
+					}
         }
 
       /**

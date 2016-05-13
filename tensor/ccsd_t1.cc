@@ -108,7 +108,7 @@ namespace ctce {
         /* i1 ( h4 h5 h1 p3 )_v + = 1 * v ( h4 h5 h1 p3 )_v */
         tC = Tensor4(H4B,H5B,H1B,P3B,0,0,1,2,iV_tensor, dist_nw, dim_ov);
         tA = Tensor4(H4B,H5B,H1B,P3B,0,0,1,2,V_tensor, idist, dim_n);
-        a_t1_6_1 = Assignment(tC,tA,1.0, ivec(H4B,H5B), ivec(H4B,H5B));
+        a_t1_6_1 = Assignment(tC,tA,1.0, ivec(H4B,H5B,H1B,P3B), ivec(H4B,H5B,H1B,P3B));
 
         /* i1 ( h4 h5 h1 p3 )_vt + = -1 * Sum ( p6 ) * t ( p6 h1 )_t * v ( h4 h5 p3 p6 )_v */
         tC = Tensor4(H4B,H5B,H1B,P3B,0,0,1,2,iVT_tensor, dist_nw, dim_ov);

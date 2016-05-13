@@ -14,7 +14,9 @@
 namespace ctce {
 
 	static inline std::vector<IndexName> ivec(IndexName i1) {
-		return std::vector<IndexName>(i1);
+		std::vector<IndexName> ret;
+		ret.push_back(i1);
+		return ret;
 	}
 	static inline std::vector<IndexName> ivec(IndexName i1, IndexName i2) {
 		std::vector<IndexName> ret = ivec(i1);

@@ -35,23 +35,12 @@ namespace ctce {
 		return ret;
 	}
 	static inline bool is_permutation(const std::vector<IndexName>& ids) {
-		std::set<IndexName> sids;
-		for(int i=0; i<ids.size(); i++) {
-			std::cout<<"is_perm. id="<<ids[i]<<endl;
-			sids.insert(ids[i]);
-		}//ids.begin(), ids.end());
+		std::set<IndexName> sids(ids.begin(), ids.end());
 		return sids.size() == ids.size();
 	}
 	static inline bool is_permutation(const std::vector<IndexName>& ids1, const std::vector<IndexName>& ids2) {
-		std::set<IndexName> sids1;
-		std::set<IndexName> sids2;
-		for(int i=0; i<ids1.size(); i++) {
-			sids1.insert(ids1[i]);
-		}
-		for(int i=0; i<ids2.size(); i++) {
-			sids2.insert(ids2[i]);
-		}
-
+		std::set<IndexName> sids1(ids1.begin(), ids1.end());
+		std::set<IndexName> sids2(ids2.begin(), ids2.end());
 		if(ids1.size() != sids1.size()) return false;
 		if(ids2.size() != sids2.size()) return false;
 		for (int i=0; i<ids1.size(); i++) {
@@ -72,7 +61,6 @@ namespace ctce {
       IterGroup<triangular> out_itr_; /*< outer loop iterator */
 			std::vector<IndexName> cids_;
 			std::vector<IndexName> aids_;
-			std::vector<int> perm_;
       void init();
 
     public:
@@ -100,10 +88,6 @@ namespace ctce {
 					assert(is_permutation(cids_));
 					assert(is_permutation(aids_));
 					assert(is_permutation(cids_, aids_));
-					for(unsigned i=0; i<aids_.size(); i++) {
-						perm_.push_back(std::find(cids_.begin(), cids_.end(), aids_[i])
-														- cids_.begin());
-					}
         }
 
       /**
@@ -115,6 +99,10 @@ namespace ctce {
        * Get rhs tensor tA
        */
       Tensor& tA() { return tA_; }
+
+      const std::vector<IndexName> &cids() const { return cids_; }
+
+      const std::vector<IndexName> &aids() const { return aids_; }
 
       /**
        * Get coefficient

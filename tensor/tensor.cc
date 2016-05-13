@@ -32,7 +32,7 @@ namespace ctce {
     if (dim_==2)  
       tce_restricted_2_(&value[0],&value[1],&temp[0],&temp[1]);
     if (dim_==4)
-      tce_restricted_4_(&value[0],&value[1],&value_[2],&value_[3],
+      tce_restricted_4_(&value[0],&value[1],&value[2],&value[3],
           &temp[0],&temp[1],&temp[2],&temp[3]);
     pvalue_r.clear();
     for (int i=0; i<dim_; i++) {

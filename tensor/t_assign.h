@@ -18,8 +18,12 @@ namespace ctce {
      * @param[in] tC += tA * coef
      * @param[in] out_itr outer iterator group
      */
-    void t_assign2(Integer* d_a, Integer* k_a_offset, Integer* d_c, Integer* k_c_offset,
-        Tensor& tC, Tensor& tA, IterGroup<triangular>& out_itr, double coef);
+    void t_assign2(
+        Integer* d_a, Integer* k_a_offset,
+        Integer* d_c, Integer* k_c_offset,
+        Tensor& tC, const vector<IndexName> &c_ids,
+				Tensor& tA, const vector<IndexName> &a_ids,
+				IterGroup<triangular>& out_itr, double coef);
 
     /**
      * Simply wrap t_assign2

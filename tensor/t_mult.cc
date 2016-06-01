@@ -5,6 +5,7 @@ namespace ctce {
 
   extern "C" {
 
+#if 0
     void t_mult(Integer* d_a, Integer* k_a_offset,
         Integer* d_b, Integer* k_b_offset, double *a_c,
         Tensor &tC, Tensor &tA, Tensor &tB, const double coef,
@@ -37,8 +38,6 @@ namespace ctce {
             vtab[c_ids[i]] = ext_vec[i];
             tC.setValueByName(c_ids[i], vtab[c_ids[i]]);
           }
-          for (int i = 0; i < tA.dim(); ++i) tA.setValueByName(a_ids[i], vtab[a_ids[i]]);
-          for (int i = 1; i < tB.dim(); ++i) tB.setValueByName(b_ids[i], vtab[b_ids[i]]);
           const vector<Integer>& c_ids_v = tC.value();
           Integer dimc = compute_size(c_ids_v);
           if (dimc == 0) continue;
@@ -137,6 +136,7 @@ namespace ctce {
       }
 
     } // t_mult2
+#endif
 
     void t_mult3(Integer* d_a, Integer* k_a_offset, Integer* d_b, Integer* k_b_offset,
         Integer* d_c, Integer* k_c_offset,
@@ -146,7 +146,7 @@ namespace ctce {
         IterGroup<CopyIter>& cp_itr,
         IterGroup<triangular>& out_itr) {
 
-      vector<Integer>& vtab = Table::value();
+      //vector<Integer>& vtab = Table::value();
       const vector<IndexName>& c_ids = tC.name();
       const vector<IndexName>& a_ids = tA.name();
       const vector<IndexName>& b_ids = tB.name();
@@ -174,13 +174,13 @@ namespace ctce {
               (is_spin_nonzero(out_vec)) &&
               (is_spin_restricted_nonzero(out_vec, 2*tC.dim())) ) {
 
+	    vector<int> vtab1(IndexNum);
             for (int i=0; i<tC.dim(); i++) {
-              vtab[c_ids[i]]=out_vec[i];
-              tC.setValueByName(c_ids[i],out_vec[i]);
+	      assert(c_ids[i] < IndexNum);
+	      vtab1[c_ids[i]] = out_vec[i];
             }
-            for (int i=0; i<tA.dim(); i++) tA.setValueByName(a_ids[i],vtab[a_ids[i]]);
-            for (int i=0; i<tB.dim(); i++) tB.setValueByName(b_ids[i],vtab[b_ids[i]]);
-            const vector<Integer>& c_ids_v = tC.value();
+	    vector<Integer> c_ids_v = out_vec;
+
             Integer dimc = compute_size(c_ids_v); if (dimc<=0) continue;
             double* buf_c_sort = new double[dimc];
             memset(buf_c_sort, 0, dimc*sizeof(double));
@@ -190,17 +190,24 @@ namespace ctce {
             while (sum_itr.next(sum_vec) || ONE_TIME) {
 
               ONE_TIME = false;
-              for (int i=0; i<sum_ids.size(); i++) {
-                tA.setValueByName(sum_ids[i],sum_vec[i]);
-                tB.setValueByName(sum_ids[i],sum_vec[i]);
-              }
-              vector<Integer>& a_ids_v = tA.value();
-              vector<Integer>& b_ids_v = tB.value();
+	      for(int i=0; i<sum_vec.size(); i++) {
+		vtab1[sum_ids[i]] = sum_vec[i];
+	      }
+	      vector<Integer> a_ids_v(tA.dim()), b_ids_v(tB.dim());
+	      for(int i=0; i<tA.dim(); i++) {
+		assert(a_ids[i] < IndexNum);
+		a_ids_v[i] = vtab1[a_ids[i]];
+	      }
+	      for(int i=0; i<tB.dim(); i++) {
+		assert(b_ids[i] < IndexNum);
+		b_ids_v[i] = vtab1[b_ids[i]];
+	      }
               if (!is_spatial_nonzero(a_ids_v, tA.irrep())) continue;
               if (!is_spin_nonzero(a_ids_v)) continue;
 
-              tA.gen_restricted();
-              tB.gen_restricted();
+	      vector<Integer> a_value_r, b_value_r;
+	      tA.gen_restricted(a_ids_v, a_value_r);
+	      tB.gen_restricted(b_ids_v, b_value_r);
 
               Integer dim_common = compute_size(sum_vec);
               Integer dima = compute_size(a_ids_v); if (dima<=0) continue;
@@ -210,18 +217,32 @@ namespace ctce {
 
               double* buf_a = new double[dima];
               double* buf_a_sort = new double[dima];
-              tA.sortByValueThenExtSymGroup();
+#if 1
+              for (int i=0; i<a_ids.size(); i++) {
+                tA.setValueByName(a_ids[i],a_ids_v[i]);
+	      }
+	      for(int i=0; i<b_ids.size(); i++) {
+                tB.setValueByName(b_ids[i],b_ids_v[i]);
+              }
+	      tA.setValueR(a_value_r);
+	      tB.setValueR(b_value_r);
+#endif
+	      vector<Integer> a_svalue_r, b_svalue_r;
+	      vector<IndexName> a_name;
+	      vector<IndexName> b_name;
+              tA.sortByValueThenExtSymGroup(a_name, a_svalue_r);
+              tB.sortByValueThenExtSymGroup(b_name, b_svalue_r);
+
               // if (tA.dim()==2) tA.get_ma = true;
-              tA.get(*d_a,buf_a,dima,*k_a_offset);
-              tce_sort(buf_a, buf_a_sort, tA._value(), tA.sort_ids(), (double)tA.sign());
+              tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);
+              tce_sort(buf_a, buf_a_sort, tA._value(), tA.sort_ids(a_name), (double)tA.sign());
               delete [] buf_a;
 
               double* buf_b = new double[dimb];
               double* buf_b_sort = new double[dimb];
-              tB.sortByValueThenExtSymGroup();
               // if (!tB.isIntermediate()) tB.get_i = true;
-              tB.get(*d_b,buf_b,dimb,*k_b_offset);
-              tce_sort(buf_b, buf_b_sort, tB._value(), tB.sort_ids(), (double)tB.sign());
+              tB.get(*d_b,b_svalue_r,b_name,buf_b,dimb,*k_b_offset);
+              tce_sort(buf_b, buf_b_sort, tB._value(), tB.sort_ids(b_name), (double)tB.sign());
               delete [] buf_b;
 
               double beta = computeBeta(sum_ids,sum_vec);
@@ -233,20 +254,30 @@ namespace ctce {
               delete [] buf_b_sort;
             } // sum_itr
 
-            tC.sortByValueThenExtSymGroup();
+#if 1	
+          for (int i = 0; i < tC.dim(); ++i) {
+            tC.setValueByName(c_ids[i], vtab1[c_ids[i]]);
+          }
+	  tC.setValueR(c_ids_v);
+#endif
+	  vector<IndexName> c_name;
+	  vector<Integer> c_svalue_r;
+	  tC.sortByValueThenExtSymGroup(c_name, c_svalue_r);
             vector<Integer> tid = tC._value();
 
             cp_itr.reset();
             vector<Integer> perm;
             while (cp_itr.next(perm)) {
               cp_itr.fix_ids_for_copy(perm);
-              tC.orderIds(perm);
-              if (compareVec<Integer>(tid, tC._value())) {
+	      vector<IndexName> name;
+	      vector<Integer> value, value_r;
+              tC.orderIds(perm, name, value, value_r);
+              if (compareVec<Integer>(tid, value)) {
                 double sign = coef * cp_itr.sign();
                 double* buf_c = new double[dimc];
-                tce_sort(buf_c_sort, buf_c, tC.getMemPosVal(), tC.perm(), sign);
+                tce_sort(buf_c_sort, buf_c, tC.getMemPosVal(), tC.perm(name), sign);
 
-                tce_add_hash_block_(d_c, buf_c, dimc, *k_c_offset, tC._value(), tC._name());
+                tce_add_hash_block_(d_c, buf_c, dimc, *k_c_offset, value, name);
 
                 delete [] buf_c;
               }

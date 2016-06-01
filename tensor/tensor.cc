@@ -28,6 +28,7 @@ namespace ctce {
   void Tensor::gen_restricted(const std::vector<Integer>& value,
 			      std::vector<Integer> &pvalue_r) {
     std::vector<Integer> temp;
+    assert(value.size() == dim_);
     temp.resize(dim_);
     if (dim_==2)  
       tce_restricted_2_(&value[0],&value[1],&temp[0],&temp[1]);
@@ -42,9 +43,11 @@ namespace ctce {
     }
   }
 
-  void Tensor::get(Integer d_a, double *buf, Integer size, Integer d_a_offset) {
-    std::vector<Integer>& is = _value_r_;
-    std::vector<IndexName>& ns = _name_;
+  void Tensor::get(Integer d_a, std::vector<Integer> &pvalue_r,
+		   std::vector<IndexName> &name,
+		   double *buf, Integer size, Integer d_a_offset) {
+    std::vector<Integer>& is = pvalue_r;//_value_r_;
+    std::vector<IndexName>& ns = name;//_name_;
     Integer key = 0, offset = 1;
     Integer noab = Variables::noab();
     Integer nvab = Variables::nvab();

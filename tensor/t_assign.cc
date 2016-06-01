@@ -38,21 +38,6 @@ namespace ctce {
 
         if (next == count) {
 
-#if 0
-          for (int i = 0; i < tC.dim(); ++i) {
-            vtab[c_ids[i]] = out_vec[i];
-          }
-          for (int i = 0; i < tA.dim(); ++i) {
-            tA.setValueByName(a_ids[i], vtab[a_ids[i]]);
-
-	    // int pos = tA.tab_[a_ids[i]];
-	    // assert(pos>=0 && pos <=tA.ids_.size());
-	    // int v;
-	    // tA.ids_[pos].setValue(v);
-	    // a_ids_v[pos]=v;
-          }
-          vector<Integer> a_ids_v = tA.value();
-#else
 	  vector<int> vtab1(IndexNum);
           for (int i = 0; i < tC.dim(); ++i) {
 	    assert(c_ids[i] < IndexNum);
@@ -63,11 +48,6 @@ namespace ctce {
 	    assert(a_ids[i] < IndexNum);
             a_ids_v[i] = vtab1[a_ids[i]];
           }
-	  // cout<<"cids[0:"<<c_ids.size()<<"]="<<c_ids[0]<<" "<<c_ids[1]<<" "<<c_ids[2]<<" "<<c_ids[3]<<endl;
-	  // cout<<"aids[0:"<<a_ids.size()<<"]="<<a_ids[0]<<" "<<a_ids[1]<<" "<<a_ids[2]<<" "<<a_ids[3]<<endl;
-	  // cout<<"outvec[0:"<<out_vec.size()<<"]="<<out_vec[0]<<" "<<out_vec[1]<<" "<<out_vec[2]<<" "<<out_vec[3]<<endl;
-	  // cout<<"a_ids_v[0:"<<a_ids_v.size()<<"]="<<a_ids_v[0]<<" "<<a_ids_v[1]<<" "<<a_ids_v[2]<<" "<<a_ids_v[3]<<endl;
-#endif
           if (is_spatial_nonzero(out_vec, tA.irrep()) &&
               is_spin_nonzero(a_ids_v) &&
               is_spin_restricted_nonzero(out_vec, 2 * tC.dim())) {
@@ -75,8 +55,6 @@ namespace ctce {
             Integer dimc = compute_size(out_vec); if (dimc <= 0) continue;
 	    vector<Integer> value_r;
             tA.gen_restricted(a_ids_v, value_r);
-
-	    // cout<<"value_r[0:"<<value_r.size()<<"]="<<value_r[0]<<" "<<value_r[1]<<" "<<value_r[2]<<" "<<value_r[3]<<endl;
 
             double* buf_a = new double[dimc];
             double* buf_a_sort = new double[dimc];

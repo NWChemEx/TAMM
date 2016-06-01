@@ -236,14 +236,16 @@ namespace ctce {
 
               // if (tA.dim()==2) tA.get_ma = true;
               tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);
-              tce_sort(buf_a, buf_a_sort, a_svalue/*tA._value()*/, tA.sort_ids(a_name), (double)a_sign /*(double)tA.sign()*/);
+	      vector<Integer> a_sort_ids = tA.sort_ids(a_name);
+              tce_sort(buf_a, buf_a_sort, a_svalue/*tA._value()*/, a_sort_ids/*tA.sort_ids(a_name)*/, (double)a_sign /*(double)tA.sign()*/);
               delete [] buf_a;
 
               double* buf_b = new double[dimb];
               double* buf_b_sort = new double[dimb];
               // if (!tB.isIntermediate()) tB.get_i = true;
               tB.get(*d_b,b_svalue_r,b_name,buf_b,dimb,*k_b_offset);
-              tce_sort(buf_b, buf_b_sort, b_svalue/*tB._value()*/, tB.sort_ids(b_name), (double)b_sign /*(double)tB.sign()*/);
+	      vector<Integer> b_sort_ids = tB.sort_ids(b_name);
+              tce_sort(buf_b, buf_b_sort, b_svalue/*tB._value()*/, b_sort_ids /*tB.sort_ids(b_name)*/, (double)b_sign /*(double)tB.sign()*/);
               delete [] buf_b;
 
               double beta = computeBeta(sum_ids,sum_vec);

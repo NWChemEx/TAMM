@@ -36,7 +36,7 @@ namespace ctce {
       /* replicates for sorting */
       //std::vector<Index> _ids_; /*< indices of this tensor after sorting */
       //std::vector<IndexName> _name_; /*< indices name of this tensor after sorting */
-      std::vector<Integer> _value_; /*< indices value of this tensor after sorting */
+      //std::vector<Integer> _value_; /*< indices value of this tensor after sorting */
       //std::vector<Integer> _value_r_; /*< indices restricted value of this tensor after sorting*/
 
       std::vector<int> pos1; /*< pos1 = (0 1 2 3 ...) */
@@ -99,7 +99,7 @@ namespace ctce {
           /* replicates */
           //_ids_ = ids_;
           //_name_ = name_;
-          _value_ = value_;
+          //_value_ = value_;
           //_value_r_ = value_r_;
           /* get_ma = false; */
           /* get_i = false; */
@@ -151,7 +151,7 @@ namespace ctce {
        * Get the indices value of the tensor after sorting
        * @return value as a vector of Integer
        */
-      inline std::vector<Integer>& _value() { return _value_; }
+      //inline std::vector<Integer>& _value() { return _value_; }
 
       /**
        * Get the indices restricted value of the tensor after sorting
@@ -272,6 +272,7 @@ namespace ctce {
       /* } */
 
       inline void sortByValueThenExtSymGroup(std::vector<IndexName> &name,
+																						 std::vector<Integer> &pvalue,
 																						 std::vector<Integer> &pvalue_r) {
         int n = ids_.size();
 				std::vector<Index> _ids_ = ids_;
@@ -280,10 +281,12 @@ namespace ctce {
         for (int i=0; i<n; i++) pos2[i]=tab_[_ids_[i].name()];
         sign_ = countParitySign<int>(pos1,pos2);
 				pvalue_r.resize(n);
+				pvalue.resize(n);
 				name.resize(n);
         for (int i=0; i<n; i++) {
           name[i] = _ids_[i].name();
-          _value_[i] = _ids_[i].value();
+					pvalue[i] = _ids_[i].value();
+          //_value_[i] = _ids_[i].value();
           //_value_r_[i] = _ids_[i].value_r();
           pvalue_r[i] = _ids_[i].value_r();
         }

@@ -22,7 +22,7 @@ namespace ctce {
       //int sign_; /*< sign of this tensor: 1 or -1 */
       std::vector<IndexName> mem_pos_;	/*< memory position of the indices */
       //std::vector<int> tab_; /*< map(Index,int): (p4,0)(p5,1)(p6,2)(h1,3)(h2,4)(h3,5) */
-      TensorType type_; /*< type of this tensor: F_tensor, T_tensor, etc. */
+      //TensorType type_; /*< type of this tensor: F_tensor, T_tensor, etc. */
       //std::vector<int> ext_sym_group_; /*< external symmetry group of this tensor */
 
       /* initial setting, will not change */
@@ -67,7 +67,7 @@ namespace ctce {
        */
 	Tensor(const int& n, Index ids[], TensorType type, DistType dist_type, DimType dim_type)
         : dim_(n),
-        type_(type),
+        //type_(type),
         //sign_(1),
 				dist_type_(dist_type),
 				dim_type_(dim_type) {
@@ -174,7 +174,7 @@ namespace ctce {
        * Get the type of the tensor
        * @return type as TensorType
        */
-      inline const TensorType& type() const { return type_; }
+      //inline const TensorType& type() const { return type_; }
 
       /**
        * Get the external symmetry group of the tensor
@@ -198,12 +198,12 @@ namespace ctce {
        * Check if this tensor is an intermediate: iF_tensor, iV_tensor, etc.
        * @return bool value
        */
-      inline bool isIntermediate() {
-        if ((type_==iV_tensor)||(type_==iT_tensor)||(type_==iF_tensor)||
-            (type_==iVT_tensor)||(type_==iVF_tensor)||(type_==iTF_tensor))
-          return true;
-        return false;
-      }
+      /* inline bool isIntermediate() { */
+      /*   if ((type_==iV_tensor)||(type_==iT_tensor)||(type_==iF_tensor)|| */
+      /*       (type_==iVT_tensor)||(type_==iVF_tensor)||(type_==iTF_tensor)) */
+      /*     return true; */
+      /*   return false; */
+      /* } */
 
       // the following 4 methods need global variables, method body in tensor.cc
       /**

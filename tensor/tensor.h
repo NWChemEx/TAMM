@@ -39,8 +39,8 @@ namespace ctce {
       //std::vector<Integer> _value_; /*< indices value of this tensor after sorting */
       //std::vector<Integer> _value_r_; /*< indices restricted value of this tensor after sorting*/
 
-      std::vector<int> pos1; /*< pos1 = (0 1 2 3 ...) */
-      std::vector<int> pos2; /*< position of the indices after sorting, use to find sign by comparing it to pos1 */
+      //std::vector<int> pos1; /*< pos1 = (0 1 2 3 ...) */
+      //std::vector<int> pos2; /*< position of the indices after sorting, use to find sign by comparing it to pos1 */
       //std::vector<Integer> perm_;
 
     public:
@@ -75,8 +75,8 @@ namespace ctce {
           //name_.resize(n);
           //value_.resize(n);
           //value_r_.resize(n);
-          pos1.resize(n);
-          pos2.resize(n);
+          //pos1.resize(n);
+          //pos2.resize(n);
           //sort_ids_.resize(n);
           //sort_ids_v_.resize(n);
           //perm_.resize(n);
@@ -92,7 +92,7 @@ namespace ctce {
             //value_r_[i] = ids[i].value_r();
             tab_[ids[i].name()] = i;
             ext_sym_group_[i] = ids[i].ext_sym_group();
-            pos1[i]=i;
+            //pos1[i]=i;
           }
           /* replicates */
           //_ids_ = ids_;
@@ -289,7 +289,11 @@ namespace ctce {
 				std::vector<Index> _ids_ = ids_;
         std::sort(_ids_.begin(),_ids_.end(),compareValue);
         std::sort(_ids_.begin(),_ids_.end(),compareExtSymGroup);
-        for (int i=0; i<n; i++) pos2[i]=tab_[_ids_[i].name()];
+				std::vector<int> pos1(n), pos2(n);
+        for (int i=0; i<n; i++) {
+					pos1[i] = i;
+					pos2[i]=tab_[_ids_[i].name()];
+				}
         int sign = countParitySign<int>(pos1,pos2);
 				pvalue_r.resize(n);
 				pvalue.resize(n);

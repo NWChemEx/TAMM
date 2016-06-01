@@ -30,8 +30,8 @@ namespace ctce {
 
       /* name, value, value_r of the indices to avoid accessing ids_ every time */
       std::vector<IndexName> name_; /*< indices name of this tensor: (p1,p2,p3,p4) */
-      std::vector<Integer> value_; /*< indices value of this tensor: (0,1,2,3) */
-      std::vector<Integer> value_r_; /*< indices restricted value of this tensor */
+      //std::vector<Integer> value_; /*< indices value of this tensor: (0,1,2,3) */
+      //std::vector<Integer> value_r_; /*< indices restricted value of this tensor */
 
       /* replicates for sorting */
       //std::vector<Index> _ids_; /*< indices of this tensor after sorting */
@@ -75,8 +75,8 @@ namespace ctce {
 				dim_type_(dim_type) {
           ids_.resize(n);
           name_.resize(n);
-          value_.resize(n);
-          value_r_.resize(n);
+          //value_.resize(n);
+          //value_r_.resize(n);
           pos1.resize(n);
           pos2.resize(n);
           sort_ids_.resize(n);
@@ -90,8 +90,8 @@ namespace ctce {
           for(int i=0; i<n; i++) {
             ids_[i]=ids[i];
             name_[i] = ids[i].name();
-            value_[i] = ids[i].value();
-            value_r_[i] = ids[i].value_r();
+            //value_[i] = ids[i].value();
+            //value_r_[i] = ids[i].value_r();
             tab_[ids[i].name()] = i;
             ext_sym_group_[i] = ids[i].ext_sym_group();
             pos1[i]=i;
@@ -133,13 +133,13 @@ namespace ctce {
        * Get the indices value of the tensor
        * @return value as a vector of Integer
        */
-      inline std::vector<Integer>& value() { return value_; }
+      //inline std::vector<Integer>& value() { return value_; }
 
       /**
        * Get the indices restricted value of the tensor
        * @return value_r as a vector of Integer
        */
-      inline std::vector<Integer>& value_r() { return value_r_; }
+      //inline std::vector<Integer>& value_r() { return value_r_; }
 
       /**
        * Get the indices name of the tensor after sorting
@@ -218,7 +218,7 @@ namespace ctce {
       /**
        * Generate restricted value from value by calling tce_restricted2/4
        */
-      void gen_restricted();
+      //void gen_restricted();
 
       void gen_restricted(const std::vector<Integer> &value,
 													std::vector<Integer> &pvalue_r);
@@ -238,7 +238,7 @@ namespace ctce {
         int pos = tab_[name];
         assert(pos>=0 && pos <=ids_.size());
         ids_[pos].setValue(value);
-        value_[pos]=value;
+        //value_[pos]=value;
       }
 
       /**
@@ -249,7 +249,7 @@ namespace ctce {
         assert(ids_.size()==val.size());
         for (int i=0; i<ids_.size(); i++) {
           ids_[i].setValueR(val[i]);
-          value_r_[i]=val[i];
+          //value_r_[i]=val[i];
         }
       }
 

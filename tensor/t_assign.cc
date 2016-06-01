@@ -64,7 +64,7 @@ namespace ctce {
               for (int i = 0; i < dimc; ++i) buf_a[i] = -buf_a[i];
             }
             tce_sort(buf_a, buf_a_sort, a_ids_v, order, 1.0);
-            tce_add_hash_block_(d_c, buf_a_sort, dimc, *k_c_offset, out_vec, tC.name());
+            tce_add_hash_block_(d_c, buf_a_sort, dimc, *k_c_offset, out_vec, c_ids);
 
             delete [] buf_a;
             delete [] buf_a_sort;

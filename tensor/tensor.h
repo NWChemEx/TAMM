@@ -23,7 +23,7 @@ namespace ctce {
       std::vector<IndexName> mem_pos_;	/*< memory position of the indices */
       std::vector<int> tab_; /*< map(Index,int): (p4,0)(p5,1)(p6,2)(h1,3)(h2,4)(h3,5) */
       TensorType type_; /*< type of this tensor: F_tensor, T_tensor, etc. */
-      std::vector<int> ext_sym_group_; /*< external symmetry group of this tensor */
+      //std::vector<int> ext_sym_group_; /*< external symmetry group of this tensor */
 
       /* initial setting, will not change */
       std::vector<Index> ids_; /*< indices of the tensor, actual data */
@@ -80,7 +80,7 @@ namespace ctce {
           //sort_ids_.resize(n);
           //sort_ids_v_.resize(n);
           //perm_.resize(n);
-          ext_sym_group_.resize(n);
+          //ext_sym_group_.resize(n);
           tab_.resize(IndexNum);
           for(int i=0; i<IndexNum; i++) {
             tab_[i]=-1;
@@ -91,7 +91,7 @@ namespace ctce {
             //value_[i] = ids[i].value();
             //value_r_[i] = ids[i].value_r();
             tab_[ids[i].name()] = i;
-            ext_sym_group_[i] = ids[i].ext_sym_group();
+            //ext_sym_group_[i] = ids[i].ext_sym_group();
             //pos1[i]=i;
           }
           /* replicates */
@@ -180,7 +180,13 @@ namespace ctce {
        * Get the external symmetry group of the tensor
        * @return ext_sym_group as a vector of int
        */
-      inline const std::vector<int>& ext_sym_group() const { return ext_sym_group_; }
+      inline const std::vector<int> ext_sym_group() const { 
+				std::vector<int> esg(dim_);
+				for(int i=0; i<dim_; i++) {
+					esg[i] = ids_[i].ext_sym_group();
+				}
+				return esg;
+			}
 
       /**
        * Get the indices name of in the memory position order

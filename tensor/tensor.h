@@ -21,7 +21,7 @@ namespace ctce {
       int dim_; /*< dimension of this tensor */
       //int sign_; /*< sign of this tensor: 1 or -1 */
       std::vector<IndexName> mem_pos_;	/*< memory position of the indices */
-      std::vector<int> tab_; /*< map(Index,int): (p4,0)(p5,1)(p6,2)(h1,3)(h2,4)(h3,5) */
+      //std::vector<int> tab_; /*< map(Index,int): (p4,0)(p5,1)(p6,2)(h1,3)(h2,4)(h3,5) */
       TensorType type_; /*< type of this tensor: F_tensor, T_tensor, etc. */
       //std::vector<int> ext_sym_group_; /*< external symmetry group of this tensor */
 
@@ -81,16 +81,16 @@ namespace ctce {
           //sort_ids_v_.resize(n);
           //perm_.resize(n);
           //ext_sym_group_.resize(n);
-          tab_.resize(IndexNum);
-          for(int i=0; i<IndexNum; i++) {
-            tab_[i]=-1;
-          }
+          //tab_.resize(IndexNum);
+          /* for(int i=0; i<IndexNum; i++) { */
+          /*   tab_[i]=-1; */
+          /* } */
           for(int i=0; i<n; i++) {
             ids_[i]=ids[i];
             //name_[i] = ids[i].name();
             //value_[i] = ids[i].value();
             //value_r_[i] = ids[i].value_r();
-            tab_[ids[i].name()] = i;
+            //tab_[ids[i].name()] = i;
             //ext_sym_group_[i] = ids[i].ext_sym_group();
             //pos1[i]=i;
           }
@@ -251,11 +251,18 @@ namespace ctce {
        * @param[in] name Name of the index to set
        * @param[in] value Value of the index to set
        */
-      inline void setValueByName(const IndexName& name, const Integer& value) {
-        int pos = tab_[name];
-        assert(pos>=0 && pos <=ids_.size());
-        ids_[pos].setValue(value);
-        //value_[pos]=value;
+      /* inline void setValueByName(const IndexName& name, const Integer& value) { */
+      /*   int pos = tab_[name]; */
+      /*   assert(pos>=0 && pos <=ids_.size()); */
+      /*   ids_[pos].setValue(value); */
+      /*   //value_[pos]=value; */
+      /* } */
+
+      inline void setValue(const std::vector<Integer>& val) {
+        assert(ids_.size()==val.size());
+        for (int i=0; i<ids_.size(); i++) {
+          ids_[i].setValue(val[i]);
+        }
       }
 
       /**
@@ -291,6 +298,10 @@ namespace ctce {
       inline int sortByValueThenExtSymGroup(std::vector<IndexName> &name,
 																						 std::vector<Integer> &pvalue,
 																						 std::vector<Integer> &pvalue_r) {
+				std::vector<int> tab_(IndexNum, -1);
+				for(int i=0; i<ids_.size(); i++) {
+					tab_[ids_[i].name()] = i;
+				}
         int n = ids_.size();
 				std::vector<Index> _ids_ = ids_;
         std::sort(_ids_.begin(),_ids_.end(),compareValue);
@@ -362,6 +373,10 @@ namespace ctce {
       */
       inline std::vector<Integer> getMemPosVal() {
 				std::vector<Integer> sort_ids_v_(dim_);
+				std::vector<int> tab_(IndexNum, -1);
+				for(int i=0; i<ids_.size(); i++) {
+					tab_[ids_[i].name()] = i;
+				}
         for (int i=0; i<dim_; i++) {
           int pos = tab_[mem_pos_[i]];
           sort_ids_v_[i]=ids_[pos].value();

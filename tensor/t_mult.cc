@@ -218,12 +218,9 @@ namespace ctce {
               double* buf_a = new double[dima];
               double* buf_a_sort = new double[dima];
 #if 1
-              for (int i=0; i<a_ids.size(); i++) {
-                tA.setValueByName(a_ids[i],a_ids_v[i]);
-	      }
-	      for(int i=0; i<b_ids.size(); i++) {
-                tB.setValueByName(b_ids[i],b_ids_v[i]);
-              }
+	      assert(tA.dim() == a_ids_v.size());
+	      tA.setValue(a_ids_v);
+	      tB.setValue(b_ids_v);
 	      tA.setValueR(a_value_r);
 	      tB.setValueR(b_value_r);
 #endif
@@ -258,9 +255,7 @@ namespace ctce {
             } // sum_itr
 
 #if 1	
-          for (int i = 0; i < tC.dim(); ++i) {
-            tC.setValueByName(c_ids[i], vtab1[c_ids[i]]);
-          }
+	  tC.setValue(c_ids_v);
 	  tC.setValueR(c_ids_v);
 #endif
 	  vector<IndexName> c_name;

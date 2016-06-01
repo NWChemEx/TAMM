@@ -277,7 +277,8 @@ namespace ctce {
               if (compareVec<Integer>(tid, value)) {
                 double sign = coef * cp_itr.sign();
                 double* buf_c = new double[dimc];
-                tce_sort(buf_c_sort, buf_c, tC.getMemPosVal(), tC.perm(name), sign);
+		std::vector<Integer> cperm = tC.perm(name);
+                tce_sort(buf_c_sort, buf_c, tC.getMemPosVal(), cperm, sign);
 
                 tce_add_hash_block_(d_c, buf_c, dimc, *k_c_offset, value, name);
 

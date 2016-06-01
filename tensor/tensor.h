@@ -43,7 +43,7 @@ namespace ctce {
       std::vector<int> pos2; /*< position of the indices after sorting, use to find sign by comparing it to pos1 */
       std::vector<Integer> sort_ids_;
       std::vector<Integer> sort_ids_v_;
-      std::vector<Integer> perm_;
+      //std::vector<Integer> perm_;
 
     public:
 			DistType dist_type_;
@@ -81,7 +81,7 @@ namespace ctce {
           pos2.resize(n);
           sort_ids_.resize(n);
           sort_ids_v_.resize(n);
-          perm_.resize(n);
+          //perm_.resize(n);
           ext_sym_group_.resize(n);
           tab_.resize(IndexNum);
           for(int i=0; i<IndexNum; i++) {
@@ -382,11 +382,12 @@ namespace ctce {
       /*   return perm_; */
       /* } */
 
-      inline std::vector<Integer>& perm(const std::vector<IndexName> &name) {
+      inline std::vector<Integer> perm(const std::vector<IndexName> &name) {
+				vector<Integer> lperm(dim_);
         for (int i=0; i<dim_; i++) {
-          perm_[i] = std::find(mem_pos_.begin(), mem_pos_.end(), name[i]) - mem_pos_.begin() + 1;
+          lperm[i] = std::find(mem_pos_.begin(), mem_pos_.end(), name[i]) - mem_pos_.begin() + 1;
         }
-        return perm_;
+        return lperm;
       }
 
   }; // Tensor

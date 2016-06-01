@@ -41,8 +41,6 @@ namespace ctce {
 
       std::vector<int> pos1; /*< pos1 = (0 1 2 3 ...) */
       std::vector<int> pos2; /*< position of the indices after sorting, use to find sign by comparing it to pos1 */
-      std::vector<Integer> sort_ids_;
-      std::vector<Integer> sort_ids_v_;
       //std::vector<Integer> perm_;
 
     public:
@@ -79,8 +77,8 @@ namespace ctce {
           //value_r_.resize(n);
           pos1.resize(n);
           pos2.resize(n);
-          sort_ids_.resize(n);
-          sort_ids_v_.resize(n);
+          //sort_ids_.resize(n);
+          //sort_ids_v_.resize(n);
           //perm_.resize(n);
           ext_sym_group_.resize(n);
           tab_.resize(IndexNum);
@@ -352,7 +350,8 @@ namespace ctce {
       * Get the value of the indices in memory position order
       * @return memory position value as vector of Integer
       */
-      inline std::vector<Integer>& getMemPosVal() {
+      inline std::vector<Integer> getMemPosVal() {
+				std::vector<Integer> sort_ids_v_(dim_);
         for (int i=0; i<dim_; i++) {
           int pos = tab_[mem_pos_[i]];
           sort_ids_v_[i]=ids_[pos].value();
@@ -364,7 +363,8 @@ namespace ctce {
       * Get the position of the indices in memory from the position of sorted indices
       * @return sort_ids vector of Integer indicates the position
       */
-      inline std::vector<Integer>& sort_ids(std::vector<IndexName> &name) {
+      inline std::vector<Integer> sort_ids(std::vector<IndexName> &name) {
+				std::vector<Integer> sort_ids_(dim_);
         for (int i=0; i<dim_; i++) {
           sort_ids_[i] = std::find(name.begin(), name.end(), mem_pos_[i]) - name.begin() + 1;
         }

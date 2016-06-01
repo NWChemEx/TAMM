@@ -34,10 +34,10 @@ namespace ctce {
       std::vector<Integer> value_r_; /*< indices restricted value of this tensor */
 
       /* replicates for sorting */
-      std::vector<Index> _ids_; /*< indices of this tensor after sorting */
-      std::vector<IndexName> _name_; /*< indices name of this tensor after sorting */
+      //std::vector<Index> _ids_; /*< indices of this tensor after sorting */
+      //std::vector<IndexName> _name_; /*< indices name of this tensor after sorting */
       std::vector<Integer> _value_; /*< indices value of this tensor after sorting */
-      std::vector<Integer> _value_r_; /*< indices restricted value of this tensor after sorting*/
+      //std::vector<Integer> _value_r_; /*< indices restricted value of this tensor after sorting*/
 
       std::vector<int> pos1; /*< pos1 = (0 1 2 3 ...) */
       std::vector<int> pos2; /*< position of the indices after sorting, use to find sign by comparing it to pos1 */
@@ -97,10 +97,10 @@ namespace ctce {
             pos1[i]=i;
           }
           /* replicates */
-          _ids_ = ids_;
-          _name_ = name_;
+          //_ids_ = ids_;
+          //_name_ = name_;
           _value_ = value_;
-          _value_r_ = value_r_;
+          //_value_r_ = value_r_;
           /* get_ma = false; */
           /* get_i = false; */
         }
@@ -145,7 +145,7 @@ namespace ctce {
        * Get the indices name of the tensor after sorting
        * @return name as a vector of IndexName
        */
-      inline const std::vector<IndexName>& _name() const { return _name_; }
+      //inline const std::vector<IndexName>& _name() const { return _name_; }
 
       /**
        * Get the indices value of the tensor after sorting
@@ -157,7 +157,7 @@ namespace ctce {
        * Get the indices restricted value of the tensor after sorting
        * @return value as a vector of Integer
        */
-      inline std::vector<Integer>& _value_r() { return _value_r_; }
+      //inline std::vector<Integer>& _value_r() { return _value_r_; }
 
       /**
        * Get the type of the tensor
@@ -202,7 +202,7 @@ namespace ctce {
        * @param[in] size size of the buf
        * @param[in] d_a_offset
        */
-      void get(Integer d_a, double *buf, Integer size, Integer d_a_offset);
+      void get(Integer d_a, std::vector<Integer> &pvalue_r, std::vector<IndexName> &name, double *buf, Integer size, Integer d_a_offset);
 
       /**
        * Get data by get_hash_block_xx and store in buf, this function is for t_assign
@@ -257,17 +257,35 @@ namespace ctce {
        * Sorting method, first sort the indices by value, and then by external symmetry group
        * The initial data remain unchanged, only modify _ids_, _name_, _value_, _value_r_
        */
-      inline void sortByValueThenExtSymGroup() {
+      /* inline void sortByValueThenExtSymGroup() { */
+      /*   int n = ids_.size(); */
+			/* 	std::vector<Index> _ids_ = ids_; */
+      /*   std::sort(_ids_.begin(),_ids_.end(),compareValue); */
+      /*   std::sort(_ids_.begin(),_ids_.end(),compareExtSymGroup); */
+      /*   for (int i=0; i<n; i++) pos2[i]=tab_[_ids_[i].name()]; */
+      /*   sign_ = countParitySign<int>(pos1,pos2); */
+      /*   for (int i=0; i<n; i++) { */
+      /*     //_name_[i] = _ids_[i].name(); */
+      /*     _value_[i] = _ids_[i].value(); */
+      /*     //_value_r_[i] = _ids_[i].value_r(); */
+      /*   } */
+      /* } */
+
+      inline void sortByValueThenExtSymGroup(std::vector<IndexName> &name,
+																						 std::vector<Integer> &pvalue_r) {
         int n = ids_.size();
-        _ids_ = ids_;
+				std::vector<Index> _ids_ = ids_;
         std::sort(_ids_.begin(),_ids_.end(),compareValue);
         std::sort(_ids_.begin(),_ids_.end(),compareExtSymGroup);
         for (int i=0; i<n; i++) pos2[i]=tab_[_ids_[i].name()];
         sign_ = countParitySign<int>(pos1,pos2);
+				pvalue_r.resize(n);
+				name.resize(n);
         for (int i=0; i<n; i++) {
-          _name_[i] = _ids_[i].name();
+          name[i] = _ids_[i].name();
           _value_[i] = _ids_[i].value();
-          _value_r_[i] = _ids_[i].value_r();
+          //_value_r_[i] = _ids_[i].value_r();
+          pvalue_r[i] = _ids_[i].value_r();
         }
       }
 
@@ -276,16 +294,40 @@ namespace ctce {
       * For example, (0,1,3,2) will swap the 3rd and 4th indices position
       * @param[in] order new position of the indices as a vector of Integer
       */
-      inline void orderIds(const std::vector<Integer>& order) {
+      /* inline void orderIds(const std::vector<Integer>& order) { */
+      /*   int n = ids_.size(); */
+			/* 	std::vector<Index> _ids_(ids_.size()); */
+      /*   for (int i=0; i<n; i++) { */
+      /*     assert(order[i]>=0 && order[i]<n); */
+      /*     _ids_[i]=ids_[order[i]]; */
+      /*   } */
+      /*   for (int i=0; i<n; i++) { */
+      /*     //_name_[i] = _ids_[i].name(); */
+      /*     _value_[i] = _ids_[i].value(); */
+      /*     //_value_r_[i] = _ids_[i].value_r(); */
+      /*   } */
+      /* } */
+
+      inline void orderIds(const std::vector<Integer>& order,
+													 std::vector<IndexName>& name,
+													 std::vector<Integer>& value,
+													 std::vector<Integer>& value_r) {
         int n = ids_.size();
+				vector<Index> _ids_(ids_.size());
         for (int i=0; i<n; i++) {
           assert(order[i]>=0 && order[i]<n);
           _ids_[i]=ids_[order[i]];
         }
+				name.resize(n);
+				value.resize(n);
+				value_r.resize(n);
         for (int i=0; i<n; i++) {
-          _name_[i] = _ids_[i].name();
-          _value_[i] = _ids_[i].value();
-          _value_r_[i] = _ids_[i].value_r();
+          /* _name_[i] = _ids_[i].name(); */
+          /* _value_[i] = _ids_[i].value(); */
+          /* _value_r_[i] = _ids_[i].value_r(); */
+          name[i] = _ids_[i].name();
+          value[i] = _ids_[i].value();
+          value_r[i] = _ids_[i].value_r();
         }
       }
 
@@ -305,9 +347,9 @@ namespace ctce {
       * Get the position of the indices in memory from the position of sorted indices
       * @return sort_ids vector of Integer indicates the position
       */
-      inline std::vector<Integer>& sort_ids() {
+      inline std::vector<Integer>& sort_ids(std::vector<IndexName> &name) {
         for (int i=0; i<dim_; i++) {
-          sort_ids_[i] = std::find(_name_.begin(), _name_.end(), mem_pos_[i]) - _name_.begin() + 1;
+          sort_ids_[i] = std::find(name.begin(), name.end(), mem_pos_[i]) - name.begin() + 1;
         }
         return sort_ids_;
       }
@@ -316,9 +358,16 @@ namespace ctce {
       * Get the position of the sorted indices from the position in the memory
       * @return perm vector of Integer indicates the position
       */
-      inline std::vector<Integer>& perm() {
+      /* inline std::vector<Integer>& perm() { */
+      /*   for (int i=0; i<dim_; i++) { */
+      /*     perm_[i] = std::find(mem_pos_.begin(), mem_pos_.end(), _name_[i]) - mem_pos_.begin() + 1; */
+      /*   } */
+      /*   return perm_; */
+      /* } */
+
+      inline std::vector<Integer>& perm(const std::vector<IndexName> &name) {
         for (int i=0; i<dim_; i++) {
-          perm_[i] = std::find(mem_pos_.begin(), mem_pos_.end(), _name_[i]) - mem_pos_.begin() + 1;
+          perm_[i] = std::find(mem_pos_.begin(), mem_pos_.end(), name[i]) - mem_pos_.begin() + 1;
         }
         return perm_;
       }

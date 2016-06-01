@@ -6,9 +6,11 @@ namespace ctce {
 
 
   const Integer& Tensor::irrep() {
-    if ((type_==iV_tensor)||(type_==V_tensor)) return Variables::irrep_v();
-    if ((type_==iT_tensor)||(type_==T_tensor)) return Variables::irrep_t();
-    if ((type_==iF_tensor)||(type_==F_tensor)) return Variables::irrep_f();
+    // if ((type_==iV_tensor)||(type_==V_tensor)) return Variables::irrep_v();
+    // if ((type_==iT_tensor)||(type_==T_tensor)) return Variables::irrep_t();
+    // if ((type_==iF_tensor)||(type_==F_tensor)) return Variables::irrep_f();
+    /*@FIX: to do. set it up in constructor*/
+    return Variables::irrep_v(); /*@BUG @FIXME @TODO implement functionality above*/
   }
 
   // void Tensor::gen_restricted() {

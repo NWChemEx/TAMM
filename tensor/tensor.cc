@@ -11,19 +11,19 @@ namespace ctce {
     if ((type_==iF_tensor)||(type_==F_tensor)) return Variables::irrep_f();
   }
 
-  void Tensor::gen_restricted() {
-    std::vector<Integer> temp;
-    temp.resize(dim_);
-    if (dim_==2)  
-      tce_restricted_2_(&value_[0],&value_[1],&temp[0],&temp[1]);
-    if (dim_==4)
-      tce_restricted_4_(&value_[0],&value_[1],&value_[2],&value_[3],
-          &temp[0],&temp[1],&temp[2],&temp[3]);
-    for (int i=0; i<dim_; i++) {
-      ids_[i].setValueR(temp[i]);
-      value_r_[i] = temp[i];
-    }
-  }
+  // void Tensor::gen_restricted() {
+  //   std::vector<Integer> temp;
+  //   temp.resize(dim_);
+  //   if (dim_==2)  
+  //     tce_restricted_2_(&value_[0],&value_[1],&temp[0],&temp[1]);
+  //   if (dim_==4)
+  //     tce_restricted_4_(&value_[0],&value_[1],&value_[2],&value_[3],
+  //         &temp[0],&temp[1],&temp[2],&temp[3]);
+  //   for (int i=0; i<dim_; i++) {
+  //     ids_[i].setValueR(temp[i]);
+  //     //value_r_[i] = temp[i];
+  //   }
+  // }
 
   void Tensor::gen_restricted(const std::vector<Integer>& value,
 			      std::vector<Integer> &pvalue_r) {

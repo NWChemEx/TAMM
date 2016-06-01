@@ -231,19 +231,19 @@ namespace ctce {
 	      vector<Integer> a_svalue, b_svalue;
 	      vector<IndexName> a_name;
 	      vector<IndexName> b_name;
-              tA.sortByValueThenExtSymGroup(a_name, a_svalue, a_svalue_r);
-              tB.sortByValueThenExtSymGroup(b_name, b_svalue, b_svalue_r);
+              int a_sign = tA.sortByValueThenExtSymGroup(a_name, a_svalue, a_svalue_r);
+              int b_sign = tB.sortByValueThenExtSymGroup(b_name, b_svalue, b_svalue_r);
 
               // if (tA.dim()==2) tA.get_ma = true;
               tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);
-              tce_sort(buf_a, buf_a_sort, a_svalue/*tA._value()*/, tA.sort_ids(a_name), (double)tA.sign());
+              tce_sort(buf_a, buf_a_sort, a_svalue/*tA._value()*/, tA.sort_ids(a_name), (double)a_sign /*(double)tA.sign()*/);
               delete [] buf_a;
 
               double* buf_b = new double[dimb];
               double* buf_b_sort = new double[dimb];
               // if (!tB.isIntermediate()) tB.get_i = true;
               tB.get(*d_b,b_svalue_r,b_name,buf_b,dimb,*k_b_offset);
-              tce_sort(buf_b, buf_b_sort, b_svalue/*tB._value()*/, tB.sort_ids(b_name), (double)tB.sign());
+              tce_sort(buf_b, buf_b_sort, b_svalue/*tB._value()*/, tB.sort_ids(b_name), (double)b_sign /*(double)tB.sign()*/);
               delete [] buf_b;
 
               double beta = computeBeta(sum_ids,sum_vec);

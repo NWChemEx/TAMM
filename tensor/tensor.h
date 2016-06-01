@@ -19,7 +19,7 @@ namespace ctce {
   class Tensor {
     private:
       int dim_; /*< dimension of this tensor */
-      int sign_; /*< sign of this tensor: 1 or -1 */
+      //int sign_; /*< sign of this tensor: 1 or -1 */
       std::vector<IndexName> mem_pos_;	/*< memory position of the indices */
       std::vector<int> tab_; /*< map(Index,int): (p4,0)(p5,1)(p6,2)(h1,3)(h2,4)(h3,5) */
       TensorType type_; /*< type of this tensor: F_tensor, T_tensor, etc. */
@@ -70,7 +70,7 @@ namespace ctce {
 	Tensor(const int& n, Index ids[], TensorType type, DistType dist_type, DimType dim_type)
         : dim_(n),
         type_(type),
-        sign_(1),
+        //sign_(1),
 				dist_type_(dist_type),
 				dim_type_(dim_type) {
           ids_.resize(n);
@@ -115,7 +115,7 @@ namespace ctce {
        * Get the sign of the tensor
        * @return sign as a int
        */
-      inline const int& sign() const { return sign_; }
+      //inline const int& sign() const { return sign_; }
 
       /**
        * Get the indices of the tensor
@@ -271,7 +271,7 @@ namespace ctce {
       /*   } */
       /* } */
 
-      inline void sortByValueThenExtSymGroup(std::vector<IndexName> &name,
+      inline int sortByValueThenExtSymGroup(std::vector<IndexName> &name,
 																						 std::vector<Integer> &pvalue,
 																						 std::vector<Integer> &pvalue_r) {
         int n = ids_.size();
@@ -279,7 +279,7 @@ namespace ctce {
         std::sort(_ids_.begin(),_ids_.end(),compareValue);
         std::sort(_ids_.begin(),_ids_.end(),compareExtSymGroup);
         for (int i=0; i<n; i++) pos2[i]=tab_[_ids_[i].name()];
-        sign_ = countParitySign<int>(pos1,pos2);
+        int sign = countParitySign<int>(pos1,pos2);
 				pvalue_r.resize(n);
 				pvalue.resize(n);
 				name.resize(n);
@@ -290,6 +290,7 @@ namespace ctce {
           //_value_r_[i] = _ids_[i].value_r();
           pvalue_r[i] = _ids_[i].value_r();
         }
+				return sign;
       }
 
       /**

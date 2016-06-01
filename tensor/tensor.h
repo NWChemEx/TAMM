@@ -29,7 +29,7 @@ namespace ctce {
       std::vector<Index> ids_; /*< indices of the tensor, actual data */
 
       /* name, value, value_r of the indices to avoid accessing ids_ every time */
-      std::vector<IndexName> name_; /*< indices name of this tensor: (p1,p2,p3,p4) */
+      //std::vector<IndexName> name_; /*< indices name of this tensor: (p1,p2,p3,p4) */
       //std::vector<Integer> value_; /*< indices value of this tensor: (0,1,2,3) */
       //std::vector<Integer> value_r_; /*< indices restricted value of this tensor */
 
@@ -74,7 +74,7 @@ namespace ctce {
 				dist_type_(dist_type),
 				dim_type_(dim_type) {
           ids_.resize(n);
-          name_.resize(n);
+          //name_.resize(n);
           //value_.resize(n);
           //value_r_.resize(n);
           pos1.resize(n);
@@ -89,7 +89,7 @@ namespace ctce {
           }
           for(int i=0; i<n; i++) {
             ids_[i]=ids[i];
-            name_[i] = ids[i].name();
+            //name_[i] = ids[i].name();
             //value_[i] = ids[i].value();
             //value_r_[i] = ids[i].value_r();
             tab_[ids[i].name()] = i;
@@ -127,7 +127,20 @@ namespace ctce {
        * Get the indices name of the tensor
        * @return name as a vector of IndexName
        */
-      inline const std::vector<IndexName>& name() const { return name_; }
+      inline std::vector<IndexName> name() const {
+				std::vector<IndexName> n(dim_);
+				for(int i=0; i<dim_; i++) {
+					n[i] = ids_[i].name();
+				}
+				return n;
+			}
+
+			inline void name(std::vector<IndexName> &n) const {
+				n.resize(dim_);
+				for(int i=0; i<dim_; i++) {
+					n[i] = ids_[i].name();
+				}
+			}
 
       /**
        * Get the indices value of the tensor

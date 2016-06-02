@@ -102,7 +102,8 @@ namespace ctce {
 
       Tensor tC = Tensor6(P4B,P5B,P6B,H1B,H2B,H3B,0,0,0,1,1,1,iVT_tensor);
       IterGroup<triangular> out_itr;
-      genTrigIter(out_itr,tC.name(),tC.ext_sym_group());
+      // genTrigIter(out_itr,tC.name(),tC.ext_sym_group());
+      genTrigIter(out_itr,id2name(tC.ids()),ext_sym_group(tC.ids()));
       out_itr.setType(TRIG2);
 
       gen_ccsd_t_cxx_(); // generate singles and doubles expr

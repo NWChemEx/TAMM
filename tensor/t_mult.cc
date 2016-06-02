@@ -148,9 +148,9 @@ namespace ctce {
 		 Multiplication& m) {
 
       //vector<Integer>& vtab = Table::value();
-      const vector<IndexName>& c_ids = tC.name();
-      const vector<IndexName>& a_ids = tA.name();
-      const vector<IndexName>& b_ids = tB.name();
+      const vector<IndexName>& c_ids = id2name(m.c_ids);//tC.name();
+      const vector<IndexName>& a_ids = id2name(m.a_ids);//tA.name();
+      const vector<IndexName>& b_ids = id2name(m.b_ids);//tB.name();
 
       // GA initialization
       int nprocs = GA_Nnodes();
@@ -220,17 +220,23 @@ namespace ctce {
               double* buf_a_sort = new double[dima];
 #if 1
 	      assert(tA.dim() == a_ids_v.size());
-	      tA.setValue(a_ids_v);
-	      tB.setValue(b_ids_v);
-	      tA.setValueR(a_value_r);
-	      tB.setValueR(b_value_r);
+	      // tA.setValue(a_ids_v);
+	      // tB.setValue(b_ids_v);
+	      // tA.setValueR(a_value_r);
+	      // tB.setValueR(b_value_r);
+	      setValue(m.a_ids, a_ids_v);
+	      setValue(m.b_ids, b_ids_v);
+	      setValueR(m.a_ids, a_value_r);
+	      setValueR(m.b_ids, b_value_r);
 #endif
 	      vector<Integer> a_svalue_r, b_svalue_r;
 	      vector<Integer> a_svalue, b_svalue;
 	      vector<IndexName> a_name;
 	      vector<IndexName> b_name;
-              int a_sign = tA.sortByValueThenExtSymGroup(a_name, a_svalue, a_svalue_r);
-              int b_sign = tB.sortByValueThenExtSymGroup(b_name, b_svalue, b_svalue_r);
+              // int a_sign = tA.sortByValueThenExtSymGroup(a_name, a_svalue, a_svalue_r);
+              // int b_sign = tB.sortByValueThenExtSymGroup(b_name, b_svalue, b_svalue_r);
+              int a_sign = sortByValueThenExtSymGroup(m.a_ids, a_name, a_svalue, a_svalue_r);
+              int b_sign = sortByValueThenExtSymGroup(m.b_ids, b_name, b_svalue, b_svalue_r);
 
               // if (tA.dim()==2) tA.get_ma = true;
               tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);
@@ -259,12 +265,15 @@ namespace ctce {
             } // sum_itr
 
 #if 1	
-	  tC.setValue(c_ids_v);
-	  tC.setValueR(c_ids_v);
+	  // tC.setValue(c_ids_v);
+	  // tC.setValueR(c_ids_v);
+	    setValue(m.c_ids, c_ids_v);
+	    setValueR(m.c_ids, c_ids_v);
 #endif
 	  vector<IndexName> c_name;
 	  vector<Integer> c_svalue_r, c_svalue;
-	  tC.sortByValueThenExtSymGroup(c_name, c_svalue, c_svalue_r);
+	  // tC.sortByValueThenExtSymGroup(c_name, c_svalue, c_svalue_r);
+	  sortByValueThenExtSymGroup(m.c_ids, c_name, c_svalue, c_svalue_r);
 	  //vector<Integer> tid = tC._value();
 	  vector<Integer> tid = c_svalue;
 
@@ -274,13 +283,15 @@ namespace ctce {
               cp_itr.fix_ids_for_copy(perm);
 	      vector<IndexName> name;
 	      vector<Integer> value, value_r;
-              tC.orderIds(perm, name, value, value_r);
+              //tC.orderIds(perm, name, value, value_r);
+	      orderIds(m.c_ids, perm, name, value, value_r);
               if (compareVec<Integer>(tid, value)) {
                 double sign = coef * cp_itr.sign();
                 double* buf_c = new double[dimc];
 		//std::vector<Integer> cperm = tC.perm(name);
 		std::vector<Integer> cperm = mult_perm(name, m.c_mem_pos);
-		std::vector<Integer> cmpval = getMemPosVal(tC.ids_, m.c_mem_pos);
+		// std::vector<Integer> cmpval = getMemPosVal(tC.ids(), m.c_mem_pos);
+		std::vector<Integer> cmpval = getMemPosVal(m.c_ids, m.c_mem_pos);
                 tce_sort(buf_c_sort, buf_c, cmpval, cperm, sign);
 
                 tce_add_hash_block_(d_c, buf_c, dimc, *k_c_offset, value, name);

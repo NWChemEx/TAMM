@@ -84,6 +84,110 @@ namespace ctce {
 		return sort_ids_v_;
 	}
 
+	inline void setValue(std::vector<Index> &ids_,
+											 const std::vector<Integer>& val) {
+		assert(ids_.size()==val.size());
+		for (int i=0; i<ids_.size(); i++) {
+			ids_[i].setValue(val[i]);
+		}
+	}
+	
+	/**
+	 * Set the restricted value of indices
+	 * @param val restricted value as a vector of Integer
+	 */
+	inline void setValueR(std::vector<Index> &ids_,
+												const std::vector<Integer>& val) {
+		assert(ids_.size()==val.size());
+		for (int i=0; i<ids_.size(); i++) {
+			ids_[i].setValueR(val[i]);
+		}
+	}
+	
+	inline const std::vector<int> ext_sym_group(const std::vector<Index> &ids_) { 
+		int dim_ = ids_.size();
+		std::vector<int> esg(dim_);
+		for(int i=0; i<dim_; i++) {
+			esg[i] = ids_[i].ext_sym_group();
+		}
+		return esg;
+	}
+	
+	inline std::vector<IndexName> id2name(const std::vector<Index> &ids_) {
+		int dim_ = ids_.size();
+		std::vector<IndexName> n(dim_);
+		for(int i=0; i<dim_; i++) {
+			n[i] = ids_[i].name();
+		}
+		return n;
+	}
+
+	inline void id2name(const std::vector<Index>& ids_, std::vector<IndexName> &n)  {
+		int dim_ = ids_.size();
+		n.resize(dim_);
+		for(int i=0; i<dim_; i++) {
+			n[i] = ids_[i].name();
+		}
+	}
+
+
+	inline int sortByValueThenExtSymGroup(const std::vector<Index> &ids_,
+																				std::vector<IndexName> &name,
+																				std::vector<Integer> &pvalue,
+																				std::vector<Integer> &pvalue_r) {
+		std::vector<int> tab_(IndexNum, -1);
+		for(int i=0; i<ids_.size(); i++) {
+			tab_[ids_[i].name()] = i;
+		}
+		int n = ids_.size();
+		std::vector<Index> _ids_ = ids_;
+		std::sort(_ids_.begin(),_ids_.end(),compareValue);
+		std::sort(_ids_.begin(),_ids_.end(),compareExtSymGroup);
+		std::vector<int> pos1(n), pos2(n);
+		for (int i=0; i<n; i++) {
+			pos1[i] = i;
+			pos2[i]=tab_[_ids_[i].name()];
+		}
+		int sign = countParitySign<int>(pos1,pos2);
+		pvalue_r.resize(n);
+		pvalue.resize(n);
+		name.resize(n);
+		for (int i=0; i<n; i++) {
+			name[i] = _ids_[i].name();
+			pvalue[i] = _ids_[i].value();
+			//_value_[i] = _ids_[i].value();
+			//_value_r_[i] = _ids_[i].value_r();
+			pvalue_r[i] = _ids_[i].value_r();
+		}
+		return sign;
+	}
+
+	inline void orderIds(const std::vector<Index> & ids_,
+											 const std::vector<Integer>& order,
+											 std::vector<IndexName>& name,
+											 std::vector<Integer>& value,
+											 std::vector<Integer>& value_r) {
+		int n = ids_.size();
+		vector<Index> _ids_(ids_.size());
+		for (int i=0; i<n; i++) {
+			assert(order[i]>=0 && order[i]<n);
+			_ids_[i]=ids_[order[i]];
+		}
+		name.resize(n);
+		value.resize(n);
+		value_r.resize(n);
+		for (int i=0; i<n; i++) {
+			/* _name_[i] = _ids_[i].name(); */
+			/* _value_[i] = _ids_[i].value(); */
+			/* _value_r_[i] = _ids_[i].value_r(); */
+			name[i] = _ids_[i].name();
+			value[i] = _ids_[i].value();
+			value_r[i] = _ids_[i].value_r();
+		}
+	}
+
+
+
 
   /**
    * Assigment template. tC += coef * tA
@@ -177,6 +281,9 @@ namespace ctce {
 			std::vector<IndexName> a_mem_pos;
 			std::vector<IndexName> b_mem_pos;
 			std::vector<IndexName> c_mem_pos;
+			std::vector<Index> a_ids;
+			std::vector<Index> b_ids;
+			std::vector<Index> c_ids;
 
     public:
 
@@ -199,6 +306,9 @@ namespace ctce {
        */
       Multiplication(const Tensor& tC, const Tensor& tA, const Tensor& tB, double coef)
         : tC_(tC), tA_(tA), tB_(tB), coef_(coef) {
+				c_ids = tC_.ids();
+				a_ids = tA_.ids();
+				b_ids = tB_.ids();
           genMemPos();
           genSumGroup();
           genOutGroup(); 

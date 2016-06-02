@@ -25,7 +25,6 @@ namespace ctce {
       //TensorType type_; /*< type of this tensor: F_tensor, T_tensor, etc. */
       //std::vector<int> ext_sym_group_; /*< external symmetry group of this tensor */
 
-	public:
       /* initial setting, will not change */
       std::vector<Index> ids_; /*< indices of the tensor, actual data */
 
@@ -71,8 +70,9 @@ namespace ctce {
         //type_(type),
         //sign_(1),
 				dist_type_(dist_type),
-				dim_type_(dim_type) {
-          ids_.resize(n);
+				dim_type_(dim_type),
+				ids_(ids, ids+n) {
+				//ids_.resize(n);
           //name_.resize(n);
           //value_.resize(n);
           //value_r_.resize(n);
@@ -87,7 +87,7 @@ namespace ctce {
           /*   tab_[i]=-1; */
           /* } */
           for(int i=0; i<n; i++) {
-            ids_[i]=ids[i];
+            //ids_[i]=ids[i];
             //name_[i] = ids[i].name();
             //value_[i] = ids[i].value();
             //value_r_[i] = ids[i].value_r();
@@ -126,20 +126,20 @@ namespace ctce {
        * Get the indices name of the tensor
        * @return name as a vector of IndexName
        */
-      inline std::vector<IndexName> name() const {
-				std::vector<IndexName> n(dim_);
-				for(int i=0; i<dim_; i++) {
-					n[i] = ids_[i].name();
-				}
-				return n;
-			}
+      /* inline std::vector<IndexName> name() const { */
+			/* 	std::vector<IndexName> n(dim_); */
+			/* 	for(int i=0; i<dim_; i++) { */
+			/* 		n[i] = ids_[i].name(); */
+			/* 	} */
+			/* 	return n; */
+			/* } */
 
-			inline void name(std::vector<IndexName> &n) const {
-				n.resize(dim_);
-				for(int i=0; i<dim_; i++) {
-					n[i] = ids_[i].name();
-				}
-			}
+			/* inline void name(std::vector<IndexName> &n) const { */
+			/* 	n.resize(dim_); */
+			/* 	for(int i=0; i<dim_; i++) { */
+			/* 		n[i] = ids_[i].name(); */
+			/* 	} */
+			/* } */
 
       /**
        * Get the indices value of the tensor
@@ -181,13 +181,13 @@ namespace ctce {
        * Get the external symmetry group of the tensor
        * @return ext_sym_group as a vector of int
        */
-      inline const std::vector<int> ext_sym_group() const { 
-				std::vector<int> esg(dim_);
-				for(int i=0; i<dim_; i++) {
-					esg[i] = ids_[i].ext_sym_group();
-				}
-				return esg;
-			}
+      /* inline const std::vector<int> ext_sym_group() const {  */
+			/* 	std::vector<int> esg(dim_); */
+			/* 	for(int i=0; i<dim_; i++) { */
+			/* 		esg[i] = ids_[i].ext_sym_group(); */
+			/* 	} */
+			/* 	return esg; */
+			/* } */
 
       /**
        * Get the indices name of in the memory position order
@@ -259,24 +259,24 @@ namespace ctce {
       /*   //value_[pos]=value; */
       /* } */
 
-      inline void setValue(const std::vector<Integer>& val) {
-        assert(ids_.size()==val.size());
-        for (int i=0; i<ids_.size(); i++) {
-          ids_[i].setValue(val[i]);
-        }
-      }
+      /* inline void setValue(const std::vector<Integer>& val) { */
+      /*   assert(ids_.size()==val.size()); */
+      /*   for (int i=0; i<ids_.size(); i++) { */
+      /*     ids_[i].setValue(val[i]); */
+      /*   } */
+      /* } */
 
       /**
        * Set the restricted value of indices
        * @param val restricted value as a vector of Integer
        */
-      inline void setValueR(const std::vector<Integer>& val) {
-        assert(ids_.size()==val.size());
-        for (int i=0; i<ids_.size(); i++) {
-          ids_[i].setValueR(val[i]);
-          //value_r_[i]=val[i];
-        }
-      }
+      /* inline void setValueR(const std::vector<Integer>& val) { */
+      /*   assert(ids_.size()==val.size()); */
+      /*   for (int i=0; i<ids_.size(); i++) { */
+      /*     ids_[i].setValueR(val[i]); */
+      /*     //value_r_[i]=val[i]; */
+      /*   } */
+      /* } */
 
       /**
        * Sorting method, first sort the indices by value, and then by external symmetry group
@@ -296,35 +296,35 @@ namespace ctce {
       /*   } */
       /* } */
 
-      inline int sortByValueThenExtSymGroup(std::vector<IndexName> &name,
-																						 std::vector<Integer> &pvalue,
-																						 std::vector<Integer> &pvalue_r) {
-				std::vector<int> tab_(IndexNum, -1);
-				for(int i=0; i<ids_.size(); i++) {
-					tab_[ids_[i].name()] = i;
-				}
-        int n = ids_.size();
-				std::vector<Index> _ids_ = ids_;
-        std::sort(_ids_.begin(),_ids_.end(),compareValue);
-        std::sort(_ids_.begin(),_ids_.end(),compareExtSymGroup);
-				std::vector<int> pos1(n), pos2(n);
-        for (int i=0; i<n; i++) {
-					pos1[i] = i;
-					pos2[i]=tab_[_ids_[i].name()];
-				}
-        int sign = countParitySign<int>(pos1,pos2);
-				pvalue_r.resize(n);
-				pvalue.resize(n);
-				name.resize(n);
-        for (int i=0; i<n; i++) {
-          name[i] = _ids_[i].name();
-					pvalue[i] = _ids_[i].value();
-          //_value_[i] = _ids_[i].value();
-          //_value_r_[i] = _ids_[i].value_r();
-          pvalue_r[i] = _ids_[i].value_r();
-        }
-				return sign;
-      }
+      /* inline int sortByValueThenExtSymGroup(std::vector<IndexName> &name, */
+			/* 																			 std::vector<Integer> &pvalue, */
+			/* 																			 std::vector<Integer> &pvalue_r) const { */
+			/* 	std::vector<int> tab_(IndexNum, -1); */
+			/* 	for(int i=0; i<ids_.size(); i++) { */
+			/* 		tab_[ids_[i].name()] = i; */
+			/* 	} */
+      /*   int n = ids_.size(); */
+			/* 	std::vector<Index> _ids_ = ids_; */
+      /*   std::sort(_ids_.begin(),_ids_.end(),compareValue); */
+      /*   std::sort(_ids_.begin(),_ids_.end(),compareExtSymGroup); */
+			/* 	std::vector<int> pos1(n), pos2(n); */
+      /*   for (int i=0; i<n; i++) { */
+			/* 		pos1[i] = i; */
+			/* 		pos2[i]=tab_[_ids_[i].name()]; */
+			/* 	} */
+      /*   int sign = countParitySign<int>(pos1,pos2); */
+			/* 	pvalue_r.resize(n); */
+			/* 	pvalue.resize(n); */
+			/* 	name.resize(n); */
+      /*   for (int i=0; i<n; i++) { */
+      /*     name[i] = _ids_[i].name(); */
+			/* 		pvalue[i] = _ids_[i].value(); */
+      /*     //_value_[i] = _ids_[i].value(); */
+      /*     //_value_r_[i] = _ids_[i].value_r(); */
+      /*     pvalue_r[i] = _ids_[i].value_r(); */
+      /*   } */
+			/* 	return sign; */
+      /* } */
 
       /**
       * Re-order the indices according to a input vector of Integer
@@ -345,28 +345,28 @@ namespace ctce {
       /*   } */
       /* } */
 
-      inline void orderIds(const std::vector<Integer>& order,
-													 std::vector<IndexName>& name,
-													 std::vector<Integer>& value,
-													 std::vector<Integer>& value_r) {
-        int n = ids_.size();
-				vector<Index> _ids_(ids_.size());
-        for (int i=0; i<n; i++) {
-          assert(order[i]>=0 && order[i]<n);
-          _ids_[i]=ids_[order[i]];
-        }
-				name.resize(n);
-				value.resize(n);
-				value_r.resize(n);
-        for (int i=0; i<n; i++) {
-          /* _name_[i] = _ids_[i].name(); */
-          /* _value_[i] = _ids_[i].value(); */
-          /* _value_r_[i] = _ids_[i].value_r(); */
-          name[i] = _ids_[i].name();
-          value[i] = _ids_[i].value();
-          value_r[i] = _ids_[i].value_r();
-        }
-      }
+      /* inline void orderIds(const std::vector<Integer>& order, */
+			/* 										 std::vector<IndexName>& name, */
+			/* 										 std::vector<Integer>& value, */
+			/* 										 std::vector<Integer>& value_r) const { */
+      /*   int n = ids_.size(); */
+			/* 	vector<Index> _ids_(ids_.size()); */
+      /*   for (int i=0; i<n; i++) { */
+      /*     assert(order[i]>=0 && order[i]<n); */
+      /*     _ids_[i]=ids_[order[i]]; */
+      /*   } */
+			/* 	name.resize(n); */
+			/* 	value.resize(n); */
+			/* 	value_r.resize(n); */
+      /*   for (int i=0; i<n; i++) { */
+      /*     /\* _name_[i] = _ids_[i].name(); *\/ */
+      /*     /\* _value_[i] = _ids_[i].value(); *\/ */
+      /*     /\* _value_r_[i] = _ids_[i].value_r(); *\/ */
+      /*     name[i] = _ids_[i].name(); */
+      /*     value[i] = _ids_[i].value(); */
+      /*     value_r[i] = _ids_[i].value_r(); */
+      /*   } */
+      /* } */
 
       /**
       * Get the value of the indices in memory position order

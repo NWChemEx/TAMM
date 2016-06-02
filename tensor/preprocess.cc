@@ -1,4 +1,5 @@
 #include "preprocess.h"
+#include "expression.h"
 
 namespace ctce {
 
@@ -27,9 +28,12 @@ namespace ctce {
     }
 
     void genAntiIter(IterGroup<antisymm>& ext_itr, const Tensor& tC, const Tensor& tA, const Tensor& tB) {
-      const std::vector<IndexName>& c = tC.name();
-      const std::vector<IndexName>& a = tA.name();
-      const std::vector<IndexName>& b = tB.name();
+      // const std::vector<IndexName>& c = tC.name();
+      // const std::vector<IndexName>& a = tA.name();
+      // const std::vector<IndexName>& b = tB.name();
+      const std::vector<IndexName>& c = id2name(tC.ids());//tC.name();
+      const std::vector<IndexName>& a = id2name(tA.ids());//tA.name();
+      const std::vector<IndexName>& b = id2name(tB.ids());//tB.name();
       const std::vector<Index>& c_ids = tC.ids();
       std::vector<int> from(tC.dim());
       for (int i=0; i<tC.dim(); i++) {

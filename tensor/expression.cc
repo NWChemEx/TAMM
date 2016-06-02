@@ -58,9 +58,13 @@ namespace ctce {
     reverse(a_mpos.begin(),a_mpos.end());
     reverse(b_mpos.begin(),b_mpos.end());
     reverse(c_mpos.begin(),c_mpos.end());
-    tC_.setMemPos(c_mpos);
-    tA_.setMemPos(a_mpos);
-    tB_.setMemPos(b_mpos);
+    // tC_.setMemPos(c_mpos);
+    // tA_.setMemPos(a_mpos);
+    // tB_.setMemPos(b_mpos);
+
+    a_mem_pos = a_mpos;
+    b_mem_pos = b_mpos;
+    c_mem_pos = c_mpos;
   }
 
   void Multiplication::genTrigItr(IterGroup<triangular>& itr,

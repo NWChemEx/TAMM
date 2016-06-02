@@ -60,7 +60,8 @@ namespace ctce {
         const std::vector<IndexName>& sum_ids,
         IterGroup<triangular>& sum_itr,
         IterGroup<CopyIter>& cp_itr,
-        IterGroup<triangular>& out_itr);
+								 IterGroup<triangular>& out_itr,
+								 Multiplication& m);
 
     /**
      * Simply wrap t_mult3

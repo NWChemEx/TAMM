@@ -50,6 +50,41 @@ namespace ctce {
 		return true;
 	}
 
+	inline std::vector<Integer> sort_ids(const std::vector<IndexName> &name, const std::vector<IndexName> &mem_pos_) {
+		assert(name.size() == mem_pos_.size());
+		std::vector<Integer> sort_ids_(name.size());
+		for (int i=0; i<name.size(); i++) {
+			sort_ids_[i] = std::find(name.begin(), name.end(), mem_pos_[i]) - name.begin() + 1;
+		}
+		return sort_ids_;
+	}
+
+	inline std::vector<Integer> mult_perm(const std::vector<IndexName> &name, const std::vector<IndexName> &mem_pos_) {
+		assert(name.size() == mem_pos_.size());
+		vector<Integer> lperm(name.size());
+		for (int i=0; i<name.size(); i++) {
+			lperm[i] = std::find(mem_pos_.begin(), mem_pos_.end(), name[i]) - mem_pos_.begin() + 1;
+		}
+		return lperm;
+	}
+
+	inline std::vector<Integer> getMemPosVal(const std::vector<Index> &ids_,
+																					 const std::vector<IndexName> &mem_pos_) {
+		assert(ids_.size() == mem_pos_.size());
+		const int n = ids_.size();
+		std::vector<Integer> sort_ids_v_(n);
+		std::vector<int> tab_(IndexNum, -1);
+		for(int i=0; i<n; i++) {
+			tab_[ids_[i].name()] = i;
+		}
+		for (int i=0; i<n; i++) {
+			int pos = tab_[mem_pos_[i]];
+			sort_ids_v_[i]=ids_[pos].value();
+		}
+		return sort_ids_v_;
+	}
+
+
   /**
    * Assigment template. tC += coef * tA
    */
@@ -137,6 +172,11 @@ namespace ctce {
       void genSumGroup(); /*< generate summation symmetry group and set sum_itr */
       void genCopyGroup(); /*< genertate copy group and set cp_itr */
       void genOutGroup(); /*< generate outer loop group and set out_itr */
+
+	public:
+			std::vector<IndexName> a_mem_pos;
+			std::vector<IndexName> b_mem_pos;
+			std::vector<IndexName> c_mem_pos;
 
     public:
 

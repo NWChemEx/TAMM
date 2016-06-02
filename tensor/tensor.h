@@ -20,11 +20,12 @@ namespace ctce {
     private:
       int dim_; /*< dimension of this tensor */
       //int sign_; /*< sign of this tensor: 1 or -1 */
-      std::vector<IndexName> mem_pos_;	/*< memory position of the indices */
+      //std::vector<IndexName> mem_pos_;	/*< memory position of the indices */
       //std::vector<int> tab_; /*< map(Index,int): (p4,0)(p5,1)(p6,2)(h1,3)(h2,4)(h3,5) */
       //TensorType type_; /*< type of this tensor: F_tensor, T_tensor, etc. */
       //std::vector<int> ext_sym_group_; /*< external symmetry group of this tensor */
 
+	public:
       /* initial setting, will not change */
       std::vector<Index> ids_; /*< indices of the tensor, actual data */
 
@@ -192,7 +193,7 @@ namespace ctce {
        * Get the indices name of in the memory position order
        * @return getMemPosName as a vector of IndexName
        */
-      inline const std::vector<IndexName>& getMemPosName() const { return mem_pos_; }
+      //inline const std::vector<IndexName>& getMemPosName() const { return mem_pos_; }
 
       /**
        * Check if this tensor is an intermediate: iF_tensor, iV_tensor, etc.
@@ -244,7 +245,7 @@ namespace ctce {
        * Set the memory position for the indices
        * @param[in] mp memory position of the indices as a vector of IndexName
        */
-      inline void setMemPos(const std::vector<IndexName>& mp) { mem_pos_ = mp; }
+      //inline void setMemPos(const std::vector<IndexName>& mp) { mem_pos_ = mp; }
 
       /**
        * Set the value of the indices by name
@@ -371,30 +372,30 @@ namespace ctce {
       * Get the value of the indices in memory position order
       * @return memory position value as vector of Integer
       */
-      inline std::vector<Integer> getMemPosVal() {
-				std::vector<Integer> sort_ids_v_(dim_);
-				std::vector<int> tab_(IndexNum, -1);
-				for(int i=0; i<ids_.size(); i++) {
-					tab_[ids_[i].name()] = i;
-				}
-        for (int i=0; i<dim_; i++) {
-          int pos = tab_[mem_pos_[i]];
-          sort_ids_v_[i]=ids_[pos].value();
-        }
-        return sort_ids_v_;
-      }
+      /* inline std::vector<Integer> getMemPosVal() { */
+			/* 	std::vector<Integer> sort_ids_v_(dim_); */
+			/* 	std::vector<int> tab_(IndexNum, -1); */
+			/* 	for(int i=0; i<ids_.size(); i++) { */
+			/* 		tab_[ids_[i].name()] = i; */
+			/* 	} */
+      /*   for (int i=0; i<dim_; i++) { */
+      /*     int pos = tab_[mem_pos_[i]]; */
+      /*     sort_ids_v_[i]=ids_[pos].value(); */
+      /*   } */
+      /*   return sort_ids_v_; */
+      /* } */
 
       /**
       * Get the position of the indices in memory from the position of sorted indices
       * @return sort_ids vector of Integer indicates the position
       */
-      inline std::vector<Integer> sort_ids(std::vector<IndexName> &name) {
-				std::vector<Integer> sort_ids_(dim_);
-        for (int i=0; i<dim_; i++) {
-          sort_ids_[i] = std::find(name.begin(), name.end(), mem_pos_[i]) - name.begin() + 1;
-        }
-        return sort_ids_;
-      }
+      /* inline std::vector<Integer> sort_ids(std::vector<IndexName> &name) { */
+			/* 	std::vector<Integer> sort_ids_(dim_); */
+      /*   for (int i=0; i<dim_; i++) { */
+      /*     sort_ids_[i] = std::find(name.begin(), name.end(), mem_pos_[i]) - name.begin() + 1; */
+      /*   } */
+      /*   return sort_ids_; */
+      /* } */
 
       /**
       * Get the position of the sorted indices from the position in the memory
@@ -407,13 +408,13 @@ namespace ctce {
       /*   return perm_; */
       /* } */
 
-      inline std::vector<Integer> perm(const std::vector<IndexName> &name) {
-				vector<Integer> lperm(dim_);
-        for (int i=0; i<dim_; i++) {
-          lperm[i] = std::find(mem_pos_.begin(), mem_pos_.end(), name[i]) - mem_pos_.begin() + 1;
-        }
-        return lperm;
-      }
+      /* inline std::vector<Integer> perm(const std::vector<IndexName> &name) { */
+			/* 	vector<Integer> lperm(dim_); */
+      /*   for (int i=0; i<dim_; i++) { */
+      /*     lperm[i] = std::find(mem_pos_.begin(), mem_pos_.end(), name[i]) - mem_pos_.begin() + 1; */
+      /*   } */
+      /*   return lperm; */
+      /* } */
 
   }; // Tensor
 

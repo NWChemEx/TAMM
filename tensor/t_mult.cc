@@ -144,7 +144,8 @@ namespace ctce {
         const vector<IndexName>& sum_ids,
         IterGroup<triangular>& sum_itr,
         IterGroup<CopyIter>& cp_itr,
-        IterGroup<triangular>& out_itr) {
+		 IterGroup<triangular>& out_itr,
+		 Multiplication& m) {
 
       //vector<Integer>& vtab = Table::value();
       const vector<IndexName>& c_ids = tC.name();
@@ -233,7 +234,9 @@ namespace ctce {
 
               // if (tA.dim()==2) tA.get_ma = true;
               tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);
-	      vector<Integer> a_sort_ids = tA.sort_ids(a_name);
+	      vector<Integer> a_sort_ids = sort_ids(a_name, m.a_mem_pos);
+	      //vector<Integer> a_sort_ids = tA.sort_ids(a_name);
+
               tce_sort(buf_a, buf_a_sort, a_svalue/*tA._value()*/, a_sort_ids/*tA.sort_ids(a_name)*/, (double)a_sign /*(double)tA.sign()*/);
               delete [] buf_a;
 
@@ -241,7 +244,8 @@ namespace ctce {
               double* buf_b_sort = new double[dimb];
               // if (!tB.isIntermediate()) tB.get_i = true;
               tB.get(*d_b,b_svalue_r,b_name,buf_b,dimb,*k_b_offset);
-	      vector<Integer> b_sort_ids = tB.sort_ids(b_name);
+	      //vector<Integer> b_sort_ids = tB.sort_ids(b_name);
+	      vector<Integer> b_sort_ids = sort_ids(b_name, m.b_mem_pos);
               tce_sort(buf_b, buf_b_sort, b_svalue/*tB._value()*/, b_sort_ids /*tB.sort_ids(b_name)*/, (double)b_sign /*(double)tB.sign()*/);
               delete [] buf_b;
 
@@ -274,8 +278,10 @@ namespace ctce {
               if (compareVec<Integer>(tid, value)) {
                 double sign = coef * cp_itr.sign();
                 double* buf_c = new double[dimc];
-		std::vector<Integer> cperm = tC.perm(name);
-                tce_sort(buf_c_sort, buf_c, tC.getMemPosVal(), cperm, sign);
+		//std::vector<Integer> cperm = tC.perm(name);
+		std::vector<Integer> cperm = mult_perm(name, m.c_mem_pos);
+		std::vector<Integer> cmpval = getMemPosVal(tC.ids_, m.c_mem_pos);
+                tce_sort(buf_c_sort, buf_c, cmpval, cperm, sign);
 
                 tce_add_hash_block_(d_c, buf_c, dimc, *k_c_offset, value, name);
 
@@ -303,7 +309,7 @@ namespace ctce {
 
       t_mult3(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset,
           m.tC(), m.tA(), m.tB(), m.coef(), m.sum_ids(),
-          m.sum_itr(), m.cp_itr(), m.out_itr());
+	      m.sum_itr(), m.cp_itr(), m.out_itr(), m);
     }
 
   } /*extern "C"*/

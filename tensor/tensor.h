@@ -28,6 +28,10 @@ namespace ctce {
       /* initial setting, will not change */
       std::vector<Index> ids_; /*< indices of the tensor, actual data */
 
+			bool allocated_; /*true if this tensor were created using create()*/
+			int ga_; /*underlying ga if this tensor was created*/
+			Integer *offset_map_; /*offset map used as part of creation*/
+
       /* name, value, value_r of the indices to avoid accessing ids_ every time */
       //std::vector<IndexName> name_; /*< indices name of this tensor: (p1,p2,p3,p4) */
       //std::vector<Integer> value_; /*< indices value of this tensor: (0,1,2,3) */
@@ -69,6 +73,7 @@ namespace ctce {
         : dim_(n),
         //type_(type),
         //sign_(1),
+				allocated_(false),
 				dist_type_(dist_type),
 				dim_type_(dim_type),
 				ids_(ids, ids+n) {
@@ -240,6 +245,11 @@ namespace ctce {
 
       void gen_restricted(const std::vector<Integer> &value,
 													std::vector<Integer> &pvalue_r);
+
+
+			void create(Integer *fma_offset_index, Integer *array_handle);
+
+			void destroy();
 
       /**
        * Set the memory position for the indices

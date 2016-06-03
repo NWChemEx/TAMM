@@ -9,6 +9,7 @@ namespace ctce {
 
   static Assignment a_t2_1, a_t2_2_1, a_t2_2_2_1, a_t2_2_2_2_1, a_t2_2_4_1, a_t2_2_5_1;
   static Multiplication m_t2_2, m_t2_2_2, m_t2_2_2_2, m_t2_2_2_2_2, m_t2_2_2_3, m_t2_2_4, m_t2_2_4_2, m_t2_2_5, m_t2_2_5_2, m_t2_2_6;
+  static Tensor t2_2_1;
 
   extern "C" {
 
@@ -114,8 +115,19 @@ namespace ctce {
         tB = Tensor4(H10B,P3B,P5B,P6B,0,1,2,2,V_tensor, idist, dim_n);
         m_t2_2_6 = Multiplication(tC,tA,tB,0.5);
 
+	//OFFSET_ccsd_t2_2_1: i1 ( h10 p3 h1 h2 )_v
+	t2_2_1 = Tensor4(P3B,H10B,H1B,H2B,0,1,2,2,iVT_tensor,dist_nw,dim_ov);
+
         set_t2_12 = false;
       }
+    }
+
+    void ccsd_t2_2_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1) {
+      t2_2_1.create(k_i1_offset, d_i1);
+    }
+
+    void ccsd_t2_2_1_deletefile_cxx_() {
+      t2_2_1.destroy();
     }
 
     void ccsd_t2_1_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_c, Integer *k_c_offset) {

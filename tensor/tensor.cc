@@ -1,5 +1,7 @@
 #include "tensor.h"
+#include "ga.h"
 #include <iostream>
+#include "expression.h"
 using namespace std;
 
 namespace ctce {
@@ -42,6 +44,97 @@ namespace ctce {
       //ids_[i].setValueR(temp[i]);
       //value_r_[i] = temp[i];
       pvalue_r.push_back(temp[i]);
+    }
+  }
+
+  void Tensor::create(Integer *fma_offset_index, Integer *array_handle) {
+    const std::vector<IndexName>& name = id2name(ids());
+    // const std::vector<int>& gp = tC_.ext_sym_group();
+    const std::vector<int>& gp = ext_sym_group(ids());
+    std::vector< std::vector<IndexName> > all;
+    std::vector<IndexName> one;
+    int prev=0, curr=0, n=dim_;
+
+    for (int i=0; i<n; i++) {
+      curr=gp[i];
+      if (curr!=prev) {
+        all.push_back(one);
+        one.clear();
+        prev=curr;
+      }
+      one.push_back(name[i]);
+    }
+    all.push_back(one);
+    std::vector<triangular> vt(all.size());
+    for (int i=0; i<all.size(); i++) {
+      triangular tr(all[i]);
+      vt[i]=tr;
+    }
+    IterGroup<triangular> out_itr = IterGroup<triangular>(vt,TRIG);
+
+    Integer length=0;
+    vector<Integer> out_vec; // out_vec = c_ids_v
+    out_itr.reset();
+    while (out_itr.next(out_vec)) {
+      if (is_spatial_nonzero(out_vec, irrep()) &&
+	  is_spin_nonzero(out_vec) &&
+	  is_spin_restricted_nonzero(out_vec, 2 * dim())) {
+	length ++;
+      }
+    }
+
+    offset_map_ = (Integer*)malloc(sizeof(Integer)*2*length+1);
+    assert(offset_map_!=NULL);
+    assert(dim_type_ == dim_n || dim_type_ == dim_ov);
+    Integer noab = Variables::noab();
+    Integer nvab = Variables::nvab();
+    Integer *int_mb = Variables::int_mb();
+
+    offset_map_[0] = length;
+    Integer addr = 0;
+    Integer size = 0;
+    //out_vec.clear();
+    //out_itr = IterGroup<triangular>(vt,TRIG);
+    out_itr.reset();
+    while (out_itr.next(out_vec)) {
+      if (is_spatial_nonzero(out_vec, irrep()) &&
+	  is_spin_nonzero(out_vec) &&
+	  is_spin_restricted_nonzero(out_vec, 2*dim())) {
+	Integer offset = 1, key = 0;
+	if(dim_type_ == dim_n) {
+	  for (int i=n-1; i>=0; i--) {
+	    key += (out_vec[i]-1) * offset;
+	    offset *= noab + nvab;
+	  }
+	}
+	else if(dim_type_ == dim_ov) {
+	  for (int i=n-1; i>=0; i--) {
+	    bool check = (Table::rangeOf(name[i])==TO);
+	    if (check) key += (out_vec[i]-1)*offset;
+	    else key += (out_vec[i]-noab-1)*offset; // TV
+	    offset *= (check)?noab:nvab;
+	  }
+	}
+
+	addr += 1;
+	offset_map_[addr] = key;
+	offset_map_[length + addr] = size;
+	size += compute_size(out_vec);
+      }
+    }
+
+    int dims = size;
+    ga_ = NGA_Create(MT_C_DBL, 1, &dims, (char *)"noname1", NULL);
+    *fma_offset_index = offset_map_ - int_mb;
+    *array_handle = ga_;
+    allocated_ = true;
+  }
+
+  void Tensor::destroy() {
+    if(allocated_) {
+      NGA_Destroy(ga_);
+      free(offset_map_);
+      allocated_ = false;
     }
   }
 

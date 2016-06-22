@@ -27,7 +27,7 @@ namespace ctce {
       trig_itr = IterGroup<triangular>(vt,TRIG);
     }
 
-    void genAntiIter(IterGroup<antisymm>& ext_itr, const Tensor& tC, const Tensor& tA, const Tensor& tB) {
+    void genAntiIter(const std::vector<Integer> &vtab, IterGroup<antisymm>& ext_itr, const Tensor& tC, const Tensor& tA, const Tensor& tB) {
       // const std::vector<IndexName>& c = tC.name();
       // const std::vector<IndexName>& a = tA.name();
       // const std::vector<IndexName>& b = tB.name();
@@ -62,7 +62,7 @@ namespace ctce {
         int fb=0;
         for (int j=0; j<all_f[i].size(); j++) fb+=all_f[i][j];
         int fa=all_f[i].size()-fb;
-        va[i] = antisymm(all[i],fa,fb);
+        va[i] = antisymm(vtab, all[i],fa,fb);
       }
       ext_itr = IterGroup<antisymm>(va,ANTI);
     }

@@ -64,7 +64,7 @@ namespace ctce {
   class Table {
     private:
       static std::vector<RangeType> range_; /*< range of the indices */
-      static std::vector<Integer> value_; /*< value of the indices */
+      //static std::vector<Integer> value_; /*< value of the indices */
     public:
       static void construct();
       /**
@@ -77,7 +77,7 @@ namespace ctce {
       /**
        * Return the value of whole table
        */
-      static std::vector<Integer>& value() { return value_; }
+      //static std::vector<Integer>& value() { return value_; }
   };
 
   /**

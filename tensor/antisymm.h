@@ -90,7 +90,7 @@ namespace ctce {
        * @param[in] s1 number of anti-symmetry group from A tensor
        * @param[in] s2 number of anti-symmetry group from B tensor
        */
-      antisymm(const std::vector<IndexName>& name, int s1, int s2);
+      antisymm(const std::vector<Integer> &vtab, const std::vector<IndexName>& name, int s1, int s2);
 
       /**
        * Check if this iterator is empty
@@ -115,13 +115,14 @@ namespace ctce {
       inline const std::vector<Integer>& v_offset() { };
   };
 
-  inline antisymm::antisymm(const std::vector<IndexName>& name, int n1, int n2) {
+  inline antisymm::antisymm(const std::vector<Integer> &vtab,
+														const std::vector<IndexName>& name, int n1, int n2) {
     int n = name.size();
     slist.resize(n);
     if (n==0) empty_=true;
     else {
       empty_=false;
-      const std::vector<Integer>& vtab = Table::value(); /* get value from table */
+      //const std::vector<Integer>& vtab = Table::value(); /* get value from table */
       for (int i=0; i<n; i++) slist[i] = vtab[name[i]];
       sort(slist.begin(), slist.end());
     }

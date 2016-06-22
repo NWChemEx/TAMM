@@ -28,7 +28,8 @@ namespace ctce {
         const std::vector<IndexName>& sum_ids, 
         IterGroup<triangular>& sum_itr,
         IterGroup<CopyIter>& cp_itr, 
-        const std::vector<Integer>& tid);
+								const std::vector<Integer>& tid,
+								Multiplication& m);
 
     /**
      * Outer full loops, wrap t_mult, currently not in use
@@ -44,7 +45,8 @@ namespace ctce {
         const std::vector<IndexName>& sum_ids,
         IterGroup<triangular>& sum_itr,
         IterGroup<CopyIter>& cp_itr,
-        IterGroup<triangular>& out_itr);
+								 IterGroup<triangular>& out_itr,
+								 Multiplication& m);
 
     /**
      * CCSD multiplication computation, DGEMM + ADD_HASH_BLOCK

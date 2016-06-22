@@ -1,5 +1,6 @@
 #include "variables.h"
-#include "/msc/apps/compilers/intel/impi/5.0.1.035/intel64/include/mpi.h"
+//#include "/msc/apps/compilers/intel/impi/5.0.1.035/intel64/include/mpi.h"
+#include <mpi.h>
 
 namespace ctce {
 
@@ -134,10 +135,10 @@ namespace ctce {
   }
 
   std::vector<RangeType> Table::range_;
-  std::vector<Integer> Table::value_;
+  //std::vector<Integer> Table::value_;
   void Table::construct() {
     range_.resize(IndexNum);
-    value_.resize(IndexNum);
+    //value_.resize(IndexNum);
     for (int i=0; i<pIndexNum; i++) range_[i] = TV;
     for (int i=pIndexNum; i<IndexNum; i++) range_[i] = TO;
   }

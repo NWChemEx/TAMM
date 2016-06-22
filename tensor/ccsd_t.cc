@@ -19,23 +19,23 @@ namespace ctce {
         Tensor tC, tA, tB;
         std::vector<int> cpt;
 
-        tC = Tensor6(P4B,P5B,P6B,H1B,H2B,H3B,0,0,0,1,1,1,iVT_tensor);
-        tA = Tensor2(P4B,H1B,0,1,T_tensor);
-        tB = Tensor4(P5B,P6B,H2B,H3B,0,0,1,1,V_tensor);
+        tC = Tensor6(P4B,P5B,P6B,H1B,H2B,H3B,0,0,0,1,1,1,iVT_tensor, dist_nw, dim_ov);
+        tA = Tensor2(P4B,H1B,0,1,T_tensor, dist_nwma, dim_ov);
+        tB = Tensor4(P5B,P6B,H2B,H3B,0,0,1,1,V_tensor,dist_nw, dim_n);
         m0 = Multiplication(tC,tA,tB,1.0);
         cpt = newVec<int>(2,2,2);
         m0.setCopyItr(cpt);
 
-        tC = Tensor6(P4B,P5B,P6B,H1B,H2B,H3B,0,0,0,1,1,1,iVT_tensor);
-        tA = Tensor4(P4B,P5B,H1B,H7B,0,0,1,1,T_tensor);
-        tB = Tensor4(H7B,P6B,H2B,H3B,0,1,2,2,V_tensor);
+        tC = Tensor6(P4B,P5B,P6B,H1B,H2B,H3B,0,0,0,1,1,1,iVT_tensor, dist_nw, dim_ov);
+        tA = Tensor4(P4B,P5B,H1B,H7B,0,0,1,1,T_tensor, dist_nw, dim_ov);
+        tB = Tensor4(H7B,P6B,H2B,H3B,0,1,2,2,V_tensor, dist_nw, dim_n);
         m1 = Multiplication(tC,tA,tB,-1.0);
         cpt = newVec<int>(2,1,2);
         m1.setCopyItr(cpt);
 
-        tC = Tensor6(P4B,P5B,P6B,H1B,H2B,H3B,0,0,0,1,1,1,iVT_tensor);
-        tA = Tensor4(P4B,P7B,H1B,H2B,0,0,1,1,T_tensor);
-        tB = Tensor4(P5B,P6B,H3B,P7B,0,0,1,2,V_tensor);
+        tC = Tensor6(P4B,P5B,P6B,H1B,H2B,H3B,0,0,0,1,1,1,iVT_tensor, dist_nw, dim_ov);
+        tA = Tensor4(P4B,P7B,H1B,H2B,0,0,1,1,T_tensor, dist_nw, dim_ov);
+        tB = Tensor4(P5B,P6B,H3B,P7B,0,0,1,2,V_tensor, dist_nw, dim_n);
         m2 = Multiplication(tC,tA,tB,-1.0);
         cpt = newVec<int>(2,2,1);
         m2.setCopyItr(cpt);
@@ -48,26 +48,26 @@ namespace ctce {
     void ccsd_t_singles_1_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, double *a_c, const std::vector<Integer>& tid) {
       t_mult(d_a, k_a_offset, d_b, k_b_offset, a_c, 
           m0.tC(), m0.tA(), m0.tB(), m0.coef(), m0.sum_ids(),
-          m0.sum_itr(), m0.cp_itr(), tid);
+	     m0.sum_itr(), m0.cp_itr(), tid, m0);
     }
 
     /* i0 ( p4 p5 p6 h1 h2 h3 )_vt + = -1 * P( 9 ) * Sum ( h7 ) * t ( p4 p5 h1 h7 )_t * v ( h7 p6 h2 h3 )_v */
     void ccsd_t_doubles_1_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, double *a_c, const std::vector<Integer>& tid) {
       t_mult(d_a, k_a_offset, d_b, k_b_offset, a_c, 
           m1.tC(), m1.tA(), m1.tB(), m1.coef(), m1.sum_ids(),
-          m1.sum_itr(), m1.cp_itr(), tid);
+	     m1.sum_itr(), m1.cp_itr(), tid, m1);
     }
 
     /* i0 ( p4 p5 p6 h1 h2 h3 )_vt + = -1 * P( 9 ) * Sum ( p7 ) * t ( p4 p7 h1 h2 )_t * v ( p5 p6 h3 p7 )_v */
     void ccsd_t_doubles_2_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, double *a_c, const std::vector<Integer>& tid) {
       t_mult(d_a, k_a_offset, d_b, k_b_offset, a_c, 
           m2.tC(), m2.tA(), m2.tB(), m2.coef(), m2.sum_ids(),
-          m2.sum_itr(), m2.cp_itr(), tid);
+	     m2.sum_itr(), m2.cp_itr(), tid, m2);
     }
 
     void ccsd_t_cxx_(
-        Integer* k_t1_local,
-        Integer *d_t1, Integer *k_t1_offset, Integer *d_t2, Integer *k_t2_offset,
+        Integer* k_t1_local,Integer *d_t1, Integer *k_t1_offset, 
+	Integer *d_t2, Integer *k_t2_offset,
         Integer *d_v2, Integer *k_v2_offset, double *energy1, double *energy2, Integer *size_t1) {
 
 #if 0
@@ -98,7 +98,7 @@ namespace ctce {
       *energy2 = 0.0;
       double energy[2];
       energy[0] = 0.0;
-      energy[1] = 0.0;
+     energy[1] = 0.0;
 
       Tensor tC = Tensor6(P4B,P5B,P6B,H1B,H2B,H3B,0,0,0,1,1,1,iVT_tensor);
       IterGroup<triangular> out_itr;
@@ -133,13 +133,18 @@ namespace ctce {
             memset(buf_double, 0, rsize*sizeof(double));
 
             Integer toggle = 2;
+#if 0
             ccsd_t_singles_l_(buf_single, k_t1_local, d_v2, k_t1_offset, k_v2_offset,&vec[3], &vec[4], &vec[5], &vec[0], &vec[1], &vec[2], &toggle);
-            //ccsd_t_singles_1_cxx_(k_t1_local, k_t1_offset, d_v2, k_v2_offset, buf_single, vec);
+#else
+            ccsd_t_singles_1_cxx_(k_t1_local, k_t1_offset, d_v2, k_v2_offset, buf_single, vec);
+#endif
 
+#if 0
             ccsd_t_doubles_(buf_double, d_t2, d_v2, k_t2_offset, k_v2_offset,&vec[3], &vec[4], &vec[5], &vec[0], &vec[1], &vec[2], &toggle);
-            //ccsd_t_doubles_1_cxx_(d_t2, k_t2_offset, d_v2, k_v2_offset, buf_double, vec);
-            //ccsd_t_doubles_2_cxx_(d_t2, k_t2_offset, d_v2, k_v2_offset, buf_double, vec);
-
+#else
+            ccsd_t_doubles_1_cxx_(d_t2, k_t2_offset, d_v2, k_v2_offset, buf_double, vec);
+	    ccsd_t_doubles_2_cxx_(d_t2, k_t2_offset, d_v2, k_v2_offset, buf_double, vec);
+#endif
             double factor = computeFactor(vec);
             computeEnergy(rvec, ovec, energy1, energy2, buf_single, buf_double, factor);
             free(buf_single);

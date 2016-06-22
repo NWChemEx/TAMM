@@ -37,9 +37,9 @@ namespace ctce {
   /* cout vector */
   template<typename T>
     std::ostream&
-    operator<<(std::ostream& os, std::vector<T>& v) {
+    operator<<(std::ostream& os, const std::vector<T>& v) {
       os<<"(";
-      for(typename std::vector<T>::iterator itr=v.begin(); itr!=v.end(); ++itr) os << *itr <<" ";
+      for(typename std::vector<T>::const_iterator itr=v.begin(); itr!=v.end(); ++itr) os << *itr <<" ";
       os<<")";
       return os;
     }

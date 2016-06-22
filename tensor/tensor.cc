@@ -125,6 +125,7 @@ namespace ctce {
 
     int dims = size;
     ga_ = NGA_Create(MT_C_DBL, 1, &dims, (char *)"noname1", NULL);
+    NGA_Zero(ga_);
     *fma_offset_index = offset_map_ - int_mb;
     *array_handle = ga_;
     allocated_ = true;

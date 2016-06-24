@@ -9,7 +9,7 @@ namespace ctce {
 
   static Assignment a_t2_1, a_t2_2_1, a_t2_2_2_1, a_t2_2_2_2_1, a_t2_2_4_1, a_t2_2_5_1;
   static Multiplication m_t2_2, m_t2_2_2, m_t2_2_2_2, m_t2_2_2_2_2, m_t2_2_2_3, m_t2_2_4, m_t2_2_4_2, m_t2_2_5, m_t2_2_5_2, m_t2_2_6;
-  static Tensor t2_2_1, t2_2_2_1, t2_2_2_2_1;
+  static Tensor t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1;
 
   extern "C" {
 
@@ -115,41 +115,63 @@ namespace ctce {
         tB = Tensor4(H10B,P3B,P5B,P6B,0,1,2,2,V_tensor, idist, dim_n);
         m_t2_2_6 = Multiplication(tC,tA,tB,0.5);
 
-	//OFFSET_ccsd_t2_2_1: i1 ( h10 p3 h1 h2 )_v
-	t2_2_1 = Tensor4(P3B,H10B,H1B,H2B,0,1,2,2,iVT_tensor,dist_nw,dim_ov);
+	      //OFFSET_ccsd_t2_2_1: i1 ( h10 p3 h1 h2 )_v
+	      t2_2_1 = Tensor4(P3B,H10B,H1B,H2B,0,1,2,2,iVT_tensor,dist_nw,dim_ov);
 
-	//offset_ccsd_t2_2_2_1:i2 ( h10 h11 h1 h2 )_v
+	      //offset_ccsd_t2_2_2_1:i2 ( h10 h11 h1 h2 )_v
         t2_2_2_1 = Tensor4(H10B,H11B,H1B,H2B,0,0,1,1,iVT_tensor, dist_nw, dim_ov);
 
-	//offset_ccsd_t2_2_2_2_1: C     i3 ( h10 h11 h1 p5 )_v
-        t2_2_2_2_1 = Tensor4(H10B,H11B,H1B,P5B,0,0,1,2,iV_tensor, idist, dim_ov);
+	      //offset_ccsd_t2_2_2_2_1: C     i3 ( h10 h11 h1 p5 )_v
+        t2_2_2_2_1 = Tensor4(H10B,H11B,H1B,P5B,0,0,1,2,iV_tensor, dist_nw, dim_ov);
+
+	      //offset_ccsd_t2_2_4_1: i2 ( h10 p5 )_f
+        t2_2_4_1 = Tensor2(H10B,P5B,0,1,iF_tensor, dist_nw, dim_ov);
+
+	      //offset_ccsd_t2_2_5_1: i2 ( h7 h10 h1 p9 )_v
+        t2_2_5_1 = Tensor4(H7B,H10B,H1B,P9B,0,0,1,2,iV_tensor, dist_nw, dim_ov);
 
         set_t2_12 = false;
       }
     }
 
-    void ccsd_t2_2_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1) {
-      t2_2_1.create(k_i1_offset, d_i1);
+    void ccsd_t2_2_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
+      t2_2_1.create(k_i1_offset, d_i1, size_i1);
     }
 
     void ccsd_t2_2_1_deletefile_cxx_() {
       t2_2_1.destroy();
     }
 
-    void ccsd_t2_2_2_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1) {
-      t2_2_2_1.create(k_i1_offset, d_i1);
+    void ccsd_t2_2_2_1_createfile_cxx_(Integer *k_i2_offset, Integer *d_i2, Integer *size_i2) {
+      t2_2_2_1.create(k_i2_offset, d_i2, size_i2);
     }
 
     void ccsd_t2_2_2_1_deletefile_cxx_() {
       t2_2_2_1.destroy();
     }
 
-    void ccsd_t2_2_2_2_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1) {
-      t2_2_2_2_1.create(k_i1_offset, d_i1);
+    void ccsd_t2_2_2_2_1_createfile_cxx_(Integer *k_i3_offset, Integer *d_i3, Integer *size_i3) {
+      t2_2_2_2_1.create(k_i3_offset, d_i3, size_i3);
     }
 
     void ccsd_t2_2_2_2_1_deletefile_cxx_() {
       t2_2_2_2_1.destroy();
+    }
+
+    void ccsd_t2_2_4_1_createfile_cxx_(Integer *k_i2_offset, Integer *d_i2, Integer *size_i2) {
+      t2_2_4_1.create(k_i2_offset, d_i2, size_i2);
+    }
+
+    void ccsd_t2_2_4_1_deletefile_cxx_() {
+      t2_2_4_1.destroy();
+    }
+
+    void ccsd_t2_2_5_1_createfile_cxx_(Integer *k_i2_offset, Integer *d_i2, Integer *size_i2) {
+      t2_2_5_1.create(k_i2_offset, d_i2, size_i2);
+    }
+
+    void ccsd_t2_2_5_1_deletefile_cxx_() {
+      t2_2_5_1.destroy();
     }
 
     void ccsd_t2_1_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_c, Integer *k_c_offset) {

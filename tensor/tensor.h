@@ -31,6 +31,8 @@ namespace ctce {
 			bool allocated_; /*true if this tensor were created using create()*/
 			int ga_; /*underlying ga if this tensor was created*/
 			Integer *offset_map_; /*offset map used as part of creation*/
+			int irrep_; /*irrep for spatial symmetry*/
+			int nupper_; /* number of upper indices*/
 
       /* name, value, value_r of the indices to avoid accessing ids_ every time */
       //std::vector<IndexName> name_; /*< indices name of this tensor: (p1,p2,p3,p4) */
@@ -71,12 +73,15 @@ namespace ctce {
        */
 	Tensor(const int& n, Index ids[], TensorType type, DistType dist_type, DimType dim_type)
         : dim_(n),
+				nupper_(n/2),
+				irrep_(0),
         //type_(type),
         //sign_(1),
 				allocated_(false),
 				dist_type_(dist_type),
 				dim_type_(dim_type),
 				ids_(ids, ids+n) {
+				assert(dim_%2 == 0); /*assume even number of indices here*/
 				//ids_.resize(n);
           //name_.resize(n);
           //value_.resize(n);
@@ -109,11 +114,27 @@ namespace ctce {
           /* get_i = false; */
         }
 
+	Tensor(const int& n, const int nupper, int irrep_val, Index ids[], TensorType type, DistType dist_type, DimType dim_type)
+        : dim_(n),
+				nupper_(nupper),
+				irrep_(irrep_val),
+        //type_(type),
+        //sign_(1),
+				allocated_(false),
+				dist_type_(dist_type),
+				dim_type_(dim_type),
+				ids_(ids, ids+n) {
+				assert(n > 0);
+				assert(nupper_ >=0 && nupper_ <= dim_);
+			}
+
       /**
        * Get the dimension of this tensor
        * @return dim as a int
        */
       inline const int& dim() const { return dim_; }
+
+			inline int nupper() const { return nupper_; }
 
       /**
        * Get the sign of the tensor
@@ -216,7 +237,7 @@ namespace ctce {
        * Get the corresponding irrep value from the global variables
        * @return irrep as Integer
        */
-      const Integer& irrep();
+      int irrep() const { return irrep_; }
 
       /**
        * Get data by get_hash_block_xx and store in buf, this function is for t_mult
@@ -236,6 +257,32 @@ namespace ctce {
        */
       //void get2(Integer d_a, double *buf, Integer size, Integer d_a_offset);
 
+			int is_spin_restricted_nonzero(const std::vector<Integer>& ids) const {
+				int lval = dim_ - 2*nupper_;
+				Integer *int_mb = Variables::int_mb();
+				Integer k_spin = Variables::k_spin()-1;
+				Integer restricted = Variables::restricted();
+				for (int i=0; i<ids.size(); i++) lval += int_mb[k_spin+ids[i]];
+				return ((!restricted) || (lval != 2*dim_));
+			}
+
+			int is_spin_nonzero(const std::vector<Integer>& ids) const {
+				int lval=0, rval=0;
+				Integer *int_mb = Variables::int_mb();
+				Integer k_spin = Variables::k_spin()-1;
+				for(int i=0; i<nupper_; i++) lval += int_mb[k_spin+ids[i]];
+				for(int i=nupper_; i<dim_; i++) rval += int_mb[k_spin+ids[i]];
+				return (rval - lval == dim_ - 2*nupper_);
+			}
+
+			int is_spatial_nonzero(const std::vector<Integer> &ids) const {
+				Integer lval=0;
+				Integer *int_mb = Variables::int_mb();
+				Integer k_sym = Variables::k_sym()-1;
+				for(int i=0; i<ids.size(); i++) lval ^= int_mb[k_sym+ids[i]];
+				return (lval == irrep_);
+			}
+
 			void get2(Integer d_a, std::vector<Integer> &pvalue_r, double *buf, Integer size, Integer d_a_offset);
 
       /**
@@ -247,7 +294,7 @@ namespace ctce {
 													std::vector<Integer> &pvalue_r);
 
 
-			void create(Integer *fma_offset_index, Integer *array_handle);
+			void create(Integer *fma_offset_index, Integer *array_handle, Integer *array_size);
 
 			void destroy();
 

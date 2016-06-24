@@ -7,13 +7,13 @@ using namespace std;
 namespace ctce {
 
 
-  const Integer& Tensor::irrep() {
-    // if ((type_==iV_tensor)||(type_==V_tensor)) return Variables::irrep_v();
-    // if ((type_==iT_tensor)||(type_==T_tensor)) return Variables::irrep_t();
-    // if ((type_==iF_tensor)||(type_==F_tensor)) return Variables::irrep_f();
-    /*@FIX: to do. set it up in constructor*/
-    return Variables::irrep_v(); /*@BUG @FIXME @TODO implement functionality above*/
-  }
+  // const Integer& Tensor::irrep() {
+  //   // if ((type_==iV_tensor)||(type_==V_tensor)) return Variables::irrep_v();
+  //   // if ((type_==iT_tensor)||(type_==T_tensor)) return Variables::irrep_t();
+  //   // if ((type_==iF_tensor)||(type_==F_tensor)) return Variables::irrep_f();
+  //   /*@FIX: to do. set it up in constructor*/
+  //   return Variables::irrep_v(); /*@BUG @FIXME @TODO implement functionality above*/
+  // }
 
   // void Tensor::gen_restricted() {
   //   std::vector<Integer> temp;
@@ -47,7 +47,7 @@ namespace ctce {
     }
   }
 
-  void Tensor::create(Integer *fma_offset_index, Integer *array_handle) {
+  void Tensor::create(Integer *fma_offset_index, Integer *array_handle, Integer *array_size) {
     const std::vector<IndexName>& name = id2name(ids());
     // const std::vector<int>& gp = tC_.ext_sym_group();
     const std::vector<int>& gp = ext_sym_group(ids());
@@ -76,9 +76,9 @@ namespace ctce {
     vector<Integer> out_vec; // out_vec = c_ids_v
     out_itr.reset();
     while (out_itr.next(out_vec)) {
-      if (is_spatial_nonzero(out_vec, irrep()) &&
+      if (is_spatial_nonzero(out_vec) &&
 	  is_spin_nonzero(out_vec) &&
-	  is_spin_restricted_nonzero(out_vec, 2 * dim())) {
+	  is_spin_restricted_nonzero(out_vec)) {
 	length ++;
       }
     }
@@ -97,9 +97,9 @@ namespace ctce {
     //out_itr = IterGroup<triangular>(vt,TRIG);
     out_itr.reset();
     while (out_itr.next(out_vec)) {
-      if (is_spatial_nonzero(out_vec, irrep()) &&
+      if (is_spatial_nonzero(out_vec) &&
 	  is_spin_nonzero(out_vec) &&
-	  is_spin_restricted_nonzero(out_vec, 2*dim())) {
+	  is_spin_restricted_nonzero(out_vec)) {
 	Integer offset = 1, key = 0;
 	if(dim_type_ == dim_n) {
 	  for (int i=n-1; i>=0; i--) {
@@ -123,11 +123,16 @@ namespace ctce {
       }
     }
 
-    int dims = size;
-    ga_ = NGA_Create(MT_C_DBL, 1, &dims, (char *)"noname1", NULL);
+    {
+      //int dims = size;
+      int ndims = 2;
+      int dims[2] = {1, size};
+      ga_ = NGA_Create(MT_C_DBL, 2, dims, (char *)"noname1", NULL);
+    }
     NGA_Zero(ga_);
     *fma_offset_index = offset_map_ - int_mb;
     *array_handle = ga_;
+    *array_size = size;
     allocated_ = true;
   }
 

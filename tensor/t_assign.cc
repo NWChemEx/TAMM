@@ -48,9 +48,9 @@ namespace ctce {
 	    assert(a_ids[i] < IndexNum);
             a_ids_v[i] = vtab1[a_ids[i]];
           }
-          if (is_spatial_nonzero(out_vec, tA.irrep()) &&
-              is_spin_nonzero(a_ids_v) &&
-              is_spin_restricted_nonzero(out_vec, 2 * tC.dim())) {
+          if (tA.is_spatial_nonzero(out_vec) &&
+              tA.is_spin_nonzero(a_ids_v) &&
+              tA.is_spin_restricted_nonzero(out_vec)) {
 
             Integer dimc = compute_size(out_vec); if (dimc <= 0) continue;
 	    vector<Integer> value_r;

@@ -140,6 +140,7 @@ namespace ctce {
 				retv[i] = TV;
 			}
 		}
+		return retv;
 	}
 
 	inline std::vector<int> ext_sym_group(const Tensor &tensor,
@@ -172,6 +173,7 @@ namespace ctce {
 				}
 			}
 		}
+		return retv;
 	}
 
 

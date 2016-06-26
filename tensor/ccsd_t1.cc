@@ -14,7 +14,7 @@ namespace ctce {
     void gen_expr_t1_cxx_() {
 
       static bool set_t1 = true;
-      Tensor tC, tA, tB;
+      //Tensor tC, tA, tB;
 
       DistType idist = (Variables::intorb()) ? dist_nwi : dist_nw;
 
@@ -76,8 +76,7 @@ namespace ctce {
 				  1.0);
 
         /* i1 ( h7 h1 )_vt + = -1 * Sum ( h5 p4 ) * t ( p4 h5 )_t * v ( h5 h7 h1 p4 )_v */
-        tC = Tensor2(H7B,H1B,0,1,iVT_tensor, dist_nw, dim_ov);
-        m_t1_2_3 = Multiplication(tC,ivec(H7B,H1B),
+        m_t1_2_3 = Multiplication(i1_2,ivec(H7B,H1B),
 				  t1,ivec(P4B,H5B),
 				  v,ivec(H5B,H7B,H1B,P4B),-1.0);
 
@@ -87,9 +86,9 @@ namespace ctce {
 				  v,ivec(H5B,H7B,P3B,P4B),-0.5);
 
         /* i0 ( p2 h1 )_tf + = -1 * Sum ( h7 ) * t ( p2 h7 )_t * i1 ( h7 h1 )_f */
-        m_t1_2 = Multiplication(i1_2,ivec(P2B,H1B),
+        m_t1_2 = Multiplication(i0,ivec(P2B,H1B),
 				t1,ivec(P2B,H7B),
-				tB,ivec(H7B,H1B),-1.0);
+				i1_2,ivec(H7B,H1B),-1.0);
 
         /* i1 ( p2 p3 )_f + = 1 * f ( p2 p3 )_f */
         a_t1_3_1 = Assignment(i1_3,f,1.0,ivec(P2B,P3B),ivec(P2B,P3B));
@@ -106,7 +105,7 @@ namespace ctce {
         m_t1_4 = Multiplication(i0,ivec(P2B,H1B),t1,ivec(P3B,H4B),v,ivec(H4B,P2B,H1B,P3B),-1.0);
 
         /* i1 ( h8 p7 )_f + = 1 * f ( h8 p7 )_f */
-        a_t1_5_1 = Assignment(tC,f,1.0,ivec(H8B,P7B), ivec(H8B,P7B));
+        a_t1_5_1 = Assignment(i1_5,f,1.0,ivec(H8B,P7B), ivec(H8B,P7B));
 
         /* i1 ( h8 p7 )_vt + = 1 * Sum ( h6 p5 ) * t ( p5 h6 )_t * v ( h6 h8 p5 p7 )_v */
         m_t1_5_2 = Multiplication(i1_5,ivec(H8B,P7B),t1,ivec(P5B,H6B),v,ivec(H6B,H8B,P5B,P7B),1.0);
@@ -115,7 +114,7 @@ namespace ctce {
         m_t1_5 = Multiplication(i0,ivec(P2B,H1B),t2,ivec(P2B,P7B,H1B,H8B),i1_5,ivec(H8B,P7B),1.0);
 
         /* i1 ( h4 h5 h1 p3 )_v + = 1 * v ( h4 h5 h1 p3 )_v */
-        a_t1_6_1 = Assignment(tC,v,1.0, ivec(H4B,H5B,H1B,P3B), ivec(H4B,H5B,H1B,P3B));
+        a_t1_6_1 = Assignment(i1_6,v,1.0, ivec(H4B,H5B,H1B,P3B), ivec(H4B,H5B,H1B,P3B));
 
         /* i1 ( h4 h5 h1 p3 )_vt + = -1 * Sum ( p6 ) * t ( p6 h1 )_t * v ( h4 h5 p3 p6 )_v */
         m_t1_6_2 = Multiplication(i1_6,ivec(H4B,H5B,H1B,P3B),

@@ -34,8 +34,8 @@ namespace ctce {
   void Multiplication::genMemPos() {
     // const std::vector<IndexName>& a = tA_.name();
     // const std::vector<IndexName>& b = tB_.name();
-    const std::vector<IndexName>& a = id2name(tA_.ids());
-    const std::vector<IndexName>& b = id2name(tB_.ids());
+    const std::vector<IndexName>& a = id2name(a_ids);
+    const std::vector<IndexName>& b = id2name(b_ids);
     std::vector<IndexName> a_ext, b_ext;
     std::vector<IndexName> a_mpos, b_mpos, c_mpos;
     int na = a.size();

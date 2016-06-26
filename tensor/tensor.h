@@ -114,19 +114,7 @@ namespace ctce {
           /* get_i = false; */
         }
 
-	Tensor(const int& n, const int nupper, int irrep_val, Index ids[], TensorType type, DistType dist_type, DimType dim_type)
-        : dim_(n),
-				nupper_(nupper),
-				irrep_(irrep_val),
-        //type_(type),
-        //sign_(1),
-				allocated_(false),
-				dist_type_(dist_type),
-				dim_type_(dim_type),
-				ids_(ids, ids+n) {
-				assert(n > 0);
-				assert(nupper_ >=0 && nupper_ <= dim_);
-			}
+			Tensor(int n, int nupper, int irrep_val, RangeType rt[], DistType dist_type);
 
       /**
        * Get the dimension of this tensor
@@ -475,7 +463,7 @@ namespace ctce {
 
   }; // Tensor
 
-  extern "C" {
+  //extern "C" {
 
     /**
     * Function that can create a 2-d tensor
@@ -521,7 +509,11 @@ namespace ctce {
     Tensor Tensor6(IndexName n1, IndexName n2, IndexName n3, IndexName n4, IndexName n5, IndexName n6,
 									 int e1, int e2, int e3, int e4, int e5, int e6, TensorType type, DistType dt=dist_nw, DimType dm=dim_ov);
 
-  };
+	Tensor Tensor2(RangeType r1, RangeType r2, DistType dt);
+
+	Tensor Tensor4(RangeType r1, RangeType r2, RangeType r3, RangeType r4, DistType dt);
+
+  //};
 
 } /* namespace ctce */
 

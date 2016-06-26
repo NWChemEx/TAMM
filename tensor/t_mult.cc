@@ -30,9 +30,9 @@ namespace ctce {
       ext_itr.reset();
 
       while (ext_itr.next(ext_vec)) {
-        if (is_spatial_nonzero(ext_vec, tA.irrep() ^ tB.irrep()) &&
-            is_spin_nonzero(ext_vec) &&
-            is_spin_restricted_nonzero(ext_vec, 2 * tC.dim())) {
+        if (tC.is_spatial_nonzero(ext_vec) &&
+            tC.is_spin_nonzero(ext_vec) &&
+            tC.is_spin_restricted_nonzero(ext_vec)) {
 
           for (int i = 0; i < tC.dim(); ++i) {
             vtab[c_ids[i]] = ext_vec[i];
@@ -72,8 +72,8 @@ namespace ctce {
             // }
             // vector<Integer> a_ids_v = tA.value();
             // vector<Integer> b_ids_v = tB.value();
-            if(!is_spatial_nonzero(a_ids_v, tA.irrep()))  continue;
-            if(!is_spin_nonzero(a_ids_v)) continue;
+            if(!tA.is_spatial_nonzero(a_ids_v))  continue;
+            if(!tA.is_spin_nonzero(a_ids_v)) continue;
 
 	    vector<Integer> a_value_r, b_value_r;
 	    tA.gen_restricted(a_ids_v, a_value_r);
@@ -165,9 +165,9 @@ namespace ctce {
       out_itr.reset();
       double anti=0, add=0;
       while (out_itr.next(out_vec)) {
-        if (!is_spatial_nonzero(out_vec, tA.irrep() ^ tB.irrep())) continue;
-        if (!is_spin_nonzero(out_vec)) continue;
-        if (!is_spin_restricted_nonzero(out_vec, 2 * tC.dim())) continue;
+        if (!tC.is_spatial_nonzero(out_vec)) continue;
+        if (!tC.is_spin_nonzero(out_vec)) continue;
+        if (!tC.is_spin_restricted_nonzero(out_vec)) continue;
         Integer dimc = compute_size(out_vec);
         if (dimc <= 0) continue;
         double* buf_c = new double[dimc];
@@ -213,9 +213,9 @@ namespace ctce {
 
         if (next==count) { // check if its my task
 
-          if ( (is_spatial_nonzero(out_vec, tA.irrep() ^ tB.irrep())) &&
-              (is_spin_nonzero(out_vec)) &&
-              (is_spin_restricted_nonzero(out_vec, 2*tC.dim())) ) {
+          if ( (tC.is_spatial_nonzero(out_vec)) &&
+              (tC.is_spin_nonzero(out_vec)) &&
+              (tC.is_spin_restricted_nonzero(out_vec)) ) {
 
 	    vector<int> vtab1(IndexNum);
             for (int i=0; i<tC.dim(); i++) {
@@ -245,8 +245,8 @@ namespace ctce {
 		assert(b_ids[i] < IndexNum);
 		b_ids_v[i] = vtab1[b_ids[i]];
 	      }
-              if (!is_spatial_nonzero(a_ids_v, tA.irrep())) continue;
-              if (!is_spin_nonzero(a_ids_v)) continue;
+              if (!tA.is_spatial_nonzero(a_ids_v)) continue;
+              if (!tA.is_spin_nonzero(a_ids_v)) continue;
 
 	      vector<Integer> a_value_r, b_value_r;
 	      tA.gen_restricted(a_ids_v, a_value_r);

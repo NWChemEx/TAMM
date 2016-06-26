@@ -142,7 +142,7 @@ namespace ctce {
 		}
 	}
 
-	inline std::vector<int> ext_sym_group(Tensor &tensor,
+	inline std::vector<int> ext_sym_group(const Tensor &tensor,
 																				const vector<IndexName> &ids) {
 		int nupper = tensor.nupper();
 		int ndim = tensor.dim();
@@ -231,7 +231,18 @@ namespace ctce {
 	}
 
 
+	inline std::vector<Index> name2ids(const Tensor &tensor,
+																		 const vector<IndexName>& name) {
+		int n = tensor.dim();
+		assert(n == name.size());
+		const std::vector<int> &esg = ext_sym_group(tensor, name);
+		std::vector<Index> retv(n);
 
+		for(int i=0; i<n; i++) {
+			retv[i] = Index(name[i], esg[i]);
+		}
+		return retv;
+	}
 
   /**
    * Assigment template. tC += coef * tA
@@ -362,12 +373,14 @@ namespace ctce {
         }
 
 
-	Multiplication(const Tensor& tC, const std::vector<Index> &c_ids1,
-		       const Tensor& tA, const std::vector<Index> &a_ids1,
-		       const Tensor& tB, const std::vector<Index> &b_ids1,
+	Multiplication(const Tensor& tC, const std::vector<IndexName> &c_ids1,
+		       const Tensor& tA, const std::vector<IndexName> &a_ids1,
+		       const Tensor& tB, const std::vector<IndexName> &b_ids1,
 		       double coef)
-	  : tC_(tC), tA_(tA), tB_(tB), coef_(coef),
-	    c_ids(c_ids1), a_ids(a_ids1), b_ids(b_ids1) {
+	  : tC_(tC), tA_(tA), tB_(tB), coef_(coef) {
+		c_ids = name2ids(tC, c_ids1);
+		a_ids = name2ids(tA, a_ids1);
+		b_ids = name2ids(tB, b_ids1);
           genMemPos();
           genSumGroup();
           genOutGroup(); 

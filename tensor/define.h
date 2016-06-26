@@ -12,7 +12,7 @@ namespace ctce {
 
   /* range of the indices, also used in triangular iterator */
   typedef enum {
-    TO, TV, RANGE_UB
+    TO, TV, TN, RANGE_UB
   } RangeType;
 
   typedef enum {

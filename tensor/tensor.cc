@@ -29,6 +29,42 @@ namespace ctce {
   //   }
   // }
 
+  Tensor::Tensor(int n, int nupper, int irrep_val,
+                 RangeType rt[], DistType dist_type)
+    : dim_(n),
+      nupper_(nupper),
+      irrep_(irrep_val),
+      allocated_(false),
+      dist_type_(dist_type) {
+    assert(n > 0);
+    assert(nupper_ >=0 && nupper_ <= dim_);
+
+    vector<IndexName> name(n);
+    vector<int> ctr(RANGE_UB, 0);
+    dim_type_ = dim_n;
+    for(int i=0; i<n; i++) {
+      switch(rt[i]) {
+      case TO:
+        name[i] = (IndexName)(H1B + ctr[TO]);
+        ctr[TO]++;
+        dim_type_ = dim_ov;
+        break;
+      case TV:
+        name[i] = (IndexName)(P1B + ctr[TV]);
+        dim_type_ = dim_ov;
+        ctr[TV]++;
+      case TN: /*@FIXME @BUG should have a separate index name*/
+        name[i] = (IndexName)(P1B + ctr[TV]);
+        ctr[TV]++;
+        break;
+      default:
+        assert(0);
+      }
+    }
+    ids_ = name2ids(*this,name);
+  }
+
+
   void Tensor::gen_restricted(const std::vector<Integer>& value,
 			      std::vector<Integer> &pvalue_r) {
     std::vector<Integer> temp;
@@ -54,6 +90,8 @@ namespace ctce {
     std::vector< std::vector<IndexName> > all;
     std::vector<IndexName> one;
     int prev=0, curr=0, n=dim_;
+
+    assert(dim_type_ == dim_ov); //@FIXME @BUG: not implemented for other dime types
 
     for (int i=0; i<n; i++) {
       curr=gp[i];
@@ -278,7 +316,7 @@ namespace ctce {
     }
   }
 
-  extern "C" {
+  //extern "C" {
 
     Tensor Tensor2(IndexName n1, IndexName n2, int e1, int e2, TensorType type,
 		   DistType dt, DimType dm) {
@@ -317,6 +355,15 @@ namespace ctce {
       return t;
     }
 
-  };
+    Tensor Tensor2(RangeType r1, RangeType r2, DistType dt) {
+      RangeType rts[2] = {r1, r2};
+      return Tensor(2,1,0,rts, dt);
+    }
+
+    Tensor Tensor4(RangeType r1, RangeType r2, RangeType r3, RangeType r4, DistType dt) {
+      RangeType rts[4] = {r1, r2, r3, r4};
+      return Tensor(4,2,0,rts, dt);
+    }
+  //};
 
 };

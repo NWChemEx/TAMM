@@ -130,6 +130,50 @@ namespace ctce {
 		}
 	}
 
+	inline std::vector<RangeType> id2range(const vector<IndexName> &ids) {
+		std::vector<RangeType> retv(ids.size());
+		for(int i=0; i<ids.size(); i++) {
+			if(ids[i] < pIndexNum) {
+				retv[i] = TO;
+			}
+			else {
+				retv[i] = TV;
+			}
+		}
+	}
+
+	inline std::vector<int> ext_sym_group(Tensor &tensor,
+																				const vector<IndexName> &ids) {
+		int nupper = tensor.nupper();
+		int ndim = tensor.dim();
+		assert(ndim == ids.size());
+		std::vector<RangeType> range_types = id2range(ids);
+		int esgc=0;
+		std::vector<int> retv(ndim);
+		{
+			std::vector<int> esg(RANGE_UB,-1);
+			for(int i=0; i<nupper; i++) {
+				if(esg[range_types[i]] != -1) {
+					retv[i] = esg[range_types[i]];
+				}
+				else {
+					retv[i] = esg[range_types[i]] = esgc++;
+				}
+			}
+		}
+		{
+			std::vector<int> esg(RANGE_UB,-1);
+			for(int i=nupper; i<ndim; i++) {
+				if(esg[range_types[i]] != -1) {
+					retv[i] = esg[range_types[i]];
+				}
+				else {
+					retv[i] = esg[range_types[i]] = esgc++;
+				}
+			}
+		}
+	}
+
 
 	inline int sortByValueThenExtSymGroup(const std::vector<Index> &ids_,
 																				std::vector<IndexName> &name,
@@ -306,9 +350,24 @@ namespace ctce {
        */
       Multiplication(const Tensor& tC, const Tensor& tA, const Tensor& tB, double coef)
         : tC_(tC), tA_(tA), tB_(tB), coef_(coef) {
+				// c_ids = id2name(tC_.ids());
+				// a_ids = id2name(tA_.ids());
+				// b_ids = id2name(tB_.ids());
 				c_ids = tC_.ids();
 				a_ids = tA_.ids();
 				b_ids = tB_.ids();
+          genMemPos();
+          genSumGroup();
+          genOutGroup(); 
+        }
+
+
+	Multiplication(const Tensor& tC, const std::vector<Index> &c_ids1,
+		       const Tensor& tA, const std::vector<Index> &a_ids1,
+		       const Tensor& tB, const std::vector<Index> &b_ids1,
+		       double coef)
+	  : tC_(tC), tA_(tA), tB_(tB), coef_(coef),
+	    c_ids(c_ids1), a_ids(a_ids1), b_ids(b_ids1) {
           genMemPos();
           genSumGroup();
           genOutGroup(); 

@@ -4,9 +4,11 @@ namespace ctce {
 
   void Assignment::init() {
     // const std::vector<IndexName>& name = tC_.name();
-    const std::vector<IndexName>& name = id2name(tC_.ids());
+    // const std::vector<IndexName>& name = id2name(tC_.ids());
+    const std::vector<IndexName>& name = cids_;
     // const std::vector<int>& gp = tC_.ext_sym_group();
-    const std::vector<int>& gp = ext_sym_group(tC_.ids());
+    //const std::vector<int>& gp = ext_sym_group(tC_.ids());
+    const std::vector<int>& gp = ext_sym_group(tC_, cids_);
     std::vector< std::vector<IndexName> > all;
     std::vector<IndexName> one;
     int prev=0, curr=0, n=name.size();

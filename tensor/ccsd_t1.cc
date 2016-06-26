@@ -39,7 +39,12 @@ namespace ctce {
         tC = Tensor2(H7B,P3B,0,1,iVT_tensor, dist_nw, dim_ov);
         tA = Tensor2(P5B,H6B,0,1,T_tensor, dist_nwma, dim_ov);
         tB = Tensor4(H6B,H7B,P3B,P5B,0,0,1,1,V_tensor, idist, dim_n);
-        m_t1_2_2_2 = Multiplication(tC,tA,tB,-1.0);
+        // m_t1_2_2_2 = Multiplication(tC,tA,tB,-1.0);
+        m_t1_2_2_2 = Multiplication(tC,ivec(H7B,P3B),
+				    tA,ivec(P5B,H6B),
+				    tB,ivec(H6B,H7B,P3B,P5B),
+				    -1.0);
+
 
         /* i1 ( h7 h1 )_ft + = 1 * Sum ( p3 ) * t ( p3 h1 )_t * i2 ( h7 p3 )_f */
         tC = Tensor2(H7B,H1B,0,1,iTF_tensor, dist_nw, dim_ov);

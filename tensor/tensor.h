@@ -234,7 +234,7 @@ namespace ctce {
        * @param[in] size size of the buf
        * @param[in] d_a_offset
        */
-      void get(Integer d_a, std::vector<Integer> &pvalue_r, std::vector<IndexName> &name, double *buf, Integer size, Integer d_a_offset);
+      void get(Integer d_a, std::vector<Integer> &pvalue_r, /*std::vector<IndexName> &name,*/ double *buf, Integer size, Integer d_a_offset);
 
       /**
        * Get data by get_hash_block_xx and store in buf, this function is for t_assign

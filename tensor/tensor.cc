@@ -183,10 +183,11 @@ namespace ctce {
   }
 
   void Tensor::get(Integer d_a, std::vector<Integer> &pvalue_r,
-		   std::vector<IndexName> &name,
+                   //std::vector<IndexName> &name,
 		   double *buf, Integer size, Integer d_a_offset) {
     std::vector<Integer>& is = pvalue_r;//_value_r_;
-    std::vector<IndexName>& ns = name;//_name_;
+    //std::vector<IndexName>& ns = name;//_name_;
+    const std::vector<IndexName>& ns = id2name(ids_);
     Integer key = 0, offset = 1;
     Integer noab = Variables::noab();
     Integer nvab = Variables::nvab();

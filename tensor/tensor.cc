@@ -296,6 +296,7 @@ namespace ctce {
   // }
 
   void Tensor::get2(Integer d_a, std::vector<Integer> &pvalue_r, double *buf, Integer size, Integer d_a_offset) {
+#if 0
     std::vector<Integer>& is = pvalue_r; // <-- not _value_r_ or value_r
     Integer key = 0, offset = 1;
     Integer noab = Variables::noab();
@@ -315,6 +316,9 @@ namespace ctce {
     else {
       get_hash_block_(&d_a, buf, &size, &int_mb[d_a_offset], &key);
     }
+#else
+    get(d_a, pvalue_r, buf, size, d_a_offset);
+#endif
   }
 
   //extern "C" {

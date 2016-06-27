@@ -58,7 +58,8 @@ namespace ctce {
 
             double* buf_a = new double[dimc];
             double* buf_a_sort = new double[dimc];
-            tA.get2(*d_a, value_r, buf_a, dimc, *k_a_offset); // get2 is for t_assign use
+            //tA.get2(*d_a, value_r, buf_a, dimc, *k_a_offset); // get2 is for t_assign use
+            tA.get(*d_a, value_r, buf_a, dimc, *k_a_offset);
 
             if (coef == -1.0) { // dscal
               for (int i = 0; i < dimc; ++i) buf_a[i] = -buf_a[i];

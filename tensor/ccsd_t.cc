@@ -19,23 +19,25 @@ namespace ctce {
         Tensor tC, tA, tB;
         std::vector<int> cpt;
 
+	DistType idist = (Variables::intorb()) ? dist_nwi : dist_nw;
+
         tC = Tensor6(P4B,P5B,P6B,H1B,H2B,H3B,0,0,0,1,1,1,iVT_tensor, dist_nw, dim_ov);
         tA = Tensor2(P4B,H1B,0,1,T_tensor, dist_nwma, dim_ov);
-        tB = Tensor4(P5B,P6B,H2B,H3B,0,0,1,1,V_tensor,dist_nw, dim_n);
+        tB = Tensor4(P5B,P6B,H2B,H3B,0,0,1,1,V_tensor,idist, dim_n);
         m0 = Multiplication(tC,tA,tB,1.0);
         cpt = newVec<int>(2,2,2);
         m0.setCopyItr(cpt);
 
         tC = Tensor6(P4B,P5B,P6B,H1B,H2B,H3B,0,0,0,1,1,1,iVT_tensor, dist_nw, dim_ov);
         tA = Tensor4(P4B,P5B,H1B,H7B,0,0,1,1,T_tensor, dist_nw, dim_ov);
-        tB = Tensor4(H7B,P6B,H2B,H3B,0,1,2,2,V_tensor, dist_nw, dim_n);
+        tB = Tensor4(H7B,P6B,H2B,H3B,0,1,2,2,V_tensor, idist, dim_n);
         m1 = Multiplication(tC,tA,tB,-1.0);
         cpt = newVec<int>(2,1,2);
         m1.setCopyItr(cpt);
 
         tC = Tensor6(P4B,P5B,P6B,H1B,H2B,H3B,0,0,0,1,1,1,iVT_tensor, dist_nw, dim_ov);
         tA = Tensor4(P4B,P7B,H1B,H2B,0,0,1,1,T_tensor, dist_nw, dim_ov);
-        tB = Tensor4(P5B,P6B,H3B,P7B,0,0,1,2,V_tensor, dist_nw, dim_n);
+        tB = Tensor4(P5B,P6B,H3B,P7B,0,0,1,2,V_tensor, idist, dim_n);
         m2 = Multiplication(tC,tA,tB,-1.0);
         cpt = newVec<int>(2,2,1);
         m2.setCopyItr(cpt);

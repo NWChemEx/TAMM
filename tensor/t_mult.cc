@@ -99,7 +99,8 @@ namespace ctce {
 	    int a_sign = sortByValueThenExtSymGroup(m.a_ids, a_name, a_svalue, a_svalue_r);
             //tA.sortByValueThenExtSymGroup();
             // if (tA.dim()==2) tA.get_ma = true;
-	    tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);
+	    //tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);
+	    tA.get(*d_a,a_svalue_r,buf_a,dima,*k_a_offset);
             //tA.get(*d_a,buf_a,dima,*k_a_offset);
 	    vector<Integer> a_sort_ids = sort_ids(a_name, m.a_mem_pos);
             tce_sort(buf_a, buf_a_sort, a_svalue /*tA._value()*/, a_sort_ids/*tA.sort_ids()*/, (double)a_sign /*tA.sign()*/);
@@ -110,7 +111,8 @@ namespace ctce {
 	    int b_sign = sortByValueThenExtSymGroup(m.b_ids, b_name, b_svalue, b_svalue_r);
             //tB.sortByValueThenExtSymGroup();
             // if (!tB.isIntermediate()) tB.get_i = true;
-	    tB.get(*d_b,b_svalue_r,b_name,buf_b,dimb,*k_b_offset);
+	    //tB.get(*d_b,b_svalue_r,b_name,buf_b,dimb,*k_b_offset);
+	    tB.get(*d_b,b_svalue_r,buf_b,dimb,*k_b_offset);
             //tB.get(*d_b,buf_b,dimb,*k_b_offset);
             //tce_sort(buf_b, buf_b_sort, tB._value(), tB.sort_ids(), (double)tB.sign());
 	    vector<Integer> b_sort_ids = sort_ids(b_name, m.b_mem_pos);
@@ -280,7 +282,8 @@ namespace ctce {
               int b_sign = sortByValueThenExtSymGroup(m.b_ids, b_name, b_svalue, b_svalue_r);
 
               // if (tA.dim()==2) tA.get_ma = true;
-              tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);
+              //tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);
+              tA.get(*d_a,a_svalue_r,buf_a,dima,*k_a_offset);
 	      vector<Integer> a_sort_ids = sort_ids(a_name, m.a_mem_pos);
 	      //vector<Integer> a_sort_ids = tA.sort_ids(a_name);
 
@@ -290,7 +293,8 @@ namespace ctce {
               double* buf_b = new double[dimb];
               double* buf_b_sort = new double[dimb];
               // if (!tB.isIntermediate()) tB.get_i = true;
-              tB.get(*d_b,b_svalue_r,b_name,buf_b,dimb,*k_b_offset);
+              //tB.get(*d_b,b_svalue_r,b_name,buf_b,dimb,*k_b_offset);
+              tB.get(*d_b,b_svalue_r,buf_b,dimb,*k_b_offset);
 	      //vector<Integer> b_sort_ids = tB.sort_ids(b_name);
 	      vector<Integer> b_sort_ids = sort_ids(b_name, m.b_mem_pos);
               tce_sort(buf_b, buf_b_sort, b_svalue/*tB._value()*/, b_sort_ids /*tB.sort_ids(b_name)*/, (double)b_sign /*(double)tB.sign()*/);

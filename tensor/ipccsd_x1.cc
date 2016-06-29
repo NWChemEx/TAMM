@@ -26,7 +26,7 @@ namespace ctce {
 
   static Assignment a_x1_1_1, a_x1_1_2_1, a_x1_2_1, a_x1_3_1;
   static Multiplication m_x1_1_2_2, m_x1_1_2, m_x1_1_3, m_x1_1_4, m_x1_1, m_x1_2_2, m_x1_2, m_x1_3_2, m_x1_3;
-  static Tensor x1_1_1, x1_1_2_1, x1_2_1, x1_3_1;
+  static Tensor t_x1_1_1, t_x1_1_2_1, t_x1_2_1, t_x1_3_1;
 
   extern "C" {
     void gen_expr_ipccsd_x1_cxx_() {
@@ -92,6 +92,7 @@ namespace ctce {
         tB = Tensor4(H4B,H6B,P3B,P7B,0,0,1,1,iV_tensor, idist, dim_n);
 	m_x1_2_2 = Multiplication(tC,tA,tB,1.0);
 
+
 #if 0
 	//i0 ( p2 h1 )_xf + = 1 * Sum ( p7 h6 ) * x ( p2 p7 h1 h6 )_x * i1 ( h6 p7 )_f
         tC = Tensor2(P2B,H1B,0,1,iVT_tensor, dist_nw, dim_ov);
@@ -111,6 +112,7 @@ namespace ctce {
         tB = Tensor4(H6B,H8B,P3B,P7B,0,0,1,1,iV_tensor, idist, dim_n);
 	m_x1_3_2 = Multiplication(tC,tA,tB,1.0);
 
+
 #if 0
 	//i0 ( p2 h1 )_xv + = -1/2 * Sum ( p7 h6 h8 ) * x ( p2 p7 h6 h8 )_x * i1 ( h6 h8 h1 p7 )_v
         tC = Tensor2(P2B,H1B,0,1,iVT_tensor, dist_nw, dim_ov);
@@ -118,24 +120,70 @@ namespace ctce {
         tB = Tensor4(H6B,H8B,H1B,P7B,0,0,1,2,iVT_tensor, dist_nw, dim_ov);
 	m_x1_3 = Multiplication(tC,tA,tB,-0.5);
 #endif
+
+	      //OFFSET_ipccsd_x1_1_1: i1 ( h6 h1 )_f
+	      t_x1_1_1 = Tensor2(H6B,H1B,0,1,iV_tensor,dist_nw,dim_ov);
+
+	      //OFFSET_ipccsd_x1_1_2_1: i2 ( h6 p7 )_f
+	      t_x1_1_2_1 = Tensor2(H6B,P7B,0,1,iV_tensor,dist_nw,dim_ov);
+
+	      //OFFSET_ipccsd_x1_2_1: i1 ( h6 p7 )_f
+	      t_x1_2_1 = Tensor2(H6B,P7B,0,1,iV_tensor,dist_nw,dim_ov);
+
+	      //OFFSET_ipccsd_x1_3_1: i1 ( h6 h8 h1 p7 )_v
+        t_x1_3_1 = Tensor4(H6B,H8B,H1B,P7B,0,0,1,2,iV_tensor, dist_nw, dim_ov);
+
       }
     }
 
-#if 0
+    void ipccsd_x1_1_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
+      t_x1_1_1.create(k_i1_offset, d_i1, size_i1);
+    }
+
+    void ipccsd_x1_1_1_deletefile_cxx_() {
+      t_x1_1_1.destroy();
+    }
+
+    void ipccsd_x1_1_2_1_createfile_cxx_(Integer *k_i2_offset, Integer *d_i2, Integer *size_i2) {
+      t_x1_1_2_1.create(k_i2_offset, d_i2, size_i2);
+    }
+
+    void ipccsd_x1_1_2_1_deletefile_cxx_() {
+      t_x1_1_2_1.destroy();
+    }
+
+    void ipccsd_x1_2_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
+      t_x1_2_1.create(k_i1_offset, d_i1, size_i1);
+    }
+
+    void ipccsd_x1_2_1_deletefile_cxx_() {
+      t_x1_2_1.destroy();
+    }
+
+    void ipccsd_x1_3_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
+      t_x1_3_1.create(k_i1_offset, d_i1, size_i1);
+    }
+
+    void ipccsd_x1_3_1_deletefile_cxx_() {
+      t_x1_3_1.destroy();
+    }
+
+// ipccsd_x1_1_cxx NOT OK
     void ipccsd_x1_1_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, Integer *d_c, Integer *k_c_offset) {
       t_mult4(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset, m_x1_1);
     }
-#endif
 
+// ipccsd_x1_1_1_cxx
     void ipccsd_x1_1_1_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_c, Integer *k_c_offset) {
       t_assign3(d_a, k_a_offset, d_c, k_c_offset, a_x1_1_1);
     }
 
-#if 0
+
+// ipccsd_x1_1_2_cxx
     void ipccsd_x1_1_2_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, Integer *d_c, Integer *k_c_offset) {
       t_mult4(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset, m_x1_1_2);
-    }
-#endif
+    } 
+
 
     void ipccsd_x1_1_2_1_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_c, Integer *k_c_offset) {
       t_assign3(d_a, k_a_offset, d_c, k_c_offset, a_x1_1_2_1);
@@ -145,36 +193,43 @@ namespace ctce {
       t_mult4(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset, m_x1_1_2_2);
     }
 
-#if 0
+
+// ipccsd_x1_1_3_cxx
     void ipccsd_x1_1_3_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, Integer *d_c, Integer *k_c_offset) {
       t_mult4(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset, m_x1_1_3);
     }
-#endif
+
 
     void ipccsd_x1_1_4_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, Integer *d_c, Integer *k_c_offset) {
       t_mult4(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset, m_x1_1_4);
     }
 
+// ipccsd_x1_2_cxx NOT OK
     void ipccsd_x1_2_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, Integer *d_c, Integer *k_c_offset) {
       t_mult4(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset, m_x1_2);
     }
 
+// ipccsd_x1_2_1_cxx
     void ipccsd_x1_2_1_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_c, Integer *k_c_offset) {
       t_assign3(d_a, k_a_offset, d_c, k_c_offset, a_x1_2_1);
     }
 
+// ipccsd_x1_2_2_cxx
     void ipccsd_x1_2_2_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, Integer *d_c, Integer *k_c_offset) {
       t_mult4(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset, m_x1_2_2);
     }
 
+// ipccsd_x1_3_cxx NOT OK
     void ipccsd_x1_3_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, Integer *d_c, Integer *k_c_offset) {
       t_mult4(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset, m_x1_3);
     }
 
+// ipccsd_x1_3_1_cxx
     void ipccsd_x1_3_1_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_c, Integer *k_c_offset) {
       t_assign3(d_a, k_a_offset, d_c, k_c_offset, a_x1_3_1);
     }
-    
+
+// ipccsd_x1_3_2_cxx
     void ipccsd_x1_3_2_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, Integer *d_c, Integer *k_c_offset) {
       t_mult4(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset, m_x1_3_2);
     }

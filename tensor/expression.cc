@@ -118,9 +118,9 @@ namespace ctce {
     // const std::vector<IndexName>& c = tC_.name();
     // const std::vector<IndexName>& a = tA_.name();
     // const std::vector<IndexName>& b = tB_.name();
-    const std::vector<IndexName>& c = id2name(tC_.ids());
-    const std::vector<IndexName>& a = id2name(tA_.ids());
-    const std::vector<IndexName>& b = id2name(tB_.ids());
+    const std::vector<IndexName>& c = id2name(c_ids);
+    const std::vector<IndexName>& a = id2name(a_ids);
+    const std::vector<IndexName>& b = id2name(b_ids);
     int n = tC_.dim();
     assert(n>0);
     int from[n];
@@ -131,7 +131,7 @@ namespace ctce {
         if (c[i]==b[j]) from[i]=1;
     }
     // std::vector<int> c_ext = tC_.ext_sym_group();
-    std::vector<int> c_ext = ext_sym_group(tC_.ids());
+    std::vector<int> c_ext = ext_sym_group(c_ids);
     std::vector<int> group(n);
     int offset=0;
     int dirty[n]; memset(dirty,0,n*sizeof(int));
@@ -194,7 +194,7 @@ namespace ctce {
 
   void Multiplication::setOutItr(const std::vector<int>& gp) {
     // genTrigItr(out_itr_,gp,tC_.name());
-    genTrigItr(out_itr_,gp,id2name(tC_.ids()));
+    genTrigItr(out_itr_,gp,id2name(c_ids));
   }
 
   void Multiplication::setCopyItr(const std::vector<int>& gp) {

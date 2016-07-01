@@ -8,6 +8,7 @@ namespace ctce {
 
   static Assignment a_t1_1, a_t1_2_1, a_t1_2_2_1, a_t1_3_1, a_t1_5_1, a_t1_6_1;
   static Multiplication m_t1_2_2_2, m_t1_2_2, m_t1_2_3, m_t1_2_4, m_t1_2, m_t1_3_2, m_t1_3, m_t1_4, m_t1_5_2, m_t1_5, m_t1_6_2, m_t1_6, m_t1_7;
+  static Tensor t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1;
 
   extern "C" {
 
@@ -134,7 +135,63 @@ namespace ctce {
         m_t1_7 = Multiplication(i0,ivec(P2B,H1B),t2,ivec(P3B,P4B,H1B,H5B),v,ivec(H5B,P2B,P3B,P4B),-0.5);
 
         set_t1 = false;
+        
+        //OFFSET_ccsd_t1_2_1: i1 ( h7 h1 )_f
+        t1_2_1 = Tensor2(H7B,H1B,0,1,iF_tensor,dist_nw,dim_ov);
+
+        //OFFSET_ccsd_t1_2_2_1: i2 ( h7 p3 )_f
+        t1_2_2_1 = Tensor2(H7B,P3B,0,1,iF_tensor,dist_nw,dim_ov);
+
+        //OFFSET_ccsd_t1_3_1: i1 ( p2 p3 )_f
+        t1_3_1 = Tensor2(P2B,P3B,0,1,iF_tensor,dist_nw,dim_ov);
+
+        //OFFSET_ccsd_t1_5_1: i1 ( h8 p7 )_f
+        t1_5_1 = Tensor2(H8B,P7B,0,1,iF_tensor,dist_nw,dim_ov);
+
+        //OFFSET_ccsd_t1_6_1: i1 ( h4 h5 h1 p3 )_v
+        t1_6_1 = Tensor4(H4B,H5B,H1B,P3B,0,0,1,2,iV_tensor, dist_nw, dim_ov);
+
       }
+    }
+
+    void ccsd_t1_2_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
+      t1_2_1.create(k_i1_offset, d_i1, size_i1);
+    }
+
+    void ccsd_t1_2_1_deletefile_cxx_() {
+      t1_2_1.destroy();
+    }
+
+    void ccsd_t1_2_2_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
+      t1_2_2_1.create(k_i1_offset, d_i1, size_i1);
+    }
+
+    void ccsd_t1_2_2_1_deletefile_cxx_() {
+      t1_2_2_1.destroy();
+    }
+
+    void ccsd_t1_3_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
+      t1_3_1.create(k_i1_offset, d_i1, size_i1);
+    }
+
+    void ccsd_t1_3_1_deletefile_cxx_() {
+      t1_3_1.destroy();
+    }
+
+    void ccsd_t1_5_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
+      t1_5_1.create(k_i1_offset, d_i1, size_i1);
+    }
+
+    void ccsd_t1_5_1_deletefile_cxx_() {
+      t1_5_1.destroy();
+    }
+
+    void ccsd_t1_6_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
+      t1_6_1.create(k_i1_offset, d_i1, size_i1);
+    }
+
+    void ccsd_t1_6_1_deletefile_cxx_() {
+      t1_6_1.destroy();
     }
 
     void ccsd_t1_1_cxx_(Integer *d_a, Integer *k_a_offset, 

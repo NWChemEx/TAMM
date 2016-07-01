@@ -16,9 +16,9 @@ typedef long long Integer;
 
   /* all the FORTRAN apis */
 
-  void tce_restricted_2_(Integer *i1,Integer *i2, Integer *o1, Integer *o2);
+  void tce_restricted_2_(const Integer *i1, const Integer *i2, Integer *o1, Integer *o2);
 
-  void tce_restricted_4_(Integer *i1,Integer *i2, Integer *i3, Integer *i4,
+  void tce_restricted_4_(const Integer *i1, const Integer *i2, const Integer *i3, const Integer *i4,
       Integer *o1, Integer *o2, Integer *o3, Integer *o4);
 
   void get_hash_block_ma_(double *big_array, double *array, Integer *size, Integer *hash, Integer *key);

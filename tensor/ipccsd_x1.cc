@@ -33,11 +33,11 @@ namespace ctce {
       
       static bool set_ipccsd = true;
       Tensor tC, tA, tB;
-      
+      int irrep_x = Variables::irrep_x();
       DistType idist = (Variables::intorb()) ? dist_nwi : dist_nw;
 
       if (set_ipccsd) {
-	set_ipccsd = false;
+	//set_ipccsd = false;
 
 	//i1 ( h6 h1 )_f + = 1 * f ( h6 h1 )_f
         tC = Tensor2(H6B,H1B,0,1,iV_tensor, dist_nw, dim_ov);
@@ -75,9 +75,15 @@ namespace ctce {
 
 #if 0
 	//i0 ( p2 h1 )_xf + = -1 * Sum ( h6 ) * x ( p2 h6 )_x * i1 ( h6 h1 )_f
-        tC = Tensor2(P2B,H1B,0,1,iVT_tensor, dist_nw, dim_ov);
-        tA = Tensor2(P2B,H6B,0,1,iV_tensor, dist_nw, dim_ov);
-        tB = Tensor2(H6B,H1B,0,1,iV_tensor, dist_nw, dim_ov);
+        tC = Tensor0_1(TO, dist_nw, irrep_x);
+        tA = Tensor0_1(TO,dist_nw, irrep_x);
+        tB = Tensor2(TO,TO,dist_nw);
+	m_x1_1 = Multiplication(tC,tA,tB,-1.0);
+#else	
+	//i0 ( p2 h1 )_xf + = -1 * Sum ( h6 ) * x ( p2 h6 )_x * i1 ( h6 h1 )_f
+        tC = Tensor0_1(H1B,0,iVT_tensor, dist_nw, dim_ov, irrep_x);
+        tA = Tensor0_1(H6B,0,iVT_tensor, dist_nw, dim_ov, irrep_x);
+        tB = Tensor2(H6B,H1B,0,1,iVT_tensor, dist_nw, dim_ov);
 	m_x1_1 = Multiplication(tC,tA,tB,-1.0);
 #endif
 

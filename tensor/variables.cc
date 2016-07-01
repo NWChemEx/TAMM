@@ -39,6 +39,7 @@ namespace ctce {
   Integer Variables::irrep_v_ = 0;
   Integer Variables::irrep_t_ = 0;
   Integer Variables::irrep_f_ = 0;
+  Integer Variables::irrep_x_ = 0;
   logical Variables::intorb_ = 0;
   logical Variables::restricted_ = 0;
   Integer* Variables::int_mb_;
@@ -56,6 +57,9 @@ namespace ctce {
     irrep_v_ = *irrep_v; 
     irrep_t_ = *irrep_t;
     irrep_f_ = *irrep_f;
+  }
+  void Variables::set_irrep_x(Integer *irrep_x) {
+    irrep_x_ = *irrep_x; 
   }
   void Variables::set_k1(Integer *k_range, Integer *k_spin, Integer *k_sym) {
     k_range_ = *k_range;
@@ -76,6 +80,10 @@ namespace ctce {
     // called in ccsd_t.F
     void set_k2_cxx_(Integer *k_offset, Integer *k_evl_sorted) {
       Variables::set_k2(k_offset, k_evl_sorted);
+    }
+
+    void set_irrep_x_cxx_(Integer *irrep_x) {
+      Variables::set_irrep_x(irrep_x);
     }
 
     void set_var_cxx_(Integer* noab, Integer* nvab, 

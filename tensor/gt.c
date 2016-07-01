@@ -11,6 +11,13 @@
 
 static GTI_context g_gtcontext = GTI_CONTEXT_INITIALIZER;
 
+static bool is_gt_initialized=0;
+
+int GT_initialized() 
+{
+	return is_gt_initialized;
+}
+
 int GT_init(int noa, int noA, int nob, int noB,
             int nva, int nvA, int nvb, int nvB,
             int *tiles,
@@ -19,6 +26,8 @@ int GT_init(int noa, int noA, int nob, int noB,
 {
   int gt_errno = GT_SUCCESS;
   size_t nblocks = noa+nob+nva+nvb;
+
+	GTI_CHECK(is_gt_initialized==false, GT_ERR_INITIALIZED);
 
   GTI_CHECK(noa>0 || nob>0 || nva>0 || nvb>0, GT_ERR_BLOCKS);
   GTI_CHECK(noA>=0 || noB>=0 || nvA>=0 || nvB>=0, GT_ERR_BLOCKS);
@@ -47,6 +56,8 @@ int GT_init(int noa, int noA, int nob, int noB,
   GTU_memcpy(g_gtcontext.tiles, tiles, nblocks*sizeof(int));
   GTU_memcpy(g_gtcontext.spins, spins, nblocks*sizeof(int));
   GTU_memcpy(g_gtcontext.syms,   syms, nblocks*sizeof(int));
+
+	is_gt_initialized = 1;
 
  fn_exit:
   return gt_errno;

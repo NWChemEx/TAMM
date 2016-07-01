@@ -71,17 +71,17 @@ namespace ctce {
        * @param[in] ids Indices of this tensor
        * @param[in] type Type of this tensor
        */
-	Tensor(const int& n, Index ids[], TensorType type, DistType dist_type, DimType dim_type)
+	Tensor(const int& n, Index ids[], TensorType type, DistType dist_type, DimType dim_type, int irrep=0)
         : dim_(n),
 				nupper_(n/2),
-				irrep_(0),
+				irrep_(irrep),
         //type_(type),
         //sign_(1),
 				allocated_(false),
 				dist_type_(dist_type),
 				dim_type_(dim_type),
 				ids_(ids, ids+n) {
-				assert(dim_%2 == 0); /*assume even number of indices here*/
+				//assert(dim_%2 == 0); /*assume even number of indices here*/
 				//ids_.resize(n);
           //name_.resize(n);
           //value_.resize(n);
@@ -247,11 +247,15 @@ namespace ctce {
 
 			int is_spin_restricted_nonzero(const std::vector<Integer>& ids) const {
 				int lval = dim_ - 2*nupper_;
+				assert(lval >= 0 && lval <=1);
+				assert(ids.size() == dim_);
+				int dim_even = dim_ + (dim_%2);
 				Integer *int_mb = Variables::int_mb();
 				Integer k_spin = Variables::k_spin()-1;
 				Integer restricted = Variables::restricted();
 				for (int i=0; i<ids.size(); i++) lval += int_mb[k_spin+ids[i]];
-				return ((!restricted) || (lval != 2*dim_));
+				assert ((dim_%2==0) || (!restricted) || (lval != 2*dim_even));
+				return ((!restricted) || (lval != 2*dim_even));
 			}
 
 			int is_spin_nonzero(const std::vector<Integer>& ids) const {
@@ -283,6 +287,7 @@ namespace ctce {
 
 
 			void create(Integer *fma_offset_index, Integer *array_handle, Integer *array_size);
+			void attach(Integer *fma_offset_index, Integer *array_handle);
 
 			void destroy();
 
@@ -509,7 +514,13 @@ namespace ctce {
     Tensor Tensor6(IndexName n1, IndexName n2, IndexName n3, IndexName n4, IndexName n5, IndexName n6,
 									 int e1, int e2, int e3, int e4, int e5, int e6, TensorType type, DistType dt=dist_nw, DimType dm=dim_ov);
 
+		Tensor Tensor0_1(RangeType r1, DistType dt, int irrep=0);
+
+	Tensor Tensor0_1(IndexName n1, int e1, TensorType tp, DistType dt, DimType dm, int irrep=0);
+
 	Tensor Tensor2(RangeType r1, RangeType r2, DistType dt);
+
+	Tensor Tensor1_2(RangeType r1, RangeType r2, RangeType r3, DistType dt, int irrep=0);
 
 	Tensor Tensor4(RangeType r1, RangeType r2, RangeType r3, RangeType r4, DistType dt);
 

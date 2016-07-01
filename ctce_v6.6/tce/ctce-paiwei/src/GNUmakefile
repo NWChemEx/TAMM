@@ -1,15 +1,11 @@
 
   GA_CONFIG = $(NWCHEM_TOP)/src/tools/install/bin/ga-config
 
-	#CC = $(shell $(GA_CONFIG) --cc)
-	CC = icc
+	CC = $(shell $(GA_CONFIG) --cc)
 	CXX = mpicxx
-	#FC = $(shell $(GA_CONFIG) --f77)
-	FC = ifort
-
+	FC = $(shell $(GA_CONFIG) --f77)
 
 	CXXINCLUDES = $(shell $(GA_CONFIG) --cppflags --cflags)
-	#FINCLUDES = $(GA_INCLUDE) -I../src/tce/include 
 	FINCLUDES = $(shell $(GA_CONFIG) --fflags) -I$(NWCHEM_TOP)/src/tce/include
 
 default: libctce.a

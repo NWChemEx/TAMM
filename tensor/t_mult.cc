@@ -219,6 +219,10 @@ namespace ctce {
               (tC.is_spin_nonzero(out_vec)) &&
               (tC.is_spin_restricted_nonzero(out_vec)) ) {
 
+	    if(tC.dim()%2!=0) {
+	      cout<<"Computing output tensor block: "<<out_vec<<endl;
+	    }
+
 	    vector<int> vtab1(IndexNum);
             for (int i=0; i<tC.dim(); i++) {
 	      assert(c_ids[i] < IndexNum);
@@ -250,6 +254,12 @@ namespace ctce {
               if (!tA.is_spatial_nonzero(a_ids_v)) continue;
               if (!tA.is_spin_nonzero(a_ids_v)) continue;
 
+	      if(tC.dim()%2!=0) {
+		cout<<"sum_ids: "<<sum_ids<<endl;
+		cout<<"a_ids_v: "<<a_ids_v<<endl;
+		cout<<"b_ids_v: "<<b_ids_v<<endl;
+	      }
+	      
 	      vector<Integer> a_value_r, b_value_r;
 	      tA.gen_restricted(a_ids_v, a_value_r);
 	      tB.gen_restricted(b_ids_v, b_value_r);
@@ -280,6 +290,17 @@ namespace ctce {
               // int b_sign = tB.sortByValueThenExtSymGroup(b_name, b_svalue, b_svalue_r);
               int a_sign = sortByValueThenExtSymGroup(m.a_ids, a_name, a_svalue, a_svalue_r);
               int b_sign = sortByValueThenExtSymGroup(m.b_ids, b_name, b_svalue, b_svalue_r);
+	      
+	      if(tC.dim()%2!=0) {
+		cout<<"a_ids_v: "<<a_ids_v<<endl;
+		cout<<"b_ids_v: "<<b_ids_v<<endl;
+		cout<<"a_value_r: "<<a_value_r<<endl;
+		cout<<"b_value_r: "<<b_value_r<<endl;
+		cout<<"a_svalue: "<<a_svalue<<endl;
+		cout<<"b_svalue: "<<b_svalue<<endl;
+		cout<<"a_svalue_r: "<<a_svalue_r<<endl;
+		cout<<"b_svalue_r: "<<b_svalue_r<<endl;
+	      }
 
               // if (tA.dim()==2) tA.get_ma = true;
               //tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);

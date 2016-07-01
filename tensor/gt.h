@@ -58,6 +58,7 @@ typedef enum { false=0, true=1 } bool;
 #define GT_ERR_DIST_INFO       35
 #define GT_ERR_NOT_IMPLEMENTED 36
 #define GT_ERR_NOT_SUPPORTED   37
+#define GT_ERR_INITIALIZED     38
 
 /* Data types */
 typedef enum GT_tensor_type_cons GT_tensor_type_cons;
@@ -353,6 +354,8 @@ struct GT_buf {
   size_t size; /*active size of buffer*/
   void *buf;
 };
+
+int GT_initialized();
 
 int GT_init(int noa, int noA, int nob, int noB,
             int nva, int nvA, int nvb, int nvB, 

@@ -18,12 +18,13 @@ namespace ctce {
       static double *dbl_mb_;
       static Integer k_range_, k_spin_, k_sym_;
       static Integer k_offset_, k_evl_sorted_;
-      static Integer irrep_v_, irrep_t_, irrep_f_;
+      static Integer irrep_v_, irrep_t_, irrep_f_, irrep_x_;
       static logical intorb_, restricted_;
     public:
       static void set_ov(Integer *o, Integer *v);
       static void set_idmb(Integer *int_mb, double *dbl_mb);
       static void set_irrep(Integer *irrep_v, Integer *irrep_t, Integer *irrep_f);
+      static void set_irrep_x(Integer *irrep_x);
       static void set_k1(Integer *k_range, Integer *k_spin, Integer *k_sym);
       static void set_log(logical *intorb, logical *restricted);
       static void set_k2(Integer *k_offset, Integer *k_evl_sorted);
@@ -32,6 +33,8 @@ namespace ctce {
        * Set k_offset and k_evl_sorted, use in ccsd(t) to compute r and o value
        */
       static void set_k2_cxx_(Integer *k_offset, Integer *k_evl_sorted);
+
+      static void set_irrep_x_cxx_(Integer *irrep_x);
 
       /** 
        * Set FORTRAN global parameters
@@ -52,6 +55,7 @@ namespace ctce {
       static const Integer& irrep_v() { return irrep_v_; }
       static const Integer& irrep_t() { return irrep_t_; }
       static const Integer& irrep_f() { return irrep_f_; }
+      static const Integer& irrep_x() { return irrep_x_; }
       static const Integer& intorb() { return intorb_; }
       static const logical& restricted() { return restricted_; }
       static Integer* int_mb() { return int_mb_; }

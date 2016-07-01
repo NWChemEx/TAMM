@@ -117,8 +117,15 @@ namespace ctce {
         a_t1_6_1 = Assignment(i1_6,v,1.0, ivec(H4B,H5B,H1B,P3B), ivec(H4B,H5B,H1B,P3B));
 
         /* i1 ( h4 h5 h1 p3 )_vt + = -1 * Sum ( p6 ) * t ( p6 h1 )_t * v ( h4 h5 p3 p6 )_v */
+#if 0
+	Tensor tc = Tensor4(H4B,H5B,H1B,P3B,0,0,1,2,iV_tensor, dist_nw, dim_ov);
+	Tensor ta = Tensor2(P6B,H1B, 0, 1, iV_tensor, dist_nwma, dim_ov);
+	Tensor tb = Tensor4(H4B,H5B,P3B,P6B,0,0,1,1,iV_tensor, idist, dim_n);
+        m_t1_6_2 = Multiplication(tc,ta,tb,-1.0);
+#else
         m_t1_6_2 = Multiplication(i1_6,ivec(H4B,H5B,H1B,P3B),
 				  t1,ivec(P6B,H1B),v,ivec(H4B,H5B,P3B,P6B),-1.0);
+#endif
 
         /* i0 ( p2 h1 )_vt + = -1/2 * Sum ( h4 h5 p3 ) * t ( p2 p3 h4 h5 )_t * i1 ( h4 h5 h1 p3 )_v */
         m_t1_6 = Multiplication(i0,ivec(P2B,H1B),t2,ivec(P2B,P3B,H4B,H5B),i1_6,ivec(H4B,H5B,H1B,P3B),-0.5);

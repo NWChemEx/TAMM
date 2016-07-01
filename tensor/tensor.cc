@@ -67,14 +67,29 @@ namespace ctce {
 
   void Tensor::gen_restricted(const std::vector<Integer>& value,
 			      std::vector<Integer> &pvalue_r) {
-    std::vector<Integer> temp;
+    std::vector<Integer> temp(dim_);
     assert(value.size() == dim_);
     temp.resize(dim_);
-    if (dim_==2)  
+    Integer dummy0=1, dummy1=1;
+    if(dim_==1) {
+      assert(nupper_==0);
+      tce_restricted_2_(&dummy0, &value[0],&dummy1,&temp[0]);
+    }
+    else if (dim_==2)   {
       tce_restricted_2_(&value[0],&value[1],&temp[0],&temp[1]);
-    if (dim_==4)
+    }
+    else if(dim_==3) {
+      assert(nupper_==1);
+      tce_restricted_4_(&dummy0,&value[0],&value[1],&value[2],
+			&dummy1,&temp[0],&temp[1],&temp[2]);
+    }
+    else if (dim_==4) {
       tce_restricted_4_(&value[0],&value[1],&value[2],&value[3],
           &temp[0],&temp[1],&temp[2],&temp[3]);
+    }
+    else {
+      assert(0);
+    }
     pvalue_r.clear();
     for (int i=0; i<dim_; i++) {
       //ids_[i].setValueR(temp[i]);
@@ -360,9 +375,35 @@ namespace ctce {
       return t;
     }
 
+  Tensor Tensor0_1(RangeType r1, DistType dt, int irrep) {
+      RangeType rts[1] = {r1};
+      return Tensor(1,0,irrep,rts, dt);
+    }
+
+    Tensor Tensor0_1(IndexName n1, int e1, TensorType type,
+		     DistType dt, DimType dm) {
+      Index i1 = Index(n1,0);
+      Index ids[] = {i1};
+      Tensor t = Tensor(1,ids,type,dt,dm);
+      return t;
+    }
+
+    Tensor Tensor0_1(IndexName n1, int e1, TensorType type,
+		     DistType dt, DimType dm, int irrep) {
+      Index i1 = Index(n1,0);
+      Index ids[] = {i1};
+      Tensor t = Tensor(1,ids,type,dt,dm,irrep);
+      return t;
+    }
+
     Tensor Tensor2(RangeType r1, RangeType r2, DistType dt) {
       RangeType rts[2] = {r1, r2};
       return Tensor(2,1,0,rts, dt);
+    }
+
+  Tensor Tensor1_2(RangeType r1, RangeType r2, RangeType r3, DistType dt, int irrep) {
+      RangeType rts[3] = {r1, r2, r3};
+      return Tensor(3,1,irrep,rts, dt);
     }
 
     Tensor Tensor4(RangeType r1, RangeType r2, RangeType r3, RangeType r4, DistType dt) {

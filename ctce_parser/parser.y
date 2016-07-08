@@ -3,6 +3,8 @@
     #include "parser.h"
     #include "absyn.h"
     #include "error.h"
+    
+    void yyerror(char *s);
 
     }
 
@@ -11,7 +13,7 @@
     %left TIMES .
 
     %extra_argument   { TranslationUnit* root }
-    %token_destructor { free($$); }
+    %token_destructor { free($$);}
 
     %syntax_error {
       yyerror("Syntax error");

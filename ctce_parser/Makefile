@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g 
+CFLAGS = -g -Wall
 
 all: tcemain
 
@@ -21,11 +21,8 @@ absyn.o: absyn.c absyn.h
 parser.o: parser.c absyn.o absyn.h 
 	$(CC) $(CFLAGS) -c parser.c
 	
-parser.c: parser.y lemon
+parser.c: parser.y lemon 
 	./lemon -s parser.y
-
-parser.h: parser.c scanner.h
-	echo "parser.h was created along with parser.c"
 
 scanner.o: scanner.c scanner.h
 	$(CC) $(CFLAGS) -c scanner.c
@@ -34,7 +31,7 @@ lemon: lemon.c
 	${CC} lemon.c -o lemon
 
 scanner.c: scanner.l
-	flex scanner.l
+	flex scanner.l 
 
 .PHONY: clean
 

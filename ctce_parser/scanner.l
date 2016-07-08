@@ -8,10 +8,16 @@ char *copy(char *s, int len) {
   return d;
 }
 
+//suppress ‘input’ defined but not used warning.
+#define YY_NO_INPUT
+
 int line = 1, col = 1;
 //FIXME: Column nos reported are inaccurate
 %}
 
+
+/*suppress ‘yyunput’ defined but not used warning*/
+%option nounput
 
 %option yylineno
 %option reentrant noyywrap

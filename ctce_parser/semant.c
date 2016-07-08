@@ -51,11 +51,9 @@ void check_Decl(Decl d){
           d->u.RangeDecl.name,d->u.RangeDecl.value);
     break;
   case is_IndexDecl:
-    printf("index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID);
+    //printf("index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID);
     break;
   case is_ArrayDecl:
-    printf("array %s[%s][%s];\n",d->u.ArrayDecl.name,combine_indices(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen)
-        ,combine_indices(d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen));
     break;
   default:
     fprintf(stderr,"Not a valid Declaration!\n");
@@ -67,9 +65,9 @@ void check_Stmt(Stmt s){
   switch(s->kind) {
   case is_AssignStmt:
     check_Exp( s->u.AssignStmt.lhs);
-    printf(" %s ", s->u.AssignStmt.astype); //astype not needed since we flatten. keep it for now.
+    //printf(" %s ", s->u.AssignStmt.astype); //astype not needed since we flatten. keep it for now.
     check_Exp( s->u.AssignStmt.rhs);
-    printf("\n");
+    //printf("\n");
     break;
   default:
     fprintf(stderr,"Not an Assignment Statement!\n");
@@ -82,7 +80,7 @@ void check_ExpList(ExpList expList, string am){
   while(elist != NULL){
     check_Exp( elist->head);
     elist = elist->tail;
-    if(elist!=NULL) printf("%s ",am);
+    //if(elist!=NULL) //printf("%s ",am);
   }
   elist = NULL;
 }
@@ -93,10 +91,10 @@ void check_Exp(Exp exp){
     check_Exp(exp->u.Parenth.exp);
     break;
   case is_NumConst:
-    printf("%f ",exp->u.NumConst.value);
+    //printf("%f ",exp->u.NumConst.value);
     break;
   case is_ArrayRef:
-    printf("%s[%s] ",exp->u.Array.name,combine_indices(exp->u.Array.indices,exp->u.Array.length));
+    ////printf("%s[%s] ",exp->u.Array.name,combine_indices(exp->u.Array.indices,exp->u.Array.length));
     break;
   case is_Addition:
     check_ExpList(exp->u.Addition.subexps,"+");

@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "visitor.h"
 #include "scanner.h"
+#include "semant.h"
 
 int tce_tokPos = 0;
 int main(int argc, char **argv){
@@ -17,6 +18,11 @@ int main(int argc, char **argv){
     TranslationUnit astRoot;
     yylex_init(&scanner);
     parser = ParseAlloc(malloc);
+
+    if( access( argv[1], F_OK ) == -1 ) {
+        fprintf(stderr, "File %s not found!\n", argv[1]);
+        exit(2);
+    }
 
     FILE *inputFile = fopen(argv[1], "r");
     yyset_in(inputFile,scanner);

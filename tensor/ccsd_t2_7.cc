@@ -36,14 +36,16 @@ namespace ctce {
 
         /* i1 ( h6 p3 h1 p5 )_vt + = -1/2 * Sum ( h8 p7 ) * t ( p3 p7 h1 h8 )_t * v ( h6 h8 p5 p7 )_v */
         tC = Tensor4(H6B,P3B,H1B,P5B,0,1,2,3,iVT_tensor, dist_nw, dim_ov);
-        tA = Tensor4(P3B,H1B,P7B,H8B,0,1,2,3,T_tensor, idist, dim_n);
-        tB = Tensor4(H6B,P5B,H8B,P7B,0,1,2,3,V_tensor, idist, dim_n);
+        tA = Tensor4(P3B,P7B,H1B,H8B,0,0,1,1,T_tensor, dist_nw, dim_ov);
+        tB = Tensor4(H6B,H8B,P5B,P7B,0,0,1,1,V_tensor, idist, dim_n);
         m_t2_7_3 = Multiplication(tC,tA,tB,-0.50);
 
         /* i0 ( p3 p4 h1 h2 )_vt + = -1 * P( 4 ) * Sum ( h6 p5 ) * t ( p3 p5 h1 h6 )_t * i1 ( h6 p4 h2 p5 )_v */
-        tC = Tensor4(H1B,P3B,H2B,P4B,0,1,2,3,iVT_tensor, dist_nw, dim_ov);
-        //tA = Tensor2(P7B,H1B,0,1,T_tensor, dist_nwma, dim_ov);
-        tA = Tensor4(H6B,P3B,H1B,P5B,0,1,2,3,T_tensor, idist, dim_n);
+        tC = Tensor4(P3B,P4B,H1B,H2B,0,0,1,1,iVT_tensor, dist_nw, dim_ov);
+        //tA = Tensor4(H6B,P3B,H1B,P5B,0,1,2,3,T_tensor, dist_nw, dim_ov);
+        //tA = Tensor4(H6B,P3B,H1B,P5B,0,1,2,3,T_tensor, dist_nwma, dim_ov);
+        //tA = Tensor4(P3B,P5B,H1B,H6B,0,0,1,1,T_tensor, dist_nw, dim_ov);
+        tA = Tensor4(P3B,P5B,H1B,H6B,0,0,1,1,T_tensor, dist_nwma, dim_ov);
         tB = Tensor4(H6B,P4B,H2B,P5B,0,1,2,3,V_tensor, idist, dim_n);
         m_t2_7 = Multiplication(tC,tA,tB,-1.0);
 

@@ -518,6 +518,9 @@ namespace ctce {
 
 	Tensor Tensor0_1(IndexName n1, int e1, TensorType tp, DistType dt, DimType dm, int irrep=0);
 
+	Tensor Tensor1_2(IndexName n1, IndexName n2, IndexName n3,
+									 int e1, int e2, int e3, TensorType type, DistType dt, DimType dm, int irrep=0);
+
 	Tensor Tensor2(RangeType r1, RangeType r2, DistType dt);
 
 	Tensor Tensor1_2(RangeType r1, RangeType r2, RangeType r3, DistType dt, int irrep=0);

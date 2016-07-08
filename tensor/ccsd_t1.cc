@@ -15,7 +15,7 @@ namespace ctce {
     void gen_expr_t1_cxx_() {
 
       static bool set_t1 = true;
-      //Tensor tC, tA, tB;
+      Tensor tC, tA, tB;
 
       DistType idist = (Variables::intorb()) ? dist_nwi : dist_nw;
 
@@ -132,7 +132,14 @@ namespace ctce {
         m_t1_6 = Multiplication(i0,ivec(P2B,H1B),t2,ivec(P2B,P3B,H4B,H5B),i1_6,ivec(H4B,H5B,H1B,P3B),-0.5);
 
         /* i0 ( p2 h1 )_vt + = -1/2 * Sum ( h5 p3 p4 ) * t ( p3 p4 h1 h5 )_t * v ( h5 p2 p3 p4 )_v */
+#if 0
         m_t1_7 = Multiplication(i0,ivec(P2B,H1B),t2,ivec(P3B,P4B,H1B,H5B),v,ivec(H5B,P2B,P3B,P4B),-0.5);
+#else
+	Tensor tc = Tensor2(P2B,H1B, 0, 1, iVT_tensor, dist_nw, dim_ov);
+	Tensor ta = Tensor4(P3B,P4B,H4B,H5B,0,0,1,1,iT_tensor, dist_nwma, dim_ov);
+	Tensor tb = Tensor4(H5B,P2B,P3B,P4B,0,1,1,1,iV_tensor, idist, dim_n);
+        m_t1_7 = Multiplication(tc,ta,tb,-0.50);
+#endif
 
         set_t1 = false;
         

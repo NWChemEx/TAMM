@@ -9,12 +9,33 @@ namespace ctce {
 #if TIMER
     double start = rtclock();
 #endif
-    if (ids.size()==2) {
+    if(ids.size() == 1) {
+      for(int i=0; i< int_mb[k_range+ids[0]]; i++) {
+	dbuf[i] = sbuf[i] * alpha;
+      }
+    }
+    else if (ids.size()==2) {
       tce_sort_2_(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &iv[0], &iv[1], &alpha);
+    }
+    else if (ids.size()==3) {
+      Integer *rmb = int_mb + k_range;
+      // Integer dim1 = 1, dim2 = rmb[ids[0]], dim3 = rmb[ids[1]], dim4 = rmb[ids[2]];
+      // Integer perm1 = 1, perm2 = iv[0]+1, perm3=iv[1]+1, perm4=iv[2]+1;
+
+      // tce_sort_4_(sbuf, dbuf, &dim1, &dim2, &dim3, &dim4,
+      // 		  &perm1, &perm2, &perm3, &perm4, &alpha);
+      Integer dim1 = rmb[ids[0]], dim2 = rmb[ids[1]], dim3 = rmb[ids[2]], dim4 = 1;
+      Integer perm1 = iv[0], perm2=iv[1], perm3=iv[2], perm4=4;
+
+      tce_sort_4_(sbuf, dbuf, &dim1, &dim2, &dim3, &dim4,
+		  &perm1, &perm2, &perm3, &perm4, &alpha);
     }
     else if (ids.size()==4) {
       tce_sort_4_(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &int_mb[k_range+ids[2]], &int_mb[k_range+ids[3]],
           &iv[0], &iv[1], &iv[2], &iv[3], &alpha);
+    }
+    else {
+      assert(0); //not implemented
     }
 #if TIMER
     double end = rtclock();
@@ -78,6 +99,9 @@ namespace ctce {
       tce_sortacc_6_(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &int_mb[k_range+ids[2]], 
           &int_mb[k_range+ids[3]], &int_mb[k_range+ids[4]], &int_mb[k_range+ids[5]],
           &perm[0], &perm[1], &perm[2], &perm[3], &perm[4], &perm[5], &alpha);
+    }
+    else {
+      assert(0);
     }
 #if TIMER
     double end = rtclock();

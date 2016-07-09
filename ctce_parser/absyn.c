@@ -1,33 +1,6 @@
 #include "absyn.h"
 
-void *tce_malloc(int length)
-{
-  void *p = malloc(length);
-  if (!p) {
-    fprintf(stderr,"\n Out of memory!\n");
-    exit(1);
-  }
-  return p;
-}
-
-string mkString(char *s)
-{
-  string p = tce_malloc(strlen(s)+1);
-  strcpy(p,s);
-  return p;
-}
-
-string* mkIndexList(string *indices, int length){
-  string *newlist = malloc(length * sizeof(string));
-  int i=0;
-  for(i=0;i<length;i++) {
-    newlist[i] = mkString(indices[i]);
-  }
-  return newlist;
-
-}
-
-Identifier make_Identifier(int pos, Symbol name){
+Identifier make_Identifier(int pos, string name){
   Identifier p = tce_malloc(sizeof(*p));
   p->pos = pos;
   p->name = name;
@@ -71,7 +44,7 @@ Exp make_Multiplication(int pos, ExpList subexps) {
   return p;
 }
 
-Exp make_Array(int pos, Symbol name, string* indices) {
+Exp make_Array(int pos, string name, string* indices) {
   Exp p = tce_malloc(sizeof(*p));
   p->pos = pos;
   p->coef = 1;
@@ -90,7 +63,7 @@ Stmt make_AssignStmt(int pos, Exp lhs, Exp rhs) {
   return p;
 }
 
-Decl make_RangeDecl(int pos, Symbol name, int value) {
+Decl make_RangeDecl(int pos, string name, int value) {
   Decl p = tce_malloc(sizeof(*p));
   p->pos = pos;
   p->kind = is_RangeDecl;
@@ -99,7 +72,7 @@ Decl make_RangeDecl(int pos, Symbol name, int value) {
   return p;
 }
 
-Decl make_IndexDecl(int pos, Symbol name, Symbol rangeID) {
+Decl make_IndexDecl(int pos, string name, string rangeID) {
   Decl p = tce_malloc(sizeof(*p));
   p->pos = pos;
   p->kind = is_IndexDecl;
@@ -108,7 +81,7 @@ Decl make_IndexDecl(int pos, Symbol name, Symbol rangeID) {
   return p;
 }
 
-Decl make_ArrayDecl(int pos, Symbol name, string *upperIndices, string *lowerIndices) {
+Decl make_ArrayDecl(int pos, string name, string *upperIndices, string *lowerIndices) {
   Decl p = tce_malloc(sizeof(*p));
   p->pos = pos;
   p->kind = is_ArrayDecl;

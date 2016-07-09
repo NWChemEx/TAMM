@@ -3,23 +3,29 @@ CFLAGS = -g -Wall
 
 all: tcemain
 
-tcemain: main.o parser.o scanner.o absyn.o visitor.o semant.o
-	$(CC) -o $@ $(CFLAGS) main.o parser.o scanner.o visitor.o semant.o absyn.o -lfl 
+tcemain: main.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o 
+	$(CC) -o $@ $(CFLAGS) main.o parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o -lfl 
 
-main.o: main.c parser.o scanner.o absyn.o *.h
+main.o: main.c parser.o scanner.o *.h
 	$(CC) $(CFLAGS) -c main.c
 
-visitor.o: visitor.c parser.o scanner.o absyn.o absyn.h
+visitor.o: visitor.c parser.o 
 	$(CC) $(CFLAGS) -c visitor.c 
 	
-semant.o: semant.c visitor.h parser.o scanner.o absyn.o absyn.h
+semant.o: semant.c parser.o  
 	$(CC) $(CFLAGS) -c semant.c 
-		
-absyn.o: absyn.c absyn.h
+
+util.o: util.c 
+	$(CC) $(CFLAGS) -c util.c
+			
+absyn.o: absyn.c util.o
 	$(CC) $(CFLAGS) -c absyn.c
 
+symtab.o: symtab.c util.o 
+	$(CC) $(CFLAGS) -c symtab.c 
+		
 parser.o: parser.c absyn.o absyn.h 
-	$(CC) $(CFLAGS) -c parser.c
+	$(CC) $(CFLAGS) -c parser.c 
 	
 parser.c: parser.y lemon 
 	./lemon -s parser.y

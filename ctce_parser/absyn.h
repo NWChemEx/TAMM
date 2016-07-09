@@ -34,14 +34,8 @@
 
 #ifndef ABSYN_H_
 #define ABSYN_H_
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
 
-
-typedef char* string;
-typedef char* Symbol;
+#include "util.h"
 
 /* Forward Declarations */
 
@@ -59,23 +53,19 @@ typedef struct CompoundElem_ *CompoundElem;
 typedef struct CompoundElemList_ *CompoundElemList;
 typedef struct TranslationUnit_ *TranslationUnit;
 
-void *tce_malloc(int length);
-string mkString(char *s);
-string* mkIndexList(string *indices, int length);
-
 Exp make_Parenth(int pos, Exp e);
 Exp make_NumConst(int pos, float value);
 Exp make_Addition(int pos, ExpList subexps);
 Exp make_Multiplication(int pos, ExpList subexps);
-Exp make_Array(int pos, Symbol name, string* indices);
+Exp make_Array(int pos, string name, string* indices);
 
 
 Stmt make_AssignStmt(int pos, Exp lhs, Exp rhs);
-Decl make_RangeDecl(int pos, Symbol name, int value);
-Decl make_IndexDecl(int pos, Symbol name, Symbol rangeID);
-Decl make_ArrayDecl(int pos, Symbol name, string* upperIndices, string* lowerIndices); //TODO: permute and vertex symmetry
+Decl make_RangeDecl(int pos, string name, int value);
+Decl make_IndexDecl(int pos, string name, string rangeID);
+Decl make_ArrayDecl(int pos, string name, string* upperIndices, string* lowerIndices); //TODO: permute and vertex symmetry
 
-Identifier make_Identifier(int pos, Symbol name);
+Identifier make_Identifier(int pos, string name);
 
 Elem make_Elem_Stmt(Stmt s);
 Elem make_Elem_DeclList(DeclList d);
@@ -143,7 +133,7 @@ struct TranslationUnit_
 struct Identifier_
 {
     int pos;
-    Symbol name;
+    string name;
 };
 
 
@@ -165,16 +155,16 @@ struct Decl_
         struct
         {
             int value;
-            Symbol name;
+            string name;
         }RangeDecl;
         struct
         {
-            Symbol name;
-            Symbol rangeID;
+            string name;
+            string rangeID;
         }IndexDecl;
         struct
         {
-            Symbol name;
+            string name;
             int ulen, llen;
             string* upperIndices;
             string* lowerIndices;
@@ -215,7 +205,7 @@ struct Exp_
 
         struct
         {
-            Symbol name;
+            string name;
             int length;
             string *indices;
 

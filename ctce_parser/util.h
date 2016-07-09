@@ -11,6 +11,10 @@
 
 typedef char* string;
 
+typedef int bool;
+#define true 1
+#define false 0
+
 void *tce_malloc(int length);
 string mkString(char *s);
 string* mkIndexList(string *indices, int length);

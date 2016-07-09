@@ -1,6 +1,5 @@
-#include <limits.h>
 #include "symtab.h"
-#include "absyn.h"
+
 
 struct STEntry_ {
 	string key;
@@ -21,7 +20,7 @@ struct hashtable_ {
 };
 
 /* Hash a string for a particular hash table. */
-int ST_hash(hashtable hashtab, string key) {
+int ST_hash(SymbolTable hashtable, string key) {
 
 	unsigned long int hashval = 0;
 	int i = 0;
@@ -34,33 +33,33 @@ int ST_hash(hashtable hashtab, string key) {
 		i++;
 	}
 
-	return hashval % hashtab->size;
+	return hashval % hashtable->size;
 }
 
-/* Create a new hashtable. */
-hashtable ST_create(int size) {
+/* Create a new SymbolTable. */
+SymbolTable ST_create(int size) {
 
-	hashtable hashtab = NULL;
+	SymbolTable hashtable = NULL;
 	int i;
 
 	if (size < 1)
 		return NULL;
 
 	/* Allocate the table itself. */
-	hashtab = malloc(sizeof(hashtable));
-	if (hashtab == NULL) return NULL;
+	hashtable = malloc(sizeof(SymbolTable));
+	if (hashtable == NULL) return NULL;
 
 	/* Allocate pointers to the head nodes. */
-	if ((hashtab->table = malloc(sizeof(STEntry) * size)) == NULL) {
+	if ((hashtable->table = malloc(sizeof(STEntry) * size)) == NULL) {
 		return NULL;
 	}
 	for (i = 0; i < size; i++) {
-		hashtab->table[i] = NULL;
+		hashtable->table[i] = NULL;
 	}
 
-	hashtab->size = size;
+	hashtable->size = size;
 
-	return hashtab;
+	return hashtable;
 }
 
 /* Create a key-value pair. */
@@ -85,15 +84,15 @@ STEntry ST_newpair(string key, string value) {
 }
 
 /* Insert a key-value pair into a hash table. */
-void ST_insert(hashtable hashtable, string key, string value) {
+void ST_insert(SymbolTable SymbolTable, string key, string value) {
 	int bin = 0;
 	STEntry newpair = NULL;
 	STEntry next = NULL;
 	STEntry last = NULL;
 
-	bin = ST_hash(hashtable, key);
+	bin = ST_hash(SymbolTable, key);
 
-	next = hashtable->table[bin];
+	next = SymbolTable->table[bin];
 
 	while (next != NULL && next->key != NULL && strcmp(key, next->key) > 0) {
 		last = next;
@@ -111,9 +110,9 @@ void ST_insert(hashtable hashtable, string key, string value) {
 		newpair = ST_newpair(key, value);
 
 		/* We're at the start of the linked list in this bin. */
-		if (next == hashtable->table[bin]) {
+		if (next == SymbolTable->table[bin]) {
 			newpair->next = next;
-			hashtable->table[bin] = newpair;
+			SymbolTable->table[bin] = newpair;
 
 			/* We're at the end of the linked list in this bin. */
 		} else if (next == NULL) {
@@ -128,14 +127,14 @@ void ST_insert(hashtable hashtable, string key, string value) {
 }
 
 /* Retrieve a key-value pair from a hash table. */
-string ST_get(hashtable hashtab, string key) {
+string ST_get(SymbolTable hashtable, string key) {
 	int bin = 0;
 	STEntry pair;
 
-	bin = ST_hash(hashtab, key);
+	bin = ST_hash(hashtable, key);
 
 	/* Step through the bin, looking for our value. */
-	pair = hashtab->table[bin];
+	pair = hashtable->table[bin];
 	while (pair != NULL && pair->key != NULL && strcmp(key, pair->key) > 0) {
 		pair = pair->next;
 	}
@@ -149,4 +148,26 @@ string ST_get(hashtable hashtab, string key) {
 	}
 
 }
+
+/* Check existance of a key-value pair from a hash table. Same code as ST_get */
+bool ST_contains(SymbolTable hashtable, string key) {
+	int bin = 0;
+	STEntry pair;
+
+	bin = ST_hash(hashtable, key);
+
+	/* Step through the bin, looking for our value. */
+	pair = hashtable->table[bin];
+	while (pair != NULL && pair->key != NULL && strcmp(key, pair->key) > 0) {
+		pair = pair->next;
+	}
+
+	/* Did we actually find anything? */
+	if (pair == NULL || pair->key == NULL || strcmp(key, pair->key) != 0) {
+		return false;
+	} else {
+		return true;
+	}
+}
+
 

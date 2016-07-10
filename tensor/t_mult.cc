@@ -254,11 +254,12 @@ namespace ctce {
               if (!tA.is_spatial_nonzero(a_ids_v)) continue;
               if (!tA.is_spin_nonzero(a_ids_v)) continue;
 
+#if 0
 	      if(tC.dim()%2!=0) {
-		cout<<"sum_ids: "<<sum_ids<<endl;
 		cout<<"a_ids_v: "<<a_ids_v<<endl;
 		cout<<"b_ids_v: "<<b_ids_v<<endl;
 	      }
+#endif
 	      
 	      vector<Integer> a_value_r, b_value_r;
 	      tA.gen_restricted(a_ids_v, a_value_r);
@@ -290,7 +291,8 @@ namespace ctce {
               // int b_sign = tB.sortByValueThenExtSymGroup(b_name, b_svalue, b_svalue_r);
               int a_sign = sortByValueThenExtSymGroup(m.a_ids, a_name, a_svalue, a_svalue_r);
               int b_sign = sortByValueThenExtSymGroup(m.b_ids, b_name, b_svalue, b_svalue_r);
-	      
+
+#if 0
 	      if(tC.dim()%2!=0) {
 		cout<<"a_ids_v: "<<a_ids_v<<endl;
 		cout<<"b_ids_v: "<<b_ids_v<<endl;
@@ -301,6 +303,7 @@ namespace ctce {
 		cout<<"a_svalue_r: "<<a_svalue_r<<endl;
 		cout<<"b_svalue_r: "<<b_svalue_r<<endl;
 	      }
+#endif
 
               // if (tA.dim()==2) tA.get_ma = true;
               //tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);

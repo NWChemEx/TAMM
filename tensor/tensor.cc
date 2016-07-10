@@ -406,6 +406,17 @@ namespace ctce {
       return Tensor(3,1,irrep,rts, dt);
     }
 
+  Tensor Tensor1_2(IndexName n1, IndexName n2, IndexName n3,
+		   int e1, int e2, int e3, TensorType type, DistType dt, DimType dm, int irrep) {
+    assert(e1 == 0);
+    Index i1 = Index(n1,e1);
+    Index i2 = Index(n2,e2);
+    Index i3 = Index(n3,e3);
+    Index ids[] = {i1,i2,i3};
+    Tensor t = Tensor(3,ids,type,dt,dm,irrep);
+    return t;
+  }
+
     Tensor Tensor4(RangeType r1, RangeType r2, RangeType r3, RangeType r4, DistType dt) {
       RangeType rts[4] = {r1, r2, r3, r4};
       return Tensor(4,2,0,rts, dt);

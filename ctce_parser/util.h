@@ -19,4 +19,7 @@ void *tce_malloc(int length);
 string mkString(char *s);
 string* mkIndexList(string *indices, int length);
 
+//Convert int to string
+string int_str(int);
+
 #endif

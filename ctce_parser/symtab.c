@@ -27,7 +27,7 @@ int ST_hash(SymbolTable hashtable, string key) {
 	int key_len = strlen(key);
 
 	/* Convert our string to an integer */
-	while (hashval < ULONG_MAX && i < key_len) {
+	while (hashval < 4294967295 && i < key_len) {
 		hashval = hashval << 8;
 		hashval += key[i];
 		i++;

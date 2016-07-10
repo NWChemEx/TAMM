@@ -45,7 +45,7 @@ int main(int argc, char **argv){
 
     visit_ast(outputFile, astRoot);
 
-    SymbolTable symtab = ST_create(UINT_MAX);
+    SymbolTable symtab = ST_create(65535);
     check_ast(astRoot, symtab);
 
     fclose(outputFile);

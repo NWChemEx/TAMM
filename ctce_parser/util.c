@@ -24,6 +24,11 @@ string* mkIndexList(string *indices, int length){
     newlist[i] = mkString(indices[i]);
   }
   return newlist;
-
 }
 
+string int_str(int a){
+	int size = snprintf(NULL, 0, "%d", a);
+	string val = malloc(size + 1);
+	sprintf(val, "%d", a);
+  return val;
+}

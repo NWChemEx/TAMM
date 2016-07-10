@@ -43,19 +43,18 @@ void check_DeclList(DeclList decllist, SymbolTable symtab){
   }
 }
 
-void verifyVarDecl(string name, int line_no, SymbolTable symtab){
-//    if (ST_contains(symtab,name)){
-//        fprintf(stderr,"Error: %s is already defined", name, line_no);
-//        exit(2);
-//    }
+void verifyVarDecl(SymbolTable symtab, string name, int line_no){
+    if (ST_contains(symtab,name)){
+        fprintf(stderr,"Error at line %d: range variable %s is already defined\n", line_no, name);
+        exit(2);
+    }
 }
 
 void check_Decl(Decl d, SymbolTable symtab){
   switch(d->kind) {
   case is_RangeDecl:
-    if(d->u.RangeDecl.value % 1 != 0 || d->u.RangeDecl.value <= 0)
-      fprintf(stderr, "For range declaration %s, the value %d is not a positive integer\n",
-          d->u.RangeDecl.name,d->u.RangeDecl.value);
+  	verifyVarDecl(symtab, d->u.RangeDecl.name, 0);
+    ST_insert(symtab,d->u.RangeDecl.name,int_str(d->u.RangeDecl.value));
     break;
   case is_IndexDecl:
     //printf("index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID);

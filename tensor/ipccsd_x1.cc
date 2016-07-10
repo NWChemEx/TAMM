@@ -73,19 +73,17 @@ namespace ctce {
         tB = Tensor4(H5B,H6B,P3B,P4B,0,0,1,1,iV_tensor, idist, dim_n);
 	m_x1_1_4 = Multiplication(tC,tA,tB,-0.5);
 
-#if 0
 	//i0 ( p2 h1 )_xf + = -1 * Sum ( h6 ) * x ( p2 h6 )_x * i1 ( h6 h1 )_f
+#if 0
         tC = Tensor0_1(TO, dist_nw, irrep_x);
         tA = Tensor0_1(TO,dist_nw, irrep_x);
         tB = Tensor2(TO,TO,dist_nw);
-	m_x1_1 = Multiplication(tC,tA,tB,-1.0);
 #else	
-	//i0 ( p2 h1 )_xf + = -1 * Sum ( h6 ) * x ( p2 h6 )_x * i1 ( h6 h1 )_f
         tC = Tensor0_1(H1B,0,iVT_tensor, dist_nw, dim_ov, irrep_x);
         tA = Tensor0_1(H6B,0,iVT_tensor, dist_nw, dim_ov, irrep_x);
         tB = Tensor2(H6B,H1B,0,1,iVT_tensor, dist_nw, dim_ov);
-	m_x1_1 = Multiplication(tC,tA,tB,-1.0);
 #endif
+	m_x1_1 = Multiplication(tC,tA,tB,-1.0);
 
 	//i1 ( h6 p7 )_f + = 1 * f ( h6 p7 )_f
         tC = Tensor2(H6B,P7B,0,1,iV_tensor, dist_nw, dim_ov);
@@ -98,14 +96,11 @@ namespace ctce {
         tB = Tensor4(H4B,H6B,P3B,P7B,0,0,1,1,iV_tensor, idist, dim_n);
 	m_x1_2_2 = Multiplication(tC,tA,tB,1.0);
 
-
-#if 0
 	//i0 ( p2 h1 )_xf + = 1 * Sum ( p7 h6 ) * x ( p2 p7 h1 h6 )_x * i1 ( h6 p7 )_f
-        tC = Tensor2(P2B,H1B,0,1,iVT_tensor, dist_nw, dim_ov);
-        tA = Tensor4(P2B,P7B,H1B,H6B,0,0,1,1,iVT_tensor, dist_nw, dim_ov);
+        tC = Tensor0_1(H1B,0,iVT_tensor, dist_nw, dim_ov,irrep_x);
+        tA = Tensor1_2(P7B,H6B,H1B,0,1,1,iVT_tensor, dist_nw, dim_ov,irrep_x);
         tB = Tensor2(H6B,P7B,0,1,iVT_tensor, dist_nw, dim_ov);
 	m_x1_2 = Multiplication(tC,tA,tB,1.0);
-#endif
 
 	//i1 ( h6 h8 h1 p7 )_v + = 1 * v ( h6 h8 h1 p7 )_v
         tC = Tensor4(H6B,H8B,H1B,P7B,0,0,1,2,iV_tensor, dist_nw, dim_ov);
@@ -119,13 +114,11 @@ namespace ctce {
 	m_x1_3_2 = Multiplication(tC,tA,tB,1.0);
 
 
-#if 0
 	//i0 ( p2 h1 )_xv + = -1/2 * Sum ( p7 h6 h8 ) * x ( p2 p7 h6 h8 )_x * i1 ( h6 h8 h1 p7 )_v
-        tC = Tensor2(P2B,H1B,0,1,iVT_tensor, dist_nw, dim_ov);
-        tA = Tensor4(P2B,P7B,H6B,H8B,0,0,1,1,T_tensor, dist_nw, dim_ov);
+        tC = Tensor0_1(H1B,0,iVT_tensor, dist_nw, dim_ov, irrep_x);
+        tA = Tensor1_2(P7B,H8B,H6B,0,1,1,T_tensor, dist_nw, dim_ov, irrep_x);
         tB = Tensor4(H6B,H8B,H1B,P7B,0,0,1,2,iVT_tensor, dist_nw, dim_ov);
 	m_x1_3 = Multiplication(tC,tA,tB,-0.5);
-#endif
 
 	      //OFFSET_ipccsd_x1_1_1: i1 ( h6 h1 )_f
 	      t_x1_1_1 = Tensor2(H6B,H1B,0,1,iV_tensor,dist_nw,dim_ov);

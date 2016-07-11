@@ -8,7 +8,11 @@ namespace ctce {
 
   static Assignment a_t1_1, a_t1_2_1, a_t1_2_2_1, a_t1_3_1, a_t1_5_1, a_t1_6_1;
   static Multiplication m_t1_2_2_2, m_t1_2_2, m_t1_2_3, m_t1_2_4, m_t1_2, m_t1_3_2, m_t1_3, m_t1_4, m_t1_5_2, m_t1_5, m_t1_6_2, m_t1_6, m_t1_7;
-  static Tensor t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1;
+  //static Tensor t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1;
+
+  static Tensor i0, f, v, t1, t2;
+  static Tensor i1_2, i1_2_2, i1_3, i1_5, i1_6;
+
 
   extern "C" {
 
@@ -21,17 +25,17 @@ namespace ctce {
 
       if (set_t1) {
 
-	Tensor i0 = Tensor2(TV,TO,dist_nw);
-	Tensor f = Tensor2(TN,TN, dist_nw);
-	Tensor v = Tensor4(TN,TN,TN,TN,idist);
-	Tensor t1 = Tensor2(TV,TO,dist_nwma);
-	Tensor t2 = Tensor4(TV,TV,TO,TO,dist_nw);
+	i0 = Tensor2(TV,TO,dist_nw);
+	f = Tensor2(TN,TN, dist_nw);
+	v = Tensor4(TN,TN,TN,TN,idist);
+	t1 = Tensor2(TV,TO,dist_nwma);
+	t2 = Tensor4(TV,TV,TO,TO,dist_nw);
 
-	Tensor i1_2 = Tensor2(TO,TO,dist_nw);
-	Tensor i2_2_2 = Tensor2(TO,TV,dist_nw);
-	Tensor i1_3 = Tensor2(TV,TV,dist_nw);
-	Tensor i1_5 = Tensor2(TO,TV,dist_nw);
-	Tensor i1_6 = Tensor4(TO,TO,TO,TV,dist_nw);
+	i1_2 = Tensor2(TO,TO,dist_nw);
+	i1_2_2 = Tensor2(TO,TV,dist_nw);
+	i1_3 = Tensor2(TV,TV,dist_nw);
+	i1_5 = Tensor2(TO,TV,dist_nw);
+	i1_6 = Tensor4(TO,TO,TO,TV,dist_nw);
 
 	/*
      i0 ( p2 h1 )_f + = 1 * f ( p2 h1 )_f                                                         DONE
@@ -62,10 +66,10 @@ namespace ctce {
         a_t1_2_1 = Assignment(i1_2,f,1.0, ivec(H7B,H1B), ivec(H7B,H1B));
 
         /* i2 ( h7 p3 )_f + = 1 * f ( h7 p3 )_f */
-        a_t1_2_2_1 = Assignment(i2_2_2,f,1.0, ivec(H7B,P3B), ivec(H7B,P3B));
+        a_t1_2_2_1 = Assignment(i1_2_2,f,1.0, ivec(H7B,P3B), ivec(H7B,P3B));
 
         /* i2 ( h7 p3 )_vt + = -1 * Sum ( h6 p5 ) * t ( p5 h6 )_t * v ( h6 h7 p3 p5 )_v */
-        m_t1_2_2_2 = Multiplication(i2_2_2,ivec(H7B,P3B),
+        m_t1_2_2_2 = Multiplication(i1_2_2,ivec(H7B,P3B),
 				    t1,ivec(P5B,H6B),
 				    v,ivec(H6B,H7B,P3B,P5B),
 				    -1.0);
@@ -73,7 +77,7 @@ namespace ctce {
         /* i1 ( h7 h1 )_ft + = 1 * Sum ( p3 ) * t ( p3 h1 )_t * i2 ( h7 p3 )_f */
         m_t1_2_2 = Multiplication(i1_2,ivec(H7B,H1B),
 				  t1,ivec(P3B,H1B),
-				  i2_2_2,ivec(H7B,P3B),
+				  i1_2_2,ivec(H7B,P3B),
 				  1.0);
 
         /* i1 ( h7 h1 )_vt + = -1 * Sum ( h5 p4 ) * t ( p4 h5 )_t * v ( h5 h7 h1 p4 )_v */
@@ -129,6 +133,7 @@ namespace ctce {
 
         set_t1 = false;
         
+#if 0
         //OFFSET_ccsd_t1_2_1: i1 ( h7 h1 )_f
         t1_2_1 = Tensor2(H7B,H1B,0,1,iF_tensor,dist_nw,dim_ov);
 
@@ -143,48 +148,59 @@ namespace ctce {
 
         //OFFSET_ccsd_t1_6_1: i1 ( h4 h5 h1 p3 )_v
         t1_6_1 = Tensor4(H4B,H5B,H1B,P3B,0,0,1,2,iV_tensor, dist_nw, dim_ov);
+#endif
 
       }
     }
 
     void ccsd_t1_2_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
-      t1_2_1.create(k_i1_offset, d_i1, size_i1);
+      //t1_2_1.create(k_i1_offset, d_i1, size_i1);
+      i1_2.create(k_i1_offset, d_i1, size_i1);
     }
 
     void ccsd_t1_2_1_deletefile_cxx_() {
-      t1_2_1.destroy();
+      //t1_2_1.destroy();
+      i1_2.destroy();
     }
 
     void ccsd_t1_2_2_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
-      t1_2_2_1.create(k_i1_offset, d_i1, size_i1);
+      //t1_2_2_1.create(k_i1_offset, d_i1, size_i1);
+      i1_2_2.create(k_i1_offset, d_i1, size_i1);
     }
 
     void ccsd_t1_2_2_1_deletefile_cxx_() {
-      t1_2_2_1.destroy();
+      //t1_2_2_1.destroy();
+      i1_2_2.destroy();
     }
 
     void ccsd_t1_3_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
-      t1_3_1.create(k_i1_offset, d_i1, size_i1);
+      //t1_3_1.create(k_i1_offset, d_i1, size_i1);
+      i1_3.create(k_i1_offset, d_i1, size_i1);
     }
 
     void ccsd_t1_3_1_deletefile_cxx_() {
-      t1_3_1.destroy();
+      //t1_3_1.destroy();
+      i1_3.destroy();
     }
 
     void ccsd_t1_5_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
-      t1_5_1.create(k_i1_offset, d_i1, size_i1);
+      //t1_5_1.create(k_i1_offset, d_i1, size_i1);
+      i1_5.create(k_i1_offset, d_i1, size_i1);
     }
 
     void ccsd_t1_5_1_deletefile_cxx_() {
-      t1_5_1.destroy();
+      //t1_5_1.destroy();
+      i1_5.destroy();
     }
 
     void ccsd_t1_6_1_createfile_cxx_(Integer *k_i1_offset, Integer *d_i1, Integer *size_i1) {
-      t1_6_1.create(k_i1_offset, d_i1, size_i1);
+      //t1_6_1.create(k_i1_offset, d_i1, size_i1);
+      i1_6.create(k_i1_offset, d_i1, size_i1);
     }
 
     void ccsd_t1_6_1_deletefile_cxx_() {
-      t1_6_1.destroy();
+      //t1_6_1.destroy();
+      i1_6.destroy();
     }
 
     void ccsd_t1_1_cxx_(Integer *d_a, Integer *k_a_offset, 

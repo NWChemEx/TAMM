@@ -17,12 +17,12 @@ default: libctce.a
 libctce.a: variables.o dummy.o func.o capi.o preprocess.o expression.o t_mult.o t_assign.o tensor.o \
 ccsd_t1.o \
 ccsd_t2_12.o ccsd_t2_45.o ccsd_t2_68.o ccsd_t2_7.o \
-ccsd_t.o ipccsd_x1.o \
+ccsd_t.o ipccsd_x1.o input.o \
  gt.o fapi.o
 	ar -cr -o libctce.a variables.o dummy.o func.o capi.o preprocess.o expression.o t_mult.o t_assign.o tensor.o \
 ccsd_t1.o \
 ccsd_t2_12.o ccsd_t2_45.o ccsd_t2_68.o ccsd_t2_7.o \
-ccsd_t.o ipccsd_x1.o \
+ccsd_t.o ipccsd_x1.o input.o \
 gt.o fapi.o
 
 

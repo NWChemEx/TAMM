@@ -227,6 +227,9 @@ namespace ctce {
        */
       int irrep() const { return irrep_; }
 
+      int set_irrep(int irrep) { irrep_ = irrep; }
+      int set_dist(DistType dist) { dist_type_ = dist; }
+
       /**
        * Get data by get_hash_block_xx and store in buf, this function is for t_mult
        * @param[in] d_a

@@ -183,10 +183,26 @@ namespace ctce {
       ga_ = NGA_Create(MT_C_DBL, 2, dims, (char *)"noname1", NULL);
     }
     NGA_Zero(ga_);
-    *fma_offset_index = offset_map_ - int_mb;
-    *array_handle = ga_;
-    *array_size = size;
+    offset_index_ = offset_map_ - int_mb;
     allocated_ = true;
+    if(fma_offset_index) {
+      *fma_offset_index = offset_index_;
+    }
+    if(array_handle) {
+      *array_handle = ga_;
+    }
+    if(array_size) {
+      *array_size = size;
+    }
+  }
+
+  void Tensor::attach(Integer fma_offset_index, Integer fma_handle, Integer array_handle) {
+    Integer *int_mb = Variables::int_mb();
+    ga_ = array_handle;
+    offset_index_ = fma_offset_index;
+    offset_handle_ = fma_handle;
+    offset_map_ = int_mb + fma_offset_index;
+    attached_ = true;
   }
 
   void Tensor::destroy() {
@@ -195,6 +211,15 @@ namespace ctce {
       free(offset_map_);
       allocated_ = false;
     }
+  }
+  void Tensor::detach() {
+    assert(attached_);
+    attached_ = false;
+  }
+
+  void Tensor::get(std::vector<Integer> &pvalue_r, double *buf, Integer size) {
+    assert(allocated_ || attached_);
+    get(ga_, pvalue_r, buf, size, offset_index_);
   }
 
   void Tensor::get(Integer d_a, std::vector<Integer> &pvalue_r,

@@ -1,4 +1,6 @@
 #include "expression.h"
+#include "t_mult.h"
+#include "t_assign.h"
 
 namespace ctce {
 
@@ -29,6 +31,19 @@ namespace ctce {
       vt[i]=tr;
     }
     out_itr_ = IterGroup<triangular>(vt,TRIG);
+  }
+
+  void Assignment::execute() {
+    assert(tA().attached() || tA().allocated());
+    assert(tC().attached() || tC().allocated());
+    Integer d_a, k_a_offset;
+    Integer d_c, k_c_offset;
+    d_a = tA().ga();
+    k_a_offset = tA().offset_index();
+    d_c = tC().ga();
+    k_c_offset = tC().offset_index();
+
+    t_assign3(&d_a, &k_a_offset, &d_c, &k_c_offset, *this);
   }
 
   void Multiplication::genMemPos() {
@@ -209,4 +224,20 @@ namespace ctce {
     cp_itr_ = IterGroup<CopyIter>(vd, COPY);
   }
 
+  void Multiplication::execute() {
+    assert(tA().attached() || tA().allocated());
+    assert(tB().attached() || tB().allocated());
+    assert(tC().attached() || tC().allocated());
+    Integer d_a, k_a_offset;
+    Integer d_b, k_b_offset;
+    Integer d_c, k_c_offset;
+    d_a = tA().ga();
+    k_a_offset = tA().offset_index();
+    d_b = tB().ga();
+    k_b_offset = tB().offset_index();
+    d_c = tC().ga();
+    k_c_offset = tC().offset_index();
+
+    t_mult4(&d_a, &k_a_offset, &d_b, &k_b_offset, &d_c, &k_c_offset, *this);
+  }
 };

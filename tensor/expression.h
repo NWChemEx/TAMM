@@ -341,6 +341,7 @@ namespace ctce {
        * Get outer loop iterator
        */
       IterGroup<triangular>& out_itr() { return out_itr_; }
+      void execute();
   };
 
 
@@ -540,6 +541,7 @@ namespace ctce {
        * Manually set cp_itr with given copy group 
        */
       void setCopyItr(const std::vector<int>& gp);
+      void execute();
   };
 
 };

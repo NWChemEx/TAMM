@@ -47,16 +47,16 @@ namespace ctce {
   };
 
   static TensorEntry tensors[] = {
-    {"i0", {&ranges[1], &ranges[0]}, 2, 1, NULL},
-    {"f", {&ranges[2], &ranges[2]}, 2, 1, NULL},
-    {"v", {&ranges[2], &ranges[2], &ranges[2], &ranges[2]}, 4, 2, NULL},
-    {"t1", {&ranges[1], &ranges[0]}, 2, 1, NULL},
-    {"t2", {&ranges[1], &ranges[1], &ranges[0], &ranges[0]}, 4, 2, NULL},
-    {"i1_2", {&ranges[0], &ranges[0]}, 2, 1, NULL},
-    {"i1_2_2", {&ranges[0], &ranges[1]}, 2, 1, NULL},
-    {"i1_3", {&ranges[1], &ranges[1]}, 2, 1, NULL},
-    {"i1_5", {&ranges[0], &ranges[1]}, 2, 1, NULL},
-    {"i1_6", {&ranges[0], &ranges[0], &ranges[0], &ranges[1]}, 4, 2, NULL},
+    {"i0", {&ranges[1], &ranges[0]}, 2, 1},
+    {"f", {&ranges[2], &ranges[2]}, 2, 1},
+    {"v", {&ranges[2], &ranges[2], &ranges[2], &ranges[2]}, 4, 2},
+    {"t1", {&ranges[1], &ranges[0]}, 2, 1},
+    {"t2", {&ranges[1], &ranges[1], &ranges[0], &ranges[0]}, 4, 2},
+    {"i1_2", {&ranges[0], &ranges[0]}, 2, 1},
+    {"i1_2_2", {&ranges[0], &ranges[1]}, 2, 1},
+    {"i1_3", {&ranges[1], &ranges[1]}, 2, 1},
+    {"i1_5", {&ranges[0], &ranges[1]}, 2, 1},
+    {"i1_6", {&ranges[0], &ranges[0], &ranges[0], &ranges[1]}, 4, 2},
   };
 
   static IndexEntry *ie = indices;
@@ -189,12 +189,8 @@ namespace ctce {
       // i1_5 = Tensor2(TO,TV,dist_nw);
       // i1_6 = Tensor4(TO,TO,TO,TV,dist_nw);
 
-      input_ops_initialize(num_ranges, ranges,
-                           num_indices, indices,
-                           num_tensors, tensors,
-                           num_operations, ops);
-      tensors[3].tensor->set_dist(dist_nwma);
-      tensors[2].tensor->set_dist(idist);
+      tensors[3].tensor.set_dist(dist_nwma);
+      tensors[2].tensor.set_dist(idist);
 
       /*
      i0 ( p2 h1 )_f + = 1 * f ( p2 h1 )_f                                                         DONE

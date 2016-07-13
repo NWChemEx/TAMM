@@ -189,13 +189,13 @@ namespace ctce {
       // i1_5 = Tensor2(TO,TV,dist_nw);
       // i1_6 = Tensor4(TO,TO,TO,TV,dist_nw);
 
-      tensors[3].tensor->set_dist(dist_nwma);
-      tensors[2].tensor->set_dist(idist);
-
       input_ops_initialize(num_ranges, ranges,
                            num_indices, indices,
                            num_tensors, tensors,
                            num_operations, ops);
+      tensors[3].tensor->set_dist(dist_nwma);
+      tensors[2].tensor->set_dist(idist);
+
       /*
      i0 ( p2 h1 )_f + = 1 * f ( p2 h1 )_f                                                         DONE
      i0 ( p2 h1 )_tf + = -1 * Sum ( h7 ) * t ( p2 h7 )_t * i1 ( h7 h1 )_f                         DONE

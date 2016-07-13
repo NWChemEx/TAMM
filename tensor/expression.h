@@ -306,8 +306,14 @@ namespace ctce {
         out_itr_ = as.out_itr_;
         aids_ = as.aids_;
         cids_ = as.cids_;
-        tC_ = &tC_bug;
-        tA_ = &tA_bug;
+        if(as.tC_ == &as.tC_bug) {
+          tC_ = &tC_bug;
+          tA_ = &tA_bug;
+        }
+        else {
+          tC_ = as.tC_;
+          tA_ = as.tA_;
+        }
       }
 
       /**
@@ -465,9 +471,16 @@ namespace ctce {
         b_ids = m.b_ids;
         c_ids = m.c_ids;
 
-        tA_ = &tA_bug;
-        tB_ = &tB_bug;
-        tC_ = &tC_bug;
+        if(m.tC_ == &m.tC_bug) {
+          tA_ = &tA_bug;
+          tB_ = &tB_bug;
+          tC_ = &tC_bug;
+        }
+        else {
+          tA_ = m.tA_;
+          tB_ = m.tB_;
+          tC_ = m.tC_;
+        }
       }
 
       /**

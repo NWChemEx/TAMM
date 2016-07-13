@@ -53,15 +53,9 @@ void input_initialize(int num_ranges, RangeEntry *ranges,
     /*@BUG: @FIXME: irrep is not set.. Should be correctly set before this object is used*/
     DistType bug_dist = dist_nw;
     int bug_irrep = 0;
-    tensors[i].tensor = new Tensor(tensors[i].ndim, tensors[i].nupper, bug_irrep, rts, bug_dist);
+    tensors[i].tensor = Tensor(tensors[i].ndim, tensors[i].nupper, bug_irrep, rts, bug_dist);
   }
-}
 
-
-void input_ops_initialize(int num_ranges, RangeEntry *ranges,
-		      int num_indices, IndexEntry *indices,
-		      int num_tensors, TensorEntry *tensors,
-		      int num_operations, Operation *ops) {
   //distributon, irrep, allocate/attach
   for(int i=0; i<num_operations; i++) {
     switch(ops[i].optype) {
@@ -91,7 +85,7 @@ void input_ops_initialize(int num_ranges, RangeEntry *ranges,
       aids[i] = add->ta_ids[i]->index;
       cids[i] = add->tc_ids[i]->index;
     }
-    return Assignment(add->tc->tensor, add->ta->tensor, add->alpha, cids, aids);
+    return Assignment(&add->tc->tensor, &add->ta->tensor, add->alpha, cids, aids);
   }
 
 
@@ -118,6 +112,6 @@ void input_ops_initialize(int num_ranges, RangeEntry *ranges,
     for(int i=0; i<cndim; i++) {
       cids[i] = mult->tc_ids[i]->index;
     }
-    return Multiplication(mult->tc->tensor, cids, mult->ta->tensor, aids, mult->tb->tensor, bids, mult->alpha);
+    return Multiplication(&mult->tc->tensor, cids, &mult->ta->tensor, aids, &mult->tb->tensor, bids, mult->alpha);
   }
 }

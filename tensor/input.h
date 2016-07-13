@@ -40,7 +40,7 @@ typedef struct {
 	char * name;
 	RangeEntry *dims[MAX_TENSOR_DIMS];
 	int ndim, nupper;
-	Tensor *tensor;
+	Tensor tensor;
 } TensorEntry;
 
 /* tc[tc_ids] = alpha * ta[ta_ids]*/
@@ -76,12 +76,6 @@ void input_initialize(int num_ranges, RangeEntry *ranges,
 											int num_indices, IndexEntry *indices,
 											int num_tensors, TensorEntry *tensors,
 											int num_operations, Operation *ops);
-
-void input_ops_initialize(int num_ranges, RangeEntry *ranges,
-                          int num_indices, IndexEntry *indices,
-                          int num_tensors, TensorEntry *tensors,
-                          int num_operations, Operation *ops);
-
 };
 
 #endif /*__ctce_input_h__*/

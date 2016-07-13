@@ -29,8 +29,11 @@ namespace ctce {
       std::vector<Index> ids_; /*< indices of the tensor, actual data */
 
 			bool allocated_; /*true if this tensor were created using create()*/
-			int ga_; /*underlying ga if this tensor was created*/
+      bool attached_;
+			Integer ga_; /*underlying ga if this tensor was created*/
 			Integer *offset_map_; /*offset map used as part of creation*/
+      Integer offset_index_; /*index to offset map usable with int_mb */
+      Integer offset_handle_; /*MA handle for the offset map when allocated in fortran*/
 			int irrep_; /*irrep for spatial symmetry*/
 			int nupper_; /* number of upper indices*/
 
@@ -52,6 +55,12 @@ namespace ctce {
     public:
 			DistType dist_type_;
 			DimType dim_type_;
+
+      bool attached() const { return attached_; }
+      bool allocated() const { return allocated_; }
+      Integer ga() const { return ga_; }
+      Integer offset_index() const { return offset_index_; }
+      Integer offset_handle() const { return offset_handle_; }
 
       /**
        * Constructor
@@ -239,6 +248,8 @@ namespace ctce {
        */
       void get(Integer d_a, std::vector<Integer> &pvalue_r, /*std::vector<IndexName> &name,*/ double *buf, Integer size, Integer d_a_offset);
 
+      void get(std::vector<Integer> &pvalue_r, double *buf, Integer size);
+
       /**
        * Get data by get_hash_block_xx and store in buf, this function is for t_assign
        * @param[in] d_a
@@ -289,10 +300,11 @@ namespace ctce {
 													std::vector<Integer> &pvalue_r);
 
 
-			void create(Integer *fma_offset_index, Integer *array_handle, Integer *array_size);
-			void attach(Integer *fma_offset_index, Integer *array_handle);
+			void create(Integer *fma_offset_index=NULL, Integer *array_handle=NULL, Integer *array_size=NULL);
+			void attach(Integer fma_offset_index, Integer fma_offset_handle, Integer array_handle);
 
 			void destroy();
+      void detach();
 
       /**
        * Set the memory position for the indices

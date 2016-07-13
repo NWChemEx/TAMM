@@ -91,7 +91,7 @@ void input_ops_initialize(int num_ranges, RangeEntry *ranges,
       aids[i] = add->ta_ids[i]->index;
       cids[i] = add->tc_ids[i]->index;
     }
-    return Assignment(*add->tc->tensor, *add->ta->tensor, add->alpha, cids, aids);
+    return Assignment(add->tc->tensor, add->ta->tensor, add->alpha, cids, aids);
   }
 
 
@@ -118,6 +118,6 @@ void input_ops_initialize(int num_ranges, RangeEntry *ranges,
     for(int i=0; i<cndim; i++) {
       cids[i] = mult->tc_ids[i]->index;
     }
-    return Multiplication(*mult->tc->tensor, cids, *mult->ta->tensor, aids, *mult->tb->tensor, bids, mult->alpha);
+    return Multiplication(mult->tc->tensor, cids, mult->ta->tensor, aids, mult->tb->tensor, bids, mult->alpha);
   }
 }

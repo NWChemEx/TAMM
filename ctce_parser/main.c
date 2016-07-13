@@ -44,11 +44,12 @@ int main(int argc, char **argv){
     }
 
     visit_ast(outputFile, astRoot);
+    fclose(outputFile);
 
     SymbolTable symtab = ST_create(65535);
     check_ast(astRoot, symtab);
 
-    fclose(outputFile);
+
 
     ParseFree(parser,free);
     yylex_destroy(scanner);

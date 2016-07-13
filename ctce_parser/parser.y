@@ -180,7 +180,7 @@
 
      int countL = count_IDList(L);
      ic = 0;
-     p = U;
+     p = L;
      string* indicesL = malloc(countL * sizeof(string));
 
      while (p!=NULL){

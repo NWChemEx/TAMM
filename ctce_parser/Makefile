@@ -1,15 +1,15 @@
 CC = gcc
 CFLAGS = -g -Wall
 
-all: tcemain
+all: ctcemain
 
-tcemain: main.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o 
+ctcemain: main.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o 
 	$(CC) -o $@ $(CFLAGS) main.o parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o -lfl 
 
 main.o: main.c parser.o scanner.o *.h
 	$(CC) $(CFLAGS) -c main.c
 
-visitor.o: visitor.c parser.o 
+visitor.o: visitor.c parser.o util.o
 	$(CC) $(CFLAGS) -c visitor.c 
 	
 semant.o: semant.c parser.o  
@@ -42,4 +42,4 @@ scanner.c: scanner.l
 .PHONY: clean
 
 clean: 
-	rm -f parser.out parser.c parser.h scanner.c scanner.h tcemain lemon *.o output.txt lex.yy.c
+	rm -f ctcemain parser.out parser.c parser.h scanner.c scanner.h lemon *.o output.txt lex.yy.c

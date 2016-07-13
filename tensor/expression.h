@@ -251,8 +251,9 @@ namespace ctce {
    */
   class Assignment {
     private:
-      Tensor tC_; /*< lhs tensor */
-      Tensor tA_; /*< rhs tensor */
+      Tensor *tC_; /*< lhs tensor */
+      Tensor *tA_; /*< rhs tensor */
+      Tensor tC_bug, tA_bug; /*@FIXME: @BUG: to keep things working for now*/
       double coef_; /*< coefficient */
       IterGroup<triangular> out_itr_; /*< outer loop iterator */
 			std::vector<IndexName> cids_;
@@ -263,7 +264,7 @@ namespace ctce {
       /**
        * Constructor
        */
-      Assignment() {};
+  Assignment() {};
 
       /**
        * Destructor
@@ -276,7 +277,19 @@ namespace ctce {
        * @param[in] tA right hand side tensor
        * @param[in] coef coefficient. most of time it is 1 or -1.
        */
-	Assignment(const Tensor& tC, const Tensor& tA, double coef,
+	Assignment(Tensor& tC, Tensor& tA, double coef,
+						 const std::vector<IndexName>& cids,
+						 const std::vector<IndexName>& aids)
+		: tC_bug(tC), tA_bug(tA), coef_(coef), cids_(cids), aids_(aids) {
+        tC_ = &tC_bug;
+        tA_ = &tA_bug;
+          init();
+					assert(is_permutation(cids_));
+					assert(is_permutation(aids_));
+					assert(is_permutation(cids_, aids_));
+        }
+
+	Assignment(Tensor *tC, Tensor *tA, double coef,
 						 const std::vector<IndexName>& cids,
 						 const std::vector<IndexName>& aids)
 		: tC_(tC), tA_(tA), coef_(coef), cids_(cids), aids_(aids) {
@@ -286,15 +299,28 @@ namespace ctce {
 					assert(is_permutation(cids_, aids_));
         }
 
+      Assignment& operator = (const Assignment& as) {
+        tC_bug = as.tC();
+        tA_bug = as.tA();
+        coef_ = as.coef_;
+        out_itr_ = as.out_itr_;
+        aids_ = as.aids_;
+        cids_ = as.cids_;
+        tC_ = &tC_bug;
+        tA_ = &tA_bug;
+      }
+
       /**
        * Get lhs tensor tC
        */
-      Tensor& tC() { return tC_; }
+      Tensor& tC() { return *tC_; }
+      const Tensor& tC() const { return *tC_; }
 
       /**
        * Get rhs tensor tA
        */
-      Tensor& tA() { return tA_; }
+      Tensor& tA() { return *tA_; }
+      const Tensor& tA() const { return *tA_; }
 
       const std::vector<IndexName> &cids() const { return cids_; }
 
@@ -317,9 +343,10 @@ namespace ctce {
    */
   class Multiplication {
     private:
-      Tensor tC_; /*< left hand side tensor */
-      Tensor tA_; /*< right hand side tensor 1 */
-      Tensor tB_; /*< right hand side tensor 2 */
+      Tensor *tC_; /*< left hand side tensor */
+      Tensor *tA_; /*< right hand side tensor 1 */
+      Tensor *tB_; /*< right hand side tensor 2 */
+      Tensor tC_bug, tA_bug, tB_bug; /*@FIXME: @BUG: for now to keep everything working. to be removed when all implementations use this interface*/
       double coef_; /*< coefficient */
 
       std::vector<IndexName> sum_ids_; /*< summation indices of the contraction */
@@ -361,47 +388,105 @@ namespace ctce {
        * @param[in] tB right hand side tensor 2
        * @param[in] coef coefficient
        */
-      Multiplication(const Tensor& tC, const Tensor& tA, const Tensor& tB, double coef)
-        : tC_(tC), tA_(tA), tB_(tB), coef_(coef) {
+      Multiplication(Tensor& tC1, Tensor& tA1, Tensor& tB1, double coef)
+        : tC_bug(tC1), tA_bug(tA1), tB_bug(tB1), coef_(coef) {
 				// c_ids = id2name(tC_.ids());
 				// a_ids = id2name(tA_.ids());
 				// b_ids = id2name(tB_.ids());
-				c_ids = tC_.ids();
-				a_ids = tA_.ids();
-				b_ids = tB_.ids();
+        tC_ = &tC_bug;
+        tA_ = &tA_bug;
+        tB_ = &tB_bug;
+				c_ids = tC().ids();
+				a_ids = tA().ids();
+				b_ids = tB().ids();
           genMemPos();
           genSumGroup();
-          genOutGroup(); 
+          genOutGroup();
+        }
+
+      Multiplication(Tensor *tC1, Tensor *tA1, Tensor *tB1, double coef)
+        : tC_(tC1), tA_(tA1), tB_(tB1), coef_(coef) {
+				// c_ids = id2name(tC_.ids());
+				// a_ids = id2name(tA_.ids());
+				// b_ids = id2name(tB_.ids());
+				c_ids = tC().ids();
+				a_ids = tA().ids();
+				b_ids = tB().ids();
+          genMemPos();
+          genSumGroup();
+          genOutGroup();
         }
 
 
-	Multiplication(const Tensor& tC, const std::vector<IndexName> &c_ids1,
-		       const Tensor& tA, const std::vector<IndexName> &a_ids1,
-		       const Tensor& tB, const std::vector<IndexName> &b_ids1,
+	Multiplication(Tensor& tC1, const std::vector<IndexName> &c_ids1,
+		       Tensor& tA1, const std::vector<IndexName> &a_ids1,
+		       Tensor& tB1, const std::vector<IndexName> &b_ids1,
 		       double coef)
-	  : tC_(tC), tA_(tA), tB_(tB), coef_(coef) {
-		c_ids = name2ids(tC, c_ids1);
-		a_ids = name2ids(tA, a_ids1);
-		b_ids = name2ids(tB, b_ids1);
+	  : tC_bug(tC1), tA_bug(tA1), tB_bug(tB1), coef_(coef) {
+        tC_ = &tC_bug;
+        tA_ = &tA_bug;
+        tB_ = &tB_bug;
+        c_ids = name2ids(tC(), c_ids1);
+        a_ids = name2ids(tA(), a_ids1);
+        b_ids = name2ids(tB(), b_ids1);
           genMemPos();
           genSumGroup();
-          genOutGroup(); 
+          genOutGroup();
         }
+
+	Multiplication(Tensor *tC1, const std::vector<IndexName> &c_ids1,
+		       Tensor *tA1, const std::vector<IndexName> &a_ids1,
+		       Tensor *tB1, const std::vector<IndexName> &b_ids1,
+		       double coef)
+	  : tC_(tC1), tA_(tA1), tB_(tB1), coef_(coef) {
+        c_ids = name2ids(tC(), c_ids1);
+        a_ids = name2ids(tA(), a_ids1);
+        b_ids = name2ids(tB(), b_ids1);
+          genMemPos();
+          genSumGroup();
+          genOutGroup();
+        }
+
+      Multiplication& operator=(const Multiplication &m) {
+        tC_bug = m.tC();
+        tA_bug = m.tA();
+        tB_bug = m.tB();
+        coef_ = m.coef_;
+
+        sum_ids_ = m.sum_ids_;
+        out_itr_ = m.out_itr_;
+        sum_itr_ = m.sum_itr_;
+        cp_itr_  = m.cp_itr_ ;
+
+        a_mem_pos = m.a_mem_pos;
+        b_mem_pos = m.b_mem_pos;
+        c_mem_pos = m.c_mem_pos;
+        a_ids = m.a_ids;
+        b_ids = m.b_ids;
+        c_ids = m.c_ids;
+
+        tA_ = &tA_bug;
+        tB_ = &tB_bug;
+        tC_ = &tC_bug;
+      }
 
       /**
        * Get left hand side tensor tC
        */
-      Tensor& tC() { return tC_; }
+      Tensor& tC() { return *tC_; }
+      const Tensor& tC() const { return *tC_; }
 
       /**
        * Get right hand side tensor tA
        */
-      Tensor& tA() { return tA_; }
+      Tensor& tA() { return *tA_; }
+      const Tensor& tA() const { return *tA_; }
 
       /**
        * Get right hand side tensor tB
        */
-      Tensor& tB() { return tB_; }
+      Tensor& tB() { return *tB_; }
+      const Tensor& tB() const { return *tB_; }
 
       /**
        * Get coefficient

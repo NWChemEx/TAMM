@@ -8,7 +8,7 @@ namespace ctce {
     const std::vector<IndexName>& name = cids_;
     // const std::vector<int>& gp = tC_.ext_sym_group();
     //const std::vector<int>& gp = ext_sym_group(tC_.ids());
-    const std::vector<int>& gp = ext_sym_group(tC_, cids_);
+    const std::vector<int>& gp = ext_sym_group(tC(), cids_);
     std::vector< std::vector<IndexName> > all;
     std::vector<IndexName> one;
     int prev=0, curr=0, n=name.size();
@@ -121,13 +121,13 @@ namespace ctce {
     const std::vector<IndexName>& c = id2name(c_ids);
     const std::vector<IndexName>& a = id2name(a_ids);
     const std::vector<IndexName>& b = id2name(b_ids);
-    int n = tC_.dim();
+    int n = tC().dim();
     assert(n>0);
     int from[n];
     for (int i=0; i<n; i++) {
-      for (int j=0; j<tA_.dim(); j++)
+      for (int j=0; j<tA().dim(); j++)
         if (c[i]==a[j]) from[i]=0;
-      for (int j=0; j<tB_.dim(); j++)
+      for (int j=0; j<tB().dim(); j++)
         if (c[i]==b[j]) from[i]=1;
     }
     // std::vector<int> c_ext = tC_.ext_sym_group();

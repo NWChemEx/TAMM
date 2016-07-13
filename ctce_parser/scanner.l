@@ -58,8 +58,9 @@ iteration                    { tce_tokPos = col; col += (yyleng);yyextra = copy(
 ;                        { tce_tokPos = col; col += (yyleng);yyextra = copy(yytext,yyleng); return SEMI; }
 
 
-[0-9]+|[0-9]*            { tce_tokPos = col; col += (yyleng);yyextra = copy(yytext,yyleng); return ICONST; }
-[0-9]+"."[0-9]+            { tce_tokPos = col; col += (yyleng);yyextra = copy(yytext,yyleng); return FCONST; }
+-?[0-9]+|[0-9]*            { tce_tokPos = col; col += (yyleng);yyextra = copy(yytext,yyleng); return ICONST; }
+-?[0-9]+"."[0-9]+            { tce_tokPos = col; col += (yyleng);yyextra = copy(yytext,yyleng); return FCONST; }
+-?[0-9]+"/"[0-9]+            { tce_tokPos = col; col += (yyleng);yyextra = copy(yytext,yyleng); return FRACCONST; }
 [A-Za-z\_][A-Za-z0-9\_]* { tce_tokPos = col; col += (yyleng);yyextra = copy(yytext,yyleng); return ID; }
 
 %%

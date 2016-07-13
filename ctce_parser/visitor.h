@@ -13,7 +13,5 @@ void visit_Exp(FILE* outFile, Exp exp);
 void visit_ExpList(FILE* outFile, ExpList expList, string am);
 void visit_DeclList(FILE* outFile,DeclList dl);
 
-string combine_indices(string* indices, int count);
-
 
 #endif

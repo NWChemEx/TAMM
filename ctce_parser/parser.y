@@ -107,6 +107,25 @@
 
     numerical_constant(N) ::= FCONST(F)  . {
       N = make_NumConst(tce_tokPos,atof(F));
+    }
+
+    numerical_constant(N) ::= FRACCONST(F)  . {
+      char* frac = F;
+      char* str = strdup(frac);
+      char* pch;
+      char* nd[2];
+      pch = strtok (str," /");
+      int i =0;
+      while (pch != NULL)
+      {
+        nd[i] = pch; i++;
+        pch = strtok (NULL, " /");
+        
+      }
+      float num = atof(nd[0]);
+      float den = atof(nd[1]);
+      //printf("%f/%f\n",num,den);
+      N = make_NumConst(tce_tokPos,num/den);
     }   
         
     // range-declaration
@@ -163,7 +182,7 @@
 
     // array-structure
     //old -- array_structure ::= ID LPAREN LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET permut_symmetry_opt RPAREN .
-    array_structure(A) ::= ID(N) LBRACKET id_list_opt(U) RBRACKET LBRACKET id_list_opt(L) RBRACKET permut_symmetry_opt . {
+    array_structure(A) ::= ID(N) LBRACKET id_list_opt(U) RBRACKET LBRACKET id_list_opt(L) RBRACKET permut_symmetry_opt(P) . {
      string id = N;
      IDList p = U;
      int countU = count_IDList(U);
@@ -192,13 +211,23 @@
      Decl dec = make_ArrayDecl(tce_tokPos,id,indicesU,indicesL); 
      dec->u.ArrayDecl.ulen = countU;
      dec->u.ArrayDecl.llen = countL;
+     dec->u.ArrayDecl.irrep = P; 
      A = dec;
      dec = NULL;
     }
 
     // statement
-    statement(S) ::= assignment_statement(A) . { S = A; }
+    statement(S) ::= assignment_statement(A) . { 
+      Stmt st = A; 
+      st->u.AssignStmt.label = NULL; 
+      S=st;
+    }
 
+    statement(S) ::= ID(I) COLON assignment_statement(A) . { 
+      Stmt st = A; 
+      st->u.AssignStmt.label = I; 
+      S=st;
+    }
 
     // assignment-statement
       assignment_statement(A) ::= expression(L) assignment_operator(O) expression(R) SEMI . { 
@@ -355,8 +384,10 @@
 
 
     // TODO: permutational-symmetry
-    permut_symmetry_opt ::=  .
-    permut_symmetry_opt ::=  COLON symmetry_group_list .
+    permut_symmetry_opt(P) ::=  . { P=NULL; }
+    permut_symmetry_opt(P) ::=  COLON symmetry_group_list . { P=NULL; }
+    //hack for array decl specifying irrep string - array X[upper][lower]:irrep_f
+    permut_symmetry_opt(P) ::=  COLON ID(I) . { P=I; } 
 
     symmetry_group_list ::= symmetry_group .
     symmetry_group_list ::= symmetry_group_list symmetry_group .

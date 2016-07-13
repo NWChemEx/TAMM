@@ -52,8 +52,14 @@ void visit_Decl(FILE* outFile, Decl d){
     fprintf(outFile,"index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID);
     break;
   case is_ArrayDecl:
-    fprintf(outFile,"array %s[%s][%s];\n",d->u.ArrayDecl.name,combine_indices(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen)
-        ,combine_indices(d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen));
+  	if(d->u.ArrayDecl.irrep == NULL)
+      fprintf(outFile,"array %s[%s][%s];\n",d->u.ArrayDecl.name,combine_indices(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen)
+          ,combine_indices(d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen));
+
+  	else
+  		fprintf(outFile,"array %s[%s][%s] : %s;\n",d->u.ArrayDecl.name,combine_indices(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen)
+        ,combine_indices(d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen),d->u.ArrayDecl.irrep);
+
     break;
   default:
     fprintf(stderr,"Not a valid Declaration!\n");
@@ -64,8 +70,10 @@ void visit_Decl(FILE* outFile, Decl d){
 void visit_Stmt(FILE* outFile, Stmt s){
   switch(s->kind) {
   case is_AssignStmt:
-    visit_Exp(outFile, s->u.AssignStmt.lhs);
-    fprintf(outFile," %s ", s->u.AssignStmt.astype); //astype not needed after we flatten. keep it for now.
+  	if(s->u.AssignStmt.label!=NULL)
+  		fprintf(outFile,"%s: ", s->u.AssignStmt.label);
+  	visit_Exp(outFile, s->u.AssignStmt.lhs);
+    fprintf(outFile," %s ", "="); //s->u.AssignStmt.astype); //astype not needed after we flatten. keep it for now.
     visit_Exp(outFile, s->u.AssignStmt.rhs);
     fprintf(outFile,";\n");
     break;

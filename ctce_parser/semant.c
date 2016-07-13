@@ -51,10 +51,14 @@ void verifyVarDecl(SymbolTable symtab, string name, int line_no){
 }
 
 void verifyRangeRef(SymbolTable symtab, string name, int line_no){
-    if (!ST_contains(symtab,name)){
-        fprintf(stderr,"Error at line %d: range variable %s is not defined\n", line_no, name);
-        exit(2);
-    }
+//    if (!ST_contains(symtab,name)){
+//        fprintf(stderr,"Error at line %d: range variable %s is not defined\n", line_no, name);
+//        //exit(2);
+//    }
+	string ranges[3] = {"O","V","N"};
+	if(!exists_index(ranges,3,name))
+		fprintf(stderr,"Error at line %d: range %s is not supported. Can only be one of %s\n", line_no, name,
+				combine_indices(ranges,3));
 }
 
 void check_Decl(Decl d, SymbolTable symtab){

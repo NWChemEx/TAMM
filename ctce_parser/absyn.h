@@ -168,6 +168,7 @@ struct Decl_
             int ulen, llen;
             string* upperIndices;
             string* lowerIndices;
+            string irrep;
         }ArrayDecl;
         //TODO: ExpandDecl, IterationDecl, VolatileDecl
     }u;
@@ -181,7 +182,7 @@ struct Stmt_
     union {
         struct
         {
-            Exp lhs; Exp rhs; string astype;
+        	 string label; Exp lhs; Exp rhs; string astype;
         }AssignStmt;
     }u;
 };

@@ -186,6 +186,12 @@ namespace ctce {
       CorFortran(1,m_t1_6,ccsd_t1_6_);
       destroy(i1_6);
       CorFortran(1,m_t1_7,ccsd_t1_7_);
+
+      f->detach();
+      i0->detach();
+      t1->detach();
+      t2->detach();
+      v->detach();
     }
   } // extern C
 }; // namespace ctce

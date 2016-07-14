@@ -19,45 +19,36 @@ typedef struct {
 	IndexName names[MAX_INDEX_NAMES];
 } Range2Index;
 
-/* typedef enum { */
-/* 	TENSOR_INPUT, */
-/* 	TENSOR_OUTPUT, */
-/* 	TENSOR_TEMP */
-/* } TensorType; */
-
 typedef struct {
 	char * name; /*name for this range*/
-	RangeType rt; /*type for range*/
 } RangeEntry;
 
 typedef struct {
 	char * name; /*name of this index*/
-	RangeEntry *range;  /*range declaration for this index*/
-	IndexName index;
+  int range_id; /*index into the RangeEntry struct*/
 } IndexEntry;
 
 typedef struct {
 	char * name;
-	RangeEntry *dims[MAX_TENSOR_DIMS];
+  int range_ids[MAX_TENSOR_DIMS]; /*dimensions in terms of index into RangeEntry struct*/
 	int ndim, nupper;
-	Tensor tensor;
 } TensorEntry;
 
 /* tc[tc_ids] = alpha * ta[ta_ids]*/
 typedef struct {
-	TensorEntry *tc, *ta;
+  int tc, ta; //tc and ta in terms of index into TensorEntry structs
 	double alpha;
-	IndexEntry *tc_ids[MAX_TENSOR_DIMS];
-	IndexEntry *ta_ids[MAX_TENSOR_DIMS];
+  int tc_ids[MAX_TENSOR_DIMS]; /*index labels for tc in terms of index into IndexEntry struct*/
+  int ta_ids[MAX_TENSOR_DIMS]; /*index labels for tc in terms of index into IndexEntry struct*/
 } AddOp;
 
 /* tc[tc_ids] += alpha * ta[ta_ids] * tb[tb_ids]*/
 typedef struct {
-	TensorEntry *tc, *ta, *tb;
+  int tc, ta, tb; //tensors identified by index into TensorEntry structs
 	double alpha;
-	IndexEntry *tc_ids[MAX_TENSOR_DIMS];
-	IndexEntry *ta_ids[MAX_TENSOR_DIMS];	
-	IndexEntry *tb_ids[MAX_TENSOR_DIMS];	
+  int tc_ids[MAX_TENSOR_DIMS];
+  int ta_ids[MAX_TENSOR_DIMS];
+  int tb_ids[MAX_TENSOR_DIMS];
 } MultOp;
 
 typedef enum {
@@ -67,17 +58,17 @@ typedef enum {
 
 typedef struct {
 	OpType optype;
-	void *op_entry; /*AddOp or MultOp*/
-  Assignment add; /*Assignment of Multiplication*/
-  Multiplication mult;
-} Operation;
+  AddOp add;
+  MultOp mult;
+} OpEntry;
 
-void input_initialize(int num_ranges, RangeEntry *ranges,
-											int num_indices, IndexEntry *indices,
-											int num_tensors, TensorEntry *tensors,
-											int num_operations, Operation *ops);
+ typedef struct {
+   OpType optype;
+   Assignment add;
+   Multiplication mult;
+ } Operation;
+
 };
 
 #endif /*__ctce_input_h__*/
-
 

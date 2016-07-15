@@ -1,0 +1,26 @@
+Input format:
+
+* Tensor labels: i[1-9][0-9]+ are intermediates. All else are inputs ([txvf][0-9]+), including i0
+
+* Sum() and P() can be removed
+
+* For inputs, irrep is in the suffix
+
+* Contraction labeling: parts
+  - File name (t1_, t2_, t3_, ..)
+  - At the top-level (indent 0), all contractions are labeled 1_, 2_, ..
+  - Within a level (e.g., t2_3), all contractions at the immediate enclosed level are labeled 1_, 2_,..
+  - Intermediate tensor name: name of contraction that first defines it (always at the top (_1) of the list of contractions that define it)
+
+* Replace use of intermediate with their unique name/labels
+
+* Array creation: as late as possible
+* Array destruction: as early as possible
+
+
+Clarifications:
+
+* Additions of tensors with different irreps
+
+
+

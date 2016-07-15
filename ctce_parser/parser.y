@@ -96,17 +96,23 @@
 
     // identifier
     identifier(I) ::= ID(N) .  {
-      I = make_Identifier(tce_tokPos,N);
+      Identifier id = make_Identifier(tce_tokPos,N);
+      id->lineno = tce_lineno;
+      I = id;
     }
         
 
     // numerical-constant
     numerical_constant(N) ::= ICONST(I)  . {
-      N = make_NumConst(tce_tokPos,atoi(I));
+      Exp e = make_NumConst(tce_tokPos,atoi(I));
+      e->lineno = tce_lineno;
+      N = e;
     }
 
     numerical_constant(N) ::= FCONST(F)  . {
-      N = make_NumConst(tce_tokPos,atof(F));
+      Exp e = make_NumConst(tce_tokPos,atof(F));
+      e->lineno = tce_lineno;
+      N = e;      
     }
 
     numerical_constant(N) ::= FRACCONST(F)  . {
@@ -125,7 +131,9 @@
       float num = atof(nd[0]);
       float den = atof(nd[1]);
       //printf("%f/%f\n",num,den);
-      N = make_NumConst(tce_tokPos,num/den);
+      Exp e = make_NumConst(tce_tokPos,num/den);
+      e->lineno = tce_lineno;
+      N = e;
     }   
         
     // range-declaration
@@ -140,6 +148,7 @@
       DeclList dl = dlist;  
       while(p != NULL){
         dl->head = make_RangeDecl(tce_tokPos,(p->head)->name,val);
+        dl->head->lineno = (p->head)->lineno;
         p = p->tail;
         if(p!=NULL) {
           dl->tail = make_DeclList(NULL,NULL); 
@@ -161,6 +170,7 @@
       DeclList dl = dlist;  
       while(p != NULL){
         dl->head = make_IndexDecl(tce_tokPos,(p->head)->name,mkString(e->name));
+        dl->head->lineno = (p->head)->lineno;
         p = p->tail;
         if(p!=NULL) {
           dl->tail = make_DeclList(NULL,NULL); 
@@ -212,6 +222,7 @@
      dec->u.ArrayDecl.ulen = countU;
      dec->u.ArrayDecl.llen = countL;
      dec->u.ArrayDecl.irrep = P; 
+     dec->lineno = tce_lineno;
      A = dec;
      dec = NULL;
     }
@@ -225,7 +236,7 @@
 
     statement(S) ::= ID(I) COLON assignment_statement(A) . { 
       Stmt st = A; 
-      st->u.AssignStmt.label = I; 
+      st->u.AssignStmt.label = I;
       S=st;
     }
 
@@ -233,11 +244,13 @@
       assignment_statement(A) ::= expression(L) assignment_operator(O) expression(R) SEMI . { 
         Stmt s;
         Exp lhs = L;
+        //lhs->lineno = tce_lineno;
         Exp rhs = R;
+        //rhs->lineno = tce_lineno;
         string oper = O;
 
         if(strcmp(oper,"=")==0) { 
-          s = make_AssignStmt(tce_tokPos,L,R); 
+          s = make_AssignStmt(tce_tokPos,lhs,rhs); 
         }
         else {
           Exp tlhs = NULL;
@@ -253,24 +266,29 @@
             tlhs->u.Array.name = mkString(lhs->u.Array.name);
             tlhs->u.Array.indices = mkIndexList(lhs->u.Array.indices,lhs->u.Array.length);
             tlhs->u.Array.length = lhs->u.Array.length;
+            tlhs->lineno = lhs->lineno;
+            tlhs->coef = lhs->coef;
           }
           assert(tlhs!=NULL); 
 
           Exp trhs = make_Parenth(tce_tokPos,rhs);
+          //trhs->lineno = tce_lineno;
 
           if(strcmp(oper,"+=")==0) { 
-            
             Exp tadd = make_Addition(tce_tokPos,make_ExpList(tlhs,make_ExpList(trhs,NULL)));        
+            tadd->lineno = tlhs->lineno;
             s = make_AssignStmt(tce_tokPos,tlhs,tadd); 
           }
           else if(strcmp(oper,"-=")==0) { 
             trhs->coef *= -1;
-            Exp tadd = make_Addition(tce_tokPos,make_ExpList(tlhs,make_ExpList(trhs,NULL)));               
+            Exp tadd = make_Addition(tce_tokPos,make_ExpList(tlhs,make_ExpList(trhs,NULL)));   
+            tadd->lineno = tlhs->lineno;           
             s = make_AssignStmt(tce_tokPos,tlhs,tadd); 
           }
             
           else if(strcmp(oper,"*=")==0) { 
-            Exp tmult = make_Multiplication(tce_tokPos,make_ExpList(tlhs,make_ExpList(trhs,NULL)));           
+            Exp tmult = make_Multiplication(tce_tokPos,make_ExpList(tlhs,make_ExpList(trhs,NULL)));      
+            tmult->lineno = tlhs->lineno;     
             s = make_AssignStmt(tce_tokPos,tlhs,tmult); 
           }
         }
@@ -289,7 +307,9 @@
     // array-reference
     array_reference(A) ::= ID(N)  . {
       string id = N;
-      A = make_Array(tce_tokPos, id, NULL);
+      Exp e = make_Array(tce_tokPos, id, NULL);
+      e->lineno = tce_lineno;
+      A = e;
     }
 
     array_reference(A) ::= ID(N) LBRACKET id_list(I) RBRACKET . {
@@ -311,6 +331,7 @@
 
      Exp exp = make_Array(tce_tokPos, id, indices);
      exp->u.Array.length = count;
+     exp->lineno = tce_lineno;
      A = exp;
      exp = NULL;
     }
@@ -320,7 +341,11 @@
     plusORMinus(O) ::= MINUS(M) . { O = M; }
 
     // expression                           
-    expression(E) ::= additive_expression(A) . { E = A; }
+    expression(E) ::= additive_expression(A) . { 
+      Exp e = A; 
+      //e->lineno = tce_lineno;
+      E = e;
+    }
 
     additive_expression(A) ::=  multiplicative_expression(M) . { A = M; }
 
@@ -329,6 +354,9 @@
      Exp e2 = M;
      string op = O;
      ExpList el = make_ExpList(NULL,NULL);
+
+     int clno = tce_lineno;
+     if (e1->kind == is_Addition) e1->lineno = clno;
 
      if(strcmp(op,"-")==0) e2->coef *= -1;
      addTail_ExpList(e1,el);
@@ -341,6 +369,7 @@
      }*/
 
      Exp nadd = make_Addition(tce_tokPos,el); 
+     nadd->lineno = clno;
      E = nadd;
     }
     
@@ -353,8 +382,9 @@
 
       ExpList el = make_ExpList(NULL,NULL);
       float coef = 1;
-
+      int clno = tce_lineno;
       if (e1->kind == is_Multiplication) {
+        clno = e1->lineno;
         coef *= e1->coef;
      }
      addTail_ExpList(e1,el);
@@ -365,6 +395,7 @@
 
       Exp nmult = make_Multiplication(tce_tokPos,el); 
       nmult->coef = coef;
+      nmult->lineno = clno;
       E = nmult;
     }
 

@@ -2,8 +2,11 @@
 #include "visitor.h"
 #include "scanner.h"
 #include "semant.h"
+#include "error.h"
 
 int tce_tokPos = 0;
+int tce_lineno = 1;
+
 int main(int argc, char **argv){
 
     // Lemon headers

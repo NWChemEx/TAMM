@@ -46,7 +46,7 @@ void check_DeclList(DeclList decllist, SymbolTable symtab){
 void verifyVarDecl(SymbolTable symtab, string name, int line_no){
     if (ST_contains(symtab,name)){
         fprintf(stderr,"Error at line %d: %s is already defined\n", line_no, name);
-        //exit(2);
+        exit(2);
     }
 }
 
@@ -55,30 +55,37 @@ void verifyRangeRef(SymbolTable symtab, string name, int line_no){
 //        fprintf(stderr,"Error at line %d: range variable %s is not defined\n", line_no, name);
 //        //exit(2);
 //    }
-	string ranges[3] = {"O","V","N"};
-	if(!exists_index(ranges,3,name))
+	const int rno = 3;
+	string ranges[] = {"O","V","N"};
+	if(!exists_index(ranges,rno,name)) {
 		fprintf(stderr,"Error at line %d: range %s is not supported. Can only be one of %s\n", line_no, name,
-				combine_indices(ranges,3));
+				combine_indices(ranges,rno));
+		exit(2);
+	}
 }
 
 void check_Decl(Decl d, SymbolTable symtab){
   switch(d->kind) {
   case is_RangeDecl:
-  	verifyVarDecl(symtab, d->u.RangeDecl.name, 0);
+  	verifyVarDecl(symtab, d->u.RangeDecl.name, d->lineno);
+  	if(d->u.RangeDecl.value <= 0 ){
+  		fprintf(stderr,"Error at line %d: %d is not a positive integer\n",d->lineno,d->u.RangeDecl.value);
+  		exit(2);
+  	}
     ST_insert(symtab,d->u.RangeDecl.name,int_str(d->u.RangeDecl.value));
     break;
   case is_IndexDecl:
-    verifyVarDecl(symtab, d->u.IndexDecl.name, 0);
-    verifyRangeRef(symtab, d->u.IndexDecl.rangeID,0);
+    verifyVarDecl(symtab, d->u.IndexDecl.name, d->lineno);
+    verifyRangeRef(symtab, d->u.IndexDecl.rangeID, d->lineno);
     ST_insert(symtab,d->u.IndexDecl.name,d->u.IndexDecl.rangeID);
     break;
   case is_ArrayDecl:
-  	verifyVarDecl(symtab, d->u.ArrayDecl.name, 0);
+  	verifyVarDecl(symtab, d->u.ArrayDecl.name, d->lineno);
   	string comb_index_list = combine_indexLists(d->u.ArrayDecl.upperIndices,d->u.ArrayDecl.ulen,d->u.ArrayDecl.lowerIndices,d->u.ArrayDecl.llen);
   	//printf("%s -> %s\n", d->u.ArrayDecl.name, comb_index_list);
   	tce_string_array ind_list = stringToList(comb_index_list);
   	int i=0;
-  	for (i=0;i<ind_list->length;i++) verifyRangeRef(symtab,ind_list->list[i],0);
+  	for (i=0;i<ind_list->length;i++) verifyRangeRef(symtab,ind_list->list[i],d->lineno);
   	ST_insert(symtab,d->u.ArrayDecl.name,comb_index_list);
     break;
   default:
@@ -94,11 +101,13 @@ void check_Stmt(Stmt s, SymbolTable symtab){
     //printf(" %s ", s->u.AssignStmt.astype); //astype not needed since we flatten. keep it for now.
     check_Exp( s->u.AssignStmt.rhs, symtab);
     if (s->u.AssignStmt.lhs->kind != is_ArrayRef){
-    	fprintf(stderr,"Error at line %d: LHS of assignment must be an array reference\n",0);
-			//exit(2);
+    	fprintf(stderr,"Error at line %d: LHS of assignment must be an array reference\n",s->u.AssignStmt.lhs->lineno);
+			exit(2);
     }
-    else if(s->u.AssignStmt.lhs->coef < 0)
-    	fprintf(stderr,"Error at line %d: LHS array reference cannot be negative\n",0);
+    else if(s->u.AssignStmt.lhs->coef < 0){
+    	fprintf(stderr,"Error at line %d: LHS array reference cannot be negative\n",s->u.AssignStmt.lhs->lineno);
+    	exit(2);
+    }
 
 //    UNCOMMENT FOR DEBUG ONLY
 //    print_index_list(getIndices(s->u.AssignStmt.lhs));
@@ -106,8 +115,18 @@ void check_Stmt(Stmt s, SymbolTable symtab){
 //    print_index_list(getIndices(s->u.AssignStmt.rhs));
 //    printf("\n");
     if(!compare_index_lists(getIndices(s->u.AssignStmt.lhs),getIndices(s->u.AssignStmt.rhs))){
-    	fprintf(stderr,"Error at line %d: LHS and RHS of assignment must have equal (non-summation) index sets\n",0);
+    	fprintf(stderr,"Error at line %d: LHS and RHS of assignment must have equal (non-summation) index sets\n",
+    			s->u.AssignStmt.lhs->lineno);
+    	exit(2);
     }
+
+//    tce_string_array lhs_aref = collectArrayRefs(s->u.AssignStmt.lhs);
+//    tce_string_array rhs_arefs = collectArrayRefs(s->u.AssignStmt.rhs);
+//    if (exists_index(rhs_arefs->list,rhs_arefs->length,lhs_aref->list[0])){
+//        fprintf(stderr,"Error at line %d: array %s cannot be assigned after being previously referenced\n",
+//        		    s->u.AssignStmt.lhs->lineno, lhs_aref->list[0]);
+//        exit(2);
+//    }
     break;
   default:
     fprintf(stderr,"Not an Assignment Statement!\n");
@@ -129,27 +148,28 @@ void check_ExpList(ExpList expList, SymbolTable symtab){
 void verifyArrayRefName(SymbolTable symtab, string name, int line_no){
   if (!ST_contains(symtab,name)){
       fprintf(stderr,"Error at line %d: array %s is not defined\n", line_no, name);
-     // exit(2);
+      exit(2);
   }
 }
 
 void verifyIndexRef(SymbolTable symtab, string name, int line_no ){
   if (!ST_contains(symtab,name)){
       fprintf(stderr,"Error at line %d: index %s is not defined\n", line_no, name);
-      //exit(2);
+      exit(2);
   }
 }
 
 void verifyArrayRef(SymbolTable symtab, string name, string *inds, int len, int line_no ){
     verifyArrayRefName(symtab, name, line_no);
     int i = 0;
-    for (i=0;i<len;i++) verifyIndexRef(symtab, inds[i], 0);
+    for (i=0;i<len;i++) verifyIndexRef(symtab, inds[i], line_no);
 }
 
 
 void check_Exp(Exp exp, SymbolTable symtab){
 	tce_string_array inames = NULL;
 	ExpList el = NULL;
+	int clno = exp->lineno;
   switch(exp->kind) {
   case is_Parenth:
     check_Exp(exp->u.Parenth.exp,symtab);
@@ -158,7 +178,7 @@ void check_Exp(Exp exp, SymbolTable symtab){
     //printf("%f ",exp->u.NumConst.value);
     break;
   case is_ArrayRef:
-     verifyArrayRef(symtab,exp->u.Array.name,exp->u.Array.indices,exp->u.Array.length,0);
+     verifyArrayRef(symtab,exp->u.Array.name,exp->u.Array.indices,exp->u.Array.length,clno);
      inames = getIndices(exp);
    	 int tot_len1 = inames->length;
      string* all_ind1 = inames->list;
@@ -176,10 +196,11 @@ void check_Exp(Exp exp, SymbolTable symtab){
      tce_string_array ulr = stringToList(ulranges);
 
      if(!compare_index_lists(ulr,rnamesarr)){
-        fprintf(stderr,"Error at line %d: array reference %s[%s] must have index structure of %s[%s]\n",0,
+        fprintf(stderr,"Error at line %d: array reference %s[%s] must have index structure of %s[%s]\n",clno,
         		exp->u.Array.name,combine_indices(all_ind1,tot_len1),exp->u.Array.name,combine_indices(ulr->list,ulr->length));
+        exit(2);
      }
-     //Check for repeatetive indices in an array reference
+     //Check for repetitive indices in an array reference
    	string* uind1 = tce_malloc(sizeof(string) * tot_len1);
 
      i1=0, ui1=0;
@@ -192,8 +213,9 @@ void check_Exp(Exp exp, SymbolTable symtab){
 
    	for (i1=0;i1<ui1;i1++){
    		if(count_index(all_ind1,tot_len1,uind1[i1]) > 1) {
-   			fprintf(stderr,"Error at line %d: indistinct index %s must not exist in array reference %s[%s]\n",
-   					   0,uind1[i1],exp->u.Array.name,combine_indices(exp->u.Array.indices,exp->u.Array.length));
+   			fprintf(stderr,"Error at line %d: repetitive index %s in array reference %s[%s]\n",
+   					   clno,uind1[i1],exp->u.Array.name,combine_indices(exp->u.Array.indices,exp->u.Array.length));
+   			exit(2);
    		}
    	}
 
@@ -205,7 +227,8 @@ void check_Exp(Exp exp, SymbolTable symtab){
   	while(el!=NULL){
   		tce_string_array op_inames = getIndices(el->head);
   		if(!compare_index_lists(inames,op_inames)){
-  			fprintf(stderr,"Error at line %d: subexpressions of an addition must have equal index sets\n", 0);
+  			fprintf(stderr,"Error at line %d: subexpressions of an addition must have equal index sets\n", clno);
+  			exit(2);
   		}
   		op_inames = NULL;
   		el = el->tail;
@@ -253,7 +276,8 @@ void check_Exp(Exp exp, SymbolTable symtab){
 
   	for (i=0;i<ui;i++){
   		if(count_index(all_ind,tot_len,uind[i]) > 2) {
-  			fprintf(stderr,"Error at line %d: summation index %s must occur exactly twice in a multiplication\n", 0,uind[i]);
+  			fprintf(stderr,"Error at line %d: summation index %s must occur exactly twice in a multiplication\n", clno, uind[i]);
+  		  exit(2);
   		}
   	}
 
@@ -263,8 +287,6 @@ void check_Exp(Exp exp, SymbolTable symtab){
     exit(0);
   }
 }
-
-
 
 
 tce_string_array getIndices(Exp exp){
@@ -343,6 +365,74 @@ tce_string_array getIndices(Exp exp){
 		p->length = ui;
 
     return p;
+    break;
+  default:
+    fprintf(stderr,"Not a valid Expression!\n");
+    exit(0);
+  }
+}
+
+tce_string_array collectArrayRefs(Exp exp){
+	ExpList el = NULL;
+	tce_string_array p = NULL;
+	int c=0,i=0;
+  switch(exp->kind) {
+  case is_Parenth:
+    return collectArrayRefs(exp->u.Parenth.exp);
+    break;
+  case is_NumConst:
+  	return NULL;
+    break;
+  case is_ArrayRef:
+		p = tce_malloc(sizeof(*p));
+		p->list = tce_malloc(sizeof(string) * 1);
+		p->list[0] = exp->u.Array.name;
+		p->length = 1;
+		return p;
+    break;
+  case is_Addition:
+  	c=0,i=0;
+  	el = (exp->u.Addition.subexps);
+    string allrefs[65535];
+    while(el != NULL){
+    	tce_string_array cref = collectArrayRefs(el->head);
+    	for(i=0;i<cref->length;i++) {
+    		allrefs[c] = cref->list[i];
+    		c++;
+    	}
+      el = el->tail;
+    }
+    i=0;
+		p = tce_malloc(sizeof(*p));
+		p->list = tce_malloc(sizeof(string) * c);
+		p->length = c;
+  	for(i=0;i<c;i++) {
+  		p->list[i] = allrefs[i];
+  	}
+  	return p;
+    break;
+  case is_Multiplication:
+  	c=0,i=0;
+  	el = (exp->u.Multiplication.subexps);
+    string allrefs1[65535];
+    while(el != NULL){
+    	tce_string_array cref = collectArrayRefs(el->head);
+    	if (cref != NULL) {
+    	for(i=0;i<cref->length;i++) {
+    		allrefs1[c] = cref->list[i];
+    		c++;
+    	}
+    	}
+      el = el->tail;
+    }
+    i=0;
+		p = tce_malloc(sizeof(*p));
+		p->list = tce_malloc(sizeof(string) * c);
+		p->length = c;
+  	for(i=0;i<c;i++) {
+  		p->list[i] = allrefs1[i];
+  	}
+  	return p;
     break;
   default:
     fprintf(stderr,"Not a valid Expression!\n");

@@ -18,4 +18,6 @@ tce_string_array getIndices(Exp exp);
 void print_Exp(Exp);
 void print_ExpList(ExpList,string);
 
+tce_string_array collectArrayRefs(Exp exp);
+
 #endif

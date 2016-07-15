@@ -133,6 +133,7 @@ struct TranslationUnit_
 struct Identifier_
 {
     int pos;
+    int lineno;
     string name;
 };
 
@@ -150,6 +151,7 @@ struct Elem_
 struct Decl_
 {
     enum { is_RangeDecl, is_IndexDecl, is_ArrayDecl, is_ExpandDecl, is_VolatileDecl, is_IterationDecl } kind;
+    int lineno;
     int pos;
     union{
         struct
@@ -192,6 +194,7 @@ struct Exp_
 {
     enum { is_Parenth, is_NumConst, is_ArrayRef, is_Addition, is_Multiplication } kind;
     int pos;
+    int lineno;
     float coef;
     union {
         struct

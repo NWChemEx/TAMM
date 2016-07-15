@@ -8,8 +8,10 @@
 namespace ctce {
 
   static Assignment a_t2_1, a_t2_2_1, a_t2_2_2_1, a_t2_2_2_2_1, a_t2_2_4_1, a_t2_2_5_1;
-  static Multiplication m_t2_2, m_t2_2_2, m_t2_2_2_2, m_t2_2_2_2_2, m_t2_2_2_3, m_t2_2_4, m_t2_2_4_2, m_t2_2_5, m_t2_2_5_2, m_t2_2_6;
+  static Multiplication m_t2_2, m_t2_2_2, m_t2_2_2_2, m_t2_2_2_2_2, m_t2_2_2_3, m_t2_2_4, m_t2_2_4_2, m_t2_2_5, m_t2_2_5_2, m_t2_2_6, m_t2_3, m_c2f_t2_t12, m_c2d_t2_t12, m_vt1t1_1_2, m_vt1t1_1;
   static Tensor t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1;
+
+  static Tensor t1, v2, vt1t1_1, i0;
 
   extern "C" {
 
@@ -114,6 +116,42 @@ namespace ctce {
         tA = Tensor4(P5B,P6B,H1B,H2B,0,0,1,1,T_tensor, dist_nw, dim_ov);
         tB = Tensor4(H10B,P3B,P5B,P6B,0,1,2,2,V_tensor, idist, dim_n);
         m_t2_2_6 = Multiplication(tC,tA,tB,0.5);
+
+        // lccsd_t2_3x: i0 ( p3 p4 h1 h2 )_vt + = -1 * P( 2 ) * Sum ( p5 ) * t ( p5 h1 )_t * v ( p3 p4 h2 p5 )_v
+        tC = Tensor4(P3B,P4B,H1B,H2B,0,0,1,1,iV_tensor, dist_nw, dim_ov);
+        tA = Tensor2(P5B,H1B,0,1,T_tensor, dist_nwma, dim_ov);
+        tB = Tensor4(P3B,P4B,H2B,P5B,0,0,1,2,V_tensor, idist, dim_n);
+        m_t2_3 = Multiplication(tC,tA,tB,-1.0);
+
+        tC = Tensor4(P1B,P2B,H3B,H4B,0,0,1,1,T_tensor, dist_nw, dim_ov);
+        tA = Tensor2(P1B,H3B,0,1,T_tensor, dist_nwma, dim_ov);
+        tB = Tensor2(P2B,H4B,0,1,T_tensor, dist_nwma, dim_ov);
+        m_c2f_t2_t12 = Multiplication(tC, tA, tB, 0.5);
+
+        tC = Tensor4(P1B,P2B,H3B,H4B,0,0,1,1,T_tensor, dist_nw, dim_ov);
+        tA = Tensor2(P1B,H3B,0,1,T_tensor, dist_nwma, dim_ov);
+        tB = Tensor2(P2B,H4B,0,1,T_tensor, dist_nwma, dim_ov);
+        m_c2d_t2_t12 = Multiplication(tC, tA, tB, -0.5);
+
+        t1 = Tensor2(TV,TO,dist_nwma);
+        v2 = Tensor4(TN,TN,TN,TN,idist);
+        vt1t1_1 = Tensor4(TO,TV,TO,TO,dist_nw);
+        //C     i1 ( h5 p3 h1 h2 )_vt + = -2 * P( 2 ) * Sum ( p6 ) * t ( p6 h1 )_t * v ( h5 p3 h2 p6 )_v
+        tC = Tensor4(H5B,P3B,H1B,H2B,0,1,2,2,iT_tensor, dist_nw, dim_ov);
+        tA = Tensor2(P6B,H1B,0,1,T_tensor, dist_nwma, dim_ov);
+        tB = Tensor4(H5B,P3B,H2B,P6B,0,1,2,3,V_tensor, idist, dim_n);
+        //m_vt1t1_1_2 = Multiplication(tC, tA, tB, -2);
+        m_vt1t1_1_2 = Multiplication(&vt1t1_1, ivec(H5B,P3B,H1B,H2B),
+                                     &t1, ivec(P6B,H1B),
+                                     &v2, ivec(H5B,P3B,H2B,P6B),
+                                     -2);
+
+        //C     i0 ( p3 p4 h1 h2 )_vtt + = -1/2 * P( 2 ) * Sum ( h5 ) * t ( p3 h5 )_t * i1 ( h5 p4 h1 h2 )_vt
+        i0 = Tensor4(TV,TV,TO,TO,dist_nw);        
+        m_vt1t1_1 = Multiplication(&i0, ivec(P3B,P4B,H1B,H2B),
+                                   &t1, ivec(P3B,H5B),
+                                   &vt1t1_1, ivec(H5B,P4B,H1B,H2B),
+                                   -0.5);
 
 	      //OFFSET_ccsd_t2_2_1: i1 ( h10 p3 h1 h2 )_v
 	      t2_2_1 = Tensor4(P3B,H10B,H1B,H2B,0,1,2,2,iVT_tensor,dist_nw,dim_ov);
@@ -235,6 +273,36 @@ namespace ctce {
         Integer *d_b, Integer *k_b_offset, Integer *d_c, Integer *k_c_offset) {
       t_mult4(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset, m_t2_2_6);
     } // t2_2_6
+
+    void lccsd_t2_3x_cxx_(Integer *d_a, Integer *k_a_offset,
+        Integer *d_b, Integer *k_b_offset, Integer *d_c, Integer *k_c_offset) {
+      //C     i0 ( p3 p4 h1 h2 )_vt + = -1 * P( 2 ) * Sum ( p5 ) * t ( p5 h1 )_t * v ( p3 p4 h2 p5 )_v
+      t_mult4(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset, m_t2_3);
+    } // t2_2_6
+
+    void c2f_t2_t12_cxx_(Integer *d_t1, Integer *k_t1_offset, Integer *d_t2, Integer *k_t2_offset) {
+      t_mult4(d_t1, k_t1_offset, d_t1, k_t1_offset, d_t2, k_t2_offset, m_c2f_t2_t12);
+    }
+
+    void c2d_t2_t12_cxx_(Integer *d_t1, Integer *k_t1_offset, Integer *d_t2, Integer *k_t2_offset) {
+      t_mult4(d_t1, k_t1_offset, d_t1, k_t1_offset, d_t2, k_t2_offset, m_c2d_t2_t12);
+    }
+
+    void vt1t1_1_createfile_cxx_(Integer *k_i2_offset, Integer *d_i2, Integer *size_i2) {
+      vt1t1_1.create(k_i2_offset, d_i2, size_i2);
+    }
+
+    void vt1t1_1_deletefile_cxx_() {
+      vt1t1_1.destroy();
+    }
+
+    void vt1t1_1_2_cxx_(Integer *d_t1, Integer *k_t1_offset, Integer *d_v2, Integer *k_v2_offset, Integer *d_i1, Integer *k_i1_offset) {
+      t_mult4(d_t1, k_t1_offset, d_v2, k_v2_offset, d_i1, k_i1_offset, m_vt1t1_1_2);
+    }
+
+    void vt1t1_1_cxx_(Integer *d_t1, Integer *k_t1_offset, Integer *d_v2, Integer *k_v2_offset, Integer *d_i1, Integer *k_i1_offset) {
+      t_mult4(d_t1, k_t1_offset, d_v2, k_v2_offset, d_i1, k_i1_offset, m_vt1t1_1);
+    }
 
     // no use : t2_3
 

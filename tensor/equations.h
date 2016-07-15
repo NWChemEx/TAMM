@@ -18,6 +18,7 @@ namespace ctce {
                        std::vector<Operation> &ops);
 
   void ccsd_t1_equations(Equations &eqs);
+  void ccsd_t2_equations(Equations &eqs);
 
 }; /*ctce*/
 

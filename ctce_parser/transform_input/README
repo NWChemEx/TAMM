@@ -1,0 +1,6 @@
+
+Prereq: pip install antlr4-python2-runtime
+
+To run:
+
+python main.py input.eq

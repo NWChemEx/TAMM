@@ -1,5 +1,7 @@
 Input format:
 
+* Add label to equation block i.e { ... } => label1 { ... }
+
 * Tensor labels: i[1-9][0-9]+ are intermediates. All else are inputs ([txvf][0-9]+), including i0
 
 * Sum() and P() can be removed
@@ -18,9 +20,19 @@ Input format:
 * Array destruction: as early as possible
 
 
+
+
 Clarifications:
 
 * Additions of tensors with different irreps
 
+
+Assumptions:
+
+- range of h1..hn: O and p1..pn: V
+
+- indices in array reference are always h[1-9]+ or p[1-9]+
+
+- label suffix for ex: t2_1 -> t2 comes from file name ?
 
 

@@ -36,15 +36,17 @@ if __name__ == '__main__':
     parser = SoTCEParser(token_stream)
     tree = parser.translation_unit()
 
-    print "{\n"
 
     visitor = SoTCEVisitor()
     res = visitor.visitTranslation_unit(tree)
 
+    print "{\n"
+
+    print_index_decls(res[3])
     ad = res[0]
     for a in ad:
         print a
 
-    print res[1]
+    print "\ni0" + res[2] + " = " + res[1]
 
     print "\n}"

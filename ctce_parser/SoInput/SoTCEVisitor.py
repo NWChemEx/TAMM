@@ -25,6 +25,7 @@ uniqArrDecls = dict()
 array_decls = []
 pind = 0
 hind = 0
+first_aref = ""
 
 class SoTCEVisitor(ParseTreeVisitor):
 
@@ -42,9 +43,9 @@ class SoTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SoTCEParser#translation_unit.
     def visitTranslation_unit(self, ctx):
-        global array_decls,iexp
+        global array_decls,iexp,first_aref
         self.visitChildren(ctx)
-        return [array_decls,iexp]
+        return [array_decls,iexp,first_aref,[pind,hind]]
 
 
     # Visit a parse tree produced by SoTCEParser#compound_element_list_opt.
@@ -70,7 +71,7 @@ class SoTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SoTCEParser#ptype.
     def visitPtype(self, ctx):
-        global uniqArrDecls
+        global uniqArrDecls, first_aref
         if isinstance(ctx.children[0],SoTCEParser.PlusORminusContext): self.visitChildren(ctx)
         elif str(ctx.children[0]) == "*":
             if not isinstance(ctx.children[1], SoTCEParser.SumExpContext):
@@ -97,6 +98,7 @@ class SoTCEVisitor(ParseTreeVisitor):
                 printres(renameArr)
                 printres(adims)
                 decl = "array " + renameArr + "[" + upper + "]" + "[" + lower + "];"
+                if not first_aref: first_aref=adims
                 if not renameArr in uniqArrDecls.keys():
                     uniqArrDecls[renameArr] = renameArr
                     array_decls.append(decl)

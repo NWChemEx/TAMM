@@ -155,7 +155,7 @@ class NWChemTCEVisitor(ParseTreeVisitor):
             it = self.print_index_list((ctx.children[2])) #print indices
             atype = it[0]
             ilist = it[1]
-            if (aname[0] == 'i'): printres(aname)
+            if (aname[0] == 'i' or aname[0] == 'f' or aname[0] == 'v'): printres(aname)
             else: printres(aname + "_" + atype)
             printres("[")
             printres(ilist)
@@ -274,15 +274,19 @@ class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
             aname = str(ctx.children[0]) #print arrayname
             if (aname[0] != 'i'):
                 it = self.get_array_type((ctx.children[2])) #print indices
-                atype = list(it)
+
+                atype = (it)
+                if aname[0]=='f' or aname[0] == 'v': atype = 'N'*len(it)
+
                 al = len(atype)
                 upper = atype[0:al/2]
                 lower = atype[al/2:al]
                 upper = ",".join(upper)
                 lower = ",".join(lower)
 
-                renameArr = aname + "_" + (it).lower()
-                decl = "array " + aname + "_" + (it).lower() + "[" + upper + "]" + "[" + lower + "]: irrep" + str((ctx.children[4]).children[0]) + ";"
+                renameArr = aname + "_" + (atype).lower()
+                if aname[0] == 'f' or aname[0] == 'v': renameArr = aname
+                decl = "array " + renameArr + "[" + upper + "]" + "[" + lower + "]: irrep" + str((ctx.children[4]).children[0]) + ";"
                 if not renameArr in uniqArrDecls.keys():
                     uniqArrDecls[renameArr] = renameArr
                     array_decls.append(decl)

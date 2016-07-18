@@ -275,7 +275,8 @@ class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
             if (aname[0] != 'i'):
                 it = self.get_array_type((ctx.children[2])) #print indices
 
-                atype = (it)
+                atype = it
+
                 if aname[0]=='f' or aname[0] == 'v': atype = 'N'*len(it)
 
                 al = len(atype)

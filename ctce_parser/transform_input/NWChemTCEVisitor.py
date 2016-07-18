@@ -67,6 +67,7 @@ class NWChemTCEVisitor(ParseTreeVisitor):
         it = self.print_index_list(((ctx.children[0]).children[2]))
         ilist = it[1]
         lhs_array_name = str((ctx.children[0]).children[0])
+        #printresws(lhs_array_name)
         label = ""
 
         if (lhs_array_name[0] != 'i'):
@@ -78,8 +79,8 @@ class NWChemTCEVisitor(ParseTreeVisitor):
         if (lhs_array_name == 'i0'):
             labelcount_io = labelcount_io + 1
             label = label_suffix + "_" + str(labelcount_io)
-            for lhs_array_name in labelcount_ia.keys():
-                labelcount_ia[lhs_array_name] = 0
+            for lname in labelcount_ia.keys():
+                labelcount_ia[lname] = 0
 
         else:
             if lhs_array_name not in labelcount_ia.keys():

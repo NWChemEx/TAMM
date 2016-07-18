@@ -1,3 +1,6 @@
 dependencies
 *.o
 *.a
+.idea
+.project
+.cproject

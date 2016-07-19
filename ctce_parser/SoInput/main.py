@@ -47,6 +47,12 @@ if __name__ == '__main__':
     for a in ad:
         print a
 
-    print "\ni0" + res[2] + " = " + res[1]
+    ltype = ""
+    for r in res[2]:
+        if r[0] == 'h': ltype += 'O'
+        elif r[0] == 'p': ltype += 'V'
+
+    print "array i0([" + ltype[0:len(ltype)/2] + "][" + ltype[len(ltype)/2:] + "]);"
+    print "\ni0" + res[2] + " = " + res[1] + ";"
 
     print "\n}"

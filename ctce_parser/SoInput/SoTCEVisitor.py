@@ -84,8 +84,7 @@ class SoTCEVisitor(ParseTreeVisitor):
                 atype = it[1]
 
                 al = len(atype)
-                if aname[0] == 'f' or aname[0] == 'v': atype = 'N' * al
-
+                #if aname[0] == 'f' or aname[0] == 'v': atype = 'N' * al
 
                 upper = atype[0:al/2]
                 lower = atype[al/2:al]
@@ -93,11 +92,11 @@ class SoTCEVisitor(ParseTreeVisitor):
                 lower = ",".join(lower)
 
                 renameArr = aname + "_" + (atype).lower()
-                if aname[0] == 'f' or aname[0] == 'v': renameArr = aname
+                #if aname[0] == 'f' or aname[0] == 'v': renameArr = aname
 
                 printres(renameArr)
                 printres(adims)
-                decl = "array " + renameArr + "[" + upper + "]" + "[" + lower + "];"
+                decl = "array " + renameArr + "([" + upper + "]" + "[" + lower + "]);"
                 if not first_aref: first_aref=adims
                 if not renameArr in uniqArrDecls.keys():
                     uniqArrDecls[renameArr] = renameArr

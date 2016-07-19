@@ -24,7 +24,8 @@ labelcount_io = 0
 labelcount_ia = dict()
 namemap = dict()
 array_decls = []
-label_suffix = 't1' # label suffix comes from file name ?
+label_prefix = 't1' # label suffix comes from file name ?
+lhsanames = dict()
 
 
 class NWChemTCEVisitor(ParseTreeVisitor):
@@ -62,23 +63,25 @@ class NWChemTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by NWChemTCEParser#statement.
     def visitStatement(self, ctx):
-        global labelcount_io, labelcount_ia
+        global labelcount_io, labelcount_ia, lhsanames
         #self.visitArray_reference(ctx.children[0])
         it = self.print_index_list(((ctx.children[0]).children[2]))
         ilist = it[1]
         lhs_array_name = str((ctx.children[0]).children[0])
         #printresws(lhs_array_name)
         label = ""
+        io_flag = False
 
         if (lhs_array_name[0] != 'i'):
             printres("ARRAY NAME HAS TO START WITH an I \n")
             sys.exit(1)
 
         ino = int(lhs_array_name[1:])
-        indentl = len(label_suffix+"_1")+8
+        indentl = len(label_prefix+"_1")+8
         if (lhs_array_name == 'i0'):
+            io_flag = True
             labelcount_io = labelcount_io + 1
-            label = label_suffix + "_" + str(labelcount_io)
+            label = label_prefix + "_" + str(labelcount_io)
             for lname in labelcount_ia.keys():
                 labelcount_ia[lname] = 0
 
@@ -87,12 +90,17 @@ class NWChemTCEVisitor(ParseTreeVisitor):
                 labelcount_ia[lhs_array_name] = 1
             else: labelcount_ia[lhs_array_name] = labelcount_ia[lhs_array_name] + 1
 
-            label = label_suffix
+            label = label_prefix
             for i in range(1,ino+1):
                 label += "_" + str(labelcount_io+1)
 
             label +=  "_" + str(labelcount_ia[lhs_array_name])
             #labelcount_ia[lhs_array_name] = labelcount_ia[lhs_array_name] + 1
+
+            if lhs_array_name not in lhsanames.keys():
+                lhsanames[lhs_array_name] = label
+                lhs_array_name = label
+            else: lhs_array_name = lhsanames[lhs_array_name]
 
         printres(label + ":".ljust(indentl-len(label)) + lhs_array_name)  # Fix: use label instead of lhs_array_name
         printres("[")
@@ -105,6 +113,8 @@ class NWChemTCEVisitor(ParseTreeVisitor):
         printws()
         self.visitPtype(ctx.children[2])
         printres("\n")
+
+        if io_flag: lhsanames.clear()
         #self.visitChildren(ctx)
 
 
@@ -150,13 +160,20 @@ class NWChemTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by NWChemTCEParser#array_reference.
     def visitArray_reference(self, ctx):
+        global lhsanames
         if isinstance(ctx,NWChemTCEParser.Array_referenceContext):
             aname = str(ctx.children[0]) #print arrayname
             it = self.print_index_list((ctx.children[2])) #print indices
             atype = it[0]
             ilist = it[1]
-            if (aname[0] == 'i' or aname[0] == 'f' or aname[0] == 'v'): printres(aname)
-            else: printres(aname + "_" + atype)
+
+            arrname = aname
+            if(aname[0] == 'i'):
+                if aname in lhsanames.keys():
+                    arrname = lhsanames[aname]
+                    printres(arrname)
+            elif aname[0] == 'f' or aname[0] == 'v': printres(arrname)
+            else: printres(arrname + "_" + atype)
             printres("[")
             printres(ilist)
             printres("]")
@@ -221,6 +238,19 @@ class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
     def visitStatement(self, ctx):
         global stmt_seen, exec_order
         lhs_array_name = str((ctx.children[0]).children[0])
+
+        if lhs_array_name == 'i0' and 'i0' not in uniqArrDecls.keys():
+            atype = self.get_array_type((ctx.children[0]).children[2])
+            al = len(atype)
+            upper = atype[0:al / 2]
+            lower = atype[al / 2:al]
+            upper = ",".join(upper)
+            lower = ",".join(lower)
+            io_decl = "array i0" + "[" + upper + "]" + "[" + lower + "];"
+            uniqArrDecls[lhs_array_name] = lhs_array_name
+            array_decls.append(io_decl)
+
+
         stmt_seen.append(lhs_array_name)
         if (lhs_array_name in stmt_seen and lhs_array_name in stmt_postpone.keys()):
             addExec = stmt_postpone[lhs_array_name]
@@ -231,6 +261,8 @@ class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
             exec_order.append(ctx)
             return
         stmt_postpone[lhs_array_name] = ctx
+
+
 
         # Visit a parse tree produced by NWChemTCEParser#perm.
     def visitPerm(self, ctx):

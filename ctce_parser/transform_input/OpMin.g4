@@ -100,7 +100,7 @@ compound_element_list_prime :
 
 
 // compound-element
-compound_element : identifier LBRACE element_list_opt RBRACE ;
+compound_element : identifier? LBRACE element_list_opt RBRACE ;
 
 
 // element-list
@@ -218,7 +218,13 @@ array_structure_list_prime :
 
 // array-structure
 // Old - array_structure : ID LPAREN LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET permut_symmetry_opt RPAREN ;
-array_structure : ID LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET permut_symmetry_opt  ;
+
+astruct : LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET permut_symmetry_opt;
+
+array_structure : ID
+                 (LPAREN  astruct RPAREN
+                 |
+                 astruct);
 
 // permutational-symmetry
 permut_symmetry_opt : 
@@ -260,7 +266,7 @@ statement : assignment_statement ;
 
 
 // assignment-statement
-assignment_statement : identifier COLON expression assignment_operator expression SEMI ;
+assignment_statement : (identifier COLON)? expression assignment_operator expression SEMI ;
 
 
 // assignment_operator

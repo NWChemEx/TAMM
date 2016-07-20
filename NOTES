@@ -33,6 +33,19 @@ Assumptions:
 
 - indices in array reference are always h[1-9]+ or p[1-9]+
 
-- label suffix for ex: t2_1 -> t2 comes from file name ?
+- statement label and function name prefixes come from file name.
 
+- In transform_input folder:
+python main.py ct1.eq - takes equation in ccsd fortran code comment and generates ctce_input with stmt labels
+python main_opmin.py c1.eq - takes the above ctce_input and generates ct1_refs.cc C code
+
+
+So's Input -> Pai-Wei's opmin input (python SoInput/main.py ct1.eq)
+ - Assume array is indexed only with hi and pi with ranges O and V.
+ - rename any tensor x to x_type ex: t_oovv
+ - TODO: array refs such as t1(h2 h3* hc hv) h3* needs to be deleted in the end.
+
+Pai-Wei's output -> ctce_input  (python main_opmin.py ct1.eq.out x) where x is any number other than zero
+ - Remove braces around array decls
+ - Collapse the f_... and v_... array delcarations (with range N) and their usage to f and v 
 

@@ -5,6 +5,7 @@ from antlr4.InputStream import InputStream
 from OpMinLexer import OpMinLexer
 from OpMinParser import OpMinParser
 from OpMinVisitor import OpMinVisitor
+from OpMinVisitor import OpminOutToCTCE
 
 def print_index_decls(res):
     hind = res[0]
@@ -36,29 +37,19 @@ if __name__ == '__main__':
     parser = OpMinParser(token_stream)
     tree = parser.translation_unit()
 
-    #lisp_tree_str = tree.toStringTree(recog=parser)
-    #print(lisp_tree_str)
 
-    # visitor = OpMinVisitorExecOrder()
-    # res = visitor.visitTranslation_unit(tree)
-    #
-    # exec_order = res[0]
-    # array_decls = res[1]
-    #
-    #
-    #
-    # print "label {\n"
-    #
-    # print_index_decls(res[2])
-    #
-    # for arr in array_decls:
-    #     print(arr)
-    #
-    # print ""
-    #
-    visitor = OpMinVisitor()
-    # for stmt in exec_order:
-    #     visitor.visitStatement(stmt)
-    #
-    # print "\n}"
-    visitor.visit(tree)
+    gen_ctce_output = 0
+    try:
+        gen_ctce_output = sys.argv[2]
+
+    except: pass
+
+    if gen_ctce_output==0:
+        visitor = OpMinVisitor()
+        visitor.visit(tree)
+
+    else:
+        visitor = OpminOutToCTCE()
+        visitor.visit(tree)
+
+

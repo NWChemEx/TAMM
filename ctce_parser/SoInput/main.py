@@ -10,6 +10,10 @@ def print_index_decls(res):
     hind = res[0]
     pind = res[1]
 
+    print "range O = 10;"
+    print "range V = 100;"
+    print "range N = 110;\n"
+
     his = "index "
     for h in range(1,hind+1):
         his += "h" + str(h) + ","
@@ -30,6 +34,7 @@ if __name__ == '__main__':
         input_stream = FileStream(sys.argv[1])
     else:
         input_stream = InputStream(sys.stdin.readline())
+
 
     lexer = SoTCELexer(input_stream)
     token_stream = CommonTokenStream(lexer)

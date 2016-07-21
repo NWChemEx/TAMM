@@ -50,6 +50,6 @@ if __name__ == '__main__':
 
     else:
         visitor = OpminOutToCTCE()
-        visitor.visit(tree)
+        visitor.visitTranslation_unit(tree)
 
 

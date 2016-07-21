@@ -18,6 +18,7 @@ tensor_decls = OrderedDict()
 add_mult_order = OrderedDict()
 destroy_temps = OrderedDict()
 temps = OrderedDict()
+func_offsets = []
 
 def printres(s):
     print(s, end="")
@@ -52,9 +53,12 @@ class OpMinVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#compound_element_list.
     def visitCompound_element_list(self, ctx):
-        global inputarrs,add_stmts,mult_stmts,indent,tensor_decls,add_mult_order
+        global inputarrs,add_stmts,mult_stmts,indent,tensor_decls,add_mult_order,func_offsets
         printnl("extern \"C\" {")
         self.visitChildren(ctx)
+        printnl("")
+        for fo in func_offsets:
+            printnli(fo)
         printnl("}")
 
 
@@ -161,9 +165,11 @@ class OpMinVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#assignment_statement.
     def visitAssignment_statement(self, ctx):
-        global function_prefix,stmt_refs,inputarrs,add_stmts,mult_stmts,tensor_decls,add_mult_order,destroy_temps,temps
+        global function_prefix,stmt_refs,inputarrs,add_stmts,mult_stmts,tensor_decls,add_mult_order,destroy_temps,temps,func_offsets
         stmt_label = str(ctx.children[0].children[0])
         func_sig = "void " + function_prefix + "_" + stmt_label + "_("
+
+        func_offset_sig = "void offset_" + function_prefix + "_" + stmt_label + "_("
 
 
         self.visitChildren(ctx.children[2])
@@ -176,7 +182,12 @@ class OpMinVisitor(ParseTreeVisitor):
         lhs_aname = str(lhs_ref.children[0])
         if lhs_aname not in tensor_decls.keys(): tensor_decls[lhs_aname] = lhs_aname
 
-        if lhs_aname == stmt_label: temps[lhs_aname] = lhs_aname
+        if lhs_aname == stmt_label:
+            temps[lhs_aname] = lhs_aname
+
+            func_offset_sig +=  "Integer *l_" + lhs_aname + "_offset, Integer *k_" + lhs_aname + "_offset, Integer *size_" + lhs_aname+ ");"
+            func_offsets.append(func_offset_sig)
+
 
         arefs = []
         maxrhs = 0
@@ -209,7 +220,8 @@ class OpMinVisitor(ParseTreeVisitor):
             if not ar.startswith(label_prefix+"_") and ar not in inputarrs.keys(): inputarrs[ar] = ar;
 
         func_sig = func_sig[:-1] + ");"
-        printnl(func_sig)
+        printnli(func_sig)
+
 
         del stmt_refs[:]
 

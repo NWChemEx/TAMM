@@ -211,6 +211,9 @@ namespace ctce {
       free(offset_map_);
       allocated_ = false;
     }
+    else {
+      assert(0);
+    }
   }
   void Tensor::detach() {
     assert(attached_);

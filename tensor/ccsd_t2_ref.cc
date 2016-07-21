@@ -198,6 +198,12 @@ void offset_ccsd_t2_7_1_(Integer *l_i1_offset, Integer *k_i1_offset, Integer *si
 namespace ctce {
 
   typedef void (*c2fd_fn)(Integer*,Integer*,Integer*,Integer*);
+  void schedule_linear(std::vector<Tensor> &tensors,
+                       std::vector<Operation> &ops);
+  void schedule_linear_lazy(std::vector<Tensor> &tensors,
+                            std::vector<Operation> &ops);
+  void schedule_levels(std::vector<Tensor> &tensors,
+                            std::vector<Operation> &ops);
 
   static void CorFortranc2fd(int use_c, Multiplication &m, c2fd_fn fn) {
     if(use_c) {
@@ -303,6 +309,11 @@ namespace ctce {
       t2->attach(*k_t2_offset, 0, *d_t2);
       v->attach(*k_v2_offset, 0, *d_v2);
 
+#if 0
+      //schedule_linear(tensors, ops);
+      // schedule_linear_lazy(tensors, ops);
+      schedule_levels(tensors, ops);
+#else
       op_t2_1 = ops[0].add;
       op_t2_2_1 = ops[1].add;
       op_t2_2_2_1 = ops[2].add;
@@ -442,7 +453,7 @@ namespace ctce {
       CorFortranc2fd(0, op_c2f_t2_t12_b, c2f_t2_t12_);
       CorFortran(0, op_t2_8, ccsd_t2_8_);
       CorFortranc2fd(0, op_c2d_t2_t12_b, c2d_t2_t12_);
-
+#endif
       f->detach();
       i0->detach();
       t1->detach();

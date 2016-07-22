@@ -1,4 +1,5 @@
 
+import os
 import sys
 from antlr4 import *
 from antlr4.InputStream import InputStream
@@ -30,15 +31,21 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         input_stream = FileStream(sys.argv[1])
     else:
-        input_stream = InputStream(sys.stdin.readline())
+        print "Please provide an input file!"
+        sys.exit(1)
 
     lexer = NWChemTCELexer(input_stream)
     token_stream = CommonTokenStream(lexer)
     parser = NWChemTCEParser(token_stream)
     tree = parser.translation_unit()
 
-    #lisp_tree_str = tree.toStringTree(recog=parser)
-    #print(lisp_tree_str)
+    fname = os.path.basename(sys.argv[1])
+    fname = os.path.splitext(fname)[0]
+    fname = fname.split("_")
+
+    if (len(fname) != 2):
+        print "File name should be of the form ccsd_t1.eq"
+        sys.exit(1)
 
     visitor = NWChemTCEVisitorExecOrder()
     res = visitor.visitTranslation_unit(tree)
@@ -46,9 +53,7 @@ if __name__ == '__main__':
     exec_order = res[0]
     array_decls = res[1]
 
-
-
-    print "label {\n"
+    print fname[1] + " {\n"
 
     print_index_decls(res[2])
 
@@ -57,7 +62,7 @@ if __name__ == '__main__':
 
     print ""
 
-    visitor = NWChemTCEVisitor()
+    visitor = NWChemTCEVisitor(fname[0],fname[1])
     for stmt in exec_order:
         visitor.visitStatement(stmt)
 

@@ -7,8 +7,8 @@ from SoTCEParser import SoTCEParser
 from SoTCEVisitor import SoTCEVisitor
 
 def print_index_decls(res):
-    hind = res[0]
-    pind = res[1]
+    pind = res[0]
+    hind = res[1]
 
     print "range O = 10;"
     print "range V = 100;"
@@ -58,6 +58,6 @@ if __name__ == '__main__':
         elif r[0] == 'p': ltype += 'V'
 
     print "array i0([" + ltype[0:len(ltype)/2] + "][" + ltype[len(ltype)/2:] + "]);"
-    print "\ni0" + res[2] + " = " + res[1] + ";"
+    print "\ni0[" + ",".join(res[2]) + "] = " + res[1] + ";"
 
     print "\n}"

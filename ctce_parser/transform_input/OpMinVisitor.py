@@ -7,8 +7,8 @@ from OpMinParser import OpMinParser
 from antlr4.tree.Tree import TerminalNodeImpl
 from collections import OrderedDict
 
-function_prefix = "icsd"
-label_prefix = 't2'
+#self.function_prefix = "icsd"
+#self.label_prefix = 't2'
 stmt_refs = []
 inputarrs = dict()
 add_stmts = []
@@ -41,6 +41,10 @@ def printnli(s):
 
 class OpMinVisitor(ParseTreeVisitor):
 
+    def __init__(self, x='tce', y='t'):
+        self.function_prefix = x
+        self.label_prefix = y
+
     # Visit a parse tree produced by OpMinParser#translation_unit.
     def visitTranslation_unit(self, ctx):
         return self.visitChildren(ctx)
@@ -66,7 +70,7 @@ class OpMinVisitor(ParseTreeVisitor):
         printnl("\nnamespace ctce {")
         printnli("extern \"C\" {")
         indent += 2
-        printresi("void " + function_prefix + "_" + label_prefix + "_cxx(")
+        printresi("void " + self.function_prefix + "_" + self.label_prefix + "_cxx(")
         func_sig = ""
         for ia in inputarrs:
             func_sig += "Integer *d_" + ia + ","
@@ -79,7 +83,7 @@ class OpMinVisitor(ParseTreeVisitor):
         printnl("){")
 
         indent += 2
-        printnli("static bool set_" + label_prefix + " = true;")
+        printnli("static bool set_" + self.label_prefix + " = true;")
         printnli("")
 
         for ast in add_stmts:
@@ -91,9 +95,9 @@ class OpMinVisitor(ParseTreeVisitor):
         printnli("")
         printnli("DistType idist = (Variables::intorb()) ? dist_nwi : dist_nw;")
         printnli("static Equations eqs;\n")
-        printnli("if (set_"+ label_prefix + ") {")
-        printnli("  " + function_prefix + "_" + label_prefix + "_equations(eqs);")
-        printnli("  set_"+ label_prefix + " = false;")
+        printnli("if (set_"+ self.label_prefix + ") {")
+        printnli("  " + self.function_prefix + "_" + self.label_prefix + "_equations(eqs);")
+        printnli("  set_"+ self.label_prefix + " = false;")
         printnli("}\n")
 
         printnli("std::vector <Tensor> tensors;")
@@ -117,8 +121,8 @@ class OpMinVisitor(ParseTreeVisitor):
 
         for amo in add_mult_order:
             if amo in tensor_decls.keys():
-                printnli("CorFortran(1, op_" + amo + ", ofsset_" + function_prefix + "_" + amo + "_);")
-            printnli("CorFortran(1, op_" +  amo + ", " + function_prefix + "_" + amo + "_);")
+                printnli("CorFortran(1, op_" + amo + ", ofsset_" + self.function_prefix + "_" + amo + "_);")
+            printnli("CorFortran(1, op_" +  amo + ", " + self.function_prefix + "_" + amo + "_);")
 
             if amo in destroy_temps.keys():
                 printnli("destroy(" + destroy_temps[amo] + ");")
@@ -165,11 +169,11 @@ class OpMinVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#assignment_statement.
     def visitAssignment_statement(self, ctx):
-        global function_prefix,stmt_refs,inputarrs,add_stmts,mult_stmts,tensor_decls,add_mult_order,destroy_temps,temps,func_offsets
+        global stmt_refs,inputarrs,add_stmts,mult_stmts,tensor_decls,add_mult_order,destroy_temps,temps,func_offsets
         stmt_label = str(ctx.children[0].children[0])
-        func_sig = "void " + function_prefix + "_" + stmt_label + "_("
+        func_sig = "void " + self.function_prefix + "_" + stmt_label + "_("
 
-        func_offset_sig = "void offset_" + function_prefix + "_" + stmt_label + "_("
+        func_offset_sig = "void offset_" + self.function_prefix + "_" + stmt_label + "_("
 
 
         self.visitChildren(ctx.children[2])
@@ -217,7 +221,7 @@ class OpMinVisitor(ParseTreeVisitor):
 
         for ar in arefs:
             func_sig += "Integer *d_" + ar + ", Integer *k_" + ar + "_offset,"
-            if not ar.startswith(label_prefix+"_") and ar not in inputarrs.keys(): inputarrs[ar] = ar;
+            if not ar.startswith(self.label_prefix+"_") and ar not in inputarrs.keys(): inputarrs[ar] = ar;
 
         func_sig = func_sig[:-1] + ");"
         printnli(func_sig)
@@ -386,12 +390,15 @@ class OpMinVisitor(ParseTreeVisitor):
 
 
 
+f_v_decls = dict()
 
 class OpminOutToCTCE(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#translation_unit.
     def visitTranslation_unit(self, ctx):
-        return self.visitChildren(ctx)
+        printnl("{")
+        self.visitChildren(ctx)
+        printnl("}")
 
 
     # Visit a parse tree produced by OpMinParser#compound_element_list_opt.
@@ -446,7 +453,13 @@ class OpminOutToCTCE(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#id_list.
     def visitId_list(self, ctx):
-        return self.visitChildren(ctx)
+
+        idecl = str(ctx.children[0].children[0])
+        var = ctx.children[1]
+        while (var.children):
+            idecl += "," + str(var.children[1].children[0])
+            var = var.children[2]
+        return idecl
 
 
     # Visit a parse tree produced by OpMinParser#id_list_prime.
@@ -471,17 +484,29 @@ class OpminOutToCTCE(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#numerical_constant.
     def visitNumerical_constant(self, ctx):
-        return self.visitChildren(ctx)
+        printresws(ctx.children[0])
+        #return self.visitChildren(ctx)
 
 
     # Visit a parse tree produced by OpMinParser#range_declaration.
     def visitRange_declaration(self, ctx):
-        return self.visitChildren(ctx)
+        var = ctx.children[1]
+        idecl = "range "
+        idecl += self.visitId_list(var)
+        value =  ctx.children[3].children[0]
+        printnli(idecl + " = " + str(value) +";")
+
+        #return self.visitChildren(ctx)
 
 
     # Visit a parse tree produced by OpMinParser#index_declaration.
     def visitIndex_declaration(self, ctx):
-        return self.visitChildren(ctx)
+        var = ctx.children[1]
+        idecl = "index "
+        idecl += self.visitId_list(var)
+        value = ctx.children[3].children[0]
+        printnli(idecl + " = " + str(value) + ";")
+        self.visitChildren(ctx)
 
 
     # Visit a parse tree produced by OpMinParser#array_declaration.
@@ -501,7 +526,45 @@ class OpminOutToCTCE(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#array_structure.
     def visitArray_structure(self, ctx):
-        return self.visitChildren(ctx)
+        global f_v_decls
+        aname = str(ctx.children[0])
+        renrange = False
+        if aname.startswith("f_"):
+            aname = 'f'
+            renrange = True
+        elif aname.startswith("v_"):
+            aname = 'v'
+            renrange = True
+
+        if aname in f_v_decls: return
+        else: f_v_decls[aname] = aname
+        adecl = "array " + aname
+
+        adecl += "["
+        astruct = ""
+        for c in ctx.children:
+            if isinstance(c,OpMinParser.AstructContext):
+                astruct = c
+
+        upper = astruct.children[1].children[0]
+        upper = self.visitId_list(upper)
+        if renrange:
+            nu = len(upper.split(","))
+            adecl += "N,"*nu
+            adecl = adecl[:-1]
+        else: adecl += upper
+
+        adecl += ']['
+
+        lower = astruct.children[4].children[0]
+        lower = self.visitId_list(lower)
+        if renrange:
+            nu = len(lower.split(","))
+            adecl += "N,"*nu
+            adecl = adecl[:-1]
+        else: adecl += lower
+        adecl += '];'
+        printnli(adecl)
 
 
     # Visit a parse tree produced by OpMinParser#permut_symmetry_opt.
@@ -546,7 +609,11 @@ class OpminOutToCTCE(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#assignment_statement.
     def visitAssignment_statement(self, ctx):
-        return self.visitChildren(ctx)
+        lhs = self.visitExpression(ctx.children[0])
+        printres(ctx.children[1].children[0])
+        rhs = self.visitExpression(ctx.children[2])
+        printnl(";")
+
 
 
     # Visit a parse tree produced by OpMinParser#assignment_operator.
@@ -556,6 +623,8 @@ class OpminOutToCTCE(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#unary_expression.
     def visitUnary_expression(self, ctx):
+        if str(ctx.children[0]) == "+": printres(" +")
+        elif str(ctx.children[0]) == "-": printres(" -")
         return self.visitChildren(ctx)
 
 
@@ -566,8 +635,13 @@ class OpminOutToCTCE(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#array_reference.
     def visitArray_reference(self, ctx):
-        return self.visitChildren(ctx)
-
+        aname = str(ctx.children[0])
+        if aname.startswith("f_"): aname = 'f';
+        elif aname.startswith("v_"): aname = 'v';
+        aref = (aname + "[")
+        ilist = self.visitId_list(ctx.children[2])
+        aref += (ilist) + "]"
+        printresws(aref)
 
     # Visit a parse tree produced by OpMinParser#expression.
     def visitExpression(self, ctx):
@@ -576,7 +650,8 @@ class OpminOutToCTCE(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#plusORminus.
     def visitPlusORminus(self, ctx):
-        return self.visitChildren(ctx)
+        printres(ctx.children[0])
+        #return self.visitChildren(ctx)
 
 
     # Visit a parse tree produced by OpMinParser#additive_expression.
@@ -596,5 +671,7 @@ class OpminOutToCTCE(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#multiplicative_expression_prime.
     def visitMultiplicative_expression_prime(self, ctx):
+        if ctx.children:
+            if str(ctx.children[0]) == "*": printres("*")
         return self.visitChildren(ctx)
 

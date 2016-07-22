@@ -26,6 +26,9 @@ array_decls = []
 pind = 0
 hind = 0
 first_aref = ""
+second_aref = ""
+deleteInd = dict()
+far = 0
 
 class SoTCEVisitor(ParseTreeVisitor):
 
@@ -43,9 +46,21 @@ class SoTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SoTCEParser#translation_unit.
     def visitTranslation_unit(self, ctx):
-        global array_decls,iexp,first_aref
+        global array_decls,iexp,first_aref,second_aref
         self.visitChildren(ctx)
-        return [array_decls,iexp,first_aref,[pind,hind]]
+        first_aref = first_aref[1:-1].split(",")
+
+        newfirstref = first_aref
+        
+        if second_aref:
+            second_aref = second_aref[1:-1].split(",")
+
+            fsrefs= [first_aref,second_aref]
+            newfirstref = set().union(*fsrefs)
+            inter = set(first_aref).intersection(second_aref)
+            newfirstref = set(newfirstref).difference(inter)
+
+        return [array_decls,iexp,newfirstref,[pind,hind]]
 
 
     # Visit a parse tree produced by SoTCEParser#compound_element_list_opt.
@@ -60,7 +75,9 @@ class SoTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SoTCEParser#factors.
     def visitFactors(self, ctx):
+        global far;
         printres("\n")
+        far += 1
         return self.visitChildren(ctx)
 
 
@@ -71,7 +88,7 @@ class SoTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SoTCEParser#ptype.
     def visitPtype(self, ctx):
-        global uniqArrDecls, first_aref
+        global uniqArrDecls, first_aref, second_aref
         if isinstance(ctx.children[0],SoTCEParser.PlusORminusContext): self.visitChildren(ctx)
         elif str(ctx.children[0]) == "*":
             if not isinstance(ctx.children[1], SoTCEParser.SumExpContext):
@@ -83,21 +100,43 @@ class SoTCEVisitor(ParseTreeVisitor):
                 adims = it[0]
                 atype = it[1]
 
-                al = len(atype)
+                #al = len(atype)
+
+                atypel = atype.split(",")
+                al = len(atypel)
                 #if aname[0] == 'f' or aname[0] == 'v': atype = 'N' * al
 
-                upper = atype[0:al/2]
-                lower = atype[al/2:al]
-                upper = ",".join(upper)
-                lower = ",".join(lower)
+                upper = atypel[0:al/2]
+                lower = atypel[al/2:al]
 
-                renameArr = aname + "_" + (atype).lower()
+                newup = []
+                newlow = []
+                for u in range(0,len(upper)):
+                    if upper[u][-1] != "*": newup.append(upper[u])
+
+                for u in range(0,len(lower)):
+                    if lower[u][-1] != "*": newlow.append(lower[u])
+
+                upper = ",".join(newup)
+                lower = ",".join(newlow)
+
+                newat = []
+                for at in range(0,len(atypel)):
+                    if atypel[at][-1] != "*": newat.append(atypel[at])
+
+
+
+                renameArr = aname + "_" + ("".join(newat)).lower()
                 #if aname[0] == 'f' or aname[0] == 'v': renameArr = aname
 
                 printres(renameArr)
                 printres(adims)
+
+
                 decl = "array " + renameArr + "([" + upper + "]" + "[" + lower + "]);"
-                if not first_aref: first_aref=adims
+                if not first_aref: first_aref = adims
+                elif not second_aref and far == 1: second_aref = adims
+
                 if not renameArr in uniqArrDecls.keys():
                     uniqArrDecls[renameArr] = renameArr
                     array_decls.append(decl)
@@ -115,7 +154,9 @@ class SoTCEVisitor(ParseTreeVisitor):
             elif s == ")":
                 adims = adims[:-1]
                 adims += "]"
-            else: adims += s + ","
+            else:
+                if s[-1] != "*": adims += s + ","
+                #else: adims += s + ","
 
 
 
@@ -123,14 +164,24 @@ class SoTCEVisitor(ParseTreeVisitor):
         for c in ctx.children:
             index = str(c)
             if (index[0] == 'h'):
-                type += 'O'
-                hind = max(hind,int(index[1:]))
+
+                if index[-1] =="*":
+                    hind = max(hind,int(index[1:-1]))
+                    type += 'O*,'
+                else:
+                    hind = max(hind,int(index[1:]))
+                    type += 'O,'
+
             elif (index[0] == 'p'):
-                type += 'V'
-                pind = max(pind, int(index[1:]))
 
+                if index[-1] == "*":
+                    pind = max(pind, int(index[1:-1]))
+                    type += 'V*,'
+                else:
+                    pind = max(pind, int(index[1:]))
+                    type += 'V,'
 
-        return [adims,type]
+        return [adims,type[:-1]]
 
 
     # Visit a parse tree produced by SoTCEParser#sumExp.

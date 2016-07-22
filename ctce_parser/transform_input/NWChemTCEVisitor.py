@@ -24,11 +24,15 @@ labelcount_io = 0
 labelcount_ia = dict()
 namemap = dict()
 array_decls = []
-label_prefix = 't1' # label suffix comes from file name ?
+#label_prefix = 't1' # label suffix comes from file name ?
 lhsanames = dict()
 
 
 class NWChemTCEVisitor(ParseTreeVisitor):
+
+    def __init__(self, x='tce', y='t'):
+        self.function_prefix = x
+        self.label_prefix = y
 
     # Visit a parse tree produced by NWChemTCEParser#assignment_operator.
     def visitAssignment_operator(self, ctx):
@@ -77,11 +81,11 @@ class NWChemTCEVisitor(ParseTreeVisitor):
             sys.exit(1)
 
         ino = int(lhs_array_name[1:])
-        indentl = len(label_prefix+"_1")+8
+        indentl = len(self.label_prefix+"_1")+8
         if (lhs_array_name == 'i0'):
             io_flag = True
             labelcount_io = labelcount_io + 1
-            label = label_prefix + "_" + str(labelcount_io)
+            label = self.label_prefix + "_" + str(labelcount_io)
             for lname in labelcount_ia.keys():
                 labelcount_ia[lname] = 0
 
@@ -90,7 +94,7 @@ class NWChemTCEVisitor(ParseTreeVisitor):
                 labelcount_ia[lhs_array_name] = 1
             else: labelcount_ia[lhs_array_name] = labelcount_ia[lhs_array_name] + 1
 
-            label = label_prefix
+            label = self.label_prefix
             for i in range(1,ino+1):
                 label += "_" + str(labelcount_io+1)
 

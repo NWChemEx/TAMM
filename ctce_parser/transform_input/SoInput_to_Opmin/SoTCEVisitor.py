@@ -29,19 +29,18 @@ first_aref = ""
 second_aref = ""
 deleteInd = dict()
 far = 0
+permute_flag = []
 
 class SoTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SoTCEParser#numerical_constant.
     def visitNumerical_constant(self, ctx):
-        printres(float(str(ctx.children[0])))
+        self.visitChildren(ctx)
 
 
     # Visit a parse tree produced by SoTCEParser#plusORminus.
     def visitPlusORminus(self, ctx):
-        if ctx.op.type == SoTCELexer.PLUS:
-            printres(" + ")
-        else:  printres(" - ")
+        self.visitChildren(ctx)
 
 
     # Visit a parse tree produced by SoTCEParser#translation_unit.
@@ -88,12 +87,31 @@ class SoTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SoTCEParser#ptype.
     def visitPtype(self, ctx):
-        global uniqArrDecls, first_aref, second_aref
-        if isinstance(ctx.children[0],SoTCEParser.PlusORminusContext): self.visitChildren(ctx)
+        global uniqArrDecls, permute_flag
+        if isinstance(ctx.children[0],SoTCEParser.PlusORminusContext):
+            if str(ctx.children[0].children[0]) == "+":
+                printres(" + ")
+            else:
+                printres(" - ")
+            if isinstance(ctx.children[1], SoTCEParser.Numerical_constantContext):
+                permute_flag.append(str(ctx.children[1].children[0]))
+
         elif str(ctx.children[0]) == "*":
             if not isinstance(ctx.children[1], SoTCEParser.SumExpContext):
-                printresws("*")
                 aname = (str(ctx.children[1]))
+
+                if aname == "P":
+                    #permute_flag = permute_flag[:-1]
+                    for n in permute_flag:
+                        printres(n)
+                    permute_flag = []
+                    return
+
+                for n in permute_flag:
+                    printres(n)
+                permute_flag = []
+                printresws("*")
+
 
                 it = self.visitArrDims(ctx.children[2])
 
@@ -134,8 +152,8 @@ class SoTCEVisitor(ParseTreeVisitor):
 
 
                 decl = "array " + renameArr + "([" + upper + "]" + "[" + lower + "]);"
-                if not first_aref: first_aref = adims
-                elif not second_aref and far == 1: second_aref = adims
+                #if not first_aref: first_aref = adims
+                #elif not second_aref and far == 1: second_aref = adims
 
                 if not renameArr in uniqArrDecls.keys():
                     uniqArrDecls[renameArr] = renameArr
@@ -145,20 +163,28 @@ class SoTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SoTCEParser#arrDims.
     def visitArrDims(self, ctx):
-        global  pind, hind
+        global  pind, hind, first_aref, second_aref, far
         adims = ""
+        ldims = "["
         for c in ctx.children:
             s = str(c)
 
-            if s == "(": adims += "["
+            if s == "(":
+                adims += "["
             elif s == ")":
                 adims = adims[:-1]
                 adims += "]"
             else:
-                if s[-1] != "*": adims += s + ","
-                #else: adims += s + ","
+                if s[-1] != "*":
+                    adims += s + ","
+                ldims += s + ","
 
 
+        ldims += ']'
+        if not first_aref:
+            first_aref = ldims[:-1]
+        elif not second_aref and far == 1:
+            second_aref = ldims[:-1]
 
         type = ""
         for c in ctx.children:

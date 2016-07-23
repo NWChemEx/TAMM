@@ -20,7 +20,7 @@ if __name__ == '__main__':
     tree = parser.translation_unit()
 
     fname = os.path.basename(sys.argv[1])
-    fname = os.path.splitext(fname)[0]
+    fname = fname.split(".")[0]
     fname = fname.split("_")
 
     if (len(fname) != 2):

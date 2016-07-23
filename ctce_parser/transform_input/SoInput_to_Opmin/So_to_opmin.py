@@ -52,12 +52,34 @@ if __name__ == '__main__':
     for a in ad:
         print a
 
-    ltype = ""
+    ltype = []
     for r in res[2]:
-        if r[0] == 'h': ltype += 'O'
-        elif r[0] == 'p': ltype += 'V'
+        if r[0] == 'h':
+            if r[-1] == "*": ltype.append('O*')
+            else: ltype.append('O')
+        elif r[0] == 'p':
+            if r[-1] == "*": ltype.append('V*')
+            else: ltype.append('V')
 
-    print "array i0([" + ltype[0:len(ltype)/2] + "][" + ltype[len(ltype)/2:] + "]);"
-    print "\ni0[" + ",".join(res[2]) + "] = " + res[1] + ";"
+    upper = ltype[0:len(ltype) / 2]
+    lower = ltype[len(ltype) / 2:]
+
+    newup = []
+    newlow = []
+    for u in range(0, len(upper)):
+        if upper[u][-1] != "*": newup.append(upper[u])
+
+    for u in range(0, len(lower)):
+        if lower[u][-1] != "*": newlow.append(lower[u])
+
+    upper = ",".join(newup)
+    lower = ",".join(newlow)
+
+    idims = []
+    for r in res[2]:
+        if r[-1]!="*": idims.append(r)
+
+    print "array i0([" + upper + "][" + lower + "]);"
+    print "\ni0[" + ",".join(idims) + "] = " + res[1] + ";"
 
     print "\n}"

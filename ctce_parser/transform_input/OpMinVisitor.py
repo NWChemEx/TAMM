@@ -529,6 +529,7 @@ class OpminOutToCTCE(ParseTreeVisitor):
         global f_v_decls
         aname = str(ctx.children[0])
         renrange = False
+
         if aname.startswith("f_"):
             aname = 'f'
             renrange = True
@@ -546,23 +547,31 @@ class OpminOutToCTCE(ParseTreeVisitor):
             if isinstance(c,OpMinParser.AstructContext):
                 astruct = c
 
-        upper = astruct.children[1].children[0]
-        upper = self.visitId_list(upper)
-        if renrange:
-            nu = len(upper.split(","))
-            adecl += "N,"*nu
-            adecl = adecl[:-1]
-        else: adecl += upper
+
+
+        upper = ""
+
+        if astruct.children[1].children:
+            upper = astruct.children[1].children[0]
+            upper = self.visitId_list(upper)
+            if renrange:
+                nu = len(upper.split(","))
+                adecl += "N,"*nu
+                adecl = adecl[:-1]
+            else: adecl += upper
 
         adecl += ']['
+        lower = ""
 
-        lower = astruct.children[4].children[0]
-        lower = self.visitId_list(lower)
-        if renrange:
-            nu = len(lower.split(","))
-            adecl += "N,"*nu
-            adecl = adecl[:-1]
-        else: adecl += lower
+        if astruct.children[4].children:
+            lower = astruct.children[4].children[0]
+            lower = self.visitId_list(lower)
+            if renrange:
+                nu = len(lower.split(","))
+                adecl += "N,"*nu
+                adecl = adecl[:-1]
+            else: adecl += lower
+
         adecl += '];'
         printnli(adecl)
 

@@ -1,6 +1,34 @@
 
 Prereq: pip install antlr4-python2-runtime
 
-To run:
+To run (cd to transform_input folder)
+--------------------------------------
 
-python main.py input.eq
+*** Input filename should be of the form method_ti.extensions ex: ccsd_t1.eq.in.nwc ***
+
+- Following takes equation in icsd_t2 fortran code comments and generates levelized input with stmt labels
+   python nwchem_to_levelized.py icsd_t2.eq.nwc > icsd_t2.eq.lvl 
+
+- Following takes the above levelized code and generates icsd_t2 reference C code
+   python generate_ref_c_code.py icsd_t2.eq.lvl > icsd_t2_ref.cc
+
+- icsd_t2.eq.lvl  is also provided as input to ctce_parser
+
+-------------------------------------------
+
+So's Input -> Pai-Wei's opmin input (python SoInput_to_Opmin/So_to_opmin.py SoInput_to_Opmin/SoEqns/ccsd_t1.eq > ccsd_t1.op.in)
+ - Remove Sum and symmetry/permutation information
+ - Assume array is indexed only with hi and pi with ranges O and V.
+ - rename any tensor x to x_type ex: t_oovv
+ - array refs such as t1(h2 h3* hc hv) h3* is deleted and array is declared accordingly
+   - To test this case use: 
+          python SoInput_to_Opmin/So_to_opmin.py SoInput_to_Opmin/SoEqns/ipeomccsdtq_x2.eq > ipeomccsdtq_x2.op.in
+          python src/opmin.py ipeomccsdtq_x2.op.in
+          python opmin_to_ctce.py ipeomccsdtq_x2.op.in.out > ipeomccsdtq_x2.op.in.ctce
+
+
+Run Pai-Wei's Opmin -> python src/opmin.py ccsd_t1.op.in  -> generates ccsd_t1.op.in.out
+
+Pai-Wei's output -> ctce_input  (python opmin_to_ctce.py ccsd_t1.op.in.out > ccsd_t1.op.ctce )
+ - Remove braces around array decls
+ - Collapse the f_... and v_... array delcarations (with range N) and their usage to f and v 

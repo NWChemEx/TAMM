@@ -40,6 +40,7 @@ bool exists_index(string* list, int len, string x);
 int count_index(string* list, int len, string x);
 bool check_index_count(tce_string_array list, int count);
 bool compare_index_lists(tce_string_array list1, tce_string_array list2);
+bool check_array_usage(tce_string_array list1, tce_string_array list2);
 
 void print_index_list(tce_string_array list1);
 

@@ -195,7 +195,7 @@ void check_Exp(Exp exp, SymbolTable symtab){
      string ulranges = ST_get(symtab,exp->u.Array.name);
      tce_string_array ulr = stringToList(ulranges);
 
-     if(!compare_index_lists(ulr,rnamesarr)){
+     if(!check_array_usage(ulr,rnamesarr)){
         fprintf(stderr,"Error at line %d: array reference %s[%s] must have index structure of %s[%s]\n",clno,
         		exp->u.Array.name,combine_indices(all_ind1,tot_len1),exp->u.Array.name,combine_indices(ulr->list,ulr->length));
         exit(2);

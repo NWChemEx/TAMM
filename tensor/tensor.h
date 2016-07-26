@@ -87,6 +87,7 @@ namespace ctce {
         //type_(type),
         //sign_(1),
 				allocated_(false),
+				attached_(false),
 				dist_type_(dist_type),
 				dim_type_(dim_type),
 				ids_(ids, ids+n) {

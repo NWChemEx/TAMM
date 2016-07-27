@@ -3,15 +3,21 @@ CFLAGS = -g -Wall
 
 all: ctcemain
 
-ctcemain: main.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o 
-	$(CC) -o $@ $(CFLAGS) main.o parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o -lfl 
+ctcemain: main.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o ctce_vector.o
+	$(CC) -o $@ $(CFLAGS) main.o parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o intermediate.o ctce_vector.o -lfl
 
 main.o: main.c parser.o scanner.o *.h
 	$(CC) $(CFLAGS) -c main.c
 
 visitor.o: visitor.c parser.o util.o
 	$(CC) $(CFLAGS) -c visitor.c 
-	
+
+intermediate.o: intermediate.c semant.o ctce_vector.o
+	$(CC) $(CFLAGS) -c intermediate.c
+
+ctce_vector.o: ctce_vector.c  util.o
+	$(CC) $(CFLAGS) -c ctce_vector.c
+
 semant.o: semant.c parser.o  
 	$(CC) $(CFLAGS) -c semant.c 
 

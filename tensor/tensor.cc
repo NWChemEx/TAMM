@@ -35,6 +35,7 @@ namespace ctce {
       nupper_(nupper),
       irrep_(irrep_val),
       allocated_(false),
+      attached_(false),
       dist_type_(dist_type) {
     assert(n > 0);
     assert(nupper_ >=0 && nupper_ <= dim_);

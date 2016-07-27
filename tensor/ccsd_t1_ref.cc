@@ -95,6 +95,13 @@ extern "C" {
 
 namespace ctce {
 
+  void schedule_linear(std::vector<Tensor> &tensors,
+                       std::vector<Operation> &ops);
+  void schedule_linear_lazy(std::vector<Tensor> &tensors,
+                            std::vector<Operation> &ops);
+  void schedule_levels(std::vector<Tensor> &tensors,
+                            std::vector<Operation> &ops);
+
   extern "C" {
     
     void ccsd_t1_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t1, Integer *d_t2, Integer *d_v2, 
@@ -130,6 +137,17 @@ namespace ctce {
 
       v->set_dist(idist);
       t1->set_dist(dist_nwma);
+      f->attach(*k_f1_offset, 0, *d_f1);
+      i0->attach(*k_i0_offset, 0, *d_i0);
+      t1->attach(*k_t1_offset, 0, *d_t1);
+      t2->attach(*k_t2_offset, 0, *d_t2);
+      v->attach(*k_v2_offset, 0, *d_v2);
+
+#if 1
+      // schedule_linear(tensors, ops);
+      // schedule_linear_lazy(tensors, ops);
+       schedule_levels(tensors, ops);
+#else
 
       a_t1_1 = ops[0].add;
       a_t1_2_1 = ops[1].add;
@@ -150,12 +168,6 @@ namespace ctce {
       m_t1_6_2 = ops[16].mult;
       m_t1_6 = ops[17].mult;
       m_t1_7 = ops[18].mult;
-
-      f->attach(*k_f1_offset, 0, *d_f1);
-      i0->attach(*k_i0_offset, 0, *d_i0);
-      t1->attach(*k_t1_offset, 0, *d_t1);
-      t2->attach(*k_t2_offset, 0, *d_t2);
-      v->attach(*k_v2_offset, 0, *d_v2);
 
       CorFortran(1,a_t1_1,ccsd_t1_1_);
       CorFortran(1,i1_2,offset_ccsd_t1_2_1_);
@@ -186,7 +198,7 @@ namespace ctce {
       CorFortran(1,m_t1_6,ccsd_t1_6_);
       destroy(i1_6);
       CorFortran(1,m_t1_7,ccsd_t1_7_);
-
+#endif
       f->detach();
       i0->detach();
       t1->detach();

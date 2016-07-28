@@ -133,6 +133,8 @@ int main(int argc, char **argv) {
         printf("\n");
     }
 
+/* Insert any transformation code here to test */
+
     ParseFree(parser, free);
     yylex_destroy(scanner);
 

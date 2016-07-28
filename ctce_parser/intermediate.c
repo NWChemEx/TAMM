@@ -1,5 +1,5 @@
 #include "intermediate.h"
-
+#include "semant.h"
 
 //void make_Equations(Equations p) {
 //    p = tce_malloc(sizeof(*p));
@@ -32,11 +32,28 @@ TensorEntry make_TensorEntry(string name, int ndim, int nupper) {
 }
 
 
-AddOp make_AddOp(string name, int ndim, int nupper) {
+AddOp make_AddOp(int tc, int ta, double alpha) {
     AddOp p = tce_malloc(sizeof(*p));
-    p->name = name;
-    p->ndim = ndim;
-    p->nupper = nupper;
+    p->ta = ta;
+    p->tc = tc;
+    p->alpha = alpha;
+    return p;
+}
+
+MultOp make_MultOp(int tc, int ta, int tb, double alpha) {
+    MultOp p = tce_malloc(sizeof(*p));
+    p->ta = ta;
+    p->tc = tc;
+    p->tb = tb;
+    p->alpha = alpha;
+    return p;
+}
+
+OpEntry make_OpEntry(OpType ot, AddOp ao, MultOp mo) {
+    OpEntry p = tce_malloc(sizeof(*p));
+    p->optype = ot;
+    p->add = ao;
+    p->mult = mo;
     return p;
 }
 
@@ -47,9 +64,9 @@ void generate_intermediate_ast(Equations *eqn, TranslationUnit root) {
     vector_init(&eqn->tensor_entries);
 
     vector *re = &eqn->range_entries;
-    vector_add(re,make_RangeEntry("O"));
-    vector_add(re,make_RangeEntry("V"));
-    vector_add(re,make_RangeEntry("N"));
+    vector_add(re, make_RangeEntry("O"));
+    vector_add(re, make_RangeEntry("V"));
+    vector_add(re, make_RangeEntry("N"));
 
     CompoundElemList celist = root->celist;
     while (celist != NULL) {
@@ -102,19 +119,19 @@ void generate_intermediate_Decl(Equations *eqn, Decl d) {
             break;
         case is_IndexDecl:
 
-            if (strcmp(d->u.IndexDecl.rangeID,"V")==0) rid = 1;
-            else if (strcmp(d->u.IndexDecl.rangeID,"N")==0) rid = 2;
-            vector_add(&eqn->index_entries,make_IndexEntry(d->u.IndexDecl.name, rid));
+            if (strcmp(d->u.IndexDecl.rangeID, "V") == 0) rid = 1;
+            else if (strcmp(d->u.IndexDecl.rangeID, "N") == 0) rid = 2;
+            vector_add(&eqn->index_entries, make_IndexEntry(d->u.IndexDecl.name, rid));
             //fprintf(eqn, "index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID);
             break;
         case is_ArrayDecl:
-              te = make_TensorEntry(d->u.ArrayDecl.name,d->u.ArrayDecl.ulen+d->u.ArrayDecl.llen, d->u.ArrayDecl.ulen);
-              for (rid = 0; rid < d->u.ArrayDecl.ulen; rid++) {
-                  string range = d->u.ArrayDecl.upperIndices[rid];
-                  te->range_ids[rid] = 0;
-                  if (strcmp(range, "V") == 0) te->range_ids[rid] = 1;
-                  else if (strcmp(range, "N") == 0) te->range_ids[rid] = 2;
-              }
+            te = make_TensorEntry(d->u.ArrayDecl.name, d->u.ArrayDecl.ulen + d->u.ArrayDecl.llen, d->u.ArrayDecl.ulen);
+            for (rid = 0; rid < d->u.ArrayDecl.ulen; rid++) {
+                string range = d->u.ArrayDecl.upperIndices[rid];
+                te->range_ids[rid] = 0;
+                if (strcmp(range, "V") == 0) te->range_ids[rid] = 1;
+                else if (strcmp(range, "N") == 0) te->range_ids[rid] = 2;
+            }
 
             int lid = rid;
             for (rid = 0; rid < d->u.ArrayDecl.llen; rid++) {
@@ -125,17 +142,7 @@ void generate_intermediate_Decl(Equations *eqn, Decl d) {
                 lid++;
             }
 
-            vector_add(&eqn->tensor_entries,te);
-
-//            if (d->u.ArrayDecl.irrep == NULL)
-//                fprintf(eqn, "array %s[%s][%s];\n", d->u.ArrayDecl.name,
-//                        combine_indices(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen),
-//                        combine_indices(d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen));
-//
-//            else
-//                fprintf(eqn, "array %s[%s][%s] : %s;\n", d->u.ArrayDecl.name,
-//                        combine_indices(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen),
-//                        combine_indices(d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen), d->u.ArrayDecl.irrep);
+            vector_add(&eqn->tensor_entries, te);
 
             break;
         default:
@@ -145,20 +152,129 @@ void generate_intermediate_Decl(Equations *eqn, Decl d) {
 }
 
 void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
+    vector lhs_aref, rhs_aref;
+    double alpha = 1;
     switch (s->kind) {
         case is_AssignStmt:
-            //if (s->u.AssignStmt.label != NULL)
-              //  fprintf(eqn, "%s: ", s->u.AssignStmt.label);
-            generate_intermediate_Exp(eqn, s->u.AssignStmt.lhs);
-            //fprintf(eqn, " %s ",                   "="); //s->u.AssignStmt.astype); //astype not needed after we flatten. keep it for now.
-            generate_intermediate_Exp(eqn, s->u.AssignStmt.rhs);
-            //fprintf(eqn, ";\n");
+
+            vector_init(&lhs_aref);
+            collectArrayRefs(s->u.AssignStmt.lhs, &lhs_aref, &alpha);
+//            int i = 0;
+//            for (i = 0; i < vector_count(&lhs_aref); i++) {
+//                Exp e = vector_get(&lhs_aref, i);
+//                printf("%s ", e->u.Array.name);
+//            }
+            vector_init(&rhs_aref);
+            collectArrayRefs(s->u.AssignStmt.rhs, &rhs_aref, &alpha);
+
+            tce_string_array lhs_indices = collectExpIndices(s->u.AssignStmt.lhs);
+            tce_string_array rhs_indices = collectExpIndices(s->u.AssignStmt.rhs);
+//            print_index_list(lhs_indices);
+//            printf("=");
+//            print_index_list(rhs_indices);
+
+//            int tc_ids[MAX_TENSOR_DIMS];
+//            getIndexIDs(eqn, vector_get(&lhs_aref,0), tc_ids);
+
+//            for (i=0;i<MAX_TENSOR_DIMS;i++)
+//                if(tc_ids[i]!=-1) printf("%d, ",tc_ids[i]);
+
+
+            bool isAMOp = (exact_compare_index_lists(lhs_indices, rhs_indices));
+            bool isEqInd = (lhs_indices->length == rhs_indices->length);
+            bool isAddOp = isEqInd && isAMOp;
+            bool isMultOp = (lhs_indices->length < rhs_indices->length) || (isEqInd && !isAMOp);
+
+            if (isMultOp) {
+                //printf(" == MULT OP\n");
+
+                MultOp mop = make_MultOp(0, 0, 0, alpha);
+
+                Exp tc_exp = vector_get(&lhs_aref, 0);
+                Exp ta_exp = vector_get(&rhs_aref, 0);
+                Exp tb_exp = vector_get(&rhs_aref, 1);
+
+                getIndexIDs(eqn, tc_exp, mop->tc_ids);
+                getIndexIDs(eqn, ta_exp, mop->ta_ids);
+                getIndexIDs(eqn, tb_exp, mop->tb_ids);
+
+                getTensorIDs(eqn, tc_exp, &mop->tc);
+                getTensorIDs(eqn, ta_exp, &mop->ta);
+                getTensorIDs(eqn, tb_exp, &mop->tb);
+
+                vector_add(&eqn->op_entries, make_OpEntry(OpTypeMult, NULL, mop));
+
+            }
+            else if (isAddOp) {
+
+                //printf(" == ADD OP\n");
+
+                AddOp mop = make_AddOp(0, 0, alpha);
+
+                Exp tc_exp = vector_get(&lhs_aref, 0);
+                Exp ta_exp = vector_get(&rhs_aref, 0);
+
+                getIndexIDs(eqn, tc_exp, mop->tc_ids);
+                getIndexIDs(eqn, ta_exp, mop->ta_ids);
+
+                getTensorIDs(eqn, tc_exp, &mop->tc);
+                getTensorIDs(eqn, ta_exp, &mop->ta);
+
+                vector_add(&eqn->op_entries, make_OpEntry(OpTypeAdd, mop, NULL));
+
+            }
+            else {
+                fprintf(stderr, "NEITHER ADD OR MULT OP.. THIS SHOULD NOT HAPPEN!\n");
+                exit(0);
+            }
             break;
         default:
             fprintf(stderr, "Not an Assignment Statement!\n");
             exit(0);
     }
 }
+
+
+void getTensorIDs(Equations *eqn, Exp exp, int *tid) {
+    if (exp->kind == is_ArrayRef) {
+        string aname = exp->u.Array.name;
+        int j;
+        TensorEntry ient;
+        for (j = 0; j < vector_count(&eqn->tensor_entries); j++) {
+            ient = vector_get(&eqn->tensor_entries, j);
+            if (strcmp(aname, ient->name) == 0) {
+                *tid = j;
+                break;
+            }
+        }
+    }
+}
+
+
+void getIndexIDs(Equations *eqn, Exp exp, int *tc_ids) {
+
+    int i;
+    for (i = 0; i < MAX_TENSOR_DIMS; i++) tc_ids[i] = -1;
+    if (exp->kind == is_ArrayRef) {
+        string *aind = exp->u.Array.indices;
+        int len = exp->u.Array.length;
+        int j;
+        int ipos = 0;
+        IndexEntry ient;
+        for (i = 0; i < len; i++) {
+            for (j = 0; j < vector_count(&eqn->index_entries); j++) {
+                ient = vector_get(&eqn->index_entries, j);
+                if (strcmp(aind[i], ient->name) == 0) {
+                    tc_ids[ipos] = j;
+                    ipos++;
+                    break;
+                }
+            }
+        }
+
+    }
+}
+
 
 void generate_intermediate_ExpList(Equations *eqn, ExpList expList, string am) {
     ExpList elist = expList;
@@ -186,6 +302,115 @@ void generate_intermediate_Exp(Equations *eqn, Exp exp) {
             break;
         case is_Multiplication:
             generate_intermediate_ExpList(eqn, exp->u.Multiplication.subexps, "*");
+            break;
+        default:
+            fprintf(stderr, "Not a valid Expression!\n");
+            exit(0);
+    }
+}
+
+
+void collectArrayRefs(Exp exp, vector *arefs, double *alpha) {
+    ExpList el = NULL;
+    switch (exp->kind) {
+        case is_Parenth:
+            collectArrayRefs(exp->u.Parenth.exp, arefs, alpha);
+            break;
+        case is_NumConst:
+            *alpha = exp->u.NumConst.value;
+            break;
+        case is_ArrayRef:
+            vector_add(arefs, exp);
+            break;
+        case is_Addition:
+            el = (exp->u.Addition.subexps);
+            while (el != NULL) {
+                collectArrayRefs(el->head, arefs, alpha);
+                el = el->tail;
+            }
+            break;
+        case is_Multiplication:
+            el = (exp->u.Multiplication.subexps);
+            while (el != NULL) {
+                collectArrayRefs(el->head, arefs, alpha);
+                el = el->tail;
+            }
+            break;
+        default:
+            fprintf(stderr, "Not a valid Expression!\n");
+            exit(0);
+    }
+}
+
+
+tce_string_array collectExpIndices(Exp exp) {
+    ExpList el = NULL;
+    tce_string_array p = NULL;
+    switch (exp->kind) {
+        case is_Parenth:
+            return getIndices(exp->u.Parenth.exp);
+            break;
+        case is_NumConst:
+            return NULL;
+            break;
+        case is_ArrayRef:
+            p = tce_malloc(sizeof(*p));
+            p->list = replicate_indices(exp->u.Array.indices, exp->u.Array.length);
+            p->length = exp->u.Array.length;
+            return p;
+            break;
+        case is_Addition:
+            return getIndices(exp->u.Addition.subexps->head);
+            break;
+        case is_Multiplication:
+            el = exp->u.Multiplication.subexps;
+            int tot_len = 0;
+            while (el != NULL) {
+                //print_Exp(el->head);
+                tce_string_array se = getIndices(el->head);
+                if (se != NULL) tot_len += se->length;
+                se = NULL;
+                el = el->tail;
+            }
+
+            el = exp->u.Multiplication.subexps;
+            string *all_ind = tce_malloc(sizeof(string) * tot_len);
+
+            int i = 0, ui = 0;
+            while (el != NULL) {
+                tce_string_array se = getIndices(el->head);
+                i = 0;
+                if (se != NULL) {
+                    for (i = 0; i < se->length; i++) {
+                        all_ind[ui] = se->list[i];
+                        ui++;
+                    }
+                }
+                se = NULL;
+                el = el->tail;
+            }
+            assert(ui == tot_len);
+            string *uind = tce_malloc(sizeof(string) * tot_len);
+
+            i = 0, ui = 0;
+
+
+            for (i = 0; i < tot_len; i++) {
+                if (!exists_index(uind, ui, all_ind[i])) {
+                    uind[ui] = all_ind[i];
+                    ui++;
+                }
+            }
+
+            string *uniq_ind = tce_malloc(sizeof(string) * ui);
+            for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
+
+
+            p = tce_malloc(sizeof(*p));
+            p->list = uniq_ind;
+            p->length = ui;
+
+            return p;
             break;
         default:
             fprintf(stderr, "Not a valid Expression!\n");

@@ -8,8 +8,6 @@
 #define MAX_INDEX_NAMES 32
 
 
-//typedef struct Equations_ *Equations;
-typedef struct Range2Index_ *Range2Index;
 typedef struct IndexEntry_ *IndexEntry;
 typedef struct RangeEntry_ *RangeEntry;
 typedef struct TensorEntry_ *TensorEntry;
@@ -18,38 +16,6 @@ typedef struct AddOp_ *AddOp;
 typedef struct MultOp_ *MultOp;
 
 
-
-
-//static const char *OSTR = "O";
-//static const char *VSTR = "V";
-//static const char *NSTR = "N";
-
-
-
-//void tensors_and_ops(Equations &eqs,
-//                     std::vector<Tensor> &tensors,
-//                     std::vector<Operation> &ops);
-
-/* range of the indices, also used in triangular iterator */
-typedef enum {
-    TO, TV, TN, RANGE_UB
-} RangeType;
-
-typedef enum {
-    P1B, P2B, P3B, P4B, P5B, P6B, P7B, P8B, P9B, P10B, P11B, P12B,
-    H1B, H2B, H3B, H4B, H5B, H6B, H7B, H8B, H9B, H10B, H11B, H12B
-} IndexName;
-
-typedef enum {
-    pIndex, hIndex
-} IndexType;
-
-typedef enum {
-    V_tensor, T_tensor, F_tensor,
-    iV_tensor, iT_tensor, iF_tensor,
-    iVT_tensor, iVF_tensor, iTF_tensor
-} TensorType;
-
 typedef struct {
     vector range_entries;
     vector index_entries;
@@ -57,11 +23,6 @@ typedef struct {
     vector op_entries;
 } Equations ;
 
-
-struct Range2Index_ {
-    int nindices;
-    IndexName names[MAX_INDEX_NAMES];
-} ;
 
 struct RangeEntry_ {
     char *name; /*name for this range*/
@@ -123,6 +84,13 @@ void generate_intermediate_ExpList(Equations *eqn, ExpList expList, string am);
 
 void generate_intermediate_DeclList(Equations *eqn, DeclList dl);
 
+void collectArrayRefs(Exp exp, vector *arefs, double *alpha);
+
+tce_string_array collectExpIndices(Exp exp); //Get each index only once
+
+void getIndexIDs(Equations *eqn, Exp e, int *);
+
+void getTensorIDs(Equations *eqn, Exp exp, int *tid);
 
 #endif /*__CTCE_INTERMEDIATE_H__*/
 

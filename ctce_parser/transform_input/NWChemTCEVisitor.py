@@ -106,7 +106,7 @@ class NWChemTCEVisitor(ParseTreeVisitor):
                 lhs_array_name = label
             else: lhs_array_name = lhsanames[lhs_array_name]
 
-        printres(label + ":".ljust(indentl-len(label)) + lhs_array_name)  # Fix: use label instead of lhs_array_name
+        printres(label + ":".ljust(indentl-len(label)) + lhs_array_name)
         printres("[")
         printres(ilist)
         printres("]")

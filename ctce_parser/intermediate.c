@@ -169,6 +169,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 
             tce_string_array lhs_indices = collectExpIndices(s->u.AssignStmt.lhs);
             tce_string_array rhs_indices = collectExpIndices(s->u.AssignStmt.rhs);
+
+
 //            print_index_list(lhs_indices);
 //            printf("=");
 //            print_index_list(rhs_indices);
@@ -179,11 +181,21 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 //            for (i=0;i<MAX_TENSOR_DIMS;i++)
 //                if(tc_ids[i]!=-1) printf("%d, ",tc_ids[i]);
 
+            bool rhs_first_ref = false;
+            tce_string_array rhs_first_ref_indices = collectExpIndices(vector_get(&rhs_aref,0));
+
+            if(vector_count(&rhs_aref) > 1) {
+                Exp tc_exp = vector_get(&lhs_aref, 0);
+                Exp ta_exp = vector_get(&rhs_aref, 0);
+                if (strcmp(tc_exp->u.Array.name,ta_exp->u.Array.name) == 0) rhs_first_ref = true;
+            }
 
             bool isAMOp = (exact_compare_index_lists(lhs_indices, rhs_indices));
+            //a1121[p3,h1,p2,h2] = t_vo[p3,h1] * t_vo[p2,h2];
+            bool firstRefInd = (lhs_indices->length > rhs_first_ref_indices->length);
             bool isEqInd = (lhs_indices->length == rhs_indices->length);
             bool isAddOp = isEqInd && isAMOp;
-            bool isMultOp = (lhs_indices->length < rhs_indices->length) || (isEqInd && !isAMOp);
+            bool isMultOp = (lhs_indices->length < rhs_indices->length) || (isEqInd && !isAMOp) || (isEqInd && firstRefInd);
 
             if (isMultOp) {
                 //printf(" == MULT OP\n");
@@ -212,7 +224,11 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                 AddOp mop = make_AddOp(0, 0, alpha);
 
                 Exp tc_exp = vector_get(&lhs_aref, 0);
-                Exp ta_exp = vector_get(&rhs_aref, 0);
+
+                int ta_ind = 0;
+                if(rhs_first_ref) ta_ind++;
+
+                Exp ta_exp = vector_get(&rhs_aref, ta_ind);
 
                 getIndexIDs(eqn, tc_exp, mop->tc_ids);
                 getIndexIDs(eqn, ta_exp, mop->ta_ids);
@@ -221,6 +237,24 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                 getTensorIDs(eqn, ta_exp, &mop->ta);
 
                 vector_add(&eqn->op_entries, make_OpEntry(OpTypeAdd, mop, NULL));
+
+                //FIXME: Negative sign indices -1 coef not handled, coef for one sub-exp is used for all subexps
+                if (vector_count(&rhs_aref) > ta_ind+1){
+                    int k;
+                    for (k = ta_ind + 1;k<vector_count(&rhs_aref);k++){
+                        AddOp aop = make_AddOp(0, 0, alpha);
+
+                        Exp ta_exp = vector_get(&rhs_aref, k);
+
+                        getIndexIDs(eqn, tc_exp, aop->tc_ids);
+                        getIndexIDs(eqn, ta_exp, aop->ta_ids);
+
+                        getTensorIDs(eqn, tc_exp, &aop->tc);
+                        getTensorIDs(eqn, ta_exp, &aop->ta);
+
+                        vector_add(&eqn->op_entries, make_OpEntry(OpTypeAdd, aop, NULL));
+                    }
+                }
 
             }
             else {
@@ -324,6 +358,7 @@ void collectArrayRefs(Exp exp, vector *arefs, double *alpha) {
             break;
         case is_Addition:
             el = (exp->u.Addition.subexps);
+            *alpha = exp->coef;
             while (el != NULL) {
                 collectArrayRefs(el->head, arefs, alpha);
                 el = el->tail;
@@ -331,6 +366,7 @@ void collectArrayRefs(Exp exp, vector *arefs, double *alpha) {
             break;
         case is_Multiplication:
             el = (exp->u.Multiplication.subexps);
+            *alpha = exp->coef;
             while (el != NULL) {
                 collectArrayRefs(el->head, arefs, alpha);
                 el = el->tail;

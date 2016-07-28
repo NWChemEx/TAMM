@@ -130,6 +130,20 @@ bool check_array_usage(tce_string_array list1, tce_string_array list2){
     return true;
 }
 
+
+bool exact_compare_index_lists(tce_string_array list1, tce_string_array list2){
+	int len1 = list1->length;
+	int len2 = list2->length;
+	if(len1!=len2) return false;
+	string* alist1 = list1->list;
+	string* alist2 = list2->list;
+	int i=0;
+	for (i=0;i<len1;i++){
+		if(strcmp(alist1[i],alist2[i])!=0) return  false;
+	}
+	return true;
+}
+
 void print_index_list(tce_string_array list1){
 	int i=0;
 	for(i=0;i<list1->length;i++) printf("%s,",list1->list[i]);

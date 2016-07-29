@@ -15,7 +15,7 @@ typedef struct ArrayRefAlpha_ *ArrayRefAlpha;
 struct ArrayRefAlpha_ {
     double alpha;
     Exp aref;
-} ;
+};
 
 ArrayRefAlpha make_ArrayRefAlpha(double alpha, Exp aref) {
     ArrayRefAlpha p = tce_malloc(sizeof(*p));
@@ -178,7 +178,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 //                Exp e = vector_get(&lhs_aref, i);
 //                printf("%s ", e->u.Array.name);
 //            }
-            vector_init(&rhs_aref); vector_init(&rhs_allref);
+            vector_init(&rhs_aref);
+            vector_init(&rhs_allref);
             collectArrayRefs(s->u.AssignStmt.rhs, &rhs_allref, &alpha);
 
             tce_string_array lhs_indices = collectExpIndices(s->u.AssignStmt.lhs);
@@ -196,28 +197,29 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 //                if(tc_ids[i]!=-1) printf("%d, ",tc_ids[i]);
 
 
-            for (i=0;i< vector_count(&rhs_allref);i++){
+            for (i = 0; i < vector_count(&rhs_allref); i++) {
                 Exp e = vector_get(&rhs_allref, i);
-                if (e->kind == is_NumConst){
-                    Exp e1 = vector_get(&rhs_allref, i+1);
-                    if (e1->kind == is_ArrayRef){
-                        vector_add(&rhs_aref,make_ArrayRefAlpha(e->u.NumConst.value * e1->coef, e1));
+                if (e->kind == is_NumConst) {
+                    Exp e1 = vector_get(&rhs_allref, i + 1);
+                    if (e1->kind == is_ArrayRef) {
+                        vector_add(&rhs_aref, make_ArrayRefAlpha(e->u.NumConst.value * e1->coef, e1));
                         i++;
                     }
                 }
                 else {
                     Exp e1 = vector_get(&rhs_allref, i);
-                    vector_add(&rhs_aref,make_ArrayRefAlpha(1.0*e1->coef, e1));
+                    vector_add(&rhs_aref, make_ArrayRefAlpha(1.0 * e1->coef, e1));
                 }
             }
 
             bool rhs_first_ref = false;
-            tce_string_array rhs_first_ref_indices = collectExpIndices(((ArrayRefAlpha)vector_get(&rhs_aref, 0))->aref);
+            tce_string_array rhs_first_ref_indices = collectExpIndices(
+                    ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref);
 
-            if(vector_count(&rhs_aref) > 1) {
+            if (vector_count(&rhs_aref) > 1) {
                 Exp tc_exp = vector_get(&lhs_aref, 0);
-                Exp ta_exp = ((ArrayRefAlpha)vector_get(&rhs_aref, 0))->aref;
-                if (strcmp(tc_exp->u.Array.name,ta_exp->u.Array.name) == 0) rhs_first_ref = true;
+                Exp ta_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref;
+                if (strcmp(tc_exp->u.Array.name, ta_exp->u.Array.name) == 0) rhs_first_ref = true;
             }
 
             bool isAMOp = (exact_compare_index_lists(lhs_indices, rhs_indices));
@@ -225,7 +227,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
             bool firstRefInd = (lhs_indices->length > rhs_first_ref_indices->length);
             bool isEqInd = (lhs_indices->length == rhs_indices->length);
             bool isAddOp = isEqInd && isAMOp;
-            bool isMultOp = (lhs_indices->length < rhs_indices->length) || (isEqInd && !isAMOp) || (isEqInd && firstRefInd);
+            bool isMultOp =
+                    (lhs_indices->length < rhs_indices->length) || (isEqInd && !isAMOp) || (isEqInd && firstRefInd);
 
             if (isMultOp) {
                 //printf(" == MULT OP\n");
@@ -233,8 +236,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                 MultOp mop = make_MultOp(0, 0, 0, alpha);
 
                 Exp tc_exp = vector_get(&lhs_aref, 0);
-                Exp ta_exp = ((ArrayRefAlpha)vector_get(&rhs_aref, 0))->aref;
-                Exp tb_exp = ((ArrayRefAlpha)vector_get(&rhs_aref, 1))->aref;
+                Exp ta_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref;
+                Exp tb_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, 1))->aref;
 
                 getIndexIDs(eqn, tc_exp, mop->tc_ids);
                 getIndexIDs(eqn, ta_exp, mop->ta_ids);
@@ -254,11 +257,11 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                 Exp tc_exp = vector_get(&lhs_aref, 0);
 
                 int ta_ind = 0;
-                if(rhs_first_ref) ta_ind++;
+                if (rhs_first_ref) ta_ind++;
 
-                AddOp mop = make_AddOp(0, 0, ((ArrayRefAlpha)vector_get(&rhs_aref, ta_ind))->alpha);
+                AddOp mop = make_AddOp(0, 0, ((ArrayRefAlpha) vector_get(&rhs_aref, ta_ind))->alpha);
 
-                Exp ta_exp = ((ArrayRefAlpha)vector_get(&rhs_aref, ta_ind))->aref;
+                Exp ta_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, ta_ind))->aref;
 
                 getIndexIDs(eqn, tc_exp, mop->tc_ids);
                 getIndexIDs(eqn, ta_exp, mop->ta_ids);
@@ -268,13 +271,13 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 
                 vector_add(&eqn->op_entries, make_OpEntry(OpTypeAdd, mop, NULL));
 
-                
-                if (vector_count(&rhs_aref) > ta_ind+1){
-                    int k;
-                    for (k = ta_ind + 1;k<vector_count(&rhs_aref);k++){
-                        AddOp aop = make_AddOp(0, 0, ((ArrayRefAlpha)vector_get(&rhs_aref, k))->alpha);
 
-                        Exp ta_exp = ((ArrayRefAlpha)vector_get(&rhs_aref, k))->aref;
+                if (vector_count(&rhs_aref) > ta_ind + 1) {
+                    int k;
+                    for (k = ta_ind + 1; k < vector_count(&rhs_aref); k++) {
+                        AddOp aop = make_AddOp(0, 0, ((ArrayRefAlpha) vector_get(&rhs_aref, k))->alpha);
+
+                        Exp ta_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, k))->aref;
 
                         getIndexIDs(eqn, tc_exp, aop->tc_ids);
                         getIndexIDs(eqn, ta_exp, aop->ta_ids);
@@ -382,7 +385,7 @@ void collectArrayRefs(Exp exp, vector *arefs, double *alpha) {
             break;
         case is_NumConst:
             *alpha = *alpha * exp->u.NumConst.value;
-            vector_add(arefs,exp);
+            vector_add(arefs, exp);
             break;
         case is_ArrayRef:
             *alpha = *alpha * exp->coef;

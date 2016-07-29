@@ -21,23 +21,23 @@ typedef struct {
     vector index_entries;
     vector tensor_entries;
     vector op_entries;
-} Equations ;
+} Equations;
 
 
 struct RangeEntry_ {
     char *name; /*name for this range*/
-} ;
+};
 
 struct IndexEntry_ {
     char *name; /*name of this index*/
     int range_id; /*index into the RangeEntry struct*/
-} ;
+};
 
 struct TensorEntry_ {
     char *name;
     int range_ids[MAX_TENSOR_DIMS]; /*dimensions in terms of index into RangeEntry struct*/
     int ndim, nupper;
-} ;
+};
 
 /* tc[tc_ids] = alpha * ta[ta_ids]*/
 struct AddOp_ {
@@ -45,7 +45,7 @@ struct AddOp_ {
     double alpha;
     int tc_ids[MAX_TENSOR_DIMS]; /*index labels for tc in terms of index into IndexEntry struct*/
     int ta_ids[MAX_TENSOR_DIMS]; /*index labels for tc in terms of index into IndexEntry struct*/
-} ;
+};
 
 /* tc[tc_ids] += alpha * ta[ta_ids] * tb[tb_ids]*/
 struct MultOp_ {
@@ -54,7 +54,7 @@ struct MultOp_ {
     int tc_ids[MAX_TENSOR_DIMS];
     int ta_ids[MAX_TENSOR_DIMS];
     int tb_ids[MAX_TENSOR_DIMS];
-} ;
+};
 
 typedef enum {
     OpTypeAdd,
@@ -65,7 +65,7 @@ struct OpEntry_ {
     OpType optype;
     AddOp add;
     MultOp mult;
-} ;
+};
 
 
 void generate_intermediate_ast(Equations *eqn, TranslationUnit root);

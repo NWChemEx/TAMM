@@ -43,7 +43,7 @@
 
 
     // compound-element
-    compound_element(C) ::= LBRACE element_list(E) RBRACE . {
+    compound_element(C) ::= identifier LBRACE element_list(E) RBRACE . {
       CompoundElem ce = make_CompoundElem(E);
       C = ce; 
     }

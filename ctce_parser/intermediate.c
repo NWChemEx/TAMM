@@ -10,6 +10,20 @@
 //    //return p;
 //}
 
+typedef struct ArrayRefAlpha_ *ArrayRefAlpha;
+
+struct ArrayRefAlpha_ {
+    double alpha;
+    Exp aref;
+} ;
+
+ArrayRefAlpha make_ArrayRefAlpha(double alpha, Exp aref) {
+    ArrayRefAlpha p = tce_malloc(sizeof(*p));
+    p->alpha = alpha;
+    p->aref = aref;
+    return p;
+}
+
 RangeEntry make_RangeEntry(string name) {
     RangeEntry p = tce_malloc(sizeof(*p));
     p->name = name;
@@ -152,20 +166,20 @@ void generate_intermediate_Decl(Equations *eqn, Decl d) {
 }
 
 void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
-    vector lhs_aref, rhs_aref;
+    vector lhs_aref, rhs_aref, rhs_allref;
     double alpha = 1;
     switch (s->kind) {
         case is_AssignStmt:
 
             vector_init(&lhs_aref);
             collectArrayRefs(s->u.AssignStmt.lhs, &lhs_aref, &alpha);
-//            int i = 0;
+            int i = 0;
 //            for (i = 0; i < vector_count(&lhs_aref); i++) {
 //                Exp e = vector_get(&lhs_aref, i);
 //                printf("%s ", e->u.Array.name);
 //            }
-            vector_init(&rhs_aref);
-            collectArrayRefs(s->u.AssignStmt.rhs, &rhs_aref, &alpha);
+            vector_init(&rhs_aref); vector_init(&rhs_allref);
+            collectArrayRefs(s->u.AssignStmt.rhs, &rhs_allref, &alpha);
 
             tce_string_array lhs_indices = collectExpIndices(s->u.AssignStmt.lhs);
             tce_string_array rhs_indices = collectExpIndices(s->u.AssignStmt.rhs);
@@ -181,12 +195,28 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 //            for (i=0;i<MAX_TENSOR_DIMS;i++)
 //                if(tc_ids[i]!=-1) printf("%d, ",tc_ids[i]);
 
+
+            for (i=0;i< vector_count(&rhs_allref);i++){
+                Exp e = vector_get(&rhs_allref, i);
+                if (e->kind == is_NumConst){
+                    Exp e1 = vector_get(&rhs_allref, i+1);
+                    if (e1->kind == is_ArrayRef){
+                        vector_add(&rhs_aref,make_ArrayRefAlpha(e->u.NumConst.value * e1->coef, e1));
+                        i++;
+                    }
+                }
+                else {
+                    Exp e1 = vector_get(&rhs_allref, i);
+                    vector_add(&rhs_aref,make_ArrayRefAlpha(1.0*e1->coef, e1));
+                }
+            }
+
             bool rhs_first_ref = false;
-            tce_string_array rhs_first_ref_indices = collectExpIndices(vector_get(&rhs_aref,0));
+            tce_string_array rhs_first_ref_indices = collectExpIndices(((ArrayRefAlpha)vector_get(&rhs_aref, 0))->aref);
 
             if(vector_count(&rhs_aref) > 1) {
                 Exp tc_exp = vector_get(&lhs_aref, 0);
-                Exp ta_exp = vector_get(&rhs_aref, 0);
+                Exp ta_exp = ((ArrayRefAlpha)vector_get(&rhs_aref, 0))->aref;
                 if (strcmp(tc_exp->u.Array.name,ta_exp->u.Array.name) == 0) rhs_first_ref = true;
             }
 
@@ -203,8 +233,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                 MultOp mop = make_MultOp(0, 0, 0, alpha);
 
                 Exp tc_exp = vector_get(&lhs_aref, 0);
-                Exp ta_exp = vector_get(&rhs_aref, 0);
-                Exp tb_exp = vector_get(&rhs_aref, 1);
+                Exp ta_exp = ((ArrayRefAlpha)vector_get(&rhs_aref, 0))->aref;
+                Exp tb_exp = ((ArrayRefAlpha)vector_get(&rhs_aref, 1))->aref;
 
                 getIndexIDs(eqn, tc_exp, mop->tc_ids);
                 getIndexIDs(eqn, ta_exp, mop->ta_ids);
@@ -221,14 +251,14 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 
                 //printf(" == ADD OP\n");
 
-                AddOp mop = make_AddOp(0, 0, alpha);
-
                 Exp tc_exp = vector_get(&lhs_aref, 0);
 
                 int ta_ind = 0;
                 if(rhs_first_ref) ta_ind++;
 
-                Exp ta_exp = vector_get(&rhs_aref, ta_ind);
+                AddOp mop = make_AddOp(0, 0, ((ArrayRefAlpha)vector_get(&rhs_aref, ta_ind))->alpha);
+
+                Exp ta_exp = ((ArrayRefAlpha)vector_get(&rhs_aref, ta_ind))->aref;
 
                 getIndexIDs(eqn, tc_exp, mop->tc_ids);
                 getIndexIDs(eqn, ta_exp, mop->ta_ids);
@@ -238,13 +268,13 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 
                 vector_add(&eqn->op_entries, make_OpEntry(OpTypeAdd, mop, NULL));
 
-                //FIXME: Negative sign indices -1 coef not handled, coef for one sub-exp is used for all subexps
+                
                 if (vector_count(&rhs_aref) > ta_ind+1){
                     int k;
                     for (k = ta_ind + 1;k<vector_count(&rhs_aref);k++){
-                        AddOp aop = make_AddOp(0, 0, alpha);
+                        AddOp aop = make_AddOp(0, 0, ((ArrayRefAlpha)vector_get(&rhs_aref, k))->alpha);
 
-                        Exp ta_exp = vector_get(&rhs_aref, k);
+                        Exp ta_exp = ((ArrayRefAlpha)vector_get(&rhs_aref, k))->aref;
 
                         getIndexIDs(eqn, tc_exp, aop->tc_ids);
                         getIndexIDs(eqn, ta_exp, aop->ta_ids);
@@ -351,14 +381,16 @@ void collectArrayRefs(Exp exp, vector *arefs, double *alpha) {
             collectArrayRefs(exp->u.Parenth.exp, arefs, alpha);
             break;
         case is_NumConst:
-            *alpha = exp->u.NumConst.value;
+            *alpha = *alpha * exp->u.NumConst.value;
+            vector_add(arefs,exp);
             break;
         case is_ArrayRef:
+            *alpha = *alpha * exp->coef;
             vector_add(arefs, exp);
             break;
         case is_Addition:
             el = (exp->u.Addition.subexps);
-            *alpha = exp->coef;
+            *alpha = *alpha * exp->coef;
             while (el != NULL) {
                 collectArrayRefs(el->head, arefs, alpha);
                 el = el->tail;
@@ -366,7 +398,7 @@ void collectArrayRefs(Exp exp, vector *arefs, double *alpha) {
             break;
         case is_Multiplication:
             el = (exp->u.Multiplication.subexps);
-            *alpha = exp->coef;
+            *alpha = *alpha * exp->coef;
             while (el != NULL) {
                 collectArrayRefs(el->head, arefs, alpha);
                 el = el->tail;

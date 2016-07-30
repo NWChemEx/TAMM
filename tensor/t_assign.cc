@@ -11,7 +11,8 @@ namespace ctce {
         Tensor& tC, const vector<IndexName> &c_ids,
 	Tensor& tA, const vector<IndexName> &a_ids,
 	IterGroup<triangular>& out_itr, double coef,
-                   int sync_ga) {
+        int sync_ga,
+        int spos) {
 
       //const vector<IndexName>& c_ids = cids;//tC.name();
       //const vector<IndexName>& a_ids = aids;//tA.name();
@@ -26,17 +27,18 @@ namespace ctce {
       int taskDim = 1;
       char taskStr[10] = "NXTASKA";      
       int taskHandle;
+      int sub;
       if(sync_ga) {
         taskHandle = sync_ga;
+        sub = spos;
       }
       else {
         taskHandle = NGA_Create(C_INT, 1, &taskDim, taskStr, NULL); // global array for next task
         GA_Zero(taskHandle); // initialize to zero
         GA_Sync();
+        sub = 0;
       }
 
-
-      int sub = 0;
       int next = NGA_Read_inc(taskHandle, &sub, 1);
 
       vector<Integer> out_vec; // out_vec = c_ids_v
@@ -77,7 +79,6 @@ namespace ctce {
             delete [] buf_a;
             delete [] buf_a_sort;
           }
-          int sub = 0;
           next = NGA_Read_inc(taskHandle, &sub, 1);
         }
         ++count;
@@ -91,8 +92,8 @@ namespace ctce {
 
     void t_assign3(
         Integer* d_a, Integer* k_a_offset,
-        Integer* d_c, Integer* k_c_offset, Assignment& a, int sync_ga) {
-      t_assign2(d_a, k_a_offset, d_c, k_c_offset, a.tC(), a.cids(), a.tA(), a.aids(), a.out_itr(), a.coef(), sync_ga);
+        Integer* d_c, Integer* k_c_offset, Assignment& a, int sync_ga, int spos) {
+      t_assign2(d_a, k_a_offset, d_c, k_c_offset, a.tC(), a.cids(), a.tA(), a.aids(), a.out_itr(), a.coef(), sync_ga, spos);
     }
 
   } // extern C

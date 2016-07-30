@@ -189,7 +189,7 @@ namespace ctce {
         IterGroup<triangular>& sum_itr,
         IterGroup<CopyIter>& cp_itr,
 		 IterGroup<triangular>& out_itr,
-		 Multiplication& m) {
+		 Multiplication& m, int sync_ga) {
 
       //vector<Integer>& vtab = Table::value();
       const vector<IndexName>& c_ids = id2name(m.c_ids);//tC.name();
@@ -201,9 +201,15 @@ namespace ctce {
       int count = 0;
       int taskDim = 1;
       char taskStr[10] = "NXTASK";
-      int taskHandle = NGA_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
-      GA_Zero(taskHandle); // initialize to zero
-      GA_Sync();
+      int taskHandle;
+      if(sync_ga) {
+        taskHandle = sync_ga;
+      }
+      else {
+        taskHandle = NGA_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
+        GA_Zero(taskHandle); // initialize to zero
+        GA_Sync();
+      }
 
       int sub = 0;
       int next = NGA_Read_inc(taskHandle, &sub, 1);
@@ -379,17 +385,18 @@ namespace ctce {
 
       } // out_itr
 
-      GA_Sync(); // sync, wait for all procs to finish
-      GA_Destroy(taskHandle); // free
-
+      if(sync_ga==0) {
+        GA_Sync(); // sync, wait for all procs to finish
+        GA_Destroy(taskHandle); // free
+      }
     } // t_mult3
 
     void t_mult4(Integer* d_a, Integer* k_a_offset, Integer* d_b, Integer* k_b_offset,
-        Integer* d_c, Integer* k_c_offset, Multiplication& m) {
+                 Integer* d_c, Integer* k_c_offset, Multiplication& m, int sync_ga) {
 
       t_mult3(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset,
           m.tC(), m.tA(), m.tB(), m.coef(), m.sum_ids(),
-	      m.sum_itr(), m.cp_itr(), m.out_itr(), m);
+	      m.sum_itr(), m.cp_itr(), m.out_itr(), m, sync_ga);
     }
 
   } /*extern "C"*/

@@ -19,7 +19,7 @@ namespace ctce {
                          std::vector<vector<Tensor*> > &tensor_create_levels,
                          std::vector<vector<Tensor*> > &tensor_destroy_levels);
 
-  static void execute(Operation *op);
+  static void execute(Operation *op, int sync_ga);
   static int writes(Operation *op, std::vector<Tensor> &tensors);
   static vector<int> reads(Operation *op, std::vector<Tensor> &tensors);
   static void schedule(std::vector<Tensor> &tensors,
@@ -159,13 +159,13 @@ namespace ctce {
     schedule(tensors, ops, tensor_create_levels, tensor_destroy_levels, op_levels);
   }
 
-  static void execute(Operation *op) {
+  static void execute(Operation *op, int sync_ga) {
     switch(op->optype) {
     case OpTypeAdd:
-      op->add.execute();
+      op->add.execute(sync_ga);
       break;
     case OpTypeMult:
-      op->mult.execute();
+      op->mult.execute(sync_ga);
       break;
     default:
       printf("Unsupported operation type\n");
@@ -219,17 +219,32 @@ namespace ctce {
     assert(tensor_create_levels.size() == tensor_destroy_levels.size());
     assert(op_levels.size() == tensor_create_levels.size());
 
+    vector<int> sync_gas;
+    for(int i=0; i<ops.size(); i++) {
+      int taskDim = 1;
+      char taskStr[10] = "NXTASK";
+      int taskHandle = NGA_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
+      assert(taskHandle!=0);
+      GA_Zero(taskHandle); // initialize to zero
+      sync_gas.push_back(taskHandle);
+    }
+    GA_Sync();
+
     for(int i=0; i<nlevels; i++) {
       for(int j=0; j<tensor_create_levels[i].size(); j++) {
         tensor_create_levels[i][j]->create();
       }
       for(int j=0; j<op_levels[i].size(); j++) {
-        execute(op_levels[i][j]);
+        execute(op_levels[i][j], sync_gas[op_levels[i][j] - &ops[0]]);
       }
       for(int j=0; j<tensor_destroy_levels[i].size(); j++) {
         tensor_destroy_levels[i][j]->destroy();
       }
     }
+    GA_Sync();
+    for(int i=0; i<ops.size(); i++) {
+      GA_Destroy(sync_gas[i]);
+    }    
   }
 
   /**

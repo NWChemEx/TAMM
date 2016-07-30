@@ -8,42 +8,6 @@
 
 namespace ctce {
   /**
-   * Allocate all intermediate arrays upfront. Execute operations in
-   * input order. Deallocate all allocated arrays at the end.
-   */
-  void schedule_linear(std::vector<Tensor> &tensors,
-                       std::vector<Operation> &ops) {
-    std::vector<Tensor*> created_tensors;
-
-    for(int i=0; i<tensors.size(); i++) {
-      Tensor &t = tensors[i];
-      if(!t.attached() && !t.allocated()) {
-        t.create();
-        created_tensors.push_back(&t);
-      }
-    }
-
-    for(int i=0; i<ops.size(); i++) {
-      switch(ops[i].optype) {
-      case OpTypeAdd:
-        ops[i].add.execute();
-        break;
-      case OpTypeMult:
-        ops[i].mult.execute();
-        break;
-      default:
-        printf("Unsupported operation type\n");
-        assert(0);
-      }
-    }
-
-    for(size_t i=0; i<created_tensors.size(); i++) {
-      created_tensors[i]->destroy();
-    }
-  }
-
-
-  /**
    * Execution operations in input order. Allocate just before
    * definition. Deallocate right after last use.
    */
@@ -251,6 +215,71 @@ namespace ctce {
     for(size_t i=0; i<created_tensors.size(); i++) {
       created_tensors[i]->destroy();
     }
+  }
+
+  static void execute(Operation *op) {
+    switch(op->optype) {
+    case OpTypeAdd:
+      op->add.execute();
+      break;
+    case OpTypeMult:
+      op->mult.execute();
+      break;
+    default:
+      printf("Unsupported operation type\n");
+      assert(0);
+    }
+  }
+
+  void schedule(std::vector<Tensor> &tensors,
+                std::vector<Operation> &ops,
+                std::vector<vector<Tensor*> > &tensor_create_levels,
+                std::vector<vector<Tensor*> > &tensor_destroy_levels,
+                std::vector<vector<Operation *> > &op_levels) {
+    int nlevels = op_levels.size();
+    assert(tensor_create_levels.size() == tensor_destroy_levels.size());
+    assert(op_levels.size() == tensor_create_levels.size());
+
+    for(int i=0; i<nlevels; i++) {
+      for(int j=0; j<tensor_create_levels[i].size(); j++) {
+        tensor_create_levels[i][j]->create();
+      }
+      for(int j=0; j<op_levels[i].size(); j++) {
+        execute(op_levels[i][j]);
+      }
+      for(int j=0; j<tensor_destroy_levels[i].size(); j++) {
+        tensor_destroy_levels[i][j]->destroy();
+      }
+    }
+  }
+
+  /**
+   * Allocate all intermediate arrays upfront. Execute operations in
+   * input order. Deallocate all allocated arrays at the end.
+   */
+  void schedule_linear(std::vector<Tensor> &tensors,
+                       std::vector<Operation> &ops) {
+    std::vector<vector<Tensor*> > tensor_create_levels;
+    std::vector<vector<Tensor*> > tensor_destroy_levels;
+    std::vector<vector<Operation *> > op_levels;
+
+    tensor_create_levels.resize(ops.size());
+    tensor_destroy_levels.resize(ops.size());
+    op_levels.resize(ops.size());
+
+    for(int i=0; i<tensors.size(); i++) {
+      Tensor *t = &tensors[i];
+      if(!t->attached() && !t->allocated()) {
+        tensor_create_levels[0].push_back(t);
+        tensor_destroy_levels[ops.size()-1].push_back(t);
+      }
+    }
+
+    for(int i=0; i<ops.size(); i++) {
+      op_levels[i].push_back(&ops[i]);
+    }
+
+    schedule(tensors, ops, tensor_create_levels, tensor_destroy_levels, op_levels);
   }
 }
 

@@ -52,14 +52,14 @@ namespace ctce {
                           std::vector<vector<Tensor*> > &tensor_destroy_levels) {
     tensor_create_levels.clear();
     tensor_destroy_levels.clear();
-    tensor_create_levels.resize(ops.size());
-    tensor_destroy_levels.resize(ops.size());
+    tensor_create_levels.resize(op_levels.size());
+    tensor_destroy_levels.resize(op_levels.size());
 
     for(int i=0; i<tensors.size(); i++) {
       Tensor *t = &tensors[i];
       if(!t->attached() && !t->allocated()) {
         tensor_create_levels[0].push_back(t);
-        tensor_destroy_levels[ops.size()-1].push_back(t);
+        tensor_destroy_levels[op_levels.size()-1].push_back(t);
       }
     }
   }
@@ -250,10 +250,17 @@ namespace ctce {
   void schedule_levels(std::vector<Tensor> &tensors,
                        std::vector<Operation> &ops) {
     using std::vector;
-    vector<vector<Operation *> > levels;
+    vector<vector<Operation *> > op_levels;
     std::vector<Tensor*> created_tensors;
+    std::vector<vector<Tensor*> > tensor_create_levels;
+    std::vector<vector<Tensor*> > tensor_destroy_levels;
 
-    levelize(tensors, ops, levels);
+    levelize(tensors, ops, op_levels);
+
+    lazy_tensor_alloc(tensors, ops, op_levels, tensor_create_levels, tensor_destroy_levels);
+    schedule(tensors, ops, tensor_create_levels, tensor_destroy_levels, op_levels);
+
+#if 0
 
     //cout<<"nlevels="<<levels.size()<<endl;
     for(int i=0; i<tensors.size(); i++) {
@@ -284,6 +291,7 @@ namespace ctce {
     for(size_t i=0; i<created_tensors.size(); i++) {
       created_tensors[i]->destroy();
     }
+#endif
   }
 
   static void execute(Operation *op) {

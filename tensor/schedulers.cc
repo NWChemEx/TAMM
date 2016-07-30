@@ -7,42 +7,108 @@
 #include "equations.h"
 
 namespace ctce {
+
+  void lazy_tensor_alloc(std::vector<Tensor> &tensors,
+                         std::vector<Operation> &ops,
+                         std::vector<vector<Operation *> > op_levels,
+                         std::vector<vector<Tensor*> > &tensor_create_levels,
+                         std::vector<vector<Tensor*> > &tensor_destroy_levels);
+  void eager_tensor_alloc(std::vector<Tensor> &tensors,
+                         std::vector<Operation> &ops,
+                         std::vector<vector<Operation *> > op_levels,
+                         std::vector<vector<Tensor*> > &tensor_create_levels,
+                         std::vector<vector<Tensor*> > &tensor_destroy_levels);
+
+  static void execute(Operation *op);
+  void schedule(std::vector<Tensor> &tensors,
+                std::vector<Operation> &ops,
+                std::vector<vector<Tensor*> > &tensor_create_levels,
+                std::vector<vector<Tensor*> > &tensor_destroy_levels,
+                std::vector<vector<Operation *> > &op_levels);
   /**
    * Execution operations in input order. Allocate just before
    * definition. Deallocate right after last use.
    */
   void schedule_linear_lazy(std::vector<Tensor> &tensors,
-                       std::vector<Operation> &ops) {
-    std::vector<std::set<Tensor*> > create_tensor(ops.size()), destroy_tensor(ops.size());
-    std::vector<int> first_def(tensors.size(), ops.size()), last_use(tensors.size(), -1);
-
-    int ta, tb, tc;
+                            std::vector<Operation> &ops) {
+    std::vector<vector<Tensor*> > tensor_create_levels;
+    std::vector<vector<Tensor*> > tensor_destroy_levels;
+    std::vector<vector<Operation *> > op_levels;
+    
+    op_levels.resize(ops.size());
     for(int i=0; i<ops.size(); i++) {
-      switch(ops[i].optype) {
-      case OpTypeAdd:
-        ta = &ops[i].add.tA() - &tensors[0];
-        tc = &ops[i].add.tC() - &tensors[0];
-        assert(ta>=0 && ta<tensors.size());
-        assert(tc>=0 && tc<tensors.size());
-        last_use[ta] = i;
-        first_def[tc] = std::min(i, first_def[tc]);
-        break;
-      case OpTypeMult:
-        ta = &ops[i].mult.tA() - &tensors[0];
-        tb = &ops[i].mult.tB() - &tensors[0];
-        tc = &ops[i].mult.tC() - &tensors[0];
-        assert(ta>=0 && ta<tensors.size());
-        assert(tb>=0 && tb<tensors.size());
-        assert(tc>=0 && tc<tensors.size());
-        last_use[ta] = i;
-        last_use[tb] = i;
-        first_def[tc] = std::min(i, first_def[tc]);
-        break;
-      default:
-        printf("Unsupported operation type\n");
-        assert(0);
+      op_levels[i].push_back(&ops[i]);
+    }
+    lazy_tensor_alloc(tensors, ops, op_levels, tensor_create_levels, tensor_destroy_levels);
+
+    schedule(tensors, ops, tensor_create_levels, tensor_destroy_levels, op_levels);
+  }
+
+
+  void eager_tensor_alloc(std::vector<Tensor> &tensors,
+                          std::vector<Operation> &ops,
+                          std::vector<vector<Operation *> > op_levels,
+                          std::vector<vector<Tensor*> > &tensor_create_levels,
+                          std::vector<vector<Tensor*> > &tensor_destroy_levels) {
+    tensor_create_levels.clear();
+    tensor_destroy_levels.clear();
+    tensor_create_levels.resize(ops.size());
+    tensor_destroy_levels.resize(ops.size());
+
+    for(int i=0; i<tensors.size(); i++) {
+      Tensor *t = &tensors[i];
+      if(!t->attached() && !t->allocated()) {
+        tensor_create_levels[0].push_back(t);
+        tensor_destroy_levels[ops.size()-1].push_back(t);
       }
     }
+  }
+
+  void lazy_tensor_alloc(std::vector<Tensor> &tensors,
+                         std::vector<Operation> &ops,
+                         std::vector<vector<Operation *> > op_levels,
+                         std::vector<vector<Tensor*> > &tensor_create_levels,
+                         std::vector<vector<Tensor*> > &tensor_destroy_levels) {
+    //std::vector<std::set<Tensor*> > create_tensor(ops.size()), destroy_tensor(ops.size());
+    // std::vector<int> first_def(tensors.size(), ops.size()), last_use(tensors.size(), -1);
+    std::vector<int> first_def(tensors.size(), op_levels.size()), last_use(tensors.size(), -1);
+
+    int ta, tb, tc;
+    for(int i=0; i<op_levels.size(); i++) {
+      for(int j=0; j<op_levels[i].size(); j++) {
+        Operation *op = op_levels[i][j];
+
+        switch(op->optype) {
+        case OpTypeAdd:
+          ta = &op->add.tA() - &tensors[0];
+          tc = &op->add.tC() - &tensors[0];
+          assert(ta>=0 && ta<tensors.size());
+          assert(tc>=0 && tc<tensors.size());
+          last_use[ta] = i;
+          first_def[tc] = std::min(i, first_def[tc]);
+          break;
+        case OpTypeMult:
+          ta = &op->mult.tA() - &tensors[0];
+          tb = &op->mult.tB() - &tensors[0];
+          tc = &op->mult.tC() - &tensors[0];
+          assert(ta>=0 && ta<tensors.size());
+          assert(tb>=0 && tb<tensors.size());
+          assert(tc>=0 && tc<tensors.size());
+          last_use[ta] = i;
+          last_use[tb] = i;
+          first_def[tc] = std::min(i, first_def[tc]);
+          break;
+        default:
+          printf("Unsupported operation type\n");
+          assert(0);
+        }
+      }
+    }
+
+    tensor_create_levels.clear(); 
+    tensor_create_levels.resize(op_levels.size());
+    tensor_destroy_levels.clear(); 
+    tensor_destroy_levels.resize(op_levels.size());
 
     for(int i=0; i<tensors.size(); i++) {
       Tensor &t = tensors[i];
@@ -55,21 +121,23 @@ namespace ctce {
         continue;
       }
       int fd = first_def[i];
-      assert(fd>=0 && fd<ops.size());
-      create_tensor[fd].insert(&t);
+      assert(fd>=0 && fd<op_levels.size());
+      tensor_create_levels[fd].push_back(&t);
       if(last_use[i] == -1) {
         assert(0);
         //defined but never used
-        destroy_tensor[fd].insert(&t);
+        tensor_destroy_levels[fd].push_back(&t);
       }
       else {
         int lu = last_use[i];
         assert(fd <= lu);
-        assert(lu < ops.size());
-        destroy_tensor[lu].insert(&t);
+        assert(lu < op_levels.size());
+        tensor_destroy_levels[lu].push_back(&t);
       }
     }
-    
+  }
+
+#if 0    
     // std::vector<Tensor*> created_tensors;
     // for(int i=0; i<tensors.size(); i++) {
     //   Tensor &t = tensors[i];
@@ -111,6 +179,7 @@ namespace ctce {
     //   created_tensors[i]->destroy();
     // }
   }
+#endif
 
   void levelize(std::vector<Tensor> &tensors,
                 std::vector<Operation> &ops,
@@ -263,21 +332,12 @@ namespace ctce {
     std::vector<vector<Tensor*> > tensor_destroy_levels;
     std::vector<vector<Operation *> > op_levels;
 
-    tensor_create_levels.resize(ops.size());
-    tensor_destroy_levels.resize(ops.size());
     op_levels.resize(ops.size());
-
-    for(int i=0; i<tensors.size(); i++) {
-      Tensor *t = &tensors[i];
-      if(!t->attached() && !t->allocated()) {
-        tensor_create_levels[0].push_back(t);
-        tensor_destroy_levels[ops.size()-1].push_back(t);
-      }
-    }
 
     for(int i=0; i<ops.size(); i++) {
       op_levels[i].push_back(&ops[i]);
     }
+    eager_tensor_alloc(tensors, ops, op_levels, tensor_create_levels, tensor_destroy_levels);
 
     schedule(tensors, ops, tensor_create_levels, tensor_destroy_levels, op_levels);
   }

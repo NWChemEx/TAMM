@@ -35,6 +35,7 @@ array_decls = []
 #label_prefix = 't1' # label suffix comes from file name ?
 lhsanames = dict()
 intermediate_decls = dict()
+scopes = dict()
 
 
 class NWChemTCEVisitor(ParseTreeVisitor):
@@ -80,7 +81,7 @@ class NWChemTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by NWChemTCEParser#statement.
     def visitStatement(self, ctx):
-        global labelcount_io, labelcount_ia, lhsanames, intermediate_decls
+        global labelcount_io, labelcount_ia, lhsanames, intermediate_decls, scopes
         #self.visitArray_reference(ctx.children[0])
         it = self.print_index_list(((ctx.children[0]).children[2]))
         ilist = it[1]
@@ -88,6 +89,9 @@ class NWChemTCEVisitor(ParseTreeVisitor):
         #printresws(lhs_array_name)
         label = ""
         io_flag = False
+
+
+
 
         if (lhs_array_name[0] != 'i'):
             printres("ARRAY NAME HAS TO START WITH an I \n")
@@ -144,7 +148,27 @@ class NWChemTCEVisitor(ParseTreeVisitor):
         # for lnames in intermediate_decls.keys():
         #     printresws("array " + lnames + intermediate_decls[lnames] + "\n")
 
-        if io_flag: lhsanames.clear()
+        lhs_array_name = str((ctx.children[0]).children[0])
+        getciv = int(lhs_array_name[1:])
+        if io_flag:
+            lhsanames.clear()
+            scopes.clear()
+            return
+        if lhs_array_name not in scopes.keys():
+            scopes[lhs_array_name] = "i" + str(getciv - 1)
+        nciv = getciv + 1
+        nextk = "i" + str(getciv + 1)
+        if nextk in scopes.keys():
+            del scopes[nextk]
+            del lhsanames[nextk]
+            while True:
+                nciv += 1
+                nextk = "i" + str(nciv)
+                if nextk in scopes.keys():
+                    del scopes[nextk]
+                    del lhsanames[nextk]
+                else:
+                    break
         #self.visitChildren(ctx)
 
 

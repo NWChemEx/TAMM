@@ -84,9 +84,12 @@ void check_Decl(Decl d, SymbolTable symtab) {
             string comb_index_list = combine_indexLists(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen,
                                                         d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen);
             //printf("%s -> %s\n", d->u.ArrayDecl.name, comb_index_list);
-            tce_string_array ind_list = stringToList(comb_index_list);
             int i = 0;
-            for (i = 0; i < ind_list->length; i++) verifyRangeRef(symtab, ind_list->list[i], d->lineno);
+            string* ind_list = d->u.ArrayDecl.upperIndices;
+            for (i = 0; i < d->u.ArrayDecl.ulen; i++) verifyRangeRef(symtab, ind_list[i], d->lineno);
+            ind_list = d->u.ArrayDecl.lowerIndices;
+            for (i = 0; i < d->u.ArrayDecl.llen; i++) verifyRangeRef(symtab, ind_list[i], d->lineno);
+
             ST_insert(symtab, d->u.ArrayDecl.name, comb_index_list);
             break;
         default:

@@ -27,6 +27,12 @@ if __name__ == '__main__':
         print "File name should be of the form ccsd_t1.eq"
         sys.exit(1)
 
+    print "/*"
+    with open(sys.argv[1],'r') as f:
+        for line in f:
+            print " *  " + line.strip("\n")
+    print "*/\n\n"
+
     visitor = OpMinVisitor(fname[0],fname[1])
     visitor.visit(tree)
 

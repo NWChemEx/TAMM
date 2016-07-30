@@ -8,6 +8,16 @@ array v[N,N][N,N]: irrep_v;
 array t_vo[V][O]: irrep_t;
 array t_vvoo[V,V][O,O]: irrep_t;
 array f[N][N]: irrep_f;
+array t2_7_1[O,V][O,V];
+array t2_4_4_1[O][V];
+array t2_3_1[V,V][O,V];
+array t2_2_2_1[O,O][O,O];
+array t2_4_1[O][O];
+array t2_2_2_2_1[O,O][O,V];
+array t2_5_1[V][V];
+array t2_6_1[O,O][O,O];
+array t2_6_6_1[O,O][O,V];
+array t2_2_1[O,V][O,O];
 
 t2_1:       i0[p3,p4,h1,h2] += 1 * v[p3,p4,h1,h2];
 t2_2_1:     t2_2_1[h10,p3,h1,h2] += 1 * v[h10,p3,h1,h2];

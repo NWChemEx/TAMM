@@ -19,7 +19,7 @@ namespace ctce {
                          std::vector<vector<Tensor*> > &tensor_create_levels,
                          std::vector<vector<Tensor*> > &tensor_destroy_levels);
 
-  static void execute(Operation *op, int sync_ga);
+  static void execute(Operation *op, int sync_ga, int spos);
   static int writes(Operation *op, std::vector<Tensor> &tensors);
   static vector<int> reads(Operation *op, std::vector<Tensor> &tensors);
   static void schedule(std::vector<Tensor> &tensors,
@@ -159,13 +159,13 @@ namespace ctce {
     schedule(tensors, ops, tensor_create_levels, tensor_destroy_levels, op_levels);
   }
 
-  static void execute(Operation *op, int sync_ga) {
+  static void execute(Operation *op, int sync_ga, int spos) {
     switch(op->optype) {
     case OpTypeAdd:
-      op->add.execute(sync_ga);
+      op->add.execute(sync_ga, spos);
       break;
     case OpTypeMult:
-      op->mult.execute(sync_ga);
+      op->mult.execute(sync_ga, spos);
       break;
     default:
       printf("Unsupported operation type\n");
@@ -220,8 +220,9 @@ namespace ctce {
     assert(op_levels.size() == tensor_create_levels.size());
 
     vector<int> sync_gas;
-    for(int i=0; i<ops.size(); i++) {
-      int taskDim = 1;
+    for(int i=0; i<op_levels.size(); i++) {
+      assert(op_levels[i].size()>0);
+      int taskDim = op_levels[i].size();
       char taskStr[10] = "NXTASK";
       int taskHandle = NGA_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
       assert(taskHandle!=0);
@@ -235,14 +236,14 @@ namespace ctce {
         tensor_create_levels[i][j]->create();
       }
       for(int j=0; j<op_levels[i].size(); j++) {
-        execute(op_levels[i][j], sync_gas[op_levels[i][j] - &ops[0]]);
+        execute(op_levels[i][j], sync_gas[i], j);
       }
       for(int j=0; j<tensor_destroy_levels[i].size(); j++) {
         tensor_destroy_levels[i][j]->destroy();
       }
     }
     GA_Sync();
-    for(int i=0; i<ops.size(); i++) {
+    for(int i=0; i<sync_gas.size(); i++) {
       GA_Destroy(sync_gas[i]);
     }    
   }

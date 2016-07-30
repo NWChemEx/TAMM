@@ -24,7 +24,7 @@ namespace ctce {
         Tensor& tC, const vector<IndexName> &c_ids,
 				Tensor& tA, const vector<IndexName> &a_ids,
 				IterGroup<triangular>& out_itr, double coef,
-                   int sync_ga=0);
+        int sync_ga=0, int spos=0);
 
     /**
      * Simply wrap t_assign2
@@ -32,7 +32,7 @@ namespace ctce {
      * @param[in] a Assignment store all the input data needed for t_assign2
      */
     void t_assign3(Integer* d_a, Integer* k_a_offset,
-                   Integer* d_c, Integer* k_c_offset, Assignment& a, int sync_ga=0);
+                   Integer* d_c, Integer* k_c_offset, Assignment& a, int sync_ga=0, int spos=0);
 
     void t_assign4(Integer* d_a, Integer* k_a_offset,
         Integer* d_c, Integer* k_c_offset, Assignment& a);

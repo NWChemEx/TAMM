@@ -63,7 +63,7 @@ namespace ctce {
         IterGroup<triangular>& sum_itr,
         IterGroup<CopyIter>& cp_itr,
 								 IterGroup<triangular>& out_itr,
-								 Multiplication& m, int sync_ga=0);
+								 Multiplication& m, int sync_ga=0, int spos=0);
 
     /**
      * Simply wrap t_mult3
@@ -71,7 +71,7 @@ namespace ctce {
      * @param[in] m Multiplication store all the input data needed for t_mult3
      */ 
     void t_mult4(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset,
-                 Integer *d_c, Integer *k_c_offset, Multiplication& m, int sync_ga=0);
+                 Integer *d_c, Integer *k_c_offset, Multiplication& m, int sync_ga=0, int spos=0);
 
   }
 

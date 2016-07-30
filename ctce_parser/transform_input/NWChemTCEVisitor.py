@@ -7,14 +7,22 @@ from NWChemTCEParser import NWChemTCEParser
 from antlr4.tree.Tree import TerminalNodeImpl
 
 
+codegen = ""
+
 def printres(s):
-    print(s, end="")
+    global  codegen
+    #print(s, end="")
+    codegen += str(s)
 
 def printresws(s):
-    print(" " + str(s), end=" ")
+    global codegen
+    codegen += " " + str(s) + " "
+    #print(" " + str(s), end=" ")
 
 def printws():
-    print(" ", end="")
+    global codegen
+    codegen += " "
+    #print(" ", end="")
 
 
 # This class defines a complete generic visitor for a parse tree produced by NWChemTCEParser.
@@ -26,6 +34,7 @@ namemap = dict()
 array_decls = []
 #label_prefix = 't1' # label suffix comes from file name ?
 lhsanames = dict()
+intermediate_decls = dict()
 
 
 class NWChemTCEVisitor(ParseTreeVisitor):
@@ -33,6 +42,10 @@ class NWChemTCEVisitor(ParseTreeVisitor):
     def __init__(self, x='tce', y='t'):
         self.function_prefix = x
         self.label_prefix = y
+
+    def getCode(self):
+        global codegen, intermediate_decls
+        return [codegen, intermediate_decls]
 
     # Visit a parse tree produced by NWChemTCEParser#assignment_operator.
     def visitAssignment_operator(self, ctx):
@@ -67,7 +80,7 @@ class NWChemTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by NWChemTCEParser#statement.
     def visitStatement(self, ctx):
-        global labelcount_io, labelcount_ia, lhsanames
+        global labelcount_io, labelcount_ia, lhsanames, intermediate_decls
         #self.visitArray_reference(ctx.children[0])
         it = self.print_index_list(((ctx.children[0]).children[2]))
         ilist = it[1]
@@ -111,12 +124,25 @@ class NWChemTCEVisitor(ParseTreeVisitor):
         printres(ilist)
         printres("]")
 
+        if lhs_array_name not in intermediate_decls.keys():
+            il = []
+            for index in ilist.split(","):
+                if (index[0] == 'h'): il.append('O')
+                elif (index[0] == 'p'): il.append('V')
+                else: printres("arr index can only start with either p or h\n")
+
+            ilen = len(il)
+            intermediate_decls[lhs_array_name] = "[" + ",".join(il[0:ilen/2]) + "][" + ",".join(il[ilen/2:ilen]) + "];"
+
         # print rhs now
         printws()
         self.visitAssignment_operator(ctx.children[1])
         printws()
         self.visitPtype(ctx.children[2])
         printres("\n")
+
+        # for lnames in intermediate_decls.keys():
+        #     printresws("array " + lnames + intermediate_decls[lnames] + "\n")
 
         if io_flag: lhsanames.clear()
         #self.visitChildren(ctx)

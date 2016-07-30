@@ -53,6 +53,13 @@ if __name__ == '__main__':
     exec_order = res[0]
     array_decls = res[1]
 
+    visitor = NWChemTCEVisitor(fname[0],fname[1])
+    for stmt in exec_order:
+        visitor.visitStatement(stmt)
+
+    code_idecls = visitor.getCode()
+
+
     print fname[1] + " {\n"
 
     print_index_decls(res[2])
@@ -60,10 +67,10 @@ if __name__ == '__main__':
     for arr in array_decls:
         print(arr)
 
+    for arr in code_idecls[1].keys():
+        if (arr != "i0"): print "array " + arr + code_idecls[1][arr]
+
     print ""
+    print code_idecls[0]
 
-    visitor = NWChemTCEVisitor(fname[0],fname[1])
-    for stmt in exec_order:
-        visitor.visitStatement(stmt)
-
-    print "\n}"
+    print "}"

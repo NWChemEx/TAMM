@@ -33,7 +33,7 @@ namespace ctce {
     out_itr_ = IterGroup<triangular>(vt,TRIG);
   }
 
-  void Assignment::execute() {
+  void Assignment::execute(int sync_ga) {
     assert(tA().attached() || tA().allocated());
     assert(tC().attached() || tC().allocated());
     Integer d_a, k_a_offset;
@@ -43,7 +43,7 @@ namespace ctce {
     d_c = tC().ga();
     k_c_offset = tC().offset_index();
 
-    t_assign3(&d_a, &k_a_offset, &d_c, &k_c_offset, *this);
+    t_assign3(&d_a, &k_a_offset, &d_c, &k_c_offset, *this, sync_ga);
   }
 
   void Multiplication::genMemPos() {
@@ -224,7 +224,7 @@ namespace ctce {
     cp_itr_ = IterGroup<CopyIter>(vd, COPY);
   }
 
-  void Multiplication::execute() {
+  void Multiplication::execute(int sync_ga) {
     assert(tA().attached() || tA().allocated());
     assert(tB().attached() || tB().allocated());
     assert(tC().attached() || tC().allocated());
@@ -238,6 +238,6 @@ namespace ctce {
     d_c = tC().ga();
     k_c_offset = tC().offset_index();
 
-    t_mult4(&d_a, &k_a_offset, &d_b, &k_b_offset, &d_c, &k_c_offset, *this);
+    t_mult4(&d_a, &k_a_offset, &d_b, &k_b_offset, &d_c, &k_c_offset, *this, sync_ga);
   }
 };

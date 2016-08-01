@@ -29,10 +29,37 @@ def print_index_decls(res):
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
-        input_stream = FileStream(sys.argv[1])
+        input_file = sys.argv[1]
     else:
         print "Please provide an input file!"
         sys.exit(1)
+
+
+    delete_index_list = []
+    cur_kbn = ""
+
+    tmpInputFile = open(input_file+".tmp",'w')
+    #Check for indices to be deleted.
+    inpFile = open(input_file,'r')
+    for line in inpFile:
+        if line.startswith("kbn"):
+            line = line.strip()
+            line = line.replace(";", "")
+
+            dindex = line.split(" ")
+            if len(dindex) == 3:
+                assert (dindex[2] == 'm')
+            #delete_index_list.append(dindex[1])
+            cur_kbn = dindex[1]
+        else:
+            if cur_kbn:
+                line = line.replace(cur_kbn, cur_kbn+"*")
+            tmpInputFile.write(line)
+
+    inpFile.close()
+    tmpInputFile.close()
+
+    input_stream = FileStream(input_file+".tmp")
 
     lexer = NWChemTCELexer(input_stream)
     token_stream = CommonTokenStream(lexer)
@@ -74,3 +101,5 @@ if __name__ == '__main__':
     print code_idecls[0]
 
     print "}"
+
+    #os.remove(input_file+".tmp")

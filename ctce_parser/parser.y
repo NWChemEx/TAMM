@@ -73,7 +73,7 @@
 
 
     // id-list
-    id_list_opt(I) ::=  . { I = make_IDList(NULL,NULL); }
+    id_list_opt(I) ::=  . { I = NULL; } //make_IDList(NULL,NULL); }
     id_list_opt(I) ::= id_list(L) . { I = L; }
         
         

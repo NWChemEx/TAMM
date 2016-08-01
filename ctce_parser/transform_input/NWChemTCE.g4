@@ -35,7 +35,7 @@ Etype : ('h' | 'p' | 'a'..'g' | 'i'..'o' | 'q'..'z') ICONST TIMES? ;*/
 
 // Identifier
 ID
-    :   ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*
+    :   ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')* TIMES?
     ;
 
 // Integer Constant
@@ -102,7 +102,7 @@ sumExp : (SUM LPAREN identifier* RPAREN )  ;
 id_list : (identifier)+ ;
 
 // identifier
-identifier : ID ;
+identifier : ID;
 
 // array-reference
 array_reference : ID

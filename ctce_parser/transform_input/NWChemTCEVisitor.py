@@ -90,9 +90,6 @@ class NWChemTCEVisitor(ParseTreeVisitor):
         label = ""
         io_flag = False
 
-
-
-
         if (lhs_array_name[0] != 'i'):
             printres("ARRAY NAME HAS TO START WITH an I \n")
             sys.exit(1)
@@ -240,7 +237,9 @@ class NWChemTCEVisitor(ParseTreeVisitor):
         type = ""
         for idx in idxlist.children:
             index = str(idx.children[0])
+            if index[-1] == "*": continue
             il += index + ","
+
             if (index[0] == 'h'): type+= 'o'
             elif (index[0] == 'p'): type += 'v'
             else: printres("arr index can only start with either p or h\n")
@@ -295,11 +294,23 @@ class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
 
         if lhs_array_name == 'i0' and 'i0' not in uniqArrDecls.keys():
             atype = self.get_array_type((ctx.children[0]).children[2])
-            al = len(atype)
-            upper = atype[0:al / 2]
-            lower = atype[al / 2:al]
-            upper = ",".join(upper)
-            lower = ",".join(lower)
+            atypel = atype.split(",")
+            al = len(atypel)
+
+            upper = atypel[0:al / 2]
+            lower = atypel[al / 2:al]
+
+            newup = []
+            newlow = []
+            for u in range(0, len(upper)):
+                if upper[u][-1] != "*":  newup.append(upper[u])
+
+            for u in range(0, len(lower)):
+                if lower[u][-1] != "*": newlow.append(lower[u])
+
+            upper = ",".join(newup)
+            lower = ",".join(newlow)
+
             io_decl = "array i0" + "[" + upper + "]" + "[" + lower + "];"
             uniqArrDecls[lhs_array_name] = lhs_array_name
             array_decls.append(io_decl)
@@ -363,15 +374,41 @@ class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
 
                 atype = it
 
-                if aname[0]=='f' or aname[0] == 'v': atype = 'N'*len(it)
+                atypel = atype.split(",")
+                al = len(atypel)
+                #if aname[0] == 'f' or aname[0] == 'v': atype = 'N' * al
 
-                al = len(atype)
-                upper = atype[0:al/2]
-                lower = atype[al/2:al]
-                upper = ",".join(upper)
-                lower = ",".join(lower)
+                upper = atypel[0:al/2]
+                lower = atypel[al/2:al]
 
-                renameArr = aname + "_" + (atype).lower()
+                newup = []
+                newlow = []
+                for u in range(0,len(upper)):
+                    if upper[u][-1] != "*":
+                        if aname[0] == 'f' or aname[0] == 'v': newup.append('N')
+                        else: newup.append(upper[u])
+
+                for u in range(0,len(lower)):
+                    if lower[u][-1] != "*":
+                        if aname[0] == 'f' or aname[0] == 'v': newlow.append('N')
+                        else: newlow.append(lower[u])
+
+                upper = ",".join(newup)
+                lower = ",".join(newlow)
+
+                newat = []
+                for at in range(0,len(atypel)):
+                    if atypel[at][-1] != "*": newat.append(atypel[at])
+
+                #if aname[0]=='f' or aname[0] == 'v': atype = 'N'*len(it)
+
+                # al = len(atype)
+                # upper = atype[0:al/2]
+                # lower = atype[al/2:al]
+                # upper = ",".join(upper)
+                # lower = ",".join(lower)
+
+                renameArr = aname + "_" + ("".join(newat)).lower()
                 if aname[0] == 'f' or aname[0] == 'v': renameArr = aname
                 decl = "array " + renameArr + "[" + upper + "]" + "[" + lower + "]: irrep" + str((ctx.children[4]).children[0]) + ";"
                 if not renameArr in uniqArrDecls.keys():
@@ -387,12 +424,16 @@ class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
         for idx in idxlist.children:
             index = str(idx.children[0])
             if (index[0] == 'h'):
-                type += 'O'
-                hind = max(hind,int(index[1:]))
+                if index[-1] == "*": type += 'O*,'
+                else:
+                    type += 'O,'
+                    hind = max(hind,int(index[1:]))
             elif (index[0] == 'p'):
-                type += 'V'
-                pind = max(pind, int(index[1:]))
+                if index[-1] == "*": type += 'V*,'
+                else:
+                    type += 'V,'
+                    pind = max(pind, int(index[1:]))
             else:
                 printres("arr index can only start with either p or h\n")
 
-        return type
+        return type[:-1]

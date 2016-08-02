@@ -37,11 +37,14 @@ if __name__ == '__main__':
 
     delete_index_list = []
     cur_kbn = ""
+    max_i = 0
 
     tmpInputFile = open(input_file+".tmp",'w')
     #Check for indices to be deleted.
     inpFile = open(input_file,'r')
-    for line in inpFile:
+    for lno, line in enumerate(inpFile, 1):
+
+        #line = line.lstrip()
         if line.startswith("kbn"):
             line = line.strip()
             line = line.replace(";", "")
@@ -54,10 +57,22 @@ if __name__ == '__main__':
         else:
             if cur_kbn:
                 line = line.replace(cur_kbn, cur_kbn+"*")
+                cur_kbn = ""
+            cline = line.strip()
+            if not cline.startswith("i"):
+                if cline:
+                    print "Error at Line " + str(lno) + ". Line cannot start with anything other than kbn or i[1-9]+\n"
+                    sys.exit(2)
+            else:
+                geti = cline.split(" ")[0]
+                geti = int(geti[1:])
+                max_i = max(max_i,geti)
+
             tmpInputFile.write(line)
 
     inpFile.close()
     tmpInputFile.close()
+    #print "max i = " + str(max_i)
 
     input_stream = FileStream(input_file+".tmp")
 
@@ -74,7 +89,8 @@ if __name__ == '__main__':
         print "File name should be of the form ccsd_t1.eq"
         sys.exit(1)
 
-    visitor = NWChemTCEVisitorExecOrder()
+
+    visitor = NWChemTCEVisitorExecOrder(max_i)
     res = visitor.visitTranslation_unit(tree)
 
     exec_order = res[0]

@@ -258,6 +258,10 @@ pind = 0
 
 class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
 
+    def __init__(self, maxi):
+        self.maxi = maxi
+
+
     # Visit a parse tree produced by NWChemTCEParser#assignment_operator.
     def visitAssignment_operator(self, ctx):
         return self.visitChildren(ctx)
@@ -317,10 +321,15 @@ class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
 
 
         stmt_seen.append(lhs_array_name)
-        if (lhs_array_name in stmt_seen and lhs_array_name in stmt_postpone.keys()):
-            addExec = stmt_postpone[lhs_array_name]
-            exec_order.append(addExec)
-            del stmt_postpone[lhs_array_name]
+        if lhs_array_name in stmt_seen:
+            if lhs_array_name in stmt_postpone.keys():
+                lano = int(lhs_array_name[1:])
+                for si in reversed(range(lano,self.maxi+1)):
+                    laname = "i" + str(si)
+                    if laname in stmt_postpone.keys():
+                        addExec = stmt_postpone[laname]
+                        exec_order.append(addExec)
+                        del stmt_postpone[laname]
         rhsrefs = self.visitPtype(ctx.children[2])
         if not rhsrefs:
             exec_order.append(ctx)

@@ -19,6 +19,10 @@ namespace ctce {
 
   void ccsd_t1_equations(Equations &eqs);
   void ccsd_t2_equations(Equations &eqs);
+  void ccsd_e_equations(Equations &eqs);
+
+  /* void icsd_t1_equations(Equations &eqs); */
+  /* void icsd_t2_equations(Equations &eqs); */
 
 }; /*ctce*/
 

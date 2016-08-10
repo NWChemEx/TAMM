@@ -27,6 +27,7 @@ namespace ctce {
       * Update the r and o in ccsd(t) fusion part
       */
       void updateRO() {
+        if(curr.size()==0) return; 
         if (curr[0]>ub[0]) return; // no need to compute
         Integer *int_mb = Variables::int_mb();
         Integer k_range = Variables::k_range();

@@ -270,7 +270,7 @@ namespace ctce {
 				Integer restricted = Variables::restricted();
 				for (int i=0; i<ids.size(); i++) lval += int_mb[k_spin+ids[i]];
 				assert ((dim_%2==0) || (!restricted) || (lval != 2*dim_even));
-				return ((!restricted) || (lval != 2*dim_even));
+				return ((!restricted) || (dim_==0) || (lval != 2*dim_even));
 			}
 
 			int is_spin_nonzero(const std::vector<Integer>& ids) const {

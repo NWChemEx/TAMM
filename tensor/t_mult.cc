@@ -1,3 +1,4 @@
+#include "stats.h"
 #include "t_mult.h"
 using namespace std;
 
@@ -317,7 +318,9 @@ namespace ctce {
 
               // if (tA.dim()==2) tA.get_ma = true;
               //tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);
+              getTimer.start();
               tA.get(*d_a,a_svalue_r,buf_a,dima,*k_a_offset);
+              getTimer.stop();
 	      vector<Integer> a_sort_ids = sort_ids(a_name, m.a_mem_pos);
 	      //vector<Integer> a_sort_ids = tA.sort_ids(a_name);
 
@@ -328,7 +331,9 @@ namespace ctce {
               double* buf_b_sort = new double[dimb];
               // if (!tB.isIntermediate()) tB.get_i = true;
               //tB.get(*d_b,b_svalue_r,b_name,buf_b,dimb,*k_b_offset);
+              getTimer.start();
               tB.get(*d_b,b_svalue_r,buf_b,dimb,*k_b_offset);
+              getTimer.stop();
 	      //vector<Integer> b_sort_ids = tB.sort_ids(b_name);
 	      vector<Integer> b_sort_ids = sort_ids(b_name, m.b_mem_pos);
               tce_sort(buf_b, buf_b_sort, b_svalue/*tB._value()*/, b_sort_ids /*tB.sort_ids(b_name)*/, (double)b_sign /*(double)tB.sign()*/);
@@ -336,8 +341,10 @@ namespace ctce {
 
               double beta = computeBeta(sum_ids,sum_vec);
 
+              dgemmTimer.start();
               cdgemm('T','N',dima_sort, dimb_sort, dim_common, beta, buf_a_sort,
                   dim_common, buf_b_sort, dim_common, 1.0, buf_c_sort, dima_sort);
+              dgemmTimer.stop();
 
               delete [] buf_a_sort;
               delete [] buf_b_sort;
@@ -375,7 +382,9 @@ namespace ctce {
 		std::vector<Integer> cmpval = getMemPosVal(m.c_ids, m.c_mem_pos);
                 tce_sort(buf_c_sort, buf_c, cmpval, cperm, sign);
 
+                addTimer.start();
                 tce_add_hash_block_(d_c, buf_c, dimc, *k_c_offset, value, name);
+                addTimer.stop();
 
                 delete [] buf_c;
               }
@@ -399,10 +408,11 @@ namespace ctce {
 
     void t_mult4(Integer* d_a, Integer* k_a_offset, Integer* d_b, Integer* k_b_offset,
                  Integer* d_c, Integer* k_c_offset, Multiplication& m, int sync_ga, int spos) {
-
+      multTimer.start();
       t_mult3(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset,
           m.tC(), m.tA(), m.tB(), m.coef(), m.sum_ids(),
 	      m.sum_itr(), m.cp_itr(), m.out_itr(), m, sync_ga, spos);
+      multTimer.stop();
     }
 
   } /*extern "C"*/

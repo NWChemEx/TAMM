@@ -1,3 +1,4 @@
+#include "stats.h"
 #include "t_assign.h"
 using namespace std;
 
@@ -68,13 +69,17 @@ namespace ctce {
             double* buf_a = new double[dimc];
             double* buf_a_sort = new double[dimc];
             //tA.get2(*d_a, value_r, buf_a, dimc, *k_a_offset); // get2 is for t_assign use
+            getTimer.start();
             tA.get(*d_a, value_r, buf_a, dimc, *k_a_offset);
+            getTimer.stop();
 
             if (coef == -1.0) { // dscal
               for (int i = 0; i < dimc; ++i) buf_a[i] = -buf_a[i];
             }
             tce_sort(buf_a, buf_a_sort, a_ids_v, order, 1.0);
+            addTimer.start();
             tce_add_hash_block_(d_c, buf_a_sort, dimc, *k_c_offset, out_vec, c_ids);
+            addTimer.stop();
 
             delete [] buf_a;
             delete [] buf_a_sort;
@@ -93,7 +98,9 @@ namespace ctce {
     void t_assign3(
         Integer* d_a, Integer* k_a_offset,
         Integer* d_c, Integer* k_c_offset, Assignment& a, int sync_ga, int spos) {
+      assignTimer.start();
       t_assign2(d_a, k_a_offset, d_c, k_c_offset, a.tC(), a.cids(), a.tA(), a.aids(), a.out_itr(), a.coef(), sync_ga, spos);
+      assignTimer.stop();
     }
 
   } // extern C

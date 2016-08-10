@@ -24,20 +24,20 @@ ArrayRefAlpha make_ArrayRefAlpha(double alpha, Exp aref) {
     return p;
 }
 
-RangeEntry make_RangeEntry(string name) {
+RangeEntry make_RangeEntry(ctce_string name) {
     RangeEntry p = tce_malloc(sizeof(*p));
     p->name = name;
     return p;
 }
 
-IndexEntry make_IndexEntry(string name, int range_id) {
+IndexEntry make_IndexEntry(ctce_string name, int range_id) {
     IndexEntry p = tce_malloc(sizeof(*p));
     p->name = name;
     p->range_id = range_id;
     return p;
 }
 
-TensorEntry make_TensorEntry(string name, int ndim, int nupper) {
+TensorEntry make_TensorEntry(ctce_string name, int ndim, int nupper) {
     TensorEntry p = tce_malloc(sizeof(*p));
     p->name = name;
     p->ndim = ndim;
@@ -77,7 +77,7 @@ void generate_intermediate_ast(Equations *eqn, TranslationUnit root) {
     vector_init(&eqn->op_entries);
     vector_init(&eqn->tensor_entries);
 
-    vector *re = &eqn->range_entries;
+    ctce_vector *re = &eqn->range_entries;
     vector_add(re, make_RangeEntry("O"));
     vector_add(re, make_RangeEntry("V"));
     vector_add(re, make_RangeEntry("N"));
@@ -141,7 +141,7 @@ void generate_intermediate_Decl(Equations *eqn, Decl d) {
         case is_ArrayDecl:
             te = make_TensorEntry(d->u.ArrayDecl.name, d->u.ArrayDecl.ulen + d->u.ArrayDecl.llen, d->u.ArrayDecl.ulen);
             for (rid = 0; rid < d->u.ArrayDecl.ulen; rid++) {
-                string range = d->u.ArrayDecl.upperIndices[rid];
+                ctce_string range = d->u.ArrayDecl.upperIndices[rid];
                 te->range_ids[rid] = 0;
                 if (strcmp(range, "V") == 0) te->range_ids[rid] = 1;
                 else if (strcmp(range, "N") == 0) te->range_ids[rid] = 2;
@@ -149,7 +149,7 @@ void generate_intermediate_Decl(Equations *eqn, Decl d) {
 
             int lid = rid;
             for (rid = 0; rid < d->u.ArrayDecl.llen; rid++) {
-                string range = d->u.ArrayDecl.lowerIndices[rid];
+                ctce_string range = d->u.ArrayDecl.lowerIndices[rid];
                 te->range_ids[lid] = 0;
                 if (strcmp(range, "V") == 0) te->range_ids[lid] = 1;
                 else if (strcmp(range, "N") == 0) te->range_ids[lid] = 2;
@@ -166,7 +166,7 @@ void generate_intermediate_Decl(Equations *eqn, Decl d) {
 }
 
 void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
-    vector lhs_aref, rhs_aref, rhs_allref;
+    ctce_vector lhs_aref, rhs_aref, rhs_allref;
     double alpha = 1;
     switch (s->kind) {
         case is_AssignStmt:
@@ -212,7 +212,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                 }
             }
 
-            bool rhs_first_ref = false;
+            ctce_bool rhs_first_ref = false;
             tce_string_array rhs_first_ref_indices = collectExpIndices(
                     ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref);
 
@@ -222,12 +222,12 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                 if (strcmp(tc_exp->u.Array.name, ta_exp->u.Array.name) == 0) rhs_first_ref = true;
             }
 
-            bool isAMOp = (exact_compare_index_lists(lhs_indices, rhs_indices));
+            ctce_bool isAMOp = (exact_compare_index_lists(lhs_indices, rhs_indices));
             //a1121[p3,h1,p2,h2] = t_vo[p3,h1] * t_vo[p2,h2];
-            bool firstRefInd = (lhs_indices->length > rhs_first_ref_indices->length);
-            bool isEqInd = (lhs_indices->length == rhs_indices->length);
-            bool isAddOp = isEqInd && isAMOp;
-            bool isMultOp =
+            ctce_bool firstRefInd = (lhs_indices->length > rhs_first_ref_indices->length);
+            ctce_bool isEqInd = (lhs_indices->length == rhs_indices->length);
+            ctce_bool isAddOp = isEqInd && isAMOp;
+            ctce_bool isMultOp =
                     (lhs_indices->length < rhs_indices->length) || (isEqInd && !isAMOp) || (isEqInd && firstRefInd);
 
             if (isMultOp) {
@@ -304,7 +304,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 
 void getTensorIDs(Equations *eqn, Exp exp, int *tid) {
     if (exp->kind == is_ArrayRef) {
-        string aname = exp->u.Array.name;
+        ctce_string aname = exp->u.Array.name;
         int j;
         TensorEntry ient;
         for (j = 0; j < vector_count(&eqn->tensor_entries); j++) {
@@ -323,7 +323,7 @@ void getIndexIDs(Equations *eqn, Exp exp, int *tc_ids) {
     int i;
     for (i = 0; i < MAX_TENSOR_DIMS; i++) tc_ids[i] = -1;
     if (exp->kind == is_ArrayRef) {
-        string *aind = exp->u.Array.indices;
+        ctce_string *aind = exp->u.Array.indices;
         int len = exp->u.Array.length;
         int j;
         int ipos = 0;
@@ -343,7 +343,7 @@ void getIndexIDs(Equations *eqn, Exp exp, int *tc_ids) {
 }
 
 
-void generate_intermediate_ExpList(Equations *eqn, ExpList expList, string am) {
+void generate_intermediate_ExpList(Equations *eqn, ExpList expList, ctce_string am) {
     ExpList elist = expList;
     while (elist != NULL) {
         generate_intermediate_Exp(eqn, elist->head);
@@ -377,7 +377,7 @@ void generate_intermediate_Exp(Equations *eqn, Exp exp) {
 }
 
 
-void collectArrayRefs(Exp exp, vector *arefs, double *alpha) {
+void collectArrayRefs(Exp exp, ctce_vector *arefs, double *alpha) {
     ExpList el = NULL;
     switch (exp->kind) {
         case is_Parenth:
@@ -445,7 +445,7 @@ tce_string_array collectExpIndices(Exp exp) {
             }
 
             el = exp->u.Multiplication.subexps;
-            string *all_ind = tce_malloc(sizeof(string) * tot_len);
+            ctce_string *all_ind = tce_malloc(sizeof(ctce_string) * tot_len);
 
             int i = 0, ui = 0;
             while (el != NULL) {
@@ -461,7 +461,7 @@ tce_string_array collectExpIndices(Exp exp) {
                 el = el->tail;
             }
             assert(ui == tot_len);
-            string *uind = tce_malloc(sizeof(string) * tot_len);
+            ctce_string *uind = tce_malloc(sizeof(ctce_string) * tot_len);
 
             i = 0, ui = 0;
 
@@ -473,7 +473,7 @@ tce_string_array collectExpIndices(Exp exp) {
                 }
             }
 
-            string *uniq_ind = tce_malloc(sizeof(string) * ui);
+            ctce_string *uniq_ind = tce_malloc(sizeof(ctce_string) * ui);
             for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
 
 

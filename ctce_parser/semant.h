@@ -24,7 +24,7 @@ tce_string_array getIndices(Exp exp);
 
 void print_Exp(Exp);
 
-void print_ExpList(ExpList, string);
+void print_ExpList(ExpList, ctce_string);
 
 
 #endif

@@ -61,19 +61,19 @@ Exp make_Addition(int pos, ExpList subexps);
 
 Exp make_Multiplication(int pos, ExpList subexps);
 
-Exp make_Array(int pos, string name, string *indices);
+Exp make_Array(int pos, ctce_string name, ctce_string *indices);
 
 
 Stmt make_AssignStmt(int pos, Exp lhs, Exp rhs);
 
-Decl make_RangeDecl(int pos, string name, int value);
+Decl make_RangeDecl(int pos, ctce_string name, int value);
 
-Decl make_IndexDecl(int pos, string name, string rangeID);
+Decl make_IndexDecl(int pos, ctce_string name, ctce_string rangeID);
 
 Decl
-make_ArrayDecl(int pos, string name, string *upperIndices, string *lowerIndices); //TODO: permute and vertex symmetry
+make_ArrayDecl(int pos, ctce_string name, ctce_string *upperIndices, ctce_string *lowerIndices); //TODO: permute and vertex symmetry
 
-Identifier make_Identifier(int pos, string name);
+Identifier make_Identifier(int pos, ctce_string name);
 
 Elem make_Elem_Stmt(Stmt s);
 
@@ -155,7 +155,7 @@ struct TranslationUnit_ {
 struct Identifier_ {
     int pos;
     int lineno;
-    string name;
+    ctce_string name;
 };
 
 
@@ -179,18 +179,18 @@ struct Decl_ {
     union {
         struct {
             int value;
-            string name;
+            ctce_string name;
         } RangeDecl;
         struct {
-            string name;
-            string rangeID;
+            ctce_string name;
+            ctce_string rangeID;
         } IndexDecl;
         struct {
-            string name;
+            ctce_string name;
             int ulen, llen;
-            string *upperIndices;
-            string *lowerIndices;
-            string irrep;
+            ctce_string *upperIndices;
+            ctce_string *lowerIndices;
+            ctce_string irrep;
         } ArrayDecl;
         //TODO: ExpandDecl, IterationDecl, VolatileDecl
     } u;
@@ -204,10 +204,10 @@ struct Stmt_ {
     int pos;
     union {
         struct {
-            string label;
+            ctce_string label;
             Exp lhs;
             Exp rhs;
-            string astype;
+            ctce_string astype;
         } AssignStmt;
     } u;
 };
@@ -230,9 +230,9 @@ struct Exp_ {
         } NumConst;
 
         struct {
-            string name;
+            ctce_string name;
             int length;
-            string *indices;
+            ctce_string *indices;
 
         } Array;
 

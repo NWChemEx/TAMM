@@ -17,10 +17,10 @@ typedef struct MultOp_ *MultOp;
 
 
 typedef struct {
-    vector range_entries;
-    vector index_entries;
-    vector tensor_entries;
-    vector op_entries;
+    ctce_vector range_entries;
+    ctce_vector index_entries;
+    ctce_vector tensor_entries;
+    ctce_vector op_entries;
 } Equations;
 
 
@@ -80,11 +80,11 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s);
 
 void generate_intermediate_Exp(Equations *eqn, Exp exp);
 
-void generate_intermediate_ExpList(Equations *eqn, ExpList expList, string am);
+void generate_intermediate_ExpList(Equations *eqn, ExpList expList, ctce_string am);
 
 void generate_intermediate_DeclList(Equations *eqn, DeclList dl);
 
-void collectArrayRefs(Exp exp, vector *arefs, double *alpha);
+void collectArrayRefs(Exp exp, ctce_vector *arefs, double *alpha);
 
 tce_string_array collectExpIndices(Exp exp); //Get each index only once
 

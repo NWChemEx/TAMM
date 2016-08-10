@@ -4,17 +4,17 @@
 
 #include "ctce_vector.h"
 
-void vector_init(vector *v) {
+void vector_init(ctce_vector *v) {
     v->data = NULL;
     v->size = 0;
     v->count = 0;
 }
 
-int vector_count(vector *v) {
+int vector_count(ctce_vector *v) {
     return v->count;
 }
 
-void vector_add(vector *v, void *e) {
+void vector_add(ctce_vector *v, void *e) {
     if (v->size == 0) {
         v->size = 10;
         v->data = malloc(sizeof(void *) * v->size);
@@ -30,7 +30,7 @@ void vector_add(vector *v, void *e) {
     v->count++;
 }
 
-void vector_set(vector *v, int index, void *e) {
+void vector_set(ctce_vector *v, int index, void *e) {
     if (index >= v->count) {
         return;
     }
@@ -38,7 +38,7 @@ void vector_set(vector *v, int index, void *e) {
     v->data[index] = e;
 }
 
-void *vector_get(vector *v, int index) {
+void *vector_get(ctce_vector *v, int index) {
     if (index >= v->count) {
         return NULL;
     }
@@ -46,7 +46,7 @@ void *vector_get(vector *v, int index) {
     return v->data[index];
 }
 
-void vector_delete(vector *v, int index) {
+void vector_delete(ctce_vector *v, int index) {
     if (index >= v->count) {
         return;
     }
@@ -60,7 +60,7 @@ void vector_delete(vector *v, int index) {
     v->count--;
 }
 
-void vector_free(vector *v) {
+void vector_free(ctce_vector *v) {
     free(v->data);
 }
 

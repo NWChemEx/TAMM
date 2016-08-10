@@ -2,8 +2,8 @@
 
 
 struct STEntry_ {
-    string key;
-    string value;
+    ctce_string key;
+    ctce_string value;
     STEntry next;
 };
 
@@ -20,7 +20,7 @@ struct hashtable_ {
 };
 
 /* Hash a string for a particular hash table. */
-int ST_hash(SymbolTable hashtable, string key) {
+int ST_hash(SymbolTable hashtable, ctce_string key) {
 
     unsigned long int hashval = 0;
     int i = 0;
@@ -63,7 +63,7 @@ SymbolTable ST_create(int size) {
 }
 
 /* Create a key-value pair. */
-STEntry ST_newpair(string key, string value) {
+STEntry ST_newpair(ctce_string key, ctce_string value) {
     STEntry newpair;
 
     if ((newpair = malloc(sizeof(STEntry))) == NULL) {
@@ -84,7 +84,7 @@ STEntry ST_newpair(string key, string value) {
 }
 
 /* Insert a key-value pair into a hash table. */
-void ST_insert(SymbolTable SymbolTable, string key, string value) {
+void ST_insert(SymbolTable SymbolTable, ctce_string key, ctce_string value) {
     int bin = 0;
     STEntry newpair = NULL;
     STEntry next = NULL;
@@ -127,7 +127,7 @@ void ST_insert(SymbolTable SymbolTable, string key, string value) {
 }
 
 /* Retrieve a key-value pair from a hash table. */
-string ST_get(SymbolTable hashtable, string key) {
+ctce_string ST_get(SymbolTable hashtable, ctce_string key) {
     int bin = 0;
     STEntry pair;
 
@@ -150,7 +150,7 @@ string ST_get(SymbolTable hashtable, string key) {
 }
 
 /* Check existance of a key-value pair from a hash table. Same code as ST_get */
-bool ST_contains(SymbolTable hashtable, string key) {
+ctce_bool ST_contains(SymbolTable hashtable, ctce_string key) {
     int bin = 0;
     STEntry pair;
 

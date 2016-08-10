@@ -1,12 +1,12 @@
 #include "ctce_parser.h"
 
 
-char *getTensorName(vector *v, int pos) {
+char *getTensorName(ctce_vector *v, int pos) {
     TensorEntry te = vector_get(v, pos);
     return te->name;
 }
 
-char *getIndexName(vector *v, int pos) {
+char *getIndexName(ctce_vector *v, int pos) {
     IndexEntry te = vector_get(v, pos);
     return te->name;
 }
@@ -49,8 +49,8 @@ int main(int argc, char **argv) {
 
     printf("\nOP ENTRIES... \n");
     OpEntry oent;
-    vector *tensor_entries = &genEq.tensor_entries;
-    vector *index_entries = &genEq.index_entries;
+    ctce_vector *tensor_entries = &genEq.tensor_entries;
+    ctce_vector *index_entries = &genEq.index_entries;
 
     for (i = 0; i < vector_count(&genEq.op_entries); i++) {
         oent = vector_get(&genEq.op_entries, i);

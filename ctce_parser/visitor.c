@@ -86,7 +86,7 @@ void visit_Stmt(FILE *outFile, Stmt s) {
     }
 }
 
-void visit_ExpList(FILE *outFile, ExpList expList, string am) {
+void visit_ExpList(FILE *outFile, ExpList expList, ctce_string am) {
     ExpList elist = expList;
     while (elist != NULL) {
         visit_Exp(outFile, elist->head);

@@ -10,14 +10,19 @@ namespace ctce {
 
   void lazy_tensor_alloc(std::vector<Tensor> &tensors,
                          std::vector<Operation> &ops,
-                         std::vector<vector<Operation *> > op_levels,
+                         std::vector<vector<Operation *> > &op_levels,
                          std::vector<vector<Tensor*> > &tensor_create_levels,
                          std::vector<vector<Tensor*> > &tensor_destroy_levels);
   void eager_tensor_alloc(std::vector<Tensor> &tensors,
                          std::vector<Operation> &ops,
-                         std::vector<vector<Operation *> > op_levels,
+                         std::vector<vector<Operation *> > &op_levels,
                          std::vector<vector<Tensor*> > &tensor_create_levels,
                          std::vector<vector<Tensor*> > &tensor_destroy_levels);
+  static void schedule(vector<vector<Tensor> *> &tensors,
+                       vector<vector<Operation> *> &ops,
+                       vector<vector<vector<Tensor*> > > &tensor_create_levels,
+                       vector<vector<vector<Tensor*> > > &tensor_destroy_levels,
+                       vector<vector<vector<Operation *> > > &op_levels);
 
   static void execute(Operation *op, int sync_ga, int spos);
   static int writes(Operation *op, std::vector<Tensor> &tensors);
@@ -49,7 +54,7 @@ namespace ctce {
 
   void eager_tensor_alloc(std::vector<Tensor> &tensors,
                           std::vector<Operation> &ops,
-                          std::vector<vector<Operation *> > op_levels,
+                          std::vector<vector<Operation *> > &op_levels,
                           std::vector<vector<Tensor*> > &tensor_create_levels,
                           std::vector<vector<Tensor*> > &tensor_destroy_levels) {
     tensor_create_levels.clear();
@@ -68,7 +73,7 @@ namespace ctce {
 
   void lazy_tensor_alloc(std::vector<Tensor> &tensors,
                          std::vector<Operation> &ops,
-                         std::vector<vector<Operation *> > op_levels,
+                         std::vector<vector<Operation *> > &op_levels,
                          std::vector<vector<Tensor*> > &tensor_create_levels,
                          std::vector<vector<Tensor*> > &tensor_destroy_levels) {
     std::vector<int> first_def(tensors.size(), op_levels.size()), last_use(tensors.size(), -1);
@@ -104,6 +109,10 @@ namespace ctce {
       assert(fd>=0 && fd<op_levels.size());
       tensor_create_levels[fd].push_back(&t);
       int lu = last_use[i];
+      if(!(lu>=0 && lu<op_levels.size())) {
+        cout<<"ABOUT TO THROW FOR tensor "<<i<<endl;
+        cout<<"Last use="<<lu<<endl;
+      }
       assert(lu>=0 && lu<op_levels.size());
       tensor_destroy_levels[lu].push_back(&t);
     }
@@ -157,6 +166,26 @@ namespace ctce {
     levelize(tensors, ops, op_levels);
     lazy_tensor_alloc(tensors, ops, op_levels, tensor_create_levels, tensor_destroy_levels);
     schedule(tensors, ops, tensor_create_levels, tensor_destroy_levels, op_levels);
+  }
+
+  void schedule_levels(std::vector<std::vector<Tensor> *> &tensors_lst,
+                       std::vector<std::vector<Operation> *> &ops_lst) {
+    using std::vector;
+    vector<vector<vector<Operation *> > >op_levels;
+    vector<vector<vector<Tensor*> > > tensor_create_levels;
+    vector<vector<vector<Tensor*> > > tensor_destroy_levels;
+
+    assert(ops_lst.size() == tensors_lst.size());
+
+    op_levels.resize(ops_lst.size());
+    tensor_create_levels.resize(ops_lst.size());
+    tensor_destroy_levels.resize(ops_lst.size());
+    for(int e=0; e<ops_lst.size(); e++) {
+      levelize(*tensors_lst[e], *ops_lst[e], op_levels[e]);
+      lazy_tensor_alloc(*tensors_lst[e], *ops_lst[e], op_levels[e], 
+                        tensor_create_levels[e], tensor_destroy_levels[e]);
+    }
+    schedule(tensors_lst, ops_lst, tensor_create_levels, tensor_destroy_levels, op_levels);
   }
 
   static void execute(Operation *op, int sync_ga, int spos) {
@@ -215,9 +244,18 @@ namespace ctce {
                        std::vector<vector<Tensor*> > &tensor_create_levels,
                        std::vector<vector<Tensor*> > &tensor_destroy_levels,
                        std::vector<vector<Operation *> > &op_levels) {
+#if 1
+    vector<vector<Tensor> *> tensors_lst(1, &tensors);
+    vector<vector<Operation> *> ops_lst(1, &ops);
+    vector<vector<vector<Tensor*> > > tcl(1,tensor_create_levels);
+    vector<vector<vector<Tensor*> > > tdl(1,tensor_destroy_levels);
+    vector<vector<vector<Operation *> > > ol(1,op_levels);
+    
+    schedule(tensors_lst, ops_lst, tcl, tdl, ol);
+#else
     int nlevels = op_levels.size();
-    assert(tensor_create_levels.size() == tensor_destroy_levels.size());
-    assert(op_levels.size() == tensor_create_levels.size());
+    assert(tensor_create_levels.size() == nlevels);
+    assert(tensor_destroy_levels.size() == nlevels);
 
     vector<int> sync_gas;
     for(int i=0; i<op_levels.size(); i++) {
@@ -246,6 +284,66 @@ namespace ctce {
     for(int i=0; i<sync_gas.size(); i++) {
       GA_Destroy(sync_gas[i]);
     }    
+#endif
+  }
+
+  static void schedule(vector<vector<Tensor> *> &tensors,
+                       vector<vector<Operation> *> &ops,
+                       vector<vector<vector<Tensor*> > > &tensor_create_levels,
+                       vector<vector<vector<Tensor*> > > &tensor_destroy_levels,
+                       vector<vector<vector<Operation *> > > &op_levels) {
+    int neqs = op_levels.size();
+    assert(tensor_create_levels.size() == tensor_destroy_levels.size());
+    assert(op_levels.size() == tensor_create_levels.size());
+
+    size_t nlevels = 0;
+    for(int e=0; e<neqs; e++) {
+      nlevels = std::max(nlevels, op_levels[e].size());
+      assert(op_levels[e].size() == tensor_create_levels[e].size());
+      assert(op_levels[e].size() == tensor_destroy_levels[e].size());
+    }
+    for(int e=0; e<neqs; e++) {
+      op_levels[e].resize(nlevels);
+      tensor_create_levels[e].resize(nlevels);
+      tensor_destroy_levels[e].resize(nlevels);
+    }
+
+    vector<int> sync_gas;
+    for(int l=0; l<nlevels; l++) {
+      int taskDim = 0;
+      for(int e=0; e<neqs; e++) {
+        taskDim += op_levels[e][l].size();
+        assert(op_levels[e][l].size()>=0);
+      }
+      char taskStr[10] = "NXTASK";
+      int taskHandle = NGA_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
+      assert(taskHandle!=0);
+      GA_Zero(taskHandle); // initialize to zero
+      sync_gas.push_back(taskHandle);
+    }
+    GA_Sync();
+
+    for(int l=0; l<nlevels; l++) {
+      for(int e=0; e<neqs; e++) {
+        for(int t=0; t<tensor_create_levels[e][l].size(); t++) {
+          tensor_create_levels[e][l][t]->create();
+        }
+      }
+      for(int e=0, c=0; e<neqs; e++) {
+        for(int o=0; o<op_levels[e][l].size(); o++,c++) {
+          execute(op_levels[e][l][o], sync_gas[l], c);
+        }
+      }
+      for(int e=0; e<neqs; e++) {
+        for(int t=0; t<tensor_destroy_levels[e][l].size(); t++) {
+          tensor_destroy_levels[e][l][t]->destroy();
+        }
+      }
+    }
+    GA_Sync();
+    for(int i=0; i<sync_gas.size(); i++) {
+      GA_Destroy(sync_gas[i]);
+    }
   }
 
   /**

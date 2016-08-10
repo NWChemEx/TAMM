@@ -3,6 +3,10 @@
 
 #include "input.h"
 
+extern "C" {
+#include "../ctce_parser/ctce_parser.h"
+}
+
 namespace ctce {
 
   struct Equations {
@@ -13,13 +17,11 @@ namespace ctce {
 
   };
 
-  void tensors_and_ops(Equations &eqs,
-                       std::vector<Tensor> &tensors,
-                       std::vector<Operation> &ops);
-
   void ccsd_t1_equations(Equations &eqs);
   void ccsd_t2_equations(Equations &eqs);
   void ccsd_e_equations(Equations &eqs);
+
+  void parser_eqs_to_ctce_eqs(::Equations *eqs, ctce::Equations &ceqs);
 
   /* void icsd_t1_equations(Equations &eqs); */
   /* void icsd_t2_equations(Equations &eqs); */

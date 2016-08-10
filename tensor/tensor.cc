@@ -37,7 +37,7 @@ namespace ctce {
       allocated_(false),
       attached_(false),
       dist_type_(dist_type) {
-    assert(n > 0);
+    assert(n >= 0);
     assert(nupper_ >=0 && nupper_ <= dim_);
 
     vector<IndexName> name(n);
@@ -61,6 +61,9 @@ namespace ctce {
       default:
         assert(0);
       }
+    }
+    if(dim_==0) {
+      dim_type_ = dim_ov;
     }
     ids_ = name2ids(*this,name);
   }

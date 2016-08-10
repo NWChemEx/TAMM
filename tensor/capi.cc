@@ -9,7 +9,10 @@ namespace ctce {
 #if TIMER
     double start = rtclock();
 #endif
-    if(ids.size() == 1) {
+    if(ids.size() == 0) {
+      dbuf[0] = sbuf[0] * alpha;
+    }
+    else if(ids.size() == 1) {
       for(int i=0; i< int_mb[k_range+ids[0]]; i++) {
 	dbuf[i] = sbuf[i] * alpha;
       }

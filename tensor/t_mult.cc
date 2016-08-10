@@ -219,8 +219,9 @@ namespace ctce {
       vector<Integer> out_vec, sum_vec;
       out_itr.reset();
 
-      while (out_itr.next(out_vec)) {
-
+      bool out_once = true;
+      while (out_itr.next(out_vec) || out_once) {
+        out_once = false;
         if (next==count) { // check if its my task
 
           if ( (tC.is_spatial_nonzero(out_vec)) &&
@@ -243,7 +244,8 @@ namespace ctce {
             memset(buf_c_sort, 0, dimc*sizeof(double));
 
             sum_itr.reset();
-            bool ONE_TIME = sum_itr.empty();
+            //bool ONE_TIME = sum_itr.empty();
+            bool ONE_TIME = true;
             while (sum_itr.next(sum_vec) || ONE_TIME) {
 
               ONE_TIME = false;
@@ -356,7 +358,9 @@ namespace ctce {
 
             cp_itr.reset();
             vector<Integer> perm;
-            while (cp_itr.next(perm)) {
+            bool out_cp_one_time = true;
+            while (cp_itr.next(perm) || out_cp_one_time) {
+              out_cp_one_time = false;
               cp_itr.fix_ids_for_copy(perm);
 	      vector<IndexName> name;
 	      vector<Integer> value, value_r;

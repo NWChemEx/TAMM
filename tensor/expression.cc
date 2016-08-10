@@ -137,7 +137,7 @@ namespace ctce {
     const std::vector<IndexName>& a = id2name(a_ids);
     const std::vector<IndexName>& b = id2name(b_ids);
     int n = tC().dim();
-    assert(n>0);
+    //assert(n>0);
     int from[n];
     for (int i=0; i<n; i++) {
       for (int j=0; j<tA().dim(); j++)
@@ -168,6 +168,7 @@ namespace ctce {
     setOutItr(group);
 
     std::vector<int> cp_group;
+    if(n>0) {
     int curr_e = c_ext[0], prev_e = c_ext[0]; // {0,0,1,1}
     int curr_o = group[0], prev_o = group[0]; // {0,0,1,2}  --> 4,4,3
     int curr_size = 1;
@@ -189,7 +190,7 @@ namespace ctce {
       prev_o = curr_o;
     }
     cp_group.push_back(curr_size);
-
+    }
     //    std::cout << "cp_group: ";
     //    std::cout << cp_group << std::endl;
 

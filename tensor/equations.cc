@@ -2,130 +2,51 @@
 
 namespace ctce {
   
-  static Assignment consAddOp(Equations &eqs, IndexName *indices, 
-                              std::vector<Tensor> &tensors,
-                              AddOp* add);
-  
-  static Multiplication consMultOp(Equations &eqs, IndexName *indices, 
-                                   std::vector<Tensor> &tensors,                                   
-                                   MultOp *mult);
-  
-  static Range2Index range2indices[] = {
-    {12, {H1B, H2B, H3B, H4B, H5B, H6B, H7B, H8B, H9B, H10B, H11B, H12B}}, //TO
-    {12, {P1B, P2B, P3B, P4B, P5B, P6B, P7B, P8B, P9B, P10B, P11B, P12B}}, //TV
-    {0, {}} //TN
-  };
+  /*@FIXME: @BUG: memory leak in ::Equations */
+  void parser_eqs_to_ctce_eqs(::Equations *peqs, ctce::Equations &ceqs) {
+    assert(peqs);
+    int nre, nie, nte, noe;
+    nre = vector_count(&peqs->range_entries);
+    nie = vector_count(&peqs->index_entries);
+    nte = vector_count(&peqs->tensor_entries);
+    noe = vector_count(&peqs->op_entries);
 
-  void tensors_and_ops(Equations &eqs,
-                       std::vector<Tensor> &tensors,
-                       std::vector<Operation> &ops) {
-    int inames[RANGE_UB] = {0};
-    RangeType rts[eqs.range_entries.size()];
-    IndexName indices[eqs.index_entries.size()];
-    
-    for(int i=0; i<eqs.range_entries.size(); i++) {
-      char *rname = eqs.range_entries[i].name;
-      if(!strcmp(rname, OSTR)) {
-        rts[i] = TO;
-        continue;
-      }
-      else if(!strcmp(rname, VSTR)) {
-        rts[i] = TV;
-        continue;
-      }
-      else if(!strcmp(rname, NSTR)) {
-        rts[i] = TN;
-        continue;
-      }
-      else {
-        printf("Unsupported range type %s\n", rname);
-        exit(1);
-      }
+    for(int i=0; i<nre; i++) {
+      ::RangeEntry_ *re = (::RangeEntry_*)vector_get(&peqs->range_entries, i);
+      ctce::RangeEntry cre;
+      cre.name = strdup(re->name);
+      ceqs.range_entries.push_back(cre);
     }
-    
-    for(int i=0; i<eqs.index_entries.size(); i++) {
-      int rid = eqs.index_entries[i].range_id;
-      RangeType rt = rts[rid];
-      assert(inames[rt]<range2indices[rt].nindices);
-      indices[i] = range2indices[rt].names[inames[rt]++];
+    for(int i=0; i<nie; i++) {
+      ::IndexEntry_ *ie = (::IndexEntry_*)vector_get(&peqs->index_entries, i);
+      ctce::IndexEntry cie;
+      cie.name = strdup(ie->name);
+      cie.range_id = ie->range_id;
+      assert(cie.range_id >=0 && cie.range_id < ceqs.range_entries.size());
+      ceqs.index_entries.push_back(cie);
+    }
+    for(int i=0; i<nte; i++) {
+      ::TensorEntry_ *te = (::TensorEntry_*)vector_get(&peqs->tensor_entries, i);
+      ctce::TensorEntry cte;
+      cte.name = strdup(te->name);
+      cte.ndim = te->ndim;
+      cte.nupper = te->nupper;
+      for(int j=0; j<MAX_TENSOR_DIMS; j++) {
+        cte.range_ids[j] = te->range_ids[j];
+      }
+      ceqs.tensor_entries.push_back(cte);
     }
 
-    tensors.resize(eqs.tensor_entries.size());
-    for(int i=0; i<eqs.tensor_entries.size(); i++) {
-      RangeType ranges[MAX_TENSOR_DIMS];
-      for(int j=0; j<eqs.tensor_entries[i].ndim; j++) {
-        ranges[j] = rts[eqs.tensor_entries[i].range_ids[j]];
-      }
-      /*@BUG: @FIXME: dist_nw is a placeholder. Should be correct before this object is used*/
-      /*@BUG: @FIXME: irrep is not set.. Should be correctly set before this object is used*/
-      DistType bug_dist = dist_nw;
-      int bug_irrep = 0;
-      tensors[i] = Tensor(eqs.tensor_entries[i].ndim, eqs.tensor_entries[i].nupper, bug_irrep, ranges, bug_dist);
-    }
-    
-    //distributon, irrep
-    ops.resize(eqs.op_entries.size());
-    for(int i=0; i<eqs.op_entries.size(); i++) {
-      ops[i].optype = eqs.op_entries[i].optype;
-      switch(eqs.op_entries[i].optype) {
-      case OpTypeAdd:
-        ops[i].add = consAddOp(eqs, indices, tensors, &eqs.op_entries[i].add);
-        break;
-      case OpTypeMult:
-        ops[i].mult = consMultOp(eqs, indices, tensors, &eqs.op_entries[i].mult);
-        break;
-      default:
-        assert(0);
-      }
+    for(int i=0; i<noe; i++) {
+      ::OpEntry_ *oe = (::OpEntry_*)vector_get(&peqs->op_entries, i);
+      ctce::OpEntry coe;
+      coe.optype = (OpType)oe->optype;
+      coe.add = *(AddOp*)&oe->add;
+      coe.mult = *(MultOp*)&oe->mult;
+      ceqs.op_entries.push_back(coe);
     }
   }
 
-  static Assignment consAddOp(Equations &eqs, 
-                              IndexName *indices, 
-                              std::vector<Tensor> &tensors,
-                              AddOp* add) {
-    vector<IndexName> aids, cids;
-    assert(add);
-    assert(eqs.tensor_entries[add->tc].ndim == eqs.tensor_entries[add->ta].ndim);
-    int ndim = eqs.tensor_entries[add->tc].ndim;
 
-    assert(ndim > 0);
-    aids.resize(ndim);
-    cids.resize(ndim);
-    for(int i=0; i<ndim; i++) {
-      aids[i] = indices[add->ta_ids[i]];
-      cids[i] = indices[add->tc_ids[i]];
-    }
-    return Assignment(&tensors[add->tc], &tensors[add->ta], add->alpha, cids, aids);
-  }
-
-
-  static Multiplication consMultOp(Equations &eqs, 
-                                   IndexName *indices, 
-                                   std::vector<Tensor> &tensors,
-                                   MultOp *mult) {
-    vector<IndexName> aids, bids, cids;
-    assert(mult);
-    
-    int cndim = eqs.tensor_entries[mult->tc].ndim;
-    int andim = eqs.tensor_entries[mult->ta].ndim;
-    int bndim = eqs.tensor_entries[mult->tb].ndim;
-    assert(andim+bndim >= cndim);
-
-    aids.resize(andim);
-    bids.resize(bndim);
-    cids.resize(cndim);
-
-    for(int i=0; i<andim; i++) {
-      aids[i] = indices[mult->ta_ids[i]];
-    }
-    for(int i=0; i<bndim; i++) {
-      bids[i] = indices[mult->tb_ids[i]];
-    }
-    for(int i=0; i<cndim; i++) {
-      cids[i] = indices[mult->tc_ids[i]];
-    }
-    return Multiplication(&tensors[mult->tc], cids, &tensors[mult->ta], aids, &tensors[mult->tb], bids, mult->alpha);
-  }
 };
 

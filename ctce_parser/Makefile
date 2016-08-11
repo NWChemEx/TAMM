@@ -55,4 +55,4 @@ scanner.c: scanner.l
 .PHONY: clean
 
 clean: 
-	rm -f ctce_test parser.out parser.c parser.h scanner.c scanner.h lemon *.o output.txt lex.yy.c
+	rm -f ctce_test parser.out parser.c parser.h scanner.c scanner.h lemon *.o ctcelib.a output.txt lex.yy.c

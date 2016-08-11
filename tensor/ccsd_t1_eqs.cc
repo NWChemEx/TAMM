@@ -1,3 +1,8 @@
+extern "C" {
+#include "ctce_parser.h"
+};
+
+
 #include "variables.h"
 #include <iostream>
 #include "tensor.h"
@@ -164,6 +169,7 @@ namespace ctce {
   };
 
   static OpEntry ops[] = {
+#if 1
     { OpTypeAdd, addops[0], MultOp()},    // t1_1
     { OpTypeAdd, addops[1], MultOp()},    // t1_2_1
     { OpTypeAdd, addops[2], MultOp()},    // t1_2_2_1
@@ -179,6 +185,7 @@ namespace ctce {
     { OpTypeAdd, addops[4]},    // t1_5_1
     { OpTypeMult, AddOp(), multops[8]},  // t1_5_2
     { OpTypeMult, AddOp(), multops[9]},  // t1_5
+#endif
     { OpTypeAdd, addops[5]},    // t1_6_1
     { OpTypeMult, AddOp(), multops[10]}, // t1_6_2
     { OpTypeMult, AddOp(), multops[11]}, // t1_6
@@ -190,7 +197,15 @@ namespace ctce {
   static int num_tensors = sizeof(tensors)/sizeof(tensors[0]);
   static int num_operations = sizeof(ops) / sizeof(ops[0]);
 
-  void ccsd_t1_equations(Equations &eqs) {
+#define CTCE_EQ_PATH "/home/sriram/code/ctce/tensor/eqs/"
+
+  void ccsd_t1_equations(ctce::Equations &eqs) {
+    ::Equations peqs;
+    ctce_parser("ccsd_t1.eq", &peqs);
+    parser_eqs_to_ctce_eqs(&peqs, eqs);
+  }
+
+  void ccsd_t1_new_equations(Equations &eqs) {
     eqs.range_entries.insert(eqs.range_entries.begin(), ranges, ranges+num_ranges);
     eqs.index_entries.insert(eqs.index_entries.begin(), indices, indices+num_indices);
     eqs.tensor_entries.insert(eqs.tensor_entries.begin(), tensors, tensors+num_tensors);

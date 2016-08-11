@@ -22,6 +22,8 @@ void check_DeclList(DeclList, SymbolTable);
 
 tce_string_array getIndices(Exp exp);
 
+tce_string_array getUniqIndices(Exp exp);
+
 void print_Exp(Exp);
 
 void print_ExpList(ExpList, ctce_string);

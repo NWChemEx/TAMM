@@ -233,11 +233,14 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
             if (isMultOp) {
                 //printf(" == MULT OP\n");
 
-                MultOp mop = make_MultOp(0, 0, 0, alpha);
-
                 Exp tc_exp = vector_get(&lhs_aref, 0);
-                Exp ta_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref;
-                Exp tb_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, 1))->aref;
+                int ta_ind = 0;
+                if (rhs_first_ref) ta_ind++;
+
+                MultOp mop = make_MultOp(0, 0, 0, ((ArrayRefAlpha) vector_get(&rhs_aref, ta_ind))->alpha);
+
+                Exp ta_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, ta_ind))->aref;
+                Exp tb_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, ta_ind+1))->aref;
 
                 getIndexIDs(eqn, tc_exp, mop->tc_ids);
                 getIndexIDs(eqn, ta_exp, mop->ta_ids);
@@ -416,10 +419,14 @@ void collectArrayRefs(Exp exp, ctce_vector *arefs, double *alpha) {
 
 tce_string_array collectExpIndices(Exp exp) {
     ExpList el = NULL;
+    int i = 0, ui = 0, tot_len = 0;
     tce_string_array p = NULL;
+    ctce_string *uind = NULL;
+    ctce_string *uniq_ind = NULL;
+    ctce_string *all_ind = NULL;
     switch (exp->kind) {
         case is_Parenth:
-            return getIndices(exp->u.Parenth.exp);
+            return getUniqIndices(exp->u.Parenth.exp);
             break;
         case is_NumConst:
             return NULL;
@@ -431,25 +438,22 @@ tce_string_array collectExpIndices(Exp exp) {
             return p;
             break;
         case is_Addition:
-            return getIndices(exp->u.Addition.subexps->head);
-            break;
-        case is_Multiplication:
-            el = exp->u.Multiplication.subexps;
-            int tot_len = 0;
+            el = exp->u.Addition.subexps;
+            tot_len = 0;
             while (el != NULL) {
                 //print_Exp(el->head);
-                tce_string_array se = getIndices(el->head);
+                tce_string_array se = getUniqIndices(el->head);
                 if (se != NULL) tot_len += se->length;
                 se = NULL;
                 el = el->tail;
             }
 
-            el = exp->u.Multiplication.subexps;
-            ctce_string *all_ind = tce_malloc(sizeof(ctce_string) * tot_len);
+            el = exp->u.Addition.subexps;
+            all_ind = tce_malloc(sizeof(ctce_string) * tot_len);
 
-            int i = 0, ui = 0;
+            i = 0, ui = 0;
             while (el != NULL) {
-                tce_string_array se = getIndices(el->head);
+                tce_string_array se = getUniqIndices(el->head);
                 i = 0;
                 if (se != NULL) {
                     for (i = 0; i < se->length; i++) {
@@ -461,7 +465,7 @@ tce_string_array collectExpIndices(Exp exp) {
                 el = el->tail;
             }
             assert(ui == tot_len);
-            ctce_string *uind = tce_malloc(sizeof(ctce_string) * tot_len);
+            uind = tce_malloc(sizeof(ctce_string) * tot_len);
 
             i = 0, ui = 0;
 
@@ -473,7 +477,58 @@ tce_string_array collectExpIndices(Exp exp) {
                 }
             }
 
-            ctce_string *uniq_ind = tce_malloc(sizeof(ctce_string) * ui);
+            uniq_ind = tce_malloc(sizeof(ctce_string) * ui);
+            for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
+
+
+            p = tce_malloc(sizeof(*p));
+            p->list = uniq_ind;
+            p->length = ui;
+
+            return p;
+
+            break;
+        case is_Multiplication:
+            el = exp->u.Multiplication.subexps;
+            tot_len = 0;
+            while (el != NULL) {
+                //print_Exp(el->head);
+                tce_string_array se = getUniqIndices(el->head);
+                if (se != NULL) tot_len += se->length;
+                se = NULL;
+                el = el->tail;
+            }
+
+            el = exp->u.Multiplication.subexps;
+            all_ind = tce_malloc(sizeof(ctce_string) * tot_len);
+
+            i = 0, ui = 0;
+            while (el != NULL) {
+                tce_string_array se = getUniqIndices(el->head);
+                i = 0;
+                if (se != NULL) {
+                    for (i = 0; i < se->length; i++) {
+                        all_ind[ui] = se->list[i];
+                        ui++;
+                    }
+                }
+                se = NULL;
+                el = el->tail;
+            }
+            assert(ui == tot_len);
+            uind = tce_malloc(sizeof(ctce_string) * tot_len);
+
+            i = 0, ui = 0;
+
+
+            for (i = 0; i < tot_len; i++) {
+                if (!exists_index(uind, ui, all_ind[i])) {
+                    uind[ui] = all_ind[i];
+                    ui++;
+                }
+            }
+
+            uniq_ind = tce_malloc(sizeof(ctce_string) * ui);
             for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
 
 

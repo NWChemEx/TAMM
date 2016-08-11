@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
 
     for (i = 0; i < vector_count(&genEq.op_entries); i++) {
         oent = vector_get(&genEq.op_entries, i);
-        if (oent->optype == 0) printf("OpTypeAdd, ");
+        if (oent->optype == OpTypeAdd) printf("OpTypeAdd, ");
         else printf("OpTypeMult, ");
         int j;
         if (oent->add != NULL) {

@@ -9,7 +9,7 @@
 	FC = $(shell $(GA_CONFIG) --f77)
 	#FC = ifort
 	CFLAGS = $(shell $(GA_CONFIG) --cppflags --cflags)
-	CXXINCLUDES = $(shell $(GA_CONFIG) --cppflags --cflags)
+	CXXINCLUDES = $(shell $(GA_CONFIG) --cppflags --cflags) -I../ctce_parser
 	FINCLUDES = $(shell $(GA_CONFIG) --fflags) -I$(NWCHEM_TOP)/src/tce/include 
 	LDFLAGS = $(shell $(GA_CONFIG) --ldflags)
 	LIBS = $(shell $(GA_CONFIG) --libs)

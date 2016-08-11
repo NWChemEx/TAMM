@@ -300,7 +300,7 @@ void check_Exp(Exp exp, SymbolTable symtab) {
     }
 }
 
-
+//get non-summation indices only
 tce_string_array getIndices(Exp exp) {
     ExpList el = NULL;
     tce_string_array p = NULL;
@@ -412,6 +412,81 @@ void print_Exp(Exp exp) {
             break;
         case is_Multiplication:
             print_ExpList(exp->u.Multiplication.subexps, "*");
+            break;
+        default:
+            fprintf(stderr, "Not a valid Expression!\n");
+            exit(0);
+    }
+}
+
+
+//get all indices only once
+tce_string_array getUniqIndices(Exp exp) {
+    ExpList el = NULL;
+    tce_string_array p = NULL;
+    switch (exp->kind) {
+        case is_Parenth:
+            return getUniqIndices(exp->u.Parenth.exp);
+            break;
+        case is_NumConst:
+            return NULL;
+            break;
+        case is_ArrayRef:
+            p = tce_malloc(sizeof(*p));
+            p->list = replicate_indices(exp->u.Array.indices, exp->u.Array.length);
+            p->length = exp->u.Array.length;
+            return p;
+            break;
+        case is_Addition:
+            return getUniqIndices(exp->u.Addition.subexps->head);
+            break;
+        case is_Multiplication:
+            el = exp->u.Multiplication.subexps;
+            int tot_len = 0;
+            while (el != NULL) {
+                //print_Exp(el->head);
+                tce_string_array se = getUniqIndices(el->head);
+                if (se != NULL) tot_len += se->length;
+                se = NULL;
+                el = el->tail;
+            }
+
+            el = exp->u.Multiplication.subexps;
+            ctce_string *all_ind = tce_malloc(sizeof(ctce_string) * tot_len);
+
+            int i = 0, ui = 0;
+            while (el != NULL) {
+                tce_string_array se = getUniqIndices(el->head);
+                i = 0;
+                if (se != NULL) {
+                    for (i = 0; i < se->length; i++) {
+                        all_ind[ui] = se->list[i];
+                        ui++;
+                    }
+                }
+                se = NULL;
+                el = el->tail;
+            }
+            assert(ui == tot_len);
+            ctce_string *uind = tce_malloc(sizeof(ctce_string) * tot_len);
+
+            i = 0, ui = 0;
+
+            for (i = 0; i < tot_len; i++) {
+                if(!exists_index(uind,ui,all_ind[i])) {
+                    uind[ui] = all_ind[i];
+                    ui++;
+                }
+            }
+
+            ctce_string *uniq_ind = tce_malloc(sizeof(ctce_string) * ui);
+            for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
+
+            p = tce_malloc(sizeof(*p));
+            p->list = uniq_ind;
+            p->length = ui;
+
+            return p;
             break;
         default:
             fprintf(stderr, "Not a valid Expression!\n");

@@ -28,8 +28,8 @@ ccsd_t.o ipccsd_x1.o equations.o ccsd_t1_eqs.o ccsd_t2_eqs.o ccsd_t2_ref.o corf.
 gt.o fapi.o schedulers.o ccsd_t12.o ccsd_e_eqs.o ccsd_e_ref.o tensors_and_ops.o stats.o
 
 
-main: ccsd_t1_eqs.o ccsd_t2_eqs.o equations.o main.o print.o ../ctce_parser/ctcelib.a
-	$(CXX) -o main equations.o ccsd_t2_eqs.o ccsd_t1_eqs.o main.o print.o ../ctce_parser/ctcelib.a $(LDFLAGS) $(LIBS)
+main: ccsd_t1_eqs.o ccsd_t2_eqs.o equations.o main.o print.o ../ctce_parser/libctceparser.a
+	$(CXX) -o main equations.o ccsd_t2_eqs.o ccsd_t1_eqs.o main.o print.o ../ctce_parser/libctceparser.a $(LDFLAGS) $(LIBS)
 
 clean:
 	rm -f *~ *.o *.x *.a *.err *.out 

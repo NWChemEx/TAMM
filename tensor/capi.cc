@@ -1,4 +1,6 @@
 #include "capi.h"
+#include "index_sort.h"
+#include <cblas.h>
 
 namespace ctce {
 
@@ -9,6 +11,18 @@ namespace ctce {
 #if TIMER
     double start = rtclock();
 #endif
+
+    // {
+    //   vector<size_t> sizes;
+    //   vector<int> perm;
+    //   for(int i=0; i<ids.size(); i++) {
+    //     sizes.push_back(int_mb[k_range+ids[i]]);
+    //     perm.push_back(iv[i]);
+    //   }
+    //   index_sort(sbuf, dbuf, ids.size(), &sizes[0], &perm[0], alpha);
+    //   return;
+    // }
+
     if(ids.size() == 0) {
       dbuf[0] = sbuf[0] * alpha;
     }
@@ -78,8 +92,13 @@ namespace ctce {
 #if TIMER
     double start = rtclock();
 #endif
-
-    dgemm_(&transa, &transb, &m, &n, &k, &alpha, a, &lda, b, &ldb, &beta, c, &ldc);
+    
+    CBLAS_TRANSPOSE TransA = (transa=='N') ? CblasNoTrans : CblasTrans;
+    CBLAS_TRANSPOSE TransB = (transb=='N') ? CblasNoTrans : CblasTrans;
+    cblas_dgemm(CblasColMajor, TransA, TransB,
+                m, n, k, alpha, a, lda, b, ldb,
+                beta, c, ldc);
+    //dgemm_(&transa, &transb, &m, &n, &k, &alpha, a, &lda, b, &ldb, &beta, c, &ldc);
 
 #if TIMER
     double end = rtclock();

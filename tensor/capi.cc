@@ -12,16 +12,16 @@ namespace ctce {
     double start = rtclock();
 #endif
 
-    // {
-    //   vector<size_t> sizes;
-    //   vector<int> perm;
-    //   for(int i=0; i<ids.size(); i++) {
-    //     sizes.push_back(int_mb[k_range+ids[i]]);
-    //     perm.push_back(iv[i]);
-    //   }
-    //   index_sort(sbuf, dbuf, ids.size(), &sizes[0], &perm[0], alpha);
-    //   return;
-    // }
+    {
+      vector<size_t> sizes;
+      vector<int> perm;
+      for(int i=0; i<ids.size(); i++) {
+        sizes.push_back(int_mb[k_range+ids[i]]);
+        perm.push_back(iv[i]);
+      }
+      index_sort(sbuf, dbuf, ids.size(), &sizes[0], &perm[0], alpha);
+      return;
+    }
 
     if(ids.size() == 0) {
       dbuf[0] = sbuf[0] * alpha;

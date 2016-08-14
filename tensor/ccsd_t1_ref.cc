@@ -6,7 +6,7 @@
 #include "input.h"
 #include "corf.h"
 #include "equations.h"
-
+#include "tensors_and_ops.h"
 /*
  * i0 ( p2 h1 )_f + = 1 * f ( p2 h1 )_f                                                         DONE
  * i0 ( p2 h1 )_tf + = -1 * Sum ( h7 ) * t ( p2 h7 )_t * i1 ( h7 h1 )_f                         DONE

@@ -6,6 +6,7 @@
 #include "input.h"
 #include "corf.h"
 #include "equations.h"
+#include "tensors_and_ops.h"
 
 namespace ctce {
 

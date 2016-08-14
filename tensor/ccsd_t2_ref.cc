@@ -6,6 +6,7 @@
 #include "input.h"
 #include "corf.h"
 #include "equations.h"
+#include "tensors_and_ops.h"
 
 /*
  *i0 ( p3 p4 h1 h2 )_v + = 1 * v ( p3 p4 h1 h2 )_v

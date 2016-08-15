@@ -9,15 +9,28 @@ from antlr4.tree.Tree import TerminalNodeImpl
 
 codegen = ""
 
+
+def printuc(s):
+    s = str(s)
+    asciidata = s
+    try:
+        u8 = s.decode('utf-8')
+        asciidata = u8.encode("ascii", "ignore")
+    except UnicodeError:
+        pass
+
+    return asciidata
+
 def printres(s):
     global  codegen
-    #print(s, end="")
-    codegen += str(s)
+    codegen += printuc(s)
+    #print(printuc(s))
+
 
 def printresws(s):
     global codegen
-    codegen += " " + str(s) + " "
-    #print(" " + str(s), end=" ")
+    codegen += " " + printuc(s) + " "
+    #print(" " + printuc(s), end=" ")
 
 def printws():
     global codegen

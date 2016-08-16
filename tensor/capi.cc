@@ -63,6 +63,51 @@ namespace ctce {
 #endif
   }
 
+extern "C" {
+  void tce_hash_(Integer *hash, Integer *key, Integer *offset);
+  void add_block_(Integer *d_a, double *buf, Integer *size, Integer *offset);
+}
+
+void ctce_hash(Integer *hash, Integer key, Integer *offset)
+{
+#if 0
+  tce_hash_(hash, &key, offset);
+#else
+  Integer length = hash[0];
+  Integer *ptr = std::lower_bound(&hash[1], &hash[length+1], key);
+  if(ptr == &hash[length+1] || key < *ptr) {
+    fprintf(stderr,"ctce_hash: key not found");
+    assert(0);
+  }
+  *offset = *(ptr + length);
+#endif
+}
+
+void cadd_block(Integer d_a, double *buf, Integer size, Integer offset)
+{
+#if 0
+  add_block_(&d_a, buf, &size, &offset);
+#else
+  {
+    int lo[2] = {0,offset};
+    int hi[2] = {0,offset+size-1};
+    int ld[1] = {100000};
+    double alpha = 1.0;
+    NGA_Acc(d_a,lo,hi,buf,ld,&alpha);
+  }
+#endif
+}
+
+void cadd_hash_block(Integer d_c, double *buf_a, Integer size, Integer *hash, Integer key) {
+  Integer offset;
+#if 1
+  ctce_hash(hash, key, &offset);
+  cadd_block(d_c, buf_a, size, offset);
+#else
+  add_hash_block_(&d_c, buf_a, &size, hash, &key);
+#endif
+}
+
   void tce_add_hash_block_(Integer *d_c, double *buf_a, Integer size, Integer k_c_offset, const std::vector<Integer>& is, const std::vector<IndexName>& ns) {
     Integer *int_mb = Variables::int_mb();
     Integer noab = Variables::noab();
@@ -80,7 +125,12 @@ namespace ctce {
     double start = rtclock();
 #endif
     //    std::cout << "ckey" << key << std::endl;
+
+#if 0
     add_hash_block_(d_c, buf_a, &size, &int_mb[k_c_offset], &key);
+#else
+    cadd_hash_block(*d_c, buf_a, size, &int_mb[k_c_offset], key);
+#endif
 #if TIMER
     double end = rtclock();
     Timer::ah_time += end - start;

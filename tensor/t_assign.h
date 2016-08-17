@@ -19,8 +19,6 @@ namespace ctce {
      * @param[in] out_itr outer iterator group
      */
     void t_assign2(
-        Integer* d_a, Integer* k_a_offset,
-        Integer* d_c, Integer* k_c_offset,
         Tensor& tC, const vector<IndexName> &c_ids,
 				Tensor& tA, const vector<IndexName> &a_ids,
 				IterGroup<triangular>& out_itr, double coef,
@@ -31,11 +29,12 @@ namespace ctce {
      * @param[in] d_a, k_a_offset, d_c, k_c_offset from FORTRAN
      * @param[in] a Assignment store all the input data needed for t_assign2
      */
-    void t_assign3(Integer* d_a, Integer* k_a_offset,
-                   Integer* d_c, Integer* k_c_offset, Assignment& a, int sync_ga=0, int spos=0);
+    /* void t_assign3(Integer* d_a, Integer* k_a_offset, */
+    /*                Integer* d_c, Integer* k_c_offset, Assignment& a, int sync_ga=0, int spos=0); */
+    void t_assign3(Assignment& a, int sync_ga=0, int spos=0);
 
-    void t_assign4(Integer* d_a, Integer* k_a_offset,
-        Integer* d_c, Integer* k_c_offset, Assignment& a);
+    /* void t_assign4(Integer* d_a, Integer* k_a_offset, */
+    /*     Integer* d_c, Integer* k_c_offset, Assignment& a); */
 
   }
 

@@ -16,7 +16,7 @@ namespace ctce {
       //const vector<IndexName>& c_ids = cids;//tC.name();
       //const vector<IndexName>& a_ids = aids;//tA.name();
       //vector<Integer>& vtab = Table::value();
-      vector<Integer> order(tC.dim());
+      vector<size_t> order(tC.dim());
 
       for (int i = 0; i < tC.dim(); ++i) order[i] = find(c_ids.begin(), c_ids.end(), a_ids[i]) - c_ids.begin() + 1;
 
@@ -40,7 +40,7 @@ namespace ctce {
 
       int next = NGA_Read_inc(taskHandle, &sub, 1);
 
-      vector<Integer> out_vec; // out_vec = c_ids_v
+      vector<size_t> out_vec; // out_vec = c_ids_v
       out_itr.reset();
       while (out_itr.next(out_vec)) {
 
@@ -51,7 +51,7 @@ namespace ctce {
 	    assert(c_ids[i] < IndexNum);
             vtab1[c_ids[i]] = out_vec[i];
           }
-	  vector<Integer> a_ids_v(tA.dim());
+	  vector<size_t> a_ids_v(tA.dim());
           for (int i = 0; i < tA.dim(); ++i) {
 	    assert(a_ids[i] < IndexNum);
             a_ids_v[i] = vtab1[a_ids[i]];
@@ -60,8 +60,8 @@ namespace ctce {
               tA.is_spin_nonzero(a_ids_v) &&
               tA.is_spin_restricted_nonzero(out_vec)) {
 
-            Integer dimc = compute_size(out_vec); if (dimc <= 0) continue;
-	    vector<Integer> value_r;
+            size_t dimc = compute_size(out_vec); if (dimc <= 0) continue;
+	    vector<size_t> value_r;
             tA.gen_restricted(a_ids_v, value_r);
 
             double* buf_a = new double[dimc];
@@ -79,7 +79,7 @@ namespace ctce {
             addTimer.start();
             // tce_add_hash_block_(d_c, buf_a_sort, dimc, *k_c_offset, out_vec, c_ids);
             {
-              Integer d_c = tC.ga();;
+              //Integer d_c = tC.ga();;
               // tce_add_hash_block_(&d_c, buf_a_sort, dimc, tC.offset_index(), out_vec, c_ids);
               tC.add(out_vec, buf_a_sort, dimc);
             }

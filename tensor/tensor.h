@@ -30,10 +30,10 @@ namespace ctce {
 
 			bool allocated_; /*true if this tensor were created using create()*/
       bool attached_;
-			Integer ga_; /*underlying ga if this tensor was created*/
+			int ga_; /*underlying ga if this tensor was created*/
 			Integer *offset_map_; /*offset map used as part of creation*/
-      Integer offset_index_; /*index to offset map usable with int_mb */
-      Integer offset_handle_; /*MA handle for the offset map when allocated in fortran*/
+      size_t offset_index_; /*index to offset map usable with int_mb */
+      int offset_handle_; /*MA handle for the offset map when allocated in fortran*/
 			int irrep_; /*irrep for spatial symmetry*/
 			int nupper_; /* number of upper indices*/
 
@@ -58,9 +58,9 @@ namespace ctce {
 
       bool attached() const { return attached_; }
       bool allocated() const { return allocated_; }
-      Integer ga() const { return ga_; }
-      Integer offset_index() const { return offset_index_; }
-      Integer offset_handle() const { return offset_handle_; }
+      int ga() const { return ga_; }
+      size_t offset_index() const { return offset_index_; }
+      int offset_handle() const { return offset_handle_; }
 
       /**
        * Constructor
@@ -250,9 +250,9 @@ namespace ctce {
        */
       /* void get(Integer d_a, std::vector<Integer> &pvalue_r, /\*std::vector<IndexName> &name,*\/ double *buf, Integer size, Integer d_a_offset); */
   public:
-      void get(std::vector<Integer> &pvalue_r, double *buf, Integer size);
+      void get(std::vector<size_t> &pvalue_r, double *buf, size_t size);
 
-      void add(std::vector<Integer> &pvalue_r, double *buf, Integer size);
+      void add(std::vector<size_t> &pvalue_r, double *buf, size_t size);
 
       /**
        * Get data by get_hash_block_xx and store in buf, this function is for t_assign
@@ -263,20 +263,20 @@ namespace ctce {
        */
       //void get2(Integer d_a, double *buf, Integer size, Integer d_a_offset);
 
-			int is_spin_restricted_nonzero(const std::vector<Integer>& ids) const {
+			int is_spin_restricted_nonzero(const std::vector<size_t>& ids) const {
 				int lval = dim_ - 2*nupper_;
 				assert(lval >= 0 && lval <=1);
 				assert(ids.size() == dim_);
 				int dim_even = dim_ + (dim_%2);
 				Integer *int_mb = Variables::int_mb();
-				Integer k_spin = Variables::k_spin()-1;
-				Integer restricted = Variables::restricted();
+				size_t k_spin = Variables::k_spin()-1;
+				size_t restricted = Variables::restricted();
 				for (int i=0; i<ids.size(); i++) lval += int_mb[k_spin+ids[i]];
 				assert ((dim_%2==0) || (!restricted) || (lval != 2*dim_even));
 				return ((!restricted) || (dim_==0) || (lval != 2*dim_even));
 			}
 
-			int is_spin_nonzero(const std::vector<Integer>& ids) const {
+			int is_spin_nonzero(const std::vector<size_t>& ids) const {
 				int lval=0, rval=0;
 				Integer *int_mb = Variables::int_mb();
 				Integer k_spin = Variables::k_spin()-1;
@@ -285,7 +285,7 @@ namespace ctce {
 				return (rval - lval == dim_ - 2*nupper_);
 			}
 
-			int is_spatial_nonzero(const std::vector<Integer> &ids) const {
+			int is_spatial_nonzero(const std::vector<size_t> &ids) const {
 				Integer lval=0;
 				Integer *int_mb = Variables::int_mb();
 				Integer k_sym = Variables::k_sym()-1;
@@ -300,8 +300,8 @@ namespace ctce {
        */
       //void gen_restricted();
 
-      void gen_restricted(const std::vector<Integer> &value,
-													std::vector<Integer> &pvalue_r);
+      void gen_restricted(const std::vector<size_t> &value,
+													std::vector<size_t> &pvalue_r);
 
 
 			void create(Integer *fma_offset_index=NULL, Integer *array_handle=NULL, Integer *array_size=NULL);

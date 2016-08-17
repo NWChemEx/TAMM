@@ -13,30 +13,30 @@ namespace ctce {
   /**
    * CXX function that wraps FORTRAN tce_sort2 and tce_sort4
    */
-  void tce_sort(double *sbuf, double *dbuf, const std::vector<Integer>& ids,
-      std::vector<Integer>& iv, double alpha);
+  void tce_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
+      std::vector<size_t>& iv, double alpha);
 
   /**
    * CXX function that wraps FORTRAN fdgemm
    */
-  void cdgemm(char transa, char transb, Integer m, Integer n, Integer k,
-      double alpha, double *a, Integer lda, double *b, Integer ldb, 
-      double beta, double *c, Integer ldc);
+  void cdgemm(char transa, char transb, size_t m, size_t n, size_t k,
+      double alpha, double *a, size_t lda, double *b, size_t ldb, 
+      double beta, double *c, size_t ldc);
 
   /**
    * CXX function that wraps FORTRAN add_hash_block
    */
-  void tce_add_hash_block_(Integer *d_c,double *buf_a,Integer size,Integer k_c_offset, 
-      const std::vector<Integer>& is, const std::vector<IndexName>& ns);
+  /* void tce_add_hash_block_(size_t *d_c,double *buf_a,size_t size,size_t k_c_offset,  */
+  /*     const std::vector<size_t>& is, const std::vector<IndexName>& ns); */
 
-  void cadd_hash_block(Integer d_c, double *buf_a, Integer size, Integer *hash, Integer key);
+  void cadd_hash_block(size_t d_c, double *buf_a, size_t size, Integer *hash, size_t key);
 
 
   /**
    * CXX function that wraps FORTRAN tce_sortacc6
    */
-  void sortacc(double *sbuf, double *dbuf, const std::vector<Integer>& ids, 
-      std::vector<Integer>& perm, double alpha);
+  void sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids, 
+      std::vector<size_t>& perm, double alpha);
 
 }; // namespace ctce
 

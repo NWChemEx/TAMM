@@ -7,9 +7,9 @@
 namespace ctce {
 
 #define TIMER 1
-  void tce_sort(double *sbuf, double *dbuf, const std::vector<Integer>& ids, std::vector<Integer>& iv, double alpha) {
+  void tce_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids, std::vector<size_t>& iv, double alpha) {
     Integer *int_mb = Variables::int_mb();
-    Integer k_range = Variables::k_range()-1;
+    size_t k_range = Variables::k_range()-1;
 #if TIMER
     double start = rtclock();
 #endif
@@ -34,7 +34,8 @@ namespace ctce {
       }
     }
     else if (ids.size()==2) {
-      tce_sort_2_(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &iv[0], &iv[1], &alpha);
+      Integer iv0 = iv[0], iv1=iv[1];
+      tce_sort_2_(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &iv0, &iv1, &alpha);
     }
     else if (ids.size()==3) {
       Integer *rmb = int_mb + k_range;
@@ -50,8 +51,9 @@ namespace ctce {
 		  &perm1, &perm2, &perm3, &perm4, &alpha);
     }
     else if (ids.size()==4) {
+      Integer iv0 = iv[0], iv1=iv[1], iv2= iv[2], iv3=iv[3];
       tce_sort_4_(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &int_mb[k_range+ids[2]], &int_mb[k_range+ids[3]],
-          &iv[0], &iv[1], &iv[2], &iv[3], &alpha);
+          &iv0, &iv1, &iv2, &iv3, &alpha);
     }
     else {
       assert(0); //not implemented
@@ -68,14 +70,15 @@ extern "C" {
   void add_block_(Integer *d_a, double *buf, Integer *size, Integer *offset);
 }
 
-void ctce_hash(Integer *hash, Integer key, Integer *offset)
+void ctce_hash(Integer *hash, size_t key, Integer *offset)
 {
 #if 0
   tce_hash_(hash, &key, offset);
 #else
   Integer length = hash[0];
+  Integer ikey=key;
   Integer *ptr = std::lower_bound(&hash[1], &hash[length+1], key);
-  if(ptr == &hash[length+1] || key < *ptr) {
+  if(ptr == &hash[length+1] || ikey < *ptr) {
     fprintf(stderr,"ctce_hash: key not found");
     assert(0);
   }
@@ -83,7 +86,7 @@ void ctce_hash(Integer *hash, Integer key, Integer *offset)
 #endif
 }
 
-void cadd_block(Integer d_a, double *buf, Integer size, Integer offset)
+void cadd_block(size_t d_a, double *buf, size_t size, size_t offset)
 {
 #if 0
   add_block_(&d_a, buf, &size, &offset);
@@ -98,16 +101,20 @@ void cadd_block(Integer d_a, double *buf, Integer size, Integer offset)
 #endif
 }
 
-void cadd_hash_block(Integer d_c, double *buf_a, Integer size, Integer *hash, Integer key) {
+void cadd_hash_block(size_t d_c, double *buf_a, size_t size, Integer *hash, size_t key) {
   Integer offset;
+  Integer ida = d_c;
+  Integer isize = size;
+  Integer ikey = key;
 #if 1
   ctce_hash(hash, key, &offset);
   cadd_block(d_c, buf_a, size, offset);
 #else
-  add_hash_block_(&d_c, buf_a, &size, hash, &key);
+  add_hash_block_(&ida, buf_a, &isize, hash, &ikey);
 #endif
 }
 
+#if 0
   void tce_add_hash_block_(Integer *d_c, double *buf_a, Integer size, Integer k_c_offset, const std::vector<Integer>& is, const std::vector<IndexName>& ns) {
     Integer *int_mb = Variables::int_mb();
     Integer noab = Variables::noab();
@@ -137,14 +144,15 @@ void cadd_hash_block(Integer d_c, double *buf_a, Integer size, Integer *hash, In
     Timer::ah_num += 1;
 #endif
   }
+#endif
 
-  void cdgemm(char transa, char transb, Integer m, Integer n, Integer k,
-      double alpha, double *a, Integer lda, double *b, Integer ldb, double beta,
-      double *c, Integer ldc) {
+  void cdgemm(char transa, char transb, size_t m, size_t n, size_t k,
+      double alpha, double *a, size_t lda, double *b, size_t ldb, double beta,
+      double *c, size_t ldc) {
 #if TIMER
     double start = rtclock();
 #endif
-    
+    Integer im=m, in=n, ik=k, ilda=lda, ildb=ldb,ildc=ldc;
 #if defined(CBLAS)
     CBLAS_TRANSPOSE TransA = (transa=='N') ? CblasNoTrans : CblasTrans;
     CBLAS_TRANSPOSE TransB = (transb=='N') ? CblasNoTrans : CblasTrans;
@@ -152,7 +160,7 @@ void cadd_hash_block(Integer d_c, double *buf_a, Integer size, Integer *hash, In
                 m, n, k, alpha, a, lda, b, ldb,
                 beta, c, ldc);
 #else
-    dgemm_(&transa, &transb, &m, &n, &k, &alpha, a, &lda, b, &ldb, &beta, c, &ldc);
+    dgemm_(&transa, &transb, &im, &in, &ik, &alpha, a, &ilda, b, &ildb, &beta, c, &ildc);
 #endif
 
 #if TIMER
@@ -162,9 +170,9 @@ void cadd_hash_block(Integer d_c, double *buf_a, Integer size, Integer *hash, In
 #endif
   }
 
-  void sortacc(double *sbuf, double *dbuf, const std::vector<Integer>& ids, std::vector<Integer>& perm, double alpha) {
+  void sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids, std::vector<size_t>& perm, double alpha) {
     Integer *int_mb = Variables::int_mb();
-    Integer k_range = Variables::k_range()-1;
+    size_t k_range = Variables::k_range()-1;
 #if TIMER
     double start = rtclock();
 #endif
@@ -181,13 +189,15 @@ void cadd_hash_block(Integer d_c, double *buf_a, Integer size, Integer *hash, In
     }
 
     if (ids.size()==4) {
+      Integer p0=perm[0], p1=perm[1], p2=perm[2], p3=perm[3];
       tce_sortacc_4_(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &int_mb[k_range+ids[2]], 
-          &int_mb[k_range+ids[3]], &perm[0], &perm[1], &perm[2], &perm[3], &alpha);
+          &int_mb[k_range+ids[3]], &p0, &p1, &p2, &p3, &alpha);
     }
     else if (ids.size()==6) {
+      Integer p0=perm[0], p1=perm[1], p2=perm[2], p3=perm[3], p4=perm[4], p5=perm[5];
       tce_sortacc_6_(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &int_mb[k_range+ids[2]], 
           &int_mb[k_range+ids[3]], &int_mb[k_range+ids[4]], &int_mb[k_range+ids[5]],
-          &perm[0], &perm[1], &perm[2], &perm[3], &perm[4], &perm[5], &alpha);
+          &p0, &p1, &p3, &p3, &p4, &p5, &alpha);
     }
     else {
       assert(0);

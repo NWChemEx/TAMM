@@ -21,8 +21,8 @@ namespace ctce {
   }
 
   // compute factor reduction for isuperp
-  double computeBeta(const std::vector<IndexName>& sum_ids, const std::vector<Integer>& sum_vec) {
-    std::vector<Integer> p_group, h_group;
+  double computeBeta(const std::vector<IndexName>& sum_ids, const std::vector<size_t>& sum_vec) {
+    std::vector<size_t> p_group, h_group;
     for (int i=0; i<sum_ids.size(); i++) {
       assert(sum_ids[i]<IndexNum && sum_ids[i]>=0);
       if (sum_ids[i]<pIndexNum && sum_ids[i]>=0)
@@ -59,38 +59,38 @@ namespace ctce {
     return p_fact * h_fact;
   }
 
-  Integer compute_size(const std::vector<Integer>& ids) {
-    Integer size = 1;
+  size_t compute_size(const std::vector<size_t>& ids) {
+    size_t size = 1;
     Integer *int_mb = Variables::int_mb();
-    Integer k_range = Variables::k_range()-1;
+    size_t k_range = Variables::k_range()-1;
     for (int i=0; i<ids.size(); i++) size *= int_mb[k_range+ids[i]];
     return size;
   }
 
-  int is_spin_restricted_nonzero(const std::vector<Integer>& ids, const Integer& sval) {
-    Integer lval=0;
+  int is_spin_restricted_nonzero(const std::vector<size_t>& ids, const size_t& sval) {
+    size_t lval=0;
     Integer *int_mb = Variables::int_mb();
-    Integer k_spin = Variables::k_spin()-1;
-    Integer restricted = Variables::restricted();
+    size_t k_spin = Variables::k_spin()-1;
+    size_t restricted = Variables::restricted();
     for (int i=0; i<ids.size(); i++) lval += int_mb[k_spin+ids[i]];
     return ((!restricted) || (lval != sval));
   }
 
-  int is_spin_nonzero(const std::vector<Integer>& ids) {
+  int is_spin_nonzero(const std::vector<size_t>& ids) {
     int nids = ids.size();
     assert(nids %2 == 0);
-    Integer lval=0, rval=0;
+    size_t lval=0, rval=0;
     Integer *int_mb = Variables::int_mb();
-    Integer k_spin = Variables::k_spin()-1;
+    size_t k_spin = Variables::k_spin()-1;
     for(int i=0; i<nids/2; i++) lval += int_mb[k_spin+ids[i]];
     for(int i=nids/2; i<nids; i++) rval += int_mb[k_spin+ids[i]];
     return (lval==rval);
   }
 
-  int is_spatial_nonzero(const std::vector<Integer> &ids, const Integer sval) {
-    Integer lval=0;
+  int is_spatial_nonzero(const std::vector<size_t> &ids, const size_t sval) {
+    size_t lval=0;
     Integer *int_mb = Variables::int_mb();
-    Integer k_sym = Variables::k_sym()-1;
+    size_t k_sym = Variables::k_sym()-1;
     for(int i=0; i<ids.size(); i++) lval ^= int_mb[k_sym+ids[i]];
     return (lval == sval);
   }
@@ -101,16 +101,16 @@ namespace ctce {
   }
 
   // used in ccsd_t.cc
-  int is_spin_restricted_le(const std::vector<Integer>& ids, const Integer& sval) {
-    Integer lval=0;
+  int is_spin_restricted_le(const std::vector<size_t>& ids, const size_t& sval) {
+    size_t lval=0;
     Integer *int_mb = Variables::int_mb();
-    Integer k_spin = Variables::k_spin()-1;
-    Integer restricted = Variables::restricted();
+    size_t k_spin = Variables::k_spin()-1;
+    size_t restricted = Variables::restricted();
     for (int i=0; i<ids.size(); i++) lval += int_mb[k_spin+ids[i]];
     return ((!restricted) || (lval <= sval));
   }
 
-  double computeFactor(const std::vector<Integer> &ids) {
+  double computeFactor(const std::vector<size_t> &ids) {
     double factor;
     if (Variables::restricted()) factor = 2.0;
     else factor = 1.0;
@@ -122,12 +122,12 @@ namespace ctce {
   }
 
   // hard-coded
-  void computeEnergy(const std::vector<Integer>& rvec, const std::vector<Integer>& ovec,
+  void computeEnergy(const std::vector<size_t>& rvec, const std::vector<size_t>& ovec,
       double *energy1, double *energy2, double *buf_single, double *buf_double, const double& factor) {
 
     double *dbl_mb = Variables::dbl_mb();
     double denom, denom_p4, denom_p5, denom_p6, denom_h1, denom_h2, denom_h3;
-    Integer rp4, rp5, rp6, rh1, rh2, rh3, op4, op5, op6, oh1, oh2, oh3;
+    size_t rp4, rp5, rp6, rh1, rh2, rh3, op4, op5, op6, oh1, oh2, oh3;
     rp4 = rvec[0]; op4 = ovec[0];
     rp5 = rvec[1]; op5 = ovec[1];
     rp6 = rvec[2]; op6 = ovec[2];

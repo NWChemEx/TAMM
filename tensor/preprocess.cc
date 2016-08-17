@@ -27,7 +27,7 @@ namespace ctce {
       trig_itr = IterGroup<triangular>(vt,TRIG);
     }
 
-    void genAntiIter(const std::vector<Integer> &vtab, IterGroup<antisymm>& ext_itr, const Tensor& tC, const Tensor& tA, const Tensor& tB) {
+    void genAntiIter(const std::vector<size_t> &vtab, IterGroup<antisymm>& ext_itr, const Tensor& tC, const Tensor& tA, const Tensor& tB) {
       // const std::vector<IndexName>& c = tC.name();
       // const std::vector<IndexName>& a = tA.name();
       // const std::vector<IndexName>& b = tB.name();

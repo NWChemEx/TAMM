@@ -23,7 +23,7 @@ namespace ctce {
      * @param[in] cp_itr copy iterator group
      * @param[in] tid current value of the tC indices, to compute antisymm iterator inside
      */
-    void t_mult(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, double *a_c,
+    void t_mult(double *a_c,
         Tensor &tC, Tensor &tA, Tensor &tB, const double coef,
         const std::vector<IndexName>& sum_ids, 
         IterGroup<triangular>& sum_itr,
@@ -40,7 +40,7 @@ namespace ctce {
      * @param[in] cp_itr copy iterator group
      * @param[in] out_itr outer iterator each value will be pass to t_mult as tid
      */
-    void t_mult2(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, Integer *d_c, Integer *k_c_offset,
+    void t_mult2(
         Tensor& tC, Tensor& tA, Tensor& tB, const double coef,
         const std::vector<IndexName>& sum_ids,
         IterGroup<triangular>& sum_itr,
@@ -57,7 +57,7 @@ namespace ctce {
      * @param[in] cp_itr copy iterator group
      * @param[in] out_itr outer iterator group
      */
-    void t_mult3(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset, Integer *d_c, Integer *k_c_offset,
+    void t_mult3(
         Tensor& tC, Tensor& tA, Tensor& tB, const double coef,
         const std::vector<IndexName>& sum_ids,
         IterGroup<triangular>& sum_itr,
@@ -70,8 +70,7 @@ namespace ctce {
      * @param[in] d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset from FORTRAN
      * @param[in] m Multiplication store all the input data needed for t_mult3
      */ 
-    void t_mult4(Integer *d_a, Integer *k_a_offset, Integer *d_b, Integer *k_b_offset,
-                 Integer *d_c, Integer *k_c_offset, Multiplication& m, int sync_ga=0, int spos=0);
+    void t_mult4(Multiplication& m, int sync_ga=0, int spos=0);
 
   }
 

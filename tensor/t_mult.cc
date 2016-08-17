@@ -101,7 +101,8 @@ namespace ctce {
             //tA.sortByValueThenExtSymGroup();
             // if (tA.dim()==2) tA.get_ma = true;
 	    //tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);
-	    tA.get(*d_a,a_svalue_r,buf_a,dima,*k_a_offset);
+	    // tA.get(*d_a,a_svalue_r,buf_a,dima,*k_a_offset);
+	    tA.get(a_svalue_r,buf_a,dima);
             //tA.get(*d_a,buf_a,dima,*k_a_offset);
 	    vector<Integer> a_sort_ids = sort_ids(a_name, m.a_mem_pos);
             tce_sort(buf_a, buf_a_sort, a_svalue /*tA._value()*/, a_sort_ids/*tA.sort_ids()*/, (double)a_sign /*tA.sign()*/);
@@ -113,7 +114,8 @@ namespace ctce {
             //tB.sortByValueThenExtSymGroup();
             // if (!tB.isIntermediate()) tB.get_i = true;
 	    //tB.get(*d_b,b_svalue_r,b_name,buf_b,dimb,*k_b_offset);
-	    tB.get(*d_b,b_svalue_r,buf_b,dimb,*k_b_offset);
+	    // tB.get(*d_b,b_svalue_r,buf_b,dimb,*k_b_offset);
+	    tB.get(b_svalue_r,buf_b,dimb);
             //tB.get(*d_b,buf_b,dimb,*k_b_offset);
             //tce_sort(buf_b, buf_b_sort, tB._value(), tB.sort_ids(), (double)tB.sign());
 	    vector<Integer> b_sort_ids = sort_ids(b_name, m.b_mem_pos);
@@ -319,7 +321,8 @@ namespace ctce {
               // if (tA.dim()==2) tA.get_ma = true;
               //tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);
               getTimer.start();
-              tA.get(*d_a,a_svalue_r,buf_a,dima,*k_a_offset);
+              // tA.get(*d_a,a_svalue_r,buf_a,dima,*k_a_offset);
+              tA.get(a_svalue_r,buf_a,dima);
               getTimer.stop();
 	      vector<Integer> a_sort_ids = sort_ids(a_name, m.a_mem_pos);
 	      //vector<Integer> a_sort_ids = tA.sort_ids(a_name);
@@ -332,7 +335,8 @@ namespace ctce {
               // if (!tB.isIntermediate()) tB.get_i = true;
               //tB.get(*d_b,b_svalue_r,b_name,buf_b,dimb,*k_b_offset);
               getTimer.start();
-              tB.get(*d_b,b_svalue_r,buf_b,dimb,*k_b_offset);
+              // tB.get(*d_b,b_svalue_r,buf_b,dimb,*k_b_offset);
+              tB.get(b_svalue_r,buf_b,dimb);
               getTimer.stop();
 	      //vector<Integer> b_sort_ids = tB.sort_ids(b_name);
 	      vector<Integer> b_sort_ids = sort_ids(b_name, m.b_mem_pos);

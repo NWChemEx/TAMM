@@ -24,7 +24,7 @@ namespace ctce {
     IndexName indices[eqs.index_entries.size()];
     
     for(int i=0; i<eqs.range_entries.size(); i++) {
-      char *rname = eqs.range_entries[i].name;
+      const char *rname = eqs.range_entries[i].name.c_str();
       if(!strcmp(rname, OSTR)) {
         rts[i] = TO;
         continue;

@@ -4,6 +4,7 @@
 #include "define.h"
 #include "tensor.h"
 #include "expression.h"
+#include <string>
 
 #define MAX_TENSOR_DIMS 8
 #define MAX_INDEX_NAMES 32
@@ -20,16 +21,16 @@ typedef struct {
 } Range2Index;
 
 typedef struct {
-	char * name; /*name for this range*/
+  std::string name; /*name for this range*/
 } RangeEntry;
 
 typedef struct {
-	char * name; /*name of this index*/
+  std::string name; /*name of this index*/
   int range_id; /*index into the RangeEntry struct*/
 } IndexEntry;
 
 typedef struct {
-	char * name;
+  std::string name;
   int range_ids[MAX_TENSOR_DIMS]; /*dimensions in terms of index into RangeEntry struct*/
 	int ndim, nupper;
 } TensorEntry;

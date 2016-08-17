@@ -107,7 +107,7 @@ namespace ctce {
     }
   }
 
-  void Tensor::create(Integer *fma_offset_index, Integer *array_handle, Integer *array_size) {
+void Tensor::create() {
     const std::vector<IndexName>& name = id2name(ids());
     // const std::vector<int>& gp = tC_.ext_sym_group();
     const std::vector<int>& gp = ext_sym_group(ids());
@@ -194,15 +194,6 @@ namespace ctce {
     NGA_Zero(ga_);
     offset_index_ = offset_map_ - int_mb;
     allocated_ = true;
-    if(fma_offset_index) {
-      *fma_offset_index = offset_index_;
-    }
-    if(array_handle) {
-      *array_handle = ga_;
-    }
-    if(array_size) {
-      *array_size = size;
-    }
   }
 
   void Tensor::attach(Integer fma_offset_index, Integer fma_handle, Integer array_handle) {

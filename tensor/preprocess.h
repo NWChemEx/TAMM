@@ -12,6 +12,8 @@ namespace ctce {
 
     /**
      * Generate triangluar iterator
+     * @param[out] trig_itr
+     * @param[in] name, group
      */
     void genTrigIter(IterGroup<triangular>& trig_itr, const std::vector<IndexName>& name, const std::vector<int>& group);
 

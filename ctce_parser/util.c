@@ -58,6 +58,7 @@ ctce_string combine_indices(ctce_string *indices, int count) {
         /* Check if we need to insert newline */
         if (str[length - 1] != ',') {
             str[length] = ',';             /* Append a comma       */
+            str[length+1] = '\0';
         }
     }
     str[length] = '\0';           /* followed by terminator */

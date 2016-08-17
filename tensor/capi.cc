@@ -1,6 +1,8 @@
 #include "capi.h"
 #include "index_sort.h"
+#if defined(CBLAS)
 #include <cblas.h>
+#endif
 
 namespace ctce {
 
@@ -93,12 +95,15 @@ namespace ctce {
     double start = rtclock();
 #endif
     
+#if defined(CBLAS)
     CBLAS_TRANSPOSE TransA = (transa=='N') ? CblasNoTrans : CblasTrans;
     CBLAS_TRANSPOSE TransB = (transb=='N') ? CblasNoTrans : CblasTrans;
     cblas_dgemm(CblasColMajor, TransA, TransB,
                 m, n, k, alpha, a, lda, b, ldb,
                 beta, c, ldc);
-    //dgemm_(&transa, &transb, &m, &n, &k, &alpha, a, &lda, b, &ldb, &beta, c, &ldc);
+#else
+    dgemm_(&transa, &transb, &m, &n, &k, &alpha, a, &lda, b, &ldb, &beta, c, &ldc);
+#endif
 
 #if TIMER
     double end = rtclock();
@@ -113,6 +118,18 @@ namespace ctce {
 #if TIMER
     double start = rtclock();
 #endif
+
+    {
+      vector<size_t> sizes;
+      vector<int> perms;
+      for(int i=0; i<ids.size(); i++) {
+        sizes.push_back(int_mb[k_range+ids[i]]);
+        perms.push_back(perm[i]);
+      }
+      index_sortacc(sbuf, dbuf, ids.size(), &sizes[0], &perms[0], alpha);
+      return;
+    }
+
     if (ids.size()==4) {
       tce_sortacc_4_(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &int_mb[k_range+ids[2]], 
           &int_mb[k_range+ids[3]], &perm[0], &perm[1], &perm[2], &perm[3], &alpha);

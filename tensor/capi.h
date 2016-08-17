@@ -42,6 +42,10 @@ namespace ctce {
                        const std::vector<size_t> &value,
                        std::vector<size_t> &pvalue_r);
 
+  void cget_hash_block_i(size_t d_a, double *buf, size_t size, size_t d_a_offset,
+                         size_t key, std::vector<size_t> &is);
+  void cget_hash_block_ma(size_t d_a, double *buf, size_t size, size_t d_a_offset, size_t key);
+  void cget_hash_block(size_t d_a, double *buf, size_t size, size_t d_a_offset, size_t key);
 
 }; // namespace ctce
 

@@ -248,4 +248,31 @@ void cadd_hash_block(size_t d_c, double *buf_a, size_t size, Integer *hash, size
     }
   }
 
+void cget_hash_block_i(size_t d_a, double *buf, size_t size, size_t d_a_offset,
+                       size_t key, std::vector<size_t> &is) {
+  Integer ida = d_a;
+  Integer is0= is[0], is1=is[1], is2=is[2], is3=is[3];
+  Integer isize = size;
+  Integer *int_mb = Variables::int_mb();
+  Integer ikey = key;
+  get_hash_block_i_(&ida, buf, &isize, &int_mb[d_a_offset], &ikey,
+                    &is3, &is2, &is1, &is0); /* special case*/
+}
+
+void cget_hash_block_ma(size_t d_a, double *buf, size_t size, size_t d_a_offset, size_t key) {
+  double *dbl_mb = Variables::dbl_mb();
+  Integer isize = size;
+  Integer *int_mb = Variables::int_mb();
+  Integer ikey = key;
+  get_hash_block_ma_(&dbl_mb[d_a], buf, &isize, &int_mb[d_a_offset], &ikey);
+}
+
+void cget_hash_block(size_t d_a, double *buf, size_t size, size_t d_a_offset, size_t key) {
+  Integer ida = d_a;
+  Integer isize = size;
+  Integer *int_mb = Variables::int_mb();
+  Integer ikey = key;
+  get_hash_block_(&ida, buf, &isize, &int_mb[d_a_offset], &ikey);
+}
+
 }; // namespace ctce

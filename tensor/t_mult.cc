@@ -387,7 +387,8 @@ namespace ctce {
                 tce_sort(buf_c_sort, buf_c, cmpval, cperm, sign);
 
                 addTimer.start();
-                tce_add_hash_block_(d_c, buf_c, dimc, *k_c_offset, value, name);
+                // tce_add_hash_block_(d_c, buf_c, dimc, *k_c_offset, value, name);
+                tC.add(value, buf_c, dimc);
                 addTimer.stop();
 
                 delete [] buf_c;

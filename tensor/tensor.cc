@@ -1,5 +1,6 @@
 #include "tensor.h"
 #include "ga.h"
+#include "capi.h"
 #include <iostream>
 #include "expression.h"
 using namespace std;
@@ -321,6 +322,26 @@ namespace ctce {
     }
 #endif
   }
+
+  void Tensor::add(std::vector<Integer> &is, double *buf, Integer size) {
+    assert(allocated_ || attached_);
+    Integer d_c = ga();
+    Integer *int_mb = Variables::int_mb();
+    Integer *hash = &int_mb[offset_index()];
+    Integer noab = Variables::noab();
+    Integer nvab = Variables::nvab();
+    const std::vector<IndexName>& ns = id2name(ids_);
+
+    Integer key=0, offset=1;
+    for (int i=is.size()-1; i>=0; i--) {
+      bool check = (Table::rangeOf(ns[i])==TO);
+      if (check) key += (is[i]-1)*offset;
+      else key += (is[i]-noab-1)*offset; // TV
+      offset *= (check)?noab:nvab;
+    }
+    cadd_hash_block(d_c, buf, size, hash, key);
+  }
+
 
   // for t_assign only, somehow the key is different for non get_i case
   // void Tensor::get2(Integer d_a, double *buf, Integer size, Integer d_a_offset) {

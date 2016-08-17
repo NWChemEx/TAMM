@@ -29,6 +29,9 @@ namespace ctce {
   void tce_add_hash_block_(Integer *d_c,double *buf_a,Integer size,Integer k_c_offset, 
       const std::vector<Integer>& is, const std::vector<IndexName>& ns);
 
+  void cadd_hash_block(Integer d_c, double *buf_a, Integer size, Integer *hash, Integer key);
+
+
   /**
    * CXX function that wraps FORTRAN tce_sortacc6
    */

@@ -230,6 +230,9 @@ namespace ctce {
 			value[i] = _ids_[i].value();
 			value_r[i] = _ids_[i].value_r();
 		}
+    for(int i=0; i<n; i++) {
+      assert(Table::rangeOf(name[i]) == Table::rangeOf(ids_[i].name()));
+    }
 	}
 
 

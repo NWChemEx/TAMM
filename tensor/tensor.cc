@@ -394,6 +394,7 @@ void Tensor::create() {
 #endif
   //extern "C" {
 
+#if 0
     Tensor Tensor2(IndexName n1, IndexName n2, int e1, int e2, TensorType type,
 		   DistType dt, DimType dm) {
       Index i1 = Index(n1,0);
@@ -430,12 +431,12 @@ void Tensor::create() {
       Tensor t = Tensor(6,ids,type,dt,dm);
       return t;
     }
-
+#endif
   Tensor Tensor0_1(RangeType r1, DistType dt, int irrep) {
       RangeType rts[1] = {r1};
       return Tensor(1,0,irrep,rts, dt);
     }
-
+#if 0
     Tensor Tensor0_1(IndexName n1, int e1, TensorType type,
 		     DistType dt, DimType dm) {
       Index i1 = Index(n1,0);
@@ -451,7 +452,7 @@ void Tensor::create() {
       Tensor t = Tensor(1,ids,type,dt,dm,irrep);
       return t;
     }
-
+#endif
     Tensor Tensor2(RangeType r1, RangeType r2, DistType dt) {
       RangeType rts[2] = {r1, r2};
       return Tensor(2,1,0,rts, dt);
@@ -462,6 +463,7 @@ void Tensor::create() {
       return Tensor(3,1,irrep,rts, dt);
     }
 
+#if 0
   Tensor Tensor1_2(IndexName n1, IndexName n2, IndexName n3,
 		   int e1, int e2, int e3, TensorType type, DistType dt, DimType dm, int irrep) {
     assert(e1 == 0);
@@ -472,6 +474,7 @@ void Tensor::create() {
     Tensor t = Tensor(3,ids,type,dt,dm,irrep);
     return t;
   }
+#endif
 
     Tensor Tensor4(RangeType r1, RangeType r2, RangeType r3, RangeType r4, DistType dt) {
       RangeType rts[4] = {r1, r2, r3, r4};

@@ -210,4 +210,42 @@ void cadd_hash_block(size_t d_c, double *buf_a, size_t size, Integer *hash, size
   }
 
 
+  void ctce_restricted(int dim, int nupper,
+                       const std::vector<size_t> &value,
+                       std::vector<size_t> &pvalue_r) {
+    std::vector<Integer> temp(dim);
+    std::vector<Integer> ivalue(dim);
+    assert(value.size() == dim);
+    temp.resize(dim);
+    Integer dummy0=1, dummy1=1;
+    for(int i=0; i<dim; i++) {
+      ivalue[i] = value[i];
+    }
+    if(dim==1) {
+      assert(nupper==0);
+      tce_restricted_2_(&dummy0, &ivalue[0],&dummy1,&temp[0]);
+    }
+    else if (dim==2)   {
+      tce_restricted_2_(&ivalue[0],&ivalue[1],&temp[0],&temp[1]);
+    }
+    else if(dim==3) {
+      assert(nupper==1);
+      tce_restricted_4_(&dummy0,&ivalue[0],&ivalue[1],&ivalue[2],
+			&dummy1,&temp[0],&temp[1],&temp[2]);
+    }
+    else if (dim==4) {
+      tce_restricted_4_(&ivalue[0],&ivalue[1],&ivalue[2],&ivalue[3],
+          &temp[0],&temp[1],&temp[2],&temp[3]);
+    }
+    else {
+      assert(0);
+    }
+    pvalue_r.clear();
+    for (int i=0; i<dim; i++) {
+      //ids_[i].setValueR(temp[i]);
+      //value_r_[i] = temp[i];
+      pvalue_r.push_back(temp[i]);
+    }
+  }
+
 }; // namespace ctce

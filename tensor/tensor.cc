@@ -72,39 +72,7 @@ namespace ctce {
 
   void Tensor::gen_restricted(const std::vector<size_t>& value_,
 			      std::vector<size_t> &pvalue_r) {
-    std::vector<Integer> temp(dim_);
-    std::vector<Integer> value(dim_);
-    assert(value.size() == dim_);
-    temp.resize(dim_);
-    Integer dummy0=1, dummy1=1;
-    for(int i=0; i<dim_; i++) {
-      value[i] = value_[i];
-    }
-    if(dim_==1) {
-      assert(nupper_==0);
-      tce_restricted_2_(&dummy0, &value[0],&dummy1,&temp[0]);
-    }
-    else if (dim_==2)   {
-      tce_restricted_2_(&value[0],&value[1],&temp[0],&temp[1]);
-    }
-    else if(dim_==3) {
-      assert(nupper_==1);
-      tce_restricted_4_(&dummy0,&value[0],&value[1],&value[2],
-			&dummy1,&temp[0],&temp[1],&temp[2]);
-    }
-    else if (dim_==4) {
-      tce_restricted_4_(&value[0],&value[1],&value[2],&value[3],
-          &temp[0],&temp[1],&temp[2],&temp[3]);
-    }
-    else {
-      assert(0);
-    }
-    pvalue_r.clear();
-    for (int i=0; i<dim_; i++) {
-      //ids_[i].setValueR(temp[i]);
-      //value_r_[i] = temp[i];
-      pvalue_r.push_back(temp[i]);
-    }
+    ctce_restricted(dim_, nupper_, value_, pvalue_r);
   }
 
 void Tensor::create() {

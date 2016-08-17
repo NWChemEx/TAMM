@@ -38,6 +38,11 @@ namespace ctce {
   void sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids, 
       std::vector<size_t>& perm, double alpha);
 
+  void ctce_restricted(int dim, int nupper,
+                       const std::vector<size_t> &value,
+                       std::vector<size_t> &pvalue_r);
+
+
 }; // namespace ctce
 
 #endif

@@ -70,7 +70,8 @@ namespace ctce {
             double* buf_a_sort = new double[dimc];
             //tA.get2(*d_a, value_r, buf_a, dimc, *k_a_offset); // get2 is for t_assign use
             getTimer.start();
-            tA.get(*d_a, value_r, buf_a, dimc, *k_a_offset);
+            // tA.get(*d_a, value_r, buf_a, dimc, *k_a_offset);
+            tA.get(value_r, buf_a, dimc);
             getTimer.stop();
 
             if (coef == -1.0) { // dscal

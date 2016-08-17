@@ -14,20 +14,13 @@ namespace ctce {
   int Timer::sa_num = 0;
   int Timer::so_num = 0;
 
-  /*static int* generate_int_timer_data() {
-	  int *my_num = new int[20];
-	  for ( int i = 0; i < 20; ++i ) {
-		  my_num[i] = 0;
-	  }
-  } */
   int MPI_Timer::timer_num[40] = {0};
   double MPI_Timer::timer_value[40] = {0.e0};
   double MPI_Timer::timer_cum_value[40] = {0.e0};
-	char* MPI_Timer::timer_text[] = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", 
-		"11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
-		"21", "22", "23", "24", "25", "26", "27", "28", "29", "30",
-		"31", "32", "33", "34", "35", "36", "37", "38", "39", "40"};
-  //int MPI_Timer::timer_num = generate_int_timer_data();
+  char* MPI_Timer::timer_text[] = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", 
+				   "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
+				   "21", "22", "23", "24", "25", "26", "27", "28", "29", "30",
+				   "31", "32", "33", "34", "35", "36", "37", "38", "39", "40"};
 
   Integer Variables::noab_ = 0;
   Integer Variables::nvab_ = 0;
@@ -67,8 +60,8 @@ namespace ctce {
     k_sym_ = *k_sym;
   }
   void Variables::set_k2(Integer *k_offset, Integer *k_evl_sorted) {
-      k_offset_ = *k_offset;
-      k_evl_sorted_ = *k_evl_sorted;
+    k_offset_ = *k_offset;
+    k_evl_sorted_ = *k_evl_sorted;
   }
   void Variables::set_log(logical *intorb, logical *restricted) {
     intorb_ = *intorb;
@@ -87,10 +80,10 @@ namespace ctce {
     }
 
     void set_var_cxx_(Integer* noab, Integer* nvab, 
-        Integer* int_mb, double* dbl_mb,
-        Integer* k_range, Integer *k_spin, Integer *k_sym, 
-        logical *intorb, logical *restricted,
-        Integer *irrep_v, Integer *irrep_t, Integer *irrep_f) {
+		      Integer* int_mb, double* dbl_mb,
+		      Integer* k_range, Integer *k_spin, Integer *k_sym, 
+		      logical *intorb, logical *restricted,
+		      Integer *irrep_v, Integer *irrep_t, Integer *irrep_f) {
       Dummy::construct();
       Table::construct();
       Variables::set_ov(noab, nvab);
@@ -99,46 +92,6 @@ namespace ctce {
       Variables::set_log(intorb, restricted);
       Variables::set_irrep(irrep_v, irrep_t, irrep_f);
     }
-
-    void showtimer_() {
-      if (GA_Nodeid()==0) {
-        //printf("----- Node #%d -----\n DGEMM: %d\t%.10f\n ADDHB: %d\t%.10f\n TOTAL: %.10f\n",
-        //  GA_Nodeid(), Timer::dg_num, Timer::dg_time, Timer::ah_num, Timer::ah_time, Timer::total);
-        printf("----- Node #%d -----\n DGEMM: %d\t%.10f\n ADDHB: %d\t%.10f\n",
-          GA_Nodeid(), Timer::dg_num, Timer::dg_time, Timer::ah_num, Timer::ah_time);
-        printf(                      " SOACC: %d\t%.10f\n  SORT: %d\t%.10f\n",
-          GA_Nodeid(), Timer::sa_num, Timer::sa_time, Timer::so_num, Timer::so_time);
-      }
-    }
-
-		void set_my_mpi_timer_(int* i, char tim_tex[30]) {
-			if (GA_Nodeid()==0) {
-				MPI_Timer::timer_value[*i-1] = MPI_Wtime();
-				MPI_Timer::timer_text[*i-1] = tim_tex;
-			}
-		}
-
-		void accum_my_mpi_timer_(int* i) {
-			if (GA_Nodeid()==0) {
-				MPI_Timer::timer_num[*i-1] += 1;
-				MPI_Timer::timer_cum_value[*i-1] += MPI_Wtime() - MPI_Timer::timer_value[*i-1];
-			}
-		}
-
-		void print_my_mpi_timer_(int* i) {
-			if (GA_Nodeid()==0) {
-        printf("----- Node #%d; Timer #%d; Func: %s ----\n Number of Calls:\t %d\t \t Cum Time: \t%.10f\n ",
-          GA_Nodeid(), *i,  MPI_Timer::timer_text[*i-1], MPI_Timer::timer_num[*i-1], MPI_Timer::timer_cum_value[*i-1]);
-			}
-		}
-
-		void string_my_mpi_timer_(int* i, char tim_tex[30]) {
-			if (GA_Nodeid()==0) {
-				MPI_Timer::timer_text[*i-1] = tim_tex;
-        printf("----- Node #%d; Timer #%d -----\t Calls: %s\n",
-          GA_Nodeid(), *i, MPI_Timer::timer_text[*i-1]);
-			}
-		}
 
   }
 

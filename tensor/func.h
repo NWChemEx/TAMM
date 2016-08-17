@@ -21,21 +21,25 @@ namespace ctce {
 
   /**
   * Compute the reduction beta for isuperp stuff
+  * @param[in] sum_ids, sum_vec
   */
   double computeBeta(const std::vector<IndexName>& sum_ids, const std::vector<Integer>& sum_vec);
 
   /**
   * Compute the buffer size given a vector of indices value
+  * @param[in] ids 
   */
   Integer compute_size(const std::vector<Integer>& ids);
 
   /**
   * Check spin restricted and nonzero
+  * @param[in] ids, sval
   */
   int is_spin_restricted_nonzero(const std::vector<Integer>& ids, const Integer& sval);
 
   /**
   * Check spin
+  * @param[in] ids
   */
   int is_spin_nonzero(const std::vector<Integer>& ids);
 

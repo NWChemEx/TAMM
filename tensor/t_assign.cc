@@ -7,8 +7,6 @@ namespace ctce {
   extern "C" {
 
     void t_assign2(
-        Integer* d_a, Integer* k_a_offset,
-        Integer* d_c, Integer* k_c_offset,
         Tensor& tC, const vector<IndexName> &c_ids,
 	Tensor& tA, const vector<IndexName> &a_ids,
 	IterGroup<triangular>& out_itr, double coef,
@@ -79,7 +77,11 @@ namespace ctce {
             }
             tce_sort(buf_a, buf_a_sort, a_ids_v, order, 1.0);
             addTimer.start();
-            tce_add_hash_block_(d_c, buf_a_sort, dimc, *k_c_offset, out_vec, c_ids);
+            // tce_add_hash_block_(d_c, buf_a_sort, dimc, *k_c_offset, out_vec, c_ids);
+            {
+              Integer d_c = tC.ga();;
+              tce_add_hash_block_(&d_c, buf_a_sort, dimc, tC.offset_index(), out_vec, c_ids);
+            }
             addTimer.stop();
 
             delete [] buf_a;
@@ -96,11 +98,9 @@ namespace ctce {
       }
     }
 
-    void t_assign3(
-        Integer* d_a, Integer* k_a_offset,
-        Integer* d_c, Integer* k_c_offset, Assignment& a, int sync_ga, int spos) {
+    void t_assign3(Assignment& a, int sync_ga, int spos) {
       assignTimer.start();
-      t_assign2(d_a, k_a_offset, d_c, k_c_offset, a.tC(), a.cids(), a.tA(), a.aids(), a.out_itr(), a.coef(), sync_ga, spos);
+      t_assign2(a.tC(), a.cids(), a.tA(), a.aids(), a.out_itr(), a.coef(), sync_ga, spos);
       assignTimer.stop();
     }
 

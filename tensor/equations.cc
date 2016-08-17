@@ -14,14 +14,17 @@ namespace ctce {
     for(int i=0; i<nre; i++) {
       ::RangeEntry re = (::RangeEntry)vector_get(&peqs->range_entries, i);
       ctce::RangeEntry cre;
-      cre.name = strdup(re->name);
+      // cre.name = strdup(re->name);
+      cre.name = string(re->name);
       ceqs.range_entries.push_back(cre);
     }
     for(int i=0; i<nie; i++) {
       ::IndexEntry ie = (::IndexEntry)vector_get(&peqs->index_entries, i);
       ctce::IndexEntry cie;
-      cie.name = strdup(ie->name);
+      // cie.name = strdup(ie->name);
+      cie.name = string(ie->name);
       cie.range_id = ie->range_id;
+      //cout<<"range id="<<cie.range_id<<endl;
       assert(cie.range_id >=0 && cie.range_id < ceqs.range_entries.size());
       ceqs.index_entries.push_back(cie);
     }
@@ -29,7 +32,8 @@ namespace ctce {
     for(int i=0; i<nte; i++) {
       ::TensorEntry te = (::TensorEntry)vector_get(&peqs->tensor_entries, i);
       ctce::TensorEntry cte;
-      cte.name = strdup(te->name);
+      // cte.name = strdup(te->name);
+      cte.name = string(te->name);
       cte.ndim = te->ndim;
       cte.nupper = te->nupper;
 
@@ -42,7 +46,8 @@ namespace ctce {
     for(int i=0; i<noe; i++) {
       ::OpEntry oe = (::OpEntry)vector_get(&peqs->op_entries, i);
       ctce::OpEntry coe;
-      coe.optype = (ctce::OpType)oe->optype;
+      //cout<<"optype == "<<oe->optype<<endl;
+      coe.optype = (oe->optype == ::OpTypeAdd) ? ctce::OpTypeAdd : ctce::OpTypeMult;
 //      coe.add = oe->add;
 //      coe.mult = oe->mult;
 

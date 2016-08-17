@@ -226,12 +226,14 @@ namespace ctce {
 
   void Tensor::get(std::vector<Integer> &pvalue_r, double *buf, Integer size) {
     assert(allocated_ || attached_);
-    get(ga_, pvalue_r, buf, size, offset_index_);
-  }
+    Integer d_a = ga();
+    Integer d_a_offset = offset_index();
+  //   get(ga_, pvalue_r, buf, size, offset_index_);
+  // }
 
-  void Tensor::get(Integer d_a, std::vector<Integer> &pvalue_r,
-                   //std::vector<IndexName> &name,
-		   double *buf, Integer size, Integer d_a_offset) {
+  // void Tensor::get(Integer d_a, std::vector<Integer> &pvalue_r,
+  //                  //std::vector<IndexName> &name,
+	// 	   double *buf, Integer size, Integer d_a_offset) {
     std::vector<Integer>& is = pvalue_r;//_value_r_;
     //std::vector<IndexName>& ns = name;//_name_;
     const std::vector<IndexName>& ns = id2name(ids_);
@@ -283,6 +285,7 @@ namespace ctce {
       }
     }
 #else
+    assert(offset_index() == d_a_offset);
     if(dim_type_ == dim_n) {
       for (int i=n-1; i>=0; i--) {
         key += (is[i]-1) * offset;
@@ -342,6 +345,7 @@ namespace ctce {
   //   }
   // }
 
+#if 0
   void Tensor::get2(Integer d_a, std::vector<Integer> &pvalue_r, double *buf, Integer size, Integer d_a_offset) {
 #if 0
     std::vector<Integer>& is = pvalue_r; // <-- not _value_r_ or value_r
@@ -367,7 +371,7 @@ namespace ctce {
     get(d_a, pvalue_r, buf, size, d_a_offset);
 #endif
   }
-
+#endif
   //extern "C" {
 
     Tensor Tensor2(IndexName n1, IndexName n2, int e1, int e2, TensorType type,

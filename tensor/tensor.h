@@ -240,6 +240,7 @@ namespace ctce {
       int set_irrep(int irrep) { irrep_ = irrep; }
       int set_dist(DistType dist) { dist_type_ = dist; }
 
+  private:
       /**
        * Get data by get_hash_block_xx and store in buf, this function is for t_mult
        * @param[in] d_a
@@ -247,9 +248,11 @@ namespace ctce {
        * @param[in] size size of the buf
        * @param[in] d_a_offset
        */
-      void get(Integer d_a, std::vector<Integer> &pvalue_r, /*std::vector<IndexName> &name,*/ double *buf, Integer size, Integer d_a_offset);
-
+      /* void get(Integer d_a, std::vector<Integer> &pvalue_r, /\*std::vector<IndexName> &name,*\/ double *buf, Integer size, Integer d_a_offset); */
+  public:
       void get(std::vector<Integer> &pvalue_r, double *buf, Integer size);
+
+      void add(std::vector<Integer> &pvalue_r, double *buf, Integer size);
 
       /**
        * Get data by get_hash_block_xx and store in buf, this function is for t_assign
@@ -290,7 +293,7 @@ namespace ctce {
 				return (lval == irrep_);
 			}
 
-			void get2(Integer d_a, std::vector<Integer> &pvalue_r, double *buf, Integer size, Integer d_a_offset);
+			/* void get2(Integer d_a, std::vector<Integer> &pvalue_r, double *buf, Integer size, Integer d_a_offset); */
 
       /**
        * Generate restricted value from value by calling tce_restricted2/4

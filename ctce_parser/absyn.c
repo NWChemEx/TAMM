@@ -67,7 +67,7 @@ Decl make_RangeDecl(int pos, ctce_string name, int value) {
     Decl p = tce_malloc(sizeof(*p));
     p->pos = pos;
     p->kind = is_RangeDecl;
-    p->u.RangeDecl.name = mkString(name);
+    p->u.RangeDecl.name = strdup(name);
     p->u.RangeDecl.value = value;
     return p;
 }

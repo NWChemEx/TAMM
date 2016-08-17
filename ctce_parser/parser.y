@@ -169,7 +169,7 @@
       DeclList dlist = make_DeclList(NULL,NULL);
       DeclList dl = dlist;  
       while(p != NULL){
-        dl->head = make_IndexDecl(tce_tokPos,(p->head)->name,mkString(e->name));
+        dl->head = make_IndexDecl(tce_tokPos,(p->head)->name,strdup(e->name));
         dl->head->lineno = (p->head)->lineno;
         p = p->tail;
         if(p!=NULL) {
@@ -263,7 +263,7 @@
           if (lhs->kind == is_ArrayRef) {
             tlhs = make_Array(tce_tokPos,"",NULL); //create a copy of lhs for flattening
             //memcpy (tlhs, lhs, sizeof (lhs));
-            tlhs->u.Array.name = mkString(lhs->u.Array.name);
+            tlhs->u.Array.name = strdup(lhs->u.Array.name);
             tlhs->u.Array.indices = mkIndexList(lhs->u.Array.indices,lhs->u.Array.length);
             tlhs->u.Array.length = lhs->u.Array.length;
             tlhs->lineno = lhs->lineno;

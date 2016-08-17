@@ -3,12 +3,12 @@
 #include "error.h"
 
 char *copy(char *s, int len) {
-  char *d = (char *)calloc(sizeof(char),len+1);
+  char *d = (char *)malloc(sizeof(char)*(len+1));
   strcpy(d,s);
   return d;
 }
 
-//suppress ‘input’ defined but not used warning.
+//suppress `input' defined but not used warning.
 #define YY_NO_INPUT
 
 int line = 1, col = 1;
@@ -16,7 +16,7 @@ int line = 1, col = 1;
 %}
 
 
-/*suppress ‘yyunput’ defined but not used warning*/
+/*suppress `yyunput' defined but not used warning*/
 %option nounput
 
 %option yylineno

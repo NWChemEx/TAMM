@@ -28,7 +28,7 @@ namespace ctce {
         const std::vector<IndexName>& sum_ids, 
         IterGroup<triangular>& sum_itr,
         IterGroup<CopyIter>& cp_itr, 
-								const std::vector<Integer>& tid,
+								const std::vector<size_t>& tid,
 								Multiplication& m);
 
     /**

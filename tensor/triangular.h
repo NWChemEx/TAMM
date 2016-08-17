@@ -10,16 +10,16 @@ namespace ctce {
 
     private:
       bool empty_; /*< indicate if this triangular loops is empty */
-      std::vector<Integer> lb; /*< lower bound of the loops */
-      std::vector<Integer> ub; /*< upper bound of the loops */
-      std::vector<Integer> curr; /*< current value of the loops */
-      std::vector<Integer> curr_lb; /*< current lower bound of the loops */
+      std::vector<size_t> lb; /*< lower bound of the loops */
+      std::vector<size_t> ub; /*< upper bound of the loops */
+      std::vector<size_t> curr; /*< current value of the loops */
+      std::vector<size_t> curr_lb; /*< current lower bound of the loops */
       
       // these are only use in ccsd(t) fusion TRIG2
-      std::vector<Integer> r;
-      std::vector<Integer> o;
-      std::vector<Integer> curr_r;
-      std::vector<Integer> curr_o;
+      std::vector<size_t> r;
+      std::vector<size_t> o;
+      std::vector<size_t> curr_r;
+      std::vector<size_t> curr_o;
 
       std::vector<bool> dirty; /*< dirty indicate if carry occur */
 
@@ -30,9 +30,9 @@ namespace ctce {
         if(curr.size()==0) return; 
         if (curr[0]>ub[0]) return; // no need to compute
         Integer *int_mb = Variables::int_mb();
-        Integer k_range = Variables::k_range();
-        Integer k_evl_sorted = Variables::k_evl_sorted();
-        Integer k_offset = Variables::k_offset();
+        size_t k_range = Variables::k_range();
+        size_t k_evl_sorted = Variables::k_evl_sorted();
+        size_t k_offset = Variables::k_offset();
         for (int i=curr.size()-1; i>=0; i--) {
           if (dirty[i]) {
             r[i] = int_mb[k_range + curr[i] - 1];
@@ -93,7 +93,7 @@ namespace ctce {
       * @param[in] vec current iterate value
       * @return true the value is valid, return false when end of the iterator
       */
-      inline bool next(std::vector<Integer>& vec) {
+      inline bool next(std::vector<size_t>& vec) {
         if (empty_) return false;
         if (curr[0]>ub[0]) return false;
         vec = curr;
@@ -141,12 +141,12 @@ namespace ctce {
       /**
       * Return current r value
       */
-      inline const std::vector<Integer>& v_range() const { return curr_r; }
+      inline const std::vector<size_t>& v_range() const { return curr_r; }
       
       /**
       * Return current o value
       */
-      inline const std::vector<Integer>& v_offset() const { return curr_o; }
+      inline const std::vector<size_t>& v_offset() const { return curr_o; }
   };
 
 } /* namespace ctce */

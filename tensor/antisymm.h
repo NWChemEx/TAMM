@@ -11,7 +11,7 @@ namespace ctce {
   class tloop {
     private:
       int lb, ub;
-      std::vector<Integer> indices;
+      std::vector<size_t> indices;
       int nloops;
       bool first_time;
       std::vector<int> loops;
@@ -40,7 +40,7 @@ namespace ctce {
        * Constructor
        *
        */
-      tloop(const std::vector<Integer> &_indices, const int& _nloops)
+      tloop(const std::vector<size_t> &_indices, const int& _nloops)
         : indices(_indices), 
         nloops(_nloops), 
         first_time(true), 
@@ -69,9 +69,9 @@ namespace ctce {
     private:
       tloop tl0; /*< initial setting of tloop */
       tloop tl1; /*< relicate for iterating */
-      std::vector<Integer> slist; /*< current value */
-      std::vector<Integer> s1; /*< current value from A tensor */
-      std::vector<Integer> s2; /*< current value from B tensor */
+      std::vector<size_t> slist; /*< current value */
+      std::vector<size_t> s1; /*< current value from A tensor */
+      std::vector<size_t> s2; /*< current value from B tensor */
       bool empty_; /*< check if antisymm is empty */
     public:
       /**
@@ -90,7 +90,7 @@ namespace ctce {
        * @param[in] s1 number of anti-symmetry group from A tensor
        * @param[in] s2 number of anti-symmetry group from B tensor
        */
-      antisymm(const std::vector<Integer> &vtab, const std::vector<IndexName>& name, int s1, int s2);
+      antisymm(const std::vector<size_t> &vtab, const std::vector<IndexName>& name, int s1, int s2);
 
       /**
        * Check if this iterator is empty
@@ -107,22 +107,22 @@ namespace ctce {
        * @param[in] vec get current value and store it in vec
        * @return return false if end of iteration
        */
-      inline bool next(std::vector<Integer> & vec); /*< enumerate next permuation for computation, store in &vec */
+      inline bool next(std::vector<size_t> & vec); /*< enumerate next permuation for computation, store in &vec */
 
       /* following 3 no use, just for passing compilation for iterGroup */
       inline const int sign() const { return 1; }
-      inline const std::vector<Integer>& v_range() { };
-      inline const std::vector<Integer>& v_offset() { };
+      inline const std::vector<size_t>& v_range() { };
+      inline const std::vector<size_t>& v_offset() { };
   };
 
-  inline antisymm::antisymm(const std::vector<Integer> &vtab,
+  inline antisymm::antisymm(const std::vector<size_t> &vtab,
 														const std::vector<IndexName>& name, int n1, int n2) {
     int n = name.size();
     slist.resize(n);
     if (n==0) empty_=true;
     else {
       empty_=false;
-      //const std::vector<Integer>& vtab = Table::value(); /* get value from table */
+      //const std::vector<size_t>& vtab = Table::value(); /* get value from table */
       for (int i=0; i<n; i++) slist[i] = vtab[name[i]];
       sort(slist.begin(), slist.end());
     }
@@ -130,7 +130,7 @@ namespace ctce {
     tl1 = tl0;
   }
 
-  inline bool antisymm::next(std::vector<Integer> & vec) {
+  inline bool antisymm::next(std::vector<size_t> & vec) {
     if (!tl1.nextIter()) return false;
     const std::vector<int>& itr = tl1.vec();
     s1.clear();

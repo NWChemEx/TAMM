@@ -3,6 +3,7 @@
 
 #include "typesf2c.h"
 #include <vector>
+#include <cstdlib>
 
 namespace ctce {
 
@@ -10,7 +11,7 @@ namespace ctce {
   class CopyIter {
 
     private:
-      std::vector< std::vector<Integer> > vec_; /*< vec_ store all the possible permutation */
+      std::vector< std::vector<size_t> > vec_; /*< vec_ store all the possible permutation */
       std::vector<int> sign_; /*< sign store the sign for each permutation */
       bool empty_; /*< true if this copy iterator is empty */
       int size_; /*< size of the iterator */
@@ -31,7 +32,7 @@ namespace ctce {
        * Constructor. Assign the vec and sign to this iterator.
        * Current vec and sign are hardcoded in dummy.cc
        */
-      CopyIter(const std::vector< std::vector<Integer> >& v, const std::vector<int>& s)
+      CopyIter(const std::vector< std::vector<size_t> >& v, const std::vector<int>& s)
         : vec_(v), 
         sign_(s), 
         curr_pos_(0), 
@@ -65,7 +66,7 @@ namespace ctce {
        * Get vec of current iteration
        * return false if end of iteration
        */ 
-      inline bool next(std::vector<Integer>& vec) {
+      inline bool next(std::vector<size_t>& vec) {
         if (curr_pos_ == vec_.size()) return false; // end of iteration
         vec = vec_[curr_pos_];
         curr_sign_ = sign_[curr_pos_];
@@ -74,8 +75,8 @@ namespace ctce {
       };
 
       /* following 2 methods no use, just to pass IterGroup compilation */
-      inline const std::vector<Integer>& v_range() {}; // not used
-      inline const std::vector<Integer>& v_offset() {}; // not used
+      inline const std::vector<size_t>& v_range() {}; // not used
+      inline const std::vector<size_t>& v_offset() {}; // not used
 
   };
 

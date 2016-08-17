@@ -11,12 +11,12 @@ namespace ctce {
     class IterGroup {
       private:
         std::vector<T> iters_;
-        std::vector< std::vector<Integer> > curr_;
+        std::vector< std::vector<size_t> > curr_;
         std::vector<bool> ub_;
         bool empty_;
         int sign_;
-        std::vector<Integer> curr_r_;
-        std::vector<Integer> curr_o_;
+        std::vector<size_t> curr_r_;
+        std::vector<size_t> curr_o_;
         IterType type_;
 
       public:
@@ -41,11 +41,11 @@ namespace ctce {
 
         const bool& empty() const { return empty_; }
         const int& sign() const { return sign_; }
-        const std::vector<Integer>& v_range() const { return curr_r_; }
-        const std::vector<Integer>& v_offset() const { return curr_o_; }
+        const std::vector<size_t>& v_range() const { return curr_r_; }
+        const std::vector<size_t>& v_offset() const { return curr_o_; }
         void setType(IterType it) { type_ = it; }
 
-        bool next(std::vector<Integer> & vec) {
+        bool next(std::vector<size_t> & vec) {
           if (empty_) return false; // no summation indices, execute once by checking isEmpty()
           if (ub_[0]==false) return false; // end of iteration
           int n = iters_.size();
@@ -93,7 +93,7 @@ namespace ctce {
           }
         }
 
-        void fix_ids_for_copy(std::vector<Integer>& vec) {
+        void fix_ids_for_copy(std::vector<size_t>& vec) {
           if (type_!=COPY) return;
           int begin=0, end=0, offset=0;
           for (int i=0; i<iters_.size(); i++) {

@@ -70,12 +70,16 @@ namespace ctce {
   }
 
 
-  void Tensor::gen_restricted(const std::vector<Integer>& value,
-			      std::vector<Integer> &pvalue_r) {
+  void Tensor::gen_restricted(const std::vector<size_t>& value_,
+			      std::vector<size_t> &pvalue_r) {
     std::vector<Integer> temp(dim_);
+    std::vector<Integer> value(dim_);
     assert(value.size() == dim_);
     temp.resize(dim_);
     Integer dummy0=1, dummy1=1;
+    for(int i=0; i<dim_; i++) {
+      value[i] = value_[i];
+    }
     if(dim_==1) {
       assert(nupper_==0);
       tce_restricted_2_(&dummy0, &value[0],&dummy1,&temp[0]);
@@ -131,7 +135,7 @@ namespace ctce {
     IterGroup<triangular> out_itr = IterGroup<triangular>(vt,TRIG);
 
     Integer length=0;
-    vector<Integer> out_vec; // out_vec = c_ids_v
+    vector<size_t> out_vec; // out_vec = c_ids_v
     out_itr.reset();
     while (out_itr.next(out_vec)) {
       if (is_spatial_nonzero(out_vec) &&
@@ -144,13 +148,13 @@ namespace ctce {
     offset_map_ = (Integer*)malloc(sizeof(Integer)*2*length+1);
     assert(offset_map_!=NULL);
     assert(dim_type_ == dim_n || dim_type_ == dim_ov);
-    Integer noab = Variables::noab();
-    Integer nvab = Variables::nvab();
+    size_t noab = Variables::noab();
+    size_t nvab = Variables::nvab();
     Integer *int_mb = Variables::int_mb();
 
     offset_map_[0] = length;
-    Integer addr = 0;
-    Integer size = 0;
+    size_t addr = 0;
+    size_t size = 0;
     //out_vec.clear();
     //out_itr = IterGroup<triangular>(vt,TRIG);
     out_itr.reset();
@@ -158,7 +162,7 @@ namespace ctce {
       if (is_spatial_nonzero(out_vec) &&
 	  is_spin_nonzero(out_vec) &&
 	  is_spin_restricted_nonzero(out_vec)) {
-	Integer offset = 1, key = 0;
+	size_t offset = 1, key = 0;
 	if(dim_type_ == dim_n) {
 	  for (int i=n-1; i>=0; i--) {
 	    key += (out_vec[i]-1) * offset;
@@ -225,22 +229,23 @@ namespace ctce {
     attached_ = false;
   }
 
-  void Tensor::get(std::vector<Integer> &pvalue_r, double *buf, Integer size) {
+  void Tensor::get(std::vector<size_t> &pvalue_r, double *buf, size_t size) {
     assert(allocated_ || attached_);
-    Integer d_a = ga();
-    Integer d_a_offset = offset_index();
+    size_t d_a = ga();
+    size_t d_a_offset = offset_index();
   //   get(ga_, pvalue_r, buf, size, offset_index_);
   // }
 
   // void Tensor::get(Integer d_a, std::vector<Integer> &pvalue_r,
   //                  //std::vector<IndexName> &name,
 	// 	   double *buf, Integer size, Integer d_a_offset) {
-    std::vector<Integer>& is = pvalue_r;//_value_r_;
+    std::vector<size_t>& is = pvalue_r;//_value_r_;
     //std::vector<IndexName>& ns = name;//_name_;
     const std::vector<IndexName>& ns = id2name(ids_);
     Integer key = 0, offset = 1;
-    Integer noab = Variables::noab();
-    Integer nvab = Variables::nvab();
+    Integer isize = size;
+    size_t noab = Variables::noab();
+    size_t nvab = Variables::nvab();
     Integer *int_mb = Variables::int_mb();
     int n = is.size(); // = dim_;
 #if 0
@@ -307,15 +312,18 @@ namespace ctce {
     if (dist_type_ == dist_nwi)  {
       assert(Variables::intorb()!=0);
       assert(dim_ == 4);
-      get_hash_block_i_(&d_a, buf, &size, &int_mb[d_a_offset], &key,
-			&is[3], &is[2], &is[1], &is[0]); /* special case*/
+      Integer ida = d_a;
+      Integer is0= is[0], is1=is[1], is2=is[2], is3=is[3];
+      get_hash_block_i_(&ida, buf, &isize, &int_mb[d_a_offset], &key,
+			&is3, &is2, &is1, &is0); /* special case*/
     }
     else if(dist_type_ == dist_nwma) {
       double *dbl_mb = Variables::dbl_mb();
-      get_hash_block_ma_(&dbl_mb[d_a], buf, &size, &int_mb[d_a_offset], &key);
+      get_hash_block_ma_(&dbl_mb[d_a], buf, &isize, &int_mb[d_a_offset], &key);
     }
     else if(dist_type_ == dist_nw) {
-      get_hash_block_(&d_a, buf, &size, &int_mb[d_a_offset], &key);
+      Integer ida = d_a;
+      get_hash_block_(&ida, buf, &isize, &int_mb[d_a_offset], &key);
     }
     else {
       assert(0);
@@ -323,16 +331,16 @@ namespace ctce {
 #endif
   }
 
-  void Tensor::add(std::vector<Integer> &is, double *buf, Integer size) {
+  void Tensor::add(std::vector<size_t> &is, double *buf, size_t size) {
     assert(allocated_ || attached_);
-    Integer d_c = ga();
+    int d_c = ga();
     Integer *int_mb = Variables::int_mb();
     Integer *hash = &int_mb[offset_index()];
-    Integer noab = Variables::noab();
-    Integer nvab = Variables::nvab();
+    size_t noab = Variables::noab();
+    size_t nvab = Variables::nvab();
     const std::vector<IndexName>& ns = id2name(ids_);
 
-    Integer key=0, offset=1;
+    size_t key=0, offset=1;
     for (int i=is.size()-1; i>=0; i--) {
       bool check = (Table::rangeOf(ns[i])==TO);
       if (check) key += (is[i]-1)*offset;

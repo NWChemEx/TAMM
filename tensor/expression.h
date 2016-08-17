@@ -50,29 +50,29 @@ namespace ctce {
 		return true;
 	}
 
-	inline std::vector<Integer> sort_ids(const std::vector<IndexName> &name, const std::vector<IndexName> &mem_pos_) {
+	inline std::vector<size_t> sort_ids(const std::vector<IndexName> &name, const std::vector<IndexName> &mem_pos_) {
 		assert(name.size() == mem_pos_.size());
-		std::vector<Integer> sort_ids_(name.size());
+		std::vector<size_t> sort_ids_(name.size());
 		for (int i=0; i<name.size(); i++) {
 			sort_ids_[i] = std::find(name.begin(), name.end(), mem_pos_[i]) - name.begin() + 1;
 		}
 		return sort_ids_;
 	}
 
-	inline std::vector<Integer> mult_perm(const std::vector<IndexName> &name, const std::vector<IndexName> &mem_pos_) {
+	inline std::vector<size_t> mult_perm(const std::vector<IndexName> &name, const std::vector<IndexName> &mem_pos_) {
 		assert(name.size() == mem_pos_.size());
-		vector<Integer> lperm(name.size());
+		vector<size_t> lperm(name.size());
 		for (int i=0; i<name.size(); i++) {
 			lperm[i] = std::find(mem_pos_.begin(), mem_pos_.end(), name[i]) - mem_pos_.begin() + 1;
 		}
 		return lperm;
 	}
 
-	inline std::vector<Integer> getMemPosVal(const std::vector<Index> &ids_,
+	inline std::vector<size_t> getMemPosVal(const std::vector<Index> &ids_,
 																					 const std::vector<IndexName> &mem_pos_) {
 		assert(ids_.size() == mem_pos_.size());
 		const int n = ids_.size();
-		std::vector<Integer> sort_ids_v_(n);
+		std::vector<size_t> sort_ids_v_(n);
 		std::vector<int> tab_(IndexNum, -1);
 		for(int i=0; i<n; i++) {
 			tab_[ids_[i].name()] = i;
@@ -85,7 +85,7 @@ namespace ctce {
 	}
 
 	inline void setValue(std::vector<Index> &ids_,
-											 const std::vector<Integer>& val) {
+											 const std::vector<size_t>& val) {
 		assert(ids_.size()==val.size());
 		for (int i=0; i<ids_.size(); i++) {
 			ids_[i].setValue(val[i]);
@@ -97,7 +97,7 @@ namespace ctce {
 	 * @param val restricted value as a vector of Integer
 	 */
 	inline void setValueR(std::vector<Index> &ids_,
-												const std::vector<Integer>& val) {
+												const std::vector<size_t>& val) {
 		assert(ids_.size()==val.size());
 		for (int i=0; i<ids_.size(); i++) {
 			ids_[i].setValueR(val[i]);
@@ -179,8 +179,8 @@ namespace ctce {
 
 	inline int sortByValueThenExtSymGroup(const std::vector<Index> &ids_,
 																				std::vector<IndexName> &name,
-																				std::vector<Integer> &pvalue,
-																				std::vector<Integer> &pvalue_r) {
+																				std::vector<size_t> &pvalue,
+																				std::vector<size_t> &pvalue_r) {
 		std::vector<int> tab_(IndexNum, -1);
 		for(int i=0; i<ids_.size(); i++) {
 			tab_[ids_[i].name()] = i;
@@ -209,10 +209,10 @@ namespace ctce {
 	}
 
 	inline void orderIds(const std::vector<Index> & ids_,
-											 const std::vector<Integer>& order,
+											 const std::vector<size_t>& order,
 											 std::vector<IndexName>& name,
-											 std::vector<Integer>& value,
-											 std::vector<Integer>& value_r) {
+											 std::vector<size_t>& value,
+											 std::vector<size_t>& value_r) {
 		int n = ids_.size();
 		vector<Index> _ids_(ids_.size());
 		for (int i=0; i<n; i++) {

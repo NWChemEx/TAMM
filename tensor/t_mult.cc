@@ -6,8 +6,7 @@ namespace ctce {
 
   extern "C" {
 
-    void t_mult(Integer* d_a, Integer* k_a_offset,
-        Integer* d_b, Integer* k_b_offset, double *a_c,
+    void t_mult(double *a_c,
         Tensor &tC, Tensor &tA, Tensor &tB, const double coef,
         const vector<IndexName>& sum_ids,
         IterGroup <triangular>& sum_itr,
@@ -156,8 +155,7 @@ namespace ctce {
     } // t_mult
 
 
-    void t_mult2(Integer* d_a, Integer* k_a_offset, Integer* d_b, Integer* k_b_offset,
-        Integer* d_c, Integer* k_c_offset,
+    void t_mult2(
         Tensor& tC, Tensor& tA, Tensor& tB, const double coef,
         const vector<IndexName>& sum_ids,
         IterGroup<triangular>& sum_itr,
@@ -178,15 +176,15 @@ namespace ctce {
         double* buf_c = new double[dimc];
         memset(buf_c, 0, dimc * sizeof(double));
 
-        t_mult(d_a,k_a_offset,d_b,k_b_offset,buf_c,
+        t_mult(buf_c,
 	       tC,tA,tB,coef,sum_ids,sum_itr,cp_itr,out_vec, m);
-        tce_add_hash_block_(d_c, buf_c, dimc, *k_c_offset, out_vec, c_name);
+        // tce_add_hash_block_(d_c, buf_c, dimc, *k_c_offset, out_vec, c_name);
+        tC.add(out_vec, buf_c, dimc);
         delete [] buf_c;
       }
     } // t_mult2
 
-    void t_mult3(Integer* d_a, Integer* k_a_offset, Integer* d_b, Integer* k_b_offset,
-        Integer* d_c, Integer* k_c_offset,
+    void t_mult3(
         Tensor& tC, Tensor& tA, Tensor& tB, const double coef,
         const vector<IndexName>& sum_ids,
         IterGroup<triangular>& sum_itr,
@@ -411,11 +409,9 @@ namespace ctce {
       }
     } // t_mult3
 
-    void t_mult4(Integer* d_a, Integer* k_a_offset, Integer* d_b, Integer* k_b_offset,
-                 Integer* d_c, Integer* k_c_offset, Multiplication& m, int sync_ga, int spos) {
+    void t_mult4(Multiplication& m, int sync_ga, int spos) {
       multTimer.start();
-      t_mult3(d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset,
-          m.tC(), m.tA(), m.tB(), m.coef(), m.sum_ids(),
+      t_mult3(m.tC(), m.tA(), m.tB(), m.coef(), m.sum_ids(),
 	      m.sum_itr(), m.cp_itr(), m.out_itr(), m, sync_ga, spos);
       multTimer.stop();
     }

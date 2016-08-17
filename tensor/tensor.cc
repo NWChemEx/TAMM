@@ -202,7 +202,6 @@ void Tensor::create() {
     //std::vector<IndexName>& ns = name;//_name_;
     const std::vector<IndexName>& ns = id2name(ids_);
     Integer key = 0, offset = 1;
-    Integer isize = size;
     size_t noab = Variables::noab();
     size_t nvab = Variables::nvab();
     Integer *int_mb = Variables::int_mb();
@@ -271,18 +270,21 @@ void Tensor::create() {
     if (dist_type_ == dist_nwi)  {
       assert(Variables::intorb()!=0);
       assert(dim_ == 4);
+      cget_hash_block_i(d_a, buf, size, d_a_offset, key, is);
       Integer ida = d_a;
       Integer is0= is[0], is1=is[1], is2=is[2], is3=is[3];
-      get_hash_block_i_(&ida, buf, &isize, &int_mb[d_a_offset], &key,
-			&is3, &is2, &is1, &is0); /* special case*/
+      //get_hash_block_i_(&ida, buf, &isize, &int_mb[d_a_offset], &key,
+			//&is3, &is2, &is1, &is0); /* special case*/
     }
     else if(dist_type_ == dist_nwma) {
       double *dbl_mb = Variables::dbl_mb();
-      get_hash_block_ma_(&dbl_mb[d_a], buf, &isize, &int_mb[d_a_offset], &key);
+      cget_hash_block_ma(d_a, buf, size, d_a_offset, key);
+      //get_hash_block_ma_(&dbl_mb[d_a], buf, &isize, &int_mb[d_a_offset], &key);
     }
     else if(dist_type_ == dist_nw) {
       Integer ida = d_a;
-      get_hash_block_(&ida, buf, &isize, &int_mb[d_a_offset], &key);
+      cget_hash_block(d_a, buf, size, d_a_offset, key);
+      //get_hash_block_(&ida, buf, &isize, &int_mb[d_a_offset], &key);
     }
     else {
       assert(0);

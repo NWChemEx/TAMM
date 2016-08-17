@@ -1,7 +1,7 @@
 #ifndef __ctce_tensor_h__
 #define __ctce_tensor_h__
 
-#include "fapi.h"
+//#include "fapi.h"
 #include "typesf2c.h"
 #include "index.h"
 #include "variables.h"

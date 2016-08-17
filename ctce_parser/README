@@ -14,10 +14,10 @@ Other Notes:
 ------------
 The following build warning(s) can be safely ignored.
 
-parser.c:109:42: warning: unused variable ‘root’ [-Wunused-variable]
+parser.c:109:42: warning: unused variable `root' [-Wunused-variable]
  #define ParseARG_FETCH  TranslationUnit* root  = yypParser->root 
                                           ^
-parser.c:531:3: note: in expansion of macro ‘ParseARG_FETCH’
+parser.c:531:3: note: in expansion of macro `ParseARG_FETCH'
    ParseARG_FETCH;
 
 

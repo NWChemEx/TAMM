@@ -70,11 +70,11 @@ STEntry ST_newpair(ctce_string key, ctce_string value) {
         return NULL;
     }
 
-    if ((newpair->key = mkString(key)) == NULL) {
+    if ((newpair->key = strdup(key)) == NULL) {
         return NULL;
     }
 
-    if ((newpair->value = mkString(value)) == NULL) {
+    if ((newpair->value = strdup(value)) == NULL) {
         return NULL;
     }
 

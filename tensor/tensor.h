@@ -490,6 +490,7 @@ namespace ctce {
 
   //extern "C" {
 
+#if 0
     /**
     * Function that can create a 2-d tensor
     * @param[in] n1 first index name
@@ -533,13 +534,16 @@ namespace ctce {
     */
     Tensor Tensor6(IndexName n1, IndexName n2, IndexName n3, IndexName n4, IndexName n5, IndexName n6,
 									 int e1, int e2, int e3, int e4, int e5, int e6, TensorType type, DistType dt=dist_nw, DimType dm=dim_ov);
+#endif
 
 		Tensor Tensor0_1(RangeType r1, DistType dt, int irrep=0);
 
+#if 0
 	Tensor Tensor0_1(IndexName n1, int e1, TensorType tp, DistType dt, DimType dm, int irrep=0);
 
 	Tensor Tensor1_2(IndexName n1, IndexName n2, IndexName n3,
 									 int e1, int e2, int e3, TensorType type, DistType dt, DimType dm, int irrep=0);
+#endif
 
 	Tensor Tensor2(RangeType r1, RangeType r2, DistType dt);
 

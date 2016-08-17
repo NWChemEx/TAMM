@@ -304,7 +304,8 @@ namespace ctce {
 													std::vector<size_t> &pvalue_r);
 
 
-			void create(Integer *fma_offset_index=NULL, Integer *array_handle=NULL, Integer *array_size=NULL);
+			/* void create(Integer *fma_offset_index=NULL, Integer *array_handle=NULL, Integer *array_size=NULL); */
+			void create();
 			void attach(Integer fma_offset_index, Integer fma_offset_handle, Integer array_handle);
 
 			void destroy();

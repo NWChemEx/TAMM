@@ -80,7 +80,8 @@ namespace ctce {
             // tce_add_hash_block_(d_c, buf_a_sort, dimc, *k_c_offset, out_vec, c_ids);
             {
               Integer d_c = tC.ga();;
-              tce_add_hash_block_(&d_c, buf_a_sort, dimc, tC.offset_index(), out_vec, c_ids);
+              // tce_add_hash_block_(&d_c, buf_a_sort, dimc, tC.offset_index(), out_vec, c_ids);
+              tC.add(out_vec, buf_a_sort, dimc);
             }
             addTimer.stop();
 

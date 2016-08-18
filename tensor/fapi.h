@@ -18,7 +18,7 @@
 #define fdgemm             FORTRAN_FUNC(dgemm,DGEMM)
 #define fadd_hash_block    FORTRAN_FUNC(add_hash_block,ADD_HASH_BLOCK)
 #define fadd_block         FORTRAN_FUNC(add_block,ADD_BLOCK)
-#define ftce_hash          FORTRAN_FUNC(ftce_hash,FTCE_HASH)
+#define ftce_hash          FORTRAN_FUNC(tce_hash,TCE_HASH)
 #define ftce_sortacc_2     FORTRAN_FUNC(tce_sortacc_2,TCE_SORTACC_2)
 #define ftce_sortacc_4     FORTRAN_FUNC(tce_sortacc_4,TCE_SORTACC_4)
 #define ftce_sortacc_6     FORTRAN_FUNC(tce_sortacc_6,TCE_SORTACC_6)

@@ -150,8 +150,9 @@ tce_string_array stringToList(const ctce_string s) {
     return p;
 }
 
-
+//Convert string array of indices to comma seperated string
 ctce_string combine_indices(ctce_string *indices, int count) {
+    if (indices == NULL) return "\0";
 
     char *str = NULL;             /* Pointer to the combined string  */
     int total_length = 0;      /* Total length of combined string */
@@ -178,41 +179,4 @@ ctce_string combine_indices(ctce_string *indices, int count) {
 
 }
 
-////Convert string array of indices to comma seperated string
-//ctce_string combine_indices(ctce_string *indices, int count) {
-//    if (indices == NULL) return "";
-//    char *str = NULL;             /* Pointer to the combined string  */
-//    int total_length = 0;      /* Total length of combined string */
-//    int length = 0;            /* Length of a string             */
-//    int i = 0;                    /* Loop counter                   */
-//
-//    /* Find total length of the combined string */
-//    for (i = 0; i < count; i++) {
-//        total_length += strlen(indices[i]);
-//        if (indices[i][strlen(indices[i]) - 1] != '\n')
-//            ++total_length; /* For newline to be added */
-//    }
-//    ++total_length;     /* For combined string terminator */
-//
-//    str = (char *) malloc(total_length);  /* Allocate memory for joined strings */
-//    str[0] = '\0';                      /* Empty string we can append to      */
-//
-//    /* Append all the strings */
-//    for (i = 0; i < count; i++) {
-//        strcat(str, indices[i]);
-//        length = strlen(str);
-//
-//        /* Check if we need to insert newline */
-//        if (str[length - 1] != ',') {
-//            str[length] = ',';             /* Append a comma       */
-//        }
-//    }
-//    str[length] = '\0';           /* followed by terminator */
-//    //printf ("%s = %d\n",str,length);
-//    return str;
-//
-//    //  free(str);                /* Free memory for combined string   */
-//    //  for(i = 0 ; i<count ; i++)           /* Free memory for original strings */
-//    //    free(str[i]);
-//
-//}
+

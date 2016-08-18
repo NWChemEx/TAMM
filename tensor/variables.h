@@ -1,6 +1,7 @@
 #ifndef __tce_variables_h__
 #define __tce_variables_h__
 
+#include "common.h"
 #include "typesf2c.h"
 #include "define.h"
 #include "dummy.h"
@@ -60,6 +61,10 @@ namespace ctce {
       static const logical& restricted() { return restricted_; }
       static Integer* int_mb() { return int_mb_; }
       static double* dbl_mb() { return dbl_mb_; }
+
+    static size_t k_range(Tile t) {
+      return int_mb()[k_range()-1+t];
+    }
   };
 
   /**

@@ -4,11 +4,13 @@
  */
 
 
+#include <stdint.h>
 #include <stddef.h>
 
-typedef long Fint;
+typedef int64_t Fint;
 typedef Fint Integer; /*for now to get compilation to work*/
 typedef Fint BlasInt; /*blas integer size could be different*/
+typedef uint32_t Tile;
 
 #define FORTRAN_FUNC(fname,fNAME) fname ## _
 
@@ -19,3 +21,5 @@ typedef Fint BlasInt; /*blas integer size could be different*/
 #endif
 
 #define CBLAS_HEADER_FILE "cblas.h"
+
+#define USE_FORTRAN_FUNCTIONS 1

@@ -12,8 +12,8 @@
 namespace ctce {
 
 void
-tce_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
-         std::vector<size_t>& iv, double alpha) {
+ctce_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
+          std::vector<size_t>& iv, double alpha) {
 #if USE_FORTRAN_FUNCTIONS
   Fint *int_mb = Variables::int_mb();
   size_t k_range = Variables::k_range()-1;
@@ -125,7 +125,7 @@ void cdgemm(char transa, char transb, size_t m, size_t n, size_t k,
 #endif
 }
 
-void sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids, std::vector<size_t>& perm, double alpha) {
+void ctce_sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids, std::vector<size_t>& perm, double alpha) {
   Fint *int_mb = Variables::int_mb();
   size_t k_range = Variables::k_range()-1;
 

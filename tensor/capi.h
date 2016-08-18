@@ -14,8 +14,8 @@ namespace ctce {
  * C++ function that wraps FORTRAN tce_sort2 and tce_sort4
  */
 void
-tce_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
-         std::vector<size_t>& iv, double alpha);
+ctce_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
+          std::vector<size_t>& iv, double alpha);
 
 /**
  * C++ function that wraps FORTRAN dgemm
@@ -37,8 +37,8 @@ cadd_hash_block(size_t d_c, double *buf_a, size_t size,
  * C++ function that wraps FORTRAN tce_sortacc*
  */
 void
-sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
-        std::vector<size_t>& perm, double alpha);
+ctce_sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
+             std::vector<size_t>& perm, double alpha);
 
 
 /**

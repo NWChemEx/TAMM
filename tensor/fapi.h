@@ -1,92 +1,69 @@
-#ifndef __FAPI_H__
-#define __FAPI_H__
+#ifndef __ctce_fapi_h__
+#define __ctce_fapi_h__
 
-#ifdef __cplusplus 
-extern "C" {
-#endif
+#include "common.h"
 
-#include <stddef.h>
+/**
+ * All fortran functions used by ctce
+ */
 
-/* #include "macdecls.h" */
-#ifdef __cplusplus 
-typedef long Integer;
-#else
-typedef long long Integer;
-#endif
+EXTERN_C void
+FORTRAN_FUNC(tce_restricted_2,TCE_RESTRICTED_2)
+(Fint *i1, Fint *i2, Fint *o1, Fint *o2);
 
-  /* all the FORTRAN apis */
+EXTERN_C void
+FORTRAN_FUNC(tce_restricted_4,TCE_RESTRICTED_4)
+(Fint *i1, Fint *i2, Fint *i3, Fint *i4,
+ Fint *o1, Fint *o2, Fint *o3, Fint *o4);
 
-  void tce_restricted_2_(const Integer *i1, const Integer *i2, Integer *o1, Integer *o2);
+EXTERN_C void
+FORTRAN_FUNC(get_hash_block_ma,GET_HASH_BLOCK_MA)
+(double *big_array, double *array, Fint *size, Fint *hash, Fint *key);
 
-  void tce_restricted_4_(const Integer *i1, const Integer *i2, const Integer *i3, const Integer *i4,
-      Integer *o1, Integer *o2, Integer *o3, Integer *o4);
+EXTERN_C void
+FORTRAN_FUNC(get_hash_block,GET_HASH_BLOCK)
+(Fint *darr, double *buf, Fint *size, Fint *hash, Fint *key);
 
-  void get_hash_block_ma_(double *big_array, double *array, Integer *size, Integer *hash, Integer *key);
+EXTERN_C void
+FORTRAN_FUNC(get_hash_block_i,GET_HASH_BLOCK_I)
+(Fint *darr, double *buf, Fint *size, Fint *hash, Fint *key,
+ Fint *g2b, Fint *g1b, Fint *g4b, Fint *g3b);
 
-  void get_hash_block_(Integer *darr, double *buf, Integer *size, Integer *hash, Integer *key);
+EXTERN_C void
+FORTRAN_FUNC(tce_sort_2,TCE_SORT_2)
+(double *unsorted , double *sorted, Fint *a, Fint *b,
+ Fint *i, Fint *j, double *factor);
 
-  void get_hash_block_i_(Integer *darr, double *buf, Integer *size, Integer *hash, Integer *key, 
-      Integer *g2b, Integer *g1b, Integer *g4b, Integer *g3b);
+EXTERN_C void
+FORTRAN_FUNC(tce_sort_4,TCE_SORT_4)
+(double *unsorted , double *sorted,
+ Fint *a, Fint *b, Fint *c, Fint *d,
+ Fint *i, Fint *j, Fint *k, Fint *l,
+ double *factor);
 
-  void tce_sort_2_(double *unsorted , double *sorted,
-      Integer *a, Integer *b,
-      Integer *i, Integer *j,
-      double *factor);
+EXTERN_C void
+FORTRAN_FUNC(dgemm,DGEMM)
+(char *transa, char *transb, Fint *m, Fint *n, Fint *k,
+ double *alpha, double *a, Fint *lda, double *b, Fint *ldb,
+ double *beta, double *c, Fint *ldc);
 
-  void tce_sort_4_(double *unsorted , double *sorted,
-      Integer *a, Integer *b, Integer *c, Integer *d,
-      Integer *i, Integer *j, Integer *k, Integer *l,
-      double *factor);
+EXTERN_C void
+FORTRAN_FUNC(add_hash_block,ADD_HASH_BLOCK)
+(Fint *d_file, double *array, Fint *size, Fint *hash, Fint *key);
 
-  void dgemm_(char *transa, char *transb,
-      Integer *m, Integer *n, Integer *k,
-      double *alpha,
-      double *a, Integer *lda,
-      double *b, Integer *ldb,
-      double *beta,
-      double *c, Integer *ldc);
+EXTERN_C void
+FORTRAN_FUNC(tce_sortacc_4,TCE_SORTACC_4)
+(double *unsorted , double *sorted,
+ Fint *a, Fint *b, Fint *c, Fint *d,
+ Fint *i, Fint *j, Fint *k, Fint *l,
+ double *factor);
 
-  void add_hash_block_(Integer *d_file, double *array, Integer *size, Integer *hash, Integer *key);
+EXTERN_C void
+FORTRAN_FUNC(tce_sortacc_6,TCE_SORTACC_6)
+(double *unsorted , double *sorted,
+ Fint *a, Fint *b, Fint *c, Fint *d, Fint *e, Fint *f,
+ Fint *i, Fint *j, Fint *k, Fint *l, Fint *m, Fint *n,
+ double *factor);
 
-  void tce_sortacc_4_(double *unsorted , double *sorted,
-      Integer *a, Integer *b, Integer *c, Integer *d,
-      Integer *i, Integer *j, Integer *k, Integer *l,
-      double *factor);
-
-  void tce_sortacc_6_(double *unsorted , double *sorted,
-      Integer *a, Integer *b, Integer *c, Integer *d, Integer *e, Integer *f,
-      Integer *i, Integer *j, Integer *k, Integer *l, Integer *m, Integer *n,
-      double *factor);
-
-  void ccsd_t_singles_l_(double *k_singles, Integer *k_t1_local,
-              Integer *d_v2, Integer *k_t1_offset, Integer *k_v2_offset,
-              Integer *t_h1b, Integer *t_h2b, Integer *t_h3b, 
-              Integer *t_p4b, Integer *t_p5b, Integer *t_p6b, Integer *toggle);
-
-  void ccsd_t_doubles_l_(double *k_doubles, Integer *d_t2,
-              Integer *d_v2, Integer *k_t2_offset, Integer *k_v2_offset,
-              Integer *t_h1b, Integer *t_h2b, Integer *t_h3b, 
-              Integer *t_p4b, Integer *t_p5b, Integer *t_p6b, Integer *toggle);
-
-  void ccsd_t_doubles_(double *k_doubles, Integer *d_t2,
-              Integer *d_v2, Integer *k_t2_offset, Integer *k_v2_offset,
-              Integer *t_h1b, Integer *t_h2b, Integer *t_h3b, 
-              Integer *t_p4b, Integer *t_p5b, Integer *t_p6b, Integer *toggle);
-
-
-  void fget_hash_block_ma(void *big_array, double *buf, size_t size, void *hash_map, size_t key);
-
-  void fget_hash_block(void *darr, double *buf, size_t size, void *hash_map, size_t key);
- 
-  void fadd_hash_block(void *darr, double *buf, size_t size, void *hash_map, size_t key);
- 
-  void fget_hash_block_i(void *darr, double *buf, size_t size, void *hash_map, size_t key, 
-      size_t g3b, size_t g2b, size_t g1b, size_t g0b);
-
-#ifdef __cplusplus 
-}
-#endif
-
-
-#endif /*__FAPI_H__*/
+#endif /*__ctce_fapi_h__*/
 

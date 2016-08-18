@@ -18,4 +18,3 @@ typedef Fint Integer; /*for now to get compilation to work*/
 #endif
 
 #define CBLAS_HEADER_FILE "cblas.h"
-

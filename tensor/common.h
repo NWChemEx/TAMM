@@ -8,6 +8,7 @@
 
 typedef long Fint;
 typedef Fint Integer; /*for now to get compilation to work*/
+typedef Fint BlasInt; /*blas integer size could be different*/
 
 #define FORTRAN_FUNC(fname,fNAME) fname ## _
 

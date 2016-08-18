@@ -80,10 +80,10 @@ ftce_sortacc_6(double *unsorted , double *sorted,
                double *factor);
 
 EXTERN_C void
-ftce_hash(Integer *hash, Integer *key, Integer *offset);
+ftce_hash(Fint *hash, Fint *key, Fint *offset);
 
 EXTERN_C void
-fadd_block(Integer *d_a, double *buf, Integer *size, Integer *offset);
+fadd_block(Fint *d_a, double *buf, Fint *size, Fint *offset);
 
 #endif /*__ctce_fapi_h__*/
 

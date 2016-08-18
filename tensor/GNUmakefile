@@ -19,11 +19,11 @@ default: libctce.a
 libctce.a: variables.o dummy.o func.o capi.o preprocess.o expression.o t_mult.o t_assign.o tensor.o \
  \
 equations.o ccsd_t1_eqs.o ccsd_t2_eqs.o corf.o ccsd_t1_ref.o ccsd_t2_ref.o ccsd_e_ref.o \
- gt.o fapi.o schedulers.o ccsd_t12.o ccsd_e_eqs.o tensors_and_ops.o stats.o index_sort.o
+ schedulers.o ccsd_t12.o ccsd_e_eqs.o tensors_and_ops.o stats.o index_sort.o
 	ar -cr -o libctce.a variables.o dummy.o func.o capi.o preprocess.o expression.o t_mult.o t_assign.o tensor.o\
  \
 equations.o ccsd_t1_eqs.o ccsd_t2_eqs.o ccsd_t2_ref.o corf.o ccsd_t1_ref.o ccsd_e_ref.o \
-gt.o fapi.o schedulers.o ccsd_t12.o ccsd_e_eqs.o tensors_and_ops.o stats.o index_sort.o
+schedulers.o ccsd_t12.o ccsd_e_eqs.o tensors_and_ops.o stats.o index_sort.o
 
 
 main: ccsd_t1_eqs.o ccsd_t2_eqs.o equations.o main.o print.o ../ctce_parser/libctceparser.a

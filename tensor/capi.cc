@@ -6,64 +6,56 @@
 #include CBLAS_HEADER_FILE
 
 #include "fapi.h"
-//#include "typesf2c.h"
 #include "index.h"
 #include "variables.h"
-//#include <iostream>
 
 namespace ctce {
 
 void
-tce_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids, std::vector<size_t>& iv, double alpha) {
+tce_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
+         std::vector<size_t>& iv, double alpha) {
+#if USE_FORTRAN_FUNCTIONS
   Fint *int_mb = Variables::int_mb();
   size_t k_range = Variables::k_range()-1;
-
-#if USE_FORTRAN_FUNCTIONS
-
   if(ids.size() == 0) {
     dbuf[0] = sbuf[0] * alpha;
-  }
-  else if(ids.size() == 1) {
-    for(int i=0; i< int_mb[k_range+ids[0]]; i++) {
+  } else if(ids.size() == 1) {
+    size_t dim0 = Variables::k_range(ids[0]);
+    for(int i=0; i< dim0; i++) {
       dbuf[i] = sbuf[i] * alpha;
     }
-  }
-  else if (ids.size()==2) {
+  } else if (ids.size()==2) {
+    Fint dim0 = Variables::k_range(ids[0]);
+    Fint dim1 = Variables::k_range(ids[1]);
     Fint iv0 = iv[0], iv1=iv[1];
-    ftce_sort_2(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &iv0, &iv1, &alpha);
-  }
-  else if (ids.size()==3) {
-    Fint *rmb = int_mb + k_range;
-    // Fint dim1 = 1, dim2 = rmb[ids[0]], dim3 = rmb[ids[1]], dim4 = rmb[ids[2]];
-    // Fint perm1 = 1, perm2 = iv[0]+1, perm3=iv[1]+1, perm4=iv[2]+1;
-
-    // tce_sort_4_(sbuf, dbuf, &dim1, &dim2, &dim3, &dim4,
-    // 		  &perm1, &perm2, &perm3, &perm4, &alpha);
-    Fint dim1 = rmb[ids[0]], dim2 = rmb[ids[1]], dim3 = rmb[ids[2]], dim4 = 1;
-    Fint perm1 = iv[0], perm2=iv[1], perm3=iv[2], perm4=4;
-
-    ftce_sort_4(sbuf, dbuf, &dim1, &dim2, &dim3, &dim4,
-                &perm1, &perm2, &perm3, &perm4, &alpha);
-  }
-  else if (ids.size()==4) {
+    ftce_sort_2(sbuf, dbuf, &dim0, &dim1, &iv0, &iv1, &alpha);
+  } else if (ids.size()==3) {
+    Fint dim0 = Variables::k_range(ids[0]);
+    Fint dim1 = Variables::k_range(ids[1]);
+    Fint dim2 = Variables::k_range(ids[2]);
+    Fint dim3 = 1;
+    Fint perm0 = iv[0], perm1=iv[1], perm2=iv[2], perm3=4;
+    ftce_sort_4(sbuf, dbuf, &dim0, &dim1, &dim2, &dim3,
+                &perm0, &perm1, &perm2, &perm3, &alpha);
+  } else if (ids.size()==4) {
+    Fint dim0 = Variables::k_range(ids[0]);
+    Fint dim1 = Variables::k_range(ids[1]);
+    Fint dim2 = Variables::k_range(ids[2]);
+    Fint dim3 = Variables::k_range(ids[3]);
     Fint iv0 = iv[0], iv1=iv[1], iv2= iv[2], iv3=iv[3];
-    ftce_sort_4(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &int_mb[k_range+ids[2]], &int_mb[k_range+ids[3]],
+    ftce_sort_4(sbuf, dbuf, &dim0, &dim1, &dim2, &dim3,
                 &iv0, &iv1, &iv2, &iv3, &alpha);
-  }
-  else {
+  } else {
     assert(0); //not implemented
   }
 #else
-  {
-    vector<size_t> sizes;
-    vector<int> perm;
-    for(int i=0; i<ids.size(); i++) {
-      sizes.push_back(int_mb[k_range+ids[i]]);
-      perm.push_back(iv[i]);
-    }
-    index_sort(sbuf, dbuf, ids.size(), &sizes[0], &perm[0], alpha);
-    return;
+  vector<size_t> sizes;
+  vector<int> perm;
+  for(int i=0; i<ids.size(); i++) {
+    sizes.push_back(int_mb[k_range+ids[i]]);
+    perm.push_back(iv[i]);
   }
+  index_sort(sbuf, dbuf, ids.size(), &sizes[0], &perm[0], alpha);
 #endif
 }
 
@@ -118,38 +110,6 @@ void cadd_hash_block(size_t d_c, double *buf_a, size_t size, Fint *hash, size_t 
 #endif
 }
 
-#if 0
-void tce_add_hash_block_(Fint *d_c, double *buf_a, Fint size, Fint k_c_offset, const std::vector<Fint>& is, const std::vector<IndexName>& ns) {
-  Fint *int_mb = Variables::int_mb();
-  Fint noab = Variables::noab();
-  Fint nvab = Variables::nvab();
-  Fint key=0, offset=1;
-  for (int i=is.size()-1; i>=0; i--) {
-    bool check = (Table::rangeOf(ns[i])==TO);
-    if (check) key += (is[i]-1)*offset;
-    else key += (is[i]-noab-1)*offset; // TV
-    offset *= (check)?noab:nvab;
-  }
-
-//#define TIMER 0
-#if TIMER
-  double start = rtclock();
-#endif
-  //    std::cout << "ckey" << key << std::endl;
-
-#if 0
-  add_hash_block_(d_c, buf_a, &size, &int_mb[k_c_offset], &key);
-#else
-  cadd_hash_block(*d_c, buf_a, size, &int_mb[k_c_offset], key);
-#endif
-#if TIMER
-  double end = rtclock();
-  Timer::ah_time += end - start;
-  Timer::ah_num += 1;
-#endif
-}
-#endif
-
 void cdgemm(char transa, char transb, size_t m, size_t n, size_t k,
             double alpha, double *a, size_t lda, double *b, size_t ldb, double beta,
             double *c, size_t ldc) {
@@ -182,12 +142,12 @@ void sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids, std::ve
 
   if (ids.size()==4) {
     Fint p0=perm[0], p1=perm[1], p2=perm[2], p3=perm[3];
-    ftce_sortacc_4(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &int_mb[k_range+ids[2]], 
+    ftce_sortacc_4(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &int_mb[k_range+ids[2]],
                    &int_mb[k_range+ids[3]], &p0, &p1, &p2, &p3, &alpha);
   }
   else if (ids.size()==6) {
     Fint p0=perm[0], p1=perm[1], p2=perm[2], p3=perm[3], p4=perm[4], p5=perm[5];
-    ftce_sortacc_6(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &int_mb[k_range+ids[2]], 
+    ftce_sortacc_6(sbuf, dbuf, &int_mb[k_range+ids[0]], &int_mb[k_range+ids[1]], &int_mb[k_range+ids[2]],
                    &int_mb[k_range+ids[3]], &int_mb[k_range+ids[4]], &int_mb[k_range+ids[5]],
                    &p0, &p1, &p3, &p3, &p4, &p5, &alpha);
   }

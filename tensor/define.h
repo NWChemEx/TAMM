@@ -24,12 +24,6 @@ typedef enum {
   pIndex, hIndex
 } IndexType;
 
-typedef enum {
-  V_tensor, T_tensor, F_tensor,
-  iV_tensor, iT_tensor, iF_tensor,
-  iVT_tensor, iVF_tensor, iTF_tensor
-} TensorType;
-
 const static int pIndexNum = 12;
 const static int hIndexNum = 12;
 const static int IndexNum = pIndexNum + hIndexNum;

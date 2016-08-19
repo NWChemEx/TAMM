@@ -67,34 +67,6 @@ namespace ctce {
     return size;
   }
 
-  int is_spin_restricted_nonzero(const std::vector<size_t>& ids, const size_t& sval) {
-    size_t lval=0;
-    Integer *int_mb = Variables::int_mb();
-    size_t k_spin = Variables::k_spin()-1;
-    size_t restricted = Variables::restricted();
-    for (int i=0; i<ids.size(); i++) lval += int_mb[k_spin+ids[i]];
-    return ((!restricted) || (lval != sval));
-  }
-
-  int is_spin_nonzero(const std::vector<size_t>& ids) {
-    int nids = ids.size();
-    assert(nids %2 == 0);
-    size_t lval=0, rval=0;
-    Integer *int_mb = Variables::int_mb();
-    size_t k_spin = Variables::k_spin()-1;
-    for(int i=0; i<nids/2; i++) lval += int_mb[k_spin+ids[i]];
-    for(int i=nids/2; i<nids; i++) rval += int_mb[k_spin+ids[i]];
-    return (lval==rval);
-  }
-
-  int is_spatial_nonzero(const std::vector<size_t> &ids, const size_t sval) {
-    size_t lval=0;
-    Integer *int_mb = Variables::int_mb();
-    size_t k_sym = Variables::k_sym()-1;
-    for(int i=0; i<ids.size(); i++) lval ^= int_mb[k_sym+ids[i]];
-    return (lval == sval);
-  }
-
   IndexType getIndexType(const IndexName& name) {
     if (name>=0 && name<pIndexNum) return pIndex;
     else return hIndex;

@@ -23,6 +23,8 @@
 #define ftce_sortacc_2     FORTRAN_FUNC(tce_sortacc_2,TCE_SORTACC_2)
 #define ftce_sortacc_4     FORTRAN_FUNC(tce_sortacc_4,TCE_SORTACC_4)
 #define ftce_sortacc_6     FORTRAN_FUNC(tce_sortacc_6,TCE_SORTACC_6)
+#define fname_and_create   FORTRAN_FUNC(name_and_create,NAME_AND_CREATE)
+#define fdestroy           FORTRAN_FUNC(destroy,DESTROY)
 
 EXTERN_C void
 ftce_restricted_2(Fint *i1, Fint *i2, Fint *o1, Fint *o2);
@@ -88,6 +90,13 @@ fadd_block(Fint *d_a, double *buf, Fint *size, Fint *offset);
 
 EXTERN_C void
 fget_block(Fint *d_a, double *buf, Fint *size, Fint *offset);
+
+EXTERN_C void
+fname_and_create(Fint *da, Fint *size);
+
+EXTERN_C void
+fdestroy(Fint *da, Fint *offset);
+
 
 #endif /*__ctce_fapi_h__*/
 

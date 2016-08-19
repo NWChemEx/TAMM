@@ -137,6 +137,14 @@ add_library(ctce STATIC ${ctceLibSources})
 target_include_directories(ctce SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags} ${BLAS_INC_PATH})
 add_dependencies(ctce ctceparser)
 
-#set_target_properties(ctce_test PROPERTIES
-#        INSTALL_RPATH_USE_LINK_PATH TRUE)
+# Install
+install(TARGETS ctce ctceparser
+        DESTINATION ${CTCE_INSTALL_PREFIX}/lib)
+
+file(GLOB CTCE_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/ctce_parser/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
+install(FILES ${CTCE_HEADERS} DESTINATION ${CTCE_INSTALL_PREFIX}/include)
+
+file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/ctce_parser/transform_input/generated/*.lvl")
+install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/tests)
+
 

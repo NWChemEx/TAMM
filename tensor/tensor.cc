@@ -57,7 +57,8 @@ Tensor::gen_restricted(const std::vector<size_t>& value_,
 void
 Tensor::create() {
   const std::vector<IndexName>& name = id2name(ids());
-  const std::vector<int>& gp = ext_sym_group(ids());
+  // const std::vector<int>& gp = ext_sym_group(*this,ids());
+  const std::vector<int>& gp = ext_sym_group(*this,name);
   std::vector< std::vector<IndexName> > all;
   std::vector<IndexName> one;
   int prev=0, curr=0, n=dim_;

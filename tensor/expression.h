@@ -245,54 +245,6 @@ name2ids(const Tensor &tensor, const vector<IndexName>& name) {
   return retv;
 }
 
-inline bool
-is_permutation(const std::vector<IndexName>& ids) {
-  std::set<IndexName> sids(ids.begin(), ids.end());
-  return sids.size() == ids.size();
-}
-
-inline bool
-is_permutation(const std::vector<IndexName>& ids1,
-               const std::vector<IndexName>& ids2) {
-  std::set<IndexName> sids1(ids1.begin(), ids1.end());
-  std::set<IndexName> sids2(ids2.begin(), ids2.end());
-  if(ids1.size() != sids1.size()) return false;
-  if(ids2.size() != sids2.size()) return false;
-  for (int i=0; i<ids1.size(); i++) {
-    if(sids2.find(ids1[i]) == sids2.end())
-      return false;
-  }
-  return true;
-}
-
-inline std::vector<IndexName>
-ivec(IndexName i1) {
-  std::vector<IndexName> ret;
-  ret.push_back(i1);
-  return ret;
-}
-
-inline std::vector<IndexName>
-ivec(IndexName i1, IndexName i2) {
-  std::vector<IndexName> ret = ivec(i1);
-  ret.push_back(i2);
-  return ret;
-}
-
-inline std::vector<IndexName>
-ivec(IndexName i1, IndexName i2, IndexName i3) {
-  std::vector<IndexName> ret = ivec(i1,i2);
-  ret.push_back(i3);
-  return ret;
-}
-
-inline std::vector<IndexName>
-ivec(IndexName i1, IndexName i2, IndexName i3, IndexName i4) {
-  std::vector<IndexName> ret = ivec(i1,i2,i3);
-  ret.push_back(i4);
-  return ret;
-}
-
 inline std::vector<size_t>
 sort_ids(const std::vector<IndexName> &name,
          const std::vector<IndexName> &mem_pos_) {
@@ -356,16 +308,6 @@ setValueR(std::vector<Index> &ids_,
   }
 }
 
-inline const std::vector<int>
-ext_sym_group(const std::vector<Index> &ids_) {
-  int dim_ = ids_.size();
-  std::vector<int> esg(dim_);
-  for(int i=0; i<dim_; i++) {
-    esg[i] = ids_[i].ext_sym_group();
-  }
-  return esg;
-}
-
 inline std::vector<IndexName>
 id2name(const std::vector<Index> &ids_) {
   int dim_ = ids_.size();
@@ -374,15 +316,6 @@ id2name(const std::vector<Index> &ids_) {
     n[i] = ids_[i].name();
   }
   return n;
-}
-
-inline void
-id2name(const std::vector<Index>& ids_, std::vector<IndexName> &n)  {
-  int dim_ = ids_.size();
-  n.resize(dim_);
-  for(int i=0; i<dim_; i++) {
-    n[i] = ids_[i].name();
-  }
 }
 
 inline int

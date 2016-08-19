@@ -1,12 +1,10 @@
 #ifndef __ctce_expression_h__
 #define __ctce_expression_h__
 
-#include "typesf2c.h"
 #include "index.h"
 #include <vector>
 #include <set>
 #include <cassert>
-#include <iostream>
 #include "tensor.h"
 #include "triangular.h"
 #include "iterGroup.h"

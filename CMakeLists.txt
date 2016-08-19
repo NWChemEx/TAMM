@@ -22,7 +22,7 @@ find_path (BLAS_INC_PATH NAMES cblas.h mkl_cblas.h PATHS ${CTCE_BLAS_INC})
 find_library (BLAS_LIB_PATH blas ${CTCE_BLAS_LIB})
 
 message(STATUS "BLAS headers found at: " "${BLAS_INC_PATH}")
-message(STATUS "BLAS libs found at: " "${BLAS_LIB_PATH}")
+message(STATUS "BLAS libs found: " "${BLAS_LIB_PATH}")
 
 #Load the GA_CONFIG and NWCHEM_TOP env variables
 SET(NWCHEM_TOP $ENV{NWCHEM_TOP})
@@ -48,15 +48,15 @@ add_executable(lemon ${ParserSrcDir}/lemon.c)
 
 # Collect all the parser sources.
 set(ctceParserSources
-        ctce_parser/absyn.c
-        ctce_parser/ctce_parser.c
-        ctce_parser/ctce_vector.c
-        ctce_parser/intermediate.c
-        ctce_parser/semant.c
-        ctce_parser/visitor.c
-        ctce_parser/symtab.c
-        ctce_parser/util.c
-        )
+    ctce_parser/absyn.c
+    ctce_parser/ctce_parser.c
+    ctce_parser/ctce_vector.c
+    ctce_parser/intermediate.c
+    ctce_parser/semant.c
+    ctce_parser/visitor.c
+    ctce_parser/symtab.c
+    ctce_parser/util.c
+    )
 
 set(ctceLibSources
   tensor/capi.cc
@@ -86,27 +86,28 @@ set(ParserBuildDir "${PROJECT_BINARY_DIR}")
 
 # The generated lexer, parser code would be in ParserBuildDir.
 set(ParserSources
-        ${ParserBuildDir}/parser.h
-        ${ParserBuildDir}/parser.c
-        ${ParserBuildDir}/scanner.c
-        ${ParserBuildDir}/scanner.h
-        )
+    ${ParserBuildDir}/parser.h
+    ${ParserBuildDir}/parser.c
+    ${ParserBuildDir}/scanner.c
+    ${ParserBuildDir}/scanner.h
+    )
 
 # Custom Target to build the lemon grammar.
 ADD_CUSTOM_COMMAND(OUTPUT ${ParserSources}
-        # The parser and scanner spec files are copied over to the ParserBuildDir before building it .
-        COMMAND cmake -E copy ${ParserSrcDir}/parser.y ${ParserBuildDir}/parser.y
-        COMMAND cmake -E copy ${ParserSrcDir}/scanner.l ${ParserBuildDir}/scanner.l
-        COMMAND cmake -E copy ${ParserSrcDir}/lempar.c ${ParserBuildDir}/lempar.c
+    # The parser and scanner spec files are copied over to the ParserBuildDir before building it .
+    COMMAND cmake -E copy ${ParserSrcDir}/parser.y ${ParserBuildDir}/parser.y
+    COMMAND cmake -E copy ${ParserSrcDir}/scanner.l ${ParserBuildDir}/scanner.l
+    COMMAND cmake -E copy ${ParserSrcDir}/lempar.c ${ParserBuildDir}/lempar.c
 
-        #Generate the scanner code
-        COMMAND cmake -E chdir ${ParserBuildDir} flex ${ParserBuildDir}/scanner.l
+    #Generate the scanner code
+    COMMAND cmake -E chdir ${ParserBuildDir} flex ${ParserBuildDir}/scanner.l
 
-        # Generate the parser code
-        COMMAND cmake -E chdir ${ParserBuildDir} ./lemon -s ${ParserBuildDir}/parser.y
-        DEPENDS ${ParserSrcDir}/parser.y lemon
-        COMMENT "Building the ctce lemon parser."
-        VERBATIM)
+    # Generate the parser code
+    COMMAND cmake -E chdir ${ParserBuildDir} ./lemon -s ${ParserBuildDir}/parser.y
+    DEPENDS ${ParserSrcDir}/parser.y lemon
+    COMMENT "Building the ctce lemon parser."
+    VERBATIM
+    )
 
 #Build the generated scanner and parser sources
 add_library(ctce_sp STATIC ${ParserSources})
@@ -123,14 +124,9 @@ add_dependencies(ctce_test ctceparser)
 # Set target libraries to be linked.
 target_link_libraries(ctce_test ctceparser fl)
 
-
 string(REPLACE "-I" "" ctce_cmake_cflags ${ctce_cflags})
-
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" ctce_cflags ${ctce_cmake_cflags})
-
-#message(STATUS "cmake flags = " ${ctce_cmake_cflags})
-
 
 SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
 add_library(ctce STATIC ${ctceLibSources})

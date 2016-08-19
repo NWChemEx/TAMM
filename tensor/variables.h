@@ -21,6 +21,7 @@ namespace ctce {
       static Integer k_offset_, k_evl_sorted_;
       static Integer irrep_v_, irrep_t_, irrep_f_, irrep_x_;
       static logical intorb_, restricted_;
+    static Integer k_alpha_;
     public:
       static void set_ov(Integer *o, Integer *v);
       static void set_idmb(Integer *int_mb, double *dbl_mb);
@@ -29,6 +30,7 @@ namespace ctce {
       static void set_k1(Integer *k_range, Integer *k_spin, Integer *k_sym);
       static void set_log(logical *intorb, logical *restricted);
       static void set_k2(Integer *k_offset, Integer *k_evl_sorted);
+    static void set_k_alpha(Integer *k_alpha);
 
       /** 
        * Set k_offset and k_evl_sorted, use in ccsd(t) to compute r and o value
@@ -62,6 +64,7 @@ namespace ctce {
       static Integer* int_mb() { return int_mb_; }
       static double* dbl_mb() { return dbl_mb_; }
 
+    static Integer k_alpha() { return k_alpha_; }
     static size_t k_range(Tile t) {
       return int_mb()[k_range()-1+t];
     }

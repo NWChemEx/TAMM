@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project (CTCE C)
+project (CTCE_LIBRARY C CXX)
 
 # The version number.
 set (CTCE_VERSION_MAJOR 1)
@@ -17,7 +17,22 @@ set (CMAKE_BUILD_TYPE Debug)
 
 find_package(FLEX)
 
-include_directories("${PROJECT_SOURCE_DIR}/ctce_parser")
+#Load the GA_CONFIG and NWCHEM_TOP env variables
+SET(NWCHEM_TOP $ENV{NWCHEM_TOP})
+SET(GA_CONFIG ${NWCHEM_TOP}/src/tools/install/bin/ga-config)
+
+execute_process(COMMAND ${GA_CONFIG} --cc OUTPUT_VARIABLE ctce_c_compiler OUTPUT_STRIP_TRAILING_WHITESPACE)
+#execute_process(COMMAND ${GA_CONFIG} --f77 OUTPUT_VARIABLE ctce_f77_compiler OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+SET(CMAKE_C_COMPILER ${ctce_c_compiler})
+
+#Assume Cmake picks the right c++ compiler for now
+SET(CMAKE_CXX_COMPILER mpicxx)
+
+execute_process(COMMAND ${GA_CONFIG} --cppflags --cflags OUTPUT_VARIABLE ctce_cflags OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${GA_CONFIG} --ldflags OUTPUT_VARIABLE ctce_ldflags OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${GA_CONFIG} --libs OUTPUT_VARIABLE ctce_libs OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 
 #Build lemon sources
 set(ParserSrcDir ${PROJECT_SOURCE_DIR}/ctce_parser)
@@ -27,11 +42,13 @@ add_executable(lemon ${ParserSrcDir}/lemon.c)
 # Collect all the parser sources.
 file(GLOB ctceParserSources RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/ctce_parser/*.c") # select all .c files
 
-list(REMOVE_ITEM ctceParserSources "ctce_parser/test.c")
-list(REMOVE_ITEM ctceParserSources "ctce_parser/lemon.c")
-list(REMOVE_ITEM ctceParserSources "ctce_parser/lempar.c")
+list(REMOVE_ITEM ctceParserSources ctce_parser/test.c ctce_parser/lemon.c ctce_parser/lempar.c)
 
 file(GLOB ctceLibSources RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/tensor/*.cc") # select all .cc files
+#Exclude the following
+list(REMOVE_ITEM ctceLibSources tensor/main.cc tensor/input.cc tensor/ccsd_t1.cc tensor/ccsd_t12.cc tensor/ccsd_t2_12.cc
+        tensor/ccsd_t2_45.cc tensor/ccsd_t2_68.cc tensor/ccsd_t2_7.cc tensor/ccsd_t.cc tensor/ipccsd_x1.cc tensor/capi.cc 
+        tensor/original_variables.cc tensor/print.cc)
 
 set(ParserBuildDir "${PROJECT_BINARY_DIR}")
 
@@ -59,27 +76,37 @@ ADD_CUSTOM_COMMAND(OUTPUT ${ParserSources}
         COMMENT "Building the ctce lemon parser."
         VERBATIM)
 
-ADD_CUSTOM_TARGET(GrammarBuild ALL
-        DEPENDS ${ParserSources})
-
-#Set additional include paths
-set(Includes
-        ${PROJECT_BINARY_DIR}
-   )
-include_directories(${Includes})
-
 #Build the generated scanner and parser sources
 add_library(ctce_sp STATIC ${ParserSources})
+target_include_directories(ctce_sp SYSTEM PUBLIC ${ParserSrcDir})
 
 #Build the ctce parser as a static library
-add_library(ctce_parser STATIC ${ctceParserSources} ${ParserSources})
-add_dependencies(ctce_parser ctce_sp)
+add_library(ctceparser STATIC ${ctceParserSources} ${ParserSources})
+target_include_directories(ctceparser SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${ParserSrcDir})
+add_dependencies(ctceparser ctce_sp)
 
 # Build the ctce_test code
 add_executable(ctce_test ${ParserSrcDir}/test.c)
-add_dependencies(ctce_test ctce_parser)
+add_dependencies(ctce_test ctceparser)
 # Set target libraries to be linked.
-target_link_libraries(ctce_test ctce_parser fl)
+target_link_libraries(ctce_test ctceparser fl)
+
+
+string(REPLACE "-I" "" ctce_cmake_cflags ${ctce_cflags})
+
+#To be recognized as a list, the strings must be seperated by ;
+string(REPLACE " " ";" ctce_cflags ${ctce_cmake_cflags})
+
+#foreach(path ${ctce_cmake_cflags})
+#    message("Path: " ${path})
+#endforeach(path)
+#message(STATUS "cmake flags = " ${ctce_cmake_cflags})
+
+
+SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
+add_library(ctce STATIC ${ctceLibSources})
+target_include_directories(ctce SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags})
+add_dependencies(ctce ctceparser)
 
 #set_target_properties(ctce_test PROPERTIES
 #        INSTALL_RPATH_USE_LINK_PATH TRUE)

@@ -53,11 +53,28 @@ set(ctceParserSources
         )
 
 set(ctceLibSources
-        tensor/variables.cc tensor/dummy.cc tensor/func.cc tensor/capi.cc tensor/preprocess.cc tensor/expression.cc
-        tensor/expression.cc tensor/t_mult.cc tensor/t_assign.cc tensor/tensor.cc tensor/equations.cc
-        tensor/ccsd_t1_eqs.cc tensor/ccsd_t2_eqs.cc tensor/corf.cc tensor/ccsd_t1_ref.cc tensor/ccsd_t2_ref.cc
-        tensor/schedulers.cc tensor/ccsd_t12.cc tensor/ccsd_e_eqs.cc tensor/tensors_and_ops.cc tensor/stats.cc
-        tensor/index_sort.cc)
+  tensor/capi.cc
+  tensor/ccsd_e_eqs.cc
+  tensor/ccsd_t12.cc
+  tensor/ccsd_t1_eqs.cc
+  tensor/ccsd_t1_ref.cc
+  tensor/ccsd_t2_eqs.cc
+  tensor/ccsd_t2_ref.cc
+  tensor/corf.cc
+  tensor/dummy.cc
+  tensor/equations.cc
+  tensor/expression.cc
+  tensor/func.cc
+  tensor/index_sort.cc
+  tensor/preprocess.cc
+  tensor/schedulers.cc
+  tensor/stats.cc
+  tensor/t_assign.cc
+  tensor/t_mult.cc
+  tensor/tensor.cc
+  tensor/tensors_and_ops.cc
+  tensor/variables.cc
+  )
 
 set(ParserBuildDir "${PROJECT_BINARY_DIR}")
 

@@ -18,12 +18,11 @@ set (CMAKE_BUILD_TYPE Debug)
 find_package(FLEX REQUIRED)
 #find_package(BLAS REQUIRED)
 
-find_path (BLAS_INC_PATH NAMES cblas.h mkl_blas.h PATHS ${CTCE_BLAS_INC})
+find_path (BLAS_INC_PATH NAMES cblas.h mkl_cblas.h PATHS ${CTCE_BLAS_INC})
 find_library (BLAS_LIB_PATH blas ${CTCE_BLAS_LIB})
 
-
-message(STATUS "blas inc = " "${BLAS_INC_PATH}")
-message(STATUS "blas lib = " "${BLAS_LIB_PATH}")
+message(STATUS "BLAS headers found at: " "${BLAS_INC_PATH}")
+message(STATUS "BLAS libs found at: " "${BLAS_LIB_PATH}")
 
 #Load the GA_CONFIG and NWCHEM_TOP env variables
 SET(NWCHEM_TOP $ENV{NWCHEM_TOP})

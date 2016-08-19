@@ -32,23 +32,6 @@ namespace ctce {
   size_t compute_size(const std::vector<size_t>& ids);
 
   /**
-  * Check spin restricted and nonzero
-  * @param[in] ids, sval
-  */
-  int is_spin_restricted_nonzero(const std::vector<size_t>& ids, const size_t& sval);
-
-  /**
-  * Check spin
-  * @param[in] ids
-  */
-  int is_spin_nonzero(const std::vector<size_t>& ids);
-
-  /**
-  * Check spatial symmetry
-  */
-  int is_spatial_nonzero(const std::vector<size_t> &ids, const size_t sval);
-
-  /**
   * Return type of the index, either a pIndex or a hIndex
   */
   IndexType getIndexType(const IndexName& name);

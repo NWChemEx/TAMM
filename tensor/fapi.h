@@ -18,6 +18,7 @@
 #define fdgemm             FORTRAN_FUNC(dgemm,DGEMM)
 #define fadd_hash_block    FORTRAN_FUNC(add_hash_block,ADD_HASH_BLOCK)
 #define fadd_block         FORTRAN_FUNC(add_block,ADD_BLOCK)
+#define fget_block         FORTRAN_FUNC(get_block,GET_BLOCK)
 #define ftce_hash          FORTRAN_FUNC(tce_hash,TCE_HASH)
 #define ftce_sortacc_2     FORTRAN_FUNC(tce_sortacc_2,TCE_SORTACC_2)
 #define ftce_sortacc_4     FORTRAN_FUNC(tce_sortacc_4,TCE_SORTACC_4)
@@ -84,6 +85,9 @@ ftce_hash(Fint *hash, Fint *key, Fint *offset);
 
 EXTERN_C void
 fadd_block(Fint *d_a, double *buf, Fint *size, Fint *offset);
+
+EXTERN_C void
+fget_block(Fint *d_a, double *buf, Fint *size, Fint *offset);
 
 #endif /*__ctce_fapi_h__*/
 

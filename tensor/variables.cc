@@ -37,6 +37,7 @@ namespace ctce {
   logical Variables::restricted_ = 0;
   Integer* Variables::int_mb_;
   double* Variables::dbl_mb_;
+  Integer Variables::k_alpha_ = 0;
 
   void Variables::set_ov(Integer *o, Integer *v) {
     noab_ = *o;
@@ -67,6 +68,9 @@ namespace ctce {
     intorb_ = *intorb;
     restricted_ = *restricted;
   }
+void Variables::set_k_alpha(Integer *k_alpha) {
+  k_alpha_ = *k_alpha;
+  }
 
   extern "C" {
 
@@ -92,6 +96,10 @@ namespace ctce {
       Variables::set_log(intorb, restricted);
       Variables::set_irrep(irrep_v, irrep_t, irrep_f);
     }
+
+void set_k_alpha_cxx_(Integer *k_alpha) {
+  Variables::set_k_alpha(k_alpha);
+}
 
   }
 

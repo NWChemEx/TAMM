@@ -15,7 +15,8 @@ set (CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/" "${CMAKE_CURRENT_BINARY_DIR}")
 
 
-find_package(FLEX)
+find_package(FLEX REQUIRED)
+find_package(BLAS REQUIRED)
 
 #Load the GA_CONFIG and NWCHEM_TOP env variables
 SET(NWCHEM_TOP $ENV{NWCHEM_TOP})
@@ -40,21 +41,23 @@ add_executable(lemon ${ParserSrcDir}/lemon.c)
 
 
 # Collect all the parser sources.
-file(GLOB ctceParserSources RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/ctce_parser/*.c") # select all .c files
-
-list(REMOVE_ITEM ctceParserSources ctce_parser/test.c ctce_parser/lemon.c ctce_parser/lempar.c)
-
-#file(GLOB ctceLibSources RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/tensor/*.cc") # select all .cc files
-#Exclude the following
-#list(REMOVE_ITEM ctceLibSources tensor/main.cc tensor/input.cc tensor/ccsd_t1.cc tensor/ccsd_t12.cc tensor/ccsd_t2_12.cc
-#        tensor/ccsd_t2_45.cc tensor/ccsd_t2_68.cc tensor/ccsd_t2_7.cc tensor/ccsd_t.cc tensor/ipccsd_x1.cc tensor/capi.cc
-#        tensor/original_variables.cc tensor/print.cc)
+set(ctceParserSources
+        ctce_parser/absyn.c
+        ctce_parser/ctce_parser.c
+        ctce_parser/ctce_vector.c
+        ctce_parser/intermediate.c
+        ctce_parser/semant.c
+        ctce_parser/visitor.c
+        ctce_parser/symtab.c
+        ctce_parser/util.c
+        )
 
 set(ctceLibSources
-        tensor/variables.cc tensor/dummy.cc tensor/func.cc tensor/preprocess.cc tensor/expression.cc
-        tensor/expression.cc tensor/t_mult.cc tensor/t_assign.cc tensor/tensor.cc tensor/equations.cc tensor/ccsd_t1_eqs.cc
-        tensor/ccsd_t2_eqs.cc tensor/corf.cc tensor/ccsd_t1_ref.cc tensor/ccsd_t2_ref.cc tensor/schedulers.cc tensor/ccsd_t12.cc
-        tensor/ccsd_e_eqs.cc tensor/tensors_and_ops.cc tensor/stats.cc tensor/index_sort.cc)
+        tensor/variables.cc tensor/dummy.cc tensor/func.cc tensor/capi.cc tensor/preprocess.cc tensor/expression.cc
+        tensor/expression.cc tensor/t_mult.cc tensor/t_assign.cc tensor/tensor.cc tensor/equations.cc
+        tensor/ccsd_t1_eqs.cc tensor/ccsd_t2_eqs.cc tensor/corf.cc tensor/ccsd_t1_ref.cc tensor/ccsd_t2_ref.cc
+        tensor/schedulers.cc tensor/ccsd_t12.cc tensor/ccsd_e_eqs.cc tensor/tensors_and_ops.cc tensor/stats.cc
+        tensor/index_sort.cc)
 
 set(ParserBuildDir "${PROJECT_BINARY_DIR}")
 

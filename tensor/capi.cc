@@ -43,7 +43,7 @@ ctce_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
   vector<size_t> sizes;
   vector<int> perm;
   for(int i=0; i<ids.size(); i++) {
-    sizes.push_back(int_mb[k_range+ids[i]]);
+    sizes.push_back(Variables::k_range(ids[i]));
     perm.push_back(iv[i]);
   }
   index_sort(sbuf, dbuf, ids.size(), &sizes[0], &perm[0], alpha);
@@ -97,6 +97,22 @@ cadd_hash_block(size_t d_c, double *buf_a, size_t size, Fint *hash, size_t key) 
   Fint offset;
   ctce_hash(hash, key, &offset);
   cadd_block(d_c, buf_a, size, offset);
+#endif
+}
+
+void
+cget_block(size_t d_a, double *buf, size_t size, size_t offset) {
+
+#if USE_FORTRAN_FUNCTIONS
+  Fint ida = d_a;
+  Fint isize = size;
+  Fint ioffset = offset;
+  fget_block(&ida, buf, &isize, &ioffset);
+#else
+  int lo[2] = {0,offset};
+  int hi[2] = {0,offset+size-1};
+  int ld[1] = {100000};
+  NGA_Get(d_a,lo,hi,buf,ld);
 #endif
 }
 
@@ -200,20 +216,38 @@ cget_hash_block_i(size_t da, double *buf, size_t size, size_t offset,
 void
 cget_hash_block_ma(size_t da, double *buf, size_t size,
                    size_t offset, size_t key) {
+#if USE_FORTRAN_FUNCTIONS
   double *dbl_mb = Variables::dbl_mb();
   Fint isize = size;
   Fint *int_mb = Variables::int_mb();
   Fint ikey = key;
   fget_hash_block_ma(&dbl_mb[da], buf, &isize, &int_mb[offset], &ikey);
+#else
+  Fint *int_mb = Variables::int_mb();
+  double *dbl_mb = Variables::dbl_mb();
+  Fint *hash = &int_mb[offset];
+  Fint ioffset;
+  ctce_hash(hash, key, &ioffset);
+  memcpy(buf,&dbl_mb[da]+ioffset,size*sizeof(double));
+#endif
 }
 
 void
 cget_hash_block(size_t da, double *buf, size_t size, size_t offset, size_t key) {
+
+#if USE_FORTRAN_FUNCTIONS
   Fint ida = da;
   Fint isize = size;
   Fint *int_mb = Variables::int_mb();
   Fint  ikey = key;
   fget_hash_block(&ida, buf, &isize, &int_mb[offset], &ikey);
+#else
+  Fint *int_mb = Variables::int_mb();
+  Fint *hash = &int_mb[offset];
+  Fint ioffset;
+  ctce_hash(hash, key, &ioffset);
+  cget_block(da, buf, size, ioffset);
+#endif
 }
 
 } /* namespace ctce*/

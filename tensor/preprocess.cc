@@ -45,8 +45,11 @@ namespace ctce {
       std::vector< std::vector<int> > all_f;
       std::vector<int> one_f;
       int prev=0, curr=0;
+
+      const vector<int> esg = ext_sym_group(tC,c);
       for (int i=0; i<tC.dim(); i++) {
-        curr = c_ids[i].ext_sym_group();
+        //curr = c_ids[i].ext_sym_group();
+        curr = esg[i];
         if (curr != prev) {
           all.push_back(one); all_f.push_back(one_f);
           one.clear(); one_f.clear();

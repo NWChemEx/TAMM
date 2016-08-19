@@ -170,6 +170,7 @@ void
 ctce_restricted(int dim, int nupper,
                 const std::vector<size_t> &value,
                 std::vector<size_t> &pvalue_r) {
+#if USE_FORTRAN_FUNCTIONS
   std::vector<Fint> temp(dim);
   std::vector<Fint> ivalue(dim);
   assert(value.size() == dim);
@@ -198,6 +199,23 @@ ctce_restricted(int dim, int nupper,
   for (int i=0; i<dim; i++) {
     pvalue_r.push_back(temp[i]);
   }
+#else
+  int lval = 0;
+  Fint *int_mb = Variables::int_mb();
+  size_t k_spin = Variables::k_spin()-1;
+  for (int i=0; i<value.size(); i++) {
+    lval += int_mb[k_spin+value[i]];
+  }
+  if(Variables::restricted() && (dim!=0) && (dim%2==0) && lval==2*dim) {
+    pvalue_r.resize(dim);
+    Fint k_alpha = Variables::k_alpha()-1;
+    for(int i=0; i<dim; i++) {
+      pvalue_r[i] = int_mb[value[i] + k_alpha];
+    }
+  }  else {
+    pvalue_r = value;
+  }
+#endif
 }
 
 void

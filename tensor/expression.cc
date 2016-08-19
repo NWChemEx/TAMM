@@ -147,7 +147,8 @@ namespace ctce {
         if (c[i]==b[j]) from[i]=1;
     }
     // std::vector<int> c_ext = tC_.ext_sym_group();
-    std::vector<int> c_ext = ext_sym_group(c_ids);
+    // std::vector<int> c_ext = ext_sym_group(c_ids);
+    std::vector<int> c_ext = ext_sym_group(tC(),c);
     std::vector<int> group(n);
     int offset=0;
     int dirty[n]; memset(dirty,0,n*sizeof(int));

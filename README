@@ -1,3 +1,14 @@
 Copy the contents of folder ctce_v6.5 in the nwchem 
 src/tce directory to use the ctce library. 
 Neessary Fortran patchfiles are included here.
+
+
+To build the ctce library - cmake, flex and a blas library are needed.
+
+mkdir build && cd build
+
+#Specify blas header,lib paths to cmake along with an install prefix as shown
+
+cmake .. -DCTCE_BLAS_INC=/usr/include -DCTCE_BLAS_LIB=/usr/lib -DCTCE_INSTALL_PREFIX=/home/user/ctce-install
+
+

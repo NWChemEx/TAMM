@@ -28,21 +28,10 @@ public:
    */
   ~Assignment();
 
-  /**
-   * Constructor. Assign tC += coef * tA
-   * @param[in] tC left hand side tensor
-   * @param[in] tA right hand side tensor
-   * @param[in] coef coefficient. most of time it is 1 or -1.
-   */
-  Assignment(Tensor& tC, Tensor& tA, double coef,
-             const std::vector<IndexName>& cids,
-             const std::vector<IndexName>& aids);
-
   Assignment(Tensor *tC, Tensor *tA, double coef,
              const std::vector<IndexName>& cids,
              const std::vector<IndexName>& aids);
 
-  Assignment& operator = (const Assignment& as);
   /**
    * Get lhs tensor tC
    */
@@ -73,7 +62,6 @@ public:
 private:
   Tensor *tC_; /*< lhs tensor */
   Tensor *tA_; /*< rhs tensor */
-  Tensor tC_bug, tA_bug; /*@FIXME: @BUG: to keep things working for now*/
   double coef_; /*< coefficient */
   IterGroup<triangular> out_itr_; /*< outer loop iterator */
   std::vector<IndexName> cids_;
@@ -112,21 +100,12 @@ public:
    * @param[in] tB right hand side tensor 2
    * @param[in] coef coefficient
    */
-  Multiplication(Tensor& tC1, Tensor& tA1, Tensor& tB1, double coef);
-
   Multiplication(Tensor *tC1, Tensor *tA1, Tensor *tB1, double coef);
-
-  Multiplication(Tensor& tC1, const std::vector<IndexName> &c_ids1,
-                 Tensor& tA1, const std::vector<IndexName> &a_ids1,
-                 Tensor& tB1, const std::vector<IndexName> &b_ids1,
-                 double coef);
 
   Multiplication(Tensor *tC1, const std::vector<IndexName> &c_ids1,
                  Tensor *tA1, const std::vector<IndexName> &a_ids1,
                  Tensor *tB1, const std::vector<IndexName> &b_ids1,
                  double coef);
-
-  Multiplication& operator=(const Multiplication &m);
 
   /**
    * Get left hand side tensor tC
@@ -149,7 +128,7 @@ public:
   /**
    * Get coefficient
    */
-  const double coef();
+  double coef();
 
   /**
    * Get summation indices
@@ -191,7 +170,6 @@ private:
   Tensor *tC_; /*< left hand side tensor */
   Tensor *tA_; /*< right hand side tensor 1 */
   Tensor *tB_; /*< right hand side tensor 2 */
-  Tensor tC_bug, tA_bug, tB_bug; /*@FIXME: @BUG: for now to keep everything working. to be removed when all implementations use this interface*/
   double coef_; /*< coefficient */
 
   std::vector<IndexName> sum_ids_; /*< summation indices of the contraction */
@@ -208,7 +186,8 @@ private:
 };
 
 
-inline std::vector<RangeType> id2range(const vector<IndexName> &ids) {
+inline std::vector<RangeType>
+id2range(const vector<IndexName> &ids) {
   std::vector<RangeType> retv(ids.size());
   for(int i=0; i<ids.size(); i++) {
     if(ids[i] < pIndexNum) {
@@ -221,8 +200,9 @@ inline std::vector<RangeType> id2range(const vector<IndexName> &ids) {
   return retv;
 }
 
-inline std::vector<int> ext_sym_group(const Tensor &tensor,
-                                      const vector<IndexName> &ids) {
+inline std::vector<int>
+ext_sym_group(const Tensor &tensor,
+              const vector<IndexName> &ids) {
   int nupper = tensor.nupper();
   int ndim = tensor.dim();
   assert(ndim == ids.size());
@@ -254,8 +234,8 @@ inline std::vector<int> ext_sym_group(const Tensor &tensor,
   return retv;
 }
 
-inline std::vector<Index> name2ids(const Tensor &tensor,
-                                   const vector<IndexName>& name) {
+inline std::vector<Index>
+name2ids(const Tensor &tensor, const vector<IndexName>& name) {
   int n = tensor.dim();
   assert(n == name.size());
   const std::vector<int> &esg = ext_sym_group(tensor, name);
@@ -267,13 +247,15 @@ inline std::vector<Index> name2ids(const Tensor &tensor,
   return retv;
 }
 
-inline bool is_permutation(const std::vector<IndexName>& ids) {
+inline bool
+is_permutation(const std::vector<IndexName>& ids) {
   std::set<IndexName> sids(ids.begin(), ids.end());
   return sids.size() == ids.size();
 }
 
-inline bool is_permutation(const std::vector<IndexName>& ids1,
-                           const std::vector<IndexName>& ids2) {
+inline bool
+is_permutation(const std::vector<IndexName>& ids1,
+               const std::vector<IndexName>& ids2) {
   std::set<IndexName> sids1(ids1.begin(), ids1.end());
   std::set<IndexName> sids2(ids2.begin(), ids2.end());
   if(ids1.size() != sids1.size()) return false;
@@ -285,51 +267,61 @@ inline bool is_permutation(const std::vector<IndexName>& ids1,
   return true;
 }
 
-inline std::vector<IndexName> ivec(IndexName i1) {
+inline std::vector<IndexName>
+ivec(IndexName i1) {
   std::vector<IndexName> ret;
   ret.push_back(i1);
   return ret;
 }
 
-inline std::vector<IndexName> ivec(IndexName i1, IndexName i2) {
+inline std::vector<IndexName>
+ivec(IndexName i1, IndexName i2) {
   std::vector<IndexName> ret = ivec(i1);
   ret.push_back(i2);
   return ret;
 }
 
-inline std::vector<IndexName> ivec(IndexName i1, IndexName i2, IndexName i3) {
+inline std::vector<IndexName>
+ivec(IndexName i1, IndexName i2, IndexName i3) {
   std::vector<IndexName> ret = ivec(i1,i2);
   ret.push_back(i3);
   return ret;
 }
 
-inline std::vector<IndexName> ivec(IndexName i1, IndexName i2, IndexName i3,
-                                   IndexName i4) {
+inline std::vector<IndexName>
+ivec(IndexName i1, IndexName i2, IndexName i3, IndexName i4) {
   std::vector<IndexName> ret = ivec(i1,i2,i3);
   ret.push_back(i4);
   return ret;
 }
 
-inline std::vector<size_t> sort_ids(const std::vector<IndexName> &name, const std::vector<IndexName> &mem_pos_) {
+inline std::vector<size_t>
+sort_ids(const std::vector<IndexName> &name,
+         const std::vector<IndexName> &mem_pos_) {
   assert(name.size() == mem_pos_.size());
   std::vector<size_t> sort_ids_(name.size());
   for (int i=0; i<name.size(); i++) {
-    sort_ids_[i] = std::find(name.begin(), name.end(), mem_pos_[i]) - name.begin() + 1;
+    sort_ids_[i] = std::find(name.begin(), name.end(),
+                             mem_pos_[i]) - name.begin() + 1;
   }
   return sort_ids_;
 }
 
-inline std::vector<size_t> mult_perm(const std::vector<IndexName> &name, const std::vector<IndexName> &mem_pos_) {
+inline std::vector<size_t>
+mult_perm(const std::vector<IndexName> &name,
+          const std::vector<IndexName> &mem_pos_) {
   assert(name.size() == mem_pos_.size());
   vector<size_t> lperm(name.size());
   for (int i=0; i<name.size(); i++) {
-    lperm[i] = std::find(mem_pos_.begin(), mem_pos_.end(), name[i]) - mem_pos_.begin() + 1;
+    lperm[i] = std::find(mem_pos_.begin(), mem_pos_.end(), name[i])
+      - mem_pos_.begin() + 1;
   }
   return lperm;
 }
 
-inline std::vector<size_t> getMemPosVal(const std::vector<Index> &ids_,
-                                        const std::vector<IndexName> &mem_pos_) {
+inline std::vector<size_t>
+getMemPosVal(const std::vector<Index> &ids_,
+             const std::vector<IndexName> &mem_pos_) {
   assert(ids_.size() == mem_pos_.size());
   const int n = ids_.size();
   std::vector<size_t> sort_ids_v_(n);
@@ -344,8 +336,9 @@ inline std::vector<size_t> getMemPosVal(const std::vector<Index> &ids_,
   return sort_ids_v_;
 }
 
-inline void setValue(std::vector<Index> &ids_,
-                     const std::vector<size_t>& val) {
+inline void
+setValue(std::vector<Index> &ids_,
+         const std::vector<size_t>& val) {
   assert(ids_.size()==val.size());
   for (int i=0; i<ids_.size(); i++) {
     ids_[i].setValue(val[i]);
@@ -356,15 +349,17 @@ inline void setValue(std::vector<Index> &ids_,
  * Set the restricted value of indices
  * @param val restricted value as a vector of Integer
  */
-inline void setValueR(std::vector<Index> &ids_,
-                      const std::vector<size_t>& val) {
+inline void
+setValueR(std::vector<Index> &ids_,
+          const std::vector<size_t>& val) {
   assert(ids_.size()==val.size());
   for (int i=0; i<ids_.size(); i++) {
     ids_[i].setValueR(val[i]);
   }
 }
 
-inline const std::vector<int> ext_sym_group(const std::vector<Index> &ids_) {
+inline const std::vector<int>
+ext_sym_group(const std::vector<Index> &ids_) {
   int dim_ = ids_.size();
   std::vector<int> esg(dim_);
   for(int i=0; i<dim_; i++) {
@@ -373,7 +368,8 @@ inline const std::vector<int> ext_sym_group(const std::vector<Index> &ids_) {
   return esg;
 }
 
-inline std::vector<IndexName> id2name(const std::vector<Index> &ids_) {
+inline std::vector<IndexName>
+id2name(const std::vector<Index> &ids_) {
   int dim_ = ids_.size();
   std::vector<IndexName> n(dim_);
   for(int i=0; i<dim_; i++) {
@@ -382,7 +378,8 @@ inline std::vector<IndexName> id2name(const std::vector<Index> &ids_) {
   return n;
 }
 
-inline void id2name(const std::vector<Index>& ids_, std::vector<IndexName> &n)  {
+inline void
+id2name(const std::vector<Index>& ids_, std::vector<IndexName> &n)  {
   int dim_ = ids_.size();
   n.resize(dim_);
   for(int i=0; i<dim_; i++) {
@@ -390,10 +387,11 @@ inline void id2name(const std::vector<Index>& ids_, std::vector<IndexName> &n)  
   }
 }
 
-inline int sortByValueThenExtSymGroup(const std::vector<Index> &ids_,
-                                      std::vector<IndexName> &name,
-                                      std::vector<size_t> &pvalue,
-                                      std::vector<size_t> &pvalue_r) {
+inline int
+sortByValueThenExtSymGroup(const std::vector<Index> &ids_,
+                           std::vector<IndexName> &name,
+                           std::vector<size_t> &pvalue,
+                           std::vector<size_t> &pvalue_r) {
   std::vector<int> tab_(IndexNum, -1);
   for(int i=0; i<ids_.size(); i++) {
     tab_[ids_[i].name()] = i;
@@ -419,11 +417,12 @@ inline int sortByValueThenExtSymGroup(const std::vector<Index> &ids_,
   return sign;
 }
 
-inline void orderIds(const std::vector<Index> & ids_,
-                     const std::vector<size_t>& order,
-                     std::vector<IndexName>& name,
-                     std::vector<size_t>& value,
-                     std::vector<size_t>& value_r) {
+inline void
+orderIds(const std::vector<Index> & ids_,
+         const std::vector<size_t>& order,
+         std::vector<IndexName>& name,
+         std::vector<size_t>& value,
+         std::vector<size_t>& value_r) {
   int n = ids_.size();
   vector<Index> _ids_(ids_.size());
   for (int i=0; i<n; i++) {
@@ -443,22 +442,13 @@ inline void orderIds(const std::vector<Index> & ids_,
   }
 }
 
+inline
 Assignment::Assignment() {}
 
+inline
 Assignment::~Assignment() {}
 
-Assignment::Assignment(Tensor& tC, Tensor& tA, double coef,
-                       const std::vector<IndexName>& cids,
-                       const std::vector<IndexName>& aids)
-  : tC_bug(tC), tA_bug(tA), coef_(coef), cids_(cids), aids_(aids) {
-  tC_ = &tC_bug;
-  tA_ = &tA_bug;
-  init();
-  assert(is_permutation(cids_));
-  assert(is_permutation(aids_));
-  assert(is_permutation(cids_, aids_));
-}
-
+inline
 Assignment::Assignment(Tensor *tC, Tensor *tA, double coef,
                        const std::vector<IndexName>& cids,
                        const std::vector<IndexName>& aids)
@@ -469,65 +459,37 @@ Assignment::Assignment(Tensor *tC, Tensor *tA, double coef,
   assert(is_permutation(cids_, aids_));
 }
 
-Assignment&
-Assignment::operator = (const Assignment& as) {
-  tC_bug = as.tC();
-  tA_bug = as.tA();
-  coef_ = as.coef_;
-  out_itr_ = as.out_itr_;
-  aids_ = as.aids_;
-  cids_ = as.cids_;
-  if(as.tC_ == &as.tC_bug) {
-    tC_ = &tC_bug;
-    tA_ = &tA_bug;
-  }
-  else {
-    tC_ = as.tC_;
-    tA_ = as.tA_;
-  }
-}
-
-Tensor&
+inline Tensor&
 Assignment::tC() { return *tC_; }
 
-const Tensor&
+inline const Tensor&
 Assignment::tC() const { return *tC_; }
 
-Tensor&
+inline Tensor&
 Assignment::tA() { return *tA_; }
 
-const Tensor&
+inline const Tensor&
 Assignment::tA() const { return *tA_; }
 
-const std::vector<IndexName> &
+inline const std::vector<IndexName> &
 Assignment::cids() const { return cids_; }
 
-const std::vector<IndexName> &
+inline const std::vector<IndexName> &
 Assignment::aids() const { return aids_; }
 
-double
+inline double
 Assignment::coef() { return coef_; }
 
-IterGroup<triangular>&
+inline IterGroup<triangular>&
 Assignment::out_itr() { return out_itr_; }
 
+inline
 Multiplication::Multiplication() {}
 
+inline
 Multiplication::~Multiplication() {}
 
-Multiplication::Multiplication(Tensor& tC1, Tensor& tA1, Tensor& tB1, double coef)
-  : tC_bug(tC1), tA_bug(tA1), tB_bug(tB1), coef_(coef) {
-  tC_ = &tC_bug;
-  tA_ = &tA_bug;
-  tB_ = &tB_bug;
-  c_ids = tC().ids();
-  a_ids = tA().ids();
-  b_ids = tB().ids();
-  genMemPos();
-  genSumGroup();
-  genOutGroup();
-}
-
+inline
 Multiplication::Multiplication(Tensor *tC1, Tensor *tA1, Tensor *tB1, double coef)
   : tC_(tC1), tA_(tA1), tB_(tB1), coef_(coef) {
   c_ids = tC().ids();
@@ -538,23 +500,7 @@ Multiplication::Multiplication(Tensor *tC1, Tensor *tA1, Tensor *tB1, double coe
   genOutGroup();
 }
 
-
-Multiplication::Multiplication(Tensor& tC1, const std::vector<IndexName> &c_ids1,
-                               Tensor& tA1, const std::vector<IndexName> &a_ids1,
-                               Tensor& tB1, const std::vector<IndexName> &b_ids1,
-                               double coef)
-  : tC_bug(tC1), tA_bug(tA1), tB_bug(tB1), coef_(coef) {
-  tC_ = &tC_bug;
-  tA_ = &tA_bug;
-  tB_ = &tB_bug;
-  c_ids = name2ids(tC(), c_ids1);
-  a_ids = name2ids(tA(), a_ids1);
-  b_ids = name2ids(tB(), b_ids1);
-  genMemPos();
-  genSumGroup();
-  genOutGroup();
-}
-
+inline
 Multiplication::Multiplication(Tensor *tC1, const std::vector<IndexName> &c_ids1,
                                Tensor *tA1, const std::vector<IndexName> &a_ids1,
                                Tensor *tB1, const std::vector<IndexName> &b_ids1,
@@ -568,69 +514,37 @@ Multiplication::Multiplication(Tensor *tC1, const std::vector<IndexName> &c_ids1
   genOutGroup();
 }
 
-Multiplication&
-Multiplication::operator=(const Multiplication &m) {
-  tC_bug = m.tC();
-  tA_bug = m.tA();
-  tB_bug = m.tB();
-  coef_ = m.coef_;
-
-  sum_ids_ = m.sum_ids_;
-  out_itr_ = m.out_itr_;
-  sum_itr_ = m.sum_itr_;
-  cp_itr_  = m.cp_itr_ ;
-
-  a_mem_pos = m.a_mem_pos;
-  b_mem_pos = m.b_mem_pos;
-  c_mem_pos = m.c_mem_pos;
-  a_ids = m.a_ids;
-  b_ids = m.b_ids;
-  c_ids = m.c_ids;
-
-  if(m.tC_ == &m.tC_bug) {
-    tA_ = &tA_bug;
-    tB_ = &tB_bug;
-    tC_ = &tC_bug;
-  }
-  else {
-    tA_ = m.tA_;
-    tB_ = m.tB_;
-    tC_ = m.tC_;
-  }
-}
-
-Tensor&
+inline Tensor&
 Multiplication::tC() { return *tC_; }
 
-const Tensor&
+inline const Tensor&
 Multiplication::tC() const { return *tC_; }
 
-Tensor&
+inline Tensor&
 Multiplication::tA() { return *tA_; }
 
-const Tensor&
+inline const Tensor&
 Multiplication::tA() const { return *tA_; }
 
-Tensor&
+inline Tensor&
 Multiplication::tB() { return *tB_; }
 
-const Tensor&
+inline const Tensor&
 Multiplication::tB() const { return *tB_; }
 
-const double
+inline double
 Multiplication::coef() { return coef_; }
 
-std::vector<IndexName>&
+inline std::vector<IndexName>&
 Multiplication::sum_ids() { return sum_ids_; }
 
-IterGroup<triangular>&
+inline IterGroup<triangular>&
 Multiplication::out_itr() { return out_itr_; }
 
-IterGroup<triangular>&
+inline IterGroup<triangular>&
 Multiplication::sum_itr() { return sum_itr_; }
 
-
-IterGroup<CopyIter>&
+inline IterGroup<CopyIter>&
 Multiplication::cp_itr() { return cp_itr_; }
 
 } /* namespace ctce*/

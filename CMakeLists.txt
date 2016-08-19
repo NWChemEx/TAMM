@@ -16,7 +16,14 @@ set (CMAKE_BUILD_TYPE Debug)
 
 
 find_package(FLEX REQUIRED)
-find_package(BLAS REQUIRED)
+#find_package(BLAS REQUIRED)
+
+find_path (BLAS_INC_PATH NAMES cblas.h mkl_blas.h PATHS ${CTCE_BLAS_INC})
+find_library (BLAS_LIB_PATH blas ${CTCE_BLAS_LIB})
+
+
+message(STATUS "blas inc = " "${BLAS_INC_PATH}")
+message(STATUS "blas lib = " "${BLAS_LIB_PATH}")
 
 #Load the GA_CONFIG and NWCHEM_TOP env variables
 SET(NWCHEM_TOP $ENV{NWCHEM_TOP})
@@ -106,15 +113,12 @@ string(REPLACE "-I" "" ctce_cmake_cflags ${ctce_cflags})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" ctce_cflags ${ctce_cmake_cflags})
 
-#foreach(path ${ctce_cmake_cflags})
-#    message("Path: " ${path})
-#endforeach(path)
 #message(STATUS "cmake flags = " ${ctce_cmake_cflags})
 
 
 SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
 add_library(ctce STATIC ${ctceLibSources})
-target_include_directories(ctce SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags})
+target_include_directories(ctce SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags} ${BLAS_INC_PATH})
 add_dependencies(ctce ctceparser)
 
 #set_target_properties(ctce_test PROPERTIES

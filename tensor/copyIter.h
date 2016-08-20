@@ -1,7 +1,6 @@
 #ifndef __ctce_copy_iter_h__
 #define __ctce_copy_iter_h__
 
-#include "typesf2c.h"
 #include <vector>
 #include <cstdlib>
 

@@ -45,21 +45,21 @@ std::vector<RangeType> compute_range_type(const std::vector<ctce::RangeEntry> &r
   std::vector<RangeType> rts(re.size(), TO);
     
   for(int i=0; i<re.size(); i++) {
-    char *rname = re[i].name;
-    if(!strcmp(rname, OSTR)) {
+			std::string rname = (re[i].name);
+			if(!strcmp(rname.c_str(), OSTR)) {
       rts[i] = TO;
       continue;
     }
-    else if(!strcmp(rname, VSTR)) {
+			else if(!strcmp(rname.c_str(), VSTR)) {
       rts[i] = TV;
       continue;
     }
-    else if(!strcmp(rname, NSTR)) {
+			else if(!strcmp(rname.c_str(), NSTR)) {
       rts[i] = TN;
       continue;
     }
     else {
-      printf("Unsupported range type %s\n", rname);
+				printf("Unsupported range type %s\n", rname.c_str());
       exit(1);
       }
   }

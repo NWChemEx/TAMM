@@ -133,6 +133,37 @@ add_library(ctce STATIC ${ctceLibSources})
 target_include_directories(ctce SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags} ${BLAS_INC_PATH})
 add_dependencies(ctce ctceparser)
 
+
+string(REPLACE "-L" "" ctce_cmake_ldflags ${ctce_ldflags})
+string(REPLACE " " ";" ctce_ldflags ${ctce_cmake_ldflags})
+
+string(REPLACE "-l" "" ctce_cmake_libs ${ctce_libs})
+string(REPLACE " " ";" ctce_libs ${ctce_cmake_libs})
+
+add_library(ctceprint STATIC tensor/print.cc)
+target_include_directories(ctceprint SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags} ${BLAS_INC_PATH})
+add_dependencies(ctceprint ctce ctceparser)
+
+SET(lib_search "")
+
+foreach(tcelibname ${ctce_libs})
+    SET(EACH_CTCE_LIB "EACH_CTCE_LIB-NOTFOUND")
+    find_library(EACH_CTCE_LIB ${tcelibname} ${ctce_ldflags})
+    LIST(APPEND lib_search ${EACH_CTCE_LIB})
+endforeach(tcelibname)
+
+
+#message(STATUS "check libs = " "${ctce_libs}")
+#message(STATUS "check lib path = " "${ctce_ldflags}")
+#message(STATUS "target libs = " "${lib_search}")
+
+
+add_executable(ctce_main EXCLUDE_FROM_ALL tensor/main.cc)
+add_dependencies(ctce_main ctce ctceparser ctceprint)
+target_include_directories(ctce_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags} ${BLAS_INC_PATH})
+# Set target libraries to be linked.
+target_link_libraries(ctce_main ctce ctceparser ctceprint ${lib_search} blas)
+
 # Install
 install(TARGETS ctce ctceparser
         DESTINATION ${CTCE_INSTALL_PREFIX}/lib)
@@ -141,7 +172,7 @@ file(GLOB CTCE_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/ctc
 install(FILES ${CTCE_HEADERS} DESTINATION ${CTCE_INSTALL_PREFIX}/include)
 
 file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/ctce_parser/transform_input/generated/*.lvl")
-install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/tests)
+install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/eqs)
 
-SET(CTCE_LVL_PATH ${CTCE_INSTALL_PREFIX}/tests)
+SET(CTCE_EQ_PATH ${CTCE_INSTALL_PREFIX}/eqs)
 

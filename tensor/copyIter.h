@@ -37,34 +37,28 @@ public:
   /**
    * Check if this iterator is empty
    */
-  inline const bool& empty() const { return empty_; }
+  const bool& empty() const;
 
   /**
    * Return size of this iterator, this method is used in fix_ids_for_cp function in iterGroup.h
    */
-  inline const int& size() const { return size_; } // for fix_ids_for_cp
+  const int& size() const;
 
   /** 
    * Get sign of current iteration
    */
-  inline const int& sign() const { return curr_sign_; }
+  const int& sign() const; 
 
   /**
    * Reset this iterator
    */
-  inline void reset() { curr_pos_=0; curr_sign_ = sign_[0]; }
+  void reset(); 
 
   /**
    * Get vec of current iteration
    * return false if end of iteration
    */ 
-  inline bool next(std::vector<size_t>& vec) {
-    if (curr_pos_ == vec_.size()) return false; // end of iteration
-    vec = vec_[curr_pos_];
-    curr_sign_ = sign_[curr_pos_];
-    curr_pos_++;
-    return true;
-  };
+  bool next(std::vector<size_t>& vec);
 
   /* following 2 methods no use, just to pass IterGroup compilation */
   inline const std::vector<size_t>& v_range() {}; // not used
@@ -78,6 +72,27 @@ private:
   int curr_pos_; /*< current position of the iterator */
   int curr_sign_; /*< current sign of the iterator */
 };
+
+inline const bool& 
+CopyIter::empty() const { return empty_; }
+
+inline const int& 
+CopyIter::size() const { return size_; } // for fix_ids_for_cp
+
+inline const int& 
+CopyIter::sign() const { return curr_sign_; }
+
+inline void 
+CopyIter::reset() { curr_pos_=0; curr_sign_ = sign_[0]; }
+
+inline bool 
+CopyIter::next(std::vector<size_t>& vec) {
+  if (curr_pos_ == vec_.size()) return false; // end of iteration
+  vec = vec_[curr_pos_];
+  curr_sign_ = sign_[curr_pos_];
+  curr_pos_++;
+  return true;
+}
 
 } /* namespace ctce */
 

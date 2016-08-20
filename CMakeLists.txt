@@ -14,7 +14,6 @@ set (CMAKE_BUILD_TYPE Debug)
 #Uncomment if we use additional cmake modules later
 #set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/" "${CMAKE_CURRENT_BINARY_DIR}")
 
-
 find_package(FLEX REQUIRED)
 #find_package(BLAS REQUIRED)
 
@@ -133,11 +132,11 @@ add_library(ctce STATIC ${ctceLibSources})
 target_include_directories(ctce SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags} ${BLAS_INC_PATH})
 add_dependencies(ctce ctceparser)
 
-
 string(REPLACE "-L" "" ctce_cmake_ldflags ${ctce_ldflags})
 string(REPLACE " " ";" ctce_ldflags ${ctce_cmake_ldflags})
 
-string(REPLACE "-l" "" ctce_cmake_libs ${ctce_libs})
+string(REPLACE "-l" "" ctce_cmake_libs1 ${ctce_libs})
+string(REPLACE "-" "" ctce_cmake_libs ${ctce_cmake_libs1})
 string(REPLACE " " ";" ctce_libs ${ctce_cmake_libs})
 
 add_library(ctceprint STATIC tensor/print.cc)
@@ -149,7 +148,10 @@ SET(lib_search "")
 foreach(tcelibname ${ctce_libs})
     SET(EACH_CTCE_LIB "EACH_CTCE_LIB-NOTFOUND")
     find_library(EACH_CTCE_LIB ${tcelibname} ${ctce_ldflags})
-    LIST(APPEND lib_search ${EACH_CTCE_LIB})
+    if(EACH_CTCE_LIB)
+      #message(STATUS "lib ${tcelibname} found at: " "${EACH_CTCE_LIB}")
+      LIST(APPEND lib_search ${EACH_CTCE_LIB})
+    endif()
 endforeach(tcelibname)
 
 

@@ -7,9 +7,9 @@ set (CTCE_VERSION_MINOR 0)
 
 set (CMAKE_BUILD_TYPE Debug)
 
-#INCLUDE(CTest)
+INCLUDE(CTest)
 # Should a test fail, display the test program output
-#set (CTEST_OUTPUT_ON_FAILURE TRUE)
+set (CTEST_OUTPUT_ON_FAILURE TRUE)
 
 #Uncomment if we use additional cmake modules later
 #set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/" "${CMAKE_CURRENT_BINARY_DIR}")
@@ -160,7 +160,7 @@ endforeach(tcelibname)
 #message(STATUS "target libs = " "${lib_search}")
 
 
-add_executable(ctce_main EXCLUDE_FROM_ALL tensor/main.cc)
+add_executable(ctce_main tensor/main.cc) #EXCLUDE_FROM_ALL
 add_dependencies(ctce_main ctce ctceparser ctceprint)
 target_include_directories(ctce_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags} ${BLAS_INC_PATH})
 # Set target libraries to be linked.
@@ -179,5 +179,17 @@ install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/eqs)
 SET(CTCE_EQ_PATH ${CTCE_INSTALL_PREFIX}/eqs)
 
 set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "parser.y" "scanner.l" "parser.out" "output.txt" "lempar.c")
+
+
+# Create directory to store test results
+execute_process(COMMAND mkdir -p "TestResults/ParserTests")
+
+# Run each test from the parser testsuite
+foreach (test ${EQFILES})
+    get_filename_component(Testname ${test} NAME_WE)
+    add_test(${test} python ${PROJECT_SOURCE_DIR}/scripts/testing/ParserTest.py "${Testname}"
+            "${PROJECT_BINARY_DIR}/ctce_test" "${PROJECT_SOURCE_DIR}/ctce_parser/transform_input/generated/"
+            "${PROJECT_BINARY_DIR}/TestResults/ParserTests")
+endforeach ()
 
 

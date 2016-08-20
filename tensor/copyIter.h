@@ -23,15 +23,7 @@ public:
    * Constructor. Assign the vec and sign to this iterator.
    * Current vec and sign are hardcoded in dummy.cc
    */
-  CopyIter(const std::vector< std::vector<size_t> >& v, const std::vector<int>& s)
-    : vec_(v),
-      sign_(s),
-      curr_pos_(0),
-      curr_sign_(1),
-      size_(s.size()) {
-    if (vec_.size()==0) empty_ = true;
-    else empty_ = false;
-  };
+  CopyIter(const std::vector< std::vector<size_t> >& v, const std::vector<int>& s);
 
   /**
    * Check if this iterator is empty
@@ -71,6 +63,17 @@ private:
   int curr_pos_; /*< current position of the iterator */
   int curr_sign_; /*< current sign of the iterator */
 };
+
+inline 
+CopyIter::CopyIter(const std::vector< std::vector<size_t> >& v, const std::vector<int>& s)
+  : vec_(v),
+    sign_(s),
+    curr_pos_(0),
+    curr_sign_(1),
+    size_(s.size()) {
+  if (vec_.size()==0) empty_ = true;
+  else empty_ = false;
+}
 
 inline bool
 CopyIter::empty() const { return empty_; }

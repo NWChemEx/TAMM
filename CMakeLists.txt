@@ -178,3 +178,6 @@ install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/eqs)
 
 SET(CTCE_EQ_PATH ${CTCE_INSTALL_PREFIX}/eqs)
 
+set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "parser.y" "scanner.l" "parser.out" "output.txt" "lempar.c")
+
+

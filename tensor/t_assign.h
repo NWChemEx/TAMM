@@ -15,11 +15,11 @@ namespace ctce {
  * @param[in] tC += tA * coef
  * @param[in] out_itr outer iterator group
  */
-void t_assign2(
-  Tensor& tC, const vector<IndexName> &c_ids,
-  Tensor& tA, const vector<IndexName> &a_ids,
-  IterGroup<triangular>& out_itr, double coef,
-  int sync_ga=0, int spos=0);
+void t_assign2(Tensor& tC, 
+	       const vector<IndexName> &c_ids, 
+	       Tensor& tA, const vector<IndexName> &a_ids, 
+	       IterGroup<triangular>& out_itr, double coef, 
+	       int sync_ga=0, int spos=0);
 
 /**
  * Simply wrap t_assign2

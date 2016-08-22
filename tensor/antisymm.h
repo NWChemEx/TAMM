@@ -50,13 +50,6 @@ private:
  * Antisymm iterator. Iterate input (3 2)(4) as (2 3 4),(2 4 3),(3,4,2) where (a<b)(c) 
  */
 class antisymm {
-private:
-  tloop tl0; /*< initial setting of tloop */
-  tloop tl1; /*< relicate for iterating */
-  std::vector<size_t> slist; /*< current value */
-  std::vector<size_t> s1; /*< current value from A tensor */
-  std::vector<size_t> s2; /*< current value from B tensor */
-  bool empty_; /*< check if antisymm is empty */
 public:
   /**
    * Constructor
@@ -97,6 +90,14 @@ public:
   int sign() const; 
   const std::vector<size_t>& v_range();
   const std::vector<size_t>& v_offset();
+
+private:
+  tloop tl0; /*< initial setting of tloop */
+  tloop tl1; /*< relicate for iterating */
+  std::vector<size_t> slist; /*< current value */
+  std::vector<size_t> s1; /*< current value from A tensor */
+  std::vector<size_t> s2; /*< current value from B tensor */
+  bool empty_; /*< check if antisymm is empty */
 };
 
 inline

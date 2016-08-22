@@ -11,6 +11,7 @@
 
 namespace ctce {
 
+extern "C" {
 /**
  * CCSD(T) multiplication computation (antisymm part), DGEMM + SORTACC
  * @param[in] d_a, k_a_offset, d_b, k_b_offset
@@ -69,6 +70,8 @@ void t_mult3(Tensor& tC,
  * @param[in] m Multiplication store all the input data needed for t_mult3
  */ 
 void t_mult4(Multiplication& m, int sync_ga=0, int spos=0);
+
+}
 
 } // namespace ctce
 

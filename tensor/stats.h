@@ -9,49 +9,49 @@
 
 namespace ctce {
 
-  class Profiler {
-  public:
-    Profiler() {
-      cnt = 0;
-      ttime = 0;
-      in_phase = false;
-    }
+class Profiler {
+public:
+  Profiler() {
+    cnt = 0;
+    ttime = 0;
+    in_phase = false;
+  }
 
-    void start() {
-      stime = TIMER();
-      assert(!in_phase);
-      in_phase = true;
-    }
+  void start() {
+    stime = TIMER();
+    assert(!in_phase);
+    in_phase = true;
+  }
 
-    void stop() {
-      etime = TIMER();
-      assert(in_phase);
-      cnt += 1;
-      ttime += etime - stime;
-      in_phase = false;
-    }
+  void stop() {
+    etime = TIMER();
+    assert(in_phase);
+    cnt += 1;
+    ttime += etime - stime;
+    in_phase = false;
+  }
 
-    ~Profiler() {
-      assert(!in_phase);
-    }
+  ~Profiler() {
+    assert(!in_phase);
+  }
 
-    int count() {
-      return cnt;
-    }
+  int count() {
+    return cnt;
+  }
     
-    double time() {
-      return ttime;
-    }
+  double time() {
+    return ttime;
+  }
 
-  private:
-    int cnt;
-    double ttime;
-    double stime, etime;
-    bool in_phase;
-  };
+private:
+  int cnt;
+  double ttime;
+  double stime, etime;
+  bool in_phase;
+};
 
-  extern Profiler iterTimer, assignTimer, multTimer, getTimer, addTimer, dgemmTimer;
-  void printStats();
+extern Profiler iterTimer, assignTimer, multTimer, getTimer, addTimer, dgemmTimer;
+void printStats();
 }
 
 #endif /* __ctce_stats_h__ */

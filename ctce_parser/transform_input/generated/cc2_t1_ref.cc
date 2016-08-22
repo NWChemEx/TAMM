@@ -69,7 +69,7 @@ extern "C" {
 
 namespace ctce {
   extern "C" {
-    void cc2_t1_cxx(Integer *d_t_vvoo,Integer *d_i0,Integer *d_v,Integer *d_t_vo,Integer *d_f,Integer *k_t_vvoo_offset,Integer *k_i0_offset,Integer *k_v_offset,Integer *k_t_vo_offset,Integer *k_f_offset){
+    void cc2_t1_cxx_(Integer *d_t_vvoo,Integer *d_i0,Integer *d_v,Integer *d_t_vo,Integer *d_f,Integer *k_t_vvoo_offset,Integer *k_i0_offset,Integer *k_v_offset,Integer *k_t_vo_offset,Integer *k_f_offset){
       static bool set_t1 = true;
       
       Assignment op_t1_1;
@@ -136,7 +136,19 @@ namespace ctce {
       op_t1_7 = ops[18].mult;
       
 /* ----- Insert attach code ------ */
+      v->set_dist(idist);
+      t_vo->set_dist(dist_nwma);
+      f->attach(*k_f_offset, 0, *d_f);
+      i0->attach(*k_i0_offset, 0, *d_i0);
+      t_vo->attach(*k_t_vo_offset, 0, *d_t_vo);
+      t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
+      v->attach(*k_v_offset, 0, *d_v);
 
+#if 1
+      // schedule_linear(tensors, ops);
+      // schedule_linear_lazy(tensors, ops);
+       schedule_levels(tensors, ops);
+#else
       CorFortran(1, op_t1_1, cc2_t1_1_);
       CorFortran(1, op_t1_2_1, ofsset_cc2_t1_2_1_);
       CorFortran(1, op_t1_2_1, cc2_t1_2_1_);
@@ -166,8 +178,14 @@ namespace ctce {
       CorFortran(1, op_t1_6, cc2_t1_6_);
       destroy(t1_6_1);
       CorFortran(1, op_t1_7, cc2_t1_7_);
+#endif
       
 /* ----- Insert detach code ------ */
+      f->detach();
+      i0->detach();
+      t_vo->detach();
+      t_vvoo->detach();
+      v->detach();
 
     }
   } // extern C

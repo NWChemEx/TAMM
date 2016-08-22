@@ -30,9 +30,9 @@ public:
 
   const int& sign() const;
 
-  const std::vector<size_t>& v_range() const { return curr_r_; }
+  const std::vector<size_t>& v_range() const;
 
-  const std::vector<size_t>& v_offset() const { return curr_o_; }
+  const std::vector<size_t>& v_offset() const;
 
   void setType(IterType it); 
 
@@ -79,13 +79,13 @@ template<class T>
 inline const int& 
 IterGroup<T>::sign() const { return sign_; }
 
-//template<class T>
-//inline const std::vector<size_t>& 
-//IterGroup<T>::v_range() const { return curr_r_; }
+template<class T>
+inline const std::vector <size_t>& 
+IterGroup<T>::v_range() const { return curr_r_; }
 
-//template<class T>
-//inline const std::vector<size_t>& 
-//IterGroup<T>::v_offset() const { return curr_o_; }
+template<class T>
+inline const std::vector<size_t>& 
+IterGroup<T>::v_offset() const { return curr_o_; }
 
 template<class T>
 inline void 

@@ -65,6 +65,8 @@ set(ctceLibSources
   tensor/cc2_t2_ref.cc
   tensor/ccsd_e_eqs.cc
   tensor/ccsd_t12.cc
+  tensor/icsd_t1_eqs.cc
+  tensor/icsd_t1_ref.cc
   tensor/ccsd_t1_eqs.cc
   tensor/ccsd_t1_ref.cc
   tensor/ccsd_t2_eqs.cc

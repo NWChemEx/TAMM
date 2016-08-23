@@ -5,14 +5,19 @@ index p1,p2,p3,p4,p5,p6 = V;
 
 array i0[V,V][O,O];
 array v[N,N][N,N]: irrep_v;
-array t_vo[V][O]: irrep_t;
-array t_vvoo[V,V][O,O]: irrep_t;
-array f[N][N]: irrep_f;
-array t2_3_1[V,V][O,V];
-array t2_2_2_3[O,V][O,V];
+array t2_2_1[O,V][O,O];
 array t2_2_2_1[O,O][O,O];
 array t2_2_2_2_1[O,O][O,V];
-array t2_2_1[O,V][O,O];
+
+array t_vo[V][O]: irrep_t;
+array t2_2_2_3[O,V][O,V];
+array t2_3_1[V,V][O,V];
+
+array t_vvoo[V,V][O,O]: irrep_t;
+array f[N][N]: irrep_f;
+
+
+
 
 t2_1:       i0[p3,p4,h1,h2] += 1 * v[p3,p4,h1,h2];
 t2_2_1:     t2_2_1[h10,p3,h1,h2] += 1 * v[h10,p3,h1,h2];

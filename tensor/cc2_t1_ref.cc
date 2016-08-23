@@ -86,7 +86,10 @@ namespace ctce {
                             std::vector<Operation> &ops);
 
   extern "C" {
-    void cc2_t1_cxx_(Integer *d_t_vvoo,Integer *d_i0,Integer *d_v,Integer *d_t_vo,Integer *d_f,Integer *k_t_vvoo_offset,Integer *k_i0_offset,Integer *k_v_offset,Integer *k_t_vo_offset,Integer *k_f_offset){
+//    void cc2_t1_cxx_(Integer *d_t_vvoo,Integer *d_i0,Integer *d_v,Integer *d_t_vo,Integer *d_f,Integer *k_t_vvoo_offset,Integer *k_i0_offset,Integer *k_v_offset,Integer *k_t_vo_offset,Integer *k_f_offset)
+    void cc2_t1_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo, Integer *d_v, 
+Integer *k_f_offset, Integer *k_i0_offset, Integer *k_t_vo_offset, Integer *k_t_vvoo_offset, Integer *k_v_offset) { 
+
       static bool set_t1 = true;
       
       Assignment op_t1_1;

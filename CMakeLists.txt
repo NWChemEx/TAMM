@@ -61,6 +61,8 @@ set(ctceLibSources
   tensor/capi.cc
   tensor/cc2_t1_eqs.cc
   tensor/cc2_t1_ref.cc
+  tensor/cc2_t2_eqs.cc
+  tensor/cc2_t2_ref.cc
   tensor/ccsd_e_eqs.cc
   tensor/ccsd_t12.cc
   tensor/ccsd_t1_eqs.cc
@@ -137,8 +139,8 @@ add_dependencies(ctce ctceparser)
 string(REPLACE "-L" "" ctce_cmake_ldflags ${ctce_ldflags})
 string(REPLACE " " ";" ctce_ldflags ${ctce_cmake_ldflags})
 
-string(REPLACE "-l" "" ctce_cmake_libs1 ${ctce_libs})
-string(REPLACE "-" "" ctce_cmake_libs ${ctce_cmake_libs1})
+string(REPLACE "-l" "" ctce_cmake_libs ${ctce_libs})
+#string(REPLACE "-" "" ctce_cmake_libs ${ctce_cmake_libs1})
 string(REPLACE " " ";" ctce_libs ${ctce_cmake_libs})
 
 add_library(ctceprint STATIC tensor/print.cc)
@@ -146,6 +148,7 @@ target_include_directories(ctceprint SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${Pars
 add_dependencies(ctceprint ctce ctceparser)
 
 SET(lib_search "")
+set(other_flags "")
 
 foreach(tcelibname ${ctce_libs})
     SET(EACH_CTCE_LIB "EACH_CTCE_LIB-NOTFOUND")
@@ -153,6 +156,8 @@ foreach(tcelibname ${ctce_libs})
     if(EACH_CTCE_LIB)
       #message(STATUS "lib ${tcelibname} found at: " "${EACH_CTCE_LIB}")
       LIST(APPEND lib_search ${EACH_CTCE_LIB})
+    else()
+        LIST(APPEND other_flags ${tcelibname})
     endif()
 endforeach(tcelibname)
 
@@ -160,6 +165,7 @@ endforeach(tcelibname)
 #message(STATUS "check libs = " "${ctce_libs}")
 #message(STATUS "check lib path = " "${ctce_ldflags}")
 #message(STATUS "target libs = " "${lib_search}")
+#message(STATUS "target flags = " "${other_flags}")
 
 
 add_executable(ctce_main tensor/main.cc) #EXCLUDE_FROM_ALL
@@ -169,10 +175,16 @@ target_include_directories(ctce_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${Pars
 target_link_libraries(ctce_main ctce ctceparser ctceprint ${lib_search} blas)
 
 # Install
+if(NOT CTCE_INSTALL_PREFIX)
+    set(CTCE_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/ctce-install)
+endif()
+
+message(STATUS "Installing CTCE library at: " ${CTCE_INSTALL_PREFIX})
+
 install(TARGETS ctce ctceparser
         DESTINATION ${CTCE_INSTALL_PREFIX}/lib)
 
-file(GLOB CTCE_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/ctce_parser/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
+    file(GLOB CTCE_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/ctce_parser/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
 install(FILES ${CTCE_HEADERS} DESTINATION ${CTCE_INSTALL_PREFIX}/include)
 
 file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/ctce_parser/transform_input/generated/*.lvl")

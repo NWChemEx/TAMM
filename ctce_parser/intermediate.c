@@ -227,8 +227,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                 if (strcmp(tc_exp->u.Array.name, ta_exp->u.Array.name) == 0) rhs_first_ref = true;
             }
 
-            Exp tcp = vector_get(&lhs_aref, 0);
-            printf("name = %s\n",tcp->u.Array.name);
+            //Exp tcp = vector_get(&lhs_aref, 0);
+            //printf("name = %s\n",tcp->u.Array.name);
 
             ctce_bool isAMOp = (exact_compare_index_lists(lhs_indices, rhs_indices));
             //a1121[p3,h1,p2,h2] = t_vo[p3,h1] * t_vo[p2,h2];

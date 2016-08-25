@@ -86,7 +86,7 @@ void generate_intermediate_DeclList(Equations *eqn, DeclList dl);
 
 void collectArrayRefs(Exp exp, ctce_vector *arefs, double *alpha);
 
-tce_string_array collectExpIndices(Exp exp); //Get each index only once
+tce_string_array collectExpIndices(Exp exp, int* first_ref); //Get each index only once
 
 void getIndexIDs(Equations *eqn, Exp e, int *);
 

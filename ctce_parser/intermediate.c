@@ -1,5 +1,6 @@
 #include "intermediate.h"
 #include "semant.h"
+#include "absyn.h"
 
 //void make_Equations(Equations p) {
 //    p = tce_malloc(sizeof(*p));
@@ -171,7 +172,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
     double alpha = 1;
     switch (s->kind) {
         case is_AssignStmt:
-
+            alpha = 1;
             vector_init(&lhs_aref);
             collectArrayRefs(s->u.AssignStmt.lhs, &lhs_aref, &alpha);
             int i = 0;
@@ -183,9 +184,12 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
             vector_init(&rhs_allref);
             collectArrayRefs(s->u.AssignStmt.rhs, &rhs_allref, &alpha);
 
-            tce_string_array lhs_indices = collectExpIndices(s->u.AssignStmt.lhs);
-            tce_string_array rhs_indices = collectExpIndices(s->u.AssignStmt.rhs);
+            int ignore_first_ref = 0;
+            if (strcmp(s->u.AssignStmt.astype, "+=") == 0 || strcmp(s->u.AssignStmt.astype, "-=") == 0)
+                ignore_first_ref = 1;
 
+            tce_string_array lhs_indices = collectExpIndices(s->u.AssignStmt.lhs, &ignore_first_ref);
+            tce_string_array rhs_indices = collectExpIndices(s->u.AssignStmt.rhs, &ignore_first_ref);
 
 //            print_index_list(lhs_indices);
 //            printf("=");
@@ -215,13 +219,16 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 
             ctce_bool rhs_first_ref = false;
             tce_string_array rhs_first_ref_indices = collectExpIndices(
-                    ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref);
+                    ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref, &ignore_first_ref);
 
             if (vector_count(&rhs_aref) > 1) {
                 Exp tc_exp = vector_get(&lhs_aref, 0);
                 Exp ta_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref;
                 if (strcmp(tc_exp->u.Array.name, ta_exp->u.Array.name) == 0) rhs_first_ref = true;
             }
+
+            Exp tcp = vector_get(&lhs_aref, 0);
+            printf("name = %s\n",tcp->u.Array.name);
 
             ctce_bool isAMOp = (exact_compare_index_lists(lhs_indices, rhs_indices));
             //a1121[p3,h1,p2,h2] = t_vo[p3,h1] * t_vo[p2,h2];
@@ -418,7 +425,7 @@ void collectArrayRefs(Exp exp, ctce_vector *arefs, double *alpha) {
 }
 
 
-tce_string_array collectExpIndices(Exp exp) {
+tce_string_array collectExpIndices(Exp exp, int *firstref) {
     ExpList el = NULL;
     int i = 0, ui = 0, tot_len = 0;
     tce_string_array p = NULL;
@@ -441,6 +448,7 @@ tce_string_array collectExpIndices(Exp exp) {
         case is_Addition:
             el = exp->u.Addition.subexps;
             tot_len = 0;
+            if(*firstref == 1) el = el->tail;
             while (el != NULL) {
                 //print_Exp(el->head);
                 tce_string_array se = getUniqIndices(el->head);
@@ -453,7 +461,9 @@ tce_string_array collectExpIndices(Exp exp) {
             all_ind = tce_malloc(sizeof(ctce_string) * tot_len);
 
             i = 0, ui = 0;
+            if(*firstref == 1) { el = el->tail; *firstref = 0; }
             while (el != NULL) {
+
                 tce_string_array se = getUniqIndices(el->head);
                 i = 0;
                 if (se != NULL) {
@@ -492,6 +502,7 @@ tce_string_array collectExpIndices(Exp exp) {
         case is_Multiplication:
             el = exp->u.Multiplication.subexps;
             tot_len = 0;
+            if(*firstref == 1) el = el->tail;
             while (el != NULL) {
                 //print_Exp(el->head);
                 tce_string_array se = getUniqIndices(el->head);
@@ -504,6 +515,7 @@ tce_string_array collectExpIndices(Exp exp) {
             all_ind = tce_malloc(sizeof(ctce_string) * tot_len);
 
             i = 0, ui = 0;
+            if(*firstref == 1) { el = el->tail; *firstref = 0; }
             while (el != NULL) {
                 tce_string_array se = getUniqIndices(el->head);
                 i = 0;

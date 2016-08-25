@@ -133,7 +133,8 @@ void generate_intermediate_Decl(Equations *eqn, Decl d) {
             break;
         case is_IndexDecl:
 
-            if (strcmp(d->u.IndexDecl.rangeID, "V") == 0) rid = 1;
+            if (strcmp(d->u.IndexDecl.rangeID, "O") == 0) rid = 0;
+            else if (strcmp(d->u.IndexDecl.rangeID, "V") == 0) rid = 1;
             else if (strcmp(d->u.IndexDecl.rangeID, "N") == 0) rid = 2;
             vector_add(&eqn->index_entries, make_IndexEntry(d->u.IndexDecl.name, rid));
             //fprintf(eqn, "index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID);

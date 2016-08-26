@@ -205,7 +205,7 @@ install(TARGETS ctce ctceparser
     file(GLOB CTCE_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/ctce_parser/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
 install(FILES ${CTCE_HEADERS} DESTINATION ${CTCE_INSTALL_PREFIX}/include)
 
-file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/ctce_parser/transform_input/generated/*.lvl")
+file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/ctce_parser/transform_input/generated/*.eq")
 install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/eqs)
 
 SET(CTCE_EQ_PATH ${CTCE_INSTALL_PREFIX}/eqs)

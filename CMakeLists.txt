@@ -196,7 +196,11 @@ install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/eqs)
 
 SET(CTCE_EQ_PATH ${CTCE_INSTALL_PREFIX}/eqs)
 
-set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "parser.y" "scanner.l" "parser.out" "output.txt" "lempar.c")
+file(WRITE "${PROJECT_SOURCE_DIR}/tensor/ctce_headers.h" "#define CTCE_EQ_PATH \"${CTCE_INSTALL_PREFIX}/eqs\"")
+
+
+set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+        "parser.y" "scanner.l" "parser.out" "output.txt" "lempar.c")
 
 
 # Create directory to store test results

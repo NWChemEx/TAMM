@@ -335,7 +335,13 @@ namespace ctce {
   static int num_tensors = sizeof(tensors)/sizeof(tensors[0]);
   static int num_operations = sizeof(ops) / sizeof(ops[0]);
 
-  void ccsd_t2_equations(Equations &eqs) {
+  void ccsd_t2_equations(ctce::Equations &eqs) {
+    ::Equations peqs;
+    ctce_parser("/home/gawa722/Cascade/nwchem/repo_code/ctce/tensor/ccsd_t2_hand.eq.lvl", &peqs);
+    parser_eqs_to_ctce_eqs(&peqs, eqs);
+  }
+
+  void ccsd_t2_new_equations(Equations &eqs) {
     eqs.range_entries.insert(eqs.range_entries.begin(), ranges, ranges+num_ranges);
     eqs.index_entries.insert(eqs.index_entries.begin(), indices, indices+num_indices);
     eqs.tensor_entries.insert(eqs.tensor_entries.begin(), tensors, tensors+num_tensors);

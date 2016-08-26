@@ -312,7 +312,7 @@
       A = e;
     }
 
-    array_reference(A) ::= ID(N) LBRACKET id_list(I) RBRACKET . {
+    array_reference(A) ::= ID(N) LBRACKET id_list_opt(I) RBRACKET . {
      ctce_string id = N;
 
      IDList p = I;

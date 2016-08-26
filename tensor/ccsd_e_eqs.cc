@@ -123,10 +123,13 @@ namespace ctce {
   static int num_operations = sizeof(ops) / sizeof(ops[0]);
 
   void ccsd_e_equations(Equations &eqs) {
-    eqs.range_entries.insert(eqs.range_entries.begin(), ranges, ranges+num_ranges);
-    eqs.index_entries.insert(eqs.index_entries.begin(), indices, indices+num_indices);
-    eqs.tensor_entries.insert(eqs.tensor_entries.begin(), tensors, tensors+num_tensors);
-    eqs.op_entries.insert(eqs.op_entries.begin(), ops, ops+num_operations);
+    // eqs.range_entries.insert(eqs.range_entries.begin(), ranges, ranges+num_ranges);
+    // eqs.index_entries.insert(eqs.index_entries.begin(), indices, indices+num_indices);
+    // eqs.tensor_entries.insert(eqs.tensor_entries.begin(), tensors, tensors+num_tensors);
+    // eqs.op_entries.insert(eqs.op_entries.begin(), ops, ops+num_operations);
+    ::Equations peqs;
+    ctce_parser(CTCE_EQ_PATH"/ccsd_e.eq.lvl", &peqs);
+    parser_eqs_to_ctce_eqs(&peqs, eqs);
   }
 }; /*ctce*/
 

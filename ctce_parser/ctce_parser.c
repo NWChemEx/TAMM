@@ -3,7 +3,7 @@
 int tce_tokPos = 0;
 int tce_lineno = 1;
 
-void ctce_parser(char *input_file, Equations *genEq) {
+void ctce_parser(char const *input_file, Equations *genEq) {
 
     // Lemon headers
     void *ParseAlloc(void *(*mallocProc)(size_t));

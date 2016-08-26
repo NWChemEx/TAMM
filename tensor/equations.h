@@ -24,6 +24,7 @@ namespace ctce {
   void ccsd_e_equations(Equations &eqs);
   void icsd_t1_equations(Equations &eqs);
   void icsd_t2_equations(Equations &eqs);
+  void ipccsd_x1_equations(Equations &eqs);
 
   void parser_eqs_to_ctce_eqs(::Equations *eqs, ctce::Equations &ceqs);
 

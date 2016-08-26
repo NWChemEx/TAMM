@@ -1,3 +1,7 @@
+extern "C" {
+#include "ctce_parser.h"
+};
+
 #include "variables.h"
 #include <iostream>
 #include "tensor.h"

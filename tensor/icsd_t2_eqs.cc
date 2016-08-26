@@ -135,7 +135,7 @@ namespace ctce {
 
   void icsd_t2_equations(ctce::Equations &eqs) {
     ::Equations peqs;
-    ctce_parser(CTCE_EQ_PATH"/icsd_t2_hand.eq.lvl", &peqs);
+    ctce_parser(CTCE_EQ_PATH"/icsd_t2_hand.eq", &peqs);
     parser_eqs_to_ctce_eqs(&peqs, eqs);
   }
     

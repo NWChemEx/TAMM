@@ -24,8 +24,13 @@ message(STATUS "BLAS headers found at: " "${BLAS_INC_PATH}")
 message(STATUS "BLAS libs found: " "${BLAS_LIB_PATH}")
 
 #Load the GA_CONFIG and NWCHEM_TOP env variables
-SET(NWCHEM_TOP $ENV{NWCHEM_TOP})
-SET(GA_CONFIG ${NWCHEM_TOP}/src/tools/install/bin/ga-config)
+if(NOT DEFINED ENV{NWCHEM_TOP})
+    message(FATAL_ERROR "CTCE ERROR: Environment variable NWCHEM_TOP not set")
+else()
+    set(NWCHEM_TOP $ENV{NWCHEM_TOP})
+endif()
+
+set(GA_CONFIG ${NWCHEM_TOP}/src/tools/install/bin/ga-config)
 
 execute_process(COMMAND ${GA_CONFIG} --cc OUTPUT_VARIABLE ctce_c_compiler OUTPUT_STRIP_TRAILING_WHITESPACE)
 #execute_process(COMMAND ${GA_CONFIG} --f77 OUTPUT_VARIABLE ctce_f77_compiler OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -73,8 +78,6 @@ set(ctceLibSources
   tensor/ccsd_t2_ref.cc
   tensor/icsd_t2_eqs.cc
   tensor/icsd_t2_ref.cc
-  tensor/ipccsd_x1_eqs.cc
-  tensor/ipccsd_x1_ref.cc
   tensor/corf.cc
   tensor/dummy.cc
   tensor/equations.cc

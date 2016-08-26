@@ -17,7 +17,7 @@ namespace ctce {
 
   void cc2_t2_equations(ctce::Equations &eqs) {
     ::Equations peqs;
-    ctce_parser(CTCE_EQ_PATH"/cc2_t2.eq.lvl", &peqs);
+    ctce_parser(CTCE_EQ_PATH"/cc2_t2.eq", &peqs);
     parser_eqs_to_ctce_eqs(&peqs, eqs);
   }
 

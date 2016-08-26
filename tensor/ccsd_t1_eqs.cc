@@ -61,7 +61,7 @@ namespace ctce {
 
   void ccsd_t1_equations(ctce::Equations &eqs) {
     ::Equations peqs;
-    ctce_parser(CTCE_EQ_PATH"/ccsd_t1.eq.lvl", &peqs);
+    ctce_parser(CTCE_EQ_PATH"/ccsd_t1.eq", &peqs);
     parser_eqs_to_ctce_eqs(&peqs, eqs);
   }
 

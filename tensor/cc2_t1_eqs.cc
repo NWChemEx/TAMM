@@ -15,11 +15,9 @@ extern "C" {
 
 namespace ctce {
 
-#define CTCE_EQ_PATH "/home/sriram/code/ctce/tensor/eqs/"
-
   void cc2_t1_equations(ctce::Equations &eqs) {
     ::Equations peqs;
-    ctce_parser("/home/gawa722/Cascade/nwchem/repo_code/ctce/ctce_parser/transform_input/generated/cc2_t1.eq.lvl", &peqs);
+    ctce_parser(CTCE_EQ_PATH"/cc2_t1.eq.lvl", &peqs);
     parser_eqs_to_ctce_eqs(&peqs, eqs);
   }
 

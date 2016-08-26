@@ -71,6 +71,8 @@ set(ctceLibSources
   tensor/ccsd_t1_ref.cc
   tensor/ccsd_t2_eqs.cc
   tensor/ccsd_t2_ref.cc
+  tensor/icsd_t2_eqs.cc
+  tensor/icsd_t2_ref.cc
   tensor/corf.cc
   tensor/dummy.cc
   tensor/equations.cc

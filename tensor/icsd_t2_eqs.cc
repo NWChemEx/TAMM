@@ -133,11 +133,11 @@ c    copy d_t1 ==> l_t1_local
 
 namespace ctce {
 
-  void ccsd_t2_equations(ctce::Equations &eqs) {
+  void icsd_t2_equations(ctce::Equations &eqs) {
     ::Equations peqs;
-    ctce_parser(CTCE_EQ_PATH"/ccsd_t2_hand.eq.lvl", &peqs);
+    ctce_parser(CTCE_EQ_PATH"/icsd_t2_hand.eq.lvl", &peqs);
     parser_eqs_to_ctce_eqs(&peqs, eqs);
   }
-
+    
 }; /*ctce*/
 

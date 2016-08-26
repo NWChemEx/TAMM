@@ -113,7 +113,7 @@ public:
   static int timer_num[40]; 
   static double timer_value[40];
   static double timer_cum_value[40];
-  static char* timer_text[];
+  static char const* timer_text[];
 };
 
 } /* namespace ctce */

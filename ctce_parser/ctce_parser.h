@@ -8,7 +8,7 @@
 #include "error.h"
 #include "intermediate.h"
 
-void ctce_parser(char *input_file, Equations *eqn);
+void ctce_parser(char const *input_file, Equations *eqn);
 
 #endif /*__CTCE_PARSER_H__*/
 

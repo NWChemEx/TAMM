@@ -23,6 +23,43 @@ find_library (BLAS_LIB_PATH blas ${CTCE_BLAS_LIB})
 message(STATUS "BLAS headers found at: " "${BLAS_INC_PATH}")
 message(STATUS "BLAS libs found: " "${BLAS_LIB_PATH}")
 
+# Try finding Doxygen
+FIND_PACKAGE(Doxygen)
+
+if(NOT DOXYGEN_FOUND)
+    SET(FOUND_DOXYGEN "0")
+    if(NOT $ENV{DOXYGEN_HOME})
+        SET(FOUND_DOXYGEN $ENV{DOXYGEN_HOME})
+    endif()
+else()
+    SET(FOUND_DOXYGEN "1")
+    set(DOCS "${PROJECT_BINARY_DIR}/docs")
+    message(STATUS "cblas header: " ${DOCS})
+    execute_process(COMMAND mkdir -p ${DOCS})
+    set(DOCOUTPUT
+            ${DOCS}/html
+            ${DOCS}/latex
+            )
+    # Custom Target to build the Doxygen documentation.
+    ADD_CUSTOM_COMMAND(OUTPUT ${DOCOUTPUT}
+            # The grammar is copied over to the ParserBuildDir before building it .
+            COMMAND cmake -E copy ${PROJECT_SOURCE_DIR}/Doxyfile.in ${DOCS}/Doxyfile.in
+            COMMAND cmake -E copy_directory ${PROJECT_SOURCE_DIR}/ctce_parser ${DOCS}/ctce_parser
+            COMMAND cmake -E copy_directory ${PROJECT_SOURCE_DIR}/tensor ${DOCS}/tensor
+            # Change to docs folder before building the documentation.
+            COMMAND cmake -E chdir ${DOCS} doxygen ${DOCS}/Doxyfile.in
+            COMMAND cmake -E remove_directory ${DOCS}/ctce_parser
+            COMMAND cmake -E remove_directory ${DOCS}/tensor
+            COMMAND cmake -E remove -f ${DOCS}/Doxyfile.in
+            DEPENDS ${PROJECT_SOURCE_DIR}/Doxyfile.in
+            COMMENT "Building Doxygen documentation."
+            VERBATIM)
+
+    ADD_CUSTOM_TARGET(docs DEPENDS ${DOCOUTPUT})
+endif()
+
+
+
 #Load the GA_CONFIG and NWCHEM_TOP env variables
 if(NOT DEFINED ENV{NWCHEM_TOP})
     message(FATAL_ERROR "CTCE ERROR: Environment variable NWCHEM_TOP not set")
@@ -68,7 +105,6 @@ set(ctceLibSources
   tensor/cc2_t2_ref.cc
   tensor/ccsd_t12.cc
   tensor/icsd_t1_ref.cc
-  tensor/ccsd_e_ref.cc
   tensor/ccsd_t1_ref.cc
   tensor/ccsd_t2_ref.cc
   tensor/icsd_t2_ref.cc

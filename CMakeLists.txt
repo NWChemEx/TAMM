@@ -151,6 +151,15 @@ add_library(ctceprint STATIC tensor/print.cc)
 target_include_directories(ctceprint SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags} ${BLAS_INC_PATH})
 add_dependencies(ctceprint ctce ctceparser)
 
+
+find_path(cblas_header_name "mkl_cblas.h" ${BLAS_INC_PATH})
+if (NOT cblas_header_name)
+    set(cblas_header_name "cblas.h")
+else()
+    set(cblas_header_name "mkl_cblas.h")
+endif()
+#message(STATUS "cblas header: " ${cblas_header_name})
+
 SET(lib_search "")
 set(other_flags "")
 
@@ -196,7 +205,9 @@ install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/eqs)
 
 SET(CTCE_EQ_PATH ${CTCE_INSTALL_PREFIX}/eqs)
 
-file(WRITE "${PROJECT_SOURCE_DIR}/tensor/ctce_headers.h" "#define CTCE_EQ_PATH \"${CTCE_INSTALL_PREFIX}/eqs\"")
+file(WRITE "${PROJECT_SOURCE_DIR}/tensor/ctce_headers.h" "#define CBLAS_HEADER_FILE \"${cblas_header_name}\"")
+file(APPEND "${PROJECT_SOURCE_DIR}/tensor/ctce_headers.h" "\n#define CTCE_EQ_PATH \"${CTCE_INSTALL_PREFIX}/eqs\"")
+
 
 
 set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES

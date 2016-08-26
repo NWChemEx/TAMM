@@ -21,6 +21,4 @@ typedef uint32_t Tile;
 #  define EXTERN_C
 #endif
 
-#define CBLAS_HEADER_FILE "cblas.h"
-
 #define USE_FORTRAN_FUNCTIONS 1

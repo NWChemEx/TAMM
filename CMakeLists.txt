@@ -147,7 +147,7 @@ ADD_CUSTOM_COMMAND(OUTPUT ${ParserSources}
 
     # Generate the parser code
     COMMAND cmake -E chdir ${ParserBuildDir} ./lemon -s ${ParserBuildDir}/parser.y
-    DEPENDS ${ParserSrcDir}/parser.y lemon
+    DEPENDS ${ParserSrcDir}/parser.y
     COMMENT "Building the ctce lemon parser."
     VERBATIM
     )
@@ -241,8 +241,8 @@ install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/eqs)
 
 SET(CTCE_EQ_PATH ${CTCE_INSTALL_PREFIX}/eqs)
 
-file(WRITE "${PROJECT_SOURCE_DIR}/tensor/ctce_headers.h" "#define CBLAS_HEADER_FILE \"${cblas_header_name}\"")
-file(APPEND "${PROJECT_SOURCE_DIR}/tensor/ctce_headers.h" "\n#define CTCE_EQ_PATH \"${CTCE_INSTALL_PREFIX}/eqs\"")
+file(WRITE "${PROJECT_BINARY_DIR}/cmake_ctce_headers.h" "#define CBLAS_HEADER_FILE \"${cblas_header_name}\"")
+file(APPEND "${PROJECT_BINARY_DIR}/cmake_ctce_headers.h" "\n#define CTCE_EQ_PATH \"${CTCE_INSTALL_PREFIX}/eqs\"")
 
 
 

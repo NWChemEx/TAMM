@@ -94,7 +94,7 @@ class NWChemTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by NWChemTCEParser#statement.
     def visitStatement(self, ctx):
-        global labelcount_io, labelcount_ia, lhsanames, intermediate_decls, scopes
+        global labelcount_ia, lhsanames, intermediate_decls, scopes
         #self.visitArray_reference(ctx.children[0])
         it = self.print_index_list(((ctx.children[0]).children[2]))
         ilist = it[1]
@@ -109,29 +109,37 @@ class NWChemTCEVisitor(ParseTreeVisitor):
 
         ino = int(lhs_array_name[1:])
         indentl = len(self.label_prefix+"_1")+8
-        if (lhs_array_name == 'i0'):
-            io_flag = True
-            labelcount_io = labelcount_io + 1
-            label = self.label_prefix + "_" + str(labelcount_io)
-            for lname in labelcount_ia.keys():
-                labelcount_ia[lname] = 0
+        label = ""
 
-        else:
-            if lhs_array_name not in labelcount_ia.keys():
-                labelcount_ia[lhs_array_name] = 1
-            else: labelcount_ia[lhs_array_name] = labelcount_ia[lhs_array_name] + 1
-
-            label = self.label_prefix
-            for i in range(1,ino+1):
-                label += "_" + str(labelcount_io+1)
-
-            label +=  "_" + str(labelcount_ia[lhs_array_name])
-            #labelcount_ia[lhs_array_name] = labelcount_ia[lhs_array_name] + 1
-
-            if lhs_array_name not in lhsanames.keys():
-                lhsanames[lhs_array_name] = label
+        if lhs_array_name not in scopes.keys():
+            if ino == 0:
+                label += "1"
+                label = self.label_prefix + "_" + label
+                labelcount_ia[lhs_array_name] = lhs_array_name
+                scopes[lhs_array_name] = label
+            else:
+                if("i"+str(ino-1) in scopes.keys()):
+                    prevlabel = (scopes["i"+str(ino-1)])
+                    prevln = prevlabel.split("_")
+                    prevno = int(prevln[-1])
+                    prevln = "_".join(prevln[1:-1])
+                    if prevln: prevln += "_"
+                    label += prevln + str(prevno+1) + "_1"
+                else: label += "1_1"
+                label = self.label_prefix + "_" + label
+                labelcount_ia[lhs_array_name] = label
+                scopes[lhs_array_name] = label
                 lhs_array_name = label
-            else: lhs_array_name = lhsanames[lhs_array_name]
+        else:
+            prevlabel = scopes[lhs_array_name]
+            prevln = prevlabel.split("_")
+            prevno = int(prevln[-1])
+            prevln = "_".join(prevln[1:-1])
+            if prevln: prevln += "_"
+            label += prevln + str(prevno + 1)
+            label = self.label_prefix + "_" + label
+            scopes[lhs_array_name] = label
+            lhs_array_name = labelcount_ia[lhs_array_name]
 
         printres(label + ":".ljust(indentl-len(label)) + lhs_array_name)
         printres("[")
@@ -155,31 +163,24 @@ class NWChemTCEVisitor(ParseTreeVisitor):
         self.visitPtype(ctx.children[2])
         printres("\n")
 
-        # for lnames in intermediate_decls.keys():
-        #     printresws("array " + lnames + intermediate_decls[lnames] + "\n")
-
-        lhs_array_name = str((ctx.children[0]).children[0])
-        getciv = int(lhs_array_name[1:])
-        if io_flag:
-            lhsanames.clear()
-            scopes.clear()
-            return
-        if lhs_array_name not in scopes.keys():
-            scopes[lhs_array_name] = "i" + str(getciv - 1)
-        nciv = getciv + 1
-        nextk = "i" + str(getciv + 1)
-        if nextk in scopes.keys():
+        nciv = ino + 1
+        nextk = "i" + str(ino + 1)
+        if nextk in labelcount_ia.keys():
+            del labelcount_ia[nextk]
             del scopes[nextk]
-            del lhsanames[nextk]
             while True:
                 nciv += 1
                 nextk = "i" + str(nciv)
-                if nextk in scopes.keys():
+                if nextk in labelcount_ia.keys():
+                    del labelcount_ia[nextk]
                     del scopes[nextk]
-                    del lhsanames[nextk]
                 else:
                     break
-        #self.visitChildren(ctx)
+
+
+        # for lnames in intermediate_decls.keys():
+        #     printresws("array " + lnames + intermediate_decls[lnames] + "\n")
+
 
 
         # Visit a parse tree produced by NWChemTCEParser#perm.
@@ -224,7 +225,7 @@ class NWChemTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by NWChemTCEParser#array_reference.
     def visitArray_reference(self, ctx):
-        global lhsanames
+        global labelcount_ia
         if isinstance(ctx,NWChemTCEParser.Array_referenceContext):
             aname = str(ctx.children[0]) #print arrayname
             it = self.print_index_list((ctx.children[2])) #print indices
@@ -233,8 +234,8 @@ class NWChemTCEVisitor(ParseTreeVisitor):
 
             arrname = aname
             if(aname[0] == 'i'):
-                if aname in lhsanames.keys():
-                    arrname = lhsanames[aname]
+                if aname in labelcount_ia.keys():
+                    arrname = labelcount_ia[aname]
                     printres(arrname)
             elif aname[0] == 'f' or aname[0] == 'v': printres(arrname)
             else: printres(arrname + "_" + atype)
@@ -291,6 +292,10 @@ class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
     # Visit a parse tree produced by NWChemTCEParser#translation_unit.
     def visitTranslation_unit(self, ctx):
         self.visitChildren(ctx)
+        for laname in stmt_postpone.keys():
+            addExec = stmt_postpone[laname]
+            exec_order.append(addExec)
+            del stmt_postpone[laname]
         return [exec_order,array_decls,[hind,pind]]
 
 

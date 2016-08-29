@@ -123,12 +123,7 @@ class OpMinVisitor(ParseTreeVisitor):
             ti += 1
 
         printnl("")
-        ti = 0
-        for amo in add_mult_order:
-            printnli("op_" +  amo + " = ops[" + str(ti) + "]." + add_mult_order[amo] + ";")
-            ti += 1
 
-        printnl("")
         printnli("/* ----- Insert attach code ------ */")
         printnli("v->set_dist(idist)")
         printnli("i0->attach(*k_i0_offset, 0, *d_i0);")
@@ -140,8 +135,15 @@ class OpMinVisitor(ParseTreeVisitor):
 
         indent += 2
 
+        ti = 0
         for amo in add_mult_order:
-            if amo in tensor_decls.keys():
+            printnli("op_" +  amo + " = ops[" + str(ti) + "]." + add_mult_order[amo] + ";")
+            ti += 1
+
+        printnl("")
+
+        for amo in add_mult_order:
+            if amo in array_decls:
                 printnli("CorFortran(1, op_" + amo + ", ofsset_" + self.function_prefix + "_" + amo + "_);")
             printnli("CorFortran(1, op_" +  amo + ", " + self.function_prefix + "_" + amo + "_);")
 

@@ -13,12 +13,13 @@ stmt_refs = []
 inputarrs = dict()
 add_stmts = []
 mult_stmts = []
-indent = 2
+indent = 0
 tensor_decls = OrderedDict()
 add_mult_order = OrderedDict()
 destroy_temps = OrderedDict()
 temps = OrderedDict()
 func_offsets = []
+array_decls = []
 
 def printres(s):
     print(s, end="")
@@ -57,32 +58,41 @@ class OpMinVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#compound_element_list.
     def visitCompound_element_list(self, ctx):
-        global inputarrs,add_stmts,mult_stmts,indent,tensor_decls,add_mult_order,func_offsets
+        global inputarrs,add_stmts,mult_stmts,indent,tensor_decls,add_mult_order,func_offsets,array_decls
         printnl("extern \"C\" {")
+        indent += 2
         self.visitChildren(ctx)
         printnl("")
         for fo in func_offsets:
             printnli(fo)
+        indent -= 2
         printnl("}")
 
+        printnl("\nnamespace ctce {\n")
 
+        declare_lib_api = "void schedule_linear(std::vector<Tensor> &tensors, std::vector<Operation> &ops);\n"
+        declare_lib_api += "".ljust(indent)+"void schedule_linear_lazy(std::vector<Tensor> &tensors, std::vector<Operation> &ops);\n"
+        declare_lib_api += "".ljust(indent)+"void schedule_levels(std::vector<Tensor> &tensors, std::vector<Operation> &ops);\n"
 
-        printnl("\nnamespace ctce {")
+        printnli(declare_lib_api)
         printnli("extern \"C\" {")
         indent += 2
-        printresi("void " + self.function_prefix + "_" + self.label_prefix + "_cxx(")
+
+        printresi("void " + self.function_prefix + "_" + self.label_prefix + "_cxx_(")
         func_sig = ""
         for ia in inputarrs:
-            func_sig += "Integer *d_" + ia + ","
+            func_sig += "Integer *d_" + ia + ", "
+
+        func_sig += "\n" + "".ljust(indent)
 
         for ia in inputarrs:
-            func_sig += "Integer *k_" + ia + "_offset,"
+            func_sig += "Integer *k_" + ia + "_offset, "
 
-        func_sig = func_sig[:-1]
+        func_sig = func_sig[:-2]
         printres(func_sig)
-        printnl("){")
+        printnl(") {\n")
 
-        indent += 2
+
         printnli("static bool set_" + self.label_prefix + " = true;")
         printnli("")
 
@@ -107,7 +117,8 @@ class OpMinVisitor(ParseTreeVisitor):
 
         printnl("")
         ti = 0
-        for td in tensor_decls.keys():
+        #for td in tensor_decls.keys():
+        for td in array_decls:
             printnli("Tensor *" + td + " = &tensors[" + str(ti) + "];")
             ti += 1
 
@@ -117,7 +128,17 @@ class OpMinVisitor(ParseTreeVisitor):
             printnli("op_" +  amo + " = ops[" + str(ti) + "]." + add_mult_order[amo] + ";")
             ti += 1
 
-        printnli("\n/* ----- Insert attach code ------ */\n")
+        printnl("")
+        printnli("/* ----- Insert attach code ------ */")
+        printnli("v->set_dist(idist)")
+        printnli("i0->attach(*k_i0_offset, 0, *d_i0);")
+        printnli("v->attach(*k_v_offset, 0, *d_v);\n")
+
+        printnli("#if 1")
+        printnli("  schedule_levels(tensors, ops);")
+        printnli("#else")
+
+        indent += 2
 
         for amo in add_mult_order:
             if amo in tensor_decls.keys():
@@ -127,10 +148,16 @@ class OpMinVisitor(ParseTreeVisitor):
             if amo in destroy_temps.keys():
                 printnli("destroy(" + destroy_temps[amo] + ");")
 
-        printnli("\n/* ----- Insert detach code ------ */\n")
+        indent -= 2
+        printnli("#endif\n")
 
-        printnl("    }")
-        printnl("  } // extern C")
+        printnli("/* ----- Insert detach code ------ */")
+        printnli("f->detach();")
+        printnli("i0->detach();")
+        printnli("v->detach();")
+
+        printnli("}")
+        printnl("} // extern C")
         printnl("}; // namespace ctce")
 
 
@@ -283,6 +310,9 @@ class OpMinVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#array_declaration.
     def visitArray_declaration(self, ctx):
+        global array_decls
+        aname = str(ctx.children[1].children[0].children[0])
+        array_decls.append(aname)
         return self.visitChildren(ctx)
 
 

@@ -13,7 +13,7 @@ testcaseDir=str(sys.argv[3])
 resultsDir=str(sys.argv[4])
 
 testOutput=resultsDir+"/"+testname+".gen"
-testcase=testcaseDir+"/"+testname+".eq.lvl"
+testcase=testcaseDir+"/"+testname+".eq"
 diffOutput=resultsDir+"/"+testname+"_diff_output"
 #sampleOutput=testcaseDir+"/"+testname+".sample" #does not exist for now
 sampleOutput=resultsDir+"/"+testname+".gen" #compare with same file for now

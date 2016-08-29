@@ -90,7 +90,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
 
-    visitor = NWChemTCEVisitorExecOrder(max_i)
+    visitor = NWChemTCEVisitorExecOrder(max_i,fname[0],fname[1])
     res = visitor.visitTranslation_unit(tree)
 
     exec_order = res[0]
@@ -118,4 +118,4 @@ if __name__ == '__main__':
 
     print "}"
 
-    #os.remove(input_file+".tmp")
+    os.remove(input_file+".tmp")

@@ -6,14 +6,14 @@
  *  
  *  array i0[V][O];
  *  array f[N][N]: irrep_f;
- *  array t_vo[V][O]: irrep_t;
  *  array v[N,N][N,N]: irrep_v;
+ *  array t_vo[V][O]: irrep_t;
  *  array t_vvoo[V,V][O,O]: irrep_t;
  *  array t1_2_1[O][O];
  *  array t1_2_2_1[O][V];
+ *  array t1_3_1[V][V];
  *  array t1_5_1[O][V];
  *  array t1_6_1[O,O][O,V];
- *  array t1_3_1[V][V];
  *  
  *  t1_1:       i0[p2,h1] += 1 * f[p2,h1];
  *  t1_2_1:     t1_2_1[h7,h1] += 1 * f[h7,h1];
@@ -68,107 +68,123 @@ extern "C" {
 }
 
 namespace ctce {
-  extern "C" {
-    void ccsd_t1_cxx(Integer *d_t_vvoo,Integer *d_i0,Integer *d_v,Integer *d_t_vo,Integer *d_f,Integer *k_t_vvoo_offset,Integer *k_i0_offset,Integer *k_v_offset,Integer *k_t_vo_offset,Integer *k_f_offset){
-      static bool set_t1 = true;
-      
-      Assignment op_t1_1;
-      Assignment op_t1_2_1;
-      Assignment op_t1_2_2_1;
-      Assignment op_t1_3_1;
-      Assignment op_t1_5_1;
-      Assignment op_t1_6_1;
-      Multiplication op_t1_2_2_2;
-      Multiplication op_t1_2_2;
-      Multiplication op_t1_2_3;
-      Multiplication op_t1_2_4;
-      Multiplication op_t1_2;
-      Multiplication op_t1_3_2;
-      Multiplication op_t1_3;
-      Multiplication op_t1_4;
-      Multiplication op_t1_5_2;
-      Multiplication op_t1_5;
-      Multiplication op_t1_6_2;
-      Multiplication op_t1_6;
-      Multiplication op_t1_7;
-      
-      DistType idist = (Variables::intorb()) ? dist_nwi : dist_nw;
-      static Equations eqs;
 
-      if (set_t1) {
-        ccsd_t1_equations(eqs);
-        set_t1 = false;
-      }
+void schedule_linear(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
+void schedule_linear_lazy(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
+void schedule_levels(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
 
-      std::vector <Tensor> tensors;
-      std::vector <Operation> ops;
-      tensors_and_ops(eqs, tensors, ops);
+extern "C" {
+  void ccsd_t1_cxx_(Integer *d_t_vvoo, Integer *d_i0, Integer *d_v, Integer *d_t_vo, Integer *d_f, 
+  Integer *k_t_vvoo_offset, Integer *k_i0_offset, Integer *k_v_offset, Integer *k_t_vo_offset, Integer *k_f_offset) {
 
-      Tensor *i0 = &tensors[0];
-      Tensor *f = &tensors[1];
-      Tensor *t1_2_1 = &tensors[2];
-      Tensor *t1_2_2_1 = &tensors[3];
-      Tensor *t_vo = &tensors[4];
-      Tensor *v = &tensors[5];
-      Tensor *t_vvoo = &tensors[6];
-      Tensor *t1_3_1 = &tensors[7];
-      Tensor *t1_5_1 = &tensors[8];
-      Tensor *t1_6_1 = &tensors[9];
+  static bool set_t1 = true;
+  
+  Assignment op_t1_1;
+  Assignment op_t1_2_1;
+  Assignment op_t1_2_2_1;
+  Assignment op_t1_3_1;
+  Assignment op_t1_5_1;
+  Assignment op_t1_6_1;
+  Multiplication op_t1_2_2_2;
+  Multiplication op_t1_2_2;
+  Multiplication op_t1_2_3;
+  Multiplication op_t1_2_4;
+  Multiplication op_t1_2;
+  Multiplication op_t1_3_2;
+  Multiplication op_t1_3;
+  Multiplication op_t1_4;
+  Multiplication op_t1_5_2;
+  Multiplication op_t1_5;
+  Multiplication op_t1_6_2;
+  Multiplication op_t1_6;
+  Multiplication op_t1_7;
+  
+  DistType idist = (Variables::intorb()) ? dist_nwi : dist_nw;
+  static Equations eqs;
 
-      op_t1_1 = ops[0].add;
-      op_t1_2_1 = ops[1].add;
-      op_t1_2_2_1 = ops[2].add;
-      op_t1_2_2_2 = ops[3].mult;
-      op_t1_2_2 = ops[4].mult;
-      op_t1_2_3 = ops[5].mult;
-      op_t1_2_4 = ops[6].mult;
-      op_t1_2 = ops[7].mult;
-      op_t1_3_1 = ops[8].add;
-      op_t1_3_2 = ops[9].mult;
-      op_t1_3 = ops[10].mult;
-      op_t1_4 = ops[11].mult;
-      op_t1_5_1 = ops[12].add;
-      op_t1_5_2 = ops[13].mult;
-      op_t1_5 = ops[14].mult;
-      op_t1_6_1 = ops[15].add;
-      op_t1_6_2 = ops[16].mult;
-      op_t1_6 = ops[17].mult;
-      op_t1_7 = ops[18].mult;
-      
-/* ----- Insert attach code ------ */
+  if (set_t1) {
+    ccsd_t1_equations(eqs);
+    set_t1 = false;
+  }
 
-      CorFortran(1, op_t1_1, ccsd_t1_1_);
-      CorFortran(1, op_t1_2_1, ofsset_ccsd_t1_2_1_);
-      CorFortran(1, op_t1_2_1, ccsd_t1_2_1_);
-      CorFortran(1, op_t1_2_2_1, ofsset_ccsd_t1_2_2_1_);
-      CorFortran(1, op_t1_2_2_1, ccsd_t1_2_2_1_);
-      CorFortran(1, op_t1_2_2_2, ccsd_t1_2_2_2_);
-      CorFortran(1, op_t1_2_2, ccsd_t1_2_2_);
-      destroy(t1_2_2_1);
-      CorFortran(1, op_t1_2_3, ccsd_t1_2_3_);
-      CorFortran(1, op_t1_2_4, ccsd_t1_2_4_);
-      CorFortran(1, op_t1_2, ccsd_t1_2_);
-      destroy(t1_2_1);
-      CorFortran(1, op_t1_3_1, ofsset_ccsd_t1_3_1_);
-      CorFortran(1, op_t1_3_1, ccsd_t1_3_1_);
-      CorFortran(1, op_t1_3_2, ccsd_t1_3_2_);
-      CorFortran(1, op_t1_3, ccsd_t1_3_);
-      destroy(t1_3_1);
-      CorFortran(1, op_t1_4, ccsd_t1_4_);
-      CorFortran(1, op_t1_5_1, ofsset_ccsd_t1_5_1_);
-      CorFortran(1, op_t1_5_1, ccsd_t1_5_1_);
-      CorFortran(1, op_t1_5_2, ccsd_t1_5_2_);
-      CorFortran(1, op_t1_5, ccsd_t1_5_);
-      destroy(t1_5_1);
-      CorFortran(1, op_t1_6_1, ofsset_ccsd_t1_6_1_);
-      CorFortran(1, op_t1_6_1, ccsd_t1_6_1_);
-      CorFortran(1, op_t1_6_2, ccsd_t1_6_2_);
-      CorFortran(1, op_t1_6, ccsd_t1_6_);
-      destroy(t1_6_1);
-      CorFortran(1, op_t1_7, ccsd_t1_7_);
-      
-/* ----- Insert detach code ------ */
+  std::vector <Tensor> tensors;
+  std::vector <Operation> ops;
+  tensors_and_ops(eqs, tensors, ops);
 
-    }
-  } // extern C
+  Tensor *i0 = &tensors[0];
+  Tensor *f = &tensors[1];
+  Tensor *v = &tensors[2];
+  Tensor *t_vo = &tensors[3];
+  Tensor *t_vvoo = &tensors[4];
+  Tensor *t1_2_1 = &tensors[5];
+  Tensor *t1_2_2_1 = &tensors[6];
+  Tensor *t1_3_1 = &tensors[7];
+  Tensor *t1_5_1 = &tensors[8];
+  Tensor *t1_6_1 = &tensors[9];
+
+  op_t1_1 = ops[0].add;
+  op_t1_2_1 = ops[1].add;
+  op_t1_2_2_1 = ops[2].add;
+  op_t1_2_2_2 = ops[3].mult;
+  op_t1_2_2 = ops[4].mult;
+  op_t1_2_3 = ops[5].mult;
+  op_t1_2_4 = ops[6].mult;
+  op_t1_2 = ops[7].mult;
+  op_t1_3_1 = ops[8].add;
+  op_t1_3_2 = ops[9].mult;
+  op_t1_3 = ops[10].mult;
+  op_t1_4 = ops[11].mult;
+  op_t1_5_1 = ops[12].add;
+  op_t1_5_2 = ops[13].mult;
+  op_t1_5 = ops[14].mult;
+  op_t1_6_1 = ops[15].add;
+  op_t1_6_2 = ops[16].mult;
+  op_t1_6 = ops[17].mult;
+  op_t1_7 = ops[18].mult;
+
+  /* ----- Insert attach code ------ */
+  v->set_dist(idist)
+  i0->attach(*k_i0_offset, 0, *d_i0);
+  v->attach(*k_v_offset, 0, *d_v);
+
+  #if 1
+    schedule_levels(tensors, ops);
+  #else
+    CorFortran(1, op_t1_1, ccsd_t1_1_);
+    CorFortran(1, op_t1_2_1, ofsset_ccsd_t1_2_1_);
+    CorFortran(1, op_t1_2_1, ccsd_t1_2_1_);
+    CorFortran(1, op_t1_2_2_1, ofsset_ccsd_t1_2_2_1_);
+    CorFortran(1, op_t1_2_2_1, ccsd_t1_2_2_1_);
+    CorFortran(1, op_t1_2_2_2, ccsd_t1_2_2_2_);
+    CorFortran(1, op_t1_2_2, ccsd_t1_2_2_);
+    destroy(t1_2_2_1);
+    CorFortran(1, op_t1_2_3, ccsd_t1_2_3_);
+    CorFortran(1, op_t1_2_4, ccsd_t1_2_4_);
+    CorFortran(1, op_t1_2, ccsd_t1_2_);
+    destroy(t1_2_1);
+    CorFortran(1, op_t1_3_1, ofsset_ccsd_t1_3_1_);
+    CorFortran(1, op_t1_3_1, ccsd_t1_3_1_);
+    CorFortran(1, op_t1_3_2, ccsd_t1_3_2_);
+    CorFortran(1, op_t1_3, ccsd_t1_3_);
+    destroy(t1_3_1);
+    CorFortran(1, op_t1_4, ccsd_t1_4_);
+    CorFortran(1, op_t1_5_1, ofsset_ccsd_t1_5_1_);
+    CorFortran(1, op_t1_5_1, ccsd_t1_5_1_);
+    CorFortran(1, op_t1_5_2, ccsd_t1_5_2_);
+    CorFortran(1, op_t1_5, ccsd_t1_5_);
+    destroy(t1_5_1);
+    CorFortran(1, op_t1_6_1, ofsset_ccsd_t1_6_1_);
+    CorFortran(1, op_t1_6_1, ccsd_t1_6_1_);
+    CorFortran(1, op_t1_6_2, ccsd_t1_6_2_);
+    CorFortran(1, op_t1_6, ccsd_t1_6_);
+    destroy(t1_6_1);
+    CorFortran(1, op_t1_7, ccsd_t1_7_);
+  #endif
+
+  /* ----- Insert detach code ------ */
+  f->detach();
+  i0->detach();
+  v->detach();
+  }
+} // extern C
 }; // namespace ctce

@@ -23,42 +23,6 @@ find_library (BLAS_LIB_PATH blas ${CTCE_BLAS_LIB})
 message(STATUS "BLAS headers found at: " "${BLAS_INC_PATH}")
 message(STATUS "BLAS libs found: " "${BLAS_LIB_PATH}")
 
-# Try finding Doxygen
-FIND_PACKAGE(Doxygen)
-
-if(NOT DOXYGEN_FOUND)
-    SET(FOUND_DOXYGEN "0")
-    if(NOT $ENV{DOXYGEN_HOME})
-        SET(FOUND_DOXYGEN $ENV{DOXYGEN_HOME})
-    endif()
-else()
-    SET(FOUND_DOXYGEN "1")
-    set(DOCS "${PROJECT_BINARY_DIR}/docs")
-    message(STATUS "cblas header: " ${DOCS})
-    execute_process(COMMAND mkdir -p ${DOCS})
-    set(DOCOUTPUT
-            ${DOCS}/html
-            ${DOCS}/latex
-            )
-    # Custom Target to build the Doxygen documentation.
-    ADD_CUSTOM_COMMAND(OUTPUT ${DOCOUTPUT}
-            # The grammar is copied over to the ParserBuildDir before building it .
-            COMMAND cmake -E copy ${PROJECT_SOURCE_DIR}/Doxyfile.in ${DOCS}/Doxyfile.in
-            COMMAND cmake -E copy_directory ${PROJECT_SOURCE_DIR}/ctce_parser ${DOCS}/ctce_parser
-            COMMAND cmake -E copy_directory ${PROJECT_SOURCE_DIR}/tensor ${DOCS}/tensor
-            # Change to docs folder before building the documentation.
-            COMMAND cmake -E chdir ${DOCS} doxygen ${DOCS}/Doxyfile.in
-            COMMAND cmake -E remove_directory ${DOCS}/ctce_parser
-            COMMAND cmake -E remove_directory ${DOCS}/tensor
-            COMMAND cmake -E remove -f ${DOCS}/Doxyfile.in
-            DEPENDS ${PROJECT_SOURCE_DIR}/Doxyfile.in
-            COMMENT "Building Doxygen documentation."
-            VERBATIM)
-
-    ADD_CUSTOM_TARGET(docs DEPENDS ${DOCOUTPUT})
-endif()
-
-
 
 #Load the GA_CONFIG and NWCHEM_TOP env variables
 if(NOT DEFINED ENV{NWCHEM_TOP})
@@ -147,34 +111,28 @@ ADD_CUSTOM_COMMAND(OUTPUT ${ParserSources}
 
     # Generate the parser code
     COMMAND cmake -E chdir ${ParserBuildDir} ./lemon -s ${ParserBuildDir}/parser.y
-    DEPENDS ${ParserSrcDir}/parser.y
+    DEPENDS ${ParserSrcDir}/parser.y lemon
     COMMENT "Building the ctce lemon parser."
     VERBATIM
     )
 
 #Build the generated scanner and parser sources
-add_library(ctce_sp STATIC ${ParserSources})
-target_include_directories(ctce_sp SYSTEM PUBLIC ${ParserSrcDir})
-
-#Build the ctce parser as a static library
-add_library(ctceparser STATIC ${ctceParserSources} ${ParserSources})
-target_include_directories(ctceparser SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${ParserSrcDir})
-add_dependencies(ctceparser ctce_sp)
-
-# Build the ctce_test code
-add_executable(ctce_test ${ParserSrcDir}/test.c)
-add_dependencies(ctce_test ctceparser)
-# Set target libraries to be linked.
-target_link_libraries(ctce_test ctceparser fl)
+#add_library(ctce_sp STATIC ${ParserSources})
+#target_include_directories(ctce_sp SYSTEM PUBLIC ${ParserSrcDir})
 
 string(REPLACE "-I" "" ctce_cmake_cflags ${ctce_cflags})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" ctce_cflags ${ctce_cmake_cflags})
 
 SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
-add_library(ctce STATIC ${ctceLibSources})
+add_library(ctce STATIC ${ctceParserSources} ${ParserSources} ${ctceLibSources})
 target_include_directories(ctce SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags} ${BLAS_INC_PATH})
-add_dependencies(ctce ctceparser)
+
+# Build the ctce_parser_test code
+add_executable(ctce_parser_test ${ParserSrcDir}/test.c)
+add_dependencies(ctce_parser_test ctce)
+# Set target libraries to be linked.
+target_link_libraries(ctce_parser_test ctce fl)
 
 string(REPLACE "-L" "" ctce_cmake_ldflags ${ctce_ldflags})
 string(REPLACE " " ";" ctce_ldflags ${ctce_cmake_ldflags})
@@ -182,10 +140,6 @@ string(REPLACE " " ";" ctce_ldflags ${ctce_cmake_ldflags})
 string(REPLACE "-l" "" ctce_cmake_libs ${ctce_libs})
 #string(REPLACE "-" "" ctce_cmake_libs ${ctce_cmake_libs1})
 string(REPLACE " " ";" ctce_libs ${ctce_cmake_libs})
-
-add_library(ctceprint STATIC tensor/print.cc)
-target_include_directories(ctceprint SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags} ${BLAS_INC_PATH})
-add_dependencies(ctceprint ctce ctceparser)
 
 
 find_path(cblas_header_name "mkl_cblas.h" ${BLAS_INC_PATH})
@@ -217,11 +171,11 @@ endforeach(tcelibname)
 #message(STATUS "target flags = " "${other_flags}")
 
 
-add_executable(ctce_main tensor/main.cc) #EXCLUDE_FROM_ALL
-add_dependencies(ctce_main ctce ctceparser ctceprint)
+add_executable(ctce_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
+add_dependencies(ctce_main ctce)
 target_include_directories(ctce_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags} ${BLAS_INC_PATH})
 # Set target libraries to be linked.
-target_link_libraries(ctce_main ctce ctceparser ctceprint ${lib_search} blas)
+target_link_libraries(ctce_main ctce ${lib_search} blas)
 
 # Install
 if(NOT CTCE_INSTALL_PREFIX)
@@ -230,7 +184,7 @@ endif()
 
 message(STATUS "Installing CTCE library at: " ${CTCE_INSTALL_PREFIX})
 
-install(TARGETS ctce ctceparser
+install(TARGETS ctce
         DESTINATION ${CTCE_INSTALL_PREFIX}/lib)
 
     file(GLOB CTCE_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/ctce_parser/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
@@ -244,8 +198,6 @@ SET(CTCE_EQ_PATH ${CTCE_INSTALL_PREFIX}/eqs)
 file(WRITE "${PROJECT_BINARY_DIR}/cmake_ctce_headers.h" "#define CBLAS_HEADER_FILE \"${cblas_header_name}\"")
 file(APPEND "${PROJECT_BINARY_DIR}/cmake_ctce_headers.h" "\n#define CTCE_EQ_PATH \"${CTCE_INSTALL_PREFIX}/eqs\"")
 
-
-
 set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
         "parser.y" "scanner.l" "parser.out" "output.txt" "lempar.c")
 
@@ -257,8 +209,41 @@ execute_process(COMMAND mkdir -p "TestResults/ParserTests")
 foreach (test ${EQFILES})
     get_filename_component(Testname ${test} NAME_WE)
     add_test(${test} python ${PROJECT_SOURCE_DIR}/scripts/testing/ParserTest.py "${Testname}"
-            "${PROJECT_BINARY_DIR}/ctce_test" "${PROJECT_SOURCE_DIR}/ctce_parser/transform_input/generated/"
+            "${PROJECT_BINARY_DIR}/ctce_parser_test" "${PROJECT_SOURCE_DIR}/ctce_parser/transform_input/generated/"
             "${PROJECT_BINARY_DIR}/TestResults/ParserTests")
 endforeach ()
 
 
+# Try finding Doxygen
+FIND_PACKAGE(Doxygen)
+
+if(NOT DOXYGEN_FOUND)
+    SET(FOUND_DOXYGEN "0")
+    if(NOT $ENV{DOXYGEN_HOME})
+        SET(FOUND_DOXYGEN $ENV{DOXYGEN_HOME})
+    endif()
+else()
+    SET(FOUND_DOXYGEN "1")
+    set(DOCS "${PROJECT_BINARY_DIR}/docs")
+    message(STATUS "Documentation will be built at: " ${DOCS})
+    execute_process(COMMAND mkdir -p ${DOCS})
+    set(DOCOUTPUT
+            ${DOCS}/html
+            ${DOCS}/latex
+            )
+    # Custom Target to build the Doxygen documentation.
+    ADD_CUSTOM_COMMAND(OUTPUT ${DOCOUTPUT}
+            COMMAND cmake -E copy ${PROJECT_SOURCE_DIR}/Doxyfile.in ${DOCS}/Doxyfile.in
+            COMMAND cmake -E copy_directory ${PROJECT_SOURCE_DIR}/ctce_parser ${DOCS}/ctce_parser
+            COMMAND cmake -E copy_directory ${PROJECT_SOURCE_DIR}/tensor ${DOCS}/tensor
+            # Change to docs folder before building the documentation.
+            COMMAND cmake -E chdir ${DOCS} doxygen ${DOCS}/Doxyfile.in
+            COMMAND cmake -E remove_directory ${DOCS}/ctce_parser
+            COMMAND cmake -E remove_directory ${DOCS}/tensor
+            COMMAND cmake -E remove -f ${DOCS}/Doxyfile.in
+            DEPENDS ${PROJECT_SOURCE_DIR}/Doxyfile.in
+            COMMENT "Building Doxygen documentation."
+            VERBATIM)
+
+    ADD_CUSTOM_TARGET(docs DEPENDS ${DOCOUTPUT})
+endif()

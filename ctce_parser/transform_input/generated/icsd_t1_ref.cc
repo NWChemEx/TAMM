@@ -125,26 +125,6 @@ extern "C" {
   Tensor *t1_5_1 = &tensors[8];
   Tensor *t1_6_1 = &tensors[9];
 
-  op_t1_1 = ops[0].add;
-  op_t1_2_1 = ops[1].add;
-  op_t1_2_2_1 = ops[2].add;
-  op_t1_2_2_2 = ops[3].mult;
-  op_t1_2_2 = ops[4].mult;
-  op_t1_2_3 = ops[5].mult;
-  op_t1_2_4 = ops[6].mult;
-  op_t1_2 = ops[7].mult;
-  op_t1_3_1 = ops[8].add;
-  op_t1_3_2 = ops[9].mult;
-  op_t1_3 = ops[10].mult;
-  op_t1_4 = ops[11].mult;
-  op_t1_5_1 = ops[12].add;
-  op_t1_5_2 = ops[13].mult;
-  op_t1_5 = ops[14].mult;
-  op_t1_6_1 = ops[15].add;
-  op_t1_6_2 = ops[16].mult;
-  op_t1_6 = ops[17].mult;
-  op_t1_7 = ops[18].mult;
-
   /* ----- Insert attach code ------ */
   v->set_dist(idist)
   i0->attach(*k_i0_offset, 0, *d_i0);
@@ -153,6 +133,26 @@ extern "C" {
   #if 1
     schedule_levels(tensors, ops);
   #else
+    op_t1_1 = ops[0].add;
+    op_t1_2_1 = ops[1].add;
+    op_t1_2_2_1 = ops[2].add;
+    op_t1_2_2_2 = ops[3].mult;
+    op_t1_2_2 = ops[4].mult;
+    op_t1_2_3 = ops[5].mult;
+    op_t1_2_4 = ops[6].mult;
+    op_t1_2 = ops[7].mult;
+    op_t1_3_1 = ops[8].add;
+    op_t1_3_2 = ops[9].mult;
+    op_t1_3 = ops[10].mult;
+    op_t1_4 = ops[11].mult;
+    op_t1_5_1 = ops[12].add;
+    op_t1_5_2 = ops[13].mult;
+    op_t1_5 = ops[14].mult;
+    op_t1_6_1 = ops[15].add;
+    op_t1_6_2 = ops[16].mult;
+    op_t1_6 = ops[17].mult;
+    op_t1_7 = ops[18].mult;
+
     CorFortran(1, op_t1_1, icsd_t1_1_);
     CorFortran(1, op_t1_2_1, ofsset_icsd_t1_2_1_);
     CorFortran(1, op_t1_2_1, icsd_t1_2_1_);

@@ -127,6 +127,7 @@ class OpMinVisitor(ParseTreeVisitor):
         printnli("/* ----- Insert attach code ------ */")
         printnli("v->set_dist(idist)")
         printnli("i0->attach(*k_i0_offset, 0, *d_i0);")
+        printnli("f->attach(*k_f_offset, 0, *d_f);\n")
         printnli("v->attach(*k_v_offset, 0, *d_v);\n")
 
         printnli("#if 1")

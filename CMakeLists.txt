@@ -16,6 +16,11 @@ set (CTEST_OUTPUT_ON_FAILURE TRUE)
 
 find_package(FLEX REQUIRED)
 #find_package(BLAS REQUIRED)
+#find_package(MPI)
+#message(STATUS "mpi link flags: " ${MPI_CXX_LINK_FLAGS})
+#message(STATUS "mpi compile flags: " ${MPI_CXX_COMPILE_FLAGS})
+#message(STATUS "mpi libs: " ${MPI_CXX_LIBRARIES})
+
 
 find_path (BLAS_INC_PATH NAMES cblas.h mkl_cblas.h PATHS ${CTCE_BLAS_INC})
 find_library (BLAS_LIB_PATH blas ${CTCE_BLAS_LIB})

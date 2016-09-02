@@ -108,7 +108,7 @@ namespace ctce {
         v->attach(*k_v2_offset, 0, *d_v2);        
       }
 
-#if 1
+#if 0
       vector<vector<Tensor> *> tensors(3);
       vector<vector<Operation> *> ops(3);
       tensors[0] = &e_tensors;

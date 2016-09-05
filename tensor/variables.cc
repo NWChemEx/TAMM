@@ -24,6 +24,8 @@ namespace ctce {
 
   Integer Variables::noab_ = 0;
   Integer Variables::nvab_ = 0;
+  Integer Variables::noa_ = 0;
+  Integer Variables::nva_ = 0;
   Integer Variables::k_range_ = 0;
   Integer Variables::k_spin_ = 0;
   Integer Variables::k_sym_ = 0;
@@ -38,10 +40,17 @@ namespace ctce {
   Integer* Variables::int_mb_;
   double* Variables::dbl_mb_;
   Integer Variables::k_alpha_ = 0;
+  Integer Variables::k_b2am_ = 0;
+  Integer Variables::d_v2orb_ = 0;
+Integer Variables::k_v2_alpha_offset_ = 0;
 
   void Variables::set_ov(Integer *o, Integer *v) {
     noab_ = *o;
     nvab_ = *v;
+  }
+  void Variables::set_ova(Integer *noa, Integer *nva) {
+    noa_ = *noa;
+    nva_ = *nva;
   }
   void Variables::set_idmb(Integer *int_mb_f, double *dbl_mb_f) {
     int_mb_ = int_mb_f - 1; 
@@ -72,6 +81,17 @@ void Variables::set_k_alpha(Integer *k_alpha) {
   k_alpha_ = *k_alpha;
   }
 
+void Variables::set_k_b2am(Integer *k_b2am) {
+  k_b2am_ = *k_b2am;
+  }
+
+void Variables::set_d_v2orb(Integer *d_v2orb) {
+  d_v2orb_ = *d_v2orb;
+  }
+
+void Variables::set_k_v2_alpha_offset(Integer *k_v2_alpha_offset) {
+  k_v2_alpha_offset_ = *k_v2_alpha_offset;
+}
   extern "C" {
 
     // called in ccsd_t.F
@@ -83,6 +103,10 @@ void Variables::set_k_alpha(Integer *k_alpha) {
       Variables::set_irrep_x(irrep_x);
     }
 
+
+void set_ova_cxx_(Integer* noa, Integer* nva) {
+  Variables::set_ova(noa, nva);
+}
     void set_var_cxx_(Integer* noab, Integer* nvab, 
 		      Integer* int_mb, double* dbl_mb,
 		      Integer* k_range, Integer *k_spin, Integer *k_sym, 
@@ -99,6 +123,17 @@ void Variables::set_k_alpha(Integer *k_alpha) {
 
 void set_k_alpha_cxx_(Integer *k_alpha) {
   Variables::set_k_alpha(k_alpha);
+}
+
+void set_k_b2am_cxx_(Integer *k_b2am) {
+  Variables::set_k_b2am(k_b2am);
+}
+void set_d_v2orb_cxx_(Integer *d_v2orb) {
+  Variables::set_d_v2orb(d_v2orb);
+}
+
+void set_k_v2_alpha_offset_cxx_(Integer *k_v2_alpha_offset) {
+  Variables::set_k_v2_alpha_offset(k_v2_alpha_offset);
 }
 
   }

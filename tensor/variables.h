@@ -15,6 +15,7 @@ namespace ctce {
 class Variables {
 public:
   static void set_ov(Integer *o, Integer *v);
+  static void set_ova(Integer *noa, Integer *nva);
   static void set_idmb(Integer *int_mb, double *dbl_mb);
   static void set_irrep(Integer *irrep_v, Integer *irrep_t, Integer *irrep_f);
   static void set_irrep_x(Integer *irrep_x);
@@ -22,6 +23,9 @@ public:
   static void set_log(logical *intorb, logical *restricted);
   static void set_k2(Integer *k_offset, Integer *k_evl_sorted);
   static void set_k_alpha(Integer *k_alpha);
+  static void set_k_b2am(Integer *k_b2am);
+  static void set_d_v2orb(Integer *d_v2orb);
+  static void set_k_v2_alpha_offset(Integer *k_v2_alpha_offset);
 
   /** 
    * Set k_offset and k_evl_sorted, use in ccsd(t) to compute r and o value
@@ -41,6 +45,8 @@ public:
 
   static const Integer& noab() { return noab_; }
   static const Integer& nvab() { return nvab_; }
+  static const Integer& noa() { return noa_; }
+  static const Integer& nva() { return nva_; }
   static const Integer& k_range() { return k_range_; }
   static const Integer& k_spin() { return k_spin_; }
   static const Integer& k_sym() { return k_sym_; }
@@ -56,18 +62,23 @@ public:
   static double* dbl_mb() { return dbl_mb_; }
 
   static Integer k_alpha() { return k_alpha_; }
+  static Integer k_b2am() { return k_b2am_; }
+  static Integer d_v2orb() { return d_v2orb_; }
+  static Integer k_v2_alpha_offset() { return k_v2_alpha_offset_; }
   static size_t k_range(Tile t) {
     return int_mb()[k_range()-1+t];
   }
 private:
   static Integer noab_, nvab_;
+  static Integer noa_, nva_;
   static Integer *int_mb_;
   static double *dbl_mb_;
   static Integer k_range_, k_spin_, k_sym_;
   static Integer k_offset_, k_evl_sorted_;
   static Integer irrep_v_, irrep_t_, irrep_f_, irrep_x_;
   static logical intorb_, restricted_;
-  static Integer k_alpha_;
+  static Integer k_alpha_, k_b2am_, d_v2orb_;
+  static Integer k_v2_alpha_offset_;
 };
 
 /**

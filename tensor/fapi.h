@@ -12,6 +12,7 @@
 #define fget_hash_block_ma FORTRAN_FUNC(get_hash_block_ma,GET_HASH_BLOCK_MA)
 #define fget_hash_block    FORTRAN_FUNC(get_hash_block,GET_HASH_BLOCK)
 #define fget_hash_block_i  FORTRAN_FUNC(get_hash_block_i,GET_HASH_BLOCK_I)
+#define fget_block_ind_i   FORTRAN_FUNC(get_block_ind_i,GET_BLOCK_IND_I)
 #define ftce_sort_2        FORTRAN_FUNC(tce_sort_2,TCE_SORT_2)
 #define ftce_sort_2        FORTRAN_FUNC(tce_sort_2,TCE_SORT_2)
 #define ftce_sort_4        FORTRAN_FUNC(tce_sort_4,TCE_SORT_4)
@@ -25,6 +26,7 @@
 #define ftce_sortacc_6     FORTRAN_FUNC(tce_sortacc_6,TCE_SORTACC_6)
 #define fname_and_create   FORTRAN_FUNC(name_and_create,NAME_AND_CREATE)
 #define fdestroy           FORTRAN_FUNC(destroy,DESTROY)
+#define ftce_hash_v2       FORTRAN_FUNC(tce_hash_v2,TCE_HASH_V2)
 
 EXTERN_C void
 ftce_restricted_2(Fint *i1, Fint *i2, Fint *o1, Fint *o2);
@@ -45,6 +47,10 @@ EXTERN_C void
 fget_hash_block_i(Fint *darr, double *buf,
                   Fint *size, Fint *hash, Fint *key,
                   Fint *g2b, Fint *g1b, Fint *g4b, Fint *g3b);
+
+EXTERN_C void
+fget_block_ind_i(Fint *ida, double *buf, Fint *isize, Fint *ikey, Fint *indexc,
+                 Fint *is3, Fint *is2, Fint *is1, Fint *is0);
 
 EXTERN_C void
 ftce_sort_2(double *unsorted , double *sorted, Fint *a, Fint *b,
@@ -96,6 +102,9 @@ fname_and_create(Fint *da, Fint *size);
 
 EXTERN_C void
 fdestroy(Fint *da, Fint *offset);
+
+EXTERN_C void
+ftce_hash_v2(Fint *hash, Fint *key, Fint *offset);
 
 
 #endif /*__ctce_fapi_h__*/

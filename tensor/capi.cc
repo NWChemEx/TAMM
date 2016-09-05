@@ -253,7 +253,7 @@ int
 cget_add_ind_i(size_t da, double *buf, size_t size, size_t offset_unused,
                size_t key_unused, const std::vector<size_t> &is_in,
                std::vector<size_t> &is_out, std::vector<size_t>& perm,
-               string name) {
+               string name, ga_nbhdl_t *nbh) {
   assert(is_in.size() == 4);
   assert(perm.size() == 4);
   vector<size_t> isa(is_in.size());
@@ -331,7 +331,7 @@ cget_add_ind_i(size_t da, double *buf, size_t size, size_t offset_unused,
   int hi[2] = {0,offset+size-1};
   int ld[1] = {100000}; //ignored
   int d_v2orb = Variables::d_v2orb();
-  NGA_Get(d_v2orb,lo,hi,buf,ld);
+  NGA_NbGet(d_v2orb,lo,hi,buf,ld,nbh);
 
   return x;
 }
@@ -357,15 +357,20 @@ cget_block_ind_i(size_t da, double *buf, size_t size, size_t offset,
 
   assert(is.size()==4);
   assert(is_spin_nonzero(is));
+
+  ga_nbhdl_t nbh1, nbh2;
+  bool comm1=false, comm2=false;
+  double *bufa=NULL, *bufb=NULL;
+  vector<size_t> vperma, vpermb;
+  vector<size_t> visa_out, visb_out;
+
   {
     size_t isa[4] = {is[3], is[1], is[2], is[0]};
     // int perma[4] = {2, 4, 1, 3};
     int perma[4] = {4,2,3,1};
-    vector<size_t> visa, visa_out;
-    vector<size_t> vperma;
+    vector<size_t> visa;//, visa_out;
     visa.insert(visa.end(), isa, isa+4);
     vperma.insert(vperma.end(), perma, perma+4);
-    double *bufa = new double[size];
     //cout<<"--visa =";
     for(int i=visa.size()-1; i>=0; i--) {
       //cout<<" "<<visa[i];
@@ -373,7 +378,9 @@ cget_block_ind_i(size_t da, double *buf, size_t size, size_t offset,
     //cout<<endl;
     if(int_mb[k_spin+is[0]] == int_mb[k_spin+is[2]] &&
        int_mb[k_spin+is[1]] == int_mb[k_spin+is[3]]) {
-      int x = cget_add_ind_i(da, bufa, size, offset, key, visa, visa_out, vperma, " perma");
+      bufa = new double[size];
+      int x = cget_add_ind_i(da, bufa, size, offset, key, visa, visa_out, vperma, " perma",&nbh1);
+      comm1 = true;
 
       vector<size_t> vpa = vperma;
       size_t p[4] = {};
@@ -421,21 +428,21 @@ cget_block_ind_i(size_t da, double *buf, size_t size, size_t offset,
       //vperma.insert(vperma.end(),p,p+4);
       vperma = invert_perm(vperma);
       //cout<<"perma perm="<<vperma[0]<<" "<<vperma[1]<<" "<<vperma[2]<<" "<<vperma[3]<<endl;
-      ctce_sortacc(bufa, buf, visa_out, vperma, 1.0);
+      //ctce_sortacc(bufa, buf, visa_out, vperma, 1.0);
     }
     else {
       //cout<<" perma skip"<<endl;
     }
-    delete [] bufa;
+    //delete [] bufa;
   }
   {
     size_t isb[4] = {is[2], is[1], is[3], is[0]};
     int permb[4] = {4, 1, 3, 2};
-    vector<size_t> visb, visb_out;
-    vector<size_t> vpermb;
+    vector<size_t> visb;//, visb_out;
+    //vector<size_t> vpermb;
     visb.insert(visb.end(), isb, isb+4);
     vpermb.insert(vpermb.end(), permb, permb+4);
-    double *bufb = new double[size];
+    //double *bufb = new double[size];
     //cout<<"--visb =";
     for(int i=visb.size()-1; i>=0; i--) {
       //cout<<" "<<visb[i];
@@ -443,7 +450,9 @@ cget_block_ind_i(size_t da, double *buf, size_t size, size_t offset,
     //cout<<endl;
     if(int_mb[k_spin+is[0]] == int_mb[k_spin+is[3]] &&
        int_mb[k_spin+is[1]] == int_mb[k_spin+is[2]]) {
-      int x = cget_add_ind_i(da, bufb, size, offset, key, visb, visb_out, vpermb, " permb");
+      bufb = new double[size];
+      int x = cget_add_ind_i(da, bufb, size, offset, key, visb, visb_out, vpermb, " permb", &nbh2);
+      comm2 = true;
       size_t p[4] = {};
       switch(x) {
       case 0: //000
@@ -478,11 +487,24 @@ cget_block_ind_i(size_t da, double *buf, size_t size, size_t offset,
       vpermb = invert_perm(vpermb);
       //@bug Should visb_out also be inverted?
       //cout<<"permb perm="<<vpermb[0]<<" "<<vpermb[1]<<" "<<vpermb[2]<<" "<<vpermb[3]<<endl;
-      ctce_sortacc(bufb, buf, visb_out, vpermb, -1.0);
+      //ctce_sortacc(bufb, buf, visb_out, vpermb, -1.0);
     }
     else {
       //cout<<" permb skip"<<endl;
     }
+    //delete [] bufb;
+  }
+
+  if(comm1) {
+    NGA_NbWait(&nbh1);
+    assert(bufa);
+    ctce_sortacc(bufa, buf, visa_out, vperma, 1.0);
+    delete [] bufa;
+  }
+  if(comm2) {
+    NGA_NbWait(&nbh2);
+    assert(bufb);
+    ctce_sortacc(bufb, buf, visb_out, vpermb, -1.0);
     delete [] bufb;
   }
 #endif

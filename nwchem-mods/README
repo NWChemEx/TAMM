@@ -1,0 +1,11 @@
+This folder contains necessary modifications to *.F files 
+to enable the use of libctce
+
+1.	Modification to file ccsd_energy_loc.F are included here
+
+2.	GNUmakefile in folder $NWCHEM_TOP/src is modified to include
+		path to libctce as under:
+
+  	$(PURIFY) $(LINK.f) -o $(BINDIR)/$(NWBINNAME) nwchem.o stubs.o -lnwctask
+-L/<ctce install dir>/lib  $(LIBS) -lctce -lstdc++
+

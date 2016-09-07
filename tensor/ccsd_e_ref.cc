@@ -81,7 +81,7 @@ namespace ctce {
       t2->attach(*k_t2_offset, 0, *d_t2);
       v->attach(*k_v2_offset, 0, *d_v2);
 
-#if 0
+#if 1
       // schedule_linear(tensors, ops);
       // schedule_linear_lazy(tensors, ops);
       schedule_levels(tensors, ops);

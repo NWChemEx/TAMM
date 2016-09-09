@@ -202,20 +202,24 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 //                if(tc_ids[i]!=-1) printf("%d, ",tc_ids[i]);
 
 
+            int rhs_aref_count = 0;
             for (i = 0; i < vector_count(&rhs_allref); i++) {
                 Exp e = vector_get(&rhs_allref, i);
                 if (e->kind == is_NumConst) {
                     Exp e1 = vector_get(&rhs_allref, i + 1);
                     if (e1->kind == is_ArrayRef) {
+                        rhs_aref_count++;
                         vector_add(&rhs_aref, make_ArrayRefAlpha(e->u.NumConst.value * e1->coef, e1));
                         i++;
                     }
                 }
                 else {
+                    rhs_aref_count++;
                     Exp e1 = vector_get(&rhs_allref, i);
                     vector_add(&rhs_aref, make_ArrayRefAlpha(1.0 * e1->coef, e1));
                 }
             }
+
 
             ctce_bool rhs_first_ref = false;
             tce_string_array rhs_first_ref_indices = collectExpIndices(
@@ -230,13 +234,21 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
             //Exp tcp = vector_get(&lhs_aref, 0);
             //printf("name = %s\n",tcp->u.Array.name);
 
-            ctce_bool isAMOp = (exact_compare_index_lists(lhs_indices, rhs_indices));
-            //a1121[p3,h1,p2,h2] = t_vo[p3,h1] * t_vo[p2,h2];
-            ctce_bool firstRefInd = (lhs_indices->length > rhs_first_ref_indices->length);
-            ctce_bool isEqInd = (lhs_indices->length == rhs_indices->length);
-            ctce_bool isAddOp = isEqInd && isAMOp;
-            ctce_bool isMultOp =
-                    (lhs_indices->length < rhs_indices->length) || (isEqInd && !isAMOp) || (isEqInd && firstRefInd);
+//            ctce_bool isAMOp = (exact_compare_index_lists(lhs_indices, rhs_indices));
+//            //a1121[p3,h1,p2,h2] = t_vo[p3,h1] * t_vo[p2,h2];
+//            ctce_bool firstRefInd = (lhs_indices->length > rhs_first_ref_indices->length);
+//            ctce_bool isEqInd = (lhs_indices->length == rhs_indices->length);
+//            ctce_bool isAddOp = isEqInd && isAMOp;
+//            ctce_bool isMultOp =
+//                    (lhs_indices->length < rhs_indices->length) || (isEqInd && !isAMOp) || (isEqInd && firstRefInd);
+
+            ctce_bool isAddOp = false;
+            ctce_bool isMultOp = false;
+
+            if (rhs_first_ref) rhs_aref_count -= 1;
+
+            if (rhs_aref_count==2) isMultOp = true;
+            else if (rhs_aref_count==1 || rhs_aref_count > 3) isAddOp = true;
 
             if (isMultOp) {
                 //printf(" == MULT OP\n");

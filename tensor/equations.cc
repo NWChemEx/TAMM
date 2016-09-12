@@ -52,6 +52,11 @@ ipccsd_x1_equations(ctce::Equations &eqs) {
   parse_equations("ipccsd_x1.eq", eqs);
 }
 
+void
+ipccsd_x2_equations(ctce::Equations &eqs) {
+  parse_equations("ipccsd_x2.eq", eqs);
+}
+
 
 static void
 parse_equations(const string &filename, ctce::Equations &ceqs) {

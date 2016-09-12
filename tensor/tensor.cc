@@ -131,6 +131,9 @@ Tensor::create() {
     }
   }
 
+  if(size==0) {
+    size = 1;
+  }
   {
     int ndims = 2;
     int dims[2] = {1, size};

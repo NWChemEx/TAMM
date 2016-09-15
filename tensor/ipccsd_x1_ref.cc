@@ -166,12 +166,12 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
   CorFortran(1, x1_2_1, offset_ipccsd_x1_2_1_);
   CorFortran(1, op_x1_2_1, ipccsd_x1_2_1_);
   CorFortran(1, op_x1_2_2, ipccsd_x1_2_2_);
-  CorFortran(0, op_x1_2, ipccsd_x1_2_); /*@BUG @FIXME Does not work in C mode*/
+  CorFortran(1, op_x1_2, ipccsd_x1_2_); /*@bug @fixme Does not work in C mode: works now*/
   destroy(x1_2_1);
   CorFortran(1, x1_3_1, offset_ipccsd_x1_3_1_);
   CorFortran(1, op_x1_3_1, ipccsd_x1_3_1_);
   CorFortran(1, op_x1_3_2, ipccsd_x1_3_2_);
-  CorFortran(0, op_x1_3, ipccsd_x1_3_); /*@BUG @FIXME Does not work in C mode*/
+  CorFortran(1, op_x1_3, ipccsd_x1_3_); /*@bug @fixme Does not work in C mode: works now*/
   destroy(x1_3_1);
 #endif
 

@@ -93,10 +93,10 @@ namespace ctce {
     else {
       size_t i[3], c;
       size_t sz[3] = {sz1, sz2, sz3};
-      int p[4] = {p1-1, p2-1, p3-1};
+      int p[3] = {p1-1, p2-1, p3-1};
       for(i[0] = 0, c=0; i[0] < sz[0]; i[0]++) {
         for(i[1] = 0; i[1] < sz[1]; i[1]++) {
-          for(i[2] = 0; i[2] < sz[2]; i[2]++) {
+          for(i[2] = 0; i[2] < sz[2]; i[2]++,c++) {
             dbuf[idx(3,i,sz,p)] = alpha * sbuf[c];
           }
         }

@@ -125,9 +125,9 @@ class OpMinVisitor(ParseTreeVisitor):
         printnl("")
 
         printnli("/* ----- Insert attach code ------ */")
-        printnli("v->set_dist(idist)")
+        printnli("v->set_dist(idist);")
         printnli("i0->attach(*k_i0_offset, 0, *d_i0);")
-        printnli("f->attach(*k_f_offset, 0, *d_f);\n")
+        printnli("f->attach(*k_f_offset, 0, *d_f);")
         printnli("v->attach(*k_v_offset, 0, *d_v);\n")
 
         printnli("#if 1")
@@ -145,7 +145,7 @@ class OpMinVisitor(ParseTreeVisitor):
 
         for amo in add_mult_order:
             if amo in array_decls:
-                printnli("CorFortran(1, op_" + amo + ", ofsset_" + self.function_prefix + "_" + amo + "_);")
+                printnli("CorFortran(1, " + amo + ", offset_" + self.function_prefix + "_" + amo + "_);")
             printnli("CorFortran(1, op_" +  amo + ", " + self.function_prefix + "_" + amo + "_);")
 
             if amo in destroy_temps.keys():

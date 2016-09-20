@@ -74,7 +74,7 @@ class SoTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SoTCEParser#factors.
     def visitFactors(self, ctx):
-        global far;
+        global far
         printres("\n")
         far += 1
         return self.visitChildren(ctx)
@@ -89,19 +89,22 @@ class SoTCEVisitor(ParseTreeVisitor):
     def visitPtype(self, ctx):
         global uniqArrDecls, permute_flag
         if isinstance(ctx.children[0],SoTCEParser.PlusORminusContext):
-            if str(ctx.children[0].children[0]) == "+":
-                printres(" + ")
-            else:
-                printres(" - ")
-            if isinstance(ctx.children[1], SoTCEParser.Numerical_constantContext):
-                permute_flag.append(str(ctx.children[1].children[0]))
+            pmop = ""
+            for child in ctx.children:
+                if isinstance(child, SoTCEParser.PlusORminusContext):
+                    if str(child.children[0]) == "+":
+                        pmop = " + " #printres(" + ")
+                    else:
+                        pmop = " - "  #printres(" - ")
+                elif isinstance(child, SoTCEParser.Numerical_constantContext):
+                    permute_flag.append(pmop + str(ctx.children[1].children[0]))
 
         elif str(ctx.children[0]) == "*":
             if not isinstance(ctx.children[1], SoTCEParser.SumExpContext):
                 aname = (str(ctx.children[1]))
 
                 if aname == "P":
-                    #permute_flag = permute_flag[:-1]
+                    permute_flag = permute_flag[:-1]
                     for n in permute_flag:
                         printres(n)
                     permute_flag = []

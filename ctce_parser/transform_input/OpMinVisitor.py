@@ -429,9 +429,9 @@ class OpminOutToCTCE(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#translation_unit.
     def visitTranslation_unit(self, ctx):
-        printnl("{")
+        #printnl("{")
         self.visitChildren(ctx)
-        printnl("}")
+        #printnl("}")
 
 
     # Visit a parse tree produced by OpMinParser#compound_element_list_opt.

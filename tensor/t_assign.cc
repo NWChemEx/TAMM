@@ -18,7 +18,7 @@ void t_assign2(
     order[i] = find(c_ids.begin(), c_ids.end(), a_ids[i]) - c_ids.begin() + 1;
   }
 
-  int nprocs = GA_Nnodes();
+  int nprocs = ga_Nnodes();
   int count = 0;
 
   int taskDim = 1;
@@ -30,13 +30,13 @@ void t_assign2(
     sub = spos;
   }
   else {
-    taskHandle = NGA_Create(C_INT, 1, &taskDim, taskStr, NULL); // global array for next task
-    GA_Zero(taskHandle); // initialize to zero
-    GA_Sync();
+    taskHandle = nga_Create(C_INT, 1, &taskDim, taskStr, NULL); // global array for next task
+    ga_Zero(taskHandle); // initialize to zero
+    ga_Sync();
     sub = 0;
   }
 
-  int next = NGA_Read_inc(taskHandle, &sub, 1);
+  int next = nga_Read_inc(taskHandle, &sub, 1);
 
   vector<size_t> out_vec; // out_vec = c_ids_v
   out_itr.reset();
@@ -78,14 +78,14 @@ void t_assign2(
         delete [] buf_a;
         delete [] buf_a_sort;
       }
-      next = NGA_Read_inc(taskHandle, &sub, 1);
+      next = nga_Read_inc(taskHandle, &sub, 1);
     }
     ++count;
   }
 
   if(sync_ga==0) {
-    GA_Sync();
-    GA_Destroy(taskHandle);
+    ga_Sync();
+    ga_Destroy(taskHandle);
   }
 }
 

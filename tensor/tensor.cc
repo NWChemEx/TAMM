@@ -1,5 +1,5 @@
 #include "tensor.h"
-#include "ga.h"
+#include "ga_abstract.h"
 #include "capi.h"
 #include <iostream>
 #include "expression.h"
@@ -134,9 +134,9 @@ Tensor::create() {
   {
     int ndims = 2;
     int dims[2] = {1, size};
-    ga_ = NGA_Create(MT_C_DBL, 2, dims, (char *)"noname1", NULL);
+    ga_ = nga_Create(MT_C_DBL, 2, dims, (char *)"noname1", NULL);
   }
-  NGA_Zero(ga_);
+  nga_Zero(ga_);
   offset_index_ = offset_map_ - int_mb;
   allocated_ = true;
 }
@@ -154,7 +154,7 @@ Tensor::attach(Fint fma_offset_index, Fint fma_handle, Fint array_handle) {
 void
 Tensor::destroy() {
   if(allocated_) {
-    NGA_Destroy(ga_);
+    nga_Destroy(ga_);
     free(offset_map_);
     allocated_ = false;
   }

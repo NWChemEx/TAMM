@@ -6,7 +6,7 @@
 #include "variables.h"
 #include "capi.h"
 #include "expression.h"
-#include "ga.h"
+#include "ga_abstract.h"
 
 namespace ctce {
 /**

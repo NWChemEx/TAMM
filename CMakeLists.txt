@@ -84,6 +84,7 @@ set(ctceLibSources
   tensor/equations.cc
   tensor/expression.cc
   tensor/func.cc
+  tensor/ga_abstract.cc
   tensor/index_sort.cc
   tensor/preprocess.cc
   tensor/schedulers.cc

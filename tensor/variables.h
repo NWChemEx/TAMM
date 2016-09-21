@@ -5,7 +5,7 @@
 #include "typesf2c.h"
 #include "define.h"
 #include "dummy.h"
-#include "ga.h"
+#include "ga_abstract.h"
 
 namespace ctce {
 

@@ -81,7 +81,7 @@ cadd_block(size_t d_a, double *buf, size_t size, size_t offset) {
   int hi[2] = {0,offset+size-1};
   int ld[1] = {100000};
   double alpha = 1.0;
-  NGA_Acc(d_a,lo,hi,buf,ld,&alpha);
+  nga_Acc(d_a,lo,hi,buf,ld,&alpha);
 #endif
 }
 
@@ -112,7 +112,7 @@ cget_block(size_t d_a, double *buf, size_t size, size_t offset) {
   int lo[2] = {0,offset};
   int hi[2] = {0,offset+size-1};
   int ld[1] = {100000};
-  NGA_Get(d_a,lo,hi,buf,ld);
+  nga_Get(d_a,lo,hi,buf,ld);
 #endif
 }
 
@@ -331,7 +331,7 @@ cget_add_ind_i(size_t da, double *buf, size_t size, size_t offset_unused,
   int hi[2] = {0,offset+size-1};
   int ld[1] = {100000}; //ignored
   int d_v2orb = Variables::d_v2orb();
-  NGA_NbGet(d_v2orb,lo,hi,buf,ld,nbh);
+  nga_NbGet(d_v2orb,lo,hi,buf,ld,nbh);
 
   return x;
 }
@@ -496,13 +496,13 @@ cget_block_ind_i(size_t da, double *buf, size_t size, size_t offset,
   }
 
   if(comm1) {
-    NGA_NbWait(&nbh1);
+    nga_NbWait(&nbh1);
     assert(bufa);
     ctce_sortacc(bufa, buf, visa_out, vperma, 1.0);
     delete [] bufa;
   }
   if(comm2) {
-    NGA_NbWait(&nbh2);
+    nga_NbWait(&nbh2);
     assert(bufb);
     ctce_sortacc(bufb, buf, visb_out, vpermb, -1.0);
     delete [] bufb;

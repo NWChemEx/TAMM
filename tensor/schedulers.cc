@@ -262,12 +262,12 @@ namespace ctce {
       assert(op_levels[i].size()>0);
       int taskDim = op_levels[i].size();
       char taskStr[10] = "NXTASK";
-      int taskHandle = NGA_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
+      int taskHandle = nga_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
       assert(taskHandle!=0);
-      GA_Zero(taskHandle); // initialize to zero
+      ga_Zero(taskHandle); // initialize to zero
       sync_gas.push_back(taskHandle);
     }
-    GA_Sync();
+    ga_Sync();
 
     for(int i=0; i<nlevels; i++) {
       for(int j=0; j<tensor_create_levels[i].size(); j++) {
@@ -280,9 +280,9 @@ namespace ctce {
         tensor_destroy_levels[i][j]->destroy();
       }
     }
-    GA_Sync();
+    ga_Sync();
     for(int i=0; i<sync_gas.size(); i++) {
-      GA_Destroy(sync_gas[i]);
+      ga_Destroy(sync_gas[i]);
     }    
 #endif
   }
@@ -316,12 +316,12 @@ namespace ctce {
         assert(op_levels[e][l].size()>=0);
       }
       char taskStr[10] = "NXTASK";
-      int taskHandle = NGA_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
+      int taskHandle = nga_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
       assert(taskHandle!=0);
-      GA_Zero(taskHandle); // initialize to zero
+      ga_Zero(taskHandle); // initialize to zero
       sync_gas.push_back(taskHandle);
     }
-    GA_Sync();
+    ga_Sync();
 
     for(int l=0; l<nlevels; l++) {
       for(int e=0; e<neqs; e++) {
@@ -329,22 +329,22 @@ namespace ctce {
           tensor_create_levels[e][l][t]->create();
         }
       }
-      GA_Sync();
+      ga_Sync();
       for(int e=0, c=0; e<neqs; e++) {
         for(int o=0; o<op_levels[e][l].size(); o++,c++) {
           execute(op_levels[e][l][o], sync_gas[l], c);
         }
       }
-      GA_Sync();
+      ga_Sync();
       for(int e=0; e<neqs; e++) {
         for(int t=0; t<tensor_destroy_levels[e][l].size(); t++) {
           tensor_destroy_levels[e][l][t]->destroy();
         }
       }
     }
-    GA_Sync();
+    ga_Sync();
     for(int i=0; i<sync_gas.size(); i++) {
-      GA_Destroy(sync_gas[i]);
+      ga_Destroy(sync_gas[i]);
     }
   }
 

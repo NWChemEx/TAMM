@@ -196,7 +196,7 @@ void t_mult3(
   const vector<IndexName>& b_ids = id2name(m.b_ids);//tB.name();
 
   // GA initialization
-  int nprocs = GA_Nnodes();
+  int nprocs = ga_Nnodes();
   int count = 0;
   int taskDim = 1;
   char taskStr[10] = "NXTASK";
@@ -207,13 +207,13 @@ void t_mult3(
     sub = spos;
   }
   else {
-    taskHandle = NGA_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
-    GA_Zero(taskHandle); // initialize to zero
-    GA_Sync();
+    taskHandle = nga_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
+    ga_Zero(taskHandle); // initialize to zero
+    ga_Sync();
     sub = 0;
   }
 
-  int next = NGA_Read_inc(taskHandle, &sub, 1);
+  int next = nga_Read_inc(taskHandle, &sub, 1);
 
   vector<size_t> out_vec, sum_vec;
   out_itr.reset();
@@ -393,7 +393,7 @@ void t_mult3(
         delete [] buf_c_sort;
       } // if spatial symmetry check
 
-      next = NGA_Read_inc(taskHandle, &sub, 1);  // get my next task
+      next = nga_Read_inc(taskHandle, &sub, 1);  // get my next task
 
     } // if next == count
 
@@ -402,8 +402,8 @@ void t_mult3(
   } // out_itr
 
   if(sync_ga==0) {
-    GA_Sync(); // sync, wait for all procs to finish
-    GA_Destroy(taskHandle); // free
+    ga_Sync(); // sync, wait for all procs to finish
+    ga_Destroy(taskHandle); // free
   }
 } // t_mult3
 

@@ -2,7 +2,7 @@
 #include <iostream>
 #include "triangular.h"
 #include "iterGroup.h"
-#include "ga.h"
+#include "ga_abstract.h"
 #include "fapi.h"
 #include "t_mult.h"
 
@@ -80,19 +80,19 @@ namespace ctce {
 #endif
 
       // GA initialization
-      int nprocs = GA_Nnodes();
+      int nprocs = ga_Nnodes();
       int count = 0;
       int taskDim = 1;
       char taskStr[10] = "NXTASK2";
-      int taskHandle = NGA_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
-      GA_Zero(taskHandle); // initialize to zero
+      int taskHandle = nga_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
+      ga_Zero(taskHandle); // initialize to zero
 
-      GA_Sync();
+      ga_Sync();
 
       // get next task
       int sub = 0;
       int next;
-      next = NGA_Read_inc(taskHandle, &sub, 1);
+      next = nga_Read_inc(taskHandle, &sub, 1);
 
       //      printf("ccsdt#%d = %d\n",GA_Nodeid(),next);
 
@@ -155,7 +155,7 @@ namespace ctce {
           } // if spatial
 
           int sub = 0;
-          next = NGA_Read_inc(taskHandle, &sub, 1);
+          next = nga_Read_inc(taskHandle, &sub, 1);
 
         } // if next == count
 
@@ -167,13 +167,13 @@ namespace ctce {
 
       //std::cout << "NAG at LINE --- "<< __LINE__<<"\n";
 
-        GA_Sync();
-        GA_Destroy(taskHandle); // free
+        ga_Sync();
+        ga_Destroy(taskHandle); // free
 
         energy[0] = *energy1;
         energy[1] = *energy2;
         char plus = '+';
-        GA_Dgop(energy,2,&plus); // collect data
+        ga_Dgop(energy,2,&plus); // collect data
         *energy1 = energy[0];
         *energy2 = energy[1];
 

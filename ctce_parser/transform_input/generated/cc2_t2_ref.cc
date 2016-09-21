@@ -114,8 +114,9 @@ extern "C" {
   Tensor *t2_2_1 = &tensors[9];
 
   /* ----- Insert attach code ------ */
-  v->set_dist(idist)
+  v->set_dist(idist);
   i0->attach(*k_i0_offset, 0, *d_i0);
+  f->attach(*k_f_offset, 0, *d_f);
   v->attach(*k_v_offset, 0, *d_v);
 
   #if 1
@@ -139,25 +140,25 @@ extern "C" {
     op_t2_5 = ops[15].mult;
 
     CorFortran(1, op_t2_1, cc2_t2_1_);
-    CorFortran(1, op_t2_2_1, ofsset_cc2_t2_2_1_);
+    CorFortran(1, t2_2_1, offset_cc2_t2_2_1_);
     CorFortran(1, op_t2_2_1, cc2_t2_2_1_);
-    CorFortran(1, op_t2_2_2_1, ofsset_cc2_t2_2_2_1_);
+    CorFortran(1, t2_2_2_1, offset_cc2_t2_2_2_1_);
     CorFortran(1, op_t2_2_2_1, cc2_t2_2_2_1_);
-    CorFortran(1, op_t2_2_2_2_1, ofsset_cc2_t2_2_2_2_1_);
+    CorFortran(1, t2_2_2_2_1, offset_cc2_t2_2_2_2_1_);
     CorFortran(1, op_t2_2_2_2_1, cc2_t2_2_2_2_1_);
     CorFortran(1, op_t2_2_2_2_2, cc2_t2_2_2_2_2_);
     CorFortran(1, op_t2_2_2_2, cc2_t2_2_2_2_);
     destroy(t2_2_2_2_1);
     CorFortran(1, op_t2_2_2, cc2_t2_2_2_);
     destroy(t2_2_2_1);
-    CorFortran(1, op_t2_2_3_1, ofsset_cc2_t2_2_3_1_);
+    CorFortran(1, t2_2_3_1, offset_cc2_t2_2_3_1_);
     CorFortran(1, op_t2_2_3_1, cc2_t2_2_3_1_);
     CorFortran(1, op_t2_2_3_2, cc2_t2_2_3_2_);
     CorFortran(1, op_t2_2_3, cc2_t2_2_3_);
     destroy(t2_2_3_1);
     CorFortran(1, op_t2_2, cc2_t2_2_);
     destroy(t2_2_1);
-    CorFortran(1, op_t2_3_1, ofsset_cc2_t2_3_1_);
+    CorFortran(1, t2_3_1, offset_cc2_t2_3_1_);
     CorFortran(1, op_t2_3_1, cc2_t2_3_1_);
     CorFortran(1, op_t2_3_2, cc2_t2_3_2_);
     CorFortran(1, op_t2_3, cc2_t2_3_);

@@ -67,11 +67,7 @@ void offset_ipccsd_x1_3_1_(Fint *l_x1_3_1_offset, Fint *k_x1_3_1_offset, Fint *s
 
 namespace ctce {
 
-void schedule_linear(std::vector<Tensor> &tensors,
-                     std::vector<Operation> &ops);
-void schedule_linear_lazy(std::vector<Tensor> &tensors,
-                          std::vector<Operation> &ops);
-void schedule_levels(std::vector<Tensor> &tensors,
+void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
                      std::vector<Operation> &ops);
 
 extern "C" {
@@ -104,21 +100,21 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
     set_x1 = false;
   }
 
-  std::vector <Tensor> tensors;
+  std::map<std::string, ctce::Tensor> tensors;
   std::vector <Operation> ops;
   tensors_and_ops(eqs, tensors, ops);
 
-  Tensor *i0 = &tensors[0];
-  Tensor *x_o = &tensors[1];
-  Tensor *f = &tensors[2];
-  Tensor *t1 = &tensors[3];
-  Tensor *v = &tensors[4];
-  Tensor *t2 = &tensors[5];
-  Tensor *x_voo = &tensors[6];
-  Tensor *x1_2_1 = &tensors[7];
-  Tensor *x1_1_2_1 = &tensors[8];
-  Tensor *x1_3_1 = &tensors[9];
-  Tensor *x1_1_1 = &tensors[10];
+  Tensor *x1_1_1 = &tensors["x1_1_1"];
+  Tensor *f = &tensors["f"];
+  Tensor *x1_1_2_1 = &tensors["x1_1_2_1"];
+  Tensor *t1 = &tensors["t1"];
+  Tensor *v = &tensors["v"];
+  Tensor *t2 = &tensors["t2"];
+  Tensor *i0 = &tensors["i0"];
+  Tensor *x_o = &tensors["x_o"];
+  Tensor *x1_2_1 = &tensors["x1_2_1"];
+  Tensor *x_voo = &tensors["x_voo"];
+  Tensor *x1_3_1 = &tensors["x1_3_1"];
 
   v->set_dist(idist);
   t1->set_dist(dist_nw);

@@ -113,7 +113,9 @@ parser_eqs_to_ctce_eqs(::Equations *peqs, ctce::Equations &ceqs) {
     for(int j=0; j<MAX_TENSOR_DIMS; j++) {
       cte.range_ids[j] = te->range_ids[j];
     }
-    ceqs.tensor_entries.push_back(cte);
+    //ceqs.tensor_entries.push_back(cte);
+    //ceqs.tensor_entries[string(te->name)] = cte;
+    ceqs.tensor_entries.insert( std::map<std::string, ctce::TensorEntry>::value_type( string(te->name), cte ) );
   }
 
   for(int i=0; i<noe; i++) {
@@ -126,16 +128,24 @@ parser_eqs_to_ctce_eqs(::Equations *peqs, ctce::Equations &ceqs) {
 
     int j;
     if (coe.optype == ctce::OpTypeAdd) {
-      coe.add.ta = oe->add->ta;
-      coe.add.tc = oe->add->tc;
+
+      ::TensorEntry ta = (::TensorEntry)vector_get(&peqs->tensor_entries, oe->add->ta);
+      ::TensorEntry tc = (::TensorEntry)vector_get(&peqs->tensor_entries, oe->add->tc);
+
+      coe.add.ta = string(ta->name); //oe->add->ta;
+      coe.add.tc = string(tc->name); //oe->add->tc;
       coe.add.alpha = oe->add->alpha;
       for (j = 0; j < MAX_TENSOR_DIMS; j++) coe.add.tc_ids[j] = oe->add->tc_ids[j];
       for (j = 0; j < MAX_TENSOR_DIMS; j++) coe.add.ta_ids[j] = oe->add->ta_ids[j];
     }
     else {
-      coe.mult.ta = oe->mult->ta;
-      coe.mult.tb = oe->mult->tb;
-      coe.mult.tc = oe->mult->tc;
+      ::TensorEntry ta = (::TensorEntry)vector_get(&peqs->tensor_entries, oe->mult->ta);
+      ::TensorEntry tb = (::TensorEntry)vector_get(&peqs->tensor_entries, oe->mult->tb);
+      ::TensorEntry tc = (::TensorEntry)vector_get(&peqs->tensor_entries, oe->mult->tc);
+
+      coe.mult.ta = string(ta->name); //oe->mult->ta;
+      coe.mult.tb = string(tb->name); //oe->mult->tb;
+      coe.mult.tc = string(tc->name); //oe->mult->tc;
       coe.mult.alpha = oe->mult->alpha;
       for (j = 0; j < MAX_TENSOR_DIMS; j++) coe.mult.tc_ids[j] = oe->mult->tc_ids[j];
       for (j = 0; j < MAX_TENSOR_DIMS; j++) coe.mult.ta_ids[j] = oe->mult->ta_ids[j];

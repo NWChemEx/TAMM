@@ -71,9 +71,8 @@ extern "C" {
 
 namespace ctce {
 
-void schedule_linear(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
-void schedule_linear_lazy(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
-void schedule_levels(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
+void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
+                     std::vector<Operation> &ops);
 
 extern "C" {
   void eaccsd_x1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0, Integer *d_x_vvoo, Integer *d_x_vo, Integer *d_t_vo, Integer *d_v, 
@@ -104,22 +103,22 @@ extern "C" {
     set_x1 = false;
   }
 
-  std::vector <Tensor> tensors;
+  std::map<std::string, ctce::Tensor> tensors;
   std::vector <Operation> ops;
   tensors_and_ops(eqs, tensors, ops);
 
-  Tensor *i0 = &tensors[0];
-  Tensor *x_vo = &tensors[1];
-  Tensor *f = &tensors[2];
-  Tensor *t_vo = &tensors[3];
-  Tensor *v = &tensors[4];
-  Tensor *x_vvoo = &tensors[5];
-  Tensor *t_vvoo = &tensors[6];
-  Tensor *x1_4_1_1 = &tensors[7];
-  Tensor *x1_4_1 = &tensors[8];
-  Tensor *x1_2_1 = &tensors[9];
-  Tensor *x1_5_1 = &tensors[10];
-  Tensor *x1_1_1 = &tensors[11];
+  Tensor *i0 = &tensors["i0"];
+  Tensor *x_vo = &tensors["x_vo"];
+  Tensor *f = &tensors["f"];
+  Tensor *t_vo = &tensors["t_vo"];
+  Tensor *v = &tensors["v"];
+  Tensor *x_vvoo = &tensors["x_vvoo"];
+  Tensor *t_vvoo = &tensors["t_vvoo"];
+  Tensor *x1_4_1_1 = &tensors["x1_4_1_1"];
+  Tensor *x1_4_1 = &tensors["x1_4_1"];
+  Tensor *x1_2_1 = &tensors["x1_2_1"];
+  Tensor *x1_5_1 = &tensors["x1_5_1"];
+  Tensor *x1_1_1 = &tensors["x1_1_1"];
 
   /* ----- Insert attach code ------ */
   v->set_dist(idist);
@@ -127,7 +126,7 @@ extern "C" {
   f->attach(*k_f_offset, 0, *d_f);
   v->attach(*k_v_offset, 0, *d_v);
 
-  #if 0
+  #if 1
     schedule_levels(tensors, ops);
   #else
     op_x1_1_1 = ops[0].add;

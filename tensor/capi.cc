@@ -31,8 +31,9 @@ ctce_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
   } else if (ids.size()==2) {
     ftce_sort_2(sbuf, dbuf, &dims[0], &dims[1], &ip[0], &ip[1], &alpha);
   } else if (ids.size()==3) {
-    ftce_sort_4(sbuf, dbuf, &dims[0], &dims[1], &dims[2], &dims[3],
-                &ip[0], &ip[1], &ip[2], &ip[3], &alpha);
+    Fint dimx = 1, permx = 4;
+    ftce_sort_4(sbuf, dbuf, &dims[0], &dims[1], &dims[2], &dimx,
+                &permx, &ip[0], &ip[1], &ip[2], &alpha);
   } else if (ids.size()==4) {
     ftce_sort_4(sbuf, dbuf, &dims[0], &dims[1], &dims[2], &dims[3],
                 &ip[0], &ip[1], &ip[2], &ip[3], &alpha);

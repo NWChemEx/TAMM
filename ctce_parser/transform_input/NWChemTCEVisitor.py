@@ -97,7 +97,8 @@ class NWChemTCEVisitor(ParseTreeVisitor):
         global labelcount_ia, intermediate_decls, scopes
         #self.visitArray_reference(ctx.children[0])
         it = self.print_index_list(((ctx.children[0]).children[2]))
-        ilist = it[1]
+        ilist = ""
+        if it: ilist = it[1]
         lhs_array_name = str((ctx.children[0]).children[0])
         #printresws(lhs_array_name)
         label = ""
@@ -124,19 +125,23 @@ class NWChemTCEVisitor(ParseTreeVisitor):
             lhs_array_name = labelcount_ia[lhs_array_name]
 
         printres(label + ":".ljust(indentl-len(label)) + lhs_array_name)
-        printres("[")
-        printres(ilist)
-        printres("]")
+        if ilist:
+            printres("[")
+            printres(ilist)
+            printres("]")
 
         if lhs_array_name not in intermediate_decls.keys():
             il = []
-            for index in ilist.split(","):
-                if (index[0] == 'h'): il.append('O')
-                elif (index[0] == 'p'): il.append('V')
-                else: printres("arr index can only start with either p or h\n")
 
-            ilen = len(il)
-            intermediate_decls[lhs_array_name] = "[" + ",".join(il[0:ilen/2]) + "][" + ",".join(il[ilen/2:ilen]) + "];"
+            if ilist:
+                for index in ilist.split(","):
+                    if (index[0] == 'h'): il.append('O')
+                    elif (index[0] == 'p'): il.append('V')
+                    else: printres("arr index can only start with either p or h\n")
+
+                ilen = len(il)
+                intermediate_decls[lhs_array_name] = "[" + ",".join(il[0:ilen/2]) + "][" + ",".join(il[ilen/2:ilen]) + "];"
+            else: intermediate_decls[lhs_array_name] = "[][]"
 
         # print rhs now
         printws()
@@ -211,8 +216,12 @@ class NWChemTCEVisitor(ParseTreeVisitor):
         if isinstance(ctx,NWChemTCEParser.Array_referenceContext):
             aname = str(ctx.children[0]) #print arrayname
             it = self.print_index_list((ctx.children[2])) #print indices
-            atype = it[0]
-            ilist = it[1]
+            atype = ""
+            ilist = ""
+
+            if it:
+                atype = it[0]
+                ilist = it[1]
 
             arrname = aname
             if(aname[0] == 'i'):
@@ -220,10 +229,13 @@ class NWChemTCEVisitor(ParseTreeVisitor):
                     arrname = labelcount_ia[aname]
                     printres(arrname)
             elif aname[0] == 'f' or aname[0] == 'v': printres(arrname)
-            else: printres(arrname + "_" + atype)
-            printres("[")
-            printres(ilist)
-            printres("]")
+            else:
+                if atype: printres(arrname + "_" + atype)
+                else: printres(arrname)
+            if ilist:
+                printres("[")
+                printres(ilist)
+                printres("]")
         #return self.visitChildren(ctx)
 
 
@@ -231,6 +243,7 @@ class NWChemTCEVisitor(ParseTreeVisitor):
     def print_index_list(self, idxlist):
         il = ""
         type = ""
+        if not idxlist.children: return type
         for idx in idxlist.children:
             index = str(idx.children[0])
             if index[-1] == "*": continue
@@ -304,7 +317,9 @@ class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
 
         if lhs_array_name == 'i0' and 'i0' not in uniqArrDecls.keys():
             atype = self.get_array_type((ctx.children[0]).children[2])
-            atypel = atype.split(",")
+
+            atypel = []
+            if atype: atypel = atype.split(",")
             al = len(atypel)
 
             upper = atypel[0:al / 2]
@@ -435,7 +450,8 @@ class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
 
                 atype = it
 
-                atypel = atype.split(",")
+                atypel = []
+                if atype: atypel = atype.split(",")
                 al = len(atypel)
                 #if aname[0] == 'f' or aname[0] == 'v': atype = 'N' * al
 
@@ -469,7 +485,8 @@ class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
                 # upper = ",".join(upper)
                 # lower = ",".join(lower)
 
-                renameArr = aname + "_" + ("".join(newat)).lower()
+                renameArr = aname
+                if newat: renameArr = aname + "_" + ("".join(newat)).lower()
                 if aname[0] == 'f' or aname[0] == 'v': renameArr = aname
                 decl = "array " + renameArr + "[" + upper + "]" + "[" + lower + "]: irrep" + str((ctx.children[4]).children[0]) + ";"
                 if not renameArr in uniqArrDecls.keys():
@@ -482,6 +499,7 @@ class NWChemTCEVisitorExecOrder(ParseTreeVisitor):
     def get_array_type(self, idxlist):
         global hind, pind
         type = ""
+        if not idxlist.children: return type
         for idx in idxlist.children:
             index = str(idx.children[0])
             if (index[0] == 'h'):

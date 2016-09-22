@@ -1,4 +1,5 @@
 #include "equations.h"
+#include "input.h"
 
 #include <string>
 
@@ -122,6 +123,7 @@ parser_eqs_to_ctce_eqs(::Equations *peqs, ctce::Equations &ceqs) {
     ::OpEntry oe = (::OpEntry)vector_get(&peqs->op_entries, i);
     ctce::OpEntry coe;
     //cout<<"optype == "<<oe->optype<<endl;
+    coe.op_id = oe->op_id;
     coe.optype = (oe->optype == ::OpTypeAdd) ? ctce::OpTypeAdd : ctce::OpTypeMult;
 //      coe.add = oe->add;
 //      coe.mult = oe->mult;

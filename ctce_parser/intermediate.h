@@ -62,6 +62,7 @@ typedef enum {
 } OpType;
 
 struct OpEntry_ {
+    int op_id;
     OpType optype;
     AddOp add;
     MultOp mult;

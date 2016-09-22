@@ -11,7 +11,10 @@
 //    //return p;
 //}
 
+
+int op_id = 1;
 typedef struct ArrayRefAlpha_ *ArrayRefAlpha;
+
 
 struct ArrayRefAlpha_ {
     double alpha;
@@ -64,8 +67,9 @@ MultOp make_MultOp(int tc, int ta, int tb, double alpha) {
     return p;
 }
 
-OpEntry make_OpEntry(OpType ot, AddOp ao, MultOp mo) {
+OpEntry make_OpEntry(int op_id, OpType ot, AddOp ao, MultOp mo) {
     OpEntry p = tce_malloc(sizeof(*p));
+    p->op_id = op_id;
     p->optype = ot;
     p->add = ao;
     p->mult = mo;
@@ -270,7 +274,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                 getTensorIDs(eqn, ta_exp, &mop->ta);
                 getTensorIDs(eqn, tb_exp, &mop->tb);
 
-                vector_add(&eqn->op_entries, make_OpEntry(OpTypeMult, NULL, mop));
+                vector_add(&eqn->op_entries, make_OpEntry(op_id, OpTypeMult, NULL, mop));
+                op_id++;
 
             }
             else if (isAddOp) {
@@ -292,7 +297,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                 getTensorIDs(eqn, tc_exp, &mop->tc);
                 getTensorIDs(eqn, ta_exp, &mop->ta);
 
-                vector_add(&eqn->op_entries, make_OpEntry(OpTypeAdd, mop, NULL));
+                vector_add(&eqn->op_entries, make_OpEntry(op_id, OpTypeAdd, mop, NULL));
+                op_id++;
 
 
                 if (vector_count(&rhs_aref) > ta_ind + 1) {
@@ -308,7 +314,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                         getTensorIDs(eqn, tc_exp, &aop->tc);
                         getTensorIDs(eqn, ta_exp, &aop->ta);
 
-                        vector_add(&eqn->op_entries, make_OpEntry(OpTypeAdd, aop, NULL));
+                        vector_add(&eqn->op_entries, make_OpEntry(op_id, OpTypeAdd, aop, NULL));
+                        op_id++;
                     }
                 }
 

@@ -69,9 +69,9 @@ extern "C" {
 
 namespace ctce {
 
-void schedule_linear(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
-void schedule_linear_lazy(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
-void schedule_levels(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
+void schedule_linear(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);
+void schedule_linear_lazy(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);
+void schedule_levels(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);
 
 extern "C" {
   void cc2_t1_cxx_(Integer *d_t_vvoo, Integer *d_i0, Integer *d_v, Integer *d_t_vo, Integer *d_f, 
@@ -107,25 +107,26 @@ extern "C" {
     set_t1 = false;
   }
 
-  std::vector <Tensor> tensors;
+  std::map<std::string, ctce::Tensor> tensors;
   std::vector <Operation> ops;
   tensors_and_ops(eqs, tensors, ops);
 
-  Tensor *i0 = &tensors[0];
-  Tensor *f = &tensors[1];
-  Tensor *t_vo = &tensors[2];
-  Tensor *v = &tensors[3];
-  Tensor *t_vvoo = &tensors[4];
-  Tensor *t1_2_1 = &tensors[5];
-  Tensor *t1_2_2_1 = &tensors[6];
-  Tensor *t1_5_1 = &tensors[7];
-  Tensor *t1_6_1 = &tensors[8];
-  Tensor *t1_3_1 = &tensors[9];
+  Tensor *i0 = &tensors[i0];
+  Tensor *f = &tensors[f];
+  Tensor *t_vo = &tensors[t_vo];
+  Tensor *v = &tensors[v];
+  Tensor *t_vvoo = &tensors[t_vvoo];
+  Tensor *t1_2_1 = &tensors[t1_2_1];
+  Tensor *t1_2_2_1 = &tensors[t1_2_2_1];
+  Tensor *t1_5_1 = &tensors[t1_5_1];
+  Tensor *t1_6_1 = &tensors[t1_6_1];
+  Tensor *t1_3_1 = &tensors[t1_3_1];
 
   /* ----- Insert attach code ------ */
-  v->set_dist(idist);
+  v->set_dist(idist)
   i0->attach(*k_i0_offset, 0, *d_i0);
   f->attach(*k_f_offset, 0, *d_f);
+
   v->attach(*k_v_offset, 0, *d_v);
 
   #if 1
@@ -152,9 +153,9 @@ extern "C" {
     op_t1_7 = ops[18].mult;
 
     CorFortran(1, op_t1_1, cc2_t1_1_);
-    CorFortran(1, t1_2_1, offset_cc2_t1_2_1_);
+    CorFortran(1, op_t1_2_1, ofsset_cc2_t1_2_1_);
     CorFortran(1, op_t1_2_1, cc2_t1_2_1_);
-    CorFortran(1, t1_2_2_1, offset_cc2_t1_2_2_1_);
+    CorFortran(1, op_t1_2_2_1, ofsset_cc2_t1_2_2_1_);
     CorFortran(1, op_t1_2_2_1, cc2_t1_2_2_1_);
     CorFortran(1, op_t1_2_2_2, cc2_t1_2_2_2_);
     CorFortran(1, op_t1_2_2, cc2_t1_2_2_);
@@ -163,18 +164,18 @@ extern "C" {
     CorFortran(1, op_t1_2_4, cc2_t1_2_4_);
     CorFortran(1, op_t1_2, cc2_t1_2_);
     destroy(t1_2_1);
-    CorFortran(1, t1_3_1, offset_cc2_t1_3_1_);
+    CorFortran(1, op_t1_3_1, ofsset_cc2_t1_3_1_);
     CorFortran(1, op_t1_3_1, cc2_t1_3_1_);
     CorFortran(1, op_t1_3_2, cc2_t1_3_2_);
     CorFortran(1, op_t1_3, cc2_t1_3_);
     destroy(t1_3_1);
     CorFortran(1, op_t1_4, cc2_t1_4_);
-    CorFortran(1, t1_5_1, offset_cc2_t1_5_1_);
+    CorFortran(1, op_t1_5_1, ofsset_cc2_t1_5_1_);
     CorFortran(1, op_t1_5_1, cc2_t1_5_1_);
     CorFortran(1, op_t1_5_2, cc2_t1_5_2_);
     CorFortran(1, op_t1_5, cc2_t1_5_);
     destroy(t1_5_1);
-    CorFortran(1, t1_6_1, offset_cc2_t1_6_1_);
+    CorFortran(1, op_t1_6_1, ofsset_cc2_t1_6_1_);
     CorFortran(1, op_t1_6_1, cc2_t1_6_1_);
     CorFortran(1, op_t1_6_2, cc2_t1_6_2_);
     CorFortran(1, op_t1_6, cc2_t1_6_);

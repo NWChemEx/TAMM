@@ -224,11 +224,11 @@ class OpMinVisitor(ParseTreeVisitor):
 
 
         arefs = []
-        maxrhs = 0
+        #maxrhs = 0
         for c in stmt_refs:
             if isinstance(c,OpMinParser.Array_referenceContext):
                 aname = str(c.children[0])
-                maxrhs = max(maxrhs, len(c.children[2].children))
+                #maxrhs = max(maxrhs, len(c.children[2].children))
                 if aname not in tensor_decls.keys(): tensor_decls[aname] = aname
                 arefs.append(aname)
 
@@ -681,7 +681,9 @@ class OpminOutToCTCE(ParseTreeVisitor):
         if aname.startswith("f_"): aname = 'f';
         elif aname.startswith("v_"): aname = 'v';
         aref = (aname + "[")
-        ilist = self.visitId_list(ctx.children[2])
+        ilist = ""
+        if len(ctx.children) >= 2:
+            ilist = self.visitId_list(ctx.children[2])
         aref += (ilist) + "]"
         printresws(aref)
 

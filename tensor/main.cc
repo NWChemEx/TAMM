@@ -1,6 +1,9 @@
 #include <iostream>
 #include "define.h"
 #include "input.h"
+#include <map>
+#include <string>
+
 //#include "equations.h"
 
 using namespace std;
@@ -10,14 +13,14 @@ namespace ctce {
   struct Equations {
     std::vector<RangeEntry> range_entries;
     std::vector<IndexEntry> index_entries;
-    std::vector<TensorEntry> tensor_entries;
+    std::map<std::string, TensorEntry> tensor_entries;
     std::vector<OpEntry> op_entries;
   };
   void ccsd_t1_equations(Equations& eqs);
 }
 
 namespace ctce {
-void pretty_print(const Equations &eqs);
+void pretty_print(Equations &eqs);
   void print_flatten(Equations &eqs, int opid);
 }
 
@@ -77,7 +80,7 @@ std::vector<dep> compute_deps(const ctce::Equations &eqs) {
 
   for(int i=0; i<n; i++) {
     for(int j=0; j<i; j++) {
-      int ra1=-1, ra2=-1, wa=-1, rb1=-1, rb2=-1, wb=-1;
+      std::string ra1, ra2, wa, rb1, rb2, wb;
       const OpEntry &opi = eqs.op_entries[i];
       switch(opi.optype) {
       case OpTypeAdd:
@@ -106,8 +109,8 @@ std::vector<dep> compute_deps(const ctce::Equations &eqs) {
       default:
         assert(0);
       }
-      if(ra1==wb || ra2==wb ||
-         rb1==wa || rb2==wa) {
+      if(!ra1.compare(wb) || !ra2.compare(wb) ||
+         !rb1.compare(wa) || !rb2.compare(wa)) {
         deps.push_back(dep(j,i));
       }
     }
@@ -115,8 +118,8 @@ std::vector<dep> compute_deps(const ctce::Equations &eqs) {
   return deps;
 }
 
-void print_ilp_info(const ctce::Equations &eqs) {
-  std::vector<Tensor> tensors;
+void print_ilp_info(ctce::Equations &eqs) {
+  std::map<std::string, Tensor> tensors;
   std::vector<Operation> ops;
 
   std::vector<RangeType> rts = compute_range_type(eqs.range_entries);
@@ -124,12 +127,16 @@ void print_ilp_info(const ctce::Equations &eqs) {
   std::cout<<"ntensors: "<<eqs.tensor_entries.size()<<endl
       <<"nops: "<<eqs.op_entries.size()<<endl;
   int maxdim=-1;
-  for(int i=0; i<eqs.tensor_entries.size(); i++) {
-    maxdim = max(maxdim, eqs.tensor_entries[i].ndim);
+
+  //for(int i=0; i<eqs.tensor_entries.size(); i++) {
+  for(std::map<std::string, TensorEntry>::iterator i = eqs.tensor_entries.begin(); i != eqs.tensor_entries.end(); i++){
+    maxdim = max(maxdim, eqs.tensor_entries[i->first].ndim);
   }
-  for(int i=0; i<eqs.tensor_entries.size(); i++) {
-    const TensorEntry &te = eqs.tensor_entries[i]; 
-    std::cout<<"size["<<i+1<<"]: ";
+  //for(int i=0; i<eqs.tensor_entries.size(); i++) {
+  for(std::map<std::string, TensorEntry>::iterator i = eqs.tensor_entries.begin(); i != eqs.tensor_entries.end(); i++){
+    const TensorEntry &te = eqs.tensor_entries[i->first];
+    //std::cout<<"size["<<i+1<<"]: ";
+    std::cout<<"size["<<te.name<<"]: ";
     if(te.ndim < maxdim) {
       std::cout<<"0"<<endl;
     }
@@ -144,16 +151,16 @@ void print_ilp_info(const ctce::Equations &eqs) {
   }
   for(int i=0; i<eqs.op_entries.size(); i++) {
     std::cout<<"access["<<i+1<<"] : ";
-    const ctce::OpEntry &opi = eqs.op_entries[i];    
+    const ctce::OpEntry &opi = eqs.op_entries[i];
     switch(opi.optype) {
     case OpTypeAdd:
-      std::cout<< opi.add.tc+1 << "," 
-          << opi.add.ta+1<<endl;
+      std::cout<< opi.add.tc << ","
+          << opi.add.ta<<endl;
       break;
     case OpTypeMult:
-      std::cout<< opi.mult.tc+1 << ","
-          << opi.mult.ta+1 << ","
-          << opi.mult.tb+1 <<endl;
+      std::cout<< opi.mult.tc << ","
+          << opi.mult.ta << ","
+          << opi.mult.tb <<endl;
       break;
     default:
       assert(0);

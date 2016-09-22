@@ -1,5 +1,6 @@
 
 import os
+import re
 import sys
 from antlr4 import *
 from antlr4.InputStream import InputStream
@@ -56,7 +57,8 @@ if __name__ == '__main__':
             cur_kbn = dindex[1]
         else:
             if cur_kbn:
-                line = line.replace(cur_kbn, cur_kbn+"*")
+                #line = line.replace(cur_kbn, cur_kbn+"*")
+                line = re.sub(r'\b' + cur_kbn + r'\b', cur_kbn+"*", line)
                 cur_kbn = ""
             cline = line.strip()
             if not cline.startswith("i"):

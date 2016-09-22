@@ -199,12 +199,9 @@ void offset_ccsd_t2_7_1_(Integer *l_i1_offset, Integer *k_i1_offset, Integer *si
 namespace ctce {
 
   typedef void (*c2fd_fn)(Integer*,Integer*,Integer*,Integer*);
-  void schedule_linear(std::vector<Tensor> &tensors,
-                       std::vector<Operation> &ops);
-  void schedule_linear_lazy(std::vector<Tensor> &tensors,
-                            std::vector<Operation> &ops);
-  void schedule_levels(std::vector<Tensor> &tensors,
-                            std::vector<Operation> &ops);
+
+  void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
+                         std::vector<Operation> &ops);
 
   static void CorFortranc2fd(int use_c, Multiplication &m, c2fd_fn fn) {
     if(use_c) {
@@ -224,6 +221,7 @@ namespace ctce {
                       Integer *k_f1_offset, Integer *k_i0_offset,
                       Integer *k_t1_offset, Integer *k_t2_offset, Integer *k_v2_offset,
                       Integer *d_c2, Integer *iter_unused) {
+
       static bool set_t2 = true;
       Assignment op_t2_1;
       Assignment op_t2_2_1;
@@ -280,29 +278,33 @@ namespace ctce {
         icsd_t2_equations(eqs);
         set_t2 = false;
       }
-      std::vector<Tensor> tensors;
+
+      std::map<std::string, ctce::Tensor> tensors;
       std::vector<Operation> ops;
 
       tensors_and_ops(eqs,tensors, ops);
 
-      Tensor *i0 = &tensors[0];
-      Tensor *f = &tensors[1];
-      Tensor *v = &tensors[2];
-      Tensor *t1 = &tensors[3];
-      Tensor *t2 = &tensors[4];
-      Tensor *t2_2_1 = &tensors[5];
-      Tensor *t2_2_2_1 = &tensors[6];
-      Tensor *t2_2_2_2_1 = &tensors[7];
-      Tensor *t2_2_4_1 = &tensors[8];
-      Tensor *t2_2_5_1 = &tensors[9];
-      Tensor *t2_4_1 = &tensors[10];
-      Tensor *t2_4_2_1 = &tensors[11];
-      Tensor *t2_5_1 = &tensors[12];
-      Tensor *t2_6_1 = &tensors[13];
-      Tensor *t2_6_2_1 = &tensors[14];
-      Tensor *t2_7_1 = &tensors[15];
-      Tensor *vt1t1_1_1 = &tensors[16];
-      Tensor *c2 = &tensors[17];
+      Tensor *i0 = &tensors["i0"];
+      Tensor *v = &tensors["v"];
+      Tensor *f = &tensors["f"];
+      Tensor *t1 = &tensors["t1"];
+      Tensor *t2 = &tensors["t2"];
+      Tensor *t2_2_5_1 = &tensors["t2_2_5_1"];
+      Tensor *t2_7_1 = &tensors["t2_7_1"];
+      Tensor *t2_3_1 = &tensors["t2_3_1"];
+      Tensor *t2_2_2_1 = &tensors["t2_2_2_1"];
+      Tensor *t2_4_2_1 = &tensors["t2_4_2_1"];
+      Tensor *t2_4_1 = &tensors["t2_4_1"];
+      Tensor *t2_2_2_2_1 = &tensors["t2_2_2_2_1"];
+      Tensor *t2_2_3_1 = &tensors["t2_2_3_1"];
+      Tensor *t2_5_1 = &tensors["t2_5_1"];
+      Tensor *t2_6_2_1 = &tensors["t2_6_2_1"];
+      Tensor *t2_2_4_1 = &tensors["t2_2_4_1"];
+      Tensor *t2_6_1 = &tensors["t2_6_1"];
+      Tensor *t2_2_1 = &tensors["t2_2_1"];
+      Tensor *vt1t1_1_1 = &tensors["vt1t1_1_1"];
+      Tensor *c2 = &tensors["c2"];
+
 
       v->set_dist(idist);
       t1->set_dist(dist_nwma);

@@ -1,4 +1,5 @@
 
+import os
 import sys
 from antlr4 import *
 from antlr4.InputStream import InputStream
@@ -18,7 +19,13 @@ if __name__ == '__main__':
     parser = OpMinParser(token_stream)
     tree = parser.translation_unit()
 
+    fname = os.path.basename(sys.argv[1])
+    fname = fname.split(".")[0]
+    fname = fname.split("_")
+
+    print(fname[1] + " {\n")
+
     visitor = OpminOutToCTCE()
     visitor.visitTranslation_unit(tree)
 
-
+    print("}")

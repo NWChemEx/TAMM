@@ -7,40 +7,40 @@ from io import StringIO
 def serializedATN():
     with StringIO() as buf:
         buf.write(u"\3\u0430\ud6d1\u8206\uad2d\u4417\uaef1\u8d80\uaadd\3")
-        buf.write(u"\24l\4\2\t\2\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7")
+        buf.write(u"\24m\4\2\t\2\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7")
         buf.write(u"\4\b\t\b\4\t\t\t\4\n\t\n\4\13\t\13\4\f\t\f\4\r\t\r\4")
         buf.write(u"\16\t\16\3\2\3\2\3\2\3\2\3\2\3\2\3\2\5\2$\n\2\3\3\3\3")
         buf.write(u"\3\4\3\4\3\5\3\5\3\6\3\6\5\6.\n\6\3\7\6\7\61\n\7\r\7")
         buf.write(u"\16\7\62\3\b\3\b\3\b\3\b\3\t\3\t\3\t\3\t\3\t\3\n\3\n")
         buf.write(u"\3\n\3\n\5\nB\n\n\3\n\5\nE\n\n\3\n\6\nH\n\n\r\n\16\n")
         buf.write(u"I\6\nL\n\n\r\n\16\nM\3\n\3\n\3\13\3\13\3\13\7\13U\n\13")
-        buf.write(u"\f\13\16\13X\13\13\3\13\3\13\3\f\6\f]\n\f\r\f\16\f^\3")
-        buf.write(u"\r\3\r\3\16\3\16\3\16\3\16\3\16\3\16\3\16\5\16j\n\16")
-        buf.write(u"\3\16\2\2\17\2\4\6\b\n\f\16\20\22\24\26\30\32\2\4\3\2")
-        buf.write(u"\20\22\3\2\5\6l\2#\3\2\2\2\4%\3\2\2\2\6\'\3\2\2\2\b)")
-        buf.write(u"\3\2\2\2\n-\3\2\2\2\f\60\3\2\2\2\16\64\3\2\2\2\208\3")
-        buf.write(u"\2\2\2\22K\3\2\2\2\24Q\3\2\2\2\26\\\3\2\2\2\30`\3\2\2")
-        buf.write(u"\2\32i\3\2\2\2\34$\7\b\2\2\35\36\7\5\2\2\36$\7\b\2\2")
-        buf.write(u"\37 \7\6\2\2 $\7\b\2\2!\"\7\7\2\2\"$\7\b\2\2#\34\3\2")
-        buf.write(u"\2\2#\35\3\2\2\2#\37\3\2\2\2#!\3\2\2\2$\3\3\2\2\2%&\t")
-        buf.write(u"\2\2\2&\5\3\2\2\2\'(\t\3\2\2(\7\3\2\2\2)*\5\n\6\2*\t")
-        buf.write(u"\3\2\2\2+.\7\2\2\3,.\5\f\7\2-+\3\2\2\2-,\3\2\2\2.\13")
-        buf.write(u"\3\2\2\2/\61\5\16\b\2\60/\3\2\2\2\61\62\3\2\2\2\62\60")
-        buf.write(u"\3\2\2\2\62\63\3\2\2\2\63\r\3\2\2\2\64\65\5\32\16\2\65")
-        buf.write(u"\66\5\2\2\2\66\67\5\22\n\2\67\17\3\2\2\289\7\3\2\29:")
-        buf.write(u"\7\t\2\2:;\5\4\3\2;<\7\n\2\2<\21\3\2\2\2=A\7\7\2\2>B")
-        buf.write(u"\5\20\t\2?B\5\24\13\2@B\5\32\16\2A>\3\2\2\2A?\3\2\2\2")
-        buf.write(u"A@\3\2\2\2BL\3\2\2\2CE\5\6\4\2DC\3\2\2\2DE\3\2\2\2EF")
-        buf.write(u"\3\2\2\2FH\5\4\3\2GD\3\2\2\2HI\3\2\2\2IG\3\2\2\2IJ\3")
-        buf.write(u"\2\2\2JL\3\2\2\2K=\3\2\2\2KG\3\2\2\2LM\3\2\2\2MK\3\2")
-        buf.write(u"\2\2MN\3\2\2\2NO\3\2\2\2OP\7\16\2\2P\23\3\2\2\2QR\7\4")
-        buf.write(u"\2\2RV\7\t\2\2SU\5\30\r\2TS\3\2\2\2UX\3\2\2\2VT\3\2\2")
-        buf.write(u"\2VW\3\2\2\2WY\3\2\2\2XV\3\2\2\2YZ\7\n\2\2Z\25\3\2\2")
-        buf.write(u"\2[]\5\30\r\2\\[\3\2\2\2]^\3\2\2\2^\\\3\2\2\2^_\3\2\2")
-        buf.write(u"\2_\27\3\2\2\2`a\7\17\2\2a\31\3\2\2\2bj\7\17\2\2cd\7")
-        buf.write(u"\17\2\2de\7\t\2\2ef\5\26\f\2fg\7\n\2\2gh\5\30\r\2hj\3")
-        buf.write(u"\2\2\2ib\3\2\2\2ic\3\2\2\2j\33\3\2\2\2\r#-\62ADIKMV^")
-        buf.write(u"i")
+        buf.write(u"\f\13\16\13X\13\13\3\13\3\13\3\f\7\f]\n\f\f\f\16\f`\13")
+        buf.write(u"\f\3\r\3\r\3\16\3\16\3\16\3\16\3\16\3\16\3\16\5\16k\n")
+        buf.write(u"\16\3\16\2\2\17\2\4\6\b\n\f\16\20\22\24\26\30\32\2\4")
+        buf.write(u"\3\2\20\22\3\2\5\6m\2#\3\2\2\2\4%\3\2\2\2\6\'\3\2\2\2")
+        buf.write(u"\b)\3\2\2\2\n-\3\2\2\2\f\60\3\2\2\2\16\64\3\2\2\2\20")
+        buf.write(u"8\3\2\2\2\22K\3\2\2\2\24Q\3\2\2\2\26^\3\2\2\2\30a\3\2")
+        buf.write(u"\2\2\32j\3\2\2\2\34$\7\b\2\2\35\36\7\5\2\2\36$\7\b\2")
+        buf.write(u"\2\37 \7\6\2\2 $\7\b\2\2!\"\7\7\2\2\"$\7\b\2\2#\34\3")
+        buf.write(u"\2\2\2#\35\3\2\2\2#\37\3\2\2\2#!\3\2\2\2$\3\3\2\2\2%")
+        buf.write(u"&\t\2\2\2&\5\3\2\2\2\'(\t\3\2\2(\7\3\2\2\2)*\5\n\6\2")
+        buf.write(u"*\t\3\2\2\2+.\7\2\2\3,.\5\f\7\2-+\3\2\2\2-,\3\2\2\2.")
+        buf.write(u"\13\3\2\2\2/\61\5\16\b\2\60/\3\2\2\2\61\62\3\2\2\2\62")
+        buf.write(u"\60\3\2\2\2\62\63\3\2\2\2\63\r\3\2\2\2\64\65\5\32\16")
+        buf.write(u"\2\65\66\5\2\2\2\66\67\5\22\n\2\67\17\3\2\2\289\7\3\2")
+        buf.write(u"\29:\7\t\2\2:;\5\4\3\2;<\7\n\2\2<\21\3\2\2\2=A\7\7\2")
+        buf.write(u"\2>B\5\20\t\2?B\5\24\13\2@B\5\32\16\2A>\3\2\2\2A?\3\2")
+        buf.write(u"\2\2A@\3\2\2\2BL\3\2\2\2CE\5\6\4\2DC\3\2\2\2DE\3\2\2")
+        buf.write(u"\2EF\3\2\2\2FH\5\4\3\2GD\3\2\2\2HI\3\2\2\2IG\3\2\2\2")
+        buf.write(u"IJ\3\2\2\2JL\3\2\2\2K=\3\2\2\2KG\3\2\2\2LM\3\2\2\2MK")
+        buf.write(u"\3\2\2\2MN\3\2\2\2NO\3\2\2\2OP\7\16\2\2P\23\3\2\2\2Q")
+        buf.write(u"R\7\4\2\2RV\7\t\2\2SU\5\30\r\2TS\3\2\2\2UX\3\2\2\2VT")
+        buf.write(u"\3\2\2\2VW\3\2\2\2WY\3\2\2\2XV\3\2\2\2YZ\7\n\2\2Z\25")
+        buf.write(u"\3\2\2\2[]\5\30\r\2\\[\3\2\2\2]`\3\2\2\2^\\\3\2\2\2^")
+        buf.write(u"_\3\2\2\2_\27\3\2\2\2`^\3\2\2\2ab\7\17\2\2b\31\3\2\2")
+        buf.write(u"\2ck\7\17\2\2de\7\17\2\2ef\7\t\2\2fg\5\26\f\2gh\7\n\2")
+        buf.write(u"\2hi\5\30\r\2ik\3\2\2\2jc\3\2\2\2jd\3\2\2\2k\33\3\2\2")
+        buf.write(u"\2\r#-\62ADIKMV^j")
         return buf.getvalue()
 
 
@@ -842,17 +842,15 @@ class NWChemTCEParser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 90 
+            self.state = 92
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while True:
+            while _la==NWChemTCEParser.ID:
                 self.state = 89
                 self.identifier()
-                self.state = 92 
+                self.state = 94
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if not (_la==NWChemTCEParser.ID):
-                    break
 
         except RecognitionException as re:
             localctx.exception = re
@@ -897,7 +895,7 @@ class NWChemTCEParser ( Parser ):
         self.enterRule(localctx, 22, self.RULE_identifier)
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 94
+            self.state = 95
             self.match(NWChemTCEParser.ID)
         except RecognitionException as re:
             localctx.exception = re
@@ -955,26 +953,26 @@ class NWChemTCEParser ( Parser ):
         localctx = NWChemTCEParser.Array_referenceContext(self, self._ctx, self.state)
         self.enterRule(localctx, 24, self.RULE_array_reference)
         try:
-            self.state = 103
+            self.state = 104
             self._errHandler.sync(self);
             la_ = self._interp.adaptivePredict(self._input,10,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
-                self.state = 96
+                self.state = 97
                 self.match(NWChemTCEParser.ID)
                 pass
 
             elif la_ == 2:
                 self.enterOuterAlt(localctx, 2)
-                self.state = 97
-                self.match(NWChemTCEParser.ID)
                 self.state = 98
-                self.match(NWChemTCEParser.LPAREN)
+                self.match(NWChemTCEParser.ID)
                 self.state = 99
-                self.id_list()
+                self.match(NWChemTCEParser.LPAREN)
                 self.state = 100
-                self.match(NWChemTCEParser.RPAREN)
+                self.id_list()
                 self.state = 101
+                self.match(NWChemTCEParser.RPAREN)
+                self.state = 102
                 self.identifier()
                 pass
 

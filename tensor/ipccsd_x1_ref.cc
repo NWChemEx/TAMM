@@ -67,18 +67,14 @@ void offset_ipccsd_x1_3_1_(Fint *l_x1_3_1_offset, Fint *k_x1_3_1_offset, Fint *s
 
 namespace ctce {
 
-void schedule_linear(std::vector<Tensor> &tensors,
-                     std::vector<Operation> &ops);
-void schedule_linear_lazy(std::vector<Tensor> &tensors,
-                          std::vector<Operation> &ops);
-void schedule_levels(std::vector<Tensor> &tensors,
+void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
                      std::vector<Operation> &ops);
 
 extern "C" {
-void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
+void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo, Fint *d_v2,
                     Fint *d_x1, Fint *d_x2,
                     Fint *k_f1_offset, Fint *k_i0_offset,
-                    Fint *k_t1_offset, Fint *k_t2_offset, Fint *k_v2_offset,
+                    Fint *k_t_vo_offset, Fint *k_t_vvoo_offset, Fint *k_v2_offset,
                     Fint *k_x1_offset, Fint *k_x2_offset) {
   static bool set_x1 = true;
 
@@ -104,28 +100,28 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
     set_x1 = false;
   }
 
-  std::vector <Tensor> tensors;
+  std::map<std::string, ctce::Tensor> tensors;
   std::vector <Operation> ops;
   tensors_and_ops(eqs, tensors, ops);
 
-  Tensor *x1_1_1 = &tensors[0];
-  Tensor *f = &tensors[1];
-  Tensor *x1_1_2_1 = &tensors[2];
-  Tensor *t1 = &tensors[3];
-  Tensor *v = &tensors[4];
-  Tensor *t2 = &tensors[5];
-  Tensor *i0 = &tensors[6];
-  Tensor *x_o = &tensors[7];
-  Tensor *x1_2_1 = &tensors[8];
-  Tensor *x_voo = &tensors[9];
-  Tensor *x1_3_1 = &tensors[10];
+  Tensor *x1_1_1 = &tensors["x1_1_1"];
+  Tensor *f = &tensors["f"];
+  Tensor *x1_1_2_1 = &tensors["x1_1_2_1"];
+  Tensor *t_vo = &tensors["t_vo"];
+  Tensor *v = &tensors["v"];
+  Tensor *t_vvoo = &tensors["t_vvoo"];
+  Tensor *i0 = &tensors["i0"];
+  Tensor *x_o = &tensors["x_o"];
+  Tensor *x1_2_1 = &tensors["x1_2_1"];
+  Tensor *x_voo = &tensors["x_voo"];
+  Tensor *x1_3_1 = &tensors["x1_3_1"];
 
   v->set_dist(idist);
-  t1->set_dist(dist_nw);
+  t_vo->set_dist(dist_nw);
   f->attach(*k_f1_offset, 0, *d_f1);
   i0->attach(*k_i0_offset, 0, *d_i0);
-  t1->attach(*k_t1_offset, 0, *d_t1);
-  t2->attach(*k_t2_offset, 0, *d_t2);
+  t_vo->attach(*k_t_vo_offset, 0, *d_t_vo);
+  t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
   v->attach(*k_v2_offset, 0, *d_v2);
   x_o->attach(*k_x1_offset, 0, *d_x1);
   x_voo->attach(*k_x2_offset, 0, *d_x2);
@@ -166,19 +162,19 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
   CorFortran(1, x1_2_1, offset_ipccsd_x1_2_1_);
   CorFortran(1, op_x1_2_1, ipccsd_x1_2_1_);
   CorFortran(1, op_x1_2_2, ipccsd_x1_2_2_);
-  CorFortran(0, op_x1_2, ipccsd_x1_2_); /*@BUG @FIXME Does not work in C mode*/
+  CorFortran(1, op_x1_2, ipccsd_x1_2_); /*@bug @fixme Does not work in C mode: works now*/
   destroy(x1_2_1);
   CorFortran(1, x1_3_1, offset_ipccsd_x1_3_1_);
   CorFortran(1, op_x1_3_1, ipccsd_x1_3_1_);
   CorFortran(1, op_x1_3_2, ipccsd_x1_3_2_);
-  CorFortran(0, op_x1_3, ipccsd_x1_3_); /*@BUG @FIXME Does not work in C mode*/
+  CorFortran(1, op_x1_3, ipccsd_x1_3_); /*@bug @fixme Does not work in C mode: works now*/
   destroy(x1_3_1);
 #endif
 
   f->detach();
   i0->detach();
-  t1->detach();
-  t2->detach();
+  t_vo->detach();
+  t_vvoo->detach();
   v->detach();
   x_o->detach();
   x_voo->detach();

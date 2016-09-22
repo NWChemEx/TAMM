@@ -3,13 +3,13 @@
 namespace ctce {
 
   static Assignment consAddOp(Equations &eqs, IndexName *indices, 
-                              std::vector<Tensor> &tensors,
+                              std::map<std::string, ctce::Tensor> &tensors,
                               AddOp* add);
-  
-  static Multiplication consMultOp(Equations &eqs, IndexName *indices, 
-                                   std::vector<Tensor> &tensors,                                   
+
+  static Multiplication consMultOp(Equations &eqs, IndexName *indices,
+                                   std::map<std::string, ctce::Tensor> &tensors,
                                    MultOp *mult);
-  
+
   static Range2Index range2indices[] = {
     {12, {H1B, H2B, H3B, H4B, H5B, H6B, H7B, H8B, H9B, H10B, H11B, H12B}}, //TO
     {12, {P1B, P2B, P3B, P4B, P5B, P6B, P7B, P8B, P9B, P10B, P11B, P12B}}, //TV
@@ -17,12 +17,12 @@ namespace ctce {
   };
 
   void tensors_and_ops(Equations &eqs,
-                       std::vector<Tensor> &tensors,
+                       std::map<std::string, ctce::Tensor> &tensors,
                        std::vector<Operation> &ops) {
     int inames[RANGE_UB] = {0};
     RangeType rts[eqs.range_entries.size()];
     IndexName indices[eqs.index_entries.size()];
-    
+
     for(int i=0; i<eqs.range_entries.size(); i++) {
       const char *rname = eqs.range_entries[i].name.c_str();
       if(!strcmp(rname, OSTR)) {
@@ -42,7 +42,7 @@ namespace ctce {
         exit(1);
       }
     }
-    
+
     for(int i=0; i<eqs.index_entries.size(); i++) {
       int rid = eqs.index_entries[i].range_id;
       RangeType rt = rts[rid];
@@ -51,19 +51,23 @@ namespace ctce {
       indices[i] = range2indices[rt].names[inames[rt]++];
     }
 
-    tensors.resize(eqs.tensor_entries.size());
-    for(int i=0; i<eqs.tensor_entries.size(); i++) {
+    //tensors.resize(eqs.tensor_entries.size());
+    //for(int i=0; i<eqs.tensor_entries.size(); i++) {
+    tensors.clear();
+    for(std::map<std::string, ctce::TensorEntry>::iterator i = eqs.tensor_entries.begin(); i != eqs.tensor_entries.end(); i++){
       RangeType ranges[MAX_TENSOR_DIMS];
-      for(int j=0; j<eqs.tensor_entries[i].ndim; j++) {
-        ranges[j] = rts[eqs.tensor_entries[i].range_ids[j]];
+      int ndim = i->second.ndim;
+      for(int j=0; j< ndim; j++) {
+        ranges[j] = rts[i->second.range_ids[j]];
       }
       /*@BUG: @FIXME: dist_nw is a placeholder. Should be correct before this object is used*/
       /*@BUG: @FIXME: irrep is not set.. Should be correctly set before this object is used*/
       DistType bug_dist = dist_nw;
       int bug_irrep = 0;
-      tensors[i] = Tensor(eqs.tensor_entries[i].ndim, eqs.tensor_entries[i].nupper, bug_irrep, ranges, bug_dist);
+      tensors.insert( std::map<std::string, ctce::Tensor>::value_type( string(i->first), Tensor(i->second.ndim, i->second.nupper, bug_irrep, ranges, bug_dist) ) );
     }
-    
+
+
     //distributon, irrep
     ops.resize(eqs.op_entries.size());
     for(int i=0; i<eqs.op_entries.size(); i++) {
@@ -81,9 +85,9 @@ namespace ctce {
     }
   }
 
-  static Assignment consAddOp(Equations &eqs, 
-                              IndexName *indices, 
-                              std::vector<Tensor> &tensors,
+  static Assignment consAddOp(Equations &eqs,
+                              IndexName *indices,
+                              std::map<std::string, ctce::Tensor> &tensors,
                               AddOp* add) {
     vector<IndexName> aids, cids;
     assert(add);
@@ -101,9 +105,9 @@ namespace ctce {
   }
 
 
-  static Multiplication consMultOp(Equations &eqs, 
-                                   IndexName *indices, 
-                                   std::vector<Tensor> &tensors,
+  static Multiplication consMultOp(Equations &eqs,
+                                   IndexName *indices,
+                                   std::map<std::string, ctce::Tensor> &tensors,
                                    MultOp *mult) {
     vector<IndexName> aids, bids, cids;
     assert(mult);

@@ -111,7 +111,7 @@ namespace ctce {
       //int ta, tb, tc;
       switch(ope.optype) {
       case OpTypeAdd:
-        os<<tes[ope.add.tc].name
+        os<<"op" << ope.op_id << ": " << tes[ope.add.tc].name
           <<index_to_string(eqs, tes[ope.add.tc].ndim, ope.add.tc_ids)
           <<" += "<<ope.add.alpha<<" * "
           <<tes[ope.add.ta].name
@@ -119,7 +119,7 @@ namespace ctce {
           <<";"<<endl;
           break;
       case OpTypeMult:
-        os<<tes[ope.mult.tc].name
+        os<<"op" << ope.op_id << ": " <<tes[ope.mult.tc].name
           <<index_to_string(eqs, tes[ope.mult.tc].ndim, ope.mult.tc_ids)
           <<" += "<<ope.mult.alpha<<" * "
           <<tes[ope.mult.ta].name

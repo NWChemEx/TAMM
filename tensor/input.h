@@ -62,6 +62,7 @@ typedef enum {
 } OpType;
 
 typedef struct {
+	int op_id;
 	OpType optype;
   AddOp add;
   MultOp mult;

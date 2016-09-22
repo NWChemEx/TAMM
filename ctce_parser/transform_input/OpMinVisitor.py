@@ -70,9 +70,9 @@ class OpMinVisitor(ParseTreeVisitor):
 
         printnl("\nnamespace ctce {\n")
 
-        declare_lib_api = "void schedule_linear(std::vector<Tensor> &tensors, std::vector<Operation> &ops);\n"
-        declare_lib_api += "".ljust(indent)+"void schedule_linear_lazy(std::vector<Tensor> &tensors, std::vector<Operation> &ops);\n"
-        declare_lib_api += "".ljust(indent)+"void schedule_levels(std::vector<Tensor> &tensors, std::vector<Operation> &ops);\n"
+        declare_lib_api = "void schedule_linear(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);\n"
+        declare_lib_api += "".ljust(indent)+"void schedule_linear_lazy(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);\n"
+        declare_lib_api += "".ljust(indent)+"void schedule_levels(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);\n"
 
         printnli(declare_lib_api)
         printnli("extern \"C\" {")
@@ -110,17 +110,17 @@ class OpMinVisitor(ParseTreeVisitor):
         printnli("  set_"+ self.label_prefix + " = false;")
         printnli("}\n")
 
-        printnli("std::vector <Tensor> tensors;")
+        printnli("std::map<std::string, ctce::Tensor> tensors;")
         printnli("std::vector <Operation> ops;")
 
         printnli("tensors_and_ops(eqs, tensors, ops);")
 
         printnl("")
-        ti = 0
+        #ti = 0
         #for td in tensor_decls.keys():
         for td in array_decls:
-            printnli("Tensor *" + td + " = &tensors[" + str(ti) + "];")
-            ti += 1
+            printnli("Tensor *" + td + " = &tensors[\"" + td + "\"];")
+            #ti += 1
 
         printnl("")
 

@@ -70,6 +70,9 @@ set(ctceParserSources
 
 set(ctceLibSources
   tensor/capi.cc
+  tensor/cisd_e_ref.cc
+  tensor/cisd_c1_ref.cc
+  tensor/cisd_c2_ref.cc
   tensor/cc2_t1_ref.cc
   tensor/cc2_t2_ref.cc
   tensor/ccsd_t12.cc

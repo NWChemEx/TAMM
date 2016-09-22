@@ -14,6 +14,11 @@ static void
 parse_equations(const string &filename, ctce::Equations &ceqs);
 
 void
+ccsd_e_equations(ctce::Equations &eqs) {
+  parse_equations("ccsd_e.eq", eqs);
+}
+
+void
 ccsd_t1_equations(ctce::Equations &eqs) {
   parse_equations("ccsd_t1.eq", eqs);
 }
@@ -24,6 +29,22 @@ ccsd_t2_equations(ctce::Equations &eqs) {
 }
 
 void
+cisd_e_equations(ctce::Equations &eqs) {
+  parse_equations("cisd_e.eq", eqs);
+}
+
+void
+cisd_c1_equations(ctce::Equations &eqs) {
+  parse_equations("cisd_c1.eq", eqs);
+}
+
+void
+cisd_c2_equations(ctce::Equations &eqs) {
+  parse_equations("ccsd_c2.eq", eqs);
+}
+
+
+void
 cc2_t1_equations(ctce::Equations &eqs) {
   parse_equations("cc2_t1.eq", eqs);
 }
@@ -31,11 +52,6 @@ cc2_t1_equations(ctce::Equations &eqs) {
 void
 cc2_t2_equations(ctce::Equations &eqs) {
   parse_equations("cc2_t2.eq", eqs);
-}
-
-void
-ccsd_e_equations(ctce::Equations &eqs) {
-  parse_equations("ccsd_e.eq", eqs);
 }
 
 void

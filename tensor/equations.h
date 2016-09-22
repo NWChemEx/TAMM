@@ -19,11 +19,15 @@ namespace ctce {
 
   };
 
+  void cisd_e_equations(Equations &eqs);
+  void cisd_c1_equations(Equations &eqs);
+  void cisd_c2_equations(Equations &eqs);
+
+  void ccsd_e_equations(Equations &eqs);
   void ccsd_t1_equations(Equations &eqs);
   void ccsd_t2_equations(Equations &eqs);
   void cc2_t1_equations(Equations &eqs);
   void cc2_t2_equations(Equations &eqs);
-  void ccsd_e_equations(Equations &eqs);
   void icsd_t1_equations(Equations &eqs);
   void icsd_t2_equations(Equations &eqs);
   void ipccsd_x1_equations(Equations &eqs);

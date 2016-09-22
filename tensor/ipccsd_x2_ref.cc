@@ -235,34 +235,35 @@ extern "C" {
     set_x2 = false;
   }
 
-  std::vector <Tensor> tensors;
+  std::map<std::string, ctce::Tensor> tensors;
   std::vector <Operation> ops;
   tensors_and_ops(eqs, tensors, ops);
 
-  Tensor *i0 = &tensors[0];
-  Tensor *x_o = &tensors[1];
-  Tensor *v = &tensors[2];
-  Tensor *t_vo = &tensors[3];
-  Tensor *t_vvoo = &tensors[4];
-  Tensor *f = &tensors[5];
-  Tensor *x_voo = &tensors[6];
-  Tensor *x2_2_1 = &tensors[7];
-  Tensor *x2_1_2_1 = &tensors[8];
-  Tensor *x2_6_1 = &tensors[9];
-  Tensor *x2_4_2_1 = &tensors[10];
-  Tensor *x2_3_1 = &tensors[11];
-  Tensor *x2_6_1_1 = &tensors[12];
-  Tensor *x2_7_1 = &tensors[13];
-  Tensor *x2_8_1 = &tensors[14];
-  Tensor *x2_5_1 = &tensors[15];
-  Tensor *x2_6_1_2_1 = &tensors[16];
-  Tensor *x2_6_2_1 = &tensors[17];
-  Tensor *x2_1_1 = &tensors[18];
-  Tensor *x2_4_1 = &tensors[19];
-  Tensor *x2_6_3_1 = &tensors[20];
-  Tensor *x2_1_3_1 = &tensors[21];
-  Tensor *x2_2_2_1 = &tensors[22];
-  Tensor *x2_1_4_1 = &tensors[23];
+
+  Tensor *i0 = &tensors["i0"];
+  Tensor *x_o = &tensors["x_o"];
+  Tensor *v = &tensors["v"];
+  Tensor *t_vo = &tensors["t_vo"];
+  Tensor *t_vvoo = &tensors["t_vvoo"];
+  Tensor *f = &tensors["f"];
+  Tensor *x_voo = &tensors["x_voo"];
+  Tensor *x2_2_1 = &tensors["x2_2_1"];
+  Tensor *x2_1_2_1 = &tensors["x2_1_2_1"];
+  Tensor *x2_6_1 = &tensors["x2_6_1"];
+  Tensor *x2_4_2_1 = &tensors["x2_4_2_1"];
+  Tensor *x2_3_1 = &tensors["x2_3_1"];
+  Tensor *x2_6_1_1 = &tensors["x2_6_1_1"];
+  Tensor *x2_7_1 = &tensors["x2_7_1"];
+  Tensor *x2_8_1 = &tensors["x2_8_1"];
+  Tensor *x2_5_1 = &tensors["x2_5_1"];
+  Tensor *x2_6_1_2_1 = &tensors["x2_6_1_2_1"];
+  Tensor *x2_6_2_1 = &tensors["x2_6_2_1"];
+  Tensor *x2_1_1 = &tensors["x2_1_1"];
+  Tensor *x2_4_1 = &tensors["x2_4_1"];
+  Tensor *x2_6_3_1 = &tensors["x2_6_3_1"];
+  Tensor *x2_1_3_1 = &tensors["x2_1_3_1"];
+  Tensor *x2_2_2_1 = &tensors["x2_2_2_1"];
+  Tensor *x2_1_4_1 = &tensors["x2_1_4_1"];
 
   v->set_dist(idist);
   t_vo->set_dist(dist_nw);

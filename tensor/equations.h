@@ -2,6 +2,7 @@
 #define __ctce_equations_h__
 
 #include "input.h"
+#include <map>
 
 extern "C" {
 #include "../ctce_parser/ctce_parser.h"
@@ -12,7 +13,8 @@ namespace ctce {
   struct Equations {
     std::vector<RangeEntry> range_entries;
     std::vector<IndexEntry> index_entries;
-    std::vector<TensorEntry> tensor_entries;
+    //std::vector<TensorEntry> tensor_entries;
+    std::map<std::string, ctce::TensorEntry> tensor_entries;
     std::vector<OpEntry> op_entries;
 
   };

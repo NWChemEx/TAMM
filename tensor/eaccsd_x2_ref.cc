@@ -165,9 +165,8 @@ extern "C" {
 
 namespace ctce {
 
-void schedule_linear(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
-void schedule_linear_lazy(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
-void schedule_levels(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
+void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
+                     std::vector<Operation> &ops);
 
 extern "C" {
   void eaccsd_x2_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0, Integer *d_x_vvo, Integer *d_x_v, Integer *d_t_vo, Integer *d_v, 
@@ -233,43 +232,42 @@ extern "C" {
     set_x2 = false;
   }
 
-  std::vector <Tensor> tensors;
+  std::map<std::string, ctce::Tensor> tensors;
   std::vector <Operation> ops;
   tensors_and_ops(eqs, tensors, ops);
 
-  Tensor *i0 = &tensors[0];
-  Tensor *x_v = &tensors[1];
-  Tensor *v = &tensors[2];
-  Tensor *x_vvo = &tensors[3];
-  Tensor *f = &tensors[4];
-  Tensor *t_vo = &tensors[5];
-  Tensor *t_vvoo = &tensors[6];
-  Tensor *x2_10_1 = &tensors[7];
-  Tensor *x2_2_1 = &tensors[8];
-  Tensor *x2_6_1 = &tensors[9];
-  Tensor *x2_6_5_1 = &tensors[10];
-  Tensor *x2_3_1 = &tensors[11];
-  Tensor *x2_6_7_1 = &tensors[12];
-  Tensor *x2_8_1 = &tensors[13];
-  Tensor *x2_7_1 = &tensors[14];
-  Tensor *x2_6_2_1 = &tensors[15];
-  Tensor *x2_8_1_1 = &tensors[16];
-  Tensor *x2_9_1 = &tensors[17];
-  Tensor *x2_6_6_1 = &tensors[18];
-  Tensor *x2_9_3_1 = &tensors[19];
-  Tensor *x2_4_1 = &tensors[20];
-  Tensor *x2_6_5_3_1 = &tensors[21];
-  Tensor *x2_6_3_1 = &tensors[22];
-  Tensor *x2_2_2_1 = &tensors[23];
+  Tensor *i0 = &tensors["i0"];
+  Tensor *x_v = &tensors["x_v"];
+  Tensor *v = &tensors["v"];
+  Tensor *x_vvo = &tensors["x_vvo"];
+  Tensor *f = &tensors["f"];
+  Tensor *t_vo = &tensors["t_vo"];
+  Tensor *t_vvoo = &tensors["t_vvoo"];
+  Tensor *x2_10_1 = &tensors["x2_10_1"];
+  Tensor *x2_2_1 = &tensors["x2_2_1"];
+  Tensor *x2_6_1 = &tensors["x2_6_1"];
+  Tensor *x2_6_5_1 = &tensors["x2_6_5_1"];
+  Tensor *x2_3_1 = &tensors["x2_3_1"];
+  Tensor *x2_6_7_1 = &tensors["x2_6_7_1"];
+  Tensor *x2_8_1 = &tensors["x2_8_1"];
+  Tensor *x2_7_1 = &tensors["x2_7_1"];
+  Tensor *x2_6_2_1 = &tensors["x2_6_2_1"];
+  Tensor *x2_8_1_1 = &tensors["x2_8_1_1"];
+  Tensor *x2_9_1 = &tensors["x2_9_1"];
+  Tensor *x2_6_6_1 = &tensors["x2_6_6_1"];
+  Tensor *x2_9_3_1 = &tensors["x2_9_3_1"];
+  Tensor *x2_4_1 = &tensors["x2_4_1"];
+  Tensor *x2_6_5_3_1 = &tensors["x2_6_5_3_1"];
+  Tensor *x2_6_3_1 = &tensors["x2_6_3_1"];
+  Tensor *x2_2_2_1 = &tensors["x2_2_2_1"];
 
   /* ----- Insert attach code ------ */
   v->set_dist(idist);
   i0->attach(*k_i0_offset, 0, *d_i0);
   f->attach(*k_f_offset, 0, *d_f);
-
   v->attach(*k_v_offset, 0, *d_v);
 
-  #if 0
+  #if 1
     schedule_levels(tensors, ops);
   #else
     op_x2_1 = ops[0].mult;

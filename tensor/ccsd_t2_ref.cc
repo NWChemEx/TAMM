@@ -199,12 +199,13 @@ void offset_ccsd_t2_7_1_(Integer *l_i1_offset, Integer *k_i1_offset, Integer *si
 namespace ctce {
 
   typedef void (*c2fd_fn)(Integer*,Integer*,Integer*,Integer*);
-  void schedule_linear(std::vector<Tensor> &tensors,
+
+    void schedule_linear_lazy(std::map<std::string, ctce::Tensor> &tensors,
+                              std::vector<Operation> &ops);
+    void schedule_linear(std::map<std::string, ctce::Tensor> &tensors,
+                         std::vector<Operation> &ops);
+  void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
                        std::vector<Operation> &ops);
-  void schedule_linear_lazy(std::vector<Tensor> &tensors,
-                            std::vector<Operation> &ops);
-  void schedule_levels(std::vector<Tensor> &tensors,
-                            std::vector<Operation> &ops);
 
   static void CorFortranc2fd(int use_c, Multiplication &m, c2fd_fn fn) {
     if(use_c) {
@@ -220,9 +221,9 @@ namespace ctce {
 
   extern "C" {
     
-    void ccsd_t2_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t1, Integer *d_t2, Integer *d_v2, 
+    void ccsd_t2_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo, Integer *d_v2,
                       Integer *k_f1_offset, Integer *k_i0_offset,
-                      Integer *k_t1_offset, Integer *k_t2_offset, Integer *k_v2_offset) {
+                      Integer *k_t_vo_offset, Integer *k_t_vvoo_offset, Integer *k_v2_offset) {
       static bool set_t2 = true;
       Assignment op_t2_1;
       Assignment op_t2_2_1;
@@ -279,35 +280,38 @@ namespace ctce {
         ccsd_t2_equations(eqs);
         set_t2 = false;
       }
-      std::vector<Tensor> tensors;
+
+      std::map<std::string, ctce::Tensor> tensors;
       std::vector<Operation> ops;
 
       tensors_and_ops(eqs,tensors, ops);
 
-      Tensor *i0 = &tensors[0];
-      Tensor *f = &tensors[1];
-      Tensor *v = &tensors[2];
-      Tensor *t1 = &tensors[3];
-      Tensor *t2 = &tensors[4];
-      Tensor *t2_2_1 = &tensors[5];
-      Tensor *t2_2_2_1 = &tensors[6];
-      Tensor *t2_2_2_2_1 = &tensors[7];
-      Tensor *t2_2_4_1 = &tensors[8];
-      Tensor *t2_2_5_1 = &tensors[9];
-      Tensor *t2_4_1 = &tensors[10];
-      Tensor *t2_4_2_1 = &tensors[11];
-      Tensor *t2_5_1 = &tensors[12];
-      Tensor *t2_6_1 = &tensors[13];
-      Tensor *t2_6_2_1 = &tensors[14];
-      Tensor *t2_7_1 = &tensors[15];
-      Tensor *vt1t1_1_1 = &tensors[16];
+      Tensor *i0 = &tensors["i0"];
+      Tensor *v = &tensors["v"];
+      Tensor *f = &tensors["f"];
+      Tensor *t_vo = &tensors["t_vo"];
+      Tensor *t_vvoo = &tensors["t_vvoo"];
+      Tensor *t2_2_5_1 = &tensors["t2_2_5_1"];
+      Tensor *t2_7_1 = &tensors["t2_7_1"];
+      Tensor *t2_3_1 = &tensors["t2_3_1"];
+      Tensor *t2_2_2_1 = &tensors["t2_2_2_1"];
+      Tensor *t2_4_2_1 = &tensors["t2_4_2_1"];
+      Tensor *t2_4_1 = &tensors["t2_4_1"];
+      Tensor *t2_2_2_2_1 = &tensors["t2_2_2_2_1"];
+      Tensor *t2_2_3_1 = &tensors["t2_2_3_1"];
+      Tensor *t2_5_1 = &tensors["t2_5_1"];
+      Tensor *t2_6_2_1 = &tensors["t2_6_2_1"];
+      Tensor *t2_2_4_1 = &tensors["t2_2_4_1"];
+      Tensor *t2_6_1 = &tensors["t2_6_1"];
+      Tensor *t2_2_1 = &tensors["t2_2_1"];
+      Tensor *vt1t1_1_1 = &tensors["vt1t1_1_1"];
 
       v->set_dist(idist);
-      t1->set_dist(dist_nwma);
+      t_vo->set_dist(dist_nwma);
       f->attach(*k_f1_offset, 0, *d_f1);
       i0->attach(*k_i0_offset, 0, *d_i0);
-      t1->attach(*k_t1_offset, 0, *d_t1);
-      t2->attach(*k_t2_offset, 0, *d_t2);
+      t_vo->attach(*k_t_vo_offset, 0, *d_t_vo);
+      t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
       v->attach(*k_v2_offset, 0, *d_v2);
 
 #if 1
@@ -457,8 +461,8 @@ namespace ctce {
 #endif
       f->detach();
       i0->detach();
-      t1->detach();
-      t2->detach();
+      t_vo->detach();
+      t_vvoo->detach();
       v->detach();
     }
   } // extern C

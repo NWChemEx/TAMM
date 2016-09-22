@@ -29,23 +29,27 @@ typedef struct {
   int range_id; /*index into the RangeEntry struct*/
 } IndexEntry;
 
-typedef struct {
+typedef struct  {
   std::string name;
   int range_ids[MAX_TENSOR_DIMS]; /*dimensions in terms of index into RangeEntry struct*/
 	int ndim, nupper;
 } TensorEntry;
 
+
 /* tc[tc_ids] = alpha * ta[ta_ids]*/
 typedef struct {
-  int tc, ta; //tc and ta in terms of index into TensorEntry structs
+  //int tc, ta; //tc and ta in terms of index into TensorEntry structs
+  std::string tc, ta;
 	double alpha;
   int tc_ids[MAX_TENSOR_DIMS]; /*index labels for tc in terms of index into IndexEntry struct*/
   int ta_ids[MAX_TENSOR_DIMS]; /*index labels for tc in terms of index into IndexEntry struct*/
 } AddOp;
 
+
 /* tc[tc_ids] += alpha * ta[ta_ids] * tb[tb_ids]*/
 typedef struct {
-  int tc, ta, tb; //tensors identified by index into TensorEntry structs
+  //int tc, ta, tb; //tensors identified by index into TensorEntry structs
+  std::string tc, ta, tb;
 	double alpha;
   int tc_ids[MAX_TENSOR_DIMS];
   int ta_ids[MAX_TENSOR_DIMS];

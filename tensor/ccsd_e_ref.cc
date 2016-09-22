@@ -37,18 +37,14 @@ extern "C" {
 
 namespace ctce {
 
-  void schedule_linear(std::vector<Tensor> &tensors,
-                       std::vector<Operation> &ops);
-  void schedule_linear_lazy(std::vector<Tensor> &tensors,
-                            std::vector<Operation> &ops);
-  void schedule_levels(std::vector<Tensor> &tensors,
+  void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
                             std::vector<Operation> &ops);
 
   extern "C" {
 
-    void ccsd_e_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t1, Integer *d_t2, Integer *d_v2,
+    void ccsd_e_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo, Integer *d_v2,
                       Integer *k_f1_offset, Integer *k_i0_offset,
-                      Integer *k_t1_offset, Integer *k_t2_offset, Integer *k_v2_offset) {
+                      Integer *k_t_vo_offset, Integer *k_t_vvoo_offset, Integer *k_v2_offset) {
       static bool set_e = true;
       Assignment e_1_1;
       Multiplication e_1, e_1_2, e_2;
@@ -61,24 +57,24 @@ namespace ctce {
           ccsd_e_equations(eqs);
           set_e = false;
       }
-      std::vector<Tensor> tensors;
+      std::map<std::string, ctce::Tensor> tensors;
       std::vector<Operation> ops;
 
       tensors_and_ops(eqs,tensors, ops);
 
-      Tensor *i0 = &tensors[0];
-      Tensor *f = &tensors[1];
-      Tensor *v = &tensors[2];
-      Tensor *t1 = &tensors[3];
-      Tensor *t2 = &tensors[4];
-      Tensor *i1_1 = &tensors[5];
+      Tensor *i0 = &tensors["i0"];
+      Tensor *v = &tensors["v"];
+      Tensor *f = &tensors["f"];
+      Tensor *t_vo = &tensors["t_vo"];
+      Tensor *t_vvoo = &tensors["t_vvoo"];
+      Tensor *i1 = &tensors["i1"];
 
       v->set_dist(idist);
-      t1->set_dist(dist_nwma);
+      t_vo->set_dist(dist_nwma);
       f->attach(*k_f1_offset, 0, *d_f1);
       i0->attach(*k_i0_offset, 0, *d_i0);
-      t1->attach(*k_t1_offset, 0, *d_t1);
-      t2->attach(*k_t2_offset, 0, *d_t2);
+      t_vo->attach(*k_t_vo_offset, 0, *d_t_vo);
+      t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
       v->attach(*k_v2_offset, 0, *d_v2);
 
 #if 1
@@ -100,8 +96,8 @@ namespace ctce {
 #endif
       f->detach();
       i0->detach();
-      t1->detach();
-      t2->detach();
+      t_vo->detach();
+      t_vvoo->detach();
       v->detach();
     }
   } // extern C

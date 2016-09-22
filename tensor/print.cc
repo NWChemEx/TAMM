@@ -13,7 +13,7 @@ namespace ctce {
   struct Equations {
     std::vector<RangeEntry> range_entries;
     std::vector<IndexEntry> index_entries;
-    std::vector<TensorEntry> tensor_entries;
+    std::map<std::string, TensorEntry> tensor_entries;
     std::vector<OpEntry> op_entries;
   };
 }
@@ -83,10 +83,11 @@ namespace ctce {
     return ss.str();
   }
 
-  void pretty_print(const Equations &eqs) {
+  void pretty_print(Equations &eqs) {
     ostream &os = std::cout;
-    for(int i=0; i<eqs.tensor_entries.size(); i++) {
-      const TensorEntry& te = eqs.tensor_entries[i];
+    //for(int i=0; i<eqs.tensor_entries.size(); i++) {
+    for(std::map<std::string, TensorEntry>::iterator i = eqs.tensor_entries.begin(); i != eqs.tensor_entries.end(); i++){
+      const TensorEntry& te = eqs.tensor_entries[i->first];
       os<<"array "<<te.name<<"[";
       for(int j=0; j<te.nupper-1; j++) {
         os<<eqs.range_entries[te.range_ids[j]].name<<",";
@@ -106,8 +107,8 @@ namespace ctce {
     os<<"\n";
     for(int i=0; i<eqs.op_entries.size(); i++) {
       const OpEntry &ope = eqs.op_entries[i];
-      const std::vector<TensorEntry> &tes = eqs.tensor_entries;
-      int ta, tb, tc;
+      std::map<std::string, TensorEntry> &tes = eqs.tensor_entries;
+      //int ta, tb, tc;
       switch(ope.optype) {
       case OpTypeAdd:
         os<<tes[ope.add.tc].name
@@ -138,7 +139,8 @@ namespace ctce {
     deps.resize(eqs.op_entries.size());
     for(int i=0; i<deps.size(); i++) {
       for(int j=0; j<i; j++) {
-        int ra1=0, ra2=0, wa=0, rb1=0, rb2=0, wb=0;
+        //int ra1=0, ra2=0, wa=0, rb1=0, rb2=0, wb=0;
+        std::string ra1, ra2, wa, rb1, rb2, wb;
         const vector<OpEntry> &ops = eqs.op_entries;
         switch(ops[i].optype) {
         case OpTypeAdd:
@@ -166,8 +168,8 @@ namespace ctce {
         default:
           assert(0);
         }
-        if(ra1==wb || ra2==wb ||
-           rb1==wa || rb2==wa) {
+        if(!ra1.compare(wb) || !ra2.compare(wb) ||
+           !rb1.compare(wa) || !rb2.compare(wa)) {
           deps[i].push_back(j);
         }
       }
@@ -296,123 +298,123 @@ namespace ctce {
 #endif
   }
 
-  void print_flatten(Equations &eqs, int opid) {
-    using std::vector;
-    assert(opid >=0 && opid<eqs.op_entries.size());
-
-    //canonicalize(eqs);
-    vector<vector<Term> > op_defs(opid+1);
-    vector<int> tensor_defs(eqs.tensor_entries.size(),-1); //opid defining the tensor
-    const vector<TensorEntry> &tes = eqs.tensor_entries;
-    const vector<OpEntry> &opes = eqs.op_entries;
-
-    for(int i=0; i<opid+1; i++) {
-      const OpEntry &ope = eqs.op_entries[i];
-      int ta, tb, tc;
-      double alpha;
-      vector<Term> a_terms, b_terms;
-      switch(ope.optype) {
-      case OpTypeAdd:        
-        ta = ope.add.ta;
-        tc = ope.add.tc;
-        alpha = ope.add.alpha;
-        if(tensor_defs[tc]!=-1) {
-          op_defs[i].insert(op_defs[i].end(),
-                            op_defs[tensor_defs[tc]].begin(), 
-                            op_defs[tensor_defs[tc]].end());
-        }
-        if(tensor_defs[ta]!=-1) {
-          vector<Term> terms = op_defs[tensor_defs[ta]];
-          for(int j=0; j<terms.size(); j++) {
-            terms[i].alpha *= alpha;
-          }
-          op_defs[i].insert(op_defs[i].end(), terms.begin(), terms.end());
-        }
-        else {
-          TensorUse tu;
-          tu.tensor_id = ta;
-          int nadim = eqs.tensor_entries[ta].ndim;
-          tu.ids.insert(tu.ids.end(),ope.add.ta_ids, ope.add.ta_ids+nadim);
-          Term term;
-          term.alpha = alpha;
-          term.trefs.push_back(tu);
-          op_defs[i].push_back(term);          
-        }
-        tensor_defs[tc] = i;
-        break;
-      case OpTypeMult:
-        ta = ope.mult.ta;
-        tb = ope.mult.tb;
-        tc = ope.mult.tc;
-        alpha = ope.mult.alpha;
-        if(tensor_defs[tc]!=-1) {          
-          op_defs[i].insert(op_defs[i].end(),
-                            op_defs[tensor_defs[tc]].begin(), 
-                            op_defs[tensor_defs[tc]].end());
-        }
-        if(tensor_defs[ta]!=-1) {
-          a_terms = op_defs[tensor_defs[ta]];
-        }
-        else {
-#if 1
-          TensorUse tu;
-          tu.tensor_id = ta;
-          int nadim = eqs.tensor_entries[ta].ndim;
-          tu.ids.insert(tu.ids.end(),ope.mult.ta_ids, ope.mult.ta_ids+nadim);
-          Term term;
-          term.alpha = 1;
-          term.trefs.push_back(tu);
-          a_terms.push_back(term);
-#endif
-        }
-        if(tensor_defs[tb]!=-1) {
-          b_terms = op_defs[tensor_defs[tb]];
-        }
-        else {
-#if 1
-          TensorUse tu;
-          tu.tensor_id = tb;
-          int nbdim = eqs.tensor_entries[tb].ndim;
-          tu.ids.insert(tu.ids.end(),ope.mult.tb_ids, ope.mult.tb_ids+nbdim);
-          Term term;
-          term.alpha = 1;
-          term.trefs.push_back(tu);
-          b_terms.push_back(term);          
-#endif
-        }
-        for(int a=0; a<a_terms.size(); a++) {
-          for(int b=0; b<b_terms.size(); b++) {
-            Term t = cross(a_terms[a], b_terms[b]);
-            t.alpha *= alpha;
-            op_defs[i].push_back(t);
-          }
-        }
-        tensor_defs[tc] = i;
-        break;
-      default:
-        assert(0);
-      }      
-    }
-
-    cout<<"opid="<<opid<<endl;
-    const OpEntry& ope = opes[opid];
-    int tc = (ope.optype==OpTypeAdd)?ope.add.tc : ope.mult.tc;
-    const int *tc_ids = (ope.optype==OpTypeAdd)?ope.add.tc_ids : ope.mult.tc_ids;    
-    cout<<tes[tc].name
-        <<index_to_string(eqs, tes[tc].ndim, tc_ids)
-        <<" += ";
-    for(int i=0; i<op_defs[opid].size(); i++)
-      {
-      Term &term = op_defs[opid][i];
-      cout<<endl<<" +"<<term.alpha;
-      for(int j=0; j<term.trefs.size(); j++) {
-        TensorUse &tu = term.trefs[j];
-        cout<<" * "<<tes[tu.tensor_id].name
-            <<index_to_string(eqs, tu.ids);
-      }
-    }
-    cout<<";"<<endl;
-  }
+//  void print_flatten(Equations &eqs, int opid) {
+//    using std::vector;
+//    assert(opid >=0 && opid<eqs.op_entries.size());
+//
+//    //canonicalize(eqs);
+//    vector<vector<Term> > op_defs(opid+1);
+//    vector<int> tensor_defs(eqs.tensor_entries.size(),-1); //opid defining the tensor
+//    std::map<std::string, TensorEntry> &tes = eqs.tensor_entries;
+//    const vector<OpEntry> &opes = eqs.op_entries;
+//
+//    for(int i=0; i<opid+1; i++) {
+//      const OpEntry &ope = eqs.op_entries[i];
+//      std::string ta, tb, tc;
+//      double alpha;
+//      vector<Term> a_terms, b_terms;
+//      switch(ope.optype) {
+//      case OpTypeAdd:
+//        ta = ope.add.ta;
+//        tc = ope.add.tc;
+//        alpha = ope.add.alpha;
+//        if(tensor_defs[tc]!=-1) {
+//          op_defs[i].insert(op_defs[i].end(),
+//                            op_defs[tensor_defs[tc]].begin(),
+//                            op_defs[tensor_defs[tc]].end());
+//        }
+//        if(tensor_defs[ta]!=-1) {
+//          vector<Term> terms = op_defs[tensor_defs[ta]];
+//          for(int j=0; j<terms.size(); j++) {
+//            terms[i].alpha *= alpha;
+//          }
+//          op_defs[i].insert(op_defs[i].end(), terms.begin(), terms.end());
+//        }
+//        else {
+//          TensorUse tu;
+//          tu.tensor_id = ta;
+//          int nadim = eqs.tensor_entries[ta].ndim;
+//          tu.ids.insert(tu.ids.end(),ope.add.ta_ids, ope.add.ta_ids+nadim);
+//          Term term;
+//          term.alpha = alpha;
+//          term.trefs.push_back(tu);
+//          op_defs[i].push_back(term);
+//        }
+//        tensor_defs[tc] = i;
+//        break;
+//      case OpTypeMult:
+//        ta = ope.mult.ta;
+//        tb = ope.mult.tb;
+//        tc = ope.mult.tc;
+//        alpha = ope.mult.alpha;
+//        if(tensor_defs[tc]!=-1) {
+//          op_defs[i].insert(op_defs[i].end(),
+//                            op_defs[tensor_defs[tc]].begin(),
+//                            op_defs[tensor_defs[tc]].end());
+//        }
+//        if(tensor_defs[ta]!=-1) {
+//          a_terms = op_defs[tensor_defs[ta]];
+//        }
+//        else {
+//#if 1
+//          TensorUse tu;
+//          tu.tensor_id = ta;
+//          int nadim = eqs.tensor_entries[ta].ndim;
+//          tu.ids.insert(tu.ids.end(),ope.mult.ta_ids, ope.mult.ta_ids+nadim);
+//          Term term;
+//          term.alpha = 1;
+//          term.trefs.push_back(tu);
+//          a_terms.push_back(term);
+//#endif
+//        }
+//        if(tensor_defs[tb]!=-1) {
+//          b_terms = op_defs[tensor_defs[tb]];
+//        }
+//        else {
+//#if 1
+//          TensorUse tu;
+//          tu.tensor_id = tb;
+//          int nbdim = eqs.tensor_entries[tb].ndim;
+//          tu.ids.insert(tu.ids.end(),ope.mult.tb_ids, ope.mult.tb_ids+nbdim);
+//          Term term;
+//          term.alpha = 1;
+//          term.trefs.push_back(tu);
+//          b_terms.push_back(term);
+//#endif
+//        }
+//        for(int a=0; a<a_terms.size(); a++) {
+//          for(int b=0; b<b_terms.size(); b++) {
+//            Term t = cross(a_terms[a], b_terms[b]);
+//            t.alpha *= alpha;
+//            op_defs[i].push_back(t);
+//          }
+//        }
+//        tensor_defs[tc] = i;
+//        break;
+//      default:
+//        assert(0);
+//      }
+//    }
+//
+//    cout<<"opid="<<opid<<endl;
+//    const OpEntry& ope = opes[opid];
+//    std::string tc = (ope.optype==OpTypeAdd)? ope.add.tc : ope.mult.tc;
+//    const int *tc_ids = (ope.optype==OpTypeAdd)? ope.add.tc_ids : ope.mult.tc_ids;
+//    cout<<tes[tc].name
+//        <<index_to_string(eqs, tes[tc].ndim, tc_ids)
+//        <<" += ";
+//    for(int i=0; i<op_defs[opid].size(); i++)
+//      {
+//      Term &term = op_defs[opid][i];
+//      cout<<endl<<" +"<<term.alpha;
+//      for(int j=0; j<term.trefs.size(); j++) {
+//        TensorUse &tu = term.trefs[j];
+//        cout<<" * "<<tes[tu.tensor_id].name
+//            <<index_to_string(eqs, tu.ids);
+//      }
+//    }
+//    cout<<";"<<endl;
+//  }
 
 
 } /*ctce*/

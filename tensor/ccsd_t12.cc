@@ -10,37 +10,37 @@
 
 namespace ctce {
 
-  void schedule_levels(vector<vector<Tensor> *> &tensors,
-                       vector<vector<Operation> *>&ops);
+  void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
+                       std::vector<Operation> &ops);
 
   extern "C" {
 
-    void ccsd_t1_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t1, Integer *d_t2, Integer *d_v2, 
+    void ccsd_t1_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo, Integer *d_v2, 
                       Integer *k_f1_offset, Integer *k_i0_offset,
-                      Integer *k_t1_offset, Integer *k_t2_offset, Integer *k_v2_offset);
+                      Integer *k_t_vo_offset, Integer *k_t_vvoo_offset, Integer *k_v2_offset);
 
-    void ccsd_t2_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t1, Integer *d_t2, Integer *d_v2, 
+    void ccsd_t2_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo, Integer *d_v2, 
                       Integer *k_f1_offset, Integer *k_i0_offset,
-                      Integer *k_t1_offset, Integer *k_t2_offset, Integer *k_v2_offset);
+                      Integer *k_t_vo_offset, Integer *k_t_vvoo_offset, Integer *k_v2_offset);
 
-    void ccsd_e_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t1, Integer *d_t2, Integer *d_v2,
+    void ccsd_e_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo, Integer *d_v2,
                      Integer *k_f1_offset, Integer *k_i0_offset,
-                     Integer *k_t1_offset, Integer *k_t2_offset, Integer *k_v2_offset);
-    void ccsd_e_(Integer *d_f1, Integer *d_i0, Integer *d_t1, Integer *d_t2, Integer *d_v2,
+                     Integer *k_t_vo_offset, Integer *k_t_vvoo_offset, Integer *k_v2_offset);
+    void ccsd_e_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo, Integer *d_v2,
                      Integer *k_f1_offset, Integer *k_i0_offset,
-                     Integer *k_t1_offset, Integer *k_t2_offset, Integer *k_v2_offset);
+                     Integer *k_t_vo_offset, Integer *k_t_vvoo_offset, Integer *k_v2_offset);
 
     void ccsd_et12_cxx_(Integer *d_e, 
                         Integer *d_f1, Integer *d_v2, 
                         Integer *d_r1, Integer *d_r2, 
-                        Integer *d_t1, Integer *d_t2, 
+                        Integer *d_t_vo, Integer *d_t_vvoo, 
                         Integer *k_e_offset,
                         Integer *k_f1_offset, Integer *k_v2_offset,
                         Integer *k_r1_offset, Integer *k_r2_offset, 
-                        Integer *k_t1_offset, Integer *k_t2_offset) {
-      // icsd_et12_cxx_(d_e, d_f1, d_v2, d_r1, d_r2, d_t1, d_t2,
+                        Integer *k_t_vo_offset, Integer *k_t_vvoo_offset) {
+      // icsd_et12_cxx_(d_e, d_f1, d_v2, d_r1, d_r2, d_t_vo, d_t_vvoo,
       //                k_e_offset, k_f1_offset, k_v2_offset, 
-      //                k_r1_offset, k_r2_offset, k_t1_offset, k_t2_offset);
+      //                k_r1_offset, k_r2_offset, k_t_vo_offset, k_t_vvoo_offset);
       // return;
       
       Equations e_eqs, t1_eqs, t2_eqs;
@@ -50,7 +50,7 @@ namespace ctce {
       ccsd_t1_equations(t1_eqs);
       ccsd_t2_equations(t2_eqs);
 
-      std::vector<Tensor> e_tensors, t1_tensors, t2_tensors;
+      std::map<std::string, ctce::Tensor> e_tensors, t1_tensors, t2_tensors;
       std::vector<Operation> e_ops, t1_ops, t2_ops;
 
       tensors_and_ops(e_eqs,e_tensors, e_ops);
@@ -59,52 +59,52 @@ namespace ctce {
 
       {
         //setup e tensors
-        Tensor *i0 = &e_tensors[0];
-        Tensor *f = &e_tensors[1];
-        Tensor *v = &e_tensors[2];
-        Tensor *t1 = &e_tensors[3];
-        Tensor *t2 = &e_tensors[4];
+        Tensor *i0 = &e_tensors["i0"];
+        Tensor *f = &e_tensors["f"];
+        Tensor *v = &e_tensors["v"];
+        Tensor *t_vo = &e_tensors["t_vo"];
+        Tensor *t_vvoo = &e_tensors["t_vvoo"];
         
         v->set_dist(idist);
-        t1->set_dist(dist_nwma);
+        t_vo->set_dist(dist_nwma);
         f->attach(*k_f1_offset, 0, *d_f1);
         i0->attach(*k_e_offset, 0, *d_e);
-        t1->attach(*k_t1_offset, 0, *d_t1);
-        t2->attach(*k_t2_offset, 0, *d_t2);
+        t_vo->attach(*k_t_vo_offset, 0, *d_t_vo);
+        t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
         v->attach(*k_v2_offset, 0, *d_v2);
       }
 
       {
         //setup t1 tensors
-        Tensor *i0 = &t1_tensors[0];
-        Tensor *f = &t1_tensors[1];
-        Tensor *v = &t1_tensors[2];
-        Tensor *t1 = &t1_tensors[3];
-        Tensor *t2 = &t1_tensors[4];
+        Tensor *i0 = &t1_tensors["i0"];
+        Tensor *f = &t1_tensors["f"];
+        Tensor *v = &t1_tensors["v"];
+        Tensor *t_vo = &t1_tensors["t_vo"];
+        Tensor *t_vvoo = &t1_tensors["t_vvoo"];
         
         v->set_dist(idist);
-        t1->set_dist(dist_nwma);
+        t_vo->set_dist(dist_nwma);
         f->attach(*k_f1_offset, 0, *d_f1);
         i0->attach(*k_r1_offset, 0, *d_r1);
-        t1->attach(*k_t1_offset, 0, *d_t1);
-        t2->attach(*k_t2_offset, 0, *d_t2);
+        t_vo->attach(*k_t_vo_offset, 0, *d_t_vo);
+        t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
         v->attach(*k_v2_offset, 0, *d_v2);
       }
 
       {
         //setup t2 tensors
-        Tensor *i0 = &t2_tensors[0];
-        Tensor *f = &t2_tensors[1];
-        Tensor *v = &t2_tensors[2];
-        Tensor *t1 = &t2_tensors[3];
-        Tensor *t2 = &t2_tensors[4];
+        Tensor *i0 = &t2_tensors["i0"];
+        Tensor *f = &t2_tensors["f"];
+        Tensor *v = &t2_tensors["v"];
+        Tensor *t_vo = &t2_tensors["t_vo"];
+        Tensor *t_vvoo = &t2_tensors["t_vvoo"];
         
         v->set_dist(idist);
-        t1->set_dist(dist_nwma);
+        t_vo->set_dist(dist_nwma);
         f->attach(*k_f1_offset, 0, *d_f1);
         i0->attach(*k_r2_offset, 0, *d_r2);
-        t1->attach(*k_t1_offset, 0, *d_t1);
-        t2->attach(*k_t2_offset, 0, *d_t2);
+        t_vo->attach(*k_t_vo_offset, 0, *d_t_vo);
+        t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
         v->attach(*k_v2_offset, 0, *d_v2);        
       }
 
@@ -120,59 +120,64 @@ namespace ctce {
       schedule_levels(tensors, ops);
 
 #else
-      ccsd_e_cxx_(d_f1, d_e, d_t1, d_t2, d_v2,
+      ccsd_e_cxx_(d_f1, d_e, d_t_vo, d_t_vvoo, d_v2,
                    k_f1_offset, k_e_offset,
-                   k_t1_offset, k_t2_offset, k_v2_offset);
-      ccsd_t1_cxx_(d_f1, d_r1, d_t1, d_t2, d_v2,
+                   k_t_vo_offset, k_t_vvoo_offset, k_v2_offset);
+      ccsd_t1_cxx_(d_f1, d_r1, d_t_vo, d_t_vvoo, d_v2,
                    k_f1_offset, k_r1_offset,
-                   k_t1_offset, k_t2_offset, k_v2_offset);
-      ccsd_t2_cxx_(d_f1, d_r2, d_t1, d_t2, d_v2,
+                   k_t_vo_offset, k_t_vvoo_offset, k_v2_offset);
+      ccsd_t2_cxx_(d_f1, d_r2, d_t_vo, d_t_vvoo, d_v2,
                    k_f1_offset, k_r2_offset,
-                   k_t1_offset, k_t2_offset, k_v2_offset);
+                   k_t_vo_offset, k_t_vvoo_offset, k_v2_offset);
 #endif
 
       {
         //un-setup e tensors
-        Tensor *i0 = &e_tensors[0];
-        Tensor *f = &e_tensors[1];
-        Tensor *v = &e_tensors[2];
-        Tensor *t1 = &e_tensors[3];
-        Tensor *t2 = &e_tensors[4];
+        Tensor *i0 = &e_tensors["i0"];
+        Tensor *f = &e_tensors["f"];
+        Tensor *v = &e_tensors["v"];
+        Tensor *t_vo = &e_tensors["t_vo"];
+        Tensor *t_vvoo = &e_tensors["t_vvoo"];
         
         f->detach();
         i0->detach();
-        t1->detach();
-        t2->detach();
+        t_vo->detach();
+        t_vvoo->detach();
         v->detach();
       }
 
       {
+
         //un-setup t1 tensors
-        Tensor *i0 = &t1_tensors[0];
-        Tensor *f = &t1_tensors[1];
-        Tensor *v = &t1_tensors[2];
-        Tensor *t1 = &t1_tensors[3];
-        Tensor *t2 = &t1_tensors[4];
+        Tensor *i0 = &t1_tensors["i0"];
+        Tensor *f = &t1_tensors["f"];
+        Tensor *v = &t1_tensors["v"];
+        Tensor *t_vo = &t1_tensors["t_vo"];
+        Tensor *t_vvoo = &t1_tensors["t_vvoo"];
         
         f->detach();
         i0->detach();
-        t1->detach();
-        t2->detach();
+        //std::cout << "DEBUG __ t11\n";
+        t_vo->detach();
+        //std::cout << "DEBUG __ t12\n";
+        t_vvoo->detach();
         v->detach();
+
       }
 
       {
+
         //un-setup t2 tensors
-        Tensor *i0 = &t2_tensors[0];
-        Tensor *f = &t2_tensors[1];
-        Tensor *v = &t2_tensors[2];
-        Tensor *t1 = &t2_tensors[3];
-        Tensor *t2 = &t2_tensors[4];
+        Tensor *i0 = &t2_tensors["i0"];
+        Tensor *f = &t2_tensors["f"];
+        Tensor *v = &t2_tensors["v"];
+        Tensor *t_vo = &t2_tensors["t_vo"];
+        Tensor *t_vvoo = &t2_tensors["t_vvoo"];
 
         f->detach();
         i0->detach();
-        t1->detach();
-        t2->detach();
+        t_vo->detach();
+        t_vvoo->detach();
         v->detach();
       }
     }

@@ -29,8 +29,8 @@
 
 
 extern "C" {
-  void cisd_e_1_(Integer *d_t_vo, Integer *k_t_vo_offset,Integer *d_f, Integer *k_f_offset,Integer *d_i0, Integer *k_i0_offset);
-  void cisd_e_2_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset,Integer *d_v, Integer *k_v_offset,Integer *d_i0, Integer *k_i0_offset);
+  void cisd_e_1_(Fint *d_t_vo, Fint *k_t_vo_offset,Fint *d_f, Fint *k_f_offset,Fint *d_i0, Fint *k_i0_offset);
+  void cisd_e_2_(Fint *d_t_vvoo, Fint *k_t_vvoo_offset,Fint *d_v, Fint *k_v_offset,Fint *d_i0, Fint *k_i0_offset);
 
 }
 
@@ -41,11 +41,11 @@ void schedule_linear_lazy(std::map<std::string, ctce::Tensor> &tensors, std::vec
 void schedule_levels(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);
 
 extern "C" {
-  //void cisd_e_cxx_(Integer *d_i0, Integer *d_t_vvoo, Integer *d_v, Integer *d_t_vo, Integer *d_f,
-  //Integer *k_i0_offset, Integer *k_t_vvoo_offset, Integer *k_v_offset, Integer *k_t_vo_offset, Integer *k_f_offset) {
-  void cisd_e_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo, Integer *d_v,
-                     Integer *k_f_offset, Integer *k_i0_offset,
-                     Integer *k_t_vo_offset, Integer *k_t_vvoo_offset, Integer *k_v_offset){
+  //void cisd_e_cxx_(Fint *d_i0, Fint *d_t_vvoo, Fint *d_v, Fint *d_t_vo, Fint *d_f,
+  //Fint *k_i0_offset, Fint *k_t_vvoo_offset, Fint *k_v_offset, Fint *k_t_vo_offset, Fint *k_f_offset) {
+  void cisd_e_cxx_(Fint *d_f, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo, Fint *d_v,
+                     Fint *k_f_offset, Fint *k_i0_offset,
+                     Fint *k_t_vo_offset, Fint *k_t_vvoo_offset, Fint *k_v_offset){
 
   static bool set_e = true;
   
@@ -79,7 +79,7 @@ extern "C" {
     t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
     v->attach(*k_v_offset, 0, *d_v);
 
-  #if 1
+  #if 0
     schedule_levels(tensors, ops);
   #else
     op_e_1 = ops[0].mult;

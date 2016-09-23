@@ -106,7 +106,7 @@ extern "C" {
     t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
     v->attach(*k_v_offset, 0, *d_v);
 
-  #if 1
+  #if 0
     schedule_levels(tensors, ops);
   #else
     op_c2_1 = ops[0].add;

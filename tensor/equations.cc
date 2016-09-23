@@ -40,7 +40,7 @@ cisd_c1_equations(ctce::Equations &eqs) {
 
 void
 cisd_c2_equations(ctce::Equations &eqs) {
-  parse_equations("ccsd_c2.eq", eqs);
+  parse_equations("cisd_c2.eq", eqs);
 }
 
 

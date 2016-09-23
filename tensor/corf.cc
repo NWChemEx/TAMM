@@ -8,8 +8,8 @@ void CorFortran(int use_c, Assignment &as, add_fn fn) {
     as.execute();
   }
   else {
-    Fint da = as.tA().ga(), da_offset = as.tA().offset_index();
-    Fint dc = as.tC().ga(), dc_offset = as.tC().offset_index();
+    Fint da = (int)as.tA().ga(), da_offset = as.tA().offset_index();
+    Fint dc = (int)as.tC().ga(), dc_offset = as.tC().offset_index();
     fn(&da, &da_offset, &dc, &dc_offset);
   }
 }
@@ -19,9 +19,9 @@ void CorFortran(int use_c, Multiplication& m, mult_fn fn) {
     m.execute();
   }
   else {
-    Fint da = m.tA().ga(), da_offset = m.tA().offset_index();
-    Fint db = m.tB().ga(), db_offset = m.tB().offset_index();
-    Fint dc = m.tC().ga(), dc_offset = m.tC().offset_index();
+    Fint da = (int)m.tA().ga(), da_offset = m.tA().offset_index();
+    Fint db = (int)m.tB().ga(), db_offset = m.tB().offset_index();
+    Fint dc = (int)m.tC().ga(), dc_offset = m.tC().offset_index();
     fn(&da, &da_offset, &db, &db_offset, &dc, &dc_offset);
   }
 }
@@ -43,7 +43,7 @@ void destroy(Tensor *t) {
     t->destroy();
   }
   else if(t->attached()) {
-    Fint d_a = t->ga(), l_a = t->offset_handle();
+    Fint d_a = (int)t->ga(), l_a = t->offset_handle();
     fdestroy(&d_a, &l_a);
     t->detach();
   }

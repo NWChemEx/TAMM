@@ -137,9 +137,9 @@ Tensor::create() {
   {
     int ndims = 2;
     int dims[2] = {1, size};
-    ga_ = nga_Create(MT_C_DBL, 2, dims, (char *)"noname1", NULL);
+    ga_ = gmem::create(gmem::Double, size, (char *)"noname1");
   }
-  nga_Zero(ga_);
+  gmem::zero(ga_);
   offset_index_ = offset_map_ - int_mb;
   allocated_ = true;
 }
@@ -147,7 +147,7 @@ Tensor::create() {
 void
 Tensor::attach(Fint fma_offset_index, Fint fma_handle, Fint array_handle) {
   Fint *int_mb = Variables::int_mb();
-  ga_ = array_handle;
+  ga_ = (gmem::Handle) array_handle;
   offset_index_ = fma_offset_index;
   offset_handle_ = fma_handle;
   offset_map_ = int_mb + fma_offset_index;
@@ -157,7 +157,7 @@ Tensor::attach(Fint fma_offset_index, Fint fma_handle, Fint array_handle) {
 void
 Tensor::destroy() {
   if(allocated_) {
-    nga_Destroy(ga_);
+    gmem::destroy(ga_);
     free(offset_map_);
     allocated_ = false;
   }
@@ -175,7 +175,7 @@ Tensor::detach() {
 void
 Tensor::get(std::vector<size_t> &pvalue_r, double *buf, size_t size) {
   assert(allocated_ || attached_);
-  size_t d_a = ga();
+  gmem::Handle d_a = ga();
   size_t d_a_offset = offset_index();
   std::vector<size_t>& is = pvalue_r;
   const std::vector<IndexName>& ns = id2name(ids_);
@@ -213,7 +213,6 @@ Tensor::get(std::vector<size_t> &pvalue_r, double *buf, size_t size) {
     cget_hash_block_ma(d_a, buf, size, d_a_offset, key);
   }
   else if(dist_type_ == dist_nw) {
-    Fint ida = d_a;
     cget_hash_block(d_a, buf, size, d_a_offset, key);
   }
   else {
@@ -224,7 +223,7 @@ Tensor::get(std::vector<size_t> &pvalue_r, double *buf, size_t size) {
 void
 Tensor::add(std::vector<size_t> &is, double *buf, size_t size) {
   assert(allocated_ || attached_);
-  int d_c = ga();
+  gmem::Handle d_c = ga();
   Fint *int_mb = Variables::int_mb();
   Fint *hash = &int_mb[offset_index()];
   size_t noab = Variables::noab();

@@ -2,71 +2,95 @@
 
 using namespace std;
 
-namespace ctce {
+namespace ctce
+{
+  namespace gmem
+  {
+    Handle NULL_HANDLE=(int)0;
+    char global_ops[6][7] = {"+","*","max","min","absmin","absmax"};
 
-extern "C" {
-  
-  int nga_Create(int type, int ndim, int dims[], char *array_name, int chunk[])
-  {
-    return NGA_Create( type, ndim, dims, array_name, chunk);
-  }
+    Handle create(Types type, int size, char * name )
+    {
+      Handle handle;
+      int ga_type;
+      switch (type)
+      {
+        case Int:
+          ga_type = C_INT;
+          break;
+        case Double:
+          ga_type = MT_C_DBL;
+          break;
 
-  long nga_Read_inc(int id, int subscript[], long inc)
-  {
-    return NGA_Read_inc( id, subscript, inc);
-  }
-  
-  void nga_Zero(int id)
-  {
-    NGA_Zero(id);
-  }
-  
-  void nga_Destroy(int id)
-  {
-    NGA_Destroy(id);
-  }
-  
-  void nga_Acc(int id, int lo[], int hi[], void* buf, int ld[], void* alpha)
-  {
-    NGA_Acc( id, lo, hi, buf, ld, alpha);
-  }
-  
-  void nga_Get(int id, int lo[], int hi[], void* buf, int ld[])
-  {
-      NGA_Get(id, lo, hi, buf, ld);
-  }
-  
-  void nga_NbGet(int id, int lo[], int hi[], void* buf, int ld[], ga_nbhdl_t* nbhandle)
-  {
-    NGA_NbGet(id,lo, hi, buf, ld, nbhandle);
-  }
-  
-  void nga_NbWait(ga_nbhdl_t* nbhandle)
-  {
-    NGA_NbWait(nbhandle);
-  }
-  
-  int ga_Nnodes()
-  {
-    return GA_Nnodes();
-  }
-  void ga_Dgop(double x[], int n, char *op)
-  {
-    GA_Dgop(x, n, op);
-  }
-  void ga_Zero(int id)
-  {
-    GA_Zero(id);
-  }
-  void ga_Sync()
-  {
-    GA_Sync();
-  }
-  void ga_Destroy(int id)
-  {
-    GA_Destroy(id);
-  }
-}
+      }
+      handle.value = NGA_Create( ga_type, 1, &size, name, NULL);
+      assert(handle.value!=0);
 
+      return handle;
+    }
+
+    void zero(Handle handle)
+    {
+      NGA_Zero(handle.value);
+    }
+
+    int64_t atomic_fetch_add(Handle handle, int pos, long amount)
+    {
+      return (int64_t) NGA_Read_inc( handle.value, &pos, amount);
+    }
+
+    uint64_t ranks()
+    {
+      return GA_Nnodes();
+    }
+    void sync()
+    {
+      GA_Sync();
+    }
+
+    void destroy(Handle handle)
+    {
+      GA_Destroy(handle.value);
+    }
+
+    void get(Handle handle, void * buf, int start, int stop )
+    {
+      int lo[2] = {0, start};
+      int hi[2] = {0, stop};
+      int tmp = 0; 
+
+      NGA_Get(handle.value, lo, hi, buf, &tmp);
+    }
+
+    void get(Handle handle, void * buf, int start, int stop,  Wait_Handle & wait  )
+    {
+      int lo[2] = {0, start};
+      int hi[2] = {0, stop};
+      int tmp = 0; 
+
+      NGA_NbGet(handle.value, lo, hi, buf, &tmp, &wait.handle);
+    }
+
+    void wait(Wait_Handle & wait)
+    {
+      if(wait.handle)
+        NGA_NbWait( &wait.handle);
+    }
+
+    void acc(Handle handle, void * buf, int start, int stop)
+    {
+      int lo[2] = {0, start};
+      int hi[2] = {0, stop};
+      int tmp = 0;
+
+      double alpha = 1.0;
+      NGA_Acc( handle.value, lo, hi, buf, &tmp, &alpha);
+    }
+
+    void op(double x[], int n, Operation op)
+    {
+      GA_Dgop(x, n, global_ops[op]);
+    }
+  }
 }
 

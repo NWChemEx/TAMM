@@ -27,7 +27,7 @@ public:
 
   bool attached() const;
   bool allocated() const;
-  int ga() const;
+  gmem::Handle ga() const;
   size_t offset_index() const;
   int offset_handle() const;
 
@@ -83,7 +83,7 @@ private:
 
   bool allocated_; /*true if this tensor were created using create()*/
   bool attached_;
-  int ga_; /*underlying ga if this tensor was created*/
+  gmem::Handle ga_; /*underlying ga if this tensor was created*/
   Fint *offset_map_; /*offset map used as part of creation*/
   size_t offset_index_; /*index to offset map usable with int_mb */
   int offset_handle_; /*MA handle for the offset map when allocated in fortran*/
@@ -104,7 +104,7 @@ Tensor::attached() const { return attached_; }
 inline bool
 Tensor::allocated() const { return allocated_; }
 
-inline int
+inline gmem::Handle 
 Tensor::ga() const { return ga_; }
 
 inline size_t

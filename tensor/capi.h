@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include <vector>
+#include "ga_abstract.h"
 
 /**
  * C/C++ wrappers to Fortran routines invoked by ctce
@@ -29,7 +30,7 @@ cdgemm(char transa, char transb, size_t m, size_t n, size_t k,
  * C++ function that wraps FORTRAN add_hash_block
  */
 void
-cadd_hash_block(size_t d_c, double *buf_a, size_t size,
+cadd_hash_block(gmem::Handle d_c, double *buf_a, size_t size,
                 Fint *hash, size_t key);
 
 
@@ -53,7 +54,7 @@ ctce_restricted(int dim, int nupper,
  * C++ function that wraps FORTRAN get_hash_block_i
  */
 void
-cget_hash_block_i(size_t d_a, double *buf, size_t size,
+cget_hash_block_i(gmem::Handle d_a, double *buf, size_t size,
                   size_t d_a_offset,
                   size_t key, std::vector<size_t> &is);
 
@@ -61,14 +62,14 @@ cget_hash_block_i(size_t d_a, double *buf, size_t size,
  * C++ function that wraps FORTRAN get_hash_block_ma
  */
 void
-cget_hash_block_ma(size_t d_a, double *buf, size_t size,
+cget_hash_block_ma(gmem::Handle d_a, double *buf, size_t size,
                    size_t d_a_offset, size_t key);
 
 /**
  * C++ function that wraps FORTRAN get_hash_block
  */
 void
-cget_hash_block(size_t d_a, double *buf, size_t size,
+cget_hash_block(gmem::Handle d_a, double *buf, size_t size,
                 size_t d_a_offset, size_t key);
 
 } /*namespace ctce*/

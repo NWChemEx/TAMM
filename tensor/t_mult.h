@@ -61,14 +61,14 @@ void t_mult3(Tensor& tC,
 	     IterGroup<triangular>& sum_itr, 
 	     IterGroup<CopyIter>& cp_itr, 
 	     IterGroup<triangular>& out_itr, 
-	     Multiplication& m, int sync_ga=0, int spos=0);
+	     Multiplication& m, gmem::Handle sync_ga=gmem::NULL_HANDLE, int spos=0);
 
 /**
  * Simply wrap t_mult3
  * @param[in] d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset from FORTRAN
  * @param[in] m Multiplication store all the input data needed for t_mult3
  */ 
-void t_mult4(Multiplication& m, int sync_ga=0, int spos=0);
+void t_mult4(Multiplication& m, gmem::Handle sync_ga=gmem::NULL_HANDLE, int spos=0);
 
 } // namespace ctce
 

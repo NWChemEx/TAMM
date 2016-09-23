@@ -70,27 +70,23 @@ ctce_hash(Fint *hash, size_t key, Fint *offset) {
 }
 
 void
-cadd_block(size_t d_a, double *buf, size_t size, size_t offset) {
+cadd_block(gmem::Handle d_a, double *buf, size_t size, size_t offset) {
 
 #if USE_FORTRAN_FUNCTIONS
-  Fint ida = d_a;
+  Fint ida = (gmem::Handle)d_a;
   Fint isize = size;
   Fint ioffset = offset;
   fadd_block(&ida, buf, &isize, &ioffset);
 #else
-  int lo[2] = {0,offset};
-  int hi[2] = {0,offset+size-1};
-  int ld[1] = {100000};
-  double alpha = 1.0;
-  nga_Acc(d_a,lo,hi,buf,ld,&alpha);
+  gmem::acc(d_a,buf,offset,offset+size-1,);
 #endif
 }
 
 void
-cadd_hash_block(size_t d_c, double *buf_a, size_t size, Fint *hash, size_t key) {
+cadd_hash_block(gmem::Handle d_c, double *buf_a, size_t size, Fint *hash, size_t key) {
 
 #if USE_FORTRAN_FUNCTIONS
-  Fint ida = d_c;
+  Fint ida = (gmem::Handle)d_c;
   Fint isize = size;
   Fint ikey = key;
   fadd_hash_block(&ida, buf_a, &isize, hash, &ikey);
@@ -102,18 +98,15 @@ cadd_hash_block(size_t d_c, double *buf_a, size_t size, Fint *hash, size_t key) 
 }
 
 void
-cget_block(size_t d_a, double *buf, size_t size, size_t offset) {
+cget_block(gmem::Handle d_a, double *buf, size_t size, size_t offset) {
 
 #if USE_FORTRAN_FUNCTIONS
-  Fint ida = d_a;
+  Fint ida = (gmem::Handle)d_a;
   Fint isize = size;
   Fint ioffset = offset;
   fget_block(&ida, buf, &isize, &ioffset);
 #else
-  int lo[2] = {0,offset};
-  int hi[2] = {0,offset+size-1};
-  int ld[1] = {100000};
-  nga_Get(d_a,lo,hi,buf,ld);
+  gmem::get(d_a,buf,offset,offset+size-1);
 #endif
 }
 
@@ -251,10 +244,10 @@ is_spin_nonzero(const vector<size_t> &ids) {
 }
 
 int
-cget_add_ind_i(size_t da, double *buf, size_t size, size_t offset_unused,
+cget_add_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset_unused,
                size_t key_unused, const std::vector<size_t> &is_in,
                std::vector<size_t> &is_out, std::vector<size_t>& perm,
-               string name, ga_nbhdl_t *nbh) {
+               string name, gmem::Wait_Handle &nbh) {
   assert(is_in.size() == 4);
   assert(perm.size() == 4);
   vector<size_t> isa(is_in.size());
@@ -291,7 +284,6 @@ cget_add_ind_i(size_t da, double *buf, size_t size, size_t offset_unused,
   size_t irow = index_pair(isa[3], isa[2]);
   if(irow < icol) {
     std::swap(isa[0], isa[2]);
-    std::swap(perm[0], perm[2]);
     std::swap(is_out[0], is_out[2]);
     std::swap(isa[1], isa[3]);
     std::swap(is_out[1], is_out[3]);
@@ -328,20 +320,18 @@ cget_add_ind_i(size_t da, double *buf, size_t size, size_t offset_unused,
   ftce_hash_v2(&int_mb[k_v2_alpha_offset],&key,&offset);
   //ctce_hash(&int_mb[k_v2_alpha_offset],key,&offset);
 
-  int lo[2] = {0,offset};
-  int hi[2] = {0,offset+size-1};
-  int ld[1] = {100000}; //ignored
   int d_v2orb = Variables::d_v2orb();
-  nga_NbGet(d_v2orb,lo,hi,buf,ld,nbh);
+   
+  gmem::get((gmem::Handle)d_v2orb,buf,offset,offset+size-1,nbh);
 
   return x;
 }
 
 void
-cget_block_ind_i(size_t da, double *buf, size_t size, size_t offset,
+cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
                  size_t key, std::vector<size_t> &is) {
 #if USE_FORTRAN_FUNCTIONS || 1
-  Fint ida = da;
+  Fint ida = (gmem::Handle)da;
   Fint isize = size;
   assert(is.size()==4);
   Fint is0=is[0], is1=is[1], is2=is[2], is3=is[3];
@@ -359,7 +349,7 @@ cget_block_ind_i(size_t da, double *buf, size_t size, size_t offset,
   assert(is.size()==4);
   assert(is_spin_nonzero(is));
 
-  ga_nbhdl_t nbh1, nbh2;
+  gmem::wait nbh1, nbh2;
   bool comm1=false, comm2=false;
   double *bufa=NULL, *bufb=NULL;
   vector<size_t> vperma, vpermb;
@@ -380,7 +370,7 @@ cget_block_ind_i(size_t da, double *buf, size_t size, size_t offset,
     if(int_mb[k_spin+is[0]] == int_mb[k_spin+is[2]] &&
        int_mb[k_spin+is[1]] == int_mb[k_spin+is[3]]) {
       bufa = new double[size];
-      int x = cget_add_ind_i(da, bufa, size, offset, key, visa, visa_out, vperma, " perma",&nbh1);
+      int x = cget_add_ind_i(da, bufa, size, offset, key, visa, visa_out, vperma, " perma",nbh1);
       comm1 = true;
 
       vector<size_t> vpa = vperma;
@@ -452,7 +442,7 @@ cget_block_ind_i(size_t da, double *buf, size_t size, size_t offset,
     if(int_mb[k_spin+is[0]] == int_mb[k_spin+is[3]] &&
        int_mb[k_spin+is[1]] == int_mb[k_spin+is[2]]) {
       bufb = new double[size];
-      int x = cget_add_ind_i(da, bufb, size, offset, key, visb, visb_out, vpermb, " permb", &nbh2);
+      int x = cget_add_ind_i(da, bufb, size, offset, key, visb, visb_out, vpermb, " permb", nbh2);
       comm2 = true;
       size_t p[4] = {};
       switch(x) {
@@ -497,13 +487,13 @@ cget_block_ind_i(size_t da, double *buf, size_t size, size_t offset,
   }
 
   if(comm1) {
-    nga_NbWait(&nbh1);
+    nbh1.wait();
     assert(bufa);
     ctce_sortacc(bufa, buf, visa_out, vperma, 1.0);
     delete [] bufa;
   }
   if(comm2) {
-    nga_NbWait(&nbh2);
+    nbh2.wait();
     assert(bufb);
     ctce_sortacc(bufb, buf, visb_out, vpermb, -1.0);
     delete [] bufb;
@@ -512,10 +502,10 @@ cget_block_ind_i(size_t da, double *buf, size_t size, size_t offset,
 }
 
 void
-cget_hash_block_i(size_t da, double *buf, size_t size, size_t offset,
+cget_hash_block_i(gmem::Handle da, double *buf, size_t size, size_t offset,
                   size_t key, std::vector<size_t> &is) {
 #if USE_FORTRAN_FUNCTIONS
-  Fint ida = da;
+  Fint ida = (gmem::Handle)da;
   assert(is.size()==4);
   Fint is0=is[0], is1=is[1], is2=is[2], is3=is[3];
   Fint isize = size;
@@ -529,29 +519,29 @@ cget_hash_block_i(size_t da, double *buf, size_t size, size_t offset,
 }
 
 void
-cget_hash_block_ma(size_t da, double *buf, size_t size,
+cget_hash_block_ma(gmem::Handle da, double *buf, size_t size,
                    size_t offset, size_t key) {
 #if USE_FORTRAN_FUNCTIONS
   double *dbl_mb = Variables::dbl_mb();
   Fint isize = size;
   Fint *int_mb = Variables::int_mb();
   Fint ikey = key;
-  fget_hash_block_ma(&dbl_mb[da], buf, &isize, &int_mb[offset], &ikey);
+  fget_hash_block_ma(&dbl_mb[(int)da], buf, &isize, &int_mb[offset], &ikey);
 #else
   Fint *int_mb = Variables::int_mb();
   double *dbl_mb = Variables::dbl_mb();
   Fint *hash = &int_mb[offset];
   Fint ioffset;
   ctce_hash(hash, key, &ioffset);
-  memcpy(buf,&dbl_mb[da]+ioffset,size*sizeof(double));
+  memcpy(buf,&dbl_mb[(int)da]+ioffset,size*sizeof(double));
 #endif
 }
 
 void
-cget_hash_block(size_t da, double *buf, size_t size, size_t offset, size_t key) {
+cget_hash_block(gmem::Handle da, double *buf, size_t size, size_t offset, size_t key) {
 
 #if USE_FORTRAN_FUNCTIONS
-  Fint ida = da;
+  Fint ida = (gmem::Handle)da;
   Fint isize = size;
   Fint *int_mb = Variables::int_mb();
   Fint  ikey = key;

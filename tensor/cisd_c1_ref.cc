@@ -53,8 +53,12 @@ void schedule_linear_lazy(std::map<std::string, ctce::Tensor> &tensors, std::vec
 void schedule_levels(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);
 
 extern "C" {
-  void cisd_c1_cxx_(Integer *d_t_vvoo, Integer *d_e, Integer *d_f, Integer *d_i0, Integer *d_t_vo, Integer *d_v, 
-  Integer *k_t_vvoo_offset, Integer *k_e_offset, Integer *k_f_offset, Integer *k_i0_offset, Integer *k_t_vo_offset, Integer *k_v_offset) {
+  //void cisd_c1_cxx_(Integer *d_t_vvoo, Integer *d_e, Integer *d_f, Integer *d_i0, Integer *d_t_vo, Integer *d_v,
+  //Integer *k_t_vvoo_offset, Integer *k_e_offset, Integer *k_f_offset, Integer *k_i0_offset, Integer *k_t_vo_offset, Integer *k_v_offset) {
+
+  void cisd_c1_cxx_(Integer *d_e, Integer *d_f, Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo, Integer *d_v,
+                    Integer *k_e_offset, Integer *k_f_offset, Integer *k_i0_offset,
+                    Integer *k_t_vo_offset, Integer *k_t_vvoo_offset, Integer *k_v_offset){
 
   static bool set_c1 = true;
   
@@ -87,9 +91,13 @@ extern "C" {
   Tensor *e = &tensors["e"];
 
   /* ----- Insert attach code ------ */
-  v->set_dist(idist);
-  i0->attach(*k_i0_offset, 0, *d_i0);
+  v->set_dist(dist_nw);
+  t_vo->set_dist(dist_nw);
+  e->attach(*k_e_offset, 0, *d_e);
   f->attach(*k_f_offset, 0, *d_f);
+  i0->attach(*k_i0_offset, 0, *d_i0);
+  t_vo->attach(*k_t_vo_offset, 0, *d_t_vo);
+  t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
   v->attach(*k_v_offset, 0, *d_v);
 
   #if 1
@@ -115,9 +123,12 @@ extern "C" {
   #endif
 
   /* ----- Insert detach code ------ */
+  e->detach();
   f->detach();
   i0->detach();
   v->detach();
+  t_vo->detach();
+  t_vvoo->detach();
   }
 } // extern C
 }; // namespace ctce

@@ -188,7 +188,7 @@ void t_mult3(
   IterGroup<triangular>& sum_itr,
   IterGroup<CopyIter>& cp_itr,
   IterGroup<triangular>& out_itr,
-  Multiplication& m, int sync_ga, int spos) {
+  Multiplication& m, gmem::Handle sync_ga, int spos) {
 
   //vector<size_t>& vtab = Table::value();
   const vector<IndexName>& c_ids = id2name(m.c_ids);//tC.name();
@@ -196,24 +196,24 @@ void t_mult3(
   const vector<IndexName>& b_ids = id2name(m.b_ids);//tB.name();
 
   // GA initialization
-  int nprocs = ga_Nnodes();
+  int nprocs = gmem::ranks();
   int count = 0;
   int taskDim = 1;
   char taskStr[10] = "NXTASK";
-  int taskHandle;
+  gmem::Handle taskHandle;
   int sub;
-  if(sync_ga) {
+  if(sync_ga.valid()) {
     taskHandle = sync_ga;
     sub = spos;
   }
   else {
-    taskHandle = nga_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
-    ga_Zero(taskHandle); // initialize to zero
-    ga_Sync();
+    taskHandle = gmem::create(gmem::Int, 1, taskStr); // global array for next task
+    gmem::zero(taskHandle); // initialize to zero
+    gmem::sync();
     sub = 0;
   }
 
-  int next = nga_Read_inc(taskHandle, &sub, 1);
+  int next = (int) gmem::atomic_fetch_add(taskHandle, sub, 1);
 
   vector<size_t> out_vec, sum_vec;
   out_itr.reset();
@@ -393,7 +393,7 @@ void t_mult3(
         delete [] buf_c_sort;
       } // if spatial symmetry check
 
-      next = nga_Read_inc(taskHandle, &sub, 1);  // get my next task
+      next = (int) gmem::atomic_fetch_add(taskHandle, sub, 1);
 
     } // if next == count
 
@@ -401,13 +401,13 @@ void t_mult3(
 
   } // out_itr
 
-  if(sync_ga==0) {
-    ga_Sync(); // sync, wait for all procs to finish
-    ga_Destroy(taskHandle); // free
+  if(!sync_ga.valid()) {
+     gmem::sync(); // sync, wait for all procs to finish
+     gmem::destroy(taskHandle); // free
   }
 } // t_mult3
 
-void t_mult4(Multiplication& m, int sync_ga, int spos) {
+void t_mult4(Multiplication& m, gmem::Handle sync_ga, int spos) {
   multTimer.start();
   t_mult3(m.tC(), m.tA(), m.tB(), m.coef(), m.sum_ids(),
           m.sum_itr(), m.cp_itr(), m.out_itr(), m, sync_ga, spos);

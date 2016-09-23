@@ -8,6 +8,7 @@
 #include "tensor.h"
 #include "triangular.h"
 #include "iterGroup.h"
+#include "ga_abstract.h"
 
 namespace ctce {
 
@@ -55,7 +56,7 @@ public:
    * Get outer loop iterator
    */
   IterGroup<triangular>& out_itr();
-  void execute(int sync_ga=0, int spos=0);
+  void execute(gmem::Handle sync_ga = gmem::NULL_HANDLE, int spos=0);
 
 private:
   Tensor *tC_; /*< lhs tensor */
@@ -162,7 +163,7 @@ public:
    * Manually set cp_itr with given copy group
    */
   void setCopyItr(const std::vector<int>& gp);
-  void execute(int sync_ga=0, int spos=0);
+  void execute(gmem::Handle sync_ga = gmem::NULL_HANDLE, int spos=0);
 
 private:
   Tensor *tC_; /*< left hand side tensor */

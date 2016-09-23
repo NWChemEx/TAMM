@@ -24,7 +24,7 @@ namespace ctce {
                        vector<vector<vector<Tensor*> > > &tensor_destroy_levels,
                        vector<vector<vector<Operation *> > > &op_levels);
 
-  static void execute(Operation *op, int sync_ga, int spos);
+  static void execute(Operation *op, gmem::Handle sync_ga, int spos);
   static int writes(Operation *op, std::map<std::string, ctce::Tensor> &tensors);
   static vector<int> reads(Operation *op, std::map<std::string, ctce::Tensor> &tensors);
   static void schedule(std::map<std::string, ctce::Tensor> &tensors,
@@ -212,7 +212,7 @@ namespace ctce {
     schedule(tensors_lst, ops_lst, tensor_create_levels, tensor_destroy_levels, op_levels);
   }
 
-  static void execute(Operation *op, int sync_ga, int spos) {
+  static void execute(Operation *op, gmem::Handle sync_ga, int spos) {
     switch(op->optype) {
     case OpTypeAdd:
       op->add.execute(sync_ga, spos);
@@ -290,17 +290,16 @@ namespace ctce {
     assert(tensor_create_levels.size() == nlevels);
     assert(tensor_destroy_levels.size() == nlevels);
 
-    vector<int> sync_gas;
+    vector<gmem::handle> sync_gas;
     for(int i=0; i<op_levels.size(); i++) {
       assert(op_levels[i].size()>0);
       int taskDim = op_levels[i].size();
       char taskStr[10] = "NXTASK";
-      int taskHandle = nga_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
-      assert(taskHandle!=0);
-      ga_Zero(taskHandle); // initialize to zero
+      gmem::Handle taskHandle = gmem::create(Int, taskDim, taskStr); // global array for next task
+      gmem::zero(taskHandle); // initialize to zero
       sync_gas.push_back(taskHandle);
     }
-    ga_Sync();
+    gmem::sync();
 
     for(int i=0; i<nlevels; i++) {
       for(int j=0; j<tensor_create_levels[i].size(); j++) {
@@ -313,9 +312,9 @@ namespace ctce {
         tensor_destroy_levels[i][j]->destroy();
       }
     }
-    ga_Sync();
+    gmem::sync();
     for(int i=0; i<sync_gas.size(); i++) {
-      ga_Destroy(sync_gas[i]);
+      gmem::destroy(sync_gas[i]);
     }    
 #endif
   }
@@ -341,7 +340,7 @@ namespace ctce {
       tensor_destroy_levels[e].resize(nlevels);
     }
 
-    vector<int> sync_gas;
+    vector<gmem::Handle> sync_gas;
     for(int l=0; l<nlevels; l++) {
       int taskDim = 0;
       for(int e=0; e<neqs; e++) {
@@ -349,12 +348,11 @@ namespace ctce {
         assert(op_levels[e][l].size()>=0);
       }
       char taskStr[10] = "NXTASK";
-      int taskHandle = nga_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
-      assert(taskHandle!=0);
-      ga_Zero(taskHandle); // initialize to zero
+      gmem::Handle taskHandle = gmem::create(gmem::Int, taskDim, taskStr); // global array for next task
+      gmem::zero(taskHandle); // initialize to zero
       sync_gas.push_back(taskHandle);
     }
-    ga_Sync();
+    gmem::sync();
 
     for(int l=0; l<nlevels; l++) {
       for(int e=0; e<neqs; e++) {
@@ -362,22 +360,22 @@ namespace ctce {
           tensor_create_levels[e][l][t]->create();
         }
       }
-      ga_Sync();
+      gmem::sync();
       for(int e=0, c=0; e<neqs; e++) {
         for(int o=0; o<op_levels[e][l].size(); o++,c++) {
           execute(op_levels[e][l][o], sync_gas[l], c);
         }
       }
-      ga_Sync();
+      gmem::sync();
       for(int e=0; e<neqs; e++) {
         for(int t=0; t<tensor_destroy_levels[e][l].size(); t++) {
           tensor_destroy_levels[e][l][t]->destroy();
         }
       }
     }
-    ga_Sync();
+    gmem::sync();
     for(int i=0; i<sync_gas.size(); i++) {
-      ga_Destroy(sync_gas[i]);
+      gmem::destroy(sync_gas[i]);
     }
   }
 

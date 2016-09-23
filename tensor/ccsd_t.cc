@@ -80,19 +80,19 @@ namespace ctce {
 #endif
 
       // GA initialization
-      int nprocs = ga_Nnodes();
+      int nprocs = gmem::ranks();
       int count = 0;
       int taskDim = 1;
       char taskStr[10] = "NXTASK2";
-      int taskHandle = nga_Create(C_INT,1,&taskDim,taskStr,NULL); // global array for next task
-      ga_Zero(taskHandle); // initialize to zero
+      gmem::Handle taskHandle = gmem::create(gmem::Int,taskDim,taskStr); // global array for next task
+      gmem::zero(taskHandle); // initialize to zero
 
-      ga_Sync();
+      gmem::sync();
 
       // get next task
       int sub = 0;
       int next;
-      next = nga_Read_inc(taskHandle, &sub, 1);
+      next = (int)gmem::atomic_fetch_add(taskHandle, sub, 1);
 
       //      printf("ccsdt#%d = %d\n",GA_Nodeid(),next);
 
@@ -100,7 +100,7 @@ namespace ctce {
       *energy2 = 0.0;
       double energy[2];
       energy[0] = 0.0;
-     energy[1] = 0.0;
+      energy[1] = 0.0;
 
       Tensor tC = Tensor6(P4B,P5B,P6B,H1B,H2B,H3B,0,0,0,1,1,1,iVT_tensor);
       IterGroup<triangular> out_itr;
@@ -155,7 +155,7 @@ namespace ctce {
           } // if spatial
 
           int sub = 0;
-          next = nga_Read_inc(taskHandle, &sub, 1);
+          next = (int)gmem::atomic_fetch_add(taskHandle, sub, 1);
 
         } // if next == count
 
@@ -167,13 +167,12 @@ namespace ctce {
 
       //std::cout << "NAG at LINE --- "<< __LINE__<<"\n";
 
-        ga_Sync();
-        ga_Destroy(taskHandle); // free
+        gmem::sync();
+        gmem::destroy(taskHandle); // free
 
         energy[0] = *energy1;
         energy[1] = *energy2;
-        char plus = '+';
-        ga_Dgop(energy,2,&plus); // collect data
+        gmem::op(energy,2,gmem::Plus); // collect data
         *energy1 = energy[0];
         *energy2 = energy[1];
 

@@ -9,7 +9,7 @@ void t_assign2(
   Tensor& tC, const vector<IndexName> &c_ids,
 	Tensor& tA, const vector<IndexName> &a_ids,
 	IterGroup<triangular>& out_itr, double coef,
-  int sync_ga,
+  gmem::Handle sync_ga,
   int spos) {
 
   vector<size_t> order(tC.dim());
@@ -18,25 +18,25 @@ void t_assign2(
     order[i] = find(c_ids.begin(), c_ids.end(), a_ids[i]) - c_ids.begin() + 1;
   }
 
-  int nprocs = ga_Nnodes();
+  int nprocs = gmem::ranks();
   int count = 0;
 
   int taskDim = 1;
   char taskStr[10] = "NXTASKA";
-  int taskHandle;
+  gmem::Handle taskHandle;
   int sub;
-  if(sync_ga) {
+  if(sync_ga.valid()) {
     taskHandle = sync_ga;
     sub = spos;
   }
   else {
-    taskHandle = nga_Create(C_INT, 1, &taskDim, taskStr, NULL); // global array for next task
-    ga_Zero(taskHandle); // initialize to zero
-    ga_Sync();
+    taskHandle = gmem::create(gmem::Int, 1, taskStr); // global array for next task
+    gmem::zero(taskHandle); // initialize to zero
+    gmem::sync();
     sub = 0;
   }
 
-  int next = nga_Read_inc(taskHandle, &sub, 1);
+  int next = (int) gmem::atomic_fetch_add(taskHandle, sub, 1);
 
   vector<size_t> out_vec; // out_vec = c_ids_v
   out_itr.reset();
@@ -78,18 +78,18 @@ void t_assign2(
         delete [] buf_a;
         delete [] buf_a_sort;
       }
-      next = nga_Read_inc(taskHandle, &sub, 1);
+      next = (int) gmem::atomic_fetch_add(taskHandle, sub, 1);
     }
     ++count;
   }
 
-  if(sync_ga==0) {
-    ga_Sync();
-    ga_Destroy(taskHandle);
+  if(!sync_ga.valid()) {
+    gmem::sync();
+    gmem::destroy(taskHandle);
   }
 }
 
-void t_assign3(Assignment& a, int sync_ga, int spos) {
+void t_assign3(Assignment& a, gmem::Handle  sync_ga, int spos) {
   assignTimer.start();
   t_assign2(a.tC(), a.cids(), a.tA(), a.aids(), a.out_itr(),
             a.coef(), sync_ga, spos);

@@ -208,9 +208,9 @@ namespace ctce {
       m.execute();
     }
     else {
-      Integer da = m.tA().ga(), da_offset = m.tA().offset_index();
+      Integer da = (int)m.tA().ga(), da_offset = m.tA().offset_index();
       //Integer db = m.tB().ga(), db_offset = m.tB().offset_index();
-      Integer dc = m.tC().ga(), dc_offset = m.tC().offset_index();
+      Integer dc = (int)m.tC().ga(), dc_offset = m.tC().offset_index();
       fn(&da, &da_offset, &dc, &dc_offset);
     }
   }

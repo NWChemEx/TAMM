@@ -4,7 +4,7 @@ CFLAGS = -g -Wall
 all: ctce_test libctceparser.a
 
 ctce_test: test.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o ctce_vector.o ctce_parser.o
-	$(CC) -o $@ $(CFLAGS) test.o parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o intermediate.o ctce_vector.o ctce_parser.o
+	$(CC) -o $@ $(CFLAGS) test.o parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o intermediate.o ctce_vector.o ctce_parser.o -lfl
 
 test.o: test.c parser.o scanner.o *.h
 	$(CC) $(CFLAGS) -c test.c

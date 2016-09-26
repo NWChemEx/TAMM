@@ -270,3 +270,12 @@ add_custom_target(link COMMAND "${CMAKE_COMMAND}" --build . --target install)
 add_custom_command(TARGET "link" POST_BUILD
     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${NWCHEM_TOP}/src make CC=${CMAKE_C_COMPILER} FC=${CMAKE_Fortran_COMPILER} AR=${CMAKE_AR} link
     COMMENT "=================== Relinking nwchem..." )
+
+if(NOT DEFINED $ENV{CTCE_TEST_PROC_COUNT})
+    set(CTCE_TEST_PROC_COUNT 8)
+else()
+    set(CTCE_TEST_PROC_COUNT $ENV{CTCE_TEST_PROC_COUNT})
+endif()
+set (TEST_COMMAND mpirun -n ${CTCE_TEST_PROC_COUNT} ${NWCHEM_TOP}/bin/LINUX64/nwchem)
+
+add_test(integration ${TEST_COMMAND} ${CMAKE_SOURCE_DIR}/test/integration/1.nw )

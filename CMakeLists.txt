@@ -15,7 +15,7 @@ set (CTEST_OUTPUT_ON_FAILURE TRUE)
 #Uncomment if we use additional cmake modules later
 #set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/" "${CMAKE_CURRENT_BINARY_DIR}")
 
-find_package(FLEX REQUIRED)
+#find_package(FLEX REQUIRED)
 #find_package(BLAS REQUIRED)
 #find_package(MPI)
 #message(STATUS "mpi link flags: " ${MPI_CXX_LINK_FLAGS})

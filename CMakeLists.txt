@@ -72,15 +72,22 @@ set(ctceParserSources
 
 set(ctceLibSources
   tensor/capi.cc
+  tensor/cisd_e_ref.cc
+  tensor/cisd_c1_ref.cc
+  tensor/cisd_c2_ref.cc
   tensor/cc2_t1_ref.cc
   tensor/cc2_t2_ref.cc
   tensor/ccsd_t12.cc
+  #tensor/cisd_c12.cc
   tensor/icsd_t1_ref.cc
   tensor/ccsd_e_ref.cc
   tensor/ccsd_t1_ref.cc
   tensor/ccsd_t2_ref.cc
   tensor/icsd_t2_ref.cc
   tensor/ipccsd_x1_ref.cc
+  tensor/ipccsd_x2_ref.cc
+  tensor/eaccsd_x1_ref.cc
+  tensor/eaccsd_x2_ref.cc
   tensor/corf.cc
   tensor/dummy.cc
   tensor/equations.cc

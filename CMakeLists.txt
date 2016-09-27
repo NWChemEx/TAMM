@@ -267,8 +267,12 @@ add_custom_command(TARGET "patch" POST_BUILD
 
 add_custom_target(link COMMAND "${CMAKE_COMMAND}" --build . --target install)
 
+get_filename_component(NW_CC ${CMAKE_C_COMPILER} NAME )
+get_filename_component(NW_FC ${CMAKE_Fortran_COMPILER} NAME )
+get_filename_component(NW_AR ${CMAKE_AR} NAME )
+
 add_custom_command(TARGET "link" POST_BUILD
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${NWCHEM_TOP}/src make CC=${CMAKE_C_COMPILER} FC=${CMAKE_Fortran_COMPILER} AR=${CMAKE_AR} link
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${NWCHEM_TOP}/src make CC=${NW_CC} FC=${NW_FC} AR=${NW_AR} link
     COMMENT "=================== Relinking nwchem..." )
 
 if(NOT DEFINED $ENV{CTCE_TEST_PROC_COUNT})

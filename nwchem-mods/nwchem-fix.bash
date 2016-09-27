@@ -6,4 +6,9 @@ if [ $# -gt 0 ]; then
 else
     echo "Usage $0 INSTALL_LIB_PATH"
 fi
-cp *.F $NWCHEM_TOP/src/tce/
+
+echo $NWCHEM_TOP
+
+rsync -rav --progress ./src $NWCHEM_TOP 
+#cp *.F $NWCHEM_TOP/src/tce/
+

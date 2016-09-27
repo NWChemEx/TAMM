@@ -54,8 +54,8 @@ int main(int argc, char **argv) {
 
     for (i = 0; i < vector_count(&genEq.op_entries); i++) {
         oent = vector_get(&genEq.op_entries, i);
-        if (oent->optype == OpTypeAdd) printf("OpTypeAdd, ");
-        else printf("OpTypeMult, ");
+        if (oent->optype == OpTypeAdd) printf("op%d: OpTypeAdd, ", oent->op_id);
+        else printf("op%d: OpTypeMult, ", oent->op_id);
         int j;
         if (oent->add != NULL) {
             printf("%s, %s, %lf, {", getTensorName(tensor_entries, oent->add->tc),

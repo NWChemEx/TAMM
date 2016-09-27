@@ -74,7 +74,7 @@ class SoTCEVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by SoTCEParser#factors.
     def visitFactors(self, ctx):
-        global far;
+        global far
         printres("\n")
         far += 1
         return self.visitChildren(ctx)
@@ -89,19 +89,22 @@ class SoTCEVisitor(ParseTreeVisitor):
     def visitPtype(self, ctx):
         global uniqArrDecls, permute_flag
         if isinstance(ctx.children[0],SoTCEParser.PlusORminusContext):
-            if str(ctx.children[0].children[0]) == "+":
-                printres(" + ")
-            else:
-                printres(" - ")
-            if isinstance(ctx.children[1], SoTCEParser.Numerical_constantContext):
-                permute_flag.append(str(ctx.children[1].children[0]))
+            pmop = ""
+            for child in ctx.children:
+                if isinstance(child, SoTCEParser.PlusORminusContext):
+                    if str(child.children[0]) == "+":
+                        pmop = " + " #printres(" + ")
+                    else:
+                        pmop = " - "  #printres(" - ")
+                elif isinstance(child, SoTCEParser.Numerical_constantContext):
+                    permute_flag.append(pmop + str(ctx.children[1].children[0]))
 
         elif str(ctx.children[0]) == "*":
             if not isinstance(ctx.children[1], SoTCEParser.SumExpContext):
                 aname = (str(ctx.children[1]))
 
                 if aname == "P":
-                    #permute_flag = permute_flag[:-1]
+                    permute_flag = permute_flag[:-1]
                     for n in permute_flag:
                         printres(n)
                     permute_flag = []
@@ -119,8 +122,8 @@ class SoTCEVisitor(ParseTreeVisitor):
                 atype = it[1]
 
                 #al = len(atype)
-
-                atypel = atype.split(",")
+                atypel = []
+                if atype: atypel = atype.split(",")
                 al = len(atypel)
                 #if aname[0] == 'f' or aname[0] == 'v': atype = 'N' * al
 
@@ -143,8 +146,8 @@ class SoTCEVisitor(ParseTreeVisitor):
                     if atypel[at][-1] != "*": newat.append(atypel[at])
 
 
-
-                renameArr = aname + "_" + ("".join(newat)).lower()
+                renameArr = aname
+                if newat: renameArr = aname + "_" + ("".join(newat)).lower()
                 #if aname[0] == 'f' or aname[0] == 'v': renameArr = aname
 
                 printres(renameArr)
@@ -166,6 +169,7 @@ class SoTCEVisitor(ParseTreeVisitor):
         global  pind, hind, first_aref, second_aref, far
         adims = ""
         ldims = "["
+        if len(ctx.children) == 2: return ["",""]
         for c in ctx.children:
             s = str(c)
 

@@ -11,7 +11,10 @@
 //    //return p;
 //}
 
+
+int op_id = 1;
 typedef struct ArrayRefAlpha_ *ArrayRefAlpha;
+
 
 struct ArrayRefAlpha_ {
     double alpha;
@@ -64,8 +67,9 @@ MultOp make_MultOp(int tc, int ta, int tb, double alpha) {
     return p;
 }
 
-OpEntry make_OpEntry(OpType ot, AddOp ao, MultOp mo) {
+OpEntry make_OpEntry(int op_id, OpType ot, AddOp ao, MultOp mo) {
     OpEntry p = tce_malloc(sizeof(*p));
+    p->op_id = op_id;
     p->optype = ot;
     p->add = ao;
     p->mult = mo;
@@ -202,20 +206,24 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 //                if(tc_ids[i]!=-1) printf("%d, ",tc_ids[i]);
 
 
+            int rhs_aref_count = 0;
             for (i = 0; i < vector_count(&rhs_allref); i++) {
                 Exp e = vector_get(&rhs_allref, i);
                 if (e->kind == is_NumConst) {
                     Exp e1 = vector_get(&rhs_allref, i + 1);
                     if (e1->kind == is_ArrayRef) {
+                        rhs_aref_count++;
                         vector_add(&rhs_aref, make_ArrayRefAlpha(e->u.NumConst.value * e1->coef, e1));
                         i++;
                     }
                 }
                 else {
+                    rhs_aref_count++;
                     Exp e1 = vector_get(&rhs_allref, i);
                     vector_add(&rhs_aref, make_ArrayRefAlpha(1.0 * e1->coef, e1));
                 }
             }
+
 
             ctce_bool rhs_first_ref = false;
             tce_string_array rhs_first_ref_indices = collectExpIndices(
@@ -230,13 +238,21 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
             //Exp tcp = vector_get(&lhs_aref, 0);
             //printf("name = %s\n",tcp->u.Array.name);
 
-            ctce_bool isAMOp = (exact_compare_index_lists(lhs_indices, rhs_indices));
-            //a1121[p3,h1,p2,h2] = t_vo[p3,h1] * t_vo[p2,h2];
-            ctce_bool firstRefInd = (lhs_indices->length > rhs_first_ref_indices->length);
-            ctce_bool isEqInd = (lhs_indices->length == rhs_indices->length);
-            ctce_bool isAddOp = isEqInd && isAMOp;
-            ctce_bool isMultOp =
-                    (lhs_indices->length < rhs_indices->length) || (isEqInd && !isAMOp) || (isEqInd && firstRefInd);
+//            ctce_bool isAMOp = (exact_compare_index_lists(lhs_indices, rhs_indices));
+//            //a1121[p3,h1,p2,h2] = t_vo[p3,h1] * t_vo[p2,h2];
+//            ctce_bool firstRefInd = (lhs_indices->length > rhs_first_ref_indices->length);
+//            ctce_bool isEqInd = (lhs_indices->length == rhs_indices->length);
+//            ctce_bool isAddOp = isEqInd && isAMOp;
+//            ctce_bool isMultOp =
+//                    (lhs_indices->length < rhs_indices->length) || (isEqInd && !isAMOp) || (isEqInd && firstRefInd);
+
+            ctce_bool isAddOp = false;
+            ctce_bool isMultOp = false;
+
+            if (rhs_first_ref) rhs_aref_count -= 1;
+
+            if (rhs_aref_count==2) isMultOp = true;
+            else if (rhs_aref_count==1 || rhs_aref_count > 2) isAddOp = true;
 
             if (isMultOp) {
                 //printf(" == MULT OP\n");
@@ -258,7 +274,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                 getTensorIDs(eqn, ta_exp, &mop->ta);
                 getTensorIDs(eqn, tb_exp, &mop->tb);
 
-                vector_add(&eqn->op_entries, make_OpEntry(OpTypeMult, NULL, mop));
+                vector_add(&eqn->op_entries, make_OpEntry(op_id, OpTypeMult, NULL, mop));
+                op_id++;
 
             }
             else if (isAddOp) {
@@ -280,7 +297,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                 getTensorIDs(eqn, tc_exp, &mop->tc);
                 getTensorIDs(eqn, ta_exp, &mop->ta);
 
-                vector_add(&eqn->op_entries, make_OpEntry(OpTypeAdd, mop, NULL));
+                vector_add(&eqn->op_entries, make_OpEntry(op_id, OpTypeAdd, mop, NULL));
+                op_id++;
 
 
                 if (vector_count(&rhs_aref) > ta_ind + 1) {
@@ -296,7 +314,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
                         getTensorIDs(eqn, tc_exp, &aop->tc);
                         getTensorIDs(eqn, ta_exp, &aop->ta);
 
-                        vector_add(&eqn->op_entries, make_OpEntry(OpTypeAdd, aop, NULL));
+                        vector_add(&eqn->op_entries, make_OpEntry(op_id, OpTypeAdd, aop, NULL));
+                        op_id++;
                     }
                 }
 

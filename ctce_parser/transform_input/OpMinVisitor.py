@@ -70,9 +70,9 @@ class OpMinVisitor(ParseTreeVisitor):
 
         printnl("\nnamespace ctce {\n")
 
-        declare_lib_api = "void schedule_linear(std::vector<Tensor> &tensors, std::vector<Operation> &ops);\n"
-        declare_lib_api += "".ljust(indent)+"void schedule_linear_lazy(std::vector<Tensor> &tensors, std::vector<Operation> &ops);\n"
-        declare_lib_api += "".ljust(indent)+"void schedule_levels(std::vector<Tensor> &tensors, std::vector<Operation> &ops);\n"
+        declare_lib_api = "void schedule_linear(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);\n"
+        declare_lib_api += "".ljust(indent)+"void schedule_linear_lazy(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);\n"
+        declare_lib_api += "".ljust(indent)+"void schedule_levels(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);\n"
 
         printnli(declare_lib_api)
         printnli("extern \"C\" {")
@@ -110,24 +110,24 @@ class OpMinVisitor(ParseTreeVisitor):
         printnli("  set_"+ self.label_prefix + " = false;")
         printnli("}\n")
 
-        printnli("std::vector <Tensor> tensors;")
+        printnli("std::map<std::string, ctce::Tensor> tensors;")
         printnli("std::vector <Operation> ops;")
 
         printnli("tensors_and_ops(eqs, tensors, ops);")
 
         printnl("")
-        ti = 0
+        #ti = 0
         #for td in tensor_decls.keys():
         for td in array_decls:
-            printnli("Tensor *" + td + " = &tensors[" + str(ti) + "];")
-            ti += 1
+            printnli("Tensor *" + td + " = &tensors[\"" + td + "\"];")
+            #ti += 1
 
         printnl("")
 
         printnli("/* ----- Insert attach code ------ */")
-        printnli("v->set_dist(idist)")
+        printnli("v->set_dist(idist);")
         printnli("i0->attach(*k_i0_offset, 0, *d_i0);")
-        printnli("f->attach(*k_f_offset, 0, *d_f);\n")
+        printnli("f->attach(*k_f_offset, 0, *d_f);")
         printnli("v->attach(*k_v_offset, 0, *d_v);\n")
 
         printnli("#if 1")
@@ -145,7 +145,7 @@ class OpMinVisitor(ParseTreeVisitor):
 
         for amo in add_mult_order:
             if amo in array_decls:
-                printnli("CorFortran(1, op_" + amo + ", ofsset_" + self.function_prefix + "_" + amo + "_);")
+                printnli("CorFortran(1, " + amo + ", offset_" + self.function_prefix + "_" + amo + "_);")
             printnli("CorFortran(1, op_" +  amo + ", " + self.function_prefix + "_" + amo + "_);")
 
             if amo in destroy_temps.keys():
@@ -224,11 +224,11 @@ class OpMinVisitor(ParseTreeVisitor):
 
 
         arefs = []
-        maxrhs = 0
+        #maxrhs = 0
         for c in stmt_refs:
             if isinstance(c,OpMinParser.Array_referenceContext):
                 aname = str(c.children[0])
-                maxrhs = max(maxrhs, len(c.children[2].children))
+                #maxrhs = max(maxrhs, len(c.children[2].children))
                 if aname not in tensor_decls.keys(): tensor_decls[aname] = aname
                 arefs.append(aname)
 
@@ -429,9 +429,9 @@ class OpminOutToCTCE(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#translation_unit.
     def visitTranslation_unit(self, ctx):
-        printnl("{")
+        #printnl("{")
         self.visitChildren(ctx)
-        printnl("}")
+        #printnl("}")
 
 
     # Visit a parse tree produced by OpMinParser#compound_element_list_opt.
@@ -681,7 +681,9 @@ class OpminOutToCTCE(ParseTreeVisitor):
         if aname.startswith("f_"): aname = 'f';
         elif aname.startswith("v_"): aname = 'v';
         aref = (aname + "[")
-        ilist = self.visitId_list(ctx.children[2])
+        ilist = ""
+        if len(ctx.children) >= 2:
+            ilist = self.visitId_list(ctx.children[2])
         aref += (ilist) + "]"
         printresws(aref)
 

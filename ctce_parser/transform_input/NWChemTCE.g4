@@ -99,7 +99,7 @@ ptype : ( TIMES (perm | sumExp | array_reference ) | (plusORminus? numerical_con
 sumExp : (SUM LPAREN identifier* RPAREN )  ;
 
 // Removed left-recursion from id_list
-id_list : (identifier)+ ;
+id_list : (identifier)* ;
 
 // identifier
 identifier : ID;

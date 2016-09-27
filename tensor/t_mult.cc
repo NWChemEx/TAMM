@@ -227,9 +227,9 @@ void t_mult3(
            (tC.is_spin_nonzero(out_vec)) &&
            (tC.is_spin_restricted_nonzero(out_vec)) ) {
 
-        if(tC.dim()%2!=0) {
-          cout<<"Computing output tensor block: "<<out_vec<<endl;
-        }
+//        if(tC.dim()%2!=0) {
+//          cout<<"Computing output tensor block: "<<out_vec<<endl;
+//        }
 
         vector<int> vtab1(IndexNum);
         for (int i=0; i<tC.dim(); i++) {

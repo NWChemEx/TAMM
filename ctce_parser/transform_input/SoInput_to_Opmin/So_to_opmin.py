@@ -80,6 +80,7 @@ if __name__ == '__main__':
         if r[-1]!="*": idims.append(r)
 
     print "array i0([" + upper + "][" + lower + "]);"
-    print "\ni0[" + ",".join(idims) + "] = " + res[1] + ";"
+    if idims: print "\ni0[" + ",".join(idims) + "] = " + res[1] + ";"
+    else: print "\ni0 = " + res[1] + ";"
 
     print "\n}"

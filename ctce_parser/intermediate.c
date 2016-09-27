@@ -252,7 +252,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
             if (rhs_first_ref) rhs_aref_count -= 1;
 
             if (rhs_aref_count==2) isMultOp = true;
-            else if (rhs_aref_count==1 || rhs_aref_count > 3) isAddOp = true;
+            else if (rhs_aref_count==1 || rhs_aref_count > 2) isAddOp = true;
 
             if (isMultOp) {
                 //printf(" == MULT OP\n");

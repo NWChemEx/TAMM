@@ -125,10 +125,10 @@ class NWChemTCEVisitor(ParseTreeVisitor):
             lhs_array_name = labelcount_ia[lhs_array_name]
 
         printres(label + ":".ljust(indentl-len(label)) + lhs_array_name)
-        if ilist:
-            printres("[")
-            printres(ilist)
-            printres("]")
+
+        printres("[")
+        printres(ilist)
+        printres("]")
 
         if lhs_array_name not in intermediate_decls.keys():
             il = []
@@ -232,10 +232,10 @@ class NWChemTCEVisitor(ParseTreeVisitor):
             else:
                 if atype: printres(arrname + "_" + atype)
                 else: printres(arrname)
-            if ilist:
-                printres("[")
-                printres(ilist)
-                printres("]")
+
+            printres("[")
+            printres(ilist)
+            printres("]")
         #return self.visitChildren(ctx)
 
 

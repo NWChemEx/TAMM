@@ -203,13 +203,15 @@ install(TARGETS ctce
     file(GLOB CTCE_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/ctce_parser/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
 install(FILES ${CTCE_HEADERS} DESTINATION ${CTCE_INSTALL_PREFIX}/include)
 
-file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/ctce_parser/transform_input/generated/*.eq")
-install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/eqs)
+file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/ctce_tests/NWChemEqs/*.eq")
+install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/tests/NWChemEqs)
+file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/ctce_tests/SoEqs/*.eq")
+install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/tests/SoEqs)
 
-SET(CTCE_EQ_PATH ${CTCE_INSTALL_PREFIX}/eqs)
+SET(CTCE_EQ_PATH ${CTCE_INSTALL_PREFIX}/tests/NWChemEqs)
 
 file(WRITE "${PROJECT_BINARY_DIR}/cmake_ctce_headers.h" "#define CBLAS_HEADER_FILE \"${cblas_header_name}\"")
-file(APPEND "${PROJECT_BINARY_DIR}/cmake_ctce_headers.h" "\n#define CTCE_EQ_PATH \"${CTCE_INSTALL_PREFIX}/eqs\"")
+file(APPEND "${PROJECT_BINARY_DIR}/cmake_ctce_headers.h" "\n#define CTCE_EQ_PATH \"${CTCE_INSTALL_PREFIX}/tests/NWChemEqs\"")
 
 set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
         "parser.y" "scanner.l" "parser.out" "output.txt" "lempar.c")
@@ -222,7 +224,7 @@ execute_process(COMMAND mkdir -p "TestResults/ParserTests")
 foreach (test ${EQFILES})
     get_filename_component(Testname ${test} NAME_WE)
     add_test(${test} python ${PROJECT_SOURCE_DIR}/scripts/testing/ParserTest.py "${Testname}"
-            "${PROJECT_BINARY_DIR}/ctce_parser_test" "${PROJECT_SOURCE_DIR}/ctce_parser/transform_input/generated/"
+            "${PROJECT_BINARY_DIR}/ctce_parser_test" "${PROJECT_SOURCE_DIR}/ctce_tests/NWChemEqs/"
             "${PROJECT_BINARY_DIR}/TestResults/ParserTests")
 endforeach ()
 

@@ -3,7 +3,9 @@
 #include "capi.h"
 #include "index_sort.h"
 
+#ifndef LINUX_BLAS 
 #include CBLAS_HEADER_FILE
+#endif
 
 #include "fapi.h"
 #include "index.h"

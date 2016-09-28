@@ -1,0 +1,12 @@
+--- ./GNUmakefile	2015-10-01 10:33:02.000000000 -0700
++++ ./GNUmakefile	2016-09-19 13:24:23.339659191 -0700
+@@ -56,7 +56,8 @@
+ ifeq ($(TARGET),SOLARIS)
+ 	/bin/rm -f $(BINDIR)/$(NWBINNAME)
+ endif
+-	$(PURIFY) $(LINK.f) -o $(BINDIR)/$(NWBINNAME) nwchem.o stubs.o -lnwctask $(LIBS)
++	#$(PURIFY) $(LINK.f) -o $(BINDIR)/$(NWBINNAME) nwchem.o stubs.o -lnwctask $(LIBS)
++	$(PURIFY) $(LINK.f) -o $(BINDIR)/$(NWBINNAME) nwchem.o stubs.o -lnwctask -L(LIB_TEMP) $(LIBS) -lctce -lstdc++
+ ifdef SUMO
+ 	$(AR) rcv $(LIBDIR)/libnwchem-sumo.a $(LIBDIR)/objs/*.o
+ 	$(RANLIB) $(LIBDIR)/libnwchem-sumo.a

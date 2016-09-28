@@ -1,4 +1,5 @@
 #include "ga_abstract.h"
+#include "ga.h"
 
 using namespace std;
 
@@ -8,6 +9,15 @@ namespace ctce
   {
     Handle NULL_HANDLE=(int)0;
     char global_ops[6][7] = {"+","*","max","min","absmin","absmax"};
+    
+    bool Handle::valid()
+    {
+      return value != 0;
+    }
+      
+    //FIXME: Make explicit for c++11
+    Handle::Handle(uint64_t conversion): value{conversion}{};
+    Handle::operator uint64_t () const { return value; }
 
     Handle create(Types type, int size, char * name )
     {
@@ -67,14 +77,17 @@ namespace ctce
       int lo[2] = {0, start};
       int hi[2] = {0, stop};
       int tmp = 0; 
-
-      NGA_NbGet(handle.value, lo, hi, buf, &tmp, &wait.handle);
+      //ga_nbhdl_t conversion = (ga_ndhdl_t)(uint64_t) wait.value;
+      NGA_NbGet(handle.value, lo, hi, buf, &tmp, (ga_nbhdl_t *)&wait.value);
     }
 
     void wait(Wait_Handle & wait)
     {
-      if(wait.handle)
-        NGA_NbWait( &wait.handle);
+      if(wait.value)
+      {
+        //ga_nbhdl_t conversion = (ga_ndhdl_t)(uint64_t) wait.value;
+        NGA_NbWait( (ga_nbhdl_t *) &wait.value);
+      }
     }
 
     void acc(Handle handle, void * buf, int start, int stop)

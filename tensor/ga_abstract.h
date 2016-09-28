@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <assert.h>
-#include "ga.h"
+#include <stdio.h>
 
 using namespace std;
 
@@ -14,21 +14,18 @@ namespace ctce
     struct Handle
     {
       Handle(){}
-      bool valid()
-      {
-        return value != 0;
-      }
+      bool valid();
       
       //FIXME: Make explicit for c++11
-      Handle(int conversion): value{conversion}{};
-      operator int () const { return value; }
+      Handle(uint64_t conversion);
+      operator uint64_t () const;
 
-      int value;
+      uint64_t value;
     };
 
     struct Wait_Handle
     {
-      ga_nbhdl_t handle;
+      uint64_t value;
     };
 
     extern Handle NULL_HANDLE;

@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 project (CTCE_LIBRARY C CXX)
+enable_language (Fortran)
 
 # The version number.
 set (CTCE_VERSION_MAJOR 1)
@@ -21,13 +22,14 @@ find_package(FLEX REQUIRED)
 #message(STATUS "mpi compile flags: " ${MPI_CXX_COMPILE_FLAGS})
 #message(STATUS "mpi libs: " ${MPI_CXX_LIBRARIES})
 
-
-find_path (BLAS_INC_PATH NAMES cblas.h mkl_cblas.h PATHS ${CTCE_BLAS_INC})
-find_library (BLAS_LIB_PATH blas ${CTCE_BLAS_LIB})
-
-message(STATUS "BLAS headers found at: " "${BLAS_INC_PATH}")
-message(STATUS "BLAS libs found: " "${BLAS_LIB_PATH}")
-
+if(NOT DEFINED LINUX_BLAS)
+    find_path (BLAS_INC_PATH NAMES cblas.h mkl_cblas.h PATHS ${CTCE_BLAS_INC})
+    find_library (BLAS_LIB_PATH blas ${CTCE_BLAS_LIB})
+    message(STATUS "BLAS headers found at: " "${BLAS_INC_PATH}")
+    message(STATUS "BLAS libs found: " "${BLAS_LIB_PATH}")
+else()
+    add_definitions(-DLINUX_BLAS)
+endif()
 
 #Load the GA_CONFIG and NWCHEM_TOP env variables
 if(NOT DEFINED ENV{NWCHEM_TOP})
@@ -209,7 +211,10 @@ install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/eqs)
 
 SET(CTCE_EQ_PATH ${CTCE_INSTALL_PREFIX}/eqs)
 
-file(WRITE "${PROJECT_BINARY_DIR}/cmake_ctce_headers.h" "#define CBLAS_HEADER_FILE \"${cblas_header_name}\"")
+if(NOT DEFINED LINUX_BLAS)
+    file(WRITE "${PROJECT_BINARY_DIR}/cmake_ctce_headers.h" "#define CBLAS_HEADER_FILE \"${cblas_header_name}\"")
+endif()
+
 file(APPEND "${PROJECT_BINARY_DIR}/cmake_ctce_headers.h" "\n#define CTCE_EQ_PATH \"${CTCE_INSTALL_PREFIX}/eqs\"")
 
 set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
@@ -261,3 +266,28 @@ else()
 
     ADD_CUSTOM_TARGET(docs DEPENDS ${DOCOUTPUT})
 endif()
+
+add_custom_target("patch")
+
+add_custom_command(TARGET "patch" POST_BUILD 
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-fix.bash ${CTCE_INSTALL_PREFIX}/lib
+    COMMENT "=================== Patching nwchem..." )
+
+add_custom_target(link COMMAND "${CMAKE_COMMAND}" --build . --target install)
+
+get_filename_component(NW_CC ${CMAKE_C_COMPILER} NAME )
+get_filename_component(NW_FC ${CMAKE_Fortran_COMPILER} NAME )
+get_filename_component(NW_AR ${CMAKE_AR} NAME )
+
+add_custom_command(TARGET "link" POST_BUILD
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${NWCHEM_TOP}/src make CC=${NW_CC} FC=${NW_FC} AR=${NW_AR} link
+    COMMENT "=================== Relinking nwchem..." )
+
+if(NOT DEFINED $ENV{CTCE_TEST_PROC_COUNT})
+    set(CTCE_TEST_PROC_COUNT 8)
+else()
+    set(CTCE_TEST_PROC_COUNT $ENV{CTCE_TEST_PROC_COUNT})
+endif()
+set (TEST_COMMAND mpirun -n ${CTCE_TEST_PROC_COUNT} ${NWCHEM_TOP}/bin/LINUX64/nwchem)
+
+add_test(integration ${TEST_COMMAND} ${CMAKE_SOURCE_DIR}/test/integration/1.nw )

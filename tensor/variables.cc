@@ -1,6 +1,6 @@
+#include <mpi.h>
 #include "variables.h"
 //#include "/msc/apps/compilers/intel/impi/5.0.1.035/intel64/include/mpi.h"
-#include <mpi.h>
 
 namespace ctce {
 

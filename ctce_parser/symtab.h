@@ -10,7 +10,7 @@ typedef struct STEntry_ *STEntry;
 
 typedef struct hashtable_ *SymbolTable;
 
-typedef char *ctce_string;
+//typedef char *ctce_string;
 
 /* Make a unique symbol from a given string.  
  *  Different calls to S_STEntry("foo") will yield the same S_symbol

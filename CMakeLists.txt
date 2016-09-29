@@ -292,4 +292,8 @@ else()
 endif()
 set (TEST_COMMAND mpirun -n ${CTCE_TEST_PROC_COUNT} ${NWCHEM_TOP}/bin/LINUX64/nwchem)
 
-add_test(integration ${TEST_COMMAND} ${CMAKE_SOURCE_DIR}/test/integration/1.nw )
+file(GLOB INTEG_TESTS RELATIVE ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/test/integration/*.nw")
+foreach (test ${INTEG_TESTS})
+    add_test(${test} ${TEST_COMMAND} ${CMAKE_SOURCE_DIR}/${test} )
+endforeach()
+

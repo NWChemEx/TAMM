@@ -70,7 +70,9 @@ void t_assign2(
         if (coef == -1.0) { // dscal
           for (int i = 0; i < dimc; ++i) buf_a[i] = -buf_a[i];
         }
-        ctce_sort(buf_a, buf_a_sort, a_ids_v, order, 1.0);
+        else {
+          ctce_sort(buf_a, buf_a_sort, a_ids_v, order, coef);
+        }
         addTimer.start();
         tC.add(out_vec, buf_a_sort, dimc);
         addTimer.stop();

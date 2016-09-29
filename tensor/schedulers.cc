@@ -124,7 +124,7 @@ namespace ctce {
       if(t->attached() || t->allocated()) {
         continue;
       }
-      if(first_def[pos] == ops.size()) {
+      if(first_def[pos] == ops_levels.size()) {
         assert(last_use[pos] == -1);
         continue;
       }

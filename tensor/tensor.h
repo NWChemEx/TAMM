@@ -133,15 +133,15 @@ Tensor::set_dist(DistType dist) { dist_type_ = dist; }
 
 inline bool
 Tensor::is_spin_restricted_nonzero(const std::vector<size_t>& ids) const {
-  int lval = dim_ - 2*nupper_;
-  assert(lval >= 0 && lval <=1);
+  int lval = std::abs(dim_ - 2*nupper_);
+
   assert(ids.size() == dim_);
   int dim_even = dim_ + (dim_%2);
   Fint *int_mb = Variables::int_mb();
   size_t k_spin = Variables::k_spin()-1;
   size_t restricted = Variables::restricted();
   for (int i=0; i<ids.size(); i++) lval += int_mb[k_spin+ids[i]];
-  assert ((dim_%2==0) || (!restricted) || (lval != 2*dim_even));
+  //assert ((dim_%2==0) || (!restricted) || (lval != 2*dim_even));
   return ((!restricted) || (dim_==0) || (lval != 2*dim_even));
 }
 

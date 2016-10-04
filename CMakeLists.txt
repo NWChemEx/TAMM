@@ -275,6 +275,11 @@ add_custom_command(TARGET "patch" POST_BUILD
     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib
     COMMENT "=================== Patching nwchem..." )
 
+add_custom_target("patch-only")
+add_custom_command(TARGET "patch-only" POST_BUILD 
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib -l
+    COMMENT "=================== Patching nwchem..." )
+
 add_custom_target("unpatch")
 add_custom_command(TARGET "unpatch" POST_BUILD 
     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-unpatch.bash

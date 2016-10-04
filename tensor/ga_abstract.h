@@ -54,7 +54,7 @@ namespace ctce
     void destroy(Handle handle);
     void get(Handle handle, void * buf, int start, int stop );
     void get(Handle handle, void * buf, int start, int stop,  Wait_Handle & wait  );
-    void acc(Handle handle, void * buf, int start, int stop, double scale);
+    void acc(Handle handle, void * buf, int start, int stop);
     void op(double x[], int n, Operation op);
     void wait(Wait_Handle & wait);
     void destroy(Handle handle);

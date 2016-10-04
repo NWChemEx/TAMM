@@ -1,3 +1,4 @@
+#!/bin/bash
 if [ $# -gt 0 ]; then
     cp template.patch gnumake.patch
     sed -i -- "s:(LIB_TEMP):$1:g" ./gnumake.patch

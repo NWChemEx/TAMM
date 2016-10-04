@@ -1,4 +1,5 @@
 #include "stats.h"
+#include "t_assign.h"
 #include "t_mult.h"
 using namespace std;
 
@@ -227,10 +228,6 @@ void t_mult3(
            (tC.is_spin_nonzero(out_vec)) &&
            (tC.is_spin_restricted_nonzero(out_vec)) ) {
 
-//        if(tC.dim()%2!=0) {
-//          cout<<"Computing output tensor block: "<<out_vec<<endl;
-//        }
-
         vector<int> vtab1(IndexNum);
         for (int i=0; i<tC.dim(); i++) {
           assert(c_ids[i] < IndexNum);
@@ -409,8 +406,29 @@ void t_mult3(
 
 void t_mult4(Multiplication& m, gmem::Handle sync_ga, int spos) {
   multTimer.start();
-  t_mult3(m.tC(), m.tA(), m.tB(), m.coef(), m.sum_ids(),
-          m.sum_itr(), m.cp_itr(), m.out_itr(), m, sync_ga, spos);
+  if(m.tA().dim()==0) {
+    assert(m.tB().dim()!=0); /** @bug Cannot handle this case yet*/
+    double coef;
+    vector<size_t> id;
+    m.tA().get(id, &coef, 1);
+    coef *= m.coef();
+    Assignment as(&m.tC(), &m.tB(), coef, id2name(m.c_ids), id2name(m.b_ids));
+    t_assign3(as, sync_ga, spos);
+  }
+  else if(m.tB().dim()==0) {
+    assert(m.tA().dim()!=0); /** @bug Cannot handle this case yet*/
+    double coef;
+    vector<size_t> id;
+    m.tB().get(id, &coef, 1);
+    coef *= m.coef();
+    Assignment as(&m.tC(), &m.tA(), coef, id2name(m.c_ids), id2name(m.a_ids));
+    t_assign3(as, sync_ga, spos);
+    return;
+  }
+  else {
+    t_mult3(m.tC(), m.tA(), m.tB(), m.coef(), m.sum_ids(),
+            m.sum_itr(), m.cp_itr(), m.out_itr(), m, sync_ga, spos);
+  }
   multTimer.stop();
 }
 

@@ -180,12 +180,12 @@ ctce_restricted(int dim, int nupper,
   }
 
   if(dim==1) {
-    assert(nupper==0);
+    //assert(nupper==0);
     ftce_restricted_2(&dummy0, &ivalue[0],&dummy1,&temp[0]);
   } else if (dim==2)   {
     ftce_restricted_2(&ivalue[0],&ivalue[1],&temp[0],&temp[1]);
   } else if(dim==3) {
-    assert(nupper==1);
+    //assert(nupper==1);
     ftce_restricted_4(&dummy0,&ivalue[0],&ivalue[1],&ivalue[2],
                       &dummy1,&temp[0],&temp[1],&temp[2]);
   } else if (dim==4) {

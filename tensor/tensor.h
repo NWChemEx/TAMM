@@ -1,5 +1,5 @@
-#ifndef __ctce_tensor_h__
-#define __ctce_tensor_h__
+#ifndef __tamm_tensor_h__
+#define __tamm_tensor_h__
 
 #include "index.h"
 #include "variables.h"
@@ -7,7 +7,7 @@
 #include <cassert>
 #include <algorithm>
 
-namespace ctce {
+namespace tamm {
 
 enum DistType { dist_nwi, dist_nwma, dist_nw};
 enum DimType { dim_ov, dim_n };
@@ -174,6 +174,6 @@ Tensor Tensor1_2(RangeType r1, RangeType r2, RangeType r3,
 Tensor Tensor4(RangeType r1, RangeType r2, RangeType r3, RangeType r4,
                DistType dt);
 
-} /* namespace ctce */
+} /* namespace tamm */
 
-#endif /* __ctce_tensor_h__ */
+#endif /* __tamm_tensor_h__ */

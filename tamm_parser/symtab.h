@@ -10,7 +10,7 @@ typedef struct STEntry_ *STEntry;
 
 typedef struct hashtable_ *SymbolTable;
 
-//typedef char *ctce_string;
+//typedef char *tamm_string;
 
 /* Make a unique symbol from a given string.  
  *  Different calls to S_STEntry("foo") will yield the same S_symbol
@@ -21,12 +21,12 @@ SymbolTable ST_create(int size);
 
 /* Enter a binding "sym->value" into "t", shadowing but not deleting
  *    any previous binding of "sym". */
-void ST_insert(SymbolTable SymbolTable, ctce_string key, ctce_string value);
+void ST_insert(SymbolTable SymbolTable, tamm_string key, tamm_string value);
 
 /* Look up the most recent binding of "sym" in "t", or return NULL
  *    if sym is unbound. */
-ctce_string ST_get(SymbolTable hashtab, ctce_string key);
+tamm_string ST_get(SymbolTable hashtab, tamm_string key);
 
-ctce_bool ST_contains(SymbolTable hashtab, ctce_string key);
+tamm_bool ST_contains(SymbolTable hashtab, tamm_string key);
 
 

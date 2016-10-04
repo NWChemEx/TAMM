@@ -9,14 +9,14 @@ void *tce_malloc(int length) {
     return p;
 }
 
-ctce_string mkString(char *s) {
-    ctce_string p = tce_malloc(strlen(s) + 1);
+tamm_string mkString(char *s) {
+    tamm_string p = tce_malloc(strlen(s) + 1);
     strcpy(p, s);
     return p;
 }
 
-ctce_string *mkIndexList(ctce_string *indices, int length) {
-    ctce_string *newlist = malloc(length * sizeof(ctce_string));
+tamm_string *mkIndexList(tamm_string *indices, int length) {
+    tamm_string *newlist = malloc(length * sizeof(tamm_string));
     int i = 0;
     for (i = 0; i < length; i++) {
         newlist[i] = strdup(indices[i]);
@@ -24,18 +24,18 @@ ctce_string *mkIndexList(ctce_string *indices, int length) {
     return newlist;
 }
 
-ctce_string int_str(int a) {
+tamm_string int_str(int a) {
     int size = snprintf(NULL, 0, "%d", a);
-    ctce_string val = malloc(size + 1);
+    tamm_string val = malloc(size + 1);
     sprintf(val, "%d", a);
     return val;
 }
 
 
 
-ctce_string combine_indexLists(ctce_string *indices1, int count1, ctce_string *indices2, int count2) {
-    ctce_string upper = combine_indices(indices1, count1);
-    ctce_string lower = combine_indices(indices2, count2);
+tamm_string combine_indexLists(tamm_string *indices1, int count1, tamm_string *indices2, int count2) {
+    tamm_string upper = combine_indices(indices1, count1);
+    tamm_string lower = combine_indices(indices2, count2);
 
     char *result = tce_malloc(strlen(upper) + strlen(lower) + 1);
     strcpy(result, upper);
@@ -47,26 +47,26 @@ ctce_string combine_indexLists(ctce_string *indices1, int count1, ctce_string *i
 }
 
 
-ctce_string *replicate_indices(ctce_string *indices, int len) {
-    ctce_string *newind = tce_malloc(len * sizeof(ctce_string));
+tamm_string *replicate_indices(tamm_string *indices, int len) {
+    tamm_string *newind = tce_malloc(len * sizeof(tamm_string));
     int i = 0;
     for (i = 0; i < len; i++) newind[i] = strdup(indices[i]);
 
     return newind;
 }
 
-ctce_bool exists_index(ctce_string *list, int len, ctce_string x) {
+tamm_bool exists_index(tamm_string *list, int len, tamm_string x) {
     int i = 0;
     for (i = 0; i < len; i++) if (strcmp(list[i], x) == 0) return true;
     return false;
 }
 
-ctce_bool compare_index_lists(tce_string_array list1, tce_string_array list2) {
+tamm_bool compare_index_lists(tce_string_array list1, tce_string_array list2) {
     int len1 = list1->length;
     int len2 = list2->length;
     if (len1 != len2) return false;
-    ctce_string *alist1 = list1->list;
-    ctce_string *alist2 = list2->list;
+    tamm_string *alist1 = list1->list;
+    tamm_string *alist2 = list2->list;
     int i = 0;
     for (i = 0; i < len1; i++) {
         if (!exists_index(alist2, len2, alist1[i])) return false;
@@ -74,12 +74,12 @@ ctce_bool compare_index_lists(tce_string_array list1, tce_string_array list2) {
     return true;
 }
 
-ctce_bool check_array_usage(tce_string_array list1, tce_string_array list2) {
+tamm_bool check_array_usage(tce_string_array list1, tce_string_array list2) {
     int len1 = list1->length;
     int len2 = list2->length;
     if (len1 != len2) return false;
-    ctce_string *alist1 = list1->list;
-    ctce_string *alist2 = list2->list;
+    tamm_string *alist1 = list1->list;
+    tamm_string *alist2 = list2->list;
     int i = 0;
     for (i = 0; i < len1; i++) {
         if (strcmp(alist1[i], "N") != 0) if (strcmp(alist1[i], alist2[i]) != 0) return false;
@@ -88,12 +88,12 @@ ctce_bool check_array_usage(tce_string_array list1, tce_string_array list2) {
 }
 
 
-ctce_bool exact_compare_index_lists(tce_string_array list1, tce_string_array list2) {
+tamm_bool exact_compare_index_lists(tce_string_array list1, tce_string_array list2) {
     int len1 = list1->length;
     int len2 = list2->length;
     if (len1 != len2) return false;
-    ctce_string *alist1 = list1->list;
-    ctce_string *alist2 = list2->list;
+    tamm_string *alist1 = list1->list;
+    tamm_string *alist2 = list2->list;
     int i = 0;
     for (i = 0; i < len1; i++) {
         if (strcmp(alist1[i], alist2[i]) != 0) return false;
@@ -108,7 +108,7 @@ void print_index_list(tce_string_array list1) {
 }
 
 
-int count_index(ctce_string *list, int len, ctce_string x) {
+int count_index(tamm_string *list, int len, tamm_string x) {
     int count = 0, i = 0;
     for (i = 0; i < len; i++) {
         if (strcmp(list[i], x) == 0) count++;
@@ -117,10 +117,10 @@ int count_index(ctce_string *list, int len, ctce_string x) {
 }
 
 
-tce_string_array stringToList(const ctce_string s) {
-    ctce_string str = strdup(s);
+tce_string_array stringToList(const tamm_string s) {
+    tamm_string str = strdup(s);
     int len = strlen(str);
-    ctce_string *list = tce_malloc(sizeof(ctce_string) * (len+1));
+    tamm_string *list = tce_malloc(sizeof(tamm_string) * (len+1));
     int i = 0;
 
     char *c = strtok(str, " ,:");
@@ -135,7 +135,7 @@ tce_string_array stringToList(const ctce_string s) {
     free(list);
     len = i;
     i = 0;
-    list = tce_malloc(sizeof(ctce_string) * (len+1));
+    list = tce_malloc(sizeof(tamm_string) * (len+1));
 
     c = strtok(str, " ,:");
     while (c != NULL) {
@@ -151,7 +151,7 @@ tce_string_array stringToList(const ctce_string s) {
 }
 
 //Convert string array of indices to comma seperated string
-ctce_string combine_indices(ctce_string *indices, int count) {
+tamm_string combine_indices(tamm_string *indices, int count) {
     if (indices == NULL) return "\0";
 
     char *str = NULL;             /* Pointer to the combined string  */

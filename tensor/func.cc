@@ -1,6 +1,6 @@
 #include "func.h"
 
-namespace ctce {
+namespace tamm {
 
   double rtclock()
   {
@@ -131,4 +131,4 @@ namespace ctce {
     }
   }
 
-}; // namespace ctce
+}; // namespace tamm

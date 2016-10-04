@@ -6,7 +6,7 @@
 #include "fapi.h"
 #include "t_mult.h"
 
-namespace ctce {
+namespace tamm {
 
   extern "C" {
 
@@ -15,7 +15,7 @@ namespace ctce {
 
     void gen_ccsd_t_cxx_() {
       if (set_ccsd_t) {
-        // comment NAG std::cout << "ctce: generate ccsd_t singles and doubles 1 2.\n";
+        // comment NAG std::cout << "tamm: generate ccsd_t singles and doubles 1 2.\n";
         Tensor tC, tA, tB;
         std::vector<int> cpt;
 
@@ -180,5 +180,5 @@ namespace ctce {
 
       } // ccsd_t.F
     } // extern C
-  }; // namespace ctce
+  }; // namespace tamm
 

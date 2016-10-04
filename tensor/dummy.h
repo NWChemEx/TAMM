@@ -1,11 +1,11 @@
-#ifndef __ctce_dummy_h__
-#define __ctce_dummy_h__
+#ifndef __tamm_dummy_h__
+#define __tamm_dummy_h__
 
 #include "copyIter.h"
 #include "typesf2c.h"
 #include "func.h"
 
-namespace ctce {
+namespace tamm {
 
   /* this will be replaced soon */
   class Dummy {
@@ -22,6 +22,6 @@ namespace ctce {
       static const CopyIter& type4() { return type4_; }
   };
 
-} // namespace ctce
+} // namespace tamm
 
 #endif

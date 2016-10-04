@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-## Script that verifies tests on the CTCE parser.
+## Script that verifies tests on the TAMM parser.
 
 import sys
 import os

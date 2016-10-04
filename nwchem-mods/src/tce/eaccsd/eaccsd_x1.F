@@ -48,8 +48,8 @@ C         i1 ( h4 h5 h1 p3 )_vx + = 1 * Sum ( p6 ) * x ( p6 h1 )_x * v ( h4 h5 p
       INTEGER l_i2_offset
       INTEGER size_i2
       CHARACTER*255 filename
-#define CTCE_OK 1
-#if CTCE_OK
+#define TAMM_OK 1
+#if TAMM_OK
       INTEGER d_x1n, k_x1n_offset, l_x1n_offset, size_x1n
       INTEGER d_x2n, k_x2n_offset, l_x2n_offset, size_x2n
       INTEGER d_i0n

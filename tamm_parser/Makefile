@@ -1,29 +1,29 @@
 CC = gcc
 CFLAGS = -g -Wall
 
-all: ctce_test libctceparser.a
+all: tamm_test libtammparser.a
 
-ctce_test: test.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o ctce_vector.o ctce_parser.o
-	$(CC) -o $@ $(CFLAGS) test.o parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o intermediate.o ctce_vector.o ctce_parser.o -lfl
+tamm_test: test.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o tamm_vector.o tamm_parser.o
+	$(CC) -o $@ $(CFLAGS) test.o parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o intermediate.o tamm_vector.o tamm_parser.o -lfl
 
 test.o: test.c parser.o scanner.o *.h
 	$(CC) $(CFLAGS) -c test.c
 
 
-libctceparser.a: ctce_parser.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o ctce_vector.o
-	ar -cvq libctceparser.a ctce_parser.o parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o intermediate.o ctce_vector.o
+libtammparser.a: tamm_parser.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o tamm_vector.o
+	ar -cvq libtammparser.a tamm_parser.o parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o intermediate.o tamm_vector.o
 
-ctce_parser.o: parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o ctce_vector.o
-	$(CC) $(CFLAGS) -c ctce_parser.c
+tamm_parser.o: parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o tamm_vector.o
+	$(CC) $(CFLAGS) -c tamm_parser.c
 
 visitor.o: visitor.c parser.o util.o
 	$(CC) $(CFLAGS) -c visitor.c 
 
-intermediate.o: intermediate.c semant.o ctce_vector.o
+intermediate.o: intermediate.c semant.o tamm_vector.o
 	$(CC) $(CFLAGS) -c intermediate.c
 
-ctce_vector.o: ctce_vector.c  util.o
-	$(CC) $(CFLAGS) -c ctce_vector.c
+tamm_vector.o: tamm_vector.c  util.o
+	$(CC) $(CFLAGS) -c tamm_vector.c
 
 semant.o: semant.c parser.o  
 	$(CC) $(CFLAGS) -c semant.c 
@@ -55,4 +55,4 @@ scanner.c: scanner.l
 .PHONY: clean
 
 clean: 
-	rm -f ctce_test parser.out parser.c parser.h scanner.c scanner.h lemon *.o libctceparser.a output.txt lex.yy.c
+	rm -f tamm_test parser.out parser.c parser.h scanner.c scanner.h lemon *.o libtammparser.a output.txt lex.yy.c

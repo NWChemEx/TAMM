@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 2.8)
-project (CTCE_LIBRARY C CXX)
+project (TAMM_LIBRARY C CXX)
 enable_language (Fortran)
 
 # The version number.
-set (CTCE_VERSION_MAJOR 1)
-set (CTCE_VERSION_MINOR 0)
+set (TAMM_VERSION_MAJOR 1)
+set (TAMM_VERSION_MINOR 0)
 
 set (CMAKE_BUILD_TYPE Debug)
 
@@ -23,8 +23,8 @@ find_package(FLEX REQUIRED)
 #message(STATUS "mpi libs: " ${MPI_CXX_LIBRARIES})
 
 if(NOT DEFINED LINUX_BLAS)
-    find_path (BLAS_INC_PATH NAMES cblas.h mkl_cblas.h PATHS ${CTCE_BLAS_INC})
-    find_library (BLAS_LIB_PATH blas ${CTCE_BLAS_LIB})
+    find_path (BLAS_INC_PATH NAMES cblas.h mkl_cblas.h PATHS ${TAMM_BLAS_INC})
+    find_library (BLAS_LIB_PATH blas ${TAMM_BLAS_LIB})
     message(STATUS "BLAS headers found at: " "${BLAS_INC_PATH}")
     message(STATUS "BLAS libs found: " "${BLAS_LIB_PATH}")
 else()
@@ -33,44 +33,44 @@ endif()
 
 #Load the GA_CONFIG and NWCHEM_TOP env variables
 if(NOT DEFINED ENV{NWCHEM_TOP})
-    message(FATAL_ERROR "CTCE ERROR: Environment variable NWCHEM_TOP not set")
+    message(FATAL_ERROR "TAMM ERROR: Environment variable NWCHEM_TOP not set")
 else()
     set(NWCHEM_TOP $ENV{NWCHEM_TOP})
 endif()
 
 set(GA_CONFIG ${NWCHEM_TOP}/src/tools/install/bin/ga-config)
 
-execute_process(COMMAND ${GA_CONFIG} --cc OUTPUT_VARIABLE ctce_c_compiler OUTPUT_STRIP_TRAILING_WHITESPACE)
-#execute_process(COMMAND ${GA_CONFIG} --f77 OUTPUT_VARIABLE ctce_f77_compiler OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${GA_CONFIG} --cc OUTPUT_VARIABLE tamm_c_compiler OUTPUT_STRIP_TRAILING_WHITESPACE)
+#execute_process(COMMAND ${GA_CONFIG} --f77 OUTPUT_VARIABLE tamm_f77_compiler OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-SET(CMAKE_C_COMPILER ${ctce_c_compiler})
+SET(CMAKE_C_COMPILER ${tamm_c_compiler})
 
 #Assume Cmake picks the right c++ compiler for now
 SET(CMAKE_CXX_COMPILER mpicxx)
 
-execute_process(COMMAND ${GA_CONFIG} --cppflags --cflags OUTPUT_VARIABLE ctce_cflags OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND ${GA_CONFIG} --ldflags OUTPUT_VARIABLE ctce_ldflags OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND ${GA_CONFIG} --libs OUTPUT_VARIABLE ctce_libs OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${GA_CONFIG} --cppflags --cflags OUTPUT_VARIABLE tamm_cflags OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${GA_CONFIG} --ldflags OUTPUT_VARIABLE tamm_ldflags OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${GA_CONFIG} --libs OUTPUT_VARIABLE tamm_libs OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 
 #Build lemon sources
-set(ParserSrcDir ${PROJECT_SOURCE_DIR}/ctce_parser)
+set(ParserSrcDir ${PROJECT_SOURCE_DIR}/tamm_parser)
 add_executable(lemon ${ParserSrcDir}/lemon.c)
 
 
 # Collect all the parser sources.
-set(ctceParserSources
-    ctce_parser/absyn.c
-    ctce_parser/ctce_parser.c
-    ctce_parser/ctce_vector.c
-    ctce_parser/intermediate.c
-    ctce_parser/semant.c
-    ctce_parser/visitor.c
-    ctce_parser/symtab.c
-    ctce_parser/util.c
+set(tammParserSources
+    tamm_parser/absyn.c
+    tamm_parser/tamm_parser.c
+    tamm_parser/tamm_vector.c
+    tamm_parser/intermediate.c
+    tamm_parser/semant.c
+    tamm_parser/visitor.c
+    tamm_parser/symtab.c
+    tamm_parser/util.c
     )
 
-set(ctceLibSources
+set(tammLibSources
   tensor/capi.cc
   tensor/cisd_e_ref.cc
   tensor/cisd_c1_ref.cc
@@ -128,34 +128,34 @@ ADD_CUSTOM_COMMAND(OUTPUT ${ParserSources}
     # Generate the parser code
     COMMAND cmake -E chdir ${ParserBuildDir} ./lemon -s ${ParserBuildDir}/parser.y
     DEPENDS ${ParserSrcDir}/parser.y lemon
-    COMMENT "Building the ctce lemon parser."
+    COMMENT "Building the tamm lemon parser."
     VERBATIM
     )
 
 #Build the generated scanner and parser sources
-#add_library(ctce_sp STATIC ${ParserSources})
-#target_include_directories(ctce_sp SYSTEM PUBLIC ${ParserSrcDir})
+#add_library(tamm_sp STATIC ${ParserSources})
+#target_include_directories(tamm_sp SYSTEM PUBLIC ${ParserSrcDir})
 
-string(REPLACE "-I" "" ctce_cmake_cflags ${ctce_cflags})
+string(REPLACE "-I" "" tamm_cmake_cflags ${tamm_cflags})
 #To be recognized as a list, the strings must be seperated by ;
-string(REPLACE " " ";" ctce_cflags ${ctce_cmake_cflags})
+string(REPLACE " " ";" tamm_cflags ${tamm_cmake_cflags})
 
 SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
-add_library(ctce STATIC ${ctceParserSources} ${ParserSources} ${ctceLibSources})
-target_include_directories(ctce SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags} ${BLAS_INC_PATH})
+add_library(tamm STATIC ${tammParserSources} ${ParserSources} ${tammLibSources})
+target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
 
-# Build the ctce_parser_test code
-add_executable(ctce_parser_test ${ParserSrcDir}/test.c)
-add_dependencies(ctce_parser_test ctce)
+# Build the tamm_parser_test code
+add_executable(tamm_parser_test ${ParserSrcDir}/test.c)
+add_dependencies(tamm_parser_test tamm)
 # Set target libraries to be linked.
-target_link_libraries(ctce_parser_test ctce fl)
+target_link_libraries(tamm_parser_test tamm fl)
 
-string(REPLACE "-L" "" ctce_cmake_ldflags ${ctce_ldflags})
-string(REPLACE " " ";" ctce_ldflags ${ctce_cmake_ldflags})
+string(REPLACE "-L" "" tamm_cmake_ldflags ${tamm_ldflags})
+string(REPLACE " " ";" tamm_ldflags ${tamm_cmake_ldflags})
 
-string(REPLACE "-l" "" ctce_cmake_libs ${ctce_libs})
-#string(REPLACE "-" "" ctce_cmake_libs ${ctce_cmake_libs1})
-string(REPLACE " " ";" ctce_libs ${ctce_cmake_libs})
+string(REPLACE "-l" "" tamm_cmake_libs ${tamm_libs})
+#string(REPLACE "-" "" tamm_cmake_libs ${tamm_cmake_libs1})
+string(REPLACE " " ";" tamm_libs ${tamm_cmake_libs})
 
 
 find_path(cblas_header_name "mkl_cblas.h" ${BLAS_INC_PATH})
@@ -169,56 +169,56 @@ endif()
 SET(lib_search "")
 set(other_flags "")
 
-foreach(tcelibname ${ctce_libs})
-    SET(EACH_CTCE_LIB "EACH_CTCE_LIB-NOTFOUND")
-    find_library(EACH_CTCE_LIB ${tcelibname} ${ctce_ldflags})
-    if(EACH_CTCE_LIB)
-      #message(STATUS "lib ${tcelibname} found at: " "${EACH_CTCE_LIB}")
-      LIST(APPEND lib_search ${EACH_CTCE_LIB})
+foreach(tcelibname ${tamm_libs})
+    SET(EACH_TAMM_LIB "EACH_TAMM_LIB-NOTFOUND")
+    find_library(EACH_TAMM_LIB ${tcelibname} ${tamm_ldflags})
+    if(EACH_TAMM_LIB)
+      #message(STATUS "lib ${tcelibname} found at: " "${EACH_TAMM_LIB}")
+      LIST(APPEND lib_search ${EACH_TAMM_LIB})
     else()
         LIST(APPEND other_flags ${tcelibname})
     endif()
 endforeach(tcelibname)
 
 
-#message(STATUS "check libs = " "${ctce_libs}")
-#message(STATUS "check lib path = " "${ctce_ldflags}")
+#message(STATUS "check libs = " "${tamm_libs}")
+#message(STATUS "check lib path = " "${tamm_ldflags}")
 #message(STATUS "target libs = " "${lib_search}")
 #message(STATUS "target flags = " "${other_flags}")
 
 
-add_executable(ctce_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
-add_dependencies(ctce_main ctce)
-target_include_directories(ctce_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${ctce_cflags} ${BLAS_INC_PATH})
+add_executable(tamm_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
+add_dependencies(tamm_main tamm)
+target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
 # Set target libraries to be linked.
-target_link_libraries(ctce_main ctce ${lib_search} blas)
+target_link_libraries(tamm_main tamm ${lib_search} blas)
 
 # Install
-if(NOT CTCE_INSTALL_PREFIX)
-    set(CTCE_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/ctce-install)
+if(NOT TAMM_INSTALL_PREFIX)
+    set(TAMM_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/tamm-install)
 endif()
 
-message(STATUS "Installing CTCE library at: " ${CTCE_INSTALL_PREFIX})
+message(STATUS "Installing TAMM library at: " ${TAMM_INSTALL_PREFIX})
 
-install(TARGETS ctce
-        DESTINATION ${CTCE_INSTALL_PREFIX}/lib)
+install(TARGETS tamm
+        DESTINATION ${TAMM_INSTALL_PREFIX}/lib)
 
-    file(GLOB CTCE_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/ctce_parser/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
-install(FILES ${CTCE_HEADERS} DESTINATION ${CTCE_INSTALL_PREFIX}/include)
+    file(GLOB TAMM_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/tamm_parser/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
+install(FILES ${TAMM_HEADERS} DESTINATION ${TAMM_INSTALL_PREFIX}/include)
 
-file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/ctce_tests/NWChemEqs/*.eq")
-install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/tests/NWChemEqs)
-file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/ctce_tests/SoEqs/*.eq")
-install(FILES ${EQFILES} DESTINATION ${CTCE_INSTALL_PREFIX}/tests/SoEqs)
+file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/tamm_tests/NWChemEqs/*.eq")
+install(FILES ${EQFILES} DESTINATION ${TAMM_INSTALL_PREFIX}/tests/NWChemEqs)
+file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/tamm_tests/SoEqs/*.eq")
+install(FILES ${EQFILES} DESTINATION ${TAMM_INSTALL_PREFIX}/tests/SoEqs)
 
-SET(CTCE_EQ_PATH ${CTCE_INSTALL_PREFIX}/tests/NWChemEqs)
+SET(TAMM_EQ_PATH ${TAMM_INSTALL_PREFIX}/tests/NWChemEqs)
 
 if(NOT DEFINED LINUX_BLAS)
-    file(WRITE "${PROJECT_BINARY_DIR}/cmake_ctce_headers.h" "#define CBLAS_HEADER_FILE \"${cblas_header_name}\"")
+    file(WRITE "${PROJECT_BINARY_DIR}/cmake_tamm_headers.h" "#define CBLAS_HEADER_FILE \"${cblas_header_name}\"")
 endif()
 
-file(WRITE "${PROJECT_BINARY_DIR}/cmake_ctce_headers.h" "#define CBLAS_HEADER_FILE \"${cblas_header_name}\"")
-file(APPEND "${PROJECT_BINARY_DIR}/cmake_ctce_headers.h" "\n#define CTCE_EQ_PATH \"${CTCE_INSTALL_PREFIX}/tests/NWChemEqs\"")
+file(WRITE "${PROJECT_BINARY_DIR}/cmake_tamm_headers.h" "#define CBLAS_HEADER_FILE \"${cblas_header_name}\"")
+file(APPEND "${PROJECT_BINARY_DIR}/cmake_tamm_headers.h" "\n#define TAMM_EQ_PATH \"${TAMM_INSTALL_PREFIX}/tests/NWChemEqs\"")
 
 set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
         "parser.y" "scanner.l" "parser.out" "output.txt" "lempar.c")
@@ -231,7 +231,7 @@ execute_process(COMMAND mkdir -p "TestResults/ParserTests")
 foreach (test ${EQFILES})
     get_filename_component(Testname ${test} NAME_WE)
     add_test(${test} python ${PROJECT_SOURCE_DIR}/scripts/testing/ParserTest.py "${Testname}"
-            "${PROJECT_BINARY_DIR}/ctce_parser_test" "${PROJECT_SOURCE_DIR}/ctce_tests/NWChemEqs/"
+            "${PROJECT_BINARY_DIR}/tamm_parser_test" "${PROJECT_SOURCE_DIR}/tamm_tests/NWChemEqs/"
             "${PROJECT_BINARY_DIR}/TestResults/ParserTests")
 endforeach ()
 
@@ -256,11 +256,11 @@ else()
     # Custom Target to build the Doxygen documentation.
     ADD_CUSTOM_COMMAND(OUTPUT ${DOCOUTPUT}
             COMMAND cmake -E copy ${PROJECT_SOURCE_DIR}/Doxyfile.in ${DOCS}/Doxyfile.in
-            COMMAND cmake -E copy_directory ${PROJECT_SOURCE_DIR}/ctce_parser ${DOCS}/ctce_parser
+            COMMAND cmake -E copy_directory ${PROJECT_SOURCE_DIR}/tamm_parser ${DOCS}/tamm_parser
             COMMAND cmake -E copy_directory ${PROJECT_SOURCE_DIR}/tensor ${DOCS}/tensor
             # Change to docs folder before building the documentation.
             COMMAND cmake -E chdir ${DOCS} doxygen ${DOCS}/Doxyfile.in
-            COMMAND cmake -E remove_directory ${DOCS}/ctce_parser
+            COMMAND cmake -E remove_directory ${DOCS}/tamm_parser
             COMMAND cmake -E remove_directory ${DOCS}/tensor
             COMMAND cmake -E remove -f ${DOCS}/Doxyfile.in
             DEPENDS ${PROJECT_SOURCE_DIR}/Doxyfile.in
@@ -271,10 +271,14 @@ else()
 endif()
 
 add_custom_target("patch")
-
 add_custom_command(TARGET "patch" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-fix.bash ${CTCE_INSTALL_PREFIX}/lib
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib
     COMMENT "=================== Patching nwchem..." )
+
+add_custom_target("unpatch")
+add_custom_command(TARGET "unpatch" POST_BUILD 
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-unpatch.bash
+    COMMENT "=================== Unpatching nwchem gnumakefile..." )
 
 add_custom_target(link COMMAND "${CMAKE_COMMAND}" --build . --target install)
 
@@ -286,12 +290,12 @@ add_custom_command(TARGET "link" POST_BUILD
     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${NWCHEM_TOP}/src make CC=${NW_CC} FC=${NW_FC} AR=${NW_AR} link
     COMMENT "=================== Relinking nwchem..." )
 
-if(NOT DEFINED $ENV{CTCE_TEST_PROC_COUNT})
-    set(CTCE_TEST_PROC_COUNT 8)
+if(NOT DEFINED $ENV{TAMM_TEST_PROC_COUNT})
+    set(TAMM_TEST_PROC_COUNT 8)
 else()
-    set(CTCE_TEST_PROC_COUNT $ENV{CTCE_TEST_PROC_COUNT})
+    set(TAMM_TEST_PROC_COUNT $ENV{TAMM_TEST_PROC_COUNT})
 endif()
-set (TEST_COMMAND "mpirun -n ${CTCE_TEST_PROC_COUNT} ${NWCHEM_TOP}/bin/LINUX64/nwchem")
+set (TEST_COMMAND "mpirun -n ${TAMM_TEST_PROC_COUNT} ${NWCHEM_TOP}/bin/LINUX64/nwchem")
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 

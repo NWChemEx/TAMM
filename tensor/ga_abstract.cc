@@ -3,7 +3,7 @@
 
 using namespace std;
 
-namespace ctce
+namespace tamm
 {
   namespace gmem
   {

@@ -153,7 +153,7 @@ extern "C" {
   void offset_ipccsd_x2_8_1_(Integer *l_x2_8_1_offset, Integer *k_x2_8_1_offset, Integer *size_x2_8_1);
 }
 
-namespace ctce {
+namespace tamm {
 
 void schedule_linear(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
 void schedule_linear_lazy(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
@@ -401,4 +401,4 @@ extern "C" {
   v->detach();
   }
 } // extern C
-}; // namespace ctce
+}; // namespace tamm

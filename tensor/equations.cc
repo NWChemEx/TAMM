@@ -5,95 +5,95 @@
 
 using namespace std;
 
-namespace ctce {
+namespace tamm {
 
 void
-parser_eqs_to_ctce_eqs(::Equations *eqs, ctce::Equations &ceqs);
+parser_eqs_to_tamm_eqs(::Equations *eqs, tamm::Equations &ceqs);
 
 static void
-parse_equations(const string &filename, ctce::Equations &ceqs);
+parse_equations(const string &filename, tamm::Equations &ceqs);
 
 void
-ccsd_e_equations(ctce::Equations &eqs) {
+ccsd_e_equations(tamm::Equations &eqs) {
   parse_equations("ccsd_e.eq", eqs);
 }
 
 void
-ccsd_t1_equations(ctce::Equations &eqs) {
+ccsd_t1_equations(tamm::Equations &eqs) {
   parse_equations("ccsd_t1.eq", eqs);
 }
 
 void
-ccsd_t2_equations(ctce::Equations &eqs) {
+ccsd_t2_equations(tamm::Equations &eqs) {
   parse_equations("ccsd_t2_hand.eq", eqs);
 }
 
 void
-cisd_e_equations(ctce::Equations &eqs) {
+cisd_e_equations(tamm::Equations &eqs) {
   parse_equations("cisd_e.eq", eqs);
 }
 
 void
-cisd_c1_equations(ctce::Equations &eqs) {
+cisd_c1_equations(tamm::Equations &eqs) {
   parse_equations("cisd_c1.eq", eqs);
 }
 
 void
-cisd_c2_equations(ctce::Equations &eqs) {
+cisd_c2_equations(tamm::Equations &eqs) {
   parse_equations("cisd_c2.eq", eqs);
 }
 
 
 void
-cc2_t1_equations(ctce::Equations &eqs) {
+cc2_t1_equations(tamm::Equations &eqs) {
   parse_equations("cc2_t1.eq", eqs);
 }
 
 void
-cc2_t2_equations(ctce::Equations &eqs) {
+cc2_t2_equations(tamm::Equations &eqs) {
   parse_equations("cc2_t2.eq", eqs);
 }
 
 void
-icsd_t1_equations(ctce::Equations &eqs) {
+icsd_t1_equations(tamm::Equations &eqs) {
   parse_equations("icsd_t1.eq", eqs);
 }
 
 void
-icsd_t2_equations(ctce::Equations &eqs) {
+icsd_t2_equations(tamm::Equations &eqs) {
   parse_equations("icsd_t2_hand.eq", eqs);
 }
 
 void
-ipccsd_x1_equations(ctce::Equations &eqs) {
+ipccsd_x1_equations(tamm::Equations &eqs) {
   parse_equations("ipccsd_x1.eq", eqs);
 }
 
 void
-ipccsd_x2_equations(ctce::Equations &eqs) {
+ipccsd_x2_equations(tamm::Equations &eqs) {
   parse_equations("ipccsd_x2.eq", eqs);
 }
 
 void
-eaccsd_x1_equations(ctce::Equations &eqs) {
+eaccsd_x1_equations(tamm::Equations &eqs) {
   parse_equations("eaccsd_x1.eq", eqs);
 }
 
 void
-eaccsd_x2_equations(ctce::Equations &eqs) {
+eaccsd_x2_equations(tamm::Equations &eqs) {
   parse_equations("eaccsd_x2.eq", eqs);
 }
 
 static void
-parse_equations(const string &filename, ctce::Equations &ceqs) {
+parse_equations(const string &filename, tamm::Equations &ceqs) {
   ::Equations peqs;
-  string full_name = string(CTCE_EQ_PATH) + string("/") + filename;
-  ctce_parser(full_name.c_str(), &peqs);
-  parser_eqs_to_ctce_eqs(&peqs, ceqs);
+  string full_name = string(TAMM_EQ_PATH) + string("/") + filename;
+  tamm_parser(full_name.c_str(), &peqs);
+  parser_eqs_to_tamm_eqs(&peqs, ceqs);
 }
 
 void
-parser_eqs_to_ctce_eqs(::Equations *peqs, ctce::Equations &ceqs) {
+parser_eqs_to_tamm_eqs(::Equations *peqs, tamm::Equations &ceqs) {
   assert(peqs);
   int nre, nie, nte, noe;
   nre = vector_count(&peqs->range_entries);
@@ -103,14 +103,14 @@ parser_eqs_to_ctce_eqs(::Equations *peqs, ctce::Equations &ceqs) {
 
   for(int i=0; i<nre; i++) {
     ::RangeEntry re = (::RangeEntry)vector_get(&peqs->range_entries, i);
-    ctce::RangeEntry cre;
+    tamm::RangeEntry cre;
     // cre.name = strdup(re->name);
     cre.name = string(re->name);
     ceqs.range_entries.push_back(cre);
   }
   for(int i=0; i<nie; i++) {
     ::IndexEntry ie = (::IndexEntry)vector_get(&peqs->index_entries, i);
-    ctce::IndexEntry cie;
+    tamm::IndexEntry cie;
     // cie.name = strdup(ie->name);
     cie.name = string(ie->name);
     cie.range_id = ie->range_id;
@@ -121,7 +121,7 @@ parser_eqs_to_ctce_eqs(::Equations *peqs, ctce::Equations &ceqs) {
 
   for(int i=0; i<nte; i++) {
     ::TensorEntry te = (::TensorEntry)vector_get(&peqs->tensor_entries, i);
-    ctce::TensorEntry cte;
+    tamm::TensorEntry cte;
     // cte.name = strdup(te->name);
     cte.name = string(te->name);
     cte.ndim = te->ndim;
@@ -132,20 +132,20 @@ parser_eqs_to_ctce_eqs(::Equations *peqs, ctce::Equations &ceqs) {
     }
     //ceqs.tensor_entries.push_back(cte);
     //ceqs.tensor_entries[string(te->name)] = cte;
-    ceqs.tensor_entries.insert( std::map<std::string, ctce::TensorEntry>::value_type( string(te->name), cte ) );
+    ceqs.tensor_entries.insert( std::map<std::string, tamm::TensorEntry>::value_type( string(te->name), cte ) );
   }
 
   for(int i=0; i<noe; i++) {
     ::OpEntry oe = (::OpEntry)vector_get(&peqs->op_entries, i);
-    ctce::OpEntry coe;
+    tamm::OpEntry coe;
     //cout<<"optype == "<<oe->optype<<endl;
     coe.op_id = oe->op_id;
-    coe.optype = (oe->optype == ::OpTypeAdd) ? ctce::OpTypeAdd : ctce::OpTypeMult;
+    coe.optype = (oe->optype == ::OpTypeAdd) ? tamm::OpTypeAdd : tamm::OpTypeMult;
 //      coe.add = oe->add;
 //      coe.mult = oe->mult;
 
     int j;
-    if (coe.optype == ctce::OpTypeAdd) {
+    if (coe.optype == tamm::OpTypeAdd) {
 
       ::TensorEntry ta = (::TensorEntry)vector_get(&peqs->tensor_entries, oe->add->ta);
       ::TensorEntry tc = (::TensorEntry)vector_get(&peqs->tensor_entries, oe->add->tc);

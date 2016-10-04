@@ -1,5 +1,5 @@
-#ifndef __ctce_func_h__
-#define __ctce_func_h__
+#ifndef __tamm_func_h__
+#define __tamm_func_h__
 
 #include "variables.h"
 #include "sys/time.h"
@@ -7,7 +7,7 @@
 #include <algorithm>
 using namespace std;
 
-namespace ctce {
+namespace tamm {
 
   /**
   * Get current time stamp, use to time the computation
@@ -51,4 +51,4 @@ namespace ctce {
       double *energy1, double *energy2, double *buf_single, double *buf_double, const double& factor);
 }
 
-#endif /* __ctce_func_h__ */
+#endif /* __tamm_func_h__ */

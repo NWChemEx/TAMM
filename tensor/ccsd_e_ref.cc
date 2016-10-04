@@ -35,9 +35,9 @@ extern "C" {
 }
 
 
-namespace ctce {
+namespace tamm {
 
-  void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
+  void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
                             std::vector<Operation> &ops);
 
   extern "C" {
@@ -57,7 +57,7 @@ namespace ctce {
           ccsd_e_equations(eqs);
           set_e = false;
       }
-      std::map<std::string, ctce::Tensor> tensors;
+      std::map<std::string, tamm::Tensor> tensors;
       std::vector<Operation> ops;
 
       tensors_and_ops(eqs,tensors, ops);
@@ -101,5 +101,5 @@ namespace ctce {
       v->detach();
     }
   } // extern C
-}; // namespace ctce
+}; // namespace tamm
 

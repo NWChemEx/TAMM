@@ -1,10 +1,10 @@
-#ifndef __ctce_corf_h__
-#define __ctce_corf_h__
+#ifndef __tamm_corf_h__
+#define __tamm_corf_h__
 
 #include "variables.h"
 #include "expression.h"
 
-namespace ctce {
+namespace tamm {
   typedef void (*add_fn)(Integer*,Integer*,Integer*,Integer*);
   typedef void (*mult_fn)(Integer*,Integer*,Integer*,Integer*,Integer*,Integer*);
   typedef void (*offset_fn)(Integer*,Integer*,Integer*);
@@ -14,6 +14,6 @@ namespace ctce {
   void CorFortran(int use_c, Tensor *tensor, offset_fn fn);
   void destroy(Tensor *t);
 
-}; /*ctce*/
+}; /*tamm*/
 
-#endif /*__ctce_corf_h__*/
+#endif /*__tamm_corf_h__*/

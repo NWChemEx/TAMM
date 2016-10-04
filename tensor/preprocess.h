@@ -1,12 +1,12 @@
-#ifndef __ctce_preprocess_h__
-#define __ctce_preprocess_h__
+#ifndef __tamm_preprocess_h__
+#define __tamm_preprocess_h__
 
 #include "tensor.h"
 #include "triangular.h"
 #include "antisymm.h"
 #include "iterGroup.h"
 
-namespace ctce {
+namespace tamm {
 
 /**
  * Generate triangluar iterator
@@ -24,6 +24,6 @@ void
 genAntiIter(const std::vector<size_t> &vtab, IterGroup<antisymm>& ext_itr,
             const Tensor& tC, const Tensor& tA, const Tensor& tB);
 
-} /* namespace ctce */
+} /* namespace tamm */
 
-#endif /* __ctce_preprocess_h__ */
+#endif /* __tamm_preprocess_h__ */

@@ -6,7 +6,7 @@
 
 using namespace std;
 
-namespace ctce {
+namespace tamm {
 
 Tensor::Tensor(int n, int nupper, int irrep_val,
                RangeType rt[], DistType dist_type)
@@ -51,7 +51,7 @@ Tensor::Tensor(int n, int nupper, int irrep_val,
 void
 Tensor::gen_restricted(const std::vector<size_t>& value_,
                        std::vector<size_t> &pvalue_r) {
-  ctce_restricted(dim_, nupper_, value_, pvalue_r);
+  tamm_restricted(dim_, nupper_, value_, pvalue_r);
 }
 
 void
@@ -266,4 +266,4 @@ Tensor4(RangeType r1, RangeType r2, RangeType r3, RangeType r4,
   return Tensor(4,2,0,rts, dt);
 }
 
-} /*namespace ctce*/
+} /*namespace tamm*/

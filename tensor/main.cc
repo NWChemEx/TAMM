@@ -7,9 +7,9 @@
 //#include "equations.h"
 
 using namespace std;
-using namespace ctce;
+using namespace tamm;
 
-namespace ctce {
+namespace tamm {
   struct Equations {
     std::vector<RangeEntry> range_entries;
     std::vector<IndexEntry> index_entries;
@@ -19,7 +19,7 @@ namespace ctce {
   void ccsd_t1_equations(Equations& eqs);
 }
 
-namespace ctce {
+namespace tamm {
 void pretty_print(Equations &eqs);
   void print_flatten(Equations &eqs, int opid);
 }
@@ -44,7 +44,7 @@ int count_v(const TensorEntry &te, const std::vector<RangeType> &rts) {
   return nv;
 }
 
-std::vector<RangeType> compute_range_type(const std::vector<ctce::RangeEntry> &re) {
+std::vector<RangeType> compute_range_type(const std::vector<tamm::RangeEntry> &re) {
   std::vector<RangeType> rts(re.size(), TO);
     
   for(int i=0; i<re.size(); i++) {
@@ -74,7 +74,7 @@ struct dep {
   dep(int s_, int d_) : s(s_), d(d_) {}
 };
 
-std::vector<dep> compute_deps(const ctce::Equations &eqs) {
+std::vector<dep> compute_deps(const tamm::Equations &eqs) {
   std::vector<dep> deps;
   int n = eqs.op_entries.size();
 
@@ -118,7 +118,7 @@ std::vector<dep> compute_deps(const ctce::Equations &eqs) {
   return deps;
 }
 
-void print_ilp_info(ctce::Equations &eqs) {
+void print_ilp_info(tamm::Equations &eqs) {
   std::map<std::string, Tensor> tensors;
   std::vector<Operation> ops;
 
@@ -151,7 +151,7 @@ void print_ilp_info(ctce::Equations &eqs) {
   }
   for(int i=0; i<eqs.op_entries.size(); i++) {
     std::cout<<"access["<<i+1<<"] : ";
-    const ctce::OpEntry &opi = eqs.op_entries[i];
+    const tamm::OpEntry &opi = eqs.op_entries[i];
     switch(opi.optype) {
     case OpTypeAdd:
       std::cout<< opi.add.tc << ","

@@ -1,9 +1,9 @@
-#ifndef __ctce_antisymm_h__
-#define __ctce_antisymm_h__
+#ifndef __tamm_antisymm_h__
+#define __tamm_antisymm_h__
 
 #include "variables.h"
 
-namespace ctce {
+namespace tamm {
 
 /**
  * Triangular loop class
@@ -206,6 +206,6 @@ inline bool antisymm::next(std::vector<size_t> & vec) {
   return true;
 }
 
-} /* namespace ctce */
+} /* namespace tamm */
 
-#endif /*__ctce_antisymm_h__*/
+#endif /*__tamm_antisymm_h__*/

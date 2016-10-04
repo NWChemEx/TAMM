@@ -1,5 +1,5 @@
-#ifndef __ctce_define_h__
-#define __ctce_define_h__
+#ifndef __tamm_define_h__
+#define __tamm_define_h__
 
 #include <vector>
 #include <set>
@@ -8,7 +8,7 @@
 #include <cstring>
 #include <algorithm>
 
-namespace ctce {
+namespace tamm {
 
 /* range of the indices, also used in triangular iterator */
 typedef enum {

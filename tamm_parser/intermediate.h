@@ -1,8 +1,8 @@
-#ifndef __CTCE_INTERMEDIATE_H__
-#define __CTCE_INTERMEDIATE_H__
+#ifndef __TAMM_INTERMEDIATE_H__
+#define __TAMM_INTERMEDIATE_H__
 
 #include "absyn.h"
-#include "ctce_vector.h"
+#include "tamm_vector.h"
 
 #define MAX_TENSOR_DIMS 8
 #define MAX_INDEX_NAMES 32
@@ -17,10 +17,10 @@ typedef struct MultOp_ *MultOp;
 
 
 typedef struct {
-    ctce_vector range_entries;
-    ctce_vector index_entries;
-    ctce_vector tensor_entries;
-    ctce_vector op_entries;
+    tamm_vector range_entries;
+    tamm_vector index_entries;
+    tamm_vector tensor_entries;
+    tamm_vector op_entries;
 } Equations;
 
 
@@ -81,11 +81,11 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s);
 
 void generate_intermediate_Exp(Equations *eqn, Exp exp);
 
-void generate_intermediate_ExpList(Equations *eqn, ExpList expList, ctce_string am);
+void generate_intermediate_ExpList(Equations *eqn, ExpList expList, tamm_string am);
 
 void generate_intermediate_DeclList(Equations *eqn, DeclList dl);
 
-void collectArrayRefs(Exp exp, ctce_vector *arefs, double *alpha);
+void collectArrayRefs(Exp exp, tamm_vector *arefs, double *alpha);
 
 tce_string_array collectExpIndices(Exp exp, int* first_ref); //Get each index only once
 
@@ -93,5 +93,5 @@ void getIndexIDs(Equations *eqn, Exp e, int *);
 
 void getTensorIDs(Equations *eqn, Exp exp, int *tid);
 
-#endif /*__CTCE_INTERMEDIATE_H__*/
+#endif /*__TAMM_INTERMEDIATE_H__*/
 

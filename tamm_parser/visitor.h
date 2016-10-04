@@ -15,7 +15,7 @@ void visit_Stmt(FILE *outFile, Stmt s);
 
 void visit_Exp(FILE *outFile, Exp exp);
 
-void visit_ExpList(FILE *outFile, ExpList expList, ctce_string am);
+void visit_ExpList(FILE *outFile, ExpList expList, tamm_string am);
 
 void visit_DeclList(FILE *outFile, DeclList dl);
 

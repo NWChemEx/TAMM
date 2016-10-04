@@ -43,20 +43,20 @@ void check_DeclList(DeclList decllist, SymbolTable symtab) {
     }
 }
 
-void verifyVarDecl(SymbolTable symtab, ctce_string name, int line_no) {
+void verifyVarDecl(SymbolTable symtab, tamm_string name, int line_no) {
     if (ST_contains(symtab, name)) {
         fprintf(stderr, "Error at line %d: %s is already defined\n", line_no, name);
         exit(2);
     }
 }
 
-void verifyRangeRef(SymbolTable symtab, ctce_string name, int line_no) {
+void verifyRangeRef(SymbolTable symtab, tamm_string name, int line_no) {
 //    if (!ST_contains(symtab,name)){
 //        fprintf(stderr,"Error at line %d: range variable %s is not defined\n", line_no, name);
 //        //exit(2);
 //    }
     const int rno = 3;
-    ctce_string ranges[] = {"O", "V", "N"};
+    tamm_string ranges[] = {"O", "V", "N"};
     if (!exists_index(ranges, rno, name)) {
         fprintf(stderr, "Error at line %d: range %s is not supported. Can only be one of %s\n", line_no, name,
                 combine_indices(ranges, rno));
@@ -81,11 +81,11 @@ void check_Decl(Decl d, SymbolTable symtab) {
             break;
         case is_ArrayDecl:
             verifyVarDecl(symtab, d->u.ArrayDecl.name, d->lineno);
-            ctce_string comb_index_list = combine_indexLists(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen,
+            tamm_string comb_index_list = combine_indexLists(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen,
                                                         d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen);
             //printf("%s -> %s\n", d->u.ArrayDecl.name, comb_index_list);
             int i = 0;
-            ctce_string* ind_list = d->u.ArrayDecl.upperIndices;
+            tamm_string* ind_list = d->u.ArrayDecl.upperIndices;
             for (i = 0; i < d->u.ArrayDecl.ulen; i++) verifyRangeRef(symtab, ind_list[i], d->lineno);
             ind_list = d->u.ArrayDecl.lowerIndices;
             for (i = 0; i < d->u.ArrayDecl.llen; i++) verifyRangeRef(symtab, ind_list[i], d->lineno);
@@ -152,21 +152,21 @@ void check_ExpList(ExpList expList, SymbolTable symtab) {
 }
 
 
-void verifyArrayRefName(SymbolTable symtab, ctce_string name, int line_no) {
+void verifyArrayRefName(SymbolTable symtab, tamm_string name, int line_no) {
     if (!ST_contains(symtab, name)) {
         fprintf(stderr, "Error at line %d: array %s is not defined\n", line_no, name);
         exit(2);
     }
 }
 
-void verifyIndexRef(SymbolTable symtab, ctce_string name, int line_no) {
+void verifyIndexRef(SymbolTable symtab, tamm_string name, int line_no) {
     if (!ST_contains(symtab, name)) {
         fprintf(stderr, "Error at line %d: index %s is not defined\n", line_no, name);
         exit(2);
     }
 }
 
-void verifyArrayRef(SymbolTable symtab, ctce_string name, ctce_string *inds, int len, int line_no) {
+void verifyArrayRef(SymbolTable symtab, tamm_string name, tamm_string *inds, int len, int line_no) {
     verifyArrayRefName(symtab, name, line_no);
     int i = 0;
     for (i = 0; i < len; i++) verifyIndexRef(symtab, inds[i], line_no);
@@ -188,9 +188,9 @@ void check_Exp(Exp exp, SymbolTable symtab) {
             verifyArrayRef(symtab, exp->u.Array.name, exp->u.Array.indices, exp->u.Array.length, clno);
             inames = getIndices(exp);
             int tot_len1 = inames->length;
-            ctce_string *all_ind1 = inames->list;
+            tamm_string *all_ind1 = inames->list;
             int i1 = 0, ui1 = 0;
-            ctce_string *rnames = tce_malloc(sizeof(ctce_string) * tot_len1);
+            tamm_string *rnames = tce_malloc(sizeof(tamm_string) * tot_len1);
 
             for (i1 = 0; i1 < tot_len1; i1++) {
                 rnames[i1] = ST_get(symtab, all_ind1[i1]);
@@ -199,7 +199,7 @@ void check_Exp(Exp exp, SymbolTable symtab) {
             tce_string_array rnamesarr = tce_malloc(sizeof(*rnamesarr));
             rnamesarr->list = rnames;
             rnamesarr->length = tot_len1;
-            ctce_string ulranges = ST_get(symtab, exp->u.Array.name);
+            tamm_string ulranges = ST_get(symtab, exp->u.Array.name);
             tce_string_array ulr = stringToList(ulranges);
 
             if (!check_array_usage(ulr, rnamesarr)) {
@@ -209,7 +209,7 @@ void check_Exp(Exp exp, SymbolTable symtab) {
                 exit(2);
             }
             //Check for repetitive indices in an array reference
-            ctce_string *uind1 = tce_malloc(sizeof(ctce_string) * tot_len1);
+            tamm_string *uind1 = tce_malloc(sizeof(tamm_string) * tot_len1);
 
             i1 = 0, ui1 = 0;
             for (i1 = 0; i1 < tot_len1; i1++) {
@@ -258,7 +258,7 @@ void check_Exp(Exp exp, SymbolTable symtab) {
             }
 
             el = exp->u.Multiplication.subexps;
-            ctce_string *all_ind = tce_malloc(sizeof(ctce_string) * tot_len);
+            tamm_string *all_ind = tce_malloc(sizeof(tamm_string) * tot_len);
 
             int i = 0, ui = 0;
             while (el != NULL) {
@@ -274,7 +274,7 @@ void check_Exp(Exp exp, SymbolTable symtab) {
                 el = el->tail;
             }
             assert(ui == tot_len);
-            ctce_string *uind = tce_malloc(sizeof(ctce_string) * tot_len);
+            tamm_string *uind = tce_malloc(sizeof(tamm_string) * tot_len);
 
             i = 0, ui = 0;
             for (i = 0; i < tot_len; i++) {
@@ -332,7 +332,7 @@ tce_string_array getIndices(Exp exp) {
             }
 
             el = exp->u.Multiplication.subexps;
-            ctce_string *all_ind = tce_malloc(sizeof(ctce_string) * tot_len);
+            tamm_string *all_ind = tce_malloc(sizeof(tamm_string) * tot_len);
 
             int i = 0, ui = 0;
             while (el != NULL) {
@@ -348,7 +348,7 @@ tce_string_array getIndices(Exp exp) {
                 el = el->tail;
             }
             assert(ui == tot_len);
-            ctce_string *uind = tce_malloc(sizeof(ctce_string) * tot_len);
+            tamm_string *uind = tce_malloc(sizeof(tamm_string) * tot_len);
 
             i = 0, ui = 0;
 //  	for (i=0;i<tot_len;i++){
@@ -365,7 +365,7 @@ tce_string_array getIndices(Exp exp) {
                 }
             }
 
-            ctce_string *uniq_ind = tce_malloc(sizeof(ctce_string) * ui);
+            tamm_string *uniq_ind = tce_malloc(sizeof(tamm_string) * ui);
             for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
 
 //  	free(all_ind);
@@ -385,7 +385,7 @@ tce_string_array getIndices(Exp exp) {
 }
 
 
-void print_ExpList(ExpList expList, ctce_string am) {
+void print_ExpList(ExpList expList, tamm_string am) {
     ExpList elist = expList;
     while (elist != NULL) {
         print_Exp(elist->head);
@@ -452,7 +452,7 @@ tce_string_array getUniqIndices(Exp exp) {
             }
 
             el = exp->u.Multiplication.subexps;
-            ctce_string *all_ind = tce_malloc(sizeof(ctce_string) * tot_len);
+            tamm_string *all_ind = tce_malloc(sizeof(tamm_string) * tot_len);
 
             int i = 0, ui = 0;
             while (el != NULL) {
@@ -468,7 +468,7 @@ tce_string_array getUniqIndices(Exp exp) {
                 el = el->tail;
             }
             assert(ui == tot_len);
-            ctce_string *uind = tce_malloc(sizeof(ctce_string) * tot_len);
+            tamm_string *uind = tce_malloc(sizeof(tamm_string) * tot_len);
 
             i = 0, ui = 0;
 
@@ -479,7 +479,7 @@ tce_string_array getUniqIndices(Exp exp) {
                 }
             }
 
-            ctce_string *uniq_ind = tce_malloc(sizeof(ctce_string) * ui);
+            tamm_string *uniq_ind = tce_malloc(sizeof(tamm_string) * ui);
             for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
 
             p = tce_malloc(sizeof(*p));

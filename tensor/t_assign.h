@@ -1,5 +1,5 @@
-#ifndef __ctce_assign_h__
-#define __ctce_assign_h__
+#ifndef __tamm_assign_h__
+#define __tamm_assign_h__
 
 #include "func.h"
 #include "preprocess.h"
@@ -8,7 +8,7 @@
 #include "expression.h"
 #include "ga_abstract.h"
 
-namespace ctce {
+namespace tamm {
 /**
  * CCSD assignment computation, ADD_HASH_BLOCK
  * @param[in] d_a, k_a_offset, d_c, k_c_offset from FORTRAN
@@ -28,6 +28,6 @@ void t_assign2(Tensor& tC,
  */
 void t_assign3(Assignment& a, gmem::Handle sync_ga=gmem::NULL_HANDLE, int spos=0);
 
-} // namespace ctce
+} // namespace tamm
 
 #endif

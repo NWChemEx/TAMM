@@ -1,5 +1,5 @@
-#ifndef __ctce_expression_h__
-#define __ctce_expression_h__
+#ifndef __tamm_expression_h__
+#define __tamm_expression_h__
 
 #include "index.h"
 #include <vector>
@@ -10,7 +10,7 @@
 #include "iterGroup.h"
 #include "ga_abstract.h"
 
-namespace ctce {
+namespace tamm {
 
 /**
  * Assigment template. tC += coef * tA
@@ -479,6 +479,6 @@ Multiplication::sum_itr() { return sum_itr_; }
 inline IterGroup<CopyIter>&
 Multiplication::cp_itr() { return cp_itr_; }
 
-} /* namespace ctce*/
+} /* namespace tamm*/
 
-#endif /* __ctce_expression_h__ */
+#endif /* __tamm_expression_h__ */

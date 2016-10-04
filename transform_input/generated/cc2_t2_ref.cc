@@ -61,11 +61,11 @@ extern "C" {
   void offset_cc2_t2_3_1_(Integer *l_t2_3_1_offset, Integer *k_t2_3_1_offset, Integer *size_t2_3_1);
 }
 
-namespace ctce {
+namespace tamm {
 
-void schedule_linear(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);
-void schedule_linear_lazy(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);
-void schedule_levels(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);
+void schedule_linear(std::map<std::string, tamm::Tensor> &tensors, std::vector<Operation> &ops);
+void schedule_linear_lazy(std::map<std::string, tamm::Tensor> &tensors, std::vector<Operation> &ops);
+void schedule_levels(std::map<std::string, tamm::Tensor> &tensors, std::vector<Operation> &ops);
 
 extern "C" {
   void cc2_t2_cxx_(Integer *d_i0, Integer *d_t_vvoo, Integer *d_f, Integer *d_t_vo, Integer *d_v, 
@@ -98,7 +98,7 @@ extern "C" {
     set_t2 = false;
   }
 
-  std::map<std::string, ctce::Tensor> tensors;
+  std::map<std::string, tamm::Tensor> tensors;
   std::vector <Operation> ops;
   tensors_and_ops(eqs, tensors, ops);
 
@@ -174,4 +174,4 @@ extern "C" {
   v->detach();
   }
 } // extern C
-}; // namespace ctce
+}; // namespace tamm

@@ -77,12 +77,12 @@ extern "C" {
   void offset_cc2_t1_6_1_(Integer *l_t1_6_1_offset, Integer *k_t1_6_1_offset, Integer *size_t1_6_1);
 }
 
-namespace ctce {
-  void schedule_linear(std::map<std::string, ctce::Tensor> &tensors,
+namespace tamm {
+  void schedule_linear(std::map<std::string, tamm::Tensor> &tensors,
                        std::vector<Operation> &ops);
-  void schedule_linear_lazy(std::map<std::string, ctce::Tensor> &tensors,
+  void schedule_linear_lazy(std::map<std::string, tamm::Tensor> &tensors,
                             std::vector<Operation> &ops);
-  void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
+  void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
                             std::vector<Operation> &ops);
 
   extern "C" {
@@ -120,7 +120,7 @@ Integer *k_f_offset, Integer *k_i0_offset, Integer *k_t_vo_offset, Integer *k_t_
         set_t1 = false;
       }
 
-      std::map<std::string, ctce::Tensor> tensors;
+      std::map<std::string, tamm::Tensor> tensors;
       std::vector <Operation> ops;
       tensors_and_ops(eqs, tensors, ops);
 
@@ -209,4 +209,4 @@ Integer *k_f_offset, Integer *k_i0_offset, Integer *k_t_vo_offset, Integer *k_t_
 
     }
   } // extern C
-}; // namespace ctce
+}; // namespace tamm

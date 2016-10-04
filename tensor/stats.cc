@@ -2,9 +2,9 @@
 #include <iostream>
 
 using namespace std;
-using namespace ctce;
+using namespace tamm;
 
-namespace ctce {
+namespace tamm {
   Profiler iterTimer, assignTimer, multTimer, getTimer, addTimer, dgemmTimer;
 
   void printStats() {

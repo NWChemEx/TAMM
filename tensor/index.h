@@ -1,11 +1,11 @@
-#ifndef __ctce_index_h__
-#define __ctce_index_h__
+#ifndef __tamm_index_h__
+#define __tamm_index_h__
 
 #include "common.h"
 //#include "typesf2c.h"
 #include "define.h"
 
-namespace ctce {
+namespace tamm {
 
 /**
  * @FIXME @BUG: ext_sym_group_ and probably this whole class needs to
@@ -86,7 +86,7 @@ inline bool compareValue(const Index& lhs, const Index& rhs) { return (lhs.value
 inline bool compareExtSymGroup(const Index& lhs, const Index& rhs) { return (lhs.ext_sym_group() < rhs.ext_sym_group()); }
 
 
-} /* namespace ctce */
+} /* namespace tamm */
 
-#endif /* __ctce_index_h */
+#endif /* __tamm_index_h */
 

@@ -1,6 +1,6 @@
 #include "input.h"
 
-namespace ctce {
+namespace tamm {
 
 static Assignment consAddOp(AddOp* add);
 

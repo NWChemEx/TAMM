@@ -11,10 +11,10 @@
 #include "index.h"
 #include "variables.h"
 
-namespace ctce {
+namespace tamm {
 
 void
-ctce_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
+tamm_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
           std::vector<size_t>& iv, double alpha) {
   assert(ids.size() == iv.size());
 
@@ -54,7 +54,7 @@ ctce_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
 }
 
 void
-ctce_hash(Fint *hash, size_t key, Fint *offset) {
+tamm_hash(Fint *hash, size_t key, Fint *offset) {
 
 #if USE_FORTRAN_FUNCTIONS
   Fint ikey = key;
@@ -64,7 +64,7 @@ ctce_hash(Fint *hash, size_t key, Fint *offset) {
   Fint ikey=key;
   Fint *ptr = std::lower_bound(&hash[1], &hash[length+1], key);
   if(ptr == &hash[length+1] || ikey < *ptr) {
-    fprintf(stderr,"ctce_hash: key not found");
+    fprintf(stderr,"tamm_hash: key not found");
     assert(0);
   }
   *offset = *(ptr + length);
@@ -94,7 +94,7 @@ cadd_hash_block(gmem::Handle d_c, double *buf_a, size_t size, Fint *hash, size_t
   fadd_hash_block(&ida, buf_a, &isize, hash, &ikey);
 #else
   Fint offset;
-  ctce_hash(hash, key, &offset);
+  tamm_hash(hash, key, &offset);
   cadd_block(d_c, buf_a, size, offset);
 #endif
 }
@@ -130,7 +130,7 @@ cdgemm(char transa, char transb, size_t m, size_t n, size_t k,
 }
 
 void
-ctce_sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
+tamm_sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
              std::vector<size_t>& perm, double alpha) {
   assert(ids.size() == perm.size());
 
@@ -166,7 +166,7 @@ ctce_sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
 
 
 void
-ctce_restricted(int dim, int nupper,
+tamm_restricted(int dim, int nupper,
                 const std::vector<size_t> &value,
                 std::vector<size_t> &pvalue_r) {
 #if USE_FORTRAN_FUNCTIONS
@@ -286,6 +286,7 @@ cget_add_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset_unused,
   size_t irow = index_pair(isa[3], isa[2]);
   if(irow < icol) {
     std::swap(isa[0], isa[2]);
+    std::swap(perm[0],   perm[2]);
     std::swap(is_out[0], is_out[2]);
     std::swap(isa[1], isa[3]);
     std::swap(is_out[1], is_out[3]);
@@ -320,7 +321,7 @@ cget_add_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset_unused,
   /** @bug Works only for ccsd. Needs to be modified for
    * ccsd_act. Check get_block_ind.F */
   ftce_hash_v2(&int_mb[k_v2_alpha_offset],&key,&offset);
-  //ctce_hash(&int_mb[k_v2_alpha_offset],key,&offset);
+  //tamm_hash(&int_mb[k_v2_alpha_offset],key,&offset);
 
   int d_v2orb = Variables::d_v2orb();
   gmem::get((gmem::Handle)d_v2orb,buf,offset,offset+size-1,nbh);
@@ -419,7 +420,7 @@ cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
       //vperma.insert(vperma.end(),p,p+4);
       vperma = invert_perm(vperma);
       //cout<<"perma perm="<<vperma[0]<<" "<<vperma[1]<<" "<<vperma[2]<<" "<<vperma[3]<<endl;
-      //ctce_sortacc(bufa, buf, visa_out, vperma, 1.0);
+      //tamm_sortacc(bufa, buf, visa_out, vperma, 1.0);
     }
     else {
       //cout<<" perma skip"<<endl;
@@ -478,7 +479,7 @@ cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
       vpermb = invert_perm(vpermb);
       //@bug Should visb_out also be inverted?
       //cout<<"permb perm="<<vpermb[0]<<" "<<vpermb[1]<<" "<<vpermb[2]<<" "<<vpermb[3]<<endl;
-      //ctce_sortacc(bufb, buf, visb_out, vpermb, -1.0);
+      //tamm_sortacc(bufb, buf, visb_out, vpermb, -1.0);
     }
     else {
       //cout<<" permb skip"<<endl;
@@ -489,13 +490,13 @@ cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
   if(comm1) {
     nbh1.wait();
     assert(bufa);
-    ctce_sortacc(bufa, buf, visa_out, vperma, 1.0);
+    tamm_sortacc(bufa, buf, visa_out, vperma, 1.0);
     delete [] bufa;
   }
   if(comm2) {
     nbh2.wait();
     assert(bufb);
-    ctce_sortacc(bufb, buf, visb_out, vpermb, -1.0);
+    tamm_sortacc(bufb, buf, visb_out, vpermb, -1.0);
     delete [] bufb;
   }
 #endif
@@ -532,7 +533,7 @@ cget_hash_block_ma(gmem::Handle da, double *buf, size_t size,
   double *dbl_mb = Variables::dbl_mb();
   Fint *hash = &int_mb[offset];
   Fint ioffset;
-  ctce_hash(hash, key, &ioffset);
+  tamm_hash(hash, key, &ioffset);
   memcpy(buf,&dbl_mb[(int)da]+ioffset,size*sizeof(double));
 #endif
 }
@@ -550,9 +551,9 @@ cget_hash_block(gmem::Handle da, double *buf, size_t size, size_t offset, size_t
   Fint *int_mb = Variables::int_mb();
   Fint *hash = &int_mb[offset];
   Fint ioffset;
-  ctce_hash(hash, key, &ioffset);
+  tamm_hash(hash, key, &ioffset);
   cget_block(da, buf, size, ioffset);
 #endif
 }
 
-} /* namespace ctce*/
+} /* namespace tamm*/

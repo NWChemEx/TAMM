@@ -1,10 +1,10 @@
-#ifndef __ctce_copy_iter_h__
-#define __ctce_copy_iter_h__
+#ifndef __tamm_copy_iter_h__
+#define __tamm_copy_iter_h__
 
 #include <vector>
 #include <cstdlib>
 
-namespace ctce {
+namespace tamm {
 
 /* a copy iterator that iterates all possible indices for tce_sort_acc and tce_add_hash_block */
 class CopyIter {
@@ -96,7 +96,7 @@ CopyIter::next(std::vector<size_t>& vec) {
   return true;
 }
 
-} /* namespace ctce */
+} /* namespace tamm */
 
-#endif /* __ctce_copy_iter_h__ */
+#endif /* __tamm_copy_iter_h__ */
 

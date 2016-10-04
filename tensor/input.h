@@ -1,5 +1,5 @@
-#ifndef __ctce_input_h__
-#define __ctce_input_h__
+#ifndef __tamm_input_h__
+#define __tamm_input_h__
 
 #include "define.h"
 #include "tensor.h"
@@ -9,7 +9,7 @@
 #define MAX_TENSOR_DIMS 8
 #define MAX_INDEX_NAMES 32
 
-namespace ctce {
+namespace tamm {
 
 static const char *OSTR = "O";
 static const char *VSTR = "V";
@@ -76,5 +76,5 @@ typedef struct {
 
 };
 
-#endif /*__ctce_input_h__*/
+#endif /*__tamm_input_h__*/
 

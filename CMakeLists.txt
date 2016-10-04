@@ -291,10 +291,17 @@ if(NOT DEFINED $ENV{CTCE_TEST_PROC_COUNT})
 else()
     set(CTCE_TEST_PROC_COUNT $ENV{CTCE_TEST_PROC_COUNT})
 endif()
-set (TEST_COMMAND mpirun -n ${CTCE_TEST_PROC_COUNT} ${NWCHEM_TOP}/bin/LINUX64/nwchem)
+set (TEST_COMMAND "mpirun -n ${CTCE_TEST_PROC_COUNT} ${NWCHEM_TOP}/bin/LINUX64/nwchem")
+
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 
 file(GLOB INTEG_TESTS RELATIVE ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/test/integration/*.nw")
 foreach (test ${INTEG_TESTS})
-    add_test(${test} ${TEST_COMMAND} ${CMAKE_SOURCE_DIR}/${test} )
+    get_filename_component(Testname ${test} NAME_WE)
+    string(REGEX REPLACE "\\.[^.]*$" "" Testname "${Testname}")
+    add_test(${test} ${PROJECT_SOURCE_DIR}/scripts/testing/check_output.sh "${TEST_COMMAND} ${CMAKE_SOURCE_DIR}/${test}"
+        ${PROJECT_SOURCE_DIR}/test/integration/correct_outputs/${Testname}.output
+        ${PROJECT_SOURCE_DIR}/test/integration/checker_config/${Testname}.config
+        )
 endforeach()
 

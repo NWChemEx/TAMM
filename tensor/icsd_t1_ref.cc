@@ -77,9 +77,9 @@ extern "C" {
   void offset_icsd_t1_6_1_(Integer *l_t1_6_1_offset, Integer *k_t1_6_1_offset, Integer *size_t1_6_1);
 }
 
-namespace ctce {
+namespace tamm {
 
-  void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
+  void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
                          std::vector<Operation> &ops);
 
   extern "C" {
@@ -116,7 +116,7 @@ namespace ctce {
         set_t1 = false;
       }
 
-     std::map<std::string, ctce::Tensor> tensors;
+     std::map<std::string, tamm::Tensor> tensors;
       std::vector <Operation> ops;
       tensors_and_ops(eqs, tensors, ops);
 
@@ -206,4 +206,4 @@ namespace ctce {
 
     }
   } // extern C
-}; // namespace ctce
+}; // namespace tamm

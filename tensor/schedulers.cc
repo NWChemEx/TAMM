@@ -6,38 +6,38 @@
 #include "input.h"
 #include "equations.h"
 
-namespace ctce {
+namespace tamm {
 
-  void lazy_tensor_alloc(std::map<std::string, ctce::Tensor> &tensors,
+  void lazy_tensor_alloc(std::map<std::string, tamm::Tensor> &tensors,
                          std::vector<Operation> &ops,
                          std::vector<vector<Operation *> > &op_levels,
                          std::vector<vector<Tensor*> > &tensor_create_levels,
                          std::vector<vector<Tensor*> > &tensor_destroy_levels);
-  void eager_tensor_alloc(std::map<std::string, ctce::Tensor> &tensors,
+  void eager_tensor_alloc(std::map<std::string, tamm::Tensor> &tensors,
                          std::vector<Operation> &ops,
                          std::vector<vector<Operation *> > &op_levels,
                          std::vector<vector<Tensor*> > &tensor_create_levels,
                          std::vector<vector<Tensor*> > &tensor_destroy_levels);
-  static void schedule(vector<std::map<std::string, ctce::Tensor> *> &tensors,
+  static void schedule(vector<std::map<std::string, tamm::Tensor> *> &tensors,
                        vector<vector<Operation> *> &ops,
                        vector<vector<vector<Tensor*> > > &tensor_create_levels,
                        vector<vector<vector<Tensor*> > > &tensor_destroy_levels,
                        vector<vector<vector<Operation *> > > &op_levels);
 
   static void execute(Operation *op, gmem::Handle sync_ga, int spos);
-  static int writes(Operation *op, std::map<std::string, ctce::Tensor> &tensors);
-  static vector<int> reads(Operation *op, std::map<std::string, ctce::Tensor> &tensors);
-  static void schedule(std::map<std::string, ctce::Tensor> &tensors,
+  static int writes(Operation *op, std::map<std::string, tamm::Tensor> &tensors);
+  static vector<int> reads(Operation *op, std::map<std::string, tamm::Tensor> &tensors);
+  static void schedule(std::map<std::string, tamm::Tensor> &tensors,
                        std::vector<Operation> &ops,
                        std::vector<vector<Tensor*> > &tensor_create_levels,
                        std::vector<vector<Tensor*> > &tensor_destroy_levels,
                        std::vector<vector<Operation *> > &op_levels);
 
 
-  static int find_tensor(std::map<std::string, ctce::Tensor> &tensors, Tensor *t) {
+  static int find_tensor(std::map<std::string, tamm::Tensor> &tensors, Tensor *t) {
 
     int pos = 0;
-    for(std::map<std::string, ctce::Tensor>::iterator i = tensors.begin(); i != tensors.end(); i++){
+    for(std::map<std::string, tamm::Tensor>::iterator i = tensors.begin(); i != tensors.end(); i++){
 
       Tensor *entry = &i->second;
       if (t == entry){
@@ -52,7 +52,7 @@ namespace ctce {
    * Execution operations in input order. Allocate just before
    * definition. Deallocate right after last use.
    */
-  void schedule_linear_lazy(std::map<std::string, ctce::Tensor> &tensors,
+  void schedule_linear_lazy(std::map<std::string, tamm::Tensor> &tensors,
                             std::vector<Operation> &ops) {
     std::vector<vector<Tensor*> > tensor_create_levels;
     std::vector<vector<Tensor*> > tensor_destroy_levels;
@@ -68,7 +68,7 @@ namespace ctce {
   }
 
 
-  void eager_tensor_alloc(std::map<std::string, ctce::Tensor> &tensors,
+  void eager_tensor_alloc(std::map<std::string, tamm::Tensor> &tensors,
                           std::vector<Operation> &ops,
                           std::vector<vector<Operation *> > &op_levels,
                           std::vector<vector<Tensor*> > &tensor_create_levels,
@@ -79,7 +79,7 @@ namespace ctce {
     tensor_destroy_levels.resize(op_levels.size());
 
     //for(int i=0; i<tensors.size(); i++) {
-    for(std::map<std::string, ctce::Tensor>::iterator i = tensors.begin(); i != tensors.end(); i++){
+    for(std::map<std::string, tamm::Tensor>::iterator i = tensors.begin(); i != tensors.end(); i++){
       Tensor *t = &tensors[i->first];
       if(!t->attached() && !t->allocated()) {
         tensor_create_levels[0].push_back(t);
@@ -88,7 +88,7 @@ namespace ctce {
     }
   }
 
-  void lazy_tensor_alloc(std::map<std::string, ctce::Tensor> &tensors,
+  void lazy_tensor_alloc(std::map<std::string, tamm::Tensor> &tensors,
                          std::vector<Operation> &ops,
                          std::vector<vector<Operation *> > &op_levels,
                          std::vector<vector<Tensor*> > &tensor_create_levels,
@@ -116,7 +116,7 @@ namespace ctce {
     //for(int i=0; i<tensors.size(); i++) {
 
     int id = 0;
-    for(std::map<std::string, ctce::Tensor>::iterator i = tensors.begin(); i != tensors.end(); i++){
+    for(std::map<std::string, tamm::Tensor>::iterator i = tensors.begin(); i != tensors.end(); i++){
       Tensor *t = &i->second;
       int pos = id;
       id++;
@@ -144,7 +144,7 @@ namespace ctce {
 
 
   bool has_dependence(std::vector<Operation> &ops,
-                      std::map<std::string, ctce::Tensor> &tensors,
+                      std::map<std::string, tamm::Tensor> &tensors,
                       int i, int j) {
     int iw = writes(&ops[i], tensors);
     vector<int> irds = reads(&ops[i], tensors);
@@ -157,7 +157,7 @@ namespace ctce {
     return false;
   }
 
-  void levelize(std::map<std::string, ctce::Tensor> &tensors,
+  void levelize(std::map<std::string, tamm::Tensor> &tensors,
                 std::vector<Operation> &ops,
                 vector<vector<Operation *> > &levels) {
     int n = ops.size();
@@ -179,7 +179,7 @@ namespace ctce {
     }
   }
 
-  void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
+  void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
                        std::vector<Operation> &ops) {
 
     vector<vector<Operation *> > op_levels;
@@ -192,7 +192,7 @@ namespace ctce {
     schedule(tensors, ops, tensor_create_levels, tensor_destroy_levels, op_levels);
   }
 
-  void schedule_levels(std::vector<std::map<std::string, ctce::Tensor> *> &tensors_lst,
+  void schedule_levels(std::vector<std::map<std::string, tamm::Tensor> *> &tensors_lst,
                        std::vector<std::vector<Operation> *> &ops_lst) {
     using std::vector;
     vector<vector<vector<Operation *> > >op_levels;
@@ -229,7 +229,7 @@ namespace ctce {
 
 
 
-  static int writes(Operation *op, std::map<std::string, ctce::Tensor> &tensors) {
+  static int writes(Operation *op, std::map<std::string, tamm::Tensor> &tensors) {
     assert(op);
     int wa;
     switch(op->optype) {
@@ -248,7 +248,7 @@ namespace ctce {
   }
 
 
-  static vector<int> reads(Operation *op, std::map<std::string, ctce::Tensor> &tensors) {
+  static vector<int> reads(Operation *op, std::map<std::string, tamm::Tensor> &tensors) {
     assert(op);
     vector<int> rds;
     int ra1, ra2;
@@ -272,13 +272,13 @@ namespace ctce {
     return rds;
   }
 
-  static void schedule(std::map<std::string, ctce::Tensor> &tensors,
+  static void schedule(std::map<std::string, tamm::Tensor> &tensors,
                        std::vector<Operation> &ops,
                        std::vector<vector<Tensor*> > &tensor_create_levels,
                        std::vector<vector<Tensor*> > &tensor_destroy_levels,
                        std::vector<vector<Operation *> > &op_levels) {
 #if 1
-    vector<std::map<std::string, ctce::Tensor> *> tensors_lst(1, &tensors);
+    vector<std::map<std::string, tamm::Tensor> *> tensors_lst(1, &tensors);
     vector<vector<Operation> *> ops_lst(1, &ops);
     vector<vector<vector<Tensor*> > > tcl(1,tensor_create_levels);
     vector<vector<vector<Tensor*> > > tdl(1,tensor_destroy_levels);
@@ -319,7 +319,7 @@ namespace ctce {
 #endif
   }
 
-  static void schedule(vector<std::map<std::string, ctce::Tensor> *> &tensors,
+  static void schedule(vector<std::map<std::string, tamm::Tensor> *> &tensors,
                        vector<vector<Operation> *> &ops,
                        vector<vector<vector<Tensor*> > > &tensor_create_levels,
                        vector<vector<vector<Tensor*> > > &tensor_destroy_levels,
@@ -383,7 +383,7 @@ namespace ctce {
    * Allocate all intermediate arrays upfront. Execute operations in
    * input order. Deallocate all allocated arrays at the end.
    */
-  void schedule_linear(std::map<std::string, ctce::Tensor> &tensors,
+  void schedule_linear(std::map<std::string, tamm::Tensor> &tensors,
                        std::vector<Operation> &ops) {
     std::vector<vector<Tensor*> > tensor_create_levels;
     std::vector<vector<Tensor*> > tensor_destroy_levels;

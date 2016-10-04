@@ -1,6 +1,6 @@
 #include "absyn.h"
 
-Identifier make_Identifier(int pos, ctce_string name) {
+Identifier make_Identifier(int pos, tamm_string name) {
     Identifier p = tce_malloc(sizeof(*p));
     p->pos = pos;
     p->name = name;
@@ -44,7 +44,7 @@ Exp make_Multiplication(int pos, ExpList subexps) {
     return p;
 }
 
-Exp make_Array(int pos, ctce_string name, ctce_string *indices) {
+Exp make_Array(int pos, tamm_string name, tamm_string *indices) {
     Exp p = tce_malloc(sizeof(*p));
     p->pos = pos;
     p->coef = 1;
@@ -63,7 +63,7 @@ Stmt make_AssignStmt(int pos, Exp lhs, Exp rhs) {
     return p;
 }
 
-Decl make_RangeDecl(int pos, ctce_string name, int value) {
+Decl make_RangeDecl(int pos, tamm_string name, int value) {
     Decl p = tce_malloc(sizeof(*p));
     p->pos = pos;
     p->kind = is_RangeDecl;
@@ -72,7 +72,7 @@ Decl make_RangeDecl(int pos, ctce_string name, int value) {
     return p;
 }
 
-Decl make_IndexDecl(int pos, ctce_string name, ctce_string rangeID) {
+Decl make_IndexDecl(int pos, tamm_string name, tamm_string rangeID) {
     Decl p = tce_malloc(sizeof(*p));
     p->pos = pos;
     p->kind = is_IndexDecl;
@@ -81,7 +81,7 @@ Decl make_IndexDecl(int pos, ctce_string name, ctce_string rangeID) {
     return p;
 }
 
-Decl make_ArrayDecl(int pos, ctce_string name, ctce_string *upperIndices, ctce_string *lowerIndices) {
+Decl make_ArrayDecl(int pos, tamm_string name, tamm_string *upperIndices, tamm_string *lowerIndices) {
     Decl p = tce_malloc(sizeof(*p));
     p->pos = pos;
     p->kind = is_ArrayDecl;

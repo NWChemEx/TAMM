@@ -3,7 +3,7 @@
 #include "t_mult.h"
 using namespace std;
 
-namespace ctce {
+namespace tamm {
 
 void t_mult(double *a_c,
             Tensor &tC, Tensor &tA, Tensor &tB, const double coef,
@@ -103,7 +103,7 @@ void t_mult(double *a_c,
         tA.get(a_svalue_r,buf_a,dima);
         //tA.get(*d_a,buf_a,dima,*k_a_offset);
         vector<size_t> a_sort_ids = sort_ids(a_name, m.a_mem_pos);
-        ctce_sort(buf_a, buf_a_sort, a_svalue /*tA._value()*/, a_sort_ids/*tA.sort_ids()*/, (double)a_sign /*tA.sign()*/);
+        tamm_sort(buf_a, buf_a_sort, a_svalue /*tA._value()*/, a_sort_ids/*tA.sort_ids()*/, (double)a_sign /*tA.sign()*/);
         delete [] buf_a;
 
         double* buf_b = new double[dimb];
@@ -117,7 +117,7 @@ void t_mult(double *a_c,
         //tB.get(*d_b,buf_b,dimb,*k_b_offset);
         //tce_sort(buf_b, buf_b_sort, tB._value(), tB.sort_ids(), (double)tB.sign());
         vector<size_t> b_sort_ids = sort_ids(b_name, m.b_mem_pos);
-        ctce_sort(buf_b, buf_b_sort, b_svalue/*tB._value()*/, b_sort_ids /*tB.sort_ids(b_name)*/, (double)b_sign /*(double)tB.sign()*/);
+        tamm_sort(buf_b, buf_b_sort, b_svalue/*tB._value()*/, b_sort_ids /*tB.sort_ids(b_name)*/, (double)b_sign /*(double)tB.sign()*/);
         delete [] buf_b;
 
         cdgemm('T','N', dima_sort, dimb_sort, dim_common, 1.0, buf_a_sort,
@@ -145,7 +145,7 @@ void t_mult(double *a_c,
           double sign = coef * cp_itr.sign();
           std::vector<size_t> cperm = mult_perm(name, m.c_mem_pos);
           std::vector<size_t> cmpval = getMemPosVal(m.c_ids, m.c_mem_pos);
-          ctce_sortacc(buf_c_sort, a_c, cmpval, cperm, sign);
+          tamm_sortacc(buf_c_sort, a_c, cmpval, cperm, sign);
         }
       } // cp_itr
       delete [] buf_c_sort;
@@ -320,7 +320,7 @@ void t_mult3(
           vector<size_t> a_sort_ids = sort_ids(a_name, m.a_mem_pos);
           //vector<size_t> a_sort_ids = tA.sort_ids(a_name);
 
-          ctce_sort(buf_a, buf_a_sort, a_svalue/*tA._value()*/, a_sort_ids/*tA.sort_ids(a_name)*/, (double)a_sign /*(double)tA.sign()*/);
+          tamm_sort(buf_a, buf_a_sort, a_svalue/*tA._value()*/, a_sort_ids/*tA.sort_ids(a_name)*/, (double)a_sign /*(double)tA.sign()*/);
           delete [] buf_a;
 
           double* buf_b = new double[dimb];
@@ -333,7 +333,7 @@ void t_mult3(
           getTimer.stop();
           //vector<size_t> b_sort_ids = tB.sort_ids(b_name);
           vector<size_t> b_sort_ids = sort_ids(b_name, m.b_mem_pos);
-          ctce_sort(buf_b, buf_b_sort, b_svalue/*tB._value()*/, b_sort_ids /*tB.sort_ids(b_name)*/, (double)b_sign /*(double)tB.sign()*/);
+          tamm_sort(buf_b, buf_b_sort, b_svalue/*tB._value()*/, b_sort_ids /*tB.sort_ids(b_name)*/, (double)b_sign /*(double)tB.sign()*/);
           delete [] buf_b;
 
           double beta = computeBeta(sum_ids,sum_vec);
@@ -377,7 +377,7 @@ void t_mult3(
             std::vector<size_t> cperm = mult_perm(name, m.c_mem_pos);
             // std::vector<size_t> cmpval = getMemPosVal(tC.ids(), m.c_mem_pos);
             std::vector<size_t> cmpval = getMemPosVal(m.c_ids, m.c_mem_pos);
-            ctce_sort(buf_c_sort, buf_c, cmpval, cperm, sign);
+            tamm_sort(buf_c_sort, buf_c, cmpval, cperm, sign);
 
             addTimer.start();
             // tce_add_hash_block_(d_c, buf_c, dimc, *k_c_offset, value, name);
@@ -432,4 +432,4 @@ void t_mult4(Multiplication& m, gmem::Handle sync_ga, int spos) {
   multTimer.stop();
 }
 
-} // namespace ctce
+} // namespace tamm

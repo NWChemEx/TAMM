@@ -1,13 +1,13 @@
 #include "equations.h"
 
-namespace ctce {
+namespace tamm {
 
   static Assignment consAddOp(Equations &eqs, IndexName *indices, 
-                              std::map<std::string, ctce::Tensor> &tensors,
+                              std::map<std::string, tamm::Tensor> &tensors,
                               AddOp* add);
 
   static Multiplication consMultOp(Equations &eqs, IndexName *indices,
-                                   std::map<std::string, ctce::Tensor> &tensors,
+                                   std::map<std::string, tamm::Tensor> &tensors,
                                    MultOp *mult);
 
   static Range2Index range2indices[] = {
@@ -17,7 +17,7 @@ namespace ctce {
   };
 
   void tensors_and_ops(Equations &eqs,
-                       std::map<std::string, ctce::Tensor> &tensors,
+                       std::map<std::string, tamm::Tensor> &tensors,
                        std::vector<Operation> &ops) {
     int inames[RANGE_UB] = {0};
     RangeType rts[eqs.range_entries.size()];
@@ -54,7 +54,7 @@ namespace ctce {
     //tensors.resize(eqs.tensor_entries.size());
     //for(int i=0; i<eqs.tensor_entries.size(); i++) {
     tensors.clear();
-    for(std::map<std::string, ctce::TensorEntry>::iterator i = eqs.tensor_entries.begin(); i != eqs.tensor_entries.end(); i++){
+    for(std::map<std::string, tamm::TensorEntry>::iterator i = eqs.tensor_entries.begin(); i != eqs.tensor_entries.end(); i++){
       RangeType ranges[MAX_TENSOR_DIMS];
       int ndim = i->second.ndim;
       for(int j=0; j< ndim; j++) {
@@ -64,7 +64,7 @@ namespace ctce {
       /*@BUG: @FIXME: irrep is not set.. Should be correctly set before this object is used*/
       DistType bug_dist = dist_nw;
       int bug_irrep = 0;
-      tensors.insert( std::map<std::string, ctce::Tensor>::value_type( string(i->first), Tensor(i->second.ndim, i->second.nupper, bug_irrep, ranges, bug_dist) ) );
+      tensors.insert( std::map<std::string, tamm::Tensor>::value_type( string(i->first), Tensor(i->second.ndim, i->second.nupper, bug_irrep, ranges, bug_dist) ) );
     }
 
 
@@ -87,7 +87,7 @@ namespace ctce {
 
   static Assignment consAddOp(Equations &eqs,
                               IndexName *indices,
-                              std::map<std::string, ctce::Tensor> &tensors,
+                              std::map<std::string, tamm::Tensor> &tensors,
                               AddOp* add) {
     vector<IndexName> aids, cids;
     assert(add);
@@ -107,7 +107,7 @@ namespace ctce {
 
   static Multiplication consMultOp(Equations &eqs,
                                    IndexName *indices,
-                                   std::map<std::string, ctce::Tensor> &tensors,
+                                   std::map<std::string, tamm::Tensor> &tensors,
                                    MultOp *mult) {
     vector<IndexName> aids, bids, cids;
     assert(mult);

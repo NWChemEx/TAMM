@@ -34,11 +34,11 @@ extern "C" {
 
 }
 
-namespace ctce {
+namespace tamm {
 
-void schedule_linear(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);
-void schedule_linear_lazy(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);
-void schedule_levels(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);
+void schedule_linear(std::map<std::string, tamm::Tensor> &tensors, std::vector<Operation> &ops);
+void schedule_linear_lazy(std::map<std::string, tamm::Tensor> &tensors, std::vector<Operation> &ops);
+void schedule_levels(std::map<std::string, tamm::Tensor> &tensors, std::vector<Operation> &ops);
 
 extern "C" {
   //void cisd_e_cxx_(Fint *d_i0, Fint *d_t_vvoo, Fint *d_v, Fint *d_t_vo, Fint *d_f,
@@ -60,7 +60,7 @@ extern "C" {
     set_e = false;
   }
 
-  std::map<std::string, ctce::Tensor> tensors;
+  std::map<std::string, tamm::Tensor> tensors;
   std::vector <Operation> ops;
   tensors_and_ops(eqs, tensors, ops);
 
@@ -97,4 +97,4 @@ extern "C" {
     t_vvoo->detach();
   }
 } // extern C
-}; // namespace ctce
+}; // namespace tamm

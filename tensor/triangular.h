@@ -1,10 +1,10 @@
-#ifndef __ctce_triangular_h__
-#define __ctce_triangular_h__
+#ifndef __tamm_triangular_h__
+#define __tamm_triangular_h__
 
 #include "index.h"
 #include "variables.h"
 
-namespace ctce {
+namespace tamm {
 
 class triangular {
 
@@ -175,6 +175,6 @@ triangular::v_range() const { return curr_r; }
 inline const std::vector<size_t>& 
 triangular::v_offset() const { return curr_o; }
 
-} /* namespace ctce */
+} /* namespace tamm */
 
-#endif /* __ctce_triangular_h__ */
+#endif /* __tamm_triangular_h__ */

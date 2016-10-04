@@ -1,5 +1,5 @@
-#ifndef __ctce_ga_abstract_h__
-#define __ctce_ga_abstract_h__
+#ifndef __tamm_ga_abstract_h__
+#define __tamm_ga_abstract_h__
 
 #include <stdint.h>
 #include <assert.h>
@@ -7,7 +7,7 @@
 
 using namespace std;
 
-namespace ctce
+namespace tamm
 {
   namespace gmem
   {

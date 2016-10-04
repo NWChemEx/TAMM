@@ -1,21 +1,21 @@
-#ifndef __ctce_capi_h__
-#define __ctce_capi_h__
+#ifndef __tamm_capi_h__
+#define __tamm_capi_h__
 
 #include "common.h"
 #include <vector>
 #include "ga_abstract.h"
 
 /**
- * C/C++ wrappers to Fortran routines invoked by ctce
+ * C/C++ wrappers to Fortran routines invoked by tamm
  */
 
-namespace ctce {
+namespace tamm {
 
 /**
  * C++ function that wraps FORTRAN tce_sort2 and tce_sort4
  */
 void
-ctce_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
+tamm_sort(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
           std::vector<size_t>& iv, double alpha);
 
 /**
@@ -38,7 +38,7 @@ cadd_hash_block(gmem::Handle d_c, double *buf_a, size_t size,
  * C++ function that wraps FORTRAN tce_sortacc*
  */
 void
-ctce_sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
+tamm_sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
              std::vector<size_t>& perm, double alpha);
 
 
@@ -46,7 +46,7 @@ ctce_sortacc(double *sbuf, double *dbuf, const std::vector<size_t>& ids,
  * C++ function that wraps FORTRAN tce_restricted
  */
 void
-ctce_restricted(int dim, int nupper,
+tamm_restricted(int dim, int nupper,
                 const std::vector<size_t> &value,
                 std::vector<size_t> &pvalue_r);
 
@@ -72,7 +72,7 @@ void
 cget_hash_block(gmem::Handle d_a, double *buf, size_t size,
                 size_t d_a_offset, size_t key);
 
-} /*namespace ctce*/
+} /*namespace tamm*/
 
-#endif /*__ctce_capi_h__*/
+#endif /*__tamm_capi_h__*/
 

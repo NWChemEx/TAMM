@@ -9,7 +9,7 @@
 #include <sstream>
 #include <string>
 
-namespace ctce {
+namespace tamm {
   struct Equations {
     std::vector<RangeEntry> range_entries;
     std::vector<IndexEntry> index_entries;
@@ -18,7 +18,7 @@ namespace ctce {
   };
 }
 
-namespace ctce {
+namespace tamm {
 
   std::string index_to_string(const Equations &eqs, 
                               int nids, const int *ids) {
@@ -417,4 +417,4 @@ namespace ctce {
 //  }
 
 
-} /*ctce*/
+} /*tamm*/

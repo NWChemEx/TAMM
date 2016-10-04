@@ -1,20 +1,20 @@
-#ifndef __ctce_equations_h__
-#define __ctce_equations_h__
+#ifndef __tamm_equations_h__
+#define __tamm_equations_h__
 
 #include "input.h"
 #include <map>
 
 extern "C" {
-#include "../ctce_parser/ctce_parser.h"
+#include "../tamm_parser/tamm_parser.h"
 }
 
-namespace ctce {
+namespace tamm {
 
   struct Equations {
     std::vector<RangeEntry> range_entries;
     std::vector<IndexEntry> index_entries;
     //std::vector<TensorEntry> tensor_entries;
-    std::map<std::string, ctce::TensorEntry> tensor_entries;
+    std::map<std::string, tamm::TensorEntry> tensor_entries;
     std::vector<OpEntry> op_entries;
 
   };
@@ -35,11 +35,11 @@ namespace ctce {
   void eaccsd_x1_equations(Equations &eqs);
   void eaccsd_x2_equations(Equations &eqs);
 
-  void parser_eqs_to_ctce_eqs(::Equations *eqs, ctce::Equations &ceqs);
+  void parser_eqs_to_tamm_eqs(::Equations *eqs, tamm::Equations &ceqs);
 
   /* void icsd_t1_equations(Equations &eqs); */
   /* void icsd_t2_equations(Equations &eqs); */
 
-}; /*ctce*/
+}; /*tamm*/
 
-#endif /*__ctce_equations_h__*/
+#endif /*__tamm_equations_h__*/

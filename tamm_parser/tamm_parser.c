@@ -1,9 +1,9 @@
-#include "ctce_parser.h"
+#include "tamm_parser.h"
 
 int tce_tokPos = 0;
 int tce_lineno = 1;
 
-void ctce_parser(char const *input_file, Equations *genEq) {
+void tamm_parser(char const *input_file, Equations *genEq) {
 
     // Lemon headers
     void *ParseAlloc(void *(*mallocProc)(size_t));

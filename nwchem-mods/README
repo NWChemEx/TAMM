@@ -1,5 +1,5 @@
 This folder contains necessary modifications to *.F files 
-to enable the use of libctce
+to enable the use of libtamm
 
 Ignore the following instructions if you ran make patch in the tce build directory
 
@@ -9,15 +9,15 @@ make sure $NWCHEM_TOP is set
 
 Then do:
 
-./nwchem-fix.bash CTCE_LIB_PATH
+./nwchem-fix.bash TAMM_LIB_PATH
 
 otherwise:
 
 1.  cp -R ./src $NWCHEM_TOP/	
 
 2.	GNUmakefile in folder $NWCHEM_TOP/src is modified to include
-		path to libctce as under:
+		path to libtamm as under:
 
   	$(PURIFY) $(LINK.f) -o $(BINDIR)/$(NWBINNAME) nwchem.o stubs.o -lnwctask
--L/<ctce install dir>/lib  $(LIBS) -lctce -lstdc++
+-L/<tamm install dir>/lib  $(LIBS) -ltamm -lstdc++
 

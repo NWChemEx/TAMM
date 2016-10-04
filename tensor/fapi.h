@@ -1,10 +1,10 @@
-#ifndef __ctce_fapi_h__
-#define __ctce_fapi_h__
+#ifndef __tamm_fapi_h__
+#define __tamm_fapi_h__
 
 #include "common.h"
 
 /**
- * All fortran functions used by ctce
+ * All fortran functions used by tamm
  */
 
 #define ftce_restricted_2  FORTRAN_FUNC(tce_restricted_2,TCE_RESTRICTED_2)
@@ -107,5 +107,5 @@ EXTERN_C void
 ftce_hash_v2(Fint *hash, Fint *key, Fint *offset);
 
 
-#endif /*__ctce_fapi_h__*/
+#endif /*__tamm_fapi_h__*/
 

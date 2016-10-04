@@ -51,8 +51,8 @@ C         i1 ( h6 h8 h1 p7 )_vt + = 1 * Sum ( p3 ) * t ( p3 h1 )_t * v ( h6 h8 p
       INTEGER l_i2_offset
       INTEGER size_i2
       CHARACTER*255 filename
-#define CTCE_OK 1
-#if CTCE_OK
+#define TAMM_OK 1
+#if TAMM_OK
       call set_var_cxx(noab, nvab, int_mb, dbl_mb,
      &k_range, k_spin, k_sym, intorb, restricted,
      &irrep_v, irrep_t, irrep_f)
@@ -67,7 +67,7 @@ c      call gen_expr_ipccsd_x1_cxx()
       CALL OFFSET_ipccsd_x1_1_1(l_i1_offset,k_i1_offset,size_i1)
       CALL TCE_FILENAME('ipccsd_x1_1_1_i1',filename)
       CALL CREATEFILE(filename,d_i1,size_i1)
-#if CTCE_OK && 0
+#if TAMM_OK && 0
       call ipccsd_x1_1_1_cxx(d_f1,k_f1_offset,d_i1,k_i1_offset)
 #else
       CALL ipccsd_x1_1_1(d_f1,k_f1_offset,d_i1,k_i1_offset)
@@ -91,7 +91,7 @@ c      call gen_expr_ipccsd_x1_cxx()
 c      write(LuOut,*) "I am here 1"
 c      call util_flush(LuOut)
       CALL RECONCILEFILE(d_i1,size_i1)
-#if CTCE_OK && 0
+#if TAMM_OK && 0
       CALL ipccsd_x1_1_cxx(d_x1,k_x1_offset,d_i1,k_i1_offset,d_i0,
      &k_i0_offse
      &t)
@@ -115,7 +115,7 @@ c      call util_flush(LuOut)
 c      write(LuOut,*) "I am here 4"
 c      call util_flush(LuOut)
       CALL RECONCILEFILE(d_i1,size_i1)
-#if CTCE_OK
+#if TAMM_OK
       CALL ipccsd_x1_2_cxx(d_x2,k_x2_offset,d_i1,k_i1_offset,d_i0,
      &k_i0_offset)
 #else
@@ -128,7 +128,7 @@ c      call util_flush(LuOut)
       CALL OFFSET_ipccsd_x1_3_1(l_i1_offset,k_i1_offset,size_i1)
       CALL TCE_FILENAME('ipccsd_x1_3_1_i1',filename)
       CALL CREATEFILE(filename,d_i1,size_i1)
-#if CTCE_OK && 0
+#if TAMM_OK && 0
       CALL ipccsd_x1_3_1_cxx(d_v2,k_v2_offset,d_i1,k_i1_offset)
 #else
       CALL ipccsd_x1_3_1(d_v2,k_v2_offset,d_i1,k_i1_offset)
@@ -136,7 +136,7 @@ c      call util_flush(LuOut)
       CALL ipccsd_x1_3_2(d_t1,k_t1_offset,d_v2,k_v2_offset,d_i1,k_i1_off
      &set)
       CALL RECONCILEFILE(d_i1,size_i1)
-#if CTCE_OK && 1
+#if TAMM_OK && 1
       CALL ipccsd_x1_3_cxx(d_x2,k_x2_offset,d_i1,k_i1_offset,d_i0,
      &k_i0_offset)
 #else

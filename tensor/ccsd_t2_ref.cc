@@ -196,15 +196,15 @@ void offset_ccsd_t2_7_1_(Integer *l_i1_offset, Integer *k_i1_offset, Integer *si
 
 }
 
-namespace ctce {
+namespace tamm {
 
   typedef void (*c2fd_fn)(Integer*,Integer*,Integer*,Integer*);
 
-    void schedule_linear_lazy(std::map<std::string, ctce::Tensor> &tensors,
+    void schedule_linear_lazy(std::map<std::string, tamm::Tensor> &tensors,
                               std::vector<Operation> &ops);
-    void schedule_linear(std::map<std::string, ctce::Tensor> &tensors,
+    void schedule_linear(std::map<std::string, tamm::Tensor> &tensors,
                          std::vector<Operation> &ops);
-  void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
+  void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
                        std::vector<Operation> &ops);
 
   static void CorFortranc2fd(int use_c, Multiplication &m, c2fd_fn fn) {
@@ -281,7 +281,7 @@ namespace ctce {
         set_t2 = false;
       }
 
-      std::map<std::string, ctce::Tensor> tensors;
+      std::map<std::string, tamm::Tensor> tensors;
       std::vector<Operation> ops;
 
       tensors_and_ops(eqs,tensors, ops);
@@ -466,5 +466,5 @@ namespace ctce {
       v->detach();
     }
   } // extern C
-}; // namespace ctce
+}; // namespace tamm
 

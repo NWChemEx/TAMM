@@ -8,9 +8,9 @@
 #include "equations.h"
 #include "tensors_and_ops.h"
 
-namespace ctce {
+namespace tamm {
 
-  void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
+  void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
                        std::vector<Operation> &ops);
 
   extern "C" {
@@ -50,7 +50,7 @@ namespace ctce {
       ccsd_t1_equations(t1_eqs);
       ccsd_t2_equations(t2_eqs);
 
-      std::map<std::string, ctce::Tensor> e_tensors, t1_tensors, t2_tensors;
+      std::map<std::string, tamm::Tensor> e_tensors, t1_tensors, t2_tensors;
       std::vector<Operation> e_ops, t1_ops, t2_ops;
 
       tensors_and_ops(e_eqs,e_tensors, e_ops);

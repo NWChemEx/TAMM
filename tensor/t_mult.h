@@ -1,5 +1,5 @@
-#ifndef __ctce_mult_h__
-#define __ctce_mult_h__
+#ifndef __tamm_mult_h__
+#define __tamm_mult_h__
 
 //#include "global.h" // ga_sync
 #include "func.h"
@@ -9,7 +9,7 @@
 #include "expression.h"
 #include "ga_abstract.h"
 
-namespace ctce {
+namespace tamm {
 
 /**
  * CCSD(T) multiplication computation (antisymm part), DGEMM + SORTACC
@@ -70,6 +70,6 @@ void t_mult3(Tensor& tC,
  */ 
 void t_mult4(Multiplication& m, gmem::Handle sync_ga=gmem::NULL_HANDLE, int spos=0);
 
-} // namespace ctce
+} // namespace tamm
 
 #endif

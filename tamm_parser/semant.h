@@ -26,7 +26,7 @@ tce_string_array getUniqIndices(Exp exp);
 
 void print_Exp(Exp);
 
-void print_ExpList(ExpList, ctce_string);
+void print_ExpList(ExpList, tamm_string);
 
 
 #endif

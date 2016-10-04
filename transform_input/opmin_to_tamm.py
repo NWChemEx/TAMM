@@ -5,7 +5,7 @@ from antlr4 import *
 from antlr4.InputStream import InputStream
 from OpMinLexer import OpMinLexer
 from OpMinParser import OpMinParser
-from OpMinVisitor import OpminOutToCTCE
+from OpMinVisitor import OpminOutToTAMM
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     print(fname[1] + " {\n")
 
-    visitor = OpminOutToCTCE()
+    visitor = OpminOutToTAMM()
     visitor.visitTranslation_unit(tree)
 
     print("}")

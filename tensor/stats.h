@@ -1,5 +1,5 @@
-#ifndef __ctce_stats_h__
-#define __ctce_stats_h__
+#ifndef __tamm_stats_h__
+#define __tamm_stats_h__
 
 #include <cassert>
 #include <mpi.h>
@@ -7,7 +7,7 @@
 
 #define TIMER() MPI_Wtime()
 
-namespace ctce {
+namespace tamm {
 
 class Profiler {
 public:
@@ -54,5 +54,5 @@ extern Profiler iterTimer, assignTimer, multTimer, getTimer, addTimer, dgemmTime
 void printStats();
 }
 
-#endif /* __ctce_stats_h__ */
+#endif /* __tamm_stats_h__ */
 

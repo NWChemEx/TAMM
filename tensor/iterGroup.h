@@ -1,7 +1,7 @@
-#ifndef __ctce_iter_group_h__
-#define __ctce_iter_group_h__
+#ifndef __tamm_iter_group_h__
+#define __tamm_iter_group_h__
 
-namespace ctce {
+namespace tamm {
 
 typedef enum {
   ANTI, TRIG, COPY, TRIG2
@@ -156,6 +156,6 @@ IterGroup<T>::fix_ids_for_copy(std::vector<size_t>& vec) {
   }
 }
 
-} /* namespace ctce */
+} /* namespace tamm */
 
-#endif /* __ctce_iter_group_h */
+#endif /* __tamm_iter_group_h */

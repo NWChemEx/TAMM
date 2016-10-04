@@ -1,7 +1,7 @@
 #include "preprocess.h"
 #include "expression.h"
 
-namespace ctce {
+namespace tamm {
 
 void
 genTrigIter(IterGroup<triangular>& trig_itr, const std::vector<IndexName>& name,
@@ -69,6 +69,6 @@ genAntiIter(const std::vector<size_t> &vtab, IterGroup<antisymm>& ext_itr,
   ext_itr = IterGroup<antisymm>(va,ANTI);
 }
 
-} /* namespace ctce */
+} /* namespace tamm */
 
 

@@ -101,8 +101,8 @@ C         i1 ( h6 p3 h1 p5 )_vx + = 1 * Sum ( h7 p8 ) * x ( p3 p8 h1 h7 )_x * v 
       INTEGER l_i3_offset
       INTEGER size_i3
       CHARACTER*255 filename
-#define CTCE_OK 1
-#if CTCE_OK
+#define TAMM_OK 1
+#if TAMM_OK
       call set_var_cxx(noab, nvab, int_mb, dbl_mb,
      &k_range, k_spin, k_sym, intorb, restricted,
      &irrep_v, irrep_t, irrep_f)

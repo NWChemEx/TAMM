@@ -2,7 +2,7 @@
 #include "variables.h"
 //#include "/msc/apps/compilers/intel/impi/5.0.1.035/intel64/include/mpi.h"
 
-namespace ctce {
+namespace tamm {
 
   double Timer::total = 0.0;
   double Timer::dg_time = 0.0;
@@ -147,4 +147,4 @@ void set_k_v2_alpha_offset_cxx_(Integer *k_v2_alpha_offset) {
     for (int i=pIndexNum; i<IndexNum; i++) range_[i] = TO;
   }
 
-} /* namespace ctce */
+} /* namespace tamm */

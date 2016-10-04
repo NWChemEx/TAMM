@@ -3,7 +3,7 @@
 #include "t_assign.h"
 #include "ga_abstract.h"
 
-namespace ctce {
+namespace tamm {
 
   void Assignment::init() {
     // const std::vector<IndexName>& name = tC_.name();

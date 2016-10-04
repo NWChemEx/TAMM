@@ -1,7 +1,7 @@
 #include "fapi.h"
 #include "corf.h"
 
-namespace ctce {
+namespace tamm {
 
 void CorFortran(int use_c, Assignment &as, add_fn fn) {
   if(use_c) {
@@ -52,5 +52,5 @@ void destroy(Tensor *t) {
   }
 }
 
-} /*namespace ctce*/
+} /*namespace tamm*/
 

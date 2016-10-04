@@ -6,7 +6,7 @@
 #include "input.h"
 #include "equations.h"
 
-namespace ctce {
+namespace tamm {
   /**
    * Allocate all intermediate arrays upfront. Execute operations in
    * input order. Deallocate all allocated arrays at the end.

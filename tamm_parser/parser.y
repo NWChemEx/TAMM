@@ -193,13 +193,13 @@
     // array-structure
     //old -- array_structure ::= ID LPAREN LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET permut_symmetry_opt RPAREN .
     array_structure(A) ::= ID(N) LBRACKET id_list_opt(U) RBRACKET LBRACKET id_list_opt(L) RBRACKET permut_symmetry_opt(P) . {
-     ctce_string id = N;
+     tamm_string id = N;
      IDList p = U;
      int countU = count_IDList(U);
      
      p = U;
      int ic = 0;
-     ctce_string* indicesU = malloc(countU * sizeof(ctce_string));
+     tamm_string* indicesU = malloc(countU * sizeof(tamm_string));
 
      while (p!=NULL){
             indicesU[ic] = (p->head)->name;
@@ -210,7 +210,7 @@
      int countL = count_IDList(L);
      ic = 0;
      p = L;
-     ctce_string* indicesL = malloc(countL * sizeof(ctce_string));
+     tamm_string* indicesL = malloc(countL * sizeof(tamm_string));
 
      while (p!=NULL){
         indicesL[ic] = (p->head)->name;
@@ -247,7 +247,7 @@
         //lhs->lineno = tce_lineno;
         Exp rhs = R;
         //rhs->lineno = tce_lineno;
-        ctce_string oper = O;
+        tamm_string oper = O;
 
         if(strcmp(oper,"=")==0) { 
           s = make_AssignStmt(tce_tokPos,lhs,rhs); 
@@ -306,20 +306,20 @@
 
     // array-reference
     array_reference(A) ::= ID(N)  . {
-      ctce_string id = N;
+      tamm_string id = N;
       Exp e = make_Array(tce_tokPos, id, NULL);
       e->lineno = tce_lineno;
       A = e;
     }
 
     array_reference(A) ::= ID(N) LBRACKET id_list_opt(I) RBRACKET . {
-     ctce_string id = N;
+     tamm_string id = N;
 
      IDList p = I;
      int count = count_IDList(p);
      p = I;
 
-     ctce_string *indices = malloc(count * sizeof(ctce_string));
+     tamm_string *indices = malloc(count * sizeof(tamm_string));
 
      int ic = 0;
 
@@ -352,7 +352,7 @@
     additive_expression(E) ::= additive_expression(A) plusORMinus(O) multiplicative_expression(M) . {
      Exp e1 = A;
      Exp e2 = M;
-     ctce_string op = O;
+     tamm_string op = O;
      ExpList el = make_ExpList(NULL,NULL);
 
      int clno = tce_lineno;
@@ -417,7 +417,7 @@
     // TODO: permutational-symmetry
     permut_symmetry_opt(P) ::=  . { P=NULL; }
     permut_symmetry_opt(P) ::=  COLON symmetry_group_list . { P=NULL; }
-    //hack for array decl specifying irrep ctce_string - array X[upper][lower]:irrep_f
+    //hack for array decl specifying irrep tamm_string - array X[upper][lower]:irrep_f
     permut_symmetry_opt(P) ::=  COLON ID(I) . { P=I; } 
 
     symmetry_group_list ::= symmetry_group .

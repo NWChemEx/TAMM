@@ -1,6 +1,6 @@
 #include "dummy.h"
 
-namespace ctce {
+namespace tamm {
 
   CopyIter Dummy::type1_;
   CopyIter Dummy::type2_;
@@ -37,4 +37,4 @@ namespace ctce {
     CopyIter t4 = CopyIter(vi4,s4);
     type4_ = t4;
   }
-} // namespace ctce
+} // namespace tamm

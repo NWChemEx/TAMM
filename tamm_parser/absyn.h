@@ -61,19 +61,19 @@ Exp make_Addition(int pos, ExpList subexps);
 
 Exp make_Multiplication(int pos, ExpList subexps);
 
-Exp make_Array(int pos, ctce_string name, ctce_string *indices);
+Exp make_Array(int pos, tamm_string name, tamm_string *indices);
 
 
 Stmt make_AssignStmt(int pos, Exp lhs, Exp rhs);
 
-Decl make_RangeDecl(int pos, ctce_string name, int value);
+Decl make_RangeDecl(int pos, tamm_string name, int value);
 
-Decl make_IndexDecl(int pos, ctce_string name, ctce_string rangeID);
+Decl make_IndexDecl(int pos, tamm_string name, tamm_string rangeID);
 
 Decl
-make_ArrayDecl(int pos, ctce_string name, ctce_string *upperIndices, ctce_string *lowerIndices); //TODO: permute and vertex symmetry
+make_ArrayDecl(int pos, tamm_string name, tamm_string *upperIndices, tamm_string *lowerIndices); //TODO: permute and vertex symmetry
 
-Identifier make_Identifier(int pos, ctce_string name);
+Identifier make_Identifier(int pos, tamm_string name);
 
 Elem make_Elem_Stmt(Stmt s);
 
@@ -155,7 +155,7 @@ struct TranslationUnit_ {
 struct Identifier_ {
     int pos;
     int lineno;
-    ctce_string name;
+    tamm_string name;
 };
 
 
@@ -179,18 +179,18 @@ struct Decl_ {
     union {
         struct {
             int value;
-            ctce_string name;
+            tamm_string name;
         } RangeDecl;
         struct {
-            ctce_string name;
-            ctce_string rangeID;
+            tamm_string name;
+            tamm_string rangeID;
         } IndexDecl;
         struct {
-            ctce_string name;
+            tamm_string name;
             int ulen, llen;
-            ctce_string *upperIndices;
-            ctce_string *lowerIndices;
-            ctce_string irrep;
+            tamm_string *upperIndices;
+            tamm_string *lowerIndices;
+            tamm_string irrep;
         } ArrayDecl;
         //TODO: ExpandDecl, IterationDecl, VolatileDecl
     } u;
@@ -204,10 +204,10 @@ struct Stmt_ {
     int pos;
     union {
         struct {
-            ctce_string label;
+            tamm_string label;
             Exp lhs;
             Exp rhs;
-            ctce_string astype;
+            tamm_string astype;
         } AssignStmt;
     } u;
 };
@@ -230,9 +230,9 @@ struct Exp_ {
         } NumConst;
 
         struct {
-            ctce_string name;
+            tamm_string name;
             int length;
-            ctce_string *indices;
+            tamm_string *indices;
 
         } Array;
 

@@ -1,4 +1,4 @@
-# Generated from /home/panyala/EclipseWS/workspacePTP/ctce/ctce_parser/SoInput/SoTCE.g4 by ANTLR 4.5.3
+# Generated from /home/panyala/EclipseWS/workspacePTP/tamm/tamm_parser/SoInput/SoTCE.g4 by ANTLR 4.5.3
 # encoding: utf-8
 from __future__ import print_function
 from antlr4 import *

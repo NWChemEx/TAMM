@@ -1,7 +1,7 @@
 #include "index_sort.h"
 #include <cassert>
 
-namespace ctce {
+namespace tamm {
 
   static void copy(const double *sbuf, double *dbuf, size_t sz, double alpha) {
     for(size_t i=0; i<sz; i++) {
@@ -248,5 +248,5 @@ namespace ctce {
       }
     }
   }
-} /*ctce*/
+} /*tamm*/
 

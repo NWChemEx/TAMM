@@ -7,7 +7,7 @@
 #include "dummy.h"
 #include "ga_abstract.h"
 
-namespace ctce {
+namespace tamm {
 
 /**
  * Global variables from FORTRAN
@@ -127,7 +127,7 @@ public:
   static char const* timer_text[];
 };
 
-} /* namespace ctce */
+} /* namespace tamm */
 
 #endif
 

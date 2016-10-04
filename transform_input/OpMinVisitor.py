@@ -68,11 +68,11 @@ class OpMinVisitor(ParseTreeVisitor):
         indent -= 2
         printnl("}")
 
-        printnl("\nnamespace ctce {\n")
+        printnl("\nnamespace tamm {\n")
 
-        declare_lib_api = "void schedule_linear(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);\n"
-        declare_lib_api += "".ljust(indent)+"void schedule_linear_lazy(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);\n"
-        declare_lib_api += "".ljust(indent)+"void schedule_levels(std::map<std::string, ctce::Tensor> &tensors, std::vector<Operation> &ops);\n"
+        declare_lib_api = "void schedule_linear(std::map<std::string, tamm::Tensor> &tensors, std::vector<Operation> &ops);\n"
+        declare_lib_api += "".ljust(indent)+"void schedule_linear_lazy(std::map<std::string, tamm::Tensor> &tensors, std::vector<Operation> &ops);\n"
+        declare_lib_api += "".ljust(indent)+"void schedule_levels(std::map<std::string, tamm::Tensor> &tensors, std::vector<Operation> &ops);\n"
 
         printnli(declare_lib_api)
         printnli("extern \"C\" {")
@@ -110,7 +110,7 @@ class OpMinVisitor(ParseTreeVisitor):
         printnli("  set_"+ self.label_prefix + " = false;")
         printnli("}\n")
 
-        printnli("std::map<std::string, ctce::Tensor> tensors;")
+        printnli("std::map<std::string, tamm::Tensor> tensors;")
         printnli("std::vector <Operation> ops;")
 
         printnli("tensors_and_ops(eqs, tensors, ops);")
@@ -161,7 +161,7 @@ class OpMinVisitor(ParseTreeVisitor):
 
         printnli("}")
         printnl("} // extern C")
-        printnl("}; // namespace ctce")
+        printnl("}; // namespace tamm")
 
 
     # Visit a parse tree produced by OpMinParser#compound_element_list_prime.
@@ -425,7 +425,7 @@ class OpMinVisitor(ParseTreeVisitor):
 
 f_v_decls = dict()
 
-class OpminOutToCTCE(ParseTreeVisitor):
+class OpminOutToTAMM(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#translation_unit.
     def visitTranslation_unit(self, ctx):

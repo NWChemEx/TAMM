@@ -65,9 +65,9 @@ void offset_ipccsd_x1_2_1_(Fint *l_x1_2_1_offset, Fint *k_x1_2_1_offset, Fint *s
 void offset_ipccsd_x1_3_1_(Fint *l_x1_3_1_offset, Fint *k_x1_3_1_offset, Fint *size_x1_3_1);
 }
 
-namespace ctce {
+namespace tamm {
 
-void schedule_levels(std::map<std::string, ctce::Tensor> &tensors,
+void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
                      std::vector<Operation> &ops);
 
 extern "C" {
@@ -100,7 +100,7 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo, Fint *
     set_x1 = false;
   }
 
-  std::map<std::string, ctce::Tensor> tensors;
+  std::map<std::string, tamm::Tensor> tensors;
   std::vector <Operation> ops;
   tensors_and_ops(eqs, tensors, ops);
 
@@ -180,4 +180,4 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo, Fint *
   x_voo->detach();
 }
 } // extern C
-} // namespace ctce
+} // namespace tamm

@@ -80,7 +80,7 @@ cadd_block(gmem::Handle d_a, double *buf, size_t size, size_t offset) {
   Fint ioffset = offset;
   fadd_block(&ida, buf, &isize, &ioffset);
 #else
-  gmem::acc(d_a,buf,offset,offset+size-1,);
+  gmem::acc(d_a,buf,offset,offset+size-1);
 #endif
 }
 
@@ -323,9 +323,7 @@ cget_add_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset_unused,
   //ctce_hash(&int_mb[k_v2_alpha_offset],key,&offset);
 
   int d_v2orb = Variables::d_v2orb();
-   
   gmem::get((gmem::Handle)d_v2orb,buf,offset,offset+size-1,nbh);
-
   return x;
 }
 

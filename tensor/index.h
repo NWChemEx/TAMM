@@ -13,7 +13,7 @@ namespace tamm {
  */
 
 class Index {
-public:
+ public:
   /**
    * Constructor
    */
@@ -26,10 +26,7 @@ public:
    * @param[in] esg External symmetry group of the index
    */
   Index(const IndexName& name, const int& esg)
-    : name_(name),
-      value_(0),
-      value_r_(0),
-      ext_sym_group_(esg) {}
+      : name_(name), value_(0), value_r_(0), ext_sym_group_(esg) {}
 
   /**
    * Destructor
@@ -58,35 +55,37 @@ public:
    * Set the value of this index
    * @param[in] val value of this index
    */
-  inline void setValue(const Fint& val) { value_=val; }
+  inline void setValue(const Fint& val) { value_ = val; }
 
   /**
    * Set the restricted value of this index
    * @param[in] val_r restricted value of this index
    */
-  inline void setValueR(const Fint& val_r) { value_r_=val_r; }
+  inline void setValueR(const Fint& val_r) { value_r_ = val_r; }
 
-private:
+ private:
   /**
    * Get the external symmetry group id of the index
    * @return ext_sym_group as an int
    */
   inline int ext_sym_group() const { return ext_sym_group_; }
 
-  IndexName name_;  /*< name of this index */
-  Fint value_;     /*< value of this index */
-  Fint value_r_;   /*< value(restricted) of this index */
-  int ext_sym_group_; /*< external symmetry group of this index, from lhs of the expr (tC) */
+  IndexName name_;    /*< name of this index */
+  Fint value_;        /*< value of this index */
+  Fint value_r_;      /*< value(restricted) of this index */
+  int ext_sym_group_; /*< external symmetry group of this index, from lhs of the
+                         expr (tC) */
 
-  friend
-  bool compareExtSymGroup(const Index& lhs, const Index& rhs);
+  friend bool compareExtSymGroup(const Index& lhs, const Index& rhs);
 };
 
-inline bool compareValue(const Index& lhs, const Index& rhs) { return (lhs.value() < rhs.value()); }
-inline bool compareExtSymGroup(const Index& lhs, const Index& rhs) { return (lhs.ext_sym_group() < rhs.ext_sym_group()); }
-
+inline bool compareValue(const Index& lhs, const Index& rhs) {
+  return (lhs.value() < rhs.value());
+}
+inline bool compareExtSymGroup(const Index& lhs, const Index& rhs) {
+  return (lhs.ext_sym_group() < rhs.ext_sym_group());
+}
 
 } /* namespace tamm */
 
 #endif /* __tamm_index_h */
-

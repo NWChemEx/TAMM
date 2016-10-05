@@ -1,12 +1,12 @@
-#include "variables.h"
 #include <iostream>
-#include "tensor.h"
-#include "t_mult.h"
-#include "t_assign.h"
-#include "input.h"
 #include "corf.h"
 #include "equations.h"
+#include "input.h"
+#include "t_assign.h"
+#include "t_mult.h"
+#include "tensor.h"
 #include "tensors_and_ops.h"
+#include "variables.h"
 
 /*
  *  x1 {
@@ -45,28 +45,57 @@
  *  }
  */
 
-
 extern "C" {
-void eaccsd_x1_1_1_(Integer *d_f, Integer *k_f_offset,Integer *d_x1_1_1, Integer *k_x1_1_1_offset);
-void eaccsd_x1_1_2_(Integer *d_t_vo, Integer *k_t_vo_offset,Integer *d_v, Integer *k_v_offset,Integer *d_x1_1_1, Integer *k_x1_1_1_offset);
-void eaccsd_x1_1_(Integer *d_x_vo, Integer *k_x_vo_offset,Integer *d_x1_1_1, Integer *k_x1_1_1_offset,Integer *d_i0, Integer *k_i0_offset);
-void eaccsd_x1_2_1_(Integer *d_f, Integer *k_f_offset,Integer *d_x1_2_1, Integer *k_x1_2_1_offset);
-void eaccsd_x1_2_2_(Integer *d_t_vo, Integer *k_t_vo_offset,Integer *d_v, Integer *k_v_offset,Integer *d_x1_2_1, Integer *k_x1_2_1_offset);
-void eaccsd_x1_2_(Integer *d_x_vvoo, Integer *k_x_vvoo_offset,Integer *d_x1_2_1, Integer *k_x1_2_1_offset,Integer *d_i0, Integer *k_i0_offset);
-void eaccsd_x1_3_(Integer *d_x_vvoo, Integer *k_x_vvoo_offset,Integer *d_v, Integer *k_v_offset,Integer *d_i0, Integer *k_i0_offset);
-void eaccsd_x1_4_1_1_(Integer *d_f, Integer *k_f_offset,Integer *d_x1_4_1_1, Integer *k_x1_4_1_1_offset);
-void eaccsd_x1_4_1_2_(Integer *d_t_vo, Integer *k_t_vo_offset,Integer *d_v, Integer *k_v_offset,Integer *d_x1_4_1_1, Integer *k_x1_4_1_1_offset);
-void eaccsd_x1_4_1_(Integer *d_x_vo, Integer *k_x_vo_offset,Integer *d_x1_4_1_1, Integer *k_x1_4_1_1_offset,Integer *d_x1_4_1, Integer *k_x1_4_1_offset);
-void eaccsd_x1_4_2_(Integer *d_x_vvoo, Integer *k_x_vvoo_offset,Integer *d_v, Integer *k_v_offset,Integer *d_x1_4_1, Integer *k_x1_4_1_offset);
-void eaccsd_x1_4_(Integer *d_t_vo, Integer *k_t_vo_offset,Integer *d_x1_4_1, Integer *k_x1_4_1_offset,Integer *d_i0, Integer *k_i0_offset);
-void eaccsd_x1_5_1_(Integer *d_x_vo, Integer *k_x_vo_offset,Integer *d_v, Integer *k_v_offset,Integer *d_x1_5_1, Integer *k_x1_5_1_offset);
-void eaccsd_x1_5_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset,Integer *d_x1_5_1, Integer *k_x1_5_1_offset,Integer *d_i0, Integer *k_i0_offset);
+void eaccsd_x1_1_1_(Integer *d_f, Integer *k_f_offset, Integer *d_x1_1_1,
+                    Integer *k_x1_1_1_offset);
+void eaccsd_x1_1_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
+                    Integer *k_v_offset, Integer *d_x1_1_1,
+                    Integer *k_x1_1_1_offset);
+void eaccsd_x1_1_(Integer *d_x_vo, Integer *k_x_vo_offset, Integer *d_x1_1_1,
+                  Integer *k_x1_1_1_offset, Integer *d_i0,
+                  Integer *k_i0_offset);
+void eaccsd_x1_2_1_(Integer *d_f, Integer *k_f_offset, Integer *d_x1_2_1,
+                    Integer *k_x1_2_1_offset);
+void eaccsd_x1_2_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
+                    Integer *k_v_offset, Integer *d_x1_2_1,
+                    Integer *k_x1_2_1_offset);
+void eaccsd_x1_2_(Integer *d_x_vvoo, Integer *k_x_vvoo_offset,
+                  Integer *d_x1_2_1, Integer *k_x1_2_1_offset, Integer *d_i0,
+                  Integer *k_i0_offset);
+void eaccsd_x1_3_(Integer *d_x_vvoo, Integer *k_x_vvoo_offset, Integer *d_v,
+                  Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset);
+void eaccsd_x1_4_1_1_(Integer *d_f, Integer *k_f_offset, Integer *d_x1_4_1_1,
+                      Integer *k_x1_4_1_1_offset);
+void eaccsd_x1_4_1_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
+                      Integer *k_v_offset, Integer *d_x1_4_1_1,
+                      Integer *k_x1_4_1_1_offset);
+void eaccsd_x1_4_1_(Integer *d_x_vo, Integer *k_x_vo_offset,
+                    Integer *d_x1_4_1_1, Integer *k_x1_4_1_1_offset,
+                    Integer *d_x1_4_1, Integer *k_x1_4_1_offset);
+void eaccsd_x1_4_2_(Integer *d_x_vvoo, Integer *k_x_vvoo_offset, Integer *d_v,
+                    Integer *k_v_offset, Integer *d_x1_4_1,
+                    Integer *k_x1_4_1_offset);
+void eaccsd_x1_4_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_x1_4_1,
+                  Integer *k_x1_4_1_offset, Integer *d_i0,
+                  Integer *k_i0_offset);
+void eaccsd_x1_5_1_(Integer *d_x_vo, Integer *k_x_vo_offset, Integer *d_v,
+                    Integer *k_v_offset, Integer *d_x1_5_1,
+                    Integer *k_x1_5_1_offset);
+void eaccsd_x1_5_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset,
+                  Integer *d_x1_5_1, Integer *k_x1_5_1_offset, Integer *d_i0,
+                  Integer *k_i0_offset);
 
-void offset_eaccsd_x1_1_1_(Integer *l_x1_1_1_offset, Integer *k_x1_1_1_offset, Integer *size_x1_1_1);
-void offset_eaccsd_x1_2_1_(Integer *l_x1_2_1_offset, Integer *k_x1_2_1_offset, Integer *size_x1_2_1);
-void offset_eaccsd_x1_4_1_1_(Integer *l_x1_4_1_1_offset, Integer *k_x1_4_1_1_offset, Integer *size_x1_4_1_1);
-void offset_eaccsd_x1_4_1_(Integer *l_x1_4_1_offset, Integer *k_x1_4_1_offset, Integer *size_x1_4_1);
-void offset_eaccsd_x1_5_1_(Integer *l_x1_5_1_offset, Integer *k_x1_5_1_offset, Integer *size_x1_5_1);
+void offset_eaccsd_x1_1_1_(Integer *l_x1_1_1_offset, Integer *k_x1_1_1_offset,
+                           Integer *size_x1_1_1);
+void offset_eaccsd_x1_2_1_(Integer *l_x1_2_1_offset, Integer *k_x1_2_1_offset,
+                           Integer *size_x1_2_1);
+void offset_eaccsd_x1_4_1_1_(Integer *l_x1_4_1_1_offset,
+                             Integer *k_x1_4_1_1_offset,
+                             Integer *size_x1_4_1_1);
+void offset_eaccsd_x1_4_1_(Integer *l_x1_4_1_offset, Integer *k_x1_4_1_offset,
+                           Integer *size_x1_4_1);
+void offset_eaccsd_x1_5_1_(Integer *l_x1_5_1_offset, Integer *k_x1_5_1_offset,
+                           Integer *size_x1_5_1);
 }
 
 namespace tamm {
@@ -75,11 +104,10 @@ void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
                      std::vector<Operation> &ops);
 
 extern "C" {
-void eaccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2,
-                    Fint *d_v2, Fint *d_x1, Fint *d_x2,
-                    Fint *k_f1_offset, Fint *k_i0_offset, Fint *k_t1_offset,
-                    Fint *k_t2_offset, Fint *k_v2_offset, Fint *k_x1_offset,
-                    Fint *k_x2_offset) {
+void eaccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
+                    Fint *d_x1, Fint *d_x2, Fint *k_f1_offset,
+                    Fint *k_i0_offset, Fint *k_t1_offset, Fint *k_t2_offset,
+                    Fint *k_v2_offset, Fint *k_x1_offset, Fint *k_x2_offset) {
   static bool set_x1 = true;
 
   Assignment op_x1_1_1;
@@ -106,7 +134,7 @@ void eaccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2,
   }
 
   std::map<std::string, tamm::Tensor> tensors;
-  std::vector <Operation> ops;
+  std::vector<Operation> ops;
   tensors_and_ops(eqs, tensors, ops);
 
   Tensor *i0 = &tensors["i0"];
@@ -192,5 +220,5 @@ void eaccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2,
   x_vvo->detach();
   t_vvoo->detach();
 }
-} // extern C
-}; // namespace tamm
+}  // extern C
+};  // namespace tamm

@@ -7,8 +7,7 @@
 namespace tamm {
 
 class triangular {
-
-public:
+ public:
   /**
    * Constructor
    */
@@ -36,34 +35,34 @@ public:
    * Reset the iterator
    */
   void reset();
-      
+
   /**
    * Check if the iterator is empty, which means no indices name assigned
    */
   bool empty() const;
 
-  /** 
+  /**
    * No used, just for passing compilation for IterGroup class
-   */ 
+   */
   int sign() const;
 
   /**
    * Return current r value
    */
   const std::vector<size_t>& v_range() const;
-      
+
   /**
    * Return current o value
    */
   const std::vector<size_t>& v_offset() const;
 
-private:
-  bool empty_; /*< indicate if this triangular loops is empty */
-  std::vector<size_t> lb; /*< lower bound of the loops */
-  std::vector<size_t> ub; /*< upper bound of the loops */
-  std::vector<size_t> curr; /*< current value of the loops */
+ private:
+  bool empty_;                 /*< indicate if this triangular loops is empty */
+  std::vector<size_t> lb;      /*< lower bound of the loops */
+  std::vector<size_t> ub;      /*< upper bound of the loops */
+  std::vector<size_t> curr;    /*< current value of the loops */
   std::vector<size_t> curr_lb; /*< current lower bound of the loops */
-      
+
   // these are only use in ccsd(t) fusion TRIG2
   std::vector<size_t> r;
   std::vector<size_t> o;
@@ -76,47 +75,43 @@ private:
    * Update the r and o in ccsd(t) fusion part
    */
   void updateRO() {
-    if(curr.size()==0) return; 
-    if (curr[0]>ub[0]) return; // no need to compute
-    Integer *int_mb = Variables::int_mb();
+    if (curr.size() == 0) return;
+    if (curr[0] > ub[0]) return;  // no need to compute
+    Integer* int_mb = Variables::int_mb();
     size_t k_range = Variables::k_range();
     size_t k_evl_sorted = Variables::k_evl_sorted();
     size_t k_offset = Variables::k_offset();
-    for (int i=curr.size()-1; i>=0; i--) {
+    for (int i = curr.size() - 1; i >= 0; i--) {
       if (dirty[i]) {
         r[i] = int_mb[k_range + curr[i] - 1];
         o[i] = k_evl_sorted + int_mb[k_offset + curr[i] - 1] - 1;
-        dirty[i]=false;
-      }
-      else return;
+        dirty[i] = false;
+      } else
+        return;
     }
   }
-
 };
 
-inline
-triangular::triangular() {}
+inline triangular::triangular() {}
 
-
-inline bool 
-triangular::next(std::vector<size_t>& vec) {
+inline bool triangular::next(std::vector<size_t>& vec) {
   if (empty_) return false;
-  if (curr[0]>ub[0]) return false;
+  if (curr[0] > ub[0]) return false;
   vec = curr;
   curr_r = r;
   curr_o = o;
   // plus 1
-  curr[curr.size()-1]++;
-  dirty[curr.size()-1]=true;
-  for (int i=curr.size()-1; i>0; i--) { // compute carry
-    if (curr[i]>ub[i]) {
+  curr[curr.size() - 1]++;
+  dirty[curr.size() - 1] = true;
+  for (int i = curr.size() - 1; i > 0; i--) {  // compute carry
+    if (curr[i] > ub[i]) {
       // carry 1
-      curr[i-1]++;
-      dirty[i-1]=true;
+      curr[i - 1]++;
+      dirty[i - 1] = true;
       // set lowerbound
-      for (int j=curr.size()-1; j>=i; j--) {
-        curr_lb[j]=curr[i-1];
-        curr[j]=curr_lb[j];
+      for (int j = curr.size() - 1; j >= i; j--) {
+        curr_lb[j] = curr[i - 1];
+        curr[j] = curr_lb[j];
       }
     }
   }
@@ -124,28 +119,27 @@ triangular::next(std::vector<size_t>& vec) {
   return true;
 }
 
-inline
-triangular::triangular(const std::vector<IndexName>& ids) {
+inline triangular::triangular(const std::vector<IndexName>& ids) {
   int d = ids.size();
   lb.resize(d);
   ub.resize(d);
   r.resize(d);
   o.resize(d);
   dirty.resize(d);
-  if (d==0) empty_ = true;
+  if (d == 0)
+    empty_ = true;
   else {
     empty_ = false;
-    int range = Table::rangeOf(ids[0]); // name
-    for (int i=0; i<d; i++) {
-      if (range==TO) {
+    int range = Table::rangeOf(ids[0]);  // name
+    for (int i = 0; i < d; i++) {
+      if (range == TO) {
         lb[i] = 1;
         ub[i] = Variables::noab();
+      } else if (range == TV) {
+        lb[i] = Variables::noab() + 1;
+        ub[i] = Variables::noab() + Variables::nvab();
       }
-      else if (range==TV) {
-        lb[i] = Variables::noab()+1;
-        ub[i] = Variables::noab()+Variables::nvab();
-      }
-      dirty[i]=true;
+      dirty[i] = true;
     }
     curr = lb;
     curr_lb = lb;
@@ -155,25 +149,22 @@ triangular::triangular(const std::vector<IndexName>& ids) {
   curr_o = o;
 }
 
-inline void 
-triangular::reset() { 
-  curr = lb; 
-  curr_lb = lb; 
-  for (int i=0; i<curr.size(); i++) dirty[i]=true;
+inline void triangular::reset() {
+  curr = lb;
+  curr_lb = lb;
+  for (int i = 0; i < curr.size(); i++) dirty[i] = true;
   updateRO();
 }
 
-inline bool 
-triangular::empty() const { return empty_; }
+inline bool triangular::empty() const { return empty_; }
 
-inline int 
-triangular::sign() const { return 1; }
+inline int triangular::sign() const { return 1; }
 
-inline const std::vector<size_t>& 
-triangular::v_range() const { return curr_r; }
+inline const std::vector<size_t>& triangular::v_range() const { return curr_r; }
 
-inline const std::vector<size_t>& 
-triangular::v_offset() const { return curr_o; }
+inline const std::vector<size_t>& triangular::v_offset() const {
+  return curr_o;
+}
 
 } /* namespace tamm */
 

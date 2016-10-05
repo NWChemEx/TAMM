@@ -1,19 +1,19 @@
 #ifndef __tamm_tensor_h__
 #define __tamm_tensor_h__
 
+#include <algorithm>
+#include <cassert>
+#include <vector>
 #include "index.h"
 #include "variables.h"
-#include <vector>
-#include <cassert>
-#include <algorithm>
 
 namespace tamm {
 
-enum DistType { dist_nwi, dist_nwma, dist_nw};
+enum DistType { dist_nwi, dist_nwma, dist_nw };
 enum DimType { dim_ov, dim_n };
 
 class Tensor {
-public:
+ public:
   /**
    * Constructor
    */
@@ -43,7 +43,7 @@ public:
    * Get the indices of the tensor
    * @return ids as a vector of Index
    */
-  const std::vector<Index>& ids() const;
+  const std::vector<Index> &ids() const;
 
   /**
    * Get the corresponding irrep value from the global variables
@@ -58,9 +58,9 @@ public:
 
   void add(std::vector<size_t> &pvalue_r, double *buf, size_t size);
 
-  bool is_spin_restricted_nonzero(const std::vector<size_t>& ids) const;
+  bool is_spin_restricted_nonzero(const std::vector<size_t> &ids) const;
 
-  bool is_spin_nonzero(const std::vector<size_t>& ids) const;
+  bool is_spin_nonzero(const std::vector<size_t> &ids) const;
 
   bool is_spatial_nonzero(const std::vector<size_t> &ids) const;
 
@@ -76,91 +76,77 @@ public:
   void destroy();
   void detach();
 
-
-private:
-  int dim_; /*< dimension of this tensor */
+ private:
+  int dim_;                /*< dimension of this tensor */
   std::vector<Index> ids_; /*< indices of the tensor, actual data */
 
   bool allocated_; /*true if this tensor were created using create()*/
   bool attached_;
-  gmem::Handle ga_; /*underlying ga if this tensor was created*/
-  Fint *offset_map_; /*offset map used as part of creation*/
+  gmem::Handle ga_;     /*underlying ga if this tensor was created*/
+  Fint *offset_map_;    /*offset map used as part of creation*/
   size_t offset_index_; /*index to offset map usable with int_mb */
   int offset_handle_; /*MA handle for the offset map when allocated in fortran*/
-  int irrep_; /*irrep for spatial symmetry*/
-  int nupper_; /* number of upper indices*/
+  int irrep_;         /*irrep for spatial symmetry*/
+  int nupper_;        /* number of upper indices*/
 
   DistType dist_type_;
   DimType dim_type_;
-}; // Tensor
+};  // Tensor
 
 /**
  * Inline implementations
  */
 
-inline bool
-Tensor::attached() const { return attached_; }
+inline bool Tensor::attached() const { return attached_; }
 
-inline bool
-Tensor::allocated() const { return allocated_; }
+inline bool Tensor::allocated() const { return allocated_; }
 
-inline gmem::Handle 
-Tensor::ga() const { return ga_; }
+inline gmem::Handle Tensor::ga() const { return ga_; }
 
-inline size_t
-Tensor::offset_index() const { return offset_index_; }
+inline size_t Tensor::offset_index() const { return offset_index_; }
 
-inline int
-Tensor::offset_handle() const { return offset_handle_; }
+inline int Tensor::offset_handle() const { return offset_handle_; }
 
-inline int
-Tensor::dim() const { return dim_; }
+inline int Tensor::dim() const { return dim_; }
 
-inline int
-Tensor:: nupper() const { return nupper_; }
+inline int Tensor::nupper() const { return nupper_; }
 
-inline const std::vector<Index>&
-Tensor::ids() const { return ids_; }
+inline const std::vector<Index> &Tensor::ids() const { return ids_; }
 
-inline int
-Tensor::irrep() const { return irrep_; }
+inline int Tensor::irrep() const { return irrep_; }
 
-inline int
-Tensor::set_irrep(int irrep) { irrep_ = irrep; }
+inline int Tensor::set_irrep(int irrep) { irrep_ = irrep; }
 
-inline int
-Tensor::set_dist(DistType dist) { dist_type_ = dist; }
+inline int Tensor::set_dist(DistType dist) { dist_type_ = dist; }
 
-inline bool
-Tensor::is_spin_restricted_nonzero(const std::vector<size_t>& ids) const {
-  int lval = std::abs(dim_ - 2*nupper_);
+inline bool Tensor::is_spin_restricted_nonzero(
+    const std::vector<size_t> &ids) const {
+  int lval = std::abs(dim_ - 2 * nupper_);
 
   assert(ids.size() == dim_);
-  int dim_even = dim_ + (dim_%2);
+  int dim_even = dim_ + (dim_ % 2);
   Fint *int_mb = Variables::int_mb();
-  size_t k_spin = Variables::k_spin()-1;
+  size_t k_spin = Variables::k_spin() - 1;
   size_t restricted = Variables::restricted();
-  for (int i=0; i<ids.size(); i++) lval += int_mb[k_spin+ids[i]];
-  //assert ((dim_%2==0) || (!restricted) || (lval != 2*dim_even));
-  return ((!restricted) || (dim_==0) || (lval != 2*dim_even));
+  for (int i = 0; i < ids.size(); i++) lval += int_mb[k_spin + ids[i]];
+  // assert ((dim_%2==0) || (!restricted) || (lval != 2*dim_even));
+  return ((!restricted) || (dim_ == 0) || (lval != 2 * dim_even));
 }
 
-inline bool
-Tensor::is_spin_nonzero(const std::vector<size_t>& ids) const {
-  int lval=0, rval=0;
+inline bool Tensor::is_spin_nonzero(const std::vector<size_t> &ids) const {
+  int lval = 0, rval = 0;
   Fint *int_mb = Variables::int_mb();
-  Fint k_spin = Variables::k_spin()-1;
-  for(int i=0; i<nupper_; i++) lval += int_mb[k_spin+ids[i]];
-  for(int i=nupper_; i<dim_; i++) rval += int_mb[k_spin+ids[i]];
-  return (rval - lval == dim_ - 2*nupper_);
+  Fint k_spin = Variables::k_spin() - 1;
+  for (int i = 0; i < nupper_; i++) lval += int_mb[k_spin + ids[i]];
+  for (int i = nupper_; i < dim_; i++) rval += int_mb[k_spin + ids[i]];
+  return (rval - lval == dim_ - 2 * nupper_);
 }
 
-inline bool
-Tensor::is_spatial_nonzero(const std::vector<size_t> &ids) const {
-  Fint lval=0;
+inline bool Tensor::is_spatial_nonzero(const std::vector<size_t> &ids) const {
+  Fint lval = 0;
   Fint *int_mb = Variables::int_mb();
-  Fint k_sym = Variables::k_sym()-1;
-  for(int i=0; i<ids.size(); i++) lval ^= int_mb[k_sym+ids[i]];
+  Fint k_sym = Variables::k_sym() - 1;
+  for (int i = 0; i < ids.size(); i++) lval ^= int_mb[k_sym + ids[i]];
   return (lval == irrep_);
 }
 
@@ -168,8 +154,8 @@ Tensor Tensor0_1(RangeType r1, DistType dt, int irrep);
 
 Tensor Tensor2(RangeType r1, RangeType r2, DistType dt);
 
-Tensor Tensor1_2(RangeType r1, RangeType r2, RangeType r3,
-                 DistType dt, int irrep);
+Tensor Tensor1_2(RangeType r1, RangeType r2, RangeType r3, DistType dt,
+                 int irrep);
 
 Tensor Tensor4(RangeType r1, RangeType r2, RangeType r3, RangeType r4,
                DistType dt);

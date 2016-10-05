@@ -1,12 +1,12 @@
-#include "variables.h"
 #include <iostream>
-#include "tensor.h"
-#include "t_mult.h"
-#include "t_assign.h"
-#include "input.h"
 #include "corf.h"
 #include "equations.h"
+#include "input.h"
+#include "t_assign.h"
+#include "t_mult.h"
+#include "tensor.h"
 #include "tensors_and_ops.h"
+#include "variables.h"
 
 /*
  *  x1 {
@@ -43,26 +43,44 @@
  *  }
  */
 
-
 extern "C" {
-void ipccsd_x1_1_1_(Fint *d_f, Fint *k_f_offset,Fint *d_x1_1_1, Fint *k_x1_1_1_offset);
-void ipccsd_x1_1_2_1_(Fint *d_f, Fint *k_f_offset,Fint *d_x1_1_1_1, Fint *k_x1_1_1_1_offset);
-void ipccsd_x1_1_2_2_(Fint *d_t_vo, Fint *k_t_vo_offset,Fint *d_v, Fint *k_v_offset,Fint *d_x1_1_1_1, Fint *k_x1_1_1_1_offset);
-void ipccsd_x1_1_2_(Fint *d_t_vo, Fint *k_t_vo_offset,Fint *d_x1_1_1_1, Fint *k_x1_1_1_1_offset,Fint *d_x1_1_1, Fint *k_x1_1_1_offset);
-void ipccsd_x1_1_3_(Fint *d_t_vo, Fint *k_t_vo_offset,Fint *d_v, Fint *k_v_offset,Fint *d_x1_1_1, Fint *k_x1_1_1_offset);
-void ipccsd_x1_1_4_(Fint *d_t_vvoo, Fint *k_t_vvoo_offset,Fint *d_v, Fint *k_v_offset,Fint *d_x1_1_1, Fint *k_x1_1_1_offset);
-void ipccsd_x1_1_(Fint *d_x_o, Fint *k_x_o_offset,Fint *d_x1_1_1, Fint *k_x1_1_1_offset,Fint *d_i0, Fint *k_i0_offset);
-void ipccsd_x1_2_1_(Fint *d_f, Fint *k_f_offset,Fint *d_x1_2_1, Fint *k_x1_2_1_offset);
-void ipccsd_x1_2_2_(Fint *d_t_vo, Fint *k_t_vo_offset,Fint *d_v, Fint *k_v_offset,Fint *d_x1_2_1, Fint *k_x1_2_1_offset);
-void ipccsd_x1_2_(Fint *d_x_voo, Fint *k_x_voo_offset,Fint *d_x1_2_1, Fint *k_x1_2_1_offset,Fint *d_i0, Fint *k_i0_offset);
-void ipccsd_x1_3_1_(Fint *d_v, Fint *k_v_offset,Fint *d_x1_3_1, Fint *k_x1_3_1_offset);
-void ipccsd_x1_3_2_(Fint *d_t_vo, Fint *k_t_vo_offset,Fint *d_v, Fint *k_v_offset,Fint *d_x1_3_1, Fint *k_x1_3_1_offset);
-void ipccsd_x1_3_(Fint *d_t_vo, Fint *k_t_vo_offset,Fint *d_v, Fint *k_v_offset,Fint *d_x1_3_1, Fint *k_x1_3_1_offset);
+void ipccsd_x1_1_1_(Fint *d_f, Fint *k_f_offset, Fint *d_x1_1_1,
+                    Fint *k_x1_1_1_offset);
+void ipccsd_x1_1_2_1_(Fint *d_f, Fint *k_f_offset, Fint *d_x1_1_1_1,
+                      Fint *k_x1_1_1_1_offset);
+void ipccsd_x1_1_2_2_(Fint *d_t_vo, Fint *k_t_vo_offset, Fint *d_v,
+                      Fint *k_v_offset, Fint *d_x1_1_1_1,
+                      Fint *k_x1_1_1_1_offset);
+void ipccsd_x1_1_2_(Fint *d_t_vo, Fint *k_t_vo_offset, Fint *d_x1_1_1_1,
+                    Fint *k_x1_1_1_1_offset, Fint *d_x1_1_1,
+                    Fint *k_x1_1_1_offset);
+void ipccsd_x1_1_3_(Fint *d_t_vo, Fint *k_t_vo_offset, Fint *d_v,
+                    Fint *k_v_offset, Fint *d_x1_1_1, Fint *k_x1_1_1_offset);
+void ipccsd_x1_1_4_(Fint *d_t_vvoo, Fint *k_t_vvoo_offset, Fint *d_v,
+                    Fint *k_v_offset, Fint *d_x1_1_1, Fint *k_x1_1_1_offset);
+void ipccsd_x1_1_(Fint *d_x_o, Fint *k_x_o_offset, Fint *d_x1_1_1,
+                  Fint *k_x1_1_1_offset, Fint *d_i0, Fint *k_i0_offset);
+void ipccsd_x1_2_1_(Fint *d_f, Fint *k_f_offset, Fint *d_x1_2_1,
+                    Fint *k_x1_2_1_offset);
+void ipccsd_x1_2_2_(Fint *d_t_vo, Fint *k_t_vo_offset, Fint *d_v,
+                    Fint *k_v_offset, Fint *d_x1_2_1, Fint *k_x1_2_1_offset);
+void ipccsd_x1_2_(Fint *d_x_voo, Fint *k_x_voo_offset, Fint *d_x1_2_1,
+                  Fint *k_x1_2_1_offset, Fint *d_i0, Fint *k_i0_offset);
+void ipccsd_x1_3_1_(Fint *d_v, Fint *k_v_offset, Fint *d_x1_3_1,
+                    Fint *k_x1_3_1_offset);
+void ipccsd_x1_3_2_(Fint *d_t_vo, Fint *k_t_vo_offset, Fint *d_v,
+                    Fint *k_v_offset, Fint *d_x1_3_1, Fint *k_x1_3_1_offset);
+void ipccsd_x1_3_(Fint *d_t_vo, Fint *k_t_vo_offset, Fint *d_v,
+                  Fint *k_v_offset, Fint *d_x1_3_1, Fint *k_x1_3_1_offset);
 
-void offset_ipccsd_x1_1_1_(Fint *l_x1_1_1_offset, Fint *k_x1_1_1_offset, Fint *size_x1_1_1);
-void offset_ipccsd_x1_1_2_1_(Fint *l_x1_1_1_1_offset, Fint *k_x1_1_1_1_offset, Fint *size_x1_1_1_1);
-void offset_ipccsd_x1_2_1_(Fint *l_x1_2_1_offset, Fint *k_x1_2_1_offset, Fint *size_x1_2_1);
-void offset_ipccsd_x1_3_1_(Fint *l_x1_3_1_offset, Fint *k_x1_3_1_offset, Fint *size_x1_3_1);
+void offset_ipccsd_x1_1_1_(Fint *l_x1_1_1_offset, Fint *k_x1_1_1_offset,
+                           Fint *size_x1_1_1);
+void offset_ipccsd_x1_1_2_1_(Fint *l_x1_1_1_1_offset, Fint *k_x1_1_1_1_offset,
+                             Fint *size_x1_1_1_1);
+void offset_ipccsd_x1_2_1_(Fint *l_x1_2_1_offset, Fint *k_x1_2_1_offset,
+                           Fint *size_x1_2_1);
+void offset_ipccsd_x1_3_1_(Fint *l_x1_3_1_offset, Fint *k_x1_3_1_offset,
+                           Fint *size_x1_3_1);
 }
 
 namespace tamm {
@@ -71,11 +89,11 @@ void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
                      std::vector<Operation> &ops);
 
 extern "C" {
-void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo, Fint *d_v2,
-                    Fint *d_x1, Fint *d_x2,
-                    Fint *k_f1_offset, Fint *k_i0_offset,
-                    Fint *k_t_vo_offset, Fint *k_t_vvoo_offset, Fint *k_v2_offset,
-                    Fint *k_x1_offset, Fint *k_x2_offset) {
+void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo,
+                    Fint *d_v2, Fint *d_x1, Fint *d_x2, Fint *k_f1_offset,
+                    Fint *k_i0_offset, Fint *k_t_vo_offset,
+                    Fint *k_t_vvoo_offset, Fint *k_v2_offset, Fint *k_x1_offset,
+                    Fint *k_x2_offset) {
   static bool set_x1 = true;
 
   Assignment op_x1_1_1;
@@ -101,7 +119,7 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo, Fint *
   }
 
   std::map<std::string, tamm::Tensor> tensors;
-  std::vector <Operation> ops;
+  std::vector<Operation> ops;
   tensors_and_ops(eqs, tensors, ops);
 
   Tensor *x1_1_1 = &tensors["x1_1_1"];
@@ -162,12 +180,14 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo, Fint *
   CorFortran(1, x1_2_1, offset_ipccsd_x1_2_1_);
   CorFortran(1, op_x1_2_1, ipccsd_x1_2_1_);
   CorFortran(1, op_x1_2_2, ipccsd_x1_2_2_);
-  CorFortran(1, op_x1_2, ipccsd_x1_2_); /*@bug @fixme Does not work in C mode: works now*/
+  CorFortran(1, op_x1_2,
+             ipccsd_x1_2_); /*@bug @fixme Does not work in C mode: works now*/
   destroy(x1_2_1);
   CorFortran(1, x1_3_1, offset_ipccsd_x1_3_1_);
   CorFortran(1, op_x1_3_1, ipccsd_x1_3_1_);
   CorFortran(1, op_x1_3_2, ipccsd_x1_3_2_);
-  CorFortran(1, op_x1_3, ipccsd_x1_3_); /*@bug @fixme Does not work in C mode: works now*/
+  CorFortran(1, op_x1_3,
+             ipccsd_x1_3_); /*@bug @fixme Does not work in C mode: works now*/
   destroy(x1_3_1);
 #endif
 
@@ -179,5 +199,5 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo, Fint *
   x_o->detach();
   x_voo->detach();
 }
-} // extern C
-} // namespace tamm
+}  // extern C
+}  // namespace tamm

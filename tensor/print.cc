@@ -1,148 +1,142 @@
-#include <vector>
 #include <map>
 #include <set>
-#include "tensor.h"
+#include <vector>
 #include "expression.h"
 #include "input.h"
+#include "tensor.h"
 // #include "equations.h"
 #include <iostream>
 #include <sstream>
 #include <string>
 
 namespace tamm {
-  struct Equations {
-    std::vector<RangeEntry> range_entries;
-    std::vector<IndexEntry> index_entries;
-    std::map<std::string, TensorEntry> tensor_entries;
-    std::vector<OpEntry> op_entries;
-  };
+struct Equations {
+  std::vector<RangeEntry> range_entries;
+  std::vector<IndexEntry> index_entries;
+  std::map<std::string, TensorEntry> tensor_entries;
+  std::vector<OpEntry> op_entries;
+};
 }
 
 namespace tamm {
 
-  std::string index_to_string(const Equations &eqs, 
-                              int nids, const int *ids) {
-    std::stringstream ss;
-    ss<< "[";
-    for(int i=0; i<nids-1; i++) {
-      if(ids[i]<IndexNum) {
-        ss<< eqs.index_entries[ids[i]].name << std::string(",");
-      }
-      else {
-        ss<< "i" <<ids[i]<<",";
-      }
+std::string index_to_string(const Equations &eqs, int nids, const int *ids) {
+  std::stringstream ss;
+  ss << "[";
+  for (int i = 0; i < nids - 1; i++) {
+    if (ids[i] < IndexNum) {
+      ss << eqs.index_entries[ids[i]].name << std::string(",");
+    } else {
+      ss << "i" << ids[i] << ",";
     }
-    if(nids>0) {
-      if(ids[nids-1]<IndexNum) {
-        ss<< eqs.index_entries[ids[nids-1]].name;
-      }
-      else {
-        ss<< "i" <<ids[nids-1];
-      }
-      //ss<<eqs.index_entries[ids[nids-1]].name;
-    }
-    ss<< "]";
-    return ss.str();
-    // ret += "[";
-    // for(int i=0; i<nids-1; i++) {
-    //   ret += eqs.index_entries[ids[i]].name+std::string(",");
-    // }
-    // if(nids>0) {
-    //   ret += eqs.index_entries[ids[nids-1]].name;
-    // }
-    // ret += "]";
-    // return ret;
   }
+  if (nids > 0) {
+    if (ids[nids - 1] < IndexNum) {
+      ss << eqs.index_entries[ids[nids - 1]].name;
+    } else {
+      ss << "i" << ids[nids - 1];
+    }
+    // ss<<eqs.index_entries[ids[nids-1]].name;
+  }
+  ss << "]";
+  return ss.str();
+  // ret += "[";
+  // for(int i=0; i<nids-1; i++) {
+  //   ret += eqs.index_entries[ids[i]].name+std::string(",");
+  // }
+  // if(nids>0) {
+  //   ret += eqs.index_entries[ids[nids-1]].name;
+  // }
+  // ret += "]";
+  // return ret;
+}
 
-  std::string index_to_string(const Equations &eqs, 
-                              const std::vector<int> &ids) {
-    int nids = ids.size();
-    std::stringstream ss;
-    std::string ret;
-    ss<< "[";
+std::string index_to_string(const Equations &eqs, const std::vector<int> &ids) {
+  int nids = ids.size();
+  std::stringstream ss;
+  std::string ret;
+  ss << "[";
 #if 1
-    for(int i=0; i<nids-1; i++) {
-      if(ids[i]<IndexNum) {
-        ss<< eqs.index_entries[ids[i]].name << std::string(",");
-      }
-      else {
-        ss<< "i" <<ids[i]<<",";
-      }
+  for (int i = 0; i < nids - 1; i++) {
+    if (ids[i] < IndexNum) {
+      ss << eqs.index_entries[ids[i]].name << std::string(",");
+    } else {
+      ss << "i" << ids[i] << ",";
     }
-    if(nids>0) {
-      if(ids[nids-1]<IndexNum) {
-        ss<< eqs.index_entries[ids[nids-1]].name;
-      }
-      else {
-        ss<< "i" <<ids[nids-1];
-      }
-      //ss<<eqs.index_entries[ids[nids-1]].name;
-    }
-#endif
-    ss<< "]";
-    return ss.str();
   }
-
-  void pretty_print(Equations &eqs) {
-    ostream &os = std::cout;
-    //for(int i=0; i<eqs.tensor_entries.size(); i++) {
-    for(std::map<std::string, TensorEntry>::iterator i = eqs.tensor_entries.begin(); i != eqs.tensor_entries.end(); i++){
-      const TensorEntry& te = eqs.tensor_entries[i->first];
-      os<<"array "<<te.name<<"[";
-      for(int j=0; j<te.nupper-1; j++) {
-        os<<eqs.range_entries[te.range_ids[j]].name<<",";
-      }
-      if(te.nupper>0) {
-        os<<eqs.range_entries[te.range_ids[te.nupper-1]].name;
-      }
-      os<<"][";
-      for(int j=te.nupper; j<te.ndim-1; j++) {
-        os<<eqs.range_entries[te.range_ids[j]].name<<",";        
-      }
-      if(te.ndim>te.nupper) {
-        os<<eqs.range_entries[te.range_ids[te.ndim-1]].name;
-      }
-      os<<"];\n";
+  if (nids > 0) {
+    if (ids[nids - 1] < IndexNum) {
+      ss << eqs.index_entries[ids[nids - 1]].name;
+    } else {
+      ss << "i" << ids[nids - 1];
     }
-    os<<"\n";
-    for(int i=0; i<eqs.op_entries.size(); i++) {
-      const OpEntry &ope = eqs.op_entries[i];
-      std::map<std::string, TensorEntry> &tes = eqs.tensor_entries;
-      //int ta, tb, tc;
-      switch(ope.optype) {
+    // ss<<eqs.index_entries[ids[nids-1]].name;
+  }
+#endif
+  ss << "]";
+  return ss.str();
+}
+
+void pretty_print(Equations &eqs) {
+  ostream &os = std::cout;
+  // for(int i=0; i<eqs.tensor_entries.size(); i++) {
+  for (std::map<std::string, TensorEntry>::iterator i =
+           eqs.tensor_entries.begin();
+       i != eqs.tensor_entries.end(); i++) {
+    const TensorEntry &te = eqs.tensor_entries[i->first];
+    os << "array " << te.name << "[";
+    for (int j = 0; j < te.nupper - 1; j++) {
+      os << eqs.range_entries[te.range_ids[j]].name << ",";
+    }
+    if (te.nupper > 0) {
+      os << eqs.range_entries[te.range_ids[te.nupper - 1]].name;
+    }
+    os << "][";
+    for (int j = te.nupper; j < te.ndim - 1; j++) {
+      os << eqs.range_entries[te.range_ids[j]].name << ",";
+    }
+    if (te.ndim > te.nupper) {
+      os << eqs.range_entries[te.range_ids[te.ndim - 1]].name;
+    }
+    os << "];\n";
+  }
+  os << "\n";
+  for (int i = 0; i < eqs.op_entries.size(); i++) {
+    const OpEntry &ope = eqs.op_entries[i];
+    std::map<std::string, TensorEntry> &tes = eqs.tensor_entries;
+    // int ta, tb, tc;
+    switch (ope.optype) {
       case OpTypeAdd:
-        os<<"op" << ope.op_id << ": " << tes[ope.add.tc].name
-          <<index_to_string(eqs, tes[ope.add.tc].ndim, ope.add.tc_ids)
-          <<" += "<<ope.add.alpha<<" * "
-          <<tes[ope.add.ta].name
-          <<index_to_string(eqs, tes[ope.add.ta].ndim, ope.add.ta_ids)
-          <<";"<<endl;
-          break;
+        os << "op" << ope.op_id << ": " << tes[ope.add.tc].name
+           << index_to_string(eqs, tes[ope.add.tc].ndim, ope.add.tc_ids)
+           << " += " << ope.add.alpha << " * " << tes[ope.add.ta].name
+           << index_to_string(eqs, tes[ope.add.ta].ndim, ope.add.ta_ids) << ";"
+           << endl;
+        break;
       case OpTypeMult:
-        os<<"op" << ope.op_id << ": " <<tes[ope.mult.tc].name
-          <<index_to_string(eqs, tes[ope.mult.tc].ndim, ope.mult.tc_ids)
-          <<" += "<<ope.mult.alpha<<" * "
-          <<tes[ope.mult.ta].name
-          <<index_to_string(eqs, tes[ope.mult.ta].ndim, ope.mult.ta_ids)
-          <<" * "<<tes[ope.mult.tb].name
-          <<index_to_string(eqs, tes[ope.mult.tb].ndim, ope.mult.tb_ids)
-          <<";"<<endl;
-          break;
+        os << "op" << ope.op_id << ": " << tes[ope.mult.tc].name
+           << index_to_string(eqs, tes[ope.mult.tc].ndim, ope.mult.tc_ids)
+           << " += " << ope.mult.alpha << " * " << tes[ope.mult.ta].name
+           << index_to_string(eqs, tes[ope.mult.ta].ndim, ope.mult.ta_ids)
+           << " * " << tes[ope.mult.tb].name
+           << index_to_string(eqs, tes[ope.mult.tb].ndim, ope.mult.tb_ids)
+           << ";" << endl;
+        break;
       default:
         assert(0);
-      }
     }
   }
+}
 
-  void compute_deps(const Equations &eqs, vector<vector<int> > &deps) {
-    deps.clear();
-    deps.resize(eqs.op_entries.size());
-    for(int i=0; i<deps.size(); i++) {
-      for(int j=0; j<i; j++) {
-        //int ra1=0, ra2=0, wa=0, rb1=0, rb2=0, wb=0;
-        std::string ra1, ra2, wa, rb1, rb2, wb;
-        const vector<OpEntry> &ops = eqs.op_entries;
-        switch(ops[i].optype) {
+void compute_deps(const Equations &eqs, vector<vector<int> > &deps) {
+  deps.clear();
+  deps.resize(eqs.op_entries.size());
+  for (int i = 0; i < deps.size(); i++) {
+    for (int j = 0; j < i; j++) {
+      // int ra1=0, ra2=0, wa=0, rb1=0, rb2=0, wb=0;
+      std::string ra1, ra2, wa, rb1, rb2, wb;
+      const vector<OpEntry> &ops = eqs.op_entries;
+      switch (ops[i].optype) {
         case OpTypeAdd:
           wa = ops[i].add.tc;
           ra1 = ops[i].add.ta;
@@ -154,8 +148,8 @@ namespace tamm {
           break;
         default:
           assert(0);
-        }
-        switch(ops[j].optype) {
+      }
+      switch (ops[j].optype) {
         case OpTypeAdd:
           wb = ops[j].add.tc;
           rb1 = ops[j].add.ta;
@@ -167,14 +161,14 @@ namespace tamm {
           break;
         default:
           assert(0);
-        }
-        if(!ra1.compare(wb) || !ra2.compare(wb) ||
-           !rb1.compare(wa) || !rb2.compare(wa)) {
-          deps[i].push_back(j);
-        }
+      }
+      if (!ra1.compare(wb) || !ra2.compare(wb) || !rb1.compare(wa) ||
+          !rb2.compare(wa)) {
+        deps[i].push_back(j);
       }
     }
   }
+}
 
 #if 0
   void print_ilp(const Equations &eqs) {
@@ -248,55 +242,55 @@ namespace tamm {
                      std::vector<int> &inputs) {
   }
 #endif
-  struct TensorUse {
-    int tensor_id;
-    vector<int> ids; //indices into Equation::index_entries
-  };
+struct TensorUse {
+  int tensor_id;
+  vector<int> ids;  // indices into Equation::index_entries
+};
 
-  struct Term {
-    double alpha;
-    vector<TensorUse> trefs;
-    Term() : alpha(1) {}
-  };  
+struct Term {
+  double alpha;
+  vector<TensorUse> trefs;
+  Term() : alpha(1) {}
+};
 
-  Term cross(const Term& t1, const Term& t2) {
-    Term t;
-    t.alpha = t1.alpha * t2.alpha;
-    t.trefs = t1.trefs;
-    t.trefs.insert(t.trefs.end(), t2.trefs.begin(), t2.trefs.end());
-    return t;
-  }
+Term cross(const Term &t1, const Term &t2) {
+  Term t;
+  t.alpha = t1.alpha * t2.alpha;
+  t.trefs = t1.trefs;
+  t.trefs.insert(t.trefs.end(), t2.trefs.begin(), t2.trefs.end());
+  return t;
+}
 
-  void canonicalize(Equations &eqs) {
-    int tmp_num = IndexNum + 1;
-    return;
+void canonicalize(Equations &eqs) {
+  int tmp_num = IndexNum + 1;
+  return;
 #if 1
-    for(int i=0; i<eqs.op_entries.size(); i++) {
-      OpEntry &ope = eqs.op_entries[i];
-      if(ope.optype == OpTypeAdd) continue;
-      assert(ope.optype == OpTypeMult);
-      std::vector<int> rename(IndexNum, -1);
-      TensorEntry &cte = eqs.tensor_entries[ope.mult.tc];
-      TensorEntry &ate = eqs.tensor_entries[ope.mult.ta];
-      TensorEntry &bte = eqs.tensor_entries[ope.mult.tb];
-      for(int j=0; j<cte.ndim; j++) {
-        //external indices
-        rename[ope.mult.tc_ids[j]] = ope.mult.tc_ids[j];
-      }      
-      for(int j=0; j<ate.ndim; j++) {
-        if(rename[ope.mult.ta_ids[j]] == -1) {
-          rename[ope.mult.ta_ids[j]] = tmp_num++;
-        }
-        ope.mult.ta_ids[j] = rename[ope.mult.ta_ids[j]];
-      }
-      for(int j=0; j<bte.ndim; j++) {
-        //every index is in either tc or tb
-        assert(rename[ope.mult.tb_ids[j]] != -1);
-        ope.mult.ta_ids[j] = rename[ope.mult.ta_ids[j]];
-      }
+  for (int i = 0; i < eqs.op_entries.size(); i++) {
+    OpEntry &ope = eqs.op_entries[i];
+    if (ope.optype == OpTypeAdd) continue;
+    assert(ope.optype == OpTypeMult);
+    std::vector<int> rename(IndexNum, -1);
+    TensorEntry &cte = eqs.tensor_entries[ope.mult.tc];
+    TensorEntry &ate = eqs.tensor_entries[ope.mult.ta];
+    TensorEntry &bte = eqs.tensor_entries[ope.mult.tb];
+    for (int j = 0; j < cte.ndim; j++) {
+      // external indices
+      rename[ope.mult.tc_ids[j]] = ope.mult.tc_ids[j];
     }
-#endif
+    for (int j = 0; j < ate.ndim; j++) {
+      if (rename[ope.mult.ta_ids[j]] == -1) {
+        rename[ope.mult.ta_ids[j]] = tmp_num++;
+      }
+      ope.mult.ta_ids[j] = rename[ope.mult.ta_ids[j]];
+    }
+    for (int j = 0; j < bte.ndim; j++) {
+      // every index is in either tc or tb
+      assert(rename[ope.mult.tb_ids[j]] != -1);
+      ope.mult.ta_ids[j] = rename[ope.mult.ta_ids[j]];
+    }
   }
+#endif
+}
 
 //  void print_flatten(Equations &eqs, int opid) {
 //    using std::vector;
@@ -304,7 +298,8 @@ namespace tamm {
 //
 //    //canonicalize(eqs);
 //    vector<vector<Term> > op_defs(opid+1);
-//    vector<int> tensor_defs(eqs.tensor_entries.size(),-1); //opid defining the tensor
+//    vector<int> tensor_defs(eqs.tensor_entries.size(),-1); //opid defining the
+//    tensor
 //    std::map<std::string, TensorEntry> &tes = eqs.tensor_entries;
 //    const vector<OpEntry> &opes = eqs.op_entries;
 //
@@ -399,7 +394,8 @@ namespace tamm {
 //    cout<<"opid="<<opid<<endl;
 //    const OpEntry& ope = opes[opid];
 //    std::string tc = (ope.optype==OpTypeAdd)? ope.add.tc : ope.mult.tc;
-//    const int *tc_ids = (ope.optype==OpTypeAdd)? ope.add.tc_ids : ope.mult.tc_ids;
+//    const int *tc_ids = (ope.optype==OpTypeAdd)? ope.add.tc_ids :
+//    ope.mult.tc_ids;
 //    cout<<tes[tc].name
 //        <<index_to_string(eqs, tes[tc].ndim, tc_ids)
 //        <<" += ";
@@ -415,6 +411,5 @@ namespace tamm {
 //    }
 //    cout<<";"<<endl;
 //  }
-
 
 } /*tamm*/

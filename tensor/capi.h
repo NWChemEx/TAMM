@@ -3,7 +3,7 @@
 
 #include <vector>
 #include "common.h"
-#include "ga_abstract.h"
+#include "gmem.h"
 
 /**
  * C/C++ wrappers to Fortran routines invoked by tamm

@@ -4,7 +4,7 @@
 #include "capi.h"
 #include "expression.h"
 #include "func.h"
-#include "ga_abstract.h"
+#include "gmem.h"
 #include "preprocess.h"
 #include "variables.h"
 

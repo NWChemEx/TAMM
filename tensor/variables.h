@@ -4,7 +4,7 @@
 #include "common.h"
 #include "define.h"
 #include "dummy.h"
-#include "ga_abstract.h"
+#include "gmem.h"
 #include "typesf2c.h"
 
 namespace tamm {

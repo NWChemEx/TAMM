@@ -1,4 +1,4 @@
-#include "ga_abstract.h"
+#include "gmem.h"
 #include "ga.h"
 
 using namespace std;

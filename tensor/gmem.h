@@ -1,5 +1,5 @@
-#ifndef __tamm_ga_abstract_h__
-#define __tamm_ga_abstract_h__
+#ifndef __tamm_gmem_h__
+#define __tamm_gmem_h__
 
 #include <assert.h>
 #include <stdint.h>

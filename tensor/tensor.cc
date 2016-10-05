@@ -2,7 +2,7 @@
 #include <iostream>
 #include "capi.h"
 #include "expression.h"
-#include "ga_abstract.h"
+#include "gmem.h"
 
 using namespace std;
 

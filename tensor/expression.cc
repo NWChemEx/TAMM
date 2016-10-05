@@ -1,5 +1,5 @@
 #include "expression.h"
-#include "ga_abstract.h"
+#include "gmem.h"
 #include "t_assign.h"
 #include "t_mult.h"
 

@@ -4,7 +4,7 @@
 #include <cassert>
 #include <set>
 #include <vector>
-#include "ga_abstract.h"
+#include "gmem.h"
 #include "index.h"
 #include "iterGroup.h"
 #include "tensor.h"

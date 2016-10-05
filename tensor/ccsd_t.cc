@@ -1,6 +1,6 @@
 #include <iostream>
 #include "fapi.h"
-#include "ga_abstract.h"
+#include "gmem.h"
 #include "iterGroup.h"
 #include "t_mult.h"
 #include "triangular.h"

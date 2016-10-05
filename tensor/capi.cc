@@ -332,7 +332,7 @@ void cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
   assert(is.size() == 4);
   assert(is_spin_nonzero(is));
 
-  gmem::wait nbh1, nbh2;
+  gmem::Wait_Handle nbh1, nbh2;
   bool comm1 = false, comm2 = false;
   double *bufa = NULL, *bufb = NULL;
   vector<size_t> vperma, vpermb;
@@ -520,13 +520,13 @@ void cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
   }
 
   if (comm1) {
-    nbh1.wait();
+    gmem::wait(nbh1);
     assert(bufa);
     tamm_sortacc(bufa, buf, visa_out, vperma, 1.0);
     delete[] bufa;
   }
   if (comm2) {
-    nbh2.wait();
+    gmem::wait(nbh2);
     assert(bufb);
     tamm_sortacc(bufb, buf, visb_out, vpermb, -1.0);
     delete[] bufb;

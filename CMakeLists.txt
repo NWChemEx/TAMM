@@ -78,6 +78,9 @@ set(tammLibSources
   tensor/cc2_t1_ref.cc
   tensor/cc2_t2_ref.cc
   tensor/ccsd_t12.cc
+  tensor/ccsd_lambda1_ref.cc
+  tensor/ccsd_lambda1_mod_ref.cc
+  tensor/ccsd_lambda2_ref.cc
   #tensor/cisd_c12.cc
   tensor/icsd_t1_ref.cc
   tensor/ccsd_e_ref.cc

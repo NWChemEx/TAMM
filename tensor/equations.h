@@ -24,6 +24,9 @@ void cisd_c2_equations(Equations &eqs);
 
 void ccsd_e_equations(Equations &eqs);
 void ccsd_t1_equations(Equations &eqs);
+void ccsd_lambda1Mod_equations(Equations &eqs);
+void ccsd_lambda1_equations(Equations &eqs);
+void ccsd_lambda2_equations(Equations &eqs);
 void ccsd_t2_equations(Equations &eqs);
 void cc2_t1_equations(Equations &eqs);
 void cc2_t2_equations(Equations &eqs);

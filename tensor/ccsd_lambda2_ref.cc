@@ -174,8 +174,12 @@ void schedule_linear_lazy(std::map<std::string, tamm::Tensor> &tensors, std::vec
 void schedule_levels(std::map<std::string, tamm::Tensor> &tensors, std::vector<Operation> &ops);
 
 extern "C" {
+#if 1
+  void ccsd_lambda2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo, Integer *d_v, Integer *d_y_ov,  Integer *d_y_oovv, Integer *k_f_offset, Integer *k_i0_offset, Integer *k_t_vo_offset, Integer *k_t_vvoo_offset, Integer *k_v_offset, Integer *k_y_ov_offset, Integer *k_y_oovv_offset) {
+#else
   void ccsd_lambda2_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0, Integer *d_y_ov, Integer *d_y_oovv, Integer *d_t_vo, Integer *d_v, 
   Integer *k_t_vvoo_offset, Integer *k_f_offset, Integer *k_i0_offset, Integer *k_y_ov_offset, Integer *k_y_oovv_offset, Integer *k_t_vo_offset, Integer *k_v_offset) {
+#endif
 
   static bool set_lambda2 = true;
   
@@ -274,8 +278,10 @@ extern "C" {
   f->attach(*k_f_offset, 0, *d_f);
   v->attach(*k_v_offset, 0, *d_v);
 
-  #if 1
-    schedule_levels(tensors, ops);
+ #if 1
+  schedule_linear(tensors, ops);
+  // schedule_linear_lazy(tensors, ops);
+  //  schedule_levels(tensors, ops);
   #else
     op_lambda2_1 = ops[0].add;
     op_lambda2_2_1 = ops[1].add;

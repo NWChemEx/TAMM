@@ -11,22 +11,19 @@ test.o: test.cc libtammparser.a
 	$(CC) $(CFLAGS) -c test.cc
 
 
-libtammparser.a: tamm_parser.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o tamm_vector.o
-	ar -cvq libtammparser.a parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o intermediate.o tamm_vector.o tamm_parser.o
+libtammparser.a: tamm_parser.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o
+	ar -cvq libtammparser.a parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o intermediate.o tamm_parser.o
 
-tamm_parser.o: parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o tamm_vector.o
+tamm_parser.o: parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o
 	$(CC) $(CFLAGS) -c tamm_parser.cc
 
 visitor.o: visitor.cc parser.o util.o
 	$(CC) $(CFLAGS) -c visitor.cc 
 
-intermediate.o: intermediate.cc semant.o tamm_vector.o
+intermediate.o: intermediate.cc semant.o
 	$(CC) $(CFLAGS) -c intermediate.cc
 
-tamm_vector.o: tamm_vector.cc  util.o
-	$(CC) $(CFLAGS) -c tamm_vector.cc
-
-semant.o: semant.cc parser.o  
+semant.o: semant.cc parser.o
 	$(CC) $(CFLAGS) -c semant.cc 
 
 util.o: util.cc 

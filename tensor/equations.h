@@ -4,9 +4,8 @@
 #include <map>
 #include "input.h"
 
-extern "C" {
 #include "../tamm_parser/tamm_parser.h"
-}
+
 
 namespace tamm {
 

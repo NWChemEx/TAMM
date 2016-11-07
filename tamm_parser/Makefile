@@ -1,5 +1,5 @@
-CC = clang++
-LCC = clang
+CC = g++
+LCC = gcc
 CFLAGS = -g -Wall
 
 all: libtammparser.a tamm_parser_test

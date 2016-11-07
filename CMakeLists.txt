@@ -60,14 +60,14 @@ add_executable(lemon ${ParserSrcDir}/lemon.c)
 
 # Collect all the parser sources.
 set(tammParserSources
-    tamm_parser/absyn.c
-    tamm_parser/tamm_parser.c
-    tamm_parser/tamm_vector.c
-    tamm_parser/intermediate.c
-    tamm_parser/semant.c
-    tamm_parser/visitor.c
-    tamm_parser/symtab.c
-    tamm_parser/util.c
+    tamm_parser/absyn.cc
+    tamm_parser/tamm_parser.cc
+    tamm_parser/tamm_vector.cc
+    tamm_parser/intermediate.cc
+    tamm_parser/semant.cc
+    tamm_parser/visitor.cc
+    tamm_parser/symtab.cc
+    tamm_parser/util.cc
     )
 
 set(tammLibSources
@@ -113,8 +113,8 @@ set(ParserBuildDir "${PROJECT_BINARY_DIR}")
 # The generated lexer, parser code would be in ParserBuildDir.
 set(ParserSources
     ${ParserBuildDir}/parser.h
-    ${ParserBuildDir}/parser.c
-    ${ParserBuildDir}/scanner.c
+    ${ParserBuildDir}/parser.cc
+    ${ParserBuildDir}/scanner.cc
     ${ParserBuildDir}/scanner.h
     )
 
@@ -127,10 +127,14 @@ ADD_CUSTOM_COMMAND(OUTPUT ${ParserSources}
 
     #Generate the scanner code
     COMMAND cmake -E chdir ${ParserBuildDir} flex ${ParserBuildDir}/scanner.l
+    COMMAND cmake -E rename scanner.c scanner.cc
 
     # Generate the parser code
     COMMAND cmake -E chdir ${ParserBuildDir} ./lemon -s ${ParserBuildDir}/parser.y
     DEPENDS ${ParserSrcDir}/parser.y lemon
+    COMMAND cmake -E rename parser.c parser.cc
+    DEPENDS ${ParserSrcDir}/parser.y lemon
+
     COMMENT "Building the tamm lemon parser."
     VERBATIM
     )
@@ -148,7 +152,7 @@ add_library(tamm STATIC ${tammParserSources} ${ParserSources} ${tammLibSources})
 target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
 
 # Build the tamm_parser_test code
-add_executable(tamm_parser_test ${ParserSrcDir}/test.c)
+add_executable(tamm_parser_test ${ParserSrcDir}/test.cc)
 add_dependencies(tamm_parser_test tamm)
 # Set target libraries to be linked.
 target_link_libraries(tamm_parser_test tamm fl)

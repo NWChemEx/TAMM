@@ -190,12 +190,12 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
         vector_init(&rhs_allref);
         collectArrayRefs(s->u.AssignStmt.rhs, &rhs_allref, &alpha);
 
-        int ignore_first_ref = 0;
-        if (strcmp(s->u.AssignStmt.astype, "+=") == 0 || strcmp(s->u.AssignStmt.astype, "-=") == 0)
-          ignore_first_ref = 1;
+//        int ignore_first_ref = 0;
+//        if (strcmp(s->u.AssignStmt.astype, "+=") == 0 || strcmp(s->u.AssignStmt.astype, "-=") == 0)
+//          ignore_first_ref = 1;
 
-        tce_string_array lhs_indices = (tce_string_array)collectExpIndices(s->u.AssignStmt.lhs, &ignore_first_ref);
-        tce_string_array rhs_indices = (tce_string_array)collectExpIndices(s->u.AssignStmt.rhs, &ignore_first_ref);
+//        tce_string_array lhs_indices = (tce_string_array)collectExpIndices(s->u.AssignStmt.lhs, &ignore_first_ref);
+//        tce_string_array rhs_indices = (tce_string_array)collectExpIndices(s->u.AssignStmt.rhs, &ignore_first_ref);
 
 //            print_index_list(lhs_indices);
 //            printf("=");
@@ -226,8 +226,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
         }
 
         tamm_bool rhs_first_ref = false;
-        tce_string_array rhs_first_ref_indices = (tce_string_array)collectExpIndices(
-            ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref, &ignore_first_ref);
+//        tce_string_array rhs_first_ref_indices = (tce_string_array)collectExpIndices(
+//            ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref, &ignore_first_ref);
 
         if (vector_count(&rhs_aref) > 1) {
           Exp tc_exp = (Exp)vector_get(&lhs_aref, 0);

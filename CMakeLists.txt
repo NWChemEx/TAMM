@@ -62,7 +62,6 @@ add_executable(lemon ${ParserSrcDir}/lemon.c)
 set(tammParserSources
     tamm_parser/absyn.cc
     tamm_parser/tamm_parser.cc
-    tamm_parser/tamm_vector.cc
     tamm_parser/intermediate.cc
     tamm_parser/semant.cc
     tamm_parser/visitor.cc

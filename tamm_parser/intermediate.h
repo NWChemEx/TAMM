@@ -2,7 +2,7 @@
 #define __TAMM_INTERMEDIATE_H__
 
 #include "absyn.h"
-#include "tamm_vector.h"
+#include <vector>
 
 #define MAX_TENSOR_DIMS 8
 #define MAX_INDEX_NAMES 32
@@ -17,10 +17,10 @@ typedef struct MultOp_ *MultOp;
 
 
 typedef struct {
-    tamm_vector range_entries;
-    tamm_vector index_entries;
-    tamm_vector tensor_entries;
-    tamm_vector op_entries;
+    std::vector<RangeEntry> range_entries;
+    std::vector<IndexEntry> index_entries;
+    std::vector<TensorEntry> tensor_entries;
+    std::vector<OpEntry> op_entries;
 } Equations;
 
 
@@ -85,7 +85,7 @@ void generate_intermediate_ExpList(Equations *eqn, ExpList expList, tamm_string 
 
 void generate_intermediate_DeclList(Equations *eqn, DeclList dl);
 
-void collectArrayRefs(Exp exp, tamm_vector *arefs, double *alpha);
+void collectArrayRefs(Exp exp, std::vector<Exp> &arefs, double *alpha);
 
 tce_string_array collectExpIndices(Exp exp, int* first_ref); //Get each index only once
 

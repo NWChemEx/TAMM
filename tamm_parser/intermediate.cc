@@ -77,15 +77,15 @@ OpEntry make_OpEntry(int op_id, OpType ot, AddOp ao, MultOp mo) {
 }
 
 void generate_intermediate_ast(Equations *eqn, TranslationUnit root) {
-    vector_init(&eqn->index_entries);
-    vector_init(&eqn->range_entries);
-    vector_init(&eqn->op_entries);
-    vector_init(&eqn->tensor_entries);
+//    &eqn->index_entries;
+//    &eqn->range_entries;
+//    &eqn->op_entries;
+//    &eqn->tensor_entries;
 
-    tamm_vector *re = &eqn->range_entries;
-    vector_add(re, make_RangeEntry("O"));
-    vector_add(re, make_RangeEntry("V"));
-    vector_add(re, make_RangeEntry("N"));
+    std::vector<RangeEntry> &re = eqn->range_entries;
+    re.push_back(make_RangeEntry("O"));
+    re.push_back(make_RangeEntry("V"));
+    re.push_back(make_RangeEntry("N"));
 
     CompoundElemList celist = root->celist;
     while (celist != NULL) {
@@ -140,7 +140,8 @@ void generate_intermediate_Decl(Equations *eqn, Decl d) {
           if (strcmp(d->u.IndexDecl.rangeID, "O") == 0) rid = 0;
           else if (strcmp(d->u.IndexDecl.rangeID, "V") == 0) rid = 1;
           else if (strcmp(d->u.IndexDecl.rangeID, "N") == 0) rid = 2;
-          vector_add(&eqn->index_entries, make_IndexEntry(d->u.IndexDecl.name, rid));
+
+          eqn->index_entries.push_back(make_IndexEntry(d->u.IndexDecl.name, rid));
           //fprintf(eqn, "index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID);
         }
             break;
@@ -163,7 +164,7 @@ void generate_intermediate_Decl(Equations *eqn, Decl d) {
             lid++;
           }
 
-          vector_add(&eqn->tensor_entries, te);
+          eqn->tensor_entries.push_back(te);
         }
             break;
         default: {
@@ -174,21 +175,19 @@ void generate_intermediate_Decl(Equations *eqn, Decl d) {
 }
 
 void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
-    tamm_vector lhs_aref, rhs_aref, rhs_allref;
+    std::vector<Exp> lhs_aref, rhs_allref;
+    std::vector<ArrayRefAlpha> rhs_aref;
     double alpha = 1;
     switch (s->kind) {
       case Stmt_::is_AssignStmt: {
         alpha = 1;
-        vector_init(&lhs_aref);
-        collectArrayRefs(s->u.AssignStmt.lhs, &lhs_aref, &alpha);
+        collectArrayRefs(s->u.AssignStmt.lhs, lhs_aref, &alpha);
         int i = 0;
 //            for (i = 0; i < vector_count(&lhs_aref); i++) {
 //                Exp e = vector_get(&lhs_aref, i);
 //                printf("%s ", e->u.Array.name);
 //            }
-        vector_init(&rhs_aref);
-        vector_init(&rhs_allref);
-        collectArrayRefs(s->u.AssignStmt.rhs, &rhs_allref, &alpha);
+        collectArrayRefs(s->u.AssignStmt.rhs, rhs_allref, &alpha);
 
 //        int ignore_first_ref = 0;
 //        if (strcmp(s->u.AssignStmt.astype, "+=") == 0 || strcmp(s->u.AssignStmt.astype, "-=") == 0)
@@ -209,19 +208,19 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 
 
         int rhs_aref_count = 0;
-        for (i = 0; i < vector_count(&rhs_allref); i++) {
-          Exp e = (Exp) vector_get(&rhs_allref, i);
+        for (i = 0; i < rhs_allref.size(); i++) {
+          Exp e = (Exp) rhs_allref.at(i);
           if (e->kind == Exp_::is_NumConst) {
-            Exp e1 = (Exp)vector_get(&rhs_allref, i + 1);
+            Exp e1 = (Exp)rhs_allref.at(i + 1);
             if (e1->kind == Exp_::is_ArrayRef) {
               rhs_aref_count++;
-              vector_add(&rhs_aref, make_ArrayRefAlpha(e->u.NumConst.value * e1->coef, e1));
+              rhs_aref.push_back(make_ArrayRefAlpha(e->u.NumConst.value * e1->coef, e1));
               i++;
             }
           } else {
             rhs_aref_count++;
-            Exp e1 = (Exp)vector_get(&rhs_allref, i);
-            vector_add(&rhs_aref, make_ArrayRefAlpha(1.0 * e1->coef, e1));
+            Exp e1 = (Exp)rhs_allref.at(i);
+            rhs_aref.push_back(make_ArrayRefAlpha(1.0 * e1->coef, e1));
           }
         }
 
@@ -229,9 +228,9 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
 //        tce_string_array rhs_first_ref_indices = (tce_string_array)collectExpIndices(
 //            ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref, &ignore_first_ref);
 
-        if (vector_count(&rhs_aref) > 1) {
-          Exp tc_exp = (Exp)vector_get(&lhs_aref, 0);
-          Exp ta_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref;
+        if (rhs_aref.size() > 1) {
+          Exp tc_exp = (Exp)lhs_aref.at(0);
+          Exp ta_exp = ((ArrayRefAlpha) rhs_aref.at(0))->aref;
           if (strcmp(tc_exp->u.Array.name, ta_exp->u.Array.name) == 0) rhs_first_ref = true;
         }
 
@@ -257,14 +256,14 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
         if (isMultOp) {
           //printf(" == MULT OP\n");
 
-          Exp tc_exp = (Exp)vector_get(&lhs_aref, 0);
+          Exp tc_exp = (Exp)lhs_aref.at(0);
           int ta_ind = 0;
           if (rhs_first_ref) ta_ind++;
 
-          MultOp mop = make_MultOp(0, 0, 0, ((ArrayRefAlpha) vector_get(&rhs_aref, ta_ind))->alpha);
+          MultOp mop = make_MultOp(0, 0, 0, ((ArrayRefAlpha) rhs_aref.at(ta_ind))->alpha);
 
-          Exp ta_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, ta_ind))->aref;
-          Exp tb_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, ta_ind + 1))->aref;
+          Exp ta_exp = ((ArrayRefAlpha) rhs_aref.at(ta_ind))->aref;
+          Exp tb_exp = ((ArrayRefAlpha) rhs_aref.at(ta_ind + 1))->aref;
 
           getIndexIDs(eqn, tc_exp, mop->tc_ids);
           getIndexIDs(eqn, ta_exp, mop->ta_ids);
@@ -274,21 +273,21 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
           getTensorIDs(eqn, ta_exp, &mop->ta);
           getTensorIDs(eqn, tb_exp, &mop->tb);
 
-          vector_add(&eqn->op_entries, make_OpEntry(op_id, OpTypeMult, NULL, mop));
+          eqn->op_entries.push_back(make_OpEntry(op_id, OpTypeMult, NULL, mop));
           op_id++;
 
         } else if (isAddOp) {
 
           //printf(" == ADD OP\n");
 
-          Exp tc_exp = (Exp) vector_get(&lhs_aref, 0);
+          Exp tc_exp = (Exp) lhs_aref.at(0);
 
           int ta_ind = 0;
           if (rhs_first_ref) ta_ind++;
 
-          AddOp mop = make_AddOp(0, 0, ((ArrayRefAlpha) vector_get(&rhs_aref, ta_ind))->alpha);
+          AddOp mop = make_AddOp(0, 0, ((ArrayRefAlpha) rhs_aref.at(ta_ind))->alpha);
 
-          Exp ta_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, ta_ind))->aref;
+          Exp ta_exp = ((ArrayRefAlpha) rhs_aref.at(ta_ind))->aref;
 
           getIndexIDs(eqn, tc_exp, mop->tc_ids);
           getIndexIDs(eqn, ta_exp, mop->ta_ids);
@@ -296,15 +295,15 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
           getTensorIDs(eqn, tc_exp, &mop->tc);
           getTensorIDs(eqn, ta_exp, &mop->ta);
 
-          vector_add(&eqn->op_entries, make_OpEntry(op_id, OpTypeAdd, mop, NULL));
+          eqn->op_entries.push_back(make_OpEntry(op_id, OpTypeAdd, mop, NULL));
           op_id++;
 
-          if (vector_count(&rhs_aref) > ta_ind + 1) {
+          if (rhs_aref.size() > ta_ind + 1) {
             int k;
-            for (k = ta_ind + 1; k < vector_count(&rhs_aref); k++) {
-              AddOp aop = make_AddOp(0, 0, ((ArrayRefAlpha) vector_get(&rhs_aref, k))->alpha);
+            for (k = ta_ind + 1; k < rhs_aref.size(); k++) {
+              AddOp aop = make_AddOp(0, 0, ((ArrayRefAlpha) rhs_aref.at(k))->alpha);
 
-              Exp ta_exp = ((ArrayRefAlpha) vector_get(&rhs_aref, k))->aref;
+              Exp ta_exp = ((ArrayRefAlpha) rhs_aref.at(k))->aref;
 
               getIndexIDs(eqn, tc_exp, aop->tc_ids);
               getIndexIDs(eqn, ta_exp, aop->ta_ids);
@@ -312,7 +311,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
               getTensorIDs(eqn, tc_exp, &aop->tc);
               getTensorIDs(eqn, ta_exp, &aop->ta);
 
-              vector_add(&eqn->op_entries, make_OpEntry(op_id, OpTypeAdd, aop, NULL));
+              eqn->op_entries.push_back(make_OpEntry(op_id, OpTypeAdd, aop, NULL));
               op_id++;
             }
           }
@@ -336,8 +335,8 @@ void getTensorIDs(Equations *eqn, Exp exp, int *tid) {
         tamm_string aname = exp->u.Array.name;
         int j;
         TensorEntry ient;
-        for (j = 0; j < vector_count(&eqn->tensor_entries); j++) {
-            ient = (TensorEntry)vector_get(&eqn->tensor_entries, j);
+        for (j = 0; j < eqn->tensor_entries.size(); j++) {
+            ient = (TensorEntry)eqn->tensor_entries.at(j);
             if (strcmp(aname, ient->name) == 0) {
                 *tid = j;
                 break;
@@ -358,8 +357,8 @@ void getIndexIDs(Equations *eqn, Exp exp, int *tc_ids) {
         int ipos = 0;
         IndexEntry ient;
         for (i = 0; i < len; i++) {
-            for (j = 0; j < vector_count(&eqn->index_entries); j++) {
-                ient = (IndexEntry)vector_get(&eqn->index_entries, j);
+            for (j = 0; j < eqn->index_entries.size(); j++) {
+                ient = (IndexEntry)eqn->index_entries.at(j);
                 if (strcmp(aind[i], ient->name) == 0) {
                     tc_ids[ipos] = j;
                     ipos++;
@@ -410,7 +409,7 @@ void generate_intermediate_Exp(Equations *eqn, Exp exp) {
 }
 
 
-void collectArrayRefs(Exp exp, tamm_vector *arefs, double *alpha) {
+void collectArrayRefs(Exp exp, std::vector<Exp> &arefs, double *alpha) {
     ExpList el = NULL;
     switch (exp->kind) {
         case Exp_::is_Parenth: {
@@ -419,12 +418,12 @@ void collectArrayRefs(Exp exp, tamm_vector *arefs, double *alpha) {
             break;
         case Exp_::is_NumConst: {
           *alpha = *alpha * exp->u.NumConst.value;
-          vector_add(arefs, exp);
+          arefs.push_back(exp);
         }
             break;
         case Exp_::is_ArrayRef: {
             *alpha = *alpha * exp->coef;
-            vector_add(arefs, exp);
+            arefs.push_back(exp);
           }
             break;
         case Exp_::is_Addition: {

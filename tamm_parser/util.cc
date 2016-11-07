@@ -10,13 +10,13 @@ void *tce_malloc(int length) {
 }
 
 tamm_string mkString(char *s) {
-    tamm_string p = tce_malloc(strlen(s) + 1);
+    tamm_string p = (tamm_string) tce_malloc(strlen(s) + 1);
     strcpy(p, s);
     return p;
 }
 
 tamm_string *mkIndexList(tamm_string *indices, int length) {
-    tamm_string *newlist = malloc(length * sizeof(tamm_string));
+    tamm_string *newlist = (tamm_string *) malloc(length * sizeof(tamm_string));
     int i = 0;
     for (i = 0; i < length; i++) {
         newlist[i] = strdup(indices[i]);
@@ -26,7 +26,7 @@ tamm_string *mkIndexList(tamm_string *indices, int length) {
 
 tamm_string int_str(int a) {
     int size = snprintf(NULL, 0, "%d", a);
-    tamm_string val = malloc(size + 1);
+    tamm_string val = (tamm_string) malloc(size + 1);
     sprintf(val, "%d", a);
     return val;
 }
@@ -37,7 +37,7 @@ tamm_string combine_indexLists(tamm_string *indices1, int count1, tamm_string *i
     tamm_string upper = combine_indices(indices1, count1);
     tamm_string lower = combine_indices(indices2, count2);
 
-    char *result = tce_malloc(strlen(upper) + strlen(lower) + 1);
+    tamm_string result = (tamm_string) tce_malloc(strlen(upper) + strlen(lower) + 1);
     strcpy(result, upper);
     strcat(result, ":");
     strcat(result, lower);
@@ -48,7 +48,7 @@ tamm_string combine_indexLists(tamm_string *indices1, int count1, tamm_string *i
 
 
 tamm_string *replicate_indices(tamm_string *indices, int len) {
-    tamm_string *newind = tce_malloc(len * sizeof(tamm_string));
+    tamm_string *newind = (tamm_string *)tce_malloc(len * sizeof(tamm_string));
     int i = 0;
     for (i = 0; i < len; i++) newind[i] = strdup(indices[i]);
 
@@ -120,7 +120,7 @@ int count_index(tamm_string *list, int len, tamm_string x) {
 tce_string_array stringToList(const tamm_string s) {
     tamm_string str = strdup(s);
     int len = strlen(str);
-    tamm_string *list = tce_malloc(sizeof(tamm_string) * (len+1));
+    tamm_string *list = (tamm_string *) tce_malloc(sizeof(tamm_string) * (len+1));
     int i = 0;
 
     char *c = strtok(str, " ,:");
@@ -135,7 +135,7 @@ tce_string_array stringToList(const tamm_string s) {
     free(list);
     len = i;
     i = 0;
-    list = tce_malloc(sizeof(tamm_string) * (len+1));
+    list = (tamm_string*) tce_malloc(sizeof(tamm_string) * (len+1));
 
     c = strtok(str, " ,:");
     while (c != NULL) {
@@ -143,7 +143,7 @@ tce_string_array stringToList(const tamm_string s) {
         i++;
         c = strtok(NULL, " ,:");
     }
-    tce_string_array p = tce_malloc(sizeof(*p));
+    tce_string_array p = (tce_string_array) tce_malloc(sizeof(*p));
     p->list = list;
     p->length = len;
 

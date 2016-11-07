@@ -27,7 +27,7 @@
 
     // translation-unit
     translation_unit ::= compound_element_list(C) . {
-       *root = make_TranslationUnit(C);
+      *root =  make_TranslationUnit((CompoundElemList)C);
     }
 
 
@@ -37,14 +37,14 @@
     }
 
     compound_element_list(C) ::= compound_element_list(L) compound_element(E) . {
-        addTail_CompoundElemList(E,L);
+      addTail_CompoundElemList((CompoundElem)E, (CompoundElemList)L);
         C = L;
     }
 
 
     // compound-element
     compound_element(C) ::= identifier LBRACE element_list(E) RBRACE . {
-      CompoundElem ce = make_CompoundElem(E);
+      CompoundElem ce = make_CompoundElem((ElemList)E);
       C = ce; 
     }
 
@@ -52,15 +52,15 @@
     element_list(E) ::= . { E = make_ElemList(NULL,NULL); }
 
     element_list(E) ::= element_list(L) element(S)  . {
-       addTail_ElemList(S,L);
+      addTail_ElemList((Elem)S,(ElemList)L);
        E = L;
     }
                    
 
     // element
 
-    element(E) ::= declaration(D)  . { E = make_Elem_DeclList(D); }
-    element(E) ::= statement(S) . { E = make_Elem_Stmt(S); }
+      element(E) ::= declaration(D)  . { E = make_Elem_DeclList((DeclList)D); }
+      element(E) ::= statement(S) . { E = make_Elem_Stmt((Stmt)S); }
 
 
     // declaration
@@ -77,26 +77,26 @@
     id_list_opt(I) ::= id_list(L) . { I = L; }
         
         
-    id_list(I) ::= identifier(N) . { I = make_IDList(N,NULL); }
+      id_list(I) ::= identifier(N) . { I = make_IDList((Identifier)N,NULL); }
     id_list(I) ::= id_list(L) COMMA identifier(N) . { 
-      addTail_IDList(N,L);
+      addTail_IDList((Identifier)N, (IDList)L);
       I = L;
      }
              
                   
     num_list(N) ::= numerical_constant(C) . { 
-      ExpList e = make_ExpList(C,NULL); 
+      ExpList e = make_ExpList((Exp)C,NULL); 
       N = e;
     }
 
     num_list(N) ::= num_list(L) COMMA numerical_constant(C) .  { 
-      addTail_ExpList(C,L);
+      addTail_ExpList((Exp)C, (ExpList)L);
       N = L;
      }
 
     // identifier
     identifier(I) ::= ID(N) .  {
-      Identifier id = make_Identifier(tce_tokPos,N);
+      Identifier id = make_Identifier(tce_tokPos, (tamm_string)N);
       id->lineno = tce_lineno;
       I = id;
     }
@@ -104,19 +104,19 @@
 
     // numerical-constant
     numerical_constant(N) ::= ICONST(I)  . {
-      Exp e = make_NumConst(tce_tokPos,atoi(I));
+      Exp e = make_NumConst(tce_tokPos,atoi((const char*)I));
       e->lineno = tce_lineno;
       N = e;
     }
 
     numerical_constant(N) ::= FCONST(F)  . {
-      Exp e = make_NumConst(tce_tokPos,atof(F));
+      Exp e = make_NumConst(tce_tokPos,atof((const char*)F));
       e->lineno = tce_lineno;
       N = e;      
     }
 
     numerical_constant(N) ::= FRACCONST(F)  . {
-      char* frac = F;
+      char* frac = (char*)F;
       char* str = strdup(frac);
       char* pch;
       char* nd[2];
@@ -138,12 +138,12 @@
         
     // range-declaration
     range_declaration(R) ::= RANGE id_list(I) EQUALS numerical_constant(N) SEMI . {
-      Exp e = N;
+      Exp e = (Exp)N;
       float val = -1;
-      if(e->kind == is_NumConst) val = e->u.NumConst.value;
+      if(e->kind == Exp_::is_NumConst) val = e->u.NumConst.value;
       //TODO: Error check for e's type
 
-      IDList p = I;
+      IDList p = (IDList)I;
       DeclList dlist = make_DeclList(NULL,NULL);
       DeclList dl = dlist;  
       while(p != NULL){
@@ -163,9 +163,9 @@
 
     // index-declaration
     index_declaration(D) ::= INDEX id_list(I) EQUALS identifier(N) SEMI . {
-      Identifier e = N;
+      Identifier e = (Identifier)N;
 
-      IDList p = I;
+      IDList p = (IDList)I;
       DeclList dlist = make_DeclList(NULL,NULL);
       DeclList dl = dlist;  
       while(p != NULL){
@@ -184,22 +184,22 @@
 
     // array-declaration
       array_declaration(A) ::= ARRAY array_structure_list(S) SEMI . { A = S; }
-      array_structure_list(A) ::= array_structure(S) . { A = make_DeclList(S,NULL); }
+	array_structure_list(A) ::= array_structure(S) . { A = make_DeclList((Decl)S,NULL); }
       array_structure_list(A) ::= array_structure_list(L) COMMA array_structure(S) . { 
-        addTail_DeclList(S,L); 
+        addTail_DeclList((Decl)S,(DeclList)L); 
         A = L;
       }
 
     // array-structure
     //old -- array_structure ::= ID LPAREN LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET permut_symmetry_opt RPAREN .
     array_structure(A) ::= ID(N) LBRACKET id_list_opt(U) RBRACKET LBRACKET id_list_opt(L) RBRACKET permut_symmetry_opt(P) . {
-     tamm_string id = N;
-     IDList p = U;
-     int countU = count_IDList(U);
+      tamm_string id = (tamm_string)N;
+      IDList p = (IDList)U;
+      int countU = count_IDList((IDList)U);
      
-     p = U;
+      p = (IDList)U;
      int ic = 0;
-     tamm_string* indicesU = malloc(countU * sizeof(tamm_string));
+      tamm_string* indicesU = (tamm_string*)malloc(countU * sizeof(tamm_string));
 
      while (p!=NULL){
             indicesU[ic] = (p->head)->name;
@@ -207,10 +207,10 @@
             ic++;
      } 
 
-     int countL = count_IDList(L);
+      int countL = count_IDList((IDList)L);
      ic = 0;
-     p = L;
-     tamm_string* indicesL = malloc(countL * sizeof(tamm_string));
+      p = (IDList)L;
+      tamm_string* indicesL = (tamm_string*) malloc(countL * sizeof(tamm_string));
 
      while (p!=NULL){
         indicesL[ic] = (p->head)->name;
@@ -221,7 +221,7 @@
      Decl dec = make_ArrayDecl(tce_tokPos,id,indicesU,indicesL); 
      dec->u.ArrayDecl.ulen = countU;
      dec->u.ArrayDecl.llen = countL;
-     dec->u.ArrayDecl.irrep = P; 
+      dec->u.ArrayDecl.irrep = (tamm_string)P; 
      dec->lineno = tce_lineno;
      A = dec;
      dec = NULL;
@@ -229,25 +229,25 @@
 
     // statement
     statement(S) ::= assignment_statement(A) . { 
-      Stmt st = A; 
+      Stmt st = (Stmt)A; 
       st->u.AssignStmt.label = NULL; 
       S=st;
     }
 
     statement(S) ::= ID(I) COLON assignment_statement(A) . { 
-      Stmt st = A; 
-      st->u.AssignStmt.label = I;
+      Stmt st = (Stmt)A; 
+      st->u.AssignStmt.label = (tamm_string)I;
       S=st;
     }
 
     // assignment-statement
       assignment_statement(A) ::= expression(L) assignment_operator(O) expression(R) SEMI . { 
         Stmt s;
-        Exp lhs = L;
+        Exp lhs = (Exp)L;
         //lhs->lineno = tce_lineno;
-        Exp rhs = R;
+        Exp rhs = (Exp)R;
         //rhs->lineno = tce_lineno;
-        tamm_string oper = O;
+        tamm_string oper = (tamm_string)O;
 
         if(strcmp(oper,"=")==0) { 
           s = make_AssignStmt(tce_tokPos,lhs,rhs); 
@@ -260,7 +260,7 @@
           //if (lhs->kind == is_Addition) tlhs = make_Addition(tce_tokPos,NULL);
           //if (lhs->kind == is_Multiplication) tlhs = make_Multiplication(tce_tokPos,NULL);
           
-          if (lhs->kind == is_ArrayRef) {
+          if (lhs->kind == Exp_::is_ArrayRef) {
             tlhs = make_Array(tce_tokPos,"",NULL); //create a copy of lhs for flattening
             //memcpy (tlhs, lhs, sizeof (lhs));
             tlhs->u.Array.name = strdup(lhs->u.Array.name);
@@ -306,20 +306,20 @@
 
     // array-reference
     array_reference(A) ::= ID(N)  . {
-      tamm_string id = N;
+      tamm_string id = (tamm_string)N;
       Exp e = make_Array(tce_tokPos, id, NULL);
       e->lineno = tce_lineno;
       A = e;
     }
 
     array_reference(A) ::= ID(N) LBRACKET id_list_opt(I) RBRACKET . {
-     tamm_string id = N;
+      tamm_string id = (tamm_string)N;
 
-     IDList p = I;
+      IDList p = (IDList)I;
      int count = count_IDList(p);
-     p = I;
+      p = (IDList)I;
 
-     tamm_string *indices = malloc(count * sizeof(tamm_string));
+      tamm_string *indices = (tamm_string*) malloc(count * sizeof(tamm_string));
 
      int ic = 0;
 
@@ -342,7 +342,7 @@
 
     // expression                           
     expression(E) ::= additive_expression(A) . { 
-      Exp e = A; 
+      Exp e = (Exp)A; 
       //e->lineno = tce_lineno;
       E = e;
     }
@@ -350,13 +350,13 @@
     additive_expression(A) ::=  multiplicative_expression(M) . { A = M; }
 
     additive_expression(E) ::= additive_expression(A) plusORMinus(O) multiplicative_expression(M) . {
-     Exp e1 = A;
-     Exp e2 = M;
-     tamm_string op = O;
+      Exp e1 = (Exp)A;
+      Exp e2 = (Exp)M;
+      tamm_string op = (tamm_string)O;
      ExpList el = make_ExpList(NULL,NULL);
 
      int clno = tce_lineno;
-     if (e1->kind == is_Addition) e1->lineno = clno;
+     if (e1->kind == Exp_::is_Addition) e1->lineno = clno;
 
      if(strcmp(op,"-")==0) e2->coef *= -1;
      addTail_ExpList(e1,el);
@@ -377,18 +377,18 @@
     multiplicative_expression(M) ::= unary_expression(U) . { M = U; }
                                 
     multiplicative_expression(E) ::= multiplicative_expression(M) TIMES unary_expression(U) . {
-      Exp e1 = M;
-      Exp e2 = U;
+      Exp e1 = (Exp) M;
+      Exp e2 = (Exp) U;
 
       ExpList el = make_ExpList(NULL,NULL);
       float coef = 1;
       int clno = tce_lineno;
-      if (e1->kind == is_Multiplication) {
+      if (e1->kind == Exp_::is_Multiplication) {
         clno = e1->lineno;
         coef *= e1->coef;
      }
      addTail_ExpList(e1,el);
-     if (e2->kind == is_Multiplication) {
+     if (e2->kind == Exp_::is_Multiplication) {
       coef *= e2->coef;
      }
      addTail_ExpList(e2,el);
@@ -403,7 +403,7 @@
     unary_expression(U) ::= primary_expression(E)  . { U = E; }
     unary_expression(U) ::= PLUS unary_expression(E)  . { U = E; }
     unary_expression(U) ::= MINUS unary_expression(E) . { 
-      Exp ue = E;
+      Exp ue = (Exp)E;
       ue->coef *= -1;
       U = ue; 
     }
@@ -411,7 +411,7 @@
     // primary-expression    
     primary_expression(E) ::= numerical_constant(N) . { E = N; }
     primary_expression(E) ::= array_reference(A)  . { E = A; }
-    primary_expression(E) ::= LPAREN expression(P) RPAREN . { E = make_Parenth(tce_tokPos,P); }
+      primary_expression(E) ::= LPAREN expression(P) RPAREN . { E = make_Parenth(tce_tokPos, (Exp)P); }
 
 
     // TODO: permutational-symmetry

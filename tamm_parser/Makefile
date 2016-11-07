@@ -1,58 +1,59 @@
-CC = gcc
+CC = clang++
+LCC = clang
 CFLAGS = -g -Wall
 
-all: tamm_test libtammparser.a
+all: libtammparser.a tamm_parser_test
 
-tamm_test: test.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o tamm_vector.o tamm_parser.o
-	$(CC) -o $@ $(CFLAGS) test.o parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o intermediate.o tamm_vector.o tamm_parser.o -lfl
+tamm_parser_test: test.o libtammparser.a
+	$(CC) -o $@ $(CFLAGS) test.o -L. -ltammparser -lfl
 
-test.o: test.c parser.o scanner.o *.h
-	$(CC) $(CFLAGS) -c test.c
+test.o: test.cc libtammparser.a
+	$(CC) $(CFLAGS) -c test.cc
 
 
 libtammparser.a: tamm_parser.o parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o tamm_vector.o
-	ar -cvq libtammparser.a tamm_parser.o parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o intermediate.o tamm_vector.o
+	ar -cvq libtammparser.a parser.o scanner.o visitor.o semant.o absyn.o symtab.o util.o intermediate.o tamm_vector.o tamm_parser.o
 
 tamm_parser.o: parser.o scanner.o absyn.o visitor.o semant.o symtab.o util.o intermediate.o tamm_vector.o
-	$(CC) $(CFLAGS) -c tamm_parser.c
+	$(CC) $(CFLAGS) -c tamm_parser.cc
 
-visitor.o: visitor.c parser.o util.o
-	$(CC) $(CFLAGS) -c visitor.c 
+visitor.o: visitor.cc parser.o util.o
+	$(CC) $(CFLAGS) -c visitor.cc 
 
-intermediate.o: intermediate.c semant.o tamm_vector.o
-	$(CC) $(CFLAGS) -c intermediate.c
+intermediate.o: intermediate.cc semant.o tamm_vector.o
+	$(CC) $(CFLAGS) -c intermediate.cc
 
-tamm_vector.o: tamm_vector.c  util.o
-	$(CC) $(CFLAGS) -c tamm_vector.c
+tamm_vector.o: tamm_vector.cc  util.o
+	$(CC) $(CFLAGS) -c tamm_vector.cc
 
-semant.o: semant.c parser.o  
-	$(CC) $(CFLAGS) -c semant.c 
+semant.o: semant.cc parser.o  
+	$(CC) $(CFLAGS) -c semant.cc 
 
-util.o: util.c 
-	$(CC) $(CFLAGS) -c util.c
+util.o: util.cc 
+	$(CC) $(CFLAGS) -c util.cc
 			
-absyn.o: absyn.c util.o
-	$(CC) $(CFLAGS) -c absyn.c
+absyn.o: absyn.cc util.o
+	$(CC) $(CFLAGS) -c absyn.cc
 
-symtab.o: symtab.c util.o 
-	$(CC) $(CFLAGS) -c symtab.c 
+symtab.o: symtab.cc util.o 
+	$(CC) $(CFLAGS) -c symtab.cc 
 		
-parser.o: parser.c absyn.o absyn.h 
-	$(CC) $(CFLAGS) -c parser.c 
+parser.o: parser.cc absyn.o absyn.h 
+	$(CC) $(CFLAGS) -c parser.cc 
 	
-parser.c: parser.y lemon 
-	./lemon -s parser.y
+parser.cc: parser.y lemon
+	./lemon -s parser.y && mv parser.c parser.cc
 
-scanner.o: scanner.c scanner.h
-	$(CC) $(CFLAGS) -c scanner.c
+scanner.o: scanner.cc scanner.h
+	$(CC) $(CFLAGS) -c scanner.cc
 	
 lemon: lemon.c
-	${CC} lemon.c -o lemon
+	${LCC} lemon.c -o lemon
 
-scanner.c: scanner.l
-	flex scanner.l 
+scanner.cc: scanner.l
+	flex scanner.l && mv scanner.c scanner.cc
 
 .PHONY: clean
 
 clean: 
-	rm -f tamm_test parser.out parser.c parser.h scanner.c scanner.h lemon *.o libtammparser.a output.txt lex.yy.c
+	rm -f tamm_parser_test parser.out parser.cc parser.h scanner.cc scanner.h lemon *.o libtammparser.a output.txt lex.yy.cc

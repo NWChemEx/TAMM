@@ -36,6 +36,7 @@ Integer Variables::irrep_v_ = 0;
 Integer Variables::irrep_t_ = 0;
 Integer Variables::irrep_f_ = 0;
 Integer Variables::irrep_x_ = 0;
+Integer Variables::irrep_y_ = 0;
 logical Variables::intorb_ = 0;
 logical Variables::restricted_ = 0;
 Integer *Variables::int_mb_;

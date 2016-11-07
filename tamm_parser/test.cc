@@ -2,12 +2,12 @@
 
 
 char *getTensorName(tamm_vector *v, int pos) {
-    TensorEntry te = vector_get(v, pos);
+    TensorEntry te = (TensorEntry) vector_get(v, pos);
     return te->name;
 }
 
 char *getIndexName(tamm_vector *v, int pos) {
-    IndexEntry te = vector_get(v, pos);
+    IndexEntry te = (IndexEntry) vector_get(v, pos);
     return te->name;
 }
 
@@ -21,14 +21,14 @@ int main(int argc, char **argv) {
     RangeEntry rent;
     printf("\nRANGE ENTRIES... \n");
     for (i = 0; i < vector_count(&genEq.range_entries); i++) {
-        rent = vector_get(&genEq.range_entries, i);
+        rent = (RangeEntry) vector_get(&genEq.range_entries, i);
         printf("At position %d -> %s\n", i, rent->name);
     }
 
     IndexEntry ient;
     printf("\nINDEX ENTRIES... \n");
     for (i = 0; i < vector_count(&genEq.index_entries); i++) {
-        ient = vector_get(&genEq.index_entries, i);
+        ient = (IndexEntry) vector_get(&genEq.index_entries, i);
         printf("At position %d -> %s %d\n", i, ient->name, ient->range_id);
     }
 
@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
     TensorEntry tent;
     int j = 0;
     for (i = 0; i < vector_count(&genEq.tensor_entries); i++) {
-        tent = vector_get(&genEq.tensor_entries, i);
+        tent = (TensorEntry) vector_get(&genEq.tensor_entries, i);
         printf("At position %d -> {%s, {", i, tent->name);
         for (j = 0; j < tent->ndim; j++) {
             if (tent->range_ids[j] == 0) printf("O,");
@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     tamm_vector *index_entries = &genEq.index_entries;
 
     for (i = 0; i < vector_count(&genEq.op_entries); i++) {
-        oent = vector_get(&genEq.op_entries, i);
+        oent = (OpEntry) vector_get(&genEq.op_entries, i);
         if (oent->optype == OpTypeAdd) printf("op%d: OpTypeAdd, ", oent->op_id);
         else printf("op%d: OpTypeMult, ", oent->op_id);
         int j;

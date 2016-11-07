@@ -17,13 +17,13 @@ int vector_count(tamm_vector *v) {
 void vector_add(tamm_vector *v, void *e) {
     if (v->size == 0) {
         v->size = 10;
-        v->data = malloc(sizeof(void *) * v->size);
+        v->data = (void**) malloc(sizeof(void *) * v->size);
         memset(v->data, '\0', sizeof(void *) * v->size);
     }
 
     if (v->size == v->count) {
         v->size *= 2;
-        v->data = realloc(v->data, sizeof(void *) * v->size);
+        v->data = (void**) realloc(v->data, sizeof(void *) * v->size);
     }
 
     v->data[v->count] = e;

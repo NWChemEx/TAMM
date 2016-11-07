@@ -23,10 +23,10 @@ void visit_Elem(FILE *outFile, Elem elem) {
     if (e == NULL) return;
 
     switch (e->kind) {
-        case is_DeclList:
+        case Elem_::is_DeclList:
             visit_DeclList(outFile, elem->u.d);
             break;
-        case is_Statement:
+        case Elem_::is_Statement:
             visit_Stmt(outFile, e->u.s);
             break;
         default:
@@ -45,13 +45,13 @@ void visit_DeclList(FILE *outFile, DeclList decllist) {
 
 void visit_Decl(FILE *outFile, Decl d) {
     switch (d->kind) {
-        case is_RangeDecl:
+        case Decl_::is_RangeDecl:
             fprintf(outFile, "range %s : %d;\n", d->u.RangeDecl.name, d->u.RangeDecl.value);
             break;
-        case is_IndexDecl:
+        case Decl_::is_IndexDecl:
             fprintf(outFile, "index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID);
             break;
-        case is_ArrayDecl:
+        case Decl_::is_ArrayDecl:
             if (d->u.ArrayDecl.irrep == NULL)
                 fprintf(outFile, "array %s[%s][%s];\n", d->u.ArrayDecl.name,
                         combine_indices(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen),
@@ -71,7 +71,7 @@ void visit_Decl(FILE *outFile, Decl d) {
 
 void visit_Stmt(FILE *outFile, Stmt s) {
     switch (s->kind) {
-        case is_AssignStmt:
+        case Stmt_::is_AssignStmt:
             if (s->u.AssignStmt.label != NULL)
                 fprintf(outFile, "%s: ", s->u.AssignStmt.label);
             visit_Exp(outFile, s->u.AssignStmt.lhs);
@@ -98,19 +98,19 @@ void visit_ExpList(FILE *outFile, ExpList expList, tamm_string am) {
 
 void visit_Exp(FILE *outFile, Exp exp) {
     switch (exp->kind) {
-        case is_Parenth:
+        case Exp_::is_Parenth:
             visit_Exp(outFile, exp->u.Parenth.exp);
             break;
-        case is_NumConst:
+        case Exp_::is_NumConst:
             fprintf(outFile, "%f ", exp->u.NumConst.value);
             break;
-        case is_ArrayRef:
+        case Exp_::is_ArrayRef:
             fprintf(outFile, "%s[%s] ", exp->u.Array.name, combine_indices(exp->u.Array.indices, exp->u.Array.length));
             break;
-        case is_Addition:
+        case Exp_::is_Addition:
             visit_ExpList(outFile, exp->u.Addition.subexps, "+");
             break;
-        case is_Multiplication:
+        case Exp_::is_Multiplication:
             visit_ExpList(outFile, exp->u.Multiplication.subexps, "*");
             break;
         default:

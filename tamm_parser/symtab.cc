@@ -46,11 +46,11 @@ SymbolTable ST_create(int size) {
         return NULL;
 
     /* Allocate the table itself. */
-    hashtable = malloc(sizeof(SymbolTable));
+    hashtable = (SymbolTable) malloc(sizeof(SymbolTable));
     if (hashtable == NULL) return NULL;
 
     /* Allocate pointers to the head nodes. */
-    if ((hashtable->table = malloc(sizeof(STEntry) * size)) == NULL) {
+    if ((hashtable->table = (STEntry*) malloc(sizeof(STEntry) * size)) == NULL) {
         return NULL;
     }
     for (i = 0; i < size; i++) {
@@ -66,7 +66,7 @@ SymbolTable ST_create(int size) {
 STEntry ST_newpair(tamm_string key, tamm_string value) {
     STEntry newpair;
 
-    if ((newpair = malloc(sizeof(STEntry))) == NULL) {
+    if ((newpair = (STEntry) malloc(sizeof(STEntry))) == NULL) {
         return NULL;
     }
 

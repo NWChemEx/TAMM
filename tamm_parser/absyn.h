@@ -40,9 +40,6 @@
 /* Forward Declarations */
 
 typedef struct Exp_ *Exp;
-typedef struct Stmt_ *Stmt;
-typedef struct Decl_ *Decl;
-//typedef struct Elem_ *Elem;
 
 
 /* The Absyn Hierarchy */
@@ -55,16 +52,62 @@ class Absyn //Root of the AST
 
 };
 
+class Decl {
+public:
+    enum {
+        is_RangeDecl, is_IndexDecl, is_ArrayDecl, is_ExpandDecl, is_VolatileDecl, is_IterationDecl
+    } kind;
+    int lineno;
+    int pos;
+    union {
+        struct {
+            int value;
+            tamm_string name;
+        } RangeDecl;
+        struct {
+            tamm_string name;
+            tamm_string rangeID;
+        } IndexDecl;
+        struct {
+            tamm_string name;
+            int ulen, llen;
+            tamm_string *upperIndices;
+            tamm_string *lowerIndices;
+            tamm_string irrep;
+        } ArrayDecl;
+        //TODO: ExpandDecl, IterationDecl, VolatileDecl
+    } u;
+    Decl() = default;
+};
+
 class DeclList {
 public:
-    Decl head;
+    Decl* head;
     DeclList *tail;
 
-    DeclList(Decl h, DeclList *t){
+    DeclList(Decl* h, DeclList *t){
         head = h;
         tail = t;
     }
 };
+
+class Stmt {
+public:
+    enum {
+        is_AssignStmt
+    } kind;
+    int pos;
+    union {
+        struct {
+            tamm_string label;
+            Exp lhs;
+            Exp rhs;
+            tamm_string astype;
+        } AssignStmt;
+    } u;
+    Stmt() = default;
+};
+
 
 class Elem {
 public:
@@ -74,7 +117,7 @@ public:
     //int pos;
     union {
         DeclList *d;
-        Stmt s;
+        Stmt* s;
     } u;
     Elem() = default;
 };
@@ -164,47 +207,9 @@ public:
 
 
 
-struct Decl_ {
-    enum {
-        is_RangeDecl, is_IndexDecl, is_ArrayDecl, is_ExpandDecl, is_VolatileDecl, is_IterationDecl
-    } kind;
-    int lineno;
-    int pos;
-    union {
-        struct {
-            int value;
-            tamm_string name;
-        } RangeDecl;
-        struct {
-            tamm_string name;
-            tamm_string rangeID;
-        } IndexDecl;
-        struct {
-            tamm_string name;
-            int ulen, llen;
-            tamm_string *upperIndices;
-            tamm_string *lowerIndices;
-            tamm_string irrep;
-        } ArrayDecl;
-        //TODO: ExpandDecl, IterationDecl, VolatileDecl
-    } u;
-};
 
 
-struct Stmt_ {
-    enum {
-        is_AssignStmt
-    } kind;
-    int pos;
-    union {
-        struct {
-            tamm_string label;
-            Exp lhs;
-            Exp rhs;
-            tamm_string astype;
-        } AssignStmt;
-    } u;
-};
+
 
 
 struct Exp_ {
@@ -253,16 +258,16 @@ Exp make_Multiplication(int pos, ExpList *subexps);
 Exp make_Array(int pos, tamm_string name, tamm_string *indices);
 
 
-Stmt make_AssignStmt(int pos, Exp lhs, Exp rhs);
+Stmt* make_AssignStmt(int pos, Exp lhs, Exp rhs);
 
-Decl make_RangeDecl(int pos, tamm_string name, int value);
+Decl* make_RangeDecl(int pos, tamm_string name, int value);
 
-Decl make_IndexDecl(int pos, tamm_string name, tamm_string rangeID);
+Decl* make_IndexDecl(int pos, tamm_string name, tamm_string rangeID);
 
-Decl
+Decl*
 make_ArrayDecl(int pos, tamm_string name, tamm_string *upperIndices, tamm_string *lowerIndices); //TODO: permute and vertex symmetry
 
-Elem* make_Elem_Stmt(Stmt s);
+Elem* make_Elem_Stmt(Stmt* s);
 
 Elem* make_Elem_DeclList(DeclList *d);
 
@@ -270,7 +275,7 @@ int count_IDList(IDList* idl);
 
 void addTail_ElemList(Elem* newtail, ElemList *origList);
 
-void addTail_DeclList(Decl newtail, DeclList *origList);
+void addTail_DeclList(Decl* newtail, DeclList *origList);
 
 void addTail_IDList(Identifier* newtail, IDList* origList);
 

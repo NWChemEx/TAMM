@@ -60,7 +60,7 @@
     // element
 
       element(E) ::= declaration(D)  . { E = make_Elem_DeclList((DeclList*)D); }
-      element(E) ::= statement(S) . { E = make_Elem_Stmt((Stmt)S); }
+      element(E) ::= statement(S) . { E = make_Elem_Stmt((Stmt*)S); }
 
 
     // declaration
@@ -184,9 +184,9 @@
 
     // array-declaration
       array_declaration(A) ::= ARRAY array_structure_list(S) SEMI . { A = S; }
-	array_structure_list(A) ::= array_structure(S) . { A = new DeclList((Decl)S, nullptr); }
+	array_structure_list(A) ::= array_structure(S) . { A = new DeclList((Decl*)S, nullptr); }
       array_structure_list(A) ::= array_structure_list(L) COMMA array_structure(S) . { 
-        addTail_DeclList((Decl)S,(DeclList*)L);
+        addTail_DeclList((Decl*)S,(DeclList*)L);
         A = L;
       }
 
@@ -218,7 +218,7 @@
         ic++;
      } 
 
-     Decl dec = make_ArrayDecl(tce_tokPos,id,indicesU,indicesL); 
+     Decl* dec = make_ArrayDecl(tce_tokPos,id,indicesU,indicesL);
      dec->u.ArrayDecl.ulen = countU;
      dec->u.ArrayDecl.llen = countL;
       dec->u.ArrayDecl.irrep = (tamm_string)P; 
@@ -229,20 +229,20 @@
 
     // statement
     statement(S) ::= assignment_statement(A) . { 
-      Stmt st = (Stmt)A; 
+      Stmt* st = (Stmt*)A;
       st->u.AssignStmt.label = nullptr; 
       S=st;
     }
 
-    statement(S) ::= ID(I) COLON assignment_statement(A) . { 
-      Stmt st = (Stmt)A; 
+    statement(S) ::= ID(I) COLON assignment_statement(A) . {
+      Stmt* st = (Stmt*)A;
       st->u.AssignStmt.label = (tamm_string)I;
       S=st;
     }
 
     // assignment-statement
       assignment_statement(A) ::= expression(L) assignment_operator(O) expression(R) SEMI . { 
-        Stmt s;
+        Stmt* s;
         Exp lhs = (Exp)L;
         //lhs->lineno = tce_lineno;
         Exp rhs = (Exp)R;

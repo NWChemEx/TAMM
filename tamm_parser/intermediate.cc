@@ -129,13 +129,13 @@ void generate_intermediate_DeclList(Equations *eqn, DeclList* decllist) {
     }
 }
 
-void generate_intermediate_Decl(Equations *eqn, Decl d) {
+void generate_intermediate_Decl(Equations *eqn, Decl* d) {
     switch (d->kind) {
-      case Decl_::is_RangeDecl: {
+      case Decl::is_RangeDecl: {
         //fprintf(eqn, "range %s : %d;\n", d->u.RangeDecl.name, d->u.RangeDecl.value);
       }
             break;
-        case Decl_::is_IndexDecl: {
+        case Decl::is_IndexDecl: {
           int rid=0;
           if (strcmp(d->u.IndexDecl.rangeID, "O") == 0) rid = 0;
           else if (strcmp(d->u.IndexDecl.rangeID, "V") == 0) rid = 1;
@@ -145,7 +145,7 @@ void generate_intermediate_Decl(Equations *eqn, Decl d) {
           //fprintf(eqn, "index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID);
         }
             break;
-        case Decl_::is_ArrayDecl: {
+        case Decl::is_ArrayDecl: {
           TensorEntry te = make_TensorEntry(d->u.ArrayDecl.name, d->u.ArrayDecl.ulen + d->u.ArrayDecl.llen, d->u.ArrayDecl.ulen);
           int rid = 0;
           for (rid = 0; rid < d->u.ArrayDecl.ulen; rid++) {
@@ -174,12 +174,12 @@ void generate_intermediate_Decl(Equations *eqn, Decl d) {
     }
 }
 
-void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
+void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
     std::vector<Exp> lhs_aref, rhs_allref;
     std::vector<ArrayRefAlpha> rhs_aref;
     double alpha = 1;
     switch (s->kind) {
-      case Stmt_::is_AssignStmt: {
+      case Stmt::is_AssignStmt: {
         alpha = 1;
         collectArrayRefs(s->u.AssignStmt.lhs, lhs_aref, &alpha);
         int i = 0;

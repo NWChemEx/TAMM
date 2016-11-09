@@ -28,22 +28,22 @@ semant.o: semant.cc parser.o
 
 util.o: util.cc 
 	$(CC) $(CFLAGS) -c util.cc
-			
+
 absyn.o: absyn.cc util.o
 	$(CC) $(CFLAGS) -c absyn.cc
 
 symtab.o: symtab.cc util.o 
 	$(CC) $(CFLAGS) -c symtab.cc 
-		
+
 parser.o: parser.cc absyn.o absyn.h 
 	$(CC) $(CFLAGS) -c parser.cc 
-	
+
 parser.cc: parser.y lemon
 	./lemon -s parser.y && mv parser.c parser.cc
 
 scanner.o: scanner.cc scanner.h
 	$(CC) $(CFLAGS) -c scanner.cc
-	
+
 lemon: lemon.c
 	${LCC} lemon.c -o lemon
 
@@ -53,4 +53,4 @@ scanner.cc: scanner.l
 .PHONY: clean
 
 clean: 
-	rm -f tamm_parser_test parser.out parser.cc parser.h scanner.cc scanner.h lemon *.o libtammparser.a output.txt lex.yy.cc
+	rm -f tamm_parser_test parser.out parser.cc parser.h scanner.cc scanner.h lemon *.o libtammparser.a output.txt lex.yy.cc *.out

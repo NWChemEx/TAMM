@@ -2,16 +2,16 @@
 
 void check_ast(TranslationUnit root, SymbolTable symtab) {
     CompoundElemList celist = root->celist;
-    while (celist != NULL) {
+    while (celist != nullptr) {
         check_CompoundElem(celist->head, symtab);
         celist = celist->tail;
     }
-    celist = NULL;
+    celist = nullptr;
 }
 
 void check_CompoundElem(CompoundElem celem, SymbolTable symtab) {
     ElemList *elist = celem->elist;
-    while (elist != NULL) {
+    while (elist != nullptr) {
         check_Elem(elist->head, symtab);
         elist = elist->tail;
     }
@@ -20,7 +20,7 @@ void check_CompoundElem(CompoundElem celem, SymbolTable symtab) {
 
 void check_Elem(Elem elem, SymbolTable symtab) {
     Elem e = elem;
-    if (e == NULL) return;
+    if (e == nullptr) return;
 
     switch (e->kind) {
         case Elem_::is_DeclList:
@@ -35,9 +35,9 @@ void check_Elem(Elem elem, SymbolTable symtab) {
     }
 }
 
-void check_DeclList(DeclList decllist, SymbolTable symtab) {
-    DeclList dl = decllist;
-    while (dl != NULL) {
+void check_DeclList(DeclList* decllist, SymbolTable symtab) {
+    DeclList* dl = decllist;
+    while (dl != nullptr) {
         check_Decl(dl->head, symtab);
         dl = dl->tail;
     }
@@ -147,13 +147,13 @@ void check_Stmt(Stmt s, SymbolTable symtab) {
 }
 
 
-void check_ExpList(ExpList expList, SymbolTable symtab) {
-    ExpList elist = expList;
-    while (elist != NULL) {
+void check_ExpList(ExpList* expList, SymbolTable symtab) {
+    ExpList* elist = expList;
+    while (elist != nullptr) {
         check_Exp(elist->head, symtab);
         elist = elist->tail;
     }
-    elist = NULL;
+    elist = nullptr;
 }
 
 
@@ -179,8 +179,8 @@ void verifyArrayRef(SymbolTable symtab, tamm_string name, tamm_string *inds, int
 
 
 void check_Exp(Exp exp, SymbolTable symtab) {
-    tce_string_array inames = NULL;
-    ExpList el = NULL;
+    tce_string_array inames = nullptr;
+    ExpList* el = nullptr;
     int clno = exp->lineno;
     switch (exp->kind) {
         case Exp_::is_Parenth: {
@@ -239,14 +239,14 @@ void check_Exp(Exp exp, SymbolTable symtab) {
           check_ExpList(exp->u.Addition.subexps, symtab);
           inames = getIndices(exp);
           el = exp->u.Addition.subexps;
-          while (el != NULL) {
+          while (el != nullptr) {
             tce_string_array op_inames = getIndices(el->head);
             if (!compare_index_lists(inames, op_inames)) {
               fprintf(stderr, "Error at line %d: subexpressions of an addition must have equal index sets\n",
                       clno);
               exit(2);
             }
-            op_inames = NULL;
+            op_inames = nullptr;
             el = el->tail;
           }
           break;
@@ -254,11 +254,11 @@ void check_Exp(Exp exp, SymbolTable symtab) {
 
           el = exp->u.Multiplication.subexps;
           int tot_len = 0;
-          while (el != NULL) {
+          while (el != nullptr) {
             //print_Exp(el->head);
             tce_string_array se = getIndices(el->head);
-            if (se != NULL) tot_len += se->length;
-            se = NULL;
+            if (se != nullptr) tot_len += se->length;
+            se = nullptr;
             el = el->tail;
           }
 
@@ -266,16 +266,16 @@ void check_Exp(Exp exp, SymbolTable symtab) {
           tamm_string *all_ind = (tamm_string*) tce_malloc(sizeof(tamm_string) * tot_len);
 
           int i = 0, ui = 0;
-          while (el != NULL) {
+          while (el != nullptr) {
             tce_string_array se = getIndices(el->head);
             i = 0;
-            if (se != NULL) {
+            if (se != nullptr) {
               for (i = 0; i < se->length; i++) {
                 all_ind[ui] = se->list[i];
                 ui++;
               }
             }
-            se = NULL;
+            se = nullptr;
             el = el->tail;
           }
           assert(ui == tot_len);
@@ -308,15 +308,15 @@ void check_Exp(Exp exp, SymbolTable symtab) {
 
 //get non-summation indices only
 tce_string_array getIndices(Exp exp) {
-    ExpList el = NULL;
-    tce_string_array p = NULL;
+    ExpList* el = nullptr;
+    tce_string_array p = nullptr;
     switch (exp->kind) {
         case Exp_::is_Parenth: {
           return getIndices(exp->u.Parenth.exp);
         }
             break;
         case Exp_::is_NumConst: {
-          return NULL;
+          return nullptr;
         }
             break;
         case Exp_::is_ArrayRef: {
@@ -333,11 +333,11 @@ tce_string_array getIndices(Exp exp) {
         case Exp_::is_Multiplication: {
           el = exp->u.Multiplication.subexps;
           int tot_len = 0;
-          while (el != NULL) {
+          while (el != nullptr) {
             //print_Exp(el->head);
             tce_string_array se = (tce_string_array) getIndices(el->head);
-            if (se != NULL) tot_len += se->length;
-            se = NULL;
+            if (se != nullptr) tot_len += se->length;
+            se = nullptr;
             el = el->tail;
           }
 
@@ -345,16 +345,16 @@ tce_string_array getIndices(Exp exp) {
           tamm_string *all_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * tot_len);
 
           int i = 0, ui = 0;
-          while (el != NULL) {
+          while (el != nullptr) {
             tce_string_array se = (tce_string_array) getIndices(el->head);
             i = 0;
-            if (se != NULL) {
+            if (se != nullptr) {
               for (i = 0; i < se->length; i++) {
                 all_ind[ui] = se->list[i];
                 ui++;
               }
             }
-            se = NULL;
+            se = nullptr;
             el = el->tail;
           }
           assert(ui == tot_len);
@@ -379,8 +379,8 @@ tce_string_array getIndices(Exp exp) {
           for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
 
 //  	free(all_ind);
-//  	all_ind = NULL;
-          //uind = NULL;
+//  	all_ind = nullptr;
+          //uind = nullptr;
 
           p = (tce_string_array) tce_malloc(sizeof(*p));
           p->list = uniq_ind;
@@ -397,14 +397,14 @@ tce_string_array getIndices(Exp exp) {
 }
 
 
-void print_ExpList(ExpList expList, tamm_string am) {
-    ExpList elist = expList;
-    while (elist != NULL) {
+void print_ExpList(ExpList* expList, tamm_string am) {
+    ExpList* elist = expList;
+    while (elist != nullptr) {
         print_Exp(elist->head);
         elist = elist->tail;
-        if (elist != NULL) printf("%s ", am);
+        if (elist != nullptr) printf("%s ", am);
     }
-    elist = NULL;
+    elist = nullptr;
 }
 
 
@@ -434,15 +434,15 @@ void print_Exp(Exp exp) {
 
 //get all indices only once
 tce_string_array getUniqIndices(Exp exp) {
-    ExpList el = NULL;
-    tce_string_array p = NULL;
+    ExpList* el = nullptr;
+    tce_string_array p = nullptr;
     switch (exp->kind) {
         case Exp_::is_Parenth: {
           return getUniqIndices(exp->u.Parenth.exp);
         }
             break;
         case Exp_::is_NumConst: {
-          return NULL;
+          return nullptr;
         }
             break;
         case Exp_::is_ArrayRef: {
@@ -459,11 +459,11 @@ tce_string_array getUniqIndices(Exp exp) {
         case Exp_::is_Multiplication: {
           el = exp->u.Multiplication.subexps;
           int tot_len = 0;
-          while (el != NULL) {
+          while (el != nullptr) {
             //print_Exp(el->head);
             tce_string_array se = (tce_string_array) getUniqIndices(el->head);
-            if (se != NULL) tot_len += se->length;
-            se = NULL;
+            if (se != nullptr) tot_len += se->length;
+            se = nullptr;
             el = el->tail;
           }
 
@@ -471,16 +471,16 @@ tce_string_array getUniqIndices(Exp exp) {
           tamm_string *all_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * tot_len);
 
           int i = 0, ui = 0;
-          while (el != NULL) {
+          while (el != nullptr) {
             tce_string_array se = (tce_string_array) getUniqIndices(el->head);
             i = 0;
-            if (se != NULL) {
+            if (se != nullptr) {
               for (i = 0; i < se->length; i++) {
                 all_ind[ui] = se->list[i];
                 ui++;
               }
             }
-            se = NULL;
+            se = nullptr;
             el = el->tail;
           }
           assert(ui == tot_len);
@@ -514,15 +514,15 @@ tce_string_array getUniqIndices(Exp exp) {
 
 
 //tce_string_array collectArrayRefs(Exp exp) {
-//    ExpList el = NULL;
-//    tce_string_array p = NULL;
+//    ExpList* el = nullptr;
+//    tce_string_array p = nullptr;
 //    int c = 0, i = 0;
 //    switch (exp->kind) {
 //        case is_Parenth:
 //            return collectArrayRefs(exp->u.Parenth.exp);
 //            break;
 //        case is_NumConst:
-//            return NULL;
+//            return nullptr;
 //            break;
 //        case is_ArrayRef:
 //            p = tce_malloc(sizeof(*p));
@@ -535,7 +535,7 @@ tce_string_array getUniqIndices(Exp exp) {
 //            c = 0, i = 0;
 //            el = (exp->u.Addition.subexps);
 //            string allrefs[65535];
-//            while (el != NULL) {
+//            while (el != nullptr) {
 //                tce_string_array cref = collectArrayRefs(el->head);
 //                for (i = 0; i < cref->length; i++) {
 //                    allrefs[c] = cref->list[i];
@@ -556,9 +556,9 @@ tce_string_array getUniqIndices(Exp exp) {
 //            c = 0, i = 0;
 //            el = (exp->u.Multiplication.subexps);
 //            string allrefs1[65535];
-//            while (el != NULL) {
+//            while (el != nullptr) {
 //                tce_string_array cref = collectArrayRefs(el->head);
-//                if (cref != NULL) {
+//                if (cref != nullptr) {
 //                    for (i = 0; i < cref->length; i++) {
 //                        allrefs1[c] = cref->list[i];
 //                        c++;

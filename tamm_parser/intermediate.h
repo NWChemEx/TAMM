@@ -81,9 +81,9 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s);
 
 void generate_intermediate_Exp(Equations *eqn, Exp exp);
 
-void generate_intermediate_ExpList(Equations *eqn, ExpList expList, tamm_string am);
+void generate_intermediate_ExpList(Equations *eqn, ExpList* expList, tamm_string am);
 
-void generate_intermediate_DeclList(Equations *eqn, DeclList dl);
+void generate_intermediate_DeclList(Equations *eqn, DeclList* dl);
 
 void collectArrayRefs(Exp exp, std::vector<Exp> &arefs, double *alpha);
 

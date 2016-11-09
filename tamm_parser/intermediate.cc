@@ -88,16 +88,16 @@ void generate_intermediate_ast(Equations *eqn, TranslationUnit root) {
     re.push_back(make_RangeEntry("N"));
 
     CompoundElemList celist = root->celist;
-    while (celist != NULL) {
+    while (celist != nullptr) {
         generate_intermediate_CompoundElem(eqn, celist->head);
         celist = celist->tail;
     }
-    celist = NULL;
+    celist = nullptr;
 }
 
 void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem celem) {
     ElemList *elist = celem->elist;
-    while (elist != NULL) {
+    while (elist != nullptr) {
         generate_intermediate_Elem(eqn, elist->head);
         elist = elist->tail;
     }
@@ -106,7 +106,7 @@ void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem celem) {
 
 void generate_intermediate_Elem(Equations *eqn, Elem elem) {
     Elem e = elem;
-    if (e == NULL) return;
+    if (e == nullptr) return;
 
     switch (e->kind) {
         case Elem_::is_DeclList:
@@ -121,9 +121,9 @@ void generate_intermediate_Elem(Equations *eqn, Elem elem) {
     }
 }
 
-void generate_intermediate_DeclList(Equations *eqn, DeclList decllist) {
-    DeclList dl = decllist;
-    while (dl != NULL) {
+void generate_intermediate_DeclList(Equations *eqn, DeclList* decllist) {
+    DeclList* dl = decllist;
+    while (dl != nullptr) {
         generate_intermediate_Decl(eqn, dl->head);
         dl = dl->tail;
     }
@@ -273,7 +273,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
           getTensorIDs(eqn, ta_exp, &mop->ta);
           getTensorIDs(eqn, tb_exp, &mop->tb);
 
-          eqn->op_entries.push_back(make_OpEntry(op_id, OpTypeMult, NULL, mop));
+          eqn->op_entries.push_back(make_OpEntry(op_id, OpTypeMult, nullptr, mop));
           op_id++;
 
         } else if (isAddOp) {
@@ -295,7 +295,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
           getTensorIDs(eqn, tc_exp, &mop->tc);
           getTensorIDs(eqn, ta_exp, &mop->ta);
 
-          eqn->op_entries.push_back(make_OpEntry(op_id, OpTypeAdd, mop, NULL));
+          eqn->op_entries.push_back(make_OpEntry(op_id, OpTypeAdd, mop, nullptr));
           op_id++;
 
           if (rhs_aref.size() > ta_ind + 1) {
@@ -311,7 +311,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt s) {
               getTensorIDs(eqn, tc_exp, &aop->tc);
               getTensorIDs(eqn, ta_exp, &aop->ta);
 
-              eqn->op_entries.push_back(make_OpEntry(op_id, OpTypeAdd, aop, NULL));
+              eqn->op_entries.push_back(make_OpEntry(op_id, OpTypeAdd, aop, nullptr));
               op_id++;
             }
           }
@@ -371,14 +371,14 @@ void getIndexIDs(Equations *eqn, Exp exp, int *tc_ids) {
 }
 
 
-void generate_intermediate_ExpList(Equations *eqn, ExpList expList, tamm_string am) {
-    ExpList elist = expList;
-    while (elist != NULL) {
+void generate_intermediate_ExpList(Equations *eqn, ExpList* expList, tamm_string am) {
+    ExpList* elist = expList;
+    while (elist != nullptr) {
         generate_intermediate_Exp(eqn, elist->head);
         elist = elist->tail;
-        //if (elist != NULL) fprintf(eqn, "%s ", am);
+        //if (elist != nullptr) fprintf(eqn, "%s ", am);
     }
-    elist = NULL;
+    elist = nullptr;
 }
 
 void generate_intermediate_Exp(Equations *eqn, Exp exp) {
@@ -410,7 +410,7 @@ void generate_intermediate_Exp(Equations *eqn, Exp exp) {
 
 
 void collectArrayRefs(Exp exp, std::vector<Exp> &arefs, double *alpha) {
-    ExpList el = NULL;
+    ExpList* el = nullptr;
     switch (exp->kind) {
         case Exp_::is_Parenth: {
           collectArrayRefs(exp->u.Parenth.exp, arefs, alpha);
@@ -429,7 +429,7 @@ void collectArrayRefs(Exp exp, std::vector<Exp> &arefs, double *alpha) {
         case Exp_::is_Addition: {
           el = (exp->u.Addition.subexps);
           *alpha = *alpha * exp->coef;
-          while (el != NULL) {
+          while (el != nullptr) {
             collectArrayRefs(el->head, arefs, alpha);
             el = el->tail;
           }
@@ -438,7 +438,7 @@ void collectArrayRefs(Exp exp, std::vector<Exp> &arefs, double *alpha) {
         case Exp_::is_Multiplication: {
           el = (exp->u.Multiplication.subexps);
           *alpha = *alpha * exp->coef;
-          while (el != NULL) {
+          while (el != nullptr) {
             collectArrayRefs(el->head, arefs, alpha);
             el = el->tail;
           }
@@ -453,19 +453,19 @@ void collectArrayRefs(Exp exp, std::vector<Exp> &arefs, double *alpha) {
 
 
 tce_string_array collectExpIndices(Exp exp, int *firstref) {
-    ExpList el = NULL;
+    ExpList* el = nullptr;
     int i = 0, ui = 0, tot_len = 0;
-    tce_string_array p = NULL;
-    tamm_string *uind = NULL;
-    tamm_string *uniq_ind = NULL;
-    tamm_string *all_ind = NULL;
+    tce_string_array p = nullptr;
+    tamm_string *uind = nullptr;
+    tamm_string *uniq_ind = nullptr;
+    tamm_string *all_ind = nullptr;
     switch (exp->kind) {
         case Exp_::is_Parenth: {
           return getUniqIndices(exp->u.Parenth.exp);
         }
             break;
         case Exp_::is_NumConst: {
-          return NULL;
+          return nullptr;
         }
             break;
         case Exp_::is_ArrayRef: {
@@ -479,11 +479,11 @@ tce_string_array collectExpIndices(Exp exp, int *firstref) {
           el = exp->u.Addition.subexps;
           tot_len = 0;
           if (*firstref == 1) el = el->tail;
-          while (el != NULL) {
+          while (el != nullptr) {
             //print_Exp(el->head);
             tce_string_array se = getUniqIndices(el->head);
-            if (se != NULL) tot_len += se->length;
-            se = NULL;
+            if (se != nullptr) tot_len += se->length;
+            se = nullptr;
             el = el->tail;
           }
 
@@ -495,17 +495,17 @@ tce_string_array collectExpIndices(Exp exp, int *firstref) {
             el = el->tail;
             *firstref = 0;
           }
-          while (el != NULL) {
+          while (el != nullptr) {
 
             tce_string_array se = (tce_string_array) getUniqIndices(el->head);
             i = 0;
-            if (se != NULL) {
+            if (se != nullptr) {
               for (i = 0; i < se->length; i++) {
                 all_ind[ui] = se->list[i];
                 ui++;
               }
             }
-            se = NULL;
+            se = nullptr;
             el = el->tail;
           }
           assert(ui == tot_len);
@@ -535,11 +535,11 @@ tce_string_array collectExpIndices(Exp exp, int *firstref) {
         el = exp->u.Multiplication.subexps;
         tot_len = 0;
         if (*firstref == 1) el = el->tail;
-        while (el != NULL) {
+        while (el != nullptr) {
           //print_Exp(el->head);
           tce_string_array se = (tce_string_array) getUniqIndices(el->head);
-          if (se != NULL) tot_len += se->length;
-          se = NULL;
+          if (se != nullptr) tot_len += se->length;
+          se = nullptr;
           el = el->tail;
         }
 
@@ -551,16 +551,16 @@ tce_string_array collectExpIndices(Exp exp, int *firstref) {
           el = el->tail;
           *firstref = 0;
         }
-        while (el != NULL) {
+        while (el != nullptr) {
           tce_string_array se = (tce_string_array)getUniqIndices(el->head);
           i = 0;
-          if (se != NULL) {
+          if (se != nullptr) {
             for (i = 0; i < se->length; i++) {
               all_ind[ui] = se->list[i];
               ui++;
             }
           }
-          se = NULL;
+          se = nullptr;
           el = el->tail;
         }
         assert(ui == tot_len);

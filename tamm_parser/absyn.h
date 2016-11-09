@@ -39,17 +39,12 @@
 
 /* Forward Declarations */
 
-//typedef struct Absyn_ *Absyn;
 typedef struct Exp_ *Exp;
 typedef struct Stmt_ *Stmt;
 typedef struct Decl_ *Decl;
 typedef struct Elem_ *Elem;
-typedef struct Identifier_ *Identifier;
 typedef struct CompoundElem_ *CompoundElem;
 
-//typedef struct TranslationUnit_ *TranslationUnit;
-//typedef struct IDList_ *IDList;
-//typedef struct CompoundElemList_ *CompoundElemList;
 
 /* The Absyn Hierarchy */
 
@@ -73,12 +68,25 @@ public:
     }
 };
 
+
+class Identifier {
+public:
+    int pos;
+    int lineno;
+    tamm_string name;
+
+    Identifier(int p, tamm_string n){
+        pos = p;
+        name = n;
+    }
+};
+
 class IDList {
 public:
-    Identifier head;
+    Identifier* head;
     IDList* tail;
 
-    IDList(Identifier h, IDList* t){
+    IDList(Identifier* h, IDList* t){
         head = h;
         tail = t;
     }
@@ -133,11 +141,6 @@ public:
     }
 };
 
-struct Identifier_ {
-    int pos;
-    int lineno;
-    tamm_string name;
-};
 
 
 struct Elem_ {
@@ -249,8 +252,6 @@ Decl make_IndexDecl(int pos, tamm_string name, tamm_string rangeID);
 Decl
 make_ArrayDecl(int pos, tamm_string name, tamm_string *upperIndices, tamm_string *lowerIndices); //TODO: permute and vertex symmetry
 
-Identifier make_Identifier(int pos, tamm_string name);
-
 Elem make_Elem_Stmt(Stmt s);
 
 Elem make_Elem_DeclList(DeclList *d);
@@ -263,7 +264,7 @@ void addTail_ElemList(Elem newtail, ElemList *origList);
 
 void addTail_DeclList(Decl newtail, DeclList *origList);
 
-void addTail_IDList(Identifier newtail, IDList* origList);
+void addTail_IDList(Identifier* newtail, IDList* origList);
 
 void addTail_ExpList(Exp newtail, ExpList *origList);
 

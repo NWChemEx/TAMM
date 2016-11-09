@@ -77,9 +77,9 @@
     id_list_opt(I) ::= id_list(L) . { I = L; }
         
         
-      id_list(I) ::= identifier(N) . { I = new IDList((Identifier)N,nullptr); }
+      id_list(I) ::= identifier(N) . { I = new IDList((Identifier*)N,nullptr); }
     id_list(I) ::= id_list(L) COMMA identifier(N) . { 
-      addTail_IDList((Identifier)N, (IDList*)L);
+      addTail_IDList((Identifier*)N, (IDList*)L);
       I = L;
      }
              
@@ -96,7 +96,7 @@
 
     // identifier
     identifier(I) ::= ID(N) .  {
-      Identifier id = make_Identifier(tce_tokPos, (tamm_string)N);
+      Identifier* id = new Identifier(tce_tokPos, (tamm_string)N);
       id->lineno = tce_lineno;
       I = id;
     }
@@ -163,7 +163,7 @@
 
     // index-declaration
     index_declaration(D) ::= INDEX id_list(I) EQUALS identifier(N) SEMI . {
-      Identifier e = (Identifier)N;
+      Identifier* e = (Identifier*)N;
 
       IDList *p = (IDList*)I;
     DeclList* dlist = new DeclList(nullptr, nullptr);

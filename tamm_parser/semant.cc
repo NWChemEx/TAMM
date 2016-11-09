@@ -10,12 +10,12 @@ void check_ast(TranslationUnit root, SymbolTable symtab) {
 }
 
 void check_CompoundElem(CompoundElem celem, SymbolTable symtab) {
-    ElemList elist = celem->elist;
+    ElemList *elist = celem->elist;
     while (elist != NULL) {
         check_Elem(elist->head, symtab);
         elist = elist->tail;
     }
-    elist = NULL;
+    elist = nullptr;
 }
 
 void check_Elem(Elem elem, SymbolTable symtab) {

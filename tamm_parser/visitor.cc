@@ -10,12 +10,12 @@ void visit_ast(FILE *outFile, TranslationUnit root) {
 }
 
 void visit_CompoundElem(FILE *outFile, CompoundElem celem) {
-    ElemList elist = celem->elist;
-    while (elist != NULL) {
+    ElemList *elist = celem->elist;
+    while (elist != nullptr) {
         visit_Elem(outFile, elist->head);
         elist = elist->tail;
     }
-    elist = NULL;
+    elist = nullptr;
 }
 
 void visit_Elem(FILE *outFile, Elem elem) {

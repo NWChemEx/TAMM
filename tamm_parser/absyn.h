@@ -39,87 +39,43 @@
 
 /* Forward Declarations */
 
-typedef struct Absyn_ *Absyn;
+//typedef struct Absyn_ *Absyn;
 typedef struct Exp_ *Exp;
 typedef struct Stmt_ *Stmt;
 typedef struct Decl_ *Decl;
 typedef struct Elem_ *Elem;
 typedef struct IDList_ *IDList;
 typedef struct ExpList_ *ExpList;
-typedef struct ElemList_ *ElemList;
+//typedef struct ElemList_ *ElemList;
 typedef struct DeclList_ *DeclList;
 typedef struct Identifier_ *Identifier;
 typedef struct CompoundElem_ *CompoundElem;
 typedef struct CompoundElemList_ *CompoundElemList;
 typedef struct TranslationUnit_ *TranslationUnit;
 
-Exp make_Parenth(int pos, Exp e);
 
-Exp make_NumConst(int pos, float value);
-
-Exp make_Addition(int pos, ExpList subexps);
-
-Exp make_Multiplication(int pos, ExpList subexps);
-
-Exp make_Array(int pos, tamm_string name, tamm_string *indices);
-
-
-Stmt make_AssignStmt(int pos, Exp lhs, Exp rhs);
-
-Decl make_RangeDecl(int pos, tamm_string name, int value);
-
-Decl make_IndexDecl(int pos, tamm_string name, tamm_string rangeID);
-
-Decl
-make_ArrayDecl(int pos, tamm_string name, tamm_string *upperIndices, tamm_string *lowerIndices); //TODO: permute and vertex symmetry
-
-Identifier make_Identifier(int pos, tamm_string name);
-
-Elem make_Elem_Stmt(Stmt s);
-
-Elem make_Elem_DeclList(DeclList d);
-
-ElemList make_ElemList(Elem head, ElemList tail);
-
-DeclList make_DeclList(Decl head, DeclList tail); // only used for list of array decls
-IDList make_IDList(Identifier head, IDList tail);
-
-int count_IDList(IDList idl);
-
-ExpList make_ExpList(Exp head, ExpList tail);
-
-CompoundElem make_CompoundElem(ElemList elist);
-
-CompoundElemList make_CompoundElemList(CompoundElem head, CompoundElemList tail);
-
-TranslationUnit make_TranslationUnit(CompoundElemList celist);
-
-
-void addTail_ElemList(Elem newtail, ElemList origList);
-
-void addTail_DeclList(Decl newtail, DeclList origList);
-
-void addTail_IDList(Identifier newtail, IDList origList);
-
-void addTail_ExpList(Exp newtail, ExpList origList);
-
-void addTail_CompoundElemList(CompoundElem newtail, CompoundElemList origList);
 
 
 /* The Absyn Hierarchy */
 
-struct Absyn_ //Root of the AST
+class Absyn //Root of the AST
 {
-    enum {
+    enum class kind {
         is_TranslationUnit, is_CompoundElem, is_Elem, is_Identifier, is_Exp
-    } kind;
+    };
 
 };
 
-struct ElemList_ //group of declarations and statements corresponding to a single input
+class ElemList //group of declarations and statements corresponding to a single input
 {
+public:
     Elem head;
-    ElemList tail;
+    ElemList* tail;
+
+    ElemList(Elem h, ElemList* t){
+        head = h;
+        tail = t;
+    }
 };
 
 struct IDList_ {
@@ -139,7 +95,7 @@ struct DeclList_ {
 
 struct CompoundElem_  //represents a single input enclosed in { .. }
 {
-    ElemList elist;
+    ElemList *elist;
 };
 
 struct CompoundElemList_ //multiple input equations in a single file
@@ -247,3 +203,55 @@ struct Exp_ {
 };
 
 #endif
+
+Exp make_Parenth(int pos, Exp e);
+
+Exp make_NumConst(int pos, float value);
+
+Exp make_Addition(int pos, ExpList subexps);
+
+Exp make_Multiplication(int pos, ExpList subexps);
+
+Exp make_Array(int pos, tamm_string name, tamm_string *indices);
+
+
+Stmt make_AssignStmt(int pos, Exp lhs, Exp rhs);
+
+Decl make_RangeDecl(int pos, tamm_string name, int value);
+
+Decl make_IndexDecl(int pos, tamm_string name, tamm_string rangeID);
+
+Decl
+make_ArrayDecl(int pos, tamm_string name, tamm_string *upperIndices, tamm_string *lowerIndices); //TODO: permute and vertex symmetry
+
+Identifier make_Identifier(int pos, tamm_string name);
+
+Elem make_Elem_Stmt(Stmt s);
+
+Elem make_Elem_DeclList(DeclList d);
+
+//ElemList make_ElemList(Elem head, ElemList tail);
+
+DeclList make_DeclList(Decl head, DeclList tail); // only used for list of array decls
+IDList make_IDList(Identifier head, IDList tail);
+
+int count_IDList(IDList idl);
+
+ExpList make_ExpList(Exp head, ExpList tail);
+
+CompoundElem make_CompoundElem(ElemList *elist);
+
+CompoundElemList make_CompoundElemList(CompoundElem head, CompoundElemList tail);
+
+TranslationUnit make_TranslationUnit(CompoundElemList celist);
+
+
+void addTail_ElemList(Elem newtail, ElemList *origList);
+
+void addTail_DeclList(Decl newtail, DeclList origList);
+
+void addTail_IDList(Identifier newtail, IDList origList);
+
+void addTail_ExpList(Exp newtail, ExpList origList);
+
+void addTail_CompoundElemList(CompoundElem newtail, CompoundElemList origList);

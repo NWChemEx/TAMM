@@ -96,12 +96,12 @@ void generate_intermediate_ast(Equations *eqn, TranslationUnit root) {
 }
 
 void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem celem) {
-    ElemList elist = celem->elist;
+    ElemList *elist = celem->elist;
     while (elist != NULL) {
         generate_intermediate_Elem(eqn, elist->head);
         elist = elist->tail;
     }
-    elist = NULL;
+    elist = nullptr;
 }
 
 void generate_intermediate_Elem(Equations *eqn, Elem elem) {

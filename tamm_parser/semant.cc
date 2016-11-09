@@ -64,9 +64,9 @@ void verifyRangeRef(SymbolTable symtab, tamm_string name, int line_no) {
     }
 }
 
-void check_Decl(Decl d, SymbolTable symtab) {
+void check_Decl(Decl* d, SymbolTable symtab) {
     switch (d->kind) {
-      case Decl_::is_RangeDecl: {
+      case Decl::is_RangeDecl: {
         verifyVarDecl(symtab, d->u.RangeDecl.name, d->lineno);
         if (d->u.RangeDecl.value <= 0) {
           fprintf(stderr, "Error at line %d: %d is not a positive integer\n", d->lineno, d->u.RangeDecl.value);
@@ -75,13 +75,13 @@ void check_Decl(Decl d, SymbolTable symtab) {
         ST_insert(symtab, d->u.RangeDecl.name, int_str(d->u.RangeDecl.value));
       }
         break;
-      case Decl_::is_IndexDecl: {
+      case Decl::is_IndexDecl: {
         verifyVarDecl(symtab, d->u.IndexDecl.name, d->lineno);
         verifyRangeRef(symtab, d->u.IndexDecl.rangeID, d->lineno);
         ST_insert(symtab, d->u.IndexDecl.name, d->u.IndexDecl.rangeID);
       }
         break;
-      case Decl_::is_ArrayDecl: {
+      case Decl::is_ArrayDecl: {
         verifyVarDecl(symtab, d->u.ArrayDecl.name, d->lineno);
         tamm_string comb_index_list = combine_indexLists(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen,
                                                          d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen);
@@ -103,9 +103,9 @@ void check_Decl(Decl d, SymbolTable symtab) {
     }
 }
 
-void check_Stmt(Stmt s, SymbolTable symtab) {
+void check_Stmt(Stmt* s, SymbolTable symtab) {
     switch (s->kind) {
-        case Stmt_::is_AssignStmt:
+        case Stmt::is_AssignStmt:
             check_Exp(s->u.AssignStmt.lhs, symtab);
             //printf(" %s ", s->u.AssignStmt.astype); //astype not needed since we flatten. keep it for now.
             check_Exp(s->u.AssignStmt.rhs, symtab);

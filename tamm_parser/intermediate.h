@@ -75,9 +75,9 @@ void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem* celem);
 
 void generate_intermediate_Elem(Equations *eqn, Elem* el);
 
-void generate_intermediate_Decl(Equations *eqn, Decl d);
+void generate_intermediate_Decl(Equations *eqn, Decl* d);
 
-void generate_intermediate_Stmt(Equations *eqn, Stmt s);
+void generate_intermediate_Stmt(Equations *eqn, Stmt* s);
 
 void generate_intermediate_Exp(Equations *eqn, Exp exp);
 

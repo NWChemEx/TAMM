@@ -43,15 +43,15 @@ void visit_DeclList(FILE *outFile, DeclList* decllist) {
     }
 }
 
-void visit_Decl(FILE *outFile, Decl d) {
+void visit_Decl(FILE *outFile, Decl* d) {
     switch (d->kind) {
-        case Decl_::is_RangeDecl:
+        case Decl::is_RangeDecl:
             fprintf(outFile, "range %s : %d;\n", d->u.RangeDecl.name, d->u.RangeDecl.value);
             break;
-        case Decl_::is_IndexDecl:
+        case Decl::is_IndexDecl:
             fprintf(outFile, "index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID);
             break;
-        case Decl_::is_ArrayDecl:
+        case Decl::is_ArrayDecl:
             if (d->u.ArrayDecl.irrep == nullptr)
                 fprintf(outFile, "array %s[%s][%s];\n", d->u.ArrayDecl.name,
                         combine_indices(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen),
@@ -69,9 +69,9 @@ void visit_Decl(FILE *outFile, Decl d) {
     }
 }
 
-void visit_Stmt(FILE *outFile, Stmt s) {
+void visit_Stmt(FILE *outFile, Stmt* s) {
     switch (s->kind) {
-        case Stmt_::is_AssignStmt:
+        case Stmt::is_AssignStmt:
             if (s->u.AssignStmt.label != nullptr)
                 fprintf(outFile, "%s: ", s->u.AssignStmt.label);
             visit_Exp(outFile, s->u.AssignStmt.lhs);

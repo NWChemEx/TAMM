@@ -9,9 +9,9 @@ void visit_CompoundElem(FILE *outFile, CompoundElem* celem);
 
 void visit_Elem(FILE *outFile, Elem* el);
 
-void visit_Decl(FILE *outFile, Decl d);
+void visit_Decl(FILE *outFile, Decl* d);
 
-void visit_Stmt(FILE *outFile, Stmt s);
+void visit_Stmt(FILE *outFile, Stmt* s);
 
 void visit_Exp(FILE *outFile, Exp exp);
 

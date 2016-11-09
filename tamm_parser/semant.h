@@ -10,9 +10,9 @@ void check_CompoundElem(CompoundElem*, SymbolTable);
 
 void check_Elem(Elem*, SymbolTable);
 
-void check_Decl(Decl, SymbolTable);
+void check_Decl(Decl*, SymbolTable);
 
-void check_Stmt(Stmt, SymbolTable);
+void check_Stmt(Stmt*, SymbolTable);
 
 void check_Exp(Exp, SymbolTable);
 

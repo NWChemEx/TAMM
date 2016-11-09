@@ -47,37 +47,37 @@ Exp make_Array(int pos, tamm_string name, tamm_string *indices) {
     return p;
 }
 
-Stmt make_AssignStmt(int pos, Exp lhs, Exp rhs) {
-    Stmt p = (Stmt) tce_malloc(sizeof(*p));
+Stmt* make_AssignStmt(int pos, Exp lhs, Exp rhs) {
+    Stmt* p = new Stmt();
     p->pos = pos;
-    p->kind = Stmt_::is_AssignStmt;
+    p->kind = Stmt::is_AssignStmt;
     p->u.AssignStmt.lhs = lhs;
     p->u.AssignStmt.rhs = rhs;
     return p;
 }
 
-Decl make_RangeDecl(int pos, tamm_string name, int value) {
-    Decl p = (Decl) tce_malloc(sizeof(*p));
+Decl* make_RangeDecl(int pos, tamm_string name, int value) {
+    Decl* p = new Decl();
     p->pos = pos;
-    p->kind = Decl_::is_RangeDecl;
+    p->kind = Decl::is_RangeDecl;
     p->u.RangeDecl.name = strdup(name);
     p->u.RangeDecl.value = value;
     return p;
 }
 
-Decl make_IndexDecl(int pos, tamm_string name, tamm_string rangeID) {
-    Decl p = (Decl) tce_malloc(sizeof(*p));
+Decl* make_IndexDecl(int pos, tamm_string name, tamm_string rangeID) {
+    Decl* p = new Decl();
     p->pos = pos;
-    p->kind = Decl_::is_IndexDecl;
+    p->kind = Decl::is_IndexDecl;
     p->u.IndexDecl.name = name;
     p->u.IndexDecl.rangeID = rangeID;
     return p;
 }
 
-Decl make_ArrayDecl(int pos, tamm_string name, tamm_string *upperIndices, tamm_string *lowerIndices) {
-    Decl p = (Decl) tce_malloc(sizeof(*p));
+Decl* make_ArrayDecl(int pos, tamm_string name, tamm_string *upperIndices, tamm_string *lowerIndices) {
+    Decl* p = new Decl();
     p->pos = pos;
-    p->kind = Decl_::is_ArrayDecl;
+    p->kind = Decl::is_ArrayDecl;
     p->u.ArrayDecl.name = name;
     p->u.ArrayDecl.upperIndices = upperIndices;
     p->u.ArrayDecl.lowerIndices = lowerIndices;
@@ -92,7 +92,7 @@ Elem* make_Elem_DeclList(DeclList *d) {
     return p;
 }
 
-Elem* make_Elem_Stmt(Stmt s) {
+Elem* make_Elem_Stmt(Stmt* s) {
     Elem* p = new Elem();
     //p->pos = pos;
     p->kind = Elem::is_Statement;
@@ -131,7 +131,7 @@ void addTail_ElemList(Elem* newtail, ElemList *origList) {
     p = nullptr;
 }
 
-void addTail_DeclList(Decl newtail, DeclList *origList) {
+void addTail_DeclList(Decl* newtail, DeclList *origList) {
     DeclList *p = origList;
     DeclList *newList = new DeclList(newtail, nullptr);
 

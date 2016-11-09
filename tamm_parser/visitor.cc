@@ -2,11 +2,11 @@
 
 void visit_ast(FILE *outFile, TranslationUnit root) {
     CompoundElemList celist = root->celist;
-    while (celist != NULL) {
+    while (celist != nullptr) {
         visit_CompoundElem(outFile, celist->head);
         celist = celist->tail;
     }
-    celist = NULL;
+    celist = nullptr;
 }
 
 void visit_CompoundElem(FILE *outFile, CompoundElem celem) {
@@ -20,11 +20,11 @@ void visit_CompoundElem(FILE *outFile, CompoundElem celem) {
 
 void visit_Elem(FILE *outFile, Elem elem) {
     Elem e = elem;
-    if (e == NULL) return;
+    if (e == nullptr) return;
 
     switch (e->kind) {
         case Elem_::is_DeclList:
-            visit_DeclList(outFile, elem->u.d);
+            visit_DeclList(outFile, e->u.d);
             break;
         case Elem_::is_Statement:
             visit_Stmt(outFile, e->u.s);
@@ -35,9 +35,9 @@ void visit_Elem(FILE *outFile, Elem elem) {
     }
 }
 
-void visit_DeclList(FILE *outFile, DeclList decllist) {
-    DeclList dl = decllist;
-    while (dl != NULL) {
+void visit_DeclList(FILE *outFile, DeclList* decllist) {
+    DeclList* dl = decllist;
+    while (dl != nullptr) {
         visit_Decl(outFile, dl->head);
         dl = dl->tail;
     }
@@ -52,7 +52,7 @@ void visit_Decl(FILE *outFile, Decl d) {
             fprintf(outFile, "index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID);
             break;
         case Decl_::is_ArrayDecl:
-            if (d->u.ArrayDecl.irrep == NULL)
+            if (d->u.ArrayDecl.irrep == nullptr)
                 fprintf(outFile, "array %s[%s][%s];\n", d->u.ArrayDecl.name,
                         combine_indices(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen),
                         combine_indices(d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen));
@@ -72,7 +72,7 @@ void visit_Decl(FILE *outFile, Decl d) {
 void visit_Stmt(FILE *outFile, Stmt s) {
     switch (s->kind) {
         case Stmt_::is_AssignStmt:
-            if (s->u.AssignStmt.label != NULL)
+            if (s->u.AssignStmt.label != nullptr)
                 fprintf(outFile, "%s: ", s->u.AssignStmt.label);
             visit_Exp(outFile, s->u.AssignStmt.lhs);
             fprintf(outFile, " %s ",
@@ -86,14 +86,14 @@ void visit_Stmt(FILE *outFile, Stmt s) {
     }
 }
 
-void visit_ExpList(FILE *outFile, ExpList expList, tamm_string am) {
-    ExpList elist = expList;
-    while (elist != NULL) {
+void visit_ExpList(FILE *outFile, ExpList *expList, tamm_string am) {
+    ExpList *elist = expList;
+    while (elist != nullptr) {
         visit_Exp(outFile, elist->head);
         elist = elist->tail;
-        if (elist != NULL) fprintf(outFile, "%s ", am);
+        if (elist != nullptr) fprintf(outFile, "%s ", am);
     }
-    elist = NULL;
+    elist = nullptr;
 }
 
 void visit_Exp(FILE *outFile, Exp exp) {

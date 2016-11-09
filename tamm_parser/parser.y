@@ -59,7 +59,7 @@
 
     // element
 
-      element(E) ::= declaration(D)  . { E = make_Elem_DeclList((DeclList)D); }
+      element(E) ::= declaration(D)  . { E = make_Elem_DeclList((DeclList*)D); }
       element(E) ::= statement(S) . { E = make_Elem_Stmt((Stmt)S); }
 
 
@@ -85,12 +85,12 @@
              
                   
     num_list(N) ::= numerical_constant(C) . { 
-      ExpList e = make_ExpList((Exp)C,NULL); 
+      ExpList *e = new ExpList((Exp)C, nullptr);
       N = e;
     }
 
     num_list(N) ::= num_list(L) COMMA numerical_constant(C) .  { 
-      addTail_ExpList((Exp)C, (ExpList)L);
+      addTail_ExpList((Exp)C, (ExpList *)L);
       N = L;
      }
 
@@ -144,14 +144,14 @@
       //TODO: Error check for e's type
 
       IDList p = (IDList)I;
-      DeclList dlist = make_DeclList(NULL,NULL);
-      DeclList dl = dlist;  
+      DeclList* dlist = new DeclList(nullptr, nullptr);
+      DeclList* dl = dlist;
       while(p != NULL){
         dl->head = make_RangeDecl(tce_tokPos,(p->head)->name,val);
         dl->head->lineno = (p->head)->lineno;
         p = p->tail;
         if(p!=NULL) {
-          dl->tail = make_DeclList(NULL,NULL); 
+          dl->tail = new DeclList(nullptr, nullptr);
           dl = dl->tail;
         }
       }
@@ -166,14 +166,14 @@
       Identifier e = (Identifier)N;
 
       IDList p = (IDList)I;
-      DeclList dlist = make_DeclList(NULL,NULL);
-      DeclList dl = dlist;  
-      while(p != NULL){
+    DeclList* dlist = new DeclList(nullptr, nullptr);
+    DeclList* dl = dlist;
+    while(p != NULL){
         dl->head = make_IndexDecl(tce_tokPos,(p->head)->name,strdup(e->name));
         dl->head->lineno = (p->head)->lineno;
         p = p->tail;
         if(p!=NULL) {
-          dl->tail = make_DeclList(NULL,NULL); 
+          dl->tail = new DeclList(nullptr, nullptr);
           dl = dl->tail;
         }
       }
@@ -184,9 +184,9 @@
 
     // array-declaration
       array_declaration(A) ::= ARRAY array_structure_list(S) SEMI . { A = S; }
-	array_structure_list(A) ::= array_structure(S) . { A = make_DeclList((Decl)S,NULL); }
+	array_structure_list(A) ::= array_structure(S) . { A = new DeclList((Decl)S, nullptr); }
       array_structure_list(A) ::= array_structure_list(L) COMMA array_structure(S) . { 
-        addTail_DeclList((Decl)S,(DeclList)L); 
+        addTail_DeclList((Decl)S,(DeclList*)L);
         A = L;
       }
 
@@ -275,19 +275,19 @@
           //trhs->lineno = tce_lineno;
 
           if(strcmp(oper,"+=")==0) { 
-            Exp tadd = make_Addition(tce_tokPos,make_ExpList(tlhs,make_ExpList(trhs,NULL)));        
+            Exp tadd = make_Addition(tce_tokPos,new ExpList(tlhs,new ExpList(trhs, nullptr)));
             tadd->lineno = tlhs->lineno;
             s = make_AssignStmt(tce_tokPos,tlhs,tadd); 
           }
           else if(strcmp(oper,"-=")==0) { 
             trhs->coef *= -1;
-            Exp tadd = make_Addition(tce_tokPos,make_ExpList(tlhs,make_ExpList(trhs,NULL)));   
+            Exp tadd = make_Addition(tce_tokPos,new ExpList(tlhs,new ExpList(trhs, nullptr)));
             tadd->lineno = tlhs->lineno;           
             s = make_AssignStmt(tce_tokPos,tlhs,tadd); 
           }
             
           else if(strcmp(oper,"*=")==0) { 
-            Exp tmult = make_Multiplication(tce_tokPos,make_ExpList(tlhs,make_ExpList(trhs,NULL)));      
+            Exp tmult = make_Multiplication(tce_tokPos,new ExpList(tlhs,new ExpList(trhs, nullptr)));
             tmult->lineno = tlhs->lineno;     
             s = make_AssignStmt(tce_tokPos,tlhs,tmult); 
           }
@@ -353,7 +353,7 @@
       Exp e1 = (Exp)A;
       Exp e2 = (Exp)M;
       tamm_string op = (tamm_string)O;
-     ExpList el = make_ExpList(NULL,NULL);
+     ExpList* el = new ExpList(nullptr, nullptr);
 
      int clno = tce_lineno;
      if (e1->kind == Exp_::is_Addition) e1->lineno = clno;
@@ -380,7 +380,7 @@
       Exp e1 = (Exp) M;
       Exp e2 = (Exp) U;
 
-      ExpList el = make_ExpList(NULL,NULL);
+      ExpList* el = new ExpList(nullptr, nullptr);
       float coef = 1;
       int clno = tce_lineno;
       if (e1->kind == Exp_::is_Multiplication) {

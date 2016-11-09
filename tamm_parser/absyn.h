@@ -45,9 +45,9 @@ typedef struct Stmt_ *Stmt;
 typedef struct Decl_ *Decl;
 typedef struct Elem_ *Elem;
 typedef struct IDList_ *IDList;
-typedef struct ExpList_ *ExpList;
+//typedef struct ExpList_ *ExpList;
 //typedef struct ElemList_ *ElemList;
-typedef struct DeclList_ *DeclList;
+//typedef struct DeclList_ *DeclList;
 typedef struct Identifier_ *Identifier;
 typedef struct CompoundElem_ *CompoundElem;
 typedef struct CompoundElemList_ *CompoundElemList;
@@ -83,14 +83,27 @@ struct IDList_ {
     IDList tail;
 };
 
-struct ExpList_ {
+class ExpList {
+public:
     Exp head;
-    ExpList tail; // Exp is a numconst
+    ExpList *tail;
+
+    ExpList(Exp h, ExpList* t){
+        head = h;
+        tail = t;
+    }
+
 };
 
-struct DeclList_ {
+struct DeclList {
+public:
     Decl head;
-    DeclList tail; // Decl is ArrayDecl for now
+    DeclList *tail;
+
+    DeclList(Decl h, DeclList *t){
+        head = h;
+        tail = t;
+    }
 };
 
 struct CompoundElem_  //represents a single input enclosed in { .. }
@@ -121,7 +134,7 @@ struct Elem_ {
     } kind;
     //int pos;
     union {
-        DeclList d;
+        DeclList *d;
         Stmt s;
     } u;
 };
@@ -193,11 +206,11 @@ struct Exp_ {
         } Array;
 
         struct {
-            ExpList subexps;
+            ExpList *subexps;
         } Addition;
 
         struct {
-            ExpList subexps;
+            ExpList *subexps;
         } Multiplication;
     } u;
 };
@@ -208,9 +221,9 @@ Exp make_Parenth(int pos, Exp e);
 
 Exp make_NumConst(int pos, float value);
 
-Exp make_Addition(int pos, ExpList subexps);
+Exp make_Addition(int pos, ExpList *subexps);
 
-Exp make_Multiplication(int pos, ExpList subexps);
+Exp make_Multiplication(int pos, ExpList *subexps);
 
 Exp make_Array(int pos, tamm_string name, tamm_string *indices);
 
@@ -228,16 +241,16 @@ Identifier make_Identifier(int pos, tamm_string name);
 
 Elem make_Elem_Stmt(Stmt s);
 
-Elem make_Elem_DeclList(DeclList d);
+Elem make_Elem_DeclList(DeclList *d);
 
 //ElemList make_ElemList(Elem head, ElemList tail);
 
-DeclList make_DeclList(Decl head, DeclList tail); // only used for list of array decls
+//DeclList* make_DeclList(Decl head, DeclList tail); // only used for list of array decls
 IDList make_IDList(Identifier head, IDList tail);
 
 int count_IDList(IDList idl);
 
-ExpList make_ExpList(Exp head, ExpList tail);
+//ExpList make_ExpList(Exp head, ExpList tail);
 
 CompoundElem make_CompoundElem(ElemList *elist);
 
@@ -248,10 +261,10 @@ TranslationUnit make_TranslationUnit(CompoundElemList celist);
 
 void addTail_ElemList(Elem newtail, ElemList *origList);
 
-void addTail_DeclList(Decl newtail, DeclList origList);
+void addTail_DeclList(Decl newtail, DeclList *origList);
 
 void addTail_IDList(Identifier newtail, IDList origList);
 
-void addTail_ExpList(Exp newtail, ExpList origList);
+void addTail_ExpList(Exp newtail, ExpList *origList);
 
 void addTail_CompoundElemList(CompoundElem newtail, CompoundElemList origList);

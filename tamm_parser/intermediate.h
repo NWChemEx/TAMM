@@ -69,7 +69,7 @@ struct OpEntry_ {
 };
 
 
-void generate_intermediate_ast(Equations *eqn, TranslationUnit root);
+void generate_intermediate_ast(Equations *eqn, TranslationUnit* root);
 
 void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem celem);
 

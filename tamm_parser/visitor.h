@@ -3,7 +3,7 @@
 
 #include "absyn.h"
 
-void visit_ast(FILE *outFile, TranslationUnit root);
+void visit_ast(FILE *outFile, TranslationUnit* root);
 
 void visit_CompoundElem(FILE *outFile, CompoundElem celem);
 

@@ -25,7 +25,7 @@ tamm_string *mkIndexList(tamm_string *indices, int length) {
 }
 
 tamm_string int_str(int a) {
-    int size = snprintf(NULL, 0, "%d", a);
+    int size = snprintf(nullptr, 0, "%d", a);
     tamm_string val = (tamm_string) malloc(size + 1);
     sprintf(val, "%d", a);
     return val;
@@ -124,10 +124,10 @@ tce_string_array stringToList(const tamm_string s) {
     int i = 0;
 
     char *c = strtok(str, " ,:");
-    while (c != NULL) {
+    while (c != nullptr) {
         list[i] = c;
         i++;
-        c = strtok(NULL, " ,:");
+        c = strtok(nullptr, " ,:");
     }
 
     free(str);
@@ -138,10 +138,10 @@ tce_string_array stringToList(const tamm_string s) {
     list = (tamm_string*) tce_malloc(sizeof(tamm_string) * (len+1));
 
     c = strtok(str, " ,:");
-    while (c != NULL) {
+    while (c != nullptr) {
         list[i] = c;
         i++;
-        c = strtok(NULL, " ,:");
+        c = strtok(nullptr, " ,:");
     }
     tce_string_array p = (tce_string_array) tce_malloc(sizeof(*p));
     p->list = list;
@@ -152,9 +152,9 @@ tce_string_array stringToList(const tamm_string s) {
 
 //Convert string array of indices to comma seperated string
 tamm_string combine_indices(tamm_string *indices, int count) {
-    if (indices == NULL) return "\0";
+    if (indices == nullptr) return "\0";
 
-    char *str = NULL;             /* Pointer to the combined string  */
+    char *str = nullptr;             /* Pointer to the combined string  */
     int total_length = 0;      /* Total length of combined string */
     int length = 0;            /* Length of a string             */
     int i = 0;                    /* Loop counter                   */

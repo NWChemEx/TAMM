@@ -13,7 +13,7 @@ void tamm_parser(char const *input_file, Equations *eqn);
 
 
 // Lemon headers
-void Parse(void *yyp, int yymajor, void *yyminor, TranslationUnit *extra);
+void Parse(void *yyp, int yymajor, void *yyminor, TranslationUnit **extra);
 void *ParseAlloc(void *(*mallocProc)(size_t));
 void ParseFree(void *p, void (*freeProc)(void *));
 

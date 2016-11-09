@@ -1,7 +1,7 @@
 #include "semant.h"
 
-void check_ast(TranslationUnit root, SymbolTable symtab) {
-    CompoundElemList celist = root->celist;
+void check_ast(TranslationUnit* root, SymbolTable symtab) {
+    CompoundElemList* celist = root->celist;
     while (celist != nullptr) {
         check_CompoundElem(celist->head, symtab);
         celist = celist->tail;

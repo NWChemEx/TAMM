@@ -23,7 +23,7 @@ SymbolTable ST_create(int size);
  *    any previous binding of "sym". */
 void ST_insert(SymbolTable SymbolTable, tamm_string key, tamm_string value);
 
-/* Look up the most recent binding of "sym" in "t", or return NULL
+/* Look up the most recent binding of "sym" in "t", or return nullptr
  *    if sym is unbound. */
 tamm_string ST_get(SymbolTable hashtab, tamm_string key);
 

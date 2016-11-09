@@ -107,40 +107,6 @@ Elem make_Elem_Stmt(Stmt s) {
     return p;
 }
 
-/*ElemList make_ElemList(Elem head, ElemList tail) {
-    ElemList p = (ElemList) tce_malloc(sizeof(*p));
-    p->head = head;
-    p->tail = tail;
-    return p;
-}*/
-
-//DeclList make_DeclList(Decl head, DeclList *tail) {
-//    DeclList p = (DeclList) tce_malloc(sizeof(*p));
-//    p->head = head;
-//    p->tail = tail;
-//    return p;
-//}
-
-IDList make_IDList(Identifier head, IDList tail) {
-    IDList p = (IDList) tce_malloc(sizeof(*p));
-    p->head = head;
-    p->tail = tail;
-    return p;
-}
-
-//ExpList make_ExpList(Exp head, ExpList tail) {
-//    ExpList p = (ExpList) tce_malloc(sizeof(*p));
-//    p->head = head;
-//    p->tail = tail;
-//    return p;
-//}
-
-CompoundElemList make_CompoundElemList(CompoundElem head, CompoundElemList tail) {
-    CompoundElemList p = (CompoundElemList) tce_malloc(sizeof(*p));
-    p->head = head;
-    p->tail = tail;
-    return p;
-}
 
 CompoundElem make_CompoundElem(ElemList *elist) {
     CompoundElem p = (CompoundElem) tce_malloc(sizeof(*p));
@@ -148,16 +114,11 @@ CompoundElem make_CompoundElem(ElemList *elist) {
     return p;
 }
 
-TranslationUnit make_TranslationUnit(CompoundElemList celist) {
-    TranslationUnit p = (TranslationUnit) tce_malloc(sizeof(*p));
-    p->celist = celist;
-    return p;
-}
 
-int count_IDList(IDList idl) {
-    IDList p = idl;
+int count_IDList(IDList* idl) {
+    IDList *p = idl;
     int count = 0;
-    while (p != NULL) {
+    while (p != nullptr) {
         count++;
         p = p->tail;
     }
@@ -202,22 +163,22 @@ void addTail_DeclList(Decl newtail, DeclList *origList) {
     p = nullptr;
 }
 
-void addTail_IDList(Identifier newtail, IDList origList) {
-    IDList p = origList;
-    IDList newList = make_IDList(newtail, NULL);
+void addTail_IDList(Identifier newtail, IDList* origList) {
+    IDList *p = origList;
+    IDList *newList = new IDList(newtail, nullptr);
 
-    if (p == NULL) {
+    if (p == nullptr) {
         origList = newList;
-    } else if (p->head == NULL) {
+    } else if (p->head == nullptr) {
         p->head = newtail;
-    } else if (p->tail == NULL) {
+    } else if (p->tail == nullptr) {
         p->tail = newList;
     } else {
-        while (p->tail != NULL)
+        while (p->tail != nullptr)
             p = p->tail;
         p->tail = newList;
     }
-    p = NULL;
+    p = nullptr;
 }
 
 void addTail_ExpList(Exp newtail, ExpList *origList) {
@@ -238,21 +199,21 @@ void addTail_ExpList(Exp newtail, ExpList *origList) {
     p = nullptr;
 }
 
-void addTail_CompoundElemList(CompoundElem newtail, CompoundElemList origList) {
-    CompoundElemList p = origList;
-    CompoundElemList newList = make_CompoundElemList(newtail, NULL);
+void addTail_CompoundElemList(CompoundElem newtail, CompoundElemList* origList) {
+    CompoundElemList *p = origList;
+    CompoundElemList *newList = new CompoundElemList(newtail, nullptr);
 
-    if (p == NULL) {
+    if (p == nullptr) {
         origList = newList;
-    } else if (p->head == NULL) {
+    } else if (p->head == nullptr) {
         p->head = newtail;
-    } else if (p->tail == NULL) {
+    } else if (p->tail == nullptr) {
         p->tail = newList;
     } else {
-        while (p->tail != NULL)
+        while (p->tail != nullptr)
             p = p->tail;
         p->tail = newList;
     }
-    p = NULL;
+    p = nullptr;
 }
 

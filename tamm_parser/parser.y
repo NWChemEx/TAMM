@@ -12,7 +12,7 @@
     %left PLUS MINUS .
     %left TIMES .
 
-    %extra_argument   { TranslationUnit* root }
+    %extra_argument   { TranslationUnit** root }
     %token_destructor { free($$);}
 
     %syntax_error {
@@ -27,17 +27,17 @@
 
     // translation-unit
     translation_unit ::= compound_element_list(C) . {
-      *root =  make_TranslationUnit((CompoundElemList)C);
+      *root =  new TranslationUnit((CompoundElemList*)C);
     }
 
 
     // compound-element-list
     compound_element_list(C) ::=  . {
-      C = make_CompoundElemList(NULL,NULL);
+      C = new CompoundElemList(nullptr,nullptr);
     }
 
     compound_element_list(C) ::= compound_element_list(L) compound_element(E) . {
-      addTail_CompoundElemList((CompoundElem)E, (CompoundElemList)L);
+      addTail_CompoundElemList((CompoundElem)E, (CompoundElemList*)L);
         C = L;
     }
 
@@ -73,13 +73,13 @@
 
 
     // id-list
-    id_list_opt(I) ::=  . { I = NULL; } //make_IDList(NULL,NULL); }
+    id_list_opt(I) ::=  . { I = nullptr; } //make_IDList(nullptr,nullptr); }
     id_list_opt(I) ::= id_list(L) . { I = L; }
         
         
-      id_list(I) ::= identifier(N) . { I = make_IDList((Identifier)N,NULL); }
+      id_list(I) ::= identifier(N) . { I = new IDList((Identifier)N,nullptr); }
     id_list(I) ::= id_list(L) COMMA identifier(N) . { 
-      addTail_IDList((Identifier)N, (IDList)L);
+      addTail_IDList((Identifier)N, (IDList*)L);
       I = L;
      }
              
@@ -122,10 +122,10 @@
       char* nd[2];
       pch = strtok (str," /");
       int i =0;
-      while (pch != NULL)
+      while (pch != nullptr)
       {
         nd[i] = pch; i++;
-        pch = strtok (NULL, " /");
+        pch = strtok (nullptr, " /");
         
       }
       float num = atof(nd[0]);
@@ -143,20 +143,20 @@
       if(e->kind == Exp_::is_NumConst) val = e->u.NumConst.value;
       //TODO: Error check for e's type
 
-      IDList p = (IDList)I;
+      IDList *p = (IDList*)I;
       DeclList* dlist = new DeclList(nullptr, nullptr);
       DeclList* dl = dlist;
-      while(p != NULL){
+      while(p != nullptr){
         dl->head = make_RangeDecl(tce_tokPos,(p->head)->name,val);
         dl->head->lineno = (p->head)->lineno;
         p = p->tail;
-        if(p!=NULL) {
+        if(p!=nullptr) {
           dl->tail = new DeclList(nullptr, nullptr);
           dl = dl->tail;
         }
       }
 
-      dl = NULL;
+      dl = nullptr;
       R = dlist;
     }
 
@@ -165,19 +165,19 @@
     index_declaration(D) ::= INDEX id_list(I) EQUALS identifier(N) SEMI . {
       Identifier e = (Identifier)N;
 
-      IDList p = (IDList)I;
+      IDList *p = (IDList*)I;
     DeclList* dlist = new DeclList(nullptr, nullptr);
     DeclList* dl = dlist;
-    while(p != NULL){
+    while(p != nullptr){
         dl->head = make_IndexDecl(tce_tokPos,(p->head)->name,strdup(e->name));
         dl->head->lineno = (p->head)->lineno;
         p = p->tail;
-        if(p!=NULL) {
+        if(p!=nullptr) {
           dl->tail = new DeclList(nullptr, nullptr);
           dl = dl->tail;
         }
       }
-      dl = NULL;
+      dl = nullptr;
       D = dlist;
     }
 
@@ -194,25 +194,25 @@
     //old -- array_structure ::= ID LPAREN LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET permut_symmetry_opt RPAREN .
     array_structure(A) ::= ID(N) LBRACKET id_list_opt(U) RBRACKET LBRACKET id_list_opt(L) RBRACKET permut_symmetry_opt(P) . {
       tamm_string id = (tamm_string)N;
-      IDList p = (IDList)U;
-      int countU = count_IDList((IDList)U);
+      IDList *p = (IDList*)U;
+      int countU = count_IDList((IDList*)U);
      
-      p = (IDList)U;
+      p = (IDList*)U;
      int ic = 0;
       tamm_string* indicesU = (tamm_string*)malloc(countU * sizeof(tamm_string));
 
-     while (p!=NULL){
+     while (p!=nullptr){
             indicesU[ic] = (p->head)->name;
             p = p->tail;
             ic++;
      } 
 
-      int countL = count_IDList((IDList)L);
+      int countL = count_IDList((IDList*)L);
      ic = 0;
-      p = (IDList)L;
+      p = (IDList*)L;
       tamm_string* indicesL = (tamm_string*) malloc(countL * sizeof(tamm_string));
 
-     while (p!=NULL){
+     while (p!=nullptr){
         indicesL[ic] = (p->head)->name;
         p = p->tail;
         ic++;
@@ -224,13 +224,13 @@
       dec->u.ArrayDecl.irrep = (tamm_string)P; 
      dec->lineno = tce_lineno;
      A = dec;
-     dec = NULL;
+     dec = nullptr;
     }
 
     // statement
     statement(S) ::= assignment_statement(A) . { 
       Stmt st = (Stmt)A; 
-      st->u.AssignStmt.label = NULL; 
+      st->u.AssignStmt.label = nullptr; 
       S=st;
     }
 
@@ -253,15 +253,15 @@
           s = make_AssignStmt(tce_tokPos,lhs,rhs); 
         }
         else {
-          Exp tlhs = NULL;
+          Exp tlhs = nullptr;
           //if (lhs->kind == is_NumConst) tlhs = make_NumConst(tce_tokPos,0);
-          //if (lhs->kind == is_Parenth)  tlhs = make_Parenth(tce_tokPos,NULL);
+          //if (lhs->kind == is_Parenth)  tlhs = make_Parenth(tce_tokPos,nullptr);
           
-          //if (lhs->kind == is_Addition) tlhs = make_Addition(tce_tokPos,NULL);
-          //if (lhs->kind == is_Multiplication) tlhs = make_Multiplication(tce_tokPos,NULL);
+          //if (lhs->kind == is_Addition) tlhs = make_Addition(tce_tokPos,nullptr);
+          //if (lhs->kind == is_Multiplication) tlhs = make_Multiplication(tce_tokPos,nullptr);
           
           if (lhs->kind == Exp_::is_ArrayRef) {
-            tlhs = make_Array(tce_tokPos,"",NULL); //create a copy of lhs for flattening
+            tlhs = make_Array(tce_tokPos,"",nullptr); //create a copy of lhs for flattening
             //memcpy (tlhs, lhs, sizeof (lhs));
             tlhs->u.Array.name = strdup(lhs->u.Array.name);
             tlhs->u.Array.indices = mkIndexList(lhs->u.Array.indices,lhs->u.Array.length);
@@ -269,7 +269,7 @@
             tlhs->lineno = lhs->lineno;
             tlhs->coef = lhs->coef;
           }
-          assert(tlhs!=NULL); 
+          assert(tlhs!=nullptr); 
 
           Exp trhs = make_Parenth(tce_tokPos,rhs);
           //trhs->lineno = tce_lineno;
@@ -307,7 +307,7 @@
     // array-reference
     array_reference(A) ::= ID(N)  . {
       tamm_string id = (tamm_string)N;
-      Exp e = make_Array(tce_tokPos, id, NULL);
+      Exp e = make_Array(tce_tokPos, id, nullptr);
       e->lineno = tce_lineno;
       A = e;
     }
@@ -315,15 +315,15 @@
     array_reference(A) ::= ID(N) LBRACKET id_list_opt(I) RBRACKET . {
       tamm_string id = (tamm_string)N;
 
-      IDList p = (IDList)I;
+      IDList *p = (IDList*)I;
      int count = count_IDList(p);
-      p = (IDList)I;
+      p = (IDList*)I;
 
       tamm_string *indices = (tamm_string*) malloc(count * sizeof(tamm_string));
 
      int ic = 0;
 
-      while (p!=NULL){
+      while (p!=nullptr){
           indices[ic] = (p->head)->name;
           p = p->tail;
           ic++;
@@ -333,7 +333,7 @@
      exp->u.Array.length = count;
      exp->lineno = tce_lineno;
      A = exp;
-     exp = NULL;
+     exp = nullptr;
     }
 
 
@@ -415,8 +415,8 @@
 
 
     // TODO: permutational-symmetry
-    permut_symmetry_opt(P) ::=  . { P=NULL; }
-    permut_symmetry_opt(P) ::=  COLON symmetry_group_list . { P=NULL; }
+    permut_symmetry_opt(P) ::=  . { P=nullptr; }
+    permut_symmetry_opt(P) ::=  COLON symmetry_group_list . { P=nullptr; }
     //hack for array decl specifying irrep tamm_string - array X[upper][lower]:irrep_f
     permut_symmetry_opt(P) ::=  COLON ID(I) . { P=I; } 
 

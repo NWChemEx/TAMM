@@ -107,12 +107,12 @@ Elem make_Elem_Stmt(Stmt s) {
     return p;
 }
 
-ElemList make_ElemList(Elem head, ElemList tail) {
+/*ElemList make_ElemList(Elem head, ElemList tail) {
     ElemList p = (ElemList) tce_malloc(sizeof(*p));
     p->head = head;
     p->tail = tail;
     return p;
-}
+}*/
 
 DeclList make_DeclList(Decl head, DeclList tail) {
     DeclList p = (DeclList) tce_malloc(sizeof(*p));
@@ -142,7 +142,7 @@ CompoundElemList make_CompoundElemList(CompoundElem head, CompoundElemList tail)
     return p;
 }
 
-CompoundElem make_CompoundElem(ElemList elist) {
+CompoundElem make_CompoundElem(ElemList *elist) {
     CompoundElem p = (CompoundElem) tce_malloc(sizeof(*p));
     p->elist = elist;
     return p;
@@ -166,22 +166,22 @@ int count_IDList(IDList idl) {
 
 /* TODO: Remove duplicated code for addTail_() - okay for now */
 
-void addTail_ElemList(Elem newtail, ElemList origList) {
-    ElemList p = origList;
-    ElemList newList = make_ElemList(newtail, NULL);
+void addTail_ElemList(Elem newtail, ElemList *origList) {
+    ElemList *p = origList;
+    ElemList *newList = new ElemList(newtail, nullptr);
 
-    if (p == NULL) {
+    if (p == nullptr) {
         origList = newList;
-    } else if (p->head == NULL) {
+    } else if (p->head == nullptr) {
         p->head = newtail;
-    } else if (p->tail == NULL) {
+    } else if (p->tail == nullptr) {
         p->tail = newList;
     } else {
-        while (p->tail != NULL)
+        while (p->tail != nullptr)
             p = p->tail;
         p->tail = newList;
     }
-    p = NULL;
+    p = nullptr;
 }
 
 void addTail_DeclList(Decl newtail, DeclList origList) {

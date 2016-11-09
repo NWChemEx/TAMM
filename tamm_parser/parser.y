@@ -44,15 +44,15 @@
 
     // compound-element
     compound_element(C) ::= identifier LBRACE element_list(E) RBRACE . {
-      CompoundElem ce = make_CompoundElem((ElemList)E);
+      CompoundElem ce = make_CompoundElem((ElemList *)E);
       C = ce; 
     }
 
 
-    element_list(E) ::= . { E = make_ElemList(NULL,NULL); }
+    element_list(E) ::= . { E = new ElemList(nullptr, nullptr); }
 
     element_list(E) ::= element_list(L) element(S)  . {
-      addTail_ElemList((Elem)S,(ElemList)L);
+      addTail_ElemList((Elem)S,(ElemList*)L);
        E = L;
     }
                    

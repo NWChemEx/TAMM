@@ -95,7 +95,7 @@ public:
 
 };
 
-struct DeclList {
+class DeclList {
 public:
     Decl head;
     DeclList *tail;

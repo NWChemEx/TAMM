@@ -5,7 +5,7 @@
 //#include "symtab.h"
 #include <map>
 
-typedef std::map<std::string, tamm_string> SymbolTable;
+using SymbolTable = std::map<std::string,tamm_string>;
 
 void check_ast(TranslationUnit*, SymbolTable&);
 

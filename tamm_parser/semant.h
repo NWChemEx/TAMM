@@ -8,7 +8,7 @@ void check_ast(TranslationUnit*, SymbolTable);
 
 void check_CompoundElem(CompoundElem*, SymbolTable);
 
-void check_Elem(Elem, SymbolTable);
+void check_Elem(Elem*, SymbolTable);
 
 void check_Decl(Decl, SymbolTable);
 

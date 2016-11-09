@@ -18,15 +18,15 @@ void visit_CompoundElem(FILE *outFile, CompoundElem* celem) {
     elist = nullptr;
 }
 
-void visit_Elem(FILE *outFile, Elem elem) {
-    Elem e = elem;
+void visit_Elem(FILE *outFile, Elem* elem) {
+    Elem* e = elem;
     if (e == nullptr) return;
 
     switch (e->kind) {
-        case Elem_::is_DeclList:
+        case Elem::is_DeclList:
             visit_DeclList(outFile, e->u.d);
             break;
-        case Elem_::is_Statement:
+        case Elem::is_Statement:
             visit_Stmt(outFile, e->u.s);
             break;
         default:

@@ -52,7 +52,7 @@
     element_list(E) ::= . { E = new ElemList(nullptr, nullptr); }
 
     element_list(E) ::= element_list(L) element(S)  . {
-      addTail_ElemList((Elem)S,(ElemList*)L);
+      addTail_ElemList((Elem*)S,(ElemList*)L);
        E = L;
     }
                    

@@ -43,7 +43,6 @@ typedef struct Exp_ *Exp;
 typedef struct Stmt_ *Stmt;
 typedef struct Decl_ *Decl;
 typedef struct Elem_ *Elem;
-typedef struct CompoundElem_ *CompoundElem;
 
 
 /* The Absyn Hierarchy */
@@ -115,18 +114,23 @@ public:
     }
 };
 
-struct CompoundElem_  //represents a single input enclosed in { .. }
+class CompoundElem  //represents a single input enclosed in { .. }
 {
+public:
     ElemList *elist;
+
+    CompoundElem(ElemList *el){
+        elist = el;
+    }
 };
 
 class CompoundElemList //multiple input equations in a single file
 {
 public:
-    CompoundElem head;
+    CompoundElem* head;
     CompoundElemList* tail;
 
-    CompoundElemList(CompoundElem h, CompoundElemList *t){
+    CompoundElemList(CompoundElem* h, CompoundElemList *t){
         head = h;
         tail = t;
     }
@@ -258,8 +262,6 @@ Elem make_Elem_DeclList(DeclList *d);
 
 int count_IDList(IDList* idl);
 
-CompoundElem make_CompoundElem(ElemList *elist);
-
 void addTail_ElemList(Elem newtail, ElemList *origList);
 
 void addTail_DeclList(Decl newtail, DeclList *origList);
@@ -268,4 +270,4 @@ void addTail_IDList(Identifier* newtail, IDList* origList);
 
 void addTail_ExpList(Exp newtail, ExpList *origList);
 
-void addTail_CompoundElemList(CompoundElem newtail, CompoundElemList* origList);
+void addTail_CompoundElemList(CompoundElem* newtail, CompoundElemList* origList);

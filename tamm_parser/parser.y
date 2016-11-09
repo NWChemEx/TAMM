@@ -37,14 +37,14 @@
     }
 
     compound_element_list(C) ::= compound_element_list(L) compound_element(E) . {
-      addTail_CompoundElemList((CompoundElem)E, (CompoundElemList*)L);
+      addTail_CompoundElemList((CompoundElem*)E, (CompoundElemList*)L);
         C = L;
     }
 
 
     // compound-element
     compound_element(C) ::= identifier LBRACE element_list(E) RBRACE . {
-      CompoundElem ce = make_CompoundElem((ElemList *)E);
+      CompoundElem* ce = new CompoundElem((ElemList *)E);
       C = ce; 
     }
 

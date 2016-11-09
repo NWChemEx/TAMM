@@ -9,7 +9,7 @@ void check_ast(TranslationUnit* root, SymbolTable symtab) {
     celist = nullptr;
 }
 
-void check_CompoundElem(CompoundElem celem, SymbolTable symtab) {
+void check_CompoundElem(CompoundElem* celem, SymbolTable symtab) {
     ElemList *elist = celem->elist;
     while (elist != nullptr) {
         check_Elem(elist->head, symtab);

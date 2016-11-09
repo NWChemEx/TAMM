@@ -101,13 +101,6 @@ Elem make_Elem_Stmt(Stmt s) {
 }
 
 
-CompoundElem make_CompoundElem(ElemList *elist) {
-    CompoundElem p = (CompoundElem) tce_malloc(sizeof(*p));
-    p->elist = elist;
-    return p;
-}
-
-
 int count_IDList(IDList* idl) {
     IDList *p = idl;
     int count = 0;
@@ -192,7 +185,7 @@ void addTail_ExpList(Exp newtail, ExpList *origList) {
     p = nullptr;
 }
 
-void addTail_CompoundElemList(CompoundElem newtail, CompoundElemList* origList) {
+void addTail_CompoundElemList(CompoundElem* newtail, CompoundElemList* origList) {
     CompoundElemList *p = origList;
     CompoundElemList *newList = new CompoundElemList(newtail, nullptr);
 

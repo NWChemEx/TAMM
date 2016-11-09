@@ -1,6 +1,9 @@
 #include "semant.h"
+#include "symtab.h"
 
-void check_ast(TranslationUnit* root, SymbolTable symtab) {
+
+
+void check_ast(TranslationUnit* root, SymbolTable& symtab) {
     CompoundElemList* celist = root->celist;
     while (celist != nullptr) {
         check_CompoundElem(celist->head, symtab);
@@ -9,7 +12,7 @@ void check_ast(TranslationUnit* root, SymbolTable symtab) {
     celist = nullptr;
 }
 
-void check_CompoundElem(CompoundElem* celem, SymbolTable symtab) {
+void check_CompoundElem(CompoundElem* celem, SymbolTable& symtab) {
     ElemList *elist = celem->elist;
     while (elist != nullptr) {
         check_Elem(elist->head, symtab);
@@ -18,7 +21,7 @@ void check_CompoundElem(CompoundElem* celem, SymbolTable symtab) {
     elist = nullptr;
 }
 
-void check_Elem(Elem* elem, SymbolTable symtab) {
+void check_Elem(Elem* elem, SymbolTable& symtab) {
     Elem* e = elem;
     if (e == nullptr) return;
 
@@ -35,7 +38,7 @@ void check_Elem(Elem* elem, SymbolTable symtab) {
     }
 }
 
-void check_DeclList(DeclList* decllist, SymbolTable symtab) {
+void check_DeclList(DeclList* decllist, SymbolTable& symtab) {
     DeclList* dl = decllist;
     while (dl != nullptr) {
         check_Decl(dl->head, symtab);
@@ -43,14 +46,14 @@ void check_DeclList(DeclList* decllist, SymbolTable symtab) {
     }
 }
 
-void verifyVarDecl(SymbolTable symtab, tamm_string name, int line_no) {
-    if (ST_contains(symtab, name)) {
+void verifyVarDecl(SymbolTable& symtab, tamm_string name, int line_no) {
+    if (symtab.find(name) != symtab.end()) {
         fprintf(stderr, "Error at line %d: %s is already defined\n", line_no, name);
         exit(2);
     }
 }
 
-void verifyRangeRef(SymbolTable symtab, tamm_string name, int line_no) {
+void verifyRangeRef(SymbolTable& symtab, tamm_string name, int line_no) {
 //    if (!ST_contains(symtab,name)){
 //        fprintf(stderr,"Error at line %d: range variable %s is not defined\n", line_no, name);
 //        //exit(2);
@@ -64,7 +67,7 @@ void verifyRangeRef(SymbolTable symtab, tamm_string name, int line_no) {
     }
 }
 
-void check_Decl(Decl* d, SymbolTable symtab) {
+void check_Decl(Decl* d, SymbolTable& symtab) {
     switch (d->kind) {
       case Decl::is_RangeDecl: {
         verifyVarDecl(symtab, d->u.RangeDecl.name, d->lineno);
@@ -72,13 +75,14 @@ void check_Decl(Decl* d, SymbolTable symtab) {
           fprintf(stderr, "Error at line %d: %d is not a positive integer\n", d->lineno, d->u.RangeDecl.value);
           exit(2);
         }
-        ST_insert(symtab, d->u.RangeDecl.name, int_str(d->u.RangeDecl.value));
+          symtab.insert(SymbolTable::value_type(
+                  std::string(d->u.RangeDecl.name), (int_str(d->u.RangeDecl.value))));
       }
         break;
       case Decl::is_IndexDecl: {
         verifyVarDecl(symtab, d->u.IndexDecl.name, d->lineno);
         verifyRangeRef(symtab, d->u.IndexDecl.rangeID, d->lineno);
-        ST_insert(symtab, d->u.IndexDecl.name, d->u.IndexDecl.rangeID);
+          symtab.insert(SymbolTable::value_type(std::string(d->u.IndexDecl.name),(d->u.IndexDecl.rangeID)));
       }
         break;
       case Decl::is_ArrayDecl: {
@@ -92,7 +96,7 @@ void check_Decl(Decl* d, SymbolTable symtab) {
         ind_list = d->u.ArrayDecl.lowerIndices;
         for (i = 0; i < d->u.ArrayDecl.llen; i++) verifyRangeRef(symtab, ind_list[i], d->lineno);
 
-        ST_insert(symtab, d->u.ArrayDecl.name, comb_index_list);
+          symtab.insert(SymbolTable::value_type(std::string(d->u.ArrayDecl.name), (comb_index_list)));
       }
         break;
       default:
@@ -103,7 +107,7 @@ void check_Decl(Decl* d, SymbolTable symtab) {
     }
 }
 
-void check_Stmt(Stmt* s, SymbolTable symtab) {
+void check_Stmt(Stmt* s, SymbolTable& symtab) {
     switch (s->kind) {
         case Stmt::is_AssignStmt:
             check_Exp(s->u.AssignStmt.lhs, symtab);
@@ -147,7 +151,7 @@ void check_Stmt(Stmt* s, SymbolTable symtab) {
 }
 
 
-void check_ExpList(ExpList* expList, SymbolTable symtab) {
+void check_ExpList(ExpList* expList, SymbolTable& symtab) {
     ExpList* elist = expList;
     while (elist != nullptr) {
         check_Exp(elist->head, symtab);
@@ -157,28 +161,28 @@ void check_ExpList(ExpList* expList, SymbolTable symtab) {
 }
 
 
-void verifyArrayRefName(SymbolTable symtab, tamm_string name, int line_no) {
-    if (!ST_contains(symtab, name)) {
+void verifyArrayRefName(SymbolTable& symtab, tamm_string name, int line_no) {
+    if (symtab.find(name) == symtab.end()) {
         fprintf(stderr, "Error at line %d: array %s is not defined\n", line_no, name);
         exit(2);
     }
 }
 
-void verifyIndexRef(SymbolTable symtab, tamm_string name, int line_no) {
-    if (!ST_contains(symtab, name)) {
+void verifyIndexRef(SymbolTable& symtab, tamm_string name, int line_no) {
+    if (symtab.find(name) == symtab.end()) {
         fprintf(stderr, "Error at line %d: index %s is not defined\n", line_no, name);
         exit(2);
     }
 }
 
-void verifyArrayRef(SymbolTable symtab, tamm_string name, tamm_string *inds, int len, int line_no) {
+void verifyArrayRef(SymbolTable& symtab, tamm_string name, tamm_string *inds, int len, int line_no) {
     verifyArrayRefName(symtab, name, line_no);
     int i = 0;
     for (i = 0; i < len; i++) verifyIndexRef(symtab, inds[i], line_no);
 }
 
 
-void check_Exp(Exp* exp, SymbolTable symtab) {
+void check_Exp(Exp* exp, SymbolTable& symtab) {
     tce_string_array inames = nullptr;
     ExpList* el = nullptr;
     int clno = exp->lineno;
@@ -199,13 +203,13 @@ void check_Exp(Exp* exp, SymbolTable symtab) {
           tamm_string *rnames = (tamm_string *) tce_malloc(sizeof(tamm_string) * tot_len1);
 
           for (i1 = 0; i1 < tot_len1; i1++) {
-            rnames[i1] = ST_get(symtab, all_ind1[i1]);
+            rnames[i1] = symtab[all_ind1[i1]];
           }
 
           tce_string_array rnamesarr = (tce_string_array) tce_malloc(sizeof(*rnamesarr));
           rnamesarr->list = rnames;
           rnamesarr->length = tot_len1;
-          tamm_string ulranges = ST_get(symtab, exp->u.Array.name);
+          tamm_string ulranges = symtab[exp->u.Array.name];
           tce_string_array ulr = (tce_string_array) stringToList(ulranges);
 
           if (!check_array_usage(ulr, rnamesarr)) {

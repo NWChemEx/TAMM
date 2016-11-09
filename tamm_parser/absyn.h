@@ -42,7 +42,7 @@
 typedef struct Exp_ *Exp;
 typedef struct Stmt_ *Stmt;
 typedef struct Decl_ *Decl;
-typedef struct Elem_ *Elem;
+//typedef struct Elem_ *Elem;
 
 
 /* The Absyn Hierarchy */
@@ -55,13 +55,38 @@ class Absyn //Root of the AST
 
 };
 
+class DeclList {
+public:
+    Decl head;
+    DeclList *tail;
+
+    DeclList(Decl h, DeclList *t){
+        head = h;
+        tail = t;
+    }
+};
+
+class Elem {
+public:
+    enum {
+        is_DeclList, is_Statement
+    } kind;
+    //int pos;
+    union {
+        DeclList *d;
+        Stmt s;
+    } u;
+    Elem() = default;
+};
+
+
 class ElemList //group of declarations and statements corresponding to a single input
 {
 public:
-    Elem head;
+    Elem* head;
     ElemList* tail;
 
-    ElemList(Elem h, ElemList* t){
+    ElemList(Elem* h, ElemList* t){
         head = h;
         tail = t;
     }
@@ -103,16 +128,7 @@ public:
 
 };
 
-class DeclList {
-public:
-    Decl head;
-    DeclList *tail;
 
-    DeclList(Decl h, DeclList *t){
-        head = h;
-        tail = t;
-    }
-};
 
 class CompoundElem  //represents a single input enclosed in { .. }
 {
@@ -140,23 +156,13 @@ class TranslationUnit {
 public:
     CompoundElemList* celist;
 
-    TranslationUnit(CompoundElemList *cle){
+    TranslationUnit(CompoundElemList *cle) {
         celist = cle;
     }
 };
 
 
 
-struct Elem_ {
-    enum {
-        is_DeclList, is_Statement
-    } kind;
-    //int pos;
-    union {
-        DeclList *d;
-        Stmt s;
-    } u;
-};
 
 struct Decl_ {
     enum {
@@ -256,13 +262,13 @@ Decl make_IndexDecl(int pos, tamm_string name, tamm_string rangeID);
 Decl
 make_ArrayDecl(int pos, tamm_string name, tamm_string *upperIndices, tamm_string *lowerIndices); //TODO: permute and vertex symmetry
 
-Elem make_Elem_Stmt(Stmt s);
+Elem* make_Elem_Stmt(Stmt s);
 
-Elem make_Elem_DeclList(DeclList *d);
+Elem* make_Elem_DeclList(DeclList *d);
 
 int count_IDList(IDList* idl);
 
-void addTail_ElemList(Elem newtail, ElemList *origList);
+void addTail_ElemList(Elem* newtail, ElemList *origList);
 
 void addTail_DeclList(Decl newtail, DeclList *origList);
 

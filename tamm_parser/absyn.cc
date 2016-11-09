@@ -84,18 +84,18 @@ Decl make_ArrayDecl(int pos, tamm_string name, tamm_string *upperIndices, tamm_s
     return p;
 }
 
-Elem make_Elem_DeclList(DeclList *d) {
-    Elem p = (Elem) tce_malloc(sizeof(*p));
+Elem* make_Elem_DeclList(DeclList *d) {
+    Elem* p = new Elem();
     //p->pos = pos;
-    p->kind = Elem_::is_DeclList;
+    p->kind = Elem::is_DeclList;
     p->u.d = d;
     return p;
 }
 
-Elem make_Elem_Stmt(Stmt s) {
-    Elem p = (Elem) tce_malloc(sizeof(*p));
+Elem* make_Elem_Stmt(Stmt s) {
+    Elem* p = new Elem();
     //p->pos = pos;
-    p->kind = Elem_::is_Statement;
+    p->kind = Elem::is_Statement;
     p->u.s = s;
     return p;
 }
@@ -113,7 +113,7 @@ int count_IDList(IDList* idl) {
 
 /* TODO: Remove duplicated code for addTail_() - okay for now */
 
-void addTail_ElemList(Elem newtail, ElemList *origList) {
+void addTail_ElemList(Elem* newtail, ElemList *origList) {
     ElemList *p = origList;
     ElemList *newList = new ElemList(newtail, nullptr);
 

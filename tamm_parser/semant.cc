@@ -18,15 +18,15 @@ void check_CompoundElem(CompoundElem* celem, SymbolTable symtab) {
     elist = nullptr;
 }
 
-void check_Elem(Elem elem, SymbolTable symtab) {
-    Elem e = elem;
+void check_Elem(Elem* elem, SymbolTable symtab) {
+    Elem* e = elem;
     if (e == nullptr) return;
 
     switch (e->kind) {
-        case Elem_::is_DeclList:
+        case Elem::is_DeclList:
             check_DeclList(elem->u.d, symtab);
             break;
-        case Elem_::is_Statement:
+        case Elem::is_Statement:
             check_Stmt(e->u.s, symtab);
             break;
         default:

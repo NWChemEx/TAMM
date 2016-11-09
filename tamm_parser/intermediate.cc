@@ -104,15 +104,15 @@ void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem* celem) {
     elist = nullptr;
 }
 
-void generate_intermediate_Elem(Equations *eqn, Elem elem) {
-    Elem e = elem;
+void generate_intermediate_Elem(Equations *eqn, Elem* elem) {
+    Elem* e = elem;
     if (e == nullptr) return;
 
     switch (e->kind) {
-        case Elem_::is_DeclList:
+        case Elem::is_DeclList:
             generate_intermediate_DeclList(eqn, elem->u.d);
             break;
-      case Elem_::is_Statement:
+      case Elem::is_Statement:
             generate_intermediate_Stmt(eqn, e->u.s);
             break;
         default:

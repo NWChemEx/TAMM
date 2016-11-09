@@ -73,7 +73,7 @@ void generate_intermediate_ast(Equations *eqn, TranslationUnit* root);
 
 void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem* celem);
 
-void generate_intermediate_Elem(Equations *eqn, Elem el);
+void generate_intermediate_Elem(Equations *eqn, Elem* el);
 
 void generate_intermediate_Decl(Equations *eqn, Decl d);
 

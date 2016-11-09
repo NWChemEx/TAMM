@@ -1,12 +1,5 @@
 #include "absyn.h"
 
-Identifier make_Identifier(int pos, tamm_string name) {
-    Identifier p = (Identifier) tce_malloc(sizeof(*p));
-    p->pos = pos;
-    p->name = name;
-    return p;
-}
-
 Exp make_Parenth(int pos, Exp e) {
     Exp p = (Exp) tce_malloc(sizeof(*p));
     p->pos = pos;
@@ -163,7 +156,7 @@ void addTail_DeclList(Decl newtail, DeclList *origList) {
     p = nullptr;
 }
 
-void addTail_IDList(Identifier newtail, IDList* origList) {
+void addTail_IDList(Identifier* newtail, IDList* origList) {
     IDList *p = origList;
     IDList *newList = new IDList(newtail, nullptr);
 

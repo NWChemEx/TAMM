@@ -1,7 +1,4 @@
 #include "semant.h"
-#include "symtab.h"
-
-
 
 void check_ast(TranslationUnit* root, SymbolTable& symtab) {
     CompoundElemList* celist = root->celist;

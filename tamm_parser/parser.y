@@ -85,12 +85,12 @@
              
                   
     num_list(N) ::= numerical_constant(C) . { 
-      ExpList *e = new ExpList((Exp)C, nullptr);
+      ExpList *e = new ExpList((Exp*)C, nullptr);
       N = e;
     }
 
     num_list(N) ::= num_list(L) COMMA numerical_constant(C) .  { 
-      addTail_ExpList((Exp)C, (ExpList *)L);
+      addTail_ExpList((Exp*)C, (ExpList *)L);
       N = L;
      }
 
@@ -104,13 +104,13 @@
 
     // numerical-constant
     numerical_constant(N) ::= ICONST(I)  . {
-      Exp e = make_NumConst(tce_tokPos,atoi((const char*)I));
+      Exp* e = make_NumConst(tce_tokPos,atoi((const char*)I));
       e->lineno = tce_lineno;
       N = e;
     }
 
     numerical_constant(N) ::= FCONST(F)  . {
-      Exp e = make_NumConst(tce_tokPos,atof((const char*)F));
+      Exp* e = make_NumConst(tce_tokPos,atof((const char*)F));
       e->lineno = tce_lineno;
       N = e;      
     }
@@ -131,16 +131,16 @@
       float num = atof(nd[0]);
       float den = atof(nd[1]);
       //printf("%f/%f\n",num,den);
-      Exp e = make_NumConst(tce_tokPos,num/den);
+      Exp* e = make_NumConst(tce_tokPos,num/den);
       e->lineno = tce_lineno;
       N = e;
     }   
         
     // range-declaration
     range_declaration(R) ::= RANGE id_list(I) EQUALS numerical_constant(N) SEMI . {
-      Exp e = (Exp)N;
+      Exp* e = (Exp*)N;
       float val = -1;
-      if(e->kind == Exp_::is_NumConst) val = e->u.NumConst.value;
+      if(e->kind == Exp::is_NumConst) val = e->u.NumConst.value;
       //TODO: Error check for e's type
 
       IDList *p = (IDList*)I;
@@ -243,9 +243,9 @@
     // assignment-statement
       assignment_statement(A) ::= expression(L) assignment_operator(O) expression(R) SEMI . { 
         Stmt* s;
-        Exp lhs = (Exp)L;
+        Exp* lhs = (Exp*)L;
         //lhs->lineno = tce_lineno;
-        Exp rhs = (Exp)R;
+        Exp* rhs = (Exp*)R;
         //rhs->lineno = tce_lineno;
         tamm_string oper = (tamm_string)O;
 
@@ -253,14 +253,14 @@
           s = make_AssignStmt(tce_tokPos,lhs,rhs); 
         }
         else {
-          Exp tlhs = nullptr;
+          Exp* tlhs = nullptr;
           //if (lhs->kind == is_NumConst) tlhs = make_NumConst(tce_tokPos,0);
           //if (lhs->kind == is_Parenth)  tlhs = make_Parenth(tce_tokPos,nullptr);
           
           //if (lhs->kind == is_Addition) tlhs = make_Addition(tce_tokPos,nullptr);
           //if (lhs->kind == is_Multiplication) tlhs = make_Multiplication(tce_tokPos,nullptr);
           
-          if (lhs->kind == Exp_::is_ArrayRef) {
+          if (lhs->kind == Exp::is_ArrayRef) {
             tlhs = make_Array(tce_tokPos,"",nullptr); //create a copy of lhs for flattening
             //memcpy (tlhs, lhs, sizeof (lhs));
             tlhs->u.Array.name = strdup(lhs->u.Array.name);
@@ -271,23 +271,23 @@
           }
           assert(tlhs!=nullptr); 
 
-          Exp trhs = make_Parenth(tce_tokPos,rhs);
+          Exp* trhs = make_Parenth(tce_tokPos,rhs);
           //trhs->lineno = tce_lineno;
 
           if(strcmp(oper,"+=")==0) { 
-            Exp tadd = make_Addition(tce_tokPos,new ExpList(tlhs,new ExpList(trhs, nullptr)));
+            Exp* tadd = make_Addition(tce_tokPos,new ExpList(tlhs,new ExpList(trhs, nullptr)));
             tadd->lineno = tlhs->lineno;
             s = make_AssignStmt(tce_tokPos,tlhs,tadd); 
           }
           else if(strcmp(oper,"-=")==0) { 
             trhs->coef *= -1;
-            Exp tadd = make_Addition(tce_tokPos,new ExpList(tlhs,new ExpList(trhs, nullptr)));
+            Exp* tadd = make_Addition(tce_tokPos,new ExpList(tlhs,new ExpList(trhs, nullptr)));
             tadd->lineno = tlhs->lineno;           
             s = make_AssignStmt(tce_tokPos,tlhs,tadd); 
           }
             
           else if(strcmp(oper,"*=")==0) { 
-            Exp tmult = make_Multiplication(tce_tokPos,new ExpList(tlhs,new ExpList(trhs, nullptr)));
+            Exp* tmult = make_Multiplication(tce_tokPos,new ExpList(tlhs,new ExpList(trhs, nullptr)));
             tmult->lineno = tlhs->lineno;     
             s = make_AssignStmt(tce_tokPos,tlhs,tmult); 
           }
@@ -307,7 +307,7 @@
     // array-reference
     array_reference(A) ::= ID(N)  . {
       tamm_string id = (tamm_string)N;
-      Exp e = make_Array(tce_tokPos, id, nullptr);
+      Exp* e = make_Array(tce_tokPos, id, nullptr);
       e->lineno = tce_lineno;
       A = e;
     }
@@ -329,7 +329,7 @@
           ic++;
       } 
 
-     Exp exp = make_Array(tce_tokPos, id, indices);
+     Exp* exp = make_Array(tce_tokPos, id, indices);
      exp->u.Array.length = count;
      exp->lineno = tce_lineno;
      A = exp;
@@ -342,7 +342,7 @@
 
     // expression                           
     expression(E) ::= additive_expression(A) . { 
-      Exp e = (Exp)A; 
+      Exp* e = (Exp*)A;
       //e->lineno = tce_lineno;
       E = e;
     }
@@ -350,13 +350,13 @@
     additive_expression(A) ::=  multiplicative_expression(M) . { A = M; }
 
     additive_expression(E) ::= additive_expression(A) plusORMinus(O) multiplicative_expression(M) . {
-      Exp e1 = (Exp)A;
-      Exp e2 = (Exp)M;
+      Exp* e1 = (Exp*)A;
+      Exp* e2 = (Exp*)M;
       tamm_string op = (tamm_string)O;
      ExpList* el = new ExpList(nullptr, nullptr);
 
      int clno = tce_lineno;
-     if (e1->kind == Exp_::is_Addition) e1->lineno = clno;
+     if (e1->kind == Exp::is_Addition) e1->lineno = clno;
 
      if(strcmp(op,"-")==0) e2->coef *= -1;
      addTail_ExpList(e1,el);
@@ -368,7 +368,7 @@
       addTail_ExpList(e2,el);
      }*/
 
-     Exp nadd = make_Addition(tce_tokPos,el); 
+     Exp* nadd = make_Addition(tce_tokPos,el);
      nadd->lineno = clno;
      E = nadd;
     }
@@ -377,23 +377,23 @@
     multiplicative_expression(M) ::= unary_expression(U) . { M = U; }
                                 
     multiplicative_expression(E) ::= multiplicative_expression(M) TIMES unary_expression(U) . {
-      Exp e1 = (Exp) M;
-      Exp e2 = (Exp) U;
+      Exp* e1 = (Exp*) M;
+      Exp* e2 = (Exp*) U;
 
       ExpList* el = new ExpList(nullptr, nullptr);
       float coef = 1;
       int clno = tce_lineno;
-      if (e1->kind == Exp_::is_Multiplication) {
+      if (e1->kind == Exp::is_Multiplication) {
         clno = e1->lineno;
         coef *= e1->coef;
      }
      addTail_ExpList(e1,el);
-     if (e2->kind == Exp_::is_Multiplication) {
+     if (e2->kind == Exp::is_Multiplication) {
       coef *= e2->coef;
      }
      addTail_ExpList(e2,el);
 
-      Exp nmult = make_Multiplication(tce_tokPos,el); 
+      Exp* nmult = make_Multiplication(tce_tokPos,el);
       nmult->coef = coef;
       nmult->lineno = clno;
       E = nmult;
@@ -403,7 +403,7 @@
     unary_expression(U) ::= primary_expression(E)  . { U = E; }
     unary_expression(U) ::= PLUS unary_expression(E)  . { U = E; }
     unary_expression(U) ::= MINUS unary_expression(E) . { 
-      Exp ue = (Exp)E;
+      Exp* ue = (Exp*)E;
       ue->coef *= -1;
       U = ue; 
     }
@@ -411,7 +411,7 @@
     // primary-expression    
     primary_expression(E) ::= numerical_constant(N) . { E = N; }
     primary_expression(E) ::= array_reference(A)  . { E = A; }
-      primary_expression(E) ::= LPAREN expression(P) RPAREN . { E = make_Parenth(tce_tokPos, (Exp)P); }
+      primary_expression(E) ::= LPAREN expression(P) RPAREN . { E = make_Parenth(tce_tokPos, (Exp*)P); }
 
 
     // TODO: permutational-symmetry

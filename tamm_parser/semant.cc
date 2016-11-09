@@ -109,7 +109,7 @@ void check_Stmt(Stmt* s, SymbolTable symtab) {
             check_Exp(s->u.AssignStmt.lhs, symtab);
             //printf(" %s ", s->u.AssignStmt.astype); //astype not needed since we flatten. keep it for now.
             check_Exp(s->u.AssignStmt.rhs, symtab);
-            if (s->u.AssignStmt.lhs->kind != Exp_::is_ArrayRef) {
+            if (s->u.AssignStmt.lhs->kind != Exp::is_ArrayRef) {
                 fprintf(stderr, "Error at line %d: LHS of assignment must be an array reference\n",
                         s->u.AssignStmt.lhs->lineno);
                 exit(2);
@@ -178,19 +178,19 @@ void verifyArrayRef(SymbolTable symtab, tamm_string name, tamm_string *inds, int
 }
 
 
-void check_Exp(Exp exp, SymbolTable symtab) {
+void check_Exp(Exp* exp, SymbolTable symtab) {
     tce_string_array inames = nullptr;
     ExpList* el = nullptr;
     int clno = exp->lineno;
     switch (exp->kind) {
-        case Exp_::is_Parenth: {
+        case Exp::is_Parenth: {
           check_Exp(exp->u.Parenth.exp, symtab);
         }
             break;
-        case Exp_::is_NumConst: {}
+        case Exp::is_NumConst: {}
             //printf("%f ",exp->u.NumConst.value);
             break;
-        case Exp_::is_ArrayRef: {
+        case Exp::is_ArrayRef: {
           verifyArrayRef(symtab, exp->u.Array.name, exp->u.Array.indices, exp->u.Array.length, clno);
           inames = getIndices(exp);
           int tot_len1 = inames->length;
@@ -235,7 +235,7 @@ void check_Exp(Exp exp, SymbolTable symtab) {
           }
         }
             break;
-        case Exp_::is_Addition: {
+        case Exp::is_Addition: {
           check_ExpList(exp->u.Addition.subexps, symtab);
           inames = getIndices(exp);
           el = exp->u.Addition.subexps;
@@ -250,7 +250,7 @@ void check_Exp(Exp exp, SymbolTable symtab) {
             el = el->tail;
           }
           break;
-          case Exp_::is_Multiplication:check_ExpList(exp->u.Multiplication.subexps, symtab);
+          case Exp::is_Multiplication:check_ExpList(exp->u.Multiplication.subexps, symtab);
 
           el = exp->u.Multiplication.subexps;
           int tot_len = 0;
@@ -307,30 +307,30 @@ void check_Exp(Exp exp, SymbolTable symtab) {
 }
 
 //get non-summation indices only
-tce_string_array getIndices(Exp exp) {
+tce_string_array getIndices(Exp* exp) {
     ExpList* el = nullptr;
     tce_string_array p = nullptr;
     switch (exp->kind) {
-        case Exp_::is_Parenth: {
+        case Exp::is_Parenth: {
           return getIndices(exp->u.Parenth.exp);
         }
             break;
-        case Exp_::is_NumConst: {
+        case Exp::is_NumConst: {
           return nullptr;
         }
             break;
-        case Exp_::is_ArrayRef: {
+        case Exp::is_ArrayRef: {
           p = (tce_string_array) tce_malloc(sizeof(*p));
           p->list = replicate_indices(exp->u.Array.indices, exp->u.Array.length);
           p->length = exp->u.Array.length;
           return p;
         }
             break;
-        case Exp_::is_Addition: {
+        case Exp::is_Addition: {
           return getIndices(exp->u.Addition.subexps->head);
         }
             break;
-        case Exp_::is_Multiplication: {
+        case Exp::is_Multiplication: {
           el = exp->u.Multiplication.subexps;
           int tot_len = 0;
           while (el != nullptr) {
@@ -408,21 +408,21 @@ void print_ExpList(ExpList* expList, tamm_string am) {
 }
 
 
-void print_Exp(Exp exp) {
+void print_Exp(Exp* exp) {
     switch (exp->kind) {
-        case Exp_::is_Parenth:
+        case Exp::is_Parenth:
             print_Exp(exp->u.Parenth.exp);
             break;
-        case Exp_::is_NumConst:
+        case Exp::is_NumConst:
             printf("%f ", exp->u.NumConst.value);
             break;
-        case Exp_::is_ArrayRef:
+        case Exp::is_ArrayRef:
             printf("%s[%s] ", exp->u.Array.name, combine_indices(exp->u.Array.indices, exp->u.Array.length));
             break;
-        case Exp_::is_Addition:
+        case Exp::is_Addition:
             print_ExpList(exp->u.Addition.subexps, "+");
             break;
-        case Exp_::is_Multiplication:
+        case Exp::is_Multiplication:
             print_ExpList(exp->u.Multiplication.subexps, "*");
             break;
         default:
@@ -433,30 +433,30 @@ void print_Exp(Exp exp) {
 
 
 //get all indices only once
-tce_string_array getUniqIndices(Exp exp) {
+tce_string_array getUniqIndices(Exp* exp) {
     ExpList* el = nullptr;
     tce_string_array p = nullptr;
     switch (exp->kind) {
-        case Exp_::is_Parenth: {
+        case Exp::is_Parenth: {
           return getUniqIndices(exp->u.Parenth.exp);
         }
             break;
-        case Exp_::is_NumConst: {
+        case Exp::is_NumConst: {
           return nullptr;
         }
             break;
-        case Exp_::is_ArrayRef: {
+        case Exp::is_ArrayRef: {
           p = (tce_string_array) tce_malloc(sizeof(*p));
           p->list = replicate_indices(exp->u.Array.indices, exp->u.Array.length);
           p->length = exp->u.Array.length;
           return p;
         }
             break;
-        case Exp_::is_Addition: {
+        case Exp::is_Addition: {
           return getUniqIndices(exp->u.Addition.subexps->head);
         }
             break;
-        case Exp_::is_Multiplication: {
+        case Exp::is_Multiplication: {
           el = exp->u.Multiplication.subexps;
           int tot_len = 0;
           while (el != nullptr) {

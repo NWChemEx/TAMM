@@ -1,53 +1,53 @@
 #include "absyn.h"
 
-Exp make_Parenth(int pos, Exp e) {
-    Exp p = (Exp) tce_malloc(sizeof(*p));
+Exp* make_Parenth(int pos, Exp* e) {
+    Exp* p = new Exp();
     p->pos = pos;
     p->coef = 1;
-    p->kind = Exp_::is_Parenth;
+    p->kind = Exp::is_Parenth;
     p->u.Parenth.exp = e;
     return p;
 }
 
 
-Exp make_NumConst(int pos, float value) {
-    Exp p = (Exp) tce_malloc(sizeof(*p));
+Exp* make_NumConst(int pos, float value) {
+    Exp* p = new Exp();
     p->pos = pos;
     p->coef = 1;
-    p->kind = Exp_::is_NumConst;
+    p->kind = Exp::is_NumConst;
     p->u.NumConst.value = value;
     return p;
 }
 
-Exp make_Addition(int pos, ExpList* subexps) {
-    Exp p = (Exp) tce_malloc(sizeof(*p));
+Exp* make_Addition(int pos, ExpList* subexps) {
+    Exp* p = new Exp();
     p->pos = pos;
     p->coef = 1;
-    p->kind = Exp_::is_Addition;
+    p->kind = Exp::is_Addition;
     p->u.Addition.subexps = subexps;
     return p;
 }
 
-Exp make_Multiplication(int pos, ExpList* subexps) {
-    Exp p = (Exp) tce_malloc(sizeof(*p));
+Exp* make_Multiplication(int pos, ExpList* subexps) {
+    Exp* p = new Exp();
     p->pos = pos;
     p->coef = 1;
-    p->kind = Exp_::is_Multiplication;
+    p->kind = Exp::is_Multiplication;
     p->u.Multiplication.subexps = subexps;
     return p;
 }
 
-Exp make_Array(int pos, tamm_string name, tamm_string *indices) {
-    Exp p = (Exp) tce_malloc(sizeof(*p));
+Exp* make_Array(int pos, tamm_string name, tamm_string *indices) {
+    Exp* p = new Exp();
     p->pos = pos;
     p->coef = 1;
-    p->kind = Exp_::is_ArrayRef;
+    p->kind = Exp::is_ArrayRef;
     p->u.Array.name = name;
     p->u.Array.indices = indices;
     return p;
 }
 
-Stmt* make_AssignStmt(int pos, Exp lhs, Exp rhs) {
+Stmt* make_AssignStmt(int pos, Exp* lhs, Exp* rhs) {
     Stmt* p = new Stmt();
     p->pos = pos;
     p->kind = Stmt::is_AssignStmt;
@@ -167,7 +167,7 @@ void addTail_IDList(Identifier* newtail, IDList* origList) {
     p = nullptr;
 }
 
-void addTail_ExpList(Exp newtail, ExpList *origList) {
+void addTail_ExpList(Exp* newtail, ExpList *origList) {
     ExpList *p = origList;
     ExpList *newList = new ExpList(newtail, nullptr);
 

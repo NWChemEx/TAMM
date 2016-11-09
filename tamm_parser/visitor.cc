@@ -96,21 +96,21 @@ void visit_ExpList(FILE *outFile, ExpList *expList, tamm_string am) {
     elist = nullptr;
 }
 
-void visit_Exp(FILE *outFile, Exp exp) {
+void visit_Exp(FILE *outFile, Exp* exp) {
     switch (exp->kind) {
-        case Exp_::is_Parenth:
+        case Exp::is_Parenth:
             visit_Exp(outFile, exp->u.Parenth.exp);
             break;
-        case Exp_::is_NumConst:
+        case Exp::is_NumConst:
             fprintf(outFile, "%f ", exp->u.NumConst.value);
             break;
-        case Exp_::is_ArrayRef:
+        case Exp::is_ArrayRef:
             fprintf(outFile, "%s[%s] ", exp->u.Array.name, combine_indices(exp->u.Array.indices, exp->u.Array.length));
             break;
-        case Exp_::is_Addition:
+        case Exp::is_Addition:
             visit_ExpList(outFile, exp->u.Addition.subexps, "+");
             break;
-        case Exp_::is_Multiplication:
+        case Exp::is_Multiplication:
             visit_ExpList(outFile, exp->u.Multiplication.subexps, "*");
             break;
         default:

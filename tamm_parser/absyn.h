@@ -38,9 +38,7 @@
 #include "util.h"
 
 /* Forward Declarations */
-
-typedef struct Exp_ *Exp;
-
+class ExpList;
 
 /* The Absyn Hierarchy */
 
@@ -91,6 +89,42 @@ public:
     }
 };
 
+class Exp {
+public:
+    enum {
+        is_Parenth, is_NumConst, is_ArrayRef, is_Addition, is_Multiplication
+    } kind;
+    int pos;
+    int lineno;
+    float coef;
+    union {
+        struct {
+            Exp* exp;
+        } Parenth;
+
+        struct {
+            float value;
+        } NumConst;
+
+        struct {
+            tamm_string name;
+            int length;
+            tamm_string *indices;
+
+        } Array;
+
+        struct {
+            ExpList *subexps;
+        } Addition;
+
+        struct {
+            ExpList *subexps;
+        } Multiplication;
+    } u;
+    Exp() = default;
+};
+
+
 class Stmt {
 public:
     enum {
@@ -100,8 +134,8 @@ public:
     union {
         struct {
             tamm_string label;
-            Exp lhs;
-            Exp rhs;
+            Exp* lhs;
+            Exp* rhs;
             tamm_string astype;
         } AssignStmt;
     } u;
@@ -161,10 +195,10 @@ public:
 
 class ExpList {
 public:
-    Exp head;
+    Exp* head;
     ExpList *tail;
 
-    ExpList(Exp h, ExpList* t){
+    ExpList(Exp* h, ExpList* t){
         head = h;
         tail = t;
     }
@@ -205,60 +239,20 @@ public:
 };
 
 
-
-
-
-
-
-
-
-struct Exp_ {
-    enum {
-        is_Parenth, is_NumConst, is_ArrayRef, is_Addition, is_Multiplication
-    } kind;
-    int pos;
-    int lineno;
-    float coef;
-    union {
-        struct {
-            Exp exp;
-        } Parenth;
-
-        struct {
-            float value;
-        } NumConst;
-
-        struct {
-            tamm_string name;
-            int length;
-            tamm_string *indices;
-
-        } Array;
-
-        struct {
-            ExpList *subexps;
-        } Addition;
-
-        struct {
-            ExpList *subexps;
-        } Multiplication;
-    } u;
-};
-
 #endif
 
-Exp make_Parenth(int pos, Exp e);
+Exp* make_Parenth(int pos, Exp* e);
 
-Exp make_NumConst(int pos, float value);
+Exp* make_NumConst(int pos, float value);
 
-Exp make_Addition(int pos, ExpList *subexps);
+Exp* make_Addition(int pos, ExpList *subexps);
 
-Exp make_Multiplication(int pos, ExpList *subexps);
+Exp* make_Multiplication(int pos, ExpList *subexps);
 
-Exp make_Array(int pos, tamm_string name, tamm_string *indices);
+Exp* make_Array(int pos, tamm_string name, tamm_string *indices);
 
 
-Stmt* make_AssignStmt(int pos, Exp lhs, Exp rhs);
+Stmt* make_AssignStmt(int pos, Exp* lhs, Exp* rhs);
 
 Decl* make_RangeDecl(int pos, tamm_string name, int value);
 
@@ -279,6 +273,6 @@ void addTail_DeclList(Decl* newtail, DeclList *origList);
 
 void addTail_IDList(Identifier* newtail, IDList* origList);
 
-void addTail_ExpList(Exp newtail, ExpList *origList);
+void addTail_ExpList(Exp* newtail, ExpList *origList);
 
 void addTail_CompoundElemList(CompoundElem* newtail, CompoundElemList* origList);

@@ -14,17 +14,17 @@ void check_Decl(Decl*, SymbolTable);
 
 void check_Stmt(Stmt*, SymbolTable);
 
-void check_Exp(Exp, SymbolTable);
+void check_Exp(Exp*, SymbolTable);
 
 void check_ExpList(ExpList*, SymbolTable);
 
 void check_DeclList(DeclList*, SymbolTable);
 
-tce_string_array getIndices(Exp exp);
+tce_string_array getIndices(Exp* exp);
 
-tce_string_array getUniqIndices(Exp exp);
+tce_string_array getUniqIndices(Exp* exp);
 
-void print_Exp(Exp);
+void print_Exp(Exp*);
 
 void print_ExpList(ExpList*, tamm_string);
 

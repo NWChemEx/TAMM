@@ -9,7 +9,7 @@ void visit_ast(FILE *outFile, TranslationUnit* root) {
     celist = nullptr;
 }
 
-void visit_CompoundElem(FILE *outFile, CompoundElem celem) {
+void visit_CompoundElem(FILE *outFile, CompoundElem* celem) {
     ElemList *elist = celem->elist;
     while (elist != nullptr) {
         visit_Elem(outFile, elist->head);

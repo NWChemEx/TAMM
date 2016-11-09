@@ -5,7 +5,7 @@
 
 void visit_ast(FILE *outFile, TranslationUnit* root);
 
-void visit_CompoundElem(FILE *outFile, CompoundElem celem);
+void visit_CompoundElem(FILE *outFile, CompoundElem* celem);
 
 void visit_Elem(FILE *outFile, Elem el);
 

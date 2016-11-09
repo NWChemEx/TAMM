@@ -9,7 +9,7 @@ void tamm_parser(char const *input_file, Equations *genEq) {
   void *parser;
   int yv;
 
-  TranslationUnit astRoot;
+  TranslationUnit *astRoot;
   yylex_init(&scanner);
   parser = ParseAlloc(malloc);
 
@@ -26,7 +26,7 @@ void tamm_parser(char const *input_file, Equations *genEq) {
     Parse(parser, yv, tok, &astRoot);
   }
 
-  Parse(parser, 0, NULL, &astRoot);
+  Parse(parser, 0, nullptr, &astRoot);
   fclose(inputFile);
 
   //Call Visitor

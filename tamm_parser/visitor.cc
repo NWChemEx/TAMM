@@ -1,7 +1,7 @@
 #include "visitor.h"
 
-void visit_ast(FILE *outFile, TranslationUnit root) {
-    CompoundElemList celist = root->celist;
+void visit_ast(FILE *outFile, TranslationUnit* root) {
+    CompoundElemList* celist = root->celist;
     while (celist != nullptr) {
         visit_CompoundElem(outFile, celist->head);
         celist = celist->tail;

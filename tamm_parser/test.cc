@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
         if (oent->optype == OpTypeAdd) printf("op%d: OpTypeAdd, ", oent->op_id);
         else printf("op%d: OpTypeMult, ", oent->op_id);
         unsigned int j;
-        if (oent->add != NULL) {
+        if (oent->add != nullptr) {
             printf("%s, %s, %lf, {", getTensorName(tensor_entries, oent->add->tc),
                    getTensorName(tensor_entries, oent->add->ta), oent->add->alpha);
             for (j = 0; j < MAX_TENSOR_DIMS; j++)
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
                 if (oent->add->ta_ids[j] != -1) printf("%s,", getIndexName(index_entries, oent->add->ta_ids[j]));
             printf("}");
         }
-        else if (oent->mult != NULL) {
+        else if (oent->mult != nullptr) {
             printf("%s, %s, %s, %lf, {", getTensorName(tensor_entries, oent->mult->tc),
                    getTensorName(tensor_entries, oent->mult->ta), getTensorName(tensor_entries, oent->mult->tb),
                    oent->mult->alpha);

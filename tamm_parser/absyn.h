@@ -44,17 +44,12 @@ typedef struct Exp_ *Exp;
 typedef struct Stmt_ *Stmt;
 typedef struct Decl_ *Decl;
 typedef struct Elem_ *Elem;
-typedef struct IDList_ *IDList;
-//typedef struct ExpList_ *ExpList;
-//typedef struct ElemList_ *ElemList;
-//typedef struct DeclList_ *DeclList;
 typedef struct Identifier_ *Identifier;
 typedef struct CompoundElem_ *CompoundElem;
-typedef struct CompoundElemList_ *CompoundElemList;
-typedef struct TranslationUnit_ *TranslationUnit;
 
-
-
+//typedef struct TranslationUnit_ *TranslationUnit;
+//typedef struct IDList_ *IDList;
+//typedef struct CompoundElemList_ *CompoundElemList;
 
 /* The Absyn Hierarchy */
 
@@ -78,9 +73,15 @@ public:
     }
 };
 
-struct IDList_ {
+class IDList {
+public:
     Identifier head;
-    IDList tail;
+    IDList* tail;
+
+    IDList(Identifier h, IDList* t){
+        head = h;
+        tail = t;
+    }
 };
 
 class ExpList {
@@ -111,14 +112,25 @@ struct CompoundElem_  //represents a single input enclosed in { .. }
     ElemList *elist;
 };
 
-struct CompoundElemList_ //multiple input equations in a single file
+class CompoundElemList //multiple input equations in a single file
 {
+public:
     CompoundElem head;
-    CompoundElemList tail;
+    CompoundElemList* tail;
+
+    CompoundElemList(CompoundElem h, CompoundElemList *t){
+        head = h;
+        tail = t;
+    }
 };
 
-struct TranslationUnit_ {
-    CompoundElemList celist;
+class TranslationUnit {
+public:
+    CompoundElemList* celist;
+
+    TranslationUnit(CompoundElemList *cle){
+        celist = cle;
+    }
 };
 
 struct Identifier_ {
@@ -243,28 +255,16 @@ Elem make_Elem_Stmt(Stmt s);
 
 Elem make_Elem_DeclList(DeclList *d);
 
-//ElemList make_ElemList(Elem head, ElemList tail);
-
-//DeclList* make_DeclList(Decl head, DeclList tail); // only used for list of array decls
-IDList make_IDList(Identifier head, IDList tail);
-
-int count_IDList(IDList idl);
-
-//ExpList make_ExpList(Exp head, ExpList tail);
+int count_IDList(IDList* idl);
 
 CompoundElem make_CompoundElem(ElemList *elist);
-
-CompoundElemList make_CompoundElemList(CompoundElem head, CompoundElemList tail);
-
-TranslationUnit make_TranslationUnit(CompoundElemList celist);
-
 
 void addTail_ElemList(Elem newtail, ElemList *origList);
 
 void addTail_DeclList(Decl newtail, DeclList *origList);
 
-void addTail_IDList(Identifier newtail, IDList origList);
+void addTail_IDList(Identifier newtail, IDList* origList);
 
 void addTail_ExpList(Exp newtail, ExpList *origList);
 
-void addTail_CompoundElemList(CompoundElem newtail, CompoundElemList origList);
+void addTail_CompoundElemList(CompoundElem newtail, CompoundElemList* origList);

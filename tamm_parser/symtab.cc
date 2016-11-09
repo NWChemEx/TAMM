@@ -39,22 +39,22 @@ int ST_hash(SymbolTable hashtable, tamm_string key) {
 /* Create a new SymbolTable. */
 SymbolTable ST_create(int size) {
 
-    SymbolTable hashtable = NULL;
+    SymbolTable hashtable = nullptr;
     int i;
 
     if (size < 1)
-        return NULL;
+        return nullptr;
 
     /* Allocate the table itself. */
     hashtable = (SymbolTable) malloc(sizeof(SymbolTable));
-    if (hashtable == NULL) return NULL;
+    if (hashtable == nullptr) return nullptr;
 
     /* Allocate pointers to the head nodes. */
-    if ((hashtable->table = (STEntry*) malloc(sizeof(STEntry) * size)) == NULL) {
-        return NULL;
+    if ((hashtable->table = (STEntry*) malloc(sizeof(STEntry) * size)) == nullptr) {
+        return nullptr;
     }
     for (i = 0; i < size; i++) {
-        hashtable->table[i] = NULL;
+        hashtable->table[i] = nullptr;
     }
 
     hashtable->size = size;
@@ -66,19 +66,19 @@ SymbolTable ST_create(int size) {
 STEntry ST_newpair(tamm_string key, tamm_string value) {
     STEntry newpair;
 
-    if ((newpair = (STEntry) malloc(sizeof(STEntry))) == NULL) {
-        return NULL;
+    if ((newpair = (STEntry) malloc(sizeof(STEntry))) == nullptr) {
+        return nullptr;
     }
 
-    if ((newpair->key = strdup(key)) == NULL) {
-        return NULL;
+    if ((newpair->key = strdup(key)) == nullptr) {
+        return nullptr;
     }
 
-    if ((newpair->value = strdup(value)) == NULL) {
-        return NULL;
+    if ((newpair->value = strdup(value)) == nullptr) {
+        return nullptr;
     }
 
-    newpair->next = NULL;
+    newpair->next = nullptr;
 
     return newpair;
 }
@@ -86,21 +86,21 @@ STEntry ST_newpair(tamm_string key, tamm_string value) {
 /* Insert a key-value pair into a hash table. */
 void ST_insert(SymbolTable SymbolTable, tamm_string key, tamm_string value) {
     int bin = 0;
-    STEntry newpair = NULL;
-    STEntry next = NULL;
-    STEntry last = NULL;
+    STEntry newpair = nullptr;
+    STEntry next = nullptr;
+    STEntry last = nullptr;
 
     bin = ST_hash(SymbolTable, key);
 
     next = SymbolTable->table[bin];
 
-    while (next != NULL && next->key != NULL && strcmp(key, next->key) > 0) {
+    while (next != nullptr && next->key != nullptr && strcmp(key, next->key) > 0) {
         last = next;
         next = next->next;
     }
 
     /* There's already a pair.  Let's replace that string. */
-    if (next != NULL && next->key != NULL && strcmp(key, next->key) == 0) {
+    if (next != nullptr && next->key != nullptr && strcmp(key, next->key) == 0) {
 
         free(next->value);
         next->value = strdup(value);
@@ -115,7 +115,7 @@ void ST_insert(SymbolTable SymbolTable, tamm_string key, tamm_string value) {
             SymbolTable->table[bin] = newpair;
 
             /* We're at the end of the linked list in this bin. */
-        } else if (next == NULL) {
+        } else if (next == nullptr) {
             last->next = newpair;
 
             /* We're in the middle of the list. */
@@ -135,13 +135,13 @@ tamm_string ST_get(SymbolTable hashtable, tamm_string key) {
 
     /* Step through the bin, looking for our value. */
     pair = hashtable->table[bin];
-    while (pair != NULL && pair->key != NULL && strcmp(key, pair->key) > 0) {
+    while (pair != nullptr && pair->key != nullptr && strcmp(key, pair->key) > 0) {
         pair = pair->next;
     }
 
     /* Did we actually find anything? */
-    if (pair == NULL || pair->key == NULL || strcmp(key, pair->key) != 0) {
-        return NULL;
+    if (pair == nullptr || pair->key == nullptr || strcmp(key, pair->key) != 0) {
+        return nullptr;
 
     } else {
         return pair->value;
@@ -158,12 +158,12 @@ tamm_bool ST_contains(SymbolTable hashtable, tamm_string key) {
 
     /* Step through the bin, looking for our value. */
     pair = hashtable->table[bin];
-    while (pair != NULL && pair->key != NULL && strcmp(key, pair->key) > 0) {
+    while (pair != nullptr && pair->key != nullptr && strcmp(key, pair->key) > 0) {
         pair = pair->next;
     }
 
     /* Did we actually find anything? */
-    if (pair == NULL || pair->key == NULL || strcmp(key, pair->key) != 0) {
+    if (pair == nullptr || pair->key == nullptr || strcmp(key, pair->key) != 0) {
         return false;
     } else {
         return true;

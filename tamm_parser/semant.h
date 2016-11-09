@@ -4,7 +4,7 @@
 #include "absyn.h"
 #include "symtab.h"
 
-void check_ast(TranslationUnit, SymbolTable);
+void check_ast(TranslationUnit*, SymbolTable);
 
 void check_CompoundElem(CompoundElem, SymbolTable);
 

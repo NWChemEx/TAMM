@@ -76,7 +76,7 @@ OpEntry make_OpEntry(int op_id, OpType ot, AddOp ao, MultOp mo) {
     return p;
 }
 
-void generate_intermediate_ast(Equations *eqn, TranslationUnit root) {
+void generate_intermediate_ast(Equations *eqn, TranslationUnit* root) {
 //    &eqn->index_entries;
 //    &eqn->range_entries;
 //    &eqn->op_entries;
@@ -87,7 +87,7 @@ void generate_intermediate_ast(Equations *eqn, TranslationUnit root) {
     re.push_back(make_RangeEntry("V"));
     re.push_back(make_RangeEntry("N"));
 
-    CompoundElemList celist = root->celist;
+    CompoundElemList* celist = root->celist;
     while (celist != nullptr) {
         generate_intermediate_CompoundElem(eqn, celist->head);
         celist = celist->tail;

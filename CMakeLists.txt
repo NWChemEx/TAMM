@@ -65,7 +65,7 @@ set(tammParserSources
     tamm_parser/intermediate.cc
     tamm_parser/semant.cc
     tamm_parser/visitor.cc
-    tamm_parser/symtab.cc
+    #tamm_parser/symtab.cc
     tamm_parser/util.cc
     )
 

@@ -8,7 +8,7 @@
 
 typedef struct STEntry_ *STEntry;
 
-typedef struct hashtable_ *SymbolTable;
+//typedef struct hashtable_ *SymbolTable;
 
 //typedef char *tamm_string;
 

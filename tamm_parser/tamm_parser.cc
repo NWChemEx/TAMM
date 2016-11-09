@@ -40,7 +40,8 @@ void tamm_parser(char const *input_file, Equations *genEq) {
   visit_ast(outputFile, astRoot);
   fclose(outputFile);
 
-  SymbolTable symtab = ST_create(65535);
+  //SymbolTable symtab = ST_create(65535);
+  SymbolTable symtab;
   check_ast(astRoot, symtab);
 
   //Equations genEq;

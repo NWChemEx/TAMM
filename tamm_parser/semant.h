@@ -4,6 +4,7 @@
 #include "absyn.h"
 //#include "symtab.h"
 #include <map>
+#include <string>
 
 using SymbolTable = std::map<std::string,tamm_string>;
 

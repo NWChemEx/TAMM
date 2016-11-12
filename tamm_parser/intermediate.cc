@@ -116,8 +116,8 @@ void generate_intermediate_Elem(Equations *eqn, Elem* elem) {
             generate_intermediate_Stmt(eqn, e->u.s);
             break;
         default:
-            fprintf(stderr, "Not a Declaration or Statement!\n");
-            exit(0);
+            std::cerr <<  "Not a Declaration or Statement!\n";
+            std::exit(EXIT_FAILURE);
     }
 }
 
@@ -168,8 +168,8 @@ void generate_intermediate_Decl(Equations *eqn, Decl* d) {
         }
             break;
         default: {
-          fprintf(stderr, "Not a valid Declaration!\n");
-          exit(0);
+          std::cerr <<  "Not a valid Declaration!\n";
+          std::exit(EXIT_FAILURE);
         }
     }
 }
@@ -185,7 +185,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
         int i = 0;
 //            for (i = 0; i < vector_count(&lhs_aref); i++) {
 //                Exp* e = vector_get(&lhs_aref, i);
-//                printf("%s ", e->u.Array.name);
+//                std::cout << e->u.Array.name << " ";
 //            }
         collectArrayRefs(s->u.AssignStmt.rhs, rhs_allref, &alpha);
 
@@ -197,14 +197,14 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
 //        tce_string_array rhs_indices = (tce_string_array)collectExpIndices(s->u.AssignStmt.rhs, &ignore_first_ref);
 
 //            print_index_list(lhs_indices);
-//            printf("=");
+//            std::cout << "="
 //            print_index_list(rhs_indices);
 
 //            int tc_ids[MAX_TENSOR_DIMS];
 //            getIndexIDs(eqn, vector_get(&lhs_aref,0), tc_ids);
 
 //            for (i=0;i<MAX_TENSOR_DIMS;i++)
-//                if(tc_ids[i]!=-1) printf("%d, ",tc_ids[i]);
+//                if(tc_ids[i]!=-1) std::cout << tc_ids[i] ", ";
 
 
         int rhs_aref_count = 0;
@@ -235,7 +235,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
         }
 
         //Exp* tcp = vector_get(&lhs_aref, 0);
-        //printf("name = %s\n",tcp->u.Array.name);
+        //std::cout << "name = " << tcp->u.Array.name << std::endl;
 
 //            tamm_bool isAMOp = (exact_compare_index_lists(lhs_indices, rhs_indices));
 //            //a1121[p3,h1,p2,h2] = t_vo[p3,h1] * t_vo[p2,h2];
@@ -254,7 +254,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
         else if (rhs_aref_count == 1 || rhs_aref_count > 2) isAddOp = true;
 
         if (isMultOp) {
-          //printf(" == MULT OP\n");
+          //std::cout << " == MULT OP\n";
 
           Exp* tc_exp = (Exp*)lhs_aref.at(0);
           int ta_ind = 0;
@@ -278,7 +278,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
 
         } else if (isAddOp) {
 
-          //printf(" == ADD OP\n");
+          //std::cout << " == ADD OP\n";
 
           Exp* tc_exp = (Exp*) lhs_aref.at(0);
 
@@ -317,14 +317,14 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
           }
 
         } else {
-          fprintf(stderr, "NEITHER ADD OR MULT OP.. THIS SHOULD NOT HAPPEN!\n");
-          exit(0);
+          std::cerr <<  "NEITHER ADD OR MULT OP.. THIS SHOULD NOT HAPPEN!\n";
+          std::exit(EXIT_FAILURE);
         }
       }
             break;
         default: {
-          fprintf(stderr, "Not an Assignment Statement!\n");
-          exit(0);
+          std::cerr <<  "Not an Assignment Statement!\n";
+          std::exit(EXIT_FAILURE);
         }
     }
 }
@@ -402,8 +402,8 @@ void generate_intermediate_Exp(Equations *eqn, Exp* exp) {
         }
             break;
         default: {
-          fprintf(stderr, "Not a valid Expression!\n");
-          exit(0);
+          std::cerr <<  "Not a valid Expression!\n";
+          std::exit(EXIT_FAILURE);
         }
     }
 }
@@ -445,8 +445,8 @@ void collectArrayRefs(Exp* exp, std::vector<Exp*> &arefs, double *alpha) {
         }
             break;
         default: {
-          fprintf(stderr, "Not a valid Expression!\n");
-          exit(0);
+          std::cerr <<  "Not a valid Expression!\n";
+          std::exit(EXIT_FAILURE);
         }
     }
 }
@@ -586,8 +586,8 @@ tce_string_array collectExpIndices(Exp* exp, int *firstref) {
       }
             break;
         default: {
-          fprintf(stderr, "Not a valid Expression!\n");
-          exit(0);
+          std::cerr <<  "Not a valid Expression!\n";
+            std::exit(EXIT_FAILURE);
         }
     }
 }

@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <cstdlib>
+#include <iostream>
 
 
 typedef char *tamm_string;

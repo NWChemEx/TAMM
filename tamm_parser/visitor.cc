@@ -30,8 +30,8 @@ void visit_Elem(FILE *outFile, Elem* elem) {
             visit_Stmt(outFile, e->u.s);
             break;
         default:
-            fprintf(stderr, "Not a Declaration or Statement!\n");
-            exit(0);
+            std::cerr <<  "Not a Declaration or Statement!\n";
+            std::exit(EXIT_FAILURE);
     }
 }
 
@@ -64,8 +64,8 @@ void visit_Decl(FILE *outFile, Decl* d) {
 
             break;
         default:
-            fprintf(stderr, "Not a valid Declaration!\n");
-            exit(0);
+            std::cerr <<  "Not a valid Declaration!\n";
+            std::exit(EXIT_FAILURE);
     }
 }
 
@@ -81,8 +81,8 @@ void visit_Stmt(FILE *outFile, Stmt* s) {
             fprintf(outFile, ";\n");
             break;
         default:
-            fprintf(stderr, "Not an Assignment Statement!\n");
-            exit(0);
+            std::cerr <<  "Not an Assignment Statement!\n";
+            std::exit(EXIT_FAILURE);
     }
 }
 
@@ -114,8 +114,8 @@ void visit_Exp(FILE *outFile, Exp* exp) {
             visit_ExpList(outFile, exp->u.Multiplication.subexps, "*");
             break;
         default:
-            fprintf(stderr, "Not a valid Expression!\n");
-            exit(0);
+            std::cerr <<  "Not a valid Expression!\n";
+            std::exit(EXIT_FAILURE);
     }
 }
 

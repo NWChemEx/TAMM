@@ -3,7 +3,7 @@
 void *tce_malloc(int length) {
     void *p = malloc(length);
     if (!p) {
-        fprintf(stderr, "\n Out of memory!\n");
+        std::cerr << "\n Out of memory!\n";
         exit(1);
     }
     return p;
@@ -41,7 +41,7 @@ tamm_string combine_indexLists(tamm_string *indices1, int count1, tamm_string *i
     strcpy(result, upper);
     strcat(result, ":");
     strcat(result, lower);
-    //printf("%s\n",result);
+    //std::cout << result << std::endl;
     return result;
 
 }
@@ -103,7 +103,7 @@ tamm_bool exact_compare_index_lists(tce_string_array list1, tce_string_array lis
 
 void print_index_list(tce_string_array list1) {
     int i = 0;
-    for (i = 0; i < list1->length; i++) printf("%s,", list1->list[i]);
+    for (i = 0; i < list1->length; i++) std::cout << list1->list[i] << ",";
 
 }
 

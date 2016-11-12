@@ -1,4 +1,5 @@
 #include "semant.h"
+#include "absyn.h"
 
 void check_ast(TranslationUnit* root, SymbolTable& symtab) {
     CompoundElemList* celist = root->celist;
@@ -30,8 +31,8 @@ void check_Elem(Elem* elem, SymbolTable& symtab) {
             check_Stmt(e->u.s, symtab);
             break;
         default:
-            fprintf(stderr, "Not a Declaration or Statement!\n");
-            exit(0);
+            std::cerr << "Not a Declaration or Statement!\n";
+            std::exit(EXIT_FAILURE);
     }
 }
 
@@ -45,8 +46,8 @@ void check_DeclList(DeclList* decllist, SymbolTable& symtab) {
 
 void verifyVarDecl(SymbolTable& symtab, tamm_string name, int line_no) {
     if (symtab.find(name) != symtab.end()) {
-        fprintf(stderr, "Error at line %d: %s is already defined\n", line_no, name);
-        exit(2);
+        std::cerr << "Error at line " << line_no << ": " << name << " is already defined\n";
+        std::exit(EXIT_FAILURE);
     }
 }
 
@@ -58,9 +59,9 @@ void verifyRangeRef(SymbolTable& symtab, tamm_string name, int line_no) {
     const int rno = 3;
     tamm_string ranges[] = {"O", "V", "N"};
     if (!exists_index(ranges, rno, name)) {
-        fprintf(stderr, "Error at line %d: range %s is not supported. Can only be one of %s\n", line_no, name,
-                combine_indices(ranges, rno));
-        exit(2);
+        std::cerr << "Error at line " << line_no << ": range " << name << " is not supported. " <<
+                "Can only be one of " << combine_indices(ranges, rno) << std::endl;
+        std::exit(EXIT_FAILURE);
     }
 }
 
@@ -69,8 +70,8 @@ void check_Decl(Decl* d, SymbolTable& symtab) {
       case Decl::is_RangeDecl: {
         verifyVarDecl(symtab, d->u.RangeDecl.name, d->lineno);
         if (d->u.RangeDecl.value <= 0) {
-          fprintf(stderr, "Error at line %d: %d is not a positive integer\n", d->lineno, d->u.RangeDecl.value);
-          exit(2);
+          std::cerr << "Error at line " << d->lineno << ": " << d->u.RangeDecl.value << " is not a positive integer\n";
+          std::exit(EXIT_FAILURE);
         }
           symtab.insert(SymbolTable::value_type(
                   std::string(d->u.RangeDecl.name), (int_str(d->u.RangeDecl.value))));
@@ -86,7 +87,7 @@ void check_Decl(Decl* d, SymbolTable& symtab) {
         verifyVarDecl(symtab, d->u.ArrayDecl.name, d->lineno);
         tamm_string comb_index_list = combine_indexLists(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen,
                                                          d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen);
-        //printf("%s -> %s\n", d->u.ArrayDecl.name, comb_index_list);
+          //std::cout << d->u.ArrayDecl.name << " -> " << comb_index_list << std::endl;
         int i = 0;
         tamm_string *ind_list = d->u.ArrayDecl.upperIndices;
         for (i = 0; i < d->u.ArrayDecl.ulen; i++) verifyRangeRef(symtab, ind_list[i], d->lineno);
@@ -98,8 +99,8 @@ void check_Decl(Decl* d, SymbolTable& symtab) {
         break;
       default:
       {
-        fprintf(stderr, "Not a valid Declaration!\n");
-        exit(0);
+        std::cerr << "Not a valid Declaration!\n";
+        std::exit(EXIT_FAILURE);
       }
     }
 }
@@ -108,29 +109,25 @@ void check_Stmt(Stmt* s, SymbolTable& symtab) {
     switch (s->kind) {
         case Stmt::is_AssignStmt:
             check_Exp(s->u.AssignStmt.lhs, symtab);
-            //printf(" %s ", s->u.AssignStmt.astype); //astype not needed since we flatten. keep it for now.
+            //std::cout << " " << s->u.AssignStmt.astype << " "; //astype not needed since we flatten. keep it for now.
             check_Exp(s->u.AssignStmt.rhs, symtab);
             if (s->u.AssignStmt.lhs->kind != Exp::is_ArrayRef) {
-                fprintf(stderr, "Error at line %d: LHS of assignment must be an array reference\n",
-                        s->u.AssignStmt.lhs->lineno);
-                exit(2);
+                std::cerr << "Error at line " << s->u.AssignStmt.lhs->lineno << ": LHS of assignment must be an array reference\n";
+                std::exit(EXIT_FAILURE);
             }
             else if (s->u.AssignStmt.lhs->coef < 0) {
-                fprintf(stderr, "Error at line %d: LHS array reference cannot be negative\n",
-                        s->u.AssignStmt.lhs->lineno);
-                exit(2);
+                std::cerr << "Error at line " << s->u.AssignStmt.lhs->lineno << ": LHS array reference cannot be negative\n";
+                std::exit(EXIT_FAILURE);
             }
 
 //    UNCOMMENT FOR DEBUG ONLY
 //    print_index_list(getIndices(s->u.AssignStmt.lhs));
-//    printf(" = ");
+//    std::cout << " = ";
 //    print_index_list(getIndices(s->u.AssignStmt.rhs));
-//    printf("\n");
+//    std::cout << "\n";
             if (!compare_index_lists(getIndices(s->u.AssignStmt.lhs), getIndices(s->u.AssignStmt.rhs))) {
-                fprintf(stderr,
-                        "Error at line %d: LHS and RHS of assignment must have equal (non-summation) index sets\n",
-                        s->u.AssignStmt.lhs->lineno);
-                exit(2);
+                std::cerr << "Error at line " << s->u.AssignStmt.lhs->lineno << ": LHS and RHS of assignment must have equal (non-summation) index sets\n";
+                std::exit(EXIT_FAILURE);
             }
 
 //    tce_string_array lhs_aref = collectArrayRefs(s->u.AssignStmt.lhs);
@@ -142,8 +139,8 @@ void check_Stmt(Stmt* s, SymbolTable& symtab) {
 //    }
             break;
         default:
-            fprintf(stderr, "Not an Assignment Statement!\n");
-            exit(0);
+            std::cerr << "Not an Assignment Statement!\n";
+            std::exit(EXIT_FAILURE);
     }
 }
 
@@ -160,15 +157,15 @@ void check_ExpList(ExpList* expList, SymbolTable& symtab) {
 
 void verifyArrayRefName(SymbolTable& symtab, tamm_string name, int line_no) {
     if (symtab.find(name) == symtab.end()) {
-        fprintf(stderr, "Error at line %d: array %s is not defined\n", line_no, name);
-        exit(2);
+        std::cerr << "Error at line "  << line_no << ": array " << name << " is not defined\n";
+        std::exit(EXIT_FAILURE);
     }
 }
 
 void verifyIndexRef(SymbolTable& symtab, tamm_string name, int line_no) {
     if (symtab.find(name) == symtab.end()) {
-        fprintf(stderr, "Error at line %d: index %s is not defined\n", line_no, name);
-        exit(2);
+        std::cerr << "Error at line "  << line_no << ": index " << name << " is not defined\n";
+        std::exit(EXIT_FAILURE);
     }
 }
 
@@ -189,7 +186,7 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
         }
             break;
         case Exp::is_NumConst: {}
-            //printf("%f ",exp->u.NumConst.value);
+            //std::cout << exp->u.NumConst.value << " ";
             break;
         case Exp::is_ArrayRef: {
           verifyArrayRef(symtab, exp->u.Array.name, exp->u.Array.indices, exp->u.Array.length, clno);
@@ -210,10 +207,9 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
           tce_string_array ulr = (tce_string_array) stringToList(ulranges);
 
           if (!check_array_usage(ulr, rnamesarr)) {
-            fprintf(stderr, "Error at line %d: array reference %s[%s] must have index structure of %s[%s]\n", clno,
-                    exp->u.Array.name, combine_indices(all_ind1, tot_len1), exp->u.Array.name,
-                    combine_indices(ulr->list, ulr->length));
-            exit(2);
+            std::cerr << "Error at line " << clno << ": array reference " << exp->u.Array.name << "[" << combine_indices(all_ind1, tot_len1) << "]"
+                      << " must have index structure of " << exp->u.Array.name << "[" << combine_indices(ulr->list, ulr->length) << "]\n";
+            std::exit(EXIT_FAILURE);
           }
           //Check for repetitive indices in an array reference
           tamm_string *uind1 = (tamm_string*) tce_malloc(sizeof(tamm_string) * tot_len1);
@@ -228,10 +224,9 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
 
           for (i1 = 0; i1 < ui1; i1++) {
             if (count_index(all_ind1, tot_len1, uind1[i1]) > 1) {
-              fprintf(stderr, "Error at line %d: repetitive index %s in array reference %s[%s]\n",
-                      clno, uind1[i1], exp->u.Array.name,
-                      combine_indices(exp->u.Array.indices, exp->u.Array.length));
-              exit(2);
+              std::cerr << "Error at line " << clno << ": repetitive index " << uind1[i1] << " in array reference "
+                      << exp->u.Array.name << "[" << combine_indices(exp->u.Array.indices, exp->u.Array.length) << "]\n";
+               std::exit(EXIT_FAILURE);
             }
           }
         }
@@ -243,9 +238,8 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
           while (el != nullptr) {
             tce_string_array op_inames = getIndices(el->head);
             if (!compare_index_lists(inames, op_inames)) {
-              fprintf(stderr, "Error at line %d: subexpressions of an addition must have equal index sets\n",
-                      clno);
-              exit(2);
+              std::cerr << "Error at line " << clno << ": subexpressions of an addition must have equal index sets\n";
+              std::exit(EXIT_FAILURE);
             }
             op_inames = nullptr;
             el = el->tail;
@@ -292,17 +286,16 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
 
           for (i = 0; i < ui; i++) {
             if (count_index(all_ind, tot_len, uind[i]) > 2) {
-              fprintf(stderr,
-                      "Error at line %d: summation index %s must occur exactly twice in a multiplication\n", clno,
-                      uind[i]);
-              exit(2);
+              std::cerr << "Error at line " << clno << ": summation index " << uind[i] <<
+                        " must occur exactly twice in a multiplication\n";
+              std::exit(EXIT_FAILURE);
             }
           }
         }
             break;
         default: {
-          fprintf(stderr, "Not a valid Expression!\n");
-          exit(0);
+          std::cerr << "Not a valid Expression!\n";
+          std::exit(EXIT_FAILURE);
         }
     }
 }
@@ -391,8 +384,8 @@ tce_string_array getIndices(Exp* exp) {
         }
             break;
         default: {
-          fprintf(stderr, "Not a valid Expression!\n");
-          exit(0);
+          std::cerr << "Not a valid Expression!\n";
+          std::exit(EXIT_FAILURE);
         }
     }
 }
@@ -403,7 +396,7 @@ void print_ExpList(ExpList* expList, tamm_string am) {
     while (elist != nullptr) {
         print_Exp(elist->head);
         elist = elist->tail;
-        if (elist != nullptr) printf("%s ", am);
+        if (elist != nullptr) std::cout << am << " ";
     }
     elist = nullptr;
 }
@@ -415,10 +408,10 @@ void print_Exp(Exp* exp) {
             print_Exp(exp->u.Parenth.exp);
             break;
         case Exp::is_NumConst:
-            printf("%f ", exp->u.NumConst.value);
+            std::cout << exp->u.NumConst.value << " ";
             break;
         case Exp::is_ArrayRef:
-            printf("%s[%s] ", exp->u.Array.name, combine_indices(exp->u.Array.indices, exp->u.Array.length));
+            std::cout << exp->u.Array.name << "[" << combine_indices(exp->u.Array.indices, exp->u.Array.length) << "] ";
             break;
         case Exp::is_Addition:
             print_ExpList(exp->u.Addition.subexps, "+");
@@ -427,8 +420,8 @@ void print_Exp(Exp* exp) {
             print_ExpList(exp->u.Multiplication.subexps, "*");
             break;
         default:
-            fprintf(stderr, "Not a valid Expression!\n");
-            exit(0);
+            std::cerr << "Not a valid Expression!\n";
+            std::exit(EXIT_FAILURE);
     }
 }
 
@@ -507,8 +500,8 @@ tce_string_array getUniqIndices(Exp* exp) {
         }
             break;
         default: {
-          fprintf(stderr, "Not a valid Expression!\n");
-          exit(0);
+          std::cerr << "Not a valid Expression!\n";
+          std::exit(EXIT_FAILURE);
         }
     }
 }
@@ -577,8 +570,8 @@ tce_string_array getUniqIndices(Exp* exp) {
 //            return p;
 //            break;
 //        default:
-//            fprintf(stderr, "Not a valid Expression!\n");
-//            exit(0);
+//            std::cerr << "Not a valid Expression!\n";
+//            std::exit(EXIT_FAILURE);
 //    }
 //}
 //

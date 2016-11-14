@@ -1,5 +1,4 @@
 #include "semant.h"
-#include "absyn.h"
 
 void check_ast(TranslationUnit* root, SymbolTable& symtab) {
     CompoundElemList* celist = root->celist;
@@ -52,9 +51,9 @@ void verifyVarDecl(SymbolTable& symtab, tamm_string name, int line_no) {
 }
 
 void verifyRangeRef(SymbolTable& symtab, tamm_string name, int line_no) {
-//    if (!ST_contains(symtab,name)){
-//        fprintf(stderr,"Error at line %d: range variable %s is not defined\n", line_no, name);
-//        //exit(2);
+//    if (symtab.find(name) == symtab.end()){
+//        std::cerr << "Error at line " << line_no << ":range variable " << name << " is not defined\n";
+//        std::exit(EXIT_FAILURE);
 //    }
     const int rno = 3;
     tamm_string ranges[] = {"O", "V", "N"};
@@ -133,9 +132,8 @@ void check_Stmt(Stmt* s, SymbolTable& symtab) {
 //    tce_string_array lhs_aref = collectArrayRefs(s->u.AssignStmt.lhs);
 //    tce_string_array rhs_arefs = collectArrayRefs(s->u.AssignStmt.rhs);
 //    if (exists_index(rhs_arefs->list,rhs_arefs->length,lhs_aref->list[0])){
-//        fprintf(stderr,"Error at line %d: array %s cannot be assigned after being previously referenced\n",
-//        		    s->u.AssignStmt.lhs->lineno, lhs_aref->list[0]);
-//        exit(2);
+//        std::cerr << "Error at line " << s->u.AssignStmt.lhs->lineno << ": array " << lhs_aref->list[0] << " cannot be assigned after being previously referenced\n";
+//        std::exit(EXIT_FAILURE);
 //    }
             break;
         default:

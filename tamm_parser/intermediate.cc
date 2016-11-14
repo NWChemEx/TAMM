@@ -1,6 +1,5 @@
 #include "intermediate.h"
 #include "semant.h"
-#include "absyn.h"
 
 //void make_Equations(Equations p) {
 //    p = tce_malloc(sizeof(*p));
@@ -132,7 +131,7 @@ void generate_intermediate_DeclList(Equations *eqn, DeclList* decllist) {
 void generate_intermediate_Decl(Equations *eqn, Decl* d) {
     switch (d->kind) {
       case Decl::is_RangeDecl: {
-        //fprintf(eqn, "range %s : %d;\n", d->u.RangeDecl.name, d->u.RangeDecl.value);
+        //std::cout << "range %s : %d;\n", d->u.RangeDecl.name, d->u.RangeDecl.value;
       }
             break;
         case Decl::is_IndexDecl: {
@@ -142,7 +141,7 @@ void generate_intermediate_Decl(Equations *eqn, Decl* d) {
           else if (strcmp(d->u.IndexDecl.rangeID, "N") == 0) rid = 2;
 
           eqn->index_entries.push_back(make_IndexEntry(d->u.IndexDecl.name, rid));
-          //fprintf(eqn, "index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID);
+          //std::cout << "index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID;
         }
             break;
         case Decl::is_ArrayDecl: {
@@ -376,7 +375,7 @@ void generate_intermediate_ExpList(Equations *eqn, ExpList* expList, tamm_string
     while (elist != nullptr) {
         generate_intermediate_Exp(eqn, elist->head);
         elist = elist->tail;
-        //if (elist != nullptr) fprintf(eqn, "%s ", am);
+        //if (elist != nullptr) std::cout << am << " ";
     }
     elist = nullptr;
 }
@@ -388,10 +387,10 @@ void generate_intermediate_Exp(Equations *eqn, Exp* exp) {
       }
             break;
         case Exp::is_NumConst: {}
-            //fprintf(eqn, "%f ", exp->u.NumConst.value);
+            //std::cout << exp->u.NumConst.value << " ";
             break;
         case Exp::is_ArrayRef: {}
-            //fprintf(eqn, "%s[%s] ", exp->u.Array.name, combine_indices(exp->u.Array.indices, exp->u.Array.length));
+            //std::cout << "%s[%s] ", exp->u.Array.name, combine_indices(exp->u.Array.indices, exp->u.Array.length);
             break;
         case Exp::is_Addition: {
           generate_intermediate_ExpList(eqn, exp->u.Addition.subexps, "+");

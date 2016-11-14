@@ -4,7 +4,7 @@ void *tce_malloc(int length) {
     void *p = malloc(length);
     if (!p) {
         std::cerr << "\n Out of memory!\n";
-        exit(1);
+        std::exit(EXIT_FAILURE);
     }
     return p;
 }

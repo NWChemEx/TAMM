@@ -36,6 +36,7 @@
 #define ABSYN_H_
 
 #include "util.h"
+#include <type_traits>
 
 /* Forward Declarations */
 class ExpList;
@@ -49,6 +50,8 @@ class Absyn //Root of the AST
     };
 
 };
+
+
 
 class Decl {
 public:
@@ -238,6 +241,24 @@ public:
     }
 };
 
+const auto addTail = [](auto newtail, auto origList){
+    auto p = origList;
+    //std::cout << "decltype=" << decltype(*p);
+    decltype(p) newList = new typename std::remove_pointer<decltype(origList)>::type(newtail, nullptr);
+
+    if (p == nullptr) {
+        origList = newList;
+    } else if (p->head == nullptr) {
+        p->head = newtail;
+    } else if (p->tail == nullptr) {
+        p->tail = newList;
+    } else {
+        while (p->tail != nullptr)
+            p = p->tail;
+        p->tail = newList;
+    }
+    p = nullptr;
+};
 
 #endif
 
@@ -266,13 +287,3 @@ Elem* make_Elem_Stmt(Stmt* s);
 Elem* make_Elem_DeclList(DeclList *d);
 
 int count_IDList(IDList* idl);
-
-void addTail_ElemList(Elem* newtail, ElemList *origList);
-
-void addTail_DeclList(Decl* newtail, DeclList *origList);
-
-void addTail_IDList(Identifier* newtail, IDList* origList);
-
-void addTail_ExpList(Exp* newtail, ExpList *origList);
-
-void addTail_CompoundElemList(CompoundElem* newtail, CompoundElemList* origList);

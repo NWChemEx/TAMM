@@ -37,7 +37,7 @@
     }
 
     compound_element_list(C) ::= compound_element_list(L) compound_element(E) . {
-      addTail_CompoundElemList((CompoundElem*)E, (CompoundElemList*)L);
+      addTail((CompoundElem*)E, (CompoundElemList*)L);
         C = L;
     }
 
@@ -52,7 +52,7 @@
     element_list(E) ::= . { E = new ElemList(nullptr, nullptr); }
 
     element_list(E) ::= element_list(L) element(S)  . {
-      addTail_ElemList((Elem*)S,(ElemList*)L);
+      addTail((Elem*)S,(ElemList*)L);
        E = L;
     }
                    
@@ -79,7 +79,7 @@
         
       id_list(I) ::= identifier(N) . { I = new IDList((Identifier*)N,nullptr); }
     id_list(I) ::= id_list(L) COMMA identifier(N) . { 
-      addTail_IDList((Identifier*)N, (IDList*)L);
+      addTail((Identifier*)N, (IDList*)L);
       I = L;
      }
              
@@ -90,7 +90,7 @@
     }
 
     num_list(N) ::= num_list(L) COMMA numerical_constant(C) .  { 
-      addTail_ExpList((Exp*)C, (ExpList *)L);
+      addTail((Exp*)C, (ExpList *)L);
       N = L;
      }
 
@@ -186,7 +186,7 @@
       array_declaration(A) ::= ARRAY array_structure_list(S) SEMI . { A = S; }
 	array_structure_list(A) ::= array_structure(S) . { A = new DeclList((Decl*)S, nullptr); }
       array_structure_list(A) ::= array_structure_list(L) COMMA array_structure(S) . { 
-        addTail_DeclList((Decl*)S,(DeclList*)L);
+        addTail((Decl*)S,(DeclList*)L);
         A = L;
       }
 
@@ -359,13 +359,13 @@
      if (e1->kind == Exp::is_Addition) e1->lineno = clno;
 
      if(strcmp(op,"-")==0) e2->coef *= -1;
-     addTail_ExpList(e1,el);
-     addTail_ExpList(e2,el);
+     addTail(e1,el);
+     addTail(e2,el);
      /*if (e1->kind == is_Addition) {
-        addTail_ExpList(e1,el);
+        addTail(e1,el);
      }
      if (e2->kind == is_Addition) {
-      addTail_ExpList(e2,el);
+      addTail(e2,el);
      }*/
 
      Exp* nadd = make_Addition(tce_tokPos,el);
@@ -387,11 +387,11 @@
         clno = e1->lineno;
         coef *= e1->coef;
      }
-     addTail_ExpList(e1,el);
+     addTail(e1,el);
      if (e2->kind == Exp::is_Multiplication) {
       coef *= e2->coef;
      }
-     addTail_ExpList(e2,el);
+     addTail(e2,el);
 
       Exp* nmult = make_Multiplication(tce_tokPos,el);
       nmult->coef = coef;

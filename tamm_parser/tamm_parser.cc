@@ -14,15 +14,15 @@ void tamm_parser(char const *input_file, Equations *genEq) {
   parser = ParseAlloc(malloc);
 
   if (access(input_file, F_OK) == -1) {
-    fprintf(stderr, "File %s not found!\n", input_file);
-    exit(2);
+    std::cerr << "File " << input_file << " not found!\n";
+    std::exit(EXIT_FAILURE);
   }
 
   FILE *inputFile = fopen(input_file, "r");
   yyset_in(inputFile, scanner);
   while ((yv = yylex(scanner)) != 0) {
     char *tok = yyget_extra(scanner);
-    //printf("%s = %d,%d\n",tok); //Debug
+    //std::cout << tok << std::endl; //Debug
     Parse(parser, yv, tok, &astRoot);
   }
 
@@ -33,7 +33,7 @@ void tamm_parser(char const *input_file, Equations *genEq) {
   FILE *outputFile = fopen("output.txt", "w");
 
   if (!outputFile) {
-    fprintf(stderr, "failed to open output file\n");
+    std::cerr << "Failed to open output file...\n";
     return;
   }
 

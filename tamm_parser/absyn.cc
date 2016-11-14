@@ -111,95 +111,23 @@ int count_IDList(IDList* idl) {
     return count;
 }
 
-/* TODO: Remove duplicated code for addTail_() - okay for now */
 
-void addTail_ElemList(Elem* newtail, ElemList *origList) {
-    ElemList *p = origList;
-    ElemList *newList = new ElemList(newtail, nullptr);
 
-    if (p == nullptr) {
-        origList = newList;
-    } else if (p->head == nullptr) {
-        p->head = newtail;
-    } else if (p->tail == nullptr) {
-        p->tail = newList;
-    } else {
-        while (p->tail != nullptr)
-            p = p->tail;
-        p->tail = newList;
-    }
-    p = nullptr;
-}
-
-void addTail_DeclList(Decl* newtail, DeclList *origList) {
-    DeclList *p = origList;
-    DeclList *newList = new DeclList(newtail, nullptr);
-
-    if (p == nullptr) {
-        origList = newList;
-    } else if (p->head == nullptr) {
-        p->head = newtail;
-    } else if (p->tail == nullptr) {
-        p->tail = newList;
-    } else {
-        while (p->tail != nullptr)
-            p = p->tail;
-        p->tail = newList;
-    }
-    p = nullptr;
-}
-
-void addTail_IDList(Identifier* newtail, IDList* origList) {
-    IDList *p = origList;
-    IDList *newList = new IDList(newtail, nullptr);
-
-    if (p == nullptr) {
-        origList = newList;
-    } else if (p->head == nullptr) {
-        p->head = newtail;
-    } else if (p->tail == nullptr) {
-        p->tail = newList;
-    } else {
-        while (p->tail != nullptr)
-            p = p->tail;
-        p->tail = newList;
-    }
-    p = nullptr;
-}
-
-void addTail_ExpList(Exp* newtail, ExpList *origList) {
-    ExpList *p = origList;
-    ExpList *newList = new ExpList(newtail, nullptr);
-
-    if (p == nullptr) {
-        origList = newList;
-    } else if (p->head == nullptr) {
-        p->head = newtail;
-    } else if (p->tail == nullptr) {
-        p->tail = newList;
-    } else {
-        while (p->tail != nullptr)
-            p = p->tail;
-        p->tail = newList;
-    }
-    p = nullptr;
-}
-
-void addTail_CompoundElemList(CompoundElem* newtail, CompoundElemList* origList) {
-    CompoundElemList *p = origList;
-    CompoundElemList *newList = new CompoundElemList(newtail, nullptr);
-
-    if (p == nullptr) {
-        origList = newList;
-    } else if (p->head == nullptr) {
-        p->head = newtail;
-    } else if (p->tail == nullptr) {
-        p->tail = newList;
-    } else {
-        while (p->tail != nullptr)
-            p = p->tail;
-        p->tail = newList;
-    }
-    p = nullptr;
-}
+//void addTail_ElemList(Elem* newtail, ElemList *origList) {
+//    ElemList *p = origList;
+//    ElemList *newList = new ElemList(newtail, nullptr);
+//
+//    if (p == nullptr) {
+//        origList = newList;
+//    } else if (p->head == nullptr) {
+//        p->head = newtail;
+//    } else if (p->tail == nullptr) {
+//        p->tail = newList;
+//    } else {
+//        while (p->tail != nullptr)
+//            p = p->tail;
+//        p->tail = newList;
+//    }
+//    p = nullptr;
+//}
 

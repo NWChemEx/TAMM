@@ -1,50 +1,49 @@
 #include "intermediate.h"
 #include "semant.h"
 
-//void make_Equations(Equations p) {
-//    p = tce_malloc(sizeof(*p));
-//    vector_init(&p->index_entries);
-//    vector_init(&p->range_entries);
-//    vector_init(&p->op_entries);
-//    vector_init(&p->tensor_entries);
-//    //return p;
-//}
-
-
 int op_id = 1;
-typedef struct ArrayRefAlpha_ *ArrayRefAlpha;
 
 
-struct ArrayRefAlpha_ {
+class ArrayRefAlpha {
+public:
     double alpha;
     Exp* aref;
 };
 
-ArrayRefAlpha make_ArrayRefAlpha(double alpha, Exp* aref) {
-    ArrayRefAlpha p = (ArrayRefAlpha) tce_malloc(sizeof(*p));
+ArrayRefAlpha* make_ArrayRefAlpha(double alpha, Exp* aref) {
+    ArrayRefAlpha* p = new ArrayRefAlpha();
     p->alpha = alpha;
     p->aref = aref;
     return p;
 }
 
-RangeEntry make_RangeEntry(tamm_string name) {
-    RangeEntry p = (RangeEntry)tce_malloc(sizeof(*p));
+RangeEntry* make_RangeEntry(tamm_string name) {
+    RangeEntry* p = new RangeEntry();
     p->name = name;
     return p;
 }
 
-IndexEntry make_IndexEntry(tamm_string name, int range_id) {
-    IndexEntry p = (IndexEntry)tce_malloc(sizeof(*p));
+IndexEntry* make_IndexEntry(tamm_string name, int range_id) {
+    IndexEntry* p = new IndexEntry();
     p->name = name;
     p->range_id = range_id;
     return p;
 }
 
-TensorEntry make_TensorEntry(tamm_string name, int ndim, int nupper) {
-    TensorEntry p = (TensorEntry)tce_malloc(sizeof(*p));
+TensorEntry* make_TensorEntry(tamm_string name, int ndim, int nupper) {
+    TensorEntry* p = new TensorEntry();
     p->name = name;
     p->ndim = ndim;
     p->nupper = nupper;
+    return p;
+}
+
+OpEntry* make_OpEntry(int op_id, OpType ot, AddOp ao, MultOp mo) {
+    OpEntry* p = new OpEntry();
+    p->op_id = op_id;
+    p->optype = ot;
+    p->add = ao;
+    p->mult = mo;
     return p;
 }
 
@@ -66,14 +65,7 @@ MultOp make_MultOp(int tc, int ta, int tb, double alpha) {
     return p;
 }
 
-OpEntry make_OpEntry(int op_id, OpType ot, AddOp ao, MultOp mo) {
-    OpEntry p = (OpEntry)tce_malloc(sizeof(*p));
-    p->op_id = op_id;
-    p->optype = ot;
-    p->add = ao;
-    p->mult = mo;
-    return p;
-}
+
 
 void generate_intermediate_ast(Equations *eqn, TranslationUnit* root) {
 //    &eqn->index_entries;
@@ -81,7 +73,7 @@ void generate_intermediate_ast(Equations *eqn, TranslationUnit* root) {
 //    &eqn->op_entries;
 //    &eqn->tensor_entries;
 
-    std::vector<RangeEntry> &re = eqn->range_entries;
+    std::vector<RangeEntry*> &re = eqn->range_entries;
     re.push_back(make_RangeEntry("O"));
     re.push_back(make_RangeEntry("V"));
     re.push_back(make_RangeEntry("N"));
@@ -145,7 +137,7 @@ void generate_intermediate_Decl(Equations *eqn, Decl* d) {
         }
             break;
         case Decl::is_ArrayDecl: {
-          TensorEntry te = make_TensorEntry(d->u.ArrayDecl.name, d->u.ArrayDecl.ulen + d->u.ArrayDecl.llen, d->u.ArrayDecl.ulen);
+          TensorEntry* te = make_TensorEntry(d->u.ArrayDecl.name, d->u.ArrayDecl.ulen + d->u.ArrayDecl.llen, d->u.ArrayDecl.ulen);
           int rid = 0;
           for (rid = 0; rid < d->u.ArrayDecl.ulen; rid++) {
             tamm_string range = d->u.ArrayDecl.upperIndices[rid];
@@ -175,7 +167,7 @@ void generate_intermediate_Decl(Equations *eqn, Decl* d) {
 
 void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
     std::vector<Exp*> lhs_aref, rhs_allref;
-    std::vector<ArrayRefAlpha> rhs_aref;
+    std::vector<ArrayRefAlpha*> rhs_aref;
     double alpha = 1;
     switch (s->kind) {
       case Stmt::is_AssignStmt: {
@@ -229,7 +221,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
 
         if (rhs_aref.size() > 1) {
           Exp* tc_exp = (Exp*)lhs_aref.at(0);
-          Exp* ta_exp = ((ArrayRefAlpha) rhs_aref.at(0))->aref;
+          Exp* ta_exp = ((ArrayRefAlpha*) rhs_aref.at(0))->aref;
           if (strcmp(tc_exp->u.Array.name, ta_exp->u.Array.name) == 0) rhs_first_ref = true;
         }
 
@@ -259,10 +251,10 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
           int ta_ind = 0;
           if (rhs_first_ref) ta_ind++;
 
-          MultOp mop = make_MultOp(0, 0, 0, ((ArrayRefAlpha) rhs_aref.at(ta_ind))->alpha);
+          MultOp mop = make_MultOp(0, 0, 0, ((ArrayRefAlpha*) rhs_aref.at(ta_ind))->alpha);
 
-          Exp* ta_exp = ((ArrayRefAlpha) rhs_aref.at(ta_ind))->aref;
-          Exp* tb_exp = ((ArrayRefAlpha) rhs_aref.at(ta_ind + 1))->aref;
+          Exp* ta_exp = ((ArrayRefAlpha*) rhs_aref.at(ta_ind))->aref;
+          Exp* tb_exp = ((ArrayRefAlpha*) rhs_aref.at(ta_ind + 1))->aref;
 
           getIndexIDs(eqn, tc_exp, mop->tc_ids);
           getIndexIDs(eqn, ta_exp, mop->ta_ids);
@@ -284,9 +276,9 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
           int ta_ind = 0;
           if (rhs_first_ref) ta_ind++;
 
-          AddOp mop = make_AddOp(0, 0, ((ArrayRefAlpha) rhs_aref.at(ta_ind))->alpha);
+          AddOp mop = make_AddOp(0, 0, ((ArrayRefAlpha*) rhs_aref.at(ta_ind))->alpha);
 
-          Exp* ta_exp = ((ArrayRefAlpha) rhs_aref.at(ta_ind))->aref;
+          Exp* ta_exp = ((ArrayRefAlpha*) rhs_aref.at(ta_ind))->aref;
 
           getIndexIDs(eqn, tc_exp, mop->tc_ids);
           getIndexIDs(eqn, ta_exp, mop->ta_ids);
@@ -300,9 +292,9 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
           if (rhs_aref.size() > ta_ind + 1) {
             int k;
             for (k = ta_ind + 1; k < rhs_aref.size(); k++) {
-              AddOp aop = make_AddOp(0, 0, ((ArrayRefAlpha) rhs_aref.at(k))->alpha);
+              AddOp aop = make_AddOp(0, 0, ((ArrayRefAlpha*) rhs_aref.at(k))->alpha);
 
-              Exp* ta_exp = ((ArrayRefAlpha) rhs_aref.at(k))->aref;
+              Exp* ta_exp = ((ArrayRefAlpha*) rhs_aref.at(k))->aref;
 
               getIndexIDs(eqn, tc_exp, aop->tc_ids);
               getIndexIDs(eqn, ta_exp, aop->ta_ids);
@@ -333,9 +325,9 @@ void getTensorIDs(Equations *eqn, Exp* exp, int *tid) {
     if (exp->kind == Exp::is_ArrayRef) {
         tamm_string aname = exp->u.Array.name;
         int j;
-        TensorEntry ient;
+        TensorEntry* ient;
         for (j = 0; j < eqn->tensor_entries.size(); j++) {
-            ient = (TensorEntry)eqn->tensor_entries.at(j);
+            ient = (TensorEntry*)eqn->tensor_entries.at(j);
             if (strcmp(aname, ient->name) == 0) {
                 *tid = j;
                 break;
@@ -354,10 +346,10 @@ void getIndexIDs(Equations *eqn, Exp* exp, int *tc_ids) {
         int len = exp->u.Array.length;
         int j;
         int ipos = 0;
-        IndexEntry ient;
+        IndexEntry* ient;
         for (i = 0; i < len; i++) {
             for (j = 0; j < eqn->index_entries.size(); j++) {
-                ient = (IndexEntry)eqn->index_entries.at(j);
+                ient = (IndexEntry*)eqn->index_entries.at(j);
                 if (strcmp(aind[i], ient->name) == 0) {
                     tc_ids[ipos] = j;
                     ipos++;

@@ -88,26 +88,6 @@ tamm_bool check_array_usage(tce_string_array list1, tce_string_array list2) {
 }
 
 
-tamm_bool exact_compare_index_lists(tce_string_array list1, tce_string_array list2) {
-    int len1 = list1->length;
-    int len2 = list2->length;
-    if (len1 != len2) return false;
-    tamm_string *alist1 = list1->list;
-    tamm_string *alist2 = list2->list;
-    int i = 0;
-    for (i = 0; i < len1; i++) {
-        if (strcmp(alist1[i], alist2[i]) != 0) return false;
-    }
-    return true;
-}
-
-void print_index_list(tce_string_array list1) {
-    int i = 0;
-    for (i = 0; i < list1->length; i++) std::cout << list1->list[i] << ",";
-
-}
-
-
 int count_index(tamm_string *list, int len, tamm_string x) {
     int count = 0, i = 0;
     for (i = 0; i < len; i++) {
@@ -179,4 +159,21 @@ tamm_string combine_indices(tamm_string *indices, int count) {
 
 }
 
-
+//tamm_bool exact_compare_index_lists(tce_string_array list1, tce_string_array list2) {
+//    int len1 = list1->length;
+//    int len2 = list2->length;
+//    if (len1 != len2) return false;
+//    tamm_string *alist1 = list1->list;
+//    tamm_string *alist2 = list2->list;
+//    int i = 0;
+//    for (i = 0; i < len1; i++) {
+//        if (strcmp(alist1[i], alist2[i]) != 0) return false;
+//    }
+//    return true;
+//}
+//
+//void print_index_list(tce_string_array list1) {
+//    int i = 0;
+//    for (i = 0; i < list1->length; i++) std::cout << list1->list[i] << ",";
+//
+//}

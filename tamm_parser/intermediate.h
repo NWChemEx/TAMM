@@ -8,36 +8,50 @@
 #define MAX_INDEX_NAMES 32
 
 
-typedef struct IndexEntry_ *IndexEntry;
-typedef struct RangeEntry_ *RangeEntry;
-typedef struct TensorEntry_ *TensorEntry;
-typedef struct OpEntry_ *OpEntry;
 typedef struct AddOp_ *AddOp;
 typedef struct MultOp_ *MultOp;
 
 
-typedef struct {
-    std::vector<RangeEntry> range_entries;
-    std::vector<IndexEntry> index_entries;
-    std::vector<TensorEntry> tensor_entries;
-    std::vector<OpEntry> op_entries;
-} Equations;
 
 
-struct RangeEntry_ {
+
+class RangeEntry {
+public:
     char *name; /*name for this range*/
 };
 
-struct IndexEntry_ {
+class IndexEntry {
+public:
     char *name; /*name of this index*/
     int range_id; /*index into the RangeEntry struct*/
 };
 
-struct TensorEntry_ {
+class TensorEntry {
+public:
     char *name;
     int range_ids[MAX_TENSOR_DIMS]; /*dimensions in terms of index into RangeEntry struct*/
     int ndim, nupper;
 };
+
+typedef enum {
+    OpTypeAdd,
+    OpTypeMult
+} OpType;
+
+class OpEntry {
+public:
+    int op_id;
+    OpType optype;
+    AddOp add;
+    MultOp mult;
+};
+
+typedef struct {
+    std::vector<RangeEntry*> range_entries;
+    std::vector<IndexEntry*> index_entries;
+    std::vector<TensorEntry*> tensor_entries;
+    std::vector<OpEntry*> op_entries;
+} Equations;
 
 /* tc[tc_ids] = alpha * ta[ta_ids]*/
 struct AddOp_ {
@@ -54,18 +68,6 @@ struct MultOp_ {
     int tc_ids[MAX_TENSOR_DIMS];
     int ta_ids[MAX_TENSOR_DIMS];
     int tb_ids[MAX_TENSOR_DIMS];
-};
-
-typedef enum {
-    OpTypeAdd,
-    OpTypeMult
-} OpType;
-
-struct OpEntry_ {
-    int op_id;
-    OpType optype;
-    AddOp add;
-    MultOp mult;
 };
 
 

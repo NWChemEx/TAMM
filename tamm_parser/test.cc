@@ -1,13 +1,13 @@
 #include "tamm_parser.h"
 
 
-char *getTensorName(std::vector<TensorEntry> v, int pos) {
-    TensorEntry te = (TensorEntry) v.at(pos);
+char *getTensorName(std::vector<TensorEntry*> v, int pos) {
+    TensorEntry* te = (TensorEntry*) v.at(pos);
     return te->name;
 }
 
-char *getIndexName(std::vector<IndexEntry> v, int pos) {
-    IndexEntry te = (IndexEntry) v.at(pos);
+char *getIndexName(std::vector<IndexEntry*> v, int pos) {
+    IndexEntry* te = (IndexEntry*) v.at(pos);
     return te->name;
 }
 
@@ -18,25 +18,25 @@ int main(int argc, char **argv) {
     tamm_parser(argv[1], &genEq);
 
     unsigned int i = 0;
-    RangeEntry rent;
+    RangeEntry* rent;
     std::cout << "\nRANGE ENTRIES... \n";
     for (i = 0; i < genEq.range_entries.size(); i++) {
-        rent = (RangeEntry) genEq.range_entries.at(i);
+        rent = (RangeEntry*) genEq.range_entries.at(i);
         std::cout << "At position " << i << " -> " <<  rent->name << std::endl;
     }
 
-    IndexEntry ient;
+    IndexEntry* ient;
     std::cout << "\nINDEX ENTRIES... \n";
     for (i = 0; i < genEq.index_entries.size(); i++) {
-        ient = (IndexEntry) genEq.index_entries.at(i);
+        ient = (IndexEntry*) genEq.index_entries.at(i);
         std::cout << "At position " << i << " -> " <<  ient->name << " " << ient->range_id << std::endl;
     }
 
     std::cout << "\nTENSOR ENTRIES... \n";
-    TensorEntry tent;
+    TensorEntry* tent;
     unsigned int j = 0;
     for (i = 0; i < genEq.tensor_entries.size(); i++) {
-        tent = (TensorEntry) genEq.tensor_entries.at(i);
+        tent = (TensorEntry*) genEq.tensor_entries.at(i);
         std::cout << "At position " << i << " -> {" << tent->name << ", {";
         for (j = 0; j < tent->ndim; j++) {
             if (tent->range_ids[j] == 0) std::cout << "O,";
@@ -48,12 +48,12 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "\nOP ENTRIES... \n";
-    OpEntry oent;
-    std::vector<TensorEntry> &tensor_entries = genEq.tensor_entries;
-    std::vector<IndexEntry> &index_entries = genEq.index_entries;
+    OpEntry* oent;
+    std::vector<TensorEntry*> &tensor_entries = genEq.tensor_entries;
+    std::vector<IndexEntry*> &index_entries = genEq.index_entries;
 
     for (i = 0; i < genEq.op_entries.size(); i++) {
-        oent = (OpEntry) genEq.op_entries.at(i);
+        oent = (OpEntry*) genEq.op_entries.at(i);
         if (oent->optype == OpTypeAdd) std::cout << "op" << oent->op_id << ": OpTypeAdd, ";
         else std::cout << "op" << oent->op_id << ": OpTypeMult, ";
         unsigned int j;

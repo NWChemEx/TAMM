@@ -51,8 +51,6 @@ class Absyn //Root of the AST
 
 };
 
-
-
 class Decl {
 public:
     enum {
@@ -243,7 +241,6 @@ public:
 
 const auto addTail = [](auto newtail, auto origList){
     auto p = origList;
-    //std::cout << "decltype=" << decltype(*p);
     decltype(p) newList = new typename std::remove_pointer<decltype(origList)>::type(newtail, nullptr);
 
     if (p == nullptr) {

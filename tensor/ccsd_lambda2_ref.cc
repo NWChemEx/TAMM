@@ -174,12 +174,7 @@ void schedule_linear_lazy(std::map<std::string, tamm::Tensor> &tensors, std::vec
 void schedule_levels(std::map<std::string, tamm::Tensor> &tensors, std::vector<Operation> &ops);
 
 extern "C" {
-#if 1
   void ccsd_lambda2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo, Integer *d_v, Integer *d_y_ov,  Integer *d_y_oovv, Integer *k_f_offset, Integer *k_i0_offset, Integer *k_t_vo_offset, Integer *k_t_vvoo_offset, Integer *k_v_offset, Integer *k_y_ov_offset, Integer *k_y_oovv_offset) {
-#else
-  void ccsd_lambda2_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0, Integer *d_y_ov, Integer *d_y_oovv, Integer *d_t_vo, Integer *d_v, 
-  Integer *k_t_vvoo_offset, Integer *k_f_offset, Integer *k_i0_offset, Integer *k_y_ov_offset, Integer *k_y_oovv_offset, Integer *k_t_vo_offset, Integer *k_v_offset) {
-#endif
 
   static bool set_lambda2 = true;
   
@@ -278,7 +273,14 @@ extern "C" {
   f->attach(*k_f_offset, 0, *d_f);
   v->attach(*k_v_offset, 0, *d_v);
 
- #if 1
+  t_vo->attach(*k_t_vo_offset, 0, *d_t_vo);
+  t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
+  y_ov->attach(*k_y_ov_offset, 0, *d_y_ov);
+  y_oovv->attach(*k_y_oovv_offset, 0, *d_y_oovv);
+  y_ov->set_irrep(Variables::irrep_y());
+  y_oovv->set_irrep(Variables::irrep_y());
+
+ #if 0
   schedule_linear(tensors, ops);
   // schedule_linear_lazy(tensors, ops);
   //  schedule_levels(tensors, ops);
@@ -338,12 +340,12 @@ extern "C" {
     CorFortran(1, lambda2_2_1, offset_ccsd_lambda2_2_1_);
     CorFortran(1, op_lambda2_2_1, ccsd_lambda2_2_1_);
     CorFortran(1, op_lambda2_2_2, ccsd_lambda2_2_2_);
-    CorFortran(1, op_lambda2_2, ccsd_lambda2_2_);
+    CorFortran(1, op_lambda2_2, ccsd_lambda2_2_); 
     destroy(lambda2_2_1);
     CorFortran(1, lambda2_3_1, offset_ccsd_lambda2_3_1_);
     CorFortran(1, op_lambda2_3_1, ccsd_lambda2_3_1_);
     CorFortran(1, op_lambda2_3_2, ccsd_lambda2_3_2_);
-    CorFortran(1, op_lambda2_3, ccsd_lambda2_3_);
+    CorFortran(1, op_lambda2_3, ccsd_lambda2_3_); 
     destroy(lambda2_3_1);
     CorFortran(1, op_lambda2_4, ccsd_lambda2_4_);
     CorFortran(1, lambda2_5_1, offset_ccsd_lambda2_5_1_);
@@ -351,11 +353,11 @@ extern "C" {
     CorFortran(1, lambda2_5_2_1, offset_ccsd_lambda2_5_2_1_);
     CorFortran(1, op_lambda2_5_2_1, ccsd_lambda2_5_2_1_);
     CorFortran(1, op_lambda2_5_2_2, ccsd_lambda2_5_2_2_);
-    CorFortran(1, op_lambda2_5_2, ccsd_lambda2_5_2_);
+    CorFortran(1, op_lambda2_5_2, ccsd_lambda2_5_2_); 
     destroy(lambda2_5_2_1);
     CorFortran(1, op_lambda2_5_3, ccsd_lambda2_5_3_);
     CorFortran(1, op_lambda2_5_4, ccsd_lambda2_5_4_);
-    CorFortran(1, op_lambda2_5, ccsd_lambda2_5_);
+    CorFortran(1, op_lambda2_5, ccsd_lambda2_5_); 
     destroy(lambda2_5_1);
     CorFortran(1, lambda2_6_1, offset_ccsd_lambda2_6_1_);
     CorFortran(1, op_lambda2_6_1, ccsd_lambda2_6_1_);
@@ -363,69 +365,105 @@ extern "C" {
     CorFortran(1, op_lambda2_6_3, ccsd_lambda2_6_3_);
     CorFortran(1, lambda2_6_4_1, offset_ccsd_lambda2_6_4_1_);
     CorFortran(1, op_lambda2_6_4_1, ccsd_lambda2_6_4_1_);
-    CorFortran(1, op_lambda2_6_4, ccsd_lambda2_6_4_);
+    CorFortran(1, op_lambda2_6_4, ccsd_lambda2_6_4_); 
     destroy(lambda2_6_4_1);
-    CorFortran(1, op_lambda2_6, ccsd_lambda2_6_);
+    CorFortran(1, op_lambda2_6, ccsd_lambda2_6_); 
     destroy(lambda2_6_1);
     CorFortran(1, lambda2_7_1, offset_ccsd_lambda2_7_1_);
     CorFortran(1, op_lambda2_7_1, ccsd_lambda2_7_1_);
     CorFortran(1, lambda2_7_2_1, offset_ccsd_lambda2_7_2_1_);
     CorFortran(1, op_lambda2_7_2_1, ccsd_lambda2_7_2_1_);
-    CorFortran(1, op_lambda2_7_2_2, ccsd_lambda2_7_2_2_);
-    CorFortran(1, op_lambda2_7_2, ccsd_lambda2_7_2_);
+    CorFortran(1, op_lambda2_7_2_2, ccsd_lambda2_7_2_2_); 
+    CorFortran(1, op_lambda2_7_2, ccsd_lambda2_7_2_); 
     destroy(lambda2_7_2_1);
     CorFortran(1, op_lambda2_7_3, ccsd_lambda2_7_3_);
-    CorFortran(1, op_lambda2_7, ccsd_lambda2_7_);
+    CorFortran(1, op_lambda2_7, ccsd_lambda2_7_); 
     destroy(lambda2_7_1);
     CorFortran(1, lambda2_8_1, offset_ccsd_lambda2_8_1_);
     CorFortran(1, op_lambda2_8_1, ccsd_lambda2_8_1_);
     CorFortran(1, op_lambda2_8_2, ccsd_lambda2_8_2_);
     CorFortran(1, op_lambda2_8_3, ccsd_lambda2_8_3_);
-    CorFortran(1, op_lambda2_8, ccsd_lambda2_8_);
+    CorFortran(1, op_lambda2_8, ccsd_lambda2_8_); 
     destroy(lambda2_8_1);
     CorFortran(1, op_lambda2_9, ccsd_lambda2_9_);
     CorFortran(1, lambda2_10_1, offset_ccsd_lambda2_10_1_);
     CorFortran(1, op_lambda2_10_1, ccsd_lambda2_10_1_);
     CorFortran(1, op_lambda2_10_2, ccsd_lambda2_10_2_);
-    CorFortran(1, op_lambda2_10, ccsd_lambda2_10_);
+    CorFortran(1, op_lambda2_10, ccsd_lambda2_10_); 
     destroy(lambda2_10_1);
+#if 1 // following block work entirely in fortran or c++
     CorFortran(1, lambda2_11_1, offset_ccsd_lambda2_11_1_);
     CorFortran(1, op_lambda2_11_1, ccsd_lambda2_11_1_);
-    CorFortran(1, op_lambda2_11, ccsd_lambda2_11_);
+    CorFortran(1, op_lambda2_11, ccsd_lambda2_11_); 
+#else
+    CorFortran(0, lambda2_11_1, offset_ccsd_lambda2_11_1_);
+    CorFortran(0, op_lambda2_11_1, ccsd_lambda2_11_1_);
+    CorFortran(0, op_lambda2_11, ccsd_lambda2_11_); 
+#endif
     destroy(lambda2_11_1);
+#if 0 // following block not ok but work entirely in fortran or c++, c++ minor diff in results
     CorFortran(1, lambda2_12_1, offset_ccsd_lambda2_12_1_);
     CorFortran(1, op_lambda2_12_1, ccsd_lambda2_12_1_);
     CorFortran(1, op_lambda2_12, ccsd_lambda2_12_);
+#else
+    CorFortran(0, lambda2_12_1, offset_ccsd_lambda2_12_1_);
+    CorFortran(0, op_lambda2_12_1, ccsd_lambda2_12_1_);
+    CorFortran(0, op_lambda2_12, ccsd_lambda2_12_);
+#endif
     destroy(lambda2_12_1);
     CorFortran(1, lambda2_13_1, offset_ccsd_lambda2_13_1_);
     CorFortran(1, op_lambda2_13_1, ccsd_lambda2_13_1_);
-    CorFortran(1, op_lambda2_13, ccsd_lambda2_13_);
+    CorFortran(1, op_lambda2_13, ccsd_lambda2_13_); 
     destroy(lambda2_13_1);
     CorFortran(1, lambda2_14_1, offset_ccsd_lambda2_14_1_);
     CorFortran(1, op_lambda2_14_1, ccsd_lambda2_14_1_);
-    CorFortran(1, op_lambda2_14, ccsd_lambda2_14_);
+    CorFortran(1, op_lambda2_14, ccsd_lambda2_14_); 
     destroy(lambda2_14_1);
     CorFortran(1, lambda2_15_1, offset_ccsd_lambda2_15_1_);
     CorFortran(1, op_lambda2_15_1, ccsd_lambda2_15_1_);
     CorFortran(1, lambda2_15_2_1, offset_ccsd_lambda2_15_2_1_);
     CorFortran(1, op_lambda2_15_2_1, ccsd_lambda2_15_2_1_);
-    CorFortran(1, op_lambda2_15_2, ccsd_lambda2_15_2_);
+    CorFortran(1, op_lambda2_15_2, ccsd_lambda2_15_2_); 
     destroy(lambda2_15_2_1);
     CorFortran(1, op_lambda2_15, ccsd_lambda2_15_);
     destroy(lambda2_15_1);
+#if 1
+#if 0 // following block work entirely in fortran or c++
+    CorFortran(0, lambda2_16_1, offset_ccsd_lambda2_16_1_);
+    CorFortran(0, lambda2_16_1_1, offset_ccsd_lambda2_16_1_1_);
+    CorFortran(0, op_lambda2_16_1_1, ccsd_lambda2_16_1_1_);
+    CorFortran(0, op_lambda2_16_1, ccsd_lambda2_16_1_);
+    destroy(lambda2_16_1_1);
+    CorFortran(0, op_lambda2_16, ccsd_lambda2_16_);
+#else
+    CorFortran(1, lambda2_16_1, offset_ccsd_lambda2_16_1_);
     CorFortran(1, lambda2_16_1_1, offset_ccsd_lambda2_16_1_1_);
     CorFortran(1, op_lambda2_16_1_1, ccsd_lambda2_16_1_1_);
-    CorFortran(1, lambda2_16_1, offset_ccsd_lambda2_16_1_);
     CorFortran(1, op_lambda2_16_1, ccsd_lambda2_16_1_);
     destroy(lambda2_16_1_1);
     CorFortran(1, op_lambda2_16, ccsd_lambda2_16_);
+#endif
     destroy(lambda2_16_1);
+#else
+    // order of code below not ok 
+    CorFortran(0, lambda2_16_1_1, offset_ccsd_lambda2_16_1_1_); 
+    CorFortran(0, op_lambda2_16_1_1, ccsd_lambda2_16_1_1_);
+    CorFortran(0, lambda2_16_1, offset_ccsd_lambda2_16_1_);
+    CorFortran(0, op_lambda2_16_1, ccsd_lambda2_16_1_);
+    destroy(lambda2_16_1_1);
+    CorFortran(0, op_lambda2_16, ccsd_lambda2_16_);
+    destroy(lambda2_16_1);
+#endif
   #endif
 
   /* ----- Insert detach code ------ */
   f->detach();
   i0->detach();
   v->detach();
+  t_vo->detach();
+  t_vvoo->detach();
+  y_ov->detach();
+  y_oovv->detach();
   }
 } // extern C
 }; // namespace tamm

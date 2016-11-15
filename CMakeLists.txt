@@ -146,7 +146,7 @@ string(REPLACE "-I" "" tamm_cmake_cflags ${tamm_cflags})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" tamm_cflags ${tamm_cmake_cflags})
 
-SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++11")
+SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14")
 add_library(tamm STATIC ${tammParserSources} ${ParserSources} ${tammLibSources})
 target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
 

@@ -96,14 +96,14 @@ void parser_eqs_to_tamm_eqs(::Equations *peqs, tamm::Equations &ceqs) {
   noe = peqs->op_entries.size();
 
   for (int i = 0; i < nre; i++) {
-    ::RangeEntry re = (::RangeEntry)peqs->range_entries.at(i);
+    ::RangeEntry* re = (::RangeEntry*)peqs->range_entries.at(i);
     tamm::RangeEntry cre;
     // cre.name = strdup(re->name);
     cre.name = string(re->name);
     ceqs.range_entries.push_back(cre);
   }
   for (int i = 0; i < nie; i++) {
-    ::IndexEntry ie = (::IndexEntry)peqs->index_entries.at(i);
+    ::IndexEntry* ie = (::IndexEntry*)peqs->index_entries.at(i);
     tamm::IndexEntry cie;
     // cie.name = strdup(ie->name);
     cie.name = string(ie->name);
@@ -114,7 +114,7 @@ void parser_eqs_to_tamm_eqs(::Equations *peqs, tamm::Equations &ceqs) {
   }
 
   for (int i = 0; i < nte; i++) {
-    ::TensorEntry te = (::TensorEntry)peqs->tensor_entries.at(i);
+    ::TensorEntry* te = (::TensorEntry*)peqs->tensor_entries.at(i);
     tamm::TensorEntry cte;
     // cte.name = strdup(te->name);
     cte.name = string(te->name);
@@ -132,7 +132,7 @@ void parser_eqs_to_tamm_eqs(::Equations *peqs, tamm::Equations &ceqs) {
   }
 
   for (int i = 0; i < noe; i++) {
-    ::OpEntry oe = (::OpEntry)peqs->op_entries.at(i);
+    ::OpEntry* oe = (::OpEntry*)peqs->op_entries.at(i);
     tamm::OpEntry coe;
     // cout<<"optype == "<<oe->optype<<endl;
     coe.op_id = oe->op_id;
@@ -143,10 +143,10 @@ void parser_eqs_to_tamm_eqs(::Equations *peqs, tamm::Equations &ceqs) {
 
     int j;
     if (coe.optype == tamm::OpTypeAdd) {
-      ::TensorEntry ta =
-          (::TensorEntry)peqs->tensor_entries.at(oe->add->ta);
-      ::TensorEntry tc =
-          (::TensorEntry)peqs->tensor_entries.at(oe->add->tc);
+      ::TensorEntry* ta =
+          (::TensorEntry*)peqs->tensor_entries.at(oe->add->ta);
+      ::TensorEntry* tc =
+          (::TensorEntry*)peqs->tensor_entries.at(oe->add->tc);
 
       coe.add.ta = string(ta->name);  // oe->add->ta;
       coe.add.tc = string(tc->name);  // oe->add->tc;
@@ -156,12 +156,12 @@ void parser_eqs_to_tamm_eqs(::Equations *peqs, tamm::Equations &ceqs) {
       for (j = 0; j < MAX_TENSOR_DIMS; j++)
         coe.add.ta_ids[j] = oe->add->ta_ids[j];
     } else {
-      ::TensorEntry ta =
-          (::TensorEntry)peqs->tensor_entries.at(oe->mult->ta);
-      ::TensorEntry tb =
-          (::TensorEntry)peqs->tensor_entries.at(oe->mult->tb);
-      ::TensorEntry tc =
-          (::TensorEntry)peqs->tensor_entries.at(oe->mult->tc);
+      ::TensorEntry* ta =
+          (::TensorEntry*)peqs->tensor_entries.at(oe->mult->ta);
+      ::TensorEntry* tb =
+          (::TensorEntry*)peqs->tensor_entries.at(oe->mult->tb);
+      ::TensorEntry* tc =
+          (::TensorEntry*)peqs->tensor_entries.at(oe->mult->tc);
 
       coe.mult.ta = string(ta->name);  // oe->mult->ta;
       coe.mult.tb = string(tb->name);  // oe->mult->tb;

@@ -174,12 +174,7 @@ void schedule_linear_lazy(std::map<std::string, tamm::Tensor> &tensors, std::vec
 void schedule_levels(std::map<std::string, tamm::Tensor> &tensors, std::vector<Operation> &ops);
 
 extern "C" {
-#if 1
   void ccsd_lambda2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo, Integer *d_v, Integer *d_y_ov,  Integer *d_y_oovv, Integer *k_f_offset, Integer *k_i0_offset, Integer *k_t_vo_offset, Integer *k_t_vvoo_offset, Integer *k_v_offset, Integer *k_y_ov_offset, Integer *k_y_oovv_offset) {
-#else
-  void ccsd_lambda2_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0, Integer *d_y_ov, Integer *d_y_oovv, Integer *d_t_vo, Integer *d_v, 
-  Integer *k_t_vvoo_offset, Integer *k_f_offset, Integer *k_i0_offset, Integer *k_y_ov_offset, Integer *k_y_oovv_offset, Integer *k_t_vo_offset, Integer *k_v_offset) {
-#endif
 
   static bool set_lambda2 = true;
   
@@ -274,8 +269,6 @@ extern "C" {
 
   /* ----- Insert attach code ------ */
   v->set_dist(idist);
-  t_vo->set_dist(dist_nw);
-  t_vvoo->set_dist(dist_nw);
   i0->attach(*k_i0_offset, 0, *d_i0);
   f->attach(*k_f_offset, 0, *d_f);
   v->attach(*k_v_offset, 0, *d_v);
@@ -381,7 +374,7 @@ extern "C" {
     CorFortran(1, lambda2_7_2_1, offset_ccsd_lambda2_7_2_1_);
     CorFortran(1, op_lambda2_7_2_1, ccsd_lambda2_7_2_1_);
     CorFortran(1, op_lambda2_7_2_2, ccsd_lambda2_7_2_2_); 
-    CorFortran(0, op_lambda2_7_2, ccsd_lambda2_7_2_); // not ok minor diff
+    CorFortran(1, op_lambda2_7_2, ccsd_lambda2_7_2_); 
     destroy(lambda2_7_2_1);
     CorFortran(1, op_lambda2_7_3, ccsd_lambda2_7_3_);
     CorFortran(1, op_lambda2_7, ccsd_lambda2_7_); 
@@ -398,14 +391,14 @@ extern "C" {
     CorFortran(1, op_lambda2_10_2, ccsd_lambda2_10_2_);
     CorFortran(1, op_lambda2_10, ccsd_lambda2_10_); 
     destroy(lambda2_10_1);
-#if 0 // following block work entirely in fortran or c++
-    CorFortran(0, lambda2_11_1, offset_ccsd_lambda2_11_1_);
-    CorFortran(0, op_lambda2_11_1, ccsd_lambda2_11_1_);
-    CorFortran(0, op_lambda2_11, ccsd_lambda2_11_); 
-#else
+#if 1 // following block work entirely in fortran or c++
     CorFortran(1, lambda2_11_1, offset_ccsd_lambda2_11_1_);
     CorFortran(1, op_lambda2_11_1, ccsd_lambda2_11_1_);
     CorFortran(1, op_lambda2_11, ccsd_lambda2_11_); 
+#else
+    CorFortran(0, lambda2_11_1, offset_ccsd_lambda2_11_1_);
+    CorFortran(0, op_lambda2_11_1, ccsd_lambda2_11_1_);
+    CorFortran(0, op_lambda2_11, ccsd_lambda2_11_); 
 #endif
     destroy(lambda2_11_1);
 #if 0 // following block not ok but work entirely in fortran or c++, c++ minor diff in results
@@ -430,7 +423,7 @@ extern "C" {
     CorFortran(1, op_lambda2_15_1, ccsd_lambda2_15_1_);
     CorFortran(1, lambda2_15_2_1, offset_ccsd_lambda2_15_2_1_);
     CorFortran(1, op_lambda2_15_2_1, ccsd_lambda2_15_2_1_);
-    CorFortran(0, op_lambda2_15_2, ccsd_lambda2_15_2_); // not ok minor diff
+    CorFortran(1, op_lambda2_15_2, ccsd_lambda2_15_2_); 
     destroy(lambda2_15_2_1);
     CorFortran(1, op_lambda2_15, ccsd_lambda2_15_);
     destroy(lambda2_15_1);

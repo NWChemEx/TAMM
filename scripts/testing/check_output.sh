@@ -1,15 +1,5 @@
 #!/bin/bash 
 
-runCommand=$1
-correctOutput=$2
-tests=$3
-errorCode=0
-
-a="$($runCommand &> tmpResult)"
-b="$("ls -l")"
-echo"ran $a"
-echo"files: $b"
-
 returnVal=()
 convertArgsStrToArray() {
     local concat=""
@@ -85,6 +75,16 @@ function compare {
 
   return $errorCode
 }
+
+runCommand=$1
+correctOutput=$2
+tests=$3
+errorCode=0
+
+a="$($runCommand &> tmpResult)"
+b="$(ls -l)"
+echo "ran $a"
+echo "files: $b"
 
 while IFS='' read -r line || [[ -n "$line" ]]; do
   convertArgsStrToArray $line 

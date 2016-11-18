@@ -22,6 +22,10 @@ find_package(FLEX REQUIRED)
 #message(STATUS "mpi compile flags: " ${MPI_CXX_COMPILE_FLAGS})
 #message(STATUS "mpi libs: " ${MPI_CXX_LIBRARIES})
 
+include_directories( ${PROJECT_SOURCE_DIR} )
+
+add_definitions(-DMPICH_IGNORE_CXX_SEEK)
+
 if(NOT DEFINED LINUX_BLAS)
     find_path (BLAS_INC_PATH NAMES cblas.h mkl_cblas.h PATHS ${TAMM_BLAS_INC})
     find_library (BLAS_LIB_PATH blas ${TAMM_BLAS_LIB})
@@ -147,8 +151,11 @@ string(REPLACE "-I" "" tamm_cmake_cflags ${tamm_cflags})
 string(REPLACE " " ";" tamm_cflags ${tamm_cmake_cflags})
 
 SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14")
+#SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
 add_library(tamm STATIC ${tammParserSources} ${ParserSources} ${tammLibSources})
 target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
+#set_property(TARGET tamm PROPERTY CXX_STANDARD 14)
+#set_property(TARGET tamm PROPERTY CXX_STANDARD_REQUIRED ON)
 
 # Build the tamm_parser_test code
 add_executable(tamm_parser_test ${ParserSrcDir}/test.cc)
@@ -209,7 +216,7 @@ message(STATUS "Installing TAMM library at: " ${TAMM_INSTALL_PREFIX})
 install(TARGETS tamm
         DESTINATION ${TAMM_INSTALL_PREFIX}/lib)
 
-    file(GLOB TAMM_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/tamm_parser/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
+file(GLOB TAMM_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/tamm_parser/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
 install(FILES ${TAMM_HEADERS} DESTINATION ${TAMM_INSTALL_PREFIX}/include)
 
 file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/tamm_tests/NWChemEqs/*.eq")
@@ -220,11 +227,10 @@ install(FILES ${EQFILES} DESTINATION ${TAMM_INSTALL_PREFIX}/tests/SoEqs)
 SET(TAMM_EQ_PATH ${TAMM_INSTALL_PREFIX}/tests/NWChemEqs)
 
 if(NOT DEFINED LINUX_BLAS)
-    file(WRITE "${PROJECT_BINARY_DIR}/cmake_tamm_headers.h" "#define CBLAS_HEADER_FILE \"${cblas_header_name}\"")
+    add_definitions(-DCBLAS_HEADER_FILE=${cblas_header_name})
 endif()
 
-file(WRITE "${PROJECT_BINARY_DIR}/cmake_tamm_headers.h" "#define CBLAS_HEADER_FILE \"${cblas_header_name}\"")
-file(APPEND "${PROJECT_BINARY_DIR}/cmake_tamm_headers.h" "\n#define TAMM_EQ_PATH \"${TAMM_INSTALL_PREFIX}/tests/NWChemEqs\"")
+add_definitions(-DTAMM_EQ_PATH=\"${TAMM_INSTALL_PREFIX}/tests/NWChemEqs\")
 
 set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
         "parser.y" "scanner.l" "parser.out" "output.txt" "lempar.c")
@@ -276,6 +282,11 @@ else()
     ADD_CUSTOM_TARGET(docs DEPENDS ${DOCOUTPUT})
 endif()
 
+add_custom_target("style")
+add_custom_command(TARGET "style" PRE_BUILD 
+  COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/scripts ./cpplint.bash ${CMAKE_SOURCE_DIR}/tensor/*
+  COMMENT "=================== Checking style..." )
+
 add_custom_target("patch")
 add_custom_command(TARGET "patch" POST_BUILD 
     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib
@@ -310,13 +321,13 @@ set (TEST_COMMAND "mpirun -n ${TAMM_TEST_PROC_COUNT} ${NWCHEM_TOP}/bin/LINUX64/n
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 
-file(GLOB INTEG_TESTS RELATIVE ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/test/integration/*.nw")
+file(GLOB INTEG_TESTS RELATIVE ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/test/integration/inputs/*.nw")
 foreach (test ${INTEG_TESTS})
     get_filename_component(Testname ${test} NAME_WE)
     string(REGEX REPLACE "\\.[^.]*$" "" Testname "${Testname}")
     add_test(${test} ${PROJECT_SOURCE_DIR}/scripts/testing/check_output.sh "${TEST_COMMAND} ${CMAKE_SOURCE_DIR}/${test}"
         ${PROJECT_SOURCE_DIR}/test/integration/correct_outputs/${Testname}.output
-        ${PROJECT_SOURCE_DIR}/test/integration/checker_config/${Testname}.config
+        ${PROJECT_SOURCE_DIR}/test/integration/tests/${Testname}.tests
         )
 endforeach()
 

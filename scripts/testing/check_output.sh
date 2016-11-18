@@ -81,14 +81,15 @@ correctOutput=$2
 tests=$3
 errorCode=0
 
-a="$($runCommand &> tmpResult)"
-b="$(ls -l)"
-echo "ran $a"
-echo "files: $b"
+$runCommand &> tmpResult
+cat tmpResult
+#b="$(ls -l)"
+#echo "ran $a $runCommand"
+#echo "files: $b"
 
 while IFS='' read -r line || [[ -n "$line" ]]; do
   convertArgsStrToArray $line 
-  compare $correctOutput ./tmpResult "${returnVal[@]}" 
+  compare $correctOutput $PWD/tmpResult "${returnVal[@]}" 
   res=$?
   if [ "$res" != 0 ] 
   then

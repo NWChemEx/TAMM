@@ -227,7 +227,7 @@ install(FILES ${EQFILES} DESTINATION ${TAMM_INSTALL_PREFIX}/tests/SoEqs)
 SET(TAMM_EQ_PATH ${TAMM_INSTALL_PREFIX}/tests/NWChemEqs)
 
 if(NOT DEFINED LINUX_BLAS)
-    add_definitions(-DCBLAS_HEADER_FILE=${cblas_header_name})
+  add_definitions(-DCBLAS_HEADER_FILE="${BLAS_INC_PATH}/${cblas_header_name}")
 endif()
 
 add_definitions(-DTAMM_EQ_PATH=\"${TAMM_INSTALL_PREFIX}/tests/NWChemEqs\")

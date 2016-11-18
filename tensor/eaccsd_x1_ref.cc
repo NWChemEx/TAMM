@@ -1,12 +1,23 @@
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
 #include <iostream>
-#include "corf.h"
-#include "equations.h"
-#include "input.h"
-#include "t_assign.h"
-#include "t_mult.h"
-#include "tensor.h"
-#include "tensors_and_ops.h"
-#include "variables.h"
+#include "tensor/corf.h"
+#include "tensor/equations.h"
+#include "tensor/input.h"
+#include "tensor/schedulers.h"
+#include "tensor/t_assign.h"
+#include "tensor/t_mult.h"
+#include "tensor/tensor.h"
+#include "tensor/tensors_and_ops.h"
+#include "tensor/variables.h"
 
 /*
  *  x1 {
@@ -100,9 +111,6 @@ void offset_eaccsd_x1_5_1_(Integer *l_x1_5_1_offset, Integer *k_x1_5_1_offset,
 
 namespace tamm {
 
-void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops);
-
 extern "C" {
 void eaccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
                     Fint *d_x1, Fint *d_x2, Fint *k_f1_offset,
@@ -129,13 +137,13 @@ void eaccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
   static Equations eqs;
 
   if (set_x1) {
-    eaccsd_x1_equations(eqs);
+    eaccsd_x1_equations(&eqs);
     set_x1 = false;
   }
 
   std::map<std::string, tamm::Tensor> tensors;
   std::vector<Operation> ops;
-  tensors_and_ops(eqs, tensors, ops);
+  tensors_and_ops(&eqs, &tensors, &ops);
 
   Tensor *i0 = &tensors["i0"];
   Tensor *x_v = &tensors["x_v"];
@@ -168,7 +176,7 @@ void eaccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
   x1_5_1->set_irrep(Variables::irrep_x());
 
 #if 1
-  schedule_levels(tensors, ops);
+  schedule_levels(&tensors, &ops);
 #else
   op_x1_1_1 = ops[0].add;
   op_x1_1_2 = ops[1].mult;
@@ -185,31 +193,31 @@ void eaccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
   op_x1_5_1 = ops[12].mult;
   op_x1_5 = ops[13].mult;
 
-  CorFortran(1, x1_1_1, offset_eaccsd_x1_1_1_);
-  CorFortran(1, op_x1_1_1, eaccsd_x1_1_1_);
-  CorFortran(1, op_x1_1_2, eaccsd_x1_1_2_);
-  CorFortran(1, op_x1_1, eaccsd_x1_1_);
+  CorFortran(1, &x1_1_1, offset_eaccsd_x1_1_1_);
+  CorFortran(1, &op_x1_1_1, eaccsd_x1_1_1_);
+  CorFortran(1, &op_x1_1_2, eaccsd_x1_1_2_);
+  CorFortran(1, &op_x1_1, eaccsd_x1_1_);
   destroy(x1_1_1);
-  CorFortran(1, x1_2_1, offset_eaccsd_x1_2_1_);
-  CorFortran(1, op_x1_2_1, eaccsd_x1_2_1_);
-  CorFortran(1, op_x1_2_2, eaccsd_x1_2_2_);
-  CorFortran(1, op_x1_2, eaccsd_x1_2_);
+  CorFortran(1, &x1_2_1, offset_eaccsd_x1_2_1_);
+  CorFortran(1, &op_x1_2_1, eaccsd_x1_2_1_);
+  CorFortran(1, &op_x1_2_2, eaccsd_x1_2_2_);
+  CorFortran(1, &op_x1_2, eaccsd_x1_2_);
   destroy(x1_2_1);
-  CorFortran(1, op_x1_3, eaccsd_x1_3_);
-  CorFortran(1, x1_4_1_1, offset_eaccsd_x1_4_1_1_);
-  CorFortran(1, op_x1_4_1_1, eaccsd_x1_4_1_1_);
-  CorFortran(1, op_x1_4_1_2, eaccsd_x1_4_1_2_);
-  CorFortran(1, x1_4_1, offset_eaccsd_x1_4_1_);
-  CorFortran(1, op_x1_4_1, eaccsd_x1_4_1_);
+  CorFortran(1, &op_x1_3, eaccsd_x1_3_);
+  CorFortran(1, &x1_4_1_1, offset_eaccsd_x1_4_1_1_);
+  CorFortran(1, &op_x1_4_1_1, eaccsd_x1_4_1_1_);
+  CorFortran(1, &op_x1_4_1_2, eaccsd_x1_4_1_2_);
+  CorFortran(1, &x1_4_1, offset_eaccsd_x1_4_1_);
+  CorFortran(1, &op_x1_4_1, eaccsd_x1_4_1_);
   destroy(x1_4_1_1);
-  CorFortran(1, op_x1_4_2, eaccsd_x1_4_2_);
-  CorFortran(1, op_x1_4, eaccsd_x1_4_);
+  CorFortran(1, &op_x1_4_2, eaccsd_x1_4_2_);
+  CorFortran(1, &op_x1_4, eaccsd_x1_4_);
   destroy(x1_4_1);
-  CorFortran(1, x1_5_1, offset_eaccsd_x1_5_1_);
-  CorFortran(1, op_x1_5_1, eaccsd_x1_5_1_);
-  CorFortran(1, op_x1_5, eaccsd_x1_5_);
+  CorFortran(1, &x1_5_1, offset_eaccsd_x1_5_1_);
+  CorFortran(1, &op_x1_5_1, eaccsd_x1_5_1_);
+  CorFortran(1, &op_x1_5, eaccsd_x1_5_);
   destroy(x1_5_1);
-#endif
+#endif  // Use c scheduler
 
   /* ----- Insert detach code ------ */
   i0->detach();

@@ -1,5 +1,17 @@
-#ifndef __tamm_iter_group_h__
-#define __tamm_iter_group_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_ITERGROUP_H_
+#define TAMM_TENSOR_ITERGROUP_H_
+
+#include <vector>
 
 namespace tamm {
 
@@ -14,12 +26,12 @@ class IterGroup {
   /**
    * Constructor
    */
-  IterGroup() { empty_ = true; };
+  IterGroup() { empty_ = true; }
 
   /**
    * Destructor
    */
-  ~IterGroup(){};
+  ~IterGroup() {}
 
   IterGroup(const std::vector<T>& iters, IterType type);
 
@@ -33,11 +45,11 @@ class IterGroup {
 
   void setType(IterType it);
 
-  bool next(std::vector<size_t>& vec);
+  bool next(std::vector<size_t>* vec);
 
   void reset();
 
-  void fix_ids_for_copy(std::vector<size_t>& vec);
+  void fix_ids_for_copy(std::vector<size_t>* vec);
 
  private:
   std::vector<T> iters_;
@@ -64,7 +76,7 @@ inline IterGroup<T>::IterGroup(const std::vector<T>& iters, IterType type)
   ub_.resize(n);
   for (int i = 0; i < n; i++) {
     iters_[i].reset();
-    ub_[i] = iters_[i].next(curr_[i]);
+    ub_[i] = iters_[i].next(&(curr_[i]));
   }
 }
 
@@ -94,14 +106,14 @@ inline void IterGroup<T>::setType(IterType it) {
 }
 
 template <class T>
-inline bool IterGroup<T>::next(std::vector<size_t>& vec) {
+inline bool IterGroup<T>::next(std::vector<size_t>* vec) {
   if (empty_)
     return false;  // no summation indices, execute once by checking isEmpty()
   if (ub_[0] == false) return false;  // end of iteration
   int n = iters_.size();
-  vec.clear();
+  vec->clear();
   for (int i = 0; i < n; i++)
-    vec.insert(vec.end(), curr_[i].begin(),
+    vec->insert(vec->end(), curr_[i].begin(),
                curr_[i].end());  // all = curr[0]+curr[1]+...
 
   // update sign
@@ -122,15 +134,15 @@ inline bool IterGroup<T>::next(std::vector<size_t>& vec) {
 
   // plus one
   int last = curr_.size() - 1;
-  ub_[last] = iters_[last].next(curr_[last]);  // +1
+  ub_[last] = iters_[last].next(&(curr_[last]));  // +1
 
   // compute carry
   for (int i = last; i > 0; i--) {
     if (ub_[i] == false) {
-      ub_[i - 1] = iters_[i - 1].next(curr_[i - 1]);
+      ub_[i - 1] = iters_[i - 1].next(&(curr_[i - 1]));
       for (int j = i; j <= last; j++) {
         iters_[j].reset();
-        ub_[j] = iters_[j].next(curr_[j]);
+        ub_[j] = iters_[j].next(&(curr_[j]));
       }
     }
   }
@@ -144,17 +156,17 @@ inline void IterGroup<T>::reset() {
   int n = iters_.size();
   for (int i = 0; i < n; i++) {
     iters_[i].reset();
-    ub_[i] = iters_[i].next(curr_[i]);
+    ub_[i] = iters_[i].next(&(curr_[i]));
   }
 }
 
 template <class T>
-inline void IterGroup<T>::fix_ids_for_copy(std::vector<size_t>& vec) {
+inline void IterGroup<T>::fix_ids_for_copy(std::vector<size_t>* vec) {
   if (type_ != COPY) return;
   int begin = 0, end = 0, offset = 0;
   for (int i = 0; i < iters_.size(); i++) {
     end += iters_[i].size();
-    for (int j = begin; j < end; j++) vec[j] += offset;
+    for (int j = begin; j < end; j++) (*vec)[j] += offset;
     begin = end;
     offset += iters_[i].size();
   }
@@ -162,4 +174,4 @@ inline void IterGroup<T>::fix_ids_for_copy(std::vector<size_t>& vec) {
 
 } /* namespace tamm */
 
-#endif /* __tamm_iter_group_h */
+#endif  // TAMM_TENSOR_ITERGROUP_H_

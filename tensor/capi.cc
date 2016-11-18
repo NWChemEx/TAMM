@@ -1,20 +1,35 @@
-#include "common.h"
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#include "tensor/capi.h"
 
-#include "capi.h"
-#include "index_sort.h"
+#include <string>
+#include <utility>
+
+#include "tensor/common.h"
+#include "tensor/index_sort.h"
+#include "tensor/fapi.h"
+#include "tensor/index.h"
+#include "tensor/variables.h"
 
 #ifndef LINUX_BLAS
 #include CBLAS_HEADER_FILE
-#endif
+#endif  // LINUX_BLAS
 
-#include "fapi.h"
-#include "index.h"
-#include "variables.h"
+using std::vector;
+using std::string;
 
 namespace tamm {
 
 void tamm_sort(double *sbuf, double *dbuf, const std::vector<size_t> &ids,
-               std::vector<size_t> &iv, double alpha) {
+               const std::vector<size_t> & iv, double alpha) {
   assert(ids.size() == iv.size());
 
 #if USE_FORTRAN_FUNCTIONS
@@ -49,7 +64,7 @@ void tamm_sort(double *sbuf, double *dbuf, const std::vector<size_t> &ids,
     perm.push_back(iv[i]);
   }
   index_sort(sbuf, dbuf, ids.size(), &sizes[0], &perm[0], alpha);
-#endif
+#endif  // USE_FORTRAN_FUNCTIONS
 }
 
 void tamm_hash(Fint *hash, size_t key, Fint *offset) {
@@ -65,7 +80,7 @@ void tamm_hash(Fint *hash, size_t key, Fint *offset) {
     assert(0);
   }
   *offset = *(ptr + length);
-#endif
+#endif  // USE_FORTRAN_FUNCTIONS
 }
 
 void cadd_block(gmem::Handle d_a, double *buf, size_t size, size_t offset) {
@@ -76,7 +91,7 @@ void cadd_block(gmem::Handle d_a, double *buf, size_t size, size_t offset) {
   fadd_block(&ida, buf, &isize, &ioffset);
 #else
   gmem::acc(d_a, buf, offset, offset + size - 1);
-#endif
+#endif  // USE_FORTRAN_FUNCTIONS
 }
 
 void cadd_hash_block(gmem::Handle d_c, double *buf_a, size_t size, Fint *hash,
@@ -90,7 +105,7 @@ void cadd_hash_block(gmem::Handle d_c, double *buf_a, size_t size, Fint *hash,
   Fint offset;
   tamm_hash(hash, key, &offset);
   cadd_block(d_c, buf_a, size, offset);
-#endif
+#endif  // USE_FORTRAN_FUNCTIONS
 }
 
 void cget_block(gmem::Handle d_a, double *buf, size_t size, size_t offset) {
@@ -101,7 +116,7 @@ void cget_block(gmem::Handle d_a, double *buf, size_t size, size_t offset) {
   fget_block(&ida, buf, &isize, &ioffset);
 #else
   gmem::get(d_a, buf, offset, offset + size - 1);
-#endif
+#endif  // USE_FORTRAN_FUNCTIONS
 }
 
 void cdgemm(char transa, char transb, size_t m, size_t n, size_t k,
@@ -116,11 +131,11 @@ void cdgemm(char transa, char transb, size_t m, size_t n, size_t k,
   CBLAS_TRANSPOSE TransB = (transb == 'N') ? CblasNoTrans : CblasTrans;
   cblas_dgemm(CblasColMajor, TransA, TransB, m, n, k, alpha, a, lda, b, ldb,
               beta, c, ldc);
-#endif
+#endif  // USE_FORTRAN_FUNCTIONS
 }
 
 void tamm_sortacc(double *sbuf, double *dbuf, const std::vector<size_t> &ids,
-                  std::vector<size_t> &perm, double alpha) {
+                  const std::vector<size_t> & perm, double alpha) {
   assert(ids.size() == perm.size());
 
 #if USE_FORTRAN_FUNCTIONS
@@ -150,11 +165,11 @@ void tamm_sortacc(double *sbuf, double *dbuf, const std::vector<size_t> &ids,
     perms.push_back(perm[i]);
   }
   index_sortacc(sbuf, dbuf, ids.size(), &sizes[0], &perms[0], alpha);
-#endif
+#endif  // USE_FORTRAN_FUNCTIONS
 }
 
 void tamm_restricted(int dim, int nupper, const std::vector<size_t> &value,
-                     std::vector<size_t> &pvalue_r) {
+                     std::vector<size_t> * pvalue_r) {
 #if USE_FORTRAN_FUNCTIONS
   std::vector<Fint> temp(dim);
   std::vector<Fint> ivalue(dim);
@@ -180,9 +195,9 @@ void tamm_restricted(int dim, int nupper, const std::vector<size_t> &value,
   } else {
     assert(0);
   }
-  pvalue_r.clear();
+  pvalue_r->clear();
   for (int i = 0; i < dim; i++) {
-    pvalue_r.push_back(temp[i]);
+    pvalue_r->push_back(temp[i]);
   }
 #else
   int lval = 0;
@@ -193,18 +208,18 @@ void tamm_restricted(int dim, int nupper, const std::vector<size_t> &value,
   }
   if (Variables::restricted() && (dim != 0) && (dim % 2 == 0) &&
       lval == 2 * dim) {
-    pvalue_r.resize(dim);
+    pvalue_r->resize(dim);
     Fint k_alpha = Variables::k_alpha() - 1;
     for (int i = 0; i < dim; i++) {
       pvalue_r[i] = int_mb[value[i] + k_alpha];
     }
   } else {
-    pvalue_r = value;
+    *pvalue_r = value;
   }
-#endif
+#endif  // USE_FORTRAN_FUNCTIONS
 }
 
-static std::vector<size_t> invert_perm(std::vector<size_t> &perm) {
+static std::vector<size_t> invert_perm(const std::vector<size_t> & perm) {
   std::vector<size_t> perm_out;
   int n = perm.size();
   for (size_t i = n; i >= 1; i--) {
@@ -231,10 +246,11 @@ static bool is_spin_nonzero(const vector<size_t> &ids) {
 int cget_add_ind_i(gmem::Handle da, double *buf, size_t size,
                    size_t offset_unused, size_t key_unused,
                    const std::vector<size_t> &is_in,
-                   std::vector<size_t> &is_out, std::vector<size_t> &perm,
-                   string name, gmem::Wait_Handle &nbh) {
+                   std::vector<size_t> * is_out,
+                   std::vector<size_t> * perm, string name,
+                   gmem::Wait_Handle * nbh) {
   assert(is_in.size() == 4);
-  assert(perm.size() == 4);
+  assert(perm->size() == 4);
   vector<size_t> isa(is_in.size());
   // if(!is_spin_nonzero(is_in)) {
   //   cout<<name<<" skip"<<endl;
@@ -249,7 +265,7 @@ int cget_add_ind_i(gmem::Handle da, double *buf, size_t size,
     // cout<<"isa_in["<<i<<"]="<<isa[i]<<endl;
   }
 
-  is_out = is_in;
+  *is_out = is_in;
 
   bool a = false, b = false, c = false;
 
@@ -289,15 +305,15 @@ int cget_add_ind_i(gmem::Handle da, double *buf, size_t size,
   size_t nva = Variables::nva();
 // cout<<"noa="<<noa<<" nva="<<nva<<endl;
 #if 0
-  for(int i=0; i<=3; i++) {
-    //cout<<"isa["<<i<<"]="<<isa[i]<<endl;
+  for (int i=0; i <= 3; i++) {
+    // cout<<"isa["<<i<<"]="<<isa[i]<<endl;
     key = key * (noa+nva) + (isa[i]-1);
   }
 #else
   size_t nova = noa + nva;
   key = (isa[1] - 1) +
         nova * (isa[0] - 1 + nova * (isa[3] - 1 + nova * (isa[2] - 1)));
-#endif
+#endif  // 0 -> Not working
   // cout<<name<<" choice: "<<a<<" "<<b<<" "<<c<<" "<<endl;
   // cout<<name<<" key: "<<key<<endl;
 
@@ -313,7 +329,7 @@ int cget_add_ind_i(gmem::Handle da, double *buf, size_t size,
 }
 
 void cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
-                      size_t key, std::vector<size_t> &is) {
+                      size_t key, const std::vector<size_t> & is) {
 #if USE_FORTRAN_FUNCTIONS || 1
   Fint ida = (gmem::Handle)da;
   Fint isize = size;
@@ -353,8 +369,8 @@ void cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
     if (int_mb[k_spin + is[0]] == int_mb[k_spin + is[2]] &&
         int_mb[k_spin + is[1]] == int_mb[k_spin + is[3]]) {
       bufa = new double[size];
-      int x = cget_add_ind_i(da, bufa, size, offset, key, visa, visa_out,
-                             vperma, " perma", nbh1);
+      int x = cget_add_ind_i(da, bufa, size, offset, key, visa, &visa_out,
+                             &vperma, " perma", &nbh1);
       comm1 = true;
 
       vector<size_t> vpa = vperma;
@@ -450,8 +466,8 @@ void cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
     if (int_mb[k_spin + is[0]] == int_mb[k_spin + is[3]] &&
         int_mb[k_spin + is[1]] == int_mb[k_spin + is[2]]) {
       bufb = new double[size];
-      int x = cget_add_ind_i(da, bufb, size, offset, key, visb, visb_out,
-                             vpermb, " permb", nbh2);
+      int x = cget_add_ind_i(da, bufb, size, offset, key, visb, &visb_out,
+                             &vpermb, " permb", &nbh2);
       comm2 = true;
       size_t p[4] = {};
       switch (x) {
@@ -509,7 +525,7 @@ void cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
       // vpermb.clear();
       // vpermb.insert(vpermb.end(),p,p+4);
       vpermb = invert_perm(vpermb);
-      //@bug Should visb_out also be inverted?
+      // @bug Should visb_out also be inverted?
       // cout<<"permb perm="<<vpermb[0]<<" "<<vpermb[1]<<" "<<vpermb[2]<<"
       // "<<vpermb[3]<<endl;
       // tamm_sortacc(bufb, buf, visb_out, vpermb, -1.0);
@@ -531,11 +547,11 @@ void cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
     tamm_sortacc(bufb, buf, visb_out, vpermb, -1.0);
     delete[] bufb;
   }
-#endif
+#endif  // USE_FORTRAN_FUNCTIONS
 }
 
 void cget_hash_block_i(gmem::Handle da, double *buf, size_t size, size_t offset,
-                       size_t key, std::vector<size_t> &is) {
+                       size_t key, const std::vector<size_t> & is) {
 #if USE_FORTRAN_FUNCTIONS
   Fint ida = (gmem::Handle)da;
   assert(is.size() == 4);
@@ -547,7 +563,7 @@ void cget_hash_block_i(gmem::Handle da, double *buf, size_t size, size_t offset,
                     &is0);
 #else
   cget_block_ind_i(da, buf, size, offset, key, is);
-#endif
+#endif  // USE_FORTRAN_FUNCTIONS
 }
 
 void cget_hash_block_ma(gmem::Handle da, double *buf, size_t size,
@@ -557,15 +573,16 @@ void cget_hash_block_ma(gmem::Handle da, double *buf, size_t size,
   Fint isize = size;
   Fint *int_mb = Variables::int_mb();
   Fint ikey = key;
-  fget_hash_block_ma(&dbl_mb[(int)da], buf, &isize, &int_mb[offset], &ikey);
+  fget_hash_block_ma(&dbl_mb[static_cast<int>(da)], buf, &isize,
+      &int_mb[offset], &ikey);
 #else
   Fint *int_mb = Variables::int_mb();
   double *dbl_mb = Variables::dbl_mb();
   Fint *hash = &int_mb[offset];
   Fint ioffset;
   tamm_hash(hash, key, &ioffset);
-  memcpy(buf, &dbl_mb[(int)da] + ioffset, size * sizeof(double));
-#endif
+  memcpy(buf, &dbl_mb[static_cast<int>(da)] + ioffset, size * sizeof(double));
+#endif  // USE_FORTRAN_FUNCTIONS
 }
 
 void cget_hash_block(gmem::Handle da, double *buf, size_t size, size_t offset,
@@ -582,7 +599,7 @@ void cget_hash_block(gmem::Handle da, double *buf, size_t size, size_t offset,
   Fint ioffset;
   tamm_hash(hash, key, &ioffset);
   cget_block(da, buf, size, ioffset);
-#endif
+#endif  // USE_FORTRAN_FUNCTIONS
 }
 
 } /* namespace tamm*/

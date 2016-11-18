@@ -1,12 +1,23 @@
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
 #include <iostream>
-#include "corf.h"
-#include "equations.h"
-#include "input.h"
-#include "t_assign.h"
-#include "t_mult.h"
-#include "tensor.h"
-#include "tensors_and_ops.h"
-#include "variables.h"
+#include "tensor/corf.h"
+#include "tensor/equations.h"
+#include "tensor/input.h"
+#include "tensor/schedulers.h"
+#include "tensor/t_assign.h"
+#include "tensor/t_mult.h"
+#include "tensor/tensor.h"
+#include "tensor/tensors_and_ops.h"
+#include "tensor/variables.h"
 
 /*
  *  x1 {
@@ -85,9 +96,6 @@ void offset_ipccsd_x1_3_1_(Fint *l_x1_3_1_offset, Fint *k_x1_3_1_offset,
 
 namespace tamm {
 
-void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops);
-
 extern "C" {
 void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo,
                     Fint *d_v2, Fint *d_x1, Fint *d_x2, Fint *k_f1_offset,
@@ -114,13 +122,13 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo,
   static Equations eqs;
 
   if (set_x1) {
-    ipccsd_x1_equations(eqs);
+    ipccsd_x1_equations(&eqs);
     set_x1 = false;
   }
 
   std::map<std::string, tamm::Tensor> tensors;
   std::vector<Operation> ops;
-  tensors_and_ops(eqs, tensors, ops);
+  tensors_and_ops(&eqs, &tensors, &ops);
 
   Tensor *x1_1_1 = &tensors["x1_1_1"];
   Tensor *f = &tensors["f"];
@@ -150,7 +158,7 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo,
 #if 0
   schedule_linear(tensors, ops);
   // schedule_linear_lazy(tensors, ops);
-  //schedule_levels(tensors, ops);
+  // schedule_levels(tensors, ops);
 #else
   op_x1_1_1 = ops[0].add;
   op_x1_1_2_1 = ops[1].add;
@@ -167,29 +175,29 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo,
   op_x1_3 = ops[12].mult;
 
   CorFortran(1, x1_1_1, offset_ipccsd_x1_1_1_);
-  CorFortran(1, op_x1_1_1, ipccsd_x1_1_1_);
+  CorFortran(1, &op_x1_1_1, ipccsd_x1_1_1_);
   CorFortran(1, x1_1_2_1, offset_ipccsd_x1_1_2_1_);
-  CorFortran(1, op_x1_1_2_1, ipccsd_x1_1_2_1_);
-  CorFortran(1, op_x1_1_2_2, ipccsd_x1_1_2_2_);
-  CorFortran(1, op_x1_1_2, ipccsd_x1_1_2_);
+  CorFortran(1, &op_x1_1_2_1, ipccsd_x1_1_2_1_);
+  CorFortran(1, &op_x1_1_2_2, ipccsd_x1_1_2_2_);
+  CorFortran(1, &op_x1_1_2, ipccsd_x1_1_2_);
   destroy(x1_1_2_1);
-  CorFortran(1, op_x1_1_3, ipccsd_x1_1_3_);
-  CorFortran(1, op_x1_1_4, ipccsd_x1_1_4_);
-  CorFortran(1, op_x1_1, ipccsd_x1_1_);
+  CorFortran(1, &op_x1_1_3, ipccsd_x1_1_3_);
+  CorFortran(1, &op_x1_1_4, ipccsd_x1_1_4_);
+  CorFortran(1, &op_x1_1, ipccsd_x1_1_);
   destroy(x1_1_1);
   CorFortran(1, x1_2_1, offset_ipccsd_x1_2_1_);
-  CorFortran(1, op_x1_2_1, ipccsd_x1_2_1_);
-  CorFortran(1, op_x1_2_2, ipccsd_x1_2_2_);
-  CorFortran(1, op_x1_2,
+  CorFortran(1, &op_x1_2_1, ipccsd_x1_2_1_);
+  CorFortran(1, &op_x1_2_2, ipccsd_x1_2_2_);
+  CorFortran(1, &op_x1_2,
              ipccsd_x1_2_); /*@bug @fixme Does not work in C mode: works now*/
   destroy(x1_2_1);
   CorFortran(1, x1_3_1, offset_ipccsd_x1_3_1_);
-  CorFortran(1, op_x1_3_1, ipccsd_x1_3_1_);
-  CorFortran(1, op_x1_3_2, ipccsd_x1_3_2_);
-  CorFortran(1, op_x1_3,
+  CorFortran(1, &op_x1_3_1, ipccsd_x1_3_1_);
+  CorFortran(1, &op_x1_3_2, ipccsd_x1_3_2_);
+  CorFortran(1, &op_x1_3,
              ipccsd_x1_3_); /*@bug @fixme Does not work in C mode: works now*/
   destroy(x1_3_1);
-#endif
+#endif  // Use fortran functions
 
   f->detach();
   i0->detach();

@@ -1,12 +1,23 @@
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
 #include <iostream>
-#include "corf.h"
-#include "equations.h"
-#include "input.h"
-#include "t_assign.h"
-#include "t_mult.h"
-#include "tensor.h"
-#include "tensors_and_ops.h"
-#include "variables.h"
+#include "tensor/corf.h"
+#include "tensor/equations.h"
+#include "tensor/input.h"
+#include "tensor/schedulers.h"
+#include "tensor/t_assign.h"
+#include "tensor/t_mult.h"
+#include "tensor/tensor.h"
+#include "tensor/tensors_and_ops.h"
+#include "tensor/variables.h"
 
 /*
  *  x2 {
@@ -283,11 +294,6 @@ void offset_ipccsd_x2_8_1_(Integer *l_x2_8_1_offset, Integer *k_x2_8_1_offset,
 
 namespace tamm {
 
-void schedule_linear(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
-void schedule_linear_lazy(std::vector<Tensor> &tensors,
-                          std::vector<Operation> &ops);
-void schedule_levels(std::vector<Tensor> &tensors, std::vector<Operation> &ops);
-
 extern "C" {
 void ipccsd_x2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
                     Integer *d_t_vvoo, Integer *d_v, Integer *d_x_o,
@@ -351,13 +357,13 @@ void ipccsd_x2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   static Equations eqs;
 
   if (set_x2) {
-    ipccsd_x2_equations(eqs);
+    ipccsd_x2_equations(&eqs);
     set_x2 = false;
   }
 
   std::map<std::string, tamm::Tensor> tensors;
   std::vector<Operation> ops;
-  tensors_and_ops(eqs, tensors, ops);
+  tensors_and_ops(&eqs, &tensors, &ops);
 
   Tensor *i0 = &tensors["i0"];
   Tensor *x_o = &tensors["x_o"];
@@ -454,89 +460,89 @@ void ipccsd_x2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   op_x2_8 = ops[48].mult;
 
   CorFortran(1, x2_1_1, offset_ipccsd_x2_1_1_);
-  CorFortran(1, op_x2_1_1, ipccsd_x2_1_1_);
+  CorFortran(1, &op_x2_1_1, ipccsd_x2_1_1_);
   CorFortran(1, x2_1_2_1, offset_ipccsd_x2_1_2_1_);
-  CorFortran(1, op_x2_1_2_1, ipccsd_x2_1_2_1_);
-  CorFortran(1, op_x2_1_2_2, ipccsd_x2_1_2_2_);
-  CorFortran(1, op_x2_1_2, ipccsd_x2_1_2_);
+  CorFortran(1, &op_x2_1_2_1, ipccsd_x2_1_2_1_);
+  CorFortran(1, &op_x2_1_2_2, ipccsd_x2_1_2_2_);
+  CorFortran(1, &op_x2_1_2, ipccsd_x2_1_2_);
   destroy(x2_1_2_1);
   CorFortran(1, x2_1_3_1, offset_ipccsd_x2_1_3_1_);
-  CorFortran(1, op_x2_1_3_1, ipccsd_x2_1_3_1_);
-  CorFortran(1, op_x2_1_3_2, ipccsd_x2_1_3_2_);
-  CorFortran(1, op_x2_1_3, ipccsd_x2_1_3_);
+  CorFortran(1, &op_x2_1_3_1, ipccsd_x2_1_3_1_);
+  CorFortran(1, &op_x2_1_3_2, ipccsd_x2_1_3_2_);
+  CorFortran(1, &op_x2_1_3, ipccsd_x2_1_3_);
   destroy(x2_1_3_1);
   CorFortran(1, x2_1_4_1, offset_ipccsd_x2_1_4_1_);
-  CorFortran(1, op_x2_1_4_1, ipccsd_x2_1_4_1_);
-  CorFortran(1, op_x2_1_4_2, ipccsd_x2_1_4_2_);
-  CorFortran(1, op_x2_1_4, ipccsd_x2_1_4_);
+  CorFortran(1, &op_x2_1_4_1, ipccsd_x2_1_4_1_);
+  CorFortran(1, &op_x2_1_4_2, ipccsd_x2_1_4_2_);
+  CorFortran(1, &op_x2_1_4, ipccsd_x2_1_4_);
   destroy(x2_1_4_1);
-  CorFortran(1, op_x2_1_5, ipccsd_x2_1_5_);
-  CorFortran(1, op_x2_1, ipccsd_x2_1_); /** @bug */
+  CorFortran(1, &op_x2_1_5, ipccsd_x2_1_5_);
+  CorFortran(1, &op_x2_1, ipccsd_x2_1_); /** @bug */
   destroy(x2_1_1);
   CorFortran(1, x2_2_1, offset_ipccsd_x2_2_1_);
-  CorFortran(1, op_x2_2_1, ipccsd_x2_2_1_);
+  CorFortran(1, &op_x2_2_1, ipccsd_x2_2_1_);
   CorFortran(1, x2_2_2_1, offset_ipccsd_x2_2_2_1_);
-  CorFortran(1, op_x2_2_2_1, ipccsd_x2_2_2_1_);
-  CorFortran(1, op_x2_2_2_2, ipccsd_x2_2_2_2_);
-  CorFortran(1, op_x2_2_2, ipccsd_x2_2_2_);
+  CorFortran(1, &op_x2_2_2_1, ipccsd_x2_2_2_1_);
+  CorFortran(1, &op_x2_2_2_2, ipccsd_x2_2_2_2_);
+  CorFortran(1, &op_x2_2_2, ipccsd_x2_2_2_);
   destroy(x2_2_2_1);
-  CorFortran(1, op_x2_2_3, ipccsd_x2_2_3_);
-  CorFortran(1, op_x2_2_4, ipccsd_x2_2_4_);
-  CorFortran(1, op_x2_2, ipccsd_x2_2_); /** @bug */
+  CorFortran(1, &op_x2_2_3, ipccsd_x2_2_3_);
+  CorFortran(1, &op_x2_2_4, ipccsd_x2_2_4_);
+  CorFortran(1, &op_x2_2, ipccsd_x2_2_); /** @bug */
   destroy(x2_2_1);
   CorFortran(1, x2_3_1, offset_ipccsd_x2_3_1_);
-  CorFortran(1, op_x2_3_1, ipccsd_x2_3_1_);
-  CorFortran(1, op_x2_3_2, ipccsd_x2_3_2_);
-  CorFortran(1, op_x2_3_3, ipccsd_x2_3_3_);
-  CorFortran(1, op_x2_3, ipccsd_x2_3_); /** @bug */
+  CorFortran(1, &op_x2_3_1, ipccsd_x2_3_1_);
+  CorFortran(1, &op_x2_3_2, ipccsd_x2_3_2_);
+  CorFortran(1, &op_x2_3_3, ipccsd_x2_3_3_);
+  CorFortran(1, &op_x2_3, ipccsd_x2_3_); /** @bug */
   destroy(x2_3_1);
   CorFortran(1, x2_4_1, offset_ipccsd_x2_4_1_);
-  CorFortran(1, op_x2_4_1, ipccsd_x2_4_1_);
+  CorFortran(1, &op_x2_4_1, ipccsd_x2_4_1_);
   CorFortran(1, x2_4_2_1, offset_ipccsd_x2_4_2_1_);
-  CorFortran(1, op_x2_4_2_1, ipccsd_x2_4_2_1_);
-  CorFortran(1, op_x2_4_2_2, ipccsd_x2_4_2_2_);
-  CorFortran(1, op_x2_4_2, ipccsd_x2_4_2_);
+  CorFortran(1, &op_x2_4_2_1, ipccsd_x2_4_2_1_);
+  CorFortran(1, &op_x2_4_2_2, ipccsd_x2_4_2_2_);
+  CorFortran(1, &op_x2_4_2, ipccsd_x2_4_2_);
   destroy(x2_4_2_1);
-  CorFortran(1, op_x2_4_3, ipccsd_x2_4_3_);
-  CorFortran(1, op_x2_4, ipccsd_x2_4_); /** @bug */
+  CorFortran(1, &op_x2_4_3, ipccsd_x2_4_3_);
+  CorFortran(1, &op_x2_4, ipccsd_x2_4_); /** @bug */
   destroy(x2_4_1);
   CorFortran(1, x2_5_1, offset_ipccsd_x2_5_1_);
-  CorFortran(1, op_x2_5_1, ipccsd_x2_5_1_);
-  CorFortran(1, op_x2_5_2, ipccsd_x2_5_2_);
-  CorFortran(1, op_x2_5, ipccsd_x2_5_); /** @bug */
+  CorFortran(1, &op_x2_5_1, ipccsd_x2_5_1_);
+  CorFortran(1, &op_x2_5_2, ipccsd_x2_5_2_);
+  CorFortran(1, &op_x2_5, ipccsd_x2_5_); /** @bug */
   destroy(x2_5_1);
   CorFortran(1, x2_6_1, offset_ipccsd_x2_6_1_); /** @bug -- */
   CorFortran(1, x2_6_1_1, offset_ipccsd_x2_6_1_1_);
-  CorFortran(1, op_x2_6_1_1, ipccsd_x2_6_1_1_);
+  CorFortran(1, &op_x2_6_1_1, ipccsd_x2_6_1_1_);
   CorFortran(1, x2_6_1_2_1, offset_ipccsd_x2_6_1_2_1_);
-  CorFortran(1, op_x2_6_1_2_1, ipccsd_x2_6_1_2_1_);
-  CorFortran(1, op_x2_6_1_2_2, ipccsd_x2_6_1_2_2_);
-  CorFortran(1, op_x2_6_1_2, ipccsd_x2_6_1_2_);
+  CorFortran(1, &op_x2_6_1_2_1, ipccsd_x2_6_1_2_1_);
+  CorFortran(1, &op_x2_6_1_2_2, ipccsd_x2_6_1_2_2_);
+  CorFortran(1, &op_x2_6_1_2, ipccsd_x2_6_1_2_);
   destroy(x2_6_1_2_1);
-  CorFortran(1, op_x2_6_1_3, ipccsd_x2_6_1_3_);
-  CorFortran(1, op_x2_6_1, ipccsd_x2_6_1_); /** @bug -- */
+  CorFortran(1, &op_x2_6_1_3, ipccsd_x2_6_1_3_);
+  CorFortran(1, &op_x2_6_1, ipccsd_x2_6_1_); /** @bug -- */
   destroy(x2_6_1_1);
   CorFortran(1, x2_6_2_1, offset_ipccsd_x2_6_2_1_);
-  CorFortran(1, op_x2_6_2_1, ipccsd_x2_6_2_1_);
-  CorFortran(1, op_x2_6_2_2, ipccsd_x2_6_2_2_);
-  CorFortran(1, op_x2_6_2, ipccsd_x2_6_2_); /** @bug */
+  CorFortran(1, &op_x2_6_2_1, ipccsd_x2_6_2_1_);
+  CorFortran(1, &op_x2_6_2_2, ipccsd_x2_6_2_2_);
+  CorFortran(1, &op_x2_6_2, ipccsd_x2_6_2_); /** @bug */
   destroy(x2_6_2_1);
   CorFortran(1, x2_6_3_1, offset_ipccsd_x2_6_3_1_);
-  CorFortran(1, op_x2_6_3_1, ipccsd_x2_6_3_1_);
-  CorFortran(1, op_x2_6_3_2, ipccsd_x2_6_3_2_);
-  CorFortran(1, op_x2_6_3, ipccsd_x2_6_3_); /** @bug */
+  CorFortran(1, &op_x2_6_3_1, ipccsd_x2_6_3_1_);
+  CorFortran(1, &op_x2_6_3_2, ipccsd_x2_6_3_2_);
+  CorFortran(1, &op_x2_6_3, ipccsd_x2_6_3_); /** @bug */
   destroy(x2_6_3_1);
-  CorFortran(1, op_x2_6, ipccsd_x2_6_); /** @bug */
+  CorFortran(1, &op_x2_6, ipccsd_x2_6_); /** @bug */
   destroy(x2_6_1);
   CorFortran(1, x2_7_1, offset_ipccsd_x2_7_1_); /** @bug -- */
-  CorFortran(1, op_x2_7_1, ipccsd_x2_7_1_);     /** @bug */
-  CorFortran(1, op_x2_7, ipccsd_x2_7_);         /** @bug */
+  CorFortran(1, &op_x2_7_1, ipccsd_x2_7_1_);     /** @bug */
+  CorFortran(1, &op_x2_7, ipccsd_x2_7_);         /** @bug */
   destroy(x2_7_1);
   CorFortran(1, x2_8_1, offset_ipccsd_x2_8_1_); /** @bug -- */
-  CorFortran(1, op_x2_8_1, ipccsd_x2_8_1_);     /** @bug */
-  CorFortran(1, op_x2_8, ipccsd_x2_8_);         /** @bug */
+  CorFortran(1, &op_x2_8_1, ipccsd_x2_8_1_);     /** @bug */
+  CorFortran(1, &op_x2_8, ipccsd_x2_8_);         /** @bug */
   destroy(x2_8_1);
-#endif
+#endif  // Use fortrain functions
 
   /* ----- Insert detach code ------ */
 

@@ -1,8 +1,18 @@
-#ifndef __tamm_corf_h__
-#define __tamm_corf_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_CORF_H_
+#define TAMM_TENSOR_CORF_H_
 
-#include "expression.h"
-#include "variables.h"
+#include "tensor/expression.h"
+#include "tensor/variables.h"
 
 namespace tamm {
 typedef void (*add_fn)(Integer *, Integer *, Integer *, Integer *);
@@ -10,11 +20,11 @@ typedef void (*mult_fn)(Integer *, Integer *, Integer *, Integer *, Integer *,
                         Integer *);
 typedef void (*offset_fn)(Integer *, Integer *, Integer *);
 
-void CorFortran(int use_c, Assignment &as, add_fn fn);
-void CorFortran(int use_c, Multiplication &m, mult_fn fn);
+void CorFortran(int use_c, Assignment * as, add_fn fn);
+void CorFortran(int use_c, Multiplication * m, mult_fn fn);
 void CorFortran(int use_c, Tensor *tensor, offset_fn fn);
 void destroy(Tensor *t);
 
-}; /*tamm*/
+} /* namespace tamm */
 
-#endif /*__tamm_corf_h__*/
+#endif  // TAMM_TENSOR_CORF_H_

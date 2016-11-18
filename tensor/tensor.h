@@ -1,11 +1,21 @@
-#ifndef __tamm_tensor_h__
-#define __tamm_tensor_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_TENSOR_H_
+#define TAMM_TENSOR_TENSOR_H_
 
 #include <algorithm>
 #include <cassert>
 #include <vector>
-#include "index.h"
-#include "variables.h"
+#include "tensor/index.h"
+#include "tensor/variables.h"
 
 namespace tamm {
 
@@ -54,9 +64,9 @@ class Tensor {
   int set_irrep(int irrep);
   int set_dist(DistType dist);
 
-  void get(std::vector<size_t> &pvalue_r, double *buf, size_t size);
+  void get(const std::vector<size_t> &pvalue_r, double *buf, size_t size) const;
 
-  void add(std::vector<size_t> &pvalue_r, double *buf, size_t size);
+  void add(const std::vector<size_t> &pvalue_r, double *buf, size_t size) const;
 
   bool is_spin_restricted_nonzero(const std::vector<size_t> &ids) const;
 
@@ -68,7 +78,7 @@ class Tensor {
    * Generate restricted value from value by calling tce_restricted2/4
    */
   void gen_restricted(const std::vector<size_t> &value,
-                      std::vector<size_t> &pvalue_r);
+                      std::vector<size_t> *pvalue_r) const;
 
   void create();
   void attach(Fint fma_offset_index, Fint fma_offset_handle, Fint array_handle);
@@ -162,4 +172,4 @@ Tensor Tensor4(RangeType r1, RangeType r2, RangeType r3, RangeType r4,
 
 } /* namespace tamm */
 
-#endif /* __tamm_tensor_h__ */
+#endif  // TAMM_TENSOR_TENSOR_H_

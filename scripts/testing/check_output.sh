@@ -88,7 +88,7 @@ function compare {
 
 while IFS='' read -r line || [[ -n "$line" ]]; do
   convertArgsStrToArray $line 
-  compare $correctOutput tmpResult "${returnVal[@]}" 
+  compare $correctOutput ./tmpResult "${returnVal[@]}" 
   res=$?
   if [ "$res" != 0 ] 
   then

@@ -1,7 +1,17 @@
-#ifndef __tamm_fapi_h__
-#define __tamm_fapi_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_FAPI_H_
+#define TAMM_TENSOR_FAPI_H_
 
-#include "common.h"
+#include "tensor/common.h"
 
 /**
  * All fortran functions used by tamm
@@ -86,4 +96,4 @@ EXTERN_C void fdestroy(Fint *da, Fint *offset);
 
 EXTERN_C void ftce_hash_v2(Fint *hash, Fint *key, Fint *offset);
 
-#endif /*__tamm_fapi_h__*/
+#endif  // TAMM_TENSOR_FAPI_H_

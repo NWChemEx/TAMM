@@ -1,12 +1,23 @@
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
 #include <iostream>
-#include "corf.h"
-#include "equations.h"
-#include "input.h"
-#include "t_assign.h"
-#include "t_mult.h"
-#include "tensor.h"
-#include "tensors_and_ops.h"
-#include "variables.h"
+#include "tensor/corf.h"
+#include "tensor/equations.h"
+#include "tensor/input.h"
+#include "tensor/schedulers.h"
+#include "tensor/t_assign.h"
+#include "tensor/t_mult.h"
+#include "tensor/tensor.h"
+#include "tensor/tensors_and_ops.h"
+#include "tensor/variables.h"
 
 /*
  * i0 ( )_tf + = 1 * Sum ( p5 h6 ) * t ( p5 h6 )_t * i1 ( h6 p5 )_f
@@ -41,8 +52,8 @@ void ccsd_e_2_(Integer *d_t1, Integer *k_t1_offset, Integer *d_v2,
 
 namespace tamm {
 
-void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops);
+// void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
+//                     std::vector<Operation> &ops);
 
 extern "C" {
 
@@ -59,13 +70,13 @@ void ccsd_e_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo,
   static Equations eqs;
 
   if (set_e) {
-    ccsd_e_equations(eqs);
+    ccsd_e_equations(&eqs);
     set_e = false;
   }
   std::map<std::string, tamm::Tensor> tensors;
   std::vector<Operation> ops;
 
-  tensors_and_ops(eqs, tensors, ops);
+  tensors_and_ops(&eqs, &tensors, &ops);
 
   Tensor *i0 = &tensors["i0"];
   Tensor *v = &tensors["v"];
@@ -85,20 +96,20 @@ void ccsd_e_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo,
 #if 1
   // schedule_linear(tensors, ops);
   // schedule_linear_lazy(tensors, ops);
-  schedule_levels(tensors, ops);
+  schedule_levels(&tensors, &ops);
 #else
   e_1_1 = ops[0].add;
   e_1_2 = ops[1].mult;
   e_1 = ops[2].mult;
   e_2 = ops[3].mult;
 
-  CorFortran(1, i1_1, offset_ccsd_e_1_1_);
-  CorFortran(1, e_1_1, ccsd_e_copy_fock_to_t_);
-  CorFortran(1, e_1_2, ccsd_e_1_2_);
-  CorFortran(0, e_1, ccsd_e_1_);
-  CorFortran(1, e_2, ccsd_e_2_);
+  CorFortran(1, &i1_1, offset_ccsd_e_1_1_);
+  CorFortran(1, &e_1_1, ccsd_e_copy_fock_to_t_);
+  CorFortran(1, &e_1_2, ccsd_e_1_2_);
+  CorFortran(0, &e_1, ccsd_e_1_);
+  CorFortran(1, &e_2, ccsd_e_2_);
   destroy(i1_1);
-#endif
+#endif  // 1 -> do not use fortran
   f->detach();
   i0->detach();
   t_vo->detach();

@@ -1,12 +1,23 @@
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
 #include <iostream>
-#include "corf.h"
-#include "equations.h"
-#include "input.h"
-#include "t_assign.h"
-#include "t_mult.h"
-#include "tensor.h"
-#include "tensors_and_ops.h"
-#include "variables.h"
+#include "tensor/corf.h"
+#include "tensor/equations.h"
+#include "tensor/input.h"
+#include "tensor/schedulers.h"
+#include "tensor/t_assign.h"
+#include "tensor/t_mult.h"
+#include "tensor/tensor.h"
+#include "tensor/tensors_and_ops.h"
+#include "tensor/variables.h"
 
 /*
  * i0 ( p2 h1 )_f + = 1 * f ( p2 h1 )_f DONE
@@ -127,12 +138,6 @@ void offset_ccsd_t_vo_6_1_(Integer *l_i1_offset, Integer *k_i1_offset,
 
 namespace tamm {
 
-void schedule_linear(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops);
-
-void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops);
-
 extern "C" {
 
 void ccsd_t1_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo,
@@ -149,14 +154,14 @@ void ccsd_t1_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo,
   static Equations eqs;
 
   if (set_t1) {
-    ccsd_t1_equations(eqs);
+    ccsd_t1_equations(&eqs);
     set_t1 = false;
   }
 
   std::map<std::string, tamm::Tensor> tensors;
   std::vector<Operation> ops;
 
-  tensors_and_ops(eqs, tensors, ops);
+  tensors_and_ops(&eqs, &tensors, &ops);
 
   Tensor *i0 = &tensors["i0"];
   Tensor *f = &tensors["f"];
@@ -180,7 +185,7 @@ void ccsd_t1_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo,
 #if 1
   // schedule_linear(tensors, ops);
   // schedule_linear_lazy(tensors, ops);
-  schedule_levels(tensors, ops);
+  schedule_levels(&tensors, &ops);
 #else
 
   a_t1_1 = ops[0].add;
@@ -203,36 +208,36 @@ void ccsd_t1_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo,
   m_t1_6 = ops[17].mult;
   m_t1_7 = ops[18].mult;
 
-  CorFortran(1, a_t1_1, ccsd_t_vo_1_);
-  CorFortran(1, i1_2, offset_ccsd_t_vo_2_1_);
-  CorFortran(1, a_t1_2_1, ccsd_t_vo_2_1_);
-  CorFortran(1, i1_2_2, offset_ccsd_t_vo_2_2_1_);
-  CorFortran(1, a_t1_2_2_1, ccsd_t_vo_2_2_1_);
-  CorFortran(1, m_t1_2_2_2, ccsd_t_vo_2_2_2_);
-  CorFortran(1, m_t1_2_2, ccsd_t_vo_2_2_);
+  CorFortran(1, &a_t1_1, ccsd_t_vo_1_);
+  CorFortran(1, &i1_2, offset_ccsd_t_vo_2_1_);
+  CorFortran(1, &a_t1_2_1, ccsd_t_vo_2_1_);
+  CorFortran(1, &i1_2_2, offset_ccsd_t_vo_2_2_1_);
+  CorFortran(1, &a_t1_2_2_1, ccsd_t_vo_2_2_1_);
+  CorFortran(1, &m_t1_2_2_2, ccsd_t_vo_2_2_2_);
+  CorFortran(1, &m_t1_2_2, ccsd_t_vo_2_2_);
   destroy(i1_2_2);
-  CorFortran(1, m_t1_2_3, ccsd_t_vo_2_3_);
-  CorFortran(1, m_t1_2_4, ccsd_t_vo_2_4_);
-  CorFortran(1, m_t1_2, ccsd_t_vo_2_);
+  CorFortran(1, &m_t1_2_3, ccsd_t_vo_2_3_);
+  CorFortran(1, &m_t1_2_4, ccsd_t_vo_2_4_);
+  CorFortran(1, &m_t1_2, ccsd_t_vo_2_);
   destroy(i1_2);
-  CorFortran(1, i1_3, offset_ccsd_t_vo_3_1_);
-  CorFortran(1, a_t1_3_1, ccsd_t_vo_3_1_);
-  CorFortran(1, m_t1_3_2, ccsd_t_vo_3_2_);
-  CorFortran(1, m_t1_3, ccsd_t_vo_3_);
+  CorFortran(1, &i1_3, offset_ccsd_t_vo_3_1_);
+  CorFortran(1, &a_t1_3_1, ccsd_t_vo_3_1_);
+  CorFortran(1, &m_t1_3_2, ccsd_t_vo_3_2_);
+  CorFortran(1, &m_t1_3, ccsd_t_vo_3_);
   destroy(i1_3);
-  CorFortran(1, m_t1_4, ccsd_t_vo_4_);
-  CorFortran(1, i1_5, offset_ccsd_t_vo_5_1_);
-  CorFortran(1, a_t1_5_1, ccsd_t_vo_5_1_);
-  CorFortran(1, m_t1_5_2, ccsd_t_vo_5_2_);
-  CorFortran(1, m_t1_5, ccsd_t_vo_5_);
+  CorFortran(1, &m_t1_4, ccsd_t_vo_4_);
+  CorFortran(1, &i1_5, offset_ccsd_t_vo_5_1_);
+  CorFortran(1, &a_t1_5_1, ccsd_t_vo_5_1_);
+  CorFortran(1, &m_t1_5_2, ccsd_t_vo_5_2_);
+  CorFortran(1, &m_t1_5, ccsd_t_vo_5_);
   destroy(i1_5);
-  CorFortran(1, i1_6, offset_ccsd_t_vo_6_1_);
-  CorFortran(1, a_t1_6_1, ccsd_t_vo_6_1_);
-  CorFortran(1, m_t1_6_2, ccsd_t_vo_6_2_);
-  CorFortran(1, m_t1_6, ccsd_t_vo_6_);
+  CorFortran(1, &i1_6, offset_ccsd_t_vo_6_1_);
+  CorFortran(1, &a_t1_6_1, ccsd_t_vo_6_1_);
+  CorFortran(1, &m_t1_6_2, ccsd_t_vo_6_2_);
+  CorFortran(1, &m_t1_6, ccsd_t_vo_6_);
   destroy(i1_6);
-  CorFortran(1, m_t1_7, ccsd_t_vo_7_);
-#endif
+  CorFortran(1, &m_t1_7, ccsd_t_vo_7_);
+#endif  // Use c scheduler
   f->detach();
   i0->detach();
   t_vo->detach();

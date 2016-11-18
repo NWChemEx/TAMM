@@ -1,5 +1,15 @@
-#ifndef __tamm_stats_h__
-#define __tamm_stats_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_STATS_H_
+#define TAMM_TENSOR_STATS_H_
 
 #include <mpi.h>
 #include <cassert>
@@ -47,6 +57,6 @@ class Profiler {
 extern Profiler iterTimer, assignTimer, multTimer, getTimer, addTimer,
     dgemmTimer;
 void printStats();
-}
+}  // namespace tamm
 
-#endif /* __tamm_stats_h__ */
+#endif  // TAMM_TENSOR_STATS_H_

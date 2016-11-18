@@ -1,11 +1,20 @@
-#ifndef __tamm_func_h__
-#define __tamm_func_h__
-
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_FUNC_H_
+#define TAMM_TENSOR_FUNC_H_
+#include <sys/time.h>
 #include <algorithm>
 #include <cassert>
-#include "sys/time.h"
-#include "variables.h"
-using namespace std;
+#include <vector>
+#include "tensor/variables.h"
 
 namespace tamm {
 
@@ -52,6 +61,6 @@ void computeEnergy(const std::vector<size_t>& rvec,
                    const std::vector<size_t>& ovec, double* energy1,
                    double* energy2, double* buf_single, double* buf_double,
                    const double& factor);
-}
+}  // namespace tamm
 
-#endif /* __tamm_func_h__ */
+#endif  // TAMM_TENSOR_FUNC_H_

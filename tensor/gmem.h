@@ -1,11 +1,19 @@
-#ifndef __tamm_gmem_h__
-#define __tamm_gmem_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_GMEM_H_
+#define TAMM_TENSOR_GMEM_H_
 
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
-
-using namespace std;
 
 namespace tamm {
 namespace gmem {
@@ -14,14 +22,14 @@ struct Handle {
   bool valid();
 
   // FIXME: Make explicit for c++11
-  Handle(uint64_t conversion);
-  operator uint64_t() const;
+  explicit Handle(uintptr_t conversion);
+  operator uintptr_t() const;
 
-  uint64_t value;
+  uintptr_t value;
 };
 
 struct Wait_Handle {
-  uint64_t value;
+  uintptr_t value;
 };
 
 extern Handle NULL_HANDLE;
@@ -32,17 +40,17 @@ enum Operation { Plus = 0, Multiply, Max, Min, AbsMax, AbsMin };
 
 Handle create(Types type, int size, char* name);
 uint64_t ranks();
-int64_t atomic_fetch_add(Handle handle, int pos, long amount);
+int64_t atomic_fetch_add(Handle handle, int pos, int amount);
 void zero(Handle handle);
 void sync();
 void destroy(Handle handle);
 void get(Handle handle, void* buf, int start, int stop);
-void get(Handle handle, void* buf, int start, int stop, Wait_Handle& wait);
+void get(Handle handle, void* buf, int start, int stop, Wait_Handle * wait);
 void acc(Handle handle, void* buf, int start, int stop);
 void op(double x[], int n, Operation op);
-void wait(Wait_Handle& wait);
+void wait(const Wait_Handle& wait);
 void destroy(Handle handle);
-};
-}
+}  // namespace gmem
+}  // namespace tamm
 
-#endif
+#endif  // TAMM_TENSOR_GMEM_H_

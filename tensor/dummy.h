@@ -1,9 +1,19 @@
-#ifndef __tamm_dummy_h__
-#define __tamm_dummy_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_DUMMY_H_
+#define TAMM_TENSOR_DUMMY_H_
 
-#include "copyIter.h"
-#include "func.h"
-#include "typesf2c.h"
+#include <typesf2c.h>
+#include "tensor/copyIter.h"
+#include "tensor/func.h"
 
 namespace tamm {
 
@@ -24,4 +34,4 @@ class Dummy {
 
 }  // namespace tamm
 
-#endif
+#endif  // TAMM_TENSOR_DUMMY_H_

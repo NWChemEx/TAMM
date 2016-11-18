@@ -1,9 +1,19 @@
-#ifndef __tamm_index_h__
-#define __tamm_index_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_INDEX_H_
+#define TAMM_TENSOR_INDEX_H_
 
-#include "common.h"
-//#include "typesf2c.h"
-#include "define.h"
+#include "tensor/common.h"
+// #include "typesf2c.h"
+#include "tensor/define.h"
 
 namespace tamm {
 
@@ -73,8 +83,8 @@ class Index {
   IndexName name_;    /*< name of this index */
   Fint value_;        /*< value of this index */
   Fint value_r_;      /*< value(restricted) of this index */
-  int ext_sym_group_; /*< external symmetry group of this index, from lhs of the
-                         expr (tC) */
+  int ext_sym_group_;  //  < external symmetry group of this index, from lhs
+                       //  of the expr(tC)
 
   friend bool compareExtSymGroup(const Index& lhs, const Index& rhs);
 };
@@ -88,4 +98,4 @@ inline bool compareExtSymGroup(const Index& lhs, const Index& rhs) {
 
 } /* namespace tamm */
 
-#endif /* __tamm_index_h */
+#endif  // TAMM_TENSOR_INDEX_H_

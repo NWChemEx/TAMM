@@ -1,17 +1,25 @@
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
 #include <iostream>
-#include "corf.h"
-#include "equations.h"
-#include "input.h"
-#include "t_assign.h"
-#include "t_mult.h"
-#include "tensor.h"
-#include "tensors_and_ops.h"
-#include "variables.h"
+#include "tensor/corf.h"
+#include "tensor/equations.h"
+#include "tensor/input.h"
+#include "tensor/schedulers.h"
+#include "tensor/t_assign.h"
+#include "tensor/t_mult.h"
+#include "tensor/tensor.h"
+#include "tensor/tensors_and_ops.h"
+#include "tensor/variables.h"
 
 namespace tamm {
-
-void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops);
 
 extern "C" {
 
@@ -48,16 +56,16 @@ void ccsd_et12_cxx_(Integer *d_e, Integer *d_f1, Integer *d_v2, Integer *d_r1,
   Equations e_eqs, t1_eqs, t2_eqs;
   DistType idist = (Variables::intorb()) ? dist_nwi : dist_nw;
 
-  ccsd_e_equations(e_eqs);
-  ccsd_t1_equations(t1_eqs);
-  ccsd_t2_equations(t2_eqs);
+  ccsd_e_equations(&e_eqs);
+  ccsd_t1_equations(&t1_eqs);
+  ccsd_t2_equations(&t2_eqs);
 
   std::map<std::string, tamm::Tensor> e_tensors, t1_tensors, t2_tensors;
   std::vector<Operation> e_ops, t1_ops, t2_ops;
 
-  tensors_and_ops(e_eqs, e_tensors, e_ops);
-  tensors_and_ops(t1_eqs, t1_tensors, t1_ops);
-  tensors_and_ops(t2_eqs, t2_tensors, t2_ops);
+  tensors_and_ops(&e_eqs, &e_tensors, &e_ops);
+  tensors_and_ops(&t1_eqs, &t1_tensors, &t1_ops);
+  tensors_and_ops(&t2_eqs, &t2_tensors, &t2_ops);
 
   {
     // setup e tensors
@@ -128,7 +136,7 @@ void ccsd_et12_cxx_(Integer *d_e, Integer *d_f1, Integer *d_v2, Integer *d_r1,
                k_t_vo_offset, k_t_vvoo_offset, k_v2_offset);
   ccsd_t2_cxx_(d_f1, d_r2, d_t_vo, d_t_vvoo, d_v2, k_f1_offset, k_r2_offset,
                k_t_vo_offset, k_t_vvoo_offset, k_v2_offset);
-#endif
+#endif  // 0 -> Fortran functions
 
   {
     // un-setup e tensors
@@ -177,5 +185,5 @@ void ccsd_et12_cxx_(Integer *d_e, Integer *d_f1, Integer *d_v2, Integer *d_r1,
     v->detach();
   }
 }
-}
-}
+}  // extern C
+};  // namespace tamm

@@ -1,13 +1,24 @@
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#include <algorithm>
 #include <iostream>
 #include <map>
 #include <string>
-#include "define.h"
-#include "input.h"
+#include <vector>
+#include "tensor/define.h"
+#include "tensor/input.h"
+#include "tensor/tensor.h"
 
-//#include "equations.h"
+// #include "equations.h"
 
-using namespace std;
-using namespace tamm;
 
 namespace tamm {
 struct Equations {
@@ -16,24 +27,33 @@ struct Equations {
   std::map<std::string, TensorEntry> tensor_entries;
   std::vector<OpEntry> op_entries;
 };
-void ccsd_t1_equations(Equations &eqs);
-}
+void ccsd_t1_equations(Equations *eqs);
+}  // namespace tamm
 
 namespace tamm {
-void pretty_print(Equations &eqs);
-void print_flatten(Equations &eqs, int opid);
-}
+void pretty_print(const Equations &eqs);
+void print_flatten(const Equations &eqs, int opid);
+}  // namespace tamm
+
+using std::max;
+using tamm::Equations;
+using tamm::TensorEntry;
+using tamm::pretty_print;
+using tamm::Tensor;
+using tamm::RangeType;
+using tamm::Operation;
+using tamm::OpEntry;
 
 int count_v(const TensorEntry &te, const std::vector<RangeType> &rts) {
   int nv = 0;
   for (int i = 0; i < te.ndim; i++) {
     int rid = te.range_ids[i];
-    if (rts[rid] == TO) {
+    if (rts[rid] == tamm::TO) {
       nv += 0;
-    } else if (rts[rid] == TV) {
+    } else if (rts[rid] == tamm::TV) {
       nv += 1;
-    } else if (rts[rid] == TN) {
-      nv += 1;  //@BUG @FIXME. treats TN as TV.
+    } else if (rts[rid] == tamm::TN) {
+      nv += 1;  // @BUG @FIXME. treats TN as TV.
     } else {
       assert(0);
     }
@@ -43,18 +63,18 @@ int count_v(const TensorEntry &te, const std::vector<RangeType> &rts) {
 
 std::vector<RangeType> compute_range_type(
     const std::vector<tamm::RangeEntry> &re) {
-  std::vector<RangeType> rts(re.size(), TO);
+  std::vector<RangeType> rts(re.size(), tamm::TO);
 
   for (int i = 0; i < re.size(); i++) {
     std::string rname = (re[i].name);
-    if (!strcmp(rname.c_str(), OSTR)) {
-      rts[i] = TO;
+    if (!strcmp(rname.c_str(), tamm::OSTR)) {
+      rts[i] = tamm::TO;
       continue;
-    } else if (!strcmp(rname.c_str(), VSTR)) {
-      rts[i] = TV;
+    } else if (!strcmp(rname.c_str(), tamm::VSTR)) {
+      rts[i] = tamm::TV;
       continue;
-    } else if (!strcmp(rname.c_str(), NSTR)) {
-      rts[i] = TN;
+    } else if (!strcmp(rname.c_str(), tamm::NSTR)) {
+      rts[i] = tamm::TN;
       continue;
     } else {
       printf("Unsupported range type %s\n", rname.c_str());
@@ -78,11 +98,11 @@ std::vector<dep> compute_deps(const tamm::Equations &eqs) {
       std::string ra1, ra2, wa, rb1, rb2, wb;
       const OpEntry &opi = eqs.op_entries[i];
       switch (opi.optype) {
-        case OpTypeAdd:
+        case tamm::OpTypeAdd:
           wa = opi.add.tc;
           ra1 = opi.add.ta;
           break;
-        case OpTypeMult:
+        case tamm::OpTypeMult:
           wa = opi.mult.tc;
           ra1 = opi.mult.ta;
           ra2 = opi.mult.tb;
@@ -92,11 +112,11 @@ std::vector<dep> compute_deps(const tamm::Equations &eqs) {
       }
       const OpEntry &opj = eqs.op_entries[j];
       switch (opj.optype) {
-        case OpTypeAdd:
+        case tamm::OpTypeAdd:
           wb = opj.add.tc;
           rb1 = opj.add.ta;
           break;
-        case OpTypeMult:
+        case tamm::OpTypeMult:
           wb = opj.mult.tc;
           rb1 = opj.mult.ta;
           rb2 = opj.mult.tb;
@@ -113,50 +133,51 @@ std::vector<dep> compute_deps(const tamm::Equations &eqs) {
   return deps;
 }
 
-void print_ilp_info(tamm::Equations &eqs) {
+void print_ilp_info(const tamm::Equations &eqs) {
   std::map<std::string, Tensor> tensors;
   std::vector<Operation> ops;
 
   std::vector<RangeType> rts = compute_range_type(eqs.range_entries);
 
-  std::cout << "ntensors: " << eqs.tensor_entries.size() << endl
-            << "nops: " << eqs.op_entries.size() << endl;
+  std::cout << "ntensors: " << eqs.tensor_entries.size() << std::endl
+            << "nops: " << eqs.op_entries.size() << std::endl;
   int maxdim = -1;
 
   // for(int i=0; i<eqs.tensor_entries.size(); i++) {
-  for (std::map<std::string, TensorEntry>::iterator i =
+  for (std::map<std::string, TensorEntry>::const_iterator i =
            eqs.tensor_entries.begin();
        i != eqs.tensor_entries.end(); i++) {
-    maxdim = max(maxdim, eqs.tensor_entries[i->first].ndim);
+    maxdim = max(maxdim, eqs.tensor_entries.at(i->first).ndim);
   }
   // for(int i=0; i<eqs.tensor_entries.size(); i++) {
-  for (std::map<std::string, TensorEntry>::iterator i =
+  for (std::map<std::string, TensorEntry>::const_iterator i =
            eqs.tensor_entries.begin();
        i != eqs.tensor_entries.end(); i++) {
-    const TensorEntry &te = eqs.tensor_entries[i->first];
+    const TensorEntry &te = eqs.tensor_entries.at(i->first);
     // std::cout<<"size["<<i+1<<"]: ";
     std::cout << "size[" << te.name << "]: ";
     if (te.ndim < maxdim) {
-      std::cout << "0" << endl;
+      std::cout << "0" << std::endl;
     } else {
-      std::cout << (1 << count_v(te, rts)) << endl;
+      std::cout << (1 << count_v(te, rts)) << std::endl;
     }
   }
   std::vector<dep> deps = compute_deps(eqs);
-  // std::cout<<"ndeps :"<<deps.size()<<endl;
+  // std::cout<<"ndeps :"<<deps.size()<<std::endl;
   for (int i = 0; i < deps.size(); i++) {
-    std::cout << "dep[" << deps[i].s + 1 << "] : " << deps[i].d + 1 << endl;
+    std::cout << "dep[" << deps[i].s + 1 << "] : " << deps[i].d + 1
+              << std::endl;
   }
   for (int i = 0; i < eqs.op_entries.size(); i++) {
     std::cout << "access[" << i + 1 << "] : ";
     const tamm::OpEntry &opi = eqs.op_entries[i];
     switch (opi.optype) {
-      case OpTypeAdd:
-        std::cout << opi.add.tc << "," << opi.add.ta << endl;
+      case tamm::OpTypeAdd:
+        std::cout << opi.add.tc << "," << opi.add.ta << std::endl;
         break;
-      case OpTypeMult:
+      case tamm::OpTypeMult:
         std::cout << opi.mult.tc << "," << opi.mult.ta << "," << opi.mult.tb
-                  << endl;
+                  << std::endl;
         break;
       default:
         assert(0);
@@ -166,9 +187,9 @@ void print_ilp_info(tamm::Equations &eqs) {
 
 int main() {
   Equations eqs;
-  ccsd_t1_equations(eqs);
+  ccsd_t1_equations(&eqs);
 
-  // std::cout<<"nops="<<eqs.op_entries.size()<<endl;
+  // std::cout<<"nops="<<eqs.op_entries.size()<<std::endl;
   // print_flatten(eqs, eqs.op_entries.size()-2);
   pretty_print(eqs);
   // print_ilp_info(eqs);

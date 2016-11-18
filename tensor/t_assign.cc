@@ -1,12 +1,24 @@
-#include "stats.h"
-#include "t_assign.h"
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#include "tensor/t_assign.h"
+#include <vector>
+#include "tensor/stats.h"
 
-using namespace std;
+using std::vector;
 
 namespace tamm {
 
-void t_assign2(Tensor& tC, const vector<IndexName>& c_ids, Tensor& tA,
-               const vector<IndexName>& a_ids, IterGroup<triangular>& out_itr,
+void t_assign2(const Tensor& tC, const vector<IndexName>& c_ids,
+               const Tensor& tA, const vector<IndexName>& a_ids,
+               IterGroup<triangular>* out_itr,
                double coef, gmem::Handle sync_ga, int spos) {
   vector<size_t> order(tC.dim());
 
@@ -32,11 +44,11 @@ void t_assign2(Tensor& tC, const vector<IndexName>& c_ids, Tensor& tA,
     sub = 0;
   }
 
-  int next = (int)gmem::atomic_fetch_add(taskHandle, sub, 1);
+  int next = static_cast<int>(gmem::atomic_fetch_add(taskHandle, sub, 1));
 
   vector<size_t> out_vec;  // out_vec = c_ids_v
-  out_itr.reset();
-  while (out_itr.next(out_vec)) {
+  out_itr->reset();
+  while (out_itr->next(&out_vec)) {
     if (next == count) {
       vector<int> vtab1(IndexNum);
       for (int i = 0; i < tC.dim(); ++i) {
@@ -53,7 +65,7 @@ void t_assign2(Tensor& tC, const vector<IndexName>& c_ids, Tensor& tA,
         size_t dimc = compute_size(out_vec);
         if (dimc <= 0) continue;
         vector<size_t> value_r;
-        tA.gen_restricted(a_ids_v, value_r);
+        tA.gen_restricted(a_ids_v, &value_r);
 
         double* buf_a = new double[dimc];
         double* buf_a_sort = new double[dimc];
@@ -75,7 +87,7 @@ void t_assign2(Tensor& tC, const vector<IndexName>& c_ids, Tensor& tA,
         delete[] buf_a;
         delete[] buf_a_sort;
       }
-      next = (int)gmem::atomic_fetch_add(taskHandle, sub, 1);
+      next = static_cast<int>(gmem::atomic_fetch_add(taskHandle, sub, 1));
     }
     ++count;
   }
@@ -86,10 +98,10 @@ void t_assign2(Tensor& tC, const vector<IndexName>& c_ids, Tensor& tA,
   }
 }
 
-void t_assign3(Assignment& a, gmem::Handle sync_ga, int spos) {
+void t_assign3(Assignment * a, gmem::Handle sync_ga, int spos) {
   assignTimer.start();
-  t_assign2(a.tC(), a.cids(), a.tA(), a.aids(), a.out_itr(), a.coef(), sync_ga,
-            spos);
+  t_assign2(a->tC(), a->cids(), a->tA(), a->aids(), &a->out_itr(), a->coef(),
+      sync_ga, spos);
   assignTimer.stop();
 }
 

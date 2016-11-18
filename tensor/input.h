@@ -1,10 +1,20 @@
-#ifndef __tamm_input_h__
-#define __tamm_input_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_INPUT_H_
+#define TAMM_TENSOR_INPUT_H_
 
 #include <string>
-#include "define.h"
-#include "expression.h"
-#include "tensor.h"
+#include "tensor/define.h"
+#include "tensor/expression.h"
+#include "tensor/tensor.h"
 
 #define MAX_TENSOR_DIMS 8
 #define MAX_INDEX_NAMES 32
@@ -39,10 +49,10 @@ typedef struct {
   // int tc, ta; //tc and ta in terms of index into TensorEntry structs
   std::string tc, ta;
   double alpha;
-  int tc_ids[MAX_TENSOR_DIMS]; /*index labels for tc in terms of index into
-                                  IndexEntry struct*/
-  int ta_ids[MAX_TENSOR_DIMS]; /*index labels for tc in terms of index into
-                                  IndexEntry struct*/
+  int tc_ids[MAX_TENSOR_DIMS];  // index labels for tc in terms of index into
+                                // IndexEntry struct
+  int ta_ids[MAX_TENSOR_DIMS];  // index labels for tc in terms of index into
+                                // IndexEntry struct
 } AddOp;
 
 /* tc[tc_ids] += alpha * ta[ta_ids] * tb[tb_ids]*/
@@ -69,6 +79,6 @@ typedef struct {
   Assignment add;
   Multiplication mult;
 } Operation;
-};
+};  // namespace tamm
 
-#endif /*__tamm_input_h__*/
+#endif  // TAMM_TENSOR_INPUT_H_

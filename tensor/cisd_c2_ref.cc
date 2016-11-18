@@ -1,12 +1,23 @@
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
 #include <iostream>
-#include "corf.h"
-#include "equations.h"
-#include "input.h"
-#include "t_assign.h"
-#include "t_mult.h"
-#include "tensor.h"
-#include "tensors_and_ops.h"
-#include "variables.h"
+#include "tensor/corf.h"
+#include "tensor/equations.h"
+#include "tensor/input.h"
+#include "tensor/schedulers.h"
+#include "tensor/t_assign.h"
+#include "tensor/t_mult.h"
+#include "tensor/tensor.h"
+#include "tensor/tensors_and_ops.h"
+#include "tensor/variables.h"
 
 /*
  *  c2 {
@@ -60,13 +71,6 @@ void cisd_c2_10_(Integer *d_e, Integer *k_e_offset, Integer *d_t_vvoo,
 
 namespace tamm {
 
-void schedule_linear(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops);
-void schedule_linear_lazy(std::map<std::string, tamm::Tensor> &tensors,
-                          std::vector<Operation> &ops);
-void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops);
-
 extern "C" {
 // void cisd_c2_cxx_(Integer *d_t_vvoo, Integer *d_e, Integer *d_f, Integer
 // *d_i0, Integer *d_t_vo, Integer *d_v,
@@ -95,13 +99,13 @@ void cisd_c2_cxx_(Integer *d_e, Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   static Equations eqs;
 
   if (set_c2) {
-    cisd_c2_equations(eqs);
+    cisd_c2_equations(&eqs);
     set_c2 = false;
   }
 
   std::map<std::string, tamm::Tensor> tensors;
   std::vector<Operation> ops;
-  tensors_and_ops(eqs, tensors, ops);
+  tensors_and_ops(&eqs, &tensors, &ops);
 
   Tensor *i0 = &tensors["i0"];
   Tensor *v = &tensors["v"];
@@ -134,17 +138,17 @@ void cisd_c2_cxx_(Integer *d_e, Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   op_c2_9 = ops[8].mult;
   op_c2_10 = ops[9].mult;
 
-  CorFortran(1, op_c2_1, cisd_c2_1_);
-  CorFortran(1, op_c2_2, cisd_c2_2_);
-  CorFortran(1, op_c2_3, cisd_c2_3_);
-  CorFortran(1, op_c2_4, cisd_c2_4_);
-  CorFortran(1, op_c2_5, cisd_c2_5_);
-  CorFortran(1, op_c2_6, cisd_c2_6_);
-  CorFortran(1, op_c2_7, cisd_c2_7_);
-  CorFortran(1, op_c2_8, cisd_c2_8_);
-  CorFortran(1, op_c2_9, cisd_c2_9_);
-  CorFortran(1, op_c2_10, cisd_c2_10_);
-#endif
+  CorFortran(1, &op_c2_1, cisd_c2_1_);
+  CorFortran(1, &op_c2_2, cisd_c2_2_);
+  CorFortran(1, &op_c2_3, cisd_c2_3_);
+  CorFortran(1, &op_c2_4, cisd_c2_4_);
+  CorFortran(1, &op_c2_5, cisd_c2_5_);
+  CorFortran(1, &op_c2_6, cisd_c2_6_);
+  CorFortran(1, &op_c2_7, cisd_c2_7_);
+  CorFortran(1, &op_c2_8, cisd_c2_8_);
+  CorFortran(1, &op_c2_9, cisd_c2_9_);
+  CorFortran(1, &op_c2_10, cisd_c2_10_);
+#endif  // Fortran functions
 
   /* ----- Insert detach code ------ */
   e->detach();

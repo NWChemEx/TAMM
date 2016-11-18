@@ -1,6 +1,16 @@
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#include "tensor/variables.h"
 #include <mpi.h>
-#include "variables.h"
-//#include "/msc/apps/compilers/intel/impi/5.0.1.035/intel64/include/mpi.h"
+#include <vector>
 
 namespace tamm {
 

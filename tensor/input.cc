@@ -1,4 +1,15 @@
-#include "input.h"
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#include "tensor/input.h"
+#include <vector>
 
 namespace tamm {
 
@@ -61,10 +72,10 @@ void input_initialize(int num_ranges, RangeEntry *ranges, int num_indices,
   for (int i = 0; i < num_operations; i++) {
     switch (ops[i].optype) {
       case OpTypeAdd:
-        ops[i].add = consAddOp((AddOp *)ops[i].op_entry);
+        ops[i].add = consAddOp(static_cast<AddOp *>(ops[i].op_entry));
         break;
       case OpTypeMult:
-        ops[i].mult = consMultOp((MultOp *)ops[i].op_entry);
+        ops[i].mult = consMultOp(static_cast<MultOp *>(ops[i].op_entry));
         break;
       default:
         assert(0);
@@ -115,4 +126,4 @@ static Multiplication consMultOp(MultOp *mult) {
   return Multiplication(&mult->tc->tensor, cids, &mult->ta->tensor, aids,
                         &mult->tb->tensor, bids, mult->alpha);
 }
-}
+}  // namespace tamm

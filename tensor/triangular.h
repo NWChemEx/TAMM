@@ -1,8 +1,19 @@
-#ifndef __tamm_triangular_h__
-#define __tamm_triangular_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_TRIANGULAR_H_
+#define TAMM_TENSOR_TRIANGULAR_H_
 
-#include "index.h"
-#include "variables.h"
+#include <vector>
+#include "tensor/index.h"
+#include "tensor/variables.h"
 
 namespace tamm {
 
@@ -29,7 +40,7 @@ class triangular {
    * @param[in] vec current iterate value
    * @return true the value is valid, return false when end of the iterator
    */
-  bool next(std::vector<size_t>& vec);
+  bool next(std::vector<size_t> * vec);
 
   /**
    * Reset the iterator
@@ -86,18 +97,19 @@ class triangular {
         r[i] = int_mb[k_range + curr[i] - 1];
         o[i] = k_evl_sorted + int_mb[k_offset + curr[i] - 1] - 1;
         dirty[i] = false;
-      } else
+      } else {
         return;
+      }
     }
   }
 };
 
 inline triangular::triangular() {}
 
-inline bool triangular::next(std::vector<size_t>& vec) {
+inline bool triangular::next(std::vector<size_t>* vec) {
   if (empty_) return false;
   if (curr[0] > ub[0]) return false;
-  vec = curr;
+  *vec = curr;
   curr_r = r;
   curr_o = o;
   // plus 1
@@ -126,9 +138,9 @@ inline triangular::triangular(const std::vector<IndexName>& ids) {
   r.resize(d);
   o.resize(d);
   dirty.resize(d);
-  if (d == 0)
+  if (d == 0) {
     empty_ = true;
-  else {
+  } else {
     empty_ = false;
     int range = Table::rangeOf(ids[0]);  // name
     for (int i = 0; i < d; i++) {
@@ -168,4 +180,4 @@ inline const std::vector<size_t>& triangular::v_offset() const {
 
 } /* namespace tamm */
 
-#endif /* __tamm_triangular_h__ */
+#endif  // TAMM_TENSOR_TRIANGULAR_H_

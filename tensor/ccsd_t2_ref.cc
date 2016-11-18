@@ -1,12 +1,24 @@
+
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
 #include <iostream>
-#include "corf.h"
-#include "equations.h"
-#include "input.h"
-#include "t_assign.h"
-#include "t_mult.h"
-#include "tensor.h"
-#include "tensors_and_ops.h"
-#include "variables.h"
+#include "tensor/corf.h"
+#include "tensor/equations.h"
+#include "tensor/input.h"
+#include "tensor/schedulers.h"
+#include "tensor/t_assign.h"
+#include "tensor/t_mult.h"
+#include "tensor/tensor.h"
+#include "tensor/tensors_and_ops.h"
+#include "tensor/variables.h"
 
 /*
  *i0 ( p3 p4 h1 h2 )_v + = 1 * v ( p3 p4 h1 h2 )_v
@@ -300,20 +312,15 @@ namespace tamm {
 
 typedef void (*c2fd_fn)(Integer *, Integer *, Integer *, Integer *);
 
-void schedule_linear_lazy(std::map<std::string, tamm::Tensor> &tensors,
-                          std::vector<Operation> &ops);
-void schedule_linear(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops);
-void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops);
-
-static void CorFortranc2fd(int use_c, Multiplication &m, c2fd_fn fn) {
+static void CorFortranc2fd(int use_c, Multiplication * m, c2fd_fn fn) {
   if (use_c) {
-    m.execute();
+    m->execute();
   } else {
-    Integer da = (int)m.tA().ga(), da_offset = m.tA().offset_index();
+    Integer da = static_cast<int>(m->tA().ga()),
+            da_offset = m->tA().offset_index();
     // Integer db = m.tB().ga(), db_offset = m.tB().offset_index();
-    Integer dc = (int)m.tC().ga(), dc_offset = m.tC().offset_index();
+    Integer dc = static_cast<int>(m->tC().ga()),
+            dc_offset = m->tC().offset_index();
     fn(&da, &da_offset, &dc, &dc_offset);
   }
 }
@@ -377,14 +384,14 @@ void ccsd_t2_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo,
   static Equations eqs;
 
   if (set_t2) {
-    ccsd_t2_equations(eqs);
+    ccsd_t2_equations(&eqs);
     set_t2 = false;
   }
 
   std::map<std::string, tamm::Tensor> tensors;
   std::vector<Operation> ops;
 
-  tensors_and_ops(eqs, tensors, ops);
+  tensors_and_ops(&eqs, &tensors, &ops);
 
   Tensor *i0 = &tensors["i0"];
   Tensor *v = &tensors["v"];
@@ -417,7 +424,7 @@ void ccsd_t2_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo,
 #if 1
   // schedule_linear(tensors, ops);
   // schedule_linear_lazy(tensors, ops);
-  schedule_levels(tensors, ops);
+  schedule_levels(&tensors, &ops);
 #else
   op_t2_1 = ops[0].add;
   op_t2_2_1 = ops[1].add;
@@ -466,97 +473,97 @@ void ccsd_t2_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo,
   op_t2_8 = ops[43].mult;
   op_c2d_t2_t12_b = ops[44].mult;
 
-  CorFortran(0, op_t2_1, ccsd_t2_1_);
-  CorFortran(1, t2_2_1, offset_ccsd_t2_2_1_);  //@BUG: incompatible with fortran
-  CorFortran(1, op_t2_2_1, ccsd_t2_2_1_);      //@BUG: incompatible with fortran
-  CorFortran(0, t2_2_2_1, offset_ccsd_t2_2_2_1_);
-  CorFortran(0, op_t2_2_2_1, ccsd_t2_2_2_1_);
-  CorFortran(0, t2_2_2_2_1, offset_ccsd_t2_2_2_2_1_);
-  CorFortran(0, op_t2_2_2_2_1, ccsd_t2_2_2_2_1_);
-  CorFortran(0, op_t2_2_2_2_2, ccsd_t2_2_2_2_2_);
-  CorFortran(0, op_t2_2_2_2, ccsd_t2_2_2_2_);
+  CorFortran(0, &op_t2_1, ccsd_t2_1_);
+  CorFortran(1, &t2_2_1, offset_ccsd_t2_2_1_);  // @BUG:doesn't work for fortran
+  CorFortran(1, &op_t2_2_1, ccsd_t2_2_1_);      // @BUG:doesn't work for fortran
+  CorFortran(0, &t2_2_2_1, offset_ccsd_t2_2_2_1_);
+  CorFortran(0, &op_t2_2_2_1, ccsd_t2_2_2_1_);
+  CorFortran(0, &t2_2_2_2_1, offset_ccsd_t2_2_2_2_1_);
+  CorFortran(0, &op_t2_2_2_2_1, ccsd_t2_2_2_2_1_);
+  CorFortran(0, &op_t2_2_2_2_2, ccsd_t2_2_2_2_2_);
+  CorFortran(0, &op_t2_2_2_2, ccsd_t2_2_2_2_);
   destroy(t2_2_2_2_1);
-  CorFortran(0, op_t2_2_2_3, ccsd_t2_2_2_3_);
-  CorFortran(1, op_t2_2_2, ccsd_t2_2_2_);  //@BUG: incompatible with fortran
+  CorFortran(0, &op_t2_2_2_3, ccsd_t2_2_2_3_);
+  CorFortran(1, &op_t2_2_2, ccsd_t2_2_2_);  // @BUG: incompatible with fortran
   destroy(t2_2_2_1);
-  CorFortran(0, t2_2_4_1, offset_ccsd_t2_2_4_1_);
-  CorFortran(0, op_t2_2_4_1, ccsd_t2_2_4_1_);
-  CorFortran(0, op_t2_2_4_2, ccsd_t2_2_4_2_);
-  CorFortran(1, op_t2_2_4, ccsd_t2_2_4_);  //@BUG: incompatible with fortran
+  CorFortran(0, &t2_2_4_1, offset_ccsd_t2_2_4_1_);
+  CorFortran(0, &op_t2_2_4_1, ccsd_t2_2_4_1_);
+  CorFortran(0, &op_t2_2_4_2, ccsd_t2_2_4_2_);
+  CorFortran(1, &op_t2_2_4, ccsd_t2_2_4_);  // @BUG: incompatible with fortran
   destroy(t2_2_4_1);
-  CorFortran(0, t2_2_5_1, offset_ccsd_t2_2_5_1_);
-  CorFortran(0, op_t2_2_5_1, ccsd_t2_2_5_1_);
-  CorFortran(0, op_t2_2_5_2, ccsd_t2_2_5_2_);
-  CorFortran(1, op_t2_2_5, ccsd_t2_2_5_);  //@BUG: incompatible with fortran
+  CorFortran(0, &t2_2_5_1, offset_ccsd_t2_2_5_1_);
+  CorFortran(0, &op_t2_2_5_1, ccsd_t2_2_5_1_);
+  CorFortran(0, &op_t2_2_5_2, ccsd_t2_2_5_2_);
+  CorFortran(1, &op_t2_2_5, ccsd_t2_2_5_);  // @BUG: incompatible with fortran
   destroy(t2_2_5_1);
-  CorFortranc2fd(0, op_c2f_t2_t12, c2f_t2_t12_);
-  CorFortran(1, op_t2_2_6, ccsd_t2_2_6_);  //@BUG: incompatible with fortran
+  CorFortranc2fd(0, &op_c2f_t2_t12, c2f_t2_t12_);
+  CorFortran(1, &op_t2_2_6, ccsd_t2_2_6_);  // @BUG: incompatible with fortran
   CorFortranc2fd(0, op_c2d_t2_t12, c2d_t2_t12_);
-  CorFortran(1, op_t2_2, ccsd_t2_2_);  //@BUG: incompatible with fortran
+  CorFortran(1, &op_t2_2, ccsd_t2_2_);  // @BUG: incompatible with fortran
   destroy(t2_2_1);
-  CorFortran(0, op_lt2_3x, lccsd_t2_3x_);
-  CorFortran(0, t2_4_1, offset_ccsd_t2_4_1_);
-  CorFortran(0, op_t2_4_1, ccsd_t2_4_1_);
-  CorFortran(0, t2_4_2_1, offset_ccsd_t2_4_2_1_);
-  CorFortran(0, op_t2_4_2_1, ccsd_t2_4_2_1_);
-  CorFortran(0, op_t2_4_2_2, ccsd_t2_4_2_2_);
-  CorFortran(0, op_t2_4_2, ccsd_t2_4_2_);
+  CorFortran(0, &op_lt2_3x, lccsd_t2_3x_);
+  CorFortran(0, &t2_4_1, offset_ccsd_t2_4_1_);
+  CorFortran(0, &op_t2_4_1, ccsd_t2_4_1_);
+  CorFortran(0, &t2_4_2_1, offset_ccsd_t2_4_2_1_);
+  CorFortran(0, &op_t2_4_2_1, ccsd_t2_4_2_1_);
+  CorFortran(0, &op_t2_4_2_2, ccsd_t2_4_2_2_);
+  CorFortran(0, &op_t2_4_2, ccsd_t2_4_2_);
   destroy(t2_4_2_1);
-  CorFortran(0, op_t2_4_3, ccsd_t2_4_3_);
-  CorFortran(0, op_t2_4_4, ccsd_t2_4_4_);
+  CorFortran(0, &op_t2_4_3, ccsd_t2_4_3_);
+  CorFortran(0, &op_t2_4_4, ccsd_t2_4_4_);
   // ma_zero
   // ga_get
-  CorFortran(1, op_t2_4, ccsd_t2_4_);  //@BUG: this cannot be done in fortran
+  CorFortran(1, &op_t2_4, ccsd_t2_4_);  // @BUG: this cannot be done in fortran
   destroy(t2_4_1);
-  CorFortran(0, t2_5_1, offset_ccsd_t2_5_1_);
-  CorFortran(0, op_t2_5_1, ccsd_t2_5_1_);
-  CorFortran(0, op_t2_5_2, ccsd_t2_5_2_);
-  CorFortran(0, op_t2_5_3, ccsd_t2_5_3_);
+  CorFortran(0, &t2_5_1, offset_ccsd_t2_5_1_);
+  CorFortran(0, &op_t2_5_1, ccsd_t2_5_1_);
+  CorFortran(0, &op_t2_5_2, ccsd_t2_5_2_);
+  CorFortran(0, &op_t2_5_3, ccsd_t2_5_3_);
   // ma_zero
   // ga_get
-  CorFortran(1, op_t2_5, ccsd_t2_5_);  //@BUG: this cannot be done in fortran
+  CorFortran(1, &op_t2_5, ccsd_t2_5_);  // @BUG: this cannot be done in fortran
   destroy(t2_5_1);
-  CorFortran(0, t2_6_1, offset_ccsd_t2_6_1_);
-  CorFortran(0, op_t2_6_1, ccsd_t2_6_1_);
-  CorFortran(0, t2_6_2_1, offset_ccsd_t2_6_2_1_);
-  CorFortran(0, op_t2_6_2_1, ccsd_t2_6_2_1_);
-  CorFortran(0, op_t2_6_2_2, ccsd_t2_6_2_2_);
-  CorFortran(0, op_t2_6_2, ccsd_t2_6_2_);
+  CorFortran(0, &t2_6_1, offset_ccsd_t2_6_1_);
+  CorFortran(0, &op_t2_6_1, ccsd_t2_6_1_);
+  CorFortran(0, &t2_6_2_1, offset_ccsd_t2_6_2_1_);
+  CorFortran(0, &op_t2_6_2_1, ccsd_t2_6_2_1_);
+  CorFortran(0, &op_t2_6_2_2, ccsd_t2_6_2_2_);
+  CorFortran(0, &op_t2_6_2, ccsd_t2_6_2_);
   destroy(t2_6_2_1);
-  CorFortran(0, op_t2_6_3, ccsd_t2_6_3_);
-  CorFortran(0, op_t2_6, ccsd_t2_6_);
+  CorFortran(0, &op_t2_6_3, ccsd_t2_6_3_);
+  CorFortran(0, &op_t2_6, ccsd_t2_6_);
   destroy(t2_6_1);
   if (0) {
     /*following need to done in C or Fortran in one group*/
-    CorFortran(1, t2_7_1, offset_ccsd_t2_7_1_);
-    CorFortran(1, op_t2_7_1, ccsd_t2_7_1_);
-    CorFortran(1, op_t2_7_2, ccsd_t2_7_2_);
-    CorFortran(1, op_t2_7_3, ccsd_t2_7_3_);
-    CorFortran(1, op_t2_7, ccsd_t2_7_);
+    CorFortran(1, &t2_7_1, offset_ccsd_t2_7_1_);
+    CorFortran(1, &op_t2_7_1, ccsd_t2_7_1_);
+    CorFortran(1, &op_t2_7_2, ccsd_t2_7_2_);
+    CorFortran(1, &op_t2_7_3, ccsd_t2_7_3_);
+    CorFortran(1, &op_t2_7, ccsd_t2_7_);
     destroy(t2_7_1);
   } else {
-    CorFortran(0, t2_7_1, offset_ccsd_t2_7_1_);
-    CorFortran(0, op_t2_7_1, ccsd_t2_7_1_);
-    CorFortran(0, op_t2_7_2, ccsd_t2_7_2_);
-    CorFortran(0, op_t2_7_3, ccsd_t2_7_3_);
-    CorFortran(0, op_t2_7, ccsd_t2_7_);
+    CorFortran(0, &t2_7_1, offset_ccsd_t2_7_1_);
+    CorFortran(0, &op_t2_7_1, ccsd_t2_7_1_);
+    CorFortran(0, &op_t2_7_2, ccsd_t2_7_2_);
+    CorFortran(0, &op_t2_7_3, ccsd_t2_7_3_);
+    CorFortran(0, &op_t2_7, ccsd_t2_7_);
     destroy(t2_7_1);
   }
   if (0) {
     /*following need to done in C or Fortran in one group*/
-    CorFortran(1, vt1t1_1_1, offset_vt1t1_1_1_);
-    CorFortran(1, op_vt1t1_1_2, vt1t1_1_2_);
-    CorFortran(1, op_vt1t1_1, vt1t1_1_);
+    CorFortran(1, &vt1t1_1_1, offset_vt1t1_1_1_);
+    CorFortran(1, &op_vt1t1_1_2, vt1t1_1_2_);
+    CorFortran(1, &op_vt1t1_1, vt1t1_1_);
   } else {
-    CorFortran(0, vt1t1_1_1, offset_vt1t1_1_1_);
-    CorFortran(0, op_vt1t1_1_2, vt1t1_1_2_);
-    CorFortran(0, op_vt1t1_1, vt1t1_1_);
+    CorFortran(0, &vt1t1_1_1, offset_vt1t1_1_1_);
+    CorFortran(0, &op_vt1t1_1_2, vt1t1_1_2_);
+    CorFortran(0, &op_vt1t1_1, vt1t1_1_);
   }
   destroy(vt1t1_1_1);
-  CorFortranc2fd(0, op_c2f_t2_t12_b, c2f_t2_t12_);
-  CorFortran(0, op_t2_8, ccsd_t2_8_);
-  CorFortranc2fd(0, op_c2d_t2_t12_b, c2d_t2_t12_);
-#endif
+  CorFortranc2fd(0, &op_c2f_t2_t12_b, c2f_t2_t12_);
+  CorFortran(0, &op_t2_8, ccsd_t2_8_);
+  CorFortranc2fd(0, &op_c2d_t2_t12_b, c2d_t2_t12_);
+#endif  // Use c scheduler
   f->detach();
   i0->detach();
   t_vo->detach();

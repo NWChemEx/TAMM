@@ -9,11 +9,11 @@ void *tce_malloc(int length) {
     return p;
 }
 
-tamm_string mkString(char *s) {
-    tamm_string p = (tamm_string) tce_malloc(strlen(s) + 1);
-    strcpy(p, s);
-    return p;
-}
+//tamm_string mkString(char *s) {
+//    tamm_string p = (tamm_string) tce_malloc(strlen(s) + 1);
+//    strcpy(p, s);
+//    return p;
+//}
 
 tamm_string *mkIndexList(tamm_string *indices, int length) {
     tamm_string *newlist = (tamm_string *) malloc(length * sizeof(tamm_string));
@@ -24,11 +24,15 @@ tamm_string *mkIndexList(tamm_string *indices, int length) {
     return newlist;
 }
 
-tamm_string int_str(int a) {
-    int size = snprintf(nullptr, 0, "%d", a);
-    tamm_string val = (tamm_string) malloc(size + 1);
-    sprintf(val, "%d", a);
+tamm_string constcharToChar(const char* s){
+    tamm_string val = new char[strlen(s)+1]();
+    strncpy(val, s, strlen(s)+1);
     return val;
+}
+
+tamm_string int_str(int a) {
+    const char* s = (std::to_string(a)).c_str();
+    return constcharToChar(s);
 }
 
 
@@ -36,13 +40,11 @@ tamm_string int_str(int a) {
 tamm_string combine_indexLists(tamm_string *indices1, int count1, tamm_string *indices2, int count2) {
     tamm_string upper = combine_indices(indices1, count1);
     tamm_string lower = combine_indices(indices2, count2);
-
-    tamm_string result = (tamm_string) tce_malloc(strlen(upper) + strlen(lower) + 1);
-    strcpy(result, upper);
-    strcat(result, ":");
-    strcat(result, lower);
-    //std::cout << result << std::endl;
-    return result;
+    std::string s;
+    s.append(upper);
+    s.append(":");
+    s.append(lower);
+    return constcharToChar(s.c_str());
 
 }
 
@@ -133,29 +135,12 @@ tce_string_array stringToList(const tamm_string s) {
 //Convert string array of indices to comma seperated string
 tamm_string combine_indices(tamm_string *indices, int count) {
     if (indices == nullptr) return "\0";
-
-    char *str = nullptr;             /* Pointer to the combined string  */
-    int total_length = 0;      /* Total length of combined string */
-    int length = 0;            /* Length of a string             */
-    int i = 0;                    /* Loop counter                   */
-
-    /* Find total length of the combined string */
-    for (i = 0; i < count; i++) total_length += strlen(indices[i]);
-    ++total_length;     /* For combined string terminator */
-
-    total_length += count-1; // For commas
-
-    str = (char *) malloc(total_length);  /* Allocate memory for joined strings + commas */
-    str[0] = '\0';                      /* Empty string we can append to      */
-
-    for (i = 0; i < count; i++) {
-        strcat(str, indices[i]);
-        strcat(str, ",");
-        length = strlen(str);
+    std::string s;
+    for (int i=0;i<count;i++) {
+        s.append(indices[i]);
+        s.append(",");
     }
-    str[length-1] = '\0';           /* followed by terminator */
-
-    return  str;
+    return  constcharToChar(s.c_str());
 
 }
 

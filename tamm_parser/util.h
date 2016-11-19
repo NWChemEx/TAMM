@@ -25,12 +25,14 @@ struct tce_string_array_ {
 
 void *tce_malloc(int length);
 
-tamm_string mkString(char *s);
+//tamm_string mkString(char *s);
 
 tamm_string *mkIndexList(tamm_string *indices, int length);
 
 //Convert int to string
 tamm_string int_str(int);
+
+tamm_string constcharToChar(const char* s);
 
 tamm_string combine_indices(tamm_string *indices, int count);
 

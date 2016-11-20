@@ -11,12 +11,6 @@
 typedef char *tamm_string;
 
 using tamm_string_array = std::vector<tamm_string>;
-//typedef struct tce_string_array_ *tce_string_array;
-
-//struct tce_string_array_ {
-//    tamm_string *list;
-//    int length;
-//};
 
 void *tce_malloc(int length);
 
@@ -35,13 +29,11 @@ tamm_string_array stringToList(tamm_string);
 
 bool exists_index(const tamm_string_array& list, tamm_string x);
 
-int count_index(tamm_string_array &list, tamm_string x);
-
-//bool check_index_count(tce_string_array list, int count);
+int count_index(const tamm_string_array &list, tamm_string x);
 
 bool compare_index_lists(const tamm_string_array& list1, const tamm_string_array& list2);
 
-bool check_array_usage(tamm_string_array& list1, tamm_string_array& list2);
+bool check_array_usage(const tamm_string_array& list1, const tamm_string_array& list2);
 
 //bool exact_compare_index_lists(tce_string_array list1, tce_string_array list2);
 //void print_index_list(tce_string_array list1);

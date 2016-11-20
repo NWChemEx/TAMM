@@ -38,7 +38,6 @@ tamm_string combine_indexLists(const tamm_string_array& indices1, const tamm_str
 
 
 bool exists_index(const tamm_string_array &list, tamm_string x) {
-    int i = 0;
     for (auto i: list) if (strcmp(i, x) == 0) return true;
     return false;
 }
@@ -54,7 +53,7 @@ bool compare_index_lists(const tamm_string_array& alist1, const tamm_string_arra
     return true;
 }
 
-bool check_array_usage(tamm_string_array& list1, tamm_string_array& list2) {
+bool check_array_usage(const tamm_string_array& list1, const tamm_string_array& list2) {
     int len1 = list1.size();
     int len2 = list2.size();
     if (len1 != len2) return false;
@@ -66,8 +65,8 @@ bool check_array_usage(tamm_string_array& list1, tamm_string_array& list2) {
 }
 
 
-int count_index(tamm_string_array &list, tamm_string x) {
-    int count = 0, i = 0;
+int count_index(const tamm_string_array &list, tamm_string x) {
+    int count = 0;
     for (auto i: list) {
         if (strcmp(i, x) == 0) count++;
     }

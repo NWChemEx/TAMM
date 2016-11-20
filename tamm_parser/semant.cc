@@ -53,7 +53,6 @@ void verifyRangeRef(SymbolTable &symtab, tamm_string name, int line_no) {
 //        std::cerr << "Error at line " << line_no << ":range variable " << name << " is not defined\n";
 //        std::exit(EXIT_FAILURE);
 //    }
-    const int rno = 3;
     tamm_string_array ranges = {"O", "V", "N"};
     if (!exists_index(ranges, name)) {
         std::cerr << "Error at line " << line_no << ": range " << name << " is not supported. " <<

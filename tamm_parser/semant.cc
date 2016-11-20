@@ -55,7 +55,7 @@ void verifyRangeRef(SymbolTable &symtab, tamm_string name, int line_no) {
 //    }
     const int rno = 3;
     tamm_string_array ranges = {"O", "V", "N"};
-    if (!exists_index(ranges, rno, name)) {
+    if (!exists_index(ranges, name)) {
         std::cerr << "Error at line " << line_no << ": range " << name << " is not supported. " <<
                   "Can only be one of " << combine_indices(ranges) << std::endl;
         std::exit(EXIT_FAILURE);
@@ -216,12 +216,9 @@ void check_Exp(Exp *exp, SymbolTable &symtab) {
             //Check for repetitive indices in an array reference
             tamm_string_array uind1;
 
-            int ui1 = 0;
             for (auto i1: all_ind1) {
-                if (!exists_index(uind1, ui1, i1)) {
+                if (!exists_index(uind1, i1))
                     uind1.push_back(i1);
-                    ui1++;
-                }
             }
 
             tamm_string_array up_ind(exp->u.Array.length);
@@ -265,18 +262,14 @@ void check_Exp(Exp *exp, SymbolTable &symtab) {
             }
 
             tamm_string_array uind;
-
-            int ui = 0;
             for (auto i: all_ind) {
-                if (!exists_index(uind, ui, i)) {
+                if (!exists_index(uind, i))
                     uind.push_back(i);
-                    ui++;
-                }
             }
 
-            for (int i = 0; i < ui; i++) {
-                if (count_index(all_ind, uind[i]) > 2) {
-                    std::cerr << "Error at line " << clno << ": summation index " << uind[i] <<
+            for (auto i:uind) {
+                if (count_index(all_ind, i) > 2) {
+                    std::cerr << "Error at line " << clno << ": summation index " << i <<
                               " must occur exactly twice in a multiplication\n";
                     std::exit(EXIT_FAILURE);
                 }
@@ -415,7 +408,7 @@ tamm_string_array getUniqIndices(Exp *exp) {
 
             tamm_string_array uind;
             for (auto i: all_ind) {
-                if (!exists_index(uind, uind.size(), i))
+                if (!exists_index(uind, i))
                     uind.push_back(i);
             }
 

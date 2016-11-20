@@ -37,9 +37,9 @@ tamm_string combine_indexLists(const tamm_string_array& indices1, const tamm_str
 }
 
 
-bool exists_index(const tamm_string_array &list, int len, tamm_string x) {
+bool exists_index(const tamm_string_array &list, tamm_string x) {
     int i = 0;
-    for (i = 0; i < len; i++) if (strcmp(list[i], x) == 0) return true;
+    for (auto i: list) if (strcmp(i, x) == 0) return true;
     return false;
 }
 
@@ -49,7 +49,7 @@ bool compare_index_lists(const tamm_string_array& alist1, const tamm_string_arra
     if (len1 != len2) return false;
     int i = 0;
     for (i = 0; i < len1; i++) {
-        if (!exists_index(alist2, len2, alist1[i])) return false;
+        if (!exists_index(alist2, alist1[i])) return false;
     }
     return true;
 }

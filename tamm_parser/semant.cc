@@ -90,8 +90,7 @@ void check_Decl(Decl* d, SymbolTable& symtab) {
               lo_ind[i] = d->u.ArrayDecl.lowerIndices[i];
 
         verifyVarDecl(symtab, d->u.ArrayDecl.name, d->lineno);
-        tamm_string comb_index_list = combine_indexLists(up_ind, d->u.ArrayDecl.ulen,
-                                                         lo_ind, d->u.ArrayDecl.llen);
+        tamm_string comb_index_list = combine_indexLists(up_ind, lo_ind);
           //std::cout << d->u.ArrayDecl.name << " -> " << comb_index_list << std::endl;
         int i = 0;
         tamm_string *ind_list = d->u.ArrayDecl.upperIndices;
@@ -195,18 +194,16 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
         case Exp::is_ArrayRef: {
           verifyArrayRef(symtab, exp->u.Array.name, exp->u.Array.indices, exp->u.Array.length, clno);
           inames = getIndices(exp);
-          int tot_len1 = inames.size();
+          //int tot_len1 = inames.size();
           tamm_string_array all_ind1 = inames;
-          int i1 = 0, ui1 = 0;
-          tamm_string_array rnames(tot_len1);
+          int ui1 = 0;
+          tamm_string_array rnames;
 
-          for (i1 = 0; i1 < tot_len1; i1++) {
-            rnames[i1] = symtab[all_ind1[i1]];
+          for (auto i1: all_ind1) {
+            rnames.push_back(symtab[i1]);
           }
 
           tamm_string_array rnamesarr = rnames;
-//          rnamesarr = rnames;
-//          rnamesarr->length = tot_len1;
           tamm_string ulranges = symtab[exp->u.Array.name];
           tamm_string_array ulr = stringToList(ulranges);
 
@@ -216,13 +213,12 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
             std::exit(EXIT_FAILURE);
           }
           //Check for repetitive indices in an array reference
-         // tamm_string *uind1 = (tamm_string*) tce_malloc(sizeof(tamm_string) * tot_len1);
-            tamm_string_array uind1(tot_len1);
+            tamm_string_array uind1;
 
-          i1 = 0, ui1 = 0;
-          for (i1 = 0; i1 < tot_len1; i1++) {
-            if (!exists_index(uind1, ui1, all_ind1[i1])) {
-              uind1[ui1] = all_ind1[i1];
+          ui1 = 0;
+          for (auto i1: all_ind1) {
+            if (!exists_index(uind1, ui1, i1)) {
+              uind1.push_back(i1);
               ui1++;
             }
           }
@@ -231,9 +227,9 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
             for (int i = 0; i < exp->u.Array.length; i++)
                 up_ind[i] = exp->u.Array.indices[i];
 
-          for (i1 = 0; i1 < ui1; i1++) {
-            if (count_index(all_ind1, tot_len1, uind1[i1]) > 1) {
-              std::cerr << "Error at line " << clno << ": repetitive index " << uind1[i1] << " in array reference "
+          for (auto i1:uind1) {
+            if (count_index(all_ind1, all_ind1.size(), i1) > 1) {
+              std::cerr << "Error at line " << clno << ": repetitive index " << i1 << " in array reference "
                       << exp->u.Array.name << "[" << combine_indices(up_ind) << "]\n";
                std::exit(EXIT_FAILURE);
             }

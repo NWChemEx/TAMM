@@ -25,7 +25,7 @@ tamm_string constcharToChar(const char* s){
 }
 
 
-tamm_string combine_indexLists(const tamm_string_array& indices1, int count1, const tamm_string_array& indices2, int count2) {
+tamm_string combine_indexLists(const tamm_string_array& indices1, const tamm_string_array& indices2) {
     tamm_string upper = combine_indices(indices1);
     tamm_string lower = combine_indices(indices2);
     std::string s;

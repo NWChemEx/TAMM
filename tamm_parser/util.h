@@ -24,7 +24,7 @@ tamm_string *mkIndexList(tamm_string *indices, int length);
 
 tamm_string constcharToChar(const char* s);
 
-tamm_string combine_indices(const tamm_string_array indices, int count);
+tamm_string combine_indices(const tamm_string_array& indices);
 
 tamm_string combine_indexLists(const tamm_string_array& upper, int upper_count, const tamm_string_array& lower, int lower_count);
 

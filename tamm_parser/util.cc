@@ -26,8 +26,8 @@ tamm_string constcharToChar(const char* s){
 
 
 tamm_string combine_indexLists(const tamm_string_array& indices1, int count1, const tamm_string_array& indices2, int count2) {
-    tamm_string upper = combine_indices(indices1, count1);
-    tamm_string lower = combine_indices(indices2, count2);
+    tamm_string upper = combine_indices(indices1);
+    tamm_string lower = combine_indices(indices2);
     std::string s;
     s.append(upper);
     s.append(":");
@@ -116,10 +116,10 @@ tamm_string_array stringToList(const tamm_string s) {
 }
 
 //Convert string array of indices to comma seperated string
-tamm_string combine_indices(const tamm_string_array indices, int count) {
+tamm_string combine_indices(const tamm_string_array& indices) {
     if (indices.size() == 0) return "\0";
     std::string s;
-    for (int i=0;i<count;i++) {
+    for (int i=0;i<indices.size();i++) {
         s.append(indices[i]);
         s.append(",");
     }

@@ -35,7 +35,7 @@ tamm_string_array stringToList(tamm_string);
 
 bool exists_index(const tamm_string_array& list, int len, tamm_string x);
 
-int count_index(tamm_string_array &list, int len, tamm_string x);
+int count_index(tamm_string_array &list, tamm_string x);
 
 //bool check_index_count(tce_string_array list, int count);
 

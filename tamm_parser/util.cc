@@ -66,10 +66,10 @@ bool check_array_usage(tamm_string_array& list1, tamm_string_array& list2) {
 }
 
 
-int count_index(tamm_string_array &list, int len, tamm_string x) {
+int count_index(tamm_string_array &list, tamm_string x) {
     int count = 0, i = 0;
-    for (i = 0; i < len; i++) {
-        if (strcmp(list[i], x) == 0) count++;
+    for (auto i: list) {
+        if (strcmp(i, x) == 0) count++;
     }
     return count;
 }

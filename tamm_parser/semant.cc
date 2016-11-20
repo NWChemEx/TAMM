@@ -326,72 +326,33 @@ tamm_string_array getIndices(Exp* exp) {
           return p;
         }
         case Exp::is_ArrayRef: {
-          //p = (tamm_string_array) tce_malloc(sizeof(*p));
-          //p->list = replicate_indices(exp->u.Array.indices, exp->u.Array.length);
-          //p->length = exp->u.Array.length;
-          return replicate_indices(exp->u.Array.indices, exp->u.Array.length);
+            tamm_string_array up_ind(exp->u.Array.length);
+            for (int i = 0; i < exp->u.Array.length; i++)
+                up_ind[i] = strdup(exp->u.Array.indices[i]);
+          return up_ind;
         }
         case Exp::is_Addition: {
           return getIndices(exp->u.Addition.subexps->head);
         }
         case Exp::is_Multiplication: {
           el = exp->u.Multiplication.subexps;
-          int tot_len = 0;
-          while (el != nullptr) {
-            //print_Exp(el->head);
-            tamm_string_array se = (tamm_string_array) getIndices(el->head);
-             tot_len += se.size();
-
-            el = el->tail;
-          }
-
-          el = exp->u.Multiplication.subexps;
-          tamm_string_array all_ind(tot_len);
-
-          int i = 0, ui = 0;
+          tamm_string_array all_ind;
           while (el != nullptr) {
             tamm_string_array se = getIndices(el->head);
-            i = 0;
-            //if (se != nullptr) {
-              for (i = 0; i < se.size(); i++) {
-                all_ind[ui] = se[i];
-                ui++;
+             for (auto i: se) {
+                all_ind.push_back(i);
               }
-            //}
-            //se = nullptr;
             el = el->tail;
           }
-          assert(ui == tot_len);
-          //tamm_string *uind = (tamm_string *) tce_malloc(sizeof(tamm_string) * tot_len);
-            tamm_string_array uind(tot_len);
 
-          i = 0, ui = 0;
-//  	for (i=0;i<tot_len;i++){
-//  		if(!exists_index(uind,ui,all_ind[i])) {
-//  			uind[ui] = all_ind[i];
-//  			ui++;
-//  		}
-//  	}
-
-          for (i = 0; i < tot_len; i++) {
-            if (count_index(all_ind, tot_len, all_ind[i]) == 1) {
-              uind[ui] = all_ind[i];
-              ui++;
-            }
+          tamm_string_array uind;
+          for (auto i: all_ind) {
+            if (count_index(all_ind,all_ind.size(), i) == 1)
+              uind.push_back(i);
           }
 
-            tamm_string_array uniq_ind(ui);
-          //tamm_string *uniq_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * ui);
-          for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
-
-//  	free(all_ind);
-//  	all_ind = nullptr;
-          //uind = nullptr;
-
-//          p = (tamm_string_array) tce_malloc(sizeof(*p));
-//          p->list = uniq_ind;
-//          p->length = ui;
-
+          tamm_string_array uniq_ind;
+          for (auto i: uind) uniq_ind.push_back(strdup(i));
           return uniq_ind;
         }
 
@@ -455,10 +416,10 @@ tamm_string_array getUniqIndices(Exp* exp) {
         }
 
         case Exp::is_ArrayRef: {
-//          p = (tamm_string_array) tce_malloc(sizeof(*p));
-//          p->list =
-//          p->length = exp->u.Array.length;
-          return replicate_indices(exp->u.Array.indices, exp->u.Array.length);
+            tamm_string_array up_ind(exp->u.Array.length);
+            for (int i = 0; i < exp->u.Array.length; i++)
+                up_ind[i] = strdup(exp->u.Array.indices[i]);
+            return up_ind;
         }
 
         case Exp::is_Addition: {
@@ -467,50 +428,23 @@ tamm_string_array getUniqIndices(Exp* exp) {
 
         case Exp::is_Multiplication: {
           el = exp->u.Multiplication.subexps;
-          int tot_len = 0;
+          tamm_string_array all_ind;
           while (el != nullptr) {
-            //print_Exp(el->head);
-            tamm_string_array se = (tamm_string_array) getUniqIndices(el->head);
-            tot_len += se.size();
-
-            el = el->tail;
-          }
-
-          el = exp->u.Multiplication.subexps;
-          tamm_string *all_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * tot_len);
-
-          int i = 0, ui = 0;
-          while (el != nullptr) {
-            tamm_string_array se = (tamm_string_array) getUniqIndices(el->head);
-            i = 0;
-
-              for (i = 0; i < se.size(); i++) {
-                all_ind[ui] = se[i];
-                ui++;
+            tamm_string_array se = getUniqIndices(el->head);
+              for (auto elem: se) {
+                all_ind.push_back(elem);
               }
-
             el = el->tail;
           }
-          assert(ui == tot_len);
-          //tamm_string *uind = (tamm_string *) tce_malloc(sizeof(tamm_string) * tot_len);
-            tamm_string_array uind(tot_len);
 
-          i = 0, ui = 0;
-
-          for (i = 0; i < tot_len; i++) {
-            if (!exists_index(uind, ui, all_ind[i])) {
-              uind[ui] = all_ind[i];
-              ui++;
-            }
+          tamm_string_array uind;
+          for (auto i: all_ind) {
+            if (!exists_index(uind,uind.size(), i))
+              uind.push_back(i);
           }
 
-          tamm_string_array uniq_ind(ui);
-          for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
-
-//          p = (tamm_string_array) tce_malloc(sizeof(*p));
-//          p->list = uniq_ind;
-//          p->length = ui;
-
+          tamm_string_array uniq_ind;
+          for (auto i: uind) uniq_ind.push_back(strdup(i));
           return uniq_ind;
         }
 

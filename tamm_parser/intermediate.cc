@@ -65,14 +65,7 @@ MultOp make_MultOp(int tc, int ta, int tb, double alpha) {
     return p;
 }
 
-
-
 void generate_intermediate_ast(Equations *eqn, TranslationUnit* root) {
-//    &eqn->index_entries;
-//    &eqn->range_entries;
-//    &eqn->op_entries;
-//    &eqn->tensor_entries;
-
     std::vector<RangeEntry*> &re = eqn->range_entries;
     re.push_back(make_RangeEntry("O"));
     re.push_back(make_RangeEntry("V"));
@@ -83,7 +76,6 @@ void generate_intermediate_ast(Equations *eqn, TranslationUnit* root) {
         generate_intermediate_CompoundElem(eqn, celist->head);
         celist = celist->tail;
     }
-    celist = nullptr;
 }
 
 void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem* celem) {
@@ -92,7 +84,6 @@ void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem* celem) {
         generate_intermediate_Elem(eqn, elist->head);
         elist = elist->tail;
     }
-    elist = nullptr;
 }
 
 void generate_intermediate_Elem(Equations *eqn, Elem* elem) {
@@ -215,7 +206,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
           }
         }
 
-        tamm_bool rhs_first_ref = false;
+        bool rhs_first_ref = false;
 //        tce_string_array rhs_first_ref_indices = (tce_string_array)collectExpIndices(
 //            ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref, &ignore_first_ref);
 
@@ -236,8 +227,8 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
 //            tamm_bool isMultOp =
 //                    (lhs_indices->length < rhs_indices->length) || (isEqInd && !isAMOp) || (isEqInd && firstRefInd);
 
-        tamm_bool isAddOp = false;
-        tamm_bool isMultOp = false;
+        bool isAddOp = false;
+        bool isMultOp = false;
 
         if (rhs_first_ref) rhs_aref_count -= 1;
 
@@ -325,7 +316,7 @@ void getTensorIDs(Equations *eqn, Exp* exp, int *tid) {
     if (exp->kind == Exp::is_ArrayRef) {
         tamm_string aname = exp->u.Array.name;
         int j;
-        TensorEntry* ient;
+        TensorEntry* ient = nullptr;
         for (j = 0; j < eqn->tensor_entries.size(); j++) {
             ient = (TensorEntry*)eqn->tensor_entries.at(j);
             if (strcmp(aname, ient->name) == 0) {
@@ -346,7 +337,7 @@ void getIndexIDs(Equations *eqn, Exp* exp, int *tc_ids) {
         int len = exp->u.Array.length;
         int j;
         int ipos = 0;
-        IndexEntry* ient;
+        IndexEntry* ient = nullptr;
         for (i = 0; i < len; i++) {
             for (j = 0; j < eqn->index_entries.size(); j++) {
                 ient = (IndexEntry*)eqn->index_entries.at(j);
@@ -443,144 +434,144 @@ void collectArrayRefs(Exp* exp, std::vector<Exp*> &arefs, double *alpha) {
 }
 
 
-tce_string_array collectExpIndices(Exp* exp, int *firstref) {
-    ExpList* el = nullptr;
-    int i = 0, ui = 0, tot_len = 0;
-    tce_string_array p = nullptr;
-    tamm_string *uind = nullptr;
-    tamm_string *uniq_ind = nullptr;
-    tamm_string *all_ind = nullptr;
-    switch (exp->kind) {
-        case Exp::is_Parenth: {
-          return getUniqIndices(exp->u.Parenth.exp);
-        }
-            break;
-        case Exp::is_NumConst: {
-          return nullptr;
-        }
-            break;
-        case Exp::is_ArrayRef: {
-          p = (tce_string_array)tce_malloc(sizeof(*p));
-          p->list = replicate_indices(exp->u.Array.indices, exp->u.Array.length);
-          p->length = exp->u.Array.length;
-          return p;
-        }
-            break;
-        case Exp::is_Addition: {
-          el = exp->u.Addition.subexps;
-          tot_len = 0;
-          if (*firstref == 1) el = el->tail;
-          while (el != nullptr) {
-            //print_Exp(el->head);
-            tce_string_array se = getUniqIndices(el->head);
-            if (se != nullptr) tot_len += se->length;
-            se = nullptr;
-            el = el->tail;
-          }
-
-          el = exp->u.Addition.subexps;
-          all_ind = (tamm_string *)tce_malloc(sizeof(tamm_string) * tot_len);
-
-          i = 0, ui = 0;
-          if (*firstref == 1) {
-            el = el->tail;
-            *firstref = 0;
-          }
-          while (el != nullptr) {
-
-            tce_string_array se = (tce_string_array) getUniqIndices(el->head);
-            i = 0;
-            if (se != nullptr) {
-              for (i = 0; i < se->length; i++) {
-                all_ind[ui] = se->list[i];
-                ui++;
-              }
-            }
-            se = nullptr;
-            el = el->tail;
-          }
-          assert(ui == tot_len);
-          uind = (tamm_string *)tce_malloc(sizeof(tamm_string) * tot_len);
-
-          i = 0, ui = 0;
-
-          for (i = 0; i < tot_len; i++) {
-            if (!exists_index(uind, ui, all_ind[i])) {
-              uind[ui] = all_ind[i];
-              ui++;
-            }
-          }
-
-          uniq_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * ui);
-          for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
-
-          p = (tce_string_array) tce_malloc(sizeof(*p));
-          p->list = uniq_ind;
-          p->length = ui;
-
-          return p;
-        }
-
-            break;
-      case Exp::is_Multiplication: {
-        el = exp->u.Multiplication.subexps;
-        tot_len = 0;
-        if (*firstref == 1) el = el->tail;
-        while (el != nullptr) {
-          //print_Exp(el->head);
-          tce_string_array se = (tce_string_array) getUniqIndices(el->head);
-          if (se != nullptr) tot_len += se->length;
-          se = nullptr;
-          el = el->tail;
-        }
-
-        el = exp->u.Multiplication.subexps;
-        all_ind = (tamm_string *)tce_malloc(sizeof(tamm_string) * tot_len);
-
-        i = 0, ui = 0;
-        if (*firstref == 1) {
-          el = el->tail;
-          *firstref = 0;
-        }
-        while (el != nullptr) {
-          tce_string_array se = (tce_string_array)getUniqIndices(el->head);
-          i = 0;
-          if (se != nullptr) {
-            for (i = 0; i < se->length; i++) {
-              all_ind[ui] = se->list[i];
-              ui++;
-            }
-          }
-          se = nullptr;
-          el = el->tail;
-        }
-        assert(ui == tot_len);
-        uind = (tamm_string *)tce_malloc(sizeof(tamm_string) * tot_len);
-
-        i = 0, ui = 0;
-
-        for (i = 0; i < tot_len; i++) {
-          if (!exists_index(uind, ui, all_ind[i])) {
-            uind[ui] = all_ind[i];
-            ui++;
-          }
-        }
-
-        uniq_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * ui);
-        for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
-
-        p = (tce_string_array)tce_malloc(sizeof(*p));
-        p->list = uniq_ind;
-        p->length = ui;
-
-        return p;
-      }
-            break;
-        default: {
-          std::cerr <<  "Not a valid Expression!\n";
-            std::exit(EXIT_FAILURE);
-        }
-    }
-}
-
+//tce_string_array collectExpIndices(Exp* exp, int *firstref) {
+//    ExpList* el = nullptr;
+//    int i = 0, ui = 0, tot_len = 0;
+//    tce_string_array p = nullptr;
+//    tamm_string *uind = nullptr;
+//    tamm_string *uniq_ind = nullptr;
+//    tamm_string *all_ind = nullptr;
+//    switch (exp->kind) {
+//        case Exp::is_Parenth: {
+//          return getUniqIndices(exp->u.Parenth.exp);
+//        }
+//            break;
+//        case Exp::is_NumConst: {
+//          return nullptr;
+//        }
+//            break;
+//        case Exp::is_ArrayRef: {
+//          p = (tce_string_array)tce_malloc(sizeof(*p));
+//          p->list = replicate_indices(exp->u.Array.indices, exp->u.Array.length);
+//          p->length = exp->u.Array.length;
+//          return p;
+//        }
+//            break;
+//        case Exp::is_Addition: {
+//          el = exp->u.Addition.subexps;
+//          tot_len = 0;
+//          if (*firstref == 1) el = el->tail;
+//          while (el != nullptr) {
+//            //print_Exp(el->head);
+//            tce_string_array se = getUniqIndices(el->head);
+//            if (se != nullptr) tot_len += se->length;
+//            se = nullptr;
+//            el = el->tail;
+//          }
+//
+//          el = exp->u.Addition.subexps;
+//          all_ind = (tamm_string *)tce_malloc(sizeof(tamm_string) * tot_len);
+//
+//          i = 0, ui = 0;
+//          if (*firstref == 1) {
+//            el = el->tail;
+//            *firstref = 0;
+//          }
+//          while (el != nullptr) {
+//
+//            tce_string_array se = (tce_string_array) getUniqIndices(el->head);
+//            i = 0;
+//            if (se != nullptr) {
+//              for (i = 0; i < se->length; i++) {
+//                all_ind[ui] = se->list[i];
+//                ui++;
+//              }
+//            }
+//            se = nullptr;
+//            el = el->tail;
+//          }
+//          assert(ui == tot_len);
+//          uind = (tamm_string *)tce_malloc(sizeof(tamm_string) * tot_len);
+//
+//          i = 0, ui = 0;
+//
+//          for (i = 0; i < tot_len; i++) {
+//            if (!exists_index(uind, ui, all_ind[i])) {
+//              uind[ui] = all_ind[i];
+//              ui++;
+//            }
+//          }
+//
+//          uniq_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * ui);
+//          for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
+//
+//          p = (tce_string_array) tce_malloc(sizeof(*p));
+//          p->list = uniq_ind;
+//          p->length = ui;
+//
+//          return p;
+//        }
+//
+//            break;
+//      case Exp::is_Multiplication: {
+//        el = exp->u.Multiplication.subexps;
+//        tot_len = 0;
+//        if (*firstref == 1) el = el->tail;
+//        while (el != nullptr) {
+//          //print_Exp(el->head);
+//          tce_string_array se = (tce_string_array) getUniqIndices(el->head);
+//          if (se != nullptr) tot_len += se->length;
+//          se = nullptr;
+//          el = el->tail;
+//        }
+//
+//        el = exp->u.Multiplication.subexps;
+//        all_ind = (tamm_string *)tce_malloc(sizeof(tamm_string) * tot_len);
+//
+//        i = 0, ui = 0;
+//        if (*firstref == 1) {
+//          el = el->tail;
+//          *firstref = 0;
+//        }
+//        while (el != nullptr) {
+//          tce_string_array se = (tce_string_array)getUniqIndices(el->head);
+//          i = 0;
+//          if (se != nullptr) {
+//            for (i = 0; i < se->length; i++) {
+//              all_ind[ui] = se->list[i];
+//              ui++;
+//            }
+//          }
+//          se = nullptr;
+//          el = el->tail;
+//        }
+//        assert(ui == tot_len);
+//        uind = (tamm_string *)tce_malloc(sizeof(tamm_string) * tot_len);
+//
+//        i = 0, ui = 0;
+//
+//        for (i = 0; i < tot_len; i++) {
+//          if (!exists_index(uind, ui, all_ind[i])) {
+//            uind[ui] = all_ind[i];
+//            ui++;
+//          }
+//        }
+//
+//        uniq_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * ui);
+//        for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
+//
+//        p = (tce_string_array)tce_malloc(sizeof(*p));
+//        p->list = uniq_ind;
+//        p->length = ui;
+//
+//        return p;
+//      }
+//            break;
+//        default: {
+//          std::cerr <<  "Not a valid Expression!\n";
+//            std::exit(EXIT_FAILURE);
+//        }
+//    }
+//}
+//
 

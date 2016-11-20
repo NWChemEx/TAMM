@@ -1,4 +1,5 @@
 #include "visitor.h"
+#include "absyn.h"
 
 void visit_ast(FILE *outFile, TranslationUnit* root) {
     CompoundElemList* celist = root->celist;
@@ -51,18 +52,27 @@ void visit_Decl(FILE *outFile, Decl* d) {
         case Decl::is_IndexDecl:
             fprintf(outFile, "index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID);
             break;
-        case Decl::is_ArrayDecl:
+        case Decl::is_ArrayDecl: {
+            tamm_string_array up_ind(d->u.ArrayDecl.ulen);
+            for (int i = 0; i < d->u.ArrayDecl.ulen; i++)
+                up_ind[i] = d->u.ArrayDecl.upperIndices[i];
+
+            tamm_string_array lo_ind(d->u.ArrayDecl.llen);
+            for (int i = 0; i < d->u.ArrayDecl.llen; i++)
+                lo_ind[i] = d->u.ArrayDecl.lowerIndices[i];
+
             if (d->u.ArrayDecl.irrep == nullptr)
                 fprintf(outFile, "array %s[%s][%s];\n", d->u.ArrayDecl.name,
-                        combine_indices(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen),
-                        combine_indices(d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen));
+                        combine_indices(up_ind, d->u.ArrayDecl.ulen),
+                        combine_indices(lo_ind, d->u.ArrayDecl.llen));
 
             else
                 fprintf(outFile, "array %s[%s][%s] : %s;\n", d->u.ArrayDecl.name,
-                        combine_indices(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen),
-                        combine_indices(d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen), d->u.ArrayDecl.irrep);
+                        combine_indices(up_ind, d->u.ArrayDecl.ulen),
+                        combine_indices(lo_ind, d->u.ArrayDecl.llen), d->u.ArrayDecl.irrep);
 
             break;
+        }
         default:
             std::cerr <<  "Not a valid Declaration!\n";
             std::exit(EXIT_FAILURE);
@@ -104,9 +114,13 @@ void visit_Exp(FILE *outFile, Exp* exp) {
         case Exp::is_NumConst:
             fprintf(outFile, "%f ", exp->u.NumConst.value);
             break;
-        case Exp::is_ArrayRef:
-            fprintf(outFile, "%s[%s] ", exp->u.Array.name, combine_indices(exp->u.Array.indices, exp->u.Array.length));
+        case Exp::is_ArrayRef: {
+            tamm_string_array up_ind(exp->u.Array.length);
+            for (int i = 0; i < exp->u.Array.length; i++)
+                up_ind[i] = exp->u.Array.indices[i];
+            fprintf(outFile, "%s[%s] ", exp->u.Array.name, combine_indices(up_ind, exp->u.Array.length));
             break;
+        }
         case Exp::is_Addition:
             visit_ExpList(outFile, exp->u.Addition.subexps, "+");
             break;

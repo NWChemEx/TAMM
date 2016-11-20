@@ -56,7 +56,7 @@ void verifyRangeRef(SymbolTable& symtab, tamm_string name, int line_no) {
 //        std::exit(EXIT_FAILURE);
 //    }
     const int rno = 3;
-    tamm_string ranges[] = {"O", "V", "N"};
+    tamm_string_array ranges = {"O", "V", "N"};
     if (!exists_index(ranges, rno, name)) {
         std::cerr << "Error at line " << line_no << ": range " << name << " is not supported. " <<
                 "Can only be one of " << combine_indices(ranges, rno) << std::endl;
@@ -83,9 +83,17 @@ void check_Decl(Decl* d, SymbolTable& symtab) {
       }
         break;
       case Decl::is_ArrayDecl: {
+          tamm_string_array up_ind(d->u.ArrayDecl.ulen);
+          for (int i = 0; i < d->u.ArrayDecl.ulen; i++)
+              up_ind[i] = d->u.ArrayDecl.upperIndices[i];
+
+          tamm_string_array lo_ind(d->u.ArrayDecl.llen);
+          for (int i = 0; i < d->u.ArrayDecl.llen; i++)
+              lo_ind[i] = d->u.ArrayDecl.lowerIndices[i];
+
         verifyVarDecl(symtab, d->u.ArrayDecl.name, d->lineno);
-        tamm_string comb_index_list = combine_indexLists(d->u.ArrayDecl.upperIndices, d->u.ArrayDecl.ulen,
-                                                         d->u.ArrayDecl.lowerIndices, d->u.ArrayDecl.llen);
+        tamm_string comb_index_list = combine_indexLists(up_ind, d->u.ArrayDecl.ulen,
+                                                         lo_ind, d->u.ArrayDecl.llen);
           //std::cout << d->u.ArrayDecl.name << " -> " << comb_index_list << std::endl;
         int i = 0;
         tamm_string *ind_list = d->u.ArrayDecl.upperIndices;
@@ -129,8 +137,8 @@ void check_Stmt(Stmt* s, SymbolTable& symtab) {
                 std::exit(EXIT_FAILURE);
             }
 
-//    tce_string_array lhs_aref = collectArrayRefs(s->u.AssignStmt.lhs);
-//    tce_string_array rhs_arefs = collectArrayRefs(s->u.AssignStmt.rhs);
+//    tamm_string_array lhs_aref = collectArrayRefs(s->u.AssignStmt.lhs);
+//    tamm_string_array rhs_arefs = collectArrayRefs(s->u.AssignStmt.rhs);
 //    if (exists_index(rhs_arefs->list,rhs_arefs->length,lhs_aref->list[0])){
 //        std::cerr << "Error at line " << s->u.AssignStmt.lhs->lineno << ": array " << lhs_aref->list[0] << " cannot be assigned after being previously referenced\n";
 //        std::exit(EXIT_FAILURE);
@@ -175,7 +183,7 @@ void verifyArrayRef(SymbolTable& symtab, tamm_string name, tamm_string *inds, in
 
 
 void check_Exp(Exp* exp, SymbolTable& symtab) {
-    tce_string_array inames = nullptr;
+    tamm_string_array inames;
     ExpList* el = nullptr;
     int clno = exp->lineno;
     switch (exp->kind) {
@@ -189,28 +197,29 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
         case Exp::is_ArrayRef: {
           verifyArrayRef(symtab, exp->u.Array.name, exp->u.Array.indices, exp->u.Array.length, clno);
           inames = getIndices(exp);
-          int tot_len1 = inames->length;
-          tamm_string *all_ind1 = inames->list;
+          int tot_len1 = inames.size();
+          tamm_string_array all_ind1 = inames;
           int i1 = 0, ui1 = 0;
-          tamm_string *rnames = (tamm_string *) tce_malloc(sizeof(tamm_string) * tot_len1);
+          tamm_string_array rnames(tot_len1);
 
           for (i1 = 0; i1 < tot_len1; i1++) {
             rnames[i1] = symtab[all_ind1[i1]];
           }
 
-          tce_string_array rnamesarr = (tce_string_array) tce_malloc(sizeof(*rnamesarr));
-          rnamesarr->list = rnames;
-          rnamesarr->length = tot_len1;
+          tamm_string_array rnamesarr = rnames;
+//          rnamesarr = rnames;
+//          rnamesarr->length = tot_len1;
           tamm_string ulranges = symtab[exp->u.Array.name];
-          tce_string_array ulr = (tce_string_array) stringToList(ulranges);
+          tamm_string_array ulr = stringToList(ulranges);
 
           if (!check_array_usage(ulr, rnamesarr)) {
             std::cerr << "Error at line " << clno << ": array reference " << exp->u.Array.name << "[" << combine_indices(all_ind1, tot_len1) << "]"
-                      << " must have index structure of " << exp->u.Array.name << "[" << combine_indices(ulr->list, ulr->length) << "]\n";
+                      << " must have index structure of " << exp->u.Array.name << "[" << combine_indices(ulr, ulr.size()) << "]\n";
             std::exit(EXIT_FAILURE);
           }
           //Check for repetitive indices in an array reference
-          tamm_string *uind1 = (tamm_string*) tce_malloc(sizeof(tamm_string) * tot_len1);
+         // tamm_string *uind1 = (tamm_string*) tce_malloc(sizeof(tamm_string) * tot_len1);
+            tamm_string_array uind1(tot_len1);
 
           i1 = 0, ui1 = 0;
           for (i1 = 0; i1 < tot_len1; i1++) {
@@ -220,10 +229,14 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
             }
           }
 
+            tamm_string_array up_ind(exp->u.Array.length);
+            for (int i = 0; i < exp->u.Array.length; i++)
+                up_ind[i] = exp->u.Array.indices[i];
+
           for (i1 = 0; i1 < ui1; i1++) {
             if (count_index(all_ind1, tot_len1, uind1[i1]) > 1) {
               std::cerr << "Error at line " << clno << ": repetitive index " << uind1[i1] << " in array reference "
-                      << exp->u.Array.name << "[" << combine_indices(exp->u.Array.indices, exp->u.Array.length) << "]\n";
+                      << exp->u.Array.name << "[" << combine_indices(up_ind, exp->u.Array.length) << "]\n";
                std::exit(EXIT_FAILURE);
             }
           }
@@ -234,12 +247,12 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
           inames = getIndices(exp);
           el = exp->u.Addition.subexps;
           while (el != nullptr) {
-            tce_string_array op_inames = getIndices(el->head);
+            tamm_string_array op_inames = getIndices(el->head);
             if (!compare_index_lists(inames, op_inames)) {
               std::cerr << "Error at line " << clno << ": subexpressions of an addition must have equal index sets\n";
               std::exit(EXIT_FAILURE);
             }
-            op_inames = nullptr;
+
             el = el->tail;
           }
           break;
@@ -249,30 +262,33 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
           int tot_len = 0;
           while (el != nullptr) {
             //print_Exp(el->head);
-            tce_string_array se = getIndices(el->head);
-            if (se != nullptr) tot_len += se->length;
-            se = nullptr;
+            tamm_string_array se = getIndices(el->head);
+            //if (se != nullptr)
+                tot_len += se.size();
+            //se = nullptr;
             el = el->tail;
           }
 
           el = exp->u.Multiplication.subexps;
-          tamm_string *all_ind = (tamm_string*) tce_malloc(sizeof(tamm_string) * tot_len);
+          //tamm_string *all_ind = (tamm_string*) tce_malloc(sizeof(tamm_string) * tot_len);
+            tamm_string_array all_ind(tot_len);
 
           int i = 0, ui = 0;
           while (el != nullptr) {
-            tce_string_array se = getIndices(el->head);
+            tamm_string_array se = getIndices(el->head);
             i = 0;
-            if (se != nullptr) {
-              for (i = 0; i < se->length; i++) {
-                all_ind[ui] = se->list[i];
+            //if (se != nullptr) {
+              for (i = 0; i < se.size(); i++) {
+                all_ind[ui] = se[i];
                 ui++;
               }
-            }
-            se = nullptr;
+            //}
+            //se = nullptr;
             el = el->tail;
           }
           assert(ui == tot_len);
-          tamm_string *uind = (tamm_string*) tce_malloc(sizeof(tamm_string) * tot_len);
+          //tamm_string *uind = (tamm_string*) tce_malloc(sizeof(tamm_string) * tot_len);
+            tamm_string_array uind(tot_len);
 
           i = 0, ui = 0;
           for (i = 0; i < tot_len; i++) {
@@ -299,21 +315,21 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
 }
 
 //get non-summation indices only
-tce_string_array getIndices(Exp* exp) {
+tamm_string_array getIndices(Exp* exp) {
     ExpList* el = nullptr;
-    tce_string_array p = nullptr;
+    tamm_string_array p;
     switch (exp->kind) {
         case Exp::is_Parenth: {
           return getIndices(exp->u.Parenth.exp);
         }
         case Exp::is_NumConst: {
-          return nullptr;
+          return p;
         }
         case Exp::is_ArrayRef: {
-          p = (tce_string_array) tce_malloc(sizeof(*p));
-          p->list = replicate_indices(exp->u.Array.indices, exp->u.Array.length);
-          p->length = exp->u.Array.length;
-          return p;
+          //p = (tamm_string_array) tce_malloc(sizeof(*p));
+          //p->list = replicate_indices(exp->u.Array.indices, exp->u.Array.length);
+          //p->length = exp->u.Array.length;
+          return replicate_indices(exp->u.Array.indices, exp->u.Array.length);
         }
         case Exp::is_Addition: {
           return getIndices(exp->u.Addition.subexps->head);
@@ -323,30 +339,31 @@ tce_string_array getIndices(Exp* exp) {
           int tot_len = 0;
           while (el != nullptr) {
             //print_Exp(el->head);
-            tce_string_array se = (tce_string_array) getIndices(el->head);
-            if (se != nullptr) tot_len += se->length;
-            se = nullptr;
+            tamm_string_array se = (tamm_string_array) getIndices(el->head);
+             tot_len += se.size();
+
             el = el->tail;
           }
 
           el = exp->u.Multiplication.subexps;
-          tamm_string *all_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * tot_len);
+          tamm_string_array all_ind(tot_len);
 
           int i = 0, ui = 0;
           while (el != nullptr) {
-            tce_string_array se = (tce_string_array) getIndices(el->head);
+            tamm_string_array se = getIndices(el->head);
             i = 0;
-            if (se != nullptr) {
-              for (i = 0; i < se->length; i++) {
-                all_ind[ui] = se->list[i];
+            //if (se != nullptr) {
+              for (i = 0; i < se.size(); i++) {
+                all_ind[ui] = se[i];
                 ui++;
               }
-            }
-            se = nullptr;
+            //}
+            //se = nullptr;
             el = el->tail;
           }
           assert(ui == tot_len);
-          tamm_string *uind = (tamm_string *) tce_malloc(sizeof(tamm_string) * tot_len);
+          //tamm_string *uind = (tamm_string *) tce_malloc(sizeof(tamm_string) * tot_len);
+            tamm_string_array uind(tot_len);
 
           i = 0, ui = 0;
 //  	for (i=0;i<tot_len;i++){
@@ -363,18 +380,19 @@ tce_string_array getIndices(Exp* exp) {
             }
           }
 
-          tamm_string *uniq_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * ui);
+            tamm_string_array uniq_ind(ui);
+          //tamm_string *uniq_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * ui);
           for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
 
 //  	free(all_ind);
 //  	all_ind = nullptr;
           //uind = nullptr;
 
-          p = (tce_string_array) tce_malloc(sizeof(*p));
-          p->list = uniq_ind;
-          p->length = ui;
+//          p = (tamm_string_array) tce_malloc(sizeof(*p));
+//          p->list = uniq_ind;
+//          p->length = ui;
 
-          return p;
+          return uniq_ind;
         }
 
         default: {
@@ -403,9 +421,13 @@ void print_Exp(Exp* exp) {
         case Exp::is_NumConst:
             std::cout << exp->u.NumConst.value << " ";
             break;
-        case Exp::is_ArrayRef:
-            std::cout << exp->u.Array.name << "[" << combine_indices(exp->u.Array.indices, exp->u.Array.length) << "] ";
+        case Exp::is_ArrayRef: {
+            tamm_string_array up_ind(exp->u.Array.length);
+            for (int i = 0; i < exp->u.Array.length; i++)
+                up_ind[i] = exp->u.Array.indices[i];
+            std::cout << exp->u.Array.name << "[" << combine_indices(up_ind, exp->u.Array.length) << "] ";
             break;
+        }
         case Exp::is_Addition:
             print_ExpList(exp->u.Addition.subexps, "+");
             break;
@@ -420,23 +442,23 @@ void print_Exp(Exp* exp) {
 
 
 //get all indices only once
-tce_string_array getUniqIndices(Exp* exp) {
+tamm_string_array getUniqIndices(Exp* exp) {
     ExpList* el = nullptr;
-    tce_string_array p = nullptr;
+    tamm_string_array p;
     switch (exp->kind) {
         case Exp::is_Parenth: {
           return getUniqIndices(exp->u.Parenth.exp);
         }
 
         case Exp::is_NumConst: {
-          return nullptr;
+          return p;
         }
 
         case Exp::is_ArrayRef: {
-          p = (tce_string_array) tce_malloc(sizeof(*p));
-          p->list = replicate_indices(exp->u.Array.indices, exp->u.Array.length);
-          p->length = exp->u.Array.length;
-          return p;
+//          p = (tamm_string_array) tce_malloc(sizeof(*p));
+//          p->list =
+//          p->length = exp->u.Array.length;
+          return replicate_indices(exp->u.Array.indices, exp->u.Array.length);
         }
 
         case Exp::is_Addition: {
@@ -448,9 +470,9 @@ tce_string_array getUniqIndices(Exp* exp) {
           int tot_len = 0;
           while (el != nullptr) {
             //print_Exp(el->head);
-            tce_string_array se = (tce_string_array) getUniqIndices(el->head);
-            if (se != nullptr) tot_len += se->length;
-            se = nullptr;
+            tamm_string_array se = (tamm_string_array) getUniqIndices(el->head);
+            tot_len += se.size();
+
             el = el->tail;
           }
 
@@ -459,19 +481,19 @@ tce_string_array getUniqIndices(Exp* exp) {
 
           int i = 0, ui = 0;
           while (el != nullptr) {
-            tce_string_array se = (tce_string_array) getUniqIndices(el->head);
+            tamm_string_array se = (tamm_string_array) getUniqIndices(el->head);
             i = 0;
-            if (se != nullptr) {
-              for (i = 0; i < se->length; i++) {
-                all_ind[ui] = se->list[i];
+
+              for (i = 0; i < se.size(); i++) {
+                all_ind[ui] = se[i];
                 ui++;
               }
-            }
-            se = nullptr;
+
             el = el->tail;
           }
           assert(ui == tot_len);
-          tamm_string *uind = (tamm_string *) tce_malloc(sizeof(tamm_string) * tot_len);
+          //tamm_string *uind = (tamm_string *) tce_malloc(sizeof(tamm_string) * tot_len);
+            tamm_string_array uind(tot_len);
 
           i = 0, ui = 0;
 
@@ -482,14 +504,14 @@ tce_string_array getUniqIndices(Exp* exp) {
             }
           }
 
-          tamm_string *uniq_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * ui);
+          tamm_string_array uniq_ind(ui);
           for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
 
-          p = (tce_string_array) tce_malloc(sizeof(*p));
-          p->list = uniq_ind;
-          p->length = ui;
+//          p = (tamm_string_array) tce_malloc(sizeof(*p));
+//          p->list = uniq_ind;
+//          p->length = ui;
 
-          return p;
+          return uniq_ind;
         }
 
         default: {
@@ -500,9 +522,9 @@ tce_string_array getUniqIndices(Exp* exp) {
 }
 
 
-//tce_string_array collectArrayRefs(Exp exp) {
+//tamm_string_array collectArrayRefs(Exp exp) {
 //    ExpList* el = nullptr;
-//    tce_string_array p = nullptr;
+//    tamm_string_array p = nullptr;
 //    int c = 0, i = 0;
 //    switch (exp->kind) {
 //        case is_Parenth:
@@ -523,7 +545,7 @@ tce_string_array getUniqIndices(Exp* exp) {
 //            el = (exp->u.Addition.subexps);
 //            string allrefs[65535];
 //            while (el != nullptr) {
-//                tce_string_array cref = collectArrayRefs(el->head);
+//                tamm_string_array cref = collectArrayRefs(el->head);
 //                for (i = 0; i < cref->length; i++) {
 //                    allrefs[c] = cref->list[i];
 //                    c++;
@@ -544,7 +566,7 @@ tce_string_array getUniqIndices(Exp* exp) {
 //            el = (exp->u.Multiplication.subexps);
 //            string allrefs1[65535];
 //            while (el != nullptr) {
-//                tce_string_array cref = collectArrayRefs(el->head);
+//                tamm_string_array cref = collectArrayRefs(el->head);
 //                if (cref != nullptr) {
 //                    for (i = 0; i < cref->length; i++) {
 //                        allrefs1[c] = cref->list[i];

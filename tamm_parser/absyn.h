@@ -267,7 +267,7 @@ Exp* make_Addition(int pos, ExpList *subexps);
 
 Exp* make_Multiplication(int pos, ExpList *subexps);
 
-Exp* make_Array(int pos, tamm_string name, tamm_string *indices);
+Exp* make_Array(int pos, tamm_string name, tamm_string* indices);
 
 
 Stmt* make_AssignStmt(int pos, Exp* lhs, Exp* rhs);

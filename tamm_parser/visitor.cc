@@ -63,13 +63,13 @@ void visit_Decl(FILE *outFile, Decl* d) {
 
             if (d->u.ArrayDecl.irrep == nullptr)
                 fprintf(outFile, "array %s[%s][%s];\n", d->u.ArrayDecl.name,
-                        combine_indices(up_ind, d->u.ArrayDecl.ulen),
-                        combine_indices(lo_ind, d->u.ArrayDecl.llen));
+                        combine_indices(up_ind),
+                        combine_indices(lo_ind));
 
             else
                 fprintf(outFile, "array %s[%s][%s] : %s;\n", d->u.ArrayDecl.name,
-                        combine_indices(up_ind, d->u.ArrayDecl.ulen),
-                        combine_indices(lo_ind, d->u.ArrayDecl.llen), d->u.ArrayDecl.irrep);
+                        combine_indices(up_ind),
+                        combine_indices(lo_ind), d->u.ArrayDecl.irrep);
 
             break;
         }
@@ -118,7 +118,7 @@ void visit_Exp(FILE *outFile, Exp* exp) {
             tamm_string_array up_ind(exp->u.Array.length);
             for (int i = 0; i < exp->u.Array.length; i++)
                 up_ind[i] = exp->u.Array.indices[i];
-            fprintf(outFile, "%s[%s] ", exp->u.Array.name, combine_indices(up_ind, exp->u.Array.length));
+            fprintf(outFile, "%s[%s] ", exp->u.Array.name, combine_indices(up_ind));
             break;
         }
         case Exp::is_Addition:

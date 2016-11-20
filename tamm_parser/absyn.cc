@@ -43,9 +43,6 @@ Exp* make_Array(int pos, tamm_string name, tamm_string* indices) {
     p->coef = 1;
     p->kind = Exp::is_ArrayRef;
     p->u.Array.name = name;
-//    tamm_string *ind = (tamm_string*) tce_malloc(sizeof(tamm_string) * indices.size());
-//    for (int i=0;i<indices.size();i++)
-//        ind[i] = indices[i];
     p->u.Array.indices = indices;
     return p;
 }

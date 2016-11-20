@@ -6,7 +6,6 @@ void check_ast(TranslationUnit* root, SymbolTable& symtab) {
         check_CompoundElem(celist->head, symtab);
         celist = celist->tail;
     }
-    celist = nullptr;
 }
 
 void check_CompoundElem(CompoundElem* celem, SymbolTable& symtab) {
@@ -15,7 +14,6 @@ void check_CompoundElem(CompoundElem* celem, SymbolTable& symtab) {
         check_Elem(elist->head, symtab);
         elist = elist->tail;
     }
-    elist = nullptr;
 }
 
 void check_Elem(Elem* elem, SymbolTable& symtab) {
@@ -59,7 +57,7 @@ void verifyRangeRef(SymbolTable& symtab, tamm_string name, int line_no) {
     tamm_string_array ranges = {"O", "V", "N"};
     if (!exists_index(ranges, rno, name)) {
         std::cerr << "Error at line " << line_no << ": range " << name << " is not supported. " <<
-                "Can only be one of " << combine_indices(ranges, rno) << std::endl;
+                "Can only be one of " << combine_indices(ranges) << std::endl;
         std::exit(EXIT_FAILURE);
     }
 }
@@ -213,8 +211,8 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
           tamm_string_array ulr = stringToList(ulranges);
 
           if (!check_array_usage(ulr, rnamesarr)) {
-            std::cerr << "Error at line " << clno << ": array reference " << exp->u.Array.name << "[" << combine_indices(all_ind1, tot_len1) << "]"
-                      << " must have index structure of " << exp->u.Array.name << "[" << combine_indices(ulr, ulr.size()) << "]\n";
+            std::cerr << "Error at line " << clno << ": array reference " << exp->u.Array.name << "[" << combine_indices(all_ind1) << "]"
+                      << " must have index structure of " << exp->u.Array.name << "[" << combine_indices(ulr) << "]\n";
             std::exit(EXIT_FAILURE);
           }
           //Check for repetitive indices in an array reference
@@ -236,7 +234,7 @@ void check_Exp(Exp* exp, SymbolTable& symtab) {
           for (i1 = 0; i1 < ui1; i1++) {
             if (count_index(all_ind1, tot_len1, uind1[i1]) > 1) {
               std::cerr << "Error at line " << clno << ": repetitive index " << uind1[i1] << " in array reference "
-                      << exp->u.Array.name << "[" << combine_indices(up_ind, exp->u.Array.length) << "]\n";
+                      << exp->u.Array.name << "[" << combine_indices(up_ind) << "]\n";
                std::exit(EXIT_FAILURE);
             }
           }
@@ -386,7 +384,7 @@ void print_Exp(Exp* exp) {
             tamm_string_array up_ind(exp->u.Array.length);
             for (int i = 0; i < exp->u.Array.length; i++)
                 up_ind[i] = exp->u.Array.indices[i];
-            std::cout << exp->u.Array.name << "[" << combine_indices(up_ind, exp->u.Array.length) << "] ";
+            std::cout << exp->u.Array.name << "[" << combine_indices(up_ind) << "] ";
             break;
         }
         case Exp::is_Addition:

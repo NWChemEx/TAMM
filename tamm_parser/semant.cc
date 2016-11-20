@@ -156,7 +156,6 @@ void check_ExpList(ExpList *expList, SymbolTable &symtab) {
         check_Exp(elist->head, symtab);
         elist = elist->tail;
     }
-    elist = nullptr;
 }
 
 
@@ -230,7 +229,7 @@ void check_Exp(Exp *exp, SymbolTable &symtab) {
                 up_ind[i] = exp->u.Array.indices[i];
 
             for (auto i1:uind1) {
-                if (count_index(all_ind1, all_ind1.size(), i1) > 1) {
+                if (count_index(all_ind1, i1) > 1) {
                     std::cerr << "Error at line " << clno << ": repetitive index " << i1 << " in array reference "
                               << exp->u.Array.name << "[" << combine_indices(up_ind) << "]\n";
                     std::exit(EXIT_FAILURE);
@@ -276,7 +275,7 @@ void check_Exp(Exp *exp, SymbolTable &symtab) {
             }
 
             for (int i = 0; i < ui; i++) {
-                if (count_index(all_ind, all_ind.size(), uind[i]) > 2) {
+                if (count_index(all_ind, uind[i]) > 2) {
                     std::cerr << "Error at line " << clno << ": summation index " << uind[i] <<
                               " must occur exactly twice in a multiplication\n";
                     std::exit(EXIT_FAILURE);
@@ -324,7 +323,7 @@ tamm_string_array getIndices(Exp *exp) {
 
             tamm_string_array uind;
             for (auto i: all_ind) {
-                if (count_index(all_ind, all_ind.size(), i) == 1)
+                if (count_index(all_ind, i) == 1)
                     uind.push_back(i);
             }
 

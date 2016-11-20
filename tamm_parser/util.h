@@ -26,7 +26,7 @@ tamm_string constcharToChar(const char* s);
 
 tamm_string combine_indices(const tamm_string_array& indices);
 
-tamm_string combine_indexLists(const tamm_string_array& upper, int upper_count, const tamm_string_array& lower, int lower_count);
+tamm_string combine_indexLists(const tamm_string_array& upper, const tamm_string_array& lower);
 
 // Should be a string returned by combine_indexLists i.e., of the form
 // upper_indices : lower_indices ex:- V,V,O : O,V,V

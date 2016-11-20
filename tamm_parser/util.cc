@@ -24,12 +24,6 @@ tamm_string constcharToChar(const char* s){
     return val;
 }
 
-tamm_string int_str(int a) {
-    const char* s = (std::to_string(a)).c_str();
-    return constcharToChar(s);
-}
-
-
 
 tamm_string combine_indexLists(const tamm_string_array& indices1, int count1, const tamm_string_array& indices2, int count2) {
     tamm_string upper = combine_indices(indices1, count1);
@@ -42,14 +36,6 @@ tamm_string combine_indexLists(const tamm_string_array& indices1, int count1, co
 
 }
 
-
-tamm_string_array replicate_indices(tamm_string *indices, int len) {
-    tamm_string_array newind(len); // = (tamm_string *)tce_malloc(len * sizeof(tamm_string));
-    int i = 0;
-    for (i = 0; i < len; i++) newind[i] = strdup(indices[i]);
-
-    return newind;
-}
 
 bool exists_index(const tamm_string_array &list, int len, tamm_string x) {
     int i = 0;

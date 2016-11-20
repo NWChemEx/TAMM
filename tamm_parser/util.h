@@ -33,8 +33,6 @@ tamm_string combine_indexLists(const tamm_string_array& upper, int upper_count, 
 // (OR) could be simply a comma seperated list.
 tamm_string_array stringToList(tamm_string);
 
-tamm_string_array replicate_indices(tamm_string *indices, int len);
-
 bool exists_index(const tamm_string_array& list, int len, tamm_string x);
 
 int count_index(tamm_string_array &list, int len, tamm_string x);

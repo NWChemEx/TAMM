@@ -11,10 +11,6 @@
 typedef struct AddOp_ *AddOp;
 typedef struct MultOp_ *MultOp;
 
-
-
-
-
 class RangeEntry {
 public:
     char *name; /*name for this range*/
@@ -89,7 +85,7 @@ void generate_intermediate_DeclList(Equations *eqn, DeclList* dl);
 
 void collectArrayRefs(Exp* exp, std::vector<Exp*> &arefs, double *alpha);
 
-tce_string_array collectExpIndices(Exp* exp, int* first_ref); //Get each index only once
+//tamm_string_array collectExpIndices(Exp* exp, int* first_ref); //Get each index only once
 
 void getIndexIDs(Equations *eqn, Exp* e, int *);
 

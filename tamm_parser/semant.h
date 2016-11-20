@@ -24,9 +24,9 @@ void check_ExpList(ExpList*, SymbolTable&);
 
 void check_DeclList(DeclList*, SymbolTable&);
 
-tce_string_array getIndices(Exp* exp);
+tamm_string_array getIndices(Exp* exp);
 
-tce_string_array getUniqIndices(Exp* exp);
+tamm_string_array getUniqIndices(Exp* exp);
 
 void print_Exp(Exp*);
 

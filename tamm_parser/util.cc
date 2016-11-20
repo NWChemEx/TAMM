@@ -9,12 +9,6 @@ void *tce_malloc(int length) {
     return p;
 }
 
-//tamm_string mkString(char *s) {
-//    tamm_string p = (tamm_string) tce_malloc(strlen(s) + 1);
-//    strcpy(p, s);
-//    return p;
-//}
-
 tamm_string *mkIndexList(tamm_string *indices, int length) {
     tamm_string *newlist = (tamm_string *) malloc(length * sizeof(tamm_string));
     int i = 0;
@@ -57,13 +51,13 @@ tamm_string *replicate_indices(tamm_string *indices, int len) {
     return newind;
 }
 
-tamm_bool exists_index(tamm_string *list, int len, tamm_string x) {
+bool exists_index(tamm_string *list, int len, tamm_string x) {
     int i = 0;
     for (i = 0; i < len; i++) if (strcmp(list[i], x) == 0) return true;
     return false;
 }
 
-tamm_bool compare_index_lists(tce_string_array list1, tce_string_array list2) {
+bool compare_index_lists(tce_string_array list1, tce_string_array list2) {
     int len1 = list1->length;
     int len2 = list2->length;
     if (len1 != len2) return false;
@@ -76,7 +70,7 @@ tamm_bool compare_index_lists(tce_string_array list1, tce_string_array list2) {
     return true;
 }
 
-tamm_bool check_array_usage(tce_string_array list1, tce_string_array list2) {
+bool check_array_usage(tce_string_array list1, tce_string_array list2) {
     int len1 = list1->length;
     int len2 = list2->length;
     if (len1 != len2) return false;
@@ -144,7 +138,7 @@ tamm_string combine_indices(tamm_string *indices, int count) {
 
 }
 
-//tamm_bool exact_compare_index_lists(tce_string_array list1, tce_string_array list2) {
+//bool exact_compare_index_lists(tce_string_array list1, tce_string_array list2) {
 //    int len1 = list1->length;
 //    int len2 = list2->length;
 //    if (len1 != len2) return false;

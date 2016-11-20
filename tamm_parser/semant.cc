@@ -73,7 +73,7 @@ void check_Decl(Decl* d, SymbolTable& symtab) {
           std::exit(EXIT_FAILURE);
         }
           symtab.insert(SymbolTable::value_type(
-                  std::string(d->u.RangeDecl.name), (int_str(d->u.RangeDecl.value))));
+                  std::string(d->u.RangeDecl.name), constcharToChar((std::to_string(d->u.RangeDecl.value)).c_str())));
       }
         break;
       case Decl::is_IndexDecl: {
@@ -306,22 +306,18 @@ tce_string_array getIndices(Exp* exp) {
         case Exp::is_Parenth: {
           return getIndices(exp->u.Parenth.exp);
         }
-            break;
         case Exp::is_NumConst: {
           return nullptr;
         }
-            break;
         case Exp::is_ArrayRef: {
           p = (tce_string_array) tce_malloc(sizeof(*p));
           p->list = replicate_indices(exp->u.Array.indices, exp->u.Array.length);
           p->length = exp->u.Array.length;
           return p;
         }
-            break;
         case Exp::is_Addition: {
           return getIndices(exp->u.Addition.subexps->head);
         }
-            break;
         case Exp::is_Multiplication: {
           el = exp->u.Multiplication.subexps;
           int tot_len = 0;
@@ -380,7 +376,7 @@ tce_string_array getIndices(Exp* exp) {
 
           return p;
         }
-            break;
+
         default: {
           std::cerr << "Not a valid Expression!\n";
           std::exit(EXIT_FAILURE);
@@ -396,7 +392,6 @@ void print_ExpList(ExpList* expList, tamm_string am) {
         elist = elist->tail;
         if (elist != nullptr) std::cout << am << " ";
     }
-    elist = nullptr;
 }
 
 
@@ -432,22 +427,22 @@ tce_string_array getUniqIndices(Exp* exp) {
         case Exp::is_Parenth: {
           return getUniqIndices(exp->u.Parenth.exp);
         }
-            break;
+
         case Exp::is_NumConst: {
           return nullptr;
         }
-            break;
+
         case Exp::is_ArrayRef: {
           p = (tce_string_array) tce_malloc(sizeof(*p));
           p->list = replicate_indices(exp->u.Array.indices, exp->u.Array.length);
           p->length = exp->u.Array.length;
           return p;
         }
-            break;
+
         case Exp::is_Addition: {
           return getUniqIndices(exp->u.Addition.subexps->head);
         }
-            break;
+
         case Exp::is_Multiplication: {
           el = exp->u.Multiplication.subexps;
           int tot_len = 0;
@@ -496,7 +491,7 @@ tce_string_array getUniqIndices(Exp* exp) {
 
           return p;
         }
-            break;
+
         default: {
           std::cerr << "Not a valid Expression!\n";
           std::exit(EXIT_FAILURE);

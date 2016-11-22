@@ -1,7 +1,18 @@
-#include "expression.h"
-#include "gmem.h"
-#include "t_assign.h"
-#include "t_mult.h"
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#include "tensor/expression.h"
+#include <memory>
+#include "tensor/gmem.h"
+#include "tensor/t_assign.h"
+#include "tensor/t_mult.h"
 
 namespace tamm {
 
@@ -57,10 +68,10 @@ void Multiplication::genMemPos() {
   std::vector<IndexName> a_mpos, b_mpos, c_mpos;
   int na = a.size();
   int nb = b.size();
-  int af[na];
-  memset(af, 0, na * sizeof(int));
-  int bf[nb];
-  memset(bf, 0, nb * sizeof(int));
+  std::unique_ptr<int[]> af(new int[na]);
+  memset(af.get(), 0, na * sizeof(int));
+  std::unique_ptr<int[]> bf(new int[nb]);
+  memset(bf.get(), 0, nb * sizeof(int));
   for (int i = 0; i < na; i++)
     for (int j = 0; j < nb; j++) {
       if (a[i] == b[j]) {  // find common name
@@ -95,7 +106,7 @@ void Multiplication::genMemPos() {
   c_mem_pos = c_mpos;
 }
 
-void Multiplication::genTrigItr(IterGroup<triangular>& itr,
+void Multiplication::genTrigItr(IterGroup<triangular>* itr,
                                 const std::vector<int>& gp,
                                 const std::vector<IndexName>& name) {
   std::vector<std::vector<IndexName> > all;
@@ -116,7 +127,7 @@ void Multiplication::genTrigItr(IterGroup<triangular>& itr,
     triangular tr(all[i]);
     vt[i] = tr;
   }
-  itr = IterGroup<triangular>(vt, TRIG);
+  *itr = IterGroup<triangular>(vt, TRIG);
 }
 
 void Multiplication::genSumGroup() {
@@ -147,7 +158,7 @@ void Multiplication::genOutGroup() {
   const std::vector<IndexName>& b = id2name(b_ids);
   int n = tC().dim();
   // assert(n>0);
-  int from[n];
+  std::unique_ptr<int[]> from(new int[n]);
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < tA().dim(); j++)
       if (c[i] == a[j]) from[i] = 0;
@@ -159,8 +170,8 @@ void Multiplication::genOutGroup() {
   std::vector<int> c_ext = ext_sym_group(tC(), c);
   std::vector<int> group(n);
   int offset = 0;
-  int dirty[n];
-  memset(dirty, 0, n * sizeof(int));
+  std::unique_ptr<int[]> dirty(new int[n]);
+  memset(dirty.get(), 0, n * sizeof(int));
   for (int i = 0; i < c_ext.size(); i++) {
     if (dirty[i] == 0) {
       group[i] = offset;
@@ -214,12 +225,12 @@ void Multiplication::genOutGroup() {
 }
 
 void Multiplication::setSumItr(const std::vector<int>& gp) {
-  genTrigItr(sum_itr_, gp, sum_ids_);
+  genTrigItr(&sum_itr_, gp, sum_ids_);
 }
 
 void Multiplication::setOutItr(const std::vector<int>& gp) {
   // genTrigItr(out_itr_,gp,tC_.name());
-  genTrigItr(out_itr_, gp, id2name(c_ids));
+  genTrigItr(&out_itr_, gp, id2name(c_ids));
 }
 
 void Multiplication::setCopyItr(const std::vector<int>& gp) {
@@ -248,6 +259,6 @@ void Multiplication::execute(gmem::Handle sync_ga, int spos) {
   d_c = tC().ga();
   k_c_offset = tC().offset_index();*/
 
-  t_mult4(*this, sync_ga, spos);
+  t_mult4(this, sync_ga, spos);
 }
-};
+};  //  namespace tamm

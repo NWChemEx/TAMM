@@ -1,46 +1,63 @@
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#include "tensor/schedulers.h"
+#include <algorithm>
 #include <map>
 #include <set>
 #include <vector>
-#include "equations.h"
-#include "expression.h"
-#include "input.h"
-#include "tensor.h"
+#include "tensor/equations.h"
+#include "tensor/expression.h"
+#include "tensor/input.h"
+#include "tensor/tensor.h"
+
+using std::vector;
+using std::cout;
+using std::endl;
 
 namespace tamm {
 
-void lazy_tensor_alloc(std::map<std::string, tamm::Tensor> &tensors,
-                       std::vector<Operation> &ops,
-                       std::vector<vector<Operation *> > &op_levels,
-                       std::vector<vector<Tensor *> > &tensor_create_levels,
-                       std::vector<vector<Tensor *> > &tensor_destroy_levels);
-void eager_tensor_alloc(std::map<std::string, tamm::Tensor> &tensors,
-                        std::vector<Operation> &ops,
-                        std::vector<vector<Operation *> > &op_levels,
-                        std::vector<vector<Tensor *> > &tensor_create_levels,
-                        std::vector<vector<Tensor *> > &tensor_destroy_levels);
-static void schedule(vector<std::map<std::string, tamm::Tensor> *> &tensors,
-                     vector<vector<Operation> *> &ops,
-                     vector<vector<vector<Tensor *> > > &tensor_create_levels,
-                     vector<vector<vector<Tensor *> > > &tensor_destroy_levels,
-                     vector<vector<vector<Operation *> > > &op_levels);
+void lazy_tensor_alloc(std::map<std::string, tamm::Tensor> *tensors,
+                       std::vector<Operation> *ops,
+                       std::vector<vector<Operation *> > *op_levels,
+                       std::vector<vector<Tensor *> > *tensor_create_levels,
+                       std::vector<vector<Tensor *> > *tensor_destroy_levels);
+void eager_tensor_alloc(std::map<std::string, tamm::Tensor> * tensors,
+                        std::vector<Operation> *ops,
+                        const std::vector<vector<Operation *> > &op_levels,
+                        std::vector<vector<Tensor *> > *tensor_create_levels,
+                        std::vector<vector<Tensor *> > *tensor_destroy_levels);
+static void schedule(vector<std::map<std::string, tamm::Tensor> *> * tensors,
+                     vector<vector<Operation> *> *ops,
+                     vector<vector<vector<Tensor *> > > *tensor_create_levels,
+                     vector<vector<vector<Tensor *> > > *tensor_destroy_levels,
+                     vector<vector<vector<Operation *> > > *op_levels);
 
 static void execute(Operation *op, gmem::Handle sync_ga, int spos);
-static int writes(Operation *op, std::map<std::string, tamm::Tensor> &tensors);
-static vector<int> reads(Operation *op,
-                         std::map<std::string, tamm::Tensor> &tensors);
-static void schedule(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops,
-                     std::vector<vector<Tensor *> > &tensor_create_levels,
-                     std::vector<vector<Tensor *> > &tensor_destroy_levels,
-                     std::vector<vector<Operation *> > &op_levels);
+static int writes(const Operation &op, const std::map<std::string,
+                  tamm::Tensor> &tensors);
+static vector<int> reads(const Operation &op, const std::map<std::string,
+                         tamm::Tensor> &tensors);
+static void schedule(std::map<std::string, tamm::Tensor> *tensors,
+                     std::vector<Operation> *ops,
+                     std::vector<vector<Tensor *> > *tensor_create_levels,
+                     std::vector<vector<Tensor *> > *tensor_destroy_levels,
+                     std::vector<vector<Operation *> > *op_levels);
 
-static int find_tensor(std::map<std::string, tamm::Tensor> &tensors,
-                       Tensor *t) {
+static int find_tensor(const std::map<std::string, tamm::Tensor> &tensors,
+                       const Tensor &t) {
   int pos = 0;
-  for (std::map<std::string, tamm::Tensor>::iterator i = tensors.begin();
+  for (std::map<std::string, tamm::Tensor>::const_iterator i = tensors.begin();
        i != tensors.end(); i++) {
-    Tensor *entry = &i->second;
-    if (t == entry) {
+    const Tensor *entry = &i->second;
+    if (&t == entry) {
       return pos;
     }
     pos++;
@@ -52,58 +69,58 @@ static int find_tensor(std::map<std::string, tamm::Tensor> &tensors,
    * Execution operations in input order. Allocate just before
    * definition. Deallocate right after last use.
    */
-void schedule_linear_lazy(std::map<std::string, tamm::Tensor> &tensors,
-                          std::vector<Operation> &ops) {
+void schedule_linear_lazy(std::map<std::string, tamm::Tensor> *tensors,
+                          std::vector<Operation> * ops) {
   std::vector<vector<Tensor *> > tensor_create_levels;
   std::vector<vector<Tensor *> > tensor_destroy_levels;
   std::vector<vector<Operation *> > op_levels;
 
-  op_levels.resize(ops.size());
-  for (int i = 0; i < ops.size(); i++) {
-    op_levels[i].push_back(&ops[i]);
+  op_levels.resize(ops->size());
+  for (int i = 0; i < ops->size(); i++) {
+    op_levels[i].push_back(&(*ops)[i]);
   }
-  lazy_tensor_alloc(tensors, ops, op_levels, tensor_create_levels,
-                    tensor_destroy_levels);
+  lazy_tensor_alloc(tensors, ops, &op_levels, &tensor_create_levels,
+                    &tensor_destroy_levels);
 
-  schedule(tensors, ops, tensor_create_levels, tensor_destroy_levels,
-           op_levels);
+  schedule(tensors, ops, &tensor_create_levels, &tensor_destroy_levels,
+           &op_levels);
 }
 
-void eager_tensor_alloc(std::map<std::string, tamm::Tensor> &tensors,
-                        std::vector<Operation> &ops,
-                        std::vector<vector<Operation *> > &op_levels,
-                        std::vector<vector<Tensor *> > &tensor_create_levels,
-                        std::vector<vector<Tensor *> > &tensor_destroy_levels) {
-  tensor_create_levels.clear();
-  tensor_destroy_levels.clear();
-  tensor_create_levels.resize(op_levels.size());
-  tensor_destroy_levels.resize(op_levels.size());
+void eager_tensor_alloc(std::map<std::string, tamm::Tensor> *tensors,
+                        std::vector<Operation> *ops,  // Not used
+                        const std::vector<vector<Operation *> > &op_levels,
+                        std::vector<vector<Tensor *> > *tensor_create_levels,
+                        std::vector<vector<Tensor *> > *tensor_destroy_levels) {
+  tensor_create_levels->clear();
+  tensor_destroy_levels->clear();
+  tensor_create_levels->resize(op_levels.size());
+  tensor_destroy_levels->resize(op_levels.size());
 
   // for(int i=0; i<tensors.size(); i++) {
-  for (std::map<std::string, tamm::Tensor>::iterator i = tensors.begin();
-       i != tensors.end(); i++) {
-    Tensor *t = &tensors[i->first];
+  for (std::map<std::string, tamm::Tensor>::iterator i = tensors->begin();
+       i != tensors->end(); i++) {
+    Tensor *t = &(*tensors)[i->first];
     if (!t->attached() && !t->allocated()) {
-      tensor_create_levels[0].push_back(t);
-      tensor_destroy_levels[op_levels.size() - 1].push_back(t);
+      (*tensor_create_levels)[0].push_back(t);
+      (*tensor_destroy_levels)[op_levels.size() - 1].push_back(t);
     }
   }
 }
 
-void lazy_tensor_alloc(std::map<std::string, tamm::Tensor> &tensors,
-                       std::vector<Operation> &ops,
-                       std::vector<vector<Operation *> > &op_levels,
-                       std::vector<vector<Tensor *> > &tensor_create_levels,
-                       std::vector<vector<Tensor *> > &tensor_destroy_levels) {
-  std::vector<int> first_def(tensors.size(), op_levels.size()),
-      last_use(tensors.size(), -1);
+void lazy_tensor_alloc(std::map<std::string, tamm::Tensor> *tensors,
+                       std::vector<Operation> *ops,  // Not used
+                       std::vector<vector<Operation *> > * op_levels,
+                       std::vector<vector<Tensor *> > * tensor_create_levels,
+                       std::vector<vector<Tensor *> > * tensor_destroy_levels) {
+  std::vector<int> first_def(tensors->size(), op_levels->size()),
+      last_use(tensors->size(), -1);
 
   int ta, tb, tc;
-  for (int i = 0; i < op_levels.size(); i++) {
-    for (int j = 0; j < op_levels[i].size(); j++) {
-      Operation *op = op_levels[i][j];
-      int wa = writes(op, tensors);
-      vector<int> rds = reads(op, tensors);
+  for (int i = 0; i < op_levels->size(); i++) {
+    for (int j = 0; j < (*op_levels)[i].size(); j++) {
+      Operation *op = (*op_levels)[i][j];
+      int wa = writes(*op, *tensors);
+      vector<int> rds = reads(*op, *tensors);
       first_def[wa] = std::min(i, first_def[wa]);
       for (int r = 0; r < rds.size(); r++) {
         last_use[rds[r]] = i;
@@ -111,16 +128,16 @@ void lazy_tensor_alloc(std::map<std::string, tamm::Tensor> &tensors,
     }
   }
 
-  tensor_create_levels.clear();
-  tensor_create_levels.resize(op_levels.size());
-  tensor_destroy_levels.clear();
-  tensor_destroy_levels.resize(op_levels.size());
+  tensor_create_levels->clear();
+  tensor_create_levels->resize(op_levels->size());
+  tensor_destroy_levels->clear();
+  tensor_destroy_levels->resize(op_levels->size());
 
   // for(int i=0; i<tensors.size(); i++) {
 
   int id = 0;
-  for (std::map<std::string, tamm::Tensor>::iterator i = tensors.begin();
-       i != tensors.end(); i++) {
+  for (std::map<std::string, tamm::Tensor>::iterator i = tensors->begin();
+       i != tensors->end(); i++) {
     Tensor *t = &i->second;
     int pos = id;
     id++;
@@ -128,30 +145,30 @@ void lazy_tensor_alloc(std::map<std::string, tamm::Tensor> &tensors,
     if (t->attached() || t->allocated()) {
       continue;
     }
-    if (first_def[pos] == op_levels.size()) {
+    if (first_def[pos] == op_levels->size()) {
       assert(last_use[pos] == -1);
       continue;
     }
     int fd = first_def[pos];
-    assert(fd >= 0 && fd < op_levels.size());
-    tensor_create_levels[fd].push_back(t);
+    assert(fd >= 0 && fd < op_levels->size());
+    (*tensor_create_levels)[fd].push_back(t);
     int lu = last_use[pos];
-    if (!(lu >= 0 && lu < op_levels.size())) {
+    if (!(lu >= 0 && lu < op_levels->size())) {
       cout << "ABOUT TO THROW FOR tensor " << i->first << endl;
       cout << "Last use=" << lu << endl;
     }
-    assert(lu >= 0 && lu < op_levels.size());
-    tensor_destroy_levels[lu].push_back(t);
+    assert(lu >= 0 && lu < op_levels->size());
+    (*tensor_destroy_levels)[lu].push_back(t);
   }
 }
 
-bool has_dependence(std::vector<Operation> &ops,
-                    std::map<std::string, tamm::Tensor> &tensors, int i,
+bool has_dependence(const std::vector<Operation> &ops,
+                    const std::map<std::string, tamm::Tensor> &tensors, int i,
                     int j) {
-  int iw = writes(&ops[i], tensors);
-  vector<int> irds = reads(&ops[i], tensors);
-  int jw = writes(&ops[j], tensors);
-  vector<int> jrds = reads(&ops[j], tensors);
+  int iw = writes(ops[i], tensors);
+  vector<int> irds = reads(ops[i], tensors);
+  int jw = writes(ops[j], tensors);
+  vector<int> jrds = reads(ops[j], tensors);
   if (std::find(irds.begin(), irds.end(), jw) != irds.end() ||
       std::find(jrds.begin(), jrds.end(), iw) != jrds.end()) {
     return true;
@@ -159,62 +176,62 @@ bool has_dependence(std::vector<Operation> &ops,
   return false;
 }
 
-void levelize(std::map<std::string, tamm::Tensor> &tensors,
-              std::vector<Operation> &ops,
-              vector<vector<Operation *> > &levels) {
-  int n = ops.size();
+void levelize(const std::map<std::string, tamm::Tensor> &tensors,
+              std::vector<Operation> *ops,
+              vector<vector<Operation *> > * levels) {
+  int n = ops->size();
   int level_id[n], max_level = 0;
   for (int i = 0; i < n; i++) {
     int l = 0;
     for (int j = 0; j < i; j++) {
-      if (has_dependence(ops, tensors, i, j)) {
-        l = max(l, level_id[j] + 1);
+      if (has_dependence(*ops, tensors, i, j)) {
+        l = std::max(l, level_id[j] + 1);
       }
     }
     level_id[i] = l;
-    max_level = max(max_level, l);
+    max_level = std::max(max_level, l);
   }
-  levels.clear();
-  levels.resize(max_level + 1);
-  for (int i = 0; i < ops.size(); i++) {
-    levels[level_id[i]].push_back(&ops[i]);
+  levels->clear();
+  levels->resize(max_level + 1);
+  for (int i = 0; i < ops->size(); i++) {
+    (*levels)[level_id[i]].push_back(&(*ops)[i]);
   }
 }
 
-void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops) {
+void schedule_levels(std::map<std::string, tamm::Tensor> *tensors,
+                     std::vector<Operation> * ops) {
   vector<vector<Operation *> > op_levels;
   std::vector<Tensor *> created_tensors;
   std::vector<vector<Tensor *> > tensor_create_levels;
   std::vector<vector<Tensor *> > tensor_destroy_levels;
 
-  levelize(tensors, ops, op_levels);
-  lazy_tensor_alloc(tensors, ops, op_levels, tensor_create_levels,
-                    tensor_destroy_levels);
-  schedule(tensors, ops, tensor_create_levels, tensor_destroy_levels,
-           op_levels);
+  levelize(*tensors, ops, &op_levels);
+  lazy_tensor_alloc(tensors, ops, &op_levels, &tensor_create_levels,
+                    &tensor_destroy_levels);
+  schedule(tensors, ops, &tensor_create_levels, &tensor_destroy_levels,
+           &op_levels);
 }
 
 void schedule_levels(
-    std::vector<std::map<std::string, tamm::Tensor> *> &tensors_lst,
-    std::vector<std::vector<Operation> *> &ops_lst) {
+    std::vector<std::map<std::string, tamm::Tensor> *> *tensors_lst,
+    std::vector<std::vector<Operation> *> * ops_lst) {
   using std::vector;
   vector<vector<vector<Operation *> > > op_levels;
   vector<vector<vector<Tensor *> > > tensor_create_levels;
   vector<vector<vector<Tensor *> > > tensor_destroy_levels;
 
-  assert(ops_lst.size() == tensors_lst.size());
+  assert(ops_lst->size() == tensors_lst->size());
 
-  op_levels.resize(ops_lst.size());
-  tensor_create_levels.resize(ops_lst.size());
-  tensor_destroy_levels.resize(ops_lst.size());
-  for (int e = 0; e < ops_lst.size(); e++) {
-    levelize(*tensors_lst[e], *ops_lst[e], op_levels[e]);
-    lazy_tensor_alloc(*tensors_lst[e], *ops_lst[e], op_levels[e],
-                      tensor_create_levels[e], tensor_destroy_levels[e]);
+  op_levels.resize(ops_lst->size());
+  tensor_create_levels.resize(ops_lst->size());
+  tensor_destroy_levels.resize(ops_lst->size());
+  for (int e = 0; e < ops_lst->size(); e++) {
+    levelize(*(*tensors_lst)[e], (*ops_lst)[e], &op_levels[e]);
+    lazy_tensor_alloc((*tensors_lst)[e], (*ops_lst)[e], &op_levels[e],
+                      &tensor_create_levels[e], &tensor_destroy_levels[e]);
   }
-  schedule(tensors_lst, ops_lst, tensor_create_levels, tensor_destroy_levels,
-           op_levels);
+  schedule(tensors_lst, ops_lst, &tensor_create_levels, &tensor_destroy_levels,
+           &op_levels);
 }
 
 static void execute(Operation *op, gmem::Handle sync_ga, int spos) {
@@ -231,17 +248,18 @@ static void execute(Operation *op, gmem::Handle sync_ga, int spos) {
   }
 }
 
-static int writes(Operation *op, std::map<std::string, tamm::Tensor> &tensors) {
-  assert(op);
+static int writes(const Operation &op, const std::map<std::string,
+                  tamm::Tensor> &tensors) {
+  // assert(op);
   int wa;
-  switch (op->optype) {
+  switch (op.optype) {
     case OpTypeAdd:
       // wa = &op->add.tC() - &tensors[0];
-      wa = find_tensor(tensors, &op->add.tC());
+      wa = find_tensor(tensors, op.add.tC());
       break;
     case OpTypeMult:
       // wa = &op->mult.tC()  - &tensors[0];
-      wa = find_tensor(tensors, &op->mult.tC());
+      wa = find_tensor(tensors, op.mult.tC());
       break;
     default:
       assert(0);
@@ -249,22 +267,22 @@ static int writes(Operation *op, std::map<std::string, tamm::Tensor> &tensors) {
   return wa;
 }
 
-static vector<int> reads(Operation *op,
-                         std::map<std::string, tamm::Tensor> &tensors) {
-  assert(op);
+static vector<int> reads(const Operation &op, const std::map<std::string,
+                         tamm::Tensor> &tensors) {
+  // assert(op);
   vector<int> rds;
   int ra1, ra2;
-  switch (op->optype) {
+  switch (op.optype) {
     case OpTypeAdd:
       // ra1 = &op->add.tA() - &tensors[0];
-      ra1 = find_tensor(tensors, &op->add.tA());
+      ra1 = find_tensor(tensors, op.add.tA());
       rds.push_back(ra1);
       break;
     case OpTypeMult:
       // ra1 = &op->mult.tA()  - &tensors[0];
       // ra2 = &op->mult.tB()  - &tensors[0];
-      ra1 = find_tensor(tensors, &op->mult.tA());
-      ra2 = find_tensor(tensors, &op->mult.tB());
+      ra1 = find_tensor(tensors, op.mult.tA());
+      ra2 = find_tensor(tensors, op.mult.tB());
       rds.push_back(ra1);
       rds.push_back(ra2);
       break;
@@ -274,19 +292,19 @@ static vector<int> reads(Operation *op,
   return rds;
 }
 
-static void schedule(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops,
-                     std::vector<vector<Tensor *> > &tensor_create_levels,
-                     std::vector<vector<Tensor *> > &tensor_destroy_levels,
-                     std::vector<vector<Operation *> > &op_levels) {
+static void schedule(std::map<std::string, tamm::Tensor> *tensors,
+                     std::vector<Operation> * ops,
+                     vector<vector<Tensor *> > * tensor_create_levels,
+                     std::vector<vector<Tensor *> > *tensor_destroy_levels,
+                     std::vector<vector<Operation *> > *op_levels) {
 #if 1
-  vector<std::map<std::string, tamm::Tensor> *> tensors_lst(1, &tensors);
-  vector<vector<Operation> *> ops_lst(1, &ops);
-  vector<vector<vector<Tensor *> > > tcl(1, tensor_create_levels);
-  vector<vector<vector<Tensor *> > > tdl(1, tensor_destroy_levels);
-  vector<vector<vector<Operation *> > > ol(1, op_levels);
+  vector<std::map<std::string, tamm::Tensor> *> tensors_lst(1, tensors);
+  vector<vector<Operation> *> ops_lst(1, ops);
+  vector<vector<vector<Tensor *> > > tcl(1, *tensor_create_levels);
+  vector<vector<vector<Tensor *> > > tdl(1, *tensor_destroy_levels);
+  vector<vector<vector<Operation *> > > ol(1, *op_levels);
 
-  schedule(tensors_lst, ops_lst, tcl, tdl, ol);
+  schedule(&tensors_lst, &ops_lst, &tcl, &tdl, &ol);
 #else
   int nlevels = op_levels.size();
   assert(tensor_create_levels.size() == nlevels);
@@ -319,17 +337,17 @@ static void schedule(std::map<std::string, tamm::Tensor> &tensors,
   for (int i = 0; i < sync_gas.size(); i++) {
     gmem::destroy(sync_gas[i]);
   }
-#endif
+#endif  // if 1
 }
 
-static void schedule(vector<std::map<std::string, tamm::Tensor> *> &tensors,
-                     vector<vector<Operation> *> &ops,
-                     vector<vector<vector<Tensor *> > > &tensor_create_levels,
-                     vector<vector<vector<Tensor *> > > &tensor_destroy_levels,
-                     vector<vector<vector<Operation *> > > &op_levels) {
-  int neqs = op_levels.size();
-  assert(tensor_create_levels.size() == tensor_destroy_levels.size());
-  assert(op_levels.size() == tensor_create_levels.size());
+static void schedule(vector<std::map<std::string, tamm::Tensor> *> *tensors,
+                     vector<vector<Operation> *> * ops,  // Not used
+                     vector<vector<vector<Tensor *> > > * tensor_create_levels,
+                     vector<vector<vector<Tensor *> > > * tensor_destroy_levels,
+                     vector<vector<vector<Operation *> > > * op_levels) {
+  int neqs = op_levels->size();
+  assert(tensor_create_levels->size() == tensor_destroy_levels->size());
+  assert(op_levels->size() == tensor_create_levels->size());
 
   size_t nlevels = 0;
   for (int e = 0; e < neqs; e++) {
@@ -361,19 +379,19 @@ static void schedule(vector<std::map<std::string, tamm::Tensor> *> &tensors,
   for (int l = 0; l < nlevels; l++) {
     for (int e = 0; e < neqs; e++) {
       for (int t = 0; t < tensor_create_levels[e][l].size(); t++) {
-        tensor_create_levels[e][l][t]->create();
+        (*tensor_create_levels)[e][l][t]->create();
       }
     }
     gmem::sync();
     for (int e = 0, c = 0; e < neqs; e++) {
       for (int o = 0; o < op_levels[e][l].size(); o++, c++) {
-        execute(op_levels[e][l][o], sync_gas[l], c);
+        execute((*op_levels)[e][l][o], sync_gas[l], c);
       }
     }
     gmem::sync();
     for (int e = 0; e < neqs; e++) {
       for (int t = 0; t < tensor_destroy_levels[e][l].size(); t++) {
-        tensor_destroy_levels[e][l][t]->destroy();
+        (*tensor_destroy_levels)[e][l][t]->destroy();
       }
     }
   }
@@ -387,19 +405,19 @@ static void schedule(vector<std::map<std::string, tamm::Tensor> *> &tensors,
  * Allocate all intermediate arrays upfront. Execute operations in
  * input order. Deallocate all allocated arrays at the end.
  */
-void schedule_linear(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops) {
+void schedule_linear(std::map<std::string, tamm::Tensor> *tensors,
+                     std::vector<Operation> * ops) {
   std::vector<vector<Tensor *> > tensor_create_levels;
   std::vector<vector<Tensor *> > tensor_destroy_levels;
   std::vector<vector<Operation *> > op_levels;
 
-  op_levels.resize(ops.size());
-  for (int i = 0; i < ops.size(); i++) {
-    op_levels[i].push_back(&ops[i]);
+  op_levels.resize(ops->size());
+  for (int i = 0; i < ops->size(); i++) {
+    op_levels[i].push_back(&(*ops)[i]);
   }
-  eager_tensor_alloc(tensors, ops, op_levels, tensor_create_levels,
-                     tensor_destroy_levels);
-  schedule(tensors, ops, tensor_create_levels, tensor_destroy_levels,
-           op_levels);
+  eager_tensor_alloc(tensors, ops, op_levels, &tensor_create_levels,
+                     &tensor_destroy_levels);
+  schedule(tensors, ops, &tensor_create_levels, &tensor_destroy_levels,
+           &op_levels);
 }
-}
+}  // namespace tamm

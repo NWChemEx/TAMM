@@ -1,10 +1,21 @@
+
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
 #include <iostream>
-#include "fapi.h"
-#include "gmem.h"
-#include "iterGroup.h"
-#include "t_mult.h"
-#include "triangular.h"
-#include "variables.h"
+#include "tansor/fapi.h"
+#include "tensor/gmem.h"
+#include "tensor/iterGroup.h"
+#include "tenosr/t_mult.h"
+#include "tensor/triangular.h"
+#include "tensor/variables.h"
 
 namespace tamm {
 
@@ -56,7 +67,7 @@ void ccsd_t_singles_1_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
                            Integer *k_b_offset, double *a_c,
                            const std::vector<Integer> &tid) {
   t_mult(d_a, k_a_offset, d_b, k_b_offset, a_c, m0.tC(), m0.tA(), m0.tB(),
-         m0.coef(), m0.sum_ids(), m0.sum_itr(), m0.cp_itr(), tid, m0);
+         m0.coef(), m0.sum_ids(), &m0.sum_itr(), &m0.cp_itr(), tid, &m0);
 }
 
 /* i0 ( p4 p5 p6 h1 h2 h3 )_vt + = -1 * P( 9 ) * Sum ( h7 ) * t ( p4 p5 h1 h7
@@ -65,7 +76,7 @@ void ccsd_t_doubles_1_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
                            Integer *k_b_offset, double *a_c,
                            const std::vector<Integer> &tid) {
   t_mult(d_a, k_a_offset, d_b, k_b_offset, a_c, m1.tC(), m1.tA(), m1.tB(),
-         m1.coef(), m1.sum_ids(), m1.sum_itr(), m1.cp_itr(), tid, m1);
+         m1.coef(), m1.sum_ids(), &m1.sum_itr(), &m1.cp_itr(), tid, &m1);
 }
 
 /* i0 ( p4 p5 p6 h1 h2 h3 )_vt + = -1 * P( 9 ) * Sum ( p7 ) * t ( p4 p7 h1 h2
@@ -74,7 +85,7 @@ void ccsd_t_doubles_2_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
                            Integer *k_b_offset, double *a_c,
                            const std::vector<Integer> &tid) {
   t_mult(d_a, k_a_offset, d_b, k_b_offset, a_c, m2.tC(), m2.tA(), m2.tB(),
-         m2.coef(), m2.sum_ids(), m2.sum_itr(), m2.cp_itr(), tid, m2);
+         m2.coef(), m2.sum_ids(), &m2.sum_itr(), &m2.cp_itr(), tid, &m2);
 }
 
 void ccsd_t_cxx_(Integer *k_t1_local, Integer *d_t1, Integer *k_t1_offset,
@@ -83,10 +94,11 @@ void ccsd_t_cxx_(Integer *k_t1_local, Integer *d_t1, Integer *k_t1_offset,
                  Integer *size_t1) {
 #if 0
       double *p_k_t1_local = Variables::dbl_mb() + *k_t1_local;
-      p_k_t1_local = (double *)malloc((*size_t1)*sizeof(double));
-      memset(p_k_t1_local, 0 , (*size_t1)*sizeof(double)); //ma_zero_(&dbl_mb[k_t1_local],size_t1);
+      p_k_t1_local = static_cast<double *>(malloc((*size_t1)*sizeof(double)));
+      memset(p_k_t1_local, 0 , (*size_t1)*sizeof(double));
+      // ma_zero_(&dbl_mb[k_t1_local],size_t1);
       get_block_(d_t1, p_k_t1_local, size_t1, &Variables::izero());
-#endif
+#endif  // If 0
 
   // GA initialization
   int nprocs = gmem::ranks();
@@ -102,7 +114,7 @@ void ccsd_t_cxx_(Integer *k_t1_local, Integer *d_t1, Integer *k_t1_offset,
   // get next task
   int sub = 0;
   int next;
-  next = (int)gmem::atomic_fetch_add(taskHandle, sub, 1);
+  next = static_cast<int>(gmem::atomic_fetch_add(taskHandle, sub, 1));
 
   //      printf("ccsdt#%d = %d\n",GA_Nodeid(),next);
 
@@ -115,8 +127,8 @@ void ccsd_t_cxx_(Integer *k_t1_local, Integer *d_t1, Integer *k_t1_offset,
   Tensor tC =
       Tensor6(P4B, P5B, P6B, H1B, H2B, H3B, 0, 0, 0, 1, 1, 1, iVT_tensor);
   IterGroup<triangular> out_itr;
-  // genTrigIter(out_itr,tC.name(),tC.ext_sym_group());
-  genTrigIter(out_itr, id2name(tC.ids()), ext_sym_group(tC.ids()));
+  // genTrigIter(&out_itr,tC.name(),tC.ext_sym_group());
+  genTrigIter(&out_itr, id2name(tC.ids()), ext_sym_group(tC.ids()));
   out_itr.setType(TRIG2);
 
   gen_ccsd_t_cxx_();  // generate singles and doubles expr
@@ -128,7 +140,7 @@ void ccsd_t_cxx_(Integer *k_t1_local, Integer *d_t1, Integer *k_t1_offset,
 
   // std::cout << "NAG at LINE --- "<< __LINE__<<"\n";
 
-  while (out_itr.next(vec)) {
+  while (out_itr.next(&vec)) {
     rvec = out_itr.v_range();
     ovec = out_itr.v_offset();
 
@@ -138,44 +150,45 @@ void ccsd_t_cxx_(Integer *k_t1_local, Integer *d_t1, Integer *k_t1_offset,
       if ((is_spatial_nonzero(vec, 0)) && (is_spin_nonzero(vec)) &&
           (is_spin_restricted_le(vec, 8))) {
         Integer rsize = compute_size(vec);
-        double *buf_double = (double *)malloc(rsize * sizeof(double));
-        double *buf_single = (double *)malloc(rsize * sizeof(double));
+        double *buf_double = static_cast<double*>(malloc(rsize*sizeof(double)));
+        double *buf_single = static_cast<double*>(malloc(rsize*sizeof(double)));
         memset(buf_single, 0, rsize * sizeof(double));
         memset(buf_double, 0, rsize * sizeof(double));
 
         Integer toggle = 2;
 #if 0
-            ccsd_t_singles_l_(buf_single, k_t1_local, d_v2, k_t1_offset, k_v2_offset,&vec[3], &vec[4], &vec[5], &vec[0], &vec[1], &vec[2], &toggle);
+        ccsd_t_singles_l_(buf_single, k_t1_local, d_v2, k_t1_offset,
+                          k_v2_offset, &vec[3], &vec[4], &vec[5], &vec[0],
+                          &vec[1], &vec[2], &toggle);
 #else
         ccsd_t_singles_1_cxx_(k_t1_local, k_t1_offset, d_v2, k_v2_offset,
                               buf_single, vec);
-#endif
+#endif  // Fortran Functions
 
 #if 0
-            ccsd_t_doubles_(buf_double, d_t2, d_v2, k_t2_offset, k_v2_offset,&vec[3], &vec[4], &vec[5], &vec[0], &vec[1], &vec[2], &toggle);
+        ccsd_t_doubles_(buf_double, d_t2, d_v2, k_t2_offset,
+                        k_v2_offset, &vec[3], &vec[4], &vec[5], &vec[0],
+                        &vec[1], &vec[2], &toggle);
 #else
         ccsd_t_doubles_1_cxx_(d_t2, k_t2_offset, d_v2, k_v2_offset, buf_double,
                               vec);
         ccsd_t_doubles_2_cxx_(d_t2, k_t2_offset, d_v2, k_v2_offset, buf_double,
                               vec);
-#endif
+#endif  // Fortran functions
         double factor = computeFactor(vec);
         computeEnergy(rvec, ovec, energy1, energy2, buf_single, buf_double,
                       factor);
         free(buf_single);
         free(buf_double);
-
       }  // if spatial
 
       int sub = 0;
-      next = (int)gmem::atomic_fetch_add(taskHandle, sub, 1);
-
+      next = static_cast<int>(gmem::atomic_fetch_add(taskHandle, sub, 1));
     }  // if next == count
 
     // std::cout << "NAG at LINE --- "<< __LINE__<<"\n";
 
     count = count + 1;
-
   }  // out_itr
 
   // std::cout << "NAG at LINE --- "<< __LINE__<<"\n";
@@ -190,7 +203,6 @@ void ccsd_t_cxx_(Integer *k_t1_local, Integer *d_t1, Integer *k_t1_offset,
   *energy2 = energy[1];
 
   //      free(p_k_t1_local);
-
 }  // ccsd_t.F
 }  // extern C
 };  // namespace tamm

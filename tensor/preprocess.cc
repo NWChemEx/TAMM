@@ -1,9 +1,20 @@
-#include "preprocess.h"
-#include "expression.h"
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#include "tensor/preprocess.h"
+#include <vector>
+#include "tensor/expression.h"
 
 namespace tamm {
 
-void genTrigIter(IterGroup<triangular>& trig_itr,
+void genTrigIter(IterGroup<triangular>* trig_itr,
                  const std::vector<IndexName>& name,
                  const std::vector<int>& group) {
   std::vector<std::vector<IndexName> > all;
@@ -24,10 +35,10 @@ void genTrigIter(IterGroup<triangular>& trig_itr,
     triangular tr(all[i]);
     vt[i] = tr;
   }
-  trig_itr = IterGroup<triangular>(vt, TRIG);
+  *trig_itr = IterGroup<triangular>(vt, TRIG);
 }
 
-void genAntiIter(const std::vector<size_t>& vtab, IterGroup<antisymm>& ext_itr,
+void genAntiIter(const std::vector<size_t>& vtab, IterGroup<antisymm>* ext_itr,
                  const Tensor& tC, const Tensor& tA, const Tensor& tB) {
   const std::vector<IndexName>& c = id2name(tC.ids());
   const std::vector<IndexName>& a = id2name(tA.ids());
@@ -46,7 +57,7 @@ void genAntiIter(const std::vector<size_t>& vtab, IterGroup<antisymm>& ext_itr,
   std::vector<int> one_f;
   int prev = 0, curr = 0;
 
-  const vector<int> esg = ext_sym_group(tC, c);
+  const std::vector<int> esg = ext_sym_group(tC, c);
   for (int i = 0; i < tC.dim(); i++) {
     // curr = c_ids[i].ext_sym_group();
     curr = esg[i];
@@ -69,7 +80,7 @@ void genAntiIter(const std::vector<size_t>& vtab, IterGroup<antisymm>& ext_itr,
     int fa = all_f[i].size() - fb;
     va[i] = antisymm(vtab, all[i], fa, fb);
   }
-  ext_itr = IterGroup<antisymm>(va, ANTI);
+  *ext_itr = IterGroup<antisymm>(va, ANTI);
 }
 
 } /* namespace tamm */

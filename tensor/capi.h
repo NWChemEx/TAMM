@@ -1,9 +1,19 @@
-#ifndef __tamm_capi_h__
-#define __tamm_capi_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_CAPI_H_
+#define TAMM_TENSOR_CAPI_H_
 
 #include <vector>
-#include "common.h"
-#include "gmem.h"
+#include "tensor/common.h"
+#include "tensor/gmem.h"
 
 /**
  * C/C++ wrappers to Fortran routines invoked by tamm
@@ -15,7 +25,7 @@ namespace tamm {
  * C++ function that wraps FORTRAN tce_sort2 and tce_sort4
  */
 void tamm_sort(double *sbuf, double *dbuf, const std::vector<size_t> &ids,
-               std::vector<size_t> &iv, double alpha);
+               const std::vector<size_t> &iv, double alpha);
 
 /**
  * C++ function that wraps FORTRAN dgemm
@@ -34,19 +44,20 @@ void cadd_hash_block(gmem::Handle d_c, double *buf_a, size_t size, Fint *hash,
  * C++ function that wraps FORTRAN tce_sortacc*
  */
 void tamm_sortacc(double *sbuf, double *dbuf, const std::vector<size_t> &ids,
-                  std::vector<size_t> &perm, double alpha);
+                  const std::vector<size_t> &perm, double alpha);
 
 /**
  * C++ function that wraps FORTRAN tce_restricted
  */
 void tamm_restricted(int dim, int nupper, const std::vector<size_t> &value,
-                     std::vector<size_t> &pvalue_r);
+                     std::vector<size_t> * pvalue_r);
 
 /**
  * C++ function that wraps FORTRAN get_hash_block_i
  */
 void cget_hash_block_i(gmem::Handle d_a, double *buf, size_t size,
-                       size_t d_a_offset, size_t key, std::vector<size_t> &is);
+                     size_t d_a_offset, size_t key,
+                     const std::vector<size_t> &is);
 
 /**
  * C++ function that wraps FORTRAN get_hash_block_ma
@@ -62,4 +73,4 @@ void cget_hash_block(gmem::Handle d_a, double *buf, size_t size,
 
 } /*namespace tamm*/
 
-#endif /*__tamm_capi_h__*/
+#endif  // TAMM_TENSOR_CAPI_H_

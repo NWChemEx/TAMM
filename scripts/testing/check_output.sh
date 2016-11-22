@@ -1,82 +1,100 @@
 #!/bin/bash 
-#[ $# -ge 1 -a -f "$1" ] && input="$1" || input="-"
-#[ $# -ge 2 -a -f "$2" ] && input="$2" || input="-" 
-#This script check the correctness of generated output 
-#  with a reference golden output
 
-# Input parameters to this script
-echo $1
-test_command=$1
-golden_output_file=$2
-#eval test_output_file=\$\($test_command\)
-test_output_file="$($test_command)"
-key_string="CCSD iterations"
-total_enery_digits="-b-14"
-correlation_enery_digits="-b-13"
-residuum_digits="-b-10"
-#end of input parameters
-#set EXIT ERROR CODE 
-if [ -z "$3" ]; then
-    head_cut=22
-else
-    head_cut="$(cat $3)"
-fi
-error_code=0
+returnVal=()
+convertArgsStrToArray() {
+    local concat=""
+    local t=""
+    returnVal=()
 
-#CHECK on total energy
-correct_total_energy="$(cat $golden_output_file | grep -A28 "$key_string" | grep -v DIIS | grep total | cut -d "=" -f2 | tr -d " " | cut $total_enery_digits | less)"
-test_total_energy="$(echo "$test_output_file" | grep -A28 "$key_string" | grep -v DIIS | grep total | cut -d "=" -f2 | tr -d " " | cut $total_enery_digits | less)"
+    for word in $@; do
+        local len=`expr "$word" : '.*"'`
 
-DIFF_TOTAL_ENERGY=$(diff <(echo "$correct_total_energy") <(echo "$test_total_energy") )
-#echo "diff total energy=$DIFF_TOTAL_ENERGY"
+        [ "$len" -eq 1 ] && concat="true"
 
-if [ "$DIFF_TOTAL_ENERGY" != "" ] 
-then
-  echo " ***** ERROR ***** TOTAL ENERGY output differs"
-	echo "correct_total_energy=$correct_total_energy"
-	echo "test_total_energy=$test_total_energy"
-    error_code=1
-fi
+        if [ "$concat" ]; then
+            t+=" $word"
+        else
+            word=${word#\"}
+            word=${word%\"}
+            returnVal+=("$word")
+        fi
 
-#CHECK on correlation energy
-correct_correlation_energy="$(cat $golden_output_file | grep -A28 "$key_string" | grep -v DIIS | grep correlation | cut -d "=" -f2 | tr -d " " | cut $correlation_enery_digits | less)"
-test_correlation_energy="$(echo "$test_output_file" | grep -A28 "$key_string" | grep -v DIIS | grep correlation | cut -d "=" -f2 | tr -d " " | cut $correlation_enery_digits | less)"
+        local count=$(grep -o "\"" <<< "$t" | wc -l)
+        if [ "$count" -eq 2 ]; then
+            t=${t# }
+            t=${t#\"}
+            t=${t%\"}
+            returnVal+=("$t")
+            t=""
+            concat=""
+          fi
+        #fi
+    done
+}
 
-DIFF_CORRELATION_ENERGY=$(diff <(echo "$correct_correlation_energy") <(echo "$test_correlation_energy") )
-#echo "diff correlation energy=$DIFF_CORRELATION_ENERGY"
+function compare {
 
-if [ "$DIFF_CORRELATION_ENERGY" != "" ] 
-then
-  echo " ***** ERROR ***** CORRELATION ENERGY output differs"
-	echo "correct_correlation_energy=$correct_correlation_energy"
-	echo "test_correlation_energy=$test_correlation_energy"
-    error_code=1
-fi
+  file1=$1
+  file2=$2
+  digits=$3
+  keyString=$4
+  offset=$5
+  lines=$6
+  delimeter=$7
+  field=$8
+  errorString=$9
+  removeMatch=${10}
 
-#CHECK on Residuum printed over 
-correct_residuum="$(cat $golden_output_file | grep -A28 "$key_string" | grep -v DIIS | head -$head_cut | tail -18 | tr -s " " | cut -d " " -f3 | cut $residuum_digits | less)"
-#echo -e "correct_residuum=\n$correct_residuum"
-test_residuum="$(echo "$test_output_file" | grep -A28 "$key_string" | grep -v DIIS | head -$head_cut | tail -18 | tr -s " " | cut -d " " -f3 | cut $residuum_digits | less)"
-#echo -e "test_residuum=\n$test_residuum"
+  #echo "${1}"
+  #echo "${2}"
+  #echo "${3}"
+  #echo "${4}"
+  #echo "${5}"
+  #echo "${6}"
+  #echo "${7}"
+  #echo "${8}"
+  #echo "${9}"
+  #echo "${10}"
+  
+  errorCode=0
+  correctOffset=$((offset))
+  size=$((offset + lines))
+  
+  fileResults1="$(cat $file1 | grep -a -A$size "$keyString" | tail -n +$correctOffset | grep -v $removeMatch | tr -s " "  | cut -d "$delimeter" -f$field  | tr -d " " | cut -b-$digits)"
+  fileResults2="$(cat $file2 | grep -a -A$size "$keyString" | tail -n +$correctOffset | grep -v $removeMatch | tr -s " "  | cut -d "$delimeter" -f$field  | tr -d " " | cut -b-$digits)"
 
-DIFF_RESIDUUM=$(diff <(echo "$correct_residuum") <(echo "$test_residuum") )
-#echo "diff residuum= $DIFF_RESIDUUM"
+  diffResult=$(diff <(echo "$fileResults1") <(echo "$fileResults2") )
 
-if [ "$DIFF_RESIDUUM" != "" ]
-then
-  echo " ***** ERROR ***** residuum output differs"
-  echo "correct_residuum=$correct_residuum"
-	echo "test_residuum=$test_residuum"
-    error_code=1
-fi
+  if [ "$diffResult" != "" ] 
+  then
+    echo "ERROR: $errorString"
+    echo "file1=$fileResults1"
+    echo "file2=$fileResults2"
+    errorCode=1
+  fi
 
-#Print correctness check comments
-if [ $error_code != 1 ]
-then
-  echo "  Congratulations!! The RESIDUUM output is CORRECT"
-  echo "  Congratulations!! The CORRELATION ENERGY output is CORRECT"
-  echo "  Congratulations!! The TOTAL ENERGY output is CORRECT"
-fi
+  return $errorCode
+}
 
-exit $error_code
-#End of script
+runCommand=$1
+correctOutput=$2
+tests=$3
+errorCode=0
+
+$runCommand &> tmpResult
+cat tmpResult
+#b="$(ls -l)"
+#echo "ran $a $runCommand"
+#echo "files: $b"
+
+while IFS='' read -r line || [[ -n "$line" ]]; do
+  convertArgsStrToArray $line 
+  compare $correctOutput $PWD/tmpResult "${returnVal[@]}" 
+  res=$?
+  if [ "$res" != 0 ] 
+  then
+    errorCode=$res
+  fi
+done < "$tests"
+
+exit $errorCode

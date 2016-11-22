@@ -8,21 +8,24 @@
 // Operated by Battelle for the U.S. Department of Energy
 //
 //------------------------------------------------------------------------------
-#ifndef TAMM_TENSOR_TENSORS_AND_OPS_H_
-#define TAMM_TENSOR_TENSORS_AND_OPS_H_
+#ifndef TAMM_TENSOR_SCHEDULERS_H_
+#define TAMM_TENSOR_SCHEDULERS_H_
 
 #include <map>
 #include <string>
 #include <vector>
-#include "tensor/equations.h"
 #include "tensor/input.h"
 #include "tensor/tensor.h"
 
 namespace tamm {
 
-void tensors_and_ops(Equations *eqs,
-                     std::map<std::string, tamm::Tensor> *tensors,
+void schedule_linear(std::map<std::string, tamm::Tensor> *tensors,
                      std::vector<Operation> *ops);
-}
+void schedule_linear_lazy(std::map<std::string, tamm::Tensor> *tensors,
+                          std::vector<Operation> *ops);
+void schedule_levels(std::map<std::string, tamm::Tensor> *tensors,
+                     std::vector<Operation> *ops);
 
-#endif  // TAMM_TENSOR_TENSORS_AND_OPS_H_
+} /* namespace tamm */
+
+#endif  // TAMM_TENSOR_SCHEDULERS_H_

@@ -1,13 +1,23 @@
-#include <iostream>
-#include "corf.h"
-#include "equations.h"
-#include "input.h"
-#include "t_assign.h"
-#include "t_mult.h"
-#include "tensor.h"
-#include "tensors_and_ops.h"
-#include "variables.h"
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
 
+#include <iostream>
+#include "tensor/corf.h"
+#include "tensor/equations.h"
+#include "tensor/input.h"
+#include "tensor/schedulers.h"
+#include "tensor/t_assign.h"
+#include "tensor/t_mult.h"
+#include "tensor/tensor.h"
+#include "tensor/tensors_and_ops.h"
+#include "tensor/variables.h"
 /*
  *  x2 {
  *
@@ -282,9 +292,6 @@ void offset_eaccsd_x2_10_1_(Integer *l_x2_10_1_offset,
 
 namespace tamm {
 
-void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops);
-
 extern "C" {
 void eaccsd_x2_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
                     Fint *d_x1, Fint *d_x2, Fint *k_f1_offset,
@@ -346,13 +353,13 @@ void eaccsd_x2_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
   static Equations eqs;
 
   if (set_x2) {
-    eaccsd_x2_equations(eqs);
+    eaccsd_x2_equations(&eqs);
     set_x2 = false;
   }
 
   std::map<std::string, tamm::Tensor> tensors;
   std::vector<Operation> ops;
-  tensors_and_ops(eqs, tensors, ops);
+  tensors_and_ops(&eqs, &tensors, &ops);
 
   Tensor *i0 = &tensors["i0"];
   Tensor *x_v = &tensors["x_v"];
@@ -405,7 +412,7 @@ void eaccsd_x2_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
   x2_6_5_3_1->set_irrep(Variables::irrep_x());
 
 #if 1
-  schedule_levels(tensors, ops);
+  schedule_levels(&tensors, &ops);
 #else
   op_x2_1 = ops[0].mult;
   op_x2_2_1 = ops[1].add;
@@ -457,92 +464,92 @@ void eaccsd_x2_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
   op_x2_10_2 = ops[47].mult;
   op_x2_10 = ops[48].mult;
 
-  CorFortran(1, op_x2_1, eaccsd_x2_1_);
-  CorFortran(1, x2_2_1, offset_eaccsd_x2_2_1_);
-  CorFortran(1, op_x2_2_1, eaccsd_x2_2_1_);
-  CorFortran(1, x2_2_2_1, offset_eaccsd_x2_2_2_1_);
-  CorFortran(1, op_x2_2_2_1, eaccsd_x2_2_2_1_);
-  CorFortran(1, op_x2_2_2_2, eaccsd_x2_2_2_2_);
-  CorFortran(1, op_x2_2_2, eaccsd_x2_2_2_);
+  CorFortran(1, &op_x2_1, eaccsd_x2_1_);
+  CorFortran(1, &x2_2_1, offset_eaccsd_x2_2_1_);
+  CorFortran(1, &op_x2_2_1, eaccsd_x2_2_1_);
+  CorFortran(1, &x2_2_2_1, offset_eaccsd_x2_2_2_1_);
+  CorFortran(1, &op_x2_2_2_1, eaccsd_x2_2_2_1_);
+  CorFortran(1, &op_x2_2_2_2, eaccsd_x2_2_2_2_);
+  CorFortran(1, &op_x2_2_2, eaccsd_x2_2_2_);
   destroy(x2_2_2_1);
-  CorFortran(1, op_x2_2_3, eaccsd_x2_2_3_);
-  CorFortran(1, op_x2_2_4, eaccsd_x2_2_4_);
-  CorFortran(1, op_x2_2, eaccsd_x2_2_);
+  CorFortran(1, &op_x2_2_3, eaccsd_x2_2_3_);
+  CorFortran(1, &op_x2_2_4, eaccsd_x2_2_4_);
+  CorFortran(1, &op_x2_2, eaccsd_x2_2_);
   destroy(x2_2_1);
-  CorFortran(1, x2_3_1, offset_eaccsd_x2_3_1_);
-  CorFortran(1, op_x2_3_1, eaccsd_x2_3_1_);
-  CorFortran(1, op_x2_3_2, eaccsd_x2_3_2_);
-  CorFortran(1, op_x2_3_3, eaccsd_x2_3_3_);
-  CorFortran(1, op_x2_3, eaccsd_x2_3_);
+  CorFortran(1, &x2_3_1, offset_eaccsd_x2_3_1_);
+  CorFortran(1, &op_x2_3_1, eaccsd_x2_3_1_);
+  CorFortran(1, &op_x2_3_2, eaccsd_x2_3_2_);
+  CorFortran(1, &op_x2_3_3, eaccsd_x2_3_3_);
+  CorFortran(1, &op_x2_3, eaccsd_x2_3_);
   destroy(x2_3_1);
-  CorFortran(1, x2_4_1, offset_eaccsd_x2_4_1_);
-  CorFortran(1, op_x2_4_1, eaccsd_x2_4_1_);
-  CorFortran(1, op_x2_4_2, eaccsd_x2_4_2_);
-  CorFortran(1, op_x2_4, eaccsd_x2_4_);
+  CorFortran(1, &x2_4_1, offset_eaccsd_x2_4_1_);
+  CorFortran(1, &op_x2_4_1, eaccsd_x2_4_1_);
+  CorFortran(1, &op_x2_4_2, eaccsd_x2_4_2_);
+  CorFortran(1, &op_x2_4, eaccsd_x2_4_);
   destroy(x2_4_1);
-  CorFortran(1, op_x2_5, eaccsd_x2_5_);
-  CorFortran(1, x2_6_1, offset_eaccsd_x2_6_1_);
-  CorFortran(1, op_x2_6_1, eaccsd_x2_6_1_);
-  CorFortran(1, x2_6_2_1, offset_eaccsd_x2_6_2_1_);
-  CorFortran(1, op_x2_6_2_1, eaccsd_x2_6_2_1_);
-  CorFortran(1, op_x2_6_2_2, eaccsd_x2_6_2_2_);
-  CorFortran(1, op_x2_6_2, eaccsd_x2_6_2_);
+  CorFortran(1, &op_x2_5, eaccsd_x2_5_);
+  CorFortran(1, &x2_6_1, offset_eaccsd_x2_6_1_);
+  CorFortran(1, &op_x2_6_1, eaccsd_x2_6_1_);
+  CorFortran(1, &x2_6_2_1, offset_eaccsd_x2_6_2_1_);
+  CorFortran(1, &op_x2_6_2_1, eaccsd_x2_6_2_1_);
+  CorFortran(1, &op_x2_6_2_2, eaccsd_x2_6_2_2_);
+  CorFortran(1, &op_x2_6_2, eaccsd_x2_6_2_);
   destroy(x2_6_2_1);
-  CorFortran(1, x2_6_3_1, offset_eaccsd_x2_6_3_1_);
-  CorFortran(1, op_x2_6_3_1, eaccsd_x2_6_3_1_);
-  CorFortran(1, op_x2_6_3_2, eaccsd_x2_6_3_2_);
-  CorFortran(1, op_x2_6_3, eaccsd_x2_6_3_);
+  CorFortran(1, &x2_6_3_1, offset_eaccsd_x2_6_3_1_);
+  CorFortran(1, &op_x2_6_3_1, eaccsd_x2_6_3_1_);
+  CorFortran(1, &op_x2_6_3_2, eaccsd_x2_6_3_2_);
+  CorFortran(1, &op_x2_6_3, eaccsd_x2_6_3_);
   destroy(x2_6_3_1);
-  CorFortran(1, op_x2_6_4, eaccsd_x2_6_4_);
-  CorFortran(1, x2_6_5_1, offset_eaccsd_x2_6_5_1_);
-  CorFortran(1, op_x2_6_5_1, eaccsd_x2_6_5_1_);
-  CorFortran(1, op_x2_6_5_2, eaccsd_x2_6_5_2_);
-  CorFortran(1, x2_6_5_3_1, offset_eaccsd_x2_6_5_3_1_);
-  CorFortran(1, op_x2_6_5_3_1, eaccsd_x2_6_5_3_1_);
-  CorFortran(1, op_x2_6_5_3, eaccsd_x2_6_5_3_);
+  CorFortran(1, &op_x2_6_4, eaccsd_x2_6_4_);
+  CorFortran(1, &x2_6_5_1, offset_eaccsd_x2_6_5_1_);
+  CorFortran(1, &op_x2_6_5_1, eaccsd_x2_6_5_1_);
+  CorFortran(1, &op_x2_6_5_2, eaccsd_x2_6_5_2_);
+  CorFortran(1, &x2_6_5_3_1, offset_eaccsd_x2_6_5_3_1_);
+  CorFortran(1, &op_x2_6_5_3_1, eaccsd_x2_6_5_3_1_);
+  CorFortran(1, &op_x2_6_5_3, eaccsd_x2_6_5_3_);
   destroy(x2_6_5_3_1);
-  CorFortran(1, op_x2_6_5, eaccsd_x2_6_5_);
+  CorFortran(1, &op_x2_6_5, eaccsd_x2_6_5_);
   destroy(x2_6_5_1);
-  CorFortran(1, x2_6_6_1, offset_eaccsd_x2_6_6_1_);
-  CorFortran(1, op_x2_6_6_1, eaccsd_x2_6_6_1_);
-  CorFortran(1, op_x2_6_6, eaccsd_x2_6_6_);
+  CorFortran(1, &x2_6_6_1, offset_eaccsd_x2_6_6_1_);
+  CorFortran(1, &op_x2_6_6_1, eaccsd_x2_6_6_1_);
+  CorFortran(1, &op_x2_6_6, eaccsd_x2_6_6_);
   destroy(x2_6_6_1);
-  CorFortran(1, x2_6_7_1, offset_eaccsd_x2_6_7_1_);
-  CorFortran(1, op_x2_6_7_1, eaccsd_x2_6_7_1_);
-  CorFortran(1, op_x2_6_7, eaccsd_x2_6_7_); /* @bug Some problem in op_x2_6_7*
-                                               when executed in Fortran when
-                                               rest is executed with C*/
+  CorFortran(1, &x2_6_7_1, offset_eaccsd_x2_6_7_1_);
+  CorFortran(1, &op_x2_6_7_1, eaccsd_x2_6_7_1_);
+  CorFortran(1, &op_x2_6_7, eaccsd_x2_6_7_);  // @bug Some problem in op_x2_6_7
+                                             //   when executed in Fortran when
+                                             //   rest is executed with C
   destroy(x2_6_7_1);
-  CorFortran(1, op_x2_6, eaccsd_x2_6_);
+  CorFortran(1, &op_x2_6, eaccsd_x2_6_);
   destroy(x2_6_1);
-  CorFortran(1, x2_7_1, offset_eaccsd_x2_7_1_);
-  CorFortran(1, op_x2_7_1, eaccsd_x2_7_1_);
-  CorFortran(1, op_x2_7, eaccsd_x2_7_);
+  CorFortran(1, &x2_7_1, offset_eaccsd_x2_7_1_);
+  CorFortran(1, &op_x2_7_1, eaccsd_x2_7_1_);
+  CorFortran(1, &op_x2_7, eaccsd_x2_7_);
   destroy(x2_7_1);
-  CorFortran(1, x2_8_1_1, offset_eaccsd_x2_8_1_1_);
-  CorFortran(1, op_x2_8_1_1, eaccsd_x2_8_1_1_);
-  CorFortran(1, op_x2_8_1_2, eaccsd_x2_8_1_2_);
-  CorFortran(1, x2_8_1, offset_eaccsd_x2_8_1_);
-  CorFortran(1, op_x2_8_1, eaccsd_x2_8_1_);
-  CorFortran(1, op_x2_8_2, eaccsd_x2_8_2_);
-  CorFortran(1, op_x2_8, eaccsd_x2_8_);
+  CorFortran(1, &x2_8_1_1, offset_eaccsd_x2_8_1_1_);
+  CorFortran(1, &op_x2_8_1_1, eaccsd_x2_8_1_1_);
+  CorFortran(1, &op_x2_8_1_2, eaccsd_x2_8_1_2_);
+  CorFortran(1, &x2_8_1, offset_eaccsd_x2_8_1_);
+  CorFortran(1, &op_x2_8_1, eaccsd_x2_8_1_);
+  CorFortran(1, &op_x2_8_2, eaccsd_x2_8_2_);
+  CorFortran(1, &op_x2_8, eaccsd_x2_8_);
   destroy(x2_8_1);
   destroy(x2_8_1_1);
-  CorFortran(1, x2_9_1, offset_eaccsd_x2_9_1_);
-  CorFortran(1, op_x2_9_1, eaccsd_x2_9_1_);
-  CorFortran(1, op_x2_9_2, eaccsd_x2_9_2_);
-  CorFortran(1, x2_9_3_1, offset_eaccsd_x2_9_3_1_);
-  CorFortran(1, op_x2_9_3_1, eaccsd_x2_9_3_1_);
-  CorFortran(1, op_x2_9_3, eaccsd_x2_9_3_);
+  CorFortran(1, &x2_9_1, offset_eaccsd_x2_9_1_);
+  CorFortran(1, &op_x2_9_1, eaccsd_x2_9_1_);
+  CorFortran(1, &op_x2_9_2, eaccsd_x2_9_2_);
+  CorFortran(1, &x2_9_3_1, offset_eaccsd_x2_9_3_1_);
+  CorFortran(1, &op_x2_9_3_1, eaccsd_x2_9_3_1_);
+  CorFortran(1, &op_x2_9_3, eaccsd_x2_9_3_);
   destroy(x2_9_3_1);
-  CorFortran(1, op_x2_9, eaccsd_x2_9_);
+  CorFortran(1, &op_x2_9, eaccsd_x2_9_);
   destroy(x2_9_1);
-  CorFortran(1, x2_10_1, offset_eaccsd_x2_10_1_);
-  CorFortran(1, op_x2_10_1, eaccsd_x2_10_1_);
-  CorFortran(1, op_x2_10_2, eaccsd_x2_10_2_);
-  CorFortran(1, op_x2_10, eaccsd_x2_10_);
+  CorFortran(1, &x2_10_1, offset_eaccsd_x2_10_1_);
+  CorFortran(1, &op_x2_10_1, eaccsd_x2_10_1_);
+  CorFortran(1, &op_x2_10_2, eaccsd_x2_10_2_);
+  CorFortran(1, &op_x2_10, eaccsd_x2_10_);
   destroy(x2_10_1);
-#endif
+#endif  // Use c scheduler
 
   /* ----- Insert detach code ------ */
   i0->detach();

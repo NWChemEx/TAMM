@@ -1,10 +1,20 @@
-#include "tensor.h"
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#include "tensor/tensor.h"
 #include <iostream>
-#include "capi.h"
-#include "expression.h"
-#include "gmem.h"
+#include "tensor/capi.h"
+#include "tensor/expression.h"
+#include "tensor/gmem.h"
 
-using namespace std;
+using std::vector;
 
 namespace tamm {
 
@@ -48,7 +58,7 @@ Tensor::Tensor(int n, int nupper, int irrep_val, RangeType rt[],
 }
 
 void Tensor::gen_restricted(const std::vector<size_t> &value_,
-                            std::vector<size_t> &pvalue_r) {
+                            std::vector<size_t> * pvalue_r) const {
   tamm_restricted(dim_, nupper_, value_, pvalue_r);
 }
 
@@ -61,7 +71,7 @@ void Tensor::create() {
   int prev = 0, curr = 0, n = dim_;
 
   assert(dim_type_ ==
-         dim_ov);  //@FIXME @BUG: not implemented for other dime types
+         dim_ov);  // @FIXME @BUG: not implemented for other dime types
 
   for (int i = 0; i < n; i++) {
     curr = gp[i];
@@ -83,14 +93,14 @@ void Tensor::create() {
   Fint length = 0;
   vector<size_t> out_vec;
   out_itr.reset();
-  while (out_itr.next(out_vec)) {
+  while (out_itr.next(&out_vec)) {
     if (is_spatial_nonzero(out_vec) && is_spin_nonzero(out_vec) &&
         is_spin_restricted_nonzero(out_vec)) {
       length++;
     }
   }
 
-  offset_map_ = (Fint *)malloc(sizeof(Fint) * 2 * length + 1);
+  offset_map_ = static_cast<Fint *>(malloc(sizeof(Fint) * 2 * length + 1));
   assert(offset_map_ != NULL);
   assert(dim_type_ == dim_n || dim_type_ == dim_ov);
   size_t noab = Variables::noab();
@@ -101,7 +111,7 @@ void Tensor::create() {
   size_t addr = 0;
   size_t size = 0;
   out_itr.reset();
-  while (out_itr.next(out_vec)) {
+  while (out_itr.next(&out_vec)) {
     if (is_spatial_nonzero(out_vec) && is_spin_nonzero(out_vec) &&
         is_spin_restricted_nonzero(out_vec)) {
       size_t offset = 1, key = 0;
@@ -134,7 +144,7 @@ void Tensor::create() {
   {
     int ndims = 2;
     int dims[2] = {1, size};
-    ga_ = gmem::create(gmem::Double, size, (char *)"noname1");
+    ga_ = gmem::create(gmem::Double, size, static_cast<char *>("noname1"));
   }
   gmem::zero(ga_);
   offset_index_ = offset_map_ - int_mb;
@@ -165,11 +175,12 @@ void Tensor::detach() {
   attached_ = false;
 }
 
-void Tensor::get(std::vector<size_t> &pvalue_r, double *buf, size_t size) {
+void Tensor::get(const std::vector<size_t> &pvalue_r, double *buf,
+                 size_t size) const {
   assert(allocated_ || attached_);
   gmem::Handle d_a = ga();
   size_t d_a_offset = offset_index();
-  std::vector<size_t> &is = pvalue_r;
+  const std::vector<size_t> &is = pvalue_r;
   const std::vector<IndexName> &ns = id2name(ids_);
   Fint key = 0, offset = 1;
   size_t noab = Variables::noab();
@@ -209,7 +220,8 @@ void Tensor::get(std::vector<size_t> &pvalue_r, double *buf, size_t size) {
   }
 }
 
-void Tensor::add(std::vector<size_t> &is, double *buf, size_t size) {
+void Tensor::add(const std::vector<size_t> &is, double *buf,
+                 size_t size) const {
   assert(allocated_ || attached_);
   gmem::Handle d_c = ga();
   Fint *int_mb = Variables::int_mb();

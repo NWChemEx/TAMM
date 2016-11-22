@@ -1,13 +1,28 @@
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
 #include <iostream>
-#include "corf.h"
-#include "equations.h"
-#include "input.h"
-#include "t_assign.h"
-#include "t_mult.h"
-#include "tensor.h"
-#include "tensors_and_ops.h"
-#include "variables.h"
+#include <map>
+#include <vector>
+#include "tensor/corf.h"
+#include "tensor/equations.h"
+#include "tensor/input.h"
+#include "tensor/schedulers.h"
+#include "tensor/t_assign.h"
+#include "tensor/t_mult.h"
+#include "tensor/tensor.h"
+#include "tensor/tensors_and_ops.h"
+#include "tensor/variables.h"
 
+using std::map;
+using std::vector;
 /*
  *  e {
  *
@@ -35,13 +50,6 @@ void cisd_e_2_(Fint *d_t_vvoo, Fint *k_t_vvoo_offset, Fint *d_v,
 
 namespace tamm {
 
-void schedule_linear(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops);
-void schedule_linear_lazy(std::map<std::string, tamm::Tensor> &tensors,
-                          std::vector<Operation> &ops);
-void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
-                     std::vector<Operation> &ops);
-
 extern "C" {
 // void cisd_e_cxx_(Fint *d_i0, Fint *d_t_vvoo, Fint *d_v, Fint *d_t_vo, Fint
 // *d_f,
@@ -59,13 +67,13 @@ void cisd_e_cxx_(Fint *d_f, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo, Fint *d_v,
   static Equations eqs;
 
   if (set_e) {
-    cisd_e_equations(eqs);
+    cisd_e_equations(&eqs);
     set_e = false;
   }
 
   std::map<std::string, tamm::Tensor> tensors;
   std::vector<Operation> ops;
-  tensors_and_ops(eqs, tensors, ops);
+  tensors_and_ops(&eqs, &tensors, &ops);
 
   Tensor *i0 = &tensors["i0"];
   Tensor *t_vo = &tensors["t_vo"];
@@ -88,9 +96,9 @@ void cisd_e_cxx_(Fint *d_f, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo, Fint *d_v,
   op_e_1 = ops[0].mult;
   op_e_2 = ops[1].mult;
 
-  CorFortran(1, op_e_1, cisd_e_1_);
-  CorFortran(1, op_e_2, cisd_e_2_);
-#endif
+  CorFortran(1, &op_e_1, cisd_e_1_);
+  CorFortran(1, &op_e_2, cisd_e_2_);
+#endif  // Fortran Functions
 
   /* ----- Insert detach code ------ */
   f->detach();

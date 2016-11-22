@@ -1,14 +1,26 @@
-#ifndef __tamm_expression_h__
-#define __tamm_expression_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_EXPRESSION_H_
+#define TAMM_TENSOR_EXPRESSION_H_
 
 #include <cassert>
 #include <set>
 #include <vector>
-#include "gmem.h"
-#include "index.h"
-#include "iterGroup.h"
-#include "tensor.h"
-#include "triangular.h"
+#include <algorithm>
+
+#include "tensor/gmem.h"
+#include "tensor/index.h"
+#include "tensor/iterGroup.h"
+#include "tensor/tensor.h"
+#include "tensor/triangular.h"
 
 namespace tamm {
 
@@ -175,18 +187,18 @@ class Multiplication {
   IterGroup<CopyIter> cp_itr_; /*< copy iterator, use to do tC add hash block */
 
   void
-  genMemPos(); /*< generate memory position according to the indices order of
-                  the expression */
+  genMemPos();  // < generate memory position according to the indices order of
+                //  the expression
   void genTrigItr(
-      IterGroup<triangular>& itr, const std::vector<int>& gp,
-      const std::vector<IndexName>& name); /*< generate triangular loops given
-                                              IndexName and symmetry group */
+      IterGroup<triangular>* itr, const std::vector<int>& gp,
+      const std::vector<IndexName>& name);  // < generate triangular loops given
+                                            //   IndexName and symmetry group
   void genSumGroup();  /*< generate summation symmetry group and set sum_itr */
   void genCopyGroup(); /*< genertate copy group and set cp_itr */
   void genOutGroup();  /*< generate outer loop group and set out_itr */
 };
 
-inline std::vector<RangeType> id2range(const vector<IndexName>& ids) {
+inline std::vector<RangeType> id2range(const std::vector<IndexName>& ids) {
   std::vector<RangeType> retv(ids.size());
   for (int i = 0; i < ids.size(); i++) {
     if (ids[i] < pIndexNum) {
@@ -199,7 +211,7 @@ inline std::vector<RangeType> id2range(const vector<IndexName>& ids) {
 }
 
 inline std::vector<int> ext_sym_group(const Tensor& tensor,
-                                      const vector<IndexName>& ids) {
+                                      const std::vector<IndexName>& ids) {
   int nupper = tensor.nupper();
   int ndim = tensor.dim();
   assert(ndim == ids.size());
@@ -230,7 +242,7 @@ inline std::vector<int> ext_sym_group(const Tensor& tensor,
 }
 
 inline std::vector<Index> name2ids(const Tensor& tensor,
-                                   const vector<IndexName>& name) {
+                                   const std::vector<IndexName>& name) {
   int n = tensor.dim();
   assert(n == name.size());
   const std::vector<int>& esg = ext_sym_group(tensor, name);
@@ -256,7 +268,7 @@ inline std::vector<size_t> sort_ids(const std::vector<IndexName>& name,
 inline std::vector<size_t> mult_perm(const std::vector<IndexName>& name,
                                      const std::vector<IndexName>& mem_pos_) {
   assert(name.size() == mem_pos_.size());
-  vector<size_t> lperm(name.size());
+  std::vector<size_t> lperm(name.size());
   for (int i = 0; i < name.size(); i++) {
     lperm[i] = std::find(mem_pos_.begin(), mem_pos_.end(), name[i]) -
                mem_pos_.begin() + 1;
@@ -280,10 +292,11 @@ inline std::vector<size_t> getMemPosVal(
   return sort_ids_v_;
 }
 
-inline void setValue(std::vector<Index>& ids_, const std::vector<size_t>& val) {
-  assert(ids_.size() == val.size());
-  for (int i = 0; i < ids_.size(); i++) {
-    ids_[i].setValue(val[i]);
+inline void setValue(std::vector<Index> * ids_,
+                     const std::vector<size_t>& val) {
+  assert(ids_->size() == val.size());
+  for (int i = 0; i < ids_->size(); i++) {
+    (*ids_)[i].setValue(val[i]);
   }
 }
 
@@ -291,11 +304,11 @@ inline void setValue(std::vector<Index>& ids_, const std::vector<size_t>& val) {
  * Set the restricted value of indices
  * @param val restricted value as a vector of Integer
  */
-inline void setValueR(std::vector<Index>& ids_,
+inline void setValueR(std::vector<Index>* ids_,
                       const std::vector<size_t>& val) {
-  assert(ids_.size() == val.size());
-  for (int i = 0; i < ids_.size(); i++) {
-    ids_[i].setValueR(val[i]);
+  assert(ids_->size() == val.size());
+  for (int i = 0; i < ids_->size(); i++) {
+    (*ids_)[i].setValueR(val[i]);
   }
 }
 
@@ -309,9 +322,9 @@ inline std::vector<IndexName> id2name(const std::vector<Index>& ids_) {
 }
 
 inline int sortByValueThenExtSymGroup(const std::vector<Index>& ids_,
-                                      std::vector<IndexName>& name,
-                                      std::vector<size_t>& pvalue,
-                                      std::vector<size_t>& pvalue_r) {
+                                      std::vector<IndexName>* name,
+                                      std::vector<size_t>* pvalue,
+                                      std::vector<size_t>* pvalue_r) {
   std::vector<int> tab_(IndexNum, -1);
   for (int i = 0; i < ids_.size(); i++) {
     tab_[ids_[i].name()] = i;
@@ -326,37 +339,37 @@ inline int sortByValueThenExtSymGroup(const std::vector<Index>& ids_,
     pos2[i] = tab_[_ids_[i].name()];
   }
   int sign = countParitySign<int>(pos1, pos2);
-  pvalue_r.resize(n);
-  pvalue.resize(n);
-  name.resize(n);
+  pvalue_r->resize(n);
+  pvalue->resize(n);
+  name->resize(n);
   for (int i = 0; i < n; i++) {
-    name[i] = _ids_[i].name();
-    pvalue[i] = _ids_[i].value();
-    pvalue_r[i] = _ids_[i].value_r();
+    (*name)[i] = _ids_[i].name();
+    (*pvalue)[i] = _ids_[i].value();
+    (*pvalue_r)[i] = _ids_[i].value_r();
   }
   return sign;
 }
 
 inline void orderIds(const std::vector<Index>& ids_,
                      const std::vector<size_t>& order,
-                     std::vector<IndexName>& name, std::vector<size_t>& value,
-                     std::vector<size_t>& value_r) {
+                     std::vector<IndexName>* name, std::vector<size_t>* value,
+                     std::vector<size_t>* value_r) {
   int n = ids_.size();
-  vector<Index> _ids_(ids_.size());
+  std::vector<Index> _ids_(ids_.size());
   for (int i = 0; i < n; i++) {
     assert(order[i] >= 0 && order[i] < n);
     _ids_[i] = ids_[order[i]];
   }
-  name.resize(n);
-  value.resize(n);
-  value_r.resize(n);
+  name->resize(n);
+  value->resize(n);
+  value_r->resize(n);
   for (int i = 0; i < n; i++) {
-    name[i] = _ids_[i].name();
-    value[i] = _ids_[i].value();
-    value_r[i] = _ids_[i].value_r();
+    (*name)[i] = _ids_[i].name();
+    (*value)[i] = _ids_[i].value();
+    (*value_r)[i] = _ids_[i].value_r();
   }
   for (int i = 0; i < n; i++) {
-    assert(Table::rangeOf(name[i]) == Table::rangeOf(ids_[i].name()));
+    assert(Table::rangeOf((*name)[i]) == Table::rangeOf(ids_[i].name()));
   }
 }
 
@@ -442,4 +455,4 @@ inline IterGroup<CopyIter>& Multiplication::cp_itr() { return cp_itr_; }
 
 } /* namespace tamm*/
 
-#endif /* __tamm_expression_h__ */
+#endif  // TAMM_TENSOR_EXPRESSION_H_

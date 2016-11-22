@@ -1,5 +1,15 @@
-#ifndef __tamm_define_h__
-#define __tamm_define_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_DEFINE_H_
+#define TAMM_TENSOR_DEFINE_H_
 
 #include <algorithm>
 #include <cstdarg>
@@ -42,9 +52,9 @@ typedef enum {
 
 typedef enum { pIndex, hIndex } IndexType;
 
-const static int pIndexNum = 12;
-const static int hIndexNum = 12;
-const static int IndexNum = pIndexNum + hIndexNum;
+static const int pIndexNum = 12;
+static const int hIndexNum = 12;
+static const int IndexNum = pIndexNum + hIndexNum;
 
 /* cout vector */
 template <typename T>
@@ -137,6 +147,6 @@ inline std::vector<IndexName> ivec(IndexName i1, IndexName i2, IndexName i3,
   ret.push_back(i4);
   return ret;
 }
-}
+} /* namespace tamm */
 
-#endif
+#endif  // TAMM_TENSOR_DEFINE_H_

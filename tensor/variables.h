@@ -1,11 +1,23 @@
-#ifndef __tce_variables_h__
-#define __tce_variables_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_VARIABLES_H_
+#define TAMM_TENSOR_VARIABLES_H_
 
-#include "common.h"
-#include "define.h"
-#include "dummy.h"
-#include "gmem.h"
-#include "typesf2c.h"
+#include <typesf2c.h>
+#include <vector>
+
+#include "tensor/common.h"
+#include "tensor/define.h"
+#include "tensor/dummy.h"
+#include "tensor/gmem.h"
 
 namespace tamm {
 
@@ -129,4 +141,4 @@ class MPI_Timer {
 
 } /* namespace tamm */
 
-#endif
+#endif  // TAMM_TENSOR_VARIABLES_H_

@@ -1,5 +1,15 @@
-#ifndef __tamm_copy_iter_h__
-#define __tamm_copy_iter_h__
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+#ifndef TAMM_TENSOR_COPYITER_H_
+#define TAMM_TENSOR_COPYITER_H_
 
 #include <cstdlib>
 #include <vector>
@@ -13,12 +23,12 @@ class CopyIter {
   /**
    * Constructor
    */
-  CopyIter(){};
+  CopyIter() {}
 
   /**
    * Destructor
    */
-  ~CopyIter(){};
+  ~CopyIter() {}
 
   /**
    * Constructor. Assign the vec and sign to this iterator.
@@ -52,11 +62,11 @@ class CopyIter {
    * Get vec of current iteration
    * return false if end of iteration
    */
-  bool next(std::vector<size_t>& vec);
+  bool next(std::vector<size_t> * vec);
 
   /* following 2 methods no use, just to pass IterGroup compilation */
-  inline const std::vector<size_t>& v_range(){};   // not used
-  inline const std::vector<size_t>& v_offset(){};  // not used
+  inline const std::vector<size_t>& v_range() {}   // not used
+  inline const std::vector<size_t>& v_offset() {}  // not used
 
  private:
   std::vector<std::vector<size_t> >
@@ -88,9 +98,9 @@ inline void CopyIter::reset() {
   curr_sign_ = sign_[0];
 }
 
-inline bool CopyIter::next(std::vector<size_t>& vec) {
+inline bool CopyIter::next(std::vector<size_t>* vec) {
   if (curr_pos_ == vec_.size()) return false;  // end of iteration
-  vec = vec_[curr_pos_];
+  *vec = vec_[curr_pos_];
   curr_sign_ = sign_[curr_pos_];
   curr_pos_++;
   return true;
@@ -98,4 +108,4 @@ inline bool CopyIter::next(std::vector<size_t>& vec) {
 
 } /* namespace tamm */
 
-#endif /* __tamm_copy_iter_h__ */
+#endif  // TAMM_TENSOR_COPYITER_H_

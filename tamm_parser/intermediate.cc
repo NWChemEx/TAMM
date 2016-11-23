@@ -360,7 +360,6 @@ void generate_intermediate_ExpList(Equations *eqn, ExpList* expList, tamm_string
         elist = elist->tail;
         //if (elist != nullptr) std::cout << am << " ";
     }
-    elist = nullptr;
 }
 
 void generate_intermediate_Exp(Equations *eqn, Exp* exp) {

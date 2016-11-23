@@ -92,11 +92,10 @@ void check_Decl(Decl *d, SymbolTable &symtab) {
             verifyVarDecl(symtab, d->u.ArrayDecl.name, d->lineno);
             tamm_string comb_index_list = combine_indexLists(up_ind, lo_ind);
             //std::cout << d->u.ArrayDecl.name << " -> " << comb_index_list << std::endl;
-            int i = 0;
             tamm_string *ind_list = d->u.ArrayDecl.upperIndices;
-            for (i = 0; i < d->u.ArrayDecl.ulen; i++) verifyRangeRef(symtab, ind_list[i], d->lineno);
+            for (int i = 0; i < d->u.ArrayDecl.ulen; i++) verifyRangeRef(symtab, ind_list[i], d->lineno);
             ind_list = d->u.ArrayDecl.lowerIndices;
-            for (i = 0; i < d->u.ArrayDecl.llen; i++) verifyRangeRef(symtab, ind_list[i], d->lineno);
+            for (int i = 0; i < d->u.ArrayDecl.llen; i++) verifyRangeRef(symtab, ind_list[i], d->lineno);
 
             symtab.insert(SymbolTable::value_type(std::string(d->u.ArrayDecl.name), (comb_index_list)));
         }
@@ -174,8 +173,7 @@ void verifyIndexRef(SymbolTable &symtab, tamm_string name, int line_no) {
 
 void verifyArrayRef(SymbolTable &symtab, tamm_string name, tamm_string *inds, int len, int line_no) {
     verifyArrayRefName(symtab, name, line_no);
-    int i = 0;
-    for (i = 0; i < len; i++) verifyIndexRef(symtab, inds[i], line_no);
+    for (int i = 0; i < len; i++) verifyIndexRef(symtab, inds[i], line_no);
 }
 
 

@@ -46,9 +46,8 @@ bool compare_index_lists(const tamm_string_array& alist1, const tamm_string_arra
     int len1 = alist1.size();
     int len2 = alist2.size();
     if (len1 != len2) return false;
-    int i = 0;
-    for (i = 0; i < len1; i++) {
-        if (!exists_index(alist2, alist1[i])) return false;
+    for (auto i: alist1) {
+        if (!exists_index(alist2, i)) return false;
     }
     return true;
 }
@@ -57,8 +56,8 @@ bool check_array_usage(const tamm_string_array& list1, const tamm_string_array& 
     int len1 = list1.size();
     int len2 = list2.size();
     if (len1 != len2) return false;
-    int i = 0;
-    for (i = 0; i < len1; i++) {
+
+    for (int i = 0; i < len1; i++) {
         if (strcmp(list1[i], "N") != 0) if (strcmp(list1[i], list2[i]) != 0) return false;
     }
     return true;
@@ -90,8 +89,8 @@ tamm_string_array stringToList(const tamm_string s) {
 tamm_string combine_indices(const tamm_string_array& indices) {
     if (indices.size() == 0) return "\0";
     std::string s;
-    for (int i=0;i<indices.size();i++) {
-        s.append(indices[i]);
+    for (auto i: indices) {
+        s.append(i);
         s.append(",");
     }
     return  constcharToChar(s.c_str());

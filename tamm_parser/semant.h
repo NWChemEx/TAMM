@@ -2,7 +2,6 @@
 #define SEMANT_H_
 
 #include "absyn.h"
-//#include "symtab.h"
 #include <map>
 #include <string>
 

@@ -63,7 +63,7 @@ class AddOp:
         self.ta_ids = ta_id
 
     def printOp(self):
-        op = self.tc + self.tc_ids + " = " + self.alpha + " * " + self.ta + self.ta_ids
+        op = self.tc + str(self.tc_ids) + " += " + str(self.alpha) + " * " + self.ta + str(self.ta_ids)
         printnl(op)
 
 
@@ -87,8 +87,8 @@ class MultOp:
         self.ta_ids = ta_id
 
     def printOp(self):
-        op = self.tc + self.tc_ids + " += " + self.alpha + " * "
-        op += self.ta + self.ta_ids + " * " + self.tb + self.tb_ids
+        op = self.tc + str(self.tc_ids) + " += " + str(self.alpha) + " * "
+        op += self.ta + str(self.ta_ids) + " * " + self.tb + str(self.tb_ids)
         printnl(op)
 
 
@@ -159,12 +159,9 @@ class Unfactorize(ParseTreeVisitor):
         self.visitChildren(rhs)
         rhs_aref = get_rhs_aref
 
-        printres(lhs_aref[0] + str(lhs_aref[1]))
-
         get_lhs_aref = []
         get_rhs_aref = []
 
-        printresws("+=")
         ac_rhs = []
         for i in rhs_aref:
             if i[0]!=lhs_aref[0]:
@@ -173,19 +170,22 @@ class Unfactorize(ParseTreeVisitor):
         lra = len(ac_rhs)
         assert lra==1 or lra==2
 
-        newop = AddOp(lhs_aref[0],ac_rhs[0][0],get_alpha,lhs_aref[1],ac_rhs[0][1])
-
-        if lra == 2: newop = MultOp(lhs_aref[0],ac_rhs[0][0],ac_rhs[1][0],get_alpha,lhs_aref[1],ac_rhs[0][1],ac_rhs[1][1])
-
-        printres(get_alpha)
-        for i in ac_rhs:
-            printresws("*")
-            printres(i[0] + str(i[1]))
-
-        print("")
+        newop = ''
+        if lra == 1: newop = AddOp(lhs_aref[0],ac_rhs[0][0],get_alpha,lhs_aref[1],ac_rhs[0][1])
+        elif lra == 2: newop = MultOp(lhs_aref[0],ac_rhs[0][0],ac_rhs[1][0],get_alpha,lhs_aref[1],ac_rhs[0][1],ac_rhs[1][1])
+        assert newop
 
         get_alpha = 1.0
         orig_ops.append(newop)
+
+        # printres(lhs_aref[0] + str(lhs_aref[1]))
+        #printresws("+=")
+        # printres(get_alpha)
+        # for i in ac_rhs:
+        #     printresws("*")
+        #     printres(i[0] + str(i[1]))
+        # print("")
+
 
 
 
@@ -362,11 +362,6 @@ class Unfactorize(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#multiplicative_expression_prime.
     def visitMultiplicative_expression_prime(self, ctx):
-        # global get_rhs_aref
-        # if ctx.children:
-        #     operator = str(ctx.children[0]).strip()
-        #     if operator == "*":
-        #         get_rhs_aref.append(operator)
         return self.visitChildren(ctx)
 
 
@@ -399,5 +394,9 @@ if __name__ == '__main__':
 
     visitor = Unfactorize(fname[0],fname[1])
     visitor.visit(tree)
+
+    for op in orig_ops:
+        op.printOp()
+
 
     print("")

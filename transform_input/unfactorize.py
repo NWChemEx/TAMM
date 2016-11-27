@@ -8,18 +8,12 @@ from collections import OrderedDict
 from OpMinLexer import OpMinLexer
 from OpMinParser import OpMinParser
 
-
-stmt_refs = []
-inputarrs = dict()
-add_stmts = []
-mult_stmts = []
 indent = 0
-tensor_decls = OrderedDict()
-add_mult_order = OrderedDict()
-destroy_temps = OrderedDict()
-temps = OrderedDict()
-func_offsets = []
-array_decls = []
+orig_ops = []
+get_lhs_aref = []
+get_rhs_aref = []
+get_alpha = 1.0
+
 
 def printres(s):
     print(s, end="")
@@ -39,6 +33,64 @@ def printresi(s):
 def printnli(s):
     print("".ljust(indent)+s, end="\n")
 
+def convert_to_float(frac_str):
+    try:
+        return float(frac_str)
+    except ValueError:
+        num, denom = frac_str.split('/')
+        try:
+            leading, num = num.split(' ')
+            whole = float(leading)
+        except ValueError:
+            whole = 0
+        frac = float(num) / float(denom)
+        return whole - frac if whole < 0 else whole + frac
+
+
+# tc[tc_ids] = alpha * ta[ta_ids]
+class AddOp:
+    tc = ''
+    ta = ''
+    alpha = 0.0
+    tc_ids = []
+    ta_ids = []
+
+    def __init__(self, tcname, taname, alp, tc_id, ta_id):
+        self.tc = tcname
+        self.ta = taname
+        self.alpha = alp
+        self.tc_ids = tc_id
+        self.ta_ids = ta_id
+
+    def printOp(self):
+        op = self.tc + self.tc_ids + " = " + self.alpha + " * " + self.ta + self.ta_ids
+        printnl(op)
+
+
+# tc[tc_ids] += alpha * ta[ta_ids] * tb[tb_ids]
+class MultOp:
+    tc = ''
+    tb = ''
+    ta = ''
+    alpha = 0.0
+    tc_ids = []
+    ta_ids = []
+    ta_ids = []
+
+    def __init__(self, tcname, taname, tbname, alp, tc_id, ta_id, tb_id):
+        self.tc = tcname
+        self.ta = taname
+        self.tb = tbname
+        self.alpha = alp
+        self.tc_ids = tc_id
+        self.tb_ids = tb_id
+        self.ta_ids = ta_id
+
+    def printOp(self):
+        op = self.tc + self.tc_ids + " += " + self.alpha + " * "
+        op += self.ta + self.ta_ids + " * " + self.tb + self.tb_ids
+        printnl(op)
+
 
 class Unfactorize(ParseTreeVisitor):
 
@@ -49,7 +101,6 @@ class Unfactorize(ParseTreeVisitor):
     # Visit a parse tree produced by OpMinParser#translation_unit.
     def visitTranslation_unit(self, ctx):
         return self.visitChildren(ctx)
-
 
     # Visit a parse tree produced by OpMinParser#compound_element_list_opt.
     def visitCompound_element_list_opt(self, ctx):
@@ -90,69 +141,78 @@ class Unfactorize(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+
     # Visit a parse tree produced by OpMinParser#assignment_statement.
     def visitAssignment_statement(self, ctx):
-        global stmt_refs,inputarrs,add_stmts,mult_stmts,tensor_decls,add_mult_order,destroy_temps,temps,func_offsets
-        stmt_label = str(ctx.children[0].children[0])
-        func_sig = "void " + self.function_prefix + "_" + stmt_label + "_("
+        global orig_ops, get_lhs_aref, get_rhs_aref,get_alpha
+        lhs = ctx.children[0]
+        assignOp = ctx.children[1]
+        rhs = ctx.children[2]
+        if str(assignOp).strip() == ":":
+            lhs = ctx.children[2]
+            assignOp = ctx.children[3]
+            rhs = ctx.children[4]
 
-        func_offset_sig = "void offset_" + self.function_prefix + "_" + stmt_label + "_("
+        self.visitChildren(lhs)
+        lhs_aref = get_lhs_aref
 
+        self.visitChildren(rhs)
+        rhs_aref = get_rhs_aref
 
-        self.visitChildren(ctx.children[2])
-        lhs_ref = list(stmt_refs)
-        del stmt_refs[:]
+        printres(lhs_aref[0] + str(lhs_aref[1]))
 
-        self.visitChildren(ctx.children[4])
+        get_lhs_aref = []
+        get_rhs_aref = []
 
-        lhs_ref = lhs_ref[0]
-        lhs_aname = str(lhs_ref.children[0])
-        if lhs_aname not in tensor_decls.keys(): tensor_decls[lhs_aname] = lhs_aname
+        printresws("+=")
+        ac_rhs = []
+        for i in rhs_aref:
+            if i[0]!=lhs_aref[0]:
+                ac_rhs.append(i)
 
-        if lhs_aname == stmt_label:
-            temps[lhs_aname] = lhs_aname
+        lra = len(ac_rhs)
+        assert lra==1 or lra==2
 
-            func_offset_sig +=  "Integer *l_" + lhs_aname + "_offset, Integer *k_" + lhs_aname + "_offset, Integer *size_" + lhs_aname+ ");"
-            func_offsets.append(func_offset_sig)
+        newop = AddOp(lhs_aref[0],ac_rhs[0][0],get_alpha,lhs_aref[1],ac_rhs[0][1])
 
+        if lra == 2: newop = MultOp(lhs_aref[0],ac_rhs[0][0],ac_rhs[1][0],get_alpha,lhs_aref[1],ac_rhs[0][1],ac_rhs[1][1])
 
-        arefs = []
-        #maxrhs = 0
-        for c in stmt_refs:
-            if isinstance(c,OpMinParser.Array_referenceContext):
-                aname = str(c.children[0])
-                #maxrhs = max(maxrhs, len(c.children[2].children))
-                if aname not in tensor_decls.keys(): tensor_decls[aname] = aname
-                arefs.append(aname)
+        printres(get_alpha)
+        for i in ac_rhs:
+            printresws("*")
+            printres(i[0] + str(i[1]))
 
+        print("")
 
-        for k in temps.keys():
-            if k in arefs:
-                destroy_temps[stmt_label] = k  #Destroy after current stmt
-
-
-
-        if len(arefs) > 1:
-            mult_stmts.append(stmt_label)
-            add_mult_order[stmt_label] = "mult"
-        else:
-            add_stmts.append(stmt_label)
-            add_mult_order[stmt_label] = "add"
+        get_alpha = 1.0
+        orig_ops.append(newop)
 
 
-        arefs.append(lhs_aname)
 
-        for ar in arefs:
-            func_sig += "Integer *d_" + ar + ", Integer *k_" + ar + "_offset,"
-            if not ar.startswith(self.label_prefix+"_") and ar not in inputarrs.keys(): inputarrs[ar] = ar;
-
-        func_sig = func_sig[:-1] + ");"
-        printnli(func_sig)
-
-
-        del stmt_refs[:]
+    # Visit a parse tree produced by OpMinParser#array_reference.
+    def visitArray_reference(self, ctx):
+        global get_lhs_aref, get_rhs_aref
+        if isinstance(ctx,OpMinParser.Array_referenceContext):
+            aname = str(ctx.children[0]) #print arrayname
+            ilist = self.visitId_list(ctx.children[2])
+            get_lhs_aref = [aname,ilist]
+            get_rhs_aref.append([aname,ilist])
 
 
+    # Visit a parse tree produced by OpMinParser#id_list.
+    def visitId_list(self, ctx):
+        idecl = []
+        idecl.append(str(ctx.children[0].children[0]))
+        var = ctx.children[1]
+        while (var.children):
+            idecl.append(str(var.children[1].children[0]))
+            var = var.children[2]
+        return idecl
+
+
+    # Visit a parse tree produced by OpMinParser#identifier.
+    def visitIdentifier(self, ctx):
+        return self.visitChildren(ctx)
 
     # Visit a parse tree produced by OpMinParser#declaration.
     def visitDeclaration(self, ctx):
@@ -161,11 +221,6 @@ class Unfactorize(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#id_list_opt.
     def visitId_list_opt(self, ctx):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by OpMinParser#id_list.
-    def visitId_list(self, ctx):
         return self.visitChildren(ctx)
 
 
@@ -183,14 +238,11 @@ class Unfactorize(ParseTreeVisitor):
     def visitNum_list_prime(self, ctx):
         return self.visitChildren(ctx)
 
-
-    # Visit a parse tree produced by OpMinParser#identifier.
-    def visitIdentifier(self, ctx):
-        return self.visitChildren(ctx)
-
-
     # Visit a parse tree produced by OpMinParser#numerical_constant.
     def visitNumerical_constant(self, ctx):
+        global get_alpha
+        nc = str(ctx.children[0])
+        get_alpha = get_alpha * convert_to_float(nc)
         return self.visitChildren(ctx)
 
 
@@ -206,9 +258,6 @@ class Unfactorize(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#array_declaration.
     def visitArray_declaration(self, ctx):
-        global array_decls
-        aname = str(ctx.children[1].children[0].children[0])
-        array_decls.append(aname)
         return self.visitChildren(ctx)
 
 
@@ -273,6 +322,11 @@ class Unfactorize(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#unary_expression.
     def visitUnary_expression(self, ctx):
+        global get_alpha
+        if ctx.children:
+            operator = str(ctx.children[0]).strip()
+            if operator == "-":
+                get_alpha = -1.0
         return self.visitChildren(ctx)
 
 
@@ -280,10 +334,6 @@ class Unfactorize(ParseTreeVisitor):
     def visitPrimary_expression(self, ctx):
         return self.visitChildren(ctx)
 
-
-    # Visit a parse tree produced by OpMinParser#array_reference.
-    def visitArray_reference(self, ctx):
-        stmt_refs.append(ctx)
 
     # Visit a parse tree produced by OpMinParser#expression.
     def visitExpression(self, ctx):
@@ -312,6 +362,11 @@ class Unfactorize(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#multiplicative_expression_prime.
     def visitMultiplicative_expression_prime(self, ctx):
+        # global get_rhs_aref
+        # if ctx.children:
+        #     operator = str(ctx.children[0]).strip()
+        #     if operator == "*":
+        #         get_rhs_aref.append(operator)
         return self.visitChildren(ctx)
 
 
@@ -344,3 +399,5 @@ if __name__ == '__main__':
 
     visitor = Unfactorize(fname[0],fname[1])
     visitor.visit(tree)
+
+    print("")

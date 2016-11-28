@@ -13,7 +13,9 @@ orig_ops = []
 get_lhs_aref = []
 get_rhs_aref = []
 get_alpha = 1.0
-
+lhs_ops = []
+rhs_ops = []
+collect_array_decls = []
 
 def printres(s):
     print(s, end="")
@@ -47,6 +49,34 @@ def convert_to_float(frac_str):
         return whole - frac if whole < 0 else whole + frac
 
 
+def printIndexList(il):
+    ilstr = "["
+    for i in il:
+        ilstr += i
+        if il[-1] != i: ilstr += ","
+    ilstr += "]"
+    return ilstr
+
+
+class ExpandedOp:
+    alpha = 1.0
+    tensors = []
+    tensor_ids = []
+
+    def __init__(self):
+        self.alpha = 1.0
+        self.tensors = []
+        self.tensor_ids = []
+
+    def printOp(self):
+        op = ''
+        if self.alpha > 0: op += "+"
+        op += str(self.alpha)
+        for i,t in enumerate(self.tensors):
+            op += " * " + t + printIndexList(self.tensor_ids[i])
+        printnl(op)
+
+
 # tc[tc_ids] = alpha * ta[ta_ids]
 class AddOp:
     tc = ''
@@ -54,6 +84,7 @@ class AddOp:
     alpha = 0.0
     tc_ids = []
     ta_ids = []
+    expandedOp = ''
 
     def __init__(self, tcname, taname, alp, tc_id, ta_id):
         self.tc = tcname
@@ -63,7 +94,7 @@ class AddOp:
         self.ta_ids = ta_id
 
     def printOp(self):
-        op = self.tc + str(self.tc_ids) + " += " + str(self.alpha) + " * " + self.ta + str(self.ta_ids)
+        op = self.tc + printIndexList(self.tc_ids) + " += " + str(self.alpha) + " * " + self.ta + printIndexList(self.ta_ids)
         printnl(op)
 
 
@@ -76,6 +107,7 @@ class MultOp:
     tc_ids = []
     ta_ids = []
     ta_ids = []
+    expandedOp = ''
 
     def __init__(self, tcname, taname, tbname, alp, tc_id, ta_id, tb_id):
         self.tc = tcname
@@ -87,8 +119,8 @@ class MultOp:
         self.ta_ids = ta_id
 
     def printOp(self):
-        op = self.tc + str(self.tc_ids) + " += " + str(self.alpha) + " * "
-        op += self.ta + str(self.ta_ids) + " * " + self.tb + str(self.tb_ids)
+        op = self.tc + printIndexList(self.tc_ids) + " += " + str(self.alpha) + " * "
+        op += self.ta + printIndexList(self.ta_ids) + " * " + self.tb + printIndexList(self.tb_ids)
         printnl(op)
 
 
@@ -144,7 +176,7 @@ class Unfactorize(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#assignment_statement.
     def visitAssignment_statement(self, ctx):
-        global orig_ops, get_lhs_aref, get_rhs_aref,get_alpha
+        global orig_ops, get_lhs_aref, get_rhs_aref,get_alpha,lhs_ops,rhs_ops
         lhs = ctx.children[0]
         assignOp = ctx.children[1]
         rhs = ctx.children[2]
@@ -174,6 +206,11 @@ class Unfactorize(ParseTreeVisitor):
         if lra == 1: newop = AddOp(lhs_aref[0],ac_rhs[0][0],get_alpha,lhs_aref[1],ac_rhs[0][1])
         elif lra == 2: newop = MultOp(lhs_aref[0],ac_rhs[0][0],ac_rhs[1][0],get_alpha,lhs_aref[1],ac_rhs[0][1],ac_rhs[1][1])
         assert newop
+
+        if lhs_aref[0] not in lhs_ops: lhs_ops.append(lhs_aref[0])
+        if ac_rhs[0][0] not in rhs_ops: rhs_ops.append(ac_rhs[0][0])
+        if lra == 2:
+            if ac_rhs[1][0] not in rhs_ops: rhs_ops.append(ac_rhs[1][0])
 
         get_alpha = 1.0
         orig_ops.append(newop)
@@ -258,11 +295,33 @@ class Unfactorize(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#array_declaration.
     def visitArray_declaration(self, ctx):
+
         return self.visitChildren(ctx)
 
 
     # Visit a parse tree produced by OpMinParser#array_structure_list.
     def visitArray_structure_list(self, ctx):
+        global collect_array_decls
+        arrs = ctx.children[0]
+        array_name = str(arrs.children[0])
+        array_struct = arrs.children[1]
+        lower = self.visitChildren(array_struct.children[1])
+        upper = self.visitChildren(array_struct.children[4])
+        adecl = "array " + array_name + "([][]);"
+        if lower:
+            adecl = "array " + array_name + "(["
+            for l in lower:
+                adecl += l + ","
+            adecl = adecl[:-1]
+            adecl += "]["
+            for u in upper:
+                adecl += u + ","
+            adecl = adecl[:-1]
+            adecl += "]);"
+
+
+        collect_array_decls.append(adecl)
+
         return self.visitChildren(ctx)
 
 
@@ -366,6 +425,105 @@ class Unfactorize(ParseTreeVisitor):
 
 
 
+# def expandOp(op,pop,common_op):
+#     pop += "( "
+#     for eop in op.expandedOp:
+#         if isinstance(eop,AddOp):
+#             pop += common_op + str(eop.alpha) + " * "
+#             if eop.expandedOp: pop = expandOp(eop, pop, common_op)
+#             else:  pop+= eop.ta + printIndexList(eop.ta_ids)
+#         elif isinstance(eop,MultOp):
+#             pop += common_op + str(eop.alpha) + " * " + eop.ta + printIndexList(eop.ta_ids) + " * "
+#             if eop.expandedOp: pop = expandOp(eop, pop, common_op)
+#             else: pop += eop.tb + printIndexList(eop.tb_ids)
+#         pop += " + "
+#
+#     pop = pop[:-2]
+#     pop += ")"
+#     return pop
+#
+#
+# def printExpandedOp(op):
+#     common_op = str(op.alpha) + " * "
+#     pop = op.tc + printIndexList(op.tc_ids) + " += " + str(op.alpha) + " * "
+#     if isinstance(op,MultOp):
+#         pop += op.ta + printIndexList(op.ta_ids)  + " * "
+#         common_op += op.ta + printIndexList(op.ta_ids)  + " * "
+#     pop = expandOp(op,pop,common_op)
+#     printnl(pop)
+
+def deleteOp(op,outputs):
+    newout = []
+    for o in outputs:
+        if op.tc != o.tc:
+            newout.append(o)
+
+    return newout
+
+
+def unfact(op,outputs):
+    global orig_ops
+    ta = op.ta
+
+    unfacExp_a = ta
+    unfacExp_b = ''
+    isMultOp = False
+    if isinstance(op,MultOp): isMultOp = True
+
+    if isMultOp:
+        tb = op.tb
+        unfacExp_b = tb
+
+    expandExp = []
+    if unfacExp_a in lhs_ops or unfacExp_b in lhs_ops:
+        for o in orig_ops:
+            if o.tc == unfacExp_a or o.tc == unfacExp_b:
+                expandExp.append(o)
+                outputs = deleteOp(o,outputs)
+        op.expandedOp = expandExp
+
+
+    # if expandExp:
+    #     for e in expandExp:
+    #         e.printOp()
+    # else: print("")
+
+
+def expandOp(op):
+    if not op.expandedOp:
+        ep = ExpandedOp()
+        ep.alpha = op.alpha
+        ep.tensors.append(op.ta)
+        ep.tensor_ids.append(op.ta_ids)
+        if isinstance(op,MultOp):
+            ep.tensors.append(op.tb)
+            ep.tensor_ids.append(op.tb_ids)
+
+        return [ep]
+
+    expanded_ops = []
+    for eop in op.expandedOp:
+        eops = (expandOp(eop))
+        expanded_ops.extend(eops)
+
+    eop_all = []
+    for eop in expanded_ops:
+        ep = ExpandedOp()
+        ep.alpha = op.alpha * eop.alpha
+
+        ep.tensors.append(op.ta)
+        ep.tensor_ids.append(op.ta_ids)
+
+        for i, t in enumerate(eop.tensors):
+            ep.tensors.append(t)
+            ep.tensor_ids.append(eop.tensor_ids[i])
+
+        eop_all.append(ep)
+
+    return eop_all
+
+
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         input_stream = FileStream(sys.argv[1])
@@ -395,8 +553,35 @@ if __name__ == '__main__':
     visitor = Unfactorize(fname[0],fname[1])
     visitor.visit(tree)
 
+    # for op in orig_ops:
+    #     op.printOp()
+
+    outputs = []
+
     for op in orig_ops:
-        op.printOp()
+        unfact(op,outputs)
+        if op.tc in lhs_ops and op.tc not in rhs_ops:
+            outputs.append(op)
 
 
+    unfactored_equation = ''
+    final_ops = OrderedDict()
+
+    for decl in collect_array_decls:
+        print(decl)
+
+    #print("-----------------")
     print("")
+    for o in outputs:
+        #o.printOp()
+        final_ops[o] = (expandOp(o))
+
+    #print("-----------------")
+    lhsOp = outputs[-1]
+    printres(lhsOp.tc + printIndexList(lhsOp.tc_ids) + " = ")
+    for o in final_ops:
+        for op in final_ops[o]:
+            op.printOp()
+
+    printres(";")
+

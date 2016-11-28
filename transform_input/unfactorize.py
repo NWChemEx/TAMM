@@ -15,7 +15,9 @@ get_rhs_aref = []
 get_alpha = 1.0
 lhs_ops = []
 rhs_ops = []
+range_decls = []
 collect_array_decls = []
+collect_index_decls = []
 
 def printres(s):
     print(s, end="")
@@ -215,16 +217,6 @@ class Unfactorize(ParseTreeVisitor):
         get_alpha = 1.0
         orig_ops.append(newop)
 
-        # printres(lhs_aref[0] + str(lhs_aref[1]))
-        #printresws("+=")
-        # printres(get_alpha)
-        # for i in ac_rhs:
-        #     printresws("*")
-        #     printres(i[0] + str(i[1]))
-        # print("")
-
-
-
 
     # Visit a parse tree produced by OpMinParser#array_reference.
     def visitArray_reference(self, ctx):
@@ -290,12 +282,22 @@ class Unfactorize(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#index_declaration.
     def visitIndex_declaration(self, ctx):
+        global collect_index_decls, range_decls
+        idecl = "index "
+        ids =  (self.visitId_list(ctx.children[1]))
+        for i in ids:
+            idecl += i
+            if ids[-1] != i: idecl += ", "
+
+        rd = str(ctx.children[3].children[0])
+        idecl += " = " + rd + ";"
+        if rd not in range_decls: range_decls.append(rd)
+        collect_index_decls.append(idecl)
         return self.visitChildren(ctx)
 
 
     # Visit a parse tree produced by OpMinParser#array_declaration.
     def visitArray_declaration(self, ctx):
-
         return self.visitChildren(ctx)
 
 
@@ -425,32 +427,6 @@ class Unfactorize(ParseTreeVisitor):
 
 
 
-# def expandOp(op,pop,common_op):
-#     pop += "( "
-#     for eop in op.expandedOp:
-#         if isinstance(eop,AddOp):
-#             pop += common_op + str(eop.alpha) + " * "
-#             if eop.expandedOp: pop = expandOp(eop, pop, common_op)
-#             else:  pop+= eop.ta + printIndexList(eop.ta_ids)
-#         elif isinstance(eop,MultOp):
-#             pop += common_op + str(eop.alpha) + " * " + eop.ta + printIndexList(eop.ta_ids) + " * "
-#             if eop.expandedOp: pop = expandOp(eop, pop, common_op)
-#             else: pop += eop.tb + printIndexList(eop.tb_ids)
-#         pop += " + "
-#
-#     pop = pop[:-2]
-#     pop += ")"
-#     return pop
-#
-#
-# def printExpandedOp(op):
-#     common_op = str(op.alpha) + " * "
-#     pop = op.tc + printIndexList(op.tc_ids) + " += " + str(op.alpha) + " * "
-#     if isinstance(op,MultOp):
-#         pop += op.ta + printIndexList(op.ta_ids)  + " * "
-#         common_op += op.ta + printIndexList(op.ta_ids)  + " * "
-#     pop = expandOp(op,pop,common_op)
-#     printnl(pop)
 
 def deleteOp(op,outputs):
     newout = []
@@ -557,31 +533,35 @@ if __name__ == '__main__':
     #     op.printOp()
 
     outputs = []
-
     for op in orig_ops:
         unfact(op,outputs)
         if op.tc in lhs_ops and op.tc not in rhs_ops:
             outputs.append(op)
 
 
-    unfactored_equation = ''
     final_ops = OrderedDict()
 
+    print("{\n")
+    for decl in range_decls:
+        print("range " + decl + " = 10;")
+    print("range N = 10;")
+    print("")
+    for decl in collect_index_decls:
+        print(decl)
+    print("")
     for decl in collect_array_decls:
         print(decl)
 
-    #print("-----------------")
     print("")
     for o in outputs:
-        #o.printOp()
         final_ops[o] = (expandOp(o))
 
-    #print("-----------------")
     lhsOp = outputs[-1]
     printres(lhsOp.tc + printIndexList(lhsOp.tc_ids) + " = ")
     for o in final_ops:
         for op in final_ops[o]:
             op.printOp()
 
-    printres(";")
+    print(";")
+    print("\n}")
 

@@ -132,7 +132,7 @@ static Assignment consAddOp(const Equations &eqs, const IndexName *indices,
 
 static Multiplication consMultOp(const Equations &eqs, const IndexName *indices,
                                  std::map<std::string, tamm::Tensor> *tensors,
-                                 const MultOp mult) {
+                                 const MultOp &mult) {
   vector<IndexName> aids, bids, cids;
 
   int cndim = eqs.tensor_entries.at(mult.tc).ndim;

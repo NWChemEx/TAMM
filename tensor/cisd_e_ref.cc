@@ -90,8 +90,8 @@ void cisd_e_cxx_(Fint *d_f, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo, Fint *d_v,
   t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
   v->attach(*k_v_offset, 0, *d_v);
 
-#if 0
-    schedule_levels(tensors, ops);
+#if 1
+    schedule_levels(&tensors, &ops);
 #else
   op_e_1 = ops[0].mult;
   op_e_2 = ops[1].mult;

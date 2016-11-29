@@ -98,7 +98,7 @@ void t_assign2(const Tensor& tC, const vector<IndexName>& c_ids,
   }
 }
 
-void t_assign3(Assignment * a, gmem::Handle sync_ga, int spos) {
+void t_assign3(Assignment *a, gmem::Handle sync_ga, int spos) {
   assignTimer.start();
   t_assign2(a->tC(), a->cids(), a->tA(), a->aids(), &a->out_itr(), a->coef(),
       sync_ga, spos);

@@ -351,22 +351,22 @@ static void schedule(vector<std::map<std::string, tamm::Tensor> *> *tensors,
 
   size_t nlevels = 0;
   for (int e = 0; e < neqs; e++) {
-    nlevels = std::max(nlevels, op_levels[e].size());
-    assert(op_levels[e].size() == tensor_create_levels[e].size());
-    assert(op_levels[e].size() == tensor_destroy_levels[e].size());
+    nlevels = std::max(nlevels, (*op_levels)[e].size());
+    assert((*op_levels)[e].size() == (*tensor_create_levels)[e].size());
+    assert((*op_levels)[e].size() == (*tensor_destroy_levels)[e].size());
   }
   for (int e = 0; e < neqs; e++) {
-    op_levels[e].resize(nlevels);
-    tensor_create_levels[e].resize(nlevels);
-    tensor_destroy_levels[e].resize(nlevels);
+    (*op_levels)[e].resize(nlevels);
+    (*tensor_create_levels)[e].resize(nlevels);
+    (*tensor_destroy_levels)[e].resize(nlevels);
   }
 
   vector<gmem::Handle> sync_gas;
   for (int l = 0; l < nlevels; l++) {
     int taskDim = 0;
     for (int e = 0; e < neqs; e++) {
-      taskDim += op_levels[e][l].size();
-      assert(op_levels[e][l].size() >= 0);
+      taskDim += (*op_levels)[e][l].size();
+      assert((*op_levels)[e][l].size() >= 0);
     }
     char taskStr[10] = "NXTASK";
     gmem::Handle taskHandle = gmem::create(
@@ -378,19 +378,19 @@ static void schedule(vector<std::map<std::string, tamm::Tensor> *> *tensors,
 
   for (int l = 0; l < nlevels; l++) {
     for (int e = 0; e < neqs; e++) {
-      for (int t = 0; t < tensor_create_levels[e][l].size(); t++) {
+      for (int t = 0; t < (*tensor_create_levels)[e][l].size(); t++) {
         (*tensor_create_levels)[e][l][t]->create();
       }
     }
     gmem::sync();
     for (int e = 0, c = 0; e < neqs; e++) {
-      for (int o = 0; o < op_levels[e][l].size(); o++, c++) {
+      for (int o = 0; o < (*op_levels)[e][l].size(); o++, c++) {
         execute((*op_levels)[e][l][o], sync_gas[l], c);
       }
     }
     gmem::sync();
     for (int e = 0; e < neqs; e++) {
-      for (int t = 0; t < tensor_destroy_levels[e][l].size(); t++) {
+      for (int t = 0; t < (*tensor_destroy_levels)[e][l].size(); t++) {
         (*tensor_destroy_levels)[e][l][t]->destroy();
       }
     }

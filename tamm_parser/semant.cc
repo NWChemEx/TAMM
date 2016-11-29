@@ -71,7 +71,7 @@ void check_Decl(Decl *d, SymbolTable &symtab) {
                 std::exit(EXIT_FAILURE);
             }
             symtab.insert(SymbolTable::value_type(
-                    std::string(d->u.RangeDecl.name), constcharToChar((std::to_string(d->u.RangeDecl.value)).c_str())));
+                    std::string(d->u.RangeDecl.name), constcharToChar((std::to_string(static_cast<long long>(d->u.RangeDecl.value))).c_str())));
         }
             break;
         case Decl::is_IndexDecl: {

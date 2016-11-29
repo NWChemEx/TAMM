@@ -52,7 +52,6 @@ void ccsd_et12_cxx_(Integer *d_e, Integer *d_f1, Integer *d_v2, Integer *d_r1,
   //                k_e_offset, k_f1_offset, k_v2_offset,
   //                k_r1_offset, k_r2_offset, k_t_vo_offset, k_t_vvoo_offset);
   // return;
-
   Equations e_eqs, t1_eqs, t2_eqs;
   DistType idist = (Variables::intorb()) ? dist_nwi : dist_nw;
 
@@ -119,15 +118,15 @@ void ccsd_et12_cxx_(Integer *d_e, Integer *d_f1, Integer *d_v2, Integer *d_r1,
   }
 
 #if 0
-      vector<vector<Tensor> *> tensors(3);
-      vector<vector<Operation> *> ops(3);
-      tensors[0] = &e_tensors;
-      tensors[1] = &t1_tensors;
-      tensors[2] = &t2_tensors;
-      ops[0] = &e_ops;
-      ops[1] = &t1_ops;
-      ops[2] = &t2_ops;
-      schedule_levels(tensors, ops);
+  std::vector<std::vector<Tensor> *> tensors(3);
+  std::vector<std::vector<Operation> *> ops(3);
+  tensors[0] = &e_tensors;
+  tensors[1] = &t1_tensors;
+  tensors[2] = &t2_tensors;
+  ops[0] = &e_ops;
+  ops[1] = &t1_ops;
+  ops[2] = &t2_ops;
+  schedule_levels(&tensors, &ops);
 
 #else
   ccsd_e_cxx_(d_f1, d_e, d_t_vo, d_t_vvoo, d_v2, k_f1_offset, k_e_offset,

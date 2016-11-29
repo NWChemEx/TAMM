@@ -42,7 +42,8 @@ Handle create(Types type, int size, char *name) {
 void zero(Handle handle) { NGA_Zero(static_cast<int>(handle.value)); }
 
 int64_t atomic_fetch_add(Handle handle, int pos, int amount) {
-  return static_cast<int64_t>(NGA_Read_inc(static_cast<int>(handle.value), &pos, amount));
+  return static_cast<int64_t>(NGA_Read_inc(static_cast<int>(handle.value),
+                              &pos, amount));
 }
 
 uint64_t ranks() { return GA_Nnodes(); }

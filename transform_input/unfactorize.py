@@ -16,7 +16,7 @@ get_alpha = 1.0
 lhs_ops = []
 rhs_ops = []
 range_decls = []
-collect_array_decls = []
+collect_array_decls = OrderedDict()
 collect_index_decls = []
 
 def printres(s):
@@ -60,6 +60,36 @@ def printIndexList(il):
     return ilstr
 
 
+def convertFV(tensor, ids):
+    global collect_array_decls
+    if tensor != "f" and tensor != "v": return tensor
+    adims = []
+    type = tensor + "_"
+    for index in ids:
+        if (index[0] == 'h'):
+            type += 'o'
+            adims.append("O")
+        elif (index[0] == 'p'):
+            type += 'v'
+            adims.append("V")
+        else:
+            printres("arr index can only start with either p or h\n")
+
+    dimLen = len(adims)
+    if type not in collect_array_decls:
+        adecl = "array " + type + "(["
+        for l in adims[0:dimLen/2]:
+            adecl += l + ","
+        adecl = adecl[:-1]
+        adecl += "]["
+        for u in adims[dimLen/2:dimLen]:
+            adecl += u + ","
+        adecl = adecl[:-1]
+        adecl += "]);"
+        collect_array_decls[type] = adecl
+    return type
+
+
 class ExpandedOp:
     alpha = 1.0
     tensors = []
@@ -70,12 +100,16 @@ class ExpandedOp:
         self.tensors = []
         self.tensor_ids = []
 
+    def addFV(self):
+        for i,t in enumerate(self.tensors):
+            convertFV(t, self.tensor_ids[i])
+
     def printOp(self):
         op = ''
         if self.alpha > 0: op += "+"
         op += str(self.alpha)
         for i,t in enumerate(self.tensors):
-            op += " * " + t + printIndexList(self.tensor_ids[i])
+            op += " * " + convertFV(t, self.tensor_ids[i]) + printIndexList(self.tensor_ids[i])
         printnl(op)
 
 
@@ -306,6 +340,8 @@ class Unfactorize(ParseTreeVisitor):
         global collect_array_decls
         arrs = ctx.children[0]
         array_name = str(arrs.children[0])
+        if array_name == "f" or array_name == "v": return self.visitChildren(ctx)
+
         array_struct = arrs.children[1]
         lower = self.visitChildren(array_struct.children[1])
         upper = self.visitChildren(array_struct.children[4])
@@ -322,7 +358,7 @@ class Unfactorize(ParseTreeVisitor):
             adecl += "]);"
 
 
-        collect_array_decls.append(adecl)
+        collect_array_decls[array_name] = adecl
 
         return self.visitChildren(ctx)
 
@@ -520,12 +556,6 @@ if __name__ == '__main__':
         printnl("File name should be of the form ccsd_t1.eq")
         sys.exit(1)
 
-    print("/*")
-    with open(sys.argv[1],'r') as f:
-        for line in f:
-            print(" *  " + line.strip("\n"))
-    print("*/\n\n")
-
     visitor = Unfactorize(fname[0],fname[1])
     visitor.visit(tree)
 
@@ -544,17 +574,23 @@ if __name__ == '__main__':
     print("{\n")
     for decl in range_decls:
         print("range " + decl + " = 10;")
-    print("range N = 10;")
+    #print("range N = 10;")
     print("")
     for decl in collect_index_decls:
-        print(decl)
-    print("")
-    for decl in collect_array_decls:
         print(decl)
 
     print("")
     for o in outputs:
         final_ops[o] = (expandOp(o))
+
+    for o in final_ops:
+        for op in final_ops[o]:
+            op.addFV()
+
+    for decl in collect_array_decls:
+        print(collect_array_decls[decl])
+
+    print("")
 
     lhsOp = outputs[-1]
     printres(lhsOp.tc + printIndexList(lhsOp.tc_ids) + " = ")

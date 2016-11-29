@@ -124,8 +124,8 @@ void cisd_c2_cxx_(Integer *d_e, Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
   v->attach(*k_v_offset, 0, *d_v);
 
-#if 0
-    schedule_levels(tensors, ops);
+#if 1
+    schedule_levels(&tensors, &ops);
 #else
   op_c2_1 = ops[0].add;
   op_c2_2 = ops[1].mult;

@@ -56,7 +56,7 @@ void Assignment::execute(gmem::Handle sync_ga, int spos) {
   k_c_offset = tC().offset_index();*/
 
   // t_assign3(&d_a, &k_a_offset, &d_c, &k_c_offset, *this, sync_ga, spos);
-  t_assign3(*this, sync_ga, spos);
+  t_assign3(this, sync_ga, spos);
 }
 
 void Multiplication::genMemPos() {

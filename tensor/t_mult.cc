@@ -433,7 +433,7 @@ void t_mult4(Multiplication* m, gmem::Handle sync_ga, int spos) {
     coef *= m->coef();
     Assignment as(&m->tC(), &m->tB(), coef, id2name(m->c_ids),
                   id2name(m->b_ids));
-    t_assign3(as, sync_ga, spos);
+    t_assign3(&as, sync_ga, spos);
   } else if (m->tB().dim() == 0) {
     assert(m->tA().dim() != 0); /** @bug Cannot handle this case yet*/
     double coef;
@@ -442,7 +442,7 @@ void t_mult4(Multiplication* m, gmem::Handle sync_ga, int spos) {
     coef *= m->coef();
     Assignment as(&m->tC(), &m->tA(), coef, id2name(m->c_ids),
                   id2name(m->a_ids));
-    t_assign3(as, sync_ga, spos);
+    t_assign3(&as, sync_ga, spos);
     return;
   } else {
     t_mult3(m->tC(), m->tA(), m->tB(), m->coef(), m->sum_ids(), &m->sum_itr(),

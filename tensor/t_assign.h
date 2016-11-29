@@ -37,7 +37,7 @@ void t_assign2(const Tensor& tC, const std::vector<IndexName>& c_ids,
  * @param[in] d_a, k_a_offset, d_c, k_c_offset from FORTRAN
  * @param[in] a Assignment store all the input data needed for t_assign2
  */
-void t_assign3(const Assignment& a, gmem::Handle sync_ga = gmem::NULL_HANDLE,
+void t_assign3(Assignment* a, gmem::Handle sync_ga = gmem::NULL_HANDLE,
                int spos = 0);
 
 }  // namespace tamm

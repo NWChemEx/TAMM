@@ -39,10 +39,11 @@ Handle create(Types type, int size, char *name) {
   return handle;
 }
 
-void zero(Handle handle) { NGA_Zero(handle.value); }
+void zero(Handle handle) { NGA_Zero(static_cast<int>(handle.value)); }
 
 int64_t atomic_fetch_add(Handle handle, int pos, int amount) {
-  return static_cast<int64_t>(NGA_Read_inc(handle.value, &pos, amount));
+  return static_cast<int64_t>(NGA_Read_inc(static_cast<int>(handle.value),
+                              &pos, amount));
 }
 
 uint64_t ranks() { return GA_Nnodes(); }
@@ -55,14 +56,14 @@ void get(Handle handle, void *buf, int start, int stop) {
   int hi[2] = {0, stop};
   int tmp = 0;
 
-  NGA_Get(handle.value, lo, hi, buf, &tmp);
+  NGA_Get(static_cast<int>(handle.value), lo, hi, buf, &tmp);
 }
 
 void get(Handle handle, void *buf, int start, int stop, Wait_Handle * wait) {
   int lo[2] = {0, start};
   int hi[2] = {0, stop};
   int tmp = 0;
-  NGA_NbGet(handle.value, lo, hi, buf, &tmp,
+  NGA_NbGet(static_cast<int>(handle.value), lo, hi, buf, &tmp,
             reinterpret_cast<ga_nbhdl_t *>(wait->value));
 }
 
@@ -78,7 +79,7 @@ void acc(Handle handle, void *buf, int start, int stop) {
   int tmp = 0;
 
   double alpha = 1.0;
-  NGA_Acc(handle.value, lo, hi, buf, &tmp, &alpha);
+  NGA_Acc(static_cast<int>(handle.value), lo, hi, buf, &tmp, &alpha);
 }
 
 void op(double x[], int n, Operation op) { GA_Dgop(x, n, global_ops[op]); }

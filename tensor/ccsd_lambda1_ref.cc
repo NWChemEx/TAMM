@@ -1077,7 +1077,7 @@ CorFortran(1, &op_lambda1_6_2_1, ccsd_lambda1_6_2_1_);
   CorFortran(0, &op_lambda1_12, ccsd_lambda1_12_);
 #endif  // if 1 or 0 etc
   destroy(lambda1_12_1);
-#if 0  // following block not ok but work entirely in fortran or c++,
+#if 1  // following block works entirely in fortran or c++,
      // c++ results differ
   CorFortran(1, lambda1_13_1, offset_ccsd_lambda1_13_1_);
   CorFortran(1, &op_lambda1_13_1, ccsd_lambda1_13_1_);

@@ -21,9 +21,23 @@ if __name__ == '__main__':
 
     fname = os.path.basename(sys.argv[1])
     fname = fname.split(".")[0]
-    fname = fname.split("_")
+    fname = fname.rsplit("_",1)
 
-    print(fname[1] + " {\n")
+    methodName = fname[0]
+    oplabel = fname[0]
+
+    if len(fname) == 2:
+        oplabel = fname[1]
+
+
+    ci = 0
+    for c in oplabel:
+        if c.isdigit(): ci+=1
+        else: break
+
+    oplabel = oplabel[ci:]
+
+    print(oplabel + " {\n")
 
     visitor = OpminOutToTAMM()
     visitor.visitTranslation_unit(tree)

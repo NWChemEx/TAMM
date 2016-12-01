@@ -87,25 +87,39 @@ if __name__ == '__main__':
     fname = fname.split(".")[0]
     fname = fname.rsplit("_",1)
 
-    if (len(fname) != 2):
-        print "File name should be of the form ccsd_t1.eq"
-        sys.exit(1)
+    methodName = fname[0]
+    oplabel = fname[0]
+
+    if len(fname) == 2:
+        oplabel = fname[1]
 
 
-    visitor = NWChemTCEVisitorExecOrder(max_i,fname[0],fname[1])
+    ci = 0
+    for c in oplabel:
+        if c.isdigit(): ci+=1
+        else: break
+
+    oplabel = oplabel[ci:]
+
+    # if (len(fname) != 2):
+    #     print "File name should be of the form ccsd_t1.eq"
+    #     sys.exit(1)
+
+
+    visitor = NWChemTCEVisitorExecOrder(max_i,methodName,oplabel)
     res = visitor.visitTranslation_unit(tree)
 
     exec_order = res[0]
     array_decls = res[1]
 
-    visitor = NWChemTCEVisitor(fname[0],fname[1])
+    visitor = NWChemTCEVisitor(methodName,oplabel)
     for stmt in exec_order:
         visitor.visitStatement(stmt)
 
     code_idecls = visitor.getCode()
 
 
-    print fname[1] + " {\n"
+    print oplabel + " {\n"
 
     print_index_decls(res[2])
 

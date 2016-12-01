@@ -23,9 +23,19 @@ if __name__ == '__main__':
     fname = fname.split(".")[0]
     fname = fname.rsplit("_",1)
 
-    if (len(fname) != 2):
-        print "File name should be of the form ccsd_t1.eq"
-        sys.exit(1)
+    methodName = fname[0]
+    oplabel = fname[0]
+
+    if len(fname) == 2:
+        oplabel = fname[1]
+
+
+    ci = 0
+    for c in oplabel:
+        if c.isdigit(): ci+=1
+        else: break
+
+    oplabel = oplabel[ci:]
 
     print "/*"
     with open(sys.argv[1],'r') as f:
@@ -33,7 +43,7 @@ if __name__ == '__main__':
             print " *  " + line.strip("\n")
     print "*/\n\n"
 
-    visitor = OpMinVisitor(fname[0],fname[1])
+    visitor = OpMinVisitor(methodName,oplabel)
     visitor.visit(tree)
 
 

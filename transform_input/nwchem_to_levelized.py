@@ -85,7 +85,7 @@ if __name__ == '__main__':
 
     fname = os.path.basename(sys.argv[1])
     fname = fname.split(".")[0]
-    fname = fname.split("_",1)
+    fname = fname.rsplit("_",1)
 
     methodName = fname[0]
     oplabel = fname[0]

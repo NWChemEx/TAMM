@@ -815,7 +815,7 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   // lambda1_6_2_1->set_dist(dist_nwi);
   // lambda1_6_3_1->set_dist(dist_nw);
   // lambda1_6_5_1->set_dist(dist_nw);
-  y_oovv->set_dist(dist_nwi);
+  // y_oovv->set_dist(dist_nwi);
   i0->attach(*k_i0_offset, 0, *d_i0);
   f->attach(*k_f_offset, 0, *d_f);
   v->attach(*k_v_offset, 0, *d_v);

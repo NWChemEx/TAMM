@@ -85,7 +85,7 @@ if __name__ == '__main__':
 
     fname = os.path.basename(sys.argv[1])
     fname = fname.split(".")[0]
-    fname = fname.split("_")
+    fname = fname.rsplit("_",1)
 
     if (len(fname) != 2):
         print "File name should be of the form ccsd_t1.eq"

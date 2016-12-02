@@ -296,7 +296,7 @@ primary_expression : numerical_constant
 // array-reference
 array_reference : ID 
                   |
-                  ID LBRACKET id_list RBRACKET ;
+                  ID LBRACKET id_list_opt RBRACKET ;
 
 
 // expression                           

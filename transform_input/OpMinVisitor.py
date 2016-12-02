@@ -683,7 +683,7 @@ class OpminOutToTAMM(ParseTreeVisitor):
         aref = (aname + "[")
         ilist = ""
         if len(ctx.children) >= 2:
-            ilist = self.visitId_list(ctx.children[2])
+            ilist = self.visitId_list_opt(ctx.children[2])
         aref += (ilist) + "]"
         printresws(aref)
 

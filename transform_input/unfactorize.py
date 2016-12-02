@@ -122,6 +122,7 @@ class AddOp:
     tc_ids = []
     ta_ids = []
     expandedOp = ''
+    expand_a = False
 
     def __init__(self, tcname, taname, alp, tc_id, ta_id):
         self.tc = tcname
@@ -145,6 +146,7 @@ class MultOp:
     ta_ids = []
     ta_ids = []
     expandedOp = ''
+    expand_a = False
 
     def __init__(self, tcname, taname, tbname, alp, tc_id, ta_id, tb_id):
         self.tc = tcname
@@ -498,6 +500,7 @@ def unfact(op,outputs):
                 expandExp.append(o)
                 outputs = deleteOp(o,outputs)
         op.expandedOp = expandExp
+        if unfacExp_a in lhs_ops: op.expand_a = True
 
 
     # if expandExp:
@@ -528,12 +531,21 @@ def expandOp(op):
         ep = ExpandedOp()
         ep.alpha = op.alpha * eop.alpha
 
-        ep.tensors.append(op.ta)
-        ep.tensor_ids.append(op.ta_ids)
+        if op.expand_a:
+            for i, t in enumerate(eop.tensors):
+                ep.tensors.append(t)
+                ep.tensor_ids.append(eop.tensor_ids[i])
 
-        for i, t in enumerate(eop.tensors):
-            ep.tensors.append(t)
-            ep.tensor_ids.append(eop.tensor_ids[i])
+            ep.tensors.append(op.tb)
+            ep.tensor_ids.append(op.tb_ids)
+
+        else:
+            ep.tensors.append(op.ta)
+            ep.tensor_ids.append(op.ta_ids)
+
+            for i, t in enumerate(eop.tensors):
+                ep.tensors.append(t)
+                ep.tensor_ids.append(eop.tensor_ids[i])
 
         eop_all.append(ep)
 

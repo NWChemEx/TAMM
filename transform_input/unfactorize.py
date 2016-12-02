@@ -349,10 +349,6 @@ class Unfactorize(ParseTreeVisitor):
         array_struct = arrs.children[1]
         lower = self.visitChildren(array_struct.children[1])
         upper = self.visitChildren(array_struct.children[4])
-        adecl = "array " + array_name + "([][]);"
-
-        if "x_o" in array_name:
-            print("here")
 
         adecl = "array " + array_name + "(["
         if lower:

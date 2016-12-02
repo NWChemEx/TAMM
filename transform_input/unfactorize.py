@@ -52,6 +52,7 @@ def convert_to_float(frac_str):
 
 
 def printIndexList(il):
+    if not il: return  ""
     ilstr = "["
     for i in il:
         ilstr += i
@@ -257,7 +258,7 @@ class Unfactorize(ParseTreeVisitor):
         global get_lhs_aref, get_rhs_aref
         if isinstance(ctx,OpMinParser.Array_referenceContext):
             aname = str(ctx.children[0]) #print arrayname
-            ilist = self.visitId_list(ctx.children[2])
+            ilist = self.visitId_list_opt(ctx.children[2])
             get_lhs_aref = [aname,ilist]
             get_rhs_aref.append([aname,ilist])
 
@@ -265,7 +266,10 @@ class Unfactorize(ParseTreeVisitor):
     # Visit a parse tree produced by OpMinParser#id_list.
     def visitId_list(self, ctx):
         idecl = []
+#        if not ctx.children: return idecl
+        # if len(ctx.children) == 1: return idecl
         idecl.append(str(ctx.children[0].children[0]))
+
         var = ctx.children[1]
         while (var.children):
             idecl.append(str(var.children[1].children[0]))

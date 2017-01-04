@@ -6,7 +6,10 @@ An example for cascade:
 mkdir build && cd build
 
 //Setting the compiler linker etc below allows for make link to work correctly otherwise it uses gcc and system default ar:
-cmake $TAMM_PATH -DTAMM_BLAS_INC=/msc/apps/compilers/intel/15.0.090/composer_xe_2015.0.090/mkl/include/ -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_AR=/msc/apps/compilers/intel/15.0.090/composer_xe_2015.0.090/bin/intel64/xiar -DTAMM_INSTALL_PREFIX=$INSTALL_DIR
+cmake $TAMM_PATH -DTAMM_BLAS_INC=/msc/apps/compilers/intel_parallel_studio/compilers_and_libraries_2016/linux/mkl/include/ -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_AR=/msc/apps/compilers/intel_parallel_studio/compilers_and_libraries_2016/linux/bin/intel64/xiar
+
+cmake .. -DTAMM_BLAS_INC=/opt/intel/mkl/include/ -DTAMM_BLAS_LIB=/opt/intel/mkl/lib/intel64 -DCMAKE_CXX_COMPILER=icpc -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_C_COMPILER=icc
+
 
 make unpatch //Reverts gnumakefile
 make patch-only //Fixes gnumakefile 
@@ -15,6 +18,9 @@ make link //Installs and links with nwchem
 
 make test //Runs ctest
 make check //Runs ctest with all output
+
+
+make CC="clang++ -std=c++1y" LCC=clang
 
 ---------------------------------
 

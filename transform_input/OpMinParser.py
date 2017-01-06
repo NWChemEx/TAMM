@@ -1,4 +1,4 @@
-# Generated from /home/panyala/EclipseWS/workspacePTP/tamm/transform_input/OpMin.g4 by ANTLR 4.5.3
+# Generated from /home/panyala/EclipseWS/workspacePTP/tamm/transform_input/OpMin.g4 by ANTLR 4.6
 # encoding: utf-8
 from __future__ import print_function
 from antlr4 import *
@@ -246,7 +246,7 @@ class OpMinParser ( Parser ):
 
     def __init__(self, input):
         super(OpMinParser, self).__init__(input)
-        self.checkVersion("4.5.3")
+        self.checkVersion("4.6")
         self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA, self.sharedContextCache)
         self._predicates = None
 
@@ -339,16 +339,17 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 2, self.RULE_compound_element_list_opt)
         try:
             self.state = 91
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.EOF]:
                 self.enterOuterAlt(localctx, 1)
 
-
+                pass
             elif token in [OpMinParser.LBRACE, OpMinParser.ID]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 90
                 self.compound_element_list()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -452,18 +453,19 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 6, self.RULE_compound_element_list_prime)
         try:
             self.state = 100
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.EOF]:
                 self.enterOuterAlt(localctx, 1)
 
-
+                pass
             elif token in [OpMinParser.LBRACE, OpMinParser.ID]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 97
                 self.compound_element()
                 self.state = 98
                 self.compound_element_list_prime()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -523,6 +525,7 @@ class OpMinParser ( Parser ):
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 103
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==OpMinParser.ID:
                 self.state = 102
@@ -579,16 +582,17 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 10, self.RULE_element_list_opt)
         try:
             self.state = 111
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.RBRACE]:
                 self.enterOuterAlt(localctx, 1)
 
-
+                pass
             elif token in [OpMinParser.RANGE, OpMinParser.INDEX, OpMinParser.ARRAY, OpMinParser.EXPAND, OpMinParser.VOLATILE, OpMinParser.ITERATION, OpMinParser.PLUS, OpMinParser.MINUS, OpMinParser.LPAREN, OpMinParser.ID, OpMinParser.ICONST, OpMinParser.FRAC, OpMinParser.FCONST]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 110
                 self.element_list()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -692,18 +696,19 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 14, self.RULE_element_list_prime)
         try:
             self.state = 120
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.RBRACE]:
                 self.enterOuterAlt(localctx, 1)
 
-
+                pass
             elif token in [OpMinParser.RANGE, OpMinParser.INDEX, OpMinParser.ARRAY, OpMinParser.EXPAND, OpMinParser.VOLATILE, OpMinParser.ITERATION, OpMinParser.PLUS, OpMinParser.MINUS, OpMinParser.LPAREN, OpMinParser.ID, OpMinParser.ICONST, OpMinParser.FRAC, OpMinParser.FCONST]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 117
                 self.element()
                 self.state = 118
                 self.element_list_prime()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -755,17 +760,18 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 16, self.RULE_element)
         try:
             self.state = 124
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.RANGE, OpMinParser.INDEX, OpMinParser.ARRAY, OpMinParser.EXPAND, OpMinParser.VOLATILE, OpMinParser.ITERATION]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 122
                 self.declaration()
-
+                pass
             elif token in [OpMinParser.PLUS, OpMinParser.MINUS, OpMinParser.LPAREN, OpMinParser.ID, OpMinParser.ICONST, OpMinParser.FRAC, OpMinParser.FCONST]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 123
                 self.statement()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -833,37 +839,38 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 18, self.RULE_declaration)
         try:
             self.state = 132
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.RANGE]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 126
                 self.range_declaration()
-
+                pass
             elif token in [OpMinParser.INDEX]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 127
                 self.index_declaration()
-
+                pass
             elif token in [OpMinParser.ARRAY]:
                 self.enterOuterAlt(localctx, 3)
                 self.state = 128
                 self.array_declaration()
-
+                pass
             elif token in [OpMinParser.EXPAND]:
                 self.enterOuterAlt(localctx, 4)
                 self.state = 129
                 self.expansion_declaration()
-
+                pass
             elif token in [OpMinParser.VOLATILE]:
                 self.enterOuterAlt(localctx, 5)
                 self.state = 130
                 self.volatile_declaration()
-
+                pass
             elif token in [OpMinParser.ITERATION]:
                 self.enterOuterAlt(localctx, 6)
                 self.state = 131
                 self.iteration_declaration()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -911,16 +918,17 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 20, self.RULE_id_list_opt)
         try:
             self.state = 136
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.RBRACKET]:
                 self.enterOuterAlt(localctx, 1)
 
-
+                pass
             elif token in [OpMinParser.ID]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 135
                 self.id_list()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -1027,11 +1035,12 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 24, self.RULE_id_list_prime)
         try:
             self.state = 146
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.EQUALS, OpMinParser.RBRACKET, OpMinParser.SEMI]:
                 self.enterOuterAlt(localctx, 1)
 
-
+                pass
             elif token in [OpMinParser.COMMA]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 142
@@ -1040,7 +1049,7 @@ class OpMinParser ( Parser ):
                 self.identifier()
                 self.state = 144
                 self.id_list_prime()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -1147,11 +1156,12 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 28, self.RULE_num_list_prime)
         try:
             self.state = 156
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.RPAREN]:
                 self.enterOuterAlt(localctx, 1)
 
-
+                pass
             elif token in [OpMinParser.COMMA]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 152
@@ -1160,7 +1170,7 @@ class OpMinParser ( Parser ):
                 self.numerical_constant()
                 self.state = 154
                 self.num_list_prime()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -1264,6 +1274,7 @@ class OpMinParser ( Parser ):
             if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << OpMinParser.ICONST) | (1 << OpMinParser.FRAC) | (1 << OpMinParser.FCONST))) != 0)):
                 self._errHandler.recoverInline(self)
             else:
+                self._errHandler.reportMatch(self)
                 self.consume()
         except RecognitionException as re:
             localctx.exception = re
@@ -1462,6 +1473,7 @@ class OpMinParser ( Parser ):
             self.state = 175
             self.array_structure_list()
             self.state = 178
+            self._errHandler.sync(self)
             _la = self._input.LA(1)
             if _la==OpMinParser.COLON:
                 self.state = 176
@@ -1575,11 +1587,12 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 42, self.RULE_array_structure_list_prime)
         try:
             self.state = 190
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.COLON, OpMinParser.SEMI]:
                 self.enterOuterAlt(localctx, 1)
 
-
+                pass
             elif token in [OpMinParser.COMMA]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 186
@@ -1588,7 +1601,7 @@ class OpMinParser ( Parser ):
                 self.array_structure()
                 self.state = 188
                 self.array_structure_list_prime()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -1725,6 +1738,7 @@ class OpMinParser ( Parser ):
             self.state = 200
             self.match(OpMinParser.ID)
             self.state = 206
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.LPAREN]:
                 self.state = 201
@@ -1733,11 +1747,11 @@ class OpMinParser ( Parser ):
                 self.astruct()
                 self.state = 203
                 self.match(OpMinParser.RPAREN)
-
+                pass
             elif token in [OpMinParser.LBRACKET]:
                 self.state = 205
                 self.astruct()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -1788,7 +1802,7 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 48, self.RULE_permut_symmetry_opt)
         try:
             self.state = 211
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,13,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
@@ -1904,18 +1918,19 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 52, self.RULE_symmetry_group_list_prime)
         try:
             self.state = 220
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.RPAREN, OpMinParser.COMMA, OpMinParser.COLON, OpMinParser.SEMI]:
                 self.enterOuterAlt(localctx, 1)
 
-
+                pass
             elif token in [OpMinParser.LPAREN]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 217
                 self.symmetry_group()
                 self.state = 218
                 self.symmetry_group_list_prime()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -2256,7 +2271,7 @@ class OpMinParser ( Parser ):
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 244
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,15,self._ctx)
             if la_ == 1:
                 self.state = 241
@@ -2331,6 +2346,7 @@ class OpMinParser ( Parser ):
             if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << OpMinParser.EQUALS) | (1 << OpMinParser.TIMESEQUAL) | (1 << OpMinParser.PLUSEQUAL) | (1 << OpMinParser.MINUSEQUAL))) != 0)):
                 self._errHandler.recoverInline(self)
             else:
+                self._errHandler.reportMatch(self)
                 self.consume()
         except RecognitionException as re:
             localctx.exception = re
@@ -2386,26 +2402,27 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 68, self.RULE_unary_expression)
         try:
             self.state = 258
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.LPAREN, OpMinParser.ID, OpMinParser.ICONST, OpMinParser.FRAC, OpMinParser.FCONST]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 253
                 self.primary_expression()
-
+                pass
             elif token in [OpMinParser.PLUS]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 254
                 self.match(OpMinParser.PLUS)
                 self.state = 255
                 self.unary_expression()
-
+                pass
             elif token in [OpMinParser.MINUS]:
                 self.enterOuterAlt(localctx, 3)
                 self.state = 256
                 self.match(OpMinParser.MINUS)
                 self.state = 257
                 self.unary_expression()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -2467,17 +2484,18 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 70, self.RULE_primary_expression)
         try:
             self.state = 266
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.ICONST, OpMinParser.FRAC, OpMinParser.FCONST]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 260
                 self.numerical_constant()
-
+                pass
             elif token in [OpMinParser.ID]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 261
                 self.array_reference()
-
+                pass
             elif token in [OpMinParser.LPAREN]:
                 self.enterOuterAlt(localctx, 3)
                 self.state = 262
@@ -2486,7 +2504,7 @@ class OpMinParser ( Parser ):
                 self.expression()
                 self.state = 264
                 self.match(OpMinParser.RPAREN)
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -2543,7 +2561,7 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 72, self.RULE_array_reference)
         try:
             self.state = 274
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,18,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
@@ -2662,6 +2680,7 @@ class OpMinParser ( Parser ):
             if not(_la==OpMinParser.PLUS or _la==OpMinParser.MINUS):
                 self._errHandler.recoverInline(self)
             else:
+                self._errHandler.reportMatch(self)
                 self.consume()
         except RecognitionException as re:
             localctx.exception = re
@@ -2767,11 +2786,12 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 80, self.RULE_additive_expression_prime)
         try:
             self.state = 288
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.EQUALS, OpMinParser.TIMESEQUAL, OpMinParser.PLUSEQUAL, OpMinParser.MINUSEQUAL, OpMinParser.RPAREN, OpMinParser.SEMI]:
                 self.enterOuterAlt(localctx, 1)
 
-
+                pass
             elif token in [OpMinParser.PLUS, OpMinParser.MINUS]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 284
@@ -2780,7 +2800,7 @@ class OpMinParser ( Parser ):
                 self.multiplicative_expression()
                 self.state = 286
                 self.additive_expression_prime()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -2887,11 +2907,12 @@ class OpMinParser ( Parser ):
         self.enterRule(localctx, 84, self.RULE_multiplicative_expression_prime)
         try:
             self.state = 298
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [OpMinParser.PLUS, OpMinParser.MINUS, OpMinParser.EQUALS, OpMinParser.TIMESEQUAL, OpMinParser.PLUSEQUAL, OpMinParser.MINUSEQUAL, OpMinParser.RPAREN, OpMinParser.SEMI]:
                 self.enterOuterAlt(localctx, 1)
 
-
+                pass
             elif token in [OpMinParser.TIMES]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 294
@@ -2900,7 +2921,7 @@ class OpMinParser ( Parser ):
                 self.unary_expression()
                 self.state = 296
                 self.multiplicative_expression_prime()
-
+                pass
             else:
                 raise NoViableAltException(self)
 

@@ -1,4 +1,4 @@
-# Generated from /home/panyala/EclipseWS/workspacePTP/tamm/tamm_parser/transform_input/OpMin.g4 by ANTLR 4.5.3
+# Generated from /home/panyala/EclipseWS/workspacePTP/tamm/transform_input/OpMin.g4 by ANTLR 4.6
 # encoding: utf-8
 from __future__ import print_function
 from antlr4 import *
@@ -175,7 +175,7 @@ class OpMinLexer(Lexer):
 
     def __init__(self, input=None):
         super(OpMinLexer, self).__init__(input)
-        self.checkVersion("4.5.3")
+        self.checkVersion("4.6")
         self._interp = LexerATNSimulator(self, self.atn, self.decisionsToDFA, PredictionContextCache())
         self._actions = None
         self._predicates = None

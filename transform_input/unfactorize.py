@@ -1,12 +1,12 @@
 from __future__ import print_function
 
-
 import os
 import sys
 from antlr4 import *
 from collections import OrderedDict
 from OpMinLexer import OpMinLexer
 from OpMinParser import OpMinParser
+
 
 indent = 0
 orig_ops = []

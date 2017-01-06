@@ -1,4 +1,4 @@
-# Generated from /home/panyala/EclipseWS/workspacePTP/tamm/tamm_parser/transform_input/NWChemTCE.g4 by ANTLR 4.5.3
+# Generated from /home/panyala/EclipseWS/workspacePTP/tamm/transform_input/NWChemTCE.g4 by ANTLR 4.6
 # encoding: utf-8
 from __future__ import print_function
 from antlr4 import *
@@ -103,7 +103,7 @@ class NWChemTCEParser ( Parser ):
 
     def __init__(self, input):
         super(NWChemTCEParser, self).__init__(input)
-        self.checkVersion("4.5.3")
+        self.checkVersion("4.6")
         self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA, self.sharedContextCache)
         self._predicates = None
 
@@ -130,14 +130,6 @@ class NWChemTCEParser ( Parser ):
         def getRuleIndex(self):
             return NWChemTCEParser.RULE_assignment_operator
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterAssignment_operator"):
-                listener.enterAssignment_operator(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitAssignment_operator"):
-                listener.exitAssignment_operator(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitAssignment_operator"):
                 return visitor.visitAssignment_operator(self)
@@ -153,33 +145,34 @@ class NWChemTCEParser ( Parser ):
         self.enterRule(localctx, 0, self.RULE_assignment_operator)
         try:
             self.state = 33
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [NWChemTCEParser.EQUALS]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 26
                 self.match(NWChemTCEParser.EQUALS)
-
+                pass
             elif token in [NWChemTCEParser.PLUS]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 27
                 self.match(NWChemTCEParser.PLUS)
                 self.state = 28
                 self.match(NWChemTCEParser.EQUALS)
-
+                pass
             elif token in [NWChemTCEParser.MINUS]:
                 self.enterOuterAlt(localctx, 3)
                 self.state = 29
                 self.match(NWChemTCEParser.MINUS)
                 self.state = 30
                 self.match(NWChemTCEParser.EQUALS)
-
+                pass
             elif token in [NWChemTCEParser.TIMES]:
                 self.enterOuterAlt(localctx, 4)
                 self.state = 31
                 self.match(NWChemTCEParser.TIMES)
                 self.state = 32
                 self.match(NWChemTCEParser.EQUALS)
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -209,14 +202,6 @@ class NWChemTCEParser ( Parser ):
         def getRuleIndex(self):
             return NWChemTCEParser.RULE_numerical_constant
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterNumerical_constant"):
-                listener.enterNumerical_constant(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitNumerical_constant"):
-                listener.exitNumerical_constant(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitNumerical_constant"):
                 return visitor.visitNumerical_constant(self)
@@ -238,6 +223,7 @@ class NWChemTCEParser ( Parser ):
             if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << NWChemTCEParser.ICONST) | (1 << NWChemTCEParser.FCONST) | (1 << NWChemTCEParser.FRAC))) != 0)):
                 self._errHandler.recoverInline(self)
             else:
+                self._errHandler.reportMatch(self)
                 self.consume()
         except RecognitionException as re:
             localctx.exception = re
@@ -262,14 +248,6 @@ class NWChemTCEParser ( Parser ):
         def getRuleIndex(self):
             return NWChemTCEParser.RULE_plusORminus
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterPlusORminus"):
-                listener.enterPlusORminus(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitPlusORminus"):
-                listener.exitPlusORminus(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitPlusORminus"):
                 return visitor.visitPlusORminus(self)
@@ -291,6 +269,7 @@ class NWChemTCEParser ( Parser ):
             if not(_la==NWChemTCEParser.PLUS or _la==NWChemTCEParser.MINUS):
                 self._errHandler.recoverInline(self)
             else:
+                self._errHandler.reportMatch(self)
                 self.consume()
         except RecognitionException as re:
             localctx.exception = re
@@ -312,14 +291,6 @@ class NWChemTCEParser ( Parser ):
 
         def getRuleIndex(self):
             return NWChemTCEParser.RULE_translation_unit
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterTranslation_unit"):
-                listener.enterTranslation_unit(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitTranslation_unit"):
-                listener.exitTranslation_unit(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitTranslation_unit"):
@@ -362,14 +333,6 @@ class NWChemTCEParser ( Parser ):
         def getRuleIndex(self):
             return NWChemTCEParser.RULE_compound_element_list_opt
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterCompound_element_list_opt"):
-                listener.enterCompound_element_list_opt(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitCompound_element_list_opt"):
-                listener.exitCompound_element_list_opt(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitCompound_element_list_opt"):
                 return visitor.visitCompound_element_list_opt(self)
@@ -385,17 +348,18 @@ class NWChemTCEParser ( Parser ):
         self.enterRule(localctx, 8, self.RULE_compound_element_list_opt)
         try:
             self.state = 43
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [NWChemTCEParser.EOF]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 41
                 self.match(NWChemTCEParser.EOF)
-
+                pass
             elif token in [NWChemTCEParser.ID]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 42
                 self.compound_element_list()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -422,14 +386,6 @@ class NWChemTCEParser ( Parser ):
 
         def getRuleIndex(self):
             return NWChemTCEParser.RULE_compound_element_list
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterCompound_element_list"):
-                listener.enterCompound_element_list(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitCompound_element_list"):
-                listener.exitCompound_element_list(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitCompound_element_list"):
@@ -488,14 +444,6 @@ class NWChemTCEParser ( Parser ):
         def getRuleIndex(self):
             return NWChemTCEParser.RULE_statement
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterStatement"):
-                listener.enterStatement(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitStatement"):
-                listener.exitStatement(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitStatement"):
                 return visitor.visitStatement(self)
@@ -543,14 +491,6 @@ class NWChemTCEParser ( Parser ):
 
         def getRuleIndex(self):
             return NWChemTCEParser.RULE_perm
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterPerm"):
-                listener.enterPerm(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitPerm"):
-                listener.exitPerm(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitPerm"):
@@ -636,14 +576,6 @@ class NWChemTCEParser ( Parser ):
         def getRuleIndex(self):
             return NWChemTCEParser.RULE_ptype
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterPtype"):
-                listener.enterPtype(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitPtype"):
-                listener.exitPtype(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitPtype"):
                 return visitor.visitPtype(self)
@@ -665,28 +597,30 @@ class NWChemTCEParser ( Parser ):
             _la = self._input.LA(1)
             while True:
                 self.state = 73
+                self._errHandler.sync(self)
                 token = self._input.LA(1)
                 if token in [NWChemTCEParser.TIMES]:
                     self.state = 59
                     self.match(NWChemTCEParser.TIMES)
                     self.state = 63
+                    self._errHandler.sync(self)
                     token = self._input.LA(1)
                     if token in [NWChemTCEParser.T__0]:
                         self.state = 60
                         self.perm()
-
+                        pass
                     elif token in [NWChemTCEParser.SUM]:
                         self.state = 61
                         self.sumExp()
-
+                        pass
                     elif token in [NWChemTCEParser.ID]:
                         self.state = 62
                         self.array_reference()
-
+                        pass
                     else:
                         raise NoViableAltException(self)
 
-
+                    pass
                 elif token in [NWChemTCEParser.PLUS, NWChemTCEParser.MINUS, NWChemTCEParser.ICONST, NWChemTCEParser.FCONST, NWChemTCEParser.FRAC]:
                     self.state = 69 
                     self._errHandler.sync(self)
@@ -694,6 +628,7 @@ class NWChemTCEParser ( Parser ):
                     while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
                         if _alt == 1:
                             self.state = 66
+                            self._errHandler.sync(self)
                             _la = self._input.LA(1)
                             if _la==NWChemTCEParser.PLUS or _la==NWChemTCEParser.MINUS:
                                 self.state = 65
@@ -709,7 +644,7 @@ class NWChemTCEParser ( Parser ):
                         self._errHandler.sync(self)
                         _alt = self._interp.adaptivePredict(self._input,5,self._ctx)
 
-
+                    pass
                 else:
                     raise NoViableAltException(self)
 
@@ -753,14 +688,6 @@ class NWChemTCEParser ( Parser ):
 
         def getRuleIndex(self):
             return NWChemTCEParser.RULE_sumExp
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterSumExp"):
-                listener.enterSumExp(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitSumExp"):
-                listener.exitSumExp(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitSumExp"):
@@ -818,14 +745,6 @@ class NWChemTCEParser ( Parser ):
         def getRuleIndex(self):
             return NWChemTCEParser.RULE_id_list
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterId_list"):
-                listener.enterId_list(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitId_list"):
-                listener.exitId_list(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitId_list"):
                 return visitor.visitId_list(self)
@@ -871,14 +790,6 @@ class NWChemTCEParser ( Parser ):
 
         def getRuleIndex(self):
             return NWChemTCEParser.RULE_identifier
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterIdentifier"):
-                listener.enterIdentifier(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitIdentifier"):
-                listener.exitIdentifier(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitIdentifier"):
@@ -931,14 +842,6 @@ class NWChemTCEParser ( Parser ):
         def getRuleIndex(self):
             return NWChemTCEParser.RULE_array_reference
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterArray_reference"):
-                listener.enterArray_reference(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitArray_reference"):
-                listener.exitArray_reference(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitArray_reference"):
                 return visitor.visitArray_reference(self)
@@ -954,7 +857,7 @@ class NWChemTCEParser ( Parser ):
         self.enterRule(localctx, 24, self.RULE_array_reference)
         try:
             self.state = 104
-            self._errHandler.sync(self);
+            self._errHandler.sync(self)
             la_ = self._interp.adaptivePredict(self._input,10,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)

@@ -28,6 +28,7 @@ c
       logical nodezero
       integer dummy
       integer unitn
+      integer fldgts
       character*255 filename
 c
       nodezero=(ga_nodeid().eq.0)
@@ -37,6 +38,16 @@ c
       endif
 c
       call tce_diis_init()
+c       if (.not.rtdb_get(rtdb,'tce:maxioprocs',mt_int,1,max_ioprocs_in)) 
+c     4      max_ioprocs_in=4
+c     number of digits for parallel file prefix (util_file_name0 last arg)
+       if (.not.rtdb_get(rtdb,'tce:filedgts',mt_int,1,fldgts)) 
+     A      fldgts=5
+       if(max_ioprocs_in.gt.10**fldgts) then
+          fldgts=log10(dble(max_ioprocs_in))+1
+          if(ga_nodeid().eq.0) write(6,*)
+     R         ' tce:filedgts redefined to ',fldgts
+       endif
       do iter=1,maxiter
         cpu=-util_cpusec()
         wall=-util_wallsec()
@@ -191,10 +202,10 @@ cxxxxxxxxxxxxxxxxxxxx
      &k_range, k_spin, k_sym, intorb, restricted,
      &irrep_v, irrep_t, irrep_f)
       call set_k_alpha_cxx(k_alpha)
-c           call ccsd_t12_cxx(d_f1, d_v2, d_r1, d_r2, k_t1_local, d_t2, 
+c           call ccsd_t12_cxx(d_f1, d_v2, d_r1, d_r2, k_t1_local, d_t2,
 c     1          k_f1_offset, k_v2_offset, k_t1_offset, k_t2_offset,
 c     2          k_t1_offset, k_t2_offset)
-           call ccsd_et12_cxx(d_e,d_f1, d_v2, d_r1, d_r2, k_t1_local, 
+           call ccsd_et12_cxx(d_e,d_f1, d_v2, d_r1, d_r2, k_t1_local,
      1     d_t2, k_e_offset,
      1          k_f1_offset, k_v2_offset, k_t1_offset, k_t2_offset,
      2          k_t1_offset, k_t2_offset)
@@ -287,10 +298,10 @@ c          write(LuOut,9101) cpusecs(37),cpusecs(38)
         if (nodezero) call util_flush(LuOut)
       enddo
 c
-          call util_file_name('t1amp',.false.,.true.,filename)
+          call util_file_name0('t1amp',.false.,.true.,filename,fldgts)
           unitn=79
           call write_tensor(filename,d_t1,size_t1,unitn)
-          call util_file_name('t2amp',.false.,.true.,filename)
+          call util_file_name0('t2amp',.false.,.true.,filename,fldgts)
           unitn=80
           call write_tensor(filename,d_t2,size_t2,unitn)
           call ga_sync()
@@ -326,7 +337,7 @@ c
  9700 format(1x,'Skipping CCSD altogether')
       end
 
-c $Id: ccsd_energy_loc.F 27438 2015-09-01 00:36:18Z edo $
+c $Id: ccsd_energy_loc.F 28319 2016-07-01 01:08:54Z edo $
 !
       SUBROUTINE name_and_create(d_a, size_a)
       IMPLICIT NONE

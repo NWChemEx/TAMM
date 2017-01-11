@@ -88,6 +88,22 @@ void eaccsd_x2_equations(tamm::Equations *eqs) {
   parse_equations("eaccsd_x2.eq", eqs);
 }
 
+void ccsd_1prdm_hh_equations(tamm::Equations *eqs) {
+  parse_equations("ccsd_1prdm_hh.eq", eqs);
+}
+
+void ccsd_1prdm_pp_equations(tamm::Equations *eqs) {
+  parse_equations("ccsd_1prdm_pp.eq", eqs);
+}
+
+void ccsd_1prdm_hp_equations(tamm::Equations *eqs) {
+  parse_equations("ccsd_1prdm_hp.eq", eqs);
+}
+
+void ccsd_1prdm_ph_equations(tamm::Equations *eqs) {
+  parse_equations("ccsd_1prdm_ph.eq", eqs);
+}
+
 static void parse_equations(const string &filename, tamm::Equations *ceqs) {
   ::Equations peqs;
   string full_name = string(TAMM_EQ_PATH) + string("/") + filename;

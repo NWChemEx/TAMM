@@ -31,6 +31,7 @@ class Variables {
   static void set_idmb(Integer *int_mb, double *dbl_mb);
   static void set_irrep(Integer *irrep_v, Integer *irrep_t, Integer *irrep_f);
   static void set_irrep_x(Integer *irrep_x);
+  static void set_irrep_y(Integer *irrep_y);
   static void set_k1(Integer *k_range, Integer *k_spin, Integer *k_sym);
   static void set_log(logical *intorb, logical *restricted);
   static void set_k2(Integer *k_offset, Integer *k_evl_sorted);
@@ -45,6 +46,8 @@ class Variables {
   static void set_k2_cxx_(Integer *k_offset, Integer *k_evl_sorted);
 
   static void set_irrep_x_cxx_(Integer *irrep_x);
+
+  static void set_irrep_y_cxx_(Integer *irrep_y);
 
   /**
    * Set FORTRAN global parameters

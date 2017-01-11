@@ -77,6 +77,11 @@ c
      1     d_lambda2,k_f1_offset,k_l1_offset,k_t1_offset,
      2     k_t2_offset,k_v2_offset,k_l1_offset,k_l2_offset)
 #else
+      call set_var_cxx(noab, nvab, int_mb, dbl_mb,
+     &k_range, k_spin, k_sym, intorb, restricted,
+     &irrep_v, irrep_t, irrep_f)
+
+      call set_irrep_y_cxx(irrep_y)
         call ccsd_lambda1_cxx(d_f1,d_lr1,d_t1,d_t2,d_v2,d_lambda1,
      1     d_lambda2,k_f1_offset,k_l1_offset,k_t1_offset,
      2     k_t2_offset,k_v2_offset,k_l1_offset,k_l2_offset)
@@ -118,10 +123,20 @@ c     ====================
       call tce_filename('hh',filename)
       call tce_dens_hh_offset(l_hh_offset,k_hh_offset,size_hh)
       call createfile(filename,d_hh,size_hh)
+#if 0
       call ccsd_1pdm_hh_mo(d_hh,d_t1,d_t2,
      1     d_lambda1,d_lambda2,
      2     k_hh_offset,k_t1_offset,k_t2_offset,
      1     k_l1_offset,k_l2_offset)
+#else
+      call set_var_cxx(noab, nvab, int_mb, dbl_mb,
+     &k_range, k_spin, k_sym, intorb, restricted,
+     &irrep_v, irrep_t, irrep_f)
+      call ccsd_1prdm_hh_cxx(d_hh,d_t1,d_t2,
+     1     d_lambda1,d_lambda2,
+     2     k_hh_offset,k_t1_offset,k_t2_offset,
+     1     k_l1_offset,k_l2_offset)
+#endif
       call reconcilefile(d_hh,size_hh)
       call tce_dens_hh_print(d_hh,k_hh_offset,printtol,irrep_y)
 c     ============================
@@ -134,10 +149,17 @@ c     ============================
       call tce_filename('pp',filename)
       call tce_dens_pp_offset(l_pp_offset,k_pp_offset,size_pp)
       call createfile(filename,d_pp,size_pp)
+#if 0
       call ccsd_1pdm_pp_mo(d_pp,d_t1,d_t2,
      1     d_lambda1,d_lambda2,
      2     k_pp_offset,k_t1_offset,k_t2_offset,
      3     k_l1_offset,k_l2_offset)
+#else
+      call ccsd_1prdm_pp_cxx(d_pp,d_t1,d_t2,
+     1     d_lambda1,d_lambda2,
+     2     k_pp_offset,k_t1_offset,k_t2_offset,
+     3     k_l1_offset,k_l2_offset)
+#endif
       call reconcilefile(d_pp,size_pp)
       call tce_dens_pp_print(d_pp,k_pp_offset,printtol,irrep_y)
 c     ========================
@@ -150,7 +172,11 @@ c     ========================
       call tce_filename('hp',filename)
       call tce_dens_hp_offset(l_hp_offset,k_hp_offset,size_hp)
       call createfile(filename,d_hp,size_hp)
+#if 0
       call ccsd_1pdm_hp_mo(d_hp,d_lambda1,k_hp_offset,k_l1_offset)
+#else
+      call ccsd_1prdm_hp_cxx(d_hp,d_lambda1,k_hp_offset,k_l1_offset)
+#endif
       call reconcilefile(d_hp,size_hp)
       call tce_dens_hp_print(d_hp,k_hp_offset,printtol,irrep_y)
 c     ========================
@@ -163,8 +189,13 @@ c     ========================
       call tce_filename('ph',filename)
       call tce_dens_ph_offset(l_ph_offset,k_ph_offset,size_ph)
       call createfile(filename,d_ph,size_ph)
+#if 0
       call ccsd_1pdm_ph_mo(d_ph,d_t1,d_t2,d_lambda1,d_lambda2,
      1     k_ph_offset,k_t1_offset,k_t2_offset,k_l1_offset,k_l2_offset)
+#else
+      call ccsd_1prdm_ph_cxx(d_ph,d_t1,d_t2,d_lambda1,d_lambda2,
+     1     k_ph_offset,k_t1_offset,k_t2_offset,k_l1_offset,k_l2_offset)
+#endif
       call reconcilefile(d_ph,size_ph)
       call tce_dens_ph_print(d_ph,k_ph_offset,printtol,irrep_y)
 c

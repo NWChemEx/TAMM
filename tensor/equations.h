@@ -44,6 +44,10 @@ void ipccsd_x1_equations(Equations *eqs);
 void ipccsd_x2_equations(Equations *eqs);
 void eaccsd_x1_equations(Equations *eqs);
 void eaccsd_x2_equations(Equations *eqs);
+void ccsd_1prdm_hh_equations(Equations *eqs);
+void ccsd_1prdm_pp_equations(Equations *eqs);
+void ccsd_1prdm_hp_equations(Equations *eqs);
+void ccsd_1prdm_ph_equations(Equations *eqs);
 
 void parser_eqs_to_tamm_eqs(const ::Equations &eqs, tamm::Equations *ceqs);
 

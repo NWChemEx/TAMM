@@ -107,6 +107,10 @@ set(tammLibSources
   tensor/ipccsd_x2_ref.cc
   tensor/eaccsd_x1_ref.cc
   tensor/eaccsd_x2_ref.cc
+  tensor/ccsd_1prdm_hh_ref.cc
+  tensor/ccsd_1prdm_pp_ref.cc
+  tensor/ccsd_1prdm_hp_ref.cc
+  tensor/ccsd_1prdm_ph_ref.cc
   tensor/corf.cc
   tensor/dummy.cc
   tensor/equations.cc

@@ -75,6 +75,7 @@ void Variables::set_irrep(Integer *irrep_v, Integer *irrep_t,
   irrep_f_ = *irrep_f;
 }
 void Variables::set_irrep_x(Integer *irrep_x) { irrep_x_ = *irrep_x; }
+void Variables::set_irrep_y(Integer *irrep_y) { irrep_y_ = *irrep_y; }
 void Variables::set_k1(Integer *k_range, Integer *k_spin, Integer *k_sym) {
   k_range_ = *k_range;
   k_spin_ = *k_spin;
@@ -105,6 +106,8 @@ void set_k2_cxx_(Integer *k_offset, Integer *k_evl_sorted) {
 }
 
 void set_irrep_x_cxx_(Integer *irrep_x) { Variables::set_irrep_x(irrep_x); }
+
+void set_irrep_y_cxx_(Integer *irrep_y) { Variables::set_irrep_y(irrep_y); }
 
 void set_ova_cxx_(Integer *noa, Integer *nva) { Variables::set_ova(noa, nva); }
 void set_var_cxx_(Integer *noab, Integer *nvab, Integer *int_mb, double *dbl_mb,

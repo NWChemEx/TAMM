@@ -219,11 +219,14 @@ class Unfactorize(ParseTreeVisitor):
         lhs = ctx.children[0]
         assignOp = ctx.children[1]
         rhs = ctx.children[2]
+
+        #check if operation label exists
         if str(assignOp).strip() == ":":
             lhs = ctx.children[2]
             assignOp = ctx.children[3]
             rhs = ctx.children[4]
 
+        #get lhs and rhs array refs
         self.visitChildren(lhs)
         lhs_aref = get_lhs_aref
 
@@ -233,6 +236,7 @@ class Unfactorize(ParseTreeVisitor):
         get_lhs_aref = []
         get_rhs_aref = []
 
+        #Remove lhs array ref if it exists in rhs ex: A += 1*B is expanded by the parser to A=A+1*B
         ac_rhs = []
         for i in rhs_aref:
             if i[0]!=lhs_aref[0]:
@@ -241,17 +245,21 @@ class Unfactorize(ParseTreeVisitor):
         lra = len(ac_rhs)
         assert lra==1 or lra==2
 
+        #Check if it is an Add or Mult Operation
         newop = ''
         if lra == 1: newop = AddOp(lhs_aref[0],ac_rhs[0][0],get_alpha,lhs_aref[1],ac_rhs[0][1])
         elif lra == 2: newop = MultOp(lhs_aref[0],ac_rhs[0][0],ac_rhs[1][0],get_alpha,lhs_aref[1],ac_rhs[0][1],ac_rhs[1][1])
         assert newop
 
+        #record all unique arrays that appear on lhs and rhs of any op
         if lhs_aref[0] not in lhs_ops: lhs_ops.append(lhs_aref[0])
         if ac_rhs[0][0] not in rhs_ops: rhs_ops.append(ac_rhs[0][0])
         if lra == 2:
             if ac_rhs[1][0] not in rhs_ops: rhs_ops.append(ac_rhs[1][0])
 
         get_alpha = 1.0
+
+        #store current op
         orig_ops.append(newop)
 
 
@@ -476,7 +484,6 @@ def deleteOp(op,outputs):
     for o in outputs:
         if op.tc != o.tc:
             newout.append(o)
-
     return newout
 
 
@@ -494,12 +501,18 @@ def unfact(op,outputs):
         unfacExp_b = tb
 
     expandExp = []
+    #if rhs array refs of an op are in lhs_ops, then they need to be expanded
     if unfacExp_a in lhs_ops or unfacExp_b in lhs_ops:
+        #get all ops where rhs arefs of current op are defined
         for o in orig_ops:
             if o.tc == unfacExp_a or o.tc == unfacExp_b:
                 expandExp.append(o)
-                outputs = deleteOp(o,outputs)
+                # remove these ops since they will be unfactorized in current op
+                # outputs has ops that contain terms that do not need to be expanded
+                #outputs = deleteOp(o,outputs)
+        #Add the ops to be expanded in current op
         op.expandedOp = expandExp
+        #Specify whether we expand ta
         if unfacExp_a in lhs_ops: op.expand_a = True
 
 
@@ -510,6 +523,7 @@ def unfact(op,outputs):
 
 
 def expandOp(op):
+    #if it does not have terms to expand, create an expandOp obj containing op and return
     if not op.expandedOp:
         ep = ExpandedOp()
         ep.alpha = op.alpha
@@ -522,15 +536,18 @@ def expandOp(op):
         return [ep]
 
     expanded_ops = []
+    #get each op in expandedOp list as an expandedOp obj
     for eop in op.expandedOp:
         eops = (expandOp(eop))
         expanded_ops.extend(eops)
 
     eop_all = []
+    #For each expanded op in the list, multiply alphas and other terms
     for eop in expanded_ops:
         ep = ExpandedOp()
         ep.alpha = op.alpha * eop.alpha
 
+        #Expand ta
         if op.expand_a:
             for i, t in enumerate(eop.tensors):
                 ep.tensors.append(t)
@@ -539,7 +556,7 @@ def expandOp(op):
             ep.tensors.append(op.tb)
             ep.tensor_ids.append(op.tb_ids)
 
-        else:
+        else: #Expand tb
             ep.tensors.append(op.ta)
             ep.tensor_ids.append(op.ta_ids)
 
@@ -584,14 +601,17 @@ if __name__ == '__main__':
     oplabel = oplabel[ci:]
 
     visitor = Unfactorize(methodName,oplabel)
+    #get all operations in input file as AddOp and MultOp objects, get all unique array references in lhs and rhs of all ops
     visitor.visit(tree)
 
     # for op in orig_ops:
     #     op.printOp()
 
     outputs = []
+    #if rhs terms in op X are to be expanded, get their defs from orig ops list and store them in op X
     for op in orig_ops:
         unfact(op,outputs)
+        #if op.tc is only in lhs_ops and not in rhs_ops, its mostly the ops computing the final result i0.
         if op.tc in lhs_ops and op.tc not in rhs_ops:
             outputs.append(op)
 
@@ -607,9 +627,11 @@ if __name__ == '__main__':
         print(decl)
 
     print("")
+    #Unfactorize all i0 ops. All other ops containing temp tensors will be unfatorized while unfactorizing the i0 ops
     for o in outputs:
         final_ops[o] = (expandOp(o))
 
+    #create array decls, rename f and v refs to f_{dimshapes} for opmin to be able to process it.
     for o in final_ops:
         for op in final_ops[o]:
             op.addFV()
@@ -619,6 +641,7 @@ if __name__ == '__main__':
 
     print("")
 
+    #last op is the final result
     lhsOp = outputs[-1]
     printres(lhsOp.tc + printIndexList(lhsOp.tc_ids) + " = ")
     for o in final_ops:

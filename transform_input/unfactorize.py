@@ -18,6 +18,10 @@ rhs_ops = []
 range_decls = []
 collect_array_decls = OrderedDict()
 collect_index_decls = []
+newdims = dict()
+newdimCount = 0
+
+
 
 def printres(s):
     print(s, end="")
@@ -507,9 +511,6 @@ def unfact(op,outputs):
         for o in orig_ops:
             if o.tc == unfacExp_a or o.tc == unfacExp_b:
                 expandExp.append(o)
-                # remove these ops since they will be unfactorized in current op
-                # outputs has ops that contain terms that do not need to be expanded
-                #outputs = deleteOp(o,outputs)
         #Add the ops to be expanded in current op
         op.expandedOp = expandExp
         #Specify whether we expand ta

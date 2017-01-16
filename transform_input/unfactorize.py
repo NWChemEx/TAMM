@@ -17,6 +17,7 @@ lhs_ops = []
 rhs_ops = []
 range_decls = []
 collect_array_decls = OrderedDict()
+array_defs = dict()
 collect_index_decls = []
 newdims = dict()
 newdimCount = 0
@@ -355,7 +356,7 @@ class Unfactorize(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#array_structure_list.
     def visitArray_structure_list(self, ctx):
-        global collect_array_decls
+        global collect_array_decls, array_defs
         arrs = ctx.children[0]
         array_name = str(arrs.children[0])
         if array_name == "f" or array_name == "v": return self.visitChildren(ctx)
@@ -364,20 +365,25 @@ class Unfactorize(ParseTreeVisitor):
         lower = self.visitChildren(array_struct.children[1])
         upper = self.visitChildren(array_struct.children[4])
 
+        ldims = []
         adecl = "array " + array_name + "(["
         if lower:
             for l in lower:
                 adecl += l + ","
+                ldims.append(l)
             adecl = adecl[:-1]
         adecl += "]["
 
+        udims = []
         if upper:
             for u in upper:
                 adecl += u + ","
+                udims.append(u)
             adecl = adecl[:-1]
         adecl += "]);"
 
         collect_array_decls[array_name] = adecl
+        array_defs[array_name] = [ldims,udims]
 
         return self.visitChildren(ctx)
 

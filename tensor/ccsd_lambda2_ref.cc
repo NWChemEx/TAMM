@@ -560,7 +560,7 @@ void ccsd_lambda2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   CorFortran(1, lambda2_7_2_1, offset_ccsd_lambda2_7_2_1_);
   CorFortran(1, &op_lambda2_7_2_1, ccsd_lambda2_7_2_1_);
   CorFortran(1, &op_lambda2_7_2_2, ccsd_lambda2_7_2_2_);
-  CorFortran(1, &op_lambda2_7_2, ccsd_lambda2_7_2_);
+  CorFortran(0, &op_lambda2_7_2, ccsd_lambda2_7_2_); // solved  by replacing the multiplier from -2 to -1
   destroy(lambda2_7_2_1);
   CorFortran(1, &op_lambda2_7_3, ccsd_lambda2_7_3_);
   CorFortran(1, &op_lambda2_7, ccsd_lambda2_7_);
@@ -610,9 +610,9 @@ void ccsd_lambda2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   CorFortran(1, &op_lambda2_15_1, ccsd_lambda2_15_1_);
   CorFortran(1, lambda2_15_2_1, offset_ccsd_lambda2_15_2_1_);
   CorFortran(1, &op_lambda2_15_2_1, ccsd_lambda2_15_2_1_);
-  CorFortran(1, &op_lambda2_15_2, ccsd_lambda2_15_2_);
+  CorFortran(0, &op_lambda2_15_2, ccsd_lambda2_15_2_); // solved  by replacing the multiplier from 2 to 1
   destroy(lambda2_15_2_1);
-  CorFortran(1, &op_lambda2_15, ccsd_lambda2_15_);
+  CorFortran(1, &op_lambda2_15, ccsd_lambda2_15_); 
   destroy(lambda2_15_1);
 #if 1
 #if 0  // following block work entirely in fortran or c++

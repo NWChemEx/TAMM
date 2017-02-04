@@ -526,31 +526,6 @@ def unfact(op,outputs):
     # else: print("")
 
 
-# # if usage indices differ from those of the definition, replace the differing index in all the definitions
-# # S1: t1[h1,p1,h2,p2] = ....
-# # S2: ... = ... * t1[h1,p1,h5,p2] # Replace all h2s in S1 and other defs of t1 with h5s
-#
-# def_ids = o.tc_ids
-# use_ids = op.ta_ids if o.tc == ta else op.tb_ids
-#
-# def_op = o  # copy.deepcopy(o)
-#
-# rep_def_ids = []
-# rep_use_ids = []
-# if def_ids != use_ids:
-#     for i in range(0, len(def_ids)):
-#         if def_ids[i] != use_ids[i]:
-#             rep_def_ids.append(def_ids[i])
-#             rep_use_ids.append(use_ids[i])
-#
-#     for i in range(0, len(rep_def_ids)):
-#         _def = rep_def_ids[i]
-#         _use = rep_use_ids[i]
-#         def_op.tc_ids = [_use if did == _def else did for did in def_op.tc_ids]
-#         def_op.ta_ids = [_use if did == _def else did for did in def_op.ta_ids]
-#         if isinstance(def_op, MultOp): def_op.tb_ids = [_use if did == _def else did for did in def_op.tb_ids]
-
-
 def expandOp(op):
     #if it does not have terms to expand, create an expandOp obj containing op and return
     if not op.expandedOp:
@@ -567,6 +542,32 @@ def expandOp(op):
     expanded_ops = []
     #get each op in expandedOp list as an expandedOp obj
     for eop in op.expandedOp:
+        # if usage indices differ from those of the definition, replace the differing index in all the definitions
+        # S1: t1[h1,p1,h2,p2] = ....
+        # S2: ... = ... * t1[h1,p1,h5,p2] # Replace all h2s in S1 and other defs of t1 with h5s
+
+        def_ids = eop.tc_ids
+        use_ids = op.ta_ids
+        if not op.expand_a: use_ids = op.tb_ids
+
+        def_op = eop  # copy.deepcopy(o)
+
+        rep_def_ids = []
+        rep_use_ids = []
+        if def_ids != use_ids:
+            for i in range(0, len(def_ids)):
+                if def_ids[i] != use_ids[i]:
+                    rep_def_ids.append(def_ids[i])
+                    rep_use_ids.append(use_ids[i])
+
+            for i in range(0, len(rep_def_ids)):
+                _def = rep_def_ids[i]
+                _use = rep_use_ids[i]
+                def_op.tc_ids = [_use if did == _def else did for did in def_op.tc_ids]
+                def_op.ta_ids = [_use if did == _def else did for did in def_op.ta_ids]
+                if isinstance(def_op, MultOp): def_op.tb_ids = [_use if did == _def else did for did in def_op.tb_ids]
+
+
         eops = (expandOp(eop))
         expanded_ops.extend(eops)
 

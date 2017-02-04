@@ -500,33 +500,55 @@ def deleteOp(op,outputs):
 def unfact(op,outputs):
     global orig_ops
     ta = op.ta
-
-    unfacExp_a = ta
-    unfacExp_b = ''
+    tb = ''
     isMultOp = False
     if isinstance(op,MultOp): isMultOp = True
 
     if isMultOp:
         tb = op.tb
-        unfacExp_b = tb
 
     expandExp = []
     #if rhs array refs of an op are in lhs_ops, then they need to be expanded
-    if unfacExp_a in lhs_ops or unfacExp_b in lhs_ops:
+    if ta in lhs_ops or tb in lhs_ops:
         #get all ops where rhs arefs of current op are defined
         for o in orig_ops:
-            if o.tc == unfacExp_a or o.tc == unfacExp_b:
+            if o.tc == ta or o.tc == tb:
                 expandExp.append(o)
         #Add the ops to be expanded in current op
         op.expandedOp = expandExp
         #Specify whether we expand ta
-        if unfacExp_a in lhs_ops: op.expand_a = True
+        if ta in lhs_ops: op.expand_a = True
 
 
     # if expandExp:
     #     for e in expandExp:
     #         e.printOp()
     # else: print("")
+
+
+# # if usage indices differ from those of the definition, replace the differing index in all the definitions
+# # S1: t1[h1,p1,h2,p2] = ....
+# # S2: ... = ... * t1[h1,p1,h5,p2] # Replace all h2s in S1 and other defs of t1 with h5s
+#
+# def_ids = o.tc_ids
+# use_ids = op.ta_ids if o.tc == ta else op.tb_ids
+#
+# def_op = o  # copy.deepcopy(o)
+#
+# rep_def_ids = []
+# rep_use_ids = []
+# if def_ids != use_ids:
+#     for i in range(0, len(def_ids)):
+#         if def_ids[i] != use_ids[i]:
+#             rep_def_ids.append(def_ids[i])
+#             rep_use_ids.append(use_ids[i])
+#
+#     for i in range(0, len(rep_def_ids)):
+#         _def = rep_def_ids[i]
+#         _use = rep_use_ids[i]
+#         def_op.tc_ids = [_use if did == _def else did for did in def_op.tc_ids]
+#         def_op.ta_ids = [_use if did == _def else did for did in def_op.ta_ids]
+#         if isinstance(def_op, MultOp): def_op.tb_ids = [_use if did == _def else did for did in def_op.tb_ids]
 
 
 def expandOp(op):

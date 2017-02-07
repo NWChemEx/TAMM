@@ -159,17 +159,17 @@ void generate_intermediate_Decl(Equations *eqn, Decl* d) {
 void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
     std::vector<Exp*> lhs_aref, rhs_allref;
     std::vector<ArrayRefAlpha*> rhs_aref;
-    double alpha = 1;
+    int num_adds = 1;
     switch (s->kind) {
       case Stmt::is_AssignStmt: {
-        alpha = 1;
-        collectArrayRefs(s->u.AssignStmt.lhs, lhs_aref, &alpha);
+        num_adds = 1;
+        collectArrayRefs(s->u.AssignStmt.lhs, lhs_aref, &num_adds);
         int i = 0;
 //            for (i = 0; i < vector_count(&lhs_aref); i++) {
 //                Exp* e = vector_get(&lhs_aref, i);
 //                std::cout << e->u.Array.name << " ";
 //            }
-        collectArrayRefs(s->u.AssignStmt.rhs, rhs_allref, &alpha);
+        collectArrayRefs(s->u.AssignStmt.rhs, rhs_allref, &num_adds);
 
 //        int ignore_first_ref = 0;
 //        if (strcmp(s->u.AssignStmt.astype, "+=") == 0 || strcmp(s->u.AssignStmt.astype, "-=") == 0)
@@ -232,7 +232,11 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
 
         if (rhs_first_ref) rhs_aref_count -= 1;
 
-        if (rhs_aref_count == 2) isMultOp = true;
+        if (rhs_aref_count == 2) {
+            if (num_adds == 1) isMultOp = true;
+            else isAddOp = true;
+
+        }
         else if (rhs_aref_count == 1 || rhs_aref_count > 2) isAddOp = true;
 
         if (isMultOp) {
@@ -390,37 +394,34 @@ void generate_intermediate_Exp(Equations *eqn, Exp* exp) {
 }
 
 
-void collectArrayRefs(Exp* exp, std::vector<Exp*> &arefs, double *alpha) {
+void collectArrayRefs(Exp* exp, std::vector<Exp*> &arefs, int *num_adds) {
     ExpList* el = nullptr;
     switch (exp->kind) {
         case Exp::is_Parenth: {
-          collectArrayRefs(exp->u.Parenth.exp, arefs, alpha);
+          collectArrayRefs(exp->u.Parenth.exp, arefs, num_adds);
         }
             break;
         case Exp::is_NumConst: {
-          *alpha = *alpha * exp->u.NumConst.value;
           arefs.push_back(exp);
         }
             break;
         case Exp::is_ArrayRef: {
-            *alpha = *alpha * exp->coef;
             arefs.push_back(exp);
           }
             break;
         case Exp::is_Addition: {
+          *num_adds += 1;
           el = (exp->u.Addition.subexps);
-          *alpha = *alpha * exp->coef;
           while (el != nullptr) {
-            collectArrayRefs(el->head, arefs, alpha);
+            collectArrayRefs(el->head, arefs, num_adds);
             el = el->tail;
           }
         }
             break;
         case Exp::is_Multiplication: {
           el = (exp->u.Multiplication.subexps);
-          *alpha = *alpha * exp->coef;
           while (el != nullptr) {
-            collectArrayRefs(el->head, arefs, alpha);
+            collectArrayRefs(el->head, arefs, num_adds);
             el = el->tail;
           }
         }

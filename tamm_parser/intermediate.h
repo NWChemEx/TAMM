@@ -83,7 +83,7 @@ void generate_intermediate_ExpList(Equations *eqn, ExpList* expList, tamm_string
 
 void generate_intermediate_DeclList(Equations *eqn, DeclList* dl);
 
-void collectArrayRefs(Exp* exp, std::vector<Exp*> &arefs, double *alpha);
+void collectArrayRefs(Exp* exp, std::vector<Exp*> &arefs, int *num_adds);
 
 //tamm_string_array collectExpIndices(Exp* exp, int* first_ref); //Get each index only once
 

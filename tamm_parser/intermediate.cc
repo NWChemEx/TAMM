@@ -196,7 +196,7 @@ void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
             Exp* e1 = (Exp*)rhs_allref.at(i + 1);
             if (e1->kind == Exp::is_ArrayRef) {
               rhs_aref_count++;
-              rhs_aref.push_back(make_ArrayRefAlpha(e->u.NumConst.value * e1->coef, e1));
+              rhs_aref.push_back(make_ArrayRefAlpha(e->u.NumConst.value * e->coef * e1->coef, e1));
               i++;
             }
           } else {

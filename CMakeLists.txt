@@ -306,12 +306,12 @@ add_custom_command(TARGET "style" PRE_BUILD
 
 add_custom_target("patch")
 add_custom_command(TARGET "patch" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib
     COMMENT "=================== Patching nwchem..." )
 
 add_custom_target("patch-only")
 add_custom_command(TARGET "patch-only" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib -l
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib -l
     COMMENT "=================== Patching nwchem..." )
 
 add_custom_target("unpatch")

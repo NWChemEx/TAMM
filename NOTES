@@ -37,3 +37,21 @@ Assumptions:
 
 
 
+Unfactorized equations Test
+----------------------------
+
+- ccsd_t2_hand.eq cannot be Unfactorized
+
+- icsd unfactorizes okay, but does not work - something to do with tamm and NW fortran code
+
+- ipccsd_x1 and x2 do not work - check if they unfactorize okay? original eqs work  
+- eaccsd_x1 and x2 do not work - mostly due to uneven indices ? 
+
+- and add exp i0[] = a1[] + a2[] does not work --> tamm iterator cannot handle AddOp involving scalars (assert ndim>0 in tensors_and_ops.cc)
+  - for this reason, we do not include unfactorized ccsd_e,cisd_e,and small gamma eqns - pp,hh,hp - since they are 1-2 ops only, they do not matter anyway
+
+  
+
+
+
+

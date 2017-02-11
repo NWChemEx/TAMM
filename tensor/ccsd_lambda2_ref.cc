@@ -466,7 +466,7 @@ void ccsd_lambda2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   y_ov->set_irrep(Variables::irrep_y());
   y_oovv->set_irrep(Variables::irrep_y());
 
-#if 0
+#if 1
   schedule_linear(&tensors, &ops);
   // schedule_linear_lazy(tensors, &ops);
   //  schedule_levels(tensors, &ops);

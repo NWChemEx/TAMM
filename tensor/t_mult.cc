@@ -267,6 +267,7 @@ void t_mult3(const Tensor& tC, const Tensor& tA, const Tensor& tB,
           if (!tA.is_spatial_nonzero(a_ids_v)) continue;
           if (!tA.is_spin_nonzero(a_ids_v)) continue;
 
+          //std::cout << "b_ids_v: " << b_ids_v << std::endl;
 #if 0
           if (tC.dim()%2 != 0) {
             cout << "a_ids_v: " << a_ids_v << endl;
@@ -355,9 +356,14 @@ void t_mult3(const Tensor& tC, const Tensor& tA, const Tensor& tB,
                     static_cast<double>(b_sign) /*(double)tB.sign()*/);
           delete[] buf_b;
 
-          double beta = computeBeta(sum_ids, sum_vec);
+          double beta = computeBeta(sum_ids, sum_vec, m->sum_ids_aup_);
 
           dgemmTimer.start();
+          //std::cout<<"dima_sort: "<<dima_sort<<std::endl;
+          //std::cout<<"dimb_sort: "<<dimb_sort<<std::endl;
+          //std::cout<<"dim_common: "<<dim_common<<std::endl;
+          //std::cout<<"beta: "<<beta<<std::endl;
+
           cdgemm('T', 'N', dima_sort, dimb_sort, dim_common, beta, buf_a_sort,
                  dim_common, buf_b_sort, dim_common, 1.0, buf_c_sort,
                  dima_sort);

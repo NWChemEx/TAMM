@@ -175,6 +175,8 @@ class Multiplication {
   void setCopyItr(const std::vector<int>& gp);
   void execute(gmem::Handle sync_ga = gmem::NULL_HANDLE, int spos = 0);
 
+		std::vector<bool> sum_ids_aup_; /* if the corresponding summation index is an upper index in tA_ */
+
  private:
   Tensor* tC_;  /*< left hand side tensor */
   Tensor* tA_;  /*< right hand side tensor 1 */

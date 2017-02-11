@@ -32,42 +32,74 @@ int factorial(int n) {
 
 // compute factor reduction for isuperp
 double computeBeta(const std::vector<IndexName>& sum_ids,
-                   const std::vector<size_t>& sum_vec) {
-  std::vector<size_t> p_group, h_group;
+                   const std::vector<size_t>& sum_vec,
+									 const std::vector<bool>& sum_ids_aupper) {
+		std::vector<size_t> p_group_up, p_group_lo, h_group_up, h_group_lo;
   for (int i = 0; i < sum_ids.size(); i++) {
     assert(sum_ids[i] < IndexNum && sum_ids[i] >= 0);
-    if (sum_ids[i] < pIndexNum && sum_ids[i] >= 0)
-      p_group.push_back(sum_vec[i]);
+    if (sum_ids[i] < pIndexNum && sum_ids_aupper[i]==true)
+      p_group_up.push_back(sum_vec[i]);
+    else if (sum_ids[i] < pIndexNum && sum_ids_aupper[i]==false)
+      p_group_lo.push_back(sum_vec[i]);
+    else if (sum_ids[i] < pIndexNum+hIndexNum && sum_ids_aupper[i]==true)
+      h_group_up.push_back(sum_vec[i]);
+    else if (sum_ids[i] < pIndexNum+hIndexNum && sum_ids_aupper[i]==false)
+      h_group_lo.push_back(sum_vec[i]);
     else
-      h_group.push_back(sum_vec[i]);
+				assert(0); //should not get here
   }
-  double p_fact = factorial(p_group.size());
-  double h_fact = factorial(h_group.size());
-  std::sort(p_group.begin(), p_group.end());
-  std::sort(h_group.begin(), h_group.end());
+  double p_fact_up = factorial(p_group_up.size());
+  double p_fact_lo = factorial(p_group_lo.size());
+  double h_fact_up = factorial(h_group_up.size());
+  double h_fact_lo = factorial(h_group_lo.size());
+  std::sort(p_group_up.begin(), p_group_up.end());
+  std::sort(p_group_lo.begin(), p_group_lo.end());
+  std::sort(h_group_up.begin(), h_group_up.end());
+  std::sort(h_group_lo.begin(), h_group_lo.end());
   int tsize = 1;
-  for (int i = 1; i < p_group.size(); i++) {
-    if (p_group[i] != p_group[i - 1]) {
-      p_fact /= factorial(tsize);
+  for (int i = 1; i < p_group_up.size(); i++) {
+    if (p_group_up[i] != p_group_up[i - 1]) {
+      p_fact_up /= factorial(tsize);
       tsize = 0;
     }
     tsize += 1;
   }
-  p_fact /= factorial(tsize);
-  /*  std::cout << p_group << std::endl;
+  p_fact_up /= factorial(tsize);
+
+	tsize = 1;
+  for (int i = 1; i < p_group_lo.size(); i++) {
+    if (p_group_lo[i] != p_group_lo[i - 1]) {
+      p_fact_lo /= factorial(tsize);
+      tsize = 0;
+    }
+    tsize += 1;
+  }
+  p_fact_lo /= factorial(tsize);
+/*  std::cout << p_group << std::endl;
       std::cout << p_fact << std::endl;*/
   tsize = 1;
-  for (int i = 1; i < h_group.size(); i++) {
-    if (h_group[i] != h_group[i - 1]) {
-      h_fact /= factorial(tsize);
+  for (int i = 1; i < h_group_up.size(); i++) {
+    if (h_group_up[i] != h_group_up[i - 1]) {
+      h_fact_up /= factorial(tsize);
       tsize = 0;
     }
     tsize += 1;
   }
-  h_fact /= factorial(tsize);
-  /*  std::cout << h_group << std::endl;
+  h_fact_up /= factorial(tsize);
+
+	tsize = 1;
+  for (int i = 1; i < h_group_lo.size(); i++) {
+    if (h_group_lo[i] != h_group_lo[i - 1]) {
+      h_fact_lo /= factorial(tsize);
+      tsize = 0;
+    }
+    tsize += 1;
+  }
+  h_fact_lo /= factorial(tsize);
+/*  std::cout << h_group << std::endl;
       std::cout << h_fact << std::endl;*/
-  return p_fact * h_fact;
+  //std::cout<<"p_fact: "<<p_fact<<"| h_fact: "<<h_fact<<std::endl;
+  return p_fact_up * p_fact_lo * h_fact_up * h_fact_lo;
 }
 
 size_t compute_size(const std::vector<size_t>& ids) {

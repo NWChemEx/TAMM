@@ -827,8 +827,8 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   // lambda1_6_3_1->set_irrep(Variables::irrep_v());
   y_ov->set_irrep(Variables::irrep_y());
   y_oovv->set_irrep(Variables::irrep_y());
-  // lambda1_12_1->set_irrep(Variables::irrep_y());
-  // i0->set_irrep(Variables::irrep_y());
+  lambda1_11_1->set_irrep(Variables::irrep_y());
+  i0->set_irrep(Variables::irrep_y());
 
 #if 0
   schedule_linear(&tensors, &ops);
@@ -984,14 +984,13 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   destroy(lambda1_5_1);
   CorFortran(1, lambda1_6_1, offset_ccsd_lambda1_6_1_);
   CorFortran(1, &op_lambda1_6_1, ccsd_lambda1_6_1_);
-#if 0  // following block not ok but work entirely in fortran or c++,
-       // c++ results differ
-CorFortran(1, lambda1_6_2_1, offset_ccsd_lambda1_6_2_1_);
-CorFortran(1, &op_lambda1_6_2_1, ccsd_lambda1_6_2_1_);
+#if 1  // following block works entirely in fortran or c++,
+  CorFortran(1, lambda1_6_2_1, offset_ccsd_lambda1_6_2_1_);
+  CorFortran(1, &op_lambda1_6_2_1, ccsd_lambda1_6_2_1_);
   CorFortran(1, lambda1_6_2_2_1, offset_ccsd_lambda1_6_2_2_1_);
   CorFortran(1, &op_lambda1_6_2_2_1, ccsd_lambda1_6_2_2_1_);
   CorFortran(1, &op_lambda1_6_2_2_2, ccsd_lambda1_6_2_2_2_);
-  CorFortran(1, &op_lambda1_6_2_2, ccsd_lambda1_6_2_2_);
+  CorFortran(1, &op_lambda1_6_2_2, ccsd_lambda1_6_2_2_); // solved by replacing the multiplier from -2 to -1
   destroy(lambda1_6_2_2_1);
   CorFortran(1, &op_lambda1_6_2_3, ccsd_lambda1_6_2_3_);
   CorFortran(1, &op_lambda1_6_2, ccsd_lambda1_6_2_);
@@ -1010,18 +1009,18 @@ CorFortran(1, &op_lambda1_6_2_1, ccsd_lambda1_6_2_1_);
   CorFortran(1, lambda1_6_3_1, offset_ccsd_lambda1_6_3_1_);
   CorFortran(1, &op_lambda1_6_3_1, ccsd_lambda1_6_3_1_);
   CorFortran(1, &op_lambda1_6_3_2, ccsd_lambda1_6_3_2_);
-  CorFortran(0, &op_lambda1_6_3, ccsd_lambda1_6_3_);  // solved by replacing the multiplier from -2 to -1
+  CorFortran(1, &op_lambda1_6_3, ccsd_lambda1_6_3_);  // solved by replacing the multiplier from -2 to -1
   destroy(lambda1_6_3_1);
   CorFortran(1, lambda1_6_4_1, offset_ccsd_lambda1_6_4_1_);
   CorFortran(1, &op_lambda1_6_4_1, ccsd_lambda1_6_4_1_);
   CorFortran(1, &op_lambda1_6_4_2, ccsd_lambda1_6_4_2_);
   CorFortran(1, &op_lambda1_6_4, ccsd_lambda1_6_4_);
   destroy(lambda1_6_4_1);
-#if 0  // following block work entirely in fortran or c++
+#if 1  // following block works entirely in fortran or c++
   CorFortran(1, lambda1_6_5_1, offset_ccsd_lambda1_6_5_1_);
   CorFortran(1, &op_lambda1_6_5_1, ccsd_lambda1_6_5_1_);
   CorFortran(1, &op_lambda1_6_5_2, ccsd_lambda1_6_5_2_);
-  CorFortran(0, &op_lambda1_6_5, ccsd_lambda1_6_5_);  // solved  by replacing the multiplier from -2 to -1
+  CorFortran(1, &op_lambda1_6_5, ccsd_lambda1_6_5_);  // solved  by replacing the multiplier from -2 to -1
 #else
   CorFortran(0, lambda1_6_5_1, offset_ccsd_lambda1_6_5_1_);
   CorFortran(0, &op_lambda1_6_5_1, ccsd_lambda1_6_5_1_);
@@ -1064,21 +1063,19 @@ CorFortran(1, &op_lambda1_6_2_1, ccsd_lambda1_6_2_1_);
   CorFortran(1, lambda1_11_1, offset_ccsd_lambda1_11_1_);
   CorFortran(1, &op_lambda1_11_1, ccsd_lambda1_11_1_);
   CorFortran(1, &op_lambda1_11_2, ccsd_lambda1_11_2_);
-  CorFortran(0, &op_lambda1_11, ccsd_lambda1_11_);  // not ok
+  CorFortran(1, &op_lambda1_11, ccsd_lambda1_11_);  // ok after bug fix
   destroy(lambda1_11_1);
-#if 0  // following block not ok but work entirely in fortran or c++,
-     // c++ results differ
-  CorFortran(0, lambda1_12_1, offset_ccsd_lambda1_12_1_);
-  CorFortran(0, &op_lambda1_12_1, ccsd_lambda1_12_1_);
-  CorFortran(0, &op_lambda1_12, ccsd_lambda1_12_);
+#if 1  // following block works entirely in fortran or c++, ok after bug fix
+  CorFortran(1, lambda1_12_1, offset_ccsd_lambda1_12_1_);
+  CorFortran(1, &op_lambda1_12_1, ccsd_lambda1_12_1_);
+  CorFortran(1, &op_lambda1_12, ccsd_lambda1_12_);
 #else
   CorFortran(0, lambda1_12_1, offset_ccsd_lambda1_12_1_);
   CorFortran(0, &op_lambda1_12_1, ccsd_lambda1_12_1_);
   CorFortran(0, &op_lambda1_12, ccsd_lambda1_12_);
 #endif  // if 1 or 0 etc
   destroy(lambda1_12_1);
-#if 0  // following block works entirely in fortran or c++,
-     // c++ results differ
+#if 1  // following block works entirely in fortran or c++, ok after bug fix
   CorFortran(1, lambda1_13_1, offset_ccsd_lambda1_13_1_);
   CorFortran(1, &op_lambda1_13_1, ccsd_lambda1_13_1_);
   CorFortran(1, lambda1_13_2_1, offset_ccsd_lambda1_13_2_1_);
@@ -1120,13 +1117,12 @@ CorFortran(1, &op_lambda1_6_2_1, ccsd_lambda1_6_2_1_);
   CorFortran(0, &op_lambda1_13, ccsd_lambda1_13_);
 #endif  // if 1 or 0 etc
   destroy(lambda1_13_1);
-#if 0  // following block not ok but work entirely in fortran or c++,
-     // c++ results differ
+#if 1  // following block works entirely in fortran or c++, after bug fix
   CorFortran(1, lambda1_14_1, offset_ccsd_lambda1_14_1_);
   CorFortran(1, &op_lambda1_14_1, ccsd_lambda1_14_1_);
   CorFortran(1, lambda1_14_2_1, offset_ccsd_lambda1_14_2_1_);
   CorFortran(1, &op_lambda1_14_2_1, ccsd_lambda1_14_2_1_);
-  CorFortran(1, &op_lambda1_14_2, ccsd_lambda1_14_2_);
+  CorFortran(1, &op_lambda1_14_2, ccsd_lambda1_14_2_); // solved  by replacing the multiplier from 2 to 1
   destroy(lambda1_14_2_1);
   CorFortran(1, &op_lambda1_14, ccsd_lambda1_14_);
 #else
@@ -1139,8 +1135,7 @@ CorFortran(1, &op_lambda1_6_2_1, ccsd_lambda1_6_2_1_);
   CorFortran(0, &op_lambda1_14, ccsd_lambda1_14_);
 #endif  // if 1 or 0 etc
   destroy(lambda1_14_1);
-#if 0  // following block not ok but work entirely in fortran or c++,
-     // c++ results differ
+#if 1  // following block works entirely in fortran or c++, after bug fix
   CorFortran(1, lambda1_15_1, offset_ccsd_lambda1_15_1_);
   CorFortran(1, &op_lambda1_15_1, ccsd_lambda1_15_1_);
   CorFortran(1, lambda1_15_2_1, offset_ccsd_lambda1_15_2_1_);

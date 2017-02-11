@@ -186,7 +186,9 @@ void ccsd_t1_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
 
 
   #if 1
-    schedule_levels(&tensors, &ops);
+    //schedule_levels(&tensors, &ops);
+    //schedule_levels(&tensors, &ops);
+    schedule_linear(&tensors, &ops);
   #else
     op_t1_1 = ops[0].add;
     op_t1_2_1 = ops[1].add;

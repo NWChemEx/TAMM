@@ -33,7 +33,8 @@ int factorial(int n);
 * @param[in] sum_ids, sum_vec
 */
 double computeBeta(const std::vector<IndexName>& sum_ids,
-                   const std::vector<size_t>& sum_vec);
+                   const std::vector<size_t>& sum_vec,
+									 const std::vector<bool> &sum_ids_aupper);
 
 /**
 * Compute the buffer size given a vector of indices value

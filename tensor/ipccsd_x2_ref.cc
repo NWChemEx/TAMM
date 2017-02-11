@@ -406,8 +406,28 @@ void ipccsd_x2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   x2_7_1->set_irrep(Variables::irrep_x());
   x2_8_1->set_irrep(Variables::irrep_x());
 
-#if 0
-    schedule_levels(tensors, ops);
+	std::cout<<"x2. irrep_x="<<Variables::irrep_x()<<std::endl;
+	for(int i=0; i<eqs.op_entries.size(); i++) {
+      switch(eqs.op_entries[i].optype) {
+      case OpTypeAdd:
+      {
+          Tensor *t_alhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
+          t_alhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])->irrep());
+          break;
+      }
+      case OpTypeMult:
+       {   Tensor *t_mlhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
+          t_mlhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])->irrep() ^ 
+                          (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])->irrep());
+          break;
+       }
+      }
+  }
+
+
+#if 1
+	schedule_linear(&tensors, &ops);
+	//schedule_levels(tensors, ops);
 #else
   op_x2_1_1 = ops[0].add;
   op_x2_1_2_1 = ops[1].add;

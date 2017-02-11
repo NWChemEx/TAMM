@@ -202,40 +202,41 @@ void icsd_t1_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
   v->attach(*k_v_offset, 0, *d_v);
 
-#if 1
-  // schedule_linear(tensors, ops);
+  std::cout<<"In File: " <<__FILE__<<"Line: " <<__LINE__<<std::endl;
+#if 0
+  // schedule_linear(&tensors, &ops);
   // schedule_linear_lazy(tensors, ops);
   schedule_levels(&tensors, &ops);
 #else
-  CorFortran(1, &op_t1_1, icsd_t1_1_);
-  CorFortran(1, &op_t1_2_1, ofsset_icsd_t1_2_1_);
-  CorFortran(1, &op_t1_2_1, icsd_t1_2_1_);
-  CorFortran(1, &op_t1_2_2_1, ofsset_icsd_t1_2_2_1_);
-  CorFortran(1, &op_t1_2_2_1, icsd_t1_2_2_1_);
-  CorFortran(1, &op_t1_2_2_2, icsd_t1_2_2_2_);
-  CorFortran(1, &op_t1_2_2, icsd_t1_2_2_);
+  CorFortran(0, &op_t1_1, icsd_t1_1_);
+  CorFortran(0, t1_2_1, offset_icsd_t1_2_1_);
+  CorFortran(0, &op_t1_2_1, icsd_t1_2_1_);
+  CorFortran(0, t1_2_2_1, offset_icsd_t1_2_2_1_);
+  CorFortran(0, &op_t1_2_2_1, icsd_t1_2_2_1_);
+  CorFortran(0, &op_t1_2_2_2, icsd_t1_2_2_2_);
+  CorFortran(0, &op_t1_2_2, icsd_t1_2_2_);
   destroy(t1_2_2_1);
-  CorFortran(1, &op_t1_2_3, icsd_t1_2_3_);
-  CorFortran(1, &op_t1_2_4, icsd_t1_2_4_);
-  CorFortran(1, &op_t1_2, icsd_t1_2_);
+  CorFortran(0, &op_t1_2_3, icsd_t1_2_3_);
+  CorFortran(0, &op_t1_2_4, icsd_t1_2_4_);
+  CorFortran(0, &op_t1_2, icsd_t1_2_);
   destroy(t1_2_1);
-  CorFortran(1, &op_t1_3_1, ofsset_icsd_t1_3_1_);
-  CorFortran(1, &op_t1_3_1, icsd_t1_3_1_);
-  CorFortran(1, &op_t1_3_2, icsd_t1_3_2_);
-  CorFortran(1, &op_t1_3, icsd_t1_3_);
+  CorFortran(0, t1_3_1, offset_icsd_t1_3_1_);
+  CorFortran(0, &op_t1_3_1, icsd_t1_3_1_);
+  CorFortran(0, &op_t1_3_2, icsd_t1_3_2_);
+  CorFortran(0, &op_t1_3, icsd_t1_3_);
   destroy(t1_3_1);
-  CorFortran(1, &op_t1_4, icsd_t1_4_);
-  CorFortran(1, &op_t1_5_1, ofsset_icsd_t1_5_1_);
-  CorFortran(1, &op_t1_5_1, icsd_t1_5_1_);
-  CorFortran(1, &op_t1_5_2, icsd_t1_5_2_);
-  CorFortran(1, &op_t1_5, icsd_t1_5_);
+  CorFortran(0, &op_t1_4, icsd_t1_4_);
+  CorFortran(0, t1_5_1, offset_icsd_t1_5_1_);
+  CorFortran(0, &op_t1_5_1, icsd_t1_5_1_);
+  CorFortran(0, &op_t1_5_2, icsd_t1_5_2_);
+  CorFortran(0, &op_t1_5, icsd_t1_5_);
   destroy(t1_5_1);
-  CorFortran(1, &op_t1_6_1, ofsset_icsd_t1_6_1_);
-  CorFortran(1, &op_t1_6_1, icsd_t1_6_1_);
-  CorFortran(1, &op_t1_6_2, icsd_t1_6_2_);
-  CorFortran(1, &op_t1_6, icsd_t1_6_);
+  CorFortran(0, t1_6_1, offset_icsd_t1_6_1_);
+  CorFortran(0, &op_t1_6_1, icsd_t1_6_1_);
+  CorFortran(0, &op_t1_6_2, icsd_t1_6_2_);
+  CorFortran(0, &op_t1_6, icsd_t1_6_);
   destroy(t1_6_1);
-  CorFortran(1, &op_t1_7, icsd_t1_7_);
+  CorFortran(0, &op_t1_7, icsd_t1_7_);
 #endif  // Use c scheduler
 
   /* ----- Insert detach code ------ */

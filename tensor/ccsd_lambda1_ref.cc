@@ -830,7 +830,7 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   lambda1_11_1->set_irrep(Variables::irrep_y());
   i0->set_irrep(Variables::irrep_y());
 
-#if 0
+#if 1
   schedule_linear(&tensors, &ops);
   // schedule_linear_lazy(tensors, &ops);
   //  schedule_levels(tensors, &ops);

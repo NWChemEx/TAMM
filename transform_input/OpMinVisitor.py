@@ -106,14 +106,14 @@ class OpMinVisitor(ParseTreeVisitor):
         printnli("DistType idist = (Variables::intorb()) ? dist_nwi : dist_nw;")
         printnli("static Equations eqs;\n")
         printnli("if (set_"+ self.label_prefix + ") {")
-        printnli("  " + self.function_prefix + "_" + self.label_prefix + "_equations(eqs);")
+        printnli("  " + self.function_prefix + "_" + self.label_prefix + "_equations(&eqs);")
         printnli("  set_"+ self.label_prefix + " = false;")
         printnli("}\n")
 
         printnli("std::map<std::string, tamm::Tensor> tensors;")
         printnli("std::vector <Operation> ops;")
 
-        printnli("tensors_and_ops(eqs, tensors, ops);")
+        printnli("tensors_and_ops(&eqs, &tensors, &ops);")
 
         printnl("")
         #ti = 0
@@ -131,7 +131,7 @@ class OpMinVisitor(ParseTreeVisitor):
         printnli("v->attach(*k_v_offset, 0, *d_v);\n")
 
         printnli("#if 1")
-        printnli("  schedule_levels(tensors, ops);")
+        printnli("  schedule_levels(&tensors, &ops);")
         printnli("#else")
 
         indent += 2
@@ -146,7 +146,7 @@ class OpMinVisitor(ParseTreeVisitor):
         for amo in add_mult_order:
             if amo in array_decls:
                 printnli("CorFortran(1, " + amo + ", offset_" + self.function_prefix + "_" + amo + "_);")
-            printnli("CorFortran(1, op_" +  amo + ", " + self.function_prefix + "_" + amo + "_);")
+            printnli("CorFortran(1, &op_" +  amo + ", " + self.function_prefix + "_" + amo + "_);")
 
             if amo in destroy_temps.keys():
                 printnli("destroy(" + destroy_temps[amo] + ");")
@@ -221,6 +221,7 @@ class OpMinVisitor(ParseTreeVisitor):
 
             func_offset_sig +=  "Integer *l_" + lhs_aname + "_offset, Integer *k_" + lhs_aname + "_offset, Integer *size_" + lhs_aname+ ");"
             func_offsets.append(func_offset_sig)
+            func_offset_sig = ""
 
 
         arefs = []

@@ -10,6 +10,8 @@ cmake $TAMM_PATH -DTAMM_BLAS_INC=/msc/apps/compilers/intel_parallel_studio/compi
 
 cmake .. -DTAMM_BLAS_INC=/opt/intel/mkl/include/ -DTAMM_BLAS_LIB=/opt/intel/mkl/lib/intel64 -DCMAKE_CXX_COMPILER=icpc -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_C_COMPILER=icc
 
+cmake .. -DTAMM_BLAS_INC=/opt/intel/mkl/include/ -DTAMM_BLAS_LIB=/opt/intel/mkl/lib/intel64 -DCMAKE_CXX_COMPILER=g++  -DCMAKE_C_COMPILER=gcc
+
 
 make unpatch //Reverts gnumakefile
 make patch-only //Fixes gnumakefile 

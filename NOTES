@@ -55,3 +55,15 @@ Unfactorized equations Test
 
 
 
+ANTLR
+-----
+
+uuid not found on clusters ??
+
+Need gcc > 5 . i use 6 for c++14 support
+the intel compilers must also be built with gcc6 support 
+
+Disable antlr cmakelist else condition that does not use intel compilers ? - not needed we can build antlr cpp runtime with gcc6 and intel for everything else
+cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_CXX_COMPILER=icpc  -DCMAKE_C_COMPILER=icc
+
+

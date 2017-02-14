@@ -2,7 +2,7 @@
 
 #include "antlr4-runtime.h"
 #include "TAMMLexer.h"
-#include "TAMMParser.h"
+#include "TAMMBaseVisitor.h"
 
 using namespace antlr4;
 
@@ -14,8 +14,12 @@ int main(int argc, const char* argv[]) {
   CommonTokenStream tokens(&lexer);
   TAMMParser parser(&tokens);
 
-  tree::ParseTree *tree = parser.main();
-  std::cout << tree->toStringTree(&parser) << std::endl;
+  tree::ParseTree *tree = parser.translation_unit();
+  //std::cout << tree->toStringTree(&parser) << std::endl;
+
+  TAMMBaseVisitor visitor();
+  //tree::ParseTree::visit(tree);
+  //visitor.visit(tree);
 
   return 0;
 }

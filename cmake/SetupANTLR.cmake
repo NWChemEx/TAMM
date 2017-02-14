@@ -1,5 +1,6 @@
 
-execute_process(COMMAND mkdir -p "${PROJECT_BINARY_DIR}/downloads/ANTLR/build")
+execute_process(COMMAND mkdir -p "${PROJECT_BINARY_DIR}/downloads/ANTLR/build/")
+file(WRITE ${PROJECT_BINARY_DIR}/downloads/ANTLR/License.txt "")
 execute_process(COMMAND mkdir -p "${PROJECT_BINARY_DIR}/dependencies/ANTLR/CppRuntime/")
 
 if(NOT $ENV{ANTLR_CPPRUNTIME})
@@ -13,7 +14,7 @@ include(ExternalProject)
 ExternalProject_Add(ANTLR
     PREFIX ANTLR
     URL http://www.antlr.org/download/antlr4-cpp-runtime-4.6-source.zip
-    DOWNLOAD_DIR ${PROJECT_BINARY_DIR}/downloads/ANTLR
+    #DOWNLOAD_DIR ${PROJECT_BINARY_DIR}/downloads/ANTLR
     SOURCE_DIR ${PROJECT_BINARY_DIR}/downloads/ANTLR/
     INSTALL_DIR ${PROJECT_BINARY_DIR}/dependencies/ANTLR/CppRuntime
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_CXX_COMPILER=g++  -DCMAKE_C_COMPILER=gcc -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>

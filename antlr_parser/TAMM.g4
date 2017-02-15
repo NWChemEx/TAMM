@@ -73,10 +73,14 @@ fragment EXPONENT
     
 
 // translation-unit
-translation_unit : (compound_element)* EOF ;
+translation_unit : compound_element_list EOF ;
+
+compound_element_list: (compound_element)* ;
+
+element_list: (element)* ; 
 
 // compound-element
-compound_element : identifier LBRACE (element)* RBRACE ;
+compound_element : identifier LBRACE element_list RBRACE ;
 
        
 

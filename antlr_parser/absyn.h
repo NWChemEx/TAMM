@@ -164,6 +164,11 @@ public:
     Elem* head;
     ElemList* tail;
 
+    ElemList() {
+        head=nullptr;
+        tail=nullptr;
+    }
+
     ElemList(Elem* h, ElemList* t){
         head = h;
         tail = t;
@@ -224,6 +229,11 @@ public:
     CompoundElem* head;
     CompoundElemList* tail;
 
+    CompoundElemList() {
+        head=nullptr;
+        tail=nullptr;
+    }
+
     CompoundElemList(CompoundElem* h, CompoundElemList *t){
         head = h;
         tail = t;
@@ -234,6 +244,7 @@ class TranslationUnit {
 public:
     CompoundElemList* celist;
 
+    TranslationUnit() { celist = nullptr; }
     TranslationUnit(CompoundElemList *cle) {
         celist = cle;
     }

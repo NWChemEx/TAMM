@@ -1,5 +1,5 @@
 
-// Generated from /home/panyala/EclipseWS/workspacePTP/tamm/build/parser/TAMM.g4 by ANTLR 4.6
+// Generated from TAMM.g4 by ANTLR 4.6
 
 #pragma once
 
@@ -20,6 +20,10 @@ public:
    * Visit parse trees produced by TAMMParser.
    */
     virtual antlrcpp::Any visitTranslation_unit(TAMMParser::Translation_unitContext *context) = 0;
+
+    virtual antlrcpp::Any visitCompound_element_list(TAMMParser::Compound_element_listContext *context) = 0;
+
+    virtual antlrcpp::Any visitElement_list(TAMMParser::Element_listContext *context) = 0;
 
     virtual antlrcpp::Any visitCompound_element(TAMMParser::Compound_elementContext *context) = 0;
 

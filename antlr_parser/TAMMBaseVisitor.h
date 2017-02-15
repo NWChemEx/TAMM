@@ -1,5 +1,5 @@
 
-// Generated from /home/panyala/EclipseWS/workspacePTP/tamm/build/parser/TAMM.g4 by ANTLR 4.6
+// Generated from TAMM.g4 by ANTLR 4.6
 
 #pragma once
 
@@ -8,8 +8,6 @@
 #include "TAMMVisitor.h"
 
 #include "absyn.h"
-#include "intermediate.h"
-
 
 /**
  * This class provides an empty implementation of TAMMVisitor, which can be
@@ -18,20 +16,46 @@
 class  TAMMBaseVisitor : public TAMMVisitor {
 public:
 
-  Equations eqns;
-  TAMMBaseVisitor(Equations &eqn){
-    eqns = eqn;
-  }
-  ~TAMMBaseVisitor() { }
+ TAMMBaseVisitor() {}
+~TAMMBaseVisitor() {}
 
   virtual antlrcpp::Any visitTranslation_unit(TAMMParser::Translation_unitContext *ctx) override {
     std::cout << "Enter translation unit\n";
-    //auto cel = visitChildren(ctx);
-    //return new TranslationUnit(nullptr);
+    auto cel = visitChildren(ctx);
+    return new TranslationUnit((CompoundElemList*)cel);
+  }
+
+  virtual antlrcpp::Any visitCompound_element_list(TAMMParser::Compound_element_listContext *ctx) override {
+    auto cel = new CompoundElemList();
+    for (auto ce: ctx->children){ // Visit each compound element which is an ElemList
+       auto tamm_compoundElem = visitChildren(ce); 
+       if (cel->head == nullptr) cel->head = tamm_compoundElem;
+       else addTail((CompoundElem*)tamm_compoundElem, cel); // Add compound element to list
+    }
+    return cel; 
   }
 
   virtual antlrcpp::Any visitCompound_element(TAMMParser::Compound_elementContext *ctx) override {
-    return visitChildren(ctx);
+    auto get_el = nullptr;
+    // for (auto &x: ctx->children){
+    //   if (TAMMParser::Element_listContext* t = dynamic_cast<Element_listContext*>(x))
+    //     get_el = visitChildren(t);
+    // }
+    // if get_el = null return error;
+    return new CompoundElem(get_el);
+  }
+
+  
+
+  virtual antlrcpp::Any visitElement_list(TAMMParser::Element_listContext *ctx) override {
+    auto el = new ElemList();
+    for (auto eelem: ctx->children){ // Visit each element in the list
+       auto tamm_element = visitChildren(eelem);
+       if (el->head == nullptr) el->head = tamm_element; 
+       else addTail(tamm_element, el); //Add element to the list
+    }
+    return el;   
+
   }
 
   virtual antlrcpp::Any visitElement(TAMMParser::ElementContext *ctx) override {

@@ -21,8 +21,8 @@ public:
   };
 
   enum {
-    RuleTranslation_unit = 0, RuleCompound_element_list = 1, RuleElement_list = 2, 
-    RuleCompound_element = 3, RuleElement = 4, RuleDeclaration = 5, RuleId_list_opt = 6, 
+    RuleTranslation_unit = 0, RuleCompound_element_list = 1, RuleCompound_element = 2, 
+    RuleElement_list = 3, RuleElement = 4, RuleDeclaration = 5, RuleId_list_opt = 6, 
     RuleId_list = 7, RuleNum_list = 8, RuleIdentifier = 9, RuleNumerical_constant = 10, 
     RuleRange_declaration = 11, RuleIndex_declaration = 12, RuleArray_declaration = 13, 
     RuleArray_structure = 14, RuleArray_structure_list = 15, RulePermut_symmetry = 16, 
@@ -45,8 +45,8 @@ public:
 
   class Translation_unitContext;
   class Compound_element_listContext;
-  class Element_listContext;
   class Compound_elementContext;
+  class Element_listContext;
   class ElementContext;
   class DeclarationContext;
   class Id_list_optContext;
@@ -100,19 +100,6 @@ public:
 
   Compound_element_listContext* compound_element_list();
 
-  class  Element_listContext : public antlr4::ParserRuleContext {
-  public:
-    Element_listContext(antlr4::ParserRuleContext *parent, size_t invokingState);
-    virtual size_t getRuleIndex() const override;
-    std::vector<ElementContext *> element();
-    ElementContext* element(size_t i);
-
-    virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
-   
-  };
-
-  Element_listContext* element_list();
-
   class  Compound_elementContext : public antlr4::ParserRuleContext {
   public:
     Compound_elementContext(antlr4::ParserRuleContext *parent, size_t invokingState);
@@ -127,6 +114,19 @@ public:
   };
 
   Compound_elementContext* compound_element();
+
+  class  Element_listContext : public antlr4::ParserRuleContext {
+  public:
+    Element_listContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    std::vector<ElementContext *> element();
+    ElementContext* element(size_t i);
+
+    virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Element_listContext* element_list();
 
   class  ElementContext : public antlr4::ParserRuleContext {
   public:

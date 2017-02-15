@@ -21,41 +21,39 @@ public:
 
   virtual antlrcpp::Any visitTranslation_unit(TAMMParser::Translation_unitContext *ctx) override {
     std::cout << "Enter translation unit\n";
-    auto cel = visitChildren(ctx);
+    auto cel = visit(ctx->children.at(0)); //Cleanup
     return new TranslationUnit((CompoundElemList*)cel);
   }
 
   virtual antlrcpp::Any visitCompound_element_list(TAMMParser::Compound_element_listContext *ctx) override {
+    std::cout << "Enter Compund Elem list\n";
     auto cel = new CompoundElemList();
-    for (auto ce: ctx->children){ // Visit each compound element which is an ElemList
-       auto tamm_compoundElem = visitChildren(ce); 
+    for (auto &ce: ctx->children){ // Visit each compound element 
+       auto tamm_compoundElem = visit(ce);     
        if (cel->head == nullptr) cel->head = tamm_compoundElem;
-       else addTail((CompoundElem*)tamm_compoundElem, cel); // Add compound element to list
+       else addTail(tamm_compoundElem, cel); // Add compound element to list
     }
     return cel; 
   }
 
   virtual antlrcpp::Any visitCompound_element(TAMMParser::Compound_elementContext *ctx) override {
-    auto get_el = nullptr;
-    // for (auto &x: ctx->children){
-    //   if (TAMMParser::Element_listContext* t = dynamic_cast<Element_listContext*>(x))
-    //     get_el = visitChildren(t);
-    // }
-    // if get_el = null return error;
+    std::cout << "Enter Compund Element \n";
+    ElemList *get_el = nullptr;
+    for (auto &x: ctx->children){
+      if (TAMMParser::Element_listContext* t = dynamic_cast<TAMMParser::Element_listContext*>(x))
+        get_el = visit(t);
+    }
     return new CompoundElem(get_el);
   }
 
-  
-
   virtual antlrcpp::Any visitElement_list(TAMMParser::Element_listContext *ctx) override {
     auto el = new ElemList();
-    for (auto eelem: ctx->children){ // Visit each element in the list
-       auto tamm_element = visitChildren(eelem);
+    for (auto &eelem: ctx->children){ // Visit each element in the list
+       auto tamm_element = visit(eelem);
        if (el->head == nullptr) el->head = tamm_element; 
        else addTail(tamm_element, el); //Add element to the list
     }
-    return el;   
-
+    return el;  
   }
 
   virtual antlrcpp::Any visitElement(TAMMParser::ElementContext *ctx) override {
@@ -63,7 +61,7 @@ public:
   }
 
   virtual antlrcpp::Any visitDeclaration(TAMMParser::DeclarationContext *ctx) override {
-    return visitChildren(ctx);
+    return make_Elem_DeclList(nullptr);
   }
 
   virtual antlrcpp::Any visitId_list_opt(TAMMParser::Id_list_optContext *ctx) override {
@@ -127,7 +125,7 @@ public:
   }
 
   virtual antlrcpp::Any visitStatement(TAMMParser::StatementContext *ctx) override {
-    return visitChildren(ctx);
+    return make_Elem_Stmt(nullptr);
   }
 
   virtual antlrcpp::Any visitAssignment_statement(TAMMParser::Assignment_statementContext *ctx) override {
@@ -164,3 +162,4 @@ public:
 
 
 };
+

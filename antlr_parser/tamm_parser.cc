@@ -12,7 +12,7 @@ void tamm_parser(const char* input_file, Equations &genEq) {
 
   tree::ParseTree *tree = parser.translation_unit();
 
-  TAMMBaseVisitor *visitor = new TAMMBaseVisitor(genEq);
+  TAMMBaseVisitor *visitor = new TAMMBaseVisitor();
   visitor->visit(tree);
 
 

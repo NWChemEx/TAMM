@@ -3,11 +3,11 @@
 //  |
 //  +-- TranslationUnit
 //  |
-//  +-- CompoundElem
+//  +-- CompoundElement
 //  |
-//  +-- Elem
+//  +-- Element
 //  |    |
-//  |    +-- Decl
+//  |    +-- DeclarationList
 //  |    |    |
 //  |    |    +-- RangeDecl
 //  |    |    +-- IndexDecl
@@ -16,13 +16,13 @@
 //  |    |    +-- VolatileDecl
 //  |    |    +-- IterationDecl
 //  |    |
-//  |    +-- Stmt
+//  |    +-- Statement
 //  |         |
 //  |         +-- AssignStmt
 //  |
 //  +-- Identifier
 //  |
-//  +-- Exp
+//  +-- Expression
 //       |
 //       +-- Parenth
 //       +-- NumConst
@@ -39,140 +39,272 @@
 #include <type_traits>
 
 /* Forward Declarations */
-class ExpList;
+class Expression;
+class ExpressionList;
+class DeclarationList;
+class Statement;
 
 /* The Absyn Hierarchy */
 
 class Absyn //Root of the AST
 {
-    enum class kind {
-        is_TranslationUnit, is_CompoundElem, is_Elem, is_Identifier, is_Exp
+    enum kAbsyn {
+        kTranslationUnit, kCompoundElement, kElement, kIdentifier, kExpression
     };
 
 };
 
-class Decl {
-public:
-    enum {
-        is_RangeDecl, is_IndexDecl, is_ArrayDecl, is_ExpandDecl, is_VolatileDecl, is_IterationDecl
-    } kind;
-    int lineno;
-    int pos;
-    union {
-        struct {
-            int value;
-            tamm_string name;
-        } RangeDecl;
-        struct {
-            tamm_string name;
-            tamm_string rangeID;
-        } IndexDecl;
-        struct {
-            tamm_string name;
-            int ulen, llen;
-            tamm_string *upperIndices;
-            tamm_string *lowerIndices;
-            tamm_string irrep;
-        } ArrayDecl;
-        //TODO: ExpandDecl, IterationDecl, VolatileDecl
-    } u;
-    Decl() = default;
+
+class Declaration { //: public Absyn {
+    public:
+        /// An enum to identify direct subclasses of Declaration.
+        enum kDeclaration {
+            kRangeDeclaration,
+            kIndexDeclaration,
+            kArrayDeclaration,
+            kExpandDeclaration,
+            kVolatileDeclaration,
+            kIterationDeclaration
+        };
+
+        /** Implemented in all direct subclasses.
+         * Used to identify a direct subclass of Declaration.
+         * Returns the enum value for the subclass
+         * that calls this method.
+         */
+        virtual int getDeclType() = 0;
+
+        // int getAbsynType() {
+        //     return Absyn::kDeclaration;
+        // }
+
+        ~Declaration() { }
 };
 
-class DeclList {
-public:
-    Decl* head;
-    DeclList *tail;
 
-    DeclList(Decl* h, DeclList *t){
-        head = h;
-        tail = t;
+class ArrayDeclaration : public Declaration {
+    public:
+          int lineno;
+          int pos;
+          std::string name;
+          std::vector<std::string> upperIndices;
+          std::vector<std::string> lowerIndices;
+          std::string irrep;
+
+          ArrayDeclaration(std::string n, std::vector<std::string>& ul, std::vector<std::string>& li){
+              lineno = 0;
+              pos = 0;
+              name = n;    
+              upperIndices = ul;
+              lowerIndices = li;
+          }
+
+          int getDeclType() {
+              return Declaration::kArrayDeclaration;
+          }
+};
+
+class IndexDeclaration : public Declaration {
+    public:
+          int lineno;
+          int pos;
+          std::string name;
+          std::string rangeID;
+
+          IndexDeclaration(std::string n, std::string r){
+              lineno = 0;
+              pos = 0;
+              name = n;
+              rangeID = r;
+          }
+
+          int getDeclType() {
+              return Declaration::kIndexDeclaration;
+          }
+};
+
+class RangeDeclaration : public Declaration {
+    public:
+          int lineno;
+          int pos;
+
+          int value;
+          std::string name;
+          
+
+          RangeDeclaration(std::string n, int v){
+              lineno = 0;
+              pos = 0;
+              name = n;    
+              value = v;
+          }
+
+          int getDeclType() {
+              return Declaration::kRangeDeclaration;
+          }
+};
+
+
+class Statement { //: public Absyn {
+    public:
+        /// An enum to identify direct subclasses of Element.
+        enum kStatement {
+            kAssignStatement
+        };
+
+        /** Implemented in all direct subclasses.
+         * Used to identify a direct subclass of Element.
+         * Returns the enum value for the subclass
+         * that calls this method.
+         */
+        virtual int getStatementType() = 0;
+
+        // int getAbsynType() {
+        //     return Absyn::kDeclaration;
+        // }
+
+        ~Statement() { }
+};
+
+class AssignStatement: public Statement {
+    public:
+        Expression* lhs;
+        Expression* rhs;
+        int pos;
+        std::string label;
+        std::string astype;
+
+        AssignStatement(Expression *lhs, Expression *rhs): lhs(lhs), rhs(rhs) {}
+        
+        int getStatementType() {
+        return Statement::kAssignStatement;
+        }
+};
+
+class Element { //: public Absyn {
+    public:
+        /// An enum to identify direct subclasses of Element.
+        enum kElement {
+            kDeclarationList,
+            kStatement
+        };
+
+        virtual int getElementType() = 0;
+
+        // int getAbsynType() {
+        //     return Absyn::kDeclaration;
+        // }
+
+        ~Element() { }
+};
+
+class DeclarationList: public Element {
+public:
+    std::vector<Declaration*> dlist;
+    DeclarationList() {}
+    DeclarationList(std::vector<Declaration*> &d) { dlist = d; }
+
+    int getElementType() {
+       return Element::kDeclarationList;
     }
 };
 
-class Exp {
+class Expression {
 public:
-    enum {
-        is_Parenth, is_NumConst, is_ArrayRef, is_Addition, is_Multiplication
-    } kind;
-    int pos;
-    int lineno;
-    float coef;
-    union {
-        struct {
-            Exp* exp;
-        } Parenth;
+    enum kExpression {
+        kParenth, kNumConst, kArrayRef, kAddition, kMultiplication
+    };
 
-        struct {
-            float value;
-        } NumConst;
+    virtual int getExpressionType() = 0;
 
-        struct {
-            tamm_string name;
-            int length;
-            tamm_string *indices;
+    ~Expression() {}
+};
 
-        } Array;
+class Parenth: public Expression {
+    public:
+        Expression *expression;
+        int pos;
+        int coef;
+        int lineno;
 
-        struct {
-            ExpList *subexps;
-        } Addition;
+        Parenth(Expression* e) {
+            pos = 0;
+            coef = 1;
+            expression = e;
+        }
 
-        struct {
-            ExpList *subexps;
-        } Multiplication;
-    } u;
-    Exp() = default;
+     int getExpressionType() { return Expression::kParenth; }
+};
+
+class NumConst: public Expression {
+    public:
+        float value;
+        int pos;
+        int coef;
+        int lineno;
+
+        NumConst(float e) {
+            pos = 0;
+            coef = 1;
+            value = e;
+        }
+
+     int getExpressionType() { return Expression::kNumConst; }
 };
 
 
-class Stmt {
-public:
-    enum {
-        is_AssignStmt
-    } kind;
-    int pos;
-    union {
-        struct {
-            tamm_string label;
-            Exp* lhs;
-            Exp* rhs;
-            tamm_string astype;
-        } AssignStmt;
-    } u;
-    Stmt() = default;
+class Array: public Expression {
+    public:
+        std::string name;
+        int pos;
+        int coef;
+        int lineno;
+        std::vector<std::string> indices;
+
+        Array(std::string n, std::vector<std::string>& ind) {
+            pos = 0;
+            coef = 1;
+            name = n;
+            indices = ind;
+        }
+
+     int getExpressionType() { return Expression::kArrayRef; }
 };
 
 
-class Elem {
-public:
-    enum {
-        is_DeclList, is_Statement
-    } kind;
-    //int pos;
-    union {
-        DeclList *d;
-        Stmt* s;
-    } u;
-    Elem() = default;
+class Addition: public Expression {
+    public:
+        int pos;
+        int coef;
+        int lineno;
+        ExpressionList *subexps;
+
+    Addition(ExpressionList* se): subexps(se) {}
+    int getExpressionType() { return Expression::kAddition; }
+
 };
 
 
-class ElemList //group of declarations and statements corresponding to a single input
+
+class Multiplication: public Expression {
+    public:
+        int pos;
+        int coef;
+        int lineno;
+        ExpressionList *subexps;
+
+    Multiplication(ExpressionList* se): subexps(se) {}
+    int getExpressionType() { return Expression::kMultiplication; }
+    
+};
+
+
+class ElementList //group of declarations and statements corresponding to a single input
 {
 public:
-    Elem* head;
-    ElemList* tail;
-
-    ElemList() {
-        head=nullptr;
-        tail=nullptr;
-    }
-
-    ElemList(Elem* h, ElemList* t){
-        head = h;
-        tail = t;
-    }
+    std::vector<Element*> elist;
+    ElementList() {}
+    ElementList(std::vector<Element*> &e): elist(e) {}
 };
 
 
@@ -180,118 +312,44 @@ class Identifier {
 public:
     int pos;
     int lineno;
-    tamm_string name;
+    std::string name;
 
-    Identifier(int p, tamm_string n){
-        pos = p;
+    Identifier(std::string n){
+        pos = 0;
         name = n;
     }
 };
 
-class IDList {
+class IdentifierList {
 public:
-    Identifier* head;
-    IDList* tail;
-
-    IDList(Identifier* h, IDList* t){
-        head = h;
-        tail = t;
-    }
+    std::vector<Identifier*> idlist;
+    IdentifierList() {}
+    IdentifierList(std::vector<Identifier*> &d): idlist(d) {}
 };
 
-class ExpList {
+class ExpressionList {
 public:
-    Exp* head;
-    ExpList *tail;
-
-    ExpList(Exp* h, ExpList* t){
-        head = h;
-        tail = t;
-    }
+    std::vector<Expression*> explist;
+    ExpressionList() {}
+    ExpressionList(std::vector<Expression*> &el): explist(el) {}
 
 };
 
 
 
-class CompoundElem  //represents a single input enclosed in { .. }
+class CompoundElement  //represents a single input enclosed in { .. }
 {
 public:
-    ElemList *elist;
-
-    CompoundElem(ElemList *el){
-        elist = el;
-    }
-};
-
-class CompoundElemList //multiple input equations in a single file
-{
-public:
-    CompoundElem* head;
-    CompoundElemList* tail;
-
-    CompoundElemList() {
-        head=nullptr;
-        tail=nullptr;
-    }
-
-    CompoundElemList(CompoundElem* h, CompoundElemList *t){
-        head = h;
-        tail = t;
-    }
+    ElementList *elist;
+    CompoundElement(ElementList *el): elist(el) {}
 };
 
 class TranslationUnit {
 public:
-    CompoundElemList* celist;
-
-    TranslationUnit() { celist = nullptr; }
-    TranslationUnit(CompoundElemList *cle) {
-        celist = cle;
-    }
-};
-
-const auto addTail = [](auto newtail, auto origList){
-    auto p = origList;
-    decltype(p) newList = new typename std::remove_pointer<decltype(origList)>::type(newtail, nullptr);
-
-    if (p == nullptr) {
-        origList = newList;
-    } else if (p->head == nullptr) {
-        p->head = newtail;
-    } else if (p->tail == nullptr) {
-        p->tail = newList;
-    } else {
-        while (p->tail != nullptr)
-            p = p->tail;
-        p->tail = newList;
-    }
-    p = nullptr;
+    std::vector<CompoundElement*> celist;
+    TranslationUnit(std::vector<CompoundElement*>& cel): celist(cel) {}
 };
 
 #endif
 
-Exp* make_Parenth(int pos, Exp* e);
 
-Exp* make_NumConst(int pos, float value);
-
-Exp* make_Addition(int pos, ExpList *subexps);
-
-Exp* make_Multiplication(int pos, ExpList *subexps);
-
-Exp* make_Array(int pos, tamm_string name, tamm_string* indices);
-
-
-Stmt* make_AssignStmt(int pos, Exp* lhs, Exp* rhs);
-
-Decl* make_RangeDecl(int pos, tamm_string name, int value);
-
-Decl* make_IndexDecl(int pos, tamm_string name, tamm_string rangeID);
-
-Decl*
-make_ArrayDecl(int pos, tamm_string name, tamm_string *upperIndices, tamm_string *lowerIndices); //TODO: permute and vertex symmetry
-
-Elem* make_Elem_Stmt(Stmt* s);
-
-Elem* make_Elem_DeclList(DeclList *d);
-
-int count_IDList(IDList* idl);

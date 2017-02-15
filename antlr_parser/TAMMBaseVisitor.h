@@ -21,47 +21,45 @@ public:
 
   virtual antlrcpp::Any visitTranslation_unit(TAMMParser::Translation_unitContext *ctx) override {
     std::cout << "Enter translation unit\n";
-    auto cel = visit(ctx->children.at(0)); //Cleanup
-    return new TranslationUnit((CompoundElemList*)cel);
+    std::vector<CompoundElement*> cel = visit(ctx->children.at(0)); //Cleanup
+    TranslationUnit *tu = new TranslationUnit(cel);
+    return tu;
   }
 
   virtual antlrcpp::Any visitCompound_element_list(TAMMParser::Compound_element_listContext *ctx) override {
     std::cout << "Enter Compund Elem list\n";
-    auto cel = new CompoundElemList();
-    for (auto &ce: ctx->children){ // Visit each compound element 
-       auto tamm_compoundElem = visit(ce);     
-       if (cel->head == nullptr) cel->head = tamm_compoundElem;
-       else addTail(tamm_compoundElem, cel); // Add compound element to list
-    }
+    std::vector<CompoundElement*> cel;
+    // Visit each compound element and add to list
+    for (auto &ce: ctx->children) cel.push_back(visit(ce)); 
     return cel; 
   }
 
   virtual antlrcpp::Any visitCompound_element(TAMMParser::Compound_elementContext *ctx) override {
     std::cout << "Enter Compund Element \n";
-    ElemList *get_el = nullptr;
+    ElementList *get_el = nullptr;
     for (auto &x: ctx->children){
       if (TAMMParser::Element_listContext* t = dynamic_cast<TAMMParser::Element_listContext*>(x))
         get_el = visit(t);
     }
-    return new CompoundElem(get_el);
+    return new CompoundElement(get_el);
   }
 
   virtual antlrcpp::Any visitElement_list(TAMMParser::Element_listContext *ctx) override {
-    auto el = new ElemList();
-    for (auto &eelem: ctx->children){ // Visit each element in the list
-       auto tamm_element = visit(eelem);
-       if (el->head == nullptr) el->head = tamm_element; 
-       else addTail(tamm_element, el); //Add element to the list
-    }
-    return el;  
+    std::cout << "Enter Element List\n";
+   std::vector<Element*> el;
+    for (auto &elem: ctx->children) el.push_back(visit(elem)); //returns Elem*
+    return new ElementList(el);  
   }
 
   virtual antlrcpp::Any visitElement(TAMMParser::ElementContext *ctx) override {
+    std::cout << "Enter Element\n";
     return visitChildren(ctx);
   }
 
   virtual antlrcpp::Any visitDeclaration(TAMMParser::DeclarationContext *ctx) override {
-    return make_Elem_DeclList(nullptr);
+    //Each declaration - index,range,etc returns a DeclarationList that is wrapped into an Elem type
+    std::cout << "Enter Declaration\n";
+    return ((Element*)visitChildren(ctx)); //type Elem*
   }
 
   virtual antlrcpp::Any visitId_list_opt(TAMMParser::Id_list_optContext *ctx) override {
@@ -69,7 +67,12 @@ public:
   }
 
   virtual antlrcpp::Any visitId_list(TAMMParser::Id_listContext *ctx) override {
-    return visitChildren(ctx);
+    std::vector<Identifier*> idlist;
+    for (auto &x: ctx->children){
+       if (TAMMParser::IdentifierContext* id = dynamic_cast<TAMMParser::IdentifierContext*>(x))
+          idlist.push_back(visit(x));
+    }
+    return new IdentifierList(idlist);
   }
 
   virtual antlrcpp::Any visitNum_list(TAMMParser::Num_listContext *ctx) override {
@@ -77,7 +80,9 @@ public:
   }
 
   virtual antlrcpp::Any visitIdentifier(TAMMParser::IdentifierContext *ctx) override {
-    return visitChildren(ctx);
+    Identifier* id = new Identifier(ctx->children.at(0)->getText());
+    //id->lineno = tce_lineno;
+    return id;
   }
 
   virtual antlrcpp::Any visitNumerical_constant(TAMMParser::Numerical_constantContext *ctx) override {
@@ -85,15 +90,35 @@ public:
   }
 
   virtual antlrcpp::Any visitRange_declaration(TAMMParser::Range_declarationContext *ctx) override {
-    return visitChildren(ctx);
+    auto rd_list = new DeclarationList();
+    return rd_list;
   }
 
   virtual antlrcpp::Any visitIndex_declaration(TAMMParser::Index_declarationContext *ctx) override {
-    return visitChildren(ctx);
+    std::vector<Declaration*> id_list; //Store list of Index Declarations
+  
+    Identifier* range_var = nullptr;
+    IdentifierList* inames = nullptr; //List of index names
+
+    for (auto &x: ctx->children){
+      if (TAMMParser::Id_listContext* id = dynamic_cast<TAMMParser::Id_listContext*>(x))
+        inames = visit(id);
+
+      else if (TAMMParser::IdentifierContext* ic = dynamic_cast<TAMMParser::IdentifierContext*>(x))
+        range_var = visit(ic);
+    }
+
+    assert (range_var != nullptr);
+    assert (inames != nullptr);
+
+    for (auto &index: inames->idlist)    
+      id_list.push_back(new IndexDeclaration(index->name, range_var->name));
+
+    return new DeclarationList(id_list);
   }
 
   virtual antlrcpp::Any visitArray_declaration(TAMMParser::Array_declarationContext *ctx) override {
-    return visitChildren(ctx);
+    return new DeclarationList();
   }
 
   virtual antlrcpp::Any visitArray_structure(TAMMParser::Array_structureContext *ctx) override {
@@ -125,7 +150,7 @@ public:
   }
 
   virtual antlrcpp::Any visitStatement(TAMMParser::StatementContext *ctx) override {
-    return make_Elem_Stmt(nullptr);
+    return nullptr;
   }
 
   virtual antlrcpp::Any visitAssignment_statement(TAMMParser::Assignment_statementContext *ctx) override {

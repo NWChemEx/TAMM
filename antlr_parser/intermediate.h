@@ -67,29 +67,29 @@ struct MultOp_ {
 };
 
 
-void generate_intermediate_ast(Equations *eqn, TranslationUnit* root);
+// void generate_intermediate_ast(Equations *eqn, TranslationUnit* root);
 
-void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem* celem);
+// void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem* celem);
 
-void generate_intermediate_Elem(Equations *eqn, Elem* el);
+// void generate_intermediate_Elem(Equations *eqn, Element* el);
 
-void generate_intermediate_Decl(Equations *eqn, Decl* d);
+// void generate_intermediate_Decl(Equations *eqn, Declaration* d);
 
-void generate_intermediate_Stmt(Equations *eqn, Stmt* s);
+// void generate_intermediate_Stmt(Equations *eqn, Stmt* s);
 
-void generate_intermediate_Exp(Equations *eqn, Exp* exp);
+// void generate_intermediate_Exp(Equations *eqn, Exp* exp);
 
-void generate_intermediate_ExpList(Equations *eqn, ExpList* expList, tamm_string am);
+// void generate_intermediate_ExpList(Equations *eqn, ExpList* expList, tamm_string am);
 
-void generate_intermediate_DeclList(Equations *eqn, DeclList* dl);
+// void generate_intermediate_DeclList(Equations *eqn, DeclList* dl);
 
-void collectArrayRefs(Exp* exp, std::vector<Exp*> &arefs, int *num_adds);
+// void collectArrayRefs(Exp* exp, std::vector<Exp*> &arefs, int *num_adds);
 
-//tamm_string_array collectExpIndices(Exp* exp, int* first_ref); //Get each index only once
+// //tamm_string_array collectExpIndices(Exp* exp, int* first_ref); //Get each index only once
 
-void getIndexIDs(Equations *eqn, Exp* e, int *);
+// void getIndexIDs(Equations *eqn, Exp* e, int *);
 
-void getTensorIDs(Equations *eqn, Exp* exp, int *tid);
+// void getTensorIDs(Equations *eqn, Exp* exp, int *tid);
 
 #endif /*__TAMM_INTERMEDIATE_H__*/
 

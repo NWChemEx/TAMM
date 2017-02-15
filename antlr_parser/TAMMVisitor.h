@@ -23,9 +23,9 @@ public:
 
     virtual antlrcpp::Any visitCompound_element_list(TAMMParser::Compound_element_listContext *context) = 0;
 
-    virtual antlrcpp::Any visitElement_list(TAMMParser::Element_listContext *context) = 0;
-
     virtual antlrcpp::Any visitCompound_element(TAMMParser::Compound_elementContext *context) = 0;
+
+    virtual antlrcpp::Any visitElement_list(TAMMParser::Element_listContext *context) = 0;
 
     virtual antlrcpp::Any visitElement(TAMMParser::ElementContext *context) = 0;
 

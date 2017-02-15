@@ -76,50 +76,54 @@ message("Antlr Binary = " ${AntlrBinary})
 
 set(ParserSrcDir ${PROJECT_SOURCE_DIR}/antlr_parser)
 file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/parser")
-set(ParserBuildDir "${PROJECT_BINARY_DIR}/parser")
+
+ADD_CUSTOM_TARGET(BuildANTLR ALL DEPENDS ANTLR)
+
+
+#set(ParserBuildDir "${PROJECT_BINARY_DIR}/parser")
 
 # The generated lexer, parser sources would be in ParserBuildDir.
-set(ParserSources
-       ${ParserBuildDir}/TAMMLexer.cpp
-       ${ParserBuildDir}/TAMMParser.cpp
-    )   
+# set(ParserSources
+#        ${ParserBuildDir}/TAMMLexer.cpp
+#        ${ParserBuildDir}/TAMMParser.cpp
+#     )   
     
   
 # Custom Target to build the TAMM grammar.
-ADD_CUSTOM_COMMAND(OUTPUT ${ParserSources}
-  # The grammar is copied over to the ParserBuildDir before building it .
-  COMMAND cmake -E copy ${ParserSrcDir}/TAMM.g4 ${ParserBuildDir}/TAMM.g4
-  # Change to ParserBuildDir before building the grammar.
-  COMMAND cmake -E chdir ${ParserBuildDir} java -jar ${AntlrBinary} -Dlanguage=Cpp -no-listener -visitor ${ParserBuildDir}/TAMM.g4
-  DEPENDS ${ParserSrcDir}/TAMM.g4
-  COMMENT "Building the TAMM grammar."
-  VERBATIM)
+# ADD_CUSTOM_COMMAND(OUTPUT ${ParserSources}
+#   # The grammar is copied over to the ParserBuildDir before building it .
+#   COMMAND cmake -E copy ${ParserSrcDir}/TAMM.g4 ${ParserBuildDir}/TAMM.g4
+#   # Change to ParserBuildDir before building the grammar.
+#   COMMAND cmake -E chdir ${ParserBuildDir} java -jar ${AntlrBinary} -Dlanguage=Cpp -no-listener -visitor ${ParserBuildDir}/TAMM.g4
+#   DEPENDS ${ParserSrcDir}/TAMM.g4
+#   COMMENT "Building the TAMM grammar."
+#   VERBATIM)
 
-#ADD_CUSTOM_TARGET(BuildANTLR ALL DEPENDS ANTLR)
 
     # Compile the lexer and parser.
-add_library(AnltrTammParser STATIC ${ParserSources})
-target_include_directories(AnltrTammParser SYSTEM PUBLIC ${ParserBuildDir} ${ANTLR_CPPRUNTIME}/include/antlr4-runtime)
-# Build the ANTLR CPP runtime library. 
-add_dependencies(AnltrTammParser ANTLR)
-target_link_libraries(AnltrTammParser antlr4-runtime)
+# add_library(AnltrTammParser STATIC ${ParserSources})
+# target_include_directories(AnltrTammParser SYSTEM PUBLIC ${ParserBuildDir} ${ANTLR_CPPRUNTIME}/include/antlr4-runtime)
+# # Build the ANTLR CPP runtime library. 
+# add_dependencies(AnltrTammParser ANTLR)
+# target_link_libraries(AnltrTammParser antlr4-runtime)
 
-add_library(ParserCall STATIC "${PROJECT_SOURCE_DIR}/antlr_parser/tamm_parser.cc")
-add_dependencies(ParserCall AnltrTammParser ANTLR)
-target_include_directories(ParserCall SYSTEM PUBLIC ${ANTLR_CPPRUNTIME}/include/antlr4-runtime)
-link_directories(${ANTLR_CPPRUNTIME}/lib)
-target_link_libraries(ParserCall AnltrTammParser antlr4-runtime)
+# add_library(ParserCall STATIC "${PROJECT_SOURCE_DIR}/antlr_parser/tamm_parser.cc")
+# add_dependencies(ParserCall AnltrTammParser ANTLR)
+# target_include_directories(ParserCall SYSTEM PUBLIC ${ANTLR_CPPRUNTIME}/include/antlr4-runtime)
+# link_directories(${ANTLR_CPPRUNTIME}/lib)
+# target_link_libraries(ParserCall AnltrTammParser antlr4-runtime)
 
 
 # Collect all the parser sources.
 set(tammParserSources
     antlr_parser/absyn.cc
+    antlr_parser/tamm_parser.cc
+    antlr_parser/TAMMLexer.cc
+    antlr_parser/TAMMParser.cc
     antlr_parser/TAMMBaseVisitor.cc
     antlr_parser/TAMMVisitor.cc
-    #antlr_parser/tamm_parser.cc
     #antlr_parser/intermediate.cc
     #antlr_parser/semant.cc
-    #antlr_parser/visitor.cc
     #antlr_parser/util.cc
     )
 
@@ -176,11 +180,11 @@ message("ANTLR CPPRUNTIME=" ${ANTLR_CPPRUNTIME}/include)
 SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14")
 #SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
 add_library(tamm STATIC ${tammParserSources}) # ${tammLibSources})
-add_dependencies(tamm AnltrTammParser)
+add_dependencies(tamm BuildANTLR)
 link_directories(${ANTLR_CPPRUNTIME}/lib)
 target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} 
-                        ${ParserBuildDir} ${BLAS_INC_PATH} ${ANTLR_CPPRUNTIME}/include/antlr4-runtime/)
-target_link_libraries(tamm AnltrTammParser ParserCall)
+                        ${BLAS_INC_PATH} ${ANTLR_CPPRUNTIME}/include/antlr4-runtime/)
+target_link_libraries(tamm antlr4-runtime)
 #set_property(TARGET tamm PROPERTY CXX_STANDARD 14)
 #set_property(TARGET tamm PROPERTY CXX_STANDARD_REQUIRED ON)
 
@@ -191,7 +195,7 @@ add_executable(tamm_parser_test ${ParserSrcDir}/test.cc)
 add_dependencies(tamm_parser_test tamm)
 target_include_directories(tamm_parser_test SYSTEM PUBLIC  ${ParserSrcDir}) 
 # Set target libraries to be linked.
-target_link_libraries(tamm_parser_test tamm)
+target_link_libraries(tamm_parser_test tamm antlr4-runtime)
 
 
 

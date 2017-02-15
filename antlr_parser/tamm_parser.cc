@@ -1,13 +1,7 @@
 
-
 #include "tamm_parser.h"
-#include "antlr4-runtime.h"
-#include "TAMMLexer.h"
-#include "TAMMBaseVisitor.h"
 
-using namespace antlr4;
-
-void tamm_parser(const char* input_file) {//, Equations *genEq) {
+void tamm_parser(const char* input_file, Equations &genEq) {
 
   std::ifstream stream;
   stream.open(input_file);
@@ -18,6 +12,15 @@ void tamm_parser(const char* input_file) {//, Equations *genEq) {
 
   tree::ParseTree *tree = parser.translation_unit();
 
-  //std::cout << tree->toStringTree(&parser) << std::endl;
+  TAMMBaseVisitor *visitor = new TAMMBaseVisitor(genEq);
+  visitor->visit(tree);
+
+
+  //visit_ast(outputFile, astRoot);
+
+  // SymbolTable symtab;
+  // check_ast(astRoot, symtab);
+
+  // generate_intermediate_ast(genEq, astRoot);
 
 }

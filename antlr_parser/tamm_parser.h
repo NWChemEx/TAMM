@@ -3,14 +3,16 @@
 
 #include <iostream>
 
-// #include "visitor.h"
+#include "TAMMLexer.h"
+#include "TAMMBaseVisitor.h"
+
 // #include "semant.h"
 // #include "error.h"
-// #include "intermediate.h"
+#include "intermediate.h"
 
+using namespace antlr4;
 
-
-void tamm_parser(const char* input_file); //, Equations *eqn);
+void tamm_parser(const char* input_file, Equations &eqn);
 
 #endif /*__TAMM_PARSER_H__*/
 

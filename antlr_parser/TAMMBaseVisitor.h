@@ -7,6 +7,9 @@
 #include "antlr4-runtime.h"
 #include "TAMMVisitor.h"
 
+#include "absyn.h"
+#include "intermediate.h"
+
 
 /**
  * This class provides an empty implementation of TAMMVisitor, which can be
@@ -15,8 +18,16 @@
 class  TAMMBaseVisitor : public TAMMVisitor {
 public:
 
+  Equations eqns;
+  TAMMBaseVisitor(Equations &eqn){
+    eqns = eqn;
+  }
+  ~TAMMBaseVisitor() { }
+
   virtual antlrcpp::Any visitTranslation_unit(TAMMParser::Translation_unitContext *ctx) override {
-    return visitChildren(ctx);
+    std::cout << "Enter translation unit\n";
+    //auto cel = visitChildren(ctx);
+    //return new TranslationUnit(nullptr);
   }
 
   virtual antlrcpp::Any visitCompound_element(TAMMParser::Compound_elementContext *ctx) override {

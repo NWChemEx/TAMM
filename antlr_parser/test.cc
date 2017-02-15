@@ -18,9 +18,8 @@ int main(int argc, const char* argv[]) {
   //std::cout << tree->toStringTree(&parser) << std::endl;
 
   TAMMBaseVisitor *visitor = new TAMMBaseVisitor();
-  //tree::ParseTree::visit(tree);
-  //visitor.visit(tree);
-  visitor->visitTranslation_unit(tree);
+    //visitor.visit(tree);
+  visitor->visit(tree);
 
   return 0;
 }

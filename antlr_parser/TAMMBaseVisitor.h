@@ -19,6 +19,14 @@ public:
  TAMMBaseVisitor() {}
 ~TAMMBaseVisitor() {}
 
+  std::vector<std::string> getIdentifierList(std::vector<Identifier*> &idlist){
+    std::vector<std::string> stringidlist;
+    for (auto &id: idlist)
+      stringidlist.push_back(id->name);
+    return stringidlist;
+  }
+
+
   virtual antlrcpp::Any visitTranslation_unit(TAMMParser::Translation_unitContext *ctx) override {
     std::cout << "Enter translation unit\n";
     std::vector<CompoundElement*> cel = visit(ctx->children.at(0)); //Cleanup
@@ -54,13 +62,11 @@ public:
   }
 
   virtual antlrcpp::Any visitElement(TAMMParser::ElementContext *ctx) override {
-    std::cout << "Enter Element\n";
     return visitChildren(ctx);
   }
 
   virtual antlrcpp::Any visitDeclaration(TAMMParser::DeclarationContext *ctx) override {
     //Each declaration - index,range,etc returns a DeclarationList that is wrapped into an Elem type
-    std::cout << "Enter Declaration\n";
     Element *e = visitChildren(ctx); //type Elem*
     return e;
   }
@@ -89,12 +95,35 @@ public:
   }
 
   virtual antlrcpp::Any visitNumerical_constant(TAMMParser::Numerical_constantContext *ctx) override {
-    return visitChildren(ctx);
+    return std::stoi(ctx->children.at(0)->getText());
   }
 
   virtual antlrcpp::Any visitRange_declaration(TAMMParser::Range_declarationContext *ctx) override {
     std::cout << "Enter Range Decl\n";
-    auto rd_list = new DeclarationList();
+    std::vector<Declaration*> rd_list;
+
+    int range_value = -1;
+    IdentifierList* rnames = nullptr; //List of range variable names
+
+      for (auto &x: ctx->children){
+      if (TAMMParser::Id_listContext* id = dynamic_cast<TAMMParser::Id_listContext*>(x))
+        rnames = visit(id);
+
+      else if (TAMMParser::Numerical_constantContext* id = dynamic_cast<TAMMParser::Numerical_constantContext*>(x))
+        range_value = visit(id);
+    }
+
+    assert (range_value >= 0);
+    assert (rnames != nullptr);
+
+    for (auto &range: rnames->idlist)    {
+      rd_list.push_back(new RangeDeclaration(range->name, range_value));
+    }
+
+    //std::cout << "Leaving... Range Decl\n";
+     Element *e = new DeclarationList(rd_list);
+     return e;
+
     return rd_list;
   }
 
@@ -109,10 +138,8 @@ public:
       if (TAMMParser::Id_listContext* id = dynamic_cast<TAMMParser::Id_listContext*>(x))
         inames = visit(id);
 
-      else if (TAMMParser::IdentifierContext* ic = dynamic_cast<TAMMParser::IdentifierContext*>(x))
-        range_var = visit(ic);
-
-      //else visit(x);
+      else if (TAMMParser::IdentifierContext* id = dynamic_cast<TAMMParser::IdentifierContext*>(x))
+        range_var = visit(id);
     }
 
     assert (range_var != nullptr);
@@ -122,23 +149,65 @@ public:
       id_list.push_back(new IndexDeclaration(index->name, range_var->name));
     }
 
-    std::cout << "Leaving... Index Decl\n";
      Element *e = new DeclarationList(id_list);
      return e;
   }
 
   virtual antlrcpp::Any visitArray_declaration(TAMMParser::Array_declarationContext *ctx) override {
     std::cout << "Enter Array Decl\n";
-    Element *e = new DeclarationList();
-    return e;
+    
+    Element *adl;
+
+    for (auto &x: ctx->children){
+      if (TAMMParser::Array_structure_listContext* asl = dynamic_cast<TAMMParser::Array_structure_listContext*>(x))
+        adl = visit(x);
+    }
+
+    return adl;
   }
 
+
+
   virtual antlrcpp::Any visitArray_structure(TAMMParser::Array_structureContext *ctx) override {
-    return visitChildren(ctx);
+    bool ul_flag = true;
+    IdentifierList* upper = nullptr;
+    IdentifierList* lower = nullptr;
+
+    std::string array_name = ctx->children.at(0)->getText();
+
+    for (auto &x: ctx->children){
+      if(TAMMParser::Id_list_optContext* ul = dynamic_cast<TAMMParser::Id_list_optContext*>(x)){
+        if (ul_flag) { 
+          upper = visit(ul);
+          ul_flag = false;
+        }
+        else lower = visit(ul);
+      }
+    }
+
+    assert(upper!=nullptr || lower!=nullptr);
+    std::vector<Identifier*> ui;
+    std::vector<Identifier*> li;
+    if (upper != nullptr) ui = upper->idlist;
+    if (lower != nullptr) li = lower->idlist;
+
+    //C++14 - cannot pass getIdentifierList(..) directly as argument to array decl constructor - rvalue error
+    std::vector<std::string> upper_indices = getIdentifierList(ui);
+    std::vector<std::string> lower_indices = getIdentifierList(li);
+    Declaration *d = new ArrayDeclaration(array_name, upper_indices, lower_indices);
+    return d;
+
   }
 
   virtual antlrcpp::Any visitArray_structure_list(TAMMParser::Array_structure_listContext *ctx) override {
-    return visitChildren(ctx);
+    std::vector<Declaration*> ad;
+    for (auto &x: ctx->children){
+      if (TAMMParser::Array_structureContext* asl = dynamic_cast<TAMMParser::Array_structureContext*>(x))
+       ad.push_back(visit(asl));
+    }
+
+    Element *asl = new DeclarationList(ad);
+    return asl;
   }
 
   virtual antlrcpp::Any visitPermut_symmetry(TAMMParser::Permut_symmetryContext *ctx) override {

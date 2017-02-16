@@ -49,7 +49,7 @@ c
         if (nodezero.and.(iter.eq.1)) write(LuOut,9400) "CCSD Lambda"
         call tce_filename('lr1',filename)
         call createfile(filename,d_lr1,size_l1)
-#if 1
+#if 0
         call ccsd_lambda1(d_f1,d_lr1,d_t1,d_t2,d_v2,d_lambda1,
      1     d_lambda2,k_f1_offset,k_l1_offset,k_t1_offset,
      2     k_t2_offset,k_v2_offset,k_l1_offset,k_l2_offset)
@@ -65,7 +65,7 @@ c
         call reconcilefile(d_lr1,size_l1)
         call tce_filename('lr2',filename)
         call createfile(filename,d_lr2,size_l2)
-#if 1
+#if 0
         call ccsd_lambda2(d_f1,d_lr2,d_t1,d_t2,d_v2,d_lambda1,
      1     d_lambda2,k_f1_offset,k_l2_offset,k_t1_offset,
      2     k_t2_offset,k_v2_offset,k_l1_offset,k_l2_offset)

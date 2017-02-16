@@ -47,7 +47,9 @@ public:
   virtual antlrcpp::Any visitElement_list(TAMMParser::Element_listContext *ctx) override {
     std::cout << "Enter Element List\n";
    std::vector<Element*> el;
-    for (auto &elem: ctx->children) el.push_back(visit(elem)); //returns Elem*
+    for (auto &elem: ctx->children) {
+      el.push_back(visit(elem)); //returns Elem*
+    }
     return new ElementList(el);  
   }
 
@@ -59,7 +61,8 @@ public:
   virtual antlrcpp::Any visitDeclaration(TAMMParser::DeclarationContext *ctx) override {
     //Each declaration - index,range,etc returns a DeclarationList that is wrapped into an Elem type
     std::cout << "Enter Declaration\n";
-    return ((Element*)visitChildren(ctx)); //type Elem*
+    Element *e = visitChildren(ctx); //type Elem*
+    return e;
   }
 
   virtual antlrcpp::Any visitId_list_opt(TAMMParser::Id_list_optContext *ctx) override {
@@ -90,11 +93,13 @@ public:
   }
 
   virtual antlrcpp::Any visitRange_declaration(TAMMParser::Range_declarationContext *ctx) override {
+    std::cout << "Enter Range Decl\n";
     auto rd_list = new DeclarationList();
     return rd_list;
   }
 
   virtual antlrcpp::Any visitIndex_declaration(TAMMParser::Index_declarationContext *ctx) override {
+   std::cout << "Enter Index Decl\n";
     std::vector<Declaration*> id_list; //Store list of Index Declarations
   
     Identifier* range_var = nullptr;
@@ -106,19 +111,26 @@ public:
 
       else if (TAMMParser::IdentifierContext* ic = dynamic_cast<TAMMParser::IdentifierContext*>(x))
         range_var = visit(ic);
+
+      //else visit(x);
     }
 
     assert (range_var != nullptr);
     assert (inames != nullptr);
 
-    for (auto &index: inames->idlist)    
+    for (auto &index: inames->idlist)    {
       id_list.push_back(new IndexDeclaration(index->name, range_var->name));
+    }
 
-    return new DeclarationList(id_list);
+    std::cout << "Leaving... Index Decl\n";
+     Element *e = new DeclarationList(id_list);
+     return e;
   }
 
   virtual antlrcpp::Any visitArray_declaration(TAMMParser::Array_declarationContext *ctx) override {
-    return new DeclarationList();
+    std::cout << "Enter Array Decl\n";
+    Element *e = new DeclarationList();
+    return e;
   }
 
   virtual antlrcpp::Any visitArray_structure(TAMMParser::Array_structureContext *ctx) override {
@@ -150,11 +162,13 @@ public:
   }
 
   virtual antlrcpp::Any visitStatement(TAMMParser::StatementContext *ctx) override {
-    return nullptr;
+    return visitChildren(ctx);
   }
 
   virtual antlrcpp::Any visitAssignment_statement(TAMMParser::Assignment_statementContext *ctx) override {
-    return visitChildren(ctx);
+    std::cout << "Enter Assign Statement\n";
+    Element *e = new AssignStatement(nullptr,nullptr);
+    return e;
   }
 
   virtual antlrcpp::Any visitAssignment_operator(TAMMParser::Assignment_operatorContext *ctx) override {

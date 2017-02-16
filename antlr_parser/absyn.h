@@ -16,9 +16,9 @@
 //  |    |    +-- VolatileDecl
 //  |    |    +-- IterationDecl
 //  |    |
-//  |    +-- Statement
+//  |    +-- StatementList
 //  |         |
-//  |         +-- AssignStmt
+//  |         +-- AssignStatement
 //  |
 //  +-- Identifier
 //  |
@@ -39,10 +39,11 @@
 #include <type_traits>
 
 /* Forward Declarations */
+class Declaration;
 class Expression;
 class ExpressionList;
 class DeclarationList;
-class Statement;
+
 
 /* The Absyn Hierarchy */
 
@@ -144,8 +145,25 @@ class RangeDeclaration : public Declaration {
           }
 };
 
+class Element { //: public Absyn {
+    public:
+        /// An enum to identify direct subclasses of Element.
+        enum kElement {
+            kDeclarationList,
+            kStatement
+        };
 
-class Statement { //: public Absyn {
+        virtual int getElementType() = 0;
+
+        // int getAbsynType() {
+        //     return Absyn::kDeclaration;
+        // }
+
+        ~Element() { }
+};
+
+
+class Statement : public Element {
     public:
         /// An enum to identify direct subclasses of Element.
         enum kStatement {
@@ -158,6 +176,10 @@ class Statement { //: public Absyn {
          * that calls this method.
          */
         virtual int getStatementType() = 0;
+
+        int getElementType() {
+            return kElement::kStatement;
+        }
 
         // int getAbsynType() {
         //     return Absyn::kDeclaration;
@@ -177,37 +199,34 @@ class AssignStatement: public Statement {
         AssignStatement(Expression *lhs, Expression *rhs): lhs(lhs), rhs(rhs) {}
         
         int getStatementType() {
-        return Statement::kAssignStatement;
+            return Statement::kAssignStatement;
         }
+
 };
 
-class Element { //: public Absyn {
-    public:
-        /// An enum to identify direct subclasses of Element.
-        enum kElement {
-            kDeclarationList,
-            kStatement
-        };
 
-        virtual int getElementType() = 0;
-
-        // int getAbsynType() {
-        //     return Absyn::kDeclaration;
-        // }
-
-        ~Element() { }
-};
 
 class DeclarationList: public Element {
 public:
     std::vector<Declaration*> dlist;
     DeclarationList() {}
-    DeclarationList(std::vector<Declaration*> &d) { dlist = d; }
+    DeclarationList(std::vector<Declaration*> &d): dlist(d) {}
 
     int getElementType() {
        return Element::kDeclarationList;
     }
 };
+
+// class StatementList: public Element {
+// public:
+//     std::vector<Statement*> slist;
+//     StatementList() {}
+//     StatementList(std::vector<Statement*> &s): slist(s) {}
+
+//     int getElementType() {
+//        return Element::kStatementList;
+//     }
+// };
 
 class Expression {
 public:

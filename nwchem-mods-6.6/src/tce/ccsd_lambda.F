@@ -56,7 +56,8 @@ c
 #else
       call set_var_cxx(noab, nvab, int_mb, dbl_mb,
      &k_range, k_spin, k_sym, intorb, restricted,
-     &irrep_v, irrep_t, irrep_f)    
+     &irrep_v, irrep_t, irrep_f)
+      call set_irrep_y_cxx(irrep_y)
         call ccsd_lambda1_cxx(d_f1,d_lr1,d_t1,d_t2,d_v2,d_lambda1,
      1     d_lambda2,k_f1_offset,k_l1_offset,k_t1_offset,
      2     k_t2_offset,k_v2_offset,k_l1_offset,k_l2_offset)

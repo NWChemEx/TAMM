@@ -41,7 +41,6 @@
 /* Forward Declarations */
 class Declaration;
 class Expression;
-class ExpressionList;
 class DeclarationList;
 
 
@@ -296,9 +295,9 @@ class Addition: public Expression {
         int pos;
         int coef;
         int lineno;
-        ExpressionList *subexps;
+        std::vector<Expression*> subexps;
 
-    Addition(ExpressionList* se): subexps(se) {}
+    Addition(std::vector<Expression*>& se): subexps(se) {}
     int getExpressionType() { return Expression::kAddition; }
 
 };
@@ -310,9 +309,9 @@ class Multiplication: public Expression {
         int pos;
         int coef;
         int lineno;
-        ExpressionList *subexps;
+        std::vector<Expression*> subexps;
 
-    Multiplication(ExpressionList* se): subexps(se) {}
+    Multiplication(std::vector<Expression*>& se): subexps(se) {}
     int getExpressionType() { return Expression::kMultiplication; }
     
 };
@@ -346,13 +345,13 @@ public:
     IdentifierList(std::vector<Identifier*> &d): idlist(d) {}
 };
 
-class ExpressionList {
-public:
-    std::vector<Expression*> explist;
-    ExpressionList() {}
-    ExpressionList(std::vector<Expression*> &el): explist(el) {}
+// class ExpressionList {
+// public:
+//     std::vector<Expression*> explist;
+//     ExpressionList() {}
+//     ExpressionList(std::vector<Expression*> &el): explist(el) {}
 
-};
+// };
 
 
 

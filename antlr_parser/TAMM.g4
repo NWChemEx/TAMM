@@ -177,17 +177,9 @@ assignment_operator : EQUALS
                            | MINUSEQUAL ;
                            
 
-// unary-expression
-unary_expression : primary_expression 
-                   |
-                   PLUS unary_expression 
-                   |
-                   MINUS unary_expression ;
-    
-    
     
 // primary-expression    
-primary_expression : numerical_constant 
+unary_expression : numerical_constant 
                      |
                      array_reference 
                      |
@@ -202,7 +194,7 @@ array_reference : ID (LBRACKET id_list_opt RBRACKET)? ;
 plusORminus : PLUS | MINUS ;
 
 // additive-expression
-expression :  multiplicative_expression (plusORminus multiplicative_expression)* ;
+expression : (plusORminus)? multiplicative_expression (plusORminus multiplicative_expression)* ;
 
 
 // multiplicative-expression

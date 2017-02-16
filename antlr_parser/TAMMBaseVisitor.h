@@ -261,6 +261,9 @@ public:
   }
 
   virtual antlrcpp::Any visitExpression(TAMMParser::ExpressionContext *ctx) override {
+    //Default is an AddOP
+    Expression *e = nullptr;
+    //for (auto &x: ctx->children)
     return visitChildren(ctx);
   }
 

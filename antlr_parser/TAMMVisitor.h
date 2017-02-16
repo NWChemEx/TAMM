@@ -69,8 +69,6 @@ public:
 
     virtual antlrcpp::Any visitUnary_expression(TAMMParser::Unary_expressionContext *context) = 0;
 
-    virtual antlrcpp::Any visitPrimary_expression(TAMMParser::Primary_expressionContext *context) = 0;
-
     virtual antlrcpp::Any visitArray_reference(TAMMParser::Array_referenceContext *context) = 0;
 
     virtual antlrcpp::Any visitPlusORminus(TAMMParser::PlusORminusContext *context) = 0;

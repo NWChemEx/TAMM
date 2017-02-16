@@ -248,10 +248,6 @@ public:
     return visitChildren(ctx);
   }
 
-  virtual antlrcpp::Any visitPrimary_expression(TAMMParser::Primary_expressionContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
   virtual antlrcpp::Any visitArray_reference(TAMMParser::Array_referenceContext *ctx) override {
     return visitChildren(ctx);
   }

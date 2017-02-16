@@ -296,8 +296,9 @@ class Addition: public Expression {
         int coef;
         int lineno;
         std::vector<Expression*> subexps;
+        std::vector<std::string> add_operators;
 
-    Addition(std::vector<Expression*>& se): subexps(se) {}
+    Addition(std::vector<Expression*>& se, std::vector<std::string> &ao): subexps(se), add_operators(ao) {}
     int getExpressionType() { return Expression::kAddition; }
 
 };

@@ -24,10 +24,12 @@ if __name__ == '__main__':
     fname = fname.split("_")
 
     methodName = fname[0]
-    oplabel = fname[0]
+    oplabel = "tamm"
 
     if len(fname) == 2:
-        oplabel = fname[1]
+        fname = fname[1]
+        if fname.strip():
+            oplabel = fname
 
 
     ci = 0
@@ -35,7 +37,7 @@ if __name__ == '__main__':
         if c.isdigit(): ci+=1
         else: break
 
-    oplabel = oplabel[ci:]
+    #oplabel = oplabel[ci:]
 
     print(oplabel + " {\n")
 

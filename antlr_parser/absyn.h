@@ -299,6 +299,7 @@ class Addition: public Expression {
         std::vector<Expression*> subexps;
         std::vector<std::string> add_operators;
 
+    Addition(std::vector<Expression*>& se): subexps(se), first_op(false) {}
     Addition(std::vector<Expression*>& se, std::vector<std::string> &ao, bool fop): subexps(se), add_operators(ao), first_op(fop) {}
     int getExpressionType() { return Expression::kAddition; }
 

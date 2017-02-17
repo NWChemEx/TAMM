@@ -111,7 +111,21 @@ public:
   }
 
   virtual antlrcpp::Any visitNumerical_constant(TAMMParser::Numerical_constantContext *ctx) override {
-    return std::stoi(ctx->children.at(0)->getText());
+
+    std::string s = ctx->children.at(0)->getText();
+    std::string delimiter = "/";
+
+    size_t pos = 0;
+    std::string numerator;
+    while ((pos = s.find(delimiter)) != std::string::npos) {
+        numerator = s.substr(0, pos);
+        s.erase(0, pos + delimiter.length());
+    }
+    
+    float value = std::stof(s); // Gets denominator in case of fraction
+    if (numerator.size() > 0) value = std::stof(numerator)*1.0/value;
+    Expression* nc = new NumConst(value);
+    return nc;
   }
 
   virtual antlrcpp::Any visitRange_declaration(TAMMParser::Range_declarationContext *ctx) override {
@@ -125,8 +139,10 @@ public:
       if (TAMMParser::Id_listContext* id = dynamic_cast<TAMMParser::Id_listContext*>(x))
         rnames = visit(id);
 
-      else if (TAMMParser::Numerical_constantContext* id = dynamic_cast<TAMMParser::Numerical_constantContext*>(x))
-        range_value = visit(id);
+      else if (TAMMParser::Numerical_constantContext* id = dynamic_cast<TAMMParser::Numerical_constantContext*>(x)){
+         NumConst *nc = visit(id);
+         range_value = (int)nc->value; 
+      }
     }
 
     assert (range_value >= 0);
@@ -239,7 +255,12 @@ public:
   }
 
   virtual antlrcpp::Any visitUnary_expression(TAMMParser::Unary_expressionContext *ctx) override {
-    return visitChildren(ctx);
+    /// unary_expression :   numerical_constant | array_reference | ( expression )
+    if (ctx->children.size() == 1) { return visit(ctx->children.at(0)); }
+    else if (ctx->children.size() == 2) { return visit(ctx->children.at(1)); }
+    else { 
+      ; /// Error. This cannot happen since (expr) has the max 3 children (,expr,) 
+    }
   }
 
   virtual antlrcpp::Any visitArray_reference(TAMMParser::Array_referenceContext *ctx) override {
@@ -254,10 +275,12 @@ public:
   virtual antlrcpp::Any visitExpression(TAMMParser::ExpressionContext *ctx) override {
     //Grammar: expression : (plusORminus)? multiplicative_expression (plusORminus multiplicative_expression)*
 
+    // We only allow: c += alpha*a[]*b[] and c+= alpha * a[] for now
+
     //Default is an AddOP
     Expression *e = nullptr;
-    std::vector<Expression*> mults;
-    std::vector<std::string> add_ops;
+    std::vector<Expression*> am_ops;
+    std::vector<std::string> signs;
 
     bool first_op_flag = false; //Check if the expression starts with a plus or minus sign
     if (TAMMParser::PlusORminusContext* pm = dynamic_cast<TAMMParser::PlusORminusContext*>(ctx->children.at(0)))
@@ -265,29 +288,60 @@ public:
 
     for (auto &x: ctx->children){
       if(TAMMParser::Multiplicative_expressionContext* me = dynamic_cast<TAMMParser::Multiplicative_expressionContext*>(x))
-        mults.push_back(visit(me));
+        am_ops.push_back(visit(me)); //Has both add and mult ops, which in turn consist of NumConst and ArrayRefs
       
       else if (TAMMParser::PlusORminusContext* pm = dynamic_cast<TAMMParser::PlusORminusContext*>(x))
-        add_ops.push_back(visit(x));
+        signs.push_back(visit(x)); //The unary exps that have num consts get their signs from here.
     }
     
-    e = new Addition(mults, add_ops, first_op_flag);
+    e = new Addition(am_ops, signs, first_op_flag);
     return e;
 
   }
 
   virtual antlrcpp::Any visitMultiplicative_expression(TAMMParser::Multiplicative_expressionContext *ctx) override {
-    //Grammar: multiplicative_expression : unary_expression (TIMES unary_expression)*
-    //         unary_expression :   numerical_constant | array_reference | ( expression )
-    Expression *e = nullptr;
+    /// Grammar: multiplicative_expression : unary_expression (TIMES unary_expression)*
+    /// unary_expression :   numerical_constant | array_reference | ( expression )
     std::vector<Expression*> uexps;
 
+    /// Get the Expression objects (NumConst, Array or Expression) returned by unary_expression
     for (auto &x: ctx->children){
       if(TAMMParser::Unary_expressionContext* me = dynamic_cast<TAMMParser::Unary_expressionContext*>(x))
         uexps.push_back(visit(me));
     }
 
-    e = new Multiplication(uexps);
+/// We only allow: c += alpha*a[]*b[] and c+= alpha * a[] for now
+    int num_array_refs = 0; ///< internally, scalar is also treated as tensor with 0 dims
+    int num_consts = 0;
+
+    std::vector<Expression*> trefs;
+
+    /// Process the Expressions returned by unary_expression
+    for (auto &t: uexps){
+      if(NumConst* me = dynamic_cast<NumConst*>(t)){
+        num_consts+=1; trefs.push_back(t);
+      }
+      else if (Array* me = dynamic_cast<Array*>(t))
+       { num_array_refs +=1; trefs.push_back(t); }
+      
+      /// @todo Handle unary_expression = (expression) rule
+      /// else if (TAMMParser::ExpressionContext* me = dynamic_cast<TAMMParser::ExpressionContext*>(x))
+    }
+
+    Expression* e = nullptr; 
+
+    assert (uexps.size() > 0 && uexps.size() <= 3);
+    if (num_array_refs == 3 ) { ; /** Error cannot use scalar as a constant multiplier or cannot handle ternary operations; */     }
+    if (num_consts == 2) { ; /** Error cannot use scalar as a constant multiplier; */     }
+
+    /// Consts are also part of the Adds & Mults. Stored as NumConsts. 
+    /// The sign for the consts is processed when processing the "Expression" rule later in intermediate code gen.
+    if (num_array_refs == 1) {
+      e = new Addition(trefs);  
+    }
+    else if (num_array_refs == 2){
+      e = new Multiplication(trefs);
+    }
     return e;
   }
 

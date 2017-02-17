@@ -295,10 +295,11 @@ class Addition: public Expression {
         int pos;
         int coef;
         int lineno;
+        bool first_op;
         std::vector<Expression*> subexps;
         std::vector<std::string> add_operators;
 
-    Addition(std::vector<Expression*>& se, std::vector<std::string> &ao): subexps(se), add_operators(ao) {}
+    Addition(std::vector<Expression*>& se, std::vector<std::string> &ao, bool fop): subexps(se), add_operators(ao), first_op(fop) {}
     int getExpressionType() { return Expression::kAddition; }
 
 };
@@ -310,6 +311,7 @@ class Multiplication: public Expression {
         int pos;
         int coef;
         int lineno;
+        
         std::vector<Expression*> subexps;
 
     Multiplication(std::vector<Expression*>& se): subexps(se) {}

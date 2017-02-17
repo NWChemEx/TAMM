@@ -259,11 +259,25 @@ public:
   virtual antlrcpp::Any visitExpression(TAMMParser::ExpressionContext *ctx) override {
     //Default is an AddOP
     Expression *e = nullptr;
-    //for (auto &x: ctx->children)
+    std::vector<Expression*> mults;
+    std::vector<std::string> add_ops;
+
+    // for (auto &x: ctx->children){
+    //   if(TAMMParser::Multiplicative_expressionContext* me = dynamic_cast<TAMMParser::Multiplicative_expressionContext*>(x))
+    //     mults.push_back(visit(me));
+    // }
     return visitChildren(ctx);
+    
   }
 
   virtual antlrcpp::Any visitMultiplicative_expression(TAMMParser::Multiplicative_expressionContext *ctx) override {
+    Expression *e = nullptr;
+    std::vector<Expression*> uexps;
+
+    // for (auto &x: ctx->children){
+    //   if(TAMMParser::Unary_expressionContext* me = dynamic_cast<TAMMParser::Unary_expressionContext*>(x))
+    //     uexps.push_back(visit(me));
+    // }
     return visitChildren(ctx);
   }
 

@@ -71,6 +71,10 @@ public:
     return e;
   }
 
+  virtual antlrcpp::Any visitScalar_declaration(TAMMParser::Scalar_declarationContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual antlrcpp::Any visitId_list_opt(TAMMParser::Id_list_optContext *ctx) override {
     return visitChildren(ctx);
   }
@@ -208,26 +212,6 @@ public:
 
     Element *asl = new DeclarationList(ad);
     return asl;
-  }
-
-  virtual antlrcpp::Any visitPermut_symmetry(TAMMParser::Permut_symmetryContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitSymmetry_group(TAMMParser::Symmetry_groupContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitExpansion_declaration(TAMMParser::Expansion_declarationContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitVolatile_declaration(TAMMParser::Volatile_declarationContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitIteration_declaration(TAMMParser::Iteration_declarationContext *ctx) override {
-    return visitChildren(ctx);
   }
 
   virtual antlrcpp::Any visitStatement(TAMMParser::StatementContext *ctx) override {

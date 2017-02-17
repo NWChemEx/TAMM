@@ -12,24 +12,23 @@
 class  TAMMParser : public antlr4::Parser {
 public:
   enum {
-    RANGE = 1, INDEX = 2, ARRAY = 3, EXPAND = 4, VOLATILE = 5, ITERATION = 6, 
-    PLUS = 7, MINUS = 8, TIMES = 9, EQUALS = 10, TIMESEQUAL = 11, PLUSEQUAL = 12, 
-    MINUSEQUAL = 13, LPAREN = 14, RPAREN = 15, LBRACE = 16, RBRACE = 17, 
-    LBRACKET = 18, RBRACKET = 19, COMMA = 20, COLON = 21, SEMI = 22, ID = 23, 
-    ICONST = 24, FRAC = 25, FCONST = 26, Whitespace = 27, Newline = 28, 
-    BlockComment = 29, LineComment = 30
+    RANGE = 1, INDEX = 2, ARRAY = 3, SCALAR = 4, EXPAND = 5, VOLATILE = 6, 
+    ITERATION = 7, PLUS = 8, MINUS = 9, TIMES = 10, EQUALS = 11, TIMESEQUAL = 12, 
+    PLUSEQUAL = 13, MINUSEQUAL = 14, LPAREN = 15, RPAREN = 16, LBRACE = 17, 
+    RBRACE = 18, LBRACKET = 19, RBRACKET = 20, COMMA = 21, COLON = 22, SEMI = 23, 
+    ID = 24, ICONST = 25, FRAC = 26, FCONST = 27, Whitespace = 28, Newline = 29, 
+    BlockComment = 30, LineComment = 31
   };
 
   enum {
     RuleTranslation_unit = 0, RuleCompound_element_list = 1, RuleCompound_element = 2, 
-    RuleElement_list = 3, RuleElement = 4, RuleDeclaration = 5, RuleId_list_opt = 6, 
-    RuleId_list = 7, RuleNum_list = 8, RuleIdentifier = 9, RuleNumerical_constant = 10, 
-    RuleRange_declaration = 11, RuleIndex_declaration = 12, RuleArray_declaration = 13, 
-    RuleArray_structure = 14, RuleArray_structure_list = 15, RulePermut_symmetry = 16, 
-    RuleSymmetry_group = 17, RuleExpansion_declaration = 18, RuleVolatile_declaration = 19, 
-    RuleIteration_declaration = 20, RuleStatement = 21, RuleAssignment_statement = 22, 
-    RuleAssignment_operator = 23, RuleUnary_expression = 24, RuleArray_reference = 25, 
-    RulePlusORminus = 26, RuleExpression = 27, RuleMultiplicative_expression = 28
+    RuleElement_list = 3, RuleElement = 4, RuleDeclaration = 5, RuleScalar_declaration = 6, 
+    RuleId_list_opt = 7, RuleId_list = 8, RuleNum_list = 9, RuleIdentifier = 10, 
+    RuleNumerical_constant = 11, RuleRange_declaration = 12, RuleIndex_declaration = 13, 
+    RuleArray_declaration = 14, RuleArray_structure = 15, RuleArray_structure_list = 16, 
+    RuleStatement = 17, RuleAssignment_statement = 18, RuleAssignment_operator = 19, 
+    RuleUnary_expression = 20, RuleArray_reference = 21, RulePlusORminus = 22, 
+    RuleExpression = 23, RuleMultiplicative_expression = 24
   };
 
   TAMMParser(antlr4::TokenStream *input);
@@ -48,6 +47,7 @@ public:
   class Element_listContext;
   class ElementContext;
   class DeclarationContext;
+  class Scalar_declarationContext;
   class Id_list_optContext;
   class Id_listContext;
   class Num_listContext;
@@ -58,11 +58,6 @@ public:
   class Array_declarationContext;
   class Array_structureContext;
   class Array_structure_listContext;
-  class Permut_symmetryContext;
-  class Symmetry_groupContext;
-  class Expansion_declarationContext;
-  class Volatile_declarationContext;
-  class Iteration_declarationContext;
   class StatementContext;
   class Assignment_statementContext;
   class Assignment_operatorContext;
@@ -145,16 +140,27 @@ public:
     virtual size_t getRuleIndex() const override;
     Range_declarationContext *range_declaration();
     Index_declarationContext *index_declaration();
+    Scalar_declarationContext *scalar_declaration();
     Array_declarationContext *array_declaration();
-    Expansion_declarationContext *expansion_declaration();
-    Volatile_declarationContext *volatile_declaration();
-    Iteration_declarationContext *iteration_declaration();
 
     virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
    
   };
 
   DeclarationContext* declaration();
+
+  class  Scalar_declarationContext : public antlr4::ParserRuleContext {
+  public:
+    Scalar_declarationContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode *SCALAR();
+    antlr4::tree::TerminalNode *ID();
+
+    virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Scalar_declarationContext* scalar_declaration();
 
   class  Id_list_optContext : public antlr4::ParserRuleContext {
   public:
@@ -283,7 +289,6 @@ public:
     Id_list_optContext* id_list_opt(size_t i);
     std::vector<antlr4::tree::TerminalNode *> RBRACKET();
     antlr4::tree::TerminalNode* RBRACKET(size_t i);
-    Permut_symmetryContext *permut_symmetry();
 
     virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
    
@@ -306,77 +311,6 @@ public:
 
   Array_structure_listContext* array_structure_list();
 
-  class  Permut_symmetryContext : public antlr4::ParserRuleContext {
-  public:
-    Permut_symmetryContext(antlr4::ParserRuleContext *parent, size_t invokingState);
-    virtual size_t getRuleIndex() const override;
-    antlr4::tree::TerminalNode *COLON();
-    std::vector<Symmetry_groupContext *> symmetry_group();
-    Symmetry_groupContext* symmetry_group(size_t i);
-
-    virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
-   
-  };
-
-  Permut_symmetryContext* permut_symmetry();
-
-  class  Symmetry_groupContext : public antlr4::ParserRuleContext {
-  public:
-    Symmetry_groupContext(antlr4::ParserRuleContext *parent, size_t invokingState);
-    virtual size_t getRuleIndex() const override;
-    antlr4::tree::TerminalNode *LPAREN();
-    Num_listContext *num_list();
-    antlr4::tree::TerminalNode *RPAREN();
-
-    virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
-   
-  };
-
-  Symmetry_groupContext* symmetry_group();
-
-  class  Expansion_declarationContext : public antlr4::ParserRuleContext {
-  public:
-    Expansion_declarationContext(antlr4::ParserRuleContext *parent, size_t invokingState);
-    virtual size_t getRuleIndex() const override;
-    antlr4::tree::TerminalNode *EXPAND();
-    Id_listContext *id_list();
-    antlr4::tree::TerminalNode *SEMI();
-
-    virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
-   
-  };
-
-  Expansion_declarationContext* expansion_declaration();
-
-  class  Volatile_declarationContext : public antlr4::ParserRuleContext {
-  public:
-    Volatile_declarationContext(antlr4::ParserRuleContext *parent, size_t invokingState);
-    virtual size_t getRuleIndex() const override;
-    antlr4::tree::TerminalNode *VOLATILE();
-    Id_listContext *id_list();
-    antlr4::tree::TerminalNode *SEMI();
-
-    virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
-   
-  };
-
-  Volatile_declarationContext* volatile_declaration();
-
-  class  Iteration_declarationContext : public antlr4::ParserRuleContext {
-  public:
-    Iteration_declarationContext(antlr4::ParserRuleContext *parent, size_t invokingState);
-    virtual size_t getRuleIndex() const override;
-    antlr4::tree::TerminalNode *ITERATION();
-    antlr4::tree::TerminalNode *EQUALS();
-    Numerical_constantContext *numerical_constant();
-    antlr4::tree::TerminalNode *SEMI();
-
-    virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
-   
-  };
-
-  Iteration_declarationContext* iteration_declaration();
-
   class  StatementContext : public antlr4::ParserRuleContext {
   public:
     StatementContext(antlr4::ParserRuleContext *parent, size_t invokingState);
@@ -393,9 +327,9 @@ public:
   public:
     Assignment_statementContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
-    std::vector<ExpressionContext *> expression();
-    ExpressionContext* expression(size_t i);
+    Array_referenceContext *array_reference();
     Assignment_operatorContext *assignment_operator();
+    ExpressionContext *expression();
     antlr4::tree::TerminalNode *SEMI();
     IdentifierContext *identifier();
     antlr4::tree::TerminalNode *COLON();
@@ -443,7 +377,7 @@ public:
     virtual size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode *ID();
     antlr4::tree::TerminalNode *LBRACKET();
-    Id_list_optContext *id_list_opt();
+    Id_listContext *id_list();
     antlr4::tree::TerminalNode *RBRACKET();
 
     virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;

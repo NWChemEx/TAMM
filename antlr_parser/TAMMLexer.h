@@ -12,12 +12,11 @@
 class  TAMMLexer : public antlr4::Lexer {
 public:
   enum {
-    RANGE = 1, INDEX = 2, ARRAY = 3, SCALAR = 4, EXPAND = 5, VOLATILE = 6, 
-    ITERATION = 7, PLUS = 8, MINUS = 9, TIMES = 10, EQUALS = 11, TIMESEQUAL = 12, 
-    PLUSEQUAL = 13, MINUSEQUAL = 14, LPAREN = 15, RPAREN = 16, LBRACE = 17, 
-    RBRACE = 18, LBRACKET = 19, RBRACKET = 20, COMMA = 21, COLON = 22, SEMI = 23, 
-    ID = 24, ICONST = 25, FRAC = 26, FCONST = 27, Whitespace = 28, Newline = 29, 
-    BlockComment = 30, LineComment = 31
+    RANGE = 1, INDEX = 2, ARRAY = 3, SCALAR = 4, PLUS = 5, MINUS = 6, TIMES = 7, 
+    EQUALS = 8, TIMESEQUAL = 9, PLUSEQUAL = 10, MINUSEQUAL = 11, LPAREN = 12, 
+    RPAREN = 13, LBRACE = 14, RBRACE = 15, LBRACKET = 16, RBRACKET = 17, 
+    COMMA = 18, COLON = 19, SEMI = 20, ID = 21, ICONST = 22, FRAC = 23, 
+    FCONST = 24, Whitespace = 25, Newline = 26, BlockComment = 27, LineComment = 28
   };
 
   TAMMLexer(antlr4::CharStream *input);

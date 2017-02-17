@@ -167,7 +167,7 @@ statement : assignment_statement ;
 
 
 // assignment-statement
-assignment_statement : (identifier COLON)? expression assignment_operator expression SEMI ;
+assignment_statement : (identifier COLON)? array_reference assignment_operator expression SEMI ;
 
 
 // assignment_operator
@@ -179,7 +179,7 @@ assignment_operator : EQUALS
 
     
 // primary-expression    
-unary_expression : numerical_constant 
+unary_expression :   numerical_constant 
                      |
                      array_reference 
                      |
@@ -187,7 +187,7 @@ unary_expression : numerical_constant
 
 
 // array-reference
-array_reference : ID (LBRACKET id_list_opt RBRACKET)? ;
+array_reference : ID (LBRACKET id_list RBRACKET)? ;
 
 
 // expression                           

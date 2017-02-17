@@ -72,7 +72,19 @@ public:
   }
 
   virtual antlrcpp::Any visitScalar_declaration(TAMMParser::Scalar_declarationContext *ctx) override {
-    return visitChildren(ctx);
+    assert (ctx->children.size() >= 2);
+    std::vector<Declaration*> sdecls;
+    
+    for (auto &x: ctx->children) {
+      if (TAMMParser::IdentifierContext* id = dynamic_cast<TAMMParser::IdentifierContext*>(x)){
+        std::vector<std::string> u;
+        std::vector<std::string> l;
+        Identifier* i = visit(id);
+        sdecls.push_back(new ArrayDeclaration(i->name,u,l));
+      }
+    }
+     Element *s = new DeclarationList(sdecls);
+     return s;
   }
 
   virtual antlrcpp::Any visitId_list_opt(TAMMParser::Id_list_optContext *ctx) override {
@@ -127,8 +139,6 @@ public:
     //std::cout << "Leaving... Range Decl\n";
      Element *e = new DeclarationList(rd_list);
      return e;
-
-    return rd_list;
   }
 
   virtual antlrcpp::Any visitIndex_declaration(TAMMParser::Index_declarationContext *ctx) override {
@@ -237,32 +247,48 @@ public:
   }
 
   virtual antlrcpp::Any visitPlusORminus(TAMMParser::PlusORminusContext *ctx) override {
-    return visitChildren(ctx);
+    return ctx->children.at(0)->getText();
   }
 
+
   virtual antlrcpp::Any visitExpression(TAMMParser::ExpressionContext *ctx) override {
+    //Grammar: expression : (plusORminus)? multiplicative_expression (plusORminus multiplicative_expression)*
+
     //Default is an AddOP
     Expression *e = nullptr;
     std::vector<Expression*> mults;
     std::vector<std::string> add_ops;
 
-    // for (auto &x: ctx->children){
-    //   if(TAMMParser::Multiplicative_expressionContext* me = dynamic_cast<TAMMParser::Multiplicative_expressionContext*>(x))
-    //     mults.push_back(visit(me));
-    // }
-    return visitChildren(ctx);
+    bool first_op_flag = false; //Check if the expression starts with a plus or minus sign
+    if (TAMMParser::PlusORminusContext* pm = dynamic_cast<TAMMParser::PlusORminusContext*>(ctx->children.at(0)))
+      first_op_flag = true; 
+
+    for (auto &x: ctx->children){
+      if(TAMMParser::Multiplicative_expressionContext* me = dynamic_cast<TAMMParser::Multiplicative_expressionContext*>(x))
+        mults.push_back(visit(me));
+      
+      else if (TAMMParser::PlusORminusContext* pm = dynamic_cast<TAMMParser::PlusORminusContext*>(x))
+        add_ops.push_back(visit(x));
+    }
     
+    e = new Addition(mults, add_ops, first_op_flag);
+    return e;
+
   }
 
   virtual antlrcpp::Any visitMultiplicative_expression(TAMMParser::Multiplicative_expressionContext *ctx) override {
+    //Grammar: multiplicative_expression : unary_expression (TIMES unary_expression)*
+    //         unary_expression :   numerical_constant | array_reference | ( expression )
     Expression *e = nullptr;
     std::vector<Expression*> uexps;
 
-    // for (auto &x: ctx->children){
-    //   if(TAMMParser::Unary_expressionContext* me = dynamic_cast<TAMMParser::Unary_expressionContext*>(x))
-    //     uexps.push_back(visit(me));
-    // }
-    return visitChildren(ctx);
+    for (auto &x: ctx->children){
+      if(TAMMParser::Unary_expressionContext* me = dynamic_cast<TAMMParser::Unary_expressionContext*>(x))
+        uexps.push_back(visit(me));
+    }
+
+    e = new Multiplication(uexps);
+    return e;
   }
 
 

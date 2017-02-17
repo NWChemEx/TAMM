@@ -88,7 +88,7 @@ declaration : range_declaration
               array_declaration ;
 
 
-scalar_declaration: SCALAR ID;
+scalar_declaration: SCALAR ID (COMMA ID)*;
 
 // id-list
 id_list_opt : 

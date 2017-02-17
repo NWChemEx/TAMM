@@ -8,9 +8,6 @@ RANGE   :   'range';
 INDEX  :   'index';
 ARRAY  :   'array';
 SCALAR :   'scalar';
-EXPAND :   'expand';
-VOLATILE : 'volatile';
-ITERATION : 'iteration';
 
 // Operators
 PLUS    :   '+';
@@ -88,7 +85,7 @@ declaration : range_declaration
               array_declaration ;
 
 
-scalar_declaration: SCALAR ID (COMMA ID)*;
+scalar_declaration: SCALAR ID (COMMA ID)* SEMI;
 
 // id-list
 id_list_opt : 

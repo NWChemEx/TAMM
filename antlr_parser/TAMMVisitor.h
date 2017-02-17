@@ -31,6 +31,8 @@ public:
 
     virtual antlrcpp::Any visitDeclaration(TAMMParser::DeclarationContext *context) = 0;
 
+    virtual antlrcpp::Any visitScalar_declaration(TAMMParser::Scalar_declarationContext *context) = 0;
+
     virtual antlrcpp::Any visitId_list_opt(TAMMParser::Id_list_optContext *context) = 0;
 
     virtual antlrcpp::Any visitId_list(TAMMParser::Id_listContext *context) = 0;
@@ -50,16 +52,6 @@ public:
     virtual antlrcpp::Any visitArray_structure(TAMMParser::Array_structureContext *context) = 0;
 
     virtual antlrcpp::Any visitArray_structure_list(TAMMParser::Array_structure_listContext *context) = 0;
-
-    virtual antlrcpp::Any visitPermut_symmetry(TAMMParser::Permut_symmetryContext *context) = 0;
-
-    virtual antlrcpp::Any visitSymmetry_group(TAMMParser::Symmetry_groupContext *context) = 0;
-
-    virtual antlrcpp::Any visitExpansion_declaration(TAMMParser::Expansion_declarationContext *context) = 0;
-
-    virtual antlrcpp::Any visitVolatile_declaration(TAMMParser::Volatile_declarationContext *context) = 0;
-
-    virtual antlrcpp::Any visitIteration_declaration(TAMMParser::Iteration_declarationContext *context) = 0;
 
     virtual antlrcpp::Any visitStatement(TAMMParser::StatementContext *context) = 0;
 

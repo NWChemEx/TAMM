@@ -1,17 +1,5 @@
 grammar TAMM;
 
-options {
-    language = Cpp;
-}
-
-/*@parser::includes {
-    #include <iostream>
-    #include <list>
-    #include <sstream>
-    #include <string>
-    using namespace std;
-}*/
-
 
 // TOKENS 
     
@@ -19,6 +7,7 @@ options {
 RANGE   :   'range';
 INDEX  :   'index';
 ARRAY  :   'array';
+SCALAR :   'scalar';
 EXPAND :   'expand';
 VOLATILE : 'volatile';
 ITERATION : 'iteration';
@@ -94,14 +83,12 @@ declaration : range_declaration
               |       
               index_declaration 
               |
-              array_declaration 
+              scalar_declaration
               |
-              expansion_declaration 
-              |
-              volatile_declaration 
-              |
-              iteration_declaration ;
+              array_declaration ;
 
+
+scalar_declaration: SCALAR ID;
 
 // id-list
 id_list_opt : 
@@ -138,28 +125,11 @@ index_declaration : INDEX id_list EQUALS identifier SEMI ;
 // array-declaration
 array_declaration : ARRAY array_structure_list (COLON identifier)? SEMI ;
 
-// array-structure
-// Old - array_structure : ID LPAREN LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET (permut_symmetry)? RPAREN ;
 
-array_structure : ID LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET (permut_symmetry)?;
+array_structure : ID LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET; //(permut_symmetry)?;
 
 array_structure_list : array_structure (COMMA array_structure)* ;
 
-
-
-// permutational-symmetry
-permut_symmetry : COLON (symmetry_group)+ ;
-                          
-                            
-symmetry_group : LPAREN num_list RPAREN ;
-
-expansion_declaration : EXPAND id_list SEMI ;
-
-// volatile-declaration
-volatile_declaration : VOLATILE id_list SEMI ;
-
-// iteration-declaration
-iteration_declaration : ITERATION EQUALS numerical_constant SEMI ;
 
 
 // statement
@@ -223,3 +193,17 @@ LineComment
         -> skip
     ;
 
+
+// // permutational-symmetry
+// permut_symmetry : COLON (symmetry_group)+ ;
+                          
+                            
+// symmetry_group : LPAREN num_list RPAREN ;
+
+// expansion_declaration : EXPAND id_list SEMI ;
+
+// // volatile-declaration
+// volatile_declaration : VOLATILE id_list SEMI ;
+
+// // iteration-declaration
+// iteration_declaration : ITERATION EQUALS numerical_constant SEMI ;

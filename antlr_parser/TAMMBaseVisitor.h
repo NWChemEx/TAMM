@@ -125,7 +125,6 @@ public:
     
     float value = std::stof(s); // Gets denominator in case of fraction
     if (numerator.size() > 0) value = std::stof(numerator)*1.0/value;
-    std::cout << "FRAC: " << value << std::endl;
     Expression* nc = new NumConst(value);
     return nc;
   }
@@ -261,8 +260,11 @@ public:
       if  (TAMMParser::IdentifierContext* ic = dynamic_cast<TAMMParser::IdentifierContext*>(x))
         op_label = static_cast<Identifier*>(visit(x))->name;
 
-      else if (TAMMParser::Array_referenceContext* ec = dynamic_cast<TAMMParser::Array_referenceContext*>(x)) 
-        lhs = visit(x);
+      else if (TAMMParser::Array_referenceContext* ec = dynamic_cast<TAMMParser::Array_referenceContext*>(x)) {
+        Expression *e = visit(x);
+        if (Array* a = dynamic_cast<Array*>(e))   lhs = a;
+        else ;// report error - this cannot happen
+      }
 
       else if (TAMMParser::Assignment_operatorContext* op = dynamic_cast<TAMMParser::Assignment_operatorContext*>(x)) 
         assign_op = static_cast<Identifier*>(visit(x))->name;
@@ -273,6 +275,7 @@ public:
 
     assert (assign_op.size() > 0);
     assert (lhs != nullptr && rhs != nullptr);
+
     Element *e = new AssignStatement(assign_op,lhs,rhs); //Statement is child class of Element
     return e;
   }
@@ -324,8 +327,8 @@ public:
     Expression *e = nullptr;
     std::vector<Expression*> am_ops;
     std::vector<std::string> signs;
-
     bool first_op_flag = false; //Check if the expression starts with a plus or minus sign
+
     if (TAMMParser::PlusORminusContext* pm = dynamic_cast<TAMMParser::PlusORminusContext*>(ctx->children.at(0)))
       first_op_flag = true; 
 

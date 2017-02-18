@@ -187,15 +187,46 @@ class Statement : public Element {
         ~Statement() { }
 };
 
+
+class Expression {
+public:
+    enum kExpression {
+        kParenth, kNumConst, kArrayRef, kAddition, kMultiplication
+    };
+
+    virtual int getExpressionType() = 0;
+
+    ~Expression() {}
+};
+
+
+class Array: public Expression {
+    public:
+        std::string name;
+        int pos;
+        float coef;
+        int lineno;
+        std::vector<std::string> indices;
+
+        Array(std::string n, std::vector<std::string>& ind) {
+            pos = 0;
+            coef = 1.0;
+            name = n;
+            indices = ind;
+        }
+
+     int getExpressionType() { return Expression::kArrayRef; }
+};
+
 class AssignStatement: public Statement {
     public:
-        Expression* lhs;
+        Array* lhs;
         Expression* rhs;
         int pos;
         std::string label;
-        std::string astype;
+        std::string assign_op;
 
-        AssignStatement(Expression *lhs, Expression *rhs): lhs(lhs), rhs(rhs) {}
+        AssignStatement(std::string assign_op, Array *lhs, Expression *rhs): assign_op(assign_op), lhs(lhs), rhs(rhs) {}
         
         int getStatementType() {
             return Statement::kAssignStatement;
@@ -227,27 +258,19 @@ public:
 //     }
 // };
 
-class Expression {
-public:
-    enum kExpression {
-        kParenth, kNumConst, kArrayRef, kAddition, kMultiplication
-    };
 
-    virtual int getExpressionType() = 0;
 
-    ~Expression() {}
-};
 
 class Parenth: public Expression {
     public:
         Expression *expression;
         int pos;
-        int coef;
+        float coef;
         int lineno;
 
         Parenth(Expression* e) {
             pos = 0;
-            coef = 1;
+            coef = 1.0;
             expression = e;
         }
 
@@ -258,12 +281,12 @@ class NumConst: public Expression {
     public:
         float value;
         int pos;
-        int coef;
+        float coef;
         int lineno;
 
         NumConst(float e) {
             pos = 0;
-            coef = 1;
+            coef = 1.0;
             value = e;
         }
 
@@ -271,36 +294,18 @@ class NumConst: public Expression {
 };
 
 
-class Array: public Expression {
-    public:
-        std::string name;
-        int pos;
-        int coef;
-        int lineno;
-        std::vector<std::string> indices;
-
-        Array(std::string n, std::vector<std::string>& ind) {
-            pos = 0;
-            coef = 1;
-            name = n;
-            indices = ind;
-        }
-
-     int getExpressionType() { return Expression::kArrayRef; }
-};
-
 
 class Addition: public Expression {
     public:
         int pos;
-        int coef;
+        float coef;
         int lineno;
         bool first_op;
         std::vector<Expression*> subexps;
         std::vector<std::string> add_operators;
 
-    Addition(std::vector<Expression*>& se): subexps(se), first_op(false) {}
-    Addition(std::vector<Expression*>& se, std::vector<std::string> &ao, bool fop): subexps(se), add_operators(ao), first_op(fop) {}
+    Addition(std::vector<Expression*>& se): subexps(se), first_op(false), coef(1.0) {}
+    Addition(std::vector<Expression*>& se, std::vector<std::string> &ao, bool fop): subexps(se), add_operators(ao), first_op(fop), coef(1.0) {}
     int getExpressionType() { return Expression::kAddition; }
 
 };
@@ -315,7 +320,7 @@ class Multiplication: public Expression {
         
         std::vector<Expression*> subexps;
 
-    Multiplication(std::vector<Expression*>& se): subexps(se) {}
+    Multiplication(std::vector<Expression*>& se): subexps(se), coef(1.0) {}
     int getExpressionType() { return Expression::kMultiplication; }
     
 };

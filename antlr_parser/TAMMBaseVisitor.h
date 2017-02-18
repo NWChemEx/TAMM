@@ -100,6 +100,7 @@ public:
     return new IdentifierList(idlist);
   }
 
+  /// Not used in grammar.
   virtual antlrcpp::Any visitNum_list(TAMMParser::Num_listContext *ctx) override {
     return visitChildren(ctx);
   }
@@ -124,6 +125,7 @@ public:
     
     float value = std::stof(s); // Gets denominator in case of fraction
     if (numerator.size() > 0) value = std::stof(numerator)*1.0/value;
+    std::cout << "FRAC: " << value << std::endl;
     Expression* nc = new NumConst(value);
     return nc;
   }
@@ -241,17 +243,45 @@ public:
   }
 
   virtual antlrcpp::Any visitStatement(TAMMParser::StatementContext *ctx) override {
-    return visitChildren(ctx);
+    return visit(ctx->children.at(0));
   }
 
+
+/// assignment_statement : (identifier COLON)? array_reference assignment_operator expression SEMI ;
   virtual antlrcpp::Any visitAssignment_statement(TAMMParser::Assignment_statementContext *ctx) override {
     std::cout << "Enter Assign Statement\n";
-    Element *e = new AssignStatement(nullptr,nullptr);
+
+    std::string op_label;
+    std::string assign_op;
+    Array* lhs = nullptr;
+    Expression* rhs = nullptr;
+
+    for (auto &x: ctx->children){
+      
+      if  (TAMMParser::IdentifierContext* ic = dynamic_cast<TAMMParser::IdentifierContext*>(x))
+        op_label = static_cast<Identifier*>(visit(x))->name;
+
+      else if (TAMMParser::Array_referenceContext* ec = dynamic_cast<TAMMParser::Array_referenceContext*>(x)) 
+        lhs = visit(x);
+
+      else if (TAMMParser::Assignment_operatorContext* op = dynamic_cast<TAMMParser::Assignment_operatorContext*>(x)) 
+        assign_op = static_cast<Identifier*>(visit(x))->name;
+
+      else if (TAMMParser::ExpressionContext* ec = dynamic_cast<TAMMParser::ExpressionContext*>(x)) 
+        rhs = visit(x);
+    }
+
+    assert (assign_op.size() > 0);
+    assert (lhs != nullptr && rhs != nullptr);
+    Element *e = new AssignStatement(assign_op,lhs,rhs); //Statement is child class of Element
     return e;
   }
 
   virtual antlrcpp::Any visitAssignment_operator(TAMMParser::Assignment_operatorContext *ctx) override {
-    return visitChildren(ctx);
+    //std::string aop = ctx->children.at(0)->getText();
+    /// @todo Clean up later: return string directly
+    Identifier *aop = new Identifier(ctx->children.at(0)->getText());
+    return aop;
   }
 
   virtual antlrcpp::Any visitUnary_expression(TAMMParser::Unary_expressionContext *ctx) override {
@@ -264,7 +294,20 @@ public:
   }
 
   virtual antlrcpp::Any visitArray_reference(TAMMParser::Array_referenceContext *ctx) override {
-    return visitChildren(ctx);
+    /// array_reference : ID (LBRACKET id_list RBRACKET)? 
+    std::string name = ctx->children.at(0)->getText();
+    IdentifierList *il = nullptr;
+    
+    for (auto &x: ctx->children){
+      if(TAMMParser::Id_listContext* ul = dynamic_cast<TAMMParser::Id_listContext*>(x)){
+          il = visit(ul);
+      }
+    }
+    
+    std::vector<std::string> indices;
+    if (il!=nullptr) indices = getIdentifierList(il->idlist);
+    Expression* ar = new Array(name,indices);
+    return ar;
   }
 
   virtual antlrcpp::Any visitPlusORminus(TAMMParser::PlusORminusContext *ctx) override {

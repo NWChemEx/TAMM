@@ -285,7 +285,9 @@ public:
     assert (assign_op.size() > 0);
     assert (lhs != nullptr && rhs != nullptr);
 
-    Element *e = new AssignStatement(assign_op,lhs,rhs); //Statement is child class of Element
+    Element *e = nullptr; //Statement is child class of Element
+    if (op_label.size() > 0) e = new AssignStatement(op_label, assign_op,lhs,rhs);
+    else e = new AssignStatement(assign_op,lhs,rhs); 
     return e;
   }
 
@@ -391,7 +393,7 @@ public:
     if (num_consts == 2) { ; /** Error cannot use scalar as a constant multiplier; */     }
 
     /// Consts are also part of the Adds & Mults. Stored as NumConsts. 
-    /// The sign for the consts is processed when processing the "Expression" rule later in intermediate code gen.
+    /// The sign for the consts is processed when processing the "Expression" rule later in intermediate code generation.
     if (num_array_refs == 1) {
       e = new Addition(trefs);  
     }

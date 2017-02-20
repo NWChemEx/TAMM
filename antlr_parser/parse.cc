@@ -25,7 +25,7 @@ void tamm_parser(const char* input_file, Equations &genEq) {
   tree::ParseTree *tree = parser.translation_unit();
 
   ASTBuilder *visitor = new ASTBuilder();
-  auto tu = visitor->visit(tree);
+  CompilationUnit *ast_root = visitor->visit(tree);
 
 
   //visit_ast(outputFile, astRoot);

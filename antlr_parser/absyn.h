@@ -1,22 +1,29 @@
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
 //
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+
+// TAMM Parser Class Heirarchy
 // Absyn
 //  |
-//  +-- TranslationUnit
-//  |
-//  +-- CompoundElement
+//  +-- CompilationUnit
 //  |
 //  +-- Element
 //  |    |
 //  |    +-- DeclarationList
+//  |    +-- Declaration
 //  |    |    |
-//  |    |    +-- RangeDecl
-//  |    |    +-- IndexDecl
-//  |    |    +-- ArrayDecl
-//  |    |    +-- ExpandDecl
-//  |    |    +-- VolatileDecl
-//  |    |    +-- IterationDecl
+//  |    |    +-- RangeDeclaration
+//  |    |    +-- IndexDeclaration
+//  |    |    +-- ArrayDeclaration
 //  |    |
-//  |    +-- StatementList
+//  |    +-- Statement
 //  |         |
 //  |         +-- AssignStatement
 //  |
@@ -32,13 +39,17 @@
 //
 //-----------------------------------------
 
-#ifndef ABSYN_H_
-#define ABSYN_H_
+#ifndef __TAMM_ABSYN_H_
+#define __TAMM_ABSYN_H_
 
 #include "util.h"
 #include <type_traits>
 
+
+namespace tamm {
+
 /* Forward Declarations */
+class Element;
 class Declaration;
 class Expression;
 class DeclarationList;
@@ -48,14 +59,46 @@ class DeclarationList;
 
 class Absyn //Root of the AST
 {
-    enum kAbsyn {
-        kTranslationUnit, kCompoundElement, kElement, kIdentifier, kExpression
-    };
+    public: 
+
+        int line_number;
+        int position;
+
+        enum kAbsyn {
+            kCompilationUnit, kElement, kIdentifier, kExpression
+        };
+
+        /** Implemented in all direct subclasses.
+         * Used to identify a direct subclass of Declaration.
+         * Returns the enum value for the subclass
+         * that calls this method.
+         */
+        virtual int getAbsynType() = 0;
+
+        virtual ~Absyn() {}
 
 };
 
 
-class Declaration { //: public Absyn {
+class Element : public Absyn {
+    public:
+        /// An enum to identify direct subclasses of Element.
+        enum kElement {
+            kDeclarationList,
+            kDeclaration,
+            kStatement
+        };
+
+        virtual int getElementType() = 0;
+
+        int getAbsynType() {
+            return Absyn::kElement;
+        }
+
+        virtual ~Element() { }
+};
+
+class Declaration : public Element {
     public:
         /// An enum to identify direct subclasses of Declaration.
         enum kDeclaration {
@@ -67,33 +110,24 @@ class Declaration { //: public Absyn {
             kIterationDeclaration
         };
 
-        /** Implemented in all direct subclasses.
-         * Used to identify a direct subclass of Declaration.
-         * Returns the enum value for the subclass
-         * that calls this method.
-         */
         virtual int getDeclType() = 0;
 
-        // int getAbsynType() {
-        //     return Absyn::kDeclaration;
-        // }
+        int getElementType() {
+            return Element::kDeclaration;
+        }
 
-        ~Declaration() { }
+        virtual ~Declaration() { }
 };
 
 
 class ArrayDeclaration : public Declaration {
     public:
-          int lineno;
-          int pos;
           std::string name;
           std::vector<std::string> upperIndices;
           std::vector<std::string> lowerIndices;
           std::string irrep;
 
           ArrayDeclaration(std::string n, std::vector<std::string>& ul, std::vector<std::string>& li){
-              lineno = 0;
-              pos = 0;
               name = n;    
               upperIndices = ul;
               lowerIndices = li;
@@ -106,14 +140,10 @@ class ArrayDeclaration : public Declaration {
 
 class IndexDeclaration : public Declaration {
     public:
-          int lineno;
-          int pos;
           std::string name;
           std::string rangeID;
 
           IndexDeclaration(std::string n, std::string r){
-              lineno = 0;
-              pos = 0;
               name = n;
               rangeID = r;
           }
@@ -125,16 +155,10 @@ class IndexDeclaration : public Declaration {
 
 class RangeDeclaration : public Declaration {
     public:
-          int lineno;
-          int pos;
-
           int value;
           std::string name;
-          
 
           RangeDeclaration(std::string n, int v){
-              lineno = 0;
-              pos = 0;
               name = n;    
               value = v;
           }
@@ -144,51 +168,27 @@ class RangeDeclaration : public Declaration {
           }
 };
 
-class Element { //: public Absyn {
-    public:
-        /// An enum to identify direct subclasses of Element.
-        enum kElement {
-            kDeclarationList,
-            kStatement
-        };
 
-        virtual int getElementType() = 0;
-
-        // int getAbsynType() {
-        //     return Absyn::kDeclaration;
-        // }
-
-        ~Element() { }
-};
 
 
 class Statement : public Element {
     public:
-        /// An enum to identify direct subclasses of Element.
+        /// An enum to identify direct subclasses of Statement.
         enum kStatement {
             kAssignStatement
         };
 
-        /** Implemented in all direct subclasses.
-         * Used to identify a direct subclass of Element.
-         * Returns the enum value for the subclass
-         * that calls this method.
-         */
         virtual int getStatementType() = 0;
 
         int getElementType() {
             return kElement::kStatement;
         }
 
-        // int getAbsynType() {
-        //     return Absyn::kDeclaration;
-        // }
-
-        ~Statement() { }
+        virtual ~Statement() { }
 };
 
 
-class Expression {
+class Expression : public Absyn {
 public:
     enum kExpression {
         kParenth, kNumConst, kArrayRef, kAddition, kMultiplication
@@ -196,20 +196,21 @@ public:
 
     virtual int getExpressionType() = 0;
 
-    ~Expression() {}
+    int getAbsynType() {
+        return Absyn::kExpression;
+    }
+
+    virtual ~Expression() {}
 };
 
 
 class Array: public Expression {
     public:
         std::string name;
-        int pos;
         float coef;
-        int lineno;
         std::vector<std::string> indices;
 
         Array(std::string n, std::vector<std::string>& ind) {
-            pos = 0;
             coef = 1.0;
             name = n;
             indices = ind;
@@ -222,7 +223,6 @@ class AssignStatement: public Statement {
     public:
         Array* lhs;
         Expression* rhs;
-        int pos;
         std::string label;
         std::string assign_op;
 
@@ -247,29 +247,13 @@ public:
     }
 };
 
-// class StatementList: public Element {
-// public:
-//     std::vector<Statement*> slist;
-//     StatementList() {}
-//     StatementList(std::vector<Statement*> &s): slist(s) {}
-
-//     int getElementType() {
-//        return Element::kStatementList;
-//     }
-// };
-
-
-
 
 class Parenth: public Expression {
     public:
         Expression *expression;
-        int pos;
         float coef;
-        int lineno;
 
         Parenth(Expression* e) {
-            pos = 0;
             coef = 1.0;
             expression = e;
         }
@@ -280,14 +264,11 @@ class Parenth: public Expression {
 class NumConst: public Expression {
     public:
         float value;
-        int pos;
         float coef;
-        int lineno;
 
         NumConst(float e) {
-            pos = 0;
-            coef = 1.0;
             value = e;
+            coef = 1.0;
         }
 
      int getExpressionType() { return Expression::kNumConst; }
@@ -297,9 +278,7 @@ class NumConst: public Expression {
 
 class Addition: public Expression {
     public:
-        int pos;
         float coef;
-        int lineno;
         bool first_op;
         std::vector<Expression*> subexps;
         std::vector<std::string> add_operators;
@@ -314,14 +293,11 @@ class Addition: public Expression {
 
 class Multiplication: public Expression {
     public:
-        int pos;
         int coef;
-        int lineno;
-        
         std::vector<Expression*> subexps;
 
-    Multiplication(std::vector<Expression*>& se): subexps(se), coef(1.0) {}
-    int getExpressionType() { return Expression::kMultiplication; }
+        Multiplication(std::vector<Expression*>& se): subexps(se), coef(1.0) {}
+        int getExpressionType() { return Expression::kMultiplication; }
     
 };
 
@@ -332,18 +308,20 @@ public:
     std::vector<Element*> elist;
     ElementList() {}
     ElementList(std::vector<Element*> &e): elist(e) {}
+
 };
 
 
-class Identifier {
+class Identifier: public Absyn {
 public:
-    int pos;
-    int lineno;
-    std::string name;
 
+    std::string name;
     Identifier(std::string n){
-        pos = 0;
         name = n;
+    }
+
+    int getAbsynType() {
+       return Absyn::kIdentifier;
     }
 };
 
@@ -354,28 +332,26 @@ public:
     IdentifierList(std::vector<Identifier*> &d): idlist(d) {}
 };
 
-// class ExpressionList {
-// public:
-//     std::vector<Expression*> explist;
-//     ExpressionList() {}
-//     ExpressionList(std::vector<Expression*> &el): explist(el) {}
-
-// };
-
-
 
 class CompoundElement  //represents a single input enclosed in { .. }
 {
 public:
     ElementList *elist;
     CompoundElement(ElementList *el): elist(el) {}
+
 };
 
-class TranslationUnit {
+class CompilationUnit : public Absyn {
 public:
     std::vector<CompoundElement*> celist;
-    TranslationUnit(std::vector<CompoundElement*>& cel): celist(cel) {}
+    CompilationUnit(std::vector<CompoundElement*>& cel): celist(cel) {}
+
+        int getAbsynType() {
+            return Absyn::kCompilationUnit;
+        }
 };
+
+} //namespcae tamm
 
 #endif
 

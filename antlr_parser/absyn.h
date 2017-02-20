@@ -50,6 +50,7 @@ namespace tamm {
 
 /* Forward Declarations */
 class Element;
+class Identifier;
 class Declaration;
 class Expression;
 class DeclarationList;
@@ -123,11 +124,11 @@ class Declaration : public Element {
 class ArrayDeclaration : public Declaration {
     public:
           const std::string name;
-          const std::vector<std::string> upper_indices;
-          const std::vector<std::string> lower_indices;
+          const std::vector<Identifier*> upper_indices;
+          const std::vector<Identifier*> lower_indices;
           std::string irrep;
 
-          ArrayDeclaration(const std::string name, const std::vector<std::string>& upper_indices, const std::vector<std::string>& lower_indices)
+          ArrayDeclaration(const std::string name, const std::vector<Identifier*>& upper_indices, const std::vector<Identifier*>& lower_indices)
                         : name(name), upper_indices(upper_indices), lower_indices(lower_indices)  {}
 
           int getDeclType() {
@@ -197,9 +198,9 @@ public:
 class Array: public Expression {
     public:
         const std::string name;
-        const std::vector<std::string> indices;
+        const std::vector<Identifier*> indices;
 
-        Array(const std::string name, const std::vector<std::string>& indices): name(name), indices(indices) {}
+        Array(const std::string name, const std::vector<Identifier*>& indices): name(name), indices(indices) {}
 
      int getExpressionType() { return Expression::kArrayRef; }
 };

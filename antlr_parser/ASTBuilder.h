@@ -28,13 +28,6 @@ public:
  ASTBuilder() {}
 ~ASTBuilder() {}
 
-  std::vector<std::string> getIdentifierList(std::vector<Identifier*> &idlist){
-    std::vector<std::string> stringidlist;
-    for (auto &id: idlist)
-      stringidlist.push_back(id->name);
-    return stringidlist;
-  }
-
 
   virtual antlrcpp::Any visitTranslation_unit(TAMMParser::Translation_unitContext *ctx) override {
     std::cout << "Enter translation unit\n";
@@ -86,8 +79,8 @@ public:
     
     for (auto &x: ctx->children) {
       if (TAMMParser::IdentifierContext* id = dynamic_cast<TAMMParser::IdentifierContext*>(x)){
-        std::vector<std::string> u;
-        std::vector<std::string> l;
+        std::vector<Identifier*> u;
+        std::vector<Identifier*> l;
         Identifier* i = visit(id);
         sdecls.push_back(new ArrayDeclaration(i->name,u,l));
       }
@@ -231,10 +224,7 @@ public:
     if (upper != nullptr) ui = upper->idlist;
     if (lower != nullptr) li = lower->idlist;
 
-    //C++14 - cannot pass getIdentifierList(..) directly as argument to array decl constructor - rvalue error
-    std::vector<std::string> upper_indices = getIdentifierList(ui);
-    std::vector<std::string> lower_indices = getIdentifierList(li);
-    Declaration *d = new ArrayDeclaration(array_name, upper_indices, lower_indices);
+    Declaration *d = new ArrayDeclaration(array_name, ui, li);
     return d;
 
   }
@@ -319,8 +309,8 @@ public:
       }
     }
     
-    std::vector<std::string> indices;
-    if (il!=nullptr) indices = getIdentifierList(il->idlist);
+    std::vector<Identifier*> indices;
+    if (il!=nullptr) indices = il->idlist;
     Expression* ar = new Array(name,indices);
     return ar;
   }

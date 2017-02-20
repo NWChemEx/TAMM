@@ -1,5 +1,13 @@
-
-// Generated from TAMM.g4 by ANTLR 4.6
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
 
 #pragma once
 
@@ -9,15 +17,16 @@
 
 #include "absyn.h"
 
+namespace tamm {
+
 /**
- * This class provides an empty implementation of TAMMVisitor, which can be
- * extended to create a visitor which only needs to handle a subset of the available methods.
+ * This class provides an implementation of TAMMVisitor that builds a TAMM AST.
  */
-class  TAMMBaseVisitor : public TAMMVisitor {
+class  ASTBuilder : public TAMMVisitor {
 public:
 
- TAMMBaseVisitor() {}
-~TAMMBaseVisitor() {}
+ ASTBuilder() {}
+~ASTBuilder() {}
 
   std::vector<std::string> getIdentifierList(std::vector<Identifier*> &idlist){
     std::vector<std::string> stringidlist;
@@ -30,8 +39,8 @@ public:
   virtual antlrcpp::Any visitTranslation_unit(TAMMParser::Translation_unitContext *ctx) override {
     std::cout << "Enter translation unit\n";
     std::vector<CompoundElement*> cel = visit(ctx->children.at(0)); //Cleanup
-    TranslationUnit *tu = new TranslationUnit(cel);
-    return tu;
+    CompilationUnit *cu = new CompilationUnit(cel);
+    return cu;
   }
 
   virtual antlrcpp::Any visitCompound_element_list(TAMMParser::Compound_element_listContext *ctx) override {
@@ -298,6 +307,7 @@ public:
 
   virtual antlrcpp::Any visitArray_reference(TAMMParser::Array_referenceContext *ctx) override {
     /// array_reference : ID (LBRACKET id_list RBRACKET)? 
+    std::cout << "array ref line: " << ctx->getText() << "-- Line:" << ctx->getStart()->getLine() << ", Col:" << ctx->getStart()->getCharPositionInLine() << std::endl;
     std::string name = ctx->children.at(0)->getText();
     IdentifierList *il = nullptr;
     
@@ -394,3 +404,4 @@ public:
 
 };
 
+}

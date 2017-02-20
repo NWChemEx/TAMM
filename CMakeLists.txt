@@ -1,3 +1,13 @@
+# ------------------------------------------------------------------------------
+#  Copyright (C) 2016, Pacific Northwest National Laboratory
+#  This software is subject to copyright protection under the laws of the
+#  United States and other countries
+# 
+#  All rights in this computer software are reserved by the
+#  Pacific Northwest National Laboratory (PNNL)
+#  Operated by Battelle for the U.S. Department of Energy
+# ------------------------------------------------------------------------------
+
 cmake_minimum_required(VERSION 2.8)
 project (TAMM_LIBRARY C CXX)
 enable_language (Fortran)
@@ -116,11 +126,10 @@ ADD_CUSTOM_TARGET(BuildANTLR ALL DEPENDS ANTLR)
 
 # Collect all the parser sources.
 set(tammParserSources
-    antlr_parser/absyn.cc
-    antlr_parser/tamm_parser.cc
+    antlr_parser/parse.cc
     antlr_parser/TAMMLexer.cc
     antlr_parser/TAMMParser.cc
-    antlr_parser/TAMMBaseVisitor.cc
+    antlr_parser/ASTBuilder.cc
     antlr_parser/TAMMVisitor.cc
     #antlr_parser/intermediate.cc
     #antlr_parser/semant.cc

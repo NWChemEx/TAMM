@@ -819,6 +819,23 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   lambda1_11_1->set_irrep(Variables::irrep_y());
   i0->set_irrep(Variables::irrep_y());
 
+    for(int i=0; i<eqs.op_entries.size(); i++) {
+      switch(eqs.op_entries[i].optype) {
+      case OpTypeAdd:
+      {
+          Tensor *t_alhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
+          t_alhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])->irrep());
+          break;
+      }
+      case OpTypeMult:
+       {   Tensor *t_mlhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
+          t_mlhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])->irrep() ^ 
+                          (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])->irrep());
+          break;
+       }
+      }
+  }
+
 #if 1
   schedule_linear(&tensors, &ops);
   // schedule_linear_lazy(&tensors, &ops);

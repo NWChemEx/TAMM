@@ -977,16 +977,26 @@ class TAMMtoTAMM(ParseTreeVisitor):
         newgrp = []
         aflag = True
         if num_arr == 2:
-            t1i = ",".join(arefInd[0])
-            t2i = ",".join(arefInd[1])
+            t1i = arefInd[0]
+            t2i = arefInd[1]
 
-            data = [t1i,t2i]
+            if op_label == "lambda1_6_5":
+                printres("")
+
+            data = [",".join(arefInd[0]),",".join(arefInd[1])]
             lcs = long_substr(data)
             lcs = lcs.split(",")
 
             for i in lcs:
                 if len(i.strip()) > 1:
                     newgrp.append(i.strip())
+
+            false_dup = newgrp
+            newgrp = []
+            if len(false_dup) > 1:
+                for i in false_dup:
+                    if (i in t1i and i in t2i):
+                        newgrp.append(i)
 
             if len(newgrp) > 1:
                 aul = newgrp[0][0]
@@ -999,16 +1009,17 @@ class TAMMtoTAMM(ParseTreeVisitor):
         lcs = ""
         if len(newgrp) > 1 and aflag:
             lcs = " Symmetry Indices = " + str(newgrp) + " = new const = "
-            if self.mdoption == 0:  lcs += str(symm_fact) + "*" + str(constants)
-            else: lcs += str(symm_fact) + "/" + str(constants)
+            if self.mdoption == 0:  lcs += str(constants) + "*" + str(symm_fact)
+            else: lcs += str(constants) + "/" + str(symm_fact)
 
-        if self.mdoption == 0: constants = constants * symm_fact
-        elif self.mdoption > 1: constants = constants / symm_fact
+            if self.mdoption == 0: constants = constants*symm_fact
+            elif self.mdoption > 0: constants = constants/symm_fact
+
         printres(str(constants))
         for ar in range(0,num_arr):
             printres(" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "]")
-        printres(";")
-        printres(lcs + "\n")
+        printres(";\n")
+        #printres(lcs + "\n")
 
 
 

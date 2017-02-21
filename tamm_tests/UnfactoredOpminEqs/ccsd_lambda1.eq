@@ -1,6 +1,5 @@
 lambda1 {
 
-range O,V = 10.0;
 index h1,h2,h3,h4,h5 = O;
 index h6,h7,h8,h9,h10 = O;
 index h11,h12 = O;

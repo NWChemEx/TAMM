@@ -752,6 +752,7 @@ class TAMMtoTAMM(ParseTreeVisitor):
 
     def __init__(self, x):
         self.mdoption = x
+        sys.setrecursionlimit(67108864)
 
     # Visit a parse tree produced by OpMinParser#translation_unit.
     def visitTranslation_unit(self, ctx):
@@ -980,9 +981,6 @@ class TAMMtoTAMM(ParseTreeVisitor):
             t1i = arefInd[0]
             t2i = arefInd[1]
 
-            if op_label == "lambda1_6_5":
-                printres("")
-
             data = [",".join(arefInd[0]),",".join(arefInd[1])]
             lcs = long_substr(data)
             lcs = lcs.split(",")
@@ -1013,7 +1011,7 @@ class TAMMtoTAMM(ParseTreeVisitor):
             else: lcs += str(constants) + "/" + str(symm_fact)
 
             if self.mdoption == 0: constants = constants*symm_fact
-            elif self.mdoption > 0: constants = constants/symm_fact
+            elif self.mdoption > 0: constants = float(constants*1.0)/symm_fact
 
         printres(str(constants))
         for ar in range(0,num_arr):

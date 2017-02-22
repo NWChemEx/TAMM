@@ -973,45 +973,93 @@ class TAMMtoTAMM(ParseTreeVisitor):
         num_arr = len(arefs)
         assert(num_arr==1 or num_arr == 2)
 
-        symm_fact = 1
-        lcs = ""
-        newgrp = []
-        aflag = True
+        symm_fact = 1.0
         if num_arr == 2:
             t1i = arefInd[0]
             t2i = arefInd[1]
+            t1iu = t1i[0:len(t1i)/2]
+            t1il = t1i[len(t1i)/2:]
 
-            data = [",".join(arefInd[0]),",".join(arefInd[1])]
-            lcs = long_substr(data)
-            lcs = lcs.split(",")
+            t2iu = t2i[0:len(t2i)/2]
+            t2il = t2i[len(t2i)/2:]
 
-            for i in lcs:
-                if len(i.strip()) > 1:
-                    newgrp.append(i.strip())
+            t1hu = []
+            t1hl = []
+            t1pu = []
+            t1pl = []
+            t2hu = []
+            t2hl = []
+            t2pu = []
+            t2pl = []
 
-            false_dup = newgrp
-            newgrp = []
-            if len(false_dup) > 1:
-                for i in false_dup:
-                    if (i in t1i and i in t2i):
-                        newgrp.append(i)
+            for i in t1iu:
+                if i[0] == 'h': t1hu.append(i)
+                elif i[0] == 'p': t1pu.append(i)
+            for i in t1il:
+                if i[0] == 'h': t1hl.append(i)
+                elif i[0] == 'p': t1pl.append(i)
 
-            if len(newgrp) > 1:
-                aul = newgrp[0][0]
+            for i in t2iu:
+                if i[0] == 'h': t2hu.append(i)
+                elif i[0] == 'p': t2pu.append(i)
+            for i in t2il:
+                if i[0] == 'h': t2hl.append(i)
+                elif i[0] == 'p': t2pl.append(i)
 
-                for ind in newgrp:
-                    if ind[0] != aul:
-                        aflag = False
-                if aflag: symm_fact = math.factorial(len(newgrp))
+            t1hu = set(t1hu)
+            t1hl = set(t1hl)
+            t1pu = set(t1pu)
+            t1pl = set(t1pl)
+            t2hu = set(t2hu)
+            t2hl = set(t2hl)
+            t2pu = set(t2pu)
+            t2pl = set(t2pl)
 
-        lcs = ""
-        if len(newgrp) > 1 and aflag:
-            lcs = " Symmetry Indices = " + str(newgrp) + " = new const = "
-            if self.mdoption == 0:  lcs += str(constants) + "*" + str(symm_fact)
-            else: lcs += str(constants) + "/" + str(symm_fact)
+            symm_fact *= math.factorial(len(t1hu.intersection(t2hu)))
+            symm_fact *= math.factorial(len(t1hu.intersection(t2hl)))
+            symm_fact *= math.factorial(len(t1hl.intersection(t2hu)))
+            symm_fact *= math.factorial(len(t1hl.intersection(t2hl)))
+
+            symm_fact *= math.factorial(len(t1pu.intersection(t2pu)))
+            symm_fact *= math.factorial(len(t1pu.intersection(t2pl)))
+            symm_fact *= math.factorial(len(t1pl.intersection(t2pu)))
+            symm_fact *= math.factorial(len(t1pl.intersection(t2pl)))
+
+
 
             if self.mdoption == 0: constants = constants*symm_fact
-            elif self.mdoption > 0: constants = float(constants*1.0)/symm_fact
+            elif self.mdoption > 0: constants = float(constants*1.0)/(symm_fact)
+
+        #     data = [",".join(arefInd[0]),",".join(arefInd[1])]
+        #     lcs = long_substr(data)
+        #     lcs = lcs.split(",")
+        #
+        #     for i in lcs:
+        #         if len(i.strip()) > 1:
+        #             newgrp.append(i.strip())
+        #
+        #     false_dup = newgrp
+        #     newgrp = []
+        #     if len(false_dup) > 1:
+        #         for i in false_dup:
+        #             if (i in t1i and i in t2i):
+        #                 newgrp.append(i)
+        #
+        #     if len(newgrp) > 1:
+        #         aul = newgrp[0][0]
+        #
+        #         for ind in newgrp:
+        #             if ind[0] != aul:
+        #                 aflag = False
+        #         if aflag: symm_fact = math.factorial(len(newgrp))
+        #
+        # lcs = ""
+        # if len(newgrp) > 1 and aflag:
+        #     lcs = " Symmetry Indices = " + str(newgrp) + " = new const = "
+        #     if self.mdoption == 0:  lcs += str(constants) + "*" + str(symm_fact)
+        #     else: lcs += str(constants) + "/" + str(symm_fact)
+
+
 
         printres(str(constants))
         for ar in range(0,num_arr):

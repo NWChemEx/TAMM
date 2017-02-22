@@ -42,6 +42,8 @@ if __name__ == '__main__':
     print(oplabel + " {\n")
 
     visitor = OpminOutToTAMM()
-    visitor.visitTranslation_unit(tree)
+    op2tammstr = visitor.visitTranslation_unit(tree)
+    print(op2tammstr)
+
 
     print("}")

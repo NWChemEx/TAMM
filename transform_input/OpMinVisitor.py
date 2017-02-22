@@ -428,10 +428,14 @@ f_v_decls = dict()
 
 class OpminOutToTAMM(ParseTreeVisitor):
 
+    def __init__(self):
+        self.Opmin2Tamm = ""
+
     # Visit a parse tree produced by OpMinParser#translation_unit.
     def visitTranslation_unit(self, ctx):
         #printnl("{")
         self.visitChildren(ctx)
+        return self.Opmin2Tamm
         #printnl("}")
 
 
@@ -518,7 +522,7 @@ class OpminOutToTAMM(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#numerical_constant.
     def visitNumerical_constant(self, ctx):
-        printresws(ctx.children[0])
+        self.Opmin2Tamm += " " + str(ctx.children[0]) + " "
         #return self.visitChildren(ctx)
 
 
@@ -528,7 +532,7 @@ class OpminOutToTAMM(ParseTreeVisitor):
         idecl = "range "
         idecl += self.visitId_list(var)
         value =  ctx.children[3].children[0]
-        printnli(idecl + " = " + str(value) +";")
+        self.Opmin2Tamm += idecl + " = " + str(value) +";\n"
 
         #return self.visitChildren(ctx)
 
@@ -539,7 +543,7 @@ class OpminOutToTAMM(ParseTreeVisitor):
         idecl = "index "
         idecl += self.visitId_list(var)
         value = ctx.children[3].children[0]
-        printnli(idecl + " = " + str(value) + ";")
+        self.Opmin2Tamm += idecl + " = " + str(value) + ";\n"
         self.visitChildren(ctx)
 
 
@@ -607,7 +611,7 @@ class OpminOutToTAMM(ParseTreeVisitor):
             else: adecl += lower
 
         adecl += '];'
-        printnli(adecl)
+        self.Opmin2Tamm += adecl + "\n"
 
 
     # Visit a parse tree produced by OpMinParser#permut_symmetry_opt.
@@ -653,9 +657,9 @@ class OpminOutToTAMM(ParseTreeVisitor):
     # Visit a parse tree produced by OpMinParser#assignment_statement.
     def visitAssignment_statement(self, ctx):
         lhs = self.visitExpression(ctx.children[0])
-        printres(ctx.children[1].children[0])
+        self.Opmin2Tamm += str(ctx.children[1].children[0])
         rhs = self.visitExpression(ctx.children[2])
-        printnl(";")
+        self.Opmin2Tamm += ";\n"
 
 
 
@@ -666,8 +670,8 @@ class OpminOutToTAMM(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#unary_expression.
     def visitUnary_expression(self, ctx):
-        if str(ctx.children[0]) == "+": printres(" +")
-        elif str(ctx.children[0]) == "-": printres(" -")
+        if str(ctx.children[0]) == "+": self.Opmin2Tamm += " +"
+        elif str(ctx.children[0]) == "-": self.Opmin2Tamm += " -"
         return self.visitChildren(ctx)
 
 
@@ -686,7 +690,7 @@ class OpminOutToTAMM(ParseTreeVisitor):
         if len(ctx.children) >= 2:
             ilist = self.visitId_list_opt(ctx.children[2])
         aref += (ilist) + "]"
-        printresws(aref)
+        self.Opmin2Tamm += " " + aref + " "
 
     # Visit a parse tree produced by OpMinParser#expression.
     def visitExpression(self, ctx):
@@ -695,7 +699,7 @@ class OpminOutToTAMM(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#plusORminus.
     def visitPlusORminus(self, ctx):
-        printres(ctx.children[0])
+        self.Opmin2Tamm += str(ctx.children[0])
         #return self.visitChildren(ctx)
 
 
@@ -717,8 +721,9 @@ class OpminOutToTAMM(ParseTreeVisitor):
     # Visit a parse tree produced by OpMinParser#multiplicative_expression_prime.
     def visitMultiplicative_expression_prime(self, ctx):
         if ctx.children:
-            if str(ctx.children[0]) == "*": printres("*")
+            if str(ctx.children[0]) == "*": self.Opmin2Tamm += "*"
         return self.visitChildren(ctx)
+
 
 
 #TAMM TO TAMM

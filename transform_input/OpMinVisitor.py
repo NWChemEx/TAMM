@@ -849,11 +849,12 @@ class TAMMtoTAMM(ParseTreeVisitor):
     # Visit a parse tree produced by OpMinParser#range_declaration.
     def visitRange_declaration(self, ctx):
         global range_vals
-        rv = int(ctx.children[3].getText())
+        rv = float(ctx.children[3].getText())
         rvars = ctx.children[1].getText().split(",")
         printres("range ")
         printres(",".join(rvars))
         printres(" = ")
+        rv = int(rv)
         printres(rv)
         printres(";\n")
         for r in rvars:
@@ -1035,44 +1036,299 @@ class TAMMtoTAMM(ParseTreeVisitor):
             if self.mdoption == 0: constants = constants*symm_fact
             elif self.mdoption > 0: constants = float(constants*1.0)/(symm_fact)
 
-        #     data = [",".join(arefInd[0]),",".join(arefInd[1])]
-        #     lcs = long_substr(data)
-        #     lcs = lcs.split(",")
-        #
-        #     for i in lcs:
-        #         if len(i.strip()) > 1:
-        #             newgrp.append(i.strip())
-        #
-        #     false_dup = newgrp
-        #     newgrp = []
-        #     if len(false_dup) > 1:
-        #         for i in false_dup:
-        #             if (i in t1i and i in t2i):
-        #                 newgrp.append(i)
-        #
-        #     if len(newgrp) > 1:
-        #         aul = newgrp[0][0]
-        #
-        #         for ind in newgrp:
-        #             if ind[0] != aul:
-        #                 aflag = False
-        #         if aflag: symm_fact = math.factorial(len(newgrp))
-        #
-        # lcs = ""
-        # if len(newgrp) > 1 and aflag:
-        #     lcs = " Symmetry Indices = " + str(newgrp) + " = new const = "
-        #     if self.mdoption == 0:  lcs += str(constants) + "*" + str(symm_fact)
-        #     else: lcs += str(constants) + "/" + str(symm_fact)
-
-
-
         printres(str(constants))
         for ar in range(0,num_arr):
             printres(" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "]")
         printres(";\n")
-        #printres(lcs + "\n")
 
 
+    # Visit a parse tree produced by OpMinParser#assignment_operator.
+    def visitAssignment_operator(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#unary_expression.
+    def visitUnary_expression(self, ctx):
+        global constants
+        if str(ctx.children[0]) == "-": constants = -1;
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#primary_expression.
+    def visitPrimary_expression(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#array_reference.
+    def visitArray_reference(self, ctx):
+        aname = str(ctx.children[0])
+        arefs.append(aname)
+        arefInd.append(self.visitId_list_opt(ctx.children[2]))
+
+
+    # Visit a parse tree produced by OpMinParser#expression.
+    def visitExpression(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#plusORminus.
+    def visitPlusORminus(self, ctx):
+        printres(ctx.children[0])
+        #return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#additive_expression.
+    def visitAdditive_expression(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#additive_expression_prime.
+    def visitAdditive_expression_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#multiplicative_expression.
+    def visitMultiplicative_expression(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#multiplicative_expression_prime.
+    def visitMultiplicative_expression_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+#Break long adds into multiple adds
+class OpminTAMMSplitAdds(ParseTreeVisitor):
+
+    def __init__(self):
+        sys.setrecursionlimit(67108864)
+
+    # Visit a parse tree produced by OpMinParser#translation_unit.
+    def visitTranslation_unit(self, ctx):
+        self.visitChildren(ctx)
+
+    # Visit a parse tree produced by OpMinParser#compound_element_list_opt.
+    def visitCompound_element_list_opt(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#compound_element_list.
+    def visitCompound_element_list(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#compound_element_list_prime.
+    def visitCompound_element_list_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#compound_element.
+    def visitCompound_element(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#element_list_opt.
+    def visitElement_list_opt(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#element_list.
+    def visitElement_list(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#element_list_prime.
+    def visitElement_list_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#element.
+    def visitElement(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#declaration.
+    def visitDeclaration(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#id_list_opt.
+    def visitId_list_opt(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#id_list.
+    def visitId_list(self, ctx):
+        idecl = []
+        idecl.append(str(ctx.children[0].children[0]))
+        var = ctx.children[1]
+        while (var.children):
+            idecl.append(str(var.children[1].children[0]))
+            var = var.children[2]
+        return idecl
+
+
+    # Visit a parse tree produced by OpMinParser#id_list_prime.
+    def visitId_list_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#num_list.
+    def visitNum_list(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#num_list_prime.
+    def visitNum_list_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#identifier.
+    def visitIdentifier(self, ctx):
+        return self.visitChildren(ctx)
+
+    # Visit a parse tree produced by OpMinParser#range_declaration.
+    def visitRange_declaration(self, ctx):
+        global range_vals
+        rv = float(ctx.children[3].getText())
+        rvars = ctx.children[1].getText().split(",")
+        printres("range ")
+        printres(",".join(rvars))
+        printres(" = ")
+        rv = int(rv)
+        printres(rv)
+        printres(";\n")
+        for r in rvars:
+            range_vals[r.strip()] = rv
+
+
+
+    # Visit a parse tree produced by OpMinParser#index_declaration.
+    def visitIndex_declaration(self, ctx):
+        printres(ctx.children[0])
+        printresws(ctx.children[1].getText())
+        printres("= ")
+        printres(ctx.children[3].getText())
+        printres(";\n")
+
+
+    # Visit a parse tree produced by OpMinParser#array_declaration.
+    def visitArray_declaration(self, ctx):
+        printres(ctx.children[0])
+        printres(" " + ctx.children[1].getText())
+
+        if (len(ctx.children) > 3):
+            printres(": " + ctx.children[3].getText())
+        printres(";\n")
+
+
+    # Visit a parse tree produced by OpMinParser#array_structure_list.
+    def visitArray_structure_list(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#array_structure_list_prime.
+    def visitArray_structure_list_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#array_structure.
+    def visitArray_structure(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#permut_symmetry_opt.
+    def visitPermut_symmetry_opt(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#symmetry_group_list.
+    def visitSymmetry_group_list(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#symmetry_group_list_prime.
+    def visitSymmetry_group_list_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#symmetry_group.
+    def visitSymmetry_group(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#expansion_declaration.
+    def visitExpansion_declaration(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#volatile_declaration.
+    def visitVolatile_declaration(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#iteration_declaration.
+    def visitIteration_declaration(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#statement.
+    def visitStatement(self, ctx):
+        return self.visitChildren(ctx)
+
+
+
+    # Visit a parse tree produced by OpMinParser#numerical_constant.
+    def visitNumerical_constant(self, ctx):
+        global constants
+        nv = str(ctx.children[0])
+        if "/" not in nv: nv = float(nv)
+        else:
+            num = nv.split("/")
+            nv = float(num[0])*1.0/float(num[1])
+
+        constants = constants * nv
+
+
+    # Visit a parse tree produced by OpMinParser#assignment_statement.
+    def visitAssignment_statement(self, ctx):
+        global arefs, arefInd, constants
+        op_label = ""
+        lhs = ctx.children[0]
+        aop = ctx.children[1]
+        rhs = ctx.children[2]
+        if isinstance(lhs,OpMinParser.IdentifierContext):
+            op_label = lhs.getText()
+            lhs = ctx.children[2]
+            aop = ctx.children[3]
+            rhs = ctx.children[4]
+
+        lhs = lhs.getText()
+        aop = aop.getText()
+
+        astmt = lhs +  " " + aop + " "
+        if op_label: astmt = op_label + " : " + astmt
+
+        arefs = []
+        arefInd = []
+        constants = 1
+
+        self.visitExpression(rhs)
+
+        num_arr = len(arefs)
+        #assert(num_arr==1 or num_arr == 2)
+
+        if num_arr <= 2:
+            printres(astmt)
+            printres(str(constants))
+            for ar in range(0,num_arr):
+                printres(" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "]")
+        else:
+            for ar in range(0, num_arr):
+                printres(lhs + " += ")
+                printres(str(constants))
+                printres(" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "];\n")
+        printres(";\n")
 
 
     # Visit a parse tree produced by OpMinParser#assignment_operator.

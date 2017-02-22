@@ -1097,6 +1097,12 @@ class TAMMtoTAMM(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+expflag = True
+all_constants = dict()
+constant_no = 0
+pmflag = False
+arefconst = False
+
 #Break long adds into multiple adds
 class OpminTAMMSplitAdds(ParseTreeVisitor):
 
@@ -1280,19 +1286,26 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#numerical_constant.
     def visitNumerical_constant(self, ctx):
-        global constants
+        global constants,all_constants,constant_no,pmflag,arefconst
         nv = str(ctx.children[0])
         if "/" not in nv: nv = float(nv)
         else:
             num = nv.split("/")
             nv = float(num[0])*1.0/float(num[1])
 
-        constants = constants * nv
+
+        if pmflag:
+            constant_no -= 1
+            pmflag = False
+        all_constants[constant_no] = constants * nv
+        constants = 1.0
+        constant_no += 1
+        arefconst = True
 
 
     # Visit a parse tree produced by OpMinParser#assignment_statement.
     def visitAssignment_statement(self, ctx):
-        global arefs, arefInd, constants
+        global arefs, arefInd, constants, all_constants, constant_no, expflag,arefconst
         op_label = ""
         lhs = ctx.children[0]
         aop = ctx.children[1]
@@ -1311,24 +1324,50 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
 
         arefs = []
         arefInd = []
-        constants = 1
+        constants = 1.0
 
+        all_constants = dict()
+        constant_no = 0
+
+        expflag = False
         self.visitExpression(rhs)
+        expflag = True
 
         num_arr = len(arefs)
         #assert(num_arr==1 or num_arr == 2)
 
         if num_arr <= 2:
             printres(astmt)
-            printres(str(constants))
+            arefs = []
+            arefInd = []
+            constants = 1.0
+            all_constants = dict()
+            constant_no = 0
+
+            self.visitExpression(rhs)
+
+            if 0 in all_constants: constants = str(all_constants[0])
+            printres(constants)
             for ar in range(0,num_arr):
                 printres(" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "]")
+            printres(";\n")
         else:
+            arefs = []
+            arefInd = []
+            constants = 1.0
+            all_constants = dict()
+            constant_no = 0
+            expflag = False
+            arefconst = False
+            self.visitExpression(rhs)
+            expflag = True
+            #print(all_constants)
             for ar in range(0, num_arr):
                 printres(lhs + " += ")
-                printres(str(constants))
+                printres(str(all_constants[ar]))
+                #else: printres("1.0")
                 printres(" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "];\n")
-        printres(";\n")
+
 
 
     # Visit a parse tree produced by OpMinParser#assignment_operator.
@@ -1338,8 +1377,13 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#unary_expression.
     def visitUnary_expression(self, ctx):
-        global constants
-        if str(ctx.children[0]) == "-": constants = -1;
+        global constants,all_constants,constant_no,pmflag,arefconst
+        if str(ctx.children[0]) == "-":
+            constants = -1.0
+            all_constants[constant_no] = constants
+            constant_no += 1
+            pmflag = True
+            arefconst=True
         return self.visitChildren(ctx)
 
 
@@ -1350,9 +1394,17 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#array_reference.
     def visitArray_reference(self, ctx):
+        global arefconst,all_constants,constant_no,constants,pmflag
         aname = str(ctx.children[0])
         arefs.append(aname)
         arefInd.append(self.visitId_list_opt(ctx.children[2]))
+
+        if not arefconst:
+            all_constants[constant_no] = 1.0
+            constant_no += 1
+        arefconst = False
+        pmflag = False
+        constants = 1.0
 
 
     # Visit a parse tree produced by OpMinParser#expression.
@@ -1362,7 +1414,7 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#plusORminus.
     def visitPlusORminus(self, ctx):
-        printres(ctx.children[0])
+        if expflag: printres(ctx.children[0])
         #return self.visitChildren(ctx)
 
 

@@ -300,7 +300,7 @@ public:
 
   virtual antlrcpp::Any visitArray_reference(TAMMParser::Array_referenceContext *ctx) override {
     /// array_reference : ID (LBRACKET id_list RBRACKET)? 
-    std::cout << "array ref line: " << ctx->getText() << "-- Line:" << ctx->getStart()->getLine() << ", Col:" << ctx->getStart()->getCharPositionInLine() << std::endl;
+    std::cout << "array ref line: " << ctx->getText() << "-- Line:" << ctx->getStart()->getLine() << ", Col:" << ctx->getStart()->getCharPositionInLine()+1 << std::endl;
     std::string name = ctx->children.at(0)->getText();
     IdentifierList *il = nullptr;
     

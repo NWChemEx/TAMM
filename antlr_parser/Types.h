@@ -13,7 +13,7 @@
 #ifndef __TAMM_TYPES_H__
 #define __TAMM_TYPES_H__
 
-//class Identifier;
+class Identifier;
 
 namespace tamm {
 
@@ -43,30 +43,32 @@ class RangeType: public Type {
         }
 };
 
-// class IndexType: public Type {
-//     public:
-//         const Identifier* const range_name; //  Look up RangeType from name if needed later
+class IndexType: public Type {
+    public:
+        const Identifier* const range_name; //  Look up RangeType from name if needed later
 
-//         IndexType(const Identifier* const range_name): range_name(range_name) {}
+        IndexType(const Identifier* const range_name): range_name(range_name) {}
 
-//         int getType() {
-//             return Type::kIndexType;
-//         }
-// };
+        int getType() {
+            return Type::kIndexType;
+        }
+};
 
-// class TensorType: public Type {
-//     public:
-//           const std::vector<Identifier*> upper_indices;
-//           const std::vector<Identifier*> lower_indices;
+class TensorType: public Type {
+    public:
+          const std::vector<Identifier*> upper_indices;
+          const std::vector<Identifier*> lower_indices;
 
-//     public:
-//         TensorType(const std::vector<Identifier*> upper_indices, const std::vector<Identifier*> lower_indices) 
-//                   : upper_indices(upper_indices), lower_indices(lower_indices) {}
+    public:
+        TensorType(const std::vector<Identifier*> upper_indices, const std::vector<Identifier*> lower_indices) 
+                  : upper_indices(upper_indices), lower_indices(lower_indices) {}
 
-//     int getType() {
-//         return Type::kTensorType;
-//     }
+    int getType() {
+        return Type::kTensorType;
+    }
 
 };
+
+}
 
 #endif

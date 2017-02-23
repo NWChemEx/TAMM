@@ -32,7 +32,8 @@ public:
   virtual antlrcpp::Any visitTranslation_unit(TAMMParser::Translation_unitContext *ctx) override {
     std::cout << "Enter translation unit\n";
     std::vector<CompoundElement*> cel = visit(ctx->children.at(0)); //Cleanup
-    CompilationUnit *cu = new CompilationUnit(cel);
+    SymbolTable* const symbol_table = new SymbolTable();
+    CompilationUnit *cu = new CompilationUnit(cel,symbol_table);
     return cu;
   }
 

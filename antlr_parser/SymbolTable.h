@@ -19,6 +19,7 @@ namespace tamm{
 
 class SymbolTable {
     public:
+        //Add C++ hashmap or google densemap ??
         SymbolTable() {};
         ~SymbolTable() {};
         const Entry* get(std::string key);

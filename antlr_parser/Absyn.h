@@ -42,7 +42,7 @@
 #ifndef __TAMM_ABSYN_H_
 #define __TAMM_ABSYN_H_
 
-#include "util.h"
+#include "SymbolTable.h"
 #include <type_traits>
 
 
@@ -321,7 +321,9 @@ public:
 class CompilationUnit : public Absyn {
 public:
     const std::vector<CompoundElement*> celist;
-    CompilationUnit(const std::vector<CompoundElement*>& celist): celist(celist) {}
+    const SymbolTable* symbol_table;
+    CompilationUnit(const std::vector<CompoundElement*>& celist, const SymbolTable* symbol_table)
+                   : celist(celist), symbol_table(symbol_table) {}
 
         int getAbsynType() {
             return Absyn::kCompilationUnit;

@@ -95,6 +95,12 @@ public:
   }
 
   virtual antlrcpp::Any visitId_list_opt(TAMMParser::Id_list_optContext *ctx) override {
+    /// Applies only to an Array Declaration
+    if (ctx->children.size() == 0) {
+      /// An Array can have 0 upper/lower indices
+        std::vector<Identifier*> idlist;
+        return new IdentifierList(idlist);
+    }
     return visitChildren(ctx);
   }
 
@@ -217,6 +223,7 @@ public:
 
 
   virtual antlrcpp::Any visitArray_structure(TAMMParser::Array_structureContext *ctx) override {
+    std::cout << "Enter array structure\n";
     bool ul_flag = true;
     IdentifierList* upper = nullptr;
     IdentifierList* lower = nullptr;

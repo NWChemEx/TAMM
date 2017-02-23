@@ -15,7 +15,7 @@
 #include "antlr4-runtime.h"
 #include "TAMMVisitor.h"
 
-#include "absyn.h"
+#include "Absyn.h"
 
 namespace tamm {
 

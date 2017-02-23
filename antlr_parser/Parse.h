@@ -17,9 +17,8 @@
 #include "TAMMLexer.h"
 #include "ASTBuilder.h"
 
-// #include "semant.h"
-// #include "error.h"
-#include "intermediate.h"
+// #include "Semant.h"
+#include "Intermediate.h"
 
 using namespace antlr4;
 

@@ -62,8 +62,10 @@ class Absyn //Root of the AST
 {
     public: 
 
-        int line_number;
-        int position;
+        int line;     /// Line number
+        int position; /// column number in line
+
+        Absyn(const int line, const int position): line(line), position(position) {}
 
         enum kAbsyn {
             kCompilationUnit, kElement, kIdentifier, kExpression
@@ -90,6 +92,8 @@ class Element : public Absyn {
             kStatement
         };
 
+        Element(const int line, const int position): Absyn(line, position) {}
+
         virtual int getElementType() = 0;
 
         int getAbsynType() {
@@ -111,6 +115,8 @@ class Declaration : public Element {
             kIterationDeclaration
         };
 
+        Declaration(const int line, const int position): Element(line, position) {}
+
         virtual int getDeclType() = 0;
 
         int getElementType() {
@@ -129,7 +135,7 @@ class ArrayDeclaration : public Declaration {
           std::string irrep;
 
           ArrayDeclaration(const std::string name, const std::vector<Identifier*>& upper_indices, const std::vector<Identifier*>& lower_indices)
-                        : name(name), upper_indices(upper_indices), lower_indices(lower_indices)  {}
+                        : Declaration(0,0), name(name), upper_indices(upper_indices), lower_indices(lower_indices)  {}
 
           int getDeclType() {
               return Declaration::kArrayDeclaration;
@@ -141,7 +147,7 @@ class IndexDeclaration : public Declaration {
           const std::string name;
           const std::string range_id;
 
-          IndexDeclaration(const std::string name, const std::string range_id): name(name), range_id(range_id) {}
+          IndexDeclaration(const std::string name, const std::string range_id): Declaration(0,0), name(name), range_id(range_id) {}
 
           int getDeclType() {
               return Declaration::kIndexDeclaration;
@@ -153,7 +159,7 @@ class RangeDeclaration : public Declaration {
           const int value;
           const std::string name;
 
-          RangeDeclaration(const std::string name, const int value): name(name), value(value) {}
+          RangeDeclaration(const std::string name, const int value): Declaration(0,0), name(name), value(value) {}
 
           int getDeclType() {
               return Declaration::kRangeDeclaration;
@@ -168,6 +174,8 @@ class Statement : public Element {
         enum kStatement {
             kAssignStatement
         };
+
+        Statement(const int line, const int position): Element(line, position) {}
 
         virtual int getStatementType() = 0;
 
@@ -185,6 +193,8 @@ public:
         kParenth, kNumConst, kArrayRef, kAddition, kMultiplication
     };
 
+   Expression(const int line, const int position): Absyn(line,position) {} 
+
     virtual int getExpressionType() = 0;
 
     int getAbsynType() {
@@ -196,11 +206,14 @@ public:
 
 
 class Array: public Expression {
+    
     public:
+
         const std::string name;
         const std::vector<Identifier*> indices;
 
-        Array(const std::string name, const std::vector<Identifier*>& indices): name(name), indices(indices) {}
+        Array(const std::string name, const std::vector<Identifier*>& indices) //const int line, const int position,
+                : Expression(0,0), name(name), indices(indices) {} //Expression(line,position),
 
      int getExpressionType() { return Expression::kArrayRef; }
 };
@@ -213,10 +226,10 @@ class AssignStatement: public Statement {
         const std::string assign_op;
 
         AssignStatement(const std::string assign_op, const Array* const lhs, const Expression* const rhs)
-                        : assign_op(assign_op), lhs(lhs), rhs(rhs) {}
+                        : Statement(0,0), assign_op(assign_op), lhs(lhs), rhs(rhs) {}
 
         AssignStatement(const std::string label, const std::string assign_op, const Array* const lhs, const Expression* const rhs)
-                        : label(label), assign_op(assign_op), lhs(lhs), rhs(rhs) {}
+                        : Statement(0,0), label(label), assign_op(assign_op), lhs(lhs), rhs(rhs) {}
         
         int getStatementType() {
             return Statement::kAssignStatement;
@@ -229,7 +242,7 @@ class AssignStatement: public Statement {
 class DeclarationList: public Element {
 public:
     const std::vector<Declaration*> dlist;
-    DeclarationList(const std::vector<Declaration*> &dlist): dlist(dlist) {}
+    DeclarationList(const std::vector<Declaration*> &dlist): Element(0,0), dlist(dlist) {}
 
     int getElementType() {
        return Element::kDeclarationList;
@@ -241,7 +254,7 @@ class Parenth: public Expression {
     public:
         const Expression* const expression;
 
-        Parenth(const Expression* const expression): expression(expression) {}
+        Parenth(const Expression* const expression): Expression(0,0), expression(expression) {}
 
      int getExpressionType() { return Expression::kParenth; }
 };
@@ -251,7 +264,7 @@ class NumConst: public Expression {
     public:
         const float value;
 
-        NumConst(const float value): value(value) {}
+        NumConst(const float value): Expression(0,0), value(value) {}
 
      int getExpressionType() { return Expression::kNumConst; }
 };
@@ -264,9 +277,9 @@ class Addition: public Expression {
         const std::vector<Expression*> subexps;
         const std::vector<std::string> add_operators;
 
-    Addition(const std::vector<Expression*>& subexps): subexps(subexps), first_op(false) {}
+    Addition(const std::vector<Expression*>& subexps): Expression(0,0), subexps(subexps), first_op(false) {}
     Addition(const std::vector<Expression*>& subexps, const std::vector<std::string> &add_operators, const bool first_op)
-            : subexps(subexps), add_operators(add_operators), first_op(first_op) {}
+            : Expression(0,0), subexps(subexps), add_operators(add_operators), first_op(first_op) {}
     int getExpressionType() { return Expression::kAddition; }
 
 };
@@ -277,7 +290,7 @@ class Multiplication: public Expression {
     public:
         const std::vector<Expression*> subexps;
 
-        Multiplication(const std::vector<Expression*>& subexps): subexps(subexps) {}
+        Multiplication(const std::vector<Expression*>& subexps): Expression(0,0), subexps(subexps) {}
         int getExpressionType() { return Expression::kMultiplication; }
     
 };
@@ -288,7 +301,6 @@ class ElementList //group of declarations and statements corresponding to a sing
 public:
     const std::vector<Element*> elist;
     ElementList(const std::vector<Element*> &e): elist(e) {}
-
 };
 
 
@@ -296,7 +308,7 @@ class Identifier: public Absyn {
 public:
 
     const std::string name;
-    Identifier(const std::string name): name(name) {}
+    Identifier(const std::string name): Absyn(0,0), name(name) {}
 
     int getAbsynType() {
        return Absyn::kIdentifier;
@@ -323,7 +335,7 @@ public:
     const std::vector<CompoundElement*> celist;
     const SymbolTable* symbol_table;
     CompilationUnit(const std::vector<CompoundElement*>& celist, const SymbolTable* symbol_table)
-                   : celist(celist), symbol_table(symbol_table) {}
+                   : Absyn(0,0), celist(celist), symbol_table(symbol_table) {}
 
         int getAbsynType() {
             return Absyn::kCompilationUnit;

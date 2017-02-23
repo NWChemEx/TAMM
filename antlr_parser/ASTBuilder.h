@@ -79,14 +79,18 @@ public:
     std::vector<Declaration*> sdecls;
     
     for (auto &x: ctx->children) {
-      if (TAMMParser::IdentifierContext* id = dynamic_cast<TAMMParser::IdentifierContext*>(x)){
+      if (TAMMParser::IdentifierContext* id = 
+          dynamic_cast<TAMMParser::IdentifierContext*>(x)) {
         std::vector<Identifier*> u;
         std::vector<Identifier*> l;
         Identifier* i = visit(id);
-        sdecls.push_back(new ArrayDeclaration(i->name,u,l));
+        sdecls.push_back(new ArrayDeclaration(
+                                  ctx->getStart()->getLine(),
+                                  ctx->getStart()->getCharPositionInLine()+1,
+                                  i->name,u,l));
       }
     }
-     Element *s = new DeclarationList(sdecls);
+     Element *s = new DeclarationList(ctx->getStart()->getLine(), sdecls);
      return s;
   }
 
@@ -109,8 +113,9 @@ public:
   }
 
   virtual antlrcpp::Any visitIdentifier(TAMMParser::IdentifierContext *ctx) override {
-    Identifier* id = new Identifier(ctx->children.at(0)->getText());
-    //id->lineno = tce_lineno;
+    Identifier* id = new Identifier(ctx->getStart()->getLine(), 
+                         ctx->getStart()->getCharPositionInLine()+1,
+                         ctx->children.at(0)->getText());
     return id;
   }
 
@@ -128,7 +133,8 @@ public:
     
     float value = std::stof(s); // Gets denominator in case of fraction
     if (numerator.size() > 0) value = std::stof(numerator)*1.0/value;
-    Expression* nc = new NumConst(value);
+    Expression* nc = new NumConst(ctx->getStart()->getLine(), 
+                                  ctx->getStart()->getCharPositionInLine()+1, value);
     return nc;
   }
 
@@ -143,7 +149,8 @@ public:
       if (TAMMParser::Id_listContext* id = dynamic_cast<TAMMParser::Id_listContext*>(x))
         rnames = visit(id);
 
-      else if (TAMMParser::Numerical_constantContext* id = dynamic_cast<TAMMParser::Numerical_constantContext*>(x)){
+      else if (TAMMParser::Numerical_constantContext* id = 
+                dynamic_cast<TAMMParser::Numerical_constantContext*>(x)) {
          NumConst *nc = visit(id);
          range_value = (int)nc->value; 
       }
@@ -153,11 +160,13 @@ public:
     assert (rnames != nullptr);
 
     for (auto &range: rnames->idlist)    {
-      rd_list.push_back(new RangeDeclaration(range->name, range_value));
+      rd_list.push_back(new RangeDeclaration(ctx->getStart()->getLine(),
+                              ctx->getStart()->getCharPositionInLine()+1, 
+                              range->name, range_value));
     }
 
     //std::cout << "Leaving... Range Decl\n";
-     Element *e = new DeclarationList(rd_list);
+     Element *e = new DeclarationList(ctx->getStart()->getLine(), rd_list);
      return e;
   }
 
@@ -172,7 +181,8 @@ public:
       if (TAMMParser::Id_listContext* id = dynamic_cast<TAMMParser::Id_listContext*>(x))
         inames = visit(id);
 
-      else if (TAMMParser::IdentifierContext* id = dynamic_cast<TAMMParser::IdentifierContext*>(x))
+      else if (TAMMParser::IdentifierContext* id = 
+                dynamic_cast<TAMMParser::IdentifierContext*>(x))
         range_var = visit(id);
     }
 
@@ -180,10 +190,13 @@ public:
     assert (inames != nullptr);
 
     for (auto &index: inames->idlist)    {
-      id_list.push_back(new IndexDeclaration(index->name, range_var->name));
+      id_list.push_back(new IndexDeclaration(
+                                  ctx->getStart()->getLine(),
+                                  ctx->getStart()->getCharPositionInLine()+1,
+                                  index->name, range_var->name));
     }
 
-     Element *e = new DeclarationList(id_list);
+     Element *e = new DeclarationList(ctx->getStart()->getLine(), id_list);
      return e;
   }
 
@@ -193,7 +206,8 @@ public:
     Element *adl;
 
     for (auto &x: ctx->children){
-      if (TAMMParser::Array_structure_listContext* asl = dynamic_cast<TAMMParser::Array_structure_listContext*>(x))
+      if (TAMMParser::Array_structure_listContext* asl = 
+            dynamic_cast<TAMMParser::Array_structure_listContext*>(x))
         adl = visit(x);
     }
 
@@ -210,7 +224,8 @@ public:
     std::string array_name = ctx->children.at(0)->getText();
 
     for (auto &x: ctx->children){
-      if(TAMMParser::Id_list_optContext* ul = dynamic_cast<TAMMParser::Id_list_optContext*>(x)){
+      if(TAMMParser::Id_list_optContext* ul 
+            = dynamic_cast<TAMMParser::Id_list_optContext*>(x)) {
         if (ul_flag) { 
           upper = visit(ul);
           ul_flag = false;
@@ -225,7 +240,10 @@ public:
     if (upper != nullptr) ui = upper->idlist;
     if (lower != nullptr) li = lower->idlist;
 
-    Declaration *d = new ArrayDeclaration(array_name, ui, li);
+    Declaration *d = new ArrayDeclaration(
+                                  ctx->getStart()->getLine(),
+                                  ctx->getStart()->getCharPositionInLine()+1,
+                                  array_name, ui, li);
     return d;
 
   }
@@ -233,11 +251,12 @@ public:
   virtual antlrcpp::Any visitArray_structure_list(TAMMParser::Array_structure_listContext *ctx) override {
     std::vector<Declaration*> ad;
     for (auto &x: ctx->children){
-      if (TAMMParser::Array_structureContext* asl = dynamic_cast<TAMMParser::Array_structureContext*>(x))
+      if (TAMMParser::Array_structureContext* asl = 
+            dynamic_cast<TAMMParser::Array_structureContext*>(x))
        ad.push_back(visit(asl));
     }
 
-    Element *asl = new DeclarationList(ad);
+    Element *asl = new DeclarationList(ctx->getStart()->getLine(), ad);
     return asl;
   }
 
@@ -276,16 +295,20 @@ public:
     assert (assign_op.size() > 0);
     assert (lhs != nullptr && rhs != nullptr);
 
+    const int line = ctx->getStart()->getLine();
+    const int position = ctx->getStart()->getCharPositionInLine()+1;
+
     Element *e = nullptr; //Statement is child class of Element
-    if (op_label.size() > 0) e = new AssignStatement(op_label, assign_op,lhs,rhs);
-    else e = new AssignStatement(assign_op,lhs,rhs); 
+    if (op_label.size() > 0) 
+        e = new AssignStatement(line, position, op_label, assign_op,lhs,rhs);
+    else e = new AssignStatement(line, position, assign_op,lhs,rhs); 
     return e;
   }
 
   virtual antlrcpp::Any visitAssignment_operator(TAMMParser::Assignment_operatorContext *ctx) override {
-    //std::string aop = ctx->children.at(0)->getText();
-    /// @todo Clean up later: return string directly
-    Identifier *aop = new Identifier(ctx->children.at(0)->getText());
+    Identifier *aop = new Identifier(ctx->getStart()->getLine(), 
+                      ctx->getStart()->getCharPositionInLine()+1, 
+                      ctx->children.at(0)->getText());
     return aop;
   }
 
@@ -300,7 +323,6 @@ public:
 
   virtual antlrcpp::Any visitArray_reference(TAMMParser::Array_referenceContext *ctx) override {
     /// array_reference : ID (LBRACKET id_list RBRACKET)? 
-    std::cout << "array ref line: " << ctx->getText() << "-- Line:" << ctx->getStart()->getLine() << ", Col:" << ctx->getStart()->getCharPositionInLine()+1 << std::endl;
     std::string name = ctx->children.at(0)->getText();
     IdentifierList *il = nullptr;
     
@@ -312,7 +334,9 @@ public:
     
     std::vector<Identifier*> indices;
     if (il!=nullptr) indices = il->idlist;
-    Expression* ar = new Array(name,indices);
+    Expression* ar = new Array(ctx->getStart()->getLine(),
+                             ctx->getStart()->getCharPositionInLine()+1,
+                             name,indices);
     return ar;
   }
 
@@ -332,18 +356,26 @@ public:
     std::vector<std::string> signs;
     bool first_op_flag = false; //Check if the expression starts with a plus or minus sign
 
-    if (TAMMParser::PlusORminusContext* pm = dynamic_cast<TAMMParser::PlusORminusContext*>(ctx->children.at(0)))
+    if (TAMMParser::PlusORminusContext* pm = 
+        dynamic_cast<TAMMParser::PlusORminusContext*>(ctx->children.at(0)))
       first_op_flag = true; 
 
     for (auto &x: ctx->children){
-      if(TAMMParser::Multiplicative_expressionContext* me = dynamic_cast<TAMMParser::Multiplicative_expressionContext*>(x))
-        am_ops.push_back(visit(me)); //Has both add and mult ops, which in turn consist of NumConst and ArrayRefs
+      //Has both add and mult ops, which in turn consist of NumConst and ArrayRefs
+      if(TAMMParser::Multiplicative_expressionContext* me = 
+              dynamic_cast<TAMMParser::Multiplicative_expressionContext*>(x))
+        am_ops.push_back(visit(me)); 
       
-      else if (TAMMParser::PlusORminusContext* pm = dynamic_cast<TAMMParser::PlusORminusContext*>(x))
-        signs.push_back(visit(x)); //The unary exps that have num consts get their signs from here.
+      //The unary exps that have num consts get their signs from here.
+      else if (TAMMParser::PlusORminusContext* pm = 
+              dynamic_cast<TAMMParser::PlusORminusContext*>(x))
+        signs.push_back(visit(x)); 
     }
+
+    const int line = ctx->getStart()->getLine();
+    const int position = ctx->getStart()->getCharPositionInLine()+1;
     
-    e = new Addition(am_ops, signs, first_op_flag);
+    e = new Addition(line, position, am_ops, signs, first_op_flag);
     return e;
 
   }
@@ -379,6 +411,9 @@ public:
 
     Expression* e = nullptr; 
 
+    const int line = ctx->getStart()->getLine();
+    const int position = ctx->getStart()->getCharPositionInLine()+1;
+
     assert (uexps.size() > 0 && uexps.size() <= 3);
     if (num_array_refs == 3 ) { ; /** Error cannot use scalar as a constant multiplier or cannot handle ternary operations; */     }
     if (num_consts == 2) { ; /** Error cannot use scalar as a constant multiplier; */     }
@@ -386,10 +421,10 @@ public:
     /// Consts are also part of the Adds & Mults. Stored as NumConsts. 
     /// The sign for the consts is processed when processing the "Expression" rule later in intermediate code generation.
     if (num_array_refs == 1) {
-      e = new Addition(trefs);  
+      e = new Addition(line, position, trefs);  
     }
     else if (num_array_refs == 2){
-      e = new Multiplication(trefs);
+      e = new Multiplication(line, position, trefs);
     }
     return e;
   }

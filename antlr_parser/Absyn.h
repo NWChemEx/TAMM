@@ -134,8 +134,11 @@ class ArrayDeclaration : public Declaration {
           const std::vector<Identifier*> lower_indices;
           std::string irrep;
 
-          ArrayDeclaration(const std::string name, const std::vector<Identifier*>& upper_indices, const std::vector<Identifier*>& lower_indices)
-                        : Declaration(0,0), name(name), upper_indices(upper_indices), lower_indices(lower_indices)  {}
+          ArrayDeclaration(const int line, const int position, const std::string name,
+                           const std::vector<Identifier*>& upper_indices, 
+                           const std::vector<Identifier*>& lower_indices)
+                           : Declaration(line,position), name(name), 
+                             upper_indices(upper_indices), lower_indices(lower_indices) {}
 
           int getDeclType() {
               return Declaration::kArrayDeclaration;
@@ -147,7 +150,9 @@ class IndexDeclaration : public Declaration {
           const std::string name;
           const std::string range_id;
 
-          IndexDeclaration(const std::string name, const std::string range_id): Declaration(0,0), name(name), range_id(range_id) {}
+          IndexDeclaration(const int line, const int position, 
+                           const std::string name, const std::string range_id)
+            : Declaration(line,position), name(name), range_id(range_id) {}
 
           int getDeclType() {
               return Declaration::kIndexDeclaration;
@@ -159,7 +164,8 @@ class RangeDeclaration : public Declaration {
           const int value;
           const std::string name;
 
-          RangeDeclaration(const std::string name, const int value): Declaration(0,0), name(name), value(value) {}
+          RangeDeclaration(const int line, const int position, const std::string name, const int value)
+            : Declaration(line,position), name(name), value(value) {}
 
           int getDeclType() {
               return Declaration::kRangeDeclaration;
@@ -212,8 +218,9 @@ class Array: public Expression {
         const std::string name;
         const std::vector<Identifier*> indices;
 
-        Array(const std::string name, const std::vector<Identifier*>& indices) //const int line, const int position,
-                : Expression(0,0), name(name), indices(indices) {} //Expression(line,position),
+        Array(const int line, const int position, 
+              const std::string name, const std::vector<Identifier*>& indices) 
+              : Expression(line,position), name(name), indices(indices) {} 
 
      int getExpressionType() { return Expression::kArrayRef; }
 };
@@ -225,11 +232,13 @@ class AssignStatement: public Statement {
         const std::string label;
         const std::string assign_op;
 
-        AssignStatement(const std::string assign_op, const Array* const lhs, const Expression* const rhs)
-                        : Statement(0,0), assign_op(assign_op), lhs(lhs), rhs(rhs) {}
+        AssignStatement(const int line, const int position, const std::string assign_op,
+                        const Array* const lhs, const Expression* const rhs)
+                        : Statement(line, position), assign_op(assign_op), lhs(lhs), rhs(rhs) {}
 
-        AssignStatement(const std::string label, const std::string assign_op, const Array* const lhs, const Expression* const rhs)
-                        : Statement(0,0), label(label), assign_op(assign_op), lhs(lhs), rhs(rhs) {}
+        AssignStatement(const int line, const int position, const std::string label, 
+                        const std::string assign_op, const Array* const lhs, const Expression* const rhs)
+                        : Statement(line,position), label(label), assign_op(assign_op), lhs(lhs), rhs(rhs) {}
         
         int getStatementType() {
             return Statement::kAssignStatement;
@@ -242,7 +251,7 @@ class AssignStatement: public Statement {
 class DeclarationList: public Element {
 public:
     const std::vector<Declaration*> dlist;
-    DeclarationList(const std::vector<Declaration*> &dlist): Element(0,0), dlist(dlist) {}
+    DeclarationList(const int line, const std::vector<Declaration*> &dlist): Element(line,0), dlist(dlist) {}
 
     int getElementType() {
        return Element::kDeclarationList;
@@ -250,21 +259,22 @@ public:
 };
 
 
-class Parenth: public Expression {
-    public:
-        const Expression* const expression;
+// class Parenth: public Expression {
+//     public:
+//         const Expression* const expression;
 
-        Parenth(const Expression* const expression): Expression(0,0), expression(expression) {}
+//         Parenth(const Expression* const expression): Expression(0,0), expression(expression) {}
 
-     int getExpressionType() { return Expression::kParenth; }
-};
+//         int getExpressionType() { return Expression::kParenth; }
+// };
 
 
 class NumConst: public Expression {
     public:
         const float value;
 
-        NumConst(const float value): Expression(0,0), value(value) {}
+        NumConst(const int line, const int position, const float value): 
+                 Expression(line,position), value(value) {}
 
      int getExpressionType() { return Expression::kNumConst; }
 };
@@ -277,9 +287,13 @@ class Addition: public Expression {
         const std::vector<Expression*> subexps;
         const std::vector<std::string> add_operators;
 
-    Addition(const std::vector<Expression*>& subexps): Expression(0,0), subexps(subexps), first_op(false) {}
-    Addition(const std::vector<Expression*>& subexps, const std::vector<std::string> &add_operators, const bool first_op)
-            : Expression(0,0), subexps(subexps), add_operators(add_operators), first_op(first_op) {}
+    Addition(const int line, const int position, const std::vector<Expression*>& subexps)
+             : Expression(line,position), subexps(subexps), first_op(false) {}
+    
+    Addition(const int line, const int position, const std::vector<Expression*>& subexps,
+             const std::vector<std::string> &add_operators, const bool first_op)
+             : Expression(line,position), subexps(subexps), add_operators(add_operators), first_op(first_op) {}
+    
     int getExpressionType() { return Expression::kAddition; }
 
 };
@@ -290,7 +304,9 @@ class Multiplication: public Expression {
     public:
         const std::vector<Expression*> subexps;
 
-        Multiplication(const std::vector<Expression*>& subexps): Expression(0,0), subexps(subexps) {}
+        Multiplication(const int line, const int position, const std::vector<Expression*>& subexps)
+                        : Expression(line,position), subexps(subexps) {}
+    
         int getExpressionType() { return Expression::kMultiplication; }
     
 };
@@ -308,7 +324,8 @@ class Identifier: public Absyn {
 public:
 
     const std::string name;
-    Identifier(const std::string name): Absyn(0,0), name(name) {}
+    Identifier(const int line, const int position, const std::string name)
+                : Absyn(line,position), name(name) {}
 
     int getAbsynType() {
        return Absyn::kIdentifier;

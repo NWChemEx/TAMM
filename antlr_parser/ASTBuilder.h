@@ -87,7 +87,7 @@ public:
         sdecls.push_back(new ArrayDeclaration(
                                   ctx->getStart()->getLine(),
                                   ctx->getStart()->getCharPositionInLine()+1,
-                                  i->name,u,l));
+                                  i,u,l));
       }
     }
      Element *s = new DeclarationList(ctx->getStart()->getLine(), sdecls);
@@ -126,7 +126,8 @@ public:
   }
 
   virtual antlrcpp::Any visitNumerical_constant(TAMMParser::Numerical_constantContext *ctx) override {
-
+    /// TODO: Check if range_value is a valid integer  -10, 1-0, -+10
+    assert(ctx->children.size()>0);
     std::string s = ctx->children.at(0)->getText();
     std::string delimiter = "/";
 
@@ -157,18 +158,20 @@ public:
 
       else if (TAMMParser::Numerical_constantContext* id = 
                 dynamic_cast<TAMMParser::Numerical_constantContext*>(x)) {
-         NumConst *nc = visit(id);
-         range_value = (int)nc->value; 
+         Expression* const ncexp = visit(id);
+         if(NumConst* const nc = dynamic_cast<NumConst*>(ncexp))
+              range_value = (int)nc->value; 
       }
     }
 
+    /// TODO: Check if range_value is a valid integer - in visitNumerical_constant
     assert (range_value >= 0);
     assert (rnames != nullptr);
 
     for (auto &range: rnames->idlist)    {
       rd_list.push_back(new RangeDeclaration(ctx->getStart()->getLine(),
                               ctx->getStart()->getCharPositionInLine()+1, 
-                              range->name, range_value));
+                              range, range_value));
     }
 
     //std::cout << "Leaving... Range Decl\n";
@@ -199,7 +202,7 @@ public:
       id_list.push_back(new IndexDeclaration(
                                   ctx->getStart()->getLine(),
                                   ctx->getStart()->getCharPositionInLine()+1,
-                                  index->name, range_var->name));
+                                  index, range_var));
     }
 
      Element *e = new DeclarationList(ctx->getStart()->getLine(), id_list);
@@ -228,7 +231,7 @@ public:
     IdentifierList* upper = nullptr;
     IdentifierList* lower = nullptr;
 
-    std::string array_name = ctx->children.at(0)->getText();
+    Identifier* array_name = visit(ctx->children.at(0));
 
     for (auto &x: ctx->children){
       if(TAMMParser::Id_list_optContext* ul 
@@ -313,7 +316,7 @@ public:
   }
 
   virtual antlrcpp::Any visitAssignment_operator(TAMMParser::Assignment_operatorContext *ctx) override {
-    Identifier *aop = new Identifier(ctx->getStart()->getLine(), 
+    Identifier* const aop = new Identifier(ctx->getStart()->getLine(), 
                       ctx->getStart()->getCharPositionInLine()+1, 
                       ctx->children.at(0)->getText());
     return aop;
@@ -329,8 +332,10 @@ public:
   }
 
   virtual antlrcpp::Any visitArray_reference(TAMMParser::Array_referenceContext *ctx) override {
-    /// array_reference : ID (LBRACKET id_list RBRACKET)? 
-    std::string name = ctx->children.at(0)->getText();
+    /// array_reference : identifier (LBRACKET id_list RBRACKET)? 
+
+    Identifier* const name = visit(ctx->children.at(0));
+ 
     IdentifierList *il = nullptr;
     
     for (auto &x: ctx->children){

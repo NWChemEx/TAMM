@@ -19,6 +19,7 @@
 namespace tamm {
 
 class Entry {
+    public:
     const Type* const type;
     Entry(const Type* const type): type(type) {}
     ~Entry() {}

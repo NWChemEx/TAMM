@@ -129,15 +129,15 @@ class Declaration : public Element {
 
 class ArrayDeclaration : public Declaration {
     public:
-          const std::string name;
+          const Identifier* const tensor_name;
           const std::vector<Identifier*> upper_indices;
           const std::vector<Identifier*> lower_indices;
           std::string irrep;
 
-          ArrayDeclaration(const int line, const int position, const std::string name,
+          ArrayDeclaration(const int line, const int position, const Identifier* const tensor_name,
                            const std::vector<Identifier*>& upper_indices, 
                            const std::vector<Identifier*>& lower_indices)
-                           : Declaration(line,position), name(name), 
+                           : Declaration(line,position), tensor_name(tensor_name), 
                              upper_indices(upper_indices), lower_indices(lower_indices) {}
 
           int getDeclType() {
@@ -147,12 +147,12 @@ class ArrayDeclaration : public Declaration {
 
 class IndexDeclaration : public Declaration {
     public:
-          const std::string name;
-          const std::string range_id;
+          const Identifier* const index_name;
+          const Identifier* const range_id;
 
           IndexDeclaration(const int line, const int position, 
-                           const std::string name, const std::string range_id)
-            : Declaration(line,position), name(name), range_id(range_id) {}
+                           const Identifier* const index_name, const Identifier* const range_id)
+            : Declaration(line,position), index_name(index_name), range_id(range_id) {}
 
           int getDeclType() {
               return Declaration::kIndexDeclaration;
@@ -162,9 +162,9 @@ class IndexDeclaration : public Declaration {
 class RangeDeclaration : public Declaration {
     public:
           const int value;
-          const std::string name;
+          const Identifier* const name;
 
-          RangeDeclaration(const int line, const int position, const std::string name, const int value)
+          RangeDeclaration(const int line, const int position, const Identifier* const name, const int value)
             : Declaration(line,position), name(name), value(value) {}
 
           int getDeclType() {
@@ -215,12 +215,12 @@ class Array: public Expression {
     
     public:
 
-        const std::string name;
+        const Identifier* const array_name;
         const std::vector<Identifier*> indices;
 
         Array(const int line, const int position, 
-              const std::string name, const std::vector<Identifier*>& indices) 
-              : Expression(line,position), name(name), indices(indices) {} 
+              const Identifier* const array_name, const std::vector<Identifier*>& indices) 
+              : Expression(line,position), array_name(array_name), indices(indices) {} 
 
      int getExpressionType() { return Expression::kArrayRef; }
 };

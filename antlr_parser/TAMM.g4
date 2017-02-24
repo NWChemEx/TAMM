@@ -95,7 +95,7 @@ declaration : range_declaration
               array_declaration ;
 
 
-scalar_declaration: SCALAR ID (COMMA ID)* SEMI;
+scalar_declaration: SCALAR identifier (COMMA identifier)* SEMI;
 
 // id-list
 id_list_opt : 
@@ -133,7 +133,7 @@ index_declaration : INDEX id_list EQUALS identifier SEMI ;
 array_declaration : ARRAY array_structure_list (COLON identifier)? SEMI ;
 
 
-array_structure : ID LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET; //(permut_symmetry)?;
+array_structure : identifier LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET; //(permut_symmetry)?;
 
 array_structure_list : array_structure (COMMA array_structure)* ;
 
@@ -164,7 +164,7 @@ unary_expression :   numerical_constant
 
 
 // array-reference
-array_reference : ID (LBRACKET id_list RBRACKET)? ;
+array_reference : identifier (LBRACKET id_list RBRACKET)? ;
 
 
 // expression                           

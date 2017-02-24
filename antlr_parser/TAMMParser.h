@@ -153,8 +153,8 @@ public:
     Scalar_declarationContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode *SCALAR();
-    std::vector<antlr4::tree::TerminalNode *> ID();
-    antlr4::tree::TerminalNode* ID(size_t i);
+    std::vector<IdentifierContext *> identifier();
+    IdentifierContext* identifier(size_t i);
     antlr4::tree::TerminalNode *SEMI();
     std::vector<antlr4::tree::TerminalNode *> COMMA();
     antlr4::tree::TerminalNode* COMMA(size_t i);
@@ -285,7 +285,7 @@ public:
   public:
     Array_structureContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
-    antlr4::tree::TerminalNode *ID();
+    IdentifierContext *identifier();
     std::vector<antlr4::tree::TerminalNode *> LBRACKET();
     antlr4::tree::TerminalNode* LBRACKET(size_t i);
     std::vector<Id_list_optContext *> id_list_opt();
@@ -378,7 +378,7 @@ public:
   public:
     Array_referenceContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
-    antlr4::tree::TerminalNode *ID();
+    IdentifierContext *identifier();
     antlr4::tree::TerminalNode *LBRACKET();
     Id_listContext *id_list();
     antlr4::tree::TerminalNode *RBRACKET();

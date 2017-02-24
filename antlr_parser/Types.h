@@ -13,10 +13,11 @@
 #ifndef __TAMM_TYPES_H__
 #define __TAMM_TYPES_H__
 
-class Identifier;
+
 #include <vector>
 
 namespace tamm {
+class Identifier;
 
 class Type {
     public:

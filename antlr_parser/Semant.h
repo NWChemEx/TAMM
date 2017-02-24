@@ -14,34 +14,33 @@
 #define __TAMM_SEMANT_H_
 
 #include "Absyn.h"
-#include <map>
+#include "SymbolTable.h"
 #include <string>
 
-using SymbolTable = std::map<std::string,tamm_string>;
+namespace tamm{
 
-void check_ast(TranslationUnit*, SymbolTable&);
+void type_check(const CompilationUnit* const, SymbolTable* const);
 
-void check_CompoundElem(CompoundElem*, SymbolTable&);
+void check_CompoundElement(const CompoundElement* const ce, SymbolTable* const context);
 
-void check_Elem(Elem*, SymbolTable&);
+void check_Element(Element* const element, SymbolTable* const context);
 
-void check_Decl(Decl*, SymbolTable&);
+void check_DeclarationList(const DeclarationList* const decllist, SymbolTable* const symtab);
 
-void check_Stmt(Stmt*, SymbolTable&);
+void check_Statement(Statement* const statement, SymbolTable* const context);
 
-void check_Exp(Exp*, SymbolTable&);
+void check_AssignStatement(const AssignStatement* const statement, SymbolTable* const context);
 
-void check_ExpList(ExpList*, SymbolTable&);
+void check_Declaration(Declaration* const declaration, SymbolTable* const context);
 
-void check_DeclList(DeclList*, SymbolTable&);
+// void check_Exp(Exp*, SymbolTable&);
 
-tamm_string_array getIndices(Exp* exp);
+// void check_ExpList(ExpList*, SymbolTable&);
 
-tamm_string_array getUniqIndices(Exp* exp);
+// tamm_string_array getIndices(Exp* exp);
 
-void print_Exp(Exp*);
+// tamm_string_array getUniqIndices(Exp* exp);
 
-void print_ExpList(ExpList*, tamm_string);
-
+}
 
 #endif

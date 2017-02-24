@@ -12,6 +12,7 @@
 #ifndef __TAMM_SYMBOLTABLE_H__
 #define __TAMM_SYMBOLTABLE_H__
 
+#include<map>
 #include<string>
 #include "Entry.h"
 
@@ -19,11 +20,24 @@ namespace tamm{
 
 class SymbolTable {
     public:
-        //Add C++ hashmap or google densemap ??
+        // Plain C++ map for now
+        std::map<const std::string, const Entry* const> context;
+
         SymbolTable() {};
         ~SymbolTable() {};
-        const Entry* get(std::string key);
-        void put(std::string key, const Entry* const value);
+        
+        void put(std::string key, const Entry* const value){
+            context.insert(std::map<const std::string, const Entry* const>::value_type(key, value));
+        }
+        const Entry* const get(const std::string key) {
+            auto st_entry = context.find(key);
+            if (st_entry == context.end()) {
+                    return nullptr; /// key not defined
+            }
+            return st_entry->second;
+
+            
+        }
 };
 
 }

@@ -14,6 +14,7 @@
 #define __TAMM_TYPES_H__
 
 class Identifier;
+#include <vector>
 
 namespace tamm {
 

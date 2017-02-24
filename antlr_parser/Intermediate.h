@@ -12,7 +12,7 @@
 #ifndef __TAMM_INTERMEDIATE_H__
 #define __TAMM_INTERMEDIATE_H__
 
-#include "Absyn.h"
+//#include "Absyn.h"
 #include <vector>
 
 #define MAX_TENSOR_DIMS 8

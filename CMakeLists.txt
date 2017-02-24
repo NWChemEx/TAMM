@@ -133,6 +133,7 @@ endif()
 # Collect all the parser sources.
 set(tammParserSources
     antlr_parser/Parse.cc
+    antlr_parser/Error.cc
     antlr_parser/TAMMLexer.cc
     antlr_parser/TAMMParser.cc
     antlr_parser/ASTBuilder.cc

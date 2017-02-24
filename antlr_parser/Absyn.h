@@ -62,8 +62,8 @@ class Absyn //Root of the AST
 {
     public: 
 
-        int line;     /// Line number
-        int position; /// column number in line
+        const int line;     /// Line number
+        const int position; /// column number in line
 
         Absyn(const int line, const int position): line(line), position(position) {}
 
@@ -263,7 +263,8 @@ public:
 //     public:
 //         const Expression* const expression;
 
-//         Parenth(const Expression* const expression): Expression(0,0), expression(expression) {}
+//         Parenth(const Expression* const expression): 
+//                     Expression(0,0), expression(expression) {}
 
 //         int getExpressionType() { return Expression::kParenth; }
 // };
@@ -292,7 +293,8 @@ class Addition: public Expression {
     
     Addition(const int line, const int position, const std::vector<Expression*>& subexps,
              const std::vector<std::string> &add_operators, const bool first_op)
-             : Expression(line,position), subexps(subexps), add_operators(add_operators), first_op(first_op) {}
+             : Expression(line,position), subexps(subexps), 
+               add_operators(add_operators), first_op(first_op) {}
     
     int getExpressionType() { return Expression::kAddition; }
 

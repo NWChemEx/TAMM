@@ -11,6 +11,8 @@
 
 #include "Semant.h"
 #include "Error.h"
+#include "Entry.h"
+#include <cassert>
 
 namespace tamm {
 
@@ -105,28 +107,31 @@ void check_AssignStatement(const AssignStatement* const statement, SymbolTable* 
 
 void check_Declaration(Declaration* const declaration, SymbolTable* const context) {
 if (RangeDeclaration* const rdecl = dynamic_cast<RangeDeclaration*>(declaration)) {
-           if (context->get(rdecl->name) != nullptr) {
-                std::string range_decl_error = "Range variable " + rdecl->name + " is already defined";
-                Error(rdecl->line, rdecl->position, range_decl_error);
+           const std::string range_var = rdecl->name->name;
+           if (context->get(range_var) != nullptr) {
+                std::string range_decl_error = "Range variable " + range_var + " is already defined";
+                Error(rdecl->line, rdecl->name->position, range_decl_error);
            }
-
-//             if (d->u.RangeDecl.value <= 0) {
-//                 std::cerr << "Error at line " << d->lineno << ": " << d->u.RangeDecl.value
-//                           << " is not a positive integer\n";
-//                 std::exit(EXIT_FAILURE);
-//             }
-//             symtab.insert(SymbolTable::value_type(
-//                     std::string(d->u.RangeDecl.name), constcharToChar((std::to_string(static_cast<long long>(d->u.RangeDecl.value))).c_str())));
-//         }
+           assert(rdecl->value > 0); /// This should be fixed in ast builder.
+           context->put(range_var, new Entry(new RangeType(rdecl->value)));
 }
 
-else if (IndexDeclaration* const idecl = dynamic_cast<IndexDeclaration*>(declaration));
+else if (IndexDeclaration* const idecl = dynamic_cast<IndexDeclaration*>(declaration)) {
+           const std::string index_name = idecl->index_name->name;
+           const std::string range_name = idecl->range_id->name;
+           if (context->get(index_name) != nullptr) {
+                std::string index_decl_error = "Index variable " + index_name + " is already defined";
+                Error(idecl->line, idecl->index_name->position, index_decl_error);
+           }
+
+          if (context->get(range_name) == nullptr) {
+                std::string range_var_error = "Range variable " + range_name + " is not defined";
+                Error(idecl->line, idecl->range_id->position, range_var_error);
+           }
+
+           context->put(index_name, new Entry(new IndexType(idecl->range_id)));
+}
 else if (ArrayDeclaration* const adecl = dynamic_cast<ArrayDeclaration*>(declaration));
-//         case Decl::is_IndexDecl: {
-//             verifyVarDecl(symtab, d->u.IndexDecl.name, d->lineno);
-//             verifyRangeRef(symtab, d->u.IndexDecl.rangeID, d->lineno);
-//             symtab.insert(SymbolTable::value_type(std::string(d->u.IndexDecl.name), (d->u.IndexDecl.rangeID)));
-//         }
 //             break;
 //         case Decl::is_ArrayDecl: {
 //             tamm_string_array up_ind(d->u.ArrayDecl.ulen);

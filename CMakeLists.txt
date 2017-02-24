@@ -87,7 +87,13 @@ message("Antlr Binary = " ${AntlrBinary})
 set(ParserSrcDir ${PROJECT_SOURCE_DIR}/antlr_parser)
 file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/parser")
 
-ADD_CUSTOM_TARGET(BuildANTLR ALL DEPENDS ANTLR)
+if(NOT ${ANTLR_CPPRUNTIME})
+    #message("Found antlr cpp-runtime")
+    ADD_CUSTOM_TARGET(BuildANTLR ALL)
+else()
+    #message("antlr cpp-runtime not found")
+    ADD_CUSTOM_TARGET(BuildANTLR ALL DEPENDS ANTLR)
+endif()
 
 
 #set(ParserBuildDir "${PROJECT_BINARY_DIR}/parser")
@@ -185,14 +191,14 @@ string(REPLACE "-I" "" tamm_cmake_cflags ${tamm_cflags})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" tamm_cflags ${tamm_cmake_cflags})
 
-message("ANTLR CPPRUNTIME=" ${ANTLR_CPPRUNTIME}/include)
+message("ANTLR CPPRUNTIME=" ${ANTLR_CPPRUNTIME_DIR}/include)
 SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14")
 #SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
 add_library(tamm STATIC ${tammParserSources}) # ${tammLibSources})
 add_dependencies(tamm BuildANTLR)
-link_directories(${ANTLR_CPPRUNTIME}/lib)
+link_directories(${ANTLR_CPPRUNTIME_DIR}/lib)
 target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} 
-                        ${BLAS_INC_PATH} ${ANTLR_CPPRUNTIME}/include/antlr4-runtime/)
+                        ${BLAS_INC_PATH} ${ANTLR_CPPRUNTIME_DIR}/include/antlr4-runtime/)
 target_link_libraries(tamm antlr4-runtime)
 #set_property(TARGET tamm PROPERTY CXX_STANDARD 14)
 #set_property(TARGET tamm PROPERTY CXX_STANDARD_REQUIRED ON)

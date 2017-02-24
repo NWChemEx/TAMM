@@ -650,7 +650,8 @@ if __name__ == '__main__':
 
     print("{\n")
     for decl in range_decls:
-        print("range " + decl + " = 10;")
+        if "O" in decl: print("range " + decl + " = 10;")
+        elif "V" in decl: print("range " + decl + " = 40;")
     #print("range N = 10;")
     print("")
     for decl in collect_index_decls:

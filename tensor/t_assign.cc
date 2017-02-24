@@ -89,7 +89,7 @@ namespace tamm {
         getTimer.start();
         tA.get(a_svalue_r, buf_a, dimc);
         getTimer.stop();
-#if 0
+#if 1
         vector<size_t> a_sort_ids = sort_ids(a_name, c_ids_name);
         tamm_sort(buf_a, buf_a_sort, a_svalue /*tA._value()*/,
                   a_sort_ids /*tA.sort_ids(a_name)*/,

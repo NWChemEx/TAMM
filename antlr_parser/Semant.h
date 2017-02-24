@@ -13,7 +13,7 @@
 #ifndef __TAMM_SEMANT_H_
 #define __TAMM_SEMANT_H_
 
-#include "absyn.h"
+#include "Absyn.h"
 #include <map>
 #include <string>
 

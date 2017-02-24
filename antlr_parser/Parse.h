@@ -13,14 +13,12 @@
 #define __TAMM_PARSER_H__
 
 #include <iostream>
-
+// #include "Semant.h"
 #include "TAMMLexer.h"
 #include "ASTBuilder.h"
-
-// #include "Semant.h"
 #include "Intermediate.h"
-
 using namespace antlr4;
+
 
 namespace tamm {
 

@@ -9,10 +9,9 @@
 //
 //------------------------------------------------------------------------------
 
-#pragma once
+#ifndef __TAMM_ASTBUILDER_H__
+#define __TAMM_ASTBUILDER_H__
 
-
-#include "antlr4-runtime.h"
 #include "TAMMVisitor.h"
 
 #include "Absyn.h"
@@ -441,3 +440,5 @@ public:
 };
 
 }
+
+#endif

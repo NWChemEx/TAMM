@@ -16,6 +16,7 @@
 #include "TAMMVisitor.h"
 
 #include "Absyn.h"
+#include "Error.h"
 
 namespace tamm {
 

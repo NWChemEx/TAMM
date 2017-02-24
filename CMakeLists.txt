@@ -139,7 +139,7 @@ set(tammParserSources
     antlr_parser/ASTBuilder.cc
     antlr_parser/TAMMVisitor.cc
     #antlr_parser/intermediate.cc
-    #antlr_parser/semant.cc
+    antlr_parser/Semant.cc
     #antlr_parser/util.cc
     )
 

@@ -10,8 +10,7 @@
 //------------------------------------------------------------------------------
 
 #include "Parse.h"
-
-
+#include "Semant.h"
 
 namespace tamm {
 
@@ -32,8 +31,8 @@ void tamm_parser(const char* input_file, Equations &genEq) {
 
   //visit_ast(outputFile, astRoot);
 
-  // SymbolTable symtab;
-  // check_ast(astRoot, symtab);
+  SymbolTable* const context = new SymbolTable();
+  type_check(ast_root, context);
 
   // generate_intermediate_ast(genEq, astRoot);
 

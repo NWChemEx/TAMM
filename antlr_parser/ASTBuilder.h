@@ -223,7 +223,7 @@ public:
 
 
   virtual antlrcpp::Any visitArray_structure(TAMMParser::Array_structureContext *ctx) override {
-    std::cout << "Enter array structure\n";
+    //std::cout << "Enter array structure\n";
     bool ul_flag = true;
     IdentifierList* upper = nullptr;
     IdentifierList* lower = nullptr;
@@ -274,7 +274,7 @@ public:
 
 /// assignment_statement : (identifier COLON)? array_reference assignment_operator expression SEMI ;
   virtual antlrcpp::Any visitAssignment_statement(TAMMParser::Assignment_statementContext *ctx) override {
-    std::cout << "Enter Assign Statement\n";
+    //std::cout << "Enter Assign Statement\n";
 
     std::string op_label;
     std::string assign_op;

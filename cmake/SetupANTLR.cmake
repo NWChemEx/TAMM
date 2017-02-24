@@ -1,8 +1,8 @@
 
 
-if(NOT $ENV{ANTLR_CPPRUNTIME})
+if(NOT ${ANTLR_CPPRUNTIME})
 
-set (ANTLR_CPPRUNTIME $ENV{ANTLR_CPPRUNTIME})
+set (ANTLR_CPPRUNTIME_DIR ${ANTLR_CPPRUNTIME})
 
 else()
 
@@ -23,7 +23,7 @@ ExternalProject_Add(ANTLR
 )
 
 # Set location of the ANTLR C runtime library.
-set (ANTLR_CPPRUNTIME ${PROJECT_BINARY_DIR}/dependencies/ANTLR/CppRuntime)
+set (ANTLR_CPPRUNTIME_DIR ${PROJECT_BINARY_DIR}/dependencies/ANTLR/CppRuntime)
 
 endif()
 

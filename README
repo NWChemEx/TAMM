@@ -12,6 +12,10 @@ cmake .. -DTAMM_BLAS_INC=/opt/intel/mkl/include/ -DTAMM_BLAS_LIB=/opt/intel/mkl/
 
 cmake .. -DTAMM_BLAS_INC=/opt/intel/mkl/include/ -DTAMM_BLAS_LIB=/opt/intel/mkl/lib/intel64 -DCMAKE_CXX_COMPILER=g++  -DCMAKE_C_COMPILER=gcc
 
+cmake .. -DTAMM_BLAS_INC=/opt/intel/mkl/include/ -DTAMM_BLAS_LIB=/opt/intel/mkl/lib/intel64 -DCMAKE_CXX_COMPILER=icpc -DCMAKE_Fortran_COMPILER=ifort
+         -DCMAKE_C_COMPILER=icc -DANTLR_CPPRUNTIME:STRING=/opt/libraries/ANTLR4/antlr4-cpp-runtime
+
+
 
 make unpatch //Reverts gnumakefile
 make patch-only //Fixes gnumakefile 

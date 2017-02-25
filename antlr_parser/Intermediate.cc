@@ -54,12 +54,12 @@ void generate_equations_DeclarationList(const DeclarationList* const decllist, E
 void generate_equations_Declaration(Declaration* const declaration, Equations* const equations) { 
     if (RangeDeclaration* const rdecl = dynamic_cast<RangeDeclaration*>(declaration)) ;
     else if (IndexDeclaration* const idecl = dynamic_cast<IndexDeclaration*>(declaration)) {
-            const std::string index_name = idecl->index_name->name;
+            const std::string range_name = idecl->range_id->name;
             int rid = 0;
-            if (index_name == "O") rid = 0;
-            else if (index_name == "V") rid = 1;
-            else if (index_name == "N") rid = 2;
-            equations->index_entries.push_back(new IndexEntry(index_name, rid));
+            if (range_name == "O") rid = 0;
+            else if (range_name == "V") rid = 1;
+            else if (range_name == "N") rid = 2;
+            equations->index_entries.push_back(new IndexEntry(idecl->index_name->name, rid));
     }
 
     else if (ArrayDeclaration* const adecl = dynamic_cast<ArrayDeclaration*>(declaration)) {

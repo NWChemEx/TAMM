@@ -49,10 +49,10 @@ void get_all_refs_from_expression(Expression* const exp, std::vector<Array*>& ar
         all_consts.push_back(nc);
     
     else if (Addition* const add = dynamic_cast<Addition*>(exp)) 
-            for (auto &e: add->subexps) get_array_refs_from_expression(e, arefs);
+            for (auto &e: add->subexps) get_all_refs_from_expression(e, arefs, all_consts);
         
     else if (Multiplication* const mult = dynamic_cast<Multiplication*>(exp)) 
-            for (auto &m: mult->subexps) get_array_refs_from_expression(m, arefs);
+            for (auto &m: mult->subexps) get_all_refs_from_expression(m, arefs, all_consts);
             
 }
 

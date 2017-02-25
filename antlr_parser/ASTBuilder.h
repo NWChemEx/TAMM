@@ -348,7 +348,7 @@ public:
     if (il!=nullptr) indices = il->idlist;
     Expression* ar = new Array(ctx->getStart()->getLine(),
                              ctx->getStart()->getCharPositionInLine()+1,
-                             name,indices);
+                             ctx->getText(),name,indices);
     return ar;
   }
 

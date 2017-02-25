@@ -214,30 +214,33 @@ public:
 class Array: public Expression {
     
     public:
-
-        const Identifier* const array_name;
+        const std::string array_ref_as_string;
+        const Identifier* const tensor_name;
         const std::vector<Identifier*> indices;
 
-        Array(const int line, const int position, 
-              const Identifier* const array_name, const std::vector<Identifier*>& indices) 
-              : Expression(line,position), array_name(array_name), indices(indices) {} 
+        Array(const int line, const int position, const std::string array_ref_as_string,
+              const Identifier* const tensor_name, const std::vector<Identifier*>& indices) 
+              : Expression(line,position), tensor_name(tensor_name), indices(indices),
+                 array_ref_as_string(array_ref_as_string) {} 
 
      int getExpressionType() { return Expression::kArrayRef; }
+
+     const std::string getText() { return array_ref_as_string; }
 };
 
 class AssignStatement: public Statement {
     public:
-        const Array* const lhs;
-        const Expression* const rhs;
+        Array* const lhs;
+        Expression* const rhs;
         const std::string label;
         const std::string assign_op;
 
         AssignStatement(const int line, const int position, const std::string assign_op,
-                        const Array* const lhs, const Expression* const rhs)
+                        Array* const lhs, Expression* const rhs)
                         : Statement(line, position), assign_op(assign_op), lhs(lhs), rhs(rhs) {}
 
         AssignStatement(const int line, const int position, const std::string label, 
-                        const std::string assign_op, const Array* const lhs, const Expression* const rhs)
+                        const std::string assign_op, Array* const lhs, Expression* const rhs)
                         : Statement(line,position), label(label), assign_op(assign_op), lhs(lhs), rhs(rhs) {}
         
         int getStatementType() {

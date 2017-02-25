@@ -94,8 +94,8 @@ void ccsd_e_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo,
   v->attach(*k_v2_offset, 0, *d_v2);
 
 #if 1
-  // schedule_linear(tensors, ops);
-  // schedule_linear_lazy(tensors, ops);
+  // schedule_linear(&tensors, &ops);
+  // schedule_linear_lazy(&tensors, &ops);
   schedule_levels(&tensors, &ops);
 #else
   e_1_1 = ops[0].add;

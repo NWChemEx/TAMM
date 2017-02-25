@@ -30,7 +30,7 @@ public:
 
 
   virtual antlrcpp::Any visitTranslation_unit(TAMMParser::Translation_unitContext *ctx) override {
-    std::cout << "Enter translation unit\n";
+    //std::cout << "Enter translation unit\n";
     std::vector<CompoundElement*> cel = visit(ctx->children.at(0)); //Cleanup
     SymbolTable* const symbol_table = new SymbolTable();
     CompilationUnit *cu = new CompilationUnit(cel,symbol_table);
@@ -38,7 +38,7 @@ public:
   }
 
   virtual antlrcpp::Any visitCompound_element_list(TAMMParser::Compound_element_listContext *ctx) override {
-    std::cout << "Enter Compund Elem list\n";
+    //std::cout << "Enter Compund Element list\n";
     std::vector<CompoundElement*> cel;
     // Visit each compound element and add to list
     for (auto &ce: ctx->children) cel.push_back(visit(ce)); 
@@ -46,7 +46,7 @@ public:
   }
 
   virtual antlrcpp::Any visitCompound_element(TAMMParser::Compound_elementContext *ctx) override {
-    std::cout << "Enter Compund Element \n";
+    //std::cout << "Enter Compund Element \n";
     ElementList *get_el = nullptr;
     for (auto &x: ctx->children){
       if (TAMMParser::Element_listContext* t = dynamic_cast<TAMMParser::Element_listContext*>(x))
@@ -56,7 +56,7 @@ public:
   }
 
   virtual antlrcpp::Any visitElement_list(TAMMParser::Element_listContext *ctx) override {
-    std::cout << "Enter Element List\n";
+   // std::cout << "Enter Element List\n";
    std::vector<Element*> el;
     for (auto &elem: ctx->children) {
       el.push_back(visit(elem)); //returns Elem*
@@ -146,7 +146,7 @@ public:
   }
 
   virtual antlrcpp::Any visitRange_declaration(TAMMParser::Range_declarationContext *ctx) override {
-    std::cout << "Enter Range Decl\n";
+    //std::cout << "Enter Range Decl\n";
     std::vector<Declaration*> rd_list;
 
     int range_value = -1;
@@ -180,7 +180,7 @@ public:
   }
 
   virtual antlrcpp::Any visitIndex_declaration(TAMMParser::Index_declarationContext *ctx) override {
-   std::cout << "Enter Index Decl\n";
+    //std::cout << "Enter Index Decl\n";
     std::vector<Declaration*> id_list; //Store list of Index Declarations
   
     Identifier* range_var = nullptr;
@@ -210,9 +210,9 @@ public:
   }
 
   virtual antlrcpp::Any visitArray_declaration(TAMMParser::Array_declarationContext *ctx) override {
-    std::cout << "Enter Array Decl\n";
+    //std::cout << "Enter Array Decl\n";
     
-    Element *adl;
+    Element* adl = nullptr;
 
     for (auto &x: ctx->children){
       if (TAMMParser::Array_structure_listContext* asl = 

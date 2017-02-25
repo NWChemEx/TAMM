@@ -75,10 +75,13 @@ typedef enum {
 
 class OpEntry {
 public:
-    int op_id;
+    const int op_id;
     OpType optype;
-    AddOp* add;
-    MultOp* mult;
+    AddOp* const add;
+    MultOp* const mult;
+    OpEntry(const int op_id, OpType optype, AddOp* const add, MultOp* const mult)
+        :op_id(op_id), optype(optype), add(add), mult(mult) {}
+    ~OpEntry() {}
 };
 
 class Equations {

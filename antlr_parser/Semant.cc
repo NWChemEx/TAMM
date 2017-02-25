@@ -12,10 +12,15 @@
 #include "Semant.h"
 #include "Error.h"
 #include "Entry.h"
+#include <set>
 #include <cassert>
+#include <iostream>
 #include <algorithm>
 
 namespace tamm {
+
+using index_list = std::vector<std::string>;
+using identifier_list = std::vector<Identifier*>;
 
 void type_check(const CompilationUnit* const root, SymbolTable* const context) {
     for (auto &ce: root->celist)
@@ -47,49 +52,131 @@ void check_DeclarationList(const DeclarationList* const decllist, SymbolTable* c
 }
 
 void check_Statement(Statement* const statement, SymbolTable* const context) {
-    if (AssignStatement* const as = dynamic_cast<AssignStatement*>(statement)) ;
-        //check_AssignStatement(as,context);
+    if (AssignStatement* const as = dynamic_cast<AssignStatement*>(statement)) 
+        check_AssignStatement(as,context);
     else ; //error- cannot happen
 }
 
-void check_AssignStatement(const AssignStatement* const statement, SymbolTable* const context) {
-//     switch (s->kind) {
-//         case Stmt::is_AssignStmt:
-//             check_Exp(s->u.AssignStmt.lhs, symtab);
-//             //std::cout << " " << s->u.AssignStmt.astype << " "; //astype not needed since we flatten. keep it for now.
-//             check_Exp(s->u.AssignStmt.rhs, symtab);
-//             if (s->u.AssignStmt.lhs->kind != Exp::is_ArrayRef) {
-//                 std::cerr << "Error at line " << s->u.AssignStmt.lhs->lineno
-//                           << ": LHS of assignment must be an array reference\n";
-//                 std::exit(EXIT_FAILURE);
-//             } else if (s->u.AssignStmt.lhs->coef < 0) {
-//                 std::cerr << "Error at line " << s->u.AssignStmt.lhs->lineno
-//                           << ": LHS array reference cannot be negative\n";
-//                 std::exit(EXIT_FAILURE);
-//             }
+bool exists_index(const index_list& indices, const std::string x) {
+    if (std::find(indices.begin(), indices.end(), x) == indices.end()) return false;
+    return true;
+}
 
-// //    UNCOMMENT FOR DEBUG ONLY
-// //    print_index_list(getIndices(s->u.AssignStmt.lhs));
-// //    std::cout << " = ";
-// //    print_index_list(getIndices(s->u.AssignStmt.rhs));
-// //    std::cout << "\n";
-//             if (!compare_index_lists(getIndices(s->u.AssignStmt.lhs), getIndices(s->u.AssignStmt.rhs))) {
-//                 std::cerr << "Error at line " << s->u.AssignStmt.lhs->lineno
-//                           << ": LHS and RHS of assignment must have equal (non-summation) index sets\n";
-//                 std::exit(EXIT_FAILURE);
-//             }
+bool compare_index_lists(const index_list& alist1, const index_list& alist2) {
+    const int len1 = alist1.size();
+    const int len2 = alist2.size();
+    if (len1 != len2) return false;
+    for (auto &index: alist1) {
+        if (!exists_index(alist2, index)) return false;
+    }
+    return true;
+}
 
-// //    tamm_string_array lhs_aref = collectArrayRefs(s->u.AssignStmt.lhs);
-// //    tamm_string_array rhs_arefs = collectArrayRefs(s->u.AssignStmt.rhs);
-// //    if (exists_index(rhs_arefs->list,rhs_arefs->length,lhs_aref->list[0])){
-// //        std::cerr << "Error at line " << s->u.AssignStmt.lhs->lineno << ": array " << lhs_aref->list[0] << " cannot be assigned after being previously referenced\n";
-// //        std::exit(EXIT_FAILURE);
-// //    }
-//             break;
-//         default:
-//             std::cerr << "Not an Assignment Statement!\n";
-//             std::exit(EXIT_FAILURE);
-//     }
+/// Return non-summation indices in the rhs of a contraction
+void get_array_refs_from_expression(Expression* const exp, std::vector<Array*>& arefs) {
+    if (Array* const a = dynamic_cast<Array*>(exp)) 
+           arefs.push_back(a);
+    
+    else if (Addition* const add = dynamic_cast<Addition*>(exp)) 
+            for (auto &e: add->subexps) get_array_refs_from_expression(e, arefs);
+        
+    else if (Multiplication* const mult = dynamic_cast<Multiplication*>(exp)) 
+            for (auto &m: mult->subexps) get_array_refs_from_expression(m, arefs);
+            
+}
+
+index_list get_indices_from_identifiers(const identifier_list& id_list){
+    index_list indices;
+    for (auto &identifier: id_list) indices.push_back(identifier->name);
+    return indices;
+}
+
+
+index_list get_non_summation_indices_from_expression(std::vector<Array*>& arefs)
+{
+    std::vector<std::string> indices;
+    for (auto &arr: arefs){
+        identifier_list a_indices = arr->indices;
+        for (auto &index: a_indices) {
+            if (!exists_index(indices,index->name)) indices.push_back(index->name);
+            else indices.erase(std::remove(indices.begin(), indices.end(), index->name), indices.end());
+        }
+    }
+    return indices;
+}
+
+void print_index_list(const index_list &il){
+    for(auto &x:il) std::cout << x << ", ";
+    std::cout << std::endl;
+}
+
+void check_index_reference(Identifier* const index, SymbolTable* const context) {
+    if (context->get(index->name) == nullptr){
+        std::string index_error = "Index " + index->name + " is not defined";
+        Error(index->line, index->position, index_error);
+    }
+}
+
+bool check_duplicate_indices(const std::vector<Identifier*>& indices){
+    std::set<std::string> unique_indices;
+    for(auto &index: indices) unique_indices.insert(index->name);
+    if (indices.size() > unique_indices.size()) return true;
+    return false; 
+}
+
+void check_array_reference(Array* const aref, SymbolTable* const context) {
+    const std::string tensor_name = aref->tensor_name->name;
+        if (context->get(tensor_name) == nullptr){
+            const std::string array_decl_error = "Tensor " + tensor_name + " is not defined";
+            Error(aref->line, aref->tensor_name->position, array_decl_error);
+        }
+    for (auto &index: aref->indices) check_index_reference(index,context);
+
+    const bool duplicate_indices = check_duplicate_indices(aref->indices);
+
+    //Check for repetitive indices in an array reference
+    if (duplicate_indices){
+        const std::string aref_text = aref->getText();
+        const std::string duplicate_index_error = "Repetitive index in tensor reference: " + aref_text ;
+        Error(aref->line, aref->position, duplicate_index_error);
+    }
+
+    //Check if it conforms to the array declaration. 
+    //     std::cerr << "Tensor reference " << exp->u.Array.name << "["
+    //               << combine_indices(all_ind1) << "]"
+    //               << " must have index structure of " << exp->u.Array.name << "[" << combine_indices(ulr)
+    //               << "]\n";
+    
+}
+
+void check_AssignStatement(const AssignStatement* const statement, SymbolTable* const context) {         
+        Array* const lhs = statement->lhs;
+        Expression* const rhs  = statement->rhs;
+
+
+        std::vector<Array*> rhs_arefs;
+        get_array_refs_from_expression(rhs, rhs_arefs);
+
+        check_array_reference(lhs, context);
+        for (auto &ra: rhs_arefs) check_array_reference(ra, context);
+
+        check_expression(rhs, context);
+
+        index_list non_summ_indices = get_non_summation_indices_from_expression(rhs_arefs);
+        index_list lhs_indices = get_indices_from_identifiers(lhs->indices);
+
+        if (!compare_index_lists(lhs_indices, non_summ_indices)) {
+        // print_index_list(lhs_indices);
+        // print_index_list(non_summ_indices);
+            std::string error_msg = "LHS and RHS of assignment must have equal (non-summation) index sets";
+            Error(statement->line,0,error_msg);
+        }
+
+///    TODO: If lhs array ref occurs on rhs (a=a+b*c) complain saying that a+=b*c must be used instead
+//    if (exists_index(rhs_arefs->list,rhs_arefs->length,lhs_aref->list[0])){
+//        std::cerr << "Error at line " << s->u.AssignStmt.lhs->lineno << ": array " << lhs_aref->list[0] << " cannot be assigned after being previously referenced\n";
+//        std::exit(EXIT_FAILURE);
+//    }
 }
 
 
@@ -146,189 +233,66 @@ else if (ArrayDeclaration* const adecl = dynamic_cast<ArrayDeclaration*>(declara
 }
 
 
+void check_expression(Expression* const exp, SymbolTable* const context) {
+        // case Exp::is_Parenth: {
+        //     check_Exp(exp->u.Parenth.exp, symtab);
+        // }
+    if (Array* const a = dynamic_cast<Array*>(exp)) {
+           ;
+    }    
+    
+    else if (Addition* const add = dynamic_cast<Addition*>(exp)) ;       
+    else if (Multiplication* const mult = dynamic_cast<Multiplication*>(exp)); 
+ 
+        //     break;
+        // case Exp::is_Addition: {
+        //     check_ExpList(exp->u.Addition.subexps, symtab);
+        //     inames = getIndices(exp);
+        //     el = exp->u.Addition.subexps;
+        //     while (el != nullptr) {
+        //         tamm_string_array op_inames = getIndices(el->head);
+        //         if (!compare_index_lists(inames, op_inames)) {
+        //             std::cerr << "Error at line " << clno
+        //                       << ": subexpressions of an addition must have equal index sets\n";
+        //             std::exit(EXIT_FAILURE);
+        //         }
 
+        //         el = el->tail;
+        //     }
+        //     break;
+        //     case Exp::is_Multiplication:
+        //         check_ExpList(exp->u.Multiplication.subexps, symtab);
+        //     el = exp->u.Multiplication.subexps;
+        //     tamm_string_array all_ind;
 
-// void verifyArrayRefName(SymbolTable &symtab, tamm_string name, int line_no) {
-//     if (symtab.find(name) == symtab.end()) {
-//         std::cerr << "Error at line " << line_no << ": array " << name << " is not defined\n";
-//         std::exit(EXIT_FAILURE);
-//     }
-// }
+        //     while (el != nullptr) {
+        //         tamm_string_array se = getIndices(el->head);
+        //         for (auto i: se)
+        //             all_ind.push_back(i);
+        //         el = el->tail;
+        //     }
 
-// void verifyIndexRef(SymbolTable &symtab, tamm_string name, int line_no) {
-//     if (symtab.find(name) == symtab.end()) {
-//         std::cerr << "Error at line " << line_no << ": index " << name << " is not defined\n";
-//         std::exit(EXIT_FAILURE);
-//     }
-// }
+        //     tamm_string_array uind;
+        //     for (auto i: all_ind) {
+        //         if (!exists_index(uind, i))
+        //             uind.push_back(i);
+        //     }
 
-// void verifyArrayRef(SymbolTable &symtab, tamm_string name, tamm_string *inds, int len, int line_no) {
-//     verifyArrayRefName(symtab, name, line_no);
-//     for (int i = 0; i < len; i++) verifyIndexRef(symtab, inds[i], line_no);
-// }
+        //     for (auto i:uind) {
+        //         if (count_index(all_ind, i) > 2) {
+        //             std::cerr << "Error at line " << clno << ": summation index " << i <<
+        //                       " must occur exactly twice in a multiplication\n";
+        //             std::exit(EXIT_FAILURE);
+        //         }
+        //     }
+        // }
+        //     break;
+        // default: {
+        //     std::cerr << "Not a valid Expression!\n";
+        //     std::exit(EXIT_FAILURE);
+        // }
+    }
 
-
-// void check_Exp(Exp *exp, SymbolTable &symtab) {
-//     tamm_string_array inames;
-//     ExpList *el = nullptr;
-//     int clno = exp->lineno;
-//     switch (exp->kind) {
-//         case Exp::is_Parenth: {
-//             check_Exp(exp->u.Parenth.exp, symtab);
-//         }
-//             break;
-//         case Exp::is_NumConst: {
-//         }
-//             //std::cout << exp->u.NumConst.value << " ";
-//             break;
-//         case Exp::is_ArrayRef: {
-//             verifyArrayRef(symtab, exp->u.Array.name, exp->u.Array.indices, exp->u.Array.length, clno);
-//             inames = getIndices(exp);
-//             tamm_string_array all_ind1 = inames;
-//             tamm_string_array rnames;
-
-//             for (auto i1: all_ind1)
-//                 rnames.push_back(symtab[i1]);
-
-//             tamm_string_array rnamesarr = rnames;
-//             tamm_string ulranges = symtab[exp->u.Array.name];
-//             tamm_string_array ulr = stringToList(ulranges);
-
-//             if (!check_array_usage(ulr, rnamesarr)) {
-//                 std::cerr << "Error at line " << clno << ": array reference " << exp->u.Array.name << "["
-//                           << combine_indices(all_ind1) << "]"
-//                           << " must have index structure of " << exp->u.Array.name << "[" << combine_indices(ulr)
-//                           << "]\n";
-//                 std::exit(EXIT_FAILURE);
-//             }
-//             //Check for repetitive indices in an array reference
-//             tamm_string_array uind1;
-
-//             for (auto i1: all_ind1) {
-//                 if (!exists_index(uind1, i1))
-//                     uind1.push_back(i1);
-//             }
-
-//             tamm_string_array up_ind(exp->u.Array.length);
-//             for (int i = 0; i < exp->u.Array.length; i++)
-//                 up_ind[i] = exp->u.Array.indices[i];
-
-//             for (auto i1:uind1) {
-//                 if (count_index(all_ind1, i1) > 1) {
-//                     std::cerr << "Error at line " << clno << ": repetitive index " << i1 << " in array reference "
-//                               << exp->u.Array.name << "[" << combine_indices(up_ind) << "]\n";
-//                     std::exit(EXIT_FAILURE);
-//                 }
-//             }
-//         }
-//             break;
-//         case Exp::is_Addition: {
-//             check_ExpList(exp->u.Addition.subexps, symtab);
-//             inames = getIndices(exp);
-//             el = exp->u.Addition.subexps;
-//             while (el != nullptr) {
-//                 tamm_string_array op_inames = getIndices(el->head);
-//                 if (!compare_index_lists(inames, op_inames)) {
-//                     std::cerr << "Error at line " << clno
-//                               << ": subexpressions of an addition must have equal index sets\n";
-//                     std::exit(EXIT_FAILURE);
-//                 }
-
-//                 el = el->tail;
-//             }
-//             break;
-//             case Exp::is_Multiplication:
-//                 check_ExpList(exp->u.Multiplication.subexps, symtab);
-//             el = exp->u.Multiplication.subexps;
-//             tamm_string_array all_ind;
-
-//             while (el != nullptr) {
-//                 tamm_string_array se = getIndices(el->head);
-//                 for (auto i: se)
-//                     all_ind.push_back(i);
-//                 el = el->tail;
-//             }
-
-//             tamm_string_array uind;
-//             for (auto i: all_ind) {
-//                 if (!exists_index(uind, i))
-//                     uind.push_back(i);
-//             }
-
-//             for (auto i:uind) {
-//                 if (count_index(all_ind, i) > 2) {
-//                     std::cerr << "Error at line " << clno << ": summation index " << i <<
-//                               " must occur exactly twice in a multiplication\n";
-//                     std::exit(EXIT_FAILURE);
-//                 }
-//             }
-//         }
-//             break;
-//         default: {
-//             std::cerr << "Not a valid Expression!\n";
-//             std::exit(EXIT_FAILURE);
-//         }
-//     }
-// }
-
-// //get non-summation indices only
-// tamm_string_array getIndices(Exp *exp) {
-//     ExpList *el = nullptr;
-//     tamm_string_array p;
-//     switch (exp->kind) {
-//         case Exp::is_Parenth: {
-//             return getIndices(exp->u.Parenth.exp);
-//         }
-//         case Exp::is_NumConst: {
-//             return p;
-//         }
-//         case Exp::is_ArrayRef: {
-//             tamm_string_array up_ind(exp->u.Array.length);
-//             for (int i = 0; i < exp->u.Array.length; i++)
-//                 up_ind[i] = strdup(exp->u.Array.indices[i]);
-//             return up_ind;
-//         }
-//         case Exp::is_Addition: {
-//             return getIndices(exp->u.Addition.subexps->head);
-//         }
-//         case Exp::is_Multiplication: {
-//             el = exp->u.Multiplication.subexps;
-//             tamm_string_array all_ind;
-//             while (el != nullptr) {
-//                 tamm_string_array se = getIndices(el->head);
-//                 for (auto i: se) {
-//                     all_ind.push_back(i);
-//                 }
-//                 el = el->tail;
-//             }
-
-//             tamm_string_array uind;
-//             for (auto i: all_ind) {
-//                 if (count_index(all_ind, i) == 1)
-//                     uind.push_back(i);
-//             }
-
-//             tamm_string_array uniq_ind;
-//             for (auto i: uind) uniq_ind.push_back(strdup(i));
-//             return uniq_ind;
-//         }
-
-//         default: {
-//             std::cerr << "Not a valid Expression!\n";
-//             std::exit(EXIT_FAILURE);
-//         }
-//     }
-// }
-
-
-// void print_ExpList(ExpList *expList, tamm_string am) {
-//     ExpList *elist = expList;
-//     while (elist != nullptr) {
-//         print_Exp(elist->head);
-//         elist = elist->tail;
-//         if (elist != nullptr) std::cout << am << " ";
-//     }
-// }
 
 
 // void print_Exp(Exp *exp) {

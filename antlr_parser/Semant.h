@@ -33,9 +33,7 @@ void check_AssignStatement(const AssignStatement* const statement, SymbolTable* 
 
 void check_Declaration(Declaration* const declaration, SymbolTable* const context);
 
-// void check_Exp(Exp*, SymbolTable&);
-
-// void check_ExpList(ExpList*, SymbolTable&);
+void check_expression(Expression* const exp, SymbolTable* const context) ;
 
 // tamm_string_array getIndices(Exp* exp);
 

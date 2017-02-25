@@ -10,88 +10,77 @@
 //------------------------------------------------------------------------------
 
 #include "Util.h"
+#include <set>
 
 namespace tamm {
 
-tamm_string *mkIndexList(tamm_string *indices, int length) {
-    tamm_string *newlist = (tamm_string *) malloc(length * sizeof(tamm_string));
-    int i = 0;
-    for (i = 0; i < length; i++) {
-        newlist[i] = strdup(indices[i]);
-    }
-    return newlist;
+bool exists_index(const index_list& indices, const std::string x) {
+    if (std::find(indices.begin(), indices.end(), x) == indices.end()) return false;
+    return true;
 }
 
-
-tamm_string combine_indexLists(const tamm_string_array& indices1, const tamm_string_array& indices2) {
-    tamm_string upper = combine_indices(indices1);
-    tamm_string lower = combine_indices(indices2);
-    std::string s;
-    s.append(upper);
-    s.append(":");
-    s.append(lower);
-    return constcharToChar(s.c_str());
-
-}
-
-
-// bool exists_index(const tamm_string_array &list, tamm_string x) {
-//     for (auto i: list) if (strcmp(i, x) == 0) return true;
-//     return false;
-// }
-
-// bool compare_index_lists(const tamm_string_array& alist1, const tamm_string_array& alist2) {
-//     int len1 = alist1.size();
-//     int len2 = alist2.size();
-//     if (len1 != len2) return false;
-//     for (auto i: alist1) {
-//         if (!exists_index(alist2, i)) return false;
-//     }
-//     return true;
-// }
-
-bool check_array_usage(const tamm_string_array& list1, const tamm_string_array& list2) {
-    int len1 = list1.size();
-    int len2 = list2.size();
+bool compare_index_lists(const index_list& alist1, const index_list& alist2) {
+    const int len1 = alist1.size();
+    const int len2 = alist2.size();
     if (len1 != len2) return false;
-
-    for (int i = 0; i < len1; i++) {
-        if (strcmp(list1[i], "N") != 0) if (strcmp(list1[i], list2[i]) != 0) return false;
+    for (auto &index: alist1) {
+        if (!exists_index(alist2, index)) return false;
     }
     return true;
 }
 
-
-
-//Convert string array of indices to comma seperated string
-tamm_string combine_indices(const tamm_string_array& indices) {
-    if (indices.size() == 0) return "\0";
-    std::string s;
-    for (auto i: indices) {
-        s.append(i);
-        s.append(",");
-    }
-    return  constcharToChar(s.c_str());
-
+void get_array_refs_from_expression(Expression* const exp, std::vector<Array*>& arefs) {
+    if (Array* const a = dynamic_cast<Array*>(exp)) 
+           arefs.push_back(a);
+    
+    else if (Addition* const add = dynamic_cast<Addition*>(exp)) 
+            for (auto &e: add->subexps) get_array_refs_from_expression(e, arefs);
+        
+    else if (Multiplication* const mult = dynamic_cast<Multiplication*>(exp)) 
+            for (auto &m: mult->subexps) get_array_refs_from_expression(m, arefs);
+            
 }
 
-//bool exact_compare_index_lists(tamm_string_array list1, tamm_string_array list2) {
-//    int len1 = list1->length;
-//    int len2 = list2->length;
-//    if (len1 != len2) return false;
-//    tamm_string *alist1 = list1->list;
-//    tamm_string *alist2 = list2->list;
-//    int i = 0;
-//    for (i = 0; i < len1; i++) {
-//        if (strcmp(alist1[i], alist2[i]) != 0) return false;
-//    }
-//    return true;
-//}
-//
-//void print_index_list(tamm_string_array list1) {
-//    int i = 0;
-//    for (i = 0; i < list1->length; i++) std::cout << list1->list[i] << ",";
-//
-//}
+index_list get_indices_from_identifiers(const identifier_list& id_list) {
+    index_list indices;
+    for (auto &identifier: id_list) indices.push_back(identifier->name);
+    return indices;
+}
+
+/// Return non-summation indices in the rhs of a contraction
+index_list get_non_summation_indices_from_expression(std::vector<Array*>& arefs)
+{
+    std::vector<std::string> indices;
+    for (auto &arr: arefs){
+        identifier_list a_indices = arr->indices;
+        for (auto &index: a_indices) {
+            if (!exists_index(indices,index->name)) indices.push_back(index->name);
+            else indices.erase(std::remove(indices.begin(), indices.end(), index->name), indices.end());
+        }
+    }
+    return indices;
+}
+
+index_list get_unique_indices_from_expression(std::vector<Array*>& arefs)
+{
+    std::set<std::string> indices;
+    for (auto &arr: arefs){
+        identifier_list a_indices = arr->indices;
+        for (auto &index: a_indices) {
+            indices.insert(index->name);
+        }
+    }
+    std::vector<std::string> unique_indices;
+    unique_indices.assign(indices.begin(),indices.end());
+    return unique_indices;
+}
+
+const std::string get_index_list_as_string(const index_list& ilist) {
+    std::string list_string = "[";
+    for(auto &x:ilist) list_string += x + ",";
+    list_string.pop_back();
+    list_string += "]";
+    return list_string;
+}
 
 }

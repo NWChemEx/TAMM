@@ -33,7 +33,7 @@ namespace tamm {
     type_check(ast_root, context);
 
     //Equations* equations = new Equations();
-    generate_equations(tamm_equations, ast_root);
+    generate_equations(ast_root, tamm_equations);
 
   }
 

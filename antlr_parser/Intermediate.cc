@@ -26,12 +26,6 @@ namespace tamm {
 //     return p;
 // }
 
-// RangeEntry* make_RangeEntry(tamm_string name) {
-//     RangeEntry* p = new RangeEntry();
-//     p->name = name;
-//     return p;
-// }
-
 // IndexEntry* make_IndexEntry(tamm_string name, int range_id) {
 //     IndexEntry* p = new IndexEntry();
 //     p->name = name;
@@ -74,96 +68,75 @@ namespace tamm {
 //     return p;
 // }
 
-void generate_equations(Equations* const equation, CompilationUnit* const root) {
-    std::vector<RangeEntry*> &re = equation->range_entries;
-    // re.push_back(make_RangeEntry("O"));
-    // re.push_back(make_RangeEntry("V"));
-    // re.push_back(make_RangeEntry("N"));
+void generate_equations(CompilationUnit* const root, Equations* const equations) {
+    std::vector<RangeEntry*> &re = equations->range_entries;
+    re.push_back(new RangeEntry("O"));
+    re.push_back(new RangeEntry("V"));
+    re.push_back(new RangeEntry("N"));
 
-    // CompoundElementList* celist = root->celist;
-    // while (celist != nullptr) {
-    //     generate_intermediate_CompoundElem(eqn, celist->head);
-    //     celist = celist->tail;
-    // }
+    for (auto &ce: root->celist)
+        generate_equations_CompoundElement(ce, equations);
 }
 
-// void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem* celem) {
-//     ElemList *elist = celem->elist;
-//     while (elist != nullptr) {
-//         generate_intermediate_Elem(eqn, elist->head);
-//         elist = elist->tail;
-//     }
-// }
+void generate_equations_CompoundElement(const CompoundElement* const ce, Equations* const equations) {
+    const ElementList* const element_list = ce->elist;
+    for (auto &elem: element_list->elist) 
+        generate_equations_Element(elem, equations);
+}
 
-// void generate_intermediate_Elem(Equations *eqn, Elem* elem) {
-//     Elem* e = elem;
-//     if (e == nullptr) return;
+void generate_equations_Element(Element* const element, Equations* const equations) {    
+     if (element == nullptr) return; /// TODO: Can this happen ?
 
-//     switch (e->kind) {
-//         case Elem::is_DeclList:
-//             generate_intermediate_DeclList(eqn, elem->u.d);
-//             break;
-//       case Elem::is_Statement:
-//             generate_intermediate_Stmt(eqn, e->u.s);
-//             break;
-//         default:
-//             std::cerr <<  "Not a Declaration or Statement!\n";
+     //if (element->getElementType() == Element::kDeclaration);
+     if (DeclarationList* const dl = dynamic_cast<DeclarationList*>(element))
+            generate_equations_DeclarationList(dl, equations);
+     else if (Statement* const statement = dynamic_cast<Statement*>(element))
+            generate_equations_Statement(statement, equations);
+     else ;
+//             std::cerr << "Not a Declaration or Statement!\n";
 //             std::exit(EXIT_FAILURE);
-//     }
-// }
+}
 
-// void generate_intermediate_DeclList(Equations *eqn, DeclList* decllist) {
-//     DeclList* dl = decllist;
-//     while (dl != nullptr) {
-//         generate_intermediate_Decl(eqn, dl->head);
-//         dl = dl->tail;
-//     }
-// }
+void generate_equations_DeclarationList(const DeclarationList* const decllist, Equations* const equations) {    
+    for (auto &decl: decllist->dlist)
+        generate_equations_Declaration(decl, equations);
+}
 
-// void generate_intermediate_Decl(Equations *eqn, Decl* d) {
-//     switch (d->kind) {
-//       case Decl::is_RangeDecl: {
-//         //std::cout << "range %s : %d;\n", d->u.RangeDecl.name, d->u.RangeDecl.value;
-//       }
-//             break;
-//         case Decl::is_IndexDecl: {
-//           int rid=0;
-//           if (strcmp(d->u.IndexDecl.rangeID, "O") == 0) rid = 0;
-//           else if (strcmp(d->u.IndexDecl.rangeID, "V") == 0) rid = 1;
-//           else if (strcmp(d->u.IndexDecl.rangeID, "N") == 0) rid = 2;
+void generate_equations_Declaration(Declaration* const declaration, Equations* const equations) { 
+    if (RangeDeclaration* const rdecl = dynamic_cast<RangeDeclaration*>(declaration)) ;
+    else if (IndexDeclaration* const idecl = dynamic_cast<IndexDeclaration*>(declaration)) {
+            const std::string index_name = idecl->index_name->name;
+            int rid = 0;
+            if (index_name == "O") rid = 0;
+            else if (index_name == "V") rid = 1;
+            else if (index_name == "N") rid = 2;
+            equations->index_entries.push_back(new IndexEntry(index_name, rid));
+    }
 
-//           eqn->index_entries.push_back(make_IndexEntry(d->u.IndexDecl.name, rid));
-//           //std::cout << "index %s : %s;\n", d->u.IndexDecl.name, d->u.IndexDecl.rangeID;
-//         }
-//             break;
-//         case Decl::is_ArrayDecl: {
-//           TensorEntry* te = make_TensorEntry(d->u.ArrayDecl.name, d->u.ArrayDecl.ulen + d->u.ArrayDecl.llen, d->u.ArrayDecl.ulen);
-//           int rid = 0;
-//           for (rid = 0; rid < d->u.ArrayDecl.ulen; rid++) {
-//             tamm_string range = d->u.ArrayDecl.upperIndices[rid];
-//             te->range_ids[rid] = 0;
-//             if (strcmp(range, "V") == 0) te->range_ids[rid] = 1;
-//             else if (strcmp(range, "N") == 0) te->range_ids[rid] = 2;
-//           }
+    else if (ArrayDeclaration* const adecl = dynamic_cast<ArrayDeclaration*>(declaration)) {
+        TensorEntry* te = new TensorEntry(adecl->tensor_name->name,
+            adecl->upper_indices.size()+adecl->lower_indices.size(), adecl->upper_indices.size());
+        for (auto &ui: adecl->upper_indices)
+            if(ui->name == "O") te->range_ids.push_back(0);
+            else if(ui->name == "V") te->range_ids.push_back(1);
+            else if(ui->name == "N") te->range_ids.push_back(2);
+        for (auto &li: adecl->lower_indices)
+            if(li->name == "O") te->range_ids.push_back(0);
+            else if(li->name == "V") te->range_ids.push_back(1);
+            else if(li->name == "N") te->range_ids.push_back(2);
 
-//           int lid = rid;
-//           for (rid = 0; rid < d->u.ArrayDecl.llen; rid++) {
-//             tamm_string range = d->u.ArrayDecl.lowerIndices[rid];
-//             te->range_ids[lid] = 0;
-//             if (strcmp(range, "V") == 0) te->range_ids[lid] = 1;
-//             else if (strcmp(range, "N") == 0) te->range_ids[lid] = 2;
-//             lid++;
-//           }
+        equations->tensor_entries.push_back(te);
+    }
+}
 
-//           eqn->tensor_entries.push_back(te);
-//         }
-//             break;
-//         default: {
-//           std::cerr <<  "Not a valid Declaration!\n";
-//           std::exit(EXIT_FAILURE);
-//         }
-//     }
-// }
+void generate_equations_Statement(Statement* const statement, Equations* const equations) {    
+    if (AssignStatement* const as = dynamic_cast<AssignStatement*>(statement)) 
+        generate_equations_AssignStatement(as, equations);
+}
+
+void generate_equations_AssignStatement(const AssignStatement* const statement, Equations* const equations) { 
+    ;
+}
 
 // void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
 //     std::vector<Exp*> lhs_aref, rhs_allref;
@@ -363,14 +336,6 @@ void generate_equations(Equations* const equation, CompilationUnit* const root) 
 // }
 
 
-// void generate_intermediate_ExpList(Equations *eqn, ExpList* expList, tamm_string am) {
-//     ExpList* elist = expList;
-//     while (elist != nullptr) {
-//         generate_intermediate_Exp(eqn, elist->head);
-//         elist = elist->tail;
-//         //if (elist != nullptr) std::cout << am << " ";
-//     }
-// }
 
 // void generate_intermediate_Exp(Equations *eqn, Exp* exp) {
 //     switch (exp->kind) {
@@ -400,185 +365,8 @@ void generate_equations(Equations* const equation, CompilationUnit* const root) 
 // }
 
 
-// void collectArrayRefs(Exp* exp, std::vector<Exp*> &arefs, int *num_adds) {
-//     ExpList* el = nullptr;
-//     switch (exp->kind) {
-//         case Exp::is_Parenth: {
-//           collectArrayRefs(exp->u.Parenth.exp, arefs, num_adds);
-//         }
-//             break;
-//         case Exp::is_NumConst: {
-//           arefs.push_back(exp);
-//         }
-//             break;
-//         case Exp::is_ArrayRef: {
-//             arefs.push_back(exp);
-//           }
-//             break;
-//         case Exp::is_Addition: {
-//           *num_adds += 1;
-//           el = (exp->u.Addition.subexps);
-//           while (el != nullptr) {
-//             collectArrayRefs(el->head, arefs, num_adds);
-//             el = el->tail;
-//           }
-//         }
-//             break;
-//         case Exp::is_Multiplication: {
-//           el = (exp->u.Multiplication.subexps);
-//           while (el != nullptr) {
-//             collectArrayRefs(el->head, arefs, num_adds);
-//             el = el->tail;
-//           }
-//         }
-//             break;
-//         default: {
-//           std::cerr <<  "Not a valid Expression!\n";
-//           std::exit(EXIT_FAILURE);
-//         }
-//     }
-// }
 
 
-//tce_string_array collectExpIndices(Exp* exp, int *firstref) {
-//    ExpList* el = nullptr;
-//    int i = 0, ui = 0, tot_len = 0;
-//    tce_string_array p = nullptr;
-//    tamm_string *uind = nullptr;
-//    tamm_string *uniq_ind = nullptr;
-//    tamm_string *all_ind = nullptr;
-//    switch (exp->kind) {
-//        case Exp::is_Parenth: {
-//          return getUniqIndices(exp->u.Parenth.exp);
-//        }
-//            break;
-//        case Exp::is_NumConst: {
-//          return nullptr;
-//        }
-//            break;
-//        case Exp::is_ArrayRef: {
-//          p = (tce_string_array)tce_malloc(sizeof(*p));
-//          p->list = replicate_indices(exp->u.Array.indices, exp->u.Array.length);
-//          p->length = exp->u.Array.length;
-//          return p;
-//        }
-//            break;
-//        case Exp::is_Addition: {
-//          el = exp->u.Addition.subexps;
-//          tot_len = 0;
-//          if (*firstref == 1) el = el->tail;
-//          while (el != nullptr) {
-//            //print_Exp(el->head);
-//            tce_string_array se = getUniqIndices(el->head);
-//            if (se != nullptr) tot_len += se->length;
-//            se = nullptr;
-//            el = el->tail;
-//          }
-//
-//          el = exp->u.Addition.subexps;
-//          all_ind = (tamm_string *)tce_malloc(sizeof(tamm_string) * tot_len);
-//
-//          i = 0, ui = 0;
-//          if (*firstref == 1) {
-//            el = el->tail;
-//            *firstref = 0;
-//          }
-//          while (el != nullptr) {
-//
-//            tce_string_array se = (tce_string_array) getUniqIndices(el->head);
-//            i = 0;
-//            if (se != nullptr) {
-//              for (i = 0; i < se->length; i++) {
-//                all_ind[ui] = se->list[i];
-//                ui++;
-//              }
-//            }
-//            se = nullptr;
-//            el = el->tail;
-//          }
-//          assert(ui == tot_len);
-//          uind = (tamm_string *)tce_malloc(sizeof(tamm_string) * tot_len);
-//
-//          i = 0, ui = 0;
-//
-//          for (i = 0; i < tot_len; i++) {
-//            if (!exists_index(uind, ui, all_ind[i])) {
-//              uind[ui] = all_ind[i];
-//              ui++;
-//            }
-//          }
-//
-//          uniq_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * ui);
-//          for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
-//
-//          p = (tce_string_array) tce_malloc(sizeof(*p));
-//          p->list = uniq_ind;
-//          p->length = ui;
-//
-//          return p;
-//        }
-//
-//            break;
-//      case Exp::is_Multiplication: {
-//        el = exp->u.Multiplication.subexps;
-//        tot_len = 0;
-//        if (*firstref == 1) el = el->tail;
-//        while (el != nullptr) {
-//          //print_Exp(el->head);
-//          tce_string_array se = (tce_string_array) getUniqIndices(el->head);
-//          if (se != nullptr) tot_len += se->length;
-//          se = nullptr;
-//          el = el->tail;
-//        }
-//
-//        el = exp->u.Multiplication.subexps;
-//        all_ind = (tamm_string *)tce_malloc(sizeof(tamm_string) * tot_len);
-//
-//        i = 0, ui = 0;
-//        if (*firstref == 1) {
-//          el = el->tail;
-//          *firstref = 0;
-//        }
-//        while (el != nullptr) {
-//          tce_string_array se = (tce_string_array)getUniqIndices(el->head);
-//          i = 0;
-//          if (se != nullptr) {
-//            for (i = 0; i < se->length; i++) {
-//              all_ind[ui] = se->list[i];
-//              ui++;
-//            }
-//          }
-//          se = nullptr;
-//          el = el->tail;
-//        }
-//        assert(ui == tot_len);
-//        uind = (tamm_string *)tce_malloc(sizeof(tamm_string) * tot_len);
-//
-//        i = 0, ui = 0;
-//
-//        for (i = 0; i < tot_len; i++) {
-//          if (!exists_index(uind, ui, all_ind[i])) {
-//            uind[ui] = all_ind[i];
-//            ui++;
-//          }
-//        }
-//
-//        uniq_ind = (tamm_string *) tce_malloc(sizeof(tamm_string) * ui);
-//        for (i = 0; i < ui; i++) uniq_ind[i] = strdup(uind[i]);
-//
-//        p = (tce_string_array)tce_malloc(sizeof(*p));
-//        p->list = uniq_ind;
-//        p->length = ui;
-//
-//        return p;
-//      }
-//            break;
-//        default: {
-//          std::cerr <<  "Not a valid Expression!\n";
-//            std::exit(EXIT_FAILURE);
-//        }
-//    }
-//}
-//
+
 
 }

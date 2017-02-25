@@ -13,41 +13,22 @@
 #ifndef __TAMM_UTIL_H__
 #define __TAMM_UTIL_H__
 
+#include "Absyn.h"
+#include <iostream>
+#include <algorithm>
+
 namespace tamm {
-// #include <cstring>
-// #include <cassert>
-// #include <iostream>
-// #include <vector>
 
-// typedef char *tamm_string;
+using index_list = std::vector<std::string>;
+using identifier_list = std::vector<Identifier*>;
 
-// using tamm_string_array = std::vector<tamm_string>;
-
-// void *tce_malloc(int length);
-
-// tamm_string *mkIndexList(tamm_string *indices, int length);
-
-// tamm_string constcharToChar(const char* s);
-
-// tamm_string combine_indices(const tamm_string_array& indices);
-
-// tamm_string combine_indexLists(const tamm_string_array& upper, const tamm_string_array& lower);
-
-// // Should be a string returned by combine_indexLists i.e., of the form
-// // upper_indices : lower_indices ex:- V,V,O : O,V,V
-// // (OR) could be simply a comma seperated list.
-// tamm_string_array stringToList(tamm_string);
-
-// bool exists_index(const tamm_string_array& list, tamm_string x);
-
-// int count_index(const tamm_string_array &list, tamm_string x);
-
-// bool compare_index_lists(const tamm_string_array& list1, const tamm_string_array& list2);
-
-// bool check_array_usage(const tamm_string_array& list1, const tamm_string_array& list2);
-
-//bool exact_compare_index_lists(tce_string_array list1, tce_string_array list2);
-//void print_index_list(tce_string_array list1);
+bool exists_index(const index_list& indices, const std::string x);
+bool compare_index_lists(const index_list& alist1, const index_list& alist2);
+void get_array_refs_from_expression(Expression* const exp, std::vector<Array*>& arefs);
+index_list get_indices_from_identifiers(const identifier_list& id_list);
+index_list get_non_summation_indices_from_expression(std::vector<Array*>& arefs);
+index_list get_unique_indices_from_expression(std::vector<Array*>& arefs);
+const std::string get_index_list_as_string(const index_list& ilist);
 
 }
 #endif

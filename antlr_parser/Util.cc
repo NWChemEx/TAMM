@@ -41,6 +41,21 @@ void get_array_refs_from_expression(Expression* const exp, std::vector<Array*>& 
             
 }
 
+void get_all_refs_from_expression(Expression* const exp, std::vector<Array*>& arefs, std::vector<NumConst*>& all_consts) {
+    if (Array* const a = dynamic_cast<Array*>(exp)) 
+        arefs.push_back(a);
+    
+    else if (NumConst* const nc = dynamic_cast<NumConst*>(exp)) 
+        all_consts.push_back(nc);
+    
+    else if (Addition* const add = dynamic_cast<Addition*>(exp)) 
+            for (auto &e: add->subexps) get_array_refs_from_expression(e, arefs);
+        
+    else if (Multiplication* const mult = dynamic_cast<Multiplication*>(exp)) 
+            for (auto &m: mult->subexps) get_array_refs_from_expression(m, arefs);
+            
+}
+
 index_list get_indices_from_identifiers(const identifier_list& id_list) {
     index_list indices;
     for (auto &identifier: id_list) indices.push_back(identifier->name);

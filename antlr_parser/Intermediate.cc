@@ -15,6 +15,8 @@
 
 namespace tamm {
 
+static int op_id = 1;
+
 void generate_equations(CompilationUnit* const root, Equations* const equations) {
     std::vector<RangeEntry*> &re = equations->range_entries;
     re.push_back(new RangeEntry("O"));
@@ -149,8 +151,14 @@ void generate_equations_AssignStatement(const AssignStatement* const statement, 
             get_index_ids(equations,lhs_tref,aop->tc_ids);
             get_index_ids(equations,rhs_arefs.at(0),aop->ta_ids);
 
+            assert(aop->tc_ids.size() == lhs_tref->indices.size());
+            assert(aop->ta_ids.size() == rhs_arefs.at(0)->indices.size());
+
             aop->tc = get_tensor_id(equations,lhs_tref);
             aop->ta = get_tensor_id(equations,rhs_arefs.at(0));
+
+            equations->op_entries.push_back(new OpEntry(op_id,OpTypeAdd,aop,nullptr));
+            op_id++;
 
         }
         else if (num_rhs_arefs == 2){
@@ -162,9 +170,16 @@ void generate_equations_AssignStatement(const AssignStatement* const statement, 
             get_index_ids(equations,rhs_arefs.at(0),mop->ta_ids);
             get_index_ids(equations,rhs_arefs.at(1),mop->tb_ids);
 
+            assert(mop->tc_ids.size() == lhs_tref->indices.size());
+            assert(mop->ta_ids.size() == rhs_arefs.at(0)->indices.size());
+            assert(mop->tb_ids.size() == rhs_arefs.at(1)->indices.size());
+
             mop->tc = get_tensor_id(equations,lhs_tref);
             mop->ta = get_tensor_id(equations,rhs_arefs.at(0));
             mop->tb = get_tensor_id(equations,rhs_arefs.at(1));
+
+            equations->op_entries.push_back(new OpEntry(op_id, OpTypeMult, nullptr, mop));
+            op_id++;
 
         }
 

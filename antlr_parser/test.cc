@@ -10,12 +10,14 @@
 //------------------------------------------------------------------------------
 
 #include "Parse.h"
+#include "Intermediate.h"
+
 
 int main(int argc, const char* argv[]) {
 
-  Equations genEq;
+  tamm::Equations* const equations = new tamm::Equations();
 
-  tamm::tamm_parser(argv[1], genEq);
+  tamm::tamm_parser(argv[1], equations);
 
 // unsigned int i = 0;
 //     RangeEntry* rent;

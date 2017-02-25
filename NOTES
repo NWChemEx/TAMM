@@ -67,3 +67,6 @@ Disable antlr cmakelist else condition that does not use intel compilers ? - not
  cmake .. -DTAMM_BLAS_INC=/opt/intel/mkl/include/ -DTAMM_BLAS_LIB=/opt/intel/mkl/lib/intel64 -DCMAKE_CXX_COMPILER=icpc  -DCMAKE_C_COMPILER=icc
 
 
+https://scan.coverity.com/
+
+Catch, GoogleTest (Bandit, Lest)

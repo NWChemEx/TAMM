@@ -19,20 +19,27 @@ namespace tamm{
 
 class RangeEntry {
 public:
-    std::string name; /*name for this range*/
+    const std::string range_name; /*name for this range*/
+    RangeEntry(const std::string range_name): range_name(range_name) {}
+    ~RangeEntry() {}    
 };
 
 class IndexEntry {
 public:
-    std::string name; /*name of this index*/
-    const int range_id; /*index into the RangeEntry struct*/
+    const std::string index_name; /*name of this index*/
+    const int range_id; /*index into the RangeEntry vector */
+    IndexEntry(const std::string index_name, const int range_id): index_name(index_name), range_id(range_id) {}
+    ~IndexEntry() {}
 };
 
 class TensorEntry {
 public:
-    std::string name;
-    int ndim, nupper;
-    std::vector<int> range_ids; /*dimensions in terms of index into RangeEntry struct*/
+    const std::string tensor_name;
+    const int ndim, nupper;
+    std::vector<int> range_ids; /*dimensions in terms of index into RangeEntry vector */
+    TensorEntry(const std::string tensor_name, const int ndim, const int nupper)
+                : tensor_name(tensor_name), ndim(ndim), nupper(nupper) {}
+    ~TensorEntry() {}
     
 };
 
@@ -78,21 +85,19 @@ class Equations {
 };
 
 
-void generate_equations(Equations* const equation, CompilationUnit* const root);
+void generate_equations(CompilationUnit* const root, Equations* const equation);
 
-// void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem* celem);
+void generate_equations_CompoundElement(const CompoundElement* const ce, Equations* const equations);
 
-// void generate_intermediate_Elem(Equations *eqn, Element* el);
+void generate_equations_Element(Element* const element, Equations* const equations);
 
-// void generate_intermediate_Decl(Equations *eqn, Declaration* d);
+void generate_equations_DeclarationList(const DeclarationList* const decllist, Equations* const equations);
 
-// void generate_intermediate_Stmt(Equations *eqn, Stmt* s);
+void generate_equations_Statement(Statement* const statement, Equations* const equations);
 
-// void generate_intermediate_Exp(Equations *eqn, Exp* exp);
+void generate_equations_AssignStatement(const AssignStatement* const statement, Equations* const equations);
 
-// void generate_intermediate_ExpList(Equations *eqn, ExpList* expList, tamm_string am);
-
-// void generate_intermediate_DeclList(Equations *eqn, DeclList* dl);
+void generate_equations_Declaration(Declaration* const declaration, Equations* const equations);
 
 // void collectArrayRefs(Exp* exp, std::vector<Exp*> &arefs, int *num_adds);
 

@@ -138,9 +138,10 @@ set(tammParserSources
     antlr_parser/TAMMParser.cc
     antlr_parser/ASTBuilder.cc
     antlr_parser/TAMMVisitor.cc
+    antlr_parser/Util.cc
     antlr_parser/Semant.cc
     antlr_parser/Intermediate.cc
-    #antlr_parser/util.cc
+    
     )
 
 set(tammLibSources

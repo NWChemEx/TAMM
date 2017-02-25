@@ -13,6 +13,7 @@
 #include "Error.h"
 #include "Entry.h"
 #include <cassert>
+#include <algorithm>
 
 namespace tamm {
 
@@ -92,24 +93,26 @@ void check_AssignStatement(const AssignStatement* const statement, SymbolTable* 
 }
 
 
-// void verifyRangeRef(SymbolTable &symtab, tamm_string name, int line_no) {
-// //    if (symtab.find(name) == symtab.end()){
-// //        std::cerr << "Error at line " << line_no << ":range variable " << name << " is not defined\n";
-// //        std::exit(EXIT_FAILURE);
-// //    }
-//     tamm_string_array ranges = {"O", "V", "N"};
-//     if (!exists_index(ranges, name)) {
-//         std::cerr << "Error at line " << line_no << ": range " << name << " is not supported. " <<
-//                   "Can only be one of " << combine_indices(ranges) << std::endl;
-//         std::exit(EXIT_FAILURE);
-//     }
-// }
+void check_range(const Identifier* const range_var, SymbolTable* const context) {
+
+    const std::string range_name = range_var->name;
+        /// RANGE VARIABLE MAY or MAY NOT BE DEFINED
+        //   if (context->get(range_name) == nullptr) {
+        //         std::string range_var_error = "Range variable " + range_name + " is not defined";
+        //         Error(idecl->line, idecl->range_id->position, range_var_error);
+        //    }
+    const std::vector<std::string> allowed_ranges{"O", "V", "N"};
+    if (std::find(allowed_ranges.begin(), allowed_ranges.end(), range_name) == allowed_ranges.end()) {
+        std::string range_error = "Range " + range_name + " is not supported. Can only be one of O, V, N";
+        Error(range_var->line, range_var->position, range_error);
+    }
+}
 
 void check_Declaration(Declaration* const declaration, SymbolTable* const context) {
 if (RangeDeclaration* const rdecl = dynamic_cast<RangeDeclaration*>(declaration)) {
            const std::string range_var = rdecl->name->name;
            if (context->get(range_var) != nullptr) {
-                std::string range_decl_error = "Range variable " + range_var + " is already defined";
+                std::string range_decl_error = "Range " + range_var + " is already defined";
                 Error(rdecl->line, rdecl->name->position, range_decl_error);
            }
            assert(rdecl->value > 0); /// This should be fixed in ast builder.
@@ -120,55 +123,29 @@ else if (IndexDeclaration* const idecl = dynamic_cast<IndexDeclaration*>(declara
            const std::string index_name = idecl->index_name->name;
            const std::string range_name = idecl->range_id->name;
            if (context->get(index_name) != nullptr) {
-                std::string index_decl_error = "Index variable " + index_name + " is already defined";
+                std::string index_decl_error = "Index " + index_name + " is already defined";
                 Error(idecl->line, idecl->index_name->position, index_decl_error);
            }
 
-          if (context->get(range_name) == nullptr) {
-                std::string range_var_error = "Range variable " + range_name + " is not defined";
-                Error(idecl->line, idecl->range_id->position, range_var_error);
-           }
-
+           check_range(idecl->range_id, context);
            context->put(index_name, new Entry(new IndexType(idecl->range_id)));
 }
-else if (ArrayDeclaration* const adecl = dynamic_cast<ArrayDeclaration*>(declaration));
-//             break;
-//         case Decl::is_ArrayDecl: {
-//             tamm_string_array up_ind(d->u.ArrayDecl.ulen);
-//             for (int i = 0; i < d->u.ArrayDecl.ulen; i++)
-//                 up_ind[i] = d->u.ArrayDecl.upperIndices[i];
+else if (ArrayDeclaration* const adecl = dynamic_cast<ArrayDeclaration*>(declaration)) {
 
-//             tamm_string_array lo_ind(d->u.ArrayDecl.llen);
-//             for (int i = 0; i < d->u.ArrayDecl.llen; i++)
-//                 lo_ind[i] = d->u.ArrayDecl.lowerIndices[i];
+        const std::string tensor_name = adecl->tensor_name->name;
+        if (context->get(tensor_name) != nullptr){
+            std::string array_decl_error = "Tensor " + tensor_name + " is already defined";
+            Error(adecl->line, adecl->tensor_name->position, array_decl_error);
+        }
 
-//             verifyVarDecl(symtab, d->u.ArrayDecl.name, d->lineno);
-//             tamm_string comb_index_list = combine_indexLists(up_ind, lo_ind);
-//             //std::cout << d->u.ArrayDecl.name << " -> " << comb_index_list << std::endl;
-//             tamm_string *ind_list = d->u.ArrayDecl.upperIndices;
-//             for (int i = 0; i < d->u.ArrayDecl.ulen; i++) verifyRangeRef(symtab, ind_list[i], d->lineno);
-//             ind_list = d->u.ArrayDecl.lowerIndices;
-//             for (int i = 0; i < d->u.ArrayDecl.llen; i++) verifyRangeRef(symtab, ind_list[i], d->lineno);
+        for (auto &upper: adecl->upper_indices) check_range(upper, context);
+        for (auto &lower: adecl->lower_indices) check_range(lower, context);
 
-//             symtab.insert(SymbolTable::value_type(std::string(d->u.ArrayDecl.name), (comb_index_list)));
-//         }
-//             break;
-//         default: {
-//             std::cerr << "Not a valid Declaration!\n";
-//             std::exit(EXIT_FAILURE);
-//         }
-//     }
+        context->put(tensor_name, new Entry(new TensorType(adecl->upper_indices,adecl->lower_indices)));
+    }
 }
 
 
-
-// void check_ExpList(ExpList *expList, SymbolTable &symtab) {
-//     ExpList *elist = expList;
-//     while (elist != nullptr) {
-//         check_Exp(elist->head, symtab);
-//         elist = elist->tail;
-//     }
-// }
 
 
 // void verifyArrayRefName(SymbolTable &symtab, tamm_string name, int line_no) {

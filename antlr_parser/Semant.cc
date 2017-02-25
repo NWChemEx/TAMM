@@ -105,9 +105,33 @@ index_list get_non_summation_indices_from_expression(std::vector<Array*>& arefs)
     return indices;
 }
 
-void print_index_list(const index_list &il){
-    for(auto &x:il) std::cout << x << ", ";
-    std::cout << std::endl;
+index_list get_unique_indices_from_expression(std::vector<Array*>& arefs)
+{
+    std::set<std::string> indices;
+    for (auto &arr: arefs){
+        identifier_list a_indices = arr->indices;
+        for (auto &index: a_indices) {
+            indices.insert(index->name);
+        }
+    }
+    std::vector<std::string> unique_indices;
+    unique_indices.assign(indices.begin(),indices.end());
+    return unique_indices;
+}
+
+const std::string get_index_list_as_string(const index_list& ilist){
+    std::string list_string = "[";
+    for(auto &x:ilist) list_string += x + ",";
+    list_string.pop_back();
+    list_string += "]";
+    return list_string;
+}
+
+bool check_tensor_usage(const index_list& def, const index_list& use){
+    assert(def.size() == use.size());
+    for (int i = 0; i<def.size(); i++)
+        if (def[i]!="N") if(def[i]!=use[i]) return false;
+    return true;
 }
 
 void check_index_reference(Identifier* const index, SymbolTable* const context) {
@@ -126,11 +150,12 @@ bool check_duplicate_indices(const std::vector<Identifier*>& indices){
 
 void check_array_reference(Array* const aref, SymbolTable* const context) {
     const std::string tensor_name = aref->tensor_name->name;
-        if (context->get(tensor_name) == nullptr){
+    const Entry* const tensor_entry = context->get(tensor_name);
+        if (tensor_entry == nullptr){
             const std::string array_decl_error = "Tensor " + tensor_name + " is not defined";
             Error(aref->line, aref->tensor_name->position, array_decl_error);
         }
-    for (auto &index: aref->indices) check_index_reference(index,context);
+    for (auto &index: aref->indices) check_index_reference(index, context);
 
     const bool duplicate_indices = check_duplicate_indices(aref->indices);
 
@@ -142,10 +167,33 @@ void check_array_reference(Array* const aref, SymbolTable* const context) {
     }
 
     //Check if it conforms to the array declaration. 
-    //     std::cerr << "Tensor reference " << exp->u.Array.name << "["
-    //               << combine_indices(all_ind1) << "]"
-    //               << " must have index structure of " << exp->u.Array.name << "[" << combine_indices(ulr)
-    //               << "]\n";
+    Type* const tensor_type = tensor_entry->type;
+    index_list index_types; // Specified in Tensor Declaration.
+
+    if (TensorType* const t = dynamic_cast<TensorType*>(tensor_type)){
+        for (auto &x: t->upper_indices) index_types.push_back(x->name);
+        for (auto &x: t->lower_indices) index_types.push_back(x->name);
+    }
+    else ; ////Error: tensor_type cannot be of some other type
+
+    index_list usage_indices = get_indices_from_identifiers(aref->indices);
+    index_list usage_types;
+    for (auto &x: usage_indices){
+        const Entry* const entry = context->get(x);
+        Type* const rt = entry->type;
+        if (IndexType* const it = dynamic_cast<IndexType*>(rt))
+            usage_types.push_back(it->range_name->name);
+        else ; ///Error: This should not happen.
+    }
+
+    const bool tensor_use = check_tensor_usage(index_types,usage_types);
+    if (!tensor_use){    
+        const std::string aref_text = aref->getText();
+        const std::string tensor_usage_error = "Tensor reference " + aref_text 
+            + " must have index structure of " + get_index_list_as_string(index_types) + 
+            " but is used as " + get_index_list_as_string(usage_types);
+    Error(aref->line, aref->position, tensor_usage_error);
+    }
     
 }
 
@@ -292,88 +340,5 @@ void check_expression(Expression* const exp, SymbolTable* const context) {
         //     std::exit(EXIT_FAILURE);
         // }
     }
-
-
-
-// void print_Exp(Exp *exp) {
-//     switch (exp->kind) {
-//         case Exp::is_Parenth:
-//             print_Exp(exp->u.Parenth.exp);
-//             break;
-//         case Exp::is_NumConst:
-//             std::cout << exp->u.NumConst.value << " ";
-//             break;
-//         case Exp::is_ArrayRef: {
-//             tamm_string_array up_ind(exp->u.Array.length);
-//             for (int i = 0; i < exp->u.Array.length; i++)
-//                 up_ind[i] = exp->u.Array.indices[i];
-//             std::cout << exp->u.Array.name << "[" << combine_indices(up_ind) << "] ";
-//             break;
-//         }
-//         case Exp::is_Addition:
-//             print_ExpList(exp->u.Addition.subexps, "+");
-//             break;
-//         case Exp::is_Multiplication:
-//             print_ExpList(exp->u.Multiplication.subexps, "*");
-//             break;
-//         default:
-//             std::cerr << "Not a valid Expression!\n";
-//             std::exit(EXIT_FAILURE);
-//     }
-// }
-
-
-// //get all indices only once
-// tamm_string_array getUniqIndices(Exp *exp) {
-//     ExpList *el = nullptr;
-//     tamm_string_array p;
-//     switch (exp->kind) {
-//         case Exp::is_Parenth: {
-//             return getUniqIndices(exp->u.Parenth.exp);
-//         }
-
-//         case Exp::is_NumConst: {
-//             return p;
-//         }
-
-//         case Exp::is_ArrayRef: {
-//             tamm_string_array up_ind(exp->u.Array.length);
-//             for (int i = 0; i < exp->u.Array.length; i++)
-//                 up_ind[i] = strdup(exp->u.Array.indices[i]);
-//             return up_ind;
-//         }
-
-//         case Exp::is_Addition: {
-//             return getUniqIndices(exp->u.Addition.subexps->head);
-//         }
-
-//         case Exp::is_Multiplication: {
-//             el = exp->u.Multiplication.subexps;
-//             tamm_string_array all_ind;
-//             while (el != nullptr) {
-//                 tamm_string_array se = getUniqIndices(el->head);
-//                 for (auto elem: se) {
-//                     all_ind.push_back(elem);
-//                 }
-//                 el = el->tail;
-//             }
-
-//             tamm_string_array uind;
-//             for (auto i: all_ind) {
-//                 if (!exists_index(uind, i))
-//                     uind.push_back(i);
-//             }
-
-//             tamm_string_array uniq_ind;
-//             for (auto i: uind) uniq_ind.push_back(strdup(i));
-//             return uniq_ind;
-//         }
-
-//         default: {
-//             std::cerr << "Not a valid Expression!\n";
-//             std::exit(EXIT_FAILURE);
-//         }
-//     }
-// }
 
 }

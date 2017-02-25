@@ -75,3 +75,4 @@ Parser
 ------
 - If O,V are specified in the equation file, how are they used in tamm ? - Currently they are ignored.
 - Intermediate.cc constructs rangeEntry with only range name, not values provided.
+- c += alpha*a*b, c += alpha*a

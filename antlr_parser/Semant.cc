@@ -128,7 +128,6 @@ void check_AssignStatement(const AssignStatement* const statement, SymbolTable* 
         Array* const lhs = statement->lhs;
         Expression* const rhs  = statement->rhs;
 
-
         std::vector<Array*> rhs_arefs;
         get_array_refs_from_expression(rhs, rhs_arefs);
 

@@ -10,63 +10,10 @@
 //------------------------------------------------------------------------------
 
 #include "Intermediate.h"
+#include "Util.h"
+#include <cassert>
 
 namespace tamm {
-
-// class ArrayRefAlpha {
-// public:
-//     double alpha;
-//     Exp* aref;
-// };
-
-// ArrayRefAlpha* make_ArrayRefAlpha(double alpha, Exp* aref) {
-//     ArrayRefAlpha* p = new ArrayRefAlpha();
-//     p->alpha = alpha;
-//     p->aref = aref;
-//     return p;
-// }
-
-// IndexEntry* make_IndexEntry(tamm_string name, int range_id) {
-//     IndexEntry* p = new IndexEntry();
-//     p->name = name;
-//     p->range_id = range_id;
-//     return p;
-// }
-
-// TensorEntry* make_TensorEntry(tamm_string name, int ndim, int nupper) {
-//     TensorEntry* p = new TensorEntry();
-//     p->name = name;
-//     p->ndim = ndim;
-//     p->nupper = nupper;
-//     return p;
-// }
-
-// OpEntry* make_OpEntry(int op_id, OpType ot, AddOp ao, MultOp mo) {
-//     OpEntry* p = new OpEntry();
-//     p->op_id = op_id;
-//     p->optype = ot;
-//     p->add = ao;
-//     p->mult = mo;
-//     return p;
-// }
-
-
-// AddOp make_AddOp(int tc, int ta, double alpha) {
-//     AddOp p = (AddOp)tce_malloc(sizeof(*p));
-//     p->ta = ta;
-//     p->tc = tc;
-//     p->alpha = alpha;
-//     return p;
-// }
-
-// MultOp make_MultOp(int tc, int ta, int tb, double alpha) {
-//     MultOp p = (MultOp)tce_malloc(sizeof(*p));
-//     p->ta = ta;
-//     p->tc = tc;
-//     p->tb = tb;
-//     p->alpha = alpha;
-//     return p;
-// }
 
 void generate_equations(CompilationUnit* const root, Equations* const equations) {
     std::vector<RangeEntry*> &re = equations->range_entries;
@@ -129,244 +76,100 @@ void generate_equations_Declaration(Declaration* const declaration, Equations* c
     }
 }
 
+
+/// Get integer ids for indexes in array refs - Look up in index_entries vector
+void get_index_ids(Equations* const equations, Array* const aref, std::vector<int>& tensor_ids) {
+    IndexEntry* index_entry = nullptr;
+    for(auto &index: aref->indices) {
+        int index_pos = 0;
+        for (auto &ientry: equations->index_entries) {
+            index_entry = dynamic_cast<IndexEntry*>(ientry);
+            if (index->name == index_entry->index_name) {
+                tensor_ids.push_back(index_pos);
+                break;
+            }
+            index_pos++;
+        }
+    }    
+}
+
+
+const int get_tensor_id(Equations* const equations, Array* const aref) {
+    int tid = -1;
+    const std::string tensor_ref_name = aref->tensor_name->name;
+    int tensor_pos = 0;
+    TensorEntry* tensor_entry = nullptr;
+    for (auto &tentry: equations->tensor_entries) {
+        tensor_entry = dynamic_cast<TensorEntry*>(tentry);
+        if (tensor_ref_name == tensor_entry->tensor_name) {
+            tid = tensor_pos;
+            break;
+        }
+        tensor_pos++;
+    }    
+    assert(tid!=-1);
+    return tid;
+}
+
+
 void generate_equations_Statement(Statement* const statement, Equations* const equations) {    
     if (AssignStatement* const as = dynamic_cast<AssignStatement*>(statement)) 
         generate_equations_AssignStatement(as, equations);
 }
 
 void generate_equations_AssignStatement(const AssignStatement* const statement, Equations* const equations) { 
-    ;
+        Array* const lhs_tref = statement->lhs;
+        Expression* const rhs  = statement->rhs;
+
+        std::vector<Array*> rhs_arefs;
+        std::vector<NumConst*> rhs_consts;
+        get_all_refs_from_expression(rhs, rhs_arefs, rhs_consts);
+
+        const int num_rhs_arefs = rhs_arefs.size();
+        assert(rhs_consts.size() == 0 || rhs_consts.size()==1);
+        assert(num_rhs_arefs ==1 || num_rhs_arefs == 2);
+        //assert ((Addition* const add = dynamic_cast<Addition*>(rhs)));
+        Addition* const add = dynamic_cast<Addition*>(rhs);
+        const std::vector<std::string> add_operators = add->add_operators;
+        assert(add_operators.size() == 0 || add_operators.size() == 1);
+        const bool first_op = add->first_op;
+
+        float alpha = 1.0;
+        if (add_operators.size()==1) if (add_operators.at(0) == "-") alpha = -1.0;
+        if (rhs_consts.size()==1) {
+            NumConst* const nc = dynamic_cast<NumConst*>(rhs_consts.at(0));
+            alpha = alpha * nc->value;
+        }
+        /// An Add or Mult can have only one add_operator and one constant
+        if  (num_rhs_arefs == 1){
+            /// Add Op
+            AddOp* const aop = new AddOp();
+            aop->alpha = alpha;
+
+            get_index_ids(equations,lhs_tref,aop->tc_ids);
+            get_index_ids(equations,rhs_arefs.at(0),aop->ta_ids);
+
+            aop->tc = get_tensor_id(equations,lhs_tref);
+            aop->ta = get_tensor_id(equations,rhs_arefs.at(0));
+
+        }
+        else if (num_rhs_arefs == 2){
+            /// Mult Op
+            MultOp* const mop = new MultOp();
+            mop->alpha = alpha;
+
+            get_index_ids(equations,lhs_tref,mop->tc_ids);
+            get_index_ids(equations,rhs_arefs.at(0),mop->ta_ids);
+            get_index_ids(equations,rhs_arefs.at(1),mop->tb_ids);
+
+            mop->tc = get_tensor_id(equations,lhs_tref);
+            mop->ta = get_tensor_id(equations,rhs_arefs.at(0));
+            mop->tb = get_tensor_id(equations,rhs_arefs.at(1));
+
+        }
+
+        else ; /// Feature not implemented. print num_rhs_arefs
+
 }
-
-// void generate_intermediate_Stmt(Equations *eqn, Stmt* s) {
-//     std::vector<Exp*> lhs_aref, rhs_allref;
-//     std::vector<ArrayRefAlpha*> rhs_aref;
-//     int num_adds = 1;
-//     switch (s->kind) {
-//       case Stmt::is_AssignStmt: {
-//         num_adds = 1;
-//         collectArrayRefs(s->u.AssignStmt.lhs, lhs_aref, &num_adds);
-//         int i = 0;
-// //            for (i = 0; i < vector_count(&lhs_aref); i++) {
-// //                Exp* e = vector_get(&lhs_aref, i);
-// //                std::cout << e->u.Array.name << " ";
-// //            }
-//         collectArrayRefs(s->u.AssignStmt.rhs, rhs_allref, &num_adds);
-
-// //        int ignore_first_ref = 0;
-// //        if (strcmp(s->u.AssignStmt.astype, "+=") == 0 || strcmp(s->u.AssignStmt.astype, "-=") == 0)
-// //          ignore_first_ref = 1;
-
-// //        tce_string_array lhs_indices = (tce_string_array)collectExpIndices(s->u.AssignStmt.lhs, &ignore_first_ref);
-// //        tce_string_array rhs_indices = (tce_string_array)collectExpIndices(s->u.AssignStmt.rhs, &ignore_first_ref);
-
-// //            print_index_list(lhs_indices);
-// //            std::cout << "="
-// //            print_index_list(rhs_indices);
-
-// //            int tc_ids[MAX_TENSOR_DIMS];
-// //            getIndexIDs(eqn, vector_get(&lhs_aref,0), tc_ids);
-
-// //            for (i=0;i<MAX_TENSOR_DIMS;i++)
-// //                if(tc_ids[i]!=-1) std::cout << tc_ids[i] ", ";
-
-
-//         int rhs_aref_count = 0;
-//         for (i = 0; i < rhs_allref.size(); i++) {
-//           Exp* e = (Exp*) rhs_allref.at(i);
-//           if (e->kind == Exp::is_NumConst) {
-//             Exp* e1 = (Exp*)rhs_allref.at(i + 1);
-//             if (e1->kind == Exp::is_ArrayRef) {
-//               rhs_aref_count++;
-//               rhs_aref.push_back(make_ArrayRefAlpha(e->u.NumConst.value * e->coef * e1->coef, e1));
-//               i++;
-//             }
-//           } else {
-//             rhs_aref_count++;
-//             Exp* e1 = (Exp*)rhs_allref.at(i);
-//             rhs_aref.push_back(make_ArrayRefAlpha(1.0 * e1->coef, e1));
-//           }
-//         }
-
-//         bool rhs_first_ref = false;
-// //        tce_string_array rhs_first_ref_indices = (tce_string_array)collectExpIndices(
-// //            ((ArrayRefAlpha) vector_get(&rhs_aref, 0))->aref, &ignore_first_ref);
-
-//         if (rhs_aref.size() > 1) {
-//           Exp* tc_exp = (Exp*)lhs_aref.at(0);
-//           Exp* ta_exp = ((ArrayRefAlpha*) rhs_aref.at(0))->aref;
-//           if (strcmp(tc_exp->u.Array.name, ta_exp->u.Array.name) == 0) rhs_first_ref = true;
-//         }
-
-//         //Exp* tcp = vector_get(&lhs_aref, 0);
-//         //std::cout << "name = " << tcp->u.Array.name << std::endl;
-
-// //            tamm_bool isAMOp = (exact_compare_index_lists(lhs_indices, rhs_indices));
-// //            //a1121[p3,h1,p2,h2] = t_vo[p3,h1] * t_vo[p2,h2];
-// //            tamm_bool firstRefInd = (lhs_indices->length > rhs_first_ref_indices->length);
-// //            tamm_bool isEqInd = (lhs_indices->length == rhs_indices->length);
-// //            tamm_bool isAddOp = isEqInd && isAMOp;
-// //            tamm_bool isMultOp =
-// //                    (lhs_indices->length < rhs_indices->length) || (isEqInd && !isAMOp) || (isEqInd && firstRefInd);
-
-//         bool isAddOp = false;
-//         bool isMultOp = false;
-
-//         if (rhs_first_ref) rhs_aref_count -= 1;
-
-//         if (rhs_aref_count == 2) isMultOp = true;
-        
-//         else if (rhs_aref_count == 1 || rhs_aref_count > 2) isAddOp = true;
-
-//         if (isMultOp) {
-//           //std::cout << " == MULT OP\n";
-
-//           Exp* tc_exp = (Exp*)lhs_aref.at(0);
-//           int ta_ind = 0;
-//           if (rhs_first_ref) ta_ind++;
-
-//           MultOp mop = make_MultOp(0, 0, 0, ((ArrayRefAlpha*) rhs_aref.at(ta_ind))->alpha);
-
-//           Exp* ta_exp = ((ArrayRefAlpha*) rhs_aref.at(ta_ind))->aref;
-//           Exp* tb_exp = ((ArrayRefAlpha*) rhs_aref.at(ta_ind + 1))->aref;
-
-//           getIndexIDs(eqn, tc_exp, mop->tc_ids);
-//           getIndexIDs(eqn, ta_exp, mop->ta_ids);
-//           getIndexIDs(eqn, tb_exp, mop->tb_ids);
-
-//           getTensorIDs(eqn, tc_exp, &mop->tc);
-//           getTensorIDs(eqn, ta_exp, &mop->ta);
-//           getTensorIDs(eqn, tb_exp, &mop->tb);
-
-//           eqn->op_entries.push_back(make_OpEntry(op_id, OpTypeMult, nullptr, mop));
-//           op_id++;
-
-//         } else if (isAddOp) {
-
-//           //std::cout << " == ADD OP\n";
-
-//           Exp* tc_exp = (Exp*) lhs_aref.at(0);
-
-//           int ta_ind = 0;
-//           if (rhs_first_ref) ta_ind++;
-
-//           AddOp mop = make_AddOp(0, 0, ((ArrayRefAlpha*) rhs_aref.at(ta_ind))->alpha);
-
-//           Exp* ta_exp = ((ArrayRefAlpha*) rhs_aref.at(ta_ind))->aref;
-
-//           getIndexIDs(eqn, tc_exp, mop->tc_ids);
-//           getIndexIDs(eqn, ta_exp, mop->ta_ids);
-
-//           getTensorIDs(eqn, tc_exp, &mop->tc);
-//           getTensorIDs(eqn, ta_exp, &mop->ta);
-
-//           eqn->op_entries.push_back(make_OpEntry(op_id, OpTypeAdd, mop, nullptr));
-//           op_id++;
-
-//           if (rhs_aref.size() > ta_ind + 1) {
-//             int k;
-//             for (k = ta_ind + 1; k < rhs_aref.size(); k++) {
-//               AddOp aop = make_AddOp(0, 0, ((ArrayRefAlpha*) rhs_aref.at(k))->alpha);
-
-//               Exp* ta_exp = ((ArrayRefAlpha*) rhs_aref.at(k))->aref;
-
-//               getIndexIDs(eqn, tc_exp, aop->tc_ids);
-//               getIndexIDs(eqn, ta_exp, aop->ta_ids);
-
-//               getTensorIDs(eqn, tc_exp, &aop->tc);
-//               getTensorIDs(eqn, ta_exp, &aop->ta);
-
-//               eqn->op_entries.push_back(make_OpEntry(op_id, OpTypeAdd, aop, nullptr));
-//               op_id++;
-//             }
-//           }
-
-//         } else {
-//           std::cerr <<  "NEITHER ADD OR MULT OP.. THIS SHOULD NOT HAPPEN!\n";
-//           std::exit(EXIT_FAILURE);
-//         }
-//       }
-//             break;
-//         default: {
-//           std::cerr <<  "Not an Assignment Statement!\n";
-//           std::exit(EXIT_FAILURE);
-//         }
-//     }
-// }
-
-
-// void getTensorIDs(Equations *eqn, Exp* exp, int *tid) {
-//     if (exp->kind == Exp::is_ArrayRef) {
-//         tamm_string aname = exp->u.Array.name;
-//         int j;
-//         TensorEntry* ient = nullptr;
-//         for (j = 0; j < eqn->tensor_entries.size(); j++) {
-//             ient = (TensorEntry*)eqn->tensor_entries.at(j);
-//             if (strcmp(aname, ient->name) == 0) {
-//                 *tid = j;
-//                 break;
-//             }
-//         }
-//     }
-// }
-
-
-// void getIndexIDs(Equations *eqn, Exp* exp, int *tc_ids) {
-
-//     int i;
-//     for (i = 0; i < MAX_TENSOR_DIMS; i++) tc_ids[i] = -1;
-//     if (exp->kind == Exp::is_ArrayRef) {
-//         tamm_string *aind = exp->u.Array.indices;
-//         int len = exp->u.Array.length;
-//         int j;
-//         int ipos = 0;
-//         IndexEntry* ient = nullptr;
-//         for (i = 0; i < len; i++) {
-//             for (j = 0; j < eqn->index_entries.size(); j++) {
-//                 ient = (IndexEntry*)eqn->index_entries.at(j);
-//                 if (strcmp(aind[i], ient->name) == 0) {
-//                     tc_ids[ipos] = j;
-//                     ipos++;
-//                     break;
-//                 }
-//             }
-//         }
-
-//     }
-// }
-
-
-
-// void generate_intermediate_Exp(Equations *eqn, Exp* exp) {
-//     switch (exp->kind) {
-//       case Exp::is_Parenth: {
-//         generate_intermediate_Exp(eqn, exp->u.Parenth.exp);
-//       }
-//             break;
-//         case Exp::is_NumConst: {}
-//             //std::cout << exp->u.NumConst.value << " ";
-//             break;
-//         case Exp::is_ArrayRef: {}
-//             //std::cout << "%s[%s] ", exp->u.Array.name, combine_indices(exp->u.Array.indices, exp->u.Array.length);
-//             break;
-//         case Exp::is_Addition: {
-//           generate_intermediate_ExpList(eqn, exp->u.Addition.subexps, "+");
-//         }
-//             break;
-//         case Exp::is_Multiplication: {
-//           generate_intermediate_ExpList(eqn, exp->u.Multiplication.subexps, "*");
-//         }
-//             break;
-//         default: {
-//           std::cerr <<  "Not a valid Expression!\n";
-//           std::exit(EXIT_FAILURE);
-//         }
-//     }
-// }
-
-
-
-
-
 
 }

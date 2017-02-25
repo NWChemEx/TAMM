@@ -44,10 +44,13 @@ public:
 };
 
 
-/* tc[tc_ids] = alpha * ta[ta_ids]*/
+/* tc[tc_ids] += alpha * ta[ta_ids]*/
 class AddOp {
-    const int tc, ta; //tc and ta in terms of index into TensorEntry structs
-    const double alpha;
+    public: 
+    AddOp() {}
+    ~AddOp() {}
+    int tc, ta; //tc and ta in terms of index into TensorEntry structs
+    double alpha;
    /*index labels for tc in terms of index into IndexEntry struct*/
     std::vector<int> tc_ids;
     std::vector<int> ta_ids;
@@ -56,11 +59,13 @@ class AddOp {
 /* tc[tc_ids] += alpha * ta[ta_ids] * tb[tb_ids]*/
 class MultOp {
     public:
-        const int tc, ta, tb; //tensors identified by index into TensorEntry structs
-        const double alpha;
+        int tc, ta, tb; //tensors identified by index into TensorEntry structs
+        double alpha;
         std::vector<int> tc_ids;
         std::vector<int> ta_ids;
         std::vector<int> tb_ids;
+         MultOp() {}
+        ~MultOp() {}
 };
 
 typedef enum {

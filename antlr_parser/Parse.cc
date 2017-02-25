@@ -11,31 +11,30 @@
 
 #include "Parse.h"
 #include "Semant.h"
+#include "Intermediate.h"
 
 namespace tamm {
 
-void tamm_parser(const char* input_file, Equations &genEq) {
+  void tamm_parser(const char* input_file, Equations* const tamm_equations) {
 
-  std::ifstream stream;
-  stream.open(input_file);
-  ANTLRInputStream tamminput(stream);
-  TAMMLexer lexer(&tamminput);
-  CommonTokenStream tokens(&lexer);
-  TAMMParser parser(&tokens);
+    std::ifstream stream;
+    stream.open(input_file);
+    ANTLRInputStream tamminput(stream);
+    TAMMLexer lexer(&tamminput);
+    CommonTokenStream tokens(&lexer);
+    TAMMParser parser(&tokens);
 
-  tree::ParseTree *tree = parser.translation_unit();
+    tree::ParseTree *tree = parser.translation_unit();
 
-  ASTBuilder *visitor = new ASTBuilder();
-  CompilationUnit *ast_root = visitor->visit(tree);
+    ASTBuilder *visitor = new ASTBuilder();
+    CompilationUnit *ast_root = visitor->visit(tree);
 
+    SymbolTable* const context = new SymbolTable();
+    type_check(ast_root, context);
 
-  //visit_ast(outputFile, astRoot);
+    //Equations* equations = new Equations();
+    generate_equations(tamm_equations, ast_root);
 
-  SymbolTable* const context = new SymbolTable();
-  type_check(ast_root, context);
-
-  // generate_intermediate_ast(genEq, astRoot);
-
-}
+  }
 
 }

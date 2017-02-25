@@ -22,7 +22,7 @@ using namespace antlr4;
 
 namespace tamm {
 
-void tamm_parser(const char* input_file, Equations &eqn);
+void tamm_parser(const char* input_file, Equations* const eqn);
 
 }
 

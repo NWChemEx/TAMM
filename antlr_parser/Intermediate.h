@@ -12,32 +12,48 @@
 #ifndef __TAMM_INTERMEDIATE_H__
 #define __TAMM_INTERMEDIATE_H__
 
-//#include "Absyn.h"
+#include "Absyn.h"
 #include <vector>
 
-#define MAX_TENSOR_DIMS 8
-#define MAX_INDEX_NAMES 32
-
-
-typedef struct AddOp_ *AddOp;
-typedef struct MultOp_ *MultOp;
+namespace tamm{
 
 class RangeEntry {
 public:
-    char *name; /*name for this range*/
+    std::string name; /*name for this range*/
 };
 
 class IndexEntry {
 public:
-    char *name; /*name of this index*/
-    int range_id; /*index into the RangeEntry struct*/
+    std::string name; /*name of this index*/
+    const int range_id; /*index into the RangeEntry struct*/
 };
 
 class TensorEntry {
 public:
-    char *name;
-    int range_ids[MAX_TENSOR_DIMS]; /*dimensions in terms of index into RangeEntry struct*/
+    std::string name;
     int ndim, nupper;
+    std::vector<int> range_ids; /*dimensions in terms of index into RangeEntry struct*/
+    
+};
+
+
+/* tc[tc_ids] = alpha * ta[ta_ids]*/
+class AddOp {
+    const int tc, ta; //tc and ta in terms of index into TensorEntry structs
+    const double alpha;
+   /*index labels for tc in terms of index into IndexEntry struct*/
+    std::vector<int> tc_ids;
+    std::vector<int> ta_ids;
+};
+
+/* tc[tc_ids] += alpha * ta[ta_ids] * tb[tb_ids]*/
+class MultOp {
+    public:
+        const int tc, ta, tb; //tensors identified by index into TensorEntry structs
+        const double alpha;
+        std::vector<int> tc_ids;
+        std::vector<int> ta_ids;
+        std::vector<int> tb_ids;
 };
 
 typedef enum {
@@ -49,36 +65,20 @@ class OpEntry {
 public:
     int op_id;
     OpType optype;
-    AddOp add;
-    MultOp mult;
+    AddOp* add;
+    MultOp* mult;
 };
 
-typedef struct {
-    std::vector<RangeEntry*> range_entries;
-    std::vector<IndexEntry*> index_entries;
-    std::vector<TensorEntry*> tensor_entries;
-    std::vector<OpEntry*> op_entries;
-} Equations;
-
-/* tc[tc_ids] = alpha * ta[ta_ids]*/
-struct AddOp_ {
-    int tc, ta; //tc and ta in terms of index into TensorEntry structs
-    double alpha;
-    int tc_ids[MAX_TENSOR_DIMS]; /*index labels for tc in terms of index into IndexEntry struct*/
-    int ta_ids[MAX_TENSOR_DIMS]; /*index labels for tc in terms of index into IndexEntry struct*/
-};
-
-/* tc[tc_ids] += alpha * ta[ta_ids] * tb[tb_ids]*/
-struct MultOp_ {
-    int tc, ta, tb; //tensors identified by index into TensorEntry structs
-    double alpha;
-    int tc_ids[MAX_TENSOR_DIMS];
-    int ta_ids[MAX_TENSOR_DIMS];
-    int tb_ids[MAX_TENSOR_DIMS];
+class Equations {
+    public:
+        std::vector<RangeEntry*> range_entries;
+        std::vector<IndexEntry*> index_entries;
+        std::vector<TensorEntry*> tensor_entries;
+        std::vector<OpEntry*> op_entries;
 };
 
 
-// void generate_intermediate_ast(Equations *eqn, TranslationUnit* root);
+void generate_equations(Equations* const equation, CompilationUnit* const root);
 
 // void generate_intermediate_CompoundElem(Equations *eqn, CompoundElem* celem);
 
@@ -102,5 +102,6 @@ struct MultOp_ {
 
 // void getTensorIDs(Equations *eqn, Exp* exp, int *tid);
 
+}
 #endif /*__TAMM_INTERMEDIATE_H__*/
 

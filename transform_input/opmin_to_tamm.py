@@ -46,7 +46,7 @@ if __name__ == '__main__':
     op2tammstr += "}"
     #print(op2tammstr)
 
-    tamm_file = os.path.basename(sys.argv[1])+'_tamm.eq'
+    tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_2tamm.eq'
     with open(tamm_file, 'w') as tr:
         tr.write(op2tammstr)
 
@@ -60,7 +60,10 @@ if __name__ == '__main__':
     visitor = OpminTAMMSplitAdds()
     eqstr = visitor.visitTranslation_unit(tree)
     op2tammstr += eqstr + "}"
-    print(op2tammstr)
+
+    tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_splitAdds.eq'
+    with open(tamm_file, 'w') as tr:
+        tr.write(op2tammstr)
 
 
 

@@ -11,7 +11,7 @@ from antlr4 import *
 
 from OpMinLexer import OpMinLexer
 from OpMinParser import OpMinParser
-from OpMinVisitor import TAMMtoTAMM
+from OpMinVisitor import TAMMtoTAMM, MinimizeTemps
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
@@ -52,9 +52,39 @@ if __name__ == '__main__':
 
     #oplabel = oplabel[ci:]
 
-    print(oplabel + " {\n")
+    t2tEq = (oplabel + " {\n")
 
     visitor = TAMMtoTAMM(mdoption)
-    visitor.visitTranslation_unit(tree)
+    single_use_temps, streq = visitor.visitTranslation_unit(tree)
 
-    print("}")
+    t2tEq += streq + "}"
+
+
+    remove_temps = dict()
+    for s in single_use_temps:
+        if single_use_temps[s]:
+            remove_temps[s] = single_use_temps[s]
+
+    tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_initial.eq'
+    if mdoption: tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_prefinal.eq'
+    with open(tamm_file, 'w') as tr:
+        tr.write(t2tEq)
+
+    if not mdoption: sys.exit(0)
+
+    input_stream = FileStream(tamm_file)
+    lexer = OpMinLexer(input_stream)
+    token_stream = CommonTokenStream(lexer)
+    parser = OpMinParser(token_stream)
+    tree = parser.translation_unit()
+
+    t2tEq = (oplabel + " {\n")
+    visitor = MinimizeTemps(remove_temps)
+    eqstr = visitor.visitTranslation_unit(tree)
+    t2tEq += eqstr + "}"
+
+    print(t2tEq)
+    # tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_final.eq'
+    # with open(tamm_file, 'w') as tr:
+    #     tr.write(t2tEq)
+

@@ -17,6 +17,8 @@
 
 namespace tamm{
 
+    namespace intermediate{
+
 class RangeEntry {
 public:
     const std::string range_name; /*name for this range*/
@@ -115,6 +117,7 @@ void generate_equations_Declaration(Declaration* const declaration, Equations* c
 
 // void getTensorIDs(Equations *eqn, Exp* exp, int *tid);
 
+    }
 }
 #endif /*__TAMM_INTERMEDIATE_H__*/
 

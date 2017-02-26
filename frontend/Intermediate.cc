@@ -15,6 +15,8 @@
 
 namespace tamm {
 
+    namespace intermediate{
+
 static int op_id = 1;
 
 void generate_equations(CompilationUnit* const root, Equations* const equations) {
@@ -186,5 +188,7 @@ void generate_equations_AssignStatement(const AssignStatement* const statement, 
         else ; /// Feature not implemented. print num_rhs_arefs
 
 }
+
+    }
 
 }

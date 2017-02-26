@@ -253,11 +253,11 @@ endforeach(tcelibname)
 #message(STATUS "target flags = " "${other_flags}")
 
 
-# add_executable(tamm_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
-# add_dependencies(tamm_main tamm)
-# target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
-# # Set target libraries to be linked.
-# target_link_libraries(tamm_main tamm ${lib_search} ${tamm_blaslibs})
+add_executable(tamm_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
+add_dependencies(tamm_main tamm)
+target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
+# Set target libraries to be linked.
+target_link_libraries(tamm_main tamm ${lib_search} ${tamm_blaslibs})
 
 # Install
 if(NOT TAMM_INSTALL_PREFIX)

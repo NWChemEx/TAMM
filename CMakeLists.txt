@@ -196,7 +196,7 @@ string(REPLACE " " ";" tamm_cflags ${tamm_cmake_cflags})
 message("ANTLR CPPRUNTIME=" ${ANTLR_CPPRUNTIME_DIR}/include)
 SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14")
 #SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
-add_library(tamm STATIC ${tammParserSources}) # ${tammLibSources})
+add_library(tamm STATIC ${tammParserSources} ${tammLibSources})
 add_dependencies(tamm BuildANTLR)
 link_directories(${ANTLR_CPPRUNTIME_DIR}/lib)
 target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} 

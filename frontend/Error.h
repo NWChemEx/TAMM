@@ -15,9 +15,13 @@
 
 namespace tamm{
 
+    namespace frontend {
+
  void Error(const std::string error_msg);
  void Error(const int line, const int position, const std::string error_msg);
  
+}
+
 }
 
 #endif

@@ -19,6 +19,8 @@
 
 namespace tamm{
 
+    namespace frontend {
+
 void type_check(const CompilationUnit* const, SymbolTable* const);
 
 void check_CompoundElement(const CompoundElement* const ce, SymbolTable* const context);
@@ -38,6 +40,8 @@ void check_expression(Expression* const exp, SymbolTable* const context) ;
 // tamm_string_array getIndices(Exp* exp);
 
 // tamm_string_array getUniqIndices(Exp* exp);
+
+}
 
 }
 

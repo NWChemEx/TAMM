@@ -19,6 +19,8 @@
 
 namespace tamm {
 
+    namespace frontend {
+
 using index_list = std::vector<std::string>;
 using identifier_list = std::vector<Identifier*>;
 
@@ -30,6 +32,8 @@ index_list get_indices_from_identifiers(const identifier_list& id_list);
 index_list get_non_summation_indices_from_expression(std::vector<Array*>& arefs);
 index_list get_unique_indices_from_expression(std::vector<Array*>& arefs);
 const std::string get_index_list_as_string(const index_list& ilist);
+
+}
 
 }
 #endif

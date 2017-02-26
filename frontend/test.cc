@@ -12,8 +12,7 @@
 #include "Parse.h"
 #include "Intermediate.h"
 
-using namespace tamm;
-using namespace tamm::intermediate;
+using namespace tamm::frontend;
 
 const std::string getTensorName(std::vector<TensorEntry*> v, int pos) {
     TensorEntry* te = static_cast<TensorEntry*>(v.at(pos));
@@ -29,7 +28,7 @@ int main(int argc, const char* argv[]) {
 
   Equations* const equations = new Equations();
 
-  tamm_parser(argv[1], equations);
+  tamm_frontend(argv[1], equations);
 
    unsigned int i = 0;
    RangeEntry* rent = nullptr;

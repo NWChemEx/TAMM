@@ -48,6 +48,8 @@
 
 namespace tamm {
 
+namespace frontend {
+
 /* Forward Declarations */
 class Element;
 class Identifier;
@@ -364,7 +366,8 @@ public:
         }
 };
 
-} //namespcae tamm
+} //namespace frontend
+} //namespace tamm
 
 #endif
 

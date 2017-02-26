@@ -15,7 +15,9 @@
 
 namespace tamm {
 
-  void tamm_parser(const std::string input_file, intermediate::Equations* const tamm_equations) {
+namespace frontend {
+
+  void tamm_frontend(const std::string input_file, Equations* const tamm_equations) {
 
     std::ifstream stream;
     stream.open(input_file.c_str());
@@ -36,5 +38,7 @@ namespace tamm {
     generate_equations(ast_root, tamm_equations);
 
   }
+
+}
 
 }

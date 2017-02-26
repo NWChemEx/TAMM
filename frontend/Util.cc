@@ -14,6 +14,8 @@
 
 namespace tamm {
 
+namespace frontend {
+
 bool exists_index(const index_list& indices, const std::string x) {
     if (std::find(indices.begin(), indices.end(), x) == indices.end()) return false;
     return true;
@@ -96,6 +98,8 @@ const std::string get_index_list_as_string(const index_list& ilist) {
     list_string.pop_back();
     list_string += "]";
     return list_string;
+}
+
 }
 
 }

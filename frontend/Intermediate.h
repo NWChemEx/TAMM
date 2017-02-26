@@ -17,7 +17,7 @@
 
 namespace tamm{
 
-    namespace intermediate{
+    namespace frontend {
 
 class RangeEntry {
 public:
@@ -119,5 +119,6 @@ void generate_equations_Declaration(Declaration* const declaration, Equations* c
 
     }
 }
+
 #endif /*__TAMM_INTERMEDIATE_H__*/
 

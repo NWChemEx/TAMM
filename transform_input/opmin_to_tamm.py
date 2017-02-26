@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
     op2tammstr = (oplabel + " {\n")
     visitor = OpminTAMMSplitAdds()
-    [single_use_temps, eqstr] = visitor.visitTranslation_unit(tree)
+    eqstr = visitor.visitTranslation_unit(tree)
     op2tammstr += eqstr + "}"
     print(op2tammstr)
 

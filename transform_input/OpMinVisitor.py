@@ -1102,7 +1102,6 @@ all_constants = dict()
 constant_no = 0
 pmflag = False
 arefconst = False
-single_use_temps = dict()
 
 #Break long adds into multiple adds
 class OpminTAMMSplitAdds(ParseTreeVisitor):
@@ -1114,7 +1113,7 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
     # Visit a parse tree produced by OpMinParser#translation_unit.
     def visitTranslation_unit(self, ctx):
         self.visitChildren(ctx)
-        return [single_use_temps, self.splitaddseq]
+        return self.splitaddseq
 
     # Visit a parse tree produced by OpMinParser#compound_element_list_opt.
     def visitCompound_element_list_opt(self, ctx):
@@ -1319,6 +1318,7 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
             aop = ctx.children[3]
             rhs = ctx.children[4]
 
+
         lhs = lhs.getText()
         aop = aop.getText()
 
@@ -1337,6 +1337,7 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
         expflag = True
 
         num_arr = len(arefs)
+
         #assert(num_arr==1 or num_arr == 2)
 
         if num_arr <= 2:

@@ -18,6 +18,8 @@
 /// Might extend this class at some point in the future if scopes are needed in the language.
 namespace tamm {
 
+namespace frontend {
+
 class Entry {
     public:
         Type* const type;
@@ -25,6 +27,7 @@ class Entry {
         ~Entry() {}
 };
 
+}
 }
 
 #endif

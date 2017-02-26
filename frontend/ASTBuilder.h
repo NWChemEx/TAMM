@@ -19,6 +19,8 @@
 
 namespace tamm {
 
+  namespace frontend {
+
 /**
  * This class provides an implementation of TAMMVisitor that builds a TAMM AST.
  */
@@ -444,6 +446,7 @@ public:
 
 };
 
+  }
 }
 
 #endif

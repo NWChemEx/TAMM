@@ -15,7 +15,7 @@
 
 namespace tamm {
 
-    namespace intermediate{
+    namespace frontend {
 
 static int op_id = 1;
 
@@ -187,8 +187,8 @@ void generate_equations_AssignStatement(const AssignStatement* const statement, 
 
         else ; /// Feature not implemented. print num_rhs_arefs
 
-}
-
     }
+
+}
 
 }

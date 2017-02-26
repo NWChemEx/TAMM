@@ -18,6 +18,8 @@
 
 namespace tamm {
 
+namespace frontend {
+
 void type_check(const CompilationUnit* const root, SymbolTable* const context) {
     for (auto &ce: root->celist)
         check_CompoundElement(ce, context);
@@ -267,4 +269,5 @@ void check_expression(Expression* const exp, SymbolTable* const context) {
         // }
     }
 
+}
 }

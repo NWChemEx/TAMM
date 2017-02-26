@@ -17,6 +17,9 @@
 #include <vector>
 
 namespace tamm {
+
+    namespace frontend {
+
 class Identifier;
 
 class Type {
@@ -70,6 +73,8 @@ class TensorType: public Type {
     }
 
 };
+
+}
 
 }
 

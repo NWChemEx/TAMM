@@ -4,6 +4,8 @@
 
 namespace tamm{
 
+    namespace frontend {
+
  void Error(const std::string error_msg) {
      std::cerr << "Error: " << error_msg << std::endl;
      std::exit(EXIT_FAILURE);
@@ -20,5 +22,7 @@ namespace tamm{
      else std::cerr << "Error at Line " << line << ", Column " << position << ": " << error_msg << std::endl;
      std::exit(EXIT_FAILURE);
     }
+
+}
 
 }

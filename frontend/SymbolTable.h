@@ -18,6 +18,8 @@
 
 namespace tamm{
 
+namespace frontend {
+
 class SymbolTable {
     public:
         // Plain C++ map for now
@@ -40,6 +42,7 @@ class SymbolTable {
         }
 };
 
+}
 }
 
 #endif

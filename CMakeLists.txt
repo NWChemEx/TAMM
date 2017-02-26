@@ -196,7 +196,7 @@ string(REPLACE " " ";" tamm_cflags ${tamm_cmake_cflags})
 message("ANTLR CPPRUNTIME=" ${ANTLR_CPPRUNTIME_DIR}/include)
 SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14")
 #SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
-add_library(tamm STATIC ${tammParserSources} ${tammLibSources})
+add_library(tamm STATIC ${tammParserSources}) # ${tammLibSources})
 add_dependencies(tamm BuildANTLR)
 link_directories(${ANTLR_CPPRUNTIME_DIR}/lib)
 target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} 
@@ -253,11 +253,11 @@ endforeach(tcelibname)
 #message(STATUS "target flags = " "${other_flags}")
 
 
-add_executable(tamm_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
-add_dependencies(tamm_main tamm)
-target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
-# Set target libraries to be linked.
-target_link_libraries(tamm_main tamm ${lib_search} ${tamm_blaslibs})
+# add_executable(tamm_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
+# add_dependencies(tamm_main tamm)
+# target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
+# # Set target libraries to be linked.
+# target_link_libraries(tamm_main tamm ${lib_search} ${tamm_blaslibs})
 
 # Install
 if(NOT TAMM_INSTALL_PREFIX)

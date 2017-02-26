@@ -15,10 +15,10 @@
 
 namespace tamm {
 
-  void tamm_parser(const char* input_file, Equations* const tamm_equations) {
+  void tamm_parser(const std::string input_file, Equations* const tamm_equations) {
 
     std::ifstream stream;
-    stream.open(input_file);
+    stream.open(input_file.c_str());
     ANTLRInputStream tamminput(stream);
     TAMMLexer lexer(&tamminput);
     CommonTokenStream tokens(&lexer);

@@ -19,8 +19,8 @@ namespace frontend {
 
   void tamm_frontend(const std::string input_file, Equations* const tamm_equations) {
 
-    std::ifstream stream;
-    stream.open(input_file.c_str());
+    std::ifstream stream(input_file.c_str());
+    if (!stream.good()) Error("File " + input_file + " not found!");
     ANTLRInputStream tamminput(stream);
     TAMMLexer lexer(&tamminput);
     CommonTokenStream tokens(&lexer);

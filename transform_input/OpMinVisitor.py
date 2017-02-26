@@ -753,15 +753,20 @@ def long_substr(data):
     return substr
 
 
+single_use_temps = dict()
+
 class TAMMtoTAMM(ParseTreeVisitor):
 
     def __init__(self, x):
         self.mdoption = x
+        self.t2tEq = ""
         sys.setrecursionlimit(67108864)
 
     # Visit a parse tree produced by OpMinParser#translation_unit.
     def visitTranslation_unit(self, ctx):
+        global single_use_temps
         self.visitChildren(ctx)
+        return [single_use_temps, self.t2tEq]
         # global  range_vals
         # print(range_vals)
 
@@ -851,12 +856,12 @@ class TAMMtoTAMM(ParseTreeVisitor):
         global range_vals
         rv = float(ctx.children[3].getText())
         rvars = ctx.children[1].getText().split(",")
-        printres("range ")
-        printres(",".join(rvars))
-        printres(" = ")
+        self.t2tEq += ("range ")
+        self.t2tEq += (",".join(rvars))
+        self.t2tEq += (" = ")
         rv = int(rv)
-        printres(rv)
-        printres(";\n")
+        self.t2tEq += str(rv)
+        self.t2tEq += (";\n")
         for r in rvars:
             range_vals[r.strip()] = rv
 
@@ -864,21 +869,21 @@ class TAMMtoTAMM(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#index_declaration.
     def visitIndex_declaration(self, ctx):
-        printres(ctx.children[0])
-        printresws(ctx.children[1].getText())
-        printres("= ")
-        printres(ctx.children[3].getText())
-        printres(";\n")
+        self.t2tEq += (ctx.children[0].getText())
+        self.t2tEq += " " + (ctx.children[1].getText()) + " "
+        self.t2tEq += ("= ")
+        self.t2tEq += (ctx.children[3].getText())
+        self.t2tEq += (";\n")
 
 
     # Visit a parse tree produced by OpMinParser#array_declaration.
     def visitArray_declaration(self, ctx):
-        printres(ctx.children[0])
-        printres(" " + ctx.children[1].getText())
+        self.t2tEq += (ctx.children[0].getText())
+        self.t2tEq += (" " + ctx.children[1].getText())
 
         if (len(ctx.children) > 3):
-            printres(": " + ctx.children[3].getText())
-        printres(";\n")
+            self.t2tEq += (": " + ctx.children[3].getText())
+        self.t2tEq += (";\n")
 
 
     # Visit a parse tree produced by OpMinParser#array_structure_list.
@@ -951,7 +956,7 @@ class TAMMtoTAMM(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#assignment_statement.
     def visitAssignment_statement(self, ctx):
-        global arefs, arefInd, constants
+        global arefs, arefInd, constants, single_use_temps
         op_label = ""
         lhs = ctx.children[0]
         aop = ctx.children[1]
@@ -974,9 +979,27 @@ class TAMMtoTAMM(ParseTreeVisitor):
 
         self.visitExpression(rhs)
 
-        printres(astmt)
+        self.t2tEq += (astmt)
 
         num_arr = len(arefs)
+
+        lhs_aname = lhs.split("[")[0]
+        lhs_aname = lhs_aname.strip()
+        if lhs_aname not in single_use_temps and "i0" not in lhs_aname:
+            single_use_temps[lhs_aname] = []
+
+        if lhs_aname == "i0":
+            for a in arefs:
+                if a in single_use_temps:
+                    rhstext = rhs.getText();
+                    ra = 1.0
+                    rc = rhstext.split("*")[0]
+                    try:
+                        ra = float(rc.strip())
+                    except:
+                        pass
+                    single_use_temps[a].append(ra)
+
         assert(num_arr==1 or num_arr == 2)
 
         symm_fact = 1.0
@@ -1036,10 +1059,10 @@ class TAMMtoTAMM(ParseTreeVisitor):
             if self.mdoption == 0: constants = constants*symm_fact
             elif self.mdoption > 0: constants = float(constants*1.0)/(symm_fact)
 
-        printres(str(constants))
+        self.t2tEq += (str(constants))
         for ar in range(0,num_arr):
-            printres(" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "]")
-        printres(";\n")
+            self.t2tEq += (" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "]")
+        self.t2tEq += (";\n")
 
 
     # Visit a parse tree produced by OpMinParser#assignment_operator.
@@ -1073,7 +1096,325 @@ class TAMMtoTAMM(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#plusORminus.
     def visitPlusORminus(self, ctx):
-        printres(ctx.children[0])
+        self.t2tEq += (ctx.children[0].getText())
+        #return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#additive_expression.
+    def visitAdditive_expression(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#additive_expression_prime.
+    def visitAdditive_expression_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#multiplicative_expression.
+    def visitMultiplicative_expression(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#multiplicative_expression_prime.
+    def visitMultiplicative_expression_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+
+class MinimizeTemps(ParseTreeVisitor):
+
+    def __init__(self, x):
+        self.t2tEq = ""
+        self.temps = x
+        sys.setrecursionlimit(67108864)
+
+    # Visit a parse tree produced by OpMinParser#translation_unit.
+    def visitTranslation_unit(self, ctx):
+        self.visitChildren(ctx)
+        return self.t2tEq
+        # global  range_vals
+        # print(range_vals)
+
+
+    # Visit a parse tree produced by OpMinParser#compound_element_list_opt.
+    def visitCompound_element_list_opt(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#compound_element_list.
+    def visitCompound_element_list(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#compound_element_list_prime.
+    def visitCompound_element_list_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#compound_element.
+    def visitCompound_element(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#element_list_opt.
+    def visitElement_list_opt(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#element_list.
+    def visitElement_list(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#element_list_prime.
+    def visitElement_list_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#element.
+    def visitElement(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#declaration.
+    def visitDeclaration(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#id_list_opt.
+    def visitId_list_opt(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#id_list.
+    def visitId_list(self, ctx):
+        idecl = []
+        idecl.append(str(ctx.children[0].children[0]))
+        var = ctx.children[1]
+        while (var.children):
+            idecl.append(str(var.children[1].children[0]))
+            var = var.children[2]
+        return idecl
+
+
+    # Visit a parse tree produced by OpMinParser#id_list_prime.
+    def visitId_list_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#num_list.
+    def visitNum_list(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#num_list_prime.
+    def visitNum_list_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#identifier.
+    def visitIdentifier(self, ctx):
+        return self.visitChildren(ctx)
+
+    # Visit a parse tree produced by OpMinParser#range_declaration.
+    def visitRange_declaration(self, ctx):
+        global range_vals
+        rv = float(ctx.children[3].getText())
+        rvars = ctx.children[1].getText().split(",")
+        self.t2tEq += ("range ")
+        self.t2tEq += (",".join(rvars))
+        self.t2tEq += (" = ")
+        rv = int(rv)
+        self.t2tEq += str(rv)
+        self.t2tEq += (";\n")
+        for r in rvars:
+            range_vals[r.strip()] = rv
+
+
+
+    # Visit a parse tree produced by OpMinParser#index_declaration.
+    def visitIndex_declaration(self, ctx):
+        self.t2tEq += (ctx.children[0].getText())
+        self.t2tEq += " " + (ctx.children[1].getText()) + " "
+        self.t2tEq += ("= ")
+        self.t2tEq += (ctx.children[3].getText())
+        self.t2tEq += (";\n")
+
+
+    # Visit a parse tree produced by OpMinParser#array_declaration.
+    def visitArray_declaration(self, ctx):
+        self.t2tEq += (ctx.children[0].getText())
+        self.t2tEq += (" " + ctx.children[1].getText())
+
+        if (len(ctx.children) > 3):
+            self.t2tEq += (": " + ctx.children[3].getText())
+        self.t2tEq += (";\n")
+
+
+    # Visit a parse tree produced by OpMinParser#array_structure_list.
+    def visitArray_structure_list(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#array_structure_list_prime.
+    def visitArray_structure_list_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#array_structure.
+    def visitArray_structure(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#permut_symmetry_opt.
+    def visitPermut_symmetry_opt(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#symmetry_group_list.
+    def visitSymmetry_group_list(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#symmetry_group_list_prime.
+    def visitSymmetry_group_list_prime(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#symmetry_group.
+    def visitSymmetry_group(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#expansion_declaration.
+    def visitExpansion_declaration(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#volatile_declaration.
+    def visitVolatile_declaration(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#iteration_declaration.
+    def visitIteration_declaration(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#statement.
+    def visitStatement(self, ctx):
+        return self.visitChildren(ctx)
+
+
+
+    # Visit a parse tree produced by OpMinParser#numerical_constant.
+    def visitNumerical_constant(self, ctx):
+        global constants
+        nv = str(ctx.children[0])
+        if "/" not in nv: nv = float(nv)
+        else:
+            num = nv.split("/")
+            nv = float(num[0])*1.0/float(num[1])
+
+        constants = constants * nv
+
+
+    # Visit a parse tree produced by OpMinParser#assignment_statement.
+    def visitAssignment_statement(self, ctx):
+        global arefs
+        op_label = ""
+        lhs = ctx.children[0]
+        aop = ctx.children[1]
+        rhs = ctx.children[2]
+        if isinstance(lhs,OpMinParser.IdentifierContext):
+            op_label = lhs.getText()
+            lhs = ctx.children[2]
+            aop = ctx.children[3]
+            rhs = ctx.children[4]
+
+        lhs = lhs.getText()
+        aop = aop.getText()
+
+        arefs = []
+
+        self.visitExpression(rhs)
+
+        num_arr = len(arefs)
+        assert(num_arr==1 or num_arr == 2)
+
+        lhs_aname = lhs.split("[")[0]
+        lhs_aname = lhs_aname.strip()
+
+        rhstext = rhs.getText()
+        ra = 1.0
+        rc = rhstext.split("*")[0]
+        rexp = rhstext.split("*")[1:]
+        try:
+            ra = float(rc.strip())
+        except:
+            pass
+
+        rhs_expression = ""
+        for r_exp in rexp: rhs_expression += " * " + r_exp
+
+        #if in temps, these should be replaced with i0 +=
+        if lhs_aname in self.temps:
+            astmt = ""
+            if op_label: astmt += op_label + " : "
+            astmt += "i0[" + lhs.split("[")[1] + " += "
+
+            if self.temps[lhs_aname]: ra = ra * (self.temps[lhs_aname])[0]
+            astmt += str(ra)
+            astmt += rhs_expression
+
+            self.t2tEq += (astmt) + ";\n"
+        else:
+            remove_stmt = False
+            for arr in arefs:
+                rhs_aname = arr.split("[")[0]
+                rhs_aname = rhs_aname.strip()
+                if rhs_aname in self.temps:
+                    remove_stmt = True
+            if not remove_stmt:
+                astmt = ""
+                if op_label: astmt += op_label + " : "
+                astmt += lhs + " " + aop + " " + str(ra) + rhs_expression
+                self.t2tEq += astmt + ";\n"
+
+
+
+    # Visit a parse tree produced by OpMinParser#assignment_operator.
+    def visitAssignment_operator(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#unary_expression.
+    def visitUnary_expression(self, ctx):
+        global constants
+        if str(ctx.children[0]) == "-": constants = -1;
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#primary_expression.
+    def visitPrimary_expression(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#array_reference.
+    def visitArray_reference(self, ctx):
+        aname = str(ctx.children[0])
+        arefs.append(aname)
+        arefInd.append(self.visitId_list_opt(ctx.children[2]))
+
+
+    # Visit a parse tree produced by OpMinParser#expression.
+    def visitExpression(self, ctx):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpMinParser#plusORminus.
+    def visitPlusORminus(self, ctx):
+        self.t2tEq += (ctx.children[0].getText())
         #return self.visitChildren(ctx)
 
 

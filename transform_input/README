@@ -32,3 +32,16 @@ Run Pai-Wei's Opmin -> python src/opmin.py ccsd_t1.op.in  -> generates ccsd_t1.o
 Pai-Wei's output -> tamm_input  (python opmin_to_tamm.py ccsd_t1.op.in.out > ccsd_t1.op.tamm )
  - Remove braces around array decls
  - Collapse the f_... and v_... array delcarations (with range N) and their usage to f and v 
+
+
+-----------------------------------
+   RUNNING THE UNFACTORIZER
+-----------------------------------
+
+In transform_input folder:
+
+- python unfactorize.py ../tamm_tests/NWChemEqs/ccsd_t1.eq > ccsd_t1_un.eq   --> generates unfactorized eq
+- python $OPMIN_DIR/src/opmin.py ccsd_t1_un.eq  --> generates ccsd_t1_un.eq.out
+- python opmin_to_tamm.py ccsd_t1_un.eq.out > ccsd_t1_unfactored.eq
+
+- The file obtained in the last step (ccsd_t1_unfactored.eq) is save in tamm_tests/UnfactoredEqs folder

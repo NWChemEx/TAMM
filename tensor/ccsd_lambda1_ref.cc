@@ -806,16 +806,6 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
 
   /* ----- Insert attach code ------ */
   v->set_dist(idist);
-  // t_vo->set_dist(dist_nwma);
-  // t_vo->set_dist(dist_nw);
-  // t_vvoo->set_dist(dist_nw);
-  // y_oovv->set_dist(dist_nwi);
-  // lambda1_11_1->set_dist(dist_nw);
-  // lambda1_6_2_2_1->set_dist(dist_nw);
-  // lambda1_6_2_1->set_dist(dist_nwi);
-  // lambda1_6_3_1->set_dist(dist_nw);
-  // lambda1_6_5_1->set_dist(dist_nw);
-  // y_oovv->set_dist(dist_nwi);
   i0->attach(*k_i0_offset, 0, *d_i0);
   f->attach(*k_f_offset, 0, *d_f);
   v->attach(*k_v_offset, 0, *d_v);
@@ -824,16 +814,32 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   y_ov->attach(*k_y_ov_offset, 0, *d_y_ov);
   y_oovv->attach(*k_y_oovv_offset, 0, *d_y_oovv);
 
-  // lambda1_6_3_1->set_irrep(Variables::irrep_v());
   y_ov->set_irrep(Variables::irrep_y());
   y_oovv->set_irrep(Variables::irrep_y());
   lambda1_11_1->set_irrep(Variables::irrep_y());
   i0->set_irrep(Variables::irrep_y());
 
+    for(int i=0; i<eqs.op_entries.size(); i++) {
+      switch(eqs.op_entries[i].optype) {
+      case OpTypeAdd:
+      {
+          Tensor *t_alhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
+          t_alhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])->irrep());
+          break;
+      }
+      case OpTypeMult:
+       {   Tensor *t_mlhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
+          t_mlhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])->irrep() ^ 
+                          (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])->irrep());
+          break;
+       }
+      }
+  }
+
 #if 1
   schedule_linear(&tensors, &ops);
-  // schedule_linear_lazy(tensors, &ops);
-  //  schedule_levels(tensors, &ops);
+  // schedule_linear_lazy(&tensors, &ops);
+  //  schedule_levels(&tensors, &ops);
 #else
   op_lambda1_1 = ops[0].add;
   op_lambda1_2_1 = ops[1].add;

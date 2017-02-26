@@ -56,10 +56,11 @@ if __name__ == '__main__':
     parser = OpMinParser(token_stream)
     tree = parser.translation_unit()
 
-    print(oplabel + " {\n")
+    op2tammstr = (oplabel + " {\n")
     visitor = OpminTAMMSplitAdds()
-    visitor.visitTranslation_unit(tree)
-    print("}")
+    [single_use_temps, eqstr] = visitor.visitTranslation_unit(tree)
+    op2tammstr += eqstr + "}"
+    print(op2tammstr)
 
 
 

@@ -1102,16 +1102,19 @@ all_constants = dict()
 constant_no = 0
 pmflag = False
 arefconst = False
+single_use_temps = dict()
 
 #Break long adds into multiple adds
 class OpminTAMMSplitAdds(ParseTreeVisitor):
 
     def __init__(self):
+        self.splitaddseq = ""
         sys.setrecursionlimit(67108864)
 
     # Visit a parse tree produced by OpMinParser#translation_unit.
     def visitTranslation_unit(self, ctx):
         self.visitChildren(ctx)
+        return [single_use_temps, self.splitaddseq]
 
     # Visit a parse tree produced by OpMinParser#compound_element_list_opt.
     def visitCompound_element_list_opt(self, ctx):
@@ -1198,12 +1201,12 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
         global range_vals
         rv = float(ctx.children[3].getText())
         rvars = ctx.children[1].getText().split(",")
-        printres("range ")
-        printres(",".join(rvars))
-        printres(" = ")
+        self.splitaddseq += "range "
+        self.splitaddseq += ",".join(rvars)
+        self.splitaddseq += " = "
         rv = int(rv)
-        printres(rv)
-        printres(";\n")
+        self.splitaddseq += str(rv)
+        self.splitaddseq += ";\n"
         for r in rvars:
             range_vals[r.strip()] = rv
 
@@ -1211,21 +1214,21 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#index_declaration.
     def visitIndex_declaration(self, ctx):
-        printres(ctx.children[0])
-        printresws(ctx.children[1].getText())
-        printres("= ")
-        printres(ctx.children[3].getText())
-        printres(";\n")
+        self.splitaddseq += (ctx.children[0].getText())
+        self.splitaddseq += " " + ctx.children[1].getText() + " "
+        self.splitaddseq += ("= ")
+        self.splitaddseq += (ctx.children[3].getText())
+        self.splitaddseq += (";\n")
 
 
     # Visit a parse tree produced by OpMinParser#array_declaration.
     def visitArray_declaration(self, ctx):
-        printres(ctx.children[0])
-        printres(" " + ctx.children[1].getText())
+        self.splitaddseq += (ctx.children[0].getText())
+        self.splitaddseq += (" " + ctx.children[1].getText())
 
         if (len(ctx.children) > 3):
-            printres(": " + ctx.children[3].getText())
-        printres(";\n")
+            self.splitaddseq += (": " + ctx.children[3].getText())
+        self.splitaddseq += (";\n")
 
 
     # Visit a parse tree produced by OpMinParser#array_structure_list.
@@ -1337,7 +1340,7 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
         #assert(num_arr==1 or num_arr == 2)
 
         if num_arr <= 2:
-            printres(astmt)
+            self.splitaddseq += (astmt)
             arefs = []
             arefInd = []
             constants = 1.0
@@ -1347,10 +1350,10 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
             self.visitExpression(rhs)
 
             if 0 in all_constants: constants = str(all_constants[0])
-            printres(constants)
+            self.splitaddseq += (constants)
             for ar in range(0,num_arr):
-                printres(" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "]")
-            printres(";\n")
+                self.splitaddseq += (" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "]")
+            self.splitaddseq += (";\n")
         else:
             arefs = []
             arefInd = []
@@ -1363,10 +1366,10 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
             expflag = True
             #print(all_constants)
             for ar in range(0, num_arr):
-                printres(lhs + " += ")
-                printres(str(all_constants[ar]))
-                #else: printres("1.0")
-                printres(" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "];\n")
+                self.splitaddseq += (lhs + " += ")
+                self.splitaddseq += (str(all_constants[ar]))
+                #else: self.splitaddseq += ("1.0")
+                self.splitaddseq += (" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "];\n")
 
 
 
@@ -1414,7 +1417,7 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#plusORminus.
     def visitPlusORminus(self, ctx):
-        if expflag: printres(ctx.children[0])
+        if expflag: self.splitaddseq += (ctx.children[0])
         #return self.visitChildren(ctx)
 
 

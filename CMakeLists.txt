@@ -84,7 +84,7 @@ include(SetupANTLR)
 
 message("Antlr Binary = " ${AntlrBinary})
 
-set(ParserSrcDir ${PROJECT_SOURCE_DIR}/antlr_parser)
+set(ParserSrcDir ${PROJECT_SOURCE_DIR}/frontend)
 file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/parser")
 
 if(NOT ${ANTLR_CPPRUNTIME})
@@ -123,7 +123,7 @@ endif()
 # add_dependencies(AnltrTammParser ANTLR)
 # target_link_libraries(AnltrTammParser antlr4-runtime)
 
-# add_library(ParserCall STATIC "${PROJECT_SOURCE_DIR}/antlr_parser/tamm_parser.cc")
+# add_library(ParserCall STATIC "${PROJECT_SOURCE_DIR}/frontend/tamm_parser.cc")
 # add_dependencies(ParserCall AnltrTammParser ANTLR)
 # target_include_directories(ParserCall SYSTEM PUBLIC ${ANTLR_CPPRUNTIME}/include/antlr4-runtime)
 # link_directories(${ANTLR_CPPRUNTIME}/lib)
@@ -132,15 +132,15 @@ endif()
 
 # Collect all the parser sources.
 set(tammParserSources
-    antlr_parser/Parse.cc
-    antlr_parser/Error.cc
-    antlr_parser/TAMMLexer.cc
-    antlr_parser/TAMMParser.cc
-    antlr_parser/ASTBuilder.cc
-    antlr_parser/TAMMVisitor.cc
-    antlr_parser/Util.cc
-    antlr_parser/Semant.cc
-    antlr_parser/Intermediate.cc
+    frontend/Parse.cc
+    frontend/Error.cc
+    frontend/TAMMLexer.cc
+    frontend/TAMMParser.cc
+    frontend/ASTBuilder.cc
+    frontend/TAMMVisitor.cc
+    frontend/Util.cc
+    frontend/Semant.cc
+    frontend/Intermediate.cc
     
     )
 
@@ -253,11 +253,11 @@ endforeach(tcelibname)
 #message(STATUS "target flags = " "${other_flags}")
 
 
-# add_executable(tamm_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
-# add_dependencies(tamm_main tamm)
-# target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
-# # Set target libraries to be linked.
-# target_link_libraries(tamm_main tamm ${lib_search} ${tamm_blaslibs})
+add_executable(tamm_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
+add_dependencies(tamm_main tamm)
+target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
+# Set target libraries to be linked.
+target_link_libraries(tamm_main tamm ${lib_search} ${tamm_blaslibs})
 
 # Install
 if(NOT TAMM_INSTALL_PREFIX)
@@ -269,7 +269,7 @@ message(STATUS "Installing TAMM library at: " ${TAMM_INSTALL_PREFIX})
 install(TARGETS tamm
         DESTINATION ${TAMM_INSTALL_PREFIX}/lib)
 
-file(GLOB TAMM_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/antlr_parser/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
+file(GLOB TAMM_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/frontend/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
 install(FILES ${TAMM_HEADERS} DESTINATION ${TAMM_INSTALL_PREFIX}/include)
 
 file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/tamm_tests/NWChemEqs/*.eq")

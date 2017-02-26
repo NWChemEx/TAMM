@@ -16,8 +16,6 @@ using std::string;
 
 namespace tamm {
 
-void parser_eqs_to_tamm_eqs(tamm::frontend::Equations *eqs, tamm::Equations *ceqs);
-
 static void parse_equations(const string &filename, tamm::Equations *ceqs);
 
 void ccsd_e_equations(tamm::Equations *eqs) {
@@ -105,28 +103,28 @@ void ccsd_1prdm_ph_equations(tamm::Equations *eqs) {
 }
 
 static void parse_equations(const string &filename, tamm::Equations *ceqs) {
-  tamm::frontend::Equations peqs;
+  tamm::frontend::Equations* const peqs = new tamm::frontend::Equations();
   string full_name = string(TAMM_EQ_PATH) + string("/") + filename;
-  tamm_frontend(full_name, &peqs);
+  tamm::frontend::tamm_frontend(full_name, peqs);
   parser_eqs_to_tamm_eqs(peqs, ceqs);
 }
 
-void parser_eqs_to_tamm_eqs(const tamm::frontend::Equations &peqs, tamm::Equations *ceqs) {
+void parser_eqs_to_tamm_eqs(tamm::frontend::Equations* const peqs, tamm::Equations *ceqs) {
   int nre, nie, nte, noe;
-  nre = peqs.range_entries.size();
-  nie = peqs.index_entries.size();
-  nte = peqs.tensor_entries.size();
-  noe = peqs.op_entries.size();
+  nre = peqs->range_entries.size();
+  nie = peqs->index_entries.size();
+  nte = peqs->tensor_entries.size();
+  noe = peqs->op_entries.size();
 
   for (int i = 0; i < nre; i++) {
-    tamm::frontend::RangeEntry * re = peqs.range_entries.at(i);
+    tamm::frontend::RangeEntry * re = peqs->range_entries.at(i);
     tamm::RangeEntry cre;
     // cre.name = strdup(re->name);
     cre.name = string(re->range_name);
     ceqs->range_entries.push_back(cre);
   }
   for (int i = 0; i < nie; i++) {
-    tamm::frontend::IndexEntry *ie = peqs.index_entries.at(i);
+    tamm::frontend::IndexEntry *ie = peqs->index_entries.at(i);
     tamm::IndexEntry cie;
     // cie.name = strdup(ie->name);
     cie.name = string(ie->index_name);
@@ -137,14 +135,13 @@ void parser_eqs_to_tamm_eqs(const tamm::frontend::Equations &peqs, tamm::Equatio
   }
 
   for (int i = 0; i < nte; i++) {
-    tamm::frontend::TensorEntry * te = peqs.tensor_entries.at(i);
+    tamm::frontend::TensorEntry * te = peqs->tensor_entries.at(i);
     tamm::TensorEntry cte;
     // cte.name = strdup(te->name);
     cte.name = string(te->tensor_name);
     cte.ndim = te->ndim;
     cte.nupper = te->nupper;
-
-    for (int j = 0; j < MAX_TENSOR_DIMS; j++) {
+    for (int j = 0; j < te->range_ids.size(); j++) {
       cte.range_ids[j] = te->range_ids[j];
     }
     // ceqs.tensor_entries.push_back(cte);
@@ -155,7 +152,7 @@ void parser_eqs_to_tamm_eqs(const tamm::frontend::Equations &peqs, tamm::Equatio
   }
 
   for (int i = 0; i < noe; i++) {
-    tamm::frontend::OpEntry *oe = peqs.op_entries.at(i);
+    tamm::frontend::OpEntry *oe = peqs->op_entries.at(i);
     tamm::OpEntry coe;
     // cout<<"optype == "<<oe->optype<<endl;
     coe.op_id = oe->op_id;
@@ -164,37 +161,38 @@ void parser_eqs_to_tamm_eqs(const tamm::frontend::Equations &peqs, tamm::Equatio
     //      coe.add = oe->add;
     //      coe.mult = oe->mult;
 
+
     int j;
     if (coe.optype == tamm::OpTypeAdd) {
       tamm::frontend::TensorEntry *ta =
-          peqs.tensor_entries.at(oe->add->ta);
+          peqs->tensor_entries.at(oe->add->ta);
       tamm::frontend::TensorEntry *tc =
-          peqs.tensor_entries.at(oe->add->tc);
+          peqs->tensor_entries.at(oe->add->tc);
 
       coe.add.ta = string(ta->tensor_name);  // oe->add->ta;
       coe.add.tc = string(tc->tensor_name);  // oe->add->tc;
       coe.add.alpha = oe->add->alpha;
-      for (j = 0; j < MAX_TENSOR_DIMS; j++)
+      for (j = 0; j < oe->add->tc_ids.size(); j++)
         coe.add.tc_ids[j] = oe->add->tc_ids[j];
-      for (j = 0; j < MAX_TENSOR_DIMS; j++)
+      for (j = 0; j < oe->add->ta_ids.size(); j++)
         coe.add.ta_ids[j] = oe->add->ta_ids[j];
     } else {
       tamm::frontend::TensorEntry *ta =
-          peqs.tensor_entries.at(oe->mult->ta);
+          peqs->tensor_entries.at(oe->mult->ta);
       tamm::frontend::TensorEntry *tb =
-          peqs.tensor_entries.at(oe->mult->tb);
+          peqs->tensor_entries.at(oe->mult->tb);
       tamm::frontend::TensorEntry *tc =
-          peqs.tensor_entries.at(oe->mult->tc);
+          peqs->tensor_entries.at(oe->mult->tc);
 
       coe.mult.ta = string(ta->tensor_name);  // oe->mult->ta;
       coe.mult.tb = string(tb->tensor_name);  // oe->mult->tb;
       coe.mult.tc = string(tc->tensor_name);  // oe->mult->tc;
       coe.mult.alpha = oe->mult->alpha;
-      for (j = 0; j < MAX_TENSOR_DIMS; j++)
+      for (j = 0; j < oe->mult->tc_ids.size(); j++)
         coe.mult.tc_ids[j] = oe->mult->tc_ids[j];
-      for (j = 0; j < MAX_TENSOR_DIMS; j++)
+      for (j = 0; j < oe->mult->ta_ids.size(); j++)
         coe.mult.ta_ids[j] = oe->mult->ta_ids[j];
-      for (j = 0; j < MAX_TENSOR_DIMS; j++)
+      for (j = 0; j < oe->mult->tb_ids.size(); j++)
         coe.mult.tb_ids[j] = oe->mult->tb_ids[j];
     }
 

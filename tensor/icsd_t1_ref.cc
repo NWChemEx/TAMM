@@ -202,8 +202,7 @@ void icsd_t1_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
   v->attach(*k_v_offset, 0, *d_v);
 
-  std::cout<<"In File: " <<__FILE__<<"Line: " <<__LINE__<<std::endl;
-#if 0
+#if 1
   // schedule_linear(&tensors, &ops);
   // schedule_linear_lazy(tensors, ops);
   schedule_levels(&tensors, &ops);

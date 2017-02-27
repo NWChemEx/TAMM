@@ -55,3 +55,24 @@ Unfactorized equations Test
 
 
 
+ANTLR
+-----
+
+uuid not found on clusters ??
+
+Need gcc > 5 . i use 6 for c++14 support
+the intel compilers must also be built with gcc6 support 
+
+Disable antlr cmakelist else condition that does not use intel compilers ? - not needed we can build antlr cpp runtime with gcc6 and intel for everything else
+ cmake .. -DTAMM_BLAS_INC=/opt/intel/mkl/include/ -DTAMM_BLAS_LIB=/opt/intel/mkl/lib/intel64 -DCMAKE_CXX_COMPILER=icpc  -DCMAKE_C_COMPILER=icc
+
+
+https://scan.coverity.com/
+
+Catch, GoogleTest (Bandit, Lest)
+
+Parser
+------
+- If O,V are specified in the equation file, how are they used in tamm ? - Currently they are ignored.
+- Intermediate.cc constructs rangeEntry with only range name, not values provided.
+- c += alpha*a*b, c += alpha*a

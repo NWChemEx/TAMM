@@ -11,7 +11,7 @@ from antlr4 import *
 
 from OpMinLexer import OpMinLexer
 from OpMinParser import OpMinParser
-from OpMinVisitor import TAMMtoTAMM, MinimizeTemps
+from MinimizeIntermediates import CollectTemps, MinimizeTemps, TAMMtoTAMM
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
@@ -20,7 +20,7 @@ if __name__ == '__main__':
         print "Please provide an input file!"
         sys.exit(1)
 
-    mdoption = 0; #default = multiply
+    mdoption = 0 #default = multiply
 
     try:
         mdoption = int(sys.argv[2]) # > 0 for divide,
@@ -55,15 +55,10 @@ if __name__ == '__main__':
     t2tEq = (oplabel + " {\n")
 
     visitor = TAMMtoTAMM(mdoption)
-    single_use_temps, streq = visitor.visitTranslation_unit(tree)
+    streq = visitor.visitTranslation_unit(tree)
 
     t2tEq += streq + "}"
 
-
-    remove_temps = dict()
-    for s in single_use_temps:
-        if single_use_temps[s]:
-            remove_temps[s] = single_use_temps[s]
 
     tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_initial.eq'
     if mdoption: tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_prefinal.eq'
@@ -78,13 +73,30 @@ if __name__ == '__main__':
     parser = OpMinParser(token_stream)
     tree = parser.translation_unit()
 
+    #t2tEq = (oplabel + " {\n")
+    visitor = CollectTemps()
+    single_use_temps, i0Ind = visitor.visitTranslation_unit(tree)
+    #t2tEq += eqstr + "}"
+
+    # tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_prefinal.eq'
+    # with open(tamm_file, 'w') as tr:
+    #     tr.write(t2tEq)
+
+    remove_temps = dict()
+    for s in single_use_temps:
+        if single_use_temps[s]:
+            remove_temps[s] = single_use_temps[s]
+
+    input_stream = FileStream(tamm_file)
+    lexer = OpMinLexer(input_stream)
+    token_stream = CommonTokenStream(lexer)
+    parser = OpMinParser(token_stream)
+    tree = parser.translation_unit()
+
     t2tEq = (oplabel + " {\n")
-    visitor = MinimizeTemps(remove_temps)
+    visitor = MinimizeTemps(remove_temps, i0Ind)
     eqstr = visitor.visitTranslation_unit(tree)
     t2tEq += eqstr + "}"
 
     print(t2tEq)
-    # tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_final.eq'
-    # with open(tamm_file, 'w') as tr:
-    #     tr.write(t2tEq)
 

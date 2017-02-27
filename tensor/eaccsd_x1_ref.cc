@@ -193,6 +193,8 @@ void eaccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t1, Fint *d_t2, Fint *d_v2,
   }
 
 #if 1
+	// schedule_linear(&tensors, &ops);
+  // schedule_linear_lazy(&tensors, &ops);
   schedule_levels(&tensors, &ops);
 #else
   op_x1_1_1 = ops[0].add;

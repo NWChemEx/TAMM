@@ -135,6 +135,7 @@ class CollectTemps(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#array_declaration.
     def visitArray_declaration(self, ctx):
+
         self.t2tEq += (ctx.children[0].getText())
         self.t2tEq += (" " + ctx.children[1].getText())
 
@@ -434,12 +435,15 @@ class MinimizeTemps(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#array_declaration.
     def visitArray_declaration(self, ctx):
-        self.t2tEq += (ctx.children[0].getText())
-        self.t2tEq += (" " + ctx.children[1].getText())
+        aname = ctx.children[1].getText()
+        aname = aname.split("[")[0]
+        if aname not in self.temps:
+            self.t2tEq += (ctx.children[0].getText())
+            self.t2tEq += (" " + ctx.children[1].getText())
 
-        if (len(ctx.children) > 3):
-            self.t2tEq += (": " + ctx.children[3].getText())
-        self.t2tEq += (";\n")
+            if (len(ctx.children) > 3):
+                self.t2tEq += (": " + ctx.children[3].getText())
+            self.t2tEq += (";\n")
 
 
     # Visit a parse tree produced by OpMinParser#array_structure_list.

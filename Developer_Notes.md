@@ -1,3 +1,14 @@
+DEVELOPER NOTES
+---------------
+
+This project tries to keep code style conistent:
+For vim a .lvimrc is contained here that will keep tabing compliant
+
+Please Install: https://raw.githubusercontent.com/embear/vim-localvimrc/master/plugin/localvimrc.vim to your .vim/plugins directory
+
+Which will auto source this file
+
+
 Input format:
 
 * Add label to equation block i.e { ... } => label1 { ... }
@@ -50,21 +61,13 @@ Unfactorized equations Test
 - and add exp i0[] = a1[] + a2[] does not work --> tamm iterator cannot handle AddOp involving scalars (assert ndim>0 in tensors_and_ops.cc)
   - for this reason, we do not include unfactorized ccsd_e,cisd_e,and small gamma eqns - pp,hh,hp - since they are 1-2 ops only, they do not matter anyway
 
-  
-
-
-
 
 ANTLR
 -----
 
 uuid not found on clusters ??
 
-Need gcc > 5 . i use 6 for c++14 support
-the intel compilers must also be built with gcc6 support 
-
-Disable antlr cmakelist else condition that does not use intel compilers ? - not needed we can build antlr cpp runtime with gcc6 and intel for everything else
- cmake .. -DTAMM_BLAS_INC=/opt/intel/mkl/include/ -DTAMM_BLAS_LIB=/opt/intel/mkl/lib/intel64 -DCMAKE_CXX_COMPILER=icpc  -DCMAKE_C_COMPILER=icc
+Need gcc > 5 . We used 6 for c++14 support
 
 
 https://scan.coverity.com/

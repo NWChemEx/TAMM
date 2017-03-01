@@ -184,11 +184,27 @@ void ccsd_t1_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   t_vo->attach(*k_t_vo_offset, 0, *d_t_vo); 
   t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo); 
 
+  for(int i=0; i<eqs.op_entries.size(); i++) {
+      switch(eqs.op_entries[i].optype) {
+      case OpTypeAdd:
+      {
+          Tensor *t_alhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
+          t_alhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])->irrep());
+          break;
+      }
+      case OpTypeMult:
+       {   Tensor *t_mlhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
+          t_mlhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])->irrep() ^ 
+                          (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])->irrep());
+          break;
+       }
+      }
+  }
 
   #if 1
-    //schedule_levels(&tensors, &ops);
-    //schedule_levels(&tensors, &ops);
-    schedule_linear(&tensors, &ops);
+    // schedule_linear(&tensors, &ops);
+    // schedule_linear_lazy(&tensors, &ops);
+    schedule_levels(&tensors, &ops);
   #else
     op_t1_1 = ops[0].add;
     op_t1_2_1 = ops[1].add;

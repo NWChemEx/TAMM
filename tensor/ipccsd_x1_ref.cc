@@ -174,11 +174,10 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo,
       }
   }
 
-
 #if 1
-  schedule_linear(&tensors, &ops);
-  // schedule_linear_lazy(tensors, ops);
-  // schedule_levels(tensors, ops);
+  // schedule_linear(&tensors, &ops);
+  // schedule_linear_lazy(&tensors, &ops);
+  schedule_levels(&tensors, &ops);
 #else
   op_x1_1_1 = ops[0].add;
   op_x1_1_2_1 = ops[1].add;

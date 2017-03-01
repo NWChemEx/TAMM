@@ -46,7 +46,7 @@ if __name__ == '__main__':
     op2tammstr += "}"
     #print(op2tammstr)
 
-    tamm_file = os.path.basename(sys.argv[1])+'_tamm.eq'
+    tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_2tamm.eq'
     with open(tamm_file, 'w') as tr:
         tr.write(op2tammstr)
 
@@ -56,10 +56,14 @@ if __name__ == '__main__':
     parser = OpMinParser(token_stream)
     tree = parser.translation_unit()
 
-    print(oplabel + " {\n")
+    op2tammstr = (oplabel + " {\n")
     visitor = OpminTAMMSplitAdds()
-    visitor.visitTranslation_unit(tree)
-    print("}")
+    eqstr = visitor.visitTranslation_unit(tree)
+    op2tammstr += eqstr + "}"
+
+    tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_splitAdds.eq'
+    with open(tamm_file, 'w') as tr:
+        tr.write(op2tammstr)
 
 
 

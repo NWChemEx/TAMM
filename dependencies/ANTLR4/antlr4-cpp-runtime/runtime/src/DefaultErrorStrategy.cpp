@@ -100,8 +100,12 @@ void DefaultErrorStrategy::sync(Parser *recognizer) {
   size_t la = tokens->LA(1);
 
   // try cheaper subset first; might get lucky. seems to shave a wee bit off
-  auto nextTokens = recognizer->getATN().nextTokens(s);
-  if (nextTokens.contains(Token::EPSILON) || nextTokens.contains(la)) {
+  if (recognizer->getATN().nextTokens(s).contains(la) || la == Token::EOF) {
+    return;
+  }
+
+  // Return but don't end recovery. only do that upon valid token match
+  if (recognizer->isExpectedToken((int)la)) {
     return;
   }
 

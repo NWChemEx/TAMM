@@ -1,8 +1,11 @@
+
+// Generated from XPathLexer.g4 by ANTLR 4.5.3
+
+
 #include "XPathLexer.h"
 
 
 using namespace antlr4;
-
 
 XPathLexer::XPathLexer(CharStream *input) : Lexer(input) {
   _interpreter = new atn::LexerATNSimulator(this, _atn, _decisionToDFA, _sharedContextCache);
@@ -20,10 +23,6 @@ const std::vector<std::string>& XPathLexer::getRuleNames() const {
   return _ruleNames;
 }
 
-const std::vector<std::string>& XPathLexer::getChannelNames() const {
-  return _channelNames;
-}
-
 const std::vector<std::string>& XPathLexer::getModeNames() const {
   return _modeNames;
 }
@@ -32,7 +31,7 @@ const std::vector<std::string>& XPathLexer::getTokenNames() const {
   return _tokenNames;
 }
 
-dfa::Vocabulary& XPathLexer::getVocabulary() const {
+const dfa::Vocabulary& XPathLexer::getVocabulary() const {
   return _vocabulary;
 }
 
@@ -47,14 +46,14 @@ const atn::ATN& XPathLexer::getATN() const {
 
 void XPathLexer::action(RuleContext *context, size_t ruleIndex, size_t actionIndex) {
   switch (ruleIndex) {
-    case 4: IDAction(dynamic_cast<antlr4::RuleContext *>(context), actionIndex); break;
+    case 4: IDAction(dynamic_cast<RuleContext *>(context), actionIndex); break;
 
   default:
     break;
   }
 }
 
-void XPathLexer::IDAction(antlr4::RuleContext * /*context*/, size_t actionIndex) {
+void XPathLexer::IDAction(RuleContext * /*context*/, size_t actionIndex) {
   switch (actionIndex) {
     case 0: 
     				if (isupper(getText()[0]))
@@ -83,10 +82,6 @@ std::vector<std::string> XPathLexer::_ruleNames = {
   "STRING"
 };
 
-std::vector<std::string> XPathLexer::_channelNames = {
-  "DEFAULT_TOKEN_CHANNEL", "HIDDEN"
-};
-
 std::vector<std::string> XPathLexer::_modeNames = {
   "DEFAULT_MODE"
 };
@@ -105,7 +100,7 @@ dfa::Vocabulary XPathLexer::_vocabulary(_literalNames, _symbolicNames);
 std::vector<std::string> XPathLexer::_tokenNames;
 
 XPathLexer::Initializer::Initializer() {
-  // This code could be in a static initializer lambda, but VS doesn't allow access to private class members from there.
+  // This code could be in a static initializer lambda, but VS doesn't allow access to private class members from there. 
 	for (size_t i = 0; i < _symbolicNames.size(); ++i) {
 		std::string name = _vocabulary.getLiteralName(i);
 		if (name.empty()) {
@@ -163,9 +158,7 @@ XPathLexer::Initializer::Initializer() {
   atn::ATNDeserializer deserializer;
   _atn = deserializer.deserialize(_serializedATN);
 
-  size_t count = _atn.getNumberOfDecisions();
-  _decisionToDFA.reserve(count);
-  for (size_t i = 0; i < count; i++) { 
+  for (size_t i = 0; i < _atn.getNumberOfDecisions(); i++) { 
     _decisionToDFA.emplace_back(_atn.getDecisionState(i), i);
   }
 }

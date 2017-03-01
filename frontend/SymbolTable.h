@@ -31,7 +31,7 @@ class SymbolTable {
         void put(std::string key, const Entry* const value){
             context.insert(std::map<const std::string, const Entry* const>::value_type(key, value));
         }
-        const Entry* const get(const std::string key) {
+        const Entry* get(const std::string key) {
             auto st_entry = context.find(key);
             if (st_entry == context.end()) {
                     return nullptr; /// key not defined

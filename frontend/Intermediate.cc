@@ -98,7 +98,7 @@ void get_index_ids(Equations* const equations, Array* const aref, std::vector<in
 }
 
 
-const int get_tensor_id(Equations* const equations, Array* const aref) {
+int get_tensor_id(Equations* const equations, Array* const aref) {
     int tid = -1;
     const std::string tensor_ref_name = aref->tensor_name->name;
     int tensor_pos = 0;

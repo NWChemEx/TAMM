@@ -1,8 +1,5 @@
 To build the tamm code - cmake, a blas library are needed.
 
-
-An example for cascade:
-#Specify blas header,lib paths to cmake along with an install prefix as shown
 mkdir build && cd build
 
 cmake .. -DTAMM_BLAS_INC=/opt/intel/mkl/include/ -DTAMM_BLAS_LIB=/opt/intel/mkl/lib/intel64 -DCMAKE_CXX_COMPILER=icpc \ 
@@ -12,12 +9,12 @@ cmake .. -DTAMM_BLAS_INC=/opt/intel/mkl/include/ -DTAMM_BLAS_LIB=/opt/intel/mkl/
 Once built, it can be copied to another folder of your choice outside TAMM_HOME and pass that path to -DANTLR_CPPRUNTIME the next time onwards. 
 This way, the antlr4 runtime library does not have to be re-built each time the build folder is deleted.
 
+Cascade: 
+ - Setting the compiler linker etc below allows for make link to work correctly otherwise it uses gcc and system default ar:
+ - cmake ../ -DTAMM_BLAS_INC=/msc/apps/compilers/IPS_2017/mkl/include/ -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc -DCMAKE_Fortran_COMPILER=ifort \ 
+   -DANTLR_CPPRUNTIME:STRING=/home/panyala/software/ANTLR/antlr4-cpp-runtime \ 
+   -DCMAKE_AR=/msc/apps/compilers/IPS_2017/bin/xiars
 
-
-// Cascade: Setting the compiler linker etc below allows for make link to work correctly otherwise it uses gcc and system default ar:
-cmake ../ -DTAMM_BLAS_INC=/msc/apps/compilers/IPS_2017/mkl/include/ -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc -DCMAKE_Fortran_COMPILER=ifort \ 
- -DANTLR_CPPRUNTIME:STRING=/home/panyala/software/ANTLR/antlr4-cpp-runtime \ 
- -DCMAKE_AR=/msc/apps/compilers/IPS_2017/bin/xiars
 
 make unpatch //Reverts gnumakefile
 make patch-only //Fixes gnumakefile 
@@ -28,4 +25,3 @@ make test //Runs ctest
 make check //Runs ctest with all output
 
 
-make CC="clang++ -std=c++1y" LCC=clang

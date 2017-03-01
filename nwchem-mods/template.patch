@@ -6,7 +6,7 @@
  endif
 -	$(PURIFY) $(LINK.f) -o $(BINDIR)/$(NWBINNAME) nwchem.o stubs.o -lnwctask $(LIBS)
 +	#$(PURIFY) $(LINK.f) -o $(BINDIR)/$(NWBINNAME) nwchem.o stubs.o -lnwctask $(LIBS)
-+	$(PURIFY) $(LINK.f) -o $(BINDIR)/$(NWBINNAME) nwchem.o stubs.o -lnwctask -L(LIB_TEMP) $(LIBS) -ltamm -ltce -lstdc++
++	$(PURIFY) $(LINK.f) -o $(BINDIR)/$(NWBINNAME) nwchem.o stubs.o -lnwctask -L(LIB_TEMP) $(LIBS) -ltamm -lstdc++ (LIB_ANTLR)
  ifdef SUMO
  	$(AR) rcv $(LIBDIR)/libnwchem-sumo.a $(LIBDIR)/objs/*.o
  	$(RANLIB) $(LIBDIR)/libnwchem-sumo.a

@@ -1,3 +1,13 @@
+# ------------------------------------------------------------------------------
+#  Copyright (C) 2016, Pacific Northwest National Laboratory
+#  This software is subject to copyright protection under the laws of the
+#  United States and other countries
+# 
+#  All rights in this computer software are reserved by the
+#  Pacific Northwest National Laboratory (PNNL)
+#  Operated by Battelle for the U.S. Department of Energy
+# ------------------------------------------------------------------------------
+
 cmake_minimum_required(VERSION 2.8)
 project (TAMM_LIBRARY C CXX)
 enable_language (Fortran)
@@ -12,10 +22,8 @@ INCLUDE(CTest)
 # Should a test fail, display the test program output
 set (CTEST_OUTPUT_ON_FAILURE TRUE)
 
-#Uncomment if we use additional cmake modules later
-#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/" "${CMAKE_CURRENT_BINARY_DIR}")
 
-find_package(FLEX REQUIRED)
+#find_package(FLEX REQUIRED)
 #find_package(BLAS REQUIRED)
 #find_package(MPI)
 #message(STATUS "mpi link flags: " ${MPI_CXX_LINK_FLAGS})
@@ -69,21 +77,70 @@ execute_process(COMMAND ${GA_CONFIG} --cppflags --cflags OUTPUT_VARIABLE tamm_cf
 execute_process(COMMAND ${GA_CONFIG} --ldflags OUTPUT_VARIABLE tamm_ldflags OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND ${GA_CONFIG} --libs OUTPUT_VARIABLE tamm_libs OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+#Uncomment if we use additional cmake modules later
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
+# Setup ANTLR
+include(SetupANTLR)
 
-#Build lemon sources
-set(ParserSrcDir ${PROJECT_SOURCE_DIR}/tamm_parser)
-add_executable(lemon ${ParserSrcDir}/lemon.c)
+message("Antlr Binary = " ${AntlrBinary})
+
+set(ParserSrcDir ${PROJECT_SOURCE_DIR}/frontend)
+file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/parser")
+
+if(NOT ${ANTLR_CPPRUNTIME})
+    #message("Found antlr cpp-runtime")
+    ADD_CUSTOM_TARGET(BuildANTLR ALL)
+else()
+    #message("antlr cpp-runtime not found")
+    ADD_CUSTOM_TARGET(BuildANTLR ALL DEPENDS ANTLR)
+endif()
+
+
+#set(ParserBuildDir "${PROJECT_BINARY_DIR}/parser")
+
+# The generated lexer, parser sources would be in ParserBuildDir.
+# set(ParserSources
+#        ${ParserBuildDir}/TAMMLexer.cpp
+#        ${ParserBuildDir}/TAMMParser.cpp
+#     )   
+    
+  
+# Custom Target to build the TAMM grammar.
+# ADD_CUSTOM_COMMAND(OUTPUT ${ParserSources}
+#   # The grammar is copied over to the ParserBuildDir before building it .
+#   COMMAND cmake -E copy ${ParserSrcDir}/TAMM.g4 ${ParserBuildDir}/TAMM.g4
+#   # Change to ParserBuildDir before building the grammar.
+#   COMMAND cmake -E chdir ${ParserBuildDir} java -jar ${AntlrBinary} -Dlanguage=Cpp -no-listener -visitor ${ParserBuildDir}/TAMM.g4
+#   DEPENDS ${ParserSrcDir}/TAMM.g4
+#   COMMENT "Building the TAMM grammar."
+#   VERBATIM)
+
+
+    # Compile the lexer and parser.
+# add_library(AnltrTammParser STATIC ${ParserSources})
+# target_include_directories(AnltrTammParser SYSTEM PUBLIC ${ParserBuildDir} ${ANTLR_CPPRUNTIME}/include/antlr4-runtime)
+# # Build the ANTLR CPP runtime library. 
+# add_dependencies(AnltrTammParser ANTLR)
+# target_link_libraries(AnltrTammParser antlr4-runtime)
+
+# add_library(ParserCall STATIC "${PROJECT_SOURCE_DIR}/frontend/tamm_parser.cc")
+# add_dependencies(ParserCall AnltrTammParser ANTLR)
+# target_include_directories(ParserCall SYSTEM PUBLIC ${ANTLR_CPPRUNTIME}/include/antlr4-runtime)
+# link_directories(${ANTLR_CPPRUNTIME}/lib)
+# target_link_libraries(ParserCall AnltrTammParser antlr4-runtime)
 
 
 # Collect all the parser sources.
 set(tammParserSources
-    tamm_parser/absyn.cc
-    tamm_parser/tamm_parser.cc
-    tamm_parser/intermediate.cc
-    tamm_parser/semant.cc
-    tamm_parser/visitor.cc
-    #tamm_parser/symtab.cc
-    tamm_parser/util.cc
+    frontend/Parse.cc
+    frontend/Error.cc
+    frontend/TAMMLexer.cc
+    frontend/TAMMParser.cc
+    frontend/ASTBuilder.cc
+    frontend/TAMMVisitor.cc
+    frontend/Util.cc
+    frontend/Semant.cc
+    frontend/Intermediate.cc
     )
 
 set(tammLibSources
@@ -128,57 +185,39 @@ set(tammLibSources
   tensor/variables.cc
   )
 
-set(ParserBuildDir "${PROJECT_BINARY_DIR}")
-
-# The generated lexer, parser code would be in ParserBuildDir.
-set(ParserSources
-    ${ParserBuildDir}/parser.h
-    ${ParserBuildDir}/parser.cc
-    ${ParserBuildDir}/scanner.cc
-    ${ParserBuildDir}/scanner.h
-    )
-
-# Custom Target to build the lemon grammar.
-ADD_CUSTOM_COMMAND(OUTPUT ${ParserSources}
-    # The parser and scanner spec files are copied over to the ParserBuildDir before building it .
-    COMMAND cmake -E copy ${ParserSrcDir}/parser.y ${ParserBuildDir}/parser.y
-    COMMAND cmake -E copy ${ParserSrcDir}/scanner.l ${ParserBuildDir}/scanner.l
-    COMMAND cmake -E copy ${ParserSrcDir}/lempar.c ${ParserBuildDir}/lempar.c
-
-    #Generate the scanner code
-    COMMAND cmake -E chdir ${ParserBuildDir} flex ${ParserBuildDir}/scanner.l
-    COMMAND cmake -E rename scanner.c scanner.cc
-
-    # Generate the parser code
-    COMMAND cmake -E chdir ${ParserBuildDir} ./lemon -s ${ParserBuildDir}/parser.y
-    DEPENDS ${ParserSrcDir}/parser.y lemon
-    COMMAND cmake -E rename parser.c parser.cc
-    DEPENDS ${ParserSrcDir}/parser.y lemon
-
-    COMMENT "Building the tamm lemon parser."
-    VERBATIM
-    )
-
-#Build the generated scanner and parser sources
-#add_library(tamm_sp STATIC ${ParserSources})
-#target_include_directories(tamm_sp SYSTEM PUBLIC ${ParserSrcDir})
+# set(CMAKE_CXX_STANDARD 14)
+# set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 string(REPLACE "-I" "" tamm_cmake_cflags ${tamm_cflags})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" tamm_cflags ${tamm_cmake_cflags})
 
+message("ANTLR CPPRUNTIME=" ${ANTLR_CPPRUNTIME_DIR}/include)
+ADD_LIBRARY(a4runtime STATIC IMPORTED)
+SET_TARGET_PROPERTIES(a4runtime PROPERTIES IMPORTED_LOCATION ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a)
+
 SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14")
 #SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
-add_library(tamm STATIC ${tammParserSources} ${ParserSources} ${tammLibSources})
-target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
+add_library(tamm STATIC ${tammParserSources} ${tammLibSources})
+add_dependencies(tamm BuildANTLR)
+link_directories(${ANTLR_CPPRUNTIME_DIR}/lib)
+target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} 
+                        ${BLAS_INC_PATH} ${ANTLR_CPPRUNTIME_DIR}/include/antlr4-runtime/)
+target_link_libraries(tamm a4runtime)
+
 #set_property(TARGET tamm PROPERTY CXX_STANDARD 14)
 #set_property(TARGET tamm PROPERTY CXX_STANDARD_REQUIRED ON)
+
+
 
 # Build the tamm_parser_test code
 add_executable(tamm_parser_test ${ParserSrcDir}/test.cc)
 add_dependencies(tamm_parser_test tamm)
+target_include_directories(tamm_parser_test SYSTEM PUBLIC  ${ParserSrcDir}) 
 # Set target libraries to be linked.
-target_link_libraries(tamm_parser_test tamm fl)
+target_link_libraries(tamm_parser_test tamm a4runtime)
+
+
 
 string(REPLACE "-L" "" tamm_cmake_ldflags ${tamm_ldflags})
 string(REPLACE " " ";" tamm_ldflags ${tamm_cmake_ldflags})
@@ -233,7 +272,7 @@ message(STATUS "Installing TAMM library at: " ${TAMM_INSTALL_PREFIX})
 install(TARGETS tamm
         DESTINATION ${TAMM_INSTALL_PREFIX}/lib)
 
-file(GLOB TAMM_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/tamm_parser/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
+file(GLOB TAMM_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/frontend/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
 install(FILES ${TAMM_HEADERS} DESTINATION ${TAMM_INSTALL_PREFIX}/include)
 
 file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/tamm_tests/NWChemEqs/*.eq")
@@ -306,17 +345,17 @@ add_custom_command(TARGET "style" PRE_BUILD
 
 add_custom_target("patch")
 add_custom_command(TARGET "patch" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a
     COMMENT "=================== Patching nwchem..." )
 
 add_custom_target("patch-only")
 add_custom_command(TARGET "patch-only" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib -l
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a -l
     COMMENT "=================== Patching nwchem..." )
 
 add_custom_target("unpatch")
 add_custom_command(TARGET "unpatch" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-unpatch.bash
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-unpatch.bash
     COMMENT "=================== Unpatching nwchem gnumakefile..." )
 
 add_custom_target(link COMMAND "${CMAKE_COMMAND}" --build . --target install)

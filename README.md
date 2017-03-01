@@ -14,12 +14,13 @@ Declarations:
    index p1,p2,p3 : V;
 
  - **Array Declarations**  
-  //default = anti-symmetry  
+  default = anti-symmetry  
     > array v[O,O][V,V];  (upper indices follower by lower)  
   (OR)  
   array v[O,O][V,V] : irrep_v; (irrep is optional)  
-  
-scalar s; // A scalar is a zero dimensional tensor - cannot be initialized with a constant  
+
+    A scalar is a zero dimensional tensor - cannot be initialized with a constant  
+    > scalar s;  
 
 - **Operations**  
 An assignment can only be of the form:  

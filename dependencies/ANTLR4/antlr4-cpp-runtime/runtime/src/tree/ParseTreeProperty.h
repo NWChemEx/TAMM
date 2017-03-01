@@ -29,20 +29,27 @@ namespace tree {
   template<typename V>
   class ANTLR4CPP_PUBLIC ParseTreeProperty {
   public:
+    ParseTreeProperty() {
+      InitializeInstanceFields();
+    }
+
     virtual V get(ParseTree *node) {
-      return _annotations[node];
+      return _annotations.get(node);
     }
     virtual void put(ParseTree *node, V value) {
-      _annotations[node] = value;
+      _annotations.put(node, value);
     }
     virtual V removeFrom(ParseTree *node) {
-      auto value = _annotations[node];
-      _annotations.erase(node);
-      return value;
+      return _annotations->remove(node);
     }
 
   protected:
     std::map<ParseTree*, V> _annotations;
+
+  private:
+    void InitializeInstanceFields() {
+    }
+
   };
 
 } // namespace tree

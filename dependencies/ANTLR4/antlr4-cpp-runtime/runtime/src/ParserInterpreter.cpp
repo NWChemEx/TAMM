@@ -18,7 +18,6 @@
 #include "atn/ActionTransition.h"
 #include "atn/ATN.h"
 #include "atn/RuleStopState.h"
-#include "Lexer.h"
 #include "Token.h"
 #include "Vocabulary.h"
 #include "InputMismatchException.h"
@@ -185,7 +184,7 @@ void ParserInterpreter::visitState(atn::ATNState *p) {
     case atn::Transition::RANGE:
     case atn::Transition::SET:
     case atn::Transition::NOT_SET:
-      if (!transition->matches((int)_input->LA(1), Token::MIN_USER_TOKEN_TYPE, Lexer::MAX_CHAR_VALUE)) {
+      if (!transition->matches((int)_input->LA(1), Token::MIN_USER_TOKEN_TYPE, 65535)) {
         recoverInline();
       }
       matchWildcard();

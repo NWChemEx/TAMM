@@ -9,15 +9,16 @@
 
 using namespace antlr4::atn;
 
-SingletonPredictionContext::SingletonPredictionContext(Ref<PredictionContext> const& parent, size_t returnState)
-  : PredictionContext(parent ? calculateHashCode(parent, returnState) : calculateEmptyHashCode()),
-    parent(parent), returnState(returnState) {
+SingletonPredictionContext::SingletonPredictionContext(std::weak_ptr<PredictionContext> parent, size_t returnState)
+  : PredictionContext(!parent.expired() ? calculateHashCode(parent, returnState) : calculateEmptyHashCode()),
+    parent(parent.lock()), returnState(returnState) {
   assert(returnState != ATNState::INVALID_STATE_NUMBER);
 }
 
-Ref<SingletonPredictionContext> SingletonPredictionContext::create(Ref<PredictionContext> const& parent, size_t returnState) {
+Ref<SingletonPredictionContext> SingletonPredictionContext::create(std::weak_ptr<PredictionContext> parent,
+  size_t returnState) {
 
-  if (returnState == EMPTY_RETURN_STATE && parent) {
+  if (returnState == EMPTY_RETURN_STATE && parent.expired()) {
     // someone can pass in the bits of an array ctx that mean $
     return std::dynamic_pointer_cast<SingletonPredictionContext>(EMPTY);
   }
@@ -28,7 +29,7 @@ size_t SingletonPredictionContext::size() const {
   return 1;
 }
 
-Ref<PredictionContext> SingletonPredictionContext::getParent(size_t index) const {
+std::weak_ptr<PredictionContext> SingletonPredictionContext::getParent(size_t index) const {
   assert(index == 0);
   ((void)(index)); // Make Release build happy.
   return parent;
@@ -54,15 +55,8 @@ bool SingletonPredictionContext::operator == (const PredictionContext &o) const 
     return false; // can't be same if hash is different
   }
 
-  if (returnState != other->returnState)
-    return false;
-
-  if (!parent && !other->parent)
-    return true;
-  if (!parent || !other->parent)
-    return false;
-
-   return *parent == *other->parent;
+  //return returnState == other->returnState && (!parent.expired() && parent.lock() == other->parent.lock());
+  return returnState == other->returnState && (parent != nullptr && *parent == *other->parent);
 }
 
 std::string SingletonPredictionContext::toString() const {

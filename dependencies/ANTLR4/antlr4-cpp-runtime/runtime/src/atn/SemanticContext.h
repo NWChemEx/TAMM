@@ -28,9 +28,7 @@ namespace atn {
 
     struct Comparer {
       bool operator()(Ref<SemanticContext> const& lhs, Ref<SemanticContext> const& rhs) const {
-        if (lhs == rhs)
-          return true;
-        return (lhs->hashCode() == rhs->hashCode()) && (*lhs == *rhs);
+        return *lhs == *rhs;
       }
     };
 

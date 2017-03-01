@@ -3,14 +3,10 @@
  * can be found in the LICENSE.txt file in the project root.
  */
 
-#include "TokenSource.h"
-#include "CharStream.h"
-#include "Recognizer.h"
-#include "Vocabulary.h"
-
 #include "misc/Interval.h"
-
+#include "TokenSource.h"
 #include "support/StringUtils.h"
+#include "CharStream.h"
 #include "support/CPPUtils.h"
 
 #include "CommonToken.h"
@@ -153,10 +149,6 @@ antlr4::CharStream *CommonToken::getInputStream() const {
 }
 
 std::string CommonToken::toString() const {
-  return toString(nullptr);
-}
-
-std::string CommonToken::toString(Recognizer *r) const {
   std::stringstream ss;
 
   std::string channelStr;
@@ -172,12 +164,8 @@ std::string CommonToken::toString(Recognizer *r) const {
     txt = "<no text>";
   }
 
-  std::string typeString = std::to_string(symbolToNumeric(_type));
-  if (r != nullptr)
-    typeString = r->getVocabulary().getDisplayName(_type);
-  
   ss << "[@" << symbolToNumeric(getTokenIndex()) << "," << symbolToNumeric(_start) << ":" << symbolToNumeric(_stop)
-    << "='" << txt << "',<" << typeString << ">" << channelStr << "," << _line << ":"
+    << "='" << txt << "',<" << symbolToNumeric(_type) << ">" << channelStr << "," << _line << ":"
     << getCharPositionInLine() << "]";
 
   return ss.str();

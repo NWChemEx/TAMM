@@ -24,7 +24,14 @@ Interval::Interval() : Interval((ssize_t)-1, -2) { // Need an explicit cast here
 Interval::Interval(size_t a_, size_t b_) : Interval(symbolToNumeric(a_), symbolToNumeric(b_)) {
 }
 
-Interval::Interval(ssize_t a_, ssize_t b_) : a(a_), b(b_) {
+Interval::Interval(ssize_t a_, ssize_t b_, bool autoExtend) {
+  a = a_;
+  b = b_;
+
+  // XXX: temporary hack to make the full Unicode range available.
+  if (autoExtend && b == 0xFFFF) {
+    b = 0x10FFFF;
+  }
 }
 
 size_t Interval::length() const {

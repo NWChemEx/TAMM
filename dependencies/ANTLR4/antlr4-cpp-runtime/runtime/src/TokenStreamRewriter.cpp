@@ -251,7 +251,7 @@ std::string TokenStreamRewriter::getText(const Interval &interval) {
 }
 
 std::string TokenStreamRewriter::getText(const std::string &programName, const Interval &interval) {
-  std::vector<TokenStreamRewriter::RewriteOperation*> &rewrites = _programs[programName];
+  std::vector<TokenStreamRewriter::RewriteOperation*> rewrites = _programs[programName];
   size_t start = interval.a;
   size_t stop = interval.b;
 
@@ -305,8 +305,7 @@ std::string TokenStreamRewriter::getText(const std::string &programName, const I
 }
 
 std::unordered_map<size_t, TokenStreamRewriter::RewriteOperation*> TokenStreamRewriter::reduceToSingleOperationPerIndex(
-  std::vector<TokenStreamRewriter::RewriteOperation*> &rewrites) {
-
+  std::vector<TokenStreamRewriter::RewriteOperation*> rewrites) {
 
   // WALK REPLACES
   for (size_t i = 0; i < rewrites.size(); ++i) {
@@ -403,7 +402,7 @@ std::unordered_map<size_t, TokenStreamRewriter::RewriteOperation*> TokenStreamRe
     }
     m[op->index] = op;
   }
-  
+
   return m;
 }
 

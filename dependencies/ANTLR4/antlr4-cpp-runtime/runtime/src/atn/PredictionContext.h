@@ -14,10 +14,9 @@ namespace atn {
 
   struct PredictionContextHasher;
   struct PredictionContextComparer;
-  class PredictionContextMergeCache;
 
   typedef std::unordered_set<Ref<PredictionContext>, PredictionContextHasher, PredictionContextComparer> PredictionContextCache;
-  //typedef std::map<std::pair<Ref<PredictionContext>, Ref<PredictionContext>>, Ref<PredictionContext>> PredictionContextMergeCache;
+  typedef std::map<std::pair<Ref<PredictionContext>, Ref<PredictionContext>>, Ref<PredictionContext>> PredictionContextMergeCache;
 
   class ANTLR4CPP_PUBLIC PredictionContext {
   public:
@@ -73,20 +72,21 @@ namespace atn {
     static Ref<PredictionContext> fromRuleContext(const ATN &atn, RuleContext *outerContext);
 
     virtual size_t size() const = 0;
-    virtual Ref<PredictionContext> getParent(size_t index) const = 0;
+    virtual std::weak_ptr<PredictionContext> getParent(size_t index) const = 0;
     virtual size_t getReturnState(size_t index) const = 0;
 
     virtual bool operator == (const PredictionContext &o) const = 0;
+    virtual bool operator != (const PredictionContext &o) const;
 
-    /// This means only the EMPTY (wildcard? not sure) context is in set.
+    /// This means only the EMPTY context is in set.
     virtual bool isEmpty() const;
     virtual bool hasEmptyPath() const;
     virtual size_t hashCode() const;
 
   protected:
     static size_t calculateEmptyHashCode();
-    static size_t calculateHashCode(Ref<PredictionContext> parent, size_t returnState);
-    static size_t calculateHashCode(const std::vector<Ref<PredictionContext>> &parents,
+    static size_t calculateHashCode(std::weak_ptr<PredictionContext> parent, size_t returnState);
+    static size_t calculateHashCode(const std::vector<std::weak_ptr<PredictionContext>> &parents,
                                     const std::vector<size_t> &returnStates);
 
   public:
@@ -197,7 +197,7 @@ namespace atn {
   protected:
     /// Make pass over all M parents; merge any equal() ones.
     /// @returns true if the list has been changed (i.e. duplicates where found).
-    static bool combineCommonParents(std::vector<Ref<PredictionContext>> &parents);
+    static bool combineCommonParents(std::vector<std::weak_ptr<PredictionContext>> &parents);
 
   public:
     static std::string toDOTString(const Ref<PredictionContext> &context);
@@ -227,27 +227,8 @@ namespace atn {
   struct PredictionContextComparer {
     bool operator () (const Ref<PredictionContext> &lhs, const Ref<PredictionContext> &rhs) const
     {
-      if (lhs == rhs) // Object identity.
-        return true;
-      return (lhs->hashCode() == rhs->hashCode()) && (*lhs == *rhs);
+      return *lhs == *rhs;
     }
-  };
-
-  class PredictionContextMergeCache {
-  public:
-    Ref<PredictionContext> put(Ref<PredictionContext> const& key1, Ref<PredictionContext> const& key2,
-                               Ref<PredictionContext> const& value);
-    Ref<PredictionContext> get(Ref<PredictionContext> const& key1, Ref<PredictionContext> const& key2);
-
-    void clear();
-    std::string toString() const;
-    size_t count() const;
-    
-  private:
-    std::unordered_map<Ref<PredictionContext>,
-      std::unordered_map<Ref<PredictionContext>, Ref<PredictionContext>, PredictionContextHasher, PredictionContextComparer>,
-      PredictionContextHasher, PredictionContextComparer> _data;
-
   };
 
 } // namespace atn

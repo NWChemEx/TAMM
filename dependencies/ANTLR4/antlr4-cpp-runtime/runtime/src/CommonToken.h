@@ -150,7 +150,6 @@ namespace antlr4 {
 
     virtual std::string toString() const override;
 
-    virtual std::string toString(Recognizer *r) const;
   private:
     void InitializeInstanceFields();
   };

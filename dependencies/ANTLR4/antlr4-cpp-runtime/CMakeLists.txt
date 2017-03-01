@@ -97,8 +97,8 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" AND CMAKE_SYSTEM_NAME MATCHES
     if (WITH_LIBCXX)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
     endif()
-#else ()
-#    message(FATAL_ERROR "Your C++ compiler does not support C++11.")
+else ()
+    message(FATAL_ERROR "Your C++ compiler does not support C++11.")
 endif ()
 
 
@@ -107,5 +107,13 @@ if (WITH_DEMO)
  add_subdirectory(demo)
 endif(WITH_DEMO)
 
-install(FILES License.txt README.md VERSION 
+if( EXISTS LICENSE.txt)
+install(FILES LICENSE.txt
         DESTINATION "share/doc/libantlr4")
+elseif(EXISTS ./LICENSE.txt) 
+install(FILES ./LICENSE.txt
+    DESTINATION "share/doc/libantlr4")
+endif()
+
+install(FILES README.md VERSION 
+    DESTINATION "share/doc/libantlr4")

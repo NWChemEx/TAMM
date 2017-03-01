@@ -193,6 +193,9 @@ string(REPLACE "-I" "" tamm_cmake_cflags ${tamm_cflags})
 string(REPLACE " " ";" tamm_cflags ${tamm_cmake_cflags})
 
 message("ANTLR CPPRUNTIME=" ${ANTLR_CPPRUNTIME_DIR}/include)
+ADD_LIBRARY(a4runtime STATIC IMPORTED)
+SET_TARGET_PROPERTIES(a4runtime PROPERTIES IMPORTED_LOCATION ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a)
+
 SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14")
 #SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
 add_library(tamm STATIC ${tammParserSources} ${tammLibSources})
@@ -200,7 +203,8 @@ add_dependencies(tamm BuildANTLR)
 link_directories(${ANTLR_CPPRUNTIME_DIR}/lib)
 target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} 
                         ${BLAS_INC_PATH} ${ANTLR_CPPRUNTIME_DIR}/include/antlr4-runtime/)
-target_link_libraries(tamm antlr4-runtime)
+target_link_libraries(tamm a4runtime)
+
 #set_property(TARGET tamm PROPERTY CXX_STANDARD 14)
 #set_property(TARGET tamm PROPERTY CXX_STANDARD_REQUIRED ON)
 
@@ -211,7 +215,7 @@ add_executable(tamm_parser_test ${ParserSrcDir}/test.cc)
 add_dependencies(tamm_parser_test tamm)
 target_include_directories(tamm_parser_test SYSTEM PUBLIC  ${ParserSrcDir}) 
 # Set target libraries to be linked.
-target_link_libraries(tamm_parser_test tamm antlr4-runtime)
+target_link_libraries(tamm_parser_test tamm a4runtime)
 
 
 
@@ -341,12 +345,12 @@ add_custom_command(TARGET "style" PRE_BUILD
 
 add_custom_target("patch")
 add_custom_command(TARGET "patch" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a
     COMMENT "=================== Patching nwchem..." )
 
 add_custom_target("patch-only")
 add_custom_command(TARGET "patch-only" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib -l
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a -l
     COMMENT "=================== Patching nwchem..." )
 
 add_custom_target("unpatch")

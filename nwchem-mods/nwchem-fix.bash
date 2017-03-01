@@ -2,6 +2,7 @@
 if [ $# -gt 0 ]; then
     cp template.patch gnumake.patch
     sed -i -- "s:(LIB_TEMP):$1:g" ./gnumake.patch
+    sed -i -- "s:(LIB_ANTLR):$2:g" ./gnumake.patch
     patch -s -N -r - $NWCHEM_TOP/src/GNUmakefile ./gnumake.patch
     rm gnumake.patch
 else

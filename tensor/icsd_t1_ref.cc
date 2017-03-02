@@ -203,9 +203,9 @@ void icsd_t1_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   v->attach(*k_v_offset, 0, *d_v);
 
 #if 1
-  // schedule_linear(&tensors, &ops);
+  schedule_linear(&tensors, &ops);
   // schedule_linear_lazy(tensors, ops);
-  schedule_levels(&tensors, &ops);
+  //schedule_levels(&tensors, &ops);
 #else
   CorFortran(0, &op_t1_1, icsd_t1_1_);
   CorFortran(0, t1_2_1, offset_icsd_t1_2_1_);

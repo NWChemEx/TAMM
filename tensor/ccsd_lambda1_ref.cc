@@ -837,9 +837,9 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   }
 
 #if 1
-  schedule_linear(&tensors, &ops);
+  //schedule_linear(&tensors, &ops);
   // schedule_linear_lazy(&tensors, &ops);
-  //  schedule_levels(&tensors, &ops);
+   schedule_levels(&tensors, &ops);
 #else
   op_lambda1_1 = ops[0].add;
   op_lambda1_2_1 = ops[1].add;

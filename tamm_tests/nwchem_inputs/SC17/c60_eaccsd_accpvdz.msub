@@ -12,7 +12,7 @@
 # Print out some information for refund purposes
 ############################################################################
 
-echo "refund: UserID = kowalski"
+echo "refund: UserID = panyala"
 echo "refund: SLURM Job ID = ${SLURM_JOBID}"
 echo "refund: Number of nodes          = 384"
 echo "refund: Number of cores per node = 16"

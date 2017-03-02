@@ -484,9 +484,9 @@ void ccsd_lambda2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   }
 
 #if 1
-  schedule_linear(&tensors, &ops);
+  //schedule_linear(&tensors, &ops);
   // schedule_linear_lazy(&tensors, &ops);
-  //  schedule_levels(&tensors, &ops);
+   schedule_levels(&tensors, &ops);
 #else
   op_lambda2_1 = ops[0].add;
   op_lambda2_2_1 = ops[1].add;

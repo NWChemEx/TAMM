@@ -39,7 +39,7 @@ void ccsd_lambda2_equations(tamm::Equations *eqs) {
 }
 
 void ccsd_t2_equations(tamm::Equations *eqs) {
-  parse_equations("ccsd_t2_hand.eq", eqs);
+  parse_equations("ccsd_t2.eq", eqs);
 }
 
 void cisd_e_equations(tamm::Equations *eqs) {
@@ -67,7 +67,7 @@ void icsd_t1_equations(tamm::Equations *eqs) {
 }
 
 void icsd_t2_equations(tamm::Equations *eqs) {
-  parse_equations("icsd_t2_hand.eq", eqs);
+  parse_equations("icsd_t2.eq", eqs);
 }
 
 void ipccsd_x1_equations(tamm::Equations *eqs) {

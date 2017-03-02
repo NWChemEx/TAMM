@@ -145,8 +145,8 @@ class OpMinVisitor(ParseTreeVisitor):
 
         for amo in add_mult_order:
             if amo in array_decls:
-                printnli("CorFortran(1, " + amo + ", offset_" + self.function_prefix + "_" + amo + "_);")
-            printnli("CorFortran(1, &op_" +  amo + ", " + self.function_prefix + "_" + amo + "_);")
+                printnli("CorFortran(0, " + amo + ", offset_" + self.function_prefix + "_" + amo + "_);")
+            printnli("CorFortran(0, &op_" +  amo + ", " + self.function_prefix + "_" + amo + "_);")
 
             if amo in destroy_temps.keys():
                 printnli("destroy(" + destroy_temps[amo] + ");")

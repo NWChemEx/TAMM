@@ -45,14 +45,14 @@ ckbn     &).ne.4)) THEN
 ckbn      DO p2b = noab+1,noab+nvab
       DO p2b = 1,1
       DO h3b = 1,noab
-         write(*,*) 'h3b=', h3b
+!         write(*,*) 'h3b=', h3b
 ckbn      IF (int_mb(k_spin+p2b-1) .eq. int_mb(k_spin+h3b-1)) THEN
       IF (ip_unused_spin .eq. int_mb(k_spin+h3b-1)) THEN
 ckbn      IF (ieor(int_mb(k_sym+p2b-1),int_mb(k_sym+h3b-1)) .eq. irrep_x) TH
 ckbn     &EN
-         write (*,*) 'spin nonzero'
-         write (*,*) 'spatial(h3b)=', int_mb(k_sym+h3b-1)
-         write (*,*) 'irrep_x=', irrep_x
+!         write (*,*) 'spin nonzero'
+!         write (*,*) 'spatial(h3b)=', int_mb(k_sym+h3b-1)
+!         write (*,*) 'irrep_x=', irrep_x
       IF (ieor(ip_unused_sym ,int_mb(k_sym+h3b-1)) .eq. irrep_x) TH
      &EN
          write (*,*) 'spatial nonzero'
@@ -65,19 +65,19 @@ c      int_mb(k_a_offset+addr) = h3b - 1 + noab * (p2b - noab - 1)
       int_mb(k_a_offset+addr) = h3b - 1
       int_mb(k_a_offset+length+addr) = size
 ckbn      size = size + int_mb(k_range+p2b-1) * int_mb(k_range+h3b-1)
-      write(*,*) 'x1 addr=', h3b-1
-      write(*,*) 'x1 offset=', size
+!      write(*,*) 'x1 addr=', h3b-1
+!      write(*,*) 'x1 offset=', size
       size = size + 1 * int_mb(k_range+h3b-1)
       END IF
       END IF
       END IF
       END DO
       END DO
-      write(*,*) 'x1 noab=', noab
-      write(*,*) 'x1 ip_unused_sym=', ip_unused_sym
-      write(*,*) 'x1 ip_unused_spin=', ip_unused_spin
-      write(*,*) 'x1 irrep_f=', irrep_f
-      write(*,*) 'x1 irrep_t=', irrep_t
-      write(*,*) 'x1 irrep_x=', irrep_x
+!      write(*,*) 'x1 noab=', noab
+!      write(*,*) 'x1 ip_unused_sym=', ip_unused_sym
+!      write(*,*) 'x1 ip_unused_spin=', ip_unused_spin
+!      write(*,*) 'x1 irrep_f=', irrep_f
+!      write(*,*) 'x1 irrep_t=', irrep_t
+!      write(*,*) 'x1 irrep_x=', irrep_x
       RETURN
       END

@@ -1,0 +1,30 @@
+IP (naphthalene_ccpvdz_ip.nw)  ->  we have 4 possibilities for the CCSD/IP-EOMCCSD driver (CCSD-new->IP-EOMCCSD-old or CCSD-old->IP-EMCCSD etc.)
+EA (naphthalene_ccpvdz_ea.nw) -> same story
+Linear response (naphthalene_ccpvdz_lr.nw) : Only CCSD and Lambda-CCSD can be switched between old and new version. All linear-response routines use old TCE implementations.
+EOMCC (naphthalene_ccpvdz_eomcc.nw): Only CCSD can be switched between old and new implementations. EOMCCSD uses old TCE implementation. 
+
+
+shell-mixed-18.5_631G.nw – input for smaller ferrocene run (around 520 basis set functions)
+ 
+shell-mixed-18.5-combined_basis.nw – larger basis set for ferrocene (around 1200 basis functions)
+ 
+I have also attached outputs. For larger basis there are two outputs – one with CCSD and one with IP-EOMCCSD.
+Large calc. should be  performed in two or three steps:
+1.)    Integrals – saving integrals
+2.)    Reading  integrals – performing CCSD – saving CCSD ampitudes
+3.)    Reading integrals & amplitudes – performing IP-EOMCCSD calculations
+
+
+For ferrocene (small basis set) shell-mixed-18.5-631G (no symmetry used)
+O=125
+V=355
+ 
+For ferrocene (large basis set) shell-mixed-18.5_combined_basis (no symmetry used)
+O=1014
+V=125
+ 
+For C60 (high symmetry used)
+O=1070
+V=120
+
+

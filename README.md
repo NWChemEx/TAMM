@@ -1,6 +1,6 @@
 
 TAMM Input Equations
-=============
+=================
 
 Declarations:
 ------------

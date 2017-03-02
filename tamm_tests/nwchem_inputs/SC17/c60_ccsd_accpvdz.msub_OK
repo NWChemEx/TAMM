@@ -1,0 +1,63 @@
+#!/bin/csh -f
+#MSUB -l nodes=384:ppn=16,walltime=40:00:00
+#MSUB -A emsls48197
+#MSUB -o c60_ccsd_accpvdz.output.%j
+#MSUB -e ./c60_ccsd_accpvdz.err.%j
+#MSUB -N c60_ccsd_accpvdz
+#MSUB -m ea
+#MSUB -M kowalski@emsl.pnl.gov
+#MSUB -V
+
+############################################################################
+# Print out some information for refund purposes
+############################################################################
+
+echo "refund: UserID = kowalski"
+echo "refund: SLURM Job ID = ${SLURM_JOBID}"
+echo "refund: Number of nodes          = 384"
+echo "refund: Number of cores per node = 16"
+echo "refund: Number of cores          = 6144"
+echo "refund: Amount of time requested = 40:00"
+echo "refund: Directory = ${PWD}"
+echo " "
+echo Processor list
+echo " "
+echo "${SLURM_JOB_NODELIST}"
+echo " "
+
+############################################################################
+# Copy NWChem binary to local scratch directory
+############################################################################
+# pdsh -f 30 -w "${SLURM_JOB_NODELIST}" cp /dtemp/kowalski/c60/nwchem_ea /scratch/nwchem
+## srun -n ${SLURM_NNODES} -N ${SLURM_NNODES} --wait=600 cp /dtemp/kowalski/c60/nwchem_ea /scratch/nwchem
+#bcastf /dtemp/kowalski/c60/nwchem_ea /scratch/nwchem
+#replaced scratch based bcastf with dtemp copy
+#mkdir -p /dtemp/kowalski/.bin
+#cp /dtemp/kowalski/c60/nwchem_ea /dtemp/kowalski/.bin/nwchem
+
+############################################################################
+# Actually run the job
+############################################################################
+
+source /etc/profile.d/modules.csh
+module purge
+module load nwchem/6.3
+
+cd /scratch
+
+setenv ARMCI_DEFAULT_SHMMAX 5100
+setenv NWCHEM_BASIS_LIBRARY "/home/scicons/cascade/apps/nwchem-6.3//src/basis/libraries/"
+setenv NWCHEM_NWPW_LIBRARY "/home/scicons/cascade/apps/nwchem-6.3//src/nwpw/libraryps/"
+setenv ARMCI_OPENIB_DEVICE mlx4_0
+
+setenv MPIRETURN 999
+#mpirun -n $SLURM_NPROCS /scratch/nwchem /dtemp/kowalski/c60/c60_ccsd_accpvdz.nw
+mpirun -n $SLURM_NPROCS -ppn 16 /dtemp/kowalski/c60/nwchem_ea  /dtemp/kowalski/c60/c60_ccsd_accpvdz.nw
+setenv MPIRETURN $?
+
+############################################################################
+# End of the job script
+############################################################################
+
+exit $MPIRETURN
+

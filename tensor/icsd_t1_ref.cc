@@ -60,51 +60,54 @@
 */
 
 extern "C" {
+
+void nxt_ctx_create_(Integer* num_count, Integer* ctx);
+
 void icsd_t1_1_(Integer *d_f, Integer *k_f_offset, Integer *d_i0,
-                Integer *k_i0_offset);
+                Integer *k_i0_offset, Integer* ctx, Integer* count);
 void icsd_t1_2_1_(Integer *d_f, Integer *k_f_offset, Integer *d_t1_2_1,
-                  Integer *k_t1_2_1_offset);
+                  Integer *k_t1_2_1_offset, Integer* ctx, Integer* count);
 void icsd_t1_2_2_1_(Integer *d_f, Integer *k_f_offset, Integer *d_t1_2_2_1,
-                    Integer *k_t1_2_2_1_offset);
+                    Integer *k_t1_2_2_1_offset, Integer* ctx, Integer* count);
 void icsd_t1_2_2_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
                     Integer *k_v_offset, Integer *d_t1_2_2_1,
-                    Integer *k_t1_2_2_1_offset);
+                    Integer *k_t1_2_2_1_offset, Integer* ctx, Integer* count);
 void icsd_t1_2_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_t1_2_2_1,
                   Integer *k_t1_2_2_1_offset, Integer *d_t1_2_1,
-                  Integer *k_t1_2_1_offset);
+                  Integer *k_t1_2_1_offset, Integer* ctx, Integer* count);
 void icsd_t1_2_3_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
                   Integer *k_v_offset, Integer *d_t1_2_1,
-                  Integer *k_t1_2_1_offset);
+                  Integer *k_t1_2_1_offset, Integer* ctx, Integer* count);
 void icsd_t1_2_4_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_v,
                   Integer *k_v_offset, Integer *d_t1_2_1,
-                  Integer *k_t1_2_1_offset);
+                  Integer *k_t1_2_1_offset, Integer* ctx, Integer* count);
 void icsd_t1_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_t1_2_1,
-                Integer *k_t1_2_1_offset, Integer *d_i0, Integer *k_i0_offset);
+                Integer *k_t1_2_1_offset, Integer *d_i0, Integer *k_i0_offset, Integer* ctx, Integer* count);
 void icsd_t1_3_1_(Integer *d_f, Integer *k_f_offset, Integer *d_t1_3_1,
-                  Integer *k_t1_3_1_offset);
+                  Integer *k_t1_3_1_offset, Integer* ctx, Integer* count);
 void icsd_t1_3_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
                   Integer *k_v_offset, Integer *d_t1_3_1,
-                  Integer *k_t1_3_1_offset);
+                  Integer *k_t1_3_1_offset, Integer* ctx, Integer* count);
 void icsd_t1_3_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_t1_3_1,
-                Integer *k_t1_3_1_offset, Integer *d_i0, Integer *k_i0_offset);
+                Integer *k_t1_3_1_offset, Integer *d_i0, Integer *k_i0_offset, Integer* ctx, Integer* count);
 void icsd_t1_4_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset);
+                Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset, Integer* ctx, Integer* count);
 void icsd_t1_5_1_(Integer *d_f, Integer *k_f_offset, Integer *d_t1_5_1,
-                  Integer *k_t1_5_1_offset);
+                  Integer *k_t1_5_1_offset, Integer* ctx, Integer* count);
 void icsd_t1_5_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
                   Integer *k_v_offset, Integer *d_t1_5_1,
-                  Integer *k_t1_5_1_offset);
+                  Integer *k_t1_5_1_offset, Integer* ctx, Integer* count);
 void icsd_t1_5_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_t1_5_1,
-                Integer *k_t1_5_1_offset, Integer *d_i0, Integer *k_i0_offset);
+                Integer *k_t1_5_1_offset, Integer *d_i0, Integer *k_i0_offset, Integer* ctx, Integer* count);
 void icsd_t1_6_1_(Integer *d_v, Integer *k_v_offset, Integer *d_t1_6_1,
-                  Integer *k_t1_6_1_offset);
+                  Integer *k_t1_6_1_offset, Integer* ctx, Integer* count);
 void icsd_t1_6_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
                   Integer *k_v_offset, Integer *d_t1_6_1,
-                  Integer *k_t1_6_1_offset);
+                  Integer *k_t1_6_1_offset, Integer* ctx, Integer* count);
 void icsd_t1_6_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_t1_6_1,
-                Integer *k_t1_6_1_offset, Integer *d_i0, Integer *k_i0_offset);
+                Integer *k_t1_6_1_offset, Integer *d_i0, Integer *k_i0_offset, Integer* ctx, Integer* count);
 void icsd_t1_7_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_v,
-                Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset);
+                Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset, Integer* ctx, Integer* count);
 
 void offset_icsd_t1_2_1_(Integer *l_t1_2_1_offset, Integer *k_t1_2_1_offset,
                          Integer *size_t1_2_1);
@@ -116,14 +119,15 @@ void offset_icsd_t1_5_1_(Integer *l_t1_5_1_offset, Integer *k_t1_5_1_offset,
                          Integer *size_t1_5_1);
 void offset_icsd_t1_6_1_(Integer *l_t1_6_1_offset, Integer *k_t1_6_1_offset,
                          Integer *size_t1_6_1);
+
+void nxt_ctx_destroy_(Integer *ctx);
+
 }
 
 namespace tamm {
 
 extern "C" {
-// void icsd_t1_cxx(Integer *d_t_vvoo,Integer *d_i0,Integer *d_v,Integer
-// *d_t_vo,Integer *d_f,Integer *k_t_vvoo_offset,Integer *k_i0_offset,Integer
-// *k_v_offset,Integer *k_t_vo_offset,Integer *k_f_offset){
+
 void icsd_t1_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
                   Integer *d_t_vvoo, Integer *d_v, Integer *k_f_offset,
                   Integer *k_i0_offset, Integer *k_t_vo_offset,
@@ -203,39 +207,47 @@ void icsd_t1_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   v->attach(*k_v_offset, 0, *d_v);
 
 #if 1
-  schedule_linear(&tensors, &ops);
+  //schedule_linear(&tensors, &ops);
   // schedule_linear_lazy(tensors, ops);
-  //schedule_levels(&tensors, &ops);
+  schedule_levels(&tensors, &ops);
 #else
-  CorFortran(0, &op_t1_1, icsd_t1_1_);
+
+    Integer ctx = 0;
+    Integer num = 19;
+    nxt_ctx_create_(&num, &ctx);
+
+  CorFortran(0, &op_t1_1, icsd_t1_1_, ctx, 1);
   CorFortran(0, t1_2_1, offset_icsd_t1_2_1_);
-  CorFortran(0, &op_t1_2_1, icsd_t1_2_1_);
+  CorFortran(0, &op_t1_2_1, icsd_t1_2_1_, ctx, 2);
   CorFortran(0, t1_2_2_1, offset_icsd_t1_2_2_1_);
-  CorFortran(0, &op_t1_2_2_1, icsd_t1_2_2_1_);
-  CorFortran(0, &op_t1_2_2_2, icsd_t1_2_2_2_);
-  CorFortran(0, &op_t1_2_2, icsd_t1_2_2_);
+  CorFortran(0, &op_t1_2_2_1, icsd_t1_2_2_1_, ctx, 3);
+  CorFortran(0, &op_t1_2_2_2, icsd_t1_2_2_2_, ctx, 4);
+  CorFortran(0, &op_t1_2_2, icsd_t1_2_2_, ctx, 5);
   destroy(t1_2_2_1);
-  CorFortran(0, &op_t1_2_3, icsd_t1_2_3_);
-  CorFortran(0, &op_t1_2_4, icsd_t1_2_4_);
-  CorFortran(0, &op_t1_2, icsd_t1_2_);
+  CorFortran(0, &op_t1_2_3, icsd_t1_2_3_, ctx, 6);
+  CorFortran(0, &op_t1_2_4, icsd_t1_2_4_, ctx, 7);
+  CorFortran(0, &op_t1_2, icsd_t1_2_, ctx, 8);
   destroy(t1_2_1);
   CorFortran(0, t1_3_1, offset_icsd_t1_3_1_);
-  CorFortran(0, &op_t1_3_1, icsd_t1_3_1_);
-  CorFortran(0, &op_t1_3_2, icsd_t1_3_2_);
-  CorFortran(0, &op_t1_3, icsd_t1_3_);
+  CorFortran(0, &op_t1_3_1, icsd_t1_3_1_, ctx, 9);
+  CorFortran(0, &op_t1_3_2, icsd_t1_3_2_, ctx, 10);
+  CorFortran(0, &op_t1_3, icsd_t1_3_, ctx, 11);
   destroy(t1_3_1);
-  CorFortran(0, &op_t1_4, icsd_t1_4_);
+  CorFortran(0, &op_t1_4, icsd_t1_4_, ctx, 12);
   CorFortran(0, t1_5_1, offset_icsd_t1_5_1_);
-  CorFortran(0, &op_t1_5_1, icsd_t1_5_1_);
-  CorFortran(0, &op_t1_5_2, icsd_t1_5_2_);
-  CorFortran(0, &op_t1_5, icsd_t1_5_);
+  CorFortran(0, &op_t1_5_1, icsd_t1_5_1_, ctx, 13);
+  CorFortran(0, &op_t1_5_2, icsd_t1_5_2_, ctx, 14);
+  CorFortran(0, &op_t1_5, icsd_t1_5_, ctx, 15);
   destroy(t1_5_1);
   CorFortran(0, t1_6_1, offset_icsd_t1_6_1_);
-  CorFortran(0, &op_t1_6_1, icsd_t1_6_1_);
-  CorFortran(0, &op_t1_6_2, icsd_t1_6_2_);
-  CorFortran(0, &op_t1_6, icsd_t1_6_);
+  CorFortran(0, &op_t1_6_1, icsd_t1_6_1_, ctx, 16);
+  CorFortran(0, &op_t1_6_2, icsd_t1_6_2_, ctx, 17);
+  CorFortran(0, &op_t1_6, icsd_t1_6_, ctx, 18);
   destroy(t1_6_1);
-  CorFortran(0, &op_t1_7, icsd_t1_7_);
+  CorFortran(0, &op_t1_7, icsd_t1_7_, ctx, 19);
+
+    nxt_ctx_destroy_(&ctx);
+
 #endif  // Use c scheduler
 
   /* ----- Insert detach code ------ */

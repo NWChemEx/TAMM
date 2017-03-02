@@ -4,11 +4,13 @@ Linear response (naphthalene_ccpvdz_lr.nw) : Only CCSD and Lambda-CCSD can be sw
 EOMCC (naphthalene_ccpvdz_eomcc.nw): Only CCSD can be switched between old and new implementations. EOMCCSD uses old TCE implementation. 
 
 
+
+-------------------------------
 shell-mixed-18.5_631G.nw – input for smaller ferrocene run (around 520 basis set functions)
  
 shell-mixed-18.5-combined_basis.nw – larger basis set for ferrocene (around 1200 basis functions)
  
-I have also attached outputs. For larger basis there are two outputs – one with CCSD and one with IP-EOMCCSD.
+For larger basis there are two outputs – one with CCSD and one with IP-EOMCCSD.
 Large calc. should be  performed in two or three steps:
 1.)    Integrals – saving integrals
 2.)    Reading  integrals – performing CCSD – saving CCSD ampitudes

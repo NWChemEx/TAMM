@@ -189,122 +189,61 @@ h2 )
  */
 
 extern "C" {
+  void icsd_t2_1_(Integer *d_v, Integer *k_v_offset,Integer *d_i0, Integer *k_i0_offset);
+  void icsd_t2_2_1_(Integer *d_v, Integer *k_v_offset,Integer *d_t2_2_1, Integer *k_t2_2_1_offset);
+  void icsd_t2_2_2_1_(Integer *d_v, Integer *k_v_offset,Integer *d_t2_2_2_1, Integer *k_t2_2_2_1_offset);
+  void icsd_t2_2_2_2_1_(Integer *d_v, Integer *k_v_offset,Integer *d_t2_2_2_2_1, Integer *k_t2_2_2_2_1_offset);
+  void icsd_t2_2_2_2_2_(Integer *d_t1, Integer *k_t1_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_2_2_2_1, Integer *k_t2_2_2_2_1_offset);
+  void icsd_t2_2_2_2_(Integer *d_t1, Integer *k_t1_offset,Integer *d_t2_2_2_2_1, Integer *k_t2_2_2_2_1_offset,Integer *d_t2_2_2_1, Integer *k_t2_2_2_1_offset);
+  void icsd_t2_2_2_3_(Integer *d_t2, Integer *k_t2_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_2_2_1, Integer *k_t2_2_2_1_offset);
+  void icsd_t2_2_2_(Integer *d_t1, Integer *k_t1_offset,Integer *d_t2_2_2_1, Integer *k_t2_2_2_1_offset,Integer *d_t2_2_1, Integer *k_t2_2_1_offset);
+  void icsd_t2_2_4_1_(Integer *d_f, Integer *k_f_offset,Integer *d_t2_2_4_1, Integer *k_t2_2_4_1_offset);
+  void icsd_t2_2_4_2_(Integer *d_t1, Integer *k_t1_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_2_4_1, Integer *k_t2_2_4_1_offset);
+  void icsd_t2_2_4_(Integer *d_t2, Integer *k_t2_offset,Integer *d_t2_2_4_1, Integer *k_t2_2_4_1_offset,Integer *d_t2_2_1, Integer *k_t2_2_1_offset);
+  void icsd_t2_2_5_1_(Integer *d_v, Integer *k_v_offset,Integer *d_t2_2_5_1, Integer *k_t2_2_5_1_offset);
+  void icsd_t2_2_5_2_(Integer *d_t1, Integer *k_t1_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_2_5_1, Integer *k_t2_2_5_1_offset);
+  void icsd_t2_2_5_(Integer *d_t2, Integer *k_t2_offset,Integer *d_t2_2_5_1, Integer *k_t2_2_5_1_offset,Integer *d_t2_2_1, Integer *k_t2_2_1_offset);
+  void icsd_t2_2_6_(Integer *d_c2, Integer *k_c2_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_2_1, Integer *k_t2_2_1_offset);
+  void icsd_t2_2_(Integer *d_t1, Integer *k_t1_offset,Integer *d_t2_2_1, Integer *k_t2_2_1_offset,Integer *d_i0, Integer *k_i0_offset);
+  void icsd_t2_lt2_3x_(Integer *d_t1, Integer *k_t1_offset,Integer *d_v, Integer *k_v_offset,Integer *d_i0, Integer *k_i0_offset);
+  void icsd_t2_4_1_(Integer *d_f, Integer *k_f_offset,Integer *d_t2_4_1, Integer *k_t2_4_1_offset);
+  void icsd_t2_4_2_1_(Integer *d_f, Integer *k_f_offset,Integer *d_t2_4_2_1, Integer *k_t2_4_2_1_offset);
+  void icsd_t2_4_2_2_(Integer *d_t1, Integer *k_t1_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_4_2_1, Integer *k_t2_4_2_1_offset);
+  void icsd_t2_4_2_(Integer *d_t1, Integer *k_t1_offset,Integer *d_t2_4_2_1, Integer *k_t2_4_2_1_offset,Integer *d_t2_4_1, Integer *k_t2_4_1_offset);
+  void icsd_t2_4_3_(Integer *d_t1, Integer *k_t1_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_4_1, Integer *k_t2_4_1_offset);
+  void icsd_t2_4_4_(Integer *d_t2, Integer *k_t2_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_4_1, Integer *k_t2_4_1_offset);
+  void icsd_t2_4_(Integer *d_t2, Integer *k_t2_offset,Integer *d_t2_4_1, Integer *k_t2_4_1_offset,Integer *d_i0, Integer *k_i0_offset);
+  void icsd_t2_5_1_(Integer *d_f, Integer *k_f_offset,Integer *d_t2_5_1, Integer *k_t2_5_1_offset);
+  void icsd_t2_5_2_(Integer *d_t1, Integer *k_t1_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_5_1, Integer *k_t2_5_1_offset);
+  void icsd_t2_5_3_(Integer *d_t2, Integer *k_t2_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_5_1, Integer *k_t2_5_1_offset);
+  void icsd_t2_5_(Integer *d_t2, Integer *k_t2_offset,Integer *d_t2_5_1, Integer *k_t2_5_1_offset,Integer *d_i0, Integer *k_i0_offset);
+  void icsd_t2_6_1_(Integer *d_v, Integer *k_v_offset,Integer *d_t2_6_1, Integer *k_t2_6_1_offset);
+  void icsd_t2_6_2_1_(Integer *d_v, Integer *k_v_offset,Integer *d_t2_6_2_1, Integer *k_t2_6_2_1_offset);
+  void icsd_t2_6_2_2_(Integer *d_t1, Integer *k_t1_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_6_2_1, Integer *k_t2_6_2_1_offset);
+  void icsd_t2_6_2_(Integer *d_t1, Integer *k_t1_offset,Integer *d_t2_6_2_1, Integer *k_t2_6_2_1_offset,Integer *d_t2_6_1, Integer *k_t2_6_1_offset);
+  void icsd_t2_6_3_(Integer *d_t2, Integer *k_t2_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_6_1, Integer *k_t2_6_1_offset);
+  void icsd_t2_6_(Integer *d_t2, Integer *k_t2_offset,Integer *d_t2_6_1, Integer *k_t2_6_1_offset,Integer *d_i0, Integer *k_i0_offset);
+  void icsd_t2_7_1_(Integer *d_v, Integer *k_v_offset,Integer *d_t2_7_1, Integer *k_t2_7_1_offset);
+  void icsd_t2_7_2_(Integer *d_t1, Integer *k_t1_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_7_1, Integer *k_t2_7_1_offset);
+  void icsd_t2_7_3_(Integer *d_t2, Integer *k_t2_offset,Integer *d_v, Integer *k_v_offset,Integer *d_t2_7_1, Integer *k_t2_7_1_offset);
+  void icsd_t2_7_(Integer *d_t2, Integer *k_t2_offset,Integer *d_t2_7_1, Integer *k_t2_7_1_offset,Integer *d_i0, Integer *k_i0_offset);
+  void icsd_t2_vt1t1_1_2_(Integer *d_t1, Integer *k_t1_offset,Integer *d_v, Integer *k_v_offset,Integer *d_vt1t1_1, Integer *k_vt1t1_1_offset);
+  void icsd_t2_vt1t1_1_(Integer *d_t1, Integer *k_t1_offset,Integer *d_vt1t1_1, Integer *k_vt1t1_1_offset,Integer *d_i0, Integer *k_i0_offset);
+  void icsd_t2_8_(Integer *d_c2, Integer *k_c2_offset,Integer *d_v, Integer *k_v_offset,Integer *d_i0, Integer *k_i0_offset);
 
-void ccsd_t2_1_(Integer *d_a, Integer *k_a_offset, Integer *d_i0,
-                Integer *k_i0_offset);
-void ccsd_t2_2_1_(Integer *d_a, Integer *k_a_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void ccsd_t2_2_2_1_(Integer *d_a, Integer *k_a_offset, Integer *d_i0,
-                    Integer *k_i0_offset);
-void ccsd_t2_2_2_2_1_(Integer *d_a, Integer *k_a_offset, Integer *d_i0,
-                      Integer *k_i0_offset);
-void ccsd_t2_2_4_1_(Integer *d_a, Integer *k_a_offset, Integer *d_i0,
-                    Integer *k_i0_offset);
-void ccsd_t2_2_5_1_(Integer *d_a, Integer *k_a_offset, Integer *d_i0,
-                    Integer *k_i0_offset);
-void ccsd_t2_4_1_(Integer *d_a, Integer *k_a_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void ccsd_t2_4_2_1_(Integer *d_a, Integer *k_a_offset, Integer *d_i0,
-                    Integer *k_i0_offset);
-void ccsd_t2_5_1_(Integer *d_a, Integer *k_a_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void ccsd_t2_6_1_(Integer *d_a, Integer *k_a_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void ccsd_t2_6_2_1_(Integer *d_a, Integer *k_a_offset, Integer *d_i0,
-                    Integer *k_i0_offset);
-void ccsd_t2_7_1_(Integer *d_a, Integer *k_a_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
+  void offset_icsd_t2_2_1_(Integer *l_t2_2_1_offset, Integer *k_t2_2_1_offset, Integer *size_t2_2_1);
+  void offset_icsd_t2_2_2_1_(Integer *l_t2_2_2_1_offset, Integer *k_t2_2_2_1_offset, Integer *size_t2_2_2_1);
+  void offset_icsd_t2_2_2_2_1_(Integer *l_t2_2_2_2_1_offset, Integer *k_t2_2_2_2_1_offset, Integer *size_t2_2_2_2_1);
+  void offset_icsd_t2_2_4_1_(Integer *l_t2_2_4_1_offset, Integer *k_t2_2_4_1_offset, Integer *size_t2_2_4_1);
+  void offset_icsd_t2_2_5_1_(Integer *l_t2_2_5_1_offset, Integer *k_t2_2_5_1_offset, Integer *size_t2_2_5_1);
+  void offset_icsd_t2_4_1_(Integer *l_t2_4_1_offset, Integer *k_t2_4_1_offset, Integer *size_t2_4_1);
+  void offset_icsd_t2_4_2_1_(Integer *l_t2_4_2_1_offset, Integer *k_t2_4_2_1_offset, Integer *size_t2_4_2_1);
+  void offset_icsd_t2_5_1_(Integer *l_t2_5_1_offset, Integer *k_t2_5_1_offset, Integer *size_t2_5_1);
+  void offset_icsd_t2_6_1_(Integer *l_t2_6_1_offset, Integer *k_t2_6_1_offset, Integer *size_t2_6_1);
+  void offset_icsd_t2_6_2_1_(Integer *l_t2_6_2_1_offset, Integer *k_t2_6_2_1_offset, Integer *size_t2_6_2_1);
+  void offset_icsd_t2_7_1_(Integer *l_t2_7_1_offset, Integer *k_t2_7_1_offset, Integer *size_t2_7_1);
+  void offset_icsd_t2_vt1t1_1_(Integer *l_vt1t1_1_offset,Integer *k_vt1t1_1_offset, Integer *size_vt1t1_1);
 
-void ccsd_t2_2_2_2_2_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                      Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_2_2_2_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                    Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_2_2_3_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                    Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_2_2_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_2_4_2_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                    Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_2_4_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_2_5_2_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                    Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_2_5_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_2_6_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_2_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void lccsd_t2_3x_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_4_2_2_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                    Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_4_2_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_4_3_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_4_4_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_4_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_5_2_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_5_3_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_5_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_6_2_2_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                    Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_6_2_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_6_3_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_6_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_7_2_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_7_3_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                  Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_7_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void vt1t1_1_2_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void vt1t1_1_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-              Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-void ccsd_t2_8_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                Integer *k_b_offset, Integer *d_c, Integer *k_c_offset);
-
-// void c2f_t2_t12_(Integer *d_a, Integer *k_a_offset, Integer *d_c, Integer
-// *k_c_offset);
-// void c2d_t2_t12_(Integer *d_a, Integer *k_a_offset, Integer *d_c, Integer
-// *k_c_offset);
-
-void offset_vt1t1_1_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                       Integer *size_i1);
-void offset_ccsd_t2_2_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                         Integer *size_i1);
-void offset_ccsd_t2_2_2_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                           Integer *size_i1);
-void offset_ccsd_t2_2_2_2_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                             Integer *size_i1);
-void offset_ccsd_t2_2_3_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                           Integer *size_i1);
-void offset_ccsd_t2_2_4_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                           Integer *size_i1);
-void offset_ccsd_t2_2_5_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                           Integer *size_i1);
-void offset_ccsd_t2_4_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                         Integer *size_i1);
-void offset_ccsd_t2_4_2_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                           Integer *size_i1);
-void offset_ccsd_t2_5_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                         Integer *size_i1);
-void offset_ccsd_t2_6_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                         Integer *size_i1);
-void offset_ccsd_t2_6_2_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                           Integer *size_i1);
-void offset_ccsd_t2_7_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                         Integer *size_i1);
 }
 
 namespace tamm {
@@ -343,7 +282,6 @@ void icsd_t2_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t1, Integer *d_t2,
   Assignment op_t2_6_1;
   Assignment op_t2_6_2_1;
   Assignment op_t2_7_1;
-
   Multiplication op_t2_2_2_2_2;
   Multiplication op_t2_2_2_2;
   Multiplication op_t2_2_2_3;
@@ -352,9 +290,7 @@ void icsd_t2_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t1, Integer *d_t2,
   Multiplication op_t2_2_4;
   Multiplication op_t2_2_5_2;
   Multiplication op_t2_2_5;
-  // Multiplication op_c2f_t2_t12;
   Multiplication op_t2_2_6;
-  // Multiplication op_c2d_t2_t12;
   Multiplication op_t2_2;
   Multiplication op_lt2_3x;
   Multiplication op_t2_4_2_2;
@@ -374,12 +310,9 @@ void icsd_t2_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t1, Integer *d_t2,
   Multiplication op_t2_7;
   Multiplication op_vt1t1_1_2;
   Multiplication op_vt1t1_1;
-  // Multiplication op_c2f_t2_t12_b;
   Multiplication op_t2_8;
-  // Multiplication op_c2d_t2_t12_b;
-
+  
   DistType idist = (Variables::intorb()) ? dist_nwi : dist_nw;
-
   static Equations eqs;
 
   if (set_t2) {
@@ -388,31 +321,29 @@ void icsd_t2_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t1, Integer *d_t2,
   }
 
   std::map<std::string, tamm::Tensor> tensors;
-  std::vector<Operation> ops;
-
+  std::vector <Operation> ops;
   tensors_and_ops(&eqs, &tensors, &ops);
 
   Tensor *i0 = &tensors["i0"];
-  Tensor *v = &tensors["v"];
   Tensor *f = &tensors["f"];
+  Tensor *v = &tensors["v"];
   Tensor *t1 = &tensors["t1"];
   Tensor *t2 = &tensors["t2"];
-  Tensor *t2_2_5_1 = &tensors["t2_2_5_1"];
-  Tensor *t2_7_1 = &tensors["t2_7_1"];
-  Tensor *t2_3_1 = &tensors["t2_3_1"];
-  Tensor *t2_2_2_1 = &tensors["t2_2_2_1"];
-  Tensor *t2_4_2_1 = &tensors["t2_4_2_1"];
-  Tensor *t2_4_1 = &tensors["t2_4_1"];
-  Tensor *t2_2_2_2_1 = &tensors["t2_2_2_2_1"];
-  Tensor *t2_2_3_1 = &tensors["t2_2_3_1"];
-  Tensor *t2_5_1 = &tensors["t2_5_1"];
-  Tensor *t2_6_2_1 = &tensors["t2_6_2_1"];
-  Tensor *t2_2_4_1 = &tensors["t2_2_4_1"];
-  Tensor *t2_6_1 = &tensors["t2_6_1"];
   Tensor *t2_2_1 = &tensors["t2_2_1"];
-  Tensor *vt1t1_1_1 = &tensors["vt1t1_1_1"];
+  Tensor *t2_2_2_1 = &tensors["t2_2_2_1"];
+  Tensor *t2_2_2_2_1 = &tensors["t2_2_2_2_1"];
+  Tensor *t2_2_4_1 = &tensors["t2_2_4_1"];
+  Tensor *t2_2_5_1 = &tensors["t2_2_5_1"];
+  Tensor *t2_4_1 = &tensors["t2_4_1"];
+  Tensor *t2_4_2_1 = &tensors["t2_4_2_1"];
+  Tensor *t2_5_1 = &tensors["t2_5_1"];
+  Tensor *t2_6_1 = &tensors["t2_6_1"];
+  Tensor *t2_6_2_1 = &tensors["t2_6_2_1"];
+  Tensor *t2_7_1 = &tensors["t2_7_1"];
+  Tensor *vt1t1_1 = &tensors["vt1t1_1"];
   Tensor *c2 = &tensors["c2"];
 
+  /* ----- Insert attach code ------ */
   v->set_dist(idist);
   t1->set_dist(dist_nwma);
   f->attach(*k_f1_offset, 0, *d_f1);
@@ -427,145 +358,112 @@ void icsd_t2_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t1, Integer *d_t2,
   // schedule_linear_lazy(tensors, ops);
   //schedule_levels(&tensors, &ops);
 #else
-  op_t2_1 = ops[0].add;
-  op_t2_2_1 = ops[1].add;
-  op_t2_2_2_1 = ops[2].add;
-  op_t2_2_2_2_1 = ops[3].add;
-  op_t2_2_2_2_2 = ops[4].mult;
-  op_t2_2_2_2 = ops[5].mult;
-  op_t2_2_2_3 = ops[6].mult;
-  op_t2_2_2 = ops[7].mult;
-  op_t2_2_4_1 = ops[8].add;
-  op_t2_2_4_2 = ops[9].mult;
-  op_t2_2_4 = ops[10].mult;
-  op_t2_2_5_1 = ops[11].add;
-  op_t2_2_5_2 = ops[12].mult;
-  op_t2_2_5 = ops[13].mult;
-  // op_c2f_t2_t12 = ops[14].mult;
-  op_t2_2_6 = ops[13].mult;
-  // op_c2d_t2_t12 = ops[16].mult;
-  op_t2_2 = ops[14].mult;
-  op_lt2_3x = ops[15].mult;
-  op_t2_4_1 = ops[16].add;
+    op_t2_1 = ops[0].add;
+    op_t2_2_1 = ops[1].add;
+    op_t2_2_2_1 = ops[2].add;
+    op_t2_2_2_2_1 = ops[3].add;
+    op_t2_2_2_2_2 = ops[4].mult;
+    op_t2_2_2_2 = ops[5].mult;
+    op_t2_2_2_3 = ops[6].mult;
+    op_t2_2_2 = ops[7].mult;
+    op_t2_2_4_1 = ops[8].add;
+    op_t2_2_4_2 = ops[9].mult;
+    op_t2_2_4 = ops[10].mult;
+    op_t2_2_5_1 = ops[11].add;
+    op_t2_2_5_2 = ops[12].mult;
+    op_t2_2_5 = ops[13].mult;
+    op_t2_2_6 = ops[14].mult;
+    op_t2_2 = ops[15].mult;
+    op_lt2_3x = ops[16].mult;
+    op_t2_4_1 = ops[17].add;
+    op_t2_4_2_1 = ops[18].add;
+    op_t2_4_2_2 = ops[19].mult;
+    op_t2_4_2 = ops[20].mult;
+    op_t2_4_3 = ops[21].mult;
+    op_t2_4_4 = ops[22].mult;
+    op_t2_4 = ops[23].mult;
+    op_t2_5_1 = ops[24].add;
+    op_t2_5_2 = ops[25].mult;
+    op_t2_5_3 = ops[26].mult;
+    op_t2_5 = ops[27].mult;
+    op_t2_6_1 = ops[28].add;
+    op_t2_6_2_1 = ops[29].add;
+    op_t2_6_2_2 = ops[30].mult;
+    op_t2_6_2 = ops[31].mult;
+    op_t2_6_3 = ops[32].mult;
+    op_t2_6 = ops[33].mult;
+    op_t2_7_1 = ops[34].add;
+    op_t2_7_2 = ops[35].mult;
+    op_t2_7_3 = ops[36].mult;
+    op_t2_7 = ops[37].mult;
+    op_vt1t1_1_2 = ops[38].mult;
+    op_vt1t1_1 = ops[39].mult;
+    op_t2_8 = ops[40].mult;
 
-  op_t2_4_2_1 = ops[17].add;
-  op_t2_4_2_2 = ops[18].mult;
-  op_t2_4_2 = ops[19].mult;
-  op_t2_4_3 = ops[20].mult;
-  op_t2_4_4 = ops[21].mult;
-  op_t2_4 = ops[22].mult;
-  op_t2_5_1 = ops[23].add;
-  op_t2_5_2 = ops[24].mult;
-  op_t2_5_3 = ops[25].mult;
-  op_t2_5 = ops[26].mult;
-  op_t2_6_1 = ops[27].add;
-  op_t2_6_2_1 = ops[28].add;
-  op_t2_6_2_2 = ops[29].mult;
-  op_t2_6_2 = ops[30].mult;
-  op_t2_6_3 = ops[31].mult;
-  op_t2_6 = ops[32].mult;
-  op_t2_7_1 = ops[33].add;
-  op_t2_7_2 = ops[34].mult;
-  op_t2_7_3 = ops[35].mult;
-  op_t2_7 = ops[36].mult;
-  op_vt1t1_1_2 = ops[37].mult;
-  op_vt1t1_1 = ops[38].mult;
-  // op_c2f_t2_t12_b = ops[42].mult;
-  op_t2_8 = ops[39].mult;
-  // op_c2d_t2_t12_b = ops[44].mult;
-
-  CorFortran(0, &op_t2_1, ccsd_t2_1_);
-  // @BUG: incompatible with fortran
-  CorFortran(1, t2_2_1, offset_ccsd_t2_2_1_);
-  // @BUG: incompatible with fortran
-  CorFortran(1, &op_t2_2_1, ccsd_t2_2_1_);
-  CorFortran(0, t2_2_2_1, offset_ccsd_t2_2_2_1_);
-  CorFortran(0, &op_t2_2_2_1, ccsd_t2_2_2_1_);
-  CorFortran(0, t2_2_2_2_1, offset_ccsd_t2_2_2_2_1_);
-  CorFortran(0, &op_t2_2_2_2_1, ccsd_t2_2_2_2_1_);
-  CorFortran(0, &op_t2_2_2_2_2, ccsd_t2_2_2_2_2_);
-  CorFortran(0, &op_t2_2_2_2, ccsd_t2_2_2_2_);
-  destroy(t2_2_2_2_1);
-  CorFortran(0, &op_t2_2_2_3, ccsd_t2_2_2_3_);
-  CorFortran(1, &op_t2_2_2, ccsd_t2_2_2_);  // @BUG: incompatible with fortran
-  destroy(t2_2_2_1);
-  CorFortran(0, t2_2_4_1, offset_ccsd_t2_2_4_1_);
-  CorFortran(0, &op_t2_2_4_1, ccsd_t2_2_4_1_);
-  CorFortran(0, &op_t2_2_4_2, ccsd_t2_2_4_2_);
-  CorFortran(1, &op_t2_2_4, ccsd_t2_2_4_);  // @BUG: incompatible with fortran
-  destroy(t2_2_4_1);
-  CorFortran(0, t2_2_5_1, offset_ccsd_t2_2_5_1_);
-  CorFortran(0, &op_t2_2_5_1, ccsd_t2_2_5_1_);
-  CorFortran(0, &op_t2_2_5_2, ccsd_t2_2_5_2_);
-  CorFortran(1, &op_t2_2_5, ccsd_t2_2_5_);  // @BUG: incompatible with fortran
-  destroy(t2_2_5_1);
-  // CorFortranc2fd(0, &op_c2f_t2_t12, c2f_t2_t12_);
-  CorFortran(1, &op_t2_2_6, ccsd_t2_2_6_);  // @BUG: incompatible with fortran
-  // CorFortranc2fd(0, &op_c2d_t2_t12, c2d_t2_t12_);
-  CorFortran(1, &op_t2_2, ccsd_t2_2_);  // @BUG: incompatible with fortran
-  destroy(t2_2_1);
-  CorFortran(0, &op_lt2_3x, lccsd_t2_3x_);
-  CorFortran(0, t2_4_1, offset_ccsd_t2_4_1_);
-  CorFortran(0, &op_t2_4_1, ccsd_t2_4_1_);
-  CorFortran(0, t2_4_2_1, offset_ccsd_t2_4_2_1_);
-  CorFortran(0, &op_t2_4_2_1, ccsd_t2_4_2_1_);
-  CorFortran(0, &op_t2_4_2_2, ccsd_t2_4_2_2_);
-  CorFortran(0, &op_t2_4_2, ccsd_t2_4_2_);
-  destroy(t2_4_2_1);
-  CorFortran(0, &op_t2_4_3, ccsd_t2_4_3_);
-  CorFortran(0, &op_t2_4_4, ccsd_t2_4_4_);
-  // ma_zero
-  // ga_get
-  CorFortran(1, &op_t2_4, ccsd_t2_4_);  // @BUG: this cannot be done in fortran
-  destroy(t2_4_1);
-  CorFortran(0, t2_5_1, offset_ccsd_t2_5_1_);
-  CorFortran(0, &op_t2_5_1, ccsd_t2_5_1_);
-  CorFortran(0, &op_t2_5_2, ccsd_t2_5_2_);
-  CorFortran(0, &op_t2_5_3, ccsd_t2_5_3_);
-  // ma_zero
-  // ga_get
-  CorFortran(1, &op_t2_5, ccsd_t2_5_);  // @BUG: this cannot be done in fortran
-  destroy(t2_5_1);
-  CorFortran(0, t2_6_1, offset_ccsd_t2_6_1_);
-  CorFortran(0, &op_t2_6_1, ccsd_t2_6_1_);
-  CorFortran(0, t2_6_2_1, offset_ccsd_t2_6_2_1_);
-  CorFortran(0, &op_t2_6_2_1, ccsd_t2_6_2_1_);
-  CorFortran(0, &op_t2_6_2_2, ccsd_t2_6_2_2_);
-  CorFortran(0, &op_t2_6_2, ccsd_t2_6_2_);
-  destroy(t2_6_2_1);
-  CorFortran(0, &op_t2_6_3, ccsd_t2_6_3_);
-  CorFortran(0, &op_t2_6, ccsd_t2_6_);
-  destroy(t2_6_1);
-  if (0) {
-    /*following need to done in C or Fortran in one group*/
-    CorFortran(1, t2_7_1, offset_ccsd_t2_7_1_);
-    CorFortran(1, &op_t2_7_1, ccsd_t2_7_1_);
-    CorFortran(1, &op_t2_7_2, ccsd_t2_7_2_);
-    CorFortran(1, &op_t2_7_3, ccsd_t2_7_3_);
-    CorFortran(1, &op_t2_7, ccsd_t2_7_);
+    CorFortran(0, &op_t2_1, icsd_t2_1_);
+    CorFortran(0, t2_2_1, offset_icsd_t2_2_1_);
+    CorFortran(0, &op_t2_2_1, icsd_t2_2_1_);
+    CorFortran(0, t2_2_2_1, offset_icsd_t2_2_2_1_);
+    CorFortran(0, &op_t2_2_2_1, icsd_t2_2_2_1_);
+    CorFortran(0, t2_2_2_2_1, offset_icsd_t2_2_2_2_1_);
+    CorFortran(0, &op_t2_2_2_2_1, icsd_t2_2_2_2_1_);
+    CorFortran(0, &op_t2_2_2_2_2, icsd_t2_2_2_2_2_);
+    CorFortran(0, &op_t2_2_2_2, icsd_t2_2_2_2_);
+    destroy(t2_2_2_2_1);
+    CorFortran(0, &op_t2_2_2_3, icsd_t2_2_2_3_);
+    CorFortran(0, &op_t2_2_2, icsd_t2_2_2_);
+    destroy(t2_2_2_1);
+    CorFortran(0, t2_2_4_1, offset_icsd_t2_2_4_1_);
+    CorFortran(0, &op_t2_2_4_1, icsd_t2_2_4_1_);
+    CorFortran(0, &op_t2_2_4_2, icsd_t2_2_4_2_);
+    CorFortran(0, &op_t2_2_4, icsd_t2_2_4_);
+    destroy(t2_2_4_1);
+    CorFortran(0, t2_2_5_1, offset_icsd_t2_2_5_1_);
+    CorFortran(0, &op_t2_2_5_1, icsd_t2_2_5_1_);
+    CorFortran(0, &op_t2_2_5_2, icsd_t2_2_5_2_);
+    CorFortran(0, &op_t2_2_5, icsd_t2_2_5_);
+    destroy(t2_2_5_1);
+    CorFortran(0, &op_t2_2_6, icsd_t2_2_6_);
+    CorFortran(0, &op_t2_2, icsd_t2_2_);
+    destroy(t2_2_1);
+    CorFortran(0, &op_lt2_3x, icsd_t2_lt2_3x_);
+    CorFortran(0, t2_4_1, offset_icsd_t2_4_1_);
+    CorFortran(0, &op_t2_4_1, icsd_t2_4_1_);
+    CorFortran(0, t2_4_2_1, offset_icsd_t2_4_2_1_);
+    CorFortran(0, &op_t2_4_2_1, icsd_t2_4_2_1_);
+    CorFortran(0, &op_t2_4_2_2, icsd_t2_4_2_2_);
+    CorFortran(0, &op_t2_4_2, icsd_t2_4_2_);
+    destroy(t2_4_2_1);
+    CorFortran(0, &op_t2_4_3, icsd_t2_4_3_);
+    CorFortran(0, &op_t2_4_4, icsd_t2_4_4_);
+    CorFortran(0, &op_t2_4, icsd_t2_4_);
+    destroy(t2_4_1);
+    CorFortran(0, t2_5_1, offset_icsd_t2_5_1_);
+    CorFortran(0, &op_t2_5_1, icsd_t2_5_1_);
+    CorFortran(0, &op_t2_5_2, icsd_t2_5_2_);
+    CorFortran(0, &op_t2_5_3, icsd_t2_5_3_);
+    CorFortran(0, &op_t2_5, icsd_t2_5_);
+    destroy(t2_5_1);
+    CorFortran(0, t2_6_1, offset_icsd_t2_6_1_);
+    CorFortran(0, &op_t2_6_1, icsd_t2_6_1_);
+    CorFortran(0, t2_6_2_1, offset_icsd_t2_6_2_1_);
+    CorFortran(0, &op_t2_6_2_1, icsd_t2_6_2_1_);
+    CorFortran(0, &op_t2_6_2_2, icsd_t2_6_2_2_);
+    CorFortran(0, &op_t2_6_2, icsd_t2_6_2_);
+    destroy(t2_6_2_1);
+    CorFortran(0, &op_t2_6_3, icsd_t2_6_3_);
+    CorFortran(0, &op_t2_6, icsd_t2_6_);
+    destroy(t2_6_1);
+    CorFortran(0, t2_7_1, offset_icsd_t2_7_1_);
+    CorFortran(0, &op_t2_7_1, icsd_t2_7_1_);
+    CorFortran(0, &op_t2_7_2, icsd_t2_7_2_);
+    CorFortran(0, &op_t2_7_3, icsd_t2_7_3_);
+    CorFortran(0, &op_t2_7, icsd_t2_7_);
     destroy(t2_7_1);
-  } else {
-    CorFortran(0, t2_7_1, offset_ccsd_t2_7_1_);
-    CorFortran(0, &op_t2_7_1, ccsd_t2_7_1_);
-    CorFortran(0, &op_t2_7_2, ccsd_t2_7_2_);
-    CorFortran(0, &op_t2_7_3, ccsd_t2_7_3_);
-    CorFortran(0, &op_t2_7, ccsd_t2_7_);
-    destroy(t2_7_1);
-  }
-  if (0) {
-    /*following need to done in C or Fortran in one group*/
-    CorFortran(1, vt1t1_1_1, offset_vt1t1_1_1_);
-    CorFortran(1, &op_vt1t1_1_2, vt1t1_1_2_);
-    CorFortran(1, &op_vt1t1_1, vt1t1_1_);
-  } else {
-    CorFortran(0, vt1t1_1_1, offset_vt1t1_1_1_);
-    CorFortran(0, &op_vt1t1_1_2, vt1t1_1_2_);
-    CorFortran(0, &op_vt1t1_1, vt1t1_1_);
-  }
-  destroy(vt1t1_1_1);
-  // CorFortranc2fd(0, &op_c2f_t2_t12_b, c2f_t2_t12_);
-  CorFortran(0, &op_t2_8, ccsd_t2_8_);
-  // CorFortranc2fd(0, &op_c2d_t2_t12_b, c2d_t2_t12_);
+    CorFortran(0, &op_vt1t1_1_2, icsd_t2_vt1t1_1_2_);
+    CorFortran(0, vt1t1_1, offset_icsd_t2_vt1t1_1_);
+    CorFortran(0, &op_vt1t1_1, icsd_t2_vt1t1_1_);
+    CorFortran(0, &op_t2_8, icsd_t2_8_);
 #endif  // use c scheduler
   f->detach();
   i0->detach();

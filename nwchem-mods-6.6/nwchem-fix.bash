@@ -9,7 +9,7 @@ else
     echo "Usage $0 INSTALL_LIB_PATH"
 fi
 
-if [ -z "$2" ]; then
+if [ -z "$3" ]; then
     rsync -rav --progress ./src $NWCHEM_TOP 
 fi
 #cp *.F $NWCHEM_TOP/src/tce/

@@ -661,10 +661,14 @@ if __name__ == '__main__':
 
 
     print("{\n")
-    # for decl in range_decls:
-    #     if "O" in decl: print("range " + decl + " = 10;")
-    #     elif "V" in decl: print("range " + decl + " = 40;")
-    print(range_decls_str)
+    if range_decls_str.strip():
+        print(range_decls_str)
+    else:
+        for decl in range_decls:
+            if "O" in decl:
+                print("range " + decl + " = 50;")
+            elif "V" in decl:
+                print("range " + decl + " = 100;")
     #print("range N = 10;")
     print("")
     for decl in collect_index_decls:

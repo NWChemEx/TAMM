@@ -21,6 +21,7 @@ array_defs = dict()
 collect_index_decls = []
 newdims = dict()
 newdimCount = 0
+range_decls_str=""
 
 
 
@@ -330,7 +331,15 @@ class Unfactorize(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpMinParser#range_declaration.
     def visitRange_declaration(self, ctx):
-        return self.visitChildren(ctx)
+        global range_decls_str
+        rv = float(ctx.children[3].getText())
+        rvars = ctx.children[1].getText().split(",")
+        range_decls_str += ("range ")
+        range_decls_str += (",".join(rvars))
+        range_decls_str += (" = ")
+        rv = int(rv)
+        range_decls_str += str(rv)
+        range_decls_str += (";\n")
 
 
     # Visit a parse tree produced by OpMinParser#index_declaration.
@@ -630,6 +639,8 @@ if __name__ == '__main__':
 
     oplabel = oplabel[ci:]
 
+    range_decls_str = ""
+
     visitor = Unfactorize(methodName,oplabel)
     #get all operations in input file as AddOp and MultOp objects, get all unique array references in lhs and rhs of all ops
     visitor.visit(tree)
@@ -648,10 +659,12 @@ if __name__ == '__main__':
 
     final_ops = OrderedDict()
 
+
     print("{\n")
-    for decl in range_decls:
-        if "O" in decl: print("range " + decl + " = 10;")
-        elif "V" in decl: print("range " + decl + " = 40;")
+    # for decl in range_decls:
+    #     if "O" in decl: print("range " + decl + " = 10;")
+    #     elif "V" in decl: print("range " + decl + " = 40;")
+    print(range_decls_str)
     #print("range N = 10;")
     print("")
     for decl in collect_index_decls:

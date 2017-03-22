@@ -27,6 +27,15 @@ if __name__ == '__main__':
     except:
         pass
 
+    user_O = -1
+    user_V = -1
+
+    try:
+        user_O = int(sys.argv[3]) #value of O
+        user_V = int(sys.argv[4])  # value of O
+    except:
+        pass
+
     lexer = OpMinLexer(input_stream)
     token_stream = CommonTokenStream(lexer)
     parser = OpMinParser(token_stream)
@@ -54,7 +63,11 @@ if __name__ == '__main__':
 
     t2tEq = (oplabel + " {\n")
 
-    visitor = TAMMtoTAMM(mdoption)
+    if user_O > 0 and user_V > 0:
+        t2tEq += "range O = " + str(user_O) + ";\n"
+        t2tEq += "range V = " + str(user_V) + ";\n"
+
+    visitor = TAMMtoTAMM(mdoption,user_O,user_V)
     streq = visitor.visitTranslation_unit(tree)
 
     t2tEq += streq + "}"

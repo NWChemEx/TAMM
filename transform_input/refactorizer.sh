@@ -24,7 +24,7 @@ do
 	eqname=$(basename $eqfile)
 	eqname="${eqname%.*}"
 
-	python tamm_to_tamm.py $eqfile
+	python tamm_to_tamm.py $eqfile 0 $2 $3
 	python unfactorize.py "$eqname"_initial.eq > "$eqname"_initial_un.eq
 	python ../opmin/src/opmin.py "$eqname"_initial_un.eq
 	mv "$eqname"_initial_un.eq.out "$eqname"_opmin_generated.eq

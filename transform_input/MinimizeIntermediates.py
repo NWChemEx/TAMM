@@ -662,9 +662,11 @@ def long_substr(data):
 
 class TAMMtoTAMM(ParseTreeVisitor):
 
-    def __init__(self, x):
+    def __init__(self, x, O, V):
         self.mdoption = x
         self.t2tEq = ""
+        self.userO = int(O)
+        self.userV = int(V)
         sys.setrecursionlimit(67108864)
 
     # Visit a parse tree produced by OpMinParser#translation_unit.
@@ -758,6 +760,7 @@ class TAMMtoTAMM(ParseTreeVisitor):
     # Visit a parse tree produced by OpMinParser#range_declaration.
     def visitRange_declaration(self, ctx):
         global range_vals
+        if self.userO > 0 and self.userV > 0: return
         rv = float(ctx.children[3].getText())
         rvars = ctx.children[1].getText().split(",")
         self.t2tEq += ("range ")

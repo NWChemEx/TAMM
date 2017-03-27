@@ -46,6 +46,11 @@ Assumptions:
 
 - statement label and function name prefixes come from file name.
 
+Parser
+------
+- If O,V are specified in the equation file, how are they used in tamm ? - Currently they are ignored.
+- Intermediate.cc constructs rangeEntry with only range name, not values provided.
+- c += alpha*a*b, c += alpha*a
 
 
 Unfactorized equations Test
@@ -69,13 +74,15 @@ uuid not found on clusters ??
 
 Need gcc > 5 . We used 6 for c++14 support
 
-
+TESTING
+--------
 https://scan.coverity.com/
 
 Catch, GoogleTest (Bandit, Lest)
 
-Parser
-------
-- If O,V are specified in the equation file, how are they used in tamm ? - Currently they are ignored.
-- Intermediate.cc constructs rangeEntry with only range name, not values provided.
-- c += alpha*a*b, c += alpha*a
+ g++ test1.cpp -I/opt/tools/googletest/include -L/opt/tools/googletest/lib -lgtest -lpthread
+
+g++ ParserTest.cc -I../../frontend/ -L/home/panyala/EclipseWS/workspacePTP/tamm/build/ -ltamm  -I/opt/libraries/ANTLR4/antlr4-cpp-runtime/include/antlr4-runtime/ -L/opt/libraries/ANTLR4/antlr4-cpp-runtime/lib -I/opt/tools/googletest/include -L/opt/tools/googletest/lib -lgtest -lpthread -lantlr4-runtime
+
+https://www.google.com/search?q=MyErrorStrategy&oq=MyErrorStrategy&aqs=chrome..69i57&sourceid=chrome&ie=UTF-8
+

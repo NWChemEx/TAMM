@@ -377,13 +377,13 @@ set (TEST_COMMAND "mpirun -n ${TAMM_TEST_PROC_COUNT} ${NWCHEM_TOP}/bin/LINUX64/n
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 
-file(GLOB INTEG_TESTS RELATIVE ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/test/integration/inputs/*.nw")
+file(GLOB INTEG_TESTS RELATIVE ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/CI_testing/integration/inputs/*.nw")
 foreach (test ${INTEG_TESTS})
     get_filename_component(Testname ${test} NAME_WE)
     string(REGEX REPLACE "\\.[^.]*$" "" Testname "${Testname}")
     add_test(${test} ${PROJECT_SOURCE_DIR}/scripts/testing/check_output.sh "${TEST_COMMAND} ${CMAKE_SOURCE_DIR}/${test}"
-        ${PROJECT_SOURCE_DIR}/test/integration/correct_outputs/${Testname}.output
-        ${PROJECT_SOURCE_DIR}/test/integration/tests/${Testname}.tests
+        ${PROJECT_SOURCE_DIR}/CI_testing/integration/correct_outputs/${Testname}.output
+        ${PROJECT_SOURCE_DIR}/CI_testing/integration/tests/${Testname}.tests
         )
 endforeach()
 

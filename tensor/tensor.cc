@@ -142,8 +142,8 @@ void Tensor::create() {
     size = 1;
   }
   {
-    int ndims = 2;
-    int dims[2] = {1, size};
+    //int ndims = 2;
+    //int dims[2] = {1, size};
     ga_ = gmem::create(gmem::Double, size, static_cast<char *>("noname1"));
   }
   gmem::zero(ga_);

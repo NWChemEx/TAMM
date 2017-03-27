@@ -12,6 +12,8 @@
 #include <vector>
 #include "tensor/stats.h"
 
+#define USE_TIMER 1
+
 using std::vector;
 
 namespace tamm {
@@ -63,8 +65,8 @@ namespace tamm {
 
         size_t dimc = compute_size(c_ids_v);
         if (dimc <= 0) continue;
-        double* buf_c_sort = new double[dimc];
-        memset(buf_c_sort, 0, dimc * sizeof(double));
+        // double* buf_c_sort = new double[dimc];
+        // memset(buf_c_sort, 0, dimc * sizeof(double));
 
         vector<size_t> a_ids_v(tA.dim());
         for (int i = 0; i < tA.dim(); ++i) {
@@ -86,9 +88,15 @@ namespace tamm {
         int a_sign =
             sortByValueThenExtSymGroup(a_ids, &a_name, &a_svalue,
                                        &a_svalue_r);
-        getTimer.start();
+#ifdef USE_TIMER
+        // getTimer.start();
+        ttimer::stats_var.getTimer.start();
+#endif
         tA.get(a_svalue_r, buf_a, dimc);
-        getTimer.stop();
+#ifdef USE_TIMER
+        // getTimer.stop();
+        ttimer::stats_var.getTimer.stop();
+#endif
 #if 1
         vector<size_t> a_sort_ids = sort_ids(a_name, c_ids_name);
         tamm_sort(buf_a, buf_a_sort, a_svalue /*tA._value()*/,
@@ -101,9 +109,15 @@ namespace tamm {
 #endif
         delete[] buf_a;
 #endif
-        addTimer.start();
+#ifdef USE_TIMER
+        // addTimer.start();
+        ttimer::stats_var.addTimer.start();
+#endif
         tC.add(out_vec, buf_a_sort, dimc);
-        addTimer.stop();
+#ifdef USE_TIMER
+        // addTimer.stop();
+        ttimer::stats_var.addTimer.stop();
+#endif
 
         delete[] buf_a_sort;
       }
@@ -172,9 +186,9 @@ void t_assign2(const Tensor& tC, const vector<IndexName>& c_ids,
 
         double* buf_a = new double[dimc];
         double* buf_a_sort = new double[dimc];
-        getTimer.start();
+        // getTimer.start();
         tA.get(value_r, buf_a, dimc);
-        getTimer.stop();
+        // getTimer.stop();
 
         //        if (coef == -1.0) { // dscal
         //          for (int i = 0; i < dimc; ++i) buf_a[i] = -buf_a[i];
@@ -183,9 +197,9 @@ void t_assign2(const Tensor& tC, const vector<IndexName>& c_ids,
         //        else {
         tamm_sort(buf_a, buf_a_sort, a_ids_v, order, coef);
         //        }
-        addTimer.start();
+        // addTimer.start();
         tC.add(out_vec, buf_a_sort, dimc);
-        addTimer.stop();
+        // addTimer.stop();
 
         delete[] buf_a;
         delete[] buf_a_sort;
@@ -202,10 +216,16 @@ void t_assign2(const Tensor& tC, const vector<IndexName>& c_ids,
 }
 
 void t_assign3(Assignment *a, gmem::Handle sync_ga, int spos) {
-  assignTimer.start();
+#ifdef USE_TIMER
+  // assignTimer.start();
+  ttimer::stats_var.assignTimer.start();
+#endif
   t_assign1(a->tC(), a->cids(), a->tA(), a->aids(), &a->out_itr(), a->coef(),
       sync_ga, spos);
-  assignTimer.stop();
+#ifdef USE_TIMER
+  // assignTimer.stop();
+  ttimer::stats_var.assignTimer.stop();
+#endif
 }
 
 

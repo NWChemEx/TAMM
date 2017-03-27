@@ -89,13 +89,13 @@ namespace tamm {
             sortByValueThenExtSymGroup(a_ids, &a_name, &a_svalue,
                                        &a_svalue_r);
 #ifdef USE_TIMER
-        // getTimer.start();
-        ttimer::stats_var.getTimer.start();
+         getTimer.start();
+        //ttimer::stats_var.getTimer.start();
 #endif
         tA.get(a_svalue_r, buf_a, dimc);
 #ifdef USE_TIMER
-        // getTimer.stop();
-        ttimer::stats_var.getTimer.stop();
+         getTimer.stop();
+        //ttimer::stats_var.getTimer.stop();
 #endif
 #if 1
         vector<size_t> a_sort_ids = sort_ids(a_name, c_ids_name);
@@ -110,13 +110,13 @@ namespace tamm {
         delete[] buf_a;
 #endif
 #ifdef USE_TIMER
-        // addTimer.start();
-        ttimer::stats_var.addTimer.start();
+        addTimer.start();
+        //ttimer::stats_var.addTimer.start();
 #endif
         tC.add(out_vec, buf_a_sort, dimc);
 #ifdef USE_TIMER
-        // addTimer.stop();
-        ttimer::stats_var.addTimer.stop();
+        addTimer.stop();
+        //ttimer::stats_var.addTimer.stop();
 #endif
 
         delete[] buf_a_sort;
@@ -217,14 +217,14 @@ void t_assign2(const Tensor& tC, const vector<IndexName>& c_ids,
 
 void t_assign3(Assignment *a, gmem::Handle sync_ga, int spos) {
 #ifdef USE_TIMER
-  // assignTimer.start();
-  ttimer::stats_var.assignTimer.start();
+   assignTimer.start();
+  //ttimer::stats_var.assignTimer.start();
 #endif
   t_assign1(a->tC(), a->cids(), a->tA(), a->aids(), &a->out_itr(), a->coef(),
       sync_ga, spos);
 #ifdef USE_TIMER
-  // assignTimer.stop();
-  ttimer::stats_var.assignTimer.stop();
+   assignTimer.stop();
+  //ttimer::stats_var.assignTimer.stop();
 #endif
 }
 

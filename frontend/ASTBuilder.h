@@ -286,6 +286,9 @@ public:
     Array* lhs = nullptr;
     Expression* rhs = nullptr;
 
+    const int line = ctx->getStart()->getLine();
+    const int position = ctx->getStart()->getCharPositionInLine()+1;
+
     for (auto &x: ctx->children){
       
       if  (TAMMParser::IdentifierContext* ic = dynamic_cast<TAMMParser::IdentifierContext*>(x))
@@ -294,8 +297,13 @@ public:
       else if (TAMMParser::Array_referenceContext* ec = dynamic_cast<TAMMParser::Array_referenceContext*>(x)) {
         Expression *e = visit(x);
         if (Array* a = dynamic_cast<Array*>(e))   lhs = a;
-        else ;// report error - this cannot happen
       }
+
+      // else 
+      //   {
+      //     const std::string lhs_exp_error = x->getText() + "\nLHS of an Assignment must be a Tensor reference\n"; 
+      //     Error(line,position,lhs_exp_error);
+      //   }
 
       else if (TAMMParser::Assignment_operatorContext* op = dynamic_cast<TAMMParser::Assignment_operatorContext*>(x)) 
         assign_op = static_cast<Identifier*>(visit(x))->name;
@@ -306,9 +314,6 @@ public:
 
     assert (assign_op.size() > 0);
     assert (lhs != nullptr && rhs != nullptr);
-
-    const int line = ctx->getStart()->getLine();
-    const int position = ctx->getStart()->getCharPositionInLine()+1;
 
     Element *e = nullptr; //Statement is child class of Element
     if (op_label.size() > 0) 

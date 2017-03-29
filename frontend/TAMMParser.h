@@ -23,11 +23,11 @@ public:
     RuleTranslation_unit = 0, RuleCompound_element_list = 1, RuleCompound_element = 2, 
     RuleElement_list = 3, RuleElement = 4, RuleDeclaration = 5, RuleScalar_declaration = 6, 
     RuleId_list_opt = 7, RuleId_list = 8, RuleNum_list = 9, RuleIdentifier = 10, 
-    RuleNumerical_constant = 11, RuleRange_declaration = 12, RuleIndex_declaration = 13, 
-    RuleArray_declaration = 14, RuleArray_structure = 15, RuleArray_structure_list = 16, 
-    RuleStatement = 17, RuleAssignment_statement = 18, RuleAssignment_operator = 19, 
-    RuleUnary_expression = 20, RuleArray_reference = 21, RulePlusORminus = 22, 
-    RuleExpression = 23, RuleMultiplicative_expression = 24
+    RuleInteger_constant = 11, RuleNumerical_constant = 12, RuleRange_declaration = 13, 
+    RuleIndex_declaration = 14, RuleArray_declaration = 15, RuleArray_structure = 16, 
+    RuleArray_structure_list = 17, RuleStatement = 18, RuleAssignment_statement = 19, 
+    RuleAssignment_operator = 20, RuleUnary_expression = 21, RuleArray_reference = 22, 
+    RulePlusORminus = 23, RuleExpression = 24, RuleMultiplicative_expression = 25
   };
 
   TAMMParser(antlr4::TokenStream *input);
@@ -51,6 +51,7 @@ public:
   class Id_listContext;
   class Num_listContext;
   class IdentifierContext;
+  class Integer_constantContext;
   class Numerical_constantContext;
   class Range_declarationContext;
   class Index_declarationContext;
@@ -219,6 +220,18 @@ public:
 
   IdentifierContext* identifier();
 
+  class  Integer_constantContext : public antlr4::ParserRuleContext {
+  public:
+    Integer_constantContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode *ICONST();
+
+    virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Integer_constantContext* integer_constant();
+
   class  Numerical_constantContext : public antlr4::ParserRuleContext {
   public:
     Numerical_constantContext(antlr4::ParserRuleContext *parent, size_t invokingState);
@@ -240,7 +253,7 @@ public:
     antlr4::tree::TerminalNode *RANGE();
     Id_listContext *id_list();
     antlr4::tree::TerminalNode *EQUALS();
-    Numerical_constantContext *numerical_constant();
+    Integer_constantContext *integer_constant();
     antlr4::tree::TerminalNode *SEMI();
 
     virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;

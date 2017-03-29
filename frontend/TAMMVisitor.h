@@ -1,19 +1,10 @@
-//------------------------------------------------------------------------------
-// Copyright (C) 2016, Pacific Northwest National Laboratory
-// This software is subject to copyright protection under the laws of the
-// United States and other countries
-//
-// All rights in this computer software are reserved by the
-// Pacific Northwest National Laboratory (PNNL)
-// Operated by Battelle for the U.S. Department of Energy
-//
-//------------------------------------------------------------------------------
 
 // Generated from TAMM.g4 by ANTLR 4.6
 
 #pragma once
 
 
+#include "antlr4-runtime.h"
 #include "TAMMParser.h"
 
 
@@ -49,6 +40,8 @@ public:
     virtual antlrcpp::Any visitNum_list(TAMMParser::Num_listContext *context) = 0;
 
     virtual antlrcpp::Any visitIdentifier(TAMMParser::IdentifierContext *context) = 0;
+
+    virtual antlrcpp::Any visitInteger_constant(TAMMParser::Integer_constantContext *context) = 0;
 
     virtual antlrcpp::Any visitNumerical_constant(TAMMParser::Numerical_constantContext *context) = 0;
 

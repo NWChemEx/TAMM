@@ -111,6 +111,7 @@ num_list : numerical_constant (COMMA numerical_constant)*;
 // identifier
 identifier : ID ;
     
+integer_constant : ICONST;
 
 // numerical-constant
 numerical_constant : ICONST 
@@ -122,7 +123,7 @@ numerical_constant : ICONST
     
     
 // range-declaration
-range_declaration : RANGE id_list EQUALS numerical_constant SEMI ;
+range_declaration : RANGE id_list EQUALS integer_constant SEMI ;
 
 
 // index-declaration

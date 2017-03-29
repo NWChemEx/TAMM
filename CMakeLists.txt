@@ -288,8 +288,8 @@ endif()
 
 add_definitions(-DTAMM_EQ_PATH=\"${TAMM_INSTALL_PREFIX}/tests/NWChemEqs\")
 
-set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-        "parser.y" "scanner.l" "parser.out" "output.txt" "lempar.c")
+#set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+#        "parser.y" "scanner.l" "parser.out" "output.txt" "lempar.c")
 
 
 # Create directory to store test results

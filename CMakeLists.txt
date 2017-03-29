@@ -345,17 +345,17 @@ add_custom_command(TARGET "style" PRE_BUILD
 
 add_custom_target("patch")
 add_custom_command(TARGET "patch" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a
     COMMENT "=================== Patching nwchem..." )
 
 add_custom_target("patch-only")
 add_custom_command(TARGET "patch-only" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a -l
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a -l
     COMMENT "=================== Patching nwchem..." )
 
 add_custom_target("unpatch")
 add_custom_command(TARGET "unpatch" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods-6.6 ./nwchem-unpatch.bash
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-unpatch.bash
     COMMENT "=================== Unpatching nwchem gnumakefile..." )
 
 add_custom_target(link COMMAND "${CMAKE_COMMAND}" --build . --target install)

@@ -70,6 +70,8 @@ Unfactorized equations Test
 ANTLR
 -----
 
+java -jar /opt/libraries/ANTLR4/antlr-4.6-complete.jar TAMM.g4  -Dlanguage=Cpp -visitor
+
 uuid not found on clusters ??
 
 Need gcc > 5 . We used 6 for c++14 support

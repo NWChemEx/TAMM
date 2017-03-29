@@ -24,6 +24,7 @@ namespace tamm {
 using index_list = std::vector<std::string>;
 using identifier_list = std::vector<Identifier*>;
 
+bool is_positive_integer(const std::string& s);
 bool exists_index(const index_list& indices, const std::string x);
 bool compare_index_lists(const index_list& alist1, const index_list& alist2);
 void get_array_refs_from_expression(Expression* const exp, std::vector<Array*>& arefs);

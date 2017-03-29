@@ -21,6 +21,13 @@ bool exists_index(const index_list& indices, const std::string x) {
     return true;
 }
 
+bool is_positive_integer(const std::string& s)
+{
+    std::string::const_iterator it = s.begin();
+    while (it != s.end() && std::isdigit(*it)) ++it;
+    return !s.empty() && it == s.end();
+}
+
 bool compare_index_lists(const index_list& alist1, const index_list& alist2) {
     const int len1 = alist1.size();
     const int len2 = alist2.size();

@@ -16,6 +16,7 @@
 
 #include "Absyn.h"
 #include "Error.h"
+#include "Util.h"
 
 namespace tamm {
 
@@ -127,9 +128,30 @@ public:
     return id;
   }
 
+  virtual antlrcpp::Any visitInteger_constant(TAMMParser::Integer_constantContext *ctx) override {
+    const int line = ctx->getStart()->getLine();
+    const int position = ctx->getStart()->getCharPositionInLine()+1;
+    
+    const std::string integer_const_error = "The range value must be a positive integer constant";
+    if(ctx->children.size()==0) Error(line, position, integer_const_error);
+    
+    const std::string s = ctx->children.at(0)->getText();
+    if (!is_positive_integer(s)) Error(line, position, integer_const_error);
+
+    int value = std::stoi(s); 
+    if (value <= 0) Error(line, position, integer_const_error);
+    
+    Expression* nc = new NumConst(line, position, value);
+    return nc;
+  }
+
   virtual antlrcpp::Any visitNumerical_constant(TAMMParser::Numerical_constantContext *ctx) override {
-    /// TODO: Check if range_value is a valid integer  -10, 1-0, -+10
-    assert(ctx->children.size()>0);
+    const int line = ctx->getStart()->getLine();
+    const int position = ctx->getStart()->getCharPositionInLine()+1;
+
+    const std::string num_const_error = "A numerical constant must be either a positive, negative (integer/floating-point) constant or a fraction";
+    if(ctx->children.size()==0) Error(line, position,num_const_error);
+    
     std::string s = ctx->children.at(0)->getText();
     std::string delimiter = "/";
 
@@ -142,55 +164,64 @@ public:
     
     float value = std::stof(s); // Gets denominator in case of fraction
     if (numerator.size() > 0) value = std::stof(numerator)*1.0/value;
-    Expression* nc = new NumConst(ctx->getStart()->getLine(), 
-                                  ctx->getStart()->getCharPositionInLine()+1, value);
+    
+    /// @todo Can this happen - if (value <= 0) Error(line, position, num_const_error);
+    Expression* nc = new NumConst(line, position, value);
     return nc;
   }
 
   virtual antlrcpp::Any visitRange_declaration(TAMMParser::Range_declarationContext *ctx) override {
     //std::cout << "Enter Range Decl\n";
     std::vector<Declaration*> rd_list;
+    const int line = ctx->getStart()->getLine();
+    const int position = ctx->getStart()->getCharPositionInLine()+1;
 
     int range_value = -1;
     IdentifierList* rnames = nullptr; //List of range variable names
 
-      for (auto &x: ctx->children){
-      if (TAMMParser::Id_listContext* id = dynamic_cast<TAMMParser::Id_listContext*>(x))
+    for (auto &x: ctx->children){
+      if (TAMMParser::Id_listContext* id = dynamic_cast<TAMMParser::Id_listContext*>(x)){
+        const std::string range_variable = id->getText();
+        //std::cout << range_variable << std::endl;
+        if (range_variable.find("missing") != std::string::npos)
+          Error(line, id->getStart()->getCharPositionInLine()+1, "A range variable is not defined");
         rnames = visit(id);
+      }
 
-      else if (TAMMParser::Numerical_constantContext* id = 
-                dynamic_cast<TAMMParser::Numerical_constantContext*>(x)) {
+      else if (TAMMParser::Integer_constantContext* id = 
+                dynamic_cast<TAMMParser::Integer_constantContext*>(x)) {
          Expression* const ncexp = visit(id);
          if(NumConst* const nc = dynamic_cast<NumConst*>(ncexp))
               range_value = (int)nc->value; 
       }
     }
 
-    /// TODO: Check if range_value is a valid integer - in visitNumerical_constant
-    assert (range_value >= 0);
-    assert (rnames != nullptr);
+    /// assert (range_value >= 0);
+    assert(rnames != nullptr);
 
     for (auto &range: rnames->idlist)    {
-      rd_list.push_back(new RangeDeclaration(ctx->getStart()->getLine(),
-                              ctx->getStart()->getCharPositionInLine()+1, 
+      rd_list.push_back(new RangeDeclaration(line, position, 
                               range, range_value));
     }
 
     //std::cout << "Leaving... Range Decl\n";
-     Element *e = new DeclarationList(ctx->getStart()->getLine(), rd_list);
+     Element *e = new DeclarationList(line, rd_list);
      return e;
   }
 
   virtual antlrcpp::Any visitIndex_declaration(TAMMParser::Index_declarationContext *ctx) override {
     //std::cout << "Enter Index Decl\n";
     std::vector<Declaration*> id_list; //Store list of Index Declarations
-  
+    const int line = ctx->getStart()->getLine();
+    const int position = ctx->getStart()->getCharPositionInLine()+1;
+
     Identifier* range_var = nullptr;
     IdentifierList* inames = nullptr; //List of index names
 
     for (auto &x: ctx->children){
-      if (TAMMParser::Id_listContext* id = dynamic_cast<TAMMParser::Id_listContext*>(x))
+      if (TAMMParser::Id_listContext* id = dynamic_cast<TAMMParser::Id_listContext*>(x)){
         inames = visit(id);
+      }
 
       else if (TAMMParser::IdentifierContext* id = 
                 dynamic_cast<TAMMParser::IdentifierContext*>(x))
@@ -201,13 +232,11 @@ public:
     assert (inames != nullptr);
 
     for (auto &index: inames->idlist)    {
-      id_list.push_back(new IndexDeclaration(
-                                  ctx->getStart()->getLine(),
-                                  ctx->getStart()->getCharPositionInLine()+1,
+      id_list.push_back(new IndexDeclaration(line, position,
                                   index, range_var));
     }
 
-     Element *e = new DeclarationList(ctx->getStart()->getLine(), id_list);
+     Element *e = new DeclarationList(line, id_list);
      return e;
   }
 
@@ -334,7 +363,8 @@ public:
     if (ctx->children.size() == 1) { return visit(ctx->children.at(0)); }
     else if (ctx->children.size() == 2) { return visit(ctx->children.at(1)); }
     else { 
-      ; /// Error. This cannot happen since (expr) has the max 3 children (,expr,) 
+      /// @todo Is this ever triggered? This cannot happen since (expr) has the max 3 children (,expr,) 
+      Error(ctx->getStart()->getLine(),ctx->getStart()->getCharPositionInLine()+1 , "Malformed expression!");
     }
   }
 

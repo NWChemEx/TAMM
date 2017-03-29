@@ -22,4 +22,5 @@ svn revert src/tce/ipccsd/tce_jacobi_ipx2.F
 svn revert src/tce/ipccsd/tce_print_ipx1.F
 svn revert src/tce/ipccsd/tce_print_ipx2.F
 svn revert src/tce/tce_energy.F
+cd -
 

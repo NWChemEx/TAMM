@@ -156,9 +156,7 @@ set(tammLibSources
   tensor/cc2_t2_ref.cc
   tensor/ccsd_t12.cc
   tensor/ccsd_lambda1_ref.cc
-  tensor/ccsd_lambda1_mod_ref.cc
   tensor/ccsd_lambda2_ref.cc
-  #tensor/cisd_c12.cc
   tensor/icsd_t1_ref.cc
   tensor/ccsd_e_ref.cc
   tensor/ccsd_t1_ref.cc
@@ -276,25 +274,13 @@ message(STATUS "Installing TAMM library at: " ${TAMM_INSTALL_PREFIX})
 install(TARGETS tamm
         DESTINATION ${TAMM_INSTALL_PREFIX}/lib)
 
-file(GLOB TAMM_HEADERS RELATIVE ${PROJECT_SOURCE_DIR}  ${PROJECT_SOURCE_DIR}/frontend/*.h ${PROJECT_SOURCE_DIR}/tensor/*.h)
+file(GLOB TAMM_HEADERS RELATIVE ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/frontend/*.h" "${PROJECT_SOURCE_DIR}/tensor/*.h")
 install(FILES ${TAMM_HEADERS} DESTINATION ${TAMM_INSTALL_PREFIX}/include)
 
 file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/tamm_tests/NWChemEqs/*.eq")
 install(FILES ${EQFILES} DESTINATION ${TAMM_INSTALL_PREFIX}/tests/NWChemEqs)
 # file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/tamm_tests/SoEqs/*.eq")
 # install(FILES ${EQFILES} DESTINATION ${TAMM_INSTALL_PREFIX}/tests/SoEqs)
-
-SET(TAMM_EQ_PATH ${TAMM_INSTALL_PREFIX}/tests/NWChemEqs)
-
-if(NOT DEFINED LINUX_BLAS)
-  add_definitions(-DCBLAS_HEADER_FILE="${BLAS_INC_PATH}/${cblas_header_name}")
-endif()
-
-add_definitions(-DTAMM_EQ_PATH=\"${TAMM_INSTALL_PREFIX}/tests/NWChemEqs\")
-
-#set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-#        "parser.y" "scanner.l" "parser.out" "output.txt" "lempar.c")
-
 
 # Create directory to store test results
 execute_process(COMMAND mkdir -p "TestResults/ParserTests")
@@ -344,7 +330,7 @@ endif()
 
 add_custom_target("style")
 add_custom_command(TARGET "style" PRE_BUILD 
-  COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/scripts ./cpplint.bash ${CMAKE_SOURCE_DIR}/tensor/*
+  COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/scripts ./cpplint.bash "${CMAKE_SOURCE_DIR}/tensor/*"
   COMMENT "=================== Checking style..." )
 
 add_custom_target("patch")
@@ -373,7 +359,7 @@ add_custom_command(TARGET "link" POST_BUILD
     COMMENT "=================== Relinking nwchem..." )
 
 if(NOT DEFINED ENV{TAMM_TEST_PROC_COUNT})
-    set(TAMM_TEST_PROC_COUNT 8)
+    set(TAMM_TEST_PROC_COUNT 2)
 else()
     set(TAMM_TEST_PROC_COUNT $ENV{TAMM_TEST_PROC_COUNT})
 endif()
@@ -394,3 +380,5 @@ foreach (test ${INTEG_TESTS})
         )
 endforeach()
 
+SET(TAMM_EQ_PATH ${TAMM_INSTALL_PREFIX}/tests/NWChemEqs)
+add_definitions(-DTAMM_EQ_PATH=\"${TAMM_EQ_PATH}\")

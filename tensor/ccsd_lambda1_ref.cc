@@ -215,7 +215,7 @@
  * v[h6,p7,p1,p8];
  *
  *  }
-*/
+ */
 
 extern "C" {
 void ccsd_lambda1_1_(Integer *d_f, Integer *k_f_offset, Integer *d_i0,
@@ -819,27 +819,33 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   lambda1_11_1->set_irrep(Variables::irrep_y());
   i0->set_irrep(Variables::irrep_y());
 
-    for(int i=0; i<eqs.op_entries.size(); i++) {
-      switch(eqs.op_entries[i].optype) {
-      case OpTypeAdd:
-      {
-          Tensor *t_alhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
-          t_alhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])->irrep());
-          break;
+  for (int i = 0; i < eqs.op_entries.size(); i++) {
+    switch (eqs.op_entries[i].optype) {
+      case OpTypeAdd: {
+        Tensor *t_alhs =
+            &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
+        t_alhs->set_irrep(
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])
+                ->irrep());
+        break;
       }
-      case OpTypeMult:
-       {   Tensor *t_mlhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
-          t_mlhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])->irrep() ^ 
-                          (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])->irrep());
-          break;
-       }
+      case OpTypeMult: {
+        Tensor *t_mlhs =
+            &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
+        t_mlhs->set_irrep(
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])
+                ->irrep() ^
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])
+                ->irrep());
+        break;
       }
+    }
   }
 
 #if 1
-  //schedule_linear(&tensors, &ops);
+  // schedule_linear(&tensors, &ops);
   // schedule_linear_lazy(&tensors, &ops);
-   schedule_levels(&tensors, &ops);
+  schedule_levels(&tensors, &ops);
 #else
   op_lambda1_1 = ops[0].add;
   op_lambda1_2_1 = ops[1].add;
@@ -996,7 +1002,9 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   CorFortran(1, lambda1_6_2_2_1, offset_ccsd_lambda1_6_2_2_1_);
   CorFortran(1, &op_lambda1_6_2_2_1, ccsd_lambda1_6_2_2_1_);
   CorFortran(1, &op_lambda1_6_2_2_2, ccsd_lambda1_6_2_2_2_);
-  CorFortran(1, &op_lambda1_6_2_2, ccsd_lambda1_6_2_2_); // solved by replacing the multiplier from -2 to -1
+  CorFortran(
+      1, &op_lambda1_6_2_2,
+      ccsd_lambda1_6_2_2_);  // solved by replacing the multiplier from -2 to -1
   destroy(lambda1_6_2_2_1);
   CorFortran(1, &op_lambda1_6_2_3, ccsd_lambda1_6_2_3_);
   CorFortran(1, &op_lambda1_6_2, ccsd_lambda1_6_2_);
@@ -1015,18 +1023,22 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   CorFortran(1, lambda1_6_3_1, offset_ccsd_lambda1_6_3_1_);
   CorFortran(1, &op_lambda1_6_3_1, ccsd_lambda1_6_3_1_);
   CorFortran(1, &op_lambda1_6_3_2, ccsd_lambda1_6_3_2_);
-  CorFortran(1, &op_lambda1_6_3, ccsd_lambda1_6_3_);  // solved by replacing the multiplier from -2 to -1
+  CorFortran(
+      1, &op_lambda1_6_3,
+      ccsd_lambda1_6_3_);  // solved by replacing the multiplier from -2 to -1
   destroy(lambda1_6_3_1);
   CorFortran(1, lambda1_6_4_1, offset_ccsd_lambda1_6_4_1_);
   CorFortran(1, &op_lambda1_6_4_1, ccsd_lambda1_6_4_1_);
   CorFortran(1, &op_lambda1_6_4_2, ccsd_lambda1_6_4_2_);
   CorFortran(1, &op_lambda1_6_4, ccsd_lambda1_6_4_);
   destroy(lambda1_6_4_1);
-#if 1  // following block works entirely in fortran or c++
+#if 1   // following block works entirely in fortran or c++
   CorFortran(1, lambda1_6_5_1, offset_ccsd_lambda1_6_5_1_);
   CorFortran(1, &op_lambda1_6_5_1, ccsd_lambda1_6_5_1_);
   CorFortran(1, &op_lambda1_6_5_2, ccsd_lambda1_6_5_2_);
-  CorFortran(1, &op_lambda1_6_5, ccsd_lambda1_6_5_);  // solved  by replacing the multiplier from -2 to -1
+  CorFortran(
+      1, &op_lambda1_6_5,
+      ccsd_lambda1_6_5_);  // solved  by replacing the multiplier from -2 to -1
 #else
   CorFortran(0, lambda1_6_5_1, offset_ccsd_lambda1_6_5_1_);
   CorFortran(0, &op_lambda1_6_5_1, ccsd_lambda1_6_5_1_);
@@ -1071,7 +1083,7 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   CorFortran(1, &op_lambda1_11_2, ccsd_lambda1_11_2_);
   CorFortran(1, &op_lambda1_11, ccsd_lambda1_11_);  // ok after bug fix
   destroy(lambda1_11_1);
-#if 1  // following block works entirely in fortran or c++, ok after bug fix
+#if 1   // following block works entirely in fortran or c++, ok after bug fix
   CorFortran(1, lambda1_12_1, offset_ccsd_lambda1_12_1_);
   CorFortran(1, &op_lambda1_12_1, ccsd_lambda1_12_1_);
   CorFortran(1, &op_lambda1_12, ccsd_lambda1_12_);
@@ -1081,24 +1093,31 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   CorFortran(0, &op_lambda1_12, ccsd_lambda1_12_);
 #endif  // if 1 or 0 etc
   destroy(lambda1_12_1);
-#if 1  // following block works entirely in fortran or c++, ok after bug fix
+#if 1   // following block works entirely in fortran or c++, ok after bug fix
   CorFortran(1, lambda1_13_1, offset_ccsd_lambda1_13_1_);
   CorFortran(1, &op_lambda1_13_1, ccsd_lambda1_13_1_);
   CorFortran(1, lambda1_13_2_1, offset_ccsd_lambda1_13_2_1_);
   CorFortran(1, &op_lambda1_13_2_1, ccsd_lambda1_13_2_1_);
   CorFortran(1, lambda1_13_2_2_1, offset_ccsd_lambda1_13_2_2_1_);
   CorFortran(1, &op_lambda1_13_2_2_1, ccsd_lambda1_13_2_2_1_);
-  CorFortran(1, &op_lambda1_13_2_2, ccsd_lambda1_13_2_2_); // solved  by replacing the multiplier from 2 to 1
+  CorFortran(
+      1, &op_lambda1_13_2_2,
+      ccsd_lambda1_13_2_2_);  // solved  by replacing the multiplier from 2 to 1
   destroy(lambda1_13_2_2_1);
   CorFortran(1, &op_lambda1_13_2, ccsd_lambda1_13_2_);
   destroy(lambda1_13_2_1);
   CorFortran(1, lambda1_13_3_1, offset_ccsd_lambda1_13_3_1_);
   CorFortran(1, &op_lambda1_13_3_1, ccsd_lambda1_13_3_1_);
-  CorFortran(1, &op_lambda1_13_3, ccsd_lambda1_13_3_); // solved  by replacing the multiplier from 2 to 1
+  CorFortran(
+      1, &op_lambda1_13_3,
+      ccsd_lambda1_13_3_);  // solved  by replacing the multiplier from 2 to 1
   destroy(lambda1_13_3_1);
   CorFortran(1, lambda1_13_4_1, offset_ccsd_lambda1_13_4_1_);
   CorFortran(1, &op_lambda1_13_4_1, ccsd_lambda1_13_4_1_);
-  CorFortran(1, &op_lambda1_13_4, ccsd_lambda1_13_4_); // solved  by replacing the multiplier from -1 to -1/2
+  CorFortran(1, &op_lambda1_13_4,
+             ccsd_lambda1_13_4_);  // solved  by replacing
+                                   // the multiplier from -1
+                                   // to -1/2
   destroy(lambda1_13_4_1);
   CorFortran(1, &op_lambda1_13, ccsd_lambda1_13_);
 #else
@@ -1123,12 +1142,14 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   CorFortran(0, &op_lambda1_13, ccsd_lambda1_13_);
 #endif  // if 1 or 0 etc
   destroy(lambda1_13_1);
-#if 1  // following block works entirely in fortran or c++, after bug fix
+#if 1   // following block works entirely in fortran or c++, after bug fix
   CorFortran(1, lambda1_14_1, offset_ccsd_lambda1_14_1_);
   CorFortran(1, &op_lambda1_14_1, ccsd_lambda1_14_1_);
   CorFortran(1, lambda1_14_2_1, offset_ccsd_lambda1_14_2_1_);
   CorFortran(1, &op_lambda1_14_2_1, ccsd_lambda1_14_2_1_);
-  CorFortran(1, &op_lambda1_14_2, ccsd_lambda1_14_2_); // solved  by replacing the multiplier from 2 to 1
+  CorFortran(
+      1, &op_lambda1_14_2,
+      ccsd_lambda1_14_2_);  // solved  by replacing the multiplier from 2 to 1
   destroy(lambda1_14_2_1);
   CorFortran(1, &op_lambda1_14, ccsd_lambda1_14_);
 #else
@@ -1141,7 +1162,7 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
   CorFortran(0, &op_lambda1_14, ccsd_lambda1_14_);
 #endif  // if 1 or 0 etc
   destroy(lambda1_14_1);
-#if 1  // following block works entirely in fortran or c++, after bug fix
+#if 1   // following block works entirely in fortran or c++, after bug fix
   CorFortran(1, lambda1_15_1, offset_ccsd_lambda1_15_1_);
   CorFortran(1, &op_lambda1_15_1, ccsd_lambda1_15_1_);
   CorFortran(1, lambda1_15_2_1, offset_ccsd_lambda1_15_2_1_);
@@ -1172,4 +1193,3 @@ void ccsd_lambda1_cxx_(Integer *d_t_vvoo, Integer *d_f, Integer *d_i0,
 }
 }  // extern C
 };  // namespace tamm
-

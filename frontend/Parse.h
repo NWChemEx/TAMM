@@ -14,21 +14,18 @@
 
 #include <iostream>
 // #include "Semant.h"
-#include "TAMMLexer.h"
 #include "ASTBuilder.h"
 #include "Intermediate.h"
+#include "TAMMLexer.h"
 using namespace antlr4;
-
 
 namespace tamm {
 
 namespace frontend {
 
-    void tamm_frontend(const std::string input_file, Equations* const equations);
-
-    }
-
+void tamm_frontend(const std::string input_file, Equations* const equations);
 }
 
-#endif /*__TAMM_PARSER_H__*/
+}  // namespace tamm
 
+#endif /*__TAMM_PARSER_H__*/

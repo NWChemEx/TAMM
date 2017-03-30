@@ -14,8 +14,8 @@
 #include <map>
 #include <string>
 #include <vector>
-#include "tensor/input.h"
 #include "frontend/Parse.h"
+#include "tensor/input.h"
 
 namespace tamm {
 
@@ -48,7 +48,8 @@ void ccsd_1prdm_pp_equations(Equations *eqs);
 void ccsd_1prdm_hp_equations(Equations *eqs);
 void ccsd_1prdm_ph_equations(Equations *eqs);
 
-void parser_eqs_to_tamm_eqs(tamm::frontend::Equations* const eqs, tamm::Equations *ceqs);
+void parser_eqs_to_tamm_eqs(tamm::frontend::Equations *const eqs,
+                            tamm::Equations *ceqs);
 
 /* void icsd_t1_equations(Equations *eqs); */
 /* void icsd_t2_equations(Equations *eqs); */

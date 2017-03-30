@@ -19,9 +19,9 @@
 #include "tensor/index.h"
 #include "tensor/variables.h"
 
-#ifndef LINUX_BLAS
-#include CBLAS_HEADER_FILE
-#endif  // LINUX_BLAS
+// #ifndef LINUX_BLAS
+// #include CBLAS_HEADER_FILE
+// #endif  // LINUX_BLAS
 
 using std::vector;
 using std::string;

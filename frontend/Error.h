@@ -13,15 +13,15 @@
 #ifndef __TAMM_ERROR_H__
 #define __TAMM_ERROR_H__
 
-namespace tamm{
+namespace tamm {
 
-    namespace frontend {
+namespace frontend {
 
- void Error(const std::string error_msg);
- void Error(const int line, const int position, const std::string error_msg);
- 
-}
+void Error(const std::string error_msg);
+void Error(const int line, const int position, const std::string error_msg);
 
-}
+}  // namespace frontend
+
+}  // namespace tamm
 
 #endif

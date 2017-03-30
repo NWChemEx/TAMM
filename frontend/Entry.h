@@ -9,25 +9,26 @@
 //
 //------------------------------------------------------------------------------
 
-/// Object stored in symbol table. Contains type information. 
+/// Object stored in symbol table. Contains type information.
 #ifndef __TAMM_ENTRY_H__
 #define __TAMM_ENTRY_H__
 
 #include "Types.h"
 
-/// Might extend this class at some point in the future if scopes are needed in the language.
+/// Might extend this class at some point in the future if scopes are needed in
+/// the language.
 namespace tamm {
 
 namespace frontend {
 
 class Entry {
-    public:
-        Type* const type;
-        Entry(Type* const type): type(type) {}
-        ~Entry() {}
+ public:
+  Type* const type;
+  Entry(Type* const type) : type(type) {}
+  ~Entry() {}
 };
 
-}
-}
+}  // namespace frontend
+}  // namespace tamm
 
 #endif

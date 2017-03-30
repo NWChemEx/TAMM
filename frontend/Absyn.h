@@ -42,9 +42,8 @@
 #ifndef __TAMM_ABSYN_H_
 #define __TAMM_ABSYN_H_
 
-#include "SymbolTable.h"
 #include <type_traits>
-
+#include "SymbolTable.h"
 
 namespace tamm {
 
@@ -57,318 +56,289 @@ class Declaration;
 class Expression;
 class DeclarationList;
 
-
 /* The Absyn Hierarchy */
 
-class Absyn //Root of the AST
+class Absyn  // Root of the AST
 {
-    public: 
+ public:
+  const int line;      /// Line number
+  const int position;  /// column number in line
 
-        const int line;     /// Line number
-        const int position; /// column number in line
+  Absyn(const int line, const int position) : line(line), position(position) {}
 
-        Absyn(const int line, const int position): line(line), position(position) {}
+  enum kAbsyn { kCompilationUnit, kElement, kIdentifier, kExpression };
 
-        enum kAbsyn {
-            kCompilationUnit, kElement, kIdentifier, kExpression
-        };
+  /** Implemented in all direct subclasses.
+   * Used to identify a direct subclass of Declaration.
+   * Returns the enum value for the subclass
+   * that calls this method.
+   */
+  virtual int getAbsynType() = 0;
 
-        /** Implemented in all direct subclasses.
-         * Used to identify a direct subclass of Declaration.
-         * Returns the enum value for the subclass
-         * that calls this method.
-         */
-        virtual int getAbsynType() = 0;
-
-        virtual ~Absyn() {}
-
+  virtual ~Absyn() {}
 };
 
-
 class Element : public Absyn {
-    public:
-        /// An enum to identify direct subclasses of Element.
-        enum kElement {
-            kDeclarationList,
-            kDeclaration,
-            kStatement
-        };
+ public:
+  /// An enum to identify direct subclasses of Element.
+  enum kElement { kDeclarationList, kDeclaration, kStatement };
 
-        Element(const int line, const int position): Absyn(line, position) {}
+  Element(const int line, const int position) : Absyn(line, position) {}
 
-        virtual int getElementType() = 0;
+  virtual int getElementType() = 0;
 
-        int getAbsynType() {
-            return Absyn::kElement;
-        }
+  int getAbsynType() { return Absyn::kElement; }
 
-        virtual ~Element() { }
+  virtual ~Element() {}
 };
 
 class Declaration : public Element {
-    public:
-        /// An enum to identify direct subclasses of Declaration.
-        enum kDeclaration {
-            kRangeDeclaration,
-            kIndexDeclaration,
-            kArrayDeclaration,
-            kExpandDeclaration,
-            kVolatileDeclaration,
-            kIterationDeclaration
-        };
+ public:
+  /// An enum to identify direct subclasses of Declaration.
+  enum kDeclaration {
+    kRangeDeclaration,
+    kIndexDeclaration,
+    kArrayDeclaration,
+    kExpandDeclaration,
+    kVolatileDeclaration,
+    kIterationDeclaration
+  };
 
-        Declaration(const int line, const int position): Element(line, position) {}
+  Declaration(const int line, const int position) : Element(line, position) {}
 
-        virtual int getDeclType() = 0;
+  virtual int getDeclType() = 0;
 
-        int getElementType() {
-            return Element::kDeclaration;
-        }
+  int getElementType() { return Element::kDeclaration; }
 
-        virtual ~Declaration() { }
+  virtual ~Declaration() {}
 };
 
-
 class ArrayDeclaration : public Declaration {
-    public:
-          const Identifier* const tensor_name;
-          const std::vector<Identifier*> upper_indices;
-          const std::vector<Identifier*> lower_indices;
-          std::string irrep;
+ public:
+  const Identifier* const tensor_name;
+  const std::vector<Identifier*> upper_indices;
+  const std::vector<Identifier*> lower_indices;
+  std::string irrep;
 
-          ArrayDeclaration(const int line, const int position, const Identifier* const tensor_name,
-                           const std::vector<Identifier*>& upper_indices, 
-                           const std::vector<Identifier*>& lower_indices)
-                           : Declaration(line,position), tensor_name(tensor_name), 
-                             upper_indices(upper_indices), lower_indices(lower_indices) {}
+  ArrayDeclaration(const int line, const int position,
+                   const Identifier* const tensor_name,
+                   const std::vector<Identifier*>& upper_indices,
+                   const std::vector<Identifier*>& lower_indices)
+      : Declaration(line, position),
+        tensor_name(tensor_name),
+        upper_indices(upper_indices),
+        lower_indices(lower_indices) {}
 
-          int getDeclType() {
-              return Declaration::kArrayDeclaration;
-          }
+  int getDeclType() { return Declaration::kArrayDeclaration; }
 };
 
 class IndexDeclaration : public Declaration {
-    public:
-          const Identifier* const index_name;
-          const Identifier* const range_id;
+ public:
+  const Identifier* const index_name;
+  const Identifier* const range_id;
 
-          IndexDeclaration(const int line, const int position, 
-                           const Identifier* const index_name, const Identifier* const range_id)
-            : Declaration(line,position), index_name(index_name), range_id(range_id) {}
+  IndexDeclaration(const int line, const int position,
+                   const Identifier* const index_name,
+                   const Identifier* const range_id)
+      : Declaration(line, position),
+        index_name(index_name),
+        range_id(range_id) {}
 
-          int getDeclType() {
-              return Declaration::kIndexDeclaration;
-          }
+  int getDeclType() { return Declaration::kIndexDeclaration; }
 };
 
 class RangeDeclaration : public Declaration {
-    public:
-          const int value;
-          const Identifier* const name;
+ public:
+  const int value;
+  const Identifier* const name;
 
-          RangeDeclaration(const int line, const int position, const Identifier* const name, const int value)
-            : Declaration(line,position), name(name), value(value) {}
+  RangeDeclaration(const int line, const int position,
+                   const Identifier* const name, const int value)
+      : Declaration(line, position), name(name), value(value) {}
 
-          int getDeclType() {
-              return Declaration::kRangeDeclaration;
-          }
+  int getDeclType() { return Declaration::kRangeDeclaration; }
 };
-
-
 
 class Statement : public Element {
-    public:
-        /// An enum to identify direct subclasses of Statement.
-        enum kStatement {
-            kAssignStatement
-        };
+ public:
+  /// An enum to identify direct subclasses of Statement.
+  enum kStatement { kAssignStatement };
 
-        Statement(const int line, const int position): Element(line, position) {}
+  Statement(const int line, const int position) : Element(line, position) {}
 
-        virtual int getStatementType() = 0;
+  virtual int getStatementType() = 0;
 
-        int getElementType() {
-            return kElement::kStatement;
-        }
+  int getElementType() { return kElement::kStatement; }
 
-        virtual ~Statement() { }
+  virtual ~Statement() {}
 };
-
 
 class Expression : public Absyn {
-public:
-    enum kExpression {
-        kParenth, kNumConst, kArrayRef, kAddition, kMultiplication
-    };
+ public:
+  enum kExpression {
+    kParenth,
+    kNumConst,
+    kArrayRef,
+    kAddition,
+    kMultiplication
+  };
 
-   Expression(const int line, const int position): Absyn(line,position) {} 
+  Expression(const int line, const int position) : Absyn(line, position) {}
 
-    virtual int getExpressionType() = 0;
+  virtual int getExpressionType() = 0;
 
-    int getAbsynType() {
-        return Absyn::kExpression;
-    }
+  int getAbsynType() { return Absyn::kExpression; }
 
-    virtual ~Expression() {}
+  virtual ~Expression() {}
 };
 
+class Array : public Expression {
+ public:
+  const std::string array_ref_as_string;
+  const Identifier* const tensor_name;
+  const std::vector<Identifier*> indices;
 
-class Array: public Expression {
-    
-    public:
-        const std::string array_ref_as_string;
-        const Identifier* const tensor_name;
-        const std::vector<Identifier*> indices;
+  Array(const int line, const int position,
+        const std::string array_ref_as_string,
+        const Identifier* const tensor_name,
+        const std::vector<Identifier*>& indices)
+      : Expression(line, position),
+        tensor_name(tensor_name),
+        indices(indices),
+        array_ref_as_string(array_ref_as_string) {}
 
-        Array(const int line, const int position, const std::string array_ref_as_string,
-              const Identifier* const tensor_name, const std::vector<Identifier*>& indices) 
-              : Expression(line,position), tensor_name(tensor_name), indices(indices),
-                 array_ref_as_string(array_ref_as_string) {} 
+  int getExpressionType() { return Expression::kArrayRef; }
 
-     int getExpressionType() { return Expression::kArrayRef; }
-
-     const std::string getText() { return array_ref_as_string; }
+  const std::string getText() { return array_ref_as_string; }
 };
 
-class AssignStatement: public Statement {
-    public:
-        Array* const lhs;
-        Expression* const rhs;
-        const std::string label;
-        const std::string assign_op;
+class AssignStatement : public Statement {
+ public:
+  Array* const lhs;
+  Expression* const rhs;
+  const std::string label;
+  const std::string assign_op;
 
-        AssignStatement(const int line, const int position, const std::string assign_op,
-                        Array* const lhs, Expression* const rhs)
-                        : Statement(line, position), assign_op(assign_op), lhs(lhs), rhs(rhs) {}
+  AssignStatement(const int line, const int position,
+                  const std::string assign_op, Array* const lhs,
+                  Expression* const rhs)
+      : Statement(line, position), assign_op(assign_op), lhs(lhs), rhs(rhs) {}
 
-        AssignStatement(const int line, const int position, const std::string label, 
-                        const std::string assign_op, Array* const lhs, Expression* const rhs)
-                        : Statement(line,position), label(label), assign_op(assign_op), lhs(lhs), rhs(rhs) {}
-        
-        int getStatementType() {
-            return Statement::kAssignStatement;
-        }
+  AssignStatement(const int line, const int position, const std::string label,
+                  const std::string assign_op, Array* const lhs,
+                  Expression* const rhs)
+      : Statement(line, position),
+        label(label),
+        assign_op(assign_op),
+        lhs(lhs),
+        rhs(rhs) {}
 
+  int getStatementType() { return Statement::kAssignStatement; }
 };
 
+class DeclarationList : public Element {
+ public:
+  const std::vector<Declaration*> dlist;
+  DeclarationList(const int line, const std::vector<Declaration*>& dlist)
+      : Element(line, 0), dlist(dlist) {}
 
-
-class DeclarationList: public Element {
-public:
-    const std::vector<Declaration*> dlist;
-    DeclarationList(const int line, const std::vector<Declaration*> &dlist): Element(line,0), dlist(dlist) {}
-
-    int getElementType() {
-       return Element::kDeclarationList;
-    }
+  int getElementType() { return Element::kDeclarationList; }
 };
-
 
 // class Parenth: public Expression {
 //     public:
 //         const Expression* const expression;
 
-//         Parenth(const Expression* const expression): 
+//         Parenth(const Expression* const expression):
 //                     Expression(0,0), expression(expression) {}
 
 //         int getExpressionType() { return Expression::kParenth; }
 // };
 
+class NumConst : public Expression {
+ public:
+  const float value;
 
-class NumConst: public Expression {
-    public:
-        const float value;
+  NumConst(const int line, const int position, const float value)
+      : Expression(line, position), value(value) {}
 
-        NumConst(const int line, const int position, const float value): 
-                 Expression(line,position), value(value) {}
-
-     int getExpressionType() { return Expression::kNumConst; }
+  int getExpressionType() { return Expression::kNumConst; }
 };
 
+class Addition : public Expression {
+ public:
+  const bool first_op;
+  const std::vector<Expression*> subexps;
+  const std::vector<std::string> add_operators;
 
+  Addition(const int line, const int position,
+           const std::vector<Expression*>& subexps)
+      : Expression(line, position), subexps(subexps), first_op(false) {}
 
-class Addition: public Expression {
-    public:
-        const bool first_op;
-        const std::vector<Expression*> subexps;
-        const std::vector<std::string> add_operators;
+  Addition(const int line, const int position,
+           const std::vector<Expression*>& subexps,
+           const std::vector<std::string>& add_operators, const bool first_op)
+      : Expression(line, position),
+        subexps(subexps),
+        add_operators(add_operators),
+        first_op(first_op) {}
 
-    Addition(const int line, const int position, const std::vector<Expression*>& subexps)
-             : Expression(line,position), subexps(subexps), first_op(false) {}
-    
-    Addition(const int line, const int position, const std::vector<Expression*>& subexps,
-             const std::vector<std::string> &add_operators, const bool first_op)
-             : Expression(line,position), subexps(subexps), 
-               add_operators(add_operators), first_op(first_op) {}
-    
-    int getExpressionType() { return Expression::kAddition; }
-
+  int getExpressionType() { return Expression::kAddition; }
 };
 
+class Multiplication : public Expression {
+ public:
+  const std::vector<Expression*> subexps;
 
+  Multiplication(const int line, const int position,
+                 const std::vector<Expression*>& subexps)
+      : Expression(line, position), subexps(subexps) {}
 
-class Multiplication: public Expression {
-    public:
-        const std::vector<Expression*> subexps;
-
-        Multiplication(const int line, const int position, const std::vector<Expression*>& subexps)
-                        : Expression(line,position), subexps(subexps) {}
-    
-        int getExpressionType() { return Expression::kMultiplication; }
-    
+  int getExpressionType() { return Expression::kMultiplication; }
 };
 
-
-class ElementList //group of declarations and statements corresponding to a single input
+class ElementList  // group of declarations and statements corresponding to a
+                   // single input
 {
-public:
-    const std::vector<Element*> elist;
-    ElementList(const std::vector<Element*> &e): elist(e) {}
+ public:
+  const std::vector<Element*> elist;
+  ElementList(const std::vector<Element*>& e) : elist(e) {}
 };
 
+class Identifier : public Absyn {
+ public:
+  const std::string name;
+  Identifier(const int line, const int position, const std::string name)
+      : Absyn(line, position), name(name) {}
 
-class Identifier: public Absyn {
-public:
-
-    const std::string name;
-    Identifier(const int line, const int position, const std::string name)
-                : Absyn(line,position), name(name) {}
-
-    int getAbsynType() {
-       return Absyn::kIdentifier;
-    }
+  int getAbsynType() { return Absyn::kIdentifier; }
 };
 
 class IdentifierList {
-public:
-    std::vector<Identifier*> idlist;
-    IdentifierList(const std::vector<Identifier*> &idlist): idlist(idlist) {}
+ public:
+  std::vector<Identifier*> idlist;
+  IdentifierList(const std::vector<Identifier*>& idlist) : idlist(idlist) {}
 };
 
-
-class CompoundElement  //represents a single input enclosed in { .. }
+class CompoundElement  // represents a single input enclosed in { .. }
 {
-public:
-    const ElementList* const elist;
-    CompoundElement(const ElementList* const elist): elist(elist) {}
-
+ public:
+  const ElementList* const elist;
+  CompoundElement(const ElementList* const elist) : elist(elist) {}
 };
 
 class CompilationUnit : public Absyn {
-public:
-    const std::vector<CompoundElement*> celist;
-    const SymbolTable* symbol_table;
-    CompilationUnit(const std::vector<CompoundElement*>& celist, const SymbolTable* symbol_table)
-                   : Absyn(0,0), celist(celist), symbol_table(symbol_table) {}
+ public:
+  const std::vector<CompoundElement*> celist;
+  const SymbolTable* symbol_table;
+  CompilationUnit(const std::vector<CompoundElement*>& celist,
+                  const SymbolTable* symbol_table)
+      : Absyn(0, 0), celist(celist), symbol_table(symbol_table) {}
 
-        int getAbsynType() {
-            return Absyn::kCompilationUnit;
-        }
+  int getAbsynType() { return Absyn::kCompilationUnit; }
 };
 
-} //namespace frontend
-} //namespace tamm
+}  // namespace frontend
+}  // namespace tamm
 
 #endif
-
-

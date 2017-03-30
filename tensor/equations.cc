@@ -26,10 +26,6 @@ void ccsd_t1_equations(tamm::Equations *eqs) {
   parse_equations("ccsd_t1.eq", eqs);
 }
 
-void ccsd_lambda1Mod_equations(tamm::Equations *eqs) {
-  parse_equations("ccsd_lambda1Mod.eq", eqs);
-}
-
 void ccsd_lambda1_equations(tamm::Equations *eqs) {
   parse_equations("ccsd_lambda1.eq", eqs);
 }

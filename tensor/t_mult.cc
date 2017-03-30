@@ -104,9 +104,8 @@ void t_mult(double* a_c, const Tensor& tC, const Tensor& tA, const Tensor& tB,
         vector<size_t> a_svalue, b_svalue;
         vector<IndexName> a_name;
         vector<IndexName> b_name;
-        int a_sign =
-            sortByValueThenExtSymGroup(m->a_ids, &a_name, &a_svalue,
-                                       &a_svalue_r);
+        int a_sign = sortByValueThenExtSymGroup(m->a_ids, &a_name, &a_svalue,
+                                                &a_svalue_r);
         // tA.sortByValueThenExtSymGroup();
         // if (tA.dim()==2) tA.get_ma = true;
         // tA.get(*d_a,a_svalue_r,a_name,buf_a,dima,*k_a_offset);
@@ -121,9 +120,8 @@ void t_mult(double* a_c, const Tensor& tC, const Tensor& tA, const Tensor& tB,
 
         double* buf_b = new double[dimb];
         double* buf_b_sort = new double[dimb];
-        int b_sign =
-            sortByValueThenExtSymGroup(m->b_ids, &b_name, &b_svalue,
-                                       &b_svalue_r);
+        int b_sign = sortByValueThenExtSymGroup(m->b_ids, &b_name, &b_svalue,
+                                                &b_svalue_r);
         // tB.sortByValueThenExtSymGroup();
         // if (!tB.isIntermediate()) tB.get_i = true;
         // tB.get(*d_b,b_svalue_r,b_name,buf_b,dimb,*k_b_offset);
@@ -173,9 +171,8 @@ void t_mult(double* a_c, const Tensor& tC, const Tensor& tA, const Tensor& tB,
 
 void t_mult2(const Tensor& tC, const Tensor& tA, const Tensor& tB,
              const double coef, const vector<IndexName>& sum_ids,
-             IterGroup<triangular>* sum_itr,
-             IterGroup<CopyIter>* cp_itr, IterGroup<triangular>* out_itr,
-             Multiplication* m) {
+             IterGroup<triangular>* sum_itr, IterGroup<CopyIter>* cp_itr,
+             IterGroup<triangular>* out_itr, Multiplication* m) {
   const vector<IndexName>& c_name = id2name(m->c_ids);  // tC.name();
   vector<size_t> out_vec;
   out_itr->reset();
@@ -198,7 +195,7 @@ void t_mult2(const Tensor& tC, const Tensor& tA, const Tensor& tB,
 
 void t_mult3(const Tensor& tC, const Tensor& tA, const Tensor& tB,
              const double coef, const vector<IndexName>& sum_ids,
-             IterGroup<triangular>* sum_itr,  IterGroup<CopyIter>* cp_itr,
+             IterGroup<triangular>* sum_itr, IterGroup<CopyIter>* cp_itr,
              IterGroup<triangular>* out_itr, Multiplication* m,
              gmem::Handle sync_ga, int spos) {
   // vector<size_t>& vtab = Table::value();
@@ -267,7 +264,7 @@ void t_mult3(const Tensor& tC, const Tensor& tA, const Tensor& tB,
           if (!tA.is_spatial_nonzero(a_ids_v)) continue;
           if (!tA.is_spin_nonzero(a_ids_v)) continue;
 
-          //std::cout << "b_ids_v: " << b_ids_v << std::endl;
+// std::cout << "b_ids_v: " << b_ids_v << std::endl;
 #if 0
           if (tC.dim()%2 != 0) {
             cout << "a_ids_v: " << a_ids_v << endl;
@@ -307,12 +304,10 @@ void t_mult3(const Tensor& tC, const Tensor& tA, const Tensor& tB,
           // a_svalue_r);
           // int b_sign = tB.sortByValueThenExtSymGroup(b_name, b_svalue,
           // b_svalue_r);
-          int a_sign =
-              sortByValueThenExtSymGroup(m->a_ids, &a_name, &a_svalue,
-                                         &a_svalue_r);
-          int b_sign =
-              sortByValueThenExtSymGroup(m->b_ids, &b_name, &b_svalue,
-                                         &b_svalue_r);
+          int a_sign = sortByValueThenExtSymGroup(m->a_ids, &a_name, &a_svalue,
+                                                  &a_svalue_r);
+          int b_sign = sortByValueThenExtSymGroup(m->b_ids, &b_name, &b_svalue,
+                                                  &b_svalue_r);
 
 #if 0
           if (tC.dim()%2 != 0) {
@@ -359,10 +354,10 @@ void t_mult3(const Tensor& tC, const Tensor& tA, const Tensor& tB,
           double beta = computeBeta(sum_ids, sum_vec, m->sum_ids_aup_);
 
           dgemmTimer.start();
-          //std::cout<<"dima_sort: "<<dima_sort<<std::endl;
-          //std::cout<<"dimb_sort: "<<dimb_sort<<std::endl;
-          //std::cout<<"dim_common: "<<dim_common<<std::endl;
-          //std::cout<<"beta: "<<beta<<std::endl;
+          // std::cout<<"dima_sort: "<<dima_sort<<std::endl;
+          // std::cout<<"dimb_sort: "<<dimb_sort<<std::endl;
+          // std::cout<<"dim_common: "<<dim_common<<std::endl;
+          // std::cout<<"beta: "<<beta<<std::endl;
 
           cdgemm('T', 'N', dima_sort, dimb_sort, dim_common, beta, buf_a_sort,
                  dim_common, buf_b_sort, dim_common, 1.0, buf_c_sort,
@@ -421,7 +416,7 @@ void t_mult3(const Tensor& tC, const Tensor& tA, const Tensor& tB,
     }  // if next == count
 
     ++count;  // no matter my or not, increase by one
-  }  // out_itr
+  }           // out_itr
 
   if (!sync_ga.valid()) {
     gmem::sync();               // sync, wait for all procs to finish

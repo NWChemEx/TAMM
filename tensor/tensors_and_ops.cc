@@ -37,12 +37,12 @@ static Range2Index range2indices[] = {
 };
 
 void tensors_and_ops(Equations *eqs,
-                     std::map<std::string, tamm::Tensor> * tensors,
-                     std::vector<Operation> * ops) {
+                     std::map<std::string, tamm::Tensor> *tensors,
+                     std::vector<Operation> *ops) {
   int inames[RANGE_UB] = {0};
   std::unique_ptr<RangeType[]> rts(new RangeType[eqs->range_entries.size()]);
-  std::unique_ptr<IndexName[]> indices(new IndexName[
-                                       eqs->index_entries.size()]);
+  std::unique_ptr<IndexName[]> indices(
+      new IndexName[eqs->index_entries.size()]);
 
   for (int i = 0; i < eqs->range_entries.size(); i++) {
     const char *rname = eqs->range_entries[i].name.c_str();
@@ -97,8 +97,8 @@ void tensors_and_ops(Equations *eqs,
     (*ops)[i].optype = eqs->op_entries[i].optype;
     switch (eqs->op_entries[i].optype) {
       case OpTypeAdd:
-        (*ops)[i].add = consAddOp(*eqs, indices.get(), tensors,
-                                  eqs->op_entries[i].add);
+        (*ops)[i].add =
+            consAddOp(*eqs, indices.get(), tensors, eqs->op_entries[i].add);
         break;
       case OpTypeMult:
         (*ops)[i].mult =

@@ -84,8 +84,8 @@ void Multiplication::genMemPos() {
       a_ext.push_back(a[i]);
     else {
       sum_ids_.push_back(a[i]);
-			sum_ids_aup_.push_back(i < tA_->nupper());
-		}
+      sum_ids_aup_.push_back(i < tA_->nupper());
+    }
   }
   for (int i = 0; i < nb; i++) {
     if (bf[i] == 0) b_ext.push_back(b[i]);
@@ -139,8 +139,8 @@ void Multiplication::genSumGroup() {
     return;
   }
   std::vector<int> s_gp(sum_ids_.size());
-	int i;
-  for (i = 0; i < sum_ids_.size() && sum_ids_aup_[i]==true; i++) {
+  int i;
+  for (i = 0; i < sum_ids_.size() && sum_ids_aup_[i] == true; i++) {
     s_gp[i] = getIndexType(sum_ids_[i]);
   }
   for (; i < sum_ids_.size(); i++) {

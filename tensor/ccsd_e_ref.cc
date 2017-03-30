@@ -26,7 +26,7 @@
  * )_v
  * i0 ( )_vt + = 1/4 * Sum ( h3 h4 p1 p2 ) * t ( p1 p2 h3 h4 )_t * v ( h3 h4 p1
  * p2 )_v
-*/
+ */
 
 /*
  * e_1: i0 ( )_tf + = 1 * Sum ( p5 h6 ) * t ( p5 h6 )_t * i1 ( h6 p5 )_f
@@ -35,7 +35,7 @@
  * p3 p5 )_v
  * e_2: i0 ( )_vt + = 1/4 * Sum ( h3 h4 p1 p2 ) * t ( p1 p2 h3 h4 )_t * v ( h3
  * h4 p1 p2 )_v
-*/
+ */
 
 extern "C" {
 void offset_ccsd_e_1_1_(Integer *l_i1_offset, Integer *k_i1_offset,

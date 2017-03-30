@@ -58,7 +58,7 @@ Tensor::Tensor(int n, int nupper, int irrep_val, RangeType rt[],
 }
 
 void Tensor::gen_restricted(const std::vector<size_t> &value_,
-                            std::vector<size_t> * pvalue_r) const {
+                            std::vector<size_t> *pvalue_r) const {
   tamm_restricted(dim_, nupper_, value_, pvalue_r);
 }
 
@@ -142,8 +142,8 @@ void Tensor::create() {
     size = 1;
   }
   {
-    //int ndims = 2;
-    //int dims[2] = {1, size};
+    // int ndims = 2;
+    // int dims[2] = {1, size};
     ga_ = gmem::create(gmem::Double, size, static_cast<char *>("noname1"));
   }
   gmem::zero(ga_);

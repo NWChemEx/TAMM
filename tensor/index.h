@@ -80,9 +80,9 @@ class Index {
    */
   inline int ext_sym_group() const { return ext_sym_group_; }
 
-  IndexName name_;    /*< name of this index */
-  Fint value_;        /*< value of this index */
-  Fint value_r_;      /*< value(restricted) of this index */
+  IndexName name_;     /*< name of this index */
+  Fint value_;         /*< value of this index */
+  Fint value_r_;       /*< value(restricted) of this index */
   int ext_sym_group_;  //  < external symmetry group of this index, from lhs
                        //  of the expr(tC)
 

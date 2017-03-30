@@ -11,10 +11,10 @@
 #ifndef TAMM_TENSOR_EXPRESSION_H_
 #define TAMM_TENSOR_EXPRESSION_H_
 
+#include <algorithm>
 #include <cassert>
 #include <set>
 #include <vector>
-#include <algorithm>
 
 #include "tensor/gmem.h"
 #include "tensor/index.h"
@@ -175,7 +175,10 @@ class Multiplication {
   void setCopyItr(const std::vector<int>& gp);
   void execute(gmem::Handle sync_ga = gmem::NULL_HANDLE, int spos = 0);
 
-		std::vector<bool> sum_ids_aup_; /* if the corresponding summation index is an upper index in tA_ */
+  std::
+      vector<bool>
+          sum_ids_aup_; /* if the corresponding summation index is an upper
+                           index in tA_ */
 
  private:
   Tensor* tC_;  /*< left hand side tensor */
@@ -294,8 +297,7 @@ inline std::vector<size_t> getMemPosVal(
   return sort_ids_v_;
 }
 
-inline void setValue(std::vector<Index> * ids_,
-                     const std::vector<size_t>& val) {
+inline void setValue(std::vector<Index>* ids_, const std::vector<size_t>& val) {
   assert(ids_->size() == val.size());
   for (int i = 0; i < ids_->size(); i++) {
     (*ids_)[i].setValue(val[i]);

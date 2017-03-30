@@ -233,4 +233,4 @@ void index_sortacc_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
     }
   }
 }
-}  /*namespace tamm*/
+} /*namespace tamm*/

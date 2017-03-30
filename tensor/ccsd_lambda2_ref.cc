@@ -136,7 +136,7 @@
  * v[h4,h8,p2,p5];
  *
  *  }
-*/
+ */
 
 extern "C" {
 void ccsd_lambda2_1_(Integer *d_v, Integer *k_v_offset, Integer *d_i0,
@@ -466,27 +466,33 @@ void ccsd_lambda2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   y_ov->set_irrep(Variables::irrep_y());
   y_oovv->set_irrep(Variables::irrep_y());
 
-  for(int i=0; i<eqs.op_entries.size(); i++) {
-    switch(eqs.op_entries[i].optype) {
-    case OpTypeAdd:
-    {
-        Tensor *t_alhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
-        t_alhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])->irrep());
+  for (int i = 0; i < eqs.op_entries.size(); i++) {
+    switch (eqs.op_entries[i].optype) {
+      case OpTypeAdd: {
+        Tensor *t_alhs =
+            &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
+        t_alhs->set_irrep(
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])
+                ->irrep());
         break;
-    }
-    case OpTypeMult:
-      {   Tensor *t_mlhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
-          t_mlhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])->irrep() ^ 
-                          (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])->irrep());
-          break;
-       }
+      }
+      case OpTypeMult: {
+        Tensor *t_mlhs =
+            &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
+        t_mlhs->set_irrep(
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])
+                ->irrep() ^
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])
+                ->irrep());
+        break;
+      }
     }
   }
 
 #if 1
-  //schedule_linear(&tensors, &ops);
+  // schedule_linear(&tensors, &ops);
   // schedule_linear_lazy(&tensors, &ops);
-   schedule_levels(&tensors, &ops);
+  schedule_levels(&tensors, &ops);
 #else
   op_lambda2_1 = ops[0].add;
   op_lambda2_2_1 = ops[1].add;
@@ -577,7 +583,9 @@ void ccsd_lambda2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   CorFortran(1, lambda2_7_2_1, offset_ccsd_lambda2_7_2_1_);
   CorFortran(1, &op_lambda2_7_2_1, ccsd_lambda2_7_2_1_);
   CorFortran(1, &op_lambda2_7_2_2, ccsd_lambda2_7_2_2_);
-  CorFortran(1, &op_lambda2_7_2, ccsd_lambda2_7_2_); // solved  by replacing the multiplier from -2 to -1
+  CorFortran(
+      1, &op_lambda2_7_2,
+      ccsd_lambda2_7_2_);  // solved  by replacing the multiplier from -2 to -1
   destroy(lambda2_7_2_1);
   CorFortran(1, &op_lambda2_7_3, ccsd_lambda2_7_3_);
   CorFortran(1, &op_lambda2_7, ccsd_lambda2_7_);
@@ -604,7 +612,7 @@ void ccsd_lambda2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   CorFortran(0, &op_lambda2_11, ccsd_lambda2_11_);
 #endif  // code selection if 1 or 0 etc
   destroy(lambda2_11_1);
-#if 1  // following block work entirely in fortran or c++, ok after bug fix
+#if 1   // following block work entirely in fortran or c++, ok after bug fix
   CorFortran(1, lambda2_12_1, offset_ccsd_lambda2_12_1_);
   CorFortran(1, &op_lambda2_12_1, ccsd_lambda2_12_1_);
   CorFortran(1, &op_lambda2_12, ccsd_lambda2_12_);
@@ -626,9 +634,11 @@ void ccsd_lambda2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   CorFortran(1, &op_lambda2_15_1, ccsd_lambda2_15_1_);
   CorFortran(1, lambda2_15_2_1, offset_ccsd_lambda2_15_2_1_);
   CorFortran(1, &op_lambda2_15_2_1, ccsd_lambda2_15_2_1_);
-  CorFortran(1, &op_lambda2_15_2, ccsd_lambda2_15_2_); // solved  by replacing the multiplier from 2 to 1
+  CorFortran(
+      1, &op_lambda2_15_2,
+      ccsd_lambda2_15_2_);  // solved  by replacing the multiplier from 2 to 1
   destroy(lambda2_15_2_1);
-  CorFortran(1, &op_lambda2_15, ccsd_lambda2_15_); 
+  CorFortran(1, &op_lambda2_15, ccsd_lambda2_15_);
   destroy(lambda2_15_1);
 #if 1
 #if 0  // following block work entirely in fortran or c++
@@ -666,6 +676,6 @@ void ccsd_lambda2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   t_vvoo->detach();
   y_ov->detach();
   y_oovv->detach();
-  }
+}
 }  // extern C
 };  // namespace tamm

@@ -57,57 +57,63 @@
  *  t1_7:       i0[p2,h1] += -1/2 * t_vvoo[p3,p4,h1,h5] * v[h5,p2,p3,p4];
  *
  *  }
-*/
+ */
 
 extern "C" {
 
-void nxt_ctx_create_(Integer* num_count, Integer* ctx);
+void nxt_ctx_create_(Integer *num_count, Integer *ctx);
 
 void icsd_t1_1_(Integer *d_f, Integer *k_f_offset, Integer *d_i0,
-                Integer *k_i0_offset, Integer* ctx, Integer* count);
+                Integer *k_i0_offset, Integer *ctx, Integer *count);
 void icsd_t1_2_1_(Integer *d_f, Integer *k_f_offset, Integer *d_t1_2_1,
-                  Integer *k_t1_2_1_offset, Integer* ctx, Integer* count);
+                  Integer *k_t1_2_1_offset, Integer *ctx, Integer *count);
 void icsd_t1_2_2_1_(Integer *d_f, Integer *k_f_offset, Integer *d_t1_2_2_1,
-                    Integer *k_t1_2_2_1_offset, Integer* ctx, Integer* count);
+                    Integer *k_t1_2_2_1_offset, Integer *ctx, Integer *count);
 void icsd_t1_2_2_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
                     Integer *k_v_offset, Integer *d_t1_2_2_1,
-                    Integer *k_t1_2_2_1_offset, Integer* ctx, Integer* count);
+                    Integer *k_t1_2_2_1_offset, Integer *ctx, Integer *count);
 void icsd_t1_2_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_t1_2_2_1,
                   Integer *k_t1_2_2_1_offset, Integer *d_t1_2_1,
-                  Integer *k_t1_2_1_offset, Integer* ctx, Integer* count);
+                  Integer *k_t1_2_1_offset, Integer *ctx, Integer *count);
 void icsd_t1_2_3_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
                   Integer *k_v_offset, Integer *d_t1_2_1,
-                  Integer *k_t1_2_1_offset, Integer* ctx, Integer* count);
+                  Integer *k_t1_2_1_offset, Integer *ctx, Integer *count);
 void icsd_t1_2_4_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_v,
                   Integer *k_v_offset, Integer *d_t1_2_1,
-                  Integer *k_t1_2_1_offset, Integer* ctx, Integer* count);
+                  Integer *k_t1_2_1_offset, Integer *ctx, Integer *count);
 void icsd_t1_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_t1_2_1,
-                Integer *k_t1_2_1_offset, Integer *d_i0, Integer *k_i0_offset, Integer* ctx, Integer* count);
+                Integer *k_t1_2_1_offset, Integer *d_i0, Integer *k_i0_offset,
+                Integer *ctx, Integer *count);
 void icsd_t1_3_1_(Integer *d_f, Integer *k_f_offset, Integer *d_t1_3_1,
-                  Integer *k_t1_3_1_offset, Integer* ctx, Integer* count);
+                  Integer *k_t1_3_1_offset, Integer *ctx, Integer *count);
 void icsd_t1_3_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
                   Integer *k_v_offset, Integer *d_t1_3_1,
-                  Integer *k_t1_3_1_offset, Integer* ctx, Integer* count);
+                  Integer *k_t1_3_1_offset, Integer *ctx, Integer *count);
 void icsd_t1_3_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_t1_3_1,
-                Integer *k_t1_3_1_offset, Integer *d_i0, Integer *k_i0_offset, Integer* ctx, Integer* count);
+                Integer *k_t1_3_1_offset, Integer *d_i0, Integer *k_i0_offset,
+                Integer *ctx, Integer *count);
 void icsd_t1_4_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset, Integer* ctx, Integer* count);
+                Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset,
+                Integer *ctx, Integer *count);
 void icsd_t1_5_1_(Integer *d_f, Integer *k_f_offset, Integer *d_t1_5_1,
-                  Integer *k_t1_5_1_offset, Integer* ctx, Integer* count);
+                  Integer *k_t1_5_1_offset, Integer *ctx, Integer *count);
 void icsd_t1_5_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
                   Integer *k_v_offset, Integer *d_t1_5_1,
-                  Integer *k_t1_5_1_offset, Integer* ctx, Integer* count);
+                  Integer *k_t1_5_1_offset, Integer *ctx, Integer *count);
 void icsd_t1_5_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_t1_5_1,
-                Integer *k_t1_5_1_offset, Integer *d_i0, Integer *k_i0_offset, Integer* ctx, Integer* count);
+                Integer *k_t1_5_1_offset, Integer *d_i0, Integer *k_i0_offset,
+                Integer *ctx, Integer *count);
 void icsd_t1_6_1_(Integer *d_v, Integer *k_v_offset, Integer *d_t1_6_1,
-                  Integer *k_t1_6_1_offset, Integer* ctx, Integer* count);
+                  Integer *k_t1_6_1_offset, Integer *ctx, Integer *count);
 void icsd_t1_6_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
                   Integer *k_v_offset, Integer *d_t1_6_1,
-                  Integer *k_t1_6_1_offset, Integer* ctx, Integer* count);
+                  Integer *k_t1_6_1_offset, Integer *ctx, Integer *count);
 void icsd_t1_6_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_t1_6_1,
-                Integer *k_t1_6_1_offset, Integer *d_i0, Integer *k_i0_offset, Integer* ctx, Integer* count);
+                Integer *k_t1_6_1_offset, Integer *d_i0, Integer *k_i0_offset,
+                Integer *ctx, Integer *count);
 void icsd_t1_7_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_v,
-                Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset, Integer* ctx, Integer* count);
+                Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset,
+                Integer *ctx, Integer *count);
 
 void offset_icsd_t1_2_1_(Integer *l_t1_2_1_offset, Integer *k_t1_2_1_offset,
                          Integer *size_t1_2_1);
@@ -121,7 +127,6 @@ void offset_icsd_t1_6_1_(Integer *l_t1_6_1_offset, Integer *k_t1_6_1_offset,
                          Integer *size_t1_6_1);
 
 void nxt_ctx_destroy_(Integer *ctx);
-
 }
 
 namespace tamm {
@@ -207,14 +212,14 @@ void icsd_t1_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   v->attach(*k_v_offset, 0, *d_v);
 
 #if 1
-  //schedule_linear(&tensors, &ops);
+  // schedule_linear(&tensors, &ops);
   // schedule_linear_lazy(tensors, ops);
   schedule_levels(&tensors, &ops);
 #else
 
-    Integer ctx = 0;
-    Integer num = 19;
-    nxt_ctx_create_(&num, &ctx);
+  Integer ctx = 0;
+  Integer num = 19;
+  nxt_ctx_create_(&num, &ctx);
 
   CorFortran(0, &op_t1_1, icsd_t1_1_, ctx, 1);
   CorFortran(0, t1_2_1, offset_icsd_t1_2_1_);
@@ -246,7 +251,7 @@ void icsd_t1_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   destroy(t1_6_1);
   CorFortran(0, &op_t1_7, icsd_t1_7_, ctx, 19);
 
-    nxt_ctx_destroy_(&ctx);
+  nxt_ctx_destroy_(&ctx);
 
 #endif  // Use c scheduler
 

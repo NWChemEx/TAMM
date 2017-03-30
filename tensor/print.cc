@@ -8,12 +8,12 @@
 // Operated by Battelle for the U.S. Department of Energy
 //
 //------------------------------------------------------------------------------
+#include <iostream>
 #include <map>
 #include <set>
-#include <vector>
-#include <iostream>
 #include <sstream>
 #include <string>
+#include <vector>
 #include "tensor/expression.h"
 #include "tensor/input.h"
 #include "tensor/tensor.h"

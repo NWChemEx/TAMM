@@ -110,7 +110,7 @@
  *  x2_8:       i0[p3,h1,h2] += 1 * t_vvoo[p3,p5,h1,h6] * x2_8_1[h6,h2,p5];
  *
  *  }
-*/
+ */
 
 extern "C" {
 void ipccsd_x2_1_1_(Integer *d_v, Integer *k_v_offset, Integer *d_x2_1_1,
@@ -406,27 +406,33 @@ void ipccsd_x2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   x2_7_1->set_irrep(Variables::irrep_x());
   x2_8_1->set_irrep(Variables::irrep_x());
 
-	for(int i=0; i<eqs.op_entries.size(); i++) {
-      switch(eqs.op_entries[i].optype) {
-      case OpTypeAdd:
-      {
-          Tensor *t_alhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
-          t_alhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])->irrep());
-          break;
+  for (int i = 0; i < eqs.op_entries.size(); i++) {
+    switch (eqs.op_entries[i].optype) {
+      case OpTypeAdd: {
+        Tensor *t_alhs =
+            &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
+        t_alhs->set_irrep(
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])
+                ->irrep());
+        break;
       }
-      case OpTypeMult:
-       {   Tensor *t_mlhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
-          t_mlhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])->irrep() ^ 
-                          (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])->irrep());
-          break;
-       }
+      case OpTypeMult: {
+        Tensor *t_mlhs =
+            &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
+        t_mlhs->set_irrep(
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])
+                ->irrep() ^
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])
+                ->irrep());
+        break;
       }
+    }
   }
 
 #if 1
-	// schedule_linear(&tensors, &ops);
+  // schedule_linear(&tensors, &ops);
   // schedule_linear_lazy(&tensors, &ops);
-	schedule_levels(&tensors, &ops);
+  schedule_levels(&tensors, &ops);
 #else
   op_x2_1_1 = ops[0].add;
   op_x2_1_2_1 = ops[1].add;
@@ -554,12 +560,12 @@ void ipccsd_x2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
   CorFortran(1, &op_x2_6, ipccsd_x2_6_); /** @bug */
   destroy(x2_6_1);
   CorFortran(1, x2_7_1, offset_ipccsd_x2_7_1_); /** @bug -- */
-  CorFortran(1, &op_x2_7_1, ipccsd_x2_7_1_);     /** @bug */
-  CorFortran(1, &op_x2_7, ipccsd_x2_7_);         /** @bug */
+  CorFortran(1, &op_x2_7_1, ipccsd_x2_7_1_);    /** @bug */
+  CorFortran(1, &op_x2_7, ipccsd_x2_7_);        /** @bug */
   destroy(x2_7_1);
   CorFortran(1, x2_8_1, offset_ipccsd_x2_8_1_); /** @bug -- */
-  CorFortran(1, &op_x2_8_1, ipccsd_x2_8_1_);     /** @bug */
-  CorFortran(1, &op_x2_8, ipccsd_x2_8_);         /** @bug */
+  CorFortran(1, &op_x2_8_1, ipccsd_x2_8_1_);    /** @bug */
+  CorFortran(1, &op_x2_8, ipccsd_x2_8_);        /** @bug */
   destroy(x2_8_1);
 #endif  // Use fortrain functions
 

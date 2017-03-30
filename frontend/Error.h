@@ -13,6 +13,8 @@
 #ifndef __TAMM_ERROR_H__
 #define __TAMM_ERROR_H__
 
+#include <string>
+
 namespace tamm {
 
 namespace frontend {

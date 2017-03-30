@@ -312,7 +312,7 @@ namespace tamm {
 
 typedef void (*c2fd_fn)(Integer *, Integer *, Integer *, Integer *);
 
-static void CorFortranc2fd(int use_c, Multiplication * m, c2fd_fn fn) {
+static void CorFortranc2fd(int use_c, Multiplication *m, c2fd_fn fn) {
   if (use_c) {
     m->execute();
   } else {
@@ -421,21 +421,27 @@ void ccsd_t2_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo,
   t_vvoo->attach(*k_t_vvoo_offset, 0, *d_t_vvoo);
   v->attach(*k_v2_offset, 0, *d_v2);
 
-  for(int i=0; i<eqs.op_entries.size(); i++) {
-      switch(eqs.op_entries[i].optype) {
-      case OpTypeAdd:
-      {
-          Tensor *t_alhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
-          t_alhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])->irrep());
-          break;
+  for (int i = 0; i < eqs.op_entries.size(); i++) {
+    switch (eqs.op_entries[i].optype) {
+      case OpTypeAdd: {
+        Tensor *t_alhs =
+            &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
+        t_alhs->set_irrep(
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])
+                ->irrep());
+        break;
       }
-      case OpTypeMult:
-       {   Tensor *t_mlhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
-          t_mlhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])->irrep() ^ 
-                          (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])->irrep());
-          break;
-       }
+      case OpTypeMult: {
+        Tensor *t_mlhs =
+            &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
+        t_mlhs->set_irrep(
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])
+                ->irrep() ^
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])
+                ->irrep());
+        break;
       }
+    }
   }
 
 #if 1

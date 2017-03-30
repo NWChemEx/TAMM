@@ -14,9 +14,9 @@
 #include <utility>
 
 #include "tensor/common.h"
-#include "tensor/index_sort.h"
 #include "tensor/fapi.h"
 #include "tensor/index.h"
+#include "tensor/index_sort.h"
 #include "tensor/variables.h"
 
 // #ifndef LINUX_BLAS
@@ -29,7 +29,7 @@ using std::string;
 namespace tamm {
 
 void tamm_sort(double *sbuf, double *dbuf, const std::vector<size_t> &ids,
-               const std::vector<size_t> & iv, double alpha) {
+               const std::vector<size_t> &iv, double alpha) {
   assert(ids.size() == iv.size());
 
 #if USE_FORTRAN_FUNCTIONS
@@ -135,7 +135,7 @@ void cdgemm(char transa, char transb, size_t m, size_t n, size_t k,
 }
 
 void tamm_sortacc(double *sbuf, double *dbuf, const std::vector<size_t> &ids,
-                  const std::vector<size_t> & perm, double alpha) {
+                  const std::vector<size_t> &perm, double alpha) {
   assert(ids.size() == perm.size());
 
 #if USE_FORTRAN_FUNCTIONS
@@ -169,7 +169,7 @@ void tamm_sortacc(double *sbuf, double *dbuf, const std::vector<size_t> &ids,
 }
 
 void tamm_restricted(int dim, int nupper, const std::vector<size_t> &value,
-                     std::vector<size_t> * pvalue_r) {
+                     std::vector<size_t> *pvalue_r) {
 #if USE_FORTRAN_FUNCTIONS
   std::vector<Fint> temp(dim);
   std::vector<Fint> ivalue(dim);
@@ -219,7 +219,7 @@ void tamm_restricted(int dim, int nupper, const std::vector<size_t> &value,
 #endif  // USE_FORTRAN_FUNCTIONS
 }
 
-static std::vector<size_t> invert_perm(const std::vector<size_t> & perm) {
+static std::vector<size_t> invert_perm(const std::vector<size_t> &perm) {
   std::vector<size_t> perm_out;
   int n = perm.size();
   for (size_t i = n; i >= 1; i--) {
@@ -246,9 +246,8 @@ static bool is_spin_nonzero(const vector<size_t> &ids) {
 int cget_add_ind_i(gmem::Handle da, double *buf, size_t size,
                    size_t offset_unused, size_t key_unused,
                    const std::vector<size_t> &is_in,
-                   std::vector<size_t> * is_out,
-                   std::vector<size_t> * perm, string name,
-                   gmem::Wait_Handle * nbh) {
+                   std::vector<size_t> *is_out, std::vector<size_t> *perm,
+                   string name, gmem::Wait_Handle *nbh) {
   assert(is_in.size() == 4);
   assert(perm->size() == 4);
   vector<size_t> isa(is_in.size());
@@ -329,7 +328,7 @@ int cget_add_ind_i(gmem::Handle da, double *buf, size_t size,
 }
 
 void cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
-                      size_t key, const std::vector<size_t> & is) {
+                      size_t key, const std::vector<size_t> &is) {
 #if USE_FORTRAN_FUNCTIONS || 1
   Fint ida = (gmem::Handle)da;
   Fint isize = size;
@@ -551,7 +550,7 @@ void cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
 }
 
 void cget_hash_block_i(gmem::Handle da, double *buf, size_t size, size_t offset,
-                       size_t key, const std::vector<size_t> & is) {
+                       size_t key, const std::vector<size_t> &is) {
 #if USE_FORTRAN_FUNCTIONS
   Fint ida = (gmem::Handle)da;
   assert(is.size() == 4);
@@ -574,7 +573,7 @@ void cget_hash_block_ma(gmem::Handle da, double *buf, size_t size,
   Fint *int_mb = Variables::int_mb();
   Fint ikey = key;
   fget_hash_block_ma(&dbl_mb[static_cast<int>(da)], buf, &isize,
-      &int_mb[offset], &ikey);
+                     &int_mb[offset], &ikey);
 #else
   Fint *int_mb = Variables::int_mb();
   double *dbl_mb = Variables::dbl_mb();

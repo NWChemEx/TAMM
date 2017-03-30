@@ -19,7 +19,6 @@
 
 // #include "equations.h"
 
-
 namespace tamm {
 struct Equations {
   std::vector<RangeEntry> range_entries;

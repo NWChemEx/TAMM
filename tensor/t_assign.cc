@@ -16,16 +16,17 @@ using std::vector;
 
 namespace tamm {
 
-  void t_assign1(const Tensor& tC, const vector<IndexName>& c_ids_name,
+void t_assign1(const Tensor& tC, const vector<IndexName>& c_ids_name,
                const Tensor& tA, const vector<IndexName>& a_ids_name,
-               IterGroup<triangular>* out_itr,
-               double coef, gmem::Handle sync_ga, int spos) {
+               IterGroup<triangular>* out_itr, double coef,
+               gmem::Handle sync_ga, int spos) {
   vector<size_t> order(tC.dim());
-  vector<Index> c_ids = name2ids(tC,c_ids_name);
-  vector<Index> a_ids = name2ids(tA,a_ids_name);
-  
+  vector<Index> c_ids = name2ids(tC, c_ids_name);
+  vector<Index> a_ids = name2ids(tA, a_ids_name);
+
   for (int i = 0; i < tC.dim(); ++i) {
-    order[i] = find(c_ids_name.begin(), c_ids_name.end(), a_ids_name[i]) - c_ids_name.begin() + 1;
+    order[i] = find(c_ids_name.begin(), c_ids_name.end(), a_ids_name[i]) -
+               c_ids_name.begin() + 1;
   }
 
   int nprocs = gmem::ranks();
@@ -63,8 +64,8 @@ namespace tamm {
 
         size_t dimc = compute_size(c_ids_v);
         if (dimc <= 0) continue;
-        //double* buf_c_sort = new double[dimc];
-        //memset(buf_c_sort, 0, dimc * sizeof(double));
+        // double* buf_c_sort = new double[dimc];
+        // memset(buf_c_sort, 0, dimc * sizeof(double));
 
         vector<size_t> a_ids_v(tA.dim());
         for (int i = 0; i < tA.dim(); ++i) {
@@ -84,8 +85,7 @@ namespace tamm {
         vector<size_t> a_svalue, a_svalue_r;
         vector<IndexName> a_name;
         int a_sign =
-            sortByValueThenExtSymGroup(a_ids, &a_name, &a_svalue,
-                                       &a_svalue_r);
+            sortByValueThenExtSymGroup(a_ids, &a_name, &a_svalue, &a_svalue_r);
         getTimer.start();
         tA.get(a_svalue_r, buf_a, dimc);
         getTimer.stop();
@@ -93,11 +93,10 @@ namespace tamm {
         vector<size_t> a_sort_ids = sort_ids(a_name, c_ids_name);
         tamm_sort(buf_a, buf_a_sort, a_svalue /*tA._value()*/,
                   a_sort_ids /*tA.sort_ids(a_name)*/,
-                  static_cast<double>(a_sign)*coef /*(double)tA.sign()*/);
+                  static_cast<double>(a_sign) * coef /*(double)tA.sign()*/);
 #else
-        tamm_sort(buf_a, buf_a_sort, a_svalue /*tA._value()*/,
-                  order,
-                  static_cast<double>(a_sign)*coef /*(double)tA.sign()*/);
+        tamm_sort(buf_a, buf_a_sort, a_svalue /*tA._value()*/, order,
+                  static_cast<double>(a_sign) * coef /*(double)tA.sign()*/);
 #endif
         delete[] buf_a;
 #endif
@@ -118,11 +117,10 @@ namespace tamm {
   }
 }
 
-
 void t_assign2(const Tensor& tC, const vector<IndexName>& c_ids,
                const Tensor& tA, const vector<IndexName>& a_ids,
-               IterGroup<triangular>* out_itr,
-               double coef, gmem::Handle sync_ga, int spos) {
+               IterGroup<triangular>* out_itr, double coef,
+               gmem::Handle sync_ga, int spos) {
   vector<size_t> order(tC.dim());
 
   for (int i = 0; i < tC.dim(); ++i) {
@@ -201,13 +199,11 @@ void t_assign2(const Tensor& tC, const vector<IndexName>& c_ids,
   }
 }
 
-void t_assign3(Assignment *a, gmem::Handle sync_ga, int spos) {
+void t_assign3(Assignment* a, gmem::Handle sync_ga, int spos) {
   assignTimer.start();
   t_assign1(a->tC(), a->cids(), a->tA(), a->aids(), &a->out_itr(), a->coef(),
-      sync_ga, spos);
+            sync_ga, spos);
   assignTimer.stop();
 }
-
-
 
 }  // namespace tamm

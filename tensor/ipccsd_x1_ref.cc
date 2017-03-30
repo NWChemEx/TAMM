@@ -96,7 +96,6 @@ void offset_ipccsd_x1_3_1_(Fint *l_x1_3_1_offset, Fint *k_x1_3_1_offset,
 
 namespace tamm {
 
-
 extern "C" {
 void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo,
                     Fint *d_v2, Fint *d_x1, Fint *d_x2, Fint *k_f1_offset,
@@ -131,7 +130,6 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo,
   std::vector<Operation> ops;
   tensors_and_ops(&eqs, &tensors, &ops);
 
-
   Tensor *x1_1_1 = &tensors["x1_1_1"];
   Tensor *f = &tensors["f"];
   Tensor *x1_1_2_1 = &tensors["x1_1_2_1"];
@@ -157,21 +155,27 @@ void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo,
   x_voo->set_irrep(Variables::irrep_x());
   i0->set_irrep(Variables::irrep_x());
 
-  for(int i=0; i<eqs.op_entries.size(); i++) {
-      switch(eqs.op_entries[i].optype) {
-      case OpTypeAdd:
-      {
-          Tensor *t_alhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
-          t_alhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])->irrep());
-          break;
+  for (int i = 0; i < eqs.op_entries.size(); i++) {
+    switch (eqs.op_entries[i].optype) {
+      case OpTypeAdd: {
+        Tensor *t_alhs =
+            &tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.tc).name];
+        t_alhs->set_irrep(
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].add.ta).name])
+                ->irrep());
+        break;
       }
-      case OpTypeMult:
-       {   Tensor *t_mlhs = &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
-          t_mlhs->set_irrep((&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])->irrep() ^ 
-                          (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])->irrep());
-          break;
-       }
+      case OpTypeMult: {
+        Tensor *t_mlhs =
+            &tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tc).name];
+        t_mlhs->set_irrep(
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.ta).name])
+                ->irrep() ^
+            (&tensors[eqs.tensor_entries.at(eqs.op_entries[i].mult.tb).name])
+                ->irrep());
+        break;
       }
+    }
   }
 
 #if 1

@@ -50,14 +50,14 @@ void tamm_sortacc(double *sbuf, double *dbuf, const std::vector<size_t> &ids,
  * C++ function that wraps FORTRAN tce_restricted
  */
 void tamm_restricted(int dim, int nupper, const std::vector<size_t> &value,
-                     std::vector<size_t> * pvalue_r);
+                     std::vector<size_t> *pvalue_r);
 
 /**
  * C++ function that wraps FORTRAN get_hash_block_i
  */
 void cget_hash_block_i(gmem::Handle d_a, double *buf, size_t size,
-                     size_t d_a_offset, size_t key,
-                     const std::vector<size_t> &is);
+                       size_t d_a_offset, size_t key,
+                       const std::vector<size_t> &is);
 
 /**
  * C++ function that wraps FORTRAN get_hash_block_ma

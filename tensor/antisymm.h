@@ -150,7 +150,8 @@ inline int tloop::nextpos(int pos) {
   assert(pos < indices.size());
   int ret;
   for (ret = pos + 1; ret < indices.size() && indices[ret] == indices[pos];
-       ret++) {}
+       ret++) {
+  }
   return ret;
 }
 

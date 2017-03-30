@@ -45,7 +45,7 @@ void zero(Handle handle);
 void sync();
 void destroy(Handle handle);
 void get(Handle handle, void* buf, int start, int stop);
-void get(Handle handle, void* buf, int start, int stop, Wait_Handle * wait);
+void get(Handle handle, void* buf, int start, int stop, Wait_Handle* wait);
 void acc(Handle handle, void* buf, int start, int stop);
 void op(double x[], int n, Operation op);
 void wait(const Wait_Handle& wait);

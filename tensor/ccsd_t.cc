@@ -11,9 +11,9 @@
 //------------------------------------------------------------------------------
 #include <iostream>
 #include "tansor/fapi.h"
+#include "tenosr/t_mult.h"
 #include "tensor/gmem.h"
 #include "tensor/iterGroup.h"
-#include "tenosr/t_mult.h"
 #include "tensor/triangular.h"
 #include "tensor/variables.h"
 
@@ -150,8 +150,10 @@ void ccsd_t_cxx_(Integer *k_t1_local, Integer *d_t1, Integer *k_t1_offset,
       if ((is_spatial_nonzero(vec, 0)) && (is_spin_nonzero(vec)) &&
           (is_spin_restricted_le(vec, 8))) {
         Integer rsize = compute_size(vec);
-        double *buf_double = static_cast<double*>(malloc(rsize*sizeof(double)));
-        double *buf_single = static_cast<double*>(malloc(rsize*sizeof(double)));
+        double *buf_double =
+            static_cast<double *>(malloc(rsize * sizeof(double)));
+        double *buf_single =
+            static_cast<double *>(malloc(rsize * sizeof(double)));
         memset(buf_single, 0, rsize * sizeof(double));
         memset(buf_double, 0, rsize * sizeof(double));
 

@@ -33,20 +33,20 @@ int factorial(int n) {
 // compute factor reduction for isuperp
 double computeBeta(const std::vector<IndexName>& sum_ids,
                    const std::vector<size_t>& sum_vec,
-									 const std::vector<bool>& sum_ids_aupper) {
-		std::vector<size_t> p_group_up, p_group_lo, h_group_up, h_group_lo;
+                   const std::vector<bool>& sum_ids_aupper) {
+  std::vector<size_t> p_group_up, p_group_lo, h_group_up, h_group_lo;
   for (int i = 0; i < sum_ids.size(); i++) {
     assert(sum_ids[i] < IndexNum && sum_ids[i] >= 0);
-    if (sum_ids[i] < pIndexNum && sum_ids_aupper[i]==true)
+    if (sum_ids[i] < pIndexNum && sum_ids_aupper[i] == true)
       p_group_up.push_back(sum_vec[i]);
-    else if (sum_ids[i] < pIndexNum && sum_ids_aupper[i]==false)
+    else if (sum_ids[i] < pIndexNum && sum_ids_aupper[i] == false)
       p_group_lo.push_back(sum_vec[i]);
-    else if (sum_ids[i] < pIndexNum+hIndexNum && sum_ids_aupper[i]==true)
+    else if (sum_ids[i] < pIndexNum + hIndexNum && sum_ids_aupper[i] == true)
       h_group_up.push_back(sum_vec[i]);
-    else if (sum_ids[i] < pIndexNum+hIndexNum && sum_ids_aupper[i]==false)
+    else if (sum_ids[i] < pIndexNum + hIndexNum && sum_ids_aupper[i] == false)
       h_group_lo.push_back(sum_vec[i]);
     else
-				assert(0); //should not get here
+      assert(0);  // should not get here
   }
   double p_fact_up = factorial(p_group_up.size());
   double p_fact_lo = factorial(p_group_lo.size());
@@ -66,7 +66,7 @@ double computeBeta(const std::vector<IndexName>& sum_ids,
   }
   p_fact_up /= factorial(tsize);
 
-	tsize = 1;
+  tsize = 1;
   for (int i = 1; i < p_group_lo.size(); i++) {
     if (p_group_lo[i] != p_group_lo[i - 1]) {
       p_fact_lo /= factorial(tsize);
@@ -75,8 +75,8 @@ double computeBeta(const std::vector<IndexName>& sum_ids,
     tsize += 1;
   }
   p_fact_lo /= factorial(tsize);
-/*  std::cout << p_group << std::endl;
-      std::cout << p_fact << std::endl;*/
+  /*  std::cout << p_group << std::endl;
+        std::cout << p_fact << std::endl;*/
   tsize = 1;
   for (int i = 1; i < h_group_up.size(); i++) {
     if (h_group_up[i] != h_group_up[i - 1]) {
@@ -87,7 +87,7 @@ double computeBeta(const std::vector<IndexName>& sum_ids,
   }
   h_fact_up /= factorial(tsize);
 
-	tsize = 1;
+  tsize = 1;
   for (int i = 1; i < h_group_lo.size(); i++) {
     if (h_group_lo[i] != h_group_lo[i - 1]) {
       h_fact_lo /= factorial(tsize);
@@ -96,9 +96,9 @@ double computeBeta(const std::vector<IndexName>& sum_ids,
     tsize += 1;
   }
   h_fact_lo /= factorial(tsize);
-/*  std::cout << h_group << std::endl;
-      std::cout << h_fact << std::endl;*/
-  //std::cout<<"p_fact: "<<p_fact<<"| h_fact: "<<h_fact<<std::endl;
+  /*  std::cout << h_group << std::endl;
+        std::cout << h_fact << std::endl;*/
+  // std::cout<<"p_fact: "<<p_fact<<"| h_fact: "<<h_fact<<std::endl;
   return p_fact_up * p_fact_lo * h_fact_up * h_fact_lo;
 }
 

@@ -39,7 +39,7 @@ using std::vector;
  *  e_2:       i0 += 1/4 * t_vvoo[p1,p2,h3,h4] * v[h3,h4,p1,p2];
  *
  *  }
-*/
+ */
 
 extern "C" {
 void cisd_e_1_(Fint *d_t_vo, Fint *k_t_vo_offset, Fint *d_f, Fint *k_f_offset,
@@ -91,7 +91,7 @@ void cisd_e_cxx_(Fint *d_f, Fint *d_i0, Fint *d_t_vo, Fint *d_t_vvoo, Fint *d_v,
   v->attach(*k_v_offset, 0, *d_v);
 
 #if 1
-    schedule_levels(&tensors, &ops);
+  schedule_levels(&tensors, &ops);
 #else
   op_e_1 = ops[0].mult;
   op_e_2 = ops[1].mult;

@@ -13,7 +13,7 @@
 
 namespace tamm {
 
-void CorFortran(int use_c, Assignment * as, add_fn fn) {
+void CorFortran(int use_c, Assignment *as, add_fn fn) {
   if (use_c) {
     as->execute();
   } else {
@@ -25,7 +25,7 @@ void CorFortran(int use_c, Assignment * as, add_fn fn) {
   }
 }
 
-void CorFortran(int use_c, Multiplication * m, mult_fn fn) {
+void CorFortran(int use_c, Multiplication *m, mult_fn fn) {
   if (use_c) {
     m->execute();
   } else {
@@ -39,7 +39,8 @@ void CorFortran(int use_c, Multiplication * m, mult_fn fn) {
   }
 }
 
-void CorFortran(int use_c, Assignment * as, icsd_add_fn fn, Integer ctx, Integer count) {
+void CorFortran(int use_c, Assignment *as, icsd_add_fn fn, Integer ctx,
+                Integer count) {
   if (use_c) {
     as->execute();
   } else {
@@ -51,7 +52,8 @@ void CorFortran(int use_c, Assignment * as, icsd_add_fn fn, Integer ctx, Integer
   }
 }
 
-void CorFortran(int use_c, Multiplication * m, icsd_mult_fn fn, Integer ctx, Integer count) {
+void CorFortran(int use_c, Multiplication *m, icsd_mult_fn fn, Integer ctx,
+                Integer count) {
   if (use_c) {
     m->execute();
   } else {
@@ -61,7 +63,7 @@ void CorFortran(int use_c, Multiplication * m, icsd_mult_fn fn, Integer ctx, Int
          db_offset = m->tB().offset_index();
     Fint dc = static_cast<int>(m->tC().ga()),
          dc_offset = m->tC().offset_index();
-    fn(&da, &da_offset, &db, &db_offset, &dc, &dc_offset,&ctx, &count);
+    fn(&da, &da_offset, &db, &db_offset, &dc, &dc_offset, &ctx, &count);
   }
 }
 

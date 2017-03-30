@@ -40,7 +40,7 @@ class triangular {
    * @param[in] vec current iterate value
    * @return true the value is valid, return false when end of the iterator
    */
-  bool next(std::vector<size_t> * vec);
+  bool next(std::vector<size_t>* vec);
 
   /**
    * Reset the iterator

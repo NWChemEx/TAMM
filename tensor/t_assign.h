@@ -28,9 +28,8 @@ namespace tamm {
  */
 void t_assign2(const Tensor& tC, const std::vector<IndexName>& c_ids,
                const Tensor& tA, const std::vector<IndexName>& a_ids,
-               IterGroup<triangular> * out_itr,
-               double coef, gmem::Handle sync_ga = gmem::NULL_HANDLE,
-               int spos = 0);
+               IterGroup<triangular>* out_itr, double coef,
+               gmem::Handle sync_ga = gmem::NULL_HANDLE, int spos = 0);
 
 /**
  * Simply wrap t_assign2

@@ -62,7 +62,7 @@ class CopyIter {
    * Get vec of current iteration
    * return false if end of iteration
    */
-  bool next(std::vector<size_t> * vec);
+  bool next(std::vector<size_t>* vec);
 
   /* following 2 methods no use, just to pass IterGroup compilation */
   inline const std::vector<size_t>& v_range() {}   // not used

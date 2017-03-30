@@ -114,7 +114,7 @@ inline bool IterGroup<T>::next(std::vector<size_t>* vec) {
   vec->clear();
   for (int i = 0; i < n; i++)
     vec->insert(vec->end(), curr_[i].begin(),
-               curr_[i].end());  // all = curr[0]+curr[1]+...
+                curr_[i].end());  // all = curr[0]+curr[1]+...
 
   // update sign
   if (type_ == COPY) {

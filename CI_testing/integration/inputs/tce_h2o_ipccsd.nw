@@ -1,4 +1,12 @@
-start tce_h2o
+#A1: 10.27734 eV
+#A2: no solution for this particular case
+#B1: 12.62030 eV
+#B2:   7.23704 eV
+
+
+start  tce_ipccsd_h2o
+
+title "tce_ipccsd_h2o"
 
 echo
 
@@ -20,14 +28,22 @@ singlet
 rhf
 end
 
-
 tce
-ccsd
-#cc2
-#2eorb
+freeze atomic
+#eaccsd
+ipccsd
+2eorb
+2emet 13
+tilesize 30
+attilesize 40
+thresh 1.0d-6
+maxiter 100
+nroots 1
 end
 
-#set tce:nts T
+set tce:maxeorb 0.6
+
 task tce energy
 
+####
 

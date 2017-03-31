@@ -95,7 +95,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 # Setup ANTLR
 include(SetupANTLR)
 
-message("Antlr Binary = " ${AntlrBinary})
+#message(STATUS "Antlr Binary: " ${AntlrBinary})
 
 set(ParserSrcDir ${PROJECT_SOURCE_DIR}/frontend)
 file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/parser")
@@ -158,27 +158,6 @@ set(tammParserSources
 
 set(tammLibSources
   tensor/capi.cc
-  tensor/cisd_e_ref.cc
-  tensor/cisd_c1_ref.cc
-  tensor/cisd_c2_ref.cc
-  tensor/cc2_t1_ref.cc
-  tensor/cc2_t2_ref.cc
-  tensor/ccsd_t12.cc
-  tensor/ccsd_lambda1_ref.cc
-  tensor/ccsd_lambda2_ref.cc
-  tensor/icsd_t1_ref.cc
-  tensor/ccsd_e_ref.cc
-  tensor/ccsd_t1_ref.cc
-  tensor/ccsd_t2_ref.cc
-  tensor/icsd_t2_ref.cc
-  tensor/ipccsd_x1_ref.cc
-  tensor/ipccsd_x2_ref.cc
-  tensor/eaccsd_x1_ref.cc
-  tensor/eaccsd_x2_ref.cc
-  tensor/ccsd_1prdm_hh_ref.cc
-  tensor/ccsd_1prdm_pp_ref.cc
-  tensor/ccsd_1prdm_hp_ref.cc
-  tensor/ccsd_1prdm_ph_ref.cc
   tensor/corf.cc
   tensor/dummy.cc
   tensor/equations.cc
@@ -196,6 +175,30 @@ set(tammLibSources
   tensor/variables.cc
   )
 
+set(refCodeSources
+  reference_code/cisd_e_ref.cc
+  reference_code/cisd_c1_ref.cc
+  reference_code/cisd_c2_ref.cc
+  reference_code/cc2_t1_ref.cc
+  reference_code/cc2_t2_ref.cc
+  reference_code/ccsd_t12.cc
+  reference_code/ccsd_lambda1_ref.cc
+  reference_code/ccsd_lambda2_ref.cc
+  reference_code/icsd_t1_ref.cc
+  reference_code/ccsd_e_ref.cc
+  reference_code/ccsd_t1_ref.cc
+  reference_code/ccsd_t2_ref.cc
+  reference_code/icsd_t2_ref.cc
+  reference_code/ipccsd_x1_ref.cc
+  reference_code/ipccsd_x2_ref.cc
+  reference_code/eaccsd_x1_ref.cc
+  reference_code/eaccsd_x2_ref.cc
+  reference_code/ccsd_1prdm_hh_ref.cc
+  reference_code/ccsd_1prdm_pp_ref.cc
+  reference_code/ccsd_1prdm_hp_ref.cc
+  reference_code/ccsd_1prdm_ph_ref.cc
+)
+
 # set(CMAKE_CXX_STANDARD 14)
 # set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -203,13 +206,13 @@ string(REPLACE "-I" "" tamm_cmake_cflags ${tamm_cflags})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" tamm_cflags ${tamm_cmake_cflags})
 
-message("ANTLR CPPRUNTIME=" ${ANTLR_CPPRUNTIME_DIR}/include)
+message(STATUS "ANTLR C++ runtime found at: " ${ANTLR_CPPRUNTIME_DIR})
 ADD_LIBRARY(a4runtime STATIC IMPORTED)
 SET_TARGET_PROPERTIES(a4runtime PROPERTIES IMPORTED_LOCATION ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a)
 
 SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14")
 #SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
-add_library(tamm STATIC ${tammParserSources} ${tammLibSources})
+add_library(tamm STATIC ${tammParserSources} ${tammLibSources} ${refCodeSources})
 add_dependencies(tamm BuildANTLR)
 link_directories(${ANTLR_CPPRUNTIME_DIR}/lib)
 target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} 

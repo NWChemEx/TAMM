@@ -1,4 +1,5 @@
- argument  1 = tce_h2o_test.nw
+ argument  1 = tce_h2o_icsd.nw
+  NWChem w/ OpenMP: maximum threads =  4
  
 
 
@@ -25,22 +26,19 @@ singlet
 rhf
 end
 
-
 tce
 ccsd
-#cc2
-#2eorb
 end
 
-set tce:left T
-#set tce:nts T
+set tce:nts T
+
 task tce energy
+
 
 
 ================================================================================
 
 
-  Warning: test file already existed: ./tce_h2o.dir_check_p.0
                                          
                                          
  
@@ -78,16 +76,16 @@ task tce energy
            Job information
            ---------------
 
-    hostname        = g610
-    program         = /home/gawa722/Cascade/nwchem/nwchem-6.6/bin/LINUX64/nwchem
-    date            = Wed Nov 16 15:46:07 2016
+    hostname        = debian
+    program         = /opt/libraries/nwchem-devel/bin/LINUX64/nwchem_orig
+    date            = Thu Mar 30 16:06:04 2017
 
-    compiled        = Fri_Jan_29_14:40:59_2016
-    source          = /home/gawa722/Cascade/nwchem/nwchem-6.6
-    nwchem branch   = 6.6
-    nwchem revision = 27746
-    ga revision     = 10594
-    input           = tce_h2o_test.nw
+    compiled        = Tue_Mar_28_14:10:50_2017
+    source          = /opt/libraries/nwchem-devel
+    nwchem branch   = Development
+    nwchem revision = 29169
+    ga revision     = 10752
+    input           = tce_h2o_icsd.nw
     prefix          = tce_h2o.
     data base       = ./tce_h2o.db
     status          = startup
@@ -99,10 +97,10 @@ task tce energy
            Memory information
            ------------------
 
-    heap     =   13107194 doubles =    100.0 Mbytes
-    stack    =   13107199 doubles =    100.0 Mbytes
+    heap     =   13107196 doubles =    100.0 Mbytes
+    stack    =   13107201 doubles =    100.0 Mbytes
     global   =   26214400 doubles =    200.0 Mbytes (distinct from heap & stack)
-    total    =   52428793 doubles =    400.0 Mbytes
+    total    =   52428797 doubles =    400.0 Mbytes
     verify   = yes
     hardfail = no 
 
@@ -114,7 +112,6 @@ task tce energy
   0 scratch   = .
  
  
-                     0  ppn                      1
  
  
                                 NWChem Input Module
@@ -261,7 +258,7 @@ task tce energy
         b2          1
  
 
- Forming initial guess at       0.3s
+ Forming initial guess at       0.1s
 
  
       Superposition of Atomic Density Guess
@@ -292,7 +289,7 @@ task tce energy
      6 a1          7 b1      
  
 
- Starting SCF solution at       0.3s
+ Starting SCF solution at       0.1s
 
 
 
@@ -305,24 +302,33 @@ task tce energy
  ----------------------------------------------
 
 
+ #quartets = 7.900D+01 #integrals = 1.640D+02 #direct =  0.0% #cached =100.0%
+
+
+ Integral file          = ./tce_h2o.aoints.0
+ Record size in doubles =  65536        No. of integs per rec  =  43688
+ Max. records in memory =      2        Max. records in file   = 113737
+ No. of bits per label  =      8        No. of bits per value  =     64
+
+
               iter       energy          gnorm     gmax       time
              ----- ------------------- --------- --------- --------
-                 1      -74.6534332946  9.18D-01  7.03D-01      0.0
-                 2      -74.7526200114  1.19D-01  9.98D-02      0.0
-                 3      -74.7538434192  7.22D-03  4.95D-03      0.1
-                 4      -74.7538597962  9.64D-06  9.31D-06      0.1
-                 5      -74.7538597962  8.83D-12  6.86D-12      0.1
+                 1      -74.6534332946  9.18D-01  7.03D-01      0.4
+                 2      -74.7526200114  1.19D-01  9.98D-02      0.4
+                 3      -74.7538434192  7.22D-03  4.95D-03      0.5
+                 4      -74.7538597962  9.64D-06  9.31D-06      0.5
+                 5      -74.7538597963  8.82D-12  6.86D-12      0.5
 
 
        Final RHF  results 
        ------------------ 
 
-         Total SCF energy =    -74.753859796235
+         Total SCF energy =    -74.753859796253
       One-electron energy =   -116.565801436107
-      Two-electron energy =     35.628656636855
+      Two-electron energy =     35.628656636837
  Nuclear repulsion energy =      6.183285003016
 
-        Time for solution =      0.0s
+        Time for solution =      0.3s
 
 
  
@@ -354,40 +360,40 @@ task tce energy
                        -------------------------------------
  
  Vector    2  Occ=2.000000D+00  E=-1.147272D+00  Symmetry=a1
-              MO Center= -4.9D-17,  2.7D-17, -1.0D-01, r^2= 5.2D-01
+              MO Center= -2.3D-17, -9.0D-24, -1.0D-01, r^2= 5.2D-01
    Bfn.  Coefficient  Atom+Function         Bfn.  Coefficient  Atom+Function  
   ----- ------------  ---------------      ----- ------------  ---------------
      3      0.970532  2 O  s                  2     -0.252287  2 O  s          
  
  Vector    3  Occ=2.000000D+00  E=-4.319229D-01  Symmetry=b1
-              MO Center=  5.6D-17,  5.8D-34,  2.4D-01, r^2= 1.3D+00
+              MO Center= -1.2D-15, -2.4D-33,  2.4D-01, r^2= 1.3D+00
    Bfn.  Coefficient  Atom+Function         Bfn.  Coefficient  Atom+Function  
   ----- ------------  ---------------      ----- ------------  ---------------
      4      0.621183  2 O  px                 1      0.467118  1 H  s          
      7     -0.467118  3 H  s          
  
  Vector    4  Occ=2.000000D+00  E=-3.952463D-01  Symmetry=b2
-              MO Center=  1.4D-31,  7.5D-17, -1.7D-01, r^2= 4.2D-01
+              MO Center=  1.8D-36,  5.4D-20, -1.7D-01, r^2= 4.2D-01
    Bfn.  Coefficient  Atom+Function         Bfn.  Coefficient  Atom+Function  
   ----- ------------  ---------------      ----- ------------  ---------------
      5      1.000000  2 O  py         
  
  Vector    5  Occ=2.000000D+00  E=-3.795036D-01  Symmetry=a1
-              MO Center= -2.8D-17, -1.1D-16,  8.0D-02, r^2= 1.1D+00
+              MO Center= -1.2D-15,  4.3D-24,  8.0D-02, r^2= 1.1D+00
    Bfn.  Coefficient  Atom+Function         Bfn.  Coefficient  Atom+Function  
   ----- ------------  ---------------      ----- ------------  ---------------
      6      0.720453  2 O  pz                 1      0.403942  1 H  s          
      7      0.403942  3 H  s                  3     -0.313985  2 O  s          
  
  Vector    6  Occ=0.000000D+00  E= 2.703154D-01  Symmetry=a1
-              MO Center=  1.1D-16,  8.4D-18,  3.8D-01, r^2= 1.5D+00
+              MO Center=  1.6D-14, -3.8D-23,  3.8D-01, r^2= 1.5D+00
    Bfn.  Coefficient  Atom+Function         Bfn.  Coefficient  Atom+Function  
   ----- ------------  ---------------      ----- ------------  ---------------
      6      0.719032  2 O  pz                 1     -0.603568  1 H  s          
      7     -0.603568  3 H  s                  3      0.373193  2 O  s          
  
  Vector    7  Occ=0.000000D+00  E= 3.553008D-01  Symmetry=b1
-              MO Center= -1.1D-16,  1.3D-32,  2.7D-01, r^2= 1.4D+00
+              MO Center= -1.4D-14, -3.4D-34,  2.7D-01, r^2= 1.4D+00
    Bfn.  Coefficient  Atom+Function         Bfn.  Coefficient  Atom+Function  
   ----- ------------  ---------------      ----- ------------  ---------------
      4      0.830083  2 O  px                 1     -0.600370  1 H  s          
@@ -420,17 +426,20 @@ task tce energy
      -   - - -        -----         ----         -------
      0   0 0 0     -0.000000      0.000000     10.000000
  
-     1   1 0 0     -0.000000      0.000000      0.000000
-     1   0 1 0      0.000000      0.000000      0.000000
+     1   1 0 0      0.000000      0.000000      0.000000
+     1   0 1 0     -0.000000      0.000000      0.000000
      1   0 0 1      0.432069      0.000000      0.000000
  
      2   2 0 0     -3.062616      0.000000      9.457866
-     2   1 1 0     -0.000000      0.000000      0.000000
+     2   1 1 0      0.000000      0.000000      0.000000
      2   1 0 1      0.000000      0.000000      0.000000
      2   0 2 0     -4.733292      0.000000      0.000000
-     2   0 1 1      0.000000      0.000000      0.000000
+     2   0 1 1     -0.000000      0.000000      0.000000
      2   0 0 2     -4.007923      0.000000      3.990460
  
+
+ Parallel integral file used       1 records with       0 large values
+
                    NWChem Extensible Many-Electron Theory Module
                    ---------------------------------------------
  
@@ -519,87 +528,19 @@ task tce energy
  Global array virtual files algorithm will be used
 
  Parallel file system coherency ......... OK
- before tce_aoq1
- after tce_aoq1
 
- SCF dipole moments / hartree & Debye
- ------------------------------------
-   X         0.0000000      0.0000000
-   Y        -0.0000000     -0.0000000
-   Z        -0.4320685     -1.0982170
- Total       0.4320685      1.0982170
- ------------------------------------
- 
- Cpu & wall time / sec            0.0            0.0
- 
- X   axis ( b1  symmetry)
- 
- dipole file size   =               16
- dipole file name   = ./tce_h2o.d1x       
- 
- Y   axis ( b2  symmetry)
- 
- dipole file size   =                8
- dipole file name   = ./tce_h2o.d1y       
- 
- Z   axis ( a1  symmetry)
- 
- dipole file size   =               21
- dipole file name   = ./tce_h2o.d1z       
- 
- X   axis ( a1  symmetry)
- before tce_mod1_offset_new
- after tce_mod1_offset_new
- 
- quadrupole file size   =               21
- quadrupole file name   = ./tce_h2o.d1x       
- 
- Y   axis ( a1  symmetry)
- before tce_mod1_offset_new
- after tce_mod1_offset_new
- 
- quadrupole file size   =               21
- quadrupole file name   = ./tce_h2o.d1y       
- 
- Z   axis ( a1  symmetry)
- before tce_mod1_offset_new
- after tce_mod1_offset_new
- 
- quadrupole file size   =               21
- quadrupole file name   = ./tce_h2o.d1z       
- 
- XX  axis ( a2  symmetry)
- before tce_mod1_offset_new
- after tce_mod1_offset_new
- 
- quadrupole file size   =                4
- quadrupole file name   = ./tce_h2o.          
- 
- YY  axis ( b1  symmetry)
- before tce_mod1_offset_new
- after tce_mod1_offset_new
- 
- quadrupole file size   =               16
- quadrupole file name   = ./tce_h2o.          
- 
- ZZ  axis ( b2  symmetry)
- before tce_mod1_offset_new
- after tce_mod1_offset_new
- 
- quadrupole file size   =                8
- quadrupole file name   = ./tce_h2o.          
- before tce_mom1
- axis =                      1
- axis =                      2
- axis =                      3
- axis =                      4
- axis =                      5
- axis =                      6
- after tce_mom1
+ #quartets = 1.200D+02 #integrals = 2.560D+02 #direct =  0.0% #cached =100.0%
+
+
+ Integral file          = ./tce_h2o.aoints.0
+ Record size in doubles =  65536        No. of integs per rec  =  43688
+ Max. records in memory =      2        Max. records in file   = 113737
+ No. of bits per label  =      8        No. of bits per value  =     64
+
  
  Fock matrix recomputed
  1-e file size   =               21
- 1-e file name   = ./tce_h2o.f1        
+ 1-e file name   = ./tce_h2o.f1
  Cpu & wall time / sec            0.0            0.0
  
  tce_ao2e: fast2e=1
@@ -613,54 +554,56 @@ task tce energy
  2-e integrals stored in memory
  
  2-e file size   =             1150
- 2-e file name   = ./tce_h2o.v2        
+ 2-e file name   = ./tce_h2o.v2
  Cpu & wall time / sec            0.0            0.0
  T1-number-of-tasks                     2
  
  t1 file size   =                4
- t1 file name   = ./tce_h2o.t1        
- t1 file handle =       -995
+ t1 file name   = ./tce_h2o.t1
+ t1 file handle =       -999
  T2-number-of-boxes                    17
  
  t2 file size   =               59
- t2 file name   = ./tce_h2o.t2        
- t2 file handle =       -991
-
- CCSD iterations
- -----------------------------------------------------------------
- Iter          Residuum       Correlation     Cpu    Wall    V2*C2
- -----------------------------------------------------------------
-    1   0.1323426391351  -0.0949448414955     0.0     0.0     0.0
-    2   0.0653882689370  -0.1217829956816     0.0     0.0     0.0
-    3   0.0343877923418  -0.1327502284921     0.0     0.0     0.0
-    4   0.0188961859673  -0.1383542077110     0.0     0.0     0.0
-    5   0.0110211774709  -0.1412604631551     0.0     0.0     0.0
+ t2 file name   = ./tce_h2o.t2
+ t2 file handle =       -996
+CCSD iterations
+ ---------------------------------------------------------
+ Iter          Residuum       Correlation     Cpu    Wall 
+ ---------------------------------------------------------
+NEW TASK SCHEDULING
+CCSD_T1_NTS --- OK
+CCSD_T2_NTS --- OK
+    1   0.1323426391354  -0.0949448414960     0.3     0.1
+    2   0.0653882689372  -0.1217829956823     0.2     0.1
+    3   0.0343877923419  -0.1327502284929     0.2     0.0
+    4   0.0188961859674  -0.1383542077117     0.2     0.1
+    5   0.0110211774709  -0.1412604631559     0.2     0.1
  MICROCYCLE DIIS UPDATE:                     5                     5
-    6   0.0012515612255  -0.1447935876829     0.0     0.0     0.0
-    7   0.0006672379567  -0.1447447330686     0.0     0.0     0.0
-    8   0.0004297085202  -0.1447585908874     0.0     0.0     0.0
-    9   0.0002861712653  -0.1447692790673     0.0     0.0     0.0
-   10   0.0001940603270  -0.1447758778431     0.0     0.0     0.0
+    6   0.0012515612255  -0.1447935876837     0.2     0.1
+    7   0.0006672379567  -0.1447447330694     0.2     0.1
+    8   0.0004297085202  -0.1447585908882     0.2     0.1
+    9   0.0002861712653  -0.1447692790681     0.2     0.1
+   10   0.0001940603270  -0.1447758778439     0.2     0.1
  MICROCYCLE DIIS UPDATE:                    10                     5
-   11   0.0000201275964  -0.1447874485611     0.0     0.0     0.0
-   12   0.0000083719552  -0.1447903435184     0.0     0.0     0.0
-   13   0.0000052699380  -0.1447912084355     0.0     0.0     0.0
-   14   0.0000034318688  -0.1447916981105     0.0     0.0     0.0
-   15   0.0000022798763  -0.1447919845836     0.0     0.0     0.0
+   11   0.0000201275964  -0.1447874485619     0.2     0.0
+   12   0.0000083719552  -0.1447903435192     0.2     0.1
+   13   0.0000052699380  -0.1447912084363     0.2     0.1
+   14   0.0000034318688  -0.1447916981113     0.2     0.1
+   15   0.0000022798763  -0.1447919845844     0.2     0.1
  MICROCYCLE DIIS UPDATE:                    15                     5
-   16   0.0000003220725  -0.1447924781093     0.0     0.0     0.0
-   17   0.0000001692902  -0.1447924651374     0.0     0.0     0.0
-   18   0.0000001137386  -0.1447924678075     0.0     0.0     0.0
-   19   0.0000000780418  -0.1447924703360     0.0     0.0     0.0
+   16   0.0000003220725  -0.1447924781101     0.2     0.1
+   17   0.0000001692902  -0.1447924651382     0.2     0.1
+   18   0.0000001137386  -0.1447924678083     0.2     0.0
+   19   0.0000000780418  -0.1447924703368     0.2     0.1
  -----------------------------------------------------------------
  Iterations converged
- CCSD correlation energy / hartree =        -0.144792470335974
- CCSD total energy / hartree       =       -74.898652266571361
+ CCSD correlation energy / hartree =        -0.144792470336780
+ CCSD total energy / hartree       =       -74.898652266590219
 
  Singles contributions
 
  Doubles contributions
-     6a1  (alpha)     6a1  (beta ) ---     5a1  (alpha)     5a1  (beta )       -0.1982851497
+     6a1  (alpha)     6a1  (beta ) ---     5a1  (alpha)     5a1  (beta )       -0.1982851498
      6a1  (alpha)     6a1  (beta ) ---     3b1  (alpha)     3b1  (beta )       -0.1007924987
      6a1  (alpha)     7b1  (beta ) ---     5a1  (alpha)     3b1  (beta )       -0.1402039639
      6a1  (alpha)     7b1  (beta ) ---     3b1  (alpha)     5a1  (beta )       -0.1304220959
@@ -668,45 +611,10 @@ task tce energy
      7b1  (alpha)     6a1  (beta ) ---     3b1  (alpha)     5a1  (beta )       -0.1402039639
      7b1  (alpha)     7b1  (beta ) ---     3b1  (alpha)     3b1  (beta )       -0.1711473069
 
- CCSD Lambda iterations
- ---------------------------------------------
- Iter          Residuum            Cpu    Wall
- ---------------------------------------------
-    1          0.1442194664109     0.0     0.0
-    2          0.0139374837029     0.0     0.0
-    3          0.0034251595456     0.0     0.0
-    4          0.0009540369742     0.0     0.0
-    5          0.0003059264088     0.0     0.0
- MICROCYCLE DIIS UPDATE:                     5                     5
-    6          0.0000118332054     0.0     0.0
-    7          0.0000029421830     0.0     0.0
-    8          0.0000013167725     0.0     0.0
-    9          0.0000006261209     0.0     0.0
-   10          0.0000003033607     0.0     0.0
- MICROCYCLE DIIS UPDATE:                    10                     5
-   11          0.0000000016727     0.0     0.0
- ---------------------------------------------
- Iterations converged
+ Parallel integral file used       1 records with       0 large values
 
- Singles contributions
 
- Doubles contributions
-    11a1  (alpha)    13a1  (beta ) ---     3a1  (alpha)     8a1  (beta )       -0.1828699006
-    11a1  (alpha)    14b1  (beta ) ---     3a1  (alpha)     9b1  (beta )       -0.1259434587
-    12b1  (alpha)    13a1  (beta ) ---     3a1  (alpha)     9b1  (beta )       -0.1269105410
-    11a1  (alpha)    14b1  (beta ) ---     4b1  (alpha)     8a1  (beta )       -0.1269105410
-    12b1  (alpha)    13a1  (beta ) ---     4b1  (alpha)     8a1  (beta )       -0.1259434587
-    12b1  (alpha)    14b1  (beta ) ---     4b1  (alpha)     9b1  (beta )       -0.1635926404
-
- CCSD dipole moments / hartree & Debye
- ------------------------------------
-   X         0.0000000      0.0000000
-   Y        -0.0000000     -0.0000000
-   Z        -0.2779129     -0.7063894
- Total       0.2779129      0.7063894
- ------------------------------------
-
- Task  times  cpu:        0.8s     wall:        1.1s
+ Task  times  cpu:        4.3s     wall:        1.3s
  
  
                                 NWChem Input Module
@@ -715,12 +623,7 @@ task tce energy
  
  Summary of allocated global arrays
 -----------------------------------
-  array 0 => double precision ./tce_h2o.d1x(21,1),  handle: -998 
-  array 1 => double precision ./tce_h2o.d1y(21,1),  handle: -997 
-  array 2 => double precision ./tce_h2o.d1z(21,1),  handle: -996 
-  array 3 => double precision ./tce_h2o.(4,1),  handle: -987 
-  array 4 => double precision ./tce_h2o.(16,1),  handle: -986 
-  array 5 => double precision ./tce_h2o.(8,1),  handle: -985 
+  No active global arrays
 
 
 
@@ -728,25 +631,12 @@ task tce energy
                          ------------------------------
 
        create   destroy   get      put      acc     scatter   gather  read&inc
-calls: 4805     4799     1.48e+05 6466     6.92e+04    0        0     5.23e+05 
+calls: 1271     1271     5.64e+04 2117     2.83e+04    0        0     3.64e+04 
 number of processes/call 1.00e+00 1.00e+00 1.00e+00 0.00e+00 0.00e+00
-bytes total:             5.04e+06 2.71e+05 3.13e+06 0.00e+00 0.00e+00 4.18e+06
+bytes total:             2.10e+06 2.23e+05 1.26e+06 0.00e+00 0.00e+00 2.91e+05
 bytes remote:            0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00 0.00e+00
-Max memory consumed for GA by this process: 54368 bytes
+Max memory consumed for GA by this process: 53280 bytes
  
-MA_summarize_allocated_blocks: starting scan ...
-MA_summarize_allocated_blocks: scan completed: 0 heap blocks, 0 stack blocks
-MA usage statistics:
-
-	allocation statistics:
-					      heap	     stack
-					      ----	     -----
-	current number of blocks	         0	         0
-	maximum number of blocks	        17	        39
-	current total bytes		         0	         0
-	maximum total bytes		     80152	  22509208
-	maximum total K-bytes		        81	     22510
-	maximum total M-bytes		         1	        23
  
  
                                      CITATION
@@ -768,19 +658,32 @@ MA usage statistics:
        T. P. Straatsma, M. Valiev, H. J. J. van Dam, D. Wang, T. L. Windus,
         J. Hammond, J. Autschbach, K. Bhaskaran-Nair, J. Brabec, K. Lopata,
        S. A. Fischer, S. Krishnamoorthy, W. Ma, M. Klemm, O. Villa, Y. Chen,
-    V. Anisimov, F. Aquino, S. Hirata, M. T. Hackler, T. Risthaus, M. Malagoli,
-       A. Marenich, A. Otero-de-la-Roza, J. Mullin, P. Nichols, R. Peverati,
-     J. Pittner, Y. Zhao, P.-D. Fan, A. Fonari, M. Williamson, R. J. Harrison,
-       J. R. Rehr, M. Dupuis, D. Silverstein, D. M. A. Smith, J. Nieplocha,
-        V. Tipparaju, M. Krishnan, B. E. Van Kuiken, A. Vazquez-Mayagoitia,
-        L. Jensen, M. Swart, Q. Wu, T. Van Voorhis, A. A. Auer, M. Nooijen,
-      L. D. Crosby, E. Brown, G. Cisneros, G. I. Fann, H. Fruchtl, J. Garza,
-        K. Hirao, R. A. Kendall, J. A. Nichols, K. Tsemekhman, K. Wolinski,
-     J. Anchell, D. E. Bernholdt, P. Borowski, T. Clark, D. Clerc, H. Dachsel,
-   M. J. O. Deegan, K. Dyall, D. Elwood, E. Glendening, M. Gutowski, A. C. Hess,
-         J. Jaffe, B. G. Johnson, J. Ju, R. Kobayashi, R. Kutteh, Z. Lin,
+    V. Anisimov, F. Aquino, S. Hirata, M. T. Hackler, V. Konjkov, T. Risthaus,
+       M. Malagoli, A. Marenich, A. Otero-de-la-Roza, J. Mullin, P. Nichols,
+      R. Peverati, J. Pittner, Y. Zhao, P.-D. Fan, A. Fonari, M. Williamson,
+      R. J. Harrison, J. R. Rehr, M. Dupuis, D. Silverstein, D. M. A. Smith,
+            J. Nieplocha, V. Tipparaju, M. Krishnan, B. E. Van Kuiken,
+        A. Vazquez-Mayagoitia, L. Jensen, M. Swart, Q. Wu, T. Van Voorhis,
+     A. A. Auer, M. Nooijen, L. D. Crosby, E. Brown, G. Cisneros, G. I. Fann,
+   H. Fruchtl, J. Garza, K. Hirao, R. A. Kendall, J. A. Nichols, K. Tsemekhman,
+    K. Wolinski, J. Anchell, D. E. Bernholdt, P. Borowski, T. Clark, D. Clerc,
+   H. Dachsel, M. J. O. Deegan, K. Dyall, D. Elwood, E. Glendening, M. Gutowski,
+   A. C. Hess, J. Jaffe, B. G. Johnson, J. Ju, R. Kobayashi, R. Kutteh, Z. Lin,
    R. Littlefield, X. Long, B. Meng, T. Nakajima, S. Niu, L. Pollack, M. Rosing,
    K. Glaesemann, G. Sandrone, M. Stave, H. Taylor, G. Thomas, J. H. van Lenthe,
                                A. T. Wong, Z. Zhang.
 
- Total times  cpu:        0.9s     wall:        1.8s
+ Total times  cpu:        4.4s     wall:        1.4s
+MA_summarize_allocated_blocks: starting scan ...
+MA_summarize_allocated_blocks: scan completed: 0 heap blocks, 0 stack blocks
+MA usage statistics:
+
+	allocation statistics:
+					      heap	     stack
+					      ----	     -----
+	current number of blocks	         0	         0
+	maximum number of blocks	        18	        36
+	current total bytes		         0	         0
+	maximum total bytes		   1054152	  22509224
+	maximum total K-bytes		      1055	     22510
+	maximum total M-bytes		         2	        23

@@ -1,19 +1,14 @@
  argument  1 = tce_ozone_2eorb.nw
  
-
-
 ============================== echo of input deck ==============================
 start tce_ozone_2eorb
-
 echo
-
 geometry units bohr
 symmetry c2v
 O   0.0000000000        0.0000000000        0.0000000000
 O   0.0000000000       -2.0473224350       -1.2595211660
 O   0.0000000000        2.0473224350       -1.2595211660
 end
-
 BASIS spherical
 O    S
      10662.285000000      0.00079900
@@ -46,14 +41,12 @@ O    D
          0.214900000      0.78545000
          0.063900000      0.53387000
 END
-
 scf
 thresh 1.0e-10
 tol2e 1.0e-10
 singlet
 rhf
 end
-
 tce
 freeze atomic
 2eorb
@@ -62,13 +55,9 @@ ccsd
 tilesize 20
 thresh 1.0d-9
 end
-
 set tce:left T
 task tce energy
-
 ================================================================================
-
-
                                          
                                          
  
@@ -93,7 +82,6 @@ task tce energy
  
                                   ACKNOWLEDGMENT
                                   --------------
-
             This software and its documentation were developed at the
             EMSL at Pacific Northwest National Laboratory, a multiprogram
             national laboratory, operated for the U.S. Department of Energy
@@ -101,15 +89,11 @@ task tce energy
             for this work was provided by the Department of Energy Office
             of Biological and Environmental Research, Office of Basic
             Energy Sciences, and the Office of Advanced Scientific Computing.
-
-
            Job information
            ---------------
-
     hostname        = g610
     program         = /home/gawa722/Cascade/nwchem/nwchem-6.6/bin/LINUX64/nwchem
     date            = Wed Nov 16 15:49:17 2016
-
     compiled        = Fri_Jan_29_14:40:59_2016
     source          = /home/gawa722/Cascade/nwchem/nwchem-6.6
     nwchem branch   = 6.6
@@ -121,20 +105,14 @@ task tce energy
     status          = startup
     nproc           =        8
     time left       =     -1s
-
-
-
            Memory information
            ------------------
-
     heap     =   13107200 doubles =    100.0 Mbytes
     stack    =   13107197 doubles =    100.0 Mbytes
     global   =   26214400 doubles =    200.0 Mbytes (distinct from heap & stack)
     total    =   52428797 doubles =    400.0 Mbytes
     verify   = yes
     hardfail = no 
-
-
            Directory information
            ---------------------
  
@@ -152,7 +130,6 @@ task tce energy
  Turning off AUTOSYM since
  SYMMETRY directive was detected!
  
-
           ------
           auto-z
           ------
@@ -174,9 +151,7 @@ task tce energy
  
       O                 15.994910
  
-
  Effective nuclear repulsion energy (a.u.)      68.8807220355
-
             Nuclear Dipole moment (a.u.) 
             ----------------------------
         X                 Y               Z
@@ -195,11 +170,8 @@ task tce energy
  
      1    2
  
-
-
                                 Z-matrix (autoz)
                                 -------- 
-
  Units are Angstrom for bonds and degrees for angles
  
       Type          Name      I     J     K     L     M      Value
@@ -227,9 +199,6 @@ task tce energy
  ------------------------------------------------------------------------------
                          number of included internuclear distances:          2
  ==============================================================================
-
-
-
  ==============================================================================
                                  internuclear angles
  ------------------------------------------------------------------------------
@@ -239,9 +208,6 @@ task tce energy
  ------------------------------------------------------------------------------
                             number of included internuclear angles:          1
  ==============================================================================
-
-
-
                       Basis "ao basis" -> "" (spherical)
                       -----
   O (Oxygen)
@@ -278,20 +244,15 @@ task tce energy
  10 D  2.14900000E-01  0.785450
  10 D  6.39000000E-02  0.533870
  
-
-
  Summary of "ao basis" -> "" (spherical)
  ------------------------------------------------------------------------------
        Tag                 Description            Shells   Functions and Types
  ---------------- ------------------------------  ------  ---------------------
  O                       user specified             10       24   5s3p2d
-
-
                                  NWChem SCF Module
                                  -----------------
  
  
-
   ao basis        = "ao basis"
   functions       =    72
   atoms           =     3
@@ -303,15 +264,11 @@ task tce energy
   output vectors  = ./tce_ozone_2eorb.movecs
   use symmetry    = T
   symmetry adapt  = T
-
-
  Summary of "ao basis" -> "ao basis" (spherical)
  ------------------------------------------------------------------------------
        Tag                 Description            Shells   Functions and Types
  ---------------- ------------------------------  ------  ---------------------
  O                       user specified             10       24   5s3p2d
-
-
       Symmetry analysis of basis
       --------------------------
  
@@ -320,9 +277,7 @@ task tce energy
         b1         12
         b2         22
  
-
  Forming initial guess at       0.3s
-
  
       Superposition of Atomic Density Guess
       -------------------------------------
@@ -331,7 +286,6 @@ task tce energy
  
       Non-variational initial energy
       ------------------------------
-
  Total energy =    -224.636803
  1-e energy   =    -446.716128
  2-e energy   =     153.198603
@@ -354,20 +308,13 @@ task tce energy
     16 a1         17 b1         18 a1         19 b2         20 a2      
     21 b1         22 a1      
  
-
  Starting SCF solution at       0.4s
-
-
-
  ----------------------------------------------
          Quadratically convergent ROHF
-
  Convergence threshold     :          1.000E-10
  Maximum no. of iterations :           30
  Final Fock-matrix accuracy:          1.000E-10
  ----------------------------------------------
-
-
               iter       energy          gnorm     gmax       time
              ----- ------------------- --------- --------- --------
                  1     -224.1518589384  1.89D+00  6.42D-01      0.1
@@ -376,19 +323,13 @@ task tce energy
                  4     -224.3274304256  1.63D-04  5.47D-05      0.7
                  5     -224.3274304291  5.11D-09  1.12D-09      1.3
                  6     -224.3274304291  1.07D-11  3.28D-12      1.7
-
-
        Final RHF  results 
        ------------------ 
-
          Total SCF energy =   -224.327430429125
       One-electron energy =   -445.079396985346
       Two-electron energy =    151.871244520738
  Nuclear repulsion energy =     68.880722035483
-
         Time for solution =      1.6s
-
-
  
        Symmetry analysis of molecular orbitals - final
        -----------------------------------------------
@@ -407,7 +348,6 @@ task tce energy
  
              Final eigenvalues
              -----------------
-
               1      
     1  -20.9188
     2  -20.7104
@@ -691,11 +631,9 @@ task tce energy
     52     -1.794393  3 O  s                 21     -1.385048  1 O  d -1       
     35      1.149086  2 O  pz                59     -1.149086  3 O  pz         
  
-
  center of mass
  --------------
  x =   0.00000000 y =   0.00000000 z =  -0.00000000
-
  moments of inertia (a.u.)
  ------------------
          151.002411350144           0.000000000000           0.000000000000
@@ -704,7 +642,6 @@ task tce energy
  
   Mulliken analysis of the total density
   --------------------------------------
-
     Atom       Charge   Shell Charges
  -----------   ------   -------------------------------------------------------
     1 O    8     7.71   0.76  1.22  0.94  0.95 -0.02  3.12  0.64 -0.01  0.11  0.01
@@ -799,9 +736,7 @@ task tce energy
  
  Maximum block size supplied by input
  Maximum block size        20 doubles
-
  tile_dim =     18
-
  Block   Spin    Irrep     Size     Offset   Alpha
  -------------------------------------------------
    1    alpha     a1     4 doubles       0       1
@@ -822,13 +757,10 @@ task tce energy
   16    beta      a2     8 doubles     101      11
   17    beta      b1    11 doubles     109      12
   18    beta      b2    18 doubles     120      13
-
  Global array virtual files algorithm will be used
-
  Parallel file system coherency ......... OK
  before tce_aoq1
  after tce_aoq1
-
  SCF dipole moments / hartree & Debye
  ------------------------------------
    X         0.0000000      0.0000000
@@ -880,21 +812,21 @@ task tce energy
  after tce_mod1_offset_new
  
  quadrupole file size   =              990
- quadrupole file name   = ./tce_ozone_2eorb.  
+ quadrupole file name   = ./tce_ozone_2eorb.
  
  YY  axis ( b1  symmetry)
  before tce_mod1_offset_new
  after tce_mod1_offset_new
  
  quadrupole file size   =             1026
- quadrupole file name   = ./tce_ozone_2eorb.  
+ quadrupole file name   = ./tce_ozone_2eorb.
  
  ZZ  axis ( b2  symmetry)
  before tce_mod1_offset_new
  after tce_mod1_offset_new
  
  quadrupole file size   =             1350
- quadrupole file name   = ./tce_ozone_2eorb.  
+ quadrupole file name   = ./tce_ozone_2eorb.
  before tce_mom1
  axis =                      1
  axis =                      2
@@ -926,7 +858,6 @@ task tce energy
  t2 file size   =           112383
  t2 file name   = ./tce_ozone_2eorb.t2
  t2 file handle =       -991
-
  CCSD iterations
  -----------------------------------------------------------------
  Iter          Residuum       Correlation     Cpu    Wall    V2*C2
@@ -969,12 +900,9 @@ task tce energy
  Iterations converged
  CCSD correlation energy / hartree =        -0.631946853618561
  CCSD total energy / hartree       =      -224.959377282743503
-
  Singles contributions
-
  Doubles contributions
     13b1  (alpha)    13b1  (beta ) ---    12a2  (alpha)    12a2  (beta )       -0.1912204938
-
  CCSD Lambda iterations
  ---------------------------------------------
  Iter          Residuum            Cpu    Wall
@@ -1000,12 +928,9 @@ task tce energy
    16          0.0000000000972     0.4     0.4
  ---------------------------------------------
  Iterations converged
-
  Singles contributions
-
  Doubles contributions
     50b1  (alpha)   110b1  (beta ) ---     5a2  (alpha)    14a2  (beta )       -0.1691652879
-
  CCSD dipole moments / hartree & Debye
  ------------------------------------
    X         0.0000000      0.0000000
@@ -1013,7 +938,6 @@ task tce energy
    Z        -0.2307125     -0.5864172
  Total       0.2307125      0.5864172
  ------------------------------------
-
  Task  times  cpu:       18.9s     wall:       20.2s
  
  
@@ -1029,12 +953,8 @@ task tce energy
   array 3 => double precision ./tce_ozone_2eorb.(990,1),  handle: -987 
   array 4 => double precision ./tce_ozone_2eorb.(1026,1),  handle: -986 
   array 5 => double precision ./tce_ozone_2eorb.(1350,1),  handle: -985 
-
-
-
                          GA Statistics for process    0
                          ------------------------------
-
        create   destroy   get      put      acc     scatter   gather  read&inc
 calls: 7280     7274     3.96e+05 1.45e+04 7.42e+04    0        0     5.58e+05 
 number of processes/call 1.14e+00 1.06e+00 1.06e+00 0.00e+00 0.00e+00
@@ -1045,7 +965,6 @@ Max memory consumed for GA by this process: 7872904 bytes
 MA_summarize_allocated_blocks: starting scan ...
 MA_summarize_allocated_blocks: scan completed: 0 heap blocks, 0 stack blocks
 MA usage statistics:
-
 	allocation statistics:
 					      heap	     stack
 					      ----	     -----
@@ -1090,5 +1009,4 @@ MA usage statistics:
    R. Littlefield, X. Long, B. Meng, T. Nakajima, S. Niu, L. Pollack, M. Rosing,
    K. Glaesemann, G. Sandrone, M. Stave, H. Taylor, G. Thomas, J. H. van Lenthe,
                                A. T. Wong, Z. Zhang.
-
  Total times  cpu:       18.9s     wall:       20.9s

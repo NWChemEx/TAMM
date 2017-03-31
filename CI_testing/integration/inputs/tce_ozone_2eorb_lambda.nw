@@ -53,10 +53,11 @@ tce
 freeze atomic
 2eorb
 ccsd
-ccsd(t)
+#ccsd(t)
 tilesize 20
-thresh 1.0d-6
+thresh 1.0d-9
 end
 
+set tce:left T
 task tce energy
 

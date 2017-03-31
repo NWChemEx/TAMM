@@ -1,4 +1,4 @@
-﻿/* Copyright (c) 2012-2016 The ANTLR Project. All rights reserved.
+﻿/* Copyright (c) 2012-2017 The ANTLR Project. All rights reserved.
  * Use of this file is governed by the BSD 3-clause license that
  * can be found in the LICENSE.txt file in the project root.
  */
@@ -7,7 +7,7 @@
 
 using namespace antlr4::atn;
 
-EmptyPredictionContext::EmptyPredictionContext() : SingletonPredictionContext(std::weak_ptr<PredictionContext>(), EMPTY_RETURN_STATE) {
+EmptyPredictionContext::EmptyPredictionContext() : SingletonPredictionContext(nullptr, EMPTY_RETURN_STATE) {
 }
 
 bool EmptyPredictionContext::isEmpty() const {
@@ -18,8 +18,8 @@ size_t EmptyPredictionContext::size() const {
   return 1;
 }
 
-std::weak_ptr<PredictionContext> EmptyPredictionContext::getParent(size_t /*index*/) const {
-  return std::weak_ptr<PredictionContext>();
+Ref<PredictionContext> EmptyPredictionContext::getParent(size_t /*index*/) const {
+  return nullptr;
 }
 
 size_t EmptyPredictionContext::getReturnState(size_t /*index*/) const {

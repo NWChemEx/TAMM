@@ -1,4 +1,4 @@
-﻿/* Copyright (c) 2012-2016 The ANTLR Project. All rights reserved.
+﻿/* Copyright (c) 2012-2017 The ANTLR Project. All rights reserved.
  * Use of this file is governed by the BSD 3-clause license that
  * can be found in the LICENSE.txt file in the project root.
  */
@@ -68,7 +68,7 @@ namespace antlr4 {
     /// <summary>
     /// Collect all hidden tokens (any off-default channel) to the right of
     ///  the current token up until we see a token on DEFAULT_TOKEN_CHANNEL
-    ///  of EOF.
+    ///  or EOF.
     /// </summary>
     virtual std::vector<Token *> getHiddenTokensToRight(size_t tokenIndex);
 

@@ -378,11 +378,8 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 file(GLOB INTEG_TESTS RELATIVE ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/CI_testing/integration/inputs/*.nw")
 foreach (test ${INTEG_TESTS})
     get_filename_component(Testname ${test} NAME_WE)
-    string(REGEX REPLACE "\\.[^.]*$" "" Testname "${Testname}")
-    add_test(${test} ${PROJECT_SOURCE_DIR}/scripts/testing/check_output.sh "${TEST_COMMAND} ${CMAKE_SOURCE_DIR}/${test}"
-        ${PROJECT_SOURCE_DIR}/CI_testing/integration/correct_outputs/${Testname}.output
-        ${PROJECT_SOURCE_DIR}/CI_testing/integration/tests/${Testname}.tests
-        )
+    #string(REGEX REPLACE "\\.[^.]*$" "" Testname "${Testname}")
+    add_test(${test} python ${PROJECT_SOURCE_DIR}/scripts/testing/CheckResults.py "${Testname}" "${TAMM_PROC_COUNT}")
 endforeach()
 
 SET(TAMM_EQ_PATH ${TAMM_INSTALL_PREFIX}/tests/NWChemEqs)

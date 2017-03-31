@@ -1,4 +1,4 @@
-﻿/* Copyright (c) 2012-2016 The ANTLR Project. All rights reserved.
+﻿/* Copyright (c) 2012-2017 The ANTLR Project. All rights reserved.
  * Use of this file is governed by the BSD 3-clause license that
  * can be found in the LICENSE.txt file in the project root.
  */
@@ -100,12 +100,8 @@ void DefaultErrorStrategy::sync(Parser *recognizer) {
   size_t la = tokens->LA(1);
 
   // try cheaper subset first; might get lucky. seems to shave a wee bit off
-  if (recognizer->getATN().nextTokens(s).contains(la) || la == Token::EOF) {
-    return;
-  }
-
-  // Return but don't end recovery. only do that upon valid token match
-  if (recognizer->isExpectedToken((int)la)) {
+  auto nextTokens = recognizer->getATN().nextTokens(s);
+  if (nextTokens.contains(Token::EPSILON) || nextTokens.contains(la)) {
     return;
   }
 

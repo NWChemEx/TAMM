@@ -8,7 +8,7 @@
 #  Operated by Battelle for the U.S. Department of Energy
 # ------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.4 FATAL_ERROR)
 project (TAMM_LIBRARY C CXX)
 enable_language (Fortran)
 
@@ -22,6 +22,15 @@ INCLUDE(CTest)
 # Should a test fail, display the test program output
 set (CTEST_OUTPUT_ON_FAILURE TRUE)
 
+if(DEFINED ENV{TAMM_PROC_COUNT})
+    set(TAMM_PROC_COUNT $ENV{TAMM_PROC_COUNT})
+else()
+    include(ProcessorCount)
+    ProcessorCount(TAMM_PROC_COUNT)
+    message(STATUS "Number of cores detected = ${TAMM_PROC_COUNT}")
+endif()
+message(STATUS "Using ${TAMM_PROC_COUNT} cores for building TAMM dependencies and running tests.")
+message("Please set the TAMM_PROC_COUNT environment variable to change the cpu count.")
 
 #find_package(FLEX REQUIRED)
 #find_package(BLAS REQUIRED)
@@ -328,6 +337,7 @@ else()
     ADD_CUSTOM_TARGET(docs DEPENDS ${DOCOUTPUT})
 endif()
 
+
 add_custom_target("style")
 add_custom_command(TARGET "style" PRE_BUILD 
   COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/scripts ./cpplint.bash "${CMAKE_SOURCE_DIR}/tensor/*"
@@ -358,15 +368,7 @@ add_custom_command(TARGET "link" POST_BUILD
     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${NWCHEM_TOP}/src make CC=${NW_CC} FC=${NW_FC} AR=${NW_AR} link
     COMMENT "=================== Relinking nwchem..." )
 
-if(NOT DEFINED ENV{TAMM_TEST_PROC_COUNT})
-    set(TAMM_TEST_PROC_COUNT 2)
-else()
-    set(TAMM_TEST_PROC_COUNT $ENV{TAMM_TEST_PROC_COUNT})
-endif()
-
-message("Make Check Running on ${TAMM_TEST_PROC_COUNT} cpus. Set TAMM_TEST_PROC_COUNT environmental variable to change cpu run count.")
-
-set (TEST_COMMAND "mpirun -n ${TAMM_TEST_PROC_COUNT} ${NWCHEM_TOP}/bin/LINUX64/nwchem")
+set (TEST_COMMAND "mpirun -n ${TAMM_PROC_COUNT} ${NWCHEM_TOP}/bin/LINUX64/nwchem")
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 

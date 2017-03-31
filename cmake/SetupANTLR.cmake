@@ -18,7 +18,7 @@ ExternalProject_Add(ANTLR
     INSTALL_DIR ${PROJECT_BINARY_DIR}/dependencies/ANTLR/CppRuntime
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}  -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
     BINARY_DIR ${PROJECT_BINARY_DIR}/dependencies/ANTLR/buildCppRuntime/antlr4-cpp-runtime/build
-    BUILD_COMMAND make -j8
+    BUILD_COMMAND make -j${TAMM_PROC_COUNT}
     INSTALL_COMMAND make install
 )
 
@@ -27,8 +27,8 @@ set (ANTLR_CPPRUNTIME_DIR ${PROJECT_BINARY_DIR}/dependencies/ANTLR/CppRuntime)
 
 endif()
 
-file(COPY ${PROJECT_SOURCE_DIR}/dependencies/ANTLR4/antlr-4.6-complete.jar DESTINATION ${PROJECT_BINARY_DIR}/dependencies/ANTLR/)
+file(COPY ${PROJECT_SOURCE_DIR}/dependencies/ANTLR4/antlr-4.7-complete.jar DESTINATION ${PROJECT_BINARY_DIR}/dependencies/ANTLR/)
 # Set location of the ANTLR binary.
-set(AntlrBinary ${PROJECT_BINARY_DIR}/dependencies/ANTLR/antlr-4.6-complete.jar)  
+set(AntlrBinary ${PROJECT_BINARY_DIR}/dependencies/ANTLR/antlr-4.7-complete.jar)  
 
 

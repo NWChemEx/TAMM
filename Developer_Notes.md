@@ -1,6 +1,22 @@
 DEVELOPER NOTES
 ---------------
 
+Code Formatting / Refactoring
+-----------------------------
+
+Using clang-tidy and clang-format to refactor/format the code
+
+Use -DCMAKE_EXPORT_COMPILE_COMMANDS=ON when running cmake,
+then use clang-tidy as follows:
+
+clang-tidy -p $tamm_root/build/ tensor.cc
+clang-tidy -checks="*" -header-filter=".*" -p ../build/  tensor.cc
+clang-tidy  -checks='-*,modernize-*,mpi-*' -p ../build/  tensor.cc 
+clang-tidy  -checks='-*,modernize-*,cppcoreguidelines-*,mpi-*' -p ../build/  tensor.cc
+clang-tidy  -checks='*,-clang-analyzer-*,-cppcoreguidelines-*' -p ../build/  tensor.cc 
+
+
+
 This project tries to keep code style conistent:
 For vim a .lvimrc is contained here that will keep tabing compliant
 

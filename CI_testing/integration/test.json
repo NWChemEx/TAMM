@@ -33,16 +33,23 @@
     },
     "tce_eomsd_eomsol1":{
         "CCSD iterations":[15],
+        "Excited-state calculation ( a'  symmetry)":[25],
+        "Excited-state calculation ( a\"  symmetry)":[21],
         "CCSD correlation energy":["="],
         "CCSD total energy":["="]
     },
     "tce_h2o_ipccsd":{
         "CCSD iterations":[16],
+        "Excited-state calculation ( a1  symmetry)":[10],
+        "Excited-state calculation ( b1  symmetry)":[9],
+        "Excited-state calculation ( b2  symmetry)":[6],
         "CCSD correlation energy":["="],
         "CCSD total energy":["="]
     },
     "tce_h2o_eaccsd":{
         "CCSD iterations":[16],
+        "Excited-state calculation ( a1  symmetry)":[7],
+        "Excited-state calculation ( b1  symmetry)":[7],
         "CCSD correlation energy":["="],
         "CCSD total energy":["="]
     }

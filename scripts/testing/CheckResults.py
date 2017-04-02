@@ -24,10 +24,15 @@ def check_result_file(res_file,result_string, num_lines):
                     lc = 0
                     while lc != nl:
                         next_line = next(outf)
-                        next_line = next_line.strip()
-                        if next_line.startswith(str(lc+1) + " "):
-                            residuum = ' '.join(next_line.split())
-                            residuum = residuum.split(" ")[1]
+                        next_line = ' '.join(next_line.strip().split())
+                        iter_type1 = next_line.startswith(str(lc+1) + " ")
+                        iter_type2 = next_line.startswith("Iteration " + str(lc+1) + " ")
+                        if iter_type1 or iter_type2:
+                            residuum = next_line.split(" ")[1]
+                            if iter_type2:
+                                next_line = next(outf)
+                                next_line = ' '.join(next_line.strip().split())
+                                residuum = next_line.split(" ")[0]
                             get_results.append(residuum.strip())
                             lc += 1
                     assert len(get_results) == nl

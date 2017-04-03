@@ -76,7 +76,8 @@ void genAntiIter(const std::vector<size_t>& vtab, IterGroup<antisymm>* ext_itr,
   std::vector<antisymm> va(all.size());
   for (int i = 0; i < all.size(); i++) {
     int fb = 0;
-    for (int j = 0; j < all_f[i].size(); j++) fb += all_f[i][j];
+    //for (int j = 0; j < all_f[i].size(); j++) 
+    for (int j : all_f[i]) fb += all_f[i][j];
     int fa = all_f[i].size() - fb;
     va[i] = antisymm(vtab, all[i], fa, fb);
   }

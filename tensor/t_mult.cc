@@ -53,7 +53,7 @@ void t_mult(double* a_c, const Tensor& tC, const Tensor& tA, const Tensor& tB,
       size_t dimc = compute_size(c_ids_v);
       assert(dimc == compute_size(tid));
       if (dimc == 0) continue;
-      double* buf_c_sort = new double[dimc];
+      auto buf_c_sort = new double[dimc];
       memset(buf_c_sort, 0, dimc * sizeof(double));
 
       sum_itr->reset();
@@ -98,8 +98,8 @@ void t_mult(double* a_c, const Tensor& tC, const Tensor& tA, const Tensor& tB,
         setValueR(&m->a_ids, a_value_r);
         setValueR(&m->b_ids, b_value_r);
 
-        double* buf_a = new double[dima];
-        double* buf_a_sort = new double[dima];
+        auto buf_a = new double[dima];
+        auto buf_a_sort = new double[dima];
         vector<size_t> a_svalue_r, b_svalue_r;
         vector<size_t> a_svalue, b_svalue;
         vector<IndexName> a_name;
@@ -118,8 +118,8 @@ void t_mult(double* a_c, const Tensor& tC, const Tensor& tA, const Tensor& tB,
                   static_cast<double>(a_sign) /*tA.sign()*/);
         delete[] buf_a;
 
-        double* buf_b = new double[dimb];
-        double* buf_b_sort = new double[dimb];
+        auto buf_b = new double[dimb];
+        auto buf_b_sort = new double[dimb];
         int b_sign = sortByValueThenExtSymGroup(m->b_ids, &b_name, &b_svalue,
                                                 &b_svalue_r);
         // tB.sortByValueThenExtSymGroup();
@@ -183,7 +183,7 @@ void t_mult2(const Tensor& tC, const Tensor& tA, const Tensor& tB,
     if (!tC.is_spin_restricted_nonzero(out_vec)) continue;
     size_t dimc = compute_size(out_vec);
     if (dimc <= 0) continue;
-    double* buf_c = new double[dimc];
+    auto buf_c = new double[dimc];
     memset(buf_c, 0, dimc * sizeof(double));
 
     t_mult(buf_c, tC, tA, tB, coef, sum_ids, sum_itr, cp_itr, out_vec, m);
@@ -221,7 +221,7 @@ void t_mult3(const Tensor& tC, const Tensor& tA, const Tensor& tB,
     sub = 0;
   }
 
-  int next = static_cast<int>(gmem::atomic_fetch_add(taskHandle, sub, 1));
+  auto next = static_cast<int>(gmem::atomic_fetch_add(taskHandle, sub, 1));
 
   vector<size_t> out_vec, sum_vec;
   out_itr->reset();
@@ -241,7 +241,7 @@ void t_mult3(const Tensor& tC, const Tensor& tA, const Tensor& tB,
 
         size_t dimc = compute_size(c_ids_v);
         if (dimc <= 0) continue;
-        double* buf_c_sort = new double[dimc];
+        auto buf_c_sort = new double[dimc];
         memset(buf_c_sort, 0, dimc * sizeof(double));
 
         sum_itr->reset();
@@ -284,8 +284,8 @@ void t_mult3(const Tensor& tC, const Tensor& tA, const Tensor& tB,
           size_t dima_sort = dima / dim_common;
           size_t dimb_sort = dimb / dim_common;
 
-          double* buf_a = new double[dima];
-          double* buf_a_sort = new double[dima];
+          auto buf_a = new double[dima];
+          auto buf_a_sort = new double[dima];
           assert(tA.dim() == a_ids_v.size());
           // tA.setValue(a_ids_v);
           // tB.setValue(b_ids_v);
@@ -336,8 +336,8 @@ void t_mult3(const Tensor& tC, const Tensor& tA, const Tensor& tB,
                     static_cast<double>(a_sign) /*(double)tA.sign()*/);
           delete[] buf_a;
 
-          double* buf_b = new double[dimb];
-          double* buf_b_sort = new double[dimb];
+          auto buf_b = new double[dimb];
+          auto buf_b_sort = new double[dimb];
           // if (!tB.isIntermediate()) tB.get_i = true;
           // tB.get(*d_b,b_svalue_r,b_name,buf_b,dimb,*k_b_offset);
           getTimer.start();
@@ -393,7 +393,7 @@ void t_mult3(const Tensor& tC, const Tensor& tA, const Tensor& tB,
           orderIds(m->c_ids, perm, &name, &value, &value_r);
           if (compareVec<size_t>(tid, value)) {
             double sign = coef * cp_itr->sign();
-            double* buf_c = new double[dimc];
+            auto buf_c = new double[dimc];
             // std::vector<size_t> cperm = tC.perm(name);
             std::vector<size_t> cperm = mult_perm(name, m->c_mem_pos);
             // std::vector<size_t> cmpval = getMemPosVal(tC.ids(),

@@ -47,7 +47,7 @@ void t_assign1(const Tensor& tC, const vector<IndexName>& c_ids_name,
     sub = 0;
   }
 
-  int next = static_cast<int>(gmem::atomic_fetch_add(taskHandle, sub, 1));
+  auto next = static_cast<int>(gmem::atomic_fetch_add(taskHandle, sub, 1));
 
   vector<size_t> out_vec;  // out_vec = c_ids_v
   out_itr->reset();
@@ -76,8 +76,8 @@ void t_assign1(const Tensor& tC, const vector<IndexName>& c_ids_name,
         tA.gen_restricted(a_ids_v, &a_value_r);
 
 #if 1
-        double* buf_a = new double[dimc];
-        double* buf_a_sort = new double[dimc];
+        auto buf_a = new double[dimc];
+        auto buf_a_sort = new double[dimc];
         assert(tA.dim() == a_ids_v.size());
         setValue(&a_ids, a_ids_v);
         setValueR(&a_ids, a_value_r);
@@ -145,7 +145,7 @@ void t_assign2(const Tensor& tC, const vector<IndexName>& c_ids,
     sub = 0;
   }
 
-  int next = static_cast<int>(gmem::atomic_fetch_add(taskHandle, sub, 1));
+  auto next = static_cast<int>(gmem::atomic_fetch_add(taskHandle, sub, 1));
 
   vector<size_t> out_vec;  // out_vec = c_ids_v
   out_itr->reset();
@@ -168,8 +168,8 @@ void t_assign2(const Tensor& tC, const vector<IndexName>& c_ids,
         vector<size_t> value_r;
         tA.gen_restricted(a_ids_v, &value_r);
 
-        double* buf_a = new double[dimc];
-        double* buf_a_sort = new double[dimc];
+        auto buf_a = new double[dimc];
+        auto buf_a_sort = new double[dimc];
         getTimer.start();
         tA.get(value_r, buf_a, dimc);
         getTimer.stop();

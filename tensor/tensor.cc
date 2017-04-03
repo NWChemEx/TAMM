@@ -25,7 +25,11 @@ Tensor::Tensor(int n, int nupper, int irrep_val, RangeType rt[],
       irrep_(irrep_val),
       allocated_(false),
       attached_(false),
-      dist_type_(dist_type) {
+      dist_type_(dist_type), 
+      offset_map_(nullptr),
+      offset_index_(-1),
+      offset_handle_(-1) {
+  
   assert(n >= 0);
   assert(nupper_ >= 0 && nupper_ <= dim_);
 
@@ -48,7 +52,7 @@ Tensor::Tensor(int n, int nupper, int irrep_val, RangeType rt[],
         ctr[TV]++;
         break;
       default:
-        assert(0);
+        assert(false);
     }
   }
   if (dim_ == 0) {
@@ -101,7 +105,7 @@ void Tensor::create() {
   }
 
   offset_map_ = static_cast<Fint *>(malloc(sizeof(Fint) * 2 * length + 1));
-  assert(offset_map_ != NULL);
+  assert(offset_map_ != nullptr);
   assert(dim_type_ == dim_n || dim_type_ == dim_ov);
   size_t noab = Variables::noab();
   size_t nvab = Variables::nvab();
@@ -144,7 +148,8 @@ void Tensor::create() {
   {
     // int ndims = 2;
     // int dims[2] = {1, size};
-    ga_ = gmem::create(gmem::Double, size, static_cast<char *>("noname1"));
+    std::string gmc = "noname1";
+    ga_ = gmem::create(gmem::Double, size, gmc);
   }
   gmem::zero(ga_);
   offset_index_ = offset_map_ - int_mb;
@@ -166,7 +171,7 @@ void Tensor::destroy() {
     free(offset_map_);
     allocated_ = false;
   } else {
-    assert(0);
+    assert(false);
   }
 }
 
@@ -204,7 +209,7 @@ void Tensor::get(const std::vector<size_t> &pvalue_r, double *buf,
       offset *= (check) ? noab : nvab;
     }
   } else {
-    assert(0);
+    assert(false);
   }
   if (dist_type_ == dist_nwi) {
     assert(Variables::intorb() != 0);
@@ -216,7 +221,7 @@ void Tensor::get(const std::vector<size_t> &pvalue_r, double *buf,
   } else if (dist_type_ == dist_nw) {
     cget_hash_block(d_a, buf, size, d_a_offset, key);
   } else {
-    assert(0);
+    assert(false);
   }
 }
 

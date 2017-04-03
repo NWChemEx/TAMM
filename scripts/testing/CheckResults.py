@@ -31,6 +31,13 @@ def check_result_file(res_file,result_string, num_lines):
                             residuum = next_line.split(" ")[1]
                             if iter_type2:
                                 next_line = next(outf)
+                                #Line after Iteration x message may have warnings sometimes
+                                while any(c.isalpha() for c in next_line):
+                                    next_line=next(outf)
+                                    #Could happen that these iteration values are NaNs
+                                    if next_line.startswith("Iteration " + str(lc + 2) + " "):
+                                        print "Iteration " + str(lc+2) + " missing values!"
+                                        sys.exit(1)
                                 next_line = ' '.join(next_line.strip().split())
                                 residuum = next_line.split(" ")[0]
                             get_results.append(residuum.strip())

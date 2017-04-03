@@ -22,7 +22,7 @@ bool Handle::valid() { return value != 0; }
 Handle::Handle(uintptr_t conversion) : value{conversion} {};
 Handle::operator uintptr_t() const { return value; }
 
-Handle create(Types type, int64_t size, char *name) {
+Handle create(Types type, int64_t size, std::string name) {
   Handle handle;
   int ga_type;
   switch (type) {
@@ -33,7 +33,8 @@ Handle create(Types type, int64_t size, char *name) {
       ga_type = MT_C_DBL;
       break;
   }
-  handle.value = NGA_Create64(ga_type, 1, &size, name, NULL);
+  /// @todo: const_cast is bad. Fix it later
+  handle.value = NGA_Create64(ga_type, 1, &size, const_cast<char*>(name.c_str()), nullptr);
   assert(handle.value != 0);
 
   return handle;

@@ -137,7 +137,7 @@ void pretty_print(const Equations &eqs) {
            << ";" << endl;
         break;
       default:
-        assert(0);
+        assert(false);
     }
   }
 }
@@ -161,7 +161,7 @@ void compute_deps(const Equations &eqs, vector<vector<int> > *deps) {
           ra2 = ops[i].mult.tb;
           break;
         default:
-          assert(0);
+          assert(false);
       }
       switch (ops[j].optype) {
         case OpTypeAdd:
@@ -174,7 +174,7 @@ void compute_deps(const Equations &eqs, vector<vector<int> > *deps) {
           rb2 = ops[j].mult.tb;
           break;
         default:
-          assert(0);
+          assert(false);
       }
       if (!ra1.compare(wb) || !ra2.compare(wb) || !rb1.compare(wa) ||
           !rb2.compare(wa)) {
@@ -240,7 +240,7 @@ void compute_deps(const Equations &eqs, vector<vector<int> > *deps) {
         break;
       default:
         printf("Unsupported operation\n");
-        assert(0);
+        assert(false);
       }
     }
   }
@@ -391,7 +391,7 @@ void print_flatten(const Equations &eqs, int opid) {
         tensor_defs[tc] = i;
         break;
       default:
-        assert(0);
+        assert(false);
     }
   }
 

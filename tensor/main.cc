@@ -54,7 +54,7 @@ int count_v(const TensorEntry &te, const std::vector<RangeType> &rts) {
     } else if (rts[rid] == tamm::TN) {
       nv += 1;  // @BUG @FIXME. treats TN as TV.
     } else {
-      assert(0);
+      assert(false);
     }
   }
   return nv;
@@ -107,7 +107,7 @@ std::vector<dep> compute_deps(const tamm::Equations &eqs) {
           ra2 = opi.mult.tb;
           break;
         default:
-          assert(0);
+          assert(false);
       }
       const OpEntry &opj = eqs.op_entries[j];
       switch (opj.optype) {
@@ -121,11 +121,11 @@ std::vector<dep> compute_deps(const tamm::Equations &eqs) {
           rb2 = opj.mult.tb;
           break;
         default:
-          assert(0);
+          assert(false);
       }
       if (!ra1.compare(wb) || !ra2.compare(wb) || !rb1.compare(wa) ||
           !rb2.compare(wa)) {
-        deps.push_back(dep(j, i));
+        deps.emplace_back(dep(j, i));
       }
     }
   }
@@ -179,7 +179,7 @@ void print_ilp_info(const tamm::Equations &eqs) {
                   << std::endl;
         break;
       default:
-        assert(0);
+        assert(false);
     }
   }
 }

@@ -86,7 +86,7 @@ void destroy(Tensor *t) {
     fdestroy(&d_a, &l_a);
     t->detach();
   } else {
-    assert(0);
+    assert(false);
   }
 }
 

@@ -54,7 +54,7 @@ void tamm_sort(double *sbuf, double *dbuf, const std::vector<size_t> &ids,
     ftce_sort_4(sbuf, dbuf, &dims[0], &dims[1], &dims[2], &dims[3], &ip[0],
                 &ip[1], &ip[2], &ip[3], &alpha);
   } else {
-    assert(0);  // not implemented
+    assert(false);  // not implemented
   }
 #else
   vector<size_t> sizes;
@@ -77,7 +77,7 @@ void tamm_hash(Fint *hash, size_t key, Fint *offset) {
   Fint *ptr = std::lower_bound(&hash[1], &hash[length + 1], key);
   if (ptr == &hash[length + 1] || ikey < *ptr) {
     fprintf(stderr, "tamm_hash: key not found");
-    assert(0);
+    assert(false);
   }
   *offset = *(ptr + length);
 #endif  // USE_FORTRAN_FUNCTIONS
@@ -155,7 +155,7 @@ void tamm_sortacc(double *sbuf, double *dbuf, const std::vector<size_t> &ids,
                    &dims[5], &ip[0], &ip[1], &ip[3], &ip[3], &ip[4], &ip[5],
                    &alpha);
   } else {
-    assert(0);  // not implemented
+    assert(false);  // not implemented
   }
 #else
   vector<size_t> sizes;
@@ -193,7 +193,7 @@ void tamm_restricted(int dim, int nupper, const std::vector<size_t> &value,
     ftce_restricted_4(&ivalue[0], &ivalue[1], &ivalue[2], &ivalue[3], &temp[0],
                       &temp[1], &temp[2], &temp[3]);
   } else {
-    assert(0);
+    assert(false);
   }
   pvalue_r->clear();
   for (int i = 0; i < dim; i++) {
@@ -436,7 +436,7 @@ void cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
           p[3] = 4;  // 1324
           break;
         default:
-          assert(0);
+          assert(false);
       }
       // vperma.clear();
       // vperma.insert(vperma.end(),p,p+4);
@@ -519,7 +519,7 @@ void cget_block_ind_i(gmem::Handle da, double *buf, size_t size, size_t offset,
           p[3] = 2;  // 2314
           break;
         default:
-          assert(0);
+          assert(false);
       }
       // vpermb.clear();
       // vpermb.insert(vpermb.end(),p,p+4);

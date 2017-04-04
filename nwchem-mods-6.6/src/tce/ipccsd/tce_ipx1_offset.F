@@ -55,7 +55,7 @@ ckbn     &EN
 !         write (*,*) 'irrep_x=', irrep_x
       IF (ieor(ip_unused_sym ,int_mb(k_sym+h3b-1)) .eq. irrep_x) TH
      &EN
-         write (*,*) 'spatial nonzero'
+c         write (*,*) 'spatial nonzero'
 ckbn      IF ((.not.restricted).or.(int_mb(k_spin+p2b-1)+int_mb(k_spin+h3b-1
 ckbn     &).ne.4)) THEN
       IF ((.not.restricted).or.(ip_unused_spin+int_mb(k_spin+h3b-1

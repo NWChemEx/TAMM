@@ -1,0 +1,11 @@
+To install the plugin in Eclipse,
+goto Help -> Install New Software -> Add 
+     Select Local and point it to the TAMMEditor folder and click Ok to proceed with the install.
+
+Once the plugin is installed and eclipse is restarted, open any .eq file.
+The first time a .eq file is opened with this plugin, you see a message box saying something like
+
+"Do you want to convert "your-current-project-name" to an Xtext project?"
+
+Check Remember my decision box and select NO.
+

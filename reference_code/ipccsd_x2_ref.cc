@@ -113,194 +113,194 @@
  */
 
 extern "C" {
-void ipccsd_x2_1_1_(Integer *d_v, Integer *k_v_offset, Integer *d_x2_1_1,
-                    Integer *k_x2_1_1_offset);
-void ipccsd_x2_1_2_1_(Integer *d_v, Integer *k_v_offset, Integer *d_x2_1_2_1,
-                      Integer *k_x2_1_2_1_offset);
-void ipccsd_x2_1_2_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                      Integer *k_v_offset, Integer *d_x2_1_2_1,
-                      Integer *k_x2_1_2_1_offset);
-void ipccsd_x2_1_2_(Integer *d_t_vo, Integer *k_t_vo_offset,
-                    Integer *d_x2_1_2_1, Integer *k_x2_1_2_1_offset,
-                    Integer *d_x2_1_1, Integer *k_x2_1_1_offset);
-void ipccsd_x2_1_3_1_(Integer *d_f, Integer *k_f_offset, Integer *d_x2_1_3_1,
-                      Integer *k_x2_1_3_1_offset);
-void ipccsd_x2_1_3_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                      Integer *k_v_offset, Integer *d_x2_1_3_1,
-                      Integer *k_x2_1_3_1_offset);
-void ipccsd_x2_1_3_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset,
-                    Integer *d_x2_1_3_1, Integer *k_x2_1_3_1_offset,
-                    Integer *d_x2_1_1, Integer *k_x2_1_1_offset);
-void ipccsd_x2_1_4_1_(Integer *d_v, Integer *k_v_offset, Integer *d_x2_1_4_1,
-                      Integer *k_x2_1_4_1_offset);
-void ipccsd_x2_1_4_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                      Integer *k_v_offset, Integer *d_x2_1_4_1,
-                      Integer *k_x2_1_4_1_offset);
-void ipccsd_x2_1_4_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset,
-                    Integer *d_x2_1_4_1, Integer *k_x2_1_4_1_offset,
-                    Integer *d_x2_1_1, Integer *k_x2_1_1_offset);
-void ipccsd_x2_1_5_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_v,
-                    Integer *k_v_offset, Integer *d_x2_1_1,
-                    Integer *k_x2_1_1_offset);
-void ipccsd_x2_1_(Integer *d_x_o, Integer *k_x_o_offset, Integer *d_x2_1_1,
-                  Integer *k_x2_1_1_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void ipccsd_x2_2_1_(Integer *d_f, Integer *k_f_offset, Integer *d_x2_2_1,
-                    Integer *k_x2_2_1_offset);
-void ipccsd_x2_2_2_1_(Integer *d_f, Integer *k_f_offset, Integer *d_x2_2_2_1,
-                      Integer *k_x2_2_2_1_offset);
-void ipccsd_x2_2_2_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                      Integer *k_v_offset, Integer *d_x2_2_2_1,
-                      Integer *k_x2_2_2_1_offset);
-void ipccsd_x2_2_2_(Integer *d_t_vo, Integer *k_t_vo_offset,
-                    Integer *d_x2_2_2_1, Integer *k_x2_2_2_1_offset,
-                    Integer *d_x2_2_1, Integer *k_x2_2_1_offset);
-void ipccsd_x2_2_3_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                    Integer *k_v_offset, Integer *d_x2_2_1,
-                    Integer *k_x2_2_1_offset);
-void ipccsd_x2_2_4_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_v,
-                    Integer *k_v_offset, Integer *d_x2_2_1,
-                    Integer *k_x2_2_1_offset);
-void ipccsd_x2_2_(Integer *d_x_voo, Integer *k_x_voo_offset, Integer *d_x2_2_1,
-                  Integer *k_x2_2_1_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void ipccsd_x2_3_1_(Integer *d_f, Integer *k_f_offset, Integer *d_x2_3_1,
-                    Integer *k_x2_3_1_offset);
-void ipccsd_x2_3_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                    Integer *k_v_offset, Integer *d_x2_3_1,
-                    Integer *k_x2_3_1_offset);
-void ipccsd_x2_3_3_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_v,
-                    Integer *k_v_offset, Integer *d_x2_3_1,
-                    Integer *k_x2_3_1_offset);
-void ipccsd_x2_3_(Integer *d_x_voo, Integer *k_x_voo_offset, Integer *d_x2_3_1,
-                  Integer *k_x2_3_1_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void ipccsd_x2_4_1_(Integer *d_v, Integer *k_v_offset, Integer *d_x2_4_1,
-                    Integer *k_x2_4_1_offset);
-void ipccsd_x2_4_2_1_(Integer *d_v, Integer *k_v_offset, Integer *d_x2_4_2_1,
-                      Integer *k_x2_4_2_1_offset);
-void ipccsd_x2_4_2_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                      Integer *k_v_offset, Integer *d_x2_4_2_1,
-                      Integer *k_x2_4_2_1_offset);
-void ipccsd_x2_4_2_(Integer *d_t_vo, Integer *k_t_vo_offset,
-                    Integer *d_x2_4_2_1, Integer *k_x2_4_2_1_offset,
-                    Integer *d_x2_4_1, Integer *k_x2_4_1_offset);
-void ipccsd_x2_4_3_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_v,
-                    Integer *k_v_offset, Integer *d_x2_4_1,
-                    Integer *k_x2_4_1_offset);
-void ipccsd_x2_4_(Integer *d_x_voo, Integer *k_x_voo_offset, Integer *d_x2_4_1,
-                  Integer *k_x2_4_1_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void ipccsd_x2_5_1_(Integer *d_v, Integer *k_v_offset, Integer *d_x2_5_1,
-                    Integer *k_x2_5_1_offset);
-void ipccsd_x2_5_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                    Integer *k_v_offset, Integer *d_x2_5_1,
-                    Integer *k_x2_5_1_offset);
-void ipccsd_x2_5_(Integer *d_x_voo, Integer *k_x_voo_offset, Integer *d_x2_5_1,
-                  Integer *k_x2_5_1_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void ipccsd_x2_6_1_1_(Integer *d_v, Integer *k_v_offset, Integer *d_x2_6_1_1,
-                      Integer *k_x2_6_1_1_offset);
-void ipccsd_x2_6_1_2_1_(Integer *d_v, Integer *k_v_offset,
-                        Integer *d_x2_6_1_2_1, Integer *k_x2_6_1_2_1_offset);
-void ipccsd_x2_6_1_2_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                        Integer *k_v_offset, Integer *d_x2_6_1_2_1,
-                        Integer *k_x2_6_1_2_1_offset);
-void ipccsd_x2_6_1_2_(Integer *d_t_vo, Integer *k_t_vo_offset,
-                      Integer *d_x2_6_1_2_1, Integer *k_x2_6_1_2_1_offset,
-                      Integer *d_x2_6_1_1, Integer *k_x2_6_1_1_offset);
-void ipccsd_x2_6_1_3_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_v,
-                      Integer *k_v_offset, Integer *d_x2_6_1_1,
-                      Integer *k_x2_6_1_1_offset);
-void ipccsd_x2_6_1_(Integer *d_x_o, Integer *k_x_o_offset, Integer *d_x2_6_1_1,
-                    Integer *k_x2_6_1_1_offset, Integer *d_x2_6_1,
-                    Integer *k_x2_6_1_offset);
-void ipccsd_x2_6_2_1_(Integer *d_f, Integer *k_f_offset, Integer *d_x2_6_2_1,
-                      Integer *k_x2_6_2_1_offset);
-void ipccsd_x2_6_2_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                      Integer *k_v_offset, Integer *d_x2_6_2_1,
-                      Integer *k_x2_6_2_1_offset);
-void ipccsd_x2_6_2_(Integer *d_x_voo, Integer *k_x_voo_offset,
-                    Integer *d_x2_6_2_1, Integer *k_x2_6_2_1_offset,
-                    Integer *d_x2_6_1, Integer *k_x2_6_1_offset);
-void ipccsd_x2_6_3_1_(Integer *d_v, Integer *k_v_offset, Integer *d_x2_6_3_1,
-                      Integer *k_x2_6_3_1_offset);
-void ipccsd_x2_6_3_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                      Integer *k_v_offset, Integer *d_x2_6_3_1,
-                      Integer *k_x2_6_3_1_offset);
-void ipccsd_x2_6_3_(Integer *d_x_voo, Integer *k_x_voo_offset,
-                    Integer *d_x2_6_3_1, Integer *k_x2_6_3_1_offset,
-                    Integer *d_x2_6_1, Integer *k_x2_6_1_offset);
-void ipccsd_x2_6_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_x2_6_1,
-                  Integer *k_x2_6_1_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void ipccsd_x2_7_1_(Integer *d_x_voo, Integer *k_x_voo_offset, Integer *d_v,
-                    Integer *k_v_offset, Integer *d_x2_7_1,
-                    Integer *k_x2_7_1_offset);
-void ipccsd_x2_7_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset,
-                  Integer *d_x2_7_1, Integer *k_x2_7_1_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void ipccsd_x2_8_1_(Integer *d_x_voo, Integer *k_x_voo_offset, Integer *d_v,
-                    Integer *k_v_offset, Integer *d_x2_8_1,
-                    Integer *k_x2_8_1_offset);
-void ipccsd_x2_8_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset,
-                  Integer *d_x2_8_1, Integer *k_x2_8_1_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
+void ipccsd_x2_1_1_(F77Integer *d_v, F77Integer *k_v_offset, F77Integer *d_x2_1_1,
+                    F77Integer *k_x2_1_1_offset);
+void ipccsd_x2_1_2_1_(F77Integer *d_v, F77Integer *k_v_offset, F77Integer *d_x2_1_2_1,
+                      F77Integer *k_x2_1_2_1_offset);
+void ipccsd_x2_1_2_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                      F77Integer *k_v_offset, F77Integer *d_x2_1_2_1,
+                      F77Integer *k_x2_1_2_1_offset);
+void ipccsd_x2_1_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset,
+                    F77Integer *d_x2_1_2_1, F77Integer *k_x2_1_2_1_offset,
+                    F77Integer *d_x2_1_1, F77Integer *k_x2_1_1_offset);
+void ipccsd_x2_1_3_1_(F77Integer *d_f, F77Integer *k_f_offset, F77Integer *d_x2_1_3_1,
+                      F77Integer *k_x2_1_3_1_offset);
+void ipccsd_x2_1_3_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                      F77Integer *k_v_offset, F77Integer *d_x2_1_3_1,
+                      F77Integer *k_x2_1_3_1_offset);
+void ipccsd_x2_1_3_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset,
+                    F77Integer *d_x2_1_3_1, F77Integer *k_x2_1_3_1_offset,
+                    F77Integer *d_x2_1_1, F77Integer *k_x2_1_1_offset);
+void ipccsd_x2_1_4_1_(F77Integer *d_v, F77Integer *k_v_offset, F77Integer *d_x2_1_4_1,
+                      F77Integer *k_x2_1_4_1_offset);
+void ipccsd_x2_1_4_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                      F77Integer *k_v_offset, F77Integer *d_x2_1_4_1,
+                      F77Integer *k_x2_1_4_1_offset);
+void ipccsd_x2_1_4_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset,
+                    F77Integer *d_x2_1_4_1, F77Integer *k_x2_1_4_1_offset,
+                    F77Integer *d_x2_1_1, F77Integer *k_x2_1_1_offset);
+void ipccsd_x2_1_5_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset, F77Integer *d_v,
+                    F77Integer *k_v_offset, F77Integer *d_x2_1_1,
+                    F77Integer *k_x2_1_1_offset);
+void ipccsd_x2_1_(F77Integer *d_x_o, F77Integer *k_x_o_offset, F77Integer *d_x2_1_1,
+                  F77Integer *k_x2_1_1_offset, F77Integer *d_i0,
+                  F77Integer *k_i0_offset);
+void ipccsd_x2_2_1_(F77Integer *d_f, F77Integer *k_f_offset, F77Integer *d_x2_2_1,
+                    F77Integer *k_x2_2_1_offset);
+void ipccsd_x2_2_2_1_(F77Integer *d_f, F77Integer *k_f_offset, F77Integer *d_x2_2_2_1,
+                      F77Integer *k_x2_2_2_1_offset);
+void ipccsd_x2_2_2_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                      F77Integer *k_v_offset, F77Integer *d_x2_2_2_1,
+                      F77Integer *k_x2_2_2_1_offset);
+void ipccsd_x2_2_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset,
+                    F77Integer *d_x2_2_2_1, F77Integer *k_x2_2_2_1_offset,
+                    F77Integer *d_x2_2_1, F77Integer *k_x2_2_1_offset);
+void ipccsd_x2_2_3_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                    F77Integer *k_v_offset, F77Integer *d_x2_2_1,
+                    F77Integer *k_x2_2_1_offset);
+void ipccsd_x2_2_4_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset, F77Integer *d_v,
+                    F77Integer *k_v_offset, F77Integer *d_x2_2_1,
+                    F77Integer *k_x2_2_1_offset);
+void ipccsd_x2_2_(F77Integer *d_x_voo, F77Integer *k_x_voo_offset, F77Integer *d_x2_2_1,
+                  F77Integer *k_x2_2_1_offset, F77Integer *d_i0,
+                  F77Integer *k_i0_offset);
+void ipccsd_x2_3_1_(F77Integer *d_f, F77Integer *k_f_offset, F77Integer *d_x2_3_1,
+                    F77Integer *k_x2_3_1_offset);
+void ipccsd_x2_3_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                    F77Integer *k_v_offset, F77Integer *d_x2_3_1,
+                    F77Integer *k_x2_3_1_offset);
+void ipccsd_x2_3_3_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset, F77Integer *d_v,
+                    F77Integer *k_v_offset, F77Integer *d_x2_3_1,
+                    F77Integer *k_x2_3_1_offset);
+void ipccsd_x2_3_(F77Integer *d_x_voo, F77Integer *k_x_voo_offset, F77Integer *d_x2_3_1,
+                  F77Integer *k_x2_3_1_offset, F77Integer *d_i0,
+                  F77Integer *k_i0_offset);
+void ipccsd_x2_4_1_(F77Integer *d_v, F77Integer *k_v_offset, F77Integer *d_x2_4_1,
+                    F77Integer *k_x2_4_1_offset);
+void ipccsd_x2_4_2_1_(F77Integer *d_v, F77Integer *k_v_offset, F77Integer *d_x2_4_2_1,
+                      F77Integer *k_x2_4_2_1_offset);
+void ipccsd_x2_4_2_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                      F77Integer *k_v_offset, F77Integer *d_x2_4_2_1,
+                      F77Integer *k_x2_4_2_1_offset);
+void ipccsd_x2_4_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset,
+                    F77Integer *d_x2_4_2_1, F77Integer *k_x2_4_2_1_offset,
+                    F77Integer *d_x2_4_1, F77Integer *k_x2_4_1_offset);
+void ipccsd_x2_4_3_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset, F77Integer *d_v,
+                    F77Integer *k_v_offset, F77Integer *d_x2_4_1,
+                    F77Integer *k_x2_4_1_offset);
+void ipccsd_x2_4_(F77Integer *d_x_voo, F77Integer *k_x_voo_offset, F77Integer *d_x2_4_1,
+                  F77Integer *k_x2_4_1_offset, F77Integer *d_i0,
+                  F77Integer *k_i0_offset);
+void ipccsd_x2_5_1_(F77Integer *d_v, F77Integer *k_v_offset, F77Integer *d_x2_5_1,
+                    F77Integer *k_x2_5_1_offset);
+void ipccsd_x2_5_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                    F77Integer *k_v_offset, F77Integer *d_x2_5_1,
+                    F77Integer *k_x2_5_1_offset);
+void ipccsd_x2_5_(F77Integer *d_x_voo, F77Integer *k_x_voo_offset, F77Integer *d_x2_5_1,
+                  F77Integer *k_x2_5_1_offset, F77Integer *d_i0,
+                  F77Integer *k_i0_offset);
+void ipccsd_x2_6_1_1_(F77Integer *d_v, F77Integer *k_v_offset, F77Integer *d_x2_6_1_1,
+                      F77Integer *k_x2_6_1_1_offset);
+void ipccsd_x2_6_1_2_1_(F77Integer *d_v, F77Integer *k_v_offset,
+                        F77Integer *d_x2_6_1_2_1, F77Integer *k_x2_6_1_2_1_offset);
+void ipccsd_x2_6_1_2_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                        F77Integer *k_v_offset, F77Integer *d_x2_6_1_2_1,
+                        F77Integer *k_x2_6_1_2_1_offset);
+void ipccsd_x2_6_1_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset,
+                      F77Integer *d_x2_6_1_2_1, F77Integer *k_x2_6_1_2_1_offset,
+                      F77Integer *d_x2_6_1_1, F77Integer *k_x2_6_1_1_offset);
+void ipccsd_x2_6_1_3_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset, F77Integer *d_v,
+                      F77Integer *k_v_offset, F77Integer *d_x2_6_1_1,
+                      F77Integer *k_x2_6_1_1_offset);
+void ipccsd_x2_6_1_(F77Integer *d_x_o, F77Integer *k_x_o_offset, F77Integer *d_x2_6_1_1,
+                    F77Integer *k_x2_6_1_1_offset, F77Integer *d_x2_6_1,
+                    F77Integer *k_x2_6_1_offset);
+void ipccsd_x2_6_2_1_(F77Integer *d_f, F77Integer *k_f_offset, F77Integer *d_x2_6_2_1,
+                      F77Integer *k_x2_6_2_1_offset);
+void ipccsd_x2_6_2_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                      F77Integer *k_v_offset, F77Integer *d_x2_6_2_1,
+                      F77Integer *k_x2_6_2_1_offset);
+void ipccsd_x2_6_2_(F77Integer *d_x_voo, F77Integer *k_x_voo_offset,
+                    F77Integer *d_x2_6_2_1, F77Integer *k_x2_6_2_1_offset,
+                    F77Integer *d_x2_6_1, F77Integer *k_x2_6_1_offset);
+void ipccsd_x2_6_3_1_(F77Integer *d_v, F77Integer *k_v_offset, F77Integer *d_x2_6_3_1,
+                      F77Integer *k_x2_6_3_1_offset);
+void ipccsd_x2_6_3_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                      F77Integer *k_v_offset, F77Integer *d_x2_6_3_1,
+                      F77Integer *k_x2_6_3_1_offset);
+void ipccsd_x2_6_3_(F77Integer *d_x_voo, F77Integer *k_x_voo_offset,
+                    F77Integer *d_x2_6_3_1, F77Integer *k_x2_6_3_1_offset,
+                    F77Integer *d_x2_6_1, F77Integer *k_x2_6_1_offset);
+void ipccsd_x2_6_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_x2_6_1,
+                  F77Integer *k_x2_6_1_offset, F77Integer *d_i0,
+                  F77Integer *k_i0_offset);
+void ipccsd_x2_7_1_(F77Integer *d_x_voo, F77Integer *k_x_voo_offset, F77Integer *d_v,
+                    F77Integer *k_v_offset, F77Integer *d_x2_7_1,
+                    F77Integer *k_x2_7_1_offset);
+void ipccsd_x2_7_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset,
+                  F77Integer *d_x2_7_1, F77Integer *k_x2_7_1_offset, F77Integer *d_i0,
+                  F77Integer *k_i0_offset);
+void ipccsd_x2_8_1_(F77Integer *d_x_voo, F77Integer *k_x_voo_offset, F77Integer *d_v,
+                    F77Integer *k_v_offset, F77Integer *d_x2_8_1,
+                    F77Integer *k_x2_8_1_offset);
+void ipccsd_x2_8_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset,
+                  F77Integer *d_x2_8_1, F77Integer *k_x2_8_1_offset, F77Integer *d_i0,
+                  F77Integer *k_i0_offset);
 
-void offset_ipccsd_x2_1_1_(Integer *l_x2_1_1_offset, Integer *k_x2_1_1_offset,
-                           Integer *size_x2_1_1);
-void offset_ipccsd_x2_1_2_1_(Integer *l_x2_1_2_1_offset,
-                             Integer *k_x2_1_2_1_offset,
-                             Integer *size_x2_1_2_1);
-void offset_ipccsd_x2_1_3_1_(Integer *l_x2_1_3_1_offset,
-                             Integer *k_x2_1_3_1_offset,
-                             Integer *size_x2_1_3_1);
-void offset_ipccsd_x2_1_4_1_(Integer *l_x2_1_4_1_offset,
-                             Integer *k_x2_1_4_1_offset,
-                             Integer *size_x2_1_4_1);
-void offset_ipccsd_x2_2_1_(Integer *l_x2_2_1_offset, Integer *k_x2_2_1_offset,
-                           Integer *size_x2_2_1);
-void offset_ipccsd_x2_2_2_1_(Integer *l_x2_2_2_1_offset,
-                             Integer *k_x2_2_2_1_offset,
-                             Integer *size_x2_2_2_1);
-void offset_ipccsd_x2_3_1_(Integer *l_x2_3_1_offset, Integer *k_x2_3_1_offset,
-                           Integer *size_x2_3_1);
-void offset_ipccsd_x2_4_1_(Integer *l_x2_4_1_offset, Integer *k_x2_4_1_offset,
-                           Integer *size_x2_4_1);
-void offset_ipccsd_x2_4_2_1_(Integer *l_x2_4_2_1_offset,
-                             Integer *k_x2_4_2_1_offset,
-                             Integer *size_x2_4_2_1);
-void offset_ipccsd_x2_5_1_(Integer *l_x2_5_1_offset, Integer *k_x2_5_1_offset,
-                           Integer *size_x2_5_1);
-void offset_ipccsd_x2_6_1_1_(Integer *l_x2_6_1_1_offset,
-                             Integer *k_x2_6_1_1_offset,
-                             Integer *size_x2_6_1_1);
-void offset_ipccsd_x2_6_1_2_1_(Integer *l_x2_6_1_2_1_offset,
-                               Integer *k_x2_6_1_2_1_offset,
-                               Integer *size_x2_6_1_2_1);
-void offset_ipccsd_x2_6_1_(Integer *l_x2_6_1_offset, Integer *k_x2_6_1_offset,
-                           Integer *size_x2_6_1);
-void offset_ipccsd_x2_6_2_1_(Integer *l_x2_6_2_1_offset,
-                             Integer *k_x2_6_2_1_offset,
-                             Integer *size_x2_6_2_1);
-void offset_ipccsd_x2_6_3_1_(Integer *l_x2_6_3_1_offset,
-                             Integer *k_x2_6_3_1_offset,
-                             Integer *size_x2_6_3_1);
-void offset_ipccsd_x2_7_1_(Integer *l_x2_7_1_offset, Integer *k_x2_7_1_offset,
-                           Integer *size_x2_7_1);
-void offset_ipccsd_x2_8_1_(Integer *l_x2_8_1_offset, Integer *k_x2_8_1_offset,
-                           Integer *size_x2_8_1);
+void offset_ipccsd_x2_1_1_(F77Integer *l_x2_1_1_offset, F77Integer *k_x2_1_1_offset,
+                           F77Integer *size_x2_1_1);
+void offset_ipccsd_x2_1_2_1_(F77Integer *l_x2_1_2_1_offset,
+                             F77Integer *k_x2_1_2_1_offset,
+                             F77Integer *size_x2_1_2_1);
+void offset_ipccsd_x2_1_3_1_(F77Integer *l_x2_1_3_1_offset,
+                             F77Integer *k_x2_1_3_1_offset,
+                             F77Integer *size_x2_1_3_1);
+void offset_ipccsd_x2_1_4_1_(F77Integer *l_x2_1_4_1_offset,
+                             F77Integer *k_x2_1_4_1_offset,
+                             F77Integer *size_x2_1_4_1);
+void offset_ipccsd_x2_2_1_(F77Integer *l_x2_2_1_offset, F77Integer *k_x2_2_1_offset,
+                           F77Integer *size_x2_2_1);
+void offset_ipccsd_x2_2_2_1_(F77Integer *l_x2_2_2_1_offset,
+                             F77Integer *k_x2_2_2_1_offset,
+                             F77Integer *size_x2_2_2_1);
+void offset_ipccsd_x2_3_1_(F77Integer *l_x2_3_1_offset, F77Integer *k_x2_3_1_offset,
+                           F77Integer *size_x2_3_1);
+void offset_ipccsd_x2_4_1_(F77Integer *l_x2_4_1_offset, F77Integer *k_x2_4_1_offset,
+                           F77Integer *size_x2_4_1);
+void offset_ipccsd_x2_4_2_1_(F77Integer *l_x2_4_2_1_offset,
+                             F77Integer *k_x2_4_2_1_offset,
+                             F77Integer *size_x2_4_2_1);
+void offset_ipccsd_x2_5_1_(F77Integer *l_x2_5_1_offset, F77Integer *k_x2_5_1_offset,
+                           F77Integer *size_x2_5_1);
+void offset_ipccsd_x2_6_1_1_(F77Integer *l_x2_6_1_1_offset,
+                             F77Integer *k_x2_6_1_1_offset,
+                             F77Integer *size_x2_6_1_1);
+void offset_ipccsd_x2_6_1_2_1_(F77Integer *l_x2_6_1_2_1_offset,
+                               F77Integer *k_x2_6_1_2_1_offset,
+                               F77Integer *size_x2_6_1_2_1);
+void offset_ipccsd_x2_6_1_(F77Integer *l_x2_6_1_offset, F77Integer *k_x2_6_1_offset,
+                           F77Integer *size_x2_6_1);
+void offset_ipccsd_x2_6_2_1_(F77Integer *l_x2_6_2_1_offset,
+                             F77Integer *k_x2_6_2_1_offset,
+                             F77Integer *size_x2_6_2_1);
+void offset_ipccsd_x2_6_3_1_(F77Integer *l_x2_6_3_1_offset,
+                             F77Integer *k_x2_6_3_1_offset,
+                             F77Integer *size_x2_6_3_1);
+void offset_ipccsd_x2_7_1_(F77Integer *l_x2_7_1_offset, F77Integer *k_x2_7_1_offset,
+                           F77Integer *size_x2_7_1);
+void offset_ipccsd_x2_8_1_(F77Integer *l_x2_8_1_offset, F77Integer *k_x2_8_1_offset,
+                           F77Integer *size_x2_8_1);
 }
 
 namespace tamm {
 
 extern "C" {
-void ipccsd_x2_cxx_(Integer *d_f, Integer *d_i0, Integer *d_t_vo,
-                    Integer *d_t_vvoo, Integer *d_v, Integer *d_x_o,
-                    Integer *d_x_voo, Integer *k_f_offset, Integer *k_i0_offset,
-                    Integer *k_t_vo_offset, Integer *k_t_vvoo_offset,
-                    Integer *k_v_offset, Integer *k_x_o_offset,
-                    Integer *k_x_voo_offset) {
+void ipccsd_x2_cxx_(F77Integer *d_f, F77Integer *d_i0, F77Integer *d_t_vo,
+                    F77Integer *d_t_vvoo, F77Integer *d_v, F77Integer *d_x_o,
+                    F77Integer *d_x_voo, F77Integer *k_f_offset, F77Integer *k_i0_offset,
+                    F77Integer *k_t_vo_offset, F77Integer *k_t_vvoo_offset,
+                    F77Integer *k_v_offset, F77Integer *k_x_o_offset,
+                    F77Integer *k_x_voo_offset) {
   static bool set_x2 = true;
 
   Assignment op_x2_1_1;

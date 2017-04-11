@@ -257,9 +257,9 @@ void Multiplication::execute(gmem::Handle sync_ga, int spos) {
   assert(tA().attached() || tA().allocated());
   assert(tB().attached() || tB().allocated());
   assert(tC().attached() || tC().allocated());
-  Integer d_a, k_a_offset;
-  Integer d_b, k_b_offset;
-  Integer d_c, k_c_offset;
+  F77Integer d_a, k_a_offset;
+  F77Integer d_b, k_b_offset;
+  F77Integer d_c, k_c_offset;
   /*d_a = tA().ga();
   k_a_offset = tA().offset_index();
   d_b = tB().ga();

@@ -104,7 +104,7 @@ double computeBeta(const std::vector<IndexName>& sum_ids,
 
 size_t compute_size(const std::vector<size_t>& ids) {
   size_t size = 1;
-  Integer* int_mb = Variables::int_mb();
+  F77Integer* int_mb = Variables::int_mb();
   size_t k_range = Variables::k_range() - 1;
   for (int i = 0; i < ids.size(); i++) size *= int_mb[k_range + ids[i]];
   return size;
@@ -120,7 +120,7 @@ IndexType getIndexType(const IndexName& name) {
 // used in ccsd_t.cc
 int is_spin_restricted_le(const std::vector<size_t>& ids, const size_t& sval) {
   size_t lval = 0;
-  Integer* int_mb = Variables::int_mb();
+  F77Integer* int_mb = Variables::int_mb();
   size_t k_spin = Variables::k_spin() - 1;
   size_t restricted = Variables::restricted();
   for (int i = 0; i < ids.size(); i++) lval += int_mb[k_spin + ids[i]];

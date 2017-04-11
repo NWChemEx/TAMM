@@ -46,31 +46,31 @@
  */
 
 extern "C" {
-void ccsd_1prdm_ph_1_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_i0,
-                      Integer *k_i0_offset);
-void ccsd_1prdm_ph_2_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset,
-                      Integer *d_y_ov, Integer *k_y_ov_offset, Integer *d_i0,
-                      Integer *k_i0_offset);
-void ccsd_1prdm_ph_3_1_(Integer *d_t_vo, Integer *k_t_vo_offset,
-                        Integer *d_y_ov, Integer *k_y_ov_offset,
-                        Integer *d_ph_3_1, Integer *k_ph_3_1_offset);
-void ccsd_1prdm_ph_3_2_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset,
-                        Integer *d_y_oovv, Integer *k_y_oovv_offset,
-                        Integer *d_ph_3_1, Integer *k_ph_3_1_offset);
-void ccsd_1prdm_ph_3_(Integer *d_t_vo, Integer *k_t_vo_offset,
-                      Integer *d_ph_3_1, Integer *k_ph_3_1_offset,
-                      Integer *d_i0, Integer *k_i0_offset);
-void ccsd_1prdm_ph_4_1_(Integer *d_t_vo, Integer *k_t_vo_offset,
-                        Integer *d_y_oovv, Integer *k_y_oovv_offset,
-                        Integer *d_ph_4_1, Integer *k_ph_4_1_offset);
-void ccsd_1prdm_ph_4_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset,
-                      Integer *d_ph_4_1, Integer *k_ph_4_1_offset,
-                      Integer *d_i0, Integer *k_i0_offset);
+void ccsd_1prdm_ph_1_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_i0,
+                      F77Integer *k_i0_offset);
+void ccsd_1prdm_ph_2_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset,
+                      F77Integer *d_y_ov, F77Integer *k_y_ov_offset, F77Integer *d_i0,
+                      F77Integer *k_i0_offset);
+void ccsd_1prdm_ph_3_1_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset,
+                        F77Integer *d_y_ov, F77Integer *k_y_ov_offset,
+                        F77Integer *d_ph_3_1, F77Integer *k_ph_3_1_offset);
+void ccsd_1prdm_ph_3_2_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset,
+                        F77Integer *d_y_oovv, F77Integer *k_y_oovv_offset,
+                        F77Integer *d_ph_3_1, F77Integer *k_ph_3_1_offset);
+void ccsd_1prdm_ph_3_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset,
+                      F77Integer *d_ph_3_1, F77Integer *k_ph_3_1_offset,
+                      F77Integer *d_i0, F77Integer *k_i0_offset);
+void ccsd_1prdm_ph_4_1_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset,
+                        F77Integer *d_y_oovv, F77Integer *k_y_oovv_offset,
+                        F77Integer *d_ph_4_1, F77Integer *k_ph_4_1_offset);
+void ccsd_1prdm_ph_4_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset,
+                      F77Integer *d_ph_4_1, F77Integer *k_ph_4_1_offset,
+                      F77Integer *d_i0, F77Integer *k_i0_offset);
 
-void offset_ccsd_1prdm_ph_3_1_(Integer *l_ph_3_1_offset,
-                               Integer *k_ph_3_1_offset, Integer *size_ph_3_1);
-void offset_ccsd_1prdm_ph_4_1_(Integer *l_ph_4_1_offset,
-                               Integer *k_ph_4_1_offset, Integer *size_ph_4_1);
+void offset_ccsd_1prdm_ph_3_1_(F77Integer *l_ph_3_1_offset,
+                               F77Integer *k_ph_3_1_offset, F77Integer *size_ph_3_1);
+void offset_ccsd_1prdm_ph_4_1_(F77Integer *l_ph_4_1_offset,
+                               F77Integer *k_ph_4_1_offset, F77Integer *size_ph_4_1);
 }
 
 namespace tamm {
@@ -83,11 +83,11 @@ void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
                      std::vector<Operation> &ops);
 
 extern "C" {
-void ccsd_1prdm_ph_cxx_(Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo,
-                        Integer *d_y_ov, Integer *d_y_oovv,
-                        Integer *k_i0_offset, Integer *k_t_vo_offset,
-                        Integer *k_t_vvoo_offset, Integer *k_y_ov_offset,
-                        Integer *k_y_oovv_offset) {
+void ccsd_1prdm_ph_cxx_(F77Integer *d_i0, F77Integer *d_t_vo, F77Integer *d_t_vvoo,
+                        F77Integer *d_y_ov, F77Integer *d_y_oovv,
+                        F77Integer *k_i0_offset, F77Integer *k_t_vo_offset,
+                        F77Integer *k_t_vvoo_offset, F77Integer *k_y_ov_offset,
+                        F77Integer *k_y_oovv_offset) {
   static bool set_ph = true;
 
   Assignment op_ph_1;

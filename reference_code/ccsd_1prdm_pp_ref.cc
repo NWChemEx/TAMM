@@ -38,12 +38,12 @@
  */
 
 extern "C" {
-void ccsd_1prdm_pp_1_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_y_ov,
-                      Integer *k_y_ov_offset, Integer *d_i0,
-                      Integer *k_i0_offset);
-void ccsd_1prdm_pp_2_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset,
-                      Integer *d_y_oovv, Integer *k_y_oovv_offset,
-                      Integer *d_i0, Integer *k_i0_offset);
+void ccsd_1prdm_pp_1_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_y_ov,
+                      F77Integer *k_y_ov_offset, F77Integer *d_i0,
+                      F77Integer *k_i0_offset);
+void ccsd_1prdm_pp_2_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset,
+                      F77Integer *d_y_oovv, F77Integer *k_y_oovv_offset,
+                      F77Integer *d_i0, F77Integer *k_i0_offset);
 }
 
 namespace tamm {
@@ -60,11 +60,11 @@ extern "C" {
 // Integer *d_y_oovv, Integer *d_t_vo,
 // Integer *k_t_vvoo_offset, Integer *k_i0_offset, Integer *k_y_ov_offset,
 // Integer *k_y_oovv_offset, Integer *k_t_vo_offset) {
-void ccsd_1prdm_pp_cxx_(Integer *d_i0, Integer *d_t_vo, Integer *d_t_vvoo,
-                        Integer *d_y_ov, Integer *d_y_oovv,
-                        Integer *k_i0_offset, Integer *k_t_vo_offset,
-                        Integer *k_t_vvoo_offset, Integer *k_y_ov_offset,
-                        Integer *k_y_oovv_offset) {
+void ccsd_1prdm_pp_cxx_(F77Integer *d_i0, F77Integer *d_t_vo, F77Integer *d_t_vvoo,
+                        F77Integer *d_y_ov, F77Integer *d_y_oovv,
+                        F77Integer *k_i0_offset, F77Integer *k_t_vo_offset,
+                        F77Integer *k_t_vvoo_offset, F77Integer *k_y_ov_offset,
+                        F77Integer *k_y_oovv_offset) {
   static bool set_pp = true;
 
   Multiplication op_pp_1;

@@ -15,23 +15,23 @@
 #include "tensor/variables.h"
 
 namespace tamm {
-typedef void (*add_fn)(Integer *, Integer *, Integer *, Integer *);
-typedef void (*mult_fn)(Integer *, Integer *, Integer *, Integer *, Integer *,
-                        Integer *);
-typedef void (*offset_fn)(Integer *, Integer *, Integer *);
+typedef void (*add_fn)(F77Integer *, F77Integer *, F77Integer *, F77Integer *);
+typedef void (*mult_fn)(F77Integer *, F77Integer *, F77Integer *, F77Integer *, F77Integer *,
+                        F77Integer *);
+typedef void (*offset_fn)(F77Integer *, F77Integer *, F77Integer *);
 
-typedef void (*icsd_add_fn)(Integer *, Integer *, Integer *, Integer *,
-                            Integer *, Integer *);
-typedef void (*icsd_mult_fn)(Integer *, Integer *, Integer *, Integer *,
-                             Integer *, Integer *, Integer *, Integer *);
+typedef void (*icsd_add_fn)(F77Integer *, F77Integer *, F77Integer *, F77Integer *,
+                            F77Integer *, F77Integer *);
+typedef void (*icsd_mult_fn)(F77Integer *, F77Integer *, F77Integer *, F77Integer *,
+                             F77Integer *, F77Integer *, F77Integer *, F77Integer *);
 
 void CorFortran(int use_c, Assignment *as, add_fn fn);
 void CorFortran(int use_c, Multiplication *m, mult_fn fn);
 
-void CorFortran(int use_c, Assignment *as, icsd_add_fn fn, Integer ctx,
-                Integer count);
-void CorFortran(int use_c, Multiplication *m, icsd_mult_fn fn, Integer ctx,
-                Integer count);
+void CorFortran(int use_c, Assignment *as, icsd_add_fn fn, F77Integer ctx,
+                F77Integer count);
+void CorFortran(int use_c, Multiplication *m, icsd_mult_fn fn, F77Integer ctx,
+                F77Integer count);
 
 void CorFortran(int use_c, Tensor *tensor, offset_fn fn);
 void destroy(Tensor *t);

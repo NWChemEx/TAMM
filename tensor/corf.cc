@@ -39,8 +39,8 @@ void CorFortran(int use_c, Multiplication *m, mult_fn fn) {
   }
 }
 
-void CorFortran(int use_c, Assignment *as, icsd_add_fn fn, Integer ctx,
-                Integer count) {
+void CorFortran(int use_c, Assignment *as, icsd_add_fn fn, F77Integer ctx,
+                F77Integer count) {
   if (use_c) {
     as->execute();
   } else {
@@ -52,8 +52,8 @@ void CorFortran(int use_c, Assignment *as, icsd_add_fn fn, Integer ctx,
   }
 }
 
-void CorFortran(int use_c, Multiplication *m, icsd_mult_fn fn, Integer ctx,
-                Integer count) {
+void CorFortran(int use_c, Multiplication *m, icsd_mult_fn fn, F77Integer ctx,
+                F77Integer count) {
   if (use_c) {
     m->execute();
   } else {

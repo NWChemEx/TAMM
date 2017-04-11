@@ -38,16 +38,16 @@
  */
 
 extern "C" {
-void offset_ccsd_e_1_1_(Integer *l_i1_offset, Integer *k_i1_offset,
-                        Integer *size_i1);
-void ccsd_e_1_(Integer *d_t1, Integer *k_t1_offset, Integer *d_v2,
-               Integer *k_v2_offset, Integer *d_i2, Integer *k_i2_offset);
-void ccsd_e_copy_fock_to_t_(Integer *d_f1, Integer *k_f1_offset, Integer *d_i1,
-                            Integer *k_i1_offset);
-void ccsd_e_1_2_(Integer *d_t1, Integer *k_t1_offset, Integer *d_v2,
-                 Integer *k_v2_offset, Integer *d_i2, Integer *k_i2_offset);
-void ccsd_e_2_(Integer *d_t1, Integer *k_t1_offset, Integer *d_v2,
-               Integer *k_v2_offset, Integer *d_i2, Integer *k_i2_offset);
+void offset_ccsd_e_1_1_(F77Integer *l_i1_offset, F77Integer *k_i1_offset,
+                        F77Integer *size_i1);
+void ccsd_e_1_(F77Integer *d_t1, F77Integer *k_t1_offset, F77Integer *d_v2,
+               F77Integer *k_v2_offset, F77Integer *d_i2, F77Integer *k_i2_offset);
+void ccsd_e_copy_fock_to_t_(F77Integer *d_f1, F77Integer *k_f1_offset, F77Integer *d_i1,
+                            F77Integer *k_i1_offset);
+void ccsd_e_1_2_(F77Integer *d_t1, F77Integer *k_t1_offset, F77Integer *d_v2,
+                 F77Integer *k_v2_offset, F77Integer *d_i2, F77Integer *k_i2_offset);
+void ccsd_e_2_(F77Integer *d_t1, F77Integer *k_t1_offset, F77Integer *d_v2,
+               F77Integer *k_v2_offset, F77Integer *d_i2, F77Integer *k_i2_offset);
 }
 
 namespace tamm {
@@ -57,10 +57,10 @@ namespace tamm {
 
 extern "C" {
 
-void ccsd_e_cxx_(Integer *d_f1, Integer *d_i0, Integer *d_t_vo,
-                 Integer *d_t_vvoo, Integer *d_v2, Integer *k_f1_offset,
-                 Integer *k_i0_offset, Integer *k_t_vo_offset,
-                 Integer *k_t_vvoo_offset, Integer *k_v2_offset) {
+void ccsd_e_cxx_(F77Integer *d_f1, F77Integer *d_i0, F77Integer *d_t_vo,
+                 F77Integer *d_t_vvoo, F77Integer *d_v2, F77Integer *k_f1_offset,
+                 F77Integer *k_i0_offset, F77Integer *k_t_vo_offset,
+                 F77Integer *k_t_vvoo_offset, F77Integer *k_v2_offset) {
   static bool set_e = true;
   Assignment e_1_1;
   Multiplication e_1, e_1_2, e_2;

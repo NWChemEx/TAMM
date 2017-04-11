@@ -63,35 +63,35 @@ void gen_ccsd_t_cxx_() {
 
 /* i0 ( p4 p5 p6 h1 h2 h3 )_vt + = 1 * P( 9 ) * t ( p4 h1 )_t * v ( p5 p6 h2 h3
  * )_v */
-void ccsd_t_singles_1_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                           Integer *k_b_offset, double *a_c,
-                           const std::vector<Integer> &tid) {
+void ccsd_t_singles_1_cxx_(F77Integer *d_a, F77Integer *k_a_offset, F77Integer *d_b,
+                           F77Integer *k_b_offset, double *a_c,
+                           const std::vector<F77Integer> &tid) {
   t_mult(d_a, k_a_offset, d_b, k_b_offset, a_c, m0.tC(), m0.tA(), m0.tB(),
          m0.coef(), m0.sum_ids(), &m0.sum_itr(), &m0.cp_itr(), tid, &m0);
 }
 
 /* i0 ( p4 p5 p6 h1 h2 h3 )_vt + = -1 * P( 9 ) * Sum ( h7 ) * t ( p4 p5 h1 h7
  * )_t * v ( h7 p6 h2 h3 )_v */
-void ccsd_t_doubles_1_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                           Integer *k_b_offset, double *a_c,
-                           const std::vector<Integer> &tid) {
+void ccsd_t_doubles_1_cxx_(F77Integer *d_a, F77Integer *k_a_offset, F77Integer *d_b,
+                           F77Integer *k_b_offset, double *a_c,
+                           const std::vector<F77Integer> &tid) {
   t_mult(d_a, k_a_offset, d_b, k_b_offset, a_c, m1.tC(), m1.tA(), m1.tB(),
          m1.coef(), m1.sum_ids(), &m1.sum_itr(), &m1.cp_itr(), tid, &m1);
 }
 
 /* i0 ( p4 p5 p6 h1 h2 h3 )_vt + = -1 * P( 9 ) * Sum ( p7 ) * t ( p4 p7 h1 h2
  * )_t * v ( p5 p6 h3 p7 )_v */
-void ccsd_t_doubles_2_cxx_(Integer *d_a, Integer *k_a_offset, Integer *d_b,
-                           Integer *k_b_offset, double *a_c,
-                           const std::vector<Integer> &tid) {
+void ccsd_t_doubles_2_cxx_(F77Integer *d_a, F77Integer *k_a_offset, F77Integer *d_b,
+                           F77Integer *k_b_offset, double *a_c,
+                           const std::vector<F77Integer> &tid) {
   t_mult(d_a, k_a_offset, d_b, k_b_offset, a_c, m2.tC(), m2.tA(), m2.tB(),
          m2.coef(), m2.sum_ids(), &m2.sum_itr(), &m2.cp_itr(), tid, &m2);
 }
 
-void ccsd_t_cxx_(Integer *k_t1_local, Integer *d_t1, Integer *k_t1_offset,
-                 Integer *d_t2, Integer *k_t2_offset, Integer *d_v2,
-                 Integer *k_v2_offset, double *energy1, double *energy2,
-                 Integer *size_t1) {
+void ccsd_t_cxx_(F77Integer *k_t1_local, F77Integer *d_t1, F77Integer *k_t1_offset,
+                 F77Integer *d_t2, F77Integer *k_t2_offset, F77Integer *d_v2,
+                 F77Integer *k_v2_offset, double *energy1, double *energy2,
+                 F77Integer *size_t1) {
 #if 0
       double *p_k_t1_local = Variables::dbl_mb() + *k_t1_local;
       p_k_t1_local = static_cast<double *>(malloc((*size_t1)*sizeof(double)));
@@ -133,7 +133,7 @@ void ccsd_t_cxx_(Integer *k_t1_local, Integer *d_t1, Integer *k_t1_offset,
 
   gen_ccsd_t_cxx_();  // generate singles and doubles expr
 
-  std::vector<Integer> vec, rvec, ovec;
+  std::vector<F77Integer> vec, rvec, ovec;
   out_itr.reset();
 
   // comment NAG std::cout << "singles sloop, doubles cxx.\n";
@@ -149,7 +149,7 @@ void ccsd_t_cxx_(Integer *k_t1_local, Integer *d_t1, Integer *k_t1_offset,
 
       if ((is_spatial_nonzero(vec, 0)) && (is_spin_nonzero(vec)) &&
           (is_spin_restricted_le(vec, 8))) {
-        Integer rsize = compute_size(vec);
+        F77Integer rsize = compute_size(vec);
         double *buf_double =
             static_cast<double *>(malloc(rsize * sizeof(double)));
         double *buf_single =
@@ -157,7 +157,7 @@ void ccsd_t_cxx_(Integer *k_t1_local, Integer *d_t1, Integer *k_t1_offset,
         memset(buf_single, 0, rsize * sizeof(double));
         memset(buf_double, 0, rsize * sizeof(double));
 
-        Integer toggle = 2;
+        F77Integer toggle = 2;
 #if 0
         ccsd_t_singles_l_(buf_single, k_t1_local, d_v2, k_t1_offset,
                           k_v2_offset, &vec[3], &vec[4], &vec[5], &vec[0],

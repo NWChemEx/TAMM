@@ -88,7 +88,7 @@ class triangular {
   void updateRO() {
     if (curr.size() == 0) return;
     if (curr[0] > ub[0]) return;  // no need to compute
-    Integer* int_mb = Variables::int_mb();
+    F77Integer* int_mb = Variables::int_mb();
     size_t k_range = Variables::k_range();
     size_t k_evl_sorted = Variables::k_evl_sorted();
     size_t k_offset = Variables::k_offset();

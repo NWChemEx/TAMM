@@ -34,8 +34,8 @@
  */
 
 extern "C" {
-void ccsd_1prdm_hp_1_(Integer *d_i0, Integer *d_y_ov, Integer *k_y_ov_offset,
-                      Integer *k_i0_offset);
+void ccsd_1prdm_hp_1_(F77Integer *d_i0, F77Integer *d_y_ov, F77Integer *k_y_ov_offset,
+                      F77Integer *k_i0_offset);
 }
 
 namespace tamm {
@@ -48,8 +48,8 @@ void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
                      std::vector<Operation> &ops);
 
 extern "C" {
-void ccsd_1prdm_hp_cxx_(Integer *d_i0, Integer *d_y_ov, Integer *k_i0_offset,
-                        Integer *k_y_ov_offset) {
+void ccsd_1prdm_hp_cxx_(F77Integer *d_i0, F77Integer *d_y_ov, F77Integer *k_i0_offset,
+                        F77Integer *k_y_ov_offset) {
   static bool set_hp = true;
 
   Assignment op_hp_1;

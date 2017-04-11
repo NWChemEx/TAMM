@@ -57,56 +57,56 @@
  */
 
 extern "C" {
-void eaccsd_x1_1_1_(Integer *d_f, Integer *k_f_offset, Integer *d_x1_1_1,
-                    Integer *k_x1_1_1_offset);
-void eaccsd_x1_1_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                    Integer *k_v_offset, Integer *d_x1_1_1,
-                    Integer *k_x1_1_1_offset);
-void eaccsd_x1_1_(Integer *d_x_vo, Integer *k_x_vo_offset, Integer *d_x1_1_1,
-                  Integer *k_x1_1_1_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void eaccsd_x1_2_1_(Integer *d_f, Integer *k_f_offset, Integer *d_x1_2_1,
-                    Integer *k_x1_2_1_offset);
-void eaccsd_x1_2_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                    Integer *k_v_offset, Integer *d_x1_2_1,
-                    Integer *k_x1_2_1_offset);
-void eaccsd_x1_2_(Integer *d_x_vvoo, Integer *k_x_vvoo_offset,
-                  Integer *d_x1_2_1, Integer *k_x1_2_1_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void eaccsd_x1_3_(Integer *d_x_vvoo, Integer *k_x_vvoo_offset, Integer *d_v,
-                  Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset);
-void eaccsd_x1_4_1_1_(Integer *d_f, Integer *k_f_offset, Integer *d_x1_4_1_1,
-                      Integer *k_x1_4_1_1_offset);
-void eaccsd_x1_4_1_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                      Integer *k_v_offset, Integer *d_x1_4_1_1,
-                      Integer *k_x1_4_1_1_offset);
-void eaccsd_x1_4_1_(Integer *d_x_vo, Integer *k_x_vo_offset,
-                    Integer *d_x1_4_1_1, Integer *k_x1_4_1_1_offset,
-                    Integer *d_x1_4_1, Integer *k_x1_4_1_offset);
-void eaccsd_x1_4_2_(Integer *d_x_vvoo, Integer *k_x_vvoo_offset, Integer *d_v,
-                    Integer *k_v_offset, Integer *d_x1_4_1,
-                    Integer *k_x1_4_1_offset);
-void eaccsd_x1_4_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_x1_4_1,
-                  Integer *k_x1_4_1_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
-void eaccsd_x1_5_1_(Integer *d_x_vo, Integer *k_x_vo_offset, Integer *d_v,
-                    Integer *k_v_offset, Integer *d_x1_5_1,
-                    Integer *k_x1_5_1_offset);
-void eaccsd_x1_5_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset,
-                  Integer *d_x1_5_1, Integer *k_x1_5_1_offset, Integer *d_i0,
-                  Integer *k_i0_offset);
+void eaccsd_x1_1_1_(F77Integer *d_f, F77Integer *k_f_offset, F77Integer *d_x1_1_1,
+                    F77Integer *k_x1_1_1_offset);
+void eaccsd_x1_1_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                    F77Integer *k_v_offset, F77Integer *d_x1_1_1,
+                    F77Integer *k_x1_1_1_offset);
+void eaccsd_x1_1_(F77Integer *d_x_vo, F77Integer *k_x_vo_offset, F77Integer *d_x1_1_1,
+                  F77Integer *k_x1_1_1_offset, F77Integer *d_i0,
+                  F77Integer *k_i0_offset);
+void eaccsd_x1_2_1_(F77Integer *d_f, F77Integer *k_f_offset, F77Integer *d_x1_2_1,
+                    F77Integer *k_x1_2_1_offset);
+void eaccsd_x1_2_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                    F77Integer *k_v_offset, F77Integer *d_x1_2_1,
+                    F77Integer *k_x1_2_1_offset);
+void eaccsd_x1_2_(F77Integer *d_x_vvoo, F77Integer *k_x_vvoo_offset,
+                  F77Integer *d_x1_2_1, F77Integer *k_x1_2_1_offset, F77Integer *d_i0,
+                  F77Integer *k_i0_offset);
+void eaccsd_x1_3_(F77Integer *d_x_vvoo, F77Integer *k_x_vvoo_offset, F77Integer *d_v,
+                  F77Integer *k_v_offset, F77Integer *d_i0, F77Integer *k_i0_offset);
+void eaccsd_x1_4_1_1_(F77Integer *d_f, F77Integer *k_f_offset, F77Integer *d_x1_4_1_1,
+                      F77Integer *k_x1_4_1_1_offset);
+void eaccsd_x1_4_1_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                      F77Integer *k_v_offset, F77Integer *d_x1_4_1_1,
+                      F77Integer *k_x1_4_1_1_offset);
+void eaccsd_x1_4_1_(F77Integer *d_x_vo, F77Integer *k_x_vo_offset,
+                    F77Integer *d_x1_4_1_1, F77Integer *k_x1_4_1_1_offset,
+                    F77Integer *d_x1_4_1, F77Integer *k_x1_4_1_offset);
+void eaccsd_x1_4_2_(F77Integer *d_x_vvoo, F77Integer *k_x_vvoo_offset, F77Integer *d_v,
+                    F77Integer *k_v_offset, F77Integer *d_x1_4_1,
+                    F77Integer *k_x1_4_1_offset);
+void eaccsd_x1_4_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_x1_4_1,
+                  F77Integer *k_x1_4_1_offset, F77Integer *d_i0,
+                  F77Integer *k_i0_offset);
+void eaccsd_x1_5_1_(F77Integer *d_x_vo, F77Integer *k_x_vo_offset, F77Integer *d_v,
+                    F77Integer *k_v_offset, F77Integer *d_x1_5_1,
+                    F77Integer *k_x1_5_1_offset);
+void eaccsd_x1_5_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset,
+                  F77Integer *d_x1_5_1, F77Integer *k_x1_5_1_offset, F77Integer *d_i0,
+                  F77Integer *k_i0_offset);
 
-void offset_eaccsd_x1_1_1_(Integer *l_x1_1_1_offset, Integer *k_x1_1_1_offset,
-                           Integer *size_x1_1_1);
-void offset_eaccsd_x1_2_1_(Integer *l_x1_2_1_offset, Integer *k_x1_2_1_offset,
-                           Integer *size_x1_2_1);
-void offset_eaccsd_x1_4_1_1_(Integer *l_x1_4_1_1_offset,
-                             Integer *k_x1_4_1_1_offset,
-                             Integer *size_x1_4_1_1);
-void offset_eaccsd_x1_4_1_(Integer *l_x1_4_1_offset, Integer *k_x1_4_1_offset,
-                           Integer *size_x1_4_1);
-void offset_eaccsd_x1_5_1_(Integer *l_x1_5_1_offset, Integer *k_x1_5_1_offset,
-                           Integer *size_x1_5_1);
+void offset_eaccsd_x1_1_1_(F77Integer *l_x1_1_1_offset, F77Integer *k_x1_1_1_offset,
+                           F77Integer *size_x1_1_1);
+void offset_eaccsd_x1_2_1_(F77Integer *l_x1_2_1_offset, F77Integer *k_x1_2_1_offset,
+                           F77Integer *size_x1_2_1);
+void offset_eaccsd_x1_4_1_1_(F77Integer *l_x1_4_1_1_offset,
+                             F77Integer *k_x1_4_1_1_offset,
+                             F77Integer *size_x1_4_1_1);
+void offset_eaccsd_x1_4_1_(F77Integer *l_x1_4_1_offset, F77Integer *k_x1_4_1_offset,
+                           F77Integer *size_x1_4_1);
+void offset_eaccsd_x1_5_1_(F77Integer *l_x1_5_1_offset, F77Integer *k_x1_5_1_offset,
+                           F77Integer *size_x1_5_1);
 }
 
 namespace tamm {

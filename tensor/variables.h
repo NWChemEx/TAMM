@@ -26,74 +26,74 @@ namespace tamm {
  */
 class Variables {
  public:
-  static void set_ov(Integer *o, Integer *v);
-  static void set_ova(Integer *noa, Integer *nva);
-  static void set_idmb(Integer *int_mb, double *dbl_mb);
-  static void set_irrep(Integer *irrep_v, Integer *irrep_t, Integer *irrep_f);
-  static void set_irrep_x(Integer *irrep_x);
-  static void set_irrep_y(Integer *irrep_y);
-  static void set_k1(Integer *k_range, Integer *k_spin, Integer *k_sym);
+  static void set_ov(F77Integer *o, F77Integer *v);
+  static void set_ova(F77Integer *noa, F77Integer *nva);
+  static void set_idmb(F77Integer *int_mb, double *dbl_mb);
+  static void set_irrep(F77Integer *irrep_v, F77Integer *irrep_t, F77Integer *irrep_f);
+  static void set_irrep_x(F77Integer *irrep_x);
+  static void set_irrep_y(F77Integer *irrep_y);
+  static void set_k1(F77Integer *k_range, F77Integer *k_spin, F77Integer *k_sym);
   static void set_log(logical *intorb, logical *restricted);
-  static void set_k2(Integer *k_offset, Integer *k_evl_sorted);
-  static void set_k_alpha(Integer *k_alpha);
-  static void set_k_b2am(Integer *k_b2am);
-  static void set_d_v2orb(Integer *d_v2orb);
-  static void set_k_v2_alpha_offset(Integer *k_v2_alpha_offset);
+  static void set_k2(F77Integer *k_offset, F77Integer *k_evl_sorted);
+  static void set_k_alpha(F77Integer *k_alpha);
+  static void set_k_b2am(F77Integer *k_b2am);
+  static void set_d_v2orb(F77Integer *d_v2orb);
+  static void set_k_v2_alpha_offset(F77Integer *k_v2_alpha_offset);
 
   /**
    * Set k_offset and k_evl_sorted, use in ccsd(t) to compute r and o value
    */
-  static void set_k2_cxx_(Integer *k_offset, Integer *k_evl_sorted);
+  static void set_k2_cxx_(F77Integer *k_offset, F77Integer *k_evl_sorted);
 
-  static void set_irrep_x_cxx_(Integer *irrep_x);
+  static void set_irrep_x_cxx_(F77Integer *irrep_x);
 
-  static void set_irrep_y_cxx_(Integer *irrep_y);
+  static void set_irrep_y_cxx_(F77Integer *irrep_y);
 
   /**
    * Set FORTRAN global parameters
    */
-  static void set_var_cxx_(Integer *noab, Integer *nvab, Integer *int_mb,
-                           double *dbl_mb, Integer *k_range, Integer *k_spin,
-                           Integer *k_sym, logical *intorb, logical *restricted,
-                           Integer *irrep_v, Integer *irrep_t,
-                           Integer *irrep_f);
+  static void set_var_cxx_(F77Integer *noab, F77Integer *nvab, F77Integer *int_mb,
+                           double *dbl_mb, F77Integer *k_range, F77Integer *k_spin,
+                           F77Integer *k_sym, logical *intorb, logical *restricted,
+                           F77Integer *irrep_v, F77Integer *irrep_t,
+                           F77Integer *irrep_f);
 
-  static const Integer &noab() { return noab_; }
-  static const Integer &nvab() { return nvab_; }
-  static const Integer &noa() { return noa_; }
-  static const Integer &nva() { return nva_; }
-  static const Integer &k_range() { return k_range_; }
-  static const Integer &k_spin() { return k_spin_; }
-  static const Integer &k_sym() { return k_sym_; }
-  static const Integer &k_offset() { return k_offset_; }
-  static const Integer &k_evl_sorted() { return k_evl_sorted_; }
-  static const Integer &irrep_v() { return irrep_v_; }
-  static const Integer &irrep_t() { return irrep_t_; }
-  static const Integer &irrep_f() { return irrep_f_; }
-  static const Integer &irrep_x() { return irrep_x_; }
-  static const Integer &irrep_y() { return irrep_y_; }
-  static const Integer &intorb() { return intorb_; }
+  static const F77Integer &noab() { return noab_; }
+  static const F77Integer &nvab() { return nvab_; }
+  static const F77Integer &noa() { return noa_; }
+  static const F77Integer &nva() { return nva_; }
+  static const F77Integer &k_range() { return k_range_; }
+  static const F77Integer &k_spin() { return k_spin_; }
+  static const F77Integer &k_sym() { return k_sym_; }
+  static const F77Integer &k_offset() { return k_offset_; }
+  static const F77Integer &k_evl_sorted() { return k_evl_sorted_; }
+  static const F77Integer &irrep_v() { return irrep_v_; }
+  static const F77Integer &irrep_t() { return irrep_t_; }
+  static const F77Integer &irrep_f() { return irrep_f_; }
+  static const F77Integer &irrep_x() { return irrep_x_; }
+  static const F77Integer &irrep_y() { return irrep_y_; }
+  static const F77Integer &intorb() { return intorb_; }
   static const logical &restricted() { return restricted_; }
-  static Integer *int_mb() { return int_mb_; }
+  static F77Integer *int_mb() { return int_mb_; }
   static double *dbl_mb() { return dbl_mb_; }
 
-  static Integer k_alpha() { return k_alpha_; }
-  static Integer k_b2am() { return k_b2am_; }
-  static Integer d_v2orb() { return d_v2orb_; }
-  static Integer k_v2_alpha_offset() { return k_v2_alpha_offset_; }
+  static F77Integer k_alpha() { return k_alpha_; }
+  static F77Integer k_b2am() { return k_b2am_; }
+  static F77Integer d_v2orb() { return d_v2orb_; }
+  static F77Integer k_v2_alpha_offset() { return k_v2_alpha_offset_; }
   static size_t k_range(Tile t) { return int_mb()[k_range() - 1 + t]; }
 
  private:
-  static Integer noab_, nvab_;
-  static Integer noa_, nva_;
-  static Integer *int_mb_;
+  static F77Integer noab_, nvab_;
+  static F77Integer noa_, nva_;
+  static F77Integer *int_mb_;
   static double *dbl_mb_;
-  static Integer k_range_, k_spin_, k_sym_;
-  static Integer k_offset_, k_evl_sorted_;
-  static Integer irrep_v_, irrep_t_, irrep_f_, irrep_x_, irrep_y_;
+  static F77Integer k_range_, k_spin_, k_sym_;
+  static F77Integer k_offset_, k_evl_sorted_;
+  static F77Integer irrep_v_, irrep_t_, irrep_f_, irrep_x_, irrep_y_;
   static logical intorb_, restricted_;
-  static Integer k_alpha_, k_b2am_, d_v2orb_;
-  static Integer k_v2_alpha_offset_;
+  static F77Integer k_alpha_, k_b2am_, d_v2orb_;
+  static F77Integer k_v2_alpha_offset_;
 };
 
 /**

@@ -47,26 +47,26 @@
  */
 
 extern "C" {
-void cisd_c2_1_(Integer *d_v, Integer *k_v_offset, Integer *d_i0,
-                Integer *k_i0_offset);
-void cisd_c2_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_f,
-                Integer *k_f_offset, Integer *d_i0, Integer *k_i0_offset);
-void cisd_c2_3_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset);
-void cisd_c2_4_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_v,
-                Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset);
-void cisd_c2_5_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_f,
-                Integer *k_f_offset, Integer *d_i0, Integer *k_i0_offset);
-void cisd_c2_6_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_f,
-                Integer *k_f_offset, Integer *d_i0, Integer *k_i0_offset);
-void cisd_c2_7_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_v,
-                Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset);
-void cisd_c2_8_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_v,
-                Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset);
-void cisd_c2_9_(Integer *d_t_vvoo, Integer *k_t_vvoo_offset, Integer *d_v,
-                Integer *k_v_offset, Integer *d_i0, Integer *k_i0_offset);
-void cisd_c2_10_(Integer *d_e, Integer *k_e_offset, Integer *d_t_vvoo,
-                 Integer *k_t_vvoo_offset, Integer *d_i0, Integer *k_i0_offset);
+void cisd_c2_1_(F77Integer *d_v, F77Integer *k_v_offset, F77Integer *d_i0,
+                F77Integer *k_i0_offset);
+void cisd_c2_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_f,
+                F77Integer *k_f_offset, F77Integer *d_i0, F77Integer *k_i0_offset);
+void cisd_c2_3_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                F77Integer *k_v_offset, F77Integer *d_i0, F77Integer *k_i0_offset);
+void cisd_c2_4_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_v,
+                F77Integer *k_v_offset, F77Integer *d_i0, F77Integer *k_i0_offset);
+void cisd_c2_5_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset, F77Integer *d_f,
+                F77Integer *k_f_offset, F77Integer *d_i0, F77Integer *k_i0_offset);
+void cisd_c2_6_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset, F77Integer *d_f,
+                F77Integer *k_f_offset, F77Integer *d_i0, F77Integer *k_i0_offset);
+void cisd_c2_7_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset, F77Integer *d_v,
+                F77Integer *k_v_offset, F77Integer *d_i0, F77Integer *k_i0_offset);
+void cisd_c2_8_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset, F77Integer *d_v,
+                F77Integer *k_v_offset, F77Integer *d_i0, F77Integer *k_i0_offset);
+void cisd_c2_9_(F77Integer *d_t_vvoo, F77Integer *k_t_vvoo_offset, F77Integer *d_v,
+                F77Integer *k_v_offset, F77Integer *d_i0, F77Integer *k_i0_offset);
+void cisd_c2_10_(F77Integer *d_e, F77Integer *k_e_offset, F77Integer *d_t_vvoo,
+                 F77Integer *k_t_vvoo_offset, F77Integer *d_i0, F77Integer *k_i0_offset);
 }
 
 namespace tamm {
@@ -77,11 +77,11 @@ extern "C" {
 // Integer *k_t_vvoo_offset, Integer *k_e_offset, Integer *k_f_offset, Integer
 // *k_i0_offset, Integer *k_t_vo_offset, Integer *k_v_offset) {
 
-void cisd_c2_cxx_(Integer *d_e, Integer *d_f, Integer *d_i0, Integer *d_t_vo,
-                  Integer *d_t_vvoo, Integer *d_v, Integer *k_e_offset,
-                  Integer *k_f_offset, Integer *k_i0_offset,
-                  Integer *k_t_vo_offset, Integer *k_t_vvoo_offset,
-                  Integer *k_v_offset) {
+void cisd_c2_cxx_(F77Integer *d_e, F77Integer *d_f, F77Integer *d_i0, F77Integer *d_t_vo,
+                  F77Integer *d_t_vvoo, F77Integer *d_v, F77Integer *k_e_offset,
+                  F77Integer *k_f_offset, F77Integer *k_i0_offset,
+                  F77Integer *k_t_vo_offset, F77Integer *k_t_vvoo_offset,
+                  F77Integer *k_v_offset) {
   static bool set_c2 = true;
 
   Assignment op_c2_1;

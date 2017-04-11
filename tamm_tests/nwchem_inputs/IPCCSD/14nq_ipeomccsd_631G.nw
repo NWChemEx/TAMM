@@ -1,6 +1,6 @@
 start 14nq_ipeomccsd_631G
 
-permanent_dir /dtemp/kowalski
+permanent_dir .
 
 memory stack 1400 mb heap 100 mb global 2100 mb noverify
 

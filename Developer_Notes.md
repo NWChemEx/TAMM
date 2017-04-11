@@ -10,7 +10,7 @@ Use -DCMAKE_EXPORT_COMPILE_COMMANDS=ON when running cmake,
 then use clang-tidy as follows:
 
 clang-tidy -p $tamm_root/build/ tensor.cc
-clang-tidy -checks="*" -header-filter=".*" -p ../build/  tensor.cc
+clang-tidy -checks="*" -list-checks -header-filter=".*" -p ../build/  tensor.cc
 clang-tidy  -checks='-*,modernize-*,mpi-*' -p ../build/  tensor.cc 
 clang-tidy  -checks='-*,modernize-*,cppcoreguidelines-*,mpi-*' -p ../build/  tensor.cc
 clang-tidy  -checks='*,-clang-analyzer-*,-cppcoreguidelines-*' -p ../build/  tensor.cc 
@@ -103,4 +103,26 @@ Catch, GoogleTest (Bandit, Lest)
 g++ ParserTest.cc -I../../frontend/ -L/home/panyala/EclipseWS/workspacePTP/tamm/build/ -ltamm  -I/opt/libraries/ANTLR4/antlr4-cpp-runtime/include/antlr4-runtime/ -L/opt/libraries/ANTLR4/antlr4-cpp-runtime/lib -I/opt/tools/googletest/include -L/opt/tools/googletest/lib -lgtest -lpthread -lantlr4-runtime
 
 https://www.google.com/search?q=MyErrorStrategy&oq=MyErrorStrategy&aqs=chrome..69i57&sourceid=chrome&ie=UTF-8
+
+
+ECLIPSE
+========
+Download Eclipse for Parallel Application Developers
+http://www.eclipse.org/downloads/packages/release/Neon/3
+
+Plugins to install from marketplace
+cmake editor - use cmakeed (only editor) - use update site for installation
+CMAKE Builder - https://marketplace.eclipse.org/content/cmake4eclipse
+Python - PyDev
+CPPStyle - http://www.cppstyle.com/
+Instructions are here - https://github.com/wangzw/CppStyle
+
+Project->properties->C/C++ General->Paths and Symbol
+
+brew install clang-format
+
+
+
+
+
 

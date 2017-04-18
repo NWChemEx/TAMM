@@ -150,7 +150,7 @@ SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14")
 #SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
 add_library(tamm STATIC ${tammParserSources} ${tammLibSources} ${refCodeSources})
 add_dependencies(tamm BuildANTLR)
-link_directories(${ANTLR_CPPRUNTIME_DIR}/lib)
+link_directories(${ANTLR_CPPRUNTIME_DIR}/lib ${TAMM_BLAS_LIB})
 target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} 
                         ${BLAS_INC_PATH} ${ANTLR_CPPRUNTIME_DIR}/include/antlr4-runtime/)
 target_link_libraries(tamm a4runtime)

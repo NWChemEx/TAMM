@@ -21,8 +21,14 @@ set(TAMM_BLAS_LIB /opt/intel/mkl/lib/intel64)
 set(ANTLR_CPPRUNTIME /opt/libraries/ANTLR4/antlr4-cpp-runtime)
 
 # General NWCHEM Options
+#Using NWCHEM CMAKE build
 set(NWCHEM_TOP /home/panyala/git/nwchem-cmake/nwchem-devel)
 set(GA_CONFIG ${NWCHEM_TOP}/buildIntel/nwc-install/external/ga/bin)
 set(NWCHEM_BUILD_DIR ${NWCHEM_TOP}/buildIntel/)
 option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" ON)
 
+#When using the old Makefile-based NWCHEM build
+# set(NWCHEM_TOP /opt/libraries/nwchem-devel)
+# set(NWCHEM_BUILD_DIR ${NWCHEM_TOP}/src/)
+# set(GA_CONFIG ${NWCHEM_TOP}/src/tools/install/bin)
+# option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" OFF)

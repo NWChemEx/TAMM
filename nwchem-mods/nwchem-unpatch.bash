@@ -1,5 +1,5 @@
 #!/bin/bash
-cd $NWCHEM_TOP/
+cd $1/
 svn revert src/GNUmakefile
 svn revert src/tce/ccsd_energy_loc.F
 svn revert src/tce/ccsd_lambda.F

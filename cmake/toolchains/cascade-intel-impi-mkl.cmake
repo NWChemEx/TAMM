@@ -21,7 +21,15 @@ set(TAMM_BLAS_INC /msc/apps/compilers/IPS_2017_U1/compilers_and_libraries_2017.1
 set(ANTLR_CPPRUNTIME /home/panyala/software/ANTLR/antlr4-cpp-runtime)
 
 # General NWCHEM Options
-set(NWCHEM_TOP /home/panyala/nwchem-cmake/nwchem-devel)
-set(GA_CONFIG ${NWCHEM_TOP}/build/nwc-install/external/ga/bin)
-set(NWCHEM_BUILD_DIR ${NWCHEM_TOP}/build/)
-option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" ON)
+#Using NWCHEM CMAKE build
+# set(NWCHEM_TOP /home/panyala/nwchem-cmake/nwchem-devel)
+# set(GA_CONFIG ${NWCHEM_TOP}/build/nwc-install/external/ga/bin)
+# set(NWCHEM_BUILD_DIR ${NWCHEM_TOP}/build/)
+# option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" ON)
+
+
+#When using the old Makefile-based NWCHEM build
+set(NWCHEM_TOP /home/panyala/software/nwchem-devel)
+set(GA_CONFIG ${NWCHEM_TOP}/src/tools/install/bin)
+set(NWCHEM_BUILD_DIR ${NWCHEM_TOP}/src/)
+option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" OFF)

@@ -251,10 +251,12 @@ if (NWCHEM_CMAKE_BUILD)
     set(patch_script ./nwchem-cmake-fix.bash)
     set(unpatch_script ./nwchem-cmake-unpatch.bash)
     set(make_link_cmd make)
+    set(NWCHEM_BINARY ${NWCHEM_BUILD_DIR}/nwchem)
 else()
     set(patch_script ./nwchem-fix.bash)
     set(unpatch_script ./nwchem-unpatch.bash)
     set(make_link_cmd make CC=${NW_CC} FC=${NW_FC} AR=${NW_AR} link)
+    set(NWCHEM_BINARY ${NWCHEM_TOP}/bin/LINUX64/nwchem)
 endif()
 
 add_custom_target("style")
@@ -287,7 +289,7 @@ add_custom_command(TARGET "link" POST_BUILD
     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${NWCHEM_BUILD_DIR} ${make_link_cmd}
     COMMENT "=================== Relinking nwchem..." )
 
-set (TEST_COMMAND "mpirun -n ${TAMM_PROC_COUNT} ${NWCHEM_BUILD_DIR}/nwchem")
+set (TEST_COMMAND "mpirun -n ${TAMM_PROC_COUNT} ${NWCHEM_BINARY}")
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 
@@ -295,7 +297,7 @@ file(GLOB INTEG_TESTS RELATIVE ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/CI_t
 foreach (test ${INTEG_TESTS})
     get_filename_component(Testname ${test} NAME_WE)
     #string(REGEX REPLACE "\\.[^.]*$" "" Testname "${Testname}")
-    add_test(${test} python ${PROJECT_SOURCE_DIR}/scripts/testing/CheckResults.py "${Testname}" "${TAMM_PROC_COUNT}")
+    add_test(${test} python ${PROJECT_SOURCE_DIR}/scripts/testing/CheckResults.py "${NWCHEM_BINARY}" "${Testname}" "${TAMM_PROC_COUNT}")
 endforeach()
 
 SET(TAMM_EQ_PATH ${TAMM_INSTALL_PREFIX}/tests/NWChemEqs)

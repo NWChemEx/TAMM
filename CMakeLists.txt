@@ -8,80 +8,59 @@
 #  Operated by Battelle for the U.S. Department of Energy
 # ------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.4 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.7 FATAL_ERROR)
 project (TAMM_LIBRARY C CXX)
 enable_language (Fortran)
 
 # The version number.
-set (TAMM_VERSION_MAJOR 1)
-set (TAMM_VERSION_MINOR 0)
-
-set (CMAKE_BUILD_TYPE Debug)
+set (TAMM_VERSION_MAJOR 0)
+set (TAMM_VERSION_MINOR 1)
 
 INCLUDE(CTest)
 # Should a test fail, display the test program output
 set (CTEST_OUTPUT_ON_FAILURE TRUE)
 
-if(DEFINED ENV{TAMM_PROC_COUNT})
-    set(TAMM_PROC_COUNT $ENV{TAMM_PROC_COUNT})
+if(TAMM_PROC_COUNT)
+    set(TAMM_PROC_COUNT ${TAMM_PROC_COUNT})
 else()
     include(ProcessorCount)
     ProcessorCount(TAMM_PROC_COUNT)
     message(STATUS "Number of cores detected = ${TAMM_PROC_COUNT}")
 endif()
 message(STATUS "Using ${TAMM_PROC_COUNT} cores for building TAMM dependencies and running tests.")
-message("Please set the TAMM_PROC_COUNT environment variable to change the cpu count.")
+message("Please set the TAMM_PROC_COUNT cmake variable to change the cpu count.")
 
-#find_package(FLEX REQUIRED)
-#find_package(BLAS REQUIRED)
-#find_package(MPI)
-#message(STATUS "mpi link flags: " ${MPI_CXX_LINK_FLAGS})
-#message(STATUS "mpi compile flags: " ${MPI_CXX_COMPILE_FLAGS})
-#message(STATUS "mpi libs: " ${MPI_CXX_LIBRARIES})
+#Uncomment if we use additional cmake modules later
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
+# Setup ANTLR
+include(SetupANTLR)
 
 include_directories( ${PROJECT_SOURCE_DIR} )
 
 add_definitions(-DMPICH_IGNORE_CXX_SEEK)
-SET(tamm_blaslibs "")
 
-if(NOT DEFINED LINUX_BLAS)
-    find_path (BLAS_INC_PATH NAMES cblas.h mkl_cblas.h PATHS ${TAMM_BLAS_INC})
-    find_library (BLAS_LIB_PATH blas ${TAMM_BLAS_LIB})
-    find_library (BLAS_LIB_PATH3 atlas ${TAMM_BLAS_LIB})
-    find_library (BLAS_LIB_PATH1 mkl_core ${TAMM_BLAS_LIB})
-    find_library (BLAS_LIB_PATH2 mkl_sequential ${TAMM_BLAS_LIB})
-    if(BLAS_LIB_PATH)
-        LIST(APPEND tamm_blaslibs ${BLAS_LIB_PATH})
-    endif()
-    if(BLAS_LIB_PATH1)
-        SET(tamm_blaslibs "")
-        LIST(APPEND tamm_blaslibs ${BLAS_LIB_PATH1})
-    endif()
-    if(BLAS_LIB_PATH2)
-        LIST(APPEND tamm_blaslibs ${BLAS_LIB_PATH2})
-    endif()
-    if(BLAS_LIB_PATH3)
-        LIST(APPEND tamm_blaslibs ${BLAS_LIB_PATH3})
-    endif()
-    message(STATUS "BLAS headers found at: " "${BLAS_INC_PATH}")
-    message(STATUS "BLAS libs found: " "${tamm_blaslibs}")
+set(BLAS_INC_PATH ${TAMM_BLAS_INC})
+#find_path (BLAS_INC_PATH NAMES cblas.h mkl_cblas.h PATHS ${TAMM_BLAS_INC})
+#message(STATUS "BLAS headers found at: ${BLAS_INC_PATH}")
+
+#Load the GA_CONFIG variable
+if(NOT GA_CONFIG)
+    message(FATAL_ERROR "TAMM ERROR: CMAKE variable GA_CONFIG not set")
 else()
-    add_definitions(-DLINUX_BLAS)
+    set(GA_CONFIG ${GA_CONFIG}/ga-config)
 endif()
 
-#Load the GA_CONFIG and NWCHEM_TOP env variables
-if(NOT DEFINED ENV{NWCHEM_TOP})
-    message(FATAL_ERROR "TAMM ERROR: Environment variable NWCHEM_TOP not set")
+if(NOT NWCHEM_TOP)
+    message(FATAL_ERROR "TAMM ERROR: CMAKE variable NWCHEM_TOP not set")
 else()
-    set(NWCHEM_TOP $ENV{NWCHEM_TOP})
+    message(STATUS "NWCHEM_TOP set to: ${NWCHEM_TOP}")
 endif()
-
-set(GA_CONFIG ${NWCHEM_TOP}/src/tools/install/bin/ga-config)
 
 execute_process(COMMAND ${GA_CONFIG} --cc OUTPUT_VARIABLE tamm_c_compiler OUTPUT_STRIP_TRAILING_WHITESPACE)
-#execute_process(COMMAND ${GA_CONFIG} --f77 OUTPUT_VARIABLE tamm_f77_compiler OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${GA_CONFIG} --f77 OUTPUT_VARIABLE tamm_f77_compiler OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 SET(CMAKE_C_COMPILER ${tamm_c_compiler})
+#set(CMAKE_Fortran_COMPILER ${tamm_f77_compiler})
 
 #Assume Cmake picks the right c++ compiler for now
 SET(CMAKE_CXX_COMPILER mpicxx)
@@ -90,58 +69,15 @@ execute_process(COMMAND ${GA_CONFIG} --cppflags --cflags OUTPUT_VARIABLE tamm_cf
 execute_process(COMMAND ${GA_CONFIG} --ldflags OUTPUT_VARIABLE tamm_ldflags OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND ${GA_CONFIG} --libs OUTPUT_VARIABLE tamm_libs OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-#Uncomment if we use additional cmake modules later
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
-# Setup ANTLR
-include(SetupANTLR)
-
-#message(STATUS "Antlr Binary: " ${AntlrBinary})
-
 set(ParserSrcDir ${PROJECT_SOURCE_DIR}/frontend)
-file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/parser")
 
-if(NOT ${ANTLR_CPPRUNTIME})
+if(ANTLR_CPPRUNTIME)
     #message("Found antlr cpp-runtime")
     ADD_CUSTOM_TARGET(BuildANTLR ALL)
 else()
     #message("antlr cpp-runtime not found")
     ADD_CUSTOM_TARGET(BuildANTLR ALL DEPENDS ANTLR)
 endif()
-
-
-#set(ParserBuildDir "${PROJECT_BINARY_DIR}/parser")
-
-# The generated lexer, parser sources would be in ParserBuildDir.
-# set(ParserSources
-#        ${ParserBuildDir}/TAMMLexer.cpp
-#        ${ParserBuildDir}/TAMMParser.cpp
-#     )   
-    
-  
-# Custom Target to build the TAMM grammar.
-# ADD_CUSTOM_COMMAND(OUTPUT ${ParserSources}
-#   # The grammar is copied over to the ParserBuildDir before building it .
-#   COMMAND cmake -E copy ${ParserSrcDir}/TAMM.g4 ${ParserBuildDir}/TAMM.g4
-#   # Change to ParserBuildDir before building the grammar.
-#   COMMAND cmake -E chdir ${ParserBuildDir} java -jar ${AntlrBinary} -Dlanguage=Cpp -no-listener -visitor ${ParserBuildDir}/TAMM.g4
-#   DEPENDS ${ParserSrcDir}/TAMM.g4
-#   COMMENT "Building the TAMM grammar."
-#   VERBATIM)
-
-
-    # Compile the lexer and parser.
-# add_library(AnltrTammParser STATIC ${ParserSources})
-# target_include_directories(AnltrTammParser SYSTEM PUBLIC ${ParserBuildDir} ${ANTLR_CPPRUNTIME}/include/antlr4-runtime)
-# # Build the ANTLR CPP runtime library. 
-# add_dependencies(AnltrTammParser ANTLR)
-# target_link_libraries(AnltrTammParser antlr4-runtime)
-
-# add_library(ParserCall STATIC "${PROJECT_SOURCE_DIR}/frontend/tamm_parser.cc")
-# add_dependencies(ParserCall AnltrTammParser ANTLR)
-# target_include_directories(ParserCall SYSTEM PUBLIC ${ANTLR_CPPRUNTIME}/include/antlr4-runtime)
-# link_directories(${ANTLR_CPPRUNTIME}/lib)
-# target_link_libraries(ParserCall AnltrTammParser antlr4-runtime)
-
 
 # Collect all the parser sources.
 set(tammParserSources
@@ -222,24 +158,12 @@ target_link_libraries(tamm a4runtime)
 #set_property(TARGET tamm PROPERTY CXX_STANDARD 14)
 #set_property(TARGET tamm PROPERTY CXX_STANDARD_REQUIRED ON)
 
-
-
 # Build the tamm_parser_test code
 add_executable(tamm_parser_test ${ParserSrcDir}/test.cc)
 add_dependencies(tamm_parser_test tamm)
 target_include_directories(tamm_parser_test SYSTEM PUBLIC  ${ParserSrcDir}) 
 # Set target libraries to be linked.
 target_link_libraries(tamm_parser_test tamm a4runtime)
-
-
-
-string(REPLACE "-L" "" tamm_cmake_ldflags ${tamm_ldflags})
-string(REPLACE " " ";" tamm_ldflags ${tamm_cmake_ldflags})
-
-string(REPLACE "-l" "" tamm_cmake_libs ${tamm_libs})
-#string(REPLACE "-" "" tamm_cmake_libs ${tamm_cmake_libs1})
-string(REPLACE " " ";" tamm_libs ${tamm_cmake_libs})
-
 
 find_path(cblas_header_name "mkl_cblas.h" ${BLAS_INC_PATH})
 if (NOT cblas_header_name)
@@ -249,32 +173,11 @@ else()
 endif()
 #message(STATUS "cblas header: " ${cblas_header_name})
 
-SET(lib_search "")
-set(other_flags "")
-
-foreach(tcelibname ${tamm_libs})
-    SET(EACH_TAMM_LIB "EACH_TAMM_LIB-NOTFOUND")
-    find_library(EACH_TAMM_LIB ${tcelibname} ${tamm_ldflags})
-    if(EACH_TAMM_LIB)
-      #message(STATUS "lib ${tcelibname} found at: " "${EACH_TAMM_LIB}")
-      LIST(APPEND lib_search ${EACH_TAMM_LIB})
-    else()
-        LIST(APPEND other_flags ${tcelibname})
-    endif()
-endforeach(tcelibname)
-
-
-#message(STATUS "check libs = " "${tamm_libs}")
-#message(STATUS "check lib path = " "${tamm_ldflags}")
-#message(STATUS "target libs = " "${lib_search}")
-#message(STATUS "target flags = " "${other_flags}")
-
-
 add_executable(tamm_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
 add_dependencies(tamm_main tamm)
 target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
 # Set target libraries to be linked.
-target_link_libraries(tamm_main tamm ${lib_search} ${tamm_blaslibs})
+target_link_libraries(tamm_main tamm ${tamm_ldflags} ${BLAS_LIBRARIES}) #${tamm_libs}
 
 # Install
 if(NOT TAMM_INSTALL_PREFIX)
@@ -311,7 +214,7 @@ FIND_PACKAGE(Doxygen)
 
 if(NOT DOXYGEN_FOUND)
     SET(FOUND_DOXYGEN "0")
-    if(NOT $ENV{DOXYGEN_HOME})
+    if(ENV{DOXYGEN_HOME})
         SET(FOUND_DOXYGEN $ENV{DOXYGEN_HOME})
     endif()
 else()
@@ -321,7 +224,7 @@ else()
     execute_process(COMMAND mkdir -p ${DOCS})
     set(DOCOUTPUT
             ${DOCS}/html
-            ${DOCS}/latex
+            #${DOCS}/latex
             )
     # Custom Target to build the Doxygen documentation.
     ADD_CUSTOM_COMMAND(OUTPUT ${DOCOUTPUT}
@@ -340,38 +243,51 @@ else()
     ADD_CUSTOM_TARGET(docs DEPENDS ${DOCOUTPUT})
 endif()
 
+get_filename_component(NW_CC ${CMAKE_C_COMPILER} NAME )
+get_filename_component(NW_FC ${CMAKE_Fortran_COMPILER} NAME )
+get_filename_component(NW_AR ${CMAKE_AR} NAME )
+
+if (NWCHEM_CMAKE_BUILD)
+    set(patch_script ./nwchem-cmake-fix.bash)
+    set(unpatch_script ./nwchem-cmake-unpatch.bash)
+    set(make_link_cmd make)
+else()
+    set(patch_script ./nwchem-fix.bash)
+    set(unpatch_script ./nwchem-unpatch.bash)
+    set(make_link_cmd "make CC=${NW_CC} FC=${NW_FC} AR=${NW_AR} link")
+endif()
 
 add_custom_target("style")
 add_custom_command(TARGET "style" PRE_BUILD 
   COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/scripts ./cpplint.bash "${CMAKE_SOURCE_DIR}/tensor/*"
   COMMENT "=================== Checking style..." )
 
+
 add_custom_target("patch")
 add_custom_command(TARGET "patch" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ${patch_script} 
+     ${NWCHEM_TOP} ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a
     COMMENT "=================== Patching nwchem..." )
 
-add_custom_target("patch-only")
-add_custom_command(TARGET "patch-only" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-fix.bash ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a -l
-    COMMENT "=================== Patching nwchem..." )
+# add_custom_target("patch-only")
+# add_custom_command(TARGET "patch-only" POST_BUILD 
+#     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ${patch_script} ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a -l
+#     COMMENT "=================== Patching nwchem..." )
 
 add_custom_target("unpatch")
 add_custom_command(TARGET "unpatch" POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ./nwchem-unpatch.bash
-    COMMENT "=================== Unpatching nwchem gnumakefile..." )
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ${unpatch_script} ${NWCHEM_TOP}
+    COMMENT "=================== Unpatching nwchem GNUMakefile/CMakeLists ..." )
 
 add_custom_target(link COMMAND "${CMAKE_COMMAND}" --build . --target install)
 
-get_filename_component(NW_CC ${CMAKE_C_COMPILER} NAME )
-get_filename_component(NW_FC ${CMAKE_Fortran_COMPILER} NAME )
-get_filename_component(NW_AR ${CMAKE_AR} NAME )
+
 
 add_custom_command(TARGET "link" POST_BUILD
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${NWCHEM_TOP}/src make CC=${NW_CC} FC=${NW_FC} AR=${NW_AR} link
+    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${NWCHEM_BUILD_DIR} ${make_link_cmd}
     COMMENT "=================== Relinking nwchem..." )
 
-set (TEST_COMMAND "mpirun -n ${TAMM_PROC_COUNT} ${NWCHEM_TOP}/bin/LINUX64/nwchem")
+set (TEST_COMMAND "mpirun -n ${TAMM_PROC_COUNT} ${NWCHEM_BUILD_DIR}/nwchem")
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
 

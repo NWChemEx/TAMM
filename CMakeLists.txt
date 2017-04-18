@@ -254,7 +254,7 @@ if (NWCHEM_CMAKE_BUILD)
 else()
     set(patch_script ./nwchem-fix.bash)
     set(unpatch_script ./nwchem-unpatch.bash)
-    set(make_link_cmd "make CC=${NW_CC} FC=${NW_FC} AR=${NW_AR} link")
+    set(make_link_cmd make CC=${NW_CC} FC=${NW_FC} AR=${NW_AR} link)
 endif()
 
 add_custom_target("style")
@@ -271,7 +271,7 @@ add_custom_command(TARGET "patch" POST_BUILD
 
 # add_custom_target("patch-only")
 # add_custom_command(TARGET "patch-only" POST_BUILD 
-#     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ${patch_script} ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a -l
+#     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ${patch_script} ${NWCHEM_TOP} ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a -l
 #     COMMENT "=================== Patching nwchem..." )
 
 add_custom_target("unpatch")

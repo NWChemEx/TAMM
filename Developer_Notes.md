@@ -11,6 +11,7 @@ then use clang-tidy as follows:
 
 clang-tidy -p $tamm_root/build/ tensor.cc
 clang-tidy -checks="*" -list-checks -header-filter=".*" -p ../build/  tensor.cc
+
 clang-tidy  -checks='-*,modernize-*,mpi-*' -p ../build/  tensor.cc 
 clang-tidy  -checks='-*,modernize-*,cppcoreguidelines-*,mpi-*' -p ../build/  tensor.cc
 clang-tidy  -checks='*,-clang-analyzer-*,-cppcoreguidelines-*' -p ../build/  tensor.cc 
@@ -120,6 +121,40 @@ Instructions are here - https://github.com/wangzw/CppStyle
 Project->properties->C/C++ General->Paths and Symbol
 
 brew install clang-format
+
+###Remote System Explorer (RSE) - remote project with Eclipse via SSH
+
+Window > Open Perspective >  Remote System Explorer
+
+To create an SSH remote project from the RSE perspective in Eclipse:
+
+Define a new connection and choose SSH Only from the Select Remote System Type screen in the New Connection dialog.
+Enter the connection information then choose Finish.
+Connect to the new host. (Assumes SSH keys are already setup.)
+Once connected, drill down into the host's Sftp Files, choose a folder and select Create Remote Project from the item's context menu. 
+
+You should now see a new remote project accessible from the Project Explorer.
+
+
+#Other eclipse stuff
+
+#Get TM Terminal from eclipse marketplace.
+
+This should be enough for eclipse to find all standard libs,includes,etc
+
+C/C++ Build -> Settings -> Tool Settings -> GCC C++ Compiler -> Miscellaneous -> Other Flags. 
+Put  -std=c++14 at the end . ... instead of GCC C++ Compiler
+
+#To enable c++14 only for a selected project:
+Right click on your project and click Properties
+Navigate to C/C++ General and Preprocessor Include Paths, Macros etc.
+Select the Providers tab, click on compiler settings row for the compiler you use.
+Add -std=c++14 to Command to get compiler specs. Should look something like:
+
+${COMMAND} -E -P -v -dD "${INPUTS}" -std=c++14
+ 
+
+
 
 
 

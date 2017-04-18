@@ -1,2 +1,2 @@
 #!/bin/bash
-cp restore/GNUmakefile  $NWCHEM_TOP/src/
+cp restore/GNUmakefile  $1/src/

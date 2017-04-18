@@ -8,8 +8,9 @@ import json
 import math
 import subprocess
 
-testcase = str(sys.argv[1])
-num_procs = int(sys.argv[2])
+nwchem_bin = str(sys.argv[1])
+testcase = str(sys.argv[2])
+num_procs = int(sys.argv[3])
 
 def check_result_file(res_file,result_string, num_lines):
     get_results = []
@@ -63,7 +64,7 @@ print "Running Test: " + testcase + ".nw"
 nwinput = input_folder + "/inputs/" + testcase + ".nw"
 tamm_output = testcase + ".tammout"
 
-run_tamm_code = "mpirun -n " + str(num_procs) + " " + os.environ['NWCHEM_TOP'] + "/bin/LINUX64/nwchem " + nwinput
+run_tamm_code = "mpirun -n " + str(num_procs) + " " + nwchem_bin + " " + nwinput
 print run_tamm_code
 tof = open(tamm_output,"w")
 pid = subprocess.Popen(run_tamm_code, stdout=tof, stderr=tof, shell=True)

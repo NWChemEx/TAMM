@@ -15,7 +15,7 @@ int main(){
     Tensor D,F;
 
     for (int l1=0;l1<20;l1++) {
-        Tensor X,T,R,Z;
+        Tensor X,T,R,Z, delta;
 
         for (int l2 = 0;l2< 20;l2++){
           Tensor tmp1, tmp2, tmp3;
@@ -40,12 +40,13 @@ int main(){
           T({i,a}) += Z({i,a}) * R({i,a});  // div (f_aa(i) - f_ii(i))  
         }
 
-        //Tensor Z_ij, T_ie, T_je;
         Z({i,j}) += -1.0 * (T({i,e}) * T({j,e}));
 
         for (int l3=0;l3<10;l3++){
-		// D_ij = delta_ij + D_im * Z_mj #r_ij = D_ij - delta_ij - D_im * Z_mj = 0
-		// D_ij += r_ij / (delta_ij=1 + Z_jj)
+           //r_ij = D_ij - delta_ij - D_im * Z_mj = 0
+		   D({i,j}) += 1.0 * delta({i,j});
+           D({i,j}) += 1.0 * (D({i,m}) * Z({m,j})); 
+		   // D_ij += r_ij / (delta_ij=1 + Z_jj)
         }
 
         X({i,a}) += 1.0 * (D({i,m}) * T({m,a}));
@@ -56,7 +57,7 @@ int main(){
 
         //X({i,a}) = X({a,i})
 
-    //     	#Construct new fock matrix F(D(i+1)) from Density matrix D
+    // #Construct new fock matrix F(D(i+1)) from Density matrix D
 	// #X_ia,X_ab,X_ij (i+1)
 
 	// full D(i+1) = [ l_oo + x_oo | X_ov ]

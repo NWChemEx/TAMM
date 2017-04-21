@@ -9,25 +9,35 @@ int main(){
     
     std::string i,j,k,l,m;
     std::string a,b,c,d,e;
-    double threshold = 1.0E-6;
-    double energy = 0;
+    // double threshold = 1.0E-6;
+    // double energy = 0;
     
-    Tensor tc,ta,tb;
-    //tc({i,j}) = ta({i,k}) * tb({k,j});
-    // tc({i,j}) += 1.0 * (ta({i,k}) * tb({k,j}));
-    // tc({i,j}) += 1.0 * tb({k,j});
-
     Tensor D,F;
 
     for (int l1=0;l1<20;l1++) {
         Tensor X,T,R,Z;
 
         for (int l2 = 0;l2< 20;l2++){
-    //         R_ia = F_ia - F_ib * X_ba - F_im * X_ma
-    //    + X_ij*F_ja - X_ij * F_jb * X_ba - X_ij * F_jm * X_ma
-    //    + X_ib * F_ba - X_ib * F_bc * X_ca - X_ib * F_bm * X_ma
+          Tensor tmp1, tmp2, tmp3;
 
-              T({i,a}) += Z({i,a}) * R({i,a});
+          R({i,a}) += 1.0 * F({i,a});
+          R({i,a}) += -1.0 * (F({i,b}) * X({b,a}));
+          R({i,a}) += -1.0 * (F({i,m}) * X({m,a}));
+          R({i,a}) += X({i,j}) * F({j,a});
+          R({i,a}) += -1.0 * (X({i,j}) * F({j,b}));
+          R({i,a}) += 1.0 * X({b,a});
+          
+          tmp1({j,a}) += 1.0 * (F({j,m}) * X({m,a}));
+          R({i,a}) += -1.0 * (X({i,j}) * tmp1({j,a}));
+          R({i,a}) += 1.0 * (X({i,b}) * F({b,a}));
+          
+          tmp2({b,a}) += 1.0 * (F({b,c}) * X({c,a}));
+          R({i,a}) += -1.0 * (X({i,b}) * tmp2({b,a}));
+          tmp3({b,a}) += 1.0 * (F({b,m}) * X({m,a}));
+          R({i,a}) += -1.0 * (X({i,b}) * tmp3({b,a}));
+
+
+          T({i,a}) += Z({i,a}) * R({i,a});  // div (f_aa(i) - f_ii(i))  
         }
 
         //Tensor Z_ij, T_ie, T_je;

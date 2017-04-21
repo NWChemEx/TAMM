@@ -62,4 +62,9 @@ Op&& operator*(double d, Tensor &a) { return std::move(Op(a)); }
 
 Op&& operator*( Tensor &a,  Tensor &b) { return std::move(Op(a, b)); }
 
+Op&& operator/(Tensor &num, Op denom) { return std::move(Op(num,denom.a)); }
+
+Op&& operator+(Tensor &a, Tensor &b) { return std::move(Op(a,b)); }
+Op&& operator-(Tensor &a, Tensor &b) { return std::move(Op(a,b)); }
+
 };  // namespace tamm_cpp_dsl

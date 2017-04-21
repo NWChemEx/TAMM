@@ -38,6 +38,7 @@ int main(){
 
 
           T({i,a}) += Z({i,a}) * R({i,a});  // div (f_aa(i) - f_ii(i))  
+          T({i,a}) += T({i,a}) / (F({a,a}) - F({i,i}));
         }
 
         Z({i,j}) += -1.0 * (T({i,e}) * T({j,e}));
@@ -46,7 +47,7 @@ int main(){
            //r_ij = D_ij - delta_ij - D_im * Z_mj = 0
 		   D({i,j}) += 1.0 * delta({i,j});
            D({i,j}) += 1.0 * (D({i,m}) * Z({m,j})); 
-		   // D_ij += r_ij / (delta_ij=1 + Z_jj)
+		   D({i,j}) += R({i,j}) / (delta({i,j}) + Z({i,j}));
         }
 
         X({i,a}) += 1.0 * (D({i,m}) * T({m,a}));

@@ -1,5 +1,8 @@
 noga {
 
+
+p,q = O+V 
+
 //    i, j, m, n
 index h1,h2,h3,h4,h5,h6 = O;
 //    a, b, c, d, e, f
@@ -65,25 +68,40 @@ X_ab = X_ma * T_mb
 
 //---------------------------------------------------------------------------
 
-while(not converged) #|D(i+1) - D(i)| < thresh
+no spatial, spin, no symmetry
+D = density matrix = D_oo
+F = fock matrix
+delta_ij = 0 (i!=j), 1 (i==j)
 
-	for i in 1..M
-		t1(n+1) = t1(n)  + R_ia / (f_aa(n) - f_ii(n))  #preconditioner
+DO # Loop iterator = i=20
 
-	[t_ia] -> known after the M iterations
+	DO(|t(n+1) - t(n)| < thresh) #20
+		t_ia(n+1) = t_ia(n)  + r_ia / (f_aa(i) - f_ii(i))  #preconditioner f_aa,f_ii - diagnoilzer for fock matrix
+	END DO
+
+	# we have [t_ia] computed now
 
 	Z_ij = -1.0 * T_ie * T_je;
 
-	DO N
-		D(n+1) = D(n) + fD (D(n)) / delta
-	CONTINUE #until Dij tensor converges
+	DO ( |D_oo(n+1) - D_oo(n)| < thresh) #10
+		D_ij = delta_ij + D_im * Z_mj #r_ij = D_ij - delta_ij - D_im * Z_mj = 0
+		D_ij(n+1) = D_ij(n) + r_ij / (delta_ij=1 + Z_jj)
+	END DO #until Dij tensor converges
 
-	X_ia = D_im * T_ma
+	X_ia = D_im * T_ma (X_ov)
 	
-	X_ab = X_ma * T_mb 
-     && X_ij = -1.0 * T_ie * X_je
+	X_ab = X_ma * T_mb (X_vv)
+    X_ij = -1.0 * T_ie * X_je (X_oo)
+
+    X_ia = X_ai (X_vo)
+
 
 	#Construct new fock matrix F(D(i+1)) from Density matrix D
 	#X_ia,X_ab,X_ij (i+1)
 
+	full D(i+1) = [ l_oo + x_oo | X_ov ]
+                  [ X_vo        | X_vv ]
 
+    #D_ij = [delta_ij + X_ij ]
+
+while(|D(i+1) - D(i)| < thresh)

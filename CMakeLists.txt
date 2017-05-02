@@ -146,7 +146,7 @@ message(STATUS "ANTLR C++ runtime found at: " ${ANTLR_CPPRUNTIME_DIR})
 ADD_LIBRARY(a4runtime STATIC IMPORTED)
 SET_TARGET_PROPERTIES(a4runtime PROPERTIES IMPORTED_LOCATION ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a)
 
-SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14")
+SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14 -g")
 #SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
 add_library(tamm STATIC ${tammParserSources} ${tammLibSources} ${refCodeSources})
 add_dependencies(tamm BuildANTLR)

@@ -1203,6 +1203,8 @@ class Block;
 struct LabeledBlock {
   Block& block_;
   TensorLabel label_;
+
+  void init(double value);
 };
 
 struct LabeledTensor  {
@@ -1234,6 +1236,12 @@ class Block {
 
   LabeledBlock operator () (const TensorLabel &label) {
     return LabeledBlock{*this, label};
+  }
+
+  LabeledBlock operator () () {
+    TensorLabel label(block_id_.size());
+    std::iota(label.begin(), label.end(), 0);
+    return this->operator ()(label); //LabeledBlock{*this, label};
   }
 
   size_t size() const {
@@ -1697,6 +1705,13 @@ Block::Block(Tensor &tensor,
         buf_ = std::make_unique<uint8_t []> (size() * tensor.element_size());
       }
 
+void
+LabeledBlock::init(double value) {
+  double *dbuf = reinterpret_cast<double*>(block_.buf());
+  for(int i=0; i<block_.size(); i++) {
+    dbuf[i] = value;
+  }
+}
 
 
 inline std::tuple<double, const LabeledBlock>
@@ -2335,7 +2350,7 @@ operator += (LabeledTensor ltc, const std::tuple<double, const LabeledTensor>& r
       cbp(ltc.label_) += alpha * abp(lta.label_);
 
       auto csbp = tc.alloc(tc.find_unique_block(cblockid));
-      //csbp() = 0
+      csbp().init(0);
       // @todo make below function also have option to not take ltb
       auto copy_symm = copy_symmetrizer(ltc, lta, ltc, label_map);
       auto copy_itr = copy_iterator(copy_symm);
@@ -2484,6 +2499,24 @@ index_permute_acc(uint8_t* cbuf, uint8_t* abuf, const TensorPerm& perm, const Te
   tamm::index_sortacc(reinterpret_cast<double*>(abuf),
                       reinterpret_cast<double*>(cbuf),
                       sizes.size(), &sizes[0], &perm[0], scale);
+}
+
+inline void
+index_permute(uint8_t* cbuf, uint8_t* abuf, const TensorPerm& perm, const TensorIndex& dims, double scale) {
+  Expects(cbuf!=nullptr && abuf!=nullptr);
+  Expects(perm.size() == dims.size());
+
+  auto inv_perm = perm_invert(perm);
+  TensorVec<size_t> sizes;
+  TensorVec<int> iperm;
+  for(int i=0; i<dims.size(); i++) {
+    sizes.push_back(dims[i]);
+    iperm.push_back(inv_perm[i]+1);
+  }
+
+  tamm::index_sort(reinterpret_cast<double*>(abuf),
+                   reinterpret_cast<double*>(cbuf),
+                   sizes.size(), &sizes[0], &perm[0], scale);
 }
 
 inline void

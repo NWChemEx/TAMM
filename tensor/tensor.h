@@ -181,6 +181,16 @@ Tensor Tensor4(RangeType r1, RangeType r2, RangeType r3, RangeType r4,
 #include <map>
 #include "tensor/gmem.h"
 #include "tensor/capi.h"
+#include "tensor/index_sort.h"
+
+/**
+ * @todo Check pass-by-value, reference, or pointer, especially for
+ * Block and Tensor
+ *
+ * @todo Parallelize parallel_work
+ *
+ * @todo Implement TCE::init() and TCE::finalize()
+ */
 
 namespace tammx {
 
@@ -265,6 +275,10 @@ class BoundVec : public std::array<T, maxsize> {
     this->at(size_++) = value;
   }
 
+  void pop_back() {
+    size_ -= 1;
+  }
+  
   template<typename InputIt>
   void insert_back(InputIt first, InputIt last) {
     Expects(size_ + (last - first) <= maxsize);
@@ -334,6 +348,7 @@ using Irrep = int;
 using Spin = int;
 using Spatial = int;
 using IndexLabel = int;
+using Sign = int;
 
 enum class DimType { o, v, n };
 
@@ -392,7 +407,7 @@ class TriangleLoop {
     return ret;
   }
 
-  const ItrType& operator * () const {
+  const ItrType& operator * () {
     return itr_;
   }
 
@@ -416,12 +431,12 @@ class TriangleLoop {
   friend bool operator != (const TriangleLoop& tl1, const TriangleLoop& tl2);
 };
 
-bool
+inline bool
 operator == (const TriangleLoop& tl1, const TriangleLoop& tl2) {
   return std::equal(tl1.itr_.begin(), tl1.itr_.end(), tl2.itr_.begin());
 }
 
-bool
+inline bool
 operator != (const TriangleLoop& tl1, const TriangleLoop& tl2) {
   return !(tl1 == tl2);
 }
@@ -456,7 +471,7 @@ struct Combination {
   Combination()
       : n_{0},
         k_{0} {}
-  
+
   Combination(const TensorVec<T> &bag, Int k)
       : n_ {bag.size()},
         k_{std::max(k, bag.size() - k)},
@@ -466,19 +481,19 @@ struct Combination {
           std::sort(bag_.begin(), bag_.end());
         }
 
-  Combination& operator = (Combination& comb) {
+  Combination& operator = (const Combination& comb) {
     n_ = comb.n_;
     k_ = comb.k_;
     bag_ = comb.bag_;
     return *this;
   }
-  
+
   class Iterator {
    public:
     using ItrType = TensorVec<T>;
 
     Iterator() : comb_{nullptr}  {}
-    
+
     Iterator(Combination<T>* comb)
         : comb_{comb} {
       for(Int x=0; x<comb_->k_; x++) {
@@ -502,16 +517,16 @@ struct Combination {
     TensorVec<T> operator *() {
       TensorVec<T> gp1, gp2;
       Expects(sub_.size() == comb_->k_);
-      gp2.insert(gp2.end(), comb_->bag_.begin(), comb_->bag_.begin() + sub_[0]);
+      gp2.insert_back(comb_->bag_.begin(), comb_->bag_.begin() + sub_[0]);
       for(Int i=0; i<sub_.size()-1; i++) {
         gp1.push_back(comb_->bag_[sub_[i]]);
-        gp2.insert(gp2.end(), comb_->bag_.begin()+sub_[i]+1,
+        gp2.insert_back(comb_->bag_.begin()+sub_[i]+1,
                    comb_->bag_.begin() + sub_[i+1]);
       }
       gp1.push_back(comb_->bag_[sub_.back()]);
-      gp2.insert(gp2.end(), comb_->bag_.begin()+sub_.back()+1,
+      gp2.insert_back( comb_->bag_.begin()+sub_.back()+1,
                  comb_->bag_.end());
-      gp1.insert(gp1.end(), gp2.begin(), gp2.end());
+      gp1.insert_back(gp2.begin(), gp2.end());
       return gp1;
     }
 
@@ -538,7 +553,7 @@ struct Combination {
           stack_.back().step();
           if(sub_.size() < comb_->k_ && i+1 < comb_->n_) {
             stack_.push_back({i+1});
-          }        
+          }
           break;
         case Case::case1:
           sub_.pop_back();
@@ -567,7 +582,7 @@ struct Combination {
           &&  std::equal(itr1.sub_.begin(), itr1.sub_.end(),
                          itr2.sub_.begin(), itr2.sub_.end());
     }
-    
+
     friend bool operator != (const typename Combination::Iterator& itr1,
                              const typename Combination::Iterator& itr2) {
       return !(itr1 == itr2);
@@ -586,7 +601,7 @@ struct Combination {
     return itr;
   }
 
-  
+
   Int index_of_next_unique_item(Int i) const {
     unsigned j;
     for(j = i+1; j<n_ && bag_[j] == bag_[i]; j++) {
@@ -604,6 +619,17 @@ struct Combination {
  * @todo support efficient * and -> operators
  *
  * @todo operator * is return an array
+ *
+ * @todo support assignment operator on blocks (to initialize a block to 0)
+ *
+ * @todo check that blockids passed and the order of labels in
+ * group_partition are consistenst.
+ *
+ * @todo the symmetrization might not (will not) work when the
+ * symmetric sub-groups are disjoint. Fix this.
+ *
+ * Eg: C[a,b,c] = A[a,c] x B[b].
+ *
  */
 template<typename Itr>
 class ProductIterator {
@@ -646,10 +672,10 @@ class ProductIterator {
     return ret;
   }
 
-  typename Itr::ItrType operator * () const {
+  typename Itr::ItrType operator * () {
     TensorVec<typename Itr::ItrType> itrs(ival_.size());
     std::transform(ival_.begin(), ival_.end(), itrs.begin(),
-                   [] (const Itr& tloop) {
+                   [] (Itr& tloop) {
                      return *tloop;
                    });
     return flatten(itrs);
@@ -950,8 +976,37 @@ loop_iterator(const TensorVec<SymmGroup>& indices ) {
 
 class TCE {
  public:
-  static void init();
-  static void finalize();
+  static void init(const std::vector<Spin>& spins,
+                   const std::vector<Spatial>& spatials,
+                   const std::vector<size_t>& sizes,
+                   BlockDim noa,
+                   BlockDim noab,
+                   BlockDim nva,
+                   BlockDim nvab,
+                   bool spin_restricted,
+                   Irrep irrep_f,
+                   Irrep irrep_v,
+                   Irrep irrep_t,
+                   Irrep irrep_x,
+                   Irrep irrep_y) {
+    spins_ = spins;
+    spatials_ = spatials;
+    sizes_ = sizes;
+    noa_ = noa;
+    noab_ = noab;
+    nva = nva_;
+    nvab_ = nvab;
+    spin_restricted_ = spin_restricted;
+    irrep_f_ = irrep_f;
+    irrep_v_ = irrep_v;
+    irrep_t_ = irrep_t;
+    irrep_x_ = irrep_x;
+    irrep_y_ = irrep_y;
+  }
+
+  static void finalize() {
+    // no-op
+  }
 
   static Spin spin(BlockDim block) {
     return spins_[block];
@@ -1167,7 +1222,7 @@ class Block {
         const TensorIndex& block_id,
         const TensorIndex& block_dims,
         const TensorPerm& layout,
-        int sign);
+        Sign sign);
 
   const TensorIndex& blockid() const {
     return block_id_;
@@ -1189,7 +1244,7 @@ class Block {
     return sz;
   }
 
-  int sign() const {
+  Sign sign() const {
     return sign_;
   }
 
@@ -1207,27 +1262,66 @@ class Block {
   TensorIndex block_dims_;
   std::unique_ptr<uint8_t []> buf_;
   TensorPerm layout_;
-  int sign_;
+  Sign sign_;
 
   friend void operator += (LabeledBlock& block1, const LabeledBlock& block2);
   friend void operator += (LabeledBlock& block1, const std::pair<LabeledBlock, LabeledBlock>& blocks);
 };
 
-inline std::pair<TensorPer, int>
-compute_layout(const TensorIndex& from, const TensorIndex& to) {
+inline TensorPerm
+perm_compute(const TensorLabel& from, const TensorLabel& to) {
   TensorPerm layout;
-  int num_inversions;
 
   for(auto p : to) {
     auto itr = std::find(from.begin(), from.end(), p);
     Expects(itr != from.end());
     layout.push_back(itr - from.begin());
-    num_inversions += i;
   }
-
-  return {layout, num_inversions};
+  return layout;
 }
 
+inline int
+perm_count_inversions(const TensorPerm& perm) {
+  int num_inversions = 0;
+  for(int i=0; i<perm.size(); i++) {
+    auto itr = std::find(perm.begin(), perm.end(), i);
+    Expects(itr != perm.end());
+    num_inversions += (itr - perm.begin()) - i;
+  }
+  return num_inversions;
+}
+
+template<typename T>
+inline TensorVec<T>
+perm_apply(const TensorVec<T>& label, const TensorPerm& perm) {
+  TensorVec<T> ret;
+  Expects(label.size() == perm.size());
+  for(int i=0; i<label.size(); i++) {
+    ret.push_back(label[perm[i]]);
+  }
+  return ret;
+}
+
+inline TensorPerm
+perm_compose(const TensorPerm& p1, const TensorPerm& p2) {
+  TensorPerm ret(p1.size());
+  Expects(p1.size() == p2.size());
+  for(int i=0; i<p1.size(); i++) {
+    ret[i] = p1[p2[i]];
+  }
+  return ret;
+}
+
+inline TensorPerm
+perm_invert(const TensorPerm& perm) {
+  TensorPerm ret(perm.size());
+  for(int i=0; i<perm.size(); i++) {
+    auto itr = std::find(perm.begin(), perm.end(), i);
+    Expects(itr != perm.end());
+    ret[i] = itr - perm.begin();
+  }
+  return ret;
+}
 
 class Tensor {
  public:
@@ -1426,10 +1520,7 @@ class Tensor {
     Expects(nonzero(blockid));
     auto uniq_blockid = find_unique_block(blockid);
     TensorPerm layout;
-    int num_inversions;
-    assert(0);
-    //std::tie(layout, num_inversions) = compute_layout(uniq_blockid, blockid);
-    int sign = num_inversions % 2;
+    Sign sign = compute_sign_from_unique_block(blockid);
     Block block = alloc(uniq_blockid, layout, sign);
     if(distribution_ == Distribution::tce_nwi
        || distribution_ == Distribution::tce_nw
@@ -1469,6 +1560,9 @@ class Tensor {
    */
   void add(Block& block) const {
     Expects(constructed_ == true);
+    for(int i=0; i<block.layout().size(); i++) {
+      Expects(block.layout()[i] == i);
+    }
     if(distribution_ == Distribution::tce_nw) {
       auto key = TCE::compute_tce_key(flindices_, block.blockid());
       auto size = block.size();
@@ -1476,7 +1570,6 @@ class Tensor {
       auto ptr = std::lower_bound(&tce_hash_[1], &tce_hash_[length + 1], key);
       Expects (!(ptr == &tce_hash_[length + 1] || key < *ptr));
       auto offset = *(ptr + length);
-      assert(0); // do the index permutation needed
       tamm::gmem::acc(tce_ga_, block.buf(), offset, offset + size - 1);
     } else {
       assert(0); //implement
@@ -1488,8 +1581,22 @@ class Tensor {
     int pos = 0;
     for(auto &igrp: indices_) {
       std::sort(ret.begin()+pos, ret.begin()+pos+igrp.size());
+      pos += igrp.size();
     }
     return ret;
+  }
+
+  Sign compute_sign_from_unique_block(const TensorIndex& blockid) const {
+    int num_inversions=0;
+    int pos = 0;
+    for(auto &igrp: indices_) {
+      Expects(igrp.size() <= 2); // @todo Implement general algorithm
+      if(igrp.size() == 2 && blockid[pos+0] > blockid[pos+1]) {
+        num_inversions += 1;
+      }
+      pos += igrp.size();
+    }
+    return (num_inversions%2) ? -1 : 1;
   }
 
   Block alloc(const TensorIndex& blockid) {
@@ -1684,37 +1791,13 @@ operator += (LabeledTensor block1, const std::tuple<LabeledTensor, LabeledTensor
 // }
 
 
+// @todo Parallelize
 template<typename Itr, typename Fn>
 void  parallel_work(Itr first, Itr last, Fn fn) {
   for(; first != last; ++first) {
     fn(*first);
   }
 }
-
-inline void
-operator += (LabeledTensor ltc, const std::tuple<double, const LabeledTensor>& rhs) {
-  double alpha = std::get<0>(rhs);
-  const LabeledTensor& lta = std::get<1>(rhs);
-  Tensor& ta = lta.tensor_;
-  Tensor& tc = ltc.tensor_;
-  //check for validity of parameters
-  auto citr = loop_iterator(tc.indices());
-  auto lambda = [&] (const TensorIndex& cblockid) {
-    size_t dimc = tc.block_size(cblockid);
-    if(tc.nonzero(cblockid) && dimc>0) {
-      auto label_map = LabelMap()
-          .update(ltc.label_, cblockid);
-      auto ablockid = label_map.get_blockid(lta.label_);
-      auto abp = ta.get(ablockid);
-      auto cbp = tc.alloc(cblockid);
-      cbp(ltc.label_) += alpha * abp(lta.label_);
-      tc.add(cbp);
-    }
-  };
-  parallel_work(citr, citr.get_end(), lambda);
-}
-
-
 
 inline TensorVec<TensorLabel>
 group_labels(const TensorVec<SymmGroup>& groups, const TensorLabel& labels) {
@@ -1970,7 +2053,7 @@ nonsymmetrized_iterator(const LabeledTensor& ltc,
 class SymmetrizationIterator {
  public:
   SymmetrizationIterator() {}
-  
+
   SymmetrizationIterator(const TensorIndex& blockid,
                          int group_size)
       : comb_(blockid, group_size) {}
@@ -1979,7 +2062,7 @@ class SymmetrizationIterator {
     comb_ = sit.comb_;
     return *this;
   }
-  
+
   Combination<BlockDim>::Iterator begin() {
     return comb_.begin();
   }
@@ -1990,7 +2073,7 @@ class SymmetrizationIterator {
 
  private:
   Combination<BlockDim> comb_;
-};  
+};
 
 inline TensorVec<SymmetrizationIterator>
 symmetrization_combination(const LabeledTensor& ltc,
@@ -2022,54 +2105,257 @@ symmetrization_iterator(const TensorVec<SymmetrizationIterator>& sitv) {
   return {itrs_first, itrs_last};
 }
 
-inline TensorVec<Combination<IndexLabel>>
-symmetrization_copy_combination(const TensorIndex& blockid,
-                                const LabeledTensor& ltc,
-                                const LabeledTensor& lta,
-                                const LabeledTensor& ltb,
-                                const LabelMap& lmap) {
+// inline TensorVec<Combination<IndexLabel>>
+// symmetrization_copy_combination(const TensorIndex& blockid,
+//                                 const LabeledTensor& ltc,
+//                                 const LabeledTensor& lta,
+//                                 const LabeledTensor& ltb,
+//                                 const LabelMap& lmap) {
+//   auto part_labels = nonsymmetrized_external_labels(ltc ,lta, ltb);
+//   TensorVec<Combination<IndexLabel>> combs;
+//   for(auto lbls: part_labels) {
+//     Expects(lbls.size()>0 && lbls.size() <= 2);
+
+//     TensorLabel lbl(lbls[0].begin(), lbls[0].end());
+//     int group_size = lbls[0].size();
+//     if(lbls.size() == 2 ) {
+//       lbl.insert_back(lbls[1].begin(), lbls[1].end());
+//     }
+//     auto blockid = lmap.get_blockid(lbl);
+
+//     Expects(lbl.size() > 0);
+//     Expects(lbl.size() <=2); // @todo implement other cases
+//     if(lbl.size() == 1) {
+//       combs.push_back({lbl, 1});
+//     }
+//     else if (lbl.size() == 2) {
+//       if(lbls[0].size() == 2 || lbls[1].size()==2) {
+//         combs.push_back({lbl, 2});
+//       }
+//       else if(blockid[0] != blockid[1])  {
+//         combs.push_back({lbl, 2});
+//       }
+//       else {
+//         combs.push_back({lbl, 1});
+//       }
+//     }
+//   }
+//   return combs;
+// }
+
+class CopySymmetrizer {
+ public:
+  CopySymmetrizer()
+      : CopySymmetrizer(0, 0, TensorIndex{}, TensorIndex{}) {}
+        
+
+  CopySymmetrizer(int group_size,
+                  int part_size,
+                  const TensorIndex& blockid,
+                  const TensorIndex& uniq_blockid)
+      : group_size_{group_size},
+        part_size_{part_size},
+        blockid_{blockid},
+        uniq_blockid_{uniq_blockid},
+        bag_(group_size) {
+          std::iota(bag_.begin(), bag_.end(), 0);
+          comb_ = Combination<int>(bag_, part_size);
+        }
+
+  CopySymmetrizer& operator = (const CopySymmetrizer& csm) {
+    group_size_ = csm.group_size_;
+    part_size_ = csm.part_size_;
+    blockid_ = csm.blockid_;
+    return *this;
+  }
+
+  class Iterator {
+   public:
+    using ItrType = TensorVec<int>;
+
+    Iterator() : cs_{nullptr} {}
+ 
+    Iterator(CopySymmetrizer* cs) 
+        : cs_{cs} {
+      itr_ = cs_->comb_.begin();
+      end_ = cs_->comb_.end();
+    }
+
+    Iterator& operator = (Iterator& rhs) {
+      cs_ = rhs.cs_;
+      itr_ = rhs.itr_;
+      end_ = rhs.end_;
+    }
+
+    Iterator& operator = (const Iterator& rhs) {
+      cs_ = rhs.cs_;
+      itr_ = rhs.itr_;
+      end_ = rhs.end_;
+    }
+
+    TensorVec<int> operator * () {
+      return *itr_;
+    }
+
+    Iterator& operator ++ () {
+      do {
+        ++itr_;
+        auto perm = *itr_;
+        auto perm_blockid = perm_apply(cs_->blockid_, perm);
+        auto &uniq_blockid = cs_->uniq_blockid_;
+        if (std::equal(uniq_blockid.begin(), uniq_blockid.end(),
+                       perm_blockid.begin(), perm_blockid.end())) {
+          break;
+        }
+      } while(itr_ != end_);
+      return *this;
+    }    
+    
+   private:
+    Combination<int>::Iterator itr_, end_;
+    CopySymmetrizer *cs_;
+
+    friend bool operator == (const typename CopySymmetrizer::Iterator& itr1,
+                             const typename CopySymmetrizer::Iterator& itr2) {
+      return (itr1.cs_ == itr2.cs_)
+          &&  (itr1.itr_ == itr2.itr_)
+          &&  (itr1.end_ == itr2.end_);
+    }
+    
+    friend bool operator != (const typename CopySymmetrizer::Iterator& itr1,
+                             const typename CopySymmetrizer::Iterator& itr2) {
+      return !(itr1 == itr2);
+    }
+    friend class CopySymmetrizer;
+  };
+
+  Iterator begin() {
+    return Iterator(this);
+  }
+
+  Iterator end() {
+    auto itr = Iterator(this);
+    itr.itr_ = comb_.end();
+  }
+
+ public:
+  TensorVec<int> bag_;
+  int group_size_;
+  int part_size_;
+  TensorIndex blockid_;
+  TensorIndex uniq_blockid_;
+  Combination<int> comb_;
+};
+
+inline TensorVec<CopySymmetrizer>
+copy_symmetrizer(const LabeledTensor& ltc,
+                 const LabeledTensor& lta,
+                 const LabeledTensor& ltb,
+                 const LabelMap& lmap) {
   auto part_labels = nonsymmetrized_external_labels(ltc ,lta, ltb);
-  TensorVec<Combination<IndexLabel>> combs;
+  TensorVec<CopySymmetrizer> csv;
   for(auto lbls: part_labels) {
     Expects(lbls.size()>0 && lbls.size() <= 2);
 
     TensorLabel lbl(lbls[0].begin(), lbls[0].end());
-    int group_size = lbls[0].size();
     if(lbls.size() == 2 ) {
       lbl.insert_back(lbls[1].begin(), lbls[1].end());
     }
-    auto blockid = lmap.get_blockid(lbl);
 
-    Expects(lbl.size() > 0);
-    Expects(lbl.size() <=2); // @todo implement other cases
-    if(lbl.size() == 1) {
-      combs.push_back({lbl, 1});
-    }
-    else if (lbl.size() == 2) {
-      if(lbls[0].size() == 2 || lbls[1].size()==2) {
-        combs.push_back({lbl, 2});
-      }
-      else if(blockid[0] != blockid[1])  {
-        combs.push_back({lbl, 2});
-      }
-      else {
-        combs.push_back({lbl, 1});
-      }
-    }
+    auto size = lbl.size();
+    Expects(size > 0);
+    Expects(size <=2); // @todo implement other cases
+
+    auto blockid = lmap.get_blockid(lbl);
+    auto uniq_blockid{blockid};
+    //find unique block
+    std::sort(uniq_blockid.begin(), uniq_blockid.end());
+    csv.push_back(CopySymmetrizer{size, lbls[0].size(), blockid, uniq_blockid});
   }
-  return combs;
+  return csv;
 }
 
 
-inline ProductIterator<Combination<IndexLabel>::Iterator>
-copy_iterator(const TensorVec<Combination<IndexLabel>>& sitv) {
-  TensorVec<Combination<IndexLabel>::Iterator> itrs_first, itrs_last;
+
+inline ProductIterator<CopySymmetrizer::Iterator>
+copy_iterator(const TensorVec<CopySymmetrizer>& sitv) {
+  TensorVec<CopySymmetrizer::Iterator> itrs_first, itrs_last;
   for(auto sit: sitv) {
     itrs_first.push_back(sit.begin());
     itrs_last.push_back(sit.end());
   }
   return {itrs_first, itrs_last};
 }
+
+
+#if 0
+inline void
+operator += (LabeledTensor ltc, const std::tuple<double, const LabeledTensor>& rhs) {
+  double alpha = std::get<0>(rhs);
+  const LabeledTensor& lta = std::get<1>(rhs);
+  Tensor& ta = lta.tensor_;
+  Tensor& tc = ltc.tensor_;
+  //check for validity of parameters
+  auto citr = loop_iterator(tc.indices());
+  auto lambda = [&] (const TensorIndex& cblockid) {
+    size_t dimc = tc.block_size(cblockid);
+    if(tc.nonzero(cblockid) && dimc>0) {
+      auto label_map = LabelMap()
+          .update(ltc.label_, cblockid);
+      auto ablockid = label_map.get_blockid(lta.label_);
+      auto abp = ta.get(ablockid);
+      auto cbp = tc.alloc(cblockid);
+      cbp(ltc.label_) += alpha * abp(lta.label_);
+      tc.add(cbp);
+    }
+  };
+  parallel_work(citr, citr.get_end(), lambda);
+}
+#endif
+
+/**
+ * @todo We assume there is no un-symmetrization in the output.
+ */
+inline void
+operator += (LabeledTensor ltc, const std::tuple<double, const LabeledTensor>& rhs) {
+  double alpha = std::get<0>(rhs);
+  const LabeledTensor& lta = std::get<1>(rhs);
+  Tensor& ta = lta.tensor_;
+  Tensor& tc = ltc.tensor_;
+  //check for validity of parameters
+  auto aitr = loop_iterator(ta.indices());
+  auto lambda = [&] (const TensorIndex& ablockid) {
+    size_t dima = ta.block_size(ablockid);
+    if(ta.nonzero(ablockid) && dima>0) {
+      auto label_map = LabelMap()
+          .update(lta.label_, ablockid);
+      auto cblockid = label_map.get_blockid(ltc.label_);
+      auto abp = ta.get(ablockid);
+      auto cbp = tc.alloc(cblockid);
+      cbp(ltc.label_) += alpha * abp(lta.label_);
+
+      auto csbp = tc.alloc(tc.find_unique_block(cblockid));
+      //csbp() = 0
+      // @todo make below function also have option to not take ltb
+      auto copy_symm = copy_symmetrizer(ltc, lta, ltc, label_map);
+      auto copy_itr = copy_iterator(copy_symm);
+      auto copy_itr_last = copy_itr.get_end();
+      auto copy_label = TensorLabel(ltc.label_.size());
+      std::iota(copy_label.begin(), copy_label.end(), 0);
+      for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
+        auto perm = *citr;
+        auto num_inversions = perm_count_inversions(perm);
+        Sign sign = (num_inversions%2) ? -1 : 1;
+        csbp(copy_label) += sign * alpha * cbp(perm);
+      }
+      tc.add(csbp);
+    }
+  };
+  parallel_work(aitr, aitr.get_end(), lambda);
+}
+
+
+
 
 /**
  * Check that all iterators and operators work for rank 0 tensors, and rank 0 symmetry groups.
@@ -2113,9 +2399,9 @@ inline void operator += (LabeledTensor& ltc, std::tuple<double, LabeledTensor, L
       cbp(uniq_cblockid) += cbp(ltc.label_);
     }
     tc.add(csbp);
-  };  
+  };
   auto itr = nonsymmetrized_iterator(ltc, lta, ltb);
-  parallel_work(itr, itr.get_end(), lambda);  
+  parallel_work(itr, itr.get_end(), lambda);
 }
 #endif
 
@@ -2178,6 +2464,54 @@ inline void operator += (LabeledTensor& ltc, std::tuple<double, LabeledTensor, L
   parallel_work(itr, itr.get_end(), lambda);
 }
 #endif
+
+/**
+ * performs: cbuf[dims] = scale *abuf[perm(dims)]
+ */
+inline void
+index_permute_acc(uint8_t* cbuf, uint8_t* abuf, const TensorPerm& perm, const TensorIndex& dims, double scale) {
+  Expects(cbuf!=nullptr && abuf!=nullptr);
+  Expects(perm.size() == dims.size());
+
+  auto inv_perm = perm_invert(perm);
+  TensorVec<size_t> sizes;
+  TensorVec<int> iperm;
+  for(int i=0; i<dims.size(); i++) {
+    sizes.push_back(dims[i]);
+    iperm.push_back(inv_perm[i]+1);
+  }
+
+  tamm::index_sortacc(reinterpret_cast<double*>(abuf),
+                      reinterpret_cast<double*>(cbuf),
+                      sizes.size(), &sizes[0], &perm[0], scale);
+}
+
+inline void
+operator += (LabeledBlock clb, const std::tuple<double, const LabeledBlock>& rhs) {
+  double alpha = std::get<0>(rhs);
+  const LabeledBlock& alb = std::get<1>(rhs);
+
+  auto &ablock = alb.block_;
+  auto &cblock = clb.block_;
+
+  auto &clabel = clb.label_;
+  auto &alabel = alb.label_;
+
+  auto label_perm = perm_compute(alabel, clabel);
+  for(int i=0; i<label_perm.size(); i++) {
+    Expects(cblock.block_dims()[i] == ablock.block_dims()[label_perm[i]]);
+  }
+
+  auto &alayout = alb.block_.layout();
+  auto &clayout = clb.block_.layout();
+
+  auto cstore = perm_apply(clabel, perm_invert(clayout));
+  auto astore = perm_apply(alabel, perm_invert(alayout));
+
+  auto store_perm = perm_compute(astore, cstore);
+  index_permute_acc(cblock.buf(), ablock.buf(), store_perm, cblock.block_dims(), alpha);
+}
+
 
 };  // tammx
 

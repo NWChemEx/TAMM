@@ -12,7 +12,7 @@ index a, b, c, d, e, f = V;
 //array t_vo[V][O]: irrep_t;
 
 scalar bDiag;
-array bT[N][N]; //{Q};
+array bT[N][N]{Q};
 array hT[N][N];
 array FT[N][N];
 

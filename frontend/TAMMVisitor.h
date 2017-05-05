@@ -53,6 +53,8 @@ public:
 
     virtual antlrcpp::Any visitArray_structure(TAMMParser::Array_structureContext *context) = 0;
 
+    virtual antlrcpp::Any visitAuxbasis_id(TAMMParser::Auxbasis_idContext *context) = 0;
+
     virtual antlrcpp::Any visitArray_structure_list(TAMMParser::Array_structure_listContext *context) = 0;
 
     virtual antlrcpp::Any visitStatement(TAMMParser::StatementContext *context) = 0;

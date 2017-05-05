@@ -119,15 +119,18 @@ class ArrayDeclaration : public Declaration {
   const std::vector<Identifier*> upper_indices;
   const std::vector<Identifier*> lower_indices;
   std::string irrep;
+  const int auxbasis;
 
   ArrayDeclaration(const int line, const int position,
                    const Identifier* const tensor_name,
                    const std::vector<Identifier*>& upper_indices,
-                   const std::vector<Identifier*>& lower_indices)
+                   const std::vector<Identifier*>& lower_indices,
+                   const int auxbasis)
       : Declaration(line, position),
         tensor_name(tensor_name),
         upper_indices(upper_indices),
-        lower_indices(lower_indices) {}
+        lower_indices(lower_indices),
+        auxbasis(auxbasis) {}
 
   int getDeclType() { return Declaration::kArrayDeclaration; }
 };

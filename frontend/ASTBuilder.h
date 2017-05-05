@@ -95,7 +95,7 @@ class ASTBuilder : public TAMMVisitor {
         Identifier *i = visit(id);
         sdecls.push_back(new ArrayDeclaration(
             ctx->getStart()->getLine(),
-            ctx->getStart()->getCharPositionInLine() + 1, i, u, l));
+            ctx->getStart()->getCharPositionInLine() + 1, i, u, l, 1));
       }
     }
     Element *s = new DeclarationList(ctx->getStart()->getLine(), sdecls);
@@ -268,271 +268,280 @@ class ASTBuilder : public TAMMVisitor {
 
     for (auto &x : ctx->children) {
       if (TAMMParser::Array_structure_listContext *asl =
-              dynamic_cast<TAMMParser::Array_structure_listContext *>(x))
+              dynamic_cast<TAMMParser::Array_structure_listContext *>(x)) 
         adl = visit(x);
     }
+  return adl;
+}
 
-    return adl;
+virtual antlrcpp::Any
+visitAuxbasis_id(TAMMParser::Auxbasis_idContext *ctx) override {
+  //return visitChildren(ctx);
+  return 1;
+}
+
+virtual antlrcpp::Any visitArray_structure(
+    TAMMParser::Array_structureContext *ctx) override {
+  // std::cout << "Enter array structure\n";
+  bool ul_flag = true;
+  IdentifierList *upper = nullptr;
+  IdentifierList *lower = nullptr;
+
+  Identifier *array_name = visit(ctx->children.at(0));
+
+  int auxbasis = 1;
+  for (auto &x : ctx->children) {
+    if (TAMMParser::Id_list_optContext *ul =
+            dynamic_cast<TAMMParser::Id_list_optContext *>(x)) {
+      if (ul_flag) {
+        upper = visit(ul);
+        ul_flag = false;
+      } else
+        lower = visit(ul);
+    }
+    if (TAMMParser::Auxbasis_idContext *aux =
+            dynamic_cast<TAMMParser::Auxbasis_idContext *>(x)) {
+              auxbasis = visit(x);
+    }
   }
 
-  virtual antlrcpp::Any visitArray_structure(
-      TAMMParser::Array_structureContext *ctx) override {
-    // std::cout << "Enter array structure\n";
-    bool ul_flag = true;
-    IdentifierList *upper = nullptr;
-    IdentifierList *lower = nullptr;
+  assert(upper != nullptr || lower != nullptr);
+  std::vector<Identifier *> ui;
+  std::vector<Identifier *> li;
+  if (upper != nullptr) ui = upper->idlist;
+  if (lower != nullptr) li = lower->idlist;
 
-    Identifier *array_name = visit(ctx->children.at(0));
+  Declaration *d = new ArrayDeclaration(
+      ctx->getStart()->getLine(), ctx->getStart()->getCharPositionInLine() + 1,
+      array_name, ui, li, auxbasis);
+  return d;
+}
 
-    for (auto &x : ctx->children) {
-      if (TAMMParser::Id_list_optContext *ul =
-              dynamic_cast<TAMMParser::Id_list_optContext *>(x)) {
-        if (ul_flag) {
-          upper = visit(ul);
-          ul_flag = false;
-        } else
-          lower = visit(ul);
-      }
+virtual antlrcpp::Any visitArray_structure_list(
+    TAMMParser::Array_structure_listContext *ctx) override {
+  std::vector<Declaration *> ad;
+  for (auto &x : ctx->children) {
+    if (TAMMParser::Array_structureContext *asl =
+            dynamic_cast<TAMMParser::Array_structureContext *>(x))
+      ad.push_back(visit(asl));
+  }
+
+  Element *asl = new DeclarationList(ctx->getStart()->getLine(), ad);
+  return asl;
+}
+
+virtual antlrcpp::Any visitStatement(
+    TAMMParser::StatementContext *ctx) override {
+  return visit(ctx->children.at(0));
+}
+
+/// assignment_statement : (identifier COLON)? array_reference
+/// assignment_operator expression SEMI ;
+virtual antlrcpp::Any visitAssignment_statement(
+    TAMMParser::Assignment_statementContext *ctx) override {
+  // std::cout << "Enter Assign Statement\n";
+
+  std::string op_label;
+  std::string assign_op;
+  Array *lhs = nullptr;
+  Expression *rhs = nullptr;
+
+  const int line = ctx->getStart()->getLine();
+  const int position = ctx->getStart()->getCharPositionInLine() + 1;
+
+  for (auto &x : ctx->children) {
+    if (TAMMParser::IdentifierContext *ic =
+            dynamic_cast<TAMMParser::IdentifierContext *>(x))
+      op_label = static_cast<Identifier *>(visit(x))->name;
+
+    else if (TAMMParser::Array_referenceContext *ec =
+                 dynamic_cast<TAMMParser::Array_referenceContext *>(x)) {
+      Expression *e = visit(x);
+      if (Array *a = dynamic_cast<Array *>(e)) lhs = a;
     }
 
-    assert(upper != nullptr || lower != nullptr);
-    std::vector<Identifier *> ui;
-    std::vector<Identifier *> li;
-    if (upper != nullptr) ui = upper->idlist;
-    if (lower != nullptr) li = lower->idlist;
+    // else
+    //   {
+    //     const std::string lhs_exp_error = x->getText() + "\nLHS of an
+    //     Assignment must be a Tensor reference\n";
+    //     Error(line,position,lhs_exp_error);
+    //   }
 
-    Declaration *d = new ArrayDeclaration(
-        ctx->getStart()->getLine(),
-        ctx->getStart()->getCharPositionInLine() + 1, array_name, ui, li);
-    return d;
+    else if (TAMMParser::Assignment_operatorContext *op =
+                 dynamic_cast<TAMMParser::Assignment_operatorContext *>(x))
+      assign_op = static_cast<Identifier *>(visit(x))->name;
+
+    else if (TAMMParser::ExpressionContext *ec =
+                 dynamic_cast<TAMMParser::ExpressionContext *>(x))
+      rhs = visit(x);
   }
 
-  virtual antlrcpp::Any visitArray_structure_list(
-      TAMMParser::Array_structure_listContext *ctx) override {
-    std::vector<Declaration *> ad;
-    for (auto &x : ctx->children) {
-      if (TAMMParser::Array_structureContext *asl =
-              dynamic_cast<TAMMParser::Array_structureContext *>(x))
-        ad.push_back(visit(asl));
-    }
+  assert(assign_op.size() > 0);
+  assert(lhs != nullptr && rhs != nullptr);
 
-    Element *asl = new DeclarationList(ctx->getStart()->getLine(), ad);
-    return asl;
-  }
+  Element *e = nullptr;  // Statement is child class of Element
+  if (op_label.size() > 0)
+    e = new AssignStatement(line, position, op_label, assign_op, lhs, rhs);
+  else
+    e = new AssignStatement(line, position, assign_op, lhs, rhs);
+  return e;
+}
 
-  virtual antlrcpp::Any visitStatement(
-      TAMMParser::StatementContext *ctx) override {
+virtual antlrcpp::Any visitAssignment_operator(
+    TAMMParser::Assignment_operatorContext *ctx) override {
+  Identifier *const aop = new Identifier(
+      ctx->getStart()->getLine(), ctx->getStart()->getCharPositionInLine() + 1,
+      ctx->children.at(0)->getText());
+  return aop;
+}
+
+virtual antlrcpp::Any visitUnary_expression(
+    TAMMParser::Unary_expressionContext *ctx) override {
+  /// unary_expression :   numerical_constant | array_reference | ( expression
+  /// )
+  if (ctx->children.size() == 1) {
     return visit(ctx->children.at(0));
+  } else if (ctx->children.size() == 2) {
+    return visit(ctx->children.at(1));
+  } else {
+    /// @todo Is this ever triggered? This cannot happen since (expr) has the
+    /// max 3 children (,expr,)
+    Error(ctx->getStart()->getLine(),
+          ctx->getStart()->getCharPositionInLine() + 1,
+          "Malformed expression!");
   }
+}
 
-  /// assignment_statement : (identifier COLON)? array_reference
-  /// assignment_operator expression SEMI ;
-  virtual antlrcpp::Any visitAssignment_statement(
-      TAMMParser::Assignment_statementContext *ctx) override {
-    // std::cout << "Enter Assign Statement\n";
+virtual antlrcpp::Any visitArray_reference(
+    TAMMParser::Array_referenceContext *ctx) override {
+  /// array_reference : identifier (LBRACKET id_list RBRACKET)?
 
-    std::string op_label;
-    std::string assign_op;
-    Array *lhs = nullptr;
-    Expression *rhs = nullptr;
+  Identifier *const name = visit(ctx->children.at(0));
 
-    const int line = ctx->getStart()->getLine();
-    const int position = ctx->getStart()->getCharPositionInLine() + 1;
+  IdentifierList *il = nullptr;
 
-    for (auto &x : ctx->children) {
-      if (TAMMParser::IdentifierContext *ic =
-              dynamic_cast<TAMMParser::IdentifierContext *>(x))
-        op_label = static_cast<Identifier *>(visit(x))->name;
-
-      else if (TAMMParser::Array_referenceContext *ec =
-                   dynamic_cast<TAMMParser::Array_referenceContext *>(x)) {
-        Expression *e = visit(x);
-        if (Array *a = dynamic_cast<Array *>(e)) lhs = a;
-      }
-
-      // else
-      //   {
-      //     const std::string lhs_exp_error = x->getText() + "\nLHS of an
-      //     Assignment must be a Tensor reference\n";
-      //     Error(line,position,lhs_exp_error);
-      //   }
-
-      else if (TAMMParser::Assignment_operatorContext *op =
-                   dynamic_cast<TAMMParser::Assignment_operatorContext *>(x))
-        assign_op = static_cast<Identifier *>(visit(x))->name;
-
-      else if (TAMMParser::ExpressionContext *ec =
-                   dynamic_cast<TAMMParser::ExpressionContext *>(x))
-        rhs = visit(x);
-    }
-
-    assert(assign_op.size() > 0);
-    assert(lhs != nullptr && rhs != nullptr);
-
-    Element *e = nullptr;  // Statement is child class of Element
-    if (op_label.size() > 0)
-      e = new AssignStatement(line, position, op_label, assign_op, lhs, rhs);
-    else
-      e = new AssignStatement(line, position, assign_op, lhs, rhs);
-    return e;
-  }
-
-  virtual antlrcpp::Any visitAssignment_operator(
-      TAMMParser::Assignment_operatorContext *ctx) override {
-    Identifier *const aop =
-        new Identifier(ctx->getStart()->getLine(),
-                       ctx->getStart()->getCharPositionInLine() + 1,
-                       ctx->children.at(0)->getText());
-    return aop;
-  }
-
-  virtual antlrcpp::Any visitUnary_expression(
-      TAMMParser::Unary_expressionContext *ctx) override {
-    /// unary_expression :   numerical_constant | array_reference | ( expression
-    /// )
-    if (ctx->children.size() == 1) {
-      return visit(ctx->children.at(0));
-    } else if (ctx->children.size() == 2) {
-      return visit(ctx->children.at(1));
-    } else {
-      /// @todo Is this ever triggered? This cannot happen since (expr) has the
-      /// max 3 children (,expr,)
-      Error(ctx->getStart()->getLine(),
-            ctx->getStart()->getCharPositionInLine() + 1,
-            "Malformed expression!");
+  for (auto &x : ctx->children) {
+    if (TAMMParser::Id_listContext *ul =
+            dynamic_cast<TAMMParser::Id_listContext *>(x)) {
+      il = visit(ul);
     }
   }
 
-  virtual antlrcpp::Any visitArray_reference(
-      TAMMParser::Array_referenceContext *ctx) override {
-    /// array_reference : identifier (LBRACKET id_list RBRACKET)?
+  std::vector<Identifier *> indices;
+  if (il != nullptr) indices = il->idlist;
+  Expression *ar = new Array(ctx->getStart()->getLine(),
+                             ctx->getStart()->getCharPositionInLine() + 1,
+                             ctx->getText(), name, indices);
+  return ar;
+}
 
-    Identifier *const name = visit(ctx->children.at(0));
+virtual antlrcpp::Any visitPlusORminus(
+    TAMMParser::PlusORminusContext *ctx) override {
+  return ctx->children.at(0)->getText();
+}
 
-    IdentifierList *il = nullptr;
+virtual antlrcpp::Any visitExpression(
+    TAMMParser::ExpressionContext *ctx) override {
+  // Grammar: expression : (plusORminus)? multiplicative_expression
+  // (plusORminus multiplicative_expression)*
 
-    for (auto &x : ctx->children) {
-      if (TAMMParser::Id_listContext *ul =
-              dynamic_cast<TAMMParser::Id_listContext *>(x)) {
-        il = visit(ul);
-      }
-    }
+  // We only allow: c += alpha*a[]*b[] and c+= alpha * a[] for now
 
-    std::vector<Identifier *> indices;
-    if (il != nullptr) indices = il->idlist;
-    Expression *ar = new Array(ctx->getStart()->getLine(),
-                               ctx->getStart()->getCharPositionInLine() + 1,
-                               ctx->getText(), name, indices);
-    return ar;
+  // Default is an AddOP
+  Expression *e = nullptr;
+  std::vector<Expression *> am_ops;
+  std::vector<std::string> signs;
+  bool first_op_flag =
+      false;  // Check if the expression starts with a plus or minus sign
+
+  if (TAMMParser::PlusORminusContext *pm =
+          dynamic_cast<TAMMParser::PlusORminusContext *>(ctx->children.at(0)))
+    first_op_flag = true;
+
+  for (auto &x : ctx->children) {
+    // Has both add and mult ops, which in turn consist of NumConst and
+    // ArrayRefs
+    if (TAMMParser::Multiplicative_expressionContext *me =
+            dynamic_cast<TAMMParser::Multiplicative_expressionContext *>(x))
+      am_ops.push_back(visit(me));
+
+    // The unary exps that have num consts get their signs from here.
+    else if (TAMMParser::PlusORminusContext *pm =
+                 dynamic_cast<TAMMParser::PlusORminusContext *>(x))
+      signs.push_back(visit(x));
   }
 
-  virtual antlrcpp::Any visitPlusORminus(
-      TAMMParser::PlusORminusContext *ctx) override {
-    return ctx->children.at(0)->getText();
+  const int line = ctx->getStart()->getLine();
+  const int position = ctx->getStart()->getCharPositionInLine() + 1;
+
+  e = new Addition(line, position, am_ops, signs, first_op_flag);
+  return e;
+}
+
+virtual antlrcpp::Any visitMultiplicative_expression(
+    TAMMParser::Multiplicative_expressionContext *ctx) override {
+  /// Grammar: multiplicative_expression : unary_expression (TIMES
+  /// unary_expression)* unary_expression :   numerical_constant |
+  /// array_reference | ( expression )
+  std::vector<Expression *> uexps;
+
+  /// Get the Expression objects (NumConst, Array or Expression) returned by
+  /// unary_expression
+  for (auto &x : ctx->children) {
+    if (TAMMParser::Unary_expressionContext *me =
+            dynamic_cast<TAMMParser::Unary_expressionContext *>(x))
+      uexps.push_back(visit(me));
   }
 
-  virtual antlrcpp::Any visitExpression(
-      TAMMParser::ExpressionContext *ctx) override {
-    // Grammar: expression : (plusORminus)? multiplicative_expression
-    // (plusORminus multiplicative_expression)*
+  /// We only allow: c += alpha*a[]*b[] and c+= alpha * a[] for now
+  int num_array_refs =
+      0;  ///< internally, scalar is also treated as tensor with 0 dims
+  int num_consts = 0;
 
-    // We only allow: c += alpha*a[]*b[] and c+= alpha * a[] for now
+  std::vector<Expression *> trefs;
 
-    // Default is an AddOP
-    Expression *e = nullptr;
-    std::vector<Expression *> am_ops;
-    std::vector<std::string> signs;
-    bool first_op_flag =
-        false;  // Check if the expression starts with a plus or minus sign
-
-    if (TAMMParser::PlusORminusContext *pm =
-            dynamic_cast<TAMMParser::PlusORminusContext *>(ctx->children.at(0)))
-      first_op_flag = true;
-
-    for (auto &x : ctx->children) {
-      // Has both add and mult ops, which in turn consist of NumConst and
-      // ArrayRefs
-      if (TAMMParser::Multiplicative_expressionContext *me =
-              dynamic_cast<TAMMParser::Multiplicative_expressionContext *>(x))
-        am_ops.push_back(visit(me));
-
-      // The unary exps that have num consts get their signs from here.
-      else if (TAMMParser::PlusORminusContext *pm =
-                   dynamic_cast<TAMMParser::PlusORminusContext *>(x))
-        signs.push_back(visit(x));
+  /// Process the Expressions returned by unary_expression
+  for (auto &t : uexps) {
+    if (NumConst *me = dynamic_cast<NumConst *>(t)) {
+      num_consts += 1;
+      trefs.push_back(t);
+    } else if (Array *me = dynamic_cast<Array *>(t)) {
+      num_array_refs += 1;
+      trefs.push_back(t);
     }
 
-    const int line = ctx->getStart()->getLine();
-    const int position = ctx->getStart()->getCharPositionInLine() + 1;
-
-    e = new Addition(line, position, am_ops, signs, first_op_flag);
-    return e;
+    /// @todo Handle unary_expression = (expression) rule
+    /// else if (TAMMParser::ExpressionContext* me =
+    /// dynamic_cast<TAMMParser::ExpressionContext*>(x))
   }
 
-  virtual antlrcpp::Any visitMultiplicative_expression(
-      TAMMParser::Multiplicative_expressionContext *ctx) override {
-    /// Grammar: multiplicative_expression : unary_expression (TIMES
-    /// unary_expression)* unary_expression :   numerical_constant |
-    /// array_reference | ( expression )
-    std::vector<Expression *> uexps;
+  Expression *e = nullptr;
 
-    /// Get the Expression objects (NumConst, Array or Expression) returned by
-    /// unary_expression
-    for (auto &x : ctx->children) {
-      if (TAMMParser::Unary_expressionContext *me =
-              dynamic_cast<TAMMParser::Unary_expressionContext *>(x))
-        uexps.push_back(visit(me));
-    }
+  const int line = ctx->getStart()->getLine();
+  const int position = ctx->getStart()->getCharPositionInLine() + 1;
 
-    /// We only allow: c += alpha*a[]*b[] and c+= alpha * a[] for now
-    int num_array_refs =
-        0;  ///< internally, scalar is also treated as tensor with 0 dims
-    int num_consts = 0;
-
-    std::vector<Expression *> trefs;
-
-    /// Process the Expressions returned by unary_expression
-    for (auto &t : uexps) {
-      if (NumConst *me = dynamic_cast<NumConst *>(t)) {
-        num_consts += 1;
-        trefs.push_back(t);
-      } else if (Array *me = dynamic_cast<Array *>(t)) {
-        num_array_refs += 1;
-        trefs.push_back(t);
-      }
-
-      /// @todo Handle unary_expression = (expression) rule
-      /// else if (TAMMParser::ExpressionContext* me =
-      /// dynamic_cast<TAMMParser::ExpressionContext*>(x))
-    }
-
-    Expression *e = nullptr;
-
-    const int line = ctx->getStart()->getLine();
-    const int position = ctx->getStart()->getCharPositionInLine() + 1;
-
-    assert(uexps.size() > 0 && uexps.size() <= 3);
-    if (num_array_refs == 3) {
-      ; /** Error cannot use scalar as a constant multiplier or cannot handle
-           ternary operations; */
-    }
-    if (num_consts == 2) {
-      ; /** Error cannot use scalar as a constant multiplier; */
-    }
-
-    /// Consts are also part of the Adds & Mults. Stored as NumConsts.
-    /// The sign for the consts is processed when processing the "Expression"
-    /// rule later in intermediate code generation.
-    if (num_array_refs == 1) {
-      e = new Addition(line, position, trefs);
-    } else if (num_array_refs == 2) {
-      e = new Multiplication(line, position, trefs);
-    }
-    return e;
+  assert(uexps.size() > 0 && uexps.size() <= 3);
+  if (num_array_refs == 3) {
+    ; /** Error cannot use scalar as a constant multiplier or cannot handle
+         ternary operations; */
   }
-};
+  if (num_consts == 2) {
+    ; /** Error cannot use scalar as a constant multiplier; */
+  }
 
-}  // namespace frontend
+  /// Consts are also part of the Adds & Mults. Stored as NumConsts.
+  /// The sign for the consts is processed when processing the "Expression"
+  /// rule later in intermediate code generation.
+  if (num_array_refs == 1) {
+    e = new Addition(line, position, trefs);
+  } else if (num_array_refs == 2) {
+    e = new Multiplication(line, position, trefs);
+  }
+  return e;
+}
+};  // namespace frontend
+
+}  // namespace tamm
 }  // namespace tamm
 
 #endif

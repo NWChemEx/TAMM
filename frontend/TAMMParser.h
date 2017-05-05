@@ -12,11 +12,11 @@
 class  TAMMParser : public antlr4::Parser {
 public:
   enum {
-    RANGE = 1, INDEX = 2, ARRAY = 3, SCALAR = 4, PLUS = 5, MINUS = 6, TIMES = 7, 
-    EQUALS = 8, TIMESEQUAL = 9, PLUSEQUAL = 10, MINUSEQUAL = 11, LPAREN = 12, 
-    RPAREN = 13, LBRACE = 14, RBRACE = 15, LBRACKET = 16, RBRACKET = 17, 
-    COMMA = 18, COLON = 19, SEMI = 20, ID = 21, ICONST = 22, FRAC = 23, 
-    FCONST = 24, Whitespace = 25, Newline = 26, BlockComment = 27, LineComment = 28
+    RANGE = 1, INDEX = 2, ARRAY = 3, SCALAR = 4, AUXBASIS = 5, PLUS = 6, 
+    MINUS = 7, TIMES = 8, EQUALS = 9, TIMESEQUAL = 10, PLUSEQUAL = 11, MINUSEQUAL = 12, 
+    LPAREN = 13, RPAREN = 14, LBRACE = 15, RBRACE = 16, LBRACKET = 17, RBRACKET = 18, 
+    COMMA = 19, COLON = 20, SEMI = 21, ID = 22, ICONST = 23, FRAC = 24, 
+    FCONST = 25, Whitespace = 26, Newline = 27, BlockComment = 28, LineComment = 29
   };
 
   enum {
@@ -25,9 +25,10 @@ public:
     RuleId_list_opt = 7, RuleId_list = 8, RuleNum_list = 9, RuleIdentifier = 10, 
     RuleInteger_constant = 11, RuleNumerical_constant = 12, RuleRange_declaration = 13, 
     RuleIndex_declaration = 14, RuleArray_declaration = 15, RuleArray_structure = 16, 
-    RuleArray_structure_list = 17, RuleStatement = 18, RuleAssignment_statement = 19, 
-    RuleAssignment_operator = 20, RuleUnary_expression = 21, RuleArray_reference = 22, 
-    RulePlusORminus = 23, RuleExpression = 24, RuleMultiplicative_expression = 25
+    RuleAuxbasis_id = 17, RuleArray_structure_list = 18, RuleStatement = 19, 
+    RuleAssignment_statement = 20, RuleAssignment_operator = 21, RuleUnary_expression = 22, 
+    RuleArray_reference = 23, RulePlusORminus = 24, RuleExpression = 25, 
+    RuleMultiplicative_expression = 26
   };
 
   TAMMParser(antlr4::TokenStream *input);
@@ -57,6 +58,7 @@ public:
   class Index_declarationContext;
   class Array_declarationContext;
   class Array_structureContext;
+  class Auxbasis_idContext;
   class Array_structure_listContext;
   class StatementContext;
   class Assignment_statementContext;
@@ -285,8 +287,6 @@ public:
     antlr4::tree::TerminalNode *ARRAY();
     Array_structure_listContext *array_structure_list();
     antlr4::tree::TerminalNode *SEMI();
-    antlr4::tree::TerminalNode *COLON();
-    IdentifierContext *identifier();
 
     virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
    
@@ -298,19 +298,36 @@ public:
   public:
     Array_structureContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
-    IdentifierContext *identifier();
+    std::vector<IdentifierContext *> identifier();
+    IdentifierContext* identifier(size_t i);
     std::vector<antlr4::tree::TerminalNode *> LBRACKET();
     antlr4::tree::TerminalNode* LBRACKET(size_t i);
     std::vector<Id_list_optContext *> id_list_opt();
     Id_list_optContext* id_list_opt(size_t i);
     std::vector<antlr4::tree::TerminalNode *> RBRACKET();
     antlr4::tree::TerminalNode* RBRACKET(size_t i);
+    Auxbasis_idContext *auxbasis_id();
+    antlr4::tree::TerminalNode *COLON();
 
     virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
    
   };
 
   Array_structureContext* array_structure();
+
+  class  Auxbasis_idContext : public antlr4::ParserRuleContext {
+  public:
+    Auxbasis_idContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode *LBRACE();
+    antlr4::tree::TerminalNode *AUXBASIS();
+    antlr4::tree::TerminalNode *RBRACE();
+
+    virtual antlrcpp::Any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Auxbasis_idContext* auxbasis_id();
 
   class  Array_structure_listContext : public antlr4::ParserRuleContext {
   public:

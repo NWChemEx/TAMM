@@ -18,6 +18,7 @@ RANGE   :   'range';
 INDEX  :   'index';
 ARRAY  :   'array';
 SCALAR :   'scalar';
+AUXBASIS: 'Q';
 
 // Operators
 PLUS    :   '+';
@@ -131,11 +132,12 @@ index_declaration : INDEX id_list EQUALS identifier SEMI ;
 
 
 // array-declaration
-array_declaration : ARRAY array_structure_list (COLON identifier)? SEMI ;
+array_declaration : ARRAY array_structure_list SEMI ;
 
 
-array_structure : identifier LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET; //(permut_symmetry)?;
+array_structure : identifier LBRACKET id_list_opt RBRACKET LBRACKET id_list_opt RBRACKET (auxbasis_id)? (COLON identifier)?; //(permut_symmetry)?;
 
+auxbasis_id: LBRACE AUXBASIS RBRACE;
 array_structure_list : array_structure (COMMA array_structure)* ;
 
 

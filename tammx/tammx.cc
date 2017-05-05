@@ -1,4 +1,4 @@
-#include "tensor/tammx.h"
+#include "tammx/tammx.h"
 
 namespace tammx {
 

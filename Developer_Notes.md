@@ -87,7 +87,7 @@ Unfactorized equations Test
 ANTLR
 -----
 
-java -jar /opt/libraries/ANTLR4/antlr-4.6-complete.jar TAMM.g4  -Dlanguage=Cpp -visitor
+ java -jar /opt/libraries/ANTLR4/antlr-4.7-complete.jar TAMM.g4  -Dlanguage=Cpp -visitor -no-listener
 
 uuid not found on clusters ??
 

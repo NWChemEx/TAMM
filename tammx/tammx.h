@@ -58,7 +58,7 @@ class BoundVec : public std::array<T, maxsize> {
   BoundVec()
       : size_{0} {}
 
-  BoundVec(size_type count,
+  explicit BoundVec(size_type count,
            const T& value = T())
       : size_{0} {
     for(size_type i=0; i<count; i++) {
@@ -314,8 +314,8 @@ class TriangleLoop {
 
  private:
   size_t nloops_;
-  Type first_;
-  Type last_;
+  Type first_{};
+  Type last_{};
   TensorVec<Type> itr_;
 
   friend bool operator == (const TriangleLoop& tl1, const TriangleLoop& tl2);
@@ -385,7 +385,7 @@ struct Combination {
 
     Iterator() : comb_{nullptr}  {}
 
-    Iterator(Combination<T>* comb)
+    explicit Iterator(Combination<T>* comb)
         : comb_{comb} {
       for(Int x=0; x<comb_->k_; x++) {
         stack_.push_back({Case::case1, x});
@@ -537,7 +537,7 @@ class ProductIterator {
           Expects(ifirst.size() == ilast.size());
         }
 
-  ~ProductIterator() {}
+  ~ProductIterator() = default;
 
   ProductIterator& operator = (const ProductIterator& itr) {
     ifirst_ = itr.ifirst_;
@@ -632,7 +632,7 @@ class LabelMap {
   }
 
  private:
-  TensorRank rank_;
+  TensorRank rank_{};
   TensorLabel labels_;
   TensorIndex ids_;
 };
@@ -1520,8 +1520,8 @@ class Tensor {
       auto ptr = std::lower_bound(&tce_hash_[1], &tce_hash_[length + 1], key);
       Expects (!(ptr == &tce_hash_[length + 1] || key < *ptr));
       auto offset = *(ptr + length);
-      double* sbuf = reinterpret_cast<double*>(block.buf());
-      double* dbuf = reinterpret_cast<double*>(tce_data_buf_ + offset);
+      auto* sbuf = reinterpret_cast<double*>(block.buf());
+      auto* dbuf = reinterpret_cast<double*>(tce_data_buf_ + offset);
       for(unsigned i=0; i<size; i++) {
         dbuf[i] += sbuf[i];
       }
@@ -1626,8 +1626,8 @@ class Tensor {
 #if 0
   tamm::gmem::Handle tce_ga_;
 #endif
-  double* tce_data_buf_;
-  TCE::Int *tce_hash_;
+  double* tce_data_buf_{};
+  TCE::Int *tce_hash_{};
 };  // class Tensor
 
 
@@ -1657,7 +1657,7 @@ Block::Block(Tensor &tensor,
 
 inline void
 LabeledBlock::init(double value) {
-  double *dbuf = reinterpret_cast<double*>(block_.buf());
+  auto *dbuf = reinterpret_cast<double*>(block_.buf());
   for(unsigned i=0; i<block_.size(); i++) {
     dbuf[i] = value;
   }
@@ -1963,8 +1963,8 @@ nonsymmetrized_external_labels(const LabeledTensor& ltc,
 
 inline TensorVec<TensorVec<TensorLabel>>
 symmetrized_external_labels(const LabeledTensor& ltc,
-                            const LabeledTensor& lta,
-                            const LabeledTensor& ltb) {
+                            const LabeledTensor&  /*lta*/,
+                            const LabeledTensor&  /*ltb*/) {
   TensorVec<TensorLabel> ret {ltc.label_};
   return {ret};
 }
@@ -2017,16 +2017,13 @@ nonsymmetrized_iterator(const LabeledTensor& ltc,
 
 class SymmetrizationIterator {
  public:
-  SymmetrizationIterator() {}
+  SymmetrizationIterator() = default;
 
   SymmetrizationIterator(const TensorIndex& blockid,
                          int group_size)
       : comb_(blockid, group_size) {}
 
-  SymmetrizationIterator& operator = (SymmetrizationIterator& sit) {
-    comb_ = sit.comb_;
-    return *this;
-  }
+  SymmetrizationIterator& operator = (SymmetrizationIterator& sit) = default;
 
   Combination<BlockDim>::Iterator begin() {
     return comb_.begin();
@@ -2142,25 +2139,15 @@ class CopySymmetrizer {
 
     Iterator() : cs_{nullptr} {}
  
-    Iterator(CopySymmetrizer* cs) 
+    explicit Iterator(CopySymmetrizer* cs)
         : cs_{cs} {
       itr_ = cs_->comb_.begin();
       end_ = cs_->comb_.end();
     }
 
-    Iterator& operator = (Iterator& rhs) {
-      cs_ = rhs.cs_;
-      itr_ = rhs.itr_;
-      end_ = rhs.end_;
-      return *this;
-    }
+    Iterator& operator = (Iterator& rhs) = default;
 
-    Iterator& operator = (const Iterator& rhs) {
-      cs_ = rhs.cs_;
-      itr_ = rhs.itr_;
-      end_ = rhs.end_;
-      return *this;
-    }
+    Iterator& operator = (const Iterator& rhs) = default;
 
     TensorVec<int> operator * () {
       return *itr_;
@@ -2501,7 +2488,7 @@ operator += (LabeledBlock clb, const std::tuple<double, const LabeledBlock>& rhs
 }
 
 
-};  // tammx
+}  // namespace tammx
 
 #endif  // TAMM_TENSOR_TAMMX_H_
 

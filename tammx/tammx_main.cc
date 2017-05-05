@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include "tensor/tammx.h"
+#include "tammx/tammx.h"
 
 
 using namespace std;

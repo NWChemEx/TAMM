@@ -8,7 +8,7 @@
 // Operated by Battelle for the U.S. Department of Energy
 //
 //------------------------------------------------------------------------------
-#include "tensor/index_sort.h"
+#include "tammx/index_sort.h"
 #include <algorithm>
 #include <cassert>
 

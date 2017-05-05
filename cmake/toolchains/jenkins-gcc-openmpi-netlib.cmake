@@ -6,6 +6,7 @@ set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_Fortran_COMPILER gfortran)
 # set(MPI_C_COMPILER mpicc)
 # set(MPI_CXX_COMPILER mpicxx)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(TAMM_PROC_COUNT 8)
 

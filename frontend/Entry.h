@@ -24,8 +24,8 @@ namespace frontend {
 class Entry {
  public:
   Type* const type;
-  Entry(Type* const type) : type(type) {}
-  ~Entry() {}
+  explicit Entry(Type* const type) : type(type) {}
+  ~Entry() = default;
 };
 
 }  // namespace frontend

@@ -27,17 +27,17 @@ class Type {
 
   virtual int getType() = 0;
 
-  virtual ~Type() {}
+  virtual ~Type() = default;
 };
 
 class RangeType : public Type {
  public:
   const int range;
-  RangeType(const int range) : range(range) {}
+  explicit RangeType(const int range) : range(range) {}
 
-  ~RangeType() {}
+  ~RangeType() override = default;
 
-  int getType() { return Type::kRangeType; }
+  int getType() override { return Type::kRangeType; }
 };
 
 class IndexType : public Type {
@@ -45,22 +45,22 @@ class IndexType : public Type {
   const Identifier* const
       range_name;  //  Look up RangeType from name if needed later
 
-  IndexType(const Identifier* const range_name) : range_name(range_name) {}
+  explicit IndexType(const Identifier* const range_name) : range_name(range_name) {}
 
-  int getType() { return Type::kIndexType; }
+  int getType() override { return Type::kIndexType; }
 };
 
 class TensorType : public Type {
  public:
-  const std::vector<Identifier*> upper_indices;
-  const std::vector<Identifier*> lower_indices;
+  const std::vector<Identifier*> upper_indices{};
+  const std::vector<Identifier*> lower_indices{};
 
  public:
   TensorType(const std::vector<Identifier*> upper_indices,
              const std::vector<Identifier*> lower_indices)
       : upper_indices(upper_indices), lower_indices(lower_indices) {}
 
-  int getType() { return Type::kTensorType; }
+  int getType() override { return Type::kTensorType; }
 };
 
 }  // namespace frontend

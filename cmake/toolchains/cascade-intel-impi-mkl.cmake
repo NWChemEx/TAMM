@@ -7,6 +7,7 @@ set(CMAKE_CXX_COMPILER icpc)
 set(CMAKE_Fortran_COMPILER ifort)
 # set(MPI_C_COMPILER mpicc)
 # set(MPI_CXX_COMPILER mpicxx)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(TAMM_PROC_COUNT 16)
 
@@ -16,7 +17,7 @@ set(TAMM_BLAS_INC /msc/apps/compilers/IPS_2017_U1/compilers_and_libraries_2017.1
 
 # BLAS. Only 8-byte BLAS is supported for now. 
 # Set BLAS_LIBRARIES only when using nwchem internal blas - All other cases these come from ga_config
-#set(BLAS_LIBRARIES "-mkl=parallel -lmkl_lapack95_ilp64 -lmkl_blacs_intelmpi_ilp64 -lmkl_core -lmkl_intel_thread -lpthread -lm -ldl" CACHE STRING "BLAS linker flags")
+#set(BLAS_LIBRARIES "-mkl=parallel -lmkl_lapack95_ilp64 -lmkl_blas95_ilp64 -lmkl_core -lmkl_intel_thread -lpthread -lm -ldl" CACHE STRING "BLAS linker flags")
 
 set(ANTLR_CPPRUNTIME /home/panyala/software/ANTLR/antlr4-cpp-runtime)
 

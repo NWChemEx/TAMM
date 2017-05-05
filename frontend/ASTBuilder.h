@@ -27,19 +27,19 @@ namespace frontend {
  */
 class ASTBuilder : public TAMMVisitor {
  public:
-  ASTBuilder() {}
-  ~ASTBuilder() {}
+  ASTBuilder() = default;
+  ~ASTBuilder() override = default;
 
-  virtual antlrcpp::Any visitTranslation_unit(
+  antlrcpp::Any visitTranslation_unit(
       TAMMParser::Translation_unitContext *ctx) override {
     // std::cout << "Enter translation unit\n";
     std::vector<CompoundElement *> cel = visit(ctx->children.at(0));  // Cleanup
-    SymbolTable *const symbol_table = new SymbolTable();
+    auto *const symbol_table = new SymbolTable();
     CompilationUnit *cu = new CompilationUnit(cel, symbol_table);
     return cu;
   }
 
-  virtual antlrcpp::Any visitCompound_element_list(
+  antlrcpp::Any visitCompound_element_list(
       TAMMParser::Compound_element_listContext *ctx) override {
     // std::cout << "Enter Compund Element list\n";
     std::vector<CompoundElement *> cel;
@@ -48,7 +48,7 @@ class ASTBuilder : public TAMMVisitor {
     return cel;
   }
 
-  virtual antlrcpp::Any visitCompound_element(
+  antlrcpp::Any visitCompound_element(
       TAMMParser::Compound_elementContext *ctx) override {
     // std::cout << "Enter Compund Element \n";
     ElementList *get_el = nullptr;
@@ -60,7 +60,7 @@ class ASTBuilder : public TAMMVisitor {
     return new CompoundElement(get_el);
   }
 
-  virtual antlrcpp::Any visitElement_list(
+  antlrcpp::Any visitElement_list(
       TAMMParser::Element_listContext *ctx) override {
     // std::cout << "Enter Element List\n";
     std::vector<Element *> el;
@@ -70,11 +70,11 @@ class ASTBuilder : public TAMMVisitor {
     return new ElementList(el);
   }
 
-  virtual antlrcpp::Any visitElement(TAMMParser::ElementContext *ctx) override {
+  antlrcpp::Any visitElement(TAMMParser::ElementContext *ctx) override {
     return visitChildren(ctx);
   }
 
-  virtual antlrcpp::Any visitDeclaration(
+  antlrcpp::Any visitDeclaration(
       TAMMParser::DeclarationContext *ctx) override {
     // Each declaration - index,range,etc returns a DeclarationList that is
     // wrapped into an Elem type
@@ -82,7 +82,7 @@ class ASTBuilder : public TAMMVisitor {
     return e;
   }
 
-  virtual antlrcpp::Any visitScalar_declaration(
+  antlrcpp::Any visitScalar_declaration(
       TAMMParser::Scalar_declarationContext *ctx) override {
     assert(ctx->children.size() >= 2);
     std::vector<Declaration *> sdecls;
@@ -102,7 +102,7 @@ class ASTBuilder : public TAMMVisitor {
     return s;
   }
 
-  virtual antlrcpp::Any visitId_list_opt(
+  antlrcpp::Any visitId_list_opt(
       TAMMParser::Id_list_optContext *ctx) override {
     /// Applies only to an Array Declaration
     if (ctx->children.size() == 0) {
@@ -113,7 +113,7 @@ class ASTBuilder : public TAMMVisitor {
     return visitChildren(ctx);
   }
 
-  virtual antlrcpp::Any visitId_list(TAMMParser::Id_listContext *ctx) override {
+  antlrcpp::Any visitId_list(TAMMParser::Id_listContext *ctx) override {
     std::vector<Identifier *> idlist;
     for (auto &x : ctx->children) {
       if (TAMMParser::IdentifierContext *id =
@@ -124,12 +124,12 @@ class ASTBuilder : public TAMMVisitor {
   }
 
   /// Not used in grammar.
-  virtual antlrcpp::Any visitNum_list(
+  antlrcpp::Any visitNum_list(
       TAMMParser::Num_listContext *ctx) override {
     return visitChildren(ctx);
   }
 
-  virtual antlrcpp::Any visitIdentifier(
+  antlrcpp::Any visitIdentifier(
       TAMMParser::IdentifierContext *ctx) override {
     Identifier *id =
         new Identifier(ctx->getStart()->getLine(),
@@ -138,7 +138,7 @@ class ASTBuilder : public TAMMVisitor {
     return id;
   }
 
-  virtual antlrcpp::Any visitInteger_constant(
+  antlrcpp::Any visitInteger_constant(
       TAMMParser::Integer_constantContext *ctx) override {
     const int line = ctx->getStart()->getLine();
     const int position = ctx->getStart()->getCharPositionInLine() + 1;
@@ -157,7 +157,7 @@ class ASTBuilder : public TAMMVisitor {
     return nc;
   }
 
-  virtual antlrcpp::Any visitNumerical_constant(
+  antlrcpp::Any visitNumerical_constant(
       TAMMParser::Numerical_constantContext *ctx) override {
     const int line = ctx->getStart()->getLine();
     const int position = ctx->getStart()->getCharPositionInLine() + 1;
@@ -186,7 +186,7 @@ class ASTBuilder : public TAMMVisitor {
     return nc;
   }
 
-  virtual antlrcpp::Any visitRange_declaration(
+  antlrcpp::Any visitRange_declaration(
       TAMMParser::Range_declarationContext *ctx) override {
     // std::cout << "Enter Range Decl\n";
     std::vector<Declaration *> rd_list;
@@ -228,7 +228,7 @@ class ASTBuilder : public TAMMVisitor {
     return e;
   }
 
-  virtual antlrcpp::Any visitIndex_declaration(
+  antlrcpp::Any visitIndex_declaration(
       TAMMParser::Index_declarationContext *ctx) override {
     // std::cout << "Enter Index Decl\n";
     std::vector<Declaration *> id_list;  // Store list of Index Declarations
@@ -260,7 +260,7 @@ class ASTBuilder : public TAMMVisitor {
     return e;
   }
 
-  virtual antlrcpp::Any visitArray_declaration(
+  antlrcpp::Any visitArray_declaration(
       TAMMParser::Array_declarationContext *ctx) override {
     // std::cout << "Enter Array Decl\n";
 
@@ -274,13 +274,13 @@ class ASTBuilder : public TAMMVisitor {
   return adl;
 }
 
-virtual antlrcpp::Any
+antlrcpp::Any
 visitAuxbasis_id(TAMMParser::Auxbasis_idContext *ctx) override {
   //return visitChildren(ctx);
   return 1;
 }
 
-virtual antlrcpp::Any visitArray_structure(
+antlrcpp::Any visitArray_structure(
     TAMMParser::Array_structureContext *ctx) override {
   // std::cout << "Enter array structure\n";
   bool ul_flag = true;
@@ -317,7 +317,7 @@ virtual antlrcpp::Any visitArray_structure(
   return d;
 }
 
-virtual antlrcpp::Any visitArray_structure_list(
+antlrcpp::Any visitArray_structure_list(
     TAMMParser::Array_structure_listContext *ctx) override {
   std::vector<Declaration *> ad;
   for (auto &x : ctx->children) {
@@ -330,14 +330,14 @@ virtual antlrcpp::Any visitArray_structure_list(
   return asl;
 }
 
-virtual antlrcpp::Any visitStatement(
+antlrcpp::Any visitStatement(
     TAMMParser::StatementContext *ctx) override {
   return visit(ctx->children.at(0));
 }
 
 /// assignment_statement : (identifier COLON)? array_reference
 /// assignment_operator expression SEMI ;
-virtual antlrcpp::Any visitAssignment_statement(
+antlrcpp::Any visitAssignment_statement(
     TAMMParser::Assignment_statementContext *ctx) override {
   // std::cout << "Enter Assign Statement\n";
 
@@ -380,14 +380,15 @@ virtual antlrcpp::Any visitAssignment_statement(
   assert(lhs != nullptr && rhs != nullptr);
 
   Element *e = nullptr;  // Statement is child class of Element
-  if (op_label.size() > 0)
+  if (op_label.size() > 0) {
     e = new AssignStatement(line, position, op_label, assign_op, lhs, rhs);
-  else
+  } else {
     e = new AssignStatement(line, position, assign_op, lhs, rhs);
+}
   return e;
 }
 
-virtual antlrcpp::Any visitAssignment_operator(
+antlrcpp::Any visitAssignment_operator(
     TAMMParser::Assignment_operatorContext *ctx) override {
   Identifier *const aop = new Identifier(
       ctx->getStart()->getLine(), ctx->getStart()->getCharPositionInLine() + 1,
@@ -395,7 +396,7 @@ virtual antlrcpp::Any visitAssignment_operator(
   return aop;
 }
 
-virtual antlrcpp::Any visitUnary_expression(
+antlrcpp::Any visitUnary_expression(
     TAMMParser::Unary_expressionContext *ctx) override {
   /// unary_expression :   numerical_constant | array_reference | ( expression
   /// )
@@ -412,7 +413,7 @@ virtual antlrcpp::Any visitUnary_expression(
   }
 }
 
-virtual antlrcpp::Any visitArray_reference(
+antlrcpp::Any visitArray_reference(
     TAMMParser::Array_referenceContext *ctx) override {
   /// array_reference : identifier (LBRACKET id_list RBRACKET)?
 
@@ -435,12 +436,12 @@ virtual antlrcpp::Any visitArray_reference(
   return ar;
 }
 
-virtual antlrcpp::Any visitPlusORminus(
+antlrcpp::Any visitPlusORminus(
     TAMMParser::PlusORminusContext *ctx) override {
   return ctx->children.at(0)->getText();
 }
 
-virtual antlrcpp::Any visitExpression(
+antlrcpp::Any visitExpression(
     TAMMParser::ExpressionContext *ctx) override {
   // Grammar: expression : (plusORminus)? multiplicative_expression
   // (plusORminus multiplicative_expression)*
@@ -478,7 +479,7 @@ virtual antlrcpp::Any visitExpression(
   return e;
 }
 
-virtual antlrcpp::Any visitMultiplicative_expression(
+antlrcpp::Any visitMultiplicative_expression(
     TAMMParser::Multiplicative_expressionContext *ctx) override {
   /// Grammar: multiplicative_expression : unary_expression (TIMES
   /// unary_expression)* unary_expression :   numerical_constant |
@@ -539,9 +540,9 @@ virtual antlrcpp::Any visitMultiplicative_expression(
   }
   return e;
 }
-};  // namespace frontend
+};  // class ASTBuilder
 
-}  // namespace tamm
+}  // namespace frontend
 }  // namespace tamm
 
 #endif

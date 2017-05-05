@@ -22,7 +22,7 @@ class TAMMErrorListener : public BaseErrorListener {
  public:
   void syntaxError(Recognizer *recognizer, Token *offendingSymbol, size_t line,
                    size_t charPositionInLine, const std::string &msg,
-                   std::exception_ptr e) {
+                   std::exception_ptr e) override {
     // std::vector<std::string> stack =
     //    ((Parser *)recognizer)->getRuleInvocationStack();
     // std::reverse(stack.begin(), stack.end());
@@ -40,7 +40,7 @@ class TAMMErrorListener : public BaseErrorListener {
   void underlineError(Recognizer *recognizer, Token *offendingToken,
                       size_t line, size_t charPositionInLine) {
     CommonTokenStream *tokens =
-        ((CommonTokenStream *)(recognizer)->getInputStream());
+        dynamic_cast<CommonTokenStream *>(recognizer->getInputStream());
     const std::string input = tokens->getTokenSource()->getInputStream()->toString();
     std::regex rnewline = std::regex("\n");
     const std::vector<std::string> lines{
@@ -71,10 +71,10 @@ void tamm_frontend(const std::string input_file,
 
   tree::ParseTree *tree = parser.translation_unit();
 
-  ASTBuilder *visitor = new ASTBuilder();
+  auto* visitor = new ASTBuilder();
   CompilationUnit *ast_root = visitor->visit(tree);
 
-  SymbolTable *const context = new SymbolTable();
+  auto* const context = new SymbolTable();
   type_check(ast_root, context);
 
   // Equations* equations = new Equations();

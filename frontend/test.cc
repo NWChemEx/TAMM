@@ -25,7 +25,7 @@ const std::string getIndexName(std::vector<IndexEntry*> v, int pos) {
 }
 
 int main(int argc, const char* argv[]) {
-  Equations* const equations = new Equations();
+  auto* const equations = new Equations();
 
   tamm_frontend(argv[1], equations);
 
@@ -73,10 +73,11 @@ int main(int argc, const char* argv[]) {
   i = 0;
   for (i = 0; i < equations->op_entries.size(); i++) {
     oent = (OpEntry*)equations->op_entries.at(i);
-    if (oent->optype == OpTypeAdd)
+    if (oent->optype == OpTypeAdd) {
       std::cout << "op" << oent->op_id << ": OpTypeAdd, ";
-    else
+    } else {
       std::cout << "op" << oent->op_id << ": OpTypeMult, ";
+}
     unsigned int j;
     std::cout << std::fixed;
     if (oent->add != nullptr) {

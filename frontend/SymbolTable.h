@@ -23,10 +23,10 @@ namespace frontend {
 class SymbolTable {
  public:
   // Plain C++ map for now
-  std::map<const std::string, const Entry* const> context;
+  std::map<const std::string, const Entry* const> context{};
 
-  SymbolTable(){};
-  ~SymbolTable(){};
+  SymbolTable()= default;;
+  ~SymbolTable()= default;;
 
   void put(std::string key, const Entry* const value) {
     context.insert(std::map<const std::string, const Entry* const>::value_type(

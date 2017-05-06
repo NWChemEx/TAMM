@@ -111,15 +111,15 @@ void test() {
     assert(reinterpret_cast<double*>(block.buf())[i] == 6.0);
   }
 
-  // TensorVec<SymmGroup> indicesb{SymmGroup{DimType::o}, SymmGroup{DimType::o}, SymmGroup{DimType::n}};
-  TensorVec<SymmGroup> indicesb{SymmGroup{DimType::o, DimType::o}, SymmGroup{DimType::n}};
+  TensorVec<SymmGroup> indicesb{SymmGroup{DimType::o}, SymmGroup{DimType::o}, SymmGroup{DimType::n}};
+  //TensorVec<SymmGroup> indicesb{SymmGroup{DimType::o, DimType::o}, SymmGroup{DimType::n}};
   Tensor tb{indicesb, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
   tb.allocate();
   
   tensor_map(ta(), [] (Block& block) {
       std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 4.0);
     });
-  //ta() += tb();
+  ta() += tb();
 
   ta.destruct();
   assert(!ta.constructed() && !ta.allocated() && !ta.attached());

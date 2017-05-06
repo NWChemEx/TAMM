@@ -13,8 +13,18 @@
 #include <string>
 #include <iostream>
 #include <cassert>
+#include ../../tensor/variables.h
 
 /* Arguments that need to be passed to this function
+ * eom_solver - from tce/include/tce_diis.fh, assigned in tce_energy.F
+ * ccsd_var - from tce/include/tce_main.fh, defined in tce_input.F and passed on through tce_energy.F
+ * ipol - from tce/include/tce_main.fh
+ * nocc - from tce/include/tce_main.fh, integer nocc(2)
+ * int_mb will be set through set_var_cxx_
+ * geom - from tce/include/tce_main.fh
+ * symmetry - from tce/include/tce_main.fh, logical symmetry
+ * targetsym - from tce/include/tce_main.fh, character*4 targetsym
+ *
  * maxtrials
  * hbard
  * size_x1
@@ -55,15 +65,10 @@ void tce_filename_cxx_(Fint index, const string& xc_count) {
 }
 
 void indexed_tensor_create(Fint index, ) {
-// (int use_c, Tensor *tensor, offset_fn fn)
-//  if (use_c) {
-//    tensor->create();
-//  } else {
-    Fint k_a, l_a, size, d_a;
-    fn(&l_a, &k_a, &size);
-    fname_and_create(&d_a, &size);
-    tensor->attach(k_a, l_a, d_a);
-//  }
+  Fint k_a, l_a, size, d_a;
+  fn(&l_a, &k_a, &size);
+  fname_and_create(&d_a, &size);
+  tensor->attach(k_a, l_a, d_a);
 }
 
 void tce_ipx1_offset_(F77Integer *l_x1_offset, F77Integer *k_x1_offset,
@@ -72,19 +77,15 @@ void tce_ipx1_offset_(F77Integer *l_x1_offset, F77Integer *k_x1_offset,
 void tce_ipx2_offset_(F77Integer *l_x2_offset, F77Integer *k_x2_offset,
                          F77Integer *size_x2);
 
-void ip_ccsd_driver(d_e,d_f1,d_v2,d_t1,d_t2,
-			  k_e_offset,k_f1_offset,k_v2_offset,
-			  k_t1_offset,k_t2_offset,
-			  rtdb,eaccsd,ipccsd)  {
-  Fint rtdb; // runtime database
-  Fint d_f1,d_e,d_t1,d_t2,d_v2;
-  Fint k_f1_offset,k_e_offset,k_t1_offset;
-  Fint k_t2_offset,k_v2_offset;
+class Tensor;
+using Irrep = int;
+
+void ip_ccsd_driver_cxx_(Tensor& d_e, Tensor& d_f,
+					Tensor& tv2, Tensor& d_1, Tensor& d_t2,
+					RTDB rtdb) {
   double cpu, wall;
   double r1,r2;
   double residual;
-  Fint i,j;
-  Fint irrep_g;          // Ground state symmetry
   Fint irrep;            // Symmetry loop index
   Fint l_hbar,k_hbar;
   Fint l_residual,k_residual;
@@ -96,17 +97,17 @@ void ip_ccsd_driver(d_e,d_f1,d_v2,d_t1,d_t2,
   Fint d_rx2;            // RHS residual file
   Fint dummy;
   double au2ev;    // Conversion factor from a.u. to eV
-  bool needt1,needt2;
+
   bool ipccsd,eaccsd;
   bool converged;
   bool nodezero;
-  string irrepname;
+
   string filename;
 
   Tensor *tce_ipx1 = &tensors["tce_ipx1"];
   Tensor *tce_ipx2 = &tensors["tce_ipx2"];
 
-  irrep_g = 0;
+  bool needt1,needt2;
   needt1=true;
   needt2=true;
   dummy=0;
@@ -115,36 +116,54 @@ void ip_ccsd_driver(d_e,d_f1,d_v2,d_t1,d_t2,
   ip_unused_sym=0 ;
   nodezero_print("\nIPCCSD calculation");
 
+  Fint eom_solver = 2;  // eom_solver will be passed on from Fortran
   if (eom_solver == 2) {
-    eom_solver=1;
+    eom_solver = 1;
   }
 
+  string ccsd_var = 'ic';  // ccsd_var will be passed on from Fortran
   if (ccsd_var == 'ic') {
-    ccsd_var='xx';
+    ccsd_var = 'xx';
   }
 
+  Irrep irrep_g = 0;          // Ground state symmetry
+  Fint ipol = 2;  // ipol will be passed on from Fortran
+  static Fint nocc[2];  // will be passed on from Fortran
+  Fint
+  Fint *int_mb = Variables::int_mb();
+  /* Alternatively set as under
+   * Variables:: set_idmb(int_mb, dbl_mb);
+   */
+  Fint i, j;
   if (ipol == 2) {
-    for (i = 1; i<=2; i++) {
-      for (j = 1; i<=nocc[i]; j++) {
-	irrep_g = irrep_g ^ int_mb(k_irs(i)+j-1); //k_irs tce_main
+    for (i = 1; i <= 2; i++) {
+      for (j = 1; i <= nocc[i]; j++) {
+        irrep_g = irrep_g ^ int_mb(k_irs(i)+j-1);  // k_irs tce_main
       }
     }
   }
-  sym_irrepname(geom,irrep_g+1,irrepname);
+  Fint geom = 1;  // geom will be passed on from Fortran
+  /* sym_irrepname is defined in src/symmetry/sym_irrepname.F
+   */
+  string irrepname;
+  sym_irrepname_(geom, irrep_g+1, irrepname);
 
-  if (nodezero && util_print('eom',print_default)) { //print_default = print_medium = 20
+  if (util_print_('eom',print_default)) { //print_default = print_medium = 20
     nodezero_print("\n" + std::to_string(irrepname));
   }
-  for(irrep = 0; irrep<=nirreps-1; irrep++) {  // main irreps loop ===================
+  bool symmetry = true;  // symmetry will be passed from Fortran
+  string targetsym;  // targetsym will be passed from Fortran
+  for (Irrep irrep = 0; irrep <= nirreps-1; irrep++) {  // main irreps loop ===================
     irrep_x = irrep;
     irrep_y = irrep;
-    sym_irrepname_(geom,^(irrep_x,irrep_g)+1,irrepname); 
-    if ((!symmetry) || (targetsym == irrepname)) { //main
-      tce_eom_init
-	if (nodezero && util_print('eom',print_default)) {
-	  write(LuOut,*)
-	    write(LuOut,9200) irrepname
-	    }
+    sym_irrepname_(geom, (irrep_x ^ irrep_g)+1, irrepname);
+    if ((!symmetry) || (targetsym == irrepname)) {  // main
+      tce_eom_init();
+	  if (util_print('eom',print_default)) {
+	    nodezero_print(
+	    "=========================================\n"
+	    "Excited-state calculation ( "+irrepname+" symmetry)==\n");
+	  }
       //
       double *hbar = new double [hbard*hbard];
       // if (!ma_push_get(mt_dbl,hbard*hbard,'hbar',
@@ -161,12 +180,14 @@ void ip_ccsd_driver(d_e,d_f1,d_v2,d_t1,d_t2,
 /* We use the code in equations.cc line 135 to create new tensors
  * for now using CorFortran function
  */
-  CorFortran(1, &tce_ipx1, tce_ipx1_offset_);
+	Tensor tce_ipx1();
+  //CorFortran(1, &tce_ipx1, tce_ipx1_offset_);
   // tce_ipx1_offset(l_x1_offset,k_x1_offset,size_x1)
   // tce_filename('rx1',filename)
   // createfile(filename,d_rx1,size_x1)
 
-  CorFortran(1, &tce_ipx2, tce_ipx2_offset_);
+	Tensor tce_ipx2();
+  //CorFortran(1, &tce_ipx2, tce_ipx2_offset_);
   // tce_ipx2_offset(l_x2_offset,k_x2_offset,size_x2)
   // tce_filename('rx2',filename)
   // createfile(filename,d_rx2,size_x2)
@@ -177,7 +198,7 @@ void ip_ccsd_driver(d_e,d_f1,d_v2,d_t1,d_t2,
   //         ------------------------------
   //
   // use fortran function for tce_eom_ipxguess 
-  tce_eom_ipxguess_(rtdb,needt1,needt2,false,false,
+  tce_eom_ipxguess_(rtdb,true,true,false,false,
 		size_x1,size_x2,dummy,dummy,
 		k_x1_offset,k_x2_offset,dummy,dummy);
   //
@@ -200,7 +221,7 @@ void ip_ccsd_driver(d_e,d_f1,d_v2,d_t1,d_t2,
   const bool xp2_exist[nroots_reduced];
 
   // make an indexed createfile equivalent function
-  for(ivec=1; ivec<=nroots_reduced; ivec++) {
+  for(int ivec=1; ivec<=nroots_reduced; ivec++) {
 #if 0
 	tce_filenameindexed_(ivec,'xc1',&filename); // in tce/tce_filename.F
   	createfile_(filename,xc1(ivec),size_x1); // xc1 in tce/include/tce_diss.fh
@@ -223,10 +244,11 @@ void ip_ccsd_driver(d_e,d_f1,d_v2,d_t1,d_t2,
 
   converged = false;
   while(!converged) { //loop to check for convergence
-	  for (iter=1; iter<=maxiter; iter++) { //main loop
-	    if (nodezero && util_print('eom',print_default))
-	      write(LuOut,9210) iter,nxtrials;
-	    for (ivec = 1; ivec<=nxtrials; ivec++) { //nxtrials loop
+	  for (int iter=1; iter<=maxiter; iter++) { //main loop
+	    if (util_print('eom',print_default)) {
+	      nodezero_print("9210 " + iter,nxtrials);
+	    }
+	    for (int ivec = 1; ivec<=nxtrials; ivec++) { //nxtrials loop
 	      if (!xp1_exist[ivec-1]) { // uuu1
 #if 0
 	        tce_filenameindexed(ivec,'xp1',filename);
@@ -236,11 +258,13 @@ void ip_ccsd_driver(d_e,d_f1,d_v2,d_t1,d_t2,
 		    xp1_array[ivec-1] -> create();
 	        xp1_exist[ivec-1] = true;
 #endif
-	  	ipccsd_x1_cxx_(d_f1,xp1(ivec),d_t1,d_t2,d_v2,x1(ivec),
-	  		  x2(ivec),
-	  		  k_f1_offset,k_x1_offset,k_t1_offset,
-	  		  k_t2_offset,k_v2_offset,k_x1_offset,
-	  		  k_x2_offset);
+	        ipccsd_x1_cxx(d_f1,xp1(ivec),d_t1,d_t2,d_v2,x1(ivec),
+	  	  		  x2(ivec));
+//	  	ipccsd_x1_cxx_(d_f1,xp1(ivec),d_t1,d_t2,d_v2,x1(ivec),
+//	  		  x2(ivec),
+//	  		  k_f1_offset,k_x1_offset,k_t1_offset,
+//	  		  k_t2_offset,k_v2_offset,k_x1_offset,
+//	  		  k_x2_offset);
 	      } // if xp1_exist(ivec)
 	      //
 	      //reconcilefile(xp1(ivec),size_x1);

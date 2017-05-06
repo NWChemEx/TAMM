@@ -94,10 +94,36 @@ void test() {
   assert(ta.find_unique_block({1,0,2}) == TensorIndex({0,1,2}));
   assert(ta.find_unique_block({0,1,3}) == TensorIndex({0,1,3}));
 
-  //auto block = ta.get({0,0,0});
+  tensor_map(ta(), [] (Block& block) {
+      std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 2.0);
+    });
+
+  auto block = ta.get({0,0,2});
+  for(unsigned i=0; i<block.size(); i++) {
+    assert(reinterpret_cast<double*>(block.buf())[i] == 2.0);
+  }
+  for(unsigned i=0; i<block.size(); i++) {
+    reinterpret_cast<double*>(block.buf())[i] += 4.0;
+  }
+  ta.add(block);
+  auto block2 = ta.get({0, 0, 2});
+  for(unsigned i=0; i<block.size(); i++) {
+    assert(reinterpret_cast<double*>(block.buf())[i] == 6.0);
+  }
+
+  // TensorVec<SymmGroup> indicesb{SymmGroup{DimType::o}, SymmGroup{DimType::o}, SymmGroup{DimType::n}};
+  TensorVec<SymmGroup> indicesb{SymmGroup{DimType::o, DimType::o}, SymmGroup{DimType::n}};
+  Tensor tb{indicesb, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
+  tb.allocate();
   
+  tensor_map(ta(), [] (Block& block) {
+      std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 4.0);
+    });
+  //ta() += tb();
+
   ta.destruct();
   assert(!ta.constructed() && !ta.allocated() && !ta.attached());
+  tb.destruct();
 }
 
 int main() {

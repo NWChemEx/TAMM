@@ -31,6 +31,13 @@ using Fint = int64_t;
  * CC calculations in one run?
  *
  * @todo Make everything process-group aware
+ *
+ * @todo A general expression template formulation
+ *
+ * @todo Move/copy semantics for Tensor and Block
+ *
+ * @todo Scoped allocation for Tensor & Block
+ *
  */
 
 namespace tammx {
@@ -1098,14 +1105,14 @@ tensor_index_range(DimType dt) {
 class Tensor;
 class Block;
 struct LabeledBlock {
-  Block& block_;
+  Block *block_;
   TensorLabel label_;
 
   void init(double value);
 };
 
 struct LabeledTensor  {
-  Tensor &tensor_;
+  Tensor *tensor_;
   TensorLabel label_;
 };
 
@@ -1132,7 +1139,7 @@ class Block {
   }
 
   LabeledBlock operator () (const TensorLabel &label) {
-    return LabeledBlock{*this, label};
+    return LabeledBlock{this, label};
   }
 
   LabeledBlock operator () () {
@@ -1169,8 +1176,8 @@ class Block {
   TensorPerm layout_;
   Sign sign_;
 
-  friend void operator += (LabeledBlock& block1, const LabeledBlock& block2);
-  friend void operator += (LabeledBlock& block1, const std::pair<LabeledBlock, LabeledBlock>& blocks);
+  friend void operator += (LabeledBlock block1, LabeledBlock block2);
+  friend void operator += (LabeledBlock block1, std::pair<LabeledBlock, LabeledBlock> blocks);
 };
 
 inline TensorPerm
@@ -1423,7 +1430,9 @@ class Tensor {
   }
   
   void destruct() {
-    Expects(constructed_);
+    if(!constructed_) {
+      return;
+    }
     if (policy_ == AllocationPolicy::attach) {
       // no-op
     }
@@ -1583,6 +1592,17 @@ class Tensor {
   //   return ProductIterator<TriangleLoop>(tloops, tloops_last);
   // }
 
+  LabeledTensor operator () (const TensorLabel& perm) {
+    return LabeledTensor{this, perm};
+  }
+
+  LabeledTensor operator () () {
+    TensorLabel label(rank());
+    std::iota(label.begin(), label.end(), 0);
+    return this->operator ()(label);
+  }
+  
+
  private:
 
   bool spin_nonzero(const TensorIndex& blockid) const {
@@ -1612,10 +1632,6 @@ class Tensor {
       spin += TCE::spin(b);
     }
     return (!spin_restricted_ || (rank_ == 0) || (spin != 2 * rank_even));
-  }
-
-  LabeledTensor operator () (const TensorLabel& perm) {
-    return LabeledTensor{*this, perm};
   }
 
   TensorVec<SymmGroup> indices_;
@@ -1663,8 +1679,8 @@ Block::Block(Tensor &tensor,
 
 inline void
 LabeledBlock::init(double value) {
-  auto *dbuf = reinterpret_cast<double*>(block_.buf());
-  for(unsigned i=0; i<block_.size(); i++) {
+  auto *dbuf = reinterpret_cast<double*>(block_->buf());
+  for(unsigned i=0; i<block_->size(); i++) {
     dbuf[i] = value;
   }
 }
@@ -1692,55 +1708,55 @@ operator * (double alpha, const std::tuple<LabeledBlock, LabeledBlock>& rhs) {
 }
 
 void
-operator += (LabeledBlock block1, const std::tuple<double, const LabeledBlock>& rhs);
+operator += (LabeledBlock block1, std::tuple<double, LabeledBlock> rhs);
 
 void
-operator += (LabeledBlock block1, const std::tuple<double, LabeledBlock, LabeledBlock>& rhs);
+operator += (LabeledBlock block1, std::tuple<double, LabeledBlock, LabeledBlock> rhs);
 
 inline void
-operator += (LabeledBlock block1, const LabeledBlock& block2) {
+operator += (LabeledBlock block1, LabeledBlock block2) {
   block1 += 1.0 * block2;
 }
 
 inline void
-operator += (LabeledBlock block1, const std::tuple<LabeledBlock, LabeledBlock>& rhs) {
+operator += (LabeledBlock block1, std::tuple<LabeledBlock, LabeledBlock> rhs) {
   block1 += 1.0 * rhs;
 }
 
 
-inline std::tuple<double, const LabeledTensor>
-operator * (double alpha, const LabeledTensor& block) {
+inline std::tuple<double, LabeledTensor>
+operator * (double alpha, LabeledTensor block) {
   return {alpha, block};
 }
 
-inline std::tuple<double, const LabeledTensor, const LabeledTensor>
-operator * (const std::tuple<double, LabeledTensor>& rhs1, const LabeledTensor& rhs2)  {
+inline std::tuple<double, LabeledTensor, LabeledTensor>
+operator * (const std::tuple<double, LabeledTensor>& rhs1, LabeledTensor rhs2)  {
   return std::tuple_cat(rhs1, std::make_tuple(rhs2));
 }
 
-inline std::tuple<const LabeledTensor, const LabeledTensor>
-operator * (const LabeledTensor& rhs1, const LabeledTensor& rhs2)  {
+inline std::tuple<LabeledTensor, LabeledTensor>
+operator * (LabeledTensor rhs1, LabeledTensor rhs2)  {
   return std::make_tuple(rhs1, rhs2);
 }
 
-inline std::tuple<double, const LabeledTensor, const LabeledTensor>
-operator * (double alpha, const std::tuple<LabeledTensor, LabeledTensor>& rhs) {
+inline std::tuple<double, LabeledTensor, LabeledTensor>
+operator * (double alpha, std::tuple<LabeledTensor, LabeledTensor> rhs) {
   return std::tuple_cat(std::make_tuple(alpha), rhs);
 }
 
 void
-operator += (LabeledTensor block1, const std::tuple<double, const LabeledTensor>& rhs);
+operator += (LabeledTensor block1, std::tuple<double, LabeledTensor> rhs);
 
 void
-operator += (LabeledTensor block1, const std::tuple<double, LabeledTensor, LabeledTensor>& rhs);
+operator += (LabeledTensor block1, std::tuple<double, LabeledTensor, LabeledTensor> rhs);
 
 inline void
-operator += (LabeledTensor block1, const LabeledTensor& block2) {
+operator += (LabeledTensor block1, LabeledTensor block2) {
   block1 += 1.0 * block2;
 }
 
 inline void
-operator += (LabeledTensor block1, const std::tuple<LabeledTensor, LabeledTensor>& rhs) {
+operator += (LabeledTensor block1, std::tuple<LabeledTensor, LabeledTensor> rhs) {
   block1 += 1.0 * rhs;
 }
 
@@ -1869,8 +1885,8 @@ inline TensorVec<TensorVec<TensorLabel>>
 summation_labels(const LabeledTensor& /*ltc*/,
                   const LabeledTensor& lta,
                   const LabeledTensor& ltb) {
-  return group_partition(lta.tensor_.indices(), lta.label_,
-                         ltb.tensor_.indices(), ltb.label_);
+  return group_partition(lta.tensor_->indices(), lta.label_,
+                         ltb.tensor_->indices(), ltb.label_);
 
 }
 
@@ -1878,10 +1894,10 @@ inline std::pair<TensorVec<SymmGroup>,TensorLabel>
 summation_indices(const LabeledTensor& /*ltc*/,
                   const LabeledTensor& lta,
                   const LabeledTensor& ltb) {
-  auto aindices = flatten(lta.tensor_.indices());
+  auto aindices = flatten(lta.tensor_->indices());
   //auto bindices = flatten(ltb.tensor_.indices());
-  auto alabels = group_labels(lta.tensor_.indices(), lta.label_);
-  auto blabels = group_labels(ltb.tensor_.indices(), ltb.label_);
+  auto alabels = group_labels(lta.tensor_->indices(), lta.label_);
+  auto blabels = group_labels(ltb.tensor_->indices(), ltb.label_);
   TensorVec<SymmGroup> ret_indices;
   TensorLabel sum_labels;
   int apos = 0;
@@ -1916,10 +1932,10 @@ inline TensorVec<TensorVec<TensorLabel>>
 nonsymmetrized_external_labels(const LabeledTensor& ltc,
                                const LabeledTensor& lta,
                                const LabeledTensor& ltb) {
-  auto ca_labels = group_partition(ltc.tensor_.indices(), ltc.label_,
-                                   lta.tensor_.indices(), lta.label_);
-  auto cb_labels = group_partition(ltc.tensor_.indices(), ltc.label_,
-                                   ltb.tensor_.indices(), ltb.label_);
+  auto ca_labels = group_partition(ltc.tensor_->indices(), ltc.label_,
+                                   lta.tensor_->indices(), lta.label_);
+  auto cb_labels = group_partition(ltc.tensor_->indices(), ltc.label_,
+                                   ltb.tensor_->indices(), ltb.label_);
   Expects(ca_labels.size() == cb_labels.size());
   auto &ret_labels = ca_labels;
   for(unsigned i=0; i<ret_labels.size(); i++) {
@@ -1984,11 +2000,11 @@ nonsymmetrized_iterator(const LabeledTensor& ltc,
   //auto flat_labels = flatten(flatten(part_labels));
   std::map<IndexLabel, DimType> dim_of_label;
 
-  auto cflindices = flatten(ltc.tensor_.indices());
+  auto cflindices = flatten(ltc.tensor_->indices());
   for(unsigned i=0; i<ltc.label_.size(); i++) {
     dim_of_label[ltc.label_[i]] = cflindices[i];
   }
-  auto aflindices = flatten(lta.tensor_.indices());
+  auto aflindices = flatten(lta.tensor_->indices());
   for(unsigned i=0; i<lta.label_.size(); i++) {
     dim_of_label[lta.label_[i]] = aflindices[i];
   }
@@ -2280,11 +2296,11 @@ operator += (LabeledTensor ltc, const std::tuple<double, const LabeledTensor>& r
  * @todo We assume there is no un-symmetrization in the output.
  */
 inline void
-operator += (LabeledTensor ltc, const std::tuple<double, const LabeledTensor>& rhs) {
+operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
   double alpha = std::get<0>(rhs);
   const LabeledTensor& lta = std::get<1>(rhs);
-  Tensor& ta = lta.tensor_;
-  Tensor& tc = ltc.tensor_;
+  Tensor& ta = *lta.tensor_;
+  Tensor& tc = *ltc.tensor_;
   //check for validity of parameters
   auto aitr = loop_iterator(ta.indices());
   auto lambda = [&] (const TensorIndex& ablockid) {
@@ -2468,12 +2484,12 @@ index_permute(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const Tensor
 }
 
 inline void
-operator += (LabeledBlock clb, const std::tuple<double, const LabeledBlock>& rhs) {
+operator += (LabeledBlock clb, std::tuple<double, LabeledBlock> rhs) {
   double alpha = std::get<0>(rhs);
   const LabeledBlock& alb = std::get<1>(rhs);
 
-  auto &ablock = alb.block_;
-  auto &cblock = clb.block_;
+  auto &ablock = *alb.block_;
+  auto &cblock = *clb.block_;
 
   auto &clabel = clb.label_;
   auto &alabel = alb.label_;
@@ -2483,8 +2499,8 @@ operator += (LabeledBlock clb, const std::tuple<double, const LabeledBlock>& rhs
     Expects(cblock.block_dims()[i] == ablock.block_dims()[label_perm[i]]);
   }
 
-  auto &alayout = alb.block_.layout();
-  auto &clayout = clb.block_.layout();
+  auto &alayout = ablock.layout();
+  auto &clayout = cblock.layout();
 
   auto cstore = perm_apply(clabel, perm_invert(clayout));
   auto astore = perm_apply(alabel, perm_invert(alayout));
@@ -2496,8 +2512,8 @@ operator += (LabeledBlock clb, const std::tuple<double, const LabeledBlock>& rhs
 
 template<typename Lambda>
 inline void
-tensor_map (LabeledTensor& ltc, Lambda func) {
-  Tensor& tc = ltc.tensor_;
+tensor_map (LabeledTensor ltc, Lambda func) {
+  Tensor& tc = *ltc.tensor_;
   auto citr = loop_iterator(tc.indices());
   auto lambda = [&] (const TensorIndex& cblockid) {
     size_t dimc = tc.block_size(cblockid);
@@ -2512,9 +2528,9 @@ tensor_map (LabeledTensor& ltc, Lambda func) {
 
 template<typename Lambda>
 inline void
-tensor_map (LabeledTensor& ltc, LabeledTensor& lta, Lambda func) {
-  Tensor& tc = ltc.tensor_;
-  Tensor& ta = lta.tensor_;
+tensor_map (LabeledTensor ltc, LabeledTensor lta, Lambda func) {
+  Tensor& tc = *ltc.tensor_;
+  Tensor& ta = *lta.tensor_;
   auto citr = loop_iterator(tc.indices());
   auto lambda = [&] (const TensorIndex& cblockid) {
     size_t dimc = tc.block_size(cblockid);

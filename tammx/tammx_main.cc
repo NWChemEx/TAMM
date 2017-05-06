@@ -61,7 +61,14 @@ void test() {
   assert(ta.block_size({1, 2}) == 20);
   assert(ta.block_size({1, 3}) == 20);
 
-  //assert();
+  assert(ta.nonzero({0,0}));
+  assert(!ta.nonzero({0,1}));
+  assert(ta.nonzero({0,2}));
+  assert(!ta.nonzero({0,3}));
+  assert(!ta.nonzero({1,0}));
+  assert(!ta.nonzero({1,1}));
+  assert(!ta.nonzero({1,2}));
+  assert(!ta.nonzero({1,3}));
   
   ta.destruct();
   assert(!ta.constructed() && !ta.allocated() && !ta.attached());

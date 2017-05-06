@@ -2493,8 +2493,40 @@ operator += (LabeledBlock clb, const std::tuple<double, const LabeledBlock>& rhs
   index_permute_acc(cblock.buf(), ablock.buf(), store_perm, cblock.block_dims(), alpha);
 }
 
+
+template<typename Lambda>
 inline void
-operator += (LabeledTensor& tc, std::tuple<>
+tensor_map (LabeledTensor& ltc, Lambda func) {
+  Tensor& tc = ltc.tensor_;
+  auto citr = loop_iterator(tc.indices());
+  auto lambda = [&] (const TensorIndex& cblockid) {
+    size_t dimc = tc.block_size(cblockid);
+    if(tc.nonzero(cblockid) && dimc>0) {
+      auto cblock = tc.alloc(cblockid);
+      func(cblock);
+      tc.add(cblock);
+    }
+  };
+  parallel_work(citr, citr.get_end(), lambda);  
+}
+
+template<typename Lambda>
+inline void
+tensor_map (LabeledTensor& ltc, LabeledTensor& lta, Lambda func) {
+  Tensor& tc = ltc.tensor_;
+  Tensor& ta = lta.tensor_;
+  auto citr = loop_iterator(tc.indices());
+  auto lambda = [&] (const TensorIndex& cblockid) {
+    size_t dimc = tc.block_size(cblockid);
+    if(tc.nonzero(cblockid) && dimc>0) {
+      auto cblock = tc.alloc(cblockid);
+      auto ablock = ta.alloc(cblockid);
+      func(cblock, ablock);
+      tc.add(cblock);
+    }
+  };
+  parallel_work(citr, citr.get_end(), lambda);
+}
 
 }  // namespace tammx
 

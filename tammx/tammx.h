@@ -339,7 +339,7 @@ struct Combination {
   struct StackFrame {
     Case case_value;
     Int i;
-    StackFrame(Int ival = 0) {
+    explicit StackFrame(Int ival = 0) {
       case_value = Case::case0;
       i = ival;
     }
@@ -445,7 +445,7 @@ struct Combination {
           sub_.push_back(i);
           stack_.back().step();
           if(sub_.size() < comb_->k_ && i+1 < comb_->n_) {
-            stack_.push_back({i+1});
+            stack_.push_back(StackFrame{i+1});
           }
           break;
         case Case::case1:
@@ -453,7 +453,7 @@ struct Combination {
           stack_.back().step();
           i1 = comb_->index_of_next_unique_item(i);
           if(i1 < comb_->n_) {
-            stack_.push_back({i1});
+            stack_.push_back(StackFrame{i1});
           }
           break;
         case Case::case2:

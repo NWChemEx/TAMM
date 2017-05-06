@@ -14,7 +14,8 @@
 #  include "tensor/gmem.h"
 #  include "tensor/capi.h"
 #endif
-#include "tensor/index_sort.h"
+#include "tammx/StrongInt.h"
+#include "tammx/index_sort.h"
 
 using Fint = int64_t;
 
@@ -189,16 +190,10 @@ class BoundVec : public std::array<T, maxsize> {
  private:
   size_type size_;
   friend bool operator == (const BoundVec<T, maxsize>& lhs, const BoundVec<T, maxsize>& rhs) {
-    if (lhs.size() != rhs.size()) {
-      return false;
-    }
-    for(int i=0; i<lhs.size(); i++) {
-      if(lhs[i] != rhs[i]) {
-        return false;
-      }
-    }
-    return true;
+    return lhs.size() == rhs.size()
+        && std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
   }
+
   friend bool operator != (const BoundVec<T, maxsize>& lhs, const BoundVec<T, maxsize>& rhs) {
     return !(lhs == rhs);
   }
@@ -216,9 +211,10 @@ std::ostream& operator << (std::ostream& os, const BoundVec<T, maxsize>& bvec) {
 
 using BlockDim = int64_t;
 using TensorRank = int;
-using Irrep = int;
-using Spin = int;
-using Spatial = int;
+struct IrrepSpace;
+using Irrep = StrongInt<IrrepSpace, int>;
+struct SpinSpace;
+using Spin = StrongInt<SpinSpace, int>;
 using IndexLabel = int;
 using Sign = int;
 
@@ -354,6 +350,9 @@ struct Combination {
       return lhs.case_value == rhs.case_value
           && lhs.i == rhs.i;
     }
+    friend bool operator != (const StackFrame& lhs, const StackFrame& rhs) {
+      return !(lhs == rhs);
+    }    
   };
 
   typename TensorVec<T>::size_type n_, k_;
@@ -872,7 +871,7 @@ loop_iterator(const TensorVec<SymmGroup>& indices ) {
 class TCE {
  public:
   static void init(const std::vector<Spin>& spins,
-                   const std::vector<Spatial>& spatials,
+                   const std::vector<Irrep>& spatials,
                    const std::vector<size_t>& sizes,
                    BlockDim noa,
                    BlockDim noab,
@@ -907,7 +906,7 @@ class TCE {
     return spins_[block];
   }
 
-  static Spatial spatial(BlockDim block) {
+  static Irrep spatial(BlockDim block) {
     return spatials_[block];
   }
 
@@ -1070,7 +1069,7 @@ class TCE {
 
  private:
   static std::vector<Spin> spins_;
-  static std::vector<Spatial> spatials_;
+  static std::vector<Irrep> spatials_;
   static std::vector<size_t> sizes_;
   static bool spin_restricted_;
   static Irrep irrep_f_, irrep_v_, irrep_t_;
@@ -1258,6 +1257,13 @@ class Tensor {
         spin_restricted_{spin_restricted},
         constructed_{false},
         policy_{AllocationPolicy::none} {
+          for(auto sg : indices) {
+            Expects(sg.size()>0);
+            auto dim = sg[0];
+            for(auto d : sg) {
+              Expects (dim == d);
+            }
+          }
           rank_ = 0;
           for(auto sg : indices) {
             rank_ += sg.size();
@@ -1580,11 +1586,11 @@ class Tensor {
  private:
 
   bool spin_nonzero(const TensorIndex& blockid) const {
-    Spin spin_upper = 0;
+    Spin spin_upper {0};
     for(auto itr = std::begin(blockid); itr!= std::begin(blockid) + nupper_indices_; ++itr) {
       spin_upper += TCE::spin(*itr);
     }
-    Spin spin_lower = 0;
+    Spin spin_lower {0};
     for(auto itr = std::begin(blockid)+nupper_indices_; itr!= std::end(blockid); ++itr) {
       spin_lower += TCE::spin(*itr);
     }
@@ -1592,7 +1598,7 @@ class Tensor {
   }
 
   bool spatial_nonzero(const TensorIndex& blockid) const {
-    Spatial spatial = 0;
+    Irrep spatial {0};
     for(auto b : blockid) {
       spatial ^= TCE::spatial(b);
     }
@@ -1600,7 +1606,7 @@ class Tensor {
   }
 
   bool spin_restricted_nonzero(const TensorIndex& blockid) const {
-    Spin spin = std::abs(rank_ - 2 * nupper_indices_);
+    Spin spin {std::abs(rank_ - 2 * nupper_indices_)};
     TensorRank rank_even = rank_ + (rank_ % 2);
     for(auto b : blockid) {
       spin += TCE::spin(b);
@@ -2487,6 +2493,8 @@ operator += (LabeledBlock clb, const std::tuple<double, const LabeledBlock>& rhs
   index_permute_acc(cblock.buf(), ablock.buf(), store_perm, cblock.block_dims(), alpha);
 }
 
+inline void
+operator += (LabeledTensor& tc, std::tuple<>
 
 }  // namespace tammx
 

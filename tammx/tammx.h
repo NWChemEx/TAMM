@@ -73,12 +73,12 @@ class BoundVec : public std::array<T, maxsize> {
     }
   }
 
-  BoundVec(BoundVec& bv)
-      : size_{0} {
-    for (auto &value : bv) {
-      push_back(value);
-    }
-  }
+  // BoundVec(BoundVec& bv)
+  //     : size_{0} {
+  //   for (auto &value : bv) {
+  //     push_back(value);
+  //   }
+  // }
 
   template<typename Itr>
   BoundVec(Itr first, Itr last)
@@ -115,9 +115,9 @@ class BoundVec : public std::array<T, maxsize> {
     this->at(size_++) = value;
   }
 
-  void push_back(T& value) {
-    this->at(size_++) = value;
-  }
+  // void push_back(T& value) {
+  //   this->at(size_++) = value;
+  // }
 
   void push_back(T&& value ) {
     this->at(size_++) = value;
@@ -142,11 +142,11 @@ class BoundVec : public std::array<T, maxsize> {
     }
   }
 
-  BoundVec<T, maxsize>& operator = (BoundVec<T, maxsize>& bvec) {
-    size_ = bvec.size_;
-    std::copy(bvec.begin(), bvec.end(), begin());
-    return *this;
-  }
+  // BoundVec<T, maxsize>& operator = (BoundVec<T, maxsize>& bvec) {
+  //   size_ = bvec.size_;
+  //   std::copy(bvec.begin(), bvec.end(), begin());
+  //   return *this;
+  // }
 
   BoundVec<T, maxsize>& operator = (const BoundVec<T, maxsize>& bvec) {
     size_ = bvec.size_;
@@ -393,12 +393,12 @@ struct Combination {
       }
     }
 
-    Iterator& operator = (Iterator& itr) {
-      comb_ = itr.comb_;
-      stack_ = itr.stack_;
-      sub_ = itr.sub_;
-      return *this;
-    }
+    // Iterator& operator = (Iterator& itr) {
+    //   comb_ = itr.comb_;
+    //   stack_ = itr.stack_;
+    //   sub_ = itr.sub_;
+    //   return *this;
+    // }
 
     Iterator& operator = (const Iterator& itr) {
       comb_ = itr.comb_;
@@ -2023,7 +2023,7 @@ class SymmetrizationIterator {
                          int group_size)
       : comb_(blockid, group_size) {}
 
-  SymmetrizationIterator& operator = (SymmetrizationIterator& sit) = default;
+  SymmetrizationIterator& operator = (const SymmetrizationIterator& sit) = default;
 
   Combination<BlockDim>::Iterator begin() {
     return comb_.begin();
@@ -2145,7 +2145,7 @@ class CopySymmetrizer {
       end_ = cs_->comb_.end();
     }
 
-    Iterator& operator = (Iterator& rhs) = default;
+    // Iterator& operator = (Iterator& rhs) = default;
 
     Iterator& operator = (const Iterator& rhs) = default;
 

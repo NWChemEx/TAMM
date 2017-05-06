@@ -32,6 +32,8 @@ using Fint = int64_t;
  *
  * @todo Make everything process-group aware
  *
+ * @todo BoundVec should properly destroy objects
+ *
  * @todo A general expression template formulation
  *
  * @todo Move/copy semantics for Tensor and Block
@@ -133,6 +135,10 @@ class BoundVec : public std::array<T, maxsize> {
 
   void pop_back() {
     size_ -= 1;
+  }
+
+  void resize(size_type size) {
+    size_ = size;
   }
   
   template<typename InputIt>
@@ -1168,6 +1174,10 @@ class Block {
     return buf_.get();
   }
 
+  Tensor& tensor() {
+    return tensor_;
+  }
+  
  private:
   Tensor& tensor_;
   TensorIndex block_id_;
@@ -1184,6 +1194,7 @@ inline TensorPerm
 perm_compute(const TensorLabel& from, const TensorLabel& to) {
   TensorPerm layout;
 
+  Expects(from.size() == to.size());
   for(auto p : to) {
     auto itr = std::find(from.begin(), from.end(), p);
     Expects(itr != from.end());
@@ -1208,6 +1219,8 @@ template<typename T>
 inline TensorVec<T>
 perm_apply(const TensorVec<T>& label, const TensorPerm& perm) {
   TensorVec<T> ret;
+  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": label="<<label<<std::endl;
+  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": perm="<<perm<<std::endl;
   Expects(label.size() == perm.size());
   using size_type = TensorPerm::size_type;
   for(size_type i=0; i<label.size(); i++) {
@@ -1468,7 +1481,8 @@ class Tensor {
     Expects(nonzero(blockid));
     auto uniq_blockid = find_unique_block(blockid);
     TensorPerm layout;
-    Sign sign = compute_sign_from_unique_block(blockid);
+    Sign sign;
+    std::tie(layout, sign) = compute_sign_from_unique_block(blockid);
     Block block = alloc(uniq_blockid, layout, sign);
     if(distribution_ == Distribution::tce_nwi
        || distribution_ == Distribution::tce_nw
@@ -1555,17 +1569,21 @@ class Tensor {
     return ret;
   }
 
-  Sign compute_sign_from_unique_block(const TensorIndex& blockid) const {
+  std::pair<TensorPerm,Sign> compute_sign_from_unique_block(const TensorIndex& blockid) const {
+    Expects(blockid.size() == rank());
+    TensorPerm ret_perm(blockid.size());
+    std::iota(ret_perm.begin(), ret_perm.end(), 0);
     int num_inversions=0;
     int pos = 0;
     for(auto &igrp: indices_) {
       Expects(igrp.size() <= 2); // @todo Implement general algorithm
       if(igrp.size() == 2 && blockid[pos+0] > blockid[pos+1]) {
         num_inversions += 1;
+        std::swap(ret_perm[pos], ret_perm[pos+1]);
       }
       pos += igrp.size();
     }
-    return (num_inversions%2) ? -1 : 1;
+    return {ret_perm, (num_inversions%2) ? -1 : 1};
   }
 
   Block alloc(const TensorIndex& blockid) {
@@ -1579,6 +1597,7 @@ class Tensor {
 
   Block alloc(const TensorIndex& blockid, const TensorPerm& layout, int sign) {
     auto blockdims = block_dims(blockid);
+    Expects(layout.size() == rank());
     return Block{*this, blockid, blockdims, layout, sign};
   }
   // ProductIterator<TriangleLoop> iterator() {
@@ -1658,12 +1677,15 @@ Block::Block(Tensor &tensor,
              const TensorIndex& block_id,
              const TensorIndex& block_dims,
              const TensorPerm& layout,
-             int sign)
+             Sign sign)
     : tensor_{tensor},
       block_id_{block_id},
       block_dims_{block_dims},
       layout_{layout},
       sign_{sign} {
+        Expects(tensor.rank() == block_id.size());
+        Expects(tensor.rank() == block_dims.size());
+        Expects(tensor.rank() == layout.size());
         buf_ = std::make_unique<uint8_t []> (size() * tensor.element_size());
       }
 
@@ -1673,6 +1695,8 @@ Block::Block(Tensor &tensor,
     : tensor_{tensor},
       block_id_{block_id} {
         block_dims_ = tensor.block_dims(block_id);
+        layout_.resize(tensor.rank());
+        std::iota(layout_.begin(), layout_.end(), 0);
         sign_ = 1;
         buf_ = std::make_unique<uint8_t []> (size() * tensor.element_size());
       }
@@ -2179,6 +2203,7 @@ class CopySymmetrizer {
       do {
         ++itr_;
         auto perm = *itr_;
+        Expects(perm.size() == cs_->blockid_.size());
         auto perm_blockid = perm_apply(cs_->blockid_, perm);
         auto &uniq_blockid = cs_->uniq_blockid_;
         if (std::equal(uniq_blockid.begin(), uniq_blockid.end(),
@@ -2502,6 +2527,12 @@ operator += (LabeledBlock clb, std::tuple<double, LabeledBlock> rhs) {
   auto &alayout = ablock.layout();
   auto &clayout = cblock.layout();
 
+  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": alabel="<<alabel<<std::endl;
+  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": alayout="<<alayout<<std::endl;
+
+  Expects(clayout.size() == cblock.tensor().rank());
+  Expects(clabel.size() == perm_invert(clayout).size());
+  Expects(alabel.size() == perm_invert(alayout).size());
   auto cstore = perm_apply(clabel, perm_invert(clayout));
   auto astore = perm_apply(alabel, perm_invert(alayout));
 

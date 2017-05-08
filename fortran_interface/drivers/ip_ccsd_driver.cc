@@ -1,4 +1,14 @@
-
+//------------------------------------------------------------------------------
+// Copyright (C) 2016, Pacific Northwest National Laboratory
+// This software is subject to copyright protection under the laws of the
+// United States and other countries
+//
+// All rights in this computer software are reserved by the
+// Pacific Northwest National Laboratory (PNNL)
+// Operated by Battelle for the U.S. Department of Energy
+//
+//------------------------------------------------------------------------------
+/*
 #include "global.fh"
 #include "mafdecls.fh"
 #include "util.fh"
@@ -10,12 +20,23 @@
 #include "tce_diis.fh"
 #include "tce_restart.fh"
 #include "tensor/fapi.h"
+*/
 #include <string>
 #include <iostream>
 #include <cassert>
-#include ../../tensor/variables.h
+#include "tensor/gmem.h"
+#include "tensor/variables.h"
+
+#define maxtrials 20  // argument to be passed from Fortran
+#define hbard 4  // argument to be passed from Fortran
+#define size_x1  4  // argument to be passed from Fortran
+#define size_x1  4  // argument to be passed from Fortran
 
 /* Arguments that need to be passed to this function
+ * maxtrials
+ * hbard
+ * size_x1
+ * size_x2
  * eom_solver - from tce/include/tce_diis.fh, assigned in tce_energy.F
  * ccsd_var - from tce/include/tce_main.fh, defined in tce_input.F and passed on through tce_energy.F
  * ipol - from tce/include/tce_main.fh
@@ -25,10 +46,7 @@
  * symmetry - from tce/include/tce_main.fh, logical symmetry
  * targetsym - from tce/include/tce_main.fh, character*4 targetsym
  *
- * maxtrials
- * hbard
- * size_x1
- * size_x2
+
  *
  */
 
@@ -37,17 +55,16 @@
  * xp1 is product RHS1 vector from file tce/include/tce_diss.fh
  * xp2 is product RHS2 vector from file tce/include/tce_diss.fh
  */
-static Fint xc1[maxtrials];
-static Fint xc2[maxtrials];
-static Fint xp1[maxtrials];
-static Fint xp2[maxtrials];
 
+using tamm::gmem;
+int ga_nodeid() { return gmem::rank();}
 
-static const double au2ev=27.2113961;
+static const double au2ev = 27.2113961;
 
-ostream& nodezero_print(const string& str, std::ostream &os=std::cout) {
-  if(ga_nodeid() == 0) {  
-    os<<str<<std::endl;
+std::ostream nodezero_print(const std::string& str,
+  std::ostream &os = std::cout) {
+    if (ga_nodeid() == 0) {
+      os << str << std::endl;
   }
   return os;
 }
@@ -83,6 +100,12 @@ using Irrep = int;
 void ip_ccsd_driver_cxx_(Tensor& d_e, Tensor& d_f,
 					Tensor& tv2, Tensor& d_1, Tensor& d_t2,
 					RTDB rtdb) {
+
+  static Fint xc1[maxtrials];
+  static Fint xc2[maxtrials];
+  static Fint xp1[maxtrials];
+  static Fint xp2[maxtrials];
+
   double cpu, wall;
   double r1,r2;
   double residual;

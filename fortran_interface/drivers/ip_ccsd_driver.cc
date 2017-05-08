@@ -56,28 +56,32 @@
  * xp2 is product RHS2 vector from file tce/include/tce_diss.fh
  */
 
-using tamm::gmem;
-int ga_nodeid() { return gmem::rank();}
+
+int ga_nodeid() {
+  // using namespace tamm::gmem;
+  // return rank();
+  return tamm::gmem::rank();
+}
 
 static const double au2ev = 27.2113961;
 
-std::ostream nodezero_print(const std::string& str,
-  std::ostream &os = std::cout) {
+std::ostream& nodezero_print(const std::string& str,
+  // std::ostream &os = std::cout
+  std::ostream &os) {
     if (ga_nodeid() == 0) {
       os << str << std::endl;
   }
   return os;
 }
 
-void Expects(bool cond, const string& msg) {
-  if(!cond) {
-    std::cerr<<msg<<endl;
+void Expects(bool cond, const std::string& msg) {
+  if (!cond) {
+    std::cerr << msg << std::endl;
     assert(cond);
   }
 }
 
-void tce_filename_cxx_(Fint index, const string& xc_count) {
-
+void tce_filename_cxx_(Fint index, const std::string& xc_count) {
 
 }
 

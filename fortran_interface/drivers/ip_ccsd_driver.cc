@@ -110,7 +110,7 @@ extern "C" {
           Fint *k_t_vo_offset, Fint *k_t_vvoo_offset,
           Fint *k_v_offset, Fint *k_x_o_offset,
           Fint *k_x_voo_offset);
-}
+}  // extern "C"
 
 int ga_nodeid() {
   // using namespace tamm::gmem;
@@ -141,6 +141,30 @@ void Expects(bool cond, const std::string& msg) {
     std::cerr << msg << std::endl;
     assert(cond);
   }
+}
+
+void tce_eom_ipxguess_cxx_(Fint *rtdb, Fint *size_x1, Fint *size_x2,
+        Fint *k_x1_offset, Fint *k_x2_offset) {
+    bool dummy_t = true;
+    bool dummy_f = false;
+    Fint dummy_int = 0;
+    tce_eom_ipxguess_(rtdb, &dummy_t, &dummy_t, &dummy_f, &dummy_f,
+            size_x1, size_x2, &dummy_int, &dummy_int, k_x1_offset,
+            k_x2_offset, &dummy_int, &dummy_int);
+}
+
+void tce_eom_xdiagon_cxx_(Fint *size_x1, Fint *size_x2, Fint *k_x1_offset,
+        Fint *k_x2_offset, Fint *d_rx1, Fint *d_rx2, double *dbl_k_omegax,
+        double *dbl_k_residual, Fint *k_hbar, Fint *iter) {
+    bool dummy_t = true;
+    bool dummy_f = false;
+    Fint dummy_int = 0;
+  tce_eom_xdiagon_(&dummy_t, &dummy_t, &dummy_f, &dummy_f,
+		  size_x1, size_x2, &dummy_int, &dummy_int,
+		  k_x1_offset, k_x2_offset, &dummy_int, &dummy_int,
+		  &d_rx1, &d_rx2, &dummy_int, &dummy_int,
+          dbl_k_omegax, dbl_k_residual, k_hbar, iter,
+          &dummy_f, &dummy_f);
 }
 
 void tce_filename_cxx_(Fint index, const std::string& xc_count) {
@@ -256,7 +280,7 @@ void ip_ccsd_driver_cxx_(
       // tce_hbarinit_(dbl_mb(k_hbar),hbard);
       tce_hbarinit_(hbar, hbard);
       // following block will use malloc instead of ma_push_get
-      {
+
       double *omegax = new double[maxtrials];
       // if (!ma_push_get(mt_dbl,maxtrials,'omegax',l_omegax,k_omegax))
       // errquit('tce_energy: MA problem',1000,MA_ERR)
@@ -264,31 +288,29 @@ void ip_ccsd_driver_cxx_(
 /* We use the code in equations.cc line 135 to create new tensors
  * for now using CorFortran function
  */
-      Tensor d_rx1 = tce_ipx1();
+      Tensor *d_rx1 = {nullptr};  // tce_ipx1();
+      d_rx1 = tamm::Tensor::create();
       // CorFortran(1, &tce_ipx1, tce_ipx1_offset_);
       // tce_ipx1_offset(l_x1_offset,k_x1_offset,size_x1)
       // tce_filename('rx1',filename)
       // createfile(filename,d_rx1,size_x1)
 
-      Tensor d_rx2 = tce_ipx2();
+      Tensor *d_rx2 = {nullptr};  // tce_ipx2();
+      d_rx2 = tamm::Tensor::create();
       // CorFortran(1, &tce_ipx2, tce_ipx2_offset_);
       // tce_ipx2_offset(l_x2_offset,k_x2_offset,size_x2)
       // tce_filename('rx2',filename)
       // createfile(filename,d_rx2,size_x2)
-      }
 
       //         ------------------------------
       //         Generate initial trial vectors
       //         ------------------------------
       //
       // use fortran function for tce_eom_ipxguess
-      //eom_ipxguess(x1, x2);
-      tce_eom_ipxguess_(rtdb, true, true, false, false,
-        size_x1, size_x2, &dummy, &dummy, k_x1_offset,
-        k_x2_offset, &dummy, &dummy);
+      // eom_ipxguess(x1, x2);
+      tce_eom_ipxguess_cxx_(rtdb, size_x1, size_x2, k_x1_offset, k_x2_offset);
       //
       Expects(nxtrials >= 0, "tce_ip_ccsdinitial space problems");
-	  //
 
 /*     Tensor *xc1;
       Tensor *xc2;
@@ -316,11 +338,11 @@ void ip_ccsd_driver_cxx_(
 */
       // create xc1 related objects
       // xc1[ivec-1] = new Tensor(ivec-1);
-    	xc1[ivec-1] = tamm::Tensor::create();  // further define
+      xc1[ivec-1] = tamm::Tensor::create();  // further define
 
       // create xc2 related objects
       // xc2[ivec-1] = new Tensor(ivec-1);
-    	xc2[ivec-1] = tamm::Tensor::create();  // further define
+      xc2[ivec-1] = tamm::Tensor::create();  // further define
     }
 
     bool converged = false;
@@ -360,12 +382,15 @@ void ip_ccsd_driver_cxx_(
         //     2      errquit('tce_energy: MA problem',101,MA_ERR)
         double dbl_k_omegax = static_cast <double>(k_omegax);
         double dbl_k_residual = static_cast <double>(k_residual);
-        tce_eom_xdiagon_(needt1, needt2, false, false,
+        tce_eom_xdiagon_cxx_(size_x1, size_x2, k_x1_offset, k_x2_offset,
+                &d_rx1, &d_rx2, &dbl_k_omegax, &dbl_k_residual, k_hbar,
+                &iter);
+/*        tce_eom_xdiagon_(needt1, needt2, false, false,
                  size_x1, size_x2, &dummy, &dummy,
                  k_x1_offset, k_x2_offset, &dummy, &dummy,
                  &d_rx1, &d_rx2, &dummy, &dummy,
                  &dbl_k_omegax, &dbl_k_residual, k_hbar, &iter,
-                 false, true);
+                 false, true);*/
 
         cpu = cpu + util_cpusec_();
         wall = wall + util_wallsec_();

@@ -40,6 +40,7 @@ enum Types { Int, Double };
 enum Operation { Plus = 0, Multiply, Max, Min, AbsMax, AbsMin };
 
 Handle create(Types type, int64_t size, std::string name);
+uint64_t rank();
 uint64_t ranks();
 int64_t atomic_fetch_add(Handle handle, int pos, int amount);
 void zero(Handle handle);

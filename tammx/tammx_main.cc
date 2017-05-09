@@ -20,13 +20,17 @@ Spin operator "" _sp(unsigned long long int val) {
   return Spin{strongint_cast<Spin::value_type>(val)};
 }
 
+BlockDim operator "" _bd(unsigned long long int val) {
+  return BlockDim{strongint_cast<BlockDim::value_type>(val)};
+}
+
 std::vector<Spin> spins = {1_sp, -1 * 1_sp, 1_sp, -1 * 1_sp};
 std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir, 0_ir};
 std::vector<size_t> sizes = {4, 4, 5, 5};
-BlockDim noa = 1;
-BlockDim noab = 2;
-BlockDim nva = 1;
-BlockDim nvab = 2;
+BlockDim noa {1};
+BlockDim noab {2};
+BlockDim nva {1};
+BlockDim nvab {2};
 bool spin_restricted = false;
 Irrep irrep_f {0};
 Irrep irrep_v {0};
@@ -58,69 +62,89 @@ void test() {
   assert(ta.constructed() && ta.allocated() && !ta.attached());
 
   cout<<"num_blocks = "<<ta.num_blocks()<<endl;
-  assert(ta.num_blocks() == TensorIndex({2, 2, 4}));
+  assert(ta.num_blocks() == TensorIndex({2_bd, 2_bd, 4_bd}));
 
-  assert(ta.block_dims({1, 0, 3}) == TensorIndex({4, 4, 5}));
+  assert(ta.block_dims({1_bd, 0_bd, 3_bd}) == TensorIndex({4_bd, 4_bd, 5_bd}));
   
-  assert(ta.block_size({0, 0, 0}) == 64);
-  assert(ta.block_size({0, 1, 1}) == 64);
-  assert(ta.block_size({0, 0, 2}) == 80);
-  assert(ta.block_size({0, 1, 3}) == 80);
-  assert(ta.block_size({1, 0, 0}) == 64);
-  assert(ta.block_size({1, 1, 1}) == 64);
-  assert(ta.block_size({1, 0, 2}) == 80);
-  assert(ta.block_size({1, 1, 3}) == 80);
+  assert(ta.block_size({0_bd, 0_bd, 0_bd}) == 64);
+  assert(ta.block_size({0_bd, 1_bd, 1_bd}) == 64);
+  assert(ta.block_size({0_bd, 0_bd, 2_bd}) == 80);
+  assert(ta.block_size({0_bd, 1_bd, 3_bd}) == 80);
+  assert(ta.block_size({1_bd, 0_bd, 0_bd}) == 64);
+  assert(ta.block_size({1_bd, 1_bd, 1_bd}) == 64);
+  assert(ta.block_size({1_bd, 0_bd, 2_bd}) == 80);
+  assert(ta.block_size({1_bd, 1_bd, 3_bd}) == 80);
 
-  assert(ta.nonzero({0,0,0}));
-  assert(ta.nonzero({0,0,2}));
-  assert(ta.nonzero({0,1,1}));
-  assert(ta.nonzero({1,0,1}));
-  assert(ta.nonzero({0,1,3}));
-  assert(ta.nonzero({1,0,3}));
+  assert(ta.nonzero({0_bd, 0_bd, 0_bd}));
+  assert(ta.nonzero({0_bd, 0_bd, 2_bd}));
+  assert(ta.nonzero({0_bd, 1_bd, 1_bd}));
+  assert(ta.nonzero({1_bd, 0_bd, 1_bd}));
+  assert(ta.nonzero({0_bd, 1_bd, 3_bd}));
+  assert(ta.nonzero({1_bd, 0_bd, 3_bd}));
 
-  assert(!ta.nonzero({0,0,1}));
-  assert(!ta.nonzero({0,0,3}));
-  assert(!ta.nonzero({0,1,0}));
-  assert(!ta.nonzero({0,1,2}));
-  assert(!ta.nonzero({1,0,0}));
-  assert(!ta.nonzero({1,0,2}));
-  assert(!ta.nonzero({1,1,0}));
-  assert(!ta.nonzero({1,1,1}));
-  assert(!ta.nonzero({1,1,2}));
-  assert(!ta.nonzero({1,1,3}));
+  assert(!ta.nonzero({0_bd, 0_bd, 1_bd}));
+  assert(!ta.nonzero({0_bd, 0_bd, 3_bd}));
+  assert(!ta.nonzero({0_bd, 1_bd, 0_bd}));
+  assert(!ta.nonzero({0_bd, 1_bd, 2_bd}));
+  assert(!ta.nonzero({1_bd, 0_bd, 0_bd}));
+  assert(!ta.nonzero({1_bd, 0_bd, 2_bd}));
+  assert(!ta.nonzero({1_bd, 1_bd, 0_bd}));
+  assert(!ta.nonzero({1_bd, 1_bd, 1_bd}));
+  assert(!ta.nonzero({1_bd, 1_bd, 2_bd}));
+  assert(!ta.nonzero({1_bd, 1_bd, 3_bd}));
 
-  assert(ta.find_unique_block({0,0,0}) == TensorIndex({0,0,0}));
-  assert(ta.find_unique_block({0,1,0}) == TensorIndex({0,1,0}));
-  assert(ta.find_unique_block({1,0,2}) == TensorIndex({0,1,2}));
-  assert(ta.find_unique_block({0,1,3}) == TensorIndex({0,1,3}));
+  assert(ta.find_unique_block({0_bd, 0_bd, 0_bd}) == TensorIndex({0_bd, 0_bd, 0_bd}));
+  assert(ta.find_unique_block({0_bd, 1_bd, 0_bd}) == TensorIndex({0_bd, 1_bd, 0_bd}));
+  assert(ta.find_unique_block({1_bd, 0_bd, 2_bd}) == TensorIndex({0_bd, 1_bd, 2_bd}));
+  assert(ta.find_unique_block({0_bd, 1_bd, 3_bd}) == TensorIndex({0_bd, 1_bd, 3_bd}));
 
-  tensor_map(ta(), [] (Block& block) {
-      std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 2.0);
-    });
+  // tensor_map(ta(), [] (Block& block) {
+  //     std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 2.0);
+  //   });
 
-  auto block = ta.get({0,0,2});
-  for(unsigned i=0; i<block.size(); i++) {
-    assert(reinterpret_cast<double*>(block.buf())[i] == 2.0);
-  }
-  for(unsigned i=0; i<block.size(); i++) {
-    reinterpret_cast<double*>(block.buf())[i] += 4.0;
-  }
-  ta.add(block);
-  auto block2 = ta.get({0, 0, 2});
-  for(unsigned i=0; i<block.size(); i++) {
-    assert(reinterpret_cast<double*>(block.buf())[i] == 6.0);
-  }
+  // auto block = ta.get({0_bd, 0_bd, 2_bd});
+  // for(unsigned i=0; i<block.size(); i++) {
+  //   assert(reinterpret_cast<double*>(block.buf())[i] == 2.0);
+  // }
+  // for(unsigned i=0; i<block.size(); i++) {
+  //   reinterpret_cast<double*>(block.buf())[i] += 4.0;
+  // }
+  // ta.add(block);
+  // auto block2 = ta.get({0_bd, 0_bd, 2_bd});
+  // for(unsigned i=0; i<block.size(); i++) {
+  //   assert(reinterpret_cast<double*>(block.buf())[i] == 6.0);
+  // }
 
   TensorVec<SymmGroup> indicesb{SymmGroup{DimType::o}, SymmGroup{DimType::o}, SymmGroup{DimType::n}};
   //TensorVec<SymmGroup> indicesb{SymmGroup{DimType::o, DimType::o}, SymmGroup{DimType::n}};
   Tensor tb{indicesb, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
   tb.allocate();
-  
-  tensor_map(ta(), [] (Block& block) {
-      std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 4.0);
-    });
-  ta() += tb();
 
+  assert_zero(ta());
+    
+  tensor_map(ta(), [] (Block& block) {
+      std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 1.0);
+    });
+  // ta() += tb();
+  // tb() += ta();
+  // tensor_map(tb(), [] (Block& block) {
+  //     std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 1.0);
+  //   });
+  // ta() += -1.0 * tb();
+  // assert_zero(ta());
+
+  Tensor ta2{indices, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
+  ta2.allocate();
+  tensor_map(ta2(), [] (Block& block) {
+      std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 1.0);
+    });
+
+  std::cerr<<"----------------------------------"<<std::endl;
+  ta() += -1.0 * ta2();
+  std::cerr<<"----------------------------------"<<std::endl;
+  assert_zero(ta());
+  
+  ta2.destruct();
   ta.destruct();
   assert(!ta.constructed() && !ta.allocated() && !ta.attached());
   tb.destruct();

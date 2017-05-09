@@ -11,6 +11,7 @@
 #include "tammx/index_sort.h"
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 
 namespace tamm {
 
@@ -79,6 +80,7 @@ static inline size_t idx(int n, size_t *id, size_t *sz, int *p) {
   if (n > 0) {
     idx += id[p[n - 1]];
   }
+  std::cerr<<"idx return = "<<idx<<std::endl;
   return idx;
 }
 
@@ -96,6 +98,7 @@ void index_sort_3(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
     for (i[0] = 0, c = 0; i[0] < sz[0]; i[0]++) {
       for (i[1] = 0; i[1] < sz[1]; i[1]++) {
         for (i[2] = 0; i[2] < sz[2]; i[2]++, c++) {
+          std::cerr<<__FUNCTION__<<" sz="<<sz1<<", "<<sz2<<", "<<sz3<<std::endl;
           dbuf[idx(3, i, sz, p)] = alpha * sbuf[c];
         }
       }
@@ -203,6 +206,8 @@ void index_sortacc_3(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
     for (i[0] = 0, c = 0; i[0] < sz[0]; i[0]++) {
       for (i[1] = 0; i[1] < sz[1]; i[1]++) {
         for (i[2] = 0; i[2] < sz[2]; i[2]++) {
+          std::cerr<<__FUNCTION__<<" sz="<<sz1<<", "<<sz2<<", "<<sz3<<std::endl;
+          std::cerr<<__FUNCTION__<<" p="<<p1-1<<", "<<p2-1<<", "<<p3-1<<std::endl;
           dbuf[idx(3, i, sz, p)] += alpha * sbuf[c];
         }
       }
@@ -226,6 +231,7 @@ void index_sortacc_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
       for (i[1] = 0; i[1] < sz[1]; i[1]++) {
         for (i[2] = 0; i[2] < sz[2]; i[2]++) {
           for (i[3] = 0; i[3] < sz[3]; i[3]++, c++) {
+            std::cerr<<__FUNCTION__<<" sz="<<sz1<<", "<<sz2<<", "<<sz3<<", "<<sz4<<std::endl;
             dbuf[idx(4, i, sz, p)] += alpha * sbuf[c];
           }
         }

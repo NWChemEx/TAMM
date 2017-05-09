@@ -55,6 +55,8 @@
  * irrep_x
  * irrep_y
  * ccsd_var - from tce/include/tce_main.fh, defined in tce_input.F and passed on through tce_energy.F
+ * l_omegax - from tce_energy.F
+ * l_omegax - from tce_energy.F
  * ipol - from tce/include/tce_main.fh
  * nocc - from tce/include/tce_main.fh, integer nocc(2)
  * int_mb will be set through set_var_cxx_
@@ -74,28 +76,40 @@
 extern "C" {
   int util_print_(const std::string& str, const std::string& print_default);
   void tce_eom_init_();
-  void sym_irrepname_(F77Integer geom, int irrepp, const std::string irrepname);
+  void sym_irrepname_(Fint geom, int irrepp, const std::string irrepname);
   void tce_hbarinit_(double *hbar, const int hbard);
-  void tce_eom_ipxguess_(F77Integer *rtdb, bool needt1, bool needt2,
-          bool false_1, bool false_2, F77Integer *size_x1, F77Integer *size_x2,
-          F77Integer *dummy_1, F77Integer *dummy_2, F77Integer *k_x1_offset,
-          F77Integer *k_x2_offset, F77Integer *dummy_3, F77Integer *dummy_4);
-  void tce_eom_xdiagon_(bool needt1, bool needt2, bool false_1, bool false_1,
-          F77Integer *size_x1, F77Integer *size_x2, F77Integer *dummy_1,
-          F77Integer *dummy_2, F77Integer *k_x1_offset,
-          F77Integer *k_x2_offset, F77Integer *dummy_3, F77Integer *dummy_4,
-          F77Integer *k_x1_offset, F77Integer *k_x2_offset,
-          F77Integer *dummy_5, F77Integer *dummy_6, double *dbl_k_omegax,
-          double *dbl_k_residual, F77Integer *k_hbar, F77Integer *iter,
+  void tce_eom_ipxguess_(Fint *rtdb, bool needt1, bool needt2,
+          bool false_1, bool false_2, Fint *size_x1, Fint *size_x2,
+          Fint *dummy_1, Fint *dummy_2, Fint *k_x1_offset,
+          Fint *k_x2_offset, Fint *dummy_3, Fint *dummy_4);
+  void tce_eom_xdiagon_(bool needt1, bool needt2, bool false_1, bool false_2,
+          Fint *size_x1, Fint *size_x2, Fint *dummy_1,
+          Fint *dummy_2, Fint *k_x1_offset,
+          Fint *k_x2_offset, Fint *dummy_3, Fint *dummy_4,
+          Fint *k_x1_offset_, Fint *k_x2_offset_,
+          Fint *dummy_5, Fint *dummy_6, double *dbl_k_omegax,
+          double *dbl_k_residual, Fint *k_hbar, Fint *iter,
           bool eaccsd, bool ipccsd);
   double util_cpusec_();
   double util_wallsec_();
-  int ma_pop_stack_(F77Integer *l_residual);
+  int ma_pop_stack_(Fint *l_residual);
   void tce_eom_xtidy_();
-  void tce_print_ipx1_(Fint *xc1, F77Integer *k_x1_offset, double DECI,
+  void tce_print_ipx1_(Fint *xc1, Fint *k_x1_offset, double DECI,
           int irrep_x);
-  void tce_print_ipx2_(Fint *xc2, F77Integer *k_x2_offset, double DECI,
+  void tce_print_ipx2_(Fint *xc2, Fint *k_x2_offset, double DECI,
           int irrep_x);
+  void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo,
+		  Fint *d_t_vvoo, Fint *d_v2, Fint *d_x1, Fint *d_x2,
+		  Fint *k_f1_offset, Fint *k_i0_offset,
+		  Fint *k_t_vo_offset, Fint *k_t_vvoo_offset,
+		  Fint *k_v2_offset, Fint *k_x1_offset,
+		  Fint *k_x2_offset);
+  void ipccsd_x2_cxx_(Fint *d_f, Fint *d_i0, Fint *d_t_vo,
+          Fint *d_t_vvoo, Fint *d_v, Fint *d_x_o,
+          Fint *d_x_voo, Fint *k_f_offset, Fint *k_i0_offset,
+          Fint *k_t_vo_offset, Fint *k_t_vvoo_offset,
+          Fint *k_v_offset, Fint *k_x_o_offset,
+          Fint *k_x_voo_offset);
 }
 
 int ga_nodeid() {
@@ -139,84 +153,73 @@ void tce_filename_cxx_(Fint index, const std::string& xc_count) {
   tensor->attach(k_a, l_a, d_a);
 }*/
 
-void tce_ipx1_offset_(F77Integer *l_x1_offset, F77Integer *k_x1_offset,
-                         F77Integer *size_x1);
-
-void tce_ipx2_offset_(F77Integer *l_x2_offset, F77Integer *k_x2_offset,
-                         F77Integer *size_x2);
 
 // class Tensor;
 using Irrep = int;
 
-static Fint xc1[maxtrials];
+/*static Fint xc1[maxtrials];
 static Fint xc2[maxtrials];
 static Fint xp1[maxtrials];
-static Fint xp2[maxtrials];
+static Fint xp2[maxtrials];*/
+
 
 extern "C" {
 void ip_ccsd_driver_cxx_(
   // Tensor& d_e, Tensor& d_f,
   // Tensor& tv2, Tensor& d_1, Tensor& d_t2
-  F77Integer *d_e, F77Integer *d_f1, F77Integer *d_v2, F77Integer *d_t2,
-  F77Integer *k_e_offset, F77Integer *k_f1_offset, F77Integer *k_v2_offset,
-  F77Integer *k_t1_offset, F77Integer *k_t2_offset, F77Integer *rtdb,
-  F77Integer *size_x1, F77Integer *size_x2, F77Integer *k_irs,
-  F77Integer nirreps) {
-  double cpu, wall;
-  double r1, r2;
-  double residual;
-  Fint irrep;            // Symmetry loop index
-  F77Integer l_hbar, k_hbar;
+  Fint *d_e, Fint *d_f1, Fint *d_v2, Fint *d_t1,
+  Fint *d_t2, Fint *k_e_offset, Fint *k_f1_offset,
+  Fint *k_v2_offset,   Fint *k_t1_offset, Fint *k_t2_offset,
+  Fint *rtdb, Fint *size_x1, Fint *size_x2, Fint *k_irs,
+  Fint nirreps, double &cpu, double &wall) {
+	Fint x1[maxtrials];
+	Fint x2[maxtrials];
+
+	//double cpu, wall;
+  //double r1, r2;
+  //double residual;
+  //Fint irrep;            // Symmetry loop index
+  Fint *l_hbar;
+  Fint *k_hbar;
   Fint l_residual, k_residual;
-  F77Integer l_omegax, k_omegax;
-  F77Integer l_x1_offset, k_x1_offset;
-  F77Integer l_x2_offset, k_x2_offset;
-  Fint ivec, jvec;        // Current trial vector
-  F77Integer d_rx1;            // RHS residual file
-  F77Integer d_rx2;            // RHS residual file
-  double au2ev;    // Conversion factor from a.u. to eV
+  Fint *l_omegax;
+  Fint *k_omegax;
+  Fint *l_x1_offset;
+  Fint *k_x1_offset;
+  Fint *l_x2_offset;
+  Fint *k_x2_offset;
+  //Fint ivec, jvec;        // Current trial vector
+  //Fint d_rx1;            // RHS residual file
+  //Fint d_rx2;            // RHS residual file
+  //double au2ev;    // Conversion factor from a.u. to eV
 
-  bool ipccsd, eaccsd;
-  bool converged;
-  bool nodezero;
-
-  std::string filename;
+  //std::string filename;
 
   std::map<std::string, tamm::Tensor> tensors;
   tamm::Tensor *tce_ipx1 = &tensors["tce_ipx1"];
   tamm::Tensor *tce_ipx2 = &tensors["tce_ipx2"];
 
-  bool needt1, needt2;
-  F77Integer dummy;
-  needt1 = true;
-  needt2 = true;
-  dummy = 0;
+  //bool needt1 = true, needt2 = true;
+  Fint dummy = 0;
 
-  F77Integer ip_unused_spin = 1;
-  F77Integer ip_unused_sym = 0;
+  //Fint ip_unused_spin = 1;
+  //Fint ip_unused_sym = 0;
   nodezero_print("\nIPCCSD calculation");
 
-  Fint eom_solver = 2;  // eom_solver will be passed on from Fortran
-  if (eom_solver == 2) {
-    eom_solver = 1;
-  }
-
-  std::string ccsd_var = "ic";  // ccsd_var will be passed on from Fortran
-  if (ccsd_var == "ic") {
-    ccsd_var = "xx";
-  }
+  // @todo eom_solver global variable fix
+  // @todo ccsd_var global variable fix
 
   Irrep irrep_g = 0;          // Ground state symmetry
   Fint ipol = 2;  // ipol will be passed on from Fortran
   static Fint nocc[2];  // will be passed on from Fortran
-  F77Integer *int_mb = tamm::Variables::int_mb();
+  Fint *int_mb = tamm::Variables::int_mb();
   /* Alternatively set as under
    * Variables:: set_idmb(int_mb, dbl_mb);
    */
-  Fint i, j;
+//  Fint i, j;
   if (ipol == 2) {
-    for (i = 1; i <= 2; i++) {
-      for (j = 1; i <= nocc[i]; j++) {
+    for (int i = 1; i <= 2; i++) {
+      for (int j = 1; i <= nocc[i]; j++) {
         irrep_g = irrep_g ^ int_mb[k_irs[i]+j-1];  // k_irs tce_main
       }
     }
@@ -234,17 +237,16 @@ void ip_ccsd_driver_cxx_(
   }
   bool symmetry = true;  // symmetry will be passed from Fortran
   std::string targetsym;  // targetsym will be passed from Fortran
-  Irrep irrep_x, irrep_y;
-  for (Irrep irrep = 0; irrep <= nirreps-1;
-      irrep++) {  // main irreps loop ===================
-    irrep_x = irrep;
-    irrep_y = irrep;
+  for (Irrep irrep = 0; irrep <= nirreps-1; irrep++) {
+	// main irreps loop ===================
+    Irrep irrep_x = irrep;
+    Irrep irrep_y = irrep;
     sym_irrepname_(geom, (irrep_x ^ irrep_g)+1, irrepname);
     if ((!symmetry) || (targetsym == irrepname)) {  // main
       tce_eom_init_();
       if (util_print_("eom", print_default)) {
-        nodezero_print("=========================================\n"
-        "Excited-state calculation ( "+irrepname+" symmetry)==\n");
+    	  nodezero_print("=========================================\n" +
+    			  "Excited-state calculation ( "+irrepname+" symmetry)==\n");
       }
       const int hbard = 4;
       double *hbar = new double[hbard*hbard];
@@ -262,165 +264,138 @@ void ip_ccsd_driver_cxx_(
 /* We use the code in equations.cc line 135 to create new tensors
  * for now using CorFortran function
  */
-      Tensor tce_ipx1();
+      Tensor d_rx1 = tce_ipx1();
       // CorFortran(1, &tce_ipx1, tce_ipx1_offset_);
       // tce_ipx1_offset(l_x1_offset,k_x1_offset,size_x1)
       // tce_filename('rx1',filename)
       // createfile(filename,d_rx1,size_x1)
 
-      Tensor tce_ipx2();
+      Tensor d_rx2 = tce_ipx2();
       // CorFortran(1, &tce_ipx2, tce_ipx2_offset_);
       // tce_ipx2_offset(l_x2_offset,k_x2_offset,size_x2)
       // tce_filename('rx2',filename)
       // createfile(filename,d_rx2,size_x2)
+      }
+
+      //         ------------------------------
+      //         Generate initial trial vectors
+      //         ------------------------------
+      //
+      // use fortran function for tce_eom_ipxguess
+      //eom_ipxguess(x1, x2);
+      tce_eom_ipxguess_(rtdb, true, true, false, false,
+        size_x1, size_x2, &dummy, &dummy, k_x1_offset,
+        k_x2_offset, &dummy, &dummy);
+      //
+      Expects(nxtrials >= 0, "tce_ip_ccsdinitial space problems");
+	  //
+
+/*     Tensor *xc1;
+      Tensor *xc2;
+      Tensor *xp1;
+      Tensor *xp;
+      xc1 = new Tensor[nroots_reduced];
+      xc2 = new Tensor[nroots_reduced];
+      xp1 = new Tensor[nroots_reduced];
+      xp2 = new Tensor[nroots_reduced];*/
+
+    Tensor *xc1[nroots_reduced] = {nullptr};
+    Tensor *xc2[nroots_reduced] = {nullptr};
+    Tensor *xp1[nroots_reduced] = {nullptr};
+    Tensor *xp2[nroots_reduced] = {nullptr};
+
+    // make an indexed createfile equivalent function
+    for (int ivec=1; ivec<= nroots_reduced; ivec++) {
+/*
+      tce_filenameindexed_(ivec,'xc1',&filename); // in tce/tce_filename.F
+      createfile_(filename,xc1(ivec),size_x1); // xc1 in tce/include/tce_diss.fh
+      xc1_exist_(ivec) = true; // defined in tce_diis.fh
+      tce_filenameindexed_(ivec,'xc2',&filename);
+      createfile(filename,xc2(ivec),size_x2); // xc2 in tce/include/tce_diss.fh
+      xc2_exist_(ivec) = true; // defined in tce_diis.fh
+*/
+      // create xc1 related objects
+      // xc1[ivec-1] = new Tensor(ivec-1);
+    	xc1[ivec-1] = tamm::Tensor::create();  // further define
+
+      // create xc2 related objects
+      // xc2[ivec-1] = new Tensor(ivec-1);
+    	xc2[ivec-1] = tamm::Tensor::create();  // further define
     }
 
-    //         ------------------------------
-    //         Generate initial trial vectors
-    //         ------------------------------
-    //
-    // use fortran function for tce_eom_ipxguess
-    tce_eom_ipxguess_(rtdb, true, true, false, false,
-      size_x1, size_x2, &dummy, &dummy, &k_x1_offset,
-      &k_x2_offset, &dummy, &dummy);
-  //
-  Expects(nxtrials >= 0, "tce_ip_ccsdinitial space problems");
-  //
+    bool converged = false;
+    while (!converged) {  // loop to check for convergence
+      for (Fint iter=1; iter<= maxiter; iter++) {  // main loop
+        if (util_print_("eom", print_default)) {
+          nodezero_print("9210 " + std::to_string(iter) +
+              ", " + std::to_string(nxtrials));
+        }
+        for (int ivec = 1; ivec <= nxtrials; ivec++) {  // nxtrials loop
+          if (!xp1[ivec-1]) {  // uuu1
 
-  Tensor *xc1_array;
-  Tensor *xc2_array;
-  Tensor *xp1_array;
-  Tensor *xp_array;
-
-  xc1_array = new Tensor[nroots_reduced];
-  xc2_array = new Tensor[nroots_reduced];
-  xp1_array = new Tensor[nroots_reduced];
-  xp2_array = new Tensor[nroots_reduced];
-
-  const bool xc1_exist[nroots_reduced];
-  const bool xc2_exist[nroots_reduced];
-  const bool xp1_exist[nroots_reduced];
-  const bool xp2_exist[nroots_reduced];
-
-  // make an indexed createfile equivalent function
-  for (int ivec=1; ivec<= nroots_reduced; ivec++) {
-/*
-  tce_filenameindexed_(ivec,'xc1',&filename); // in tce/tce_filename.F
-  createfile_(filename,xc1(ivec),size_x1); // xc1 in tce/include/tce_diss.fh
-  xc1_exist_(ivec) = true; // defined in tce_diis.fh
-  tce_filenameindexed_(ivec,'xc2',&filename);
-  createfile(filename,xc2(ivec),size_x2); // xc2 in tce/include/tce_diss.fh
-  xc2_exist_(ivec) = true; // defined in tce_diis.fh
+/*          tce_filenameindexed(ivec,'xp1',filename);
+            createfile(filename,xp1(ivec),size_x1);
+            xp1_exist(ivec) = true;
 */
-  // create xc1 related objects
-  // xc1_array[ivec-1] = new Tensor(ivec-1);
-  xc1_array[ivec-1] -> tamm::Tensor::create();  // further define
-  xc1_exist[ivec-1] = true;
+            xp1[ivec-1] =  tamm::Tensor::create();  // further define
+            ipccsd_x1_cxx_(d_f1, &xp1[ivec], d_t1, d_t2, d_v2, &x1[ivec],
+                    x2[ivec], k_f1_offset, k_x2_offset, k_t1_offset,
+                    k_t2_offset, k_v2_offset, k_x1_offset, k_x2_offset);
+          }  // if xp1_exist(ivec)
+          // reconcilefile(xp1(ivec),size_x1); not required here
+          if (!xp2[ivec-1]) {  // if xp2_exist
+            // tce_filenameindexed(ivec,'xp2',filename);
+            // createfile(filename,xp2(ivec),size_x2);
+            // xp2_exist(ivec) = true;
+            xp2[ivec-1] =  tamm::Tensor::create();
 
-  // create xc2 related objects
-  // xc2_array[ivec-1] = new Tensor(ivec-1);
-  xc2_array[ivec-1] -> tamm::Tensor::create();  // further define
-  xc2_exist[ivec-1] = true;
-  }
-
-  converged = false;
-  F77Integer iter;
-  while (!converged) {  // loop to check for convergence
-    for (iter=1; iter<=maxiter; iter++) {  // main loop
-      if (util_print('eom', print_default)) {
-        nodezero_print("9210 " + std::to_string(iter) +
-            ", ", + std::to_string(nxtrials));
-      }
-      for (int ivec = 1; ivec <= nxtrials; ivec++) {  // nxtrials loop
-        if (!xp1_exist[ivec-1]) {  // uuu1
-
-/*        tce_filenameindexed(ivec,'xp1',filename);
-          createfile(filename,xp1(ivec),size_x1);
-          xp1_exist(ivec) = true;
-*/
-
-          xp1_array[ivec-1] -> tamm::Tensor::create(); //further define
-          xp1_exist[ivec-1] = true;
-
-          ipccsd_x1_cxx(d_f1,xp1(ivec),d_t1,d_t2,d_v2,x1(ivec),
-	  	  		  x2(ivec));
-//	  	ipccsd_x1_cxx_(d_f1,xp1(ivec),d_t1,d_t2,d_v2,x1(ivec),
-//	  		  x2(ivec),
-//	  		  k_f1_offset,k_x1_offset,k_t1_offset,
-//	  		  k_t2_offset,k_v2_offset,k_x1_offset,
-//	  		  k_x2_offset);
-	      } // if xp1_exist(ivec)
-
-	      //reconcilefile(xp1(ivec),size_x1);
-	        // 
-	        if (!xp2_exist[ivec-1]) // following block will use c++ utilities
-	  	{ //if xp2_exist
-#if 0
-	  	  tce_filenameindexed(ivec,'xp2',filename);
-	  	  createfile(filename,xp2(ivec),size_x2);
-	  	  xp2_exist(ivec) = true;
-#else
-		  xp2_array[ivec-1] -> create();
-	      xp2_exist[ivec-1] = true;
-#endif
-	  	    ipccsd_x2_cxx_(d_f1,xp2(ivec),d_t1,d_t2,d_v2,x1(ivec),
-	  		      x2(ivec),
-	  		      k_f1_offset,k_x2_offset,k_t1_offset,
-	  		      k_t2_offset,k_v2_offset,k_x1_offset,
-	  		      k_x2_offset);
-	  	    } // if xp2_exist(ivec)
-	      //
-	      //reconcilefile(xp2(ivec),size_x2) // use c++ utilities of of file creation
-	        //
-	        } // nxtrials loop
-	    //
-	    if (!ma_push_get(mt_dbl,nxtrials,'residual',
-	  		   1      l_residual,k_residual))
-	      2      errquit('tce_energy: MA problem',101,MA_ERR)
-          double dbl_k_omegax = static_cast <double>(k_omegax);
+            ipccsd_x2_cxx_(d_f1, &x2[ivec], d_t1, d_t2, d_v2, &x1[ivec],
+                    &x2[ivec], k_f1_offset, k_x2_offset, k_t1_offset,
+                    k_t2_offset, k_v2_offset, k_x1_offset, k_x2_offset);
+          }  // if xp2_exist(ivec)
+        // reconcilefile(xp2(ivec),size_x2); not required here
+        }  // nxtrials loop
+        // if (!ma_push_get(mt_dbl,nxtrials,'residual',
+        //     1      l_residual,k_residual))
+        //     2      errquit('tce_energy: MA problem',101,MA_ERR)
+        double dbl_k_omegax = static_cast <double>(k_omegax);
         double dbl_k_residual = static_cast <double>(k_residual);
-          tce_eom_xdiagon_(needt1, needt2, false, false,
-                   size_x1, size_x2, &dummy, &dummy,
-                   &k_x1_offset, &k_x2_offset, &dummy, &dummy,
-                   &d_rx1, &d_rx2, &dummy, &dummy,
-                   &dbl_k_omegax, &dbl_k_residual, &k_hbar, &iter,
-                   eaccsd, ipccsd);
+        tce_eom_xdiagon_(needt1, needt2, false, false,
+                 size_x1, size_x2, &dummy, &dummy,
+                 k_x1_offset, k_x2_offset, &dummy, &dummy,
+                 &d_rx1, &d_rx2, &dummy, &dummy,
+                 &dbl_k_omegax, &dbl_k_residual, k_hbar, &iter,
+                 false, true);
 
         cpu = cpu + util_cpusec_();
         wall = wall + util_wallsec_();
         converged = true;
-        for (ivec = 1; ivec <= nroots_reduced; ivec++) {
-          if (nodezero && (ivec != nroots_reduced))
-/*          1            write(LuOut,9230) dbl_mb(k_residual+ivec-1),
-	      	2            dbl_mb(k_omegax+ivec-1),
-	    	3            dbl_mb(k_omegax+ivec-1)*au2ev*/
+        for (int ivec = 1; ivec <= nroots_reduced; ivec++) {
+          if (ivec != nroots_reduced) {
             nodezero_print(
               std::to_string(static_cast <double>(k_residual+ivec-1))
               + ", " + std::to_string(static_cast <double>(k_omegax+ivec-1))
               + ", "
               + std::to_string(static_cast <double>((k_omegax+ivec-1)*au2ev)));
-
-          if (nodezero && (ivec == nroots_reduced))
-/*	  	    1            write(LuOut,9230) dbl_mb(k_residual+ivec-1),
-	  	    2            dbl_mb(k_omegax+ivec-1),
-	  	    3            dbl_mb(k_omegax+ivec-1)*au2ev,cpu,wall*/
+          } else {
             nodezero_print(
-                std::to_string(static_cast <double>(k_residual+ivec-1))
-                + ", " + std::to_string(static_cast <double>(k_omegax+ivec-1))
-                + ", "
-                + std::to_string(static_cast <double>((k_omegax+ivec-1)*au2ev))
-                + ", " + std::to_string(static_cast <double>(cpu))
-                + ", " + std::to_string(static_cast <double>(wall)));
-          // if (nodezero) util_flush_(LuOut);
+              std::to_string(static_cast <double>(k_residual+ivec-1))
+              + ", " + std::to_string(static_cast <double>(k_omegax+ivec-1))
+              + ", "
+              + std::to_string(static_cast <double>((k_omegax+ivec-1)*au2ev))
+              + ", " + std::to_string(static_cast <double>(cpu))
+              + ", " + std::to_string(static_cast <double>(wall)));
+          }
           nodezero_print("\n");  // check util_flush
           if (static_cast <double>(k_residual+ivec-1) > thresh)
-             converged = false;
+            converged = false;
         }  // nroots_reduced for loop
         cpu =- util_cpusec_();
         wall =- util_wallsec();
-        if (!ma_pop_stack_(&l_residual))
+        delete [] residual;
+        //if (!ma_pop_stack_(&l_residual))
           // errquit_("tce_energy: MA problem",102,MA_ERR);
-          nodezero_print("tce_energy: MA problem" + ", 102, " + MA_ERR);
+          //nodezero_print("tce_energy: MA problem" + ", 102, " + MA_ERR);
         if (converged) {
           tce_eom_xtidy_();
           if (nodezero) {
@@ -429,39 +404,41 @@ void ip_ccsd_driver_cxx_(
             nodezero_print("largest EOMCCSD amplitudes: R1 && R2\n");
           }
           for (jvec=1; jvec <= nroots_reduced; jvec++) {
-            tce_print_ipx1_(&xc1[jvec-1], &k_x1_offset, DECI, irrep_x);
-            tce_print_ipx2_(&xc2[jvec-1], &k_x2_offset, DECI, irrep_x);
+            tce_print_ipx1_(&xc1[jvec-1], k_x1_offset, DECI, irrep_x);
+            tce_print_ipx2_(&xc2[jvec-1], k_x2_offset, DECI, irrep_x);
             nodezero_print("\n");  // check util_flush
           }  // nroots_reduced for loop
         }  // converged
       }  // main loop
-  }  // loop to check convergence
-  for (ivec=1; ivec <= nroots_reduced; ivec++) {
-    if (xc1_exist[ivec-1]) xc1_array[ivec-1] -> tamm::Tensor::destroy();
-    if (xc2_exist[ivec-1]) xc2_array[ivec-1] -> tamm::Tensor::destroy();
-    if (xp1_exist[ivec-1]) xp1_array[ivec-1] -> tamm::Tensor::destroy();
-    if (xp2_exist[ivec-1]) xp2_array[ivec-1] -> tamm::Tensor::destroy();
-  }
-  }  // end of ((!symmetry) || (targetsym == irrepname))
-      // delete l_x2_offset
-  if (!ma_pop_stack(l_x2_offset))
-	// errquit_("tce_energy: IP_EA problem 1",36,MA_ERR);
-    std::cerr<<"tce_energy: IP_EA problem 1"<<"36"<<"MA_ERR"<<std::endl;
-      // delete l_x1_offset
-  if (!ma_pop_stack(l_x1_offset))
-	// errquit_("tce_energy: IP_EA problem 2",36,MA_ERR);
-    std::cerr<<"tce_energy: IP_EA problem 2"<<"36"<<"MA_ERR"<<std::endl;
-      // delete k_omegax
-  if (!ma_pop_stack(l_omegax))
-	// errquit("tce_energy: IP_EA problem 3",102,MA_ERR);
-    std::cerr<<"tce_energy: IP_EA problem 3"<<"102"<<"MA_ERR"<<std::endl;
-      // delete hbard
-  if (!ma_pop_stack(l_hbar))
-	// errquit_('tce_eom_xdiagon: MA problem',12,MA_ERR);
-    std::cerr<<"tce_eom_xdiagon: MA problem"<<"12"<<"MA_ERR"<<std::endl;
-      //
-    } //no symm or targetsym
-  }// main irreps loop ===================
+    }  // loop to check convergence
+    for (int ivec=1; ivec <= nroots_reduced; ivec++) {
+      if (xc1[ivec-1]) xc1[ivec-1] -> destroy();
+      if (xc2[ivec-1]) xc2[ivec-1] -> tamm::Tensor::destroy();
+      if (xp1[ivec-1]) xp1[ivec-1] -> tamm::Tensor::destroy();
+      if (xp2[ivec-1]) xp2[ivec-1] -> tamm::Tensor::destroy();
+    }
+    // delete l_x2_offset
+    delete [] x2_offset;
+    //if (!ma_pop_stack_(l_x2_offset))
+      // errquit_("tce_energy: IP_EA problem 1",36,MA_ERR);
+      //nodezero_print("tce_energy: IP_EA problem 1" + ", 36, " + MA_ERR);
+    // delete l_x1_offset
+    delete [] x1_offset;
+    //if (!ma_pop_stack_(l_x1_offset))
+      // errquit_("tce_energy: IP_EA problem 2",36,MA_ERR);
+    //  nodezero_print("tce_energy: IP_EA problem 2" + ", 36, " + MA_ERR);
+    // delete k_omegax
+    delete [] omegax;
+    //if (!ma_pop_stack_(l_omegax))
+      // errquit("tce_energy: IP_EA problem 3",102,MA_ERR);
+      //nodezero_print("tce_energy: IP_EA problem 3" + ", 102, " + MA_ERR);
+    // delete hbard
+    delete [] hbar;
+    //if (!ma_pop_stack_(l_hbar))
+      // errquit_('tce_eom_xdiagon: MA problem',12,MA_ERR);
+      //nodezero_print("tce_eom_xdiagon: MA problem" + ", 12, " + MA_ERR);
+    }  // end of ((!symmetry) || (targetsym == irrepname))
+  }  // main irreps loop ===================
   //
   //
   //  9210 format(/,1x,'Iteration ',i3,' using ',i4,' trial vectors')

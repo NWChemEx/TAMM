@@ -2490,45 +2490,45 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
   parallel_work(aitr, aitr.get_end(), lambda);
 }
 
-inline void
-operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
-  double alpha = std::get<0>(rhs);
-  std::cerr<<"ALPHA="<<alpha<<std::endl;
-  const LabeledTensor& lta = std::get<1>(rhs);
-  Tensor& ta = *lta.tensor_;
-  Tensor& tc = *ltc.tensor_;
-  //check for validity of parameters
-  auto aitr = loop_iterator(ta.indices());
-  auto lambda = [&] (const TensorIndex& ablockid) {
-    size_t dima = ta.block_size(ablockid);
-    if(ta.nonzero(ablockid) && dima>0) {
-      auto label_map = LabelMap()
-          .update(lta.label_, ablockid);
-      auto cblockid = label_map.get_blockid(ltc.label_);
-      auto abp = ta.get(ablockid);
-      auto cbp = tc.alloc(cblockid);
-      cbp(ltc.label_) += alpha * abp(lta.label_);
+// inline void
+// operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
+//   double alpha = std::get<0>(rhs);
+//   std::cerr<<"ALPHA="<<alpha<<std::endl;
+//   const LabeledTensor& lta = std::get<1>(rhs);
+//   Tensor& ta = *lta.tensor_;
+//   Tensor& tc = *ltc.tensor_;
+//   //check for validity of parameters
+//   auto aitr = loop_iterator(ta.indices());
+//   auto lambda = [&] (const TensorIndex& ablockid) {
+//     size_t dima = ta.block_size(ablockid);
+//     if(ta.nonzero(ablockid) && dima>0) {
+//       auto label_map = LabelMap()
+//           .update(lta.label_, ablockid);
+//       auto cblockid = label_map.get_blockid(ltc.label_);
+//       auto abp = ta.get(ablockid);
+//       auto cbp = tc.alloc(cblockid);
+//       cbp(ltc.label_) += alpha * abp(lta.label_);
 
-      auto csbp = tc.alloc(tc.find_unique_block(cblockid));
-      csbp().init(0);
+//       auto csbp = tc.alloc(tc.find_unique_block(cblockid));
+//       csbp().init(0);
 
-      auto copy_symm = copy_symmetrizer(ltc, lta, label_map);      
-      auto copy_itr = copy_iterator(copy_symm);
-      auto copy_itr_last = copy_itr.get_end();
-      auto copy_label = TensorLabel(ltc.label_.size());
-      std::iota(copy_label.begin(), copy_label.end(), 0);
-      for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
-        auto perm = *citr;
-        std::cerr<<"copy itr. *itr = perm= "<<perm<<std::endl;
-        auto num_inversions = perm_count_inversions(perm);
-        Sign sign = (num_inversions%2) ? -1 : 1;
-        csbp(copy_label) += sign * cbp(perm);
-      }
-      tc.add(csbp);
-    }
-  };
-  parallel_work(aitr, aitr.get_end(), lambda);
-}
+//       auto copy_symm = copy_symmetrizer(ltc, lta, label_map);      
+//       auto copy_itr = copy_iterator(copy_symm);
+//       auto copy_itr_last = copy_itr.get_end();
+//       auto copy_label = TensorLabel(ltc.label_.size());
+//       std::iota(copy_label.begin(), copy_label.end(), 0);
+//       for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
+//         auto perm = *citr;
+//         std::cerr<<"copy itr. *itr = perm= "<<perm<<std::endl;
+//         auto num_inversions = perm_count_inversions(perm);
+//         Sign sign = (num_inversions%2) ? -1 : 1;
+//         csbp(copy_label) += sign * cbp(perm);
+//       }
+//       tc.add(csbp);
+//     }
+//   };
+//   parallel_work(aitr, aitr.get_end(), lambda);
+// }
 
 inline void
 tensor_init(LabeledTensor ltc, double value) {

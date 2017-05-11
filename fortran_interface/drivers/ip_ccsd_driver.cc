@@ -99,11 +99,11 @@ extern "C" {
   void tce_print_ipx2_(Fint *xc2, Fint *k_x2_offset, double DECI,
           int irrep_x);
   void ipccsd_x1_cxx_(Fint *d_f1, Fint *d_i0, Fint *d_t_vo,
-		  Fint *d_t_vvoo, Fint *d_v2, Fint *d_x1, Fint *d_x2,
-		  Fint *k_f1_offset, Fint *k_i0_offset,
-		  Fint *k_t_vo_offset, Fint *k_t_vvoo_offset,
-		  Fint *k_v2_offset, Fint *k_x1_offset,
-		  Fint *k_x2_offset);
+          Fint *d_t_vvoo, Fint *d_v2, Fint *d_x1, Fint *d_x2,
+          Fint *k_f1_offset, Fint *k_i0_offset,
+          Fint *k_t_vo_offset, Fint *k_t_vvoo_offset,
+          Fint *k_v2_offset, Fint *k_x1_offset,
+          Fint *k_x2_offset);
   void ipccsd_x2_cxx_(Fint *d_f, Fint *d_i0, Fint *d_t_vo,
           Fint *d_t_vvoo, Fint *d_v, Fint *d_x_o,
           Fint *d_x_voo, Fint *k_f_offset, Fint *k_i0_offset,
@@ -160,9 +160,9 @@ void tce_eom_xdiagon_cxx_(Fint *size_x1, Fint *size_x2, Fint *k_x1_offset,
     bool dummy_f = false;
     Fint dummy_int = 0;
   tce_eom_xdiagon_(&dummy_t, &dummy_t, &dummy_f, &dummy_f,
-		  size_x1, size_x2, &dummy_int, &dummy_int,
-		  k_x1_offset, k_x2_offset, &dummy_int, &dummy_int,
-		  &d_rx1, &d_rx2, &dummy_int, &dummy_int,
+          size_x1, size_x2, &dummy_int, &dummy_int,
+          k_x1_offset, k_x2_offset, &dummy_int, &dummy_int,
+          &d_rx1, &d_rx2, &dummy_int, &dummy_int,
           dbl_k_omegax, dbl_k_residual, k_hbar, iter,
           &dummy_f, &dummy_f);
 }
@@ -196,13 +196,13 @@ void ip_ccsd_driver_cxx_(
   Fint *k_v2_offset,   Fint *k_t1_offset, Fint *k_t2_offset,
   Fint *rtdb, Fint *size_x1, Fint *size_x2, Fint *k_irs,
   Fint nirreps, double &cpu, double &wall) {
-	Fint x1[maxtrials];
-	Fint x2[maxtrials];
+  Fint x1[maxtrials];
+  Fint x2[maxtrials];
 
-	//double cpu, wall;
-  //double r1, r2;
-  //double residual;
-  //Fint irrep;            // Symmetry loop index
+  // double cpu, wall;
+  // double r1, r2;
+  // double residual;
+  // Fint irrep;            // Symmetry loop index
   Fint *l_hbar;
   Fint *k_hbar;
   Fint l_residual, k_residual;
@@ -212,22 +212,20 @@ void ip_ccsd_driver_cxx_(
   Fint *k_x1_offset;
   Fint *l_x2_offset;
   Fint *k_x2_offset;
-  //Fint ivec, jvec;        // Current trial vector
-  //Fint d_rx1;            // RHS residual file
-  //Fint d_rx2;            // RHS residual file
-  //double au2ev;    // Conversion factor from a.u. to eV
+  // Fint ivec, jvec;        // Current trial vector
+  // Fint d_rx1;            // RHS residual file
+  // Fint d_rx2;            // RHS residual file
+  // double au2ev;    // Conversion factor from a.u. to eV
 
-  //std::string filename;
+  // std::string filename;
 
   std::map<std::string, tamm::Tensor> tensors;
-  tamm::Tensor *tce_ipx1 = &tensors["tce_ipx1"];
-  tamm::Tensor *tce_ipx2 = &tensors["tce_ipx2"];
 
-  //bool needt1 = true, needt2 = true;
+  // bool needt1 = true, needt2 = true;
   Fint dummy = 0;
 
-  //Fint ip_unused_spin = 1;
-  //Fint ip_unused_sym = 0;
+  // Fint ip_unused_spin = 1;
+  // Fint ip_unused_sym = 0;
   nodezero_print("\nIPCCSD calculation");
 
   // @todo eom_solver global variable fix
@@ -262,15 +260,15 @@ void ip_ccsd_driver_cxx_(
   bool symmetry = true;  // symmetry will be passed from Fortran
   std::string targetsym;  // targetsym will be passed from Fortran
   for (Irrep irrep = 0; irrep <= nirreps-1; irrep++) {
-	// main irreps loop ===================
+    // main irreps loop ===================
     Irrep irrep_x = irrep;
     Irrep irrep_y = irrep;
     sym_irrepname_(geom, (irrep_x ^ irrep_g)+1, irrepname);
     if ((!symmetry) || (targetsym == irrepname)) {  // main
       tce_eom_init_();
       if (util_print_("eom", print_default)) {
-    	  nodezero_print("=========================================\n" +
-    			  "Excited-state calculation ( "+irrepname+" symmetry)==\n");
+          nodezero_print("=========================================\n" +
+                  "Excited-state calculation ( "+irrepname+" symmetry)==\n");
       }
       const int hbard = 4;
       double *hbar = new double[hbard*hbard];
@@ -288,15 +286,21 @@ void ip_ccsd_driver_cxx_(
 /* We use the code in equations.cc line 135 to create new tensors
  * for now using CorFortran function
  */
-      Tensor *d_rx1 = {nullptr};  // tce_ipx1();
-      d_rx1 = tamm::Tensor::create();
+      std::map<std::string, tamm::Tensor> tensors;
+
+
+      tamm::Tensor *d_rx1 = new tamm::Tensor
+              (2, 1, 0, {1, 0}, tamm::dist_nw);  // tce_ipx1();
+      d_rx1->create();
       // CorFortran(1, &tce_ipx1, tce_ipx1_offset_);
       // tce_ipx1_offset(l_x1_offset,k_x1_offset,size_x1)
       // tce_filename('rx1',filename)
       // createfile(filename,d_rx1,size_x1)
 
-      Tensor *d_rx2 = {nullptr};  // tce_ipx2();
-      d_rx2 = tamm::Tensor::create();
+      tamm::Tensor *d_rx2 = new tamm::Tensor
+              (4, 2, 0, {1, 1, 0, 0}, tamm::dist_nw);  // tce_ipx1();
+      d_rx1->create();
+      // Tensor *d_rx2 = {nullptr};  // tce_ipx2();
       // CorFortran(1, &tce_ipx2, tce_ipx2_offset_);
       // tce_ipx2_offset(l_x2_offset,k_x2_offset,size_x2)
       // tce_filename('rx2',filename)
@@ -354,7 +358,6 @@ void ip_ccsd_driver_cxx_(
         }
         for (int ivec = 1; ivec <= nxtrials; ivec++) {  // nxtrials loop
           if (!xp1[ivec-1]) {  // uuu1
-
 /*          tce_filenameindexed(ivec,'xp1',filename);
             createfile(filename,xp1(ivec),size_x1);
             xp1_exist(ivec) = true;
@@ -418,9 +421,9 @@ void ip_ccsd_driver_cxx_(
         cpu =- util_cpusec_();
         wall =- util_wallsec();
         delete [] residual;
-        //if (!ma_pop_stack_(&l_residual))
-          // errquit_("tce_energy: MA problem",102,MA_ERR);
-          //nodezero_print("tce_energy: MA problem" + ", 102, " + MA_ERR);
+        // if (!ma_pop_stack_(&l_residual))
+        // errquit_("tce_energy: MA problem",102,MA_ERR);
+        // nodezero_print("tce_energy: MA problem" + ", 102, " + MA_ERR);
         if (converged) {
           tce_eom_xtidy_();
           if (nodezero) {
@@ -443,12 +446,12 @@ void ip_ccsd_driver_cxx_(
       if (xp2[ivec-1]) xp2[ivec-1] -> tamm::Tensor::destroy();
     }
     // delete l_x2_offset
-    delete [] x2_offset;
-    //if (!ma_pop_stack_(l_x2_offset))
-      // errquit_("tce_energy: IP_EA problem 1",36,MA_ERR);
-      //nodezero_print("tce_energy: IP_EA problem 1" + ", 36, " + MA_ERR);
+    delete [] x2_offset;  // d_rx2
+    // if (!ma_pop_stack_(l_x2_offset))
+    // errquit_("tce_energy: IP_EA problem 1",36,MA_ERR);
+    // nodezero_print("tce_energy: IP_EA problem 1" + ", 36, " + MA_ERR);
     // delete l_x1_offset
-    delete [] x1_offset;
+    delete [] x1_offset;  // d_rx1
     //if (!ma_pop_stack_(l_x1_offset))
       // errquit_("tce_energy: IP_EA problem 2",36,MA_ERR);
     //  nodezero_print("tce_energy: IP_EA problem 2" + ", 36, " + MA_ERR);

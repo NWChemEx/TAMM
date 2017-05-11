@@ -170,6 +170,8 @@ void tce_eom_xdiagon_cxx_(Fint *size_x1, Fint *size_x2, Fint *k_x1_offset,
 void tce_filename_cxx_(Fint index, const std::string& xc_count) {
 }
 
+
+
 /*void indexed_tensor_create(Fint index, ) {
   Fint k_a, l_a, size, d_a;
   fn(&l_a, &k_a, &size);
@@ -180,6 +182,14 @@ void tce_filename_cxx_(Fint index, const std::string& xc_count) {
 
 // class Tensor;
 using Irrep = int;
+
+
+std::string sym_irrepname(Irrep irrep_g) {
+  std::string list_objects[] = {
+           "a", "a2", "b"
+  };
+  return list_objects[irrep_g+1];
+}
 
 /*static Fint xc1[maxtrials];
 static Fint xc2[maxtrials];
@@ -195,7 +205,8 @@ void ip_ccsd_driver_cxx_(
   Fint *d_t2, Fint *k_e_offset, Fint *k_f1_offset,
   Fint *k_v2_offset,   Fint *k_t1_offset, Fint *k_t2_offset,
   Fint *rtdb, Fint *size_x1, Fint *size_x2, Fint *k_irs,
-  Fint nirreps, double &cpu, double &wall) {
+  Fint nirreps, bool symmetry, std::string targetsym,
+  double &cpu, double &wall) {
   Fint x1[maxtrials];
   Fint x2[maxtrials];
 
@@ -231,7 +242,7 @@ void ip_ccsd_driver_cxx_(
   // @todo eom_solver global variable fix
   // @todo ccsd_var global variable fix
 
-  Irrep irrep_g = 0;          // Ground state symmetry
+
   Fint ipol = 2;  // ipol will be passed on from Fortran
   static Fint nocc[2];  // will be passed on from Fortran
   Fint *int_mb = tamm::Variables::int_mb();
@@ -239,37 +250,42 @@ void ip_ccsd_driver_cxx_(
    * Variables:: set_idmb(int_mb, dbl_mb);
    */
 //  Fint i, j;
-  if (ipol == 2) {
+  Irrep irrep_g = 0;          // Ground state symmetry
+/*  if (ipol == 2) {
     for (int i = 1; i <= 2; i++) {
       for (int j = 1; i <= nocc[i]; j++) {
         irrep_g = irrep_g ^ int_mb[k_irs[i]+j-1];  // k_irs tce_main
       }
     }
-  }
+  }*/
   Fint geom = 1;  // geom will be passed on from Fortran
   /* sym_irrepname is defined in src/symmetry/sym_irrepname.F
    */
-  std::string irrepname;
-  sym_irrepname_(geom, irrep_g+1, irrepname);
+
+  // sym_irrepname_(geom, irrep_g+1, irrepname); fortran function
+  std::string irrepname = sym_irrepname(irrep_g);
+
+
   const std::string print_default = "20";
 
-  if (util_print_("eom", print_default)) {  // print_default = print_medium = 20
+/*  if (util_print_("eom", print_default)) {  // print_default = print_medium = 20
     // nodezero_print("\n" + std::to_string(irrepname));
     nodezero_print("\n" + irrepname);
-  }
-  bool symmetry = true;  // symmetry will be passed from Fortran
-  std::string targetsym;  // targetsym will be passed from Fortran
+  }*/
+
+  // bool symmetry = true;  // symmetry will be passed from Fortran
+  // std::string targetsym;  // targetsym will be passed from Fortran
   for (Irrep irrep = 0; irrep <= nirreps-1; irrep++) {
     // main irreps loop ===================
-    Irrep irrep_x = irrep;
-    Irrep irrep_y = irrep;
-    sym_irrepname_(geom, (irrep_x ^ irrep_g)+1, irrepname);
-    if ((!symmetry) || (targetsym == irrepname)) {  // main
+    // Irrep irrep_x = irrep;
+    // Irrep irrep_y = irrep;
+    std::string irrepname_iter = sym_irrepname(irrep ^ irrep_g);
+    if ((!symmetry) || (targetsym == irrepname_iter)) {  // main
       tce_eom_init_();
-      if (util_print_("eom", print_default)) {
+     // if (util_print_("eom", print_default)) {
           nodezero_print("=========================================\n" +
                   "Excited-state calculation ( "+irrepname+" symmetry)==\n");
-      }
+      //}
       const int hbard = 4;
       double *hbar = new double[hbard*hbard];
       // if (!ma_push_get(mt_dbl,hbard*hbard,'hbar',
@@ -290,7 +306,7 @@ void ip_ccsd_driver_cxx_(
 
 
       tamm::Tensor *d_rx1 = new tamm::Tensor
-              (2, 1, 0, {1, 0}, tamm::dist_nw);  // tce_ipx1();
+              (1, 0, 0, {0}, tamm::dist_nw);  // tce_ipx1();
       d_rx1->create();
       // CorFortran(1, &tce_ipx1, tce_ipx1_offset_);
       // tce_ipx1_offset(l_x1_offset,k_x1_offset,size_x1)
@@ -298,8 +314,8 @@ void ip_ccsd_driver_cxx_(
       // createfile(filename,d_rx1,size_x1)
 
       tamm::Tensor *d_rx2 = new tamm::Tensor
-              (4, 2, 0, {1, 1, 0, 0}, tamm::dist_nw);  // tce_ipx1();
-      d_rx1->create();
+              (3, 1, 0, {1, 0, 0}, tamm::dist_nw);  // tce_ipx2();
+      d_rx2->create();
       // Tensor *d_rx2 = {nullptr};  // tce_ipx2();
       // CorFortran(1, &tce_ipx2, tce_ipx2_offset_);
       // tce_ipx2_offset(l_x2_offset,k_x2_offset,size_x2)

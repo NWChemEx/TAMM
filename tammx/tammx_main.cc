@@ -45,8 +45,10 @@ void test() {
 #if 1
   TensorVec<SymmGroup> indices1{SymmGroup{DimType::o, DimType::o}, SymmGroup{DimType::v}};
   TensorVec<SymmGroup> indices2{SymmGroup{DimType::o}, SymmGroup{DimType::o}, SymmGroup{DimType::v}};
+  TensorVec<SymmGroup> indices3{SymmGroup{DimType::o}, SymmGroup{DimType::o}};
 
   Tensor ta{indices1, Type::double_precision, Distribution::tce_nwma, 3, irrep_t, false};
+  Tensor ta2{indices3, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
   Tensor tb{indices2, Type::double_precision, Distribution::tce_nwma, 3, irrep_t, false};
 
   // TensorVec<SymmGroup> indices1{SymmGroup{DimType::o, DimType::o}};
@@ -57,6 +59,7 @@ void test() {
 
   ta.allocate();
   tb.allocate();
+  ta2.allocate();
 
   tensor_map(tb(), [] (Block& block) {
       //std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 1.0);
@@ -69,6 +72,8 @@ void test() {
   //assert_equal(tb, 1.0);
   ta() += 1.0 * tb();
   //assert_equal(ta, 0);
+
+  ta({0,1,2}) += 1.0 * tb({0,3,2}) * ta2({1,3});
   
   // assert_equal(tb, 1.0);
 
@@ -82,6 +87,7 @@ void test() {
 
   ta.destruct();
   tb.destruct();
+  ta2.destruct();
   
 #else
   

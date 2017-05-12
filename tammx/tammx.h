@@ -1319,9 +1319,6 @@ class Block {
   std::unique_ptr<uint8_t []> buf_;
   TensorPerm layout_;
   Sign sign_;
-
-  friend void operator += (LabeledBlock block1, LabeledBlock block2);
-  friend void operator += (LabeledBlock block1, std::pair<LabeledBlock, LabeledBlock> blocks);
 };
 
 inline TensorPerm
@@ -2600,32 +2597,6 @@ copy_iterator(const TensorVec<CopySymmetrizer>& sitv) {
 }
 
 
-#if 0
-inline void
-operator += (LabeledTensor ltc, const std::tuple<double, const LabeledTensor>& rhs) {
-  double alpha = std::get<0>(rhs);
-  const LabeledTensor& lta = std::get<1>(rhs);
-  Tensor& ta = lta.tensor_;
-  Tensor& tc = ltc.tensor_;
-  //check for validity of parameters
-  auto citr = loop_iterator(tc.indices());
-  auto lambda = [&] (const TensorIndex& cblockid) {
-    size_t dimc = tc.block_size(cblockid);
-    if(tc.nonzero(cblockid) && dimc>0) {
-      auto label_map = LabelMap()
-          .update(ltc.label_, cblockid);
-      auto ablockid = label_map.get_blockid(lta.label_);
-      auto abp = ta.get(ablockid);
-      auto cbp = tc.alloc(cblockid);
-      cbp(ltc.label_) += alpha * abp(lta.label_);
-      tc.add(cbp);
-    }
-  };
-  parallel_work(citr, citr.get_end(), lambda);
-}
-#endif
-
-#if 1
 //working but for unsymmetrization
 /**
  * @todo We assume there is no un-symmetrization in the output.
@@ -2681,140 +2652,7 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
   };
   parallel_work(aitr, aitr.get_end(), lambda);
 }
-#else
-// inline void
-// operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
-//   Expects(ltc.tensor_->rank() == std::get<1>(rhs).tensor_->rank());
-//   double alpha = std::get<0>(rhs);
-//   std::cerr<<"ALPHA="<<alpha<<std::endl;
-//   const LabeledTensor& lta = std::get<1>(rhs);
-//   Tensor& ta = *lta.tensor_;
-//   Tensor& tc = *ltc.tensor_;
-//   //check for validity of parameters
-//   auto aitr = loop_iterator(ta.indices());
-//   auto lambda = [&] (const TensorIndex& ablockid) {
-//     size_t dima = ta.block_size(ablockid);
-//     if(ta.nonzero(ablockid) && dima>0) {
-//       auto label_map = LabelMap()
-//           .update(lta.label_, ablockid);
-//       // auto cblockid = tc.find_unique_block(label_map.get_blockid(ltc.label_));
-//       auto cblockid = label_map.get_blockid(ltc.label_);
-//       auto abp = ta.get(ablockid);
-//       //auto cbp = tc.alloc(cblockid);
-//       //cbp(ltc.label_) += alpha * abp(lta.label_);
 
-//       auto csbp = tc.alloc(tc.find_unique_block(cblockid));
-//       csbp().init(0);
-      
-//       std::cerr<<"COPY ITR. ablockid="<<ablockid<<std::endl;
-//       std::cerr<<"COPY ITR. alabel="<<lta.label_<<std::endl;
-
-//       auto copy_symm = copy_symmetrizer(ltc, lta, label_map);      
-//       auto copy_itr = copy_iterator(copy_symm);
-//       auto copy_itr_last = copy_itr.get_end();
-//       auto copy_label = TensorLabel(ltc.label_.size());
-//       std::iota(copy_label.begin(), copy_label.end(), 0);
-//       for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
-//         auto perm = *citr;
-//         auto num_inversions = perm_count_inversions(perm);
-//         Sign sign = (num_inversions%2) ? -1 : 1;
-//         std::cerr<<"COPY ITR. csbp blockid="<<csbp.blockid()<<std::endl;
-//         std::cerr<<"COPY ITR. csbp label="<<copy_label<<std::endl;
-//         std::cerr<<"COPY ITR. cbp blockid="<<cblockid<<std::endl;
-//         std::cerr<<"COPY ITR. cbp label="<<perm<<std::endl;
-//         std::cerr<<"COPY ITR. num_inversions="<<num_inversions<<std::endl;
-//         std::cerr<<"COPY ITR. sign="<<sign<<std::endl;
-//         //csbp(copy_label) += sign * cbp(perm);
-//         auto perm_comp = perm_apply(perm, perm_compute(ltc.label_, lta.label_));
-//         csbp(copy_label) += sign * alpha * abp(perm_comp);
-//       }
-//       tc.add(csbp);
-//     }
-//   };
-//   parallel_work(aitr, aitr.get_end(), lambda);
-// }
-#endif
-
-// inline void
-// operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
-//   double alpha = std::get<0>(rhs);
-//   std::cerr<<"ALPHA="<<alpha<<std::endl;
-//   const LabeledTensor& lta = std::get<1>(rhs);
-//   Tensor& ta = *lta.tensor_;
-//   Tensor& tc = *ltc.tensor_;
-//   //check for validity of parameters
-//   auto aitr = loop_iterator(ta.indices());
-//   auto lambda = [&] (const TensorIndex& ablockid) {
-//     size_t dima = ta.block_size(ablockid);
-//     if(ta.nonzero(ablockid) && dima>0) {
-//       auto label_map = LabelMap()
-//           .update(lta.label_, ablockid);
-//       auto cblockid = label_map.get_blockid(ltc.label_);
-//       auto abp = ta.get(ablockid);
-//       auto cbp = tc.alloc(cblockid);
-//       cbp(ltc.label_) += alpha * abp(lta.label_);
-
-//       auto csbp = tc.alloc(tc.find_unique_block(cblockid));
-//       csbp().init(0);
-
-//       auto copy_symm = copy_symmetrizer(ltc, lta, label_map);      
-//       auto copy_itr = copy_iterator(copy_symm);
-//       auto copy_itr_last = copy_itr.get_end();
-//       auto copy_label = TensorLabel(ltc.label_.size());
-//       std::iota(copy_label.begin(), copy_label.end(), 0);
-//       for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
-//         auto perm = *citr;
-//         std::cerr<<"copy itr. *itr = perm= "<<perm<<std::endl;
-//         auto num_inversions = perm_count_inversions(perm);
-//         Sign sign = (num_inversions%2) ? -1 : 1;
-//         csbp(copy_label) += sign * cbp(perm);
-//       }
-//       tc.add(csbp);
-//     }
-//   };
-//   parallel_work(aitr, aitr.get_end(), lambda);
-// }
-
-// inline void
-// tensor_init(Tensor &tc, double value) {
-//   TensorVec<SymmGroup> indices;
-//   for(auto ind: tc.flindices()) {
-//     indices.push_back(SymmGroup{ind});
-//   }
-//   Tensor ta(indices, tc.element_type(), tc.distribution(), tc.nupper_indices(),
-//             tc.irrep(), tc.spin_restricted());
-
-//   auto label = tc().label_;
-  
-//   auto lambda = [&] (const TensorIndex& cblockid) {
-//     size_t dimc = tc.block_size(cblockid);
-//     if(tc.nonzero(cblockid) && dimc>0) {
-//       auto abp = ta.alloc(cblockid);
-//       abp().init(value);
-//       auto label_map = LabelMap()
-//           .update(label, cblockid);
-
-//       auto csbp = tc.alloc(cblockid);
-
-//       auto copy_symm = copy_symmetrizer(tc(), ta(), label_map);
-//       auto copy_itr = copy_iterator(copy_symm);
-//       auto copy_itr_last = copy_itr.get_end();
-//       auto copy_label = TensorLabel(tc.rank());
-//       std::iota(copy_label.begin(), copy_label.end(), 0);
-//       csbp().init(0);
-//       for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
-//         auto perm = *citr;
-//         auto num_inversions = perm_count_inversions(perm);
-//         Sign sign = (num_inversions%2) ? -1 : 1;
-//         csbp(copy_label) += sign * abp(perm);
-//       }
-//       tc.add(csbp);
-//     }
-//   };
-//   auto citr = loop_iterator(tc.indices());
-//   parallel_work(citr, citr.get_end(), lambda);  
-// }
-    
 
 inline void
 assert_equal(Tensor &tc, double value) {
@@ -2844,50 +2682,56 @@ assert_zero(Tensor& tc) {
 /**
  * Check that all iterators and operators work for rank 0 tensors, and rank 0 symmetry groups.
  */
-
-#if 0
-inline void operator += (LabeledTensor& ltc, std::tuple<double, LabeledTensor, LabeledTensor> rhs) {
+inline void
+operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor, LabeledTensor> rhs) {
   //check for validity of parameters
   double alpha = std::get<0>(rhs);
   LabeledTensor& lta = std::get<1>(rhs);
   LabeledTensor& ltb = std::get<2>(rhs);
-  Tensor& ta = lta.tensor_;
-  Tensor& tb = ltb.tensor_;
-  Tensor& tc = ltc.tensor_;
+  Tensor& ta = *lta.tensor_;
+  Tensor& tb = *ltb.tensor_;
+  Tensor& tc = *ltc.tensor_;
 
   TensorLabel sum_labels;
   TensorVec<SymmGroup> sum_indices;
-  std::tie(sum_indices, sum_labels) = summation_indices(ltc, lta, ltb); //label_to_indices(lta, flatten(flatten(sum_labels)));
-  //auto nonsymm_external_labels = nonsymmetrized_external_labels(ltc, lta, ltb);
+  std::tie(sum_indices, sum_labels) = summation_indices(ltc, lta, ltb);
   auto lambda = [&] (const TensorIndex& cblockid) {
+    auto dimc = tc.block_size(cblockid);
+    if(!tc.nonzero(cblockid) || dimc == 0) {
+      return;
+    }
     auto sum_itr_first = loop_iterator(sum_indices);
     auto sum_itr_last = sum_itr_first.get_end();
-    auto lmap = LabelMap().update(ltc.label_, cblockid);
+    auto label_map = LabelMap().update(ltc.label_, cblockid);
     auto cbp = tc.alloc(cblockid);
     for(auto sitr = sum_itr_first; sitr!=sum_itr_last; ++sitr) {
-      lmap.update(sum_labels, *sitr);
-      auto ablockid = lmap.get_blockid(lta.label_);
-      auto bblockid = lmap.get_blockid(ltb.label_);
+      label_map.update(sum_labels, *sitr);
+      auto ablockid = label_map.get_blockid(lta.label_);
+      auto bblockid = label_map.get_blockid(ltb.label_);
       auto abp = ta.get(ablockid);
       auto bbp = tb.get(bblockid);
 
       cbp(ltc.label_) += alpha * abp(lta.label_) * bbp(ltb.label_);
     }
-    auto cp_combination = symmetrization_copy_combination(cblockid,
-                                                          ltc ,lta, ltb, lmap);
-    auto cp_itr = copy_iterator(cp_combination);
-    auto uniq_cblockid = tc.find_unique_block(cblockid);
-    auto csbp = tc.alloc(uniq_cblockid);
-    //csbp() = 0;
-    for(auto cpitr = cp_itr_first; cp_itr != cp_itr_last; ++cp_itr) {
-      cbp(uniq_cblockid) += cbp(ltc.label_);
+    auto csbp = tc.alloc(tc.find_unique_block(cblockid));
+    csbp().init(0);
+    auto copy_symm = copy_symmetrizer(ltc, lta, ltb, label_map);      
+    auto copy_itr = copy_iterator(copy_symm);
+    auto copy_itr_last = copy_itr.get_end();
+    auto copy_label = TensorLabel(ltc.label_.size());
+    std::iota(copy_label.begin(), copy_label.end(), 0);
+    for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
+      auto perm = *citr;
+      std::cerr<<"---perm="<<perm<<std::endl;
+      auto num_inversions = perm_count_inversions(perm);
+      Sign sign = (num_inversions%2) ? -1 : 1;
+      csbp(copy_label) += sign * cbp(perm);
     }
     tc.add(csbp);
   };
   auto itr = nonsymmetrized_iterator(ltc, lta, ltb);
   parallel_work(itr, itr.get_end(), lambda);
 }
-#endif
 
 #if 0
 inline void operator += (LabeledTensor& ltc, std::tuple<double, LabeledTensor, LabeledTensor> rhs) {
@@ -3026,6 +2870,30 @@ operator += (LabeledBlock clb, std::tuple<double, LabeledBlock> rhs) {
   auto store_perm = perm_compute(astore, cstore);
   double alpha = std::get<0>(rhs);
   index_permute_acc(cblock.buf(), ablock.buf(), store_perm, cblock.block_dims(), alpha);
+}
+
+inline void
+operator += (LabeledBlock clb, std::tuple<double, LabeledBlock, LabeledBlock> rhs) {
+  const LabeledBlock& alb = std::get<1>(rhs);
+  const LabeledBlock& blb = std::get<2>(rhs);
+  
+  auto &ablock = *alb.block_;
+  auto &bblock = *blb.block_;
+  auto &cblock = *clb.block_;
+
+  auto &alabel = alb.label_;
+  auto &blabel = blb.label_;
+  auto &clabel = clb.label_;
+
+  //TTGT
+  //T
+  //index_permute(ablock.buf(), adbuf, store_perm, cblock.block_dims(), alpha);
+  //T
+  //index_permute(bblock.buf(), bdbuf, store_perm, cblock.block_dims(), alpha);
+  //G
+  //dgemm
+  //T
+  //index_permute(cdbuf,cblock.buf(), store_perm, cblock.block_dims(), alpha);
 }
 
 

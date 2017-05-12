@@ -111,6 +111,8 @@ extern "C" {
           Fint *k_v_offset, Fint *k_x_o_offset,
           Fint *k_x_voo_offset);
 
+  void ip_ccsd(tamm::Tensor* f, tamm::Tensor* v, tamm::Tensor* t_vo,
+          tamm::Tensor* t_vvoo);
   void ip_ccsd_driver_cxx_(
     // Please note d_e and k_e_offset are not used
     Fint *d_e, Fint *d_f1, Fint *d_v2, Fint *d_t1,
@@ -123,30 +125,39 @@ extern "C" {
 	/* Create Tensor objects and attach to objects
 	 * passed on to this function
 	 */
+
+	  // f[N][N]
+	tamm::RangeType list_f[] = {tamm::TN, tamm::TN};
     tamm::Tensor *f = new tamm::Tensor
-              (2, 1, 0, {2, 2}, tamm::dist_nw);  // f[N][N]: irrep_f;
+              (2, 1, 0, list_f, tamm::dist_nw);  // irrep_f
     f-> create();
     f-> attach(*k_f1_offset, 0, *d_f1);  // d_f1, k_f1_offset
 
+    // v[N,N][N,N]
+    tamm::RangeType list_v[] = {tamm::TN, tamm::TN, tamm::TN, tamm::TN};
     tamm::Tensor *v = new tamm::Tensor  // d_v2
-              (4, 2, 0, {2, 2, 2, 2}, tamm::dist_nw);  // v[N,N][N,N]: irrep_v;
+              (4, 2, 0, list_v, tamm::dist_nw);  // irrep_v
     v-> create();
     v-> attach(*k_v2_offset, 0, *d_v2);  // d_v2, k_v2_offset
 
+    // t_vo[V][O]
+    tamm::RangeType list_t[] = {tamm::TV, tamm::TO};
     tamm::Tensor *t_vo = new tamm::Tensor  // d_t1
-              (2, 1, 0, {1, 0}, tamm::dist_nw);  // t_vo[V][O]: irrep_t;
+              (2, 1, 0, list_t, tamm::dist_nw);  // irrep_t
     t_vo-> create();
     t_vo-> attach(*k_t1_offset, 0, *d_t1);  // d_vo, k_t1_offset
 
-    tamm::Tensor *t_vvoo = new tamm::Tensor  // d_t1
-              (4, 2, 0, {2, 2, 0, 0}, tamm::dist_nw);
-    // array t_vvoo[V,V][O,O]: irrep_t;
+    // array t_vvoo[V,V][O,O]
+    tamm::RangeType list_t2[] = {tamm::TN, tamm::TN, tamm::TO, tamm::TO};
+    tamm::Tensor *t_vvoo = new tamm::Tensor  // d_t2
+              (4, 2, 0, list_t2, tamm::dist_nw);  // ittep_t
     t_vvoo-> create();
     t_vvoo-> attach(*k_t2_offset, 0, *d_t2);  // d_vvoo, k_t2_offset
 
     /* Call ip_ccsd driver */
-    ip_ccsd(&f, &v, & t_vo, &t_vvoo, rtdb, size_x1, size_x2, k_irs, nirreps,
-             symmetry, targetsym, cpu, wall);
+    ip_ccsd(f, v, t_vo, t_vvoo);
+    // , rtdb, size_x1, size_x2, k_irs, nirreps,
+             // symmetry, targetsym, cpu, wall);
 
     /* detach tensor objects */
     f->detach();
@@ -212,6 +223,16 @@ void tce_eom_xdiagon_cxx_(Fint *size_x1, Fint *size_x2, Fint *k_x1_offset,
           &dummy_f, &dummy_f);
 }
 
+void tce_hbarinit(double *hbar, int hbard) {
+    for (int i; i < hbard; i++) {
+        for (int j; j < hbard; j++) {
+            hbar[i+j*hbard] = 0.0;
+        }
+        hbar[i+i*hbard] = 1.0e+8;
+    }
+
+}
+
 void tce_filename_cxx_(Fint index, const std::string& xc_count) {
 }
 
@@ -242,13 +263,13 @@ static Fint xp1[maxtrials];
 static Fint xp2[maxtrials];*/
 
 void ip_ccsd(tamm::Tensor* f, tamm::Tensor* v, tamm::Tensor* t_vo,
-        tamm::Tensor* t_vvoo,
+        tamm::Tensor* t_vvoo){  // ,
   // Fint *d_e, Fint *d_f1, Fint *d_v2, Fint *d_t1,
   // Fint *d_t2, Fint *k_e_offset, Fint *k_f1_offset,
   // Fint *k_v2_offset,   Fint *k_t1_offset, Fint *k_t2_offset,
-  Fint *rtdb, Fint *size_x1, Fint *size_x2, Fint *k_irs,
-  Fint nirreps, bool symmetry, std::string targetsym,
-  double const &cpu, double const &wall) {
+//  Fint *rtdb, Fint *size_x1, Fint *size_x2, Fint *k_irs,
+//  Fint nirreps, bool symmetry, std::string targetsym,
+//  double const &cpu, double const &wall) {
   Fint x1[maxtrials];
   Fint x2[maxtrials];
 
@@ -306,14 +327,8 @@ void ip_ccsd(tamm::Tensor* f, tamm::Tensor* v, tamm::Tensor* t_vo,
 
   // sym_irrepname_(geom, irrep_g+1, irrepname); fortran function
   std::string irrepname = sym_irrepname(irrep_g);
+  nodezero_print("\n Ground-state symmetry is " + irrepname);
 
-
-  const std::string print_default = "20";
-
-/*  if (util_print_("eom", print_default)) {  // print_default = print_medium = 20
-    // nodezero_print("\n" + std::to_string(irrepname));
-    nodezero_print("\n" + irrepname);
-  }*/
 
   // bool symmetry = true;  // symmetry will be passed from Fortran
   // std::string targetsym;  // targetsym will be passed from Fortran
@@ -326,15 +341,16 @@ void ip_ccsd(tamm::Tensor* f, tamm::Tensor* v, tamm::Tensor* t_vo,
       tce_eom_init_();
      // if (util_print_("eom", print_default)) {
           nodezero_print("=========================================\n" +
-                  "Excited-state calculation ( "+irrepname+" symmetry)==\n");
+                  "Excited-state calculation ( "+irrepname+" symmetry)" +
+                  "==========================================\n");
       //}
       const int hbard = 4;
-      double *hbar = new double[hbard*hbard];
+      double *hbar = new double[hbard][hbard];
       // if (!ma_push_get(mt_dbl,hbard*hbard,'hbar',
       //   1  l_hbar,k_hbar)) errquit('tce_eom_xdiagon: MA problem',0,
       //               2  MA_ERR)
       // tce_hbarinit_(dbl_mb(k_hbar),hbard);
-      tce_hbarinit_(hbar, hbard);
+      tce_hbarinit(hbar, hbard);
       // following block will use malloc instead of ma_push_get
 
       double *omegax = new double[maxtrials];

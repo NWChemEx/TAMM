@@ -646,18 +646,19 @@ operator != (const ProductIterator<Itr>& itr1,
 }
 
 
+template<typename T>
 class LabelMap {
  public:
   LabelMap& update(const TensorLabel& labels,
-                   const TensorIndex& ids) {
+                   const TensorVec<T>& ids) {
     Expects(labels.size() + labels_.size()  <= labels_.max_size());
     labels_.insert_back(labels.begin(), labels.end());
     ids_.insert_back(ids.begin(), ids.end());
     return *this;
   }
 
-  TensorIndex get_blockid(const TensorLabel& labels) const {
-    TensorIndex ret(labels.size());
+  TensorVec<T> get_blockid(const TensorLabel& labels) const {
+    TensorVec<T> ret(labels.size());
     using size_type = TensorLabel::size_type;
     for(size_type i=0; i<labels.size(); i++) {
       auto itr = std::find(begin(labels_), end(labels_), labels[i]);
@@ -670,7 +671,7 @@ class LabelMap {
  private:
   TensorRank rank_{};
   TensorLabel labels_;
-  TensorIndex ids_;
+  TensorVec<T> ids_;
 };
 
 
@@ -2277,7 +2278,7 @@ inline TensorVec<SymmetrizationIterator>
 symmetrization_combination(const LabeledTensor& ltc,
                            const LabeledTensor& lta,
                            const LabeledTensor& ltb,
-                           const LabelMap& lmap) {
+                           const LabelMap<BlockDim>& lmap) {
   auto part_labels = nonsymmetrized_external_labels(ltc ,lta, ltb);
   TensorVec<SymmetrizationIterator> sits;
   for(auto lbls: part_labels) {
@@ -2484,7 +2485,7 @@ inline TensorVec<CopySymmetrizer>
 copy_symmetrizer(const LabeledTensor& ltc,
                  const LabeledTensor& lta,
                  const LabeledTensor& ltb,
-                 const LabelMap& lmap) {
+                 const LabelMap<BlockDim>& lmap) {
   auto part_labels = nonsymmetrized_external_labels(ltc ,lta, ltb);
   TensorVec<CopySymmetrizer> csv;
   for(auto lbls: part_labels) {
@@ -2553,7 +2554,7 @@ compute_extra_symmetries(const TensorLabel& lhs_label,
 inline TensorVec<CopySymmetrizer>
 copy_symmetrizer(const LabeledTensor& ltc,
                  const LabeledTensor& lta,
-                 const LabelMap& lmap) {
+                 const LabelMap<BlockDim>& lmap) {
   auto part_labels = nonsymmetrized_external_labels(ltc ,lta);
   TensorVec<CopySymmetrizer> csv;
   for(auto lbls: part_labels) {
@@ -2614,7 +2615,7 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
   auto lambda = [&] (const TensorIndex& ablockid) {
     size_t dima = ta.block_size(ablockid);
     if(ta.nonzero(ablockid) && dima>0) {
-      auto label_map = LabelMap()
+      auto label_map = LabelMap<BlockDim>()
           .update(lta.label_, ablockid);
       // auto cblockid = tc.find_unique_block(label_map.get_blockid(ltc.label_));
       auto cblockid = label_map.get_blockid(ltc.label_);
@@ -2702,7 +2703,7 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor, LabeledTensor>
     }
     auto sum_itr_first = loop_iterator(sum_indices);
     auto sum_itr_last = sum_itr_first.get_end();
-    auto label_map = LabelMap().update(ltc.label_, cblockid);
+    auto label_map = LabelMap<BlockDim>().update(ltc.label_, cblockid);
     auto cbp = tc.alloc(cblockid);
     for(auto sitr = sum_itr_first; sitr!=sum_itr_last; ++sitr) {
       label_map.update(sum_labels, *sitr);
@@ -2872,11 +2873,28 @@ operator += (LabeledBlock clb, std::tuple<double, LabeledBlock> rhs) {
   index_permute_acc(cblock.buf(), ablock.buf(), store_perm, cblock.block_dims(), alpha);
 }
 
+// C storage order: A[m,k], B[k,n], C[m,n]
+inline void
+matmul(int m, int n, int k, double *A, int lda, double *B, int ldb, double *C, int ldc, double alpha) {
+  Expects(m>0 && n>0 && k>0);
+  Expects(A!=nullptr && B!=nullptr && C!=nullptr);
+
+  for(int x=0; x<m; x++) {
+    for(int y=0; y<n; y++) {
+      double value = 0;
+      for(int z=0; z<k; z++) {
+        value += A[x*lda + z] * B[z*ldb + y];
+      }
+      C[x*ldc + y] = alpha * C[x*ldc + y] + value;
+    }
+  }
+}
+
 inline void
 operator += (LabeledBlock clb, std::tuple<double, LabeledBlock, LabeledBlock> rhs) {
   const LabeledBlock& alb = std::get<1>(rhs);
   const LabeledBlock& blb = std::get<2>(rhs);
-  
+
   auto &ablock = *alb.block_;
   auto &bblock = *blb.block_;
   auto &cblock = *clb.block_;
@@ -2885,15 +2903,39 @@ operator += (LabeledBlock clb, std::tuple<double, LabeledBlock, LabeledBlock> rh
   auto &blabel = blb.label_;
   auto &clabel = clb.label_;
 
+  auto aext_labels = intersect(clabel, alabel);
+  auto bext_labels = intersect(clabel, blabel);
+  auto sum_labels = intersect(alabel, blabel);
+
+  auto alabel_sort = aext_labels;
+  alabel_sort.insert_back(sum_labels.begin(), sum_labels.end());
+  auto blabel_sort = sum_labels;
+  blabel_sort.insert_back(bext_labels.begin(), bext_labels.end());
+  auto clabel_sort = aext_labels;
+  clabel_sort.insert_back(bext_labels.begin(), bext_labels.end());
+  
+  auto ablock_sort = ablock.tensor().alloc(ablock.blockid());
+  auto bblock_sort = bblock.tensor().alloc(bblock.blockid());
+  auto cblock_sort = cblock.tensor().alloc(cblock.blockid());  
+
   //TTGT
-  //T
-  //index_permute(ablock.buf(), adbuf, store_perm, cblock.block_dims(), alpha);
-  //T
-  //index_permute(bblock.buf(), bdbuf, store_perm, cblock.block_dims(), alpha);
-  //G
-  //dgemm
-  //T
-  //index_permute(cdbuf,cblock.buf(), store_perm, cblock.block_dims(), alpha);
+  ablock_sort(alabel_sort) += ablock(alabel); //T
+  bblock_sort(blabel_sort) += bblock(blabel); //T
+  // G
+  auto alpha = std::get<0>(rhs);
+  auto lmap = LabelMap<BlockDim>()
+      .update(alabel, ablock.block_dims())
+      .update(blabel, bblock.block_dims());
+  auto aext_dims = lmap.get_blockid(aext_labels);
+  auto bext_dims = lmap.get_blockid(bext_labels);
+  auto sum_dims = lmap.get_blockid(sum_labels);
+  int m = std::accumulate(aext_dims.begin(), aext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
+  int n = std::accumulate(bext_dims.begin(), bext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
+  int k = std::accumulate(sum_dims.begin(), sum_dims.end(), BlockDim{1}, std::multiplies<>()).value();
+  matmul(m, n, k, reinterpret_cast<double*>(ablock_sort.buf()), k,
+         reinterpret_cast<double*>(bblock_sort.buf()), n,
+         reinterpret_cast<double*>(cblock_sort.buf()), n, alpha);
+  cblock(clabel) += cblock_sort(clabel_sort); //T
 }
 
 

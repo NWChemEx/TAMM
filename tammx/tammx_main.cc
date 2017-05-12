@@ -26,7 +26,7 @@ BlockDim operator "" _bd(unsigned long long int val) {
 
 std::vector<Spin> spins = {1_sp, -1 * 1_sp, 1_sp, -1 * 1_sp};
 std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir, 0_ir};
-std::vector<size_t> sizes = {4, 4, 5, 5};
+std::vector<size_t> sizes = {2, 4, 2, 1};
 BlockDim noa {1};
 BlockDim noab {2};
 BlockDim nva {1};
@@ -42,6 +42,49 @@ void test() {
   using Type = Tensor::Type;
   using Distribution = Tensor::Distribution;
 
+#if 1
+  TensorVec<SymmGroup> indices1{SymmGroup{DimType::o, DimType::o}, SymmGroup{DimType::v}};
+  TensorVec<SymmGroup> indices2{SymmGroup{DimType::o}, SymmGroup{DimType::o}, SymmGroup{DimType::v}};
+
+  Tensor ta{indices1, Type::double_precision, Distribution::tce_nwma, 3, irrep_t, false};
+  Tensor tb{indices2, Type::double_precision, Distribution::tce_nwma, 3, irrep_t, false};
+
+  // TensorVec<SymmGroup> indices1{SymmGroup{DimType::o, DimType::o}};
+  // TensorVec<SymmGroup> indices2{SymmGroup{DimType::o}, SymmGroup{DimType::o}};
+
+  // Tensor ta{indices1, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
+  // Tensor tb{indices2, Type::double_precision, Distribution::tce_nwma, 2 irrep_t, false};
+
+  ta.allocate();
+  tb.allocate();
+
+  tensor_map(tb(), [] (Block& block) {
+      //std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 1.0);
+      int n=0;
+      //std::generate_n(reinterpret_cast<double*>(block.buf()), block.size(), std::rand);
+      std::generate_n(reinterpret_cast<double*>(block.buf()), block.size(), [&]() { return n++;});
+    });
+  
+  //tensor_init(tb, 1.0);
+  //assert_equal(tb, 1.0);
+  ta() += 1.0 * tb();
+  //assert_equal(ta, 0);
+  
+  // assert_equal(tb, 1.0);
+
+  std::cerr<<"------------------"<<std::endl;
+  tensor_print(tb, std::cerr);
+  std::cerr<<"------------------"<<std::endl;
+  
+  std::cerr<<"------------------"<<std::endl;
+  tensor_print(ta, std::cerr);
+  std::cerr<<"------------------"<<std::endl;
+
+  ta.destruct();
+  tb.destruct();
+  
+#else
+  
   TensorVec<SymmGroup> indices{SymmGroup{DimType::o, DimType::o}, SymmGroup{DimType::n}};
   Tensor ta{indices, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
 
@@ -120,11 +163,57 @@ void test() {
   Tensor tb{indicesb, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
   tb.allocate();
 
-  assert_zero(ta());
-    
-  tensor_map(ta(), [] (Block& block) {
-      std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 1.0);
+  Tensor ta2{indices, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
+  ta2.allocate();
+  
+  assert_zero(ta);
+  assert_zero(tb);
+  assert_zero(ta2);
+  
+  //tensor_init(ta, 1.0);
+  // std::cerr<<"------------------"<<std::endl;
+  // tensor_print(ta, std::cerr);
+  // std::cerr<<"------------------"<<std::endl;
+  // tb() += ta();
+  // tb() += -1 * ta();
+  // assert_zero(tb);
+  // tb() += ta();
+  // tb({0,1,2}) += ta({1,0,2});
+  // assert_zero(tb());
+
+  // tensor_map(ta2(), [] (Block& block) {
+  //     std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 1.0);
+  //   });
+
+  tensor_map(tb(), [] (Block& block) {
+      //std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 1.0);
+      int n=0;
+      //std::generate_n(reinterpret_cast<double*>(block.buf()), block.size(), std::rand);
+      std::generate_n(reinterpret_cast<double*>(block.buf()), block.size(), [&]() { return n++;});
     });
+
+  //tensor_init(tb, 1.0);
+  //assert_equal(tb, 1.0);
+  ta() += 1.0 * tb();
+  //assert_equal(ta, 0);
+
+  // assert_equal(tb, 1.0);
+
+  std::cerr<<"------------------"<<std::endl;
+  tensor_print(tb, std::cerr);
+  std::cerr<<"------------------"<<std::endl;
+
+  // //assert_equal(ta2, 1.0);
+  ta() += tb();
+
+  
+  std::cerr<<"------------------"<<std::endl;
+  tensor_print(ta, std::cerr);
+  std::cerr<<"------------------"<<std::endl;
+  
+  // assert_equal(ta, 0.0);
+
+  
   // ta() += tb();
   // tb() += ta();
   // tensor_map(tb(), [] (Block& block) {
@@ -133,21 +222,21 @@ void test() {
   // ta() += -1.0 * tb();
   // assert_zero(ta());
 
-  Tensor ta2{indices, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
-  ta2.allocate();
-  tensor_map(ta2(), [] (Block& block) {
-      std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 1.0);
-    });
+  // ta2.allocate();
+  // tensor_map(ta2(), [] (Block& block) {
+  //     std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 1.0);
+  //   });
 
-  std::cerr<<"----------------------------------"<<std::endl;
-  ta() += -1.0 * ta2();
-  std::cerr<<"----------------------------------"<<std::endl;
-  assert_zero(ta());
+  // std::cerr<<"----------------------------------"<<std::endl;
+  // ta() += -1.0 * ta2();
+  // std::cerr<<"----------------------------------"<<std::endl;
+  // assert_zero(ta());
   
   ta2.destruct();
   ta.destruct();
   assert(!ta.constructed() && !ta.allocated() && !ta.attached());
   tb.destruct();
+#endif
 }
 
 int main() {

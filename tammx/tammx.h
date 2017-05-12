@@ -269,14 +269,13 @@ using TensorPerm = TensorVec<int>;
 
 template<typename T>
 TensorVec<T>
-flatten(const TensorVec<TensorVec<T>> vec) {
+flatten(const TensorVec<TensorVec<T>> &vec) {
   TensorVec<T> ret;
   for(auto &v : vec) {
     ret.insert_back(v.begin(), v.end());
   }
   return ret;
 }
-
 
 class TriangleLoop {
  public:
@@ -294,7 +293,7 @@ class TriangleLoop {
 
   TriangleLoop& operator ++ () {
     int i;
-    std::cout<<"TriangleLoop. itr="<<itr_<<std::endl;
+    //std::cout<<"TriangleLoop. itr="<<itr_<<std::endl;
     for(i=itr_.size()-1; i>=0 && ++itr_[i] == last_; i--) {
       //no-op
     }
@@ -562,12 +561,12 @@ class ProductIterator {
         ilast_{ilast},
         ival_{ifirst} {
           Expects(ifirst.size() == ilast.size());
-          std::cerr<<"Product Iterator constructor. num itrs="<<ifirst.size()<<std::endl;
-          std::cerr<<"Product iterator sizes: ";
-          for(auto it: ifirst) {
-            std::cerr<<it.itr_size()<<" ";
-          }
-          std::cerr<<std::endl;
+          // std::cerr<<"Product Iterator constructor. num itrs="<<ifirst.size()<<std::endl;
+          // std::cerr<<"Product iterator sizes: ";
+          // for(auto it: ifirst) {
+          //   std::cerr<<it.itr_size()<<" ";
+          // }
+          // std::cerr<<std::endl;
         }
 
   ~ProductIterator() = default;
@@ -599,9 +598,9 @@ class ProductIterator {
   }
 
   typename Itr::ItrType operator * ()  {
-    std::cerr<<__FUNCTION__<<"*. itr sizes:"<<std::endl;
+    //std::cerr<<__FUNCTION__<<"*. itr sizes:"<<std::endl;
     for(auto it : ival_){
-      std::cerr<<it.itr_size()<<std::endl;
+      //std::cerr<<it.itr_size()<<std::endl;
     }
     TensorVec<typename Itr::ItrType> itrs(ival_.size());
     std::transform(ival_.begin(), ival_.end(), itrs.begin(),
@@ -889,6 +888,99 @@ class LabelMap {
 //   return !(itr1 == itr2);
 // }
 
+// class Symmetrizer {
+//  public:
+//   using size_type = TensorIndex::size_type;
+
+//   Symmetrizer()
+//       : Symmetrizer(0, 0, TensorLabel{}, TensorIndex{}, TensorIndex{}) {}
+
+//   Symmetrizer(size_type group_size,
+//               size_type part_size,
+//               const TensorLabel& label,
+//               const TensorIndex& blockid,
+//               const TensorIndex& uniq_blockid)
+//       : group_size_{group_size},
+//         part_size_{part_size},
+//         label_{label},
+//         blockid_{blockid},
+//         uniq_blockid_{uniq_blockid},
+//         bag_(group_size) {
+//           std::iota(bag_.begin(), bag_.end(), 0);
+//           Expects(label.size() == group_size);
+//           Expects(blockid.size() == group_size);
+//           Expects(uniq_blockid.size() == group_size);
+//           comb_ = Combination<int>(bag_, part_size);
+//         }
+
+//   Symmetrizer& operator = (const Symmetrizer& symm) = default;
+//   Symmetrizer(const Symmetrizer& sym) = default;
+
+//   class Iterator {
+//    public:
+//     using ItrType = TensorLabel;
+
+//     Iterator() : sym_{nullptr} {}
+
+//     explicit Iterator(const Symmetrizer* sym)
+//         : sym_{const_cast<Symmetrizer*>(sym)} {
+//       if(sym_) {
+//       }
+//     }
+
+//     Iterator& operator = (const Iterator& rhs) = default;
+    
+//     size_t itr_size() const {
+//       return sym_->group_size_;
+//     }
+    
+//     TensorLabel operator * () {
+//       return perm_apply(cs_->label_, *itr_);
+//     }
+    
+//     Iterator& operator ++ () {
+//       assert(0); //@todo to be implemented
+//       return *this;
+//     }
+        
+//     Combination<int>::Iterator itr_, end_;
+//     Symmetrizer *sym_;
+
+//     friend bool operator == (const typename Symmetrizer::Iterator& itr1,
+//                              const typename Symmetrizer::Iterator& itr2) {
+//       return (itr1.cs_  == itr2.cs_)
+//           &&  itr1.itr_ == itr2.itr_
+//           &&  itr1.end_ == itr2.end_;
+//     }
+    
+//     friend bool operator != (const typename Symmetrizer::Iterator& itr1,
+//                              const typename Symmetrizer::Iterator& itr2) {
+//       return !(itr1 == itr2);
+//     }
+//     friend class Symmetrizer;
+//   };
+
+//   Iterator begin() const {
+//     return Iterator(this);
+//   }
+
+//   Iterator end() const {
+//     auto itr = Iterator(this);
+//     itr.itr_ = comb_.end();
+//     return itr;
+//   }
+  
+//  public:
+//   size_type group_size_;
+//   size_type part_size_;
+//   TensorLabel label_;
+//   TensorIndex blockid_
+//   TensorIndex uniq_blockid_;
+//   TensorVec<int> bag_;
+//   Combination<int> comb_;
+// };
+
+
 inline std::pair<BlockDim, BlockDim>
 tensor_index_range(DimType dt);
 
@@ -901,7 +993,7 @@ loop_iterator(const TensorVec<SymmGroup>& indices ) {
     tloops.push_back(TriangleLoop{sg.size(), lo, hi});
     tloops_last.push_back(tloops.back().get_end());
   }
-  std::cerr<<"loop itr size="<<tloops.size()<<std::endl;
+  //std::cerr<<"loop itr size="<<tloops.size()<<std::endl;
   return ProductIterator<TriangleLoop>(tloops, tloops_last);
 }
 
@@ -1179,6 +1271,23 @@ class Block {
     return this->operator ()(label); //LabeledBlock{*this, label};
   }
 
+  /**
+   * @todo @bug sign_ is not being handled correctly.
+   *
+   * @todo Systematic tracking and handling of get, alloc, and add blocks
+   */
+  // double& [] (const TensorVec<int>& off) {
+  //   size_t pos = 0;
+  //   auto dims = block_dims();
+  //   for(int i=0; i<tensor_.rank()-1; i++) {
+  //     pos = (pos + off[layout_[i]]) * dims[layout_[i+1]];
+  //   }
+  //   if(tensor_.rank() > 0) {
+  //     off += off[layout_[tensor_.rank()-1]];
+  //   }
+  //   return (static_cast<double*>buf())[off];
+  // }
+  
   size_t size() const {
     size_t sz = 1;
     for(auto x : block_dims_) {
@@ -1232,12 +1341,12 @@ inline int
 perm_count_inversions(const TensorPerm& perm) {
   int num_inversions = 0;
   using size_type = TensorPerm::size_type;
-  for(size_type i=0; i<perm.size(); i++) {
+  for(int i=0; i<perm.size(); i++) {
     auto itr = std::find(perm.begin(), perm.end(), i);
     Expects(itr != perm.end());
-    num_inversions += (itr - perm.begin()) - i;
+    num_inversions += std::abs((itr - perm.begin()) - i);
   }
-  return num_inversions;
+  return num_inversions / 2;
 }
 
 template<typename T>
@@ -1363,6 +1472,14 @@ class Tensor {
     return distribution_;
   }
 
+  Irrep irrep() const {
+    return irrep_;
+  }
+  
+  bool spin_restricted() const {
+    return spin_restricted_;
+  }
+  
   AllocationPolicy allocation_policy() const {
     return policy_;
   }
@@ -1371,6 +1488,10 @@ class Tensor {
     return indices_;
   }
 
+  TensorRank nupper_indices() const {
+    return nupper_indices_;
+  }
+  
   bool constructed() const {
     return constructed_;
   }
@@ -1411,8 +1532,8 @@ class Tensor {
       int length = 0;
       int x=0;
       for(auto itr = pdt; itr != last; ++itr) {
-        std::cout<<x++<<std::endl;
-        std::cout<<"allocate. itr="<<*itr<<std::endl;
+        //std::cout<<x++<<std::endl;
+        //std::cout<<"allocate. itr="<<*itr<<std::endl;
         if(nonzero(*itr)) {
           length += 1;
         }
@@ -1427,7 +1548,7 @@ class Tensor {
       for(auto itr = pdt; itr != last; ++itr) {
         auto blockid = *itr;
         if(nonzero(blockid)) {
-          std::cout<<"allocate. set keys. itr="<<*itr<<std::endl;
+          //std::cout<<"allocate. set keys. itr="<<*itr<<std::endl;
           tce_hash_[addr] = TCE::compute_tce_key(flindices(), blockid);
           tce_hash_[length + addr] = size;
           size += block_size(blockid);
@@ -1649,6 +1770,7 @@ class Tensor {
   // }
 
   LabeledTensor operator () (const TensorLabel& perm) {
+    Expects(perm.size() == rank());
     return LabeledTensor{this, perm};
   }
 
@@ -1914,6 +2036,7 @@ auto intersect(const Container &ctr1, const Container &ctr2) {
   }
   return ret;
 }
+
 
 inline TensorVec<TensorVec<TensorLabel>>
 group_partition(const TensorVec<TensorLabel>& label_groups_1,
@@ -2248,7 +2371,7 @@ class CopySymmetrizer {
           //Expects(group_size > 0);
           //Expects(bag_.size() > 0);
           comb_ = Combination<int>(bag_, part_size);
-          std::cerr<<"Copy symmetrizer constructor. itr size="<<group_size<<std::endl;
+          //std::cerr<<"Copy symmetrizer constructor. itr size="<<group_size<<std::endl;
         }
 
   CopySymmetrizer& operator = (const CopySymmetrizer& csm) = default;
@@ -2271,8 +2394,20 @@ class CopySymmetrizer {
       if(cs_) {
         itr_ = cs_->comb_.begin();
         end_ = cs_->comb_.end();
-        std::cerr<<"CopySymmetrizer::Iteratoe constructor. itr_size="<<cs_->group_size_<<std::endl;
+
+        while (itr_ != end_) {
+          auto perm = *itr_;
+          Expects(perm.size() == cs_->blockid_.size());
+          auto perm_blockid = perm_apply(cs_->blockid_, perm);
+          auto &uniq_blockid = cs_->uniq_blockid_;
+          if (std::equal(uniq_blockid.begin(), uniq_blockid.end(),
+                         perm_blockid.begin(), perm_blockid.end())) {
+            break;
+          }
+          ++itr_;
+        }
       }
+      //std::cerr<<"CopySymmetrizer::Iteratoe constructor. itr_size="<<cs_->group_size_<<std::endl;
     }
 
     // Iterator& operator = (Iterator& rhs) = default;
@@ -2284,8 +2419,8 @@ class CopySymmetrizer {
     }
     
     TensorLabel operator * () {
-      std::cerr<<"CopyYmmetrizer::Iterator. perm permutation. ="<<*itr_<<std::endl;
-      std::cerr<<"CopyYmmetrizer::Iterator. perm on label. ="<<cs_->label_<<std::endl;      
+      // std::cerr<<"CopyYmmetrizer::Iterator. perm permutation. ="<<*itr_<<std::endl;
+      // std::cerr<<"CopyYmmetrizer::Iterator. perm on label. ="<<cs_->label_<<std::endl;      
       return perm_apply(cs_->label_, *itr_);
     }
 
@@ -2297,6 +2432,9 @@ class CopySymmetrizer {
         auto &uniq_blockid = cs_->uniq_blockid_;
         if (std::equal(uniq_blockid.begin(), uniq_blockid.end(),
                        perm_blockid.begin(), perm_blockid.end())) {
+          std::cerr<<"COPY. Comb::Iterator. internal perm="<<perm<<std::endl;
+          std::cerr<<"COPY. Comb::Iterator. perm blockid="<<perm_blockid<<std::endl;
+          std::cerr<<"COPY. Comb::Iterator. unique blockid="<<uniq_blockid<<std::endl;
           break;
         }
       }
@@ -2369,11 +2507,51 @@ copy_symmetrizer(const LabeledTensor& ltc,
     //find unique block
     std::sort(uniq_blockid.begin(), uniq_blockid.end());
     Expects(size > 0);
-    std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl<<std::endl;
+    //std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl<<std::endl;
     csv.push_back(CopySymmetrizer{size, lbls[0].size(), lbl, blockid, uniq_blockid});
   }
   return csv;
 }
+
+inline TensorVec<TensorLabel>
+group_labels(const TensorLabel& label,
+             const TensorIndex& group_sizes) {
+  TensorVec<TensorLabel> ret;
+  int pos = 0;
+  for(auto grp: group_sizes) {
+    ret.push_back(TensorLabel(grp.value()));
+    std::copy_n(label.begin() + pos, grp.value(), ret.back().begin());
+    pos += grp.value();
+  }
+  return ret;  
+}
+
+inline TensorVec<TensorVec<TensorLabel>>
+compute_extra_symmetries(const TensorLabel& lhs_label,
+                         const TensorIndex& lhs_group_sizes,
+                         const TensorLabel& rhs_label,
+                         const TensorIndex& rhs_group_sizes) {
+  Expects(lhs_label.size() == lhs_group_sizes.size());
+  Expects(rhs_label.size() == rhs_group_sizes.size());
+  Expects(lhs_label.size() == rhs_label.size());
+
+  auto lhs_label_groups = group_labels(lhs_label, lhs_group_sizes);
+  auto rhs_label_groups = group_labels(rhs_label, rhs_group_sizes);
+
+  TensorVec<TensorVec<TensorLabel>> ret_labels;
+  for (auto &glhs : lhs_label_groups) {
+    TensorVec<TensorLabel> ret_group;
+    for (auto &grhs : rhs_label_groups) {
+      auto lbls = intersect(glhs, grhs);
+      if (lbls.size() > 0) {
+        ret_group.push_back(lbls);
+      }
+    }
+    ret_labels.push_back(ret_group);
+  }
+  return ret_labels;  
+}
+
 
 inline TensorVec<CopySymmetrizer>
 copy_symmetrizer(const LabeledTensor& ltc,
@@ -2398,7 +2576,7 @@ copy_symmetrizer(const LabeledTensor& ltc,
     //find unique block
     std::sort(uniq_blockid.begin(), uniq_blockid.end());
     Expects(size > 0);
-    std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl<<std::endl;
+    //std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl<<std::endl;
     csv.push_back(CopySymmetrizer{size, lbls[0].size(), lbl, blockid, uniq_blockid});
   }
   return csv;
@@ -2410,13 +2588,13 @@ inline ProductIterator<CopySymmetrizer::Iterator>
 copy_iterator(const TensorVec<CopySymmetrizer>& sitv) {
   TensorVec<CopySymmetrizer::Iterator> itrs_first, itrs_last;
   for(auto &sit: sitv) {
-    std::cerr<<__FUNCTION__<<" symmetrizer SIZE="<< sit.group_size_<<std::endl;
+    // std::cerr<<__FUNCTION__<<" symmetrizer SIZE="<< sit.group_size_<<std::endl;
     itrs_first.push_back(sit.begin());
     itrs_last.push_back(sit.end());
     Expects(itrs_first.back().itr_size() == itrs_last.back().itr_size());
     Expects(itrs_first.back().itr_size() == sit.group_size_);
-    std::cerr<<__FUNCTION__<<" iterator first cs_ ptr="<< itrs_first.back().cs_<<std::endl;    
-    std::cerr<<__FUNCTION__<<" iterator last cs_ ptr="<< itrs_last.back().cs_<<std::endl;    
+    // std::cerr<<__FUNCTION__<<" iterator first cs_ ptr="<< itrs_first.back().cs_<<std::endl;    
+    // std::cerr<<__FUNCTION__<<" iterator last cs_ ptr="<< itrs_last.back().cs_<<std::endl;    
   }
   return {itrs_first, itrs_last};
 }
@@ -2447,11 +2625,14 @@ operator += (LabeledTensor ltc, const std::tuple<double, const LabeledTensor>& r
 }
 #endif
 
+#if 1
+//working but for unsymmetrization
 /**
  * @todo We assume there is no un-symmetrization in the output.
  */
 inline void
 operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
+  Expects(ltc.tensor_->rank() == std::get<1>(rhs).tensor_->rank());
   double alpha = std::get<0>(rhs);
   std::cerr<<"ALPHA="<<alpha<<std::endl;
   const LabeledTensor& lta = std::get<1>(rhs);
@@ -2464,13 +2645,17 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
     if(ta.nonzero(ablockid) && dima>0) {
       auto label_map = LabelMap()
           .update(lta.label_, ablockid);
+      // auto cblockid = tc.find_unique_block(label_map.get_blockid(ltc.label_));
       auto cblockid = label_map.get_blockid(ltc.label_);
       auto abp = ta.get(ablockid);
-      auto cbp = tc.alloc(cblockid);
-      cbp(ltc.label_) += alpha * abp(lta.label_);
+      //auto cbp = tc.alloc(cblockid);
+      //cbp(ltc.label_) += alpha * abp(lta.label_);
 
       auto csbp = tc.alloc(tc.find_unique_block(cblockid));
       csbp().init(0);
+      
+      std::cerr<<"COPY ITR. ablockid="<<ablockid<<std::endl;
+      std::cerr<<"COPY ITR. alabel="<<lta.label_<<std::endl;
 
       auto copy_symm = copy_symmetrizer(ltc, lta, label_map);      
       auto copy_itr = copy_iterator(copy_symm);
@@ -2479,16 +2664,76 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
       std::iota(copy_label.begin(), copy_label.end(), 0);
       for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
         auto perm = *citr;
-        std::cerr<<"copy itr. *itr = perm= "<<perm<<std::endl;
         auto num_inversions = perm_count_inversions(perm);
         Sign sign = (num_inversions%2) ? -1 : 1;
-        csbp(copy_label) += sign * cbp(perm);
+        std::cerr<<"COPY ITR. csbp blockid="<<csbp.blockid()<<std::endl;
+        std::cerr<<"COPY ITR. csbp label="<<copy_label<<std::endl;
+        std::cerr<<"COPY ITR. cbp blockid="<<cblockid<<std::endl;
+        std::cerr<<"COPY ITR. cbp label="<<perm<<std::endl;
+        std::cerr<<"COPY ITR. num_inversions="<<num_inversions<<std::endl;
+        std::cerr<<"COPY ITR. sign="<<sign<<std::endl;
+        //csbp(copy_label) += sign * cbp(perm);
+        auto perm_comp = perm_apply(perm, perm_compute(ltc.label_, lta.label_));
+        csbp(copy_label) += sign * alpha * abp(perm_comp);
       }
       tc.add(csbp);
     }
   };
   parallel_work(aitr, aitr.get_end(), lambda);
 }
+#else
+// inline void
+// operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
+//   Expects(ltc.tensor_->rank() == std::get<1>(rhs).tensor_->rank());
+//   double alpha = std::get<0>(rhs);
+//   std::cerr<<"ALPHA="<<alpha<<std::endl;
+//   const LabeledTensor& lta = std::get<1>(rhs);
+//   Tensor& ta = *lta.tensor_;
+//   Tensor& tc = *ltc.tensor_;
+//   //check for validity of parameters
+//   auto aitr = loop_iterator(ta.indices());
+//   auto lambda = [&] (const TensorIndex& ablockid) {
+//     size_t dima = ta.block_size(ablockid);
+//     if(ta.nonzero(ablockid) && dima>0) {
+//       auto label_map = LabelMap()
+//           .update(lta.label_, ablockid);
+//       // auto cblockid = tc.find_unique_block(label_map.get_blockid(ltc.label_));
+//       auto cblockid = label_map.get_blockid(ltc.label_);
+//       auto abp = ta.get(ablockid);
+//       //auto cbp = tc.alloc(cblockid);
+//       //cbp(ltc.label_) += alpha * abp(lta.label_);
+
+//       auto csbp = tc.alloc(tc.find_unique_block(cblockid));
+//       csbp().init(0);
+      
+//       std::cerr<<"COPY ITR. ablockid="<<ablockid<<std::endl;
+//       std::cerr<<"COPY ITR. alabel="<<lta.label_<<std::endl;
+
+//       auto copy_symm = copy_symmetrizer(ltc, lta, label_map);      
+//       auto copy_itr = copy_iterator(copy_symm);
+//       auto copy_itr_last = copy_itr.get_end();
+//       auto copy_label = TensorLabel(ltc.label_.size());
+//       std::iota(copy_label.begin(), copy_label.end(), 0);
+//       for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
+//         auto perm = *citr;
+//         auto num_inversions = perm_count_inversions(perm);
+//         Sign sign = (num_inversions%2) ? -1 : 1;
+//         std::cerr<<"COPY ITR. csbp blockid="<<csbp.blockid()<<std::endl;
+//         std::cerr<<"COPY ITR. csbp label="<<copy_label<<std::endl;
+//         std::cerr<<"COPY ITR. cbp blockid="<<cblockid<<std::endl;
+//         std::cerr<<"COPY ITR. cbp label="<<perm<<std::endl;
+//         std::cerr<<"COPY ITR. num_inversions="<<num_inversions<<std::endl;
+//         std::cerr<<"COPY ITR. sign="<<sign<<std::endl;
+//         //csbp(copy_label) += sign * cbp(perm);
+//         auto perm_comp = perm_apply(perm, perm_compute(ltc.label_, lta.label_));
+//         csbp(copy_label) += sign * alpha * abp(perm_comp);
+//       }
+//       tc.add(csbp);
+//     }
+//   };
+//   parallel_work(aitr, aitr.get_end(), lambda);
+// }
+#endif
 
 // inline void
 // operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
@@ -2530,14 +2775,49 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
 //   parallel_work(aitr, aitr.get_end(), lambda);
 // }
 
-inline void
-tensor_init(LabeledTensor ltc, double value) {
-}
+// inline void
+// tensor_init(Tensor &tc, double value) {
+//   TensorVec<SymmGroup> indices;
+//   for(auto ind: tc.flindices()) {
+//     indices.push_back(SymmGroup{ind});
+//   }
+//   Tensor ta(indices, tc.element_type(), tc.distribution(), tc.nupper_indices(),
+//             tc.irrep(), tc.spin_restricted());
+
+//   auto label = tc().label_;
+  
+//   auto lambda = [&] (const TensorIndex& cblockid) {
+//     size_t dimc = tc.block_size(cblockid);
+//     if(tc.nonzero(cblockid) && dimc>0) {
+//       auto abp = ta.alloc(cblockid);
+//       abp().init(value);
+//       auto label_map = LabelMap()
+//           .update(label, cblockid);
+
+//       auto csbp = tc.alloc(cblockid);
+
+//       auto copy_symm = copy_symmetrizer(tc(), ta(), label_map);
+//       auto copy_itr = copy_iterator(copy_symm);
+//       auto copy_itr_last = copy_itr.get_end();
+//       auto copy_label = TensorLabel(tc.rank());
+//       std::iota(copy_label.begin(), copy_label.end(), 0);
+//       csbp().init(0);
+//       for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
+//         auto perm = *citr;
+//         auto num_inversions = perm_count_inversions(perm);
+//         Sign sign = (num_inversions%2) ? -1 : 1;
+//         csbp(copy_label) += sign * abp(perm);
+//       }
+//       tc.add(csbp);
+//     }
+//   };
+//   auto citr = loop_iterator(tc.indices());
+//   parallel_work(citr, citr.get_end(), lambda);  
+// }
     
 
 inline void
-assert_zero(LabeledTensor ltc) {
-  Tensor& tc = *ltc.tensor_;
+assert_equal(Tensor &tc, double value) {
   auto citr = loop_iterator(tc.indices());
   auto lambda = [&] (const TensorIndex& cblockid) {
     size_t dimc = tc.block_size(cblockid);
@@ -2546,12 +2826,18 @@ assert_zero(LabeledTensor ltc) {
       auto cdbuf = reinterpret_cast<double*>(cbp.buf());
       auto size = cbp.size();
       for(int i=0; i<size; i++) {
-        std::cerr<<__FUNCTION__<<": buf[i]="<<cdbuf[i]<<std::endl;
-        assert(std::abs(cdbuf[i]) < 1.0e-6);
+        std::cerr<<__FUNCTION__<<": block="<<cblockid<<std::endl;        
+        std::cerr<<__FUNCTION__<<": buf["<<i<<"]="<<cdbuf[i]<<std::endl;
+        assert(std::abs(cdbuf[i]-value) < 1.0e-6);
       }
     }
   };
   parallel_work(citr, citr.get_end(), lambda);
+}
+
+inline void
+assert_zero(Tensor& tc) {
+  assert_equal(tc, 0);
 }
 
 
@@ -2712,7 +2998,6 @@ index_permute(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const Tensor
 
 inline void
 operator += (LabeledBlock clb, std::tuple<double, LabeledBlock> rhs) {
-  double alpha = std::get<0>(rhs);
   const LabeledBlock& alb = std::get<1>(rhs);
 
   auto &ablock = *alb.block_;
@@ -2739,6 +3024,7 @@ operator += (LabeledBlock clb, std::tuple<double, LabeledBlock> rhs) {
   auto astore = perm_apply(alabel, perm_invert(alayout));
 
   auto store_perm = perm_compute(astore, cstore);
+  double alpha = std::get<0>(rhs);
   index_permute_acc(cblock.buf(), ablock.buf(), store_perm, cblock.block_dims(), alpha);
 }
 
@@ -2775,6 +3061,26 @@ tensor_map (LabeledTensor ltc, LabeledTensor lta, Lambda func) {
     }
   };
   parallel_work(citr, citr.get_end(), lambda);
+}
+
+inline void
+tensor_print(Tensor& tc, std::ostream &os) {
+  auto citr_first = loop_iterator(tc.indices());
+  auto citr_last = citr_first.get_end();
+  for(auto citr = citr_first; citr != citr_last; ++citr) {
+    auto cblockid = *citr;
+    size_t dimc = tc.block_size(cblockid);
+    if(tc.nonzero(cblockid) && dimc>0) {
+      auto cblock = tc.get(cblockid);
+      os<<"block id = "<<cblockid<<std::endl;
+      auto size = cblock.size();
+      double *cdbuf = reinterpret_cast<double*>(cblock.buf());
+      for(int i=0; i<cblock.size(); i++) {
+        os<<cdbuf[i]<<" ";
+      }
+      os<<std::endl;
+    }
+  }
 }
 
 }  // namespace tammx

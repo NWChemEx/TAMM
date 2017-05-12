@@ -110,6 +110,51 @@ extern "C" {
           Fint *k_t_vo_offset, Fint *k_t_vvoo_offset,
           Fint *k_v_offset, Fint *k_x_o_offset,
           Fint *k_x_voo_offset);
+
+  void ip_ccsd_driver_cxx_(
+    // Please note d_e and k_e_offset are not used
+    Fint *d_e, Fint *d_f1, Fint *d_v2, Fint *d_t1,
+    Fint *d_t2, Fint *k_e_offset, Fint *k_f1_offset,
+    Fint *k_v2_offset,   Fint *k_t1_offset, Fint *k_t2_offset,
+    Fint *rtdb, Fint *size_x1, Fint *size_x2, Fint *k_irs,
+    Fint nirreps, bool symmetry, std::string targetsym,
+    double const& cpu, double const& wall) {
+
+	/* Create Tensor objects and attach to objects
+	 * passed on to this function
+	 */
+    tamm::Tensor *f = new tamm::Tensor
+              (2, 1, 0, {2, 2}, tamm::dist_nw);  // f[N][N]: irrep_f;
+    f-> create();
+    f-> attach(*k_f1_offset, 0, *d_f1);  // d_f1, k_f1_offset
+
+    tamm::Tensor *v = new tamm::Tensor  // d_v2
+              (4, 2, 0, {2, 2, 2, 2}, tamm::dist_nw);  // v[N,N][N,N]: irrep_v;
+    v-> create();
+    v-> attach(*k_v2_offset, 0, *d_v2);  // d_v2, k_v2_offset
+
+    tamm::Tensor *t_vo = new tamm::Tensor  // d_t1
+              (2, 1, 0, {1, 0}, tamm::dist_nw);  // t_vo[V][O]: irrep_t;
+    t_vo-> create();
+    t_vo-> attach(*k_t1_offset, 0, *d_t1);  // d_vo, k_t1_offset
+
+    tamm::Tensor *t_vvoo = new tamm::Tensor  // d_t1
+              (4, 2, 0, {2, 2, 0, 0}, tamm::dist_nw);
+    // array t_vvoo[V,V][O,O]: irrep_t;
+    t_vvoo-> create();
+    t_vvoo-> attach(*k_t2_offset, 0, *d_t2);  // d_vvoo, k_t2_offset
+
+    /* Call ip_ccsd driver */
+    ip_ccsd(&f, &v, & t_vo, &t_vvoo, rtdb, size_x1, size_x2, k_irs, nirreps,
+             symmetry, targetsym, cpu, wall);
+
+    /* detach tensor objects */
+    f->detach();
+    v->detach();
+    t_vo->detach();
+    t_vvoo->detach();
+  }
+
 }  // extern "C"
 
 int ga_nodeid() {
@@ -196,17 +241,14 @@ static Fint xc2[maxtrials];
 static Fint xp1[maxtrials];
 static Fint xp2[maxtrials];*/
 
-
-extern "C" {
-void ip_ccsd_driver_cxx_(
-  // Tensor& d_e, Tensor& d_f,
-  // Tensor& tv2, Tensor& d_1, Tensor& d_t2
-  Fint *d_e, Fint *d_f1, Fint *d_v2, Fint *d_t1,
-  Fint *d_t2, Fint *k_e_offset, Fint *k_f1_offset,
-  Fint *k_v2_offset,   Fint *k_t1_offset, Fint *k_t2_offset,
+void ip_ccsd(tamm::Tensor* f, tamm::Tensor* v, tamm::Tensor* t_vo,
+        tamm::Tensor* t_vvoo,
+  // Fint *d_e, Fint *d_f1, Fint *d_v2, Fint *d_t1,
+  // Fint *d_t2, Fint *k_e_offset, Fint *k_f1_offset,
+  // Fint *k_v2_offset,   Fint *k_t1_offset, Fint *k_t2_offset,
   Fint *rtdb, Fint *size_x1, Fint *size_x2, Fint *k_irs,
   Fint nirreps, bool symmetry, std::string targetsym,
-  double &cpu, double &wall) {
+  double const &cpu, double const &wall) {
   Fint x1[maxtrials];
   Fint x2[maxtrials];
 
@@ -497,4 +539,3 @@ void ip_ccsd_driver_cxx_(
   //        return
   //        end
 }
-}  // extern "C"

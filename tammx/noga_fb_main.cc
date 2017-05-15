@@ -66,7 +66,6 @@ void test() {
   Tensor X_OO{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
   Tensor X_OV{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
   Tensor X_VV{indices_vv, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  //Tensor tb{indices2, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
   FT.allocate();
   hT.allocate();
@@ -101,30 +100,49 @@ void test() {
   //tensor_init(tb, 1.0);
   //assert_equal(tb, 1.0);
   //ta({0,1,2}) += 1.0 * tb({0,3,2}) * ta2({1,3});
+
+  //hf_1: FT[p,q] += 1.0 * hT[p,q];
   FT() += 1.0 * hT();
+  //hf_2:  FT[p,q] += bDiag * bT[p,q];
   FT() += bDiag() * bT();
 
+  //hf_3_1: t1 += X_OO[i,j] * bT[i,j];
   t1() += X_OO() * bT();
+  //hf_3: FT[p,q] += bT[p,q] * t1;
   FT() += bT() * t1();
 
+  //hf_4_1: t2 += 2.0 * X_OV[i,a] * bT[i,a];
   t2() += 2.0 * X_OV() * bT();
+  //hf_4:  FT[p,q] += t2 * bT[p,q];
   FT() += t2() * bT();
 
+//hf_5_1: t3 += X_VV[a,b] * bT[a,b];
   t3() += X_VV() * bT();
+  //hf_5: FT[p,q] += bT[p,q] * t3;
   FT() += bT() * t3();
 
+  //hf_6: FT[p,q] += -1.0 * bT[p,i] * bT[i,q];
 //  FT() += -1.0 * bT() * bT();
-//
-//  t4() += X_OO() * bT();
-//  FT() += -1.0 * bT() * t4();
-//
+
+  //hf_7_1: t4[i,q] += X_OO[i,j] * bT[j,q];
+  //t4({0,2}) += X_OO({0,0}) * bT({0,2});
+
+  //hf_7:  FT[p,q] += -1.0 *  bT[p,i] * t4[i,q];
+  //FT() += -1.0 * bT() * t4();
+
+  // hf_8_1: t5[i,q] += X_OV[i,a] * bT[a,q];
 //  t5() += X_OV() * bT();
+  // hf_8:  FT[p,q] += -1.0 * bT[p,i] * t5[i,q];
 //  FT() += -1.0 * bT() * t5();
 //
+  //hf_9_1: t6[i,p] += X_OV[i,a] * bT[p,a];
 //  t6() += X_OV() * bT();
+  //hf_9: FT[p,q] += -1.0 * bT[i,q] * t6[i,p];
 //  FT() += -1.0 * bT() * t6();
-//
+
+  //hf_10_1: t7[a,q] += X_VV[a,b] * bT[b,q];
 //  t7() += X_VV() * bT();
+  //hf_10:  FT[p,q] += -1.0 * bT[p,a] * t7[a,q];
 //  FT() += -1.0 * bT() * t7();
 
 

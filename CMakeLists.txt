@@ -109,7 +109,7 @@ set(tammLibSources
   tensor/tensor.cc
   tensor/tensors_and_ops.cc
   tensor/variables.cc
-  noga_HF/noga_fock_build_ref.cc
+  #noga_HF/noga_fock_build_ref.cc
   )
 
 set(refCodeSources

@@ -109,6 +109,7 @@ set(tammLibSources
   tensor/tensor.cc
   tensor/tensors_and_ops.cc
   tensor/variables.cc
+  noga_HF/noga_fock_build_ref.cc
   )
 
 set(refCodeSources
@@ -180,10 +181,9 @@ target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${Pars
 target_link_libraries(tamm_main tamm ${tamm_ldflags} ${BLAS_LIBRARIES}) #${tamm_libs}
 
 add_executable(tammx_main tammx/tammx_main.cc tammx/tammx.cc tammx/index_sort.cc) #EXCLUDE_FROM_ALL
-#add_dependencies(tammx_main tamm)
 target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
-# Set target libraries to be linked.
-#target_link_libraries(tamm_main tamm ${tamm_ldflags} ${BLAS_LIBRARIES}) #${tamm_libs}
+add_executable(noga_main tammx/noga_fb_main.cc tammx/tammx.cc tammx/index_sort.cc) #EXCLUDE_FROM_ALL
+target_include_directories(noga_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
 
 # Install
 if(NOT TAMM_INSTALL_PREFIX)

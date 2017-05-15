@@ -24,7 +24,7 @@ set(ANTLR_CPPRUNTIME /opt/libraries/ANTLR4/antlr4-cpp-runtime)
 # General NWCHEM Options
 #Using NWCHEM CMAKE build
 set(NWCHEM_TOP /home/panyala/git/nwchem-cmake/nwchem-devel)
-set(GA_CONFIG ${NWCHEM_TOP}/buildIntel/nwc-install/external/ga/bin)
+set(GA_CONFIG ${NWCHEM_TOP}/buildIntel/nwchem-install/external/ga/bin)
 set(NWCHEM_BUILD_DIR ${NWCHEM_TOP}/buildIntel/)
 option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" ON)
 

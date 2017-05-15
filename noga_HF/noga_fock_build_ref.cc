@@ -2,7 +2,6 @@
 /*
  *  noga {
  *
- *
  *  index p,q,r,s = N;
  *  index i, j, m, n = O;
  *  index a, b, c, d, e, f = V;
@@ -55,6 +54,17 @@
  *
  */
 
+#include <iostream>
+#include "tensor/corf.h"
+#include "tensor/equations.h"
+#include "tensor/input.h"
+#include "tensor/schedulers.h"
+#include "tensor/t_assign.h"
+#include "tensor/t_mult.h"
+#include "tensor/tensor.h"
+#include "tensor/tensors_and_ops.h"
+#include "tensor/variables.h"
+
 namespace tamm {
 
 void schedule_linear(std::map<std::string, tamm::Tensor> &tensors,
@@ -62,36 +72,24 @@ void schedule_linear(std::map<std::string, tamm::Tensor> &tensors,
 void schedule_levels(std::map<std::string, tamm::Tensor> &tensors,
                      std::vector<Operation> &ops);
 
-void noga_fock_build(
-    Integer *d_t5, Integer *d_FT, Integer *d_bDiag, Integer *d_t6,
-    Integer *d_t2, Integer *d_t4, Integer *d_X_VV, Integer *d_X_OV,
-    Integer *d_t3, Integer *d_hT, Integer *d_t1, Integer *d_bT, Integer *d_X_OO,
-    Integer *d_t7, Integer *k_t5_offset, Integer *k_FT_offset,
-    Integer *k_bDiag_offset, Integer *k_t6_offset, Integer *k_t2_offset,
-    Integer *k_t4_offset, Integer *k_X_VV_offset, Integer *k_X_OV_offset,
-    Integer *k_t3_offset, Integer *k_hT_offset, Integer *k_t1_offset,
-    Integer *k_bT_offset, Integer *k_X_OO_offset, Integer *k_t7_offset) {
+void noga_fock_build() {
+
   static bool set_build = true;
 
-  Assignment op_hf_1;
-  Multiplication op_hf_2;
-  Multiplication op_hf_3_1;
-  Multiplication op_hf_3;
-  Multiplication op_hf_4_1;
-  Multiplication op_hf_4;
-  Multiplication op_hf_5_1;
-  Multiplication op_hf_5;
-  Multiplication op_hf_6;
-  Multiplication op_hf_7_1;
-  Multiplication op_hf_7;
-  Multiplication op_hf_8_1;
-  Multiplication op_hf_8;
-  Multiplication op_hf_9_1;
-  Multiplication op_hf_9;
-  Multiplication op_hf_10_1;
-  Multiplication op_hf_10;
+  F77Integer x0 = 0, noab = 20, k_spin = 1, nvab=100, noa = 10, nva = 50;
+  logical intorb = 0, restricted = 0;
+  double dbl_mb = 0.0;
 
-  DistType idist = (Variables::intorb()) ? dist_nwi : dist_nw;
+  Dummy::construct();
+  Table::construct();
+  Variables::set_ov(&noab,&nvab);
+  Variables::set_ova(&noa,&nva);
+  Variables::set_irrep(&x0,&x0,&x0);
+  Variables::set_idmb(&x0,&dbl_mb);
+  Variables::set_log(&intorb,&restricted);
+  Variables::set_k1(&nvab,&k_spin,&x0);
+
+  DistType idist = dist_nw;
   static Equations eqs;
 
   if (set_build) {
@@ -103,7 +101,7 @@ void noga_fock_build(
   std::vector<Operation> ops;
   tensors_and_ops(&eqs, &tensors, &ops);
 
-  Tensor *bDiag = &tensors["bDiag"];
+  //Tensor *bDiag = &tensors["bDiag"];
   Tensor *bT = &tensors["bT"];
   Tensor *hT = &tensors["hT"];
   Tensor *FT = &tensors["FT"];
@@ -118,14 +116,28 @@ void noga_fock_build(
   Tensor *t6 = &tensors["t6"];
   Tensor *t7 = &tensors["t7"];
 
+//(F77Integer *noab, F77Integer *nvab, F77Integer *int_mb, double *dbl_mb,
+//             F77Integer *k_range, F77Integer *k_spin, F77Integer *k_sym,
+//            logical *intorb, logical *restricted, F77Integer *irrep_v,
+//            F77Integer *irrep_t, F77Integer *irrep_f)
+
+
+
   /* ----- Attach ------ */
+    Fint k_FT_offset = 0, d_FT = 0;
+    Fint k_hT_offset = 0, d_hT = 0;
+    Fint k_bT_offset = 0, d_bT = 0;
+    Fint k_X_VV_offset = 0, d_X_VV = 0;
+    Fint k_X_OV_offset = 0, d_X_OV = 0;
+    Fint k_X_OO_offset = 0, d_X_OO = 0;
+
   // v->set_dist(idist);
-  FT->attach(*k_FT_offset, 0, *d_FT);
-  hT->attach(*k_hT_offset, 0, *d_hT);
-  bT->attach(*k_bT_offset, 0, *d_bT);
-  X_VV->attach(*k_X_VV_offset, 0, *d_X_VV);
-  X_OV->attach(*k_X_OV_offset, 0, *d_X_OV);
-  X_OO->attach(*k_X_OO_offset, 0, *d_X_OO);
+  FT->attach(0, 0, 0);
+  hT->attach(0, 0, 0);
+  bT->attach(0, 0, 0);
+  X_VV->attach(0, 0, 0);
+  X_OV->attach(0, 0, 0);
+  X_OO->attach(0, 0, 0);
 
   schedule_levels(&tensors, &ops);
 
@@ -139,3 +151,4 @@ void noga_fock_build(
 }  // noga_fock_build
 
 };  // namespace tamm
+

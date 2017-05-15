@@ -126,8 +126,8 @@ extern "C" {
 	 * passed on to this function
 	 */
 
-	  // f[N][N]
-	tamm::RangeType list_f[] = {tamm::TN, tamm::TN};
+    // f[N][N]
+    tamm::RangeType list_f[] = {tamm::TN, tamm::TN};
     tamm::Tensor *f = new tamm::Tensor
               (2, 1, 0, list_f, tamm::dist_nw);  // irrep_f
     f-> create();
@@ -155,9 +155,9 @@ extern "C" {
     t_vvoo-> attach(*k_t2_offset, 0, *d_t2);  // d_vvoo, k_t2_offset
 
     /* Call ip_ccsd driver */
-    ip_ccsd(f, v, t_vo, t_vvoo);
-    // , rtdb, size_x1, size_x2, k_irs, nirreps,
-             // symmetry, targetsym, cpu, wall);
+    ip_ccsd(f, v, t_vo, t_vvoo,
+    rtdb, size_x1, size_x2, k_irs, nirreps,
+    symmetry, targetsym, cpu, wall);
 
     /* detach tensor objects */
     f->detach();
@@ -263,13 +263,13 @@ static Fint xp1[maxtrials];
 static Fint xp2[maxtrials];*/
 
 void ip_ccsd(tamm::Tensor* f, tamm::Tensor* v, tamm::Tensor* t_vo,
-        tamm::Tensor* t_vvoo){  // ,
+        tamm::Tensor* t_vvoo,
   // Fint *d_e, Fint *d_f1, Fint *d_v2, Fint *d_t1,
   // Fint *d_t2, Fint *k_e_offset, Fint *k_f1_offset,
   // Fint *k_v2_offset,   Fint *k_t1_offset, Fint *k_t2_offset,
-//  Fint *rtdb, Fint *size_x1, Fint *size_x2, Fint *k_irs,
-//  Fint nirreps, bool symmetry, std::string targetsym,
-//  double const &cpu, double const &wall) {
+  Fint *rtdb, Fint *size_x1, Fint *size_x2, Fint *k_irs,
+  Fint nirreps, bool symmetry, std::string targetsym,
+  double const &cpu, double const &wall) {
   Fint x1[maxtrials];
   Fint x2[maxtrials];
 
@@ -347,8 +347,8 @@ void ip_ccsd(tamm::Tensor* f, tamm::Tensor* v, tamm::Tensor* t_vo,
       const int hbard = 4;
       double *hbar = new double[hbard][hbard];
       // if (!ma_push_get(mt_dbl,hbard*hbard,'hbar',
-      //   1  l_hbar,k_hbar)) errquit('tce_eom_xdiagon: MA problem',0,
-      //               2  MA_ERR)
+      //     l_hbar,k_hbar)) errquit('tce_eom_xdiagon: MA problem',0,
+      //     MA_ERR)
       // tce_hbarinit_(dbl_mb(k_hbar),hbard);
       tce_hbarinit(hbar, hbard);
       // following block will use malloc instead of ma_push_get
@@ -363,16 +363,18 @@ void ip_ccsd(tamm::Tensor* f, tamm::Tensor* v, tamm::Tensor* t_vo,
       std::map<std::string, tamm::Tensor> tensors;
 
 
+      tamm::RangeType list_d_rx1[] = {tamm::TO};
       tamm::Tensor *d_rx1 = new tamm::Tensor
-              (1, 0, 0, {0}, tamm::dist_nw);  // tce_ipx1();
+              (1, 0, 0, list_d_rx1, tamm::dist_nw);  // tce_ipx1();
       d_rx1->create();
       // CorFortran(1, &tce_ipx1, tce_ipx1_offset_);
       // tce_ipx1_offset(l_x1_offset,k_x1_offset,size_x1)
       // tce_filename('rx1',filename)
       // createfile(filename,d_rx1,size_x1)
 
+      tamm::RangeType list_d_rx2[] = {tamm::TN, tamm::TO, tamm::TO};
       tamm::Tensor *d_rx2 = new tamm::Tensor
-              (3, 1, 0, {1, 0, 0}, tamm::dist_nw);  // tce_ipx2();
+              (3, 1, 0, list_d_rx2, tamm::dist_nw);  // tce_ipx2();
       d_rx2->create();
       // Tensor *d_rx2 = {nullptr};  // tce_ipx2();
       // CorFortran(1, &tce_ipx2, tce_ipx2_offset_);
@@ -399,10 +401,10 @@ void ip_ccsd(tamm::Tensor* f, tamm::Tensor* v, tamm::Tensor* t_vo,
       xp1 = new Tensor[nroots_reduced];
       xp2 = new Tensor[nroots_reduced];*/
 
-    Tensor *xc1[nroots_reduced] = {nullptr};
-    Tensor *xc2[nroots_reduced] = {nullptr};
-    Tensor *xp1[nroots_reduced] = {nullptr};
-    Tensor *xp2[nroots_reduced] = {nullptr};
+    tamm::Tensor *xc1[nroots_reduced] = {nullptr};
+    tamm::Tensor *xc2[nroots_reduced] = {nullptr};
+    tamm::Tensor *xp1[nroots_reduced] = {nullptr};
+    tamm::Tensor *xp2[nroots_reduced] = {nullptr};
 
     // make an indexed createfile equivalent function
     for (int ivec=1; ivec<= nroots_reduced; ivec++) {

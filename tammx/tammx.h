@@ -511,9 +511,9 @@ class Tensor {
   //   return ProductIterator<TriangleLoop>(tloops, tloops_last);
   // }
 
-  LabeledTensor operator () (const TensorLabel& perm) {
-    Expects(perm.size() == rank());
-    return LabeledTensor{this, perm};
+  LabeledTensor operator () (const TensorLabel& label) {
+    Expects(label.size() == rank());
+    return LabeledTensor{this, label};
   }
 
   LabeledTensor operator () () {
@@ -1039,10 +1039,15 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor, LabeledTensor>
     auto sum_itr_last = sum_itr_first.get_end();
     auto label_map = LabelMap<BlockDim>().update(ltc.label_, cblockid);
     auto cbp = tc.alloc(cblockid);
+    cbp().init(0);
     for(auto sitr = sum_itr_first; sitr!=sum_itr_last; ++sitr) {
       label_map.update(sum_labels, *sitr);
       auto ablockid = label_map.get_blockid(lta.label_);
       auto bblockid = label_map.get_blockid(ltb.label_);
+
+      if(!ta.nonzero(ablockid) || !tb.nonzero(bblockid)) {
+        continue;
+      }
       auto abp = ta.get(ablockid);
       auto bbp = tb.get(bblockid);
 
@@ -1053,8 +1058,8 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor, LabeledTensor>
     auto copy_symm = copy_symmetrizer(ltc, lta, ltb, label_map);      
     auto copy_itr = copy_iterator(copy_symm);
     auto copy_itr_last = copy_itr.get_end();
-    auto copy_label = TensorLabel(ltc.label_.size());
-    std::iota(copy_label.begin(), copy_label.end(), 0);
+    auto copy_label = TensorLabel(ltc.label_);
+    std::sort(copy_label.begin(), copy_label.end());
     for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
       auto perm = *citr;
       std::cerr<<"---perm="<<perm<<std::endl;

@@ -61,6 +61,12 @@ loop_iterator(const TensorVec<SymmGroup>& indices ) {
     tloops.push_back(TriangleLoop{sg.size(), lo, hi});
     tloops_last.push_back(tloops.back().get_end());
   }
+  //FIXME:Handle Scalar
+  if(indices.size()==0){
+    BlockDim lo{0}, hi{1};
+    tloops.push_back(TriangleLoop{1, lo, hi});
+    tloops_last.push_back(tloops.back().get_end());
+  }
   //std::cerr<<"loop itr size="<<tloops.size()<<std::endl;
   return ProductIterator<TriangleLoop>(tloops, tloops_last);
 }
@@ -280,6 +286,9 @@ class Tensor {
           length += 1;
         }
       }
+      //FIXME:Handle Scalar
+      if (indices_.size() == 0 && length == 0) length = 1;
+
       tce_hash_ = new TCE::Int [2 * length + 1];
       tce_hash_[0] = length;
       //start over

@@ -604,7 +604,8 @@ WARN_LOGFILE           =
 # with spaces.
 
 INPUT                  = frontend/ \
-                         tensor/                         
+                         tensor/  \
+                         tammx/
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding, which is
@@ -1138,7 +1139,7 @@ SERVER_BASED_SEARCH    = NO
 # If the GENERATE_LATEX tag is set to YES (the default) Doxygen will
 # generate Latex output.
 
-GENERATE_LATEX         = YES
+GENERATE_LATEX         = NO
 
 # The LATEX_OUTPUT tag is used to specify where the LaTeX docs will be put.
 # If a relative path is entered the value of OUTPUT_DIRECTORY will be

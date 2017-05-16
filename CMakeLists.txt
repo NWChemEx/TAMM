@@ -185,6 +185,9 @@ target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${Pars
 add_executable(noga_main tammx/noga_fb_main.cc tammx/tammx.cc tammx/index_sort.cc) #EXCLUDE_FROM_ALL
 target_include_directories(noga_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
 
+add_executable(tammx_tests tammx/tammx_tests.cc tammx/tammx.cc tammx/index_sort.cc) #EXCLUDE_FROM_ALL
+target_include_directories(tammx_tests SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
+
 # Install
 if(NOT TAMM_INSTALL_PREFIX)
     set(TAMM_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/tamm-install)

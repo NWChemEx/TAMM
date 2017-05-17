@@ -21,6 +21,10 @@ flatten(const TensorVec<TensorVec<T>> &vec) {
   return ret;
 }
 
+/**
+ * @todo @bug Check if this works when a label already presented is
+ * updated
+ */
 template<typename T>
 class LabelMap {
  public:
@@ -53,6 +57,9 @@ inline TensorPerm
 perm_compute(const TensorLabel& from, const TensorLabel& to) {
   TensorPerm layout;
 
+  std::cerr<<__FUNCTION__<<" from="<<from<<std::endl;
+  std::cerr<<__FUNCTION__<<" to="<<to<<std::endl;
+
   Expects(from.size() == to.size());
   for(auto p : to) {
     auto itr = std::find(from.begin(), from.end(), p);
@@ -65,12 +72,24 @@ perm_compute(const TensorLabel& from, const TensorLabel& to) {
 inline int
 perm_count_inversions(const TensorPerm& perm) {
   int num_inversions = 0;
+  TensorPerm perm_sort{perm};
+#if 0
+  std::sort(perm_sort.begin(), perm_sort.end());
+  Expects(std::adjacent_find(perm_sort.begin(), perm_sort.end()) == perm_sort.end());
   using size_type = TensorPerm::size_type;
-  for(int i=0; i<perm.size(); i++) {
-    auto itr = std::find(perm.begin(), perm.end(), i);
+  for(size_type i=0; i<perm.size(); i++) {
+    auto itr = std::find(perm_sort.begin(), perm_sort.end(), perm[i]);
     Expects(itr != perm.end());
     num_inversions += std::abs((itr - perm.begin()) - i);
   }
+#else
+  using size_type = TensorPerm::size_type;
+  for(size_type i=0; i<perm.size(); i++) {
+    auto itr = std::find(perm_sort.begin(), perm_sort.end(), i);
+    Expects(itr != perm.end());
+    num_inversions += std::abs((itr - perm.begin()) - i);
+  }
+#endif
   return num_inversions / 2;
 }
 
@@ -101,6 +120,7 @@ perm_compose(const TensorPerm& p1, const TensorPerm& p2) {
 inline bool
 is_permutation(TensorPerm perm) {
   std::sort(perm.begin(), perm.end());
+  // return std::adjacent_find(perm.begin(), perm.end()) == perm.end();
   for(int i=0 ;i<perm.size(); i++) {
     if(perm[i] != i)
       return false;
@@ -122,6 +142,7 @@ perm_invert(const TensorPerm& perm) {
 
 template<typename Container>
 auto intersect(const Container &ctr1, const Container &ctr2) {
+#if 0
   Container ret;
   for (auto &x : ctr1) {
     for (auto &y : ctr2) {
@@ -131,6 +152,17 @@ auto intersect(const Container &ctr1, const Container &ctr2) {
     }
   }
   return ret;
+#else
+  Container ret;
+  Container c1 = ctr1;
+  Container c2 = ctr2;
+  std::sort(c1.begin(), c1.end());
+  std::sort(c2.begin(), c2.end());
+  std::set_intersection(c1.begin(), c1.end(),
+                        c2.begin(), c2.end(),
+                        std::back_inserter(ret));
+  return ret;
+#endif
 }
 
 inline TensorVec<TensorLabel>

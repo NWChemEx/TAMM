@@ -20,12 +20,52 @@ struct IrrepSpace;
 using Irrep = StrongInt<IrrepSpace, int>;
 struct SpinSpace;
 using Spin = StrongInt<SpinSpace, int>;
-using IndexLabel = int;
 using Sign = int;
 //struct PermSpace;
 //using Perm = StrongInt<PermSace, int>;
 
-enum class DimType { o, v, n };
+enum class DimType { o  = 0b0011,
+                     v  = 0b1100,
+                     oa = 0b0001,
+                     ob = 0b0010,
+                     va = 0b0100,
+                     vb = 0b1000,
+                     n  = 0b1111
+};
+
+inline bool
+is_dim_subset(DimType superset, DimType subset) {
+  auto sup = static_cast<unsigned>(superset);
+  auto sub = static_cast<unsigned>(subset);
+  return (sup & sub) == sub;
+}
+
+struct IndexLabel {
+  int label;
+  DimType dt;
+
+  IndexLabel() = default;
+  IndexLabel(int lbl, DimType dtype)
+      : label{lbl},
+        dt{dtype} {}
+};
+
+inline bool
+operator == (const IndexLabel lhs, const IndexLabel rhs) {
+  return lhs.label == rhs.label
+      && lhs.dt == rhs.dt;
+}
+
+inline bool
+operator != (const IndexLabel lhs, const IndexLabel rhs) {
+  return !(lhs == rhs);
+}
+
+inline bool
+operator < (const IndexLabel lhs, const IndexLabel rhs) {
+  return (lhs.label < rhs.label)
+      || (lhs.label == rhs.label && lhs.dt < rhs.dt);
+}
 
 inline std::ostream&
 operator << (std::ostream& os, DimType dt) {
@@ -42,6 +82,12 @@ operator << (std::ostream& os, DimType dt) {
     default:
       assert(0);
   }
+  return os;
+}
+
+inline std::ostream&
+operator << (std::ostream& os, IndexLabel il) {
+  os<<"il["<<il.label<<","<<il.dt<<"]";
   return os;
 }
 

@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <iosfwd>
+#include <map>
 #include "tammx/strong_int.h"
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
@@ -30,27 +31,39 @@ class LabelMap {
  public:
   LabelMap& update(const TensorLabel& labels,
                    const TensorVec<T>& ids) {
-    Expects(labels.size() + labels_.size()  <= labels_.max_size());
-    labels_.insert_back(labels.begin(), labels.end());
-    ids_.insert_back(ids.begin(), ids.end());
+    // Expects(labels.size() + labels_.size()  <= labels_.max_size());
+    // labels_.insert_back(labels.begin(), labels.end());
+    // ids_.insert_back(ids.begin(), ids.end());
+    Expects(labels.size() == ids.size());
+    for(int i=0; i<labels.size(); i++) {
+      lmap_[labels[i]] = ids[i];
+    }
     return *this;
   }
 
   TensorVec<T> get_blockid(const TensorLabel& labels) const {
-    TensorVec<T> ret(labels.size());
-    using size_type = TensorLabel::size_type;
-    for(size_type i=0; i<labels.size(); i++) {
-      auto itr = std::find(begin(labels_), end(labels_), labels[i]);
-      Expects(itr != end(labels_));
-      ret[i] = ids_[itr - begin(labels_)];
+    TensorVec<T> ret;
+    for(auto l: labels) {
+      auto itr = lmap_.find(l);
+      Expects(itr != lmap_.end());
+      ret.push_back(itr->second);
     }
     return ret;
+    // TensorVec<T> ret(labels.size());
+    // using size_type = TensorLabel::size_type;
+    // for(size_type i=0; i<labels.size(); i++) {
+    //   auto itr = std::find(begin(labels_), end(labels_), labels[i]);
+    //   Expects(itr != end(labels_));
+    //   ret[i] = ids_[itr - begin(labels_)];
+    // }
+    // return ret;
   }
 
  private:
-  TensorRank rank_{};
-  TensorLabel labels_;
-  TensorVec<T> ids_;
+  // TensorRank rank_{};
+  // TensorLabel labels_;
+  // TensorVec<T> ids_;
+  std::map<IndexLabel, T> lmap_;
 };
 
 inline TensorPerm

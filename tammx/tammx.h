@@ -63,8 +63,8 @@ loop_iterator(const TensorVec<SymmGroup>& indices ) {
   }
   //FIXME:Handle Scalar
   if(indices.size()==0){
-    BlockDim lo{0}, hi{1};
-    tloops.push_back(TriangleLoop{1, lo, hi});
+    BlockDim lo{0}, hi{0};
+    tloops.push_back(TriangleLoop{0, lo, hi});
     tloops_last.push_back(tloops.back().get_end());
   }
   //std::cerr<<"loop itr size="<<tloops.size()<<std::endl;
@@ -283,7 +283,7 @@ class Tensor {
         }
       }
       //FIXME:Handle Scalar
-      if (indices_.size() == 0 && length == 0) length = 1;
+      // if (indices_.size() == 0 && length == 0) length = 1;
 
       tce_hash_ = new TCE::Int [2 * length + 1];
       tce_hash_[0] = length;
@@ -962,6 +962,22 @@ copy_iterator(const TensorVec<CopySymmetrizer>& sitv) {
   return {itrs_first, itrs_last};
 }
 
+//@todo for now assume all indices in a symmetry group are sliced
+//the same way
+inline void
+validate_slicing(const TensorVec<SymmGroup>& indices,
+                 const TensorLabel& label) {
+  int pos = 0;
+  for(auto grp : indices)  {
+    if (grp.size() > 0){
+      for(int i=0; i<grp.size(); i++) {
+        Expects(label[pos+i].dt == label[pos].dt);
+      }
+    }
+    pos += grp.size();
+  }
+}
+
 inline void
 assignment_validate(const LabeledTensor& ltc,
                     const std::tuple<double, LabeledTensor>& rhs) {
@@ -975,6 +991,9 @@ assignment_validate(const LabeledTensor& ltc,
   TensorLabel clabel = ltc.label_;
   TensorLabel alabel = lta.label_;
 
+  validate_slicing(tc.indices(), ltc.label_);
+  validate_slicing(ta.indices(), lta.label_);
+  
   Expects(alabel.size() == ta.rank());
   Expects(clabel.size() == tc.rank());
 
@@ -997,6 +1016,14 @@ assignment_validate(const LabeledTensor& ltc,
   for(auto &al: alabel) {
     Expects(std::find(clabel.begin(), clabel.end(), al) != clabel.end());
   }
+}
+
+inline TensorVec<SymmGroup>
+slice_indices(const TensorVec<SymmGroup>& indices,
+              const TensorLabel& label) {
+  TensorVec<SymmGroup> ret;
+  //for (auto &
+  return ret;
 }
 
 //working but for unsymmetrization
@@ -1101,6 +1128,10 @@ contraction_validate(const LabeledTensor& ltc,
   Expects(clabel.size() == tc.rank());
   Expects(alabel.size() == ta.rank());
   Expects(blabel.size() == tb.rank());
+
+  validate_slicing(tc.indices(), ltc.label_);
+  validate_slicing(ta.indices(), lta.label_);
+  validate_slicing(tb.indices(), ltb.label_);
 
   //all labels are of compatible type
   for(int i=0; i<alabel.size(); i++) {

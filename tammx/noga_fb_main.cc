@@ -38,6 +38,21 @@ Irrep irrep_t{0};
 Irrep irrep_x{0};
 Irrep irrep_y{0};
 
+struct OLabel : public IndexLabel {
+  OLabel(int n)
+      : IndexLabel{n, DimType::o} {}
+};
+
+struct VLabel : public IndexLabel {
+  VLabel(int n)
+      : IndexLabel{n, DimType::v} {}
+};
+
+struct NLabel : public IndexLabel {
+  NLabel(int n)
+      : IndexLabel{n, DimType::n} {}
+};
+
 void test() {
   using Type = Tensor::Type;
   using Distribution = Tensor::Distribution;
@@ -101,51 +116,61 @@ void test() {
   //assert_equal(tb, 1.0);
   //ta({0,1,2}) += 1.0 * tb({0,3,2}) * ta2({1,3});
 
+  VLabel a{0}, b{1};
+  OLabel i{0}, j{1};
+  NLabel p{0}, q{1};
+  
   //hf_1: FT[p,q] += 1.0 * hT[p,q];
   FT() += 1.0 * hT();
   //hf_2:  FT[p,q] += bDiag * bT[p,q];
   FT() += bDiag() * bT();
 
   //hf_3_1: t1 += X_OO[i,j] * bT[i,j];
-  t1() += X_OO() * bT();
+  t1() += X_OO({i,j}) * bT({i,j});
   //hf_3: FT[p,q] += bT[p,q] * t1;
   FT() += bT() * t1();
 
   //hf_4_1: t2 += 2.0 * X_OV[i,a] * bT[i,a];
-  t2() += 2.0 * X_OV() * bT();
+  t2() += 2.0 * X_OV({i,a}) * bT({i,a});
   //hf_4:  FT[p,q] += t2 * bT[p,q];
   FT() += t2() * bT();
 
 //hf_5_1: t3 += X_VV[a,b] * bT[a,b];
-  t3() += X_VV() * bT();
+  t3() += X_VV({a,b}) * bT({a,b});
   //hf_5: FT[p,q] += bT[p,q] * t3;
   FT() += bT() * t3();
 
+  #if 0
   //hf_6: FT[p,q] += -1.0 * bT[p,i] * bT[i,q];
-//  FT() += -1.0 * bT() * bT();
+  //FT({p0,p2}) += -1.0 * bT({p0,p1}) * bT({p1,p2});
+  FT({p,q}) += -1.0 * bT({p,i}) * bT({i,q});
 
+  //
   //hf_7_1: t4[i,q] += X_OO[i,j] * bT[j,q];
-  //t4({0,2}) += X_OO({0,0}) * bT({0,2});
+  //t4({0,2}) += X_OO({0,1}) * bT({1,2});
+  t4({i,q}) += X_OO({i,j}) * bT({j,q});
 
   //hf_7:  FT[p,q] += -1.0 *  bT[p,i] * t4[i,q];
-  //FT() += -1.0 * bT() * t4();
+  //FT({0,1}) += -1.0 * bT({0,2}) * t4({2,1});
+  FT({p,q}) += -1.0 * bT({p,i}) * t4({i,q});
 
   // hf_8_1: t5[i,q] += X_OV[i,a] * bT[a,q];
-//  t5() += X_OV() * bT();
+  t5({i,q}) += X_OV({i,a}) * bT({a,q});
   // hf_8:  FT[p,q] += -1.0 * bT[p,i] * t5[i,q];
-//  FT() += -1.0 * bT() * t5();
-//
+  FT({p,q}) += -1.0 * bT({p,i}) * t5({i,q});
+
   //hf_9_1: t6[i,p] += X_OV[i,a] * bT[p,a];
-//  t6() += X_OV() * bT();
+  t6({i,p}) += X_OV({i,a}) * bT({p,a});
   //hf_9: FT[p,q] += -1.0 * bT[i,q] * t6[i,p];
-//  FT() += -1.0 * bT() * t6();
+  FT({p,q}) += -1.0 * bT({i,q}) * t6({i,p});
 
   //hf_10_1: t7[a,q] += X_VV[a,b] * bT[b,q];
-//  t7() += X_VV() * bT();
+  t7({a,q}) += X_VV({a,b}) * bT({b,q});
+
   //hf_10:  FT[p,q] += -1.0 * bT[p,a] * t7[a,q];
-//  FT() += -1.0 * bT() * t7();
-
-
+  //FT({p,q}) += -1.0 * bT({p,a}) * t7({a,q});
+  FT({p,a}) += -1.0 * bT({p,a});
+#endif
   std::cerr << "------------------" << std::endl;
   tensor_print(FT, std::cerr);
   std::cerr << "------------------" << std::endl;

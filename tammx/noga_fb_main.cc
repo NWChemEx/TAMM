@@ -189,29 +189,76 @@ void test() {
   t7.destruct();
 }
 
-#if 0
-void density_test(Tensor* D, Tensor* F) {
-  Tensor X, T, R, Z; //, delta;
+#if 1
+void density_test() { //Tensor* D, Tensor* F) {
+
+  using Type = Tensor::Type;
+  using Distribution = Tensor::Distribution;
+
+  TensorVec <SymmGroup> indices_ov{SymmGroup{DimType::o}, SymmGroup{DimType::v}};
+  TensorVec <SymmGroup> indices_vn{SymmGroup{DimType::v}, SymmGroup{DimType::n}};
+  TensorVec <SymmGroup> indices_on{SymmGroup{DimType::o}, SymmGroup{DimType::n}};
+  TensorVec <SymmGroup> indices_oo{SymmGroup{DimType::o}, SymmGroup{DimType::o}};
+  TensorVec <SymmGroup> indices_vv{SymmGroup{DimType::v}, SymmGroup{DimType::v}};
+  TensorVec <SymmGroup> indices_nn{SymmGroup{DimType::n}, SymmGroup{DimType::n}};
+  TensorVec <SymmGroup> t_scalar{};
+
+  Tensor D{indices_oo, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+  Tensor F{indices_nn, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+
+  Tensor delta{indices_oo, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+
+  Tensor R{indices_ov, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+  Tensor T{indices_ov, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+  Tensor Z{indices_oo, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+
+  Tensor X_OO{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor X_OV{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor X_VV{indices_vv, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+
+  Tensor tmp1{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+  Tensor tmp2{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+  Tensor tmp3{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+
+  //Tensor X, T, R, Z; //, delta;
+  VLabel a{0}, b{1}, c{2}, d{3}, e{4};
+  OLabel i{0}, j{1}, m{2};
+  NLabel p{0}, q{1};
+
+  D.allocate();
+  F.allocate();
+  R.allocate();
+  T.allocate();
+  Z.allocate();
+  delta.allocate();
+
+  tmp1.allocate();
+  tmp2.allocate();
+  tmp3.allocate();
+
+  X_OO.allocate();
+  X_OV.allocate();
+  X_VV.allocate();
 
   for (int l1=0;l1<20;l1++) {
     for (int l2 = 0;l2< 20;l2++){
-      Tensor tmp1, tmp2, tmp3;
+      //Tensor tmp1, tmp2, tmp3;
 
       R({i,a}) += 1.0 * F({i,a});
-      R({i,a}) += -1.0 * (F({i,b}) * X({b,a}));
-      R({i,a}) += -1.0 * (F({i,m}) * X({m,a}));
-      R({i,a}) += X({i,j}) * F({j,a});
-      R({i,a}) += -1.0 * (X({i,j}) * F({j,b}));
-      R({i,a}) += 1.0 * X({b,a});
+      R({i,a}) += -1.0 * (F({i,b}) * X_VV({b,a}));
+      R({i,a}) += -1.0 * (F({i,m}) * X_OV({m,a}));
+      R({i,a}) += X_OO({i,j}) * F({j,a});
+      R({i,a}) += -1.0 * (X_OO({i,j}) * F({j,b}));
+      R({i,a}) += 1.0 * X_VV({b,a});
 
-      tmp1({j,a}) += 1.0 * (F({j,m}) * X({m,a}));
-      R({i,a}) += -1.0 * (X({i,j}) * tmp1({j,a}));
-      R({i,a}) += 1.0 * (X({i,b}) * F({b,a}));
+      tmp1({j,a}) += 1.0 * (F({j,m}) * X_OV({m,a}));
+      R({i,a}) += -1.0 * (X_OO({i,j}) * tmp1({j,a}));
+      R({i,a}) += 1.0 * (X_OV({i,b}) * F({b,a}));
 
-      tmp2({b,a}) += 1.0 * (F({b,c}) * X({c,a}));
-      R({i,a}) += -1.0 * (X({i,b}) * tmp2({b,a}));
-      tmp3({b,a}) += 1.0 * (F({b,m}) * X({m,a}));
-      R({i,a}) += -1.0 * (X({i,b}) * tmp3({b,a}));
+      tmp2({b,a}) += 1.0 * (F({b,c}) * X_VV({c,a}));
+      R({i,a}) += -1.0 * (X_OV({i,b}) * tmp2({b,a}));
+      tmp3({b,a}) += 1.0 * (F({b,m}) * X_OV({m,a}));
+      R({i,a}) += -1.0 * (X_OV({i,b}) * tmp3({b,a}));
 
 
       // T({i,a}) += Z({i,a}) * R({i,a});  // div (f_aa(i) - f_ii(i))
@@ -228,11 +275,11 @@ void density_test(Tensor* D, Tensor* F) {
       // D({i,j}) += R({i,j}) / (delta({i,j}) + Z({i,j}));
     }
 
-    X({i,a}) += 1.0 * (D({i,m}) * T({m,a}));
+    X_OV({i,a}) += 1.0 * (D({i,m}) * T({m,a}));
 
-    X({a,b}) += 1.0 * (X({m,a}) * T({m,b}));
+    X_VV({a,b}) += 1.0 * (X_OV({m,a}) * T({m,b}));
 
-    X({i,j}) += -1.0 * (T({i,e}) * X({j,e}));
+    X_OO({i,j}) += -1.0 * (T({i,e}) * X_OV({j,e}));
 
     // call fock build
 
@@ -248,6 +295,21 @@ void density_test(Tensor* D, Tensor* F) {
     // #D_ij = [delta_ij + X_ij ]
 
   }
+
+  D.destruct();
+  F.destruct();
+  R.destruct();
+  T.destruct();
+  Z.destruct();
+  delta.destruct();
+
+  tmp1.destruct();
+  tmp2.destruct();
+  tmp3.destruct();
+
+  X_OO.destruct();
+  X_OV.destruct();
+  X_VV.destruct();
 }
 #endif
 

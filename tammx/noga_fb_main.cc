@@ -115,7 +115,7 @@ void test() {
   VLabel a{0}, b{1};
   OLabel i{0}, j{1};
   NLabel p{0}, q{1};
-  
+
   //hf_1: FT[p,q] += 1.0 * hT[p,q];
   FT() += 1.0 * hT();
 
@@ -187,9 +187,66 @@ void test() {
   t5.destruct();
   t6.destruct();
   t7.destruct();
+}
+
+void density_test(Tensor* D, Tensor* F) {
+  Tensor X, T, R, Z; //, delta;
+
+  for (int l1=0;l1<20;l1++) {
+    for (int l2 = 0;l2< 20;l2++){
+      Tensor tmp1, tmp2, tmp3;
+
+      R({i,a}) += 1.0 * F({i,a});
+      R({i,a}) += -1.0 * (F({i,b}) * X({b,a}));
+      R({i,a}) += -1.0 * (F({i,m}) * X({m,a}));
+      R({i,a}) += X({i,j}) * F({j,a});
+      R({i,a}) += -1.0 * (X({i,j}) * F({j,b}));
+      R({i,a}) += 1.0 * X({b,a});
+
+      tmp1({j,a}) += 1.0 * (F({j,m}) * X({m,a}));
+      R({i,a}) += -1.0 * (X({i,j}) * tmp1({j,a}));
+      R({i,a}) += 1.0 * (X({i,b}) * F({b,a}));
+
+      tmp2({b,a}) += 1.0 * (F({b,c}) * X({c,a}));
+      R({i,a}) += -1.0 * (X({i,b}) * tmp2({b,a}));
+      tmp3({b,a}) += 1.0 * (F({b,m}) * X({m,a}));
+      R({i,a}) += -1.0 * (X({i,b}) * tmp3({b,a}));
 
 
+      // T({i,a}) += Z({i,a}) * R({i,a});  // div (f_aa(i) - f_ii(i))
+      // T({i,a}) += T({i,a}) / (F({a,a}) - F({i,i}));
+    }
 
+    Z({i,j}) += -1.0 * (T({i,e}) * T({j,e}));
+
+    // following loop solves this equation:
+    // r_ij = D_ij - delta_ij - D_im * Z_mj = 0
+    for (int l3=0;l3<10;l3++){
+      D({i,j}) += 1.0 * delta({i,j});
+      D({i,j}) += 1.0 * (D({i,m}) * Z({m,j}));
+      // D({i,j}) += R({i,j}) / (delta({i,j}) + Z({i,j}));
+    }
+
+    X({i,a}) += 1.0 * (D({i,m}) * T({m,a}));
+
+    X({a,b}) += 1.0 * (X({m,a}) * T({m,b}));
+
+    X({i,j}) += -1.0 * (T({i,e}) * X({j,e}));
+
+    // call fock build
+
+    // notes follow
+    //X({i,a}) = X({a,i})
+
+    // #Construct new fock matrix F(D(i+1)) from Density matrix D
+    // #X_ia,X_ab,X_ij (i+1)
+
+    // full D(i+1) = [ l_oo + x_oo | X_ov ]
+    //               [ X_vo        | X_vv ]
+
+    // #D_ij = [delta_ij + X_ij ]
+
+  }
 }
 
 int main() {
@@ -210,4 +267,3 @@ int main() {
   TCE::finalize();
   return 0;
 }
-

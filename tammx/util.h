@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <iosfwd>
+#include <cmath>
 #include <map>
 #include "tammx/strong_int.h"
 #include "tammx/boundvec.h"
@@ -96,9 +97,11 @@ perm_count_inversions(const TensorPerm& perm) {
     num_inversions += std::abs((itr - perm.begin()) - i);
   }
 #else
-  using size_type = TensorPerm::size_type;
-  for(size_type i=0; i<perm.size(); i++) {
-    auto itr = std::find(perm_sort.begin(), perm_sort.end(), i);
+  std::sort(perm_sort.begin(), perm_sort.end());
+  Expects(std::adjacent_find(perm_sort.begin(), perm_sort.end()) == perm_sort.end());
+  //using size_type = TensorPerm::size_type;
+  for(int i=0; i<perm.size(); i++) {
+    auto itr = std::find(perm.begin(), perm.end(), i);
     Expects(itr != perm.end());
     num_inversions += std::abs((itr - perm.begin()) - i);
   }

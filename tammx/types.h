@@ -50,6 +50,40 @@ struct IndexLabel {
         dt{dtype} {}
 };
 
+inline std::string
+to_string(DimType dt) {
+  switch(dt) {
+    case DimType::o:
+      return "o";
+      break;
+    case DimType::v:
+      return "v";
+      break;
+    case DimType::oa:
+      return "oa";
+      break;
+    case DimType::ob:
+      return "ob";
+      break;
+    case DimType::va:
+      return "va";
+      break;
+    case DimType::vb:
+      return "vb";
+      break;
+    case DimType::n:
+      return "n";
+      break;
+    default:
+      assert(0);
+  }
+}
+
+inline std::string
+to_string(const IndexLabel& lbl) {
+  return to_string(lbl.dt) + std::to_string(lbl.label);
+}
+
 inline bool
 operator == (const IndexLabel lhs, const IndexLabel rhs) {
   return lhs.label == rhs.label

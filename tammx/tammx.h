@@ -63,11 +63,9 @@ loop_iterator(const TensorVec<SymmGroup>& indices ) {
   }
   //FIXME:Handle Scalar
   if(indices.size()==0){
-    BlockDim lo{0}, hi{0};
-    tloops.push_back(TriangleLoop{0, lo, hi});
+    tloops.push_back(TriangleLoop{});
     tloops_last.push_back(tloops.back().get_end());
   }
-  //std::cerr<<"loop itr size="<<tloops.size()<<std::endl;
   return ProductIterator<TriangleLoop>(tloops, tloops_last);
 }
 
@@ -951,13 +949,10 @@ inline ProductIterator<CopySymmetrizer::Iterator>
 copy_iterator(const TensorVec<CopySymmetrizer>& sitv) {
   TensorVec<CopySymmetrizer::Iterator> itrs_first, itrs_last;
   for(auto &sit: sitv) {
-    // std::cerr<<__FUNCTION__<<" symmetrizer SIZE="<< sit.group_size_<<std::endl;
     itrs_first.push_back(sit.begin());
     itrs_last.push_back(sit.end());
     Expects(itrs_first.back().itr_size() == itrs_last.back().itr_size());
     Expects(itrs_first.back().itr_size() == sit.group_size_);
-    // std::cerr<<__FUNCTION__<<" iterator first cs_ ptr="<< itrs_first.back().cs_<<std::endl;    
-    // std::cerr<<__FUNCTION__<<" iterator last cs_ ptr="<< itrs_last.back().cs_<<std::endl;    
   }
   return {itrs_first, itrs_last};
 }
@@ -1022,7 +1017,14 @@ inline TensorVec<SymmGroup>
 slice_indices(const TensorVec<SymmGroup>& indices,
               const TensorLabel& label) {
   TensorVec<SymmGroup> ret;
-  //for (auto &
+  auto grp_labels = group_labels(indices, label);
+  for(auto &gl: grp_labels) {
+    SymmGroup sg;
+    for(auto &l: gl) {
+      sg.push_back(l.dt);
+    }
+    ret.push_back(sg);
+  }
   return ret;
 }
 
@@ -1035,12 +1037,12 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
   assignment_validate(ltc, rhs);
   Expects(ltc.tensor_->rank() == std::get<1>(rhs).tensor_->rank());
   double alpha = std::get<0>(rhs);
-  std::cerr<<"ALPHA="<<alpha<<std::endl;
   const LabeledTensor& lta = std::get<1>(rhs);
   Tensor& ta = *lta.tensor_;
   Tensor& tc = *ltc.tensor_;
   //check for validity of parameters
-  auto aitr = loop_iterator(ta.indices());
+  //auto aitr = loop_iterator(ta.indices());
+  auto aitr = loop_iterator(slice_indices(ta.indices(), lta.label_));
   auto lambda = [&] (const TensorIndex& ablockid) {
     size_t dima = ta.block_size(ablockid);
     if(ta.nonzero(ablockid) && dima>0) {
@@ -1062,7 +1064,7 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
       auto copy_itr = copy_iterator(copy_symm);
       auto copy_itr_last = copy_itr.get_end();
       auto copy_label = TensorLabel{ltc.label_};
-      std::sort(copy_label.begin(), copy_label.end());
+      //std::sort(copy_label.begin(), copy_label.end());
       for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
         auto cperm_label = *citr;
         auto num_inversions = perm_count_inversions(perm_compute(copy_label, cperm_label));
@@ -1194,7 +1196,7 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor, LabeledTensor>
     if(!tc.nonzero(cblockid) || dimc == 0) {
       return;
     }
-    auto sum_itr_first = loop_iterator(sum_indices);
+    auto sum_itr_first = loop_iterator(slice_indices(sum_indices, sum_labels));
     auto sum_itr_last = sum_itr_first.get_end();
     auto label_map = LabelMap<BlockDim>().update(ltc.label_, cblockid);
     auto cbp = tc.alloc(cblockid);
@@ -1218,7 +1220,7 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor, LabeledTensor>
     auto copy_itr = copy_iterator(copy_symm);
     auto copy_itr_last = copy_itr.get_end();
     auto copy_label = TensorLabel(ltc.label_);
-    std::sort(copy_label.begin(), copy_label.end());
+    //std::sort(copy_label.begin(), copy_label.end());
     for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
       auto cperm_label = *citr;
       std::cerr<<"---perm="<<cperm_label<<std::endl;
@@ -1314,7 +1316,7 @@ operator += (LabeledBlock clb, std::tuple<double, LabeledBlock> rhs) {
 
 // C storage order: A[m,k], B[k,n], C[m,n]
 inline void
-matmul(int m, int n, int k, double *A, int lda, double *B, int ldb, double *C, int ldc, double alpha) {
+matmul(int m, int n, int k, double *A, int lda, double *B, int ldb, double *C, int ldc, double alpha, double beta) {
   Expects(m>0 && n>0 && k>0);
   Expects(A!=nullptr && B!=nullptr && C!=nullptr);
 
@@ -1324,9 +1326,16 @@ matmul(int m, int n, int k, double *A, int lda, double *B, int ldb, double *C, i
       for(int z=0; z<k; z++) {
         value += A[x*lda + z] * B[z*ldb + y];
       }
-      C[x*ldc + y] = alpha * C[x*ldc + y] + value;
+      C[x*ldc + y] = beta * C[x*ldc + y] + alpha * value;
     }
   }
+}
+
+inline TensorPerm
+perm_compute(const LabeledBlock lblock_from, const TensorLabel& label_to) {
+  auto store = perm_apply(lblock_from.label_,
+                          perm_invert(lblock_from.block_->layout()));
+  return perm_compute(store, label_to);
 }
 
 inline void
@@ -1352,14 +1361,20 @@ operator += (LabeledBlock clb, std::tuple<double, LabeledBlock, LabeledBlock> rh
   blabel_sort.insert_back(bext_labels.begin(), bext_labels.end());
   auto clabel_sort = aext_labels;
   clabel_sort.insert_back(bext_labels.begin(), bext_labels.end());
-  
-  auto ablock_sort = ablock.tensor().alloc(ablock.blockid());
-  auto bblock_sort = bblock.tensor().alloc(bblock.blockid());
-  auto cblock_sort = cblock.tensor().alloc(cblock.blockid());  
 
   //TTGT
-  ablock_sort(alabel_sort) += ablock(alabel); //T
-  bblock_sort(blabel_sort) += bblock(blabel); //T
+  //TT
+  double *abuf_sort = new double [ablock.size()];
+  double *bbuf_sort = new double [bblock.size()];
+  double *cbuf_sort = new double [cblock.size()];
+
+  auto aperm = perm_compute(ablock(alabel), alabel_sort);
+  auto bperm = perm_compute(bblock(blabel), blabel_sort);
+  index_permute(reinterpret_cast<uint8_t*>(abuf_sort), ablock.buf(), aperm,
+                perm_apply(ablock.block_dims(), aperm), 1.0);
+  index_permute(reinterpret_cast<uint8_t*>(bbuf_sort), bblock.buf(), bperm,
+                perm_apply(bblock.block_dims(), bperm), 1.0);
+
   // G
   auto alpha = std::get<0>(rhs);
   auto lmap = LabelMap<BlockDim>()
@@ -1371,10 +1386,13 @@ operator += (LabeledBlock clb, std::tuple<double, LabeledBlock, LabeledBlock> rh
   int m = std::accumulate(aext_dims.begin(), aext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
   int n = std::accumulate(bext_dims.begin(), bext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
   int k = std::accumulate(sum_dims.begin(), sum_dims.end(), BlockDim{1}, std::multiplies<>()).value();
-  matmul(m, n, k, reinterpret_cast<double*>(ablock_sort.buf()), k,
-         reinterpret_cast<double*>(bblock_sort.buf()), n,
-         reinterpret_cast<double*>(cblock_sort.buf()), n, alpha);
-  cblock(clabel) += cblock_sort(clabel_sort); //T
+  matmul(m, n, k, abuf_sort, k,
+         bbuf_sort, n,
+         cbuf_sort, n, alpha, 1.0);
+  auto cperm = perm_invert(perm_compute(cblock(clabel), clabel_sort));
+  //T
+  index_permute(cblock.buf(), reinterpret_cast<uint8_t*>(cbuf_sort),
+                cperm, cblock.block_dims(), 1.0);
 }
 
 

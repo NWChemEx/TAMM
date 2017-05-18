@@ -232,11 +232,7 @@ group_partition(const TensorVec<SymmGroup>& indices1,
   return group_partition(label_groups_1, label_groups_2);
 }
 
-template<typename T>
-inline std::string
-to_string(T val) {
-  return std::to_string(val);
-}
+using std::to_string;
 
 inline std::string
 to_string(const IndexLabel& lbl) {

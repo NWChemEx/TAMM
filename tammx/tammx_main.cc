@@ -38,6 +38,16 @@ Irrep irrep_t {0};
 Irrep irrep_x {0};
 Irrep irrep_y {0};
 
+struct OLabel : public IndexLabel {
+  OLabel(int n)
+      : IndexLabel{n, DimType::o} {}
+};
+
+struct VLabel : public IndexLabel {
+  VLabel(int n)
+      : IndexLabel{n, DimType::v} {}
+};
+
 void test() {
   using Type = Tensor::Type;
   using Distribution = Tensor::Distribution;
@@ -67,13 +77,18 @@ void test() {
       //std::generate_n(reinterpret_cast<double*>(block.buf()), block.size(), std::rand);
       std::generate_n(reinterpret_cast<double*>(block.buf()), block.size(), [&]() { return n++;});
     });
+
+  OLabel h0{0}, h1{1}, h2{2}, h3{3};
+  VLabel p0{0}, p1{1}, p2{2}, p3{3};
   
   //tensor_init(tb, 1.0);
   //assert_equal(tb, 1.0);
   ta() += 1.0 * tb();
   //assert_equal(ta, 0);
 
-  ta({0,1,2}) += 1.0 * tb({0,3,2}) * ta2({1,3});
+  ta({h1,h2,p1}) += 1.0 * tb({h1,h2,p1});
+  
+  ta({h0,h1,p2}) += 1.0 * tb({h0,h3,p2}) * ta2({h1,h3});
   
   // assert_equal(tb, 1.0);
 

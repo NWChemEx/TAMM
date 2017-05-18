@@ -79,11 +79,6 @@ to_string(DimType dt) {
   }
 }
 
-inline std::string
-to_string(const IndexLabel& lbl) {
-  return to_string(lbl.dt) + std::to_string(lbl.label);
-}
-
 inline bool
 operator == (const IndexLabel lhs, const IndexLabel rhs) {
   return lhs.label == rhs.label

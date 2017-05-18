@@ -189,6 +189,7 @@ void test() {
   t7.destruct();
 }
 
+#if 0
 void density_test(Tensor* D, Tensor* F) {
   Tensor X, T, R, Z; //, delta;
 
@@ -248,6 +249,7 @@ void density_test(Tensor* D, Tensor* F) {
 
   }
 }
+#endif
 
 int main() {
   TCE::init(spins, spatials, sizes,

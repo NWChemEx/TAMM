@@ -231,6 +231,28 @@ group_partition(const TensorVec<SymmGroup>& indices1,
   return group_partition(label_groups_1, label_groups_2);
 }
 
+template<typename T>
+inline std::to_string
+to_string(T val) {
+  return std::to_string(val);
+}
+
+inline std::string
+to_string(const IndexLabel& lbl) {
+  return to_string(lbl.dt) + to_string(lbl.label);
+}
+
+template<typename T, int maxsize>
+std::string to_string(const BoundVec<T,maxsize> &vec, const std::string& sep = ",") {
+  std::string ret;
+  for(int i=0; i<vec.size()-1; i++) {
+    ret += to_string(vec[i]) + sep;
+  }
+  if(vec.size()>0) {
+    ret += to_string(vec.back());
+  }
+  return ret;
+}
 
 
 }; //namespace tammx

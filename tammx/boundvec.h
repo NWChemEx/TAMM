@@ -183,18 +183,6 @@ std::ostream& operator << (std::ostream& os, const BoundVec<T, maxsize>& bvec) {
   return os;
 }
 
-template<typename T, int maxsize>
-std::string to_string(const BoundVec<T,maxsize> &vec, const std::string& sep = ",") {
-  std::string ret;
-  for(int i=0; i<vec.size()-1; i++) {
-    ret += to_string(vec[i]) + sep;
-  }
-  if(vec.size()>0) {
-    ret += to_string(vec.back());
-  }
-  return ret;
-}
-
 };  // namespace tammx
 
 #endif  // TAMMX_BOUNDVEC_H__

@@ -7,6 +7,7 @@
 #include <iosfwd>
 #include <cmath>
 #include <map>
+#include <string>
 #include "tammx/strong_int.h"
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
@@ -232,7 +233,7 @@ group_partition(const TensorVec<SymmGroup>& indices1,
 }
 
 template<typename T>
-inline std::to_string
+inline std::string
 to_string(T val) {
   return std::to_string(val);
 }

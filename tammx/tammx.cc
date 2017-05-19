@@ -5,6 +5,7 @@ namespace tammx {
 std::vector<Spin> TCE::spins_;
 std::vector<Irrep> TCE::spatials_;
 std::vector<size_t> TCE::sizes_;
+std::vector<size_t> TCE::offsets_;
 bool TCE::spin_restricted_;
 Irrep TCE::irrep_f_, TCE::irrep_v_, TCE::irrep_t_;
 Irrep TCE::irrep_x_, TCE::irrep_y_;

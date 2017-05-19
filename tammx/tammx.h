@@ -373,6 +373,8 @@ class Tensor {
     Expects(!constructed_);
   }
 
+  void init(double value);
+  
   bool nonzero(const TensorIndex& blockid) const {
     return spin_nonzero(blockid) &&
         spatial_nonzero(blockid) &&
@@ -638,7 +640,6 @@ LabeledBlock::init(double value) {
     dbuf[i] = value;
   }
 }
-
 
 inline std::tuple<double, const LabeledBlock>
 operator * (double alpha, const LabeledBlock& block) {
@@ -1400,7 +1401,7 @@ template<typename Lambda>
 inline void
 tensor_map (LabeledTensor ltc, Lambda func) {
   Tensor& tc = *ltc.tensor_;
-  auto citr = loop_iterator(tc.indices());
+  auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
   auto lambda = [&] (const TensorIndex& cblockid) {
     size_t dimc = tc.block_size(cblockid);
     if(tc.nonzero(cblockid) && dimc>0) {
@@ -1430,6 +1431,33 @@ tensor_map (LabeledTensor ltc, LabeledTensor lta, Lambda func) {
   parallel_work(citr, citr.get_end(), lambda);
 }
 
+/**
+ * validate
+ */
+template<typename Lambda>
+inline void
+block_for (std::vector<LabeledTensor> lts, Lambda func) {
+  std::vector<ProductIterator<TriangleLoop>> pditr, pditr_last;
+  for(auto &lt: lts) {
+    pditr.push_back(loop_iterator(slice_indices(lt.tensor_->indices(),
+                                                lt.label_)));
+    pditr_last.push_back(pditr.back().get_end());
+  }
+  if(pditr.empty()) {
+    return;
+  }
+  while(pditr[0] != pditr_last[0]) {
+    std::vector<TensorIndex> blockids;
+    for(auto &it: pditr) {
+      blockids.push_back(*it);
+    }
+    func(blockids);
+    for(auto &it: pditr) {
+      ++it;
+    }    
+  }
+}
+
 inline void
 tensor_print(Tensor& tc, std::ostream &os) {
   auto citr_first = loop_iterator(tc.indices());
@@ -1449,6 +1477,14 @@ tensor_print(Tensor& tc, std::ostream &os) {
     }
   }
 }
+
+inline void
+Tensor::init(double value) {
+  tensor_map(operator()(), [&] (Block &block) {
+      block().init(value);
+    });
+}
+
 
 }  // namespace tammx
 

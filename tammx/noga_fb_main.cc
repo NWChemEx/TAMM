@@ -53,7 +53,6 @@ struct NLabel : public IndexLabel {
       : IndexLabel{n, DimType::n} {}
 };
 
-/// @todo pass F, X_OO,X_OV,X_VV
 void noga_fock_build(Tensor& F, Tensor& X_OV, Tensor& X_VV, Tensor& X_OO) { 
   using Type = Tensor::Type;
   using Distribution = Tensor::Distribution;
@@ -91,17 +90,8 @@ void noga_fock_build(Tensor& F, Tensor& X_OV, Tensor& X_VV, Tensor& X_OO) {
   t6.allocate();
   t7.allocate();
 
-  /// @todo F, X_.. tensors allocation code should go away since they are passed from noga_main()
   Tensor FT{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  // Tensor X_OO{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  // Tensor X_OV{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  // Tensor X_VV{indices_vv, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-
   FT.allocate();
-  // X_OO.allocate();
-  // X_OV.allocate();
-  // X_VV.allocate();
-
 
   tensor_map(hT(), [](Block &block) {
     int n = 0;
@@ -117,9 +107,7 @@ void noga_fock_build(Tensor& F, Tensor& X_OV, Tensor& X_VV, Tensor& X_OO) {
   OLabel i{0}, j{1};
   NLabel p{0}, q{1};
 
-  //FT=F,X_OO,X_OV,X_VV come from noga_main(...)
-  /// @todo tensor_init(FT,0.0); FT=0 each time the fock build is started
-  /// or simply do FT({p, q}) = 1.0 * hT({p, q}); once = is implemented
+  FT.init(0);
   FT({p, q}) += 1.0 * hT({p, q});
 
   /// @todo loop over Q for all code below
@@ -149,10 +137,6 @@ void noga_fock_build(Tensor& F, Tensor& X_OV, Tensor& X_VV, Tensor& X_OO) {
   t7({a, q}) += X_VV({a, b}) * bT({b, q});
   FT({p, q}) += -1.0 * bT({p, a}) * t7({a, q});
 
-  std::cerr << "------------------" << std::endl;
-  tensor_print(FT, std::cerr);
-  std::cerr << "------------------" << std::endl;
-
   hT.destruct();
   bT.destruct();
   bDiag.destruct();
@@ -164,11 +148,28 @@ void noga_fock_build(Tensor& F, Tensor& X_OV, Tensor& X_VV, Tensor& X_OO) {
   t6.destruct();
   t7.destruct();
 
-  /// @todo FT, X_.. destruct go away since they are passed from noga_main()
   FT.destruct();
-  // X_OO.destruct();
-  // X_OV.destruct();
-  // X_VV.destruct();
+}
+
+void extract_diag(Tensor& F, double* fdiag) {
+  int pos = 0;
+  tensor_map(F({p,q}), [&] (Block& fblock) {
+      auto &blockid = fblock.blockid();
+      auto poff = TCE::offset(blockid[0]);
+      auto qoff = TCE::offset(blockid[1]);          
+          
+      auto fbuf = reinterpret_cast<double*>(fblock.buf());          
+      auto bdims = F.block_dims(blockid);
+      auto psize = bdims[0].value();
+      auto qsize = bdims[1].value();
+      for(int p=0, c=0; p<psize; p++) {
+        for(int q=0; q<qsize; q++, c++) {
+          if(poff+p == qoff+q) {
+            fdiag[pos++] = fbuf[c];
+          }
+        }
+      }
+    });
 }
 
 void noga_main(Tensor& D, Tensor& F) {
@@ -182,10 +183,6 @@ void noga_main(Tensor& D, Tensor& F) {
   TensorVec<SymmGroup> indices_vv{SymmGroup{DimType::v}, SymmGroup{DimType::v}};
   TensorVec<SymmGroup> indices_nn{SymmGroup{DimType::n}, SymmGroup{DimType::n}};
   TensorVec<SymmGroup> t_scalar{};
-
-  /// @todo Tensor D,F come from env which is noga_main for now.
-  // Tensor D{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  // Tensor F{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
   Tensor R1{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
   Tensor R2{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
@@ -207,8 +204,6 @@ void noga_main(Tensor& D, Tensor& F) {
   OLabel i{0}, j{1}, m{2};
   NLabel p{0}, q{1};
 
-  // D.allocate();
-  // F.allocate();
   R1.allocate();
   R2.allocate();
   T.allocate();
@@ -228,8 +223,8 @@ void noga_main(Tensor& D, Tensor& F) {
   T.init(0);
   D.init(0);
 
-  /// @todo to be constructed
   double fdiag[TCE::noab().value() + TCE::nvab().value()];
+  extract_diag(F, fdiag);
 
   auto delta = [] (int i, int j) {
     return (i==j) ? 1 : 0;
@@ -238,30 +233,26 @@ void noga_main(Tensor& D, Tensor& F) {
   for (int l1 = 0; l1 < 20; l1++) { //OUTERMOST LOOP - LOOP1
 
     for (int l2 = 0; l2 < 20; l2++) { /// LOOP2
-      /// @todo tensor_init(R1,0); R1=0 for each iteration of L2
       R1.init(0);
 
       R1({i, a}) += 1.0 * F({i, a});
       R1({i, a}) += -1.0 * (F({i, b}) * X_VV({b, a}));
       R1({i, a}) += -1.0 * (F({i, m}) * X_OV({m, a}));
       R1({i, a}) += X_OO({i, j}) * F({j, a});
-     /// @todo tensor_init(tmp0,0)
+
       tmp0.init(0);
       tmp0({i, b}) += -1.0 * (X_OO({i, j}) * F({j, b}));
       R1({i, a}) += 1.0 * tmp0({i, b}) * X_VV({b, a});
  
-      /// @todo tensor_init(tmp1,0)
       tmp1.init(0);
       tmp1({j, a}) += 1.0 * F({j, m}) * X_OV({m, a});
       R1({i, a}) += -1.0 * (X_OO({i, j}) * tmp1({j, a}));
       R1({i, a}) += 1.0 * (X_OV({i, b}) * F({b, a}));
       
-      /// @todo tensor_init(tmp2,0)
       tmp2.init(0);
       tmp2({b, a}) += 1.0 * (F({b, c}) * X_VV({c, a}));
       R1({i, a}) += -1.0 * (X_OV({i, b}) * tmp2({b, a}));
       
-      /// @todo tensor_init(tmp3,0)
       tmp3.init(0);
       tmp3({b, a}) += 1.0 * (F({b, m}) * X_OV({m, a}));
       R1({i, a}) += -1.0 * (X_OV({i, b}) * tmp3({b, a}));
@@ -289,7 +280,6 @@ void noga_main(Tensor& D, Tensor& F) {
         });
     }
     
-    /// @todo tensor_init(Z,0); Z=0 for each iteration of L1
     Z.init(0);
     Z({i, j}) += -1.0 * (T({i, e}) * T({j, e}));
 
@@ -299,11 +289,8 @@ void noga_main(Tensor& D, Tensor& F) {
     /// NOTE: delta({i,j}) is a Unit matrix: 0 for i!=j 1 for i=j
 
     for (int l3 = 0; l3 < 10; l3++) {  // LOOP 3
-      /// @todo tensor_init(R2,0); R2=0 for each iteration of L3
       R2.init(0);
       tmp4({i, j}) += 1.0 * (D({i, m}) * Z({m, j}));
-      /// @todo Uncomment the following 4 lines once the logic is implemented
-      /// tensor_init(t5,0);
       tmp5.init(0);
       /// tmp5({i,j}) += delta({i, j}) - tmp4({i, j});
       tensor_map(tmp5({i,j}), [&] (Block& t5block) {
@@ -322,7 +309,6 @@ void noga_main(Tensor& D, Tensor& F) {
           }
         });
       tmp5({i,j}) += -1.0 * tmp4({i,j});
-      /// R2({i, j}) += D({i, j}) - tmp5({i, j});
       R2({i,j}) += D({i,j});
       R2({i,j}) += -1.0 * tmp5({i,j});
       /// D({i, j}) += R2({i, j}) / (delta({i, j}) + Z({i, j}));
@@ -351,22 +337,17 @@ void noga_main(Tensor& D, Tensor& F) {
         });
     }
 
-    /// @todo tensor_initialize X_OV=0, X_OO=0, X_VV=0
     X_OV.init(0);
     X_OO.init(0);
     X_VV.init(0);
-    /// X tensors are newly created in every iteration of L1 and passed to fock build
     X_OV({i, a}) += 1.0 * (D({i, m}) * T({m, a}));
     X_VV({a, b}) += 1.0 * (X_OV({m, a}) * T({m, b}));
     X_OO({i, j}) += -1.0 * (T({i, e}) * X_OV({j, e}));
 
-    /// call fock build
-    /// @todo noga_fock_build(F, X_OV, X_VV, X_OO);
     noga_fock_build(F, X_OV, X_VV, X_OO);
+    extract_diag(F, fdiag);
   }
   
-  // D.destruct();
-  // F.destruct();
   R1.destruct();
   R2.destruct();
   T.destruct();

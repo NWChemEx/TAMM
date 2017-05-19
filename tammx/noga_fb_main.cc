@@ -53,7 +53,8 @@ struct NLabel : public IndexLabel {
       : IndexLabel{n, DimType::n} {}
 };
 
-void noga_fock_build() { /// @todo pass F, X_OO,X_OV,X_VV
+/// @todo pass F, X_OO,X_OV,X_VV
+void noga_fock_build(Tensor& F, Tensor& X_OV, Tensor& X_VV, Tensor& X_OO) { 
   using Type = Tensor::Type;
   using Distribution = Tensor::Distribution;
 
@@ -92,14 +93,14 @@ void noga_fock_build() { /// @todo pass F, X_OO,X_OV,X_VV
 
   /// @todo F, X_.. tensors allocation code should go away since they are passed from noga_main()
   Tensor FT{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor X_OO{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor X_OV{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor X_VV{indices_vv, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  // Tensor X_OO{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  // Tensor X_OV{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  // Tensor X_VV{indices_vv, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
   FT.allocate();
-  X_OO.allocate();
-  X_OV.allocate();
-  X_VV.allocate();
+  // X_OO.allocate();
+  // X_OV.allocate();
+  // X_VV.allocate();
 
 
   tensor_map(hT(), [](Block &block) {
@@ -165,12 +166,12 @@ void noga_fock_build() { /// @todo pass F, X_OO,X_OV,X_VV
 
   /// @todo FT, X_.. destruct go away since they are passed from noga_main()
   FT.destruct();
-  X_OO.destruct();
-  X_OV.destruct();
-  X_VV.destruct();
+  // X_OO.destruct();
+  // X_OV.destruct();
+  // X_VV.destruct();
 }
 
-void noga_main() {
+void noga_main(Tensor& D, Tensor& F) {
   using Type = Tensor::Type;
   using Distribution = Tensor::Distribution;
 
@@ -183,8 +184,8 @@ void noga_main() {
   TensorVec<SymmGroup> t_scalar{};
 
   /// @todo Tensor D,F come from env which is noga_main for now.
-  Tensor D{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor F{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  // Tensor D{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  // Tensor F{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
   Tensor R1{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
   Tensor R2{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
@@ -206,8 +207,8 @@ void noga_main() {
   OLabel i{0}, j{1}, m{2};
   NLabel p{0}, q{1};
 
-  D.allocate();
-  F.allocate();
+  // D.allocate();
+  // F.allocate();
   R1.allocate();
   R2.allocate();
   T.allocate();
@@ -361,11 +362,11 @@ void noga_main() {
 
     /// call fock build
     /// @todo noga_fock_build(F, X_OV, X_VV, X_OO);
-    noga_fock_build();
+    noga_fock_build(F, X_OV, X_VV, X_OO);
   }
   
-  D.destruct();
-  F.destruct();
+  // D.destruct();
+  // F.destruct();
   R1.destruct();
   R2.destruct();
   T.destruct();
@@ -383,6 +384,25 @@ void noga_main() {
   X_VV.destruct();
 }
 
+void noga_driver() {
+  using Type = Tensor::Type;
+  using Distribution = Tensor::Distribution;
+
+  TensorVec<SymmGroup> indices_oo{SymmGroup{DimType::o}, SymmGroup{DimType::o}};
+  TensorVec<SymmGroup> indices_nn{SymmGroup{DimType::n}, SymmGroup{DimType::n}};
+
+  Tensor D{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor F{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+
+  D.allocate();
+  F.allocate();
+  noga_main(D, F);
+
+  D.destruct();
+  F.destruct();
+}
+
+
 int main() {
   TCE::init(spins, spatials, sizes,
             noa,
@@ -396,7 +416,7 @@ int main() {
             irrep_x,
             irrep_y);
 
-  noga_main();
+  noga_driver();
 
   TCE::finalize();
   return 0;

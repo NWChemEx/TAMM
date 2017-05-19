@@ -79,6 +79,8 @@ DO # Loop iterator = i=20
 		t_ia(n+1) = t_ia(n)  + r_ia / (f_aa(i) - f_ii(i))  #preconditioner f_aa,f_ii - diagnoilzer for fock matrix
 	END DO
 
+
+
 	# we have [t_ia] computed now
 
 	Z_ij = -1.0 * T_ie * T_je;

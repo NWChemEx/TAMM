@@ -16,7 +16,12 @@
 #include <string>
 #include "tammx/tammx.h"
 
-void diis_init();
+using namespace std;
+using namespace tammx;
+
+void diis_init() {
+
+}
 void diis_next();
 void diss_tidy();
 
@@ -31,28 +36,36 @@ void compute_residual(Tensor& tensor) {
   resid.destruct();
 }
 
+void tce_diss() {
+
+
+}
 
 /**
  * ref, corr
  */
-void ccsd_driver(Tensor& d_t1, Tensor& d_t2,
+double ccsd_driver(Tensor& d_t1, Tensor& d_t2,
 		 Tensor& d_f1, Tensor& d_v2,
-		 Tensor& d_e,
 		 int maxiter, double thresh) {
   diis_init();
 
-  Tensor d_e;
-  Tensor d_r1;
-  Tensor d_r2;
+  TensorVec<SymmGroup> indices_vo{SymmGroup{DimType::v}, SymmGroup{DimType::o}};
+  TensorVec<SymmGroup> indices_vvoo{SymmGroup{DimType::v, DimType::v}, SymmGroup{DimType::o, DimType::o}};
+
+  Tensor d_e{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+  Tensor d_r1{indices_vo, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
+  Tensor d_r2{indices_vvoo, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
 
   d_e.allocate();
   d_r1.allocate();
   d_r2.allocate();
-  
+
+  double corr = 0;
   for(int iter=0; iter<maxiter; iter++) {
     d_r1.init(0);
     d_r2.init(0);
-    ccsd_e(d_f1, d_2, d_t1, d_t2, d_v2);
+
+    ccsd_e(d_f1, d_e, d_t1, d_t2, d_v2);
     ccsd_t1(d_f1, d_r1, d_t1, d_t2, d_v2);
     ccsd_t2(d_f1, d_r2, d_t1, d_t2, d_v2);
 
@@ -61,11 +74,11 @@ void ccsd_driver(Tensor& d_t1, Tensor& d_t2,
     double residual = std::max(r1, r2);
 
     Block eblock = d_e.get({});
-    double corr = *reinterpret_cast<double*>(eblock.buf());
+    corr = *reinterpret_cast<double*>(eblock.buf());
     //nodezero_print();
     if(residual < thresh) {
       //nodezero_print();
-      return;
+      break;
     }
     diis_next();
   }
@@ -75,5 +88,6 @@ void ccsd_driver(Tensor& d_t1, Tensor& d_t2,
   d_r2.destruct();
   
   diis_tidy();
+  return corr;
 }
 

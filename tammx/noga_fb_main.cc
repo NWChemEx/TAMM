@@ -53,7 +53,9 @@ struct NLabel : public IndexLabel {
       : IndexLabel{n, DimType::n} {}
 };
 
-void noga_fock_build(Tensor& F, Tensor& X_OV, Tensor& X_VV, Tensor& X_OO) { 
+void noga_fock_build(Tensor& F, Tensor& X_OV,
+                     Tensor& X_VV, Tensor& X_OO,
+                     Tensor& hT, Tensor& bT, double bdiagsum) { 
   using Type = Tensor::Type;
   using Distribution = Tensor::Distribution;
 
@@ -65,8 +67,6 @@ void noga_fock_build(Tensor& F, Tensor& X_OV, Tensor& X_VV, Tensor& X_OO) {
   TensorVec<SymmGroup> indices_nn{SymmGroup{DimType::n}, SymmGroup{DimType::n}};
   TensorVec<SymmGroup> t_scalar{};
 
-  /// @todo FIXME: bDiag is the diagonal vector, not a scalar
-  Tensor bDiag{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
   Tensor t1{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
   Tensor t2{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
   Tensor t3{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
@@ -76,12 +76,6 @@ void noga_fock_build(Tensor& F, Tensor& X_OV, Tensor& X_VV, Tensor& X_OO) {
   Tensor t6{indices_on, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
   Tensor t7{indices_vn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
-  Tensor hT{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor bT{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-
-  hT.allocate();
-  bT.allocate();
-  bDiag.allocate();
   t1.allocate();
   t2.allocate();
   t3.allocate();
@@ -93,16 +87,6 @@ void noga_fock_build(Tensor& F, Tensor& X_OV, Tensor& X_VV, Tensor& X_OO) {
   Tensor FT{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
   FT.allocate();
 
-  tensor_map(hT(), [](Block &block) {
-    int n = 0;
-    std::generate_n(reinterpret_cast<double *>(block.buf()), block.size(), [&]() { return n++; });
-  });
-
-  tensor_map(bT(), [](Block &block) {
-    int n = 0;
-    std::generate_n(reinterpret_cast<double *>(block.buf()), block.size(), [&]() { return n++; });
-  });
-
   VLabel a{0}, b{1};
   OLabel i{0}, j{1};
   NLabel p{0}, q{1};
@@ -112,7 +96,7 @@ void noga_fock_build(Tensor& F, Tensor& X_OV, Tensor& X_VV, Tensor& X_OO) {
 
   /// @todo loop over Q for all code below
 
-  FT({p, q}) += bDiag() * bT({p, q});
+  FT({p, q}) += bdiagsum * bT({p, q});
 
   t1() += X_OO({i, j}) * bT({i, j});
   FT({p, q}) += bT({p, q}) * t1();
@@ -137,9 +121,6 @@ void noga_fock_build(Tensor& F, Tensor& X_OV, Tensor& X_VV, Tensor& X_OO) {
   t7({a, q}) += X_VV({a, b}) * bT({b, q});
   FT({p, q}) += -1.0 * bT({p, a}) * t7({a, q});
 
-  hT.destruct();
-  bT.destruct();
-  bDiag.destruct();
   t1.destruct();
   t2.destruct();
   t3.destruct();
@@ -173,7 +154,7 @@ void extract_diag(Tensor& F, double* fdiag) {
     });
 }
 
-void noga_main(Tensor& D, Tensor& F) {
+void noga_main(Tensor& D, Tensor& F, Tensor& hT, Tensor& bT, double bdiagsum) {
   using Type = Tensor::Type;
   using Distribution = Tensor::Distribution;
 
@@ -345,7 +326,7 @@ void noga_main(Tensor& D, Tensor& F) {
     X_VV({a, b}) += 1.0 * (X_OV({m, a}) * T({m, b}));
     X_OO({i, j}) += -1.0 * (T({i, e}) * X_OV({j, e}));
 
-    noga_fock_build(F, X_OV, X_VV, X_OO);
+    noga_fock_build(F, X_OV, X_VV, X_OO, hT, bT, bdiagsum);
     extract_diag(F, fdiag);
   }
   
@@ -373,13 +354,45 @@ void noga_driver() {
   TensorVec<SymmGroup> indices_oo{SymmGroup{DimType::o}, SymmGroup{DimType::o}};
   TensorVec<SymmGroup> indices_nn{SymmGroup{DimType::n}, SymmGroup{DimType::n}};
 
+  /// @todo what is the initial guess
   Tensor D{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  /// @todo what is the initial guess
   Tensor F{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  ///@todo comes from integrals
+  Tensor bT{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
+  ///@todo Who produces this?
+  Tensor hT{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+
+  hT.allocate();
   D.allocate();
   F.allocate();
-  noga_main(D, F);
+  bT.allocate();
 
+  tensor_map(hT(), [](Block &block) {
+    int n = 0;
+    std::generate_n(reinterpret_cast<double *>(block.buf()), block.size(), [&]() { return n++; });
+  });
+
+  tensor_map(bT(), [](Block &block) {
+      int n = 0;
+      std::generate_n(reinterpret_cast<double *>(block.buf()), block.size(), [&]() { return n++; });
+    });
+
+  double bdiagsum;
+  {
+    std::vector<double> bdiag(TCE::noab().value()+ TCE::nvab().value());
+    extract_diag(bT, &bdiag[0]);
+    bdiagsum = 0;
+    for(auto &b: bdiag) {
+      bdiagsum += b;
+    }
+  }
+  
+  noga_main(D, F, hT, bT, bdiagsum);
+  
+  hT.destruct();
+  bT.destruct();
   D.destruct();
   F.destruct();
 }

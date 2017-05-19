@@ -153,6 +153,7 @@ void noga_fock_build(Tensor& F, Tensor& X_OV, Tensor& X_VV, Tensor& X_OO) {
 
 void extract_diag(Tensor& F, double* fdiag) {
   int pos = 0;
+  NLabel p{0}, q{1};
   tensor_map(F({p,q}), [&] (Block& fblock) {
       auto &blockid = fblock.blockid();
       auto poff = TCE::offset(blockid[0]);

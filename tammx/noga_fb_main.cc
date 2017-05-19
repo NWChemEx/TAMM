@@ -57,7 +57,7 @@ void noga_fock_build() { /// @todo pass F, X_OO,X_OV,X_VV
   using Type = Tensor::Type;
   using Distribution = Tensor::Distribution;
 
-  TensorVec<SymmGroup> indices_ov{SymmGroup{DimType::o, DimType::o}, SymmGroup{DimType::v, DimType::v}};
+  TensorVec<SymmGroup> indices_ov{SymmGroup{DimType::o}, SymmGroup{DimType::v}};
   TensorVec<SymmGroup> indices_vn{SymmGroup{DimType::v}, SymmGroup{DimType::n}};
   TensorVec<SymmGroup> indices_on{SymmGroup{DimType::o}, SymmGroup{DimType::n}};
   TensorVec<SymmGroup> indices_oo{SymmGroup{DimType::o}, SymmGroup{DimType::o}};

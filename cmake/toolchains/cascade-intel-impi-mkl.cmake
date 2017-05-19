@@ -20,7 +20,7 @@ set(TAMM_BLAS_INC /msc/apps/compilers/IPS_2017_U1/compilers_and_libraries_2017.1
 #set(BLAS_LIBRARIES "-mkl=parallel -lmkl_lapack95_ilp64 -lmkl_blas95_ilp64 -lmkl_core -lmkl_intel_thread -lpthread -lm -ldl" CACHE STRING "BLAS linker flags")
 
 set(ANTLR_CPPRUNTIME /home/panyala/software/ANTLR/antlr4-cpp-runtime)
-
+set(TALSH_INSTALL_PATH /home/gawa722/Cascade/nwchem/TAL_SH)
 # General NWCHEM Options
 #Using NWCHEM CMAKE build
 # set(NWCHEM_TOP /home/panyala/nwchem-cmake/nwchem-devel)

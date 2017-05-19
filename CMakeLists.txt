@@ -188,6 +188,11 @@ target_include_directories(noga_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${Pars
 add_executable(tammx_tests tammx/tammx_tests.cc tammx/tammx.cc tammx/index_sort.cc) #EXCLUDE_FROM_ALL
 target_include_directories(tammx_tests SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
 
+add_executable(tammx_talsh EXCLUDE_FROM_ALL tammx/tammx_talsh.cc tammx/tammx.cc tammx/index_sort.cc)
+target_include_directories(tammx_talsh SYSTEM PUBLIC  ${PROJECT_BINARY_DIR}
+${TALSH_INSTALL_PATH})
+target_link_libraries(tammx_talsh -L${TALSH_INSTALL_PATH} -ltalsh) 
+
 # Install
 if(NOT TAMM_INSTALL_PREFIX)
     set(TAMM_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/tamm-install)

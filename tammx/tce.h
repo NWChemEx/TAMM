@@ -5,6 +5,8 @@
 
 #include <cassert>
 #include <iosfwd>
+#include <numeric>
+#include <iterator>
 #include "tammx/strong_int.h"
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
@@ -39,6 +41,9 @@ class TCE {
     irrep_t_ = irrep_t;
     irrep_x_ = irrep_x;
     irrep_y_ = irrep_y;
+
+    offsets_.push_back(0);
+    std::partial_sum(sizes_.begin(), sizes_.end(), std::back_inserter(offsets_));
   }
 
   static void finalize() {
@@ -57,6 +62,10 @@ class TCE {
     return sizes_[block.value()];
   }
 
+  static size_t offset(BlockDim block) {
+    return offsets_[block.value()];
+  }
+  
   static bool restricted() {
     return spin_restricted_;
   }
@@ -114,6 +123,7 @@ class TCE {
   static std::vector<Spin> spins_;
   static std::vector<Irrep> spatials_;
   static std::vector<size_t> sizes_;
+  static std::vector<size_t> offsets_;
   static bool spin_restricted_;
   static Irrep irrep_f_, irrep_v_, irrep_t_;
   static Irrep irrep_x_, irrep_y_;

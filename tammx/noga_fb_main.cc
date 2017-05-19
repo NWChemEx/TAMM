@@ -171,7 +171,6 @@ void noga_fock_build() { /// @todo pass F, X_OO,X_OV,X_VV
 }
 
 void noga_main() {
-
   using Type = Tensor::Type;
   using Distribution = Tensor::Distribution;
 
@@ -184,25 +183,24 @@ void noga_main() {
   TensorVec<SymmGroup> t_scalar{};
 
   /// @todo Tensor D,F come from env which is noga_main for now.
-  Tensor D{indices_oo, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
-  Tensor F{indices_nn, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+  Tensor D{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor F{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
-  Tensor delta{indices_oo, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
-  Tensor R1{indices_ov, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
-  Tensor R2{indices_oo, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
-  Tensor T{indices_ov, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
-  Tensor Z{indices_oo, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+  Tensor R1{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor R2{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor T{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor Z{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
   Tensor X_OO{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
   Tensor X_OV{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
   Tensor X_VV{indices_vv, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
-  Tensor tmp1{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
-  Tensor tmp2{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
-  Tensor tmp3{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
-  Tensor tmp0{indices_ov, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
-  Tensor tmp4{indices_oo, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
-  Tensor tmp5{indices_oo, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+  Tensor tmp1{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor tmp2{indices_vv, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor tmp3{indices_vv, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor tmp0{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor tmp4{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor tmp5{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
   VLabel a{0}, b{1}, c{2}, d{3}, e{4};
   OLabel i{0}, j{1}, m{2};
@@ -214,7 +212,6 @@ void noga_main() {
   R2.allocate();
   T.allocate();
   Z.allocate();
-  delta.allocate();
 
   tmp0.allocate();
   tmp1.allocate();
@@ -227,43 +224,72 @@ void noga_main() {
   X_OV.allocate();
   X_VV.allocate();
 
-  /// @todo tensor_init(T,0)
-  /// @todo tensor_init(D,0)
-  /// @todo T,D are initialized only once at the start and always accumulated in the rest of the code
+  T.init(0);
+  D.init(0);
 
+  /// @todo to be constructed
+  double fdiag[TCE::noab().value() + TCE::nvab().value()];
+
+  auto delta = [] (int i, int j) {
+    return (i==j) ? 1 : 0;
+  };
+  
   for (int l1 = 0; l1 < 20; l1++) { //OUTERMOST LOOP - LOOP1
-
 
     for (int l2 = 0; l2 < 20; l2++) { /// LOOP2
       /// @todo tensor_init(R1,0); R1=0 for each iteration of L2
+      R1.init(0);
 
       R1({i, a}) += 1.0 * F({i, a});
       R1({i, a}) += -1.0 * (F({i, b}) * X_VV({b, a}));
       R1({i, a}) += -1.0 * (F({i, m}) * X_OV({m, a}));
       R1({i, a}) += X_OO({i, j}) * F({j, a});
-      /// @todo tensor_init(tmp0,0)
+     /// @todo tensor_init(tmp0,0)
+      tmp0.init(0);
       tmp0({i, b}) += -1.0 * (X_OO({i, j}) * F({j, b}));
       R1({i, a}) += 1.0 * tmp0({i, b}) * X_VV({b, a});
-
+ 
       /// @todo tensor_init(tmp1,0)
-      tmp1({j, a}) += 1.0 * (F({j, m}) * X_OV({m, a}));
+      tmp1.init(0);
+      tmp1({j, a}) += 1.0 * F({j, m}) * X_OV({m, a});
       R1({i, a}) += -1.0 * (X_OO({i, j}) * tmp1({j, a}));
       R1({i, a}) += 1.0 * (X_OV({i, b}) * F({b, a}));
-
+      
       /// @todo tensor_init(tmp2,0)
+      tmp2.init(0);
       tmp2({b, a}) += 1.0 * (F({b, c}) * X_VV({c, a}));
       R1({i, a}) += -1.0 * (X_OV({i, b}) * tmp2({b, a}));
-
+      
       /// @todo tensor_init(tmp3,0)
+      tmp3.init(0);
       tmp3({b, a}) += 1.0 * (F({b, m}) * X_OV({m, a}));
       R1({i, a}) += -1.0 * (X_OV({i, b}) * tmp3({b, a}));
 
       /// @todo Denominator can be a scalar for now
       //T({i,a}) += R1({i,a}) / (F({a,a}) - F({i,i}));
-
+      tensor_map(T({i,a}), [&] (Block& tblock) {
+          auto &blockid = tblock.blockid();          
+          auto ioff = TCE::offset(blockid[0]);
+          auto aoff = TCE::offset(blockid[1]);          
+          auto r1block = R1.get(blockid);
+          
+          auto tbuf = reinterpret_cast<double*>(tblock.buf());
+          auto r1buf = reinterpret_cast<double*>(r1block.buf());
+          
+          tblock().init(0);
+          auto bdims = T.block_dims(blockid);
+          auto isize = bdims[0].value();
+          auto asize = bdims[1].value();
+          for(int i=0, c=0; i<isize; i++) {
+            for(int a=0; a<asize; a++, c++) {
+              tbuf[c] += r1buf[c] / (fdiag[a] - fdiag[i]);
+            }
+          }
+        });
     }
-
+    
     /// @todo tensor_init(Z,0); Z=0 for each iteration of L1
+    Z.init(0);
     Z({i, j}) += -1.0 * (T({i, e}) * T({j, e}));
 
     // following loop solves this equation:
@@ -273,15 +299,61 @@ void noga_main() {
 
     for (int l3 = 0; l3 < 10; l3++) {  // LOOP 3
       /// @todo tensor_init(R2,0); R2=0 for each iteration of L3
+      R2.init(0);
       tmp4({i, j}) += 1.0 * (D({i, m}) * Z({m, j}));
       /// @todo Uncomment the following 4 lines once the logic is implemented
       /// tensor_init(t5,0);
+      tmp5.init(0);
       /// tmp5({i,j}) += delta({i, j}) - tmp4({i, j});
+      tensor_map(tmp5({i,j}), [&] (Block& t5block) {
+          auto &blockid = t5block.blockid();
+          auto ioff = TCE::offset(blockid[0]);
+          auto joff = TCE::offset(blockid[1]);
+          auto t5buf = reinterpret_cast<double*>(t5block.buf());          
+          t5block().init(0);
+          auto bdims = tmp5.block_dims(blockid);
+          auto isize = bdims[0].value();
+          auto jsize = bdims[1].value();
+          for(int i=0, c=0; i<isize; i++) {
+            for(int j=0; j<jsize; j++, c++) {
+              t5buf[c] += delta(ioff+i, joff+j);
+            }
+          }
+        });
+      tmp5({i,j}) += -1.0 * tmp4({i,j});
       /// R2({i, j}) += D({i, j}) - tmp5({i, j});
+      R2({i,j}) += D({i,j});
+      R2({i,j}) += -1.0 * tmp5({i,j});
       /// D({i, j}) += R2({i, j}) / (delta({i, j}) + Z({i, j}));
+      tensor_map(D({i,j}), [&] (Block& dblock) {
+          auto &blockid = dblock.blockid();
+          
+          auto ioff = TCE::offset(blockid[0]);
+          auto joff = TCE::offset(blockid[1]);
+          
+          auto r2block = R2.get(blockid);
+          auto zblock = Z.get(blockid);
+          
+          auto r2buf = reinterpret_cast<double*>(r2block.buf());
+          auto zbuf = reinterpret_cast<double*>(zblock.buf());
+          auto dbuf = reinterpret_cast<double*>(dblock.buf());
+          
+          dblock().init(0);
+          auto bdims = D.block_dims(blockid);
+          auto isize = bdims[0].value();
+          auto jsize = bdims[1].value();
+          for(int i=0, c=0; i<isize; i++) {
+            for(int j=0; j<jsize; j++, c++) {
+              dbuf[c] += r2buf[c] / (delta(ioff+i, joff+j) + zbuf[c]);
+            }
+          }
+        });
     }
 
     /// @todo tensor_initialize X_OV=0, X_OO=0, X_VV=0
+    X_OV.init(0);
+    X_OO.init(0);
+    X_VV.init(0);
     /// X tensors are newly created in every iteration of L1 and passed to fock build
     X_OV({i, a}) += 1.0 * (D({i, m}) * T({m, a}));
     X_VV({a, b}) += 1.0 * (X_OV({m, a}) * T({m, b}));
@@ -290,16 +362,14 @@ void noga_main() {
     /// call fock build
     /// @todo noga_fock_build(F, X_OV, X_VV, X_OO);
     noga_fock_build();
-
   }
-
+  
   D.destruct();
   F.destruct();
   R1.destruct();
   R2.destruct();
   T.destruct();
   Z.destruct();
-  delta.destruct();
 
   tmp0.destruct();
   tmp1.destruct();
@@ -312,7 +382,6 @@ void noga_main() {
   X_OV.destruct();
   X_VV.destruct();
 }
-
 
 int main() {
   TCE::init(spins, spatials, sizes,

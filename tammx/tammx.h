@@ -1415,6 +1415,22 @@ tensor_map (LabeledTensor ltc, Lambda func) {
 
 template<typename Lambda>
 inline void
+block_for (LabeledTensor ltc, Lambda func) {
+  Tensor& tc = *ltc.tensor_;
+  auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
+  auto lambda = [&] (const TensorIndex& cblockid) {
+    size_t dimc = tc.block_size(cblockid);
+    if(tc.nonzero(cblockid) && dimc>0) {
+      //auto cblock = tc.alloc(cblockid);
+      func(cblockid);
+      //    tc.add(cblock);
+    }
+  };
+  parallel_work(citr, citr.get_end(), lambda);
+}
+
+template<typename Lambda>
+inline void
 tensor_map (LabeledTensor ltc, LabeledTensor lta, Lambda func) {
   Tensor& tc = *ltc.tensor_;
   Tensor& ta = *lta.tensor_;
@@ -1434,29 +1450,29 @@ tensor_map (LabeledTensor ltc, LabeledTensor lta, Lambda func) {
 /**
  * validate
  */
-template<typename Lambda>
-inline void
-block_for (std::vector<LabeledTensor> lts, Lambda func) {
-  std::vector<ProductIterator<TriangleLoop>> pditr, pditr_last;
-  for(auto &lt: lts) {
-    pditr.push_back(loop_iterator(slice_indices(lt.tensor_->indices(),
-                                                lt.label_)));
-    pditr_last.push_back(pditr.back().get_end());
-  }
-  if(pditr.empty()) {
-    return;
-  }
-  while(pditr[0] != pditr_last[0]) {
-    std::vector<TensorIndex> blockids;
-    for(auto &it: pditr) {
-      blockids.push_back(*it);
-    }
-    func(blockids);
-    for(auto &it: pditr) {
-      ++it;
-    }    
-  }
-}
+//template<typename Lambda>
+//inline void
+//block_for (std::vector<LabeledTensor> lts, Lambda func) {
+//  std::vector<ProductIterator<TriangleLoop>> pditr, pditr_last;
+//  for(auto &lt: lts) {
+//    pditr.push_back(loop_iterator(slice_indices(lt.tensor_->indices(),
+//                                                lt.label_)));
+//    pditr_last.push_back(pditr.back().get_end());
+//  }
+//  if(pditr.empty()) {
+//    return;
+//  }
+//  while(pditr[0] != pditr_last[0]) {
+//    std::vector<TensorIndex> blockids;
+//    for(auto &it: pditr) {
+//      blockids.push_back(*it);
+//    }
+//    func(blockids);
+//    for(auto &it: pditr) {
+//      ++it;
+//    }
+//  }
+//}
 
 inline void
 tensor_print(Tensor& tc, std::ostream &os) {

@@ -135,8 +135,9 @@ void noga_fock_build(Tensor& F, Tensor& X_OV,
 void extract_diag(Tensor& F, double* fdiag) {
   int pos = 0;
   NLabel p{0}, q{1};
-  tensor_map(F({p,q}), [&] (Block& fblock) {
-      auto &blockid = fblock.blockid();
+  block_for(F({p,q}), [&] (const TensorIndex& blockid) {
+      //auto &blockid = fblock.blockid();
+      auto fblock = F.get(blockid);
       auto poff = TCE::offset(blockid[0]);
       auto qoff = TCE::offset(blockid[1]);          
           
@@ -147,6 +148,7 @@ void extract_diag(Tensor& F, double* fdiag) {
       for(int p=0, c=0; p<psize; p++) {
         for(int q=0; q<qsize; q++, c++) {
           if(poff+p == qoff+q) {
+            assert(pos < TCE::noab().value()+TCE::nvab().value());
             fdiag[pos++] = fbuf[c];
           }
         }

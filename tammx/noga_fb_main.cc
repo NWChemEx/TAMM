@@ -65,6 +65,7 @@ void noga_fock_build() { /// @todo pass F, X_OO,X_OV,X_VV
   TensorVec<SymmGroup> indices_nn{SymmGroup{DimType::n}, SymmGroup{DimType::n}};
   TensorVec<SymmGroup> t_scalar{};
 
+  /// @todo FIXME: bDiag is the diagonal vector, not a scalar
   Tensor bDiag{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
   Tensor t1{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
   Tensor t2{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
@@ -169,8 +170,6 @@ void noga_fock_build() { /// @todo pass F, X_OO,X_OV,X_VV
   X_VV.destruct();
 }
 
-#if 1
-
 void noga_main() {
 
   using Type = Tensor::Type;
@@ -264,7 +263,7 @@ void noga_main() {
 
     }
 
-    /// @todo tensor_init(Z,0); Z=0 for every iteration of L1
+    /// @todo tensor_init(Z,0); Z=0 for each iteration of L1
     Z({i, j}) += -1.0 * (T({i, e}) * T({j, e}));
 
     // following loop solves this equation:
@@ -283,7 +282,7 @@ void noga_main() {
     }
 
     /// @todo tensor_initialize X_OV=0, X_OO=0, X_VV=0
-    /// X tensors are newly created for every iteration of L1
+    /// X tensors are newly created in every iteration of L1 and passed to fock build
     X_OV({i, a}) += 1.0 * (D({i, m}) * T({m, a}));
     X_VV({a, b}) += 1.0 * (X_OV({m, a}) * T({m, b}));
     X_OO({i, j}) += -1.0 * (T({i, e}) * X_OV({j, e}));
@@ -291,18 +290,6 @@ void noga_main() {
     /// call fock build
     /// @todo noga_fock_build(F, X_OV, X_VV, X_OO);
     noga_fock_build();
-
-
-    // notes follow
-    //X({i,a}) = X({a,i})
-
-    // #Construct new fock matrix F(D(i+1)) from Density matrix D
-    // #X_ia,X_ab,X_ij (i+1)
-
-    // full D(i+1) = [ l_oo + x_oo | X_ov ]
-    //               [ X_vo        | X_vv ]
-
-    // #D_ij = [delta_ij + X_ij ]
 
   }
 
@@ -326,7 +313,6 @@ void noga_main() {
   X_VV.destruct();
 }
 
-#endif
 
 int main() {
   TCE::init(spins, spatials, sizes,

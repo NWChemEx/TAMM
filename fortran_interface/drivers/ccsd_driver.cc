@@ -19,6 +19,14 @@
 using namespace std;
 using namespace tammx;
 
+std::ostream &nodezero_print(const std::string &str,
+                             std::ostream &os = std::cout) {
+  if (ga_nodeid() == 0) {
+    os << str << std::endl;
+  }
+  return os;
+}
+
 void diis_init() {
 
 }
@@ -60,6 +68,7 @@ double ccsd_driver(Tensor& d_t1, Tensor& d_t2,
   d_r1.allocate();
   d_r2.allocate();
 
+  double ref = 0;
   double corr = 0;
   for(int iter=0; iter<maxiter; iter++) {
     d_r1.init(0);
@@ -75,9 +84,11 @@ double ccsd_driver(Tensor& d_t1, Tensor& d_t2,
 
     Block eblock = d_e.get({});
     corr = *reinterpret_cast<double*>(eblock.buf());
-    //nodezero_print();
-    if(residual < thresh) {
-      //nodezero_print();
+    if (residual < thresh) {
+        nodezero_print("\n ");
+        nodezero_print("\n CCSD, " + corr);
+        double ref_plus_corr = ref + corr;
+        nodezero_print("\n CCSD, " + ref_plus_corr);
       break;
     }
     diis_next();

@@ -44,12 +44,28 @@ class TCE {
 
     offsets_.push_back(0);
     std::partial_sum(sizes_.begin(), sizes_.end(), std::back_inserter(offsets_));
+    
+    Expects(noab_ >=0 && nvab_ >=0);
+    Expects(noa_ <= noab_ && nva_ <= nvab_);
+    auto sz = noab_.value() + nvab_.value();
+    Expects(spins_.size() == sz);
+    Expects(spatials_.size() == sz);
+    Expects(sizes_.size() == sz);
+    Expects(offsets_.size() == sz+1);
+
+    for(auto s: spins_) {
+      Expects(s==Spin{1} || s==Spin{2});
+    }
   }
 
   static void finalize() {
     // no-op
   }
 
+  static size_t total_dim_size() {
+    return offsets_.back();
+  }
+  
   static Spin spin(BlockDim block) {
     return spins_[block.value()];
   }
@@ -78,6 +94,14 @@ class TCE {
     return nvab_;
   }
 
+  static BlockDim noa() {
+    return noa_;
+  }
+
+  static BlockDim nva() {
+    return nva_;
+  }
+  
   using Int = Fint;
 
   static Int compute_tce_key(const TensorDim& flindices,

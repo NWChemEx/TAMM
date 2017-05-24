@@ -52,6 +52,11 @@ Target checked_cast(const Source& s) {
 #endif
 }
 
+template<typename Target, typename Source>
+Target strongint_cast(Source s) {
+  return checked_cast<Target>(s);
+}
+
 // template<typename Source,
 //          typename = std::enable_if_t<std::is_integral<Source>::value>>
 // Source checked_cast(const Source& s) {

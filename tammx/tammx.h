@@ -150,6 +150,9 @@ class Tensor {
   enum class AllocationPolicy { none, create, attach };
   enum class Type { integer, single_precision, double_precision};
 
+  // @todo For now, we cannot handle tensors in which number of upper
+  // and lower indices differ by more than one. This relates to
+  // correctly determining spin symmetry.
   Tensor(const TensorVec<SymmGroup> &indices,
          Type element_type,
          Distribution distribution,
@@ -176,6 +179,7 @@ class Tensor {
             rank_ += sg.size();
           }
           flindices_ = flatten(indices_);
+          //Expects(std::abs(flindices_.size() - nupper_indices_) <= 1);
         }
 
   TensorRank rank() const {

@@ -24,7 +24,7 @@ BlockDim operator "" _bd(unsigned long long int val) {
   return BlockDim{strongint_cast<BlockDim::value_type>(val)};
 }
 
-std::vector<Spin> spins = {1_sp, -1 * 1_sp, 1_sp, -1 * 1_sp};
+std::vector<Spin> spins = {1_sp, 2_sp, 2_sp, 2_sp};
 std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir, 0_ir};
 std::vector<size_t> sizes = {2, 4, 2, 1};
 BlockDim noa{1};
@@ -136,6 +136,7 @@ void extract_diag(Tensor& F, double* fdiag) {
   int pos = 0;
   NLabel p{0}, q{1};
   block_for(F({p,q}), [&] (const TensorIndex& blockid) {
+      std::cout<<__FUNCTION__<<". blockid="<<blockid<<std::endl;
       //auto &blockid = fblock.blockid();
       auto fblock = F.get(blockid);
       auto poff = TCE::offset(blockid[0]);
@@ -145,10 +146,15 @@ void extract_diag(Tensor& F, double* fdiag) {
       auto bdims = F.block_dims(blockid);
       auto psize = bdims[0].value();
       auto qsize = bdims[1].value();
+
+      auto boffs = TensorVec<size_t>{poff, qoff};
+      std::cout<<__FUNCTION__<<". blockid="<<blockid<<std::endl;
+      std::cout<<__FUNCTION__<<". block_dims="<<bdims<<std::endl;
+      std::cout<<__FUNCTION__<<". block offset="<< boffs <<std::endl;
       for(int p=0, c=0; p<psize; p++) {
         for(int q=0; q<qsize; q++, c++) {
           if(poff+p == qoff+q) {
-            assert(pos < TCE::noab().value()+TCE::nvab().value());
+            //assert(pos < TCE::noab().value()+TCE::nvab().value());
             fdiag[pos++] = fbuf[c];
           }
         }
@@ -207,7 +213,7 @@ void noga_main(Tensor& D, Tensor& F, Tensor& hT, Tensor& bT, double bdiagsum) {
   T.init(0);
   D.init(0);
 
-  double fdiag[TCE::noab().value() + TCE::nvab().value()];
+  double fdiag[TCE::total_dim_size()];
   extract_diag(F, fdiag);
 
   auto delta = [] (int i, int j) {
@@ -383,7 +389,7 @@ void noga_driver() {
 
   double bdiagsum;
   {
-    std::vector<double> bdiag(TCE::noab().value()+ TCE::nvab().value());
+    std::vector<double> bdiag(TCE::total_dim_size());
     extract_diag(bT, &bdiag[0]);
     bdiagsum = 0;
     for(auto &b: bdiag) {

@@ -13,15 +13,15 @@ using namespace std;
 using namespace tammx;
 
 Irrep operator "" _ir(unsigned long long int val) {
-  return Irrep{strongint_cast<Irrep::value_type>(val)};
+  return Irrep{checked_cast<Irrep::value_type>(val)};
 }
 
 Spin operator "" _sp(unsigned long long int val) {
-  return Spin{strongint_cast<Spin::value_type>(val)};
+  return Spin{checked_cast<Spin::value_type>(val)};
 }
 
 BlockDim operator "" _bd(unsigned long long int val) {
-  return BlockDim{strongint_cast<BlockDim::value_type>(val)};
+  return BlockDim{checked_cast<BlockDim::value_type>(val)};
 }
 
 std::vector<Spin> spins = {1_sp, 2_sp, 2_sp, 2_sp};

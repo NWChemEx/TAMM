@@ -500,11 +500,6 @@ class Tensor {
             dbuf[i] += sbuf[i];
           }
         });
-      // auto* sbuf = reinterpret_cast<double*>(block.buf());
-      // auto* dbuf = reinterpret_cast<double*>(tce_data_buf_ + offset);
-      // for(unsigned i=0; i<size; i++) {
-      //   dbuf[i] += sbuf[i];
-      // }
     } else {
       assert(0); //implement
     }
@@ -679,38 +674,9 @@ Block::operator () () {
   return operator ()(label); //LabeledBlock{*this, label};
 }
 
-// template<typename T>
-// struct match_tensor_element_type_impl {
-//   static bool f(ElementType eltype) {
-//     assert(0); //always go through specialized function
-//     return false;
-//   }
-// };
-
-// template<>
-// struct match_tensor_element_type_impl<double>{
-//   static bool f(ElementType eltype) {
-//     return eltype == ElementType::double_precision;
-//   }
-// };
-
-// template<>
-// struct match_tensor_element_type_impl<float>{
-//   static bool f (ElementType eltype) {
-//     return eltype == ElementType::single_precision;
-//   }
-// };
-
-// template<typename T>
-// inline bool
-// match_tensor_element_type(ElementType eltype) {
-//   return match_tensor_element_type_impl<T>::f(eltype);
-// }
-
 template<typename T>
 inline void
 LabeledBlock::init(T value) {
-  //Expects(match_tensor_element_type<T>(block_->tensor().element_type()));
   Expects(element_type<T> == block_->tensor().element_type());
   auto *dbuf = reinterpret_cast<T*>(block_->buf());
   for(unsigned i=0; i<block_->size(); i++) {
@@ -1341,14 +1307,14 @@ operator += (LabeledTensor ltc, std::tuple<T, LabeledTensor, LabeledTensor> rhs)
 
 /**
  * performs: cbuf[dims] = scale *abuf[perm(dims)]
+ *
+ * @todo unsafe. passing 1 instead of 1.0 might lead to unexpected results.
  */
 template<typename T>
 inline void
 index_permute_acc(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
   Expects(dbuf!=nullptr && sbuf!=nullptr);
   Expects(perm.size() == ddims.size());
-  bool val = std::is_same<double,T>::value; Expects(val);
-  //assert(std::is_same<double,T>::value);  // @todo Need a generic implementation
 
   std::cerr<<__FUNCTION__<<" perm = "<<perm<<std::endl;
   std::cerr<<__FUNCTION__<<" ddims = "<<ddims<<std::endl;
@@ -1365,18 +1331,18 @@ index_permute_acc(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const Te
 
   std::cerr<<"sbuf = "<<(void*)sbuf<<std::endl;
   std::cerr<<"dbuf = "<<(void *)dbuf<<std::endl;
-  tamm::index_sortacc(reinterpret_cast<double*>(sbuf),
-                      reinterpret_cast<double*>(dbuf),
-                      sizes.size(), &sizes[0], &iperm[0], scale);
+  index_sortacc(sbuf, dbuf,
+                sizes.size(), &sizes[0], &iperm[0], scale);
 }
 
+/**
+ *  @todo unsafe. passing 1 instead of 1.0 might lead to unexpected results.
+ */
 template<typename T>
 inline void
 index_permute(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
   Expects(dbuf!=nullptr && sbuf!=nullptr);
   Expects(perm.size() == ddims.size());
-  bool val = std::is_same<double,T>::value; Expects(val);
-  //Expects(std::is_same<double,T>::value);  // @todo Need a generic implementation
 
   auto inv_perm = perm_invert(perm);
   auto inv_sizes = perm_apply(ddims, inv_perm);
@@ -1387,9 +1353,8 @@ index_permute(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const Tensor
     iperm.push_back(inv_perm[i]+1);
   }
 
-  tamm::index_sort(reinterpret_cast<double*>(sbuf),
-                   reinterpret_cast<double*>(dbuf),
-                   sizes.size(), &sizes[0], &iperm[0], scale);
+  index_sort(sbuf, dbuf,
+             sizes.size(), &sizes[0], &iperm[0], scale);
 }
 
 template<typename T>
@@ -1606,21 +1571,6 @@ tensor_print(Tensor& tc, std::ostream &os) {
         os<<std::endl;
       };
       type_dispatch(tc.element_type(), lambda, os, cblock);
-      // if(match_tensor_element_type<double>(tc.element_type())) {
-      //   double *cbuf = reinterpret_cast<double*>(cblock.buf());
-      //   for(int i=0; i<cblock.size(); i++) {
-      //     os<<cbuf[i]<<" ";
-      //   }
-      // }
-      // else if() {
-      //   float *cbuf = reinterpret_cast<float*>(cblock.buf());
-      //   for(int i=0; i<cblock.size(); i++) {
-      //     os<<cbuf[i]<<" ";
-      //   }
-      // } else {
-      //   assert(0); // implement
-      // }
-      // os<<std::endl;
     }
   }
 }

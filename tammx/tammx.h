@@ -11,6 +11,7 @@
 #include <cmath>
 #include <map>
 #include <iostream>
+#include <type_traits>
 #if 0
 #  include "tensor/gmem.h"
 #  include "tensor/capi.h"
@@ -52,6 +53,50 @@
 
 namespace tammx {
 
+template<typename Fn, typename... Fargs>
+inline void
+type_dispatch(ElementType element_type, Fn fn, Fargs&& ...args) {
+  switch(element_type) {
+    case ElementType::single_precision:
+      fn(float{}, args...);
+      break;
+    case ElementType::double_precision:
+      fn(double{}, args...);
+      break;
+    default:
+      assert(0); 
+  }
+}
+
+inline void
+typed_copy(ElementType eltype, void *src, size_t size, void *dst) {
+  type_dispatch(eltype, [&] (auto type)  {
+      using dtype = decltype(type);
+      std::copy_n(reinterpret_cast<dtype*>(src),
+                  size,
+                  reinterpret_cast<dtype*>(dst));
+    });
+}
+
+template<typename T>
+inline void
+typed_fill(ElementType eltype, void *buf, auto size, T val) {
+  Expects(element_type<T> == eltype);
+  type_dispatch(eltype, [&] (auto type) {
+      using dtype = decltype(type);
+      std::fill_n(reinterpret_cast<dtype*>(buf), size, val);
+    });
+}
+
+inline void
+typed_zeroout(ElementType eltype, void *buf, auto size) {
+  type_dispatch(eltype, [&] (auto type) {
+      using dtype = decltype(type);
+      std::fill_n(reinterpret_cast<dtype*>(buf), size, 0);
+    });
+}
+
+
 inline ProductIterator<TriangleLoop>
 loop_iterator(const TensorVec<SymmGroup>& indices ) {
   TensorVec<TriangleLoop> tloops, tloops_last;
@@ -75,7 +120,8 @@ struct LabeledBlock {
   Block *block_;
   TensorLabel label_;
 
-  void init(double value);
+  template<typename T>
+  void init(T value);
 };
 
 struct LabeledTensor  {
@@ -148,13 +194,12 @@ class Tensor {
  public:
   enum class Distribution { tce_nw, tce_nwma, tce_nwi };
   enum class AllocationPolicy { none, create, attach };
-  enum class Type { integer, single_precision, double_precision};
 
   // @todo For now, we cannot handle tensors in which number of upper
   // and lower indices differ by more than one. This relates to
   // correctly determining spin symmetry.
   Tensor(const TensorVec<SymmGroup> &indices,
-         Type element_type,
+         ElementType element_type,
          Distribution distribution,
          TensorRank nupper_indices,
          Irrep irrep,
@@ -186,7 +231,7 @@ class Tensor {
     return rank_;
   }
 
-  Type element_type() const {
+  ElementType element_type() const {
     return element_type_;
   }
 
@@ -194,24 +239,8 @@ class Tensor {
     return flindices_;
   }
 
-  static constexpr size_t elsize(Type eltype) {
-    size_t ret = 0;
-    switch(eltype) {
-      case Type::integer:
-        ret = sizeof(int);
-        break;
-      case Type::single_precision:
-        ret = sizeof(float);
-        break;
-      case Type::double_precision:
-        ret = sizeof(double);
-        break;
-    }
-    return ret;
-  }
-
   size_t element_size() const {
-    return Tensor::elsize(element_type_);
+    return tammx::element_size(element_type_);
   }
 
   Distribution distribution() const {
@@ -262,10 +291,10 @@ class Tensor {
   }
 #endif
   
-  void attach(void *tce_data_buf, TCE::Int *tce_hash) {
+  void attach(uint8_t* tce_data_buf, TCE::Int* tce_hash) {
     Expects (!constructed_);
     Expects (distribution_ == Distribution::tce_nwma);
-    tce_data_buf_ = static_cast<double *>(tce_data_buf);
+    tce_data_buf_ = tce_data_buf;
     tce_hash_ = tce_hash;
     constructed_ = true;
     policy_ = AllocationPolicy::attach;    
@@ -314,8 +343,8 @@ class Tensor {
 #endif
       }
       else {
-        tce_data_buf_ = new double [size];
-        std::fill_n(tce_data_buf_, size, 0);
+        tce_data_buf_ = new uint8_t [size * element_size()];
+        typed_zeroout(element_type_, tce_data_buf_, size);
       }
     }
     else {
@@ -377,7 +406,8 @@ class Tensor {
     Expects(!constructed_);
   }
 
-  void init(double value);
+  template<typename T>
+  void init(T value);
   
   bool nonzero(const TensorIndex& blockid) const {
     return spin_nonzero(blockid) &&
@@ -411,9 +441,13 @@ class Tensor {
         Expects (!(ptr == &tce_hash_[length + 1] || key < *ptr));
         auto offset = *(ptr + length);
         if (distribution_ == Distribution::tce_nwma) {
-          std::copy_n(static_cast<double*>(tce_data_buf_ + offset),
-                      size,
-                      reinterpret_cast<double*>(block.buf()));
+          type_dispatch(element_type_, [&] (auto type) {
+              using dtype = decltype(type);
+              std::copy_n(reinterpret_cast<dtype*>(tce_data_buf_) + offset,
+                          size,
+                          reinterpret_cast<dtype*>(block.buf()));
+            });
+          // typed_copy(element_type_, tce_data_buf_ + offset, size, block.buf());
         }
         else {
 #if 0
@@ -458,11 +492,19 @@ class Tensor {
       auto ptr = std::lower_bound(&tce_hash_[1], &tce_hash_[length + 1], key);
       Expects (!(ptr == &tce_hash_[length + 1] || key < *ptr));
       auto offset = *(ptr + length);
-      auto* sbuf = reinterpret_cast<double*>(block.buf());
-      auto* dbuf = reinterpret_cast<double*>(tce_data_buf_ + offset);
-      for(unsigned i=0; i<size; i++) {
-        dbuf[i] += sbuf[i];
-      }
+      type_dispatch(element_type_, [&] (auto type) {
+          using dtype = decltype(type);
+          auto* sbuf = reinterpret_cast<dtype*>(block.buf());
+          auto* dbuf = reinterpret_cast<dtype*>(tce_data_buf_) + offset;
+          for(unsigned i=0; i<size; i++) {
+            dbuf[i] += sbuf[i];
+          }
+        });
+      // auto* sbuf = reinterpret_cast<double*>(block.buf());
+      // auto* dbuf = reinterpret_cast<double*>(tce_data_buf_ + offset);
+      // for(unsigned i=0; i<size; i++) {
+      //   dbuf[i] += sbuf[i];
+      // }
     } else {
       assert(0); //implement
     }
@@ -580,7 +622,7 @@ class Tensor {
   }
 
   TensorVec<SymmGroup> indices_;
-  Type element_type_;
+  ElementType element_type_;
   Distribution distribution_;
   TensorRank nupper_indices_;
   Irrep irrep_;
@@ -593,7 +635,7 @@ class Tensor {
 #if 0
   tamm::gmem::Handle tce_ga_;
 #endif
-  double* tce_data_buf_{};
+  uint8_t* tce_data_buf_{};
   TCE::Int *tce_hash_{};
 };  // class Tensor
 
@@ -637,40 +679,76 @@ Block::operator () () {
   return operator ()(label); //LabeledBlock{*this, label};
 }
 
+// template<typename T>
+// struct match_tensor_element_type_impl {
+//   static bool f(ElementType eltype) {
+//     assert(0); //always go through specialized function
+//     return false;
+//   }
+// };
+
+// template<>
+// struct match_tensor_element_type_impl<double>{
+//   static bool f(ElementType eltype) {
+//     return eltype == ElementType::double_precision;
+//   }
+// };
+
+// template<>
+// struct match_tensor_element_type_impl<float>{
+//   static bool f (ElementType eltype) {
+//     return eltype == ElementType::single_precision;
+//   }
+// };
+
+// template<typename T>
+// inline bool
+// match_tensor_element_type(ElementType eltype) {
+//   return match_tensor_element_type_impl<T>::f(eltype);
+// }
+
+template<typename T>
 inline void
-LabeledBlock::init(double value) {
-  auto *dbuf = reinterpret_cast<double*>(block_->buf());
+LabeledBlock::init(T value) {
+  //Expects(match_tensor_element_type<T>(block_->tensor().element_type()));
+  Expects(element_type<T> == block_->tensor().element_type());
+  auto *dbuf = reinterpret_cast<T*>(block_->buf());
   for(unsigned i=0; i<block_->size(); i++) {
     dbuf[i] = value;
   }
 }
 
-inline std::tuple<double, const LabeledBlock>
-operator * (double alpha, const LabeledBlock& block) {
+template<typename T>
+inline std::tuple<T, LabeledBlock>
+operator * (T alpha, LabeledBlock block) {
   return {alpha, block};
 }
 
-inline std::tuple<const LabeledBlock, const LabeledBlock>
-operator * (const LabeledBlock& rhs1, const LabeledBlock& rhs2)  {
+inline std::tuple<LabeledBlock, LabeledBlock>
+operator * (LabeledBlock rhs1, LabeledBlock rhs2)  {
   return std::make_tuple(rhs1, rhs2);
 }
 
 
-inline std::tuple<double, const LabeledBlock, const LabeledBlock>
-operator * (const std::tuple<double, LabeledBlock>& rhs1, const LabeledBlock& rhs2)  {
+template<typename T>
+inline std::tuple<T, LabeledBlock, LabeledBlock>
+operator * (std::tuple<T, LabeledBlock> rhs1, LabeledBlock rhs2)  {
   return std::tuple_cat(rhs1, std::make_tuple(rhs2));
 }
 
-inline std::tuple<double, const LabeledBlock, const LabeledBlock>
-operator * (double alpha, const std::tuple<LabeledBlock, LabeledBlock>& rhs) {
+template<typename T>
+inline std::tuple<T, LabeledBlock, LabeledBlock>
+operator * (T alpha, std::tuple<LabeledBlock, LabeledBlock> rhs) {
   return std::tuple_cat(std::make_tuple(alpha), rhs);
 }
 
+template<typename T>
 void
-operator += (LabeledBlock block1, std::tuple<double, LabeledBlock> rhs);
+operator += (LabeledBlock block1, std::tuple<T, LabeledBlock> rhs);
 
+template<typename T>
 void
-operator += (LabeledBlock block1, std::tuple<double, LabeledBlock, LabeledBlock> rhs);
+operator += (LabeledBlock block1, std::tuple<T, LabeledBlock, LabeledBlock> rhs);
 
 inline void
 operator += (LabeledBlock block1, LabeledBlock block2) {
@@ -683,13 +761,15 @@ operator += (LabeledBlock block1, std::tuple<LabeledBlock, LabeledBlock> rhs) {
 }
 
 
-inline std::tuple<double, LabeledTensor>
-operator * (double alpha, LabeledTensor block) {
+template<typename T>
+inline std::tuple<T, LabeledTensor>
+operator * (T alpha, LabeledTensor block) {
   return {alpha, block};
 }
 
-inline std::tuple<double, LabeledTensor, LabeledTensor>
-operator * (const std::tuple<double, LabeledTensor>& rhs1, LabeledTensor rhs2)  {
+template<typename T>
+inline std::tuple<T, LabeledTensor, LabeledTensor>
+operator * (const std::tuple<T, LabeledTensor>& rhs1, LabeledTensor rhs2)  {
   return std::tuple_cat(rhs1, std::make_tuple(rhs2));
 }
 
@@ -698,16 +778,19 @@ operator * (LabeledTensor rhs1, LabeledTensor rhs2)  {
   return std::make_tuple(rhs1, rhs2);
 }
 
-inline std::tuple<double, LabeledTensor, LabeledTensor>
-operator * (double alpha, std::tuple<LabeledTensor, LabeledTensor> rhs) {
+template<typename T>
+inline std::tuple<T, LabeledTensor, LabeledTensor>
+operator * (T alpha, std::tuple<LabeledTensor, LabeledTensor> rhs) {
   return std::tuple_cat(std::make_tuple(alpha), rhs);
 }
 
+template<typename T>
 void
-operator += (LabeledTensor block1, std::tuple<double, LabeledTensor> rhs);
+operator += (LabeledTensor block1, std::tuple<T, LabeledTensor> rhs);
 
+template<typename T>
 void
-operator += (LabeledTensor block1, std::tuple<double, LabeledTensor, LabeledTensor> rhs);
+operator += (LabeledTensor block1, std::tuple<T, LabeledTensor, LabeledTensor> rhs);
 
 inline void
 operator += (LabeledTensor block1, LabeledTensor block2) {
@@ -978,9 +1061,10 @@ validate_slicing(const TensorVec<SymmGroup>& indices,
   }
 }
 
+template<typename T>
 inline void
 assignment_validate(const LabeledTensor& ltc,
-                    const std::tuple<double, LabeledTensor>& rhs) {
+                    const std::tuple<T, LabeledTensor>& rhs) {
   auto lta = std::get<1>(rhs);
   Expects(ltc.tensor_ != nullptr);
   Expects(lta.tensor_ != nullptr);
@@ -1037,11 +1121,14 @@ slice_indices(const TensorVec<SymmGroup>& indices,
 /**
  * @todo We assume there is no un-symmetrization in the output.
  */
+template<typename T>
 inline void
-operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
+operator += (LabeledTensor ltc, std::tuple<T, LabeledTensor> rhs) {
   assignment_validate(ltc, rhs);
   Expects(ltc.tensor_->rank() == std::get<1>(rhs).tensor_->rank());
-  double alpha = std::get<0>(rhs);
+  //Expects(match_tensor_element_type<T>(ltc.tensor_->element_type()));
+  Expects(element_type<T> == ltc.tensor_->element_type());
+  T alpha = std::get<0>(rhs);
   const LabeledTensor& lta = std::get<1>(rhs);
   Tensor& ta = *lta.tensor_;
   Tensor& tc = *ltc.tensor_;
@@ -1060,7 +1147,7 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
       //cbp(ltc.label_) += alpha * abp(lta.label_);
 
       auto csbp = tc.alloc(tc.find_unique_block(cblockid));
-      csbp().init(0);
+      csbp().init(0.0);
       
       std::cerr<<"COPY ITR. ablockid="<<ablockid<<std::endl;
       std::cerr<<"COPY ITR. alabel="<<lta.label_<<std::endl;
@@ -1091,14 +1178,17 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor> rhs) {
 }
 
 
+template<typename T>
 inline void
-assert_equal(Tensor &tc, double value) {
+assert_equal(Tensor &tc, T value) {
+  //Expects(match_tensor_element_type<T>(tc.element_type()));
+  Expects(element_type<T> == tc.element_type());
   auto citr = loop_iterator(tc.indices());
   auto lambda = [&] (const TensorIndex& cblockid) {
     size_t dimc = tc.block_size(cblockid);
     if(tc.nonzero(cblockid) && dimc>0) {
       auto cbp = tc.get(cblockid);
-      auto cdbuf = reinterpret_cast<double*>(cbp.buf());
+      auto cdbuf = reinterpret_cast<T*>(cbp.buf());
       auto size = cbp.size();
       for(int i=0; i<size; i++) {
         std::cerr<<__FUNCTION__<<": block="<<cblockid<<std::endl;        
@@ -1116,9 +1206,10 @@ assert_zero(Tensor& tc) {
 }
 
 
+template<typename T>
 inline void
 contraction_validate(const LabeledTensor& ltc,
-                     const std::tuple<double, LabeledTensor, LabeledTensor>& rhs) {  
+                     const std::tuple<T, LabeledTensor, LabeledTensor>& rhs) {
   auto &lta = std::get<1>(rhs);
   auto &ltb = std::get<2>(rhs);
   Expects(ltc.tensor_ != nullptr);
@@ -1127,6 +1218,13 @@ contraction_validate(const LabeledTensor& ltc,
   const Tensor& tc = *ltc.tensor_;
   const Tensor& ta = *lta.tensor_;
   const Tensor& tb = *ltb.tensor_;
+
+  Expects(element_type<T> == tc.element_type());
+  Expects(element_type<T> == ta.element_type());
+  Expects(element_type<T> == tb.element_type());
+  // Expects(match_tensor_element_type<T>(tc.element_type()));
+  // Expects(match_tensor_element_type<T>(ta.element_type()));
+  // Expects(match_tensor_element_type<T>(tb.element_type()));
   
   TensorLabel clabel = ltc.label_;
   TensorLabel alabel = lta.label_;
@@ -1183,10 +1281,11 @@ contraction_validate(const LabeledTensor& ltc,
 /**
  * Check that all iterators and operators work for rank 0 tensors, and rank 0 symmetry groups.
  */
+template<typename T>
 inline void
-operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor, LabeledTensor> rhs) {
+operator += (LabeledTensor ltc, std::tuple<T, LabeledTensor, LabeledTensor> rhs) {
   contraction_validate(ltc, rhs);
-  double alpha = std::get<0>(rhs);
+  T alpha = std::get<0>(rhs);
   LabeledTensor& lta = std::get<1>(rhs);
   LabeledTensor& ltb = std::get<2>(rhs);
   Tensor& ta = *lta.tensor_;
@@ -1205,7 +1304,7 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor, LabeledTensor>
     auto sum_itr_last = sum_itr_first.get_end();
     auto label_map = LabelMap<BlockDim>().update(ltc.label_, cblockid);
     auto cbp = tc.alloc(cblockid);
-    cbp().init(0);
+    cbp().init(0.0);
     for(auto sitr = sum_itr_first; sitr!=sum_itr_last; ++sitr) {
       label_map.update(sum_labels, *sitr);
       auto ablockid = label_map.get_blockid(lta.label_);
@@ -1220,7 +1319,7 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor, LabeledTensor>
       cbp(ltc.label_) += alpha * abp(lta.label_) * bbp(ltb.label_);
     }
     auto csbp = tc.alloc(tc.find_unique_block(cblockid));
-    csbp().init(0);
+    csbp().init(0.0);
     auto copy_symm = copy_symmetrizer(ltc, lta, ltb, label_map);      
     auto copy_itr = copy_iterator(copy_symm);
     auto copy_itr_last = copy_itr.get_end();
@@ -1231,7 +1330,7 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor, LabeledTensor>
       std::cerr<<"---perm="<<cperm_label<<std::endl;
       auto num_inversions = perm_count_inversions(perm_compute(copy_label, cperm_label));
       Sign sign = (num_inversions%2) ? -1 : 1;
-      csbp(copy_label) += sign * cbp(cperm_label);
+      csbp(copy_label) += T(sign) * cbp(cperm_label);
     }
     tc.add(csbp);
   };
@@ -1243,10 +1342,13 @@ operator += (LabeledTensor ltc, std::tuple<double, LabeledTensor, LabeledTensor>
 /**
  * performs: cbuf[dims] = scale *abuf[perm(dims)]
  */
+template<typename T>
 inline void
-index_permute_acc(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const TensorIndex& ddims, double scale) {
+index_permute_acc(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
   Expects(dbuf!=nullptr && sbuf!=nullptr);
   Expects(perm.size() == ddims.size());
+  bool val = std::is_same<double,T>::value; Expects(val);
+  //assert(std::is_same<double,T>::value);  // @todo Need a generic implementation
 
   std::cerr<<__FUNCTION__<<" perm = "<<perm<<std::endl;
   std::cerr<<__FUNCTION__<<" ddims = "<<ddims<<std::endl;
@@ -1268,10 +1370,13 @@ index_permute_acc(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const Te
                       sizes.size(), &sizes[0], &iperm[0], scale);
 }
 
+template<typename T>
 inline void
-index_permute(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const TensorIndex& ddims, double scale) {
+index_permute(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
   Expects(dbuf!=nullptr && sbuf!=nullptr);
   Expects(perm.size() == ddims.size());
+  bool val = std::is_same<double,T>::value; Expects(val);
+  //Expects(std::is_same<double,T>::value);  // @todo Need a generic implementation
 
   auto inv_perm = perm_invert(perm);
   auto inv_sizes = perm_apply(ddims, inv_perm);
@@ -1287,8 +1392,9 @@ index_permute(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const Tensor
                    sizes.size(), &sizes[0], &iperm[0], scale);
 }
 
+template<typename T>
 inline void
-operator += (LabeledBlock clb, std::tuple<double, LabeledBlock> rhs) {
+operator += (LabeledBlock clb, std::tuple<T, LabeledBlock> rhs) {
   const LabeledBlock& alb = std::get<1>(rhs);
 
   auto &ablock = *alb.block_;
@@ -1315,19 +1421,20 @@ operator += (LabeledBlock clb, std::tuple<double, LabeledBlock> rhs) {
   auto astore = perm_apply(alabel, perm_invert(alayout));
 
   auto store_perm = perm_compute(astore, cstore);
-  double alpha = std::get<0>(rhs);
+  auto alpha = std::get<0>(rhs);
   index_permute_acc(cblock.buf(), ablock.buf(), store_perm, cblock.block_dims(), alpha);
 }
 
+template<typename T>
 // C storage order: A[m,k], B[k,n], C[m,n]
 inline void
-matmul(int m, int n, int k, double *A, int lda, double *B, int ldb, double *C, int ldc, double alpha, double beta) {
+matmul(int m, int n, int k, T *A, int lda, T *B, int ldb, T *C, int ldc, T alpha, T beta) {
   Expects(m>0 && n>0 && k>0);
   Expects(A!=nullptr && B!=nullptr && C!=nullptr);
-
+  
   for(int x=0; x<m; x++) {
     for(int y=0; y<n; y++) {
-      double value = 0;
+      T value = 0;
       for(int z=0; z<k; z++) {
         value += A[x*lda + z] * B[z*ldb + y];
       }
@@ -1343,8 +1450,9 @@ perm_compute(const LabeledBlock lblock_from, const TensorLabel& label_to) {
   return perm_compute(store, label_to);
 }
 
+template<typename T>
 inline void
-operator += (LabeledBlock clb, std::tuple<double, LabeledBlock, LabeledBlock> rhs) {
+operator += (LabeledBlock clb, std::tuple<T, LabeledBlock, LabeledBlock> rhs) {
   const LabeledBlock& alb = std::get<1>(rhs);
   const LabeledBlock& blb = std::get<2>(rhs);
 
@@ -1369,9 +1477,9 @@ operator += (LabeledBlock clb, std::tuple<double, LabeledBlock, LabeledBlock> rh
 
   //TTGT
   //TT
-  double *abuf_sort = new double [ablock.size()];
-  double *bbuf_sort = new double [bblock.size()];
-  double *cbuf_sort = new double [cblock.size()];
+  auto abuf_sort = new T [ablock.size()];
+  auto bbuf_sort = new T [bblock.size()];
+  auto cbuf_sort = new T [cblock.size()];
 
   auto aperm = perm_compute(ablock(alabel), alabel_sort);
   auto bperm = perm_compute(bblock(blabel), blabel_sort);
@@ -1393,7 +1501,7 @@ operator += (LabeledBlock clb, std::tuple<double, LabeledBlock, LabeledBlock> rh
   int k = std::accumulate(sum_dims.begin(), sum_dims.end(), BlockDim{1}, std::multiplies<>()).value();
   matmul(m, n, k, abuf_sort, k,
          bbuf_sort, n,
-         cbuf_sort, n, alpha, 1.0);
+         cbuf_sort, n, alpha, T(1.0));
   auto cperm = perm_invert(perm_compute(cblock(clabel), clabel_sort));
   //T
   index_permute(cblock.buf(), reinterpret_cast<uint8_t*>(cbuf_sort),
@@ -1489,17 +1597,37 @@ tensor_print(Tensor& tc, std::ostream &os) {
       auto cblock = tc.get(cblockid);
       os<<"block id = "<<cblockid<<std::endl;
       auto size = cblock.size();
-      double *cdbuf = reinterpret_cast<double*>(cblock.buf());
-      for(int i=0; i<cblock.size(); i++) {
-        os<<cdbuf[i]<<" ";
-      }
-      os<<std::endl;
+      auto lambda = [] (auto type, std::ostream& os, auto &cblock) {
+        using element_type = decltype(type);
+        element_type *ctbuf = reinterpret_cast<element_type*>(cblock.buf());
+        for(int i=0; i<cblock.size(); i++) {
+          os<<ctbuf[i]<<" ";
+        }        
+        os<<std::endl;
+      };
+      type_dispatch(tc.element_type(), lambda, os, cblock);
+      // if(match_tensor_element_type<double>(tc.element_type())) {
+      //   double *cbuf = reinterpret_cast<double*>(cblock.buf());
+      //   for(int i=0; i<cblock.size(); i++) {
+      //     os<<cbuf[i]<<" ";
+      //   }
+      // }
+      // else if() {
+      //   float *cbuf = reinterpret_cast<float*>(cblock.buf());
+      //   for(int i=0; i<cblock.size(); i++) {
+      //     os<<cbuf[i]<<" ";
+      //   }
+      // } else {
+      //   assert(0); // implement
+      // }
+      // os<<std::endl;
     }
   }
 }
 
+template<typename T>
 inline void
-Tensor::init(double value) {
+Tensor::init(T value) {
   tensor_map(operator()(), [&] (Block &block) {
       block().init(value);
     });

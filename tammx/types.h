@@ -24,6 +24,32 @@ using Sign = int;
 //struct PermSpace;
 //using Perm = StrongInt<PermSace, int>;
 
+enum class ElementType { invalid, single_precision, double_precision };
+
+template<typename T>
+const ElementType element_type = ElementType::invalid;
+
+template<>
+const ElementType element_type<double> = ElementType::double_precision;
+
+template<>
+const ElementType element_type<float> = ElementType::single_precision;
+
+static inline constexpr size_t
+element_size(ElementType eltype) {
+  size_t ret = 0;
+  switch(eltype) {
+    case ElementType::single_precision:
+      ret = sizeof(float);
+      break;
+    case ElementType::double_precision:
+      ret = sizeof(double);
+      break;
+  }
+  return ret;
+}
+
+
 enum class DimType { o  = 0b0011,
                      v  = 0b1100,
                      oa = 0b0001,

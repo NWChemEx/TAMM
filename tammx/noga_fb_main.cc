@@ -56,7 +56,7 @@ struct NLabel : public IndexLabel {
 void noga_fock_build(Tensor& F, Tensor& X_OV,
                      Tensor& X_VV, Tensor& X_OO,
                      Tensor& hT, Tensor& bT, double bdiagsum) { 
-  using Type = Tensor::Type;
+  using Type = ElementType;
   using Distribution = Tensor::Distribution;
 
   TensorVec<SymmGroup> indices_ov{SymmGroup{DimType::o}, SymmGroup{DimType::v}};
@@ -67,14 +67,14 @@ void noga_fock_build(Tensor& F, Tensor& X_OV,
   TensorVec<SymmGroup> indices_nn{SymmGroup{DimType::n}, SymmGroup{DimType::n}};
   TensorVec<SymmGroup> t_scalar{};
 
-  Tensor t1{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
-  Tensor t2{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
-  Tensor t3{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+  Tensor t1{t_scalar, ElementType::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+  Tensor t2{t_scalar, ElementType::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
+  Tensor t3{t_scalar, ElementType::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
 
-  Tensor t4{indices_on, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor t5{indices_on, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor t6{indices_on, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor t7{indices_vn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor t4{indices_on, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor t5{indices_on, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor t6{indices_on, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor t7{indices_vn, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
   t1.allocate();
   t2.allocate();
@@ -84,14 +84,14 @@ void noga_fock_build(Tensor& F, Tensor& X_OV,
   t6.allocate();
   t7.allocate();
 
-  Tensor FT{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor FT{indices_nn, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
   FT.allocate();
 
   VLabel a{0}, b{1};
   OLabel i{0}, j{1};
   NLabel p{0}, q{1};
 
-  FT.init(0);
+  FT.init(0.0);
   FT({p, q}) += 1.0 * hT({p, q});
 
   /// @todo loop over Q for all code below
@@ -163,7 +163,7 @@ void extract_diag(Tensor& F, double* fdiag) {
 }
 
 void noga_main(Tensor& D, Tensor& F, Tensor& hT, Tensor& bT, double bdiagsum) {
-  using Type = Tensor::Type;
+  using Type = ElementType;
   using Distribution = Tensor::Distribution;
 
   TensorVec<SymmGroup> indices_ov{SymmGroup{DimType::o}, SymmGroup{DimType::v}};
@@ -174,21 +174,21 @@ void noga_main(Tensor& D, Tensor& F, Tensor& hT, Tensor& bT, double bdiagsum) {
   TensorVec<SymmGroup> indices_nn{SymmGroup{DimType::n}, SymmGroup{DimType::n}};
   TensorVec<SymmGroup> t_scalar{};
 
-  Tensor R1{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor R2{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor T{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor Z{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor R1{indices_ov, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor R2{indices_oo, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor T{indices_ov, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor Z{indices_oo, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
-  Tensor X_OO{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor X_OV{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor X_VV{indices_vv, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor X_OO{indices_oo, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor X_OV{indices_ov, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor X_VV{indices_vv, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
-  Tensor tmp1{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor tmp2{indices_vv, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor tmp3{indices_vv, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor tmp0{indices_ov, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor tmp4{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
-  Tensor tmp5{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor tmp1{indices_ov, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor tmp2{indices_vv, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor tmp3{indices_vv, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor tmp0{indices_ov, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor tmp4{indices_oo, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor tmp5{indices_oo, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
   VLabel a{0}, b{1}, c{2}, d{3}, e{4};
   OLabel i{0}, j{1}, m{2};
@@ -210,8 +210,8 @@ void noga_main(Tensor& D, Tensor& F, Tensor& hT, Tensor& bT, double bdiagsum) {
   X_OV.allocate();
   X_VV.allocate();
 
-  T.init(0);
-  D.init(0);
+  T.init(0.0);
+  D.init(0.0);
 
   double fdiag[TCE::total_dim_size()];
   extract_diag(F, fdiag);
@@ -223,27 +223,27 @@ void noga_main(Tensor& D, Tensor& F, Tensor& hT, Tensor& bT, double bdiagsum) {
   for (int l1 = 0; l1 < 20; l1++) { //OUTERMOST LOOP - LOOP1
 
     for (int l2 = 0; l2 < 20; l2++) { /// LOOP2
-      R1.init(0);
+      R1.init(0.0);
 
       R1({i, a}) += 1.0 * F({i, a});
       R1({i, a}) += -1.0 * (F({i, b}) * X_VV({b, a}));
       R1({i, a}) += -1.0 * (F({i, m}) * X_OV({m, a}));
       R1({i, a}) += X_OO({i, j}) * F({j, a});
 
-      tmp0.init(0);
+      tmp0.init(0.0);
       tmp0({i, b}) += -1.0 * (X_OO({i, j}) * F({j, b}));
       R1({i, a}) += 1.0 * tmp0({i, b}) * X_VV({b, a});
  
-      tmp1.init(0);
+      tmp1.init(0.0);
       tmp1({j, a}) += 1.0 * F({j, m}) * X_OV({m, a});
       R1({i, a}) += -1.0 * (X_OO({i, j}) * tmp1({j, a}));
       R1({i, a}) += 1.0 * (X_OV({i, b}) * F({b, a}));
       
-      tmp2.init(0);
+      tmp2.init(0.0);
       tmp2({b, a}) += 1.0 * (F({b, c}) * X_VV({c, a}));
       R1({i, a}) += -1.0 * (X_OV({i, b}) * tmp2({b, a}));
       
-      tmp3.init(0);
+      tmp3.init(0.0);
       tmp3({b, a}) += 1.0 * (F({b, m}) * X_OV({m, a}));
       R1({i, a}) += -1.0 * (X_OV({i, b}) * tmp3({b, a}));
 
@@ -258,7 +258,7 @@ void noga_main(Tensor& D, Tensor& F, Tensor& hT, Tensor& bT, double bdiagsum) {
           auto tbuf = reinterpret_cast<double*>(tblock.buf());
           auto r1buf = reinterpret_cast<double*>(r1block.buf());
           
-          tblock().init(0);
+          tblock().init(0.0);
           auto bdims = T.block_dims(blockid);
           auto isize = bdims[0].value();
           auto asize = bdims[1].value();
@@ -270,7 +270,7 @@ void noga_main(Tensor& D, Tensor& F, Tensor& hT, Tensor& bT, double bdiagsum) {
         });
     }
     
-    Z.init(0);
+    Z.init(0.0);
     Z({i, j}) += -1.0 * (T({i, e}) * T({j, e}));
 
     // following loop solves this equation:
@@ -279,16 +279,16 @@ void noga_main(Tensor& D, Tensor& F, Tensor& hT, Tensor& bT, double bdiagsum) {
     /// NOTE: delta({i,j}) is a Unit matrix: 0 for i!=j 1 for i=j
 
     for (int l3 = 0; l3 < 10; l3++) {  // LOOP 3
-      R2.init(0);
+      R2.init(0.0);
       tmp4({i, j}) += 1.0 * (D({i, m}) * Z({m, j}));
-      tmp5.init(0);
+      tmp5.init(0.0);
       /// tmp5({i,j}) += delta({i, j}) - tmp4({i, j});
       tensor_map(tmp5({i,j}), [&] (Block& t5block) {
           auto &blockid = t5block.blockid();
           auto ioff = TCE::offset(blockid[0]);
           auto joff = TCE::offset(blockid[1]);
           auto t5buf = reinterpret_cast<double*>(t5block.buf());          
-          t5block().init(0);
+          t5block().init(0.0);
           auto bdims = tmp5.block_dims(blockid);
           auto isize = bdims[0].value();
           auto jsize = bdims[1].value();
@@ -315,7 +315,7 @@ void noga_main(Tensor& D, Tensor& F, Tensor& hT, Tensor& bT, double bdiagsum) {
           auto zbuf = reinterpret_cast<double*>(zblock.buf());
           auto dbuf = reinterpret_cast<double*>(dblock.buf());
           
-          dblock().init(0);
+          dblock().init(0.0);
           auto bdims = D.block_dims(blockid);
           auto isize = bdims[0].value();
           auto jsize = bdims[1].value();
@@ -327,9 +327,9 @@ void noga_main(Tensor& D, Tensor& F, Tensor& hT, Tensor& bT, double bdiagsum) {
         });
     }
 
-    X_OV.init(0);
-    X_OO.init(0);
-    X_VV.init(0);
+    X_OV.init(0.0);
+    X_OO.init(0.0);
+    X_VV.init(0.0);
     X_OV({i, a}) += 1.0 * (D({i, m}) * T({m, a}));
     X_VV({a, b}) += 1.0 * (X_OV({m, a}) * T({m, b}));
     X_OO({i, j}) += -1.0 * (T({i, e}) * X_OV({j, e}));
@@ -356,21 +356,21 @@ void noga_main(Tensor& D, Tensor& F, Tensor& hT, Tensor& bT, double bdiagsum) {
 }
 
 void noga_driver() {
-  using Type = Tensor::Type;
+  using Type = ElementType;
   using Distribution = Tensor::Distribution;
 
   TensorVec<SymmGroup> indices_oo{SymmGroup{DimType::o}, SymmGroup{DimType::o}};
   TensorVec<SymmGroup> indices_nn{SymmGroup{DimType::n}, SymmGroup{DimType::n}};
 
   /// @todo what is the initial guess
-  Tensor D{indices_oo, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor D{indices_oo, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
   /// @todo what is the initial guess
-  Tensor F{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor F{indices_nn, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
   ///@todo comes from integrals
-  Tensor bT{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor bT{indices_nn, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
   ///@todo Who produces this?
-  Tensor hT{indices_nn, Type::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor hT{indices_nn, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
 
   hT.allocate();
   D.allocate();

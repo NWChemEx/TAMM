@@ -14,7 +14,7 @@ endif()
 # Build LIBINT2
 if(BUILD)
     message("Building LibtInt")
-    set(LIBINT_FLAGS ${CMAKE_CXX_FLAGS} -fPIC)
+    set(LIBINT_FLAGS ${CMAKE_CXX_FLAGS} -fPIC -std=c++14)
     include(ExternalProject)
     ExternalProject_Add(LIBINT
         PREFIX LIBINT
@@ -22,7 +22,8 @@ if(BUILD)
         SOURCE_DIR ${PROJECT_BINARY_DIR}/external/libint
         CONFIGURE_COMMAND ./autogen.sh \ 
         COMMAND  ./configure --prefix=${CMAKE_INSTALL_PREFIX}/libint2
-			    CXX=${CMAKE_CXX_COMPILER}
+			                CXX=${CMAKE_CXX_COMPILER}
+                            CC=${CMAKE_C_COMPILER}
                             CXXFLAGS=${LIBINT_FLAGS}
                             CPPFLAGS=-I${BOOST_INSTALL_PATH}/include
                             LDFLAGS=-L${BOOST_INSTALL_PATH}/lib

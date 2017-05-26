@@ -251,6 +251,49 @@ std::string to_string(const BoundVec<T,maxsize> &vec, const std::string& sep = "
   return ret;
 }
 
+template<typename Fn, typename... Fargs>
+inline void
+type_dispatch(ElementType element_type, Fn fn, Fargs&& ...args) {
+  switch(element_type) {
+    case ElementType::single_precision:
+      fn(float{}, args...);
+      break;
+    case ElementType::double_precision:
+      fn(double{}, args...);
+      break;
+    default:
+      assert(0); 
+  }
+}
+
+inline void
+typed_copy(ElementType eltype, void *src, size_t size, void *dst) {
+  type_dispatch(eltype, [&] (auto type)  {
+      using dtype = decltype(type);
+      std::copy_n(reinterpret_cast<dtype*>(src),
+                  size,
+                  reinterpret_cast<dtype*>(dst));
+    });
+}
+
+template<typename T>
+inline void
+typed_fill(ElementType eltype, void *buf, auto size, T val) {
+  Expects(element_type<T> == eltype);
+  type_dispatch(eltype, [&] (auto type) {
+      using dtype = decltype(type);
+      std::fill_n(reinterpret_cast<dtype*>(buf), size, val);
+    });
+}
+
+inline void
+typed_zeroout(ElementType eltype, void *buf, auto size) {
+  type_dispatch(eltype, [&] (auto type) {
+      using dtype = decltype(type);
+      std::fill_n(reinterpret_cast<dtype*>(buf), size, 0);
+    });
+}
+
 
 }; //namespace tammx
 

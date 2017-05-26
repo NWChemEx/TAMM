@@ -25,7 +25,8 @@ set(SCALAPACK_LIBRARIES "-mkl -lmkl_scalapack_ilp64 -lmkl_blacs_openmpi_ilp64 -l
 set(TAMM_PROC_COUNT 2)
 
 # The following option needs to be set only if BOOST is installed in a non-standard path
-set(BOOST_INSTALL_PATH /opt/libraries/BOOST/)
+set(BOOST_INSTALL_PATH /opt/libraries/BOOST)
+set(GMP_INSTALL_PATH /opt/libraries/gmp)
 
 # GA Options
 #set(ARMCI_NETWORK OPENIB)

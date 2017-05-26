@@ -27,6 +27,9 @@ std::ostream &nodezero_print(const std::string &str,
   return os;
 }
 
+double util_cpusec_();
+double util_wallsec_();
+
 void diis_init() {
 
 }
@@ -53,15 +56,20 @@ void tce_diss() {
  * ref, corr
  */
 double ccsd_driver(Tensor& d_t1, Tensor& d_t2,
-		 Tensor& d_f1, Tensor& d_v2,
-		 int maxiter, double thresh) {
+         Tensor& d_f1, Tensor& d_v2,
+         int maxiter, double thresh,
+         double const &cpu, double const &wall) {
+  DIIS diis;
   diis_init();
 
+  TensorVec<SymmGroup> t_scalar{0, 0};
   TensorVec<SymmGroup> indices_vo{SymmGroup{DimType::v}, SymmGroup{DimType::o}};
   TensorVec<SymmGroup> indices_vvoo{SymmGroup{DimType::v, DimType::v}, SymmGroup{DimType::o, DimType::o}};
 
-  Tensor d_e{t_scalar, Type::double_precision, Distribution::tce_nwma, 0, irrep_t, false};
-  Tensor d_r1{indices_vo, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
+  Tensor d_e{t_scalar, Type::double_precision, Distribution::tce_nwma,
+      0, irrep_t, false};
+  Tensor d_r1{indices_vo, Type::double_precision, Distribution::tce_nwma,
+      2, irrep_t, false};
   Tensor d_r2{indices_vvoo, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
 
   d_e.allocate();
@@ -71,6 +79,10 @@ double ccsd_driver(Tensor& d_t1, Tensor& d_t2,
   double ref = 0;
   double corr = 0;
   for(int iter=0; iter<maxiter; iter++) {
+    cpu = cpu + util_cpusec_();
+    wall = wall + util_wallsec_();
+    nodezero_print("Title for CCSD iterations \n ");
+
     d_r1.init(0);
     d_r2.init(0);
 
@@ -91,13 +103,13 @@ double ccsd_driver(Tensor& d_t1, Tensor& d_t2,
         nodezero_print("\n CCSD, " + ref_plus_corr);
       break;
     }
-    diis_next();
+    diis.next({&d_r1, &d_r2}, {&d_t1, &d_t2});
   }
 
   d_e.destruct();
   d_r1.destruct();
   d_r2.destruct();
-  
+
   diis_tidy();
   return corr;
 }

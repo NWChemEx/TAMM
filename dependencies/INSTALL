@@ -1,0 +1,10 @@
+PREREQUISITES
+------------
+BOOST
+mercurial
+
+If BOOST is installed in the standard path, use
+cmake ..  -DCMAKE_CXX_COMPILER=g++  -DCMAKE_C_COMPILER=gcc -DCMAKE_INSTALL_PREFIX=/opt/tamm_deps
+
+If BOOST is installed in a non-standard path, specify it
+cmake ..  -DCMAKE_CXX_COMPILER=g++  -DCMAKE_C_COMPILER=gcc -DBOOST_INSTALL_PATH=/opt/BOOST -DCMAKE_INSTALL_PREFIX=/opt/tamm_deps

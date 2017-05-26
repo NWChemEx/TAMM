@@ -1,0 +1,7 @@
+ 
+#Specify path to libint and Eigen - install path specified to cmake build of tamm deps
+DEPS=$1
+LIBINT=$DEPS/libint2
+EIGEN=$DEPS/eigen3
+
+g++ -o integrals integrals.cc -I$LIBINT/include -I$EIGEN/include/eigen3 -L$LIBINT/lib -lint2

@@ -5,6 +5,14 @@
 
 namespace tammx {
 
+#define MAXDIIS 1000
+
+extern "C" {
+/* LU decomposition with partial pivoting */
+
+void dgesv(int* n, int* nrhs, double* a, int* lda, int* ipiv,
+                 double* b, int* ldb, int* info);
+}
 
 //@todo What should be do wigh transpose
 inline void
@@ -13,7 +21,7 @@ jacobi(Tensor& d_r, Tensor& d_t, double shift, bool transpose, double *p_evl_sor
       auto rblock = d_r.get(blockid);
       auto tblock = d_t.alloc(blockid);
       auto bdims = rblock.block_dims();
-      
+
       if(d_r.rank() == 2) {
         auto ioff = TCE::offset(blockid[0]);
         auto joff = TCE::offset(blockid[1]);
@@ -56,62 +64,75 @@ class DIIS {
     Expects(d_r.size() == ntensors_);
     Expects(iter_ == 0 || allocated_);
 
-    if(iter_ == 0 && !allocated_) {
-      for(int i=0; i<ntensors_; i++) {
+    if (iter_ == 0 && !allocated_) {
+      for (int i = 0; i < ntensors_; i++) {
         auto indices = d_r[i]->indices();
         auto eltype = d_r[i]->element_type();
         auto nupper = d_r[i]->nupper_indices();
         auto irrep = d_r[i]->irrep();
         auto spin_restricted = d_r[i]->spin_restricted();
-        for(int j=0; j<ndiis_; j++) {
-          d_rs_[i].push_back(new Tensor{indices, eltype, distribution_, nupper, irrep, spin_restricted});
-          d_ts_[j].push_back(new Tensor{indices, eltype, distribution_, nupper, irrep, spin_restricted});
+        for (int j = 0; j < ndiis_; j++) {
+          d_rs_[i].push_back(new Tensor{indices, eltype, distribution_,
+              nupper, irrep, spin_restricted});
+          d_ts_[j].push_back(new Tensor{indices, eltype, distribution_,
+              nupper, irrep, spin_restricted});
           d_rs_[i].back()->allocate();
           d_ts_[i].back()->allocate();
           d_rs_[i].back()->init(0);
           d_ts_[i].back()->init(0);
-        }      
+        }
       }
       allocated_ = true;
     }
 
-    if(iter_ < ndiis_-1) {
-      for(int i=0; i<ntensors_; i++) {
+    if (iter_ < ndiis_-1) {
+      for (int i = 0; i < ntensors_; i++) {
         double shift = -1.0 * d_rs_[i].back()->rank()/2 * zshiftl_;
         jacobi(*d_r[i], *d_t[i], shift, transpose_, p_evl_sorted_);
       }
       return;
     }
-    for(int i=0; i<ntensors_; i++) {
+    for (int i = 0; i < ntensors_; i++) {
       (*d_rs_[i][iter_])() += (*d_r[i])();
       (*d_ts_[i][iter_])() += (*d_t[i])();
     }
     iter_ += 1;
-    double a[ndiis_+1][ndiis_+1];
-    for(int i=0; i<ndiis_; i++) {
-      for(int j=0; j<ndiis_; j++) {
+    double a[ndiis_+1][ndiis_+1];  // please check static vs dynamic allocation
+    for (int i = 0; i < ndiis_; i++) {
+      for (int j = 0; j < ndiis_; j++) {
         a[i][j] = 0;
-        for(int k=0; k<ntensors_; k++) {
+        for (int k = 0; k < ntensors_; k++) {
           a[i][j] += ddot(*d_rs_[k][i], *d_rs_[k][j]);
         }
       }
     }
-    for(int i=0; i<ndiis_; i++) {
+    for (int i = 0; i < ndiis_; i++) {
       a[i][ndiis_] = -1.0;
       a[ndiis_][i] = -1.0;
     }
     a[ndiis_][ndiis_] = 0;
 
-    double b[ndiis_+1];
+    double b[ndiis_+1];  // please check static vs dynamic allocation
     std::fill_n(b, b+ndiis_, 0);
     b[ndiis_] = -1;
 
-    // Solve AX = B
-    // call dgesv(diis+1,1,a,maxdiis+1,iwork,b,maxdiis+1,info)
+    /* Solve AX = B */
+    int iwork[ndiis_+1];  // please check static vs dynamic allocation
+    int maxdiis = MAXDIIS;
+    int n_dgesv = ndiis_ + 1;
+    int lda_dgesv = maxdiis+1;
+    int ldb_dgesv = maxdiis+1;
+    int nrhs = 1;
+    int info;
+    // void dgesv(int* n, int* nrhs, double* a, int* lda, int* ipiv,
+    //         double* b, int* ldb, int* info );
+    dgesv(&n_dgesv, &nrhs, &a[0][0], &lda_dgesv, &iwork[0], &b[0],
+            &ldb_dgesv, &info);
+    if (info > 0) nodezero_print("tce_diis: LU decompositon failed \n " + info);
 
-    for(int i=0; i<ntensors_; i++) {
+    for (int i = 0; i < ntensors_; i++) {
       d_t[i]->init(0);
-      for(int j=0; j<ndiis_; j++) {
+      for (int j = 0; j < ndiis_; j++) {
         (*d_t[i])() += b[j] * (*d_ts_[i][j])();
       }
     }
@@ -119,14 +140,14 @@ class DIIS {
   }
 
   void destruct() {
-    for(auto &pdrvec : d_rs_) {
-      for(auto &pdr: pdrvec) {
+    for (auto &pdrvec : d_rs_) {
+      for (auto &pdr : pdrvec) {
         pdr->destruct();
         delete pdr;
       }
     }
-    for(auto &pdtvec : d_ts_) {
-      for(auto &pdt: pdtvec) {
+    for (auto &pdtvec : d_ts_) {
+      for (auto &pdt : pdtvec) {
         pdt->destruct();
         delete pdt;
       }
@@ -136,14 +157,15 @@ class DIIS {
     iter_ = 0;
     allocated_ = false;
   }
-    
+
   ~DIIS() {
     Expects(!allocated_);
   }
 
  private:
   double ddot(Tensor& d_a, Tensor& d_b) {
-    Tensor dot{TensorVec<SymmGroup>{}, Tensor::Type::double_precision, distribution_, 0, Irrep{0}, false};
+    Tensor dot{TensorVec<SymmGroup>{}, Tensor::Type::double_precision,
+        distribution_, 0, Irrep{0}, false};
     dot.init(0);
     dot() += d_a() * d_b();
     auto block = dot.get({});

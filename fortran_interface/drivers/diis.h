@@ -97,7 +97,10 @@ class DIIS {
       (*d_ts_[i][iter_])() += (*d_t[i])();
     }
     iter_ += 1;
-    double a[ndiis_+1][ndiis_+1];  // please check static vs dynamic allocation
+    // static allocation changed to dynamic
+    // double a[ndiis_+1][ndiis_+1];
+    double* a = NULL;
+    a = new double[ndiis_+1][ndiis_+1];
     for (int i = 0; i < ndiis_; i++) {
       for (int j = 0; j < ndiis_; j++) {
         a[i][j] = 0;
@@ -112,12 +115,16 @@ class DIIS {
     }
     a[ndiis_][ndiis_] = 0;
 
-    double b[ndiis_+1];  // please check static vs dynamic allocation
+    double* b = NULL;
+    b = new double[ndiis_+1];
+    // static allocation changed to dynamic
+    // double b[ndiis_+1];
     std::fill_n(b, b+ndiis_, 0);
     b[ndiis_] = -1;
 
     /* Solve AX = B */
-    int iwork[ndiis_+1];  // please check static vs dynamic allocation
+    int* iwork = NULL;
+    iwork = new int[ndiis_+1];
     int maxdiis = MAXDIIS;
     int n_dgesv = ndiis_ + 1;
     int lda_dgesv = maxdiis+1;
@@ -126,7 +133,7 @@ class DIIS {
     int info;
     // void dgesv(int* n, int* nrhs, double* a, int* lda, int* ipiv,
     //         double* b, int* ldb, int* info );
-    dgesv(&n_dgesv, &nrhs, &a[0][0], &lda_dgesv, &iwork[0], &b[0],
+    dgesv(&n_dgesv, &nrhs, &a[0], &lda_dgesv, &iwork[0], &b[0],
             &ldb_dgesv, &info);
     if (info > 0) nodezero_print("tce_diis: LU decompositon failed \n " + info);
 
@@ -137,7 +144,16 @@ class DIIS {
       }
     }
     iter_ = 0;
+
+    delete [] a;
+    a = NULL;
+    delete [] b;
+    b = NULL;
+    delete [] iwork;
+    iwork = NULL;
   }
+
+
 
   void destruct() {
     for (auto &pdrvec : d_rs_) {

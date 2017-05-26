@@ -51,51 +51,10 @@
  *
  */
 
+#include "tammx/labeled-block.h"
+
+#if 0
 namespace tammx {
-
-template<typename Fn, typename... Fargs>
-inline void
-type_dispatch(ElementType element_type, Fn fn, Fargs&& ...args) {
-  switch(element_type) {
-    case ElementType::single_precision:
-      fn(float{}, args...);
-      break;
-    case ElementType::double_precision:
-      fn(double{}, args...);
-      break;
-    default:
-      assert(0); 
-  }
-}
-
-inline void
-typed_copy(ElementType eltype, void *src, size_t size, void *dst) {
-  type_dispatch(eltype, [&] (auto type)  {
-      using dtype = decltype(type);
-      std::copy_n(reinterpret_cast<dtype*>(src),
-                  size,
-                  reinterpret_cast<dtype*>(dst));
-    });
-}
-
-template<typename T>
-inline void
-typed_fill(ElementType eltype, void *buf, auto size, T val) {
-  Expects(element_type<T> == eltype);
-  type_dispatch(eltype, [&] (auto type) {
-      using dtype = decltype(type);
-      std::fill_n(reinterpret_cast<dtype*>(buf), size, val);
-    });
-}
-
-inline void
-typed_zeroout(ElementType eltype, void *buf, auto size) {
-  type_dispatch(eltype, [&] (auto type) {
-      using dtype = decltype(type);
-      std::fill_n(reinterpret_cast<dtype*>(buf), size, 0);
-    });
-}
-
 
 inline ProductIterator<TriangleLoop>
 loop_iterator(const TensorVec<SymmGroup>& indices ) {
@@ -129,550 +88,490 @@ struct LabeledTensor  {
   TensorLabel label_;
 };
 
-/**
- * @todo Check copy semantics and that the buffer is properly managed.
- */
-class Block {
- public:
-  Block(Tensor& tensor,
-        const TensorIndex& block_id);
 
-  Block(Tensor& tensor,
-        const TensorIndex& block_id,
-        const TensorIndex& block_dims,
-        const TensorPerm& layout,
-        Sign sign);
+// class Tensor {
+//  public:
+//   enum class Distribution { tce_nw, tce_nwma, tce_nwi };
+//   enum class AllocationPolicy { none, create, attach };
 
-  const TensorIndex& blockid() const {
-    return block_id_;
-  }
+//   // @todo For now, we cannot handle tensors in which number of upper
+//   // and lower indices differ by more than one. This relates to
+//   // correctly determining spin symmetry.
+//   Tensor(const TensorVec<SymmGroup> &indices,
+//          ElementType element_type,
+//          Distribution distribution,
+//          TensorRank nupper_indices,
+//          Irrep irrep,
+//          bool spin_restricted)
+//       : indices_{indices},
+//         element_type_{element_type},
+//         distribution_{distribution},
+//         nupper_indices_{nupper_indices},
+//         irrep_{irrep},
+//         spin_restricted_{spin_restricted},
+//         constructed_{false},
+//         policy_{AllocationPolicy::none} {
+//           for(auto sg : indices) {
+//             Expects(sg.size()>0);
+//             auto dim = sg[0];
+//             for(auto d : sg) {
+//               Expects (dim == d);
+//             }
+//           }
+//           rank_ = 0;
+//           for(auto sg : indices) {
+//             rank_ += sg.size();
+//           }
+//           flindices_ = flatten(indices_);
+//           //Expects(std::abs(flindices_.size() - nupper_indices_) <= 1);
+//         }
 
-  const TensorIndex& block_dims() const {
-    return block_dims_;
-  }
+//   TensorRank rank() const {
+//     return rank_;
+//   }
 
-  LabeledBlock operator () (const TensorLabel &label) {
-    return LabeledBlock{this, label};
-  }
+//   ElementType element_type() const {
+//     return element_type_;
+//   }
 
-  LabeledBlock operator () ();
+//   TensorDim flindices() const {
+//     return flindices_;
+//   }
+
+//   size_t element_size() const {
+//     return tammx::element_size(element_type_);
+//   }
+
+//   Distribution distribution() const {
+//     return distribution_;
+//   }
+
+//   Irrep irrep() const {
+//     return irrep_;
+//   }
   
-  size_t size() const {
-    size_t sz = 1;
-    for(auto x : block_dims_) {
-      sz *= x.value();
-    }
-    return sz;
-  }
-
-  Sign sign() const {
-    return sign_;
-  }
-
-  const TensorPerm& layout() const {
-    return layout_;
-  }
-
-  uint8_t* buf() {
-    return buf_.get();
-  }
-
-  Tensor& tensor() {
-    return tensor_;
-  }
+//   bool spin_restricted() const {
+//     return spin_restricted_;
+//   }
   
- private:
-  Tensor& tensor_;
-  TensorIndex block_id_;
-  TensorIndex block_dims_;
-  std::unique_ptr<uint8_t []> buf_;
-  TensorPerm layout_;
-  Sign sign_;
-};
+//   AllocationPolicy allocation_policy() const {
+//     return policy_;
+//   }
 
-class Tensor {
- public:
-  enum class Distribution { tce_nw, tce_nwma, tce_nwi };
-  enum class AllocationPolicy { none, create, attach };
+//   const TensorVec<SymmGroup>& indices() const {
+//     return indices_;
+//   }
 
-  // @todo For now, we cannot handle tensors in which number of upper
-  // and lower indices differ by more than one. This relates to
-  // correctly determining spin symmetry.
-  Tensor(const TensorVec<SymmGroup> &indices,
-         ElementType element_type,
-         Distribution distribution,
-         TensorRank nupper_indices,
-         Irrep irrep,
-         bool spin_restricted)
-      : indices_{indices},
-        element_type_{element_type},
-        distribution_{distribution},
-        nupper_indices_{nupper_indices},
-        irrep_{irrep},
-        spin_restricted_{spin_restricted},
-        constructed_{false},
-        policy_{AllocationPolicy::none} {
-          for(auto sg : indices) {
-            Expects(sg.size()>0);
-            auto dim = sg[0];
-            for(auto d : sg) {
-              Expects (dim == d);
-            }
-          }
-          rank_ = 0;
-          for(auto sg : indices) {
-            rank_ += sg.size();
-          }
-          flindices_ = flatten(indices_);
-          //Expects(std::abs(flindices_.size() - nupper_indices_) <= 1);
-        }
-
-  TensorRank rank() const {
-    return rank_;
-  }
-
-  ElementType element_type() const {
-    return element_type_;
-  }
-
-  TensorDim flindices() const {
-    return flindices_;
-  }
-
-  size_t element_size() const {
-    return tammx::element_size(element_type_);
-  }
-
-  Distribution distribution() const {
-    return distribution_;
-  }
-
-  Irrep irrep() const {
-    return irrep_;
-  }
+//   TensorRank nupper_indices() const {
+//     return nupper_indices_;
+//   }
   
-  bool spin_restricted() const {
-    return spin_restricted_;
-  }
+//   bool constructed() const {
+//     return constructed_;
+//   }
+
+//   bool allocated() const {
+//     return constructed_ && policy_ == AllocationPolicy::create;
+//   }
+
+//   bool attached() const {
+//     return constructed_ && policy_ == AllocationPolicy::attach;
+//   }
+
+// #if 0
+//   void attach(tamm::gmem::Handle tce_ga, TCE::Int *tce_hash) {
+//     Expects (!constructed_);
+//     Expects (distribution_ == Distribution::tce_nwma
+//              || distribution_ == Distribution::tce_nwi);
+//     tce_ga_ = tce_ga;
+//     tce_hash_ = tce_hash;
+//     constructed_ = true;
+//     policy_ = AllocationPolicy::attach;
+//   }
+// #endif
   
-  AllocationPolicy allocation_policy() const {
-    return policy_;
-  }
+//   void attach(uint8_t* tce_data_buf, TCE::Int* tce_hash) {
+//     Expects (!constructed_);
+//     Expects (distribution_ == Distribution::tce_nwma);
+//     tce_data_buf_ = tce_data_buf;
+//     tce_hash_ = tce_hash;
+//     constructed_ = true;
+//     policy_ = AllocationPolicy::attach;    
+//   }
 
-  const TensorVec<SymmGroup>& indices() const {
-    return indices_;
-  }
+//   void allocate() {
+//     if (distribution_ == Distribution::tce_nwma || distribution_ == Distribution::tce_nw) {
+//       ProductIterator<TriangleLoop> pdt =  loop_iterator(indices_);
+//       auto last = pdt.get_end();
+//       int length = 0;
+//       int x=0;
+//       for(auto itr = pdt; itr != last; ++itr) {
+//         //std::cout<<x++<<std::endl;
+//         //std::cout<<"allocate. itr="<<*itr<<std::endl;
+//         if(nonzero(*itr)) {
+//           length += 1;
+//         }
+//       }
+//       //FIXME:Handle Scalar
+//       // if (indices_.size() == 0 && length == 0) length = 1;
 
-  TensorRank nupper_indices() const {
-    return nupper_indices_;
-  }
+//       tce_hash_ = new TCE::Int [2 * length + 1];
+//       tce_hash_[0] = length;
+//       //start over
+//       pdt =  loop_iterator(indices_);
+//       last = pdt.get_end();
+//       TCE::Int size = 0;
+//       int addr = 1;
+//       for(auto itr = pdt; itr != last; ++itr) {
+//         auto blockid = *itr;
+//         if(nonzero(blockid)) {
+//           //std::cout<<"allocate. set keys. itr="<<*itr<<std::endl;
+//           tce_hash_[addr] = TCE::compute_tce_key(flindices(), blockid);
+//           tce_hash_[length + addr] = size;
+//           size += block_size(blockid);
+//           addr += 1;
+//         }
+//       }
+//       size = (size == 0) ? 1 : size;
+//       if (distribution_ == Distribution::tce_nw) {
+// #if 0
+//         tce_ga_ = tamm::gmem::create(tamm::gmem::Double, size, std::string{"noname1"});
+//         tamm::gmem::zero(tce_ga_);
+// #else
+//         assert(0);
+// #endif
+//       }
+//       else {
+//         tce_data_buf_ = new uint8_t [size * element_size()];
+//         typed_zeroout(element_type_, tce_data_buf_, size);
+//       }
+//     }
+//     else {
+//       assert(0); // implement
+//     }
+//     constructed_ = true;
+//     policy_ = AllocationPolicy::create;
+//   }
+
+//   size_t block_size(const TensorIndex &blockid) const {
+//     auto blockdims = block_dims(blockid);
+//     auto ret = std::accumulate(blockdims.begin(), blockdims.end(), BlockDim{1}, std::multiplies<BlockDim>());
+//     return ret.value();
+//   }
+
+//   TensorIndex block_dims(const TensorIndex &blockid) const {
+//     TensorIndex ret;
+//     for(auto b : blockid) {
+//       ret.push_back(BlockDim{TCE::size(b)});
+//     }
+//     return ret;
+//   }
+
+//   TensorIndex num_blocks() const {
+//     TensorIndex ret;
+//     for(auto i: flindices_) {
+//       BlockDim lo, hi;
+//       std::tie(lo, hi) = tensor_index_range(i);
+//       ret.push_back(hi - lo);
+//     }
+//     return ret;
+//   }
   
-  bool constructed() const {
-    return constructed_;
-  }
+//   void destruct() {
+//     if(!constructed_) {
+//       return;
+//     }
+//     if (policy_ == AllocationPolicy::attach) {
+//       // no-op
+//     }
+//     else if (policy_ == AllocationPolicy::create) {
+//       if (distribution_ == Distribution::tce_nw || distribution_ == Distribution::tce_nwi) {
+// #if 0
+//         tamm::gmem::destroy(tce_ga_);
+// #else
+//         assert(0);
+// #endif
+//         delete [] tce_hash_;
+//       }
+//       else if (distribution_ == Distribution::tce_nwma) {
+//         delete [] tce_data_buf_;
+//         delete [] tce_hash_;
+//       }
+//     }
+//     constructed_ = false;
+//   }
 
-  bool allocated() const {
-    return constructed_ && policy_ == AllocationPolicy::create;
-  }
+//   ~Tensor() {
+//     Expects(!constructed_);
+//   }
 
-  bool attached() const {
-    return constructed_ && policy_ == AllocationPolicy::attach;
-  }
-
-#if 0
-  void attach(tamm::gmem::Handle tce_ga, TCE::Int *tce_hash) {
-    Expects (!constructed_);
-    Expects (distribution_ == Distribution::tce_nwma
-             || distribution_ == Distribution::tce_nwi);
-    tce_ga_ = tce_ga;
-    tce_hash_ = tce_hash;
-    constructed_ = true;
-    policy_ = AllocationPolicy::attach;
-  }
-#endif
+//   template<typename T>
+//   void init(T value);
   
-  void attach(uint8_t* tce_data_buf, TCE::Int* tce_hash) {
-    Expects (!constructed_);
-    Expects (distribution_ == Distribution::tce_nwma);
-    tce_data_buf_ = tce_data_buf;
-    tce_hash_ = tce_hash;
-    constructed_ = true;
-    policy_ = AllocationPolicy::attach;    
-  }
+//   bool nonzero(const TensorIndex& blockid) const {
+//     return spin_nonzero(blockid) &&
+//         spatial_nonzero(blockid) &&
+//         spin_restricted_nonzero(blockid);
+//   }
 
-  void allocate() {
-    if (distribution_ == Distribution::tce_nwma || distribution_ == Distribution::tce_nw) {
-      ProductIterator<TriangleLoop> pdt =  loop_iterator(indices_);
-      auto last = pdt.get_end();
-      int length = 0;
-      int x=0;
-      for(auto itr = pdt; itr != last; ++itr) {
-        //std::cout<<x++<<std::endl;
-        //std::cout<<"allocate. itr="<<*itr<<std::endl;
-        if(nonzero(*itr)) {
-          length += 1;
-        }
-      }
-      //FIXME:Handle Scalar
-      // if (indices_.size() == 0 && length == 0) length = 1;
+//   Block get(const TensorIndex& blockid) {
+//     Expects(constructed_);
+//     Expects(nonzero(blockid));
+//     auto uniq_blockid = find_unique_block(blockid);
+//     TensorPerm layout;
+//     Sign sign;
+//     std::tie(layout, sign) = compute_sign_from_unique_block(blockid);
+//     Block block = alloc(uniq_blockid, layout, sign);
+//     if(distribution_ == Distribution::tce_nwi
+//        || distribution_ == Distribution::tce_nw
+//        || distribution_ == Distribution::tce_nwma) {
+//       auto key = TCE::compute_tce_key(flindices_, uniq_blockid);
+//       auto size = block.size();
 
-      tce_hash_ = new TCE::Int [2 * length + 1];
-      tce_hash_[0] = length;
-      //start over
-      pdt =  loop_iterator(indices_);
-      last = pdt.get_end();
-      TCE::Int size = 0;
-      int addr = 1;
-      for(auto itr = pdt; itr != last; ++itr) {
-        auto blockid = *itr;
-        if(nonzero(blockid)) {
-          //std::cout<<"allocate. set keys. itr="<<*itr<<std::endl;
-          tce_hash_[addr] = TCE::compute_tce_key(flindices(), blockid);
-          tce_hash_[length + addr] = size;
-          size += block_size(blockid);
-          addr += 1;
-        }
-      }
-      size = (size == 0) ? 1 : size;
-      if (distribution_ == Distribution::tce_nw) {
-#if 0
-        tce_ga_ = tamm::gmem::create(tamm::gmem::Double, size, std::string{"noname1"});
-        tamm::gmem::zero(tce_ga_);
-#else
-        assert(0);
-#endif
-      }
-      else {
-        tce_data_buf_ = new uint8_t [size * element_size()];
-        typed_zeroout(element_type_, tce_data_buf_, size);
-      }
-    }
-    else {
-      assert(0); // implement
-    }
-    constructed_ = true;
-    policy_ = AllocationPolicy::create;
-  }
+//       if (distribution_ == Distribution::tce_nwi) {
+//         Expects(rank_ == 4);
+//         //std::vector<size_t> is { &block.blockid()[0], &block.blockid()[rank_]};
+//         assert(0); //cget_hash_block_i takes offset_index, not hash
+//         //tamm::cget_hash_block_i(tce_ga_, block.buf(), block.size(), tce_hash_, key, is);
+//       } else if (distribution_ == Distribution::tce_nwma ||
+//                  distribution_ == Distribution::tce_nw) {
+//         auto length = tce_hash_[0];
+//         auto ptr = std::lower_bound(&tce_hash_[1], &tce_hash_[length + 1], key);
+//         Expects (!(ptr == &tce_hash_[length + 1] || key < *ptr));
+//         auto offset = *(ptr + length);
+//         if (distribution_ == Distribution::tce_nwma) {
+//           type_dispatch(element_type_, [&] (auto type) {
+//               using dtype = decltype(type);
+//               std::copy_n(reinterpret_cast<dtype*>(tce_data_buf_) + offset,
+//                           size,
+//                           reinterpret_cast<dtype*>(block.buf()));
+//             });
+//           // typed_copy(element_type_, tce_data_buf_ + offset, size, block.buf());
+//         }
+//         else {
+// #if 0
+//           tamm::gmem::get(tce_ga_, block.buf(), offset, offset + size - 1);
+// #else
+//           assert(0);
+// #endif
+//         }
+//       }
+//     }
+//     else {
+//       assert(0); //implement
+//     }
+//     return block;
+//   }
 
-  size_t block_size(const TensorIndex &blockid) const {
-    auto blockdims = block_dims(blockid);
-    auto ret = std::accumulate(blockdims.begin(), blockdims.end(), BlockDim{1}, std::multiplies<BlockDim>());
-    return ret.value();
-  }
+//   /**
+//    * @todo For now, no index permutations allowed when writing
+//    */
+//   void add(Block& block) const {
+//     Expects(constructed_ == true);
+//     for(unsigned i=0; i<block.layout().size(); i++) {
+//       Expects(block.layout()[i] == i);
+//     }
+//     if(distribution_ == Distribution::tce_nw) {
+// #if 0
+//       auto key = TCE::compute_tce_key(flindices_, block.blockid());
+//       auto size = block.size();
+//       auto length = tce_hash_[0];
+//       auto ptr = std::lower_bound(&tce_hash_[1], &tce_hash_[length + 1], key);
+//       Expects (!(ptr == &tce_hash_[length + 1] || key < *ptr));
+//       auto offset = *(ptr + length);
+//       tamm::gmem::acc(tce_ga_, block.buf(), offset, offset + size - 1);
+// #else
+//       assert(0);
+// #endif
+//     } else if(distribution_ == Distribution::tce_nwma) {
+// #warning "THIS WILL NOT WORK IN PARALLEL RUNS. NWMA ACC IS NOT ATOMIC"
+//       auto size = block.size();
+//       auto length = tce_hash_[0];
+//       auto key = TCE::compute_tce_key(flindices_, block.blockid());
+//       auto ptr = std::lower_bound(&tce_hash_[1], &tce_hash_[length + 1], key);
+//       Expects (!(ptr == &tce_hash_[length + 1] || key < *ptr));
+//       auto offset = *(ptr + length);
+//       type_dispatch(element_type_, [&] (auto type) {
+//           using dtype = decltype(type);
+//           auto* sbuf = reinterpret_cast<dtype*>(block.buf());
+//           auto* dbuf = reinterpret_cast<dtype*>(tce_data_buf_) + offset;
+//           for(unsigned i=0; i<size; i++) {
+//             dbuf[i] += sbuf[i];
+//           }
+//         });
+//     } else {
+//       assert(0); //implement
+//     }
+//   }
 
-  TensorIndex block_dims(const TensorIndex &blockid) const {
-    TensorIndex ret;
-    for(auto b : blockid) {
-      ret.push_back(BlockDim{TCE::size(b)});
-    }
-    return ret;
-  }
+//   TensorIndex find_unique_block(const TensorIndex& blockid) const {
+//     TensorIndex ret {blockid};
+//     int pos = 0;
+//     for(auto &igrp: indices_) {
+//       std::sort(ret.begin()+pos, ret.begin()+pos+igrp.size());
+//       pos += igrp.size();
+//     }
+//     return ret;
+//   }
 
-  TensorIndex num_blocks() const {
-    TensorIndex ret;
-    for(auto i: flindices_) {
-      BlockDim lo, hi;
-      std::tie(lo, hi) = tensor_index_range(i);
-      ret.push_back(hi - lo);
-    }
-    return ret;
-  }
-  
-  void destruct() {
-    if(!constructed_) {
-      return;
-    }
-    if (policy_ == AllocationPolicy::attach) {
-      // no-op
-    }
-    else if (policy_ == AllocationPolicy::create) {
-      if (distribution_ == Distribution::tce_nw || distribution_ == Distribution::tce_nwi) {
-#if 0
-        tamm::gmem::destroy(tce_ga_);
-#else
-        assert(0);
-#endif
-        delete [] tce_hash_;
-      }
-      else if (distribution_ == Distribution::tce_nwma) {
-        delete [] tce_data_buf_;
-        delete [] tce_hash_;
-      }
-    }
-    constructed_ = false;
-  }
+//   /**
+//    * @todo Why can't this logic use perm_count_inversions?
+//    */
+//   std::pair<TensorPerm,Sign> compute_sign_from_unique_block(const TensorIndex& blockid) const {
+//     Expects(blockid.size() == rank());
+//     TensorPerm ret_perm(blockid.size());
+//     std::iota(ret_perm.begin(), ret_perm.end(), 0);
+//     int num_inversions=0;
+//     int pos = 0;
+//     for(auto &igrp: indices_) {
+//       Expects(igrp.size() <= 2); // @todo Implement general algorithm
+//       if(igrp.size() == 2 && blockid[pos+0] > blockid[pos+1]) {
+//         num_inversions += 1;
+//         std::swap(ret_perm[pos], ret_perm[pos+1]);
+//       }
+//       pos += igrp.size();
+//     }
+//     return {ret_perm, (num_inversions%2) ? -1 : 1};
+//   }
 
-  ~Tensor() {
-    Expects(!constructed_);
-  }
+//   Block alloc(const TensorIndex& blockid) {
+//     return Block{*this, blockid};
+//     // const TensorIndex& blockdims = block_dims(blockid);
+//     // TensorPerm layout;
+//     // int sign;
+//     // std::tie(layout, sign) = find_unique_block(blockid);
+//     // return Block{*this, blockid, blockdims, layout, sign};
+//   }
 
-  template<typename T>
-  void init(T value);
-  
-  bool nonzero(const TensorIndex& blockid) const {
-    return spin_nonzero(blockid) &&
-        spatial_nonzero(blockid) &&
-        spin_restricted_nonzero(blockid);
-  }
+//   Block alloc(const TensorIndex& blockid, const TensorPerm& layout, int sign) {
+//     auto blockdims = block_dims(blockid);
+//     Expects(layout.size() == rank());
+//     return Block{*this, blockid, blockdims, layout, sign};
+//   }
+//   // ProductIterator<TriangleLoop> iterator() {
+//   //   TensorVec<TriangleLoop> tloops, tloops_last;
+//   //   for(auto &sg: indices_) {
+//   //     BlockDim lo, hi;
+//   //     std::tie(lo, hi) = tensor_index_range(sg[0]);
+//   //     tloops.push_back(TriangleLoop{sg.size(), lo, hi});
+//   //     tloops_last.push_back(tloops.back().get_end());
+//   //   }
+//   //   return ProductIterator<TriangleLoop>(tloops, tloops_last);
+//   // }
 
-  Block get(const TensorIndex& blockid) {
-    Expects(constructed_);
-    Expects(nonzero(blockid));
-    auto uniq_blockid = find_unique_block(blockid);
-    TensorPerm layout;
-    Sign sign;
-    std::tie(layout, sign) = compute_sign_from_unique_block(blockid);
-    Block block = alloc(uniq_blockid, layout, sign);
-    if(distribution_ == Distribution::tce_nwi
-       || distribution_ == Distribution::tce_nw
-       || distribution_ == Distribution::tce_nwma) {
-      auto key = TCE::compute_tce_key(flindices_, uniq_blockid);
-      auto size = block.size();
+//   LabeledTensor operator () (const TensorLabel& label) {
+//     Expects(label.size() == rank());
+//     return LabeledTensor{this, label};
+//   }
 
-      if (distribution_ == Distribution::tce_nwi) {
-        Expects(rank_ == 4);
-        //std::vector<size_t> is { &block.blockid()[0], &block.blockid()[rank_]};
-        assert(0); //cget_hash_block_i takes offset_index, not hash
-        //tamm::cget_hash_block_i(tce_ga_, block.buf(), block.size(), tce_hash_, key, is);
-      } else if (distribution_ == Distribution::tce_nwma ||
-                 distribution_ == Distribution::tce_nw) {
-        auto length = tce_hash_[0];
-        auto ptr = std::lower_bound(&tce_hash_[1], &tce_hash_[length + 1], key);
-        Expects (!(ptr == &tce_hash_[length + 1] || key < *ptr));
-        auto offset = *(ptr + length);
-        if (distribution_ == Distribution::tce_nwma) {
-          type_dispatch(element_type_, [&] (auto type) {
-              using dtype = decltype(type);
-              std::copy_n(reinterpret_cast<dtype*>(tce_data_buf_) + offset,
-                          size,
-                          reinterpret_cast<dtype*>(block.buf()));
-            });
-          // typed_copy(element_type_, tce_data_buf_ + offset, size, block.buf());
-        }
-        else {
-#if 0
-          tamm::gmem::get(tce_ga_, block.buf(), offset, offset + size - 1);
-#else
-          assert(0);
-#endif
-        }
-      }
-    }
-    else {
-      assert(0); //implement
-    }
-    return block;
-  }
+//   // LabeledTensor operator () (const TensorVec<int>& ilabel) {
+//   //   TensorLabel label;
+//   //   Expects(ilabel.size() == rank());
+//   //   for(int i=0; i<ilabel.size(); i++) {
+//   //     label.push_back(IndexLabel{ilabel[i], flindices_[i]});
+//   //   }
+//   //   return operator()(label);
+//   // }
 
-  /**
-   * @todo For now, no index permutations allowed when writing
-   */
-  void add(Block& block) const {
-    Expects(constructed_ == true);
-    for(unsigned i=0; i<block.layout().size(); i++) {
-      Expects(block.layout()[i] == i);
-    }
-    if(distribution_ == Distribution::tce_nw) {
-#if 0
-      auto key = TCE::compute_tce_key(flindices_, block.blockid());
-      auto size = block.size();
-      auto length = tce_hash_[0];
-      auto ptr = std::lower_bound(&tce_hash_[1], &tce_hash_[length + 1], key);
-      Expects (!(ptr == &tce_hash_[length + 1] || key < *ptr));
-      auto offset = *(ptr + length);
-      tamm::gmem::acc(tce_ga_, block.buf(), offset, offset + size - 1);
-#else
-      assert(0);
-#endif
-    } else if(distribution_ == Distribution::tce_nwma) {
-#warning "THIS WILL NOT WORK IN PARALLEL RUNS. NWMA ACC IS NOT ATOMIC"
-      auto size = block.size();
-      auto length = tce_hash_[0];
-      auto key = TCE::compute_tce_key(flindices_, block.blockid());
-      auto ptr = std::lower_bound(&tce_hash_[1], &tce_hash_[length + 1], key);
-      Expects (!(ptr == &tce_hash_[length + 1] || key < *ptr));
-      auto offset = *(ptr + length);
-      type_dispatch(element_type_, [&] (auto type) {
-          using dtype = decltype(type);
-          auto* sbuf = reinterpret_cast<dtype*>(block.buf());
-          auto* dbuf = reinterpret_cast<dtype*>(tce_data_buf_) + offset;
-          for(unsigned i=0; i<size; i++) {
-            dbuf[i] += sbuf[i];
-          }
-        });
-    } else {
-      assert(0); //implement
-    }
-  }
-
-  TensorIndex find_unique_block(const TensorIndex& blockid) const {
-    TensorIndex ret {blockid};
-    int pos = 0;
-    for(auto &igrp: indices_) {
-      std::sort(ret.begin()+pos, ret.begin()+pos+igrp.size());
-      pos += igrp.size();
-    }
-    return ret;
-  }
-
-  /**
-   * @todo Why can't this logic use perm_count_inversions?
-   */
-  std::pair<TensorPerm,Sign> compute_sign_from_unique_block(const TensorIndex& blockid) const {
-    Expects(blockid.size() == rank());
-    TensorPerm ret_perm(blockid.size());
-    std::iota(ret_perm.begin(), ret_perm.end(), 0);
-    int num_inversions=0;
-    int pos = 0;
-    for(auto &igrp: indices_) {
-      Expects(igrp.size() <= 2); // @todo Implement general algorithm
-      if(igrp.size() == 2 && blockid[pos+0] > blockid[pos+1]) {
-        num_inversions += 1;
-        std::swap(ret_perm[pos], ret_perm[pos+1]);
-      }
-      pos += igrp.size();
-    }
-    return {ret_perm, (num_inversions%2) ? -1 : 1};
-  }
-
-  Block alloc(const TensorIndex& blockid) {
-    return Block{*this, blockid};
-    // const TensorIndex& blockdims = block_dims(blockid);
-    // TensorPerm layout;
-    // int sign;
-    // std::tie(layout, sign) = find_unique_block(blockid);
-    // return Block{*this, blockid, blockdims, layout, sign};
-  }
-
-  Block alloc(const TensorIndex& blockid, const TensorPerm& layout, int sign) {
-    auto blockdims = block_dims(blockid);
-    Expects(layout.size() == rank());
-    return Block{*this, blockid, blockdims, layout, sign};
-  }
-  // ProductIterator<TriangleLoop> iterator() {
-  //   TensorVec<TriangleLoop> tloops, tloops_last;
-  //   for(auto &sg: indices_) {
-  //     BlockDim lo, hi;
-  //     std::tie(lo, hi) = tensor_index_range(sg[0]);
-  //     tloops.push_back(TriangleLoop{sg.size(), lo, hi});
-  //     tloops_last.push_back(tloops.back().get_end());
-  //   }
-  //   return ProductIterator<TriangleLoop>(tloops, tloops_last);
-  // }
-
-  LabeledTensor operator () (const TensorLabel& label) {
-    Expects(label.size() == rank());
-    return LabeledTensor{this, label};
-  }
-
-  // LabeledTensor operator () (const TensorVec<int>& ilabel) {
-  //   TensorLabel label;
-  //   Expects(ilabel.size() == rank());
-  //   for(int i=0; i<ilabel.size(); i++) {
-  //     label.push_back(IndexLabel{ilabel[i], flindices_[i]});
-  //   }
-  //   return operator()(label);
-  // }
-
-  LabeledTensor operator () () {
-    // TensorLabel label(rank());
-    // std::iota(label.begin(), label.end(), 0);
-    TensorLabel label;
-    for(int i=0; i<rank(); i++) {
-      label.push_back({i, flindices_[i]});
-    }
-    return operator ()(label);
-  }
+//   LabeledTensor operator () () {
+//     // TensorLabel label(rank());
+//     // std::iota(label.begin(), label.end(), 0);
+//     TensorLabel label;
+//     for(int i=0; i<rank(); i++) {
+//       label.push_back({i, flindices_[i]});
+//     }
+//     return operator ()(label);
+//   }
   
 
- private:
+//  private:
 
-  bool spin_nonzero(const TensorIndex& blockid) const {
-    Spin spin_upper {0};
-    for(auto itr = std::begin(blockid); itr!= std::begin(blockid) + nupper_indices_; ++itr) {
-      spin_upper += TCE::spin(*itr);
-    }
-    Spin spin_lower {0};
-    for(auto itr = std::begin(blockid)+nupper_indices_; itr!= std::end(blockid); ++itr) {
-      spin_lower += TCE::spin(*itr);
-    }
-    return spin_lower - spin_upper == rank_ - 2 * nupper_indices_;
-  }
+//   bool spin_nonzero(const TensorIndex& blockid) const {
+//     Spin spin_upper {0};
+//     for(auto itr = std::begin(blockid); itr!= std::begin(blockid) + nupper_indices_; ++itr) {
+//       spin_upper += TCE::spin(*itr);
+//     }
+//     Spin spin_lower {0};
+//     for(auto itr = std::begin(blockid)+nupper_indices_; itr!= std::end(blockid); ++itr) {
+//       spin_lower += TCE::spin(*itr);
+//     }
+//     return spin_lower - spin_upper == rank_ - 2 * nupper_indices_;
+//   }
 
-  bool spatial_nonzero(const TensorIndex& blockid) const {
-    Irrep spatial {0};
-    for(auto b : blockid) {
-      spatial ^= TCE::spatial(b);
-    }
-    return spatial == irrep_;
-  }
+//   bool spatial_nonzero(const TensorIndex& blockid) const {
+//     Irrep spatial {0};
+//     for(auto b : blockid) {
+//       spatial ^= TCE::spatial(b);
+//     }
+//     return spatial == irrep_;
+//   }
 
-  bool spin_restricted_nonzero(const TensorIndex& blockid) const {
-    Spin spin {std::abs(rank_ - 2 * nupper_indices_)};
-    TensorRank rank_even = rank_ + (rank_ % 2);
-    for(auto b : blockid) {
-      spin += TCE::spin(b);
-    }
-    return (!spin_restricted_ || (rank_ == 0) || (spin != 2 * rank_even));
-  }
+//   bool spin_restricted_nonzero(const TensorIndex& blockid) const {
+//     Spin spin {std::abs(rank_ - 2 * nupper_indices_)};
+//     TensorRank rank_even = rank_ + (rank_ % 2);
+//     for(auto b : blockid) {
+//       spin += TCE::spin(b);
+//     }
+//     return (!spin_restricted_ || (rank_ == 0) || (spin != 2 * rank_even));
+//   }
 
-  TensorVec<SymmGroup> indices_;
-  ElementType element_type_;
-  Distribution distribution_;
-  TensorRank nupper_indices_;
-  Irrep irrep_;
-  bool spin_restricted_; //spin restricted
-  bool constructed_;
-  AllocationPolicy policy_;
-  TensorRank rank_;
-  TensorDim flindices_;
+//   TensorVec<SymmGroup> indices_;
+//   ElementType element_type_;
+//   Distribution distribution_;
+//   TensorRank nupper_indices_;
+//   Irrep irrep_;
+//   bool spin_restricted_; //spin restricted
+//   bool constructed_;
+//   AllocationPolicy policy_;
+//   TensorRank rank_;
+//   TensorDim flindices_;
 
-#if 0
-  tamm::gmem::Handle tce_ga_;
-#endif
-  uint8_t* tce_data_buf_{};
-  TCE::Int *tce_hash_{};
-};  // class Tensor
+// #if 0
+//   tamm::gmem::Handle tce_ga_;
+// #endif
+//   uint8_t* tce_data_buf_{};
+//   TCE::Int *tce_hash_{};
+// };  // class Tensor
 
 
-inline
-Block::Block(Tensor &tensor,
-             const TensorIndex& block_id,
-             const TensorIndex& block_dims,
-             const TensorPerm& layout,
-             Sign sign)
-    : tensor_{tensor},
-      block_id_{block_id},
-      block_dims_{block_dims},
-      layout_{layout},
-      sign_{sign} {
-        Expects(tensor.rank() == block_id.size());
-        Expects(tensor.rank() == block_dims.size());
-        Expects(tensor.rank() == layout.size());
-        buf_ = std::make_unique<uint8_t []> (size() * tensor.element_size());
-      }
+// inline
+// Block::Block(Tensor &tensor,
+//              const TensorIndex& block_id,
+//              const TensorIndex& block_dims,
+//              const TensorPerm& layout,
+//              Sign sign)
+//     : tensor_{tensor},
+//       block_id_{block_id},
+//       block_dims_{block_dims},
+//       layout_{layout},
+//       sign_{sign} {
+//         Expects(tensor.rank() == block_id.size());
+//         Expects(tensor.rank() == block_dims.size());
+//         Expects(tensor.rank() == layout.size());
+//         buf_ = std::make_unique<uint8_t []> (size() * tensor.element_size());
+//       }
 
-inline
-Block::Block(Tensor &tensor,
-             const TensorIndex& block_id)
-    : tensor_{tensor},
-      block_id_{block_id} {
-        block_dims_ = tensor.block_dims(block_id);
-        layout_.resize(tensor.rank());
-        std::iota(layout_.begin(), layout_.end(), 0);
-        sign_ = 1;
-        buf_ = std::make_unique<uint8_t []> (size() * tensor.element_size());
-      }
+// inline
+// Block::Block(Tensor &tensor,
+//              const TensorIndex& block_id)
+//     : tensor_{tensor},
+//       block_id_{block_id} {
+//         block_dims_ = tensor.block_dims(block_id);
+//         layout_.resize(tensor.rank());
+//         std::iota(layout_.begin(), layout_.end(), 0);
+//         sign_ = 1;
+//         buf_ = std::make_unique<uint8_t []> (size() * tensor.element_size());
+//       }
 
-inline LabeledBlock
-Block::operator () () {
-  TensorLabel label; //(block_id_.size());
-  for(int i=0; i<label.size(); i++) {
-    label.push_back({i, tensor_.flindices()[i]});
-  }
-  //std::iota(label.begin(), label.end(), 0);
-  return operator ()(label); //LabeledBlock{*this, label};
-}
+// inline LabeledBlock
+// Block::operator () () {
+//   TensorLabel label; //(block_id_.size());
+//   for(int i=0; i<label.size(); i++) {
+//     label.push_back({i, tensor_.flindices()[i]});
+//   }
+//   //std::iota(label.begin(), label.end(), 0);
+//   return operator ()(label); //LabeledBlock{*this, label};
+// }
 
 template<typename T>
 inline void
@@ -1583,8 +1482,11 @@ Tensor::init(T value) {
     });
 }
 
-
 }  // namespace tammx
+
+#include "tammx/ops.h"
+
+#endif
 
 #endif  // TAMM_TENSOR_TAMMX_H_
 

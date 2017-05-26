@@ -405,6 +405,86 @@ void noga_driver() {
   F.destruct();
 }
 
+void op_test() {
+  using Type = ElementType;
+  using Distribution = Tensor::Distribution;
+
+  TensorVec<SymmGroup> indices_oo{SymmGroup{DimType::o}, SymmGroup{DimType::o}};
+  TensorVec<SymmGroup> indices_o{SymmGroup{DimType::o}};
+  TensorVec<SymmGroup> indices_nn{SymmGroup{DimType::n}, SymmGroup{DimType::n}};
+
+  Tensor D{indices_oo, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor F{indices_nn, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor bT{indices_nn, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  Tensor hT{indices_nn, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+
+  hT.allocate();
+  D.allocate();
+  F.allocate();
+  bT.allocate();
+
+  Tensor d1{indices_o, ElementType::double_precision, Distribution::tce_nwma, 1, irrep_t, false};
+  d1.allocate();
+
+  auto oplist = OpList()
+      .op<2,0>(hT(), [] (auto i, auto j, auto &ival) {
+          ival = i+j;
+        })
+      .op<1,0>(d1(), [] (auto i, auto &ival) { ival = 0; })
+      .op<2,0>(bT(), [] (auto i, auto j, auto &ival) {
+          ival = i-j;
+        });
+      
+  {
+    auto fn = [] (auto i, auto &lval) {
+      lval = i;
+    };
+    MapOp<decltype(fn),1,0>{d1(), fn}.execute();
+  }
+  
+  {
+    int n=0;
+    auto fn = [&] (auto i, auto j, auto &lval) {
+      lval = n++;
+    };
+    auto op = MapOp<decltype(fn),2,0>{hT(), fn};
+  }
+
+  auto op = mapop_create<2,0>(hT(), [] (auto i, auto j, auto &ival) {
+      ival = i+j;
+    });
+
+  // auto op = scanop_create<2,0>(hT(), [] (auto i, auto j, auto &ival) {
+  //     Expects(std::abs(ival) < 1.0e-12);
+  //   });
+
+  // tensor_map(hT(), [](Block &block) {
+  //   int n = 0;
+  //   std::generate_n(reinterpret_cast<double *>(block.buf()), block.size(), [&]() { return n++; });
+  // });
+
+  // tensor_map(bT(), [](Block &block) {
+  //     int n = 0;
+  //     std::generate_n(reinterpret_cast<double *>(block.buf()), block.size(), [&]() { return n++; });
+  //   });
+
+  // double bdiagsum;
+  // {
+  //   std::vector<double> bdiag(TCE::total_dim_size());
+  //   extract_diag(bT, &bdiag[0]);
+  //   bdiagsum = 0;
+  //   for(auto &b: bdiag) {
+  //     bdiagsum += b;
+  //   }
+  // }
+  
+  d1.destruct();
+  hT.destruct();
+  bT.destruct();
+  D.destruct();
+  F.destruct();
+}
+
 
 int main() {
   TCE::init(spins, spatials, sizes,
@@ -419,7 +499,9 @@ int main() {
             irrep_x,
             irrep_y);
 
-  noga_driver();
+  //noga_driver();
+
+  op_test();
 
   TCE::finalize();
   return 0;

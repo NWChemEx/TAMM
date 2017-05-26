@@ -24,7 +24,7 @@ BlockDim operator "" _bd(unsigned long long int val) {
   return BlockDim{strongint_cast<BlockDim::value_type>(val)};
 }
 
-std::vector<Spin> spins = {1_sp, -1 * 1_sp, 1_sp, -1 * 1_sp};
+std::vector<Spin> spins = {1_sp, 2_sp, 1_sp, 2_sp};
 std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir, 0_ir};
 std::vector<size_t> sizes = {2, 4, 2, 1};
 BlockDim noa {1};

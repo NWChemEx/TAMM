@@ -1,10 +1,17 @@
 PREREQUISITES
-------------
-BOOST
-mercurial
+------------ 
+BOOST (needed to build libint)
+mercurial, git
+GNU Autotools
+MPI
+Compiler with C++11 or later support (Currently support only gcc and Intel compilers)
+Fortran95 Compiler
+BLAS, LAPACK (Will be built for you if not provided)
 
-If BOOST is installed in the standard path, use
-cmake ..  -DCMAKE_CXX_COMPILER=g++  -DCMAKE_C_COMPILER=gcc -DCMAKE_INSTALL_PREFIX=/opt/tamm_deps
+NOTE: On MacOSX, we recommend building GCC, MPI from sources due to issues
+with gcc binaries provided with macports and brew.
 
-If BOOST is installed in a non-standard path, specify it
-cmake ..  -DCMAKE_CXX_COMPILER=g++  -DCMAKE_C_COMPILER=gcc -DBOOST_INSTALL_PATH=/opt/BOOST -DCMAKE_INSTALL_PREFIX=/opt/tamm_deps
+
+To build TAMM dependencies:
+cmake -Bbuild -H. -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/macosx-gcc-openmpi-netlib.cmake
+cd build && make 

@@ -31,7 +31,7 @@ if(BUILD)
                             --enable-eri2=0
                             --with-max-am=4
                             --disable-t1g12-support
-        BUILD_COMMAND make -j2
+        BUILD_COMMAND make -j${TAMM_PROC_COUNT}
         INSTALL_COMMAND make install
         BUILD_IN_SOURCE 1
         #LOG_CONFIGURE 1

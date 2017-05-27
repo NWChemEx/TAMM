@@ -193,6 +193,9 @@ target_include_directories(tammx_talsh SYSTEM PUBLIC  ${PROJECT_BINARY_DIR}
 ${TALSH_INSTALL_PATH})
 target_link_libraries(tammx_talsh -L${TALSH_INSTALL_PATH} -ltalsh) 
 
+add_executable(ccsd_driver EXCLUDE_FROM_ALL tammx/tammx_ccsd.cc fortran_interface/drivers/ccsd_driver.cc tammx/tammx.cc tammx/index_sort.cc)
+target_include_directories(ccsd_driver SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${BLAS_INC_PATH})
+
 # Install
 if(NOT TAMM_INSTALL_PREFIX)
     set(TAMM_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/tamm-install)

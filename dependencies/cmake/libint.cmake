@@ -14,27 +14,19 @@ endif()
 # Build LIBINT2
 if(BUILD)
     message("Building LibtInt")
-    #set(CMAKE_CXX_FLAGS -O2)
-    set(LIBINT_FLAGS ${CMAKE_CXX_FLAGS} -fPIC)
+    #set(LIBINT_FLAGS ${CMAKE_CXX_FLAGS} -fPIC)
     include(ExternalProject)
     ExternalProject_Add(LIBINT
         PREFIX LIBINT
-        GIT_REPOSITORY https://github.com/evaleev/libint.git
+        #GIT_REPOSITORY https://github.com/evaleev/libint.git
+        URL https://github.com/evaleev/libint/releases/download/v2.3.1/libint-2.3.1.tgz
         SOURCE_DIR ${PROJECT_BINARY_DIR}/external/libint
-        #PATCH_COMMAND ${PROJECT_BINARY_DIR}/external/libint/autogen.sh
         #BINARY_DIR ${CMAKE_BINARY_DIR}/external/libint-build
-        CONFIGURE_COMMAND  ./autogen.sh COMMAND ./configure
+        CONFIGURE_COMMAND ./configure
                 --prefix=${CMAKE_INSTALL_PREFIX}/libint2
 			    CXX=${CMAKE_CXX_COMPILER}
                 CC=${CMAKE_C_COMPILER}
-                CXXFLAGS=${LIBINT_FLAGS}
-                CPPFLAGS=-I${BOOST_INSTALL_PATH}/include\ -I${GMP_INSTALL_PATH}/include
-                LDFLAGS=-L${BOOST_INSTALL_PATH}/lib\ -L${GMP_INSTALL_PATH}/lib
-                --enable-eri=0
-                --enable-eri3=0
-                --enable-eri2=0
-                --with-max-am=4
-                --disable-t1g12-support
+                #CXXFLAGS=${LIBINT_FLAGS}
         BUILD_COMMAND make -j${TAMM_PROC_COUNT}
         INSTALL_COMMAND make install
         BUILD_IN_SOURCE 1

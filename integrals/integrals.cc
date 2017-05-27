@@ -18,6 +18,7 @@
  *
  */
 
+//#define _GLIBCXX_USE_CXX11_ABI 0
 // standard C++ headers
 #include <cmath>
 #include <iostream>
@@ -33,25 +34,19 @@
 
 // Libint Gaussian integrals library
 #include <libint2.hpp>
+#include <libint2/basis.h>
 
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>
         Matrix;  // import dense, dynamically sized Matrix type from Eigen;
                  // this is a matrix with row-major storage (http://en.wikipedia.org/wiki/Row-major_order)
                  // to meet the layout of the integrals returned by the Libint integral library
 
-struct Atom {
-    int atomic_number;
-    double x, y, z;
-};
-
-std::vector<Atom> read_geometry(const std::string& filename);
-std::vector<libint2::Shell> make_sto3g_basis(const std::vector<Atom>& atoms);
 size_t nbasis(const std::vector<libint2::Shell>& shells);
 std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell>& shells);
-Matrix compute_soad(const std::vector<Atom>& atoms);
+Matrix compute_soad(const std::vector<libint2::Atom>& atoms);
 Matrix compute_1body_ints(const std::vector<libint2::Shell>& shells,
                           libint2::Operator t,
-                          const std::vector<Atom>& atoms = std::vector<Atom>());
+                          const std::vector<libint2::Atom>& atoms = std::vector<libint2::Atom>());
 
 // simple-to-read, but inefficient Fock builder; computes ~16 times as many ints as possible
 Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
@@ -66,6 +61,7 @@ int main(int argc, char *argv[]) {
   using std::cerr;
   using std::endl;
 
+  using libint2::Atom;
   using libint2::Shell;
   using libint2::Engine;
   using libint2::Operator;
@@ -78,7 +74,8 @@ int main(int argc, char *argv[]) {
 
     // read geometry from a file; by default read from h2o.xyz, else take filename (.xyz) from the command line
     const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
-    std::vector<Atom> atoms = read_geometry(filename);
+    auto is = std::ifstream(filename);
+    const std::vector<Atom> atoms = libint2::read_dotxyz(is);
 
     // count the number of electrons
     auto nelectron = 0;
@@ -99,11 +96,18 @@ int main(int argc, char *argv[]) {
       }
     cout << "\tNuclear repulsion energy = " << enuc << endl;
 
+
+
+    // initializes the Libint integrals library ... now ready to compute
+    libint2::initialize();
+
     /*** =========================== ***/
     /*** create basis set            ***/
     /*** =========================== ***/
 
-    auto shells = make_sto3g_basis(atoms);
+    // LIBINT_INSTALL_DIR/share/libint/2.4.0-beta.1/basis
+    libint2::BasisSet shells(std::string("sto-3g"),atoms);
+    //auto shells = make_sto3g_basis(atoms);
     size_t nao = 0;
     for (auto s=0; s<shells.size(); ++s)
       nao += shells[s].size();
@@ -111,9 +115,6 @@ int main(int argc, char *argv[]) {
     /*** =========================== ***/
     /*** compute 1-e integrals       ***/
     /*** =========================== ***/
-
-    // initializes the Libint integrals library ... now ready to compute
-    libint2::initialize();
 
     // compute overlap integrals
     auto S = compute_1body_ints(shells, Operator::overlap);
@@ -251,204 +252,6 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-// this reads the geometry in the standard xyz format supported by most chemistry software
-std::vector<Atom> read_dotxyz(std::istream& is) {
-  // line 1 = # of atoms
-  size_t natom;
-  is >> natom;
-  // read off the rest of line 1 and discard
-  std::string rest_of_line;
-  std::getline(is, rest_of_line);
-
-  // line 2 = comment (possibly empty)
-  std::string comment;
-  std::getline(is, comment);
-
-  std::vector<Atom> atoms(natom);
-  for (auto i = 0; i < natom; i++) {
-    std::string element_label;
-    double x, y, z;
-    is >> element_label >> x >> y >> z;
-
-    // .xyz files report element labels, hence convert to atomic numbers
-    int Z;
-    if (element_label == "H")
-      Z = 1;
-    else if (element_label == "C")
-      Z = 6;
-    else if (element_label == "N")
-      Z = 7;
-    else if (element_label == "O")
-      Z = 8;
-    else if (element_label == "F")
-      Z = 9;
-    else if (element_label == "S")
-      Z = 16;
-    else if (element_label == "Cl")
-      Z = 17;
-    else {
-      std::cerr << "read_dotxyz: element label \"" << element_label << "\" is not recognized" << std::endl;
-      throw "Did not recognize element label in .xyz file";
-    }
-
-    atoms[i].atomic_number = Z;
-
-    // .xyz files report Cartesian coordinates in angstroms; convert to bohr
-    const auto angstrom_to_bohr = 1 / 0.52917721092; // 2010 CODATA value
-    atoms[i].x = x * angstrom_to_bohr;
-    atoms[i].y = y * angstrom_to_bohr;
-    atoms[i].z = z * angstrom_to_bohr;
-  }
-
-  return atoms;
-}
-
-std::vector<Atom> read_geometry(const std::string& filename) {
-
-  std::cout << "Will read geometry from " << filename << std::endl;
-  std::ifstream is(filename);
-  assert(is.good());
-
-  // to prepare for MPI parallelization, we will read the entire file into a string that can be
-  // broadcast to everyone, then converted to an std::istringstream object that can be used just like std::ifstream
-  std::ostringstream oss;
-  oss << is.rdbuf();
-  // use ss.str() to get the entire contents of the file as an std::string
-  // broadcast
-  // then make an std::istringstream in each process
-  std::istringstream iss(oss.str());
-
-  // check the extension: if .xyz, assume the standard XYZ format, otherwise throw an exception
-  if ( filename.rfind(".xyz") != std::string::npos)
-    return read_dotxyz(iss);
-  else
-    throw "only .xyz files are accepted";
-}
-
-std::vector<libint2::Shell> make_sto3g_basis(const std::vector<Atom>& atoms) {
-
-  using libint2::Shell;
-
-  std::vector<Shell> shells;
-
-  for(auto a=0; a<atoms.size(); ++a) {
-
-    // STO-3G basis set
-    // cite: W. J. Hehre, R. F. Stewart, and J. A. Pople, The Journal of Chemical Physics 51, 2657 (1969)
-    //       doi: 10.1063/1.1672392
-    // obtained from https://bse.pnl.gov/bse/portal
-    switch (atoms[a].atomic_number) {
-      case 1: // Z=1: hydrogen
-        shells.push_back(
-            {
-              {3.425250910, 0.623913730, 0.168855400}, // exponents of primitive Gaussians
-              {  // contraction 0: s shell (l=0), spherical=false, contraction coefficients
-                {0, false, {0.15432897, 0.53532814, 0.44463454}}
-              },
-              {{atoms[a].x, atoms[a].y, atoms[a].z}}   // origin coordinates
-            }
-        );
-        break;
-
-      case 6: // Z=6: carbon
-        shells.push_back(
-            {
-              {71.616837000, 13.045096000, 3.530512200},
-              {
-                {0, false, {0.15432897, 0.53532814, 0.44463454}}
-              },
-              {{atoms[a].x, atoms[a].y, atoms[a].z}}
-            }
-        );
-        shells.push_back(
-            {
-              {2.941249400, 0.683483100, 0.222289900},
-              {
-                {0, false, {-0.09996723, 0.39951283, 0.70011547}}
-              },
-              {{atoms[a].x, atoms[a].y, atoms[a].z}}
-            }
-        );
-        shells.push_back(
-            {
-              {2.941249400, 0.683483100, 0.222289900},
-              { // contraction 0: p shell (l=1), spherical=false
-                {1, false, {0.15591627, 0.60768372, 0.39195739}}
-              },
-              {{atoms[a].x, atoms[a].y, atoms[a].z}}
-            }
-        );
-        break;
-
-      case 7: // Z=7: nitrogen
-        shells.push_back(
-            {
-              {99.106169000, 18.052312000, 4.885660200},
-              {
-                {0, false, {0.15432897, 0.53532814, 0.44463454}}
-              },
-              {{atoms[a].x, atoms[a].y, atoms[a].z}}
-            }
-        );
-        shells.push_back(
-            {
-              {3.780455900, 0.878496600, 0.285714400},
-              {
-                {0, false, {-0.09996723, 0.39951283, 0.70011547}}
-              },
-              {{atoms[a].x, atoms[a].y, atoms[a].z}}
-            }
-        );
-        shells.push_back(
-            {
-          {3.780455900, 0.878496600, 0.285714400},
-              { // contraction 0: p shell (l=1), spherical=false
-                {1, false, {0.15591627, 0.60768372, 0.39195739}}
-              },
-              {{atoms[a].x, atoms[a].y, atoms[a].z}}
-            }
-        );
-        break;
-
-      case 8: // Z=8: oxygen
-        shells.push_back(
-            {
-              {130.709320000, 23.808861000, 6.443608300},
-              {
-                {0, false, {0.15432897, 0.53532814, 0.44463454}}
-              },
-              {{atoms[a].x, atoms[a].y, atoms[a].z}}
-            }
-        );
-        shells.push_back(
-            {
-              {5.033151300, 1.169596100, 0.380389000},
-              {
-                {0, false, {-0.09996723, 0.39951283, 0.70011547}}
-              },
-              {{atoms[a].x, atoms[a].y, atoms[a].z}}
-            }
-        );
-        shells.push_back(
-            {
-              {5.033151300, 1.169596100, 0.380389000},
-              { // contraction 0: p shell (l=1), spherical=false
-                {1, false, {0.15591627, 0.60768372, 0.39195739}}
-              },
-              {{atoms[a].x, atoms[a].y, atoms[a].z}}
-            }
-        );
-        break;
-
-      default:
-        throw "do not know STO-3G basis for this Z";
-    }
-
-  }
-
-  return shells;
-}
-
 size_t nbasis(const std::vector<libint2::Shell>& shells) {
   size_t n = 0;
   for (const auto& shell: shells)
@@ -486,7 +289,7 @@ std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell
 
 // computes Superposition-Of-Atomic-Densities guess for the molecular density matrix
 // in minimal basis; occupies subshells by smearing electrons evenly over the orbitals
-Matrix compute_soad(const std::vector<Atom>& atoms) {
+Matrix compute_soad(const std::vector<libint2::Atom>& atoms) {
 
   // compute number of atomic orbitals
   size_t nao = 0;
@@ -525,7 +328,7 @@ Matrix compute_soad(const std::vector<Atom>& atoms) {
 
 Matrix compute_1body_ints(const std::vector<libint2::Shell>& shells,
                           libint2::Operator obtype,
-                          const std::vector<Atom>& atoms)
+                          const std::vector<libint2::Atom>& atoms)
 {
   using libint2::Shell;
   using libint2::Engine;

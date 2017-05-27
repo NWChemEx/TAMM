@@ -15,30 +15,39 @@
 #include <vector>
 #include <string>
 #include "tammx/tammx.h"
+#include "fortran_interface/drivers/diis.h"
 
 using namespace std;
 using namespace tammx;
 
-std::ostream &nodezero_print(const std::string &str,
-                             std::ostream &os = std::cout) {
-  if (ga_nodeid() == 0) {
-    os << str << std::endl;
-  }
-  return os;
-}
+
+//std::ostream &nodezero_print(const std::string &str,
+//                             std::ostream &os = std::cout) {
+//  if (ga_nodeid() == 0) {
+//    os << str << std::endl;
+//  }
+//  return os;
+//}
 
 // double util_cpusec();
 // double util_wallsec();
 
-void compute_residual(Tensor& tensor) {
-  Tensor resid;
+using Type = Tensor::Type;
+using Distribution = Tensor::Distribution;
+
+double compute_residual(Tensor& tensor, Irrep irrep_t) {
+  // Tensor resid;
+  TensorVec<SymmGroup> t_scalar{};
+  Tensor resid{t_scalar, Type::double_precision, Distribution::tce_nwma,
+      0, irrep_t, false};
 
   resid.allocate();
   resid.init(0);
   resid() += tensor() * tensor();
   Block resblock = resid.get({});
-  return *reinterpret_cast<double*>(resblock.buf());
+  auto resd = *reinterpret_cast<double*>(resblock.buf());
   resid.destruct();
+  return resd;
 }
 
 /**
@@ -46,9 +55,9 @@ void compute_residual(Tensor& tensor) {
  */
 double ccsd_driver(Tensor& d_t1, Tensor& d_t2,
          Tensor& d_f1, Tensor& d_v2,
-         int maxiter, double thresh,
-         double const &cpu, double const &wall) {
-  DIIS diis;
+         int maxiter, double thresh, Irrep irrep_t) {
+	double *evl_sorted = new double[12];
+  DIIS diis(Distribution::tce_nwma, false, 0.0, 1, 1, evl_sorted);
 
   TensorVec<SymmGroup> t_scalar{};
   TensorVec<SymmGroup> indices_vo{SymmGroup{DimType::v}, SymmGroup{DimType::o}};
@@ -74,26 +83,27 @@ double ccsd_driver(Tensor& d_t1, Tensor& d_t2,
   for (int iter = 0; iter < maxiter; iter++) {
     // cpu = cpu + util_cpusec_();
     // wall = wall + util_wallsec_();
-    nodezero_print("Title for CCSD iterations \n ");
+    // nodezero_print("Title for CCSD iterations \n ");
 
+    d_e.init(1);
     d_r1.init(0);
     d_r2.init(0);
 
-    ccsd_e(d_f1, d_e, d_t1, d_t2, d_v2);
-    ccsd_t1(d_f1, d_r1, d_t1, d_t2, d_v2);
-    ccsd_t2(d_f1, d_r2, d_t1, d_t2, d_v2);
+    // ccsd_e(d_f1, d_e, d_t1, d_t2, d_v2);
+    // ccsd_t1(d_f1, d_r1, d_t1, d_t2, d_v2);
+    // ccsd_t2(d_f1, d_r2, d_t1, d_t2, d_v2);
 
-    double r1 = compute_residual(d_r1);
-    double r2 = compute_residual(d_r2);
+    double r1 = compute_residual(d_r1,irrep_t);
+    double r2 = compute_residual(d_r2,irrep_t);
     double residual = std::max(r1, r2);
 
     Block eblock = d_e.get({});
     corr = *reinterpret_cast<double*>(eblock.buf());
     if (residual < thresh) {
-        nodezero_print("\n ");
-        nodezero_print("\n CCSD, " + corr);
+        // nodezero_print("\n ");
+        // nodezero_print("\n CCSD, " + corr);
         double ref_plus_corr = ref + corr;
-        nodezero_print("\n CCSD, " + ref_plus_corr);
+        // nodezero_print("\n CCSD, " + ref_plus_corr);
       break;
     }
     diis.next({&d_r1, &d_r2}, {&d_t1, &d_t2});

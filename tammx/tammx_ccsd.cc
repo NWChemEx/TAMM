@@ -48,18 +48,37 @@ struct VLabel : public IndexLabel {
       : IndexLabel{n, DimType::v} {}
 };
 
+double ccsd_driver(Tensor& d_t1, Tensor& d_t2,
+         Tensor& d_f1, Tensor& d_v2,
+         int maxiter, double thresh, Irrep irrep_t);
+
 void test() {
   using Type = Tensor::Type;
   using Distribution = Tensor::Distribution;
 
 #if 1
-  TensorVec<SymmGroup> indices1{SymmGroup{DimType::o, DimType::o}, SymmGroup{DimType::v}};
-  TensorVec<SymmGroup> indices2{SymmGroup{DimType::o}, SymmGroup{DimType::o}, SymmGroup{DimType::v}};
-  TensorVec<SymmGroup> indices3{SymmGroup{DimType::o}, SymmGroup{DimType::o}};
+  TensorVec<SymmGroup> indices_oo_v{SymmGroup{DimType::o, DimType::o}, SymmGroup{DimType::v}};
+  TensorVec<SymmGroup> indices_o_o_v{SymmGroup{DimType::o}, SymmGroup{DimType::o}, SymmGroup{DimType::v}};
+  TensorVec<SymmGroup> indices_o_o{SymmGroup{DimType::o}, SymmGroup{DimType::o}};
+  TensorVec<SymmGroup> indices_v_o{SymmGroup{DimType::v}, SymmGroup{DimType::o}};
+  TensorVec<SymmGroup> indices_v_v{SymmGroup{DimType::v}, SymmGroup{DimType::v}};
+  TensorVec<SymmGroup> indices_n_n{SymmGroup{DimType::n}, SymmGroup{DimType::n}};
+  TensorVec<SymmGroup> indices_vv_oo{SymmGroup{DimType::v, DimType::v}, SymmGroup{DimType::o, DimType::o}};
+  TensorVec<SymmGroup> indices_nn_nn{SymmGroup{DimType::n, DimType::n}, SymmGroup{DimType::n, DimType::n}};
 
-  Tensor ta{indices1, Type::double_precision, Distribution::tce_nwma, 3, irrep_t, false};
-  Tensor ta2{indices3, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
-  Tensor tb{indices2, Type::double_precision, Distribution::tce_nwma, 3, irrep_t, false};
+  Tensor ta{indices_oo_v, Type::double_precision, Distribution::tce_nwma, 3, irrep_t, false};
+  Tensor ta2{indices_o_o, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
+  Tensor tb{indices_o_o_v, Type::double_precision, Distribution::tce_nwma, 3, irrep_t, false};
+
+  // array t_vo[V][O]: irrep_t;
+  Tensor d_t1{indices_v_o, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};
+  // array t_vvoo[V,V][O,O]: irrep_t;
+  Tensor d_t2{indices_vv_oo, Type::double_precision, Distribution::tce_nwma, 4, irrep_t, false};
+
+  // array f[N][N]: irrep_f; d_f1
+  Tensor d_f1{indices_n_n, Type::double_precision, Distribution::tce_nwma, 2, irrep_f, false};
+  // array v[N,N][N,N]: irrep_v;
+  Tensor d_v2{indices_v_o, Type::double_precision, Distribution::tce_nwma, 2, irrep_f, false};
 
   // TensorVec<SymmGroup> indices1{SymmGroup{DimType::o, DimType::o}};
   // TensorVec<SymmGroup> indices2{SymmGroup{DimType::o}, SymmGroup{DimType::o}};
@@ -71,16 +90,28 @@ void test() {
   tb.allocate();
   ta2.allocate();
 
+  d_t1.allocate();
+  d_t2.allocate();
+  d_f1.allocate();
+  d_v2.allocate();
+
   tensor_map(tb(), [] (Block& block) {
-      //std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 1.0);
-      int n=0;
-      //std::generate_n(reinterpret_cast<double*>(block.buf()), block.size(), std::rand);
-      std::generate_n(reinterpret_cast<double*>(block.buf()), block.size(), [&]() { return n++;});
-    });
+    // std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 1.0);
+    int n=0;
+    // std::generate_n(reinterpret_cast<double*>(block.buf()), block.size(), std::rand);
+    std::generate_n(reinterpret_cast<double*>(block.buf()), block.size(), [&]() { return n++;});
+  });
 
   OLabel h0{0}, h1{1}, h2{2}, h3{3};
   VLabel p0{0}, p1{1}, p2{2}, p3{3};
-  
+
+  int maxiter =100;
+  double thresh = 1.0e-4;
+  double corr;
+
+  corr = ccsd_driver(d_t1, d_t2, d_f1, d_v2,
+           maxiter, thresh,irrep_t);
+
   //tensor_init(tb, 1.0);
   //assert_equal(tb, 1.0);
   ta() += 1.0 * tb();

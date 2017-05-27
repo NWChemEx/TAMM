@@ -19,9 +19,6 @@ set(MPI_LIBRARIES "-lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi")
 #Number of cores to be used for the build
 set(TAMM_PROC_COUNT 2)
 
-# The following option needs to be set only if BOOST is installed in a non-standard path
-set(BOOST_INSTALL_PATH /Users/panyala/software/libraries/BOOST)
-
 # GA Options
 #set(ARMCI_NETWORK OPENIB)
 set(USE_OFFLOAD "OFFLOAD" ON) 

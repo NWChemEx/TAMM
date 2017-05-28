@@ -31,6 +31,11 @@ Block::Block(Tensor &tensor,
       }
 
 LabeledBlock
+Block::operator () (const TensorLabel &label) {
+  return LabeledBlock{this, label};
+}
+
+LabeledBlock
 Block::operator () () {
   TensorLabel label; //(block_id_.size());
   for(int i=0; i<label.size(); i++) {

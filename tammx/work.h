@@ -4,6 +4,8 @@
 #define TAMMX_WORK_H__
 
 #include <algorithm>
+#include "tammx/labeled-tensor.h"
+#include "tammx/tensor.h"
 
 namespace tammx {
 
@@ -18,6 +20,56 @@ void parallel_work(Itr first, Itr last, Fn fn) {
 template<typename Itr, typename Fn>
 void seq_work(Itr first, Itr last, Fn fn) {
   std::for_each(first, last, fn);
+}
+
+template<typename Lambda>
+inline void
+tensor_map (LabeledTensor ltc, Lambda func) {
+  Tensor& tc = *ltc.tensor_;
+  auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
+  auto lambda = [&] (const TensorIndex& cblockid) {
+    size_t dimc = tc.block_size(cblockid);
+    if(tc.nonzero(cblockid) && dimc>0) {
+      auto cblock = tc.alloc(cblockid);
+      func(cblock);
+      tc.add(cblock);
+    }
+  };
+  parallel_work(citr, citr.get_end(), lambda);  
+}
+
+template<typename Lambda>
+inline void
+block_for (LabeledTensor ltc, Lambda func) {
+  Tensor& tc = *ltc.tensor_;
+  auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
+  auto lambda = [&] (const TensorIndex& cblockid) {
+    size_t dimc = tc.block_size(cblockid);
+    if(tc.nonzero(cblockid) && dimc>0) {
+      //auto cblock = tc.alloc(cblockid);
+      func(cblockid);
+      //    tc.add(cblock);
+    }
+  };
+  parallel_work(citr, citr.get_end(), lambda);
+}
+
+template<typename Lambda>
+inline void
+tensor_map (LabeledTensor ltc, LabeledTensor lta, Lambda func) {
+  Tensor& tc = *ltc.tensor_;
+  Tensor& ta = *lta.tensor_;
+  auto citr = loop_iterator(tc.indices());
+  auto lambda = [&] (const TensorIndex& cblockid) {
+    size_t dimc = tc.block_size(cblockid);
+    if(tc.nonzero(cblockid) && dimc>0) {
+      auto cblock = tc.alloc(cblockid);
+      auto ablock = ta.alloc(cblockid);
+      func(cblock, ablock);
+      tc.add(cblock);
+    }
+  };
+  parallel_work(citr, citr.get_end(), lambda);
 }
 
 }; // namespace tammx

@@ -7,7 +7,6 @@
 #include <iosfwd>
 #include <numeric>
 #include <iterator>
-#include "tammx/strong_int.h"
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
 

@@ -5,7 +5,7 @@
 
 #include <cassert>
 #include <iosfwd>
-#include "tammx/strong_int.h"
+#include "tammx/strong_num.h"
 #include "tammx/boundvec.h"
 
 namespace tammx {
@@ -14,15 +14,15 @@ using Fint = int64_t;
 
 // using BlockDim = int64_t;
 struct BlockDimSpace;
-using BlockDim = StrongInt<BlockDimSpace, int64_t>;
+using BlockDim = StrongNum<BlockDimSpace, int64_t>;
 using TensorRank = int;
 struct IrrepSpace;
-using Irrep = StrongInt<IrrepSpace, int>;
+using Irrep = StrongNum<IrrepSpace, int>;
 struct SpinSpace;
-using Spin = StrongInt<SpinSpace, int>;
+using Spin = StrongNum<SpinSpace, int>;
 using Sign = int;
 //struct PermSpace;
-//using Perm = StrongInt<PermSace, int>;
+//using Perm = StrongNum<PermSace, int>;
 
 enum class ElementType { invalid, single_precision, double_precision };
 

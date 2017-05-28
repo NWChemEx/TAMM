@@ -8,7 +8,6 @@
 #include <cmath>
 #include <map>
 #include <string>
-#include "tammx/strong_int.h"
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
 

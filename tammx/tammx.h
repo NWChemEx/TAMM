@@ -16,7 +16,6 @@
 #  include "tensor/gmem.h"
 #  include "tensor/capi.h"
 #endif
-#include "tammx/strong_int.h"
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
 #include "tammx/index_sort.h"

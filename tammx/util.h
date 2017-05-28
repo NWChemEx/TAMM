@@ -12,6 +12,10 @@
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
 
+/**
+ * @todo Check types are convertible to necessary type rather than is_same
+ */
+
 namespace tammx {
 
 template<typename T>
@@ -279,10 +283,11 @@ typed_copy(ElementType eltype, void *src, size_t size, void *dst) {
 template<typename T>
 inline void
 typed_fill(ElementType eltype, void *buf, auto size, T val) {
-  Expects(element_type<T> == eltype);
+  //Expects(element_type<T> == eltype);
   type_dispatch(eltype, [&] (auto type) {
       using dtype = decltype(type);
-      std::fill_n(reinterpret_cast<dtype*>(buf), size, val);
+      auto tval = static_cast<dtype>(val);
+      std::fill_n(reinterpret_cast<dtype*>(buf), size, tval);
     });
 }
 
@@ -293,6 +298,58 @@ typed_zeroout(ElementType eltype, void *buf, auto size) {
       std::fill_n(reinterpret_cast<dtype*>(buf), size, 0);
     });
 }
+
+inline TensorVec<SymmGroup>
+slice_indices(const TensorVec<SymmGroup>& indices,
+              const TensorLabel& label) {
+  TensorVec<SymmGroup> ret;
+  auto grp_labels = group_labels(indices, label);
+  for(auto &gl: grp_labels) {
+    SymmGroup sg;
+    for(auto &l: gl) {
+      sg.push_back(l.dt);
+    }
+    ret.push_back(sg);
+  }
+  return ret;
+}
+
+template<typename Fn, typename... Fargs>
+inline void
+ndim_dispatch(TensorIndex& lo, TensorIndex& size, Fn fn, Fargs&& ...args) {
+  TensorVec<unsigned> bdims, boffset;
+
+  Expects(lo.size() == size.size());
+  for(auto sz: size) {
+    bdims.push_back(sz.value());
+  }
+  for(auto off : lo) {
+    boffset.push_back(off.value());
+  }
+
+  switch(lo.size()) {
+    case 0:
+      for(unsigned i0=0, c=0; i0<bdims[0]; i0++,c++) {
+        fn(c, args...);
+      }
+      break;
+    case 1:
+      for(unsigned i0=0, c=0; i0<bdims[0]; i0++, c++) {
+        fn(c, boffset[0]+i0, args...);
+      }
+      break;
+    case 2:
+      for(unsigned i0=0, c=0; i0<bdims[0]; i0++) {
+        for(unsigned i1=0; i1<bdims[1]; i1++, c++) {
+          fn(c, boffset[0]+i0, boffset[1]+i1, args...);
+        }
+      }
+      break;
+    default:
+      assert(0); 
+  }
+}
+
 
 
 }; //namespace tammx

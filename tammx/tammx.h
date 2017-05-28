@@ -51,42 +51,47 @@
  *
  */
 
+#include "tammx/block.h"
 #include "tammx/labeled-block.h"
+#include "tammx/labeled-tensor.h"
+//#include "tammx/op-entry.h"
+#include "tammx/work.h"
+#include "tammx/ops.h"
 
 #if 0
 namespace tammx {
 
-inline ProductIterator<TriangleLoop>
-loop_iterator(const TensorVec<SymmGroup>& indices ) {
-  TensorVec<TriangleLoop> tloops, tloops_last;
-  for(auto &sg: indices) {
-    BlockDim lo, hi;
-    std::tie(lo, hi) = tensor_index_range(sg[0]);
-    tloops.push_back(TriangleLoop{sg.size(), lo, hi});
-    tloops_last.push_back(tloops.back().get_end());
-  }
-  //FIXME:Handle Scalar
-  if(indices.size()==0){
-    tloops.push_back(TriangleLoop{});
-    tloops_last.push_back(tloops.back().get_end());
-  }
-  return ProductIterator<TriangleLoop>(tloops, tloops_last);
-}
+// inline ProductIterator<TriangleLoop>
+// loop_iterator(const TensorVec<SymmGroup>& indices ) {
+//   TensorVec<TriangleLoop> tloops, tloops_last;
+//   for(auto &sg: indices) {
+//     BlockDim lo, hi;
+//     std::tie(lo, hi) = tensor_index_range(sg[0]);
+//     tloops.push_back(TriangleLoop{sg.size(), lo, hi});
+//     tloops_last.push_back(tloops.back().get_end());
+//   }
+//   //FIXME:Handle Scalar
+//   if(indices.size()==0){
+//     tloops.push_back(TriangleLoop{});
+//     tloops_last.push_back(tloops.back().get_end());
+//   }
+//   return ProductIterator<TriangleLoop>(tloops, tloops_last);
+// }
 
-class Tensor;
-class Block;
-struct LabeledBlock {
-  Block *block_;
-  TensorLabel label_;
+// class Tensor;
+// class Block;
+// struct LabeledBlock {
+//   Block *block_;
+//   TensorLabel label_;
 
-  template<typename T>
-  void init(T value);
-};
+//   template<typename T>
+//   void init(T value);
+// };
 
-struct LabeledTensor  {
-  Tensor *tensor_;
-  TensorLabel label_;
-};
+// struct LabeledTensor  {
+//   Tensor *tensor_;
+//   TensorLabel label_;
+// };
 
 
 // class Tensor {
@@ -573,855 +578,852 @@ struct LabeledTensor  {
 //   return operator ()(label); //LabeledBlock{*this, label};
 // }
 
-template<typename T>
-inline void
-LabeledBlock::init(T value) {
-  Expects(element_type<T> == block_->tensor().element_type());
-  auto *dbuf = reinterpret_cast<T*>(block_->buf());
-  for(unsigned i=0; i<block_->size(); i++) {
-    dbuf[i] = value;
-  }
-}
+// template<typename T>
+// inline void
+// LabeledBlock::init(T value) {
+//   Expects(element_type<T> == block_->tensor().element_type());
+//   auto *dbuf = reinterpret_cast<T*>(block_->buf());
+//   for(unsigned i=0; i<block_->size(); i++) {
+//     dbuf[i] = value;
+//   }
+// }
 
-template<typename T>
-inline std::tuple<T, LabeledBlock>
-operator * (T alpha, LabeledBlock block) {
-  return {alpha, block};
-}
+// template<typename T>
+// inline std::tuple<T, LabeledBlock>
+// operator * (T alpha, LabeledBlock block) {
+//   return {alpha, block};
+// }
 
-inline std::tuple<LabeledBlock, LabeledBlock>
-operator * (LabeledBlock rhs1, LabeledBlock rhs2)  {
-  return std::make_tuple(rhs1, rhs2);
-}
-
-
-template<typename T>
-inline std::tuple<T, LabeledBlock, LabeledBlock>
-operator * (std::tuple<T, LabeledBlock> rhs1, LabeledBlock rhs2)  {
-  return std::tuple_cat(rhs1, std::make_tuple(rhs2));
-}
-
-template<typename T>
-inline std::tuple<T, LabeledBlock, LabeledBlock>
-operator * (T alpha, std::tuple<LabeledBlock, LabeledBlock> rhs) {
-  return std::tuple_cat(std::make_tuple(alpha), rhs);
-}
-
-template<typename T>
-void
-operator += (LabeledBlock block1, std::tuple<T, LabeledBlock> rhs);
-
-template<typename T>
-void
-operator += (LabeledBlock block1, std::tuple<T, LabeledBlock, LabeledBlock> rhs);
-
-inline void
-operator += (LabeledBlock block1, LabeledBlock block2) {
-  block1 += 1.0 * block2;
-}
-
-inline void
-operator += (LabeledBlock block1, std::tuple<LabeledBlock, LabeledBlock> rhs) {
-  block1 += 1.0 * rhs;
-}
+// inline std::tuple<LabeledBlock, LabeledBlock>
+// operator * (LabeledBlock rhs1, LabeledBlock rhs2)  {
+//   return std::make_tuple(rhs1, rhs2);
+// }
 
 
-template<typename T>
-inline std::tuple<T, LabeledTensor>
-operator * (T alpha, LabeledTensor block) {
-  return {alpha, block};
-}
+// template<typename T>
+// inline std::tuple<T, LabeledBlock, LabeledBlock>
+// operator * (std::tuple<T, LabeledBlock> rhs1, LabeledBlock rhs2)  {
+//   return std::tuple_cat(rhs1, std::make_tuple(rhs2));
+// }
 
-template<typename T>
-inline std::tuple<T, LabeledTensor, LabeledTensor>
-operator * (const std::tuple<T, LabeledTensor>& rhs1, LabeledTensor rhs2)  {
-  return std::tuple_cat(rhs1, std::make_tuple(rhs2));
-}
+// template<typename T>
+// inline std::tuple<T, LabeledBlock, LabeledBlock>
+// operator * (T alpha, std::tuple<LabeledBlock, LabeledBlock> rhs) {
+//   return std::tuple_cat(std::make_tuple(alpha), rhs);
+// }
 
-inline std::tuple<LabeledTensor, LabeledTensor>
-operator * (LabeledTensor rhs1, LabeledTensor rhs2)  {
-  return std::make_tuple(rhs1, rhs2);
-}
+// template<typename T>
+// void
+// operator += (LabeledBlock block1, std::tuple<T, LabeledBlock> rhs);
 
-template<typename T>
-inline std::tuple<T, LabeledTensor, LabeledTensor>
-operator * (T alpha, std::tuple<LabeledTensor, LabeledTensor> rhs) {
-  return std::tuple_cat(std::make_tuple(alpha), rhs);
-}
+// template<typename T>
+// void
+// operator += (LabeledBlock block1, std::tuple<T, LabeledBlock, LabeledBlock> rhs);
 
-template<typename T>
-void
-operator += (LabeledTensor block1, std::tuple<T, LabeledTensor> rhs);
+// inline void
+// operator += (LabeledBlock block1, LabeledBlock block2) {
+//   block1 += 1.0 * block2;
+// }
 
-template<typename T>
-void
-operator += (LabeledTensor block1, std::tuple<T, LabeledTensor, LabeledTensor> rhs);
-
-inline void
-operator += (LabeledTensor block1, LabeledTensor block2) {
-  block1 += 1.0 * block2;
-}
-
-inline void
-operator += (LabeledTensor block1, std::tuple<LabeledTensor, LabeledTensor> rhs) {
-  block1 += 1.0 * rhs;
-}
-
-inline TensorVec<TensorVec<TensorLabel>>
-summation_labels(const LabeledTensor& /*ltc*/,
-                  const LabeledTensor& lta,
-                  const LabeledTensor& ltb) {
-  return group_partition(lta.tensor_->indices(), lta.label_,
-                         ltb.tensor_->indices(), ltb.label_);
-
-}
-
-inline std::pair<TensorVec<SymmGroup>,TensorLabel>
-summation_indices(const LabeledTensor& /*ltc*/,
-                  const LabeledTensor& lta,
-                  const LabeledTensor& ltb) {
-  auto aindices = flatten(lta.tensor_->indices());
-  //auto bindices = flatten(ltb.tensor_.indices());
-  auto alabels = group_labels(lta.tensor_->indices(), lta.label_);
-  auto blabels = group_labels(ltb.tensor_->indices(), ltb.label_);
-  TensorVec<SymmGroup> ret_indices;
-  TensorLabel sum_labels;
-  int apos = 0;
-  for (auto &alg : alabels) {
-    for (auto &blg : blabels) {
-      SymmGroup sg;
-      for (auto &a : alg) {
-        int apos1 = 0;
-        for (auto &b : blg) {
-          if (a == b) {
-            sg.push_back(aindices[apos + apos1]);
-            sum_labels.push_back(a);
-          }
-        }
-        apos1++;
-      }
-      if (sg.size() > 0) {
-        ret_indices.push_back(sg);
-      }
-    }
-    apos += alg.size();
-  }
-  return {ret_indices, sum_labels};
-}
-
-inline TensorVec<TensorVec<TensorLabel>>
-nonsymmetrized_external_labels(const LabeledTensor& ltc,
-                               const LabeledTensor& lta) {
-  auto ca_labels = group_partition(ltc.tensor_->indices(), ltc.label_,
-                                   lta.tensor_->indices(), lta.label_);
-
-  TensorVec<TensorVec<TensorLabel>> ret_labels;
-  for(unsigned i=0; i<ca_labels.size(); i++)  {
-    Expects(ca_labels[i].size() > 0);
-    ret_labels.push_back(TensorVec<TensorLabel>());
-    ret_labels.back().insert_back(ca_labels[i].begin(), ca_labels[i].end());
-  }
-  return ret_labels;
-}
-
-/**
- * @todo Specify where symmetrization is allowed and what indices in
- * the input tensors can form a symmetry group (or go to distinct
- * groups) in the output tensor.
- */
-inline TensorVec<TensorVec<TensorLabel>>
-nonsymmetrized_external_labels(const LabeledTensor& ltc,
-                               const LabeledTensor& lta,
-                               const LabeledTensor& ltb) {
-  auto ca_labels = group_partition(ltc.tensor_->indices(), ltc.label_,
-                                   lta.tensor_->indices(), lta.label_);
-  auto cb_labels = group_partition(ltc.tensor_->indices(), ltc.label_,
-                                   ltb.tensor_->indices(), ltb.label_);
-  Expects(ca_labels.size() == cb_labels.size());
-
-  TensorVec<TensorVec<TensorLabel>> ret_labels;
-  for(unsigned i=0; i<ca_labels.size(); i++)  {
-    Expects(ca_labels[i].size() + cb_labels[i].size() > 0);
-    ret_labels.push_back(TensorVec<TensorLabel>());
-    if(ca_labels[i].size() > 0) {
-      ret_labels.back().insert_back(ca_labels[i].begin(), ca_labels[i].end());
-    }
-    if(cb_labels[i].size() > 0) {
-      ret_labels.back().insert_back(cb_labels[i].begin(), cb_labels[i].end());
-    }
-  }
-  return ret_labels;
-}
-
-inline TensorVec<TensorVec<TensorLabel>>
-symmetrized_external_labels(const LabeledTensor& ltc,
-                            const LabeledTensor&  /*lta*/,
-                            const LabeledTensor&  /*ltb*/) {
-  TensorVec<TensorLabel> ret {ltc.label_};
-  return {ret};
-}
+// inline void
+// operator += (LabeledBlock block1, std::tuple<LabeledBlock, LabeledBlock> rhs) {
+//   block1 += 1.0 * rhs;
+// }
 
 
-inline ProductIterator<TriangleLoop>
-nonsymmetrized_iterator(const LabeledTensor& ltc,
-                        const LabeledTensor& lta,
-                        const LabeledTensor& ltb) {
-  auto part_labels = nonsymmetrized_external_labels(ltc ,lta, ltb);
-  //auto flat_labels = flatten(flatten(part_labels));
-  // std::map<IndexLabel, DimType> dim_of_label;
+// template<typename T>
+// inline std::tuple<T, LabeledTensor>
+// operator * (T alpha, LabeledTensor block) {
+//   return {alpha, block};
+// }
 
-  // auto cflindices = flatten(ltc.tensor_->indices());
-  // for(unsigned i=0; i<ltc.label_.size(); i++) {
-  //   dim_of_label[ltc.label_[i]] = cflindices[i];
-  // }
-  // auto aflindices = flatten(lta.tensor_->indices());
-  // for(unsigned i=0; i<lta.label_.size(); i++) {
-  //   dim_of_label[lta.label_[i]] = aflindices[i];
-  // }
-  TensorVec<TriangleLoop> tloops, tloops_last;
-  for(auto dim_grps: part_labels) {
-    for(auto lbl: dim_grps) {
-      if(lbl.size() > 0) {
-        BlockDim lo, hi;
-        std::tie(lo, hi) = tensor_index_range(lbl[0].dt);
-        tloops.push_back(TriangleLoop(lbl.size(), lo, hi));
-        tloops_last.push_back(tloops.back().get_end());
-      }
-    }
-  }
-  return ProductIterator<TriangleLoop>(tloops, tloops_last);
-}
+// template<typename T>
+// inline std::tuple<T, LabeledTensor, LabeledTensor>
+// operator * (const std::tuple<T, LabeledTensor>& rhs1, LabeledTensor rhs2)  {
+//   return std::tuple_cat(rhs1, std::make_tuple(rhs2));
+// }
+
+// inline std::tuple<LabeledTensor, LabeledTensor>
+// operator * (LabeledTensor rhs1, LabeledTensor rhs2)  {
+//   return std::make_tuple(rhs1, rhs2);
+// }
+
+// template<typename T>
+// inline std::tuple<T, LabeledTensor, LabeledTensor>
+// operator * (T alpha, std::tuple<LabeledTensor, LabeledTensor> rhs) {
+//   return std::tuple_cat(std::make_tuple(alpha), rhs);
+// }
+
+// template<typename T>
+// void
+// operator += (LabeledTensor block1, std::tuple<T, LabeledTensor> rhs);
+
+// template<typename T>
+// void
+// operator += (LabeledTensor block1, std::tuple<T, LabeledTensor, LabeledTensor> rhs);
+
+// inline void
+// operator += (LabeledTensor block1, LabeledTensor block2) {
+//   block1 += 1.0 * block2;
+// }
+
+// inline void
+// operator += (LabeledTensor block1, std::tuple<LabeledTensor, LabeledTensor> rhs) {
+//   block1 += 1.0 * rhs;
+// }
+
+// inline TensorVec<TensorVec<TensorLabel>>
+// summation_labels(const LabeledTensor& /*ltc*/,
+//                   const LabeledTensor& lta,
+//                   const LabeledTensor& ltb) {
+//   return group_partition(lta.tensor_->indices(), lta.label_,
+//                          ltb.tensor_->indices(), ltb.label_);
+
+// }
+
+// inline std::pair<TensorVec<SymmGroup>,TensorLabel>
+// summation_indices(const LabeledTensor& /*ltc*/,
+//                   const LabeledTensor& lta,
+//                   const LabeledTensor& ltb) {
+//   auto aindices = flatten(lta.tensor_->indices());
+//   //auto bindices = flatten(ltb.tensor_.indices());
+//   auto alabels = group_labels(lta.tensor_->indices(), lta.label_);
+//   auto blabels = group_labels(ltb.tensor_->indices(), ltb.label_);
+//   TensorVec<SymmGroup> ret_indices;
+//   TensorLabel sum_labels;
+//   int apos = 0;
+//   for (auto &alg : alabels) {
+//     for (auto &blg : blabels) {
+//       SymmGroup sg;
+//       for (auto &a : alg) {
+//         int apos1 = 0;
+//         for (auto &b : blg) {
+//           if (a == b) {
+//             sg.push_back(aindices[apos + apos1]);
+//             sum_labels.push_back(a);
+//           }
+//         }
+//         apos1++;
+//       }
+//       if (sg.size() > 0) {
+//         ret_indices.push_back(sg);
+//       }
+//     }
+//     apos += alg.size();
+//   }
+//   return {ret_indices, sum_labels};
+// }
+
+// inline TensorVec<TensorVec<TensorLabel>>
+// nonsymmetrized_external_labels(const LabeledTensor& ltc,
+//                                const LabeledTensor& lta) {
+//   auto ca_labels = group_partition(ltc.tensor_->indices(), ltc.label_,
+//                                    lta.tensor_->indices(), lta.label_);
+
+//   TensorVec<TensorVec<TensorLabel>> ret_labels;
+//   for(unsigned i=0; i<ca_labels.size(); i++)  {
+//     Expects(ca_labels[i].size() > 0);
+//     ret_labels.push_back(TensorVec<TensorLabel>());
+//     ret_labels.back().insert_back(ca_labels[i].begin(), ca_labels[i].end());
+//   }
+//   return ret_labels;
+// }
+
+// /**
+//  * @todo Specify where symmetrization is allowed and what indices in
+//  * the input tensors can form a symmetry group (or go to distinct
+//  * groups) in the output tensor.
+//  */
+// inline TensorVec<TensorVec<TensorLabel>>
+// nonsymmetrized_external_labels(const LabeledTensor& ltc,
+//                                const LabeledTensor& lta,
+//                                const LabeledTensor& ltb) {
+//   auto ca_labels = group_partition(ltc.tensor_->indices(), ltc.label_,
+//                                    lta.tensor_->indices(), lta.label_);
+//   auto cb_labels = group_partition(ltc.tensor_->indices(), ltc.label_,
+//                                    ltb.tensor_->indices(), ltb.label_);
+//   Expects(ca_labels.size() == cb_labels.size());
+
+//   TensorVec<TensorVec<TensorLabel>> ret_labels;
+//   for(unsigned i=0; i<ca_labels.size(); i++)  {
+//     Expects(ca_labels[i].size() + cb_labels[i].size() > 0);
+//     ret_labels.push_back(TensorVec<TensorLabel>());
+//     if(ca_labels[i].size() > 0) {
+//       ret_labels.back().insert_back(ca_labels[i].begin(), ca_labels[i].end());
+//     }
+//     if(cb_labels[i].size() > 0) {
+//       ret_labels.back().insert_back(cb_labels[i].begin(), cb_labels[i].end());
+//     }
+//   }
+//   return ret_labels;
+// }
+
+// inline TensorVec<TensorVec<TensorLabel>>
+// symmetrized_external_labels(const LabeledTensor& ltc,
+//                             const LabeledTensor&  /*lta*/,
+//                             const LabeledTensor&  /*ltb*/) {
+//   TensorVec<TensorLabel> ret {ltc.label_};
+//   return {ret};
+// }
 
 
-/**
- * @todo abstract the two copy_symmetrizer versions into one function
- * with the logic and two interfaces
- */
-inline TensorVec<CopySymmetrizer>
-copy_symmetrizer(const LabeledTensor& ltc,
-                 const LabeledTensor& lta,
-                 const LabeledTensor& ltb,
-                 const LabelMap<BlockDim>& lmap) {
-  auto part_labels = nonsymmetrized_external_labels(ltc ,lta, ltb);
-  TensorVec<CopySymmetrizer> csv;
-  for(auto lbls: part_labels) {
-    Expects(lbls.size()>0 && lbls.size() <= 2);
+// inline ProductIterator<TriangleLoop>
+// nonsymmetrized_iterator(const LabeledTensor& ltc,
+//                         const LabeledTensor& lta,
+//                         const LabeledTensor& ltb) {
+//   auto part_labels = nonsymmetrized_external_labels(ltc ,lta, ltb);
+//   //auto flat_labels = flatten(flatten(part_labels));
+//   // std::map<IndexLabel, DimType> dim_of_label;
 
-    TensorLabel lbl(lbls[0].begin(), lbls[0].end());
-    if(lbls.size() == 2 ) {
-      lbl.insert_back(lbls[1].begin(), lbls[1].end());
-    }
-
-    auto size = lbl.size();
-    Expects(size > 0);
-    Expects(size <=2); // @todo implement other cases
-
-    auto blockid = lmap.get_blockid(lbl);
-    auto uniq_blockid{blockid};
-    //find unique block
-    std::sort(uniq_blockid.begin(), uniq_blockid.end());
-    Expects(size > 0);
-    //std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl<<std::endl;
-    csv.push_back(CopySymmetrizer{size, lbls[0].size(), lbl, blockid, uniq_blockid});
-  }
-  return csv;
-}
-
-inline TensorVec<TensorLabel>
-group_labels(const TensorLabel& label,
-             const TensorIndex& group_sizes) {
-  TensorVec<TensorLabel> ret;
-  int pos = 0;
-  for(auto grp: group_sizes) {
-    ret.push_back(TensorLabel(grp.value()));
-    std::copy_n(label.begin() + pos, grp.value(), ret.back().begin());
-    pos += grp.value();
-  }
-  return ret;  
-}
-
-inline TensorVec<TensorVec<TensorLabel>>
-compute_extra_symmetries(const TensorLabel& lhs_label,
-                         const TensorIndex& lhs_group_sizes,
-                         const TensorLabel& rhs_label,
-                         const TensorIndex& rhs_group_sizes) {
-  Expects(lhs_label.size() == lhs_group_sizes.size());
-  Expects(rhs_label.size() == rhs_group_sizes.size());
-  Expects(lhs_label.size() == rhs_label.size());
-
-  auto lhs_label_groups = group_labels(lhs_label, lhs_group_sizes);
-  auto rhs_label_groups = group_labels(rhs_label, rhs_group_sizes);
-
-  TensorVec<TensorVec<TensorLabel>> ret_labels;
-  for (auto &glhs : lhs_label_groups) {
-    TensorVec<TensorLabel> ret_group;
-    for (auto &grhs : rhs_label_groups) {
-      auto lbls = intersect(glhs, grhs);
-      if (lbls.size() > 0) {
-        ret_group.push_back(lbls);
-      }
-    }
-    ret_labels.push_back(ret_group);
-  }
-  return ret_labels;  
-}
+//   // auto cflindices = flatten(ltc.tensor_->indices());
+//   // for(unsigned i=0; i<ltc.label_.size(); i++) {
+//   //   dim_of_label[ltc.label_[i]] = cflindices[i];
+//   // }
+//   // auto aflindices = flatten(lta.tensor_->indices());
+//   // for(unsigned i=0; i<lta.label_.size(); i++) {
+//   //   dim_of_label[lta.label_[i]] = aflindices[i];
+//   // }
+//   TensorVec<TriangleLoop> tloops, tloops_last;
+//   for(auto dim_grps: part_labels) {
+//     for(auto lbl: dim_grps) {
+//       if(lbl.size() > 0) {
+//         BlockDim lo, hi;
+//         std::tie(lo, hi) = tensor_index_range(lbl[0].dt);
+//         tloops.push_back(TriangleLoop(lbl.size(), lo, hi));
+//         tloops_last.push_back(tloops.back().get_end());
+//       }
+//     }
+//   }
+//   return ProductIterator<TriangleLoop>(tloops, tloops_last);
+// }
 
 
-inline TensorVec<CopySymmetrizer>
-copy_symmetrizer(const LabeledTensor& ltc,
-                 const LabeledTensor& lta,
-                 const LabelMap<BlockDim>& lmap) {
-  auto part_labels = nonsymmetrized_external_labels(ltc ,lta);
-  TensorVec<CopySymmetrizer> csv;
-  for(auto lbls: part_labels) {
-    Expects(lbls.size()>0 && lbls.size() <= 2);
+// /**
+//  * @todo abstract the two copy_symmetrizer versions into one function
+//  * with the logic and two interfaces
+//  */
+// inline TensorVec<CopySymmetrizer>
+// copy_symmetrizer(const LabeledTensor& ltc,
+//                  const LabeledTensor& lta,
+//                  const LabeledTensor& ltb,
+//                  const LabelMap<BlockDim>& lmap) {
+//   auto part_labels = nonsymmetrized_external_labels(ltc ,lta, ltb);
+//   TensorVec<CopySymmetrizer> csv;
+//   for(auto lbls: part_labels) {
+//     Expects(lbls.size()>0 && lbls.size() <= 2);
 
-    TensorLabel lbl(lbls[0].begin(), lbls[0].end());
-    if(lbls.size() == 2 ) {
-      lbl.insert_back(lbls[1].begin(), lbls[1].end());
-    }
+//     TensorLabel lbl(lbls[0].begin(), lbls[0].end());
+//     if(lbls.size() == 2 ) {
+//       lbl.insert_back(lbls[1].begin(), lbls[1].end());
+//     }
 
-    auto size = lbl.size();
-    Expects(size > 0);
-    Expects(size <=2); // @todo implement other cases
+//     auto size = lbl.size();
+//     Expects(size > 0);
+//     Expects(size <=2); // @todo implement other cases
 
-    auto blockid = lmap.get_blockid(lbl);
-    auto uniq_blockid{blockid};
-    //find unique block
-    std::sort(uniq_blockid.begin(), uniq_blockid.end());
-    Expects(size > 0);
-    //std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl<<std::endl;
-    csv.push_back(CopySymmetrizer{size, lbls[0].size(), lbl, blockid, uniq_blockid});
-  }
-  return csv;
-}
+//     auto blockid = lmap.get_blockid(lbl);
+//     auto uniq_blockid{blockid};
+//     //find unique block
+//     std::sort(uniq_blockid.begin(), uniq_blockid.end());
+//     Expects(size > 0);
+//     //std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl<<std::endl;
+//     csv.push_back(CopySymmetrizer{size, lbls[0].size(), lbl, blockid, uniq_blockid});
+//   }
+//   return csv;
+// }
+
+// inline TensorVec<TensorLabel>
+// group_labels(const TensorLabel& label,
+//              const TensorIndex& group_sizes) {
+//   TensorVec<TensorLabel> ret;
+//   int pos = 0;
+//   for(auto grp: group_sizes) {
+//     ret.push_back(TensorLabel(grp.value()));
+//     std::copy_n(label.begin() + pos, grp.value(), ret.back().begin());
+//     pos += grp.value();
+//   }
+//   return ret;  
+// }
+
+// inline TensorVec<TensorVec<TensorLabel>>
+// compute_extra_symmetries(const TensorLabel& lhs_label,
+//                          const TensorIndex& lhs_group_sizes,
+//                          const TensorLabel& rhs_label,
+//                          const TensorIndex& rhs_group_sizes) {
+//   Expects(lhs_label.size() == lhs_group_sizes.size());
+//   Expects(rhs_label.size() == rhs_group_sizes.size());
+//   Expects(lhs_label.size() == rhs_label.size());
+
+//   auto lhs_label_groups = group_labels(lhs_label, lhs_group_sizes);
+//   auto rhs_label_groups = group_labels(rhs_label, rhs_group_sizes);
+
+//   TensorVec<TensorVec<TensorLabel>> ret_labels;
+//   for (auto &glhs : lhs_label_groups) {
+//     TensorVec<TensorLabel> ret_group;
+//     for (auto &grhs : rhs_label_groups) {
+//       auto lbls = intersect(glhs, grhs);
+//       if (lbls.size() > 0) {
+//         ret_group.push_back(lbls);
+//       }
+//     }
+//     ret_labels.push_back(ret_group);
+//   }
+//   return ret_labels;  
+// }
+
+
+// inline TensorVec<CopySymmetrizer>
+// copy_symmetrizer(const LabeledTensor& ltc,
+//                  const LabeledTensor& lta,
+//                  const LabelMap<BlockDim>& lmap) {
+//   auto part_labels = nonsymmetrized_external_labels(ltc ,lta);
+//   TensorVec<CopySymmetrizer> csv;
+//   for(auto lbls: part_labels) {
+//     Expects(lbls.size()>0 && lbls.size() <= 2);
+
+//     TensorLabel lbl(lbls[0].begin(), lbls[0].end());
+//     if(lbls.size() == 2 ) {
+//       lbl.insert_back(lbls[1].begin(), lbls[1].end());
+//     }
+
+//     auto size = lbl.size();
+//     Expects(size > 0);
+//     Expects(size <=2); // @todo implement other cases
+
+//     auto blockid = lmap.get_blockid(lbl);
+//     auto uniq_blockid{blockid};
+//     //find unique block
+//     std::sort(uniq_blockid.begin(), uniq_blockid.end());
+//     Expects(size > 0);
+//     //std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl<<std::endl;
+//     csv.push_back(CopySymmetrizer{size, lbls[0].size(), lbl, blockid, uniq_blockid});
+//   }
+//   return csv;
+// }
 
 
 
-inline ProductIterator<CopySymmetrizer::Iterator>
-copy_iterator(const TensorVec<CopySymmetrizer>& sitv) {
-  TensorVec<CopySymmetrizer::Iterator> itrs_first, itrs_last;
-  for(auto &sit: sitv) {
-    itrs_first.push_back(sit.begin());
-    itrs_last.push_back(sit.end());
-    Expects(itrs_first.back().itr_size() == itrs_last.back().itr_size());
-    Expects(itrs_first.back().itr_size() == sit.group_size_);
-  }
-  return {itrs_first, itrs_last};
-}
+// inline ProductIterator<CopySymmetrizer::Iterator>
+// copy_iterator(const TensorVec<CopySymmetrizer>& sitv) {
+//   TensorVec<CopySymmetrizer::Iterator> itrs_first, itrs_last;
+//   for(auto &sit: sitv) {
+//     itrs_first.push_back(sit.begin());
+//     itrs_last.push_back(sit.end());
+//     Expects(itrs_first.back().itr_size() == itrs_last.back().itr_size());
+//     Expects(itrs_first.back().itr_size() == sit.group_size_);
+//   }
+//   return {itrs_first, itrs_last};
+// }
 
-//@todo for now assume all indices in a symmetry group are sliced
-//the same way
-inline void
-validate_slicing(const TensorVec<SymmGroup>& indices,
-                 const TensorLabel& label) {
-  int pos = 0;
-  for(auto grp : indices)  {
-    if (grp.size() > 0){
-      for(int i=0; i<grp.size(); i++) {
-        Expects(label[pos+i].dt == label[pos].dt);
-      }
-    }
-    pos += grp.size();
-  }
-}
+// //@todo for now assume all indices in a symmetry group are sliced
+// //the same way
+// inline void
+// validate_slicing(const TensorVec<SymmGroup>& indices,
+//                  const TensorLabel& label) {
+//   int pos = 0;
+//   for(auto grp : indices)  {
+//     if (grp.size() > 0){
+//       for(int i=0; i<grp.size(); i++) {
+//         Expects(label[pos+i].dt == label[pos].dt);
+//       }
+//     }
+//     pos += grp.size();
+//   }
+// }
 
-template<typename T>
-inline void
-assignment_validate(const LabeledTensor& ltc,
-                    const std::tuple<T, LabeledTensor>& rhs) {
-  auto lta = std::get<1>(rhs);
-  Expects(ltc.tensor_ != nullptr);
-  Expects(lta.tensor_ != nullptr);
-  const Tensor& tc = *ltc.tensor_;
-  const Tensor& ta = *lta.tensor_;
-  Expects(tc.rank() == ta.rank());
+// template<typename T>
+// inline void
+// assignment_validate(const LabeledTensor& ltc,
+//                     const std::tuple<T, LabeledTensor>& rhs) {
+//   auto lta = std::get<1>(rhs);
+//   Expects(ltc.tensor_ != nullptr);
+//   Expects(lta.tensor_ != nullptr);
+//   const Tensor& tc = *ltc.tensor_;
+//   const Tensor& ta = *lta.tensor_;
+//   Expects(tc.rank() == ta.rank());
 
-  TensorLabel clabel = ltc.label_;
-  TensorLabel alabel = lta.label_;
+//   TensorLabel clabel = ltc.label_;
+//   TensorLabel alabel = lta.label_;
 
-  validate_slicing(tc.indices(), ltc.label_);
-  validate_slicing(ta.indices(), lta.label_);
+//   validate_slicing(tc.indices(), ltc.label_);
+//   validate_slicing(ta.indices(), lta.label_);
   
-  Expects(alabel.size() == ta.rank());
-  Expects(clabel.size() == tc.rank());
+//   Expects(alabel.size() == ta.rank());
+//   Expects(clabel.size() == tc.rank());
 
-  //all labels are of compatible type
-  for(int i=0; i<alabel.size(); i++) {
-    Expects(is_dim_subset(ta.flindices()[i], alabel[i].dt));
-  }
-  for(int i=0; i<clabel.size(); i++) {
-    Expects(is_dim_subset(tc.flindices()[i], clabel[i].dt));
-  }
+//   //all labels are of compatible type
+//   for(int i=0; i<alabel.size(); i++) {
+//     Expects(is_dim_subset(ta.flindices()[i], alabel[i].dt));
+//   }
+//   for(int i=0; i<clabel.size(); i++) {
+//     Expects(is_dim_subset(tc.flindices()[i], clabel[i].dt));
+//   }
     
-  std::sort(alabel.begin(), alabel.end());
-  std::sort(clabel.begin(), clabel.end());
+//   std::sort(alabel.begin(), alabel.end());
+//   std::sort(clabel.begin(), clabel.end());
 
-  //all labels are unique
-  Expects(std::adjacent_find(alabel.begin(), alabel.end()) == alabel.end());
-  Expects(std::adjacent_find(clabel.begin(), clabel.end()) == clabel.end());
+//   //all labels are unique
+//   Expects(std::adjacent_find(alabel.begin(), alabel.end()) == alabel.end());
+//   Expects(std::adjacent_find(clabel.begin(), clabel.end()) == clabel.end());
 
-  //all labels in ta are in tb
-  for(auto &al: alabel) {
-    Expects(std::find(clabel.begin(), clabel.end(), al) != clabel.end());
-  }
-}
+//   //all labels in ta are in tb
+//   for(auto &al: alabel) {
+//     Expects(std::find(clabel.begin(), clabel.end(), al) != clabel.end());
+//   }
+// }
 
-inline TensorVec<SymmGroup>
-slice_indices(const TensorVec<SymmGroup>& indices,
-              const TensorLabel& label) {
-  TensorVec<SymmGroup> ret;
-  auto grp_labels = group_labels(indices, label);
-  for(auto &gl: grp_labels) {
-    SymmGroup sg;
-    for(auto &l: gl) {
-      sg.push_back(l.dt);
-    }
-    ret.push_back(sg);
-  }
-  return ret;
-}
+// inline TensorVec<SymmGroup>
+// slice_indices(const TensorVec<SymmGroup>& indices,
+//               const TensorLabel& label) {
+//   TensorVec<SymmGroup> ret;
+//   auto grp_labels = group_labels(indices, label);
+//   for(auto &gl: grp_labels) {
+//     SymmGroup sg;
+//     for(auto &l: gl) {
+//       sg.push_back(l.dt);
+//     }
+//     ret.push_back(sg);
+//   }
+//   return ret;
+// }
 
-//working but for unsymmetrization
-/**
- * @todo We assume there is no un-symmetrization in the output.
- */
-template<typename T>
-inline void
-operator += (LabeledTensor ltc, std::tuple<T, LabeledTensor> rhs) {
-  assignment_validate(ltc, rhs);
-  Expects(ltc.tensor_->rank() == std::get<1>(rhs).tensor_->rank());
-  //Expects(match_tensor_element_type<T>(ltc.tensor_->element_type()));
-  Expects(element_type<T> == ltc.tensor_->element_type());
-  T alpha = std::get<0>(rhs);
-  const LabeledTensor& lta = std::get<1>(rhs);
-  Tensor& ta = *lta.tensor_;
-  Tensor& tc = *ltc.tensor_;
-  //check for validity of parameters
-  //auto aitr = loop_iterator(ta.indices());
-  auto aitr = loop_iterator(slice_indices(ta.indices(), lta.label_));
-  auto lambda = [&] (const TensorIndex& ablockid) {
-    size_t dima = ta.block_size(ablockid);
-    if(ta.nonzero(ablockid) && dima>0) {
-      auto label_map = LabelMap<BlockDim>()
-          .update(lta.label_, ablockid);
-      // auto cblockid = tc.find_unique_block(label_map.get_blockid(ltc.label_));
-      auto cblockid = label_map.get_blockid(ltc.label_);
-      auto abp = ta.get(ablockid);
-      //auto cbp = tc.alloc(cblockid);
-      //cbp(ltc.label_) += alpha * abp(lta.label_);
+// //working but for unsymmetrization
+// /**
+//  * @todo We assume there is no un-symmetrization in the output.
+//  */
+// template<typename T>
+// inline void
+// operator += (LabeledTensor ltc, std::tuple<T, LabeledTensor> rhs) {
+//   assignment_validate(ltc, rhs);
+//   Expects(ltc.tensor_->rank() == std::get<1>(rhs).tensor_->rank());
+//   //Expects(match_tensor_element_type<T>(ltc.tensor_->element_type()));
+//   Expects(element_type<T> == ltc.tensor_->element_type());
+//   T alpha = std::get<0>(rhs);
+//   const LabeledTensor& lta = std::get<1>(rhs);
+//   Tensor& ta = *lta.tensor_;
+//   Tensor& tc = *ltc.tensor_;
+//   //check for validity of parameters
+//   //auto aitr = loop_iterator(ta.indices());
+//   auto aitr = loop_iterator(slice_indices(ta.indices(), lta.label_));
+//   auto lambda = [&] (const TensorIndex& ablockid) {
+//     size_t dima = ta.block_size(ablockid);
+//     if(ta.nonzero(ablockid) && dima>0) {
+//       auto label_map = LabelMap<BlockDim>()
+//           .update(lta.label_, ablockid);
+//       // auto cblockid = tc.find_unique_block(label_map.get_blockid(ltc.label_));
+//       auto cblockid = label_map.get_blockid(ltc.label_);
+//       auto abp = ta.get(ablockid);
+//       //auto cbp = tc.alloc(cblockid);
+//       //cbp(ltc.label_) += alpha * abp(lta.label_);
 
-      auto csbp = tc.alloc(tc.find_unique_block(cblockid));
-      csbp().init(0.0);
+//       auto csbp = tc.alloc(tc.find_unique_block(cblockid));
+//       csbp().init(0.0);
       
-      std::cerr<<"COPY ITR. ablockid="<<ablockid<<std::endl;
-      std::cerr<<"COPY ITR. alabel="<<lta.label_<<std::endl;
+//       std::cerr<<"COPY ITR. ablockid="<<ablockid<<std::endl;
+//       std::cerr<<"COPY ITR. alabel="<<lta.label_<<std::endl;
 
-      auto copy_symm = copy_symmetrizer(ltc, lta, label_map);      
-      auto copy_itr = copy_iterator(copy_symm);
-      auto copy_itr_last = copy_itr.get_end();
-      auto copy_label = TensorLabel{ltc.label_};
-      //std::sort(copy_label.begin(), copy_label.end());
-      for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
-        auto cperm_label = *citr;
-        auto num_inversions = perm_count_inversions(perm_compute(copy_label, cperm_label));
-        Sign sign = (num_inversions%2) ? -1 : 1;
-        //csbp(copy_label) += sign * cbp(perm);
-        auto perm_comp = perm_apply(cperm_label, perm_compute(ltc.label_, lta.label_));
-        std::cerr<<"COPY ITR. csbp blockid="<<csbp.blockid()<<std::endl;
-        std::cerr<<"COPY ITR. csbp label="<<copy_label<<std::endl;
-        std::cerr<<"COPY ITR. cbp blockid="<<cblockid<<std::endl;
-        std::cerr<<"COPY ITR. cbp label="<<perm_comp<<std::endl;
-        std::cerr<<"COPY ITR. num_inversions="<<num_inversions<<std::endl;
-        std::cerr<<"COPY ITR. sign="<<sign<<std::endl;
-        csbp(copy_label) += sign * alpha * abp(perm_comp);
-      }
-      tc.add(csbp);
-    }
-  };
-  parallel_work(aitr, aitr.get_end(), lambda);
-}
-
-
-template<typename T>
-inline void
-assert_equal(Tensor &tc, T value) {
-  //Expects(match_tensor_element_type<T>(tc.element_type()));
-  Expects(element_type<T> == tc.element_type());
-  auto citr = loop_iterator(tc.indices());
-  auto lambda = [&] (const TensorIndex& cblockid) {
-    size_t dimc = tc.block_size(cblockid);
-    if(tc.nonzero(cblockid) && dimc>0) {
-      auto cbp = tc.get(cblockid);
-      auto cdbuf = reinterpret_cast<T*>(cbp.buf());
-      auto size = cbp.size();
-      for(int i=0; i<size; i++) {
-        std::cerr<<__FUNCTION__<<": block="<<cblockid<<std::endl;        
-        std::cerr<<__FUNCTION__<<": buf["<<i<<"]="<<cdbuf[i]<<std::endl;
-        assert(std::abs(cdbuf[i]-value) < 1.0e-6);
-      }
-    }
-  };
-  parallel_work(citr, citr.get_end(), lambda);
-}
-
-inline void
-assert_zero(Tensor& tc) {
-  assert_equal(tc, 0);
-}
+//       auto copy_symm = copy_symmetrizer(ltc, lta, label_map);      
+//       auto copy_itr = copy_iterator(copy_symm);
+//       auto copy_itr_last = copy_itr.get_end();
+//       auto copy_label = TensorLabel{ltc.label_};
+//       //std::sort(copy_label.begin(), copy_label.end());
+//       for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
+//         auto cperm_label = *citr;
+//         auto num_inversions = perm_count_inversions(perm_compute(copy_label, cperm_label));
+//         Sign sign = (num_inversions%2) ? -1 : 1;
+//         //csbp(copy_label) += sign * cbp(perm);
+//         auto perm_comp = perm_apply(cperm_label, perm_compute(ltc.label_, lta.label_));
+//         std::cerr<<"COPY ITR. csbp blockid="<<csbp.blockid()<<std::endl;
+//         std::cerr<<"COPY ITR. csbp label="<<copy_label<<std::endl;
+//         std::cerr<<"COPY ITR. cbp blockid="<<cblockid<<std::endl;
+//         std::cerr<<"COPY ITR. cbp label="<<perm_comp<<std::endl;
+//         std::cerr<<"COPY ITR. num_inversions="<<num_inversions<<std::endl;
+//         std::cerr<<"COPY ITR. sign="<<sign<<std::endl;
+//         csbp(copy_label) += sign * alpha * abp(perm_comp);
+//       }
+//       tc.add(csbp);
+//     }
+//   };
+//   parallel_work(aitr, aitr.get_end(), lambda);
+// }
 
 
-template<typename T>
-inline void
-contraction_validate(const LabeledTensor& ltc,
-                     const std::tuple<T, LabeledTensor, LabeledTensor>& rhs) {
-  auto &lta = std::get<1>(rhs);
-  auto &ltb = std::get<2>(rhs);
-  Expects(ltc.tensor_ != nullptr);
-  Expects(lta.tensor_ != nullptr);
-  Expects(ltb.tensor_ != nullptr);
-  const Tensor& tc = *ltc.tensor_;
-  const Tensor& ta = *lta.tensor_;
-  const Tensor& tb = *ltb.tensor_;
+// template<typename T>
+// inline void
+// assert_equal(Tensor &tc, T value) {
+//   //Expects(match_tensor_element_type<T>(tc.element_type()));
+//   Expects(element_type<T> == tc.element_type());
+//   auto citr = loop_iterator(tc.indices());
+//   auto lambda = [&] (const TensorIndex& cblockid) {
+//     size_t dimc = tc.block_size(cblockid);
+//     if(tc.nonzero(cblockid) && dimc>0) {
+//       auto cbp = tc.get(cblockid);
+//       auto cdbuf = reinterpret_cast<T*>(cbp.buf());
+//       auto size = cbp.size();
+//       for(int i=0; i<size; i++) {
+//         std::cerr<<__FUNCTION__<<": block="<<cblockid<<std::endl;        
+//         std::cerr<<__FUNCTION__<<": buf["<<i<<"]="<<cdbuf[i]<<std::endl;
+//         assert(std::abs(cdbuf[i]-value) < 1.0e-6);
+//       }
+//     }
+//   };
+//   parallel_work(citr, citr.get_end(), lambda);
+// }
 
-  Expects(element_type<T> == tc.element_type());
-  Expects(element_type<T> == ta.element_type());
-  Expects(element_type<T> == tb.element_type());
-  // Expects(match_tensor_element_type<T>(tc.element_type()));
-  // Expects(match_tensor_element_type<T>(ta.element_type()));
-  // Expects(match_tensor_element_type<T>(tb.element_type()));
+// inline void
+// assert_zero(Tensor& tc) {
+//   assert_equal(tc, 0);
+// }
+
+
+// template<typename T>
+// inline void
+// contraction_validate(const LabeledTensor& ltc,
+//                      const std::tuple<T, LabeledTensor, LabeledTensor>& rhs) {
+//   auto &lta = std::get<1>(rhs);
+//   auto &ltb = std::get<2>(rhs);
+//   Expects(ltc.tensor_ != nullptr);
+//   Expects(lta.tensor_ != nullptr);
+//   Expects(ltb.tensor_ != nullptr);
+//   const Tensor& tc = *ltc.tensor_;
+//   const Tensor& ta = *lta.tensor_;
+//   const Tensor& tb = *ltb.tensor_;
+
+//   Expects(element_type<T> == tc.element_type());
+//   Expects(element_type<T> == ta.element_type());
+//   Expects(element_type<T> == tb.element_type());
   
-  TensorLabel clabel = ltc.label_;
-  TensorLabel alabel = lta.label_;
-  TensorLabel blabel = ltb.label_;
+//   TensorLabel clabel = ltc.label_;
+//   TensorLabel alabel = lta.label_;
+//   TensorLabel blabel = ltb.label_;
 
-  Expects(clabel.size() == tc.rank());
-  Expects(alabel.size() == ta.rank());
-  Expects(blabel.size() == tb.rank());
+//   Expects(clabel.size() == tc.rank());
+//   Expects(alabel.size() == ta.rank());
+//   Expects(blabel.size() == tb.rank());
 
-  validate_slicing(tc.indices(), ltc.label_);
-  validate_slicing(ta.indices(), lta.label_);
-  validate_slicing(tb.indices(), ltb.label_);
+//   validate_slicing(tc.indices(), ltc.label_);
+//   validate_slicing(ta.indices(), lta.label_);
+//   validate_slicing(tb.indices(), ltb.label_);
 
-  //all labels are of compatible type
-  for(int i=0; i<alabel.size(); i++) {
-    Expects(is_dim_subset(ta.flindices()[i], alabel[i].dt));
-  }
-  for(int i=0; i<blabel.size(); i++) {
-    Expects(is_dim_subset(tb.flindices()[i], blabel[i].dt));
-  }
-  for(int i=0; i<clabel.size(); i++) {
-    Expects(is_dim_subset(tc.flindices()[i], clabel[i].dt));
-  }
+//   //all labels are of compatible type
+//   for(int i=0; i<alabel.size(); i++) {
+//     Expects(is_dim_subset(ta.flindices()[i], alabel[i].dt));
+//   }
+//   for(int i=0; i<blabel.size(); i++) {
+//     Expects(is_dim_subset(tb.flindices()[i], blabel[i].dt));
+//   }
+//   for(int i=0; i<clabel.size(); i++) {
+//     Expects(is_dim_subset(tc.flindices()[i], clabel[i].dt));
+//   }
     
-  std::sort(alabel.begin(), alabel.end());
-  std::sort(blabel.begin(), blabel.end());
-  std::sort(clabel.begin(), clabel.end());
+//   std::sort(alabel.begin(), alabel.end());
+//   std::sort(blabel.begin(), blabel.end());
+//   std::sort(clabel.begin(), clabel.end());
 
-  //all labels are unique
-  Expects(std::adjacent_find(alabel.begin(), alabel.end()) == alabel.end());
-  Expects(std::adjacent_find(blabel.begin(), blabel.end()) == blabel.end());
-  Expects(std::adjacent_find(clabel.begin(), clabel.end()) == clabel.end());
+//   //all labels are unique
+//   Expects(std::adjacent_find(alabel.begin(), alabel.end()) == alabel.end());
+//   Expects(std::adjacent_find(blabel.begin(), blabel.end()) == blabel.end());
+//   Expects(std::adjacent_find(clabel.begin(), clabel.end()) == clabel.end());
 
-  TensorLabel slabel;
-  std::set_intersection(alabel.begin(), alabel.end(),
-                        blabel.begin(), blabel.end(),
-                        std::back_inserter(slabel));
-  //summation index is not in the output
-  for(auto &sl: slabel) {
-    Expects(std::find(clabel.begin(), clabel.end(), sl) == clabel.end());
-  }
-  //every label in A/B is either in slabel or clabel
-  for(auto &al : alabel) {
-    Expects(std::find(slabel.begin(), slabel.end(), al) != slabel.end()
-            || std::find(clabel.begin(), clabel.end(), al) != clabel.end());
-  }
-  for(auto &bl : blabel) {
-    Expects(std::find(slabel.begin(), slabel.end(), bl) != slabel.end()
-            || std::find(clabel.begin(), clabel.end(), bl) != clabel.end());
-  }
-  Expects(clabel.size() == alabel.size() + blabel.size() - 2 * slabel.size());
-}
+//   TensorLabel slabel;
+//   std::set_intersection(alabel.begin(), alabel.end(),
+//                         blabel.begin(), blabel.end(),
+//                         std::back_inserter(slabel));
+//   //summation index is not in the output
+//   for(auto &sl: slabel) {
+//     Expects(std::find(clabel.begin(), clabel.end(), sl) == clabel.end());
+//   }
+//   //every label in A/B is either in slabel or clabel
+//   for(auto &al : alabel) {
+//     Expects(std::find(slabel.begin(), slabel.end(), al) != slabel.end()
+//             || std::find(clabel.begin(), clabel.end(), al) != clabel.end());
+//   }
+//   for(auto &bl : blabel) {
+//     Expects(std::find(slabel.begin(), slabel.end(), bl) != slabel.end()
+//             || std::find(clabel.begin(), clabel.end(), bl) != clabel.end());
+//   }
+//   Expects(clabel.size() == alabel.size() + blabel.size() - 2 * slabel.size());
+// }
 
-/**
- * Check that all iterators and operators work for rank 0 tensors, and rank 0 symmetry groups.
- */
-template<typename T>
-inline void
-operator += (LabeledTensor ltc, std::tuple<T, LabeledTensor, LabeledTensor> rhs) {
-  contraction_validate(ltc, rhs);
-  T alpha = std::get<0>(rhs);
-  LabeledTensor& lta = std::get<1>(rhs);
-  LabeledTensor& ltb = std::get<2>(rhs);
-  Tensor& ta = *lta.tensor_;
-  Tensor& tb = *ltb.tensor_;
-  Tensor& tc = *ltc.tensor_;
+// /**
+//  * Check that all iterators and operators work for rank 0 tensors, and rank 0 symmetry groups.
+//  */
+// template<typename T>
+// inline void
+// operator += (LabeledTensor ltc, std::tuple<T, LabeledTensor, LabeledTensor> rhs) {
+//   contraction_validate(ltc, rhs);
+//   T alpha = std::get<0>(rhs);
+//   LabeledTensor& lta = std::get<1>(rhs);
+//   LabeledTensor& ltb = std::get<2>(rhs);
+//   Tensor& ta = *lta.tensor_;
+//   Tensor& tb = *ltb.tensor_;
+//   Tensor& tc = *ltc.tensor_;
 
-  TensorLabel sum_labels;
-  TensorVec<SymmGroup> sum_indices;
-  std::tie(sum_indices, sum_labels) = summation_indices(ltc, lta, ltb);
-  auto lambda = [&] (const TensorIndex& cblockid) {
-    auto dimc = tc.block_size(cblockid);
-    if(!tc.nonzero(cblockid) || dimc == 0) {
-      return;
-    }
-    auto sum_itr_first = loop_iterator(slice_indices(sum_indices, sum_labels));
-    auto sum_itr_last = sum_itr_first.get_end();
-    auto label_map = LabelMap<BlockDim>().update(ltc.label_, cblockid);
-    auto cbp = tc.alloc(cblockid);
-    cbp().init(0.0);
-    for(auto sitr = sum_itr_first; sitr!=sum_itr_last; ++sitr) {
-      label_map.update(sum_labels, *sitr);
-      auto ablockid = label_map.get_blockid(lta.label_);
-      auto bblockid = label_map.get_blockid(ltb.label_);
+//   TensorLabel sum_labels;
+//   TensorVec<SymmGroup> sum_indices;
+//   std::tie(sum_indices, sum_labels) = summation_indices(ltc, lta, ltb);
+//   auto lambda = [&] (const TensorIndex& cblockid) {
+//     auto dimc = tc.block_size(cblockid);
+//     if(!tc.nonzero(cblockid) || dimc == 0) {
+//       return;
+//     }
+//     auto sum_itr_first = loop_iterator(slice_indices(sum_indices, sum_labels));
+//     auto sum_itr_last = sum_itr_first.get_end();
+//     auto label_map = LabelMap<BlockDim>().update(ltc.label_, cblockid);
+//     auto cbp = tc.alloc(cblockid);
+//     cbp().init(0.0);
+//     for(auto sitr = sum_itr_first; sitr!=sum_itr_last; ++sitr) {
+//       label_map.update(sum_labels, *sitr);
+//       auto ablockid = label_map.get_blockid(lta.label_);
+//       auto bblockid = label_map.get_blockid(ltb.label_);
 
-      if(!ta.nonzero(ablockid) || !tb.nonzero(bblockid)) {
-        continue;
-      }
-      auto abp = ta.get(ablockid);
-      auto bbp = tb.get(bblockid);
+//       if(!ta.nonzero(ablockid) || !tb.nonzero(bblockid)) {
+//         continue;
+//       }
+//       auto abp = ta.get(ablockid);
+//       auto bbp = tb.get(bblockid);
 
-      cbp(ltc.label_) += alpha * abp(lta.label_) * bbp(ltb.label_);
-    }
-    auto csbp = tc.alloc(tc.find_unique_block(cblockid));
-    csbp().init(0.0);
-    auto copy_symm = copy_symmetrizer(ltc, lta, ltb, label_map);      
-    auto copy_itr = copy_iterator(copy_symm);
-    auto copy_itr_last = copy_itr.get_end();
-    auto copy_label = TensorLabel(ltc.label_);
-    //std::sort(copy_label.begin(), copy_label.end());
-    for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
-      auto cperm_label = *citr;
-      std::cerr<<"---perm="<<cperm_label<<std::endl;
-      auto num_inversions = perm_count_inversions(perm_compute(copy_label, cperm_label));
-      Sign sign = (num_inversions%2) ? -1 : 1;
-      csbp(copy_label) += T(sign) * cbp(cperm_label);
-    }
-    tc.add(csbp);
-  };
-  auto itr = nonsymmetrized_iterator(ltc, lta, ltb);
-  parallel_work(itr, itr.get_end(), lambda);
-}
+//       cbp(ltc.label_) += alpha * abp(lta.label_) * bbp(ltb.label_);
+//     }
+//     auto csbp = tc.alloc(tc.find_unique_block(cblockid));
+//     csbp().init(0.0);
+//     auto copy_symm = copy_symmetrizer(ltc, lta, ltb, label_map);      
+//     auto copy_itr = copy_iterator(copy_symm);
+//     auto copy_itr_last = copy_itr.get_end();
+//     auto copy_label = TensorLabel(ltc.label_);
+//     //std::sort(copy_label.begin(), copy_label.end());
+//     for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
+//       auto cperm_label = *citr;
+//       std::cerr<<"---perm="<<cperm_label<<std::endl;
+//       auto num_inversions = perm_count_inversions(perm_compute(copy_label, cperm_label));
+//       Sign sign = (num_inversions%2) ? -1 : 1;
+//       csbp(copy_label) += T(sign) * cbp(cperm_label);
+//     }
+//     tc.add(csbp);
+//   };
+//   auto itr = nonsymmetrized_iterator(ltc, lta, ltb);
+//   parallel_work(itr, itr.get_end(), lambda);
+// }
 
 
-/**
- * performs: cbuf[dims] = scale *abuf[perm(dims)]
- *
- * @todo unsafe. passing 1 instead of 1.0 might lead to unexpected results.
- */
-template<typename T>
-inline void
-index_permute_acc(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
-  Expects(dbuf!=nullptr && sbuf!=nullptr);
-  Expects(perm.size() == ddims.size());
+// /**
+//  * performs: cbuf[dims] = scale *abuf[perm(dims)]
+//  *
+//  * @todo unsafe. passing 1 instead of 1.0 might lead to unexpected results.
+//  */
+// template<typename T>
+// inline void
+// index_permute_acc(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
+//   Expects(dbuf!=nullptr && sbuf!=nullptr);
+//   Expects(perm.size() == ddims.size());
 
-  std::cerr<<__FUNCTION__<<" perm = "<<perm<<std::endl;
-  std::cerr<<__FUNCTION__<<" ddims = "<<ddims<<std::endl;
-  auto inv_perm = perm_invert(perm);
-  auto inv_sizes = perm_apply(ddims, inv_perm);
-  std::cerr<<__FUNCTION__<<" inv_perm = "<<inv_perm<<std::endl;
-  std::cerr<<__FUNCTION__<<" inv_sizes = "<<inv_sizes<<std::endl;
-  TensorVec<size_t> sizes;
-  TensorVec<int> iperm;
-  for(unsigned i=0; i<ddims.size(); i++) {
-    sizes.push_back(inv_sizes[i].value());
-    iperm.push_back(inv_perm[i]+1);
-  }
+//   std::cerr<<__FUNCTION__<<" perm = "<<perm<<std::endl;
+//   std::cerr<<__FUNCTION__<<" ddims = "<<ddims<<std::endl;
+//   auto inv_perm = perm_invert(perm);
+//   auto inv_sizes = perm_apply(ddims, inv_perm);
+//   std::cerr<<__FUNCTION__<<" inv_perm = "<<inv_perm<<std::endl;
+//   std::cerr<<__FUNCTION__<<" inv_sizes = "<<inv_sizes<<std::endl;
+//   TensorVec<size_t> sizes;
+//   TensorVec<int> iperm;
+//   for(unsigned i=0; i<ddims.size(); i++) {
+//     sizes.push_back(inv_sizes[i].value());
+//     iperm.push_back(inv_perm[i]+1);
+//   }
 
-  std::cerr<<"sbuf = "<<(void*)sbuf<<std::endl;
-  std::cerr<<"dbuf = "<<(void *)dbuf<<std::endl;
-  index_sortacc(sbuf, dbuf,
-                sizes.size(), &sizes[0], &iperm[0], scale);
-}
+//   std::cerr<<"sbuf = "<<(void*)sbuf<<std::endl;
+//   std::cerr<<"dbuf = "<<(void *)dbuf<<std::endl;
+//   index_sortacc(sbuf, dbuf,
+//                 sizes.size(), &sizes[0], &iperm[0], scale);
+// }
 
-/**
- *  @todo unsafe. passing 1 instead of 1.0 might lead to unexpected results.
- */
-template<typename T>
-inline void
-index_permute(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
-  Expects(dbuf!=nullptr && sbuf!=nullptr);
-  Expects(perm.size() == ddims.size());
+// /**
+//  *  @todo unsafe. passing 1 instead of 1.0 might lead to unexpected results.
+//  */
+// template<typename T>
+// inline void
+// index_permute(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
+//   Expects(dbuf!=nullptr && sbuf!=nullptr);
+//   Expects(perm.size() == ddims.size());
 
-  auto inv_perm = perm_invert(perm);
-  auto inv_sizes = perm_apply(ddims, inv_perm);
-  TensorVec<size_t> sizes;
-  TensorVec<int> iperm;
-  for(unsigned i=0; i<ddims.size(); i++) {
-    sizes.push_back(inv_sizes[i].value());
-    iperm.push_back(inv_perm[i]+1);
-  }
+//   auto inv_perm = perm_invert(perm);
+//   auto inv_sizes = perm_apply(ddims, inv_perm);
+//   TensorVec<size_t> sizes;
+//   TensorVec<int> iperm;
+//   for(unsigned i=0; i<ddims.size(); i++) {
+//     sizes.push_back(inv_sizes[i].value());
+//     iperm.push_back(inv_perm[i]+1);
+//   }
 
-  index_sort(sbuf, dbuf,
-             sizes.size(), &sizes[0], &iperm[0], scale);
-}
+//   index_sort(sbuf, dbuf,
+//              sizes.size(), &sizes[0], &iperm[0], scale);
+// }
 
-template<typename T>
-inline void
-operator += (LabeledBlock clb, std::tuple<T, LabeledBlock> rhs) {
-  const LabeledBlock& alb = std::get<1>(rhs);
+// template<typename T>
+// inline void
+// operator += (LabeledBlock clb, std::tuple<T, LabeledBlock> rhs) {
+//   const LabeledBlock& alb = std::get<1>(rhs);
 
-  auto &ablock = *alb.block_;
-  auto &cblock = *clb.block_;
+//   auto &ablock = *alb.block_;
+//   auto &cblock = *clb.block_;
 
-  auto &clabel = clb.label_;
-  auto &alabel = alb.label_;
+//   auto &clabel = clb.label_;
+//   auto &alabel = alb.label_;
 
-  auto label_perm = perm_compute(alabel, clabel);
-  for(unsigned i=0; i<label_perm.size(); i++) {
-    Expects(cblock.block_dims()[i] == ablock.block_dims()[label_perm[i]]);
-  }
+//   auto label_perm = perm_compute(alabel, clabel);
+//   for(unsigned i=0; i<label_perm.size(); i++) {
+//     Expects(cblock.block_dims()[i] == ablock.block_dims()[label_perm[i]]);
+//   }
 
-  auto &alayout = ablock.layout();
-  auto &clayout = cblock.layout();
+//   auto &alayout = ablock.layout();
+//   auto &clayout = cblock.layout();
 
-  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": alabel="<<alabel<<std::endl;
-  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": alayout="<<alayout<<std::endl;
+//   std::cerr<<__FUNCTION__<<":"<<__LINE__<<": alabel="<<alabel<<std::endl;
+//   std::cerr<<__FUNCTION__<<":"<<__LINE__<<": alayout="<<alayout<<std::endl;
 
-  Expects(clayout.size() == cblock.tensor().rank());
-  Expects(clabel.size() == perm_invert(clayout).size());
-  Expects(alabel.size() == perm_invert(alayout).size());
-  auto cstore = perm_apply(clabel, perm_invert(clayout));
-  auto astore = perm_apply(alabel, perm_invert(alayout));
+//   Expects(clayout.size() == cblock.tensor().rank());
+//   Expects(clabel.size() == perm_invert(clayout).size());
+//   Expects(alabel.size() == perm_invert(alayout).size());
+//   auto cstore = perm_apply(clabel, perm_invert(clayout));
+//   auto astore = perm_apply(alabel, perm_invert(alayout));
 
-  auto store_perm = perm_compute(astore, cstore);
-  auto alpha = std::get<0>(rhs);
-  index_permute_acc(cblock.buf(), ablock.buf(), store_perm, cblock.block_dims(), alpha);
-}
+//   auto store_perm = perm_compute(astore, cstore);
+//   auto alpha = std::get<0>(rhs);
+//   index_permute_acc(cblock.buf(), ablock.buf(), store_perm, cblock.block_dims(), alpha);
+// }
 
-template<typename T>
-// C storage order: A[m,k], B[k,n], C[m,n]
-inline void
-matmul(int m, int n, int k, T *A, int lda, T *B, int ldb, T *C, int ldc, T alpha, T beta) {
-  Expects(m>0 && n>0 && k>0);
-  Expects(A!=nullptr && B!=nullptr && C!=nullptr);
+// template<typename T>
+// // C storage order: A[m,k], B[k,n], C[m,n]
+// inline void
+// matmul(int m, int n, int k, T *A, int lda, T *B, int ldb, T *C, int ldc, T alpha, T beta) {
+//   Expects(m>0 && n>0 && k>0);
+//   Expects(A!=nullptr && B!=nullptr && C!=nullptr);
   
-  for(int x=0; x<m; x++) {
-    for(int y=0; y<n; y++) {
-      T value = 0;
-      for(int z=0; z<k; z++) {
-        value += A[x*lda + z] * B[z*ldb + y];
-      }
-      C[x*ldc + y] = beta * C[x*ldc + y] + alpha * value;
-    }
-  }
-}
+//   for(int x=0; x<m; x++) {
+//     for(int y=0; y<n; y++) {
+//       T value = 0;
+//       for(int z=0; z<k; z++) {
+//         value += A[x*lda + z] * B[z*ldb + y];
+//       }
+//       C[x*ldc + y] = beta * C[x*ldc + y] + alpha * value;
+//     }
+//   }
+// }
 
-inline TensorPerm
-perm_compute(const LabeledBlock lblock_from, const TensorLabel& label_to) {
-  auto store = perm_apply(lblock_from.label_,
-                          perm_invert(lblock_from.block_->layout()));
-  return perm_compute(store, label_to);
-}
+// inline TensorPerm
+// perm_compute(const LabeledBlock lblock_from, const TensorLabel& label_to) {
+//   auto store = perm_apply(lblock_from.label_,
+//                           perm_invert(lblock_from.block_->layout()));
+//   return perm_compute(store, label_to);
+// }
 
-template<typename T>
-inline void
-operator += (LabeledBlock clb, std::tuple<T, LabeledBlock, LabeledBlock> rhs) {
-  const LabeledBlock& alb = std::get<1>(rhs);
-  const LabeledBlock& blb = std::get<2>(rhs);
+// template<typename T>
+// inline void
+// operator += (LabeledBlock clb, std::tuple<T, LabeledBlock, LabeledBlock> rhs) {
+//   const LabeledBlock& alb = std::get<1>(rhs);
+//   const LabeledBlock& blb = std::get<2>(rhs);
 
-  auto &ablock = *alb.block_;
-  auto &bblock = *blb.block_;
-  auto &cblock = *clb.block_;
+//   auto &ablock = *alb.block_;
+//   auto &bblock = *blb.block_;
+//   auto &cblock = *clb.block_;
 
-  auto &alabel = alb.label_;
-  auto &blabel = blb.label_;
-  auto &clabel = clb.label_;
+//   auto &alabel = alb.label_;
+//   auto &blabel = blb.label_;
+//   auto &clabel = clb.label_;
 
-  auto aext_labels = intersect(clabel, alabel);
-  auto bext_labels = intersect(clabel, blabel);
-  auto sum_labels = intersect(alabel, blabel);
+//   auto aext_labels = intersect(clabel, alabel);
+//   auto bext_labels = intersect(clabel, blabel);
+//   auto sum_labels = intersect(alabel, blabel);
 
-  auto alabel_sort = aext_labels;
-  alabel_sort.insert_back(sum_labels.begin(), sum_labels.end());
-  auto blabel_sort = sum_labels;
-  blabel_sort.insert_back(bext_labels.begin(), bext_labels.end());
-  auto clabel_sort = aext_labels;
-  clabel_sort.insert_back(bext_labels.begin(), bext_labels.end());
+//   auto alabel_sort = aext_labels;
+//   alabel_sort.insert_back(sum_labels.begin(), sum_labels.end());
+//   auto blabel_sort = sum_labels;
+//   blabel_sort.insert_back(bext_labels.begin(), bext_labels.end());
+//   auto clabel_sort = aext_labels;
+//   clabel_sort.insert_back(bext_labels.begin(), bext_labels.end());
 
-  //TTGT
-  //TT
-  auto abuf_sort = new T [ablock.size()];
-  auto bbuf_sort = new T [bblock.size()];
-  auto cbuf_sort = new T [cblock.size()];
+//   //TTGT
+//   //TT
+//   auto abuf_sort = new T [ablock.size()];
+//   auto bbuf_sort = new T [bblock.size()];
+//   auto cbuf_sort = new T [cblock.size()];
 
-  auto aperm = perm_compute(ablock(alabel), alabel_sort);
-  auto bperm = perm_compute(bblock(blabel), blabel_sort);
-  index_permute(reinterpret_cast<uint8_t*>(abuf_sort), ablock.buf(), aperm,
-                perm_apply(ablock.block_dims(), aperm), 1.0);
-  index_permute(reinterpret_cast<uint8_t*>(bbuf_sort), bblock.buf(), bperm,
-                perm_apply(bblock.block_dims(), bperm), 1.0);
+//   auto aperm = perm_compute(ablock(alabel), alabel_sort);
+//   auto bperm = perm_compute(bblock(blabel), blabel_sort);
+//   index_permute(reinterpret_cast<uint8_t*>(abuf_sort), ablock.buf(), aperm,
+//                 perm_apply(ablock.block_dims(), aperm), 1.0);
+//   index_permute(reinterpret_cast<uint8_t*>(bbuf_sort), bblock.buf(), bperm,
+//                 perm_apply(bblock.block_dims(), bperm), 1.0);
 
-  // G
-  auto alpha = std::get<0>(rhs);
-  auto lmap = LabelMap<BlockDim>()
-      .update(alabel, ablock.block_dims())
-      .update(blabel, bblock.block_dims());
-  auto aext_dims = lmap.get_blockid(aext_labels);
-  auto bext_dims = lmap.get_blockid(bext_labels);
-  auto sum_dims = lmap.get_blockid(sum_labels);
-  int m = std::accumulate(aext_dims.begin(), aext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
-  int n = std::accumulate(bext_dims.begin(), bext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
-  int k = std::accumulate(sum_dims.begin(), sum_dims.end(), BlockDim{1}, std::multiplies<>()).value();
-  matmul(m, n, k, abuf_sort, k,
-         bbuf_sort, n,
-         cbuf_sort, n, alpha, T(1.0));
-  auto cperm = perm_invert(perm_compute(cblock(clabel), clabel_sort));
-  //T
-  index_permute(cblock.buf(), reinterpret_cast<uint8_t*>(cbuf_sort),
-                cperm, cblock.block_dims(), 1.0);
-}
+//   // G
+//   auto alpha = std::get<0>(rhs);
+//   auto lmap = LabelMap<BlockDim>()
+//       .update(alabel, ablock.block_dims())
+//       .update(blabel, bblock.block_dims());
+//   auto aext_dims = lmap.get_blockid(aext_labels);
+//   auto bext_dims = lmap.get_blockid(bext_labels);
+//   auto sum_dims = lmap.get_blockid(sum_labels);
+//   int m = std::accumulate(aext_dims.begin(), aext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
+//   int n = std::accumulate(bext_dims.begin(), bext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
+//   int k = std::accumulate(sum_dims.begin(), sum_dims.end(), BlockDim{1}, std::multiplies<>()).value();
+//   matmul(m, n, k, abuf_sort, k,
+//          bbuf_sort, n,
+//          cbuf_sort, n, alpha, T(1.0));
+//   auto cperm = perm_invert(perm_compute(cblock(clabel), clabel_sort));
+//   //T
+//   index_permute(cblock.buf(), reinterpret_cast<uint8_t*>(cbuf_sort),
+//                 cperm, cblock.block_dims(), 1.0);
+// }
 
 
-template<typename Lambda>
-inline void
-tensor_map (LabeledTensor ltc, Lambda func) {
-  Tensor& tc = *ltc.tensor_;
-  auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
-  auto lambda = [&] (const TensorIndex& cblockid) {
-    size_t dimc = tc.block_size(cblockid);
-    if(tc.nonzero(cblockid) && dimc>0) {
-      auto cblock = tc.alloc(cblockid);
-      func(cblock);
-      tc.add(cblock);
-    }
-  };
-  parallel_work(citr, citr.get_end(), lambda);  
-}
+// template<typename Lambda>
+// inline void
+// tensor_map (LabeledTensor ltc, Lambda func) {
+//   Tensor& tc = *ltc.tensor_;
+//   auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
+//   auto lambda = [&] (const TensorIndex& cblockid) {
+//     size_t dimc = tc.block_size(cblockid);
+//     if(tc.nonzero(cblockid) && dimc>0) {
+//       auto cblock = tc.alloc(cblockid);
+//       func(cblock);
+//       tc.add(cblock);
+//     }
+//   };
+//   parallel_work(citr, citr.get_end(), lambda);  
+// }
 
-template<typename Lambda>
-inline void
-block_for (LabeledTensor ltc, Lambda func) {
-  Tensor& tc = *ltc.tensor_;
-  auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
-  auto lambda = [&] (const TensorIndex& cblockid) {
-    size_t dimc = tc.block_size(cblockid);
-    if(tc.nonzero(cblockid) && dimc>0) {
-      //auto cblock = tc.alloc(cblockid);
-      func(cblockid);
-      //    tc.add(cblock);
-    }
-  };
-  parallel_work(citr, citr.get_end(), lambda);
-}
+// template<typename Lambda>
+// inline void
+// block_for (LabeledTensor ltc, Lambda func) {
+//   Tensor& tc = *ltc.tensor_;
+//   auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
+//   auto lambda = [&] (const TensorIndex& cblockid) {
+//     size_t dimc = tc.block_size(cblockid);
+//     if(tc.nonzero(cblockid) && dimc>0) {
+//       //auto cblock = tc.alloc(cblockid);
+//       func(cblockid);
+//       //    tc.add(cblock);
+//     }
+//   };
+//   parallel_work(citr, citr.get_end(), lambda);
+// }
 
-template<typename Lambda>
-inline void
-tensor_map (LabeledTensor ltc, LabeledTensor lta, Lambda func) {
-  Tensor& tc = *ltc.tensor_;
-  Tensor& ta = *lta.tensor_;
-  auto citr = loop_iterator(tc.indices());
-  auto lambda = [&] (const TensorIndex& cblockid) {
-    size_t dimc = tc.block_size(cblockid);
-    if(tc.nonzero(cblockid) && dimc>0) {
-      auto cblock = tc.alloc(cblockid);
-      auto ablock = ta.alloc(cblockid);
-      func(cblock, ablock);
-      tc.add(cblock);
-    }
-  };
-  parallel_work(citr, citr.get_end(), lambda);
-}
+// template<typename Lambda>
+// inline void
+// tensor_map (LabeledTensor ltc, LabeledTensor lta, Lambda func) {
+//   Tensor& tc = *ltc.tensor_;
+//   Tensor& ta = *lta.tensor_;
+//   auto citr = loop_iterator(tc.indices());
+//   auto lambda = [&] (const TensorIndex& cblockid) {
+//     size_t dimc = tc.block_size(cblockid);
+//     if(tc.nonzero(cblockid) && dimc>0) {
+//       auto cblock = tc.alloc(cblockid);
+//       auto ablock = ta.alloc(cblockid);
+//       func(cblock, ablock);
+//       tc.add(cblock);
+//     }
+//   };
+//   parallel_work(citr, citr.get_end(), lambda);
+// }
 
 /**
  * validate
@@ -1474,13 +1476,13 @@ tensor_print(Tensor& tc, std::ostream &os) {
   }
 }
 
-template<typename T>
-inline void
-Tensor::init(T value) {
-  tensor_map(operator()(), [&] (Block &block) {
-      block().init(value);
-    });
-}
+// template<typename T>
+// inline void
+// Tensor::init(T value) {
+//   tensor_map(operator()(), [&] (Block &block) {
+//       block().init(value);
+//     });
+// }
 
 }  // namespace tammx
 

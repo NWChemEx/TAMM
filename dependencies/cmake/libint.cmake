@@ -14,7 +14,7 @@ endif()
 # Build LIBINT2
 if(BUILD)
     message("Building LibtInt")
-    #set(LIBINT_FLAGS ${CMAKE_CXX_FLAGS} -fPIC)
+    set(LIBINT_FLAGS ${CMAKE_CXX_FLAGS} -fPIC)
     include(ExternalProject)
     ExternalProject_Add(LIBINT
         PREFIX LIBINT
@@ -24,9 +24,9 @@ if(BUILD)
         #BINARY_DIR ${CMAKE_BINARY_DIR}/external/libint-build
         CONFIGURE_COMMAND ./configure
                 --prefix=${CMAKE_INSTALL_PREFIX}/libint2
-			    CXX=${CMAKE_CXX_COMPILER}
+		CXX=${CMAKE_CXX_COMPILER}
                 CC=${CMAKE_C_COMPILER}
-                #CXXFLAGS=${LIBINT_FLAGS}
+                CXXFLAGS=${LIBINT_FLAGS}
         BUILD_COMMAND make -j${TAMM_PROC_COUNT}
         INSTALL_COMMAND make install
         BUILD_IN_SOURCE 1

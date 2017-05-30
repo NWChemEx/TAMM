@@ -319,6 +319,54 @@ void noga_driver() {
   F.destruct();
 }
 
+void op_test() {
+  auto eltype = ElementType::double_precision;
+  auto distribution = Tensor::Distribution::tce_nwma;
+  TensorVec<SymmGroup> indices_oo{SymmGroup{DimType::o, DimType::o}};
+  TensorVec<SymmGroup> indices_o_o{SymmGroup{DimType::o}, SymmGroup{DimType::o}};
+  TensorVec<SymmGroup> indices_nn{SymmGroup{DimType::n}, SymmGroup{DimType::n}};
+
+  Tensor ta1{indices_o_o, eltype, distribution, 2, irrep_t, false};
+  Tensor ta2{indices_o_o, eltype, distribution, 2, irrep_t, false};
+
+  ta1.allocate();
+  ta2.allocate();
+
+  OpList()
+      (ta1(), [] (auto &ival) {
+        auto x = rand()%10;
+        std::cerr<<"ta1()., val="<<x<<std::endl;
+        //ival = rand()%10;
+        ival = x;
+      })
+      (ta2(), [] (auto &ival) { ival = 10 + (rand()%10); })
+      .execute();
+
+  tensor_print(ta1()); std::cout<<std::endl;
+
+  OpList()
+      (ta1() = ta2())
+      (ta1() += -1.0 * ta2())
+      .execute();
+  // OpList()
+  //     (ta1() = 0.0)
+  //     .execute();
+  // OpList()
+  //     (ta1(), [] (auto& ival) {
+  //       std::cerr<<"ta1(). resetting val="<<std::endl;
+  //       ival = 0.0;
+  //     })
+  //     .execute();
+
+  tensor_print(ta1()); std::cout<<std::endl;
+
+  
+  assert_zero(ta1);
+
+  ta1.destruct();
+  ta2.destruct();
+}
+
 
 int main() {
   TCE::init(spins, spatials, sizes,
@@ -333,8 +381,9 @@ int main() {
             irrep_x,
             irrep_y);
 
-  noga_driver();
-
+  //noga_driver();
+  op_test();
+  
   TCE::finalize();
   return 0;
 }

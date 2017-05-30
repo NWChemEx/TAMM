@@ -123,8 +123,8 @@ struct MapOp<Func, 0, 0> : public Op {
     Tensor& lhs_tensor = *lhs_.tensor_;
     auto lambda = [&] (const TensorIndex& blockid) {
       auto size = lhs_tensor.block_size(blockid);
-      auto offset = TCE::offset(blockid[0]);
       if(lhs_tensor.nonzero(blockid) && size > 0) {
+        std::cerr<<"MapOp. size="<<size<<std::endl;
         auto lblock = lhs_tensor.alloc(blockid);
         //lblock.init(0);
         type_dispatch(lhs_tensor.element_type(), [&](auto type) {
@@ -134,21 +134,29 @@ struct MapOp<Func, 0, 0> : public Op {
               func_(ltbuf[i]);
             }
           });
-        lhs_tensor.add(lblock);
+        if(mode_ == ResultMode::update) {
+          lhs_tensor.add(lblock);
+        } else if (mode_ == ResultMode::set) {
+          lhs_tensor.put(lblock);
+        } else {
+          assert(0);
+        }
       }
     };
     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
     parallel_work(itr_first, itr_first.get_end(), lambda);
   }
 
-  MapOp(const LabeledTensor& lhs, Func func)
+  MapOp(const LabeledTensor& lhs, Func func, ResultMode mode = ResultMode::set)
       : lhs_{lhs},
-        func_{func} {
+        func_{func},
+        mode_{mode} {
     Expects(lhs_.tensor_ != nullptr);
   }
   
   LabeledTensor lhs_;
   Func func_;
+  ResultMode mode_;
 };
 
 /**
@@ -174,21 +182,29 @@ struct MapOp<Func, 1, 0> : public Op {
               func_(offset + i, ltbuf[i]);
             }
           });
-        lhs_tensor.add(lblock);
+        if(mode_ == ResultMode::update) {
+          lhs_tensor.add(lblock);
+        } else if (mode_ == ResultMode::set) {
+          lhs_tensor.put(lblock);
+        } else {
+          assert(0);
+        }
+
       }
     };
     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
     parallel_work(itr_first, itr_first.get_end(), lambda);
   }
 
-  MapOp(const LabeledTensor& lhs, Func func) 
-      : lhs_{lhs}, func_{func} {
+  MapOp(const LabeledTensor& lhs, Func func, ResultMode mode = ResultMode::set) 
+      : lhs_{lhs}, func_{func}, mode_{mode} {
     Expects(lhs_.tensor_ != nullptr);
     Expects(lhs_.tensor_->rank() == 1);
   }
   
   LabeledTensor lhs_;
   Func func_;
+  ResultMode mode_;
 };
 
 template<typename Func>
@@ -215,21 +231,28 @@ struct MapOp<Func, 2, 0> : public Op {
               }
             }
           });
-        lhs_tensor.add(lblock);
+        if(mode_ == ResultMode::update) {
+          lhs_tensor.add(lblock);
+        } else if (mode_ == ResultMode::set) {
+          lhs_tensor.put(lblock);
+        } else {
+          assert(0);
+        }
       }
     };
     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
     parallel_work(itr_first, itr_first.get_end(), lambda);
   }
 
-  MapOp(const LabeledTensor& lhs, Func func) 
-      : lhs_{lhs}, func_{func} {
+  MapOp(const LabeledTensor& lhs, Func func, ResultMode mode = ResultMode::set) 
+      : lhs_{lhs}, func_{func}, mode_{mode} {
     Expects(lhs_.tensor_ != nullptr);
     Expects(lhs_.tensor_->rank() == 2);
   }
   
   LabeledTensor lhs_;
   Func func_;
+  ResultMode mode_;
 };
 
 template<typename Func>
@@ -259,17 +282,24 @@ struct MapOp<Func, 2, 1> : public Op {
               }
             }
           });
-        lhs_tensor.add(lblock);
+        if(mode_ == ResultMode::update) {
+          lhs_tensor.add(lblock);
+        } else if (mode_ == ResultMode::set) {
+          lhs_tensor.put(lblock);
+        } else {
+          assert(0);
+        }        
       }
     };
     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
     parallel_work(itr_first, itr_first.get_end(), lambda);
   }
 
-  MapOp(const LabeledTensor& lhs, LabeledTensor& rhs1, Func func) 
+  MapOp(const LabeledTensor& lhs, LabeledTensor& rhs1, Func func, ResultMode mode = ResultMode::set) 
       : lhs_{lhs},
         rhs1_{rhs1},
-        func_{func} {
+        func_{func},
+        mode_{mode} {
     Expects(lhs_.tensor_ != nullptr);
     Expects(lhs_.tensor_->rank() == 2);
   }
@@ -277,6 +307,7 @@ struct MapOp<Func, 2, 1> : public Op {
   LabeledTensor lhs_;
   LabeledTensor rhs1_;
   Func func_;
+  ResultMode mode_;
 };
 
 template<typename Func>
@@ -309,18 +340,26 @@ struct MapOp<Func, 2, 2> : public Op {
               }
             }
           });
-        lhs_tensor.add(lblock);
+        if(mode_ == ResultMode::update) {
+          lhs_tensor.add(lblock);
+        } else if (mode_ == ResultMode::set) {
+          lhs_tensor.put(lblock);
+        } else {
+          assert(0);
+        }
       }
     };
     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
     parallel_work(itr_first, itr_first.get_end(), lambda);
   }
 
-  MapOp(const LabeledTensor& lhs, LabeledTensor& rhs1, LabeledTensor& rhs2, Func func) 
+  MapOp(const LabeledTensor& lhs, LabeledTensor& rhs1, LabeledTensor& rhs2, Func func,
+        ResultMode mode = ResultMode::set) 
       : lhs_{lhs},
         rhs1_{rhs1},
         rhs2_{rhs2},
-        func_{func} {
+        func_{func},
+        mode_{mode}{
     Expects(lhs_.tensor_ != nullptr);
     Expects(lhs_.tensor_->rank() == 2);
   }
@@ -328,6 +367,7 @@ struct MapOp<Func, 2, 2> : public Op {
   LabeledTensor lhs_;
   LabeledTensor rhs1_, rhs2_;
   Func func_;
+  ResultMode mode_;
 };
 
 
@@ -353,17 +393,24 @@ struct MapOp<Func, 1, 1> : public Op {
               func_(i+offset, ltbuf[i], rtbuf[i]);
             }
           });
-        lhs_tensor.add(lblock);
+        if(mode_ == ResultMode::update) {
+          lhs_tensor.add(lblock);
+        } else if (mode_ == ResultMode::set) {
+          lhs_tensor.put(lblock);
+        } else {
+          assert(0);
+        }
       }
     };
     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
     parallel_work(itr_first, itr_first.get_end(), lambda);
   }
 
-  MapOp(const LabeledTensor& lhs, const LabeledTensor& rhs, Func func)
+  MapOp(const LabeledTensor& lhs, const LabeledTensor& rhs, Func func, ResultMode mode = ResultMode::set)
       : lhs_{lhs},
         rhs_{rhs},
-        func_{func} {
+        func_{func},
+        mode_{mode} {
     Expects(lhs_.tensor_ != nullptr);
     Expects(lhs_.tensor_->rank() == 1);
     Expects(rhs_.tensor_ != nullptr);
@@ -372,6 +419,7 @@ struct MapOp<Func, 1, 1> : public Op {
   
   LabeledTensor lhs_, rhs_;
   Func func_;
+  ResultMode mode_;
 };
 
 /////////////////////////////////////////////////////////////////////
@@ -388,12 +436,15 @@ struct ScanOp : public Op {
 template<typename Func>
 struct ScanOp<Func,0> : public Op {
   void execute() {
-    std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
+    std::cerr<<__FUNCTION__<<":"<<__LINE__<<": ScanOp\n";
     Tensor& tensor = *ltensor_.tensor_;
     auto lambda = [&] (const TensorIndex& blockid) {
-      auto size = tensor.block_size(blockid);
+      auto size = tensor.block_size(blockid);      
       if(tensor.nonzero(blockid) && size > 0) {
         auto block = tensor.get(blockid);
+        std::cerr<<"blockid = "<<blockid<<std::endl;
+        std::cerr<<"size = "<<size<<std::endl;
+        std::cerr<<"block[0] = "<<reinterpret_cast<double*>(block.buf())[0]<<std::endl;
         type_dispatch(tensor.element_type(), [&](auto type) {
             using dtype = decltype(type);
             auto tbuf = reinterpret_cast<dtype*>(block.buf());
@@ -526,8 +577,8 @@ struct OpList : public std::vector<Op*> {
   }
 
   template<unsigned ndim=0, unsigned nrhs=0, typename Func>
-  OpList& op(LabeledTensor lhs, Func func) {
-    push_back(new MapOp<Func,ndim,nrhs>(lhs, func));
+  OpList& op(LabeledTensor lhs, Func func, ResultMode mode = ResultMode::set) {
+    push_back(new MapOp<Func,ndim,nrhs>(lhs, func, mode));
     return *this;
   }
 
@@ -538,14 +589,14 @@ struct OpList : public std::vector<Op*> {
   }
 
   template<unsigned ndim, unsigned nrhs, typename Func>
-  OpList& op(LabeledTensor lhs, LabeledTensor rhs, Func func) {
-    push_back(new MapOp<Func,ndim,nrhs>(lhs, rhs, func));
+  OpList& op(LabeledTensor lhs, LabeledTensor rhs, Func func, ResultMode mode = ResultMode::set) {
+    push_back(new MapOp<Func,ndim,nrhs>(lhs, rhs, func, mode));
     return *this;
   }
 
   template<unsigned ndim, unsigned nrhs, typename Func>
-  OpList& op(LabeledTensor lhs, LabeledTensor rhs1, LabeledTensor rhs2, Func func) {
-    push_back(new MapOp<Func,ndim,nrhs>(lhs, rhs1, rhs2, func));
+  OpList& op(LabeledTensor lhs, LabeledTensor rhs1, LabeledTensor rhs2, Func func, ResultMode mode = ResultMode::set) {
+    push_back(new MapOp<Func,ndim,nrhs>(lhs, rhs1, rhs2, func, mode));
     return *this;
   }
 
@@ -568,8 +619,8 @@ struct OpList : public std::vector<Op*> {
   }
 
   template<typename Func>
-  OpList& operator()(LabeledTensor lhs, Func func) {
-    push_back(new MapOp<Func,0,0>(lhs, func));
+  OpList& operator()(LabeledTensor lhs, Func func, ResultMode mode = ResultMode::set) {
+    push_back(new MapOp<Func,0,0>(lhs, func, mode));
     return *this;
   }
 
@@ -586,11 +637,21 @@ struct OpList : public std::vector<Op*> {
 
 inline void
 assert_zero(Tensor& tc, double threshold = 1.0e-12) {
-  auto lambda = [&] (auto &val) { Expects(std::abs(val) < threshold); };
+  auto lambda = [&] (auto &val) {
+    std::cout<<"assert_zero. val="<<val<<std::endl;
+    Expects(std::abs(val) < threshold);
+  };
   auto op = ScanOp<decltype(lambda),0>(tc(), lambda);
   op.execute();
 }
 
+inline void
+tensor_print(LabeledTensor ltensor) {
+  OpList().sop<0>(ltensor, [](auto &ival) {
+      std::cout<<ival<<" ";
+    })
+      .execute();    
+}
 
 ///////////////////////////////////////////////////////////////////////
 // implementation of operators
@@ -848,7 +909,8 @@ copy_iterator(const TensorVec<CopySymmetrizer>& sitv) {
 template<typename T>
 inline void
 SetOp<T>::execute() {
-  OpList().op<0,0>(lhs, [=](auto &ival) { ival = value; }).execute();
+  std::cerr<<"Calling setop :: execute"<<std::endl;
+  OpList().op<0,0>(lhs, [=](auto &ival) { ival = value; }, ResultMode::set).execute();
 }
 
 template<typename T>

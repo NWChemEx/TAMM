@@ -18,6 +18,27 @@ Tensor::operator () () {
   return operator ()(label);
 }
 
+LabeledTensor
+Tensor::operator () (IndexLabel ilbl0) {
+  return operator () (TensorLabel{ilbl0});
+}
+
+LabeledTensor
+Tensor::operator () (IndexLabel ilbl0, IndexLabel ilbl1) {
+  return operator () (TensorLabel{ilbl0, ilbl1});
+}
+
+LabeledTensor
+Tensor::operator () (IndexLabel ilbl0, IndexLabel ilbl1, IndexLabel ilbl2) {
+  return operator () (TensorLabel{ilbl0, ilbl1, ilbl2});
+}
+  
+LabeledTensor
+Tensor::operator () (IndexLabel ilbl0, IndexLabel ilbl1, IndexLabel ilbl2, IndexLabel ilbl3) {
+  return operator () (TensorLabel{ilbl0, ilbl1, ilbl2, ilbl3});
+}
+
+
 void
 Tensor::allocate() {
   if (distribution_ == Distribution::tce_nwma || distribution_ == Distribution::tce_nw) {

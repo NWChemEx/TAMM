@@ -629,6 +629,11 @@ struct OpList : public std::vector<Op*> {
       ptr_op->execute();
     }
   }
+
+  template<typename ...T>
+  static void execute(T... args) {
+    OpList()(args...).execute();
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -638,10 +643,20 @@ struct OpList : public std::vector<Op*> {
 inline void
 assert_zero(Tensor& tc, double threshold = 1.0e-12) {
   auto lambda = [&] (auto &val) {
-    std::cout<<"assert_zero. val="<<val<<std::endl;
+    //    std::cout<<"assert_zero. val="<<val<<std::endl;
     Expects(std::abs(val) < threshold);
   };
   auto op = ScanOp<decltype(lambda),0>(tc(), lambda);
+  op.execute();
+}
+
+template<typename T>
+inline void
+assert_equal(LabeledTensor tc, T value, double threshold = 1.0e-12) {
+  auto lambda = [&] (auto &val) {
+    Expects(std::abs(val - value) < threshold);
+  };
+  auto op = ScanOp<decltype(lambda),0>(tc, lambda);
   op.execute();
 }
 

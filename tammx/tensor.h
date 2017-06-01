@@ -262,6 +262,7 @@ class Tensor {
       auto ptr = std::lower_bound(&tce_hash_[1], &tce_hash_[length + 1], key);
       Expects (!(ptr == &tce_hash_[length + 1] || key < *ptr));
       auto offset = *(ptr + length);
+      std::cerr<<"Tensor::add. offset="<<offset<<std::endl;
       type_dispatch(element_type_, [&] (auto type) {
           using dtype = decltype(type);
           auto* sbuf = reinterpret_cast<dtype*>(block.buf());
@@ -303,6 +304,7 @@ class Tensor {
       auto ptr = std::lower_bound(&tce_hash_[1], &tce_hash_[length + 1], key);
       Expects (!(ptr == &tce_hash_[length + 1] || key < *ptr));
       auto offset = *(ptr + length);
+      std::cerr<<"Tensor::add. offset="<<offset<<std::endl;
       type_dispatch(element_type_, [&] (auto type) {
           using dtype = decltype(type);
           auto* sbuf = reinterpret_cast<dtype*>(block.buf());
@@ -383,8 +385,16 @@ class Tensor {
   // }
 
   LabeledTensor operator () ();
-  
 
+  LabeledTensor operator () (IndexLabel ilbl0);
+
+  LabeledTensor operator () (IndexLabel ilbl0, IndexLabel ilbl1);
+
+  LabeledTensor operator () (IndexLabel ilbl0, IndexLabel ilbl1, IndexLabel ilbl2);
+  
+  LabeledTensor operator () (IndexLabel ilbl0, IndexLabel ilbl1, IndexLabel ilbl2, IndexLabel ilbl3);
+
+  
  private:
 
   bool spin_nonzero(const TensorIndex& blockid) const {

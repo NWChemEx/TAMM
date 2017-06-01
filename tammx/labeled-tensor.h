@@ -107,6 +107,7 @@ template<typename T,
 inline SetOpEntry<T>
 LabeledTensor::operator = (T value) {
   //setop_validate(*this, value);
+  std::cerr<<"Constructing setop. value="<<value<<std::endl;
   return {*this, value};
 }
 

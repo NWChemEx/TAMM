@@ -18,7 +18,6 @@
  *
  */
 
-//#define _GLIBCXX_USE_CXX11_ABI 0
 // standard C++ headers
 #include <cmath>
 #include <iostream>
@@ -36,10 +35,15 @@
 #include <libint2.hpp>
 #include <libint2/basis.h>
 
-typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>
-        Matrix;  // import dense, dynamically sized Matrix type from Eigen;
-                 // this is a matrix with row-major storage (http://en.wikipedia.org/wiki/Row-major_order)
-                 // to meet the layout of the integrals returned by the Libint integral library
+using std::string;
+using std::cout;
+using std::cerr;
+using std::endl;
+
+using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+          // import dense, dynamically sized Matrix type from Eigen;
+         // this is a matrix with row-major storage (http://en.wikipedia.org/wiki/Row-major_order)
+         // to meet the layout of the integrals returned by the Libint integral library
 
 size_t nbasis(const std::vector<libint2::Shell>& shells);
 std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell>& shells);
@@ -55,25 +59,33 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
 Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
                                  const Matrix& D);
 
-int main(int argc, char *argv[]) {
+Matrix get_integrals(const string filename);
 
-  using std::cout;
-  using std::cerr;
-  using std::endl;
+int main(int argc, char* argv[]) {
+    const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
+    auto C = get_integrals(filename);
+    cout << "\n\t Final C Matrix:\n";
+    cout << C << endl;
+    std::vector<double> rawC(C.rows()*C.cols());
+    cout << "----------------\n";
+    Eigen::Map<Matrix>(rawC.data(),C.rows(),C.cols()) = C;
+    // for (const auto& x : rawC)
+    //   cout << x << " ";
+    // cout << "\n";
+}
+
+Matrix get_integrals(const string filename) {
 
   using libint2::Atom;
   using libint2::Shell;
   using libint2::Engine;
   using libint2::Operator;
 
-  try {
-
     /*** =========================== ***/
     /*** initialize molecule         ***/
     /*** =========================== ***/
 
     // read geometry from a file; by default read from h2o.xyz, else take filename (.xyz) from the command line
-    const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
     auto is = std::ifstream(filename);
     const std::vector<Atom> atoms = libint2::read_dotxyz(is);
 
@@ -178,6 +190,8 @@ int main(int argc, char *argv[]) {
     auto rmsd = 0.0;
     auto ediff = 0.0;
     auto ehf = 0.0;
+    Matrix C;
+
     do {
       const auto tstart = std::chrono::high_resolution_clock::now();
       ++iter;
@@ -199,8 +213,9 @@ int main(int argc, char *argv[]) {
       // solve F C = e S C
       Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);
       auto eps = gen_eig_solver.eigenvalues();
-      auto C = gen_eig_solver.eigenvectors();
-
+      C = gen_eig_solver.eigenvectors();
+      auto C1 = gen_eig_solver.eigenvectors();
+      
       // compute density, D = C(occ) . C(occ)T
       auto C_occ = C.leftCols(ndocc);
       D = C_occ * C_occ.transpose();
@@ -217,39 +232,20 @@ int main(int argc, char *argv[]) {
 
       const auto tstop = std::chrono::high_resolution_clock::now();
       const std::chrono::duration<double> time_elapsed = tstop - tstart;
-
-      if (iter == 1)
-        std::cout <<
-        "\n\n Iter        E(elec)              E(tot)               Delta(E)             RMS(D)         Time(s)\n";
-      printf(" %02d %20.12f %20.12f %20.12f %20.12f %10.5lf\n", iter, ehf, ehf + enuc,
-             ediff, rmsd, time_elapsed.count());
+      
+      // if (iter == 1)
+      //   std::cout <<
+      //   "\n\n Iter        E(elec)              E(tot)               Delta(E)             RMS(D)         Time(s)\n";
+      // printf(" %02d %20.12f %20.12f %20.12f %20.12f %10.5lf\n", iter, ehf, ehf + enuc,
+      //        ediff, rmsd, time_elapsed.count());
 
     } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)) && (iter < maxiter));
 
-    printf("** Hartree-Fock energy = %20.12f\n", ehf + enuc);
+    printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
 
     libint2::finalize(); // done with libint
 
-  } // end of try block; if any exceptions occurred, report them and exit cleanly
-
-  catch (const char* ex) {
-    cerr << "caught exception: " << ex << endl;
-    return 1;
-  }
-  catch (std::string& ex) {
-    cerr << "caught exception: " << ex << endl;
-    return 1;
-  }
-  catch (std::exception& ex) {
-    cerr << ex.what() << endl;
-    return 1;
-  }
-  catch (...) {
-    cerr << "caught unknown exception\n";
-    return 1;
-  }
-
-  return 0;
+    return C;
 }
 
 size_t nbasis(const std::vector<libint2::Shell>& shells) {

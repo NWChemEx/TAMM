@@ -5,8 +5,8 @@ if(EXISTS ${CMAKE_INSTALL_PREFIX}/ga/lib/libga.a)
     set (GA_ROOT_DIR ${CMAKE_INSTALL_PREFIX}/ga)
     add_custom_target(GLOBALARRAYS ALL)
 else()
-    message("Building Global Arrays 5.6")
-    set(GA_VERSION ga-5-6)    
+    message("Building Global Arrays 5.6.1")
+    set(GA_VERSION ga-5.6.1)
     # Set GA install path .
     set (GA_ROOT_DIR ${CMAKE_INSTALL_PREFIX}/ga)
 

@@ -26,6 +26,8 @@
 #include <iomanip>
 #include <vector>
 #include <chrono>
+#include <tuple>
+#include <functional>
 
 // Eigen matrix algebra library
 #include <Eigen/Dense>
@@ -59,22 +61,66 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
 Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
                                  const Matrix& D);
 
-Matrix get_integrals(const string filename);
+std::tuple<Matrix,Matrix,double,long> get_integrals(const string filename);
 
 int main(int argc, char* argv[]) {
     const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
-    auto C = get_integrals(filename);
-    cout << "\n\t Final C Matrix:\n";
+    Matrix C;
+    Matrix F;
+    double hf_energy{0.0};
+    long num_electrons{0};
+    std::tie(F,C,hf_energy,num_electrons) = get_integrals(filename);
+
+    cout << "\n\n** Number of electrons: " << num_electrons << endl;
+
+    cout << "\n\t C Matrix:\n";
     cout << C << endl;
-    std::vector<double> rawC(C.rows()*C.cols());
-    cout << "----------------\n";
-    Eigen::Map<Matrix>(rawC.data(),C.rows(),C.cols()) = C;
+
+    cout << "\n\t F_AO Matrix:\n";
+    cout << F << endl;
+
+    //Vertically replicate
+    Matrix C_2N(C.rows(),2*C.cols());
+    C_2N << C, C;
+    //cout << "\n\t C_2N Matrix:\n";
+    //cout << C_2N << endl;
+
+    //horizontally transpose and replicate
+    cout << "\n\t CT Matrix:\n";
+    Matrix CT = C.transpose();
+    cout << CT << endl;
+    Matrix CT_2N(2*CT.rows(),CT.cols());
+    CT_2N << CT, CT;
+
+    Matrix CTiled_occupied = C_2N.block<7,5>(0,0);
+    cout << "\n\t CTiled_occupied Matrix:\n";
+    cout << CTiled_occupied << endl;
+
+    Matrix CTiled_virtual = C_2N.block<7,2>(0,5);
+    cout << "\n\t CTiled_virtual Matrix:\n";
+    cout << CTiled_virtual << endl;
+
+    Matrix CFinal(C.rows(),2*C.cols());
+    CFinal << CTiled_occupied, CTiled_occupied, CTiled_virtual, CTiled_virtual;
+
+    cout << "\n\t CFinal Matrix:\n";
+    cout << CFinal << endl;
+
+    F = CFinal.transpose() * (F * CFinal);
+
+    cout << "\n\t F_2N_pq Matrix:\n";
+    cout << F << endl;
+    //F = CTiled_tranpose * F * CTiled
+    
+    // std::vector<double> rawC(C.rows()*C.cols());
+    // cout << "----------------\n";
+    // Eigen::Map<Matrix>(rawC.data(),C.rows(),C.cols()) = C;
     // for (const auto& x : rawC)
     //   cout << x << " ";
     // cout << "\n";
 }
 
-Matrix get_integrals(const string filename) {
+std::tuple<Matrix,Matrix,double,long> get_integrals(const string filename) {
 
   using libint2::Atom;
   using libint2::Shell;
@@ -191,6 +237,8 @@ Matrix get_integrals(const string filename) {
     auto ediff = 0.0;
     auto ehf = 0.0;
     Matrix C;
+    Matrix F;
+    Matrix eps;
 
     do {
       const auto tstart = std::chrono::high_resolution_clock::now();
@@ -201,9 +249,10 @@ Matrix get_integrals(const string filename) {
       auto D_last = D;
 
       // build a new Fock matrix
-      auto F = H;
+      //auto F = H;
       //F += compute_2body_fock_simple(shells, D);
-      F += compute_2body_fock(shells, D);
+      F = H;
+      F += compute_2body_fock_simple(shells, D);
 
       if (iter == 1) {
         cout << "\n\tFock Matrix:\n";
@@ -212,9 +261,10 @@ Matrix get_integrals(const string filename) {
 
       // solve F C = e S C
       Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);
-      auto eps = gen_eig_solver.eigenvalues();
+      //auto
+      eps = gen_eig_solver.eigenvalues();
       C = gen_eig_solver.eigenvectors();
-      auto C1 = gen_eig_solver.eigenvectors();
+      //auto C1 = gen_eig_solver.eigenvectors();
       
       // compute density, D = C(occ) . C(occ)T
       auto C_occ = C.leftCols(ndocc);
@@ -245,7 +295,10 @@ Matrix get_integrals(const string filename) {
 
     libint2::finalize(); // done with libint
 
-    return C;
+    cout << "\n** Eigen Values:\n";
+    cout << eps << endl;
+
+    return std::make_tuple(F,C,(ehf+enuc),ndocc);
 }
 
 size_t nbasis(const std::vector<libint2::Shell>& shells) {
@@ -401,7 +454,7 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
 
     auto bf1_first = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();
-
+    
     for(auto s2=0; s2!=shells.size(); ++s2) {
 
       auto bf2_first = shell2bf[s2];

@@ -61,7 +61,7 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
 Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
                                  const Matrix& D);
 
-std::tuple<Matrix,Matrix,double,long> get_integrals(const string filename);
+std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename);
 
 int main(int argc, char* argv[]) {
     const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
     Matrix F;
     double hf_energy{0.0};
     long num_electrons{0};
-    std::tie(F,C,hf_energy,num_electrons) = get_integrals(filename);
+    std::tie(F,C,hf_energy,num_electrons) = get_fock_mo(filename);
 
     cout << "\n\n** Number of electrons: " << num_electrons << endl;
 
@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
     // cout << "\n";
 }
 
-std::tuple<Matrix,Matrix,double,long> get_integrals(const string filename) {
+std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename) {
 
   using libint2::Atom;
   using libint2::Shell;

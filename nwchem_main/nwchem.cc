@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
     Matrix C;
     Matrix F;
     double hf_energy{0.0};
-    long num_electrons{0};
+    int num_electrons{0};
     std::tie(F,C,hf_energy,num_electrons) = get_fock_mo(filename);
 
     cout << "\n\n** Number of electrons: " << num_electrons << endl;
@@ -79,45 +79,48 @@ int main(int argc, char* argv[]) {
     cout << "\n\t F_AO Matrix:\n";
     cout << F << endl;
 
-    //Vertically replicate
-    Matrix C_2N(C.rows(),2*C.cols());
+    const int C_rows = C.rows();
+    const int C_cols = C.cols();
+
+    // replicate horizontally
+    Matrix C_2N(C_rows,2*C_cols);
     C_2N << C, C;
     //cout << "\n\t C_2N Matrix:\n";
     //cout << C_2N << endl;
 
-    //horizontally transpose and replicate
-    cout << "\n\t CT Matrix:\n";
-    Matrix CT = C.transpose();
-    cout << CT << endl;
-    Matrix CT_2N(2*CT.rows(),CT.cols());
-    CT_2N << CT, CT;
+    const int b_rows = 7, nelectrons = 5;
+    Matrix C_noa = C_2N.block<b_rows,nelectrons>(0,0);
+    cout << "\n\t C occupied alpha:\n";
+    cout << C_noa << endl;
 
-    Matrix CTiled_occupied = C_2N.block<7,5>(0,0);
-    cout << "\n\t CTiled_occupied Matrix:\n";
-    cout << CTiled_occupied << endl;
+    Matrix C_nva = C_2N.block<b_rows,b_rows-nelectrons>(0,num_electrons);
+    cout << "\n\t C virtual alpha:\n";
+    cout << C_nva << endl;
 
-    Matrix CTiled_virtual = C_2N.block<7,2>(0,5);
-    cout << "\n\t CTiled_virtual Matrix:\n";
-    cout << CTiled_virtual << endl;
+    Matrix C_nob = C_2N.block<b_rows,nelectrons>(0,C_cols);
+    cout << "\n\t C occupied beta:\n";
+    cout << C_nob << endl;
 
-    Matrix CFinal(C.rows(),2*C.cols());
-    CFinal << CTiled_occupied, CTiled_occupied, CTiled_virtual, CTiled_virtual;
+    Matrix C_nvb = C_2N.block<b_rows,b_rows-nelectrons>(0,num_electrons+C_cols);
+    cout << "\n\t C virtual beta:\n";
+    cout << C_nvb << endl;
 
-    cout << "\n\t CFinal Matrix:\n";
-    cout << CFinal << endl;
+    // For now C_noa = C_nob and C_nva = C_nvb
+    Matrix CTiled(C_rows, 2*C_cols);
+    CTiled << C_noa, C_nob, C_nva, C_nvb;
 
-    F = CFinal.transpose() * (F * CFinal);
+    cout << "\n\t CTiled Matrix = [C_noa C_nob C_nva C_nvb]:\n";
+    cout << CTiled << endl;
 
-    cout << "\n\t F_2N_pq Matrix:\n";
+    F = CTiled.transpose() * (F * CTiled);
+
+    cout << "\n\t F_MO Matrix:\n";
     cout << F << endl;
-    //F = CTiled_tranpose * F * CTiled
     
     // std::vector<double> rawC(C.rows()*C.cols());
     // cout << "----------------\n";
     // Eigen::Map<Matrix>(rawC.data(),C.rows(),C.cols()) = C;
-    // for (const auto& x : rawC)
-    //   cout << x << " ";
-    // cout << "\n";
+
 }
 
 std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename) {

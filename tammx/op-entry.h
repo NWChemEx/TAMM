@@ -1,7 +1,10 @@
 #ifndef TAMMX_OPENTRY_H_
 #define TAMMX_OPENTRY_H_
 
+//#include "tammx/labeled-tensor.h"
+
 namespace tammx {
+
 template<typename T>
 struct SetOpEntry {
   LabeledTensor lhs;

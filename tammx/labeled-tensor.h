@@ -3,166 +3,178 @@
 
 #include <type_traits>
 
-//#include "tammx/op-entry.h"
 #include "tammx/types.h"
 #include "tammx/tensor.h"
 
 namespace tammx {
 
+template<typename T>
 class Tensor;
 
-template<typename T>
+template<typename LabeledTensorType, typename T2>
 struct SetOpEntry;
 
-template<typename T>
+template<typename LabeledTensorType, typename T2>
 struct AddOpEntry;
 
-template<typename T>
+template<typename LabeledTensorType, typename T>
 struct MultOpEntry;
-
-struct LabeledTensor {
-  Tensor* tensor_;
-  TensorLabel label_;
-
-  /**
-   * @todo Implemet setop validate
-   */
-  template<typename T,
-           typename = std::enable_if_t<std::is_arithmetic<T>::value>>
-  SetOpEntry<T> operator = (T value);
-
-  AddOpEntry<int> operator = (LabeledTensor rhs);
-
-  template<typename T>
-  AddOpEntry<T> operator = (std::tuple<T, LabeledTensor> rhs);
-
-  template<typename T>
-  MultOpEntry<T> operator = (std::tuple<T, LabeledTensor, LabeledTensor> rhs);
-
-  MultOpEntry<int> operator = (std::tuple<LabeledTensor, LabeledTensor> rhs);
-
-  AddOpEntry<int> operator += (LabeledTensor rhs);
-
-  template<typename T>
-  AddOpEntry<T> operator += (std::tuple<T, LabeledTensor> rhs);
-
-  template<typename T>
-  MultOpEntry<T> operator += (std::tuple<T, LabeledTensor, LabeledTensor> rhs);
-
-  MultOpEntry<int> operator += (std::tuple<LabeledTensor, LabeledTensor> rhs);
-};  // LabeledTensor
-
-//#include "tammx/op-entry.h"
 
 enum class ResultMode { update, set };
 
-template<typename T>
+template<typename LabeledTensorType, typename T>
 struct SetOpEntry {
-  LabeledTensor lhs;
+  LabeledTensorType lhs;
   T value;
+  ResultMode mode;
 };
 
-template<typename T>
+template<typename LabeledTensorType, typename T>
 struct AddOpEntry {
-  LabeledTensor lhs;
+  LabeledTensorType lhs;
   T alpha;
-  LabeledTensor rhs;
+  LabeledTensorType rhs;
   ResultMode mode;
 };
 
-template<typename T>
+template<typename LabeledTensorType, typename T>
 struct MultOpEntry {
-  LabeledTensor lhs;
+  LabeledTensorType lhs;
   T alpha;
-  LabeledTensor rhs1, rhs2;
+  LabeledTensorType rhs1, rhs2;
   ResultMode mode;
 };
 
-template<typename Func, unsigned ndim, unsigned nrhs>
+template<typename Func, typename LabeledTensorType, unsigned ndim, unsigned nrhs>
 struct MapOpEntry {
-  LabeledTensor lhs;
-  std::vector<LabeledTensor> rhss;
+  LabeledTensorType lhs;
+  std::vector<LabeledTensorType> rhss;
   Func func;
 };
 
-/**
- * @todo Should validation be done in *OpEnty constructors?
- */
+template<typename TensorType>
+struct AllocOpEntry {
+  TensorType *tensor;
+};
+
+template<typename TensorType>
+struct DeallocOpEntry {
+  TensorType *tensor;
+};
 
 template<typename T>
-void
-addop_validate(const LabeledTensor& ltc,
-               const std::tuple<T, LabeledTensor>& rhs);
+struct LabeledTensor {
+  using element_type = T;
+  Tensor<T>* tensor_;
+  TensorLabel label_;
 
-template<typename T>
-void
-multop_validate(const LabeledTensor& ltc,
-                const std::tuple<T, LabeledTensor, LabeledTensor>& rhs);
+  template<typename T1,
+           typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+  SetOpEntry<LabeledTensor<T>, T1> operator = (T1 value) {
+    std::cerr<<"Constructing setop. value="<<value<<std::endl;
+    return {*this, value, ResultMode::set};
+  }
 
-/**
- * @todo Implement setop validate
- */
-template<typename T,
-         typename = std::enable_if_t<std::is_arithmetic<T>::value>>
-inline SetOpEntry<T>
-LabeledTensor::operator = (T value) {
-  //setop_validate(*this, value);
-  std::cerr<<"Constructing setop. value="<<value<<std::endl;
-  return {*this, value};
+  AddOpEntry<LabeledTensor<T>, int> operator = (LabeledTensor<T> rhs) {
+    addop_validate(*this, std::make_tuple(1, rhs));
+    return {*this, 1, rhs, ResultMode::set};
+  }
+
+  template<typename T1,
+           typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+  AddOpEntry<LabeledTensor<T>, T1> operator = (std::tuple<T1, LabeledTensor<T>> rhs) {
+    addop_validate(*this, rhs);
+    return {*this, std::get<0>(rhs), std::get<1>(rhs), ResultMode::set};
+  }
+
+  template<typename T1,
+           typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+  MultOpEntry<LabeledTensor<T>, T1> operator = (std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>> rhs) {
+    multop_validate(*this, rhs);
+    return {*this, std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), ResultMode::set};
+  }
+
+  MultOpEntry<LabeledTensor<T>, int> operator = (std::tuple<LabeledTensor<T>, LabeledTensor<T>> rhs) {
+    multop_validate(*this, std::make_tuple(1, std::get<0>(rhs), std::get<1>(rhs)));
+    return {*this, 1, std::get<0>(rhs), std::get<1>(rhs), ResultMode::set};
+  }
+
+  template<typename T1,
+           typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+  SetOpEntry<LabeledTensor<T>, T1> operator += (T1 value) {
+    std::cerr<<"Constructing setop. value="<<value<<std::endl;
+    return {*this, value, ResultMode::update};
+  }
+
+  AddOpEntry<LabeledTensor<T>, int> operator += (LabeledTensor<T> rhs) {
+    addop_validate(*this, std::make_tuple(1, rhs));
+    return {*this, 1, rhs, ResultMode::update};
+  }
+
+  template<typename T1,
+           typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+  AddOpEntry<LabeledTensor<T>, T1> operator += (std::tuple<T1, LabeledTensor<T>> rhs) {
+    addop_validate(*this, std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)));
+    return {*this, std::get<0>(rhs), std::get<1>(rhs), ResultMode::update};
+  }
+
+  template<typename T1,
+           typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+  MultOpEntry<LabeledTensor<T>, T1> operator += (std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>> rhs) {
+    multop_validate(*this, rhs);
+    return {*this, std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), ResultMode::update};
+  }
+
+
+  MultOpEntry<LabeledTensor<T>, int> operator += (std::tuple<LabeledTensor<T>, LabeledTensor<T>> rhs) {
+    multop_validate(*this, std::make_tuple(1, std::get<0>(rhs), std::get<1>(rhs)));
+    return {*this, 1, std::get<0>(rhs), std::get<1>(rhs), ResultMode::update};
+  }
+};  // LabeledTensor
+
+template<typename T1,
+         typename T2>
+inline std::tuple<T1, LabeledTensor<T2>>
+operator * (T1 alpha, LabeledTensor<T2> tensor) {
+  static_assert(std::is_arithmetic<T1>::value,
+                "Multiplying tensor with a non-arithmetic scalar is invalid.");
+  return {alpha, tensor};
 }
 
-inline AddOpEntry<int>
-LabeledTensor::operator = (LabeledTensor rhs) {
-  addop_validate(*this, std::make_tuple(1, rhs));
-  return {*this, 1, rhs, ResultMode::set};
+template<typename T1,
+         typename T2>
+inline std::tuple<T1, LabeledTensor<T2>>
+operator * (LabeledTensor<T1> tensor, T2 alpha) {
+  static_assert(std::is_arithmetic<T2>::value,
+                "Multiplying tensor with a non-arithmetic scalar is invalid.");
+  return {alpha, tensor};
 }
 
-template<typename T>
-inline AddOpEntry<T>
-LabeledTensor::operator = (std::tuple<T, LabeledTensor> rhs) {
-  addop_validate(*this, rhs);
-  return {*this, std::get<0>(rhs), std::get<1>(rhs), ResultMode::set};
+template<typename T1, typename T2>
+inline std::tuple<T1, LabeledTensor<T2>, LabeledTensor<T2>>
+operator * (const std::tuple<T1, LabeledTensor<T2>>& rhs1, LabeledTensor<T2> rhs2)  {
+  return std::tuple_cat(rhs1, std::make_tuple(rhs2));
 }
 
-template<typename T>
-inline MultOpEntry<T>
-LabeledTensor::operator = (std::tuple<T, LabeledTensor, LabeledTensor> rhs) {
-  multop_validate(*this, rhs);
-  return {*this, std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), ResultMode::set};
+template<typename LabeledTensorType>
+inline std::tuple<LabeledTensorType, LabeledTensorType>
+operator * (LabeledTensorType rhs1, LabeledTensorType rhs2)  {
+  return std::make_tuple(rhs1, rhs2);
 }
 
-inline MultOpEntry<int>
-LabeledTensor::operator = (std::tuple<LabeledTensor, LabeledTensor> rhs) {
-  multop_validate(*this, std::make_tuple(1, std::get<0>(rhs), std::get<1>(rhs)));
-  return {*this, 1, std::get<0>(rhs), std::get<1>(rhs), ResultMode::set};
+template<typename T1,
+         typename T2>
+inline std::tuple<T1, LabeledTensor<T2>, LabeledTensor<T2>>
+operator * (T1 alpha, std::tuple<LabeledTensor<T2>, LabeledTensor<T2>> rhs) {
+  static_assert(std::is_arithmetic<T1>::value,
+                "Multiplying tensor with a non-arithmetic scalar is invalid.");
+  return std::tuple_cat(std::make_tuple(alpha), rhs);
 }
 
-inline AddOpEntry<int>
-LabeledTensor::operator += (LabeledTensor rhs) {
-  addop_validate(*this, std::make_tuple(1, rhs));
-  return {*this, 1, rhs, ResultMode::update};
-}
 
-template<typename T>
-inline AddOpEntry<T>
-LabeledTensor::operator += (std::tuple<T, LabeledTensor> rhs) {
-  addop_validate(*this, std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)));
-  return {*this, std::get<0>(rhs), std::get<1>(rhs), ResultMode::update};
-}
-
-template<typename T>
-inline MultOpEntry<T>
-LabeledTensor::operator += (std::tuple<T, LabeledTensor, LabeledTensor> rhs) {
-  multop_validate(*this, rhs);
-  return {*this, std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), ResultMode::update};
-}
-
-inline MultOpEntry<int>
-LabeledTensor::operator += (std::tuple<LabeledTensor, LabeledTensor> rhs) {
-  multop_validate(*this, std::make_tuple(1, std::get<0>(rhs), std::get<1>(rhs)));
-  return {*this, 1, std::get<0>(rhs), std::get<1>(rhs), ResultMode::update};
-}
-
+// /**
+//  * @todo Should validation be done in *OpEnty constructors?
+//  */
 
 //@todo for now assume all indices in a symmetry group are sliced
 //the same way
@@ -180,15 +192,15 @@ validate_slicing(const TensorVec<SymmGroup>& indices,
   }
 }
 
-template<typename T>
+template<typename LabeledTensorType, typename T>
 inline void
-addop_validate(const LabeledTensor& ltc,
-               const std::tuple<T, LabeledTensor>& rhs) {
+addop_validate(const LabeledTensorType& ltc,
+               const std::tuple<T, LabeledTensorType>& rhs) {
   auto lta = std::get<1>(rhs);
   Expects(ltc.tensor_ != nullptr);
   Expects(lta.tensor_ != nullptr);
-  const Tensor& tc = *ltc.tensor_;
-  const Tensor& ta = *lta.tensor_;
+  const auto& tc = *ltc.tensor_;
+  const auto& ta = *lta.tensor_;
   Expects(tc.rank() == ta.rank());
 
   TensorLabel clabel = ltc.label_;
@@ -222,22 +234,18 @@ addop_validate(const LabeledTensor& ltc,
 }
 
 
-template<typename T>
+template<typename LabeledTensorType, typename T>
 inline void
-multop_validate(const LabeledTensor& ltc,
-                const std::tuple<T, LabeledTensor, LabeledTensor>& rhs) {
+multop_validate(const LabeledTensorType& ltc,
+                const std::tuple<T, LabeledTensorType, LabeledTensorType>& rhs) {
   auto &lta = std::get<1>(rhs);
   auto &ltb = std::get<2>(rhs);
   Expects(ltc.tensor_ != nullptr);
   Expects(lta.tensor_ != nullptr);
   Expects(ltb.tensor_ != nullptr);
-  const Tensor& tc = *ltc.tensor_;
-  const Tensor& ta = *lta.tensor_;
-  const Tensor& tb = *ltb.tensor_;
-
-  // Expects(element_type<T> == tc.element_type());
-  // Expects(element_type<T> == ta.element_type());
-  // Expects(element_type<T> == tb.element_type());
+  const auto& tc = *ltc.tensor_;
+  const auto& ta = *lta.tensor_;
+  const auto& tb = *ltb.tensor_;
 
   TensorLabel clabel = ltc.label_;
   TensorLabel alabel = lta.label_;
@@ -290,7 +298,6 @@ multop_validate(const LabeledTensor& ltc,
   }
   Expects(clabel.size() == alabel.size() + blabel.size() - 2 * slabel.size());
 }
-
 
 
 }  // namespace tammx

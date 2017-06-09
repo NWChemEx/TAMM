@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <iosfwd>
+#include <complex>
 #include "tammx/strong_num.h"
 #include "tammx/boundvec.h"
 
@@ -21,19 +22,32 @@ using Irrep = StrongNum<IrrepSpace, int>;
 struct SpinSpace;
 using Spin = StrongNum<SpinSpace, int>;
 using Sign = int;
+struct ProcSpace;
+using Proc = StrongNum<ProcSpace, int>;
+struct OffsetSpace;
+using Offset = StrongNum<OffsetSpace, int64_t>;
+using Size = Offset;
+
+
 //struct PermSpace;
 //using Perm = StrongNum<PermSace, int>;
 
-enum class ElementType { invalid, single_precision, double_precision };
+enum class ElementType { invalid, single_precision, double_precision, single_complex, double_complex };
 
 template<typename T>
-const ElementType element_type = ElementType::invalid;
+const ElementType tensor_element_type = ElementType::invalid;
 
 template<>
-const ElementType element_type<double> = ElementType::double_precision;
+const ElementType tensor_element_type<double> = ElementType::double_precision;
 
 template<>
-const ElementType element_type<float> = ElementType::single_precision;
+const ElementType tensor_element_type<float> = ElementType::single_precision;
+
+template<>
+const ElementType tensor_element_type<std::complex<float>> = ElementType::single_complex;
+
+template<>
+const ElementType tensor_element_type<std::complex<double>> = ElementType::double_complex;
 
 static inline constexpr size_t
 element_size(ElementType eltype) {
@@ -45,6 +59,14 @@ element_size(ElementType eltype) {
     case ElementType::double_precision:
       ret = sizeof(double);
       break;
+    case ElementType::single_complex:
+      ret = sizeof(std::complex<float>);
+      break;
+    case ElementType::double_complex:
+      ret = sizeof(std::complex<double>);
+      break;
+    default:
+      assert(0);
   }
   return ret;
 }

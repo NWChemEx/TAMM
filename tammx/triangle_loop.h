@@ -13,7 +13,7 @@ class TriangleLoop {
  public:
   using Type = BlockDim;
   using ItrType = TensorVec<Type>;
-
+  
   TriangleLoop()
       : nloops_{0} {}
 

@@ -31,7 +31,7 @@ template<typename Itr>
 class ProductIterator {
  public:
   using iterator_category = std::forward_iterator_tag;
-
+  
   ProductIterator(const TensorVec<Itr>& ifirst,
                   const TensorVec<Itr>& ilast)
       : ifirst_{ifirst},

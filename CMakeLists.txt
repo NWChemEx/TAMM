@@ -16,6 +16,9 @@ enable_language (Fortran)
 set (TAMM_VERSION_MAJOR 0)
 set (TAMM_VERSION_MINOR 1)
 
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 INCLUDE(CTest)
 # Should a test fail, display the test program output
 set (CTEST_OUTPUT_ON_FAILURE TRUE)
@@ -136,8 +139,30 @@ set(refCodeSources
   reference_code/ccsd_1prdm_ph_ref.cc
 )
 
-# set(CMAKE_CXX_STANDARD 14)
-# set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(tammLibSources
+        tensor/capi.cc
+        tensor/corf.cc
+        tensor/dummy.cc
+        tensor/equations.cc
+        tensor/expression.cc
+        tensor/func.cc
+        tensor/gmem.cc
+        tensor/index_sort.cc
+        tensor/preprocess.cc
+        tensor/schedulers.cc
+        tensor/stats.cc
+        tensor/t_assign.cc
+        tensor/t_mult.cc
+        tensor/tensor.cc
+        tensor/tensors_and_ops.cc
+        tensor/variables.cc
+        #noga_HF/noga_fock_build_ref.cc
+        )
+
+set(tammxSources
+        tammx/tammx.cc
+        tammx/index_sort.cc
+        tammx/ccsd_driver.cc)
 
 string(REPLACE "-I" "" tamm_cmake_cflags ${tamm_cflags})
 #To be recognized as a list, the strings must be seperated by ;
@@ -180,24 +205,25 @@ target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${Pars
 # Set target libraries to be linked.
 target_link_libraries(tamm_main tamm ${tamm_ldflags} ${BLAS_LIBRARIES}) #${tamm_libs}
 
-add_executable(tammx_main tammx/tammx_main.cc tammx/tammx.cc tammx/index_sort.cc) #EXCLUDE_FROM_ALL
-target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
-add_executable(noga_main tammx/noga_fb_main.cc tammx/tammx.cc tammx/index_sort.cc) #EXCLUDE_FROM_ALL
-target_include_directories(noga_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
 
-add_executable(tammx_tests tammx/tammx_tests.cc tammx/tammx.cc tammx/index_sort.cc) #EXCLUDE_FROM_ALL
-target_include_directories(tammx_tests SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
+add_library(tammx STATIC ${tammxSources})
+target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags}
+        ${BLAS_INC_PATH} ${ANTLR_CPPRUNTIME_DIR}/include/antlr4-runtime/)
 
-add_executable(tammx_qaqc tammx/qaqc_main.cc tammx/tammx.cc tammx/index_sort.cc) #EXCLUDE_FROM_ALL
-target_include_directories(tammx_qaqc SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
+add_executable(tammx_main EXCLUDE_FROM_ALL tammx/tammx_main.cc)
+target_include_directories(tammx_main SYSTEM PUBLIC ${PROJECT_BINARY_DIR})
+target_link_libraries(tammx_main tammx)
+
+#add_executable(noga_main tammx/noga_fb_main.cc tammx/tammx.cc tammx/index_sort.cc) #EXCLUDE_FROM_ALL
+#target_include_directories(noga_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
 
 add_executable(tammx_talsh EXCLUDE_FROM_ALL tammx/tammx_talsh.cc tammx/tammx.cc tammx/index_sort.cc)
 target_include_directories(tammx_talsh SYSTEM PUBLIC  ${PROJECT_BINARY_DIR}
 ${TALSH_INSTALL_PATH})
 target_link_libraries(tammx_talsh -L${TALSH_INSTALL_PATH} -ltalsh) 
 
-add_executable(ccsd_driver EXCLUDE_FROM_ALL tammx/tammx_ccsd.cc fortran_interface/drivers/ccsd_driver.cc tammx/tammx.cc tammx/index_sort.cc)
-target_include_directories(ccsd_driver SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${BLAS_INC_PATH})
+#add_executable(ccsd_driver EXCLUDE_FROM_ALL tammx/tammx_ccsd.cc fortran_interface/drivers/ccsd_driver.cc tammx/tammx.cc tammx/index_sort.cc)
+#target_include_directories(ccsd_driver SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${BLAS_INC_PATH})
 
 # Install
 if(NOT TAMM_INSTALL_PREFIX)

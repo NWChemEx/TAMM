@@ -32,6 +32,7 @@
 // Eigen matrix algebra library
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 // Libint Gaussian integrals library
 #include <libint2.hpp>
@@ -43,6 +44,7 @@ using std::cerr;
 using std::endl;
 
 using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+using Matrix4D = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
           // import dense, dynamically sized Matrix type from Eigen;
          // this is a matrix with row-major storage (http://en.wikipedia.org/wiki/Row-major_order)
          // to meet the layout of the integrals returned by the Libint integral library
@@ -63,65 +65,59 @@ Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
 
 std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename);
 
+
 int main(int argc, char* argv[]) {
     const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
-    Matrix C;
-    Matrix F;
-    double hf_energy{0.0};
-    int num_electrons{0};
-    std::tie(F,C,hf_energy,num_electrons) = get_fock_mo(filename);
+    // Matrix C;
+    // Matrix F;
+    // double hf_energy{0.0};
+    // int num_electrons{0};
+    // std::tie(F,C,hf_energy,num_electrons) = 
 
-    cout << "\n\n** Number of electrons: " << num_electrons << endl;
+    get_fock_mo(filename);
 
-    cout << "\n\t C Matrix:\n";
-    cout << C << endl;
-
-    cout << "\n\t F_AO Matrix:\n";
-    cout << F << endl;
-
-    const int C_rows = C.rows();
-    const int C_cols = C.cols();
-
-    // replicate horizontally
-    Matrix C_2N(C_rows,2*C_cols);
-    C_2N << C, C;
-    //cout << "\n\t C_2N Matrix:\n";
-    //cout << C_2N << endl;
-
-    const int b_rows = 7, nelectrons = 5;
-    Matrix C_noa = C_2N.block<b_rows,nelectrons>(0,0);
-    cout << "\n\t C occupied alpha:\n";
-    cout << C_noa << endl;
-
-    Matrix C_nva = C_2N.block<b_rows,b_rows-nelectrons>(0,num_electrons);
-    cout << "\n\t C virtual alpha:\n";
-    cout << C_nva << endl;
-
-    Matrix C_nob = C_2N.block<b_rows,nelectrons>(0,C_cols);
-    cout << "\n\t C occupied beta:\n";
-    cout << C_nob << endl;
-
-    Matrix C_nvb = C_2N.block<b_rows,b_rows-nelectrons>(0,num_electrons+C_cols);
-    cout << "\n\t C virtual beta:\n";
-    cout << C_nvb << endl;
-
-    // For now C_noa = C_nob and C_nva = C_nvb
-    Matrix CTiled(C_rows, 2*C_cols);
-    CTiled << C_noa, C_nob, C_nva, C_nvb;
-
-    cout << "\n\t CTiled Matrix = [C_noa C_nob C_nva C_nvb]:\n";
-    cout << CTiled << endl;
-
-    F = CTiled.transpose() * (F * CTiled);
-
-    cout << "\n\t F_MO Matrix:\n";
-    cout << F << endl;
-    
     // std::vector<double> rawC(C.rows()*C.cols());
     // cout << "----------------\n";
     // Eigen::Map<Matrix>(rawC.data(),C.rows(),C.cols()) = C;
 
 }
+
+
+size_t nbasis(const std::vector<libint2::Shell>& shells) {
+  size_t n = 0;
+  for (const auto& shell: shells)
+    n += shell.size();
+  return n;
+}
+
+size_t max_nprim(const std::vector<libint2::Shell>& shells) {
+  size_t n = 0;
+  for (auto shell: shells)
+    n = std::max(shell.nprim(), n);
+  return n;
+}
+
+int max_l(const std::vector<libint2::Shell>& shells) {
+  int l = 0;
+  for (auto shell: shells)
+    for (auto c: shell.contr)
+      l = std::max(c.l, l);
+  return l;
+}
+
+std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell>& shells) {
+  std::vector<size_t> result;
+  result.reserve(shells.size());
+
+  size_t n = 0;
+  for (auto shell: shells) {
+    result.push_back(n);
+    n += shell.size();
+  }
+
+  return result;
+}
+
 
 std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename) {
 
@@ -296,48 +292,169 @@ std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename) {
 
     printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
 
-    libint2::finalize(); // done with libint
-
     cout << "\n** Eigen Values:\n";
     cout << eps << endl;
 
-    return std::make_tuple(F,C,(ehf+enuc),ndocc);
-}
+    
+    int num_electrons = ndocc;
+    cout << "\n\n** Number of electrons: " << num_electrons << endl;
 
-size_t nbasis(const std::vector<libint2::Shell>& shells) {
-  size_t n = 0;
-  for (const auto& shell: shells)
-    n += shell.size();
-  return n;
-}
+    cout << "\n\t C Matrix:\n";
+    cout << C << endl;
 
-size_t max_nprim(const std::vector<libint2::Shell>& shells) {
-  size_t n = 0;
-  for (auto shell: shells)
-    n = std::max(shell.nprim(), n);
-  return n;
-}
+    cout << "\n\t F_AO Matrix:\n";
+    cout << F << endl;
 
-int max_l(const std::vector<libint2::Shell>& shells) {
-  int l = 0;
-  for (auto shell: shells)
-    for (auto c: shell.contr)
-      l = std::max(c.l, l);
-  return l;
-}
+    const int C_rows = C.rows();
+    const int C_cols = C.cols();
 
-std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell>& shells) {
-  std::vector<size_t> result;
-  result.reserve(shells.size());
+    // replicate horizontally
+    Matrix C_2N(C_rows,2*C_cols);
+    C_2N << C, C;
+    //cout << "\n\t C_2N Matrix:\n";
+    //cout << C_2N << endl;
 
-  size_t n = 0;
-  for (auto shell: shells) {
-    result.push_back(n);
-    n += shell.size();
+    const int b_rows = 7, nelectrons = 5;
+    Matrix C_noa = C_2N.block<b_rows,nelectrons>(0,0);
+    cout << "\n\t C occupied alpha:\n";
+    cout << C_noa << endl;
+
+    Matrix C_nva = C_2N.block<b_rows,b_rows-nelectrons>(0,num_electrons);
+    cout << "\n\t C virtual alpha:\n";
+    cout << C_nva << endl;
+
+    Matrix C_nob = C_2N.block<b_rows,nelectrons>(0,C_cols);
+    cout << "\n\t C occupied beta:\n";
+    cout << C_nob << endl;
+
+    Matrix C_nvb = C_2N.block<b_rows,b_rows-nelectrons>(0,num_electrons+C_cols);
+    cout << "\n\t C virtual beta:\n";
+    cout << C_nvb << endl;
+
+    // For now C_noa = C_nob and C_nva = C_nvb
+    Matrix CTiled(C_rows, 2*C_cols);
+    CTiled << C_noa, C_nob, C_nva, C_nvb;
+
+    cout << "\n\t CTiled Matrix = [C_noa C_nob C_nva C_nvb]:\n";
+    cout << CTiled << endl;
+
+    F = CTiled.transpose() * (F * CTiled);
+
+    cout << "\n\t F_MO Matrix:\n";
+    cout << F << endl;
+
+    //Start 4-index transform
+    using libint2::Shell;
+    using libint2::Engine;
+    using libint2::Operator;
+
+  const auto n = nbasis(shells);
+  Eigen::Tensor<double, 4, Eigen::RowMajor> V_prqs(2*n, 2*n, 2*n, 2*n);
+  V_prqs.setZero();
+
+  Eigen::Tensor<double, 4, Eigen::RowMajor> V_psqr(2*n, 2*n, 2*n, 2*n);
+  V_psqr.setZero();
+  
+  //t.setConstant(0.0d);
+  //cout << t << endl;
+
+  //Matrix V4i = Matrix::Zero(4*n*n,4*n*n);
+
+  cout << "num_basis: " << n << endl;
+  // construct the electron repulsion integrals engine
+  Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
+
+  auto shell2bf = map_shell_to_basis_function(shells);
+
+  // buf[0] points to the target shell set after every call  to engine.compute()
+  const auto& buf = engine.results();
+
+
+  for (auto p=0; p < 2*n; p++) {
+    for (auto q=0; q < 2*n;q++) {
+      for (auto r=0; r < 2*n; r++) {
+        for (auto s=0; s < 2*n; s++) {
+    
+
+  // loop over shell pairs of the Fock matrix, {s1,s2}
+  // Fock matrix is symmetric, but skipping it here for simplicity (see compute_2body_fock)
+  for(auto s1=0; s1!=shells.size(); ++s1) {
+
+    auto bf1_first = shell2bf[s1]; // first basis function in this shell
+    auto n1 = shells[s1].size();
+    
+    for(auto s2=0; s2!=shells.size(); ++s2) {
+
+      auto bf2_first = shell2bf[s2];
+      auto n2 = shells[s2].size();
+
+      // loop over shell pairs of the density matrix, {s3,s4}
+      // again symmetry is not used for simplicity
+      for(auto s3=0; s3!=shells.size(); ++s3) {
+
+        auto bf3_first = shell2bf[s3];
+        auto n3 = shells[s3].size();
+
+        for(auto s4=0; s4!=shells.size(); ++s4) {
+
+          auto bf4_first = shell2bf[s4];
+          auto n4 = shells[s4].size();
+
+          // Coulomb contribution to the Fock matrix is from {s1,s2,s3,s4} integrals
+          engine.compute(shells[s1], shells[s2], shells[s3], shells[s4]);
+          const auto* buf_1234 = buf[0];
+          if (buf_1234 == nullptr)
+            continue; // if all integrals screened out, skip to next quartet
+
+          // we don't have an analog of Eigen for tensors (yet ... see github.com/BTAS/BTAS, under development)
+          // hence some manual labor here:
+          // 1) loop over every integral in the shell set (= nested loops over basis functions in each shell)
+          // and 2) add contribution from each integral
+          for(auto f1=0, f1234=0; f1!=n1; ++f1) {
+            const auto bf1 = f1 + bf1_first;
+            for(auto f2=0; f2!=n2; ++f2) {
+              const auto bf2 = f2 + bf2_first;
+              for(auto f3=0; f3!=n3; ++f3) {
+                const auto bf3 = f3 + bf3_first;
+                for(auto f4=0; f4!=n4; ++f4, ++f1234) {
+                  const auto bf4 = f4 + bf4_first;
+                  //V4i(p*2*n+r,q*2*n+s) += CTiled(bf1,p) * CTiled(bf2,r) * CTiled(bf3,q) * CTiled(bf4,s) * buf_1234[f1234];
+                  V_prqs(p,r,q,s) += CTiled(bf1,p) * CTiled(bf2,r) * CTiled(bf3,q) * CTiled(bf4,s) * buf_1234[f1234];
+                  V_psqr(p,s,q,r) += CTiled(bf1,p) * CTiled(bf2,s) * CTiled(bf3,q) * CTiled(bf4,r) * buf_1234[f1234];
+
+                }
+              }
+            }
+          } //f1,f2,f3,f4
+
+        } //s1,s2,s3,s4
+      }
+    }
   }
 
-  return result;
+} //p,q,r,s
 }
+}
+}
+
+
+    cout << "\n\t V2 matrix\n";
+
+  Eigen::Tensor<double, 4, Eigen::RowMajor> st1(2,2,2,2);
+  Eigen::Tensor<double, 4, Eigen::RowMajor> st2 = st1.shuffle({0,3,2,1});
+
+    //Eigen::Tensor<double, 4, Eigen::RowMajor> V_psqr = V_prqs.shuffle({0,3,2,1});
+    Eigen::Tensor<double, 4, Eigen::RowMajor> V2 = V_prqs - V_psqr;
+  
+    cout << V2 << endl;
+
+    libint2::finalize(); // done with libint
+
+    return std::make_tuple(F,C,(ehf+enuc),ndocc); 
+    
+}
+
+
 
 // computes Superposition-Of-Atomic-Densities guess for the molecular density matrix
 // in minimal basis; occupies subshells by smearing electrons evenly over the orbitals

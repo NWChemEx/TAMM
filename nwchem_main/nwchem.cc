@@ -45,9 +45,9 @@ using std::endl;
 
 using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 using Matrix4D = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-          // import dense, dynamically sized Matrix type from Eigen;
-         // this is a matrix with row-major storage (http://en.wikipedia.org/wiki/Row-major_order)
-         // to meet the layout of the integrals returned by the Libint integral library
+// import dense, dynamically sized Matrix type from Eigen;
+// this is a matrix with row-major storage (http://en.wikipedia.org/wiki/Row-major_order)
+// to meet the layout of the integrals returned by the Libint integral library
 
 size_t nbasis(const std::vector<libint2::Shell>& shells);
 std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell>& shells);
@@ -61,24 +61,24 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
                                  const Matrix& D);
 // an efficient Fock builder; *integral-driven* hence computes permutationally-unique ints once
 Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
-                                 const Matrix& D);
+                          const Matrix& D);
 
 std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename);
 
 
 int main(int argc, char* argv[]) {
-    const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
-    // Matrix C;
-    // Matrix F;
-    // double hf_energy{0.0};
-    // int num_electrons{0};
-    // std::tie(F,C,hf_energy,num_electrons) = 
+  const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
+  // Matrix C;
+  // Matrix F;
+  // double hf_energy{0.0};
+  // int num_electrons{0};
+  // std::tie(F,C,hf_energy,num_electrons) =
 
-    get_fock_mo(filename);
+  get_fock_mo(filename);
 
-    // std::vector<double> rawC(C.rows()*C.cols());
-    // cout << "----------------\n";
-    // Eigen::Map<Matrix>(rawC.data(),C.rows(),C.cols()) = C;
+  // std::vector<double> rawC(C.rows()*C.cols());
+  // cout << "----------------\n";
+  // Eigen::Map<Matrix>(rawC.data(),C.rows(),C.cols()) = C;
 
 }
 
@@ -126,239 +126,234 @@ std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename) {
   using libint2::Engine;
   using libint2::Operator;
 
-    /*** =========================== ***/
-    /*** initialize molecule         ***/
-    /*** =========================== ***/
+  /*** =========================== ***/
+  /*** initialize molecule         ***/
+  /*** =========================== ***/
 
-    // read geometry from a file; by default read from h2o.xyz, else take filename (.xyz) from the command line
-    auto is = std::ifstream(filename);
-    const std::vector<Atom> atoms = libint2::read_dotxyz(is);
+  // read geometry from a file; by default read from h2o.xyz, else take filename (.xyz) from the command line
+  auto is = std::ifstream(filename);
+  const std::vector<Atom> atoms = libint2::read_dotxyz(is);
 
-    // count the number of electrons
-    auto nelectron = 0;
-    for (auto i = 0; i < atoms.size(); ++i)
-      nelectron += atoms[i].atomic_number;
-    const auto ndocc = nelectron / 2;
+  // count the number of electrons
+  auto nelectron = 0;
+  for (auto i = 0; i < atoms.size(); ++i)
+    nelectron += atoms[i].atomic_number;
+  const auto ndocc = nelectron / 2;
 
-    // compute the nuclear repulsion energy
-    auto enuc = 0.0;
-    for (auto i = 0; i < atoms.size(); i++)
-      for (auto j = i + 1; j < atoms.size(); j++) {
-        auto xij = atoms[i].x - atoms[j].x;
-        auto yij = atoms[i].y - atoms[j].y;
-        auto zij = atoms[i].z - atoms[j].z;
-        auto r2 = xij*xij + yij*yij + zij*zij;
-        auto r = sqrt(r2);
-        enuc += atoms[i].atomic_number * atoms[j].atomic_number / r;
-      }
-    cout << "\tNuclear repulsion energy = " << enuc << endl;
-
-
-
-    // initializes the Libint integrals library ... now ready to compute
-    libint2::initialize();
-
-    /*** =========================== ***/
-    /*** create basis set            ***/
-    /*** =========================== ***/
-
-    // LIBINT_INSTALL_DIR/share/libint/2.4.0-beta.1/basis
-    libint2::BasisSet shells(std::string("sto-3g"),atoms);
-    //auto shells = make_sto3g_basis(atoms);
-    size_t nao = 0;
-    for (auto s=0; s<shells.size(); ++s)
-      nao += shells[s].size();
-
-    /*** =========================== ***/
-    /*** compute 1-e integrals       ***/
-    /*** =========================== ***/
-
-    // compute overlap integrals
-    auto S = compute_1body_ints(shells, Operator::overlap);
-    cout << "\n\tOverlap Integrals:\n";
-    cout << S << endl;
-
-    // compute kinetic-energy integrals
-    auto T = compute_1body_ints(shells, Operator::kinetic);
-    cout << "\n\tKinetic-Energy Integrals:\n";
-    cout << T << endl;
-
-    // compute nuclear-attraction integrals
-    Matrix V = compute_1body_ints(shells, Operator::nuclear, atoms);
-    cout << "\n\tNuclear Attraction Integrals:\n";
-    cout << V << endl;
-
-    // Core Hamiltonian = T + V
-    Matrix H = T + V;
-    cout << "\n\tCore Hamiltonian:\n";
-    cout << H << endl;
-
-    // T and V no longer needed, free up the memory
-    T.resize(0,0);
-    V.resize(0,0);
-
-    /*** =========================== ***/
-    /*** build initial-guess density ***/
-    /*** =========================== ***/
-
-    const auto use_hcore_guess = false;  // use core Hamiltonian eigenstates to guess density?
-                                         // set to true to match the result of versions 0, 1, and 2 of the code
-                                         // HOWEVER !!! even for medium-size molecules hcore will usually fail !!!
-                                         // thus set to false to use Superposition-Of-Atomic-Densities (SOAD) guess
-    Matrix D;
-    if (use_hcore_guess) { // hcore guess
-      // solve H C = e S C
-      Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(H, S);
-      auto eps = gen_eig_solver.eigenvalues();
-      auto C = gen_eig_solver.eigenvectors();
-      cout << "\n\tInitial C Matrix:\n";
-      cout << C << endl;
-
-      // compute density, D = C(occ) . C(occ)T
-      auto C_occ = C.leftCols(ndocc);
-      D = C_occ * C_occ.transpose();
+  // compute the nuclear repulsion energy
+  auto enuc = 0.0;
+  for (auto i = 0; i < atoms.size(); i++)
+    for (auto j = i + 1; j < atoms.size(); j++) {
+      auto xij = atoms[i].x - atoms[j].x;
+      auto yij = atoms[i].y - atoms[j].y;
+      auto zij = atoms[i].z - atoms[j].z;
+      auto r2 = xij*xij + yij*yij + zij*zij;
+      auto r = sqrt(r2);
+      enuc += atoms[i].atomic_number * atoms[j].atomic_number / r;
     }
-    else {  // SOAD as the guess density, assumes STO-nG basis
-      D = compute_soad(atoms);
-    }
+  cout << "\tNuclear repulsion energy = " << enuc << endl;
 
-    cout << "\n\tInitial Density Matrix:\n";
-    cout << D << endl;
 
-    /*** =========================== ***/
-    /*** main iterative loop         ***/
-    /*** =========================== ***/
 
-    const auto maxiter = 100;
-    const auto conv = 1e-12;
-    auto iter = 0;
-    auto rmsd = 0.0;
-    auto ediff = 0.0;
-    auto ehf = 0.0;
-    Matrix C;
-    Matrix F;
-    Matrix eps;
+  // initializes the Libint integrals library ... now ready to compute
+  libint2::initialize();
 
-    do {
-      const auto tstart = std::chrono::high_resolution_clock::now();
-      ++iter;
+  /*** =========================== ***/
+  /*** create basis set            ***/
+  /*** =========================== ***/
 
-      // Save a copy of the energy and the density
-      auto ehf_last = ehf;
-      auto D_last = D;
+  // LIBINT_INSTALL_DIR/share/libint/2.4.0-beta.1/basis
+  libint2::BasisSet shells(std::string("sto-3g"),atoms);
+  //auto shells = make_sto3g_basis(atoms);
+  size_t nao = 0;
+  for (auto s=0; s<shells.size(); ++s)
+    nao += shells[s].size();
 
-      // build a new Fock matrix
-      //auto F = H;
-      //F += compute_2body_fock_simple(shells, D);
-      F = H;
-      F += compute_2body_fock_simple(shells, D);
+  /*** =========================== ***/
+  /*** compute 1-e integrals       ***/
+  /*** =========================== ***/
 
-      if (iter == 1) {
-        cout << "\n\tFock Matrix:\n";
-        cout << F << endl;
-      }
+  // compute overlap integrals
+  auto S = compute_1body_ints(shells, Operator::overlap);
+  cout << "\n\tOverlap Integrals:\n";
+  cout << S << endl;
 
-      // solve F C = e S C
-      Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);
-      //auto
-      eps = gen_eig_solver.eigenvalues();
-      C = gen_eig_solver.eigenvectors();
-      //auto C1 = gen_eig_solver.eigenvectors();
-      
-      // compute density, D = C(occ) . C(occ)T
-      auto C_occ = C.leftCols(ndocc);
-      D = C_occ * C_occ.transpose();
+  // compute kinetic-energy integrals
+  auto T = compute_1body_ints(shells, Operator::kinetic);
+  cout << "\n\tKinetic-Energy Integrals:\n";
+  cout << T << endl;
 
-      // compute HF energy
-      ehf = 0.0;
-      for (auto i = 0; i < nao; i++)
-        for (auto j = 0; j < nao; j++)
-          ehf += D(i,j) * (H(i,j) + F(i,j));
+  // compute nuclear-attraction integrals
+  Matrix V = compute_1body_ints(shells, Operator::nuclear, atoms);
+  cout << "\n\tNuclear Attraction Integrals:\n";
+  cout << V << endl;
 
-      // compute difference with last iteration
-      ediff = ehf - ehf_last;
-      rmsd = (D - D_last).norm();
+  // Core Hamiltonian = T + V
+  Matrix H = T + V;
+  cout << "\n\tCore Hamiltonian:\n";
+  cout << H << endl;
 
-      const auto tstop = std::chrono::high_resolution_clock::now();
-      const std::chrono::duration<double> time_elapsed = tstop - tstart;
-      
-      // if (iter == 1)
-      //   std::cout <<
-      //   "\n\n Iter        E(elec)              E(tot)               Delta(E)             RMS(D)         Time(s)\n";
-      // printf(" %02d %20.12f %20.12f %20.12f %20.12f %10.5lf\n", iter, ehf, ehf + enuc,
-      //        ediff, rmsd, time_elapsed.count());
+  // T and V no longer needed, free up the memory
+  T.resize(0,0);
+  V.resize(0,0);
 
-    } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)) && (iter < maxiter));
+  /*** =========================== ***/
+  /*** build initial-guess density ***/
+  /*** =========================== ***/
 
-    printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
-
-    cout << "\n** Eigen Values:\n";
-    cout << eps << endl;
-
-    
-    int num_electrons = ndocc;
-    cout << "\n\n** Number of electrons: " << num_electrons << endl;
-
-    cout << "\n\t C Matrix:\n";
+  const auto use_hcore_guess = false;  // use core Hamiltonian eigenstates to guess density?
+  // set to true to match the result of versions 0, 1, and 2 of the code
+  // HOWEVER !!! even for medium-size molecules hcore will usually fail !!!
+  // thus set to false to use Superposition-Of-Atomic-Densities (SOAD) guess
+  Matrix D;
+  if (use_hcore_guess) { // hcore guess
+    // solve H C = e S C
+    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(H, S);
+    auto eps = gen_eig_solver.eigenvalues();
+    auto C = gen_eig_solver.eigenvectors();
+    cout << "\n\tInitial C Matrix:\n";
     cout << C << endl;
 
-    cout << "\n\t F_AO Matrix:\n";
-    cout << F << endl;
+    // compute density, D = C(occ) . C(occ)T
+    auto C_occ = C.leftCols(ndocc);
+    D = C_occ * C_occ.transpose();
+  }
+  else {  // SOAD as the guess density, assumes STO-nG basis
+    D = compute_soad(atoms);
+  }
 
-    const int C_rows = C.rows();
-    const int C_cols = C.cols();
+  cout << "\n\tInitial Density Matrix:\n";
+  cout << D << endl;
 
-    // replicate horizontally
-    Matrix C_2N(C_rows,2*C_cols);
-    C_2N << C, C;
-    //cout << "\n\t C_2N Matrix:\n";
-    //cout << C_2N << endl;
+  /*** =========================== ***/
+  /*** main iterative loop         ***/
+  /*** =========================== ***/
 
-    const int b_rows = 7, nelectrons = 5;
-    Matrix C_noa = C_2N.block<b_rows,nelectrons>(0,0);
-    cout << "\n\t C occupied alpha:\n";
-    cout << C_noa << endl;
+  const auto maxiter = 100;
+  const auto conv = 1e-12;
+  auto iter = 0;
+  auto rmsd = 0.0;
+  auto ediff = 0.0;
+  auto ehf = 0.0;
+  Matrix C;
+  Matrix F;
+  Matrix eps;
 
-    Matrix C_nva = C_2N.block<b_rows,b_rows-nelectrons>(0,num_electrons);
-    cout << "\n\t C virtual alpha:\n";
-    cout << C_nva << endl;
+  do {
+    const auto tstart = std::chrono::high_resolution_clock::now();
+    ++iter;
 
-    Matrix C_nob = C_2N.block<b_rows,nelectrons>(0,C_cols);
-    cout << "\n\t C occupied beta:\n";
-    cout << C_nob << endl;
+    // Save a copy of the energy and the density
+    auto ehf_last = ehf;
+    auto D_last = D;
 
-    Matrix C_nvb = C_2N.block<b_rows,b_rows-nelectrons>(0,num_electrons+C_cols);
-    cout << "\n\t C virtual beta:\n";
-    cout << C_nvb << endl;
+    // build a new Fock matrix
+    //auto F = H;
+    //F += compute_2body_fock_simple(shells, D);
+    F = H;
+    F += compute_2body_fock_simple(shells, D);
 
-    // For now C_noa = C_nob and C_nva = C_nvb
-    Matrix CTiled(C_rows, 2*C_cols);
-    CTiled << C_noa, C_nob, C_nva, C_nvb;
+    if (iter == 1) {
+      cout << "\n\tFock Matrix:\n";
+      cout << F << endl;
+    }
 
-    cout << "\n\t CTiled Matrix = [C_noa C_nob C_nva C_nvb]:\n";
-    cout << CTiled << endl;
+    // solve F C = e S C
+    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);
+    //auto
+    eps = gen_eig_solver.eigenvalues();
+    C = gen_eig_solver.eigenvectors();
+    //auto C1 = gen_eig_solver.eigenvectors();
 
-    F = CTiled.transpose() * (F * CTiled);
+    // compute density, D = C(occ) . C(occ)T
+    auto C_occ = C.leftCols(ndocc);
+    D = C_occ * C_occ.transpose();
 
-    cout << "\n\t F_MO Matrix:\n";
-    cout << F << endl;
+    // compute HF energy
+    ehf = 0.0;
+    for (auto i = 0; i < nao; i++)
+      for (auto j = 0; j < nao; j++)
+        ehf += D(i,j) * (H(i,j) + F(i,j));
 
-    //Start 4-index transform
-    using libint2::Shell;
-    using libint2::Engine;
-    using libint2::Operator;
+    // compute difference with last iteration
+    ediff = ehf - ehf_last;
+    rmsd = (D - D_last).norm();
+
+    const auto tstop = std::chrono::high_resolution_clock::now();
+    const std::chrono::duration<double> time_elapsed = tstop - tstart;
+
+    // if (iter == 1)
+    //   std::cout <<
+    //   "\n\n Iter        E(elec)              E(tot)               Delta(E)             RMS(D)         Time(s)\n";
+    // printf(" %02d %20.12f %20.12f %20.12f %20.12f %10.5lf\n", iter, ehf, ehf + enuc,
+    //        ediff, rmsd, time_elapsed.count());
+
+  } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)) && (iter < maxiter));
+
+  printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
+
+  cout << "\n** Eigen Values:\n";
+  cout << eps << endl;
+
+
+  int num_electrons = ndocc;
+  cout << "\n\n** Number of electrons: " << num_electrons << endl;
+
+  cout << "\n\t C Matrix:\n";
+  cout << C << endl;
+
+  cout << "\n\t F_AO Matrix:\n";
+  cout << F << endl;
+
+  const int C_rows = C.rows();
+  const int C_cols = C.cols();
+
+  // replicate horizontally
+  Matrix C_2N(C_rows,2*C_cols);
+  C_2N << C, C;
+  //cout << "\n\t C_2N Matrix:\n";
+  //cout << C_2N << endl;
+
+  const int b_rows = 7, nelectrons = 5;
+  Matrix C_noa = C_2N.block<b_rows,nelectrons>(0,0);
+  cout << "\n\t C occupied alpha:\n";
+  cout << C_noa << endl;
+
+  Matrix C_nva = C_2N.block<b_rows,b_rows-nelectrons>(0,num_electrons);
+  cout << "\n\t C virtual alpha:\n";
+  cout << C_nva << endl;
+
+  Matrix C_nob = C_2N.block<b_rows,nelectrons>(0,C_cols);
+  cout << "\n\t C occupied beta:\n";
+  cout << C_nob << endl;
+
+  Matrix C_nvb = C_2N.block<b_rows,b_rows-nelectrons>(0,num_electrons+C_cols);
+  cout << "\n\t C virtual beta:\n";
+  cout << C_nvb << endl;
+
+  // For now C_noa = C_nob and C_nva = C_nvb
+  Matrix CTiled(C_rows, 2*C_cols);
+  CTiled << C_noa, C_nob, C_nva, C_nvb;
+
+  cout << "\n\t CTiled Matrix = [C_noa C_nob C_nva C_nvb]:\n";
+  cout << CTiled << endl;
+
+  F = CTiled.transpose() * (F * CTiled);
+
+  cout << "\n\t F_MO Matrix:\n";
+  cout << F << endl;
+
+  //Start 4-index transform
+  using libint2::Shell;
+  using libint2::Engine;
+  using libint2::Operator;
 
   const auto n = nbasis(shells);
   Eigen::Tensor<double, 4, Eigen::RowMajor> V_prqs(2*n, 2*n, 2*n, 2*n);
   V_prqs.setZero();
 
-  Eigen::Tensor<double, 4, Eigen::RowMajor> V_psqr(2*n, 2*n, 2*n, 2*n);
-  V_psqr.setZero();
-  
-  //t.setConstant(0.0d);
+  //V_prqs.setConstant(0.0d);
   //cout << t << endl;
-
-  //Matrix V4i = Matrix::Zero(4*n*n,4*n*n);
 
   cout << "num_basis: " << n << endl;
   // construct the electron repulsion integrals engine
@@ -374,84 +369,81 @@ std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename) {
     for (auto q=0; q < 2*n;q++) {
       for (auto r=0; r < 2*n; r++) {
         for (auto s=0; s < 2*n; s++) {
-    
 
-  // loop over shell pairs of the Fock matrix, {s1,s2}
-  // Fock matrix is symmetric, but skipping it here for simplicity (see compute_2body_fock)
-  for(auto s1=0; s1!=shells.size(); ++s1) {
 
-    auto bf1_first = shell2bf[s1]; // first basis function in this shell
-    auto n1 = shells[s1].size();
-    
-    for(auto s2=0; s2!=shells.size(); ++s2) {
+          // loop over shell pairs of the Fock matrix, {s1,s2}
+          // Fock matrix is symmetric, but skipping it here for simplicity (see compute_2body_fock)
+          for(auto s1=0; s1!=shells.size(); ++s1) {
 
-      auto bf2_first = shell2bf[s2];
-      auto n2 = shells[s2].size();
+            auto bf1_first = shell2bf[s1]; // first basis function in this shell
+            auto n1 = shells[s1].size();
 
-      // loop over shell pairs of the density matrix, {s3,s4}
-      // again symmetry is not used for simplicity
-      for(auto s3=0; s3!=shells.size(); ++s3) {
+            for(auto s2=0; s2!=shells.size(); ++s2) {
 
-        auto bf3_first = shell2bf[s3];
-        auto n3 = shells[s3].size();
+              auto bf2_first = shell2bf[s2];
+              auto n2 = shells[s2].size();
 
-        for(auto s4=0; s4!=shells.size(); ++s4) {
+              // loop over shell pairs of the density matrix, {s3,s4}
+              // again symmetry is not used for simplicity
+              for(auto s3=0; s3!=shells.size(); ++s3) {
 
-          auto bf4_first = shell2bf[s4];
-          auto n4 = shells[s4].size();
+                auto bf3_first = shell2bf[s3];
+                auto n3 = shells[s3].size();
 
-          // Coulomb contribution to the Fock matrix is from {s1,s2,s3,s4} integrals
-          engine.compute(shells[s1], shells[s2], shells[s3], shells[s4]);
-          const auto* buf_1234 = buf[0];
-          if (buf_1234 == nullptr)
-            continue; // if all integrals screened out, skip to next quartet
+                for(auto s4=0; s4!=shells.size(); ++s4) {
 
-          // we don't have an analog of Eigen for tensors (yet ... see github.com/BTAS/BTAS, under development)
-          // hence some manual labor here:
-          // 1) loop over every integral in the shell set (= nested loops over basis functions in each shell)
-          // and 2) add contribution from each integral
-          for(auto f1=0, f1234=0; f1!=n1; ++f1) {
-            const auto bf1 = f1 + bf1_first;
-            for(auto f2=0; f2!=n2; ++f2) {
-              const auto bf2 = f2 + bf2_first;
-              for(auto f3=0; f3!=n3; ++f3) {
-                const auto bf3 = f3 + bf3_first;
-                for(auto f4=0; f4!=n4; ++f4, ++f1234) {
-                  const auto bf4 = f4 + bf4_first;
-                  //V4i(p*2*n+r,q*2*n+s) += CTiled(bf1,p) * CTiled(bf2,r) * CTiled(bf3,q) * CTiled(bf4,s) * buf_1234[f1234];
-                  V_prqs(p,r,q,s) += CTiled(bf1,p) * CTiled(bf2,r) * CTiled(bf3,q) * CTiled(bf4,s) * buf_1234[f1234];
-                  V_psqr(p,s,q,r) += CTiled(bf1,p) * CTiled(bf2,s) * CTiled(bf3,q) * CTiled(bf4,r) * buf_1234[f1234];
+                  auto bf4_first = shell2bf[s4];
+                  auto n4 = shells[s4].size();
 
-                }
+                  // Coulomb contribution to the Fock matrix is from {s1,s2,s3,s4} integrals
+                  engine.compute(shells[s1], shells[s2], shells[s3], shells[s4]);
+                  const auto* buf_1234 = buf[0];
+                  if (buf_1234 == nullptr)
+                    continue; // if all integrals screened out, skip to next quartet
+
+                  // we don't have an analog of Eigen for tensors (yet ... see github.com/BTAS/BTAS, under development)
+                  // hence some manual labor here:
+                  // 1) loop over every integral in the shell set (= nested loops over basis functions in each shell)
+                  // and 2) add contribution from each integral
+                  for(auto f1=0, f1234=0; f1!=n1; ++f1) {
+                    const auto bf1 = f1 + bf1_first;
+                    for(auto f2=0; f2!=n2; ++f2) {
+                      const auto bf2 = f2 + bf2_first;
+                      for(auto f3=0; f3!=n3; ++f3) {
+                        const auto bf3 = f3 + bf3_first;
+                        for(auto f4=0; f4!=n4; ++f4, ++f1234) {
+                          const auto bf4 = f4 + bf4_first;
+                          //V4i(p*2*n+r,q*2*n+s) += CTiled(bf1,p) * CTiled(bf2,r) * CTiled(bf3,q) * CTiled(bf4,s) * buf_1234[f1234];
+                          V_prqs(p,r,q,s) += CTiled(bf1,p) * CTiled(bf2,r) * CTiled(bf3,q) * CTiled(bf4,s) * buf_1234[f1234];
+                        }
+                      }
+                    }
+                  } //f1,f2,f3,f4
+
+                } //s1,s2,s3,s4
               }
             }
-          } //f1,f2,f3,f4
+          }
 
-        } //s1,s2,s3,s4
+        } //p,q,r,s
       }
     }
   }
 
-} //p,q,r,s
-}
-}
-}
 
+  //Need to explicitly create an array that contains the permutation
+  Eigen::array<std::ptrdiff_t, 4> shuffleV = {{0,3,2,1}};
 
-    cout << "\n\t V2 matrix\n";
+  Eigen::Tensor<double, 4, Eigen::RowMajor> V_psqr = V_prqs.shuffle(shuffleV);
+  Eigen::Tensor<double, 4, Eigen::RowMajor> V2 = V_prqs - V_psqr;
 
-  Eigen::Tensor<double, 4, Eigen::RowMajor> st1(2,2,2,2);
-  Eigen::Tensor<double, 4, Eigen::RowMajor> st2 = st1.shuffle({0,3,2,1});
+  cout << "\n\t V_pqrs tensor\n";
+  cout << V2 << endl;
 
-    //Eigen::Tensor<double, 4, Eigen::RowMajor> V_psqr = V_prqs.shuffle({0,3,2,1});
-    Eigen::Tensor<double, 4, Eigen::RowMajor> V2 = V_prqs - V_psqr;
-  
-    cout << V2 << endl;
+  libint2::finalize(); // done with libint
 
-    libint2::finalize(); // done with libint
+  return std::make_tuple(F,C,(ehf+enuc),ndocc);
 
-    return std::make_tuple(F,C,(ehf+enuc),ndocc); 
-    
 }
 
 
@@ -542,7 +534,7 @@ Matrix compute_1body_ints(const std::vector<libint2::Shell>& shells,
       Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
       result.block(bf1, bf2, n1, n2) = buf_mat;
       if (s1 != s2) // if s1 >= s2, copy {s1,s2} to the corresponding {s2,s1} block, note the transpose!
-      result.block(bf2, bf1, n2, n1) = buf_mat.transpose();
+        result.block(bf2, bf1, n2, n1) = buf_mat.transpose();
 
     }
   }
@@ -574,7 +566,7 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
 
     auto bf1_first = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();
-    
+
     for(auto s2=0; s2!=shells.size(); ++s2) {
 
       auto bf2_first = shell2bf[s2];

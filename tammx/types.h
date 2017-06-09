@@ -5,7 +5,8 @@
 
 #include <cassert>
 #include <iosfwd>
-#include "tammx/strong_int.h"
+#include <complex>
+#include "tammx/strong_num.h"
 #include "tammx/boundvec.h"
 
 namespace tammx {
@@ -14,15 +15,62 @@ using Fint = int64_t;
 
 // using BlockDim = int64_t;
 struct BlockDimSpace;
-using BlockDim = StrongInt<BlockDimSpace, int64_t>;
+using BlockDim = StrongNum<BlockDimSpace, int64_t>;
 using TensorRank = int;
 struct IrrepSpace;
-using Irrep = StrongInt<IrrepSpace, int>;
+using Irrep = StrongNum<IrrepSpace, int>;
 struct SpinSpace;
-using Spin = StrongInt<SpinSpace, int>;
+using Spin = StrongNum<SpinSpace, int>;
 using Sign = int;
+struct ProcSpace;
+using Proc = StrongNum<ProcSpace, int>;
+struct OffsetSpace;
+using Offset = StrongNum<OffsetSpace, int64_t>;
+using Size = Offset;
+
+
 //struct PermSpace;
-//using Perm = StrongInt<PermSace, int>;
+//using Perm = StrongNum<PermSace, int>;
+
+enum class ElementType { invalid, single_precision, double_precision, single_complex, double_complex };
+
+template<typename T>
+const ElementType tensor_element_type = ElementType::invalid;
+
+template<>
+const ElementType tensor_element_type<double> = ElementType::double_precision;
+
+template<>
+const ElementType tensor_element_type<float> = ElementType::single_precision;
+
+template<>
+const ElementType tensor_element_type<std::complex<float>> = ElementType::single_complex;
+
+template<>
+const ElementType tensor_element_type<std::complex<double>> = ElementType::double_complex;
+
+static inline constexpr size_t
+element_size(ElementType eltype) {
+  size_t ret = 0;
+  switch(eltype) {
+    case ElementType::single_precision:
+      ret = sizeof(float);
+      break;
+    case ElementType::double_precision:
+      ret = sizeof(double);
+      break;
+    case ElementType::single_complex:
+      ret = sizeof(std::complex<float>);
+      break;
+    case ElementType::double_complex:
+      ret = sizeof(std::complex<double>);
+      break;
+    default:
+      assert(0);
+  }
+  return ret;
+}
+
 
 enum class DimType { o  = 0b0011,
                      v  = 0b1100,

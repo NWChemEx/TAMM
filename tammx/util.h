@@ -7,10 +7,14 @@
 #include <iosfwd>
 #include <cmath>
 #include <map>
+#include <algorithm>
 #include <string>
-#include "tammx/strong_int.h"
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
+
+/**
+ * @todo Check types are convertible to necessary type rather than is_same
+ */
 
 namespace tammx {
 
@@ -251,6 +255,169 @@ std::string to_string(const BoundVec<T,maxsize> &vec, const std::string& sep = "
   return ret;
 }
 
+template<typename Fn, typename... Fargs>
+inline void
+type_dispatch(ElementType element_type, Fn fn, Fargs&& ...args) {
+  switch(element_type) {
+    case ElementType::single_precision:
+      fn(float{}, args...);
+      break;
+    case ElementType::double_precision:
+      fn(double{}, args...);
+      break;
+    default:
+      assert(0); 
+  }
+}
+
+inline void
+typed_copy(ElementType eltype, void *src, size_t size, void *dst) {
+  type_dispatch(eltype, [&] (auto type)  {
+      using dtype = decltype(type);
+      std::copy_n(reinterpret_cast<dtype*>(src),
+                  size,
+                  reinterpret_cast<dtype*>(dst));
+    });
+}
+
+template<typename T>
+inline void
+typed_fill(ElementType eltype, void *buf, auto size, T val) {
+  //Expects(element_type<T> == eltype);
+  type_dispatch(eltype, [&] (auto type) {
+      using dtype = decltype(type);
+      auto tval = static_cast<dtype>(val);
+      std::fill_n(reinterpret_cast<dtype*>(buf), size, tval);
+    });
+}
+
+inline void
+typed_zeroout(ElementType eltype, void *buf, auto size) {
+  type_dispatch(eltype, [&] (auto type) {
+      using dtype = decltype(type);
+      std::fill_n(reinterpret_cast<dtype*>(buf), size, 0);
+    });
+}
+
+inline TensorVec<SymmGroup>
+slice_indices(const TensorVec<SymmGroup>& indices,
+              const TensorLabel& label) {
+  TensorVec<SymmGroup> ret;
+  auto grp_labels = group_labels(indices, label);
+  for(auto &gl: grp_labels) {
+    SymmGroup sg;
+    for(auto &l: gl) {
+      sg.push_back(l.dt);
+    }
+    ret.push_back(sg);
+  }
+  return ret;
+}
+
+template<typename Fn, typename... Fargs>
+inline void
+ndim_dispatch(TensorIndex& lo, TensorIndex& size, Fn fn, Fargs&& ...args) {
+  TensorVec<unsigned> bdims, boffset;
+
+  Expects(lo.size() == size.size());
+  for(auto sz: size) {
+    bdims.push_back(sz.value());
+  }
+  for(auto off : lo) {
+    boffset.push_back(off.value());
+  }
+
+  switch(lo.size()) {
+    case 0:
+      for(unsigned i0=0, c=0; i0<bdims[0]; i0++,c++) {
+        fn(c, args...);
+      }
+      break;
+    case 1:
+      for(unsigned i0=0, c=0; i0<bdims[0]; i0++, c++) {
+        fn(c, boffset[0]+i0, args...);
+      }
+      break;
+    case 2:
+      for(unsigned i0=0, c=0; i0<bdims[0]; i0++) {
+        for(unsigned i1=0; i1<bdims[1]; i1++, c++) {
+          fn(c, boffset[0]+i0, boffset[1]+i1, args...);
+        }
+      }
+      break;
+    default:
+      assert(0); 
+  }
+}
+
+// template<typename T>
+// inline std::size_t hash(const T& value) {
+//   return std::hash<T>{}(value);
+// }
+
+// template<typename S, typename T>
+// inline std::size_t hash(const StrongNum<S,T>& s) {
+//   return std::hash<typename StrongNum<S,T>::value_type>{}(s.value());
+// ;
+
+using IndexInfo = std::pair<TensorVec<SymmGroup>,int>;
+
+namespace tensor_dims {
+
+const auto E  = TensorVec<SymmGroup>{};
+const auto O  = TensorVec<SymmGroup>{SymmGroup{DimType::o}};
+const auto V  = TensorVec<SymmGroup>{SymmGroup{DimType::v}};
+const auto N  = TensorVec<SymmGroup>{SymmGroup{DimType::n}};
+const auto OO = TensorVec<SymmGroup>{SymmGroup{DimType::o, DimType::o}};
+const auto OV = TensorVec<SymmGroup>{SymmGroup{DimType::o}, {DimType::v}};
+const auto VO = TensorVec<SymmGroup>{SymmGroup{DimType::v}, {DimType::o}};
+const auto VV = TensorVec<SymmGroup>{SymmGroup{DimType::v, DimType::v}};
+const auto NN = TensorVec<SymmGroup>{SymmGroup{DimType::n, DimType::n}};
+
+inline IndexInfo
+operator | (const TensorVec<SymmGroup>& tv1,
+            const TensorVec<SymmGroup>& tv2) {
+  TensorVec<SymmGroup> ret;
+  if(tv1.size() > 0) {
+    ret.insert_back(tv1.begin(), tv1.end());
+  }
+  if(tv2.size() > 0) {
+    ret.insert_back(tv2.begin(), tv2.end());
+  }
+  int sz=0;
+  for(auto &sg: tv1) {
+    sz += sg.size();
+  }
+  return {ret, sz};
+}
+
+} // namespace tensor_dims
+
+
+namespace tensor_labels {
+
+struct OLabel : public IndexLabel {
+  OLabel(int n)
+      : IndexLabel{n, DimType::o} {}
+};
+
+struct VLabel : public IndexLabel {
+  VLabel(int n)
+      : IndexLabel{n, DimType::v} {}
+};
+
+struct NLabel : public IndexLabel {
+  NLabel(int n)
+      : IndexLabel{n, DimType::n} {}
+};
+
+const OLabel h1{0}, h2{1}, h3{2}, h4{3}, h5{4}, h6{5}, h7{6}, h8{7}, h9{8}, h10{9}, h11{10};
+const VLabel p1{0}, p2{1}, p3{2}, p4{3}, p5{4}, p6{5}, p7{6}, p8{7}, p9{8}, p10{9}, p11{10};
+
+const OLabel i{0}, j{1};
+const VLabel a{0}, b{1};
+
+} // namespace tensor_labels
 
 }; //namespace tammx
 

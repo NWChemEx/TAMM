@@ -1,10 +1,15 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMMX_STRONGINT_H__
-#define TAMMX_STRONGINT_H__
+#ifndef TAMMX_STRONGNUM_H__
+#define TAMMX_STRONGNUM_H__
 
 #include <limits>
 #include <iostream>
+#include <functional>
+
+/**
+ * @@todo IntType : rename to NumType
+ */
 
 namespace tammx {
 
@@ -53,7 +58,7 @@ Target checked_cast(const Source& s) {
 }
 
 template<typename Target, typename Source>
-Target strongint_cast(Source s) {
+Target strongnum_cast(Source s) {
   return checked_cast<Target>(s);
 }
 
@@ -66,19 +71,19 @@ Target strongint_cast(Source s) {
 
 
 template<typename Space, typename T>
-struct StrongInt {
+struct StrongNum {
   using value_type = T;
-  using IntType =  StrongInt<Space, T>;
+  using IntType =  StrongNum<Space, T>;
 
-  StrongInt() = default;
-  StrongInt(const StrongInt<Space, T>&) = default;
-  StrongInt& operator=(const StrongInt&) = default;
-  ~StrongInt() = default;
+  StrongNum() = default;
+  StrongNum(const StrongNum<Space, T>&) = default;
+  StrongNum& operator=(const StrongNum&) = default;
+  ~StrongNum() = default;
 
   template<typename T2>
-  explicit StrongInt(const T2 v1): v(checked_cast<T>(v1)) {}
+  explicit StrongNum(const T2 v1): v(checked_cast<T>(v1)) {}
 
-  // StrongInt<Space, T>& operator += (const T v1) {
+  // StrongNum<Space, T>& operator += (const T v1) {
   //   v += v1;
   //   return *this;
   // }
@@ -129,6 +134,7 @@ struct StrongInt {
 
   T value() const { return v; }
   T& value() { return v; }
+
  private:
   T v;
 };
@@ -149,29 +155,29 @@ struct StrongInt {
 
 
 // template<typename S1, typename T1, typename S2, typename T2>
-// StrongInt<S2, T2> strongint_cast(const StrongInt<S1, T1>& s) {
-//   return StrongInt<S2, T2>{strongint_cast<T2>(s.value())};
+// StrongNum<S2, T2> strongint_cast(const StrongNum<S1, T1>& s) {
+//   return StrongNum<S2, T2>{strongint_cast<T2>(s.value())};
 // }
 
 // template<typename S2, typename T2>
-// template<typename T1, typename X = StrongInt<S2,T2>>
-// StrongInt<S2, T2> strongint_cast(const T1& s) {
-//   return StrongInt<S2, T2>{strongint_cast<T2>(s)};
+// template<typename T1, typename X = StrongNum<S2,T2>>
+// StrongNum<S2, T2> strongint_cast(const T1& s) {
+//   return StrongNum<S2, T2>{strongint_cast<T2>(s)};
 // }
 
 template<typename Space, typename Int, typename Int2>
-StrongInt<Space,Int> operator * (Int2 value, StrongInt<Space,Int> sint) {
-  return StrongInt<Space,Int>{checked_cast<Int>(sint.value() * value)};
+StrongNum<Space,Int> operator * (Int2 value, StrongNum<Space,Int> sint) {
+  return StrongNum<Space,Int>{checked_cast<Int>(sint.value() * value)};
 }
 
 
 template<typename S, typename T>
-std::ostream& operator<<(std::ostream& os, const StrongInt<S, T>& s) {
+std::ostream& operator<<(std::ostream& os, const StrongNum<S, T>& s) {
   return os << s.value();
 }
 
 template<typename S, typename T>
-std::istream& operator>>(std::istream& is, StrongInt<S, T>& s) {
+std::istream& operator>>(std::istream& is, StrongNum<S, T>& s) {
   is >> s.value();
   return is;
 }

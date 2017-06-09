@@ -92,28 +92,28 @@ void noga_fock_build(Tensor& F, Tensor& X_OV,
   NLabel p{0}, q{1};
 
   OpList()
-      (FT(p, q) = 1.0 * hT(p, q))
+      (FT({p, q}) = 1.0 * hT({p, q}))
       .execute();
 
   /// @todo loop over Q for all code below
 
   OpList()
-      (FT(p, q) +=        bdiagsum   * bT(p, q))
-      (t1()      =        X_OO(i, j) * bT(i, j))
-      (FT(p, q) +=        bT(p, q)   * t1())
-      (t2()      = 2.0 *  X_OV(i, a) * bT(i, a))
-      (bT(p, q) +=        t2()       * bT(p, q))
-      (t3()      =        X_VV(a, b) * bT(a, b))
-      (bT(p, q) +=        bT(p, q)   * t3())
-      (FT(p, q) += -1.0 * bT(p, i)   * bT(i, q))
-      (t4(i, q)  =        X_OO(i, j) * bT(j, q))
-      (FT(p, q) += -1.0 * bT(p, i)   * t4(i, q))
-      (t5(i, q)  =        X_OV(i, a) * bT(a, q))
-      (FT(p, q) += -1.0 * bT(p, i)   * t5(i, q))
-      (t6(i, p)  =        X_OV(i, a) * bT(p, a))
-      (FT(p, q) += -1.0 * bT(i, q)   * t6(i, p))
-      (t7(a, q)  =        X_VV(a, b) * bT(b, q))
-      (FT(p, q) += -1.0 * bT(p, a)   * t7(a, q))
+      (FT({p, q}) +=        bdiagsum     * bT({p, q}))
+      (t1()        =        X_OO({i, j}) * bT({i, j}))
+      (FT({p, q}) +=        bT({p, q})   * t1())
+      (t2()        = 2.0 *  X_OV({i, a}) * bT({i, a}))
+      (bT({p, q}) +=        t2()         * bT({p, q}))
+      (t3()        =        X_VV({a, b}) * bT({a, b}))
+      (bT({p, q}) +=        bT({p, q})   * t3())
+      (FT({p, q}) += -1.0 * bT({p, i})   * bT({i, q}))
+      (t4({i, q})  =        X_OO({i, j}) * bT({j, q}))
+      (FT({p, q}) += -1.0 * bT({p, i})   * t4({i, q}))
+      (t5({i, q})  =        X_OV({i, a}) * bT({a, q}))
+      (FT({p, q}) += -1.0 * bT({p, i})   * t5({i, q}))
+      (t6({i, p})  =        X_OV({i, a}) * bT({p, a}))
+      (FT({p, q}) += -1.0 * bT({i, q})   * t6({i, p}))
+      (t7({a, q})  =        X_VV({a, b}) * bT({b, q}))
+      (FT({p, q}) += -1.0 * bT({p, a})   * t7({a, q}))
       .execute();
 
   t1.destruct();
@@ -202,26 +202,29 @@ void noga_main(Tensor& D, Tensor& F, Tensor& hT, Tensor& bT, double bdiagsum) {
 
     for (int l2 = 0; l2 < 20; l2++) { /// LOOP2
       OpList()
-          (R1(i, a)    =        F(i, a))
-          (R1(i, a)   += -1.0 * F(i, b)    * X_VV(b, a))
-          (R1(i, a)   += -1.0 * F(i, m)    * X_OV(m, a))
-          (R1(i, a)   +=        X_OO(i, j) * F(j, a))
-          (tmp0(i, b)  = -1.0 * X_OO(i, j) * F(j, b))
-          (R1(i, a)   +=        tmp0(i, b) * X_VV(b, a))
-          (tmp1(j, a)  =        F(j, m)    * X_OV(m, a))
-          (R1(i, a)   += -1.0 * X_OO(i, j) * tmp1(j, a))
-          (R1(i, a)   +=        X_OV(i, b) * F(b, a))
-          (tmp2(b, a)  =        F(b, c)    * X_VV(c, a))
-          (R1(i, a)   += -1.0 * X_OV(i, b) * tmp2(b, a))
-          (tmp3(b, a)  =        F(b, m)    * X_OV(m, a))
-          (R1(i, a)   += -1.0 * X_OV(i, b) * tmp3(b, a))
-          .op<2,1>(T(), R1(), [&fdiag] (auto a, auto i, auto& lval, auto& r1val) {
-              lval = r1val / (fdiag[a] - fdiag[i]);
-            })
+          (R1({i, a})    =        F({i, a}))
+          (R1({i, a})   += -1.0 * F({i, b})    * X_VV({b, a}))
+          (R1({i, a})   += -1.0 * F({i, m})    * X_OV({m, a}))
+
+          (R1({i, a})   +=        X_OO({i, j}) * F({j, a}))
+          // (tmp0({i, b})  = -1.0 * X_OO({i, j}) * F({j, b}))
+          // (R1({i, a})   +=        tmp0({i, b}) * X_VV({b, a}))
+          // (tmp1({j, a})  =        F({j, m})    * X_OV({m, a}))
+
+          // (R1({i, a})   += -1.0 * X_OO({i, j}) * tmp1({j, a}))
+          // (R1({i, a})   +=        X_OV({i, b}) * F({b, a}))
+          // (tmp2({b, a})  =        F({b, c})    * X_VV({c, a}))
+          // (R1({i, a})   += -1.0 * X_OV({i, b}) * tmp2({b, a}))
+          // (tmp3({b, a})  =        F({b, m})    * X_OV({m, a}))
+          // (R1({i, a})   += -1.0 * X_OV({i, b}) * tmp3({b, a}))
+          // .op<2,1>(T(), R1(), [&fdiag] (auto a, auto i, auto& lval, auto& r1val) {
+          //     lval = r1val / (fdiag[a] - fdiag[i]);
+          //   })
           .execute();
     }
-
-    OpList::execute(Z(i, j) = -1.0 * T(i, e) * T(j, e));
+    OpList()
+        (Z({i, j}) = -1.0 * (T({i, e}) * T({j, e})))
+        .execute();
 
     // following loop solves this equation:
     // r_ij = D_ij - delta_ij - D_im * Z_mj
@@ -326,8 +329,6 @@ void op_test() {
   Tensor ta1{indices_o_o, eltype, distribution, 2, irrep_t, false};
   Tensor ta2{indices_o_o, eltype, distribution, 2, irrep_t, false};
 
-  OLabel i{0}, j{1};
-  
   ta1.allocate();
   ta2.allocate();
 
@@ -357,37 +358,11 @@ void op_test() {
   //     })
   //     .execute();
 
-  tensor_print(ta1()); std::cout<<std::endl;  
-  assert_zero(ta1);
+  tensor_print(ta1()); std::cout<<std::endl;
 
-  OpList()(ta1() = 5).execute();
-  assert_equal(ta1(), 5.0);
-
-  OpList()
-      (ta1() = 4)
-      (ta2() = 6)
-      (ta1() += ta2())
-      .execute();
-
-  assert_equal(ta1(), 10);
-
-  OpList()
-      (ta1() = 7)
-      (ta2() = 9.0)
-      (ta1() += -1 * ta2())
-      .execute();
-  assert_equal(ta1(), -2);
-
-  OpList()
-      (ta1(), [] (auto &ival) { ival = rand() % 100; })
-      (ta2(i,j) = 0.5 * ta1(i,j))
-      (ta2(i,j) += 0.5 * ta1(j,i))
-      (ta1() = ta2())
-      (ta1(i,j) += -1 * ta2(j,i))
-      .execute();
-
-  assert_zero(ta1);
   
+  assert_zero(ta1);
+
   ta1.destruct();
   ta2.destruct();
 }

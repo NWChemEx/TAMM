@@ -50,31 +50,35 @@ using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 // this is a matrix with row-major storage (http://en.wikipedia.org/wiki/Row-major_order)
 // to meet the layout of the integrals returned by the Libint integral library
 
-size_t nbasis(const std::vector<libint2::Shell>& shells);
-std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell>& shells);
-Matrix compute_soad(const std::vector<libint2::Atom>& atoms);
-Matrix compute_1body_ints(const std::vector<libint2::Shell>& shells,
+size_t nbasis(const std::vector<libint2::Shell> &shells);
+
+std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell> &shells);
+
+Matrix compute_soad(const std::vector<libint2::Atom> &atoms);
+
+Matrix compute_1body_ints(const std::vector<libint2::Shell> &shells,
                           libint2::Operator t,
-                          const std::vector<libint2::Atom>& atoms = std::vector<libint2::Atom>());
+                          const std::vector<libint2::Atom> &atoms = std::vector<libint2::Atom>());
 
 // simple-to-read, but inefficient Fock builder; computes ~16 times as many ints as possible
-Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
-                                 const Matrix& D);
+Matrix compute_2body_fock_simple(const std::vector<libint2::Shell> &shells,
+                                 const Matrix &D);
+
 // an efficient Fock builder; *integral-driven* hence computes permutationally-unique ints once
-Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
-                          const Matrix& D);
+Matrix compute_2body_fock(const std::vector<libint2::Shell> &shells,
+                          const Matrix &D);
 
-std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename);
+std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename);
 
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
-  
+
   Matrix F;
   Tensor4D V;
   double hf_energy{0.0};
-  
-  std::tie(F,V,hf_energy) = get_ccsd_inputs(filename);
+
+  std::tie(F, V, hf_energy) = get_ccsd_inputs(filename);
 
   // @todo CALL CCSD_DRIVER(F,V,hf_energy,...);
 
@@ -85,21 +89,21 @@ int main(int argc, char* argv[]) {
 }
 
 
-size_t nbasis(const std::vector<libint2::Shell>& shells) {
+size_t nbasis(const std::vector<libint2::Shell> &shells) {
   size_t n = 0;
-  for (const auto& shell: shells)
+  for (const auto &shell: shells)
     n += shell.size();
   return n;
 }
 
-size_t max_nprim(const std::vector<libint2::Shell>& shells) {
+size_t max_nprim(const std::vector<libint2::Shell> &shells) {
   size_t n = 0;
   for (auto shell: shells)
     n = std::max(shell.nprim(), n);
   return n;
 }
 
-int max_l(const std::vector<libint2::Shell>& shells) {
+int max_l(const std::vector<libint2::Shell> &shells) {
   int l = 0;
   for (auto shell: shells)
     for (auto c: shell.contr)
@@ -107,7 +111,7 @@ int max_l(const std::vector<libint2::Shell>& shells) {
   return l;
 }
 
-std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell>& shells) {
+std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell> &shells) {
   std::vector<size_t> result;
   result.reserve(shells.size());
 
@@ -121,7 +125,7 @@ std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell
 }
 
 
-std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename) {
+std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename) {
 
   // Perform the simple HF calculation (Ed) and 2,4-index transform to get the inputs for CCSD
   using libint2::Atom;
@@ -150,7 +154,7 @@ std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename) {
       auto xij = atoms[i].x - atoms[j].x;
       auto yij = atoms[i].y - atoms[j].y;
       auto zij = atoms[i].z - atoms[j].z;
-      auto r2 = xij*xij + yij*yij + zij*zij;
+      auto r2 = xij * xij + yij * yij + zij * zij;
       auto r = sqrt(r2);
       enuc += atoms[i].atomic_number * atoms[j].atomic_number / r;
     }
@@ -166,10 +170,10 @@ std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename) {
   /*** =========================== ***/
 
   // LIBINT_INSTALL_DIR/share/libint/2.4.0-beta.1/basis
-  libint2::BasisSet shells(std::string("sto-3g"),atoms);
+  libint2::BasisSet shells(std::string("sto-3g"), atoms);
   //auto shells = make_sto3g_basis(atoms);
   size_t nao = 0;
-  for (auto s=0; s<shells.size(); ++s)
+  for (auto s = 0; s < shells.size(); ++s)
     nao += shells[s].size();
 
   /*** =========================== ***/
@@ -197,8 +201,8 @@ std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename) {
   cout << H << endl;
 
   // T and V no longer needed, free up the memory
-  T.resize(0,0);
-  V.resize(0,0);
+  T.resize(0, 0);
+  V.resize(0, 0);
 
   /*** =========================== ***/
   /*** build initial-guess density ***/
@@ -211,7 +215,7 @@ std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename) {
   Matrix D;
   if (use_hcore_guess) { // hcore guess
     // solve H C = e S C
-    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(H, S);
+    Eigen::GeneralizedSelfAdjointEigenSolver <Matrix> gen_eig_solver(H, S);
     auto eps = gen_eig_solver.eigenvalues();
     auto C = gen_eig_solver.eigenvectors();
     cout << "\n\tInitial C Matrix:\n";
@@ -220,8 +224,7 @@ std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename) {
     // compute density, D = C(occ) . C(occ)T
     auto C_occ = C.leftCols(ndocc);
     D = C_occ * C_occ.transpose();
-  }
-  else {  // SOAD as the guess density, assumes STO-nG basis
+  } else {  // SOAD as the guess density, assumes STO-nG basis
     D = compute_soad(atoms);
   }
 
@@ -262,7 +265,7 @@ std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename) {
     }
 
     // solve F C = e S C
-    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);
+    Eigen::GeneralizedSelfAdjointEigenSolver <Matrix> gen_eig_solver(F, S);
     //auto
     eps = gen_eig_solver.eigenvalues();
     C = gen_eig_solver.eigenvectors();
@@ -276,7 +279,7 @@ std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename) {
     ehf = 0.0;
     for (auto i = 0; i < nao; i++)
       for (auto j = 0; j < nao; j++)
-        ehf += D(i,j) * (H(i,j) + F(i,j));
+        ehf += D(i, j) * (H(i, j) + F(i, j));
 
     // compute difference with last iteration
     ediff = ehf - ehf_last;
@@ -313,30 +316,30 @@ std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename) {
   const int C_cols = C.cols();
 
   // replicate horizontally
-  Matrix C_2N(C_rows,2*C_cols);
+  Matrix C_2N(C_rows, 2 * C_cols);
   C_2N << C, C;
   //cout << "\n\t C_2N Matrix:\n";
   //cout << C_2N << endl;
 
   const int b_rows = 7, nelectrons = 5;
-  Matrix C_noa = C_2N.block<b_rows,nelectrons>(0,0);
+  Matrix C_noa = C_2N.block<b_rows, nelectrons>(0, 0);
   cout << "\n\t C occupied alpha:\n";
   cout << C_noa << endl;
 
-  Matrix C_nva = C_2N.block<b_rows,b_rows-nelectrons>(0,num_electrons);
+  Matrix C_nva = C_2N.block<b_rows, b_rows - nelectrons>(0, num_electrons);
   cout << "\n\t C virtual alpha:\n";
   cout << C_nva << endl;
 
-  Matrix C_nob = C_2N.block<b_rows,nelectrons>(0,C_cols);
+  Matrix C_nob = C_2N.block<b_rows, nelectrons>(0, C_cols);
   cout << "\n\t C occupied beta:\n";
   cout << C_nob << endl;
 
-  Matrix C_nvb = C_2N.block<b_rows,b_rows-nelectrons>(0,num_electrons+C_cols);
+  Matrix C_nvb = C_2N.block<b_rows, b_rows - nelectrons>(0, num_electrons + C_cols);
   cout << "\n\t C virtual beta:\n";
   cout << C_nvb << endl;
 
   // For now C_noa = C_nob and C_nva = C_nvb
-  Matrix CTiled(C_rows, 2*C_cols);
+  Matrix CTiled(C_rows, 2 * C_cols);
   CTiled << C_noa, C_nob, C_nva, C_nvb;
 
   cout << "\n\t CTiled Matrix = [C_noa C_nob C_nva C_nvb]:\n";
@@ -349,7 +352,7 @@ std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename) {
 
   //Start 4-index transform
   const auto n = nbasis(shells);
-  Eigen::Tensor<double, 4, Eigen::RowMajor> V_prqs(2*n, 2*n, 2*n, 2*n);
+  Eigen::Tensor<double, 4, Eigen::RowMajor> V_prqs(2 * n, 2 * n, 2 * n, 2 * n);
   V_prqs.setZero();
 
   //V_prqs.setConstant(0.0d);
@@ -362,100 +365,120 @@ std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename) {
   auto shell2bf = map_shell_to_basis_function(shells);
 
   // buf[0] points to the target shell set after every call  to engine.compute()
-  const auto& buf = engine.results();
+  const auto &buf = engine.results();
+  Matrix spin_t = Matrix::Zero(1, 2 * n);
+  spin_t << 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 2, 2;
+
+  cout << "\n\t spin_t\n";
+  cout << spin_t << endl;
 
 
-  for (auto p=0; p < 2*n; p++) {
-    for (auto q=0; q < 2*n;q++) {
-      for (auto r=0; r < 2*n; r++) {
-        for (auto s=0; s < 2*n; s++) {
+  for (auto p = 0; p < 2 * n; p++) {
+    for (auto r = 0; r < 2 * n; r++) {
 
+      if (spin_t(p) == spin_t(r)) {
 
-          // loop over shell pairs of the Fock matrix, {s1,s2}
-          // Fock matrix is symmetric, but skipping it here for simplicity (see compute_2body_fock)
-          for(auto s1=0; s1!=shells.size(); ++s1) {
+        for (auto q = 0; q < 2 * n; q++) {
+          for (auto s = 0; s < 2 * n; s++) {
 
-            auto bf1_first = shell2bf[s1]; // first basis function in this shell
-            auto n1 = shells[s1].size();
+            if (spin_t(q) == spin_t(s)) {
 
-            for(auto s2=0; s2!=shells.size(); ++s2) {
+              // loop over shell pairs of the Fock matrix, {s1,s2}
+              // Fock matrix is symmetric, but skipping it here for simplicity (see compute_2body_fock)
+              for (auto s1 = 0; s1 != shells.size(); ++s1) {
 
-              auto bf2_first = shell2bf[s2];
-              auto n2 = shells[s2].size();
+                auto bf1_first = shell2bf[s1]; // first basis function in this shell
+                auto n1 = shells[s1].size();
 
-              // loop over shell pairs of the density matrix, {s3,s4}
-              // again symmetry is not used for simplicity
-              for(auto s3=0; s3!=shells.size(); ++s3) {
+                for (auto s2 = 0; s2 != shells.size(); ++s2) {
 
-                auto bf3_first = shell2bf[s3];
-                auto n3 = shells[s3].size();
+                  auto bf2_first = shell2bf[s2];
+                  auto n2 = shells[s2].size();
 
-                for(auto s4=0; s4!=shells.size(); ++s4) {
+                  // loop over shell pairs of the density matrix, {s3,s4}
+                  // again symmetry is not used for simplicity
+                  for (auto s3 = 0; s3 != shells.size(); ++s3) {
 
-                  auto bf4_first = shell2bf[s4];
-                  auto n4 = shells[s4].size();
+                    auto bf3_first = shell2bf[s3];
+                    auto n3 = shells[s3].size();
 
-                  // Coulomb contribution to the Fock matrix is from {s1,s2,s3,s4} integrals
-                  engine.compute(shells[s1], shells[s2], shells[s3], shells[s4]);
-                  const auto* buf_1234 = buf[0];
-                  if (buf_1234 == nullptr)
-                    continue; // if all integrals screened out, skip to next quartet
+                    for (auto s4 = 0; s4 != shells.size(); ++s4) {
 
-                  // we don't have an analog of Eigen for tensors (yet ... see github.com/BTAS/BTAS, under development)
-                  // hence some manual labor here:
-                  // 1) loop over every integral in the shell set (= nested loops over basis functions in each shell)
-                  // and 2) add contribution from each integral
-                  for(auto f1=0, f1234=0; f1!=n1; ++f1) {
-                    const auto bf1 = f1 + bf1_first;
-                    for(auto f2=0; f2!=n2; ++f2) {
-                      const auto bf2 = f2 + bf2_first;
-                      for(auto f3=0; f3!=n3; ++f3) {
-                        const auto bf3 = f3 + bf3_first;
-                        for(auto f4=0; f4!=n4; ++f4, ++f1234) {
-                          const auto bf4 = f4 + bf4_first;
-                          //V4i(p*2*n+r,q*2*n+s) += CTiled(bf1,p) * CTiled(bf2,r) * CTiled(bf3,q) * CTiled(bf4,s) * buf_1234[f1234];
-                          V_prqs(p,r,q,s) += CTiled(bf1,p) * CTiled(bf2,r) * CTiled(bf3,q) * CTiled(bf4,s) * buf_1234[f1234];
+                      auto bf4_first = shell2bf[s4];
+                      auto n4 = shells[s4].size();
+
+                      // Coulomb contribution to the Fock matrix is from {s1,s2,s3,s4} integrals
+                      engine.compute(shells[s1], shells[s2], shells[s3], shells[s4]);
+                      const auto *buf_1234 = buf[0];
+                      if (buf_1234 == nullptr)
+                        continue; // if all integrals screened out, skip to next quartet
+
+                      // we don't have an analog of Eigen for tensors (yet ... see github.com/BTAS/BTAS, under development)
+                      // hence some manual labor here:
+                      // 1) loop over every integral in the shell set (= nested loops over basis functions in each shell)
+                      // and 2) add contribution from each integral
+                      for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                        const auto bf1 = f1 + bf1_first;
+                        for (auto f2 = 0; f2 != n2; ++f2) {
+                          const auto bf2 = f2 + bf2_first;
+                          for (auto f3 = 0; f3 != n3; ++f3) {
+                            const auto bf3 = f3 + bf3_first;
+                            for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
+                              const auto bf4 = f4 + bf4_first;
+                              //V4i(p*2*n+r,q*2*n+s) += CTiled(bf1,p) * CTiled(bf2,r) * CTiled(bf3,q) * CTiled(bf4,s) * buf_1234[f1234];
+                              V_prqs(p, r, q, s) +=
+                                CTiled(bf1, p) * CTiled(bf2, r) * CTiled(bf3, q) * CTiled(bf4, s) * buf_1234[f1234];
+                            }
+                          }
                         }
-                      }
+                      } //f1,f2,f3,f4
+
                     }
-                  } //f1,f2,f3,f4
+                  }
+                }
+              } //s1,s2,s3,s4
 
-                } 
-              }
-            }
-          } //s1,s2,s3,s4
-
-        }
-      }
-    }
-  }  //p,q,r,s
+            } //if qs
+          } //s
+        } //q
+      } //if pr
+    } //r
+  }  //p
 
 
   //Need to explicitly create an array that contains the permutation
-  Eigen::array<std::ptrdiff_t, 4> shuffleV = {{0,3,2,1}};
+  Eigen::array<std::ptrdiff_t, 4> psqr_shuffle = {{0, 3, 2, 1}};
 
-  Eigen::Tensor<double, 4, Eigen::RowMajor> V_psqr = V_prqs.shuffle(shuffleV);
+  Eigen::Tensor<double, 4, Eigen::RowMajor> V_psqr = V_prqs.shuffle(psqr_shuffle);
   Eigen::Tensor<double, 4, Eigen::RowMajor> V_pqrs = V_prqs - V_psqr;
 
   cout << "\n\t V_pqrs tensor\n";
-  //cout << V_pqrs << endl;
+
+  for (auto p = 0; p < 2 * n; p++) {
+    for (auto r = 0; r < 2 * n; r++) {
+      for (auto q = 0; q < 2 * n; q++) {
+        for (auto s = 0; s < 2 * n; s++) {
+          cout << V_pqrs(p, q, r, s) << "\t" << p << " " << q << " " << r << " " << s << endl;
+        }
+      }
+    }
+  }
 
   libint2::finalize(); // done with libint
 
   //return CCSD inputs
-  return std::make_tuple(F,V_pqrs,(ehf+enuc));
+  return std::make_tuple(F, V_pqrs, (ehf + enuc));
 
 }
 
 
-
 // computes Superposition-Of-Atomic-Densities guess for the molecular density matrix
 // in minimal basis; occupies subshells by smearing electrons evenly over the orbitals
-Matrix compute_soad(const std::vector<libint2::Atom>& atoms) {
+Matrix compute_soad(const std::vector<libint2::Atom> &atoms) {
 
   // compute number of atomic orbitals
   size_t nao = 0;
-  for(const auto& atom: atoms) {
+  for (const auto &atom: atoms) {
     const auto Z = atom.atomic_number;
     if (Z == 1 || Z == 2) // H, He
       nao += 1;
@@ -468,19 +491,18 @@ Matrix compute_soad(const std::vector<libint2::Atom>& atoms) {
   // compute the minimal basis density
   Matrix D = Matrix::Zero(nao, nao);
   size_t ao_offset = 0; // first AO of this atom
-  for(const auto& atom: atoms) {
+  for (const auto &atom: atoms) {
     const auto Z = atom.atomic_number;
     if (Z == 1 || Z == 2) { // H, He
       D(ao_offset, ao_offset) = Z; // all electrons go to the 1s
       ao_offset += 1;
-    }
-    else if (Z <= 10) {
+    } else if (Z <= 10) {
       D(ao_offset, ao_offset) = 2; // 2 electrons go to the 1s
-      D(ao_offset+1, ao_offset+1) = (Z == 3) ? 1 : 2; // Li? only 1 electron in 2s, else 2 electrons
+      D(ao_offset + 1, ao_offset + 1) = (Z == 3) ? 1 : 2; // Li? only 1 electron in 2s, else 2 electrons
       // smear the remaining electrons in 2p orbitals
-      const double num_electrons_per_2p = (Z > 4) ? (double)(Z - 4)/3 : 0;
-      for(auto xyz=0; xyz!=3; ++xyz)
-        D(ao_offset+2+xyz, ao_offset+2+xyz) = num_electrons_per_2p;
+      const double num_electrons_per_2p = (Z > 4) ? (double) (Z - 4) / 3 : 0;
+      for (auto xyz = 0; xyz != 3; ++xyz)
+        D(ao_offset + 2 + xyz, ao_offset + 2 + xyz) = num_electrons_per_2p;
       ao_offset += 5;
     }
   }
@@ -488,25 +510,24 @@ Matrix compute_soad(const std::vector<libint2::Atom>& atoms) {
   return D * 0.5; // we use densities normalized to # of electrons/2
 }
 
-Matrix compute_1body_ints(const std::vector<libint2::Shell>& shells,
+Matrix compute_1body_ints(const std::vector<libint2::Shell> &shells,
                           libint2::Operator obtype,
-                          const std::vector<libint2::Atom>& atoms)
-{
+                          const std::vector<libint2::Atom> &atoms) {
   using libint2::Shell;
   using libint2::Engine;
   using libint2::Operator;
 
   const auto n = nbasis(shells);
-  Matrix result(n,n);
+  Matrix result(n, n);
 
   // construct the overlap integrals engine
   Engine engine(obtype, max_nprim(shells), max_l(shells), 0);
   // nuclear attraction ints engine needs to know where the charges sit ...
   // the nuclei are charges in this case; in QM/MM there will also be classical charges
   if (obtype == Operator::nuclear) {
-    std::vector<std::pair<double,std::array<double,3>>> q;
-    for(const auto& atom : atoms) {
-      q.push_back( {static_cast<double>(atom.atomic_number), {{atom.x, atom.y, atom.z}}} );
+    std::vector<std::pair<double, std::array<double, 3>>> q;
+    for (const auto &atom : atoms) {
+      q.push_back({static_cast<double>(atom.atomic_number), {{atom.x, atom.y, atom.z}}});
     }
     engine.set_params(q);
   }
@@ -514,16 +535,16 @@ Matrix compute_1body_ints(const std::vector<libint2::Shell>& shells,
   auto shell2bf = map_shell_to_basis_function(shells);
 
   // buf[0] points to the target shell set after every call  to engine.compute()
-  const auto& buf = engine.results();
+  const auto &buf = engine.results();
 
   // loop over unique shell pairs, {s1,s2} such that s1 >= s2
   // this is due to the permutational symmetry of the real integrals over Hermitian operators: (1|2) = (2|1)
-  for(auto s1=0; s1!=shells.size(); ++s1) {
+  for (auto s1 = 0; s1 != shells.size(); ++s1) {
 
     auto bf1 = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();
 
-    for(auto s2=0; s2<=s1; ++s2) {
+    for (auto s2 = 0; s2 <= s1; ++s2) {
 
       auto bf2 = shell2bf[s2];
       auto n2 = shells[s2].size();
@@ -543,15 +564,15 @@ Matrix compute_1body_ints(const std::vector<libint2::Shell>& shells,
   return result;
 }
 
-Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
-                                 const Matrix& D) {
+Matrix compute_2body_fock_simple(const std::vector<libint2::Shell> &shells,
+                                 const Matrix &D) {
 
   using libint2::Shell;
   using libint2::Engine;
   using libint2::Operator;
 
   const auto n = nbasis(shells);
-  Matrix G = Matrix::Zero(n,n);
+  Matrix G = Matrix::Zero(n, n);
 
   // construct the electron repulsion integrals engine
   Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
@@ -559,35 +580,35 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
   auto shell2bf = map_shell_to_basis_function(shells);
 
   // buf[0] points to the target shell set after every call  to engine.compute()
-  const auto& buf = engine.results();
+  const auto &buf = engine.results();
 
   // loop over shell pairs of the Fock matrix, {s1,s2}
   // Fock matrix is symmetric, but skipping it here for simplicity (see compute_2body_fock)
-  for(auto s1=0; s1!=shells.size(); ++s1) {
+  for (auto s1 = 0; s1 != shells.size(); ++s1) {
 
     auto bf1_first = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();
 
-    for(auto s2=0; s2!=shells.size(); ++s2) {
+    for (auto s2 = 0; s2 != shells.size(); ++s2) {
 
       auto bf2_first = shell2bf[s2];
       auto n2 = shells[s2].size();
 
       // loop over shell pairs of the density matrix, {s3,s4}
       // again symmetry is not used for simplicity
-      for(auto s3=0; s3!=shells.size(); ++s3) {
+      for (auto s3 = 0; s3 != shells.size(); ++s3) {
 
         auto bf3_first = shell2bf[s3];
         auto n3 = shells[s3].size();
 
-        for(auto s4=0; s4!=shells.size(); ++s4) {
+        for (auto s4 = 0; s4 != shells.size(); ++s4) {
 
           auto bf4_first = shell2bf[s4];
           auto n4 = shells[s4].size();
 
           // Coulomb contribution to the Fock matrix is from {s1,s2,s3,s4} integrals
           engine.compute(shells[s1], shells[s2], shells[s3], shells[s4]);
-          const auto* buf_1234 = buf[0];
+          const auto *buf_1234 = buf[0];
           if (buf_1234 == nullptr)
             continue; // if all integrals screened out, skip to next quartet
 
@@ -595,15 +616,15 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
           // hence some manual labor here:
           // 1) loop over every integral in the shell set (= nested loops over basis functions in each shell)
           // and 2) add contribution from each integral
-          for(auto f1=0, f1234=0; f1!=n1; ++f1) {
+          for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
             const auto bf1 = f1 + bf1_first;
-            for(auto f2=0; f2!=n2; ++f2) {
+            for (auto f2 = 0; f2 != n2; ++f2) {
               const auto bf2 = f2 + bf2_first;
-              for(auto f3=0; f3!=n3; ++f3) {
+              for (auto f3 = 0; f3 != n3; ++f3) {
                 const auto bf3 = f3 + bf3_first;
-                for(auto f4=0; f4!=n4; ++f4, ++f1234) {
+                for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
                   const auto bf4 = f4 + bf4_first;
-                  G(bf1,bf2) += D(bf3,bf4) * 2.0 * buf_1234[f1234];
+                  G(bf1, bf2) += D(bf3, bf4) * 2.0 * buf_1234[f1234];
                 }
               }
             }
@@ -611,17 +632,17 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
 
           // exchange contribution to the Fock matrix is from {s1,s3,s2,s4} integrals
           engine.compute(shells[s1], shells[s3], shells[s2], shells[s4]);
-          const auto* buf_1324 = buf[0];
+          const auto *buf_1324 = buf[0];
 
-          for(auto f1=0, f1324=0; f1!=n1; ++f1) {
+          for (auto f1 = 0, f1324 = 0; f1 != n1; ++f1) {
             const auto bf1 = f1 + bf1_first;
-            for(auto f3=0; f3!=n3; ++f3) {
+            for (auto f3 = 0; f3 != n3; ++f3) {
               const auto bf3 = f3 + bf3_first;
-              for(auto f2=0; f2!=n2; ++f2) {
+              for (auto f2 = 0; f2 != n2; ++f2) {
                 const auto bf2 = f2 + bf2_first;
-                for(auto f4=0; f4!=n4; ++f4, ++f1324) {
+                for (auto f4 = 0; f4 != n4; ++f4, ++f1324) {
                   const auto bf4 = f4 + bf4_first;
-                  G(bf1,bf2) -= D(bf3,bf4) * buf_1324[f1324];
+                  G(bf1, bf2) -= D(bf3, bf4) * buf_1324[f1324];
                 }
               }
             }
@@ -635,8 +656,8 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
   return G;
 }
 
-Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
-                          const Matrix& D) {
+Matrix compute_2body_fock(const std::vector<libint2::Shell> &shells,
+                          const Matrix &D) {
 
   using libint2::Shell;
   using libint2::Engine;
@@ -645,14 +666,14 @@ Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
   std::chrono::duration<double> time_elapsed = std::chrono::duration<double>::zero();
 
   const auto n = nbasis(shells);
-  Matrix G = Matrix::Zero(n,n);
+  Matrix G = Matrix::Zero(n, n);
 
   // construct the 2-electron repulsion integrals engine
   Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
 
   auto shell2bf = map_shell_to_basis_function(shells);
 
-  const auto& buf = engine.results();
+  const auto &buf = engine.results();
 
   // The problem with the simple Fock builder is that permutational symmetries of the Fock,
   // density, and two-electron integrals are not taken into account to reduce the cost.
@@ -681,23 +702,23 @@ Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
   // (ab|cd) contributes. STOP READING and try to figure it out yourself. (to check your answer see below)
 
   // loop over permutationally-unique set of shells
-  for(auto s1=0; s1!=shells.size(); ++s1) {
+  for (auto s1 = 0; s1 != shells.size(); ++s1) {
 
     auto bf1_first = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();   // number of basis functions in this shell
 
-    for(auto s2=0; s2<=s1; ++s2) {
+    for (auto s2 = 0; s2 <= s1; ++s2) {
 
       auto bf2_first = shell2bf[s2];
       auto n2 = shells[s2].size();
 
-      for(auto s3=0; s3<=s1; ++s3) {
+      for (auto s3 = 0; s3 <= s1; ++s3) {
 
         auto bf3_first = shell2bf[s3];
         auto n3 = shells[s3].size();
 
         const auto s4_max = (s1 == s3) ? s2 : s3;
-        for(auto s4=0; s4<=s4_max; ++s4) {
+        for (auto s4 = 0; s4 <= s4_max; ++s4) {
 
           auto bf4_first = shell2bf[s4];
           auto n4 = shells[s4].size();
@@ -711,7 +732,7 @@ Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
           const auto tstart = std::chrono::high_resolution_clock::now();
 
           engine.compute(shells[s1], shells[s2], shells[s3], shells[s4]);
-          const auto* buf_1234 = buf[0];
+          const auto *buf_1234 = buf[0];
           if (buf_1234 == nullptr)
             continue; // if all integrals screened out, skip to next quartet
 
@@ -729,25 +750,25 @@ Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
           // 2) each permutationally-unique integral (shell set) must be scaled by its degeneracy,
           //    i.e. the number of the integrals/sets equivalent to it
           // 3) the end result must be symmetrized
-          for(auto f1=0, f1234=0; f1!=n1; ++f1) {
+          for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
             const auto bf1 = f1 + bf1_first;
-            for(auto f2=0; f2!=n2; ++f2) {
+            for (auto f2 = 0; f2 != n2; ++f2) {
               const auto bf2 = f2 + bf2_first;
-              for(auto f3=0; f3!=n3; ++f3) {
+              for (auto f3 = 0; f3 != n3; ++f3) {
                 const auto bf3 = f3 + bf3_first;
-                for(auto f4=0; f4!=n4; ++f4, ++f1234) {
+                for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
                   const auto bf4 = f4 + bf4_first;
 
                   const auto value = buf_1234[f1234];
 
                   const auto value_scal_by_deg = value * s1234_deg;
 
-                  G(bf1,bf2) += D(bf3,bf4) * value_scal_by_deg;
-                  G(bf3,bf4) += D(bf1,bf2) * value_scal_by_deg;
-                  G(bf1,bf3) -= 0.25 * D(bf2,bf4) * value_scal_by_deg;
-                  G(bf2,bf4) -= 0.25 * D(bf1,bf3) * value_scal_by_deg;
-                  G(bf1,bf4) -= 0.25 * D(bf2,bf3) * value_scal_by_deg;
-                  G(bf2,bf3) -= 0.25 * D(bf1,bf4) * value_scal_by_deg;
+                  G(bf1, bf2) += D(bf3, bf4) * value_scal_by_deg;
+                  G(bf3, bf4) += D(bf1, bf2) * value_scal_by_deg;
+                  G(bf1, bf3) -= 0.25 * D(bf2, bf4) * value_scal_by_deg;
+                  G(bf2, bf4) -= 0.25 * D(bf1, bf3) * value_scal_by_deg;
+                  G(bf1, bf4) -= 0.25 * D(bf2, bf3) * value_scal_by_deg;
+                  G(bf2, bf3) -= 0.25 * D(bf1, bf4) * value_scal_by_deg;
                 }
               }
             }

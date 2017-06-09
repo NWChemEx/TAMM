@@ -8,9 +8,9 @@
 
 #include "tammx/tammx.h"
 
-
 using namespace std;
 using namespace tammx;
+using namespace tammx::tensor_dims;
 
 Irrep operator "" _ir(unsigned long long int val) {
   return Irrep{strongnum_cast<Irrep::value_type>(val)};
@@ -52,10 +52,10 @@ void test() {
   using Type = double;
   using DistributionType = Distribution_NW;
 
-//  using tammx::O;
-//  using tammx::V;
-//  using tammx::OO;
-//  using tammx::OV;
+  // using tammx::O;
+  // using tammx::V;
+  // using tammx::OO;
+  // using tammx::OV;
 
   Irrep irrep{0};
 

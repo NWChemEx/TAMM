@@ -352,8 +352,8 @@ std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename) {
 
   //Start 4-index transform
   const auto n = nbasis(shells);
-  Eigen::Tensor<double, 4, Eigen::RowMajor> V_prqs(2 * n, 2 * n, 2 * n, 2 * n);
-  V_prqs.setZero();
+  Eigen::Tensor<double, 4, Eigen::RowMajor> V2(2 * n, 2 * n, 2 * n, 2 * n);
+  V2.setZero();
 
   //V_prqs.setConstant(0.0d);
   //cout << t << endl;
@@ -426,7 +426,7 @@ std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename) {
                             for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
                               const auto bf4 = f4 + bf4_first;
                               //V4i(p*2*n+r,q*2*n+s) += CTiled(bf1,p) * CTiled(bf2,r) * CTiled(bf3,q) * CTiled(bf4,s) * buf_1234[f1234];
-                              V_prqs(p, r, q, s) +=
+                              V2(p, r, q, s) +=
                                 CTiled(bf1, p) * CTiled(bf2, r) * CTiled(bf3, q) * CTiled(bf4, s) * buf_1234[f1234];
                             }
                           }
@@ -447,18 +447,31 @@ std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename) {
 
 
   //Need to explicitly create an array that contains the permutation
-  Eigen::array<std::ptrdiff_t, 4> psqr_shuffle = {{0, 3, 2, 1}};
+  //Eigen::array<std::ptrdiff_t, 4> psqr_shuffle = {{0, 3, 2, 1}};
 
-  Eigen::Tensor<double, 4, Eigen::RowMajor> V_psqr = V_prqs.shuffle(psqr_shuffle);
-  Eigen::Tensor<double, 4, Eigen::RowMajor> V_pqrs = V_prqs - V_psqr;
+//  Eigen::Tensor<double, 4, Eigen::RowMajor> V_psqr = V_prqs.shuffle(psqr_shuffle);
+ // Eigen::Tensor<double, 4, Eigen::RowMajor> V_pqrs = V_prqs - V_psqr;
+
+Eigen::Tensor<double, 4, Eigen::RowMajor> A2(2 * n, 2 * n, 2 * n, 2 * n);
 
   cout << "\n\t V_pqrs tensor\n";
 
+
   for (auto p = 0; p < 2 * n; p++) {
-    for (auto r = 0; r < 2 * n; r++) {
       for (auto q = 0; q < 2 * n; q++) {
+        for (auto r = 0; r < 2 * n; r++) {
         for (auto s = 0; s < 2 * n; s++) {
-          cout << V_pqrs(p, q, r, s) << "\t" << p << " " << q << " " << r << " " << s << endl;
+          A2(p, q, r, s)= V2(p,r,q,s) - V2(p,s,q,r);
+        }
+      }
+    }
+  }
+
+  for (auto p = 0; p < 2 * n; p++) {
+      for (auto q = 0; q < 2 * n; q++) {
+        for (auto r = 0; r < 2 * n; r++) {
+        for (auto s = 0; s < 2 * n; s++) {
+          cout << A2(p, q, r, s) << "\t" << p << " " << q << " " << r << " " << s << endl;
         }
       }
     }
@@ -467,7 +480,7 @@ std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename) {
   libint2::finalize(); // done with libint
 
   //return CCSD inputs
-  return std::make_tuple(F, V_pqrs, (ehf + enuc));
+  return std::make_tuple(F, V2, (ehf + enuc));
 
 }
 

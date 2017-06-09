@@ -52,10 +52,10 @@ void test() {
   using Type = double;
   using DistributionType = Distribution_NW;
 
-  using tammx::O;
-  using tammx::V;
-  using tammx::OO;
-  using tammx::OV;
+//  using tammx::O;
+//  using tammx::V;
+//  using tammx::OO;
+//  using tammx::OV;
 
   Irrep irrep{0};
 

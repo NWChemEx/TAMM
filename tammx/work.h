@@ -22,10 +22,10 @@ void seq_work(Itr first, Itr last, Fn fn) {
   std::for_each(first, last, fn);
 }
 
-template<typename Lambda>
+template<typename T, typename Lambda>
 inline void
-tensor_map (LabeledTensor ltc, Lambda func) {
-  Tensor& tc = *ltc.tensor_;
+tensor_map (LabeledTensor<T> ltc, Lambda func) {
+  Tensor<T>& tc = *ltc.tensor_;
   auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
   auto lambda = [&] (const TensorIndex& cblockid) {
     size_t dimc = tc.block_size(cblockid);
@@ -38,10 +38,10 @@ tensor_map (LabeledTensor ltc, Lambda func) {
   parallel_work(citr, citr.get_end(), lambda);  
 }
 
-template<typename Lambda>
+template<typename T, typename Lambda>
 inline void
-block_for (LabeledTensor ltc, Lambda func) {
-  Tensor& tc = *ltc.tensor_;
+block_for (LabeledTensor<T> ltc, Lambda func) {
+  Tensor<T>& tc = *ltc.tensor_;
   auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
   auto lambda = [&] (const TensorIndex& cblockid) {
     size_t dimc = tc.block_size(cblockid);
@@ -54,11 +54,11 @@ block_for (LabeledTensor ltc, Lambda func) {
   parallel_work(citr, citr.get_end(), lambda);
 }
 
-template<typename Lambda>
+template<typename T, typename Lambda>
 inline void
-tensor_map (LabeledTensor ltc, LabeledTensor lta, Lambda func) {
-  Tensor& tc = *ltc.tensor_;
-  Tensor& ta = *lta.tensor_;
+tensor_map (LabeledTensor<T> ltc, LabeledTensor<T> lta, Lambda func) {
+  Tensor<T>& tc = *ltc.tensor_;
+  Tensor<T>& ta = *lta.tensor_;
   auto citr = loop_iterator(tc.indices());
   auto lambda = [&] (const TensorIndex& cblockid) {
     size_t dimc = tc.block_size(cblockid);

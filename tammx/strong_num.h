@@ -5,6 +5,11 @@
 
 #include <limits>
 #include <iostream>
+#include <functional>
+
+/**
+ * @@todo IntType : rename to NumType
+ */
 
 namespace tammx {
 
@@ -129,6 +134,7 @@ struct StrongNum {
 
   T value() const { return v; }
   T& value() { return v; }
+
  private:
   T v;
 };

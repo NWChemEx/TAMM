@@ -97,8 +97,16 @@ class TCE {
     return noa_;
   }
 
+  static BlockDim nob() {
+    return noab() - noa();
+  }
+
   static BlockDim nva() {
     return nva_;
+  }
+
+  static BlockDim nvb() {
+    nvab() - nva();
   }
   
   using Int = Fint;
@@ -140,6 +148,54 @@ class TCE {
       offset *= offsets[i];
     }
     return key;
+  }
+
+  static BlockDim dim_lo(DimType dt) {
+    BlockDim ret;
+    switch(dt) {
+      case DimType::o:
+      case DimType::oa:
+      case DimType::n:
+        ret = 1;
+        break;
+      case DimType::ob:
+        ret = noa()+1;
+        break;
+      case DimType::v:
+      case DimType::va:
+        ret = noab() + 1;
+        break;
+      case DimType::vb:
+        ret = noab() + nvb() + 1;
+        break;
+      default:
+        assert(0);
+    }
+    return ret;
+  }
+
+  static BlockDim dim_hi(DimType dt) {
+    BlockDim ret;
+    switch(dt) {
+      case DimType::oa:
+        ret = noa() + 1;
+        break;
+      case DimType::o:
+      case DimType::ob:
+        ret = noab() + 1;
+        break;
+      case DimType::va:
+        ret = noab() + nva() + 1;
+        break;
+      case DimType::vb:
+      case DimType::v:
+      case DimType::n:
+        ret = noab() + nvab() + 1;
+        break;
+      default:
+        assert(0);
+    }
+    return ret;    
   }
 
  private:

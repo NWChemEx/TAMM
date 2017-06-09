@@ -6,76 +6,87 @@
 
 namespace tammx {
 
-struct LabeledBlock {
-  Block *block_;
-  TensorLabel label_;
 
-  template<typename T,
-           typename = std::enable_if_t<std::is_arithmetic<T>::value>>
-  void operator = (T value);
-
-  void operator = (LabeledBlock rhs);
-
-  template<typename T>
-  void operator = (std::tuple<T, LabeledBlock> rhs);
-
-  template<typename T>
-  void operator = (std::tuple<T, LabeledBlock, LabeledBlock> rhs);
-
-  void operator = (std::tuple<LabeledBlock, LabeledBlock> rhs);
-
-  void operator += (LabeledBlock rhs);
-
-  template<typename T>
-  void operator += (std::tuple<T, LabeledBlock> rhs);
-
-  template<typename T>
-  void operator += (std::tuple<T, LabeledBlock, LabeledBlock> rhs);
-
-  void operator += (std::tuple<LabeledBlock, LabeledBlock> rhs);
-};
-
-/**
- * @todo These overloads to match tensor type and the scalar types
- */
 template<typename T>
-inline std::tuple<T, LabeledBlock>
-operator * (T alpha, LabeledBlock block) {
+struct LabeledBlock;
+
+template<typename T1,
+         typename T2>
+inline std::tuple<T1, LabeledBlock<T2>>
+operator * (T1 alpha, LabeledBlock<T2> block) {
   return {alpha, block};
 }
 
-template<typename T>
-inline std::tuple<T, LabeledBlock>
-operator * (LabeledBlock block, T alpha) {
+template<typename T1,
+         typename T2>
+inline std::tuple<T1, LabeledBlock<T2>>
+operator * (LabeledBlock<T2> block, T1 alpha) {
   return {alpha, block};
 }
 
-template<typename T>
-inline std::tuple<T, LabeledBlock, LabeledBlock>
-operator * (const std::tuple<T, LabeledBlock>& rhs1, LabeledBlock rhs2)  {
+template<typename T1, typename T2>
+inline std::tuple<T1, LabeledBlock<T2>, LabeledBlock<T2>>
+operator * (const std::tuple<T1, LabeledBlock<T2>>& rhs1, LabeledBlock<T2> rhs2)  {
   return std::tuple_cat(rhs1, std::make_tuple(rhs2));
 }
 
-inline std::tuple<LabeledBlock, LabeledBlock>
-operator * (LabeledBlock rhs1, LabeledBlock rhs2)  {
+template<typename T>
+inline std::tuple<LabeledBlock<T>, LabeledBlock<T>>
+operator * (LabeledBlock<T> rhs1, LabeledBlock<T> rhs2)  {
   return std::make_tuple(rhs1, rhs2);
 }
 
-template<typename T>
-inline std::tuple<T, LabeledBlock, LabeledBlock>
-operator * (T alpha, std::tuple<LabeledBlock, LabeledBlock> rhs) {
+template<typename T1,
+         typename T2>
+inline std::tuple<T1, LabeledBlock<T2>, LabeledBlock<T2>>
+operator * (T1 alpha, std::tuple<LabeledBlock<T2>, LabeledBlock<T2>> rhs) {
   return std::tuple_cat(std::make_tuple(alpha), rhs);
 }
 
-template<typename T,
-         typename = std::enable_if_t<std::is_arithmetic<T>::value>>
-inline void
-LabeledBlock::operator = (T value) {
-  typed_fill(block_->tensor().element_type(),
-             block_->buf(),
-             block_->size(),
-             value);
-}
+
+template<typename T>
+struct LabeledBlock {
+  Block<T> *block_;
+  TensorLabel label_;
+
+  template<typename T1,
+           typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+  void operator = (T1 value) {
+    auto buf = reinterpret_cast<T*>(block_->buf());
+    auto rval = static_cast<T>(value);
+    for(int i=0; i<block_->block_size(); i++) {
+      buf[i] = rval;
+    }
+  }
+
+  void operator = (LabeledBlock<T> rhs) {
+    *this = 1 * rhs;
+  }
+
+  template<typename T1>
+  void operator = (std::tuple<T1, LabeledBlock<T>> rhs);
+
+  template<typename T1>
+  void operator = (std::tuple<T1, LabeledBlock<T>, LabeledBlock<T>> rhs);
+
+  void operator = (std::tuple<LabeledBlock<T>, LabeledBlock<T>> rhs) {
+    *this = 1 * std::get<0>(rhs) * std::get<1>(rhs);
+  }
+
+  void operator += (LabeledBlock<T> rhs) {
+    *this += 1 * rhs;
+  }
+
+  template<typename T1>
+  void operator += (std::tuple<T1, LabeledBlock<T>> rhs);
+
+  template<typename T1>
+  void operator += (std::tuple<T1, LabeledBlock<T>, LabeledBlock<T>> rhs);
+
+  void operator += (std::tuple<LabeledBlock<T>, LabeledBlock<T>> rhs) {
+    *this += 1 * std::get<0>(rhs) * std::get<1>(rhs);
+  }
+};
 
 
 namespace impl {
@@ -144,17 +155,18 @@ matmul(int m, int n, int k, T *A, int lda, T *B, int ldb, T *C, int ldc, T alpha
   }
 }
 
+template<typename T>
 inline TensorPerm
-perm_compute(const LabeledBlock& lblock_from, const TensorLabel& label_to) {
+perm_compute(const LabeledBlock<T>& lblock_from, const TensorLabel& label_to) {
   auto store = perm_apply(lblock_from.label_,
                           perm_invert(lblock_from.block_->layout()));
   return perm_compute(store, label_to);
 }
 
-template<typename T>
-void multiply(LabeledBlock& clb, std::tuple<T, LabeledBlock, LabeledBlock> rhs, T beta) {
-  const LabeledBlock& alb = std::get<1>(rhs);
-  const LabeledBlock& blb = std::get<2>(rhs);
+template<typename T, typename T1>
+void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock<T>> rhs, T beta) {
+  const LabeledBlock<T>& alb = std::get<1>(rhs);
+  const LabeledBlock<T>& blb = std::get<2>(rhs);
 
   auto &ablock = *alb.block_;
   auto &bblock = *blb.block_;
@@ -177,13 +189,17 @@ void multiply(LabeledBlock& clb, std::tuple<T, LabeledBlock, LabeledBlock> rhs, 
 
   //TTGT
   //TT
-  auto elsize = ablock.tensor().element_size();
+  auto elsize = sizeof(T);
   auto abuf_sort = std::make_unique<uint8_t[]>(ablock.size() * elsize);
   auto bbuf_sort = std::make_unique<uint8_t[]>(bblock.size() * elsize);
   auto cbuf_sort = std::make_unique<uint8_t[]>(cblock.size() * elsize);
 
   auto aperm = perm_compute(ablock(alabel), alabel_sort);
   auto bperm = perm_compute(bblock(blabel), blabel_sort);
+
+  /**
+   * @@todo 1.0 is a bug. Make this work with.
+   */
   index_permute(abuf_sort.get(), ablock.buf(), aperm,
                 perm_apply(ablock.block_dims(), aperm), 1.0);
   index_permute(bbuf_sort.get(), bblock.buf(), bperm,
@@ -201,24 +217,20 @@ void multiply(LabeledBlock& clb, std::tuple<T, LabeledBlock, LabeledBlock> rhs, 
   int n = std::accumulate(bext_dims.begin(), bext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
   int k = std::accumulate(sum_dims.begin(), sum_dims.end(), BlockDim{1}, std::multiplies<>()).value();
 
-  auto eltype = ablock.tensor().element_type();
-  type_dispatch(eltype, [&] (auto type) {
-      using dtype = decltype(type);
-      matmul<dtype>(m, n, k, reinterpret_cast<dtype*>(abuf_sort.get()), k,
-                    reinterpret_cast<dtype*>(bbuf_sort.get()), n,
-                    reinterpret_cast<dtype*>(cbuf_sort.get()), n,
-                    static_cast<dtype>(alpha), static_cast<dtype>(beta));
-    });
+  matmul<T>(m, n, k, reinterpret_cast<T*>(abuf_sort.get()), k,
+            reinterpret_cast<T*>(bbuf_sort.get()), n,
+            reinterpret_cast<T*>(cbuf_sort.get()), n,
+            static_cast<T>(alpha), static_cast<T>(beta));
   auto cperm = perm_invert(perm_compute(cblock(clabel), clabel_sort));
   //T
   index_permute(cblock.buf(), reinterpret_cast<uint8_t*>(cbuf_sort.get()),
                 cperm, cblock.block_dims(), 1.0);
 }
 
-template<typename T>
+template<typename T, typename T1>
 inline void
-block_add (LabeledBlock& clb, std::tuple<T, LabeledBlock> rhs, bool update) {
-  const LabeledBlock& alb = std::get<1>(rhs);
+block_add (LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>> rhs, bool update) {
+  const LabeledBlock<T>& alb = std::get<1>(rhs);
 
   auto &ablock = *alb.block_;
   auto &cblock = *clb.block_;
@@ -254,51 +266,32 @@ block_add (LabeledBlock& clb, std::tuple<T, LabeledBlock> rhs, bool update) {
 
 } // namespace tammx::impl
 
-/**
- * @todo 1 is not correct. It should T(1), where element_type<T> == tensor element type
- */
-inline void
-LabeledBlock::operator = (LabeledBlock rhs) {
-  *this = std::make_tuple(1, rhs);
-}
-
 template<typename T>
+template<typename T1>
 inline void
-LabeledBlock::operator = (std::tuple<T, LabeledBlock> rhs) {
+LabeledBlock<T>::operator = (std::tuple<T1, LabeledBlock<T>> rhs) {
   impl::block_add(*this, rhs, false);
 }
 
-inline void
-LabeledBlock::operator += (LabeledBlock rhs) {
-  *this += std::make_tuple(1, rhs);
-}
-
 template<typename T>
+template<typename T1>
 inline void
-LabeledBlock::operator += (std::tuple<T, LabeledBlock> rhs) {
+LabeledBlock<T>::operator += (std::tuple<T1, LabeledBlock<T>> rhs) {
   impl::block_add(*this, rhs, true);
 }
 
-inline void
-LabeledBlock::operator += (std::tuple<LabeledBlock, LabeledBlock> rhs) {
-  *this += std::make_tuple(1, std::get<0>(rhs), std::get<1>(rhs));
-}
-
-inline void
-LabeledBlock::operator = (std::tuple<LabeledBlock, LabeledBlock> rhs) {
-  *this = std::make_tuple(1, std::get<0>(rhs), std::get<1>(rhs));
-}
-
 template<typename T>
+template<typename T1>
 inline void
-LabeledBlock::operator += (std::tuple<T, LabeledBlock, LabeledBlock> rhs) {
+LabeledBlock<T>::operator += (std::tuple<T1, LabeledBlock<T>, LabeledBlock<T>> rhs) {
   impl::multiply(*this, rhs, T(1));
 }
 
 
 template<typename T>
+template<typename T1>
 inline void
-LabeledBlock::operator = (std::tuple<T, LabeledBlock, LabeledBlock> rhs) {
+LabeledBlock<T>::operator = (std::tuple<T1, LabeledBlock<T>, LabeledBlock<T>> rhs) {
   impl::multiply(*this, rhs, T(0));
 }
 

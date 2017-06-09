@@ -44,7 +44,8 @@ using std::cerr;
 using std::endl;
 
 using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-using Matrix4D = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
+
 // import dense, dynamically sized Matrix type from Eigen;
 // this is a matrix with row-major storage (http://en.wikipedia.org/wiki/Row-major_order)
 // to meet the layout of the integrals returned by the Libint integral library
@@ -63,18 +64,19 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell>& shells,
 Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
                           const Matrix& D);
 
-std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename);
+std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename);
 
 
 int main(int argc, char* argv[]) {
   const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
-  // Matrix C;
-  // Matrix F;
-  // double hf_energy{0.0};
-  // int num_electrons{0};
-  // std::tie(F,C,hf_energy,num_electrons) =
+  
+  Matrix F;
+  Tensor4D V;
+  double hf_energy{0.0};
+  
+  std::tie(F,V,hf_energy) = get_ccsd_inputs(filename);
 
-  get_fock_mo(filename);
+  // @todo CALL CCSD_DRIVER(F,V,hf_energy,...);
 
   // std::vector<double> rawC(C.rows()*C.cols());
   // cout << "----------------\n";
@@ -119,8 +121,9 @@ std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell
 }
 
 
-std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename) {
+std::tuple<Matrix,Tensor4D,double> get_ccsd_inputs(const string filename) {
 
+  // Perform the simple HF calculation (Ed) and 2,4-index transform to get the inputs for CCSD
   using libint2::Atom;
   using libint2::Shell;
   using libint2::Engine;
@@ -296,6 +299,7 @@ std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename) {
   cout << eps << endl;
 
 
+  // 2-index transform
   int num_electrons = ndocc;
   cout << "\n\n** Number of electrons: " << num_electrons << endl;
 
@@ -344,10 +348,6 @@ std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename) {
   cout << F << endl;
 
   //Start 4-index transform
-  using libint2::Shell;
-  using libint2::Engine;
-  using libint2::Operator;
-
   const auto n = nbasis(shells);
   Eigen::Tensor<double, 4, Eigen::RowMajor> V_prqs(2*n, 2*n, 2*n, 2*n);
   V_prqs.setZero();
@@ -355,7 +355,7 @@ std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename) {
   //V_prqs.setConstant(0.0d);
   //cout << t << endl;
 
-  cout << "num_basis: " << n << endl;
+  //cout << "num_basis: " << n << endl;
   // construct the electron repulsion integrals engine
   Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
 
@@ -420,29 +420,30 @@ std::tuple<Matrix,Matrix,double,long> get_fock_mo(const string filename) {
                     }
                   } //f1,f2,f3,f4
 
-                } //s1,s2,s3,s4
+                } 
               }
             }
-          }
+          } //s1,s2,s3,s4
 
-        } //p,q,r,s
+        }
       }
     }
-  }
+  }  //p,q,r,s
 
 
   //Need to explicitly create an array that contains the permutation
   Eigen::array<std::ptrdiff_t, 4> shuffleV = {{0,3,2,1}};
 
   Eigen::Tensor<double, 4, Eigen::RowMajor> V_psqr = V_prqs.shuffle(shuffleV);
-  Eigen::Tensor<double, 4, Eigen::RowMajor> V2 = V_prqs - V_psqr;
+  Eigen::Tensor<double, 4, Eigen::RowMajor> V_pqrs = V_prqs - V_psqr;
 
   cout << "\n\t V_pqrs tensor\n";
-  cout << V2 << endl;
+  //cout << V_pqrs << endl;
 
   libint2::finalize(); // done with libint
 
-  return std::make_tuple(F,C,(ehf+enuc),ndocc);
+  //return CCSD inputs
+  return std::make_tuple(F,V_pqrs,(ehf+enuc));
 
 }
 

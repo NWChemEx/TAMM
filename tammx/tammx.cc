@@ -12,4 +12,6 @@ Irrep TCE::irrep_x_, TCE::irrep_y_;
 BlockDim TCE::noa_, TCE::noab_;
 BlockDim TCE::nva_, TCE::nvab_;
 
+std::map<DistributionFactory::Key, std::shared_ptr<Distribution>,DistributionFactory::KeyLessThan> DistributionFactory::distributions_;
+
 }  // namespace tammx

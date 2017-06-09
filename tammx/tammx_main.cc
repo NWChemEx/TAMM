@@ -13,15 +13,15 @@ using namespace std;
 using namespace tammx;
 
 Irrep operator "" _ir(unsigned long long int val) {
-  return Irrep{strongint_cast<Irrep::value_type>(val)};
+  return Irrep{strongnum_cast<Irrep::value_type>(val)};
 }
 
 Spin operator "" _sp(unsigned long long int val) {
-  return Spin{strongint_cast<Spin::value_type>(val)};
+  return Spin{strongnum_cast<Spin::value_type>(val)};
 }
 
 BlockDim operator "" _bd(unsigned long long int val) {
-  return BlockDim{strongint_cast<BlockDim::value_type>(val)};
+  return BlockDim{strongnum_cast<BlockDim::value_type>(val)};
 }
 
 std::vector<Spin> spins = {1_sp, 2_sp, 1_sp, 2_sp};
@@ -49,10 +49,35 @@ struct VLabel : public IndexLabel {
 };
 
 void test() {
-  using Type = Tensor::Type;
-  using Distribution = Tensor::Distribution;
+  using Type = double;
+  using DistributionType = Distribution_NW;
 
-#if 1
+  using tammx::O;
+  using tammx::V;
+  using tammx::OO;
+  using tammx::OV;
+
+  Irrep irrep{0};
+
+  auto iinfo1 = OO|V;
+  auto iinfo3 = O|O;
+
+  Tensor<Type> ta {iinfo1, irrep, false};
+  auto distribution = DistributionType();
+  auto mgr = MemoryManagerSequential();
+  ta.alloc(ProcGroup{}, &distribution, &mgr);
+
+  {
+    Scheduler sch(ProcGroup{}, &distribution, &mgr, Irrep{0}, false);
+    
+    auto &tb = sch.tensor<Type>(iinfo1);
+    
+    sch.io(ta)
+        .execute();
+  }
+  ta.dealloc();
+  
+#if 0
   TensorVec<SymmGroup> indices1{SymmGroup{DimType::o, DimType::o}, SymmGroup{DimType::v}};
   TensorVec<SymmGroup> indices2{SymmGroup{DimType::o}, SymmGroup{DimType::o}, SymmGroup{DimType::v}};
   TensorVec<SymmGroup> indices3{SymmGroup{DimType::o}, SymmGroup{DimType::o}};
@@ -104,7 +129,7 @@ void test() {
   tb.destruct();
   ta2.destruct();
   
-#else
+#elif 0
   
   TensorVec<SymmGroup> indices{SymmGroup{DimType::o, DimType::o}, SymmGroup{DimType::n}};
   Tensor ta{indices, Type::double_precision, Distribution::tce_nwma, 2, irrep_t, false};

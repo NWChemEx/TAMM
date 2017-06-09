@@ -22,18 +22,11 @@ using namespace tammx;
 using namespace tammx::tensor_dims;
 using namespace tammx::tensor_labels;
 
-#if 0
-
-void compute_residual(Tensor& tensor) {
-  Tensor resid;
-
-  resid.allocate();
-  OpList::execute(resid() = tensor() * tensor());
-  Block resblock = resid.get({});
-  return *reinterpret_cast<double*>(resblock.buf());
-  resid.destruct();
+template<typename T>
+void compute_residual(Scheduler &sch, Tensor<T>& tensor, Tensor<T>& scalar) {
+  sch.alloc(scalar)
+      (scalar() = tensor() * tensor());
 }
-#endif
 
 
 template<typename T>

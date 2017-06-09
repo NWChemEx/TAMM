@@ -4,4 +4,4 @@ DEPS=$1
 LIBINT=$DEPS/libint2
 EIGEN=$DEPS/eigen3
 
-g++ -std=c++14 -o nwchem nwchem.cc -I$LIBINT/include -I$EIGEN/include/eigen3 -L$LIBINT/lib -lint2
+g++ -Ofast -std=c++14 -o nwchem nwchem.cc -I$LIBINT/include -I$EIGEN/include/eigen3 -L$LIBINT/lib -lint2

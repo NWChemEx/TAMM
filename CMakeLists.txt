@@ -210,7 +210,7 @@ add_library(tammx STATIC ${tammxSources})
 target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags}
         ${BLAS_INC_PATH} ${ANTLR_CPPRUNTIME_DIR}/include/antlr4-runtime/)
 
-add_executable(tammx_main EXCLUDE_FROM_ALL tammx/tammx_main.cc)
+add_executable(tammx_main tammx/tammx_main.cc)
 target_include_directories(tammx_main SYSTEM PUBLIC ${PROJECT_BINARY_DIR})
 target_link_libraries(tammx_main tammx)
 

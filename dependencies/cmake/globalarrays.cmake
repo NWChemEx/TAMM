@@ -1,6 +1,4 @@
 
-
-
 if(EXISTS ${CMAKE_INSTALL_PREFIX}/ga/lib/libga.a)
     set (GA_ROOT_DIR ${CMAKE_INSTALL_PREFIX}/ga)
     add_custom_target(GLOBALARRAYS ALL)
@@ -71,6 +69,8 @@ set(GA_SYSVSHMEM "ARMCI_DEFAULT_SHMMAX_UBOUND=131072")
 if (USE_OFFLOAD)
     set(GA_OFFLOAD "INTEL_64ALIGN=1")
 endif()
+
+
 
 if (DEFINED BLAS_LIBRARIES)
     set(GA_BLAS "--with-blas8=${BLAS_LIBRARIES}")

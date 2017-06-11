@@ -1,17 +1,22 @@
 PREREQUISITES
------------- 
-BOOST (needed to build libint)
+-------------
 mercurial, git
 GNU Autotools
+uuid,pkg-config
 MPI
 Compiler with C++11 or later support (Currently support only gcc and Intel compilers)
 Fortran95 Compiler
 BLAS, LAPACK (Will be built for you if not provided)
+SCALPACK (optional)
 
-NOTE: On MacOSX, we recommend building GCC, MPI from sources due to issues
+MacOSX
+--------
+We recommend building GCC, MPI from sources due to issues
 with gcc binaries provided with macports and brew.
 
+brew install wget flex bison doxygen autoconf automake libtool mercurial git
 
+---------------------------
 To build TAMM dependencies:
 cmake -Bbuild -H. -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/macosx-gcc-openmpi-netlib.cmake
 cd build && make 

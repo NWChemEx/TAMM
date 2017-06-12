@@ -43,7 +43,7 @@ class TCE {
 
     offsets_.push_back(0);
     std::partial_sum(sizes_.begin(), sizes_.end(), std::back_inserter(offsets_));
-    
+
     Expects(noab_ >=0 && nvab_ >=0);
     Expects(noa_ <= noab_ && nva_ <= nvab_);
     auto sz = noab_.value() + nvab_.value();
@@ -64,7 +64,7 @@ class TCE {
   static size_t total_dim_size() {
     return offsets_.back();
   }
-  
+
   static Spin spin(BlockDim block) {
     return spins_[block.value()];
   }
@@ -80,7 +80,7 @@ class TCE {
   static size_t offset(BlockDim block) {
     return offsets_[block.value()];
   }
-  
+
   static bool restricted() {
     return spin_restricted_;
   }
@@ -106,9 +106,9 @@ class TCE {
   }
 
   static BlockDim nvb() {
-    nvab() - nva();
+    return nvab() - nva();
   }
-  
+
   using Int = Fint;
 
   static Int compute_tce_key(const TensorDim& flindices,
@@ -195,7 +195,7 @@ class TCE {
       default:
         assert(0);
     }
-    return ret;    
+    return ret;
   }
 
  private:
@@ -232,4 +232,3 @@ tensor_index_range(DimType dt) {
 
 
 #endif  // TAMMX_UTIL_H__
-

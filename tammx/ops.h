@@ -13,8 +13,10 @@ namespace tammx {
 //         operators
 /////////////////////////////////////////////////////////////////////
 
-struct Op {
+class Op {
+ public:
   virtual void execute() = 0;
+  virtual ~Op() {}
 };
 
 
@@ -872,7 +874,7 @@ group_labels(const TensorLabel& label,
     std::copy_n(label.begin() + pos, grp.value(), ret.back().begin());
     pos += grp.value();
   }
-  return ret;  
+  return ret;
 }
 
 inline TensorVec<TensorVec<TensorLabel>>
@@ -898,7 +900,7 @@ compute_extra_symmetries(const TensorLabel& lhs_label,
     }
     ret_labels.push_back(ret_group);
   }
-  return ret_labels;  
+  return ret_labels;
 }
 
 
@@ -996,7 +998,7 @@ AddOp<T, LabeledTensorType>::execute() {
       auto abp = ta.get(ablockid);
       auto csbp = tc.alloc(tc.find_unique_block(cblockid));
       csbp() = T(0);
-      auto copy_symm = copy_symmetrizer(ltc, lta, label_map);      
+      auto copy_symm = copy_symmetrizer(ltc, lta, label_map);
       auto copy_itr = copy_iterator(copy_symm);
       auto copy_itr_last = copy_itr.get_end();
       auto copy_label = TensorLabel{ltc.label_};
@@ -1059,7 +1061,7 @@ MultOp<T, LabeledTensorType>::execute() {
     }
     auto csbp = tc.alloc(tc.find_unique_block(cblockid));
     csbp() = 0.0;
-    auto copy_symm = copy_symmetrizer(ltc, lta, ltb, label_map);      
+    auto copy_symm = copy_symmetrizer(ltc, lta, ltb, label_map);
     auto copy_itr = copy_iterator(copy_symm);
     auto copy_itr_last = copy_itr.get_end();
     auto copy_label = TensorLabel(ltc.label_);
@@ -1083,4 +1085,3 @@ MultOp<T, LabeledTensorType>::execute() {
 }; // namespace tammx
 
 #endif  // TAMMX_OPS_H_
-

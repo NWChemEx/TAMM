@@ -140,7 +140,7 @@ class Tensor : public TensorBase {
   LabeledTensor<T> operator () () {
     TensorLabel label;
     for(int i=0; i<rank(); i++) {
-      label.push_back({i, flindices_[i]});
+      label.push_back({i, flindices()[i]});
     }
     return (*this)(label);
   }
@@ -166,7 +166,7 @@ class Tensor : public TensorBase {
   template<typename ...Args>
   static void allocate(ProcGroup pg, Distribution* distribution, MemoryManager* memory_manager, Tensor<T>& tensor, Args... tensor_list) {
     tensor.alloc(pg, distribution, memory_manager);
-    alloc(pg, distribution, memory_manager, tensor_list...);
+    allocate(pg, distribution, memory_manager, tensor_list...);
   }
 
 
@@ -176,7 +176,7 @@ class Tensor : public TensorBase {
   template<typename ...Args>
   static void deallocate(Tensor<T>& tensor, Args... tensor_list) {
     tensor.dealloc();
-    alloc(tensor_list...);
+    deallocate(tensor_list...);
   }
 
   //TensorBuilder<Tensor<T>> builder() const;
@@ -261,4 +261,3 @@ class TensorBuilder {
 }  // namespace tammx
 
 #endif  // TAMMX_TENSOR_H_
-

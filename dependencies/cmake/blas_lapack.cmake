@@ -1,5 +1,6 @@
+
 if(EXISTS ${CMAKE_INSTALL_PREFIX}/blas_lapack/lib/libblas.a)
-    set (BLAS_INCLUDE_PATH ${CMAKE_INSTALL_PREFIX}/blas_lapack/include)
+    set(BLAS_INCLUDE_PATH ${CMAKE_INSTALL_PREFIX}/blas_lapack/include)
     set(BLAS_LIBRARY_PATH ${CMAKE_INSTALL_PREFIX}/blas_lapack/lib)
     add_custom_target(BLAS_LAPACK ALL)
 else()
@@ -18,6 +19,6 @@ else()
         INSTALL_COMMAND make install
     )
 
-    set (BLAS_INCLUDE_PATH ${CMAKE_INSTALL_PREFIX}/blas_lapack/include)
+    set(BLAS_INCLUDE_PATH ${CMAKE_INSTALL_PREFIX}/blas_lapack/include)
     set(BLAS_LIBRARY_PATH ${CMAKE_INSTALL_PREFIX}/blas_lapack/lib)
 endif()

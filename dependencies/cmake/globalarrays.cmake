@@ -1,12 +1,13 @@
 
+# Set GA install path .
+set (GA_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/ga)
+
 if(EXISTS ${CMAKE_INSTALL_PREFIX}/ga/lib/libga.a)
-    set (GA_ROOT_DIR ${CMAKE_INSTALL_PREFIX}/ga)
     add_custom_target(GLOBALARRAYS ALL)
 else()
     message("Building Global Arrays 5.6.1")
     set(GA_VERSION ga-5.6.1)
-    # Set GA install path .
-    set (GA_ROOT_DIR ${CMAKE_INSTALL_PREFIX}/ga)
+
 
     if(NOT ARMCI_NETWORK)
         set(GA_ARMCI "--with-mpi-ts") #Default if ARMCI_NETWORK is not set
@@ -102,7 +103,7 @@ ExternalProject_Add(GLOBALARRAYS
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}/configure --with-tcgmsg 
     ${GA_MPI} --enable-peigs --enable-underscoring --disable-mpi-tests 
     ${GA_SCALAPACK} ${GA_BLAS} ${GA_LAPACK} ${GA_ARMCI} ${GA_OFFLOAD} CC=${CMAKE_C_COMPILER}
-    CXX=${CMAKE_CXX_COMPILER} F77=${CMAKE_Fortran_COMPILER} ${GA_SYSVSHMEM} --prefix=${GA_ROOT_DIR} #--enable-cxx
+    CXX=${CMAKE_CXX_COMPILER} F77=${CMAKE_Fortran_COMPILER} ${GA_SYSVSHMEM} --prefix=${GA_INSTALL_PATH} #--enable-cxx
     BUILD_COMMAND make -j${TAMM_PROC_COUNT}
     INSTALL_COMMAND make install
     BUILD_IN_SOURCE 1

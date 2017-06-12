@@ -1,19 +1,12 @@
-unset(BUILD)
 
-if(NOT BUILD_EIGEN)
-    find_path(EIGEN3 eigen3/Eigen/src/Core/util/Macros.h)
-    if(NOT EIGEN3)
-        set(BUILD 1)
-    else()
-        message("Found Eigen at ${EIGEN3}")
-        add_custom_target(EIGEN3)
-    endif()
+set (EIGEN3_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/eigen3)
+
+if(EXISTS ${CMAKE_INSTALL_PREFIX}/eigen3/include/eigen3/Eigen/Core)
+
+    ADD_CUSTOM_TARGET(EIGEN3 ALL)
+
 else()
-    set(BUILD 1)
-endif()
 
-# Build EIGEN 
-if(BUILD)
     message("Building Eigen")
     include(ExternalProject)
     ExternalProject_Add(EIGEN3

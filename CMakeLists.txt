@@ -34,17 +34,16 @@ message(STATUS "Using ${TAMM_PROC_COUNT} cores for building TAMM dependencies an
 message("Please set the TAMM_PROC_COUNT cmake variable to change the cpu count.")
 
 #Uncomment if we use additional cmake modules later
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
+#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 # Setup ANTLR
-include(SetupANTLR)
+#include(SetupANTLR)
 
 include_directories( ${PROJECT_SOURCE_DIR} )
 
 add_definitions(-DMPICH_IGNORE_CXX_SEEK)
 
-set(BLAS_INC_PATH ${TAMM_BLAS_INC})
-#find_path (BLAS_INC_PATH NAMES cblas.h mkl_cblas.h PATHS ${TAMM_BLAS_INC})
-#message(STATUS "BLAS headers found at: ${BLAS_INC_PATH}")
+#find_path (BLAS_INCLUDE_PATH NAMES cblas.h mkl_cblas.h PATHS ${BLAS_INCLUDE_PATH})
+#message(STATUS "BLAS headers found at: ${BLAS_INCLUDE_PATH}")
 
 #Load the GA_CONFIG variable
 if(NOT GA_CONFIG)
@@ -74,13 +73,13 @@ execute_process(COMMAND ${GA_CONFIG} --libs OUTPUT_VARIABLE tamm_libs OUTPUT_STR
 
 set(ParserSrcDir ${PROJECT_SOURCE_DIR}/frontend)
 
-if(ANTLR_CPPRUNTIME)
-    #message("Found antlr cpp-runtime")
-    ADD_CUSTOM_TARGET(BuildANTLR ALL)
-else()
-    #message("antlr cpp-runtime not found")
-    ADD_CUSTOM_TARGET(BuildANTLR ALL DEPENDS ANTLR)
-endif()
+#if(ANTLR_CPPRUNTIME)
+#    #message("Found antlr cpp-runtime")
+#    ADD_CUSTOM_TARGET(BuildANTLR ALL)
+#else()
+#    #message("antlr cpp-runtime not found")
+#    ADD_CUSTOM_TARGET(BuildANTLR ALL DEPENDS ANTLR)
+#endif()
 
 # Collect all the parser sources.
 set(tammParserSources
@@ -168,17 +167,17 @@ string(REPLACE "-I" "" tamm_cmake_cflags ${tamm_cflags})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" tamm_cflags ${tamm_cmake_cflags})
 
-message(STATUS "ANTLR C++ runtime found at: " ${ANTLR_CPPRUNTIME_DIR})
+message(STATUS "ANTLR C++ runtime found at: " ${ANTLR_CPPRUNTIME_PATH})
 ADD_LIBRARY(a4runtime STATIC IMPORTED)
-SET_TARGET_PROPERTIES(a4runtime PROPERTIES IMPORTED_LOCATION ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a)
+SET_TARGET_PROPERTIES(a4runtime PROPERTIES IMPORTED_LOCATION ${ANTLR_CPPRUNTIME_PATH}/lib/libantlr4-runtime.a)
 
 SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14 -g")
 #SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
 add_library(tamm STATIC ${tammParserSources} ${tammLibSources} ${refCodeSources})
-add_dependencies(tamm BuildANTLR)
-link_directories(${ANTLR_CPPRUNTIME_DIR}/lib ${TAMM_BLAS_LIB})
+#add_dependencies(tamm BuildANTLR)
+link_directories(${ANTLR_CPPRUNTIME_PATH}/lib ${TAMM_BLAS_LIB})
 target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} 
-                        ${BLAS_INC_PATH} ${ANTLR_CPPRUNTIME_DIR}/include/antlr4-runtime/)
+                        ${BLAS_INCLUDE_PATH} ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime/)
 target_link_libraries(tamm a4runtime)
 
 #set_property(TARGET tamm PROPERTY CXX_STANDARD 14)
@@ -191,7 +190,7 @@ target_include_directories(tamm_parser_test SYSTEM PUBLIC  ${ParserSrcDir})
 # Set target libraries to be linked.
 target_link_libraries(tamm_parser_test tamm a4runtime)
 
-find_path(cblas_header_name "mkl_cblas.h" ${BLAS_INC_PATH})
+find_path(cblas_header_name "mkl_cblas.h" ${BLAS_INCLUDE_PATH})
 if (NOT cblas_header_name)
     set(cblas_header_name "cblas.h")
 else()
@@ -201,21 +200,21 @@ endif()
 
 add_executable(tamm_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
 add_dependencies(tamm_main tamm)
-target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
+target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INCLUDE_PATH})
 # Set target libraries to be linked.
 target_link_libraries(tamm_main tamm ${tamm_ldflags} ${BLAS_LIBRARIES}) #${tamm_libs}
 
 
 add_library(tammx STATIC ${tammxSources})
 target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags}
-        ${BLAS_INC_PATH} ${ANTLR_CPPRUNTIME_DIR}/include/antlr4-runtime/)
+        ${BLAS_INCLUDE_PATH} ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime/)
 
 add_executable(tammx_main tammx/tammx_main.cc)
 target_include_directories(tammx_main SYSTEM PUBLIC ${PROJECT_BINARY_DIR})
 target_link_libraries(tammx_main tammx)
 
 #add_executable(noga_main tammx/noga_fb_main.cc tammx/tammx.cc tammx/index_sort.cc) #EXCLUDE_FROM_ALL
-#target_include_directories(noga_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INC_PATH})
+#target_include_directories(noga_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INCLUDE_PATH})
 
 add_executable(tammx_talsh EXCLUDE_FROM_ALL tammx/tammx_talsh.cc tammx/tammx.cc tammx/index_sort.cc)
 target_include_directories(tammx_talsh SYSTEM PUBLIC  ${PROJECT_BINARY_DIR}
@@ -223,7 +222,7 @@ ${TALSH_INSTALL_PATH})
 target_link_libraries(tammx_talsh -L${TALSH_INSTALL_PATH} -ltalsh) 
 
 #add_executable(ccsd_driver EXCLUDE_FROM_ALL tammx/tammx_ccsd.cc fortran_interface/drivers/ccsd_driver.cc tammx/tammx.cc tammx/index_sort.cc)
-#target_include_directories(ccsd_driver SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${BLAS_INC_PATH})
+#target_include_directories(ccsd_driver SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${BLAS_INCLUDE_PATH})
 
 # Install
 if(NOT TAMM_INSTALL_PREFIX)
@@ -314,12 +313,12 @@ add_custom_command(TARGET "style" PRE_BUILD
 add_custom_target("patch")
 add_custom_command(TARGET "patch" POST_BUILD 
     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ${patch_script} 
-     ${NWCHEM_TOP} ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a
+     ${NWCHEM_TOP} ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_PATH}/lib/libantlr4-runtime.a
     COMMENT "=================== Patching nwchem..." )
 
 # add_custom_target("patch-only")
 # add_custom_command(TARGET "patch-only" POST_BUILD 
-#     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ${patch_script} ${NWCHEM_TOP} ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_DIR}/lib/libantlr4-runtime.a -l
+#     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ${patch_script} ${NWCHEM_TOP} ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_PATH}/lib/libantlr4-runtime.a -l
 #     COMMENT "=================== Patching nwchem..." )
 
 add_custom_target("unpatch")

@@ -1,30 +1,30 @@
 
 
-if(DEFINED ANTLR_CPPRUNTIME)
+# Set location of the ANTLR C runtime library.
+set (ANTLR_CPPRUNTIME_PATH ${CMAKE_INSTALL_PREFIX}/ANTLR/CppRuntime)
 
-set (ANTLR_CPPRUNTIME_DIR ${ANTLR_CPPRUNTIME})
+if(EXISTS ${CMAKE_INSTALL_PREFIX}/ANTLR/CppRuntime/libantlr4-runtime.a)
+
+    add_custom_target(ANTLR ALL)
 
 else()
 
-SET(ANTLR_SOURCES ${PROJECT_BINARY_DIR}/external/ANTLR/)
-execute_process(COMMAND mkdir -p "${ANTLR_SOURCES}")
-file(COPY ${PROJECT_SOURCE_DIR}/ANTLR4/ DESTINATION ${ANTLR_SOURCES})
+    SET(ANTLR_SOURCES ${PROJECT_BINARY_DIR}/external/ANTLR/)
+    execute_process(COMMAND mkdir -p "${ANTLR_SOURCES}")
+    file(COPY ${PROJECT_SOURCE_DIR}/ANTLR4/ DESTINATION ${ANTLR_SOURCES})
 
-# Build the ANTLR C Runtime library.
-include(ExternalProject)
-ExternalProject_Add(ANTLR
-    PREFIX ANTLR
-    SOURCE_DIR ${ANTLR_SOURCES}/antlr4-cpp-runtime
-    INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/ANTLR/CppRuntime
-    CMAKE_ARGS -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_CXX_COMPILER=g++  -DWITH_DEMO=OFF
-        -DCMAKE_C_COMPILER=gcc -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-    BINARY_DIR ${ANTLR_SOURCES}/antlr4-cpp-runtime/build
-    BUILD_COMMAND make -j${TAMM_PROC_COUNT}
-    INSTALL_COMMAND make install
-)
-
-# Set location of the ANTLR C runtime library.
-set (ANTLR_CPPRUNTIME_DIR ${CMAKE_INSTALL_PREFIX}/ANTLR/CppRuntime)
+    # Build the ANTLR C Runtime library.
+    include(ExternalProject)
+    ExternalProject_Add(ANTLR
+        PREFIX ANTLR
+        SOURCE_DIR ${ANTLR_SOURCES}/antlr4-cpp-runtime
+        #INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/ANTLR/CppRuntime
+        CMAKE_ARGS -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_CXX_COMPILER=g++  -DWITH_DEMO=OFF
+            -DCMAKE_C_COMPILER=gcc -DCMAKE_INSTALL_PREFIX=${ANTLR_CPPRUNTIME_PATH}
+        BINARY_DIR ${ANTLR_SOURCES}/antlr4-cpp-runtime/build
+        BUILD_COMMAND make -j${TAMM_PROC_COUNT}
+        INSTALL_COMMAND make install
+    )
 
 endif()
 

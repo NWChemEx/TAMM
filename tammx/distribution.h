@@ -26,7 +26,7 @@ class Distribution {
   Distribution(const TensorBase* tensor_structure, Proc nproc)
       : tensor_structure_{tensor_structure},
         nproc_{nproc} {}
-  
+
   const TensorBase* tensor_structure_;
   Proc nproc_;
 };
@@ -67,7 +67,7 @@ class DistributionFactory {
   using Key = std::tuple<std::string,TensorBase,Proc>;
   struct KeyLessThan {
    public:
-    bool operator() (const Key& lhs, const Key& rhs) {
+    bool operator() (const Key& lhs, const Key& rhs) const {
       auto lname = std::get<0>(lhs);
       auto lts = std::get<1>(lhs);
       auto lproc = std::get<2>(lhs);
@@ -119,7 +119,7 @@ class Distribution_NW : public Distribution {
     if(tensor_structure == nullptr) {
       return;
     }
-    
+
     auto indices = tensor_structure_->indices();
     auto pdt =  loop_iterator(indices);
     auto last = pdt.get_end();
@@ -184,11 +184,10 @@ class Distribution_NW : public Distribution {
   std::vector<TCE::Int> hash_;
   std::vector<Offset> proc_offsets_;
   Offset total_size_;
-  
+
   friend class DistributionFactory;
 }; // class Distribution_NW
 
 }  // namespace tammx
 
 #endif // TAMMX_DISTRIBUTION_H_
-

@@ -204,7 +204,7 @@ target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${ParserSrc
 add_executable(tammx_main tammx/tammx_main.cc)
 target_link_libraries(tammx_main tammx)
 
-add_executable(ccsd_driver tammx/ccsd_driver.cc)
+add_executable(ccsd_driver EXCLUDE_FROM_ALL tammx/ccsd_driver.cc)
 add_dependencies(ccsd_driver tammx)
 target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(ccsd_driver tammx)

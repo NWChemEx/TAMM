@@ -78,6 +78,7 @@ class Tensor : public TensorBase {
     return pg_;
   }
 
+  //@todo implement the factory
   void alloc(ProcGroup pg, Distribution* distribution=nullptr, MemoryManager* memory_manager=nullptr) {
     pg_ = pg;
     if(distribution) {
@@ -115,7 +116,7 @@ class Tensor : public TensorBase {
     auto size = block_size(blockid);
     auto block = alloc(blockid);
     std::tie(proc, offset) = distribution_->locate(blockid);
-    mgr_->get(proc, offset, size, block.buf());
+    mgr_->get(proc, offset, Size{size}, block.buf());
     return block;
   }
 
@@ -124,7 +125,7 @@ class Tensor : public TensorBase {
     Proc proc;
     auto size = block_size(blockid);
     std::tie(proc, offset) = distribution_->locate(blockid);
-    mgr_->put(proc, offset, size, block.buf());
+    mgr_->put(proc, offset, Size{size}, block.buf());
   }
 
   void add(const TensorIndex& blockid, const Block<T>& block) {
@@ -132,7 +133,7 @@ class Tensor : public TensorBase {
     Proc proc;
     auto size = block_size(blockid);
     std::tie(proc, offset) = distribution_->locate(blockid);
-    mgr_->add(proc, offset, size, block.buf());
+    mgr_->add(proc, offset, Size{size}, block.buf());
   }
 
   LabeledTensor<T> operator () (const TensorLabel& label);
@@ -161,27 +162,29 @@ class Tensor : public TensorBase {
   }
 
   static void allocate(ProcGroup pg, Distribution* distribution, MemoryManager* memory_manager) {
+    //no-op
   }
 
   template<typename ...Args>
-  static void allocate(ProcGroup pg, Distribution* distribution, MemoryManager* memory_manager, Tensor<T>& tensor, Args... tensor_list) {
+  static void allocate(ProcGroup pg, Distribution* distribution, MemoryManager* memory_manager, Tensor<T>& tensor, Args& ... tensor_list) {
     tensor.alloc(pg, distribution, memory_manager);
     allocate(pg, distribution, memory_manager, tensor_list...);
   }
 
 
   static void deallocate() {
+    //no-op
   }
 
   template<typename ...Args>
-  static void deallocate(Tensor<T>& tensor, Args... tensor_list) {
+  static void deallocate(Tensor<T>& tensor, Args& ... tensor_list) {
     tensor.dealloc();
     deallocate(tensor_list...);
   }
 
   //TensorBuilder<Tensor<T>> builder() const;
 
- private:
+ protected:
   void pack(TensorLabel& label) {}
 
   template<typename ...Args>
@@ -257,6 +260,16 @@ class TensorBuilder {
   friend class Tensor;
 };
 
+template<typename T>
+class Scalar : public Tensor<T> {
+ public:
+  Scalar()
+      : Tensor<T>({}, 0, Irrep{0}, false) {}
+
+  T value() {
+    return *reinterpret_cast<T*>(Tensor<T>::mgr_->access(Offset{0}));
+  }
+};
 
 }  // namespace tammx
 

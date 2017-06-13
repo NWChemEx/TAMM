@@ -52,9 +52,9 @@ struct LabeledBlock {
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
   void operator = (T1 value) {
-    auto buf = reinterpret_cast<T*>(block_->buf());
+    auto buf = block_->buf();
     auto rval = static_cast<T>(value);
-    for(int i=0; i<block_->block_size(); i++) {
+    for(int i=0; i<block_->size(); i++) {
       buf[i] = rval;
     }
   }
@@ -97,7 +97,8 @@ namespace impl {
  */
 template<typename T>
 inline void
-index_permute_acc(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
+index_permute_acc(T* dbuf, const T* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
+  static_assert(std::is_same<T, double>(), "index_permute_acc only works with doubles");
   Expects(dbuf!=nullptr && sbuf!=nullptr);
   Expects(perm.size() == ddims.size());
 
@@ -118,7 +119,8 @@ index_permute_acc(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const Te
  */
 template<typename T>
 inline void
-index_permute(uint8_t* dbuf, uint8_t* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
+index_permute(T* dbuf, const T* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
+  static_assert(std::is_same<T, double>(), "index_permute_acc only works with doubles");
   Expects(dbuf!=nullptr && sbuf!=nullptr);
   Expects(perm.size() == ddims.size());
 
@@ -189,24 +191,20 @@ void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock
 
   //TTGT
   //TT
-  auto elsize = sizeof(T);
-  auto abuf_sort = std::make_unique<uint8_t[]>(ablock.size() * elsize);
-  auto bbuf_sort = std::make_unique<uint8_t[]>(bblock.size() * elsize);
-  auto cbuf_sort = std::make_unique<uint8_t[]>(cblock.size() * elsize);
+  auto abuf_sort = std::make_unique<T[]>(ablock.size());
+  auto bbuf_sort = std::make_unique<T[]>(bblock.size());
+  auto cbuf_sort = std::make_unique<T[]>(cblock.size());
 
   auto aperm = perm_compute(ablock(alabel), alabel_sort);
   auto bperm = perm_compute(bblock(blabel), blabel_sort);
 
-  /**
-   * @@todo 1.0 is a bug. Make this work with.
-   */
   index_permute(abuf_sort.get(), ablock.buf(), aperm,
-                perm_apply(ablock.block_dims(), aperm), 1.0);
+                perm_apply(ablock.block_dims(), aperm), T{1});
   index_permute(bbuf_sort.get(), bblock.buf(), bperm,
-                perm_apply(bblock.block_dims(), bperm), 1.0);
+                perm_apply(bblock.block_dims(), bperm), T{1});
 
   // G
-  auto alpha = std::get<0>(rhs);
+  auto alpha = std::get<0>(rhs) * ablock.sign() * bblock.sign();
   auto lmap = LabelMap<BlockDim>()
       .update(alabel, ablock.block_dims())
       .update(blabel, bblock.block_dims());
@@ -217,14 +215,14 @@ void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock
   int n = std::accumulate(bext_dims.begin(), bext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
   int k = std::accumulate(sum_dims.begin(), sum_dims.end(), BlockDim{1}, std::multiplies<>()).value();
 
-  matmul<T>(m, n, k, reinterpret_cast<T*>(abuf_sort.get()), k,
-            reinterpret_cast<T*>(bbuf_sort.get()), n,
-            reinterpret_cast<T*>(cbuf_sort.get()), n,
+  matmul<T>(m, n, k, abuf_sort.get(), k,
+            bbuf_sort.get(), n,
+            cbuf_sort.get(), n,
             static_cast<T>(alpha), static_cast<T>(beta));
   auto cperm = perm_invert(perm_compute(cblock(clabel), clabel_sort));
   //T
-  index_permute(cblock.buf(), reinterpret_cast<uint8_t*>(cbuf_sort.get()),
-                cperm, cblock.block_dims(), 1.0);
+  index_permute(cblock.buf(), cbuf_sort.get(),
+                cperm, cblock.block_dims(), T{1});
 }
 
 template<typename T, typename T1>
@@ -256,11 +254,11 @@ block_add (LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>> rhs, bool updat
   auto astore = perm_apply(alabel, perm_invert(alayout));
 
   auto store_perm = perm_compute(astore, cstore);
-  auto alpha = std::get<0>(rhs);
+  auto alpha = std::get<0>(rhs) * ablock.sign();
   if(!update) {
-    index_permute(cblock.buf(), ablock.buf(), store_perm, cblock.block_dims(), alpha);
+    index_permute(cblock.buf(), ablock.buf(), store_perm, cblock.block_dims(), static_cast<T>(alpha));
   } else {
-    index_permute_acc(cblock.buf(), ablock.buf(), store_perm, cblock.block_dims(), alpha);
+    index_permute_acc(cblock.buf(), ablock.buf(), store_perm, cblock.block_dims(), static_cast<T>(alpha));
   }
 }
 

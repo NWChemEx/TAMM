@@ -15,7 +15,7 @@
 #include <vector>
 #include <string>
 #include "tammx/tammx.h"
-//#include "tammx/diis.h"
+#include "tammx/diis.h"
 
 using namespace std;
 using namespace tammx;
@@ -37,8 +37,8 @@ void ccsd_e(Scheduler &sch, Tensor<T>& f1, Tensor<T>& de,
   sch.alloc(i1)
       (i1(h6,p5) +=        f1(h6,p5))
       (i1(h6,p5) += 0.5  * t1(p3,h4)       * v2(h4,h6,p3,p5))
-      (de        +=        t1(p5,h6)       * i1(h6,p5))
-      (de        += 0.25 * t2(p1,p2,h3,h4) * v2(h3,h4,p1,p2))
+      (de()      +=        t1(p5,h6)       * i1(h6,p5))
+      (de()      += 0.25 * t2(p1,p2,h3,h4) * v2(h3,h4,p1,p2))
       .dealloc(i1);
 }
 
@@ -156,50 +156,79 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
                    ProcGroup pg,
                    Distribution* distribution,
                    MemoryManager* mgr) {
-  //DIIS diis{distribution, false, zshiftl, ndiis, 2, p_evl_sorted};
-
-  Irrep irrep = 0;
+  Irrep irrep{0};
   bool spin_restricted = false;
 
+  std::vector<Tensor<T>*> d_r1s, d_r2s;
+      
   Tensor<T> d_e{E|E, irrep, spin_restricted};
   Tensor<T> d_r1_residual{E|E, irrep, spin_restricted};
   Tensor<T> d_r2_residual{E|E, irrep, spin_restricted};
-  Tensor<T> d_r1{V|O, irrep, spin_restricted};
-  Tensor<T> d_r2{VV|OO, irrep, spin_restricted};
+  Tensor<T>::allocate(pg, distribution, mgr, d_e);
+  for(int i=0; i<ndiis; i++) {
+    d_r1s.push_back(new Tensor<T>{{V|O}, irrep, spin_restricted});
+    d_r2s.push_back(new Tensor<T>{{VV|OO}, irrep, spin_restricted});
+    Tensor<T>::allocate(pg, distribution, mgr, *d_r1s[i], *d_r2s[i]);
+  }
 
-  Tensor<T>::allocate(pg, distribution, mgr, d_e, d_r1, d_r2);
-
-  auto get_scalar = [] (Tensor<T>& tensor) {
+  auto get_scalar = [] (Tensor<T>& tensor) -> T {
     Expects(tensor.rank() == 0);
     Block<T> resblock = tensor.get({});
     return *resblock.buf();    
   };
 
-  Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
-  sch.io(d_t1, d_t2, d_f1, d_v2, d_e, d_r1, d_r2);
-  ccsd_e(sch, d_f1, d_e, d_t1, d_t2, d_v2);
-  ccsd_t1(sch, d_f1, d_r1, d_t1, d_t2, d_v2);
-  ccsd_t2(sch, d_f1, d_r2, d_t1, d_t2, d_v2);
-  compute_residual(sch, d_r1, d_r1_residual);
-  compute_residual(sch, d_r2, d_r2_residual);
-  
   double corr = 0;
-  for(int iter=0; iter<maxiter; iter++) {
-    sch.execute();
-    double r1 = get_scalar(d_r1_residual);
-    double r2 = get_scalar(d_r2_residual);
-    double residual = std::max(r1, r2);
-    if(residual < thresh) {
-      //nodezero_print();
-      break;
+  for(int titer=0; titer<maxiter; titer+=ndiis) {
+    for(int iter = iter; iter < std::min(titer+ndiis,maxiter); iter++) {
+      Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
+      int off = iter - titer;
+      sch.io(d_t1, d_t2, d_f1, d_v2)
+          .output(d_e, *d_r1s[off], *d_r2s[off]);
+      ccsd_e(sch, d_f1, d_e, d_t1, d_t2, d_v2);
+      ccsd_t1(sch, d_f1, *d_r1s[off], d_t1, d_t2, d_v2);
+      ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
+      compute_residual(sch, *d_r1s[off], d_r1_residual);
+      compute_residual(sch, *d_r2s[off], d_r2_residual);
+    
+      double r1 = get_scalar(d_r1_residual);
+      double r2 = get_scalar(d_r2_residual);
+      double residual = std::max(r1, r2);
+      double energy = get_scalar(d_e);
+      if(residual < thresh) {
+        //nodezero_print();
+        break;
+      }
+      jacobi(*d_r1s[off], d_t1, -1.0 * zshiftl, false, p_evl_sorted);
+      jacobi(*d_r2s[off], d_t2, -2.0 * zshiftl, false, p_evl_sorted);
     }
-    //diis.next({&d_r1, &d_r2}, {&d_t1, &d_t2});
+    Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
+    std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
+    std::vector<Tensor<T>*> ts{&d_t1, &d_t2};
+    diis<T>(sch, rs, ts);
   }
 
-  Tensor<T>::deallocate(d_e, d_r1, d_r2);
+  for(int i=0; i<ndiis; i++) {
+    Tensor<T>::deallocate(*d_r1s[i], *d_r2s[i]);
+  }
+  d_r1s.clear();
+  d_r2s.clear();
   return corr;
 }
 
 int main() {
-  return 0;
+  using T = double;
+  Irrep irrep{0};
+  bool spin_restricted = false;
+  Tensor<T> d_t1{V|O, irrep, spin_restricted};
+  Tensor<T> d_t2{VV|OO, irrep, spin_restricted};
+  Tensor<T> d_f1{N|N, irrep, spin_restricted};
+  Tensor<T> d_v2{NN|NN, irrep, spin_restricted};
+  int maxiter = 20;
+  double thresh = 1.0e-6;
+  double zshiftl = 1.0;
+  int ndiis = 6;
+  ccsd_driver(d_t1, d_t2, d_f1, d_v2,
+              maxiter, thresh, zshiftl,
+              ndiis, nullptr, ProcGroup{},
+              nullptr, nullptr);
 }

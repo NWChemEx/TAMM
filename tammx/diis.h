@@ -6,9 +6,11 @@
 namespace tammx {
 
 
-//@todo What should be do wigh transpose
+//@todo What should be do with transpose
+template<typename T>
 inline void
-jacobi(Tensor& d_r, Tensor& d_t, double shift, bool transpose, double *p_evl_sorted) {
+jacobi(Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted) {
+  Expects(transpose == false);
   block_for(d_r(), [&] (const TensorIndex& blockid) {
       auto rblock = d_r.get(blockid);
       auto tblock = d_t.alloc(blockid);
@@ -19,16 +21,38 @@ jacobi(Tensor& d_r, Tensor& d_t, double shift, bool transpose, double *p_evl_sor
         auto joff = TCE::offset(blockid[1]);
         auto isize = bdims[0].value();
         auto jsize = bdims[1].value();
-        double *rbuf = reinterpret_cast<double*>(rblock.buf());
-        double *tbuf = reinterpret_cast<double*>(tblock.buf());
+        T* rbuf = rblock.buf();
+        T* tbuf = tblock.buf();
         for(int i=0, c=0; i<isize; i++) {
           for(int j=0; j<jsize; j++, c++) {
             tbuf[c] = rbuf[c] / (-p_evl_sorted[ioff+i] + p_evl_sorted[joff+j] + shift);
           }
         }
-        d_t.add(tblock);
+        d_t.add(tblock.blockid(), tblock);
       } else if(d_r.rank() == 4) {
-        assert(0);  // @todo implement
+        auto off = rblock.block_offset();
+        TensorVec<int64_t> ioff;
+        for(auto x: off) {
+          ioff.push_back(x.value());
+        }
+        TensorVec<int64_t> isize;
+        for(auto x: bdims) {
+          isize.push_back(x.value());
+        }
+        T* rbuf = rblock.buf();
+        T* tbuf = tblock.buf();
+        for(int i0=0, c=0; i0<isize[0]; i0++) {
+          for(int i1=0; i1<isize[1]; i1++) {
+            for(int i2=0; i2<isize[2]; i2++) {
+              for(int i3=0; i3<isize[3]; i3++, c++) {
+                tbuf[c] = rbuf[c] / (- p_evl_sorted[ioff[0]+i0] - p_evl_sorted[ioff[1]+i1]
+                                     + p_evl_sorted[ioff[2]+i2] + p_evl_sorted[ioff[3]+i3]
+                                     + shift);
+              }
+            }
+          }
+        }
+        d_t.add(tblock.blockid(), tblock);
       }
       else {
         assert(0);  // @todo implement
@@ -36,6 +60,72 @@ jacobi(Tensor& d_r, Tensor& d_t, double shift, bool transpose, double *p_evl_sor
     });
 }
 
+// @todo @bug @fixme This code has not been checked. 
+template<typename T>
+inline void
+diis(Scheduler& sch,
+     std::vector<std::vector<Tensor<T>*>*>& d_rs,
+     std::vector<Tensor<T>*> d_t) {
+  Expects(d_t.size() == d_rs.size());
+  int ndiis = d_t.size();
+  Expects(ndiis > 0);
+  int ntensors = d_rs[0]->size();
+  Expects(ntensors > 0);
+  for(int i=0; i<ndiis; i++) {
+    Expects(d_rs[i]->size() == ntensors);
+  }
+  
+  //T aexp[ndiis+1][ndiis+1][ntensors];
+  Scalar<T> aexp[ndiis+1][ndiis+1][ntensors];
+  for(int i=0; i<ndiis; i++) {
+    for(int j=0; j<ndiis; j++) {
+      for(int k=0; k<ntensors; k++) {
+        auto &ta = *d_rs[k]->at(i);
+        auto &tb = *d_rs[k]->at(j);
+        sch.alloc(aexp[i][j][k])
+            (aexp[i][j][k]() = ta() * tb());
+      }
+    }
+  }
+  sch.execute();
+  //sch.clear();
+  
+  T a[ndiis+1][ndiis+1];
+  for(int i=0; i<ndiis; i++) {
+    for(int j=0; j<ndiis; j++) {
+      a[i][j] = 0;
+      for(int k=0; k<ntensors; k++) {
+        a[i][j] += aexp[i][j][k].value();
+      }
+    }
+  }
+  for(int i=0; i<ndiis; i++) {
+    a[i][ndiis] = -1.0;
+    a[ndiis][i] = -1.0;
+  }
+  a[ndiis][ndiis] = 0;
+  a[ndiis][ndiis] = 0;
+  
+  T b[ndiis+1];
+  std::fill_n(b, b+ndiis, 0);
+  b[ndiis] = -1;
+  
+  // Solve AX = B
+  // call dgesv(diis+1,1,a,maxdiis+1,iwork,b,maxdiis+1,info)
+  
+  for(int i=0; i<ntensors; i++) {
+    auto &dt = *d_t[i];
+    sch(dt() = 0);
+    for(int j=0; j<ndiis; j++) {
+      auto &tb = *d_rs[i]->at(j);
+      sch(dt() += b[j] * tb());
+    }
+  }
+  sch.execute();
+  //sch.clear();
+}
+
+#if 0
 template<typename T>
 class DIIS {
  public:
@@ -159,6 +249,7 @@ class DIIS {
   std::vector<std::vector<Tensor*>> d_rs_, d_ts_;
   double *p_evl_sorted_;
 };  // class DIIS
+#endif
 
 }  // namespace tammx
 

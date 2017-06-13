@@ -25,8 +25,8 @@ class MemoryManager {
   virtual MemoryManager* clone(ProcGroup) const = 0;
   virtual void* access(Offset off) = 0;
   virtual void get(Proc proc, Offset off, Size nelements, void* buf) = 0;
-  virtual void put(Proc proc, Offset off, Size nelements, void* buf) = 0;
-  virtual void add(Proc proc, Offset off, Size nelements, void* buf) = 0;
+  virtual void put(Proc proc, Offset off, Size nelements, const void* buf) = 0;
+  virtual void add(Proc proc, Offset off, Size nelements, const void* buf) = 0;
 
  protected:
   ProcGroup pg_;
@@ -77,16 +77,16 @@ class MemoryManagerSequential : public MemoryManager {
                 reinterpret_cast<uint8_t*>(to_buf));
   }
 
-  void put(Proc proc, Offset off, Size nelements, void* from_buf) {
+  void put(Proc proc, Offset off, Size nelements, const void* from_buf) {
     Expects(buf_ != nullptr);
     Expects(off + nelements < nelements_);
     Expects(proc.value() == 0);
-    std::copy_n(reinterpret_cast<uint8_t*>(from_buf),
+    std::copy_n(reinterpret_cast<const uint8_t*>(from_buf),
                 elsize_*nelements.value(),
                 buf_ + elsize_*off.value());
   }
 
-  void add(Proc proc, Offset off, Size nelements, void* from_buf) {
+  void add(Proc proc, Offset off, Size nelements, const void* from_buf) {
     Expects(buf_ != nullptr);
     Expects(off + nelements < nelements_);
     Expects(proc.value() == 0);
@@ -95,22 +95,22 @@ class MemoryManagerSequential : public MemoryManager {
     switch(eltype_) {
       case ElementType::single_precision:
         for(int i=0; i<hi; i++) {
-          reinterpret_cast<float*>(to_buf)[i] += reinterpret_cast<float*>(from_buf)[i];
+          reinterpret_cast<float*>(to_buf)[i] += reinterpret_cast<const float*>(from_buf)[i];
         }
         break;
       case ElementType::double_precision:
         for(int i=0; i<hi; i++) {
-          reinterpret_cast<double*>(to_buf)[i] += reinterpret_cast<double*>(from_buf)[i];
+          reinterpret_cast<double*>(to_buf)[i] += reinterpret_cast<const double*>(from_buf)[i];
         }
         break;
       case ElementType::single_complex:
         for(int i=0; i<hi; i++) {
-          reinterpret_cast<std::complex<float>*>(to_buf)[i] += reinterpret_cast<std::complex<float>*>(from_buf)[i];
+          reinterpret_cast<std::complex<float>*>(to_buf)[i] += reinterpret_cast<const std::complex<float>*>(from_buf)[i];
         }
         break;
       case ElementType::double_complex:
         for(int i=0; i<hi; i++) {
-          reinterpret_cast<std::complex<double>*>(to_buf)[i] += reinterpret_cast<std::complex<double>*>(from_buf)[i];
+          reinterpret_cast<std::complex<double>*>(to_buf)[i] += reinterpret_cast<const std::complex<double>*>(from_buf)[i];
         }
         break;
       default:

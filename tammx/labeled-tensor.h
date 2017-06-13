@@ -11,14 +11,17 @@ namespace tammx {
 template<typename T>
 class Tensor;
 
-template<typename LabeledTensorType, typename T2>
-struct SetOpEntry;
+// template<typename LabeledTensorType, typename T2>
+// struct SetOpEntry;
 
-template<typename LabeledTensorType, typename T2>
-struct AddOpEntry;
+// template<typename LabeledTensorType, typename T2>
+// struct AddOpEntry;
 
-template<typename LabeledTensorType, typename T>
-struct MultOpEntry;
+// template<typename LabeledTensorType, typename T>
+// struct MultOpEntry;
+
+// template<typename T1, typename T2>
+// struct InnerProductOpEntry;
 
 enum class ResultMode { update, set };
 
@@ -45,6 +48,16 @@ struct MultOpEntry {
   ResultMode mode;
 };
 
+template<typename T1,
+         typename T2,
+         typename = std::enable_if_t<std::is_arithmetic<T1>::value>,
+         typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
+struct InnerProductOpEntry {
+  T1& lhs;
+  T2 alpha;
+  LabeledTensor<T1> rhs1, rhs2; 
+};
+
 template<typename Func, typename LabeledTensorType, unsigned ndim, unsigned nrhs>
 struct MapOpEntry {
   LabeledTensorType lhs;
@@ -67,6 +80,10 @@ struct LabeledTensor {
   using element_type = T;
   Tensor<T>* tensor_;
   TensorLabel label_;
+
+  Tensor<T>& tensor() {
+    return *tensor_;
+  }
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
@@ -133,20 +150,22 @@ struct LabeledTensor {
 };  // LabeledTensor
 
 template<typename T1,
-         typename T2>
+         typename T2,
+         typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
 inline std::tuple<T1, LabeledTensor<T2>>
 operator * (T1 alpha, LabeledTensor<T2> tensor) {
-  static_assert(std::is_arithmetic<T1>::value,
-                "Multiplying tensor with a non-arithmetic scalar is invalid.");
+  // static_assert(std::is_arithmetic<T1>::value,
+  //               "Multiplying tensor with a non-arithmetic scalar is invalid.");
   return {alpha, tensor};
 }
 
 template<typename T1,
-         typename T2>
+         typename T2,
+         typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
 inline std::tuple<T1, LabeledTensor<T2>>
-operator * (LabeledTensor<T1> tensor, T2 alpha) {
-  static_assert(std::is_arithmetic<T2>::value,
-                "Multiplying tensor with a non-arithmetic scalar is invalid.");
+operator * (LabeledTensor<T2> tensor, T1 alpha) {
+  // static_assert(std::is_arithmetic<T1>::value,
+  //               "Multiplying tensor with a non-arithmetic scalar is invalid.");
   return {alpha, tensor};
 }
 

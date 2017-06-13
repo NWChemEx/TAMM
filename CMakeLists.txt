@@ -12,6 +12,8 @@ cmake_minimum_required(VERSION 3.7 FATAL_ERROR)
 project (TAMM_LIBRARY C CXX)
 enable_language (Fortran)
 
+set(CMAKE_BUILD_TYPE Debug)
+
 # The version number.
 set (TAMM_VERSION_MAJOR 0)
 set (TAMM_VERSION_MINOR 1)
@@ -35,8 +37,6 @@ message("Please set the TAMM_PROC_COUNT cmake variable to change the cpu count."
 
 #Uncomment if we use additional cmake modules later
 #set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
-# Setup ANTLR
-#include(SetupANTLR)
 
 include_directories( ${PROJECT_SOURCE_DIR} )
 
@@ -72,14 +72,6 @@ execute_process(COMMAND ${GA_CONFIG} --ldflags OUTPUT_VARIABLE tamm_ldflags OUTP
 execute_process(COMMAND ${GA_CONFIG} --libs OUTPUT_VARIABLE tamm_libs OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 set(ParserSrcDir ${PROJECT_SOURCE_DIR}/frontend)
-
-#if(ANTLR_CPPRUNTIME)
-#    #message("Found antlr cpp-runtime")
-#    ADD_CUSTOM_TARGET(BuildANTLR ALL)
-#else()
-#    #message("antlr cpp-runtime not found")
-#    ADD_CUSTOM_TARGET(BuildANTLR ALL DEPENDS ANTLR)
-#endif()
 
 # Collect all the parser sources.
 set(tammParserSources
@@ -171,7 +163,7 @@ message(STATUS "ANTLR C++ runtime found at: " ${ANTLR_CPPRUNTIME_PATH})
 ADD_LIBRARY(a4runtime STATIC IMPORTED)
 SET_TARGET_PROPERTIES(a4runtime PROPERTIES IMPORTED_LOCATION ${ANTLR_CPPRUNTIME_PATH}/lib/libantlr4-runtime.a)
 
-SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN -std=c++14 -g")
+SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
 #SET(CMAKE_CXX_FLAGS "-DEXT_INT -DGFORTRAN")
 add_library(tamm STATIC ${tammParserSources} ${tammLibSources} ${refCodeSources})
 #add_dependencies(tamm BuildANTLR)
@@ -212,6 +204,10 @@ target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${ParserSrc
 add_executable(tammx_main tammx/tammx_main.cc)
 target_include_directories(tammx_main SYSTEM PUBLIC ${PROJECT_BINARY_DIR})
 target_link_libraries(tammx_main tammx)
+
+add_executable(hf nwchem_main/hartree_fock.cc)
+target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
+target_link_libraries(hf -L${LIBINT_INSTALL_PATH}/lib -lint2)
 
 #add_executable(noga_main tammx/noga_fb_main.cc tammx/tammx.cc tammx/index_sort.cc) #EXCLUDE_FROM_ALL
 #target_include_directories(noga_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INCLUDE_PATH})
@@ -315,11 +311,6 @@ add_custom_command(TARGET "patch" POST_BUILD
     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ${patch_script} 
      ${NWCHEM_TOP} ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_PATH}/lib/libantlr4-runtime.a
     COMMENT "=================== Patching nwchem..." )
-
-# add_custom_target("patch-only")
-# add_custom_command(TARGET "patch-only" POST_BUILD 
-#     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ${patch_script} ${NWCHEM_TOP} ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_PATH}/lib/libantlr4-runtime.a -l
-#     COMMENT "=================== Patching nwchem..." )
 
 add_custom_target("unpatch")
 add_custom_command(TARGET "unpatch" POST_BUILD 

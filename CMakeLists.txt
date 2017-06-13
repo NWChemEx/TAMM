@@ -152,8 +152,8 @@ set(tammLibSources
 
 set(tammxSources
         tammx/tammx.cc
-        tammx/index_sort.cc
-        tammx/ccsd_driver.cc)
+        tammx/index_sort.cc)
+        #tammx/ccsd_driver.cc)
 
 string(REPLACE "-I" "" tamm_cmake_cflags ${tamm_cflags})
 #To be recognized as a list, the strings must be seperated by ;
@@ -202,8 +202,12 @@ target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${ParserSrc
         ${BLAS_INCLUDE_PATH} ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime/)
 
 add_executable(tammx_main tammx/tammx_main.cc)
-target_include_directories(tammx_main SYSTEM PUBLIC ${PROJECT_BINARY_DIR})
 target_link_libraries(tammx_main tammx)
+
+add_executable(ccsd_driver tammx/ccsd_driver.cc)
+add_dependencies(ccsd_driver tammx)
+target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(ccsd_driver tammx)
 
 add_executable(hf nwchem_main/hartree_fock.cc)
 target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)

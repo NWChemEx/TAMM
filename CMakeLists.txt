@@ -238,6 +238,8 @@ install(FILES ${EQFILES} DESTINATION ${TAMM_INSTALL_PREFIX}/tests/NWChemEqs)
 # file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/tamm_tests/SoEqs/*.eq")
 # install(FILES ${EQFILES} DESTINATION ${TAMM_INSTALL_PREFIX}/tests/SoEqs)
 
+install(FILES ${PROJECT_SOURCE_DIR}/nwchem_main/h2o.xyz DESTINATION ${PROJECT_BINARY_DIR})
+
 # Create directory to store test results
 execute_process(COMMAND mkdir -p "TestResults/ParserTests")
 

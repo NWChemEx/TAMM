@@ -39,6 +39,7 @@ class Block {
     for(auto id: block_id_) {
       ret.push_back(BlockDim{TCE::offset(id)});
     }
+    return ret;
   }
   
   const TensorIndex& block_dims() const {
@@ -65,8 +66,12 @@ class Block {
     return layout_;
   }
 
-  uint8_t* buf() {
-    return buf_.get();
+  T* buf() {
+    return reinterpret_cast<T*>(buf_.get());
+  }
+
+  const T* buf() const {
+    return reinterpret_cast<const T*>(buf_.get());
   }
 
   Tensor<T>& tensor() {

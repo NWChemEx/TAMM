@@ -69,11 +69,11 @@ struct MultOp : public Op {
 template<typename TensorType>
 struct AllocOp: public Op {
   void execute() {
-    tensor_->alloc(distribution_, memory_manager_);
+    tensor_->alloc(pg, distribution_, memory_manager_);
   }
 
-  AllocOp(TensorType* tensor, ProcGroup pg, Distribution* distribution, MemoryManager* memory_manager)
-      : tensor_{tensor},
+  AllocOp(TensorType& tensor, ProcGroup pg, Distribution* distribution, MemoryManager* memory_manager)
+      : tensor_{&tensor},
         distribution_{distribution},
         memory_manager_{memory_manager} {}
 
@@ -528,10 +528,10 @@ class Scheduler {
 
   template<typename T, typename LabeledTensorType>
   Scheduler& operator()(SetOpEntry<T, LabeledTensorType> sop) {
-    push_back(new SetOp<T, LabeledTensorType>(sop.value, sop.lhs, sop.mode));
-    Expects(tensors_.find(sop.tensor()) != tensors_.end());
-    Expects(tensors_[sop.tensor()].status == TensorStatus::allocated);
-    tensors_[sop.tensor()].status = TensorStatus::initialized;
+    ops_.push_back(new SetOp<LabeledTensorType, T>(sop.value, sop.lhs, sop.mode));
+    Expects(tensors_.find(&sop.lhs.tensor()) != tensors_.end());
+    Expects(tensors_[&sop.lhs.tensor()].status == TensorStatus::allocated);
+    tensors_[&sop.lhs.tensor()].status = TensorStatus::initialized;
     return *this;
   }
 
@@ -564,10 +564,10 @@ class Scheduler {
   template<typename TensorType, typename ...Args>
   Scheduler& alloc(TensorType& tensor, Args& ... args) {
     Expects(tensors_.find(&tensor) != tensors_.end());
-    Expects(tensors_[&tensor] == TensorStatus::invalid ||
-            tensors_[&tensor] == TensorStatus::deallocated);
-    tensors_[&tensor] = TensorStatus::allocated;
-    push_back(new AllocOp<TensorType>(tensor, pg_, default_distribution_, default_memory_manager_));
+    Expects(tensors_[&tensor].status == TensorStatus::invalid ||
+            tensors_[&tensor].status == TensorStatus::deallocated);
+    tensors_[&tensor].status = TensorStatus::allocated;
+    ops_.push_back(new AllocOp<TensorType>(tensor, pg_, default_distribution_, default_memory_manager_));
     return alloc(args...);
   }
 
@@ -578,10 +578,10 @@ class Scheduler {
   template<typename TensorType, typename ...Args>
   Scheduler& dealloc(TensorType& tensor, Args& ... args) {
     Expects(tensors_.find(&tensor) != tensors_.end());
-    Expects(tensors_[&tensor] == TensorStatus::allocated ||
-            tensors_[&tensor] == TensorStatus::initialized);
-    tensors_[&tensor] = TensorStatus::deallocated;
-    push_back(new DeallocOp<TensorType>(tensor));
+    Expects(tensors_[&tensor].status == TensorStatus::allocated ||
+            tensors_[&tensor].status == TensorStatus::initialized);
+    tensors_[&tensor].status = TensorStatus::deallocated;
+    ops_.push_back(new DeallocOp<TensorType>(&tensor));
     return dealloc(args...);
   }
 
@@ -594,7 +594,7 @@ class Scheduler {
     Expects(tensors_[&aop.lhs.tensor()].status == TensorStatus::initialized
             || (aop.mode==ResultMode::set
                 && tensors_[&aop.lhs.tensor()].status==TensorStatus::allocated));
-    push_back(new AddOp<T, LabeledTensorType>(aop.alpha, aop.lhs, aop.rhs, aop.mode));
+    ops_.push_back(new AddOp<LabeledTensorType, T>(aop.alpha, aop.lhs, aop.rhs, aop.mode));
     return *this;
   }
 
@@ -608,7 +608,7 @@ class Scheduler {
     Expects(tensors_[&aop.lhs.tensor()].status == TensorStatus::initialized
             || (aop.mode==ResultMode::set
                 && tensors_[&aop.lhs.tensor()].status==TensorStatus::allocated));
-    push_back(new MultOp<T, LabeledTensorType>(aop.alpha, aop.lhs, aop.rhs1, aop.rhs2, aop.mode));
+    ops_.push_back(new MultOp<LabeledTensorType, T>(aop.alpha, aop.lhs, aop.rhs1, aop.rhs2, aop.mode));
     return *this;
   }
 
@@ -618,7 +618,7 @@ class Scheduler {
     Expects(tensors_[&lhs.tensor()].status == TensorStatus::initialized
             || (mode==ResultMode::set
                 && tensors_[&lhs.tensor()].status==TensorStatus::allocated));
-    push_back(new MapOp<Func,LabeledTensorType,0,0>(lhs, func, mode));
+    ops_.push_back(new MapOp<Func,LabeledTensorType,0,0>(lhs, func, mode));
     return *this;
   }
 
@@ -626,7 +626,7 @@ class Scheduler {
   Scheduler& sop(LabeledTensorType lhs, Func func) {
     Expects(tensors_.find(&lhs.tensor()) != tensors_.end());
     Expects(tensors_[&lhs.tensor()].status == TensorStatus::initialized);
-    push_back(new ScanOp<Func,LabeledTensorType,ndim>(lhs, func));
+    ops_.push_back(new ScanOp<Func,LabeledTensorType,ndim>(lhs, func));
     return *this;
   }
 
@@ -656,34 +656,31 @@ class Scheduler {
 
 template<typename T>
 inline void
-assert_zero(Tensor<T>& tc, double threshold = 1.0e-12) {
+assert_zero(Scheduler& sch, Tensor<T>& tc, double threshold = 1.0e-12) {
   auto lambda = [&] (auto &val) {
     //    std::cout<<"assert_zero. val="<<val<<std::endl;
     Expects(std::abs(val) < threshold);
   };
-  Scheduler()
-      .io(tc)
+  sch.io(tc)
       .sop(tc(), lambda)
       .execute();
 }
 
 template<typename LabeledTensorType, typename T>
 inline void
-assert_equal(LabeledTensorType tc, T value, double threshold = 1.0e-12) {
+assert_equal(Scheduler& sch, LabeledTensorType tc, T value, double threshold = 1.0e-12) {
   auto lambda = [&] (auto &val) {
     Expects(std::abs(val - value) < threshold);
   };
-  Scheduler()
-      .io(tc.tensor())
+  sch.io(tc.tensor())
       .sop(tc, lambda)
       .execute();
 }
 
 template<typename LabeledTensorType>
 inline void
-tensor_print(LabeledTensorType ltensor) {
-  Scheduler()
-      .io(ltensor.tensor())
+tensor_print(Scheduler& sch, LabeledTensorType ltensor) {
+  sch.io(ltensor.tensor())
       .sop(ltensor, [] (auto &ival) {
           std::cout<<ival<<" ";
         })
@@ -967,9 +964,9 @@ SetOp<T,LabeledTensorType>::execute() {
         tbuf[i] = value;
       }
       if(mode_ == ResultMode::update) {
-        tensor.add(block);
+        tensor.add(block.blockid(), block);
       } else if (mode_ == ResultMode::set) {
-        tensor.put(block);
+        tensor.put(block.blockid(), block);
       } else {
         assert(0);
       }
@@ -1010,13 +1007,54 @@ AddOp<T, LabeledTensorType>::execute() {
         csbp(copy_label) += sign * alpha_ * abp(perm_comp);
       }
       if(mode_ == ResultMode::update) {
-        tc.add(csbp);
+        tc.add(csbp.blockid(), csbp);
       } else {
-        tc.put(csbp);
+        tc.put(csbp.blockid(), csbp);
       }
     }
   };
   parallel_work(aitr, aitr.get_end(), lambda);
+}
+
+inline int
+factorial(int n) {
+  Expects(n >= 0 && n <= maxrank);
+  if (n <= 1) return 1;
+  if (n == 2) return 2;
+  if (n == 3) return 6;
+  if (n == 4) return 12;
+  if (n == 5) return 60;
+  int ret = 1;
+  for(int i=1; i<=n; i++) {
+    ret *= i;
+  }
+  return ret;
+}
+
+
+inline int
+compute_symmetry_scaling_factor(const TensorVec<SymmGroup>& sum_indices,
+                                TensorIndex sumid) {
+  int ret = 1;
+  auto itr = sumid.begin();
+  for(auto &sg: sum_indices) {
+    auto sz = sg.size();
+    Expects(sz > 0);
+    std::sort(itr, itr+sz);
+    auto fact = factorial(sz);
+    int tsize = 1;
+    for(int i=1; i<sz; i++) {
+      if(itr[i] != itr[i-1]) {
+        fact /= factorial(tsize);
+        tsize = 0;
+      }
+      tsize += 1;
+    }
+    fact /= factorial(tsize);
+    ret *= fact;
+    itr += sz;
+  }
+  return ret;
 }
 
 template<typename T, typename LabeledTensorType>
@@ -1024,6 +1062,9 @@ inline void
 MultOp<T, LabeledTensorType>::execute() {
   using T1 = typename LabeledTensorType::element_type;
   std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
+
+  //@todo @fixme MultOp based on nonsymmetrized_iterator cannot work with ResultMode::set
+  Expects(mode_ == ResultMode::update);
   LabeledTensor<T1>& lta = rhs1_;
   LabeledTensor<T1>& ltb = rhs2_;
   LabeledTensor<T1>& ltc = lhs_;
@@ -1055,6 +1096,8 @@ MultOp<T, LabeledTensorType>::execute() {
       auto abp = ta.get(ablockid);
       auto bbp = tb.get(bblockid);
 
+      auto symm_scaling_factor = compute_symmetry_scaling_factor(sum_indices, *sitr);
+      auto scale = alpha_ * symm_scaling_factor;
 #if 1
       cbp(ltc.label_) += alpha_ * abp(lta.label_) * bbp(ltb.label_);
 #endif
@@ -1073,9 +1116,9 @@ MultOp<T, LabeledTensorType>::execute() {
       csbp(copy_label) += T(sign) * cbp(cperm_label);
     }
     if(mode_ == ResultMode::update) {
-      tc.add(csbp);
+      tc.add(csbp.blockid(), csbp);
     } else {
-      tc.put(csbp);
+      tc.put(csbp.blockid(), csbp);
     }
   };
   auto itr = nonsymmetrized_iterator(ltc, lta, ltb);

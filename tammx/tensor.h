@@ -136,7 +136,9 @@ class Tensor : public TensorBase {
     mgr_->add(proc, offset, Size{size}, block.buf());
   }
 
-  LabeledTensor<T> operator () (const TensorLabel& label);
+  LabeledTensor<T> operator () (const TensorLabel& label) {
+    return {this, label};
+  }
 
   LabeledTensor<T> operator () () {
     TensorLabel label;

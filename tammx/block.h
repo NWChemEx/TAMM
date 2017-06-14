@@ -22,13 +22,31 @@ template<typename T>
 class Block {
  public:
   Block(Tensor<T>& tensor,
-        const TensorIndex& block_id);
+        const TensorIndex& block_id)
+    : tensor_{tensor},
+      block_id_{block_id} {
+        block_dims_ = tensor.block_dims(block_id);
+        layout_.resize(tensor.rank());
+        std::iota(layout_.begin(), layout_.end(), 0);
+        sign_ = 1;
+        buf_ = std::make_unique<T[]> (size());
+      }
 
   Block(Tensor<T>& tensor,
         const TensorIndex& block_id,
         const TensorIndex& block_dims,
         const TensorPerm& layout,
-        Sign sign);
+        Sign sign)
+      : tensor_{tensor},
+        block_id_{block_id},
+        block_dims_{block_dims},
+        layout_{layout},
+        sign_{sign} {
+          Expects(tensor.rank() == block_id.size());
+          Expects(tensor.rank() == block_dims.size());
+          Expects(tensor.rank() == layout.size());
+          buf_ = std::make_unique<T[]> (size());
+        }
 
   const TensorIndex& blockid() const {
     return block_id_;
@@ -46,9 +64,17 @@ class Block {
     return block_dims_;
   }
 
-  LabeledBlock<T> operator () (const TensorLabel &label);
+  LabeledBlock<T> operator () (const TensorLabel &label) {
+    return {this, label};
+  }
 
-  LabeledBlock<T> operator () ();
+  LabeledBlock<T> operator () () {
+    TensorLabel label;
+    for(int i=0; i<block_id_.size(); i++) {
+      label.push_back({i, tensor_.flindices()[i]});
+    }
+    return operator ()(label);
+  }
   
   size_t size() const {
     size_t sz = 1;
@@ -67,11 +93,11 @@ class Block {
   }
 
   T* buf() {
-    return reinterpret_cast<T*>(buf_.get());
+    return buf_.get();
   }
 
   const T* buf() const {
-    return reinterpret_cast<const T*>(buf_.get());
+    return buf_.get();
   }
 
   Tensor<T>& tensor() {
@@ -82,7 +108,7 @@ class Block {
   Tensor<T>& tensor_;
   TensorIndex block_id_;
   TensorIndex block_dims_;
-  std::unique_ptr<uint8_t []> buf_;
+  std::unique_ptr<T[]> buf_;
   TensorPerm layout_;
   Sign sign_;
 };

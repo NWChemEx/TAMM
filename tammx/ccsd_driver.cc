@@ -24,8 +24,7 @@ using namespace tammx::tensor_labels;
 
 template<typename T>
 void compute_residual(Scheduler &sch, Tensor<T>& tensor, Tensor<T>& scalar) {
-  sch.alloc(scalar)
-      (scalar() = tensor() * tensor());
+  sch(scalar() = tensor() * tensor());
 }
 
 
@@ -35,8 +34,9 @@ void ccsd_e(Scheduler &sch, Tensor<T>& f1, Tensor<T>& de,
   auto &i1 = sch.tensor<T>(O|V);
 
   sch.alloc(i1)
-      (i1(h6,p5) +=        f1(h6,p5))
+      (i1(h6,p5) =        f1(h6,p5))
       (i1(h6,p5) += 0.5  * t1(p3,h4)       * v2(h4,h6,p3,p5))
+      (de() = 0)
       (de()      +=        t1(p5,h6)       * i1(h6,p5))
       (de()      += 0.25 * t2(p1,p2,h3,h4) * v2(h3,h4,p1,p2))
       .dealloc(i1);
@@ -65,10 +65,11 @@ void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
       (i0(p2,h1)           +=        t1(p3,h1)       * t1_3_1(p2,p3))
       (i0(p2,h1)           += -1   * t1(p3,h4)       * v2(h4,p2,h1,p3))
       (t1_5_1(h8,p7)        =        f1(h8,p7))
+
       (t1_5_1(h8,p7)       +=        t1(p5,h6)       * v2(h6,h8,p5,p7))
       (i0(p2,h1)           +=        t2(p2,p7,h1,h8) * t1_5_1(h8,p7))
       (t1_6_1(h4,h5,h1,p3)  =        v2(h4,h5,h1,p3))
-      (t1_6_1(h4,h5,h1,p3) += -1   * t1(p6,h1)       * v2(h4,h5,p3,p6))
+      (t1_6_1(h4,h5,h1,p3) += -1   * t1(p6,h1)       * v2(h4,h5,p3,p6))      
       (i0(p2,h1)           += -0.5 * t2(p2,p3,h4,h5) * t1_6_1(h4,h5,h1,p3))
       (i0(p2,h1)           += -0.5 * t2(p3,p4,h1,h5) * v2(h5,p2,p3,p4))
       .dealloc(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1);
@@ -94,24 +95,22 @@ void ccsd_t2(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
             t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1)
       (i0(p3,p4,h1,h2)            =        v2(p3,p4,h1,h2))
       (t2_2_1(h10,p3,h1,h2)       =        v2(h10,p3,h1,h2))
-      (t2_2_2_1(h10,h11,h1,h2)   += -1  *  v2(h10,h11,h1,h2))
-      (t2_2_2_2_1(h10,h11,h1,p5) =         v2(h10,h11,h1,p5))
+      (t2_2_2_1(h10,h11,h1,h2)    = -1  *  v2(h10,h11,h1,h2))
+      (t2_2_2_2_1(h10,h11,h1,p5)  =         v2(h10,h11,h1,p5))
       (t2_2_2_2_1(h10,h11,h1,p5) += -0.5 * t1(p6,h1) * v2(h10,h11,p5,p6))
       (t2_2_2_1(h10,h11,h1,h2)   +=        t1(p5,h1) * t2_2_2_2_1(h10,h11,h2,p5))
       (t2_2_2_1(h10,h11,h1,h2)   += -0.5 * t2(p7,p8,h1,h2) * v2(h10,h11,p7,p8))
-      (t2_2_1(h10,p3,h1,h2)      += 0.5  * t1(p3,h11) * t2_2_2_1(h10,h11,h1,h2))
+      (t2_2_1(h10,p3,h1,h2)      += 0.5  * t1(p3,h11) * t2_2_2_1(h10,h11,h1,h2))      
       (t2_2_4_1(h10,p5)           =        f1(h10,p5))
       (t2_2_4_1(h10,p5)          += -1   * t1(p6,h7) * v2(h7,h10,p5,p6))
       (t2_2_1(h10,p3,h1,h2)      += -1   * t2(p3,p5,h1,h2) * t2_2_4_1(h10,p5))
       (t2_2_5_1(h7,h10,h1,p9)     =        v2(h7,h10,h1,p9))
-
       (t2_2_5_1(h7,h10,h1,p9)    +=        t1(p5,h1) * v2(h7,h10,p5,p9))
       (t2_2_1(h10,p3,h1,h2)      +=        t2(p3,p9,h1,h7) * t2_2_5_1(h7,h10,h2,p9))
       (t2(p1,p2,h3,h4)           += 0.5  * t1(p1,h3) * t1(p2,h4))
       (t2_2_1(h10,p3,h1,h2)      += 0.5  * t2(p5,p6,h1,h2) * v2(h10,p3,p5,p6))
       (t2(p1,p2,h3,h4)           += -0.5 * t1(p1,h3) * t1(p2,h4))
       (i0(p3,p4,h1,h2)           += -1   * t1(p3,h10) * t2_2_1(h10,p4,h1,h2))
-
       (i0(p3,p4,h1,h2)           += -1   * t1(p5,h1) * v2(p3,p4,h2,p5))
       (t2_4_1(h9,h1)              =        f1(h9,h1))
       (t2_4_2_1(h9,p8)            =        f1(h9,p8))
@@ -124,16 +123,17 @@ void ccsd_t2(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
       (t2_5_1(p3,p5)             += -1   * t1(p6,h7) * v2(h7,p3,p5,p6))
       (t2_5_1(p3,p5)             += -0.5 * t2(p3,p6,h7,h8) * v2(h7,h8,p5,p6))
       (i0(p3,p4,h1,h2)           += 1    * t2(p3,p5,h1,h2) * t2_5_1(p4,p5))
-      (t2_6_1(h9,h11,h1,h2)      += -1   * v2(h9,h11,h1,h2))
+      (t2_6_1(h9,h11,h1,h2)       = -1   * v2(h9,h11,h1,h2))
       (t2_6_2_1(h9,h11,h1,p8)     =        v2(h9,h11,h1,p8))
       (t2_6_2_1(h9,h11,h1,p8)    += 0.5  * t1(p6,h1) * v2(h9,h11,p6,p8))
       (t2_6_1(h9,h11,h1,h2)      +=        t1(p8,h1) * t2_6_2_1(h9,h11,h2,p8))
       (t2_6_1(h9,h11,h1,h2)      += -0.5 * t2(p5,p6,h1,h2) * v2(h9,h11,p5,p6))
       (i0(p3,p4,h1,h2)           += -0.5 * t2(p3,p4,h9,h11) * t2_6_1(h9,h11,h1,h2))
-      (t2_7_1(h6,p3,h1,p5)       +=        v2(h6,p3,h1,p5))
+      (t2_7_1(h6,p3,h1,p5)        =        v2(h6,p3,h1,p5))
       (t2_7_1(h6,p3,h1,p5)       += -1   * t1(p7,h1) * v2(h6,p3,p5,p7))
       (t2_7_1(h6,p3,h1,p5)       += -0.5 * t2(p3,p7,h1,h8) * v2(h6,h8,p5,p7))
       (i0(p3,p4,h1,h2)           += -1   * t2(p3,p5,h1,h6) * t2_7_1(h6,p4,h2,p5))
+      (vt1t1_1(h5,p3,h1,h2)       = 0)
       (vt1t1_1(h5,p3,h1,h2)      += -2   * t1(p6,h1) * v2(h5,p3,h2,p6))
       (i0(p3,p4,h1,h2)           += -0.5 * t1(p3,h5) * vt1t1_1(h5,p4,h1,h2))
       (t2(p1,p2,h3,h4)           += 0.5  * t1(p1,h3) * t1(p2,h4))
@@ -160,11 +160,11 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
   bool spin_restricted = false;
 
   std::vector<Tensor<T>*> d_r1s, d_r2s;
-      
-  Tensor<T> d_e{E|E, irrep, spin_restricted};
+
+  Tensor<T> d_e{E|E, irrep, spin_restricted}; 
   Tensor<T> d_r1_residual{E|E, irrep, spin_restricted};
   Tensor<T> d_r2_residual{E|E, irrep, spin_restricted};
-  Tensor<T>::allocate(pg, distribution, mgr, d_e);
+  Tensor<T>::allocate(pg, distribution, mgr, d_e, d_r1_residual, d_r2_residual);
   for(int i=0; i<ndiis; i++) {
     d_r1s.push_back(new Tensor<T>{{V|O}, irrep, spin_restricted});
     d_r2s.push_back(new Tensor<T>{{VV|OO}, irrep, spin_restricted});
@@ -178,18 +178,22 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
   };
 
   double corr = 0;
+
   for(int titer=0; titer<maxiter; titer+=ndiis) {
-    for(int iter = iter; iter < std::min(titer+ndiis,maxiter); iter++) {
+    for(int iter = titer; iter < std::min(titer+ndiis,maxiter); iter++) {
       Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
       int off = iter - titer;
       sch.io(d_t1, d_t2, d_f1, d_v2)
-          .output(d_e, *d_r1s[off], *d_r2s[off]);
+          .output(d_e, *d_r1s[off], *d_r2s[off], d_r1_residual, d_r2_residual);
       ccsd_e(sch, d_f1, d_e, d_t1, d_t2, d_v2);
       ccsd_t1(sch, d_f1, *d_r1s[off], d_t1, d_t2, d_v2);
       ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
-      compute_residual(sch, *d_r1s[off], d_r1_residual);
-      compute_residual(sch, *d_r2s[off], d_r2_residual);
-    
+      sch(d_r1_residual() = 0)
+          (d_r1_residual() += (*d_r1s[off])()  * (*d_r1s[off])())
+          (d_r2_residual() = 0)
+          (d_r2_residual() += (*d_r2s[off])()  * (*d_r2s[off])());
+      sch.execute();
+      
       double r1 = get_scalar(d_r1_residual);
       double r2 = get_scalar(d_r2_residual);
       double residual = std::max(r1, r2);
@@ -204,7 +208,7 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
     Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
     std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
     std::vector<Tensor<T>*> ts{&d_t1, &d_t2};
-    diis<T>(sch, rs, ts);
+    //diis<T>(sch, rs, ts);
   }
 
   for(int i=0; i<ndiis; i++) {
@@ -215,7 +219,45 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
   return corr;
 }
 
+Irrep operator "" _ir(unsigned long long int val) {
+  return Irrep{strongnum_cast<Irrep::value_type>(val)};
+}
+
+Spin operator "" _sp(unsigned long long int val) {
+  return Spin{strongnum_cast<Spin::value_type>(val)};
+}
+
+BlockDim operator "" _bd(unsigned long long int val) {
+  return BlockDim{strongnum_cast<BlockDim::value_type>(val)};
+}
+
+std::vector<Spin> spins = {1_sp, 2_sp, 1_sp, 2_sp};
+std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir, 0_ir};
+std::vector<size_t> sizes = {2, 4, 2, 1};
+BlockDim noa {1};
+BlockDim noab {2};
+BlockDim nva {1};
+BlockDim nvab {2};
+bool spin_restricted = false;
+Irrep irrep_f {0};
+Irrep irrep_v {0};
+Irrep irrep_t {0};
+Irrep irrep_x {0};
+Irrep irrep_y {0};
+
+
 int main() {
+  TCE::init(spins, spatials, sizes,
+            noa,
+            noab,
+            nva,
+            nvab,
+            spin_restricted,
+            irrep_f,
+            irrep_v,
+            irrep_t,
+            irrep_x,
+            irrep_y);
   using T = double;
   Irrep irrep{0};
   bool spin_restricted = false;
@@ -223,12 +265,22 @@ int main() {
   Tensor<T> d_t2{VV|OO, irrep, spin_restricted};
   Tensor<T> d_f1{N|N, irrep, spin_restricted};
   Tensor<T> d_v2{NN|NN, irrep, spin_restricted};
-  int maxiter = 20;
+  int maxiter = 1;
   double thresh = 1.0e-6;
   double zshiftl = 1.0;
   int ndiis = 6;
+
+  auto distribution = Distribution_NW();
+  auto mgr = MemoryManagerSequential();
+  auto pg = ProcGroup{};
+  double *p_evl_sorted = nullptr;
+
+  Tensor<T>::allocate(pg, &distribution, &mgr, d_t1, d_t2, d_f1, d_v2);
   ccsd_driver(d_t1, d_t2, d_f1, d_v2,
               maxiter, thresh, zshiftl,
-              ndiis, nullptr, ProcGroup{},
-              nullptr, nullptr);
+              ndiis, p_evl_sorted, pg,
+              &distribution, &mgr);
+  Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
+  TCE::finalize();
+  return 0;
 }

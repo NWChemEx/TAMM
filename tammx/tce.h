@@ -212,19 +212,20 @@ class TCE {
 
 inline std::pair<BlockDim, BlockDim>
 tensor_index_range(DimType dt) {
-  switch(dt) {
-    case DimType::o:
-      return {BlockDim{0}, TCE::noab()};
-      break;
-    case DimType::v:
-      return {TCE::noab(), TCE::noab()+TCE::nvab()};
-      break;
-    case DimType::n:
-      return {BlockDim{0}, TCE::noab() + TCE::nvab()};
-      break;
-    default:
-      assert(0);
-  }
+  return {TCE::dim_lo(dt), TCE::dim_hi(dt)};
+  // switch(dt) {
+  //   case DimType::o:
+  //     return {BlockDim{0}, TCE::noab()};
+  //     break;
+  //   case DimType::v:
+  //     return {TCE::noab(), TCE::noab()+TCE::nvab()};
+  //     break;
+  //   case DimType::n:
+  //     return {BlockDim{0}, TCE::noab() + TCE::nvab()};
+  //     break;
+  //   default:
+  //     assert(0);
+  // }
 }
 
 

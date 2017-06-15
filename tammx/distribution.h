@@ -98,11 +98,15 @@ class Distribution_NW : public Distribution {
     auto key = compute_key(blockid);
     auto length = hash_[0];
     auto ptr = std::lower_bound(&hash_[1], &hash_[length + 1], key);
-    Expects (!(ptr == &hash_[length + 1] || key < *ptr));
+    Expects (ptr != &hash_[length + 1]);
+    std::cout<<"locate. key="<<key<<std::endl;
+    Expects (key == *ptr);
+    Expects (ptr != &hash_[length + 1] && key == *ptr);
     auto ioffset = *(ptr + length);
-    auto pptr = std::lower_bound(std::begin(proc_offsets_), std::end(proc_offsets_), ioffset);
-    Expects(pptr != std::end(proc_offsets_));
+    auto pptr = std::upper_bound(std::begin(proc_offsets_), std::end(proc_offsets_), Offset{ioffset});
+    Expects(pptr != std::begin(proc_offsets_));
     auto proc = Proc{pptr - std::begin(proc_offsets_)};
+    proc -= 1;
     auto offset = Offset{ioffset - proc_offsets_[proc.value()].value()};
     return {proc, offset};
   }
@@ -129,6 +133,7 @@ class Distribution_NW : public Distribution {
         length += 1;
       }
     }
+    Expects(length > 0);
 
     hash_.resize(2*length + 1);
     hash_[0] = length;
@@ -141,6 +146,7 @@ class Distribution_NW : public Distribution {
       auto blockid = *itr;
       if(tensor_structure_->nonzero(blockid)) {
         hash_[addr] = compute_key(blockid);
+        Expects(addr==1 || hash_[addr] > hash_[addr-1]);
         hash_[length + addr] = offset;
         offset += tensor_structure_->block_size(blockid);
         addr += 1;
@@ -174,7 +180,12 @@ class Distribution_NW : public Distribution {
     }
     int rank = flindices.size();
     TCE::Int offset = 1;
+    key = 0;
+    std::cout<<"compute_key. blockid="<<blockid<<std::endl;
+    std::cout<<"compute_key. bases="<<bases<<std::endl;
     for(int i=rank-1; i>=0; i--) {
+      Expects(blockid[i] >= TCE::dim_lo(flindices[i]));
+      Expects(blockid[i] < TCE::dim_hi(flindices[i]));
       key += ((blockid[i].value() - bases[i]) * offset);
       offset *= offsets[i];
     }

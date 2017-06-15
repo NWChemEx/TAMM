@@ -88,7 +88,6 @@ struct LabeledTensor {
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
   SetOpEntry<LabeledTensor<T>, T1> operator = (T1 value) {
-    std::cerr<<"Constructing setop. value="<<value<<std::endl;
     return {*this, value, ResultMode::set};
   }
 
@@ -204,7 +203,8 @@ validate_slicing(const TensorVec<SymmGroup>& indices,
   for(auto grp : indices)  {
     if (grp.size() > 0){
       for(int i=0; i<grp.size(); i++) {
-        Expects(label[pos+i].dt == label[pos].dt);
+        //Expects(label[pos+i].dt == label[pos].dt);
+        Expects(is_dim_subset(grp[i], label[pos+i].dt));
       }
     }
     pos += grp.size();

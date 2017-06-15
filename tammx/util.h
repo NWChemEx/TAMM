@@ -255,6 +255,50 @@ std::string to_string(const BoundVec<T,maxsize> &vec, const std::string& sep = "
   return ret;
 }
 
+// template<typename Fn, typename... Fargs>
+// inline void
+// type_dispatch(ElementType element_type, Fn fn, Fargs&& ...args) {
+//   switch(element_type) {
+//     case ElementType::single_precision:
+//       fn(float{}, args...);
+//       break;
+//     case ElementType::double_precision:
+//       fn(double{}, args...);
+//       break;
+//     default:
+//       assert(0); 
+//   }
+// }
+
+// inline void
+// typed_copy(ElementType eltype, void *src, size_t size, void *dst) {
+//   type_dispatch(eltype, [&] (auto type)  {
+//       using dtype = decltype(type);
+//       std::copy_n(reinterpret_cast<dtype*>(src),
+//                   size,
+//                   reinterpret_cast<dtype*>(dst));
+//     });
+// }
+
+// template<typename T>
+// inline void
+// typed_fill(ElementType eltype, void *buf, auto size, T val) {
+//   //Expects(element_type<T> == eltype);
+//   type_dispatch(eltype, [&] (auto type) {
+//       using dtype = decltype(type);
+//       auto tval = static_cast<dtype>(val);
+//       std::fill_n(reinterpret_cast<dtype*>(buf), size, tval);
+//     });
+// }
+
+// inline void
+// typed_zeroout(ElementType eltype, void *buf, auto size) {
+//   type_dispatch(eltype, [&] (auto type) {
+//       using dtype = decltype(type);
+//       std::fill_n(reinterpret_cast<dtype*>(buf), size, 0);
+//     });
+// }
+
 inline TensorVec<SymmGroup>
 slice_indices(const TensorVec<SymmGroup>& indices,
               const TensorLabel& label) {
@@ -270,41 +314,41 @@ slice_indices(const TensorVec<SymmGroup>& indices,
   return ret;
 }
 
-template<typename Fn, typename... Fargs>
-inline void
-ndim_dispatch(TensorIndex& lo, TensorIndex& size, Fn fn, Fargs&& ...args) {
-  TensorVec<unsigned> bdims, boffset;
+// template<typename Fn, typename... Fargs>
+// inline void
+// ndim_dispatch(TensorIndex& lo, TensorIndex& size, Fn fn, Fargs&& ...args) {
+//   TensorVec<unsigned> bdims, boffset;
 
-  Expects(lo.size() == size.size());
-  for(auto sz: size) {
-    bdims.push_back(sz.value());
-  }
-  for(auto off : lo) {
-    boffset.push_back(off.value());
-  }
+//   Expects(lo.size() == size.size());
+//   for(auto sz: size) {
+//     bdims.push_back(sz.value());
+//   }
+//   for(auto off : lo) {
+//     boffset.push_back(off.value());
+//   }
 
-  switch(lo.size()) {
-    case 0:
-      for(unsigned i0=0, c=0; i0<bdims[0]; i0++,c++) {
-        fn(c, args...);
-      }
-      break;
-    case 1:
-      for(unsigned i0=0, c=0; i0<bdims[0]; i0++, c++) {
-        fn(c, boffset[0]+i0, args...);
-      }
-      break;
-    case 2:
-      for(unsigned i0=0, c=0; i0<bdims[0]; i0++) {
-        for(unsigned i1=0; i1<bdims[1]; i1++, c++) {
-          fn(c, boffset[0]+i0, boffset[1]+i1, args...);
-        }
-      }
-      break;
-    default:
-      assert(0);
-  }
-}
+//   switch(lo.size()) {
+//     case 0:
+//       for(unsigned i0=0, c=0; i0<bdims[0]; i0++,c++) {
+//         fn(c, args...);
+//       }
+//       break;
+//     case 1:
+//       for(unsigned i0=0, c=0; i0<bdims[0]; i0++, c++) {
+//         fn(c, boffset[0]+i0, args...);
+//       }
+//       break;
+//     case 2:
+//       for(unsigned i0=0, c=0; i0<bdims[0]; i0++) {
+//         for(unsigned i1=0; i1<bdims[1]; i1++, c++) {
+//           fn(c, boffset[0]+i0, boffset[1]+i1, args...);
+//         }
+//       }
+//       break;
+//     default:
+//       assert(0); 
+//   }
+// }
 
 // template<typename T>
 // inline std::size_t hash(const T& value) {
@@ -379,3 +423,4 @@ const VLabel a{0}, b{1};
 
 
 #endif  // TAMMX_UTIL_H__
+

@@ -107,7 +107,7 @@ diis(Scheduler& sch,
   a[ndiis][ndiis] = 0;
   
   T b[ndiis+1];
-  std::fill_n(b, b+ndiis, 0);
+  std::fill_n(b, b+ndiis, T{0});
   b[ndiis] = -1;
   
   // Solve AX = B

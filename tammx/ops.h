@@ -530,7 +530,8 @@ class Scheduler {
   Scheduler& operator()(SetOpEntry<T, LabeledTensorType> sop) {
     ops_.push_back(new SetOp<LabeledTensorType, T>(sop.value, sop.lhs, sop.mode));
     Expects(tensors_.find(&sop.lhs.tensor()) != tensors_.end());
-    Expects(tensors_[&sop.lhs.tensor()].status == TensorStatus::allocated);
+    Expects(tensors_[&sop.lhs.tensor()].status == TensorStatus::allocated
+            || tensors_[&sop.lhs.tensor()].status == TensorStatus::initialized);
     tensors_[&sop.lhs.tensor()].status = TensorStatus::initialized;
     return *this;
   }
@@ -594,7 +595,8 @@ class Scheduler {
     Expects(tensors_[&aop.lhs.tensor()].status == TensorStatus::initialized
             || (aop.mode==ResultMode::set
                 && tensors_[&aop.lhs.tensor()].status==TensorStatus::allocated));
-    ops_.push_back(new AddOp<LabeledTensorType, T>(aop.alpha, aop.lhs, aop.rhs, aop.mode));
+    tensors_[&aop.lhs.tensor()].status = TensorStatus::initialized;
+    ops_.push_back(new AddOp<LabeledTensorType, T>(aop.alpha, aop.lhs, aop.rhs, aop.mode));    
     return *this;
   }
 
@@ -608,6 +610,7 @@ class Scheduler {
     Expects(tensors_[&aop.lhs.tensor()].status == TensorStatus::initialized
             || (aop.mode==ResultMode::set
                 && tensors_[&aop.lhs.tensor()].status==TensorStatus::allocated));
+    tensors_[&aop.lhs.tensor()].status = TensorStatus::initialized;
     ops_.push_back(new MultOp<LabeledTensorType, T>(aop.alpha, aop.lhs, aop.rhs1, aop.rhs2, aop.mode));
     return *this;
   }
@@ -618,6 +621,7 @@ class Scheduler {
     Expects(tensors_[&lhs.tensor()].status == TensorStatus::initialized
             || (mode==ResultMode::set
                 && tensors_[&lhs.tensor()].status==TensorStatus::allocated));
+    tensors_[&lhs.tensor()].status = TensorStatus::initialized;
     ops_.push_back(new MapOp<Func,LabeledTensorType,0,0>(lhs, func, mode));
     return *this;
   }
@@ -626,6 +630,7 @@ class Scheduler {
   Scheduler& sop(LabeledTensorType lhs, Func func) {
     Expects(tensors_.find(&lhs.tensor()) != tensors_.end());
     Expects(tensors_[&lhs.tensor()].status == TensorStatus::initialized);
+    tensors_[&lhs.tensor()].status = TensorStatus::initialized;
     ops_.push_back(new ScanOp<Func,LabeledTensorType,ndim>(lhs, func));
     return *this;
   }
@@ -980,7 +985,7 @@ template<typename T, typename LabeledTensorType>
 inline void
 AddOp<T, LabeledTensorType>::execute() {
   using T1 = typename LabeledTensorType::element_type;
-  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
+  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": AddOp\n";
   const LabeledTensor<T1>& lta = rhs_;
   const LabeledTensor<T1>& ltc = lhs_;
   Tensor<T1>& ta = *lta.tensor_;

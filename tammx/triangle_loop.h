@@ -15,13 +15,15 @@ class TriangleLoop {
   using ItrType = TensorVec<Type>;
   
   TriangleLoop()
-      : nloops_{0} {}
+      : nloops_{0},
+        done_{false} {}
 
   TriangleLoop(size_t nloops, Type first, Type last)
       : nloops_{nloops},
         first_{first},
         last_{last},
-        itr_(nloops, first) {}
+        itr_(nloops, first),
+        done_{false} {}
 
   TriangleLoop& operator ++ () {
     int i;
@@ -33,6 +35,8 @@ class TriangleLoop {
       for(unsigned j = i+1; j<itr_.size(); j++) {
         itr_[j] = itr_[j-1];
       }
+    } else {
+      done_ = true;
     }
     return *this;
   }
@@ -58,6 +62,7 @@ class TriangleLoop {
   TriangleLoop get_end() const {
     TriangleLoop tl {nloops_, first_, last_};
     tl.itr_ = TensorVec<Type>(nloops_, last_);
+    tl.done_ = true;
     return tl;
   }
 
@@ -66,6 +71,7 @@ class TriangleLoop {
   Type first_{};
   Type last_{};
   TensorVec<Type> itr_;
+  bool done_;
 
   friend bool operator == (const TriangleLoop& tl1, const TriangleLoop& tl2);
   friend bool operator != (const TriangleLoop& tl1, const TriangleLoop& tl2);
@@ -73,7 +79,11 @@ class TriangleLoop {
 
 inline bool
 operator == (const TriangleLoop& tl1, const TriangleLoop& tl2) {
-  return std::equal(tl1.itr_.begin(), tl1.itr_.end(), tl2.itr_.begin());
+  return tl1.done_ == tl2.done_
+      && tl1.nloops_ == tl2.nloops_
+      && std::equal(tl1.itr_.begin(), tl1.itr_.end(), tl2.itr_.begin())
+      && tl1.first_ == tl2.first_
+      && tl2.last_ == tl2.last_;
 }
 
 inline bool

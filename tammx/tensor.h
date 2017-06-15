@@ -110,17 +110,32 @@ class Tensor : public TensorBase {
     return {*this, blockid};
   }
 
+  Block<T> alloc(const TensorIndex& blockid,
+                 const TensorIndex& block_dims,
+                 const TensorPerm& layout,
+                 Sign sign) {
+    return {*this, blockid, block_dims, layout, sign};
+  }
+
   Block<T> get(const TensorIndex& blockid) {
+    Expects(constructed());
     Offset offset;
     Proc proc;
+    auto uniq_blockid = find_unique_block(blockid);
+    TensorPerm layout;
+    Sign sign;
+    std::tie(layout, sign) = compute_sign_from_unique_block(blockid);
     auto size = block_size(blockid);
-    auto block = alloc(blockid);
-    std::tie(proc, offset) = distribution_->locate(blockid);
+    auto bdims = block_dims(blockid);
+    auto block = alloc(blockid, bdims, layout, sign);
+    std::tie(proc, offset) = distribution_->locate(uniq_blockid);
     mgr_->get(proc, offset, Size{size}, block.buf());
     return block;
   }
 
   void put(const TensorIndex& blockid, const Block<T>& block) {
+    Expects(constructed());
+    Expects(find_unique_block(blockid) == blockid);
     Offset offset;
     Proc proc;
     auto size = block_size(blockid);
@@ -129,6 +144,8 @@ class Tensor : public TensorBase {
   }
 
   void add(const TensorIndex& blockid, const Block<T>& block) {
+    Expects(constructed());
+    Expects(find_unique_block(blockid) == blockid);
     Offset offset;
     Proc proc;
     auto size = block_size(blockid);
@@ -184,6 +201,10 @@ class Tensor : public TensorBase {
     deallocate(tensor_list...);
   }
 
+  bool constructed() const {
+    return allocation_status_ != AllocationStatus::invalid;
+  }
+  
   //TensorBuilder<Tensor<T>> builder() const;
 
  protected:

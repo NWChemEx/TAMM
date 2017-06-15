@@ -35,9 +35,4 @@ set(SCALAPACK_LIBRARIES "-mkl=parallel -lmkl_scalapack_ilp64 -lmkl_blacs_intelmp
 
 
 #set(TALSH_INSTALL_PATH /home/gawa722/Cascade/nwchem/TAL_SH)
-# General NWCHEM Options
-#When using the old Makefile-based NWCHEM build
-set(NWCHEM_TOP /opt/libraries/nwchem-devel)
-set(NWCHEM_BUILD_DIR ${NWCHEM_TOP}/src/)
-set(GA_CONFIG ${NWCHEM_TOP}/src/tools/install/bin)
-option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" OFF)
+

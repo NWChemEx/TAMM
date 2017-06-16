@@ -71,6 +71,7 @@ class MemoryManagerSequential : public MemoryManager {
 
   void get(Proc proc, Offset off, Size nelements, void* to_buf) {
     Expects(buf_ != nullptr);
+    Expects(nelements >= 0);
     Expects(off + nelements <= nelements_);
     Expects(proc.value() == 0);
     std::copy_n(buf_ + elsize_*off.value(), elsize_*nelements.value(),
@@ -79,6 +80,7 @@ class MemoryManagerSequential : public MemoryManager {
 
   void put(Proc proc, Offset off, Size nelements, const void* from_buf) {
     Expects(buf_ != nullptr);
+    Expects(nelements >= 0);
     Expects(off + nelements <= nelements_);
     Expects(proc.value() == 0);
     std::copy_n(reinterpret_cast<const uint8_t*>(from_buf),
@@ -88,6 +90,7 @@ class MemoryManagerSequential : public MemoryManager {
 
   void add(Proc proc, Offset off, Size nelements, const void* from_buf) {
     Expects(buf_ != nullptr);
+    Expects(nelements >= 0);
     Expects(off + nelements <= nelements_);
     Expects(proc.value() == 0);
     int hi = nelements.value();

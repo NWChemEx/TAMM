@@ -21,6 +21,11 @@ class Tensor;
 template<typename T>
 class Block {
  public:
+
+  Block() = delete;
+  Block(const Block<T>&) = delete;
+  Block<T>& operator = (const Block<T>&) = delete;
+  
   Block(Tensor<T>& tensor,
         const TensorIndex& block_id)
     : tensor_{tensor},
@@ -29,22 +34,31 @@ class Block {
         layout_.resize(tensor.rank());
         std::iota(layout_.begin(), layout_.end(), 0);
         sign_ = 1;
+        Expects(size() > 0);
         buf_ = std::make_unique<T[]> (size());
       }
 
+  Block(Block<T>&& block)
+      : tensor_{block.tensor_},
+        block_id_{block.block_id_},
+        block_dims_{block.block_dims_},
+        layout_{block.layout_},
+        sign_{block.sign_},
+        buf_{std::move(block.buf_)} { }
+  
   Block(Tensor<T>& tensor,
         const TensorIndex& block_id,
-        const TensorIndex& block_dims,
         const TensorPerm& layout,
         Sign sign)
       : tensor_{tensor},
         block_id_{block_id},
-        block_dims_{block_dims},
         layout_{layout},
         sign_{sign} {
+          block_dims_ = tensor.block_dims(block_id);
           Expects(tensor.rank() == block_id.size());
-          Expects(tensor.rank() == block_dims.size());
+          Expects(tensor.rank() == block_dims_.size());
           Expects(tensor.rank() == layout.size());
+          Expects(size() > 0);
           buf_ = std::make_unique<T[]> (size());
         }
 

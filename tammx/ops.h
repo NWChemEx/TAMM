@@ -454,8 +454,8 @@ struct ScanOp<Func,LabeledTensorType,1> : public Op {
 template<typename Func, typename LabeledTensorType>
 struct ScanOp<Func,LabeledTensorType,2> : public Op {
   void execute() {
-    std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
     auto& tensor = *ltensor_.tensor_;
+    Expects(tensor.rank()==2);
     auto lambda = [&] (const TensorIndex& blockid) {
       auto size = tensor.block_size(blockid);
       if(tensor.nonzero(blockid) && size > 0) {
@@ -466,8 +466,9 @@ struct ScanOp<Func,LabeledTensorType,2> : public Op {
         auto joffset = TCE::offset(blockid[1]);
         auto block = tensor.get(blockid);
         auto tbuf = block.buf();
-        for(int i=0, c=0; i<isize; i++) {
-          for(int j=0; j<jsize; j++, c++) {
+        Expects(isize*jsize == block.size());
+        for(unsigned i=0, c=0; i<isize; i++) {
+          for(unsigned j=0; j<jsize; j++, c++) {
             func_(i+ioffset, j+joffset, tbuf[c]);
           }
         }
@@ -641,6 +642,23 @@ class Scheduler {
     }
   }
 
+  void clear() {
+    ops_.clear();
+    tensors_.clear();
+  }
+
+  Distribution* default_distribution() {
+    return default_distribution_;    
+  }
+
+  MemoryManager* default_memory_manager() {
+    return default_memory_manager_;
+  }
+
+  ProcGroup pg() const {
+    return pg_;
+  }
+  
  private:
   struct TensorInfo {
     TensorStatus status;

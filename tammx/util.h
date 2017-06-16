@@ -76,8 +76,8 @@ inline TensorPerm
 perm_compute(const TensorLabel& from, const TensorLabel& to) {
   TensorPerm layout;
 
-  std::cerr<<__FUNCTION__<<" from="<<from<<std::endl;
-  std::cerr<<__FUNCTION__<<" to="<<to<<std::endl;
+  // std::cerr<<__FUNCTION__<<" from="<<from<<std::endl;
+  // std::cerr<<__FUNCTION__<<" to="<<to<<std::endl;
 
   Expects(from.size() == to.size());
   for(auto p : to) {
@@ -118,8 +118,8 @@ template<typename T>
 inline TensorVec<T>
 perm_apply(const TensorVec<T>& label, const TensorPerm& perm) {
   TensorVec<T> ret;
-  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": label="<<label<<std::endl;
-  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": perm="<<perm<<std::endl;
+  // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": label="<<label<<std::endl;
+  // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": perm="<<perm<<std::endl;
   Expects(label.size() == perm.size());
   using size_type = TensorPerm::size_type;
   for(size_type i=0; i<label.size(); i++) {

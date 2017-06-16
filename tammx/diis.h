@@ -2,6 +2,7 @@
 #define TAMMX_DIIS_H_
 
 #include "tammx/tammx.h"
+#include <Eigen/Dense>
 
 namespace tammx {
 
@@ -60,196 +61,91 @@ jacobi(Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted)
     });
 }
 
-// @todo @bug @fixme This code has not been checked. 
 template<typename T>
 inline void
 diis(Scheduler& sch,
      std::vector<std::vector<Tensor<T>*>*>& d_rs,
      std::vector<Tensor<T>*> d_t) {
   Expects(d_t.size() == d_rs.size());
-  int ndiis = d_t.size();
-  Expects(ndiis > 0);
-  int ntensors = d_rs[0]->size();
+  int ntensors = d_t.size();
   Expects(ntensors > 0);
-  for(int i=0; i<ndiis; i++) {
-    Expects(d_rs[i]->size() == ntensors);
+  int ndiis = d_rs[0]->size();
+  Expects(ndiis > 0);
+  for(int i=0; i<ntensors; i++) {
+    Expects(d_rs[i]->size() == ndiis);
   }
   
-  //T aexp[ndiis+1][ndiis+1][ntensors];
-  Scalar<T> aexp[ndiis+1][ndiis+1][ntensors];
-  for(int i=0; i<ndiis; i++) {
-    for(int j=0; j<ndiis; j++) {
-      for(int k=0; k<ntensors; k++) {
+  Scalar<T> aexp[ntensors][ndiis][ndiis];
+  for(int k=0; k<ntensors; k++) {
+    for(int i=0; i<ndiis; i++) {
+      for(int j=0; j<ndiis; j++) {
+        aexp[k][i][j].alloc(sch.pg(), sch.default_distribution(), sch.default_memory_manager());
+      }
+    }
+  }
+  for(int k=0; k<ntensors; k++) {
+    for(int i=0; i<ndiis; i++) {
+      auto &ta = *d_rs[k]->at(i);
+      sch.io(ta);
+    }
+  }
+  
+  for(int k=0; k<ntensors; k++) {
+    for(int i=0; i<ndiis; i++) {
+      for(int j=0; j<ndiis; j++) {
         auto &ta = *d_rs[k]->at(i);
         auto &tb = *d_rs[k]->at(j);
-        sch.alloc(aexp[i][j][k])
-            (aexp[i][j][k]() = ta() * tb());
+        sch.output(aexp[k][i][j])
+            (aexp[k][i][j]() = 0)
+            (aexp[k][i][j]() += ta() * tb());
       }
     }
   }
   sch.execute();
-  //sch.clear();
+  sch.clear();
   
-  T a[ndiis+1][ndiis+1];
-  for(int i=0; i<ndiis; i++) {
-    for(int j=0; j<ndiis; j++) {
-      a[i][j] = 0;
-      for(int k=0; k<ntensors; k++) {
-        a[i][j] += aexp[i][j][k].value();
+  using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+  using Vector = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+  Matrix A = Matrix::Zero(ndiis + 1, ndiis + 1);
+  Vector b = Vector::Zero(ndiis + 1, 1);
+  for(int k=0; k<ntensors; k++) {
+    for(int i=0; i<ndiis; i++) {
+      for(int j=0; j<ndiis; j++) {
+        A(i, j) += aexp[k][i][j].value();
       }
     }
   }
   for(int i=0; i<ndiis; i++) {
-    a[i][ndiis] = -1.0;
-    a[ndiis][i] = -1.0;
+    A(i, ndiis) = -1.0;
+    A(ndiis, i) = -1.0;
   }
-  a[ndiis][ndiis] = 0;
-  a[ndiis][ndiis] = 0;
   
-  T b[ndiis+1];
-  std::fill_n(b, b+ndiis, T{0});
-  b[ndiis] = -1;
-  
+  b(ndiis, 0) = -1;
+
+  for(int k=0; k<ntensors; k++) {
+    for(int i=0; i<ndiis; i++) {
+      for(int j=0; j<ndiis; j++) {
+        aexp[k][i][j].dealloc();
+      }
+    }
+  }
   // Solve AX = B
   // call dgesv(diis+1,1,a,maxdiis+1,iwork,b,maxdiis+1,info)
+  Vector x = A.colPivHouseholderQr().solve(b);
   
-  for(int i=0; i<ntensors; i++) {
-    auto &dt = *d_t[i];
-    sch(dt() = 0);
+  for(int k=0; k<ntensors; k++) {
+    auto &dt = *d_t[k];
+    sch.output(dt)
+        (dt() = 0);
     for(int j=0; j<ndiis; j++) {
-      auto &tb = *d_rs[i]->at(j);
-      sch(dt() += b[j] * tb());
+      auto &tb = *d_rs[k]->at(j);
+      sch.io(tb)
+          (dt() += x(j, 0) * tb());
     }
   }
   sch.execute();
-  //sch.clear();
+  sch.clear();
 }
-
-#if 0
-template<typename T>
-class DIIS {
- public:
-  DIIS(, bool transpose, double zshiftl, int ndiis, int ntensors, double *p_evl_sorted)
-      : distribution_{distribution},
-        transpose_{transpose},
-        zshiftl_{zshiftl},
-        ndiis_{ndiis},
-        allocated_{false},
-        iter_{0},
-        ntensors_{ntensors},
-        d_rs_(ntensors),
-        d_ts_(ntensors),
-        p_evl_sorted_{p_evl_sorted} {}
-
-  void next(const std::vector<Tensor*>& d_r,
-            const std::vector<Tensor*>& d_t) {
-    Expects(d_r.size() == d_t.size());
-    Expects(d_r.size() == ntensors_);
-    Expects(iter_ == 0 || allocated_);
-
-    if(iter_ == 0 && !allocated_) {
-      for(int i=0; i<ntensors_; i++) {
-        auto indices = d_r[i]->indices();
-        auto eltype = d_r[i]->element_type();
-        auto nupper = d_r[i]->nupper_indices();
-        auto irrep = d_r[i]->irrep();
-        auto spin_restricted = d_r[i]->spin_restricted();
-        for(int j=0; j<ndiis_; j++) {
-          d_rs_[i].push_back(new Tensor{indices, eltype, distribution_, nupper, irrep, spin_restricted});
-          d_ts_[j].push_back(new Tensor{indices, eltype, distribution_, nupper, irrep, spin_restricted});
-          d_rs_[i].back()->allocate();
-          d_ts_[i].back()->allocate();
-          d_rs_[i].back()->init(0);
-          d_ts_[i].back()->init(0);
-        }      
-      }
-      allocated_ = true;
-    }
-
-    if(iter_ < ndiis_-1) {
-      for(int i=0; i<ntensors_; i++) {
-        double shift = -1.0 * d_rs_[i].back()->rank()/2 * zshiftl_;
-        jacobi(*d_r[i], *d_t[i], shift, transpose_, p_evl_sorted_);
-      }
-      return;
-    }
-    for(int i=0; i<ntensors_; i++) {
-      (*d_rs_[i][iter_])() += (*d_r[i])();
-      (*d_ts_[i][iter_])() += (*d_t[i])();
-    }
-    iter_ += 1;
-    double a[ndiis_+1][ndiis_+1];
-    for(int i=0; i<ndiis_; i++) {
-      for(int j=0; j<ndiis_; j++) {
-        a[i][j] = 0;
-        for(int k=0; k<ntensors_; k++) {
-          a[i][j] += ddot(*d_rs_[k][i], *d_rs_[k][j]);
-        }
-      }
-    }
-    for(int i=0; i<ndiis_; i++) {
-      a[i][ndiis_] = -1.0;
-      a[ndiis_][i] = -1.0;
-    }
-    a[ndiis_][ndiis_] = 0;
-
-    double b[ndiis_+1];
-    std::fill_n(b, b+ndiis_, 0);
-    b[ndiis_] = -1;
-
-    // Solve AX = B
-    // call dgesv(diis+1,1,a,maxdiis+1,iwork,b,maxdiis+1,info)
-
-    for(int i=0; i<ntensors_; i++) {
-      d_t[i]->init(0);
-      for(int j=0; j<ndiis_; j++) {
-        (*d_t[i])() += b[j] * (*d_ts_[i][j])();
-      }
-    }
-    iter_ = 0;
-  }
-
-  void deallocate() {
-    for(auto &pdrvec : d_rs_) {
-      for(auto &pdr: pdrvec) {
-        pdr->destruct();
-        delete pdr;
-      }
-    }
-    for(auto &pdtvec : d_ts_) {
-      for(auto &pdt: pdtvec) {
-        pdt->destruct();
-        delete pdt;
-      }
-    }
-    d_rs_.clear();
-    d_ts_.clear();
-    iter_ = 0;
-    allocated_ = false;
-  }
-    
-  ~DIIS() {
-    Expects(!allocated_);
-  }
-
- private:
-  double ddot(Tensor& d_a, Tensor& d_b) {
-    Tensor dot{TensorVec<SymmGroup>{}, Tensor::Type::double_precision, distribution_, 0, Irrep{0}, false};
-    dot.init(0);
-    dot() += d_a() * d_b();
-    auto block = dot.get({});
-    return *reinterpret_cast<double*>(block.buf());
-  }
-
-  Tensor::Distribution distribution_;
-  bool allocated_;
-  bool transpose_;
-  double zshiftl_;
-  int ndiis_, iter_, ntensors_;
-  std::vector<std::vector<Tensor*>> d_rs_, d_ts_;
-  double *p_evl_sorted_;
-};  // class DIIS
-#endif
 
 }  // namespace tammx
 

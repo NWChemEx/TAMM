@@ -93,6 +93,7 @@ class Tensor : public TensorBase {
     auto rank = pg_.rank();
     auto buf_size = distribution_->buf_size(rank);
     auto eltype = tensor_element_type<element_type>;
+    Expects(buf_size >=0 );
     mgr_->alloc(pg_, eltype, buf_size);
     allocation_status_ = AllocationStatus::created;
   }
@@ -111,10 +112,9 @@ class Tensor : public TensorBase {
   }
 
   Block<T> alloc(const TensorIndex& blockid,
-                 const TensorIndex& block_dims,
                  const TensorPerm& layout,
                  Sign sign) {
-    return {*this, blockid, block_dims, layout, sign};
+    return {*this, blockid, layout, sign};
   }
 
   Block<T> get(const TensorIndex& blockid) {
@@ -126,11 +126,10 @@ class Tensor : public TensorBase {
     Sign sign;
     std::tie(layout, sign) = compute_sign_from_unique_block(blockid);
     auto size = block_size(blockid);
-    auto bdims = block_dims(blockid);
-    auto block = alloc(blockid, bdims, layout, sign);
+    auto block {alloc(blockid, layout, sign)};
     std::tie(proc, offset) = distribution_->locate(uniq_blockid);
     mgr_->get(proc, offset, Size{size}, block.buf());
-    return block;
+    return std::move(block);
   }
 
   void put(const TensorIndex& blockid, const Block<T>& block) {

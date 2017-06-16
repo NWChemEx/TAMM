@@ -152,13 +152,28 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
                    int maxiter, double thresh,
                    double zshiftl,
                    int ndiis,
-                   double* p_evl_sorted,
                    ProcGroup pg,
                    Distribution* distribution,
                    MemoryManager* mgr) {
   Irrep irrep{0};
   bool spin_restricted = false;
+  std::vector<double> p_evl_sorted;
 
+  p_evl_sorted.reserve((TCE::noab() + TCE::nvab()).value());
+  {
+    auto lambda = [&] (auto p, auto q, auto& val) {
+      if(p == q) {
+        p_evl_sorted.push_back(val);
+      }
+    };
+    Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
+    using LabeledTensorType = LabeledTensor<T>;
+    using Func = decltype(lambda);
+    sch.io(d_f1)
+        .template sop<Func, LabeledTensorType, 2>(d_f1(), lambda)
+        .execute();
+  }
+  
   std::vector<Tensor<T>*> d_r1s, d_r2s;
 
   Tensor<T> d_e{E|E, irrep, spin_restricted}; 
@@ -202,13 +217,13 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
         //nodezero_print();
         break;
       }
-      jacobi(*d_r1s[off], d_t1, -1.0 * zshiftl, false, p_evl_sorted);
-      jacobi(*d_r2s[off], d_t2, -2.0 * zshiftl, false, p_evl_sorted);
+      jacobi(*d_r1s[off], d_t1, -1.0 * zshiftl, false, p_evl_sorted.data());
+      jacobi(*d_r2s[off], d_t2, -2.0 * zshiftl, false, p_evl_sorted.data());
     }
     Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
     std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
     std::vector<Tensor<T>*> ts{&d_t1, &d_t2};
-    //diis<T>(sch, rs, ts);
+    diis<T>(sch, rs, ts);
   }
 
   for(int i=0; i<ndiis; i++) {
@@ -265,7 +280,7 @@ int main() {
   Tensor<T> d_t2{VV|OO, irrep, spin_restricted};
   Tensor<T> d_f1{N|N, irrep, spin_restricted};
   Tensor<T> d_v2{NN|NN, irrep, spin_restricted};
-  int maxiter = 1;
+  int maxiter = 10;
   double thresh = 1.0e-6;
   double zshiftl = 1.0;
   int ndiis = 6;
@@ -273,12 +288,11 @@ int main() {
   auto distribution = Distribution_NW();
   auto mgr = MemoryManagerSequential();
   auto pg = ProcGroup{};
-  double *p_evl_sorted = nullptr;
 
   Tensor<T>::allocate(pg, &distribution, &mgr, d_t1, d_t2, d_f1, d_v2);
   ccsd_driver(d_t1, d_t2, d_f1, d_v2,
               maxiter, thresh, zshiftl,
-              ndiis, p_evl_sorted, pg,
+              ndiis, pg,
               &distribution, &mgr);
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
   TCE::finalize();

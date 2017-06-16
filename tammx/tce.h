@@ -66,19 +66,19 @@ class TCE {
   }
 
   static Spin spin(BlockDim block) {
-    return spins_[block.value()];
+    return spins_[block.value()-1];
   }
 
   static Irrep spatial(BlockDim block) {
-    return spatials_[block.value()];
+    return spatials_[block.value()-1];
   }
 
   static size_t size(BlockDim block) {
-    return sizes_[block.value()];
+    return sizes_[block.value()-1];
   }
 
   static size_t offset(BlockDim block) {
-    return offsets_[block.value()];
+    return offsets_[block.value()-1];
   }
 
   static bool restricted() {

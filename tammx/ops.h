@@ -111,19 +111,20 @@ struct MapOp<Func, LabeledTensorType, 0, 0> : public Op {
     auto& lhs_tensor = *lhs_.tensor_;
     auto lambda = [&] (const TensorIndex& blockid) {
       auto size = lhs_tensor.block_size(blockid);
-      if(lhs_tensor.nonzero(blockid) && size > 0) {
-        std::cerr<<"MapOp. size="<<size<<std::endl;
-        auto lblock = lhs_tensor.alloc(blockid);
-        for(int i=0; i<size; i++) {
-          func_(lblock.buf()[i]);
-        }
-        if(mode_ == ResultMode::update) {
-          lhs_tensor.add(lblock);
-        } else if (mode_ == ResultMode::set) {
-          lhs_tensor.put(lblock);
-        } else {
-          assert(0);
-        }
+      if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
+        return;
+      }
+      std::cerr<<"MapOp. size="<<size<<std::endl;
+      auto lblock = lhs_tensor.alloc(blockid);
+      for(int i=0; i<size; i++) {
+        func_(lblock.buf()[i]);
+      }
+      if(mode_ == ResultMode::update) {
+        lhs_tensor.add(lblock);
+      } else if (mode_ == ResultMode::set) {
+        lhs_tensor.put(lblock);
+      } else {
+        assert(0);
       }
     };
     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
@@ -154,6 +155,9 @@ struct MapOp<Func, LabeledTensorType, 1, 0> : public Op {
 
     auto lambda = [&] (const TensorIndex& blockid) {
       auto size = lhs_tensor.block_size(blockid);
+      if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
+        return;
+      }
       auto offset = TCE::offset(blockid[0]);
       auto lblock = lhs_tensor.alloc(blockid);
       for(int i=0; i<size; i++) {
@@ -189,6 +193,10 @@ struct MapOp<Func, LabeledTensorType, 2, 0> : public Op {
     auto& lhs_tensor = *lhs_.tensor_;
 
     auto lambda = [&] (const TensorIndex& blockid) {
+      auto size = lhs_tensor.block_size(blockid);
+      if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
+        return;
+      }
       auto bdims = lhs_tensor.block_dims(blockid);
       auto isize = bdims[0].value();
       auto jsize = bdims[1].value();
@@ -233,6 +241,10 @@ struct MapOp<Func, LabeledTensorType, 2, 1> : public Op {
     auto& rhs1_tensor = *rhs1_.tensor_;
 
     auto lambda = [&] (const TensorIndex& blockid) {
+      auto size = lhs_tensor.block_size(blockid);
+      if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
+        return;
+      }
       auto bdims = lhs_tensor.block_dims(blockid);
       auto isize = bdims[0].value();
       auto jsize = bdims[1].value();
@@ -283,6 +295,10 @@ struct MapOp<Func, LabeledTensorType, 2, 2> : public Op {
     auto& rhs2_tensor = *rhs2_.tensor_;
 
     auto lambda = [&] (const TensorIndex& blockid) {
+      auto size = lhs_tensor.block_size(blockid);
+      if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
+        return;
+      }
       auto bdims = lhs_tensor.block_dims(blockid);
       auto isize = bdims[0].value();
       auto jsize = bdims[1].value();
@@ -340,22 +356,23 @@ struct MapOp<Func, LabeledTensorType, 1, 1> : public Op {
 
     auto lambda = [&] (const TensorIndex& blockid) {
       auto size = lhs_tensor.block_size(blockid);
+      if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
+        return;
+      }
       auto offset = TCE::offset(blockid[0]);
-      if(lhs_tensor.nonzero(blockid) && size > 0) {
-        auto lblock = lhs_tensor.alloc(blockid);
-        auto rblock = rhs_tensor.get(blockid);
-        auto ltbuf = lblock.buf();
-        auto rtbuf = rblock.buf();
-        for(int i=0; i<size; i++) {
-          func_(i+offset, ltbuf[i], rtbuf[i]);
-        }
-        if(mode_ == ResultMode::update) {
-          lhs_tensor.add(lblock);
-        } else if (mode_ == ResultMode::set) {
-          lhs_tensor.put(lblock);
-        } else {
-          assert(0);
-        }
+      auto lblock = lhs_tensor.alloc(blockid);
+      auto rblock = rhs_tensor.get(blockid);
+      auto ltbuf = lblock.buf();
+      auto rtbuf = rblock.buf();
+      for(int i=0; i<size; i++) {
+        func_(i+offset, ltbuf[i], rtbuf[i]);
+      }
+      if(mode_ == ResultMode::update) {
+        lhs_tensor.add(lblock);
+      } else if (mode_ == ResultMode::set) {
+        lhs_tensor.put(lblock);
+      } else {
+        assert(0);
       }
     };
     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
@@ -395,13 +412,14 @@ struct ScanOp<Func,LabeledTensorType,0> : public Op {
     std::cerr<<__FUNCTION__<<":"<<__LINE__<<": ScanOp\n";
     auto& tensor = *ltensor_.tensor_;
     auto lambda = [&] (const TensorIndex& blockid) {
-      auto size = tensor.block_size(blockid);
-      if(tensor.nonzero(blockid) && size > 0) {
-        auto block = tensor.get(blockid);
-        auto tbuf = block.buf();
-        for(int i=0; i<size; i++) {
-          func_(tbuf[i]);
-        }
+      auto size = tensor.block_size(blockid);      
+      if(!(tensor.nonzero(blockid) && tensor.spin_unique(blockid) && size > 0)) {
+        return;
+      }
+      auto block = tensor.get(blockid);
+      auto tbuf = block.buf();
+      for(int i=0; i<size; i++) {
+        func_(tbuf[i]);
       }
     };
     auto itr_first = loop_iterator(slice_indices(tensor.indices(), ltensor_.label_));
@@ -425,15 +443,16 @@ struct ScanOp<Func,LabeledTensorType,1> : public Op {
     auto& tensor = *ltensor_.tensor_;
     auto lambda = [&] (const TensorIndex& blockid) {
       auto size = tensor.block_size(blockid);
-      if(tensor.nonzero(blockid) && size > 0) {
-        auto bdims = tensor.block_dims(blockid);
-        auto isize = bdims[0].value();
-        auto ioffset = TCE::offset(blockid[0]);
-        auto block = tensor.get(blockid);
-        auto tbuf = block.buf();
-        for(int i=0; i<isize; i++) {
-          func_(i+ioffset, tbuf[i]);
-        }
+      if(!(tensor.nonzero(blockid) && tensor.spin_unique(blockid) && size > 0)) {
+        return;
+      }
+      auto bdims = tensor.block_dims(blockid);
+      auto isize = bdims[0].value();
+      auto ioffset = TCE::offset(blockid[0]);
+      auto block = tensor.get(blockid);
+      auto tbuf = block.buf();
+      for(int i=0; i<isize; i++) {
+        func_(i+ioffset, tbuf[i]);
       }
     };
     auto itr_first = loop_iterator(slice_indices(tensor.indices(), ltensor_.label_));
@@ -458,19 +477,20 @@ struct ScanOp<Func,LabeledTensorType,2> : public Op {
     Expects(tensor.rank()==2);
     auto lambda = [&] (const TensorIndex& blockid) {
       auto size = tensor.block_size(blockid);
-      if(tensor.nonzero(blockid) && size > 0) {
-        auto bdims = tensor.block_dims(blockid);
-        auto isize = bdims[0].value();
-        auto jsize = bdims[1].value();
-        auto ioffset = TCE::offset(blockid[0]);
-        auto joffset = TCE::offset(blockid[1]);
-        auto block = tensor.get(blockid);
-        auto tbuf = block.buf();
-        Expects(isize*jsize == block.size());
-        for(unsigned i=0, c=0; i<isize; i++) {
-          for(unsigned j=0; j<jsize; j++, c++) {
-            func_(i+ioffset, j+joffset, tbuf[c]);
-          }
+      if(!(tensor.nonzero(blockid) && tensor.spin_unique(blockid) && size > 0)) {
+        return;
+      }
+      auto bdims = tensor.block_dims(blockid);
+      auto isize = bdims[0].value();
+      auto jsize = bdims[1].value();
+      auto ioffset = TCE::offset(blockid[0]);
+      auto joffset = TCE::offset(blockid[1]);
+      auto block = tensor.get(blockid);
+      auto tbuf = block.buf();
+      Expects(isize*jsize == block.size());
+      for(unsigned i=0, c=0; i<isize; i++) {
+        for(unsigned j=0; j<jsize; j++, c++) {
+          func_(i+ioffset, j+joffset, tbuf[c]);
         }
       }
     };
@@ -979,20 +999,21 @@ SetOp<T,LabeledTensorType>::execute() {
   auto& tensor = *lhs_.tensor_;
   auto lambda = [&] (const TensorIndex& blockid) {
     auto size = tensor.block_size(blockid);
-    if(tensor.nonzero(blockid) && size > 0) {
-      auto block = tensor.alloc(blockid);
-      auto tbuf = reinterpret_cast<T1*>(block.buf());
-      auto value = static_cast<T1>(value_);
-      for(int i=0; i<size; i++) {
-        tbuf[i] = value;
-      }
-      if(mode_ == ResultMode::update) {
-        tensor.add(block.blockid(), block);
-      } else if (mode_ == ResultMode::set) {
-        tensor.put(block.blockid(), block);
-      } else {
-        assert(0);
-      }
+    if(!(tensor.nonzero(blockid) && tensor.spin_unique(blockid) && size > 0)) {
+      return;
+    }
+    auto block = tensor.alloc(blockid);
+    auto tbuf = reinterpret_cast<T1*>(block.buf());
+    auto value = static_cast<T1>(value_);
+    for(int i=0; i<size; i++) {
+      tbuf[i] = value;
+    }
+    if(mode_ == ResultMode::update) {
+      tensor.add(block.blockid(), block);
+    } else if (mode_ == ResultMode::set) {
+      tensor.put(block.blockid(), block);
+    } else {
+      assert(0);
     }
   };
   auto itr_first = loop_iterator(slice_indices(tensor.indices(), lhs_.label_));
@@ -1011,29 +1032,29 @@ AddOp<T, LabeledTensorType>::execute() {
   auto aitr = loop_iterator(slice_indices(ta.indices(), lta.label_));
   auto lambda = [&] (const TensorIndex& ablockid) {
     size_t dima = ta.block_size(ablockid);
-    if(ta.nonzero(ablockid) && dima>0) {
-      auto label_map = LabelMap<BlockDim>()
-          .update(lta.label_, ablockid);
-      auto cblockid = label_map.get_blockid(ltc.label_);
-      auto abp = ta.get(ablockid);
-      auto csbp = tc.alloc(tc.find_unique_block(cblockid));
-      csbp() = T(0);
-      auto copy_symm = copy_symmetrizer(ltc, lta, label_map);
-      auto copy_itr = copy_iterator(copy_symm);
-      auto copy_itr_last = copy_itr.get_end();
-      auto copy_label = TensorLabel{ltc.label_};
-      for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
-        auto cperm_label = *citr;
-        auto num_inversions = perm_count_inversions(perm_compute(copy_label, cperm_label));
-        Sign sign = (num_inversions%2) ? -1 : 1;
-        auto perm_comp = perm_apply(cperm_label, perm_compute(ltc.label_, lta.label_));
-        csbp(copy_label) += sign * alpha_ * abp(perm_comp);
-      }
-      if(mode_ == ResultMode::update) {
-        tc.add(csbp.blockid(), csbp);
-      } else {
-        tc.put(csbp.blockid(), csbp);
-      }
+    if(!(ta.nonzero(ablockid) && ta.spin_unique(ablockid) && dima > 0)) {
+      return;
+    }
+    auto label_map = LabelMap<BlockDim>().update(lta.label_, ablockid);
+    auto cblockid = label_map.get_blockid(ltc.label_);
+    auto abp = ta.get(ablockid);
+    auto csbp = tc.alloc(tc.find_unique_block(cblockid));
+    csbp() = T(0);
+    auto copy_symm = copy_symmetrizer(ltc, lta, label_map);
+    auto copy_itr = copy_iterator(copy_symm);
+    auto copy_itr_last = copy_itr.get_end();
+    auto copy_label = TensorLabel{ltc.label_};
+    for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
+      auto cperm_label = *citr;
+      auto num_inversions = perm_count_inversions(perm_compute(copy_label, cperm_label));
+      Sign sign = (num_inversions%2) ? -1 : 1;
+      auto perm_comp = perm_apply(cperm_label, perm_compute(ltc.label_, lta.label_));
+      csbp(copy_label) += sign * alpha_ * abp(perm_comp);
+    }
+    if(mode_ == ResultMode::update) {
+      tc.add(csbp.blockid(), csbp);
+    } else {
+      tc.put(csbp.blockid(), csbp);
     }
   };
   parallel_work(aitr, aitr.get_end(), lambda);
@@ -1100,7 +1121,7 @@ MultOp<T, LabeledTensorType>::execute() {
   std::tie(sum_indices, sum_labels) = summation_indices(ltc, lta, ltb);
   auto lambda = [&] (const TensorIndex& cblockid) {
     auto dimc = tc.block_size(cblockid);
-    if(!tc.nonzero(cblockid) || dimc == 0) {
+    if(!(tc.nonzero(cblockid) && tc.spin_unique(cblockid) && dimc > 0)) {
       return;
     }
     auto sum_itr_first = loop_iterator(slice_indices(sum_indices, sum_labels));
@@ -1116,6 +1137,8 @@ MultOp<T, LabeledTensorType>::execute() {
       if(!ta.nonzero(ablockid) || !tb.nonzero(bblockid)) {
         continue;
       }
+      ablockid = ta.find_spin_unique_block(ablockid);
+      bblockid = tb.find_spin_unique_block(bblockid);
       auto abp = ta.get(ablockid);
       auto bbp = tb.get(bblockid);
 

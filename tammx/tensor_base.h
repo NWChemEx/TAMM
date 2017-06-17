@@ -5,7 +5,7 @@ namespace tammx {
 
 // @todo For now, we cannot handle tensors in which number of upper
 // and lower indices differ by more than one. This relates to
-// correctly determining spin symmetry.
+// correctly handling spin symmetry.
 
 class TensorBase {
  public:
@@ -29,6 +29,7 @@ class TensorBase {
             rank_ += sg.size();
           }
           flindices_ = flatten(indices_);
+          Expects(std::abs(rank_ - 2*nupper_indices_) <= 1);
         }
 
   virtual ~TensorBase() {}
@@ -83,10 +84,36 @@ class TensorBase {
 
   bool nonzero(const TensorIndex& blockid) const {
     return spin_nonzero(blockid) &&
-        spatial_nonzero(blockid) &&
-        spin_restricted_nonzero(blockid);
+        spatial_nonzero(blockid);
   }
 
+  bool spin_unique(const TensorIndex& blockid) const {
+    if(spin_restricted_ == false) {
+      return true;
+    }
+    Spin spin {0};
+    for(auto b : blockid) {
+      spin += TCE::spin(b);
+    }
+    return spin != 2 * rank();
+  }
+
+  TensorIndex find_spin_unique_block(const TensorIndex& blockid) const {
+    if(spin_unique(blockid)) {
+      return blockid;
+    }
+    TensorIndex ret;
+    for(auto b : blockid) {
+      if(b > TCE::noab() + TCE::nva()) {
+        b -= TCE::nva();
+      } else if(b > TCE::noa() && b <= TCE::noab()) {
+        b -= TCE::noa();
+      }
+      ret.push_back(b);
+    }
+    return ret;
+  }
+  
   TensorIndex find_unique_block(const TensorIndex& blockid) const {
     TensorIndex ret {blockid};
     int pos = 0;

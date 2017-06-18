@@ -64,7 +64,7 @@ target_link_libraries(ccsd_driver tammx)
 
 add_executable(hf nwchem_main/hartree_fock.cc)
 target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
-target_link_libraries(hf -L${LIBINT_INSTALL_PATH}/lib -lint2)
+target_link_libraries(hf tammx -L${LIBINT_INSTALL_PATH}/lib -lint2)
 
 add_executable(tammx_talsh EXCLUDE_FROM_ALL tammx/tammx_talsh.cc tammx/tammx.cc tammx/index_sort.cc)
 target_include_directories(tammx_talsh SYSTEM PUBLIC  ${PROJECT_BINARY_DIR}

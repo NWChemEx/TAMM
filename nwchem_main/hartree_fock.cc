@@ -38,10 +38,13 @@
 #include <libint2.hpp>
 #include <libint2/basis.h>
 
+#include "tammx/tammx.h"
+
 using std::string;
 using std::cout;
 using std::cerr;
 using std::endl;
+
 
 using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
@@ -368,6 +371,32 @@ std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename) {
   const auto &buf = engine.results();
   Matrix spin_t = Matrix::Zero(1, 2 * n);
   spin_t << 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 2, 2;
+
+  //Tensor Map
+  using namespace tammx::tensor_dims;
+  auto distribution = tammx::Distribution_NW();
+  auto mgr = tammx::MemoryManagerSequential();
+  auto pg = tammx::ProcGroup{};
+  tammx::Irrep irrep{0};
+
+  using TM = double;
+  tammx::Tensor<TM> F1{tammx::tensor_dims::V|tammx::tensor_dims::O, irrep, false};
+  tammx::Tensor<TM>::allocate(pg, &distribution, &mgr, F1);
+//  tensor_map(F1(), [&] (auto& block) {
+//    using T1 = double;
+//    auto buf = block.buf();
+//    const auto &block_offset = block.offset();
+//    const auto &block_dims = block.block_dims();
+//    Expects(block.tensor().rank() == 2);
+//    int c = 0;
+//    for(auto i=block_offset[0]; i<block_offset[0]+block_dims[0]; i++) {
+//      for(auto j=block_offset[1]; j<block_offset[1]+block_dims[1]; j++, c++) {
+//        buf[c++] = F(i,j);
+//      }
+//    }
+//  });
+
+  //end tensor map
 
   cout << "\n\t spin_t\n";
   cout << spin_t << endl;

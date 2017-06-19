@@ -382,19 +382,19 @@ std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename) {
   using TM = double;
   tammx::Tensor<TM> F1{tammx::tensor_dims::V|tammx::tensor_dims::O, irrep, false};
   tammx::Tensor<TM>::allocate(pg, &distribution, &mgr, F1);
-//  tensor_map(F1(), [&] (auto& block) {
-//    using T1 = double;
-//    auto buf = block.buf();
-//    const auto &block_offset = block.offset();
-//    const auto &block_dims = block.block_dims();
-//    Expects(block.tensor().rank() == 2);
-//    int c = 0;
-//    for(auto i=block_offset[0]; i<block_offset[0]+block_dims[0]; i++) {
-//      for(auto j=block_offset[1]; j<block_offset[1]+block_dims[1]; j++, c++) {
-//        buf[c++] = F(i,j);
-//      }
-//    }
-//  });
+ tensor_map(F1(), [&] (auto& block) {
+   // using T1 = double;
+   auto buf = block.buf();
+   const auto &block_offset = block.block_offset();
+   const auto &block_dims = block.block_dims();
+   Expects(block.tensor().rank() == 2);
+   int c = 0;
+   for(auto i=block_offset[0]; i<block_offset[0]+block_dims[0]; i++) {
+     for(auto j=block_offset[1]; j<block_offset[1]+block_dims[1]; j++, c++) {
+       buf[c++] = F(i.value(),j.value());
+     }
+   }
+ });
 
   //end tensor map
 

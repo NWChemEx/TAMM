@@ -32,7 +32,7 @@ tensor_map (LabeledTensor<T> ltc, Lambda func) {
     if(tc.nonzero(cblockid) && dimc>0) {
       auto cblock = tc.alloc(cblockid);
       func(cblock);
-      tc.add(cblock);
+      tc.add(cblock.blockid(), cblock);
     }
   };
   parallel_work(citr, citr.get_end(), lambda);  
@@ -66,7 +66,7 @@ tensor_map (LabeledTensor<T> ltc, LabeledTensor<T> lta, Lambda func) {
       auto cblock = tc.alloc(cblockid);
       auto ablock = ta.alloc(cblockid);
       func(cblock, ablock);
-      tc.add(cblock);
+      tc.add(cblock.blockid(), cblock);
     }
   };
   parallel_work(citr, citr.get_end(), lambda);

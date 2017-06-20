@@ -69,7 +69,7 @@ void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
       (t1_5_1(h8,p7)       +=        t1(p5,h6)       * v2(h6,h8,p5,p7))
       (i0(p2,h1)           +=        t2(p2,p7,h1,h8) * t1_5_1(h8,p7))
       (t1_6_1(h4,h5,h1,p3)  =        v2(h4,h5,h1,p3))
-      (t1_6_1(h4,h5,h1,p3) += -1   * t1(p6,h1)       * v2(h4,h5,p3,p6))      
+      (t1_6_1(h4,h5,h1,p3) += -1   * t1(p6,h1)       * v2(h4,h5,p3,p6))
       (i0(p2,h1)           += -0.5 * t2(p2,p3,h4,h5) * t1_6_1(h4,h5,h1,p3))
       (i0(p2,h1)           += -0.5 * t2(p3,p4,h1,h5) * v2(h5,p2,p3,p4))
       .dealloc(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1);
@@ -100,7 +100,7 @@ void ccsd_t2(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
       (t2_2_2_2_1(h10,h11,h1,p5) += -0.5 * t1(p6,h1) * v2(h10,h11,p5,p6))
       (t2_2_2_1(h10,h11,h1,h2)   +=        t1(p5,h1) * t2_2_2_2_1(h10,h11,h2,p5))
       (t2_2_2_1(h10,h11,h1,h2)   += -0.5 * t2(p7,p8,h1,h2) * v2(h10,h11,p7,p8))
-      (t2_2_1(h10,p3,h1,h2)      += 0.5  * t1(p3,h11) * t2_2_2_1(h10,h11,h1,h2))      
+      (t2_2_1(h10,p3,h1,h2)      += 0.5  * t1(p3,h11) * t2_2_2_1(h10,h11,h1,h2))
       (t2_2_4_1(h10,p5)           =        f1(h10,p5))
       (t2_2_4_1(h10,p5)          += -1   * t1(p6,h7) * v2(h7,h10,p5,p6))
       (t2_2_1(h10,p3,h1,h2)      += -1   * t2(p3,p5,h1,h2) * t2_2_4_1(h10,p5))
@@ -173,10 +173,10 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
         .template sop<Func, LabeledTensorType, 2>(d_f1(), lambda)
         .execute();
   }
-  
+
   std::vector<Tensor<T>*> d_r1s, d_r2s;
 
-  Tensor<T> d_e{E|E, irrep, spin_restricted}; 
+  Tensor<T> d_e{E|E, irrep, spin_restricted};
   Tensor<T> d_r1_residual{E|E, irrep, spin_restricted};
   Tensor<T> d_r2_residual{E|E, irrep, spin_restricted};
   Tensor<T>::allocate(pg, distribution, mgr, d_e, d_r1_residual, d_r2_residual);
@@ -189,11 +189,12 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
   auto get_scalar = [] (Tensor<T>& tensor) -> T {
     Expects(tensor.rank() == 0);
     Block<T> resblock = tensor.get({});
-    return *resblock.buf();    
+    return *resblock.buf();
   };
 
   double corr = 0;
-
+  double residual = 0.0;
+  double energy = 0.0d;
   for(int titer=0; titer<maxiter; titer+=ndiis) {
     for(int iter = titer; iter < std::min(titer+ndiis,maxiter); iter++) {
       Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
@@ -208,17 +209,24 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
           (d_r2_residual() = 0)
           (d_r2_residual() += (*d_r2s[off])()  * (*d_r2s[off])());
       sch.execute();
-      
+
       double r1 = get_scalar(d_r1_residual);
       double r2 = get_scalar(d_r2_residual);
-      double residual = std::max(r1, r2);
-      double energy = get_scalar(d_e);
+       residual = std::max(r1, r2);
+       energy = get_scalar(d_e);
+      std::cout << "iteration:" << iter << '\n';
+      std::cout << "residual:" << residual << '\n';
+      std:std::cout << "energy:" << energy << '\n';
       if(residual < thresh) {
         //nodezero_print();
         break;
       }
       jacobi(*d_r1s[off], d_t1, -1.0 * zshiftl, false, p_evl_sorted.data());
       jacobi(*d_r2s[off], d_t2, -2.0 * zshiftl, false, p_evl_sorted.data());
+    }
+    if(residual < thresh) {
+      //nodezero_print();
+      break;
     }
     Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
     std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
@@ -248,7 +256,7 @@ BlockDim operator "" _bd(unsigned long long int val) {
 
 std::vector<Spin> spins = {1_sp, 2_sp, 1_sp, 2_sp};
 std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir, 0_ir};
-std::vector<size_t> sizes = {2, 4, 2, 1};
+std::vector<size_t> sizes = {5,5,2,2};
 BlockDim noa {1};
 BlockDim noab {2};
 BlockDim nva {1};
@@ -260,8 +268,35 @@ Irrep irrep_t {0};
 Irrep irrep_x {0};
 Irrep irrep_y {0};
 
+template<typename T>
+void tensor_print(Tensor<T>& t)  {
+    auto lambda = [&] (auto& val) {
+      std::cout << val << '\n';
+    };
+    Irrep irrep{0};
+    bool spin_restricted = false;
+    auto distribution = Distribution_NW();
+    auto mgr = MemoryManagerSequential();
+    auto pg = ProcGroup{};
+    Scheduler sch{pg, &distribution, &mgr, irrep, spin_restricted};
+    using LabeledTensorType = LabeledTensor<T>;
+    using Func = decltype(lambda);
+    sch.io(t)
+        .template sop<Func, LabeledTensorType, 0>(t(), lambda)
+        .execute();
+  }
 
-int main() {
+// Eigen matrix algebra library
+#include <Eigen/Dense>
+// #include <Eigen/Eigenvalues>
+#include <unsupported/Eigen/CXX11/Tensor>
+
+using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
+extern std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename);
+
+
+int main(int argc, char *argv[]) {
   TCE::init(spins, spatials, sizes,
             noa,
             noab,
@@ -290,6 +325,58 @@ int main() {
   auto pg = ProcGroup{};
 
   Tensor<T>::allocate(pg, &distribution, &mgr, d_t1, d_t2, d_f1, d_v2);
+
+  const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
+
+  Matrix F;
+  Tensor4D V;
+  double hf_energy{0.0};
+
+  std::tie(F, V, hf_energy) = get_ccsd_inputs(filename);
+  std::cerr << "debug2" << '\n';
+
+  //Tensor Map
+  tensor_map(d_f1(), [&](auto& block) {
+    auto buf = block.buf();
+    const auto& block_offset = block.block_offset();
+    const auto& block_dims = block.block_dims();
+    // std::cout << "block offset:" << block_offset << '\n';
+    // std::cout << "block dims:" << block_dims << '\n';
+    // std::cout << "block size:" << block.size() << '\n';
+    Expects(block.tensor().rank() == 2);
+    int c = 0;
+    for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
+      for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+           j++, c++) {
+        buf[c] = F(i.value(), j.value());
+      }
+    }
+  });
+
+ tensor_print(d_f1);
+  std::cerr << "debug1" << '\n';
+
+  tensor_map(d_v2(), [&](auto& block) {
+    auto buf = block.buf();
+    const auto& block_offset = block.block_offset();
+    const auto& block_dims = block.block_dims();
+    Expects(block.tensor().rank() == 4);
+    int c = 0;
+    for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
+      for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++) {
+        for (auto k = block_offset[2]; k < block_offset[2] + block_dims[2];
+             k++) {
+          for (auto l = block_offset[3]; l < block_offset[3] + block_dims[3];
+               l++, c++) {
+            buf[c] = V(i.value(), j.value(), k.value(), l.value());
+          }
+        }
+      }
+    }
+  });
+
+  //end tensor map
+
   ccsd_driver(d_t1, d_t2, d_f1, d_v2,
               maxiter, thresh, zshiftl,
               ndiis, pg,

@@ -2,7 +2,7 @@
 #  Copyright (C) 2016-2017, Pacific Northwest National Laboratory
 #  This software is subject to copyright protection under the laws of the
 #  United States and other countries
-# 
+#
 #  All rights in this computer software are reserved by the
 #  Pacific Northwest National Laboratory (PNNL)
 #  Operated by Battelle for the U.S. Department of Energy
@@ -57,14 +57,14 @@ target_link_libraries(tammx_main tammx)
 #set_property(TARGET tammx_main PROPERTY CXX_STANDARD 14)
 #set_property(TARGET tammx_main PROPERTY CXX_STANDARD_REQUIRED ON)
 
-add_executable(ccsd_driver tammx/ccsd_driver.cc)
+add_executable(ccsd_driver tammx/ccsd_driver.cc nwchem_main/hartree_fock.cc)
 add_dependencies(ccsd_driver tammx)
-target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${EIGEN3_INSTALL_PATH}/include/eigen3)
-target_link_libraries(ccsd_driver tammx)
+target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
+target_link_libraries(ccsd_driver tammx -L${LIBINT_INSTALL_PATH}/lib -lint2)
 
-add_executable(hf nwchem_main/hartree_fock.cc)
-target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
-target_link_libraries(hf tammx -L${LIBINT_INSTALL_PATH}/lib -lint2)
+# add_executable(hf nwchem_main/hartree_fock.cc)
+# target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
+# target_link_libraries(hf -L${LIBINT_INSTALL_PATH}/lib -lint2)
 
 add_executable(tammx_talsh EXCLUDE_FROM_ALL tammx/tammx_talsh.cc tammx/tammx.cc tammx/index_sort.cc)
 target_include_directories(tammx_talsh SYSTEM PUBLIC  ${PROJECT_BINARY_DIR}

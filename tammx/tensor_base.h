@@ -164,6 +164,7 @@ class TensorBase {
     return spatial == irrep_;
   }
 
+  // @todo @fixme Can this function be deleted?
   bool spin_restricted_nonzero(const TensorIndex& blockid) const {
     Spin spin {std::abs(rank_ - 2 * nupper_indices_)};
     TensorRank rank_even = rank_ + (rank_ % 2);

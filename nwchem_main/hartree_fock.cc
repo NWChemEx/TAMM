@@ -377,77 +377,77 @@ std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename) {
   cout << "\n\t spin_t\n";
   cout << spin_t << endl;
 
-  // for (auto p = 0; p < 2 * n; p++) {
-  //   for (auto r = 0; r < 2 * n; r++) {
-  //
-  //     if (spin_t(p) == spin_t(r)) {
-  //
-  //       for (auto q = 0; q < 2 * n; q++) {
-  //         for (auto s = 0; s < 2 * n; s++) {
-  //
-  //           if (spin_t(q) == spin_t(s)) {
-  //
-  //             // loop over shell pairs of the Fock matrix, {s1,s2}
-  //             // Fock matrix is symmetric, but skipping it here for simplicity (see compute_2body_fock)
-  //             for (auto s1 = 0; s1 != shells.size(); ++s1) {
-  //
-  //               auto bf1_first = shell2bf[s1]; // first basis function in this shell
-  //               auto n1 = shells[s1].size();
-  //
-  //               for (auto s2 = 0; s2 != shells.size(); ++s2) {
-  //
-  //                 auto bf2_first = shell2bf[s2];
-  //                 auto n2 = shells[s2].size();
-  //
-  //                 // loop over shell pairs of the density matrix, {s3,s4}
-  //                 // again symmetry is not used for simplicity
-  //                 for (auto s3 = 0; s3 != shells.size(); ++s3) {
-  //
-  //                   auto bf3_first = shell2bf[s3];
-  //                   auto n3 = shells[s3].size();
-  //
-  //                   for (auto s4 = 0; s4 != shells.size(); ++s4) {
-  //
-  //                     auto bf4_first = shell2bf[s4];
-  //                     auto n4 = shells[s4].size();
-  //
-  //                     // Coulomb contribution to the Fock matrix is from {s1,s2,s3,s4} integrals
-  //                     engine.compute(shells[s1], shells[s2], shells[s3], shells[s4]);
-  //                     const auto *buf_1234 = buf[0];
-  //                     if (buf_1234 == nullptr)
-  //                       continue; // if all integrals screened out, skip to next quartet
-  //
-  //                     // we don't have an analog of Eigen for tensors (yet ... see github.com/BTAS/BTAS, under development)
-  //                     // hence some manual labor here:
-  //                     // 1) loop over every integral in the shell set (= nested loops over basis functions in each shell)
-  //                     // and 2) add contribution from each integral
-  //                     for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
-  //                       const auto bf1 = f1 + bf1_first;
-  //                       for (auto f2 = 0; f2 != n2; ++f2) {
-  //                         const auto bf2 = f2 + bf2_first;
-  //                         for (auto f3 = 0; f3 != n3; ++f3) {
-  //                           const auto bf3 = f3 + bf3_first;
-  //                           for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
-  //                             const auto bf4 = f4 + bf4_first;
-  //                             //V4i(p*2*n+r,q*2*n+s) += CTiled(bf1,p) * CTiled(bf2,r) * CTiled(bf3,q) * CTiled(bf4,s) * buf_1234[f1234];
-  //                             V2(p, r, q, s) +=
-  //                               CTiled(bf1, p) * CTiled(bf2, r) * CTiled(bf3, q) * CTiled(bf4, s) * buf_1234[f1234];
-  //                           }
-  //                         }
-  //                       }
-  //                     } //f1,f2,f3,f4
-  //
-  //                   }
-  //                 }
-  //               }
-  //             } //s1,s2,s3,s4
-  //
-  //           } //if qs
-  //         } //s
-  //       } //q
-  //     } //if pr
-  //   } //r
-  // }  //p
+  for (auto p = 0; p < 2 * n; p++) {
+    for (auto r = 0; r < 2 * n; r++) {
+  
+      if (spin_t(p) == spin_t(r)) {
+  
+        for (auto q = 0; q < 2 * n; q++) {
+          for (auto s = 0; s < 2 * n; s++) {
+  
+            if (spin_t(q) == spin_t(s)) {
+  
+              // loop over shell pairs of the Fock matrix, {s1,s2}
+              // Fock matrix is symmetric, but skipping it here for simplicity (see compute_2body_fock)
+              for (auto s1 = 0; s1 != shells.size(); ++s1) {
+  
+                auto bf1_first = shell2bf[s1]; // first basis function in this shell
+                auto n1 = shells[s1].size();
+  
+                for (auto s2 = 0; s2 != shells.size(); ++s2) {
+  
+                  auto bf2_first = shell2bf[s2];
+                  auto n2 = shells[s2].size();
+  
+                  // loop over shell pairs of the density matrix, {s3,s4}
+                  // again symmetry is not used for simplicity
+                  for (auto s3 = 0; s3 != shells.size(); ++s3) {
+  
+                    auto bf3_first = shell2bf[s3];
+                    auto n3 = shells[s3].size();
+  
+                    for (auto s4 = 0; s4 != shells.size(); ++s4) {
+  
+                      auto bf4_first = shell2bf[s4];
+                      auto n4 = shells[s4].size();
+  
+                      // Coulomb contribution to the Fock matrix is from {s1,s2,s3,s4} integrals
+                      engine.compute(shells[s1], shells[s2], shells[s3], shells[s4]);
+                      const auto *buf_1234 = buf[0];
+                      if (buf_1234 == nullptr)
+                        continue; // if all integrals screened out, skip to next quartet
+  
+                      // we don't have an analog of Eigen for tensors (yet ... see github.com/BTAS/BTAS, under development)
+                      // hence some manual labor here:
+                      // 1) loop over every integral in the shell set (= nested loops over basis functions in each shell)
+                      // and 2) add contribution from each integral
+                      for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                        const auto bf1 = f1 + bf1_first;
+                        for (auto f2 = 0; f2 != n2; ++f2) {
+                          const auto bf2 = f2 + bf2_first;
+                          for (auto f3 = 0; f3 != n3; ++f3) {
+                            const auto bf3 = f3 + bf3_first;
+                            for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
+                              const auto bf4 = f4 + bf4_first;
+                              //V4i(p*2*n+r,q*2*n+s) += CTiled(bf1,p) * CTiled(bf2,r) * CTiled(bf3,q) * CTiled(bf4,s) * buf_1234[f1234];
+                              V2(p, r, q, s) +=
+                                CTiled(bf1, p) * CTiled(bf2, r) * CTiled(bf3, q) * CTiled(bf4, s) * buf_1234[f1234];
+                            }
+                          }
+                        }
+                      } //f1,f2,f3,f4
+  
+                    }
+                  }
+                }
+              } //s1,s2,s3,s4
+  
+            } //if qs
+          } //s
+        } //q
+      } //if pr
+    } //r
+  }  //p
 
 
   //Need to explicitly create an array that contains the permutation

@@ -107,14 +107,14 @@ struct MapOp : public Op {
 template<typename Func, typename LabeledTensorType>
 struct MapOp<Func, LabeledTensorType, 0, 0> : public Op {
   void execute() {
-    std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
+    // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
     auto& lhs_tensor = *lhs_.tensor_;
     auto lambda = [&] (const TensorIndex& blockid) {
       auto size = lhs_tensor.block_size(blockid);
       if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
         return;
       }
-      std::cerr<<"MapOp. size="<<size<<std::endl;
+      // std::cerr<<"MapOp. size="<<size<<std::endl;
       auto lblock = lhs_tensor.alloc(blockid);
       for(int i=0; i<size; i++) {
         func_(lblock.buf()[i]);
@@ -150,7 +150,7 @@ struct MapOp<Func, LabeledTensorType, 0, 0> : public Op {
 template<typename Func, typename LabeledTensorType>
 struct MapOp<Func, LabeledTensorType, 1, 0> : public Op {
   void execute() {
-    std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
+    // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
     auto& lhs_tensor = *lhs_.tensor_;
 
     auto lambda = [&] (const TensorIndex& blockid) {
@@ -236,7 +236,7 @@ struct MapOp<Func, LabeledTensorType, 2, 0> : public Op {
 template<typename Func, typename LabeledTensorType>
 struct MapOp<Func, LabeledTensorType, 2, 1> : public Op {
   void execute() {
-    std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
+    // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
     auto& lhs_tensor = *lhs_.tensor_;
     auto& rhs1_tensor = *rhs1_.tensor_;
 
@@ -289,7 +289,7 @@ struct MapOp<Func, LabeledTensorType, 2, 1> : public Op {
 template<typename Func, typename LabeledTensorType>
 struct MapOp<Func, LabeledTensorType, 2, 2> : public Op {
   void execute() {
-    std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
+    // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
     auto& lhs_tensor = *lhs_.tensor_;
     auto& rhs1_tensor = *rhs1_.tensor_;
     auto& rhs2_tensor = *rhs2_.tensor_;
@@ -350,7 +350,7 @@ struct MapOp<Func, LabeledTensorType, 2, 2> : public Op {
 template<typename Func, typename LabeledTensorType>
 struct MapOp<Func, LabeledTensorType, 1, 1> : public Op {
   void execute() {
-    std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
+    // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
     auto& lhs_tensor = *lhs_.tensor_;
     auto& rhs_tensor = *rhs_.tensor_;
 
@@ -409,7 +409,7 @@ struct ScanOp : public Op {
 template<typename Func, typename LabeledTensorType>
 struct ScanOp<Func,LabeledTensorType,0> : public Op {
   void execute() {
-    std::cerr<<__FUNCTION__<<":"<<__LINE__<<": ScanOp\n";
+    // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": ScanOp\n";
     auto& tensor = *ltensor_.tensor_;
     auto lambda = [&] (const TensorIndex& blockid) {
       auto size = tensor.block_size(blockid);      
@@ -439,7 +439,7 @@ struct ScanOp<Func,LabeledTensorType,0> : public Op {
 template<typename Func, typename LabeledTensorType>
 struct ScanOp<Func,LabeledTensorType,1> : public Op {
   void execute() {
-    std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
+    // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
     auto& tensor = *ltensor_.tensor_;
     auto lambda = [&] (const TensorIndex& blockid) {
       auto size = tensor.block_size(blockid);
@@ -855,8 +855,10 @@ nonsymmetrized_iterator(const LabeledTensor<T>& ltc,
   //   dim_of_label[lta.label_[i]] = aflindices[i];
   // }
   TensorVec<TriangleLoop> tloops, tloops_last;
+  // std::cout<<__FUNCTION__<<"num_parts="<<part_labels.size()<<std::endl;
   for(auto dim_grps: part_labels) {
     for(auto lbl: dim_grps) {
+    // std::cout<<__FUNCTION__<<"part="<< lbl <<std::endl;
       if(lbl.size() > 0) {
         BlockDim lo, hi;
         std::tie(lo, hi) = tensor_index_range(lbl[0].dt);
@@ -864,6 +866,10 @@ nonsymmetrized_iterator(const LabeledTensor<T>& ltc,
         tloops_last.push_back(tloops.back().get_end());
       }
     }
+  }
+  if(tloops.size()==0){
+    tloops.push_back(TriangleLoop{});
+    tloops_last.push_back(tloops.back().get_end());
   }
   return ProductIterator<TriangleLoop>(tloops, tloops_last);
 }
@@ -900,6 +906,9 @@ copy_symmetrizer(const LabeledTensor<T>& ltc,
     Expects(size > 0);
     //std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl<<std::endl;
     csv.push_back(CopySymmetrizer{size, lbls[0].size(), lbl, blockid, uniq_blockid});
+  }
+  if (csv.empty()) {
+    csv.push_back(CopySymmetrizer{});
   }
   return csv;
 }
@@ -971,6 +980,9 @@ copy_symmetrizer(const LabeledTensor<T>& ltc,
     //std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl<<std::endl;
     csv.push_back(CopySymmetrizer{size, lbls[0].size(), lbl, blockid, uniq_blockid});
   }
+  if (csv.empty()) {
+    csv.push_back(CopySymmetrizer{});
+  }
   return csv;
 }
 
@@ -995,7 +1007,7 @@ template<typename T, typename LabeledTensorType>
 inline void
 SetOp<T,LabeledTensorType>::execute() {
   using T1 = typename LabeledTensorType::element_type;
-  std::cerr<<"Calling setop :: execute"<<std::endl;
+  // std::cerr<<"Calling setop :: execute"<<std::endl;
   auto& tensor = *lhs_.tensor_;
   auto lambda = [&] (const TensorIndex& blockid) {
     auto size = tensor.block_size(blockid);
@@ -1024,7 +1036,7 @@ template<typename T, typename LabeledTensorType>
 inline void
 AddOp<T, LabeledTensorType>::execute() {
   using T1 = typename LabeledTensorType::element_type;
-  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": AddOp\n";
+  // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": AddOp\n";
   const LabeledTensor<T1>& lta = rhs_;
   const LabeledTensor<T1>& ltc = lhs_;
   Tensor<T1>& ta = *lta.tensor_;
@@ -1105,7 +1117,7 @@ template<typename T, typename LabeledTensorType>
 inline void
 MultOp<T, LabeledTensorType>::execute() {
   using T1 = typename LabeledTensorType::element_type;
-  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
+  // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MultOp\n";
 
   //@todo @fixme MultOp based on nonsymmetrized_iterator cannot work with ResultMode::set
   Expects(mode_ == ResultMode::update);
@@ -1122,8 +1134,13 @@ MultOp<T, LabeledTensorType>::execute() {
   auto lambda = [&] (const TensorIndex& cblockid) {
     auto dimc = tc.block_size(cblockid);
     if(!(tc.nonzero(cblockid) && tc.spin_unique(cblockid) && dimc > 0)) {
+      // std::cout<<"MultOp. zero block "<<cblockid<<std::endl;
+      // std::cout<<"MultOp. "<<cblockid<<" nonzero="<< tc.nonzero(cblockid) <<std::endl;
+      // std::cout<<"MultOp. "<<cblockid<<" spin_unique="<< tc.spin_unique(cblockid) <<std::endl;
+      // std::cout<<"MultOp. "<<cblockid<<" dimc="<< dimc <<std::endl;
       return;
     }
+    // std::cout<<"MultOp. non-zero block"<<std::endl;
     auto sum_itr_first = loop_iterator(slice_indices(sum_indices, sum_labels));
     auto sum_itr_last = sum_itr_first.get_end();
     auto label_map = LabelMap<BlockDim>().update(ltc.label_, cblockid);
@@ -1134,17 +1151,20 @@ MultOp<T, LabeledTensorType>::execute() {
       auto ablockid = label_map.get_blockid(lta.label_);
       auto bblockid = label_map.get_blockid(ltb.label_);
 
+      // std::cout<<"summation loop. value="<<*sitr<<std::endl;
+
       if(!ta.nonzero(ablockid) || !tb.nonzero(bblockid)) {
         continue;
       }
-      ablockid = ta.find_spin_unique_block(ablockid);
-      bblockid = tb.find_spin_unique_block(bblockid);
+      // ablockid = ta.find_spin_unique_block(ablockid);
+      // bblockid = tb.find_spin_unique_block(bblockid);
       auto abp = ta.get(ablockid);
       auto bbp = tb.get(bblockid);
 
       auto symm_scaling_factor = compute_symmetry_scaling_factor(sum_indices, *sitr);
       auto scale = alpha_ * symm_scaling_factor;
 #if 1
+      // std::cout<<"doing block-block multiply"<<std::endl;
       cbp(ltc.label_) += alpha_ * abp(lta.label_) * bbp(ltb.label_);
 #endif
     }
@@ -1159,9 +1179,11 @@ MultOp<T, LabeledTensorType>::execute() {
       auto cperm_label = *citr;
       auto num_inversions = perm_count_inversions(perm_compute(copy_label, cperm_label));
       Sign sign = (num_inversions%2) ? -1 : 1;
+      // std::cout<<"doing copy symmetrizer add. sign="<<sign<<std::endl;
       csbp(copy_label) += T(sign) * cbp(cperm_label);
     }
     if(mode_ == ResultMode::update) {
+      // std::cout<<"Updating to block id="<<csbp.blockid()<<" value[0]="<<csbp.buf()[0]<<std::endl;
       tc.add(csbp.blockid(), csbp);
     } else {
       tc.put(csbp.blockid(), csbp);

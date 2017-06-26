@@ -13,6 +13,7 @@ namespace tammx {
 template<typename Itr, typename Fn>
 void parallel_work(Itr first, Itr last, Fn fn) {
   for(; first != last; ++first) {
+    // std::cout<<__FUNCTION__<<" invoking task function"<<std::endl;
     fn(*first);
   }
 }

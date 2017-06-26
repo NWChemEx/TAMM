@@ -63,10 +63,10 @@ struct Combination {
    public:
     using ItrType = TensorVec<T>;
 
-    Iterator() : comb_{nullptr}  {}
+    Iterator() : comb_{nullptr}, done_{false}  {}
 
     explicit Iterator(Combination<T>* comb)
-        : comb_{comb} {
+        : comb_{comb}, done_{false} {
       for(Int x=0; x<comb_->k_; x++) {
         stack_.push_back({Case::case1, x});
         sub_.push_back(x);
@@ -81,6 +81,7 @@ struct Combination {
     // }
 
     Iterator& operator = (const Iterator& itr) {
+      done_ = itr.done_;
       comb_ = itr.comb_;
       stack_ = itr.stack_;
       sub_ = itr.sub_;
@@ -94,16 +95,18 @@ struct Combination {
     TensorVec<T> operator *() {
       TensorVec<T> gp1, gp2;
       Expects(sub_.size() == comb_->k_);
-      gp2.insert_back(comb_->bag_.begin(), comb_->bag_.begin() + sub_[0]);
-      for(Int i=0; i<sub_.size()-1; i++) {
-        gp1.push_back(comb_->bag_[sub_[i]]);
-        gp2.insert_back(comb_->bag_.begin()+sub_[i]+1,
-                   comb_->bag_.begin() + sub_[i+1]);
+      if(comb_->k_ > 0) {
+        gp2.insert_back(comb_->bag_.begin(), comb_->bag_.begin() + sub_[0]);
+        for(Int i=0; i<sub_.size()-1; i++) {
+          gp1.push_back(comb_->bag_[sub_[i]]);
+          gp2.insert_back(comb_->bag_.begin()+sub_[i]+1,
+                          comb_->bag_.begin() + sub_[i+1]);
+        }
+        gp1.push_back(comb_->bag_[sub_.back()]);
+        gp2.insert_back( comb_->bag_.begin()+sub_.back()+1,
+                         comb_->bag_.end());
+        gp1.insert_back(gp2.begin(), gp2.end());
       }
-      gp1.push_back(comb_->bag_[sub_.back()]);
-      gp2.insert_back( comb_->bag_.begin()+sub_.back()+1,
-                 comb_->bag_.end());
-      gp1.insert_back(gp2.begin(), gp2.end());
       return gp1;
     }
 
@@ -113,6 +116,7 @@ struct Combination {
       } while(stack_.size()>0 && sub_.size() < comb_->k_);
       if(stack_.size() == 0) {
         assert(sub_.size() == 0);
+        done_ = true;
       } else {
         Expects(sub_.size() == comb_->k_);
       }
@@ -122,6 +126,9 @@ struct Combination {
    private:
 
     void iterate() {
+      if(comb_->k_ == 0) {
+        return;
+      }
       Expects(stack_.size() > 0);
       auto case_value = stack_.back().case_value;
       auto i = stack_.back().i;
@@ -152,10 +159,12 @@ struct Combination {
     TensorVec<Int> sub_;
     TensorVec<StackFrame> stack_;
     Combination* comb_;
-
+    bool done_;
+    
     friend bool operator == (const typename Combination::Iterator& itr1,
                              const typename Combination::Iterator& itr2) {
-      return (itr1.comb_ == itr2.comb_)
+      return (itr1.done_ == itr2.done_)
+          && (itr1.comb_ == itr2.comb_)
           &&  std::equal(itr1.stack_.begin(), itr1.stack_.end(),
                          itr2.stack_.begin(), itr2.stack_.end())
           &&  std::equal(itr1.sub_.begin(), itr1.sub_.end(),
@@ -177,6 +186,7 @@ struct Combination {
     auto itr = Iterator(const_cast<Combination<T>*>(this));
     itr.stack_.clear();
     itr.sub_.clear();
+    itr.done_ = true;
     return itr;
   }
 

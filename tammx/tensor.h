@@ -121,10 +121,11 @@ class Tensor : public TensorBase {
     Expects(constructed());
     Offset offset;
     Proc proc;
-    auto uniq_blockid = find_unique_block(blockid);
+    auto sblockid = find_spin_unique_block(blockid);
+    auto uniq_blockid = find_unique_block(sblockid);
     TensorPerm layout;
     Sign sign;
-    std::tie(layout, sign) = compute_sign_from_unique_block(blockid);
+    std::tie(layout, sign) = compute_sign_from_unique_block(sblockid);
     auto size = block_size(blockid);
     auto block {alloc(blockid, layout, sign)};
     std::tie(proc, offset) = distribution_->locate(uniq_blockid);
@@ -134,6 +135,7 @@ class Tensor : public TensorBase {
 
   void put(const TensorIndex& blockid, const Block<T>& block) {
     Expects(constructed());
+    Expects(find_spin_unique_block(blockid) == blockid);
     Expects(find_unique_block(blockid) == blockid);
     Offset offset;
     Proc proc;
@@ -144,6 +146,7 @@ class Tensor : public TensorBase {
 
   void add(const TensorIndex& blockid, const Block<T>& block) {
     Expects(constructed());
+    Expects(find_spin_unique_block(blockid) == blockid);
     Expects(find_unique_block(blockid) == blockid);
     Offset offset;
     Proc proc;

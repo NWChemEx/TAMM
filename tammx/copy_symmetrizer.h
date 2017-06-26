@@ -96,9 +96,9 @@ class CopySymmetrizer {
         auto &uniq_blockid = cs_->uniq_blockid_;
         if (std::equal(uniq_blockid.begin(), uniq_blockid.end(),
                        perm_blockid.begin(), perm_blockid.end())) {
-          std::cerr<<"COPY. Comb::Iterator. internal perm="<<perm<<std::endl;
-          std::cerr<<"COPY. Comb::Iterator. perm blockid="<<perm_blockid<<std::endl;
-          std::cerr<<"COPY. Comb::Iterator. unique blockid="<<uniq_blockid<<std::endl;
+          // std::cerr<<"COPY. Comb::Iterator. internal perm="<<perm<<std::endl;
+          // std::cerr<<"COPY. Comb::Iterator. perm blockid="<<perm_blockid<<std::endl;
+          // std::cerr<<"COPY. Comb::Iterator. unique blockid="<<uniq_blockid<<std::endl;
           break;
         }
       }
@@ -112,8 +112,8 @@ class CopySymmetrizer {
     friend bool operator == (const typename CopySymmetrizer::Iterator& itr1,
                              const typename CopySymmetrizer::Iterator& itr2) {
       return (itr1.cs_  == itr2.cs_)
-          &&  itr1.itr_ == itr2.itr_
-          &&  itr1.end_ == itr2.end_;
+          &&  itr1.itr_ == itr2.itr_;
+          // &&  itr1.end_ == itr2.end_;
     }
     
     friend bool operator != (const typename CopySymmetrizer::Iterator& itr1,

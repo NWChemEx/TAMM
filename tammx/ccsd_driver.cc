@@ -23,6 +23,24 @@ using namespace tammx::tensor_dims;
 using namespace tammx::tensor_labels;
 
 template<typename T>
+void tensor_print(Tensor<T>& t)  {
+  auto lambda = [&] (auto& val) {
+    std::cout << val << '\n';
+  };
+  Irrep irrep{0};
+  bool spin_restricted = false;
+  auto distribution = Distribution_NW();
+  auto mgr = MemoryManagerSequential();
+  auto pg = ProcGroup{};
+  Scheduler sch{pg, &distribution, &mgr, irrep, spin_restricted};
+  using LabeledTensorType = LabeledTensor<T>;
+  using Func = decltype(lambda);
+  sch.io(t)
+      .template sop<Func, LabeledTensorType, 0>(t(), lambda)
+      .execute();
+}
+
+template<typename T>
 void compute_residual(Scheduler &sch, Tensor<T>& tensor, Tensor<T>& scalar) {
   sch(scalar() = tensor() * tensor());
 }
@@ -197,6 +215,7 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
   double energy = 0.0d;
   for(int titer=0; titer<maxiter; titer+=ndiis) {
     for(int iter = titer; iter < std::min(titer+ndiis,maxiter); iter++) {
+      std::cerr<<"++++++++++++++++++++++++++++++++++++++++++++++"<<std::endl;
       Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
       int off = iter - titer;
       sch.io(d_t1, d_t2, d_f1, d_v2)
@@ -207,14 +226,20 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
       sch(d_r1_residual() = 0)
           (d_r1_residual() += (*d_r1s[off])()  * (*d_r1s[off])())
           (d_r2_residual() = 0)
-          (d_r2_residual() += (*d_r2s[off])()  * (*d_r2s[off])());
+          (d_r2_residual() += (*d_r2s[off])()  * (*d_r2s[off])())
+          ;
       sch.execute();
+      std::cerr<<"----------------------------------------------"<<std::endl;
 
-      double r1 = get_scalar(d_r1_residual);
-      double r2 = get_scalar(d_r2_residual);
-       residual = std::max(r1, r2);
-       energy = get_scalar(d_e);
+      
+      double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
+      double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
+      residual = std::max(r1, r2);
+      energy = get_scalar(d_e);
       std::cout << "iteration:" << iter << '\n';
+      std::cout << "r1=" << r1 <<" r2="<<r2 << '\n';
+      tensor_print(*d_r1s[off]);
+      tensor_print(d_r1_residual);
       std::cout << "residual:" << residual << '\n';
       std:std::cout << "energy:" << energy << '\n';
       if(residual < thresh) {
@@ -267,24 +292,6 @@ Irrep irrep_v {0};
 Irrep irrep_t {0};
 Irrep irrep_x {0};
 Irrep irrep_y {0};
-
-template<typename T>
-void tensor_print(Tensor<T>& t)  {
-    auto lambda = [&] (auto& val) {
-      std::cout << val << '\n';
-    };
-    Irrep irrep{0};
-    bool spin_restricted = false;
-    auto distribution = Distribution_NW();
-    auto mgr = MemoryManagerSequential();
-    auto pg = ProcGroup{};
-    Scheduler sch{pg, &distribution, &mgr, irrep, spin_restricted};
-    using LabeledTensorType = LabeledTensor<T>;
-    using Func = decltype(lambda);
-    sch.io(t)
-        .template sop<Func, LabeledTensorType, 0>(t(), lambda)
-        .execute();
-  }
 
 // Eigen matrix algebra library
 #include <Eigen/Dense>
@@ -375,6 +382,12 @@ int main(int argc, char *argv[]) {
     }
   });
 
+  Scheduler(pg, &distribution, &mgr, Irrep{0}, false)
+      .output(d_t1, d_t2)
+      (d_t1() = 0)
+      (d_t2() = 0)
+      .execute();
+  
   //end tensor map
 
   ccsd_driver(d_t1, d_t2, d_f1, d_v2,

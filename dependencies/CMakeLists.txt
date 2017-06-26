@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.7.0 FATAL_ERROR)
 
-option (GA_SUPERBUILD "This will build blas+lapack if required" ON)
+option (GA_SUPERBUILD "This will build blas+lapack if required" OFF)
 
 if(GA_SUPERBUILD)
     project (GA_DEPENDENCIES C CXX Fortran)
@@ -43,7 +43,11 @@ if(GA_SUPERBUILD)
 
 else()
 
-    project (TAMM_DEPENDENCIES C CXX Fortran)
+    project (TAMM_DEPENDENCIES C CXX)
+
+    if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+        set (CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/tamm-deps" CACHE PATH "default install path" FORCE)
+    endif()
 
     include(ExternalProject)
 
@@ -51,7 +55,7 @@ else()
 
     include(libint)
     include(eigen)
-    include(globalarrays)
+    #include(globalarrays)
     #include(antlr)
 
     set(TAMM_TOOLCHAIN_FILE "${PROJECT_BINARY_DIR}/tamm_build.cmake")

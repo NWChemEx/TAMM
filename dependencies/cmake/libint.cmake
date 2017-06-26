@@ -1,4 +1,11 @@
 
+if(DEFINED LIBINT_INSTALL_PATH AND EXISTS ${LIBINT_INSTALL_PATH}/lib/libint2.a)
+
+message(STATUS "LIBINT found at: ${LIBINT_INSTALL_PATH}")
+ADD_CUSTOM_TARGET(LIBINT ALL)
+
+else()
+
 set (LIBINT_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/libint2)
 
 if(EXISTS ${CMAKE_INSTALL_PREFIX}/libint2/lib/libint2.a)
@@ -26,4 +33,6 @@ else()
         #LOG_CONFIGURE 1
         #LOG_BUILD 1
     )
+endif()
+
 endif()

@@ -31,7 +31,7 @@ class Distribution {
   Proc nproc_;
 };
 
-
+// @fixme Can this code be cleaned up?
 class DistributionFactory {
  public:
   DistributionFactory() = delete;

@@ -178,6 +178,11 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
   std::vector<double> p_evl_sorted;
 
   p_evl_sorted.reserve((TCE::noab() + TCE::nvab()).value());
+  // ec->sop_execute(d_f1, [&] (auto p, auto q, auto& val) {
+  //     if(p == q) {
+  //       p_evl_sorted.push_back(val);
+  //     }
+  //   });
   {
     auto lambda = [&] (auto p, auto q, auto& val) {
       if(p == q) {
@@ -203,6 +208,8 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
     d_r2s.push_back(new Tensor<T>{{VV|OO}, irrep, spin_restricted});
     Tensor<T>::allocate(pg, distribution, mgr, *d_r1s[i], *d_r2s[i]);
   }
+
+  //void Tensor<T>::operator = (std::pair<Tensor<T>, Tensor<T>> rhs);
 
   auto get_scalar = [] (Tensor<T>& tensor) -> T {
     Expects(tensor.rank() == 0);
@@ -256,6 +263,8 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
     Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
     std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
     std::vector<Tensor<T>*> ts{&d_t1, &d_t2};
+    // @fixme why not use brace-initiralizer instead of
+    // intermediates? possibly use variadic templates?
     diis<T>(sch, rs, ts);
   }
 

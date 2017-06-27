@@ -8,6 +8,10 @@ Requirements
 NOTE: The current tamm code has only been tested with gcc >= 6.0 and clang >= 3.8
 
 
+Code 
+----
+The latest code is in the tammx sub-directory. Hartree-Fock code can be found at nwchem_main/hartree_fock.cc
+
 BUILD
 -----
 

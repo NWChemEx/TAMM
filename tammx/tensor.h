@@ -92,7 +92,7 @@ class Tensor : public TensorBase {
     Expects(distribution_.get() != nullptr);
     auto rank = pg_.rank();
     auto buf_size = distribution_->buf_size(rank);
-    auto eltype = tensor_element_type<element_type>;
+    auto eltype = tensor_element_type<element_type>();
     Expects(buf_size >=0 );
     mgr_->alloc(pg_, eltype, buf_size);
     allocation_status_ = AllocationStatus::created;

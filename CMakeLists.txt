@@ -60,7 +60,7 @@ target_link_libraries(tammx_main tammx)
 add_executable(ccsd_driver tammx/ccsd_driver.cc nwchem_main/hartree_fock.cc)
 add_dependencies(ccsd_driver tammx)
 target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
-target_link_libraries(ccsd_driver tammx -L${LIBINT_INSTALL_PATH}/lib -lint2)
+target_link_libraries(ccsd_driver tammx -L${LIBINT_INSTALL_PATH}/lib -lint2 -lrt)
 
 # add_executable(hf nwchem_main/hartree_fock.cc)
 # target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)

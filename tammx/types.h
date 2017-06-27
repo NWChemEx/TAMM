@@ -35,19 +35,19 @@ using Size = Offset;
 enum class ElementType { invalid, single_precision, double_precision, single_complex, double_complex };
 
 template<typename T>
-const ElementType tensor_element_type = ElementType::invalid;
+constexpr ElementType tensor_element_type() {return ElementType::invalid; }
 
 template<>
-const ElementType tensor_element_type<double> = ElementType::double_precision;
+constexpr ElementType tensor_element_type<double>() { return ElementType::double_precision; }
 
 template<>
-const ElementType tensor_element_type<float> = ElementType::single_precision;
+constexpr ElementType tensor_element_type<float>() { return ElementType::single_precision; }
 
 template<>
-const ElementType tensor_element_type<std::complex<float>> = ElementType::single_complex;
+constexpr ElementType tensor_element_type<std::complex<float>>() { return ElementType::single_complex; }
 
 template<>
-const ElementType tensor_element_type<std::complex<double>> = ElementType::double_complex;
+constexpr ElementType tensor_element_type<std::complex<double>>() { ElementType::double_complex; }
 
 static inline constexpr size_t
 element_size(ElementType eltype) {

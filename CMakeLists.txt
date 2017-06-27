@@ -63,10 +63,14 @@ target_link_libraries(tammx_main tammx)
 #set_property(TARGET tammx_main PROPERTY CXX_STANDARD 14)
 #set_property(TARGET tammx_main PROPERTY CXX_STANDARD_REQUIRED ON)
 
+if(NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
+  set(TAMM_LINK_EXTRA -lrt)
+endif()
+
 add_executable(ccsd_driver tammx/ccsd_driver.cc nwchem_main/hartree_fock.cc)
 add_dependencies(ccsd_driver tammx)
 target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
-target_link_libraries(ccsd_driver tammx -L${LIBINT_INSTALL_PATH}/lib -lint2 -lrt)
+target_link_libraries(ccsd_driver tammx -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
 
 # add_executable(hf nwchem_main/hartree_fock.cc)
 # target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)

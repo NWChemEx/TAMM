@@ -219,7 +219,7 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
 
   double corr = 0;
   double residual = 0.0;
-  double energy = 0.0d;
+  double energy = 0.0;
   for(int titer=0; titer<maxiter; titer+=ndiis) {
     for(int iter = titer; iter < std::min(titer+ndiis,maxiter); iter++) {
       std::cerr<<"++++++++++++++++++++++++++++++++++++++++++++++"<<std::endl;

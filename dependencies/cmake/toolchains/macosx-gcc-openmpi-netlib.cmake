@@ -7,11 +7,11 @@ set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_Fortran_COMPILER gfortran)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(BLAS_INCLUDE_PATH /home/panyala/intel/mkl/include)
+set(BLAS_INCLUDE_PATH /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/System/Library/Frameworks/Accelerate.framework/Frameworks/vecLib.framework/Headers/)
 
 # General NWCHEM Options
 # Set the following when using the NWCHEM CMAKE build
-set(NWCHEM_TOP /home/panyala/git/nwchem-cmake/nwchem-devel)
+set(NWCHEM_TOP /Users/panyala/software/libraries/nwchem-cmake/nwchem-devel)
 set(GA_CONFIG ${NWCHEM_TOP}/build/nwchem-install/external/ga/bin)
 set(NWCHEM_BUILD_DIR ${NWCHEM_TOP}/build/)
 option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" ON)
@@ -31,8 +31,8 @@ option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" ON)
 #Number of cores to be used for the build
 set(TAMM_PROC_COUNT 2)
 
-set(EIGEN3_INSTALL_PATH /home/panyala/git/tamm/dependencies/b1/tamm-deps/eigen3)
-set(LIBINT_INSTALL_PATH /home/panyala/git/tamm/dependencies/b1/tamm-deps/libint2)
+set(EIGEN3_INSTALL_PATH /Users/panyala/PNNL/code/tamm/dependencies/b1/tamm-deps/eigen3)
+set(LIBINT_INSTALL_PATH /Users/panyala/PNNL/code/tamm/dependencies/b1/tamm-deps/libint2)
 #set(ANTLR_CPPRUNTIME_PATH /opt/libraries/ANTLR4/antlr4-cpp-runtime)
 
 

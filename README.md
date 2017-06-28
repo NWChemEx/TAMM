@@ -4,6 +4,8 @@ Requirements
 - Git
 - cmake >= 3.7
 - C++14 compiler
+- Required to build ANTLR - libuuid (uuid-dev or uuid-devel package on Debian/RedHat)
+
 
 NOTE: The current TAMM code has only been tested with gcc versions >= 6.0 and clang versions >= 3.8.  
 It also works with Intel v18.0 Beta compilers, but does not build with Intel Compiler versions <= 17.0.  

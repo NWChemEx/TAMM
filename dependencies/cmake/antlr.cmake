@@ -1,4 +1,10 @@
 
+if(DEFINED ANTLR_CPPRUNTIME_PATH AND EXISTS ${ANTLR_CPPRUNTIME_PATH}/libantlr4-runtime.a)
+
+message(STATUS "ANTLR_CPPRUNTIME found at: ${ANTLR_CPPRUNTIME_PATH}")
+ADD_CUSTOM_TARGET(ANTLR ALL)
+
+else()
 
 # Set location of the ANTLR C runtime library.
 set (ANTLR_CPPRUNTIME_PATH ${CMAKE_INSTALL_PREFIX}/ANTLR/CppRuntime)
@@ -9,6 +15,7 @@ if(EXISTS ${CMAKE_INSTALL_PREFIX}/ANTLR/CppRuntime/libantlr4-runtime.a)
 
 else()
 
+    message(STATUS "Building ANTLR4 CPP Runtime library at: ${ANTLR_CPPRUNTIME_PATH}")
     SET(ANTLR_SOURCES ${PROJECT_BINARY_DIR}/external/ANTLR/)
     execute_process(COMMAND mkdir -p "${ANTLR_SOURCES}")
     file(COPY ${PROJECT_SOURCE_DIR}/ANTLR4/ DESTINATION ${ANTLR_SOURCES})
@@ -32,4 +39,5 @@ file(COPY ${PROJECT_SOURCE_DIR}/ANTLR4/antlr-4.7-complete.jar DESTINATION ${CMAK
 # Set location of the ANTLR binary.
 set(AntlrBinary ${CMAKE_INSTALL_PREFIX}/ANTLR/antlr-4.7-complete.jar)
 
+endif()
 

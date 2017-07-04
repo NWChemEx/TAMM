@@ -10,7 +10,7 @@
 
 cmake_minimum_required(VERSION 3.7 FATAL_ERROR)
 project (TAMM_LIBRARY C CXX)
-#enable_language (Fortran)
+enable_language (Fortran)
 
 set(CMAKE_BUILD_TYPE Debug)
 
@@ -146,10 +146,59 @@ set(CMAKE_Fortran_COMPILER ${tamm_f77_compiler})
 SET(CMAKE_CXX_COMPILER mpicxx)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEXT_INT -DGFORTRAN")
 
-execute_process(COMMAND ${GA_CONFIG} --cppflags --cflags OUTPUT_VARIABLE tamm_cflags OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+execute_process(COMMAND ${GA_CONFIG} --cppflags OUTPUT_VARIABLE tamm_includes OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${GA_CONFIG} --cflags OUTPUT_VARIABLE tamm_cflags OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND ${GA_CONFIG} --fflags OUTPUT_VARIABLE tamm_fflags OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND ${GA_CONFIG} --ldflags OUTPUT_VARIABLE tamm_ldflags OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND ${GA_CONFIG} --libs OUTPUT_VARIABLE tamm_libs OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+string(REPLACE "-I" "" tamm_cmake_inc ${tamm_includes})
+#To be recognized as a list, the strings must be seperated by ;
+string(REPLACE " " ";" tamm_includes ${tamm_cmake_inc})
+
+#message(STATUS "tamm_c_flags:" ${tamm_fflags})
+
+
+#Build fortran code for unit testing
+
+set(FORTRAN_DEPS_SRC 
+nwtest/put_hash_block.F 
+nwtest/add_block.F 
+nwtest/get_block.F 
+nwtest/get_block_ind.F 
+nwtest/add_hash_block.F 
+nwtest/get_hash_block.F 
+nwtest/nxtask.F 
+nwtest/nxtval_ga.F 
+nwtest/errquit.F 
+nwtest/put_block.F 
+nwtest/tce_hash.F 
+nwtest/tce_hash_ind.F 
+nwtest/tce_restricted.F 
+nwtest/tce_sort.F 
+nwtest/tce_sortacc.F 
+nwtest/misc.F
+)
+
+SET(CMAKE_Fortran_COMPILER mpif90)
+
+add_library(fort_deps STATIC ${FORTRAN_DEPS_SRC})
+target_include_directories(fort_deps SYSTEM PUBLIC ${tamm_includes})
+target_compile_options(fort_deps PUBLIC ${tamm_fflags})
+
+add_library(fort_deps_c STATIC nwtest/util_gnxtval.c)
+target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
+
+
+add_executable(nwtest nwtest/test.F)
+add_dependencies(nwtest fort_deps)
+target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes})
+target_compile_options(nwtest PUBLIC ${tamm_fflags})
+target_link_libraries(nwtest fort_deps fort_deps_c ${tamm_libs} ${tamm_ldflags})
+
+
+#Build OLD TAMM code
 set(ParserSrcDir ${PROJECT_SOURCE_DIR}/frontend)
 
 # Collect all the parser sources.
@@ -228,9 +277,7 @@ set(tammLibSources
         tensor/variables.cc
         )
 
-string(REPLACE "-I" "" tamm_cmake_cflags ${tamm_cflags})
-#To be recognized as a list, the strings must be seperated by ;
-string(REPLACE " " ";" tamm_cflags ${tamm_cmake_cflags})
+
 
 message(STATUS "ANTLR C++ runtime found at: " ${ANTLR_CPPRUNTIME_PATH})
 ADD_LIBRARY(a4runtime STATIC IMPORTED)
@@ -239,7 +286,7 @@ SET_TARGET_PROPERTIES(a4runtime PROPERTIES IMPORTED_LOCATION ${ANTLR_CPPRUNTIME_
 
 add_library(tamm STATIC ${tammParserSources} ${tammLibSources} ${refCodeSources})
 link_directories(${ANTLR_CPPRUNTIME_PATH}/lib ${TAMM_BLAS_LIB})
-target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags}
+target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_includes}
                         ${BLAS_INCLUDE_PATH} ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime/)
 target_link_libraries(tamm a4runtime)
 
@@ -264,7 +311,7 @@ endif()
 
 add_executable(tamm_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
 add_dependencies(tamm_main tamm)
-target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_cflags} ${BLAS_INCLUDE_PATH})
+target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_includes} ${BLAS_INCLUDE_PATH})
 # Set target libraries to be linked.
 target_link_libraries(tamm_main tamm ${tamm_ldflags} ${BLAS_LIBRARIES}) #${tamm_libs}
 

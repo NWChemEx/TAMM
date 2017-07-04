@@ -191,7 +191,7 @@ add_library(fort_deps_c STATIC nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
 
-add_executable(nwtest nwtest/test.F)
+add_executable(nwtest EXCLUDE_FROM_ALL nwtest/test.F)
 add_dependencies(nwtest fort_deps)
 target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes})
 target_compile_options(nwtest PUBLIC ${tamm_fflags})

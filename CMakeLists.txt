@@ -157,9 +157,6 @@ string(REPLACE "-I" "" tamm_cmake_inc ${tamm_includes})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" tamm_includes ${tamm_cmake_inc})
 
-#message(STATUS "tamm_c_flags:" ${tamm_fflags})
-
-
 #Build fortran code for unit testing
 
 set(FORTRAN_DEPS_SRC 
@@ -183,6 +180,14 @@ nwtest/misc.F
 
 SET(CMAKE_Fortran_COMPILER mpif90)
 
+
+if (EXISTS ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a)
+set(BLAS_LIBRARIES ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a 
+    ${NWCHEM_BUILD_DIR}/src/lapack/libnwclapack.a
+    ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsc.a
+    ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a)
+endif()
+
 add_library(fort_deps STATIC ${FORTRAN_DEPS_SRC})
 target_include_directories(fort_deps SYSTEM PUBLIC ${tamm_includes})
 target_compile_options(fort_deps PUBLIC ${tamm_fflags})
@@ -190,12 +195,11 @@ target_compile_options(fort_deps PUBLIC ${tamm_fflags})
 add_library(fort_deps_c STATIC nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
-
-add_executable(nwtest EXCLUDE_FROM_ALL nwtest/test.F)
+add_executable(nwtest nwtest/test.F)
 add_dependencies(nwtest fort_deps)
 target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes})
 target_compile_options(nwtest PUBLIC ${tamm_fflags})
-target_link_libraries(nwtest fort_deps fort_deps_c ${tamm_libs} ${tamm_ldflags})
+target_link_libraries(nwtest fort_deps fort_deps_c ${tamm_fflags} ${tamm_libs} ${tamm_ldflags} ${BLAS_LIBRARIES})
 
 
 #Build OLD TAMM code
@@ -313,7 +317,7 @@ add_executable(tamm_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
 add_dependencies(tamm_main tamm)
 target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_includes} ${BLAS_INCLUDE_PATH})
 # Set target libraries to be linked.
-target_link_libraries(tamm_main tamm ${tamm_ldflags} ${BLAS_LIBRARIES}) #${tamm_libs}
+target_link_libraries(tamm_main tamm ${tamm_ldflags}) # ${BLAS_LIBRARIES}) #${tamm_libs}
 
 
 

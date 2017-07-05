@@ -157,8 +157,6 @@ string(REPLACE "-I" "" tamm_cmake_inc ${tamm_includes})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" tamm_includes ${tamm_cmake_inc})
 
-set(tamm_test "-finteger 64")
-message(STATUS "tamm_flags=" ${tamm_test})
 #Build fortran code for unit testing
 
 set(FORTRAN_DEPS_SRC 
@@ -194,6 +192,11 @@ set(BLAS_LIBRARIES ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a
     ${NWCHEM_BUILD_DIR}/src/lapack/libnwclapack.a
     ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsc.a
     ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a)
+
+else()
+    set(BLAS_LIBRARIES
+            ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsc.a
+            ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a)
 endif()
 
 add_library(fort_deps STATIC ${FORTRAN_DEPS_SRC})
@@ -207,8 +210,8 @@ add_executable(nwtest nwtest/test.F)
 add_dependencies(nwtest fort_deps)
 target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes})
 target_compile_options(nwtest PUBLIC ${tamm_fortran_link_flags})
-target_link_libraries(nwtest fort_deps fort_deps_c ${tamm_libs}
- ${tamm_fortran_link_flags} ${tamm_ldflags} ${BLAS_LIBRARIES})
+target_link_libraries(nwtest fort_deps fort_deps_c  ${tamm_fortran_link_flags}
+        ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} )
 
 
 #Build OLD TAMM code

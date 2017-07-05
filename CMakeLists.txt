@@ -166,6 +166,7 @@ nwtest/get_block.F
 nwtest/get_block_ind.F 
 nwtest/add_hash_block.F 
 nwtest/get_hash_block.F 
+nwtest/get_hash_block_ma.F
 nwtest/nxtask.F 
 nwtest/nxtval_ga.F 
 nwtest/errquit.F 

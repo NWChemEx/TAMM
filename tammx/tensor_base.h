@@ -7,6 +7,8 @@ namespace tammx {
 // and lower indices differ by more than one. This relates to
 // correctly handling spin symmetry.
 
+// @fixme SymmGroup has a different connotation. Change name
+
 class TensorBase {
  public:
   TensorBase(const TensorVec<SymmGroup> &indices,

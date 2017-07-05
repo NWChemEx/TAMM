@@ -157,6 +157,8 @@ string(REPLACE "-I" "" tamm_cmake_inc ${tamm_includes})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" tamm_includes ${tamm_cmake_inc})
 
+set(tamm_test "-finteger 64")
+message(STATUS "tamm_flags=" ${tamm_test})
 #Build fortran code for unit testing
 
 set(FORTRAN_DEPS_SRC 
@@ -178,8 +180,14 @@ nwtest/tce_sortacc.F
 nwtest/misc.F
 )
 
-SET(CMAKE_Fortran_COMPILER mpif90)
-
+#SET(CMAKE_Fortran_COMPILER mpif90)
+if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
+  set(tamm_fortran_link_flags ${tamm_fflags})
+elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
+  set(tamm_fortran_link_flags -i8)
+else()
+    message(FATAL_ERROR "Only GNU/Intel Fortran compilers supported")
+endif()
 
 if (EXISTS ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a)
 set(BLAS_LIBRARIES ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a 
@@ -190,7 +198,7 @@ endif()
 
 add_library(fort_deps STATIC ${FORTRAN_DEPS_SRC})
 target_include_directories(fort_deps SYSTEM PUBLIC ${tamm_includes})
-target_compile_options(fort_deps PUBLIC ${tamm_fflags})
+target_compile_options(fort_deps PUBLIC ${tamm_fortran_link_flags})
 
 add_library(fort_deps_c STATIC nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
@@ -198,8 +206,9 @@ target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 add_executable(nwtest nwtest/test.F)
 add_dependencies(nwtest fort_deps)
 target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes})
-target_compile_options(nwtest PUBLIC ${tamm_fflags})
-target_link_libraries(nwtest fort_deps fort_deps_c ${tamm_fflags} ${tamm_libs} ${tamm_ldflags} ${BLAS_LIBRARIES})
+target_compile_options(nwtest PUBLIC ${tamm_fortran_link_flags})
+target_link_libraries(nwtest fort_deps fort_deps_c ${tamm_libs}
+ ${tamm_fortran_link_flags} ${tamm_ldflags} ${BLAS_LIBRARIES})
 
 
 #Build OLD TAMM code

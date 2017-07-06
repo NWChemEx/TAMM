@@ -32,9 +32,9 @@ int main() {
     Integer nvb1 = 2;
     bool intorb1 = false;
     bool restricted1 = false;
-    Integer spins[noa1+nob1+nva1+nvb1] = {0};
-    Integer syms[noa1+nob1+nva1+nvb1] = {0};
-    Integer ranges[noa1+nob1+nva1+nvb1] = {0};
+    Integer spins[noa1+nob1+nva1+nvb1];
+    Integer syms[noa1+nob1+nva1+nvb1];
+    Integer ranges[noa1+nob1+nva1+nvb1];
 
     init_fortran_vars_(&noa1, &nob1, &nva1, &nvb1, intorb1, restricted1,
                        &spins[0], &syms[0], &ranges[0]);

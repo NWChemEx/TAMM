@@ -177,7 +177,7 @@ nwtest/tce_restricted.F
 nwtest/tce_sort.F 
 nwtest/tce_sortacc.F 
 nwtest/misc.F
-nwtest/test.F
+nwtest/set_vars.F
 )
 
 #SET(CMAKE_Fortran_COMPILER mpif90)

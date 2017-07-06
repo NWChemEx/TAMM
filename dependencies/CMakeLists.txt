@@ -2,19 +2,9 @@ cmake_minimum_required(VERSION 3.7.0 FATAL_ERROR)
 
 option (GA_SUPERBUILD "This will build blas+lapack if required" OFF)
 
-if(DEFINED TAMM_PROC_COUNT)
-    set(TAMM_PROC_COUNT ${TAMM_PROC_COUNT})
-else()
-    include(ProcessorCount)
-    ProcessorCount(TAMM_PROC_COUNT)
-    message(STATUS "Number of cores detected = ${TAMM_PROC_COUNT}")
-endif()
-
-message(STATUS "Using ${TAMM_PROC_COUNT} cores for building TAMM dependencies.")
-message("Please set the TAMM_PROC_COUNT cmake variable to change the cpu count.")
-
 if(GA_SUPERBUILD)
     project (GA_DEPENDENCIES C CXX Fortran)
+
     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
     if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -47,6 +37,17 @@ if(GA_SUPERBUILD)
 else()
 
     project (TAMM_DEPENDENCIES C CXX Fortran)
+
+	if(DEFINED TAMM_PROC_COUNT)
+	    set(TAMM_PROC_COUNT ${TAMM_PROC_COUNT})
+	else()
+	    include(ProcessorCount)
+	    ProcessorCount(TAMM_PROC_COUNT)
+	    message(STATUS "Number of cores detected = ${TAMM_PROC_COUNT}")
+	endif()
+
+	message(STATUS "Using ${TAMM_PROC_COUNT} cores for building TAMM dependencies.")
+	message("Please set the TAMM_PROC_COUNT cmake variable to change the cpu count.")
 
     if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
         set (CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/tamm-deps" CACHE PATH "default install path" FORCE)

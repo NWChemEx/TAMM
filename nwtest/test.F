@@ -1,7 +1,7 @@
 
-      program test
+c      program test
 
-      end
+c      end
 
       subroutine init_fortran_vars(noa1, nob1, nva1, nvb1,
      1     intorb1, restricted1,

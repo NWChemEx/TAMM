@@ -143,7 +143,7 @@ SET(CMAKE_C_COMPILER ${tamm_c_compiler})
 set(CMAKE_Fortran_COMPILER ${tamm_f77_compiler})
 
 #Assume Cmake picks the right c++ compiler for now
-SET(CMAKE_CXX_COMPILER mpicxx)
+#SET(CMAKE_CXX_COMPILER mpicxx)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEXT_INT -DGFORTRAN")
 
 
@@ -177,6 +177,7 @@ nwtest/tce_restricted.F
 nwtest/tce_sort.F 
 nwtest/tce_sortacc.F 
 nwtest/misc.F
+nwtest/test.F
 )
 
 #SET(CMAKE_Fortran_COMPILER mpif90)
@@ -189,10 +190,11 @@ else()
 endif()
 
 if (EXISTS ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a)
-set(BLAS_LIBRARIES ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a 
-    ${NWCHEM_BUILD_DIR}/src/lapack/libnwclapack.a
+set(BLAS_LIBRARIES
     ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsc.a
-    ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a)
+    ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a
+    ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a
+    ${NWCHEM_BUILD_DIR}/src/lapack/libnwclapack.a)
 
 else()
     set(BLAS_LIBRARIES
@@ -202,16 +204,16 @@ endif()
 
 add_library(fort_deps STATIC ${FORTRAN_DEPS_SRC})
 target_include_directories(fort_deps SYSTEM PUBLIC ${tamm_includes})
-target_compile_options(fort_deps PUBLIC ${tamm_fortran_link_flags})
+target_compile_options(fort_deps PRIVATE ${tamm_fortran_link_flags})
 
 add_library(fort_deps_c STATIC nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
-add_executable(nwtest nwtest/test.F)
-add_dependencies(nwtest fort_deps)
-target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes})
-target_compile_options(nwtest PUBLIC ${tamm_fortran_link_flags})
-target_link_libraries(nwtest fort_deps fort_deps_c  ${tamm_fortran_link_flags}
+add_executable(nwtest nwtest/test_tamm.cc)
+add_dependencies(nwtest fort_deps fort_deps_c tamm)
+target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes} ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime)
+target_compile_options(nwtest PUBLIC ${tamm_cflags})
+target_link_libraries(nwtest fort_deps fort_deps_c tamm ${tamm_cflags}
         ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} )
 
 

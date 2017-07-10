@@ -73,7 +73,7 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell> &shells,
 Matrix compute_2body_fock(const std::vector<libint2::Shell> &shells,
                           const Matrix &D);
 
-std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename);
+std::tuple<Matrix, Tensor4D, double> hartree_fock(const string filename);
 
 
 // int main(int argc, char *argv[]) {
@@ -83,7 +83,7 @@ std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename);
 //   Tensor4D V;
 //   double hf_energy{0.0};
 //
-//   std::tie(F, V, hf_energy) = get_ccsd_inputs(filename);
+//   std::tie(F, V, hf_energy) = hartree_fock(filename);
 //
 //   // @todo CALL CCSD_DRIVER(F,V,hf_energy,...);
 //
@@ -130,7 +130,7 @@ std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell
 }
 
 
-std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename) {
+std::tuple<Matrix, Tensor4D, double> hartree_fock(const string filename) {
 
   // Perform the simple HF calculation (Ed) and 2,4-index transform to get the inputs for CCSD
   using libint2::Atom;

@@ -309,7 +309,7 @@ Irrep irrep_y {0};
 
 using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
-extern std::tuple<Matrix, Tensor4D, double> get_ccsd_inputs(const string filename);
+extern std::tuple<Matrix, Tensor4D, double> hartree_fock(const string filename);
 
 
 int main(int argc, char *argv[]) {
@@ -348,7 +348,7 @@ int main(int argc, char *argv[]) {
   Tensor4D V;
   double hf_energy{0.0};
 
-  std::tie(F, V, hf_energy) = get_ccsd_inputs(filename);
+  std::tie(F, V, hf_energy) = hartree_fock(filename);
   std::cerr << "debug2" << '\n';
 
   //Tensor Map

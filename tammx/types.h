@@ -47,7 +47,7 @@ template<>
 constexpr ElementType tensor_element_type<std::complex<float>>() { return ElementType::single_complex; }
 
 template<>
-constexpr ElementType tensor_element_type<std::complex<double>>() { ElementType::double_complex; }
+constexpr ElementType tensor_element_type<std::complex<double>>() { return ElementType::double_complex; }
 
 static inline constexpr size_t
 element_size(ElementType eltype) {

@@ -34,7 +34,7 @@ else()
     ProcessorCount(TAMM_PROC_COUNT)
     message(STATUS "Number of cores detected = ${TAMM_PROC_COUNT}")
 endif()
-message(STATUS "Using ${TAMM_PROC_COUNT} cores for building TAMM code.")
+message(STATUS "Using ${TAMM_PROC_COUNT} cores for running TAMM tests.")
 message("Please set the TAMM_PROC_COUNT cmake variable to change the cpu count.")
 
 if(EIGEN3_INSTALL_PATH)

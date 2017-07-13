@@ -21,7 +21,7 @@ set (TAMM_VERSION_MINOR 1)
 #Cannot set the following since cmake cannot handle clang
 #set(CMAKE_CXX_STANDARD 14)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -fPIC")
 
 INCLUDE(CTest)
 # Should a test fail, display the test program output
@@ -50,37 +50,6 @@ else()
 endif()
 
 include_directories( ${PROJECT_SOURCE_DIR} )
-
-set(tammxSources
-        tammx/tammx.cc
-        tammx/index_sort.cc)
-
-add_library(tammx STATIC ${tammxSources})
-target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${EIGEN3_INSTALL_PATH}/include/eigen3)
-
-add_executable(tammx_main tammx/tammx_main.cc)
-target_link_libraries(tammx_main tammx)
-#set_property(TARGET tammx_main PROPERTY CXX_STANDARD 14)
-#set_property(TARGET tammx_main PROPERTY CXX_STANDARD_REQUIRED ON)
-
-if(NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
-  set(TAMM_LINK_EXTRA -lrt)
-endif()
-
-add_executable(ccsd_driver tammx/ccsd_driver.cc nwchem_main/hartree_fock.cc)
-add_dependencies(ccsd_driver tammx)
-target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
-target_link_libraries(ccsd_driver tammx -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
-
-# add_executable(hf nwchem_main/hartree_fock.cc)
-# target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
-# target_link_libraries(hf -L${LIBINT_INSTALL_PATH}/lib -lint2)
-
-add_executable(tammx_talsh EXCLUDE_FROM_ALL tammx/tammx_talsh.cc tammx/tammx.cc tammx/index_sort.cc)
-target_include_directories(tammx_talsh SYSTEM PUBLIC  ${PROJECT_BINARY_DIR}
-${TALSH_INSTALL_PATH})
-target_link_libraries(tammx_talsh -L${TALSH_INSTALL_PATH} -ltalsh)
-
 
 # Install
 if(NOT TAMM_INSTALL_PREFIX)
@@ -157,6 +126,8 @@ string(REPLACE "-I" "" tamm_cmake_inc ${tamm_includes})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" tamm_includes ${tamm_cmake_inc})
 
+
+
 #Build fortran code for unit testing
 
 set(FORTRAN_DEPS_SRC 
@@ -215,6 +186,39 @@ target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes} ${ANTLR_CPPRUNT
 target_compile_options(nwtest PUBLIC ${tamm_cflags})
 target_link_libraries(nwtest fort_deps fort_deps_c tamm ${tamm_cflags}
         ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} )
+
+
+#BUILD TAMMX 
+    set(tammxSources
+        tammx/tammx.cc
+        tammx/index_sort.cc)
+
+add_library(tammx STATIC ${tammxSources})
+target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${EIGEN3_INSTALL_PATH}/include/eigen3 ${tamm_includes})
+target_link_libraries(tammx ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs})
+
+add_executable(tammx_main tammx/tammx_main.cc)
+target_link_libraries(tammx_main tammx)
+#set_property(TARGET tammx_main PROPERTY CXX_STANDARD 14)
+#set_property(TARGET tammx_main PROPERTY CXX_STANDARD_REQUIRED ON)
+
+if(NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
+  set(TAMM_LINK_EXTRA -lrt)
+endif()
+
+add_executable(ccsd_driver tammx/ccsd_driver.cc nwchem_main/hartree_fock.cc)
+add_dependencies(ccsd_driver tammx)
+target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
+target_link_libraries(ccsd_driver tammx -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
+
+# add_executable(hf nwchem_main/hartree_fock.cc)
+# target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
+# target_link_libraries(hf -L${LIBINT_INSTALL_PATH}/lib -lint2)
+
+add_executable(tammx_talsh EXCLUDE_FROM_ALL tammx/tammx_talsh.cc tammx/tammx.cc tammx/index_sort.cc)
+target_include_directories(tammx_talsh SYSTEM PUBLIC  ${PROJECT_BINARY_DIR}
+${TALSH_INSTALL_PATH})
+target_link_libraries(tammx_talsh -L${TALSH_INSTALL_PATH} -ltalsh)
 
 
 #Build OLD TAMM code

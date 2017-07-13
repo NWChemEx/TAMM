@@ -42,6 +42,8 @@
 
 // #include "tammx/tammx.h"
 
+//#define EIGEN_USE_BLAS
+
 using std::string;
 using std::cout;
 using std::cerr;

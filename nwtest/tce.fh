@@ -23,12 +23,12 @@ c$$$      integer irrep_e             ! Totally symmetric
 c$$$      parameter (irrep_e = 0)
 c$$$      integer irrep_e2            ! Totally symmetric
 c$$$      parameter (irrep_e2 = 0)
-c$$$      integer irrep_f             ! Totally symmetric
-c$$$      parameter (irrep_f = 0)
-      integer irrep_v             ! Totally symmetric
-      parameter (irrep_v = 0)
-c$$$      integer irrep_t             ! Totally symmetric
-c$$$      parameter (irrep_t = 0)
+          integer irrep_f             ! Totally symmetric
+          parameter (irrep_f = 0)
+          integer irrep_v             ! Totally symmetric
+          parameter (irrep_v = 0)
+          integer irrep_t             ! Totally symmetric
+          parameter (irrep_t = 0)
 c$$$      integer irrep_t1            ! Totally symmetric
 c$$$      parameter (irrep_t1 = 0)
 c$$$      integer irrep_t2            ! Totally symmetric

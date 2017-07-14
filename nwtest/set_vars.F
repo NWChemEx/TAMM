@@ -2,6 +2,49 @@
 c      program test
 
 c      end
+      subroutine init_mpi_ga()
+      implicit none
+#include "global.fh"
+#include "mafdecls.fh"
+#include "mpif.h"
+
+
+      integer ierror
+      logical status1
+
+      call mpi_init(ierror)
+      call ga_initialize()
+
+      status1 = ma_init(mt_byte, 1000000, 8000000)
+
+      return
+      end
+
+      subroutine finalize_mpi_ga()
+      implicit none
+#include "global.fh"
+#include "mafdecls.fh"
+#include "mpif.h"
+
+      integer ierror
+
+      call ga_terminate()
+      call mpi_finalize(ierror)
+
+      return
+      end
+
+      subroutine f_calls_setvars_cxx()
+      implicit none
+#include "mafdecls.fh"
+#include "tce.fh"
+
+      call set_var_cxx(noab, nvab, int_mb, dbl_mb,
+     &k_range, k_spin, k_sym, intorb, restricted,
+     &irrep_v, irrep_t, irrep_f)
+
+      return
+      end
 
       subroutine init_fortran_vars(noa1, nob1, nva1, nvb1,
      1     intorb1, restricted1,
@@ -11,14 +54,34 @@ c      end
 #include "mafdecls.fh"
 #include "errquit.fh"
 #include "tce.fh"
+!#include "mpif.h"
 
       integer noa1, nob1, nva1, nvb1
-      logical intorb1, restricted1
+      logical*1 intorb1, restricted1
       integer spins(noa1+nob1+nva1+nvb1)
       integer syms(noa1+nob1+nva1+nvb1)
       integer ranges(noa1+nob1+nva1+nvb1)
+
+      integer nprocs, my_rank
+
+      integer status
+
       integer i, j
-      
+
+      write(*,*) 'spins(1):', spins(1)
+
+      nprocs = ga_nnodes()
+      my_rank = ga_nodeid()
+
+      write(*,*)'Line 30'
+      intorb1 = .true.
+
+      write(*,*)'noa1: ', noa1
+      write(*,*)'nba1: ', nob1
+      write(*,*)'nva1: ', nva1
+      write(*,*)'nvb1: ', nvb1
+      if(.not. intorb1) write(*,*)'intorb is true'
+
       noa = noa1
       nva = nva1
       nob = nob1
@@ -28,18 +91,24 @@ c      end
       intorb = intorb1
       restricted = restricted1
 
+      intorb = .false.;
+      write(*,*)'At line 49'
       if(intorb)
      1     call errquit('not tested with intorb', 1,1)
       d_v2orb = 0               !fixme should be set correctly for intorb case
       k_v2spin_offset = 0       !fixme should be set correctly for intorb case
       k_v2_alpha_offset = 0     !fixme should be set correctly for intorb case
       
+      write(*,*)'At line 56'
+
       if (.not.ma_push_get(mt_int,noa+nob+nva+nvb,"spins ",
      1     l_spin,k_spin)) call errquit("tce_tile: MA problem",9,
      2     MA_ERR)
+      write(*,*)'At line 61'
       if (.not.ma_push_get(mt_int,noa+nob+nva+nvb,"syms ",
      1     l_sym,k_sym)) call errquit("tce_tile: MA problem",9,
      2     MA_ERR)
+      write(*,*)'At line 65'
       if (.not.ma_push_get(mt_int,noa+nob+nva+nvb,"ranges ",
      1     l_range,k_range)) call errquit("tce_tile: MA problem",9,
      2     MA_ERR)
@@ -50,6 +119,7 @@ c      end
          int_mb(k_range+i-1) = ranges(i)
       enddo
 
+      write(*,*)'At line 76'
       if(intorb) THEN
       if (.not.ma_push_get(mt_int,noa+nob+nva+nvb,"alpha-izer 2 ",
      1  l_b2am,k_b2am)) call errquit("tce_tile: MA problem",9,
@@ -71,6 +141,7 @@ c      end
      2  call errquit("tce_tile: MA problem",9,MA_ERR)
       endif
 
+      write(*,*)'At line 77'
       if (restricted) then
         do i = 1,noa
           int_mb(k_alpha+i-1) = i
@@ -90,6 +161,7 @@ c      end
         enddo
       endif
 
+      write(*,*)'At line 97'
       if (intorb) then
          j = 0
          ! @bug @fixme SK: check the following logic with Karol
@@ -107,6 +179,7 @@ c$$$         int_mb(k_b2am+i-1) = b2am(i)
 c$$$      enddo
       endif
       
+      write(*,*)'At line 115'
       ea_unused_spin = 1
       ea_unused_sym = 0
       ip_unused_spin = 1

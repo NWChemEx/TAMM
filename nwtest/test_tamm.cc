@@ -49,9 +49,13 @@ int main() {
 //    Integer *restricted;
 //    *intorb = static_cast<Integer> (intorb1);
 //    *restricted = static_cast<Integer> (restricted1);
-    Integer spins[noa1 + nob1 + nva1 + nvb1] = {1, 2, 1, 2};
-    Integer syms[noa1+nob1+nva1+nvb1] = {0, 0, 0, 0};
-    Integer ranges[noa1+nob1+nva1+nvb1] = {4, 4, 4, 4};
+
+    Integer spins[noa1 + nob1 + nva1 + nvb1]; // = {1, 2, 1, 2};
+    spins[0]=1;spins[1]=2;spins[2]=1;spins[3]= 2; 
+    Integer syms[noa1+nob1+nva1+nvb1]; // = {0, 0, 0, 0};
+    syms[0]=0;syms[1]=0;syms[2]=0;syms[3]=0;
+    Integer ranges[noa1+nob1+nva1+nvb1]; // = {4, 4, 4, 4};
+    ranges[0]=4;ranges[1]=4,ranges[2]=4;ranges[3]=4;
 
     // Initialize MPI and GLOBAL ARRAYS
     init_mpi_ga_();

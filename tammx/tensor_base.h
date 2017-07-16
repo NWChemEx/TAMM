@@ -74,6 +74,14 @@ class TensorBase {
     return ret;
   }
 
+  TensorIndex block_offset(const TensorIndex &blockid) const {
+    TensorIndex ret;
+    for(auto b : blockid) {
+      ret.push_back(BlockDim{TCE::offset(b)});
+    }
+    return ret;
+  }
+
   TensorIndex num_blocks() const {
     TensorIndex ret;
     for(auto i: flindices_) {

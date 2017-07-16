@@ -15,6 +15,7 @@
 #include <vector>
 #include <string>
 #include "tammx/tammx.h"
+#include "tammx/work.h"
 #include "tammx/diis.h"
 
 using namespace std;
@@ -36,7 +37,8 @@ void tensor_print(Tensor<T>& t)  {
   using LabeledTensorType = LabeledTensor<T>;
   using Func = decltype(lambda);
   sch.io(t)
-      .template sop<Func, LabeledTensorType, 0>(t(), lambda)
+      // .template sop<Func, LabeledTensorType, 0>(t(), lambda)
+      .sop(t(), lambda)
       .execute();
 }
 
@@ -183,18 +185,33 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
   //       p_evl_sorted.push_back(val);
   //     }
   //   });
+  // {
+  //   auto lambda = [&] (auto p, auto q, auto& val) {
+  //     if(p == q) {
+  //       p_evl_sorted.push_back(val);
+  //     }
+  //   };
+  //   Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
+  //   using LabeledTensorType = LabeledTensor<T>;
+  //   using Func = decltype(lambda);
+  //   sch.io(d_f1)
+  //       // .template sop<Func, LabeledTensorType, 2>(d_f1(), lambda)
+  //       .sop(d_f1(), lambda)
+  //       .execute();
+  // }
   {
-    auto lambda = [&] (auto p, auto q, auto& val) {
-      if(p == q) {
-        p_evl_sorted.push_back(val);
+    p_evl_sorted.resize((TCE::noab() + TCE::nvab()).value());
+    auto lambda = [&] (const auto& blockid) {
+      if(blockid[0] == blockid[1]) {
+        auto block = d_f1.get(blockid);
+        auto dim = d_f1.block_dims(blockid)[0].value();
+        auto offset = d_f1.block_offset(blockid)[0].value();
+        for(auto p = offset; p < offset + dim; p++) {
+          p_evl_sorted[p] = block.buf()[p*dim + p];
+        }
       }
     };
-    Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
-    using LabeledTensorType = LabeledTensor<T>;
-    using Func = decltype(lambda);
-    sch.io(d_f1)
-        .template sop<Func, LabeledTensorType, 2>(d_f1(), lambda)
-        .execute();
+    block_for(d_f1(), lambda);
   }
 
   std::vector<Tensor<T>*> d_r1s, d_r2s;

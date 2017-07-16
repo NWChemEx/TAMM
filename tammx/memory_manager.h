@@ -9,7 +9,9 @@ namespace tammx {
 class MemoryManager {
  public:
   MemoryManager(ProcGroup pg)
-      : pg_{pg} {}
+      : pg_{pg},
+        eltype_{ElementType::invalid},
+        nelements_{0} {}
 
   ~MemoryManager() {}
 
@@ -17,9 +19,12 @@ class MemoryManager {
     return pg_;
   }
 
-
-  virtual void alloc(ProcGroup pg, ElementType elsize, Size nbytes) = 0;
+  virtual void alloc(ElementType eltype, Size nelements) = 0;
   virtual void dealloc() = 0;
+
+  Size local_size_in_elements() {
+    return nelements_;
+  }
 
   // template<typename T1>
   virtual MemoryManager* clone(ProcGroup) const = 0;
@@ -27,9 +32,11 @@ class MemoryManager {
   virtual void get(Proc proc, Offset off, Size nelements, void* buf) = 0;
   virtual void put(Proc proc, Offset off, Size nelements, const void* buf) = 0;
   virtual void add(Proc proc, Offset off, Size nelements, const void* buf) = 0;
-
+  
  protected:
   ProcGroup pg_;
+  ElementType eltype_;
+  Size nelements_;
 }; // class MemoryManager
 
 class MemoryManagerSequential : public MemoryManager {
@@ -37,9 +44,7 @@ class MemoryManagerSequential : public MemoryManager {
   MemoryManagerSequential(ProcGroup pg = ProcGroup{})
       : MemoryManager(pg),
         buf_{nullptr},
-        nelements_{0},
-        elsize_{0},
-        eltype_{ElementType::invalid} {
+        elsize_{0} {
           //sequential. So process group size should be 1
     Expects(MemoryManager::pg_.size() == 1);
   }
@@ -52,8 +57,7 @@ class MemoryManagerSequential : public MemoryManager {
     return new MemoryManagerSequential(pg);
   }
 
-  void alloc(ProcGroup pg, ElementType eltype, Size nelements) {
-    pg_ = pg;
+  void alloc(ElementType eltype, Size nelements) {
     eltype_ = eltype;
     elsize_ = element_size(eltype);
     nelements_ = nelements;
@@ -122,13 +126,14 @@ class MemoryManagerSequential : public MemoryManager {
   }
 
  private:
-  ElementType eltype_;
   size_t elsize_;
-  Size nelements_;
   uint8_t* buf_;
 }; // class MemoryManagerSequential
 
 }  // namespace tammx
+
+
+#include "tammx/memory_manager_ga.h"
 
 #endif // TAMMX_MEMORY_MANAGER_H_
 

@@ -126,6 +126,8 @@ string(REPLACE "-I" "" tamm_cmake_inc ${tamm_includes})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" tamm_includes ${tamm_cmake_inc})
 
+execute_process(COMMAND mpicxx --showme:link OUTPUT_VARIABLE mpi_link OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 #Build fortran code for unit testing
 
 set(FORTRAN_DEPS_SRC 
@@ -152,7 +154,7 @@ nwtest/set_vars.F
 #SET(CMAKE_Fortran_COMPILER mpif90)
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
   set(tamm_fortran_link_flags ${tamm_fflags})
-#  set(tamm_libs ${tamm_libs} -lmpi_cxx)
+  set(tamm_libs ${tamm_libs} ${mpi_link})
 elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
   set(tamm_fortran_link_flags -i8)
 else()

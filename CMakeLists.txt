@@ -126,7 +126,7 @@ string(REPLACE "-I" "" tamm_cmake_inc ${tamm_includes})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" tamm_includes ${tamm_cmake_inc})
 
-execute_process(COMMAND mpicxx --showme:link OUTPUT_VARIABLE mpi_link OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND mpicxx --showme:link OUTPUT_VARIABLE mpi_link OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
 
 #Build fortran code for unit testing
 

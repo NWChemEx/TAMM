@@ -285,7 +285,8 @@ void test() {
 #endif
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+  MPI_Init(&argc, &argv);
   TCE::init(spins, spatials, sizes,
             noa,
             noab,
@@ -301,6 +302,7 @@ int main() {
   test();
   
   TCE::finalize();
+  MPI_Finalize();
   return 0;
 }
 

@@ -850,6 +850,55 @@ class Scheduler {
   std::vector<Op*> ops_;
 };
 
+
+class ExecutionContext {
+ public:
+  ExecutionContext(ProcGroup pg, Distribution* default_distribution,
+                   MemoryManager* default_memory_manager,
+                   Irrep default_irrep, bool default_spin_restricted)
+      : pg_{pg},
+        default_distribution_{default_distribution},
+        default_memory_manager_{default_memory_manager},
+        default_irrep_{default_irrep},
+        default_spin_restricted_{default_spin_restricted} {}
+
+  Scheduler scheduler() {
+    return Scheduler{pg_,
+          default_distribution_,
+          default_memory_manager_,
+          default_irrep_,
+          default_spin_restricted_};
+  }
+
+  void allocate() {
+    //no-op
+  }
+
+  template<typename T, typename ...Args>
+  void allocate(Tensor<T>& tensor, Args& ... tensor_list) {
+    tensor.alloc(pg_, default_distribution_, default_memory_manager_);
+    allocate(tensor_list...);
+  }
+
+
+  static void deallocate() {
+    //no-op
+  }
+
+  template<typename T, typename ...Args>
+  static void deallocate(Tensor<T>& tensor, Args& ... tensor_list) {
+    tensor.dealloc();
+    deallocate(tensor_list...);
+  }
+
+ private:
+  ProcGroup pg_;
+  Distribution* default_distribution_;
+  MemoryManager* default_memory_manager_;
+  Irrep default_irrep_;
+  bool default_spin_restricted_;
+}; // class ExecutionContext
+
 ///////////////////////////////////////////////////////////////////////
 // other operations
 //////////////////////////////////////////////////////////////////////

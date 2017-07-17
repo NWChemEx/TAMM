@@ -14,6 +14,9 @@
 #include <map>
 #include <vector>
 #include <string>
+
+#include "mpi.h"
+
 #include "tammx/tammx.h"
 #include "tammx/work.h"
 #include "tammx/diis.h"
@@ -167,14 +170,16 @@ void ccsd_t2(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
  * ref, corr
  */
 template<typename T>
-double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
+double ccsd_driver(ExecutionContext& ec,
+                   Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_f1, Tensor<T>& d_v2,
                    int maxiter, double thresh,
                    double zshiftl,
-                   int ndiis,
-                   ProcGroup pg,
-                   Distribution* distribution,
-                   MemoryManager* mgr) {
+                   int ndiis) {
+                 // ,
+                 //   ProcGroup pg,
+                 //   Distribution* distribution,
+                 //   MemoryManager* mgr) {
   Irrep irrep{0};
   bool spin_restricted = false;
   std::vector<double> p_evl_sorted;
@@ -219,11 +224,11 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
   Tensor<T> d_e{E|E, irrep, spin_restricted};
   Tensor<T> d_r1_residual{E|E, irrep, spin_restricted};
   Tensor<T> d_r2_residual{E|E, irrep, spin_restricted};
-  Tensor<T>::allocate(pg, distribution, mgr, d_e, d_r1_residual, d_r2_residual);
+  ec.allocate(d_e, d_r1_residual, d_r2_residual);
   for(int i=0; i<ndiis; i++) {
     d_r1s.push_back(new Tensor<T>{{V|O}, irrep, spin_restricted});
     d_r2s.push_back(new Tensor<T>{{VV|OO}, irrep, spin_restricted});
-    Tensor<T>::allocate(pg, distribution, mgr, *d_r1s[i], *d_r2s[i]);
+    ec.allocate(*d_r1s[i], *d_r2s[i]);
   }
 
   //void Tensor<T>::operator = (std::pair<Tensor<T>, Tensor<T>> rhs);
@@ -240,7 +245,7 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
   for(int titer=0; titer<maxiter; titer+=ndiis) {
     for(int iter = titer; iter < std::min(titer+ndiis,maxiter); iter++) {
       std::cerr<<"++++++++++++++++++++++++++++++++++++++++++++++"<<std::endl;
-      Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
+      Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
       int off = iter - titer;
       sch.io(d_t1, d_t2, d_f1, d_v2)
           .output(d_e, *d_r1s[off], *d_r2s[off], d_r1_residual, d_r2_residual);
@@ -277,7 +282,7 @@ double ccsd_driver(Tensor<T>& d_t1, Tensor<T>& d_t2,
       //nodezero_print();
       break;
     }
-    Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
+    Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
     std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
     std::vector<Tensor<T>*> ts{&d_t1, &d_t2};
     // @fixme why not use brace-initiralizer instead of
@@ -330,6 +335,7 @@ extern std::tuple<Matrix, Tensor4D, double> hartree_fock(const string filename);
 
 
 int main(int argc, char *argv[]) {
+  MPI_Init(&argc, &argv);
   TCE::init(spins, spatials, sizes,
             noa,
             noab,
@@ -408,7 +414,10 @@ int main(int argc, char *argv[]) {
     }
   });
 
-  Scheduler(pg, &distribution, &mgr, Irrep{0}, false)
+  ExecutionContext ec {pg, &distribution, &mgr, Irrep{0}, false};
+  
+  // Scheduler(pg, &distribution, &mgr, Irrep{0}, false)
+  ec.scheduler()
       .output(d_t1, d_t2)
       (d_t1() = 0)
       (d_t2() = 0)
@@ -416,11 +425,13 @@ int main(int argc, char *argv[]) {
   
   //end tensor map
 
-  ccsd_driver(d_t1, d_t2, d_f1, d_v2,
+  ccsd_driver(ec, d_t1, d_t2, d_f1, d_v2,
               maxiter, thresh, zshiftl,
-              ndiis, pg,
-              &distribution, &mgr);
+              ndiis);
+  // pg,
+  //             &distribution, &mgr);
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
   TCE::finalize();
+  MPI_Finalize();
   return 0;
 }

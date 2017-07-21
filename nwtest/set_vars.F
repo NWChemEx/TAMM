@@ -108,14 +108,6 @@ c      end
       k_v2spin_offset = 0       !fixme should be set correctly for intorb case
       k_v2_alpha_offset = 0     !fixme should be set correctly for intorb case
 
-      call set_var_cxx(noab, nvab, int_mb, dbl_mb,
-     &k_range, k_spin, k_sym, intorb, restricted,
-     &irrep_v, irrep_t, irrep_f)
-      
-      intorb = .false.;
-
-      write(*,*)'At line 56'
-
       if (.not.ma_push_get(mt_int,noa+nob+nva+nvb,"spins ",
      1     l_spin,k_spin)) call errquit("tce_tile: MA problem",9,
      2     MA_ERR)

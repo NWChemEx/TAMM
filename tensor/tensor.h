@@ -86,6 +86,9 @@ class Tensor {
   void destroy();
   void detach();
 
+  bool check_correctness(Tensor *C);
+  void fill_random();
+
  private:
   int dim_;                /*< dimension of this tensor */
   std::vector<Index> ids_; /*< indices of the tensor, actual data */
@@ -169,6 +172,8 @@ Tensor Tensor1_2(RangeType r1, RangeType r2, RangeType r3, DistType dt,
 
 Tensor Tensor4(RangeType r1, RangeType r2, RangeType r3, RangeType r4,
                DistType dt);
+
+
 
 } /* namespace tamm */
 

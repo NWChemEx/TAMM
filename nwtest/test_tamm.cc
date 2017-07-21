@@ -75,6 +75,39 @@ void test_assign_vo() {
   tc_c.destroy();  
 }
 
+void test_mult_vo() {
+  auto P1B = tamm::P1B;
+  auto H1B = tamm::H1B;
+
+  tamm::RangeType rt_vo[] = {tamm::TV, tamm::TO};
+  tamm::Tensor tc_c(2, 1, 0, rt_vo, tamm::dist_nw);
+  tamm::Tensor tc_f(2, 1, 0, rt_vo, tamm::dist_nw);
+  tamm::Tensor ta(2, 1, 0, rt_vo, tamm::dist_nw);
+  tamm::Tensor tb(2, 1, 0, rt_vo, tamm::dist_nw);
+  tamm::Assignment as_c (&tc_c, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
+  tamm::Assignment as_f (&tc_f, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
+
+  tc_c.create();
+  tc_f.create();
+  ta.create();
+
+  ta.fill_random();
+
+  CorFortran(0, &as_f, ccsd_t1_1_);
+  CorFortran(1, &as_c, ccsd_t1_1_);
+
+  bool pass_or_fail = tc_f.check_correctness(&tc_c);
+  if (!pass_or_fail) {
+    std::cout << "C & F Tensors differ" << std::endl;
+  } else {
+    std::cout << "Congratulations! Fortran & C++ Implementations Match" << std::endl;
+  }
+
+  ta.destroy();
+  tc_f.destroy();
+  tc_c.destroy();
+}
+
 int main(int argc, char *argv[]) {
 
     Integer noa1 = 1;
@@ -101,8 +134,6 @@ int main(int argc, char *argv[]) {
     f_calls_setvars_cxx_();
     test_assign_vo();
 
-    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
-    f_calls_setvars_cxx_();
     std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
 
     finalize_fortran_vars_();

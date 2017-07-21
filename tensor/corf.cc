@@ -13,6 +13,10 @@
 
 namespace tamm {
 
+void name_and_create_(Fint *da, Fint *size) {}
+
+void destroy_(Fint *da, Fint *offset){}
+
 void CorFortran(int use_c, Assignment *as, add_fn fn) {
   if (use_c) {
     as->execute();
@@ -21,6 +25,8 @@ void CorFortran(int use_c, Assignment *as, add_fn fn) {
          da_offset = as->tA().offset_index();
     Fint dc = static_cast<int>(as->tC().ga()),
          dc_offset = as->tC().offset_index();
+    std::cout << "da,da_offset,dc,dc_offset: "
+    		<< da << ", " << da_offset << ", " << dc << ", " << dc_offset << std::endl;
     fn(&da, &da_offset, &dc, &dc_offset);
   }
 }
@@ -80,7 +86,9 @@ void CorFortran(int use_c, Tensor *tensor, offset_fn fn) {
 
 void destroy(Tensor *t) {
   if (t->allocated()) {
+	std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
     t->destroy();
+    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
   } else if (t->attached()) {
     Fint d_a = static_cast<int>(t->ga()), l_a = t->offset_handle();
     fdestroy(&d_a, &l_a);

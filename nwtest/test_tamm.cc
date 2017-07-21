@@ -31,6 +31,9 @@ void ccsd_t1_equations(tamm::Equations *eqs);
 //                     std::vector<tamm::Operation> *ops);
 void ccsd_t1_1_(F77Integer *d_f, F77Integer *k_f_offset, F77Integer *d_i0,
                 F77Integer *k_i0_offset);
+void offset_ccsd_t1_2_1_(F77Integer *l_t1_2_1_offset, F77Integer *k_t1_2_1_offset,
+                         F77Integer *size_t1_2_1);
+
 void f_calls_setvars_cxx_();
 void init_mpi_ga_();
 void finalize_mpi_ga_();
@@ -69,19 +72,12 @@ int main() {
     f_calls_setvars_cxx_();
     std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
 
-
-    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
-
-    // tensor operation t1_1:  i0[p2,h1] += 1 * f[p2,h1];
-
     // define tensors using Tensor::Tensor
-    // define tensor with variables (int n, int nupper, int irrep_val,
-    //                      RangeType rt[], DistType dist_type)
-    // tamm::Tensor tc(2, 1, 0, {1, 0}, {0});
-    tamm::RangeType rt[2] = {tamm::TV, tamm::TO};
-    tamm::DistType d_nwma = {tamm::dist_nwma};
-    tamm::Tensor tc(2, 1, 0, rt, d_nwma);
-    tamm::Tensor ta(2, 1, 0, rt, d_nwma);
+
+    // tamm::RangeType rt[2] = {tamm::TV, tamm::TO};
+    // tamm::DistType d_nwma = {tamm::dist_nwma};
+    // tamm::Tensor tc(2, 1, 0, rt, d_nwma);
+    // tamm::Tensor ta(2, 1, 0, rt, d_nwma);
 
     std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
     // create tensors
@@ -96,29 +92,64 @@ int main() {
     tensors_and_ops(&eqs, &tensors, &ops);
 
 /*  ccsd_t1.eq file
- *  index h1,h2,h3,h4,h5,h6,h7,h8 = O;
- *  index p1,p2,p3,p4,p5,p6,p7 = V;
- *
- *  array i0[V][O];
- *  array f[V][O]: irrep_f;
- *  t1_1:       i0[p2,h1] += 1 * f[p2,h1];
- */
+t1 {
 
-    tamm::Tensor *i0 = &tensors["i0"];
+index h1,h2,h3,h4,h5,h6,h7,h8 = O;
+index p1,p2,p3,p4,p5,p6,p7 = V;
+
+array F_i0[V][O];
+array C_i0[V][O];
+array f[V][O]: irrep_f;
+array v[N,N][N,N]: irrep_v;
+array t_vo[V][O]: irrep_t;
+array t_vvoo[V,V][O,O]: irrep_t;
+array t1_2_1[O][O];
+array t1_2_2_1[O][V];
+array t1_3_1[V][V];
+array t1_5_1[O][V];
+array t1_6_1[O,O][O,V];
+
+t1:         F_i0[p2,h1] += 1 * f[p2,h1];
+t1_1:       C_i0[p2,h1] += 1 * f[p2,h1];
+
+}
+*/
+
+    tamm::Tensor *F_i0 = &tensors["F_i0"];
+    tamm::Tensor *C_i0 = &tensors["C_i0"];
     tamm::Tensor *f = &tensors["f"];
 
-    i0->create();
+    F_i0->create();
+    C_i0->create();
     f->create();
+
+    f->fill_random();
 
 
     std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
     // setup operation
-    tamm::Assignment op_t1_1 = ops[0].add;
-
+    tamm::Assignment op_t1_1_F = ops[0].add;
+    tamm::Assignment op_t1_1_C = ops[1].add;
 
     // execute
-    op_t1_1.execute();
+    tamm::CorFortran(0, &op_t1_1_F, ccsd_t1_1_);  // execute Fortran
+    tamm::CorFortran(1, &op_t1_1_C, ccsd_t1_1_);  // execute C++
+    // op_t1_1_C.execute();
 
+    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
+    bool pass_or_fail = F_i0->check_correctness(C_i0);
+    if (!pass_or_fail) {
+      std::cout << "C & F Tensors differ" << std::endl;
+    } else {
+      std::cout << "Congratulations! Fortran & C++ Implementations Match" << std::endl;
+    }
+
+    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
+    tamm::destroy(F_i0);
+    tamm::destroy(C_i0);
+    tamm::destroy(f);
+
+    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
     // Finalize MPI and GLOBAL ARRAYS
     finalize_mpi_ga_();
 

@@ -43,6 +43,38 @@ void f_calls_setvars_cxx_();
 // void finalize_mpi_ga_();
 }
 
+void test_assign_vo() {
+  auto P1B = tamm::P1B;
+  auto H1B = tamm::H1B;
+        
+  tamm::RangeType rt_vo[] = {tamm::TV, tamm::TO};
+  tamm::Tensor tc_c(2, 1, 0, rt_vo, tamm::dist_nw);
+  tamm::Tensor tc_f(2, 1, 0, rt_vo, tamm::dist_nw);
+  tamm::Tensor ta(2, 1, 0, rt_vo, tamm::dist_nw);
+  tamm::Assignment as_c (&tc_c, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
+  tamm::Assignment as_f (&tc_f, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
+    
+  tc_c.create();
+  tc_f.create();
+  ta.create();
+
+  ta.fill_random();
+
+  CorFortran(0, &as_f, ccsd_t1_1_);
+  CorFortran(1, &as_c, ccsd_t1_1_);
+
+  bool pass_or_fail = tc_c.check_correctness(&tc_f);
+  if (!pass_or_fail) {
+    std::cout << "C & F Tensors differ" << std::endl;
+  } else {
+    std::cout << "Congratulations! Fortran & C++ Implementations Match" << std::endl;
+  }
+    
+  ta.destroy();
+  tc_f.destroy();
+  tc_c.destroy();  
+}
+
 int main(int argc, char *argv[]) {
 
     Integer noa1 = 1;
@@ -52,10 +84,6 @@ int main(int argc, char *argv[]) {
 
     logical intorb1 = 0;
     logical restricted1 = 0;
-//    Integer *intorb;
-//    Integer *restricted;
-//    *intorb = static_cast<Integer> (intorb1);
-//    *restricted = static_cast<Integer> (restricted1);
 
     Integer spins[noa1 + nob1 + nva1 + nvb1]; // = {1, 2, 1, 2};
     spins[0]=1;spins[1]=2;spins[2]=1;spins[3]= 2; 
@@ -68,131 +96,14 @@ int main(int argc, char *argv[]) {
     GA_Initialize();
     MA_init(MT_DBL, 1000000, 8000000);
     
-    // Initialize MPI and GLOBAL ARRAYS
-    //init_mpi_ga_();
-
     init_fortran_vars_(&noa1, &nob1, &nva1, &nvb1, &intorb1, &restricted1,
                        &spins[0], &syms[0], &ranges[0]);
-
-//    f_calls_setvars_cxx_();
+    test_assign_vo();
 
     std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
     f_calls_setvars_cxx_();
     std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
 
-    // define tensors using Tensor::Tensor
-
-    // tamm::RangeType rt[2] = {tamm::TV, tamm::TO};
-    // tamm::DistType d_nwma = {tamm::dist_nwma};
-    // tamm::Tensor tc(2, 1, 0, rt, d_nwma);
-    // tamm::Tensor ta(2, 1, 0, rt, d_nwma);
-
-    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
-    // create tensors
-
-#if 0
-    static tamm::Equations eqs;
-    tamm::ccsd_t1_equations(&eqs);
-    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
-#endif
-    auto P1B = tamm::P1B;
-    auto H1B = tamm::H1B;
-        
-    tamm::RangeType rt_vo[] = {tamm::TV, tamm::TO};
-    tamm::Tensor tc_c(2, 1, 0, rt_vo, tamm::dist_nw);
-    tamm::Tensor tc_f(2, 1, 0, rt_vo, tamm::dist_nw);
-    tamm::Tensor ta(2, 1, 0, rt_vo, tamm::dist_nw);
-    tamm::Assignment as_c (&tc_c, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
-    tamm::Assignment as_f (&tc_f, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
-    
-    tc_c.create();
-    tc_f.create();
-    ta.create();
-
-    ta.fill_random();
-
-    CorFortran(0, &as_f, ccsd_t1_1_);
-    CorFortran(1, &as_c, ccsd_t1_1_);
-
-    bool pass_or_fail = tc_c.check_correctness(&tc_f);
-    if (!pass_or_fail) {
-      std::cout << "C & F Tensors differ" << std::endl;
-    } else {
-      std::cout << "Congratulations! Fortran & C++ Implementations Match" << std::endl;
-    }
-    
-    ta.destroy();
-    tc_f.destroy();
-    tc_c.destroy();
-    
-#if 0
-    std::map<std::string, tamm::Tensor> tensors;
-    std::vector<tamm::Operation> ops;
-    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
-    tensors_and_ops(&eqs, &tensors, &ops);
-
-/*  ccsd_t1.eq file
-t1 {
-
-index h1,h2,h3,h4,h5,h6,h7,h8 = O;
-index p1,p2,p3,p4,p5,p6,p7 = V;
-
-array F_i0[V][O];
-array C_i0[V][O];
-array f[V][O]: irrep_f;
-array v[N,N][N,N]: irrep_v;
-array t_vo[V][O]: irrep_t;
-array t_vvoo[V,V][O,O]: irrep_t;
-array t1_2_1[O][O];
-array t1_2_2_1[O][V];
-array t1_3_1[V][V];
-array t1_5_1[O][V];
-array t1_6_1[O,O][O,V];
-
-t1:         F_i0[p2,h1] += 1 * f[p2,h1];
-t1_1:       C_i0[p2,h1] += 1 * f[p2,h1];
-
-}
-*/
-
-    tamm::Tensor *F_i0 = &tensors["F_i0"];
-    tamm::Tensor *C_i0 = &tensors["C_i0"];
-    tamm::Tensor *f = &tensors["f"];
-
-    F_i0->create();
-    C_i0->create();
-    f->create();
-
-    f->fill_random();
-
-
-    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
-    // setup operation
-    tamm::Assignment op_t1_1_F = ops[0].add;
-    tamm::Assignment op_t1_1_C = ops[1].add;
-
-    // execute
-    tamm::CorFortran(0, &op_t1_1_F, ccsd_t1_1_);  // execute Fortran
-    tamm::CorFortran(1, &op_t1_1_C, ccsd_t1_1_);  // execute C++
-    // op_t1_1_C.execute();
-
-    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
-    bool pass_or_fail = F_i0->check_correctness(C_i0);
-    if (!pass_or_fail) {
-      std::cout << "C & F Tensors differ" << std::endl;
-    } else {
-      std::cout << "Congratulations! Fortran & C++ Implementations Match" << std::endl;
-    }
-
-    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
-    tamm::destroy(F_i0);
-    tamm::destroy(C_i0);
-    tamm::destroy(f);
-#endif
-
-    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
-    // Finalize MPI and GLOBAL ARRAYS
-    //finalize_mpi_ga_();
     finalize_fortran_vars_();
     GA_Terminate();
     MPI_Finalize();

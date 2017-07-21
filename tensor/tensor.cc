@@ -13,10 +13,83 @@
 #include "tensor/capi.h"
 #include "tensor/expression.h"
 #include "tensor/gmem.h"
+#include <ga.h>
 
+#include <random>
 using std::vector;
 
 namespace tamm {
+
+bool Tensor::check_correctness(Tensor *C) {
+  bool ret_val = true;
+  int64_t me = gmem::rank();
+  gmem::Handle F_g_a = ga();
+  gmem::Handle C_g_a = C->ga();
+  int64_t F_lo, F_hi, F_ld;
+  int64_t C_lo, C_hi, C_ld;
+
+  NGA_Distribution64(F_g_a, me, &F_lo, &F_hi);
+  NGA_Distribution64(C_g_a, me, &C_lo, &C_hi);
+
+  if (F_lo != C_lo || F_hi != C_hi) {
+      std::cout << "In function " << __func__ << std::endl;
+      std::cout << "; Buffer Dimension for C & F Tensors differ" << std::endl;
+      return ret_val = false;
+  }
+  double *F_buf;
+  double *C_buf;
+  // use NGA_Access to access the buffer and initialize
+  NGA_Access64(F_g_a, &F_lo, &F_hi, reinterpret_cast<void*>(&F_buf), &F_ld);
+  NGA_Access64(C_g_a, &C_lo, &C_hi, reinterpret_cast<void*>(&C_buf), &C_ld);
+
+  int deci_place = 11;
+  for (int i = 0; i <= (F_hi - F_lo); ++i) {
+	std::cout << "F_buf[" << i << "]: " << F_buf[i] <<
+			" | C_buf[" << i << "]: " << C_buf[i] << std::endl;
+    if( abs(F_buf[i]- C_buf[i]) > pow(10,(-1.0 * deci_place))) {
+      ret_val = false;
+    }
+  }
+
+  NGA_Release64(F_g_a, &F_lo, &F_hi);
+  NGA_Release64(C_g_a, &C_lo, &C_hi);
+
+  return ret_val;
+}
+
+void Tensor::fill_random() {
+  // std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
+  int64_t me = gmem::rank();
+  gmem::Handle g_a = ga();
+  // std::cout << "On Line: " << __LINE__ << "; ga_handle: " << g_a << std::endl;
+  int64_t lo, hi, ld;
+  // use NGA_Distribution to get the buffer
+  NGA_Distribution64(g_a, me, &lo, &hi);
+  // auto num_elements = hi - lo + 1;
+  // std::cout << "On Line: " << __LINE__ << "; lo: " << lo << std::endl;
+  // std::cout << "On Line: " << __LINE__ << "; hi: " << hi << std::endl;
+  double *buf;
+
+  NGA_Access_block_segment64(g_a, me, reinterpret_cast<void*>(&buf), &ld);
+  // std::cout << "On Line: " << __LINE__ << "; ld: " << ld << std::endl;
+
+  // use NGA_Access to access the buffer and initialize
+  NGA_Access64(g_a, &lo, &hi, reinterpret_cast<void*>(&buf), &ld);
+
+  double lower_fill_value = 0;
+  double upper_fil_value = 10;
+  std::uniform_real_distribution<double> uniform_distri(lower_fill_value,
+		  upper_fil_value);
+  std::default_random_engine rand;
+
+  for (int i = 0; i <= (hi - lo); ++i) {
+	// std::cout << "On Line: " << __LINE__ << "; i: " << i << std::endl;
+	// std::cout << "On Line: " << __LINE__ << "; rand: " << uniform_distri(rand) << std::endl;
+	buf[i] = uniform_distri(rand);
+  }
+
+  NGA_Release64(g_a, &lo, &hi);
+}
 
 Tensor::Tensor(int n, int nupper, int irrep_val, RangeType rt[],
                DistType dist_type)

@@ -98,6 +98,7 @@ int main(int argc, char *argv[]) {
     
     init_fortran_vars_(&noa1, &nob1, &nva1, &nvb1, &intorb1, &restricted1,
                        &spins[0], &syms[0], &ranges[0]);
+    f_calls_setvars_cxx_();
     test_assign_vo();
 
     std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;

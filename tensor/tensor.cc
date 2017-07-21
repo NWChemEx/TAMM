@@ -15,6 +15,8 @@
 #include "tensor/gmem.h"
 #include <ga.h>
 
+#include <cmath>
+
 #include <random>
 using std::vector;
 
@@ -46,7 +48,7 @@ bool Tensor::check_correctness(Tensor *C) {
   for (int i = 0; i <= (F_hi - F_lo); ++i) {
 	std::cout << "F_buf[" << i << "]: " << F_buf[i] <<
 			" | C_buf[" << i << "]: " << C_buf[i] << std::endl;
-    if( abs(F_buf[i]- C_buf[i]) > pow(10,(-1.0 * deci_place))) {
+  if( std::fabs(F_buf[i]- C_buf[i]) > pow(10,(-1.0 * deci_place))) {
       ret_val = false;
     }
   }

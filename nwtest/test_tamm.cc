@@ -27,27 +27,28 @@
 #include <macdecls.h>
 
 extern "C" {
-void init_fortran_vars_(Integer *noa1, Integer *nob1, Integer *nva1,
-                        Integer *nvb1, logical *intorb1, logical *restricted1,
-                        Integer *spins, Integer *syms, Integer *ranges);
+  void init_fortran_vars_(Integer *noa1, Integer *nob1, Integer *nva1,
+                          Integer *nvb1, logical *intorb1, logical *restricted1,
+                          Integer *spins, Integer *syms, Integer *ranges);
   void finalize_fortran_vars_();
-void ccsd_t1_equations(tamm::Equations *eqs);
-//void tensors_and_ops(tamm::Equations *eqs,
-//                     std::map<std::string, tamm::Tensor> *tensors,
-//                     std::vector<tamm::Operation> *ops);
-void ccsd_t1_1_(Integer *d_f, Integer *k_f_offset, Integer *d_i0,
-                Integer *k_i0_offset);
-void offset_ccsd_t1_2_1_(Integer *l_t1_2_1_offset, Integer *k_t1_2_1_offset,
-                         Integer *size_t1_2_1);
-void ccsd_t1_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_t1_2_1,
-                Integer *k_t1_2_1_offset, Integer *d_i0, Integer *k_i0_offset);
+  void f_calls_setvars_cxx_();
+  
+  void offset_ccsd_t1_2_1_(Integer *l_t1_2_1_offset, Integer *k_t1_2_1_offset,
+                           Integer *size_t1_2_1);
 
-void f_calls_setvars_cxx_();
-// void init_mpi_ga_();
-// void finalize_mpi_ga_();
+  typedef void add_fn(Integer *ta, Integer *offseta, Integer *irrepa,
+                      Integer *tc, Integer *offsetc, Integer *irrepc);
+                       
+  typedef void mult_fn(Integer *ta, Integer *offseta, Integer *irrepa,
+                       Integer *tb, Integer *offsetb, Integer *irrepb,
+                       Integer *tc, Integer *offsetc, Integer *irrepc);
+  
+  add_fn ccsd_t1_1_;
+  mult_fn ccsd_t1_2_;
 }
 
-void assert_result(bool pass_or_fail, const std::string& msg) {
+void
+assert_result(bool pass_or_fail, const std::string& msg) {
   if (!pass_or_fail) {
     std::cout << "C & F Tensors differ in Test " << msg << std::endl;
   } else {
@@ -68,10 +69,6 @@ tamm_tensor(const std::vector<tamm::RangeType>& upper_ranges,
   return tamm::Tensor(ndim, nupper, irrep, &rt[0], dist_type);
 }
 
-typedef void (*add_fn)(Integer *, Integer *, Integer *, Integer *);
-typedef void (*mult_fn)(Integer *, Integer *, Integer *, Integer *, Integer *,
-                        Integer *);
-
 void
 tamm_assign(tamm::Tensor* tc,
             const std::vector<tamm::IndexName>& clabel,
@@ -82,17 +79,47 @@ tamm_assign(tamm::Tensor* tc,
   as.execute();
 }
 
+void
+tamm_mult(tamm::Tensor* tc,
+          const std::vector<tamm::IndexName>& clabel,
+          double alpha,
+          tamm::Tensor* ta,
+          const std::vector<tamm::IndexName>& alabel,
+          tamm::Tensor* tb,
+          const std::vector<tamm::IndexName>& blabel) {
+  tamm::Multiplication mult(tc, clabel, ta, alabel, tb, blabel, alpha);
+  mult.execute();
+}
+
 
 void
 fortran_assign(tamm::Tensor* tc,
-               double alpha,
                tamm::Tensor* ta,
                add_fn fn) {
   Integer da = static_cast<Integer>(ta->ga().ga()),
-      da_offset = ta->offset_index();
+      offseta = ta->offset_index(),
+      irrepa = ta->irrep();
   Integer dc = static_cast<Integer>(tc->ga().ga()),
-      dc_offset = tc->offset_index();
-  fn(&da, &da_offset, &dc, &dc_offset);
+      offsetc = tc->offset_index(),
+      irrepc = tc->irrep();
+  fn(&da, &offseta, &irrepa, &dc, &offsetc, &irrepc);
+}
+
+void
+fortran_mult(tamm::Tensor* tc,
+             tamm::Tensor* ta,
+             tamm::Tensor* tb,
+             mult_fn fn) {
+  Integer da = static_cast<Integer>(ta->ga().ga()),
+      offseta = ta->offset_index(),
+      irrepa = ta->irrep();
+  Integer db = static_cast<Integer>(tb->ga().ga()),
+      offsetb = tb->offset_index(),
+      irrepb = tb->irrep();
+  Integer dc = static_cast<Integer>(tc->ga().ga()),
+      offsetc = tc->offset_index(),
+      irrepc = tc->irrep();
+  fn(&da, &offseta, &irrepa, &db, &offsetb, &irrepb, &dc, &offsetc, &irrepc);
 }
 
 void
@@ -127,11 +154,11 @@ void test_assign_vo() {
   auto tc_f = tamm_tensor({TV}, {TO});
   auto ta = tamm_tensor({TV}, {TO});
 
-  tamm_create(&tc_c, &tc_f, &ta);
-  
+  tamm_create(&tc_c, &tc_f, &ta);  
   ta.fill_random();
+  
   tamm_assign(&tc_c, {P1B, H1B}, 1.0, &ta, {P1B, H1B});
-  fortran_assign(&tc_f, 1.0, &ta, ccsd_t1_1_);
+  fortran_assign(&tc_f, &ta, ccsd_t1_1_);
 
   assert_result(tc_c.check_correctness(&tc_f), __func__);
 
@@ -139,43 +166,21 @@ void test_assign_vo() {
 }
 
 void test_mult_vo_oo() {
-  tamm::RangeType rt_vo[] = {tamm::TV, tamm::TO};
-  tamm::RangeType rt_oo[] = {tamm::TO, tamm::TO};
+  auto tc_c = tamm_tensor({TV}, {TO});
+  auto tc_f = tamm_tensor({TV}, {TO});
+  auto ta = tamm_tensor({TV}, {TO});
+  auto tb = tamm_tensor({TO}, {TO});
 
-  tamm::Tensor tc_c(2, 1, 0, rt_vo, tamm::dist_nw);
-  tamm::Tensor tc_f(2, 1, 0, rt_vo, tamm::dist_nw);
-  tamm::Tensor ta(2, 1, 0, rt_vo, tamm::dist_nw);
-  tamm::Tensor tb(2, 1, 0, rt_oo, tamm::dist_nw);
-//  tamm::Assignment as_c(&tc_c, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
-//  tamm::Assignment as_f(&tc_f, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
-
-  tamm::Multiplication mult_c(&tc_c, {P1B, H1B}, &ta, {P1B, H4B},
-          &tb, {H4B, H1B}, 1.0);
-  tamm::Multiplication mult_f(&tc_f, {P1B, H1B}, &ta, {P1B, H4B},
-          &tb, {H4B, H1B}, 1.0);
-
-  tc_c.create();
-  tc_f.create();
-  ta.create();
-  tb.create();
-
+  tamm_create(&ta, &tb, &tc_c, &tc_f);
   ta.fill_random();
   tb.fill_given(2.0);
 
-  // CorFortran(0, &mult_f, ccsd_t1_2_);
-  // CorFortran(1, &mult_c, ccsd_t1_2_);
+  tamm_mult(&tc_c, {P1B, H1B}, -1.0, &ta, {P1B, H4B}, &tb, {H4B, H1B});
+  fortran_mult(&tc_f, &ta, &tb, ccsd_t1_2_);
 
-  bool pass_or_fail = tc_f.check_correctness(&tc_c);
-  if (!pass_or_fail) {
-    std::cout << "C & F Tensors differ in Test " << __func__ << std::endl;
-  } else {
-    std::cout << "Congratulations! Test " << __func__ << " PASSED" << std::endl;
-  }
+  assert_result(tc_c.check_correctness(&tc_f), __func__);
 
-  ta.destroy();
-  tb.destroy();
-  tc_f.destroy();
-  tc_c.destroy();
+  tamm_destroy(&ta, &tb, &tc_c, &tc_f);
 }
 
 void fortran_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
@@ -284,9 +289,9 @@ int main(int argc, char *argv[]) {
   fortran_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);    
   tamm_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);    
   tammx_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);    
-
   
   test_assign_vo();
+  test_mult_vo_oo();
   
   tammx_finalize();
   tamm_finalize();

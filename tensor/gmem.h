@@ -26,6 +26,9 @@ struct Handle {
   explicit Handle(uintptr_t conversion);
   operator uintptr_t() const;
 
+    int ga() {
+        return static_cast<int>(value);
+    }
   uintptr_t value;
 };
 

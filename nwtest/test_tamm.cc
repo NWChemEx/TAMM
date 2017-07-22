@@ -35,55 +35,110 @@ void ccsd_t1_equations(tamm::Equations *eqs);
 //void tensors_and_ops(tamm::Equations *eqs,
 //                     std::map<std::string, tamm::Tensor> *tensors,
 //                     std::vector<tamm::Operation> *ops);
-void ccsd_t1_1_(F77Integer *d_f, F77Integer *k_f_offset, F77Integer *d_i0,
-                F77Integer *k_i0_offset);
-void offset_ccsd_t1_2_1_(F77Integer *l_t1_2_1_offset, F77Integer *k_t1_2_1_offset,
-                         F77Integer *size_t1_2_1);
-void ccsd_t1_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_t1_2_1,
-                F77Integer *k_t1_2_1_offset, F77Integer *d_i0, F77Integer *k_i0_offset);
+void ccsd_t1_1_(Integer *d_f, Integer *k_f_offset, Integer *d_i0,
+                Integer *k_i0_offset);
+void offset_ccsd_t1_2_1_(Integer *l_t1_2_1_offset, Integer *k_t1_2_1_offset,
+                         Integer *size_t1_2_1);
+void ccsd_t1_2_(Integer *d_t_vo, Integer *k_t_vo_offset, Integer *d_t1_2_1,
+                Integer *k_t1_2_1_offset, Integer *d_i0, Integer *k_i0_offset);
 
 void f_calls_setvars_cxx_();
 // void init_mpi_ga_();
 // void finalize_mpi_ga_();
 }
 
-void test_assign_vo() {
-  auto P1B = tamm::P1B;
-  auto H1B = tamm::H1B;
-
-  tamm::RangeType rt_vo[] = {tamm::TV, tamm::TO};
-  tamm::Tensor tc_c(2, 1, 0, rt_vo, tamm::dist_nw);
-  tamm::Tensor tc_f(2, 1, 0, rt_vo, tamm::dist_nw);
-  tamm::Tensor ta(2, 1, 0, rt_vo, tamm::dist_nw);
-  tamm::Assignment as_c (&tc_c, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
-  tamm::Assignment as_f (&tc_f, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
-
-  tc_c.create();
-  tc_f.create();
-  ta.create();
-
-  ta.fill_random();
-
-  CorFortran(0, &as_f, ccsd_t1_1_);
-  CorFortran(1, &as_c, ccsd_t1_1_);
-
-  bool pass_or_fail = tc_c.check_correctness(&tc_f);
+void assert_result(bool pass_or_fail, const std::string& msg) {
   if (!pass_or_fail) {
-    std::cout << "C & F Tensors differ in Test " << __func__ << std::endl;
+    std::cout << "C & F Tensors differ in Test " << msg << std::endl;
   } else {
-    std::cout << "Congratulations! Test " << __func__ << " PASSED" << std::endl;
+    std::cout << "Congratulations! Test " << msg << " PASSED" << std::endl;
   }
+}
 
-  ta.destroy();
-  tc_f.destroy();
-  tc_c.destroy();
+
+tamm::Tensor
+tamm_tensor(const std::vector<tamm::RangeType>& upper_ranges,
+            const std::vector<tamm::RangeType>& lower_ranges,
+            int irrep = 0,
+            tamm::DistType dist_type = tamm::dist_nw) {
+  int ndim = upper_ranges.size() + lower_ranges.size();
+  int nupper = upper_ranges.size();
+  std::vector<tamm::RangeType> rt {upper_ranges};
+  std::copy(lower_ranges.begin(), lower_ranges.end(), std::back_inserter(rt));
+  return tamm::Tensor(ndim, nupper, irrep, &rt[0], dist_type);
+}
+
+typedef void (*add_fn)(Integer *, Integer *, Integer *, Integer *);
+typedef void (*mult_fn)(Integer *, Integer *, Integer *, Integer *, Integer *,
+                        Integer *);
+
+void
+tamm_assign(tamm::Tensor* tc,
+            const std::vector<tamm::IndexName>& clabel,
+            double alpha,
+            tamm::Tensor* ta,
+            const std::vector<tamm::IndexName>& alabel) {
+  tamm::Assignment as(tc, ta, alpha, clabel, alabel);
+  as.execute();
+}
+
+
+void
+fortran_assign(tamm::Tensor* tc,
+               double alpha,
+               tamm::Tensor* ta,
+               add_fn fn) {
+  Integer da = static_cast<Integer>(ta->ga().ga()),
+      da_offset = ta->offset_index();
+  Integer dc = static_cast<Integer>(tc->ga().ga()),
+      dc_offset = tc->offset_index();
+  fn(&da, &da_offset, &dc, &dc_offset);
+}
+
+void
+tamm_create() {}
+
+template<typename ...Args>
+void
+tamm_create(tamm::Tensor* tensor, Args ... args) {
+  tensor->create();
+  tamm_create(args...);
+}
+
+void
+tamm_destroy() {}
+
+template<typename ...Args>
+void
+tamm_destroy(tamm::Tensor* tensor, Args ... args) {
+  tensor->destroy();
+  tamm_destroy(args...);
+}
+
+const auto P1B = tamm::P1B;
+const auto P2B = tamm::P2B;                                                    
+const auto H1B = tamm::H1B;
+const auto H4B = tamm::H4B;
+const auto TO = tamm::TO;
+const auto TV = tamm::TV;
+
+void test_assign_vo() {
+  auto tc_c = tamm_tensor({TV}, {TO});
+  auto tc_f = tamm_tensor({TV}, {TO});
+  auto ta = tamm_tensor({TV}, {TO});
+
+  tamm_create(&tc_c, &tc_f, &ta);
+  
+  ta.fill_random();
+  tamm_assign(&tc_c, {P1B, H1B}, 1.0, &ta, {P1B, H1B});
+  fortran_assign(&tc_f, 1.0, &ta, ccsd_t1_1_);
+
+  assert_result(tc_c.check_correctness(&tc_f), __func__);
+
+  tamm_destroy(&tc_c, &tc_f, &ta);
 }
 
 void test_mult_vo_oo() {
-  auto P1B = tamm::P1B;
-  auto H1B = tamm::H1B;
-  auto H4B = tamm::H4B;
-
   tamm::RangeType rt_vo[] = {tamm::TV, tamm::TO};
   tamm::RangeType rt_oo[] = {tamm::TO, tamm::TO};
 
@@ -107,8 +162,8 @@ void test_mult_vo_oo() {
   ta.fill_random();
   tb.fill_given(2.0);
 
-  CorFortran(0, &mult_f, ccsd_t1_2_);
-  CorFortran(1, &mult_c, ccsd_t1_2_);
+  // CorFortran(0, &mult_f, ccsd_t1_2_);
+  // CorFortran(1, &mult_c, ccsd_t1_2_);
 
   bool pass_or_fail = tc_f.check_correctness(&tc_c);
   if (!pass_or_fail) {

@@ -41,6 +41,9 @@ void CorFortran(int use_c, Multiplication *m, mult_fn fn) {
          db_offset = m->tB().offset_index();
     Fint dc = static_cast<int>(m->tC().ga()),
          dc_offset = m->tC().offset_index();
+    std::cout << "da,da_offset,db, db_offset,dc,dc_offset: "
+    		<< da << ", " << da_offset << ", " << db << ", " << db_offset << ", "
+			<< dc << ", " << dc_offset << std::endl;
     fn(&da, &da_offset, &db, &db_offset, &dc, &dc_offset);
   }
 }

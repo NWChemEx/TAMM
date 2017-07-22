@@ -88,6 +88,7 @@ class Tensor {
 
   bool check_correctness(Tensor *C);
   void fill_random();
+  void fill_given(const double fill_val);
 
  private:
   int dim_;                /*< dimension of this tensor */

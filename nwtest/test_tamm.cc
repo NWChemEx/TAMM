@@ -37,6 +37,8 @@ void ccsd_t1_1_(F77Integer *d_f, F77Integer *k_f_offset, F77Integer *d_i0,
                 F77Integer *k_i0_offset);
 void offset_ccsd_t1_2_1_(F77Integer *l_t1_2_1_offset, F77Integer *k_t1_2_1_offset,
                          F77Integer *size_t1_2_1);
+void ccsd_t1_2_(F77Integer *d_t_vo, F77Integer *k_t_vo_offset, F77Integer *d_t1_2_1,
+                F77Integer *k_t1_2_1_offset, F77Integer *d_i0, F77Integer *k_i0_offset);
 
 void f_calls_setvars_cxx_();
 // void init_mpi_ga_();
@@ -46,14 +48,14 @@ void f_calls_setvars_cxx_();
 void test_assign_vo() {
   auto P1B = tamm::P1B;
   auto H1B = tamm::H1B;
-        
+
   tamm::RangeType rt_vo[] = {tamm::TV, tamm::TO};
   tamm::Tensor tc_c(2, 1, 0, rt_vo, tamm::dist_nw);
   tamm::Tensor tc_f(2, 1, 0, rt_vo, tamm::dist_nw);
   tamm::Tensor ta(2, 1, 0, rt_vo, tamm::dist_nw);
   tamm::Assignment as_c (&tc_c, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
   tamm::Assignment as_f (&tc_f, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
-    
+
   tc_c.create();
   tc_f.create();
   ta.create();
@@ -65,45 +67,56 @@ void test_assign_vo() {
 
   bool pass_or_fail = tc_c.check_correctness(&tc_f);
   if (!pass_or_fail) {
-    std::cout << "C & F Tensors differ" << std::endl;
+    std::cout << "C & F Tensors differ in Test " << __func__ << std::endl;
   } else {
-    std::cout << "Congratulations! Fortran & C++ Implementations Match" << std::endl;
+    std::cout << "Congratulations! Test " << __func__ << " PASSED" << std::endl;
   }
-    
+
   ta.destroy();
   tc_f.destroy();
-  tc_c.destroy();  
+  tc_c.destroy();
 }
 
-void test_mult_vo() {
+void test_mult_vo_oo() {
   auto P1B = tamm::P1B;
   auto H1B = tamm::H1B;
+  auto H4B = tamm::H4B;
 
   tamm::RangeType rt_vo[] = {tamm::TV, tamm::TO};
+  tamm::RangeType rt_oo[] = {tamm::TO, tamm::TO};
+
   tamm::Tensor tc_c(2, 1, 0, rt_vo, tamm::dist_nw);
   tamm::Tensor tc_f(2, 1, 0, rt_vo, tamm::dist_nw);
   tamm::Tensor ta(2, 1, 0, rt_vo, tamm::dist_nw);
-  tamm::Tensor tb(2, 1, 0, rt_vo, tamm::dist_nw);
-  tamm::Assignment as_c (&tc_c, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
-  tamm::Assignment as_f (&tc_f, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
+  tamm::Tensor tb(2, 1, 0, rt_oo, tamm::dist_nw);
+//  tamm::Assignment as_c(&tc_c, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
+//  tamm::Assignment as_f(&tc_f, &ta, 1.0, {P1B, H1B}, {P1B, H1B});
+
+  tamm::Multiplication mult_c(&tc_c, {P1B, H1B}, &ta, {P1B, H4B},
+          &tb, {H4B, H1B}, 1.0);
+  tamm::Multiplication mult_f(&tc_f, {P1B, H1B}, &ta, {P1B, H4B},
+          &tb, {H4B, H1B}, 1.0);
 
   tc_c.create();
   tc_f.create();
   ta.create();
+  tb.create();
 
   ta.fill_random();
+  tb.fill_given(2.0);
 
-  CorFortran(0, &as_f, ccsd_t1_1_);
-  CorFortran(1, &as_c, ccsd_t1_1_);
+  CorFortran(0, &mult_f, ccsd_t1_2_);
+  CorFortran(1, &mult_c, ccsd_t1_2_);
 
   bool pass_or_fail = tc_f.check_correctness(&tc_c);
   if (!pass_or_fail) {
-    std::cout << "C & F Tensors differ" << std::endl;
+    std::cout << "C & F Tensors differ in Test " << __func__ << std::endl;
   } else {
-    std::cout << "Congratulations! Fortran & C++ Implementations Match" << std::endl;
+    std::cout << "Congratulations! Test " << __func__ << " PASSED" << std::endl;
   }
 
   ta.destroy();
+  tb.destroy();
   tc_f.destroy();
   tc_c.destroy();
 }
@@ -128,11 +141,13 @@ int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
     GA_Initialize();
     MA_init(MT_DBL, 1000000, 8000000);
-    
+
     init_fortran_vars_(&noa1, &nob1, &nva1, &nvb1, &intorb1, &restricted1,
                        &spins[0], &syms[0], &ranges[0]);
     f_calls_setvars_cxx_();
-    test_assign_vo();
+    // test_assign_vo();
+
+    test_mult_vo_oo();
 
     std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
 

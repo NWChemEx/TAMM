@@ -182,7 +182,7 @@ add_library(fort_deps_c STATIC nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
 add_executable(nwtest nwtest/test_tamm.cc)
-add_dependencies(nwtest fort_deps fort_deps_c tamm)
+add_dependencies(nwtest fort_deps fort_deps_c tamm tammx)
 target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes} ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime)
 target_compile_options(nwtest PUBLIC ${tamm_cflags})
 target_link_libraries(nwtest fort_deps fort_deps_c tamm tammx ${tamm_cflags}

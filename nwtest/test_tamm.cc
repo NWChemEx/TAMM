@@ -20,6 +20,8 @@
 #include "tensor/variables.h"
 #include "macdecls.h"
 
+#include "tammx/tammx.h"
+
 #include <mpi.h>
 #include <ga.h>
 #include <macdecls.h>
@@ -121,40 +123,121 @@ void test_mult_vo_oo() {
   tc_c.destroy();
 }
 
+void fortran_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
+                  const std::vector<int>& spins,
+                  const std::vector<int>& syms,
+                  const std::vector<int>& ranges) {
+  Integer inoa = noa;
+  Integer inob = nob;
+  Integer inva = nva;
+  Integer invb = nvb;
+
+  logical lintorb = intorb ? 1 : 0;
+  logical lrestricted = restricted ? 1 : 0;
+
+  assert(spins.size() == noa + nob + nva + nvb);
+  assert(syms.size() == noa + nob + nva + nvb);
+  assert(ranges.size() == noa + nob + nva + nvb);
+
+  Integer ispins[noa + nob + nvb + nvb];
+  Integer isyms[noa + nob + nvb + nvb];
+  Integer iranges[noa + nob + nvb + nvb];
+
+  std::copy_n(&spins[0], noa + nob + nva + nvb, &ispins[0]);
+  std::copy_n(&syms[0], noa + nob + nva + nvb, &isyms[0]);
+  std::copy_n(&ranges[0], noa + nob + nva + nvb, &iranges[0]);
+
+  init_fortran_vars_(&inoa, &inob, &inva, &invb, &lintorb, &lrestricted,
+                     &ispins[0], &isyms[0], &iranges[0]);  
+}
+
+void fortran_finalize() {
+  finalize_fortran_vars_();
+}
+
+
+/*
+ * @note should be called after fortran_init
+ */
+void tamm_init(...) {
+  f_calls_setvars_cxx_();  
+}
+
+void tamm_finalize() {
+  //no-op
+}
+
+void tammx_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
+                const std::vector<int>& ispins,
+                const std::vector<int>& isyms,
+                const std::vector<int>& isizes) {
+  using Irrep = tammx::Irrep;
+  using Spin = tammx::Spin;
+  using BlockDim = tammx::BlockDim;
+  
+  Irrep irrep_f{0}, irrep_v{0}, irrep_t{0}, irrep_x{0}, irrep_y{0};
+
+  std::vector<Spin> spins;
+  std::vector<Irrep> irreps;
+  std::vector<size_t> sizes;
+
+  for(auto s : ispins) {
+    spins.push_back(Spin{s});
+  }
+  for(auto r : isyms) {
+    irreps.push_back(Irrep{r});
+  }
+  for(auto s : isizes) {
+    sizes.push_back(size_t{s});
+  }
+  
+  tammx::TCE::init(spins, irreps, sizes,
+                   BlockDim{noa},
+                   BlockDim{noa+nob},
+                   BlockDim{nva},
+                   BlockDim{nva + nvb},
+                   restricted,
+                   irrep_f,
+                   irrep_v,
+                   irrep_t,
+                   irrep_x,
+                   irrep_y);
+}
+
+void tammx_finalize() {
+  tammx::TCE::finalize();
+}
+
+
 int main(int argc, char *argv[]) {
+  int noa = 1;
+  int nob = 1;
+  int nva = 1;
+  int nvb = 1;
 
-    Integer noa1 = 1;
-    Integer nob1 = 1;
-    Integer nva1 = 1;
-    Integer nvb1 = 1;
+  bool intorb = false;
+  bool restricted = false;
 
-    logical intorb1 = 0;
-    logical restricted1 = 0;
+  std::vector<int> spins = {1, 2, 1, 2};
+  std::vector<int> syms = {0, 0, 0, 0};
+  std::vector<int> ranges = {4, 4, 4, 4};
 
-    Integer spins[noa1 + nob1 + nva1 + nvb1]; // = {1, 2, 1, 2};
-    spins[0]=1;spins[1]=2;spins[2]=1;spins[3]= 2; 
-    Integer syms[noa1+nob1+nva1+nvb1]; // = {0, 0, 0, 0};
-    syms[0]=0;syms[1]=0;syms[2]=0;syms[3]=0;
-    Integer ranges[noa1+nob1+nva1+nvb1]; // = {4, 4, 4, 4};
-    ranges[0]=4;ranges[1]=4,ranges[2]=4;ranges[3]=4;
+  MPI_Init(&argc, &argv);
+  GA_Initialize();
+  MA_init(MT_DBL, 1000000, 8000000);
+  
+  fortran_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);    
+  tamm_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);    
+  tammx_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);    
 
-    MPI_Init(&argc, &argv);
-    GA_Initialize();
-    MA_init(MT_DBL, 1000000, 8000000);
-
-    init_fortran_vars_(&noa1, &nob1, &nva1, &nvb1, &intorb1, &restricted1,
-                       &spins[0], &syms[0], &ranges[0]);
-    f_calls_setvars_cxx_();
-    // test_assign_vo();
-
-    test_mult_vo_oo();
-
-    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
-
-    finalize_fortran_vars_();
-    GA_Terminate();
-    MPI_Finalize();
-
-    std::cout << "File: " << __FILE__ <<"On Line: " << __LINE__ << std::endl;
-    return 0;
+  
+  test_assign_vo();
+  
+  tammx_finalize();
+  tamm_finalize();
+  fortran_finalize();
+  
+  GA_Terminate();
+  MPI_Finalize();
+  return 0;
 }

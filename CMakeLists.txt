@@ -130,23 +130,23 @@ execute_process(COMMAND mpicxx --showme:link OUTPUT_VARIABLE mpi_link OUTPUT_STR
 
 #Build fortran code for unit testing
 
-set(FORTRAN_DEPS_SRC 
-nwtest/put_hash_block.F 
-nwtest/add_block.F 
-nwtest/get_block.F 
-nwtest/get_block_ind.F 
-nwtest/add_hash_block.F 
-nwtest/get_hash_block.F 
+set(FORTRAN_DEPS_SRC
+nwtest/put_hash_block.F
+nwtest/add_block.F
+nwtest/get_block.F
+nwtest/get_block_ind.F
+nwtest/add_hash_block.F
+nwtest/get_hash_block.F
 nwtest/get_hash_block_ma.F
-nwtest/nxtask.F 
-nwtest/nxtval_ga.F 
-nwtest/errquit.F 
-nwtest/put_block.F 
-nwtest/tce_hash.F 
-nwtest/tce_hash_ind.F 
-nwtest/tce_restricted.F 
-nwtest/tce_sort.F 
-nwtest/tce_sortacc.F 
+nwtest/nxtask.F
+nwtest/nxtval_ga.F
+nwtest/errquit.F
+nwtest/put_block.F
+nwtest/tce_hash.F
+nwtest/tce_hash_ind.F
+nwtest/tce_restricted.F
+nwtest/tce_sort.F
+nwtest/tce_sortacc.F
 nwtest/misc.F
 nwtest/set_vars.F
 )
@@ -185,11 +185,11 @@ add_executable(nwtest nwtest/test_tamm.cc)
 add_dependencies(nwtest fort_deps fort_deps_c tamm)
 target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes} ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime)
 target_compile_options(nwtest PUBLIC ${tamm_cflags})
-target_link_libraries(nwtest fort_deps fort_deps_c tamm ${tamm_cflags}
+target_link_libraries(nwtest fort_deps fort_deps_c tamm tammx ${tamm_cflags}
         ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} )
 
 
-#BUILD TAMMX 
+#BUILD TAMMX
     set(tammxSources
         tammx/tammx.cc
         tammx/index_sort.cc)

@@ -89,7 +89,26 @@ void Tensor::fill_random() {
 	// std::cout << "On Line: " << __LINE__ << "; rand: " << uniform_distri(rand) << std::endl;
 	buf[i] = uniform_distri(rand);
   }
+  NGA_Release64(g_a, &lo, &hi);
+}
 
+void Tensor::fill_given(const double fill_val) {
+  int64_t me = gmem::rank();
+  gmem::Handle g_a = ga();
+  int64_t lo, hi, ld;
+
+  // use NGA_Distribution to get the buffer
+  NGA_Distribution64(g_a, me, &lo, &hi);
+
+  double *buf;
+  NGA_Access_block_segment64(g_a, me, reinterpret_cast<void*>(&buf), &ld);
+
+  // use NGA_Access to access the buffer and initialize
+  NGA_Access64(g_a, &lo, &hi, reinterpret_cast<void*>(&buf), &ld);
+
+  for (int i = 0; i <= (hi - lo); ++i) {
+    buf[i] = fill_val;
+  }
   NGA_Release64(g_a, &lo, &hi);
 }
 

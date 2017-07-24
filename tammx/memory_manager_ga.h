@@ -14,15 +14,40 @@ class MemoryManagerGA : public MemoryManager {
  public:
   MemoryManagerGA(ProcGroup pg)
       : MemoryManager{pg},
-        created_{false} {}
+        allocation_status_{AllocationStatus::invalid} {}
 
-  ~MemoryManagerGA() {}
+  MemoryManagerGA(ProcGroup pg, int ga)
+      : MemoryManager(pg),
+        ga_{ga} {
+    NGA_Inquire(ga_, &ga_eltype_, nullptr, nullptr);
+    eltype_ = from_ga_eltype(ga_eltype_);
+    elsize_ = element_size(eltype_);
+    ga_pg_ = GA_Get_pgroup(ga);
+
+    auto nranks = pg.size().value();
+    auto me = pg.rank().value();
+    map_ = std::make_unique<int64_t[]>(nranks+1);
+    map_[0] = 0;
+    for(int i = 0; i<nranks; i++) {
+      int64_t lo, hi;
+      NGA_Distribution64(ga_, i, &lo, &hi);
+      map_[i+1] = map_[i] + (hi - lo);
+    }
+    nelements_ = map_[me+1] - map_[me];
+    allocation_status_ = AllocationStatus::attached;
+  }
+
+  ~MemoryManagerGA() {
+    Expects(allocation_status_ == AllocationStatus::invalid ||
+            allocation_status_ == AllocationStatus::attached);
+  }
 
   ProcGroup proc_group() const {
     return pg_;
   }
 
   void alloc(ElementType eltype, Size nelements) {
+    Expects(allocation_status_ == AllocationStatus::invalid);
     Expects(nelements >= 0);
     Expects(eltype != ElementType::invalid);
     int ga_pg_default = GA_Pgroup_get_default();
@@ -47,9 +72,9 @@ class MemoryManagerGA : public MemoryManager {
       GA_Pgroup_set_default(ga_pg_default);
     }
 
-    map_ = std::make_unique<int64_t[]>(nranks);
+    map_ = std::make_unique<int64_t[]>(nranks+1);
 
-    ga_eltype_ = to_ga_type(eltype_);
+    ga_eltype_ = to_ga_eltype(eltype_);
     
     GA_Pgroup_set_default(ga_pg_);
     int64_t nelements_min, nelements_max;
@@ -76,10 +101,9 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   void dealloc() {
-    Expects(created_);
+    Expects(allocation_status_ == AllocationStatus::created);
     NGA_Destroy(ga_);
     NGA_Pgroup_destroy(ga_pg_);
-    created_ = true;
   }
 
   MemoryManager* clone(ProcGroup pg) const override {
@@ -87,6 +111,8 @@ class MemoryManagerGA : public MemoryManager {
   }
     
   void* access(Offset off) {
+    Expects(allocation_status_ == AllocationStatus::created ||
+            allocation_status_ == AllocationStatus::attached);
     Proc proc{pg_.rank()};
     int64_t nels{1};
     int iproc{proc.value()};
@@ -98,6 +124,8 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   void get(Proc proc, Offset off, Size nelements, void* buf) {
+    Expects(allocation_status_ == AllocationStatus::created ||
+            allocation_status_ == AllocationStatus::attached);
     int iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nelements.value()*elsize_, ld = -1;
@@ -105,6 +133,8 @@ class MemoryManagerGA : public MemoryManager {
   }
   
   void put(Proc proc, Offset off, Size nelements, const void* buf) {
+    Expects(allocation_status_ == AllocationStatus::created ||
+            allocation_status_ == AllocationStatus::attached);
     int iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nelements.value()*elsize_, ld = -1;
@@ -112,6 +142,8 @@ class MemoryManagerGA : public MemoryManager {
   }
   
   void add(Proc proc, Offset off, Size nelements, const void* buf) {
+    Expects(allocation_status_ == AllocationStatus::created ||
+            allocation_status_ == AllocationStatus::attached);
     int iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nelements.value()*elsize_, ld = -1;
@@ -122,7 +154,7 @@ class MemoryManagerGA : public MemoryManager {
 
  protected:
 
-  static int to_ga_type(ElementType eltype) {
+  static int to_ga_eltype(ElementType eltype) {
     int ret;
     switch(eltype) {
       case ElementType::single_precision:
@@ -143,11 +175,32 @@ class MemoryManagerGA : public MemoryManager {
     }
     return ret;
   }
-  
+
+  static ElementType from_ga_eltype(int eltype) {
+    ElementType ret;
+    switch(eltype) {
+      case C_FLOAT:
+        ret = ElementType::single_precision;
+        break;
+      case C_DBL:
+        ret = ElementType::double_precision;
+        break;
+      case C_SCPL:
+        ret = ElementType::single_complex;
+        break;
+      case C_DCPL:
+        ret = ElementType::double_complex;
+        break;
+      default:
+        assert(0);
+    }
+    return ret;
+  }
+
   int ga_;
   int ga_pg_;
   int ga_eltype_;
-  bool created_;
+  AllocationStatus allocation_status_;
   size_t elsize_;
   std::unique_ptr<int64_t[]> map_;
 }; // class MemoryManagerGA

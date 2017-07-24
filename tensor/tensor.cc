@@ -22,11 +22,11 @@ using std::vector;
 
 namespace tamm {
 
-bool Tensor::check_correctness(Tensor *C) {
+bool Tensor::check_correctness(Tensor *F_tensor) {
   bool ret_val = true;
   int64_t me = gmem::rank();
-  gmem::Handle F_g_a = ga();
-  gmem::Handle C_g_a = C->ga();
+  gmem::Handle F_g_a = F_tensor->ga();
+  gmem::Handle C_g_a = ga();
   int64_t F_lo, F_hi, F_ld;
   int64_t C_lo, C_hi, C_ld;
 

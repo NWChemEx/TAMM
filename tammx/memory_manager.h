@@ -13,7 +13,7 @@ class MemoryManager {
         eltype_{ElementType::invalid},
         nelements_{0} {}
 
-  ~MemoryManager() {}
+  virtual ~MemoryManager() {}
 
   ProcGroup proc_group() const {
     return pg_;
@@ -28,6 +28,7 @@ class MemoryManager {
 
   // template<typename T1>
   virtual MemoryManager* clone(ProcGroup) const = 0;
+
   virtual void* access(Offset off) = 0;
   virtual void get(Proc proc, Offset off, Size nelements, void* buf) = 0;
   virtual void put(Proc proc, Offset off, Size nelements, const void* buf) = 0;
@@ -44,13 +45,25 @@ class MemoryManagerSequential : public MemoryManager {
   MemoryManagerSequential(ProcGroup pg = ProcGroup{})
       : MemoryManager(pg),
         buf_{nullptr},
-        elsize_{0} {
+        elsize_{0},
+        allocation_status_{AllocationStatus::invalid} {
           //sequential. So process group size should be 1
     Expects(MemoryManager::pg_.size() == 1);
   }
 
+  MemoryManagerSequential(ProcGroup pg, uint8_t *buf, ElementType eltype, Size nelements)
+      : MemoryManager(pg),
+        buf_{buf},
+        elsize_{element_size(eltype_)} {
+          eltype_ = eltype;
+          nelements_ = nelements;
+          Expects(MemoryManager::pg_.size() == 1);
+          allocation_status_ = AllocationStatus::attached;
+  }
+
   ~MemoryManagerSequential() {
-    Expects(buf_ == nullptr);
+    Expects(allocation_status_ == AllocationStatus::invalid ||
+            allocation_status_ == AllocationStatus::attached);
   }
 
   MemoryManager* clone(ProcGroup pg) const {
@@ -58,22 +71,31 @@ class MemoryManagerSequential : public MemoryManager {
   }
 
   void alloc(ElementType eltype, Size nelements) {
+    Expects(allocation_status_ == AllocationStatus::invalid);
     eltype_ = eltype;
     elsize_ = element_size(eltype);
     nelements_ = nelements;
     buf_ = new uint8_t[nelements_.value() * elsize_];
+    allocation_status_ = AllocationStatus::created;
   }
 
   void dealloc() {
+    Expects(allocation_status_ == AllocationStatus::created);
     delete [] buf_;
+    buf_ = nullptr;
+    allocation_status_ = AllocationStatus::invalid;
   }
 
   void* access(Offset off) {
+    Expects(allocation_status_ == AllocationStatus::created ||
+            allocation_status_ == AllocationStatus::attached);
     Expects(off < nelements_);
     return &buf_[elsize_ * off.value()];
   }
 
   void get(Proc proc, Offset off, Size nelements, void* to_buf) {
+    Expects(allocation_status_ == AllocationStatus::created ||
+            allocation_status_ == AllocationStatus::attached);
     Expects(buf_ != nullptr);
     Expects(nelements >= 0);
     Expects(off + nelements <= nelements_);
@@ -83,6 +105,8 @@ class MemoryManagerSequential : public MemoryManager {
   }
 
   void put(Proc proc, Offset off, Size nelements, const void* from_buf) {
+    Expects(allocation_status_ == AllocationStatus::created ||
+            allocation_status_ == AllocationStatus::attached);
     Expects(buf_ != nullptr);
     Expects(nelements >= 0);
     Expects(off + nelements <= nelements_);
@@ -93,6 +117,8 @@ class MemoryManagerSequential : public MemoryManager {
   }
 
   void add(Proc proc, Offset off, Size nelements, const void* from_buf) {
+    Expects(allocation_status_ == AllocationStatus::created ||
+            allocation_status_ == AllocationStatus::attached);
     Expects(buf_ != nullptr);
     Expects(nelements >= 0);
     Expects(off + nelements <= nelements_);
@@ -128,6 +154,7 @@ class MemoryManagerSequential : public MemoryManager {
  private:
   size_t elsize_;
   uint8_t* buf_;
+  AllocationStatus allocation_status_;
 }; // class MemoryManagerSequential
 
 }  // namespace tammx

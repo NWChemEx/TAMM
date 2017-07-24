@@ -891,6 +891,10 @@ class ExecutionContext {
     deallocate(tensor_list...);
   }
 
+  ProcGroup pg() const {
+    return pg_;
+  }
+
  private:
   ProcGroup pg_;
   Distribution* default_distribution_;

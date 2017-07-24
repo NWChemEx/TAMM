@@ -69,6 +69,7 @@ tamm_tensor(const std::vector<tamm::RangeType>& upper_ranges,
   return tamm::Tensor(ndim, nupper, irrep, &rt[0], dist_type);
 }
 
+
 void
 tamm_assign(tamm::Tensor* tc,
             const std::vector<tamm::IndexName>& clabel,
@@ -77,6 +78,173 @@ tamm_assign(tamm::Tensor* tc,
             const std::vector<tamm::IndexName>& alabel) {
   tamm::Assignment as(tc, ta, alpha, clabel, alabel);
   as.execute();
+}
+
+tammx::TensorLabel
+tamm_label_to_tammx_label(const std::vector<tamm::IndexName>& label) {
+  tammx::TensorLabel ret;
+  for(auto l : label) {
+    if(l >= tamm::P1B && l<= tamm::P12B) {
+      ret.push_back(tammx::IndexLabel{l - tamm::P1B, tammx::DimType::v});
+    }
+    else if(l >= tamm::H1B && l<= tamm::H12B) {
+      ret.push_back(tammx::IndexLabel{l - tamm::H1B, tammx::DimType::o});
+    }
+  }
+  return ret;
+}
+
+tamm::RangeType
+tamm_id_to_tamm_range(const tamm::Index& id) {
+  return (id.name() >= tamm::H1B && id.name() <= tamm::H12B)
+      ? tamm::RangeType::TO : tamm::RangeType::TV;
+}
+
+tammx::DimType
+tamm_range_to_tammx_dim(tamm::RangeType rt) {
+  tammx::DimType ret;
+  switch(rt) {
+    case tamm::RangeType::TO:
+      ret = tammx::DimType::o;
+      break;
+    case tamm::RangeType::TV:
+      ret = tammx::DimType::v;
+      break;
+    default:
+      assert(0);
+  }
+  return ret;
+}
+
+tammx::DimType
+tamm_id_to_tammx_dim(const tamm::Index& id) {
+  return tamm_range_to_tammx_dim(tamm_id_to_tamm_range(id));
+}
+
+tammx::TensorVec<tammx::SymmGroup>
+tamm_tensor_to_tammx_symm_groups(const tamm::Tensor* tensor) {
+  const std::vector<tamm::Index>& ids = tensor->ids();
+  int nup = tensor->nupper();
+  int nlo = ids.size() - nup;
+
+  if (tensor->dim_type() == tamm::DimType::dim_n) {
+    using tammx::SymmGroup;
+    SymmGroup sgu, sgl;
+    for(int i=0; i<nup; i++) {
+      sgu.push_back(tammx::DimType::n);
+    }
+    for(int i=0; i<nlo; i++) {
+      sgl.push_back(tammx::DimType::n);
+    }
+    tammx::TensorVec<SymmGroup> ret;
+    if(sgu.size() > 0) {
+      ret.push_back(sgu);
+    }
+    if(sgl.size() > 0) {
+      ret.push_back(sgl);
+    }
+    return ret;
+  }
+
+  assert(ids.size() <=4); //@todo @fixme assume for now
+  assert(nup <= 2); //@todo @fixme assume for now
+  assert(nlo <= 2);  //@todo @fixme assume for now
+  
+  tammx::TensorDim dims;
+  for(const auto& id: ids) {
+    dims.push_back(tamm_id_to_tammx_dim(id));
+  }
+  tammx::TensorVec<tammx::SymmGroup> ret;
+
+  if(nup == 1) {
+    tammx::SymmGroup sg{dims[0]};
+    ret.push_back(sg);
+  } else if (nup == 2) {
+    if(dims[0] == dims[1]) {
+      tammx::SymmGroup sg{dims[0], dims[1]};
+      ret.push_back(sg);      
+    }
+    else {
+      tammx::SymmGroup sg1{dims[0]}, sg2{dims[1]};
+      ret.push_back(sg1);
+      ret.push_back(sg2);
+    }
+  }
+
+  if(nlo == 1) {
+    tammx::SymmGroup sg{dims[nup]};
+    ret.push_back(sg);
+  } else if (nlo == 2) {
+    if(dims[nup + 0] == dims[nup + 1]) {
+      tammx::SymmGroup sg{dims[nup + 0], dims[nup + 1]};
+      ret.push_back(sg);      
+    }
+    else {
+      tammx::SymmGroup sg1{dims[nup + 0]}, sg2{dims[nup + 1]};
+      ret.push_back(sg1);
+      ret.push_back(sg2);
+    }
+  }
+  return ret;
+}
+
+
+tammx::Tensor<double>*
+tamm_tensor_to_tammx_tensor(tammx::ProcGroup pg, tamm::Tensor* ttensor) {
+  using tammx::Irrep;
+  using tammx::TensorVec;
+  using tammx::SymmGroup;
+
+  auto irrep = Irrep{ttensor->irrep()};
+  auto nup = ttensor->nupper();
+  
+  auto restricted = tamm::Variables::restricted();
+  const TensorVec<SymmGroup>& indices = tamm_tensor_to_tammx_symm_groups(ttensor);
+
+  auto xtensor = new tammx::Tensor<double>{indices, nup, irrep, restricted};
+  auto mgr = std::make_shared<tammx::MemoryManagerGA>(pg, ttensor->ga().ga());
+  auto distribution = tammx::Distribution_NW();
+  xtensor->attach(&distribution, mgr);
+  return xtensor;
+}
+
+void
+tammx_assign(tammx::ExecutionContext& ec,
+             tamm::Tensor* ttc,
+             const std::vector<tamm::IndexName>& clabel,
+             double alpha,
+             tamm::Tensor* tta,
+            const std::vector<tamm::IndexName>& alabel) {
+  tammx::Tensor<double> *ta = tamm_tensor_to_tammx_tensor(ec.pg(), tta);
+  tammx::Tensor<double> *tc = tamm_tensor_to_tammx_tensor(ec.pg(), ttc);
+  
+  // auto irrepa = Irrep{tta->irrep()};
+  // auto nupa = tta->nupper();
+  // auto restricteda = tamm::Variables::restricted();
+  // TensorVec<SymmGroup> indicesa;
+  // tammx::Tensor<double> ta{indicesa, nupa, irrepa, restricteda};
+  // MemoryManagerGA ma(ProcGroup pg, int ga, ElementType eltype, Size nelements);
+  // auto mgra = std::make_shared<MemoryManagerGA>(pga, tta->ga().ga());
+  // ta.attach(distribution, mgra);
+
+  // auto irrepc = Irrep{ttc->irrep()};
+  // auto nupc = ttc->nupper();
+  // auto restrictedc = tamm::Variables::restricted();
+  // TensorVec<SymmGroup> indicesc;
+  // tammx::Tensor<double> tc{indicesc, nupc, irrepc, restrictedc};
+  // MemoryManagerGA mc(ProcGroup pg, int ga, ElementType eltype, Size nelements);
+  // auto mgrc = std::make_shared<MemoryManagerGA>(pgc, ttc->ga().ga());
+  // tc.attach(distribution, mgrc);
+  
+  auto al = tamm_label_to_tammx_label(alabel);
+  auto cl = tamm_label_to_tammx_label(clabel);
+
+  ec.scheduler()
+      ((*tc)(cl) += alpha * (*ta)(al))
+      .execute();
+
+  delete ta;
+  delete tc;
 }
 
 void
@@ -90,6 +258,19 @@ tamm_mult(tamm::Tensor* tc,
   tamm::Multiplication mult(tc, clabel, ta, alabel, tb, blabel, alpha);
   mult.execute();
 }
+
+// void
+// tammx_mult(tammx::ExecutionContext& ec,
+//            tammx::Tensor* tc,
+//            const std::vector<tamm::IndexName>& clabel,
+//            double alpha,
+//            tamm::Tensor* ta,
+//            const std::vector<tamm::IndexName>& alabel,
+//            tamm::Tensor* tb,
+//            const std::vector<tamm::IndexName>& blabel) {
+//   tamm::Multiplication mult(tc, clabel, ta, alabel, tb, blabel, alpha);
+//   mult.execute();
+// }
 
 
 void

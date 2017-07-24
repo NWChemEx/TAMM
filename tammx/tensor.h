@@ -86,7 +86,7 @@ class Tensor : public TensorBase {
       distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, pg_.size()));
     }
     if(memory_manager) {
-      mgr_ = std::unique_ptr<MemoryManager>(memory_manager->clone(pg_));
+      mgr_ = std::shared_ptr<MemoryManager>(memory_manager->clone(pg_));
     }
     Expects(mgr_.get() != nullptr);
     Expects(distribution_.get() != nullptr);
@@ -99,12 +99,21 @@ class Tensor : public TensorBase {
   }
 
   void dealloc() {
+    Expects(allocation_status_ == AllocationStatus::created);
     mgr_->dealloc();
     allocation_status_ = AllocationStatus::invalid;
   }
 
-  void attach(std::unique_ptr<MemoryManager> mgr) {
+  void attach(Distribution* distribution, std::shared_ptr<MemoryManager> mgr) {
+    pg_ = mgr->proc_group();
+    distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, pg_.size()));    
     mgr_ = mgr;
+    allocation_status_ = AllocationStatus::attached;
+  }
+
+  void detach() {
+    mgr_ = nullptr;
+    allocation_status_ = AllocationStatus::invalid;
   }
 
   Block<T> alloc(const TensorIndex& blockid) {
@@ -219,9 +228,8 @@ class Tensor : public TensorBase {
   }
 
   ProcGroup pg_;
-  enum class AllocationStatus { invalid, created, attached };
   AllocationStatus allocation_status_;
-  std::unique_ptr<MemoryManager> mgr_;
+  std::shared_ptr<MemoryManager> mgr_;
   std::shared_ptr<Distribution> distribution_;
 }; // class Tensor
 

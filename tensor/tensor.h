@@ -90,6 +90,8 @@ class Tensor {
   void fill_random();
   void fill_given(const double fill_val);
 
+  DimType dim_type() const { return dim_type_; }
+
  private:
   int dim_;                /*< dimension of this tensor */
   std::vector<Index> ids_; /*< indices of the tensor, actual data */

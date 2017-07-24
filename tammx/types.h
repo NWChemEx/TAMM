@@ -29,6 +29,8 @@ using Offset = StrongNum<OffsetSpace, int64_t>;
 using Size = Offset;
 
 
+enum class AllocationStatus { invalid, created, attached };
+
 //struct PermSpace;
 //using Perm = StrongNum<PermSace, int>;
 

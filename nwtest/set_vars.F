@@ -341,10 +341,9 @@ c#include "sym.fh"
       EXTERNAL NXTASK
       nprocs = GA_NNODES()
       count = 0
-      irrepa = 0
-      irrepb = 0
       write(*,*)'d_a, k_a_offset, d_c, d_c_offset, d_c, k_c_ofset',
      & d_a, k_a_offset, d_b, k_b_offset, d_c, k_c_offset
+      write(*,*) 'irrepa, irrepb, irrepc: ', irrepa, irrepb, irrepc
       next = NXTASK(nprocs, 1)
       DO p2b = noab+1,noab+nvab
        DO h1b = 1,noab
@@ -364,14 +363,19 @@ ccx        IF (next.eq.count) THEN
              IF (int_mb(k_spin+p2b-1) .eq. int_mb(k_spin+h7b-1)) THEN
               IF (ieor(int_mb(k_sym+p2b-1),int_mb(k_sym+h7b-1)) 
      1            .eq. irrepa) THEN
-               write(*,*) 'h7b: ', h7b
                CALL TCE_RESTRICTED_2(p2b,h7b,p2b_1,h7b_1)
                CALL TCE_RESTRICTED_2(h7b,h1b,h7b_2,h1b_2)
+               write(*,*) 'p2b, h1b, h7b: ', p2b, h1b, h7b
+               write(*,*) 'p2b_1, h7b_1: ', p2b_1, h7b_1
+               write(*,*) 'h1b_2, h7b_2: ', h1b_2, h7b_2
                dim_common = int_mb(k_range+h7b-1)
                dima_sort = int_mb(k_range+p2b-1)
                dima = dim_common * dima_sort
                dimb_sort = int_mb(k_range+h1b-1)
                dimb = dim_common * dimb_sort
+               write(*,*) 'dim_common: ', dim_common
+               write(*,*) 'dima, dima_sort: ', dima, dima_sort
+               write(*,*) 'dimb, dimb_sort: ', dimb, dimb_sort
                IF ((dima .gt. 0) .and. (dimb .gt. 0)) THEN
                 IF (.not.MA_PUSH_GET(mt_dbl,dima,'noname',l_a,k_a))
      1               CALL ERRQUIT('ccsd_t1_2',2,MA_ERR)

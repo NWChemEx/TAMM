@@ -335,7 +335,7 @@ void test_assign_vo(tammx::ExecutionContext& ec) {
 void test_mult_vo_oo(tammx::ExecutionContext& ec) {
   auto tc_c = tamm_tensor({TV}, {TO});
   auto tc_f = tamm_tensor({TV}, {TO});
-  auto ta = tamm_tensor({TV}, {TO});
+  auto ta = tamm_tensor({TV}, {TO}, 0, tamm::dist_nwma);
   auto tb = tamm_tensor({TO}, {TO});
 
   tamm_create(&ta, &tb, &tc_c, &tc_f);
@@ -468,8 +468,8 @@ int main(int argc, char *argv[]) {
     tammx::ExecutionContext ec {pg, &default_distribution, &default_memory_manager,
           default_irrep, default_spin_restricted};
     
-    test_assign_vo(ec);
-    //test_mult_vo_oo();
+    //test_assign_vo(ec);
+    test_mult_vo_oo(ec);
 
   }
   pg.destroy();

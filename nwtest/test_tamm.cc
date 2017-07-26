@@ -9,6 +9,8 @@
 //
 //------------------------------------------------------------------------------
 #include <iostream>
+#include "gtest/gtest.h"
+
 #include "tensor/corf.h"
 #include "tensor/equations.h"
 #include "tensor/input.h"
@@ -25,6 +27,17 @@
 #include <mpi.h>
 #include <ga.h>
 #include <macdecls.h>
+
+namespace {
+tammx::ExecutionContext* g_ec;
+}
+
+class TestEnvironment : public testing::Environment {
+ public:
+  explicit TestEnvironment(tammx::ExecutionContext* ec) {
+    g_ec = ec;
+  }
+};
 
 extern "C" {
   void init_fortran_vars_(Integer *noa1, Integer *nob1, Integer *nva1,
@@ -333,7 +346,7 @@ tamm_labels_to_ranges(const std::vector<tamm::IndexName>& labels) {
   return ret;
 }
 
-void test_assign_no_n(tammx::ExecutionContext& ec,
+bool test_assign_no_n(tammx::ExecutionContext& ec,
                       double alpha,
                       const std::vector<tamm::IndexName>& cupper_labels,
                       const std::vector<tamm::IndexName>& clower_labels,
@@ -359,9 +372,43 @@ void test_assign_no_n(tammx::ExecutionContext& ec,
   tammx_assign(ec, &tc2, clabels, alpha, &ta, alabels);
   //fortran_assign(&tc_f, &ta, ccsd_t1_1_);
 
-  assert_result(tc1.check_correctness(&tc2), __func__);
+  //assert_result(tc1.check_correctness(&tc2), __func__);
+  bool status = tc1.check_correctness(&tc2);
 
   tamm_destroy(&tc1, &tc2, &ta);
+  return status;
+}
+
+TEST (AssignTest, TwoDim_O1O2_O1O2) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {H4B}, {H1B}, {H4B}, {H1B}));
+}
+
+TEST (AssignTest, TwoDim_O1O2_O2O1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {H4B}, {H1B}, {H1B}, {H4B}));
+}
+
+TEST (AssignTest, TwoDim_OV_OV) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {H4B}, {P1B}, {H4B}, {P1B}));
+}
+
+TEST (AssignTest, TwoDim_OV_VO) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {H4B}, {P1B}, {P1B}, {H4B}));
+}
+
+TEST (AssignTest, TwoDim_VO_VO) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {P1B}, {H1B}, {P1B}, {H1B}));
+}
+
+TEST (AssignTest, TwoDim_VO_OV) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {P1B}, {H1B}, {H1B}, {P1B}));
+}
+
+TEST (AssignTest, TwoDim_V1V2_V1V2) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {P4B}, {P1B}, {P4B}, {P1B}));
+}
+
+TEST (AssignTest, TwoDim_V1V2_V2V1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {P4B}, {P1B}, {P1B}, {P4B}));
 }
 
 void test_assign_2d(tammx::ExecutionContext& ec) {
@@ -379,8 +426,8 @@ void test_assign_2d(tammx::ExecutionContext& ec) {
 }
 
 void test_assign_4d(tammx::ExecutionContext& ec) {
-  test_assign_no_n(ec, 0.24, {H1B, H2B}, {H3B, H4B}, {H1B, H2B}, {H3B, H4B});
-  //test_assign_no_n(ec, 0.24, {H1B, H2B}, {H3B, H4B}, {H1B, H2B}, {H4B, H3B});
+  //test_assign_no_n(ec, 0.24, {H1B, H2B}, {H3B, H4B}, {H1B, H2B}, {H3B, H4B});
+  test_assign_no_n(ec, 0.24, {H1B, H2B}, {H3B, H4B}, {H1B, H2B}, {H4B, H3B});
   // test_assign_no_n(ec, 1.23, {H4B}, {H1B}, {H1B}, {H4B});
 
   // test_assign_no_n(ec, 0.24, {H4B}, {P1B}, {H4B}, {P1B});
@@ -524,13 +571,17 @@ int main(int argc, char *argv[]) {
   auto default_irrep = tammx::Irrep{0};
   auto default_spin_restricted = false;
 
-  
+  ::testing::InitGoogleTest(&argc, argv);
+
+  int ret = 0;
   {  
     tammx::ExecutionContext ec {pg, &default_distribution, &default_memory_manager,
           default_irrep, default_spin_restricted};
-    
-    test_assign_2d(ec);
-    test_assign_4d(ec);
+
+    testing::AddGlobalTestEnvironment(new TestEnvironment(&ec));
+    ret = RUN_ALL_TESTS();
+    //test_assign_2d(ec);
+    //test_assign_4d(ec);
     //test_assign(ec);
     //test_mult_vo_oo(ec);
   }
@@ -541,5 +592,5 @@ int main(int argc, char *argv[]) {
   
   GA_Terminate();
   MPI_Finalize();
-  return 0;
+  return ret;
 }

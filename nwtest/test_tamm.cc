@@ -55,9 +55,14 @@ extern "C" {
   typedef void mult_fn(Integer *ta, Integer *offseta, Integer *irrepa,
                        Integer *tb, Integer *offsetb, Integer *irrepb,
                        Integer *tc, Integer *offsetc, Integer *irrepc);
-  
+
+  typedef void mult_fn_2(Integer *ta, Integer *offseta,
+                       Integer *tb, Integer *offsetb,
+                       Integer *tc, Integer *offsetc);
+
   add_fn ccsd_t1_1_;
   mult_fn ccsd_t1_2_;
+  mult_fn_2 cc2_t1_5_;
 }
 
 void
@@ -262,18 +267,18 @@ tamm_mult(tamm::Tensor* tc,
   mult.execute();
 }
 
-// void
-// tammx_mult(tammx::ExecutionContext& ec,
-//            tammx::Tensor* tc,
-//            const std::vector<tamm::IndexName>& clabel,
-//            double alpha,
-//            tamm::Tensor* ta,
-//            const std::vector<tamm::IndexName>& alabel,
-//            tamm::Tensor* tb,
-//            const std::vector<tamm::IndexName>& blabel) {
-//   tamm::Multiplication mult(tc, clabel, ta, alabel, tb, blabel, alpha);
-//   mult.execute();
-// }
+ void
+ tammx_mult(tammx::ExecutionContext& ec,
+            tamm::Tensor* tc,
+            const std::vector<tamm::IndexName>& clabel,
+            double alpha,
+            tamm::Tensor* ta,
+            const std::vector<tamm::IndexName>& alabel,
+            tamm::Tensor* tb,
+            const std::vector<tamm::IndexName>& blabel) {
+   tamm::Multiplication mult(tc, clabel, ta, alabel, tb, blabel, alpha);
+   mult.execute();
+ }
 
 
 void
@@ -304,6 +309,23 @@ fortran_mult(tamm::Tensor* tc,
       offsetc = tc->offset_index(),
       irrepc = tc->irrep();
   fn(&da, &offseta, &irrepa, &db, &offsetb, &irrepb, &dc, &offsetc, &irrepc);
+}
+
+void
+fortran_mult_vvoo_vo(tamm::Tensor* tc,
+             tamm::Tensor* ta,
+             tamm::Tensor* tb,
+             mult_fn_2 fn) {
+  Integer da = static_cast<Integer>(ta->ga().ga()),
+      offseta = ta->offset_index(),
+      irrepa = ta->irrep();
+  Integer db = static_cast<Integer>(tb->ga().ga()),
+      offsetb = tb->offset_index(),
+      irrepb = tb->irrep();
+  Integer dc = static_cast<Integer>(tc->ga().ga()),
+      offsetc = tc->offset_index(),
+      irrepc = tc->irrep();
+  fn(&da, &offseta, &db, &offsetb, &dc, &offsetc);
 }
 
 void
@@ -379,6 +401,46 @@ bool test_assign_no_n(tammx::ExecutionContext& ec,
   return status;
 }
 
+bool test_mult_no_n(tammx::ExecutionContext& ec,
+                      double alpha,
+                      const std::vector<tamm::IndexName>& cupper_labels,
+                      const std::vector<tamm::IndexName>& clower_labels,
+                      const std::vector<tamm::IndexName>& aupper_labels,
+                      const std::vector<tamm::IndexName>& alower_labels,
+					  const std::vector<tamm::IndexName>& bupper_labels,
+					  const std::vector<tamm::IndexName>& blower_labels) {
+  const auto& cupper_ranges = tamm_labels_to_ranges(cupper_labels);
+  const auto& clower_ranges = tamm_labels_to_ranges(clower_labels);
+  const auto& aupper_ranges = tamm_labels_to_ranges(aupper_labels);
+  const auto& alower_ranges = tamm_labels_to_ranges(alower_labels);
+  const auto& bupper_ranges = tamm_labels_to_ranges(bupper_labels);
+  const auto& blower_ranges = tamm_labels_to_ranges(blower_labels);
+  auto tc1 = tamm_tensor(cupper_ranges, clower_ranges);
+  auto tc2 = tamm_tensor(cupper_ranges, clower_ranges);
+  auto ta = tamm_tensor(aupper_ranges, alower_ranges);
+  auto tb = tamm_tensor(aupper_ranges, alower_ranges);
+
+  tamm_create(&tc1, &tc2, &ta, &tb);
+  ta.fill_given(2.0);
+  tb.fill_random();
+
+  auto clabels = cupper_labels;
+  std::copy(clower_labels.begin(), clower_labels.end(), std::back_inserter(clabels));
+  auto alabels = aupper_labels;
+  std::copy(alower_labels.begin(), alower_labels.end(), std::back_inserter(alabels));
+  auto blabels = bupper_labels;
+  std::copy(blower_labels.begin(), blower_labels.end(), std::back_inserter(blabels));
+
+  tamm_mult(&tc1, clabels, alpha, &ta, alabels, &tb, blabels);
+  tammx_mult(ec, &tc2, clabels, alpha, &ta, alabels, &tb, blabels);
+
+  //assert_result(tc1.check_correctness(&tc2), __func__);
+  bool status = tc1.check_correctness(&tc2);
+
+  tamm_destroy(&tc1, &tc2, &ta, &tb);
+  return status;
+}
+
 TEST (AssignTest, TwoDim_O1O2_O1O2) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {H4B}, {H1B}, {H4B}, {H1B}));
 }
@@ -410,6 +472,12 @@ TEST (AssignTest, TwoDim_V1V2_V1V2) {
 TEST (AssignTest, TwoDim_V1V2_V2V1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {P4B}, {P1B}, {P1B}, {P4B}));
 }
+
+//TEST (MultTest, FourDim_TwoDim_V1V2O1O2_O2V2) {
+//  ASSERT_TRUE(test_mult_no_n(*g_ec, 1.0, {P1B}, {H1B}, {H1B}, {H4B}, {H4B},
+//          {P2B}));
+//}
+
 
 void test_assign_2d(tammx::ExecutionContext& ec) {
   test_assign_no_n(ec, 0.24, {H4B}, {H1B}, {H4B}, {H1B});
@@ -452,6 +520,24 @@ void test_mult_vo_oo(tammx::ExecutionContext& ec) {
 
   tamm_mult(&tc_c, {P1B, H1B}, -1.0, &ta, {P1B, H4B}, &tb, {H4B, H1B});
   //fortran_mult(&tc_f, &ta, &tb, ccsd_t1_2_);
+
+  assert_result(tc_c.check_correctness(&tc_f), __func__);
+
+  tamm_destroy(&ta, &tb, &tc_c, &tc_f);
+}
+
+void test_mult_vvoo_ov(tammx::ExecutionContext& ec) {
+  auto tc_c = tamm_tensor({TV}, {TO});
+  auto tc_f = tamm_tensor({TV}, {TO});
+  auto ta = tamm_tensor({TV,TV}, {TO,TO}, 0, tamm::dist_nw);
+  auto tb = tamm_tensor({TO}, {TV});
+
+  tamm_create(&ta, &tb, &tc_c, &tc_f);
+  ta.fill_random();
+  tb.fill_given(2.0);
+  tamm_mult(&tc_c, {P1B, H1B}, 1.0, &ta, {P1B, P2B, H1B, H4B},
+		  &tb, {H4B, P2B});
+  fortran_mult_vvoo_vo(&tc_f, &ta, &tb, cc2_t1_5_);
 
   assert_result(tc_c.check_correctness(&tc_f), __func__);
 
@@ -584,6 +670,7 @@ int main(int argc, char *argv[]) {
     //test_assign_4d(ec);
     //test_assign(ec);
     //test_mult_vo_oo(ec);
+    test_mult_vvoo_ov(ec);
   }
   pg.destroy();
   tammx_finalize();

@@ -183,11 +183,20 @@ target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
 add_executable(nwtest nwtest/test_tamm.cc)
 add_dependencies(nwtest fort_deps fort_deps_c tamm tammx)
-target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes} ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime)
+target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes}
+        ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include)
 target_compile_options(nwtest PUBLIC ${tamm_cflags})
 target_link_libraries(nwtest fort_deps fort_deps_c tamm tammx ${tamm_cflags}
-        ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} )
+        ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest)
 
+
+add_executable(check_gtest CI_testing/unit/ParserTest.cc)
+add_dependencies(check_gtest fort_deps fort_deps_c tamm tammx)
+target_include_directories(check_gtest SYSTEM PUBLIC ${tamm_includes}
+        ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include)
+target_compile_options(check_gtest PUBLIC ${tamm_cflags})
+target_link_libraries(check_gtest fort_deps fort_deps_c tamm tammx ${tamm_cflags}
+        ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest)
 
 #BUILD TAMMX
     set(tammxSources

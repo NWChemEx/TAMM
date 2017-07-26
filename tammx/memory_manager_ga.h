@@ -19,7 +19,9 @@ class MemoryManagerGA : public MemoryManager {
   MemoryManagerGA(ProcGroup pg, int ga)
       : MemoryManager(pg),
         ga_{ga} {
-    NGA_Inquire(ga_, &ga_eltype_, nullptr, nullptr);
+    int ndim;
+    int64_t dims;
+    NGA_Inquire64(ga_, &ga_eltype_, &ndim, &dims);
     eltype_ = from_ga_eltype(ga_eltype_);
     elsize_ = element_size(eltype_);
     ga_pg_ = GA_Get_pgroup(ga);
@@ -31,9 +33,12 @@ class MemoryManagerGA : public MemoryManager {
     for(int i = 0; i<nranks; i++) {
       int64_t lo, hi;
       NGA_Distribution64(ga_, i, &lo, &hi);
-      map_[i+1] = map_[i] + (hi - lo);
+      std::cout<<"NGA_Distributopn64. lo="<<lo<<" hi="<<hi<<std::endl;
+      map_[i+1] = map_[i] + (hi - lo + 1);
     }
     nelements_ = map_[me+1] - map_[me];
+    std::cout<<"---TAMMX. ga local nelements="<<nelements_<<std::endl;
+    std::cout<<"---TAMMX. ga eltype="<<ga_eltype_<<"(C_DBL="<<MT_C_DBL<<")"<<std::endl;
     allocation_status_ = AllocationStatus::attached;
   }
 
@@ -117,7 +122,7 @@ class MemoryManagerGA : public MemoryManager {
     int64_t nels{1};
     int iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
-    int64_t lo = ioffset, hi = ioffset + nels*elsize_, ld = -1;
+    int64_t lo = ioffset, hi = ioffset + nels-1, ld = -1;
     void* buf;
     NGA_Access64(ga_, &lo, &hi, reinterpret_cast<void*>(&buf), &ld);
     return buf;
@@ -128,8 +133,10 @@ class MemoryManagerGA : public MemoryManager {
             allocation_status_ == AllocationStatus::attached);
     int iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
-    int64_t lo = ioffset, hi = ioffset + nelements.value()*elsize_, ld = -1;
+    int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
+    std::cout<<"---memory_manager_ga. get. lo="<<lo<<" hi="<<hi<<std::endl;
     NGA_Get64(ga_, &lo, &hi, buf, &ld);
+    std::cout<<"---memory_manager_ga. done get. lo="<<lo<<" hi="<<hi<<std::endl;
   }
   
   void put(Proc proc, Offset off, Size nelements, const void* buf) {
@@ -137,7 +144,7 @@ class MemoryManagerGA : public MemoryManager {
             allocation_status_ == AllocationStatus::attached);
     int iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
-    int64_t lo = ioffset, hi = ioffset + nelements.value()*elsize_, ld = -1;
+    int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     NGA_Put64(ga_, &lo, &hi, const_cast<void*>(buf), &ld);
   }
   
@@ -146,10 +153,28 @@ class MemoryManagerGA : public MemoryManager {
             allocation_status_ == AllocationStatus::attached);
     int iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
-    int64_t lo = ioffset, hi = ioffset + nelements.value()*elsize_, ld = -1;
+    int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     void *alpha;
-    
+    switch(eltype_) {
+      case ElementType::single_precision:
+        alpha = reinterpret_cast<void*>(&sp_alpha);
+        break;
+      case ElementType::double_precision:
+        alpha = reinterpret_cast<void*>(&dp_alpha);
+        break;
+      case ElementType::single_complex:
+        alpha = reinterpret_cast<void*>(&scp_alpha);
+        break;
+      case ElementType::double_complex:
+        alpha = reinterpret_cast<void*>(&dcp_alpha);
+        break;
+      case ElementType::invalid:
+      default:
+        assert(0);
+    }
+    std::cout<<"---memory_manager_ga. add. lo="<<lo<<" hi="<<hi<<" ld="<<ld<<" buf="<<buf<<std::endl;
     NGA_Acc64(ga_, &lo, &hi, const_cast<void*>(buf), &ld, alpha);
+    std::cout<<"---memory_manager_ga. done add. lo="<<lo<<" hi="<<hi<<" ld="<<ld<<std::endl;
   }
 
  protected:
@@ -203,6 +228,12 @@ class MemoryManagerGA : public MemoryManager {
   AllocationStatus allocation_status_;
   size_t elsize_;
   std::unique_ptr<int64_t[]> map_;
+
+  //constants for NGA_Acc call
+  float sp_alpha = 1.0;
+  double dp_alpha = 1.0;
+  SingleComplex scp_alpha = {1, 0};
+  DoubleComplex dcp_alpha = {1, 0};
 }; // class MemoryManagerGA
 
 }  // namespace tammx

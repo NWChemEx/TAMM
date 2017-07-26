@@ -218,28 +218,13 @@ tammx_assign(tammx::ExecutionContext& ec,
   tammx::Tensor<double> *ta = tamm_tensor_to_tammx_tensor(ec.pg(), tta);
   tammx::Tensor<double> *tc = tamm_tensor_to_tammx_tensor(ec.pg(), ttc);
   
-  // auto irrepa = Irrep{tta->irrep()};
-  // auto nupa = tta->nupper();
-  // auto restricteda = tamm::Variables::restricted();
-  // TensorVec<SymmGroup> indicesa;
-  // tammx::Tensor<double> ta{indicesa, nupa, irrepa, restricteda};
-  // MemoryManagerGA ma(ProcGroup pg, int ga, ElementType eltype, Size nelements);
-  // auto mgra = std::make_shared<MemoryManagerGA>(pga, tta->ga().ga());
-  // ta.attach(distribution, mgra);
-
-  // auto irrepc = Irrep{ttc->irrep()};
-  // auto nupc = ttc->nupper();
-  // auto restrictedc = tamm::Variables::restricted();
-  // TensorVec<SymmGroup> indicesc;
-  // tammx::Tensor<double> tc{indicesc, nupc, irrepc, restrictedc};
-  // MemoryManagerGA mc(ProcGroup pg, int ga, ElementType eltype, Size nelements);
-  // auto mgrc = std::make_shared<MemoryManagerGA>(pgc, ttc->ga().ga());
-  // tc.attach(distribution, mgrc);
-  
   auto al = tamm_label_to_tammx_label(alabel);
   auto cl = tamm_label_to_tammx_label(clabel);
 
+  std::cout<<"----AL="<<al<<std::endl;
+  std::cout<<"----CL="<<cl<<std::endl;
   ec.scheduler()
+      .io((*tc), (*ta))
       ((*tc)(cl) += alpha * (*ta)(al))
       .execute();
 
@@ -330,7 +315,7 @@ const auto H4B = tamm::H4B;
 const auto TO = tamm::TO;
 const auto TV = tamm::TV;
 
-void test_assign_vo() {
+void test_assign_vo(tammx::ExecutionContext& ec) {
   auto tc_c = tamm_tensor({TV}, {TO});
   auto tc_f = tamm_tensor({TV}, {TO});
   auto ta = tamm_tensor({TV}, {TO});
@@ -338,7 +323,8 @@ void test_assign_vo() {
   tamm_create(&tc_c, &tc_f, &ta);  
   ta.fill_random();
   
-  tamm_assign(&tc_c, {P1B, H1B}, 1.0, &ta, {P1B, H1B});
+  // tamm_assign(&tc_c, {P1B, H1B}, 1.0, &ta, {P1B, H1B});
+  tammx_assign(ec, &tc_c, {P1B, H1B}, 1.0, &ta, {P1B, H1B});
   fortran_assign(&tc_f, &ta, ccsd_t1_1_);
 
   assert_result(tc_c.check_correctness(&tc_f), __func__);
@@ -346,7 +332,7 @@ void test_assign_vo() {
   tamm_destroy(&tc_c, &tc_f, &ta);
 }
 
-void test_mult_vo_oo() {
+void test_mult_vo_oo(tammx::ExecutionContext& ec) {
   auto tc_c = tamm_tensor({TV}, {TO});
   auto tc_f = tamm_tensor({TV}, {TO});
   auto ta = tamm_tensor({TV}, {TO});
@@ -466,14 +452,27 @@ int main(int argc, char *argv[]) {
   MPI_Init(&argc, &argv);
   GA_Initialize();
   MA_init(MT_DBL, 1000000, 8000000);
-  
+
   fortran_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);    
   tamm_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);    
   tammx_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);    
+
+  tammx::ProcGroup pg {tammx::ProcGroup{MPI_COMM_WORLD}.clone()};
+  auto default_distribution = tammx::Distribution_NW();
+  tammx::MemoryManagerGA default_memory_manager{pg};
+  auto default_irrep = tammx::Irrep{0};
+  auto default_spin_restricted = false;
+
   
-  test_assign_vo();
-  test_mult_vo_oo();
-  
+  {  
+    tammx::ExecutionContext ec {pg, &default_distribution, &default_memory_manager,
+          default_irrep, default_spin_restricted};
+    
+    test_assign_vo(ec);
+    //test_mult_vo_oo();
+
+  }
+  pg.destroy();
   tammx_finalize();
   tamm_finalize();
   fortran_finalize();

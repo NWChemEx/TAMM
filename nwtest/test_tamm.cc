@@ -474,10 +474,9 @@ TEST (AssignTest, TwoDim_V1V2_V2V1) {
 }
 
 //TEST (MultTest, FourDim_TwoDim_V1V2O1O2_O2V2) {
-//  ASSERT_TRUE(test_mult_no_n(*g_ec, 1.0, {P1B}, {H1B}, {H1B}, {H4B}, {H4B},
-//          {P2B}));
+//  ASSERT_TRUE(test_mult_no_n(*g_ec, 1.0, {P1B}, {H1B},
+//		  {P1B, P2B}, {H1B, H4B}, {H4B}, {P2B}));
 //}
-
 
 void test_assign_2d(tammx::ExecutionContext& ec) {
   test_assign_no_n(ec, 0.24, {H4B}, {H1B}, {H4B}, {H1B});

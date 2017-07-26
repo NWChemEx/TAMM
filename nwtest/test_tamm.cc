@@ -95,9 +95,14 @@ tamm_label_to_tammx_label(const std::vector<tamm::IndexName>& label) {
 }
 
 tamm::RangeType
-tamm_id_to_tamm_range(const tamm::Index& id) {
-  return (id.name() >= tamm::H1B && id.name() <= tamm::H12B)
+tamm_idname_to_tamm_range(const tamm::IndexName& idname) {
+  return (idname >= tamm::H1B && idname <= tamm::H12B)
       ? tamm::RangeType::TO : tamm::RangeType::TV;
+}
+
+tamm::RangeType
+tamm_id_to_tamm_range(const tamm::Index& id) {
+  return tamm_idname_to_tamm_range(id.name());
 }
 
 tammx::DimType
@@ -309,27 +314,83 @@ tamm_destroy(tamm::Tensor* tensor, Args ... args) {
 }
 
 const auto P1B = tamm::P1B;
-const auto P2B = tamm::P2B;                                                    
+const auto P2B = tamm::P2B;
+const auto P3B = tamm::P3B;
+const auto P4B = tamm::P4B;
 const auto H1B = tamm::H1B;
+const auto H2B = tamm::H2B;
+const auto H3B = tamm::H3B;
 const auto H4B = tamm::H4B;
 const auto TO = tamm::TO;
 const auto TV = tamm::TV;
 
-void test_assign_vo(tammx::ExecutionContext& ec) {
-  auto tc_c = tamm_tensor({TV}, {TO});
-  auto tc_f = tamm_tensor({TV}, {TO});
-  auto ta = tamm_tensor({TV}, {TO});
+std::vector<tamm::RangeType>
+tamm_labels_to_ranges(const std::vector<tamm::IndexName>& labels) {
+  std::vector<tamm::RangeType> ret;
+  for(auto l : labels) {
+    ret.push_back(tamm_idname_to_tamm_range(l));
+  }
+  return ret;
+}
 
-  tamm_create(&tc_c, &tc_f, &ta);  
+void test_assign_no_n(tammx::ExecutionContext& ec,
+                      double alpha,
+                      const std::vector<tamm::IndexName>& cupper_labels,
+                      const std::vector<tamm::IndexName>& clower_labels,
+                      const std::vector<tamm::IndexName>& aupper_labels,
+                      const std::vector<tamm::IndexName>& alower_labels) {
+  const auto& cupper_ranges = tamm_labels_to_ranges(cupper_labels);
+  const auto& clower_ranges = tamm_labels_to_ranges(clower_labels);
+  const auto& aupper_ranges = tamm_labels_to_ranges(aupper_labels);
+  const auto& alower_ranges = tamm_labels_to_ranges(alower_labels);
+  auto tc1 = tamm_tensor(cupper_ranges, clower_ranges);
+  auto tc2 = tamm_tensor(cupper_ranges, clower_ranges);
+  auto ta = tamm_tensor(aupper_ranges, alower_ranges);
+
+  tamm_create(&tc1, &tc2, &ta);  
   ta.fill_random();
+
+  auto clabels = cupper_labels;
+  std::copy(clower_labels.begin(), clower_labels.end(), std::back_inserter(clabels));
+  auto alabels = aupper_labels;
+  std::copy(alower_labels.begin(), alower_labels.end(), std::back_inserter(alabels));
   
-  // tamm_assign(&tc_c, {P1B, H1B}, 1.0, &ta, {P1B, H1B});
-  tammx_assign(ec, &tc_c, {P1B, H1B}, 1.0, &ta, {P1B, H1B});
-  fortran_assign(&tc_f, &ta, ccsd_t1_1_);
+  tamm_assign(&tc1, clabels, alpha, &ta, alabels);
+  tammx_assign(ec, &tc2, clabels, alpha, &ta, alabels);
+  //fortran_assign(&tc_f, &ta, ccsd_t1_1_);
 
-  assert_result(tc_c.check_correctness(&tc_f), __func__);
+  assert_result(tc1.check_correctness(&tc2), __func__);
 
-  tamm_destroy(&tc_c, &tc_f, &ta);
+  tamm_destroy(&tc1, &tc2, &ta);
+}
+
+void test_assign_2d(tammx::ExecutionContext& ec) {
+  test_assign_no_n(ec, 0.24, {H4B}, {H1B}, {H4B}, {H1B});
+  test_assign_no_n(ec, 1.23, {H4B}, {H1B}, {H1B}, {H4B});
+
+  test_assign_no_n(ec, 0.24, {H4B}, {P1B}, {H4B}, {P1B});
+  test_assign_no_n(ec, 1.23, {H4B}, {P1B}, {P1B}, {H4B});
+
+  test_assign_no_n(ec, 0.24, {P1B}, {H1B}, {P1B}, {H1B});
+  test_assign_no_n(ec, 1.23, {P1B}, {H1B}, {H1B}, {P1B});
+
+  test_assign_no_n(ec, 0.24, {P4B}, {P1B}, {P4B}, {P1B});
+  test_assign_no_n(ec, 1.23, {P4B}, {P1B}, {P1B}, {P4B});
+}
+
+void test_assign_4d(tammx::ExecutionContext& ec) {
+  test_assign_no_n(ec, 0.24, {H1B, H2B}, {H3B, H4B}, {H1B, H2B}, {H3B, H4B});
+  //test_assign_no_n(ec, 0.24, {H1B, H2B}, {H3B, H4B}, {H1B, H2B}, {H4B, H3B});
+  // test_assign_no_n(ec, 1.23, {H4B}, {H1B}, {H1B}, {H4B});
+
+  // test_assign_no_n(ec, 0.24, {H4B}, {P1B}, {H4B}, {P1B});
+  // test_assign_no_n(ec, 1.23, {H4B}, {P1B}, {P1B}, {H4B});
+
+  // test_assign_no_n(ec, 0.24, {P1B}, {H1B}, {P1B}, {H1B});
+  // test_assign_no_n(ec, 1.23, {P1B}, {H1B}, {H1B}, {P1B});
+
+  // test_assign_no_n(ec, 0.24, {P4B}, {P1B}, {P4B}, {P1B});
+  // test_assign_no_n(ec, 1.23, {P4B}, {P1B}, {P1B}, {P4B});
 }
 
 void test_mult_vo_oo(tammx::ExecutionContext& ec) {
@@ -339,11 +400,11 @@ void test_mult_vo_oo(tammx::ExecutionContext& ec) {
   auto tb = tamm_tensor({TO}, {TO});
 
   tamm_create(&ta, &tb, &tc_c, &tc_f);
-  ta.fill_random();
-  tb.fill_given(2.0);
+  tb.fill_random();
+  ta.fill_given(2.0);
 
   tamm_mult(&tc_c, {P1B, H1B}, -1.0, &ta, {P1B, H4B}, &tb, {H4B, H1B});
-  fortran_mult(&tc_f, &ta, &tb, ccsd_t1_2_);
+  //fortran_mult(&tc_f, &ta, &tb, ccsd_t1_2_);
 
   assert_result(tc_c.check_correctness(&tc_f), __func__);
 
@@ -468,9 +529,10 @@ int main(int argc, char *argv[]) {
     tammx::ExecutionContext ec {pg, &default_distribution, &default_memory_manager,
           default_irrep, default_spin_restricted};
     
-    //test_assign_vo(ec);
-    test_mult_vo_oo(ec);
-
+    test_assign_2d(ec);
+    test_assign_4d(ec);
+    //test_assign(ec);
+    //test_mult_vo_oo(ec);
   }
   pg.destroy();
   tammx_finalize();

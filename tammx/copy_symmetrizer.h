@@ -58,6 +58,7 @@ class CopySymmetrizer {
       if(cs_) {
         itr_ = cs_->comb_.begin();
         end_ = cs_->comb_.end();
+        Expects(itr_ != end_);
 
         while (itr_ != end_) {
           auto perm = *itr_;
@@ -71,6 +72,7 @@ class CopySymmetrizer {
           ++itr_;
         }
       }
+      Expects(itr_ != end_);
       //std::cerr<<"CopySymmetrizer::Iteratoe constructor. itr_size="<<cs_->group_size_<<std::endl;
     }
 
@@ -81,14 +83,16 @@ class CopySymmetrizer {
     size_t itr_size() const {
       return cs_->group_size_;
     }
-    
+
     TensorLabel operator * () {
       // std::cerr<<"CopyYmmetrizer::Iterator. perm permutation. ="<<*itr_<<std::endl;
       // std::cerr<<"CopyYmmetrizer::Iterator. perm on label. ="<<cs_->label_<<std::endl;      
+      Expects(itr_ != end_);
       return perm_apply(cs_->label_, *itr_);
     }
 
     Iterator& operator ++ () {
+      Expects(itr_ != end_);
       while (++itr_ != end_) {
         auto perm = *itr_;
         Expects(perm.size() == cs_->blockid_.size());
@@ -128,8 +132,8 @@ class CopySymmetrizer {
   }
 
   Iterator end() const {
-    auto itr = Iterator(this);
-    itr.itr_ = comb_.end();
+    auto itr = begin();
+    itr.itr_ = itr.end_;
     return itr;
   }
 

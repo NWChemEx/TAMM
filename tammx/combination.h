@@ -71,6 +71,7 @@ struct Combination {
         stack_.push_back({Case::case1, x});
         sub_.push_back(x);
       }
+      Expects(sub_.size() == comb_->k_);
     }
 
     // Iterator& operator = (Iterator& itr) {
@@ -94,6 +95,7 @@ struct Combination {
     
     TensorVec<T> operator *() {
       TensorVec<T> gp1, gp2;
+      Expects(!done_);
       Expects(sub_.size() == comb_->k_);
       if(comb_->k_ > 0) {
         gp2.insert_back(comb_->bag_.begin(), comb_->bag_.begin() + sub_[0]);
@@ -111,6 +113,7 @@ struct Combination {
     }
 
     Iterator& operator ++ () {
+      Expects(!done_);
       do {
         iterate();
       } while(stack_.size()>0 && sub_.size() < comb_->k_);
@@ -127,6 +130,7 @@ struct Combination {
 
     void iterate() {
       if(comb_->k_ == 0) {
+        Expects(sub_.size() == 0);
         return;
       }
       Expects(stack_.size() > 0);

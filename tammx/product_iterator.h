@@ -44,6 +44,9 @@ class ProductIterator {
           //   std::cerr<<it.itr_size()<<" ";
           // }
           // std::cerr<<std::endl;
+          for(int i=0; i<ifirst.size(); i++){
+            Expects(ifirst[i] != ilast[i]);
+          }
         }
 
   ~ProductIterator() = default;
@@ -63,6 +66,9 @@ class ProductIterator {
     if(i>=0) {
       for(unsigned j=i+1; j<ival_.size(); j++) {
         ival_[j] = ifirst_[j];
+      }
+      for(unsigned j=0; j<i; j++) {
+        Expects(ival_[j] != ilast_[j]);
       }
     }
     return *this;

@@ -1187,11 +1187,18 @@ copy_symmetrizer(const LabeledTensor<T>& ltc,
     //find unique block
     std::sort(uniq_blockid.begin(), uniq_blockid.end());
     Expects(size > 0);
-    //std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl<<std::endl;
-    csv.push_back(CopySymmetrizer{size, lbls[0].size(), lbl, blockid, uniq_blockid});
+    std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl
+             <<" size="<<size
+             <<" lbl0="<<lbls[0]
+             <<" blockid="<<blockid
+             <<" uniq_blockid="<<uniq_blockid
+             <<std::endl;
+    csv.push_back(CopySymmetrizer{size, lbls[0].size(), lbl, uniq_blockid, uniq_blockid});
+    Expects(csv.back().begin() != csv.back().end());
   }
   if (csv.empty()) {
     csv.push_back(CopySymmetrizer{});
+    Expects(csv.back().begin() != csv.back().end());
   }
   return csv;
 }
@@ -1202,6 +1209,7 @@ inline ProductIterator<CopySymmetrizer::Iterator>
 copy_iterator(const TensorVec<CopySymmetrizer>& sitv) {
   TensorVec<CopySymmetrizer::Iterator> itrs_first, itrs_last;
   for(auto &sit: sitv) {
+    Expects(sit.begin() != sit.end());
     itrs_first.push_back(sit.begin());
     itrs_last.push_back(sit.end());
     Expects(itrs_first.back().itr_size() == itrs_last.back().itr_size());
@@ -1253,6 +1261,7 @@ AddOp<T, LabeledTensorType>::execute() {
   Tensor<T1>& tc = *ltc.tensor_;
   auto aitr = loop_iterator(slice_indices(ta.indices(), lta.label_));
   auto lambda = [&] (const TensorIndex& ablockid) {
+    std::cout<<"---tammx assign. ablockid"<<ablockid<<std::endl;
     size_t dima = ta.block_size(ablockid);
     if(!(ta.nonzero(ablockid) && ta.spin_unique(ablockid) && dima > 0)) {
       return;
@@ -1261,18 +1270,21 @@ AddOp<T, LabeledTensorType>::execute() {
     auto cblockid = label_map.get_blockid(ltc.label_);
     auto abp = ta.get(ablockid);
     auto csbp = tc.alloc(tc.find_unique_block(cblockid));
+    std::cout<<"---tammx assign. cblockid"<<csbp.blockid()<<std::endl;
     csbp() = T(0);
     auto copy_symm = copy_symmetrizer(ltc, lta, label_map);
     auto copy_itr = copy_iterator(copy_symm);
     auto copy_itr_last = copy_itr.get_end();
     auto copy_label = TensorLabel{ltc.label_};
-    for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
+
+    for(auto &citr = copy_itr; citr != copy_itr_last; ++citr) {
       auto cperm_label = *citr;
       auto num_inversions = perm_count_inversions(perm_compute(copy_label, cperm_label));
       Sign sign = (num_inversions%2) ? -1 : 1;
       auto perm_comp = perm_apply(cperm_label, perm_compute(ltc.label_, lta.label_));
       csbp(copy_label) += sign * alpha_ * abp(perm_comp);
     }
+    std::cout<<"AddOp. csbp="<<csbp.buf()<<std::endl;
     if(mode_ == ResultMode::update) {
       tc.add(csbp.blockid(), csbp);
     } else {

@@ -1192,6 +1192,27 @@ void test_assign_ccsd_lambda1(tammx::ExecutionContext& ec) {
                        {P9B}, {H10B});                // lambda1_8_1
 }
 
+void test_assign_ccsd_lambda2(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {H3B, H4B}, {P1B, P2B},
+                       {H3B, H4B}, {P1B, P2B});      // lambda2_2_1
+  test_assign(ec, 1.0, {H3B}, {P1B},
+                       {H3B}, {P1B});                // lambda2_2_1
+  test_assign(ec, 1.0, {H3B, H4B}, {H7B, P1B},
+                       {H3B, H4B}, {H7B, P1B});      // lambda2_3_1
+  test_assign(ec, 1.0, {H3B}, {H9B},
+                       {H3B}, {H9B});                // lambda2_5_1
+  test_assign(ec, 1.0, {H3B}, {P5B},
+                       {H3B}, {P5B});                // lambda2_5_2_1
+  test_assign(ec, 1.0, {P10B}, {P1B},
+                       {P10B}, {P1B});               // lambda2_6_1
+  test_assign(ec, 1.0, {H3B, H4B}, {H9B, H10B},
+                       {H3B, H4B}, {H9B, H10B});     // lambda2_7_1
+  test_assign(ec, 1.0, {H3B, H4B}, {H10B, P5B},
+                       {H3B, H4B}, {H10B, P5B});     // lambda2_7_2_1
+  test_assign(ec, 1.0, {H3B, P7B}, {H9B, P1B},
+                       {H3B, P7B}, {H9B, P1B});      // lambda2_8_1
+}
+
 void test_assign_4d(tammx::ExecutionContext& ec) {
   //test_assign_no_n(ec, 0.24, {H1B, H2B}, {H3B, H4B}, {H1B, H2B}, {H3B, H4B});
   test_assign_no_n(ec, 0.24, {H1B, H2B}, {H3B, H4B}, {H1B, H2B}, {H4B, H3B});
@@ -1372,11 +1393,21 @@ int main(int argc, char *argv[]) {
 
     testing::AddGlobalTestEnvironment(new TestEnvironment(&ec));
     ret = RUN_ALL_TESTS();
-    //test_assign_2d(ec);
-    //test_assign_4d(ec);
-    //test_assign(ec);
-    //test_mult_vo_oo(ec);
+    // test_assign_2d(ec);
+    // test_assign_4d(ec);
+    // test_assign(ec);
+    // test_mult_vo_oo(ec);
     // test_mult_vvoo_ov(ec);
+    // CCSD methods
+    // test_assign_ccsd_e(ec);
+    // test_assign_ccsd_t1(ec);
+    // test_assign_ccsd_t2(ec);
+    // test_assign_cc2_t1(ec);
+    // test_assign_cc2_t2(ec);
+    // test_assign_cisd_c1(ec);
+    // test_assign_cisd_c2(ec);
+    // test_assign_ccsd_lambda1(ec);
+    // test_assign_ccsd_lambda2(ec);
   }
   pg.destroy();
   tammx_finalize();

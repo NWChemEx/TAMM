@@ -1328,6 +1328,7 @@ AddOp<T, LabeledTensorType>::execute() {
 
     auto abp = ta.get(ablockid);
     auto csbp = tc.alloc(cuniq_blockid);
+    csbp() = 0;
 #if 0
     //@note this works. Commented to avoid performance cost. But kept
     //to illustrate the logic.

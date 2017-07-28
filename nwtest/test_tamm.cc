@@ -358,6 +358,7 @@ const auto P7B = tamm::P7B;
 const auto P8B = tamm::P8B;
 const auto P10B = tamm::P10B;
 const auto P11B = tamm::P11B;
+const auto P12B = tamm::P12B;
 const auto P9B = tamm::P9B;
 const auto H1B = tamm::H1B;
 const auto H2B = tamm::H2B;
@@ -370,6 +371,7 @@ const auto H8B = tamm::H8B;
 const auto H9B = tamm::H9B;
 const auto H10B = tamm::H10B;
 const auto H11B = tamm::H11B;
+const auto H12B = tamm::H12B;
 
 const auto p1 = tamm::P1B;
 const auto p2 = tamm::P2B;
@@ -1149,6 +1151,45 @@ void test_assign_cisd_c1(tammx::ExecutionContext& ec) {
 void test_assign_cisd_c2(tammx::ExecutionContext& ec) {
   test_assign(ec, 1.0, {P3B, P4B}, {H1B, H2B},
                        {P3B, P4B}, {H1B, H2B});       // cisd_c2_1
+}
+
+void test_assign_ccsd_lambda1(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {H2B}, {P1B},
+                       {H2B}, {P1B});                 // lambda1_1
+  test_assign(ec, 1.0, {H2B}, {H7B},
+                       {H2B}, {H7B});                 // lambda1_2_1
+  test_assign(ec, 1.0, {H2B}, {P3B},
+                       {H2B}, {P3B});                 // lambda1_2_2_1
+  test_assign(ec, 1.0, {P7B}, {P1B},
+                       {P7B}, {P1B});                 // lambda1_3_1
+  test_assign(ec, 1.0, {P9B}, {H11B},
+                       {P9B}, {H11B});                // lambda1_5_1
+  test_assign(ec, 1.0, {H10B}, {H11B},
+                       {H10B}, {H11B});               // lambda1_5_2_1
+  test_assign(ec, 1.0, {H10B}, {P3B},
+                       {H10B}, {P3B});                // lambda1_5_2_2_1
+  test_assign(ec, 1.0, {P9B}, {P7B},
+                       {P9B}, {P7B});                 // lambda1_5_3_1
+  test_assign(ec, 1.0, {H5B}, {P4B},
+                       {H5B}, {P4B});                 // lambda1_5_5_1
+  test_assign(ec, 1.0, {H5B, H6B}, {H11B, P4B},
+                       {H5B, H6B}, {H11B, P4B});      // lambda1_5_6_1
+  test_assign(ec, 1.0, {H2B, P9B}, {H11B, H12B},
+                       {H2B, P9B}, {H11B, H12B});     // lambda1_6_1
+  test_assign(ec, 1.0, {H2B, H7B}, {H11B, H12B},
+                       {H2B, H7B}, {H11B, H12B});     // lambda1_6_2_1
+  test_assign(ec, 1.0, {H2B, P9B}, {H11B, H12B},
+                       {H2B, P9B}, {H11B, H12B});     // lambda1_6_2_2_1
+  test_assign(ec, 1.0, {H2B, P9B}, {H12B, P3B},
+                       {H2B, P9B}, {H12B, P3B});      // lambda1_6_3_1
+  test_assign(ec, 1.0, {H2B, P5B}, {H2B, P5B},
+                       {H2B, P5B}, {H2B, P5B});       // lambda1_6_4_1
+  test_assign(ec, 1.0, {H2B, H6B}, {H12B, P4B},
+                       {H2B, H6B}, {H12B, P4B});      // lambda1_6_5_1
+  test_assign(ec, -1.0, {P5B, P8B}, {H7B, P1B},
+                       {P5B, P8B}, {H7B, P1B});       // lambda1_7_1
+  test_assign(ec, 1.0, {P9B}, {H10B},
+                       {P9B}, {H10B});                // lambda1_8_1
 }
 
 void test_assign_4d(tammx::ExecutionContext& ec) {

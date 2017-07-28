@@ -1250,6 +1250,8 @@ SetOp<T,LabeledTensorType>::execute() {
   parallel_work(itr_first, itr_first.get_end(), lambda);
 }
 
+#if 0
+// with symmetrization, no unsymmetrization. does not work
 template<typename T, typename LabeledTensorType>
 inline void
 AddOp<T, LabeledTensorType>::execute() {
@@ -1283,6 +1285,10 @@ AddOp<T, LabeledTensorType>::execute() {
       Sign sign = (num_inversions%2) ? -1 : 1;
       auto perm_comp = perm_apply(cperm_label, perm_compute(ltc.label_, lta.label_));
       csbp(copy_label) += sign * alpha_ * abp(perm_comp);
+      std::cout<<"----AddOp. execute. csbp["<<csbp.blockid()<<"]("<<copy_label<<") "
+               <<"="
+               << sign << "*" << alpha_ << "*"
+               << "abp["<<abp.blockid()<<"] ("<<perm_comp<<")\n";
     }
     std::cout<<"AddOp. csbp="<<csbp.buf()<<std::endl;
     if(mode_ == ResultMode::update) {
@@ -1293,6 +1299,57 @@ AddOp<T, LabeledTensorType>::execute() {
   };
   parallel_work(aitr, aitr.get_end(), lambda);
 }
+
+#else
+// no symmetrization, no unsymmetrization
+template<typename T, typename LabeledTensorType>
+inline void
+AddOp<T, LabeledTensorType>::execute() {
+  using T1 = typename LabeledTensorType::element_type;
+  // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": AddOp\n";
+  const LabeledTensor<T1>& lta = rhs_;
+  const LabeledTensor<T1>& ltc = lhs_;
+  Tensor<T1>& ta = *lta.tensor_;
+  Tensor<T1>& tc = *ltc.tensor_;
+  auto aitr = loop_iterator(slice_indices(ta.indices(), lta.label_));
+  auto lambda = [&] (const TensorIndex& ablockid) {
+    std::cout<<"---tammx assign. ablockid"<<ablockid<<std::endl;
+    size_t dima = ta.block_size(ablockid);
+    if(!(ta.nonzero(ablockid) && ta.spin_unique(ablockid) && dima > 0)) {
+      return;
+    }
+    auto label_map = LabelMap<BlockDim>().update(lta.label_, ablockid);
+    auto cblockid = label_map.get_blockid(ltc.label_);
+    auto cuniq_blockid = tc.find_unique_block(cblockid);
+    Sign sign;
+    TensorPerm cperm;
+    std::tie(cperm, sign) = tc.compute_sign_from_unique_block(cblockid);
+    auto cuniq_label = perm_apply(ltc.label_, cperm);
+
+    auto abp = ta.get(ablockid);
+    auto csbp = tc.alloc(cuniq_blockid);
+#if 0
+    //@note this works. Commented to avoid performance cost. But kept
+    //to illustrate the logic.
+    auto cbp = tc.alloc(cblockid);
+    cbp(ltc.label_) += alpha_ * abp(lta.label_);
+    csbp(cuniq_label) += sign * cbp(ltc.label_);
+#else
+    csbp(cuniq_label) += alpha_ * sign * abp(lta.label_);
+#endif
+    std::cout<<"----AddOp. execute. csbp["<<csbp.blockid()<<"]("<<cuniq_label<<") "
+    <<"="
+    << sign << "*" << alpha_ << "*"
+    << "abp["<<abp.blockid()<<"] ("<<ltc.label_<<")\n";
+    if(mode_ == ResultMode::update) {
+      tc.add(csbp.blockid(), csbp);
+    } else {
+      tc.put(csbp.blockid(), csbp);
+    }
+  };
+  parallel_work(aitr, aitr.get_end(), lambda);
+}
+#endif
 
 inline int
 factorial(int n) {

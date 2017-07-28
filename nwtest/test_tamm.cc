@@ -356,6 +356,15 @@ const auto H1B = tamm::H1B;
 const auto H2B = tamm::H2B;
 const auto H3B = tamm::H3B;
 const auto H4B = tamm::H4B;
+
+const auto p1 = tamm::P1B;
+const auto p2 = tamm::P2B;
+const auto p3 = tamm::P3B;
+const auto p4 = tamm::P4B;
+const auto h1 = tamm::H1B;
+const auto h2 = tamm::H2B;
+const auto h3 = tamm::H3B;
+const auto h4 = tamm::H4B;
 const auto TO = tamm::TO;
 const auto TV = tamm::TV;
 
@@ -478,18 +487,308 @@ TEST (AssignTest, TwoDim_V1V2_V2V1) {
 //		  {P1B, P2B}, {H1B, H4B}, {H4B}, {P2B}));
 //}
 
-void test_assign_2d(tammx::ExecutionContext& ec) {
-  test_assign_no_n(ec, 0.24, {H4B}, {H1B}, {H4B}, {H1B});
-  test_assign_no_n(ec, 1.23, {H4B}, {H1B}, {H1B}, {H4B});
+// void test_assign_2d(tammx::ExecutionContext& ec) {
+//   test_assign_no_n(ec, 0.24, {H4B}, {H1B}, {H4B}, {H1B});
+//   test_assign_no_n(ec, 1.23, {H4B}, {H1B}, {H1B}, {H4B});
 
-  test_assign_no_n(ec, 0.24, {H4B}, {P1B}, {H4B}, {P1B});
-  test_assign_no_n(ec, 1.23, {H4B}, {P1B}, {P1B}, {H4B});
+//   test_assign_no_n(ec, 0.24, {H4B}, {P1B}, {H4B}, {P1B});
+//   test_assign_no_n(ec, 1.23, {H4B}, {P1B}, {P1B}, {H4B});
 
-  test_assign_no_n(ec, 0.24, {P1B}, {H1B}, {P1B}, {H1B});
-  test_assign_no_n(ec, 1.23, {P1B}, {H1B}, {H1B}, {P1B});
+//   test_assign_no_n(ec, 0.24, {P1B}, {H1B}, {P1B}, {H1B});
+//   test_assign_no_n(ec, 1.23, {P1B}, {H1B}, {H1B}, {P1B});
 
-  test_assign_no_n(ec, 0.24, {P4B}, {P1B}, {P4B}, {P1B});
-  test_assign_no_n(ec, 1.23, {P4B}, {P1B}, {P1B}, {P4B});
+//   test_assign_no_n(ec, 0.24, {P4B}, {P1B}, {P4B}, {P1B});
+//   test_assign_no_n(ec, 1.23, {P4B}, {P1B}, {P1B}, {P4B});
+// }
+
+TEST (AssignTest, FourDim_o1o2o3o4_o1o2o3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h1, h2}, {h3, h4}));
+}
+
+TEST (AssignTest, FourDim_o1o2o3o4_o1o2o4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h1, h2}, {h4, h3}));
+}
+
+TEST (AssignTest, FourDim_o1o2o3o4_o2o1o3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h2, h1}, {h3, h4}));
+}
+
+TEST (AssignTest, FourDim_o1o2o3o4_o2o1o4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, h1}, {h3, h4}, {h2, h1}, {h4, h3}));
+}
+
+///////
+
+TEST (AssignTest, FourDim_o1o2o3v4_o1o2o3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, h1}, {h3, p4}, {h1, h2}, {h3, p4}));
+}
+
+TEST (AssignTest, FourDim_o1o2o3v4_o1o2v4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h1, h2}, {p4, h3}));
+}
+
+TEST (AssignTest, FourDim_o1o2o3v4_o2o1o3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h2, h1}, {h3, p4}));
+}
+
+TEST (AssignTest, FourDim_o1o2o3v4_o2o1v4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h2, h1}, {p4, h3}));
+}
+
+////////
+
+TEST (AssignTest, FourDim_o1o2v3o4_o1o2v3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, h1}, {p3, h4}, {h1, h2}, {p3, h4}));
+}
+
+TEST (AssignTest, FourDim_o1o2v3o4_o1o2o4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h1, h2}, {h4, p3}));
+}
+
+TEST (AssignTest, FourDim_o1o2v3o4_o2o1v3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h2, h1}, {p3, h4}));
+}
+
+TEST (AssignTest, FourDim_o1o2v3o4_o2o1o4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h2, h1}, {h4, p3}));
+}
+
+
+////////
+
+TEST (AssignTest, FourDim_o1o2v3v4_o1o2v3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, h1}, {p3, p4}, {h1, h2}, {p3, p4}));
+}
+
+TEST (AssignTest, FourDim_o1o2v3v4_o1o2v4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h1, h2}, {p4, p3}));
+}
+
+TEST (AssignTest, FourDim_o1o2v3v4_o2o1v3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h2, h1}, {p3, p4}));
+}
+
+TEST (AssignTest, FourDim_o1o2v3v4_o2o1v4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h2, h1}, {p4, p3}));
+}
+
+///////////////////////////////////////////
+
+TEST (AssignTest, FourDim_o1v2o3o4_o1v2o3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {h1, p2}, {h3, h4}));
+}
+
+TEST (AssignTest, FourDim_o1v2o3o4_o1v2o4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {h1, p2}, {h4, h3}));
+}
+
+TEST (AssignTest, FourDim_o1v2o3o4_v2o1o3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {p2, h1}, {h3, h4}));
+}
+
+TEST (AssignTest, FourDim_o1v2o3o4_v2o1o4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, h1}, {h3, h4}, {p2, h1}, {h4, h3}));
+}
+
+///////
+
+TEST (AssignTest, FourDim_o1v2o3v4_o1v2o3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, h1}, {h3, p4}, {h1, p2}, {h3, p4}));
+}
+
+TEST (AssignTest, FourDim_o1v2o3v4_o1v2v4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {h1, p2}, {p4, h3}));
+}
+
+TEST (AssignTest, FourDim_o1v2o3v4_v2o1o3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {p2, h1}, {h3, p4}));
+}
+
+TEST (AssignTest, FourDim_o1v2o3v4_v2o1v4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {p2, h1}, {p4, h3}));
+}
+
+////////
+
+TEST (AssignTest, FourDim_o1v2v3o4_o1v2v3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, h1}, {p3, h4}, {h1, p2}, {p3, h4}));
+}
+
+TEST (AssignTest, FourDim_o1v2v3o4_o1v2o4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {h1, p2}, {h4, p3}));
+}
+
+TEST (AssignTest, FourDim_o1v2v3o4_v2o1v3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {p2, h1}, {p3, h4}));
+}
+
+TEST (AssignTest, FourDim_o1v2v3o4_v2o1o4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {p2, h1}, {h4, p3}));
+}
+
+
+////////
+
+TEST (AssignTest, FourDim_o1v2v3v4_o1v2v3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, h1}, {p3, p4}, {h1, p2}, {p3, p4}));
+}
+
+TEST (AssignTest, FourDim_o1v2v3v4_o1v2v4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {h1, p2}, {p4, p3}));
+}
+
+TEST (AssignTest, FourDim_o1v2v3v4_v2o1v3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {p2, h1}, {p3, p4}));
+}
+
+TEST (AssignTest, FourDim_o1v2v3v4_v2o1v4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {p2, h1}, {p4, p3}));
+}
+
+//////////////////////////////////////
+
+TEST (AssignTest, FourDim_v1o2o3o4_v1o2o3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {p1, h2}, {h3, h4}));
+}
+
+TEST (AssignTest, FourDim_v1o2o3o4_v1o2o4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {p1, h2}, {h4, h3}));
+}
+
+TEST (AssignTest, FourDim_v1o2o3o4_o2v1o3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {h2, p1}, {h3, h4}));
+}
+
+TEST (AssignTest, FourDim_v1o2o3o4_o2v1o4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, p1}, {h3, h4}, {h2, p1}, {h4, h3}));
+}
+
+///////
+
+TEST (AssignTest, FourDim_v1o2o3v4_v1o2o3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, p1}, {h3, p4}, {p1, h2}, {h3, p4}));
+}
+
+TEST (AssignTest, FourDim_v1o2o3v4_v1o2v4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {p1, h2}, {p4, h3}));
+}
+
+TEST (AssignTest, FourDim_v1o2o3v4_o2v1o3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {h2, p1}, {h3, p4}));
+}
+
+TEST (AssignTest, FourDim_v1o2o3v4_o2v1v4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {h2, p1}, {p4, h3}));
+}
+
+////////
+
+TEST (AssignTest, FourDim_v1o2v3o4_v1o2v3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, p1}, {p3, h4}, {p1, h2}, {p3, h4}));
+}
+
+TEST (AssignTest, FourDim_v1o2v3o4_v1o2o4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {p1, h2}, {h4, p3}));
+}
+
+TEST (AssignTest, FourDim_v1o2v3o4_o2v1v3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {h2, p1}, {p3, h4}));
+}
+
+TEST (AssignTest, FourDim_v1o2v3o4_o2v1o4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {h2, p1}, {h4, p3}));
+}
+
+
+////////
+
+TEST (AssignTest, FourDim_v1o2v3v4_v1o2v3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, p1}, {p3, p4}, {p1, h2}, {p3, p4}));
+}
+
+TEST (AssignTest, FourDim_v1o2v3v4_v1o2v4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {p1, h2}, {p4, p3}));
+}
+
+TEST (AssignTest, FourDim_v1o2v3v4_o2v1v3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {h2, p1}, {p3, p4}));
+}
+
+TEST (AssignTest, FourDim_v1o2v3v4_o2v1v4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {h2, p1}, {p4, p3}));
+}
+
+//////////////////////////////////////
+
+TEST (AssignTest, FourDim_v1v2o3o4_v1v2o3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p1, p2}, {h3, h4}));
+}
+
+TEST (AssignTest, FourDim_v1v2o3o4_v1v2o4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p1, p2}, {h4, h3}));
+}
+
+TEST (AssignTest, FourDim_v1v2o3o4_v2v1o3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p2, p1}, {h3, h4}));
+}
+
+TEST (AssignTest, FourDim_v1v2o3o4_v2v1o4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, p1}, {h3, h4}, {p2, p1}, {h4, h3}));
+}
+
+///////
+
+TEST (AssignTest, FourDim_v1v2o3v4_v1v2o3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, p1}, {h3, p4}, {p1, p2}, {h3, p4}));
+}
+
+TEST (AssignTest, FourDim_v1v2o3v4_v1v2v4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p1, p2}, {p4, h3}));
+}
+
+TEST (AssignTest, FourDim_v1v2o3v4_v2v1o3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p2, p1}, {h3, p4}));
+}
+
+TEST (AssignTest, FourDim_v1v2o3v4_v2v1v4o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p2, p1}, {p4, h3}));
+}
+
+////////
+
+TEST (AssignTest, FourDim_v1v2v3o4_v1v2v3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, p1}, {p3, h4}, {p1, p2}, {p3, h4}));
+}
+
+TEST (AssignTest, FourDim_v1v2v3o4_v1v2o4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p1, p2}, {h4, p3}));
+}
+
+TEST (AssignTest, FourDim_v1v2v3o4_v2v1v3o4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p2, p1}, {p3, h4}));
+}
+
+TEST (AssignTest, FourDim_v1v2v3o4_v2v1o4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p2, p1}, {h4, p3}));
+}
+
+
+////////
+
+TEST (AssignTest, FourDim_v1v2v3v4_v1v2v3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, p1}, {p3, p4}, {p1, p2}, {p3, p4}));
+}
+
+TEST (AssignTest, FourDim_v1v2v3v4_v1v2v4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p1, p2}, {p4, p3}));
+}
+
+TEST (AssignTest, FourDim_v1v2v3v4_v2v1v3v4) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p3, p4}));
+}
+
+TEST (AssignTest, FourDim_v1v2v3v4_v2v1v4v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p4, p3}));
 }
 
 void test_assign_4d(tammx::ExecutionContext& ec) {
@@ -630,17 +929,24 @@ void tammx_finalize() {
 
 
 int main(int argc, char *argv[]) {
-  int noa = 1;
-  int nob = 1;
-  int nva = 1;
-  int nvb = 1;
+  // int noa = 1;
+  // int nob = 1;
+  // int nva = 1;
+  // int nvb = 1;
+  int noa = 2;
+  int nob = 2;
+  int nva = 2;
+  int nvb = 2;
 
   bool intorb = false;
   bool restricted = false;
 
-  std::vector<int> spins = {1, 2, 1, 2};
-  std::vector<int> syms = {0, 0, 0, 0};
-  std::vector<int> ranges = {4, 4, 4, 4};
+  // std::vector<int> spins = {1, 2, 1, 2};
+  // std::vector<int> syms = {0, 0, 0, 0};
+  // std::vector<int> ranges = {4, 4, 4, 4};
+  std::vector<int> spins = {1, 1, 2, 2, 1, 1, 2, 2};
+  std::vector<int> syms = {0, 0, 0, 0, 0, 0, 0, 0};
+  std::vector<int> ranges = {4, 4, 4, 4, 4, 4, 4, 4};
 
   MPI_Init(&argc, &argv);
   GA_Initialize();
@@ -669,7 +975,7 @@ int main(int argc, char *argv[]) {
     //test_assign_4d(ec);
     //test_assign(ec);
     //test_mult_vo_oo(ec);
-    test_mult_vvoo_ov(ec);
+    // test_mult_vvoo_ov(ec);
   }
   pg.destroy();
   tammx_finalize();

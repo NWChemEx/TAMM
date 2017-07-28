@@ -46,8 +46,8 @@ bool Tensor::check_correctness(Tensor *F_tensor) {
 
   int deci_place = 11;
   for (int i = 0; i <= (F_hi - F_lo); ++i) {
-	std::cout << "F_buf[" << i << "]: " << F_buf[i] <<
-			" | C_buf[" << i << "]: " << C_buf[i] << std::endl;
+	// std::cout << "F_buf[" << i << "]: " << F_buf[i] <<
+	// 		" | C_buf[" << i << "]: " << C_buf[i] << std::endl;
   if( std::fabs(F_buf[i]- C_buf[i]) > pow(10,(-1.0 * deci_place))) {
       ret_val = false;
     }
@@ -243,6 +243,7 @@ void Tensor::create() {
     // int ndims = 2;
     // int dims[2] = {1, size};
     std::string gmc = "noname1";
+    std::cout<<"----TAMM. ga create. size="<<size<<std::endl;
     ga_ = gmem::create(gmem::Double, size, gmc);
   }
   gmem::zero(ga_);

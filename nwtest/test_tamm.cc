@@ -450,6 +450,47 @@ bool test_mult_no_n(tammx::ExecutionContext& ec,
   return status;
 }
 
+//@todo tamm might not work with zero dimensions. So directly testing tammx.
+TEST (AssignTest, ZeroDim) {
+  //ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {}, {}, {}, {}));
+  using tammx::Irrep;
+  using tammx::TensorVec;
+  using tammx::SymmGroup;
+
+  tammx::TensorRank rank{0};
+  Irrep irrep{0};
+  auto nup = 0;
+  auto restricted = tamm::Variables::restricted();
+  const TensorVec<SymmGroup>& indices = {};
+
+  tammx::Tensor<double> ta{indices, rank, irrep, restricted};
+  tammx::Tensor<double> tc{indices, rank, irrep, restricted};
+
+  g_ec->allocate(ta, tc);
+  double input_val = 0.91;
+
+  g_ec->scheduler()
+      .io(tc, ta)
+      (ta() += input_val)
+      (tc() += ta())
+      .execute();
+
+  bool check = true;
+  double threshold = 1e-11;
+  auto lambda = [&] (auto &val) {
+    if (std::abs(val - input_val) > threshold) {
+      check = false;
+    }
+  };
+
+  g_ec->scheduler()
+      .io(tc)
+      .sop(tc(), lambda)
+      .execute();
+  g_ec->deallocate(ta, tc);
+  ASSERT_TRUE(check);
+}
+
 TEST (AssignTest, TwoDim_O1O2_O1O2) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {H4B}, {H1B}, {H4B}, {H1B}));
 }

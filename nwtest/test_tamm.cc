@@ -450,78 +450,105 @@ bool test_mult_no_n(tammx::ExecutionContext& ec,
   return status;
 }
 
+#define ASSIGN_TEST_0D 1
+#define ASSIGN_TEST_1D 1
+#define ASSIGN_TEST_2D 1
+#define ASSIGN_TEST_3D 1
+#define ASSIGN_TEST_4D 1
+
+
+//-----------------------------------------------------------------------
+//
+//                            Add 0-d
+//
+//-----------------------------------------------------------------------
+
+#if ASSIGN_TEST_0D
+
 //@todo tamm might not work with zero dimensions. So directly testing tammx.
 TEST (AssignTest, ZeroDim) {
-  //ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {}, {}, {}, {}));
-  using tammx::Irrep;
-  using tammx::TensorVec;
-  using tammx::SymmGroup;
+  auto ta = tamm_tensor({}, {});
+  auto tc1 = tamm_tensor({}, {});
+  auto tc2 = tamm_tensor({}, {});
 
-  tammx::TensorRank rank{0};
-  Irrep irrep{0};
-  auto nup = 0;
-  auto restricted = tamm::Variables::restricted();
-  const TensorVec<SymmGroup>& indices = {};
+  tamm_create(&ta, &tc1, &tc2);
+  ta.fill_given(0.91);
+  //tamm_assign(&tc1, {}, 1.0, &ta, {});
+  tammx_assign(*g_ec, &tc2, {}, 1.0, &ta, {});
+  bool status = tc2.check_correctness(&ta);
+  tamm_destroy(&ta, &tc1, &tc2);
+  ASSERT_TRUE(status);
+}
+#endif
 
-  tammx::Tensor<double> ta{indices, rank, irrep, restricted};
-  tammx::Tensor<double> tc{indices, rank, irrep, restricted};
+//-----------------------------------------------------------------------
+//
+//                            Add 1-d
+//
+//-----------------------------------------------------------------------
 
-  g_ec->allocate(ta, tc);
-  double input_val = 0.91;
+#if ASSIGN_TEST_1D
 
-  g_ec->scheduler()
-      .io(tc, ta)
-      (ta() += input_val)
-      (tc() += ta())
-      .execute();
-
-  bool check = true;
-  double threshold = 1e-11;
-  auto lambda = [&] (auto &val) {
-    if (std::abs(val - input_val) > threshold) {
-      check = false;
-    }
-  };
-
-  g_ec->scheduler()
-      .io(tc)
-      .sop(tc(), lambda)
-      .execute();
-  g_ec->deallocate(ta, tc);
-  ASSERT_TRUE(check);
+TEST (AssignTest, OneDim_o1e_o1e) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {}, {h1}, {}));
 }
 
+TEST (AssignTest, OneDim_eo1_eo1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {}, {h1}, {}, {h1}));
+}
+
+TEST (AssignTest, OneDim_v1e_v1e) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {}, {p1}, {}));
+}
+
+TEST (AssignTest, OneDim_ev1_ev1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {}, {p1}, {}, {p1}));
+}
+
+#endif
+
+//-----------------------------------------------------------------------
+//
+//                            Add 2-d
+//
+//-----------------------------------------------------------------------
+
+
+#if ASSIGN_TEST_2D
+
 TEST (AssignTest, TwoDim_O1O2_O1O2) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {H4B}, {H1B}, {H4B}, {H1B}));
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h4}, {h1}, {h4}, {h1}));
 }
 
 TEST (AssignTest, TwoDim_O1O2_O2O1) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {H4B}, {H1B}, {H1B}, {H4B}));
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {h4}, {h1}, {h1}, {h4}));
 }
 
 TEST (AssignTest, TwoDim_OV_OV) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {H4B}, {P1B}, {H4B}, {P1B}));
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h4}, {p1}, {h4}, {p1}));
 }
 
 TEST (AssignTest, TwoDim_OV_VO) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {H4B}, {P1B}, {P1B}, {H4B}));
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {h4}, {p1}, {p1}, {h4}));
 }
 
 TEST (AssignTest, TwoDim_VO_VO) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {P1B}, {H1B}, {P1B}, {H1B}));
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h1}, {p1}, {h1}));
 }
 
 TEST (AssignTest, TwoDim_VO_OV) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {P1B}, {H1B}, {H1B}, {P1B}));
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {p1}, {h1}, {h1}, {p1}));
 }
 
 TEST (AssignTest, TwoDim_V1V2_V1V2) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {P4B}, {P1B}, {P4B}, {P1B}));
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p4}, {p1}, {p4}, {p1}));
 }
 
 TEST (AssignTest, TwoDim_V1V2_V2V1) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {P4B}, {P1B}, {P1B}, {P4B}));
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {p4}, {p1}, {p1}, {p4}));
 }
+
+#endif
 
 //TEST (MultTest, FourDim_TwoDim_V1V2O1O2_O2V2) {
 //  ASSERT_TRUE(test_mult_no_n(*g_ec, 1.0, {P1B}, {H1B},
@@ -541,6 +568,166 @@ TEST (AssignTest, TwoDim_V1V2_V2V1) {
 //   test_assign_no_n(ec, 0.24, {P4B}, {P1B}, {P4B}, {P1B});
 //   test_assign_no_n(ec, 1.23, {P4B}, {P1B}, {P1B}, {P4B});
 // }
+
+
+
+//-----------------------------------------------------------------------
+//
+//                            Add 3-d
+//
+//-----------------------------------------------------------------------
+
+#if ASSIGN_TEST_3D
+
+TEST (AssignTest, ThreeDim_o1_o2o3__o1_o2o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {h2, h3}, {h1}, {h2, h3}));
+}
+
+TEST (AssignTest, ThreeDim_o1_o2o3__o1_o3o2) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {h2, h3}, {h1}, {h3, h2}));
+}
+
+TEST (AssignTest, ThreeDim_o1_o2v3__o1_o2v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {h2, p3}, {h1}, {h2, p3}));
+}
+
+TEST (AssignTest, ThreeDim_o1_o2v3__o1_v3o2) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {h2, p3}, {h1}, {p3, h2}));
+}
+
+TEST (AssignTest, ThreeDim_o1_v2o3__o1_v2o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {p2, h3}, {h1}, {p2, h3}));
+}
+
+TEST (AssignTest, ThreeDim_o1_v2o3__o1_o3v2) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {p2, h3}, {h1}, {h3, p2}));
+}
+
+TEST (AssignTest, ThreeDim_o1_v2v3__o1_v2v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {p2, p3}, {h1}, {p2, p3}));
+}
+
+TEST (AssignTest, ThreeDim_o1_v2v3__o1_v3v2) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {p2, p3}, {h1}, {p3, p2}));
+}
+
+///////////
+
+TEST (AssignTest, ThreeDim_v1_o2o3__v1_o2o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h2, h3}, {p1}, {h2, h3}));
+}
+
+TEST (AssignTest, ThreeDim_v1_o2o3__v1_o3o2) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h2, h3}, {p1}, {h3, h2}));
+}
+
+TEST (AssignTest, ThreeDim_v1_o2v3__v1_o2v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h2, p3}, {p1}, {h2, p3}));
+}
+
+TEST (AssignTest, ThreeDim_v1_o2v3__v1_v3o2) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h2, p3}, {p1}, {p3, h2}));
+}
+
+TEST (AssignTest, ThreeDim_v1_v2o3__v1_v2o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {p2, h3}, {p1}, {p2, h3}));
+}
+
+TEST (AssignTest, ThreeDim_v1_v2o3__v1_o3v2) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {p2, h3}, {p1}, {h3, p2}));
+}
+
+TEST (AssignTest, ThreeDim_v1_v2v3__v1_v2v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {p2, p3}, {p1}, {p2, p3}));
+}
+
+TEST (AssignTest, ThreeDim_v1_v2v3__v1_v3v2) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {p2, p3}, {p1}, {p3, p2}));
+}
+
+//////////////////
+
+TEST (AssignTest, ThreeDim_o1o2_o3__o1o2_o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3}, {h1, h2}, {h3}));
+}
+
+TEST (AssignTest, ThreeDim_o1o2_o3__o2o1_o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3}, {h2, h1}, {h3}));
+}
+
+TEST (AssignTest, ThreeDim_o1o2_v3__o1o2_v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3}, {h1, h2}, {p3}));
+}
+
+TEST (AssignTest, ThreeDim_o1o2_v3__o2o1_v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3}, {h2, h1}, {p3}));
+}
+
+/////////
+
+TEST (AssignTest, ThreeDim_o1v2_o3__o1v2_o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3}, {h1, p2}, {h3}));
+}
+
+TEST (AssignTest, ThreeDim_o1v2_o3__v2o1_o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3}, {p2, h1}, {h3}));
+}
+
+TEST (AssignTest, ThreeDim_o1v2_v3__o1v2_v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3}, {h1, p2}, {p3}));
+}
+
+TEST (AssignTest, ThreeDim_o1v2_v3__v2o1_v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3}, {p2, h1}, {p3}));
+}
+
+//////////////////
+
+TEST (AssignTest, ThreeDim_v1o2_o3__v1o2_o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3}, {p1, h2}, {h3}));
+}
+
+TEST (AssignTest, ThreeDim_v1o2_o3__o2v1_o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3}, {h2, p1}, {h3}));
+}
+
+TEST (AssignTest, ThreeDim_v1o2_v3__v1o2_v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3}, {p1, h2}, {p3}));
+}
+
+TEST (AssignTest, ThreeDim_v1o2_v3__o2v1_v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3}, {h2, p1}, {p3}));
+}
+
+/////////
+
+TEST (AssignTest, ThreeDim_v1v2_o3__v1v2_o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3}, {p1, p2}, {h3}));
+}
+
+TEST (AssignTest, ThreeDim_v1v2_o3__v2v1_o3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3}, {p2, p1}, {h3}));
+}
+
+TEST (AssignTest, ThreeDim_v1v2_v3__v1v2_v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3}, {p1, p2}, {p3}));
+}
+
+TEST (AssignTest, ThreeDim_v1v2_v3__v2v1_v3) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3}, {p2, p1}, {p3}));
+}
+
+//////////
+
+#endif
+
+//-----------------------------------------------------------------------
+//
+//                            Add 4-d
+//
+//-----------------------------------------------------------------------
+
+#if ASSIGN_TEST_4D
 
 TEST (AssignTest, FourDim_o1o2o3o4_o1o2o3o4) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h1, h2}, {h3, h4}));
@@ -613,7 +800,7 @@ TEST (AssignTest, FourDim_o1o2v3v4_o2o1v4v3) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h2, h1}, {p4, p3}));
 }
 
-///////////////////////////////////////////
+///////////////////////
 
 TEST (AssignTest, FourDim_o1v2o3o4_o1v2o3o4) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {h1, p2}, {h3, h4}));
@@ -831,6 +1018,8 @@ TEST (AssignTest, FourDim_v1v2v3v4_v2v1v3v4) {
 TEST (AssignTest, FourDim_v1v2v3v4_v2v1v4v3) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p4, p3}));
 }
+
+#endif
 
 void test_assign_4d(tammx::ExecutionContext& ec) {
   //test_assign_no_n(ec, 0.24, {H1B, H2B}, {H3B, H4B}, {H1B, H2B}, {H3B, H4B});

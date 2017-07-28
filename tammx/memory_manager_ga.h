@@ -55,6 +55,7 @@ class MemoryManagerGA : public MemoryManager {
     Expects(allocation_status_ == AllocationStatus::invalid);
     Expects(nelements >= 0);
     Expects(eltype != ElementType::invalid);
+    eltype_ = eltype;
     int ga_pg_default = GA_Pgroup_get_default();
     int nranks = pg_.size().value();
     long long nels = nelements.value();
@@ -88,11 +89,14 @@ class MemoryManagerGA : public MemoryManager {
     if (nelements_min == nelements.value() && nelements_max == nelements.value()) {
       int64_t dim = nranks * nels, chunk = -1;
       ga_ = NGA_Create64(ga_eltype_, 1, &dim, const_cast<char*>("array_name"), &chunk);
-      std::fill_n(map_.get(), nranks, nels);
+      map_[0] = 0;
+      std::fill_n(map_.get()+1, nranks-1, nels);
+      std::partial_sum(map_.get(), map_.get()+nranks, map_.get());
     } else {
       int64_t dim, block = nranks;
       MPI_Allreduce(&nels, &dim, 1, MPI_LONG_LONG, MPI_SUM, pg_.comm());
       MPI_Exscan(&nels, &map_[0], 1, MPI_LONG_LONG, MPI_SUM, pg_.comm());
+      map_[0] = 0; // @note this is not set by MPI_Exscan
       std::string array_name{"array_name"};
       ga_ = NGA_Create_irreg64(ga_eltype_, 1, &dim, const_cast<char*>(array_name.c_str()), &block, map_.get());
     }
@@ -101,14 +105,17 @@ class MemoryManagerGA : public MemoryManager {
     int64_t lo, hi, ld;
     NGA_Distribution64(ga_, pg_.rank().value(), &lo, &hi);
     Expects(lo == map_[pg_.rank().value()]);
-    Expects(hi == map_[pg_.rank().value()] + nelements.value());
+    Expects(hi == map_[pg_.rank().value()] + nelements.value() - 1);
     nelements_ = hi - lo;
+
+    allocation_status_ = AllocationStatus::created;
   }
 
   void dealloc() {
     Expects(allocation_status_ == AllocationStatus::created);
     NGA_Destroy(ga_);
     NGA_Pgroup_destroy(ga_pg_);
+    allocation_status_ = AllocationStatus::invalid;
   }
 
   MemoryManager* clone(ProcGroup pg) const override {

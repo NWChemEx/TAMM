@@ -352,10 +352,24 @@ const auto P1B = tamm::P1B;
 const auto P2B = tamm::P2B;
 const auto P3B = tamm::P3B;
 const auto P4B = tamm::P4B;
+const auto P5B = tamm::P5B;
+const auto P6B = tamm::P6B;
+const auto P7B = tamm::P7B;
+const auto P8B = tamm::P8B;
+const auto P10B = tamm::P10B;
+const auto P11B = tamm::P11B;
+const auto P9B = tamm::P9B;
 const auto H1B = tamm::H1B;
 const auto H2B = tamm::H2B;
 const auto H3B = tamm::H3B;
 const auto H4B = tamm::H4B;
+const auto H5B = tamm::H5B;
+const auto H6B = tamm::H6B;
+const auto H7B = tamm::H7B;
+const auto H8B = tamm::H8B;
+const auto H9B = tamm::H9B;
+const auto H10B = tamm::H10B;
+const auto H11B = tamm::H11B;
 
 const auto p1 = tamm::P1B;
 const auto p2 = tamm::P2B;
@@ -375,6 +389,39 @@ tamm_labels_to_ranges(const std::vector<tamm::IndexName>& labels) {
     ret.push_back(tamm_idname_to_tamm_range(l));
   }
   return ret;
+}
+
+bool test_assign(tammx::ExecutionContext& ec,
+                      double alpha,
+                      const std::vector<tamm::IndexName>& cupper_labels,
+                      const std::vector<tamm::IndexName>& clower_labels,
+                      const std::vector<tamm::IndexName>& aupper_labels,
+                      const std::vector<tamm::IndexName>& alower_labels) {
+  const auto& cupper_ranges = tamm_labels_to_ranges(cupper_labels);
+  const auto& clower_ranges = tamm_labels_to_ranges(clower_labels);
+  const auto& aupper_ranges = tamm_labels_to_ranges(aupper_labels);
+  const auto& alower_ranges = tamm_labels_to_ranges(alower_labels);
+  auto tc1 = tamm_tensor(cupper_ranges, clower_ranges);
+  auto tc2 = tamm_tensor(cupper_ranges, clower_ranges);
+  auto ta = tamm_tensor(aupper_ranges, alower_ranges);
+
+  tamm_create(&tc1, &tc2, &ta);
+  ta.fill_random();
+
+  auto clabels = cupper_labels;
+  std::copy(clower_labels.begin(), clower_labels.end(), std::back_inserter(clabels));
+  auto alabels = aupper_labels;
+  std::copy(alower_labels.begin(), alower_labels.end(), std::back_inserter(alabels));
+
+  tamm_assign(&tc1, clabels, alpha, &ta, alabels);
+  tammx_assign(ec, &tc2, clabels, alpha, &ta, alabels);
+  //fortran_assign(&tc_f, &ta, ccsd_t1_1_);
+
+  //assert_result(tc1.check_correctness(&tc2), __func__);
+  bool status = tc1.check_correctness(&tc2);
+
+  tamm_destroy(&tc1, &tc2, &ta);
+  return status;
 }
 
 bool test_assign_no_n(tammx::ExecutionContext& ec,
@@ -1020,6 +1067,89 @@ TEST (AssignTest, FourDim_v1v2v3v4_v2v1v4v3) {
 }
 
 #endif
+
+void test_assign_ccsd_e(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {H6B}, {P5B},
+                       {H6B}, {P5B});            // ccsd_e_1
+}
+
+void test_assign_ccsd_t1(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {P2B}, {H1B},
+                       {P2B}, {H1B});            // ccsd_t1_1
+  test_assign(ec, 1.0, {H7B}, {H1B},
+                       {H7B}, {H1B});            // ccsd_t1_1_2_1
+  test_assign(ec, 1.0, {H7B}, {P3B},
+                       {H7B}, {P3B});            // ccsd_t1_2_2_1
+  test_assign(ec, 1.0, {P2B}, {P3B},
+                       {P2B}, {P3B});            // ccsd_t1_3_1
+  test_assign(ec, 1.0, {H8B}, {P7B},
+                       {H8B}, {P7B});            // ccsd_t1_5_1
+  test_assign(ec, 1.0, {H4B, H5B}, {H1B, P3B},
+                       {H4B, H5B}, {H1B, P3B});  // ccsd_t1_6_1
+}
+
+void test_assign_ccsd_t2(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {P3B, P4B}, {H1B, H2B},
+                       {P3B, P4B}, {H1B, H2B});        // ccsd_t2_1
+  test_assign(ec, 1.0, {H10B, P3B}, {H1B, H2B},
+                       {H10B, P3B}, {H1B, H2B});       // ccsd_t2_2_1
+  test_assign(ec, -1.0, {H10B, H11B}, {H1B, H2B},
+                        {H10B, H11B}, {H1B, H2B});     // ccsd_t2_2_2_1
+  test_assign(ec, 1.0, {H10B, H11B}, {H1B, P5B},
+                       {H10B, H11B}, {H1B, P5B});      // ccsd_t2_2_2_2_1
+  test_assign(ec, 1.0, {H10B}, {P5B}, {H10B}, {P5B});  // ccsd_t2_2_4_1
+  test_assign(ec, 1.0, {H7B, H10B}, {H1B, P9B},
+                       {H7B, H10B}, {H1B, P9B});       // ccsd_t2_2_5_1
+  test_assign(ec, 1.0, {H9B}, {H1B}, {H9B}, {H1B});    // ccsd_t2_4_1
+  test_assign(ec, 1.0, {H9B}, {P8B}, {H9B}, {P8B});    // ccsd_t2_4_2_1
+  test_assign(ec, 1.0, {P3B}, {P5B}, {P3B}, {P5B});    // ccsd_t2_5_1
+  test_assign(ec, -1.0, {H9B, H11B}, {H1B, H2B},
+                        {H9B, H11B}, {H1B, H2B});      // ccsd_t2_6_1
+  test_assign(ec, 1.0, {H9B, H11B}, {H1B, P8B},
+                       {H9B, H11B}, {H1B, P8B});       // ccsd_t2_6_2_1
+  test_assign(ec, 1.0, {H6B, P3B}, {H1B, P5B},
+                       {H6B, P3B}, {H1B, P5B});      // ccsd_t2_7_1
+}
+
+void test_assign_cc2_t1(tammx::ExecutionContext& ec) {  // copy of ccsd_t1
+  test_assign(ec, 1.0, {P2B}, {H1B},
+                       {P2B}, {H1B});            // ccsd_t1_1
+  test_assign(ec, 1.0, {H7B}, {H1B},
+                       {H7B}, {H1B});            // ccsd_t1_1_2_1
+  test_assign(ec, 1.0, {H7B}, {P3B},
+                       {H7B}, {P3B});            // ccsd_t1_2_2_1
+  test_assign(ec, 1.0, {P2B}, {P3B},
+                       {P2B}, {P3B});            // ccsd_t1_3_1
+  test_assign(ec, 1.0, {H8B}, {P7B},
+                       {H8B}, {P7B});            // ccsd_t1_5_1
+  test_assign(ec, 1.0, {H4B, H5B}, {H1B, P3B},
+                       {H4B, H5B}, {H1B, P3B});  // ccsd_t1_6_1
+}
+
+void test_assign_cc2_t2(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {P3B, P4B}, {H1B, H2B},
+                       {P3B, P4B}, {H1B, H2B});       // ccsd_t2_1
+  test_assign(ec, 1.0, {H10B, P3B}, {H1B, H2B},
+                       {H10B, P3B}, {H1B, H2B});      // ccsd_t2_2_1
+  test_assign(ec, 1.0, {H8B, H10B}, {H1B, P5B},
+                       {H8B, H10B}, {H1B, P5B});      // ccsd_t2_2_2_1
+  test_assign(ec, 1.0, {H8B, H10B}, {H1B, P5B},
+                       {H8B, H10B}, {H1B, P5B});      // ccsd_t2_2_2_2_1
+  test_assign(ec, 1.0, {H10B, P3B}, {H1B, P5B},
+                       {H10B, P3B}, {H1B, P5B});      // ccsd_t2_2_2_3
+  test_assign(ec, 1.0, {P3B, P4B}, {H1B, P5B},
+                       {P3B, P4B}, {H1B, P5B});       // ccsd_t2_3_1
+}
+
+void test_assign_cisd_c1(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {P2B}, {H1B},
+                       {P2B}, {H1B});                 // cisd_c1_1
+}
+
+void test_assign_cisd_c2(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {P3B, P4B}, {H1B, H2B},
+                       {P3B, P4B}, {H1B, H2B});       // cisd_c2_1
+}
 
 void test_assign_4d(tammx::ExecutionContext& ec) {
   //test_assign_no_n(ec, 0.24, {H1B, H2B}, {H3B, H4B}, {H1B, H2B}, {H3B, H4B});

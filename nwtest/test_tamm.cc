@@ -1178,12 +1178,12 @@ void test_assign_ccsd_lambda1(tammx::ExecutionContext& ec) {
                        {H2B, P9B}, {H11B, H12B});     // lambda1_6_1
   test_assign(ec, 1.0, {H2B, H7B}, {H11B, H12B},
                        {H2B, H7B}, {H11B, H12B});     // lambda1_6_2_1
-  test_assign(ec, 1.0, {H2B, P9B}, {H11B, H12B},
-                       {H2B, P9B}, {H11B, H12B});     // lambda1_6_2_2_1
+  test_assign(ec, 1.0, {H2B, H7B}, {H12B, P3B},
+                       {H2B, H7B}, {H12B, P3B});     // lambda1_6_2_2_1
   test_assign(ec, 1.0, {H2B, P9B}, {H12B, P3B},
                        {H2B, P9B}, {H12B, P3B});      // lambda1_6_3_1
-  test_assign(ec, 1.0, {H2B, P5B}, {H2B, P5B},
-                       {H2B, P5B}, {H2B, P5B});       // lambda1_6_4_1
+  test_assign(ec, 1.0, {H2B}, {P5B},
+                       {H2B}, {P5B});                 // lambda1_6_4_1
   test_assign(ec, 1.0, {H2B, H6B}, {H12B, P4B},
                        {H2B, H6B}, {H12B, P4B});      // lambda1_6_5_1
   test_assign(ec, -1.0, {P5B, P8B}, {H7B, P1B},
@@ -1211,6 +1211,114 @@ void test_assign_ccsd_lambda2(tammx::ExecutionContext& ec) {
                        {H3B, H4B}, {H10B, P5B});     // lambda2_7_2_1
   test_assign(ec, 1.0, {H3B, P7B}, {H9B, P1B},
                        {H3B, P7B}, {H9B, P1B});      // lambda2_8_1
+}
+
+void test_assign_eaccsd_x1(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {P2B}, {P6B},
+                       {P2B}, {P6B});               // eaccsd_x1_1_1
+  test_assign(ec, 1.0, {P6B}, {P7B},
+                       {P6B}, {P7B});               // eaccsd_x1_2_1
+  test_assign(ec, 1.0, {H3B}, {P7B},
+                       {H3B}, {P7B});               // eaccsd_x1_4_1_1
+}
+
+void test_assign_eaccsd_x2(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {H8B}, {H1B},
+                       {H8B}, {H1B});               // eaccsd_x2_2_1
+  test_assign(ec, 1.0, {H8B}, {P9B},
+                       {H8B}, {P9B});               // eaccsd_x2_2_2_1
+  test_assign(ec, 1.0, {P3B}, {P8B},
+                       {P3B}, {P8B});               // eaccsd_x2_3_1
+  test_assign(ec, 1.0, {H7B, P3B}, {H1B, P8B},
+                       {H7B, P3B}, {H1B, P8B});     // eaccsd_x2_4_1
+  test_assign(ec, 1.0, {H9B}, {P5B},
+                       {H9B}, {P5B});               // eaccsd_x2_6_2_1
+  test_assign(ec, 1.0, {H8B, H9B}, {H1B, P10B},
+                       {H8B, H9B}, {H1B, P10B});    // eaccsd_x2_6_3_1
+  test_assign(ec, 1.0, {H5B}, {P9B},
+                       {H5B}, {P9B});               // eaccsd_x2_8_1_1
+}
+
+void test_assign_icsd_t1(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {P2B}, {H1B},
+                       {P2B}, {H1B});               // icsd_t1_1
+  test_assign(ec, 1.0, {H7B}, {H1B},
+                       {H7B}, {H1B});               // icsd_t1_2_1
+  test_assign(ec, 1.0, {H7B}, {P3B},
+                       {H7B}, {P3B});               // icsd_t1_2_2_1
+  test_assign(ec, 1.0, {P2B}, {P3B},
+                       {P2B}, {P3B});               // icsd_t1_3_1
+  test_assign(ec, 1.0, {H8B}, {P7B},
+                       {H8B}, {P7B});               // icsd_t1_5_1
+  test_assign(ec, 1.0, {H4B, H5B}, {H1B, P3B},
+                       {H4B, H5B}, {H1B, P3B});     // icsd_t1_6_1
+}
+
+void test_assign_icsd_t2(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {P3B, P4B}, {H1B, H2B},
+                       {P3B, P4B}, {H1B, H2B});     // icsd_t2_1
+  test_assign(ec, 1.0, {H10B, P3B}, {H1B, H2B},
+                       {H10B, P3B}, {H1B, H2B});    // icsd_t2_2_1
+  test_assign(ec, -1.0, {H10B, H11B}, {H1B, H2B},
+                       {H10B, H11B}, {H1B, H2B});   // icsd_t2_2_2_1
+  test_assign(ec, 1.0, {H10B, H11B}, {H1B, P5B},
+                       {H10B, H11B}, {H1B, P5B});   // icsd_t2_2_2_2_1
+  test_assign(ec, 1.0, {H10B}, {P5B},
+                       {H10B}, {P5B});              // icsd_t2_2_4_1
+  test_assign(ec, 1.0, {H7B, H10B}, {H1B, P9B},
+                       {H7B, H10B}, {H1B, P9B});    // icsd_t2_2_5_1
+  test_assign(ec, 1.0, {H9B}, {H1B},
+                       {H9B}, {H1B});               // icsd_t2_4_1
+  test_assign(ec, 1.0, {H9B}, {P8B},
+                       {H9B}, {P8B});               // icsd_t2_4_2_1
+  test_assign(ec, 1.0, {P3B}, {P5B},
+                       {P3B}, {P5B});               // icsd_t2_5_1
+  test_assign(ec, -1.0, {H9B, H11B}, {H1B, H2B},
+                       {H9B, H11B}, {H1B, H2B});     // icsd_t2_6_1
+  test_assign(ec, 1.0, {H9B, H11B}, {H1B, P8B},
+                       {H9B, H11B}, {H1B, P8B});     // icsd_t2_6_2_1
+  test_assign(ec, 1.0, {H6B, P3B}, {H1B, P5B},
+                       {H6B, P3B}, {H1B, P5B});     // icsd_t2_7_1
+}
+
+void test_assign_ipccsd_x1(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {H6B}, {H1B},
+                       {H6B}, {H1B});               // ipccsd_x1_1_1
+  test_assign(ec, 1.0, {H6B}, {P7B},
+                       {H6B}, {P7B});               // ipccsd_x1_1_2_1
+  test_assign(ec, 1.0, {H6B}, {P7B},
+                       {H6B}, {P7B});               // ipccsd_x1_2_1
+  test_assign(ec, 1.0, {H6B, H8B}, {H1B, P7B},
+                       {H6B, H8B}, {H1B, P7B});     // ipccsd_x1_3_1
+}
+
+void test_assign_ipccsd_x2(tammx::ExecutionContext& ec) {
+  test_assign(ec, 1.0, {H9B, P3B}, {H1B, H2B},
+                       {H9B, P3B}, {H1B, H2B});     // ipccsd_x2_1_1
+  test_assign(ec, 1.0, {H9B, P3B}, {H1B, P5B},
+                       {H9B, P3B}, {H1B, P5B});     // ipccsd_x2_1_2_1
+  test_assign(ec, 1.0, {H9B}, {P8B},
+                       {H9B}, {P8B});               // ipccsd_x1_3_1
+  test_assign(ec, 1.0, {H6B, H9B}, {H1B, P5B},
+                       {H6B, H9B}, {H1B, P5B});     // ipccsd_x2_1_4_1
+  test_assign(ec, 1.0, {H8B}, {H1B},
+                       {H8B}, {H1B});               // ipccsd_x2_2_1
+  test_assign(ec, 1.0, {H8B}, {P9B},
+                       {H8B}, {P9B});               // ipccsd_x2_2_2_1
+  test_assign(ec, 1.0, {P3B}, {P8B},
+                       {P3B}, {P8B});               // ipccsd_x2_3_1
+  test_assign(ec, 1.0, {H9B, H10B}, {H1B, H2B},
+                       {H9B, H10B}, {H1B, H2B});     // ipccsd_x2_4_1
+  test_assign(ec, 1.0, {H9B, H10B}, {H1B, P5B},
+                       {H9B, H10B}, {H1B, P5B});     // ipccsd_x2_4_2_1
+  test_assign(ec, 1.0, {H7B, P3B}, {H1B, P8B},
+                       {H7B, P3B}, {H1B, P8B});     // ipccsd_x2_5_1
+  test_assign(ec, 1.0, {H8B, H10B}, {H1B, P5B},
+                       {H8B, H10B}, {H1B, P5B});     // ipccsd_x2_6_1_2_1
+  test_assign(ec, 1.0, {H10B}, {P5B},
+                       {H10B}, {P5B});               // ipccsd_x2_6_2_1
+  test_assign(ec, 1.0, {H8B, H10B}, {H1B, P9B},
+                       {H8B, H10B}, {H1B, P9B});     // ipccsd_x2_6_3_1
 }
 
 void test_assign_4d(tammx::ExecutionContext& ec) {
@@ -1399,15 +1507,24 @@ int main(int argc, char *argv[]) {
     // test_mult_vo_oo(ec);
     // test_mult_vvoo_ov(ec);
     // CCSD methods
-    // test_assign_ccsd_e(ec);
-    // test_assign_ccsd_t1(ec);
-    // test_assign_ccsd_t2(ec);
-    // test_assign_cc2_t1(ec);
-    // test_assign_cc2_t2(ec);
-    // test_assign_cisd_c1(ec);
-    // test_assign_cisd_c2(ec);
-    // test_assign_ccsd_lambda1(ec);
-    // test_assign_ccsd_lambda2(ec);
+    test_assign_ccsd_e(ec);
+    test_assign_ccsd_t1(ec);
+    test_assign_ccsd_t2(ec);
+    test_assign_cc2_t1(ec);
+    test_assign_cc2_t2(ec);
+
+    test_assign_cisd_c1(ec);
+    test_assign_cisd_c2(ec);
+    test_assign_ccsd_lambda1(ec);
+    test_assign_ccsd_lambda2(ec);
+    test_assign_eaccsd_x1(ec);
+    test_assign_eaccsd_x2(ec);
+
+    test_assign_icsd_t1(ec);
+    test_assign_icsd_t2(ec);
+
+    test_assign_ipccsd_x1(ec);
+    test_assign_ipccsd_x2(ec);
   }
   pg.destroy();
   tammx_finalize();

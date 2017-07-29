@@ -161,6 +161,11 @@ class Tensor : public TensorBase {
     Proc proc;
     auto size = block_size(blockid);
     std::tie(proc, offset) = distribution_->locate(blockid);
+#if 0
+    std::cout<<"---TAMMX. Tensor::add(). proc="<<proc<<" offset="<<offset<<" size="<<size
+             <<"buf[0]"<<*block.buf()
+             <<std::endl;
+#endif
     mgr_->add(proc, offset, Size{size}, block.buf());
   }
 
@@ -188,6 +193,10 @@ class Tensor : public TensorBase {
   }
 
   const MemoryManager* memory_manager() const {
+    return mgr_.get();
+  }
+
+  MemoryManager* memory_manager() {
     return mgr_.get();
   }
 

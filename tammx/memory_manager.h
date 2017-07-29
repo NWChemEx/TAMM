@@ -22,7 +22,7 @@ class MemoryManager {
   virtual void alloc(ElementType eltype, Size nelements) = 0;
   virtual void dealloc() = 0;
 
-  Size local_size_in_elements() {
+  Size local_size_in_elements() const {
     return nelements_;
   }
 

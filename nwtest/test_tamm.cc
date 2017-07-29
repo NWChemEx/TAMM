@@ -87,6 +87,18 @@ tamm_tensor(const std::vector<tamm::RangeType>& upper_ranges,
   return tamm::Tensor(ndim, nupper, irrep, &rt[0], dist_type);
 }
 
+// tammx::Tensor<double>*
+// tammx_tensor(const std::vector<tamm::RangeType>& upper_ranges,
+//              const std::vector<tamm::RangeType>& lower_ranges,
+//              int irrep = 0,
+//              tamm::DistType dist_type = tamm::dist_nw) {
+//   int ndim = upper_ranges.size() + lower_ranges.size();
+//   int nupper = upper_ranges.size();
+//   std::vector<tamm::RangeType> rt {upper_ranges};
+//   std::copy(lower_ranges.begin(), lower_ranges.end(), std::back_inserter(rt));
+//   return tammxdc::Tensor(ndim, nupper, irrep, &rt[0], dist_type);
+// }
+
 
 void
 tamm_assign(tamm::Tensor* tc,
@@ -145,6 +157,43 @@ tamm_id_to_tammx_dim(const tamm::Index& id) {
 }
 
 tammx::TensorVec<tammx::SymmGroup>
+tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup) {
+  tammx::TensorVec<tammx::SymmGroup> ret;
+
+  int nlo = dims.size() - nup;
+  if(nup == 1) {
+    tammx::SymmGroup sg{dims[0]};
+    ret.push_back(sg);
+  } else if (nup == 2) {
+    if(dims[0] == dims[1]) {
+      tammx::SymmGroup sg{dims[0], dims[1]};
+      ret.push_back(sg);      
+    }
+    else {
+      tammx::SymmGroup sg1{dims[0]}, sg2{dims[1]};
+      ret.push_back(sg1);
+      ret.push_back(sg2);
+    }
+  }
+
+  if(nlo == 1) {
+    tammx::SymmGroup sg{dims[nup]};
+    ret.push_back(sg);
+  } else if (nlo == 2) {
+    if(dims[nup + 0] == dims[nup + 1]) {
+      tammx::SymmGroup sg{dims[nup + 0], dims[nup + 1]};
+      ret.push_back(sg);      
+    }
+    else {
+      tammx::SymmGroup sg1{dims[nup + 0]}, sg2{dims[nup + 1]};
+      ret.push_back(sg1);
+      ret.push_back(sg2);
+    }
+  }
+  return ret;
+}
+
+tammx::TensorVec<tammx::SymmGroup>
 tamm_tensor_to_tammx_symm_groups(const tamm::Tensor* tensor) {
   const std::vector<tamm::Index>& ids = tensor->ids();
   int nup = tensor->nupper();
@@ -177,38 +226,8 @@ tamm_tensor_to_tammx_symm_groups(const tamm::Tensor* tensor) {
   for(const auto& id: ids) {
     dims.push_back(tamm_id_to_tammx_dim(id));
   }
-  tammx::TensorVec<tammx::SymmGroup> ret;
 
-  if(nup == 1) {
-    tammx::SymmGroup sg{dims[0]};
-    ret.push_back(sg);
-  } else if (nup == 2) {
-    if(dims[0] == dims[1]) {
-      tammx::SymmGroup sg{dims[0], dims[1]};
-      ret.push_back(sg);      
-    }
-    else {
-      tammx::SymmGroup sg1{dims[0]}, sg2{dims[1]};
-      ret.push_back(sg1);
-      ret.push_back(sg2);
-    }
-  }
-
-  if(nlo == 1) {
-    tammx::SymmGroup sg{dims[nup]};
-    ret.push_back(sg);
-  } else if (nlo == 2) {
-    if(dims[nup + 0] == dims[nup + 1]) {
-      tammx::SymmGroup sg{dims[nup + 0], dims[nup + 1]};
-      ret.push_back(sg);      
-    }
-    else {
-      tammx::SymmGroup sg1{dims[nup + 0]}, sg2{dims[nup + 1]};
-      ret.push_back(sg1);
-      ret.push_back(sg2);
-    }
-  }
-  return ret;
+  return tammx_tensor_dim_to_symm_groups(dims, nup);
 }
 
 
@@ -505,6 +524,153 @@ bool test_mult_no_n(tammx::ExecutionContext& ec,
 #define ASSIGN_TEST_3D 1
 #define ASSIGN_TEST_4D 1
 
+#define INITVAL_TEST_0D 1
+#define INITVAL_TEST_1D 1
+#define INITVAL_TEST_2D 1
+#define INITVAL_TEST_3D 1
+#define INITVAL_TEST_4D 1
+
+tammx::TensorVec<tammx::SymmGroup>
+tamm_labels_to_tammx_indices(const std::vector<tamm::IndexName>& labels) {
+  tammx::TensorDim tammx_dims;
+  for(const auto l : labels) {
+    tammx_dims.push_back(tamm_range_to_tammx_dim(tamm_idname_to_tamm_range(l)));
+  }
+  return tammx_tensor_dim_to_symm_groups(tammx_dims, tammx_dims.size());
+}
+
+//-----------------------------------------------------------------------
+//
+//                            Initval 0-d
+//
+//-----------------------------------------------------------------------
+
+bool test_initval_no_n(tammx::ExecutionContext& ec,
+                       const std::vector<tamm::IndexName>& upper_labels,
+                       const std::vector<tamm::IndexName>& lower_labels) {
+  const auto& upper_indices = tamm_labels_to_tammx_indices(upper_labels);
+  const auto& lower_indices = tamm_labels_to_tammx_indices(lower_labels);
+
+  tammx::TensorRank nupper {upper_labels.size()};
+  tammx::TensorVec<tammx::SymmGroup> indices {upper_indices};
+  indices.insert_back(lower_indices.begin(), lower_indices.end());
+  tammx::Tensor<double> xta {indices, nupper, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtc {indices, nupper, tammx::Irrep{0}, false};
+
+  double init_val = 9.1;
+  
+  g_ec->allocate(xta, xtc);
+  g_ec->scheduler()
+      .io(xta, xtc)
+      (xta() = init_val)
+      (xtc() = xta())
+      .execute();
+
+  tammx::TensorIndex id {indices.size(), tammx::BlockDim{0}};
+  auto sz = xta.memory_manager()->local_size_in_elements().value();
+
+  bool ret = true;
+  const double threshold = 1e-14;
+  const auto abuf = reinterpret_cast<double*>(xta.memory_manager()->access(tammx::Offset{0}));
+  const auto cbuf = reinterpret_cast<double*>(xtc.memory_manager()->access(tammx::Offset{0}));
+  for(int i=0; i<sz; i++) {
+    if(std::abs(abuf[i] - init_val) > threshold) {
+      ret = false;
+      break;
+    }
+  }
+  if(ret == true) {
+    for(int i=0; i<sz; i++) {
+      if(std::abs(cbuf[i] - init_val) > threshold) {
+        return false;
+      }
+    }
+  }
+  g_ec->deallocate(xta, xtc);
+  return ret;
+}
+
+#if INITVAL_TEST_0D
+
+TEST (InitvalTest, ZeroDim) {
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {}, {}));
+}
+#endif
+
+#if INITVAL_TEST_1D
+
+TEST (InitvalTest, OneDim) {
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {}, {h1}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {}, {p1}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {}));
+}
+
+#endif
+
+#if INITVAL_TEST_2D
+
+TEST (InitvalTest, TwoDim) {
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {h2}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {p2}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {h2}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {p2}));
+}
+
+#endif
+
+#if INITVAL_TEST_3D
+
+TEST (InitvalTest, ThreeDim) {
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {h2, h3}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {h2, p3}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {p2, h3}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {p2, p3}));
+
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {h2, h3}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {h2, p3}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {p2, h3}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {p2, p3}));
+
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {h3}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {p3}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {h3}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {p3}));
+
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {h3}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {p3}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {h3}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {p3}));
+}
+
+#endif
+
+#if INITVAL_TEST_4D
+
+TEST (InitvalTest, FourDim) {
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {h3, h4}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {h3, p4}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {p3, h4}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {p3, p4}));
+
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {h3, h4}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {h3, p4}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {p3, h4}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {p3, p4}));
+
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {h3, h4}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {h3, p4}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {p3, h4}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {p3, p4}));
+
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {h3, h4}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {h3, p4}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {p3, h4}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {p3, p4}));
+}
+
+#endif
+
 
 //-----------------------------------------------------------------------
 //
@@ -527,6 +693,23 @@ TEST (AssignTest, ZeroDim) {
   bool status = tc2.check_correctness(&ta);
   tamm_destroy(&ta, &tc1, &tc2);
   ASSERT_TRUE(status);
+
+  tammx::Tensor<double> xta {{}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtc {{}, 0, tammx::Irrep{0}, false};
+
+  double init_val = 9.1;
+  
+  g_ec->allocate(xta, xtc);
+  g_ec->scheduler()
+      .io(xta, xtc)
+      (xta() = init_val)
+      (xtc() = xta())
+      .execute();
+
+  auto ablock = xta.get({});
+  ASSERT_TRUE(*xta.get({}).buf() == init_val);
+  ASSERT_TRUE(*xtc.get({}).buf() == init_val);
+  g_ec->deallocate(xta, xtc);
 }
 #endif
 

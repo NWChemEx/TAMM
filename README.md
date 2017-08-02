@@ -20,7 +20,7 @@ git checkout devel
 
 - Modify any toolchain file in ${TAMM_ROOT}/dependencies/cmake/toolchains to  
  adjust BLAS_INCLUDE_PATH, NWCHEM_TOP. Optionally adjust TAMM_PROC_COUNT, EIGEN3_INSTALL_PATH,
- LIBINT_INSTALL_PATH & ANTLR_CPPRUNTIME_PATH. Eigen3, Libint and ANTLR will be
+ LIBINT_INSTALL_PATH & ANTLR_CPPRUNTIME_PATH. Eigen3, Libint, ANTLR and googletest will be
  built if they do not exist.
 
 

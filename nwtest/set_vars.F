@@ -73,8 +73,6 @@ c      end
       nprocs = ga_nnodes()
       my_rank = ga_nodeid()
 
-      write(*,*)'Line 30'
-
       write(*,*)'noa1: ', noa1
       write(*,*)'nba1: ', nob1
       write(*,*)'nva1: ', nva1
@@ -101,7 +99,6 @@ c      end
         write(*,*)'restricted is true'
       endif
 
-      write(*,*)'At line 49'
       if(intorb)
      1     call errquit('not tested with intorb', 1,1)
       d_v2orb = 0               !fixme should be set correctly for intorb case
@@ -111,11 +108,9 @@ c      end
       if (.not.ma_push_get(mt_int,noa+nob+nva+nvb,"spins ",
      1     l_spin,k_spin)) call errquit("tce_tile: MA problem",9,
      2     MA_ERR)
-      write(*,*)'At line 61'
       if (.not.ma_push_get(mt_int,noa+nob+nva+nvb,"syms ",
      1     l_sym,k_sym)) call errquit("tce_tile: MA problem",9,
      2     MA_ERR)
-      write(*,*)'At line 65'
       if (.not.ma_push_get(mt_int,noa+nob+nva+nvb,"ranges ",
      1     l_range,k_range)) call errquit("tce_tile: MA problem",9,
      2     MA_ERR)
@@ -129,7 +124,6 @@ c      end
          write(*,*) 'ranges(',i,') =', ranges(i)
       enddo
 
-      write(*,*)'At line 76'
       if(intorb) THEN
       if (.not.ma_push_get(mt_int,noa+nob+nva+nvb,"alpha-izer 2 ",
      1  l_b2am,k_b2am)) call errquit("tce_tile: MA problem",9,
@@ -151,7 +145,6 @@ c      end
      2  call errquit("tce_tile: MA problem",9,MA_ERR)
       endif
 
-      write(*,*)'At line 77'
       if (restricted) then
         do i = 1,noa
           int_mb(k_alpha+i-1) = i
@@ -171,7 +164,6 @@ c      end
         enddo
       endif
 
-      write(*,*)'At line 97'
       if (intorb) then
          j = 0
          ! @bug @fixme SK: check the following logic with Karol
@@ -189,7 +181,6 @@ c$$$         int_mb(k_b2am+i-1) = b2am(i)
 c$$$      enddo
       endif
       
-      write(*,*)'At line 115'
       ea_unused_spin = 1
       ea_unused_sym = 0
       ip_unused_spin = 1

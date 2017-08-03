@@ -151,6 +151,10 @@ nwtest/misc.F
 nwtest/set_vars.F
 )
 
+set(TESTING_DEPS_SRC
+nwtest/fort_assign_tests.cc
+)
+
 #SET(CMAKE_Fortran_COMPILER mpif90)
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
   set(tamm_fortran_link_flags ${tamm_fflags})
@@ -181,7 +185,7 @@ target_compile_options(fort_deps PRIVATE ${tamm_fortran_link_flags})
 add_library(fort_deps_c STATIC nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
-add_executable(nwtest nwtest/test_tamm.cc)
+add_executable(nwtest nwtest/test_tamm.cc ${TESTING_DEPS_SRC})
 add_dependencies(nwtest fort_deps fort_deps_c tamm tammx)
 target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes}
         ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include)

@@ -445,7 +445,7 @@ bool test_assign(tammx::ExecutionContext& ec,
   return status;
 }
 
-bool test_assign_func_no_n(tammx::ExecutionContext& ec,
+bool test_assign_no_n(tammx::ExecutionContext& ec,
                       double alpha,
                       const std::vector<tamm::IndexName>& cupper_labels,
                       const std::vector<tamm::IndexName>& clower_labels,
@@ -1484,7 +1484,7 @@ int main(int argc, char *argv[]) {
           default_irrep, default_spin_restricted};
 
     testing::AddGlobalTestEnvironment(new TestEnvironment(&ec));
-    ret = RUN_ALL_TESTS();
+    // temporarily commentedret = RUN_ALL_TESTS();
     // test_assign_2d(ec);
     // test_assign_4d(ec);
     // test_assign(ec);

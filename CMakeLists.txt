@@ -149,6 +149,7 @@ nwtest/tce_sort.F
 nwtest/tce_sortacc.F
 nwtest/misc.F
 nwtest/set_vars.F
+nwtest/ccsd_t1.F
 )
 
 set(TESTING_DEPS_SRC

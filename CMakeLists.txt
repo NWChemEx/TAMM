@@ -151,6 +151,7 @@ nwtest/misc.F
 nwtest/set_vars.F
 nwtest/ccsd_t1.F
 nwtest/ccsd_t2.F
+nwtest/cc2_t1.F
 )
 
 set(TESTING_DEPS_SRC

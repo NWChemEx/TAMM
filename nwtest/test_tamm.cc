@@ -475,7 +475,9 @@ bool test_assign_no_n(tammx::ExecutionContext& ec,
 
   // assert_result(tc1.check_correctness(&tc2), __func__);
   // bool status = tc1.check_correctness(&tc2);
+  assert_result(tc1.check_correctness(&tc_f), __func__);
   bool status = tc1.check_correctness(&tc_f);
+
 
   tamm_destroy(&tc1, &tc2, &tc_f, &ta);
   return status;

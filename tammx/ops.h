@@ -895,6 +895,22 @@ class ExecutionContext {
     return pg_;
   }
 
+  Distribution* distribution() const {
+    return default_distribution_;
+  }
+
+  MemoryManager* memory_manager() const {
+    return default_memory_manager_;
+  }
+
+  Irrep irrep() const {
+    return  default_irrep_;
+  }
+
+  bool is_spin_restricted() const {
+    return default_spin_restricted_;
+  }
+
  private:
   ProcGroup pg_;
   Distribution* default_distribution_;

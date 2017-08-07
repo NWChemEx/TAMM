@@ -477,6 +477,13 @@ bool test_assign_no_n(tammx::ExecutionContext& ec,
   return status;
 }
 
+size_t tammx_dim_range(tammx::DimType dt) {
+  BlockDim blo, bhi;
+  std::tie(blo, bhi) = tensor_index_range(dt);
+  return TCE::offset(bhi-1) + TCE::size(bhi-1) - TCE::offset(blo);
+}
+
+
 bool test_assign_no_n(tammx::ExecutionContext& ec,
                       double alpha,
                       const std::vector<tamm::IndexName>& cupper_labels,
@@ -516,8 +523,14 @@ bool test_assign_no_n(tammx::ExecutionContext& ec,
 
   DimType d1 = ta_dim.at(0), d2=ta_dim.at(0);
 
-  Matrix eigen_ta = Matrix::Zero(16,16);
-  Matrix eigen_tc = Matrix::Zero(16,16);
+  auto sz1 = tammx_dim_range(d1);
+  auto sz2 = tammx_dim_range(d2);
+
+  Matrix eigen_ta = Matrix::Zero(sz1,sz2);
+  Matrix eigen_tc = Matrix::Zero(sz1,sz2);
+
+  // Matrix eigen_ta = Matrix::Zero(16,16);
+  // Matrix eigen_tc = Matrix::Zero(16,16);
 
   //Tensor Map
   tensor_map((*ta_e1)(), [&](auto& block) {

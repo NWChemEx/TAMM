@@ -1,12 +1,13 @@
-# Generated from /home/panyala/EclipseWS/workspacePTP/tamm/transform_input/OpMin.g4 by ANTLR 4.6
+# Generated from OpMin.g4 by ANTLR 4.7
 # encoding: utf-8
 from __future__ import print_function
 from antlr4 import *
 from io import StringIO
+import sys
 
 def serializedATN():
     with StringIO() as buf:
-        buf.write(u"\3\u0430\ud6d1\u8206\uad2d\u4417\uaef1\u8d80\uaadd\3")
+        buf.write(u"\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\3")
         buf.write(u"\36\u012f\4\2\t\2\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7")
         buf.write(u"\t\7\4\b\t\b\4\t\t\t\4\n\t\n\4\13\t\13\4\f\t\f\4\r\t")
         buf.write(u"\r\4\16\t\16\4\17\t\17\4\20\t\20\4\21\t\21\4\22\t\22")
@@ -34,7 +35,7 @@ def serializedATN():
         buf.write(u"&\u0115\n&\3\'\3\'\3(\3(\3)\3)\3)\3*\3*\3*\3*\3*\5*\u0123")
         buf.write(u"\n*\3+\3+\3+\3,\3,\3,\3,\3,\5,\u012d\n,\3,\2\2-\2\4\6")
         buf.write(u"\b\n\f\16\20\22\24\26\30\32\34\36 \"$&(*,.\60\62\64\66")
-        buf.write(u"8:<>@BDFHJLNPRTV\2\5\3\2\32\34\3\2\f\17\3\2\t\n\u011e")
+        buf.write(u"8:<>@BDFHJLNPRTV\2\5\3\2\32\34\3\2\f\17\3\2\t\n\2\u011e")
         buf.write(u"\2X\3\2\2\2\4]\3\2\2\2\6_\3\2\2\2\bf\3\2\2\2\ni\3\2\2")
         buf.write(u"\2\fq\3\2\2\2\16s\3\2\2\2\20z\3\2\2\2\22~\3\2\2\2\24")
         buf.write(u"\u0086\3\2\2\2\26\u008a\3\2\2\2\30\u008c\3\2\2\2\32\u0094")
@@ -244,9 +245,9 @@ class OpMinParser ( Parser ):
     COMMENT=27
     WS=28
 
-    def __init__(self, input):
-        super(OpMinParser, self).__init__(input)
-        self.checkVersion("4.6")
+    def __init__(self, input, output=sys.stdout):
+        super(OpMinParser, self).__init__(input, output=output)
+        self.checkVersion("4.7")
         self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA, self.sharedContextCache)
         self._predicates = None
 
@@ -267,14 +268,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_translation_unit
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterTranslation_unit"):
-                listener.enterTranslation_unit(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitTranslation_unit"):
-                listener.exitTranslation_unit(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitTranslation_unit"):
@@ -315,14 +308,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_compound_element_list_opt
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterCompound_element_list_opt"):
-                listener.enterCompound_element_list_opt(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitCompound_element_list_opt"):
-                listener.exitCompound_element_list_opt(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitCompound_element_list_opt"):
@@ -378,14 +363,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_compound_element_list
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterCompound_element_list"):
-                listener.enterCompound_element_list(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitCompound_element_list"):
-                listener.exitCompound_element_list(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitCompound_element_list"):
                 return visitor.visitCompound_element_list(self)
@@ -429,14 +406,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_compound_element_list_prime
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterCompound_element_list_prime"):
-                listener.enterCompound_element_list_prime(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitCompound_element_list_prime"):
-                listener.exitCompound_element_list_prime(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitCompound_element_list_prime"):
@@ -500,14 +469,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_compound_element
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterCompound_element"):
-                listener.enterCompound_element(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitCompound_element"):
-                listener.exitCompound_element(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitCompound_element"):
                 return visitor.visitCompound_element(self)
@@ -558,14 +519,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_element_list_opt
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterElement_list_opt"):
-                listener.enterElement_list_opt(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitElement_list_opt"):
-                listener.exitElement_list_opt(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitElement_list_opt"):
@@ -621,14 +574,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_element_list
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterElement_list"):
-                listener.enterElement_list(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitElement_list"):
-                listener.exitElement_list(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitElement_list"):
                 return visitor.visitElement_list(self)
@@ -672,14 +617,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_element_list_prime
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterElement_list_prime"):
-                listener.enterElement_list_prime(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitElement_list_prime"):
-                listener.exitElement_list_prime(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitElement_list_prime"):
@@ -736,14 +673,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_element
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterElement"):
-                listener.enterElement(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitElement"):
-                listener.exitElement(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitElement"):
@@ -816,14 +745,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_declaration
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterDeclaration"):
-                listener.enterDeclaration(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitDeclaration"):
-                listener.exitDeclaration(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitDeclaration"):
                 return visitor.visitDeclaration(self)
@@ -895,14 +816,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_id_list_opt
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterId_list_opt"):
-                listener.enterId_list_opt(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitId_list_opt"):
-                listener.exitId_list_opt(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitId_list_opt"):
                 return visitor.visitId_list_opt(self)
@@ -957,14 +870,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_id_list
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterId_list"):
-                listener.enterId_list(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitId_list"):
-                listener.exitId_list(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitId_list"):
                 return visitor.visitId_list(self)
@@ -1011,14 +916,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_id_list_prime
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterId_list_prime"):
-                listener.enterId_list_prime(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitId_list_prime"):
-                listener.exitId_list_prime(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitId_list_prime"):
@@ -1078,14 +975,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_num_list
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterNum_list"):
-                listener.enterNum_list(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitNum_list"):
-                listener.exitNum_list(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitNum_list"):
                 return visitor.visitNum_list(self)
@@ -1132,14 +1021,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_num_list_prime
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterNum_list_prime"):
-                listener.enterNum_list_prime(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitNum_list_prime"):
-                listener.exitNum_list_prime(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitNum_list_prime"):
@@ -1194,14 +1075,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_identifier
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterIdentifier"):
-                listener.enterIdentifier(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitIdentifier"):
-                listener.exitIdentifier(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitIdentifier"):
                 return visitor.visitIdentifier(self)
@@ -1244,14 +1117,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_numerical_constant
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterNumerical_constant"):
-                listener.enterNumerical_constant(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitNumerical_constant"):
-                listener.exitNumerical_constant(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitNumerical_constant"):
@@ -1309,14 +1174,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_range_declaration
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterRange_declaration"):
-                listener.enterRange_declaration(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitRange_declaration"):
-                listener.exitRange_declaration(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitRange_declaration"):
@@ -1377,14 +1234,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_index_declaration
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterIndex_declaration"):
-                listener.enterIndex_declaration(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitIndex_declaration"):
-                listener.exitIndex_declaration(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitIndex_declaration"):
                 return visitor.visitIndex_declaration(self)
@@ -1444,14 +1293,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_array_declaration
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterArray_declaration"):
-                listener.enterArray_declaration(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitArray_declaration"):
-                listener.exitArray_declaration(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitArray_declaration"):
                 return visitor.visitArray_declaration(self)
@@ -1509,14 +1350,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_array_structure_list
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterArray_structure_list"):
-                listener.enterArray_structure_list(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitArray_structure_list"):
-                listener.exitArray_structure_list(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitArray_structure_list"):
                 return visitor.visitArray_structure_list(self)
@@ -1563,14 +1396,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_array_structure_list_prime
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterArray_structure_list_prime"):
-                listener.enterArray_structure_list_prime(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitArray_structure_list_prime"):
-                listener.exitArray_structure_list_prime(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitArray_structure_list_prime"):
@@ -1645,14 +1470,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_astruct
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterAstruct"):
-                listener.enterAstruct(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitAstruct"):
-                listener.exitAstruct(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitAstruct"):
                 return visitor.visitAstruct(self)
@@ -1711,14 +1528,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_array_structure
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterArray_structure"):
-                listener.enterArray_structure(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitArray_structure"):
-                listener.exitArray_structure(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitArray_structure"):
@@ -1779,14 +1588,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_permut_symmetry_opt
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterPermut_symmetry_opt"):
-                listener.enterPermut_symmetry_opt(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitPermut_symmetry_opt"):
-                listener.exitPermut_symmetry_opt(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitPermut_symmetry_opt"):
                 return visitor.visitPermut_symmetry_opt(self)
@@ -1843,14 +1644,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_symmetry_group_list
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterSymmetry_group_list"):
-                listener.enterSymmetry_group_list(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitSymmetry_group_list"):
-                listener.exitSymmetry_group_list(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitSymmetry_group_list"):
                 return visitor.visitSymmetry_group_list(self)
@@ -1894,14 +1687,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_symmetry_group_list_prime
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterSymmetry_group_list_prime"):
-                listener.enterSymmetry_group_list_prime(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitSymmetry_group_list_prime"):
-                listener.exitSymmetry_group_list_prime(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitSymmetry_group_list_prime"):
@@ -1961,14 +1746,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_symmetry_group
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterSymmetry_group"):
-                listener.enterSymmetry_group(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitSymmetry_group"):
-                listener.exitSymmetry_group(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitSymmetry_group"):
                 return visitor.visitSymmetry_group(self)
@@ -2017,14 +1794,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_expansion_declaration
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterExpansion_declaration"):
-                listener.enterExpansion_declaration(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitExpansion_declaration"):
-                listener.exitExpansion_declaration(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitExpansion_declaration"):
                 return visitor.visitExpansion_declaration(self)
@@ -2072,14 +1841,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_volatile_declaration
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterVolatile_declaration"):
-                listener.enterVolatile_declaration(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitVolatile_declaration"):
-                listener.exitVolatile_declaration(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitVolatile_declaration"):
@@ -2132,14 +1893,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_iteration_declaration
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterIteration_declaration"):
-                listener.enterIteration_declaration(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitIteration_declaration"):
-                listener.exitIteration_declaration(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitIteration_declaration"):
                 return visitor.visitIteration_declaration(self)
@@ -2183,14 +1936,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_statement
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterStatement"):
-                listener.enterStatement(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitStatement"):
-                listener.exitStatement(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitStatement"):
@@ -2246,14 +1991,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_assignment_statement
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterAssignment_statement"):
-                listener.enterAssignment_statement(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitAssignment_statement"):
-                listener.exitAssignment_statement(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitAssignment_statement"):
@@ -2317,14 +2054,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_assignment_operator
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterAssignment_operator"):
-                listener.enterAssignment_operator(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitAssignment_operator"):
-                listener.exitAssignment_operator(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitAssignment_operator"):
                 return visitor.visitAssignment_operator(self)
@@ -2378,14 +2107,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_unary_expression
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterUnary_expression"):
-                listener.enterUnary_expression(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitUnary_expression"):
-                listener.exitUnary_expression(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitUnary_expression"):
@@ -2461,14 +2182,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_primary_expression
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterPrimary_expression"):
-                listener.enterPrimary_expression(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitPrimary_expression"):
-                listener.exitPrimary_expression(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitPrimary_expression"):
                 return visitor.visitPrimary_expression(self)
@@ -2538,14 +2251,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_array_reference
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterArray_reference"):
-                listener.enterArray_reference(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitArray_reference"):
-                listener.exitArray_reference(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitArray_reference"):
                 return visitor.visitArray_reference(self)
@@ -2603,14 +2308,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_expression
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterExpression"):
-                listener.enterExpression(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitExpression"):
-                listener.exitExpression(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitExpression"):
                 return visitor.visitExpression(self)
@@ -2650,14 +2347,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_plusORminus
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterPlusORminus"):
-                listener.enterPlusORminus(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitPlusORminus"):
-                listener.exitPlusORminus(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitPlusORminus"):
@@ -2707,14 +2396,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_additive_expression
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterAdditive_expression"):
-                listener.enterAdditive_expression(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitAdditive_expression"):
-                listener.exitAdditive_expression(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitAdditive_expression"):
                 return visitor.visitAdditive_expression(self)
@@ -2762,14 +2443,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_additive_expression_prime
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterAdditive_expression_prime"):
-                listener.enterAdditive_expression_prime(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitAdditive_expression_prime"):
-                listener.exitAdditive_expression_prime(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitAdditive_expression_prime"):
@@ -2829,14 +2502,6 @@ class OpMinParser ( Parser ):
         def getRuleIndex(self):
             return OpMinParser.RULE_multiplicative_expression
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterMultiplicative_expression"):
-                listener.enterMultiplicative_expression(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitMultiplicative_expression"):
-                listener.exitMultiplicative_expression(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitMultiplicative_expression"):
                 return visitor.visitMultiplicative_expression(self)
@@ -2883,14 +2548,6 @@ class OpMinParser ( Parser ):
 
         def getRuleIndex(self):
             return OpMinParser.RULE_multiplicative_expression_prime
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterMultiplicative_expression_prime"):
-                listener.enterMultiplicative_expression_prime(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitMultiplicative_expression_prime"):
-                listener.exitMultiplicative_expression_prime(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitMultiplicative_expression_prime"):

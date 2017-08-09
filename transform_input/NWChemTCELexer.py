@@ -1,13 +1,14 @@
-# Generated from /home/panyala/EclipseWS/workspacePTP/tamm/transform_input/NWChemTCE.g4 by ANTLR 4.6
+# Generated from NWChemTCE.g4 by ANTLR 4.7
 # encoding: utf-8
 from __future__ import print_function
 from antlr4 import *
 from io import StringIO
+import sys
 
 
 def serializedATN():
     with StringIO() as buf:
-        buf.write(u"\3\u0430\ud6d1\u8206\uad2d\u4417\uaef1\u8d80\uaadd\2")
+        buf.write(u"\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\2")
         buf.write(u"\24\u00a4\b\1\4\2\t\2\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6")
         buf.write(u"\4\7\t\7\4\b\t\b\4\t\t\t\4\n\t\n\4\13\t\13\4\f\t\f\4")
         buf.write(u"\r\t\r\4\16\t\16\4\17\t\17\4\20\t\20\4\21\t\21\4\22\t")
@@ -27,7 +28,7 @@ def serializedATN():
         buf.write(u"\16\24\u00a0\3\24\3\24\3\u0094\2\25\3\3\5\4\7\5\t\6\13")
         buf.write(u"\7\r\b\17\t\21\n\23\13\25\f\27\r\31\16\33\17\35\20\37")
         buf.write(u"\21!\22#\2%\23\'\24\3\2\b\5\2C\\aac|\6\2\62;C\\aac|\4")
-        buf.write(u"\2GGgg\4\2--//\4\2\f\f\17\17\5\2\13\f\17\17\"\"\u00b5")
+        buf.write(u"\2GGgg\4\2--//\4\2\f\f\17\17\5\2\13\f\17\17\"\"\2\u00b5")
         buf.write(u"\2\3\3\2\2\2\2\5\3\2\2\2\2\7\3\2\2\2\2\t\3\2\2\2\2\13")
         buf.write(u"\3\2\2\2\2\r\3\2\2\2\2\17\3\2\2\2\2\21\3\2\2\2\2\23\3")
         buf.write(u"\2\2\2\2\25\3\2\2\2\2\27\3\2\2\2\2\31\3\2\2\2\2\33\3")
@@ -83,7 +84,6 @@ class NWChemTCELexer(Lexer):
 
     decisionsToDFA = [ DFA(ds, i) for i, ds in enumerate(atn.decisionToState) ]
 
-
     T__0 = 1
     SUM = 2
     PLUS = 3
@@ -103,6 +103,8 @@ class NWChemTCELexer(Lexer):
     COMMENT = 17
     WS = 18
 
+    channelNames = [ u"DEFAULT_TOKEN_CHANNEL", u"HIDDEN" ]
+
     modeNames = [ u"DEFAULT_MODE" ]
 
     literalNames = [ u"<INVALID>",
@@ -121,9 +123,9 @@ class NWChemTCELexer(Lexer):
 
     grammarFileName = u"NWChemTCE.g4"
 
-    def __init__(self, input=None):
-        super(NWChemTCELexer, self).__init__(input)
-        self.checkVersion("4.6")
+    def __init__(self, input=None, output=sys.stdout):
+        super(NWChemTCELexer, self).__init__(input, output=output)
+        self.checkVersion("4.7")
         self._interp = LexerATNSimulator(self, self.atn, self.decisionsToDFA, PredictionContextCache())
         self._actions = None
         self._predicates = None

@@ -1,12 +1,13 @@
-# Generated from /home/panyala/EclipseWS/workspacePTP/tamm/tamm_parser/SoInput/SoTCE.g4 by ANTLR 4.5.3
+# Generated from SoTCE.g4 by ANTLR 4.7
 # encoding: utf-8
 from __future__ import print_function
 from antlr4 import *
 from io import StringIO
+import sys
 
 def serializedATN():
     with StringIO() as buf:
-        buf.write(u"\3\u0430\ud6d1\u8206\uad2d\u4417\uaef1\u8d80\uaadd\3")
+        buf.write(u"\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\3")
         buf.write(u"\21U\4\2\t\2\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7")
         buf.write(u"\4\b\t\b\4\t\t\t\4\n\t\n\4\13\t\13\3\2\3\2\3\3\3\3\3")
         buf.write(u"\4\3\4\3\5\3\5\5\5\37\n\5\3\6\6\6\"\n\6\r\6\16\6#\3\7")
@@ -15,25 +16,25 @@ def serializedATN():
         buf.write(u"\t\3\n\3\n\5\nA\n\n\3\n\7\nD\n\n\f\n\16\nG\13\n\3\n\3")
         buf.write(u"\n\3\13\3\13\3\13\7\13N\n\13\f\13\16\13Q\13\13\3\13\3")
         buf.write(u"\13\3\13\2\2\f\2\4\6\b\n\f\16\20\22\24\2\4\3\2\16\17")
-        buf.write(u"\3\2\4\5T\2\26\3\2\2\2\4\30\3\2\2\2\6\32\3\2\2\2\b\36")
-        buf.write(u"\3\2\2\2\n!\3\2\2\2\f%\3\2\2\2\16-\3\2\2\2\20<\3\2\2")
-        buf.write(u"\2\22>\3\2\2\2\24J\3\2\2\2\26\27\t\2\2\2\27\3\3\2\2\2")
-        buf.write(u"\30\31\t\3\2\2\31\5\3\2\2\2\32\33\5\b\5\2\33\7\3\2\2")
-        buf.write(u"\2\34\37\7\2\2\3\35\37\5\n\6\2\36\34\3\2\2\2\36\35\3")
-        buf.write(u"\2\2\2\37\t\3\2\2\2 \"\5\f\7\2! \3\2\2\2\"#\3\2\2\2#")
-        buf.write(u"!\3\2\2\2#$\3\2\2\2$\13\3\2\2\2%\'\7\t\2\2&(\5\16\b\2")
-        buf.write(u"\'&\3\2\2\2()\3\2\2\2)\'\3\2\2\2)*\3\2\2\2*\r\3\2\2\2")
-        buf.write(u"+.\5\20\t\2,.\7\n\2\2-+\3\2\2\2-,\3\2\2\2.\17\3\2\2\2")
-        buf.write(u"/\63\7\6\2\2\60\64\5\24\13\2\61\62\7\f\2\2\62\64\5\22")
-        buf.write(u"\n\2\63\60\3\2\2\2\63\61\3\2\2\2\64=\3\2\2\2\65\66\5")
-        buf.write(u"\4\3\2\66\67\5\2\2\2\679\3\2\2\28\65\3\2\2\29:\3\2\2")
-        buf.write(u"\2:8\3\2\2\2:;\3\2\2\2;=\3\2\2\2</\3\2\2\2<8\3\2\2\2")
-        buf.write(u"=\21\3\2\2\2>E\7\7\2\2?A\7\13\2\2@?\3\2\2\2@A\3\2\2\2")
-        buf.write(u"AB\3\2\2\2BD\7\r\2\2C@\3\2\2\2DG\3\2\2\2EC\3\2\2\2EF")
-        buf.write(u"\3\2\2\2FH\3\2\2\2GE\3\2\2\2HI\7\b\2\2I\23\3\2\2\2JK")
-        buf.write(u"\7\3\2\2KO\7\7\2\2LN\7\r\2\2ML\3\2\2\2NQ\3\2\2\2OM\3")
-        buf.write(u"\2\2\2OP\3\2\2\2PR\3\2\2\2QO\3\2\2\2RS\7\b\2\2S\25\3")
-        buf.write(u"\2\2\2\f\36#)-\63:<@EO")
+        buf.write(u"\3\2\4\5\2T\2\26\3\2\2\2\4\30\3\2\2\2\6\32\3\2\2\2\b")
+        buf.write(u"\36\3\2\2\2\n!\3\2\2\2\f%\3\2\2\2\16-\3\2\2\2\20<\3\2")
+        buf.write(u"\2\2\22>\3\2\2\2\24J\3\2\2\2\26\27\t\2\2\2\27\3\3\2\2")
+        buf.write(u"\2\30\31\t\3\2\2\31\5\3\2\2\2\32\33\5\b\5\2\33\7\3\2")
+        buf.write(u"\2\2\34\37\7\2\2\3\35\37\5\n\6\2\36\34\3\2\2\2\36\35")
+        buf.write(u"\3\2\2\2\37\t\3\2\2\2 \"\5\f\7\2! \3\2\2\2\"#\3\2\2\2")
+        buf.write(u"#!\3\2\2\2#$\3\2\2\2$\13\3\2\2\2%\'\7\t\2\2&(\5\16\b")
+        buf.write(u"\2\'&\3\2\2\2()\3\2\2\2)\'\3\2\2\2)*\3\2\2\2*\r\3\2\2")
+        buf.write(u"\2+.\5\20\t\2,.\7\n\2\2-+\3\2\2\2-,\3\2\2\2.\17\3\2\2")
+        buf.write(u"\2/\63\7\6\2\2\60\64\5\24\13\2\61\62\7\f\2\2\62\64\5")
+        buf.write(u"\22\n\2\63\60\3\2\2\2\63\61\3\2\2\2\64=\3\2\2\2\65\66")
+        buf.write(u"\5\4\3\2\66\67\5\2\2\2\679\3\2\2\28\65\3\2\2\29:\3\2")
+        buf.write(u"\2\2:8\3\2\2\2:;\3\2\2\2;=\3\2\2\2</\3\2\2\2<8\3\2\2")
+        buf.write(u"\2=\21\3\2\2\2>E\7\7\2\2?A\7\13\2\2@?\3\2\2\2@A\3\2\2")
+        buf.write(u"\2AB\3\2\2\2BD\7\r\2\2C@\3\2\2\2DG\3\2\2\2EC\3\2\2\2")
+        buf.write(u"EF\3\2\2\2FH\3\2\2\2GE\3\2\2\2HI\7\b\2\2I\23\3\2\2\2")
+        buf.write(u"JK\7\3\2\2KO\7\7\2\2LN\7\r\2\2ML\3\2\2\2NQ\3\2\2\2OM")
+        buf.write(u"\3\2\2\2OP\3\2\2\2PR\3\2\2\2QO\3\2\2\2RS\7\b\2\2S\25")
+        buf.write(u"\3\2\2\2\f\36#)-\63:<@EO")
         return buf.getvalue()
 
 
@@ -87,9 +88,9 @@ class SoTCEParser ( Parser ):
     COMMENT=14
     WS=15
 
-    def __init__(self, input):
-        super(SoTCEParser, self).__init__(input)
-        self.checkVersion("4.5.3")
+    def __init__(self, input, output=sys.stdout):
+        super(SoTCEParser, self).__init__(input, output=output)
+        self.checkVersion("4.7")
         self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA, self.sharedContextCache)
         self._predicates = None
 
@@ -109,14 +110,6 @@ class SoTCEParser ( Parser ):
 
         def getRuleIndex(self):
             return SoTCEParser.RULE_numerical_constant
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterNumerical_constant"):
-                listener.enterNumerical_constant(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitNumerical_constant"):
-                listener.exitNumerical_constant(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitNumerical_constant"):
@@ -139,6 +132,7 @@ class SoTCEParser ( Parser ):
             if not(_la==SoTCEParser.ICONST or _la==SoTCEParser.FCONST):
                 self._errHandler.recoverInline(self)
             else:
+                self._errHandler.reportMatch(self)
                 self.consume()
         except RecognitionException as re:
             localctx.exception = re
@@ -164,14 +158,6 @@ class SoTCEParser ( Parser ):
         def getRuleIndex(self):
             return SoTCEParser.RULE_plusORminus
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterPlusORminus"):
-                listener.enterPlusORminus(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitPlusORminus"):
-                listener.exitPlusORminus(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitPlusORminus"):
                 return visitor.visitPlusORminus(self)
@@ -194,6 +180,7 @@ class SoTCEParser ( Parser ):
             if not(_la==SoTCEParser.PLUS or _la==SoTCEParser.MINUS):
                 localctx.op = self._errHandler.recoverInline(self)
             else:
+                self._errHandler.reportMatch(self)
                 self.consume()
         except RecognitionException as re:
             localctx.exception = re
@@ -215,14 +202,6 @@ class SoTCEParser ( Parser ):
 
         def getRuleIndex(self):
             return SoTCEParser.RULE_translation_unit
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterTranslation_unit"):
-                listener.enterTranslation_unit(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitTranslation_unit"):
-                listener.exitTranslation_unit(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitTranslation_unit"):
@@ -265,14 +244,6 @@ class SoTCEParser ( Parser ):
         def getRuleIndex(self):
             return SoTCEParser.RULE_compound_element_list_opt
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterCompound_element_list_opt"):
-                listener.enterCompound_element_list_opt(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitCompound_element_list_opt"):
-                listener.exitCompound_element_list_opt(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitCompound_element_list_opt"):
                 return visitor.visitCompound_element_list_opt(self)
@@ -288,17 +259,18 @@ class SoTCEParser ( Parser ):
         self.enterRule(localctx, 6, self.RULE_compound_element_list_opt)
         try:
             self.state = 28
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [SoTCEParser.EOF]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 26
                 self.match(SoTCEParser.EOF)
-
+                pass
             elif token in [SoTCEParser.LBRACKET]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 27
                 self.compound_element_list()
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -325,14 +297,6 @@ class SoTCEParser ( Parser ):
 
         def getRuleIndex(self):
             return SoTCEParser.RULE_compound_element_list
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterCompound_element_list"):
-                listener.enterCompound_element_list(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitCompound_element_list"):
-                listener.exitCompound_element_list(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitCompound_element_list"):
@@ -389,14 +353,6 @@ class SoTCEParser ( Parser ):
         def getRuleIndex(self):
             return SoTCEParser.RULE_factors
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterFactors"):
-                listener.enterFactors(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitFactors"):
-                listener.exitFactors(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitFactors"):
                 return visitor.visitFactors(self)
@@ -451,14 +407,6 @@ class SoTCEParser ( Parser ):
         def getRuleIndex(self):
             return SoTCEParser.RULE_factors_opt
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterFactors_opt"):
-                listener.enterFactors_opt(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitFactors_opt"):
-                listener.exitFactors_opt(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitFactors_opt"):
                 return visitor.visitFactors_opt(self)
@@ -474,17 +422,18 @@ class SoTCEParser ( Parser ):
         self.enterRule(localctx, 12, self.RULE_factors_opt)
         try:
             self.state = 43
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [SoTCEParser.PLUS, SoTCEParser.MINUS, SoTCEParser.TIMES]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 41
                 self.ptype()
-
+                pass
             elif token in [SoTCEParser.RBRACKET]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 42
                 self.match(SoTCEParser.RBRACKET)
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -533,14 +482,6 @@ class SoTCEParser ( Parser ):
         def getRuleIndex(self):
             return SoTCEParser.RULE_ptype
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterPtype"):
-                listener.enterPtype(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitPtype"):
-                listener.exitPtype(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitPtype"):
                 return visitor.visitPtype(self)
@@ -556,27 +497,29 @@ class SoTCEParser ( Parser ):
         self.enterRule(localctx, 14, self.RULE_ptype)
         try:
             self.state = 58
+            self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [SoTCEParser.TIMES]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 45
                 self.match(SoTCEParser.TIMES)
                 self.state = 49
+                self._errHandler.sync(self)
                 token = self._input.LA(1)
                 if token in [SoTCEParser.SUM]:
                     self.state = 46
                     self.sumExp()
-
+                    pass
                 elif token in [SoTCEParser.ArrType]:
                     self.state = 47
                     self.match(SoTCEParser.ArrType)
                     self.state = 48
                     self.arrDims()
-
+                    pass
                 else:
                     raise NoViableAltException(self)
 
-
+                pass
             elif token in [SoTCEParser.PLUS, SoTCEParser.MINUS]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 54 
@@ -595,7 +538,7 @@ class SoTCEParser ( Parser ):
                     self._errHandler.sync(self)
                     _alt = self._interp.adaptivePredict(self._input,5,self._ctx)
 
-
+                pass
             else:
                 raise NoViableAltException(self)
 
@@ -634,14 +577,6 @@ class SoTCEParser ( Parser ):
         def getRuleIndex(self):
             return SoTCEParser.RULE_arrDims
 
-        def enterRule(self, listener):
-            if hasattr(listener, "enterArrDims"):
-                listener.enterArrDims(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitArrDims"):
-                listener.exitArrDims(self)
-
         def accept(self, visitor):
             if hasattr(visitor, "visitArrDims"):
                 return visitor.visitArrDims(self)
@@ -665,6 +600,7 @@ class SoTCEParser ( Parser ):
             _la = self._input.LA(1)
             while _la==SoTCEParser.SYMOP or _la==SoTCEParser.Etype:
                 self.state = 62
+                self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==SoTCEParser.SYMOP:
                     self.state = 61
@@ -710,14 +646,6 @@ class SoTCEParser ( Parser ):
 
         def getRuleIndex(self):
             return SoTCEParser.RULE_sumExp
-
-        def enterRule(self, listener):
-            if hasattr(listener, "enterSumExp"):
-                listener.enterSumExp(self)
-
-        def exitRule(self, listener):
-            if hasattr(listener, "exitSumExp"):
-                listener.exitSumExp(self)
 
         def accept(self, visitor):
             if hasattr(visitor, "visitSumExp"):

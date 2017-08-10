@@ -34,14 +34,26 @@ Pai-Wei's output -> tamm_input  (python opmin_to_tamm.py ccsd_t1.op.in.out > ccs
  - Collapse the f_... and v_... array delcarations (with range N) and their usage to f and v 
 
 
+python opmin_to_tamm.py ccsd_t1.op.in.out (generates ccsd_t1.op.in.out_generated_splitAdds.eq)
+python tamm_to_tamm.py ccsd_t1.op.in.out_generated_splitAdds.eq 999 > $eqname_final.eq (only minimize intermediates)
+
 -----------------------------------
    RUNNING THE UNFACTORIZER
 -----------------------------------
 
 In transform_input folder:
 
-- python unfactorize.py ../tamm_tests/NWChemEqs/ccsd_t1.eq > ccsd_t1_un.eq   --> generates unfactorized eq
-- python $OPMIN_DIR/src/opmin.py ccsd_t1_un.eq  --> generates ccsd_t1_un.eq.out
-- python opmin_to_tamm.py ccsd_t1_un.eq.out > ccsd_t1_unfactored.eq
+# For each term (defined as a product of tensors), find out the case where we have symmetric loops. We have a symmetric loop
+# for a subset of summation indices if they are of the same type (O or V) and appear together in exactly two tensors.
+# Let us say these subsets are of size k1, k2, etc.
+# Option 1: For this term, we MULTIPLY it's existing constant by the factor k1! * k2! *
+# Option 2: For this term, we DIVIDE it's existing constant by the factor k1! * k2! *
 
-- The file obtained in the last step (ccsd_t1_unfactored.eq) is save in tamm_tests/UnfactoredEqs folder
+	python tamm_to_tamm.py eqfile mdoption user_O user_V (mdoption=0 for multiply, >0 for divide,
+	                        999 to skip mult,div and only minimize intermediates given a tamm input file)
+	python unfactorize.py eqname_initial.eq > eqname_initial_un.eq
+	python ../opmin/src/opmin.py $eqname_initial_un.eq
+	mv eqname_initial_un.eq.out eqname_opmin_generated.eq
+	python opmin_to_tamm.py $eqname_opmin_generated.eq
+	python tamm_to_tamm.py $eqname_opmin_generated_splitAdds.eq 1 > $eqname_final.eq (divide constants)
+

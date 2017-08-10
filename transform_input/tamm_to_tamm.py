@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     try:
         user_O = int(sys.argv[3]) #value of O
-        user_V = int(sys.argv[4])  # value of O
+        user_V = int(sys.argv[4])  # value of V
     except:
         pass
 
@@ -61,26 +61,30 @@ if __name__ == '__main__':
 
     #oplabel = oplabel[ci:]
 
-    t2tEq = (oplabel + " {\n")
+    tamm_file = sys.argv[1]
 
-    if user_O > 0 and user_V > 0:
-        t2tEq += "range O = " + str(user_O) + ";\n"
-        t2tEq += "range V = " + str(user_V) + ";\n"
+    if mdoption != 999:
+        t2tEq = (oplabel + " {\n")
 
-    visitor = TAMMtoTAMM(mdoption,user_O,user_V)
-    streq = visitor.visitTranslation_unit(tree)
+        if user_O > 0 and user_V > 0:
+            t2tEq += "range O = " + str(user_O) + ";\n"
+            t2tEq += "range V = " + str(user_V) + ";\n"
 
-    t2tEq += streq + "}"
+        visitor = TAMMtoTAMM(mdoption,user_O,user_V)
+        streq = visitor.visitTranslation_unit(tree)
+
+        t2tEq += streq + "}"
 
 
-    tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_initial.eq'
-    if mdoption: tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_prefinal.eq'
-    with open(tamm_file, 'w') as tr:
-        tr.write(t2tEq)
+        tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_initial.eq'
+        if mdoption: tamm_file = os.path.basename(sys.argv[1]).split(".")[0]+'_prefinal.eq'
+        with open(tamm_file, 'w') as tr:
+            tr.write(t2tEq)
 
-    if not mdoption: sys.exit(0)
+        if not mdoption: sys.exit(0)
 
-    input_stream = FileStream(tamm_file)
+        input_stream = FileStream(tamm_file)
+
     lexer = OpMinLexer(input_stream)
     token_stream = CommonTokenStream(lexer)
     parser = OpMinParser(token_stream)

@@ -23,7 +23,8 @@ class CollectTemps(ParseTreeVisitor):
     # Visit a parse tree produced by OpMinParser#translation_unit.
     def visitTranslation_unit(self, ctx):
         self.visitChildren(ctx)
-        assert(len(self.ioInd) == 1)
+        assert(len(self.ioInd) == 1 or len(self.ioInd) == 0)
+        if len(self.ioInd) == 0: return [single_use_temps, "["]
         return [single_use_temps, "[" + self.ioInd[0]]
 
 

@@ -984,7 +984,12 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
             if 0 in all_constants: constants = str(all_constants[0])
             self.splitaddseq += (constants)
             for ar in range(0,num_arr):
-                self.splitaddseq += (" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "]")
+                if arefInd:
+                    if ar < len(arefInd):
+                        self.splitaddseq += (" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "]")
+                    else: self.splitaddseq += (" * " + arefs[ar] + "[]")
+                else:
+                    self.splitaddseq += (" * " + arefs[ar] + "[]")
             self.splitaddseq += (";\n")
         else:
             arefs = []
@@ -1001,7 +1006,10 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
                 self.splitaddseq += (lhs + " += ")
                 self.splitaddseq += (str(all_constants[ar]))
                 #else: self.splitaddseq += ("1.0")
-                self.splitaddseq += (" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "];\n")
+                if arefInd:
+                    self.splitaddseq += (" * " + arefs[ar] + "[" + str(",".join(arefInd[ar])) + "];\n")
+                else:
+                    self.splitaddseq += (" * " + arefs[ar] + "[];\n")
 
 
 
@@ -1032,7 +1040,8 @@ class OpminTAMMSplitAdds(ParseTreeVisitor):
         global arefconst,all_constants,constant_no,constants,pmflag
         aname = str(ctx.children[0])
         arefs.append(aname)
-        arefInd.append(self.visitId_list_opt(ctx.children[2]))
+        ari_app = self.visitId_list_opt(ctx.children[2])
+        if ari_app: arefInd.append(ari_app)
 
         if not arefconst:
             all_constants[constant_no] = 1.0

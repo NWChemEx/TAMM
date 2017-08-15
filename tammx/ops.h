@@ -1,4 +1,3 @@
-
 #ifndef TAMMX_OPS_H_
 #define TAMMX_OPS_H_
 
@@ -1266,6 +1265,379 @@ SetOp<T,LabeledTensorType>::execute() {
   parallel_work(itr_first, itr_first.get_end(), lambda);
 }
 
+//--------------- new symmetrization routines
+
+inline TensorLabel
+comb_bv_to_label(const TensorVec<int>& comb_itr, const TensorLabel& tlabel) {
+  assert(comb_itr.size() == tlabel.size());
+  auto n = comb_itr.size();
+  TensorLabel left, right;
+  for(size_t i=0; i<n; i++) {
+    if(comb_itr[i] == 0) {
+      left.push_back(tlabel[i]);
+    }
+    else {
+      right.push_back(tlabel[i]);
+    }
+  }
+  TensorLabel ret{left};
+  ret.insert_back(right.begin(), right.end());
+  return ret;
+}
+
+/**
+   @note Find first index of value in lst[lo,hi). Index hi is exclusive.
+ */
+template<typename T>
+size_t find_first_index(const TensorVec<T> lst, size_t lo, size_t hi, T value) {
+  auto i= lo;
+  for(; i<hi; i++) {
+    if (lst[i] == value) {
+      return i;
+    }
+  }
+  return i;
+}
+
+/**
+   @note Find last index of value in lst[lo,hi). Index hi is exclusive.
+ */
+template<typename T>
+size_t find_last_index(const TensorVec<T> lst, size_t lo, size_t hi, T value) {
+  auto i = hi - 1;
+  for( ;i >= lo; i--) {
+    if (lst[i] == value) {
+      return i;
+    }
+  }
+  return i;
+}
+
+/**
+   @note comb_itr is assumed to be a vector of 0s and 1s
+ */
+inline bool
+is_unique_combination(const TensorVec<int>& comb_itr, const TensorIndex& lval) {
+  Expects(std::is_sorted(lval.begin(), lval.end()));
+  Expects(comb_itr.size() == lval.size());
+  for(auto ci: comb_itr) {
+    Expects(ci ==0 || ci == 1);
+  }
+  auto n = lval.size();
+  size_t i = 0;
+  while(i < n) {
+    auto lo = i;
+    auto hi = i+1;
+    while(hi < n && lval[hi] == lval[lo]) {
+      hi += 1;
+    }
+    auto first_one = find_first_index(comb_itr, lo, hi, 1);
+    auto last_zero = find_last_index(comb_itr, lo, hi, 0);
+    if(first_one < last_zero) {
+      return false;
+    }
+    i = hi;
+  }
+  return true;
+}
+
+class SymmetrizerNew {
+ public:
+  using element_type = IndexLabel;
+  SymmetrizerNew(const LabelMap<BlockDim>& lmap,
+                 const TensorLabel& olabels,
+                 size_t nsymm_indices)
+      : lmap_{lmap},
+        olabels_{olabels},
+        nsymm_indices_{nsymm_indices},
+        done_{false} {
+          reset();
+        }
+
+  bool has_more() const {
+    return !done_;
+  }
+
+  void reset() {
+    done_ = false;
+    auto n = olabels_.size();
+    auto k = nsymm_indices_;
+    Expects(k>=0 && k<=n);
+    comb_itr_.resize(n);
+    std::fill_n(comb_itr_.begin(), k, 0);
+    std::fill_n(comb_itr_.begin()+k, n-k, 1);
+    Expects(comb_itr_.size() == olabels_.size());
+    olval_ = lmap_.get_blockid(olabels_);
+  }
+  
+  TensorLabel get() const {
+    Expects(comb_itr_.size() == olabels_.size());
+    return comb_bv_to_label(comb_itr_, olabels_);
+  }
+
+  size_t itr_size() const {
+    return comb_itr_.size();
+  }
+
+  void next() {
+    //done_ = true; return; //@BUG
+    //std::cout<<"Entered. SymmetrizerNew, next"<<std::endl;
+    do {
+      // std::cout<<"Comb itr="<<comb_itr_<<std::endl;
+      // std::cout<<"olval="<<olval_<<std::endl;
+      // std::cout<<"done="<<done_<<std::endl;
+      done_ = !std::next_permutation(comb_itr_.begin(), comb_itr_.end());
+      // std::cout<<"Comb itr="<<comb_itr_<<std::endl;
+      // std::cout<<"olval="<<olval_<<std::endl;
+      // std::cout<<"done="<<done_<<std::endl;
+    } while (!done_ && !is_unique_combination(comb_itr_, olval_));
+    //std::cout<<"Exited. SymmetrizerNew, next"<<std::endl;
+    Expects(comb_itr_.size() == olabels_.size());
+  }
+  
+ private:
+  const LabelMap<BlockDim> lmap_;
+  TensorLabel olabels_;
+  TensorIndex olval_;
+  TensorVec<int> comb_itr_;
+  size_t nsymm_indices_;
+  bool done_;
+};
+
+
+class CopySymmetrizerNew {
+ public:
+  using element_type = IndexLabel;
+  CopySymmetrizerNew(const LabelMap<BlockDim>& lmap,
+                     const TensorLabel& olabels,
+                     const TensorIndex& cur_olval,
+                     size_t nsymm_indices)
+      : lmap_{lmap},
+        olabels_{olabels},
+        cur_olval_{cur_olval},
+        nsymm_indices_{nsymm_indices},
+        done_{false} {
+          Expects(nsymm_indices>=0 && nsymm_indices<=olabels.size());
+          reset();
+        }
+  
+  bool has_more() const {
+    return !done_;
+  }
+
+  void reset() {
+    done_ = false;
+    auto n = olabels_.size();
+    auto k = nsymm_indices_;
+    comb_itr_.resize(n);
+    std::fill_n(comb_itr_.begin(), k, 0);
+    std::fill_n(comb_itr_.begin()+k, n-k, 1);
+    progress();    
+  }
+
+  TensorLabel get() const {
+    return cur_label_;
+  }
+
+  size_t itr_size() const {
+    return comb_itr_.size();
+  }
+
+  void progress() {
+    while(!done_) {
+      cur_label_ = comb_bv_to_label(comb_itr_, olabels_);
+      auto lval = lmap_.get_blockid(cur_label_);
+      if(std::equal(cur_olval_.begin(), cur_olval_.end(),
+                    lval.begin(), lval.end())) {
+        break;
+      }
+      done_ = !std::next_permutation(comb_itr_.begin(), comb_itr_.end());
+    }
+  }
+
+  void next() {
+    done_ = !std::next_permutation(comb_itr_.begin(), comb_itr_.end());
+    progress();
+  }
+  
+ private:
+  const LabelMap<BlockDim> lmap_;
+  TensorLabel olabels_;
+  TensorLabel cur_label_;
+  TensorIndex cur_olval_;
+  TensorVec<int> comb_itr_;
+  size_t nsymm_indices_;
+  bool done_;
+};
+
+template<typename Itr>
+class SymmIterator {
+ public:
+  SymmIterator(const std::vector<Itr>& itrs)
+      : itrs_{itrs},
+        done_{false} {
+          reset();
+        }
+
+  void reset() {
+    for(auto& it: itrs_) {
+      it.reset();
+      Expects(it.has_more());
+    }    
+  }
+  
+  size_t itr_size() const {
+    size_t ret = 0;
+    for(const auto& it: itrs_) {
+      ret += it.size();
+    }
+    return ret;
+  }
+
+  bool has_more() {
+    return !done_;
+  }
+
+  TensorLabel get() const {
+    TensorLabel ret;
+    for(const auto& it: itrs_) {
+      auto vtmp = it.get();
+      ret.insert_back(vtmp.begin(), vtmp.end());
+    }
+    return ret;
+  }
+
+  void next() {
+    int i = itrs_.size()-1;
+    for(; i>=0; i--) {
+      itrs_[i].next();
+      if (itrs_[i].has_more()) {
+        //std::cout<<"ACTION NEXT HAS MORE"<<std::endl;
+        break;
+      }
+      itrs_[i].reset();
+    }
+    if (i<0) {
+      done_ = true;
+    }
+  }
+  
+ private:
+  std::vector<Itr> itrs_;
+  bool done_;
+};
+
+inline SymmIterator<SymmetrizerNew>
+symmetrization_iterator(LabelMap<BlockDim> lmap,
+                        const std::vector<TensorLabel>& grps,
+                        const std::vector<size_t> nsymm_indices) {
+  Expects(grps.size() == nsymm_indices.size());
+  std::vector<SymmetrizerNew> symms;
+  for(size_t i=0; i<grps.size(); i++) {
+    symms.emplace_back(lmap, grps[i], nsymm_indices[i]);
+  }
+  return {symms};
+}
+
+inline SymmIterator<CopySymmetrizerNew>
+copy_symmetrization_iterator(LabelMap<BlockDim> lmap,
+                             const std::vector<TensorLabel>& grps,
+                             const std::vector<TensorIndex>& lvals,
+                             const std::vector<size_t> nsymm_indices) {
+  Expects(grps.size() == nsymm_indices.size());
+  std::vector<CopySymmetrizerNew> symms;
+  for(size_t i=0; i<grps.size(); i++) {
+    symms.emplace_back(lmap, grps[i], lvals[i], nsymm_indices[i]);
+  }
+  return {symms};
+}
+
+/**
+   @note assume one group in output (ltc) is atmost split into two
+   groups in input (lta) and that, for given group, there is either
+   symmetrization or unsymmetrization, but not both.
+ */
+template<typename LabeledTensorType>
+inline SymmIterator<SymmetrizerNew>
+symmetrization_iterator(LabelMap<BlockDim>& lmap,
+                        const LabeledTensorType& ltc,
+                        const LabeledTensorType& lta) {
+  std::vector<TensorLabel> cgrps_vec;
+  auto cgrps = group_labels(ltc.tensor_->indices(),
+                            ltc.label_);
+  for(const auto& cgrp: cgrps) {
+    cgrps_vec.push_back(cgrp);
+  }
+
+  auto cgrp_parts = group_partition(ltc.tensor_->indices(),
+                                    ltc.label_,
+                                    lta.tensor_->indices(),
+                                    lta.label_);
+  std::vector<size_t> nsymm_indices;
+  for(const auto& csgp: cgrp_parts) {
+    Expects(csgp.size() >=0 && csgp.size() <= 2);
+    nsymm_indices.push_back(csgp[0].size());
+  }
+  return symmetrization_iterator(lmap, cgrps_vec, nsymm_indices);
+}
+
+/**
+   @note assume one group in output (ltc) is atmost split into two
+   groups in input (lta) and that, for given group, there is either
+   symmetrization or unsymmetrization, but not both.
+ */
+template<typename LabeledTensorType>
+inline SymmIterator<CopySymmetrizerNew>
+copy_symmetrization_iterator(LabelMap<BlockDim>& lmap,
+                             const LabeledTensorType& ltc,
+                             const LabeledTensorType& lta,
+                             const TensorIndex& cur_clval) {
+  std::vector<TensorLabel> cgrps_vec;
+  auto cgrps = group_labels(ltc.tensor_->indices(),
+                            ltc.label_);
+  for(const auto& cgrp: cgrps) {
+    cgrps_vec.push_back(cgrp);
+  }
+  
+  auto cgrp_parts = group_partition(ltc.tensor_->indices(),
+                                    ltc.label_,
+                                    lta.tensor_->indices(),
+                                    lta.label_);
+  std::vector<size_t> nsymm_indices;
+  for(const auto& csgp: cgrp_parts) {
+    Expects(csgp.size() >=0 && csgp.size() <= 2);
+    nsymm_indices.push_back(csgp[0].size());
+  }
+  std::vector<TensorIndex> clvals;
+  int i = 0;
+  for(const auto& csg: ltc.tensor_->indices()) {
+    clvals.push_back(TensorIndex{cur_clval.begin()+i,
+            cur_clval.begin()+i+csg.size()});
+    i += csg.size();
+  }
+  
+  return copy_symmetrization_iterator(lmap, cgrps_vec, clvals, nsymm_indices);
+}
+
+template<typename LabeledTensorType>
+double
+compute_symmetrization_factor(const LabeledTensorType& ltc,
+                              const LabeledTensorType& lta) {
+  auto cgrp_parts = group_partition(ltc.tensor_->indices(),
+                                    ltc.label_,
+                                    lta.tensor_->indices(),
+                                    lta.label_);
+  double ret = 1.0;
+  for(const auto& csgp: cgrp_parts) {
+    Expects(csgp.size() >=0 && csgp.size() <= 2);
+    int n = csgp[0].size() + csgp[1].size();
+    int r = csgp[0].size();
+    ret *= factorial(n) / (factorial(r) * factorial(n-r));
+  }
+  return ret;
+}
+    
+
 #if 0
 // with symmetrization, no unsymmetrization. does not work
 template<typename T, typename LabeledTensorType>
@@ -1316,7 +1688,7 @@ AddOp<T, LabeledTensorType>::execute() {
   parallel_work(aitr, aitr.get_end(), lambda);
 }
 
-#else
+#elif 0
 // no symmetrization, no unsymmetrization
 template<typename T, typename LabeledTensorType>
 inline void
@@ -1366,23 +1738,60 @@ AddOp<T, LabeledTensorType>::execute() {
   };
   parallel_work(aitr, aitr.get_end(), lambda);
 }
-#endif
+#else
+// symmetrization or unsymmetrization, but not both in one symmetry group
+template<typename T, typename LabeledTensorType>
+inline void
+AddOp<T, LabeledTensorType>::execute() {
+  using T1 = typename LabeledTensorType::element_type;
+  const LabeledTensor<T1>& lta = rhs_;
+  const LabeledTensor<T1>& ltc = lhs_;
+  const auto &clabel = ltc.label_;
+  const auto &alabel = lta.label_;
+  Tensor<T1>& ta = *lta.tensor_;
+  Tensor<T1>& tc = *ltc.tensor_;
+  double symm_factor = compute_symmetrization_factor(ltc, lta);
+  //std::cout<<"===symm factor="<<symm_factor<<std::endl;
+  auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
+  auto lambda = [&] (const TensorIndex& cblockid) {
+    //std::cout<<"---tammx assign. cblockid"<<cblockid<<std::endl;
+    size_t dimc = tc.block_size(cblockid);
+    if(!(tc.nonzero(cblockid) && tc.spin_unique(cblockid) && dimc > 0)) {
+      return;
+    }
+    //std::cout<<"---tammx assign. ACTION ON cblockid"<<cblockid<<std::endl;
+    auto label_map = LabelMap<BlockDim>().update(ltc.label_, cblockid);
+    auto sit = symmetrization_iterator(label_map,ltc, lta);
+    for(; sit.has_more(); sit.next()) {
+      TensorLabel cur_clbl = sit.get();
+      //std::cout<<"ACTION cur_clbl="<<cur_clbl<<std::endl;
+      auto cur_cblockid = label_map.get_blockid(cur_clbl);      
+      auto ablockid = LabelMap<BlockDim>().update(ltc.label_, cur_cblockid).get_blockid(alabel);
+      auto abp = ta.get(ablockid);
+      //std::cout<<"ACTION ablockid="<<ablockid<<std::endl;
 
-inline int
-factorial(int n) {
-  Expects(n >= 0 && n <= maxrank);
-  if (n <= 1) return 1;
-  if (n == 2) return 2;
-  if (n == 3) return 6;
-  if (n == 4) return 12;
-  if (n == 5) return 60;
-  int ret = 1;
-  for(int i=1; i<=n; i++) {
-    ret *= i;
-  }
-  return ret;
+      auto csbp = tc.alloc(cur_cblockid);
+      csbp() = 0;
+      csbp(ltc.label_) += alpha_ * symm_factor * abp(lta.label_);
+
+      auto cbp = tc.alloc(cblockid);
+      cbp() = 0;
+      auto csit = copy_symmetrization_iterator(label_map, ltc, lta, cur_cblockid);
+      for(TensorLabel csym_clbl = csit.get(); csit.has_more(); csit.next(), csym_clbl = csit.get()) {
+        int csym_sign = (perm_count_inversions(perm_compute(cur_clbl, csym_clbl)) % 2) ? -1 : 1;
+        //std::cout<<"===csym sign="<<csym_sign<<std::endl;      
+        cbp(ltc.label_) += csym_sign * csbp(csym_clbl);
+      }
+      if(mode_ == ResultMode::update) {
+        tc.add(cblockid, cbp);
+      } else {
+        tc.put(cblockid, cbp);
+      }
+    }
+  };
+  parallel_work(citr, citr.get_end(), lambda);
 }
-
+#endif
 
 inline int
 compute_symmetry_scaling_factor(const TensorVec<SymmGroup>& sum_indices,
@@ -1447,7 +1856,7 @@ MultOp<T, LabeledTensorType>::execute() {
       auto ablockid = label_map.get_blockid(lta.label_);
       auto bblockid = label_map.get_blockid(ltb.label_);
 
-      // std::cout<<"summation loop. value="<<*sitr<<std::endl;
+      // std::cout<<"summation loop. value="<<*sitr<<std::endl<;
 
       if(!ta.nonzero(ablockid) || !tb.nonzero(bblockid)) {
         continue;

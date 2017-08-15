@@ -263,8 +263,8 @@ tammx_assign(tammx::ExecutionContext& ec,
   auto al = tamm_label_to_tammx_label(alabel);
   auto cl = tamm_label_to_tammx_label(clabel);
 
-  std::cout<<"----AL="<<al<<std::endl;
-  std::cout<<"----CL="<<cl<<std::endl;
+  // std::cout<<"----AL="<<al<<std::endl;
+  // std::cout<<"----CL="<<cl<<std::endl;
   ec.scheduler()
       .io((*tc), (*ta))
       ((*tc)(cl) += alpha * (*ta)(al))
@@ -562,11 +562,11 @@ bool test_mult_no_n(tammx::ExecutionContext& ec,
 #define ASSIGN_TEST_3D 1
 #define ASSIGN_TEST_4D 1
 
-#define INITVAL_TEST_0D 1
-#define INITVAL_TEST_1D 1
-#define INITVAL_TEST_2D 1
-#define INITVAL_TEST_3D 1
-#define INITVAL_TEST_4D 1
+#define INITVAL_TEST_0D 0
+#define INITVAL_TEST_1D 0
+#define INITVAL_TEST_2D 0
+#define INITVAL_TEST_3D 0
+#define INITVAL_TEST_4D 0
 
 tammx::TensorVec<tammx::SymmGroup>
 tamm_labels_to_tammx_indices(const std::vector<tamm::IndexName>& labels) {
@@ -1486,12 +1486,14 @@ int main(int argc, char *argv[]) {
           default_irrep, default_spin_restricted};
 
     testing::AddGlobalTestEnvironment(new TestEnvironment(&ec));
-    // temporarily commentedret = RUN_ALL_TESTS();
+    // temporarily commented
+    ret = RUN_ALL_TESTS();
     // test_assign_2d(ec);
     // test_assign_4d(ec);
     // test_assign(ec);
     // test_mult_vo_oo(ec);
     // test_mult_vvoo_ov(ec);
+#if 0
     // CCSD methods
     test_assign_ccsd_e(ec);
     test_assign_ccsd_t1(ec);
@@ -1511,6 +1513,7 @@ int main(int argc, char *argv[]) {
 
     test_assign_ipccsd_x1(ec);
     test_assign_ipccsd_x2(ec);
+#endif
   }
   pg.destroy();
   tammx_finalize();

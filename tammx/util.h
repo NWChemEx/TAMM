@@ -314,6 +314,21 @@ slice_indices(const TensorVec<SymmGroup>& indices,
   return ret;
 }
 
+inline int
+factorial(int n) {
+  Expects(n >= 0 && n <= maxrank);
+  if (n <= 1) return 1;
+  if (n == 2) return 2;
+  if (n == 3) return 6;
+  if (n == 4) return 12;
+  if (n == 5) return 60;
+  int ret = 1;
+  for(int i=1; i<=n; i++) {
+    ret *= i;
+  }
+  return ret;
+}
+
 // template<typename Fn, typename... Fargs>
 // inline void
 // ndim_dispatch(TensorIndex& lo, TensorIndex& size, Fn fn, Fargs&& ...args) {

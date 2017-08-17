@@ -562,11 +562,14 @@ bool test_mult_no_n(tammx::ExecutionContext& ec,
 #define ASSIGN_TEST_3D 1
 #define ASSIGN_TEST_4D 1
 
-#define INITVAL_TEST_0D 0
-#define INITVAL_TEST_1D 0
-#define INITVAL_TEST_2D 0
-#define INITVAL_TEST_3D 0
-#define INITVAL_TEST_4D 0
+#define INITVAL_TEST_0D 1
+#define INITVAL_TEST_1D 1
+#define INITVAL_TEST_2D 1
+#define INITVAL_TEST_3D 1
+#define INITVAL_TEST_4D 1
+
+#define SYMM_ASSIGN_TEST_3D 1
+#define SYMM_ASSIGN_TEST_4D 1
 
 tammx::TensorVec<tammx::SymmGroup>
 tamm_labels_to_tammx_indices(const std::vector<tamm::IndexName>& labels) {
@@ -1291,6 +1294,565 @@ TEST (AssignTest, FourDim_v1v2v3v4_v2v1v4v3) {
 
 #endif
 
+
+//-----------------------------------------------------------------------
+//
+//                            Symmetrization add
+//
+//-----------------------------------------------------------------------
+
+
+bool
+test_symm_assign(tammx::ExecutionContext& ec,
+                 const tammx::TensorVec<tammx::SymmGroup>& cindices,
+                 const tammx::TensorVec<tammx::SymmGroup>& aindices,
+                 int nupper_indices,
+                 const std::vector<tamm::IndexName>& tclabels,
+                 double alpha,
+                 const std::vector<double>& factors,
+                 const std::vector<std::vector<tamm::IndexName>>& talabels) {
+  assert(factors.size() > 0);
+  assert(factors.size() == talabels.size());
+  auto restricted = tamm::Variables::restricted();
+  auto clabels = tamm_label_to_tammx_label(tclabels);
+  std::vector<tammx::TensorLabel> alabels;
+  for(const auto& tal: talabels) {
+    alabels.push_back(tamm_label_to_tammx_label(tal));
+  }
+  tammx::TensorRank nup{nupper_indices};
+  tammx::Tensor<double> tc{cindices, nup, tammx::Irrep{0}, restricted};
+  tammx::Tensor<double> ta{aindices, nup, tammx::Irrep{0}, restricted};
+  tammx::Tensor<double> tc2{aindices, nup, tammx::Irrep{0}, restricted};
+
+  bool status = true;
+
+  ec.allocate(tc, tc2, ta);
+
+  auto init_lambda = [](tammx::Block<double> &block) {
+    int n = std::rand()%100;
+    std::generate_n(reinterpret_cast<double *>(block.buf()), block.size(), [&]() { return n++; });
+  };
+
+  tensor_map(ta(), init_lambda);
+  
+  ec.scheduler()
+      .io(ta, tc, tc2)
+      (tc() = 0)
+      (tc2() = 0)
+      .execute();
+
+  //std::cout<<"<<<<<<<<<<<<<<<<<<<<<<<<<"<<std::endl;
+  ec.scheduler()
+      .io(tc, ta)
+      (tc(clabels) += alpha * ta(alabels[0]))
+      .execute();
+  //std::cout<<">>>>>>>>>>>>>>>>>>>>>>>>>>>>"<<std::endl;
+
+  for(size_t i=0; i < factors.size(); i++) {
+    //std::cout<<"++++++++++++++++++++++++++"<<std::endl;
+    ec.scheduler()
+        .io(tc2, ta)
+        (tc2(clabels) += alpha * factors[i] * ta(alabels[i]))
+        .execute();
+    //std::cout<<"---------------------------"<<std::endl;
+  }
+  ec.scheduler()
+      .io(tc, tc2)
+      (tc2(clabels) += -1.0 * tc(clabels))
+      .execute();
+
+  double threshold = 1e-12;
+  auto lambda = [&] (auto &val) {
+    if(std::abs(val) > threshold) {
+      //std::cout<<"----ERROR----\n";
+    }
+    status &= (std::abs(val) < threshold);
+  };
+  ec.scheduler()
+      .io(tc2)
+      .sop(tc2(), lambda)
+      .execute();
+  ec.deallocate(tc, tc2, ta);
+  return status;
+}
+
+static const auto  O = tammx::SymmGroup{tammx::DimType::o};
+static const auto  V = tammx::SymmGroup{tammx::DimType::v};
+
+static const auto OO = tammx::SymmGroup{tammx::DimType::o, tammx::DimType::o};
+static const auto VV = tammx::SymmGroup{tammx::DimType::v, tammx::DimType::v};
+
+using Indices = tammx::TensorVec<tammx::SymmGroup>;
+
+#if SYMM_ASSIGN_TEST_3D
+
+TEST (SymmAssignTest, ThreeDim_o1o2_o3_o1o2_o3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, O},
+                               {O, O, O},
+                               2,
+                               {h1, h2, h3},
+                               2.5,
+                               {0.5, -0.5},
+                               {{h1, h2, h3},
+                                 {h2, h1, h3}}
+                               ));
+}
+
+TEST (SymmAssignTest, ThreeDim_o1o2_v3_o1o2_v3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, V},
+                               {O, O, V},
+                               2,
+                               {h1, h2, p3},
+                               2.5,
+                               {0.5, -0.5},
+                               {{h1, h2, p3},
+                                 {h2, h1, p3}}
+                               ));
+}
+
+TEST (SymmAssignTest, ThreeDim_v1v2_o3_v1v2_o3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, O},
+                               {V, V, O},
+                               2,
+                               {p1, p2, h3},
+                               2.5,
+                               {0.5, -0.5},
+                               {{p1, p2, h3},
+                                 {p2, p1, h3}}
+                               ));
+}
+
+TEST (SymmAssignTest, ThreeDim_v1v2_v3_v1v2_v3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, V},
+                               {V, V, V},
+                               2,
+                               {p1, p2, p3},
+                               2.5,
+                               {0.5, -0.5},
+                               {{p1, p2, p3},
+                                 {p2, p1, p3}}
+                               ));
+}
+
+/////////////////////////////////////////////////
+
+TEST (SymmAssignTest, ThreeDim_o1o2_o3_o2o1_o3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, O},
+                               {O, O, O},
+                               2,
+                               {h1, h2, h3},
+                               2.5,
+                               {0.5, -0.5},
+                               {{h2, h1, h3},
+                                 {h1, h2, h3}}
+                               ));
+}
+
+TEST (SymmAssignTest, ThreeDim_o1o2_v3_o2o1_v3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, V},
+                               {O, O, V},
+                               2,
+                               {h1, h2, p3},
+                               2.5,
+                               {0.5, -0.5},
+                               {{h2, h1, p3},
+                                 {h1, h2, p3}}
+                               ));
+}
+
+TEST (SymmAssignTest, ThreeDim_v1v2_o3_v2v1_o3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, O},
+                               {V, V, O},
+                               2,
+                               {p1, p2, h3},
+                               2.5,
+                               {0.5, -0.5},
+                               {{p2, p1, h3},
+                                 {p1, p2, h3}}
+                               ));
+}
+
+TEST (SymmAssignTest, ThreeDim_v1v2_v3_v2v1_v3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, V},
+                               {V, V, V},
+                               2,
+                               {p1, p2, p3},
+                               2.5,
+                               {0.5, -0.5},
+                               {{p2, p1, p3},
+                                 {p1, p2, p3}}
+                               ));
+}
+
+#endif
+
+#if SYMM_ASSIGN_TEST_4D
+
+TEST (SymmAssignTest, FourDim_o1o2_o3v4_o1o2_o3v4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, O, V},
+                               {O, O, O, V},
+                               2,
+                               {h1, h2, h3, p4},
+                               2.5,
+                               {0.5, -0.5},
+                               {{h1, h2, h3, p4},
+                                 {h2, h1, h3, p4}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_o1o2_v3o4_o1o2_v3o4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, V, O},
+                               {O, O, V, O},
+                               2,
+                               {h1, h2, p3, h4},
+                               2.5,
+                               {0.5, -0.5},
+                               {{h1, h2, p3, h4},
+                                 {h2, h1, p3, h4}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_v1v2_o3v4_v1v2_o3v4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, O, V},
+                               {V, V, O, V},
+                               2,
+                               {p1, p2, h3, p4},
+                               2.5,
+                               {0.5, -0.5},
+                               {{p1, p2, h3, p4},
+                                 {p2, p1, h3, p4}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_v1v2_v3o4_v1v2_v3o4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, V, O},
+                               {V, V, V, O},
+                               2,
+                               {p1, p2, p3, h4},
+                               2.5,
+                               {0.5, -0.5},
+                               {{p1, p2, p3, h4},
+                                 {p2, p1, p3, h4}}
+                               ));
+}
+
+/////////////////////////////////////////////////
+
+TEST (SymmAssignTest, FourDim_o1o2_o3v4_o2o1_o3v4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, O, V},
+                               {O, O, O, V},
+                               2,
+                               {h1, h2, h3, p4},
+                               2.5,
+                               {0.5, -0.5},
+                               {{h2, h1, h3, p4},
+                                 {h1, h2, h3, p4}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_o1o2_v3o4_o2o1_v3o4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, V, O},
+                               {O, O, V, O},
+                               2,
+                               {h1, h2, p3, h4},
+                               2.5,
+                               {0.5, -0.5},
+                               {{h2, h1, p3, h4},
+                                 {h1, h2, p3, h4}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_v1v2_o3v4_v2v1_o3v4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, O, V},
+                               {V, V, O, V},
+                               2,
+                               {p1, p2, h3, p4},
+                               2.5,
+                               {0.5, -0.5},
+                               {{p2, p1, h3, p4},
+                                 {p1, p2, h3, p4}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_v1v2_v3o4_v2v1_v3o4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, V, O},
+                               {V, V, V, O},
+                               2,
+                               {p1, p2, p3, h4},
+                               2.5,
+                               {0.5, -0.5},
+                               {{p2, p1, p3, h4},
+                                 {p1, p2, p3, h4}}
+                               ));
+}
+
+//////////////////////////////////////////////
+
+TEST (SymmAssignTest, FourDim_o1o2_o3o4_o1o2_o3o4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, OO},
+                               {O, O, O, O},
+                               2,
+                               {h1, h2, h3, h4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{h1, h2, h3, h4},
+                                 {h2, h1, h3, h4},
+                                 {h2, h1, h4, h3},
+                                 {h1, h2, h4, h3}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_o1o2_v3v4_o1o2_v3v4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, VV},
+                               {O, O, V, V},
+                               2,
+                               {h1, h2, p3, p4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{h1, h2, p3, p4},
+                                 {h2, h1, p3, p4},
+                                 {h2, h1, p4, p3},
+                                 {h1, h2, p4, p3}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_v1v2_o3o4_v1v2_o3o4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, OO},
+                               {V, V, O, O},
+                               2,
+                               {p1, p2, h3, h4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{p1, p2, h3, h4},
+                                 {p2, p1, h3, h4},
+                                 {p2, p1, h4, h3},
+                                 {p1, p2, h4, h3}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_v1v2_v3v4_v1v2_v3v4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, VV},
+                               {V, V, V, V},
+                               2,
+                               {p1, p2, p3, p4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{p1, p2, p3, p4},
+                                 {p2, p1, p3, p4},
+                                 {p2, p1, p4, p3},
+                                 {p1, p2, p4, p3}}
+                               ));
+}
+
+///////////////////////////////////////////
+
+TEST (SymmAssignTest, FourDim_o1o2_o3o4_o2o1_o3o4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, OO},
+                               {O, O, O, O},
+                               2,
+                               {h1, h2, h3, h4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{h2, h1, h3, h4},
+                                 {h2, h1, h4, h3},
+                                 {h1, h2, h4, h3},
+                                 {h1, h2, h3, h4}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_o1o2_v3v4_o2o1_v3v4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, VV},
+                               {O, O, V, V},
+                               2,
+                               {h1, h2, p3, p4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{h2, h1, p3, p4},
+                                 {h2, h1, p4, p3},
+                                 {h1, h2, p4, p3},
+                                 {h1, h2, p3, p4}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_v1v2_o3o4_v2v1_o3o4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, OO},
+                               {V, V, O, O},
+                               2,
+                               {p1, p2, h3, h4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{p2, p1, h3, h4},
+                                 {p2, p1, h4, h3},
+                                 {p1, p2, h4, h3},
+                                 {p1, p2, h3, h4}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_v1v2_v3v4_v2v1_v3v4) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, VV},
+                               {V, V, V, V},
+                               2,
+                               {p1, p2, p3, p4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{p2, p1, p3, p4},
+                                 {p2, p1, p4, p3},
+                                 {p1, p2, p4, p3},
+                                 {p1, p2, p3, p4}}
+                               ));
+}
+
+//////////////////////////////////////////
+
+TEST (SymmAssignTest, FourDim_o1o2_o3o4_o1o2_o4o3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, OO},
+                               {O, O, O, O},
+                               2,
+                               {h1, h2, h3, h4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{h1, h2, h4, h3},
+                                 {h2, h1, h4, h3},
+                                 {h2, h1, h3, h4},
+                                 {h1, h2, h3, h4}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_o1o2_v3v4_o1o2_v4v3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, VV},
+                               {O, O, V, V},
+                               2,
+                               {h1, h2, p3, p4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{h1, h2, p4, p3},
+                                 {h2, h1, p4, p3},
+                                 {h2, h1, p3, p4},
+                                 {h1, h2, p3, p4}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_v1v2_o3o4_v1v2_o4o3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, OO},
+                               {V, V, O, O},
+                               2,
+                               {p1, p2, h3, h4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{p1, p2, h4, h3},
+                                 {p2, p1, h4, h3},
+                                 {p2, p1, h3, h4},
+                                 {p1, p2, h3, h4}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_v1v2_v3v4_v1v2_v4v3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, VV},
+                               {V, V, V, V},
+                               2,
+                               {p1, p2, p3, p4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{p1, p2, p4, p3},
+                                 {p2, p1, p4, p3},
+                                 {p2, p1, p3, p4},
+                                 {p1, p2, p3, p4}}
+                               ));
+}
+
+////////////////////////////////////////////////
+
+TEST (SymmAssignTest, FourDim_o1o2_o3o4_o2o1_o4o3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, OO},
+                               {O, O, O, O},
+                               2,
+                               {h1, h2, h3, h4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{h2, h1, h4, h3},
+                                 {h2, h1, h3, h4},
+                                 {h1, h2, h3, h4},
+                                 {h1, h2, h4, h3}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_o1o2_v3v4_o2o1_v4v3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {OO, VV},
+                               {O, O, V, V},
+                               2,
+                               {h1, h2, p3, p4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{h2, h1, p4, p3},
+                                 {h2, h1, p3, p4},
+                                 {h1, h2, p3, p4},
+                                 {h1, h2, p4, p3}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_v1v2_o3o4_v2v1_o4o3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, OO},
+                               {V, V, O, O},
+                               2,
+                               {p1, p2, h3, h4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{p2, p1, h4, h3},
+                                 {p2, p1, h3, h4},
+                                 {p1, p2, h3, h4},
+                                 {p1, p2, h4, h3}}
+                               ));
+}
+
+TEST (SymmAssignTest, FourDim_v1v2_v3v4_v2v1_v4v3) {
+  ASSERT_TRUE(test_symm_assign(*g_ec,
+                               {VV, VV},
+                               {V, V, V, V},
+                               2,
+                               {p1, p2, p3, p4},
+                               2.5,
+                               {0.25, -0.25, 0.25, -0.25},
+                               {{p2, p1, p4, p3},
+                                 {p2, p1, p3, p4},
+                                 {p1, p2, p3, p4},
+                                 {p1, p2, p4, p3}}
+                               ));
+}
+
+#endif
+
+
 void test_assign_ccsd_e(tammx::ExecutionContext& ec);
 void test_assign_ccsd_t1(tammx::ExecutionContext& ec);
 void test_assign_ccsd_t2(tammx::ExecutionContext& ec);
@@ -1445,25 +2007,27 @@ void tammx_finalize() {
 
 
 int main(int argc, char *argv[]) {
-  // int noa = 1;
-  // int nob = 1;
-  // int nva = 1;
-  // int nvb = 1;
+  bool intorb = false;
+  bool restricted = false;
+
+#if 1 
+  int noa = 1;
+  int nob = 1;
+  int nva = 1;
+  int nvb = 1;
+  std::vector<int> spins = {1, 2, 1, 2};
+  std::vector<int> syms = {0, 0, 0, 0};
+  std::vector<int> ranges = {4, 4, 4, 4};
+#else
   int noa = 2;
   int nob = 2;
   int nva = 2;
   int nvb = 2;
-
-  bool intorb = false;
-  bool restricted = false;
-
-  // std::vector<int> spins = {1, 2, 1, 2};
-  // std::vector<int> syms = {0, 0, 0, 0};
-  // std::vector<int> ranges = {4, 4, 4, 4};
   std::vector<int> spins = {1, 1, 2, 2, 1, 1, 2, 2};
   std::vector<int> syms = {0, 0, 0, 0, 0, 0, 0, 0};
   std::vector<int> ranges = {4, 4, 4, 4, 4, 4, 4, 4};
-
+#endif
+  
   MPI_Init(&argc, &argv);
   GA_Initialize();
   MA_init(MT_DBL, 1000000, 8000000);
@@ -1514,6 +2078,35 @@ int main(int argc, char *argv[]) {
     test_assign_ipccsd_x1(ec);
     test_assign_ipccsd_x2(ec);
 #endif
+  //   {
+  //     using tammx::TensorRank;
+  //     using tammx::TensorVec;
+  //     using tammx::SymmGroup;
+  //     using tammx::DimType;
+      
+  //     auto cindices = TensorVec<SymmGroup>{SymmGroup{DimType::o,
+  //                                                    DimType::o},
+  //                                          SymmGroup{DimType::o}};
+  //     auto aindices = TensorVec<SymmGroup>{SymmGroup{DimType::o},
+  //                                          SymmGroup{DimType::o},
+  //                                          SymmGroup{DimType::o}};
+      
+  //     auto clabels = tamm_label_to_tammx_label({h1,h2,h3});
+  //     auto alabels1 = tamm_label_to_tammx_label({h1,h2,h3});
+  //     auto alabels2 = tamm_label_to_tammx_label({h2,h1,h3});
+      
+  //     std::cout<<"________"
+  //              <<test_symm_assign(ec,
+  //                                 cindices,
+  //                                 aindices,
+  //                                 2,
+  //                                 clabels,
+  //                                 2.5,
+  //                                 {0.5, -0.5},
+  //                                 {alabels1, alabels2}
+  //                                 )<<"\n";
+  //   }
+
   }
   pg.destroy();
   tammx_finalize();

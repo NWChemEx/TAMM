@@ -1289,8 +1289,8 @@ comb_bv_to_label(const TensorVec<int>& comb_itr, const TensorLabel& tlabel) {
    @note Find first index of value in lst[lo,hi). Index hi is exclusive.
  */
 template<typename T>
-size_t find_first_index(const TensorVec<T> lst, size_t lo, size_t hi, T value) {
-  auto i= lo;
+int find_first_index(const TensorVec<T> lst, size_t lo, size_t hi, T value) {
+  int i= lo;
   for(; i<hi; i++) {
     if (lst[i] == value) {
       return i;
@@ -1303,8 +1303,8 @@ size_t find_first_index(const TensorVec<T> lst, size_t lo, size_t hi, T value) {
    @note Find last index of value in lst[lo,hi). Index hi is exclusive.
  */
 template<typename T>
-size_t find_last_index(const TensorVec<T> lst, size_t lo, size_t hi, T value) {
-  auto i = hi - 1;
+int find_last_index(const TensorVec<T> lst, size_t lo, size_t hi, T value) {
+  int i = hi - 1;
   for( ;i >= lo; i--) {
     if (lst[i] == value) {
       return i;
@@ -1331,8 +1331,10 @@ is_unique_combination(const TensorVec<int>& comb_itr, const TensorIndex& lval) {
     while(hi < n && lval[hi] == lval[lo]) {
       hi += 1;
     }
+    // std::cout<<__FUNCTION__<<" lo="<<lo<<" hi="<<hi<<std::endl;
     auto first_one = find_first_index(comb_itr, lo, hi, 1);
     auto last_zero = find_last_index(comb_itr, lo, hi, 0);
+    // std::cout<<__FUNCTION__<<" first_one="<<first_one<<" last_zero="<<last_zero<<std::endl;
     if(first_one < last_zero) {
       return false;
     }
@@ -1389,6 +1391,7 @@ class SymmetrizerNew {
       done_ = !std::next_permutation(comb_itr_.begin(), comb_itr_.end());
       // std::cout<<"Comb itr="<<comb_itr_<<std::endl;
       // std::cout<<"olval="<<olval_<<std::endl;
+      // std::cout<<"is_unique="<<is_unique_combination(comb_itr_, olval_)<<std::endl;
       // std::cout<<"done="<<done_<<std::endl;
     } while (!done_ && !is_unique_combination(comb_itr_, olval_));
     //std::cout<<"Exited. SymmetrizerNew, next"<<std::endl;
@@ -1533,7 +1536,9 @@ symmetrization_iterator(LabelMap<BlockDim> lmap,
                         const std::vector<size_t> nsymm_indices) {
   Expects(grps.size() == nsymm_indices.size());
   std::vector<SymmetrizerNew> symms;
+  //std::cout<<"---"<<__FUNCTION__<<" ngrps="<<grps.size()<<std::endl;
   for(size_t i=0; i<grps.size(); i++) {
+    //std::cout<<"---"<<__FUNCTION__<<" ngrp "<<i<<" size="<<grps[i].size()<<" nsymm_indices="<<nsymm_indices[i]<<std::endl;
     symms.emplace_back(lmap, grps[i], nsymm_indices[i]);
   }
   return {symms};
@@ -1634,7 +1639,7 @@ compute_symmetrization_factor(const LabeledTensorType& ltc,
     int r = csgp[0].size();
     ret *= factorial(n) / (factorial(r) * factorial(n-r));
   }
-  return ret;
+  return 1.0/ret;
 }
     
 
@@ -1766,21 +1771,25 @@ AddOp<T, LabeledTensorType>::execute() {
       TensorLabel cur_clbl = sit.get();
       //std::cout<<"ACTION cur_clbl="<<cur_clbl<<std::endl;
       auto cur_cblockid = label_map.get_blockid(cur_clbl);      
+      //std::cout<<"---tammx assign. ACTION cur_cblockid"<<cur_cblockid<<std::endl;
       auto ablockid = LabelMap<BlockDim>().update(ltc.label_, cur_cblockid).get_blockid(alabel);
       auto abp = ta.get(ablockid);
       //std::cout<<"ACTION ablockid="<<ablockid<<std::endl;
+      //std::cout<<"ACTION symm_factor="<<symm_factor<<std::endl;
 
       auto csbp = tc.alloc(cur_cblockid);
       csbp() = 0;
-      csbp(ltc.label_) += alpha_ * symm_factor * abp(lta.label_);
+      csbp(clabel) += alpha_ * symm_factor * abp(alabel);
 
       auto cbp = tc.alloc(cblockid);
       cbp() = 0;
       auto csit = copy_symmetrization_iterator(label_map, ltc, lta, cur_cblockid);
       for(TensorLabel csym_clbl = csit.get(); csit.has_more(); csit.next(), csym_clbl = csit.get()) {
-        int csym_sign = (perm_count_inversions(perm_compute(cur_clbl, csym_clbl)) % 2) ? -1 : 1;
-        //std::cout<<"===csym sign="<<csym_sign<<std::endl;      
-        cbp(ltc.label_) += csym_sign * csbp(csym_clbl);
+        // int csym_sign = (perm_count_inversions(perm_compute(cur_clbl, csym_clbl)) % 2) ? -1 : 1;
+        int csym_sign = (perm_count_inversions(perm_compute(csym_clbl, clabel)) % 2) ? -1 : 1;
+        //std::cout<<"===csym sign="<<csym_sign<<std::endl;
+        //std::cout<<"===clabel="<<clabel<<" csym label="<<csym_clbl<<std::endl;
+        cbp(clabel) += csym_sign * csbp(csym_clbl);
       }
       if(mode_ == ResultMode::update) {
         tc.add(cblockid, cbp);

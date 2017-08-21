@@ -152,10 +152,13 @@ nwtest/set_vars.F
 nwtest/ccsd_t1.F
 nwtest/ccsd_t2.F
 nwtest/cc2_t1.F
+nwtest/cc2_t2.F
 )
 
 set(TESTING_DEPS_SRC
 nwtest/fort_assign_tests.cc
+nwtest/ccsd_t1_test.cc
+#nwtest/ccsd_t2_test.cc
 )
 
 #SET(CMAKE_Fortran_COMPILER mpif90)

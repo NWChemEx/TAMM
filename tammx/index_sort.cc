@@ -33,6 +33,10 @@ void index_sort_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
                   size_t sz3, size_t sz4, int p1, int p2, int p3, int p4,
                   double alpha);
 
+/**
+   pi(p1,p2)(i,j) = ((i,j)[p1-1], (i,j)[p2-1])
+   0<=i<sz1, 0<=j<sz2: dbuf[pi(p1,p1)(i,j)] = alpha * sbuf[i,j]
+ */
 void index_sort_2(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
                   int p1, int p2, double alpha) {
   assert(sbuf);
@@ -63,6 +67,10 @@ static inline size_t idx(int n, size_t *id, size_t *sz, int *p) {
   return idx;
 }
 
+/**
+   pi(pvec)(ivec) = (ivec[pvec[0]-1], ivec[pvec[1]-1], ...)
+   0<=i<sz1, 0<=j<sz2: dbuf[pi(pvec)(ivec)] = alpha * sbuf[ivec]
+ */
 void index_sort_3(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
                   size_t sz3, int p1, int p2, int p3, double alpha) {
   assert(sbuf);

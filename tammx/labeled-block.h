@@ -108,7 +108,8 @@ index_permute_acc(T* dbuf, const T* sbuf, const TensorPerm& perm, const TensorIn
   TensorVec<int> iperm;
   for(unsigned i=0; i<ddims.size(); i++) {
     sizes.push_back(inv_sizes[i].value());
-    iperm.push_back(inv_perm[i]+1);
+    //iperm.push_back(inv_perm[i]+1);
+    iperm.push_back(perm[i]+1);
   }
   index_sortacc(sbuf, dbuf,
                 sizes.size(), &sizes[0], &iperm[0], scale);
@@ -130,8 +131,19 @@ index_permute(T* dbuf, const T* sbuf, const TensorPerm& perm, const TensorIndex&
   TensorVec<int> iperm;
   for(unsigned i=0; i<ddims.size(); i++) {
     sizes.push_back(inv_sizes[i].value());
-    iperm.push_back(inv_perm[i]+1);
+    //iperm.push_back(inv_perm[i]+1);
+    iperm.push_back(perm[i]+1);
   }
+  std::cout<<"index_sort args. size=";
+  for(unsigned i=0; i<ddims.size(); i++) {
+    std::cout<<sizes[i]<<" ";
+  }
+  std::cout<<"\n";
+  std::cout<<"index_sort args. iperm=";
+  for(unsigned i=0; i<ddims.size(); i++) {
+    std::cout<<iperm[i]<<" ";
+  }
+  std::cout<<"\n";
 
   index_sort(sbuf, dbuf,
              sizes.size(), &sizes[0], &iperm[0], scale);
@@ -146,6 +158,8 @@ matmul(int m, int n, int k, T *A, int lda, T *B, int ldb, T *C, int ldc, T alpha
   Expects(m>0 && n>0 && k>0);
   Expects(A!=nullptr && B!=nullptr && C!=nullptr);
 
+  //std::cout<<"matmul. A[0]="<<A[0]<<" B[0]="<<B[0]<<" C[0]="<<C[0]<<std::endl;
+  
   for(int x=0; x<m; x++) {
     for(int y=0; y<n; y++) {
       T value = 0;
@@ -155,6 +169,7 @@ matmul(int m, int n, int k, T *A, int lda, T *B, int ldb, T *C, int ldc, T alpha
       C[x*ldc + y] = beta * C[x*ldc + y] + alpha * value;
     }
   }
+  //std::cout<<"matmul. AFTER C[0]="<<C[0]<<std::endl;  
 }
 
 template<typename T>
@@ -165,6 +180,8 @@ perm_compute(const LabeledBlock<T>& lblock_from, const TensorLabel& label_to) {
   return perm_compute(store, label_to);
 }
 
+//@todo optimize. Eliminate copies. Memoize the split of the indices
+//and the permutation required
 template<typename T, typename T1>
 void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock<T>> rhs, T beta) {
   const LabeledBlock<T>& alb = std::get<1>(rhs);
@@ -178,8 +195,8 @@ void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock
   auto &blabel = blb.label_;
   auto &clabel = clb.label_;
 
-  auto aext_labels = intersect(clabel, alabel);
-  auto bext_labels = intersect(clabel, blabel);
+  auto aext_labels = intersect(alabel, clabel);
+  auto bext_labels = intersect(blabel, clabel);
   auto sum_labels = intersect(alabel, blabel);
 
   auto alabel_sort = aext_labels;
@@ -197,12 +214,32 @@ void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock
 
   auto aperm = perm_compute(ablock(alabel), alabel_sort);
   auto bperm = perm_compute(bblock(blabel), blabel_sort);
+  std::cout<<"--multiply. aperm="<<aperm<<std::endl;
+  std::cout<<"--multiply. bperm="<<bperm<<std::endl;
 
   index_permute(abuf_sort.get(), ablock.buf(), aperm,
                 perm_apply(ablock.block_dims(), aperm), T{1});
   index_permute(bbuf_sort.get(), bblock.buf(), bperm,
                 perm_apply(bblock.block_dims(), bperm), T{1});
+  for(size_t i=0; i<cblock.size(); i++) {
+    cbuf_sort[i] = cblock.buf()[i];
+  }
+  
+  std::cout<<"matmul. A before matmul=";
+  for(size_t i=0; i<ablock.size(); i++) {
+    std::cout<<abuf_sort.get()[i]<<" ";
+  }
+  std::cout<<"\n";
+  std::cout<<"matmul. B before matmul=";
+  for(size_t i=0; i<bblock.size(); i++) {
+    std::cout<<bbuf_sort.get()[i]<<" ";
+  }
+  std::cout<<"\n";
+  std::cout<<"matmul. alabel_sort="<<alabel_sort<<std::endl;
+  std::cout<<"matmul. bext_blabel_sort="<<blabel_sort<<std::endl;
+  std::cout<<"matmul. clabel_sort="<<clabel_sort<<std::endl;
 
+  
   // G
   auto alpha = std::get<0>(rhs) * ablock.sign() * bblock.sign();
   auto lmap = LabelMap<BlockDim>()
@@ -211,16 +248,29 @@ void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock
   auto aext_dims = lmap.get_blockid(aext_labels);
   auto bext_dims = lmap.get_blockid(bext_labels);
   auto sum_dims = lmap.get_blockid(sum_labels);
+  std::cout<<"matmul. aext_dims="<<aext_dims<<std::endl;
+  std::cout<<"matmul. bext_dims="<<bext_dims<<std::endl;
   int m = std::accumulate(aext_dims.begin(), aext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
   int n = std::accumulate(bext_dims.begin(), bext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
   int k = std::accumulate(sum_dims.begin(), sum_dims.end(), BlockDim{1}, std::multiplies<>()).value();
 
+  std::cout<<"matmul. m="<<m<<" n="<<n<<" k="<<k<<std::endl;
+  // std::cout<<"matmul. alpha="<<alpha<<" beta="<<beta<<std::endl;
   matmul<T>(m, n, k, abuf_sort.get(), k,
             bbuf_sort.get(), n,
             cbuf_sort.get(), n,
             static_cast<T>(alpha), static_cast<T>(beta));
+  std::cout<<"matmul. C before permute=";
+  for(size_t i=0; i<m*n; i++) {
+    std::cout<<cbuf_sort.get()[i]<<" ";
+  }
+  std::cout<<"\n";
   auto cperm = perm_invert(perm_compute(cblock(clabel), clabel_sort));
+  //auto cperm = (perm_compute(cblock(clabel), clabel_sort));
+  //auto cperm = (perm_compute(clabel_sort, cblock(clabel)));
   //T
+  std::cout<<"--multiply. cperm="<<cperm<<std::endl;
+  std::cout<<"--multiply. cblock dims="<<cblock.block_dims()<<std::endl;
   index_permute(cblock.buf(), cbuf_sort.get(),
                 cperm, cblock.block_dims(), T{1});
 }
@@ -244,8 +294,8 @@ block_add (LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>> rhs, bool updat
   auto &alayout = ablock.layout();
   auto &clayout = cblock.layout();
 
-  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": alabel="<<alabel<<std::endl;
-  std::cerr<<__FUNCTION__<<":"<<__LINE__<<": alayout="<<alayout<<std::endl;
+  // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": alabel="<<alabel<<std::endl;
+  // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": alayout="<<alayout<<std::endl;
 
   Expects(clayout.size() == cblock.tensor().rank());
   Expects(clabel.size() == perm_invert(clayout).size());

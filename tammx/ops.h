@@ -1586,6 +1586,33 @@ symmetrization_iterator(LabelMap<BlockDim>& lmap,
   return symmetrization_iterator(lmap, cgrps_vec, nsymm_indices);
 }
 
+template<typename LabeledTensorType>
+inline SymmIterator<SymmetrizerNew>
+symmetrization_iterator(LabelMap<BlockDim>& lmap,
+                        const LabeledTensorType& ltc,
+                        const LabeledTensorType& lta,
+                        const LabeledTensorType& ltb) {
+  std::vector<TensorLabel> cgrps_vec;
+  auto cgrps = group_labels(ltc.tensor_->indices(),
+                            ltc.label_);
+  for(const auto& cgrp: cgrps) {
+    cgrps_vec.push_back(cgrp);
+  }
+
+  auto cgrp_parts = group_partition(ltc.tensor_->indices(),
+                                    ltc.label_,
+                                    lta.tensor_->indices(),
+                                    lta.label_,
+                                    ltb.tensor_->indices(),
+                                    ltb.label_);
+  std::vector<size_t> nsymm_indices;
+  for(const auto& csgp: cgrp_parts) {
+    Expects(csgp.size() >=0 && csgp.size() <= 2);
+    nsymm_indices.push_back(csgp[0].size());
+  }
+  return symmetrization_iterator(lmap, cgrps_vec, nsymm_indices);
+}
+
 /**
    @note assume one group in output (ltc) is atmost split into two
    groups in input (lta) and that, for given group, there is either
@@ -1625,6 +1652,42 @@ copy_symmetrization_iterator(LabelMap<BlockDim>& lmap,
 }
 
 template<typename LabeledTensorType>
+inline SymmIterator<CopySymmetrizerNew>
+copy_symmetrization_iterator(LabelMap<BlockDim>& lmap,
+                             const LabeledTensorType& ltc,
+                             const LabeledTensorType& lta,
+                             const LabeledTensorType& ltb,
+                             const TensorIndex& cur_clval) {
+  std::vector<TensorLabel> cgrps_vec;
+  auto cgrps = group_labels(ltc.tensor_->indices(),
+                            ltc.label_);
+  for(const auto& cgrp: cgrps) {
+    cgrps_vec.push_back(cgrp);
+  }
+  
+  auto cgrp_parts = group_partition(ltc.tensor_->indices(),
+                                    ltc.label_,
+                                    lta.tensor_->indices(),
+                                    lta.label_,
+                                    ltb.tensor_->indices(),
+                                    ltb.label_);
+  std::vector<size_t> nsymm_indices;
+  for(const auto& csgp: cgrp_parts) {
+    Expects(csgp.size() >=0 && csgp.size() <= 2);
+    nsymm_indices.push_back(csgp[0].size());
+  }
+  std::vector<TensorIndex> clvals;
+  int i = 0;
+  for(const auto& csg: ltc.tensor_->indices()) {
+    clvals.push_back(TensorIndex{cur_clval.begin()+i,
+            cur_clval.begin()+i+csg.size()});
+    i += csg.size();
+  }
+  
+  return copy_symmetrization_iterator(lmap, cgrps_vec, clvals, nsymm_indices);
+}
+
+template<typename LabeledTensorType>
 double
 compute_symmetrization_factor(const LabeledTensorType& ltc,
                               const LabeledTensorType& lta) {
@@ -1632,6 +1695,35 @@ compute_symmetrization_factor(const LabeledTensorType& ltc,
                                     ltc.label_,
                                     lta.tensor_->indices(),
                                     lta.label_);
+  Expects(cgrp_parts.size() == ltc.tensor_->indices().size());
+  for(size_t i=0; i<cgrp_parts.size(); i++) {
+    Expects(cgrp_parts[i].size()  <= 2);
+  }
+  double ret = 1.0;
+  for(const auto& csgp: cgrp_parts) {
+    Expects(csgp.size() >=0 && csgp.size() <= 2);
+    int n = csgp[0].size() + csgp[1].size();
+    int r = csgp[0].size();
+    ret *= factorial(n) / (factorial(r) * factorial(n-r));
+  }
+  return 1.0/ret;
+}
+
+template<typename LabeledTensorType>
+double
+compute_symmetrization_factor(const LabeledTensorType& ltc,
+                              const LabeledTensorType& lta,
+                              const LabeledTensorType& ltb) {
+  auto cgrp_parts = group_partition(ltc.tensor_->indices(),
+                                     ltc.label_,
+                                     lta.tensor_->indices(),
+                                     lta.label_,
+                                     ltb.tensor_->indices(),
+                                     ltb.label_);
+  Expects(cgrp_parts.size() == ltc.tensor_->indices().size());
+  for(size_t i=0; i<cgrp_parts.size(); i++) {
+    Expects(cgrp_parts[i].size() <= 2);
+  }
   double ret = 1.0;
   for(const auto& csgp: cgrp_parts) {
     Expects(csgp.size() >=0 && csgp.size() <= 2);
@@ -1764,6 +1856,8 @@ AddOp<T, LabeledTensorType>::execute() {
     if(!(tc.nonzero(cblockid) && tc.spin_unique(cblockid) && dimc > 0)) {
       return;
     }
+    auto cbp = tc.alloc(cblockid);
+    cbp() = 0;
     //std::cout<<"---tammx assign. ACTION ON cblockid"<<cblockid<<std::endl;
     auto label_map = LabelMap<BlockDim>().update(ltc.label_, cblockid);
     auto sit = symmetrization_iterator(label_map,ltc, lta);
@@ -1781,8 +1875,6 @@ AddOp<T, LabeledTensorType>::execute() {
       csbp() = 0;
       csbp(clabel) += alpha_ * symm_factor * abp(alabel);
 
-      auto cbp = tc.alloc(cblockid);
-      cbp() = 0;
       auto csit = copy_symmetrization_iterator(label_map, ltc, lta, cur_cblockid);
       for(TensorLabel csym_clbl = csit.get(); csit.has_more(); csit.next(), csym_clbl = csit.get()) {
         // int csym_sign = (perm_count_inversions(perm_compute(cur_clbl, csym_clbl)) % 2) ? -1 : 1;
@@ -1791,11 +1883,11 @@ AddOp<T, LabeledTensorType>::execute() {
         //std::cout<<"===clabel="<<clabel<<" csym label="<<csym_clbl<<std::endl;
         cbp(clabel) += csym_sign * csbp(csym_clbl);
       }
-      if(mode_ == ResultMode::update) {
-        tc.add(cblockid, cbp);
-      } else {
-        tc.put(cblockid, cbp);
-      }
+    }
+    if(mode_ == ResultMode::update) {
+      tc.add(cblockid, cbp);
+    } else {
+      tc.put(cblockid, cbp);
     }
   };
   parallel_work(citr, citr.get_end(), lambda);
@@ -1827,6 +1919,7 @@ compute_symmetry_scaling_factor(const TensorVec<SymmGroup>& sum_indices,
   return ret;
 }
 
+#if 0
 template<typename T, typename LabeledTensorType>
 inline void
 MultOp<T, LabeledTensorType>::execute() {
@@ -1906,6 +1999,125 @@ MultOp<T, LabeledTensorType>::execute() {
   auto itr = nonsymmetrized_iterator(ltc, lta, ltb);
   parallel_work(itr, itr.get_end(), lambda);
 }
+#else
+template<typename T, typename LabeledTensorType>
+inline void
+MultOp<T, LabeledTensorType>::execute() {
+  using T1 = typename LabeledTensorType::element_type;
+
+  //@todo @fixme MultOp based on nonsymmetrized_iterator cannot work with ResultMode::set
+  //Expects(mode_ == ResultMode::update);
+  LabeledTensor<T1>& lta = rhs1_;
+  LabeledTensor<T1>& ltb = rhs2_;
+  LabeledTensor<T1>& ltc = lhs_;
+  const auto &clabel = ltc.label_;
+  const auto &alabel = lta.label_;
+  const auto &blabel = ltb.label_;
+  Tensor<T1>& ta = *lta.tensor_;
+  Tensor<T1>& tb = *ltb.tensor_;
+  Tensor<T1>& tc = *ltc.tensor_;
+
+  double symm_factor = 1; //compute_symmetrization_factor(ltc, lta, ltb);
+
+  TensorLabel sum_labels;
+  TensorVec<SymmGroup> sum_indices;
+  std::tie(sum_indices, sum_labels) = summation_indices(ltc, lta, ltb);
+  auto lambda = [&] (const TensorIndex& cblockid) {
+    auto dimc = tc.block_size(cblockid);
+    if(!(tc.nonzero(cblockid) && tc.spin_unique(cblockid) && dimc > 0)) {
+      // std::cout<<"MultOp. zero block "<<cblockid<<std::endl;
+      // std::cout<<"MultOp. "<<cblockid<<" nonzero="<< tc.nonzero(cblockid) <<std::endl;
+      // std::cout<<"MultOp. "<<cblockid<<" spin_unique="<< tc.spin_unique(cblockid) <<std::endl;
+      // std::cout<<"MultOp. "<<cblockid<<" dimc="<< dimc <<std::endl;
+      return;
+    }
+    auto cbp = tc.alloc(cblockid);
+    cbp() = 0;
+    std::cout<<"MultOp. non-zero block"<<cblockid<<std::endl;
+    auto label_map_outer = LabelMap<BlockDim>().update(ltc.label_, cblockid);
+    auto sit = symmetrization_iterator(label_map_outer,ltc, lta, ltb);
+    for(; sit.has_more(); sit.next()) {
+      TensorLabel cur_clbl = sit.get();
+      auto cur_cblockid = label_map_outer.get_blockid(cur_clbl);      
+      std::cout<<"MultOp. cur_cblock"<<cur_cblockid<<std::endl;
+      std::cout<<"MultOp. cur_cblock size="<<dimc<<std::endl;
+      
+      auto sum_itr_first = loop_iterator(slice_indices(sum_indices, sum_labels));
+      auto sum_itr_last = sum_itr_first.get_end();
+      auto label_map = LabelMap<BlockDim>().update(ltc.label_, cur_cblockid);
+
+      for(auto sitr = sum_itr_first; sitr!=sum_itr_last; ++sitr) {
+        label_map.update(sum_labels, *sitr);
+        auto ablockid = label_map.get_blockid(lta.label_);
+        auto bblockid = label_map.get_blockid(ltb.label_);
+
+        // std::cout<<"--summation loop. value="<<*sitr<<std::endl;
+
+        std::cout<<"--MultOp. ablockid"<<ablockid<<std::endl;
+        std::cout<<"--MultOp. bblockid"<<bblockid<<std::endl;
+        if(!ta.nonzero(ablockid) || !tb.nonzero(bblockid)) {
+          continue;
+        }
+        std::cout<<"--MultOp. nonzero ablockid"<<ablockid<<std::endl;
+        std::cout<<"--MultOp. nonzero bblockid"<<bblockid<<std::endl;
+        auto abp = ta.get(ablockid);
+        auto bbp = tb.get(bblockid);
+        std::cout<<"--MultOp. a blocksize="<<abp.size()<<std::endl;
+        std::cout<<"--MultOp. b blocksize="<<bbp.size()<<std::endl;
+        std::cout<<"A=";
+        for(size_t i=0; i<abp.size(); i++) {
+          std::cout<<abp.buf()[i]<<" ";
+        }
+        std::cout<<"\n";
+        std::cout<<"B=";
+        for(size_t i=0; i<bbp.size(); i++) {
+          std::cout<<bbp.buf()[i]<<" ";
+        }
+        std::cout<<"\n";
+        
+        auto symm_scaling_factor = compute_symmetry_scaling_factor(sum_indices, *sitr);
+        auto scale = alpha_ * symm_factor * symm_scaling_factor;
+        std::cout<<"--MultOp. symm_factor="<<symm_factor<<"  symm_scaling_factor="<<symm_scaling_factor<<std::endl;
+        
+        auto csbp = tc.alloc(cur_cblockid);
+        csbp() = 0.0;
+#if 1
+      // std::cout<<"doing block-block multiply"<<std::endl;
+        csbp(ltc.label_) += scale * abp(lta.label_) * bbp(ltb.label_);
+#endif
+        std::cout<<"CSBP=";
+        for(size_t i=0; i<csbp.size(); i++) {
+          std::cout<<csbp.buf()[i]<<" ";
+        }
+        std::cout<<"\n";
+
+        auto csit = copy_symmetrization_iterator(label_map_outer, ltc, lta, ltb, cur_cblockid);
+        for(; csit.has_more(); csit.next()) {
+          TensorLabel csym_clbl = csit.get();
+          // int csym_sign = (perm_count_inversions(perm_compute(cur_clbl, csym_clbl)) % 2) ? -1 : 1;
+          // int csym_sign = (perm_count_inversions(perm_compute(csym_clbl, clabel)) % 2) ? -1 : 1;
+          int csym_sign = (perm_count_inversions(perm_compute(clabel, csym_clbl)) % 2) ? -1 : 1;
+          std::cout<<"===csym sign="<<csym_sign<<std::endl;
+          std::cout<<"===clabel="<<clabel<<" csym label="<<csym_clbl<<std::endl;
+          cbp(clabel) += csym_sign * csbp(csym_clbl);
+          std::cout<<"CBP=";
+          for(size_t i=0; i<cbp.size(); i++) {
+            std::cout<<cbp.buf()[i]<<" ";
+          }
+          std::cout<<"\n";
+        }
+      }
+    }
+    if(mode_ == ResultMode::update) {
+      tc.add(cblockid, cbp);
+    } else {
+      tc.put(cblockid, cbp);
+    }
+  };
+  auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
+  parallel_work(citr, citr.get_end(), lambda);
+}
+#endif
 
 }; // namespace tammx
 

@@ -2756,7 +2756,7 @@ TEST (MultTest, Dim__vv_vv__v_v__v_v) {
                              {p2}, {p4}));
 }
 
-
+/////////////////////////
 
 
 TEST (MultTest, Dim__oo_oo__o_o__o_o_upflip) {
@@ -2818,7 +2818,7 @@ TEST (MultTest, Dim__ov_vo__o_v__v_o_upflip) {
                              {p2}, {h4}));
 }
 
-TEST (MultTest, Dim__ov_vo__o_v__v_v_upflip) {
+TEST (MultTest, Dim__ov_vv__o_v__v_v_upflip) {
   ASSERT_TRUE(test_mult_no_n(*g_ec,
                              3.98,
                              {p2,h1}, {p3,p4},
@@ -2853,7 +2853,7 @@ TEST (MultTest, Dim__vv_oo__v_o__v_o_upflip) {
                              {p2}, {h4}));
 }
 
-TEST (MultTest, Dim__vv_oo__v_o__v_v_upflip) {
+TEST (MultTest, Dim__vv_ov__v_o__v_v_upflip) {
   ASSERT_TRUE(test_mult_no_n(*g_ec,
                              3.98,
                              {p2,p1}, {h3,p4},
@@ -2887,7 +2887,7 @@ TEST (MultTest, Dim__vv_vo__v_v__v_o_upflip) {
                              {p2}, {h4}));
 }
 
-TEST (MultTest, Dim__vv_vo__v_v__v_v_upflip) {
+TEST (MultTest, Dim__vv_vv__v_v__v_v_upflip) {
   ASSERT_TRUE(test_mult_no_n(*g_ec,
                              3.98,
                              {p2,p1}, {p3,p4},
@@ -2895,33 +2895,279 @@ TEST (MultTest, Dim__vv_vo__v_v__v_v_upflip) {
                              {p2}, {p4}));
 } 
 
+///////////////////////////////
+
+TEST (MultTest, Dim__oo_oo__o_o__o_o_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,h2}, {h4,h3},
+                             {h1}, {h3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__oo_ov__o_o__o_v_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,h2}, {p4,h3},
+                             {h1}, {h3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__ov_oo__o_o__v_o_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,p2}, {h4,h3},
+                             {h1}, {h3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__ov_ov__o_o__v_v_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,p2}, {p4,h3},
+                             {h1}, {h3},
+                             {p2}, {p4}));
+}
+
 ////////////
+
+TEST (MultTest, Dim__oo_vo__o_v__o_o_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,h2}, {h4,p3},
+                             {h1}, {p3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__oo_vv__o_v__o_v_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,h2}, {p4,p3},
+                             {h1}, {p3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__ov_vo__o_v__v_o_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,p2}, {h4,p3},
+                             {h1}, {p3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__ov_vv__o_v__v_v_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,p2}, {p4,p3},
+                             {h1}, {p3},
+                             {p2}, {p4}));
+}
+
+
 ////////////
 
+TEST (MultTest, Dim__vo_oo__v_o__o_o_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,h2}, {h4,h3},
+                             {p1}, {h3},
+                             {h2}, {h4}));
+}
 
-// // TEST (MultTest, Dim__oo_ov__o_o__v_v) {
-// //   ASSERT_TRUE(test_mult_no_n(*g_ec,
-// //                              3.98,
-// //                              {h1,h2}, {h3,p4},
-// //                              {h1}, {h3},
-// //                              {h2}, {p4}));
-// // }
+TEST (MultTest, Dim__vo_ov__v_o__o_v_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,h2}, {p4,h3},
+                             {p1}, {h3},
+                             {h2}, {p4}));
+}
 
-// // TEST (MultTest, Dim__oo_vo__o_v__o_o) {
-// //   ASSERT_TRUE(test_mult_no_n(*g_ec,
-// //                              3.98,
-// //                              {h1,h2}, {p3,h4},
-// //                              {h1}, {p3},
-// //                              {h2}, {h4}));
-// // }
+TEST (MultTest, Dim__vv_oo__v_o__v_o_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,p2}, {h4,h3},
+                             {p1}, {h3},
+                             {p2}, {h4}));
+}
 
-// // TEST (MultTest, Dim__oo_vv__o_v__o_v) {
-// //   ASSERT_TRUE(test_mult_no_n(*g_ec,
-// //                              3.98,
-// //                              {h1,h2}, {p3,p4},
-// //                              {h1}, {p3},
-// //                              {h2}, {p4}));
-// // }
+TEST (MultTest, Dim__vv_ov__v_o__v_v_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,p2}, {p4,h3},
+                             {p1}, {h3},
+                             {p2}, {p4}));
+}
+
+////////////
+
+TEST (MultTest, Dim__vo_vo__v_v__o_o_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,h2}, {h4,p3},
+                             {p1}, {p3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_vv__v_v__o_v_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,h2}, {p4,p3},
+                             {p1}, {p3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_vo__v_v__v_o_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,p2}, {h4,p3},
+                             {p1}, {p3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_vv__v_v__v_v_downflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,p2}, {p4,p3},
+                             {p1}, {p3},
+                             {p2}, {p4}));
+}
+
+/////////////////////////
+
+TEST (MultTest, Dim__oo_oo__o_o__o_o_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,h1}, {h4,h3},
+                             {h1}, {h3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__oo_ov__o_o__o_v_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,h1}, {p4,h3},
+                             {h1}, {h3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__ov_oo__o_o__v_o_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,h1}, {h4,h3},
+                             {h1}, {h3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__ov_ov__o_o__v_v_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,h1}, {p4,h3},
+                             {h1}, {h3},
+                             {p2}, {p4}));
+}
+
+////////////
+
+TEST (MultTest, Dim__oo_vo__o_v__o_o_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,h1}, {h4,p3},
+                             {h1}, {p3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__oo_vv__o_v__o_v_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,h1}, {p4,p3},
+                             {h1}, {p3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__ov_vo__o_v__v_o_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,h1}, {h4,p3},
+                             {h1}, {p3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__ov_vv__o_v__v_v_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,h1}, {p4,p3},
+                             {h1}, {p3},
+                             {p2}, {p4}));
+}
+
+
+////////////
+
+TEST (MultTest, Dim__vo_oo__v_o__o_o_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,p1}, {h4,h3},
+                             {p1}, {h3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_ov__v_o__o_v_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,p1}, {p4,h3},
+                             {p1}, {h3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_oo__v_o__v_o_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,p1}, {h4,h3},
+                             {p1}, {h3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_ov__v_o__v_v_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,p1}, {p4,h3},
+                             {p1}, {h3},
+                             {p2}, {p4}));
+}
+
+////////////
+
+TEST (MultTest, Dim__vo_vo__v_v__o_o_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,p1}, {h4,p3},
+                             {p1}, {p3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_vv__v_v__o_v_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,p1}, {p4,p3},
+                             {p1}, {p3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_vo__v_v__v_o_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,p1}, {h4,p3},
+                             {p1}, {p3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_vv__v_v__v_v_bothflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,p1}, {p4,p3},
+                             {p1}, {p3},
+                             {p2}, {p4}));
+}
 
 
 #endif

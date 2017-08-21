@@ -469,14 +469,32 @@ const auto H10B = tamm::H10B;
 const auto H11B = tamm::H11B;
 const auto H12B = tamm::H12B;
 
-const auto p1 = tamm::P1B;
-const auto p2 = tamm::P2B;
-const auto p3 = tamm::P3B;
-const auto p4 = tamm::P4B;
 const auto h1 = tamm::H1B;
 const auto h2 = tamm::H2B;
 const auto h3 = tamm::H3B;
 const auto h4 = tamm::H4B;
+const auto h5 = tamm::H5B;
+const auto h6 = tamm::H6B;
+const auto h7 = tamm::H7B;
+const auto h8 = tamm::H8B;
+const auto h9 = tamm::H9B;
+const auto h10 = tamm::H10B;
+const auto h11 = tamm::H11B;
+const auto h12 = tamm::H12B;
+
+const auto p1 = tamm::P1B;
+const auto p2 = tamm::P2B;
+const auto p3 = tamm::P3B;
+const auto p4 = tamm::P4B;
+const auto p5 = tamm::P5B;
+const auto p6 = tamm::P6B;
+const auto p7 = tamm::P7B;
+const auto p8 = tamm::P8B;
+const auto p9 = tamm::P9B;
+const auto p10 = tamm::P10B;
+const auto p11 = tamm::P11B;
+const auto p12 = tamm::P12B;
+
 const auto TO = tamm::TO;
 const auto TV = tamm::TV;
 
@@ -3349,12 +3367,13 @@ void tammx_finalize() {
   tammx::TCE::finalize();
 }
 
+#include "../nwtest/ccsd_t1_test.cc"
 
 int main(int argc, char *argv[]) {
   bool intorb = false;
   bool restricted = false;
 
-#if 1
+#if 0
   int noa = 1;
   int nob = 1;
   int nva = 1;

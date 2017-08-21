@@ -166,7 +166,21 @@ operator << (std::ostream& os, DimType dt) {
 
 inline std::ostream&
 operator << (std::ostream& os, IndexLabel il) {
-  os<<"il["<<il.label<<","<<il.dt<<"]";
+  std::string str;
+  switch(il.dt) {
+    case DimType::o:
+      str = "h";
+      break;
+    case DimType::v:
+      str = "p";
+      break;
+    case DimType::n:
+      str = "n";
+      break;
+    default:
+      assert(0);
+  }
+  os<<str << il.label;
   return os;
 }
 

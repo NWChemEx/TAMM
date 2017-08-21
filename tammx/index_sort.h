@@ -33,6 +33,10 @@ void index_sort_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
                   size_t sz3, size_t sz4, int p1, int p2, int p3, int p4,
                   double alpha);
 
+/**
+   pi(pvec)(ivec) = (ivec[pvec[0]-1], ivec[pvec[1]-1], ...)
+   0<=i<sz1, 0<=j<sz2: dbuf[pi(pvec)(ivec)] = alpha * sbuf[ivec]
+ */
 template<typename T>
 inline void
 index_sort(const void* svbuf, void* dvbuf, int ndim, const size_t *sizes,
@@ -63,6 +67,9 @@ index_sort(const void* svbuf, void* dvbuf, int ndim, const size_t *sizes,
   }
 }
 
+/**
+   dbuf[0..sz-1] = alpha * sbuf[0..sz-1]
+ */
 void copy_add(const double *sbuf, double *dbuf, size_t sz,
               double alpha);
 
@@ -74,6 +81,10 @@ void index_sortacc_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
                      size_t sz3, size_t sz4, int p1, int p2, int p3, int p4,
                      double alpha);
 
+/**
+   pi(pvec)(ivec) = (ivec[pvec[0]-1], ivec[pvec[1]-1], ...)
+   0<=i<sz1, 0<=j<sz2: dbuf[pi(pvec)(ivec)] += ialpha * sbuf[ivec]
+ */
 template<typename T>
 inline void
 index_sortacc(const void* svbuf, void* dvbuf, int ndim,

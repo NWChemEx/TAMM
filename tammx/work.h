@@ -23,6 +23,7 @@ void seq_work(Itr first, Itr last, Fn fn) {
   std::for_each(first, last, fn);
 }
 
+//@todo Should this be tc.add() or tc.put?
 template<typename T, typename Lambda>
 inline void
 tensor_map (LabeledTensor<T> ltc, Lambda func) {
@@ -30,7 +31,7 @@ tensor_map (LabeledTensor<T> ltc, Lambda func) {
   auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
   auto lambda = [&] (const TensorIndex& cblockid) {
     size_t dimc = tc.block_size(cblockid);
-    if(tc.nonzero(cblockid) && dimc>0) {
+    if(tc.nonzero(cblockid) && tc.spin_unique(cblockid) && dimc>0) {
       auto cblock = tc.alloc(cblockid);
       func(cblock);
       tc.add(cblock.blockid(), cblock);

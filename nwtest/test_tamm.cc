@@ -596,6 +596,16 @@ bool test_assign_no_n(tammx::ExecutionContext& ec,
   return status;
 }
 
+bool test_assign_no_n(tammx::ExecutionContext& ec,
+                      const std::vector<tamm::IndexName>& cupper_labels,
+                      const std::vector<tamm::IndexName>& clower_labels,
+                      double alpha,
+                      const std::vector<tamm::IndexName>& aupper_labels,
+                      const std::vector<tamm::IndexName>& alower_labels) {
+	return test_assign_no_n(ec, alpha, cupper_labels, clower_labels,
+			aupper_labels,
+			alower_labels);
+}
 bool
 test_mult_no_n(tammx::ExecutionContext& ec,
                double alpha,
@@ -638,6 +648,19 @@ test_mult_no_n(tammx::ExecutionContext& ec,
 
   tamm_destroy(&tc1, &tc2, &ta, &tb);
   return status;
+}
+
+bool
+test_mult_no_n(tammx::ExecutionContext& ec,
+               const std::vector<tamm::IndexName>& cupper_labels,
+               const std::vector<tamm::IndexName>& clower_labels,
+               double alpha,
+               const std::vector<tamm::IndexName>& aupper_labels,
+               const std::vector<tamm::IndexName>& alower_labels,
+               const std::vector<tamm::IndexName>& bupper_labels,
+               const std::vector<tamm::IndexName>& blower_labels) {
+  test_mult_no_n(*g_ec, alpha, cupper_labels, clower_labels,
+		  aupper_labels, alower_labels, bupper_labels, blower_labels);
 }
 
 #define ASSIGN_TEST_0D 1

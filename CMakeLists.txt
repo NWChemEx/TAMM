@@ -157,7 +157,7 @@ nwtest/cc2_t2.F
 
 set(TESTING_DEPS_SRC
 nwtest/fort_assign_tests.cc
-nwtest/ccsd_t1_test.cc
+#nwtest/ccsd_t1_test.cc
 #nwtest/ccsd_t2_test.cc
 )
 

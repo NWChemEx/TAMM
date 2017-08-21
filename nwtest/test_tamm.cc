@@ -161,7 +161,9 @@ tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup) {
   tammx::TensorVec<tammx::SymmGroup> ret;
 
   int nlo = dims.size() - nup;
-  if(nup == 1) {
+  if(nup==0) {
+    //no-op
+  } else if(nup == 1) {
     tammx::SymmGroup sg{dims[0]};
     ret.push_back(sg);
   } else if (nup == 2) {
@@ -174,9 +176,13 @@ tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup) {
       ret.push_back(sg1);
       ret.push_back(sg2);
     }
+  } else {
+    assert(0);
   }
 
-  if(nlo == 1) {
+  if(nlo==0) {
+    //no-op
+  } else if(nlo == 1) {
     tammx::SymmGroup sg{dims[nup]};
     ret.push_back(sg);
   } else if (nlo == 2) {
@@ -189,6 +195,8 @@ tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup) {
       ret.push_back(sg1);
       ret.push_back(sg2);
     }
+  } else {
+    assert(0);
   }
   return ret;
 }
@@ -286,17 +294,54 @@ tamm_mult(tamm::Tensor* tc,
   mult.execute();
 }
 
+template<typename T>
+void tammx_tensor_dump(const tammx::Tensor<T>& tensor, std::ostream& os) {
+  const auto& buf = static_cast<const T*>(tensor.memory_manager()->access(tammx::Offset{0}));
+  size_t sz = tensor.memory_manager()->local_size_in_elements().value();
+  for(size_t i=0; i<sz; i++) {
+    os<<buf[i]<<" ";
+  }
+  os<<std::endl;
+}
+
  void
  tammx_mult(tammx::ExecutionContext& ec,
-            tamm::Tensor* tc,
+            tamm::Tensor* ttc,
             const std::vector<tamm::IndexName>& clabel,
             double alpha,
-            tamm::Tensor* ta,
+            tamm::Tensor* tta,
             const std::vector<tamm::IndexName>& alabel,
-            tamm::Tensor* tb,
+            tamm::Tensor* ttb,
             const std::vector<tamm::IndexName>& blabel) {
-   tamm::Multiplication mult(tc, clabel, ta, alabel, tb, blabel, alpha);
-   mult.execute();
+   tammx::Tensor<double> *ta = tamm_tensor_to_tammx_tensor(ec.pg(), tta);
+   tammx::Tensor<double> *tb = tamm_tensor_to_tammx_tensor(ec.pg(), ttb);
+   tammx::Tensor<double> *tc = tamm_tensor_to_tammx_tensor(ec.pg(), ttc);
+   
+   auto al = tamm_label_to_tammx_label(alabel);
+   auto bl = tamm_label_to_tammx_label(blabel);
+   auto cl = tamm_label_to_tammx_label(clabel);
+
+   {
+     std::cout<<"tammx_mult. A = ";
+     tammx_tensor_dump(*ta, std::cout);
+     std::cout<<"tammx_mult. B = ";
+     tammx_tensor_dump(*tb, std::cout);
+     std::cout<<"tammx_mult. C = ";
+     tammx_tensor_dump(*tc, std::cout);
+   }
+   
+   // std::cout<<"----AL="<<al<<std::endl;
+   // std::cout<<"----BL="<<bl<<std::endl;
+   // std::cout<<"----CL="<<cl<<std::endl;
+   ec.scheduler()
+       .io((*tc), (*ta), (*tb))
+       ((*tc)() = 0)
+       ((*tc)(cl) += alpha * (*ta)(al) * (*tb)(bl))
+       .execute();
+   
+   delete ta;
+   delete tb;
+   delete tc;
  }
 
 
@@ -345,6 +390,38 @@ fortran_mult_vvoo_vo(tamm::Tensor* tc,
       offsetc = tc->offset_index(),
       irrepc = tc->irrep();
   fn(&da, &offseta, &db, &offsetb, &dc, &offsetc);
+}
+
+template<typename LabeledTensorType> 
+void tammx_symmetrize(tammx::ExecutionContext& ec, LabeledTensorType ltensor) {
+  auto &tensor = *ltensor.tensor_;
+  auto &label = ltensor.label_;
+  const auto &indices = tensor.indices();
+  Expects(tensor.flindices().size() == label.size());
+
+  auto label_copy = label;
+  size_t off = 0;
+  for(auto& sg: indices) {
+    if(sg.size() > 1) {
+      //@todo handle other cases
+      assert(sg.size() == 2);
+      std::swap(label_copy[off], label_copy[off+1]);
+      ec.scheduler()
+          .io(tensor)
+          (tensor(label) += tensor(label_copy))
+          (tensor(label) += -0.5*tensor(label))
+          .execute();
+      std::swap(label_copy[off], label_copy[off+1]);
+    }
+    off += sg.size();
+  }
+}
+
+void
+tamm_symmetrize(tammx::ExecutionContext& ec,
+                tamm::Tensor* tensor) {
+   tammx::Tensor<double> *xta = tamm_tensor_to_tammx_tensor(ec.pg(), tensor);
+   tammx_symmetrize(ec, (*xta)());
 }
 
 void
@@ -425,10 +502,12 @@ bool test_assign(tammx::ExecutionContext& ec,
   auto tc1 = tamm_tensor(cupper_ranges, clower_ranges);
   auto tc2 = tamm_tensor(cupper_ranges, clower_ranges);
   auto ta = tamm_tensor(aupper_ranges, alower_ranges);
-
+  
   tamm_create(&tc1, &tc2, &ta);
   ta.fill_random();
 
+  tamm_symmetrize(ec, &ta);
+  
   auto clabels = cupper_labels;
   std::copy(clower_labels.begin(), clower_labels.end(), std::back_inserter(clabels));
   auto alabels = aupper_labels;
@@ -499,6 +578,7 @@ bool test_assign_no_n(tammx::ExecutionContext& ec,
 
   tamm_create(&tc1, &tc2, &ta);  
   ta.fill_random();
+  tamm_symmetrize(ec, &ta);
 
   auto clabels = cupper_labels;
   std::copy(clower_labels.begin(), clower_labels.end(), std::back_inserter(clabels));
@@ -516,14 +596,15 @@ bool test_assign_no_n(tammx::ExecutionContext& ec,
   return status;
 }
 
-bool test_mult_no_n(tammx::ExecutionContext& ec,
-                      double alpha,
-                      const std::vector<tamm::IndexName>& cupper_labels,
-                      const std::vector<tamm::IndexName>& clower_labels,
-                      const std::vector<tamm::IndexName>& aupper_labels,
-                      const std::vector<tamm::IndexName>& alower_labels,
-					  const std::vector<tamm::IndexName>& bupper_labels,
-					  const std::vector<tamm::IndexName>& blower_labels) {
+bool
+test_mult_no_n(tammx::ExecutionContext& ec,
+               double alpha,
+               const std::vector<tamm::IndexName>& cupper_labels,
+               const std::vector<tamm::IndexName>& clower_labels,
+               const std::vector<tamm::IndexName>& aupper_labels,
+               const std::vector<tamm::IndexName>& alower_labels,
+               const std::vector<tamm::IndexName>& bupper_labels,
+               const std::vector<tamm::IndexName>& blower_labels) {
   const auto& cupper_ranges = tamm_labels_to_ranges(cupper_labels);
   const auto& clower_ranges = tamm_labels_to_ranges(clower_labels);
   const auto& aupper_ranges = tamm_labels_to_ranges(aupper_labels);
@@ -533,11 +614,14 @@ bool test_mult_no_n(tammx::ExecutionContext& ec,
   auto tc1 = tamm_tensor(cupper_ranges, clower_ranges);
   auto tc2 = tamm_tensor(cupper_ranges, clower_ranges);
   auto ta = tamm_tensor(aupper_ranges, alower_ranges);
-  auto tb = tamm_tensor(aupper_ranges, alower_ranges);
+  auto tb = tamm_tensor(bupper_ranges, blower_ranges);
 
   tamm_create(&tc1, &tc2, &ta, &tb);
-  ta.fill_given(2.0);
+  // ta.fill_given(2.0);
+  ta.fill_random();
   tb.fill_random();
+  tamm_symmetrize(ec, &ta);
+  tamm_symmetrize(ec, &tb);
 
   auto clabels = cupper_labels;
   std::copy(clower_labels.begin(), clower_labels.end(), std::back_inserter(clabels));
@@ -570,6 +654,23 @@ bool test_mult_no_n(tammx::ExecutionContext& ec,
 
 #define SYMM_ASSIGN_TEST_3D 1
 #define SYMM_ASSIGN_TEST_4D 1
+
+#define MULT_TEST_0D_0D 1
+#define MULT_TEST_0D_1D 1
+#define MULT_TEST_1D_1D 1
+#define MULT_TEST_1D_1D_2D 1
+#define MULT_TEST_1D_2D_1D 1
+#define MULT_TEST_1D_2D_3D 1
+#define MULT_TEST_1D_3D_2D 1
+#define MULT_TEST_1D_3D_4D 1
+#define MULT_TEST_1D_4D_3D 1
+#define MULT_TEST_2D_1D_1D 1
+#define MULT_TEST_2D_2D_2D 1
+#define MULT_TEST_2D_2D_4D 1
+#define MULT_TEST_2D_4D_2D 1
+#define MULT_TEST_3D_1D_2D 1
+#define MULT_TEST_4D_2D_2D 1
+
 
 tammx::TensorVec<tammx::SymmGroup>
 tamm_labels_to_tammx_indices(const std::vector<tamm::IndexName>& labels) {
@@ -1328,19 +1429,29 @@ test_symm_assign(tammx::ExecutionContext& ec,
 
   ec.allocate(tc, tc2, ta);
 
-  auto init_lambda = [](tammx::Block<double> &block) {
-    int n = std::rand()%100;
-    std::generate_n(reinterpret_cast<double *>(block.buf()), block.size(), [&]() { return n++; });
-  };
-
-  tensor_map(ta(), init_lambda);
-  
   ec.scheduler()
       .io(ta, tc, tc2)
+      (ta() = 0)
       (tc() = 0)
       (tc2() = 0)
       .execute();
 
+  auto init_lambda = [](tammx::Block<double> &block) {
+    double n = std::rand()%100;
+    auto dbuf = block.buf();
+    for(size_t i=0; i<block.size(); i++) {
+      dbuf[i] = n+i;
+      // std::cout<<"init_lambda. dbuf["<<i<<"]="<<dbuf[i]<<std::endl;
+    }
+    //std::generate_n(reinterpret_cast<double *>(block.buf()), block.size(), [&]() { return n++; });
+  };
+
+  
+  tensor_map(ta(), init_lambda);
+  tammx_symmetrize(ec, ta());
+  // std::cout<<"TA=\n";
+  // tammx_tensor_dump(ta, std::cout);
+  
   //std::cout<<"<<<<<<<<<<<<<<<<<<<<<<<<<"<<std::endl;
   ec.scheduler()
       .io(tc, ta)
@@ -1356,10 +1467,20 @@ test_symm_assign(tammx::ExecutionContext& ec,
         .execute();
     //std::cout<<"---------------------------"<<std::endl;
   }
+  // std::cout<<"TA=\n";
+  // tammx_tensor_dump(ta, std::cout);
+  // std::cout<<"TC=\n";
+  // tammx_tensor_dump(tc, std::cout);
+  // std::cout<<"TC2=\n";
+  // tammx_tensor_dump(tc2, std::cout);
+  // std::cout<<"\n";
   ec.scheduler()
       .io(tc, tc2)
       (tc2(clabels) += -1.0 * tc(clabels))
       .execute();
+  // std::cout<<"TC - TC2=\n";
+  // tammx_tensor_dump(tc2, std::cout);
+  // std::cout<<"\n";
 
   double threshold = 1e-12;
   auto lambda = [&] (auto &val) {
@@ -1602,7 +1723,7 @@ TEST (SymmAssignTest, FourDim_v1v2_v3o4_v2v1_v3o4) {
                                ));
 }
 
-//////////////////////////////////////////////
+// //////////////////////////////////////////////
 
 TEST (SymmAssignTest, FourDim_o1o2_o3o4_o1o2_o3o4) {
   ASSERT_TRUE(test_symm_assign(*g_ec,
@@ -1852,6 +1973,960 @@ TEST (SymmAssignTest, FourDim_v1v2_v3v4_v2v1_v4v3) {
 
 #endif
 
+//-----------------------------------------------------------------------
+//
+//                            Mult 0-d
+//
+//-----------------------------------------------------------------------
+
+void
+test_tammx_mult(tammx::ExecutionContext& ec,
+           tamm::Tensor* ttc,
+           const std::vector<tamm::IndexName>& clabel,
+           double alpha,
+           tamm::Tensor* tta,
+           const std::vector<tamm::IndexName>& alabel,
+           tamm::Tensor* ttb,
+           const std::vector<tamm::IndexName>& blabel) {
+  tammx::Tensor<double> *ta = tamm_tensor_to_tammx_tensor(ec.pg(), tta);
+  tammx::Tensor<double> *tb = tamm_tensor_to_tammx_tensor(ec.pg(), ttb);
+  tammx::Tensor<double> *tc = tamm_tensor_to_tammx_tensor(ec.pg(), ttc);
+  
+  auto al = tamm_label_to_tammx_label(alabel);
+  auto bl = tamm_label_to_tammx_label(blabel);
+  auto cl = tamm_label_to_tammx_label(clabel);
+
+  // std::cout<<"----AL="<<al<<std::endl;
+  // std::cout<<"----CL="<<cl<<std::endl;
+  ec.scheduler()
+      .io((*tc), (*ta), (*tb))
+      ((*tc)(cl) += alpha * (*ta)(al) * (*tb)(bl))
+      .execute();
+
+  delete ta;
+  delete tb;
+  delete tc;
+}
+
+
+#if MULT_TEST_0D_0D
+
+TEST (MultTest, Dim_0_0_0) {
+  tammx::Tensor<double> xtc {{}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xta {{}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtb {{}, 0, tammx::Irrep{0}, false};
+
+  double alpha1 = 0.91, alpha2 = 0.56;
+  auto& ec = *g_ec;
+
+  ec.allocate(xta, xtb, xtc);
+  ec.scheduler()
+      .io(xta, xtb, xtc)
+      (xta() = alpha1)
+      (xtb() = alpha2)
+      (xtc() = xta() * xtb())
+      .execute();
+
+  double threshold = 1.0e-12;
+  bool status = true;
+  auto lambda = [&] (auto& val) {
+    status &= (std::abs(val - alpha1*alpha2) < threshold);
+  };
+  ec.scheduler()
+      .io(xtc)
+      .sop(xtc(), lambda)
+      .execute();  
+  ec.deallocate(xta, xtb, xtc);
+  ASSERT_TRUE(status);
+}
+#endif
+
+
+#if MULT_TEST_0D_1D
+
+TEST (MultTest, Dim_o_0_o_up) {
+  tammx::Tensor<double> xtc {{O}, 1, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xta {{}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtb {{O}, 1, tammx::Irrep{0}, false};
+
+  double alpha1 = 0.91, alpha2 = 0.56;
+  auto& ec = *g_ec;
+
+  ec.allocate(xta, xtb, xtc);
+  ec.scheduler()
+      .io(xta, xtb, xtc)
+      (xta() = alpha1)
+      (xtb() = alpha2)
+      (xtc() = xta() * xtb())
+      .execute();
+
+  double threshold = 1.0e-12;
+  bool status = true;
+  auto lambda = [&] (auto& val) {
+    status &= (std::abs(val - alpha1*alpha2) < threshold);
+  };
+  ec.scheduler()
+      .io(xtc)
+      .sop(xtc(), lambda)
+      .execute();  
+  ec.deallocate(xta, xtb, xtc);
+  ASSERT_TRUE(status);
+}
+
+TEST (MultTest, Dim_o_0_o_lo) {
+  tammx::Tensor<double> xtc {{O}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xta {{}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtb {{O}, 0, tammx::Irrep{0}, false};
+
+  double alpha1 = 0.91, alpha2 = 0.56;
+  auto& ec = *g_ec;
+
+  ec.allocate(xta, xtb, xtc);
+  ec.scheduler()
+      .io(xta, xtb, xtc)
+      (xta() = alpha1)
+      (xtb() = alpha2)
+      (xtc() = xta() * xtb())
+      .execute();
+
+  double threshold = 1.0e-12;
+  bool status = true;
+  auto lambda = [&] (auto& val) {
+    status &= (std::abs(val - alpha1*alpha2) < threshold);
+  };
+  ec.scheduler()
+      .io(xtc)
+      .sop(xtc(), lambda)
+      .execute();  
+  ec.deallocate(xta, xtb, xtc);
+  ASSERT_TRUE(status);
+}
+
+TEST (MultTest, Dim_v_v_0_hi) {
+  tammx::Tensor<double> xtc {{V}, 1, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xta {{V}, 1, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtb {{}, 0, tammx::Irrep{0}, false};
+
+  double alpha1 = 0.91, alpha2 = 0.56;
+  auto& ec = *g_ec;
+
+  ec.allocate(xta, xtb, xtc);
+  ec.scheduler()
+      .io(xta, xtb, xtc)
+      (xta() = alpha1)
+      (xtb() = alpha2)
+      (xtc() = xta() * xtb())
+      .execute();
+
+  double threshold = 1.0e-12;
+  bool status = true;
+  auto lambda = [&] (auto& val) {
+    status &= (std::abs(val - alpha1*alpha2) < threshold);
+  };
+  ec.scheduler()
+      .io(xtc)
+      .sop(xtc(), lambda)
+      .execute();  
+  ec.deallocate(xta, xtb, xtc);
+  ASSERT_TRUE(status);
+}
+
+TEST (MultTest, Dim_v_v_0_lo) {
+  tammx::Tensor<double> xtc {{V}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xta {{V}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtb {{}, 0, tammx::Irrep{0}, false};
+
+  double alpha1 = 0.91, alpha2 = 0.56;
+  auto& ec = *g_ec;
+
+  ec.allocate(xta, xtb, xtc);
+  ec.scheduler()
+      .io(xta, xtb, xtc)
+      (xta() = alpha1)
+      (xtb() = alpha2)
+      (xtc() = xta() * xtb())
+      .execute();
+
+  double threshold = 1.0e-12;
+  bool status = true;
+  auto lambda = [&] (auto& val) {
+    status &= (std::abs(val - alpha1*alpha2) < threshold);
+  };
+  ec.scheduler()
+      .io(xtc)
+      .sop(xtc(), lambda)
+      .execute();  
+  ec.deallocate(xta, xtb, xtc);
+  ASSERT_TRUE(status);
+}
+
+#endif
+
+#if MULT_TEST_1D_1D
+
+// TEST (MultTest, Dim_0_o_o_up) {
+//   ASSERT_TRUE(test_mult_no_n(*g_ec,
+//                              3.98,
+//                              {}, {},
+//                              {h1}, {},
+//                              {h1}, {}));
+// }
+
+// TEST (MultTest, Dim_oo_o_o) {
+//   ASSERT_TRUE(test_mult_no_n(*g_ec,
+//                              3.98,
+//                              {h1}, {h2},
+//                              {h1}, {},
+//                              {},   {h2}));
+// }
+
+// TEST (MultTest, Dim_ov_o_v) {
+//   ASSERT_TRUE(test_mult_no_n(*g_ec,
+//                              3.98,
+//                              {h1}, {p2},
+//                              {h1}, {},
+//                              {},   {p2}));
+// }
+
+// TEST (MultTest, Dim_vo_v_o) {
+//   ASSERT_TRUE(test_mult_no_n(*g_ec,
+//                              3.98,
+//                              {p1}, {h2},
+//                              {p1}, {},
+//                              {},   {h2}));
+// }
+
+// TEST (MultTest, Dim_vv_v_v) {
+//   ASSERT_TRUE(test_mult_no_n(*g_ec,
+//                              3.98,
+//                              {p1}, {p2},
+//                              {p1}, {},
+//                              {},   {p2}));
+// }
+
+#endif
+
+#if MULT_TEST_1D_1D_2D
+
+TEST (MultTest, Dim_o_o_oo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {},
+                             {}, {h2},
+                             {h1},{h2}));
+}
+
+TEST (MultTest, Dim_o_o_oo_lo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {}, {h2},
+                             {h1}, {},
+                             {h1},{h2}));
+}
+
+TEST (MultTest, Dim_o_v_ov) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {},
+                             {}, {p2},
+                             {h1},{p2}));
+}
+
+TEST (MultTest, Dim_o_v_vo_lo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {}, {h2},
+                             {p1}, {},
+                             {p1},{h2}));
+}
+
+TEST (MultTest, Dim_v_o_vo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {},
+                             {}, {h2},
+                             {p1},{h2}));
+}
+
+TEST (MultTest, Dim_v_o_ov_lo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {}, {p2},
+                             {h1}, {},
+                             {h1},{p2}));
+}
+
+TEST (MultTest, Dim_v_v_vv) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {},
+                             {}, {p2},
+                             {p1},{p2}));
+}
+
+TEST (MultTest, Dim_v_v_vv_lo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {}, {p2},
+                             {p1}, {},
+                             {p1},{p2}));
+}
+
+#endif
+
+#if MULT_TEST_1D_2D_1D
+
+TEST (MultTest, Dim_o_oo_o) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {},
+                             {h1}, {h2},
+                             {},{h2}));
+}
+
+TEST (MultTest, Dim_o_oo_o_lo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {}, {h2},
+                             {h1},{h2},
+                             {h1},{}));
+}
+
+TEST (MultTest, Dim_o_ov_v) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {},
+                             {h1}, {p2},
+                             {},{p2}));
+}
+
+TEST (MultTest, Dim_o_vo_v_lo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {}, {h2},
+                             {p1},{h2},
+                             {p1},{}));
+}
+
+TEST (MultTest, Dim_v_vo_o) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {},
+                             {p1}, {h2},
+                             {},{h2}));
+}
+
+TEST (MultTest, Dim_v_ov_o_lo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {}, {p2},
+                             {h1}, {p2},
+                             {h1},{}));
+}
+
+TEST (MultTest, Dim_v_vv_v) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {},
+                             {p1}, {p2},
+                             {},{p2}));
+}
+
+TEST (MultTest, Dim_v_vv_v_lo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {}, {p2},
+                             {p1}, {p2},
+                             {p1},{}));
+}
+
+#endif
+
+#if MULT_TEST_1D_2D_3D
+
+#endif
+
+#if MULT_TEST_1D_3D_2D
+
+#endif
+
+#if MULT_TEST_1D_3D_4D
+
+#endif
+
+#if MULT_TEST_1D_4D_3D
+
+#endif
+
+#if MULT_TEST_2D_1D_1D
+TEST (MultTest, Dim_oo_o_o) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {h2},
+                             {h1}, {},
+                             {},{h2}));
+}
+
+TEST (MultTest, Dim_ov_o_v) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {p2},
+                             {h1}, {},
+                             {}, {p2}));
+}
+
+TEST (MultTest, Dim_vo_v_o) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {h2},
+                             {p1}, {},
+                             {}, {h2}));
+}
+
+TEST (MultTest, Dim_vv_v_v) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {p2},
+                             {p1}, {},
+                             {}, {p2}));
+}
+
+#endif
+
+#if MULT_TEST_2D_2D_2D
+
+TEST (MultTest, Dim_oo_oo_oo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {h2},
+                             {h1}, {h3},
+                             {h3},{h2}));
+}
+
+TEST (MultTest, Dim_oo_ov_vo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {h2},
+                             {h1}, {p3},
+                             {p3},{h2}));
+}
+
+TEST (MultTest, Dim_ov_oo_ov) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {p2},
+                             {h1}, {h3},
+                             {h3},{p2}));
+}
+
+TEST (MultTest, Dim_ov_ov_vv) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {p2},
+                             {h1}, {p3},
+                             {p3},{p2}));
+}
+
+TEST (MultTest, Dim_vo_vo_oo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {h2},
+                             {p1}, {h3},
+                             {h3},{h2}));
+}
+
+TEST (MultTest, Dim_vo_vv_vo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {h2},
+                             {p1}, {p3},
+                             {p3},{h2}));
+}
+
+TEST (MultTest, Dim_vv_vo_ov) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {p2},
+                             {p1}, {h3},
+                             {h3},{p2}));
+}
+
+TEST (MultTest, Dim_vv_vv_vv) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {p2},
+                             {p1}, {p3},
+                             {p3},{p2}));
+}
+
+#endif
+
+#if MULT_TEST_2D_2D_4D
+
+TEST (MultTest, Dim_oo_oo_oooo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {h4},
+                             {h2}, {h3},
+                             {h1, h3}, {h2, h4}));
+}
+
+
+TEST (MultTest, Dim_oo_ov_ovoo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {h4},
+                             {h2}, {p3},
+                             {h1, p3}, {h2, h4}));
+}
+
+TEST (MultTest, Dim_oo_vo_oovo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {h4},
+                             {p2}, {h3},
+                             {h1, h3}, {p2, h4}));
+}
+
+TEST (MultTest, Dim_oo_vv_ovvo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {h4},
+                             {p2}, {p3},
+                             {h1, p3}, {p2, h4}));
+}
+
+
+/////////////////////////
+
+TEST (MultTest, Dim_ov_oo_ooov) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {p4},
+                             {h2}, {h3},
+                             {h1, h3}, {h2, p4}));
+}
+
+
+TEST (MultTest, Dim_ov_ov_ovov) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {p4},
+                             {h2}, {p3},
+                             {h1, p3}, {h2, p4}));
+}
+
+TEST (MultTest, Dim_ov_vo_oovv) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {p4},
+                             {p2}, {h3},
+                             {h1, h3}, {p2, p4}));
+}
+
+TEST (MultTest, Dim_ov_vv_ovvv) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1}, {p4},
+                             {p2}, {p3},
+                             {h1, p3}, {p2, p4}));
+}
+
+////////////////////////
+
+TEST (MultTest, Dim_vo_oo_vooo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {h4},
+                             {h2}, {h3},
+                             {p1, h3}, {h2, h4}));
+}
+
+
+TEST (MultTest, Dim_vo_ov_vvoo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {h4},
+                             {h2}, {p3},
+                             {p1, p3}, {h2, h4}));
+}
+
+TEST (MultTest, Dim_vo_vo_vovo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {h4},
+                             {p2}, {h3},
+                             {p1, h3}, {p2, h4}));
+}
+
+TEST (MultTest, Dim_vo_vv_vvvo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {h4},
+                             {p2}, {p3},
+                             {p1, p3}, {p2, h4}));
+}
+
+////////////////////////
+
+TEST (MultTest, Dim_vv_oo_voov) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {p4},
+                             {h2}, {h3},
+                             {p1, h3}, {h2, p4}));
+}
+
+
+TEST (MultTest, Dim_vv_ov_vvov) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {p4},
+                             {h2}, {p3},
+                             {p1, p3}, {h2, p4}));
+}
+
+TEST (MultTest, Dim_vv_vo_vovv) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {p4},
+                             {p2}, {h3},
+                             {p1, h3}, {p2, p4}));
+}
+
+TEST (MultTest, Dim_vv_vv_vvvv) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1}, {p4},
+                             {p2}, {p3},
+                             {p1, p3}, {p2, p4}));
+}
+
+
+#endif
+
+#if MULT_TEST_2D_4D_2D
+#endif
+
+#if MULT_TEST_3D_1D_2D
+TEST (MultTest, Dim_ovo_ovo_oo) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,p2}, {h3},
+                             {h1,p2}, {h4},
+                             {h4}, {h3}));
+}
+#endif
+
+
+#if MULT_TEST_4D_2D_2D
+
+TEST (MultTest, Dim__oo_oo__o_o__o_o) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,h2}, {h3,h4},
+                             {h1}, {h3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__oo_ov__o_o__o_v) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,h2}, {h3,p4},
+                             {h1}, {h3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__ov_oo__o_o__v_o) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,p2}, {h3,h4},
+                             {h1}, {h3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__ov_ov__o_o__v_v) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,p2}, {h3,p4},
+                             {h1}, {h3},
+                             {p2}, {p4}));
+}
+
+////////////
+
+TEST (MultTest, Dim__oo_vo__o_v__o_o) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,h2}, {p3,h4},
+                             {h1}, {p3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__oo_vv__o_v__o_v) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,h2}, {p3,p4},
+                             {h1}, {p3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__ov_vo__o_v__v_o) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,p2}, {p3,h4},
+                             {h1}, {p3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__ov_vv__o_v__v_v) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h1,p2}, {p3,p4},
+                             {h1}, {p3},
+                             {p2}, {p4}));
+}
+
+
+////////////
+
+TEST (MultTest, Dim__vo_oo__v_o__o_o) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,h2}, {h3,h4},
+                             {p1}, {h3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_ov__v_o__o_v) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,h2}, {h3,p4},
+                             {p1}, {h3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_oo__v_o__v_o) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,p2}, {h3,h4},
+                             {p1}, {h3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_ov__v_o__v_v) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,p2}, {h3,p4},
+                             {p1}, {h3},
+                             {p2}, {p4}));
+}
+
+////////////
+
+TEST (MultTest, Dim__vo_vo__v_v__o_o) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,h2}, {p3,h4},
+                             {p1}, {p3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_vv__v_v__o_v) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,h2}, {p3,p4},
+                             {p1}, {p3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_vo__v_v__v_o) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,p2}, {p3,h4},
+                             {p1}, {p3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_vv__v_v__v_v) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p1,p2}, {p3,p4},
+                             {p1}, {p3},
+                             {p2}, {p4}));
+}
+
+
+
+
+TEST (MultTest, Dim__oo_oo__o_o__o_o_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             1,
+                             {h2,h1}, {h3,h4},
+                             {h1}, {h3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__oo_ov__o_o__o_v_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,h1}, {h3,p4},
+                             {h1}, {h3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__ov_oo__o_o__v_o_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,h1}, {h3,h4},
+                             {h1}, {h3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__ov_ov__o_o__v_v_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             4.36,
+                             {p2,h1}, {h3,p4},
+                             {h1}, {h3},
+                             {p2}, {p4}));
+}
+
+
+////////////
+
+TEST (MultTest, Dim__oo_vo__o_v__o_o_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,h1}, {p3,h4},
+                             {h1}, {p3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__oo_vv__o_v__o_v_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,h1}, {p3,p4},
+                             {h1}, {p3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__ov_vo__o_v__v_o_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,h1}, {p3,h4},
+                             {h1}, {p3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__ov_vo__o_v__v_v_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,h1}, {p3,p4},
+                             {h1}, {p3},
+                             {p2}, {p4}));
+}
+
+
+////////////
+
+TEST (MultTest, Dim__vo_oo__v_o__o_o_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,p1}, {h3,h4},
+                             {p1}, {h3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_ov__v_o__o_v_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,p1}, {h3,p4},
+                             {p1}, {h3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_oo__v_o__v_o_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,p1}, {h3,h4},
+                             {p1}, {h3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_oo__v_o__v_v_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,p1}, {h3,p4},
+                             {p1}, {h3},
+                             {p2}, {p4}));
+}
+
+////////////
+
+TEST (MultTest, Dim__vo_vo__v_v__o_o_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,p1}, {p3,h4},
+                             {p1}, {p3},
+                             {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_vv__v_v__o_v_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {h2,p1}, {p3,p4},
+                             {p1}, {p3},
+                             {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_vo__v_v__v_o_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,p1}, {p3,h4},
+                             {p1}, {p3},
+                             {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_vo__v_v__v_v_upflip) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {p2,p1}, {p3,p4},
+                             {p1}, {p3},
+                             {p2}, {p4}));
+} 
+
+////////////
+////////////
+
+
+// // TEST (MultTest, Dim__oo_ov__o_o__v_v) {
+// //   ASSERT_TRUE(test_mult_no_n(*g_ec,
+// //                              3.98,
+// //                              {h1,h2}, {h3,p4},
+// //                              {h1}, {h3},
+// //                              {h2}, {p4}));
+// // }
+
+// // TEST (MultTest, Dim__oo_vo__o_v__o_o) {
+// //   ASSERT_TRUE(test_mult_no_n(*g_ec,
+// //                              3.98,
+// //                              {h1,h2}, {p3,h4},
+// //                              {h1}, {p3},
+// //                              {h2}, {h4}));
+// // }
+
+// // TEST (MultTest, Dim__oo_vv__o_v__o_v) {
+// //   ASSERT_TRUE(test_mult_no_n(*g_ec,
+// //                              3.98,
+// //                              {h1,h2}, {p3,p4},
+// //                              {h1}, {p3},
+// //                              {h2}, {p4}));
+// // }
+
+
+#endif
+
+
 
 void test_assign_ccsd_e(tammx::ExecutionContext& ec);
 void test_assign_ccsd_t1(tammx::ExecutionContext& ec);
@@ -2010,14 +3085,14 @@ int main(int argc, char *argv[]) {
   bool intorb = false;
   bool restricted = false;
 
-#if 1 
+#if 1
   int noa = 1;
   int nob = 1;
   int nva = 1;
   int nvb = 1;
   std::vector<int> spins = {1, 2, 1, 2};
   std::vector<int> syms = {0, 0, 0, 0};
-  std::vector<int> ranges = {4, 4, 4, 4};
+  std::vector<int> ranges = {2, 2, 2, 2};
 #else
   int noa = 2;
   int nob = 2;

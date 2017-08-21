@@ -33,12 +33,12 @@ class MemoryManagerGA : public MemoryManager {
     for(int i = 0; i<nranks; i++) {
       int64_t lo, hi;
       NGA_Distribution64(ga_, i, &lo, &hi);
-      std::cout<<"NGA_Distributopn64. lo="<<lo<<" hi="<<hi<<std::endl;
+      //std::cout<<"NGA_Distributopn64. lo="<<lo<<" hi="<<hi<<std::endl;
       map_[i+1] = map_[i] + (hi - lo + 1);
     }
     nelements_ = map_[me+1] - map_[me];
-    std::cout<<"---TAMMX. ga local nelements="<<nelements_<<std::endl;
-    std::cout<<"---TAMMX. ga eltype="<<ga_eltype_<<"(C_DBL="<<MT_C_DBL<<")"<<std::endl;
+    // std::cout<<"---TAMMX. ga local nelements="<<nelements_<<std::endl;
+    // std::cout<<"---TAMMX. ga eltype="<<ga_eltype_<<"(C_DBL="<<MT_C_DBL<<")"<<std::endl;
     allocation_status_ = AllocationStatus::attached;
   }
 
@@ -135,15 +135,28 @@ class MemoryManagerGA : public MemoryManager {
     return buf;
   }
 
+  const void* access(Offset off) const {
+    Expects(allocation_status_ == AllocationStatus::created ||
+            allocation_status_ == AllocationStatus::attached);
+    Proc proc{pg_.rank()};
+    int64_t nels{1};
+    int iproc{proc.value()};
+    int64_t ioffset{map_[proc.value()] + off.value()};
+    int64_t lo = ioffset, hi = ioffset + nels-1, ld = -1;
+    void* buf;
+    NGA_Access64(ga_, &lo, &hi, reinterpret_cast<void*>(&buf), &ld);
+    return buf;
+  }
+
   void get(Proc proc, Offset off, Size nelements, void* buf) {
     Expects(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     int iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
-    std::cout<<"---memory_manager_ga. get. lo="<<lo<<" hi="<<hi<<std::endl;
+    // std::cout<<"---memory_manager_ga. get. lo="<<lo<<" hi="<<hi<<std::endl;
     NGA_Get64(ga_, &lo, &hi, buf, &ld);
-    std::cout<<"---memory_manager_ga. done get. lo="<<lo<<" hi="<<hi<<std::endl;
+    // std::cout<<"---memory_manager_ga. done get. lo="<<lo<<" hi="<<hi<<std::endl;
   }
   
   void put(Proc proc, Offset off, Size nelements, const void* buf) {
@@ -179,9 +192,9 @@ class MemoryManagerGA : public MemoryManager {
       default:
         assert(0);
     }
-    std::cout<<"---memory_manager_ga. add. lo="<<lo<<" hi="<<hi<<" ld="<<ld<<" buf="<<buf<<std::endl;
+    // std::cout<<"---memory_manager_ga. add. lo="<<lo<<" hi="<<hi<<" ld="<<ld<<" buf="<<buf<<std::endl;
     NGA_Acc64(ga_, &lo, &hi, const_cast<void*>(buf), &ld, alpha);
-    std::cout<<"---memory_manager_ga. done add. lo="<<lo<<" hi="<<hi<<" ld="<<ld<<std::endl;
+    // std::cout<<"---memory_manager_ga. done add. lo="<<lo<<" hi="<<hi<<" ld="<<ld<<std::endl;
   }
 
  protected:

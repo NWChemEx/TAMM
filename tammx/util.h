@@ -72,6 +72,11 @@ class LabelMap {
   std::map<IndexLabel, T> lmap_;
 };
 
+/**
+ * requires from.size() == to.size()
+ * Return ret such that.
+ * ensures 0<=i<from.size(): to[i] = from[ret[i]]
+ */
 inline TensorPerm
 perm_compute(const TensorLabel& from, const TensorLabel& to) {
   TensorPerm layout;
@@ -88,6 +93,9 @@ perm_compute(const TensorLabel& from, const TensorLabel& to) {
   return layout;
 }
 
+/**
+   Returns number of inversions involved in sorting this permutation
+ */
 inline int
 perm_count_inversions(const TensorPerm& perm) {
   int num_inversions = 0;
@@ -114,6 +122,14 @@ perm_count_inversions(const TensorPerm& perm) {
   return num_inversions / 2;
 }
 
+/**
+ * requires label.size() == perm.size. say n = label.size().
+ * Returns ret such that
+ * 0<=i<n: ret[i] = label[perm[i]].
+ *
+ * perm_apply(from, perm_compute(from,to)) == to.
+ * perm_compute(from, perm_apply(from, perm)) == perm.
+ */
 template<typename T>
 inline TensorVec<T>
 perm_apply(const TensorVec<T>& label, const TensorPerm& perm) {
@@ -128,6 +144,14 @@ perm_apply(const TensorVec<T>& label, const TensorPerm& perm) {
   return ret;
 }
 
+/**
+ * requires p1.size() == p2.size(). say p1.size() ==n.
+ * requires p1 and p2 are permutations of [0..n-1].
+ * Returns ret such that.
+ * 0<=i<n: ret[i] = p1[p2[i]]
+ *
+ * ret = p2 . p1
+ */
 inline TensorPerm
 perm_compose(const TensorPerm& p1, const TensorPerm& p2) {
   TensorPerm ret(p1.size());
@@ -149,6 +173,18 @@ is_permutation(TensorPerm perm) {
   return true;
 }
 
+/**
+ * requires is_permutation(perm).
+ * say n = perm.size().
+ * Returns ret such that.
+ * 0<=i<n: ret[perm[i]] = i
+ *
+ * ret = perm^{-1}
+ *
+ * Identity(n) = [0, 1, ..., n-1].
+ * perm_compose(perm, perm_invert(perm)) = Identity(n).
+ 
+ */
 inline TensorPerm
 perm_invert(const TensorPerm& perm) {
   TensorPerm ret(perm.size());
@@ -223,6 +259,7 @@ group_partition(const TensorVec<TensorLabel>& label_groups_1,
     }
     ret_labels.push_back(ret_group);
   }
+  Expects(ret_labels.size() == label_groups_1.size());
   return ret_labels;
 }
 
@@ -234,6 +271,27 @@ group_partition(const TensorVec<SymmGroup>& indices1,
   auto label_groups_1 = group_labels(indices1, label1);
   auto label_groups_2 = group_labels(indices2, label2);
   return group_partition(label_groups_1, label_groups_2);
+}
+
+inline TensorVec<TensorVec<TensorLabel>>
+group_partition(const TensorVec<SymmGroup>& indices1,
+                const TensorLabel& label1,
+                const TensorVec<SymmGroup>& indices2,
+                const TensorLabel& label2,
+                const TensorVec<SymmGroup>& indices3,
+                const TensorLabel& label3) {
+  auto label_groups_1 = group_labels(indices1, label1);
+  auto label_groups_2 = group_labels(indices2, label2);
+  auto label_groups_3 = group_labels(indices3, label3);
+  auto grp12 = group_partition(label_groups_1, label_groups_2);
+  auto grp13 = group_partition(label_groups_1, label_groups_3);
+  Expects(grp12.size() == grp13.size());
+  auto grp = grp12;
+  for(size_t i=0; i<grp.size(); i++) {
+    grp[i].insert_back(grp13[i].begin(), grp13[i].end());
+  }
+  Expects(grp.size() == indices1.size());
+  return grp;
 }
 
 using std::to_string;

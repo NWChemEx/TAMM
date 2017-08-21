@@ -30,6 +30,7 @@ class MemoryManager {
   virtual MemoryManager* clone(ProcGroup) const = 0;
 
   virtual void* access(Offset off) = 0;
+  virtual const void* access(Offset off) const = 0;
   virtual void get(Proc proc, Offset off, Size nelements, void* buf) = 0;
   virtual void put(Proc proc, Offset off, Size nelements, const void* buf) = 0;
   virtual void add(Proc proc, Offset off, Size nelements, const void* buf) = 0;
@@ -87,6 +88,13 @@ class MemoryManagerSequential : public MemoryManager {
   }
 
   void* access(Offset off) {
+    Expects(allocation_status_ == AllocationStatus::created ||
+            allocation_status_ == AllocationStatus::attached);
+    Expects(off < nelements_);
+    return &buf_[elsize_ * off.value()];
+  }
+
+  const void* access(Offset off) const {
     Expects(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     Expects(off < nelements_);

@@ -677,7 +677,7 @@ test_mult_no_n(tammx::ExecutionContext& ec,
                const std::vector<tamm::IndexName>& alower_labels,
                const std::vector<tamm::IndexName>& bupper_labels,
                const std::vector<tamm::IndexName>& blower_labels) {
-  test_mult_no_n(*g_ec, alpha, cupper_labels, clower_labels,
+  return test_mult_no_n(*g_ec, alpha, cupper_labels, clower_labels,
 		  aupper_labels, alower_labels, bupper_labels, blower_labels);
 }
 

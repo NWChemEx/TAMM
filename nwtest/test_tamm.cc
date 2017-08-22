@@ -3368,6 +3368,8 @@ void tammx_finalize() {
 }
 
 #include "../nwtest/ccsd_t1_test.cc"
+#include "../nwtest/ccsd_t2_test.cc"
+
 
 int main(int argc, char *argv[]) {
   bool intorb = false;
@@ -3393,7 +3395,7 @@ int main(int argc, char *argv[]) {
   
   MPI_Init(&argc, &argv);
   GA_Initialize();
-  MA_init(MT_DBL, 1000000, 8000000);
+  MA_init(MT_DBL, 8000000, 20000000);
 
   fortran_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);    
   tamm_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);    

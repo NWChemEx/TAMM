@@ -209,7 +209,7 @@ void index_sortacc_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
   assert(dbuf);
 
   if (p1 == 1 && p2 == 2 && p3 == 3 && p4 == 4) {
-    copy(sbuf, dbuf, sz1 * sz2 * sz3 * sz4, alpha);
+    copy_add(sbuf, dbuf, sz1 * sz2 * sz3 * sz4, alpha);
   } else {
     size_t i[4], c;
     size_t sz[4] = {sz1, sz2, sz3, sz4};

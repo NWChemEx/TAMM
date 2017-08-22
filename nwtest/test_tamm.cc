@@ -3369,6 +3369,8 @@ void tammx_finalize() {
 
 #include "../nwtest/ccsd_t1_test.cc"
 #include "../nwtest/ccsd_t2_test.cc"
+#include "../nwtest/cc2_t1_test.cc"
+#include "../nwtest/cc2_t2_test.cc"
 
 
 int main(int argc, char *argv[]) {

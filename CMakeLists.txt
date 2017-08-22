@@ -21,8 +21,8 @@ set (TAMM_VERSION_MINOR 1)
 #Cannot set the following since cmake cannot handle clang
 #set(CMAKE_CXX_STANDARD 14)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -fPIC -Ofast  -Wextra  -Wall")
-set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} -Wextra  -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -fPIC -Ofast")#  -Wextra  -Wall")
+set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} -std=c++14")# -Wextra  -Wall")
 #set(CMAKE_CXX_FLAGS_MINSIZEREL     "")
 #set(CMAKE_CXX_FLAGS_RELEASE        "")
 #set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "")
@@ -160,7 +160,7 @@ nwtest/cc2_t2.F
 )
 
 set(TESTING_DEPS_SRC
-nwtest/fort_assign_tests.cc
+#nwtest/fort_assign_tests.cc
 #nwtest/ccsd_t1_test.cc
 #nwtest/ccsd_t2_test.cc
 )

@@ -166,7 +166,11 @@ class Distribution_NW : public Distribution {
     proc_offsets_.push_back(total_size_);
   }
 
- private:
+  const std::vector<TCE::Int>& hash() const {
+    return hash_;
+  }
+
+private:
   TCE::Int compute_key(const TensorIndex& blockid) const {
     TCE::Int key;
     TensorVec<TCE::Int> offsets, bases;

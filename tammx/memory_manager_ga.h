@@ -197,6 +197,14 @@ class MemoryManagerGA : public MemoryManager {
     // std::cout<<"---memory_manager_ga. done add. lo="<<lo<<" hi="<<hi<<" ld="<<ld<<std::endl;
   }
 
+  int ga() {
+    return ga_;
+  }
+
+  int64_t *map() {
+    return map_.get();
+  }
+  
  protected:
 
   static int to_ga_eltype(ElementType eltype) {

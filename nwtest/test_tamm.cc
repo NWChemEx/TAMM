@@ -624,6 +624,7 @@ bool test_assign_no_n(tammx::ExecutionContext& ec,
 			aupper_labels,
 			alower_labels);
 }
+
 bool
 test_mult_no_n(tammx::ExecutionContext& ec,
                double alpha,
@@ -3484,3 +3485,653 @@ int main(int argc, char *argv[]) {
   MPI_Finalize();
   return ret;
 }
+
+////////////////////////////////////////////////
+
+namespace tammx {
+namespace new_impl {
+TensorVec<SymmGroup>
+tammx_label_to_indices(const tammx::TensorLabel& labels) {
+  tammx::TensorVec<tammx::SymmGroup> ret;
+  tammx::TensorDim tdims;
+  
+  for(auto l : labels) {
+    tdims.push_back(l.dt);
+  }
+  size_t n = labels.size();
+  tammx::SymmGroup sg;
+  for(auto dt: tdims) {
+    if (sg.size() == 0) {
+      sg.push_back(dt);
+    } else if(sg.back() == dt) {
+      sg.push_back(dt);
+    } else {
+      ret.push_back(sg);
+      sg = SymmGroup();
+      sg.push_back(dt);
+    }
+  }
+  if(sg.size() > 0) {
+    ret.push_back(sg);
+  }
+  return ret;
+}
+
+// tammx::TensorVec<tammx::SymmGroup>
+// tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup) {
+//   tammx::TensorVec<tammx::SymmGroup> ret;
+
+//   int nlo = dims.size() - nup;
+//   if(nup==0) {
+//     //no-op
+//   } else if(nup == 1) {
+//     tammx::SymmGroup sg{dims[0]};
+//     ret.push_back(sg);
+//   } else if (nup == 2) {
+//     if(dims[0] == dims[1]) {
+//       tammx::SymmGroup sg{dims[0], dims[1]};
+//       ret.push_back(sg);      
+//     }
+//     else {
+//       tammx::SymmGroup sg1{dims[0]}, sg2{dims[1]};
+//       ret.push_back(sg1);
+//       ret.push_back(sg2);
+//     }
+//   } else {
+//     assert(0);
+//   }
+
+//   if(nlo==0) {
+//     //no-op
+//   } else if(nlo == 1) {
+//     tammx::SymmGroup sg{dims[nup]};
+//     ret.push_back(sg);
+//   } else if (nlo == 2) {
+//     if(dims[nup + 0] == dims[nup + 1]) {
+//       tammx::SymmGroup sg{dims[nup + 0], dims[nup + 1]};
+//       ret.push_back(sg);      
+//     }
+//     else {
+//       tammx::SymmGroup sg1{dims[nup + 0]}, sg2{dims[nup + 1]};
+//       ret.push_back(sg1);
+//       ret.push_back(sg2);
+//     }
+//   } else {
+//     assert(0);
+//   }
+//   return ret;
+// }
+
+template<typename T>
+void
+tammx_tensor_dump(const tammx::Tensor<T>& tensor, std::ostream& os) {
+  const auto& buf = static_cast<const T*>(tensor.memory_manager()->access(tammx::Offset{0}));
+  size_t sz = tensor.memory_manager()->local_size_in_elements().value();
+  for(size_t i=0; i<sz; i++) {
+    os<<buf[i]<<" ";
+  }
+  os<<std::endl;
+}
+
+template<typename LabeledTensorType> 
+void
+tammx_symmetrize(tammx::ExecutionContext& ec, LabeledTensorType ltensor) {
+  auto &tensor = *ltensor.tensor_;
+  auto &label = ltensor.label_;
+  const auto &indices = tensor.indices();
+  Expects(tensor.flindices().size() == label.size());
+
+  auto label_copy = label;
+  size_t off = 0;
+  for(auto& sg: indices) {
+    if(sg.size() > 1) {
+      //@todo handle other cases
+      assert(sg.size() == 2);
+      std::swap(label_copy[off], label_copy[off+1]);
+      ec.scheduler()
+          .io(tensor)
+          (tensor(label) += tensor(label_copy))
+          (tensor(label) += -0.5*tensor(label))
+          .execute();
+      std::swap(label_copy[off], label_copy[off+1]);
+    }
+    off += sg.size();
+  }
+}
+
+template<typename LabeledTensorType>
+void
+tammx_tensor_fill(tammx::ExecutionContext& ec,
+                  LabeledTensorType ltensor) {
+  using T = typename LabeledTensorType::element_type;
+  auto init_lambda = [](tammx::Block<T> &block) {
+    double n = std::rand()%100;
+    auto dbuf = block.buf();
+    for(size_t i=0; i<block.size(); i++) {
+      dbuf[i] = T{n+i};
+      // std::cout<<"init_lambda. dbuf["<<i<<"]="<<dbuf[i]<<std::endl;
+    }
+  };
+  
+  tensor_map(ltensor, init_lambda);
+  tammx_symmetrize(ec, ltensor);
+}
+
+template<typename LabeledTensorType>
+bool
+tammx_tensors_are_equal(tammx::ExecutionContext& ec,
+                        const LabeledTensorType& ta,
+                        const LabeledTensorType& tb,
+                        double threshold = 1.0e-14) {
+  auto asz = ta.memory_manager()->local_size_in_elements().value();
+  auto bsz = tb.memory_manager()->local_size_in_elements().value();
+
+  if(asz != bsz) {
+    return false;
+  }
+
+  using T = typename LabeledTensorType::element_type;
+  const auto abuf = reinterpret_cast<const T*>(ta.memory_manager()->access(tammx::Offset{0}));
+  const auto bbuf = reinterpret_cast<const T*>(tb.memory_manager()->access(tammx::Offset{0}));
+  bool ret = true;
+  for(int i=0; i<asz; i++) {
+    if(std::abs(abuf[i] - bbuf[i]) > threshold) {
+      ret = false;
+      break;
+    }
+  }
+  return ret;
+}
+
+bool
+test_initval_no_n(tammx::ExecutionContext& ec,
+                  const TensorLabel& upper_labels,
+                  const TensorLabel& lower_labels) {
+  const auto& upper_indices = tammx_label_to_indices(upper_labels);
+  const auto& lower_indices = tammx_label_to_indices(lower_labels);
+
+  tammx::TensorRank nupper {upper_labels.size()};
+  tammx::TensorVec<tammx::SymmGroup> indices {upper_indices};
+  indices.insert_back(lower_indices.begin(), lower_indices.end());
+  tammx::Tensor<double> xta {indices, nupper, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtc {indices, nupper, tammx::Irrep{0}, false};
+
+  double init_val = 9.1;
+  
+  g_ec->allocate(xta, xtc);
+  g_ec->scheduler()
+      .io(xta, xtc)
+      (xta() = init_val)
+      (xtc() = xta())
+      .execute();
+
+  tammx::TensorIndex id {indices.size(), tammx::BlockDim{0}};
+  auto sz = xta.memory_manager()->local_size_in_elements().value();
+
+  bool ret = true;
+  const double threshold = 1e-14;
+  const auto abuf = reinterpret_cast<double*>(xta.memory_manager()->access(tammx::Offset{0}));
+  const auto cbuf = reinterpret_cast<double*>(xtc.memory_manager()->access(tammx::Offset{0}));
+  for(int i=0; i<sz; i++) {
+    if(std::abs(abuf[i] - init_val) > threshold) {
+      ret = false;
+      break;
+    }
+  }
+  if(ret == true) {
+    for(int i=0; i<sz; i++) {
+      if(std::abs(cbuf[i] - init_val) > threshold) {
+        return false;
+      }
+    }
+  }
+  g_ec->deallocate(xta, xtc);
+  return ret;
+}
+
+bool
+test_symm_assign(tammx::ExecutionContext& ec,
+                 const tammx::TensorVec<tammx::SymmGroup>& cindices,
+                 const tammx::TensorVec<tammx::SymmGroup>& aindices,
+                 int nupper_indices,
+                 const tammx::TensorLabel& clabels,
+                 double alpha,
+                 const std::vector<int>& factors,
+                 const std::vector<tammx::TensorLabel>& alabels) {
+  assert(factors.size() > 0);
+  assert(factors.size() == alabels.size());
+  bool restricted = ec.is_spin_restricted();
+  //auto restricted = tamm::Variables::restricted();
+  //auto clabels = tamm_label_to_tammx_label(tclabels);
+  // std::vector<tammx::TensorLabel> alabels;
+  // for(const auto& tal: talabels) {
+  //   alabels.push_back(tamm_label_to_tammx_label(tal));
+  // }
+  tammx::TensorRank nup{nupper_indices};
+  tammx::Tensor<double> tc{cindices, nup, tammx::Irrep{0}, restricted};
+  tammx::Tensor<double> ta{aindices, nup, tammx::Irrep{0}, restricted};
+  tammx::Tensor<double> tc2{aindices, nup, tammx::Irrep{0}, restricted};
+
+  bool status = true;
+
+  ec.allocate(tc, tc2, ta);
+
+  ec.scheduler()
+      .io(ta, tc, tc2)
+      (ta() = 0)
+      (tc() = 0)
+      (tc2() = 0)
+      .execute();
+
+  auto init_lambda = [](tammx::Block<double> &block) {
+    double n = std::rand()%100;
+    auto dbuf = block.buf();
+    for(size_t i=0; i<block.size(); i++) {
+      dbuf[i] = n+i;
+      // std::cout<<"init_lambda. dbuf["<<i<<"]="<<dbuf[i]<<std::endl;
+    }
+    //std::generate_n(reinterpret_cast<double *>(block.buf()), block.size(), [&]() { return n++; });
+  };
+
+  
+  tensor_map(ta(), init_lambda);
+  tammx_symmetrize(ec, ta());
+  // std::cout<<"TA=\n";
+  // tammx_tensor_dump(ta, std::cout);
+  
+  //std::cout<<"<<<<<<<<<<<<<<<<<<<<<<<<<"<<std::endl;
+  ec.scheduler()
+      .io(tc, ta)
+      (tc(clabels) += alpha * ta(alabels[0]))
+      .execute();
+  //std::cout<<">>>>>>>>>>>>>>>>>>>>>>>>>>>>"<<std::endl;
+
+  for(size_t i=0; i < factors.size(); i++) {
+    //std::cout<<"++++++++++++++++++++++++++"<<std::endl;
+    ec.scheduler()
+        .io(tc2, ta)
+        (tc2(clabels) += alpha * factors[i] * ta(alabels[i]))
+        .execute();
+    //std::cout<<"---------------------------"<<std::endl;
+  }
+  // std::cout<<"TA=\n";
+  // tammx_tensor_dump(ta, std::cout);
+  // std::cout<<"TC=\n";
+  // tammx_tensor_dump(tc, std::cout);
+  // std::cout<<"TC2=\n";
+  // tammx_tensor_dump(tc2, std::cout);
+  // std::cout<<"\n";
+  ec.scheduler()
+      .io(tc, tc2)
+      (tc2(clabels) += -1.0 * tc(clabels))
+      .execute();
+  // std::cout<<"TC - TC2=\n";
+  // tammx_tensor_dump(tc2, std::cout);
+  // std::cout<<"\n";
+
+  double threshold = 1e-12;
+  auto lambda = [&] (auto &val) {
+    if(std::abs(val) > threshold) {
+      //std::cout<<"----ERROR----\n";
+    }
+    status &= (std::abs(val) < threshold);
+  };
+  ec.scheduler()
+      .io(tc2)
+      .sop(tc2(), lambda)
+      .execute();
+  ec.deallocate(tc, tc2, ta);
+  return status;
+}
+
+template<typename T>
+void
+tammx_assign(tammx::ExecutionContext& ec,
+             tammx::Tensor<T>& tc,
+             const TensorLabel& clabel,
+             double alpha,
+             tammx::Tensor<T>& ta,
+             const TensorLabel& alabel) {
+  // auto al = tamm_label_to_tammx_label(alabel);
+  // auto cl = tamm_label_to_tammx_label(clabel);
+  auto& al = alabel;
+  auto& cl = clabel;
+  
+  // std::cout<<"----AL="<<al<<std::endl;
+  // std::cout<<"----CL="<<cl<<std::endl;
+  ec.scheduler()
+      .io((tc), (ta))
+      ((tc)(cl) += alpha * (ta)(al))
+      .execute();
+
+  // delete ta;
+  // delete tc;
+}
+
+template<typename T>
+void
+tammx_mult(tammx::ExecutionContext& ec,
+           tammx::Tensor<T> &tc,
+           const tammx::TensorLabel& clabel,
+           double alpha,
+           tammx::Tensor<T> &ta,
+           const tammx::TensorLabel& alabel,
+           tammx::Tensor<T> &tb,
+           const tammx::TensorLabel& blabel) {
+  // tammx::Tensor<double> *ta = tamm_tensor_to_tammx_tensor(ec.pg(), tta);
+  // tammx::Tensor<double> *tb = tamm_tensor_to_tammx_tensor(ec.pg(), ttb);
+  // tammx::Tensor<double> *tc = tamm_tensor_to_tammx_tensor(ec.pg(), ttc);
+   
+  // auto al = tamm_label_to_tammx_label(alabel);
+  // auto bl = tamm_label_to_tammx_label(blabel);
+  // auto cl = tamm_label_to_tammx_label(clabel);
+
+  auto& al = alabel;
+  auto& bl = blabel;
+  auto& cl = clabel;  
+  
+  {
+    std::cout<<"tammx_mult. A = ";
+    tammx_tensor_dump(ta, std::cout);
+    std::cout<<"tammx_mult. B = ";
+    tammx_tensor_dump(tb, std::cout);
+    std::cout<<"tammx_mult. C = ";
+    tammx_tensor_dump(tc, std::cout);
+  }
+   
+  // std::cout<<"----AL="<<al<<std::endl;
+  // std::cout<<"----BL="<<bl<<std::endl;
+  // std::cout<<"----CL="<<cl<<std::endl;
+  ec.scheduler()
+      .io((tc), (ta), (tb))
+      ((tc)() = 0)
+      ((tc)(cl) += alpha * (ta)(al) * (tb)(bl))
+      .execute();
+   
+  // delete ta;
+  // delete tb;
+  // delete tc;
+}
+
+//////////////////////////////////////////////////////
+//
+//           tamm stuff
+//
+/////////////////////////////////////////////////////
+
+void
+tamm_assign(tamm::Tensor* tc,
+            const std::vector<tamm::IndexName>& clabel,
+            double alpha,
+            tamm::Tensor* ta,
+            const std::vector<tamm::IndexName>& alabel) {
+  tamm::Assignment as(tc, ta, alpha, clabel, alabel);
+  as.execute();
+}
+
+void
+tamm_mult(tamm::Tensor* tc,
+          const std::vector<tamm::IndexName>& clabel,
+          double alpha,
+          tamm::Tensor* ta,
+          const std::vector<tamm::IndexName>& alabel,
+          tamm::Tensor* tb,
+          const std::vector<tamm::IndexName>& blabel) {
+  tamm::Multiplication mult(tc, clabel, ta, alabel, tb, blabel, alpha);
+  mult.execute();
+}
+
+/////////////////////////////////////////////////////////
+//
+//             tamm vx tammx
+//
+////////////////////////////////////////////////////////
+
+
+tamm::IndexName
+tammx_label_to_tamm_label(const tammx::IndexLabel& label) {
+  tamm::IndexName ret;
+
+  if(label.dt == tammx::DimType::o) {
+    ret = static_cast<tamm::IndexName>(tamm::H1B + label.label);
+  } else if(label.dt == tammx::DimType::v) {
+    ret = static_cast<tamm::IndexName>(tamm::P1B + label.label);
+  } else {
+    assert(0); //@note unsupported
+  }
+  return ret;
+}
+
+std::vector<tamm::IndexName>
+tammx_label_to_tamm_label(const tammx::TensorLabel& label) {
+  std::vector<tamm::IndexName> ret;
+  for(auto l: label) {
+    ret.push_back(tammx_label_to_tamm_label(l));
+  }
+  return ret;
+}
+
+std::vector<tamm::RangeType>
+tamm_labels_to_ranges(const std::vector<tamm::IndexName>& labels) {
+  std::vector<tamm::RangeType> ret;
+  for(auto l : labels) {
+    ret.push_back(tamm_idname_to_tamm_range(l));
+  }
+  return ret;
+}
+
+tamm::RangeType
+tammx_dim_to_tamm_rangetype(tammx::DimType dt) {
+  tamm::RangeType ret;
+  switch(dt) {
+    case DimType::o:
+      return tamm::TO;
+      break;
+    case DimType::v:
+      return tamm::TV;
+      break;
+    case DimType::n:
+      return tamm::TN;
+      break;
+    default:
+      assert(0);
+  }
+  return ret;
+}
+
+std::pair<tamm::Tensor*, Integer*>
+tammx_tensor_to_tamm_tensor(tammx::Tensor<double>& ttensor) {
+  int ndim = ttensor.rank();
+  int nupper = ttensor.nupper_indices();
+  int irrep = ttensor.irrep().value();
+  tamm::DistType dist_type = tamm::dist_nw;
+
+  std::vector<tamm::RangeType> rt;
+  for(auto id: ttensor.flindices()) {
+    rt.push_back(tammx_dim_to_tamm_rangetype(id));
+  }
+  
+  auto ptensor = new tamm::Tensor{ndim, nupper, irrep, &rt[0], dist_type};
+  auto mgr_ga = static_cast<tammx::MemoryManagerGA*>(ttensor.memory_manager());
+  auto map = mgr_ga->map();
+  auto length = 2*map[0]+1;
+  Integer *offset_map = new Integer[length];
+  for(size_t i=0; i<length; i++) {
+    offset_map[i] = map[i];
+  }
+  auto fma_offset_index = offset_map - tamm::Variables::int_mb();
+  auto fma_offset_handle = -1; //@todo @bug FIX THIS
+  auto array_handle = mgr_ga->ga();
+  ptensor->attach(fma_offset_index, fma_offset_handle, array_handle);
+  return {ptensor, offset_map};
+}
+
+void
+tamm_assign(tammx::Tensor<double>& ttc,
+            const TensorLabel& tclabel,
+            double alpha,
+            tammx::Tensor<double>& tta,
+            const TensorLabel& talabel) {
+  tamm::Tensor *ta, *tc;
+  Integer *amap, *cmap;
+  std::tie(ta, amap) = tammx_tensor_to_tamm_tensor(tta);
+  std::tie(tc, cmap)  = tammx_tensor_to_tamm_tensor(ttc);  
+  const auto& clabel = tammx_label_to_tamm_label(tclabel);
+  const auto& alabel = tammx_label_to_tamm_label(talabel);
+  tamm_assign(tc, clabel, alpha, ta, alabel);
+  delete ta;
+  delete tc;
+  delete amap;
+  delete cmap;
+}
+
+void
+tamm_mult(tammx::Tensor<double>& ttc,
+          const TensorLabel& tclabel,
+          double alpha,
+          tammx::Tensor<double>& tta,
+          const TensorLabel& talabel,
+          tammx::Tensor<double>& ttb,
+          const TensorLabel& tblabel) {
+  tamm::Tensor *ta, *tb, *tc;
+  Integer *amap, *bmap, *cmap;
+  std::tie(ta, amap) = tammx_tensor_to_tamm_tensor(tta);
+  std::tie(tb, bmap) = tammx_tensor_to_tamm_tensor(ttb);
+  std::tie(tc, cmap) = tammx_tensor_to_tamm_tensor(ttc);  
+  const auto& clabel = tammx_label_to_tamm_label(tclabel);
+  const auto& alabel = tammx_label_to_tamm_label(talabel);
+  const auto& blabel = tammx_label_to_tamm_label(tblabel);
+  tamm_mult(tc, clabel, alpha, ta, alabel, tb, blabel);
+  delete ta;
+  delete tb;
+  delete tc;
+  delete amap;
+  delete bmap;
+  delete cmap;
+}
+
+
+bool
+test_assign_no_n(tammx::ExecutionContext& ec,
+                 double alpha,
+                 const tammx::TensorLabel& cupper_labels,
+                 const tammx::TensorLabel& clower_labels,
+                 const tammx::TensorLabel& aupper_labels,
+                 const tammx::TensorLabel& alower_labels) {
+  const auto& cupper_indices = tammx_label_to_indices(cupper_labels);
+  const auto& clower_indices = tammx_label_to_indices(clower_labels);
+  const auto& aupper_indices = tammx_label_to_indices(aupper_labels);
+  const auto& alower_indices = tammx_label_to_indices(alower_labels);
+
+  auto cindices = cupper_indices;
+  cindices.insert_back(clower_indices.begin(), clower_indices.end());
+  auto aindices = aupper_indices;
+  aindices.insert_back(alower_indices.begin(), alower_indices.end());
+  auto irrep = ec.irrep();
+  auto restricted = ec.is_spin_restricted();
+  auto cnup = cupper_labels.size();
+  auto anup = aupper_labels.size();
+  
+  tammx::Tensor<double> tc1{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> tc2{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> ta{aindices, anup, irrep, restricted};
+
+  ec.allocate(ta, tc1, tc2);  
+  tammx_tensor_fill(ec, ta());
+
+  auto clabels = cupper_labels;
+  clabels.insert_back(clower_labels.begin(), clower_labels.end());
+  auto alabels = aupper_labels;
+  alabels.insert_back(alower_labels.begin(), alower_labels.end());
+  
+  tamm_assign(tc1, clabels, alpha, ta, alabels);
+  tammx_assign(ec, tc2, clabels, alpha, ta, alabels);
+
+  bool status = tammx_tensors_are_equal(ec, tc1, tc2);
+
+  ec.deallocate(tc1, tc2, ta);
+  return status;
+}
+
+bool
+test_assign_no_n(tammx::ExecutionContext& ec,
+                 const TensorLabel& cupper_labels,
+                 const TensorLabel& clower_labels,
+                 double alpha,
+                 const TensorLabel& aupper_labels,
+                 const TensorLabel& alower_labels) {
+	return test_assign_no_n(ec, alpha, cupper_labels, clower_labels,
+                          aupper_labels,
+                          alower_labels);
+}
+
+
+bool
+test_mult_no_n(tammx::ExecutionContext& ec,
+               double alpha,
+               const TensorLabel& cupper_labels,
+               const TensorLabel& clower_labels,
+               const TensorLabel& aupper_labels,
+               const TensorLabel& alower_labels,
+               const TensorLabel& bupper_labels,
+               const TensorLabel& blower_labels) {
+  const auto& cupper_indices = tammx_label_to_indices(cupper_labels);
+  const auto& clower_indices = tammx_label_to_indices(clower_labels);
+  const auto& aupper_indices = tammx_label_to_indices(aupper_labels);
+  const auto& alower_indices = tammx_label_to_indices(alower_labels);
+  const auto& bupper_indices = tammx_label_to_indices(bupper_labels);
+  const auto& blower_indices = tammx_label_to_indices(blower_labels);
+
+  auto cindices = cupper_indices;
+  cindices.insert_back(clower_indices.begin(), clower_indices.end());
+  auto aindices = aupper_indices;
+  aindices.insert_back(alower_indices.begin(), alower_indices.end());
+  auto bindices = bupper_indices;
+  bindices.insert_back(blower_indices.begin(), blower_indices.end());
+  auto irrep = ec.irrep();
+  auto restricted = ec.is_spin_restricted();
+  auto cnup = cupper_labels.size();
+  auto anup = aupper_labels.size();
+  auto bnup = bupper_labels.size();
+  
+  tammx::Tensor<double> tc1{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> tc2{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> ta{aindices, anup, irrep, restricted};
+  tammx::Tensor<double> tb{bindices, bnup, irrep, restricted};
+
+  ec.allocate(ta, tb, tc1, tc2);  
+  tammx_tensor_fill(ec, ta());
+  tammx_tensor_fill(ec, tb());
+
+  auto clabels = cupper_labels;
+  clabels.insert_back(clower_labels.begin(), clower_labels.end());
+  auto alabels = aupper_labels;
+  alabels.insert_back(alower_labels.begin(), alower_labels.end());
+  auto blabels = bupper_labels;
+  blabels.insert_back(blower_labels.begin(), blower_labels.end());
+  
+  tamm_mult(tc1, clabels, alpha, ta, alabels, tb, blabels);
+  tammx_mult(ec, tc2, clabels, alpha, ta, alabels, tb, blabels);
+
+  bool status = tammx_tensors_are_equal(ec, tc1, tc2);
+
+  ec.deallocate(tc1, tc2, ta, tb);
+  return status;
+}
+
+bool
+test_mult_no_n(tammx::ExecutionContext& ec,
+               const TensorLabel& cupper_labels,
+               const TensorLabel& clower_labels,
+               double alpha,
+               const TensorLabel& aupper_labels,
+               const TensorLabel& alower_labels,
+               const TensorLabel& bupper_labels,
+               const TensorLabel& blower_labels) {
+  return test_mult_no_n(ec, alpha, cupper_labels, clower_labels,
+                        aupper_labels, alower_labels, bupper_labels, blower_labels);
+}
+
+}
+}
+

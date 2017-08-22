@@ -256,6 +256,7 @@ class MemoryManagerGA : public MemoryManager {
   AllocationStatus allocation_status_;
   size_t elsize_;
   std::unique_ptr<int64_t[]> map_;
+    size_t map_size_;
 
   //constants for NGA_Acc call
   float sp_alpha = 1.0;

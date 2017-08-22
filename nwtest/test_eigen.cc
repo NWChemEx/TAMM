@@ -516,21 +516,20 @@ bool test_assign_no_n(tammx::ExecutionContext& ec,
   TensorDim ta_dim = ta_e1->flindices();
   auto ta_nd = ta_dim.size();
 
-  std::cout << "dims\n";
-  std::cout << ta_dim.at(0) << std::endl;
-  std::cout << ta_dim.at(1) << std::endl;
-  std::cout << "tan_nd: " << ta_nd << std::endl;
+
 
   DimType d1 = ta_dim.at(0), d2=ta_dim.at(0);
 
   auto sz1 = tammx_dim_range(d1);
   auto sz2 = tammx_dim_range(d2);
 
+  std::cout << "dims\n";
+  std::cout << ta_dim.at(0) << "::" << sz1 << std::endl;
+  std::cout << ta_dim.at(1) << "::" << sz2 << std::endl;
+  std::cout << "tan_nd: " << ta_nd << std::endl;
+
   Matrix eigen_ta = Matrix::Zero(sz1,sz2);
   Matrix eigen_tc = Matrix::Zero(sz1,sz2);
-
-  // Matrix eigen_ta = Matrix::Zero(16,16);
-  // Matrix eigen_tc = Matrix::Zero(16,16);
 
   //Tensor Map
   tensor_map((*ta_e1)(), [&](auto& block) {
@@ -539,10 +538,20 @@ bool test_assign_no_n(tammx::ExecutionContext& ec,
     const auto& block_dims = block.block_dims();
     Expects(block.tensor().rank() == 2);
     int c = 0;
-    for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-      for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+    BlockDim blo1,blo2, bhi1,bhi2;
+    std::tie(blo1, bhi1) = tensor_index_range(d1);
+    std::tie(blo2, bhi2) = tensor_index_range(d2);
+    std::cout <<  block_offset[0] << ":" << block_offset[0] + block_dims[0] <<  " --- " <<  TCE::offset(blo1-1) << ":" << TCE::offset(bhi1-1) << std::endl;
+    std::cout <<  block_offset[1] << ":" << block_offset[1] + block_dims[1] << " --- " <<  TCE::offset(blo2-1) << " : " << TCE::offset(bhi2-1) << std::endl;
+
+    auto bo1 = block_offset[0] % TCE::offset(bhi1-1);
+    auto bo2 = block_offset[1] % TCE::offset(bhi2-1);
+
+    for (auto i = bo1; i < bo1 + block_dims[0]; i++) {
+      for (auto j = bo2; j < bo2 + block_dims[1];
            j++, c++) {
         eigen_ta(i.value(), j.value()) = buf[c];
+        //std::cout << "c[" << c << "] = " << buf[c] << std::endl;
       }
     }
   });
@@ -554,20 +563,20 @@ bool test_assign_no_n(tammx::ExecutionContext& ec,
   Tensor<double> e2tx_tc{ta_e1->indices(), ta_e1->nupper_indices(),ec.irrep(), ec.is_spin_restricted()};
   Tensor<double>::allocate(ec.pg(), ec.distribution(), ec.memory_manager(), e2tx_tc);
 
-  tensor_map(e2tx_tc(), [&](auto& block) {
-    auto buf = block.buf();
-    const auto& block_offset = block.block_offset();
-    const auto& block_dims = block.block_dims();
-
-    Expects(block.tensor().rank() == 2);
-    int c = 0;
-    for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-      for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
-           j++, c++) {
-        buf[c] = eigen_tc(i.value(), j.value());
-      }
-    }
-  });
+//  tensor_map(e2tx_tc(), [&](auto& block) {
+//    auto buf = block.buf();
+//    const auto& block_offset = block.block_offset();
+//    const auto& block_dims = block.block_dims();
+//
+//    Expects(block.tensor().rank() == 2);
+//    int c = 0;
+//    for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
+//      for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+//           j++, c++) {
+//        buf[c] = eigen_tc(i.value(), j.value());
+//      }
+//    }
+//  });
 
   bool status = tc1.check_correctness(&tc2);
   // status = tc1.check_correctness(&e2tx_tc);

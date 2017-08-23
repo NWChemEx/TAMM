@@ -48,3 +48,12 @@ bool test_assign_no_n(tammx::ExecutionContext& ec,
                       const std::vector<tamm::IndexName>& aupper_labels,
                       const std::vector<tamm::IndexName>& alower_labels,
 					  add_fn fortran_assign_fn);
+
+
+bool test_assign_no_n(tammx::ExecutionContext& ec,
+                 const tammx::TensorLabel &cupper_labels,
+                 const tammx::TensorLabel &clower_labels,
+                 double alpha,
+                 const tammx::TensorLabel &aupper_labels,
+                 const tammx::TensorLabel &alower_labels,
+                 add_fn fortran_assign_fn);

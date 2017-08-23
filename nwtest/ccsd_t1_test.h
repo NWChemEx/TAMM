@@ -13,6 +13,11 @@ TEST (CCSD_T1, t1_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {p2}, {h1}, 1.0, {p2}, {h1}));
 }
 
+TEST (FORT_CCSD_T1, t1_1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, {p2}, {h1}, 1.0, {p2}, {h1},
+              ccsd_t1_1_));
+}
+
 TEST (CCSD_T1, t1_2_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {h7}, {h1}, 1.0, {h7}, {h1}));
 }

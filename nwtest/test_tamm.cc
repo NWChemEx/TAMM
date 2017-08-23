@@ -1384,11 +1384,11 @@ eigen_perm_compute(const TensorLabel& from, const TensorLabel& to) {
 
 template<int ndim>
 void
-eigen_assign_dispatch(EigenTensorBase* tc,
-            const std::vector<tamm::IndexName>& clabel,
-            double alpha,
-            EigenTensorBase* ta,
-            const std::vector<tamm::IndexName>& alabel) {
+eigen_assign_dispatch(EigenTensorBase *tc,
+                      const TensorLabel &clabel,
+                      double alpha,
+                      EigenTensorBase *ta,
+                      const TensorLabel &alabel) {
   assert(alabel.size() == ndim);
   assert(clabel.size() == ndim);
   auto eperm = eigen_perm_compute<ndim>(alabel, clabel);
@@ -1400,32 +1400,30 @@ eigen_assign_dispatch(EigenTensorBase* tc,
 }
 
 //void
-//eigen_assign(EigenTensorBase* tc,
-//            const std::vector<tamm::IndexName>& clabel,
-//            double alpha,
-//            EigenTensorBase* ta,
-//            const std::vector<tamm::IndexName>& alabel) {
+//eigen_assign(EigenTensorBase *tc,
+//             const TensorLabel &clabel,
+//             double alpha,
+//             EigenTensorBase *ta,
+//             const TensorLabel &alabel) {
 //  Expects(clabel.size() == alabel.size());
-//  if(clabel.size() == 0) {
+//  if (clabel.size() == 0) {
 //    assert(0); //@todo implement
-//  } else if(clabel.size() == 1) {
+//  } else if (clabel.size() == 1) {
 //    eigen_assign_dispatch<1>(tc, clabel, alpha, ta, alabel);
-//  } else if(clabel.size() == 2) {
+//  } else if (clabel.size() == 2) {
 //    eigen_assign_dispatch<2>(tc, clabel, alpha, ta, alabel);
-//  } else if(clabel.size() == 3) {
+//  } else if (clabel.size() == 3) {
 //    eigen_assign_dispatch<3>(tc, clabel, alpha, ta, alabel);
-//  } else if(clabel.size() == 4) {
+//  } else if (clabel.size() == 4) {
 //    eigen_assign_dispatch<4>(tc, clabel, alpha, ta, alabel);
 //  } else {
 //    assert(0); //@todo implement
 //  }
-//
-//
-//
-//  tamm::Assignment as(tc, ta, alpha, clabel, alabel);
-//    as.execute();
+////  tamm::Assignment as(tc, ta, alpha, clabel, alabel);
+////    as.execute();
 //}
-//
+
+
 //void
 //eigen_mult(tamm::Tensor* tc,
 //          const std::vector<tamm::IndexName>& clabel,

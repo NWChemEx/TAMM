@@ -34,15 +34,16 @@ void tensor_print(Tensor<T>& t)  {
   Irrep irrep{0};
   bool spin_restricted = false;
   auto distribution = Distribution_NW();
-  auto mgr = MemoryManagerSequential();
-  auto pg = ProcGroup{};
+
+  auto pg = ProcGroup{MPI_COMM_WORLD};
+  auto mgr = MemoryManagerSequential(pg);
   Scheduler sch{pg, &distribution, &mgr, irrep, spin_restricted};
   using LabeledTensorType = LabeledTensor<T>;
   using Func = decltype(lambda);
   sch.io(t)
       // .template sop<Func, LabeledTensorType, 0>(t(), lambda)
-      .sop(t(), lambda)
-      .execute();
+    .sop(t(), lambda)
+    .execute();
 }
 
 template<typename T>
@@ -62,7 +63,7 @@ void ccsd_e(Scheduler &sch, Tensor<T>& f1, Tensor<T>& de,
       (de() = 0)
       (de()      +=        t1(p5,h6)       * i1(h6,p5))
       (de()      += 0.25 * t2(p1,p2,h3,h4) * v2(h3,h4,p1,p2))
-      .dealloc(i1);
+    .dealloc(i1);
 }
 
 template<typename T>
@@ -95,7 +96,7 @@ void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
       (t1_6_1(h4,h5,h1,p3) += -1   * t1(p6,h1)       * v2(h4,h5,p3,p6))
       (i0(p2,h1)           += -0.5 * t2(p2,p3,h4,h5) * t1_6_1(h4,h5,h1,p3))
       (i0(p2,h1)           += -0.5 * t2(p3,p4,h1,h5) * v2(h5,p2,p3,p4))
-      .dealloc(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1);
+    .dealloc(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1);
 }
 
 template<typename T>
@@ -162,8 +163,8 @@ void ccsd_t2(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
       (t2(p1,p2,h3,h4)           += 0.5  * t1(p1,h3) * t1(p2,h4))
       (i0(p3,p4,h1,h2)           += 0.5  * t2(p5,p6,h1,h2) * v2(p3,p4,p5,p6))
       (t2(p1,p2,h3,h4)           += -0.5 * t1(p1,h3) * t1(p2,h4))
-      .dealloc(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
-               t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1);
+    .dealloc(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
+             t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1);
 }
 
 /**
@@ -176,10 +177,10 @@ double ccsd_driver(ExecutionContext& ec,
                    int maxiter, double thresh,
                    double zshiftl,
                    int ndiis) {
-                 // ,
-                 //   ProcGroup pg,
-                 //   Distribution* distribution,
-                 //   MemoryManager* mgr) {
+  // ,
+  //   ProcGroup pg,
+  //   Distribution* distribution,
+  //   MemoryManager* mgr) {
   Irrep irrep{0};
   bool spin_restricted = false;
   std::vector<double> p_evl_sorted;
@@ -239,6 +240,8 @@ double ccsd_driver(ExecutionContext& ec,
     return *resblock.buf();
   };
 
+  std::cout << "debug ccsd 1\n";
+
   double corr = 0;
   double residual = 0.0;
   double energy = 0.0;
@@ -248,19 +251,19 @@ double ccsd_driver(ExecutionContext& ec,
       Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
       int off = iter - titer;
       sch.io(d_t1, d_t2, d_f1, d_v2)
-          .output(d_e, *d_r1s[off], *d_r2s[off], d_r1_residual, d_r2_residual);
+        .output(d_e, *d_r1s[off], *d_r2s[off], d_r1_residual, d_r2_residual);
       ccsd_e(sch, d_f1, d_e, d_t1, d_t2, d_v2);
       ccsd_t1(sch, d_f1, *d_r1s[off], d_t1, d_t2, d_v2);
       ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
       sch(d_r1_residual() = 0)
-          (d_r1_residual() += (*d_r1s[off])()  * (*d_r1s[off])())
-          (d_r2_residual() = 0)
-          (d_r2_residual() += (*d_r2s[off])()  * (*d_r2s[off])())
-          ;
+        (d_r1_residual() += (*d_r1s[off])()  * (*d_r1s[off])())
+        (d_r2_residual() = 0)
+        (d_r2_residual() += (*d_r2s[off])()  * (*d_r2s[off])())
+        ;
       sch.execute();
       std::cerr<<"----------------------------------------------"<<std::endl;
 
-      
+
       double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
       double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
       residual = std::max(r1, r2);
@@ -289,6 +292,8 @@ double ccsd_driver(ExecutionContext& ec,
     // intermediates? possibly use variadic templates?
     diis<T>(sch, rs, ts);
   }
+
+  std::cout << "debug ccsd 2\n";
 
   for(int i=0; i<ndiis; i++) {
     Tensor<T>::deallocate(*d_r1s[i], *d_r2s[i]);
@@ -336,6 +341,8 @@ extern std::tuple<Matrix, Tensor4D, double> hartree_fock(const string filename);
 
 int main(int argc, char *argv[]) {
   MPI_Init(&argc, &argv);
+
+
   TCE::init(spins, spatials, sizes,
             noa,
             noab,
@@ -359,9 +366,12 @@ int main(int argc, char *argv[]) {
   double zshiftl = 1.0;
   int ndiis = 6;
 
+
   auto distribution = Distribution_NW();
-  auto mgr = MemoryManagerSequential();
-  auto pg = ProcGroup{};
+
+  auto pg = ProcGroup{MPI_COMM_WORLD};
+  auto mgr = MemoryManagerSequential(pg);
+
 
   Tensor<T>::allocate(pg, &distribution, &mgr, d_t1, d_t2, d_f1, d_v2);
 
@@ -392,7 +402,7 @@ int main(int argc, char *argv[]) {
     }
   });
 
- tensor_print(d_f1);
+  tensor_print(d_f1);
   std::cerr << "debug1" << '\n';
 
   tensor_map(d_v2(), [&](auto& block) {
@@ -414,24 +424,29 @@ int main(int argc, char *argv[]) {
     }
   });
 
+  std::cerr << "debug3" << '\n';
   ExecutionContext ec {pg, &distribution, &mgr, Irrep{0}, false};
-  
+
   // Scheduler(pg, &distribution, &mgr, Irrep{0}, false)
   ec.scheduler()
-      .output(d_t1, d_t2)
+    .output(d_t1, d_t2)
       (d_t1() = 0)
       (d_t2() = 0)
-      .execute();
-  
+    .execute();
+
   //end tensor map
 
   ccsd_driver(ec, d_t1, d_t2, d_f1, d_v2,
               maxiter, thresh, zshiftl,
               ndiis);
+
+  std::cerr << "debug4" << '\n';
   // pg,
   //             &distribution, &mgr);
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
+
   TCE::finalize();
+
   MPI_Finalize();
   return 0;
 }

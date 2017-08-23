@@ -859,14 +859,6 @@ void tammx_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted
 void tammx_finalize() {
   tammx::TCE::finalize();
 }
-//
-//#include "../nwtest/ccsd_t1_test.cc"
-//#include "../nwtest/ccsd_t2_test.cc"
-//#include "../nwtest/cc2_t1_test.cc"
-//#include "../nwtest/cc2_t2_test.cc"
-
-
-
 
 ////////////////////////////////////////////////
 
@@ -4162,6 +4154,11 @@ TEST (MultTest, Dim_v_v_0_lo) {
 
 #endif
 
+
+//#include "nwtest/ccsd_t1_test.h"
+#include "nwtest/ccsd_t2_test.h"
+#include "nwtest/cc2_t1_test.h"
+#include "nwtest/cc2_t2_test.h"
 
 //TEST (MultTest, FourDim_TwoDim_V1V2O1O2_O2V2) {
 //  ASSERT_TRUE(test_mult_no_n(*g_ec, 1.0, {P1B}, {H1B},

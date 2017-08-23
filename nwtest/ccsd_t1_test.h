@@ -8,11 +8,10 @@
 // Operated by Battelle for the U.S. Department of Energy
 //
 //------------------------------------------------------------------------------
-
+// i0 ( p2 h1 )_f + = 1 * f ( p2 h1 )_f
 TEST (CCSD_T1, t1_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {p2}, {h1}, 1.0, {p2}, {h1}));
 }
-
 TEST (FORT_CCSD_T1, t1_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {p2}, {h1}, 1.0, {p2}, {h1},
               ccsd_t1_1_));
@@ -45,9 +44,14 @@ TEST (CCSD_T1, t1_2_4) {
 		  {h5,h7}, {p3,p4}));
 }
 
+// i0 ( p2 h1 )_tf + = -1 * Sum ( h7 ) * t ( p2 h7 )_t * i1 ( h7 h1 )_f
 TEST (CCSD_T1, t1_2) {
   ASSERT_TRUE(test_mult_no_n(*g_ec, {p2}, {h1}, -1.0, {p2}, {h7}, {h7}, {h1}));
 }
+//TEST (FORT_CCSD_T1, t1_2) {
+//  ASSERT_TRUE(test_mult_no_n(*g_ec, {p2}, {h1}, -1.0, {p2}, {h7}, {h7}, {h1},
+//		  ccsd_t1_2_));
+//}
 
 TEST (CCSD_T1, t1_3_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {p2}, {p3}, 1.0, {p2}, {p3}));

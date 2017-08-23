@@ -3303,13 +3303,13 @@ TEST (AssignTest, FourDim_v1v2v3v4_v2v1v4v3) {
 
 #if MULT_TEST_1D_1D
 
-// TEST (MultTest, Dim_0_o_o_up) {
-//   ASSERT_TRUE(test_mult_no_n(*g_ec,
-//                              3.98,
-//                              {}, {},
-//                              {h1}, {},
-//                              {h1}, {}));
-// }
+ TEST (MultTest, Dim_0_o_o_up) {
+   ASSERT_TRUE(test_mult_no_n(*g_ec,
+                              3.98,
+                              {}, {},
+                              {h1}, {},
+                              {h1}, {}));
+ }
 
 // TEST (MultTest, Dim_oo_o_o) {
 //   ASSERT_TRUE(test_mult_no_n(*g_ec,
@@ -3318,7 +3318,7 @@ TEST (AssignTest, FourDim_v1v2v3v4_v2v1v4v3) {
 //                              {h1}, {},
 //                              {},   {h2}));
 // }
-
+//
 // TEST (MultTest, Dim_ov_o_v) {
 //   ASSERT_TRUE(test_mult_no_n(*g_ec,
 //                              3.98,
@@ -3326,7 +3326,7 @@ TEST (AssignTest, FourDim_v1v2v3v4_v2v1v4v3) {
 //                              {h1}, {},
 //                              {},   {p2}));
 // }
-
+//
 // TEST (MultTest, Dim_vo_v_o) {
 //   ASSERT_TRUE(test_mult_no_n(*g_ec,
 //                              3.98,
@@ -3334,7 +3334,7 @@ TEST (AssignTest, FourDim_v1v2v3v4_v2v1v4v3) {
 //                              {p1}, {},
 //                              {},   {h2}));
 // }
-
+//
 // TEST (MultTest, Dim_vv_v_v) {
 //   ASSERT_TRUE(test_mult_no_n(*g_ec,
 //                              3.98,

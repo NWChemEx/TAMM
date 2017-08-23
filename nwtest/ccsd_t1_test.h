@@ -48,10 +48,10 @@ TEST (CCSD_T1, t1_2_4) {
 TEST (CCSD_T1, t1_2) {
   ASSERT_TRUE(test_mult_no_n(*g_ec, {p2}, {h1}, -1.0, {p2}, {h7}, {h7}, {h1}));
 }
-//TEST (FORT_CCSD_T1, t1_2) {
-//  ASSERT_TRUE(test_mult_no_n(*g_ec, {p2}, {h1}, -1.0, {p2}, {h7}, {h7}, {h1},
-//		  ccsd_t1_2_));
-//}
+TEST (FORT_CCSD_T1, t1_2) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec, {p2}, {h1}, -1.0, {p2}, {h7}, {h7}, {h1},
+		  ccsd_t1_2_));
+}
 
 TEST (CCSD_T1, t1_3_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {p2}, {p3}, 1.0, {p2}, {p3}));

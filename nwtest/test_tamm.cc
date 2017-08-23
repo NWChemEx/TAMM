@@ -1770,6 +1770,71 @@ test_mult_no_n(tammx::ExecutionContext &ec,
                         aupper_labels, alower_labels, bupper_labels, blower_labels);
 }
 
+bool
+test_mult_no_n(tammx::ExecutionContext &ec,
+               const tammx::TensorLabel &cupper_labels,
+               const tammx::TensorLabel &clower_labels,
+               double alpha,
+               const tammx::TensorLabel &aupper_labels,
+               const tammx::TensorLabel &alower_labels,
+               const tammx::TensorLabel &bupper_labels,
+               const tammx::TensorLabel &blower_labels,
+               mult_fn fn ) {
+  const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
+  const auto &clower_indices = tammx_label_to_indices(clower_labels);
+  const auto &aupper_indices = tammx_label_to_indices(aupper_labels);
+  const auto &alower_indices = tammx_label_to_indices(alower_labels);
+  const auto &bupper_indices = tammx_label_to_indices(bupper_labels);
+  const auto &blower_indices = tammx_label_to_indices(blower_labels);
+
+  auto cindices = cupper_indices;
+  cindices.insert_back(clower_indices.begin(), clower_indices.end());
+  auto aindices = aupper_indices;
+  aindices.insert_back(alower_indices.begin(), alower_indices.end());
+  auto bindices = bupper_indices;
+  bindices.insert_back(blower_indices.begin(), blower_indices.end());
+  auto irrep = ec.irrep();
+  auto restricted = ec.is_spin_restricted();
+  auto cnup = cupper_labels.size();
+  auto anup = aupper_labels.size();
+  auto bnup = bupper_labels.size();
+
+  tammx::Tensor<double> tc1{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> tc2{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> tcf{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> ta{aindices, anup, irrep, restricted};
+  tammx::Tensor<double> tb{bindices, bnup, irrep, restricted};
+
+  ec.allocate(ta, tb, tc1, tc2, tcf);
+
+  ec.scheduler()
+    .io(ta, tb, tc1, tc2, tcf)
+      (ta() = 0)
+      (tb() = 0)
+      (tc1() = 0)
+      (tc2() = 0)
+      (tcf() = 0)
+    .execute();
+
+  tammx_tensor_fill(ec, ta());
+  tammx_tensor_fill(ec, tb());
+
+  auto clabels = cupper_labels;
+  clabels.insert_back(clower_labels.begin(), clower_labels.end());
+  auto alabels = aupper_labels;
+  alabels.insert_back(alower_labels.begin(), alower_labels.end());
+  auto blabels = bupper_labels;
+  blabels.insert_back(blower_labels.begin(), blower_labels.end());
+
+  tamm_mult(tc1, clabels, alpha, ta, alabels, tb, blabels);
+  tammx_mult(ec, tc2, clabels, alpha, ta, alabels, tb, blabels);
+  fortran_mult(tcf, ta, tb, fn);
+
+  bool status = tammx_tensors_are_equal(ec, tc1, tcf);
+
+  ec.deallocate(tc1, tc2, tcf, ta, tb);
+  return status;
+}
 
 tamm::RangeType
 tamm_id_to_tamm_range(const tamm::Index &id) {

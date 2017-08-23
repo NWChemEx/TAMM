@@ -368,11 +368,11 @@ int main(int argc, char *argv[]) {
 
 
   auto distribution = Distribution_NW();
-
   auto pg = ProcGroup{MPI_COMM_WORLD};
   auto mgr = MemoryManagerSequential(pg);
 
 
+#if 1
   Tensor<T>::allocate(pg, &distribution, &mgr, d_t1, d_t2, d_f1, d_v2);
 
   const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
@@ -444,7 +444,7 @@ int main(int argc, char *argv[]) {
   // pg,
   //             &distribution, &mgr);
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
-
+#endif
   TCE::finalize();
 
   MPI_Finalize();

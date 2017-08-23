@@ -1732,56 +1732,56 @@ tamm_labels_to_tammx_indices(const std::vector<tamm::IndexName> &labels) {
 //
 //-----------------------------------------------------------------------
 
-bool test_initval_no_n(tammx::ExecutionContext &ec,
-                       const std::vector<tamm::IndexName> &upper_labels,
-                       const std::vector<tamm::IndexName> &lower_labels) {
-  const auto &upper_indices = tamm_labels_to_tammx_indices(upper_labels);
-  const auto &lower_indices = tamm_labels_to_tammx_indices(lower_labels);
-
-  tammx::TensorRank nupper{upper_labels.size()};
-  tammx::TensorVec<tammx::SymmGroup> indices{upper_indices};
-  indices.insert_back(lower_indices.begin(), lower_indices.end());
-  tammx::Tensor<double> xta{indices, nupper, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xtc{indices, nupper, tammx::Irrep{0}, false};
-
-  double init_val = 9.1;
-
-  g_ec->allocate(xta, xtc);
-  g_ec->scheduler()
-    .io(xta, xtc)
-      (xta() = init_val)
-      (xtc() = xta())
-    .execute();
-
-  tammx::TensorIndex id{indices.size(), tammx::BlockDim{0}};
-  auto sz = xta.memory_manager()->local_size_in_elements().value();
-
-  bool ret = true;
-  const double threshold = 1e-14;
-  const auto abuf = reinterpret_cast<double *>(xta.memory_manager()->access(tammx::Offset{0}));
-  const auto cbuf = reinterpret_cast<double *>(xtc.memory_manager()->access(tammx::Offset{0}));
-  for (int i = 0; i < sz; i++) {
-    if (std::abs(abuf[i] - init_val) > threshold) {
-      ret = false;
-      break;
-    }
-  }
-  if (ret == true) {
-    for (int i = 0; i < sz; i++) {
-      if (std::abs(cbuf[i] - init_val) > threshold) {
-        return false;
-      }
-    }
-  }
-  g_ec->deallocate(xta, xtc);
-  return ret;
-}
+//bool test_initval_no_n(tammx::ExecutionContext &ec,
+//                       const std::vector<tamm::IndexName> &upper_labels,
+//                       const std::vector<tamm::IndexName> &lower_labels) {
+//  const auto &upper_indices = tamm_labels_to_tammx_indices(upper_labels);
+//  const auto &lower_indices = tamm_labels_to_tammx_indices(lower_labels);
+//
+//  tammx::TensorRank nupper{upper_labels.size()};
+//  tammx::TensorVec<tammx::SymmGroup> indices{upper_indices};
+//  indices.insert_back(lower_indices.begin(), lower_indices.end());
+//  tammx::Tensor<double> xta{indices, nupper, tammx::Irrep{0}, false};
+//  tammx::Tensor<double> xtc{indices, nupper, tammx::Irrep{0}, false};
+//
+//  double init_val = 9.1;
+//
+//  g_ec->allocate(xta, xtc);
+//  g_ec->scheduler()
+//    .io(xta, xtc)
+//      (xta() = init_val)
+//      (xtc() = xta())
+//    .execute();
+//
+//  tammx::TensorIndex id{indices.size(), tammx::BlockDim{0}};
+//  auto sz = xta.memory_manager()->local_size_in_elements().value();
+//
+//  bool ret = true;
+//  const double threshold = 1e-14;
+//  const auto abuf = reinterpret_cast<double *>(xta.memory_manager()->access(tammx::Offset{0}));
+//  const auto cbuf = reinterpret_cast<double *>(xtc.memory_manager()->access(tammx::Offset{0}));
+//  for (int i = 0; i < sz; i++) {
+//    if (std::abs(abuf[i] - init_val) > threshold) {
+//      ret = false;
+//      break;
+//    }
+//  }
+//  if (ret == true) {
+//    for (int i = 0; i < sz; i++) {
+//      if (std::abs(cbuf[i] - init_val) > threshold) {
+//        return false;
+//      }
+//    }
+//  }
+//  g_ec->deallocate(xta, xtc);
+//  return ret;
+//}
 
 #if INITVAL_TEST_0D
 
-//TEST (InitvalTest, ZeroDim) {
-//    ASSERT_TRUE(test_initval_no_n(*g_ec, {}, {}));
-//}
+TEST (InitvalTest, ZeroDim) {
+    ASSERT_TRUE(test_initval_no_n(*g_ec, {}, {}));
+}
 #endif
 
 #if INITVAL_TEST_1D
@@ -1962,40 +1962,43 @@ TEST (InitvalTest, FourDim) {
 //
 //-----------------------------------------------------------------------
 
-//#if ASSIGN_TEST_0D
-//
-////@todo tamm might not work with zero dimensions. So directly testing tammx.
-//TEST (AssignTest, ZeroDim) {
-//    auto ta = tamm_tensor({}, {});
-//    auto tc1 = tamm_tensor({}, {});
-//    auto tc2 = tamm_tensor({}, {});
-//
-//    tamm_create(&ta, &tc1, &tc2);
-//    ta.fill_given(0.91);
-//    //tamm_assign(&tc1, {}, 1.0, &ta, {});
-//    tammx_assign(*g_ec, &tc2, {}, 1.0, &ta, {});
-//    bool status = tc2.check_correctness(&ta);
-//    tamm_destroy(&ta, &tc1, &tc2);
-//    ASSERT_TRUE(status);
-//
-//    tammx::Tensor<double> xta {{}, 0, tammx::Irrep{0}, false};
-//    tammx::Tensor<double> xtc {{}, 0, tammx::Irrep{0}, false};
-//
-//    double init_val = 9.1;
-//
-//    g_ec->allocate(xta, xtc);
-//    g_ec->scheduler()
-//            .io(xta, xtc)
-//                    (xta() = init_val)
-//                    (xtc() = xta())
-//            .execute();
-//
-//    auto ablock = xta.get({});
-//    ASSERT_TRUE(*xta.get({}).buf() == init_val);
-//    ASSERT_TRUE(*xtc.get({}).buf() == init_val);
-//    g_ec->deallocate(xta, xtc);
-//}
-//#endif
+#if ASSIGN_TEST_0D
+
+//@todo tamm might not work with zero dimensions. So directly testing tammx.
+TEST (AssignTest, ZeroDim) {
+
+
+  tammx::TensorRank nupper{0};
+  tammx::Irrep irrep{0};
+  tammx::TensorVec<tammx::SymmGroup> indices{};
+  bool restricted = false;
+  tammx::Tensor<double> xta{indices, nupper, irrep, restricted};
+  tammx::Tensor<double> xtc{indices, nupper, irrep, restricted};
+
+  double init_val_a = 9.1, init_val_c = 8.2, alpha = 3.5;
+
+  g_ec->allocate(xta, xtc);
+  g_ec->scheduler()
+    .io(xta, xtc)
+      (xta() = init_val_a)
+      (xtc() = init_val_c)
+      (xtc() += alpha * xta())
+    .execute();
+
+  auto sz = xta.memory_manager()->local_size_in_elements().value();
+  bool status = true;
+  const double threshold = 1e-14;
+  const auto cbuf = reinterpret_cast<double *>(xtc.memory_manager()->access(tammx::Offset{0}));
+  for (int i = 0; i < sz; i++) {
+    if (std::abs(cbuf[i] - (init_val_a*alpha + init_val_c)) > threshold) {
+      status = false;
+      break;
+    }
+  }
+  g_ec->deallocate(xta, xtc);
+  ASSERT_TRUE(status);
+}
+#endif
 
 //-----------------------------------------------------------------------
 //

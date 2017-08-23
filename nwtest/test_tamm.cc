@@ -27,17 +27,20 @@
 #include <mpi.h>
 #include <ga.h>
 #include <macdecls.h>
+#include "nwtest.h"
+#include "fort_nwtest.h"
+#include "ccsd_t1_test.h"
 
-namespace {
-    tammx::ExecutionContext* g_ec;
-}
-
-class TestEnvironment : public testing::Environment {
-public:
-    explicit TestEnvironment(tammx::ExecutionContext* ec) {
-        g_ec = ec;
-    }
-};
+//namespace {
+//    tammx::ExecutionContext* g_ec;
+//}
+//
+//class TestEnvironment : public testing::Environment {
+//public:
+//    explicit TestEnvironment(tammx::ExecutionContext* ec) {
+//        g_ec = ec;
+//    }
+//};
 
 extern "C" {
 void init_fortran_vars_(Integer *noa1, Integer *nob1, Integer *nva1,
@@ -46,23 +49,23 @@ void init_fortran_vars_(Integer *noa1, Integer *nob1, Integer *nva1,
 void finalize_fortran_vars_();
 void f_calls_setvars_cxx_();
 
-void offset_ccsd_t1_2_1_(Integer *l_t1_2_1_offset, Integer *k_t1_2_1_offset,
-                         Integer *size_t1_2_1);
-
-typedef void add_fn(Integer *ta, Integer *offseta, Integer *irrepa,
-                    Integer *tc, Integer *offsetc, Integer *irrepc);
-
-typedef void mult_fn(Integer *ta, Integer *offseta, Integer *irrepa,
-                     Integer *tb, Integer *offsetb, Integer *irrepb,
-                     Integer *tc, Integer *offsetc, Integer *irrepc);
-
-typedef void mult_fn_2(Integer *ta, Integer *offseta,
-                       Integer *tb, Integer *offsetb,
-                       Integer *tc, Integer *offsetc);
-
-// add_fn ccsd_t1_1_;
-mult_fn ccsd_t1_2_;
-mult_fn_2 cc2_t1_5_;
+//void offset_ccsd_t1_2_1_(Integer *l_t1_2_1_offset, Integer *k_t1_2_1_offset,
+//                         Integer *size_t1_2_1);
+//
+//typedef void add_fn(Integer *ta, Integer *offseta, Integer *irrepa,
+//                    Integer *tc, Integer *offsetc, Integer *irrepc);
+//
+//typedef void mult_fn(Integer *ta, Integer *offseta, Integer *irrepa,
+//                     Integer *tb, Integer *offsetb, Integer *irrepb,
+//                     Integer *tc, Integer *offsetc, Integer *irrepc);
+//
+//typedef void mult_fn_2(Integer *ta, Integer *offseta,
+//                       Integer *tb, Integer *offsetb,
+//                       Integer *tc, Integer *offsetc);
+//
+//// add_fn ccsd_t1_1_;
+//mult_fn ccsd_t1_2_;
+//mult_fn_2 cc2_t1_5_;
 }
 
 //void
@@ -3315,7 +3318,7 @@ test_mult_no_n(tammx::ExecutionContext& ec,
 }
 
 
-using namespace tammx::tensor_labels;
+//using namespace tammx::tensor_labels;
 
 
 

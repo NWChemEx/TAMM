@@ -1672,10 +1672,11 @@ test_assign_no_n(tammx::ExecutionContext& ec,
   ec.allocate(ta, tc1, tc2, tcf);
 
   ec.scheduler()
-	.io(ta, tc1, tc2)
+	.io(ta, tc1, tc2, tcf)
 	  (ta() = 0)
 	  (tc1() = 0)
 	  (tc2() = 0)
+	  (tcf() = 0)
 	.execute();
 
   tammx_tensor_fill(ec, ta());
@@ -1689,7 +1690,7 @@ test_assign_no_n(tammx::ExecutionContext& ec,
   tammx_assign(ec, tc2, clabels, alpha, ta, alabels);
   fortran_assign(tcf, ta, fortran_assign_fn);
 
-  bool status = tammx_tensors_are_equal(ec, tc1, tcf);
+  bool status = tammx_tensors_are_equal(ec, tc2, tcf);
 
   ec.deallocate(tc1, tc2, ta, tcf);
   return status;

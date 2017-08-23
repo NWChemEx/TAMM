@@ -250,6 +250,83 @@ tamm_idname_to_tamm_range(const tamm::IndexName &idname) {
 //  fn(&da, &offseta, &irrepa, &db, &offsetb, &irrepb, &dc, &offsetc, &irrepc);
 //}
 //
+
+std::pair<Integer, Integer*>
+tammx_tensor_to_fortran_info(tammx::Tensor<double>& ttensor) {
+	auto adst_nw = static_cast<const tammx::Distribution_NW *>(ttensor.distribution());
+	 auto ahash = adst_nw->hash();
+	 auto length = 2 * ahash[0] + 1;
+	 Integer *offseta = new Integer[length];
+	 for (size_t i = 0; i < length; i++) {
+		offseta[i] = ahash[i];
+	 }
+
+	 auto amgr_ga = static_cast<tammx::MemoryManagerGA *>(ttensor.memory_manager());
+	Integer da = amgr_ga->ga();
+	return {da, offseta};
+}
+
+void
+fortran_assign(tammx::Tensor<double>& xtc,
+               tammx::Tensor<double>& xta,
+               add_fn fn) {
+	Integer da, *offseta_map;
+	Integer dc, *offsetc_map;
+std::tie(da, offseta_map) = tammx_tensor_to_fortran_info(xta);
+std::tie(dc, offsetc_map) = tammx_tensor_to_fortran_info(xtc);
+Integer irrepa = xta.irrep().value();
+Integer irrepc = xtc.irrep().value();
+
+auto offseta = offseta_map - tamm::Variables::int_mb();
+auto offsetc = offsetc_map - tamm::Variables::int_mb();
+
+  fn(&da, &offseta, &irrepa, &dc, &offsetc, &irrepc);
+  delete [] offseta_map;
+  delete [] offsetc_map;
+}
+
+void
+fortran_mult(tammx::Tensor<double>& xtc,
+             tammx::Tensor<double>& xta,
+             tammx::Tensor<double>& xtb,
+             mult_fn fn) {
+  Integer da, *offseta_map;
+  Integer db, *offsetb_map;
+  Integer dc, *offsetc_map;
+std::tie(da, offseta_map) = tammx_tensor_to_fortran_info(xta);
+std::tie(db, offsetb_map) = tammx_tensor_to_fortran_info(xtb);
+std::tie(dc, offsetc_map) = tammx_tensor_to_fortran_info(xtc);
+Integer irrepa = xta.irrep().value();
+Integer irrepb = xtb.irrep().value();
+Integer irrepc = xtc.irrep().value();
+
+auto offseta = offseta_map - tamm::Variables::int_mb();
+auto offsetb = offsetb_map - tamm::Variables::int_mb();
+auto offsetc = offsetc_map - tamm::Variables::int_mb();
+
+fn(&da, &offseta, &irrepa, &db, &offsetb, &irrepb, &dc, &offsetc, &irrepc);
+
+  delete [] offseta_map;
+  delete [] offsetb_map;
+  delete [] offsetc_map;
+}
+
+void
+fortran_mult_vvoo_vo(tamm::Tensor* tc,
+             tamm::Tensor* ta,
+             tamm::Tensor* tb,
+             mult_fn_2 fn) {
+  Integer da = static_cast<Integer>(ta->ga().ga()),
+      offseta = ta->offset_index(),
+      irrepa = ta->irrep();
+  Integer db = static_cast<Integer>(tb->ga().ga()),
+      offsetb = tb->offset_index(),
+      irrepb = tb->irrep();
+  Integer dc = static_cast<Integer>(tc->ga().ga()),
+      offsetc = tc->offset_index(),
+      irrepc = tc->irrep();
+  fn(&da, &offseta, &db, &offsetb, &dc, &offsetc);
+}
 //void
 //fortran_mult_vvoo_vo(tamm::Tensor* tc,
 //             tamm::Tensor* ta,
@@ -1472,8 +1549,8 @@ tamm_assign(tammx::Tensor<double> &ttc,
   tamm_assign(tc, clabel, alpha, ta, alabel);
   delete ta;
   delete tc;
-  delete amap;
-  delete cmap;
+  delete [] amap;
+  delete [] cmap;
 }
 
 void
@@ -1496,9 +1573,9 @@ tamm_mult(tammx::Tensor<double> &ttc,
   delete ta;
   delete tb;
   delete tc;
-  delete amap;
-  delete bmap;
-  delete cmap;
+  delete [] amap;
+  delete [] bmap;
+  delete [] cmap;
 }
 
 
@@ -1565,6 +1642,59 @@ test_assign_no_n(tammx::ExecutionContext &ec,
                           alower_labels);
 }
 
+bool
+test_assign_no_n(tammx::ExecutionContext& ec,
+                 const tammx::TensorLabel &cupper_labels,
+                 const tammx::TensorLabel &clower_labels,
+                 double alpha,
+                 const tammx::TensorLabel &aupper_labels,
+                 const tammx::TensorLabel &alower_labels,
+                 add_fn fortran_assign_fn) {
+
+  const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
+  const auto &clower_indices = tammx_label_to_indices(clower_labels);
+  const auto &aupper_indices = tammx_label_to_indices(aupper_labels);
+  const auto &alower_indices = tammx_label_to_indices(alower_labels);
+
+  auto cindices = cupper_indices;
+  cindices.insert_back(clower_indices.begin(), clower_indices.end());
+  auto aindices = aupper_indices;
+  aindices.insert_back(alower_indices.begin(), alower_indices.end());
+  auto irrep = ec.irrep();
+  auto restricted = ec.is_spin_restricted();
+  auto cnup = cupper_labels.size();
+  auto anup = aupper_labels.size();
+
+  tammx::Tensor<double> tc1{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> tc2{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> tcf{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> ta{aindices, anup, irrep, restricted};
+
+  ec.allocate(ta, tc1, tc2, tcf);
+
+  ec.scheduler()
+	.io(ta, tc1, tc2)
+	  (ta() = 0)
+	  (tc1() = 0)
+	  (tc2() = 0)
+	.execute();
+
+  tammx_tensor_fill(ec, ta());
+
+  auto clabels = cupper_labels;
+  clabels.insert_back(clower_labels.begin(), clower_labels.end());
+  auto alabels = aupper_labels;
+  alabels.insert_back(alower_labels.begin(), alower_labels.end());
+
+  tamm_assign(tc1, clabels, alpha, ta, alabels);
+  tammx_assign(ec, tc2, clabels, alpha, ta, alabels);
+  fortran_assign(tcf, ta, fortran_assign_fn);
+
+  bool status = tammx_tensors_are_equal(ec, tc1, tc2);
+
+  ec.deallocate(tc1, tc2, ta, tcf);
+  return status;
+}
 
 bool
 test_mult_no_n(tammx::ExecutionContext &ec,

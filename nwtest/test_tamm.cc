@@ -1690,7 +1690,7 @@ test_assign_no_n(tammx::ExecutionContext& ec,
   tammx_assign(ec, tc2, clabels, alpha, ta, alabels);
   fortran_assign(tcf, ta, fortran_assign_fn);
 
-  bool status = tammx_tensors_are_equal(ec, tc1, tc2);
+  bool status = tammx_tensors_are_equal(ec, tc1, tcf);
 
   ec.deallocate(tc1, tc2, ta, tcf);
   return status;

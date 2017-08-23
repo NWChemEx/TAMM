@@ -2934,6 +2934,106 @@ tamm_mult(tamm::Tensor* tc,
     mult.execute();
 }
 
+//////////////////////////////////////////////////////
+//
+//           Eigen stuff
+//
+/////////////////////////////////////////////////////
+
+// Eigen matrix algebra library
+#include <Eigen/Dense>
+#include <unsupported/Eigen/CXX11/Tensor>
+
+//using Tensor2D = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+using Tensor1D = Eigen::Tensor<double, 1, Eigen::RowMajor>;
+using Tensor2D = Eigen::Tensor<double, 2, Eigen::RowMajor>;
+using Tensor3D = Eigen::Tensor<double, 3, Eigen::RowMajor>;
+using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
+
+template<int ndim>
+using Perm<ndim> = Eigen::array<std::ptrdiff_t, ndim>;
+
+//extern std::tuple<Matrix, Tensor4D, double> hartree_fock(const string filename);
+
+
+class EigenTensorBase {
+};
+
+template<int ndim>
+class EigenTensor : public EigenTensorBase, Eigen::Tensor<double, ndim, Eigen::RowMajor> {
+};
+
+template<typename ndim>
+inline Perm<ndim>
+perm_compute(const TensorLabel& from, const TensorLabel& to) {
+  Perm<ndim> layout;
+
+  assert(from.size() == to.size());
+  assert(from.size() == ndim);
+  for(auto p : to) {
+    auto itr = std::find(from.begin(), from.end(), p);
+    Expects(itr != from.end());
+    layout.push_back(itr - from.begin());
+  }
+  return layout;
+}
+
+template<typename ndim>
+void
+eigen_assign_dispatch(EigenTensorBase* tc,
+            const std::vector<tamm::IndexName>& clabel,
+            double alpha,
+            EigenTensorBase* ta,
+            const std::vector<tamm::IndexName>& alabel) {
+  assert(alabel.size() == ndim);
+  assert(clabel.size() == ndim);
+  auto eperm = eigen_perm_compute<ndim>(alabel, clabel);
+  auto ec = static_cast<EigenTensor<ndim>*>(tc);
+  auto ea = static_cast<EigenTensor<ndim>*>(ta);
+  auto tmp = (*ea).shuffle(eperm);
+  tmp *= alpha;
+  (*ec) += tmp;  
+}
+
+void
+eigen_assign(EigenTensorBase* tc,
+            const std::vector<tamm::IndexName>& clabel,
+            double alpha,
+            EigenTensorBase* ta,
+            const std::vector<tamm::IndexName>& alabel) {
+  Expects(clabel.size() == alabel.size());
+  if(clabel.size() == 0) {
+    assert(0); //@todo implement
+  } else if(clabel.size() == 1) {
+    eigen_assign_dispatch<1>(tc, clabel, alpha, ta, alabel);
+  } else if(clabel.size() == 2) {
+    eigen_assign_dispatch<2>(tc, clabel, alpha, ta, alabel);
+  } else if(clabel.size() == 3) {
+    eigen_assign_dispatch<3>(tc, clabel, alpha, ta, alabel);
+  } else if(clabel.size() == 4) {
+    eigen_assign_dispatch<4>(tc, clabel, alpha, ta, alabel);
+  } else {
+    assert(0); //@todo implement
+  }
+
+
+  
+  tamm::Assignment as(tc, ta, alpha, clabel, alabel);
+    as.execute();
+}
+
+void
+tamm_mult(tamm::Tensor* tc,
+          const std::vector<tamm::IndexName>& clabel,
+          double alpha,
+          tamm::Tensor* ta,
+          const std::vector<tamm::IndexName>& alabel,
+          tamm::Tensor* tb,
+          const std::vector<tamm::IndexName>& blabel) {
+    tamm::Multiplication mult(tc, clabel, ta, alabel, tb, blabel, alpha);
+    mult.execute();
+}
+
 /////////////////////////////////////////////////////////
 //
 //             tamm vx tammx

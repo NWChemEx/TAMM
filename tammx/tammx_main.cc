@@ -64,11 +64,13 @@ void test() {
 
   Tensor<Type> ta {iinfo1, irrep, false};
   auto distribution = DistributionType();
-  auto mgr = MemoryManagerSequential();
-  ta.alloc(ProcGroup{}, &distribution, &mgr);
+
+  auto pg = ProcGroup{};
+  auto mgr = MemoryManagerSequential(pg);
+  ta.alloc(pg, &distribution, &mgr);
 
   {
-    Scheduler sch(ProcGroup{}, &distribution, &mgr, Irrep{0}, false);
+    Scheduler sch(pg, &distribution, &mgr, Irrep{0}, false);
     
     auto &tb = sch.tensor<Type>(iinfo1);
     

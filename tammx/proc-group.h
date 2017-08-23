@@ -13,12 +13,12 @@ namespace tammx {
 
 class ProcGroup {
  public:
-  ProcGroup() = default;
+  //ProcGroup() = default;
   ProcGroup(const ProcGroup&) = default;
   ProcGroup& operator = (const ProcGroup&) = default;
   ~ProcGroup() = default;
 
-  explicit ProcGroup(const MPI_Comm& comm) : comm_{comm} {}
+  explicit ProcGroup(MPI_Comm comm=MPI_COMM_NULL) : comm_{comm} {}
 
   Proc rank() const {
     int rank;
@@ -60,7 +60,7 @@ class ProcGroup {
   
 
  private:
-  MPI_Comm comm_ = MPI_COMM_NULL;
+  MPI_Comm comm_;// = MPI_COMM_NULL;
 
   friend bool operator == (const ProcGroup& lhs, const ProcGroup& rhs) {
     int result;

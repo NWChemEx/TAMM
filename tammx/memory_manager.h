@@ -43,7 +43,7 @@ class MemoryManager {
 
 class MemoryManagerSequential : public MemoryManager {
  public:
-  MemoryManagerSequential(ProcGroup pg = ProcGroup{})
+  MemoryManagerSequential(ProcGroup pg)
       : MemoryManager(pg),
         buf_{nullptr},
         elsize_{0},

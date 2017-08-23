@@ -18,7 +18,7 @@ class ProcGroup {
   ProcGroup& operator = (const ProcGroup&) = default;
   ~ProcGroup() = default;
 
-  explicit ProcGroup(MPI_Comm comm=MPI_COMM_NULL) : comm_{comm} {}
+  explicit ProcGroup(MPI_Comm comm = MPI_COMM_NULL) : comm_{comm} {}
 
   Proc rank() const {
     int rank;

@@ -1355,11 +1355,8 @@ using Tensor2D = Eigen::Tensor<double, 2, Eigen::RowMajor>;
 using Tensor3D = Eigen::Tensor<double, 3, Eigen::RowMajor>;
 using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 
-//template<int ndim>
-//using Perm<ndim> = Eigen::array<std::ptrdiff_t, ndim>;
-
-//extern std::tuple<Matrix, Tensor4D, double> hartree_fock(const string filename);
-
+template<int ndim>
+using Perm = Eigen::array<std::ptrdiff_t, ndim>;
 
 class EigenTensorBase {
 };
@@ -1368,38 +1365,40 @@ template<int ndim>
 class EigenTensor : public EigenTensorBase, Eigen::Tensor<double, ndim, Eigen::RowMajor> {
 };
 
-//template<typename ndim>
-//inline Perm<ndim>
-//perm_compute(const TensorLabel& from, const TensorLabel& to) {
-//  Perm<ndim> layout;
-//
-//  assert(from.size() == to.size());
-//  assert(from.size() == ndim);
-//  for(auto p : to) {
-//    auto itr = std::find(from.begin(), from.end(), p);
-//    Expects(itr != from.end());
-//    layout.push_back(itr - from.begin());
-//  }
-//  return layout;
-//}
-//
-//template<typename ndim>
-//void
-//eigen_assign_dispatch(EigenTensorBase* tc,
-//            const std::vector<tamm::IndexName>& clabel,
-//            double alpha,
-//            EigenTensorBase* ta,
-//            const std::vector<tamm::IndexName>& alabel) {
-//  assert(alabel.size() == ndim);
-//  assert(clabel.size() == ndim);
-//  auto eperm = eigen_perm_compute<ndim>(alabel, clabel);
-//  auto ec = static_cast<EigenTensor<ndim>*>(tc);
-//  auto ea = static_cast<EigenTensor<ndim>*>(ta);
-//  auto tmp = (*ea).shuffle(eperm);
-//  tmp *= alpha;
-//  (*ec) += tmp;
-//}
-//
+template<int ndim>
+inline Perm<ndim>
+eigen_perm_compute(const TensorLabel& from, const TensorLabel& to) {
+  Perm<ndim> layout;
+
+  assert(from.size() == to.size());
+  assert(from.size() == ndim);
+  int pa_index=0;
+  for(auto p : to) {
+    auto itr = std::find(from.begin(), from.end(), p);
+    Expects(itr != from.end());
+    layout(pa_index) = itr - from.begin();
+    pa_index++;
+  }
+  return layout;
+}
+
+template<int ndim>
+void
+eigen_assign_dispatch(EigenTensorBase* tc,
+            const std::vector<tamm::IndexName>& clabel,
+            double alpha,
+            EigenTensorBase* ta,
+            const std::vector<tamm::IndexName>& alabel) {
+  assert(alabel.size() == ndim);
+  assert(clabel.size() == ndim);
+  auto eperm = eigen_perm_compute<ndim>(alabel, clabel);
+  auto ec = static_cast<EigenTensor<ndim>*>(tc);
+  auto ea = static_cast<EigenTensor<ndim>*>(ta);
+  auto tmp = (*ea).shuffle(eperm);
+  tmp *= alpha;
+  (*ec) += tmp;
+}
+
 //void
 //eigen_assign(EigenTensorBase* tc,
 //            const std::vector<tamm::IndexName>& clabel,

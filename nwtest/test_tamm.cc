@@ -27,9 +27,12 @@
 #include <mpi.h>
 #include <ga.h>
 #include <macdecls.h>
-#include "nwtest.h"
-#include "fort_nwtest.h"
-#include "ccsd_t1_test.h"
+#include "nwtest/nwtest.h"
+#include "nwtest/fort_nwtest.h"
+#include "nwtest/ccsd_t1_test.h"
+#include "nwtest/ccsd_t2_test.h"
+#include "nwtest/cc2_t1_test.h"
+#include "nwtest/cc2_t2_test.h"
 
 //namespace {
 //    tammx::ExecutionContext* g_ec;
@@ -4155,11 +4158,6 @@ TEST (MultTest, Dim_v_v_0_lo) {
 #endif
 
 
-//#include "nwtest/ccsd_t1_test.h"
-#include "nwtest/ccsd_t2_test.h"
-#include "nwtest/cc2_t1_test.h"
-#include "nwtest/cc2_t2_test.h"
-
 //TEST (MultTest, FourDim_TwoDim_V1V2O1O2_O2V2) {
 //  ASSERT_TRUE(test_mult_no_n(*g_ec, 1.0, {P1B}, {H1B},
 //		  {P1B, P2B}, {H1B, H4B}, {H4B}, {P2B}));
@@ -4221,11 +4219,12 @@ int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
 
   int ret = 0;
-  {
+
     tammx::ExecutionContext ec{pg, &default_distribution, &default_memory_manager,
                                default_irrep, default_spin_restricted};
 
     testing::AddGlobalTestEnvironment(new TestEnvironment(&ec));
+
     // temporarily commented
     ret = RUN_ALL_TESTS();
     // test_assign_2d(ec);
@@ -4254,36 +4253,7 @@ test_assign_icsd_t2(ec);
 test_assign_ipccsd_x1(ec);
 test_assign_ipccsd_x2(ec);
 #endif
-    //   {
-    //     using tammx::TensorRank;
-    //     using tammx::TensorVec;
-    //     using tammx::SymmGroup;
-    //     using tammx::DimType;
 
-    //     auto cindices = TensorVec<SymmGroup>{SymmGroup{DimType::o,
-    //                                                    DimType::o},
-    //                                          SymmGroup{DimType::o}};
-    //     auto aindices = TensorVec<SymmGroup>{SymmGroup{DimType::o},
-    //                                          SymmGroup{DimType::o},
-    //                                          SymmGroup{DimType::o}};
-
-    //     auto clabels = tamm_label_to_tammx_label({h1,h2,h3});
-    //     auto alabels1 = tamm_label_to_tammx_label({h1,h2,h3});
-    //     auto alabels2 = tamm_label_to_tammx_label({h2,h1,h3});
-
-    //     std::cout<<"________"
-    //              <<test_symm_assign(ec,
-    //                                 cindices,
-    //                                 aindices,
-    //                                 2,
-    //                                 clabels,
-    //                                 2.5,
-    //                                 {0.5, -0.5},
-    //                                 {alabels1, alabels2}
-    //                                 )<<"\n";
-    //   }
-
-  }
   pg.destroy();
   tammx_finalize();
   tamm_finalize();
@@ -4293,5 +4263,5 @@ test_assign_ipccsd_x2(ec);
   MPI_Finalize();
   return ret;
 }
-//}
+
 

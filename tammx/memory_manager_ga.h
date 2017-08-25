@@ -55,6 +55,7 @@ class MemoryManagerGA : public MemoryManager {
     Expects(allocation_status_ == AllocationStatus::invalid);
     Expects(nelements >= 0);
     Expects(eltype != ElementType::invalid);
+    std::cout<<"MemoryManagerGA. Create. nelements="<<nelements<<std::endl;
     eltype_ = eltype;
     int ga_pg_default = GA_Pgroup_get_default();
     int nranks = pg_.size().value();
@@ -106,7 +107,7 @@ class MemoryManagerGA : public MemoryManager {
     NGA_Distribution64(ga_, pg_.rank().value(), &lo, &hi);
     Expects(lo == map_[pg_.rank().value()]);
     Expects(hi == map_[pg_.rank().value()] + nelements.value() - 1);
-    nelements_ = hi - lo;
+    nelements_ = hi - lo + 1;
 
     allocation_status_ = AllocationStatus::created;
   }

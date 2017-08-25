@@ -1366,6 +1366,8 @@ class EigenTensorBase {
 
 template<int ndim>
 class EigenTensor : public EigenTensorBase, public Eigen::Tensor<double, ndim, Eigen::RowMajor> {
+public:
+  EigenTensor(const std::array<long,ndim> &dims): Eigen::Tensor<double,ndim,Eigen::RowMajor>(dims) {}
 };
 
 template<int ndim>
@@ -1465,7 +1467,8 @@ EigenTensorBase*
 tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T>& tensor) {
   Expects(tensor.rank() == ndim);
   
-  std::array<int, ndim> lo_offset, hi_offset, dims;
+  std::array<int, ndim> lo_offset, hi_offset;
+  std::array<long,ndim> dims;
   const auto& flindices = tensor.flindices();
   for(int i=0; i<ndim; i++) {
     BlockDim blo, bhi;
@@ -1474,8 +1477,8 @@ tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T>& tensor) {
     hi_offset[i] = TCE::offset(bhi);
     dims[i] = hi_offset[i] - lo_offset[i];
   }
-  auto etensor = new Eigen::Tensor<T, ndim, Eigen::RowMajor>(dims);
-  
+  EigenTensor<ndim> *etensor = new EigenTensor<ndim>(dims);
+
   tammx::block_for(tensor(), [&] (const TensorIndex& blockid) {
       auto block = tensor.get(blockid);
       const TensorIndex& boffset = block.block_offset();
@@ -1483,14 +1486,14 @@ tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T>& tensor) {
       std::array<int, ndim> rel_offset;
       for(int i=0; i<ndim; i++) {
         Expects(boffset[i] < hi_offset[i]);
-        rel_offset[i] = boffset[i] - lo_offset[i];
+        rel_offset[i] = boffset[i].value() - lo_offset[i];
       }
       std::array<int, ndim> block_size;
       for(int i=0; i<ndim; i++) {
         block_size[i] = block_dims[i].value();
       }
       
-      patch_copy<T,ndim,decltype(*etensor)>(block.buf(), *etensor, block_size, rel_offset);
+      //patch_copy<T,ndim>(block.buf(), *etensor, block_size, rel_offset);
     });
   
   return etensor;
@@ -1499,11 +1502,13 @@ tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T>& tensor) {
  template<typename T>
  EigenTensorBase*
  tammx_tensor_to_eigen_tensor(tammx::Tensor<T>& tensor) {
-   if(tensor.rank() == 0) {
-     return tammx_tensor_to_eigen_tensor_dispatch<T,0>(tensor);
-   } else if (tensor.rank() == 1) {
-     return tammx_tensor_to_eigen_tensor_dispatch<T,1>(tensor);
-   } else if (tensor.rank() == 2) {
+//   if(tensor.rank() == 0) {
+//     return tammx_tensor_to_eigen_tensor_dispatch<T,0>(tensor);
+//   } else
+//   if (tensor.rank() == 1) {
+//     return tammx_tensor_to_eigen_tensor_dispatch<T,1>(tensor);
+//   } else
+  if (tensor.rank() == 2) {
      return tammx_tensor_to_eigen_tensor_dispatch<T,2>(tensor);
    } else if (tensor.rank() == 3) {
      return tammx_tensor_to_eigen_tensor_dispatch<T,3>(tensor);

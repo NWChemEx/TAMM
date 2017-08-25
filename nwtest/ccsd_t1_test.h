@@ -8,6 +8,7 @@
 // Operated by Battelle for the U.S. Department of Energy
 //
 //------------------------------------------------------------------------------
+
 // i0 ( p2 h1 )_f + = 1 * f ( p2 h1 )_f
 TEST (CCSD_T1, t1_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {p2}, {h1}, 1.0, {p2}, {h1}));
@@ -17,12 +18,22 @@ TEST (FORT_CCSD_T1, t1_1) {
               ccsd_t1_1_));
 }
 
+// i1 ( h7 h1 )_f + = 1 * f ( h7 h1 )_f
 TEST (CCSD_T1, t1_2_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {h7}, {h1}, 1.0, {h7}, {h1}));
 }
+TEST (FORT_CCSD_T1, t1_2_1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, {h7}, {h1}, 1.0, {h7}, {h1},
+              ccsd_t1_2_1_));
+}
 
+// i2 ( h7 p3 )_f + = 1 * f ( h7 p3 )_f
 TEST (CCSD_T1, t1_2_2_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec,{h7}, {p3}, 1.0, {h7}, {p3}));
+}
+TEST (FORT_CCSD_T1, t1_2_2_1) {
+	  ASSERT_TRUE(test_assign_no_n(*g_ec,{h7}, {p3}, 1.0, {h7}, {p3},
+			  ccsd_t1_2_2_1_));
 }
 
 TEST (CCSD_T1, t1_2_2_2) {
@@ -53,8 +64,13 @@ TEST (FORT_CCSD_T1, t1_2) {
 		  ccsd_t1_2_));
 }
 
+// i1 ( p2 p3 )_f + = 1 * f ( p2 p3 )_f
 TEST (CCSD_T1, t1_3_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {p2}, {p3}, 1.0, {p2}, {p3}));
+}
+TEST (FORT_CCSD_T1, t1_3_1) {
+	  ASSERT_TRUE(test_assign_no_n(*g_ec, {p2}, {p3}, 1.0, {p2}, {p3},
+			  ccsd_t1_3_1_));
 }
 
 TEST (CCSD_T1, t1_3_2) {
@@ -71,8 +87,13 @@ TEST (CCSD_T1, t1_4) {
 		  {h1,p3}));
 }
 
+// i1 ( h8 p7 )_f + = 1 * f ( h8 p7 )_f
 TEST (CCSD_T1, t1_5_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {h8}, {p7}, 1.0, {h8}, {p7}));
+}
+TEST (FORT_CCSD_T1, t1_5_1) {
+	  ASSERT_TRUE(test_assign_no_n(*g_ec, {h8}, {p7}, 1.0, {h8}, {p7},
+			  ccsd_t1_5_1_));
 }
 
 TEST (CCSD_T1, t1_5_2) {
@@ -85,9 +106,14 @@ TEST (CCSD_T1, t1_5) {
 		  {p7}));
 }
 
+// i1 ( h4 h5 h1 p3 )_v + = 1 * v ( h4 h5 h1 p3 )_v
 TEST (CCSD_T1, t1_6_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {h4,h5}, {h1,p3} , 1.0, {h4,h5},
 		  {h1,p3}));
+}
+TEST (FORT_CCSD_T1, t1_6_1) {
+	  ASSERT_TRUE(test_assign_no_n(*g_ec, {h4,h5}, {h1,p3} , 1.0, {h4,h5},
+			  {h1,p3}, ccsd_t1_6_1_));
 }
 
 TEST (CCSD_T1, t1_6_2) {

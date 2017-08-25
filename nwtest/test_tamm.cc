@@ -251,80 +251,80 @@ tamm_idname_to_tamm_range(const tamm::IndexName &idname) {
 //}
 //
 
-std::pair<Integer, Integer*>
-tammx_tensor_to_fortran_info(tammx::Tensor<double>& ttensor) {
-	auto adst_nw = static_cast<const tammx::Distribution_NW *>(ttensor.distribution());
-	 auto ahash = adst_nw->hash();
-	 auto length = 2 * ahash[0] + 1;
-	 Integer *offseta = new Integer[length];
-	 for (size_t i = 0; i < length; i++) {
-		offseta[i] = ahash[i];
-	 }
+std::pair<Integer, Integer *>
+tammx_tensor_to_fortran_info(tammx::Tensor<double> &ttensor) {
+  auto adst_nw = static_cast<const tammx::Distribution_NW *>(ttensor.distribution());
+  auto ahash = adst_nw->hash();
+  auto length = 2 * ahash[0] + 1;
+  Integer *offseta = new Integer[length];
+  for (size_t i = 0; i < length; i++) {
+    offseta[i] = ahash[i];
+  }
 
-	 auto amgr_ga = static_cast<tammx::MemoryManagerGA *>(ttensor.memory_manager());
-	Integer da = amgr_ga->ga();
-	return {da, offseta};
+  auto amgr_ga = static_cast<tammx::MemoryManagerGA *>(ttensor.memory_manager());
+  Integer da = amgr_ga->ga();
+  return {da, offseta};
 }
 
 void
-fortran_assign(tammx::Tensor<double>& xtc,
-               tammx::Tensor<double>& xta,
+fortran_assign(tammx::Tensor<double> &xtc,
+               tammx::Tensor<double> &xta,
                add_fn fn) {
-	Integer da, *offseta_map;
-	Integer dc, *offsetc_map;
-std::tie(da, offseta_map) = tammx_tensor_to_fortran_info(xta);
-std::tie(dc, offsetc_map) = tammx_tensor_to_fortran_info(xtc);
-Integer irrepa = xta.irrep().value();
-Integer irrepc = xtc.irrep().value();
+  Integer da, *offseta_map;
+  Integer dc, *offsetc_map;
+  std::tie(da, offseta_map) = tammx_tensor_to_fortran_info(xta);
+  std::tie(dc, offsetc_map) = tammx_tensor_to_fortran_info(xtc);
+  Integer irrepa = xta.irrep().value();
+  Integer irrepc = xtc.irrep().value();
 
-auto offseta = offseta_map - tamm::Variables::int_mb();
-auto offsetc = offsetc_map - tamm::Variables::int_mb();
+  auto offseta = offseta_map - tamm::Variables::int_mb();
+  auto offsetc = offsetc_map - tamm::Variables::int_mb();
 
   fn(&da, &offseta, &irrepa, &dc, &offsetc, &irrepc);
-  delete [] offseta_map;
-  delete [] offsetc_map;
+  delete[] offseta_map;
+  delete[] offsetc_map;
 }
 
 void
-fortran_mult(tammx::Tensor<double>& xtc,
-             tammx::Tensor<double>& xta,
-             tammx::Tensor<double>& xtb,
+fortran_mult(tammx::Tensor<double> &xtc,
+             tammx::Tensor<double> &xta,
+             tammx::Tensor<double> &xtb,
              mult_fn fn) {
   Integer da, *offseta_map;
   Integer db, *offsetb_map;
   Integer dc, *offsetc_map;
-std::tie(da, offseta_map) = tammx_tensor_to_fortran_info(xta);
-std::tie(db, offsetb_map) = tammx_tensor_to_fortran_info(xtb);
-std::tie(dc, offsetc_map) = tammx_tensor_to_fortran_info(xtc);
-Integer irrepa = xta.irrep().value();
-Integer irrepb = xtb.irrep().value();
-Integer irrepc = xtc.irrep().value();
+  std::tie(da, offseta_map) = tammx_tensor_to_fortran_info(xta);
+  std::tie(db, offsetb_map) = tammx_tensor_to_fortran_info(xtb);
+  std::tie(dc, offsetc_map) = tammx_tensor_to_fortran_info(xtc);
+  Integer irrepa = xta.irrep().value();
+  Integer irrepb = xtb.irrep().value();
+  Integer irrepc = xtc.irrep().value();
 
-auto offseta = offseta_map - tamm::Variables::int_mb();
-auto offsetb = offsetb_map - tamm::Variables::int_mb();
-auto offsetc = offsetc_map - tamm::Variables::int_mb();
+  auto offseta = offseta_map - tamm::Variables::int_mb();
+  auto offsetb = offsetb_map - tamm::Variables::int_mb();
+  auto offsetc = offsetc_map - tamm::Variables::int_mb();
 
-fn(&da, &offseta, &irrepa, &db, &offsetb, &irrepb, &dc, &offsetc, &irrepc);
+  fn(&da, &offseta, &irrepa, &db, &offsetb, &irrepb, &dc, &offsetc, &irrepc);
 
-  delete [] offseta_map;
-  delete [] offsetb_map;
-  delete [] offsetc_map;
+  delete[] offseta_map;
+  delete[] offsetb_map;
+  delete[] offsetc_map;
 }
 
 void
-fortran_mult_vvoo_vo(tamm::Tensor* tc,
-             tamm::Tensor* ta,
-             tamm::Tensor* tb,
-             mult_fn_2 fn) {
+fortran_mult_vvoo_vo(tamm::Tensor *tc,
+                     tamm::Tensor *ta,
+                     tamm::Tensor *tb,
+                     mult_fn_2 fn) {
   Integer da = static_cast<Integer>(ta->ga().ga()),
-      offseta = ta->offset_index(),
-      irrepa = ta->irrep();
+    offseta = ta->offset_index(),
+    irrepa = ta->irrep();
   Integer db = static_cast<Integer>(tb->ga().ga()),
-      offsetb = tb->offset_index(),
-      irrepb = tb->irrep();
+    offsetb = tb->offset_index(),
+    irrepb = tb->irrep();
   Integer dc = static_cast<Integer>(tc->ga().ga()),
-      offsetc = tc->offset_index(),
-      irrepc = tc->irrep();
+    offsetc = tc->offset_index(),
+    irrepc = tc->irrep();
   fn(&da, &offseta, &db, &offsetb, &dc, &offsetc);
 }
 //void
@@ -1022,8 +1022,8 @@ void
 tammx_tensor_dump(const tammx::Tensor<T> &tensor, std::ostream &os) {
   const auto &buf = static_cast<const T *>(tensor.memory_manager()->access(tammx::Offset{0}));
   size_t sz = tensor.memory_manager()->local_size_in_elements().value();
-  os<<"tensor size="<<sz<<std::endl;
-  os<<"tensor size (from distribution)="<<tensor.distribution()->buf_size(Proc{0})<<std::endl;
+  os << "tensor size=" << sz << std::endl;
+  os << "tensor size (from distribution)=" << tensor.distribution()->buf_size(Proc{0}) << std::endl;
   for (size_t i = 0; i < sz; i++) {
     os << buf[i] << " ";
   }
@@ -1066,7 +1066,7 @@ tammx_tensor_fill(tammx::ExecutionContext &ec,
     auto dbuf = block.buf();
     for (size_t i = 0; i < block.size(); i++) {
       dbuf[i] = T{n + i};
-      std::cout<<"init_lambda. dbuf["<<i<<"]="<<dbuf[i]<<std::endl;
+      std::cout << "init_lambda. dbuf[" << i << "]=" << dbuf[i] << std::endl;
     }
   };
 
@@ -1088,8 +1088,8 @@ tammx_tensors_are_equal(tammx::ExecutionContext &ec,
   }
 
   using T = typename LabeledTensorType::element_type;
-  const double* abuf = reinterpret_cast<const T *>(ta.memory_manager()->access(tammx::Offset{0}));
-  const double* bbuf = reinterpret_cast<const T *>(tb.memory_manager()->access(tammx::Offset{0}));
+  const double *abuf = reinterpret_cast<const T *>(ta.memory_manager()->access(tammx::Offset{0}));
+  const double *bbuf = reinterpret_cast<const T *>(tb.memory_manager()->access(tammx::Offset{0}));
   bool ret = true;
   for (int i = 0; i < asz; i++) {
     std::cout << abuf[i] << ": " << bbuf[i];
@@ -1367,18 +1367,18 @@ class EigenTensorBase {
 template<int ndim>
 class EigenTensor : public EigenTensorBase, public Eigen::Tensor<double, ndim, Eigen::RowMajor> {
 public:
-  EigenTensor(const std::array<long,ndim> &dims): Eigen::Tensor<double,ndim,Eigen::RowMajor>(dims) {}
+  EigenTensor(const std::array<long, ndim> &dims) : Eigen::Tensor<double, ndim, Eigen::RowMajor>(dims) {}
 };
 
 template<int ndim>
 inline Perm<ndim>
-eigen_perm_compute(const TensorLabel& from, const TensorLabel& to) {
+eigen_perm_compute(const TensorLabel &from, const TensorLabel &to) {
   Perm<ndim> layout;
 
   assert(from.size() == to.size());
   assert(from.size() == ndim);
-  int pa_index=0;
-  for(auto p : to) {
+  int pa_index = 0;
+  for (auto p : to) {
     auto itr = std::find(from.begin(), from.end(), p);
     Expects(itr != from.end());
     layout[pa_index] = itr - from.begin();
@@ -1397,8 +1397,8 @@ eigen_assign_dispatch(EigenTensorBase *tc,
   assert(alabel.size() == ndim);
   assert(clabel.size() == ndim);
   auto eperm = eigen_perm_compute<ndim>(alabel, clabel);
-  auto ec = static_cast<EigenTensor<ndim>*>(tc);
-  auto ea = static_cast<EigenTensor<ndim>*>(ta);
+  auto ec = static_cast<EigenTensor<ndim> *>(tc);
+  auto ea = static_cast<EigenTensor<ndim> *>(ta);
   auto tmp = (*ea).shuffle(eperm);
   tmp = tmp * alpha;
   (*ec) += tmp;
@@ -1406,24 +1406,24 @@ eigen_assign_dispatch(EigenTensorBase *tc,
 
 void
 eigen_assign(EigenTensorBase *tc,
-            const TensorLabel &clabel,
-            double alpha,
-            EigenTensorBase *ta,
-            const TensorLabel &alabel) {
- Expects(clabel.size() == alabel.size());
- if (clabel.size() == 0) {
-   assert(0); //@todo implement
- } else if (clabel.size() == 1) {
-   eigen_assign_dispatch<1>(tc, clabel, alpha, ta, alabel);
- } else if (clabel.size() == 2) {
-   eigen_assign_dispatch<2>(tc, clabel, alpha, ta, alabel);
- } else if (clabel.size() == 3) {
-   eigen_assign_dispatch<3>(tc, clabel, alpha, ta, alabel);
- } else if (clabel.size() == 4) {
-   eigen_assign_dispatch<4>(tc, clabel, alpha, ta, alabel);
- } else {
-   assert(0); //@todo implement
- }
+             const TensorLabel &clabel,
+             double alpha,
+             EigenTensorBase *ta,
+             const TensorLabel &alabel) {
+  Expects(clabel.size() == alabel.size());
+  if (clabel.size() == 0) {
+    assert(0); //@todo implement
+  } else if (clabel.size() == 1) {
+    eigen_assign_dispatch<1>(tc, clabel, alpha, ta, alabel);
+  } else if (clabel.size() == 2) {
+    eigen_assign_dispatch<2>(tc, clabel, alpha, ta, alabel);
+  } else if (clabel.size() == 3) {
+    eigen_assign_dispatch<3>(tc, clabel, alpha, ta, alabel);
+  } else if (clabel.size() == 4) {
+    eigen_assign_dispatch<4>(tc, clabel, alpha, ta, alabel);
+  } else {
+    assert(0); //@todo implement
+  }
 }
 
 
@@ -1448,29 +1448,92 @@ eigen_assign(EigenTensorBase *tc,
 
 size_t
 compute_tammx_dim_size(tammx::DimType dt) {
-  BlockDim blo, bhi;      
+  BlockDim blo, bhi;
   std::tie(blo, bhi) = tensor_index_range(dt);
   return TCE::offset(bhi) - TCE::offset(blo);
 }
 
 template<typename T, int ndim>
 void
-patch_copy(T* sbuf, Eigen::Tensor<T,ndim,Eigen::RowMajor>& etensor,
-           const std::array<int, ndim>& block_dims,
-           const std::array<int, ndim>& rel_offset) {
-  
+patch_copy(T *sbuf, Eigen::Tensor<T, ndim, Eigen::RowMajor> &etensor,
+           const std::array<int, ndim> &block_dims,
+           const std::array<int, ndim> &rel_offset) {
+  assert(0);
+}
+
+template<typename T>
+void
+patch_copy(T *sbuf, Eigen::Tensor<T, 1, Eigen::RowMajor> &etensor,
+           const std::array<int, 1> &block_dims,
+           const std::array<int, 1> &rel_offset) {
+  int c = 0;
+  for (auto i = rel_offset[0]; i < rel_offset[0] + block_dims[0]; i++, c++) {
+    etensor(i) = sbuf[c];
+  }
+
+}
+
+template<typename T>
+void
+patch_copy(T *sbuf, Eigen::Tensor<T, 2, Eigen::RowMajor> &etensor,
+           const std::array<int, 2> &block_dims,
+           const std::array<int, 2> &rel_offset) {
+  int c = 0;
+  for (auto i = rel_offset[0]; i < rel_offset[0] + block_dims[0]; i++) {
+    for (auto j = rel_offset[1]; j < rel_offset[1] + block_dims[1];
+         j++, c++) {
+      etensor(i, j) = sbuf[c];
+    }
+  }
 }
 
 
+template<typename T>
+void
+patch_copy(T *sbuf, Eigen::Tensor<T, 3, Eigen::RowMajor> &etensor,
+           const std::array<int, 3> &block_dims,
+           const std::array<int, 3> &rel_offset) {
+  int c = 0;
+  for (auto i = rel_offset[0]; i < rel_offset[0] + block_dims[0]; i++) {
+    for (auto j = rel_offset[1]; j < rel_offset[1] + block_dims[1];
+         j++) {
+      for (auto k = rel_offset[2]; j < rel_offset[2] + block_dims[2];
+           k++, c++) {
+        etensor(i, j, k) = sbuf[c];
+      }
+    }
+  }
+}
+
+template<typename T>
+void
+patch_copy(T *sbuf, Eigen::Tensor<T, 4, Eigen::RowMajor> &etensor,
+           const std::array<int, 4> &block_dims,
+           const std::array<int, 4> &rel_offset) {
+  int c = 0;
+  for (auto i = rel_offset[0]; i < rel_offset[0] + block_dims[0]; i++) {
+    for (auto j = rel_offset[1]; j < rel_offset[1] + block_dims[1];
+         j++) {
+      for (auto k = rel_offset[2]; k < rel_offset[2] + block_dims[2];
+           k++) {
+        for (auto l = rel_offset[3]; l < rel_offset[3] + block_dims[3];
+             l++, c++) {
+          etensor(i, j, k, l) = sbuf[c];
+        }
+      }
+    }
+  }
+}
+
 template<typename T, int ndim>
-EigenTensorBase*
-tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T>& tensor) {
+EigenTensorBase *
+tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T> &tensor) {
   Expects(tensor.rank() == ndim);
-  
+
   std::array<int, ndim> lo_offset, hi_offset;
-  std::array<long,ndim> dims;
-  const auto& flindices = tensor.flindices();
-  for(int i=0; i<ndim; i++) {
+  std::array<long, ndim> dims;
+  const auto &flindices = tensor.flindices();
+  for (int i = 0; i < ndim; i++) {
     BlockDim blo, bhi;
     std::tie(blo, bhi) = tensor_index_range(flindices[i]);
     lo_offset[i] = TCE::offset(blo);
@@ -1479,52 +1542,51 @@ tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T>& tensor) {
   }
   EigenTensor<ndim> *etensor = new EigenTensor<ndim>(dims);
 
-  tammx::block_for(tensor(), [&] (const TensorIndex& blockid) {
-      auto block = tensor.get(blockid);
-      const TensorIndex& boffset = block.block_offset();
-      const TensorIndex& block_dims = block.block_dims();
-      std::array<int, ndim> rel_offset;
-      for(int i=0; i<ndim; i++) {
-        Expects(boffset[i] < hi_offset[i]);
-        rel_offset[i] = boffset[i].value() - lo_offset[i];
-      }
-      std::array<int, ndim> block_size;
-      for(int i=0; i<ndim; i++) {
-        block_size[i] = block_dims[i].value();
-      }
-      
-      //patch_copy<T,ndim>(block.buf(), *etensor, block_size, rel_offset);
-    });
-  
+  tammx::block_for(tensor(), [&](const TensorIndex &blockid) {
+    auto block = tensor.get(blockid);
+    const TensorIndex &boffset = block.block_offset();
+    const TensorIndex &block_dims = block.block_dims();
+    std::array<int, ndim> rel_offset;
+    for (int i = 0; i < ndim; i++) {
+      Expects(boffset[i] < hi_offset[i]);
+      rel_offset[i] = boffset[i].value() - lo_offset[i];
+    }
+    std::array<int, ndim> block_size;
+    for (int i = 0; i < ndim; i++) {
+      block_size[i] = block_dims[i].value();
+    }
+
+    patch_copy<T, ndim>(block.buf(), *etensor, block_size, rel_offset);
+  });
+
   return etensor;
 }
 
- template<typename T>
- EigenTensorBase*
- tammx_tensor_to_eigen_tensor(tammx::Tensor<T>& tensor) {
+template<typename T>
+EigenTensorBase *
+tammx_tensor_to_eigen_tensor(tammx::Tensor<T> &tensor) {
 //   if(tensor.rank() == 0) {
 //     return tammx_tensor_to_eigen_tensor_dispatch<T,0>(tensor);
 //   } else
-//   if (tensor.rank() == 1) {
-//     return tammx_tensor_to_eigen_tensor_dispatch<T,1>(tensor);
-//   } else
-  if (tensor.rank() == 2) {
-     return tammx_tensor_to_eigen_tensor_dispatch<T,2>(tensor);
-   } else if (tensor.rank() == 3) {
-     return tammx_tensor_to_eigen_tensor_dispatch<T,3>(tensor);
-   } else if (tensor.rank() == 4) {
-     return tammx_tensor_to_eigen_tensor_dispatch<T,4>(tensor);
-   }
-   assert(0); //@todo implement
-   return nullptr;
- }
+  if (tensor.rank() == 1) {
+    return tammx_tensor_to_eigen_tensor_dispatch<T, 1>(tensor);
+  } else if (tensor.rank() == 2) {
+    return tammx_tensor_to_eigen_tensor_dispatch<T, 2>(tensor);
+  } else if (tensor.rank() == 3) {
+    return tammx_tensor_to_eigen_tensor_dispatch<T, 3>(tensor);
+  } else if (tensor.rank() == 4) {
+    return tammx_tensor_to_eigen_tensor_dispatch<T, 4>(tensor);
+  }
+  assert(0); //@todo implement
+  return nullptr;
+}
 
 void
 eigen_assign(tammx::Tensor<double> &ttc,
-            const tammx::TensorLabel &tclabel,
-            double alpha,
-            tammx::Tensor<double> &tta,
-            const tammx::TensorLabel &talabel) {
+             const tammx::TensorLabel &tclabel,
+             double alpha,
+             tammx::Tensor<double> &tta,
+             const tammx::TensorLabel &talabel) {
   EigenTensorBase *etc, *eta;
   etc = tammx_tensor_to_eigen_tensor(ttc);
   eta = tammx_tensor_to_eigen_tensor(tta);
@@ -1694,8 +1756,8 @@ tamm_assign(tammx::Tensor<double> &ttc,
   tamm_assign(tc, clabel, alpha, ta, alabel);
   delete ta;
   delete tc;
-  delete [] amap;
-  delete [] cmap;
+  delete[] amap;
+  delete[] cmap;
 }
 
 void
@@ -1718,9 +1780,9 @@ tamm_mult(tammx::Tensor<double> &ttc,
   delete ta;
   delete tb;
   delete tc;
-  delete [] amap;
-  delete [] bmap;
-  delete [] cmap;
+  delete[] amap;
+  delete[] bmap;
+  delete[] cmap;
 }
 
 
@@ -1788,7 +1850,7 @@ test_assign_no_n(tammx::ExecutionContext &ec,
 }
 
 bool
-test_assign_no_n(tammx::ExecutionContext& ec,
+test_assign_no_n(tammx::ExecutionContext &ec,
                  const tammx::TensorLabel &cupper_labels,
                  const tammx::TensorLabel &clower_labels,
                  double alpha,
@@ -1818,12 +1880,12 @@ test_assign_no_n(tammx::ExecutionContext& ec,
   ec.allocate(ta, tc1, tc2, tcf);
 
   ec.scheduler()
-	.io(ta, tc1, tc2, tcf)
-	  (ta() = 0)
-	  (tc1() = 0)
-	  (tc2() = 0)
-	  (tcf() = 0)
-	.execute();
+    .io(ta, tc1, tc2, tcf)
+      (ta() = 0)
+      (tc1() = 0)
+      (tc2() = 0)
+      (tcf() = 0)
+    .execute();
 
   tammx_tensor_fill(ec, ta());
 
@@ -1927,7 +1989,7 @@ test_mult_no_n(tammx::ExecutionContext &ec,
                const tammx::TensorLabel &alower_labels,
                const tammx::TensorLabel &bupper_labels,
                const tammx::TensorLabel &blower_labels,
-               mult_fn fn ) {
+               mult_fn fn) {
   const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
   const auto &clower_indices = tammx_label_to_indices(clower_labels);
   const auto &aupper_indices = tammx_label_to_indices(aupper_labels);
@@ -1975,19 +2037,19 @@ test_mult_no_n(tammx::ExecutionContext &ec,
   blabels.insert_back(blower_labels.begin(), blower_labels.end());
 
   //tamm_mult(tc1, clabels, alpha, ta, alabels, tb, blabels);
-  std::cout<<"<<<<<<<<<\n";
+  std::cout << "<<<<<<<<<\n";
   tammx_mult(ec, tc2, clabels, alpha, ta, alabels, tb, blabels);
-  std::cout<<">>>>>>>>>>\n";
+  std::cout << ">>>>>>>>>>\n";
   //fortran_mult(tcf, ta, tb, fn);
-  std::cout<<"------------\n";
-  
-  std::cout<<"AFTER mult:\n";
-  std::cout<<"tammx tc=";
+  std::cout << "------------\n";
+
+  std::cout << "AFTER mult:\n";
+  std::cout << "tammx tc=";
   tammx_tensor_dump(tc2, std::cout);
-  std::cout<<"\n fortran tc=";
+  std::cout << "\n fortran tc=";
   tammx_tensor_dump(tcf, std::cout);
-  std::cout<<"\n";
-  
+  std::cout << "\n";
+
   bool status = tammx_tensors_are_equal(ec, tc1, tcf);
 
   ec.deallocate(tc1, tc2, tcf, ta, tb);
@@ -2126,7 +2188,7 @@ tamm_labels_to_tammx_indices(const std::vector<tamm::IndexName> &labels) {
 #if INITVAL_TEST_0D
 
 TEST (InitvalTest, ZeroDim) {
-    ASSERT_TRUE(test_initval_no_n(*g_ec, {}, {}));
+  ASSERT_TRUE(test_initval_no_n(*g_ec, {}, {}));
 }
 #endif
 
@@ -2336,7 +2398,7 @@ TEST (AssignTest, ZeroDim) {
   const double threshold = 1e-14;
   const auto cbuf = reinterpret_cast<double *>(xtc.memory_manager()->access(tammx::Offset{0}));
   for (int i = 0; i < sz; i++) {
-    if (std::abs(cbuf[i] - (init_val_a*alpha + init_val_c)) > threshold) {
+    if (std::abs(cbuf[i] - (init_val_a * alpha + init_val_c)) > threshold) {
       status = false;
       break;
     }
@@ -3649,13 +3711,13 @@ TEST (AssignTest, FourDim_v1v2v3v4_v2v1v4v3) {
 
 #if MULT_TEST_1D_1D
 
- TEST (MultTest, Dim_0_o_o_up) {
-   ASSERT_TRUE(test_mult_no_n(*g_ec,
-                              3.98,
-                              {}, {},
-                              {h1}, {},
-                              {h1}, {}));
- }
+TEST (MultTest, Dim_0_o_o_up) {
+  ASSERT_TRUE(test_mult_no_n(*g_ec,
+                             3.98,
+                             {}, {},
+                             {h1}, {},
+                             {h1}, {}));
+}
 
 // TEST (MultTest, Dim_oo_o_o) {
 //   ASSERT_TRUE(test_mult_no_n(*g_ec,
@@ -3698,7 +3760,7 @@ TEST (MultTest, Dim_o_o_oo) {
                              3.98,
                              {h1}, {},
                              {}, {h2},
-                             {h1},{h2}));
+                             {h1}, {h2}));
 }
 
 TEST (MultTest, Dim_o_o_oo_lo) {
@@ -3706,7 +3768,7 @@ TEST (MultTest, Dim_o_o_oo_lo) {
                              3.98,
                              {}, {h2},
                              {h1}, {},
-                             {h1},{h2}));
+                             {h1}, {h2}));
 }
 
 TEST (MultTest, Dim_o_v_ov) {
@@ -3714,7 +3776,7 @@ TEST (MultTest, Dim_o_v_ov) {
                              3.98,
                              {h1}, {},
                              {}, {p2},
-                             {h1},{p2}));
+                             {h1}, {p2}));
 }
 
 TEST (MultTest, Dim_o_v_vo_lo) {
@@ -3722,7 +3784,7 @@ TEST (MultTest, Dim_o_v_vo_lo) {
                              3.98,
                              {}, {h2},
                              {p1}, {},
-                             {p1},{h2}));
+                             {p1}, {h2}));
 }
 
 TEST (MultTest, Dim_v_o_vo) {
@@ -3730,7 +3792,7 @@ TEST (MultTest, Dim_v_o_vo) {
                              3.98,
                              {p1}, {},
                              {}, {h2},
-                             {p1},{h2}));
+                             {p1}, {h2}));
 }
 
 TEST (MultTest, Dim_v_o_ov_lo) {
@@ -3738,7 +3800,7 @@ TEST (MultTest, Dim_v_o_ov_lo) {
                              3.98,
                              {}, {p2},
                              {h1}, {},
-                             {h1},{p2}));
+                             {h1}, {p2}));
 }
 
 TEST (MultTest, Dim_v_v_vv) {
@@ -3746,7 +3808,7 @@ TEST (MultTest, Dim_v_v_vv) {
                              3.98,
                              {p1}, {},
                              {}, {p2},
-                             {p1},{p2}));
+                             {p1}, {p2}));
 }
 
 TEST (MultTest, Dim_v_v_vv_lo) {
@@ -3754,7 +3816,7 @@ TEST (MultTest, Dim_v_v_vv_lo) {
                              3.98,
                              {}, {p2},
                              {p1}, {},
-                             {p1},{p2}));
+                             {p1}, {p2}));
 }
 
 #endif
@@ -3766,15 +3828,15 @@ TEST (MultTest, Dim_o_oo_o) {
                              3.98,
                              {h1}, {},
                              {h1}, {h2},
-                             {},{h2}));
+                             {}, {h2}));
 }
 
 TEST (MultTest, Dim_o_oo_o_lo) {
   ASSERT_TRUE(test_mult_no_n(*g_ec,
                              3.98,
                              {}, {h2},
-                             {h1},{h2},
-                             {h1},{}));
+                             {h1}, {h2},
+                             {h1}, {}));
 }
 
 TEST (MultTest, Dim_o_ov_v) {
@@ -3782,15 +3844,15 @@ TEST (MultTest, Dim_o_ov_v) {
                              3.98,
                              {h1}, {},
                              {h1}, {p2},
-                             {},{p2}));
+                             {}, {p2}));
 }
 
 TEST (MultTest, Dim_o_vo_v_lo) {
   ASSERT_TRUE(test_mult_no_n(*g_ec,
                              3.98,
                              {}, {h2},
-                             {p1},{h2},
-                             {p1},{}));
+                             {p1}, {h2},
+                             {p1}, {}));
 }
 
 TEST (MultTest, Dim_v_vo_o) {
@@ -3798,7 +3860,7 @@ TEST (MultTest, Dim_v_vo_o) {
                              3.98,
                              {p1}, {},
                              {p1}, {h2},
-                             {},{h2}));
+                             {}, {h2}));
 }
 
 TEST (MultTest, Dim_v_ov_o_lo) {
@@ -3806,7 +3868,7 @@ TEST (MultTest, Dim_v_ov_o_lo) {
                              3.98,
                              {}, {p2},
                              {h1}, {p2},
-                             {h1},{}));
+                             {h1}, {}));
 }
 
 TEST (MultTest, Dim_v_vv_v) {
@@ -3814,7 +3876,7 @@ TEST (MultTest, Dim_v_vv_v) {
                              3.98,
                              {p1}, {},
                              {p1}, {p2},
-                             {},{p2}));
+                             {}, {p2}));
 }
 
 TEST (MultTest, Dim_v_vv_v_lo) {
@@ -3822,7 +3884,7 @@ TEST (MultTest, Dim_v_vv_v_lo) {
                              3.98,
                              {}, {p2},
                              {p1}, {p2},
-                             {p1},{}));
+                             {p1}, {}));
 }
 
 #endif
@@ -3844,12 +3906,13 @@ TEST (MultTest, Dim_v_vv_v_lo) {
 #endif
 
 #if MULT_TEST_2D_1D_1D
+
 TEST (MultTest, Dim_oo_o_o) {
   ASSERT_TRUE(test_mult_no_n(*g_ec,
                              3.98,
                              {h1}, {h2},
                              {h1}, {},
-                             {},{h2}));
+                             {}, {h2}));
 }
 
 TEST (MultTest, Dim_ov_o_v) {
@@ -3878,8 +3941,8 @@ TEST (MultTest, Dim_vv_v_v) {
 
 #endif
 
-static const auto  O = tammx::SymmGroup{tammx::DimType::o};
-static const auto  V = tammx::SymmGroup{tammx::DimType::v};
+static const auto O = tammx::SymmGroup{tammx::DimType::o};
+static const auto V = tammx::SymmGroup{tammx::DimType::v};
 
 static const auto OO = tammx::SymmGroup{tammx::DimType::o, tammx::DimType::o};
 static const auto VV = tammx::SymmGroup{tammx::DimType::v, tammx::DimType::v};
@@ -3897,8 +3960,8 @@ TEST (SymmAssignTest, ThreeDim_o1o2_o3_o1o2_o3) {
                                2.5,
                                {0.5, -0.5},
                                {{h1, h2, h3},
-                                 {h2, h1, h3}}
-                               ));
+                                {h2, h1, h3}}
+  ));
 }
 
 TEST (SymmAssignTest, ThreeDim_o1o2_v3_o1o2_v3) {
@@ -3910,8 +3973,8 @@ TEST (SymmAssignTest, ThreeDim_o1o2_v3_o1o2_v3) {
                                2.5,
                                {0.5, -0.5},
                                {{h1, h2, p3},
-                                 {h2, h1, p3}}
-                               ));
+                                {h2, h1, p3}}
+  ));
 }
 
 TEST (SymmAssignTest, ThreeDim_v1v2_o3_v1v2_o3) {
@@ -3923,8 +3986,8 @@ TEST (SymmAssignTest, ThreeDim_v1v2_o3_v1v2_o3) {
                                2.5,
                                {0.5, -0.5},
                                {{p1, p2, h3},
-                                 {p2, p1, h3}}
-                               ));
+                                {p2, p1, h3}}
+  ));
 }
 
 TEST (SymmAssignTest, ThreeDim_v1v2_v3_v1v2_v3) {
@@ -3936,8 +3999,8 @@ TEST (SymmAssignTest, ThreeDim_v1v2_v3_v1v2_v3) {
                                2.5,
                                {0.5, -0.5},
                                {{p1, p2, p3},
-                                 {p2, p1, p3}}
-                               ));
+                                {p2, p1, p3}}
+  ));
 }
 
 /////////////////////////////////////////////////
@@ -3951,8 +4014,8 @@ TEST (SymmAssignTest, ThreeDim_o1o2_o3_o2o1_o3) {
                                2.5,
                                {0.5, -0.5},
                                {{h2, h1, h3},
-                                 {h1, h2, h3}}
-                               ));
+                                {h1, h2, h3}}
+  ));
 }
 
 TEST (SymmAssignTest, ThreeDim_o1o2_v3_o2o1_v3) {
@@ -3964,8 +4027,8 @@ TEST (SymmAssignTest, ThreeDim_o1o2_v3_o2o1_v3) {
                                2.5,
                                {0.5, -0.5},
                                {{h2, h1, p3},
-                                 {h1, h2, p3}}
-                               ));
+                                {h1, h2, p3}}
+  ));
 }
 
 TEST (SymmAssignTest, ThreeDim_v1v2_o3_v2v1_o3) {
@@ -3977,8 +4040,8 @@ TEST (SymmAssignTest, ThreeDim_v1v2_o3_v2v1_o3) {
                                2.5,
                                {0.5, -0.5},
                                {{p2, p1, h3},
-                                 {p1, p2, h3}}
-                               ));
+                                {p1, p2, h3}}
+  ));
 }
 
 TEST (SymmAssignTest, ThreeDim_v1v2_v3_v2v1_v3) {
@@ -3990,8 +4053,8 @@ TEST (SymmAssignTest, ThreeDim_v1v2_v3_v2v1_v3) {
                                2.5,
                                {0.5, -0.5},
                                {{p2, p1, p3},
-                                 {p1, p2, p3}}
-                               ));
+                                {p1, p2, p3}}
+  ));
 }
 
 #endif
@@ -4007,8 +4070,8 @@ TEST (SymmAssignTest, FourDim_o1o2_o3v4_o1o2_o3v4) {
                                2.5,
                                {0.5, -0.5},
                                {{h1, h2, h3, p4},
-                                 {h2, h1, h3, p4}}
-                               ));
+                                {h2, h1, h3, p4}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_o1o2_v3o4_o1o2_v3o4) {
@@ -4020,8 +4083,8 @@ TEST (SymmAssignTest, FourDim_o1o2_v3o4_o1o2_v3o4) {
                                2.5,
                                {0.5, -0.5},
                                {{h1, h2, p3, h4},
-                                 {h2, h1, p3, h4}}
-                               ));
+                                {h2, h1, p3, h4}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_v1v2_o3v4_v1v2_o3v4) {
@@ -4033,8 +4096,8 @@ TEST (SymmAssignTest, FourDim_v1v2_o3v4_v1v2_o3v4) {
                                2.5,
                                {0.5, -0.5},
                                {{p1, p2, h3, p4},
-                                 {p2, p1, h3, p4}}
-                               ));
+                                {p2, p1, h3, p4}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_v1v2_v3o4_v1v2_v3o4) {
@@ -4046,8 +4109,8 @@ TEST (SymmAssignTest, FourDim_v1v2_v3o4_v1v2_v3o4) {
                                2.5,
                                {0.5, -0.5},
                                {{p1, p2, p3, h4},
-                                 {p2, p1, p3, h4}}
-                               ));
+                                {p2, p1, p3, h4}}
+  ));
 }
 
 /////////////////////////////////////////////////
@@ -4061,8 +4124,8 @@ TEST (SymmAssignTest, FourDim_o1o2_o3v4_o2o1_o3v4) {
                                2.5,
                                {0.5, -0.5},
                                {{h2, h1, h3, p4},
-                                 {h1, h2, h3, p4}}
-                               ));
+                                {h1, h2, h3, p4}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_o1o2_v3o4_o2o1_v3o4) {
@@ -4074,8 +4137,8 @@ TEST (SymmAssignTest, FourDim_o1o2_v3o4_o2o1_v3o4) {
                                2.5,
                                {0.5, -0.5},
                                {{h2, h1, p3, h4},
-                                 {h1, h2, p3, h4}}
-                               ));
+                                {h1, h2, p3, h4}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_v1v2_o3v4_v2v1_o3v4) {
@@ -4087,8 +4150,8 @@ TEST (SymmAssignTest, FourDim_v1v2_o3v4_v2v1_o3v4) {
                                2.5,
                                {0.5, -0.5},
                                {{p2, p1, h3, p4},
-                                 {p1, p2, h3, p4}}
-                               ));
+                                {p1, p2, h3, p4}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_v1v2_v3o4_v2v1_v3o4) {
@@ -4100,8 +4163,8 @@ TEST (SymmAssignTest, FourDim_v1v2_v3o4_v2v1_v3o4) {
                                2.5,
                                {0.5, -0.5},
                                {{p2, p1, p3, h4},
-                                 {p1, p2, p3, h4}}
-                               ));
+                                {p1, p2, p3, h4}}
+  ));
 }
 
 // //////////////////////////////////////////////
@@ -4115,10 +4178,10 @@ TEST (SymmAssignTest, FourDim_o1o2_o3o4_o1o2_o3o4) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{h1, h2, h3, h4},
-                                 {h2, h1, h3, h4},
-                                 {h2, h1, h4, h3},
-                                 {h1, h2, h4, h3}}
-                               ));
+                                {h2, h1, h3, h4},
+                                {h2, h1, h4, h3},
+                                {h1, h2, h4, h3}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_o1o2_v3v4_o1o2_v3v4) {
@@ -4130,10 +4193,10 @@ TEST (SymmAssignTest, FourDim_o1o2_v3v4_o1o2_v3v4) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{h1, h2, p3, p4},
-                                 {h2, h1, p3, p4},
-                                 {h2, h1, p4, p3},
-                                 {h1, h2, p4, p3}}
-                               ));
+                                {h2, h1, p3, p4},
+                                {h2, h1, p4, p3},
+                                {h1, h2, p4, p3}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_v1v2_o3o4_v1v2_o3o4) {
@@ -4145,10 +4208,10 @@ TEST (SymmAssignTest, FourDim_v1v2_o3o4_v1v2_o3o4) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{p1, p2, h3, h4},
-                                 {p2, p1, h3, h4},
-                                 {p2, p1, h4, h3},
-                                 {p1, p2, h4, h3}}
-                               ));
+                                {p2, p1, h3, h4},
+                                {p2, p1, h4, h3},
+                                {p1, p2, h4, h3}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_v1v2_v3v4_v1v2_v3v4) {
@@ -4160,10 +4223,10 @@ TEST (SymmAssignTest, FourDim_v1v2_v3v4_v1v2_v3v4) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{p1, p2, p3, p4},
-                                 {p2, p1, p3, p4},
-                                 {p2, p1, p4, p3},
-                                 {p1, p2, p4, p3}}
-                               ));
+                                {p2, p1, p3, p4},
+                                {p2, p1, p4, p3},
+                                {p1, p2, p4, p3}}
+  ));
 }
 
 ///////////////////////////////////////////
@@ -4177,10 +4240,10 @@ TEST (SymmAssignTest, FourDim_o1o2_o3o4_o2o1_o3o4) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{h2, h1, h3, h4},
-                                 {h2, h1, h4, h3},
-                                 {h1, h2, h4, h3},
-                                 {h1, h2, h3, h4}}
-                               ));
+                                {h2, h1, h4, h3},
+                                {h1, h2, h4, h3},
+                                {h1, h2, h3, h4}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_o1o2_v3v4_o2o1_v3v4) {
@@ -4192,10 +4255,10 @@ TEST (SymmAssignTest, FourDim_o1o2_v3v4_o2o1_v3v4) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{h2, h1, p3, p4},
-                                 {h2, h1, p4, p3},
-                                 {h1, h2, p4, p3},
-                                 {h1, h2, p3, p4}}
-                               ));
+                                {h2, h1, p4, p3},
+                                {h1, h2, p4, p3},
+                                {h1, h2, p3, p4}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_v1v2_o3o4_v2v1_o3o4) {
@@ -4207,10 +4270,10 @@ TEST (SymmAssignTest, FourDim_v1v2_o3o4_v2v1_o3o4) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{p2, p1, h3, h4},
-                                 {p2, p1, h4, h3},
-                                 {p1, p2, h4, h3},
-                                 {p1, p2, h3, h4}}
-                               ));
+                                {p2, p1, h4, h3},
+                                {p1, p2, h4, h3},
+                                {p1, p2, h3, h4}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_v1v2_v3v4_v2v1_v3v4) {
@@ -4222,10 +4285,10 @@ TEST (SymmAssignTest, FourDim_v1v2_v3v4_v2v1_v3v4) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{p2, p1, p3, p4},
-                                 {p2, p1, p4, p3},
-                                 {p1, p2, p4, p3},
-                                 {p1, p2, p3, p4}}
-                               ));
+                                {p2, p1, p4, p3},
+                                {p1, p2, p4, p3},
+                                {p1, p2, p3, p4}}
+  ));
 }
 
 //////////////////////////////////////////
@@ -4239,10 +4302,10 @@ TEST (SymmAssignTest, FourDim_o1o2_o3o4_o1o2_o4o3) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{h1, h2, h4, h3},
-                                 {h2, h1, h4, h3},
-                                 {h2, h1, h3, h4},
-                                 {h1, h2, h3, h4}}
-                               ));
+                                {h2, h1, h4, h3},
+                                {h2, h1, h3, h4},
+                                {h1, h2, h3, h4}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_o1o2_v3v4_o1o2_v4v3) {
@@ -4254,10 +4317,10 @@ TEST (SymmAssignTest, FourDim_o1o2_v3v4_o1o2_v4v3) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{h1, h2, p4, p3},
-                                 {h2, h1, p4, p3},
-                                 {h2, h1, p3, p4},
-                                 {h1, h2, p3, p4}}
-                               ));
+                                {h2, h1, p4, p3},
+                                {h2, h1, p3, p4},
+                                {h1, h2, p3, p4}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_v1v2_o3o4_v1v2_o4o3) {
@@ -4269,10 +4332,10 @@ TEST (SymmAssignTest, FourDim_v1v2_o3o4_v1v2_o4o3) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{p1, p2, h4, h3},
-                                 {p2, p1, h4, h3},
-                                 {p2, p1, h3, h4},
-                                 {p1, p2, h3, h4}}
-                               ));
+                                {p2, p1, h4, h3},
+                                {p2, p1, h3, h4},
+                                {p1, p2, h3, h4}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_v1v2_v3v4_v1v2_v4v3) {
@@ -4284,10 +4347,10 @@ TEST (SymmAssignTest, FourDim_v1v2_v3v4_v1v2_v4v3) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{p1, p2, p4, p3},
-                                 {p2, p1, p4, p3},
-                                 {p2, p1, p3, p4},
-                                 {p1, p2, p3, p4}}
-                               ));
+                                {p2, p1, p4, p3},
+                                {p2, p1, p3, p4},
+                                {p1, p2, p3, p4}}
+  ));
 }
 
 ////////////////////////////////////////////////
@@ -4301,10 +4364,10 @@ TEST (SymmAssignTest, FourDim_o1o2_o3o4_o2o1_o4o3) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{h2, h1, h4, h3},
-                                 {h2, h1, h3, h4},
-                                 {h1, h2, h3, h4},
-                                 {h1, h2, h4, h3}}
-                               ));
+                                {h2, h1, h3, h4},
+                                {h1, h2, h3, h4},
+                                {h1, h2, h4, h3}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_o1o2_v3v4_o2o1_v4v3) {
@@ -4316,10 +4379,10 @@ TEST (SymmAssignTest, FourDim_o1o2_v3v4_o2o1_v4v3) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{h2, h1, p4, p3},
-                                 {h2, h1, p3, p4},
-                                 {h1, h2, p3, p4},
-                                 {h1, h2, p4, p3}}
-                               ));
+                                {h2, h1, p3, p4},
+                                {h1, h2, p3, p4},
+                                {h1, h2, p4, p3}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_v1v2_o3o4_v2v1_o4o3) {
@@ -4331,10 +4394,10 @@ TEST (SymmAssignTest, FourDim_v1v2_o3o4_v2v1_o4o3) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{p2, p1, h4, h3},
-                                 {p2, p1, h3, h4},
-                                 {p1, p2, h3, h4},
-                                 {p1, p2, h4, h3}}
-                               ));
+                                {p2, p1, h3, h4},
+                                {p1, p2, h3, h4},
+                                {p1, p2, h4, h3}}
+  ));
 }
 
 TEST (SymmAssignTest, FourDim_v1v2_v3v4_v2v1_v4v3) {
@@ -4346,10 +4409,10 @@ TEST (SymmAssignTest, FourDim_v1v2_v3v4_v2v1_v4v3) {
                                2.5,
                                {0.25, -0.25, 0.25, -0.25},
                                {{p2, p1, p4, p3},
-                                 {p2, p1, p3, p4},
-                                 {p1, p2, p3, p4},
-                                 {p1, p2, p4, p3}}
-                               ));
+                                {p2, p1, p3, p4},
+                                {p1, p2, p3, p4},
+                                {p1, p2, p4, p3}}
+  ));
 }
 
 #endif
@@ -4358,30 +4421,30 @@ TEST (SymmAssignTest, FourDim_v1v2_v3v4_v2v1_v4v3) {
 #if MULT_TEST_0D_0D
 
 TEST (MultTest, Dim_0_0_0) {
-  tammx::Tensor<double> xtc {{}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xta {{}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xtb {{}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtc{{}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xta{{}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtb{{}, 0, tammx::Irrep{0}, false};
 
   double alpha1 = 0.91, alpha2 = 0.56;
-  auto& ec = *g_ec;
+  auto &ec = *g_ec;
 
   ec.allocate(xta, xtb, xtc);
   ec.scheduler()
-      .io(xta, xtb, xtc)
+    .io(xta, xtb, xtc)
       (xta() = alpha1)
       (xtb() = alpha2)
       (xtc() = xta() * xtb())
-      .execute();
+    .execute();
 
   double threshold = 1.0e-12;
   bool status = true;
-  auto lambda = [&] (auto& val) {
-    status &= (std::abs(val - alpha1*alpha2) < threshold);
+  auto lambda = [&](auto &val) {
+    status &= (std::abs(val - alpha1 * alpha2) < threshold);
   };
   ec.scheduler()
-      .io(xtc)
-      .sop(xtc(), lambda)
-      .execute();
+    .io(xtc)
+    .sop(xtc(), lambda)
+    .execute();
   ec.deallocate(xta, xtb, xtc);
   ASSERT_TRUE(status);
 }
@@ -4391,117 +4454,117 @@ TEST (MultTest, Dim_0_0_0) {
 #if MULT_TEST_0D_1D
 
 TEST (MultTest, Dim_o_0_o_up) {
-  tammx::Tensor<double> xtc {{O}, 1, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xta {{}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xtb {{O}, 1, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtc{{O}, 1, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xta{{}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtb{{O}, 1, tammx::Irrep{0}, false};
 
   double alpha1 = 0.91, alpha2 = 0.56;
-  auto& ec = *g_ec;
+  auto &ec = *g_ec;
 
   ec.allocate(xta, xtb, xtc);
   ec.scheduler()
-      .io(xta, xtb, xtc)
+    .io(xta, xtb, xtc)
       (xta() = alpha1)
       (xtb() = alpha2)
       (xtc() = xta() * xtb())
-      .execute();
+    .execute();
 
   double threshold = 1.0e-12;
   bool status = true;
-  auto lambda = [&] (auto& val) {
-    status &= (std::abs(val - alpha1*alpha2) < threshold);
+  auto lambda = [&](auto &val) {
+    status &= (std::abs(val - alpha1 * alpha2) < threshold);
   };
   ec.scheduler()
-      .io(xtc)
-      .sop(xtc(), lambda)
-      .execute();
+    .io(xtc)
+    .sop(xtc(), lambda)
+    .execute();
   ec.deallocate(xta, xtb, xtc);
   ASSERT_TRUE(status);
 }
 
 TEST (MultTest, Dim_o_0_o_lo) {
-  tammx::Tensor<double> xtc {{O}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xta {{}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xtb {{O}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtc{{O}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xta{{}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtb{{O}, 0, tammx::Irrep{0}, false};
 
   double alpha1 = 0.91, alpha2 = 0.56;
-  auto& ec = *g_ec;
+  auto &ec = *g_ec;
 
   ec.allocate(xta, xtb, xtc);
   ec.scheduler()
-      .io(xta, xtb, xtc)
+    .io(xta, xtb, xtc)
       (xta() = alpha1)
       (xtb() = alpha2)
       (xtc() = xta() * xtb())
-      .execute();
+    .execute();
 
   double threshold = 1.0e-12;
   bool status = true;
-  auto lambda = [&] (auto& val) {
-    status &= (std::abs(val - alpha1*alpha2) < threshold);
+  auto lambda = [&](auto &val) {
+    status &= (std::abs(val - alpha1 * alpha2) < threshold);
   };
   ec.scheduler()
-      .io(xtc)
-      .sop(xtc(), lambda)
-      .execute();
+    .io(xtc)
+    .sop(xtc(), lambda)
+    .execute();
   ec.deallocate(xta, xtb, xtc);
   ASSERT_TRUE(status);
 }
 
 TEST (MultTest, Dim_v_v_0_hi) {
-  tammx::Tensor<double> xtc {{V}, 1, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xta {{V}, 1, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xtb {{}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtc{{V}, 1, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xta{{V}, 1, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtb{{}, 0, tammx::Irrep{0}, false};
 
   double alpha1 = 0.91, alpha2 = 0.56;
-  auto& ec = *g_ec;
+  auto &ec = *g_ec;
 
   ec.allocate(xta, xtb, xtc);
   ec.scheduler()
-      .io(xta, xtb, xtc)
+    .io(xta, xtb, xtc)
       (xta() = alpha1)
       (xtb() = alpha2)
       (xtc() = xta() * xtb())
-      .execute();
+    .execute();
 
   double threshold = 1.0e-12;
   bool status = true;
-  auto lambda = [&] (auto& val) {
-    status &= (std::abs(val - alpha1*alpha2) < threshold);
+  auto lambda = [&](auto &val) {
+    status &= (std::abs(val - alpha1 * alpha2) < threshold);
   };
   ec.scheduler()
-      .io(xtc)
-      .sop(xtc(), lambda)
-      .execute();
+    .io(xtc)
+    .sop(xtc(), lambda)
+    .execute();
   ec.deallocate(xta, xtb, xtc);
   ASSERT_TRUE(status);
 }
 
 TEST (MultTest, Dim_v_v_0_lo) {
-  tammx::Tensor<double> xtc {{V}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xta {{V}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xtb {{}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtc{{V}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xta{{V}, 0, tammx::Irrep{0}, false};
+  tammx::Tensor<double> xtb{{}, 0, tammx::Irrep{0}, false};
 
   double alpha1 = 0.91, alpha2 = 0.56;
-  auto& ec = *g_ec;
+  auto &ec = *g_ec;
 
   ec.allocate(xta, xtb, xtc);
   ec.scheduler()
-      .io(xta, xtb, xtc)
+    .io(xta, xtb, xtc)
       (xta() = alpha1)
       (xtb() = alpha2)
       (xtc() = xta() * xtb())
-      .execute();
+    .execute();
 
   double threshold = 1.0e-12;
   bool status = true;
-  auto lambda = [&] (auto& val) {
-    status &= (std::abs(val - alpha1*alpha2) < threshold);
+  auto lambda = [&](auto &val) {
+    status &= (std::abs(val - alpha1 * alpha2) < threshold);
   };
   ec.scheduler()
-      .io(xtc)
-      .sop(xtc(), lambda)
-      .execute();
+    .io(xtc)
+    .sop(xtc(), lambda)
+    .execute();
   ec.deallocate(xta, xtb, xtc);
   ASSERT_TRUE(status);
 }
@@ -4571,20 +4634,20 @@ int main(int argc, char *argv[]) {
 
   int ret = 0;
 
-    tammx::ExecutionContext ec{pg, &default_distribution, &default_memory_manager,
-                               default_irrep, default_spin_restricted};
+  tammx::ExecutionContext ec{pg, &default_distribution, &default_memory_manager,
+                             default_irrep, default_spin_restricted};
 
-    testing::AddGlobalTestEnvironment(new TestEnvironment(&ec));
+  testing::AddGlobalTestEnvironment(new TestEnvironment(&ec));
 
-    // temporarily commented
-    ret = RUN_ALL_TESTS();
-    // test_assign_2d(ec);
-    // test_assign_4d(ec);
-    // test_assign(ec);
-    // test_mult_vo_oo(ec);
-    // test_mult_vvoo_ov(ec);
+  // temporarily commented
+  ret = RUN_ALL_TESTS();
+  // test_assign_2d(ec);
+  // test_assign_4d(ec);
+  // test_assign(ec);
+  // test_mult_vo_oo(ec);
+  // test_mult_vvoo_ov(ec);
 #if 0
-    // CCSD methods
+  // CCSD methods
 test_assign_ccsd_e(ec);
 test_assign_ccsd_t1(ec);
 test_assign_ccsd_t2(ec);

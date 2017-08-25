@@ -1437,43 +1437,43 @@ eigen_assign(EigenTensorBase *tc,
 
 /////////////////////////////////////////////////////////
 //
-//             eigen vx tammx
+//             eigen vs tammx
 //
 //
 ////////////////////////////////////////////////////////
 
-// template<typename T, int ndim>
-// EigenTensorBase*
-// tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T>& tensor) {
-//   Expects(tensor.rank() == ndim);
+ template<typename T, int ndim>
+ EigenTensorBase*
+ tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T>& tensor) {
+   Expects(tensor.rank() == ndim);
   
   
-//   auto ret = new Eigen::Tensor<T, ndim, Eigen::RowMajor>();
+   auto ret = new Eigen::Tensor<T, ndim, Eigen::RowMajor>();
 
-//   tammx::block_for(tensor(), [&] {
-//     //copy from tensor to ret
-//     });
+   tammx::block_for(tensor(), [&] {
+     //copy from tensor to ret
+     });
 
-//   return ret;
-// }
+   return ret;
+ }
 
-// template<typename T>
-// EigenTensorBase*
-// tammx_tensor_to_eigen_tensor(tammx::Tensor<T>& tensor) {
-//   if(tensor.rank() == 0) {
-//     return tammx_tensor_to_eigen_tensor_dispatch<T,0>(tensor);
-//   } else if (tensor.rank() == 1) {
-//     return tammx_tensor_to_eigen_tensor_dispatch<T,1>(tensor);
-//   } else if (tensor.rank() == 2) {
-//     return tammx_tensor_to_eigen_tensor_dispatch<T,2>(tensor);
-//   } else if (tensor.rank() == 3) {
-//     return tammx_tensor_to_eigen_tensor_dispatch<T,3>(tensor);
-//   } else if (tensor.rank() == 4) {
-//     return tammx_tensor_to_eigen_tensor_dispatch<T,4>(tensor);
-//   }
-//   assert(0); //@todo implement
-//   return nullptr;  
-// }
+ template<typename T>
+ EigenTensorBase*
+ tammx_tensor_to_eigen_tensor(tammx::Tensor<T>& tensor) {
+   if(tensor.rank() == 0) {
+     return tammx_tensor_to_eigen_tensor_dispatch<T,0>(tensor);
+   } else if (tensor.rank() == 1) {
+     return tammx_tensor_to_eigen_tensor_dispatch<T,1>(tensor);
+   } else if (tensor.rank() == 2) {
+     return tammx_tensor_to_eigen_tensor_dispatch<T,2>(tensor);
+   } else if (tensor.rank() == 3) {
+     return tammx_tensor_to_eigen_tensor_dispatch<T,3>(tensor);
+   } else if (tensor.rank() == 4) {
+     return tammx_tensor_to_eigen_tensor_dispatch<T,4>(tensor);
+   }
+   assert(0); //@todo implement
+   return nullptr;
+ }
 
 // void
 // eigen_assign(tammx::Tensor<double> &ttc,

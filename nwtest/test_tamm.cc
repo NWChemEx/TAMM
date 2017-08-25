@@ -1022,6 +1022,8 @@ void
 tammx_tensor_dump(const tammx::Tensor<T> &tensor, std::ostream &os) {
   const auto &buf = static_cast<const T *>(tensor.memory_manager()->access(tammx::Offset{0}));
   size_t sz = tensor.memory_manager()->local_size_in_elements().value();
+  os<<"tensor size="<<sz<<std::endl;
+  os<<"tensor size (from distribution)="<<tensor.distribution()->buf_size(Proc{0})<<std::endl;
   for (size_t i = 0; i < sz; i++) {
     os << buf[i] << " ";
   }
@@ -1064,7 +1066,7 @@ tammx_tensor_fill(tammx::ExecutionContext &ec,
     auto dbuf = block.buf();
     for (size_t i = 0; i < block.size(); i++) {
       dbuf[i] = T{n + i};
-      // std::cout<<"init_lambda. dbuf["<<i<<"]="<<dbuf[i]<<std::endl;
+      std::cout<<"init_lambda. dbuf["<<i<<"]="<<dbuf[i]<<std::endl;
     }
   };
 
@@ -1086,17 +1088,17 @@ tammx_tensors_are_equal(tammx::ExecutionContext &ec,
   }
 
   using T = typename LabeledTensorType::element_type;
-  const auto abuf = reinterpret_cast<const T *>(ta.memory_manager()->access(tammx::Offset{0}));
-  const auto bbuf = reinterpret_cast<const T *>(tb.memory_manager()->access(tammx::Offset{0}));
+  const double* abuf = reinterpret_cast<const T *>(ta.memory_manager()->access(tammx::Offset{0}));
+  const double* bbuf = reinterpret_cast<const T *>(tb.memory_manager()->access(tammx::Offset{0}));
   bool ret = true;
   for (int i = 0; i < asz; i++) {
-    //std::cout << abuf[i] << ": " << bbuf[i];
+    std::cout << abuf[i] << ": " << bbuf[i];
     if (std::abs(abuf[i] - bbuf[i]) > std::abs(threshold * abuf[i])) {
-      //  std::cout << "--";
+      std::cout << "--\n";
       ret = false;
       break;
     }
-    //std::cout << "\n";
+    std::cout << "\n";
   }
   return ret;
 }
@@ -1442,20 +1444,57 @@ eigen_assign(EigenTensorBase *tc,
 //
 ////////////////////////////////////////////////////////
 
- template<typename T, int ndim>
- EigenTensorBase*
- tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T>& tensor) {
-   Expects(tensor.rank() == ndim);
-  
-  
-   auto ret = new Eigen::Tensor<T, ndim, Eigen::RowMajor>();
+size_t
+compute_tammx_dim_size(tammx::DimType dt) {
+  BlockDim blo, bhi;      
+  std::tie(blo, bhi) = tensor_index_range(dt);
+  return TCE::offset(bhi) - TCE::offset(blo);
+}
 
-   tammx::block_for(tensor(), [&] {
-     //copy from tensor to ret
-     });
+template<typename T, int ndim, typename EigenTensorType>
+void
+patch_copy(T* sbuf, EigenTensorType& etensor,
+           const std::array<int, ndim>& block_dims,
+           const std::array<int, ndim>& rel_offset) {
+  
+}
 
-   return ret;
- }
+
+template<typename T, int ndim>
+EigenTensorBase*
+tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T>& tensor) {
+  Expects(tensor.rank() == ndim);
+  
+  std::array<int, ndim> lo_offset, hi_offset, dims;
+  const auto& flindices = tensor.flindices();
+  for(int i=0; i<ndim; i++) {
+    BlockDim blo, bhi;
+    std::tie(blo, bhi) = tensor_index_range(flindices[i]);
+    lo_offset[i] = TCE::offset(blo);
+    hi_offset[i] = TCE::offset(bhi);
+    dims[i] = hi_offset[i] - lo_offset[i];
+  }
+  auto etensor = new Eigen::Tensor<T, ndim, Eigen::RowMajor>(dims);
+  
+  tammx::block_for(tensor(), [&] (const TensorIndex& blockid) {
+      auto block = tensor.get(blockid);
+      const TensorIndex& boffset = block.block_offset();
+      const TensorIndex& block_dims = block.block_dims();
+      std::array<int, ndim> rel_offset;
+      for(int i=0; i<ndim; i++) {
+        Expects(boffset[i] < hi_offset[i]);
+        rel_offset[i] = boffset[i] - lo_offset[i];
+      }
+      std::array<int, ndim> block_size;
+      for(int i=0; i<ndim; i++) {
+        block_size[i] = block_dims[i].value();
+      }
+      
+      patch_copy<T,ndim>(block.buf(), etensor, block_size, rel_offset);
+    });
+  
+  return etensor;
+}
 
  template<typename T>
  EigenTensorBase*
@@ -1930,10 +1969,20 @@ test_mult_no_n(tammx::ExecutionContext &ec,
   auto blabels = bupper_labels;
   blabels.insert_back(blower_labels.begin(), blower_labels.end());
 
-  tamm_mult(tc1, clabels, alpha, ta, alabels, tb, blabels);
+  //tamm_mult(tc1, clabels, alpha, ta, alabels, tb, blabels);
+  std::cout<<"<<<<<<<<<\n";
   tammx_mult(ec, tc2, clabels, alpha, ta, alabels, tb, blabels);
-  fortran_mult(tcf, ta, tb, fn);
-
+  std::cout<<">>>>>>>>>>\n";
+  //fortran_mult(tcf, ta, tb, fn);
+  std::cout<<"------------\n";
+  
+  std::cout<<"AFTER mult:\n";
+  std::cout<<"tammx tc=";
+  tammx_tensor_dump(tc2, std::cout);
+  std::cout<<"\n fortran tc=";
+  tammx_tensor_dump(tcf, std::cout);
+  std::cout<<"\n";
+  
   bool status = tammx_tensors_are_equal(ec, tc1, tcf);
 
   ec.deallocate(tc1, tc2, tcf, ta, tb);
@@ -4481,14 +4530,14 @@ int main(int argc, char *argv[]) {
   bool intorb = false;
   bool restricted = false;
 
-#if 0
+#if 1
   int noa = 1;
   int nob = 1;
   int nva = 1;
   int nvb = 1;
   std::vector<int> spins = {1, 2, 1, 2};
   std::vector<int> syms = {0, 0, 0, 0};
-  std::vector<int> ranges = {2, 2, 2, 2};
+  std::vector<int> ranges = {1, 1, 1, 1};
 #else
   int noa = 2;
   int nob = 2;

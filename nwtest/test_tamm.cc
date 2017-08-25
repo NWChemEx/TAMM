@@ -1451,9 +1451,9 @@ compute_tammx_dim_size(tammx::DimType dt) {
   return TCE::offset(bhi) - TCE::offset(blo);
 }
 
-template<typename T, int ndim, typename EigenTensorType>
+template<typename T, int ndim>
 void
-patch_copy(T* sbuf, EigenTensorType& etensor,
+patch_copy(T* sbuf, Eigen::Tensor<T,ndim,Eigen::RowMajor>& etensor,
            const std::array<int, ndim>& block_dims,
            const std::array<int, ndim>& rel_offset) {
   
@@ -1490,7 +1490,7 @@ tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T>& tensor) {
         block_size[i] = block_dims[i].value();
       }
       
-      patch_copy<T,ndim>(block.buf(), etensor, block_size, rel_offset);
+      patch_copy<T,ndim,decltype(*etensor)>(block.buf(), *etensor, block_size, rel_offset);
     });
   
   return etensor;
@@ -1514,19 +1514,19 @@ tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T>& tensor) {
    return nullptr;
  }
 
-// void
-// eigen_assign(tammx::Tensor<double> &ttc,
-//             const tammx::TensorLabel &tclabel,
-//             double alpha,
-//             tammx::Tensor<double> &tta,
-//             const tammx::TensorLabel &talabel) {
-//   EigenTensorBase *etc, *eta;
-//   etc = tammx_tensor_to_eigen_tensor(ttc);
-//   eta = tammx_tensor_to_eigen_tensor(tta);
-//   eigen_assign(etc, tclabel, alpha, eta, talabel);
-//   delete etc;
-//   delete eta;
-// }
+void
+eigen_assign(tammx::Tensor<double> &ttc,
+            const tammx::TensorLabel &tclabel,
+            double alpha,
+            tammx::Tensor<double> &tta,
+            const tammx::TensorLabel &talabel) {
+  EigenTensorBase *etc, *eta;
+  etc = tammx_tensor_to_eigen_tensor(ttc);
+  eta = tammx_tensor_to_eigen_tensor(tta);
+  eigen_assign(etc, tclabel, alpha, eta, talabel);
+  delete etc;
+  delete eta;
+}
 
 // bool
 // test_assign_no_n(tammx::ExecutionContext &ec,

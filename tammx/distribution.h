@@ -18,7 +18,7 @@ class Distribution {
  public:
   virtual ~Distribution() {}
   virtual std::pair<Proc,Offset> locate(const TensorIndex& blockid) = 0;
-  virtual Size buf_size(Proc proc) = 0;
+  virtual Size buf_size(Proc proc) const = 0;
   virtual std::string name() const = 0;
   virtual Distribution* clone(const TensorBase*, Proc) const = 0;
 
@@ -111,7 +111,7 @@ class Distribution_NW : public Distribution {
     return {proc, offset};
   }
 
-  Size buf_size(Proc proc) {
+  Size buf_size(Proc proc) const {
     Expects(proc < nproc_);
     Expects(proc_offsets_.size() > proc.value()+1);
     return proc_offsets_[proc.value()+1] - proc_offsets_[proc.value()];

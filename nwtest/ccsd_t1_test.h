@@ -50,19 +50,24 @@ TEST (CCSD_T1, t1_2_3) {
 		  {h1,p4}));
 }
 
+// i1 ( h7 h1 )_vt + = -1/2 * Sum ( h5 p3 p4 ) * t ( p3 p4 h1 h5 )_t * v ( h5 h7 p3 p4 )_v
 TEST (CCSD_T1, t1_2_4) {
   ASSERT_TRUE(test_mult_no_n(*g_ec, {h7}, {h1}, -0.5, {p3,p4}, {h1,h5},
 		  {h5,h7}, {p3,p4}));
 }
+//TEST (FORT_CCSD_T1, t1_2_4) {
+//  ASSERT_TRUE(test_mult_no_n(*g_ec, {h7}, {h1}, -0.5, {p3,p4}, {h1,h5},
+//		  {h5,h7}, {p3,p4}, ccsd_t1_2_));
+//}
 
 // i0 ( p2 h1 )_tf + = -1 * Sum ( h7 ) * t ( p2 h7 )_t * i1 ( h7 h1 )_f
 TEST (CCSD_T1, t1_2) {
   ASSERT_TRUE(test_mult_no_n(*g_ec, {p2}, {h1}, -1.0, {p2}, {h7}, {h7}, {h1}));
 }
-TEST (FORT_CCSD_T1, t1_2) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec, {p2}, {h1}, -1.0, {p2}, {h7}, {h7}, {h1},
-		  ccsd_t1_2_));
-}
+//TEST (FORT_CCSD_T1, t1_2) {
+//  ASSERT_TRUE(test_mult_no_n(*g_ec, {p2}, {h1}, -1.0, {p2}, {h7}, {h7}, {h1},
+//		  ccsd_t1_2_));
+//}
 
 // i1 ( p2 p3 )_f + = 1 * f ( p2 p3 )_f
 TEST (CCSD_T1, t1_3_1) {

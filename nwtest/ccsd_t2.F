@@ -577,6 +577,7 @@ C     i1 ( h10 p3 h1 h2 )_v + = 1 * v ( h10 p3 h1 h2 )_v
       INTEGER k_as, l_as, k_a, l_a
       INTEGER irrepa, irrepc
       EXTERNAL NXTASK
+      write(*,*)'Fortran ccsd_t2_2_1: ', noab
       nprocs = GA_NNODES()
       count = 0
       next = NXTASK(nprocs, 1)
@@ -610,7 +611,7 @@ C     i1 ( h10 p3 h1 h2 )_v + = 1 * v ( h10 p3 h1 h2 )_v
 !     3                (noab+nvab) * (h10b_1 - 1)))))
                  CALL GET_HASH_BLOCK(d_a,dbl_mb(k_a),dimc,
      1                int_mb(k_a_offset),(h2b_1 - 1 + (noab) * 
-     2                (h1b_1 - 1 + (nvab) * (p3b_1 - noab - 1 + 
+     2                (h1b_1 - 1 + (noab) * (p3b_1 - noab - 1 +
      3                (noab) * (h10b_1 - 1)))))
                 else
                  CALL GET_HASH_BLOCK_I(d_a,dbl_mb(k_a),dimc,
@@ -5511,9 +5512,9 @@ C     i1 ( h6 p3 h1 p5 )_v + = 1 * v ( h6 p3 h1 p5 )_v
 !     2                (h1b_1 - 1 + (noab+nvab) * (p3b_1 - 1 + 
 !     3                (noab+nvab) * (h6b_1 - 1)))))
                  CALL GET_HASH_BLOCK(d_a,dbl_mb(k_a),dimc,
-     1                int_mb(k_a_offset),(p5b_1 - 1 + (noab) * 
-     2                (h1b_1 - 1 + (noab) * (p3b_1 - 1 + 
-     3                (noab) * (h6b_1 - 1)))))
+     1                int_mb(k_a_offset),(p5b_1 - noab - 1 + (nvab) *
+     2                (h1b_1 - 1 + (noab) * (p3b_1 - noab - 1 +
+     3                (nvab) * (h6b_1 - 1)))))
                 else
                  CALL GET_HASH_BLOCK_I(d_a,dbl_mb(k_a),dimc,
      1                int_mb(k_a_offset),(p5b_1 - 1 + (noab+nvab) * 

@@ -1453,13 +1453,13 @@ compute_tammx_dim_size(tammx::DimType dt) {
   return TCE::offset(bhi) - TCE::offset(blo);
 }
 
-template<typename T, int ndim>
-void
-patch_copy(T *sbuf, Eigen::Tensor<T, ndim, Eigen::RowMajor> &etensor,
-           const std::array<int, ndim> &block_dims,
-           const std::array<int, ndim> &rel_offset) {
-  assert(0);
-}
+// template<typename T, int ndim>
+// void
+// patch_copy(T *sbuf, Eigen::Tensor<T, ndim, Eigen::RowMajor> &etensor,
+//            const std::array<int, ndim> &block_dims,
+//            const std::array<int, ndim> &rel_offset) {
+//   assert(0);
+// }
 
 template<typename T>
 void
@@ -1556,7 +1556,7 @@ tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T> &tensor) {
       block_size[i] = block_dims[i].value();
     }
 
-    patch_copy<T, ndim>(block.buf(), *etensor, block_size, rel_offset);
+    patch_copy<T>(block.buf(), *etensor, block_size, rel_offset);
   });
 
   return etensor;
@@ -1581,7 +1581,7 @@ tammx_tensor_to_eigen_tensor(tammx::Tensor<T> &tensor) {
   return nullptr;
 }
 
-void
+EigenTensorBade*
 eigen_assign(tammx::Tensor<double> &ttc,
              const tammx::TensorLabel &tclabel,
              double alpha,
@@ -1591,59 +1591,63 @@ eigen_assign(tammx::Tensor<double> &ttc,
   etc = tammx_tensor_to_eigen_tensor(ttc);
   eta = tammx_tensor_to_eigen_tensor(tta);
   eigen_assign(etc, tclabel, alpha, eta, talabel);
-  delete etc;
   delete eta;
+  return etc;
 }
 
-// bool
-// test_assign_no_n(tammx::ExecutionContext &ec,
-//                  double alpha,
-//                  const tammx::TensorLabel &cupper_labels,
-//                  const tammx::TensorLabel &clower_labels,
-//                  const tammx::TensorLabel &aupper_labels,
-//                  const tammx::TensorLabel &alower_labels) {
-//   const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
-//   const auto &clower_indices = tammx_label_to_indices(clower_labels);
-//   const auto &aupper_indices = tammx_label_to_indices(aupper_labels);
-//   const auto &alower_indices = tammx_label_to_indices(alower_labels);
+bool
+test_with_eigen_assign_no_n(tammx::ExecutionContext &ec,
+                 double alpha,
+                 const tammx::TensorLabel &cupper_labels,
+                 const tammx::TensorLabel &clower_labels,
+                 const tammx::TensorLabel &aupper_labels,
+                 const tammx::TensorLabel &alower_labels) {
+  const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
+  const auto &clower_indices = tammx_label_to_indices(clower_labels);
+  const auto &aupper_indices = tammx_label_to_indices(aupper_labels);
+  const auto &alower_indices = tammx_label_to_indices(alower_labels);
 
-//   auto cindices = cupper_indices;
-//   cindices.insert_back(clower_indices.begin(), clower_indices.end());
-//   auto aindices = aupper_indices;
-//   aindices.insert_back(alower_indices.begin(), alower_indices.end());
-//   auto irrep = ec.irrep();
-//   auto restricted = ec.is_spin_restricted();
-//   auto cnup = cupper_labels.size();
-//   auto anup = aupper_labels.size();
+  auto cindices = cupper_indices;
+  cindices.insert_back(clower_indices.begin(), clower_indices.end());
+  auto aindices = aupper_indices;
+  aindices.insert_back(alower_indices.begin(), alower_indices.end());
+  auto irrep = ec.irrep();
+  auto restricted = ec.is_spin_restricted();
+  auto cnup = cupper_labels.size();
+  auto anup = aupper_labels.size();
 
-//   tammx::Tensor<double> tc1{cindices, cnup, irrep, restricted};
-//   tammx::Tensor<double> tc2{cindices, cnup, irrep, restricted};
-//   tammx::Tensor<double> ta{aindices, anup, irrep, restricted};
+  tammx::Tensor<double> tc1{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> tc2{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> ta{aindices, anup, irrep, restricted};
 
-//   ec.allocate(ta, tc1, tc2);
+  ec.allocate(ta, tc1, tc2);
 
-//   ec.scheduler()
-//     .io(ta, tc1, tc2)
-//       (ta() = 0)
-//       (tc1() = 0)
-//       (tc2() = 0)
-//     .execute();
+  ec.scheduler()
+    .io(ta, tc1, tc2)
+      (ta() = 0)
+      (tc1() = 0)
+      (tc2() = 0)
+    .execute();
 
-//   tammx_tensor_fill(ec, ta());
+  tammx_tensor_fill(ec, ta());
 
-//   auto clabels = cupper_labels;
-//   clabels.insert_back(clower_labels.begin(), clower_labels.end());
-//   auto alabels = aupper_labels;
-//   alabels.insert_back(alower_labels.begin(), alower_labels.end());
+  auto clabels = cupper_labels;
+  clabels.insert_back(clower_labels.begin(), clower_labels.end());
+  auto alabels = aupper_labels;
+  alabels.insert_back(alower_labels.begin(), alower_labels.end());
 
-//   eigen_assign(tc1, clabels, alpha, ta, alabels);
-//   tammx_assign(ec, tc2, clabels, alpha, ta, alabels);
+  EigenTensorBase* etc1 = eigen_assign(tc1, clabels, alpha, ta, alabels);
+  tammx_assign(ec, tc2, clabels, alpha, ta, alabels);
 
-//   bool status = tammx_tensors_are_equal(ec, tc1, tc2);
+  EigenTensor* etc2 = tammx_tensor_to_eigen_tensor(tc2);
 
-//   ec.deallocate(tc1, tc2, ta);
-//   return status;
-// }
+  status = eigen_tensors_are_equal(ndim, *etc1, *etc2);
+
+  ec.deallocate(tc1, tc2, ta);
+  delete etc1;
+  delete etc2;
+  return status;
+}
 
 
 /////////////////////////////////////////////////////////

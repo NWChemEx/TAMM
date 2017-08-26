@@ -615,6 +615,12 @@ fortran_mult_vvoo_vo(tamm::Tensor *tc,
 #define ASSIGN_TEST_3D 1
 #define ASSIGN_TEST_4D 1
 
+#define EIGEN_ASSIGN_TEST_0D 1
+#define EIGEN_ASSIGN_TEST_1D 1
+#define EIGEN_ASSIGN_TEST_2D 1
+#define EIGEN_ASSIGN_TEST_3D 0
+#define EIGEN_ASSIGN_TEST_4D 0
+
 #define INITVAL_TEST_0D 1
 #define INITVAL_TEST_1D 1
 #define INITVAL_TEST_2D 1
@@ -1092,9 +1098,9 @@ tammx_tensors_are_equal(tammx::ExecutionContext &ec,
   const double *bbuf = reinterpret_cast<const T *>(tb.memory_manager()->access(tammx::Offset{0}));
   bool ret = true;
   for (int i = 0; i < asz; i++) {
-   // std::cout << abuf[i] << ": " << bbuf[i];
+    // std::cout << abuf[i] << ": " << bbuf[i];
     if (std::abs(abuf[i] - bbuf[i]) > std::abs(threshold * abuf[i])) {
-     // std::cout << "--\n";
+      // std::cout << "--\n";
       ret = false;
       break;
     }
@@ -1383,12 +1389,12 @@ eigen_tensors_are_equal(EigenTensor<1> &e1,
   bool ret = true;
   auto dims = e1.dimensions();
   for (auto i = 0; i < dims[0]; i++) {
-      if (std::abs(e1(i) - e2(i)) > std::abs(threshold * e1(i))) {
-        ret = false;
-        break;
-      }
+    if (std::abs(e1(i) - e2(i)) > std::abs(threshold * e1(i))) {
+      ret = false;
+      break;
     }
-    return ret;
+  }
+  return ret;
 }
 
 template<typename T>
@@ -1407,7 +1413,7 @@ eigen_tensors_are_equal(EigenTensor<2> &e1,
       }
     }
   }
-    return ret;
+  return ret;
 }
 
 template<typename T>
@@ -1428,7 +1434,7 @@ eigen_tensors_are_equal(EigenTensor<3> &e1,
       }
     }
   }
-    return ret;
+  return ret;
 }
 
 template<typename T>
@@ -1444,14 +1450,14 @@ eigen_tensors_are_equal(EigenTensor<4> &e1,
       for (auto k = 0; k < dims[2]; k++) {
         for (auto l = 0; l < dims[2]; l++) {
 
-      if (std::abs(e1(i, j,k,l) - e2(i, j,k,l)) > std::abs(threshold * e1(i, j,k,l))) {
-        ret = false;
-        break;
+          if (std::abs(e1(i, j, k, l) - e2(i, j, k, l)) > std::abs(threshold * e1(i, j, k, l))) {
+            ret = false;
+            break;
+          }
+        }
       }
     }
   }
-  }
-}
   return ret;
 }
 
@@ -1732,18 +1738,15 @@ test_eigen_assign_no_n(tammx::ExecutionContext &ec,
     auto *et1 = dynamic_cast<EigenTensor<1> *>(etc1);
     auto *et2 = dynamic_cast<EigenTensor<1> *>(etc2);
     status = eigen_tensors_are_equal<double>(*et1, *et2);
-  }
-  else if (tc1.rank() == 2) {
+  } else if (tc1.rank() == 2) {
     auto *et1 = dynamic_cast<EigenTensor<2> *>(etc1);
     auto *et2 = dynamic_cast<EigenTensor<2> *>(etc2);
     status = eigen_tensors_are_equal<double>(*et1, *et2);
-  }
-  else if (tc1.rank() == 3) {
+  } else if (tc1.rank() == 3) {
     auto *et1 = dynamic_cast<EigenTensor<3> *>(etc1);
     auto *et2 = dynamic_cast<EigenTensor<3> *>(etc2);
     status = eigen_tensors_are_equal<double>(*et1, *et2);
-  }
-  else if (tc1.rank() == 4) {
+  } else if (tc1.rank() == 4) {
     auto *et1 = dynamic_cast<EigenTensor<4> *>(etc1);
     auto *et2 = dynamic_cast<EigenTensor<4> *>(etc2);
     status = eigen_tensors_are_equal<double>(*et1, *et2);
@@ -2546,6 +2549,28 @@ TEST (AssignTest, OneDim_ev1_ev1) {
 #endif
 
 
+#if EIGEN_ASSIGN_TEST_1D
+
+TEST (EigenAssignTest, OneDim_o1e_o1e) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {}, {h1}, {}));
+}
+
+TEST (EigenAssignTest, OneDim_eo1_eo1) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {}, {h1}, {}, {h1}));
+}
+
+TEST (EigenAssignTest, OneDim_v1e_v1e) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {}, {p1}, {}));
+}
+
+TEST (EigenAssignTest, OneDim_ev1_ev1) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {}, {p1}, {}, {p1}));
+}
+
+#endif
+
+
+
 //-----------------------------------------------------------------------
 //
 //                            Add 2-d
@@ -2588,6 +2613,44 @@ TEST (AssignTest, TwoDim_V1V2_V2V1) {
 }
 
 #endif
+
+#if EIGEN_ASSIGN_TEST_2D
+
+TEST (EigenAssignTest, TwoDim_O1O2_O1O2) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h4}, {h1}, {h4}, {h1}));
+}
+
+TEST (EigenAssignTest, TwoDim_O1O2_O2O1) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 1.23, {h4}, {h1}, {h1}, {h4}));
+}
+
+TEST (EigenAssignTest, TwoDim_OV_OV) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h4}, {p1}, {h4}, {p1}));
+}
+
+TEST (EigenAssignTest, TwoDim_OV_VO) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 1.23, {h4}, {p1}, {p1}, {h4}));
+}
+
+TEST (EigenAssignTest, TwoDim_VO_VO) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h1}, {p1}, {h1}));
+}
+
+TEST (EigenAssignTest, TwoDim_VO_OV) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 1.23, {p1}, {h1}, {h1}, {p1}));
+}
+
+TEST (EigenAssignTest, TwoDim_V1V2_V1V2) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p4}, {p1}, {p4}, {p1}));
+}
+
+TEST (EigenAssignTest, TwoDim_V1V2_V2V1) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 1.23, {p4}, {p1}, {p1}, {p4}));
+}
+
+#endif
+
+//////////////////////////////////////
 
 #if MULT_TEST_2D_2D_2D
 
@@ -3514,6 +3577,150 @@ TEST (AssignTest, ThreeDim_v1v2_v3__v1v2_v3) {
 
 TEST (AssignTest, ThreeDim_v1v2_v3__v2v1_v3) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3}, {p2, p1}, {p3}));
+}
+
+//////////
+
+#endif
+
+#if EIGEN_ASSIGN_TEST_3D
+
+TEST (EigenAssignTest, ThreeDim_o1_o2o3__o1_o2o3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {h2, h3}, {h1}, {h2, h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_o1_o2o3__o1_o3o2) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {h2, h3}, {h1}, {h3, h2}));
+}
+
+TEST (EigenAssignTest, ThreeDim_o1_o2v3__o1_o2v3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {h2, p3}, {h1}, {h2, p3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_o1_o2v3__o1_v3o2) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {h2, p3}, {h1}, {p3, h2}));
+}
+
+TEST (EigenAssignTest, ThreeDim_o1_v2o3__o1_v2o3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {p2, h3}, {h1}, {p2, h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_o1_v2o3__o1_o3v2) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {p2, h3}, {h1}, {h3, p2}));
+}
+
+TEST (EigenAssignTest, ThreeDim_o1_v2v3__o1_v2v3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {p2, p3}, {h1}, {p2, p3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_o1_v2v3__o1_v3v2) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {p2, p3}, {h1}, {p3, p2}));
+}
+
+///////////
+
+TEST (EigenAssignTest, ThreeDim_v1_o2o3__v1_o2o3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h2, h3}, {p1}, {h2, h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1_o2o3__v1_o3o2) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h2, h3}, {p1}, {h3, h2}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1_o2v3__v1_o2v3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h2, p3}, {p1}, {h2, p3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1_o2v3__v1_v3o2) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h2, p3}, {p1}, {p3, h2}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1_v2o3__v1_v2o3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {p2, h3}, {p1}, {p2, h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1_v2o3__v1_o3v2) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {p2, h3}, {p1}, {h3, p2}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1_v2v3__v1_v2v3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {p2, p3}, {p1}, {p2, p3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1_v2v3__v1_v3v2) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {p2, p3}, {p1}, {p3, p2}));
+}
+
+//////////////////
+
+TEST (EigenAssignTest, ThreeDim_o1o2_o3__o1o2_o3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3}, {h1, h2}, {h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_o1o2_o3__o2o1_o3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3}, {h2, h1}, {h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_o1o2_v3__o1o2_v3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3}, {h1, h2}, {p3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_o1o2_v3__o2o1_v3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3}, {h2, h1}, {p3}));
+}
+
+/////////
+
+TEST (EigenAssignTest, ThreeDim_o1v2_o3__o1v2_o3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3}, {h1, p2}, {h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_o1v2_o3__v2o1_o3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3}, {p2, h1}, {h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_o1v2_v3__o1v2_v3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3}, {h1, p2}, {p3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_o1v2_v3__v2o1_v3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3}, {p2, h1}, {p3}));
+}
+
+//////////////////
+
+TEST (EigenAssignTest, ThreeDim_v1o2_o3__v1o2_o3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3}, {p1, h2}, {h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1o2_o3__o2v1_o3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3}, {h2, p1}, {h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1o2_v3__v1o2_v3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3}, {p1, h2}, {p3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1o2_v3__o2v1_v3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3}, {h2, p1}, {p3}));
+}
+
+/////////
+
+TEST (EigenAssignTest, ThreeDim_v1v2_o3__v1v2_o3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3}, {p1, p2}, {h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1v2_o3__v2v1_o3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3}, {p2, p1}, {h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1v2_v3__v1v2_v3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3}, {p1, p2}, {p3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1v2_v3__v2v1_v3) {
+  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3}, {p2, p1}, {p3}));
 }
 
 //////////

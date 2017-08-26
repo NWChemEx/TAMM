@@ -985,7 +985,7 @@ tammx_label_to_indices(const tammx::TensorLabel &labels) {
 //   } else if (nup == 2) {
 //     if(dims[0] == dims[1]) {
 //       tammx::SymmGroup sg{dims[0], dims[1]};
-//       ret.push_back(sg);      
+//       ret.push_back(sg);
 //     }
 //     else {
 //       tammx::SymmGroup sg1{dims[0]}, sg2{dims[1]};
@@ -1004,7 +1004,7 @@ tammx_label_to_indices(const tammx::TensorLabel &labels) {
 //   } else if (nlo == 2) {
 //     if(dims[nup + 0] == dims[nup + 1]) {
 //       tammx::SymmGroup sg{dims[nup + 0], dims[nup + 1]};
-//       ret.push_back(sg);      
+//       ret.push_back(sg);
 //     }
 //     else {
 //       tammx::SymmGroup sg1{dims[nup + 0]}, sg2{dims[nup + 1]};
@@ -1092,13 +1092,13 @@ tammx_tensors_are_equal(tammx::ExecutionContext &ec,
   const double *bbuf = reinterpret_cast<const T *>(tb.memory_manager()->access(tammx::Offset{0}));
   bool ret = true;
   for (int i = 0; i < asz; i++) {
-    std::cout << abuf[i] << ": " << bbuf[i];
+   // std::cout << abuf[i] << ": " << bbuf[i];
     if (std::abs(abuf[i] - bbuf[i]) > std::abs(threshold * abuf[i])) {
-      std::cout << "--\n";
+     // std::cout << "--\n";
       ret = false;
       break;
     }
-    std::cout << "\n";
+    //std::cout << "\n";
   }
   return ret;
 }
@@ -1362,6 +1362,10 @@ template<int ndim>
 using Perm = Eigen::array<std::ptrdiff_t, ndim>;
 
 class EigenTensorBase {
+public:
+  EigenTensorBase() {};
+
+  virtual ~EigenTensorBase() {};
 };
 
 template<int ndim>
@@ -1369,6 +1373,88 @@ class EigenTensor : public EigenTensorBase, public Eigen::Tensor<double, ndim, E
 public:
   EigenTensor(const std::array<long, ndim> &dims) : Eigen::Tensor<double, ndim, Eigen::RowMajor>(dims) {}
 };
+
+template<typename T>
+bool
+eigen_tensors_are_equal(EigenTensor<1> &e1,
+                        EigenTensor<1> &e2,
+                        double threshold = 1.0e-12) {
+
+  bool ret = true;
+  auto dims = e1.dimensions();
+  for (auto i = 0; i < dims[0]; i++) {
+      if (std::abs(e1(i) - e2(i)) > std::abs(threshold * e1(i))) {
+        ret = false;
+        break;
+      }
+    }
+    return ret;
+}
+
+template<typename T>
+bool
+eigen_tensors_are_equal(EigenTensor<2> &e1,
+                        EigenTensor<2> &e2,
+                        double threshold = 1.0e-12) {
+
+  bool ret = true;
+  auto dims = e1.dimensions();
+  for (auto i = 0; i < dims[0]; i++) {
+    for (auto j = 0; j < dims[1]; j++) {
+      if (std::abs(e1(i, j) - e2(i, j)) > std::abs(threshold * e1(i, j))) {
+        ret = false;
+        break;
+      }
+    }
+  }
+    return ret;
+}
+
+template<typename T>
+bool
+eigen_tensors_are_equal(EigenTensor<3> &e1,
+                        EigenTensor<3> &e2,
+                        double threshold = 1.0e-12) {
+
+  bool ret = true;
+  auto dims = e1.dimensions();
+  for (auto i = 0; i < dims[0]; i++) {
+    for (auto j = 0; j < dims[1]; j++) {
+      for (auto k = 0; k < dims[2]; k++) {
+        if (std::abs(e1(i, j, k) - e2(i, j, k)) > std::abs(threshold * e1(i, j, k))) {
+          ret = false;
+          break;
+        }
+      }
+    }
+  }
+    return ret;
+}
+
+template<typename T>
+bool
+eigen_tensors_are_equal(EigenTensor<4> &e1,
+                        EigenTensor<4> &e2,
+                        double threshold = 1.0e-12) {
+
+  bool ret = true;
+  auto dims = e1.dimensions();
+  for (auto i = 0; i < dims[0]; i++) {
+    for (auto j = 0; j < dims[1]; j++) {
+      for (auto k = 0; k < dims[2]; k++) {
+        for (auto l = 0; l < dims[2]; l++) {
+
+      if (std::abs(e1(i, j,k,l) - e2(i, j,k,l)) > std::abs(threshold * e1(i, j,k,l))) {
+        ret = false;
+        break;
+      }
+    }
+  }
+  }
+}
+  return ret;
+}
+
 
 template<int ndim>
 inline Perm<ndim>
@@ -1581,7 +1667,7 @@ tammx_tensor_to_eigen_tensor(tammx::Tensor<T> &tensor) {
   return nullptr;
 }
 
-EigenTensorBade*
+EigenTensorBase *
 eigen_assign(tammx::Tensor<double> &ttc,
              const tammx::TensorLabel &tclabel,
              double alpha,
@@ -1596,12 +1682,12 @@ eigen_assign(tammx::Tensor<double> &ttc,
 }
 
 bool
-test_with_eigen_assign_no_n(tammx::ExecutionContext &ec,
-                 double alpha,
-                 const tammx::TensorLabel &cupper_labels,
-                 const tammx::TensorLabel &clower_labels,
-                 const tammx::TensorLabel &aupper_labels,
-                 const tammx::TensorLabel &alower_labels) {
+test_eigen_assign_no_n(tammx::ExecutionContext &ec,
+                       double alpha,
+                       const tammx::TensorLabel &cupper_labels,
+                       const tammx::TensorLabel &clower_labels,
+                       const tammx::TensorLabel &aupper_labels,
+                       const tammx::TensorLabel &alower_labels) {
   const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
   const auto &clower_indices = tammx_label_to_indices(clower_labels);
   const auto &aupper_indices = tammx_label_to_indices(aupper_labels);
@@ -1636,16 +1722,37 @@ test_with_eigen_assign_no_n(tammx::ExecutionContext &ec,
   auto alabels = aupper_labels;
   alabels.insert_back(alower_labels.begin(), alower_labels.end());
 
-  EigenTensorBase* etc1 = eigen_assign(tc1, clabels, alpha, ta, alabels);
+  EigenTensorBase *etc1 = eigen_assign(tc1, clabels, alpha, ta, alabels);
   tammx_assign(ec, tc2, clabels, alpha, ta, alabels);
 
-  EigenTensor* etc2 = tammx_tensor_to_eigen_tensor(tc2);
+  EigenTensorBase *etc2 = tammx_tensor_to_eigen_tensor(tc2);
 
-  status = eigen_tensors_are_equal(ndim, *etc1, *etc2);
+  bool status = false;
+  if (tc1.rank() == 1) {
+    auto *et1 = dynamic_cast<EigenTensor<1> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<1> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  }
+  else if (tc1.rank() == 2) {
+    auto *et1 = dynamic_cast<EigenTensor<2> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<2> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  }
+  else if (tc1.rank() == 3) {
+    auto *et1 = dynamic_cast<EigenTensor<3> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<3> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  }
+  else if (tc1.rank() == 4) {
+    auto *et1 = dynamic_cast<EigenTensor<4> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<4> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  }
 
   ec.deallocate(tc1, tc2, ta);
   delete etc1;
   delete etc2;
+
   return status;
 }
 
@@ -4681,5 +4788,3 @@ test_assign_ipccsd_x2(ec);
   MPI_Finalize();
   return ret;
 }
-
-

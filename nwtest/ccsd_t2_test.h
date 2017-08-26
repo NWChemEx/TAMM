@@ -8,108 +8,45 @@
 // Operated by Battelle for the U.S. Department of Energy
 //
 //------------------------------------------------------------------------------
-//#include <iostream>
-//#include "gtest/gtest.h"
-//
-//#include "tensor/corf.h"
-//#include "tammx/tammx.h"
-//
-//namespace {
-//tammx::ExecutionContext* g_ec;
-//}
-//
-//class TestEnvironment : public testing::Environment {
-// public:
-//  explicit TestEnvironment(tammx::ExecutionContext* ec) {
-//    g_ec = ec;
-//  }
-//};
-//
-//const auto P1B = tamm::P1B;
-//const auto P2B = tamm::P2B;
-//const auto P3B = tamm::P3B;
-//const auto P4B = tamm::P4B;
-//const auto P5B = tamm::P5B;
-//const auto P6B = tamm::P6B;
-//const auto P7B = tamm::P7B;
-//const auto P8B = tamm::P8B;
-//const auto P10B = tamm::P10B;
-//const auto P11B = tamm::P11B;
-//const auto P12B = tamm::P12B;
-//const auto P9B = tamm::P9B;
-//const auto H1B = tamm::H1B;
-//const auto H2B = tamm::H2B;
-//const auto H3B = tamm::H3B;
-//const auto H4B = tamm::H4B;
-//const auto H5B = tamm::H5B;
-//const auto H6B = tamm::H6B;
-//const auto H7B = tamm::H7B;
-//const auto H8B = tamm::H8B;
-//const auto H9B = tamm::H9B;
-//const auto H10B = tamm::H10B;
-//const auto H11B = tamm::H11B;
-//const auto H12B = tamm::H12B;
-//
-//const auto h1 = tamm::H1B;
-//const auto h2 = tamm::H2B;
-//const auto h3 = tamm::H3B;
-//const auto h4 = tamm::H4B;
-//const auto h5 = tamm::H5B;
-//const auto h6 = tamm::H6B;
-//const auto h7 = tamm::H7B;
-//const auto h8 = tamm::H8B;
-//const auto h9 = tamm::H9B;
-//const auto h10 = tamm::H10B;
-//const auto h11 = tamm::H11B;
-//const auto h12 = tamm::H12B;
-//
-//const auto p1 = tamm::P1B;
-//const auto p2 = tamm::P2B;
-//const auto p3 = tamm::P3B;
-//const auto p4 = tamm::P4B;
-//const auto p5 = tamm::P5B;
-//const auto p6 = tamm::P6B;
-//const auto p7 = tamm::P7B;
-//const auto p8 = tamm::P8B;
-//const auto p9 = tamm::P9B;
-//const auto p10 = tamm::P10B;
-//const auto p11 = tamm::P11B;
-//const auto p12 = tamm::P12B;
-//
-//bool test_assign_no_n(tammx::ExecutionContext& ec,
-//                      const std::vector<tamm::IndexName>& cupper_labels,
-//                      const std::vector<tamm::IndexName>& clower_labels,
-//                      double alpha,
-//                      const std::vector<tamm::IndexName>& aupper_labels,
-//                      const std::vector<tamm::IndexName>& alower_labels);
-//
-//bool test_mult_no_n(tammx::ExecutionContext& ec,
-//               const std::vector<tamm::IndexName>& cupper_labels,
-//               const std::vector<tamm::IndexName>& clower_labels,
-//               double alpha,
-//               const std::vector<tamm::IndexName>& aupper_labels,
-//               const std::vector<tamm::IndexName>& alower_labels,
-//               const std::vector<tamm::IndexName>& bupper_labels,
-//               const std::vector<tamm::IndexName>& blower_labels);
 
+// i0 ( p3 p4 h1 h2 )_v + = 1 * v ( p3 p4 h1 h2 )_v
 TEST(CCSD_T2,t2_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {p3,p4}, {h1,h2}, 1.0,
 		{p3,p4}, {h1,h2}));
 }
+TEST (FORT_CCSD_T2, t2_1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, {p3,p4}, {h1,h2}, 1.0,
+		  {p3,p4}, {h1,h2}, ccsd_t2_1_));
+}
 
+// i1 ( h10 p3 h1 h2 )_v + = 1 * v ( h10 p3 h1 h2 )_v
 TEST(CCSD_T2,t2_2_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {h10,p3}, {h1,h2}, 1.0,
 		  {h10,p3}, {h1,h2}));
 }
+TEST (FORT_CCSD_T2, t2_2_1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, {p3,h10}, {h1,h2}, 1.0,
+		  {h10,p3}, {h1,h2}, ccsd_t2_2_1_));
+}
 
+// i2 ( h10 h11 h1 h2 )_v + = -1 * v ( h10 h11 h1 h2 )_v
 TEST(CCSD_T2,t2_2_2_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {h10,h11} ,{h1,h2}, -1.0,
 		  {h10,h11}, {h1,h2}));
 }
+TEST (FORT_CCSD_T2, t2_2_2_1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, {h10,h11} ,{h1,h2}, -1.0,
+		  {h10,h11}, {h1,h2}, ccsd_t2_2_2_1_));
+}
 
+// i3 ( h10 h11 h1 p5 )_v + = 1 * v ( h10 h11 h1 p5 )_v
 TEST(CCSD_T2,t2_2_2_2_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {h10,h11}, {h1,p5}, 1.0,
 		  {h10,h11}, {h1,p5}));
+}
+TEST (FORT_CCSD_T2, t2_2_2_2_1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, {h10,h11}, {h1,p5}, 1.0,
+		  {h10,h11}, {h1,p5}, ccsd_t2_2_2_2_1_));
 }
 
 TEST(CCSD_T2,t2_2_2_2_2) {
@@ -132,8 +69,13 @@ TEST(CCSD_T2,t2_2_2) {
 		  {h10,h11}, {h1,h2}));
 }
 
+// i2 ( h10 p5 )_f + = 1 * f ( h10 p5 )_f
 TEST(CCSD_T2,t2_2_4_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {h10}, {p5}, 1.0, {h10}, {p5}));
+}
+TEST (FORT_CCSD_T2, t2_2_4_1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, {h10}, {p5}, 1.0, {h10}, {p5},
+		  ccsd_t2_2_4_1_));
 }
 
 TEST(CCSD_T2,t2_2_4_2) {
@@ -146,8 +88,13 @@ TEST(CCSD_T2,t2_2_4) {
 		  {h10}, {p5}));
 }
 
+// i2 ( h7 h10 h1 p9 )_v + = 1 * v ( h7 h10 h1 p9 )_v
 TEST(CCSD_T2,t2_2_5_1) {
 ASSERT_TRUE(test_assign_no_n(*g_ec, {h7,h10}, {h1,p9}, 1.0, {h7,h10}, {h1,p9}));
+}
+TEST (FORT_CCSD_T2, t2_2_5_1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, {h7,h10}, {h1,p9}, 1.0,
+		  {h7,h10}, {h1,p9}, ccsd_t2_2_5_1_));
 }
 
 TEST(CCSD_T2,t2_2_5_2) {
@@ -183,8 +130,13 @@ TEST(CCSD_T2,lt2_3x) {
 		  {h2,p5}));
 }
 
+// i1 ( h9 h1 )_f + = 1 * f ( h9 h1 )_f
 TEST(CCSD_T2,t2_4_1) {
 	ASSERT_TRUE(test_assign_no_n(*g_ec, {h9}, {h1}, 1.0, {h9}, {h1}));
+}
+TEST (FORT_CCSD_T2, t2_4_1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, {h9}, {h1}, 1.0, {h9}, {h1},
+		  ccsd_t2_4_1_));
 }
 
 TEST(CCSD_T2,t2_4_2_1) {
@@ -214,8 +166,13 @@ TEST(CCSD_T2,t2_4) {
 		  {h2}));
 }
 
+// i1 ( p3 p5 )_f + = 1 * f ( p3 p5 )_f
 TEST(CCSD_T2,t2_5_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {p3}, {p5}, 1.0, {p3}, {p5}));
+}
+TEST (FORT_CCSD_T2, t2_5_1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, {p3}, {p5}, 1.0, {p3}, {p5},
+		  ccsd_t2_5_1_));
 }
 
 TEST(CCSD_T2,t2_5_2) {
@@ -232,14 +189,24 @@ TEST(CCSD_T2,t2_5) {
 		  {p5}));
 }
 
+// i1 ( h9 h11 h1 h2 )_v + = -1 * v ( h9 h11 h1 h2 )_v
 TEST(CCSD_T2,t2_6_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {h9,h11}, {h1,h2}, -1.0, {h9,h11},
 		  {h1,h2}));
 }
+TEST (FORT_CCSD_T2, t2_6_1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, {h9,h11}, {h1,h2}, -1.0, {h9,h11},
+		  {h1,h2}, ccsd_t2_6_1_));
+}
 
+// i2 ( h9 h11 h1 p8 )_v + = 1 * v ( h9 h11 h1 p8 )_v
 TEST(CCSD_T2,t2_6_2_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {h9,h11}, {h1,p8}, 1.0, {h9,h11},
 		  {h1,p8}));
+}
+TEST (FORT_CCSD_T2, t2_6_2_1) {
+  ASSERT_TRUE(test_assign_no_n(*g_ec, {h9,h11}, {h1,p8}, 1.0, {h9,h11},
+		  {h1,p8}, ccsd_t2_6_2_1_));
 }
 
 TEST(CCSD_T2,t2_6_2_2) {
@@ -262,9 +229,14 @@ TEST(CCSD_T2,t2_6) {
 		  {h9,h11}, {h1,h2}));
 }
 
+// i1 ( h6 p3 h1 p5 )_v + = 1 * v ( h6 p3 h1 p5 )_v
 TEST(CCSD_T2,t2_7_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {h6,p3}, {h1,p5}, 1.0, {h6,p3}, {h1,p5}));
 }
+//TEST (FORT_CCSD_T2, t2_7_1) {
+//  ASSERT_TRUE(test_assign_no_n(*g_ec, {p3,h1}, {p5,h6}, 1.0, {h6,p3},
+//		  {h1,p5}, ccsd_t2_7_1_));
+//}
 
 TEST(CCSD_T2,t2_7_2) {
   ASSERT_TRUE(test_mult_no_n(*g_ec, {h6,p3}, {h1,p5}, -1.0, {p7}, {h1}, {h6,p3},

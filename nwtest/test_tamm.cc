@@ -915,9 +915,9 @@ void tammx_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted
 
   Irrep irrep_f{0}, irrep_v{0}, irrep_t{0}, irrep_x{0}, irrep_y{0};
 
-  std::vector<Spin> spins;
-  std::vector<Irrep> irreps;
-  std::vector<size_t> sizes;
+  std::vector <Spin> spins;
+  std::vector <Irrep> irreps;
+  std::vector <size_t> sizes;
 
   for (auto s : ispins) {
     spins.push_back(Spin{s});
@@ -951,9 +951,9 @@ void tammx_finalize() {
 using namespace tammx;
 
 //namespace new_impl {
-TensorVec<tammx::SymmGroup>
+TensorVec <tammx::SymmGroup>
 tammx_label_to_indices(const tammx::TensorLabel &labels) {
-  tammx::TensorVec<tammx::SymmGroup> ret;
+  tammx::TensorVec <tammx::SymmGroup> ret;
   tammx::TensorDim tdims;
 
   for (auto l : labels) {
@@ -1025,7 +1025,7 @@ tammx_label_to_indices(const tammx::TensorLabel &labels) {
 
 template<typename T>
 void
-tammx_tensor_dump(const tammx::Tensor<T> &tensor, std::ostream &os) {
+tammx_tensor_dump(const tammx::Tensor <T> &tensor, std::ostream &os) {
   const auto &buf = static_cast<const T *>(tensor.memory_manager()->access(tammx::Offset{0}));
   size_t sz = tensor.memory_manager()->local_size_in_elements().value();
   os << "tensor size=" << sz << std::endl;
@@ -1067,7 +1067,7 @@ void
 tammx_tensor_fill(tammx::ExecutionContext &ec,
                   LabeledTensorType ltensor) {
   using T = typename LabeledTensorType::element_type;
-  auto init_lambda = [](tammx::Block<T> &block) {
+  auto init_lambda = [](tammx::Block <T> &block) {
     double n = std::rand() % 5;
     auto dbuf = block.buf();
     for (size_t i = 0; i < block.size(); i++) {
@@ -1117,7 +1117,7 @@ test_initval_no_n(tammx::ExecutionContext &ec,
   const auto &lower_indices = tammx_label_to_indices(lower_labels);
 
   tammx::TensorRank nupper{upper_labels.size()};
-  tammx::TensorVec<tammx::SymmGroup> indices{upper_indices};
+  tammx::TensorVec <tammx::SymmGroup> indices{upper_indices};
   indices.insert_back(lower_indices.begin(), lower_indices.end());
   tammx::Tensor<double> xta{indices, nupper, tammx::Irrep{0}, false};
   tammx::Tensor<double> xtc{indices, nupper, tammx::Irrep{0}, false};
@@ -1157,8 +1157,8 @@ test_initval_no_n(tammx::ExecutionContext &ec,
 
 bool
 test_symm_assign(tammx::ExecutionContext &ec,
-                 const tammx::TensorVec<tammx::SymmGroup> &cindices,
-                 const tammx::TensorVec<tammx::SymmGroup> &aindices,
+                 const tammx::TensorVec <tammx::SymmGroup> &cindices,
+                 const tammx::TensorVec <tammx::SymmGroup> &aindices,
                  int nupper_indices,
                  const tammx::TensorLabel &clabels,
                  double alpha,
@@ -1253,10 +1253,10 @@ test_symm_assign(tammx::ExecutionContext &ec,
 template<typename T>
 void
 tammx_assign(tammx::ExecutionContext &ec,
-             tammx::Tensor<T> &tc,
+             tammx::Tensor <T> &tc,
              const tammx::TensorLabel &clabel,
              double alpha,
-             tammx::Tensor<T> &ta,
+             tammx::Tensor <T> &ta,
              const tammx::TensorLabel &alabel) {
   // auto al = tamm_label_to_tammx_label(alabel);
   // auto cl = tamm_label_to_tammx_label(clabel);
@@ -1277,12 +1277,12 @@ tammx_assign(tammx::ExecutionContext &ec,
 template<typename T>
 void
 tammx_mult(tammx::ExecutionContext &ec,
-           tammx::Tensor<T> &tc,
+           tammx::Tensor <T> &tc,
            const tammx::TensorLabel &clabel,
            double alpha,
-           tammx::Tensor<T> &ta,
+           tammx::Tensor <T> &ta,
            const tammx::TensorLabel &alabel,
-           tammx::Tensor<T> &tb,
+           tammx::Tensor <T> &tb,
            const tammx::TensorLabel &blabel) {
   // tammx::Tensor<double> *ta = tamm_tensor_to_tammx_tensor(ec.pg(), tta);
   // tammx::Tensor<double> *tb = tamm_tensor_to_tammx_tensor(ec.pg(), ttb);
@@ -1619,7 +1619,7 @@ patch_copy(T *sbuf, Eigen::Tensor<T, 4, Eigen::RowMajor> &etensor,
 
 template<typename T, int ndim>
 EigenTensorBase *
-tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T> &tensor) {
+tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor <T> &tensor) {
   Expects(tensor.rank() == ndim);
 
   std::array<int, ndim> lo_offset, hi_offset;
@@ -1657,7 +1657,7 @@ tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T> &tensor) {
 
 template<typename T>
 EigenTensorBase *
-tammx_tensor_to_eigen_tensor(tammx::Tensor<T> &tensor) {
+tammx_tensor_to_eigen_tensor(tammx::Tensor <T> &tensor) {
 //   if(tensor.rank() == 0) {
 //     return tammx_tensor_to_eigen_tensor_dispatch<T,0>(tensor);
 //   } else
@@ -2197,9 +2197,9 @@ tamm_id_to_tammx_dim(const tamm::Index &id) {
   return tamm_range_to_tammx_dim(tamm_id_to_tamm_range(id));
 }
 
-tammx::TensorVec<tammx::SymmGroup>
+tammx::TensorVec <tammx::SymmGroup>
 tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup) {
-  tammx::TensorVec<tammx::SymmGroup> ret;
+  tammx::TensorVec <tammx::SymmGroup> ret;
 
   int nlo = dims.size() - nup;
   if (nup == 0) {
@@ -2240,7 +2240,7 @@ tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup) {
   return ret;
 }
 
-tammx::TensorVec<tammx::SymmGroup>
+tammx::TensorVec <tammx::SymmGroup>
 tamm_labels_to_tammx_indices(const std::vector<tamm::IndexName> &labels) {
   tammx::TensorDim tammx_dims;
   for (const auto l : labels) {
@@ -2302,81 +2302,86 @@ tamm_labels_to_tammx_indices(const std::vector<tamm::IndexName> &labels) {
 
 #if INITVAL_TEST_0D
 
-TEST (InitvalTest, ZeroDim) {
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {}, {}));
+TEST (InitvalTest, ZeroDim
+) {
+ASSERT_TRUE(test_initval_no_n(*g_ec, {}, {}));
 }
 #endif
 
 #if INITVAL_TEST_1D
 
-TEST (InitvalTest, OneDim) {
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {}, {h1}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {}, {p1}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {}));
+TEST (InitvalTest, OneDim
+) {
+ASSERT_TRUE(test_initval_no_n(*g_ec, {}, {h1}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {}, {p1}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {}));
 }
 
 #endif
 
 #if INITVAL_TEST_2D
 
-TEST (InitvalTest, TwoDim) {
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {h2}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {p2}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {h2}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {p2}));
+TEST (InitvalTest, TwoDim
+) {
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {h2}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {p2}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {h2}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {p2}));
 }
 
 #endif
 
 #if INITVAL_TEST_3D
 
-TEST (InitvalTest, ThreeDim) {
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {h2, h3}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {h2, p3}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {p2, h3}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {p2, p3}));
+TEST (InitvalTest, ThreeDim
+) {
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {h2, h3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {h2, p3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {p2, h3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1}, {p2, p3}));
 
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {h2, h3}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {h2, p3}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {p2, h3}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {p2, p3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {h2, h3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {h2, p3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {p2, h3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1}, {p2, p3}));
 
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {h3}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {p3}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {h3}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {p3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {h3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {p3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {h3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {p3}));
 
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {h3}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {p3}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {h3}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {p3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {h3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {p3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {h3}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {p3}));
 }
 
 #endif
 
 #if INITVAL_TEST_4D
 
-TEST (InitvalTest, FourDim) {
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {h3, h4}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {h3, p4}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {p3, h4}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {p3, p4}));
+TEST (InitvalTest, FourDim
+) {
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {h3, h4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {h3, p4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {p3, h4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, h2}, {p3, p4}));
 
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {h3, h4}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {h3, p4}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {p3, h4}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {p3, p4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {h3, h4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {h3, p4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {p3, h4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {h1, p2}, {p3, p4}));
 
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {h3, h4}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {h3, p4}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {p3, h4}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {p3, p4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {h3, h4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {h3, p4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {p3, h4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, h2}, {p3, p4}));
 
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {h3, h4}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {h3, p4}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {p3, h4}));
-  ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {p3, p4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {h3, h4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {h3, p4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {p3, h4}));
+ASSERT_TRUE(test_initval_no_n(*g_ec, {p1, p2}, {p3, p4}));
 }
 
 #endif
@@ -2488,38 +2493,73 @@ TEST (InitvalTest, FourDim) {
 #if ASSIGN_TEST_0D
 
 //@todo tamm might not work with zero dimensions. So directly testing tammx.
-TEST (AssignTest, ZeroDim) {
+TEST (AssignTest, ZeroDim
+) {
 
 
-  tammx::TensorRank nupper{0};
-  tammx::Irrep irrep{0};
-  tammx::TensorVec<tammx::SymmGroup> indices{};
-  bool restricted = false;
-  tammx::Tensor<double> xta{indices, nupper, irrep, restricted};
-  tammx::Tensor<double> xtc{indices, nupper, irrep, restricted};
+tammx::TensorRank nupper{0};
+tammx::Irrep irrep{0};
+tammx::TensorVec <tammx::SymmGroup> indices{};
+bool restricted = false;
+tammx::Tensor<double> xta{indices, nupper, irrep, restricted};
+tammx::Tensor<double> xtc{indices, nupper, irrep, restricted};
 
-  double init_val_a = 9.1, init_val_c = 8.2, alpha = 3.5;
+double init_val_a = 9.1, init_val_c = 8.2, alpha = 3.5;
 
-  g_ec->allocate(xta, xtc);
-  g_ec->scheduler()
-    .io(xta, xtc)
-      (xta() = init_val_a)
-      (xtc() = init_val_c)
-      (xtc() += alpha * xta())
-    .execute();
+g_ec->
+allocate(xta, xtc
+);
+g_ec->
 
-  auto sz = xta.memory_manager()->local_size_in_elements().value();
-  bool status = true;
-  const double threshold = 1e-14;
-  const auto cbuf = reinterpret_cast<double *>(xtc.memory_manager()->access(tammx::Offset{0}));
-  for (int i = 0; i < sz; i++) {
-    if (std::abs(cbuf[i] - (init_val_a * alpha + init_val_c)) > threshold) {
-      status = false;
-      break;
-    }
-  }
-  g_ec->deallocate(xta, xtc);
-  ASSERT_TRUE(status);
+scheduler()
+
+.
+io(xta, xtc
+)
+(
+
+xta() = init_val_a
+
+)
+(
+
+xtc() = init_val_c
+
+)
+(
+
+xtc()
+
++=
+
+alpha *xta()
+
+)
+.
+
+execute();
+
+auto sz = xta.memory_manager()->local_size_in_elements().value();
+bool status = true;
+const double threshold = 1e-14;
+const auto cbuf = reinterpret_cast<double *>(xtc.memory_manager()->access(tammx::Offset{0}));
+for (
+int i = 0;
+i<sz;
+i++) {
+if (
+std::abs(cbuf[i]
+- (
+init_val_a *alpha
++ init_val_c)) > threshold) {
+status = false;
+break;
+}
+}
+g_ec->
+deallocate(xta, xtc
+);
+ASSERT_TRUE(status);
 }
 #endif
 
@@ -2531,20 +2571,24 @@ TEST (AssignTest, ZeroDim) {
 
 #if ASSIGN_TEST_1D
 
-TEST (AssignTest, OneDim_o1e_o1e) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {}, {h1}, {}));
+TEST (AssignTest, OneDim_o1e_o1e
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {}, {h1}, {}));
 }
 
-TEST (AssignTest, OneDim_eo1_eo1) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {}, {h1}, {}, {h1}));
+TEST (AssignTest, OneDim_eo1_eo1
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {}, {h1}, {}, {h1}));
 }
 
-TEST (AssignTest, OneDim_v1e_v1e) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {}, {p1}, {}));
+TEST (AssignTest, OneDim_v1e_v1e
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {}, {p1}, {}));
 }
 
-TEST (AssignTest, OneDim_ev1_ev1) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {}, {p1}, {}, {p1}));
+TEST (AssignTest, OneDim_ev1_ev1
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {}, {p1}, {}, {p1}));
 }
 
 #endif
@@ -2552,20 +2596,24 @@ TEST (AssignTest, OneDim_ev1_ev1) {
 
 #if EIGEN_ASSIGN_TEST_1D
 
-TEST (EigenAssignTest, OneDim_o1e_o1e) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {}, {h1}, {}));
+TEST (EigenAssignTest, OneDim_o1e_o1e
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {}, {h1}, {}));
 }
 
-TEST (EigenAssignTest, OneDim_eo1_eo1) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {}, {h1}, {}, {h1}));
+TEST (EigenAssignTest, OneDim_eo1_eo1
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {}, {h1}, {}, {h1}));
 }
 
-TEST (EigenAssignTest, OneDim_v1e_v1e) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {}, {p1}, {}));
+TEST (EigenAssignTest, OneDim_v1e_v1e
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {}, {p1}, {}));
 }
 
-TEST (EigenAssignTest, OneDim_ev1_ev1) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {}, {p1}, {}, {p1}));
+TEST (EigenAssignTest, OneDim_ev1_ev1
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {}, {p1}, {}, {p1}));
 }
 
 #endif
@@ -2581,72 +2629,88 @@ TEST (EigenAssignTest, OneDim_ev1_ev1) {
 
 #if ASSIGN_TEST_2D
 
-TEST (AssignTest, TwoDim_O1O2_O1O2) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h4}, {h1}, {h4}, {h1}));
+TEST (AssignTest, TwoDim_O1O2_O1O2
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h4}, {h1}, {h4}, {h1}));
 }
 
-TEST (AssignTest, TwoDim_O1O2_O2O1) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {h4}, {h1}, {h1}, {h4}));
+TEST (AssignTest, TwoDim_O1O2_O2O1
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {h4}, {h1}, {h1}, {h4}));
 }
 
-TEST (AssignTest, TwoDim_OV_OV) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h4}, {p1}, {h4}, {p1}));
+TEST (AssignTest, TwoDim_OV_OV
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h4}, {p1}, {h4}, {p1}));
 }
 
-TEST (AssignTest, TwoDim_OV_VO) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {h4}, {p1}, {p1}, {h4}));
+TEST (AssignTest, TwoDim_OV_VO
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {h4}, {p1}, {p1}, {h4}));
 }
 
-TEST (AssignTest, TwoDim_VO_VO) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h1}, {p1}, {h1}));
+TEST (AssignTest, TwoDim_VO_VO
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h1}, {p1}, {h1}));
 }
 
-TEST (AssignTest, TwoDim_VO_OV) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {p1}, {h1}, {h1}, {p1}));
+TEST (AssignTest, TwoDim_VO_OV
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {p1}, {h1}, {h1}, {p1}));
 }
 
-TEST (AssignTest, TwoDim_V1V2_V1V2) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p4}, {p1}, {p4}, {p1}));
+TEST (AssignTest, TwoDim_V1V2_V1V2
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p4}, {p1}, {p4}, {p1}));
 }
 
-TEST (AssignTest, TwoDim_V1V2_V2V1) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {p4}, {p1}, {p1}, {p4}));
+TEST (AssignTest, TwoDim_V1V2_V2V1
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 1.23, {p4}, {p1}, {p1}, {p4}));
 }
 
 #endif
 
 #if EIGEN_ASSIGN_TEST_2D
 
-TEST (EigenAssignTest, TwoDim_O1O2_O1O2) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h4}, {h1}, {h4}, {h1}));
+TEST (EigenAssignTest, TwoDim_O1O2_O1O2
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h4}, {h1}, {h4}, {h1}));
 }
 
-TEST (EigenAssignTest, TwoDim_O1O2_O2O1) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 1.23, {h4}, {h1}, {h1}, {h4}));
+TEST (EigenAssignTest, TwoDim_O1O2_O2O1
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 1.23, {h4}, {h1}, {h1}, {h4}));
 }
 
-TEST (EigenAssignTest, TwoDim_OV_OV) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h4}, {p1}, {h4}, {p1}));
+TEST (EigenAssignTest, TwoDim_OV_OV
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h4}, {p1}, {h4}, {p1}));
 }
 
-TEST (EigenAssignTest, TwoDim_OV_VO) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 1.23, {h4}, {p1}, {p1}, {h4}));
+TEST (EigenAssignTest, TwoDim_OV_VO
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 1.23, {h4}, {p1}, {p1}, {h4}));
 }
 
-TEST (EigenAssignTest, TwoDim_VO_VO) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h1}, {p1}, {h1}));
+TEST (EigenAssignTest, TwoDim_VO_VO
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h1}, {p1}, {h1}));
 }
 
-TEST (EigenAssignTest, TwoDim_VO_OV) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 1.23, {p1}, {h1}, {h1}, {p1}));
+TEST (EigenAssignTest, TwoDim_VO_OV
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 1.23, {p1}, {h1}, {h1}, {p1}));
 }
 
-TEST (EigenAssignTest, TwoDim_V1V2_V1V2) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p4}, {p1}, {p4}, {p1}));
+TEST (EigenAssignTest, TwoDim_V1V2_V1V2
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p4}, {p1}, {p4}, {p1}));
 }
 
-TEST (EigenAssignTest, TwoDim_V1V2_V2V1) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 1.23, {p4}, {p1}, {p1}, {p4}));
+TEST (EigenAssignTest, TwoDim_V1V2_V2V1
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 1.23, {p4}, {p1}, {p1}, {p4}));
 }
 
 #endif
@@ -2655,211 +2719,235 @@ TEST (EigenAssignTest, TwoDim_V1V2_V2V1) {
 
 #if MULT_TEST_2D_2D_2D
 
-TEST (MultTest, Dim_oo_oo_oo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {h2},
-                             {h1}, {h3},
-                             {h3}, {h2}));
+TEST (MultTest, Dim_oo_oo_oo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {h2},
+                           {h1}, {h3},
+                           {h3}, {h2}));
 }
 
-TEST (MultTest, Dim_oo_ov_vo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {h2},
-                             {h1}, {p3},
-                             {p3}, {h2}));
+TEST (MultTest, Dim_oo_ov_vo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {h2},
+                           {h1}, {p3},
+                           {p3}, {h2}));
 }
 
-TEST (MultTest, Dim_ov_oo_ov) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {p2},
-                             {h1}, {h3},
-                             {h3}, {p2}));
+TEST (MultTest, Dim_ov_oo_ov
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {p2},
+                           {h1}, {h3},
+                           {h3}, {p2}));
 }
 
-TEST (MultTest, Dim_ov_ov_vv) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {p2},
-                             {h1}, {p3},
-                             {p3}, {p2}));
+TEST (MultTest, Dim_ov_ov_vv
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {p2},
+                           {h1}, {p3},
+                           {p3}, {p2}));
 }
 
-TEST (MultTest, Dim_vo_vo_oo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {h2},
-                             {p1}, {h3},
-                             {h3}, {h2}));
+TEST (MultTest, Dim_vo_vo_oo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {h2},
+                           {p1}, {h3},
+                           {h3}, {h2}));
 }
 
-TEST (MultTest, Dim_vo_vv_vo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {h2},
-                             {p1}, {p3},
-                             {p3}, {h2}));
+TEST (MultTest, Dim_vo_vv_vo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {h2},
+                           {p1}, {p3},
+                           {p3}, {h2}));
 }
 
-TEST (MultTest, Dim_vv_vo_ov) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {p2},
-                             {p1}, {h3},
-                             {h3}, {p2}));
+TEST (MultTest, Dim_vv_vo_ov
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {p2},
+                           {p1}, {h3},
+                           {h3}, {p2}));
 }
 
-TEST (MultTest, Dim_vv_vv_vv) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {p2},
-                             {p1}, {p3},
-                             {p3}, {p2}));
+TEST (MultTest, Dim_vv_vv_vv
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {p2},
+                           {p1}, {p3},
+                           {p3}, {p2}));
 }
 
 #endif
 
 #if MULT_TEST_2D_2D_4D
 
-TEST (MultTest, Dim_oo_oo_oooo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {h4},
-                             {h2}, {h3},
-                             {h1, h3}, {h2, h4}));
+TEST (MultTest, Dim_oo_oo_oooo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {h4},
+                           {h2}, {h3},
+                           {h1, h3}, {h2, h4}));
 }
 
 
-TEST (MultTest, Dim_oo_ov_ovoo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {h4},
-                             {h2}, {p3},
-                             {h1, p3}, {h2, h4}));
+TEST (MultTest, Dim_oo_ov_ovoo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {h4},
+                           {h2}, {p3},
+                           {h1, p3}, {h2, h4}));
 }
 
-TEST (MultTest, Dim_oo_vo_oovo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {h4},
-                             {p2}, {h3},
-                             {h1, h3}, {p2, h4}));
+TEST (MultTest, Dim_oo_vo_oovo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {h4},
+                           {p2}, {h3},
+                           {h1, h3}, {p2, h4}));
 }
 
-TEST (MultTest, Dim_oo_vv_ovvo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {h4},
-                             {p2}, {p3},
-                             {h1, p3}, {p2, h4}));
+TEST (MultTest, Dim_oo_vv_ovvo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {h4},
+                           {p2}, {p3},
+                           {h1, p3}, {p2, h4}));
 }
 
 
 /////////////////////////
 
-TEST (MultTest, Dim_ov_oo_ooov) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {p4},
-                             {h2}, {h3},
-                             {h1, h3}, {h2, p4}));
+TEST (MultTest, Dim_ov_oo_ooov
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {p4},
+                           {h2}, {h3},
+                           {h1, h3}, {h2, p4}));
 }
 
 
-TEST (MultTest, Dim_ov_ov_ovov) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {p4},
-                             {h2}, {p3},
-                             {h1, p3}, {h2, p4}));
+TEST (MultTest, Dim_ov_ov_ovov
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {p4},
+                           {h2}, {p3},
+                           {h1, p3}, {h2, p4}));
 }
 
-TEST (MultTest, Dim_ov_vo_oovv) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {p4},
-                             {p2}, {h3},
-                             {h1, h3}, {p2, p4}));
+TEST (MultTest, Dim_ov_vo_oovv
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {p4},
+                           {p2}, {h3},
+                           {h1, h3}, {p2, p4}));
 }
 
-TEST (MultTest, Dim_ov_vv_ovvv) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {p4},
-                             {p2}, {p3},
-                             {h1, p3}, {p2, p4}));
-}
-
-////////////////////////
-
-TEST (MultTest, Dim_vo_oo_vooo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {h4},
-                             {h2}, {h3},
-                             {p1, h3}, {h2, h4}));
-}
-
-
-TEST (MultTest, Dim_vo_ov_vvoo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {h4},
-                             {h2}, {p3},
-                             {p1, p3}, {h2, h4}));
-}
-
-TEST (MultTest, Dim_vo_vo_vovo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {h4},
-                             {p2}, {h3},
-                             {p1, h3}, {p2, h4}));
-}
-
-TEST (MultTest, Dim_vo_vv_vvvo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {h4},
-                             {p2}, {p3},
-                             {p1, p3}, {p2, h4}));
+TEST (MultTest, Dim_ov_vv_ovvv
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {p4},
+                           {p2}, {p3},
+                           {h1, p3}, {p2, p4}));
 }
 
 ////////////////////////
 
-TEST (MultTest, Dim_vv_oo_voov) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {p4},
-                             {h2}, {h3},
-                             {p1, h3}, {h2, p4}));
+TEST (MultTest, Dim_vo_oo_vooo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {h4},
+                           {h2}, {h3},
+                           {p1, h3}, {h2, h4}));
 }
 
 
-TEST (MultTest, Dim_vv_ov_vvov) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {p4},
-                             {h2}, {p3},
-                             {p1, p3}, {h2, p4}));
+TEST (MultTest, Dim_vo_ov_vvoo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {h4},
+                           {h2}, {p3},
+                           {p1, p3}, {h2, h4}));
 }
 
-TEST (MultTest, Dim_vv_vo_vovv) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {p4},
-                             {p2}, {h3},
-                             {p1, h3}, {p2, p4}));
+TEST (MultTest, Dim_vo_vo_vovo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {h4},
+                           {p2}, {h3},
+                           {p1, h3}, {p2, h4}));
 }
 
-TEST (MultTest, Dim_vv_vv_vvvv) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {p4},
-                             {p2}, {p3},
-                             {p1, p3}, {p2, p4}));
+TEST (MultTest, Dim_vo_vv_vvvo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {h4},
+                           {p2}, {p3},
+                           {p1, p3}, {p2, h4}));
+}
+
+////////////////////////
+
+TEST (MultTest, Dim_vv_oo_voov
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {p4},
+                           {h2}, {h3},
+                           {p1, h3}, {h2, p4}));
+}
+
+
+TEST (MultTest, Dim_vv_ov_vvov
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {p4},
+                           {h2}, {p3},
+                           {p1, p3}, {h2, p4}));
+}
+
+TEST (MultTest, Dim_vv_vo_vovv
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {p4},
+                           {p2}, {h3},
+                           {p1, h3}, {p2, p4}));
+}
+
+TEST (MultTest, Dim_vv_vv_vvvv
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {p4},
+                           {p2}, {p3},
+                           {p1, p3}, {p2, p4}));
 }
 
 
@@ -2870,564 +2958,629 @@ TEST (MultTest, Dim_vv_vv_vvvv) {
 
 #if MULT_TEST_3D_1D_2D
 
-TEST (MultTest, Dim_ovo_ovo_oo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, p2}, {h3},
-                             {h1, p2}, {h4},
-                             {h4}, {h3}));
+TEST (MultTest, Dim_ovo_ovo_oo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, p2}, {h3},
+                           {h1, p2}, {h4},
+                           {h4}, {h3}));
 }
 #endif
 
 
 #if MULT_TEST_4D_2D_2D
 
-TEST (MultTest, Dim__oo_oo__o_o__o_o) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, h2}, {h3, h4},
-                             {h1}, {h3},
-                             {h2}, {h4}));
+TEST (MultTest, Dim__oo_oo__o_o__o_o
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, h2}, {h3, h4},
+                           {h1}, {h3},
+                           {h2}, {h4}));
 }
 
-TEST (MultTest, Dim__oo_ov__o_o__o_v) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, h2}, {h3, p4},
-                             {h1}, {h3},
-                             {h2}, {p4}));
+TEST (MultTest, Dim__oo_ov__o_o__o_v
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, h2}, {h3, p4},
+                           {h1}, {h3},
+                           {h2}, {p4}));
 }
 
-TEST (MultTest, Dim__ov_oo__o_o__v_o) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, p2}, {h3, h4},
-                             {h1}, {h3},
-                             {p2}, {h4}));
+TEST (MultTest, Dim__ov_oo__o_o__v_o
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, p2}, {h3, h4},
+                           {h1}, {h3},
+                           {p2}, {h4}));
 }
 
-TEST (MultTest, Dim__ov_ov__o_o__v_v) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, p2}, {h3, p4},
-                             {h1}, {h3},
-                             {p2}, {p4}));
-}
-
-////////////
-
-TEST (MultTest, Dim__oo_vo__o_v__o_o) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, h2}, {p3, h4},
-                             {h1}, {p3},
-                             {h2}, {h4}));
-}
-
-TEST (MultTest, Dim__oo_vv__o_v__o_v) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, h2}, {p3, p4},
-                             {h1}, {p3},
-                             {h2}, {p4}));
-}
-
-TEST (MultTest, Dim__ov_vo__o_v__v_o) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, p2}, {p3, h4},
-                             {h1}, {p3},
-                             {p2}, {h4}));
-}
-
-TEST (MultTest, Dim__ov_vv__o_v__v_v) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, p2}, {p3, p4},
-                             {h1}, {p3},
-                             {p2}, {p4}));
-}
-
-
-////////////
-
-TEST (MultTest, Dim__vo_oo__v_o__o_o) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, h2}, {h3, h4},
-                             {p1}, {h3},
-                             {h2}, {h4}));
-}
-
-TEST (MultTest, Dim__vo_ov__v_o__o_v) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, h2}, {h3, p4},
-                             {p1}, {h3},
-                             {h2}, {p4}));
-}
-
-TEST (MultTest, Dim__vv_oo__v_o__v_o) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, p2}, {h3, h4},
-                             {p1}, {h3},
-                             {p2}, {h4}));
-}
-
-TEST (MultTest, Dim__vv_ov__v_o__v_v) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, p2}, {h3, p4},
-                             {p1}, {h3},
-                             {p2}, {p4}));
+TEST (MultTest, Dim__ov_ov__o_o__v_v
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, p2}, {h3, p4},
+                           {h1}, {h3},
+                           {p2}, {p4}));
 }
 
 ////////////
 
-TEST (MultTest, Dim__vo_vo__v_v__o_o) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, h2}, {p3, h4},
-                             {p1}, {p3},
-                             {h2}, {h4}));
+TEST (MultTest, Dim__oo_vo__o_v__o_o
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, h2}, {p3, h4},
+                           {h1}, {p3},
+                           {h2}, {h4}));
 }
 
-TEST (MultTest, Dim__vo_vv__v_v__o_v) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, h2}, {p3, p4},
-                             {p1}, {p3},
-                             {h2}, {p4}));
+TEST (MultTest, Dim__oo_vv__o_v__o_v
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, h2}, {p3, p4},
+                           {h1}, {p3},
+                           {h2}, {p4}));
 }
 
-TEST (MultTest, Dim__vv_vo__v_v__v_o) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, p2}, {p3, h4},
-                             {p1}, {p3},
-                             {p2}, {h4}));
+TEST (MultTest, Dim__ov_vo__o_v__v_o
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, p2}, {p3, h4},
+                           {h1}, {p3},
+                           {p2}, {h4}));
 }
 
-TEST (MultTest, Dim__vv_vv__v_v__v_v) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, p2}, {p3, p4},
-                             {p1}, {p3},
-                             {p2}, {p4}));
+TEST (MultTest, Dim__ov_vv__o_v__v_v
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, p2}, {p3, p4},
+                           {h1}, {p3},
+                           {p2}, {p4}));
+}
+
+
+////////////
+
+TEST (MultTest, Dim__vo_oo__v_o__o_o
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, h2}, {h3, h4},
+                           {p1}, {h3},
+                           {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_ov__v_o__o_v
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, h2}, {h3, p4},
+                           {p1}, {h3},
+                           {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_oo__v_o__v_o
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, p2}, {h3, h4},
+                           {p1}, {h3},
+                           {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_ov__v_o__v_v
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, p2}, {h3, p4},
+                           {p1}, {h3},
+                           {p2}, {p4}));
+}
+
+////////////
+
+TEST (MultTest, Dim__vo_vo__v_v__o_o
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, h2}, {p3, h4},
+                           {p1}, {p3},
+                           {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_vv__v_v__o_v
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, h2}, {p3, p4},
+                           {p1}, {p3},
+                           {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_vo__v_v__v_o
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, p2}, {p3, h4},
+                           {p1}, {p3},
+                           {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_vv__v_v__v_v
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, p2}, {p3, p4},
+                           {p1}, {p3},
+                           {p2}, {p4}));
 }
 
 /////////////////////////
 
 
-TEST (MultTest, Dim__oo_oo__o_o__o_o_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             1,
-                             {h2, h1}, {h3, h4},
-                             {h1}, {h3},
-                             {h2}, {h4}));
+TEST (MultTest, Dim__oo_oo__o_o__o_o_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           1,
+                           {h2, h1}, {h3, h4},
+                           {h1}, {h3},
+                           {h2}, {h4}));
 }
 
-TEST (MultTest, Dim__oo_ov__o_o__o_v_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, h1}, {h3, p4},
-                             {h1}, {h3},
-                             {h2}, {p4}));
+TEST (MultTest, Dim__oo_ov__o_o__o_v_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, h1}, {h3, p4},
+                           {h1}, {h3},
+                           {h2}, {p4}));
 }
 
-TEST (MultTest, Dim__ov_oo__o_o__v_o_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, h1}, {h3, h4},
-                             {h1}, {h3},
-                             {p2}, {h4}));
+TEST (MultTest, Dim__ov_oo__o_o__v_o_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, h1}, {h3, h4},
+                           {h1}, {h3},
+                           {p2}, {h4}));
 }
 
-TEST (MultTest, Dim__ov_ov__o_o__v_v_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             4.36,
-                             {p2, h1}, {h3, p4},
-                             {h1}, {h3},
-                             {p2}, {p4}));
-}
-
-
-////////////
-
-TEST (MultTest, Dim__oo_vo__o_v__o_o_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, h1}, {p3, h4},
-                             {h1}, {p3},
-                             {h2}, {h4}));
-}
-
-TEST (MultTest, Dim__oo_vv__o_v__o_v_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, h1}, {p3, p4},
-                             {h1}, {p3},
-                             {h2}, {p4}));
-}
-
-TEST (MultTest, Dim__ov_vo__o_v__v_o_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, h1}, {p3, h4},
-                             {h1}, {p3},
-                             {p2}, {h4}));
-}
-
-TEST (MultTest, Dim__ov_vv__o_v__v_v_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, h1}, {p3, p4},
-                             {h1}, {p3},
-                             {p2}, {p4}));
+TEST (MultTest, Dim__ov_ov__o_o__v_v_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           4.36,
+                           {p2, h1}, {h3, p4},
+                           {h1}, {h3},
+                           {p2}, {p4}));
 }
 
 
 ////////////
 
-TEST (MultTest, Dim__vo_oo__v_o__o_o_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, p1}, {h3, h4},
-                             {p1}, {h3},
-                             {h2}, {h4}));
+TEST (MultTest, Dim__oo_vo__o_v__o_o_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, h1}, {p3, h4},
+                           {h1}, {p3},
+                           {h2}, {h4}));
 }
 
-TEST (MultTest, Dim__vo_ov__v_o__o_v_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, p1}, {h3, p4},
-                             {p1}, {h3},
-                             {h2}, {p4}));
+TEST (MultTest, Dim__oo_vv__o_v__o_v_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, h1}, {p3, p4},
+                           {h1}, {p3},
+                           {h2}, {p4}));
 }
 
-TEST (MultTest, Dim__vv_oo__v_o__v_o_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, p1}, {h3, h4},
-                             {p1}, {h3},
-                             {p2}, {h4}));
+TEST (MultTest, Dim__ov_vo__o_v__v_o_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, h1}, {p3, h4},
+                           {h1}, {p3},
+                           {p2}, {h4}));
 }
 
-TEST (MultTest, Dim__vv_ov__v_o__v_v_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, p1}, {h3, p4},
-                             {p1}, {h3},
-                             {p2}, {p4}));
+TEST (MultTest, Dim__ov_vv__o_v__v_v_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, h1}, {p3, p4},
+                           {h1}, {p3},
+                           {p2}, {p4}));
+}
+
+
+////////////
+
+TEST (MultTest, Dim__vo_oo__v_o__o_o_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, p1}, {h3, h4},
+                           {p1}, {h3},
+                           {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_ov__v_o__o_v_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, p1}, {h3, p4},
+                           {p1}, {h3},
+                           {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_oo__v_o__v_o_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, p1}, {h3, h4},
+                           {p1}, {h3},
+                           {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_ov__v_o__v_v_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, p1}, {h3, p4},
+                           {p1}, {h3},
+                           {p2}, {p4}));
 }
 
 ////////////
 
-TEST (MultTest, Dim__vo_vo__v_v__o_o_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, p1}, {p3, h4},
-                             {p1}, {p3},
-                             {h2}, {h4}));
+TEST (MultTest, Dim__vo_vo__v_v__o_o_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, p1}, {p3, h4},
+                           {p1}, {p3},
+                           {h2}, {h4}));
 }
 
-TEST (MultTest, Dim__vo_vv__v_v__o_v_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, p1}, {p3, p4},
-                             {p1}, {p3},
-                             {h2}, {p4}));
+TEST (MultTest, Dim__vo_vv__v_v__o_v_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, p1}, {p3, p4},
+                           {p1}, {p3},
+                           {h2}, {p4}));
 }
 
-TEST (MultTest, Dim__vv_vo__v_v__v_o_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, p1}, {p3, h4},
-                             {p1}, {p3},
-                             {p2}, {h4}));
+TEST (MultTest, Dim__vv_vo__v_v__v_o_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, p1}, {p3, h4},
+                           {p1}, {p3},
+                           {p2}, {h4}));
 }
 
-TEST (MultTest, Dim__vv_vv__v_v__v_v_upflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, p1}, {p3, p4},
-                             {p1}, {p3},
-                             {p2}, {p4}));
+TEST (MultTest, Dim__vv_vv__v_v__v_v_upflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, p1}, {p3, p4},
+                           {p1}, {p3},
+                           {p2}, {p4}));
 }
 
 ///////////////////////////////
 
-TEST (MultTest, Dim__oo_oo__o_o__o_o_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, h2}, {h4, h3},
-                             {h1}, {h3},
-                             {h2}, {h4}));
+TEST (MultTest, Dim__oo_oo__o_o__o_o_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, h2}, {h4, h3},
+                           {h1}, {h3},
+                           {h2}, {h4}));
 }
 
-TEST (MultTest, Dim__oo_ov__o_o__o_v_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, h2}, {p4, h3},
-                             {h1}, {h3},
-                             {h2}, {p4}));
+TEST (MultTest, Dim__oo_ov__o_o__o_v_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, h2}, {p4, h3},
+                           {h1}, {h3},
+                           {h2}, {p4}));
 }
 
-TEST (MultTest, Dim__ov_oo__o_o__v_o_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, p2}, {h4, h3},
-                             {h1}, {h3},
-                             {p2}, {h4}));
+TEST (MultTest, Dim__ov_oo__o_o__v_o_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, p2}, {h4, h3},
+                           {h1}, {h3},
+                           {p2}, {h4}));
 }
 
-TEST (MultTest, Dim__ov_ov__o_o__v_v_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, p2}, {p4, h3},
-                             {h1}, {h3},
-                             {p2}, {p4}));
-}
-
-////////////
-
-TEST (MultTest, Dim__oo_vo__o_v__o_o_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, h2}, {h4, p3},
-                             {h1}, {p3},
-                             {h2}, {h4}));
-}
-
-TEST (MultTest, Dim__oo_vv__o_v__o_v_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, h2}, {p4, p3},
-                             {h1}, {p3},
-                             {h2}, {p4}));
-}
-
-TEST (MultTest, Dim__ov_vo__o_v__v_o_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, p2}, {h4, p3},
-                             {h1}, {p3},
-                             {p2}, {h4}));
-}
-
-TEST (MultTest, Dim__ov_vv__o_v__v_v_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1, p2}, {p4, p3},
-                             {h1}, {p3},
-                             {p2}, {p4}));
-}
-
-
-////////////
-
-TEST (MultTest, Dim__vo_oo__v_o__o_o_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, h2}, {h4, h3},
-                             {p1}, {h3},
-                             {h2}, {h4}));
-}
-
-TEST (MultTest, Dim__vo_ov__v_o__o_v_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, h2}, {p4, h3},
-                             {p1}, {h3},
-                             {h2}, {p4}));
-}
-
-TEST (MultTest, Dim__vv_oo__v_o__v_o_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, p2}, {h4, h3},
-                             {p1}, {h3},
-                             {p2}, {h4}));
-}
-
-TEST (MultTest, Dim__vv_ov__v_o__v_v_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, p2}, {p4, h3},
-                             {p1}, {h3},
-                             {p2}, {p4}));
+TEST (MultTest, Dim__ov_ov__o_o__v_v_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, p2}, {p4, h3},
+                           {h1}, {h3},
+                           {p2}, {p4}));
 }
 
 ////////////
 
-TEST (MultTest, Dim__vo_vo__v_v__o_o_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, h2}, {h4, p3},
-                             {p1}, {p3},
-                             {h2}, {h4}));
+TEST (MultTest, Dim__oo_vo__o_v__o_o_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, h2}, {h4, p3},
+                           {h1}, {p3},
+                           {h2}, {h4}));
 }
 
-TEST (MultTest, Dim__vo_vv__v_v__o_v_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, h2}, {p4, p3},
-                             {p1}, {p3},
-                             {h2}, {p4}));
+TEST (MultTest, Dim__oo_vv__o_v__o_v_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, h2}, {p4, p3},
+                           {h1}, {p3},
+                           {h2}, {p4}));
 }
 
-TEST (MultTest, Dim__vv_vo__v_v__v_o_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, p2}, {h4, p3},
-                             {p1}, {p3},
-                             {p2}, {h4}));
+TEST (MultTest, Dim__ov_vo__o_v__v_o_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, p2}, {h4, p3},
+                           {h1}, {p3},
+                           {p2}, {h4}));
 }
 
-TEST (MultTest, Dim__vv_vv__v_v__v_v_downflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1, p2}, {p4, p3},
-                             {p1}, {p3},
-                             {p2}, {p4}));
+TEST (MultTest, Dim__ov_vv__o_v__v_v_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1, p2}, {p4, p3},
+                           {h1}, {p3},
+                           {p2}, {p4}));
+}
+
+
+////////////
+
+TEST (MultTest, Dim__vo_oo__v_o__o_o_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, h2}, {h4, h3},
+                           {p1}, {h3},
+                           {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_ov__v_o__o_v_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, h2}, {p4, h3},
+                           {p1}, {h3},
+                           {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_oo__v_o__v_o_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, p2}, {h4, h3},
+                           {p1}, {h3},
+                           {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_ov__v_o__v_v_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, p2}, {p4, h3},
+                           {p1}, {h3},
+                           {p2}, {p4}));
+}
+
+////////////
+
+TEST (MultTest, Dim__vo_vo__v_v__o_o_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, h2}, {h4, p3},
+                           {p1}, {p3},
+                           {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_vv__v_v__o_v_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, h2}, {p4, p3},
+                           {p1}, {p3},
+                           {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_vo__v_v__v_o_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, p2}, {h4, p3},
+                           {p1}, {p3},
+                           {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_vv__v_v__v_v_downflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1, p2}, {p4, p3},
+                           {p1}, {p3},
+                           {p2}, {p4}));
 }
 
 /////////////////////////
 
-TEST (MultTest, Dim__oo_oo__o_o__o_o_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, h1}, {h4, h3},
-                             {h1}, {h3},
-                             {h2}, {h4}));
+TEST (MultTest, Dim__oo_oo__o_o__o_o_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, h1}, {h4, h3},
+                           {h1}, {h3},
+                           {h2}, {h4}));
 }
 
-TEST (MultTest, Dim__oo_ov__o_o__o_v_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, h1}, {p4, h3},
-                             {h1}, {h3},
-                             {h2}, {p4}));
+TEST (MultTest, Dim__oo_ov__o_o__o_v_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, h1}, {p4, h3},
+                           {h1}, {h3},
+                           {h2}, {p4}));
 }
 
-TEST (MultTest, Dim__ov_oo__o_o__v_o_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, h1}, {h4, h3},
-                             {h1}, {h3},
-                             {p2}, {h4}));
+TEST (MultTest, Dim__ov_oo__o_o__v_o_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, h1}, {h4, h3},
+                           {h1}, {h3},
+                           {p2}, {h4}));
 }
 
-TEST (MultTest, Dim__ov_ov__o_o__v_v_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, h1}, {p4, h3},
-                             {h1}, {h3},
-                             {p2}, {p4}));
-}
-
-////////////
-
-TEST (MultTest, Dim__oo_vo__o_v__o_o_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, h1}, {h4, p3},
-                             {h1}, {p3},
-                             {h2}, {h4}));
-}
-
-TEST (MultTest, Dim__oo_vv__o_v__o_v_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, h1}, {p4, p3},
-                             {h1}, {p3},
-                             {h2}, {p4}));
-}
-
-TEST (MultTest, Dim__ov_vo__o_v__v_o_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, h1}, {h4, p3},
-                             {h1}, {p3},
-                             {p2}, {h4}));
-}
-
-TEST (MultTest, Dim__ov_vv__o_v__v_v_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, h1}, {p4, p3},
-                             {h1}, {p3},
-                             {p2}, {p4}));
-}
-
-
-////////////
-
-TEST (MultTest, Dim__vo_oo__v_o__o_o_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, p1}, {h4, h3},
-                             {p1}, {h3},
-                             {h2}, {h4}));
-}
-
-TEST (MultTest, Dim__vo_ov__v_o__o_v_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, p1}, {p4, h3},
-                             {p1}, {h3},
-                             {h2}, {p4}));
-}
-
-TEST (MultTest, Dim__vv_oo__v_o__v_o_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, p1}, {h4, h3},
-                             {p1}, {h3},
-                             {p2}, {h4}));
-}
-
-TEST (MultTest, Dim__vv_ov__v_o__v_v_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, p1}, {p4, h3},
-                             {p1}, {h3},
-                             {p2}, {p4}));
+TEST (MultTest, Dim__ov_ov__o_o__v_v_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, h1}, {p4, h3},
+                           {h1}, {h3},
+                           {p2}, {p4}));
 }
 
 ////////////
 
-TEST (MultTest, Dim__vo_vo__v_v__o_o_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, p1}, {h4, p3},
-                             {p1}, {p3},
-                             {h2}, {h4}));
+TEST (MultTest, Dim__oo_vo__o_v__o_o_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, h1}, {h4, p3},
+                           {h1}, {p3},
+                           {h2}, {h4}));
 }
 
-TEST (MultTest, Dim__vo_vv__v_v__o_v_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h2, p1}, {p4, p3},
-                             {p1}, {p3},
-                             {h2}, {p4}));
+TEST (MultTest, Dim__oo_vv__o_v__o_v_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, h1}, {p4, p3},
+                           {h1}, {p3},
+                           {h2}, {p4}));
 }
 
-TEST (MultTest, Dim__vv_vo__v_v__v_o_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, p1}, {h4, p3},
-                             {p1}, {p3},
-                             {p2}, {h4}));
+TEST (MultTest, Dim__ov_vo__o_v__v_o_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, h1}, {h4, p3},
+                           {h1}, {p3},
+                           {p2}, {h4}));
 }
 
-TEST (MultTest, Dim__vv_vv__v_v__v_v_bothflip) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p2, p1}, {p4, p3},
-                             {p1}, {p3},
-                             {p2}, {p4}));
+TEST (MultTest, Dim__ov_vv__o_v__v_v_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, h1}, {p4, p3},
+                           {h1}, {p3},
+                           {p2}, {p4}));
+}
+
+
+////////////
+
+TEST (MultTest, Dim__vo_oo__v_o__o_o_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, p1}, {h4, h3},
+                           {p1}, {h3},
+                           {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_ov__v_o__o_v_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, p1}, {p4, h3},
+                           {p1}, {h3},
+                           {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_oo__v_o__v_o_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, p1}, {h4, h3},
+                           {p1}, {h3},
+                           {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_ov__v_o__v_v_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, p1}, {p4, h3},
+                           {p1}, {h3},
+                           {p2}, {p4}));
+}
+
+////////////
+
+TEST (MultTest, Dim__vo_vo__v_v__o_o_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, p1}, {h4, p3},
+                           {p1}, {p3},
+                           {h2}, {h4}));
+}
+
+TEST (MultTest, Dim__vo_vv__v_v__o_v_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h2, p1}, {p4, p3},
+                           {p1}, {p3},
+                           {h2}, {p4}));
+}
+
+TEST (MultTest, Dim__vv_vo__v_v__v_o_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, p1}, {h4, p3},
+                           {p1}, {p3},
+                           {p2}, {h4}));
+}
+
+TEST (MultTest, Dim__vv_vv__v_v__v_v_bothflip
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p2, p1}, {p4, p3},
+                           {p1}, {p3},
+                           {p2}, {p4}));
 }
 
 
@@ -3442,142 +3595,174 @@ TEST (MultTest, Dim__vv_vv__v_v__v_v_bothflip) {
 
 #if ASSIGN_TEST_3D
 
-TEST (AssignTest, ThreeDim_o1_o2o3__o1_o2o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {h2, h3}, {h1}, {h2, h3}));
+TEST (AssignTest, ThreeDim_o1_o2o3__o1_o2o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {h2, h3}, {h1}, {h2, h3}));
 }
 
-TEST (AssignTest, ThreeDim_o1_o2o3__o1_o3o2) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {h2, h3}, {h1}, {h3, h2}));
+TEST (AssignTest, ThreeDim_o1_o2o3__o1_o3o2
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {h2, h3}, {h1}, {h3, h2}));
 }
 
-TEST (AssignTest, ThreeDim_o1_o2v3__o1_o2v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {h2, p3}, {h1}, {h2, p3}));
+TEST (AssignTest, ThreeDim_o1_o2v3__o1_o2v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {h2, p3}, {h1}, {h2, p3}));
 }
 
-TEST (AssignTest, ThreeDim_o1_o2v3__o1_v3o2) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {h2, p3}, {h1}, {p3, h2}));
+TEST (AssignTest, ThreeDim_o1_o2v3__o1_v3o2
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {h2, p3}, {h1}, {p3, h2}));
 }
 
-TEST (AssignTest, ThreeDim_o1_v2o3__o1_v2o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {p2, h3}, {h1}, {p2, h3}));
+TEST (AssignTest, ThreeDim_o1_v2o3__o1_v2o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {p2, h3}, {h1}, {p2, h3}));
 }
 
-TEST (AssignTest, ThreeDim_o1_v2o3__o1_o3v2) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {p2, h3}, {h1}, {h3, p2}));
+TEST (AssignTest, ThreeDim_o1_v2o3__o1_o3v2
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {p2, h3}, {h1}, {h3, p2}));
 }
 
-TEST (AssignTest, ThreeDim_o1_v2v3__o1_v2v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {p2, p3}, {h1}, {p2, p3}));
+TEST (AssignTest, ThreeDim_o1_v2v3__o1_v2v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {p2, p3}, {h1}, {p2, p3}));
 }
 
-TEST (AssignTest, ThreeDim_o1_v2v3__o1_v3v2) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {p2, p3}, {h1}, {p3, p2}));
+TEST (AssignTest, ThreeDim_o1_v2v3__o1_v3v2
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1}, {p2, p3}, {h1}, {p3, p2}));
 }
 
 ///////////
 
-TEST (AssignTest, ThreeDim_v1_o2o3__v1_o2o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h2, h3}, {p1}, {h2, h3}));
+TEST (AssignTest, ThreeDim_v1_o2o3__v1_o2o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h2, h3}, {p1}, {h2, h3}));
 }
 
-TEST (AssignTest, ThreeDim_v1_o2o3__v1_o3o2) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h2, h3}, {p1}, {h3, h2}));
+TEST (AssignTest, ThreeDim_v1_o2o3__v1_o3o2
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h2, h3}, {p1}, {h3, h2}));
 }
 
-TEST (AssignTest, ThreeDim_v1_o2v3__v1_o2v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h2, p3}, {p1}, {h2, p3}));
+TEST (AssignTest, ThreeDim_v1_o2v3__v1_o2v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h2, p3}, {p1}, {h2, p3}));
 }
 
-TEST (AssignTest, ThreeDim_v1_o2v3__v1_v3o2) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h2, p3}, {p1}, {p3, h2}));
+TEST (AssignTest, ThreeDim_v1_o2v3__v1_v3o2
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {h2, p3}, {p1}, {p3, h2}));
 }
 
-TEST (AssignTest, ThreeDim_v1_v2o3__v1_v2o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {p2, h3}, {p1}, {p2, h3}));
+TEST (AssignTest, ThreeDim_v1_v2o3__v1_v2o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {p2, h3}, {p1}, {p2, h3}));
 }
 
-TEST (AssignTest, ThreeDim_v1_v2o3__v1_o3v2) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {p2, h3}, {p1}, {h3, p2}));
+TEST (AssignTest, ThreeDim_v1_v2o3__v1_o3v2
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {p2, h3}, {p1}, {h3, p2}));
 }
 
-TEST (AssignTest, ThreeDim_v1_v2v3__v1_v2v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {p2, p3}, {p1}, {p2, p3}));
+TEST (AssignTest, ThreeDim_v1_v2v3__v1_v2v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {p2, p3}, {p1}, {p2, p3}));
 }
 
-TEST (AssignTest, ThreeDim_v1_v2v3__v1_v3v2) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {p2, p3}, {p1}, {p3, p2}));
-}
-
-//////////////////
-
-TEST (AssignTest, ThreeDim_o1o2_o3__o1o2_o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3}, {h1, h2}, {h3}));
-}
-
-TEST (AssignTest, ThreeDim_o1o2_o3__o2o1_o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3}, {h2, h1}, {h3}));
-}
-
-TEST (AssignTest, ThreeDim_o1o2_v3__o1o2_v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3}, {h1, h2}, {p3}));
-}
-
-TEST (AssignTest, ThreeDim_o1o2_v3__o2o1_v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3}, {h2, h1}, {p3}));
-}
-
-/////////
-
-TEST (AssignTest, ThreeDim_o1v2_o3__o1v2_o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3}, {h1, p2}, {h3}));
-}
-
-TEST (AssignTest, ThreeDim_o1v2_o3__v2o1_o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3}, {p2, h1}, {h3}));
-}
-
-TEST (AssignTest, ThreeDim_o1v2_v3__o1v2_v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3}, {h1, p2}, {p3}));
-}
-
-TEST (AssignTest, ThreeDim_o1v2_v3__v2o1_v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3}, {p2, h1}, {p3}));
+TEST (AssignTest, ThreeDim_v1_v2v3__v1_v3v2
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1}, {p2, p3}, {p1}, {p3, p2}));
 }
 
 //////////////////
 
-TEST (AssignTest, ThreeDim_v1o2_o3__v1o2_o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3}, {p1, h2}, {h3}));
+TEST (AssignTest, ThreeDim_o1o2_o3__o1o2_o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3}, {h1, h2}, {h3}));
 }
 
-TEST (AssignTest, ThreeDim_v1o2_o3__o2v1_o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3}, {h2, p1}, {h3}));
+TEST (AssignTest, ThreeDim_o1o2_o3__o2o1_o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3}, {h2, h1}, {h3}));
 }
 
-TEST (AssignTest, ThreeDim_v1o2_v3__v1o2_v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3}, {p1, h2}, {p3}));
+TEST (AssignTest, ThreeDim_o1o2_v3__o1o2_v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3}, {h1, h2}, {p3}));
 }
 
-TEST (AssignTest, ThreeDim_v1o2_v3__o2v1_v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3}, {h2, p1}, {p3}));
+TEST (AssignTest, ThreeDim_o1o2_v3__o2o1_v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3}, {h2, h1}, {p3}));
 }
 
 /////////
 
-TEST (AssignTest, ThreeDim_v1v2_o3__v1v2_o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3}, {p1, p2}, {h3}));
+TEST (AssignTest, ThreeDim_o1v2_o3__o1v2_o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3}, {h1, p2}, {h3}));
 }
 
-TEST (AssignTest, ThreeDim_v1v2_o3__v2v1_o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3}, {p2, p1}, {h3}));
+TEST (AssignTest, ThreeDim_o1v2_o3__v2o1_o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3}, {p2, h1}, {h3}));
 }
 
-TEST (AssignTest, ThreeDim_v1v2_v3__v1v2_v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3}, {p1, p2}, {p3}));
+TEST (AssignTest, ThreeDim_o1v2_v3__o1v2_v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3}, {h1, p2}, {p3}));
 }
 
-TEST (AssignTest, ThreeDim_v1v2_v3__v2v1_v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3}, {p2, p1}, {p3}));
+TEST (AssignTest, ThreeDim_o1v2_v3__v2o1_v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3}, {p2, h1}, {p3}));
+}
+
+//////////////////
+
+TEST (AssignTest, ThreeDim_v1o2_o3__v1o2_o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3}, {p1, h2}, {h3}));
+}
+
+TEST (AssignTest, ThreeDim_v1o2_o3__o2v1_o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3}, {h2, p1}, {h3}));
+}
+
+TEST (AssignTest, ThreeDim_v1o2_v3__v1o2_v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3}, {p1, h2}, {p3}));
+}
+
+TEST (AssignTest, ThreeDim_v1o2_v3__o2v1_v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3}, {h2, p1}, {p3}));
+}
+
+/////////
+
+TEST (AssignTest, ThreeDim_v1v2_o3__v1v2_o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3}, {p1, p2}, {h3}));
+}
+
+TEST (AssignTest, ThreeDim_v1v2_o3__v2v1_o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3}, {p2, p1}, {h3}));
+}
+
+TEST (AssignTest, ThreeDim_v1v2_v3__v1v2_v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3}, {p1, p2}, {p3}));
+}
+
+TEST (AssignTest, ThreeDim_v1v2_v3__v2v1_v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3}, {p2, p1}, {p3}));
 }
 
 //////////
@@ -3586,142 +3771,174 @@ TEST (AssignTest, ThreeDim_v1v2_v3__v2v1_v3) {
 
 #if EIGEN_ASSIGN_TEST_3D
 
-TEST (EigenAssignTest, ThreeDim_o1_o2o3__o1_o2o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {h2, h3}, {h1}, {h2, h3}));
+TEST (EigenAssignTest, ThreeDim_o1_o2o3__o1_o2o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {h2, h3}, {h1}, {h2, h3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_o1_o2o3__o1_o3o2) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {h2, h3}, {h1}, {h3, h2}));
+TEST (EigenAssignTest, ThreeDim_o1_o2o3__o1_o3o2
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {h2, h3}, {h1}, {h3, h2}));
 }
 
-TEST (EigenAssignTest, ThreeDim_o1_o2v3__o1_o2v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {h2, p3}, {h1}, {h2, p3}));
+TEST (EigenAssignTest, ThreeDim_o1_o2v3__o1_o2v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {h2, p3}, {h1}, {h2, p3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_o1_o2v3__o1_v3o2) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {h2, p3}, {h1}, {p3, h2}));
+TEST (EigenAssignTest, ThreeDim_o1_o2v3__o1_v3o2
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {h2, p3}, {h1}, {p3, h2}));
 }
 
-TEST (EigenAssignTest, ThreeDim_o1_v2o3__o1_v2o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {p2, h3}, {h1}, {p2, h3}));
+TEST (EigenAssignTest, ThreeDim_o1_v2o3__o1_v2o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {p2, h3}, {h1}, {p2, h3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_o1_v2o3__o1_o3v2) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {p2, h3}, {h1}, {h3, p2}));
+TEST (EigenAssignTest, ThreeDim_o1_v2o3__o1_o3v2
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {p2, h3}, {h1}, {h3, p2}));
 }
 
-TEST (EigenAssignTest, ThreeDim_o1_v2v3__o1_v2v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {p2, p3}, {h1}, {p2, p3}));
+TEST (EigenAssignTest, ThreeDim_o1_v2v3__o1_v2v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {p2, p3}, {h1}, {p2, p3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_o1_v2v3__o1_v3v2) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {p2, p3}, {h1}, {p3, p2}));
+TEST (EigenAssignTest, ThreeDim_o1_v2v3__o1_v3v2
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1}, {p2, p3}, {h1}, {p3, p2}));
 }
 
 ///////////
 
-TEST (EigenAssignTest, ThreeDim_v1_o2o3__v1_o2o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h2, h3}, {p1}, {h2, h3}));
+TEST (EigenAssignTest, ThreeDim_v1_o2o3__v1_o2o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h2, h3}, {p1}, {h2, h3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_v1_o2o3__v1_o3o2) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h2, h3}, {p1}, {h3, h2}));
+TEST (EigenAssignTest, ThreeDim_v1_o2o3__v1_o3o2
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h2, h3}, {p1}, {h3, h2}));
 }
 
-TEST (EigenAssignTest, ThreeDim_v1_o2v3__v1_o2v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h2, p3}, {p1}, {h2, p3}));
+TEST (EigenAssignTest, ThreeDim_v1_o2v3__v1_o2v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h2, p3}, {p1}, {h2, p3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_v1_o2v3__v1_v3o2) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h2, p3}, {p1}, {p3, h2}));
+TEST (EigenAssignTest, ThreeDim_v1_o2v3__v1_v3o2
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {h2, p3}, {p1}, {p3, h2}));
 }
 
-TEST (EigenAssignTest, ThreeDim_v1_v2o3__v1_v2o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {p2, h3}, {p1}, {p2, h3}));
+TEST (EigenAssignTest, ThreeDim_v1_v2o3__v1_v2o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {p2, h3}, {p1}, {p2, h3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_v1_v2o3__v1_o3v2) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {p2, h3}, {p1}, {h3, p2}));
+TEST (EigenAssignTest, ThreeDim_v1_v2o3__v1_o3v2
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {p2, h3}, {p1}, {h3, p2}));
 }
 
-TEST (EigenAssignTest, ThreeDim_v1_v2v3__v1_v2v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {p2, p3}, {p1}, {p2, p3}));
+TEST (EigenAssignTest, ThreeDim_v1_v2v3__v1_v2v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {p2, p3}, {p1}, {p2, p3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_v1_v2v3__v1_v3v2) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {p2, p3}, {p1}, {p3, p2}));
-}
-
-//////////////////
-
-TEST (EigenAssignTest, ThreeDim_o1o2_o3__o1o2_o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3}, {h1, h2}, {h3}));
-}
-
-TEST (EigenAssignTest, ThreeDim_o1o2_o3__o2o1_o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3}, {h2, h1}, {h3}));
-}
-
-TEST (EigenAssignTest, ThreeDim_o1o2_v3__o1o2_v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3}, {h1, h2}, {p3}));
-}
-
-TEST (EigenAssignTest, ThreeDim_o1o2_v3__o2o1_v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3}, {h2, h1}, {p3}));
-}
-
-/////////
-
-TEST (EigenAssignTest, ThreeDim_o1v2_o3__o1v2_o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3}, {h1, p2}, {h3}));
-}
-
-TEST (EigenAssignTest, ThreeDim_o1v2_o3__v2o1_o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3}, {p2, h1}, {h3}));
-}
-
-TEST (EigenAssignTest, ThreeDim_o1v2_v3__o1v2_v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3}, {h1, p2}, {p3}));
-}
-
-TEST (EigenAssignTest, ThreeDim_o1v2_v3__v2o1_v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3}, {p2, h1}, {p3}));
+TEST (EigenAssignTest, ThreeDim_v1_v2v3__v1_v3v2
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1}, {p2, p3}, {p1}, {p3, p2}));
 }
 
 //////////////////
 
-TEST (EigenAssignTest, ThreeDim_v1o2_o3__v1o2_o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3}, {p1, h2}, {h3}));
+TEST (EigenAssignTest, ThreeDim_o1o2_o3__o1o2_o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3}, {h1, h2}, {h3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_v1o2_o3__o2v1_o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3}, {h2, p1}, {h3}));
+TEST (EigenAssignTest, ThreeDim_o1o2_o3__o2o1_o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3}, {h2, h1}, {h3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_v1o2_v3__v1o2_v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3}, {p1, h2}, {p3}));
+TEST (EigenAssignTest, ThreeDim_o1o2_v3__o1o2_v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3}, {h1, h2}, {p3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_v1o2_v3__o2v1_v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3}, {h2, p1}, {p3}));
+TEST (EigenAssignTest, ThreeDim_o1o2_v3__o2o1_v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3}, {h2, h1}, {p3}));
 }
 
 /////////
 
-TEST (EigenAssignTest, ThreeDim_v1v2_o3__v1v2_o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3}, {p1, p2}, {h3}));
+TEST (EigenAssignTest, ThreeDim_o1v2_o3__o1v2_o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3}, {h1, p2}, {h3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_v1v2_o3__v2v1_o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3}, {p2, p1}, {h3}));
+TEST (EigenAssignTest, ThreeDim_o1v2_o3__v2o1_o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3}, {p2, h1}, {h3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_v1v2_v3__v1v2_v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3}, {p1, p2}, {p3}));
+TEST (EigenAssignTest, ThreeDim_o1v2_v3__o1v2_v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3}, {h1, p2}, {p3}));
 }
 
-TEST (EigenAssignTest, ThreeDim_v1v2_v3__v2v1_v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3}, {p2, p1}, {p3}));
+TEST (EigenAssignTest, ThreeDim_o1v2_v3__v2o1_v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3}, {p2, h1}, {p3}));
+}
+
+//////////////////
+
+TEST (EigenAssignTest, ThreeDim_v1o2_o3__v1o2_o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3}, {p1, h2}, {h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1o2_o3__o2v1_o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3}, {h2, p1}, {h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1o2_v3__v1o2_v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3}, {p1, h2}, {p3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1o2_v3__o2v1_v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3}, {h2, p1}, {p3}));
+}
+
+/////////
+
+TEST (EigenAssignTest, ThreeDim_v1v2_o3__v1v2_o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3}, {p1, p2}, {h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1v2_o3__v2v1_o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3}, {p2, p1}, {h3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1v2_v3__v1v2_v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3}, {p1, p2}, {p3}));
+}
+
+TEST (EigenAssignTest, ThreeDim_v1v2_v3__v2v1_v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3}, {p2, p1}, {p3}));
 }
 
 //////////
@@ -3736,294 +3953,358 @@ TEST (EigenAssignTest, ThreeDim_v1v2_v3__v2v1_v3) {
 
 #if ASSIGN_TEST_4D
 
-TEST (AssignTest, FourDim_o1o2o3o4_o1o2o3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h1, h2}, {h3, h4}));
+TEST (AssignTest, FourDim_o1o2o3o4_o1o2o3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h1, h2}, {h3, h4}));
 }
 
-TEST (AssignTest, FourDim_o1o2o3o4_o1o2o4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h1, h2}, {h4, h3}));
+TEST (AssignTest, FourDim_o1o2o3o4_o1o2o4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h1, h2}, {h4, h3}));
 }
 
-TEST (AssignTest, FourDim_o1o2o3o4_o2o1o3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h2, h1}, {h3, h4}));
+TEST (AssignTest, FourDim_o1o2o3o4_o2o1o3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h2, h1}, {h3, h4}));
 }
 
-TEST (AssignTest, FourDim_o1o2o3o4_o2o1o4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, h1}, {h3, h4}, {h2, h1}, {h4, h3}));
+TEST (AssignTest, FourDim_o1o2o3o4_o2o1o4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, h1}, {h3, h4}, {h2, h1}, {h4, h3}));
 }
 
 ///////
 
-TEST (AssignTest, FourDim_o1o2o3v4_o1o2o3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, h1}, {h3, p4}, {h1, h2}, {h3, p4}));
+TEST (AssignTest, FourDim_o1o2o3v4_o1o2o3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, h1}, {h3, p4}, {h1, h2}, {h3, p4}));
 }
 
-TEST (AssignTest, FourDim_o1o2o3v4_o1o2v4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h1, h2}, {p4, h3}));
+TEST (AssignTest, FourDim_o1o2o3v4_o1o2v4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h1, h2}, {p4, h3}));
 }
 
-TEST (AssignTest, FourDim_o1o2o3v4_o2o1o3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h2, h1}, {h3, p4}));
+TEST (AssignTest, FourDim_o1o2o3v4_o2o1o3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h2, h1}, {h3, p4}));
 }
 
-TEST (AssignTest, FourDim_o1o2o3v4_o2o1v4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h2, h1}, {p4, h3}));
+TEST (AssignTest, FourDim_o1o2o3v4_o2o1v4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h2, h1}, {p4, h3}));
 }
 
 ////////
 
-TEST (AssignTest, FourDim_o1o2v3o4_o1o2v3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, h1}, {p3, h4}, {h1, h2}, {p3, h4}));
+TEST (AssignTest, FourDim_o1o2v3o4_o1o2v3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, h1}, {p3, h4}, {h1, h2}, {p3, h4}));
 }
 
-TEST (AssignTest, FourDim_o1o2v3o4_o1o2o4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h1, h2}, {h4, p3}));
+TEST (AssignTest, FourDim_o1o2v3o4_o1o2o4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h1, h2}, {h4, p3}));
 }
 
-TEST (AssignTest, FourDim_o1o2v3o4_o2o1v3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h2, h1}, {p3, h4}));
+TEST (AssignTest, FourDim_o1o2v3o4_o2o1v3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h2, h1}, {p3, h4}));
 }
 
-TEST (AssignTest, FourDim_o1o2v3o4_o2o1o4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h2, h1}, {h4, p3}));
+TEST (AssignTest, FourDim_o1o2v3o4_o2o1o4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h2, h1}, {h4, p3}));
 }
 
 
 ////////
 
-TEST (AssignTest, FourDim_o1o2v3v4_o1o2v3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, h1}, {p3, p4}, {h1, h2}, {p3, p4}));
+TEST (AssignTest, FourDim_o1o2v3v4_o1o2v3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, h1}, {p3, p4}, {h1, h2}, {p3, p4}));
 }
 
-TEST (AssignTest, FourDim_o1o2v3v4_o1o2v4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h1, h2}, {p4, p3}));
+TEST (AssignTest, FourDim_o1o2v3v4_o1o2v4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h1, h2}, {p4, p3}));
 }
 
-TEST (AssignTest, FourDim_o1o2v3v4_o2o1v3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h2, h1}, {p3, p4}));
+TEST (AssignTest, FourDim_o1o2v3v4_o2o1v3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h2, h1}, {p3, p4}));
 }
 
-TEST (AssignTest, FourDim_o1o2v3v4_o2o1v4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h2, h1}, {p4, p3}));
+TEST (AssignTest, FourDim_o1o2v3v4_o2o1v4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h2, h1}, {p4, p3}));
 }
 
 ///////////////////////
 
-TEST (AssignTest, FourDim_o1v2o3o4_o1v2o3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {h1, p2}, {h3, h4}));
+TEST (AssignTest, FourDim_o1v2o3o4_o1v2o3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {h1, p2}, {h3, h4}));
 }
 
-TEST (AssignTest, FourDim_o1v2o3o4_o1v2o4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {h1, p2}, {h4, h3}));
+TEST (AssignTest, FourDim_o1v2o3o4_o1v2o4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {h1, p2}, {h4, h3}));
 }
 
-TEST (AssignTest, FourDim_o1v2o3o4_v2o1o3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {p2, h1}, {h3, h4}));
+TEST (AssignTest, FourDim_o1v2o3o4_v2o1o3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {p2, h1}, {h3, h4}));
 }
 
-TEST (AssignTest, FourDim_o1v2o3o4_v2o1o4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, h1}, {h3, h4}, {p2, h1}, {h4, h3}));
+TEST (AssignTest, FourDim_o1v2o3o4_v2o1o4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, h1}, {h3, h4}, {p2, h1}, {h4, h3}));
 }
 
 ///////
 
-TEST (AssignTest, FourDim_o1v2o3v4_o1v2o3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, h1}, {h3, p4}, {h1, p2}, {h3, p4}));
+TEST (AssignTest, FourDim_o1v2o3v4_o1v2o3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, h1}, {h3, p4}, {h1, p2}, {h3, p4}));
 }
 
-TEST (AssignTest, FourDim_o1v2o3v4_o1v2v4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {h1, p2}, {p4, h3}));
+TEST (AssignTest, FourDim_o1v2o3v4_o1v2v4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {h1, p2}, {p4, h3}));
 }
 
-TEST (AssignTest, FourDim_o1v2o3v4_v2o1o3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {p2, h1}, {h3, p4}));
+TEST (AssignTest, FourDim_o1v2o3v4_v2o1o3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {p2, h1}, {h3, p4}));
 }
 
-TEST (AssignTest, FourDim_o1v2o3v4_v2o1v4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {p2, h1}, {p4, h3}));
+TEST (AssignTest, FourDim_o1v2o3v4_v2o1v4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {p2, h1}, {p4, h3}));
 }
 
 ////////
 
-TEST (AssignTest, FourDim_o1v2v3o4_o1v2v3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, h1}, {p3, h4}, {h1, p2}, {p3, h4}));
+TEST (AssignTest, FourDim_o1v2v3o4_o1v2v3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, h1}, {p3, h4}, {h1, p2}, {p3, h4}));
 }
 
-TEST (AssignTest, FourDim_o1v2v3o4_o1v2o4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {h1, p2}, {h4, p3}));
+TEST (AssignTest, FourDim_o1v2v3o4_o1v2o4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {h1, p2}, {h4, p3}));
 }
 
-TEST (AssignTest, FourDim_o1v2v3o4_v2o1v3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {p2, h1}, {p3, h4}));
+TEST (AssignTest, FourDim_o1v2v3o4_v2o1v3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {p2, h1}, {p3, h4}));
 }
 
-TEST (AssignTest, FourDim_o1v2v3o4_v2o1o4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {p2, h1}, {h4, p3}));
+TEST (AssignTest, FourDim_o1v2v3o4_v2o1o4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {p2, h1}, {h4, p3}));
 }
 
 
 ////////
 
-TEST (AssignTest, FourDim_o1v2v3v4_o1v2v3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, h1}, {p3, p4}, {h1, p2}, {p3, p4}));
+TEST (AssignTest, FourDim_o1v2v3v4_o1v2v3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, h1}, {p3, p4}, {h1, p2}, {p3, p4}));
 }
 
-TEST (AssignTest, FourDim_o1v2v3v4_o1v2v4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {h1, p2}, {p4, p3}));
+TEST (AssignTest, FourDim_o1v2v3v4_o1v2v4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {h1, p2}, {p4, p3}));
 }
 
-TEST (AssignTest, FourDim_o1v2v3v4_v2o1v3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {p2, h1}, {p3, p4}));
+TEST (AssignTest, FourDim_o1v2v3v4_v2o1v3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {p2, h1}, {p3, p4}));
 }
 
-TEST (AssignTest, FourDim_o1v2v3v4_v2o1v4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {p2, h1}, {p4, p3}));
+TEST (AssignTest, FourDim_o1v2v3v4_v2o1v4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {p2, h1}, {p4, p3}));
 }
 
 //////////////////////////////////////
 
-TEST (AssignTest, FourDim_v1o2o3o4_v1o2o3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {p1, h2}, {h3, h4}));
+TEST (AssignTest, FourDim_v1o2o3o4_v1o2o3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {p1, h2}, {h3, h4}));
 }
 
-TEST (AssignTest, FourDim_v1o2o3o4_v1o2o4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {p1, h2}, {h4, h3}));
+TEST (AssignTest, FourDim_v1o2o3o4_v1o2o4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {p1, h2}, {h4, h3}));
 }
 
-TEST (AssignTest, FourDim_v1o2o3o4_o2v1o3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {h2, p1}, {h3, h4}));
+TEST (AssignTest, FourDim_v1o2o3o4_o2v1o3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {h2, p1}, {h3, h4}));
 }
 
-TEST (AssignTest, FourDim_v1o2o3o4_o2v1o4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, p1}, {h3, h4}, {h2, p1}, {h4, h3}));
+TEST (AssignTest, FourDim_v1o2o3o4_o2v1o4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, p1}, {h3, h4}, {h2, p1}, {h4, h3}));
 }
 
 ///////
 
-TEST (AssignTest, FourDim_v1o2o3v4_v1o2o3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, p1}, {h3, p4}, {p1, h2}, {h3, p4}));
+TEST (AssignTest, FourDim_v1o2o3v4_v1o2o3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, p1}, {h3, p4}, {p1, h2}, {h3, p4}));
 }
 
-TEST (AssignTest, FourDim_v1o2o3v4_v1o2v4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {p1, h2}, {p4, h3}));
+TEST (AssignTest, FourDim_v1o2o3v4_v1o2v4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {p1, h2}, {p4, h3}));
 }
 
-TEST (AssignTest, FourDim_v1o2o3v4_o2v1o3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {h2, p1}, {h3, p4}));
+TEST (AssignTest, FourDim_v1o2o3v4_o2v1o3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {h2, p1}, {h3, p4}));
 }
 
-TEST (AssignTest, FourDim_v1o2o3v4_o2v1v4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {h2, p1}, {p4, h3}));
+TEST (AssignTest, FourDim_v1o2o3v4_o2v1v4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {h2, p1}, {p4, h3}));
 }
 
 ////////
 
-TEST (AssignTest, FourDim_v1o2v3o4_v1o2v3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, p1}, {p3, h4}, {p1, h2}, {p3, h4}));
+TEST (AssignTest, FourDim_v1o2v3o4_v1o2v3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, p1}, {p3, h4}, {p1, h2}, {p3, h4}));
 }
 
-TEST (AssignTest, FourDim_v1o2v3o4_v1o2o4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {p1, h2}, {h4, p3}));
+TEST (AssignTest, FourDim_v1o2v3o4_v1o2o4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {p1, h2}, {h4, p3}));
 }
 
-TEST (AssignTest, FourDim_v1o2v3o4_o2v1v3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {h2, p1}, {p3, h4}));
+TEST (AssignTest, FourDim_v1o2v3o4_o2v1v3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {h2, p1}, {p3, h4}));
 }
 
-TEST (AssignTest, FourDim_v1o2v3o4_o2v1o4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {h2, p1}, {h4, p3}));
+TEST (AssignTest, FourDim_v1o2v3o4_o2v1o4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {h2, p1}, {h4, p3}));
 }
 
 
 ////////
 
-TEST (AssignTest, FourDim_v1o2v3v4_v1o2v3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, p1}, {p3, p4}, {p1, h2}, {p3, p4}));
+TEST (AssignTest, FourDim_v1o2v3v4_v1o2v3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {h2, p1}, {p3, p4}, {p1, h2}, {p3, p4}));
 }
 
-TEST (AssignTest, FourDim_v1o2v3v4_v1o2v4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {p1, h2}, {p4, p3}));
+TEST (AssignTest, FourDim_v1o2v3v4_v1o2v4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {p1, h2}, {p4, p3}));
 }
 
-TEST (AssignTest, FourDim_v1o2v3v4_o2v1v3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {h2, p1}, {p3, p4}));
+TEST (AssignTest, FourDim_v1o2v3v4_o2v1v3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {h2, p1}, {p3, p4}));
 }
 
-TEST (AssignTest, FourDim_v1o2v3v4_o2v1v4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {h2, p1}, {p4, p3}));
+TEST (AssignTest, FourDim_v1o2v3v4_o2v1v4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {h2, p1}, {p4, p3}));
 }
 
 //////////////////////////////////////
 
-TEST (AssignTest, FourDim_v1v2o3o4_v1v2o3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p1, p2}, {h3, h4}));
+TEST (AssignTest, FourDim_v1v2o3o4_v1v2o3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p1, p2}, {h3, h4}));
 }
 
-TEST (AssignTest, FourDim_v1v2o3o4_v1v2o4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p1, p2}, {h4, h3}));
+TEST (AssignTest, FourDim_v1v2o3o4_v1v2o4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p1, p2}, {h4, h3}));
 }
 
-TEST (AssignTest, FourDim_v1v2o3o4_v2v1o3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p2, p1}, {h3, h4}));
+TEST (AssignTest, FourDim_v1v2o3o4_v2v1o3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p2, p1}, {h3, h4}));
 }
 
-TEST (AssignTest, FourDim_v1v2o3o4_v2v1o4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, p1}, {h3, h4}, {p2, p1}, {h4, h3}));
+TEST (AssignTest, FourDim_v1v2o3o4_v2v1o4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, p1}, {h3, h4}, {p2, p1}, {h4, h3}));
 }
 
 ///////
 
-TEST (AssignTest, FourDim_v1v2o3v4_v1v2o3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, p1}, {h3, p4}, {p1, p2}, {h3, p4}));
+TEST (AssignTest, FourDim_v1v2o3v4_v1v2o3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, p1}, {h3, p4}, {p1, p2}, {h3, p4}));
 }
 
-TEST (AssignTest, FourDim_v1v2o3v4_v1v2v4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p1, p2}, {p4, h3}));
+TEST (AssignTest, FourDim_v1v2o3v4_v1v2v4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p1, p2}, {p4, h3}));
 }
 
-TEST (AssignTest, FourDim_v1v2o3v4_v2v1o3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p2, p1}, {h3, p4}));
+TEST (AssignTest, FourDim_v1v2o3v4_v2v1o3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p2, p1}, {h3, p4}));
 }
 
-TEST (AssignTest, FourDim_v1v2o3v4_v2v1v4o3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p2, p1}, {p4, h3}));
+TEST (AssignTest, FourDim_v1v2o3v4_v2v1v4o3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p2, p1}, {p4, h3}));
 }
 
 ////////
 
-TEST (AssignTest, FourDim_v1v2v3o4_v1v2v3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, p1}, {p3, h4}, {p1, p2}, {p3, h4}));
+TEST (AssignTest, FourDim_v1v2v3o4_v1v2v3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, p1}, {p3, h4}, {p1, p2}, {p3, h4}));
 }
 
-TEST (AssignTest, FourDim_v1v2v3o4_v1v2o4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p1, p2}, {h4, p3}));
+TEST (AssignTest, FourDim_v1v2v3o4_v1v2o4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p1, p2}, {h4, p3}));
 }
 
-TEST (AssignTest, FourDim_v1v2v3o4_v2v1v3o4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p2, p1}, {p3, h4}));
+TEST (AssignTest, FourDim_v1v2v3o4_v2v1v3o4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p2, p1}, {p3, h4}));
 }
 
-TEST (AssignTest, FourDim_v1v2v3o4_v2v1o4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p2, p1}, {h4, p3}));
+TEST (AssignTest, FourDim_v1v2v3o4_v2v1o4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p2, p1}, {h4, p3}));
 }
 
 
 ////////
 
-TEST (AssignTest, FourDim_v1v2v3v4_v1v2v3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, p1}, {p3, p4}, {p1, p2}, {p3, p4}));
+TEST (AssignTest, FourDim_v1v2v3v4_v1v2v3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p2, p1}, {p3, p4}, {p1, p2}, {p3, p4}));
 }
 
-TEST (AssignTest, FourDim_v1v2v3v4_v1v2v4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p1, p2}, {p4, p3}));
+TEST (AssignTest, FourDim_v1v2v3v4_v1v2v4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p1, p2}, {p4, p3}));
 }
 
-TEST (AssignTest, FourDim_v1v2v3v4_v2v1v3v4) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p3, p4}));
+TEST (AssignTest, FourDim_v1v2v3v4_v2v1v3v4
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p3, p4}));
 }
 
-TEST (AssignTest, FourDim_v1v2v3v4_v2v1v4v3) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p4, p3}));
+TEST (AssignTest, FourDim_v1v2v3v4_v2v1v4v3
+) {
+ASSERT_TRUE(test_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p4, p3}));
 }
 
 #endif
@@ -4032,294 +4313,358 @@ TEST (AssignTest, FourDim_v1v2v3v4_v2v1v4v3) {
 
 #if EIGEN_ASSIGN_TEST_4D
 
-TEST (EigenAssignTest, FourDim_o1o2o3o4_o1o2o3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h1, h2}, {h3, h4}));
+TEST (EigenAssignTest, FourDim_o1o2o3o4_o1o2o3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h1, h2}, {h3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1o2o3o4_o1o2o4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h1, h2}, {h4, h3}));
+TEST (EigenAssignTest, FourDim_o1o2o3o4_o1o2o4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h1, h2}, {h4, h3}));
 }
 
-TEST (EigenAssignTest, FourDim_o1o2o3o4_o2o1o3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h2, h1}, {h3, h4}));
+TEST (EigenAssignTest, FourDim_o1o2o3o4_o2o1o3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, h4}, {h2, h1}, {h3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1o2o3o4_o2o1o4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, h1}, {h3, h4}, {h2, h1}, {h4, h3}));
+TEST (EigenAssignTest, FourDim_o1o2o3o4_o2o1o4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, h1}, {h3, h4}, {h2, h1}, {h4, h3}));
 }
 
 ///////
 
-TEST (EigenAssignTest, FourDim_o1o2o3v4_o1o2o3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, h1}, {h3, p4}, {h1, h2}, {h3, p4}));
+TEST (EigenAssignTest, FourDim_o1o2o3v4_o1o2o3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, h1}, {h3, p4}, {h1, h2}, {h3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1o2o3v4_o1o2v4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h1, h2}, {p4, h3}));
+TEST (EigenAssignTest, FourDim_o1o2o3v4_o1o2v4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h1, h2}, {p4, h3}));
 }
 
-TEST (EigenAssignTest, FourDim_o1o2o3v4_o2o1o3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h2, h1}, {h3, p4}));
+TEST (EigenAssignTest, FourDim_o1o2o3v4_o2o1o3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h2, h1}, {h3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1o2o3v4_o2o1v4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h2, h1}, {p4, h3}));
+TEST (EigenAssignTest, FourDim_o1o2o3v4_o2o1v4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {h3, p4}, {h2, h1}, {p4, h3}));
 }
 
 ////////
 
-TEST (EigenAssignTest, FourDim_o1o2v3o4_o1o2v3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, h1}, {p3, h4}, {h1, h2}, {p3, h4}));
+TEST (EigenAssignTest, FourDim_o1o2v3o4_o1o2v3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, h1}, {p3, h4}, {h1, h2}, {p3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1o2v3o4_o1o2o4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h1, h2}, {h4, p3}));
+TEST (EigenAssignTest, FourDim_o1o2v3o4_o1o2o4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h1, h2}, {h4, p3}));
 }
 
-TEST (EigenAssignTest, FourDim_o1o2v3o4_o2o1v3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h2, h1}, {p3, h4}));
+TEST (EigenAssignTest, FourDim_o1o2v3o4_o2o1v3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h2, h1}, {p3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1o2v3o4_o2o1o4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h2, h1}, {h4, p3}));
+TEST (EigenAssignTest, FourDim_o1o2v3o4_o2o1o4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, h4}, {h2, h1}, {h4, p3}));
 }
 
 
 ////////
 
-TEST (EigenAssignTest, FourDim_o1o2v3v4_o1o2v3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, h1}, {p3, p4}, {h1, h2}, {p3, p4}));
+TEST (EigenAssignTest, FourDim_o1o2v3v4_o1o2v3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, h1}, {p3, p4}, {h1, h2}, {p3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1o2v3v4_o1o2v4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h1, h2}, {p4, p3}));
+TEST (EigenAssignTest, FourDim_o1o2v3v4_o1o2v4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h1, h2}, {p4, p3}));
 }
 
-TEST (EigenAssignTest, FourDim_o1o2v3v4_o2o1v3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h2, h1}, {p3, p4}));
+TEST (EigenAssignTest, FourDim_o1o2v3v4_o2o1v3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h2, h1}, {p3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1o2v3v4_o2o1v4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h2, h1}, {p4, p3}));
+TEST (EigenAssignTest, FourDim_o1o2v3v4_o2o1v4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, h2}, {p3, p4}, {h2, h1}, {p4, p3}));
 }
 
 ///////////////////////
 
-TEST (EigenAssignTest, FourDim_o1v2o3o4_o1v2o3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {h1, p2}, {h3, h4}));
+TEST (EigenAssignTest, FourDim_o1v2o3o4_o1v2o3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {h1, p2}, {h3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1v2o3o4_o1v2o4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {h1, p2}, {h4, h3}));
+TEST (EigenAssignTest, FourDim_o1v2o3o4_o1v2o4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {h1, p2}, {h4, h3}));
 }
 
-TEST (EigenAssignTest, FourDim_o1v2o3o4_v2o1o3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {p2, h1}, {h3, h4}));
+TEST (EigenAssignTest, FourDim_o1v2o3o4_v2o1o3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, h4}, {p2, h1}, {h3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1v2o3o4_v2o1o4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, h1}, {h3, h4}, {p2, h1}, {h4, h3}));
+TEST (EigenAssignTest, FourDim_o1v2o3o4_v2o1o4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, h1}, {h3, h4}, {p2, h1}, {h4, h3}));
 }
 
 ///////
 
-TEST (EigenAssignTest, FourDim_o1v2o3v4_o1v2o3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, h1}, {h3, p4}, {h1, p2}, {h3, p4}));
+TEST (EigenAssignTest, FourDim_o1v2o3v4_o1v2o3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, h1}, {h3, p4}, {h1, p2}, {h3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1v2o3v4_o1v2v4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {h1, p2}, {p4, h3}));
+TEST (EigenAssignTest, FourDim_o1v2o3v4_o1v2v4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {h1, p2}, {p4, h3}));
 }
 
-TEST (EigenAssignTest, FourDim_o1v2o3v4_v2o1o3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {p2, h1}, {h3, p4}));
+TEST (EigenAssignTest, FourDim_o1v2o3v4_v2o1o3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {p2, h1}, {h3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1v2o3v4_v2o1v4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {p2, h1}, {p4, h3}));
+TEST (EigenAssignTest, FourDim_o1v2o3v4_v2o1v4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {h3, p4}, {p2, h1}, {p4, h3}));
 }
 
 ////////
 
-TEST (EigenAssignTest, FourDim_o1v2v3o4_o1v2v3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, h1}, {p3, h4}, {h1, p2}, {p3, h4}));
+TEST (EigenAssignTest, FourDim_o1v2v3o4_o1v2v3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, h1}, {p3, h4}, {h1, p2}, {p3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1v2v3o4_o1v2o4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {h1, p2}, {h4, p3}));
+TEST (EigenAssignTest, FourDim_o1v2v3o4_o1v2o4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {h1, p2}, {h4, p3}));
 }
 
-TEST (EigenAssignTest, FourDim_o1v2v3o4_v2o1v3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {p2, h1}, {p3, h4}));
+TEST (EigenAssignTest, FourDim_o1v2v3o4_v2o1v3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {p2, h1}, {p3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1v2v3o4_v2o1o4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {p2, h1}, {h4, p3}));
+TEST (EigenAssignTest, FourDim_o1v2v3o4_v2o1o4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, h4}, {p2, h1}, {h4, p3}));
 }
 
 
 ////////
 
-TEST (EigenAssignTest, FourDim_o1v2v3v4_o1v2v3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, h1}, {p3, p4}, {h1, p2}, {p3, p4}));
+TEST (EigenAssignTest, FourDim_o1v2v3v4_o1v2v3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, h1}, {p3, p4}, {h1, p2}, {p3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1v2v3v4_o1v2v4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {h1, p2}, {p4, p3}));
+TEST (EigenAssignTest, FourDim_o1v2v3v4_o1v2v4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {h1, p2}, {p4, p3}));
 }
 
-TEST (EigenAssignTest, FourDim_o1v2v3v4_v2o1v3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {p2, h1}, {p3, p4}));
+TEST (EigenAssignTest, FourDim_o1v2v3v4_v2o1v3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {p2, h1}, {p3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_o1v2v3v4_v2o1v4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {p2, h1}, {p4, p3}));
+TEST (EigenAssignTest, FourDim_o1v2v3v4_v2o1v4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h1, p2}, {p3, p4}, {p2, h1}, {p4, p3}));
 }
 
 //////////////////////////////////////
 
-TEST (EigenAssignTest, FourDim_v1o2o3o4_v1o2o3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {p1, h2}, {h3, h4}));
+TEST (EigenAssignTest, FourDim_v1o2o3o4_v1o2o3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {p1, h2}, {h3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1o2o3o4_v1o2o4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {p1, h2}, {h4, h3}));
+TEST (EigenAssignTest, FourDim_v1o2o3o4_v1o2o4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {p1, h2}, {h4, h3}));
 }
 
-TEST (EigenAssignTest, FourDim_v1o2o3o4_o2v1o3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {h2, p1}, {h3, h4}));
+TEST (EigenAssignTest, FourDim_v1o2o3o4_o2v1o3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, h4}, {h2, p1}, {h3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1o2o3o4_o2v1o4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, p1}, {h3, h4}, {h2, p1}, {h4, h3}));
+TEST (EigenAssignTest, FourDim_v1o2o3o4_o2v1o4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, p1}, {h3, h4}, {h2, p1}, {h4, h3}));
 }
 
 ///////
 
-TEST (EigenAssignTest, FourDim_v1o2o3v4_v1o2o3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, p1}, {h3, p4}, {p1, h2}, {h3, p4}));
+TEST (EigenAssignTest, FourDim_v1o2o3v4_v1o2o3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, p1}, {h3, p4}, {p1, h2}, {h3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1o2o3v4_v1o2v4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {p1, h2}, {p4, h3}));
+TEST (EigenAssignTest, FourDim_v1o2o3v4_v1o2v4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {p1, h2}, {p4, h3}));
 }
 
-TEST (EigenAssignTest, FourDim_v1o2o3v4_o2v1o3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {h2, p1}, {h3, p4}));
+TEST (EigenAssignTest, FourDim_v1o2o3v4_o2v1o3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {h2, p1}, {h3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1o2o3v4_o2v1v4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {h2, p1}, {p4, h3}));
+TEST (EigenAssignTest, FourDim_v1o2o3v4_o2v1v4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {h3, p4}, {h2, p1}, {p4, h3}));
 }
 
 ////////
 
-TEST (EigenAssignTest, FourDim_v1o2v3o4_v1o2v3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, p1}, {p3, h4}, {p1, h2}, {p3, h4}));
+TEST (EigenAssignTest, FourDim_v1o2v3o4_v1o2v3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, p1}, {p3, h4}, {p1, h2}, {p3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1o2v3o4_v1o2o4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {p1, h2}, {h4, p3}));
+TEST (EigenAssignTest, FourDim_v1o2v3o4_v1o2o4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {p1, h2}, {h4, p3}));
 }
 
-TEST (EigenAssignTest, FourDim_v1o2v3o4_o2v1v3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {h2, p1}, {p3, h4}));
+TEST (EigenAssignTest, FourDim_v1o2v3o4_o2v1v3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {h2, p1}, {p3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1o2v3o4_o2v1o4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {h2, p1}, {h4, p3}));
+TEST (EigenAssignTest, FourDim_v1o2v3o4_o2v1o4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, h4}, {h2, p1}, {h4, p3}));
 }
 
 
 ////////
 
-TEST (EigenAssignTest, FourDim_v1o2v3v4_v1o2v3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, p1}, {p3, p4}, {p1, h2}, {p3, p4}));
+TEST (EigenAssignTest, FourDim_v1o2v3v4_v1o2v3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {h2, p1}, {p3, p4}, {p1, h2}, {p3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1o2v3v4_v1o2v4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {p1, h2}, {p4, p3}));
+TEST (EigenAssignTest, FourDim_v1o2v3v4_v1o2v4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {p1, h2}, {p4, p3}));
 }
 
-TEST (EigenAssignTest, FourDim_v1o2v3v4_o2v1v3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {h2, p1}, {p3, p4}));
+TEST (EigenAssignTest, FourDim_v1o2v3v4_o2v1v3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {h2, p1}, {p3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1o2v3v4_o2v1v4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {h2, p1}, {p4, p3}));
+TEST (EigenAssignTest, FourDim_v1o2v3v4_o2v1v4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, h2}, {p3, p4}, {h2, p1}, {p4, p3}));
 }
 
 //////////////////////////////////////
 
-TEST (EigenAssignTest, FourDim_v1v2o3o4_v1v2o3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p1, p2}, {h3, h4}));
+TEST (EigenAssignTest, FourDim_v1v2o3o4_v1v2o3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p1, p2}, {h3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1v2o3o4_v1v2o4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p1, p2}, {h4, h3}));
+TEST (EigenAssignTest, FourDim_v1v2o3o4_v1v2o4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p1, p2}, {h4, h3}));
 }
 
-TEST (EigenAssignTest, FourDim_v1v2o3o4_v2v1o3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p2, p1}, {h3, h4}));
+TEST (EigenAssignTest, FourDim_v1v2o3o4_v2v1o3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, h4}, {p2, p1}, {h3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1v2o3o4_v2v1o4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, p1}, {h3, h4}, {p2, p1}, {h4, h3}));
+TEST (EigenAssignTest, FourDim_v1v2o3o4_v2v1o4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, p1}, {h3, h4}, {p2, p1}, {h4, h3}));
 }
 
 ///////
 
-TEST (EigenAssignTest, FourDim_v1v2o3v4_v1v2o3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, p1}, {h3, p4}, {p1, p2}, {h3, p4}));
+TEST (EigenAssignTest, FourDim_v1v2o3v4_v1v2o3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, p1}, {h3, p4}, {p1, p2}, {h3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1v2o3v4_v1v2v4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p1, p2}, {p4, h3}));
+TEST (EigenAssignTest, FourDim_v1v2o3v4_v1v2v4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p1, p2}, {p4, h3}));
 }
 
-TEST (EigenAssignTest, FourDim_v1v2o3v4_v2v1o3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p2, p1}, {h3, p4}));
+TEST (EigenAssignTest, FourDim_v1v2o3v4_v2v1o3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p2, p1}, {h3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1v2o3v4_v2v1v4o3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p2, p1}, {p4, h3}));
+TEST (EigenAssignTest, FourDim_v1v2o3v4_v2v1v4o3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {h3, p4}, {p2, p1}, {p4, h3}));
 }
 
 ////////
 
-TEST (EigenAssignTest, FourDim_v1v2v3o4_v1v2v3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, p1}, {p3, h4}, {p1, p2}, {p3, h4}));
+TEST (EigenAssignTest, FourDim_v1v2v3o4_v1v2v3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, p1}, {p3, h4}, {p1, p2}, {p3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1v2v3o4_v1v2o4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p1, p2}, {h4, p3}));
+TEST (EigenAssignTest, FourDim_v1v2v3o4_v1v2o4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p1, p2}, {h4, p3}));
 }
 
-TEST (EigenAssignTest, FourDim_v1v2v3o4_v2v1v3o4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p2, p1}, {p3, h4}));
+TEST (EigenAssignTest, FourDim_v1v2v3o4_v2v1v3o4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p2, p1}, {p3, h4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1v2v3o4_v2v1o4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p2, p1}, {h4, p3}));
+TEST (EigenAssignTest, FourDim_v1v2v3o4_v2v1o4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, h4}, {p2, p1}, {h4, p3}));
 }
 
 
 ////////
 
-TEST (EigenAssignTest, FourDim_v1v2v3v4_v1v2v3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, p1}, {p3, p4}, {p1, p2}, {p3, p4}));
+TEST (EigenAssignTest, FourDim_v1v2v3v4_v1v2v3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p2, p1}, {p3, p4}, {p1, p2}, {p3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1v2v3v4_v1v2v4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p1, p2}, {p4, p3}));
+TEST (EigenAssignTest, FourDim_v1v2v3v4_v1v2v4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p1, p2}, {p4, p3}));
 }
 
-TEST (EigenAssignTest, FourDim_v1v2v3v4_v2v1v3v4) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p3, p4}));
+TEST (EigenAssignTest, FourDim_v1v2v3v4_v2v1v3v4
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p3, p4}));
 }
 
-TEST (EigenAssignTest, FourDim_v1v2v3v4_v2v1v4v3) {
-  ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p4, p3}));
+TEST (EigenAssignTest, FourDim_v1v2v3v4_v2v1v4v3
+) {
+ASSERT_TRUE(test_eigen_assign_no_n(*g_ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p4, p3}));
 }
 
 #endif
@@ -4327,12 +4672,13 @@ TEST (EigenAssignTest, FourDim_v1v2v3v4_v2v1v4v3) {
 
 #if MULT_TEST_1D_1D
 
-TEST (MultTest, Dim_0_o_o_up) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {}, {},
-                             {h1}, {},
-                             {h1}, {}));
+TEST (MultTest, Dim_0_o_o_up
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {}, {},
+                           {h1}, {},
+                           {h1}, {}));
 }
 
 // TEST (MultTest, Dim_oo_o_o) {
@@ -4371,136 +4717,152 @@ TEST (MultTest, Dim_0_o_o_up) {
 
 #if MULT_TEST_1D_1D_2D
 
-TEST (MultTest, Dim_o_o_oo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {},
-                             {}, {h2},
-                             {h1}, {h2}));
+TEST (MultTest, Dim_o_o_oo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {},
+                           {}, {h2},
+                           {h1}, {h2}));
 }
 
-TEST (MultTest, Dim_o_o_oo_lo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {}, {h2},
-                             {h1}, {},
-                             {h1}, {h2}));
+TEST (MultTest, Dim_o_o_oo_lo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {}, {h2},
+                           {h1}, {},
+                           {h1}, {h2}));
 }
 
-TEST (MultTest, Dim_o_v_ov) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {},
-                             {}, {p2},
-                             {h1}, {p2}));
+TEST (MultTest, Dim_o_v_ov
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {},
+                           {}, {p2},
+                           {h1}, {p2}));
 }
 
-TEST (MultTest, Dim_o_v_vo_lo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {}, {h2},
-                             {p1}, {},
-                             {p1}, {h2}));
+TEST (MultTest, Dim_o_v_vo_lo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {}, {h2},
+                           {p1}, {},
+                           {p1}, {h2}));
 }
 
-TEST (MultTest, Dim_v_o_vo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {},
-                             {}, {h2},
-                             {p1}, {h2}));
+TEST (MultTest, Dim_v_o_vo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {},
+                           {}, {h2},
+                           {p1}, {h2}));
 }
 
-TEST (MultTest, Dim_v_o_ov_lo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {}, {p2},
-                             {h1}, {},
-                             {h1}, {p2}));
+TEST (MultTest, Dim_v_o_ov_lo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {}, {p2},
+                           {h1}, {},
+                           {h1}, {p2}));
 }
 
-TEST (MultTest, Dim_v_v_vv) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {},
-                             {}, {p2},
-                             {p1}, {p2}));
+TEST (MultTest, Dim_v_v_vv
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {},
+                           {}, {p2},
+                           {p1}, {p2}));
 }
 
-TEST (MultTest, Dim_v_v_vv_lo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {}, {p2},
-                             {p1}, {},
-                             {p1}, {p2}));
+TEST (MultTest, Dim_v_v_vv_lo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {}, {p2},
+                           {p1}, {},
+                           {p1}, {p2}));
 }
 
 #endif
 
 #if MULT_TEST_1D_2D_1D
 
-TEST (MultTest, Dim_o_oo_o) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {},
-                             {h1}, {h2},
-                             {}, {h2}));
+TEST (MultTest, Dim_o_oo_o
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {},
+                           {h1}, {h2},
+                           {}, {h2}));
 }
 
-TEST (MultTest, Dim_o_oo_o_lo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {}, {h2},
-                             {h1}, {h2},
-                             {h1}, {}));
+TEST (MultTest, Dim_o_oo_o_lo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {}, {h2},
+                           {h1}, {h2},
+                           {h1}, {}));
 }
 
-TEST (MultTest, Dim_o_ov_v) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {},
-                             {h1}, {p2},
-                             {}, {p2}));
+TEST (MultTest, Dim_o_ov_v
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {},
+                           {h1}, {p2},
+                           {}, {p2}));
 }
 
-TEST (MultTest, Dim_o_vo_v_lo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {}, {h2},
-                             {p1}, {h2},
-                             {p1}, {}));
+TEST (MultTest, Dim_o_vo_v_lo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {}, {h2},
+                           {p1}, {h2},
+                           {p1}, {}));
 }
 
-TEST (MultTest, Dim_v_vo_o) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {},
-                             {p1}, {h2},
-                             {}, {h2}));
+TEST (MultTest, Dim_v_vo_o
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {},
+                           {p1}, {h2},
+                           {}, {h2}));
 }
 
-TEST (MultTest, Dim_v_ov_o_lo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {}, {p2},
-                             {h1}, {p2},
-                             {h1}, {}));
+TEST (MultTest, Dim_v_ov_o_lo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {}, {p2},
+                           {h1}, {p2},
+                           {h1}, {}));
 }
 
-TEST (MultTest, Dim_v_vv_v) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {},
-                             {p1}, {p2},
-                             {}, {p2}));
+TEST (MultTest, Dim_v_vv_v
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {},
+                           {p1}, {p2},
+                           {}, {p2}));
 }
 
-TEST (MultTest, Dim_v_vv_v_lo) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {}, {p2},
-                             {p1}, {p2},
-                             {p1}, {}));
+TEST (MultTest, Dim_v_vv_v_lo
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {}, {p2},
+                           {p1}, {p2},
+                           {p1}, {}));
 }
 
 #endif
@@ -4523,36 +4885,40 @@ TEST (MultTest, Dim_v_vv_v_lo) {
 
 #if MULT_TEST_2D_1D_1D
 
-TEST (MultTest, Dim_oo_o_o) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {h2},
-                             {h1}, {},
-                             {}, {h2}));
+TEST (MultTest, Dim_oo_o_o
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {h2},
+                           {h1}, {},
+                           {}, {h2}));
 }
 
-TEST (MultTest, Dim_ov_o_v) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {h1}, {p2},
-                             {h1}, {},
-                             {}, {p2}));
+TEST (MultTest, Dim_ov_o_v
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {h1}, {p2},
+                           {h1}, {},
+                           {}, {p2}));
 }
 
-TEST (MultTest, Dim_vo_v_o) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {h2},
-                             {p1}, {},
-                             {}, {h2}));
+TEST (MultTest, Dim_vo_v_o
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {h2},
+                           {p1}, {},
+                           {}, {h2}));
 }
 
-TEST (MultTest, Dim_vv_v_v) {
-  ASSERT_TRUE(test_mult_no_n(*g_ec,
-                             3.98,
-                             {p1}, {p2},
-                             {p1}, {},
-                             {}, {p2}));
+TEST (MultTest, Dim_vv_v_v
+) {
+ASSERT_TRUE(test_mult_no_n(*g_ec,
+                           3.98,
+                           {p1}, {p2},
+                           {p1}, {},
+                           {}, {p2}));
 }
 
 #endif
@@ -4567,468 +4933,500 @@ using Indices = tammx::TensorVec<tammx::SymmGroup>;
 
 #if SYMM_ASSIGN_TEST_3D
 
-TEST (SymmAssignTest, ThreeDim_o1o2_o3_o1o2_o3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, O},
-                               {O, O, O},
-                               2,
-                               {h1, h2, h3},
-                               2.5,
-                               {0.5, -0.5},
-                               {{h1, h2, h3},
-                                {h2, h1, h3}}
-  ));
+TEST (SymmAssignTest, ThreeDim_o1o2_o3_o1o2_o3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, O},
+                             {O, O, O},
+                             2,
+                             {h1, h2, h3},
+                             2.5,
+                             {0.5, -0.5},
+                             {{h1, h2, h3},
+                              {h2, h1, h3}}
+));
 }
 
-TEST (SymmAssignTest, ThreeDim_o1o2_v3_o1o2_v3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, V},
-                               {O, O, V},
-                               2,
-                               {h1, h2, p3},
-                               2.5,
-                               {0.5, -0.5},
-                               {{h1, h2, p3},
-                                {h2, h1, p3}}
-  ));
+TEST (SymmAssignTest, ThreeDim_o1o2_v3_o1o2_v3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, V},
+                             {O, O, V},
+                             2,
+                             {h1, h2, p3},
+                             2.5,
+                             {0.5, -0.5},
+                             {{h1, h2, p3},
+                              {h2, h1, p3}}
+));
 }
 
-TEST (SymmAssignTest, ThreeDim_v1v2_o3_v1v2_o3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, O},
-                               {V, V, O},
-                               2,
-                               {p1, p2, h3},
-                               2.5,
-                               {0.5, -0.5},
-                               {{p1, p2, h3},
-                                {p2, p1, h3}}
-  ));
+TEST (SymmAssignTest, ThreeDim_v1v2_o3_v1v2_o3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, O},
+                             {V, V, O},
+                             2,
+                             {p1, p2, h3},
+                             2.5,
+                             {0.5, -0.5},
+                             {{p1, p2, h3},
+                              {p2, p1, h3}}
+));
 }
 
-TEST (SymmAssignTest, ThreeDim_v1v2_v3_v1v2_v3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, V},
-                               {V, V, V},
-                               2,
-                               {p1, p2, p3},
-                               2.5,
-                               {0.5, -0.5},
-                               {{p1, p2, p3},
-                                {p2, p1, p3}}
-  ));
+TEST (SymmAssignTest, ThreeDim_v1v2_v3_v1v2_v3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, V},
+                             {V, V, V},
+                             2,
+                             {p1, p2, p3},
+                             2.5,
+                             {0.5, -0.5},
+                             {{p1, p2, p3},
+                              {p2, p1, p3}}
+));
 }
 
 /////////////////////////////////////////////////
 
-TEST (SymmAssignTest, ThreeDim_o1o2_o3_o2o1_o3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, O},
-                               {O, O, O},
-                               2,
-                               {h1, h2, h3},
-                               2.5,
-                               {0.5, -0.5},
-                               {{h2, h1, h3},
-                                {h1, h2, h3}}
-  ));
+TEST (SymmAssignTest, ThreeDim_o1o2_o3_o2o1_o3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, O},
+                             {O, O, O},
+                             2,
+                             {h1, h2, h3},
+                             2.5,
+                             {0.5, -0.5},
+                             {{h2, h1, h3},
+                              {h1, h2, h3}}
+));
 }
 
-TEST (SymmAssignTest, ThreeDim_o1o2_v3_o2o1_v3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, V},
-                               {O, O, V},
-                               2,
-                               {h1, h2, p3},
-                               2.5,
-                               {0.5, -0.5},
-                               {{h2, h1, p3},
-                                {h1, h2, p3}}
-  ));
+TEST (SymmAssignTest, ThreeDim_o1o2_v3_o2o1_v3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, V},
+                             {O, O, V},
+                             2,
+                             {h1, h2, p3},
+                             2.5,
+                             {0.5, -0.5},
+                             {{h2, h1, p3},
+                              {h1, h2, p3}}
+));
 }
 
-TEST (SymmAssignTest, ThreeDim_v1v2_o3_v2v1_o3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, O},
-                               {V, V, O},
-                               2,
-                               {p1, p2, h3},
-                               2.5,
-                               {0.5, -0.5},
-                               {{p2, p1, h3},
-                                {p1, p2, h3}}
-  ));
+TEST (SymmAssignTest, ThreeDim_v1v2_o3_v2v1_o3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, O},
+                             {V, V, O},
+                             2,
+                             {p1, p2, h3},
+                             2.5,
+                             {0.5, -0.5},
+                             {{p2, p1, h3},
+                              {p1, p2, h3}}
+));
 }
 
-TEST (SymmAssignTest, ThreeDim_v1v2_v3_v2v1_v3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, V},
-                               {V, V, V},
-                               2,
-                               {p1, p2, p3},
-                               2.5,
-                               {0.5, -0.5},
-                               {{p2, p1, p3},
-                                {p1, p2, p3}}
-  ));
+TEST (SymmAssignTest, ThreeDim_v1v2_v3_v2v1_v3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, V},
+                             {V, V, V},
+                             2,
+                             {p1, p2, p3},
+                             2.5,
+                             {0.5, -0.5},
+                             {{p2, p1, p3},
+                              {p1, p2, p3}}
+));
 }
 
 #endif
 
 #if SYMM_ASSIGN_TEST_4D
 
-TEST (SymmAssignTest, FourDim_o1o2_o3v4_o1o2_o3v4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, O, V},
-                               {O, O, O, V},
-                               2,
-                               {h1, h2, h3, p4},
-                               2.5,
-                               {0.5, -0.5},
-                               {{h1, h2, h3, p4},
-                                {h2, h1, h3, p4}}
-  ));
+TEST (SymmAssignTest, FourDim_o1o2_o3v4_o1o2_o3v4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, O, V},
+                             {O, O, O, V},
+                             2,
+                             {h1, h2, h3, p4},
+                             2.5,
+                             {0.5, -0.5},
+                             {{h1, h2, h3, p4},
+                              {h2, h1, h3, p4}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_o1o2_v3o4_o1o2_v3o4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, V, O},
-                               {O, O, V, O},
-                               2,
-                               {h1, h2, p3, h4},
-                               2.5,
-                               {0.5, -0.5},
-                               {{h1, h2, p3, h4},
-                                {h2, h1, p3, h4}}
-  ));
+TEST (SymmAssignTest, FourDim_o1o2_v3o4_o1o2_v3o4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, V, O},
+                             {O, O, V, O},
+                             2,
+                             {h1, h2, p3, h4},
+                             2.5,
+                             {0.5, -0.5},
+                             {{h1, h2, p3, h4},
+                              {h2, h1, p3, h4}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_v1v2_o3v4_v1v2_o3v4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, O, V},
-                               {V, V, O, V},
-                               2,
-                               {p1, p2, h3, p4},
-                               2.5,
-                               {0.5, -0.5},
-                               {{p1, p2, h3, p4},
-                                {p2, p1, h3, p4}}
-  ));
+TEST (SymmAssignTest, FourDim_v1v2_o3v4_v1v2_o3v4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, O, V},
+                             {V, V, O, V},
+                             2,
+                             {p1, p2, h3, p4},
+                             2.5,
+                             {0.5, -0.5},
+                             {{p1, p2, h3, p4},
+                              {p2, p1, h3, p4}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_v1v2_v3o4_v1v2_v3o4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, V, O},
-                               {V, V, V, O},
-                               2,
-                               {p1, p2, p3, h4},
-                               2.5,
-                               {0.5, -0.5},
-                               {{p1, p2, p3, h4},
-                                {p2, p1, p3, h4}}
-  ));
+TEST (SymmAssignTest, FourDim_v1v2_v3o4_v1v2_v3o4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, V, O},
+                             {V, V, V, O},
+                             2,
+                             {p1, p2, p3, h4},
+                             2.5,
+                             {0.5, -0.5},
+                             {{p1, p2, p3, h4},
+                              {p2, p1, p3, h4}}
+));
 }
 
 /////////////////////////////////////////////////
 
-TEST (SymmAssignTest, FourDim_o1o2_o3v4_o2o1_o3v4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, O, V},
-                               {O, O, O, V},
-                               2,
-                               {h1, h2, h3, p4},
-                               2.5,
-                               {0.5, -0.5},
-                               {{h2, h1, h3, p4},
-                                {h1, h2, h3, p4}}
-  ));
+TEST (SymmAssignTest, FourDim_o1o2_o3v4_o2o1_o3v4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, O, V},
+                             {O, O, O, V},
+                             2,
+                             {h1, h2, h3, p4},
+                             2.5,
+                             {0.5, -0.5},
+                             {{h2, h1, h3, p4},
+                              {h1, h2, h3, p4}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_o1o2_v3o4_o2o1_v3o4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, V, O},
-                               {O, O, V, O},
-                               2,
-                               {h1, h2, p3, h4},
-                               2.5,
-                               {0.5, -0.5},
-                               {{h2, h1, p3, h4},
-                                {h1, h2, p3, h4}}
-  ));
+TEST (SymmAssignTest, FourDim_o1o2_v3o4_o2o1_v3o4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, V, O},
+                             {O, O, V, O},
+                             2,
+                             {h1, h2, p3, h4},
+                             2.5,
+                             {0.5, -0.5},
+                             {{h2, h1, p3, h4},
+                              {h1, h2, p3, h4}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_v1v2_o3v4_v2v1_o3v4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, O, V},
-                               {V, V, O, V},
-                               2,
-                               {p1, p2, h3, p4},
-                               2.5,
-                               {0.5, -0.5},
-                               {{p2, p1, h3, p4},
-                                {p1, p2, h3, p4}}
-  ));
+TEST (SymmAssignTest, FourDim_v1v2_o3v4_v2v1_o3v4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, O, V},
+                             {V, V, O, V},
+                             2,
+                             {p1, p2, h3, p4},
+                             2.5,
+                             {0.5, -0.5},
+                             {{p2, p1, h3, p4},
+                              {p1, p2, h3, p4}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_v1v2_v3o4_v2v1_v3o4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, V, O},
-                               {V, V, V, O},
-                               2,
-                               {p1, p2, p3, h4},
-                               2.5,
-                               {0.5, -0.5},
-                               {{p2, p1, p3, h4},
-                                {p1, p2, p3, h4}}
-  ));
+TEST (SymmAssignTest, FourDim_v1v2_v3o4_v2v1_v3o4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, V, O},
+                             {V, V, V, O},
+                             2,
+                             {p1, p2, p3, h4},
+                             2.5,
+                             {0.5, -0.5},
+                             {{p2, p1, p3, h4},
+                              {p1, p2, p3, h4}}
+));
 }
 
 // //////////////////////////////////////////////
 
-TEST (SymmAssignTest, FourDim_o1o2_o3o4_o1o2_o3o4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, OO},
-                               {O, O, O, O},
-                               2,
-                               {h1, h2, h3, h4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{h1, h2, h3, h4},
-                                {h2, h1, h3, h4},
-                                {h2, h1, h4, h3},
-                                {h1, h2, h4, h3}}
-  ));
+TEST (SymmAssignTest, FourDim_o1o2_o3o4_o1o2_o3o4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, OO},
+                             {O, O, O, O},
+                             2,
+                             {h1, h2, h3, h4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{h1, h2, h3, h4},
+                              {h2, h1, h3, h4},
+                              {h2, h1, h4, h3},
+                              {h1, h2, h4, h3}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_o1o2_v3v4_o1o2_v3v4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, VV},
-                               {O, O, V, V},
-                               2,
-                               {h1, h2, p3, p4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{h1, h2, p3, p4},
-                                {h2, h1, p3, p4},
-                                {h2, h1, p4, p3},
-                                {h1, h2, p4, p3}}
-  ));
+TEST (SymmAssignTest, FourDim_o1o2_v3v4_o1o2_v3v4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, VV},
+                             {O, O, V, V},
+                             2,
+                             {h1, h2, p3, p4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{h1, h2, p3, p4},
+                              {h2, h1, p3, p4},
+                              {h2, h1, p4, p3},
+                              {h1, h2, p4, p3}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_v1v2_o3o4_v1v2_o3o4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, OO},
-                               {V, V, O, O},
-                               2,
-                               {p1, p2, h3, h4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{p1, p2, h3, h4},
-                                {p2, p1, h3, h4},
-                                {p2, p1, h4, h3},
-                                {p1, p2, h4, h3}}
-  ));
+TEST (SymmAssignTest, FourDim_v1v2_o3o4_v1v2_o3o4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, OO},
+                             {V, V, O, O},
+                             2,
+                             {p1, p2, h3, h4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{p1, p2, h3, h4},
+                              {p2, p1, h3, h4},
+                              {p2, p1, h4, h3},
+                              {p1, p2, h4, h3}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_v1v2_v3v4_v1v2_v3v4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, VV},
-                               {V, V, V, V},
-                               2,
-                               {p1, p2, p3, p4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{p1, p2, p3, p4},
-                                {p2, p1, p3, p4},
-                                {p2, p1, p4, p3},
-                                {p1, p2, p4, p3}}
-  ));
+TEST (SymmAssignTest, FourDim_v1v2_v3v4_v1v2_v3v4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, VV},
+                             {V, V, V, V},
+                             2,
+                             {p1, p2, p3, p4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{p1, p2, p3, p4},
+                              {p2, p1, p3, p4},
+                              {p2, p1, p4, p3},
+                              {p1, p2, p4, p3}}
+));
 }
 
 ///////////////////////////////////////////
 
-TEST (SymmAssignTest, FourDim_o1o2_o3o4_o2o1_o3o4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, OO},
-                               {O, O, O, O},
-                               2,
-                               {h1, h2, h3, h4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{h2, h1, h3, h4},
-                                {h2, h1, h4, h3},
-                                {h1, h2, h4, h3},
-                                {h1, h2, h3, h4}}
-  ));
+TEST (SymmAssignTest, FourDim_o1o2_o3o4_o2o1_o3o4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, OO},
+                             {O, O, O, O},
+                             2,
+                             {h1, h2, h3, h4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{h2, h1, h3, h4},
+                              {h2, h1, h4, h3},
+                              {h1, h2, h4, h3},
+                              {h1, h2, h3, h4}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_o1o2_v3v4_o2o1_v3v4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, VV},
-                               {O, O, V, V},
-                               2,
-                               {h1, h2, p3, p4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{h2, h1, p3, p4},
-                                {h2, h1, p4, p3},
-                                {h1, h2, p4, p3},
-                                {h1, h2, p3, p4}}
-  ));
+TEST (SymmAssignTest, FourDim_o1o2_v3v4_o2o1_v3v4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, VV},
+                             {O, O, V, V},
+                             2,
+                             {h1, h2, p3, p4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{h2, h1, p3, p4},
+                              {h2, h1, p4, p3},
+                              {h1, h2, p4, p3},
+                              {h1, h2, p3, p4}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_v1v2_o3o4_v2v1_o3o4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, OO},
-                               {V, V, O, O},
-                               2,
-                               {p1, p2, h3, h4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{p2, p1, h3, h4},
-                                {p2, p1, h4, h3},
-                                {p1, p2, h4, h3},
-                                {p1, p2, h3, h4}}
-  ));
+TEST (SymmAssignTest, FourDim_v1v2_o3o4_v2v1_o3o4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, OO},
+                             {V, V, O, O},
+                             2,
+                             {p1, p2, h3, h4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{p2, p1, h3, h4},
+                              {p2, p1, h4, h3},
+                              {p1, p2, h4, h3},
+                              {p1, p2, h3, h4}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_v1v2_v3v4_v2v1_v3v4) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, VV},
-                               {V, V, V, V},
-                               2,
-                               {p1, p2, p3, p4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{p2, p1, p3, p4},
-                                {p2, p1, p4, p3},
-                                {p1, p2, p4, p3},
-                                {p1, p2, p3, p4}}
-  ));
+TEST (SymmAssignTest, FourDim_v1v2_v3v4_v2v1_v3v4
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, VV},
+                             {V, V, V, V},
+                             2,
+                             {p1, p2, p3, p4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{p2, p1, p3, p4},
+                              {p2, p1, p4, p3},
+                              {p1, p2, p4, p3},
+                              {p1, p2, p3, p4}}
+));
 }
 
 //////////////////////////////////////////
 
-TEST (SymmAssignTest, FourDim_o1o2_o3o4_o1o2_o4o3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, OO},
-                               {O, O, O, O},
-                               2,
-                               {h1, h2, h3, h4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{h1, h2, h4, h3},
-                                {h2, h1, h4, h3},
-                                {h2, h1, h3, h4},
-                                {h1, h2, h3, h4}}
-  ));
+TEST (SymmAssignTest, FourDim_o1o2_o3o4_o1o2_o4o3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, OO},
+                             {O, O, O, O},
+                             2,
+                             {h1, h2, h3, h4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{h1, h2, h4, h3},
+                              {h2, h1, h4, h3},
+                              {h2, h1, h3, h4},
+                              {h1, h2, h3, h4}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_o1o2_v3v4_o1o2_v4v3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, VV},
-                               {O, O, V, V},
-                               2,
-                               {h1, h2, p3, p4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{h1, h2, p4, p3},
-                                {h2, h1, p4, p3},
-                                {h2, h1, p3, p4},
-                                {h1, h2, p3, p4}}
-  ));
+TEST (SymmAssignTest, FourDim_o1o2_v3v4_o1o2_v4v3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, VV},
+                             {O, O, V, V},
+                             2,
+                             {h1, h2, p3, p4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{h1, h2, p4, p3},
+                              {h2, h1, p4, p3},
+                              {h2, h1, p3, p4},
+                              {h1, h2, p3, p4}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_v1v2_o3o4_v1v2_o4o3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, OO},
-                               {V, V, O, O},
-                               2,
-                               {p1, p2, h3, h4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{p1, p2, h4, h3},
-                                {p2, p1, h4, h3},
-                                {p2, p1, h3, h4},
-                                {p1, p2, h3, h4}}
-  ));
+TEST (SymmAssignTest, FourDim_v1v2_o3o4_v1v2_o4o3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, OO},
+                             {V, V, O, O},
+                             2,
+                             {p1, p2, h3, h4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{p1, p2, h4, h3},
+                              {p2, p1, h4, h3},
+                              {p2, p1, h3, h4},
+                              {p1, p2, h3, h4}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_v1v2_v3v4_v1v2_v4v3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, VV},
-                               {V, V, V, V},
-                               2,
-                               {p1, p2, p3, p4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{p1, p2, p4, p3},
-                                {p2, p1, p4, p3},
-                                {p2, p1, p3, p4},
-                                {p1, p2, p3, p4}}
-  ));
+TEST (SymmAssignTest, FourDim_v1v2_v3v4_v1v2_v4v3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, VV},
+                             {V, V, V, V},
+                             2,
+                             {p1, p2, p3, p4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{p1, p2, p4, p3},
+                              {p2, p1, p4, p3},
+                              {p2, p1, p3, p4},
+                              {p1, p2, p3, p4}}
+));
 }
 
 ////////////////////////////////////////////////
 
-TEST (SymmAssignTest, FourDim_o1o2_o3o4_o2o1_o4o3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, OO},
-                               {O, O, O, O},
-                               2,
-                               {h1, h2, h3, h4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{h2, h1, h4, h3},
-                                {h2, h1, h3, h4},
-                                {h1, h2, h3, h4},
-                                {h1, h2, h4, h3}}
-  ));
+TEST (SymmAssignTest, FourDim_o1o2_o3o4_o2o1_o4o3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, OO},
+                             {O, O, O, O},
+                             2,
+                             {h1, h2, h3, h4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{h2, h1, h4, h3},
+                              {h2, h1, h3, h4},
+                              {h1, h2, h3, h4},
+                              {h1, h2, h4, h3}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_o1o2_v3v4_o2o1_v4v3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {OO, VV},
-                               {O, O, V, V},
-                               2,
-                               {h1, h2, p3, p4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{h2, h1, p4, p3},
-                                {h2, h1, p3, p4},
-                                {h1, h2, p3, p4},
-                                {h1, h2, p4, p3}}
-  ));
+TEST (SymmAssignTest, FourDim_o1o2_v3v4_o2o1_v4v3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {OO, VV},
+                             {O, O, V, V},
+                             2,
+                             {h1, h2, p3, p4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{h2, h1, p4, p3},
+                              {h2, h1, p3, p4},
+                              {h1, h2, p3, p4},
+                              {h1, h2, p4, p3}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_v1v2_o3o4_v2v1_o4o3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, OO},
-                               {V, V, O, O},
-                               2,
-                               {p1, p2, h3, h4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{p2, p1, h4, h3},
-                                {p2, p1, h3, h4},
-                                {p1, p2, h3, h4},
-                                {p1, p2, h4, h3}}
-  ));
+TEST (SymmAssignTest, FourDim_v1v2_o3o4_v2v1_o4o3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, OO},
+                             {V, V, O, O},
+                             2,
+                             {p1, p2, h3, h4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{p2, p1, h4, h3},
+                              {p2, p1, h3, h4},
+                              {p1, p2, h3, h4},
+                              {p1, p2, h4, h3}}
+));
 }
 
-TEST (SymmAssignTest, FourDim_v1v2_v3v4_v2v1_v4v3) {
-  ASSERT_TRUE(test_symm_assign(*g_ec,
-                               {VV, VV},
-                               {V, V, V, V},
-                               2,
-                               {p1, p2, p3, p4},
-                               2.5,
-                               {0.25, -0.25, 0.25, -0.25},
-                               {{p2, p1, p4, p3},
-                                {p2, p1, p3, p4},
-                                {p1, p2, p3, p4},
-                                {p1, p2, p4, p3}}
-  ));
+TEST (SymmAssignTest, FourDim_v1v2_v3v4_v2v1_v4v3
+) {
+ASSERT_TRUE(test_symm_assign(*g_ec,
+                             {VV, VV},
+                             {V, V, V, V},
+                             2,
+                             {p1, p2, p3, p4},
+                             2.5,
+                             {0.25, -0.25, 0.25, -0.25},
+                             {{p2, p1, p4, p3},
+                              {p2, p1, p3, p4},
+                              {p1, p2, p3, p4},
+                              {p1, p2, p4, p3}}
+));
 }
 
 #endif
@@ -5036,153 +5434,328 @@ TEST (SymmAssignTest, FourDim_v1v2_v3v4_v2v1_v4v3) {
 
 #if MULT_TEST_0D_0D
 
-TEST (MultTest, Dim_0_0_0) {
-  tammx::Tensor<double> xtc{{}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xta{{}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xtb{{}, 0, tammx::Irrep{0}, false};
+TEST (MultTest, Dim_0_0_0
+) {
+tammx::Tensor<double> xtc{{}, 0, tammx::Irrep{0}, false};
+tammx::Tensor<double> xta{{}, 0, tammx::Irrep{0}, false};
+tammx::Tensor<double> xtb{{}, 0, tammx::Irrep{0}, false};
 
-  double alpha1 = 0.91, alpha2 = 0.56;
-  auto &ec = *g_ec;
+double alpha1 = 0.91, alpha2 = 0.56;
+auto &ec = *g_ec;
 
-  ec.allocate(xta, xtb, xtc);
-  ec.scheduler()
-    .io(xta, xtb, xtc)
-      (xta() = alpha1)
-      (xtb() = alpha2)
-      (xtc() = xta() * xtb())
-    .execute();
+ec.
+allocate(xta, xtb, xtc
+);
+ec.
 
-  double threshold = 1.0e-12;
-  bool status = true;
-  auto lambda = [&](auto &val) {
-    status &= (std::abs(val - alpha1 * alpha2) < threshold);
-  };
-  ec.scheduler()
-    .io(xtc)
-    .sop(xtc(), lambda)
-    .execute();
-  ec.deallocate(xta, xtb, xtc);
-  ASSERT_TRUE(status);
+scheduler()
+
+.
+io(xta, xtb, xtc
+)
+(
+
+xta() = alpha1
+
+)
+(
+
+xtb() = alpha2
+
+)
+(
+
+xtc() = xta() * xtb()
+
+)
+.
+
+execute();
+
+double threshold = 1.0e-12;
+bool status = true;
+auto lambda = [&](auto &val) {
+  status &= (std::abs(val - alpha1 * alpha2) < threshold);
+};
+ec.
+
+scheduler()
+
+.
+io(xtc)
+.
+
+sop(xtc(), lambda
+
+)
+.
+
+execute();
+
+ec.
+deallocate(xta, xtb, xtc
+);
+ASSERT_TRUE(status);
 }
 #endif
 
 
 #if MULT_TEST_0D_1D
 
-TEST (MultTest, Dim_o_0_o_up) {
-  tammx::Tensor<double> xtc{{O}, 1, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xta{{}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xtb{{O}, 1, tammx::Irrep{0}, false};
+TEST (MultTest, Dim_o_0_o_up
+) {
+tammx::Tensor<double> xtc{{O}, 1, tammx::Irrep{0}, false};
+tammx::Tensor<double> xta{{}, 0, tammx::Irrep{0}, false};
+tammx::Tensor<double> xtb{{O}, 1, tammx::Irrep{0}, false};
 
-  double alpha1 = 0.91, alpha2 = 0.56;
-  auto &ec = *g_ec;
+double alpha1 = 0.91, alpha2 = 0.56;
+auto &ec = *g_ec;
 
-  ec.allocate(xta, xtb, xtc);
-  ec.scheduler()
-    .io(xta, xtb, xtc)
-      (xta() = alpha1)
-      (xtb() = alpha2)
-      (xtc() = xta() * xtb())
-    .execute();
+ec.
+allocate(xta, xtb, xtc
+);
+ec.
 
-  double threshold = 1.0e-12;
-  bool status = true;
-  auto lambda = [&](auto &val) {
-    status &= (std::abs(val - alpha1 * alpha2) < threshold);
-  };
-  ec.scheduler()
-    .io(xtc)
-    .sop(xtc(), lambda)
-    .execute();
-  ec.deallocate(xta, xtb, xtc);
-  ASSERT_TRUE(status);
+scheduler()
+
+.
+io(xta, xtb, xtc
+)
+(
+
+xta() = alpha1
+
+)
+(
+
+xtb() = alpha2
+
+)
+(
+
+xtc() = xta() * xtb()
+
+)
+.
+
+execute();
+
+double threshold = 1.0e-12;
+bool status = true;
+auto lambda = [&](auto &val) {
+  status &= (std::abs(val - alpha1 * alpha2) < threshold);
+};
+ec.
+
+scheduler()
+
+.
+io(xtc)
+.
+
+sop(xtc(), lambda
+
+)
+.
+
+execute();
+
+ec.
+deallocate(xta, xtb, xtc
+);
+ASSERT_TRUE(status);
 }
 
-TEST (MultTest, Dim_o_0_o_lo) {
-  tammx::Tensor<double> xtc{{O}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xta{{}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xtb{{O}, 0, tammx::Irrep{0}, false};
+TEST (MultTest, Dim_o_0_o_lo
+) {
+tammx::Tensor<double> xtc{{O}, 0, tammx::Irrep{0}, false};
+tammx::Tensor<double> xta{{}, 0, tammx::Irrep{0}, false};
+tammx::Tensor<double> xtb{{O}, 0, tammx::Irrep{0}, false};
 
-  double alpha1 = 0.91, alpha2 = 0.56;
-  auto &ec = *g_ec;
+double alpha1 = 0.91, alpha2 = 0.56;
+auto &ec = *g_ec;
 
-  ec.allocate(xta, xtb, xtc);
-  ec.scheduler()
-    .io(xta, xtb, xtc)
-      (xta() = alpha1)
-      (xtb() = alpha2)
-      (xtc() = xta() * xtb())
-    .execute();
+ec.
+allocate(xta, xtb, xtc
+);
+ec.
 
-  double threshold = 1.0e-12;
-  bool status = true;
-  auto lambda = [&](auto &val) {
-    status &= (std::abs(val - alpha1 * alpha2) < threshold);
-  };
-  ec.scheduler()
-    .io(xtc)
-    .sop(xtc(), lambda)
-    .execute();
-  ec.deallocate(xta, xtb, xtc);
-  ASSERT_TRUE(status);
+scheduler()
+
+.
+io(xta, xtb, xtc
+)
+(
+
+xta() = alpha1
+
+)
+(
+
+xtb() = alpha2
+
+)
+(
+
+xtc() = xta() * xtb()
+
+)
+.
+
+execute();
+
+double threshold = 1.0e-12;
+bool status = true;
+auto lambda = [&](auto &val) {
+  status &= (std::abs(val - alpha1 * alpha2) < threshold);
+};
+ec.
+
+scheduler()
+
+.
+io(xtc)
+.
+
+sop(xtc(), lambda
+
+)
+.
+
+execute();
+
+ec.
+deallocate(xta, xtb, xtc
+);
+ASSERT_TRUE(status);
 }
 
-TEST (MultTest, Dim_v_v_0_hi) {
-  tammx::Tensor<double> xtc{{V}, 1, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xta{{V}, 1, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xtb{{}, 0, tammx::Irrep{0}, false};
+TEST (MultTest, Dim_v_v_0_hi
+) {
+tammx::Tensor<double> xtc{{V}, 1, tammx::Irrep{0}, false};
+tammx::Tensor<double> xta{{V}, 1, tammx::Irrep{0}, false};
+tammx::Tensor<double> xtb{{}, 0, tammx::Irrep{0}, false};
 
-  double alpha1 = 0.91, alpha2 = 0.56;
-  auto &ec = *g_ec;
+double alpha1 = 0.91, alpha2 = 0.56;
+auto &ec = *g_ec;
 
-  ec.allocate(xta, xtb, xtc);
-  ec.scheduler()
-    .io(xta, xtb, xtc)
-      (xta() = alpha1)
-      (xtb() = alpha2)
-      (xtc() = xta() * xtb())
-    .execute();
+ec.
+allocate(xta, xtb, xtc
+);
+ec.
 
-  double threshold = 1.0e-12;
-  bool status = true;
-  auto lambda = [&](auto &val) {
-    status &= (std::abs(val - alpha1 * alpha2) < threshold);
-  };
-  ec.scheduler()
-    .io(xtc)
-    .sop(xtc(), lambda)
-    .execute();
-  ec.deallocate(xta, xtb, xtc);
-  ASSERT_TRUE(status);
+scheduler()
+
+.
+io(xta, xtb, xtc
+)
+(
+
+xta() = alpha1
+
+)
+(
+
+xtb() = alpha2
+
+)
+(
+
+xtc() = xta() * xtb()
+
+)
+.
+
+execute();
+
+double threshold = 1.0e-12;
+bool status = true;
+auto lambda = [&](auto &val) {
+  status &= (std::abs(val - alpha1 * alpha2) < threshold);
+};
+ec.
+
+scheduler()
+
+.
+io(xtc)
+.
+
+sop(xtc(), lambda
+
+)
+.
+
+execute();
+
+ec.
+deallocate(xta, xtb, xtc
+);
+ASSERT_TRUE(status);
 }
 
-TEST (MultTest, Dim_v_v_0_lo) {
-  tammx::Tensor<double> xtc{{V}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xta{{V}, 0, tammx::Irrep{0}, false};
-  tammx::Tensor<double> xtb{{}, 0, tammx::Irrep{0}, false};
+TEST (MultTest, Dim_v_v_0_lo
+) {
+tammx::Tensor<double> xtc{{V}, 0, tammx::Irrep{0}, false};
+tammx::Tensor<double> xta{{V}, 0, tammx::Irrep{0}, false};
+tammx::Tensor<double> xtb{{}, 0, tammx::Irrep{0}, false};
 
-  double alpha1 = 0.91, alpha2 = 0.56;
-  auto &ec = *g_ec;
+double alpha1 = 0.91, alpha2 = 0.56;
+auto &ec = *g_ec;
 
-  ec.allocate(xta, xtb, xtc);
-  ec.scheduler()
-    .io(xta, xtb, xtc)
-      (xta() = alpha1)
-      (xtb() = alpha2)
-      (xtc() = xta() * xtb())
-    .execute();
+ec.
+allocate(xta, xtb, xtc
+);
+ec.
 
-  double threshold = 1.0e-12;
-  bool status = true;
-  auto lambda = [&](auto &val) {
-    status &= (std::abs(val - alpha1 * alpha2) < threshold);
-  };
-  ec.scheduler()
-    .io(xtc)
-    .sop(xtc(), lambda)
-    .execute();
-  ec.deallocate(xta, xtb, xtc);
-  ASSERT_TRUE(status);
+scheduler()
+
+.
+io(xta, xtb, xtc
+)
+(
+
+xta() = alpha1
+
+)
+(
+
+xtb() = alpha2
+
+)
+(
+
+xtc() = xta() * xtb()
+
+)
+.
+
+execute();
+
+double threshold = 1.0e-12;
+bool status = true;
+auto lambda = [&](auto &val) {
+  status &= (std::abs(val - alpha1 * alpha2) < threshold);
+};
+ec.
+
+scheduler()
+
+.
+io(xtc)
+.
+
+sop(xtc(), lambda
+
+)
+.
+
+execute();
+
+ec.
+deallocate(xta, xtb, xtc
+);
+ASSERT_TRUE(status);
 }
 
 #endif
@@ -5214,7 +5787,7 @@ int main(int argc, char *argv[]) {
   bool intorb = false;
   bool restricted = false;
 
-#if 1
+#if 0
   int noa = 1;
   int nob = 1;
   int nva = 1;

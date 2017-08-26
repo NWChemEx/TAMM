@@ -1633,6 +1633,7 @@ tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor<T> &tensor) {
     dims[i] = hi_offset[i] - lo_offset[i];
   }
   EigenTensor<ndim> *etensor = new EigenTensor<ndim>(dims);
+  etensor->setZero();
 
   tammx::block_for(tensor(), [&](const TensorIndex &blockid) {
     auto block = tensor.get(blockid);

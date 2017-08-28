@@ -1781,9 +1781,9 @@ eigen_mult_dispatch(EigenTensorBase *tc,
   auto eb = static_cast<EigenTensor<ndim> *>(tb);
 
   auto tmp_a = (*ea).shuffle(eperm_a);
-  auto tmp_b = (*ea).shuffle(eperm_b);
-  tmp_a = tmp_a * alpha;
-//  (*ec) += tmp_a * eb;
+  auto tmp_b = (*eb).shuffle(eperm_b);
+  //tmp_a = tmp_a * alpha;
+  //(*ec) += tmp_a * tmp_b;
 }
 
 void

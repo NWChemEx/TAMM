@@ -1072,7 +1072,7 @@ tammx_tensor_fill(tammx::ExecutionContext &ec,
     auto dbuf = block.buf();
     for (size_t i = 0; i < block.size(); i++) {
       dbuf[i] = T{n + i};
-      std::cout << "init_lambda. dbuf[" << i << "]=" << dbuf[i] << std::endl;
+      //std::cout << "init_lambda. dbuf[" << i << "]=" << dbuf[i] << std::endl;
     }
   };
 
@@ -1296,14 +1296,14 @@ tammx_mult(tammx::ExecutionContext &ec,
   auto &bl = blabel;
   auto &cl = clabel;
 
-  {
-    std::cout << "tammx_mult. A = ";
-    tammx_tensor_dump(ta, std::cout);
-    std::cout << "tammx_mult. B = ";
-    tammx_tensor_dump(tb, std::cout);
-    std::cout << "tammx_mult. C = ";
-    tammx_tensor_dump(tc, std::cout);
-  }
+  // {
+  //   std::cout << "tammx_mult. A = ";
+  //   tammx_tensor_dump(ta, std::cout);
+  //   std::cout << "tammx_mult. B = ";
+  //   tammx_tensor_dump(tb, std::cout);
+  //   std::cout << "tammx_mult. C = ";
+  //   tammx_tensor_dump(tc, std::cout);
+  // }
 
   // std::cout<<"----AL="<<al<<std::endl;
   // std::cout<<"----BL="<<bl<<std::endl;
@@ -1760,6 +1760,156 @@ test_eigen_assign_no_n(tammx::ExecutionContext &ec,
   return status;
 }
 
+
+template<int ndim>
+void
+eigen_mult_dispatch(EigenTensorBase *tc,
+                      const TensorLabel &clabel,
+                      double alpha,
+                      EigenTensorBase *ta,
+                      const TensorLabel &alabel,
+                      EigenTensorBase *tb,
+                      const TensorLabel &blabel) {
+  assert(alabel.size() == ndim);
+  assert(blabel.size() == ndim);
+  assert(clabel.size() == ndim);
+  auto eperm_a = eigen_perm_compute<ndim>(alabel, clabel);
+  auto eperm_b = eigen_perm_compute<ndim>(blabel, clabel);
+
+  auto ec = static_cast<EigenTensor<ndim> *>(tc);
+  auto ea = static_cast<EigenTensor<ndim> *>(ta);
+  auto eb = static_cast<EigenTensor<ndim> *>(tb);
+
+  auto tmp_a = (*ea).shuffle(eperm_a);
+  auto tmp_b = (*ea).shuffle(eperm_b);
+  tmp_a = tmp_a * alpha;
+//  (*ec) += tmp_a * eb;
+}
+
+void
+eigen_mult(EigenTensorBase *tc,
+             const TensorLabel &clabel,
+             double alpha,
+             EigenTensorBase *ta,
+             const TensorLabel &alabel,
+             EigenTensorBase *tb,
+             const TensorLabel &blabel) {
+  Expects(clabel.size() == alabel.size());
+  if (clabel.size() == 0) {
+    assert(0); //@todo implement
+  } else if (clabel.size() == 1) {
+    eigen_mult_dispatch<1>(tc, clabel, alpha, ta, alabel, tb, blabel);
+  } else if (clabel.size() == 2) {
+    eigen_mult_dispatch<2>(tc, clabel, alpha, ta, alabel, tb, blabel);
+  } else if (clabel.size() == 3) {
+    eigen_mult_dispatch<3>(tc, clabel, alpha, ta, alabel, tb, blabel);
+  } else if (clabel.size() == 4) {
+    eigen_mult_dispatch<4>(tc, clabel, alpha, ta, alabel, tb, blabel);
+  } else {
+    assert(0); //@todo implement
+  }
+}
+
+EigenTensorBase *
+eigen_mult(tammx::Tensor<double> &ttc,
+             const tammx::TensorLabel &tclabel,
+             double alpha,
+             tammx::Tensor<double> &tta,
+             const tammx::TensorLabel &talabel,
+             tammx::Tensor<double> &ttb,
+             const tammx::TensorLabel &tblabel) {
+  EigenTensorBase *etc, *eta, *etb;
+  etc = tammx_tensor_to_eigen_tensor(ttc);
+  eta = tammx_tensor_to_eigen_tensor(tta);
+  etb = tammx_tensor_to_eigen_tensor(ttb);
+  eigen_mult(etc, tclabel, alpha, eta, talabel, etb, tblabel);
+  delete eta;
+  delete etb;
+  return etc;
+}
+
+bool
+test_eigen_mult_no_n(tammx::ExecutionContext &ec,
+                       double alpha,
+                       const tammx::TensorLabel &cupper_labels,
+                       const tammx::TensorLabel &clower_labels,
+                       const tammx::TensorLabel &aupper_labels,
+                       const tammx::TensorLabel &alower_labels,
+                       const tammx::TensorLabel &bupper_labels,
+                       const tammx::TensorLabel &blower_labels) {
+  const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
+  const auto &clower_indices = tammx_label_to_indices(clower_labels);
+  const auto &aupper_indices = tammx_label_to_indices(aupper_labels);
+  const auto &alower_indices = tammx_label_to_indices(alower_labels);
+  const auto &bupper_indices = tammx_label_to_indices(bupper_labels);
+  const auto &blower_indices = tammx_label_to_indices(blower_labels);
+
+  auto cindices = cupper_indices;
+  cindices.insert_back(clower_indices.begin(), clower_indices.end());
+  auto aindices = aupper_indices;
+  aindices.insert_back(alower_indices.begin(), alower_indices.end());
+  auto bindices = bupper_indices;
+  bindices.insert_back(blower_indices.begin(), blower_indices.end());
+  auto irrep = ec.irrep();
+  auto restricted = ec.is_spin_restricted();
+  auto cnup = cupper_labels.size();
+  auto anup = aupper_labels.size();
+  auto bnup = bupper_labels.size();
+
+  tammx::Tensor<double> tc1{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> tc2{cindices, cnup, irrep, restricted};
+  tammx::Tensor<double> ta{aindices, anup, irrep, restricted};
+  tammx::Tensor<double> tb{bindices, bnup, irrep, restricted};
+
+  ec.allocate(ta, tb, tc1, tc2);
+
+  ec.scheduler()
+    .io(ta, tb, tc1, tc2)
+      (ta() = 0)
+      (tb() = 0)
+      (tc1() = 0)
+      (tc2() = 0)
+    .execute();
+
+  tammx_tensor_fill(ec, ta());
+  tammx_tensor_fill(ec, tb());
+
+  auto clabels = cupper_labels;
+  clabels.insert_back(clower_labels.begin(), clower_labels.end());
+  auto alabels = aupper_labels;
+  alabels.insert_back(alower_labels.begin(), alower_labels.end());
+  auto blabels = bupper_labels;
+  blabels.insert_back(blower_labels.begin(), blower_labels.end());
+
+  EigenTensorBase *etc1 = eigen_mult(tc1, clabels, alpha, ta, alabels, tb, blabels);
+  tammx_mult(ec, tc2, clabels, alpha, ta, alabels, tb, blabels);
+  EigenTensorBase *etc2 = tammx_tensor_to_eigen_tensor(tc2);
+
+  bool status = false;
+  if (tc1.rank() == 1) {
+    auto *et1 = dynamic_cast<EigenTensor<1> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<1> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  } else if (tc1.rank() == 2) {
+    auto *et1 = dynamic_cast<EigenTensor<2> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<2> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  } else if (tc1.rank() == 3) {
+    auto *et1 = dynamic_cast<EigenTensor<3> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<3> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  } else if (tc1.rank() == 4) {
+    auto *et1 = dynamic_cast<EigenTensor<4> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<4> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  }
+
+  ec.deallocate(tc1, tc2, ta, tb);
+  delete etc1;
+  delete etc2;
+
+  return status;
+}
 
 /////////////////////////////////////////////////////////
 //

@@ -233,6 +233,10 @@ TEST(CCSD_T2,t2_6) {
 TEST(CCSD_T2,t2_7_1) {
   ASSERT_TRUE(test_assign_no_n(*g_ec, {h6,p3}, {h1,p5}, 1.0, {h6,p3}, {h1,p5}));
 }
+// ccsd_t2_7_1 cannot be tested independently,
+// need the whole t2_7 block together, the intermediate is produced in
+// inconsistent form (flipping of indices between upper and
+// lower not supported in tamm/tammx)
 //TEST (FORT_CCSD_T2, t2_7_1) {
 //  ASSERT_TRUE(test_assign_no_n(*g_ec, {p3,h1}, {p5,h6}, 1.0, {h6,p3},
 //		  {h1,p5}, ccsd_t2_7_1_));

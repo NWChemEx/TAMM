@@ -159,7 +159,7 @@ matmul(int m, int n, int k, T *A, int lda, T *B, int ldb, T *C, int ldc, T alpha
   Expects(A!=nullptr && B!=nullptr && C!=nullptr);
 
   //std::cout<<"matmul. A[0]="<<A[0]<<" B[0]="<<B[0]<<" C[0]="<<C[0]<<std::endl;
-  
+
   for(int x=0; x<m; x++) {
     for(int y=0; y<n; y++) {
       T value = 0;
@@ -169,7 +169,7 @@ matmul(int m, int n, int k, T *A, int lda, T *B, int ldb, T *C, int ldc, T alpha
       C[x*ldc + y] = beta * C[x*ldc + y] + alpha * value;
     }
   }
-  //std::cout<<"matmul. AFTER C[0]="<<C[0]<<std::endl;  
+  //std::cout<<"matmul. AFTER C[0]="<<C[0]<<std::endl;
 }
 
 template<typename T>
@@ -224,22 +224,22 @@ void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock
   for(size_t i=0; i<cblock.size(); i++) {
     cbuf_sort[i] = cblock.buf()[i];
   }
-  
-  std::cout<<"matmul. A before matmul=";
-  for(size_t i=0; i<ablock.size(); i++) {
-    std::cout<<abuf_sort.get()[i]<<" ";
-  }
-  std::cout<<"\n";
-  std::cout<<"matmul. B before matmul=";
-  for(size_t i=0; i<bblock.size(); i++) {
-    std::cout<<bbuf_sort.get()[i]<<" ";
-  }
-  std::cout<<"\n";
-  std::cout<<"matmul. alabel_sort="<<alabel_sort<<std::endl;
-  std::cout<<"matmul. bext_blabel_sort="<<blabel_sort<<std::endl;
-  std::cout<<"matmul. clabel_sort="<<clabel_sort<<std::endl;
 
-  
+  // std::cout<<"matmul. A before matmul=";
+  // for(size_t i=0; i<ablock.size(); i++) {
+  //   std::cout<<abuf_sort.get()[i]<<" ";
+  // }
+  // std::cout<<"\n";
+  // std::cout<<"matmul. B before matmul=";
+  // for(size_t i=0; i<bblock.size(); i++) {
+  //   std::cout<<bbuf_sort.get()[i]<<" ";
+  // }
+  // std::cout<<"\n";
+  // std::cout<<"matmul. alabel_sort="<<alabel_sort<<std::endl;
+  // std::cout<<"matmul. bext_blabel_sort="<<blabel_sort<<std::endl;
+  // std::cout<<"matmul. clabel_sort="<<clabel_sort<<std::endl;
+
+
   // G
   auto alpha = std::get<0>(rhs) * ablock.sign() * bblock.sign();
   auto lmap = LabelMap<BlockDim>()
@@ -260,11 +260,11 @@ void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock
             bbuf_sort.get(), n,
             cbuf_sort.get(), n,
             static_cast<T>(alpha), static_cast<T>(beta));
-  std::cout<<"matmul. C before permute=";
-  for(size_t i=0; i<m*n; i++) {
-    std::cout<<cbuf_sort.get()[i]<<" ";
-  }
-  std::cout<<"\n";
+  // std::cout<<"matmul. C before permute=";
+  // for(size_t i=0; i<m*n; i++) {
+  //   std::cout<<cbuf_sort.get()[i]<<" ";
+  // }
+  // std::cout<<"\n";
   auto cperm = perm_invert(perm_compute(cblock(clabel), clabel_sort));
   //auto cperm = (perm_compute(cblock(clabel), clabel_sort));
   //auto cperm = (perm_compute(clabel_sort, cblock(clabel)));

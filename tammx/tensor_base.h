@@ -1,6 +1,8 @@
 #ifndef TAMMX_TENSOR_BASE_H_
 #define TAMMX_TENSOR_BASE_H_
 
+#include "tammx/types.h"
+
 namespace tammx {
 
 // @todo For now, we cannot handle tensors in which number of upper
@@ -15,16 +17,21 @@ class TensorBase {
                   TensorRank nupper_indices,
                   Irrep irrep,
                   bool spin_restricted)
+      : TensorBase{to_tsymm_indices(indices),
+        nupper_indices,
+        irrep,
+        spin_restricted} {}
+
+    TensorBase(const TensorVec<TensorSymmGroup> &indices,
+                  TensorRank nupper_indices,
+                  Irrep irrep,
+                  bool spin_restricted)
       : indices_{indices},
         nupper_indices_{nupper_indices},
         irrep_{irrep},
         spin_restricted_{spin_restricted} {
           for(auto sg : indices) {
             Expects(sg.size()>0);
-            auto dim = sg[0];
-            for(auto d : sg) {
-              Expects (dim == d);
-            }
           }
           rank_ = 0;
           for(auto sg : indices) {
@@ -52,7 +59,15 @@ class TensorBase {
     return spin_restricted_;
   }
 
-  const TensorVec<SymmGroup>& indices() const {
+  TensorVec<SymmGroup> indices() const {
+    TensorVec<SymmGroup> ret;
+    for(const auto& tid: indices_) {
+      ret.push_back(SymmGroup(tid.grp_size, tid.dt));
+    }
+    return ret;
+  }
+
+  TensorVec<TensorSymmGroup> tindices() const {
     return indices_;
   }
 
@@ -185,7 +200,32 @@ class TensorBase {
   }
 
  private:
-  const TensorVec<SymmGroup> indices_;
+
+  static TensorDim flatten(const TensorVec<TensorSymmGroup>& indices) {
+    TensorDim ret;
+    for(const auto& tsg: indices) {
+      for(size_t i=0; i<tsg.size(); i++) {
+        ret.push_back(tsg.dt);
+      }
+    }
+    return ret;
+  }
+
+  static TensorVec<TensorSymmGroup> to_tsymm_indices(const TensorVec<SymmGroup>& indices) {
+    TensorVec<TensorSymmGroup> ret;
+    for(auto sg : indices) {
+      Expects(sg.size()>0);
+      auto dim = sg[0];
+      for(auto d : sg) {
+        Expects(d == dim);
+      }
+      ret.push_back(TensorSymmGroup{dim, sg.size()});
+    }
+    return ret;
+  }
+
+  //const TensorVec<SymmGroup> indices_;
+  const TensorVec<TensorSymmGroup> indices_;
   TensorRank nupper_indices_;
   Irrep irrep_;
   bool spin_restricted_;

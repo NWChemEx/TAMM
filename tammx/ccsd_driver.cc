@@ -191,7 +191,20 @@ double ccsd_driver(ExecutionContext& ec,
   bool spin_restricted = false;
   std::vector<double> p_evl_sorted;
 
-  p_evl_sorted.reserve((TCE::noab() + TCE::nvab()).value());
+ long ndim = d_f1.rank();
+ long lo_offset[ndim], hi_offset[ndim];
+ long int total_orbitals = 0;
+ const auto &flindices = d_f1.flindices();
+
+ for (long i = 0; i < ndim; i++) {
+  BlockDim blo, bhi;
+  std::tie(blo, bhi) = tensor_index_range(flindices[i]);
+  lo_offset[i] = TCE::offset(blo);
+  hi_offset[i] = TCE::offset(bhi);
+  total_orbitals += hi_offset[i] - lo_offset[i];
+ }
+
+  //p_evl_sorted.reserve(total_orbitals);
   // ec->sop_execute(d_f1, [&] (auto p, auto q, auto& val) {
   //     if(p == q) {
   //       p_evl_sorted.push_back(val);
@@ -212,7 +225,7 @@ double ccsd_driver(ExecutionContext& ec,
   //       .execute();
   // }
   {
-    p_evl_sorted.resize((TCE::noab() + TCE::nvab()).value());
+    p_evl_sorted.resize(total_orbitals);
     auto lambda = [&] (const auto& blockid) {
       if(blockid[0] == blockid[1]) {
         auto block = d_f1.get(blockid);

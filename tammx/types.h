@@ -184,6 +184,14 @@ operator << (std::ostream& os, IndexLabel il) {
   return os;
 }
 
+struct TensorSymmGroup {
+  DimType dt;
+  int grp_size;
+  size_t size() const {
+    return grp_size;
+  }
+};
+
 const TensorRank maxrank{8};
 
 template<typename T>

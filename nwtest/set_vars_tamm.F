@@ -34,17 +34,17 @@ c      end
       return
       end
 
-!      subroutine f_calls_setvars_cxx()
-!      implicit none
-!#include "mafdecls.fh"
-!#include "tce.fh"
+      subroutine f_calls_setvars_cxx()
+      implicit none
+#include "mafdecls.fh"
+#include "tce.fh"
 
-!      call set_var_cxx(noab, nvab, int_mb, dbl_mb,
-!     &k_range, k_spin, k_sym, intorb, restricted,
-!     &irrep_v, irrep_t, irrep_f)
+      call set_var_cxx(noab, nvab, int_mb, dbl_mb,
+     &k_range, k_spin, k_sym, intorb, restricted,
+     &irrep_v, irrep_t, irrep_f)
 
-!      return
-!      end
+      return
+      end
 
       subroutine init_fortran_vars(noa1, nob1, nva1, nvb1,
      1     intorb1, restricted1,

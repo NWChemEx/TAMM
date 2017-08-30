@@ -128,7 +128,7 @@ ${TAMMX_PROJECT_DIR}/nwtest/tce_restricted.F
 ${TAMMX_PROJECT_DIR}/nwtest/tce_sort.F
 ${TAMMX_PROJECT_DIR}/nwtest/tce_sortacc.F
 ${TAMMX_PROJECT_DIR}/nwtest/misc.F
-${TAMMX_PROJECT_DIR}/nwtest/set_vars.F
+${TAMMX_PROJECT_DIR}/nwtest/set_vars_tamm.F
 ${TAMMX_PROJECT_DIR}/nwtest/ccsd_t1.F
 ${TAMMX_PROJECT_DIR}/nwtest/ccsd_t2.F
 ${TAMMX_PROJECT_DIR}/nwtest/cc2_t1.F

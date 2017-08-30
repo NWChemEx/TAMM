@@ -60,7 +60,7 @@ if(NOT TAMM_INSTALL_PREFIX)
     set(TAMM_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/tamm-install)
 endif()
 
-install(FILES ${PROJECT_SOURCE_DIR}/nwchem_main/h2o.xyz DESTINATION ${PROJECT_BINARY_DIR})
+install(FILES ${PROJECT_SOURCE_DIR}/h2o.xyz DESTINATION ${PROJECT_BINARY_DIR})
 
 # Find Doxygen
 FIND_PACKAGE(Doxygen)
@@ -77,7 +77,6 @@ if(DOXYGEN_FOUND)
 #            COMMAND cmake -E copy_directory ${PROJECT_SOURCE_DIR}/tensor ${DOCS}/tensor
             # Change to docs folder before building the documentation.
             COMMAND cmake -E chdir ${DOCS} doxygen ${DOCS}/Doxyfile.in
-#            COMMAND cmake -E remove_directory ${DOCS}/tamm_parser
             COMMAND cmake -E remove_directory ${DOCS}/tammx
             COMMAND cmake -E remove -f ${DOCS}/Doxyfile.in
             DEPENDS ${PROJECT_SOURCE_DIR}/Doxyfile.in
@@ -85,12 +84,6 @@ if(DOXYGEN_FOUND)
             VERBATIM)
     ADD_CUSTOM_TARGET(docs DEPENDS ${DOCOUTPUT})
 endif()
-
-
-
-##UNCOMMENT-OLD TAMM
-#Uncomment if we use additional cmake modules later
-#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 find_path (BLAS_INCLUDE_PATH NAMES cblas.h mkl_cblas.h PATHS ${BLAS_INCLUDE_PATH})
 message(STATUS "BLAS headers found at: ${BLAS_INCLUDE_PATH}")
@@ -100,12 +93,6 @@ if(NOT GA_CONFIG)
     message(FATAL_ERROR "TAMM ERROR: CMAKE variable GA_CONFIG not set")
 else()
     set(GA_CONFIG ${GA_CONFIG}/ga-config)
-endif()
-
-if(NOT NWCHEM_TOP)
-    message(FATAL_ERROR "TAMM ERROR: CMAKE variable NWCHEM_TOP not set")
-else()
-    message(STATUS "NWCHEM_TOP set to: ${NWCHEM_TOP}")
 endif()
 
 add_definitions(-DMPICH_IGNORE_CXX_SEEK)
@@ -118,7 +105,6 @@ set(CMAKE_Fortran_COMPILER ${tamm_f77_compiler})
 #Assume Cmake picks the right c++ compiler for now
 #SET(CMAKE_CXX_COMPILER mpicxx)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEXT_INT -DGFORTRAN")
-
 
 execute_process(COMMAND ${GA_CONFIG} --cppflags OUTPUT_VARIABLE tamm_includes OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND ${GA_CONFIG} --cflags OUTPUT_VARIABLE tamm_cflags OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -161,8 +147,6 @@ nwtest/cc2_t2.F
 
 set(TESTING_DEPS_SRC
 #nwtest/fort_assign_tests.cc
-#nwtest/ccsd_t1_test.cc
-#nwtest/ccsd_t2_test.cc
 )
 
 #SET(CMAKE_Fortran_COMPILER mpif90)
@@ -195,12 +179,12 @@ target_compile_options(fort_deps PRIVATE ${tamm_fortran_link_flags})
 add_library(fort_deps_c STATIC nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
-add_executable(nwtest nwtest/test_tamm.cc ${TESTING_DEPS_SRC})
-add_dependencies(nwtest fort_deps fort_deps_c tamm tammx)
+add_executable(nwtest nwtest/test_tammx.cc ${TESTING_DEPS_SRC})
+add_dependencies(nwtest fort_deps fort_deps_c tammx)
 target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes}
-        ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include)
+         ${GTEST_INSTALL_PATH}/include)
 target_compile_options(nwtest PUBLIC ${tamm_cflags})
-target_link_libraries(nwtest fort_deps fort_deps_c tamm tammx ${tamm_cflags}
+target_link_libraries(nwtest fort_deps fort_deps_c tammx ${tamm_cflags}
         ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest)
 
 #add_executable(eigentest nwtest/test_eigen.cc ${TESTING_DEPS_SRC})
@@ -230,7 +214,7 @@ if(NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
   set(TAMM_LINK_EXTRA -lrt)
 endif()
 
-add_executable(ccsd_driver tammx/ccsd_driver.cc nwchem_main/hartree_fock.cc)
+add_executable(ccsd_driver tammx/ccsd_driver.cc tammx/hartree_fock.cc)
 add_dependencies(ccsd_driver tammx)
 target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
 target_link_libraries(ccsd_driver tammx -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
@@ -239,113 +223,8 @@ target_link_libraries(ccsd_driver tammx -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TA
 # target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
 # target_link_libraries(hf -L${LIBINT_INSTALL_PATH}/lib -lint2)
 
-add_executable(tammx_talsh EXCLUDE_FROM_ALL tammx/tammx_talsh.cc tammx/tammx.cc tammx/index_sort.cc)
-target_include_directories(tammx_talsh SYSTEM PUBLIC  ${PROJECT_BINARY_DIR}
-${TALSH_INSTALL_PATH})
-target_link_libraries(tammx_talsh -L${TALSH_INSTALL_PATH} -ltalsh)
-
-
-#Build OLD TAMM code
-set(ParserSrcDir ${PROJECT_SOURCE_DIR}/frontend)
-
-# Collect all the parser sources.
-set(tammParserSources
-    frontend/Parse.cc
-    frontend/Error.cc
-    frontend/TAMMLexer.cc
-    frontend/TAMMParser.cc
-    frontend/ASTBuilder.cc
-    frontend/TAMMVisitor.cc
-    frontend/Util.cc
-    frontend/Semant.cc
-    frontend/Intermediate.cc
-    )
-
-set(tammLibSources
-  tensor/capi.cc
-  tensor/corf.cc
-  tensor/dummy.cc
-  tensor/equations.cc
-  tensor/expression.cc
-  tensor/func.cc
-  tensor/gmem.cc
-  tensor/index_sort.cc
-  tensor/preprocess.cc
-  tensor/schedulers.cc
-  tensor/stats.cc
-  tensor/t_assign.cc
-  tensor/t_mult.cc
-  tensor/tensor.cc
-  tensor/tensors_and_ops.cc
-  tensor/variables.cc
-  #noga_HF/noga_fock_build_ref.cc
-  )
-
-set(refCodeSources
-  reference_code/cisd_e_ref.cc
-  reference_code/cisd_c1_ref.cc
-  reference_code/cisd_c2_ref.cc
-  reference_code/cc2_t1_ref.cc
-  reference_code/cc2_t2_ref.cc
-  reference_code/ccsd_t12.cc
-  reference_code/ccsd_lambda1_ref.cc
-  reference_code/ccsd_lambda2_ref.cc
-  reference_code/icsd_t1_ref.cc
-  reference_code/ccsd_e_ref.cc
-  reference_code/ccsd_t1_ref.cc
-  reference_code/ccsd_t2_ref.cc
-  reference_code/icsd_t2_ref.cc
-  reference_code/ipccsd_x1_ref.cc
-  reference_code/ipccsd_x2_ref.cc
-  reference_code/eaccsd_x1_ref.cc
-  reference_code/eaccsd_x2_ref.cc
-  reference_code/ccsd_1prdm_hh_ref.cc
-  reference_code/ccsd_1prdm_pp_ref.cc
-  reference_code/ccsd_1prdm_hp_ref.cc
-  reference_code/ccsd_1prdm_ph_ref.cc
-)
-
-set(tammLibSources
-        tensor/capi.cc
-        tensor/corf.cc
-        tensor/dummy.cc
-        tensor/equations.cc
-        tensor/expression.cc
-        tensor/func.cc
-        tensor/gmem.cc
-        tensor/index_sort.cc
-        tensor/preprocess.cc
-        tensor/schedulers.cc
-        tensor/stats.cc
-        tensor/t_assign.cc
-        tensor/t_mult.cc
-        tensor/tensor.cc
-        tensor/tensors_and_ops.cc
-        tensor/variables.cc
-        )
-
-
-
-message(STATUS "ANTLR C++ runtime found at: " ${ANTLR_CPPRUNTIME_PATH})
-ADD_LIBRARY(a4runtime STATIC IMPORTED)
-SET_TARGET_PROPERTIES(a4runtime PROPERTIES IMPORTED_LOCATION ${ANTLR_CPPRUNTIME_PATH}/lib/libantlr4-runtime.a)
-
-
-add_library(tamm STATIC ${tammParserSources} ${tammLibSources} ${refCodeSources})
-link_directories(${ANTLR_CPPRUNTIME_PATH}/lib ${TAMM_BLAS_LIB})
-target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_includes}
-                        ${BLAS_INCLUDE_PATH} ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime/)
-target_link_libraries(tamm a4runtime)
-
 #set_property(TARGET tamm PROPERTY CXX_STANDARD 14)
 #set_property(TARGET tamm PROPERTY CXX_STANDARD_REQUIRED ON)
-
-# Build the tamm_parser_test code
-add_executable(tamm_parser_test ${ParserSrcDir}/test.cc)
-add_dependencies(tamm_parser_test tamm)
-target_include_directories(tamm_parser_test SYSTEM PUBLIC ${ParserSrcDir})
-# Set target libraries to be linked.
-target_link_libraries(tamm_parser_test tamm a4runtime)
 
 find_path(cblas_header_name "mkl_cblas.h" ${BLAS_INCLUDE_PATH})
 if (NOT cblas_header_name)
@@ -356,88 +235,10 @@ endif()
 #message(STATUS "cblas header: " ${cblas_header_name})
 
 
-add_executable(tamm_main tensor/main.cc tensor/print.cc) #EXCLUDE_FROM_ALL
-add_dependencies(tamm_main tamm)
-target_include_directories(tamm_main SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_includes} ${BLAS_INCLUDE_PATH})
-# Set target libraries to be linked.
-target_link_libraries(tamm_main tamm ${tamm_ldflags}) # ${BLAS_LIBRARIES}) #${tamm_libs}
-
-
-
 message(STATUS "Installing TAMM library at: " ${TAMM_INSTALL_PREFIX})
 
-install(TARGETS tamm
+install(TARGETS tammx
         DESTINATION ${TAMM_INSTALL_PREFIX}/lib)
 
-file(GLOB TAMM_HEADERS RELATIVE ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/frontend/*.h" "${PROJECT_SOURCE_DIR}/tensor/*.h")
+file(GLOB TAMM_HEADERS RELATIVE ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/tammx/*.h")
 install(FILES ${TAMM_HEADERS} DESTINATION ${TAMM_INSTALL_PREFIX}/include)
-
-file(GLOB EQFILES RELATIVE ${PROJECT_SOURCE_DIR}  "${PROJECT_SOURCE_DIR}/tamm_tests/NWChemEqs/*.eq")
-install(FILES ${EQFILES} DESTINATION ${TAMM_INSTALL_PREFIX}/tests/NWChemEqs)
-
-# Create directory to store test results
-execute_process(COMMAND mkdir -p "TestResults/ParserTests")
-
-# Run each test from the parser testsuite
-foreach (test ${EQFILES})
-    get_filename_component(Testname ${test} NAME_WE)
-    add_test(${test} python ${PROJECT_SOURCE_DIR}/scripts/testing/ParserTest.py "${Testname}"
-            "${PROJECT_BINARY_DIR}/tamm_parser_test" "${PROJECT_SOURCE_DIR}/tamm_tests/NWChemEqs/"
-            "${PROJECT_BINARY_DIR}/TestResults/ParserTests")
-endforeach ()
-
-
-get_filename_component(NW_CC ${CMAKE_C_COMPILER} NAME )
-get_filename_component(NW_FC ${CMAKE_Fortran_COMPILER} NAME )
-get_filename_component(NW_AR ${CMAKE_AR} NAME )
-
-if (NWCHEM_CMAKE_BUILD)
-    set(patch_script ./nwchem-cmake-fix.bash)
-    set(unpatch_script ./nwchem-cmake-unpatch.bash)
-    set(make_link_cmd make)
-    set(NWCHEM_BINARY ${NWCHEM_BUILD_DIR}/nwchem)
-else()
-    set(patch_script ./nwchem-fix.bash)
-    set(unpatch_script ./nwchem-unpatch.bash)
-    set(make_link_cmd make CC=${NW_CC} FC=${NW_FC} AR=${NW_AR} link)
-    set(NWCHEM_BINARY ${NWCHEM_TOP}/bin/LINUX64/nwchem)
-endif()
-
-add_custom_target("style")
-add_custom_command(TARGET "style" PRE_BUILD
-  COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/scripts ./cpplint.bash "${CMAKE_SOURCE_DIR}/tensor/*"
-  COMMENT "=================== Checking style..." )
-
-
-add_custom_target("patch")
-add_custom_command(TARGET "patch" POST_BUILD
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ${patch_script}
-     ${NWCHEM_TOP} ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_PATH}/lib/libantlr4-runtime.a
-    COMMENT "=================== Patching nwchem..." )
-
-add_custom_target("unpatch")
-add_custom_command(TARGET "unpatch" POST_BUILD
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ${unpatch_script} ${NWCHEM_TOP}
-    COMMENT "=================== Unpatching nwchem GNUMakefile/CMakeLists ..." )
-
-add_custom_target(link COMMAND "${CMAKE_COMMAND}" --build . --target install)
-
-
-
-add_custom_command(TARGET "link" POST_BUILD
-    COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${NWCHEM_BUILD_DIR} ${make_link_cmd}
-    COMMENT "=================== Relinking nwchem..." )
-
-set (TEST_COMMAND "mpirun -n ${TAMM_PROC_COUNT} ${NWCHEM_BINARY}")
-
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --verbose)
-
-file(GLOB INTEG_TESTS RELATIVE ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/CI_testing/integration/inputs/*.nw")
-foreach (test ${INTEG_TESTS})
-    get_filename_component(Testname ${test} NAME_WE)
-    #string(REGEX REPLACE "\\.[^.]*$" "" Testname "${Testname}")
-    add_test(${test} python ${PROJECT_SOURCE_DIR}/scripts/testing/CheckResults.py "${NWCHEM_BINARY}" "${Testname}" "${TAMM_PROC_COUNT}")
-endforeach()
-
-SET(TAMM_EQ_PATH ${TAMM_INSTALL_PREFIX}/tests/NWChemEqs)
-add_definitions(-DTAMM_EQ_PATH=\"${TAMM_EQ_PATH}\")

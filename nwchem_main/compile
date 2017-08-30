@@ -1,7 +1,0 @@
-
-#Specify path to libint and Eigen - install path specified to cmake build of tamm deps
-DEPS=$1
-LIBINT=$DEPS/libint2
-EIGEN=$DEPS/eigen3
-
-/Users/panyala/software/compilers/gcc6/bin/g++ -Ofast -std=c++14 -o hf hartree_fock.cc -I$LIBINT/include -I$EIGEN/include/eigen3 -L$LIBINT/lib -lint2

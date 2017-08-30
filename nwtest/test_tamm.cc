@@ -27,8 +27,8 @@
 #include <mpi.h>
 #include <ga.h>
 #include <macdecls.h>
-#include "nwtest/nwtest.h"
-#include "nwtest/fort_nwtest.h"
+#include "nwtest/test_tamm.h"
+#include "nwtest/test_fortran.h"
 #include "nwtest/ccsd_t1_test.h"
 #include "nwtest/ccsd_t2_test.h"
 #include "nwtest/cc2_t1_test.h"

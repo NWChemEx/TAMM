@@ -68,16 +68,18 @@ struct MultOp : public Op {
 template<typename TensorType>
 struct AllocOp: public Op {
   void execute() override {
-    tensor_->alloc(pg, distribution_, memory_manager_);
+    Expects(pg_.is_valid());
+    tensor_->alloc(pg_, distribution_, memory_manager_);
   }
 
   AllocOp(TensorType& tensor, ProcGroup pg, Distribution* distribution, MemoryManager* memory_manager)
       : tensor_{&tensor},
+        pg_{pg},
         distribution_{distribution},
         memory_manager_{memory_manager} {}
 
   TensorType *tensor_;
-  ProcGroup pg;
+  ProcGroup pg_;
   Distribution* distribution_;
   MemoryManager* memory_manager_;
 };
@@ -681,24 +683,23 @@ class Scheduler {
     for(auto &ptr_op : ops_) {
       delete ptr_op;
     }
-    for(auto itr = tensors_.begin(); itr!= tensors_.end(); ++itr) {
-      if(!itr->second.is_io) {
-        delete itr->first;
-      }
+    for(auto &ptensor: intermediate_tensors_) {
+      delete ptensor;
     }
   }
 
   template<typename T>
-  Tensor<T>& tensor(const IndexInfo& iinfo, Irrep irrep, bool spin_restricted) {
+  Tensor<T>* tensor(const IndexInfo& iinfo, Irrep irrep, bool spin_restricted) {
     auto indices = std::get<0>(iinfo);
     auto nupper_indices = std::get<1>(iinfo);
-    auto *ptensor = new Tensor<T>{indices, nupper_indices, irrep, spin_restricted};
-    tensors_[ptensor] = TensorInfo{TensorStatus::invalid, false};
-    return *ptensor;
+    Tensor<T>* ptensor = new Tensor<T>{indices, nupper_indices, irrep, spin_restricted};
+    tensors_[ptensor] = TensorInfo{TensorStatus::invalid};
+    intermediate_tensors_.push_back(ptensor);
+    return ptensor;
   }
 
   template<typename T>
-  Tensor<T>& tensor(const IndexInfo& iinfo) {
+  Tensor<T>* tensor(const IndexInfo& iinfo) {
     return tensor<T>(iinfo, default_irrep_, default_spin_restricted_);
   }
 
@@ -719,7 +720,7 @@ class Scheduler {
   template<typename ...Args>
   Scheduler& io(TensorBase &tensor, Args& ... args) {
     Expects(tensors_.find(&tensor) == tensors_.end());
-    tensors_[&tensor] = TensorInfo{TensorStatus::initialized, true};
+    tensors_[&tensor] = TensorInfo{TensorStatus::initialized};
     return io(args...);
   }
 
@@ -730,7 +731,7 @@ class Scheduler {
   template<typename ...Args>
   Scheduler& output(TensorBase& tensor, Args& ... args) {
     Expects(tensors_.find(&tensor) == tensors_.end());
-    tensors_[&tensor] = TensorInfo{TensorStatus::allocated, true};
+    tensors_[&tensor] = TensorInfo{TensorStatus::allocated};
     return output(args...);
   }
 
@@ -838,7 +839,6 @@ class Scheduler {
  private:
   struct TensorInfo {
     TensorStatus status;
-    bool is_io;
   };
   Distribution* default_distribution_;
   MemoryManager* default_memory_manager_;
@@ -847,6 +847,7 @@ class Scheduler {
   ProcGroup pg_;
   std::map<TensorBase*,TensorInfo> tensors_;
   std::vector<Op*> ops_;
+  std::vector<TensorBase*> intermediate_tensors_;
 };
 
 

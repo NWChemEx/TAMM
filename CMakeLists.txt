@@ -179,12 +179,12 @@ target_compile_options(fort_deps PRIVATE ${tamm_fortran_link_flags})
 add_library(fort_deps_c STATIC nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
-add_executable(nwtest nwtest/eigen_tammx.cc ${TESTING_DEPS_SRC})
-add_dependencies(nwtest fort_deps fort_deps_c tammx)
-target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes}
+add_executable(eigen_tests nwtest/test_eigen.cc ${TESTING_DEPS_SRC})
+add_dependencies(eigen_tests fort_deps fort_deps_c tammx)
+target_include_directories(eigen_tests SYSTEM PUBLIC ${tamm_includes}
          ${GTEST_INSTALL_PATH}/include)
-target_compile_options(nwtest PUBLIC ${tamm_cflags})
-target_link_libraries(nwtest fort_deps fort_deps_c tammx ${tamm_cflags}
+target_compile_options(eigen_tests PUBLIC ${tamm_cflags})
+target_link_libraries(eigen_tests fort_deps fort_deps_c tammx ${tamm_cflags}
         ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest)
 
 #add_executable(eigentest nwtest/test_eigen.cc ${TESTING_DEPS_SRC})

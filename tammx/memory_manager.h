@@ -49,7 +49,8 @@ class MemoryManagerSequential : public MemoryManager {
         elsize_{0},
         allocation_status_{AllocationStatus::invalid} {
           //sequential. So process group size should be 1
-    Expects(MemoryManager::pg_.size() == 1);
+          Expects(pg.is_valid());
+          Expects(MemoryManager::pg_.size() == 1);
   }
 
   MemoryManagerSequential(ProcGroup pg, uint8_t *buf, ElementType eltype, Size nelements)
@@ -58,6 +59,7 @@ class MemoryManagerSequential : public MemoryManager {
         elsize_{element_size(eltype_)} {
           eltype_ = eltype;
           nelements_ = nelements;
+          Expects(pg.is_valid());
           Expects(MemoryManager::pg_.size() == 1);
           allocation_status_ = AllocationStatus::attached;
   }
@@ -68,6 +70,7 @@ class MemoryManagerSequential : public MemoryManager {
   }
 
   MemoryManager* clone(ProcGroup pg) const {
+    Expects(pg.is_valid());
     return new MemoryManagerSequential(pg);
   }
 

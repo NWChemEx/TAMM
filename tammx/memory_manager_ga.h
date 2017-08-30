@@ -26,6 +26,7 @@ class MemoryManagerGA : public MemoryManager {
     elsize_ = element_size(eltype_);
     ga_pg_ = GA_Get_pgroup(ga);
 
+    Expects(pg.is_valid());
     auto nranks = pg.size().value();
     auto me = pg.rank().value();
     map_ = std::make_unique<int64_t[]>(nranks+1);
@@ -58,6 +59,7 @@ class MemoryManagerGA : public MemoryManager {
     std::cout<<"MemoryManagerGA. Create. nelements="<<nelements<<std::endl;
     eltype_ = eltype;
     int ga_pg_default = GA_Pgroup_get_default();
+    Expects(pg_.is_valid());
     int nranks = pg_.size().value();
     long long nels = nelements.value();
     

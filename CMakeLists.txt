@@ -179,7 +179,7 @@ target_compile_options(fort_deps PRIVATE ${tamm_fortran_link_flags})
 add_library(fort_deps_c STATIC nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
-add_executable(nwtest nwtest/test_tammx.cc ${TESTING_DEPS_SRC})
+add_executable(nwtest nwtest/eigen_tammx.cc ${TESTING_DEPS_SRC})
 add_dependencies(nwtest fort_deps fort_deps_c tammx)
 target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes}
          ${GTEST_INSTALL_PATH}/include)

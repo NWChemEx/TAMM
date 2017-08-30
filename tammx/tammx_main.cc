@@ -72,7 +72,7 @@ void test() {
   {
     Scheduler sch(pg, &distribution, &mgr, Irrep{0}, false);
     
-    auto &tb = sch.tensor<Type>(iinfo1);
+    auto &tb = *sch.tensor<Type>(iinfo1);
     
     sch.io(ta)
         .execute();

@@ -58,6 +58,7 @@ class Tensor : public TensorBase {
       : pg_{pg},
         allocation_status_{AllocationStatus::invalid},
         TensorBase{indices, nupper_indices, irrep, spin_restricted} {
+          Expects(pg.is_valid());
           if(mgr) {
             mgr_ = mgr->clone(pg);
           }
@@ -81,6 +82,7 @@ class Tensor : public TensorBase {
   //@todo implement the factory
   void alloc(ProcGroup pg, Distribution* distribution=nullptr, MemoryManager* memory_manager=nullptr) {
     pg_ = pg;
+    Expects(pg.is_valid());
     if(distribution) {
       // distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
       distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, pg_.size()));
@@ -106,6 +108,7 @@ class Tensor : public TensorBase {
 
   void attach(Distribution* distribution, std::shared_ptr<MemoryManager> mgr) {
     pg_ = mgr->proc_group();
+    Expects(pg_.is_valid());
     distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, pg_.size()));    
     mgr_ = mgr;
     allocation_status_ = AllocationStatus::attached;

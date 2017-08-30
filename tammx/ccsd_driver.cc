@@ -55,11 +55,11 @@ void compute_residual(Scheduler &sch, Tensor<T>& tensor, Tensor<T>& scalar) {
 template<typename T>
 void ccsd_e(Scheduler &sch, Tensor<T>& f1, Tensor<T>& de,
             Tensor<T>& t1, Tensor<T>& t2, Tensor<T>& v2) {
-  auto &i1 = sch.tensor<T>(O|V);
+  auto &i1 = *sch.tensor<T>(O|V);
 
   sch.alloc(i1)
-      .io(f1,v2,t1,t2)
-      .output(de)
+      // .io(f1,v2,t1,t2)
+      // .output(de)
       (i1(h6,p5) =        f1(h6,p5))
       (i1(h6,p5) += 0.5  * t1(p3,h4)       * v2(h4,h6,p3,p5))
       (de() = 0)
@@ -71,15 +71,15 @@ void ccsd_e(Scheduler &sch, Tensor<T>& f1, Tensor<T>& de,
 template<typename T>
 void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
              Tensor<T>& t1, Tensor<T>& t2, Tensor<T>& v2) {
-  auto &t1_2_1 = sch.tensor<T>(O|O);
-  auto &t1_2_2_1 = sch.tensor<T>(O|V);
-  auto &t1_3_1 = sch.tensor<T>(V|V);
-  auto &t1_5_1 = sch.tensor<T>(O|V);
-  auto &t1_6_1 = sch.tensor<T>(OO|OV);
+  auto &t1_2_1 = *sch.tensor<T>(O|O);
+  auto &t1_2_2_1 = *sch.tensor<T>(O|V);
+  auto &t1_3_1 = *sch.tensor<T>(V|V);
+  auto &t1_5_1 = *sch.tensor<T>(O|V);
+  auto &t1_6_1 = *sch.tensor<T>(OO|OV);
 
   sch.alloc(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
-    .io(t1,t2,f1,v2)
-    .output(i0)
+    // .io(t1,t2,f1,v2)
+    // .output(i0)
       (i0(p2,h1)            =        f1(p2,h1))
       (t1_2_1(h7,h1)        =        f1(h7,h1))
       (t1_2_2_1(h7,p3)      =        f1(h7,p3))
@@ -106,23 +106,23 @@ void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
 template<typename T>
 void ccsd_t2(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
              Tensor<T>& t1, Tensor<T>& t2, Tensor<T>& v2) {
-  auto &t2_2_1 = sch.tensor<T>(OV|OO);
-  auto &t2_2_2_1 = sch.tensor<T>(OO|OO);
-  auto &t2_2_2_2_1 = sch.tensor<T>(OO|OV);
-  auto &t2_2_4_1 = sch.tensor<T>(O|V);
-  auto &t2_2_5_1 = sch.tensor<T>(OO|OV);
-  auto &t2_4_1 = sch.tensor<T>(O|O);
-  auto &t2_4_2_1 = sch.tensor<T>(O|V);
-  auto &t2_5_1 = sch.tensor<T>(V|V);
-  auto &t2_6_1 = sch.tensor<T>(OO|OO);
-  auto &t2_6_2_1 = sch.tensor<T>(OO|OV);
-  auto &t2_7_1 = sch.tensor<T>(OV|OV);
-  auto &vt1t1_1 = sch.tensor<T>(OV|OO);
+  auto &t2_2_1 = *sch.tensor<T>(OV|OO);
+  auto &t2_2_2_1 = *sch.tensor<T>(OO|OO);
+  auto &t2_2_2_2_1 = *sch.tensor<T>(OO|OV);
+  auto &t2_2_4_1 = *sch.tensor<T>(O|V);
+  auto &t2_2_5_1 = *sch.tensor<T>(OO|OV);
+  auto &t2_4_1 = *sch.tensor<T>(O|O);
+  auto &t2_4_2_1 = *sch.tensor<T>(O|V);
+  auto &t2_5_1 = *sch.tensor<T>(V|V);
+  auto &t2_6_1 = *sch.tensor<T>(OO|OO);
+  auto &t2_6_2_1 = *sch.tensor<T>(OO|OV);
+  auto &t2_7_1 = *sch.tensor<T>(OV|OV);
+  auto &vt1t1_1 = *sch.tensor<T>(OV|OO);
 
   sch.alloc(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
             t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1)
-            .io(t1,t2,f1,v2)
-            .output(i0)
+            // .io(t1,t2,f1,v2)
+            // .output(i0)
       (i0(p3,p4,h1,h2)            =        v2(p3,p4,h1,h2))
       (t2_2_1(h10,p3,h1,h2)       =        v2(h10,p3,h1,h2))
       (t2_2_2_1(h10,h11,h1,h2)    = -1  *  v2(h10,h11,h1,h2))
@@ -269,8 +269,8 @@ double ccsd_driver(ExecutionContext& ec,
       std::cerr<<"++++++++++++++++++++++++++++++++++++++++++++++"<<std::endl;
       Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
       int off = iter - titer;
-      sch.io(d_t1, d_t2, d_f1, d_v2)
-        .output(d_e, *d_r1s[off], *d_r2s[off], d_r1_residual, d_r2_residual);
+      sch.io(d_t1, d_t2, d_f1, d_v2, *d_r1s[off], *d_r2s[off])
+        .output(d_e, d_r1_residual, d_r2_residual);
       ccsd_e(sch, d_f1, d_e, d_t1, d_t2, d_v2);
       ccsd_t1(sch, d_f1, *d_r1s[off], d_t1, d_t2, d_v2);
       ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
@@ -281,7 +281,6 @@ double ccsd_driver(ExecutionContext& ec,
         ;
       sch.execute();
       std::cerr<<"----------------------------------------------"<<std::endl;
-
 
       double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
       double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
@@ -313,12 +312,12 @@ double ccsd_driver(ExecutionContext& ec,
   }
 
   std::cout << "debug ccsd 2\n";
-
   for(int i=0; i<ndiis; i++) {
     Tensor<T>::deallocate(*d_r1s[i], *d_r2s[i]);
   }
   d_r1s.clear();
   d_r2s.clear();
+  ec.deallocate(d_e, d_r1_residual, d_r2_residual);
   return corr;
 }
 
@@ -391,7 +390,6 @@ int main(int argc, char *argv[]) {
   auto mgr = MemoryManagerSequential(pg);
 
 
-#if 1
   Tensor<T>::allocate(pg, &distribution, &mgr, d_t1, d_t2, d_f1, d_v2);
 
   const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
@@ -463,7 +461,6 @@ int main(int argc, char *argv[]) {
   // pg,
   //             &distribution, &mgr);
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
-#endif
   TCE::finalize();
 
   MPI_Finalize();

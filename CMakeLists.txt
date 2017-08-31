@@ -187,18 +187,10 @@ target_compile_options(eigen_tests PUBLIC ${tamm_cflags})
 target_link_libraries(eigen_tests fort_deps fort_deps_c tammx ${tamm_cflags}
         ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest)
 
-#add_executable(eigentest nwtest/test_eigen.cc ${TESTING_DEPS_SRC})
-#add_dependencies(eigentest fort_deps fort_deps_c tamm tammx)
-#target_include_directories(eigentest SYSTEM PUBLIC ${tamm_includes}
-#        ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include
-#        ${EIGEN3_INSTALL_PATH}/include/eigen3)
-#target_compile_options(eigentest PUBLIC ${tamm_cflags})
-#target_link_libraries(eigentest fort_deps fort_deps_c tamm tammx ${tamm_cflags}
-#        ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest)
-
 #BUILD TAMMX
     set(tammxSources
         tammx/tammx.cc
+        tammx/test_tammx.cc
         tammx/index_sort.cc)
 
 add_library(tammx STATIC ${tammxSources})

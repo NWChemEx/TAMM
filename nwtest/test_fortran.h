@@ -9,8 +9,6 @@
 //
 //------------------------------------------------------------------------------
 extern "C" {
-
-
   
   void offset_ccsd_t1_2_1_(Integer *l_t1_2_1_offset, Integer *k_t1_2_1_offset,
                            Integer *size_t1_2_1);
@@ -22,9 +20,7 @@ extern "C" {
                        Integer *tb, Integer *offsetb, Integer *irrepb,
                        Integer *tc, Integer *offsetc, Integer *irrepc);
 
-  typedef void mult_fn_2(Integer *ta, Integer *offseta,
-                       Integer *tb, Integer *offsetb,
-                       Integer *tc, Integer *offsetc);
+
 
   add_fn ccsd_t1_1_, ccsd_t1_2_1_, ccsd_t1_2_2_1_, ccsd_t1_3_1_;  // ccsd_t1
   add_fn ccsd_t1_5_1_, ccsd_t1_6_1_;  // ccsd_t1
@@ -38,7 +34,6 @@ extern "C" {
   add_fn cc2_t2_2_3_1_, cc2_t2_3_1_;  // cc2_t2
 
   mult_fn ccsd_t1_2_;
-  mult_fn_2 cc2_t1_5_;
 }
 
 

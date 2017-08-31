@@ -190,7 +190,6 @@ target_link_libraries(eigen_tests fort_deps fort_deps_c tammx ${tamm_cflags}
 #BUILD TAMMX
     set(tammxSources
         tammx/tammx.cc
-        tammx/test_tammx.cc
         tammx/index_sort.cc)
 
 add_library(tammx STATIC ${tammxSources})

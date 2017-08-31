@@ -12,10 +12,9 @@
 #include "tammx/tammx.h"
 using namespace tammx;
 
-namespace {
-  tammx::ExecutionContext* g_ec;
-  }
-  
+  extern tammx::ExecutionContext* g_ec;
+
+
   class TestEnvironment : public testing::Environment {
    public:
     explicit TestEnvironment(tammx::ExecutionContext* ec) {
@@ -26,14 +25,14 @@ namespace {
 
   tammx::TensorVec <tammx::SymmGroup>
   tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup);
-  
+
   void tammx_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
     const std::vector<int> &ispins,
     const std::vector<int> &isyms,
     const std::vector<int> &isizes);
-  
+
   void tammx_finalize();
-  
+
   TensorVec <tammx::SymmGroup>
   tammx_label_to_indices(const tammx::TensorLabel &labels);
 
@@ -59,7 +58,7 @@ namespace {
     auto &label = ltensor.label_;
     const auto &indices = tensor.indices();
     Expects(tensor.flindices().size() == label.size());
-  
+
     auto label_copy = label;
     size_t off = 0;
     for (auto &sg: indices) {
@@ -91,11 +90,11 @@ namespace {
         //std::cout << "init_lambda. dbuf[" << i << "]=" << dbuf[i] << std::endl;
       }
     };
-  
+
     tensor_map(ltensor, init_lambda);
     tammx_symmetrize(ec, ltensor);
   }
-  
+
 
 
 template<typename T>
@@ -167,7 +166,7 @@ tammx_mult(tammx::ExecutionContext &ec,
   // delete tc;
 }
 
-            
+
 template<typename LabeledTensorType>
 bool
 tammx_tensors_are_equal(tammx::ExecutionContext &ec,
@@ -196,5 +195,3 @@ tammx_tensors_are_equal(tammx::ExecutionContext &ec,
   }
   return ret;
 }
-
-

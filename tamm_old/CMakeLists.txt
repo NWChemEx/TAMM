@@ -171,7 +171,7 @@ target_compile_options(fort_deps PRIVATE ${tamm_fortran_link_flags})
 add_library(fort_deps_c STATIC ${TAMMX_PROJECT_DIR}/nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
-add_executable(nwtest ${TAMMX_PROJECT_DIR}/nwtest/test_tamm.cc ${TESTING_DEPS_SRC})
+add_executable(nwtest ${TAMMX_PROJECT_DIR}/nwtest/test_tamm.cc ${TAMMX_PROJECT_DIR}/nwtest/test_tammx.cc ${TESTING_DEPS_SRC})
 add_dependencies(nwtest fort_deps fort_deps_c tamm tammx)
 target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes}
         ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include)
@@ -179,15 +179,15 @@ target_compile_options(nwtest PUBLIC ${tamm_cflags})
 target_link_libraries(nwtest fort_deps fort_deps_c tamm tammx ${tamm_cflags}
         ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest)
 
-#add_executable(eigentest ${TAMMX_PROJECT_DIR}/nwtest/test_eigen.cc ${TESTING_DEPS_SRC})
-#add_dependencies(eigentest fort_deps fort_deps_c tamm tammx)
-#target_include_directories(eigentest SYSTEM PUBLIC ${tamm_includes}
-#        ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include
-#        ${EIGEN3_INSTALL_PATH}/include/eigen3)
-#target_compile_options(eigentest PUBLIC ${tamm_cflags})
-#target_link_libraries(eigentest fort_deps fort_deps_c tamm tammx ${tamm_cflags}
-#        ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest)
+add_executable(eigen_tests EXCLUDE_FROM_ALL ${TAMMX_PROJECT_DIR}/nwtest/test_eigen.cc ${TAMMX_PROJECT_DIR}/nwtest/test_tammx.cc ${TESTING_DEPS_SRC})
+add_dependencies(eigen_tests fort_deps fort_deps_c tammx)
+target_include_directories(eigen_tests SYSTEM PUBLIC ${tamm_includes}
+            ${GTEST_INSTALL_PATH}/include)
+target_compile_options(eigen_tests PUBLIC ${tamm_cflags})
+target_link_libraries(eigen_tests fort_deps fort_deps_c tammx ${tamm_cflags}
+        ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest)
 
+                
 #BUILD TAMMX
     set(tammxSources
         ${TAMMX_PROJECT_DIR}/tammx/tammx.cc

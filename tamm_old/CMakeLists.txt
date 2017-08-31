@@ -180,7 +180,8 @@ target_compile_options(nwtest PUBLIC ${tamm_cflags})
 target_link_libraries(nwtest fort_deps fort_deps_c tamm tammx ${tamm_cflags}
         ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest)
 
-add_executable(eigen_tests EXCLUDE_FROM_ALL ${TAMMX_PROJECT_DIR}/nwtest/test_eigen.cc ${TAMMX_PROJECT_DIR}/nwtest/test_tammx.cc)
+add_executable(eigen_tests EXCLUDE_FROM_ALL ${TAMMX_PROJECT_DIR}/nwtest/test_eigen.cc
+         ${TAMMX_PROJECT_DIR}/nwtest/test_tammx.cc)
 add_dependencies(eigen_tests fort_deps fort_deps_c tammx)
 target_include_directories(eigen_tests SYSTEM PUBLIC ${tamm_includes}
             ${GTEST_INSTALL_PATH}/include)

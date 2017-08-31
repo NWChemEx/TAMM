@@ -224,20 +224,25 @@ double ccsd_driver(ExecutionContext& ec,
   //       .sop(d_f1(), lambda)
   //       .execute();
   // }
-  {
+{
     p_evl_sorted.resize(total_orbitals);
     auto lambda = [&] (const auto& blockid) {
       if(blockid[0] == blockid[1]) {
         auto block = d_f1.get(blockid);
         auto dim = d_f1.block_dims(blockid)[0].value();
         auto offset = d_f1.block_offset(blockid)[0].value();
-        for(auto p = offset; p < offset + dim; p++) {
-          p_evl_sorted[p] = block.buf()[p*dim + p];
+        for(auto p = offset,i=0; p < offset + dim; p++,i++) {
+          p_evl_sorted[p] = block.buf()[i*dim + i];
         }
       }
     };
     block_for(d_f1(), lambda);
-  }
+
+
+std::cout << "p_evl_sorted:" << '\n';
+  for(auto p = 0; p < p_evl_sorted.size(); p++)
+      std::cout << p_evl_sorted[p] << '\n';
+}
 
   std::vector<Tensor<T>*> d_r1s, d_r2s;
 
@@ -352,10 +357,10 @@ std::vector<Spin> spins = {1_sp, 1_sp, 1_sp,
                            2_sp, 2_sp, 2_sp,
                            1_sp, 1_sp,
                            2_sp, 2_sp};
-std::vector<Irrep> spatials = {0_ir, 2_ir, 3_ir,
-                               0_ir, 2_ir, 3_ir,
-                               0_ir, 2_ir,
-                               0_ir, 2_ir};
+std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir,
+                               0_ir, 0_ir, 0_ir,
+                               0_ir, 0_ir,
+                               0_ir, 0_ir};
 std::vector<size_t> sizes = {3,1,1, 3,1,1, 1,1, 1,1};
 BlockDim noa {3};
 BlockDim noab {6};

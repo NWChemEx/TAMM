@@ -195,7 +195,7 @@ target_link_libraries(eigen_tests fort_deps fort_deps_c tammx ${tamm_cflags}
 
 add_library(tammx STATIC ${tammxSources})
 target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${EIGEN3_INSTALL_PATH}/include/eigen3 ${tamm_includes})
-target_link_libraries(tammx ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs})
+target_link_libraries(tammx PRIVATE ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs})
 
 add_executable(tammx_main ${TAMMX_PROJECT_DIR}/tammx/tammx_main.cc)
 target_link_libraries(tammx_main tammx)

@@ -33,10 +33,9 @@
 #include "nwtest/test_tamm_tce.h"
 
 
-//namespace {
-//    tammx::ExecutionContext* g_ec;
-//}
-//
+tammx::ExecutionContext* g_ec;
+
+
 //class TestEnvironment : public testing::Environment {
 //public:
 //    explicit TestEnvironment(tammx::ExecutionContext* ec) {

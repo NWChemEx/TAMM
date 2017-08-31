@@ -19,6 +19,8 @@
 #include "nwtest/test_eigen.h"
 #include "nwtest/test_tammx.h"
 
+tammx::ExecutionContext* g_ec;
+
 #define INITVAL_TEST_0D 1
 #define INITVAL_TEST_1D 1
 #define INITVAL_TEST_2D 1
@@ -1924,58 +1926,27 @@ tammx::Tensor<double> xtb{{}, 0, tammx::Irrep{0}, false};
 double alpha1 = 0.91, alpha2 = 0.56;
 auto &ec = *g_ec;
 
-ec.
-allocate(xta, xtb, xtc
-);
-ec.
-
-scheduler()
-
-.
-io(xta, xtb, xtc
-)
-(
-
-xta() = alpha1
-
-)
-(
-
-xtb() = alpha2
-
-)
-(
-
-xtc() = xta() * xtb()
-
-)
-.
-
-execute();
+ec.allocate(xta, xtb, xtc);
+ec.scheduler()
+  .io(xta, xtb, xtc)
+  (xta() = alpha1)
+  (xtb() = alpha2)
+  (xtc() = xta() * xtb())
+  .execute();
 
 double threshold = 1.0e-12;
 bool status = true;
 auto lambda = [&](auto &val) {
   status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
-ec.
 
-scheduler()
+ec.scheduler()
+.io(xtc)
+.sop(xtc(), lambda)
+.execute();
 
-.
-io(xtc)
-.
+ec.deallocate(xta, xtb, xtc);
 
-sop(xtc(), lambda
-
-)
-.
-
-execute();
-
-ec.
-deallocate(xta, xtb, xtc
-);
 ASSERT_TRUE(status);
 }
 #endif
@@ -1992,58 +1963,27 @@ tammx::Tensor<double> xtb{{O}, 1, tammx::Irrep{0}, false};
 double alpha1 = 0.91, alpha2 = 0.56;
 auto &ec = *g_ec;
 
-ec.
-allocate(xta, xtb, xtc
-);
-ec.
-
-scheduler()
-
-.
-io(xta, xtb, xtc
-)
-(
-
-xta() = alpha1
-
-)
-(
-
-xtb() = alpha2
-
-)
-(
-
-xtc() = xta() * xtb()
-
-)
-.
-
-execute();
+ec.allocate(xta, xtb, xtc);
+ec.scheduler()
+.io(xta, xtb, xtc)
+(xta() = alpha1)
+(xtb() = alpha2)
+(xtc() = xta() * xtb())
+.execute();
 
 double threshold = 1.0e-12;
 bool status = true;
 auto lambda = [&](auto &val) {
   status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
-ec.
 
-scheduler()
+ec.scheduler()
+.io(xtc)
+.sop(xtc(), lambda)
+.execute();
 
-.
-io(xtc)
-.
+ec.deallocate(xta, xtb, xtc);
 
-sop(xtc(), lambda
-
-)
-.
-
-execute();
-
-ec.
-deallocate(xta, xtb, xtc
-);
 ASSERT_TRUE(status);
 }
 
@@ -2056,58 +1996,27 @@ tammx::Tensor<double> xtb{{O}, 0, tammx::Irrep{0}, false};
 double alpha1 = 0.91, alpha2 = 0.56;
 auto &ec = *g_ec;
 
-ec.
-allocate(xta, xtb, xtc
-);
-ec.
-
-scheduler()
-
-.
-io(xta, xtb, xtc
-)
-(
-
-xta() = alpha1
-
-)
-(
-
-xtb() = alpha2
-
-)
-(
-
-xtc() = xta() * xtb()
-
-)
-.
-
-execute();
+ec.allocate(xta, xtb, xtc);
+ec.scheduler()
+  .io(xta, xtb, xtc)
+(xta() = alpha1)
+(xtb() = alpha2)
+(xtc() = xta() * xtb())
+.execute();
 
 double threshold = 1.0e-12;
 bool status = true;
 auto lambda = [&](auto &val) {
   status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
-ec.
 
-scheduler()
+ec.scheduler()
+  .io(xtc)
+  .sop(xtc(), lambda)
+.execute();
 
-.
-io(xtc)
-.
+ec.deallocate(xta, xtb, xtc);
 
-sop(xtc(), lambda
-
-)
-.
-
-execute();
-
-ec.
-deallocate(xta, xtb, xtc
-);
 ASSERT_TRUE(status);
 }
 
@@ -2120,58 +2029,28 @@ tammx::Tensor<double> xtb{{}, 0, tammx::Irrep{0}, false};
 double alpha1 = 0.91, alpha2 = 0.56;
 auto &ec = *g_ec;
 
-ec.
-allocate(xta, xtb, xtc
-);
-ec.
-
-scheduler()
-
-.
-io(xta, xtb, xtc
-)
-(
-
-xta() = alpha1
-
-)
-(
-
-xtb() = alpha2
-
-)
-(
-
-xtc() = xta() * xtb()
-
-)
-.
-
-execute();
+ec.allocate(xta, xtb, xtc);
+ec.scheduler()
+.io(xta, xtb, xtc)
+(xta() = alpha1)
+(xtb() = alpha2)
+(xtc() = xta() * xtb())
+.execute();
 
 double threshold = 1.0e-12;
 bool status = true;
 auto lambda = [&](auto &val) {
   status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
-ec.
 
-scheduler()
 
-.
-io(xtc)
-.
+ec.scheduler()
+.io(xtc)
+.sop(xtc(), lambda)
+.execute();
 
-sop(xtc(), lambda
+ec.deallocate(xta, xtb, xtc);
 
-)
-.
-
-execute();
-
-ec.
-deallocate(xta, xtb, xtc
-);
 ASSERT_TRUE(status);
 }
 
@@ -2184,63 +2063,31 @@ tammx::Tensor<double> xtb{{}, 0, tammx::Irrep{0}, false};
 double alpha1 = 0.91, alpha2 = 0.56;
 auto &ec = *g_ec;
 
-ec.
-allocate(xta, xtb, xtc
-);
-ec.
-
-scheduler()
-
-.
-io(xta, xtb, xtc
-)
-(
-
-xta() = alpha1
-
-)
-(
-
-xtb() = alpha2
-
-)
-(
-
-xtc() = xta() * xtb()
-
-)
-.
-
-execute();
+ec.allocate(xta, xtb, xtc);
+ec.scheduler()
+  .io(xta, xtb, xtc)
+  (xta() = alpha1)
+  (xtb() = alpha2)
+  (xtc() = xta() * xtb())
+  .execute();
 
 double threshold = 1.0e-12;
 bool status = true;
 auto lambda = [&](auto &val) {
   status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
-ec.
 
-scheduler()
+ec.scheduler()
+  .io(xtc)
+  .sop(xtc(), lambda)
+  .execute();
 
-.
-io(xtc)
-.
+ec.deallocate(xta, xtb, xtc);
 
-sop(xtc(), lambda
-
-)
-.
-
-execute();
-
-ec.
-deallocate(xta, xtb, xtc
-);
 ASSERT_TRUE(status);
 }
 
 #endif
-
 
 int main(int argc, char *argv[]) {
   bool intorb = false;
@@ -2268,6 +2115,7 @@ int main(int argc, char *argv[]) {
   GA_Initialize();
   MA_init(MT_DBL, 8000000, 20000000);
 
+  //fortran_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
   tammx_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
 
   tammx::ProcGroup pg{tammx::ProcGroup{MPI_COMM_WORLD}.clone()};

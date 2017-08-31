@@ -18,8 +18,9 @@
 #include <mpi.h>
 #include <ga.h>
 #include <macdecls.h>
+#include "nwtest/test_tammx.h"
 #include "nwtest/test_fortran.h"
-#include "nwtest/test_fortran_tce.h"
+//#include "nwtest/test_fortran_tce.h"
 
 //namespace {
 //    tammx::ExecutionContext* g_ec;
@@ -127,12 +128,13 @@ fortran_assign(tammx::Tensor<double> &xtc,
   Integer irrepa = xta.irrep().value();
   Integer irrepc = xtc.irrep().value();
 
-  auto offseta = offseta_map - tamm::Variables::int_mb();
-  auto offsetc = offsetc_map - tamm::Variables::int_mb();
-
-  fn(&da, &offseta, &irrepa, &dc, &offsetc, &irrepc);
-  delete[] offseta_map;
-  delete[] offsetc_map;
+// UNCOMMENT
+//  auto offseta = offseta_map - tamm::Variables::int_mb();
+//  auto offsetc = offsetc_map - tamm::Variables::int_mb();
+//
+//  fn(&da, &offseta, &irrepa, &dc, &offsetc, &irrepc);
+//  delete[] offseta_map;
+//  delete[] offsetc_map;
 }
 
 void
@@ -150,15 +152,16 @@ fortran_mult(tammx::Tensor<double> &xtc,
   Integer irrepb = xtb.irrep().value();
   Integer irrepc = xtc.irrep().value();
 
-  auto offseta = offseta_map - tamm::Variables::int_mb();
-  auto offsetb = offsetb_map - tamm::Variables::int_mb();
-  auto offsetc = offsetc_map - tamm::Variables::int_mb();
-
-  fn(&da, &offseta, &irrepa, &db, &offsetb, &irrepb, &dc, &offsetc, &irrepc);
-
-  delete[] offseta_map;
-  delete[] offsetb_map;
-  delete[] offsetc_map;
+//  UNCOMMENT
+//  auto offseta = offseta_map - tamm::Variables::int_mb();
+//  auto offsetb = offsetb_map - tamm::Variables::int_mb();
+//  auto offsetc = offsetc_map - tamm::Variables::int_mb();
+//
+//  fn(&da, &offseta, &irrepa, &db, &offsetb, &irrepb, &dc, &offsetc, &irrepc);
+//
+//  delete[] offseta_map;
+//  delete[] offsetb_map;
+//  delete[] offsetc_map;
 }
 
 // void
@@ -362,9 +365,9 @@ test_mult_no_n(tammx::ExecutionContext &ec,
 
   auto clabels = cupper_labels;
   clabels.insert_back(clower_labels.begin(), clower_labels.end());
+}
 
-
-int main(int argc, char *argv[]) {
+int run_fortran_tests(int argc, char *argv[]) {
   bool intorb = false;
   bool restricted = false;
 

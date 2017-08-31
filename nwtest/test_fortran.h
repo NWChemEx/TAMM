@@ -36,15 +36,20 @@ extern "C" {
   mult_fn ccsd_t1_2_;
 }
 
+void fortran_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
+                  const std::vector<int> &spins,
+                  const std::vector<int> &syms,
+                  const std::vector<int> &ranges);
 
+void fortran_finalize();
 
-bool test_assign_no_n(tammx::ExecutionContext& ec,
-                      double alpha,
-                      const std::vector<tamm::IndexName>& cupper_labels,
-                      const std::vector<tamm::IndexName>& clower_labels,
-                      const std::vector<tamm::IndexName>& aupper_labels,
-                      const std::vector<tamm::IndexName>& alower_labels,
-					  add_fn fortran_assign_fn);
+//bool test_assign_no_n(tammx::ExecutionContext& ec,
+//                      double alpha,
+//                      const std::vector<tamm::IndexName>& cupper_labels,
+//                      const std::vector<tamm::IndexName>& clower_labels,
+//                      const std::vector<tamm::IndexName>& aupper_labels,
+//                      const std::vector<tamm::IndexName>& alower_labels,
+//					  add_fn fortran_assign_fn);
 
 
 bool test_assign_no_n(tammx::ExecutionContext& ec,

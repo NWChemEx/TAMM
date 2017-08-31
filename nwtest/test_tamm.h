@@ -28,18 +28,18 @@
 //#include <ga.h>
 //#include <macdecls.h>
 
-namespace {
-tammx::ExecutionContext* g_ec;
-}
+// namespace {
+// tammx::ExecutionContext* g_ec;
+// }
 
-class TestEnvironment : public testing::Environment {
- public:
-  explicit TestEnvironment(tammx::ExecutionContext* ec) {
-    g_ec = ec;
-  }
-};
+// class TestEnvironment : public testing::Environment {
+//  public:
+//   explicit TestEnvironment(tammx::ExecutionContext* ec) {
+//     g_ec = ec;
+//   }
+// };
 
-//extern "C" {
+extern "C" {
 //
 //  void offset_ccsd_t1_2_1_(Integer *l_t1_2_1_offset, Integer *k_t1_2_1_offset,
 //                           Integer *size_t1_2_1);
@@ -51,11 +51,16 @@ class TestEnvironment : public testing::Environment {
 //                       Integer *tb, Integer *offsetb, Integer *irrepb,
 //                       Integer *tc, Integer *offsetc, Integer *irrepc);
 //
-//  typedef void mult_fn_2(Integer *ta, Integer *offseta,
-//                       Integer *tb, Integer *offsetb,
-//                       Integer *tc, Integer *offsetc);
-//
-//}
+
+typedef void mult_fn_2(Integer *ta, Integer *offseta,
+  Integer *tb, Integer *offsetb,
+  Integer *tc, Integer *offsetc);
+  
+mult_fn_2 cc2_t1_5_;
+
+}
+
+  
 
 const auto P1B = tamm::P1B;
 const auto P2B = tamm::P2B;

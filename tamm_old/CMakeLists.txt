@@ -171,7 +171,8 @@ target_compile_options(fort_deps PRIVATE ${tamm_fortran_link_flags})
 add_library(fort_deps_c STATIC ${TAMMX_PROJECT_DIR}/nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
-add_executable(nwtest ${TAMMX_PROJECT_DIR}/nwtest/test_tamm.cc ${TAMMX_PROJECT_DIR}/nwtest/test_tammx.cc ${TESTING_DEPS_SRC})
+add_executable(nwtest ${TAMMX_PROJECT_DIR}/nwtest/test_tamm.cc
+        ${TAMMX_PROJECT_DIR}/nwtest/test_fortran.cc ${TAMMX_PROJECT_DIR}/nwtest/test_tammx.cc ${TESTING_DEPS_SRC})
 add_dependencies(nwtest fort_deps fort_deps_c tamm tammx)
 target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes}
         ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include)

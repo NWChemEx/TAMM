@@ -29,7 +29,7 @@
 #include <macdecls.h>
 #include "nwtest/test_tamm.h"
 #include "nwtest/test_tammx.h"
-//#include "nwtest/test_fortran.h"
+#include "nwtest/test_fortran.h"
 #include "nwtest/test_tamm_tce.h"
 
 
@@ -568,7 +568,7 @@ fortran_mult_vvoo_vo(tamm::Tensor *tc,
 #define MULT_TEST_2D_4D_2D 1
 #define MULT_TEST_3D_1D_2D 1
 #define MULT_TEST_4D_2D_2D 1
-//
+
 
 
 using namespace tammx;
@@ -3045,7 +3045,7 @@ int main(int argc, char *argv[]) {
   GA_Initialize();
   MA_init(MT_DBL, 8000000, 20000000);
 
-  //fortran_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
+  fortran_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
   tamm_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
   tammx_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
 
@@ -3096,7 +3096,7 @@ test_assign_ipccsd_x2(ec);
   pg.destroy();
   tammx_finalize();
   tamm_finalize();
-  //fortran_finalize();
+  fortran_finalize();
 
   GA_Terminate();
   MPI_Finalize();

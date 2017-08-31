@@ -30,5 +30,19 @@
 //   }
 // };
 
+#include "tammx/tammx.h"
+
+// namespace {
+//     tammx::ExecutionContext* g_ec;
+//     }
+    
+//     class TestEnvironment : public testing::Environment {
+//      public:
+//       explicit TestEnvironment(tammx::ExecutionContext* ec) {
+//         g_ec = ec;
+//       }
+//     };
+
+using namespace tammx::tensor_labels;
 
 

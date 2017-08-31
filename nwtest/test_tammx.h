@@ -10,6 +10,7 @@
 //------------------------------------------------------------------------------
 
 #include "tammx/tammx.h"
+using namespace tammx;
 
 namespace {
   tammx::ExecutionContext* g_ec;
@@ -22,7 +23,6 @@ namespace {
     }
   };
 
-  using namespace tammx;
 
   tammx::TensorVec <tammx::SymmGroup>
   tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup);
@@ -41,7 +41,7 @@ namespace {
   test_initval_no_n(tammx::ExecutionContext &ec,
                     const tammx::TensorLabel &upper_labels,
                     const tammx::TensorLabel &lower_labels);
-                    
+
   bool
   test_symm_assign(tammx::ExecutionContext &ec,
                    const tammx::TensorVec <tammx::SymmGroup> &cindices,

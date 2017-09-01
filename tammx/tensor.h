@@ -34,7 +34,7 @@ class Tensor : public TensorBase {
   //       mgr_{std::move(tensor.mgr_)},
   //       distribution_{std::move(tensor.distribution_)} {}
 
-  Tensor(const TensorVec<SymmGroup> &indices,
+  Tensor(const TensorVec<TensorSymmGroup> &indices,
          TensorRank nupper_indices,
          Irrep irrep,
          bool spin_restricted)
@@ -42,14 +42,14 @@ class Tensor : public TensorBase {
         TensorBase{indices, nupper_indices, irrep, spin_restricted},
         mgr_{nullptr},
         distribution_{nullptr} {}
-
+  
   Tensor(const IndexInfo& iinfo,
          Irrep irrep,
          bool spin_restricted)
       : Tensor{std::get<0>(iinfo), std::get<1>(iinfo), irrep, spin_restricted} {}
 
   Tensor(ProcGroup pg,
-         const TensorVec<SymmGroup> &indices,
+         const TensorVec<TensorSymmGroup> &indices,
          TensorRank nupper_indices,
          Irrep irrep,
          bool spin_restricted,

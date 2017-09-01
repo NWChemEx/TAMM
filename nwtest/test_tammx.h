@@ -23,7 +23,7 @@ using namespace tammx;
   };
 
 
-  tammx::TensorVec <tammx::SymmGroup>
+  tammx::TensorVec <tammx::TensorSymmGroup>
   tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup);
 
   void tammx_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
@@ -33,7 +33,7 @@ using namespace tammx;
 
   void tammx_finalize();
 
-  TensorVec <tammx::SymmGroup>
+  TensorVec <tammx::TensorSymmGroup>
   tammx_label_to_indices(const tammx::TensorLabel &labels);
 
   bool

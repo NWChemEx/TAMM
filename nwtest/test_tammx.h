@@ -56,7 +56,7 @@ using namespace tammx;
   tammx_symmetrize(tammx::ExecutionContext &ec, LabeledTensorType ltensor) {
     auto &tensor = *ltensor.tensor_;
     auto &label = ltensor.label_;
-    const auto &indices = tensor.indices();
+    const auto &indices = tensor.tindices();
     Expects(tensor.flindices().size() == label.size());
 
     auto label_copy = label;

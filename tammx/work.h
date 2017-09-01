@@ -28,7 +28,7 @@ template<typename T, typename Lambda>
 inline void
 tensor_map (LabeledTensor<T> ltc, Lambda func) {
   Tensor<T>& tc = *ltc.tensor_;
-  auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
+  auto citr = loop_iterator(slice_indices(tc.tindices(), ltc.label_));
   auto lambda = [&] (const TensorIndex& cblockid) {
     size_t dimc = tc.block_size(cblockid);
     if(tc.nonzero(cblockid) && tc.spin_unique(cblockid) && dimc>0) {
@@ -44,7 +44,7 @@ template<typename T, typename Lambda>
 inline void
 block_for (LabeledTensor<T> ltc, Lambda func) {
   Tensor<T>& tc = *ltc.tensor_;
-  auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
+  auto citr = loop_iterator(slice_indices(tc.tindices(), ltc.label_));
   auto lambda = [&] (const TensorIndex& cblockid) {
     size_t dimc = tc.block_size(cblockid);
     if(tc.nonzero(cblockid) && dimc>0) {

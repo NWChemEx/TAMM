@@ -59,13 +59,13 @@ class TensorBase {
     return spin_restricted_;
   }
 
-  TensorVec<SymmGroup> indices() const {
-    TensorVec<SymmGroup> ret;
-    for(const auto& tid: indices_) {
-      ret.push_back(SymmGroup(tid.grp_size, tid.dt));
-    }
-    return ret;
-  }
+  // TensorVec<SymmGroup> indices() const {
+  //   TensorVec<SymmGroup> ret;
+  //   for(const auto& tid: indices_) {
+  //     ret.push_back(SymmGroup(tid.size(), tid.dt()));
+  //   }
+  //   return ret;
+  // }
 
   TensorVec<TensorSymmGroup> tindices() const {
     return indices_;
@@ -205,7 +205,7 @@ class TensorBase {
     TensorDim ret;
     for(const auto& tsg: indices) {
       for(size_t i=0; i<tsg.size(); i++) {
-        ret.push_back(tsg.dt);
+        ret.push_back(tsg.dt());
       }
     }
     return ret;
@@ -219,7 +219,7 @@ class TensorBase {
       for(auto d : sg) {
         Expects(d == dim);
       }
-      ret.push_back(TensorSymmGroup{dim, sg.size()});
+      ret.push_back(TensorSymmGroup{RangeType{dim}, sg.size()});
     }
     return ret;
   }
@@ -235,7 +235,7 @@ class TensorBase {
 
 inline bool
 operator <= (const TensorBase& lhs, const TensorBase& rhs) {
-  return (lhs.indices() <= rhs.indices())
+  return (lhs.tindices() <= rhs.tindices())
       && (lhs.nupper_indices() <= rhs.nupper_indices())
       && (lhs.irrep() < rhs.irrep())
       && (lhs.spin_restricted () < rhs.spin_restricted());
@@ -243,7 +243,7 @@ operator <= (const TensorBase& lhs, const TensorBase& rhs) {
 
 inline bool
 operator == (const TensorBase& lhs, const TensorBase& rhs) {
-  return (lhs.indices() == rhs.indices())
+  return (lhs.tindices() == rhs.tindices())
       && (lhs.nupper_indices() == rhs.nupper_indices())
       && (lhs.irrep() < rhs.irrep())
       && (lhs.spin_restricted () < rhs.spin_restricted());
@@ -282,6 +282,23 @@ loop_iterator(const TensorVec<SymmGroup>& indices ) {
   }
   //FIXME:Handle Scalar
   if(indices.size()==0){
+    tloops.push_back(TriangleLoop{});
+    tloops_last.push_back(tloops.back().get_end());
+  }
+  return ProductIterator<TriangleLoop>(tloops, tloops_last);
+}
+
+inline ProductIterator<TriangleLoop>
+loop_iterator(const TensorVec<TensorSymmGroup>& tindices ) {
+  TensorVec<TriangleLoop> tloops, tloops_last;
+  for(const auto &sg: tindices) {
+    BlockDim lo, hi;
+    std::tie(lo, hi) = tensor_index_range(sg.rt());
+    tloops.push_back(TriangleLoop{sg.size(), lo, hi});
+    tloops_last.push_back(tloops.back().get_end());
+  }
+  //FIXME:Handle Scalar
+  if(tindices.size()==0){
     tloops.push_back(TriangleLoop{});
     tloops_last.push_back(tloops.back().get_end());
   }

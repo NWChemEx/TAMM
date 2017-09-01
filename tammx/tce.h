@@ -7,6 +7,7 @@
 #include <iosfwd>
 #include <numeric>
 #include <iterator>
+#include <sstream>
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
 
@@ -227,6 +228,172 @@ tensor_index_range(DimType dt) {
   //     assert(0);
   // }
 }
+
+class RangeType {
+ public:
+  RangeType() = default;
+  RangeType(const RangeType&) = default;
+  ~RangeType() = default;
+  RangeType(RangeType&&) = default;
+  RangeType& operator = (const RangeType&) = default;
+  RangeType& operator = (RangeType&&) = default;
+  
+  RangeType(DimType dt,
+            BlockDim blo = BlockDim{0},
+            BlockDim bhi = BlockDim{0})
+      : dt_{dt},
+        blo_{blo},
+        bhi_{bhi_} {
+    if(dt != DimType::c) {
+      std::tie(blo_,bhi_) = tensor_index_range(dt_);
+    }
+    Expects(blo_ >= BlockDim{1});
+    if(bhi_ < BlockDim{1}) {
+      bhi_ = blo_ + 1;
+    }
+  }
+
+  DimType dt() const {
+    return dt_;
+  }
+
+  std::pair<BlockDim,BlockDim> range() const {
+    return {blo_, bhi_};
+  }
+
+  BlockDim blo() const {
+    return blo_;
+  }
+
+  BlockDim bhi() const {
+    return bhi_;
+  }
+
+ private:
+  DimType dt_;
+  BlockDim blo_, bhi_;
+};
+
+inline bool
+operator == (const RangeType& lhs, const RangeType& rhs) {
+  return (lhs.dt() == rhs.dt()) &&
+      (lhs.blo() == rhs.blo()) &&
+      (lhs.bhi() == rhs.bhi());
+}
+
+inline bool
+operator != (const RangeType& lhs, const RangeType& rhs) {
+  return !(lhs == rhs);
+}
+
+inline bool
+operator <= (const RangeType& lhs, const RangeType& rhs) {
+  return (lhs.dt() <= rhs.dt()) &&
+      (lhs.blo() <= rhs.blo()) &&
+      (lhs.bhi() <= rhs.bhi());
+}
+
+inline bool
+operator < (const RangeType& lhs, const RangeType& rhs) {
+  return (lhs <= rhs) && (lhs != rhs);
+}
+
+inline std::pair<BlockDim,BlockDim>
+tensor_index_range(const RangeType& rt) {
+  return rt.range();
+}  
+
+inline bool
+is_range_subset(const RangeType& superset,
+                const RangeType& subset) {
+  if(superset.dt() != DimType::c
+     && subset.dt() != DimType::c) {
+    return is_dim_subset(superset.dt(), subset.dt());
+  }
+  return subset.blo() >= superset.blo()
+      && subset.bhi() <= superset.bhi();
+}
+
+inline std::string
+to_string(const RangeType& rt) {
+  switch(rt.dt()) {
+    case DimType::o:
+      return "o";
+      break;
+    case DimType::v:
+      return "v";
+      break;
+    case DimType::oa:
+      return "oa";
+      break;
+    case DimType::ob:
+      return "ob";
+      break;
+    case DimType::va:
+      return "va";
+      break;
+    case DimType::vb:
+      return "vb";
+      break;
+    case DimType::n:
+      return "n";
+      break;
+    case DimType::c:
+      return static_cast<std::ostringstream*>(&(std::ostringstream()<<"c"<<rt.blo()<<".."<<rt.bhi()<<"]"))->str();
+      break;
+    default:
+      assert(0);
+  }
+}
+
+class TensorSymmGroup {
+ public:
+  TensorSymmGroup() = default;
+  TensorSymmGroup(const RangeType& rt, size_t grp_size)
+      : rt_{rt},
+        grp_size_{grp_size} {}
+  
+  DimType dt() const {
+    return rt_.dt();
+  }
+
+  const RangeType& rt() const {
+    return rt_;
+  }
+  
+  size_t size() const {
+    return grp_size_;
+  }
+ private:
+  RangeType rt_;
+  size_t grp_size_;
+};
+
+inline bool
+operator == (const TensorSymmGroup& lhs, const TensorSymmGroup& rhs) {
+  return lhs.size() == rhs.size()
+      && lhs.rt() == rhs.rt();
+}
+
+inline bool
+operator <= (const TensorSymmGroup& lhs, const TensorSymmGroup& rhs) {
+  return lhs.size() <= rhs.size()
+      && lhs.rt() <= rhs.rt();
+}
+
+inline bool
+operator != (const TensorSymmGroup& lhs, const TensorSymmGroup& rhs) {
+  return !(lhs == rhs);
+}
+
+inline bool
+operator < (const TensorSymmGroup& lhs, const TensorSymmGroup& rhs) {
+  return (lhs <= rhs) & (lhs != rhs);
+}
+
+
+
+using TensorRange = TensorVec<RangeType>;
 
 
 }; //namespace tammx

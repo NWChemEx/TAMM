@@ -80,7 +80,8 @@ enum class DimType { o  = 0b0011,
                      ob = 0b0010,
                      va = 0b0100,
                      vb = 0b1000,
-                     n  = 0b1111
+                     n  = 0b1111,
+                     c  = 0b0000,
 };
 
 inline bool
@@ -183,14 +184,6 @@ operator << (std::ostream& os, IndexLabel il) {
   os<<str << il.label;
   return os;
 }
-
-struct TensorSymmGroup {
-  DimType dt;
-  int grp_size;
-  size_t size() const {
-    return grp_size;
-  }
-};
 
 const TensorRank maxrank{8};
 

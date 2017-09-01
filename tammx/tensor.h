@@ -246,64 +246,64 @@ class Tensor : public TensorBase {
 }; // class Tensor
 
 
-template<typename TensorType>
-class TensorBuilder {
- public:
-  TensorBuilder<TensorType> indices(const TensorVec<SymmGroup>& ind) {
-    indices_ = ind;
-    return *this;
-  }
+// template<typename TensorType>
+// class TensorBuilder {
+//  public:
+//   TensorBuilder<TensorType> indices(const TensorVec<SymmGroup>& ind) {
+//     indices_ = ind;
+//     return *this;
+//   }
 
-  TensorBuilder<TensorType> indices(const IndexInfo& iinfo) {
-    indices_ = std::get<0>(iinfo);
-    nupper_indices_ = std::get<1>(iinfo);
-    return *this;
-  }
+//   TensorBuilder<TensorType> indices(const IndexInfo& iinfo) {
+//     indices_ = std::get<0>(iinfo);
+//     nupper_indices_ = std::get<1>(iinfo);
+//     return *this;
+//   }
 
-  TensorBuilder<TensorType> irrep(Irrep irr) {
-    irrep_ = irr;
-    return *this;
-  }
+//   TensorBuilder<TensorType> irrep(Irrep irr) {
+//     irrep_ = irr;
+//     return *this;
+//   }
 
-  TensorBuilder<TensorType> nupper_indices(int nup) {
-    nupper_indices_ = nup;
-    return *this;
-  }
+//   TensorBuilder<TensorType> nupper_indices(int nup) {
+//     nupper_indices_ = nup;
+//     return *this;
+//   }
 
-  TensorBuilder<TensorType> pg(ProcGroup pg1) {
-    pg_ = pg1;
-    return *this;
-  }
+//   TensorBuilder<TensorType> pg(ProcGroup pg1) {
+//     pg_ = pg1;
+//     return *this;
+//   }
 
-  TensorBuilder<TensorType> spin_restricted(bool spinr) {
-    spin_restricted_ = spinr;
-    return *this;
-  }
+//   TensorBuilder<TensorType> spin_restricted(bool spinr) {
+//     spin_restricted_ = spinr;
+//     return *this;
+//   }
 
-  template<typename T = typename TensorType::element_type>
-  Tensor<T> build() {
-    return Tensor<T>{pg_, indices_, nupper_indices_, irrep_, spin_restricted_,
-          tensor_.distribution(), tensor_.memory_manager()};
-  }
+//   template<typename T = typename TensorType::element_type>
+//   Tensor<T> build() {
+//     return Tensor<T>{pg_, indices_, nupper_indices_, irrep_, spin_restricted_,
+//           tensor_.distribution(), tensor_.memory_manager()};
+//   }
 
-  TensorBuilder(const TensorType& tensor)
-      : tensor_{tensor},
-        indices_{tensor.indices()},
-        nupper_indices_{tensor.nupper_indices()},
-        pg_{tensor.pg()},
-        irrep_{tensor.irrep()},
-        spin_restricted_{tensor.spin_restricted()} {}
+//   TensorBuilder(const TensorType& tensor)
+//       : tensor_{tensor},
+//         indices_{tensor.indices()},
+//         nupper_indices_{tensor.nupper_indices()},
+//         pg_{tensor.pg()},
+//         irrep_{tensor.irrep()},
+//         spin_restricted_{tensor.spin_restricted()} {}
 
-  const TensorType& tensor_;
-  TensorVec<SymmGroup> indices_;
-  int nupper_indices_;
-  ProcGroup pg_;
-  Irrep irrep_;
-  bool spin_restricted_;
+//   const TensorType& tensor_;
+//   TensorVec<SymmGroup> indices_;
+//   int nupper_indices_;
+//   ProcGroup pg_;
+//   Irrep irrep_;
+//   bool spin_restricted_;
 
-  template<typename T>
-  friend class Tensor;
-};
+//   template<typename T>
+//   friend class Tensor;
+// };
 
 template<typename T>
 class Scalar : public Tensor<T> {

@@ -260,33 +260,33 @@ operator < (const TensorBase& lhs, const TensorBase& rhs) {
 }
 
 // @todo Does not work for arbitrary number of dimensions. 
-inline ProductIterator<TriangleLoop>
-loop_iterator(const TensorVec<SymmGroup>& indices ) {
-  TensorVec<TriangleLoop> tloops, tloops_last;
-  for(auto &sg: indices) {
-    size_t i=1;
-    for(; i<sg.size() && sg[i]==sg[0]; i++) { }    
-    BlockDim lo, hi;
-    std::tie(lo, hi) = tensor_index_range(sg[0]);
-    tloops.push_back(TriangleLoop{i, lo, hi});
-    tloops_last.push_back(tloops.back().get_end());
+// inline ProductIterator<TriangleLoop>
+// loop_iterator(const TensorVec<SymmGroup>& indices ) {
+//   TensorVec<TriangleLoop> tloops, tloops_last;
+//   for(auto &sg: indices) {
+//     size_t i=1;
+//     for(; i<sg.size() && sg[i]==sg[0]; i++) { }    
+//     BlockDim lo, hi;
+//     std::tie(lo, hi) = tensor_index_range(sg[0]);
+//     tloops.push_back(TriangleLoop{i, lo, hi});
+//     tloops_last.push_back(tloops.back().get_end());
 
-    if(i<sg.size()) {
-      auto ii = i+1;
-      for(; ii<sg.size() && sg[ii]==sg[i]; ii++) { }
-      std::tie(lo, hi) = tensor_index_range(sg[i]);
-      tloops.push_back(TriangleLoop{ii-i, lo, hi});
-      tloops_last.push_back(tloops.back().get_end());
-      Expects(ii == sg.size());
-    }
-  }
-  //FIXME:Handle Scalar
-  if(indices.size()==0){
-    tloops.push_back(TriangleLoop{});
-    tloops_last.push_back(tloops.back().get_end());
-  }
-  return ProductIterator<TriangleLoop>(tloops, tloops_last);
-}
+//     if(i<sg.size()) {
+//       auto ii = i+1;
+//       for(; ii<sg.size() && sg[ii]==sg[i]; ii++) { }
+//       std::tie(lo, hi) = tensor_index_range(sg[i]);
+//       tloops.push_back(TriangleLoop{ii-i, lo, hi});
+//       tloops_last.push_back(tloops.back().get_end());
+//       Expects(ii == sg.size());
+//     }
+//   }
+//   //FIXME:Handle Scalar
+//   if(indices.size()==0){
+//     tloops.push_back(TriangleLoop{});
+//     tloops_last.push_back(tloops.back().get_end());
+//   }
+//   return ProductIterator<TriangleLoop>(tloops, tloops_last);
+// }
 
 inline ProductIterator<TriangleLoop>
 loop_iterator(const TensorVec<TensorSymmGroup>& tindices ) {

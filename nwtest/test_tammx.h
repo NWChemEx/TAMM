@@ -43,8 +43,8 @@ using namespace tammx;
 
   bool
   test_symm_assign(tammx::ExecutionContext &ec,
-                   const tammx::TensorVec <tammx::SymmGroup> &cindices,
-                   const tammx::TensorVec <tammx::SymmGroup> &aindices,
+                   const tammx::TensorVec <tammx::TensorSymmGroup> &cindices,
+                   const tammx::TensorVec <tammx::TensorSymmGroup> &aindices,
                    int nupper_indices,
                    const tammx::TensorLabel &clabels,
                    double alpha,

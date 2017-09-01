@@ -1894,30 +1894,30 @@ AddOp<T, LabeledTensorType>::execute() {
 }
 #endif
 
-inline int
-compute_symmetry_scaling_factor(const TensorVec<SymmGroup>& sum_indices,
-                                TensorIndex sumid) {
-  int ret = 1;
-  auto itr = sumid.begin();
-  for(auto &sg: sum_indices) {
-    auto sz = sg.size();
-    Expects(sz > 0);
-    std::sort(itr, itr+sz);
-    auto fact = factorial(sz);
-    int tsize = 1;
-    for(int i=1; i<sz; i++) {
-      if(itr[i] != itr[i-1]) {
-        fact /= factorial(tsize);
-        tsize = 0;
-      }
-      tsize += 1;
-    }
-    fact /= factorial(tsize);
-    ret *= fact;
-    itr += sz;
-  }
-  return ret;
-}
+// inline int
+// compute_symmetry_scaling_factor(const TensorVec<SymmGroup>& sum_indices,
+//                                 TensorIndex sumid) {
+//   int ret = 1;
+//   auto itr = sumid.begin();
+//   for(auto &sg: sum_indices) {
+//     auto sz = sg.size();
+//     Expects(sz > 0);
+//     std::sort(itr, itr+sz);
+//     auto fact = factorial(sz);
+//     int tsize = 1;
+//     for(int i=1; i<sz; i++) {
+//       if(itr[i] != itr[i-1]) {
+//         fact /= factorial(tsize);
+//         tsize = 0;
+//       }
+//       tsize += 1;
+//     }
+//     fact /= factorial(tsize);
+//     ret *= fact;
+//     itr += sz;
+//   }
+//   return ret;
+// }
 
 inline int
 compute_symmetry_scaling_factor(const TensorVec<TensorSymmGroup>& sum_indices,

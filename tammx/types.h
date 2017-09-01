@@ -192,7 +192,7 @@ using TensorVec = BoundVec<T, maxrank>;
 
 using TensorIndex = TensorVec<BlockDim>;
 using TensorLabel = TensorVec<IndexLabel>;
-using SymmGroup = TensorVec<DimType>;
+//using SymmGroup = TensorVec<DimType>;
 using TensorDim = TensorVec<DimType>;
 using TensorPerm = TensorVec<int>;
 

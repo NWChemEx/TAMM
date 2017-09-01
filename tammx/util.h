@@ -525,24 +525,24 @@ factorial(int n) {
 //   return std::hash<typename StrongNum<S,T>::value_type>{}(s.value());
 // ;
 
-using IndexInfo = std::pair<TensorVec<SymmGroup>,int>;
+using IndexInfo = std::pair<TensorVec<TensorSymmGroup>,int>;
 
 namespace tensor_dims {
 
-const auto E  = TensorVec<SymmGroup>{};
-const auto O  = TensorVec<SymmGroup>{SymmGroup{DimType::o}};
-const auto V  = TensorVec<SymmGroup>{SymmGroup{DimType::v}};
-const auto N  = TensorVec<SymmGroup>{SymmGroup{DimType::n}};
-const auto OO = TensorVec<SymmGroup>{SymmGroup{DimType::o, DimType::o}};
-const auto OV = TensorVec<SymmGroup>{SymmGroup{DimType::o}, {DimType::v}};
-const auto VO = TensorVec<SymmGroup>{SymmGroup{DimType::v}, {DimType::o}};
-const auto VV = TensorVec<SymmGroup>{SymmGroup{DimType::v, DimType::v}};
-const auto NN = TensorVec<SymmGroup>{SymmGroup{DimType::n, DimType::n}};
+const auto E  = TensorVec<TensorSymmGroup>{};
+const auto O  = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::o}};
+const auto V  = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::v}};
+const auto N  = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::n}};
+const auto OO = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::o, 2}};
+const auto OV = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::o}, {DimType::v}};
+const auto VO = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::v}, {DimType::o}};
+const auto VV = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::v, 2}};
+const auto NN = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::n, 2}};
 
 inline IndexInfo
-operator | (const TensorVec<SymmGroup>& tv1,
-            const TensorVec<SymmGroup>& tv2) {
-  TensorVec<SymmGroup> ret;
+operator | (const TensorVec<TensorSymmGroup>& tv1,
+            const TensorVec<TensorSymmGroup>& tv2) {
+  TensorVec<TensorSymmGroup> ret;
   if(tv1.size() > 0) {
     ret.insert_back(tv1.begin(), tv1.end());
   }

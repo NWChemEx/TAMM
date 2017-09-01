@@ -13,16 +13,16 @@ namespace tammx {
 
 class TensorBase {
  public:
-  TensorBase(const TensorVec<SymmGroup> &indices,
-                  TensorRank nupper_indices,
-                  Irrep irrep,
-                  bool spin_restricted)
-      : TensorBase{to_tsymm_indices(indices),
-        nupper_indices,
-        irrep,
-        spin_restricted} {}
+  // TensorBase(const TensorVec<SymmGroup> &indices,
+  //                 TensorRank nupper_indices,
+  //                 Irrep irrep,
+  //                 bool spin_restricted)
+  //     : TensorBase{to_tsymm_indices(indices),
+  //       nupper_indices,
+  //       irrep,
+  //       spin_restricted} {}
 
-    TensorBase(const TensorVec<TensorSymmGroup> &indices,
+    TensorBase(const TensorVec<TensorSymmGroup>& indices,
                   TensorRank nupper_indices,
                   Irrep irrep,
                   bool spin_restricted)
@@ -211,18 +211,18 @@ class TensorBase {
     return ret;
   }
 
-  static TensorVec<TensorSymmGroup> to_tsymm_indices(const TensorVec<SymmGroup>& indices) {
-    TensorVec<TensorSymmGroup> ret;
-    for(auto sg : indices) {
-      Expects(sg.size()>0);
-      auto dim = sg[0];
-      for(auto d : sg) {
-        Expects(d == dim);
-      }
-      ret.push_back(TensorSymmGroup{RangeType{dim}, sg.size()});
-    }
-    return ret;
-  }
+  // static TensorVec<TensorSymmGroup> to_tsymm_indices(const TensorVec<SymmGroup>& indices) {
+  //   TensorVec<TensorSymmGroup> ret;
+  //   for(auto sg : indices) {
+  //     Expects(sg.size()>0);
+  //     auto dim = sg[0];
+  //     for(auto d : sg) {
+  //       Expects(d == dim);
+  //     }
+  //     ret.push_back(TensorSymmGroup{RangeType{dim}, sg.size()});
+  //   }
+  //   return ret;
+  // }
 
   //const TensorVec<SymmGroup> indices_;
   const TensorVec<TensorSymmGroup> indices_;

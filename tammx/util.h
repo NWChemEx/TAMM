@@ -11,6 +11,7 @@
 #include <string>
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
+#include "tammx/tce.h"
 
 /**
  * @todo Check types are convertible to necessary type rather than is_same
@@ -24,6 +25,17 @@ flatten(const TensorVec<TensorVec<T>> &vec) {
   TensorVec<T> ret;
   for(auto &v : vec) {
     ret.insert_back(v.begin(), v.end());
+  }
+  return ret;
+}
+
+inline TensorVec<RangeType>
+flatten(const TensorVec<TensorSymmGroup> &vec) {
+  TensorVec<RangeType> ret;
+  for(auto &v : vec) {
+    for(size_t i=0; i<v.size(); i++) {
+      ret.push_back(v.rt());
+    }
   }
   return ret;
 }
@@ -71,6 +83,7 @@ class LabelMap {
   // TensorVec<T> ids_;
   std::map<IndexLabel, T> lmap_;
 };
+
 
 /**
  * requires from.size() == to.size()
@@ -222,22 +235,57 @@ auto intersect(const Container &ctr1, const Container &ctr2) {
 #endif
 }
 
+// inline TensorVec<TensorLabel>
+// group_labels(const TensorVec<SymmGroup>& groups, const TensorLabel& labels) {
+//   // std::accumulate(groups.begin(), groups.end(), 0,
+//   //                 [] (const SymmGroup& sg, int sz) {
+//   //                   return sg.size() + sz;
+//   //                 });
+//   unsigned sz = 0;
+//   for(auto v : groups) {
+//     sz += v.size();
+//   }
+//   Expects(sz == labels.size());
+
+//   size_t pos = 0;
+//   TensorVec<TensorLabel> ret;
+//   for(auto &sg : groups) {
+//     size_t i=0;
+//     while(i<sg.size()) {
+//       TensorLabel lbl{labels[pos+i]};
+//       size_t i1;
+//       for(i1=1; i+i1<sg.size() && labels[pos+i+i1].dt == labels[pos+i].dt; i1++) {
+//         lbl.push_back(labels[pos+i+i1]);
+//       }
+//       ret.push_back(lbl);
+//       i += i1;
+//     }
+//     pos += sg.size();
+//   }
+//   return ret;
+// }
+
 inline TensorVec<TensorLabel>
-group_labels(const TensorVec<SymmGroup>& groups, const TensorLabel& labels) {
-  // std::accumulate(groups.begin(), groups.end(), 0,
-  //                 [] (const SymmGroup& sg, int sz) {
-  //                   return sg.size() + sz;
-  //                 });
+group_labels(const TensorVec<TensorSymmGroup>& groups, const TensorLabel& labels) {
   unsigned sz = 0;
   for(auto v : groups) {
     sz += v.size();
   }
   Expects(sz == labels.size());
 
-  int pos = 0;
+  size_t pos = 0;
   TensorVec<TensorLabel> ret;
-  for(auto sg : groups) {
-    ret.push_back(TensorLabel{labels.begin()+pos, labels.begin()+pos+sg.size()});
+  for(auto &sg : groups) {
+    size_t i=0;
+    while(i<sg.size()) {
+      TensorLabel lbl{labels[pos+i]};
+      size_t i1;
+      for(i1=1; i+i1<sg.size() && labels[pos+i+i1].dt == labels[pos+i].dt; i1++) {
+        lbl.push_back(labels[pos+i+i1]);
+      }
+      ret.push_back(lbl);
+      i += i1;
+    }
     pos += sg.size();
   }
   return ret;
@@ -263,22 +311,53 @@ group_partition(const TensorVec<TensorLabel>& label_groups_1,
   return ret_labels;
 }
 
+// inline TensorVec<TensorVec<TensorLabel>>
+// group_partition(const TensorVec<SymmGroup>& indices1,
+//                 const TensorLabel& label1,
+//                 const TensorVec<SymmGroup>& indices2,
+//                 const TensorLabel& label2) {
+//   auto label_groups_1 = group_labels(indices1, label1);
+//   auto label_groups_2 = group_labels(indices2, label2);
+//   return group_partition(label_groups_1, label_groups_2);
+// }
+
 inline TensorVec<TensorVec<TensorLabel>>
-group_partition(const TensorVec<SymmGroup>& indices1,
+group_partition(const TensorVec<TensorSymmGroup>& indices1,
                 const TensorLabel& label1,
-                const TensorVec<SymmGroup>& indices2,
+                const TensorVec<TensorSymmGroup>& indices2,
                 const TensorLabel& label2) {
   auto label_groups_1 = group_labels(indices1, label1);
   auto label_groups_2 = group_labels(indices2, label2);
   return group_partition(label_groups_1, label_groups_2);
 }
 
+// inline TensorVec<TensorVec<TensorLabel>>
+// group_partition(const TensorVec<SymmGroup>& indices1,
+//                 const TensorLabel& label1,
+//                 const TensorVec<SymmGroup>& indices2,
+//                 const TensorLabel& label2,
+//                 const TensorVec<SymmGroup>& indices3,
+//                 const TensorLabel& label3) {
+//   auto label_groups_1 = group_labels(indices1, label1);
+//   auto label_groups_2 = group_labels(indices2, label2);
+//   auto label_groups_3 = group_labels(indices3, label3);
+//   auto grp12 = group_partition(label_groups_1, label_groups_2);
+//   auto grp13 = group_partition(label_groups_1, label_groups_3);
+//   Expects(grp12.size() == grp13.size());
+//   auto grp = grp12;
+//   for(size_t i=0; i<grp.size(); i++) {
+//     grp[i].insert_back(grp13[i].begin(), grp13[i].end());
+//   }
+//   Expects(grp.size() == indices1.size());
+//   return grp;
+// }
+
 inline TensorVec<TensorVec<TensorLabel>>
-group_partition(const TensorVec<SymmGroup>& indices1,
+group_partition(const TensorVec<TensorSymmGroup>& indices1,
                 const TensorLabel& label1,
-                const TensorVec<SymmGroup>& indices2,
+                const TensorVec<TensorSymmGroup>& indices2,
                 const TensorLabel& label2,
-                const TensorVec<SymmGroup>& indices3,
+                const TensorVec<TensorSymmGroup>& indices3,
                 const TensorLabel& label3) {
   auto label_groups_1 = group_labels(indices1, label1);
   auto label_groups_2 = group_labels(indices2, label2);
@@ -357,20 +436,33 @@ std::string to_string(const BoundVec<T,maxsize> &vec, const std::string& sep = "
 //     });
 // }
 
-inline TensorVec<SymmGroup>
-slice_indices(const TensorVec<SymmGroup>& indices,
+// inline TensorVec<SymmGroup>
+// slice_indices(const TensorVec<SymmGroup>& indices,
+//               const TensorLabel& label) {
+//   TensorVec<SymmGroup> ret;
+//   auto grp_labels = group_labels(indices, label);
+//   for(auto &gl: grp_labels) {
+//     SymmGroup sg;
+//     for(auto &l: gl) {
+//       sg.push_back(l.dt);
+//     }
+//     ret.push_back(sg);
+//   }
+//   return ret;
+// }
+
+inline TensorVec<TensorSymmGroup>
+slice_indices(const TensorVec<TensorSymmGroup>& indices,
               const TensorLabel& label) {
-  TensorVec<SymmGroup> ret;
+  TensorVec<TensorSymmGroup> ret;
   auto grp_labels = group_labels(indices, label);
   for(auto &gl: grp_labels) {
-    SymmGroup sg;
-    for(auto &l: gl) {
-      sg.push_back(l.dt);
-    }
-    ret.push_back(sg);
+    Expects(gl.size() > 0);
+    ret.push_back(TensorSymmGroup{gl[0].dt, gl.size()});
   }
   return ret;
 }
+
 
 inline int
 factorial(int n) {
@@ -491,6 +583,64 @@ const OLabel i{0}, j{1};
 const VLabel a{0}, b{1};
 
 } // namespace tensor_labels
+
+template<typename Itr>
+class NestedIterator {
+ public:
+  NestedIterator(const std::vector<Itr>& itrs)
+      : itrs_{itrs},
+        done_{false} {
+          reset();
+        }
+
+  void reset() {
+    for(auto& it: itrs_) {
+      it.reset();
+      Expects(it.has_more());
+    }
+  }
+
+  size_t itr_size() const {
+    size_t ret = 0;
+    for(const auto& it: itrs_) {
+      ret += it.size();
+    }
+    return ret;
+  }
+
+  bool has_more() {
+    return !done_;
+  }
+
+  TensorLabel get() const {
+    TensorLabel ret;
+    for(const auto& it: itrs_) {
+      auto vtmp = it.get();
+      ret.insert_back(vtmp.begin(), vtmp.end());
+    }
+    return ret;
+  }
+
+  void next() {
+    int i = itrs_.size()-1;
+    for(; i>=0; i--) {
+      itrs_[i].next();
+      if (itrs_[i].has_more()) {
+        //std::cout<<"ACTION NEXT HAS MORE"<<std::endl;
+        break;
+      }
+      itrs_[i].reset();
+    }
+    if (i<0) {
+      done_ = true;
+    }
+  }
+
+ private:
+  std::vector<Itr> itrs_;
+  bool done_;
+};
+
 
 }; //namespace tammx
 

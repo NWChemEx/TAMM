@@ -124,7 +124,7 @@ class Distribution_NW : public Distribution {
       return;
     }
 
-    auto indices = tensor_structure_->indices();
+    auto indices = tensor_structure_->tindices();
     auto pdt =  loop_iterator(indices);
     auto last = pdt.get_end();
     int length = 0;

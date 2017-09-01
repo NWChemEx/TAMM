@@ -211,6 +211,21 @@ validate_slicing(const TensorVec<SymmGroup>& indices,
   }
 }
 
+inline void
+validate_slicing(const TensorVec<TensorSymmGroup>& indices,
+                 const TensorLabel& label) {
+  int pos = 0;
+  for(auto &grp : indices)  {
+    if (grp.size() > 0){
+      for(int i=0; i<grp.size(); i++) {
+        //Expects(label[pos+i].dt == label[pos].dt);
+        Expects(is_range_subset(grp.rt(), {label[pos+i].dt}));
+      }
+    }
+    pos += grp.size();
+  }
+}
+
 template<typename LabeledTensorType, typename T>
 inline void
 addop_validate(const LabeledTensorType& ltc,
@@ -225,8 +240,8 @@ addop_validate(const LabeledTensorType& ltc,
   TensorLabel clabel = ltc.label_;
   TensorLabel alabel = lta.label_;
 
-  validate_slicing(tc.indices(), ltc.label_);
-  validate_slicing(ta.indices(), lta.label_);
+  validate_slicing(tc.tindices(), ltc.label_);
+  validate_slicing(ta.tindices(), lta.label_);
 
   Expects(alabel.size() == ta.rank());
   Expects(clabel.size() == tc.rank());
@@ -274,9 +289,9 @@ multop_validate(const LabeledTensorType& ltc,
   Expects(alabel.size() == ta.rank());
   Expects(blabel.size() == tb.rank());
 
-  validate_slicing(tc.indices(), ltc.label_);
-  validate_slicing(ta.indices(), lta.label_);
-  validate_slicing(tb.indices(), ltb.label_);
+  validate_slicing(tc.tindices(), ltc.label_);
+  validate_slicing(ta.tindices(), lta.label_);
+  validate_slicing(tb.tindices(), ltb.label_);
 
   //all labels are of compatible type
   for(int i=0; i<alabel.size(); i++) {

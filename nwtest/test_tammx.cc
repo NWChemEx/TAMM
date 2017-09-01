@@ -104,29 +104,32 @@ void tammx_finalize() {
 //using namespace tammx;
 
 //namespace new_impl {
-TensorVec <tammx::SymmGroup>
+TensorVec <tammx::TensorSymmGroup>
 tammx_label_to_indices(const tammx::TensorLabel &labels) {
-  tammx::TensorVec <tammx::SymmGroup> ret;
+  tammx::TensorVec <tammx::TensorSymmGroup> ret;
   tammx::TensorDim tdims;
 
   for (auto l : labels) {
     tdims.push_back(l.dt);
   }
   size_t n = labels.size();
-  tammx::SymmGroup sg;
+  //tammx::SymmGroup sg;
+  size_t grp_size = 0;
+  DimType last_dt;
   for (auto dt: tdims) {
-    if (sg.size() == 0) {
-      sg.push_back(dt);
-    } else if (sg.back() == dt) {
-      sg.push_back(dt);
+    if (grp_size == 0) {
+      grp_size = 1;
+      last_dt = dt;
+    } else if (last_dt == dt) {
+      grp_size += 1;
     } else {
-      ret.push_back(sg);
-      sg = SymmGroup();
-      sg.push_back(dt);
+      ret.push_back({last_dt, grp_size});
+      grp_size = 1;
+      last_dt = dt;
     }
   }
-  if (sg.size() > 0) {
-    ret.push_back(sg);
+  if (grp_size > 0) {
+    ret.push_back({last_dt, grp_size});
   }
   return ret;
 }
@@ -199,7 +202,7 @@ test_initval_no_n(tammx::ExecutionContext &ec,
   const auto &lower_indices = tammx_label_to_indices(lower_labels);
 
   tammx::TensorRank nupper{upper_labels.size()};
-  tammx::TensorVec <tammx::SymmGroup> indices{upper_indices};
+  tammx::TensorVec <tammx::TensorSymmGroup> indices{upper_indices};
   indices.insert_back(lower_indices.begin(), lower_indices.end());
   tammx::Tensor<double> xta{indices, nupper, tammx::Irrep{0}, false};
   tammx::Tensor<double> xtc{indices, nupper, tammx::Irrep{0}, false};
@@ -239,8 +242,8 @@ test_initval_no_n(tammx::ExecutionContext &ec,
 
 bool
 test_symm_assign(tammx::ExecutionContext &ec,
-                 const tammx::TensorVec <tammx::SymmGroup> &cindices,
-                 const tammx::TensorVec <tammx::SymmGroup> &aindices,
+                 const tammx::TensorVec <tammx::TensorSymmGroup> &cindices,
+                 const tammx::TensorVec <tammx::TensorSymmGroup> &aindices,
                  int nupper_indices,
                  const tammx::TensorLabel &clabels,
                  double alpha,
@@ -333,24 +336,24 @@ test_symm_assign(tammx::ExecutionContext &ec,
 }
 
 
-tammx::TensorVec <tammx::SymmGroup>
+tammx::TensorVec <tammx::TensorSymmGroup>
 tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup) {
-  tammx::TensorVec <tammx::SymmGroup> ret;
+  tammx::TensorVec <tammx::TensorSymmGroup> ret;
 
   int nlo = dims.size() - nup;
   if (nup == 0) {
     //no-op
   } else if (nup == 1) {
-    tammx::SymmGroup sg{dims[0]};
-    ret.push_back(sg);
+    //tammx::SymmGroup sg{dims[0]};
+    ret.push_back({dims[0]});
   } else if (nup == 2) {
     if (dims[0] == dims[1]) {
-      tammx::SymmGroup sg{dims[0], dims[1]};
-      ret.push_back(sg);
+      //tammx::SymmGroup sg{dims[0], dims[1]};
+      ret.push_back({dims[0], 2});
     } else {
-      tammx::SymmGroup sg1{dims[0]}, sg2{dims[1]};
-      ret.push_back(sg1);
-      ret.push_back(sg2);
+      //tammx::SymmGroup sg1{dims[0]}, sg2{dims[1]};
+      ret.push_back({dims[0]});
+      ret.push_back({dims[1]});
     }
   } else {
     assert(0);
@@ -359,16 +362,20 @@ tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup) {
   if (nlo == 0) {
     //no-op
   } else if (nlo == 1) {
-    tammx::SymmGroup sg{dims[nup]};
-    ret.push_back(sg);
+    // tammx::SymmGroup sg{dims[nup]};
+    // ret.push_back(sg);
+    ret.push_back({dims[nup]});
   } else if (nlo == 2) {
     if (dims[nup + 0] == dims[nup + 1]) {
-      tammx::SymmGroup sg{dims[nup + 0], dims[nup + 1]};
-      ret.push_back(sg);
+      // tammx::SymmGroup sg{dims[nup + 0], dims[nup + 1]};
+      // ret.push_back(sg);
+      ret.push_back({dims[nup], 2});
     } else {
-      tammx::SymmGroup sg1{dims[nup + 0]}, sg2{dims[nup + 1]};
-      ret.push_back(sg1);
-      ret.push_back(sg2);
+      // tammx::SymmGroup sg1{dims[nup + 0]}, sg2{dims[nup + 1]};
+      // ret.push_back(sg1);
+      // ret.push_back(sg2);
+      ret.push_back({dims[nup+0]});
+      ret.push_back({dims[nup+1]});
     }
   } else {
     assert(0);

@@ -349,7 +349,7 @@ to_string(const RangeType& rt) {
 class TensorSymmGroup {
  public:
   TensorSymmGroup() = default;
-  TensorSymmGroup(const RangeType& rt, size_t grp_size)
+  TensorSymmGroup(const RangeType& rt, size_t grp_size=1)
       : rt_{rt},
         grp_size_{grp_size} {}
   

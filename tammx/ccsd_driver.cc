@@ -231,7 +231,8 @@ double ccsd_driver(ExecutionContext& ec,
         auto block = d_f1.get(blockid);
         auto dim = d_f1.block_dims(blockid)[0].value();
         auto offset = d_f1.block_offset(blockid)[0].value();
-        for(auto p = offset,i=0; p < offset + dim; p++,i++) {
+        size_t i=0;
+        for(auto p = offset; p < offset + dim; p++,i++) {
           p_evl_sorted[p] = block.buf()[i*dim + i];
         }
       }

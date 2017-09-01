@@ -196,20 +196,20 @@ operator * (T1 alpha, std::tuple<LabeledTensor<T2>, LabeledTensor<T2>> rhs) {
 
 //@todo for now assume all indices in a symmetry group are sliced
 //the same way
-inline void
-validate_slicing(const TensorVec<SymmGroup>& indices,
-                 const TensorLabel& label) {
-  int pos = 0;
-  for(auto grp : indices)  {
-    if (grp.size() > 0){
-      for(int i=0; i<grp.size(); i++) {
-        //Expects(label[pos+i].dt == label[pos].dt);
-        Expects(is_dim_subset(grp[i], label[pos+i].dt));
-      }
-    }
-    pos += grp.size();
-  }
-}
+// inline void
+// validate_slicing(const TensorVec<SymmGroup>& indices,
+//                  const TensorLabel& label) {
+//   int pos = 0;
+//   for(auto grp : indices)  {
+//     if (grp.size() > 0){
+//       for(int i=0; i<grp.size(); i++) {
+//         //Expects(label[pos+i].dt == label[pos].dt);
+//         Expects(is_dim_subset(grp[i], label[pos+i].dt));
+//       }
+//     }
+//     pos += grp.size();
+//   }
+// }
 
 inline void
 validate_slicing(const TensorVec<TensorSymmGroup>& indices,

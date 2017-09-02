@@ -49,6 +49,7 @@ void init_fortran_vars_(Integer *noa1, Integer *nob1, Integer *nva1,
                         Integer *spins, Integer *syms, Integer *ranges);
 void finalize_fortran_vars_();
 void f_calls_setvars_cxx_();
+}
 
 tamm::RangeType
 tamm_idname_to_tamm_range(const tamm::IndexName &idname) {
@@ -2895,41 +2896,12 @@ int main(int argc, char *argv[]) {
 
   ::testing::InitGoogleTest(&argc, argv);
 
-  int ret = 0;
-
   tammx::ExecutionContext ec{pg, &default_distribution, &default_memory_manager,
                              default_irrep, default_spin_restricted};
 
   testing::AddGlobalTestEnvironment(new TestEnvironment(&ec));
 
-  // temporarily commented
-  ret = RUN_ALL_TESTS();
-  // test_assign_2d(ec);
-  // test_assign_4d(ec);
-  // test_assign(ec);
-  // test_mult_vo_oo(ec);
-  // test_mult_vvoo_ov(ec);
-#if 0
-  // CCSD methods
-test_assign_ccsd_e(ec);
-test_assign_ccsd_t1(ec);
-test_assign_ccsd_t2(ec);
-test_assign_cc2_t1(ec);
-test_assign_cc2_t2(ec);
-
-test_assign_cisd_c1(ec);
-test_assign_cisd_c2(ec);
-test_assign_ccsd_lambda1(ec);
-test_assign_ccsd_lambda2(ec);
-test_assign_eaccsd_x1(ec);
-test_assign_eaccsd_x2(ec);
-
-test_assign_icsd_t1(ec);
-test_assign_icsd_t2(ec);
-
-test_assign_ipccsd_x1(ec);
-test_assign_ipccsd_x2(ec);
-#endif
+  int ret = RUN_ALL_TESTS();
 
   pg.destroy();
   tammx_finalize();

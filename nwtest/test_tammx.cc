@@ -18,32 +18,6 @@
 #include <macdecls.h>
 #include "nwtest/test_tammx.h"
 
-//namespace {
-//    tammx::ExecutionContext* g_ec;
-//}
-//
-//class TestEnvironment : public testing::Environment {
-//public:
-//    explicit TestEnvironment(tammx::ExecutionContext* ec) {
-//        g_ec = ec;
-//    }
-//};
-
-
-//void
-//assert_result(bool pass_or_fail, const std::string& msg) {
-//  if (!pass_or_fail) {
-//    std::cout << "C & F Tensors differ in Test " << msg << std::endl;
-//  } else {
-//    std::cout << "Congratulations! Test " << msg << " PASSED" << std::endl;
-//  }
-//}
-//
-//
-
-
-
-
 
 
 void tammx_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
@@ -101,9 +75,6 @@ void tammx_finalize() {
 
 ////////////////////////////////////////////////
 
-//using namespace tammx;
-
-//namespace new_impl {
 TensorVec <tammx::TensorSymmGroup>
 tammx_label_to_indices(const tammx::TensorLabel &labels) {
   tammx::TensorVec <tammx::TensorSymmGroup> ret;
@@ -159,53 +130,6 @@ tammx_label_to_indices(const tammx::TensorLabel &upper_labels,
   }
   return ret;
 }
-
-
-// tammx::TensorVec<tammx::SymmGroup>
-// tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup) {
-//   tammx::TensorVec<tammx::SymmGroup> ret;
-
-//   int nlo = dims.size() - nup;
-//   if(nup==0) {
-//     //no-op
-//   } else if(nup == 1) {
-//     tammx::SymmGroup sg{dims[0]};
-//     ret.push_back(sg);
-//   } else if (nup == 2) {
-//     if(dims[0] == dims[1]) {
-//       tammx::SymmGroup sg{dims[0], dims[1]};
-//       ret.push_back(sg);
-//     }
-//     else {
-//       tammx::SymmGroup sg1{dims[0]}, sg2{dims[1]};
-//       ret.push_back(sg1);
-//       ret.push_back(sg2);
-//     }
-//   } else {
-//     assert(0);
-//   }
-
-//   if(nlo==0) {
-//     //no-op
-//   } else if(nlo == 1) {
-//     tammx::SymmGroup sg{dims[nup]};
-//     ret.push_back(sg);
-//   } else if (nlo == 2) {
-//     if(dims[nup + 0] == dims[nup + 1]) {
-//       tammx::SymmGroup sg{dims[nup + 0], dims[nup + 1]};
-//       ret.push_back(sg);
-//     }
-//     else {
-//       tammx::SymmGroup sg1{dims[nup + 0]}, sg2{dims[nup + 1]};
-//       ret.push_back(sg1);
-//       ret.push_back(sg2);
-//     }
-//   } else {
-//     assert(0);
-//   }
-//   return ret;
-// }
-
 
 template<typename T>
 void
@@ -279,12 +203,6 @@ test_symm_assign(tammx::ExecutionContext &ec,
   assert(factors.size() > 0);
   assert(factors.size() == alabels.size());
   bool restricted = ec.is_spin_restricted();
-  //auto restricted = tamm::Variables::restricted();
-  //auto clabels = tamm_label_to_tammx_label(tclabels);
-  // std::vector<tammx::TensorLabel> alabels;
-  // for(const auto& tal: talabels) {
-  //   alabels.push_back(tamm_label_to_tammx_label(tal));
-  // }
   tammx::TensorRank nup{nupper_indices};
   tammx::Tensor<double> tc{cindices, nup, tammx::Irrep{0}, restricted};
   tammx::Tensor<double> ta{aindices, nup, tammx::Irrep{0}, restricted};

@@ -231,26 +231,27 @@ tensor_index_range(DimType dt) {
 
 class RangeType {
  public:
-  RangeType() = default;
   RangeType(const RangeType&) = default;
   ~RangeType() = default;
   RangeType(RangeType&&) = default;
   RangeType& operator = (const RangeType&) = default;
   RangeType& operator = (RangeType&&) = default;
-  
+
+  RangeType(DimType dt = DimType::inv)
+      : dt_{dt} {
+    Expects(dt != DimType::c);
+  }
+
   RangeType(DimType dt,
-            BlockDim blo = BlockDim{0},
+            BlockDim blo,
             BlockDim bhi = BlockDim{0})
       : dt_{dt},
         blo_{blo},
-        bhi_{bhi_} {
-    if(dt != DimType::c) {
-      std::tie(blo_,bhi_) = tensor_index_range(dt_);
-    }
-    Expects(blo_ >= BlockDim{1});
-    if(bhi_ < BlockDim{1}) {
-      bhi_ = blo_ + 1;
-    }
+        bhi_{bhi} {
+          Expects(dt == DimType::c);
+          if(bhi_ == BlockDim{0}) {
+            bhi_ = blo_ + 1;
+          }
   }
 
   DimType dt() const {
@@ -258,15 +259,23 @@ class RangeType {
   }
 
   std::pair<BlockDim,BlockDim> range() const {
-    return {blo_, bhi_};
+    return {blo(), bhi()};
   }
 
   BlockDim blo() const {
-    return blo_;
+    Expects(dt_ != DimType::inv);
+    if(dt_ == DimType::c) {
+      return blo_;
+    }
+    return TCE::dim_lo(dt_);
   }
 
   BlockDim bhi() const {
-    return bhi_;
+    Expects(dt_ != DimType::inv);
+    if(dt_ == DimType::c) {
+      return bhi_;
+    }
+    return TCE::dim_hi(dt_);
   }
 
  private:
@@ -295,13 +304,15 @@ operator <= (const RangeType& lhs, const RangeType& rhs) {
 
 inline bool
 operator < (const RangeType& lhs, const RangeType& rhs) {
-  return (lhs <= rhs) && (lhs != rhs);
+  return (lhs.dt() < rhs.dt()) ||
+      (lhs.dt() == rhs.dt() && lhs.blo() < rhs.blo()) ||
+      (lhs.dt() == rhs.dt() && lhs.blo() == rhs.blo() && lhs.bhi() < rhs.bhi());
 }
 
 inline std::pair<BlockDim,BlockDim>
 tensor_index_range(const RangeType& rt) {
   return rt.range();
-}  
+}
 
 inline bool
 is_range_subset(const RangeType& superset,
@@ -348,19 +359,22 @@ to_string(const RangeType& rt) {
 
 class TensorSymmGroup {
  public:
-  TensorSymmGroup() = default;
+  TensorSymmGroup()
+      : rt_{DimType::inv},
+        grp_size_{0} {}
+
   TensorSymmGroup(const RangeType& rt, size_t grp_size=1)
       : rt_{rt},
         grp_size_{grp_size} {}
-  
-  DimType dt() const {
-    return rt_.dt();
-  }
+
+  // DimType dt() const {
+  //   return rt_.dt();
+  // }
 
   const RangeType& rt() const {
     return rt_;
   }
-  
+
   size_t size() const {
     return grp_size_;
   }
@@ -388,12 +402,76 @@ operator != (const TensorSymmGroup& lhs, const TensorSymmGroup& rhs) {
 
 inline bool
 operator < (const TensorSymmGroup& lhs, const TensorSymmGroup& rhs) {
-  return (lhs <= rhs) & (lhs != rhs);
+  return (lhs.rt() < rhs.rt()) ||
+      (lhs.rt() == rhs.rt() && lhs.size() < rhs.size());
+}
+
+class IndexLabel {
+ public:
+  //DimType dt;
+  //RangeType rt;
+  int label;
+
+  IndexLabel() = default;
+  IndexLabel(int lbl, const RangeType& rtype)
+      : label{lbl},
+        rt_{rtype} {
+          Expects(rt_.dt() != DimType::inv);
+          Expects(rt_.dt() != DimType::c);
+          if(rt_.dt() != DimType::c) {
+            Expects(rt_.blo() == TCE::dim_lo(rt_.dt()));
+            Expects(rt_.bhi() == TCE::dim_hi(rt_.dt()));
+          }
+        }
+
+  const RangeType& rt() const {
+    return rt_;
+  }
+ private:
+  RangeType rt_;
+};
+
+
+
+inline bool
+operator == (const IndexLabel lhs, const IndexLabel rhs) {
+  return lhs.label == rhs.label
+      && lhs.rt() == rhs.rt();
+}
+
+inline bool
+operator != (const IndexLabel lhs, const IndexLabel rhs) {
+  return !(lhs == rhs);
+}
+
+inline bool
+operator < (const IndexLabel lhs, const IndexLabel rhs) {
+  return (lhs.label < rhs.label)
+      || (lhs.label == rhs.label && lhs.rt() < rhs.rt());
+}
+inline std::ostream&
+operator << (std::ostream& os, IndexLabel il) {
+  std::string str;
+  switch(il.rt().dt()) {
+    case DimType::o:
+      str = "h";
+      break;
+    case DimType::v:
+      str = "p";
+      break;
+    case DimType::n:
+      str = "n";
+      break;
+    default:
+      assert(0);
+  }
+  os<<str << il.label;
+  return os;
 }
 
 
-
 using TensorRange = TensorVec<RangeType>;
+using TensorLabel = TensorVec<IndexLabel>;
 
 
 }; //namespace tammx

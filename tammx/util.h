@@ -29,9 +29,9 @@ flatten(const TensorVec<TensorVec<T>> &vec) {
   return ret;
 }
 
-inline TensorVec<RangeType>
-flatten(const TensorVec<TensorSymmGroup> &vec) {
-  TensorVec<RangeType> ret;
+inline TensorRange
+flatten_range(const TensorVec<TensorSymmGroup> &vec) {
+  TensorRange ret;
   for(auto &v : vec) {
     for(size_t i=0; i<v.size(); i++) {
       ret.push_back(v.rt());
@@ -280,7 +280,7 @@ group_labels(const TensorVec<TensorSymmGroup>& groups, const TensorLabel& labels
     while(i<sg.size()) {
       TensorLabel lbl{labels[pos+i]};
       size_t i1;
-      for(i1=1; i+i1<sg.size() && labels[pos+i+i1].dt == labels[pos+i].dt; i1++) {
+      for(i1=1; i+i1<sg.size() && labels[pos+i+i1].rt() == labels[pos+i].rt(); i1++) {
         lbl.push_back(labels[pos+i+i1]);
       }
       ret.push_back(lbl);
@@ -377,7 +377,7 @@ using std::to_string;
 
 inline std::string
 to_string(const IndexLabel& lbl) {
-  return to_string(lbl.dt) + to_string(lbl.label);
+  return to_string(lbl.rt()) + to_string(lbl.label);
 }
 
 template<typename T, int maxsize>
@@ -458,7 +458,7 @@ slice_indices(const TensorVec<TensorSymmGroup>& indices,
   auto grp_labels = group_labels(indices, label);
   for(auto &gl: grp_labels) {
     Expects(gl.size() > 0);
-    ret.push_back(TensorSymmGroup{gl[0].dt, gl.size()});
+    ret.push_back(TensorSymmGroup{gl[0].rt(), gl.size()});
   }
   return ret;
 }
@@ -563,17 +563,17 @@ namespace tensor_labels {
 
 struct OLabel : public IndexLabel {
   OLabel(int n)
-      : IndexLabel{n, DimType::o} {}
+      : IndexLabel{n, RangeType{DimType::o}} {}
 };
 
 struct VLabel : public IndexLabel {
   VLabel(int n)
-      : IndexLabel{n, DimType::v} {}
+      : IndexLabel{n, RangeType{DimType::v}} {}
 };
 
 struct NLabel : public IndexLabel {
   NLabel(int n)
-      : IndexLabel{n, DimType::n} {}
+      : IndexLabel{n, RangeType{DimType::n}} {}
 };
 
 const OLabel h1{0}, h2{1}, h3{2}, h4{3}, h5{4}, h6{5}, h7{6}, h8{7}, h9{8}, h10{9}, h11{10};

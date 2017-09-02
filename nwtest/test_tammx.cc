@@ -107,16 +107,16 @@ void tammx_finalize() {
 TensorVec <tammx::TensorSymmGroup>
 tammx_label_to_indices(const tammx::TensorLabel &labels) {
   tammx::TensorVec <tammx::TensorSymmGroup> ret;
-  tammx::TensorDim tdims;
+  tammx::TensorRange tdims;
 
-  for (auto l : labels) {
-    tdims.push_back(l.dt);
+  for (const auto &l : labels) {
+    tdims.push_back(l.rt());
   }
   size_t n = labels.size();
   //tammx::SymmGroup sg;
   size_t grp_size = 0;
-  DimType last_dt;
-  for (auto dt: tdims) {
+  RangeType last_dt;
+  for (const auto &dt: tdims) {
     if (grp_size == 0) {
       grp_size = 1;
       last_dt = dt;

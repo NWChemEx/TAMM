@@ -39,6 +39,11 @@
 //   }
 // };
 
+#ifndef TEST_TAMM_H
+#define TEST_TAMM_H 
+
+#include "nwtest/test_tammx.h"
+
 extern "C" {
 //
 //  void offset_ccsd_t1_2_1_(Integer *l_t1_2_1_offset, Integer *k_t1_2_1_offset,
@@ -60,7 +65,7 @@ mult_fn_2 cc2_t1_5_;
 
 }
 
-  
+#if 0  
 
 const auto P1B = tamm::P1B;
 const auto P2B = tamm::P2B;
@@ -97,9 +102,29 @@ const auto H12B = tamm::H12B;
 //const auto h4 = tamm::H4B;
 const auto TO = tamm::TO;
 const auto TV = tamm::TV;
+#endif
 
 using namespace tammx::tensor_labels;
 
+bool
+test_assign(tammx::ExecutionContext &ec,
+            double alpha,
+            const tammx::TensorLabel &cupper_labels,
+            const tammx::TensorLabel &clower_labels,
+            const tammx::TensorLabel &aupper_labels,
+            const tammx::TensorLabel &alower_labels,
+            AllocationType at = AllocationType::no_n);
+
+bool
+test_assign(tammx::ExecutionContext &ec,
+            const tammx::TensorLabel &cupper_labels,
+            const tammx::TensorLabel &clower_labels,
+            double alpha,
+            const tammx::TensorLabel &aupper_labels,
+            const tammx::TensorLabel &alower_labels,
+            AllocationType at = AllocationType::no_n);
+
+#if 0
 bool test_assign(tammx::ExecutionContext& ec,
                       double alpha,
                       const std::vector<tamm::IndexName>& cupper_labels,
@@ -120,6 +145,7 @@ bool test_assign_no_n(tammx::ExecutionContext& ec,
                  double alpha,
                  const tammx::TensorLabel& aupper_labels,
                  const tammx::TensorLabel& alower_labels);
+#endif
 
 bool test_mult_no_n(tammx::ExecutionContext& ec,
                double alpha,
@@ -140,3 +166,5 @@ test_mult_no_n(tammx::ExecutionContext& ec,
                const tammx::TensorLabel& bupper_labels,
                const tammx::TensorLabel& blower_labels);
 
+
+#endif //TEST_TAMM_H 

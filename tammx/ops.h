@@ -1025,7 +1025,7 @@ inline std::pair<TensorVec<TensorSymmGroup>,TensorLabel>
 summation_indices(const LabeledTensor<T>& /*ltc*/,
                   const LabeledTensor<T>& lta,
                   const LabeledTensor<T>& ltb) {
-  auto aindices = flatten(lta.tensor_->tindices());
+  auto aindices = flatten_range(lta.tensor_->tindices());
   //auto bindices = flatten(ltb.tensor_.indices());
   auto alabels = group_labels(lta.tensor_->tindices(), lta.label_);
   auto blabels = group_labels(ltb.tensor_->tindices(), ltb.label_);

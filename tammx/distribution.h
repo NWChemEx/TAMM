@@ -176,11 +176,11 @@ private:
     TensorVec<TCE::Int> offsets, bases;
 
     const auto &flindices = tensor_structure_->flindices();
-    for(auto ind: flindices) {
-      offsets.push_back(TCE::dim_hi(ind).value() - TCE::dim_lo(ind).value());
+    for(const auto &ind: flindices) {
+      offsets.push_back(ind.bhi().value() - ind.blo().value());
     }
     for(auto ind: flindices) {
-      bases.push_back(TCE::dim_lo(ind).value());
+      bases.push_back(ind.blo().value());
     }
     int rank = flindices.size();
     TCE::Int offset = 1;
@@ -188,8 +188,8 @@ private:
     // std::cout<<"compute_key. blockid="<<blockid<<std::endl;
     // std::cout<<"compute_key. bases="<<bases<<std::endl;
     for(int i=rank-1; i>=0; i--) {
-      Expects(blockid[i] >= TCE::dim_lo(flindices[i]));
-      Expects(blockid[i] < TCE::dim_hi(flindices[i]));
+      Expects(blockid[i] >= flindices[i].blo());
+      Expects(blockid[i] < flindices[i].bhi());
       key += ((blockid[i].value() - bases[i]) * offset);
       offset *= offsets[i];
     }

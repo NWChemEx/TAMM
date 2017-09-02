@@ -965,21 +965,24 @@ tamm_mult(tammx::Tensor<double> &ttc,
 
 
 bool
-test_assign_no_n(tammx::ExecutionContext &ec,
-                 double alpha,
-                 const tammx::TensorLabel &cupper_labels,
-                 const tammx::TensorLabel &clower_labels,
-                 const tammx::TensorLabel &aupper_labels,
-                 const tammx::TensorLabel &alower_labels) {
-  const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
-  const auto &clower_indices = tammx_label_to_indices(clower_labels);
-  const auto &aupper_indices = tammx_label_to_indices(aupper_labels);
-  const auto &alower_indices = tammx_label_to_indices(alower_labels);
+test_assign(tammx::ExecutionContext &ec,
+            double alpha,
+            const tammx::TensorLabel &cupper_labels,
+            const tammx::TensorLabel &clower_labels,
+            const tammx::TensorLabel &aupper_labels,
+            const tammx::TensorLabel &alower_labels,
+            AllocationType at) {
+  // const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
+  // const auto &clower_indices = tammx_label_to_indices(clower_labels);
+  // const auto &aupper_indices = tammx_label_to_indices(aupper_labels);
+  // const auto &alower_indices = tammx_label_to_indices(alower_labels);
 
-  auto cindices = cupper_indices;
-  cindices.insert_back(clower_indices.begin(), clower_indices.end());
-  auto aindices = aupper_indices;
-  aindices.insert_back(alower_indices.begin(), alower_indices.end());
+  //auto cindices = cupper_indices;
+  //cindices.insert_back(clower_indices.begin(), clower_indices.end());
+  const auto& cindices = tammx_label_to_indices(cupper_labels, clower_labels, is_lhs_n(at));
+  const auto& aindices = tammx_label_to_indices(aupper_labels, alower_labels, is_rhs1_n(at));
+  // auto aindices = aupper_indices;
+  // aindices.insert_back(alower_indices.begin(), alower_indices.end());
   auto irrep = ec.irrep();
   auto restricted = ec.is_spin_restricted();
   auto cnup = cupper_labels.size();
@@ -1013,6 +1016,19 @@ test_assign_no_n(tammx::ExecutionContext &ec,
 
   ec.deallocate(tc1, tc2, ta);
   return status;
+}
+
+bool
+test_assign_no_n(tammx::ExecutionContext &ec,
+                 double alpha,
+                 const tammx::TensorLabel &cupper_labels,
+                 const tammx::TensorLabel &clower_labels,
+                 const tammx::TensorLabel &aupper_labels,
+                 const tammx::TensorLabel &alower_labels) {
+  return test_assign(ec, alpha,
+                     cupper_labels, clower_labels,
+                     aupper_labels, alower_labels,
+                     AllocationType::no_n);
 }
 
 bool
@@ -1035,55 +1051,59 @@ test_assign_right_n(tammx::ExecutionContext &ec,
                     const tammx::TensorLabel &clower_labels,
                     const tammx::TensorLabel &aupper_labels,
                     const tammx::TensorLabel &alower_labels) {
-  const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
-  const auto &clower_indices = tammx_label_to_indices(clower_labels);
+  return test_assign(ec, alpha,
+                     cupper_labels, clower_labels,
+                     aupper_labels, alower_labels,
+                     AllocationType::rhs1_n);  
+  // const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
+  // const auto &clower_indices = tammx_label_to_indices(clower_labels);
 
-  auto cindices = cupper_indices;
-  cindices.insert_back(clower_indices.begin(), clower_indices.end());
-  TensorVec<tammx::TensorSymmGroup> aupper_indices, alower_indices;
-  if(aupper_labels.size() > 0) {
-    aupper_indices = TensorVec<tammx::TensorSymmGroup>{tammx::TensorSymmGroup{tammx::DimType::n,
-                                                                              aupper_labels.size()}};
-  }
-  if(alower_labels.size() > 0) {
-    alower_indices = TensorVec<tammx::TensorSymmGroup>{tammx::TensorSymmGroup{tammx::DimType::n,
-                                                                              alower_labels.size()}};
-  }
-  auto aindices = aupper_indices;
-  aindices.insert_back(alower_indices.begin(), alower_indices.end());
+  // auto cindices = cupper_indices;
+  // cindices.insert_back(clower_indices.begin(), clower_indices.end());
+  // TensorVec<tammx::TensorSymmGroup> aupper_indices, alower_indices;
+  // if(aupper_labels.size() > 0) {
+  //   aupper_indices = TensorVec<tammx::TensorSymmGroup>{tammx::TensorSymmGroup{tammx::DimType::n,
+  //                                                                             aupper_labels.size()}};
+  // }
+  // if(alower_labels.size() > 0) {
+  //   alower_indices = TensorVec<tammx::TensorSymmGroup>{tammx::TensorSymmGroup{tammx::DimType::n,
+  //                                                                             alower_labels.size()}};
+  // }
+  // auto aindices = aupper_indices;
+  // aindices.insert_back(alower_indices.begin(), alower_indices.end());
 
-  auto irrep = ec.irrep();
-  auto restricted = ec.is_spin_restricted();
-  auto cnup = cupper_labels.size();
-  auto anup = aupper_labels.size();
+  // auto irrep = ec.irrep();
+  // auto restricted = ec.is_spin_restricted();
+  // auto cnup = cupper_labels.size();
+  // auto anup = aupper_labels.size();
 
-  tammx::Tensor<double> tc1{cindices, cnup, irrep, restricted};
-  tammx::Tensor<double> tc2{cindices, cnup, irrep, restricted};
-  tammx::Tensor<double> ta{aindices, anup, irrep, restricted};
+  // tammx::Tensor<double> tc1{cindices, cnup, irrep, restricted};
+  // tammx::Tensor<double> tc2{cindices, cnup, irrep, restricted};
+  // tammx::Tensor<double> ta{aindices, anup, irrep, restricted};
 
-  ec.allocate(ta, tc1, tc2);
+  // ec.allocate(ta, tc1, tc2);
 
-  ec.scheduler()
-    .io(ta, tc1, tc2)
-      (ta() = 0)
-      (tc1() = 0)
-      (tc2() = 0)
-    .execute();
+  // ec.scheduler()
+  //   .io(ta, tc1, tc2)
+  //     (ta() = 0)
+  //     (tc1() = 0)
+  //     (tc2() = 0)
+  //   .execute();
 
-  tammx_tensor_fill(ec, ta());
+  // tammx_tensor_fill(ec, ta());
 
-  auto clabels = cupper_labels;
-  clabels.insert_back(clower_labels.begin(), clower_labels.end());
-  auto alabels = aupper_labels;
-  alabels.insert_back(alower_labels.begin(), alower_labels.end());
+  // auto clabels = cupper_labels;
+  // clabels.insert_back(clower_labels.begin(), clower_labels.end());
+  // auto alabels = aupper_labels;
+  // alabels.insert_back(alower_labels.begin(), alower_labels.end());
 
-  tamm_assign(tc1, clabels, alpha, ta, alabels);
-  tammx_assign(ec, tc2, clabels, alpha, ta, alabels);
+  // tamm_assign(tc1, clabels, alpha, ta, alabels);
+  // tammx_assign(ec, tc2, clabels, alpha, ta, alabels);
 
-  bool status = tammx_tensors_are_equal(ec, tc1, tc2);
+  // bool status = tammx_tensors_are_equal(ec, tc1, tc2);
 
-  ec.deallocate(tc1, tc2, ta);
-  return status;
+  // ec.deallocate(tc1, tc2, ta);
+  // return status;
 }
 
 bool

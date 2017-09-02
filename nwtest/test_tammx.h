@@ -36,6 +36,11 @@ using namespace tammx;
   TensorVec <tammx::TensorSymmGroup>
   tammx_label_to_indices(const tammx::TensorLabel &labels);
 
+  TensorVec <tammx::TensorSymmGroup>
+  tammx_label_to_indices(const tammx::TensorLabel &upper_labels,
+                         const tammx::TensorLabel &lower_labels,
+                         bool all_n = false);
+
   bool
   test_initval_no_n(tammx::ExecutionContext &ec,
                     const tammx::TensorLabel &upper_labels,
@@ -96,6 +101,34 @@ using namespace tammx;
   }
 
 
+enum class AllocationType {
+  no_n      = 0b000,
+  lhs_n     = 0b100,
+  rhs1_n    = 0b010,
+  rhs2_n    = 0b001,
+  all_n     = 0b111,
+  all_rhs_n = 0b011,
+  lr1_n     = 0b110,
+  lr2_n     = 0b101
+};
+
+inline bool
+is_lhs_n(AllocationType at) {
+  return static_cast<unsigned>(at) &
+      static_cast<unsigned>(AllocationType::lhs_n);
+}
+
+inline bool
+is_rhs1_n(AllocationType at) {
+  return static_cast<unsigned>(at) &
+      static_cast<unsigned>(AllocationType::rhs1_n);
+}
+
+inline bool
+is_rhs2_n(AllocationType at) {
+  return static_cast<unsigned>(at) &
+      static_cast<unsigned>(AllocationType::rhs2_n);
+}
 
 template<typename T>
 void

@@ -134,6 +134,33 @@ tammx_label_to_indices(const tammx::TensorLabel &labels) {
   return ret;
 }
 
+TensorVec <tammx::TensorSymmGroup>
+tammx_label_to_indices(const tammx::TensorLabel &upper_labels,
+                       const tammx::TensorLabel &lower_labels,
+                       bool all_n) {
+  TensorVec<tammx::TensorSymmGroup> ret;
+  if(!all_n) {
+    ret = tammx_label_to_indices(upper_labels);
+    const auto &lower =  tammx_label_to_indices(lower_labels);
+    ret.insert_back(lower.begin(), lower.end());    
+  } else {
+    if(upper_labels.size() > 0) {
+      const auto& upper = TensorVec<tammx::TensorSymmGroup>{
+        tammx::TensorSymmGroup{tammx::DimType::n,
+                               upper_labels.size()}};
+      ret.insert_back(upper.begin(), upper.end());
+    }
+    if(lower_labels.size() > 0) {   
+      const auto& lower = TensorVec<tammx::TensorSymmGroup>{
+        tammx::TensorSymmGroup{tammx::DimType::n,
+                               lower_labels.size()}};
+      ret.insert_back(lower.begin(), lower.end());
+    }
+  }
+  return ret;
+}
+
+
 // tammx::TensorVec<tammx::SymmGroup>
 // tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup) {
 //   tammx::TensorVec<tammx::SymmGroup> ret;

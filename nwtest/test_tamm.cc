@@ -836,9 +836,9 @@ tamm::IndexName
 tammx_label_to_tamm_label(const tammx::IndexLabel &label) {
   tamm::IndexName ret;
 
-  if (label.dt == tammx::DimType::o) {
+  if (label.rt().dt() == tammx::DimType::o) {
     ret = static_cast<tamm::IndexName>(tamm::H1B + label.label);
-  } else if (label.dt == tammx::DimType::v) {
+  } else if (label.rt().dt() == tammx::DimType::v) {
     ret = static_cast<tamm::IndexName>(tamm::P1B + label.label);
   } else {
     assert(0); //@note unsupported
@@ -865,9 +865,9 @@ tamm_labels_to_ranges(const std::vector<tamm::IndexName> &labels) {
 }
 
 tamm::RangeType
-tammx_dim_to_tamm_rangetype(tammx::DimType dt) {
+tammx_range_to_tamm_rangetype(tammx::RangeType rt) {
   tamm::RangeType ret;
-  switch (dt) {
+  switch (rt.dt()) {
     case DimType::o:
       return tamm::TO;
       break;
@@ -892,7 +892,7 @@ tammx_tensor_to_tamm_tensor(tammx::Tensor<double> &ttensor) {
 
   std::vector<tamm::RangeType> rt;
   for (auto id: ttensor.flindices()) {
-    rt.push_back(tammx_dim_to_tamm_rangetype(id));
+    rt.push_back(tammx_range_to_tamm_rangetype(id));
   }
 
   auto ptensor = new tamm::Tensor{ndim, nupper, irrep, &rt[0], dist_type};

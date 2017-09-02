@@ -47,7 +47,7 @@ class TensorBase {
     return rank_;
   }
 
-  TensorDim flindices() const {
+  TensorRange flindices() const {
     return flindices_;
   }
 
@@ -201,11 +201,11 @@ class TensorBase {
 
  private:
 
-  static TensorDim flatten(const TensorVec<TensorSymmGroup>& indices) {
-    TensorDim ret;
+  static TensorRange flatten(const TensorVec<TensorSymmGroup>& indices) {
+    TensorRange ret;
     for(const auto& tsg: indices) {
       for(size_t i=0; i<tsg.size(); i++) {
-        ret.push_back(tsg.dt());
+        ret.push_back(tsg.rt());
       }
     }
     return ret;
@@ -229,7 +229,7 @@ class TensorBase {
   TensorRank nupper_indices_;
   Irrep irrep_;
   bool spin_restricted_;
-  TensorDim flindices_;
+  TensorRange flindices_;
   TensorRank rank_;
 };  // class TensorBase
 

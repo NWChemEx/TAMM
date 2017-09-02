@@ -8,6 +8,10 @@
 // Operated by Battelle for the U.S. Department of Energy
 //
 //------------------------------------------------------------------------------
+
+#ifndef TEST_FORTRAN_H
+#define TEST_FORTRAN_H
+
 extern "C" {
   
   void offset_ccsd_t1_2_1_(Integer *l_t1_2_1_offset, Integer *k_t1_2_1_offset,
@@ -69,3 +73,5 @@ bool test_mult_no_n(tammx::ExecutionContext &ec,
                const tammx::TensorLabel &bupper_labels,
                const tammx::TensorLabel &blower_labels,
                mult_fn fn );
+
+#endif  // TEST_FORTRAN_H

@@ -9,6 +9,8 @@
 //
 //------------------------------------------------------------------------------
 
+#ifndef TEST_TAMM_TCE_H
+#define TEST_TAMM_TCE_H
 
 ///////////////////////////////////////////////////////////////////////
 ///////////////                 CCSD_T1                 ///////////////
@@ -16,17 +18,17 @@
 
 // i0 ( p2 h1 )_f + = 1 * f ( p2 h1 )_f
 TEST (CCSD_T1, t1_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {p2}, {h1}, 1.0, {p2}, {h1}));
+    ASSERT_TRUE(test_assign(*g_ec, {p2}, {h1}, 1.0, {p2}, {h1}));
   }
 
   // i1 ( h7 h1 )_f + = 1 * f ( h7 h1 )_f
 TEST (CCSD_T1, t1_2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h7}, {h1}, 1.0, {h7}, {h1}));
+    ASSERT_TRUE(test_assign(*g_ec, {h7}, {h1}, 1.0, {h7}, {h1}));
   }
 
   // i2 ( h7 p3 )_f + = 1 * f ( h7 p3 )_f
 TEST (CCSD_T1, t1_2_2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec,{h7}, {p3}, 1.0, {h7}, {p3}));
+    ASSERT_TRUE(test_assign(*g_ec,{h7}, {p3}, 1.0, {h7}, {p3}));
   }
 
   TEST (CCSD_T1, t1_2_2_2) {
@@ -57,7 +59,7 @@ TEST (CCSD_T1, t1_2) {
 
   // i1 ( p2 p3 )_f + = 1 * f ( p2 p3 )_f
 TEST (CCSD_T1, t1_3_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {p2}, {p3}, 1.0, {p2}, {p3}));
+    ASSERT_TRUE(test_assign(*g_ec, {p2}, {p3}, 1.0, {p2}, {p3}));
   }
 
   TEST (CCSD_T1, t1_3_2) {
@@ -76,7 +78,7 @@ TEST (CCSD_T1, t1_3_1) {
 
   // i1 ( h8 p7 )_f + = 1 * f ( h8 p7 )_f
 TEST (CCSD_T1, t1_5_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h8}, {p7}, 1.0, {h8}, {p7}));
+    ASSERT_TRUE(test_assign(*g_ec, {h8}, {p7}, 1.0, {h8}, {p7}));
   }
 
 
@@ -92,7 +94,7 @@ TEST (CCSD_T1, t1_5_2) {
 
   // i1 ( h4 h5 h1 p3 )_v + = 1 * v ( h4 h5 h1 p3 )_v
 TEST (CCSD_T1, t1_6_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h4,h5}, {h1,p3} , 1.0, {h4,h5},
+    ASSERT_TRUE(test_assign(*g_ec, {h4,h5}, {h1,p3} , 1.0, {h4,h5},
             {h1,p3}));
   }
 
@@ -118,27 +120,27 @@ TEST (CCSD_T1, t1_6_1) {
 
 // i0 ( p3 p4 h1 h2 )_v + = 1 * v ( p3 p4 h1 h2 )_v
 TEST(CCSD_T2,t2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {p3,p4}, {h1,h2}, 1.0,
+    ASSERT_TRUE(test_assign(*g_ec, {p3,p4}, {h1,h2}, 1.0,
           {p3,p4}, {h1,h2}));
   }
 
   
   // i1 ( h10 p3 h1 h2 )_v + = 1 * v ( h10 p3 h1 h2 )_v
 TEST(CCSD_T2,t2_2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h10,p3}, {h1,h2}, 1.0,
+    ASSERT_TRUE(test_assign(*g_ec, {h10,p3}, {h1,h2}, 1.0,
             {h10,p3}, {h1,h2}));
   }
 
   // i2 ( h10 h11 h1 h2 )_v + = -1 * v ( h10 h11 h1 h2 )_v
 TEST(CCSD_T2,t2_2_2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h10,h11} ,{h1,h2}, -1.0,
+    ASSERT_TRUE(test_assign(*g_ec, {h10,h11} ,{h1,h2}, -1.0,
             {h10,h11}, {h1,h2}));
   }
 
   
   // i3 ( h10 h11 h1 p5 )_v + = 1 * v ( h10 h11 h1 p5 )_v
 TEST(CCSD_T2,t2_2_2_2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h10,h11}, {h1,p5}, 1.0,
+    ASSERT_TRUE(test_assign(*g_ec, {h10,h11}, {h1,p5}, 1.0,
             {h10,h11}, {h1,p5}));
   }
 
@@ -164,7 +166,7 @@ TEST(CCSD_T2,t2_2_2_2_1) {
   
   // i2 ( h10 p5 )_f + = 1 * f ( h10 p5 )_f
   TEST(CCSD_T2,t2_2_4_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h10}, {p5}, 1.0, {h10}, {p5}));
+    ASSERT_TRUE(test_assign(*g_ec, {h10}, {p5}, 1.0, {h10}, {p5}));
   }
 
   TEST(CCSD_T2,t2_2_4_2) {
@@ -179,7 +181,7 @@ TEST(CCSD_T2,t2_2_2_2_1) {
   
   // i2 ( h7 h10 h1 p9 )_v + = 1 * v ( h7 h10 h1 p9 )_v
   TEST(CCSD_T2,t2_2_5_1) {
-  ASSERT_TRUE(test_assign_no_n(*g_ec, {h7,h10}, {h1,p9}, 1.0, {h7,h10}, {h1,p9}));
+  ASSERT_TRUE(test_assign(*g_ec, {h7,h10}, {h1,p9}, 1.0, {h7,h10}, {h1,p9}));
   }
 
   TEST(CCSD_T2,t2_2_5_2) {
@@ -217,11 +219,11 @@ TEST(CCSD_T2,t2_2_2_2_1) {
   
   // i1 ( h9 h1 )_f + = 1 * f ( h9 h1 )_f
   TEST(CCSD_T2,t2_4_1) {
-      ASSERT_TRUE(test_assign_no_n(*g_ec, {h9}, {h1}, 1.0, {h9}, {h1}));
+      ASSERT_TRUE(test_assign(*g_ec, {h9}, {h1}, 1.0, {h9}, {h1}));
   }
 
   TEST(CCSD_T2,t2_4_2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h9}, {p8}, 1.0, {h9}, {p8}));
+    ASSERT_TRUE(test_assign(*g_ec, {h9}, {p8}, 1.0, {h9}, {p8}));
   }
   
   TEST(CCSD_T2,t2_4_2_2) {
@@ -249,7 +251,7 @@ TEST(CCSD_T2,t2_2_2_2_1) {
   
   // i1 ( p3 p5 )_f + = 1 * f ( p3 p5 )_f
   TEST(CCSD_T2,t2_5_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {p3}, {p5}, 1.0, {p3}, {p5}));
+    ASSERT_TRUE(test_assign(*g_ec, {p3}, {p5}, 1.0, {p3}, {p5}));
   }
 
   TEST(CCSD_T2,t2_5_2) {
@@ -268,13 +270,13 @@ TEST(CCSD_T2,t2_2_2_2_1) {
   
   // i1 ( h9 h11 h1 h2 )_v + = -1 * v ( h9 h11 h1 h2 )_v
   TEST(CCSD_T2,t2_6_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h9,h11}, {h1,h2}, -1.0, {h9,h11},
+    ASSERT_TRUE(test_assign(*g_ec, {h9,h11}, {h1,h2}, -1.0, {h9,h11},
             {h1,h2}));
   }
 
   // i2 ( h9 h11 h1 p8 )_v + = 1 * v ( h9 h11 h1 p8 )_v
 TEST(CCSD_T2,t2_6_2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h9,h11}, {h1,p8}, 1.0, {h9,h11},
+    ASSERT_TRUE(test_assign(*g_ec, {h9,h11}, {h1,p8}, 1.0, {h9,h11},
             {h1,p8}));
   }
 
@@ -300,7 +302,7 @@ TEST(CCSD_T2,t2_6_2_1) {
   
   // i1 ( h6 p3 h1 p5 )_v + = 1 * v ( h6 p3 h1 p5 )_v
   TEST(CCSD_T2,t2_7_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h6,p3}, {h1,p5}, 1.0, {h6,p3}, {h1,p5}));
+    ASSERT_TRUE(test_assign(*g_ec, {h6,p3}, {h1,p5}, 1.0, {h6,p3}, {h1,p5}));
   }
 
   TEST(CCSD_T2,t2_7_2) {
@@ -347,15 +349,15 @@ TEST(CCSD_T2,t2_6_2_1) {
 ///////////////////////////////////////////////////////////////////////
 
 TEST (CC2_T1, t1_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {p2}, {h1}, 1.0, {p2}, {h1}));
+    ASSERT_TRUE(test_assign(*g_ec, {p2}, {h1}, 1.0, {p2}, {h1}));
   }
   
   TEST (CC2_T1, t1_2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h7}, {h1}, 1.0, {h7}, {h1}));
+    ASSERT_TRUE(test_assign(*g_ec, {h7}, {h1}, 1.0, {h7}, {h1}));
   }
   
   TEST (CC2_T1, t1_2_2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec,{h7}, {p3}, 1.0, {h7}, {p3}));
+    ASSERT_TRUE(test_assign(*g_ec,{h7}, {p3}, 1.0, {h7}, {p3}));
   }
   
   TEST (CC2_T1, t1_2_2_2) {
@@ -382,7 +384,7 @@ TEST (CC2_T1, t1_1) {
   }
   
   TEST (CC2_T1, t1_3_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {p2}, {p3}, 1.0, {p2}, {p3}));
+    ASSERT_TRUE(test_assign(*g_ec, {p2}, {p3}, 1.0, {p2}, {p3}));
   }
   
   TEST (CC2_T1, t1_3_2) {
@@ -400,7 +402,7 @@ TEST (CC2_T1, t1_1) {
   }
   
   TEST (CC2_T1, t1_5_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h8}, {p7}, 1.0, {h8}, {p7}));
+    ASSERT_TRUE(test_assign(*g_ec, {h8}, {p7}, 1.0, {h8}, {p7}));
   }
   
   TEST (CC2_T1, t1_5_2) {
@@ -414,7 +416,7 @@ TEST (CC2_T1, t1_1) {
   }
   
   TEST (CC2_T1, t1_6_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h4,h5}, {h1,p3} , 1.0, {h4,h5},
+    ASSERT_TRUE(test_assign(*g_ec, {h4,h5}, {h1,p3} , 1.0, {h4,h5},
             {h1,p3}));
   }
   
@@ -440,22 +442,22 @@ TEST (CC2_T1, t1_1) {
 
 
 TEST(CC2_T2,t2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {p3,p4}, {h1,h2}, 1.0,
+    ASSERT_TRUE(test_assign(*g_ec, {p3,p4}, {h1,h2}, 1.0,
           {p3,p4}, {h1,h2}));
   }
   
   TEST(CC2_T2,t2_2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h10,p3}, {h1,h2}, 1.0,
+    ASSERT_TRUE(test_assign(*g_ec, {h10,p3}, {h1,h2}, 1.0,
             {h10,p3}, {h1,h2}));
   }
   
   TEST(CC2_T2,t2_2_2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h8,h10} ,{h1,h2}, -1.0,
+    ASSERT_TRUE(test_assign(*g_ec, {h8,h10} ,{h1,h2}, -1.0,
             {h8,h10}, {h1,h2}));
   }
   
   TEST(CC2_T2,t2_2_2_2_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h8,h10}, {h1,p5}, 1.0,
+    ASSERT_TRUE(test_assign(*g_ec, {h8,h10}, {h1,p5}, 1.0,
             {h8,h10}, {h1,p5}));
   }
   
@@ -475,7 +477,7 @@ TEST(CC2_T2,t2_1) {
   }
   
   TEST(CC2_T2,t2_2_3_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {h10,p3}, {h1,p5}, 1.0,
+    ASSERT_TRUE(test_assign(*g_ec, {h10,p3}, {h1,p5}, 1.0,
             {h10,p3}, {h1,p5}));
   }
   
@@ -495,7 +497,7 @@ TEST(CC2_T2,t2_1) {
   }
   
   TEST(CC2_T2,t2_3_1) {
-    ASSERT_TRUE(test_assign_no_n(*g_ec, {p3,p4}, {h1,p5}, 1.0,
+    ASSERT_TRUE(test_assign(*g_ec, {p3,p4}, {h1,p5}, 1.0,
             {p3,p4}, {h1,p5}));
   }
   
@@ -519,3 +521,6 @@ TEST(CC2_T2,t2_1) {
             {p5}));
   }
   
+
+#endif // TEST_TAMM_TCE_H
+

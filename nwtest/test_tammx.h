@@ -9,6 +9,9 @@
 //
 //------------------------------------------------------------------------------
 
+#ifndef TEST_TAMMX_H
+#define TEST_TAMMX_H
+
 #include "tammx/tammx.h"
 using namespace tammx;
 
@@ -228,3 +231,6 @@ tammx_tensors_are_equal(tammx::ExecutionContext &ec,
   }
   return ret;
 }
+
+
+#endif // TEST_TAMMX_H

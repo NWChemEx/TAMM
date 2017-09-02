@@ -971,7 +971,7 @@ test_assign(tammx::ExecutionContext &ec,
             const tammx::TensorLabel &clower_labels,
             const tammx::TensorLabel &aupper_labels,
             const tammx::TensorLabel &alower_labels,
-            AllocationType at = AllocationType::no_n) {
+            AllocationType at) {// = AllocationType::no_n) {
   const auto& cindices = tammx_label_to_indices(cupper_labels, clower_labels, is_lhs_n(at));
   const auto& aindices = tammx_label_to_indices(aupper_labels, alower_labels, is_rhs1_n(at));
   auto irrep = ec.irrep();
@@ -1010,29 +1010,43 @@ test_assign(tammx::ExecutionContext &ec,
 }
 
 bool
-test_assign_no_n(tammx::ExecutionContext &ec,
-                 double alpha,
-                 const tammx::TensorLabel &cupper_labels,
-                 const tammx::TensorLabel &clower_labels,
-                 const tammx::TensorLabel &aupper_labels,
-                 const tammx::TensorLabel &alower_labels) {
+test_assign(tammx::ExecutionContext &ec,
+            const tammx::TensorLabel &cupper_labels,
+            const tammx::TensorLabel &clower_labels,
+            double alpha,
+            const tammx::TensorLabel &aupper_labels,
+            const tammx::TensorLabel &alower_labels,
+            AllocationType at) {// = AllocationType::no_n) {
   return test_assign(ec, alpha,
                      cupper_labels, clower_labels,
                      aupper_labels, alower_labels,
-                     AllocationType::no_n);
+                     at);
 }
 
-bool
-test_assign_no_n(tammx::ExecutionContext &ec,
-                 const tammx::TensorLabel &cupper_labels,
-                 const tammx::TensorLabel &clower_labels,
-                 double alpha,
-                 const tammx::TensorLabel &aupper_labels,
-                 const tammx::TensorLabel &alower_labels) {
-  return test_assign_no_n(ec, alpha, cupper_labels, clower_labels,
-                          aupper_labels,
-                          alower_labels);
-}
+// bool
+// test_assign_no_n(tammx::ExecutionContext &ec,
+//                  double alpha,
+//                  const tammx::TensorLabel &cupper_labels,
+//                  const tammx::TensorLabel &clower_labels,
+//                  const tammx::TensorLabel &aupper_labels,
+//                  const tammx::TensorLabel &alower_labels) {
+//   return test_assign(ec, alpha,
+//                      cupper_labels, clower_labels,
+//                      aupper_labels, alower_labels,
+//                      AllocationType::no_n);
+// }
+
+// bool
+// test_assign_no_n(tammx::ExecutionContext &ec,
+//                  const tammx::TensorLabel &cupper_labels,
+//                  const tammx::TensorLabel &clower_labels,
+//                  double alpha,
+//                  const tammx::TensorLabel &aupper_labels,
+//                  const tammx::TensorLabel &alower_labels) {
+//   return test_assign_no_n(ec, alpha, cupper_labels, clower_labels,
+//                           aupper_labels,
+//                           alower_labels);
+// }
 
 
 // bool

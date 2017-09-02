@@ -82,6 +82,7 @@ enum class DimType { o  = 0b0011,
                      vb = 0b1000,
                      n  = 0b1111,
                      c  = 0b0000,
+                     inv = 0b11111,
 };
 
 inline bool
@@ -90,16 +91,6 @@ is_dim_subset(DimType superset, DimType subset) {
   auto sub = static_cast<unsigned>(subset);
   return (sup & sub) == sub;
 }
-
-struct IndexLabel {
-  int label;
-  DimType dt;
-
-  IndexLabel() = default;
-  IndexLabel(int lbl, DimType dtype)
-      : label{lbl},
-        dt{dtype} {}
-};
 
 inline std::string
 to_string(DimType dt) {
@@ -130,23 +121,6 @@ to_string(DimType dt) {
   }
 }
 
-inline bool
-operator == (const IndexLabel lhs, const IndexLabel rhs) {
-  return lhs.label == rhs.label
-      && lhs.dt == rhs.dt;
-}
-
-inline bool
-operator != (const IndexLabel lhs, const IndexLabel rhs) {
-  return !(lhs == rhs);
-}
-
-inline bool
-operator < (const IndexLabel lhs, const IndexLabel rhs) {
-  return (lhs.label < rhs.label)
-      || (lhs.label == rhs.label && lhs.dt < rhs.dt);
-}
-
 inline std::ostream&
 operator << (std::ostream& os, DimType dt) {
   switch(dt) {
@@ -165,25 +139,6 @@ operator << (std::ostream& os, DimType dt) {
   return os;
 }
 
-inline std::ostream&
-operator << (std::ostream& os, IndexLabel il) {
-  std::string str;
-  switch(il.dt) {
-    case DimType::o:
-      str = "h";
-      break;
-    case DimType::v:
-      str = "p";
-      break;
-    case DimType::n:
-      str = "n";
-      break;
-    default:
-      assert(0);
-  }
-  os<<str << il.label;
-  return os;
-}
 
 const TensorRank maxrank{8};
 
@@ -191,7 +146,7 @@ template<typename T>
 using TensorVec = BoundVec<T, maxrank>;
 
 using TensorIndex = TensorVec<BlockDim>;
-using TensorLabel = TensorVec<IndexLabel>;
+//using TensorLabel = TensorVec<IndexLabel>;
 //using SymmGroup = TensorVec<DimType>;
 using TensorDim = TensorVec<DimType>;
 using TensorPerm = TensorVec<int>;

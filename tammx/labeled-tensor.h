@@ -219,7 +219,7 @@ validate_slicing(const TensorVec<TensorSymmGroup>& indices,
     if (grp.size() > 0){
       for(int i=0; i<grp.size(); i++) {
         //Expects(label[pos+i].dt == label[pos].dt);
-        Expects(is_range_subset(grp.rt(), {label[pos+i].dt}));
+        Expects(is_range_subset(grp.rt(), {label[pos+i].rt()}));
       }
     }
     pos += grp.size();
@@ -248,10 +248,10 @@ addop_validate(const LabeledTensorType& ltc,
 
   //all labels are of compatible type
   for(int i=0; i<alabel.size(); i++) {
-    Expects(is_dim_subset(ta.flindices()[i], alabel[i].dt));
+    Expects(is_range_subset(ta.flindices()[i], alabel[i].rt()));
   }
   for(int i=0; i<clabel.size(); i++) {
-    Expects(is_dim_subset(tc.flindices()[i], clabel[i].dt));
+    Expects(is_range_subset(tc.flindices()[i], clabel[i].rt()));
   }
 
   std::sort(alabel.begin(), alabel.end());
@@ -295,13 +295,13 @@ multop_validate(const LabeledTensorType& ltc,
 
   //all labels are of compatible type
   for(int i=0; i<alabel.size(); i++) {
-    Expects(is_dim_subset(ta.flindices()[i], alabel[i].dt));
+    Expects(is_range_subset(ta.flindices()[i], alabel[i].rt()));
   }
   for(int i=0; i<blabel.size(); i++) {
-    Expects(is_dim_subset(tb.flindices()[i], blabel[i].dt));
+    Expects(is_range_subset(tb.flindices()[i], blabel[i].rt()));
   }
   for(int i=0; i<clabel.size(); i++) {
-    Expects(is_dim_subset(tc.flindices()[i], clabel[i].dt));
+    Expects(is_range_subset(tc.flindices()[i], clabel[i].rt()));
   }
 
   std::sort(alabel.begin(), alabel.end());

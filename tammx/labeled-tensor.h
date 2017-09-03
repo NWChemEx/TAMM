@@ -6,6 +6,15 @@
 #include "tammx/types.h"
 #include "tammx/tensor.h"
 
+extern "C" {
+  typedef void add_fn(Integer *ta, Integer *offseta, Integer *irrepa,
+                      Integer *tc, Integer *offsetc, Integer *irrepc);
+  
+  typedef void mult_fn(Integer *ta, Integer *offseta, Integer *irrepa,
+                       Integer *tb, Integer *offsetb, Integer *irrepb,
+                       Integer *tc, Integer *offsetc, Integer *irrepc);
+};
+
 namespace tammx {
 
 template<typename T>
@@ -32,12 +41,23 @@ struct SetOpEntry {
   ResultMode mode;
 };
 
+enum class ExecutionMode {
+  sch,
+  fortran
+};
+
 template<typename LabeledTensorType, typename T>
 struct AddOpEntry {
   LabeledTensorType lhs;
   T alpha;
   LabeledTensorType rhs;
   ResultMode mode;
+  add_fn* fn;
+  ExecutionMode exec_mode;
+
+  AddOpEntry()
+      : fn{nullptr},
+        exec_mode{ExecutionMode::sch} {}
 };
 
 template<typename LabeledTensorType, typename T>
@@ -46,6 +66,12 @@ struct MultOpEntry {
   T alpha;
   LabeledTensorType rhs1, rhs2;
   ResultMode mode;
+  mult_fn* fn;
+  ExecutionMode exec_mode;
+
+  MultOpEntry()
+      : fn{nullptr},
+        exec_mode{ExecutionMode::sch} {}
 };
 
 template<typename T1,
@@ -189,6 +215,23 @@ operator * (T1 alpha, std::tuple<LabeledTensor<T2>, LabeledTensor<T2>> rhs) {
   return std::tuple_cat(std::make_tuple(alpha), rhs);
 }
 
+template<typename T,
+         typename T1,
+         typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+AddOpEntry<LabeledTensor<T>, T1>
+operator |= (add_fn fn, AddOpEntry<LabeledTensor<T>, T1> op) {
+  op.fn = fn;
+  return op;
+}
+
+template<typename T,
+         typename T1,
+         typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+MultOpEntry<LabeledTensor<T>, T1>
+operator |= (mult_fn fn, MultOpEntry<LabeledTensor<T>, T1> op) {
+  op.fn = fn;
+  return op;
+}
 
 // /**
 //  * @todo Should validation be done in *OpEnty constructors?

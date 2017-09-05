@@ -354,19 +354,24 @@ BlockDim operator "" _bd(unsigned long long int val) {
 //Irrep irrep_y {0};
 
 
-std::vector<Spin> spins = {1_sp, 1_sp, 1_sp,
-                           2_sp, 2_sp, 2_sp,
-                           1_sp, 1_sp,
-                           2_sp, 2_sp};
-std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir,
-                               0_ir, 0_ir, 0_ir,
-                               0_ir, 0_ir,
+//std::vector<Spin> spins = {1_sp, 1_sp, 1_sp,
+//                           2_sp, 2_sp, 2_sp,
+//                           1_sp, 1_sp,
+//                           2_sp, 2_sp};
+std::vector<Spin> spins = {1_sp, 2_sp,
+                           1_sp, 2_sp};
+//std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir,
+//                               0_ir, 0_ir, 0_ir,
+//                               0_ir, 0_ir,
+//                               0_ir, 0_ir};
+std::vector<Irrep> spatials = {0_ir, 0_ir,
                                0_ir, 0_ir};
-std::vector<size_t> sizes = {3,1,1, 3,1,1, 1,1, 1,1};
-BlockDim noa {3};
-BlockDim noab {6};
-BlockDim nva {2};
-BlockDim nvab {4};
+//std::vector<size_t> sizes = {3,1,1, 3,1,1, 1,1, 1,1};
+std::vector<size_t> sizes = {5,5, 2,2};
+BlockDim noa {1};
+BlockDim noab {2};
+BlockDim nva {1};
+BlockDim nvab {2};
 bool spin_restricted = false;
 Irrep irrep_f {0};
 Irrep irrep_v {0};

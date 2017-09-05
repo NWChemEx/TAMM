@@ -52,12 +52,14 @@ struct AddOpEntry {
   T alpha;
   LabeledTensorType rhs;
   ResultMode mode;
-  add_fn* fn;
-  ExecutionMode exec_mode;
+  add_fn* fn{nullptr};
+  ExecutionMode exec_mode{ExecutionMode::sch};
 
-  AddOpEntry()
+
+ /* AddOpEntry()
       : fn{nullptr},
         exec_mode{ExecutionMode::sch} {}
+*/
 };
 
 template<typename LabeledTensorType, typename T>
@@ -66,12 +68,13 @@ struct MultOpEntry {
   T alpha;
   LabeledTensorType rhs1, rhs2;
   ResultMode mode;
-  mult_fn* fn;
-  ExecutionMode exec_mode;
+  mult_fn* fn{nullptr};
+  ExecutionMode exec_mode{ExecutionMode::sch};
 
-  MultOpEntry()
+ /* MultOpEntry()
       : fn{nullptr},
         exec_mode{ExecutionMode::sch} {}
+*/
 };
 
 template<typename T1,

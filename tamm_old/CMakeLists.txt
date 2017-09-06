@@ -128,12 +128,14 @@ ${TAMMX_PROJECT_DIR}/nwtest/tce_restricted.F
 ${TAMMX_PROJECT_DIR}/nwtest/tce_sort.F
 ${TAMMX_PROJECT_DIR}/nwtest/tce_sortacc.F
 ${TAMMX_PROJECT_DIR}/nwtest/misc.F
-${TAMMX_PROJECT_DIR}/nwtest/set_vars_tamm.F
 ${TAMMX_PROJECT_DIR}/nwtest/ccsd_t1.F
 ${TAMMX_PROJECT_DIR}/nwtest/ccsd_t2.F
 ${TAMMX_PROJECT_DIR}/nwtest/cc2_t1.F
 ${TAMMX_PROJECT_DIR}/nwtest/cc2_t2.F
 )
+
+set(EXTRA_FORT_TAMM ${TAMMX_PROJECT_DIR}/nwtest/set_vars_tamm.F)
+set(EXTRA_FORT ${TAMMX_PROJECT_DIR}/nwtest/set_vars.F)
 
 set(TESTING_DEPS_SRC
 #${TAMMX_PROJECT_DIR}/nwtest/fort_assign_tests.cc
@@ -164,9 +166,14 @@ else()
             ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a)
 endif()
 
-add_library(fort_deps STATIC ${FORTRAN_DEPS_SRC})
+add_library(fort_deps STATIC ${FORTRAN_DEPS_SRC} ${EXTRA_FORT_TAMM})
 target_include_directories(fort_deps SYSTEM PUBLIC ${tamm_includes})
 target_compile_options(fort_deps PRIVATE ${tamm_fortran_link_flags})
+
+
+add_library(fort_deps_tammx STATIC ${FORTRAN_DEPS_SRC} ${EXTRA_FORT})
+target_include_directories(fort_deps_tammx SYSTEM PUBLIC ${tamm_includes})
+target_compile_options(fort_deps_tammx PRIVATE ${tamm_fortran_link_flags})
 
 add_library(fort_deps_c STATIC ${TAMMX_PROJECT_DIR}/nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
@@ -209,9 +216,10 @@ if(NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
 endif()
 
 add_executable(ccsd_driver ${TAMMX_PROJECT_DIR}/tammx/ccsd_driver.cc ${TAMMX_PROJECT_DIR}/tammx/hartree_fock.cc)
-add_dependencies(ccsd_driver fort_deps fort_deps_c tammx)
+add_dependencies(ccsd_driver fort_deps_tammx fort_deps_c tammx)
 target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
-target_link_libraries(ccsd_driver fort_deps fort_deps_c tammx -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
+target_link_libraries(ccsd_driver fort_deps_tammx fort_deps_c tammx ${tamm_cflags}
+        ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
 
 # add_executable(hf nwchem_main/hartree_fock.cc)
 # target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)

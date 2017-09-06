@@ -56,7 +56,6 @@ template<typename T>
 void ccsd_e(Scheduler &sch, Tensor<T>& f1, Tensor<T>& de,
             Tensor<T>& t1, Tensor<T>& t2, Tensor<T>& v2) {
   auto &i1 = *sch.tensor<T>(O|V);
-
   sch.alloc(i1)
       // .io(f1,v2,t1,t2)
       // .output(de)
@@ -66,6 +65,7 @@ void ccsd_e(Scheduler &sch, Tensor<T>& f1, Tensor<T>& de,
       (de()      +=        t1(p5,h6)       * i1(h6,p5))
       (de()      += 0.25 * t2(p1,p2,h3,h4) * v2(h3,h4,p1,p2))
     .dealloc(i1);
+
 }
 
 template<typename T>
@@ -277,9 +277,16 @@ std::cout << "p_evl_sorted:" << '\n';
       int off = iter - titer;
       sch.io(d_t1, d_t2, d_f1, d_v2, *d_r1s[off], *d_r2s[off])
         .output(d_e, d_r1_residual, d_r2_residual);
+
+
       ccsd_e(sch, d_f1, d_e, d_t1, d_t2, d_v2);
       ccsd_t1(sch, d_f1, *d_r1s[off], d_t1, d_t2, d_v2);
-      ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
+      //ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
+
+      std::cout << "begin tensor print d_t1\n";
+      tensor_print(d_t1);
+      std::cout << "end tensor print d_t1\n";
+
       sch(d_r1_residual() = 0)
         (d_r1_residual() += (*d_r1s[off])()  * (*d_r1s[off])())
         (d_r2_residual() = 0)
@@ -354,19 +361,24 @@ BlockDim operator "" _bd(unsigned long long int val) {
 //Irrep irrep_y {0};
 
 
-std::vector<Spin> spins = {1_sp, 1_sp, 1_sp,
-                           2_sp, 2_sp, 2_sp,
-                           1_sp, 1_sp,
-                           2_sp, 2_sp};
-std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir,
-                               0_ir, 0_ir, 0_ir,
-                               0_ir, 0_ir,
+//std::vector<Spin> spins = {1_sp, 1_sp, 1_sp,
+//                           2_sp, 2_sp, 2_sp,
+//                           1_sp, 1_sp,
+//                           2_sp, 2_sp};
+std::vector<Spin> spins = {1_sp, 2_sp,
+                           1_sp, 2_sp};
+//std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir,
+//                               0_ir, 0_ir, 0_ir,
+//                               0_ir, 0_ir,
+//                               0_ir, 0_ir};
+std::vector<Irrep> spatials = {0_ir, 0_ir,
                                0_ir, 0_ir};
-std::vector<size_t> sizes = {3,1,1, 3,1,1, 1,1, 1,1};
-BlockDim noa {3};
-BlockDim noab {6};
-BlockDim nva {2};
-BlockDim nvab {4};
+//std::vector<size_t> sizes = {3,1,1, 3,1,1, 1,1, 1,1};
+std::vector<size_t> sizes = {5,5, 2,2};
+BlockDim noa {1};
+BlockDim noab {2};
+BlockDim nva {1};
+BlockDim nvab {2};
 bool spin_restricted = false;
 Irrep irrep_f {0};
 Irrep irrep_v {0};

@@ -6,6 +6,15 @@
 #include "tammx/types.h"
 #include "tammx/tensor.h"
 
+extern "C" {
+  typedef void add_fn(Integer *ta, Integer *offseta,
+                      Integer *tc, Integer *offsetc);
+  
+  typedef void mult_fn(Integer *ta, Integer *offseta,
+                       Integer *tb, Integer *offsetb,
+                       Integer *tc, Integer *offsetc);
+};
+
 namespace tammx {
 
 template<typename T>
@@ -32,12 +41,36 @@ struct SetOpEntry {
   ResultMode mode;
 };
 
+enum class ExecutionMode {
+  sch,
+  fortran
+};
+
 template<typename LabeledTensorType, typename T>
 struct AddOpEntry {
   LabeledTensorType lhs;
   T alpha;
   LabeledTensorType rhs;
   ResultMode mode;
+  add_fn* fn;
+  ExecutionMode exec_mode;
+
+  AddOpEntry()
+      : fn{nullptr},
+        exec_mode{ExecutionMode::sch} {}
+
+  AddOpEntry(LabeledTensorType tlhs,
+             T talpha,
+             LabeledTensorType trhs,
+             ResultMode tmode,
+             add_fn *tfn = nullptr,
+             ExecutionMode temode = ExecutionMode::sch)
+      : lhs{tlhs},
+        alpha{talpha},
+        rhs{trhs},
+        mode{tmode},
+        fn{tfn},
+        exec_mode{temode} {}
 };
 
 template<typename LabeledTensorType, typename T>
@@ -46,6 +79,27 @@ struct MultOpEntry {
   T alpha;
   LabeledTensorType rhs1, rhs2;
   ResultMode mode;
+  mult_fn* fn;
+  ExecutionMode exec_mode;
+
+  MultOpEntry()
+      : fn{nullptr},
+        exec_mode{ExecutionMode::sch} {}
+
+  MultOpEntry(LabeledTensorType tlhs,
+              T talpha,
+              LabeledTensorType trhs1,
+              LabeledTensorType trhs2,
+              ResultMode tmode,
+              mult_fn *tfn = nullptr,
+              ExecutionMode temode = ExecutionMode::sch)
+      : lhs{tlhs},
+        alpha{talpha},
+        rhs1{trhs1},
+        rhs2{trhs2},
+        mode{tmode},
+        fn{tfn},
+        exec_mode{temode} {}
 };
 
 template<typename T1,
@@ -189,6 +243,41 @@ operator * (T1 alpha, std::tuple<LabeledTensor<T2>, LabeledTensor<T2>> rhs) {
   return std::tuple_cat(std::make_tuple(alpha), rhs);
 }
 
+template<typename T,
+         typename T1,
+         typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+AddOpEntry<LabeledTensor<T>, T1>
+operator |= (add_fn fn, AddOpEntry<LabeledTensor<T>, T1> op) {
+  op.fn = fn;
+  return op;
+}
+
+template<typename T,
+         typename T1,
+         typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+MultOpEntry<LabeledTensor<T>, T1>
+operator |= (mult_fn fn, MultOpEntry<LabeledTensor<T>, T1> op) {
+  op.fn = fn;
+  return op;
+}
+
+template<typename T,
+         typename T1,
+         typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+AddOpEntry<LabeledTensor<T>, T1>
+operator |= (ExecutionMode exec_mode, AddOpEntry<LabeledTensor<T>, T1> op) {
+  op.exec_mode = exec_mode;
+  return op;
+}
+
+template<typename T,
+         typename T1,
+         typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+MultOpEntry<LabeledTensor<T>, T1>
+operator |= (ExecutionMode exec_mode, MultOpEntry<LabeledTensor<T>, T1> op) {
+  op.exec_mode = exec_mode;
+  return op;
+}
 
 // /**
 //  * @todo Should validation be done in *OpEnty constructors?

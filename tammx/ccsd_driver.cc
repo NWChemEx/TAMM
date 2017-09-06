@@ -68,6 +68,21 @@ void ccsd_e(Scheduler &sch, Tensor<T>& f1, Tensor<T>& de,
 
 }
 
+add_fn ccsd_t1_1_, ccsd_t1_2_1_, ccsd_t1_2_2_1_, ccsd_t1_3_1_;  // ccsd_t1
+add_fn ccsd_t1_5_1_, ccsd_t1_6_1_;  // ccsd_t1
+add_fn ccsd_t2_1_, ccsd_t2_2_1_, ccsd_t2_2_2_1_;  // ccsd_t2
+add_fn ccsd_t2_2_2_2_1_, ccsd_t2_2_4_1_, ccsd_t2_2_5_1_;  // ccsd_t2
+add_fn ccsd_t2_4_1_, ccsd_t2_4_2_1_, ccsd_t2_5_1_;  // ccsd_t2
+add_fn ccsd_t2_6_1_, ccsd_t2_6_2_1_, ccsd_t2_7_1_;  // ccsd_t2
+
+mult_fn ccsd_t1_2_2_2_, ccsd_t1_2_2_, ccsd_t1_2_3_, ccsd_t1_2_4_;
+mult_fn ccsd_t1_2_, ccsd_t1_3_2_, ccsd_t1_3_;
+mult_fn ccsd_t1_4_, ccsd_t1_5_2_, ccsd_t1_5_;
+mult_fn ccsd_t1_6_2_, ccsd_t1_6_, ccsd_t1_7_;
+                 
+static const auto sch = ExecutionMode::sch;
+static const auto fortran = ExecutionMode::fortran;
+
 template<typename T>
 void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
              Tensor<T>& t1, Tensor<T>& t2, Tensor<T>& v2) {
@@ -80,26 +95,26 @@ void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
   sch.alloc(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
     // .io(t1,t2,f1,v2)
     // .output(i0)
-      (i0(p2,h1)            =        f1(p2,h1))
-      (t1_2_1(h7,h1)        =        f1(h7,h1))
-      (t1_2_2_1(h7,p3)      =        f1(h7,p3))
-      (t1_2_2_1(h7,p3)     += -1   * t1(p5,h6)       * v2(h6,h7,p3,p5))
-      (t1_2_1(h7,h1)       +=        t1(p3,h1)       * t1_2_2_1(h7,p3))
-      (t1_2_1(h7,h1)       += -1   * t1(p4,h5)       * v2(h5,h7,h1,p4))
-      (t1_2_1(h7,h1)       += -0.5 * t2(p3,p4,h1,h5) * v2(h5,h7,p3,p4))
-      (i0(p2,h1)           += -1   * t1(p2,h7)       * t1_2_1(h7,h1))
-      (t1_3_1(p2,p3)        =        f1(p2,p3))
-      (t1_3_1(p2,p3)       += -1   * t1(p4,h5)       * v2(h5,p2,p3,p4))
-      (i0(p2,h1)           +=        t1(p3,h1)       * t1_3_1(p2,p3))
-      (i0(p2,h1)           += -1   * t1(p3,h4)       * v2(h4,p2,h1,p3))
-      (t1_5_1(h8,p7)        =        f1(h8,p7))
+      (ccsd_t1_1_    |= i0(p2,h1)            =        f1(p2,h1))
+      (ccsd_t1_2_1_  |= t1_2_1(h7,h1)        =        f1(h7,h1))
+      (ccsd_t1_2_2_1_|= t1_2_2_1(h7,p3)      =        f1(h7,p3))
+      (ccsd_t1_2_2_2_|= t1_2_2_1(h7,p3)     += -1   * t1(p5,h6)       * v2(h6,h7,p3,p5))
+      (ccsd_t1_2_2_  |= t1_2_1(h7,h1)       +=        t1(p3,h1)       * t1_2_2_1(h7,p3))
+      (ccsd_t1_2_3_  |= t1_2_1(h7,h1)       += -1   * t1(p4,h5)       * v2(h5,h7,h1,p4))
+      (ccsd_t1_2_4_  |= t1_2_1(h7,h1)       += -0.5 * t2(p3,p4,h1,h5) * v2(h5,h7,p3,p4))
+      (ccsd_t1_2_    |= i0(p2,h1)           += -1   * t1(p2,h7)       * t1_2_1(h7,h1))
+      (ccsd_t1_3_1_  |= t1_3_1(p2,p3)        =        f1(p2,p3))
+      (ccsd_t1_3_2_  |= t1_3_1(p2,p3)       += -1   * t1(p4,h5)       * v2(h5,p2,p3,p4))
+      (ccsd_t1_3_    |= i0(p2,h1)           +=        t1(p3,h1)       * t1_3_1(p2,p3))
+      (ccsd_t1_4_    |= i0(p2,h1)           += -1   * t1(p3,h4)       * v2(h4,p2,h1,p3))
+      (ccsd_t1_5_1_  |= t1_5_1(h8,p7)        =        f1(h8,p7))
 
-      (t1_5_1(h8,p7)       +=        t1(p5,h6)       * v2(h6,h8,p5,p7))
-      (i0(p2,h1)           +=        t2(p2,p7,h1,h8) * t1_5_1(h8,p7))
-      (t1_6_1(h4,h5,h1,p3)  =        v2(h4,h5,h1,p3))
-      (t1_6_1(h4,h5,h1,p3) += -1   * t1(p6,h1)       * v2(h4,h5,p3,p6))
-      (i0(p2,h1)           += -0.5 * t2(p2,p3,h4,h5) * t1_6_1(h4,h5,h1,p3))
-      (i0(p2,h1)           += -0.5 * t2(p3,p4,h1,h5) * v2(h5,p2,p3,p4))
+      (ccsd_t1_5_2_  |= t1_5_1(h8,p7)       +=        t1(p5,h6)       * v2(h6,h8,p5,p7))
+      (ccsd_t1_5_    |= i0(p2,h1)           +=        t2(p2,p7,h1,h8) * t1_5_1(h8,p7))
+      (ccsd_t1_6_1_  |= t1_6_1(h4,h5,h1,p3)  =        v2(h4,h5,h1,p3))
+      (ccsd_t1_6_2_  |= t1_6_1(h4,h5,h1,p3) += -1   * t1(p6,h1)       * v2(h4,h5,p3,p6))
+      (ccsd_t1_6_    |= i0(p2,h1)           += -0.5 * t2(p2,p3,h4,h5) * t1_6_1(h4,h5,h1,p3))
+      (ccsd_t1_7_    |= i0(p2,h1)           += -0.5 * t2(p3,p4,h1,h5) * v2(h5,p2,p3,p4))
     .dealloc(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1);
 }
 

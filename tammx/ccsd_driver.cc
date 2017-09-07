@@ -103,7 +103,7 @@ void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
       (ccsd_t1_1_    |= i0(p2,h1)            =        f1(p2,h1))
       (ccsd_t1_2_1_  |= t1_2_1(h7,h1)        =        f1(h7,h1))
       (ccsd_t1_2_2_1_|= t1_2_2_1(h7,p3)      =        f1(h7,p3))
-      (e_sch |= ccsd_t1_2_2_2_|= t1_2_2_1(h7,p3)     += -1   * t1(p5,h6)       * v2(h6,h7,p3,p5))
+      (ccsd_t1_2_2_2_ |= t1_2_2_1(h7,p3)     += -1   * t1(p5,h6)       * v2(h6,h7,p3,p5))
       (ccsd_t1_2_2_  |= t1_2_1(h7,h1)       +=        t1(p3,h1)       * t1_2_2_1(h7,p3))
       (ccsd_t1_2_3_  |= t1_2_1(h7,h1)       += -1   * t1(p4,h5)       * v2(h5,h7,h1,p4))
       (ccsd_t1_2_4_  |= t1_2_1(h7,h1)       += -0.5 * t2(p3,p4,h1,h5) * v2(h5,h7,p3,p4))
@@ -502,9 +502,9 @@ int main(int argc, char *argv[]) {
 
   auto distribution = Distribution_NW();
   auto pg = ProcGroup{MPI_COMM_WORLD};
-  auto mgr = MemoryManagerGA{pg};
+  auto mgr = new MemoryManagerGA{pg};
 
-  Tensor<T>::allocate(pg, &distribution, &mgr, d_t1, d_t2, d_f1, d_v2);
+  Tensor<T>::allocate(pg, &distribution, mgr, d_t1, d_t2, d_f1, d_v2);
 
   const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
 
@@ -557,7 +557,7 @@ int main(int argc, char *argv[]) {
   });
 #endif
   std::cerr << "debug3" << '\n';
-  ExecutionContext ec {pg, &distribution, &mgr, Irrep{0}, false};
+  ExecutionContext ec {pg, &distribution, mgr, Irrep{0}, false};
 
   // Scheduler(pg, &distribution, &mgr, Irrep{0}, false)
   ec.scheduler()

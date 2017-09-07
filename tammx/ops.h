@@ -1888,10 +1888,10 @@ AddOp<T, LabeledTensorType>::execute() {
     Integer dc, *offsetc_map;
     std::tie(da, offseta_map) = tensor_to_fortran_info(*rhs_.tensor_);
     std::tie(dc, offsetc_map) = tensor_to_fortran_info(*lhs_.tensor_);
-    auto offseta = offseta_map - int_mb();
-    auto offsetc = offsetc_map - int_mb();
+    Integer offseta = offseta_map - int_mb();
+    Integer offsetc = offsetc_map - int_mb();
     
-    fn_(&da, &offseta, &dc, &offsetc);
+    fn_(&da, &offseta, 0, &dc, &offsetc,0);
     
     delete[] offseta_map;
     delete[] offsetc_map;
@@ -2101,11 +2101,11 @@ MultOp<T, LabeledTensorType>::execute() {
     std::tie(da, offseta_map) = tensor_to_fortran_info(*rhs1_.tensor_);
     std::tie(db, offsetb_map) = tensor_to_fortran_info(*rhs2_.tensor_);
     std::tie(dc, offsetc_map) = tensor_to_fortran_info(*lhs_.tensor_);
-    auto offseta = offseta_map - int_mb();
-    auto offsetb = offsetb_map - int_mb();
-    auto offsetc = offsetc_map - int_mb();
+    Integer offseta = offseta_map - int_mb();
+    Integer offsetb = offsetb_map - int_mb();
+    Integer offsetc = offsetc_map - int_mb();
     
-    fn_(&da, &offseta, &db, &offsetb, &dc, &offsetc);
+    fn_(&da, &offseta, 0, &db, &offsetb,0, &dc, &offsetc,0);
     
     delete[] offseta_map;
     delete[] offsetb_map;

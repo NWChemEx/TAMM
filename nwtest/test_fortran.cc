@@ -128,13 +128,12 @@ fortran_assign(tammx::Tensor<double> &xtc,
   Integer irrepa = xta.irrep().value();
   Integer irrepc = xtc.irrep().value();
 
-// UNCOMMENT
-//  auto offseta = offseta_map - tamm::Variables::int_mb();
-//  auto offsetc = offsetc_map - tamm::Variables::int_mb();
-//
-//  fn(&da, &offseta, &irrepa, &dc, &offsetc, &irrepc);
-//  delete[] offseta_map;
-//  delete[] offsetc_map;
+  Integer offseta = offseta_map - tammx::int_mb();
+  Integer offsetc = offsetc_map - tammx::int_mb();
+
+  fn(&da, &offseta, &irrepa, &dc, &offsetc, &irrepc);
+  delete[] offseta_map;
+  delete[] offsetc_map;
 }
 
 void
@@ -152,16 +151,15 @@ fortran_mult(tammx::Tensor<double> &xtc,
   Integer irrepb = xtb.irrep().value();
   Integer irrepc = xtc.irrep().value();
 
-//  UNCOMMENT
-//  auto offseta = offseta_map - tamm::Variables::int_mb();
-//  auto offsetb = offsetb_map - tamm::Variables::int_mb();
-//  auto offsetc = offsetc_map - tamm::Variables::int_mb();
-//
-//  fn(&da, &offseta, &irrepa, &db, &offsetb, &irrepb, &dc, &offsetc, &irrepc);
-//
-//  delete[] offseta_map;
-//  delete[] offsetb_map;
-//  delete[] offsetc_map;
+  Integer offseta = offseta_map - tammx::int_mb();
+  Integer offsetb = offsetb_map - tammx::int_mb();
+  Integer offsetc = offsetc_map - tammx::int_mb();
+
+  fn(&da, &offseta, &irrepa, &db, &offsetb, &irrepb, &dc, &offsetc, &irrepc);
+
+  delete[] offseta_map;
+  delete[] offsetb_map;
+  delete[] offsetc_map;
 }
 
 // void

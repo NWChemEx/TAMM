@@ -29,6 +29,16 @@ using namespace tammx;
 using namespace tammx::tensor_dims;
 using namespace tammx::tensor_labels;
 
+extern "C" {
+
+void set_fort_vars_(Integer *int_mb_f, double *dbl_mb_f)
+{
+  int_mb_tammx = int_mb_f - 1;
+  dbl_mb_tammx = dbl_mb_f - 1;
+}
+
+}
+
 template<typename T>
 void tensor_print(Tensor<T>& t)  {
   auto lambda = [&] (auto& val) {

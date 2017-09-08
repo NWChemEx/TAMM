@@ -1754,10 +1754,6 @@ compute_symmetrization_factor(const LabeledTensorType& ltc,
 
 static Integer *int_mb_tammx;
 static double *dbl_mb_tammx;
-static void set_fort_vars_(Integer *int_mb_f, double *dbl_mb_f){
-    int_mb_tammx = int_mb_f - 1;
-    dbl_mb_tammx = dbl_mb_f - 1;
- }
 
 
 inline Integer*

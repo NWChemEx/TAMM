@@ -1742,10 +1742,28 @@ compute_symmetrization_factor(const LabeledTensorType& ltc,
   return 1.0/ret;
 }
 
+//class FortranVariables {
+// public:
+//  static Integer *int_mb_tammx;
+//  static double *dbl_mb_tammx;
+//  static void set_fort_idmb_(Integer *int_mb_f, double *dbl_mb_f){
+//    int_mb_tammx = int_mb_f - 1;
+//    dbl_mb_tammx = dbl_mb_f - 1;
+//  }
+//};
+
+static Integer *int_mb_tammx;
+static double *dbl_mb_tammx;
+static void set_fort_vars_(Integer *int_mb_f, double *dbl_mb_f){
+    int_mb_tammx = int_mb_f - 1;
+    dbl_mb_tammx = dbl_mb_f - 1;
+ }
+
+
 inline Integer*
 int_mb() {
-  assert(0); //@todo implement
-  return nullptr;
+  //assert(0); //@todo implement
+  return int_mb_tammx;
 }
 
 // template<typename T>

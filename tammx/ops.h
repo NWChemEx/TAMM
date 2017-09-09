@@ -593,6 +593,7 @@ struct ScanOp : public Op {
       if(!(tensor.nonzero(blockid) && tensor.spin_unique(blockid) && size > 0)) {
         return;
       }
+      std::cout<<"ScanOp. blockid: "<<blockid<<std::endl;
       auto block = tensor.get(blockid);
       auto tbuf = block.buf();
       for(int i=0; i<size; i++) {

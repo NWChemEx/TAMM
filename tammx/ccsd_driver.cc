@@ -308,14 +308,21 @@ std::cout << "p_evl_sorted:" << '\n';
       sch.io(d_t1, d_t2, d_f1, d_v2, *d_r1s[off], *d_r2s[off])
         .output(d_e, d_r1_residual, d_r2_residual);
       ccsd_e(sch, d_f1, d_e, d_t1, d_t2, d_v2);
-      ccsd_t1(sch, d_f1, *d_r1s[off], d_t1, d_t2, d_v2);
-      ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
+      sch((*d_r1s[off])(p2,h1)            =        d_f1(p2,h1));
+      //ccsd_t1(sch, d_f1, *d_r1s[off], d_t1, d_t2, d_v2);
+      //ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
       sch(d_r1_residual() = 0)
         (d_r1_residual() += (*d_r1s[off])()  * (*d_r1s[off])())
         (d_r2_residual() = 0)
         (d_r2_residual() += (*d_r2s[off])()  * (*d_r2s[off])())
         ;
       sch.execute();
+      std::cout << "------------print d_f1-------------------\n";
+      tensor_print(d_f1);
+      std::cout << "------------print i1-------------------\n";
+      tensor_print(*d_r1s[off]);
+      std::cout << "------------end print i1--------------\n";
+
       std::cerr<<"----------------------------------------------"<<std::endl;
 
       double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
@@ -522,7 +529,7 @@ int main(int argc, char *argv[]) {
   Tensor4D V;
   double hf_energy{0.0};
 
-#if 0
+#if 1
   std::tie(F, V, hf_energy) = hartree_fock(filename);
   std::cerr << "debug2" << '\n';
 

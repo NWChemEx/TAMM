@@ -164,15 +164,17 @@ class MemoryManagerSequential : public MemoryManager {
   }
 
   void print() const {
+    std::cout<<"MemoryManagerSequential. contents\n";
     for(size_t i=0; i<nelements_.value(); i++) {
       switch(eltype_) {
         case ElementType::double_precision:
-          std::cout<<(reinterpret_cast<const double*>(buf_))[i]<<"\n";
+          std::cout<<i<<"     "<<(reinterpret_cast<const double*>(buf_))[i]<<"\n";
           break;
         default:
           assert(0); //not implemented yet
       }
-    }    
+    }
+    std::cout<<"\n\n";
   }
   
  private:

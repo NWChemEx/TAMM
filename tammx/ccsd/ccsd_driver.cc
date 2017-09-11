@@ -96,7 +96,7 @@ mult_fn ccsd_t1_2_2_2_, ccsd_t1_2_2_, ccsd_t1_2_3_, ccsd_t1_2_4_;
 mult_fn ccsd_t1_2_, ccsd_t1_3_2_, ccsd_t1_3_;
 mult_fn ccsd_t1_4_, ccsd_t1_5_2_, ccsd_t1_5_;
 mult_fn ccsd_t1_6_2_, ccsd_t1_6_, ccsd_t1_7_;
-                 
+
 static const auto sch = ExecutionMode::sch;
 static const auto fortran = ExecutionMode::fortran;
 
@@ -310,14 +310,22 @@ std::cout << "p_evl_sorted:" << '\n';
   for(int titer=0; titer<maxiter; titer+=ndiis) {
     for(int iter = titer; iter < std::min(titer+ndiis,maxiter); iter++) {
       std::cerr<<"++++++++++++++++++++++++++++++++++++++++++++++"<<std::endl;
-      Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
       int off = iter - titer;
-      sch.io(d_t1, d_t2, d_f1, d_v2, *d_r1s[off], *d_r2s[off])
+
+      Tensor<T> d_t1_local(d_t1.tindices(), 1, Irrep{0}, ec.is_spin_restricted());
+      MemoryManagerSequential mseq{ProcGroup{MPI_COMM_SELF}};
+      d_t1_local.alloc(ProcGroup{MPI_COMM_SELF},
+                       ec.distribution(),
+                       &mseq);
+
+      Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
+      sch.io(d_t1_local, d_t1, d_t2, d_f1, d_v2, *d_r1s[off], *d_r2s[off])
         .output(d_e, d_r1_residual, d_r2_residual);
 
+      sch(d_t1_local() = d_t1());
 
-      ccsd_e(sch, d_f1, d_e, d_t1, d_t2, d_v2);
-      ccsd_t1(sch, d_f1, *d_r1s[off], d_t1, d_t2, d_v2);
+      ccsd_e(sch, d_f1, d_e, d_t1_local, d_t2, d_v2);
+      ccsd_t1(sch, d_f1, *d_r1s[off], d_t1_local, d_t2, d_v2);
       //ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
 
       std::cout << "begin tensor print d_t1\n";
@@ -333,6 +341,8 @@ std::cout << "p_evl_sorted:" << '\n';
         (d_r2_residual() += (*d_r2s[off])()  * (*d_r2s[off])())
         ;
       sch.execute();
+      d_t1_local.dealloc();
+
       std::cout << "------------print d_f1-------------------\n";
       tensor_print(d_f1);
       std::cout << "------------print i1-------------------\n";
@@ -519,7 +529,7 @@ int main(int argc, char *argv[]) {
                  nva.value(), nvab.value()-nva.value(),
                  intorb, spin_restricted, ispins, isyms, iranges);
   }
-  
+
   using T = double;
   Irrep irrep{0};
   bool spin_restricted = false;

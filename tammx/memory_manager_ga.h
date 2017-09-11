@@ -56,7 +56,7 @@ class MemoryManagerGA : public MemoryManager {
     Expects(allocation_status_ == AllocationStatus::invalid);
     Expects(nelements >= 0);
     Expects(eltype != ElementType::invalid);
-    std::cout<<"MemoryManagerGA. Create. nelements="<<nelements<<std::endl;
+    //std::cout<<"MemoryManagerGA. Create. nelements="<<nelements<<std::endl;
     eltype_ = eltype;
     int ga_pg_default = GA_Pgroup_get_default();
     Expects(pg_.is_valid());

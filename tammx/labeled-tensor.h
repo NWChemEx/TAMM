@@ -176,7 +176,7 @@ struct LabeledTensor {
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
   SetOpEntry<LabeledTensor<T>, T1> operator += (T1 value) {
-    std::cerr<<"Constructing setop. value="<<value<<std::endl;
+    //std::cerr<<"Constructing setop. value="<<value<<std::endl;
     return {*this, value, ResultMode::update};
   }
 

@@ -34,6 +34,7 @@ class MemoryManager {
   virtual void get(Proc proc, Offset off, Size nelements, void* buf) = 0;
   virtual void put(Proc proc, Offset off, Size nelements, const void* buf) = 0;
   virtual void add(Proc proc, Offset off, Size nelements, const void* buf) = 0;
+  virtual void print() const = 0;
   
  protected:
   ProcGroup pg_;
@@ -162,6 +163,18 @@ class MemoryManagerSequential : public MemoryManager {
     }
   }
 
+  void print() const {
+    for(size_t i=0; i<nelements_.value(); i++) {
+      switch(eltype_) {
+        case ElementType::double_precision:
+          std::cout<<(reinterpret_cast<const double*>(buf_))[i]<<"\n";
+          break;
+        default:
+          assert(0); //not implemented yet
+      }
+    }    
+  }
+  
  private:
   size_t elsize_;
   uint8_t* buf_;

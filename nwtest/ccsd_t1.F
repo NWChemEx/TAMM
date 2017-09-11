@@ -2808,3 +2808,8 @@ C     i0 ( p2 h1 )_vt + = -1/2 * Sum ( h5 p3 p4 ) * t ( p3 p4 h1 h5 )_t * v ( h5
       call GA_SYNC()
       RETURN
       END
+
+
+c     -----------------Code working with ccsd_driver---------------
+
+      

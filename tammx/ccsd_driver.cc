@@ -16,15 +16,28 @@
 #include <string>
 
 #include "mpi.h"
+#include "macdecls.h"
+#include "ga.h"
 
 #include "tammx/tammx.h"
 #include "tammx/work.h"
 #include "tammx/diis.h"
+#include "tammx/memory_manager_ga.h"
 
 using namespace std;
 using namespace tammx;
 using namespace tammx::tensor_dims;
 using namespace tammx::tensor_labels;
+
+extern "C" {
+
+void set_fort_vars_(Integer *int_mb_f, double *dbl_mb_f)
+{
+  int_mb_tammx = int_mb_f - 1;
+  dbl_mb_tammx = dbl_mb_f - 1;
+}
+
+}
 
 template<typename T>
 void tensor_print(Tensor<T>& t)  {
@@ -68,6 +81,8 @@ void ccsd_e(Scheduler &sch, Tensor<T>& f1, Tensor<T>& de,
 
 }
 
+
+extern "C" {
 add_fn ccsd_t1_1_, ccsd_t1_2_1_, ccsd_t1_2_2_1_, ccsd_t1_3_1_;  // ccsd_t1
 add_fn ccsd_t1_5_1_, ccsd_t1_6_1_;  // ccsd_t1
 add_fn ccsd_t2_1_, ccsd_t2_2_1_, ccsd_t2_2_2_1_;  // ccsd_t2
@@ -82,6 +97,11 @@ mult_fn ccsd_t1_6_2_, ccsd_t1_6_, ccsd_t1_7_;
                  
 static const auto sch = ExecutionMode::sch;
 static const auto fortran = ExecutionMode::fortran;
+
+}
+
+static const auto e_sch = ExecutionMode::sch;
+static const auto e_fortran = ExecutionMode::fortran;
 
 template<typename T>
 void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
@@ -99,6 +119,8 @@ void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
       (ccsd_t1_2_1_  |= t1_2_1(h7,h1)        =        f1(h7,h1))
       (ccsd_t1_2_2_1_|= t1_2_2_1(h7,p3)      =        f1(h7,p3))
       (ccsd_t1_2_2_2_|= t1_2_2_1(h7,p3)     += -1   * t1(p5,h6)       * v2(h6,h7,p3,p5))
+
+      (ccsd_t1_2_2_2_ |= t1_2_2_1(h7,p3)     += -1   * t1(p5,h6)       * v2(h6,h7,p3,p5))
       (ccsd_t1_2_2_  |= t1_2_1(h7,h1)       +=        t1(p3,h1)       * t1_2_2_1(h7,p3))
       (ccsd_t1_2_3_  |= t1_2_1(h7,h1)       += -1   * t1(p4,h5)       * v2(h5,h7,h1,p4))
       (ccsd_t1_2_4_  |= t1_2_1(h7,h1)       += -0.5 * t2(p3,p4,h1,h5) * v2(h5,h7,p3,p4))
@@ -302,12 +324,21 @@ std::cout << "p_evl_sorted:" << '\n';
       tensor_print(d_t1);
       std::cout << "end tensor print d_t1\n";
 
+      sch((*d_r1s[off])(p2,h1)            =        d_f1(p2,h1));
+      //ccsd_t1(sch, d_f1, *d_r1s[off], d_t1, d_t2, d_v2);
+      //ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
       sch(d_r1_residual() = 0)
         (d_r1_residual() += (*d_r1s[off])()  * (*d_r1s[off])())
         (d_r2_residual() = 0)
         (d_r2_residual() += (*d_r2s[off])()  * (*d_r2s[off])())
         ;
       sch.execute();
+      std::cout << "------------print d_f1-------------------\n";
+      tensor_print(d_f1);
+      std::cout << "------------print i1-------------------\n";
+      tensor_print(*d_r1s[off]);
+      std::cout << "------------end print i1--------------\n";
+
       std::cerr<<"----------------------------------------------"<<std::endl;
 
       double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
@@ -409,10 +440,57 @@ using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowM
 using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 extern std::tuple<Matrix, Tensor4D, double> hartree_fock(const string filename);
 
+// void fortran_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
+//                   const std::vector<int> &spins,
+//                   const std::vector<int> &syms,
+//                   const std::vector<int> &ranges);
+// void fortran_finalize();
+
+extern "C" {
+void init_fortran_vars_(Integer *noa1, Integer *nob1, Integer *nva1,
+                        Integer *nvb1, logical *intorb1, logical *restricted1,
+                        Integer *spins, Integer *syms, Integer *ranges);
+void finalize_fortran_vars_();
+}
+
+
+void fortran_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
+                  const std::vector<int> &spins,
+                  const std::vector<int> &syms,
+                  const std::vector<int> &ranges) {
+  Integer inoa = noa;
+  Integer inob = nob;
+  Integer inva = nva;
+  Integer invb = nvb;
+
+  logical lintorb = intorb ? 1 : 0;
+  logical lrestricted = restricted ? 1 : 0;
+
+  assert(spins.size() == noa + nob + nva + nvb);
+  assert(syms.size() == noa + nob + nva + nvb);
+  assert(ranges.size() == noa + nob + nva + nvb);
+
+  Integer ispins[noa + nob + nvb + nvb];
+  Integer isyms[noa + nob + nvb + nvb];
+  Integer iranges[noa + nob + nvb + nvb];
+
+  std::copy_n(&spins[0], noa + nob + nva + nvb, &ispins[0]);
+  std::copy_n(&syms[0], noa + nob + nva + nvb, &isyms[0]);
+  std::copy_n(&ranges[0], noa + nob + nva + nvb, &iranges[0]);
+
+  init_fortran_vars_(&inoa, &inob, &inva, &invb, &lintorb, &lrestricted,
+                     &ispins[0], &isyms[0], &iranges[0]);
+}
+
+void fortran_finalize() {
+  finalize_fortran_vars_();
+}
+
 
 int main(int argc, char *argv[]) {
   MPI_Init(&argc, &argv);
-
+  GA_Initialize();
+  MA_init(MT_DBL, 8000000, 20000000);
 
   TCE::init(spins, spatials, sizes,
             noa,
@@ -425,6 +503,23 @@ int main(int argc, char *argv[]) {
             irrep_t,
             irrep_x,
             irrep_y);
+  {
+    bool intorb = false;
+    std::vector<int> ispins, isyms, iranges;
+    for(auto x: spins) {
+      ispins.push_back(x.value());
+    }
+    for(auto x: spatials) {
+      isyms.push_back(x.value());
+    }
+    for(auto x: sizes) {
+      iranges.push_back(x);
+    }
+    fortran_init(noa.value(), noab.value()-noa.value(),
+                 nva.value(), nvab.value()-nva.value(),
+                 intorb, spin_restricted, ispins, isyms, iranges);
+  }
+  
   using T = double;
   Irrep irrep{0};
   bool spin_restricted = false;
@@ -440,10 +535,9 @@ int main(int argc, char *argv[]) {
 
   auto distribution = Distribution_NW();
   auto pg = ProcGroup{MPI_COMM_WORLD};
-  auto mgr = MemoryManagerSequential(pg);
+  auto mgr = new MemoryManagerGA{pg};
 
-
-  Tensor<T>::allocate(pg, &distribution, &mgr, d_t1, d_t2, d_f1, d_v2);
+  Tensor<T>::allocate(pg, &distribution, mgr, d_t1, d_t2, d_f1, d_v2);
 
   const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
 
@@ -451,6 +545,7 @@ int main(int argc, char *argv[]) {
   Tensor4D V;
   double hf_energy{0.0};
 
+#if 1
   std::tie(F, V, hf_energy) = hartree_fock(filename);
   std::cerr << "debug2" << '\n';
 
@@ -493,9 +588,9 @@ int main(int argc, char *argv[]) {
       }
     }
   });
-
+#endif
   std::cerr << "debug3" << '\n';
-  ExecutionContext ec {pg, &distribution, &mgr, Irrep{0}, false};
+  ExecutionContext ec {pg, &distribution, mgr, Irrep{0}, false};
 
   // Scheduler(pg, &distribution, &mgr, Irrep{0}, false)
   ec.scheduler()
@@ -514,8 +609,10 @@ int main(int argc, char *argv[]) {
   // pg,
   //             &distribution, &mgr);
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
+  fortran_finalize();
   TCE::finalize();
 
+  GA_Terminate();
   MPI_Finalize();
   return 0;
 }

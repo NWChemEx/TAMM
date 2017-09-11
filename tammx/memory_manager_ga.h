@@ -52,6 +52,10 @@ class MemoryManagerGA : public MemoryManager {
     return pg_;
   }
 
+  void print() const {
+    GA_Print(ga());
+  }
+  
   void alloc(ElementType eltype, Size nelements) {
     Expects(allocation_status_ == AllocationStatus::invalid);
     Expects(nelements >= 0);
@@ -200,7 +204,7 @@ class MemoryManagerGA : public MemoryManager {
     // std::cout<<"---memory_manager_ga. done add. lo="<<lo<<" hi="<<hi<<" ld="<<ld<<std::endl;
   }
 
-  int ga() {
+  int ga() const {
     return ga_;
   }
 

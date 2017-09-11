@@ -85,7 +85,7 @@ void index_sort_3(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
     for (i[0] = 0, c = 0; i[0] < sz[0]; i[0]++) {
       for (i[1] = 0; i[1] < sz[1]; i[1]++) {
         for (i[2] = 0; i[2] < sz[2]; i[2]++, c++) {
-          std::cerr<<__FUNCTION__<<" sz="<<sz1<<", "<<sz2<<", "<<sz3<<std::endl;
+          //std::cerr<<__FUNCTION__<<" sz="<<sz1<<", "<<sz2<<", "<<sz3<<std::endl;
           dbuf[idx(3, i, sz, p)] = alpha * sbuf[c];
         }
       }

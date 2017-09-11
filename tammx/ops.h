@@ -593,7 +593,7 @@ struct ScanOp : public Op {
       if(!(tensor.nonzero(blockid) && tensor.spin_unique(blockid) && size > 0)) {
         return;
       }
-      std::cout<<"ScanOp. blockid: "<<blockid<<std::endl;
+      //std::cout<<"ScanOp. blockid: "<<blockid<<std::endl;
       auto block = tensor.get(blockid);
       auto tbuf = block.buf();
       for(int i=0; i<size; i++) {
@@ -2120,7 +2120,7 @@ MultOp<T, LabeledTensorType>::execute() {
     Integer offsetb = offsetb_map - int_mb();
     Integer offsetc = offsetc_map - int_mb();
     
-    std::cout<<"---------INVOKING FORTRAN MULT----------\n";
+    //std::cout<<"---------INVOKING FORTRAN MULT----------\n";
     Integer zero = 0;
     fn_(&da, &offseta, &db, &offsetb, &dc, &offsetc);
     
@@ -2158,14 +2158,14 @@ MultOp<T, LabeledTensorType>::execute() {
     }
     auto cbp = tc.alloc(cblockid);
     cbp() = 0;
-    std::cout<<"MultOp. non-zero block"<<cblockid<<std::endl;
+    //std::cout<<"MultOp. non-zero block"<<cblockid<<std::endl;
     auto label_map_outer = LabelMap<BlockDim>().update(ltc.label_, cblockid);
     auto sit = symmetrization_iterator(label_map_outer,ltc, lta, ltb);
     for(; sit.has_more(); sit.next()) {
       TensorLabel cur_clbl = sit.get();
       auto cur_cblockid = label_map_outer.get_blockid(cur_clbl);
-      std::cout<<"MultOp. cur_cblock"<<cur_cblockid<<std::endl;
-      std::cout<<"MultOp. cur_cblock size="<<dimc<<std::endl;
+      //std::cout<<"MultOp. cur_cblock"<<cur_cblockid<<std::endl;
+      //std::cout<<"MultOp. cur_cblock size="<<dimc<<std::endl;
 
       auto sum_itr_first = loop_iterator(slice_indices(sum_indices, sum_labels));
       auto sum_itr_last = sum_itr_first.get_end();
@@ -2178,13 +2178,13 @@ MultOp<T, LabeledTensorType>::execute() {
 
         // std::cout<<"--summation loop. value="<<*sitr<<std::endl;
 
-        std::cout<<"--MultOp. ablockid"<<ablockid<<std::endl;
-        std::cout<<"--MultOp. bblockid"<<bblockid<<std::endl;
+        //std::cout<<"--MultOp. ablockid"<<ablockid<<std::endl;
+        //std::cout<<"--MultOp. bblockid"<<bblockid<<std::endl;
         if(!ta.nonzero(ablockid) || !tb.nonzero(bblockid)) {
           continue;
         }
-        std::cout<<"--MultOp. nonzero ablockid"<<ablockid<<std::endl;
-        std::cout<<"--MultOp. nonzero bblockid"<<bblockid<<std::endl;
+        //std::cout<<"--MultOp. nonzero ablockid"<<ablockid<<std::endl;
+        //std::cout<<"--MultOp. nonzero bblockid"<<bblockid<<std::endl;
         auto abp = ta.get(ablockid);
         auto bbp = tb.get(bblockid);
         // std::cout<<"--MultOp. a blocksize="<<abp.size()<<std::endl;
@@ -2222,8 +2222,8 @@ MultOp<T, LabeledTensorType>::execute() {
           // int csym_sign = (perm_count_inversions(perm_compute(cur_clbl, csym_clbl)) % 2) ? -1 : 1;
           // int csym_sign = (perm_count_inversions(perm_compute(csym_clbl, clabel)) % 2) ? -1 : 1;
           int csym_sign = (perm_count_inversions(perm_compute(clabel, csym_clbl)) % 2) ? -1 : 1;
-          std::cout<<"===csym sign="<<csym_sign<<std::endl;
-          std::cout<<"===clabel="<<clabel<<" csym label="<<csym_clbl<<std::endl;
+          //std::cout<<"===csym sign="<<csym_sign<<std::endl;
+          //std::cout<<"===clabel="<<clabel<<" csym label="<<csym_clbl<<std::endl;
           cbp(clabel) += csym_sign * csbp(csym_clbl);
           // std::cout<<"CBP=";
           // for(size_t i=0; i<cbp.size(); i++) {

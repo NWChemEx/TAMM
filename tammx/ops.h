@@ -981,6 +981,15 @@ tensor_print(Scheduler& sch, LabeledTensorType ltensor) {
       .execute();
 }
 
+template<typename T>
+void
+tensor_ga_print(const Tensor<T>& tensor) {
+  auto amgr_ga = static_cast<const tammx::MemoryManagerGA *>(tensor.memory_manager());
+  amgr_ga->print();
+}
+
+
+
 ///////////////////////////////////////////////////////////////////////
 // implementation of operators
 //////////////////////////////////////////////////////////////////////
@@ -1894,6 +1903,8 @@ template<typename T, typename LabeledTensorType>
 inline void
 AddOp<T, LabeledTensorType>::execute() {
   using T1 = typename LabeledTensorType::element_type;
+  tensor_ga_print(*lhs_.tensor_);
+  tensor_ga_print(*rhs_.tensor_);
   if(exec_mode_ == ExecutionMode::fortran) {
     bool t1_is_double = std::is_same<T1, double>::value;
     Expects(t1_is_double);
@@ -1905,9 +1916,11 @@ AddOp<T, LabeledTensorType>::execute() {
     std::tie(dc, offsetc_map) = tensor_to_fortran_info(*lhs_.tensor_);
     Integer offseta = offseta_map - int_mb();
     Integer offsetc = offsetc_map - int_mb();
-    
+
     fn_(&da, &offseta, &dc, &offsetc);
-    
+
+    tensor_ga_print(*lhs_.tensor_);
+
     delete[] offseta_map;
     delete[] offsetc_map;
     return;
@@ -1966,6 +1979,7 @@ AddOp<T, LabeledTensorType>::execute() {
     }
   };
   parallel_work(citr, citr.get_end(), lambda);
+  tensor_ga_print(*lhs_.tensor_);
 }
 #endif
 
@@ -2105,6 +2119,10 @@ inline void
 MultOp<T, LabeledTensorType>::execute() {
   using T1 = typename LabeledTensorType::element_type;
 
+  tensor_ga_print(*lhs_.tensor_);
+  tensor_ga_print(*rhs1_.tensor_);
+  tensor_ga_print(*rhs2_.tensor_);
+
   if(exec_mode_ == ExecutionMode::fortran) {
     bool t1_is_double = std::is_same<T1, double>::value;
     Expects(t1_is_double);
@@ -2119,17 +2137,18 @@ MultOp<T, LabeledTensorType>::execute() {
     Integer offseta = offseta_map - int_mb();
     Integer offsetb = offsetb_map - int_mb();
     Integer offsetc = offsetc_map - int_mb();
-    
+
     //std::cout<<"---------INVOKING FORTRAN MULT----------\n";
     Integer zero = 0;
     fn_(&da, &offseta, &db, &offsetb, &dc, &offsetc);
-    
+    tensor_ga_print(*lhs_.tensor_);
+
     delete[] offseta_map;
     delete[] offsetb_map;
     delete[] offsetc_map;
     return;
   }
-  
+
   //@todo @fixme MultOp based on nonsymmetrized_iterator cannot work with ResultMode::set
   //Expects(mode_ == ResultMode::update);
   LabeledTensor<T1>& lta = rhs1_;
@@ -2245,6 +2264,7 @@ MultOp<T, LabeledTensorType>::execute() {
   auto citr = loop_iterator(slice_indices(tc.tindices(), ltc.label_));
 #endif
   parallel_work(citr, citr.get_end(), lambda);
+  tensor_ga_print(*lhs_.tensor_);
 }
 #endif
 

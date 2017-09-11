@@ -1753,8 +1753,8 @@ compute_symmetrization_factor(const LabeledTensorType& ltc,
 //  }
 //};
 
-static Integer *int_mb_tammx;
-static double *dbl_mb_tammx;
+extern Integer *int_mb_tammx;
+extern double *dbl_mb_tammx;
 
 
 inline Integer*
@@ -2120,7 +2120,9 @@ MultOp<T, LabeledTensorType>::execute() {
     Integer offsetb = offsetb_map - int_mb();
     Integer offsetc = offsetc_map - int_mb();
     
-    fn_(&da, &offseta, 0, &db, &offsetb,0, &dc, &offsetc,0);
+    std::cout<<"---------INVOKING FORTRAN MULT----------\n";
+    Integer zero = 0;
+    fn_(&da, &offseta, &db, &offsetb, &dc, &offsetc);
     
     delete[] offseta_map;
     delete[] offsetb_map;

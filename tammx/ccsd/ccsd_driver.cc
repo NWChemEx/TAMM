@@ -39,6 +39,7 @@ void set_fort_vars_(Integer *int_mb_f, double *dbl_mb_f)
 
 }
 
+#if 0
 template<typename T>
 void tensor_print(Tensor<T>& t)  {
   auto lambda = [&] (auto& val) {
@@ -58,6 +59,7 @@ void tensor_print(Tensor<T>& t)  {
     .sop(t(), lambda)
     .execute();
 }
+#endif
 
 template<typename T>
 void compute_residual(Scheduler &sch, Tensor<T>& tensor, Tensor<T>& scalar) {

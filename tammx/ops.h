@@ -1906,7 +1906,7 @@ AddOp<T, LabeledTensorType>::execute() {
     Integer offseta = offseta_map - int_mb();
     Integer offsetc = offsetc_map - int_mb();
     
-    fn_(&da, &offseta, 0, &dc, &offsetc,0);
+    fn_(&da, &offseta, &dc, &offsetc);
     
     delete[] offseta_map;
     delete[] offsetc_map;

@@ -259,15 +259,6 @@ operator |= (add_fn fn, AddOpEntry<LabeledTensor<T>, T1> op) {
 template<typename T,
          typename T1,
          typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-AddOpEntry<LabeledTensor<T>, T1>
-operator |= (ExecutionMode exec_mode, AddOpEntry<LabeledTensor<T>, T1> op) {
-  op.exec_mode = exec_mode;
-  return op;
-}
-
-template<typename T,
-         typename T1,
-         typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
 MultOpEntry<LabeledTensor<T>, T1>
 operator |= (mult_fn fn, MultOpEntry<LabeledTensor<T>, T1> op) {
   op.fn = fn;

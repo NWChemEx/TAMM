@@ -215,7 +215,7 @@ if(NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
   set(TAMM_LINK_EXTRA -lrt)
 endif()
 
-add_executable(ccsd_driver ${TAMMX_PROJECT_DIR}/tammx/ccsd_driver.cc ${TAMMX_PROJECT_DIR}/tammx/hartree_fock.cc)
+add_executable(ccsd_driver ${TAMMX_PROJECT_DIR}/tammx/ccsd/ ccsd_driver.cc ${TAMMX_PROJECT_DIR}/tammx/hartree_fock.cc)
 add_dependencies(ccsd_driver fort_deps_tammx fort_deps_c tammx)
 target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
 target_link_libraries(ccsd_driver fort_deps_tammx fort_deps_c tammx ${tamm_cflags}

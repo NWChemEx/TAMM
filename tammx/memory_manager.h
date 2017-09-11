@@ -8,7 +8,7 @@ namespace tammx {
 
 class MemoryManager {
  public:
-  MemoryManager(ProcGroup pg)
+  explicit MemoryManager(ProcGroup pg)
       : pg_{pg},
         eltype_{ElementType::invalid},
         nelements_{0} {}
@@ -43,7 +43,7 @@ class MemoryManager {
 
 class MemoryManagerSequential : public MemoryManager {
  public:
-  MemoryManagerSequential(ProcGroup pg)
+  explicit MemoryManagerSequential(ProcGroup pg)
       : MemoryManager(pg),
         buf_{nullptr},
         elsize_{0},

@@ -12,7 +12,7 @@ namespace tammx {
 
 class MemoryManagerGA : public MemoryManager {
  public:
-  MemoryManagerGA(ProcGroup pg)
+  explicit MemoryManagerGA(ProcGroup pg)
       : MemoryManager{pg},
         allocation_status_{AllocationStatus::invalid} {}
 

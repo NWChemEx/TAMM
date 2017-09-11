@@ -37,15 +37,21 @@ template<typename T, typename LabeledTensorType>
 struct AddOp : public Op {
   void execute() override;
 
-  AddOp(T alpha, const LabeledTensorType& lhs, const LabeledTensorType& rhs, ResultMode mode)
+  AddOp(T alpha, const LabeledTensorType& lhs, const LabeledTensorType& rhs, ResultMode mode,
+        ExecutionMode exec_mode,
+        add_fn* fn)
       : alpha_{alpha},
         lhs_{lhs},
         rhs_{rhs},
-        mode_{mode} { }
+        mode_{mode},
+        exec_mode_{exec_mode},
+        fn_{fn} { }
 
   T alpha_;
   LabeledTensorType lhs_, rhs_;
   ResultMode mode_;
+  ExecutionMode exec_mode_;
+  add_fn* fn_;
 };
 
 template<typename T, typename LabeledTensorType>
@@ -53,16 +59,22 @@ struct MultOp : public Op {
   void execute() override;
 
   MultOp(T alpha, const LabeledTensorType& lhs, const LabeledTensorType& rhs1,
-         const LabeledTensorType& rhs2, ResultMode mode)
+         const LabeledTensorType& rhs2, ResultMode mode,
+         ExecutionMode exec_mode,
+         mult_fn* fn)
       : alpha_{alpha},
         lhs_{lhs},
         rhs1_{rhs1},
         rhs2_{rhs2},
-        mode_{mode} { }
+        mode_{mode},
+        exec_mode_{exec_mode},
+        fn_{fn} { }
 
   T alpha_;
   LabeledTensorType lhs_, rhs1_, rhs2_;
   ResultMode mode_;
+  ExecutionMode exec_mode_;
+  mult_fn* fn_;
 };
 
 template<typename TensorType>
@@ -581,6 +593,7 @@ struct ScanOp : public Op {
       if(!(tensor.nonzero(blockid) && tensor.spin_unique(blockid) && size > 0)) {
         return;
       }
+      std::cout<<"ScanOp. blockid: "<<blockid<<std::endl;
       auto block = tensor.get(blockid);
       auto tbuf = block.buf();
       for(int i=0; i<size; i++) {
@@ -785,7 +798,7 @@ class Scheduler {
             || (aop.mode==ResultMode::set
                 && tensors_[&aop.lhs.tensor()].status==TensorStatus::allocated));
     tensors_[&aop.lhs.tensor()].status = TensorStatus::initialized;
-    ops_.push_back(new AddOp<LabeledTensorType, T>(aop.alpha, aop.lhs, aop.rhs, aop.mode));
+    ops_.push_back(new AddOp<LabeledTensorType, T>(aop.alpha, aop.lhs, aop.rhs, aop.mode, aop.exec_mode, aop.fn));
     return *this;
   }
 
@@ -800,7 +813,7 @@ class Scheduler {
             || (aop.mode==ResultMode::set
                 && tensors_[&aop.lhs.tensor()].status==TensorStatus::allocated));
     tensors_[&aop.lhs.tensor()].status = TensorStatus::initialized;
-    ops_.push_back(new MultOp<LabeledTensorType, T>(aop.alpha, aop.lhs, aop.rhs1, aop.rhs2, aop.mode));
+    ops_.push_back(new MultOp<LabeledTensorType, T>(aop.alpha, aop.lhs, aop.rhs1, aop.rhs2, aop.mode, aop.exec_mode, aop.fn));
     return *this;
   }
 
@@ -1730,6 +1743,50 @@ compute_symmetrization_factor(const LabeledTensorType& ltc,
   return 1.0/ret;
 }
 
+//class FortranVariables {
+// public:
+//  static Integer *int_mb_tammx;
+//  static double *dbl_mb_tammx;
+//  static void set_fort_idmb_(Integer *int_mb_f, double *dbl_mb_f){
+//    int_mb_tammx = int_mb_f - 1;
+//    dbl_mb_tammx = dbl_mb_f - 1;
+//  }
+//};
+
+static Integer *int_mb_tammx;
+static double *dbl_mb_tammx;
+
+
+inline Integer*
+int_mb() {
+  //assert(0); //@todo implement
+  return int_mb_tammx;
+}
+
+// template<typename T>
+// std::pair<Integer, Integer *>
+// tensor_to_fortran_info(Tensor<T> &ttensor) {
+//   assert(0); //@fixme here to enable compilation
+//   return {0, nullptr};
+// }
+
+template<typename T>
+std::pair<Integer, Integer *>
+tensor_to_fortran_info(tammx::Tensor<T> &ttensor) {
+  bool t_is_double = std::is_same<T, double>::value;
+  Expects(t_is_double);
+  auto adst_nw = static_cast<const tammx::Distribution_NW *>(ttensor.distribution());
+  auto ahash = adst_nw->hash();
+  auto length = 2 * ahash[0] + 1;
+  Integer *offseta = new Integer[length];
+  for (size_t i = 0; i < length; i++) {
+    offseta[i] = ahash[i];
+  }
+
+  auto amgr_ga = static_cast<tammx::MemoryManagerGA *>(ttensor.memory_manager());
+  Integer da = amgr_ga->ga();
+  return {da, offseta};
+}
 
 #if 0
 // with symmetrization, no unsymmetrization. does not work
@@ -1837,6 +1894,24 @@ template<typename T, typename LabeledTensorType>
 inline void
 AddOp<T, LabeledTensorType>::execute() {
   using T1 = typename LabeledTensorType::element_type;
+  if(exec_mode_ == ExecutionMode::fortran) {
+    bool t1_is_double = std::is_same<T1, double>::value;
+    Expects(t1_is_double);
+    Expects(fn_ != nullptr);
+
+    Integer da, *offseta_map;
+    Integer dc, *offsetc_map;
+    std::tie(da, offseta_map) = tensor_to_fortran_info(*rhs_.tensor_);
+    std::tie(dc, offsetc_map) = tensor_to_fortran_info(*lhs_.tensor_);
+    Integer offseta = offseta_map - int_mb();
+    Integer offsetc = offsetc_map - int_mb();
+    
+    fn_(&da, &offseta, 0, &dc, &offsetc,0);
+    
+    delete[] offseta_map;
+    delete[] offsetc_map;
+    return;
+  }
   const LabeledTensor<T1>& lta = rhs_;
   const LabeledTensor<T1>& ltc = lhs_;
   const auto &clabel = ltc.label_;
@@ -2030,6 +2105,29 @@ inline void
 MultOp<T, LabeledTensorType>::execute() {
   using T1 = typename LabeledTensorType::element_type;
 
+  if(exec_mode_ == ExecutionMode::fortran) {
+    bool t1_is_double = std::is_same<T1, double>::value;
+    Expects(t1_is_double);
+    Expects(fn_ != nullptr);
+
+    Integer da, *offseta_map;
+    Integer db, *offsetb_map;
+    Integer dc, *offsetc_map;
+    std::tie(da, offseta_map) = tensor_to_fortran_info(*rhs1_.tensor_);
+    std::tie(db, offsetb_map) = tensor_to_fortran_info(*rhs2_.tensor_);
+    std::tie(dc, offsetc_map) = tensor_to_fortran_info(*lhs_.tensor_);
+    Integer offseta = offseta_map - int_mb();
+    Integer offsetb = offsetb_map - int_mb();
+    Integer offsetc = offsetc_map - int_mb();
+    
+    fn_(&da, &offseta, 0, &db, &offsetb,0, &dc, &offsetc,0);
+    
+    delete[] offseta_map;
+    delete[] offsetb_map;
+    delete[] offsetc_map;
+    return;
+  }
+  
   //@todo @fixme MultOp based on nonsymmetrized_iterator cannot work with ResultMode::set
   //Expects(mode_ == ResultMode::update);
   LabeledTensor<T1>& lta = rhs1_;

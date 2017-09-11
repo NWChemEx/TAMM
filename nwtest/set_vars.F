@@ -186,6 +186,8 @@ c$$$      enddo
       ip_unused_spin = 1
       ip_unused_sym = 0
 
+      call set_fort_vars(int_mb,dbl_mb)
+
       return
       END
 

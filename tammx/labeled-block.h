@@ -134,16 +134,16 @@ index_permute(T* dbuf, const T* sbuf, const TensorPerm& perm, const TensorIndex&
     //iperm.push_back(inv_perm[i]+1);
     iperm.push_back(perm[i]+1);
   }
-  std::cout<<"index_sort args. size=";
-  for(unsigned i=0; i<ddims.size(); i++) {
-    std::cout<<sizes[i]<<" ";
-  }
-  std::cout<<"\n";
-  std::cout<<"index_sort args. iperm=";
-  for(unsigned i=0; i<ddims.size(); i++) {
-    std::cout<<iperm[i]<<" ";
-  }
-  std::cout<<"\n";
+  // std::cout<<"index_sort args. size=";
+  // for(unsigned i=0; i<ddims.size(); i++) {
+  //   std::cout<<sizes[i]<<" ";
+  // }
+  // std::cout<<"\n";
+  // std::cout<<"index_sort args. iperm=";
+  // for(unsigned i=0; i<ddims.size(); i++) {
+  //   std::cout<<iperm[i]<<" ";
+  // }
+  // std::cout<<"\n";
 
   index_sort(sbuf, dbuf,
              sizes.size(), &sizes[0], &iperm[0], scale);
@@ -214,8 +214,8 @@ void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock
 
   auto aperm = perm_compute(ablock(alabel), alabel_sort);
   auto bperm = perm_compute(bblock(blabel), blabel_sort);
-  std::cout<<"--multiply. aperm="<<aperm<<std::endl;
-  std::cout<<"--multiply. bperm="<<bperm<<std::endl;
+  // std::cout<<"--multiply. aperm="<<aperm<<std::endl;
+  // std::cout<<"--multiply. bperm="<<bperm<<std::endl;
 
   index_permute(abuf_sort.get(), ablock.buf(), aperm,
                 perm_apply(ablock.block_dims(), aperm), T{1});
@@ -248,13 +248,13 @@ void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock
   auto aext_dims = lmap.get_blockid(aext_labels);
   auto bext_dims = lmap.get_blockid(bext_labels);
   auto sum_dims = lmap.get_blockid(sum_labels);
-  std::cout<<"matmul. aext_dims="<<aext_dims<<std::endl;
-  std::cout<<"matmul. bext_dims="<<bext_dims<<std::endl;
+  // std::cout<<"matmul. aext_dims="<<aext_dims<<std::endl;
+  // std::cout<<"matmul. bext_dims="<<bext_dims<<std::endl;
   int m = std::accumulate(aext_dims.begin(), aext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
   int n = std::accumulate(bext_dims.begin(), bext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
   int k = std::accumulate(sum_dims.begin(), sum_dims.end(), BlockDim{1}, std::multiplies<>()).value();
 
-  std::cout<<"matmul. m="<<m<<" n="<<n<<" k="<<k<<std::endl;
+  // std::cout<<"matmul. m="<<m<<" n="<<n<<" k="<<k<<std::endl;
   // std::cout<<"matmul. alpha="<<alpha<<" beta="<<beta<<std::endl;
   matmul<T>(m, n, k, abuf_sort.get(), k,
             bbuf_sort.get(), n,
@@ -269,8 +269,8 @@ void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock
   //auto cperm = (perm_compute(cblock(clabel), clabel_sort));
   //auto cperm = (perm_compute(clabel_sort, cblock(clabel)));
   //T
-  std::cout<<"--multiply. cperm="<<cperm<<std::endl;
-  std::cout<<"--multiply. cblock dims="<<cblock.block_dims()<<std::endl;
+  // std::cout<<"--multiply. cperm="<<cperm<<std::endl;
+  // std::cout<<"--multiply. cblock dims="<<cblock.block_dims()<<std::endl;
   index_permute(cblock.buf(), cbuf_sort.get(),
                 cperm, cblock.block_dims(), T{1});
 }

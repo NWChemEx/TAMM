@@ -4,7 +4,7 @@
 #define TAMMX_WORK_H_
 
 #include <algorithm>
-#include "tammx/labeled-tensor.h"
+#include "tammx/labeled_tensor.h"
 #include "tammx/tensor.h"
 
 namespace tammx {

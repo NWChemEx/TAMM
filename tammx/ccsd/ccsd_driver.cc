@@ -305,7 +305,7 @@ std::cout << "p_evl_sorted:" << '\n';
   //void Tensor<T>::operator = (std::pair<Tensor<T>, Tensor<T>> rhs);
 
   auto get_scalar = [] (Tensor<T>& tensor) -> T {
-    Expects(tensor.rank() == 0);
+    EXPECTS(tensor.rank() == 0);
     Block<T> resblock = tensor.get({});
     return *resblock.buf();
   };
@@ -574,7 +574,7 @@ int main(int argc, char *argv[]) {
     // std::cout << "block offset:" << block_offset << '\n';
     // std::cout << "block dims:" << block_dims << '\n';
     // std::cout << "block size:" << block.size() << '\n';
-    Expects(block.tensor().rank() == 2);
+    EXPECTS(block.tensor().rank() == 2);
     int c = 0;
     for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
       for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
@@ -591,7 +591,7 @@ int main(int argc, char *argv[]) {
     auto buf = block.buf();
     const auto& block_offset = block.block_offset();
     const auto& block_dims = block.block_dims();
-    Expects(block.tensor().rank() == 4);
+    EXPECTS(block.tensor().rank() == 4);
     int c = 0;
     for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
       for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++) {

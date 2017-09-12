@@ -167,7 +167,7 @@ else()
 endif()
 
 add_library(fort_deps STATIC ${FORTRAN_DEPS_SRC} ${EXTRA_FORT_TAMM})
-target_include_directories(fort_deps SYSTEM PUBLIC ${tamm_includes})
+target_include_directories(fort_deps SYSTEM PUBLIC ${tamm_includes} ${TAMMX_PROJECT_DIR}/tce_fortran)
 target_compile_options(fort_deps PRIVATE ${tamm_fortran_link_flags})
 
 
@@ -217,6 +217,8 @@ endif()
 
 add_library(tce_fortran ${TAMMX_PROJECT_DIR}/tammx/ccsd/ccsd_t1.F ${TAMMX_PROJECT_DIR}/tce_fortran/errquit.F)
 target_include_directories(tce_fortran SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${TAMMX_PROJECT_DIR}/tce_fortran ${tamm_includes})
+target_compile_options(tce_fortran PRIVATE ${tamm_fortran_link_flags})
+
 
 add_executable(ccsd_driver ${TAMMX_PROJECT_DIR}/tammx/ccsd/ccsd_driver.cc ${TAMMX_PROJECT_DIR}/tammx/hartree_fock.cc)
 add_dependencies(ccsd_driver fort_deps_tammx fort_deps_c tammx)

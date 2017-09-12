@@ -3,13 +3,13 @@
 #ifndef TAMMX_TCE_H_
 #define TAMMX_TCE_H_
 
-#include <cassert>
 #include <iosfwd>
 #include <numeric>
 #include <iterator>
 #include <sstream>
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
+#include "tammx/errors.h"
 
 namespace tammx {
 
@@ -45,16 +45,16 @@ class TCE {
     offsets_.push_back(0);
     std::partial_sum(sizes_.begin(), sizes_.end(), std::back_inserter(offsets_));
 
-    Expects(noab_ >=0 && nvab_ >=0);
-    Expects(noa_ <= noab_ && nva_ <= nvab_);
+    EXPECTS(noab_ >=0 && nvab_ >=0);
+    EXPECTS(noa_ <= noab_ && nva_ <= nvab_);
     auto sz = noab_.value() + nvab_.value();
-    Expects(spins_.size() == sz);
-    Expects(spatials_.size() == sz);
-    Expects(sizes_.size() == sz);
-    Expects(offsets_.size() == sz+1);
+    EXPECTS(spins_.size() == sz);
+    EXPECTS(spatials_.size() == sz);
+    EXPECTS(sizes_.size() == sz);
+    EXPECTS(offsets_.size() == sz+1);
 
     for(auto s: spins_) {
-      Expects(s==Spin{1} || s==Spin{2});
+      EXPECTS(s==Spin{1} || s==Spin{2});
     }
   }
 
@@ -124,7 +124,7 @@ class TCE {
                      } else if (dt == DimType::n) {
                        return noab().value() + nvab().value();
                      } else {
-                       assert(0); //implement
+                       NOT_IMPLEMENTED();
                      }
                    });
 
@@ -137,7 +137,7 @@ class TCE {
                      } else if (dt == DimType::n) {
                        return 1;
                      } else {
-                       assert(0); //implement
+                       NOT_IMPLEMENTED();
                      }
                    });
 
@@ -169,7 +169,7 @@ class TCE {
         ret = noab() + nvb() + 1;
         break;
       default:
-        assert(0);
+        UNREACHABLE();
     }
     return ret;
   }
@@ -193,7 +193,7 @@ class TCE {
         ret = noab() + nvab() + 1;
         break;
       default:
-        assert(0);
+        UNREACHABLE();
     }
     return ret;
   }
@@ -225,7 +225,7 @@ class RangeType {
 
   RangeType(DimType dt = DimType::inv)
       : dt_{dt} {
-    Expects(dt != DimType::c);
+    EXPECTS(dt != DimType::c);
   }
 
   RangeType(DimType dt,
@@ -234,7 +234,7 @@ class RangeType {
       : dt_{dt},
         blo_{blo},
         bhi_{bhi} {
-          Expects(dt == DimType::c);
+          EXPECTS(dt == DimType::c);
           if(bhi_ == BlockDim{0}) {
             bhi_ = blo_ + 1;
           }
@@ -249,7 +249,7 @@ class RangeType {
   }
 
   BlockDim blo() const {
-    Expects(dt_ != DimType::inv);
+    EXPECTS(dt_ != DimType::inv);
     if(dt_ == DimType::c) {
       return blo_;
     }
@@ -257,7 +257,7 @@ class RangeType {
   }
 
   BlockDim bhi() const {
-    Expects(dt_ != DimType::inv);
+    EXPECTS(dt_ != DimType::inv);
     if(dt_ == DimType::c) {
       return bhi_;
     }
@@ -339,7 +339,7 @@ to_string(const RangeType& rt) {
       return static_cast<std::ostringstream*>(&(std::ostringstream()<<"c"<<rt.blo()<<".."<<rt.bhi()<<"]"))->str();
       break;
     default:
-      assert(0);
+      UNREACHABLE();
   }
 }
 
@@ -398,11 +398,11 @@ class IndexLabel {
   IndexLabel(int lbl, const RangeType& rtype)
       : label{lbl},
         rt_{rtype} {
-          Expects(rt_.dt() != DimType::inv);
-          Expects(rt_.dt() != DimType::c);
+          EXPECTS(rt_.dt() != DimType::inv);
+          EXPECTS(rt_.dt() != DimType::c);
           if(rt_.dt() != DimType::c) {
-            Expects(rt_.blo() == TCE::dim_lo(rt_.dt()));
-            Expects(rt_.bhi() == TCE::dim_hi(rt_.dt()));
+            EXPECTS(rt_.blo() == TCE::dim_lo(rt_.dt()));
+            EXPECTS(rt_.bhi() == TCE::dim_hi(rt_.dt()));
           }
         }
 
@@ -445,7 +445,7 @@ operator << (std::ostream& os, IndexLabel il) {
       str = "n";
       break;
     default:
-      assert(0);
+      NOT_IMPLEMENTED();
   }
   os<<str << il.label;
   return os;

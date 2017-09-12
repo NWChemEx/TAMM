@@ -1,7 +1,7 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMMX_TYPES_H__
-#define TAMMX_TYPES_H__
+#ifndef TAMMX_TYPES_H_
+#define TAMMX_TYPES_H_
 
 #include <cassert>
 #include <iosfwd>
@@ -13,7 +13,6 @@ namespace tammx {
 
 using Fint = int64_t;
 
-// using BlockDim = int64_t;
 struct BlockDimSpace;
 using BlockDim = StrongNum<BlockDimSpace, int64_t>;
 using TensorRank = int;
@@ -29,27 +28,49 @@ using Offset = StrongNum<OffsetSpace, int64_t>;
 using Size = Offset;
 
 
-enum class AllocationStatus { invalid, created, attached };
+enum class AllocationStatus {
+  invalid,
+  created,
+  attached
+};
 
-//struct PermSpace;
-//using Perm = StrongNum<PermSace, int>;
-
-enum class ElementType { invalid, single_precision, double_precision, single_complex, double_complex };
+enum class ElementType {
+  invalid,
+  single_precision,
+  double_precision,
+  single_complex,
+  double_complex
+};
 
 template<typename T>
-constexpr ElementType tensor_element_type() {return ElementType::invalid; }
+constexpr ElementType
+tensor_element_type() {
+  return ElementType::invalid;
+}
 
 template<>
-constexpr ElementType tensor_element_type<double>() { return ElementType::double_precision; }
+constexpr ElementType
+tensor_element_type<double>() {
+  return ElementType::double_precision;
+}
 
 template<>
-constexpr ElementType tensor_element_type<float>() { return ElementType::single_precision; }
+constexpr ElementType
+tensor_element_type<float>() {
+  return ElementType::single_precision;
+}
 
 template<>
-constexpr ElementType tensor_element_type<std::complex<float>>() { return ElementType::single_complex; }
+constexpr ElementType
+tensor_element_type<std::complex<float>>() {
+  return ElementType::single_complex;
+}
 
 template<>
-constexpr ElementType tensor_element_type<std::complex<double>>() { return ElementType::double_complex; }
+constexpr ElementType
+tensor_element_type<std::complex<double>>() {
+  return ElementType::double_complex;
+}
 
 static inline constexpr size_t
 element_size(ElementType eltype) {
@@ -74,15 +95,16 @@ element_size(ElementType eltype) {
 }
 
 
-enum class DimType { o  = 0b0011,
-                     v  = 0b1100,
-                     oa = 0b0001,
-                     ob = 0b0010,
-                     va = 0b0100,
-                     vb = 0b1000,
-                     n  = 0b1111,
-                     c  = 0b0000,
-                     inv = 0b11111,
+enum class DimType {
+  o  = 0b0011,
+  v  = 0b1100,
+  oa = 0b0001,
+  ob = 0b0010,
+  va = 0b0100,
+  vb = 0b1000,
+  n  = 0b1111,
+  c  = 0b0000,
+  inv = 0b11111,
 };
 
 inline bool
@@ -123,22 +145,9 @@ to_string(DimType dt) {
 
 inline std::ostream&
 operator << (std::ostream& os, DimType dt) {
-  switch(dt) {
-    case DimType::o:
-      os<<"DimType::o";
-      break;
-    case DimType::v:
-      os<<"DimType::v";
-      break;
-    case DimType::n:
-      os<<"DimType::n";
-      break;
-    default:
-      assert(0);
-  }
+  os << to_string(dt);
   return os;
 }
-
 
 const TensorRank maxrank{8};
 
@@ -146,13 +155,10 @@ template<typename T>
 using TensorVec = BoundVec<T, maxrank>;
 
 using TensorIndex = TensorVec<BlockDim>;
-//using TensorLabel = TensorVec<IndexLabel>;
-//using SymmGroup = TensorVec<DimType>;
 using TensorDim = TensorVec<DimType>;
 using TensorPerm = TensorVec<int>;
 
-}; //namespace tammx
+} //namespace tammx
 
 
-#endif  // TAMMX_TYPES_H__
-
+#endif  // TAMMX_TYPES_H_

@@ -94,10 +94,11 @@ namespace impl {
  *
  * @todo unsafe. passing 1 instead of 1.0 might lead to unexpected results.
  */
-template<typename T>
+template<typename T1, typename T2>
 inline void
-index_permute_acc(T* dbuf, const T* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
-  static_assert(std::is_same<T, double>(), "index_permute_acc only works with doubles");
+index_permute_acc(T1* dbuf, const T1* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T2 scale) {
+  static_assert(std::is_same<T1, double>(), "index_permute_acc only works with doubles");
+  static_assert(std::is_convertible<T2, double>(), "index_permute_acc only works with scale convertible to double");
   EXPECTS(dbuf!=nullptr && sbuf!=nullptr);
   EXPECTS(perm.size() == ddims.size());
 
@@ -116,10 +117,11 @@ index_permute_acc(T* dbuf, const T* sbuf, const TensorPerm& perm, const TensorIn
 /**
  *  @todo unsafe. passing 1 instead of 1.0 might lead to unexpected results.
  */
-template<typename T>
+template<typename T1, typename T2>
 inline void
-index_permute(T* dbuf, const T* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
-  static_assert(std::is_same<T, double>(), "index_permute_acc only works with doubles");
+index_permute(T1* dbuf, const T1* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T2 scale) {
+  static_assert(std::is_same<T1, double>(), "index_permute only works with doubles");
+  static_assert(std::is_convertible<T2, double>(), "index_permute only works with scale convertible to double");
   EXPECTS(dbuf!=nullptr && sbuf!=nullptr);
   EXPECTS(perm.size() == ddims.size());
 
@@ -199,9 +201,9 @@ void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock
   auto bperm = perm_compute(bblock(blabel), blabel_sort);
 
   index_permute(abuf_sort.get(), ablock.buf(), aperm,
-                perm_apply(ablock.block_dims(), aperm), T{1});
+                perm_apply(ablock.block_dims(), aperm), 1);
   index_permute(bbuf_sort.get(), bblock.buf(), bperm,
-                perm_apply(bblock.block_dims(), bperm), T{1});
+                perm_apply(bblock.block_dims(), bperm), 1);
   for(size_t i=0; i<cblock.size(); i++) {
     cbuf_sort[i] = cblock.buf()[i];
   }
@@ -225,7 +227,7 @@ void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock
   auto cperm = perm_invert(perm_compute(cblock(clabel), clabel_sort));
   //T
   index_permute(cblock.buf(), cbuf_sort.get(),
-                cperm, cblock.block_dims(), T{1});
+                cperm, cblock.block_dims(), 1);
 }
 
 template<typename T, typename T1>

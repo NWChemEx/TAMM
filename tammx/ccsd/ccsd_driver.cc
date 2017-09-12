@@ -11,6 +11,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <iomanip>
 #include <map>
 #include <vector>
 #include <string>
@@ -182,9 +183,9 @@ void ccsd_t2(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
       (ccsd_t2_2_5_1_ |= t2_2_5_1(h7,h10,h1,p9)     =        v2(h7,h10,h1,p9))
       (ccsd_t2_2_5_2_ |= t2_2_5_1(h7,h10,h1,p9)    +=        t1(p5,h1) * v2(h7,h10,p5,p9))
       (ccsd_t2_2_5_ |= t2_2_1(h10,p3,h1,h2)      +=        t2(p3,p9,h1,h7) * t2_2_5_1(h7,h10,h2,p9))
-      (c2f_t2_t12_ |= t2(p1,p2,h3,h4)           += 0.5  * t1(p1,h3) * t1(p2,h4))
+      (/*c2f_t2_t12_ |= */ t2(p1,p2,h3,h4)           += 0.5  * t1(p1,h3) * t1(p2,h4))
       (ccsd_t2_2_6_ |= t2_2_1(h10,p3,h1,h2)      += 0.5  * t2(p5,p6,h1,h2) * v2(h10,p3,p5,p6))
-      (c2d_t2_t12_ |= t2(p1,p2,h3,h4)           += -0.5 * t1(p1,h3) * t1(p2,h4))
+      (/*c2d_t2_t12_ |= */ t2(p1,p2,h3,h4)           += -0.5 * t1(p1,h3) * t1(p2,h4))
       (ccsd_t2_2_ |= i0(p3,p4,h1,h2)           += -1   * t1(p3,h10) * t2_2_1(h10,p4,h1,h2))
       (lccsd_t2_3x_ |= i0(p3,p4,h1,h2)           += -1   * t1(p5,h1) * v2(p3,p4,h2,p5))
       (ccsd_t2_4_1_ |= t2_4_1(h9,h1)              =        f1(h9,h1))
@@ -211,9 +212,9 @@ void ccsd_t2(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
       ( vt1t1_1(h5,p3,h1,h2)       = 0)
       (vt1t1_1_2_ |= vt1t1_1(h5,p3,h1,h2)      += -2   * t1(p6,h1) * v2(h5,p3,h2,p6))
       (vt1t1_1_ |= i0(p3,p4,h1,h2)           += -0.5 * t1(p3,h5) * vt1t1_1(h5,p4,h1,h2))
-      (c2f_t2_t12_ |=  t2(p1,p2,h3,h4)           += 0.5  * t1(p1,h3) * t1(p2,h4))
-      (ccsd_t2_8_ |= i0(p3,p4,h1,h2)           += 0.5  * t2(p5,p6,h1,h2) * v2(p3,p4,p5,p6))
-      (c2d_t2_t12_ |= t2(p1,p2,h3,h4)           += -0.5 * t1(p1,h3) * t1(p2,h4))
+      (/*c2f_t2_t12_ |= */ t2(p1,p2,h3,h4)           += 0.5  * t1(p1,h3) * t1(p2,h4))
+      (/*ccsd_t2_8_ |= */ i0(p3,p4,h1,h2)           += 0.5  * t2(p5,p6,h1,h2) * v2(p3,p4,p5,p6))
+      (/*c2d_t2_t12_ |= */ t2(p1,p2,h3,h4)           += -0.5 * t1(p1,h3) * t1(p2,h4))
     .dealloc(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
              t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1);
 }
@@ -334,15 +335,8 @@ std::cout << "p_evl_sorted:" << '\n';
 
       ccsd_e(sch, d_f1, d_e, d_t1_local, d_t2, d_v2);
       ccsd_t1(sch, d_f1, *d_r1s[off], d_t1_local, d_t2, d_v2);
-      //ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
+      ccsd_t2(sch, d_f1, *d_r2s[off], d_t1_local, d_t2, d_v2);
 
-      std::cout << "begin tensor print d_t1\n";
-      tensor_print(d_t1);
-      std::cout << "end tensor print d_t1\n";
-
-      sch((*d_r1s[off])(p2,h1)            =        d_f1(p2,h1));
-      //ccsd_t1(sch, d_f1, *d_r1s[off], d_t1, d_t2, d_v2);
-      //ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
       sch(d_r1_residual() = 0)
         (d_r1_residual() += (*d_r1s[off])()  * (*d_r1s[off])())
         (d_r2_residual() = 0)
@@ -351,13 +345,13 @@ std::cout << "p_evl_sorted:" << '\n';
       sch.execute();
       d_t1_local.dealloc();
 
-      std::cout << "------------print d_f1-------------------\n";
-      tensor_print(d_f1);
-      std::cout << "------------print i1-------------------\n";
-      tensor_print(*d_r1s[off]);
-      std::cout << "------------end print i1--------------\n";
+      // std::cout << "------------print d_f1-------------------\n";
+      // tensor_print(d_f1);
+      // std::cout << "------------print i1-------------------\n";
+      // tensor_print(*d_r1s[off]);
+      // std::cout << "------------end print i1--------------\n";
 
-      std::cerr<<"----------------------------------------------"<<std::endl;
+      // std::cerr<<"----------------------------------------------"<<std::endl;
 
       double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
       double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
@@ -365,10 +359,10 @@ std::cout << "p_evl_sorted:" << '\n';
       energy = get_scalar(d_e);
       std::cout << "iteration:" << iter << '\n';
       std::cout << "r1=" << r1 <<" r2="<<r2 << '\n';
-      tensor_print(*d_r1s[off]);
-      tensor_print(d_r1_residual);
-      std::cout << "residual:" << residual << '\n';
-      std:std::cout << "energy:" << energy << '\n';
+      // tensor_print(*d_r1s[off]);
+      // tensor_print(d_r1_residual);
+      std::cout << std::setprecision(13) << "residual:" << residual << '\n';
+      std::cout << std::setprecision(13) << "energy:" << energy << '\n';
       if(residual < thresh) {
         //nodezero_print();
         break;
@@ -545,10 +539,10 @@ int main(int argc, char *argv[]) {
   Tensor<T> d_t2{VV|OO, irrep, spin_restricted};
   Tensor<T> d_f1{N|N, irrep, spin_restricted};
   Tensor<T> d_v2{NN|NN, irrep, spin_restricted};
-  int maxiter = 10;
+  int maxiter = 50;
   double thresh = 1.0e-6;
   double zshiftl = 0.0;
-  int ndiis = 6;
+  int ndiis = 5;
 
 
   auto distribution = Distribution_NW();
@@ -584,8 +578,8 @@ int main(int argc, char *argv[]) {
     }
   });
 
-  tensor_print(d_f1);
-  std::cerr << "debug1" << '\n';
+  // tensor_print(d_f1);
+  // std::cerr << "debug1" << '\n';
 
   tensor_map(d_v2(), [&](auto& block) {
     auto buf = block.buf();

@@ -4,18 +4,18 @@
 //for Integer
 #include "ga.h"
 
-//using Fint = Integer;
-
 namespace tammx {
+
+using FortranInt = Integer;
 
 class MA {
  public:
-  static void init(Integer* int_mb, double* dbl_mb) {
+  static void init(FortranInt* int_mb, double* dbl_mb) {
     int_mb_ = int_mb - 1;
     dbl_mb_ = dbl_mb - 1;
   }
 
-  static Integer* int_mb() {
+  static FortranInt* int_mb() {
     return int_mb_;
   }
 
@@ -24,20 +24,20 @@ class MA {
   }
 
  private:
-  static Integer* int_mb_;
+  static FortranInt* int_mb_;
   static double* dbl_mb_;
 };
 
 } // namespace tammx
 
-// extern "C" {
-//   typedef void add_fn(Integer *ta, Integer *offseta,
-//                       Integer *tc, Integer *offsetc);
+extern "C" {
+  typedef void add_fn(Integer *ta, Integer *offseta,
+                      Integer *tc, Integer *offsetc);
 
-//   typedef void mult_fn(Integer *ta, Integer *offseta,
-//                        Integer *tb, Integer *offsetb,
-//                        Integer *tc, Integer *offsetc);
-// };
+  typedef void mult_fn(Integer *ta, Integer *offseta,
+                       Integer *tb, Integer *offsetb,
+                       Integer *tc, Integer *offsetc);
+}
 
 
 #endif // TAMMX_FORTRAN_H_

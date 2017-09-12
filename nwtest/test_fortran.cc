@@ -128,8 +128,8 @@ fortran_assign(tammx::Tensor<double> &xtc,
   Integer irrepa = xta.irrep().value();
   Integer irrepc = xtc.irrep().value();
 
-  Integer offseta = offseta_map - tammx::int_mb();
-  Integer offsetc = offsetc_map - tammx::int_mb();
+  Integer offseta = offseta_map - tammx::MA::int_mb();
+  Integer offsetc = offsetc_map - tammx::MA::int_mb();
 
 //  fn(&da, &offseta, &irrepa, &dc, &offsetc, &irrepc);
   fn(&da, &offseta, &dc, &offsetc);
@@ -152,9 +152,9 @@ fortran_mult(tammx::Tensor<double> &xtc,
   Integer irrepb = xtb.irrep().value();
   Integer irrepc = xtc.irrep().value();
 
-  Integer offseta = offseta_map - tammx::int_mb();
-  Integer offsetb = offsetb_map - tammx::int_mb();
-  Integer offsetc = offsetc_map - tammx::int_mb();
+  Integer offseta = offseta_map - tammx::MA::int_mb();
+  Integer offsetb = offsetb_map - tammx::MA::int_mb();
+  Integer offsetc = offsetc_map - tammx::MA::int_mb();
 
  // fn(&da, &offseta, &irrepa, &db, &offsetb, &irrepb, &dc, &offsetc, &irrepc);
   fn(&da, &offseta, &db, &offsetb, &dc, &offsetc);

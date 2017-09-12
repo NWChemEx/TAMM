@@ -5,6 +5,7 @@
 #include "tammx/labeled-block.h"
 #include "tammx/labeled-tensor.h"
 #include "tammx/util.h"
+#include "tammx/fortran.h"
 
 namespace tammx {
 
@@ -80,7 +81,7 @@ struct MultOp : public Op {
 template<typename TensorType>
 struct AllocOp: public Op {
   void execute() override {
-    Expects(pg_.is_valid());
+    EXPECTS(pg_.is_valid());
     tensor_->alloc(pg_, distribution_, memory_manager_);
   }
 
@@ -310,7 +311,7 @@ struct ScanOp : public Op {
   ScanOp(const LabeledTensorType& ltensor, Func func)
       : ltensor_{ltensor},
         func_{func} {
-    Expects(ltensor.tensor_ != nullptr);
+    EXPECTS(ltensor.tensor_ != nullptr);
   }
 
   LabeledTensorType ltensor_;
@@ -485,10 +486,10 @@ int find_last_index(const TensorVec<T> lst, size_t lo, size_t hi, T value) {
  */
 inline bool
 is_unique_combination(const TensorVec<int>& comb_itr, const TensorIndex& lval) {
-  Expects(std::is_sorted(lval.begin(), lval.end()));
-  Expects(comb_itr.size() == lval.size());
+  EXPECTS(std::is_sorted(lval.begin(), lval.end()));
+  EXPECTS(comb_itr.size() == lval.size());
   for(auto ci: comb_itr) {
-    Expects(ci ==0 || ci == 1);
+    EXPECTS(ci ==0 || ci == 1);
   }
   auto n = lval.size();
   size_t i = 0;
@@ -531,16 +532,16 @@ class SymmetrizerNew {
     done_ = false;
     auto n = olabels_.size();
     auto k = nsymm_indices_;
-    Expects(k>=0 && k<=n);
+    EXPECTS(k>=0 && k<=n);
     comb_itr_.resize(n);
     std::fill_n(comb_itr_.begin(), k, 0);
     std::fill_n(comb_itr_.begin()+k, n-k, 1);
-    Expects(comb_itr_.size() == olabels_.size());
+    EXPECTS(comb_itr_.size() == olabels_.size());
     olval_ = lmap_.get_blockid(olabels_);
   }
 
   TensorLabel get() const {
-    Expects(comb_itr_.size() == olabels_.size());
+    EXPECTS(comb_itr_.size() == olabels_.size());
     return comb_bv_to_label(comb_itr_, olabels_);
   }
 
@@ -552,7 +553,7 @@ class SymmetrizerNew {
     do {
       done_ = !std::next_permutation(comb_itr_.begin(), comb_itr_.end());
     } while (!done_ && !is_unique_combination(comb_itr_, olval_));
-    Expects(comb_itr_.size() == olabels_.size());
+    EXPECTS(comb_itr_.size() == olabels_.size());
   }
 
  private:
@@ -577,7 +578,7 @@ class CopySymmetrizerNew {
         cur_olval_{cur_olval},
         nsymm_indices_{nsymm_indices},
         done_{false} {
-          Expects(nsymm_indices>=0 && nsymm_indices<=olabels.size());
+          EXPECTS(nsymm_indices>=0 && nsymm_indices<=olabels.size());
           reset();
         }
 
@@ -634,7 +635,7 @@ inline NestedIterator<SymmetrizerNew>
 symmetrization_iterator(LabelMap<BlockDim> lmap,
                         const std::vector<TensorLabel>& grps,
                         const std::vector<size_t> nsymm_indices) {
-  Expects(grps.size() == nsymm_indices.size());
+  EXPECTS(grps.size() == nsymm_indices.size());
   std::vector<SymmetrizerNew> symms;
   for(size_t i=0; i<grps.size(); i++) {
     symms.emplace_back(lmap, grps[i], nsymm_indices[i]);
@@ -647,7 +648,7 @@ copy_symmetrization_iterator(LabelMap<BlockDim> lmap,
                              const std::vector<TensorLabel>& grps,
                              const std::vector<TensorIndex>& lvals,
                              const std::vector<size_t> nsymm_indices) {
-  Expects(grps.size() == nsymm_indices.size());
+  EXPECTS(grps.size() == nsymm_indices.size());
   std::vector<CopySymmetrizerNew> symms;
   for(size_t i=0; i<grps.size(); i++) {
     symms.emplace_back(lmap, grps[i], lvals[i], nsymm_indices[i]);
@@ -678,7 +679,7 @@ symmetrization_iterator(LabelMap<BlockDim>& lmap,
                                     lta.label_);
   std::vector<size_t> nsymm_indices;
   for(const auto& csgp: cgrp_parts) {
-    Expects(csgp.size() >=0 && csgp.size() <= 2);
+    EXPECTS(csgp.size() >=0 && csgp.size() <= 2);
     nsymm_indices.push_back(csgp[0].size());
   }
   return symmetrization_iterator(lmap, cgrps_vec, nsymm_indices);
@@ -705,7 +706,7 @@ symmetrization_iterator(LabelMap<BlockDim>& lmap,
                                     ltb.label_);
   std::vector<size_t> nsymm_indices;
   for(const auto& csgp: cgrp_parts) {
-    Expects(csgp.size() >=0 && csgp.size() <= 2);
+    EXPECTS(csgp.size() >=0 && csgp.size() <= 2);
     nsymm_indices.push_back(csgp[0].size());
   }
   return symmetrization_iterator(lmap, cgrps_vec, nsymm_indices);
@@ -735,7 +736,7 @@ copy_symmetrization_iterator(LabelMap<BlockDim>& lmap,
                                     lta.label_);
   std::vector<size_t> nsymm_indices;
   for(const auto& csgp: cgrp_parts) {
-    Expects(csgp.size() >=0 && csgp.size() <= 2);
+    EXPECTS(csgp.size() >=0 && csgp.size() <= 2);
     nsymm_indices.push_back(csgp[0].size());
   }
   std::vector<TensorIndex> clvals;
@@ -771,7 +772,7 @@ copy_symmetrization_iterator(LabelMap<BlockDim>& lmap,
                                     ltb.label_);
   std::vector<size_t> nsymm_indices;
   for(const auto& csgp: cgrp_parts) {
-    Expects(csgp.size() >=0 && csgp.size() <= 2);
+    EXPECTS(csgp.size() >=0 && csgp.size() <= 2);
     nsymm_indices.push_back(csgp[0].size());
   }
   std::vector<TensorIndex> clvals;
@@ -793,13 +794,13 @@ compute_symmetrization_factor(const LabeledTensorType& ltc,
                                     ltc.label_,
                                     lta.tensor_->tindices(),
                                     lta.label_);
-  Expects(cgrp_parts.size() == ltc.tensor_->tindices().size());
+  EXPECTS(cgrp_parts.size() == ltc.tensor_->tindices().size());
   for(size_t i=0; i<cgrp_parts.size(); i++) {
-    Expects(cgrp_parts[i].size()  <= 2);
+    EXPECTS(cgrp_parts[i].size()  <= 2);
   }
   double ret = 1.0;
   for(const auto& csgp: cgrp_parts) {
-    Expects(csgp.size() >=0 && csgp.size() <= 2);
+    EXPECTS(csgp.size() >=0 && csgp.size() <= 2);
     int n = csgp[0].size() + csgp[1].size();
     int r = csgp[0].size();
     ret *= factorial(n) / (factorial(r) * factorial(n-r));
@@ -818,13 +819,13 @@ compute_symmetrization_factor(const LabeledTensorType& ltc,
                                      lta.label_,
                                      ltb.tensor_->tindices(),
                                      ltb.label_);
-  Expects(cgrp_parts.size() == ltc.tensor_->tindices().size());
+  EXPECTS(cgrp_parts.size() == ltc.tensor_->tindices().size());
   for(size_t i=0; i<cgrp_parts.size(); i++) {
-    Expects(cgrp_parts[i].size() <= 2);
+    EXPECTS(cgrp_parts[i].size() <= 2);
   }
   double ret = 1.0;
   for(const auto& csgp: cgrp_parts) {
-    Expects(csgp.size() >=0 && csgp.size() <= 2);
+    EXPECTS(csgp.size() >=0 && csgp.size() <= 2);
     int n = csgp[0].size() + csgp[1].size();
     int r = csgp[0].size();
     ret *= factorial(n) / (factorial(r) * factorial(n-r));
@@ -836,7 +837,7 @@ template<typename T>
 std::pair<Integer, Integer *>
 tensor_to_fortran_info(tammx::Tensor<T> &ttensor) {
   bool t_is_double = std::is_same<T, double>::value;
-  Expects(t_is_double);
+  EXPECTS(t_is_double);
   auto adst_nw = static_cast<const tammx::Distribution_NW *>(ttensor.distribution());
   auto ahash = adst_nw->hash();
   auto length = 2 * ahash[0] + 1;
@@ -862,15 +863,15 @@ AddOp<T, LabeledTensorType>::execute() {
   //tensor_print(*rhs_.tensor_);
   if(exec_mode_ == ExecutionMode::fortran) {
     bool t1_is_double = std::is_same<T1, double>::value;
-    Expects(t1_is_double);
-    Expects(fn_ != nullptr);
+    EXPECTS(t1_is_double);
+    EXPECTS(fn_ != nullptr);
 
     Integer da, *offseta_map;
     Integer dc, *offsetc_map;
     std::tie(da, offseta_map) = tensor_to_fortran_info(*rhs_.tensor_);
     std::tie(dc, offsetc_map) = tensor_to_fortran_info(*lhs_.tensor_);
-    Integer offseta = offseta_map - int_mb();
-    Integer offsetc = offsetc_map - int_mb();
+    Integer offseta = offseta_map - MA::int_mb();
+    Integer offsetc = offsetc_map - MA::int_mb();
 
     fn_(&da, &offseta, &dc, &offsetc);
 
@@ -945,7 +946,7 @@ compute_symmetry_scaling_factor(const TensorVec<TensorSymmGroup>& sum_indices,
   auto itr = sumid.begin();
   for(auto &sg: sum_indices) {
     auto sz = sg.size();
-    Expects(sz > 0);
+    EXPECTS(sz > 0);
     std::sort(itr, itr+sz);
     auto fact = factorial(sz);
     int tsize = 1;
@@ -978,8 +979,8 @@ MultOp<T, LabeledTensorType>::execute() {
 
   if(exec_mode_ == ExecutionMode::fortran) {
     bool t1_is_double = std::is_same<T1, double>::value;
-    Expects(t1_is_double);
-    Expects(fn_ != nullptr);
+    EXPECTS(t1_is_double);
+    EXPECTS(fn_ != nullptr);
 
     Integer da, *offseta_map;
     Integer db, *offsetb_map;
@@ -987,9 +988,9 @@ MultOp<T, LabeledTensorType>::execute() {
     std::tie(da, offseta_map) = tensor_to_fortran_info(*rhs1_.tensor_);
     std::tie(db, offsetb_map) = tensor_to_fortran_info(*rhs2_.tensor_);
     std::tie(dc, offsetc_map) = tensor_to_fortran_info(*lhs_.tensor_);
-    Integer offseta = offseta_map - int_mb();
-    Integer offsetb = offsetb_map - int_mb();
-    Integer offsetc = offsetc_map - int_mb();
+    Integer offseta = offseta_map - MA::int_mb();
+    Integer offsetb = offsetb_map - MA::int_mb();
+    Integer offsetc = offsetc_map - MA::int_mb();
 
     //std::cout<<"---------INVOKING FORTRAN MULT----------\n";
     Integer zero = 0;
@@ -1003,7 +1004,7 @@ MultOp<T, LabeledTensorType>::execute() {
   }
 
   //@todo @fixme MultOp based on nonsymmetrized_iterator cannot work with ResultMode::set
-  //Expects(mode_ == ResultMode::update);
+  //EXPECTS(mode_ == ResultMode::update);
   LabeledTensor<T1>& lta = rhs1_;
   LabeledTensor<T1>& ltb = rhs2_;
   LabeledTensor<T1>& ltc = lhs_;

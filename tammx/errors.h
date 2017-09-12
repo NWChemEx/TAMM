@@ -6,14 +6,18 @@
 namespace tammx {
 
 #define NOT_IMPLEMENTED() do {                        \
-    std::cout<<"FILE:"<<__FILE__                      \
-             <<" LINE:"<<__LINE__                     \
-             <<". This is not implemented\n";         \
+  std::cout<<"ERROR: "                                \
+           <<"file:"<<__FILE__                        \
+           <<"function:"<<__func__                    \
+           <<" line:"<<__LINE__                       \
+           <<". This is not implemented\n";           \
   } while(0)
 
 #define UNREACHABLE() do {                            \
-    std::cout<<"FILE:"<<__FILE__                      \
-             <<" LINE:"<<__LINE__                     \
+    std::cout<<"ERROR: "                              \
+             <<"file:"<<__FILE__                      \
+             <<"function:"<<__func__                  \
+             <<" line:"<<__LINE__                     \
              <<". This line should be unreachable\n"; \
   } while(0)
 

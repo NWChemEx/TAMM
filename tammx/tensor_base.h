@@ -1,6 +1,7 @@
 #ifndef TAMMX_TENSOR_BASE_H_
 #define TAMMX_TENSOR_BASE_H_
 
+#include "tanmmx/errors.h"
 #include "tammx/types.h"
 
 namespace tammx {
@@ -22,14 +23,14 @@ class TensorBase {
         irrep_{irrep},
         spin_restricted_{spin_restricted} {
           for(auto sg : indices) {
-            Expects(sg.size()>0);
+            EXPECTS(sg.size()>0);
           }
           rank_ = 0;
           for(auto sg : indices) {
             rank_ += sg.size();
           }
           flindices_ = flatten(indices_);
-          Expects(std::abs(rank_ - 2*nupper_indices_) <= 1);
+          EXPECTS(std::abs(rank_ - 2*nupper_indices_) <= 1);
         }
 
   virtual ~TensorBase() {}
@@ -136,13 +137,13 @@ class TensorBase {
    * @todo Why can't this logic use perm_count_inversions?
    */
   std::pair<TensorPerm,Sign> compute_sign_from_unique_block(const TensorIndex& blockid) const {
-    Expects(blockid.size() == rank());
+    EXPECTS(blockid.size() == rank());
     TensorPerm ret_perm(blockid.size());
     std::iota(ret_perm.begin(), ret_perm.end(), 0);
     int num_inversions=0;
     int pos = 0;
     for(auto &igrp: indices_) {
-      Expects(igrp.size() <= 2); // @todo Implement general algorithm
+      EXPECTS(igrp.size() <= 2); // @todo Implement general algorithm
       if(igrp.size() == 2 && blockid[pos+0] > blockid[pos+1]) {
         num_inversions += 1;
         std::swap(ret_perm[pos], ret_perm[pos+1]);
@@ -197,10 +198,10 @@ class TensorBase {
   // static TensorVec<TensorSymmGroup> to_tsymm_indices(const TensorVec<SymmGroup>& indices) {
   //   TensorVec<TensorSymmGroup> ret;
   //   for(auto sg : indices) {
-  //     Expects(sg.size()>0);
+  //     EXPECTS(sg.size()>0);
   //     auto dim = sg[0];
   //     for(auto d : sg) {
-  //       Expects(d == dim);
+  //       EXPECTS(d == dim);
   //     }
   //     ret.push_back(TensorSymmGroup{RangeType{dim}, sg.size()});
   //   }
@@ -260,7 +261,7 @@ operator < (const TensorBase& lhs, const TensorBase& rhs) {
 //       std::tie(lo, hi) = tensor_index_range(sg[i]);
 //       tloops.push_back(TriangleLoop{ii-i, lo, hi});
 //       tloops_last.push_back(tloops.back().get_end());
-//       Expects(ii == sg.size());
+//       EXPECTS(ii == sg.size());
 //     }
 //   }
 //   //FIXME:Handle Scalar

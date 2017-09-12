@@ -1,7 +1,7 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMMX_EXPECTS_H__
-#define TAMMX_EXPECTS_H__
+#ifndef TAMMX_EXPECTS_H_
+#define TAMMX_EXPECTS_H_
 
 #include <cassert>
 
@@ -15,6 +15,6 @@ namespace tammx {
 
 }  // namespace tammx
 
-#endif  // TAMMX_EXPECTS_H__
+#endif  // TAMMX_EXPECTS_H_
 
 

@@ -7,15 +7,6 @@
 #include "tammx/tensor.h"
 #include "tammx/fortran.h"
 
-extern "C" {
-  typedef void add_fn(Integer *ta, Integer *offseta,
-                      Integer *tc, Integer *offsetc);
-  
-  typedef void mult_fn(Integer *ta, Integer *offseta,
-                       Integer *tb, Integer *offsetb,
-                       Integer *tc, Integer *offsetc);
-};
-
 namespace tammx {
 
 template<typename T>

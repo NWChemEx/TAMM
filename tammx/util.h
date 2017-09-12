@@ -13,9 +13,6 @@
 #include "tammx/types.h"
 #include "tammx/tce.h"
 #include "tammx/perm.h"
-
-#include "ga.h"
-
 #include "tammx/tensor_dims.h"
 #include "tammx/tensor_labels.h"
 

@@ -536,10 +536,10 @@ int main(int argc, char *argv[]) {
   Tensor<T> d_t2{VV|OO, irrep, spin_restricted};
   Tensor<T> d_f1{N|N, irrep, spin_restricted};
   Tensor<T> d_v2{NN|NN, irrep, spin_restricted};
-  int maxiter = 50;
-  double thresh = 1.0e-6;
+  int maxiter = 100;
+  double thresh = 1.0e-10;
   double zshiftl = 0.0;
-  int ndiis = 5;
+  int ndiis = 1005;
 
 
   auto distribution = Distribution_NW();

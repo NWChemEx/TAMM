@@ -55,6 +55,61 @@ std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell
   return result;
 }
 
+using libint2::Atom;
+
+inline std::vector<Atom> read_input_xyz(
+  std::istream& is)
+{
+  //const double angstrom_to_bohr = 1 / bohr_to_angstrom;
+  // first line = # of atoms
+  size_t natom;
+  is >> natom;
+  // read off the rest of first line and discard
+  std::string rest_of_line;
+  std::getline(is, rest_of_line);
+
+  // second line = comment
+  std::string comment;
+  std::getline(is, comment);
+
+  // rest of lines are atoms
+  std::vector<Atom> atoms(natom);
+  for (auto i = 0; i < natom; i++) {
+    // read line
+    std::string line;
+    std::getline(is, line);
+    std::istringstream iss(line);
+    // then parse ... this handles "extended" XYZ formats
+    std::string element_symbol;
+    double x, y, z;
+    iss >> element_symbol >> x >> y >> z;
+
+    // .xyz files report element labels, hence convert to atomic numbers
+    int Z = -1;
+    using libint2::chemistry::element_info;
+    for(const auto& e: element_info) {
+      if (libint2::strcaseequal(e.symbol, element_symbol)) {
+        Z = e.Z;
+        break;
+      }
+    }
+    if (Z == -1) {
+      std::ostringstream oss;
+      oss << "read_dotxyz: element symbol \"" << element_symbol << "\" is not recognized" << std::endl;
+      throw std::runtime_error(oss.str().c_str());
+    }
+
+    atoms[i].atomic_number = Z;
+
+    // .xyz files report Cartesian coordinates in angstroms; convert to bohr
+    atoms[i].x = x ;
+    atoms[i].y = y ;
+    atoms[i].z = z ;
+  }
+
+  return atoms;
+}
+
 
 std::tuple<int,double, libint2::BasisSet> hartree_fock(const string filename, Matrix &C, Matrix &F) {
 
@@ -70,8 +125,12 @@ std::tuple<int,double, libint2::BasisSet> hartree_fock(const string filename, Ma
 
   // read geometry from a file; by default read from h2o.xyz, else take filename (.xyz) from the command line
   auto is = std::ifstream(filename);
-  const std::vector<Atom> atoms = libint2::read_dotxyz(is);
+  const std::vector<Atom> atoms = read_input_xyz(is);
 
+  std::cout.precision(15);
+  std::cout << "Print geometries in bohr units \n";
+  for (auto i = 0; i < atoms.size(); ++i)
+    std::cout << atoms[i].atomic_number << "  " << atoms[i].x<< "  " << atoms[i].y<< "  " << atoms[i].z << std::endl;
   // count the number of electrons
   auto nelectron = 0;
   for (auto i = 0; i < atoms.size(); ++i)

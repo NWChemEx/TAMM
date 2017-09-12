@@ -9,8 +9,8 @@
 //
 //------------------------------------------------------------------------------
 
-#ifndef TAMM_TENSOR_TAMMX_H_
-#define TAMM_TENSOR_TAMMX_H_
+#ifndef TAMM_INDEX_SORT_H_
+#define TAMM_INDEX_SORT_H_
 
 #include "tammx/index_sort.h"
 #include <algorithm>
@@ -19,7 +19,8 @@
 
 namespace tammx {
 
-void copy(const double *sbuf, double *dbuf, size_t sz, double alpha) {
+void
+copy(const double *sbuf, double *dbuf, size_t sz, double alpha) {
   for (size_t i = 0; i < sz; i++) {
     dbuf[i] = alpha * sbuf[i];
   }
@@ -36,9 +37,10 @@ void index_sort_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
 /**
    pi(p1,p2)(i,j) = ((i,j)[p1-1], (i,j)[p2-1])
    0<=i<sz1, 0<=j<sz2: dbuf[pi(p1,p1)(i,j)] = alpha * sbuf[i,j]
- */
-void index_sort_2(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
-                  int p1, int p2, double alpha) {
+*/
+void
+index_sort_2(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
+             int p1, int p2, double alpha) {
   assert(sbuf);
   assert(dbuf);
 
@@ -55,7 +57,8 @@ void index_sort_2(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
   }
 }
 
-static inline size_t idx(int n, size_t *id, size_t *sz, int *p) {
+inline size_t
+idx(int n, size_t *id, size_t *sz, int *p) {
   size_t idx = 0;
   for (int i = 0; i < n - 1; i++) {
     idx = (idx + id[p[i]]) * sz[p[i + 1]];
@@ -70,9 +73,10 @@ static inline size_t idx(int n, size_t *id, size_t *sz, int *p) {
 /**
    pi(pvec)(ivec) = (ivec[pvec[0]-1], ivec[pvec[1]-1], ...)
    0<=i<sz1, 0<=j<sz2: dbuf[pi(pvec)(ivec)] = alpha * sbuf[ivec]
- */
-void index_sort_3(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
-                  size_t sz3, int p1, int p2, int p3, double alpha) {
+*/
+void
+index_sort_3(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
+             size_t sz3, int p1, int p2, int p3, double alpha) {
   assert(sbuf);
   assert(dbuf);
 
@@ -93,9 +97,10 @@ void index_sort_3(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
   }
 }
 
-void index_sort_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
-                  size_t sz3, size_t sz4, int p1, int p2, int p3, int p4,
-                  double alpha) {
+void
+index_sort_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
+             size_t sz3, size_t sz4, int p1, int p2, int p3, int p4,
+             double alpha) {
   assert(sbuf);
   assert(dbuf);
 
@@ -121,8 +126,9 @@ void index_sort_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
  * accumulate variants
  */
 
-void copy_add(const double *sbuf, double *dbuf, size_t sz,
-                     double alpha) {
+void
+copy_add(const double *sbuf, double *dbuf, size_t sz,
+         double alpha) {
   for (size_t i = 0; i < sz; i++) {
     dbuf[i] += alpha * sbuf[i];
   }
@@ -136,8 +142,9 @@ void index_sortacc_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
                      size_t sz3, size_t sz4, int p1, int p2, int p3, int p4,
                      double alpha);
 
-void index_sortacc(const double *sbuf, double *dbuf, int ndim,
-                   const size_t *sizes, const int *perm, double alpha) {
+void
+index_sortacc(const double *sbuf, double *dbuf, int ndim,
+              const size_t *sizes, const int *perm, double alpha) {
   assert(sbuf);
   assert(dbuf);
   assert(ndim >= 0);
@@ -161,8 +168,9 @@ void index_sortacc(const double *sbuf, double *dbuf, int ndim,
   }
 }
 
-void index_sortacc_2(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
-                     int p1, int p2, double alpha) {
+void
+index_sortacc_2(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
+                int p1, int p2, double alpha) {
   assert(sbuf);
   assert(dbuf);
 
@@ -179,8 +187,9 @@ void index_sortacc_2(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
   }
 }
 
-void index_sortacc_3(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
-                     size_t sz3, int p1, int p2, int p3, double alpha) {
+void
+index_sortacc_3(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
+                size_t sz3, int p1, int p2, int p3, double alpha) {
   assert(sbuf);
   assert(dbuf);
 
@@ -202,9 +211,10 @@ void index_sortacc_3(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
   }
 }
 
-void index_sortacc_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
-                     size_t sz3, size_t sz4, int p1, int p2, int p3, int p4,
-                     double alpha) {
+void
+index_sortacc_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
+                size_t sz3, size_t sz4, int p1, int p2, int p3, int p4,
+                double alpha) {
   assert(sbuf);
   assert(dbuf);
 
@@ -226,6 +236,6 @@ void index_sortacc_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
     }
   }
 }
-} /*namespace tammx*/
+} // namespace tammx
 
-#endif // TAMM_TENSOR_TAMMX_H_
+#endif // TAMM_INDEX_SORT_H_

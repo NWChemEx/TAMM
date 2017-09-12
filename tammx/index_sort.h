@@ -8,18 +8,14 @@
 // Operated by Battelle for the U.S. Department of Energy
 //
 //------------------------------------------------------------------------------
-#ifndef TAMM_TENSOR_INDEX_SORT_H_
-#define TAMM_TENSOR_INDEX_SORT_H_
+#ifndef TAMM_INDEX_SORT_H_
+#define TAMM_INDEX_SORT_H_
 
 #include <cstddef>
 #include <cassert>
 #include <type_traits>
 
 #include "tammx/expects.h"
-
-/**
- * @todo Check types are convertible to double rather than is_same
- */
 
 namespace tammx {
 
@@ -38,7 +34,7 @@ void index_sort_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
    0<=i<sz1, 0<=j<sz2: dbuf[pi(pvec)(ivec)] = alpha * sbuf[ivec]
  */
 template<typename T>
-inline void
+void
 index_sort(const void* svbuf, void* dvbuf, int ndim, const size_t *sizes,
                 const int *perm, T alpha) {
   bool val = std::is_same<double,T>::value; Expects(val);
@@ -86,7 +82,7 @@ void index_sortacc_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
    0<=i<sz1, 0<=j<sz2: dbuf[pi(pvec)(ivec)] += ialpha * sbuf[ivec]
  */
 template<typename T>
-inline void
+void
 index_sortacc(const void* svbuf, void* dvbuf, int ndim,
                    const size_t *sizes, const int *perm, T ialpha) {
   //bool val = std::is_same<double,T>::value; Expects(val);
@@ -116,6 +112,6 @@ index_sortacc(const void* svbuf, void* dvbuf, int ndim,
   }
 }
 
-} /*namespace tamm*/
+} // namespace tammx
 
 #endif  // TAMM_TENSOR_INDEX_SORT_H_

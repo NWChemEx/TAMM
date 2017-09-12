@@ -274,307 +274,6 @@ struct MapIdOp : public Op {
 };
 
 
-// #if 0
-
-// template<typename Func, typename LabeledTensorType, unsigned ndim, unsigned nrhs>
-// struct MapOp : public Op {
-//   void execute();
-// };
-
-// /**
-//  * @note Works with arbitrary dimensions
-//  */
-// template<typename Func, typename LabeledTensorType>
-// struct MapOp<Func, LabeledTensorType, 0, 0> : public Op {
-//   void execute() {
-//     // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
-//     auto& lhs_tensor = *lhs_.tensor_;
-//     auto lambda = [&] (const TensorIndex& blockid) {
-//       auto size = lhs_tensor.block_size(blockid);
-//       if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
-//         return;
-//       }
-//       // std::cerr<<"MapOp. size="<<size<<std::endl;
-//       auto lblock = lhs_tensor.alloc(blockid);
-//       for(int i=0; i<size; i++) {
-//         func_(lblock.buf()[i]);
-//       }
-//       if(mode_ == ResultMode::update) {
-//         lhs_tensor.add(lblock);
-//       } else if (mode_ == ResultMode::set) {
-//         lhs_tensor.put(lblock);
-//       } else {
-//         assert(0);
-//       }
-//     };
-//     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
-//     parallel_work(itr_first, itr_first.get_end(), lambda);
-//   }
-
-//   MapOp(const LabeledTensorType& lhs, Func func, ResultMode mode = ResultMode::set)
-//       : lhs_{lhs},
-//         func_{func},
-//         mode_{mode} {
-//     Expects(lhs_.tensor_ != nullptr);
-//   }
-
-//   LabeledTensorType lhs_;
-//   Func func_;
-//   ResultMode mode_;
-// };
-
-// /**
-//  * @todo more generic ndimg and rhs versions
-//  *
-//  */
-// template<typename Func, typename LabeledTensorType>
-// struct MapOp<Func, LabeledTensorType, 1, 0> : public Op {
-//   void execute() {
-//     // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
-//     auto& lhs_tensor = *lhs_.tensor_;
-
-//     auto lambda = [&] (const TensorIndex& blockid) {
-//       auto size = lhs_tensor.block_size(blockid);
-//       if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
-//         return;
-//       }
-//       auto offset = TCE::offset(blockid[0]);
-//       auto lblock = lhs_tensor.alloc(blockid);
-//       for(int i=0; i<size; i++) {
-//         func_(offset + i, lblock.buf()[i]);
-//       }
-//       if(mode_ == ResultMode::update) {
-//         lhs_tensor.add(lblock);
-//       } else if (mode_ == ResultMode::set) {
-//         lhs_tensor.put(lblock);
-//       } else {
-//         assert(0);
-//       }
-//     };
-//     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
-//     parallel_work(itr_first, itr_first.get_end(), lambda);
-//   }
-
-//   MapOp(const LabeledTensorType& lhs, Func func, ResultMode mode = ResultMode::set)
-//       : lhs_{lhs}, func_{func}, mode_{mode} {
-//     Expects(lhs_.tensor_ != nullptr);
-//     Expects(lhs_.tensor_->rank() == 1);
-//   }
-
-//   LabeledTensorType lhs_;
-//   Func func_;
-//   ResultMode mode_;
-// };
-
-// template<typename Func, typename LabeledTensorType>
-// struct MapOp<Func, LabeledTensorType, 2, 0> : public Op {
-//   void execute() {
-//     std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
-//     auto& lhs_tensor = *lhs_.tensor_;
-
-//     auto lambda = [&] (const TensorIndex& blockid) {
-//       auto size = lhs_tensor.block_size(blockid);
-//       if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
-//         return;
-//       }
-//       auto bdims = lhs_tensor.block_dims(blockid);
-//       auto isize = bdims[0].value();
-//       auto jsize = bdims[1].value();
-//       auto ioffset = TCE::offset(blockid[0]);
-//       auto joffset = TCE::offset(blockid[1]);
-//       if(lhs_tensor.nonzero(blockid) && isize*jsize > 0) {
-//         auto lblock = lhs_tensor.alloc(blockid);
-//         for(int i=0, c=0; i<isize; i++) {
-//           for(int j=0; j<jsize; j++, c++) {
-//             func_(ioffset+i, joffset+j, lblock.buf()[c]);
-//           }
-//         }
-//         if(mode_ == ResultMode::update) {
-//           lhs_tensor.add(lblock);
-//         } else if (mode_ == ResultMode::set) {
-//           lhs_tensor.put(lblock);
-//         } else {
-//           assert(0);
-//         }
-//       }
-//     };
-//     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
-//     parallel_work(itr_first, itr_first.get_end(), lambda);
-//   }
-
-//   MapOp(const LabeledTensorType& lhs, Func func, ResultMode mode = ResultMode::set)
-//       : lhs_{lhs}, func_{func}, mode_{mode} {
-//     Expects(lhs_.tensor_ != nullptr);
-//     Expects(lhs_.tensor_->rank() == 2);
-//   }
-
-//   LabeledTensorType lhs_;
-//   Func func_;
-//   ResultMode mode_;
-// };
-
-// template<typename Func, typename LabeledTensorType>
-// struct MapOp<Func, LabeledTensorType, 2, 1> : public Op {
-//   void execute() {
-//     // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
-//     auto& lhs_tensor = *lhs_.tensor_;
-//     auto& rhs1_tensor = *rhs1_.tensor_;
-
-//     auto lambda = [&] (const TensorIndex& blockid) {
-//       auto size = lhs_tensor.block_size(blockid);
-//       if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
-//         return;
-//       }
-//       auto bdims = lhs_tensor.block_dims(blockid);
-//       auto isize = bdims[0].value();
-//       auto jsize = bdims[1].value();
-//       auto ioffset = TCE::offset(blockid[0]);
-//       auto joffset = TCE::offset(blockid[1]);
-//       if(lhs_tensor.nonzero(blockid) && isize*jsize > 0) {
-//         auto lblock = lhs_tensor.alloc(blockid);
-//         auto r1block = rhs1_tensor.get(blockid);
-//         for(int i=0, c=0; i<isize; i++) {
-//           for(int j=0; j<jsize; j++, c++) {
-//             func_(ioffset+i, joffset+j, lblock.buf()[c], r1block.buf()[c]);
-//           }
-//         }
-//         if(mode_ == ResultMode::update) {
-//           lhs_tensor.add(lblock);
-//         } else if (mode_ == ResultMode::set) {
-//           lhs_tensor.put(lblock);
-//         } else {
-//           assert(0);
-//         }
-//       }
-//     };
-//     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
-//     parallel_work(itr_first, itr_first.get_end(), lambda);
-//   }
-
-//   MapOp(const LabeledTensorType& lhs, LabeledTensorType& rhs1, Func func, ResultMode mode = ResultMode::set)
-//       : lhs_{lhs},
-//         rhs1_{rhs1},
-//         func_{func},
-//         mode_{mode} {
-//     Expects(lhs_.tensor_ != nullptr);
-//     Expects(lhs_.tensor_->rank() == 2);
-//   }
-
-//   LabeledTensorType lhs_;
-//   LabeledTensorType rhs1_;
-//   Func func_;
-//   ResultMode mode_;
-// };
-
-// template<typename Func, typename LabeledTensorType>
-// struct MapOp<Func, LabeledTensorType, 2, 2> : public Op {
-//   void execute() {
-//     // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
-//     auto& lhs_tensor = *lhs_.tensor_;
-//     auto& rhs1_tensor = *rhs1_.tensor_;
-//     auto& rhs2_tensor = *rhs2_.tensor_;
-
-//     auto lambda = [&] (const TensorIndex& blockid) {
-//       auto size = lhs_tensor.block_size(blockid);
-//       if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
-//         return;
-//       }
-//       auto bdims = lhs_tensor.block_dims(blockid);
-//       auto isize = bdims[0].value();
-//       auto jsize = bdims[1].value();
-//       auto ioffset = TCE::offset(blockid[0]);
-//       auto joffset = TCE::offset(blockid[1]);
-//       if(lhs_tensor.nonzero(blockid) && isize*jsize > 0) {
-//         auto lblock = lhs_tensor.alloc(blockid);
-//         auto r1block = rhs1_tensor.get(blockid);
-//         auto r2block = rhs2_tensor.get(blockid);
-//         auto ltbuf  = lblock.buf();
-//         auto r1tbuf = r1block.buf();
-//         auto r2tbuf = r2block.buf();
-//         for(int i=0, c=0; i<isize; i++) {
-//           for(int j=0; j<jsize; j++, c++) {
-//             func_(ioffset+i, joffset+j, ltbuf[c], r1tbuf[c], r2tbuf[c]);
-//           }
-//         }
-//         if(mode_ == ResultMode::update) {
-//           lhs_tensor.add(lblock);
-//         } else if (mode_ == ResultMode::set) {
-//           lhs_tensor.put(lblock);
-//         } else {
-//           assert(0);
-//         }
-//       }
-//     };
-//     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
-//     parallel_work(itr_first, itr_first.get_end(), lambda);
-//   }
-
-//   MapOp(const LabeledTensorType& lhs, LabeledTensorType& rhs1, LabeledTensorType& rhs2, Func func,
-//         ResultMode mode = ResultMode::set)
-//       : lhs_{lhs},
-//         rhs1_{rhs1},
-//         rhs2_{rhs2},
-//         func_{func},
-//         mode_{mode}{
-//     Expects(lhs_.tensor_ != nullptr);
-//     Expects(lhs_.tensor_->rank() == 2);
-//   }
-
-//   LabeledTensorType lhs_;
-//   LabeledTensorType rhs1_, rhs2_;
-//   Func func_;
-//   ResultMode mode_;
-// };
-
-
-// template<typename Func, typename LabeledTensorType>
-// struct MapOp<Func, LabeledTensorType, 1, 1> : public Op {
-//   void execute() {
-//     // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
-//     auto& lhs_tensor = *lhs_.tensor_;
-//     auto& rhs_tensor = *rhs_.tensor_;
-
-//     auto lambda = [&] (const TensorIndex& blockid) {
-//       auto size = lhs_tensor.block_size(blockid);
-//       if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
-//         return;
-//       }
-//       auto offset = TCE::offset(blockid[0]);
-//       auto lblock = lhs_tensor.alloc(blockid);
-//       auto rblock = rhs_tensor.get(blockid);
-//       auto ltbuf = lblock.buf();
-//       auto rtbuf = rblock.buf();
-//       for(int i=0; i<size; i++) {
-//         func_(i+offset, ltbuf[i], rtbuf[i]);
-//       }
-//       if(mode_ == ResultMode::update) {
-//         lhs_tensor.add(lblock);
-//       } else if (mode_ == ResultMode::set) {
-//         lhs_tensor.put(lblock);
-//       } else {
-//         assert(0);
-//       }
-//     };
-//     auto itr_first = loop_iterator(slice_indices(lhs_tensor.indices(), lhs_.label_));
-//     parallel_work(itr_first, itr_first.get_end(), lambda);
-//   }
-
-//   MapOp(const LabeledTensorType& lhs, const LabeledTensorType& rhs, Func func, ResultMode mode = ResultMode::set)
-//       : lhs_{lhs},
-//         rhs_{rhs},
-//         func_{func},
-//         mode_{mode} {
-//     Expects(lhs_.tensor_ != nullptr);
-//     Expects(lhs_.tensor_->rank() == 1);
-//     Expects(rhs_.tensor_ != nullptr);
-//     Expects(rhs_.tensor_->rank() == 1);
-//   }
-
-//   LabeledTensorType lhs_, rhs_;
-//   Func func_;
-//   ResultMode mode_;
-// };
-// #endif
 
 /////////////////////////////////////////////////////////////////////
 //         scan operator
@@ -618,78 +317,6 @@ struct ScanOp : public Op {
   Func func_;
 };
 
-// template<typename Func, typename LabeledTensorType>
-// struct ScanOp<Func,LabeledTensorType,1> : public Op {
-//   void execute() {
-//     // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MapOp\n";
-//     auto& tensor = *ltensor_.tensor_;
-//     auto lambda = [&] (const TensorIndex& blockid) {
-//       auto size = tensor.block_size(blockid);
-//       if(!(tensor.nonzero(blockid) && tensor.spin_unique(blockid) && size > 0)) {
-//         return;
-//       }
-//       auto bdims = tensor.block_dims(blockid);
-//       auto isize = bdims[0].value();
-//       auto ioffset = TCE::offset(blockid[0]);
-//       auto block = tensor.get(blockid);
-//       auto tbuf = block.buf();
-//       for(int i=0; i<isize; i++) {
-//         func_(i+ioffset, tbuf[i]);
-//       }
-//     };
-//     auto itr_first = loop_iterator(slice_indices(tensor.indices(), ltensor_.label_));
-//     parallel_work(itr_first, itr_first.get_end(), lambda);
-//   }
-
-//   ScanOp(const LabeledTensorType& ltensor, Func func)
-//       : ltensor_{ltensor},
-//         func_{func} {
-//     Expects(ltensor.tensor_ != nullptr);
-//     Expects(ltensor.tensor_->rank() == 1);
-//   }
-
-//   LabeledTensorType ltensor_;
-//   Func func_;
-// };
-
-// template<typename Func, typename LabeledTensorType>
-// struct ScanOp<Func,LabeledTensorType,2> : public Op {
-//   void execute() {
-//     auto& tensor = *ltensor_.tensor_;
-//     Expects(tensor.rank()==2);
-//     auto lambda = [&] (const TensorIndex& blockid) {
-//       auto size = tensor.block_size(blockid);
-//       if(!(tensor.nonzero(blockid) && tensor.spin_unique(blockid) && size > 0)) {
-//         return;
-//       }
-//       auto bdims = tensor.block_dims(blockid);
-//       auto isize = bdims[0].value();
-//       auto jsize = bdims[1].value();
-//       auto ioffset = TCE::offset(blockid[0]);
-//       auto joffset = TCE::offset(blockid[1]);
-//       auto block = tensor.get(blockid);
-//       auto tbuf = block.buf();
-//       Expects(isize*jsize == block.size());
-//       for(unsigned i=0, c=0; i<isize; i++) {
-//         for(unsigned j=0; j<jsize; j++, c++) {
-//           func_(i+ioffset, j+joffset, tbuf[c]);
-//         }
-//       }
-//     };
-//     auto itr_first = loop_iterator(slice_indices(tensor.indices(), ltensor_.label_));
-//     parallel_work(itr_first, itr_first.get_end(), lambda);
-//   }
-
-//   ScanOp(const LabeledTensorType& ltensor, Func func)
-//       : ltensor_{ltensor},
-//         func_{func} {
-//     Expects(ltensor.tensor_ != nullptr);
-//     Expects(ltensor.tensor_->rank() == 2);
-//   }
-
-//   LabeledTensorType ltensor_;
-//   Func func_;
-// };
 
 class Scheduler {
  public:
@@ -981,19 +608,10 @@ tensor_print(Scheduler& sch, LabeledTensorType ltensor) {
       .execute();
 }
 
-// template<typename T>
-// void
-// tensor_ga_print(const Tensor<T>& tensor) {
-//   auto amgr_ga = static_cast<const tammx::MemoryManagerGA *>(tensor.memory_manager());
-//   amgr_ga->print();
-// }
-
 template<typename T>
 void
 tensor_print(const Tensor<T>& tensor) {
   tensor.memory_manager()->print();
-  // auto amgr_ga = static_cast<const tammx::MemoryManagerGA *>(tensor.memory_manager());
-  // amgr_ga->print();
 }
 
 
@@ -1014,40 +632,6 @@ summation_labels(const LabeledTensor<T>& /*ltc*/,
                          ltb.tensor_->tindices(), ltb.label_);
 
 }
-
-// template<typename T>
-// inline std::pair<TensorVec<SymmGroup>,TensorLabel>
-// summation_indices(const LabeledTensor<T>& /*ltc*/,
-//                   const LabeledTensor<T>& lta,
-//                   const LabeledTensor<T>& ltb) {
-//   auto aindices = flatten(lta.tensor_->indices());
-//   //auto bindices = flatten(ltb.tensor_.indices());
-//   auto alabels = group_labels(lta.tensor_->indices(), lta.label_);
-//   auto blabels = group_labels(ltb.tensor_->indices(), ltb.label_);
-//   TensorVec<SymmGroup> ret_indices;
-//   TensorLabel sum_labels;
-//   int apos = 0;
-//   for (auto &alg : alabels) {
-//     for (auto &blg : blabels) {
-//       SymmGroup sg;
-//       for (auto &a : alg) {
-//         int apos1 = 0;
-//         for (auto &b : blg) {
-//           if (a == b) {
-//             sg.push_back(aindices[apos + apos1]);
-//             sum_labels.push_back(a);
-//           }
-//         }
-//         apos1++;
-//       }
-//       if (sg.size() > 0) {
-//         ret_indices.push_back(sg);
-//       }
-//     }
-//     apos += alg.size();
-//   }
-//   return {ret_indices, sum_labels};
-// }
 
 
 template<typename T>
@@ -1085,138 +669,6 @@ summation_indices(const LabeledTensor<T>& /*ltc*/,
   return {ret_indices, sum_labels};
 }
 
-// template<typename T>
-// inline TensorVec<TensorVec<TensorLabel>>
-// nonsymmetrized_external_labels(const LabeledTensor<T>& ltc,
-//                                const LabeledTensor<T>& lta) {
-//   auto ca_labels = group_partition(ltc.tensor_->indices(), ltc.label_,
-//                                    lta.tensor_->indices(), lta.label_);
-
-//   TensorVec<TensorVec<TensorLabel>> ret_labels;
-//   for(unsigned i=0; i<ca_labels.size(); i++)  {
-//     Expects(ca_labels[i].size() > 0);
-//     ret_labels.push_back(TensorVec<TensorLabel>());
-//     ret_labels.back().insert_back(ca_labels[i].begin(), ca_labels[i].end());
-//   }
-//   return ret_labels;
-// }
-
-// /**
-//  * @todo Specify where symmetrization is allowed and what indices in
-//  * the input tensors can form a symmetry group (or go to distinct
-//  * groups) in the output tensor.
-//  */
-// template<typename T>
-// inline TensorVec<TensorVec<TensorLabel>>
-// nonsymmetrized_external_labels(const LabeledTensor<T>& ltc,
-//                                const LabeledTensor<T>& lta,
-//                                const LabeledTensor<T>& ltb) {
-//   auto ca_labels = group_partition(ltc.tensor_->indices(), ltc.label_,
-//                                    lta.tensor_->indices(), lta.label_);
-//   auto cb_labels = group_partition(ltc.tensor_->indices(), ltc.label_,
-//                                    ltb.tensor_->indices(), ltb.label_);
-//   Expects(ca_labels.size() == cb_labels.size());
-
-//   TensorVec<TensorVec<TensorLabel>> ret_labels;
-//   for(unsigned i=0; i<ca_labels.size(); i++)  {
-//     Expects(ca_labels[i].size() + cb_labels[i].size() > 0);
-//     ret_labels.push_back(TensorVec<TensorLabel>());
-//     if(ca_labels[i].size() > 0) {
-//       ret_labels.back().insert_back(ca_labels[i].begin(), ca_labels[i].end());
-//     }
-//     if(cb_labels[i].size() > 0) {
-//       ret_labels.back().insert_back(cb_labels[i].begin(), cb_labels[i].end());
-//     }
-//   }
-//   return ret_labels;
-// }
-
-// template<typename T>
-// inline TensorVec<TensorVec<TensorLabel>>
-// symmetrized_external_labels(const LabeledTensor<T>& ltc,
-//                             const LabeledTensor<T>&  /*lta*/,
-//                             const LabeledTensor<T>&  /*ltb*/) {
-//   TensorVec<TensorLabel> ret {ltc.label_};
-//   return {ret};
-// }
-
-
-// template<typename T>
-// inline ProductIterator<TriangleLoop>
-// nonsymmetrized_iterator(const LabeledTensor<T>& ltc,
-//                         const LabeledTensor<T>& lta,
-//                         const LabeledTensor<T>& ltb) {
-//   auto part_labels = nonsymmetrized_external_labels(ltc ,lta, ltb);
-//   //auto flat_labels = flatten(flatten(part_labels));
-//   // std::map<IndexLabel, DimType> dim_of_label;
-
-//   // auto cflindices = flatten(ltc.tensor_->indices());
-//   // for(unsigned i=0; i<ltc.label_.size(); i++) {
-//   //   dim_of_label[ltc.label_[i]] = cflindices[i];
-//   // }
-//   // auto aflindices = flatten(lta.tensor_->indices());
-//   // for(unsigned i=0; i<lta.label_.size(); i++) {
-//   //   dim_of_label[lta.label_[i]] = aflindices[i];
-//   // }
-//   TensorVec<TriangleLoop> tloops, tloops_last;
-//   // std::cout<<__FUNCTION__<<"num_parts="<<part_labels.size()<<std::endl;
-//   for(auto dim_grps: part_labels) {
-//     for(auto lbl: dim_grps) {
-//     // std::cout<<__FUNCTION__<<"part="<< lbl <<std::endl;
-//       if(lbl.size() > 0) {
-//         BlockDim lo, hi;
-//         std::tie(lo, hi) = tensor_index_range(lbl[0].dt);
-//         tloops.push_back(TriangleLoop(lbl.size(), lo, hi));
-//         tloops_last.push_back(tloops.back().get_end());
-//       }
-//     }
-//   }
-//   if(tloops.size()==0){
-//     tloops.push_back(TriangleLoop{});
-//     tloops_last.push_back(tloops.back().get_end());
-//   }
-//   return ProductIterator<TriangleLoop>(tloops, tloops_last);
-// }
-
-
-// /**
-//  * @todo abstract the two copy_symmetrizer versions into one function
-//  * with the logic and two interfaces
-//  */
-// template<typename T>
-// inline TensorVec<CopySymmetrizer>
-// copy_symmetrizer(const LabeledTensor<T>& ltc,
-//                  const LabeledTensor<T>& lta,
-//                  const LabeledTensor<T>& ltb,
-//                  const LabelMap<BlockDim>& lmap) {
-//   auto part_labels = nonsymmetrized_external_labels(ltc ,lta, ltb);
-//   TensorVec<CopySymmetrizer> csv;
-//   for(auto lbls: part_labels) {
-//     Expects(lbls.size()>0 && lbls.size() <= 2);
-
-//     TensorLabel lbl(lbls[0].begin(), lbls[0].end());
-//     if(lbls.size() == 2 ) {
-//       lbl.insert_back(lbls[1].begin(), lbls[1].end());
-//     }
-
-//     auto size = lbl.size();
-//     Expects(size > 0);
-//     Expects(size <=2); // @todo implement other cases
-
-//     auto blockid = lmap.get_blockid(lbl);
-//     auto uniq_blockid{blockid};
-//     //find unique block
-//     std::sort(uniq_blockid.begin(), uniq_blockid.end());
-//     Expects(size > 0);
-//     //std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl<<std::endl;
-//     csv.push_back(CopySymmetrizer{size, lbls[0].size(), lbl, blockid, uniq_blockid});
-//   }
-//   if (csv.empty()) {
-//     csv.push_back(CopySymmetrizer{});
-//   }
-//   return csv;
-// }
-
 inline TensorVec<TensorLabel>
 group_labels(const TensorLabel& label,
              const TensorIndex& group_sizes) {
@@ -1229,89 +681,6 @@ group_labels(const TensorLabel& label,
   }
   return ret;
 }
-
-// inline TensorVec<TensorVec<TensorLabel>>
-// compute_extra_symmetries(const TensorLabel& lhs_label,
-//                          const TensorIndex& lhs_group_sizes,
-//                          const TensorLabel& rhs_label,
-//                          const TensorIndex& rhs_group_sizes) {
-//   Expects(lhs_label.size() == lhs_group_sizes.size());
-//   Expects(rhs_label.size() == rhs_group_sizes.size());
-//   Expects(lhs_label.size() == rhs_label.size());
-
-//   auto lhs_label_groups = group_labels(lhs_label, lhs_group_sizes);
-//   auto rhs_label_groups = group_labels(rhs_label, rhs_group_sizes);
-
-//   TensorVec<TensorVec<TensorLabel>> ret_labels;
-//   for (auto &glhs : lhs_label_groups) {
-//     TensorVec<TensorLabel> ret_group;
-//     for (auto &grhs : rhs_label_groups) {
-//       auto lbls = intersect(glhs, grhs);
-//       if (lbls.size() > 0) {
-//         ret_group.push_back(lbls);
-//       }
-//     }
-//     ret_labels.push_back(ret_group);
-//   }
-//   return ret_labels;
-// }
-
-
-// template<typename T>
-// inline TensorVec<CopySymmetrizer>
-// copy_symmetrizer(const LabeledTensor<T>& ltc,
-//                  const LabeledTensor<T>& lta,
-//                  const LabelMap<BlockDim>& lmap) {
-//   auto part_labels = nonsymmetrized_external_labels(ltc ,lta);
-//   TensorVec<CopySymmetrizer> csv;
-//   for(auto lbls: part_labels) {
-//     Expects(lbls.size()>0 && lbls.size() <= 2);
-
-//     TensorLabel lbl(lbls[0].begin(), lbls[0].end());
-//     if(lbls.size() == 2 ) {
-//       lbl.insert_back(lbls[1].begin(), lbls[1].end());
-//     }
-
-//     auto size = lbl.size();
-//     Expects(size > 0);
-//     Expects(size <=2); // @todo implement other cases
-
-//     auto blockid = lmap.get_blockid(lbl);
-//     auto uniq_blockid{blockid};
-//     //find unique block
-//     std::sort(uniq_blockid.begin(), uniq_blockid.end());
-//     Expects(size > 0);
-//     std::cout<<"CONSTRUCTING COPY SYMMETRIZER FOR LABELS="<<lbl
-//              <<" size="<<size
-//              <<" lbl0="<<lbls[0]
-//              <<" blockid="<<blockid
-//              <<" uniq_blockid="<<uniq_blockid
-//              <<std::endl;
-//     csv.push_back(CopySymmetrizer{size, lbls[0].size(), lbl, uniq_blockid, uniq_blockid});
-//     Expects(csv.back().begin() != csv.back().end());
-//   }
-//   if (csv.empty()) {
-//     csv.push_back(CopySymmetrizer{});
-//     Expects(csv.back().begin() != csv.back().end());
-//   }
-//   return csv;
-// }
-
-
-
-// inline ProductIterator<CopySymmetrizer::Iterator>
-// copy_iterator(const TensorVec<CopySymmetrizer>& sitv) {
-//   TensorVec<CopySymmetrizer::Iterator> itrs_first, itrs_last;
-//   for(auto &sit: sitv) {
-//     Expects(sit.begin() != sit.end());
-//     itrs_first.push_back(sit.begin());
-//     itrs_last.push_back(sit.end());
-//     Expects(itrs_first.back().itr_size() == itrs_last.back().itr_size());
-//     Expects(itrs_first.back().itr_size() == sit.group_size_);
-//   }
-//   return {itrs_first, itrs_last};
-// }
-
 
 //-----------------------op execute routines
 
@@ -1465,19 +834,9 @@ class SymmetrizerNew {
   }
 
   void next() {
-    //done_ = true; return; //@BUG
-    //std::cout<<"Entered. SymmetrizerNew, next"<<std::endl;
     do {
-      // std::cout<<"Comb itr="<<comb_itr_<<std::endl;
-      // std::cout<<"olval="<<olval_<<std::endl;
-      // std::cout<<"done="<<done_<<std::endl;
       done_ = !std::next_permutation(comb_itr_.begin(), comb_itr_.end());
-      // std::cout<<"Comb itr="<<comb_itr_<<std::endl;
-      // std::cout<<"olval="<<olval_<<std::endl;
-      // std::cout<<"is_unique="<<is_unique_combination(comb_itr_, olval_)<<std::endl;
-      // std::cout<<"done="<<done_<<std::endl;
     } while (!done_ && !is_unique_combination(comb_itr_, olval_));
-    //std::cout<<"Exited. SymmetrizerNew, next"<<std::endl;
     Expects(comb_itr_.size() == olabels_.size());
   }
 
@@ -1562,9 +921,7 @@ symmetrization_iterator(LabelMap<BlockDim> lmap,
                         const std::vector<size_t> nsymm_indices) {
   Expects(grps.size() == nsymm_indices.size());
   std::vector<SymmetrizerNew> symms;
-  //std::cout<<"---"<<__FUNCTION__<<" ngrps="<<grps.size()<<std::endl;
   for(size_t i=0; i<grps.size(); i++) {
-    //std::cout<<"---"<<__FUNCTION__<<" ngrp "<<i<<" size="<<grps[i].size()<<" nsymm_indices="<<nsymm_indices[i]<<std::endl;
     symms.emplace_back(lmap, grps[i], nsymm_indices[i]);
   }
   return {symms};
@@ -1760,16 +1117,6 @@ compute_symmetrization_factor(const LabeledTensorType& ltc,
   return 1.0/ret;
 }
 
-//class FortranVariables {
-// public:
-//  static Integer *int_mb_tammx;
-//  static double *dbl_mb_tammx;
-//  static void set_fort_idmb_(Integer *int_mb_f, double *dbl_mb_f){
-//    int_mb_tammx = int_mb_f - 1;
-//    dbl_mb_tammx = dbl_mb_f - 1;
-//  }
-//};
-
 extern Integer *int_mb_tammx;
 extern double *dbl_mb_tammx;
 
@@ -1779,13 +1126,6 @@ int_mb() {
   //assert(0); //@todo implement
   return int_mb_tammx;
 }
-
-// template<typename T>
-// std::pair<Integer, Integer *>
-// tensor_to_fortran_info(Tensor<T> &ttensor) {
-//   assert(0); //@fixme here to enable compilation
-//   return {0, nullptr};
-// }
 
 template<typename T>
 std::pair<Integer, Integer *>
@@ -1805,107 +1145,6 @@ tensor_to_fortran_info(tammx::Tensor<T> &ttensor) {
   return {da, offseta};
 }
 
-#if 0
-// with symmetrization, no unsymmetrization. does not work
-template<typename T, typename LabeledTensorType>
-inline void
-AddOp<T, LabeledTensorType>::execute() {
-  using T1 = typename LabeledTensorType::element_type;
-  // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": AddOp\n";
-  const LabeledTensor<T1>& lta = rhs_;
-  const LabeledTensor<T1>& ltc = lhs_;
-  Tensor<T1>& ta = *lta.tensor_;
-  Tensor<T1>& tc = *ltc.tensor_;
-  auto aitr = loop_iterator(slice_indices(ta.indices(), lta.label_));
-  auto lambda = [&] (const TensorIndex& ablockid) {
-    std::cout<<"---tammx assign. ablockid"<<ablockid<<std::endl;
-    size_t dima = ta.block_size(ablockid);
-    if(!(ta.nonzero(ablockid) && ta.spin_unique(ablockid) && dima > 0)) {
-      return;
-    }
-    auto label_map = LabelMap<BlockDim>().update(lta.label_, ablockid);
-    auto cblockid = label_map.get_blockid(ltc.label_);
-    auto abp = ta.get(ablockid);
-    auto csbp = tc.alloc(tc.find_unique_block(cblockid));
-    std::cout<<"---tammx assign. cblockid"<<csbp.blockid()<<std::endl;
-    csbp() = T(0);
-    auto copy_symm = copy_symmetrizer(ltc, lta, label_map);
-    auto copy_itr = copy_iterator(copy_symm);
-    auto copy_itr_last = copy_itr.get_end();
-    auto copy_label = TensorLabel{ltc.label_};
-
-    for(auto &citr = copy_itr; citr != copy_itr_last; ++citr) {
-      auto cperm_label = *citr;
-      auto num_inversions = perm_count_inversions(perm_compute(copy_label, cperm_label));
-      Sign sign = (num_inversions%2) ? -1 : 1;
-      auto perm_comp = perm_apply(cperm_label, perm_compute(ltc.label_, lta.label_));
-      csbp(copy_label) += sign * alpha_ * abp(perm_comp);
-      std::cout<<"----AddOp. execute. csbp["<<csbp.blockid()<<"]("<<copy_label<<") "
-               <<"="
-               << sign << "*" << alpha_ << "*"
-               << "abp["<<abp.blockid()<<"] ("<<perm_comp<<")\n";
-    }
-    std::cout<<"AddOp. csbp="<<csbp.buf()<<std::endl;
-    if(mode_ == ResultMode::update) {
-      tc.add(csbp.blockid(), csbp);
-    } else {
-      tc.put(csbp.blockid(), csbp);
-    }
-  };
-  parallel_work(aitr, aitr.get_end(), lambda);
-}
-
-#elif 0
-// no symmetrization, no unsymmetrization
-template<typename T, typename LabeledTensorType>
-inline void
-AddOp<T, LabeledTensorType>::execute() {
-  using T1 = typename LabeledTensorType::element_type;
-  // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": AddOp\n";
-  const LabeledTensor<T1>& lta = rhs_;
-  const LabeledTensor<T1>& ltc = lhs_;
-  Tensor<T1>& ta = *lta.tensor_;
-  Tensor<T1>& tc = *ltc.tensor_;
-  auto aitr = loop_iterator(slice_indices(ta.indices(), lta.label_));
-  auto lambda = [&] (const TensorIndex& ablockid) {
-    std::cout<<"---tammx assign. ablockid"<<ablockid<<std::endl;
-    size_t dima = ta.block_size(ablockid);
-    if(!(ta.nonzero(ablockid) && ta.spin_unique(ablockid) && dima > 0)) {
-      return;
-    }
-    auto label_map = LabelMap<BlockDim>().update(lta.label_, ablockid);
-    auto cblockid = label_map.get_blockid(ltc.label_);
-    auto cuniq_blockid = tc.find_unique_block(cblockid);
-    Sign sign;
-    TensorPerm cperm;
-    std::tie(cperm, sign) = tc.compute_sign_from_unique_block(cblockid);
-    auto cuniq_label = perm_apply(ltc.label_, cperm);
-
-    auto abp = ta.get(ablockid);
-    auto csbp = tc.alloc(cuniq_blockid);
-    csbp() = 0;
-#if 0
-    //@note this works. Commented to avoid performance cost. But kept
-    //to illustrate the logic.
-    auto cbp = tc.alloc(cblockid);
-    cbp(ltc.label_) += alpha_ * abp(lta.label_);
-    csbp(cuniq_label) += sign * cbp(ltc.label_);
-#else
-    csbp(cuniq_label) += alpha_ * sign * abp(lta.label_);
-#endif
-    std::cout<<"----AddOp. execute. csbp["<<csbp.blockid()<<"]("<<cuniq_label<<") "
-    <<"="
-    << sign << "*" << alpha_ << "*"
-    << "abp["<<abp.blockid()<<"] ("<<ltc.label_<<")\n";
-    if(mode_ == ResultMode::update) {
-      tc.add(csbp.blockid(), csbp);
-    } else {
-      tc.put(csbp.blockid(), csbp);
-    }
-  };
-  parallel_work(aitr, aitr.get_end(), lambda);
-}
-#else
 // symmetrization or unsymmetrization, but not both in one symmetry group
 template<typename T, typename LabeledTensorType>
 inline void
@@ -1992,32 +1231,7 @@ AddOp<T, LabeledTensorType>::execute() {
   parallel_work(citr, citr.get_end(), lambda);
   //tensor_print(*lhs_.tensor_);
 }
-#endif
 
-// inline int
-// compute_symmetry_scaling_factor(const TensorVec<SymmGroup>& sum_indices,
-//                                 TensorIndex sumid) {
-//   int ret = 1;
-//   auto itr = sumid.begin();
-//   for(auto &sg: sum_indices) {
-//     auto sz = sg.size();
-//     Expects(sz > 0);
-//     std::sort(itr, itr+sz);
-//     auto fact = factorial(sz);
-//     int tsize = 1;
-//     for(int i=1; i<sz; i++) {
-//       if(itr[i] != itr[i-1]) {
-//         fact /= factorial(tsize);
-//         tsize = 0;
-//       }
-//       tsize += 1;
-//     }
-//     fact /= factorial(tsize);
-//     ret *= fact;
-//     itr += sz;
-//   }
-//   return ret;
-// }
 
 inline int
 compute_symmetry_scaling_factor(const TensorVec<TensorSymmGroup>& sum_indices,
@@ -2044,87 +1258,6 @@ compute_symmetry_scaling_factor(const TensorVec<TensorSymmGroup>& sum_indices,
   return ret;
 }
 
-#if 0
-template<typename T, typename LabeledTensorType>
-inline void
-MultOp<T, LabeledTensorType>::execute() {
-  using T1 = typename LabeledTensorType::element_type;
-  // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": MultOp\n";
-
-  //@todo @fixme MultOp based on nonsymmetrized_iterator cannot work with ResultMode::set
-  Expects(mode_ == ResultMode::update);
-  LabeledTensor<T1>& lta = rhs1_;
-  LabeledTensor<T1>& ltb = rhs2_;
-  LabeledTensor<T1>& ltc = lhs_;
-  Tensor<T1>& ta = *lta.tensor_;
-  Tensor<T1>& tb = *ltb.tensor_;
-  Tensor<T1>& tc = *ltc.tensor_;
-
-  TensorLabel sum_labels;
-  TensorVec<SymmGroup> sum_indices;
-  std::tie(sum_indices, sum_labels) = summation_indices(ltc, lta, ltb);
-  auto lambda = [&] (const TensorIndex& cblockid) {
-    auto dimc = tc.block_size(cblockid);
-    if(!(tc.nonzero(cblockid) && tc.spin_unique(cblockid) && dimc > 0)) {
-      // std::cout<<"MultOp. zero block "<<cblockid<<std::endl;
-      // std::cout<<"MultOp. "<<cblockid<<" nonzero="<< tc.nonzero(cblockid) <<std::endl;
-      // std::cout<<"MultOp. "<<cblockid<<" spin_unique="<< tc.spin_unique(cblockid) <<std::endl;
-      // std::cout<<"MultOp. "<<cblockid<<" dimc="<< dimc <<std::endl;
-      return;
-    }
-    // std::cout<<"MultOp. non-zero block"<<std::endl;
-    auto sum_itr_first = loop_iterator(slice_indices(sum_indices, sum_labels));
-    auto sum_itr_last = sum_itr_first.get_end();
-    auto label_map = LabelMap<BlockDim>().update(ltc.label_, cblockid);
-    auto cbp = tc.alloc(cblockid);
-    cbp() = 0.0;
-    for(auto sitr = sum_itr_first; sitr!=sum_itr_last; ++sitr) {
-      label_map.update(sum_labels, *sitr);
-      auto ablockid = label_map.get_blockid(lta.label_);
-      auto bblockid = label_map.get_blockid(ltb.label_);
-
-      // std::cout<<"summation loop. value="<<*sitr<<std::endl<;
-
-      if(!ta.nonzero(ablockid) || !tb.nonzero(bblockid)) {
-        continue;
-      }
-      // ablockid = ta.find_spin_unique_block(ablockid);
-      // bblockid = tb.find_spin_unique_block(bblockid);
-      auto abp = ta.get(ablockid);
-      auto bbp = tb.get(bblockid);
-
-      auto symm_scaling_factor = compute_symmetry_scaling_factor(sum_indices, *sitr);
-      auto scale = alpha_ * symm_scaling_factor;
-#if 1
-      // std::cout<<"doing block-block multiply"<<std::endl;
-      cbp(ltc.label_) += alpha_ * abp(lta.label_) * bbp(ltb.label_);
-#endif
-    }
-    auto csbp = tc.alloc(tc.find_unique_block(cblockid));
-    csbp() = 0.0;
-    auto copy_symm = copy_symmetrizer(ltc, lta, ltb, label_map);
-    auto copy_itr = copy_iterator(copy_symm);
-    auto copy_itr_last = copy_itr.get_end();
-    auto copy_label = TensorLabel(ltc.label_);
-    //std::sort(copy_label.begin(), copy_label.end());
-    for(auto citr = copy_itr; citr != copy_itr_last; ++citr) {
-      auto cperm_label = *citr;
-      auto num_inversions = perm_count_inversions(perm_compute(copy_label, cperm_label));
-      Sign sign = (num_inversions%2) ? -1 : 1;
-      // std::cout<<"doing copy symmetrizer add. sign="<<sign<<std::endl;
-      csbp(copy_label) += T(sign) * cbp(cperm_label);
-    }
-    if(mode_ == ResultMode::update) {
-      // std::cout<<"Updating to block id="<<csbp.blockid()<<" value[0]="<<csbp.buf()[0]<<std::endl;
-      tc.add(csbp.blockid(), csbp);
-    } else {
-      tc.put(csbp.blockid(), csbp);
-    }
-  };
-  auto itr = nonsymmetrized_iterator(ltc, lta, ltb);
-  parallel_work(itr, itr.get_end(), lambda);
-}
-#else
 template<typename T, typename LabeledTensorType>
 inline void
 MultOp<T, LabeledTensorType>::execute() {
@@ -2281,8 +1414,7 @@ MultOp<T, LabeledTensorType>::execute() {
   parallel_work(citr, citr.get_end(), lambda);
   //tensor_print(*lhs_.tensor_);
 }
-#endif
 
-}; // namespace tammx
+} // namespace tammx
 
 #endif  // TAMMX_OPS_H_

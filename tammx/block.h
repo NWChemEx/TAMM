@@ -5,7 +5,6 @@
 
 #include "tammx/types.h"
 #include "tammx/tce.h"
-//#include "tammx/labeled-block.h"
 
 namespace tammx {
 
@@ -15,9 +14,6 @@ class LabeledBlock;
 template<typename T>
 class Tensor;
 
-/**
- * @todo Check copy semantics and that the buffer is properly managed.
- */
 template<typename T>
 class Block {
  public:
@@ -78,7 +74,7 @@ class Block {
     return block_dims_;
   }
 
-  LabeledBlock<T> operator () (const TensorLabel &label) {
+  LabeledBlock<T> operator () (const TensorLabel& label) {
     return {this, label};
   }
 

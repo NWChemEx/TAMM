@@ -65,7 +65,7 @@ using namespace tammx;
     auto &tensor = *ltensor.tensor_;
     auto &label = ltensor.label_;
     const auto &indices = tensor.tindices();
-    Expects(tensor.flindices().size() == label.size());
+    EXPECTS(tensor.flindices().size() == label.size());
 
     auto label_copy = label;
     size_t off = 0;

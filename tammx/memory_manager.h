@@ -2,7 +2,7 @@
 #define TAMMX_MEMORY_MANAGER_H_
 
 #include "tammx/types.h"
-#include "tammx/proc-group.h"
+#include "tammx/proc_group.h"
 
 namespace tammx {
 

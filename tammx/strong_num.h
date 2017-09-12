@@ -4,12 +4,8 @@
 #define TAMMX_STRONGNUM_H__
 
 #include <limits>
-#include <iostream>
+#include <iosfwd>
 #include <functional>
-
-/**
- * @@todo IntType : rename to NumType
- */
 
 namespace tammx {
 
@@ -21,25 +17,9 @@ namespace tammx {
 
 #define DEBUG
 
-// template<class T, T v>
-// struct integral_constant {
-//     static constexpr T value = v;
-//     typedef T value_type;
-//     typedef integral_constant type; // using injected-class-name
-//     constexpr operator value_type() const noexcept { return value; }
-//     constexpr value_type operator()() const noexcept { return value; } //since c++14
-// };
-
-// template <bool B>
-// using bool_constant = integral_constant<bool, B>;
-
-// template<class B>
-// struct negation : bool_constant<!bool(B::value)> { };
-
 template<typename Target, typename Source,
          typename = std::enable_if_t<std::is_integral<Source>::value>,
          typename = std::enable_if_t<std::is_integral<Target>::value>>
-         // typename = std::enable_if<negation<std::is_same<Target, Source>::value>>>
 Target checked_cast(const Source& s) {
   using slimits = std::numeric_limits<Source>;
   using tlimits = std::numeric_limits<Target>;
@@ -62,18 +42,11 @@ Target strongnum_cast(Source s) {
   return checked_cast<Target>(s);
 }
 
-// template<typename Source,
-//          typename = std::enable_if_t<std::is_integral<Source>::value>>
-// Source checked_cast(const Source& s) {
-//   return s;
-// }
-
-
 
 template<typename Space, typename T>
 struct StrongNum {
   using value_type = T;
-  using IntType =  StrongNum<Space, T>;
+  using NumType =  StrongNum<Space, T>;
 
   StrongNum() = default;
   StrongNum(const StrongNum<Space, T>&) = default;
@@ -83,47 +56,40 @@ struct StrongNum {
   template<typename T2>
   explicit StrongNum(const T2 v1): v(checked_cast<T>(v1)) {}
 
-  // StrongNum<Space, T>& operator += (const T v1) {
-  //   v += v1;
-  //   return *this;
-  // }
-  //T operator() () const { return v; }
-  //T& operator() () { return v; }
+  NumType& operator=(const T& t)        { v = t; return *this; }
 
-  IntType& operator=(const T& t)        { v = t; return *this; }
+  NumType& operator+=(const T& t)       { v += t; return *this; }
+  NumType& operator+=(const NumType& d) { v += d.v; return *this; }
+  NumType& operator-=(const T& t)       { v -= t; return *this; }
+  NumType& operator-=(const NumType& d) { v -= d.v; return *this; }
+  NumType& operator*=(const T& t)       { v *= t; return *this; }
+  NumType& operator*=(const NumType& d) { v *= d.v; return *this; }
+  NumType& operator/=(const T& t)       { v /= t; return *this; }
+  NumType& operator/=(const NumType& d) { v /= d.v; return *this; }
+  NumType& operator^=(const NumType& d) { v ^= d.v; return *this; }
 
-  IntType& operator+=(const T& t)       { v += t; return *this; }
-  IntType& operator+=(const IntType& d) { v += d.v; return *this; }
-  IntType& operator-=(const T& t)       { v -= t; return *this; }
-  IntType& operator-=(const IntType& d) { v -= d.v; return *this; }
-  IntType& operator*=(const T& t)       { v *= t; return *this; }
-  IntType& operator*=(const IntType& d) { v *= d.v; return *this; }
-  IntType& operator/=(const T& t)       { v /= t; return *this; }
-  IntType& operator/=(const IntType& d) { v /= d.v; return *this; }
-  IntType& operator^=(const IntType& d) { v ^= d.v; return *this; }
+  NumType& operator++()       { v += 1; return *this; }
+  NumType  operator++(int)       { v += 1; return *this; }
+  NumType& operator--()       { v -= 1; return *this; }
 
-  IntType& operator++()       { v += 1; return *this; }
-  IntType  operator++(int)       { v += 1; return *this; }
-  IntType& operator--()       { v -= 1; return *this; }
+  NumType operator+(const NumType& d) const { return NumType(v+d.v); }
+  NumType operator-(const NumType& d) const { return NumType(v-d.v); }
+  NumType operator*(const NumType& d) const { return NumType(v*d.v); }
+  NumType operator/(const NumType& d) const { return NumType(v/d.v); }
+  NumType operator%(const NumType& d) const { return NumType(v%d.v); }
 
-  IntType operator+(const IntType& d) const { return IntType(v+d.v); }
-  IntType operator-(const IntType& d) const { return IntType(v-d.v); }
-  IntType operator*(const IntType& d) const { return IntType(v*d.v); }
-  IntType operator/(const IntType& d) const { return IntType(v/d.v); }
-  IntType operator%(const IntType& d) const { return IntType(v%d.v); }
+  NumType operator+(const T& t)       const { return NumType(v+t); }
+  NumType operator-(const T& t)       const { return NumType(v-t); }
+  NumType operator*(const T& t)       const { return NumType(v*t); }
+  NumType operator/(const T& t)       const { return NumType(v/t); }
+  NumType operator%(const T& t)       const { return NumType(v%t); }
 
-  IntType operator+(const T& t)       const { return IntType(v+t); }
-  IntType operator-(const T& t)       const { return IntType(v-t); }
-  IntType operator*(const T& t)       const { return IntType(v*t); }
-  IntType operator/(const T& t)       const { return IntType(v/t); }
-  IntType operator%(const T& t)       const { return IntType(v%t); }
-
-  bool operator==(const IntType& d) const { return v == d.v; }
-  bool operator!=(const IntType& d) const { return v != d.v; }
-  bool operator>=(const IntType& d) const { return v >= d.v; }
-  bool operator<=(const IntType& d) const { return v <= d.v; }
-  bool operator> (const IntType& d) const { return v >  d.v; }
-  bool operator< (const IntType& d) const { return v <  d.v; }
+  bool operator==(const NumType& d) const { return v == d.v; }
+  bool operator!=(const NumType& d) const { return v != d.v; }
+  bool operator>=(const NumType& d) const { return v >= d.v; }
+  bool operator<=(const NumType& d) const { return v <= d.v; }
+  bool operator> (const NumType& d) const { return v >  d.v; }
+  bool operator< (const NumType& d) const { return v <  d.v; }
 
   bool operator==(const T& t) const { return v == t; }
   bool operator!=(const T& t) const { return v != t; }
@@ -138,32 +104,6 @@ struct StrongNum {
  private:
   T v;
 };
-
-// template<typename Target, typename Source,
-//          typename = std::enable_if_t<std::is_integral<Source>::value>,
-//          typename = std::enable_if_t<std::is_class<Target>::value>>
-// Target strongint_cast(const Source& s) {
-//   return Target{strongint_cast<Target::value_type>(s)};
-// }
-
-// template<typename Target, typename Source,
-//          typename = std::enable_if_t<std::is_class<Source>::value>,
-//          typename = std::enable_if_t<std::is_class<Target>::value>>
-// Target strongint_cast(const Source& s) {
-//   return Target{strongint_cast<Target::value_type>(s.value)};
-// }
-
-
-// template<typename S1, typename T1, typename S2, typename T2>
-// StrongNum<S2, T2> strongint_cast(const StrongNum<S1, T1>& s) {
-//   return StrongNum<S2, T2>{strongint_cast<T2>(s.value())};
-// }
-
-// template<typename S2, typename T2>
-// template<typename T1, typename X = StrongNum<S2,T2>>
-// StrongNum<S2, T2> strongint_cast(const T1& s) {
-//   return StrongNum<S2, T2>{strongint_cast<T2>(s)};
-// }
 
 template<typename Space, typename Int, typename Int2>
 StrongNum<Space,Int> operator * (Int2 value, StrongNum<Space,Int> sint) {
@@ -184,5 +124,5 @@ std::istream& operator>>(std::istream& is, StrongNum<S, T>& s) {
 
 }  // namespace tammx
 
-#endif  // TAMMX_STRONGINT_H__
+#endif  // TAMMX_STRONGNUM_H_
 

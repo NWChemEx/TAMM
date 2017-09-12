@@ -15,7 +15,7 @@
 #include <cassert>
 #include <type_traits>
 
-#include "tammx/expects.h"
+#include "tammx/errors.h"
 
 namespace tammx {
 

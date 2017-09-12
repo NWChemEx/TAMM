@@ -131,7 +131,8 @@ fortran_assign(tammx::Tensor<double> &xtc,
   Integer offseta = offseta_map - tammx::int_mb();
   Integer offsetc = offsetc_map - tammx::int_mb();
 
-  fn(&da, &offseta, &irrepa, &dc, &offsetc, &irrepc);
+//  fn(&da, &offseta, &irrepa, &dc, &offsetc, &irrepc);
+  fn(&da, &offseta, &dc, &offsetc);
   delete[] offseta_map;
   delete[] offsetc_map;
 }
@@ -155,7 +156,8 @@ fortran_mult(tammx::Tensor<double> &xtc,
   Integer offsetb = offsetb_map - tammx::int_mb();
   Integer offsetc = offsetc_map - tammx::int_mb();
 
-  fn(&da, &offseta, &irrepa, &db, &offsetb, &irrepb, &dc, &offsetc, &irrepc);
+ // fn(&da, &offseta, &irrepa, &db, &offsetb, &irrepb, &dc, &offsetc, &irrepc);
+  fn(&da, &offseta, &db, &offsetb, &dc, &offsetc);
 
   delete[] offseta_map;
   delete[] offsetb_map;

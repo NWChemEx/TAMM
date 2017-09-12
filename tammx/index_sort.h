@@ -37,7 +37,7 @@ template<typename T>
 void
 index_sort(const void* svbuf, void* dvbuf, int ndim, const size_t *sizes,
                 const int *perm, T alpha) {
-  bool val = std::is_same<double,T>::value; Expects(val);
+  bool val = std::is_same<double,T>::value; EXPECTS(val);
   const double *sbuf = reinterpret_cast<const double*>(svbuf);
   double *dbuf = reinterpret_cast<double*>(dvbuf);
   assert(sbuf);
@@ -85,7 +85,7 @@ template<typename T>
 void
 index_sortacc(const void* svbuf, void* dvbuf, int ndim,
                    const size_t *sizes, const int *perm, T ialpha) {
-  //bool val = std::is_same<double,T>::value; Expects(val);
+  //bool val = std::is_same<double,T>::value; EXPECTS(val);
   const double *sbuf = reinterpret_cast<const double*>(svbuf);
   double alpha = static_cast<double>(ialpha);
   double *dbuf = reinterpret_cast<double*>(dvbuf);

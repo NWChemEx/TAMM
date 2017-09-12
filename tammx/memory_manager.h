@@ -50,8 +50,8 @@ class MemoryManagerSequential : public MemoryManager {
         elsize_{0},
         allocation_status_{AllocationStatus::invalid} {
           //sequential. So process group size should be 1
-          Expects(pg.is_valid());
-          Expects(MemoryManager::pg_.size() == 1);
+          EXPECTS(pg.is_valid());
+          EXPECTS(MemoryManager::pg_.size() == 1);
   }
 
   MemoryManagerSequential(ProcGroup pg, uint8_t *buf, ElementType eltype, Size nelements)
@@ -60,23 +60,23 @@ class MemoryManagerSequential : public MemoryManager {
         elsize_{element_size(eltype_)} {
           eltype_ = eltype;
           nelements_ = nelements;
-          Expects(pg.is_valid());
-          Expects(MemoryManager::pg_.size() == 1);
+          EXPECTS(pg.is_valid());
+          EXPECTS(MemoryManager::pg_.size() == 1);
           allocation_status_ = AllocationStatus::attached;
   }
 
   ~MemoryManagerSequential() {
-    Expects(allocation_status_ == AllocationStatus::invalid ||
+    EXPECTS(allocation_status_ == AllocationStatus::invalid ||
             allocation_status_ == AllocationStatus::attached);
   }
 
   MemoryManager* clone(ProcGroup pg) const {
-    Expects(pg.is_valid());
+    EXPECTS(pg.is_valid());
     return new MemoryManagerSequential(pg);
   }
 
   void alloc(ElementType eltype, Size nelements) {
-    Expects(allocation_status_ == AllocationStatus::invalid);
+    EXPECTS(allocation_status_ == AllocationStatus::invalid);
     eltype_ = eltype;
     elsize_ = element_size(eltype);
     nelements_ = nelements;
@@ -85,56 +85,56 @@ class MemoryManagerSequential : public MemoryManager {
   }
 
   void dealloc() {
-    Expects(allocation_status_ == AllocationStatus::created);
+    EXPECTS(allocation_status_ == AllocationStatus::created);
     delete [] buf_;
     buf_ = nullptr;
     allocation_status_ = AllocationStatus::invalid;
   }
 
   void* access(Offset off) {
-    Expects(allocation_status_ == AllocationStatus::created ||
+    EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
-    Expects(off < nelements_);
+    EXPECTS(off < nelements_);
     return &buf_[elsize_ * off.value()];
   }
 
   const void* access(Offset off) const {
-    Expects(allocation_status_ == AllocationStatus::created ||
+    EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
-    Expects(off < nelements_);
+    EXPECTS(off < nelements_);
     return &buf_[elsize_ * off.value()];
   }
 
   void get(Proc proc, Offset off, Size nelements, void* to_buf) {
-    Expects(allocation_status_ == AllocationStatus::created ||
+    EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
-    Expects(buf_ != nullptr);
-    Expects(nelements >= 0);
-    Expects(off + nelements <= nelements_);
-    Expects(proc.value() == 0);
+    EXPECTS(buf_ != nullptr);
+    EXPECTS(nelements >= 0);
+    EXPECTS(off + nelements <= nelements_);
+    EXPECTS(proc.value() == 0);
     std::copy_n(buf_ + elsize_*off.value(), elsize_*nelements.value(),
                 reinterpret_cast<uint8_t*>(to_buf));
   }
 
   void put(Proc proc, Offset off, Size nelements, const void* from_buf) {
-    Expects(allocation_status_ == AllocationStatus::created ||
+    EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
-    Expects(buf_ != nullptr);
-    Expects(nelements >= 0);
-    Expects(off + nelements <= nelements_);
-    Expects(proc.value() == 0);
+    EXPECTS(buf_ != nullptr);
+    EXPECTS(nelements >= 0);
+    EXPECTS(off + nelements <= nelements_);
+    EXPECTS(proc.value() == 0);
     std::copy_n(reinterpret_cast<const uint8_t*>(from_buf),
                 elsize_*nelements.value(),
                 buf_ + elsize_*off.value());
   }
 
   void add(Proc proc, Offset off, Size nelements, const void* from_buf) {
-    Expects(allocation_status_ == AllocationStatus::created ||
+    EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
-    Expects(buf_ != nullptr);
-    Expects(nelements >= 0);
-    Expects(off + nelements <= nelements_);
-    Expects(proc.value() == 0);
+    EXPECTS(buf_ != nullptr);
+    EXPECTS(nelements >= 0);
+    EXPECTS(off + nelements <= nelements_);
+    EXPECTS(proc.value() == 0);
     int hi = nelements.value();
     uint8_t *to_buf = buf_ + elsize_*off.value();
     switch(eltype_) {

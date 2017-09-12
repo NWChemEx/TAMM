@@ -10,6 +10,7 @@
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
 #include "tammx/errors.h"
+#include "tammx/fortran.h"
 
 namespace tammx {
 
@@ -110,7 +111,7 @@ class TCE {
     return nvab() - nva();
   }
 
-  using Int = Fint;
+  using Int = FortranInt;
 
   static Int compute_tce_key(const TensorDim& flindices,
                              const TensorIndex& is) {

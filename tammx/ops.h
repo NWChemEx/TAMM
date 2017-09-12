@@ -834,20 +834,20 @@ compute_symmetrization_factor(const LabeledTensorType& ltc,
 }
 
 template<typename T>
-std::pair<Integer, Integer *>
+std::pair<FortranInt, FortranInt *>
 tensor_to_fortran_info(tammx::Tensor<T> &ttensor) {
   bool t_is_double = std::is_same<T, double>::value;
   EXPECTS(t_is_double);
   auto adst_nw = static_cast<const tammx::Distribution_NW *>(ttensor.distribution());
   auto ahash = adst_nw->hash();
   auto length = 2 * ahash[0] + 1;
-  Integer *offseta = new Integer[length];
+  FortranInt *offseta = new FortranInt[length];
   for (size_t i = 0; i < length; i++) {
     offseta[i] = ahash[i];
   }
 
   auto amgr_ga = static_cast<tammx::MemoryManagerGA *>(ttensor.memory_manager());
-  Integer da = amgr_ga->ga();
+  FortranInt da = amgr_ga->ga();
   return {da, offseta};
 }
 
@@ -866,12 +866,12 @@ AddOp<T, LabeledTensorType>::execute() {
     EXPECTS(t1_is_double);
     EXPECTS(fn_ != nullptr);
 
-    Integer da, *offseta_map;
-    Integer dc, *offsetc_map;
+    FortranInt da, *offseta_map;
+    FortranInt dc, *offsetc_map;
     std::tie(da, offseta_map) = tensor_to_fortran_info(*rhs_.tensor_);
     std::tie(dc, offsetc_map) = tensor_to_fortran_info(*lhs_.tensor_);
-    Integer offseta = offseta_map - MA::int_mb();
-    Integer offsetc = offsetc_map - MA::int_mb();
+    FortranInt offseta = offseta_map - MA::int_mb();
+    FortranInt offsetc = offsetc_map - MA::int_mb();
 
     fn_(&da, &offseta, &dc, &offsetc);
 
@@ -982,18 +982,18 @@ MultOp<T, LabeledTensorType>::execute() {
     EXPECTS(t1_is_double);
     EXPECTS(fn_ != nullptr);
 
-    Integer da, *offseta_map;
-    Integer db, *offsetb_map;
-    Integer dc, *offsetc_map;
+    FortranInt da, *offseta_map;
+    FortranInt db, *offsetb_map;
+    FortranInt dc, *offsetc_map;
     std::tie(da, offseta_map) = tensor_to_fortran_info(*rhs1_.tensor_);
     std::tie(db, offsetb_map) = tensor_to_fortran_info(*rhs2_.tensor_);
     std::tie(dc, offsetc_map) = tensor_to_fortran_info(*lhs_.tensor_);
-    Integer offseta = offseta_map - MA::int_mb();
-    Integer offsetb = offsetb_map - MA::int_mb();
-    Integer offsetc = offsetc_map - MA::int_mb();
+    FortranInt offseta = offseta_map - MA::int_mb();
+    FortranInt offsetb = offsetb_map - MA::int_mb();
+    FortranInt offsetc = offsetc_map - MA::int_mb();
 
     //std::cout<<"---------INVOKING FORTRAN MULT----------\n";
-    Integer zero = 0;
+    FortranInt zero = 0;
     fn_(&da, &offseta, &db, &offsetb, &dc, &offsetc);
     //tensor_print(*lhs_.tensor_);
 

@@ -11,7 +11,7 @@
 
 namespace tammx {
 
-using Fint = int64_t;
+//using Fint = int64_t;
 
 struct BlockDimSpace;
 using BlockDim = StrongNum<BlockDimSpace, int64_t>;

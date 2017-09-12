@@ -2,7 +2,7 @@
 #define TAMMX_EXECUTION_CONTEXT_H_
 
 #include "tammx/types.h"
-#include "tammx/proc-group.h"
+#include "tammx/proc_group.h"
 #include "tammx/memory_manager.h"
 #include "tammx/distribution.h"
 #include "tammx/ops.h"

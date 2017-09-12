@@ -16,7 +16,7 @@ jacobi(Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted)
       auto rblock = d_r.get(blockid);
       auto tblock = d_t.alloc(blockid);
       auto bdims = rblock.block_dims();
-      
+
       if(d_r.rank() == 2) {
         auto ioff = TCE::offset(blockid[0]);
         auto joff = TCE::offset(blockid[1]);
@@ -74,7 +74,7 @@ diis(Scheduler& sch,
   for(int i=0; i<ntensors; i++) {
     EXPECTS(d_rs[i]->size() == ndiis);
   }
-  
+
   Scalar<T> aexp[ntensors][ndiis][ndiis];
   for(int k=0; k<ntensors; k++) {
     for(int i=0; i<ndiis; i++) {
@@ -89,7 +89,7 @@ diis(Scheduler& sch,
       sch.io(ta);
     }
   }
-  
+
   for(int k=0; k<ntensors; k++) {
     for(int i=0; i<ndiis; i++) {
       for(int j=0; j<ndiis; j++) {
@@ -103,24 +103,32 @@ diis(Scheduler& sch,
   }
   sch.execute();
   sch.clear();
-  
+
   using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
   using Vector = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
   Matrix A = Matrix::Zero(ndiis + 1, ndiis + 1);
   Vector b = Vector::Zero(ndiis + 1, 1);
   for(int k=0; k<ntensors; k++) {
     for(int i=0; i<ndiis; i++) {
-      for(int j=0; j<ndiis; j++) {
+      for(int j=i; j<ndiis; j++) {
         A(i, j) += aexp[k][i][j].value();
       }
+    }
+  }
+  for(int i=0; i<ndiis; i++) {
+    for(int j=i; j<ndiis; j++) {
+      A(j, i) = A(i, j);
     }
   }
   for(int i=0; i<ndiis; i++) {
     A(i, ndiis) = -1.0;
     A(ndiis, i) = -1.0;
   }
-  
+
   b(ndiis, 0) = -1;
+
+  std::cout<<"A:\n"<<A<<"\n";
+  std::cout<<"b:\n"<<b<<"\n";
 
   for(int k=0; k<ntensors; k++) {
     for(int i=0; i<ndiis; i++) {
@@ -132,7 +140,9 @@ diis(Scheduler& sch,
   // Solve AX = B
   // call dgesv(diis+1,1,a,maxdiis+1,iwork,b,maxdiis+1,info)
   Vector x = A.colPivHouseholderQr().solve(b);
-  
+
+  std::cout<<"x:\n"<<x<<"\n";
+
   for(int k=0; k<ntensors; k++) {
     auto &dt = *d_t[k];
     sch.output(dt)

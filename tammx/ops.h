@@ -1912,7 +1912,7 @@ inline void
 AddOp<T, LabeledTensorType>::execute() {
   using T1 = typename LabeledTensorType::element_type;
 
-  std::cout<<"ADD_OP. C"<<lhs_.label_<<" += "<<alpha_<<" * A"<<rhs_.label_<<"\n";
+  //std::cout<<"ADD_OP. C"<<lhs_.label_<<" += "<<alpha_<<" * A"<<rhs_.label_<<"\n";
   
   //tensor_print(*lhs_.tensor_);
   //tensor_print(*rhs_.tensor_);
@@ -2129,10 +2129,10 @@ template<typename T, typename LabeledTensorType>
 inline void
 MultOp<T, LabeledTensorType>::execute() {
   using T1 = typename LabeledTensorType::element_type;
-  std::cout<<"MULT_OP. C"<<lhs_.label_<<" += "<<alpha_
-           <<" * A"<<rhs1_.label_
-           <<" * B"<<rhs2_.label_
-           <<"\n";
+  // std::cout<<"MULT_OP. C"<<lhs_.label_<<" += "<<alpha_
+  //          <<" * A"<<rhs1_.label_
+  //          <<" * B"<<rhs2_.label_
+  //          <<"\n";
 
   //tensor_print(*lhs_.tensor_);
   //tensor_print(*rhs1_.tensor_);

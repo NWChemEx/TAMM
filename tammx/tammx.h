@@ -23,7 +23,7 @@
 #include "tammx/product_iterator.h"
 #include "tammx/triangle_loop.h"
 #include "tammx/block.h"
-#include "tammx/labeled-block.h"
+#include "tammx/labeled_block.h"
 #include "tammx/labeled_tensor.h"
 #include "tammx/work.h"
 #include "tammx/fortran.h"

@@ -27,7 +27,6 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
-
 using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 

@@ -1,7 +1,7 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMMX_COMBINATION_H__
-#define TAMMX_COMBINATION_H__
+#ifndef TAMMX_COMBINATION_H_
+#define TAMMX_COMBINATION_H_
 
 #include "tammx/expects.h"
 #include "tammx/boundvec.h"
@@ -47,7 +47,7 @@ struct Combination {
       : n_ {bag.size()},
         k_{std::max(k, bag.size() - k)},
         bag_{bag} {
-          //Expects (n_ > 0);
+          Expects (n_ >= 0);
           Expects (n_ >= k);
           std::sort(bag_.begin(), bag_.end());
         }
@@ -73,13 +73,6 @@ struct Combination {
       }
       Expects(sub_.size() == comb_->k_);
     }
-
-    // Iterator& operator = (Iterator& itr) {
-    //   comb_ = itr.comb_;
-    //   stack_ = itr.stack_;
-    //   sub_ = itr.sub_;
-    //   return *this;
-    // }
 
     Iterator& operator = (const Iterator& itr) {
       done_ = itr.done_;
@@ -206,6 +199,6 @@ struct Combination {
 };  // class Combination
 
 
-}; // namespace tammx
+} // namespace tammx
 
-#endif  // TAMMX_WORK_H__
+#endif  // TAMMX_COMBINATION_H_

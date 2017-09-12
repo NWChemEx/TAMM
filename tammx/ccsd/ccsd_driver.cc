@@ -23,6 +23,7 @@
 #include "tammx/work.h"
 #include "tammx/diis.h"
 #include "tammx/memory_manager_ga.h"
+#include "tammx/hartree_fock.h"
 
 using namespace std;
 using namespace tammx;
@@ -448,14 +449,7 @@ Irrep irrep_v {0};
 Irrep irrep_t {0};
 Irrep irrep_x {0};
 Irrep irrep_y {0};
-// Eigen matrix algebra library
-#include <Eigen/Dense>
-// #include <Eigen/Eigenvalues>
-#include <unsupported/Eigen/CXX11/Tensor>
 
-using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
-extern std::tuple<Matrix, Tensor4D, double> hartree_fock(const string filename);
 
 // void fortran_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
 //                   const std::vector<int> &spins,
@@ -503,6 +497,8 @@ void fortran_finalize() {
   finalize_fortran_vars_();
 }
 
+
+extern std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const Matrix &C, Matrix &F, libint2::BasisSet &shells);
 
 int main(int argc, char *argv[]) {
   MPI_Init(&argc, &argv);
@@ -558,11 +554,15 @@ int main(int argc, char *argv[]) {
 
   const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
 
+  Matrix C;
   Matrix F;
   Tensor4D V;
+  int ndocc{0};
   double hf_energy{0.0};
+  libint2::BasisSet shells;
 
-  std::tie(F, V, hf_energy) = hartree_fock(filename);
+  std::tie(ndocc, hf_energy, shells) = hartree_fock(filename,C,F);
+  std::tie(V) = two_four_index_transform(ndocc, C, F, shells);
   std::cerr << "debug2" << '\n';
 
   //Tensor Map

@@ -35,17 +35,16 @@ void index_sort_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
  */
 template<typename T>
 void
-index_sort(const void* svbuf, void* dvbuf, int ndim, const size_t *sizes,
-                const int *perm, T alpha) {
-  bool val = std::is_same<double,T>::value; EXPECTS(val);
-  const double *sbuf = reinterpret_cast<const double*>(svbuf);
-  double *dbuf = reinterpret_cast<double*>(dvbuf);
-  assert(sbuf);
-  assert(dbuf);
-  assert(ndim >= 0);
-  assert(ndim == 0 || sizes);
-  assert(ndim == 0 || perm);
+index_sort(const double* sbuf, double* dbuf, int ndim, const size_t *sizes,
+                const int *perm, T ialpha) {
+  bool val = std::is_convertible<T,double>::value; EXPECTS(val);
+  EXPECTS(sbuf);
+  EXPECTS(dbuf);
+  EXPECTS(ndim >= 0);
+  EXPECTS(ndim == 0 || sizes);
+  EXPECTS(ndim == 0 || perm);
 
+  double alpha = static_cast<double>(ialpha);
   if (ndim == 0) {
     *dbuf = *sbuf * alpha;
   } else if (ndim == 1) {
@@ -83,12 +82,10 @@ void index_sortacc_4(const double *sbuf, double *dbuf, size_t sz1, size_t sz2,
  */
 template<typename T>
 void
-index_sortacc(const void* svbuf, void* dvbuf, int ndim,
+index_sortacc(const double* sbuf, double* dbuf, int ndim,
                    const size_t *sizes, const int *perm, T ialpha) {
-  //bool val = std::is_same<double,T>::value; EXPECTS(val);
-  const double *sbuf = reinterpret_cast<const double*>(svbuf);
+  bool val = std::is_convertible<T,double>::value; EXPECTS(val);
   double alpha = static_cast<double>(ialpha);
-  double *dbuf = reinterpret_cast<double*>(dvbuf);
   assert(sbuf);
   assert(dbuf);
   assert(ndim >= 0);

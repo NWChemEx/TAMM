@@ -7,7 +7,7 @@
 #include <iosfwd>
 #include <string>
 
-#include "tammx/expects.h"
+#include "tammx/errors.h"
 
 namespace tammx {
 
@@ -93,14 +93,14 @@ class BoundVec : public std::array<T, maxsize> {
   
   template<typename InputIt>
   void insert_back(InputIt first, InputIt last) {
-    Expects(size_ + (last - first) <= maxsize);
+    EXPECTS(size_ + (last - first) <= maxsize);
     for(auto itr = first; itr != last; ++itr) {
       push_back(*itr);
     }
   }
 
   void insert_back(size_type count, const T& value) {
-    Expects(size_ + count <= maxsize);
+    EXPECTS(size_ + count <= maxsize);
     for(size_type i=0; i<count; i++) {
       push_back(value);
     }
@@ -131,22 +131,22 @@ class BoundVec : public std::array<T, maxsize> {
   }
 
   reference front() {
-    Expects(size_>0);
+    EXPECTS(size_>0);
     return this->at(0);
   }
 
   const_reference front() const {
-    Expects(size_>0);
+    EXPECTS(size_>0);
     return this->at(0);
   }
 
   reference back() {
-    Expects(size_>0);
+    EXPECTS(size_>0);
     return this->at(size_-1);
   }
 
   const_reference back() const {
-    Expects(size_>0);
+    EXPECTS(size_>0);
     return this->at(size_-1);
   }
 

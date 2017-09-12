@@ -3,7 +3,7 @@
 
 #include "tammx/tensor.h"
 #include "tammx/labeled-block.h"
-#include "tammx/labeled-tensor.h"
+#include "tammx/labeled_tensor.h"
 #include "tammx/util.h"
 #include "tammx/fortran.h"
 

@@ -1,7 +1,7 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMMX_BOUNDVEC_H__
-#define TAMMX_BOUNDVEC_H__
+#ifndef TAMMX_BOUNDVEC_H_
+#define TAMMX_BOUNDVEC_H_
 
 #include <array>
 #include <iosfwd>
@@ -44,13 +44,6 @@ class BoundVec : public std::array<T, maxsize> {
     }
   }
 
-  // BoundVec(BoundVec& bv)
-  //     : size_{0} {
-  //   for (auto &value : bv) {
-  //     push_back(value);
-  //   }
-  // }
-
   template<typename Itr>
   BoundVec(Itr first, Itr last)
       : size_{0} {
@@ -82,13 +75,9 @@ class BoundVec : public std::array<T, maxsize> {
     size_ = 0;
   }
 
-  void push_back( const T& value) {
+  void push_back(const T& value) {
     this->at(size_++) = value;
   }
-
-  // void push_back(T& value) {
-  //   this->at(size_++) = value;
-  // }
 
   void push_back(T&& value ) {
     this->at(size_++) = value;
@@ -183,6 +172,6 @@ std::ostream& operator << (std::ostream& os, const BoundVec<T, maxsize>& bvec) {
   return os;
 }
 
-};  // namespace tammx
+}  // namespace tammx
 
-#endif  // TAMMX_BOUNDVEC_H__
+#endif  // TAMMX_BOUNDVEC_H_

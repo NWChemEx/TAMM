@@ -8,6 +8,7 @@
 #include <complex>
 #include "tammx/strong_num.h"
 #include "tammx/boundvec.h"
+#include "tammx/errors.h"
 
 namespace tammx {
 

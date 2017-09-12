@@ -13,19 +13,10 @@ namespace tammx {
 
 class TensorBase {
  public:
-  // TensorBase(const TensorVec<SymmGroup> &indices,
-  //                 TensorRank nupper_indices,
-  //                 Irrep irrep,
-  //                 bool spin_restricted)
-  //     : TensorBase{to_tsymm_indices(indices),
-  //       nupper_indices,
-  //       irrep,
-  //       spin_restricted} {}
-
-    TensorBase(const TensorVec<TensorSymmGroup>& indices,
-                  TensorRank nupper_indices,
-                  Irrep irrep,
-                  bool spin_restricted)
+  TensorBase(const TensorVec<TensorSymmGroup>& indices,
+             TensorRank nupper_indices,
+             Irrep irrep,
+             bool spin_restricted)
       : indices_{indices},
         nupper_indices_{nupper_indices},
         irrep_{irrep},
@@ -58,14 +49,6 @@ class TensorBase {
   bool spin_restricted() const {
     return spin_restricted_;
   }
-
-  // TensorVec<SymmGroup> indices() const {
-  //   TensorVec<SymmGroup> ret;
-  //   for(const auto& tid: indices_) {
-  //     ret.push_back(SymmGroup(tid.size(), tid.dt()));
-  //   }
-  //   return ret;
-  // }
 
   TensorVec<TensorSymmGroup> tindices() const {
     return indices_;

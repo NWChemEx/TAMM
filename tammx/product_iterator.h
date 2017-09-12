@@ -3,7 +3,7 @@
 #ifndef TAMMX_PRODUCT_ITERATOR_H__
 #define TAMMX_PRODUCT_ITERATOR_H__
 
-#include "tammx/expects.h"
+#include "tammx/errors.h"
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
 
@@ -37,7 +37,7 @@ class ProductIterator {
       : ifirst_{ifirst},
         ilast_{ilast},
         ival_{ifirst} {
-          Expects(ifirst.size() == ilast.size());
+          EXPECTS(ifirst.size() == ilast.size());
           // std::cerr<<"Product Iterator constructor. num itrs="<<ifirst.size()<<std::endl;
           // std::cerr<<"Product iterator sizes: ";
           // for(auto it: ifirst) {
@@ -45,7 +45,7 @@ class ProductIterator {
           // }
           // std::cerr<<std::endl;
           for(int i=0; i<ifirst.size(); i++){
-            Expects(ifirst[i] != ilast[i]);
+            EXPECTS(ifirst[i] != ilast[i]);
           }
         }
 
@@ -68,7 +68,7 @@ class ProductIterator {
         ival_[j] = ifirst_[j];
       }
       for(unsigned j=0; j<i; j++) {
-        Expects(ival_[j] != ilast_[j]);
+        EXPECTS(ival_[j] != ilast_[j]);
       }
     }
     return *this;

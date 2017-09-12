@@ -1,7 +1,7 @@
 #ifndef TAMMX_TENSOR_BASE_H_
 #define TAMMX_TENSOR_BASE_H_
 
-#include "tanmmx/errors.h"
+#include "tammx/errors.h"
 #include "tammx/types.h"
 
 namespace tammx {

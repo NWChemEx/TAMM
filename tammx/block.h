@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "tammx/errors.h"
 #include "tammx/types.h"
 #include "tammx/tce.h"
 
@@ -30,7 +31,7 @@ class Block {
         layout_.resize(tensor.rank());
         std::iota(layout_.begin(), layout_.end(), 0);
         sign_ = 1;
-        Expects(size() > 0);
+        EXPECTS(size() > 0);
         buf_ = std::make_unique<T[]> (size());
       }
 
@@ -51,10 +52,10 @@ class Block {
         layout_{layout},
         sign_{sign} {
           block_dims_ = tensor.block_dims(block_id);
-          Expects(tensor.rank() == block_id.size());
-          Expects(tensor.rank() == block_dims_.size());
-          Expects(tensor.rank() == layout.size());
-          Expects(size() > 0);
+          EXPECTS(tensor.rank() == block_id.size());
+          EXPECTS(tensor.rank() == block_dims_.size());
+          EXPECTS(tensor.rank() == layout.size());
+          EXPECTS(size() > 0);
           buf_ = std::make_unique<T[]> (size());
         }
 

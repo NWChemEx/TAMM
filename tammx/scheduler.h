@@ -48,8 +48,8 @@ class Scheduler {
   template<typename T, typename LabeledTensorType>
   Scheduler& operator()(SetOpEntry<T, LabeledTensorType> sop) {
     ops_.push_back(new SetOp<LabeledTensorType, T>(sop.value, sop.lhs, sop.mode));
-    Expects(tensors_.find(&sop.lhs.tensor()) != tensors_.end());
-    Expects(tensors_[&sop.lhs.tensor()].status == TensorStatus::allocated
+    EXPECTS(tensors_.find(&sop.lhs.tensor()) != tensors_.end());
+    EXPECTS(tensors_[&sop.lhs.tensor()].status == TensorStatus::allocated
             || tensors_[&sop.lhs.tensor()].status == TensorStatus::initialized);
     tensors_[&sop.lhs.tensor()].status = TensorStatus::initialized;
     return *this;
@@ -61,7 +61,7 @@ class Scheduler {
 
   template<typename ...Args>
   Scheduler& io(TensorBase &tensor, Args& ... args) {
-    Expects(tensors_.find(&tensor) == tensors_.end());
+    EXPECTS(tensors_.find(&tensor) == tensors_.end());
     tensors_[&tensor] = TensorInfo{TensorStatus::initialized};
     return io(args...);
   }
@@ -72,7 +72,7 @@ class Scheduler {
 
   template<typename ...Args>
   Scheduler& output(TensorBase& tensor, Args& ... args) {
-    Expects(tensors_.find(&tensor) == tensors_.end());
+    EXPECTS(tensors_.find(&tensor) == tensors_.end());
     tensors_[&tensor] = TensorInfo{TensorStatus::allocated};
     return output(args...);
   }
@@ -83,8 +83,8 @@ class Scheduler {
 
   template<typename TensorType, typename ...Args>
   Scheduler& alloc(TensorType& tensor, Args& ... args) {
-    Expects(tensors_.find(&tensor) != tensors_.end());
-    Expects(tensors_[&tensor].status == TensorStatus::invalid ||
+    EXPECTS(tensors_.find(&tensor) != tensors_.end());
+    EXPECTS(tensors_[&tensor].status == TensorStatus::invalid ||
             tensors_[&tensor].status == TensorStatus::deallocated);
     tensors_[&tensor].status = TensorStatus::allocated;
     ops_.push_back(new AllocOp<TensorType>(tensor, pg_, default_distribution_, default_memory_manager_));
@@ -97,8 +97,8 @@ class Scheduler {
 
   template<typename TensorType, typename ...Args>
   Scheduler& dealloc(TensorType& tensor, Args& ... args) {
-    Expects(tensors_.find(&tensor) != tensors_.end());
-    Expects(tensors_[&tensor].status == TensorStatus::allocated ||
+    EXPECTS(tensors_.find(&tensor) != tensors_.end());
+    EXPECTS(tensors_[&tensor].status == TensorStatus::allocated ||
             tensors_[&tensor].status == TensorStatus::initialized);
     tensors_[&tensor].status = TensorStatus::deallocated;
     ops_.push_back(new DeallocOp<TensorType>(&tensor));
@@ -108,10 +108,10 @@ class Scheduler {
 
   template<typename T, typename LabeledTensorType>
   Scheduler& operator()(AddOpEntry<T, LabeledTensorType> aop) {
-    Expects(tensors_.find(&aop.lhs.tensor()) != tensors_.end());
-    Expects(tensors_.find(&aop.rhs.tensor()) != tensors_.end());
-    Expects(tensors_[&aop.rhs.tensor()].status == TensorStatus::initialized);
-    Expects(tensors_[&aop.lhs.tensor()].status == TensorStatus::initialized
+    EXPECTS(tensors_.find(&aop.lhs.tensor()) != tensors_.end());
+    EXPECTS(tensors_.find(&aop.rhs.tensor()) != tensors_.end());
+    EXPECTS(tensors_[&aop.rhs.tensor()].status == TensorStatus::initialized);
+    EXPECTS(tensors_[&aop.lhs.tensor()].status == TensorStatus::initialized
             || (aop.mode==ResultMode::set
                 && tensors_[&aop.lhs.tensor()].status==TensorStatus::allocated));
     tensors_[&aop.lhs.tensor()].status = TensorStatus::initialized;
@@ -121,12 +121,12 @@ class Scheduler {
 
   template<typename T, typename LabeledTensorType>
   Scheduler& operator()(MultOpEntry<T, LabeledTensorType> aop) {
-    Expects(tensors_.find(&aop.lhs.tensor()) != tensors_.end());
-    Expects(tensors_.find(&aop.rhs1.tensor()) != tensors_.end());
-    Expects(tensors_.find(&aop.rhs2.tensor()) != tensors_.end());
-    Expects(tensors_[&aop.rhs1.tensor()].status == TensorStatus::initialized);
-    Expects(tensors_[&aop.rhs2.tensor()].status == TensorStatus::initialized);
-    Expects(tensors_[&aop.lhs.tensor()].status == TensorStatus::initialized
+    EXPECTS(tensors_.find(&aop.lhs.tensor()) != tensors_.end());
+    EXPECTS(tensors_.find(&aop.rhs1.tensor()) != tensors_.end());
+    EXPECTS(tensors_.find(&aop.rhs2.tensor()) != tensors_.end());
+    EXPECTS(tensors_[&aop.rhs1.tensor()].status == TensorStatus::initialized);
+    EXPECTS(tensors_[&aop.rhs2.tensor()].status == TensorStatus::initialized);
+    EXPECTS(tensors_[&aop.lhs.tensor()].status == TensorStatus::initialized
             || (aop.mode==ResultMode::set
                 && tensors_[&aop.lhs.tensor()].status==TensorStatus::allocated));
     tensors_[&aop.lhs.tensor()].status = TensorStatus::initialized;
@@ -136,8 +136,8 @@ class Scheduler {
 
   template<typename Func, typename LabeledTensorType>
   Scheduler& operator()(LabeledTensorType lhs, Func func, ResultMode mode = ResultMode::set) {
-    Expects(tensors_.find(&lhs.tensor()) != tensors_.end());
-    Expects(tensors_[&lhs.tensor()].status == TensorStatus::initialized
+    EXPECTS(tensors_.find(&lhs.tensor()) != tensors_.end());
+    EXPECTS(tensors_[&lhs.tensor()].status == TensorStatus::initialized
             || (mode==ResultMode::set
                 && tensors_[&lhs.tensor()].status==TensorStatus::allocated));
     tensors_[&lhs.tensor()].status = TensorStatus::initialized;
@@ -148,8 +148,8 @@ class Scheduler {
 
   template<typename Func, typename LabeledTensorType>
   Scheduler& sop(LabeledTensorType lhs, Func func) {
-    Expects(tensors_.find(&lhs.tensor()) != tensors_.end());
-    Expects(tensors_[&lhs.tensor()].status == TensorStatus::initialized);
+    EXPECTS(tensors_.find(&lhs.tensor()) != tensors_.end());
+    EXPECTS(tensors_[&lhs.tensor()].status == TensorStatus::initialized);
     tensors_[&lhs.tensor()].status = TensorStatus::initialized;
     ops_.push_back(new ScanOp<Func,LabeledTensorType>(lhs, func));
     return *this;
@@ -197,7 +197,7 @@ inline void
 assert_zero(Scheduler& sch, Tensor<T>& tc, double threshold = 1.0e-12) {
   auto lambda = [&] (auto &val) {
     //    std::cout<<"assert_zero. val="<<val<<std::endl;
-    Expects(std::abs(val) < threshold);
+    EXPECTS(std::abs(val) < threshold);
   };
   sch.io(tc)
       .sop(tc(), lambda)
@@ -208,7 +208,7 @@ template<typename LabeledTensorType, typename T>
 inline void
 assert_equal(Scheduler& sch, LabeledTensorType tc, T value, double threshold = 1.0e-12) {
   auto lambda = [&] (auto &val) {
-    Expects(std::abs(val - value) < threshold);
+    EXPECTS(std::abs(val - value) < threshold);
   };
   sch.io(tc.tensor())
       .sop(tc, lambda)

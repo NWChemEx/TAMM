@@ -17,10 +17,10 @@ inline TensorPerm
 perm_compute(const TensorLabel& from, const TensorLabel& to) {
   TensorPerm layout;
 
-  Expects(from.size() == to.size());
+  EXPECTS(from.size() == to.size());
   for(auto p : to) {
     auto itr = std::find(from.begin(), from.end(), p);
-    Expects(itr != from.end());
+    EXPECTS(itr != from.end());
     layout.push_back(itr - from.begin());
   }
   return layout;
@@ -35,20 +35,20 @@ perm_count_inversions(const TensorPerm& perm) {
   TensorPerm perm_sort{perm};
 #if 0
   std::sort(perm_sort.begin(), perm_sort.end());
-  Expects(std::adjacent_find(perm_sort.begin(), perm_sort.end()) == perm_sort.end());
+  EXPECTS(std::adjacent_find(perm_sort.begin(), perm_sort.end()) == perm_sort.end());
   using size_type = TensorPerm::size_type;
   for(size_type i=0; i<perm.size(); i++) {
     auto itr = std::find(perm_sort.begin(), perm_sort.end(), perm[i]);
-    Expects(itr != perm.end());
+    EXPECTS(itr != perm.end());
     num_inversions += std::abs((itr - perm.begin()) - i);
   }
 #else
   std::sort(perm_sort.begin(), perm_sort.end());
-  Expects(std::adjacent_find(perm_sort.begin(), perm_sort.end()) == perm_sort.end());
+  EXPECTS(std::adjacent_find(perm_sort.begin(), perm_sort.end()) == perm_sort.end());
   //using size_type = TensorPerm::size_type;
   for(int i=0; i<perm.size(); i++) {
     auto itr = std::find(perm.begin(), perm.end(), i);
-    Expects(itr != perm.end());
+    EXPECTS(itr != perm.end());
     num_inversions += std::abs((itr - perm.begin()) - i);
   }
 #endif
@@ -69,7 +69,7 @@ perm_apply(const TensorVec<T>& label, const TensorPerm& perm) {
   TensorVec<T> ret;
   // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": label="<<label<<std::endl;
   // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": perm="<<perm<<std::endl;
-  Expects(label.size() == perm.size());
+  EXPECTS(label.size() == perm.size());
   using size_type = TensorPerm::size_type;
   for(size_type i=0; i<label.size(); i++) {
     ret.push_back(label[perm[i]]);
@@ -88,7 +88,7 @@ perm_apply(const TensorVec<T>& label, const TensorPerm& perm) {
 inline TensorPerm
 perm_compose(const TensorPerm& p1, const TensorPerm& p2) {
   TensorPerm ret(p1.size());
-  Expects(p1.size() == p2.size());
+  EXPECTS(p1.size() == p2.size());
   for(unsigned i=0; i<p1.size(); i++) {
     ret[i] = p1[p2[i]];
   }
@@ -121,10 +121,10 @@ is_permutation(TensorPerm perm) {
 inline TensorPerm
 perm_invert(const TensorPerm& perm) {
   TensorPerm ret(perm.size());
-  Expects(is_permutation(perm));
+  EXPECTS(is_permutation(perm));
   for(unsigned i=0; i<perm.size(); i++) {
     auto itr = std::find(perm.begin(), perm.end(), i);
-    Expects(itr != perm.end());
+    EXPECTS(itr != perm.end());
     ret[i] = itr - perm.begin();
   }
   return ret;

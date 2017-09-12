@@ -10,7 +10,7 @@ namespace tammx {
 template<typename T>
 inline void
 jacobi(Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted) {
-  Expects(transpose == false);
+  EXPECTS(transpose == false);
   std::cout << "shift=" << shift << std::endl;
   block_for(d_r(), [&] (const TensorIndex& blockid) {
       auto rblock = d_r.get(blockid);
@@ -66,13 +66,13 @@ inline void
 diis(Scheduler& sch,
      std::vector<std::vector<Tensor<T>*>*>& d_rs,
      std::vector<Tensor<T>*> d_t) {
-  Expects(d_t.size() == d_rs.size());
+  EXPECTS(d_t.size() == d_rs.size());
   int ntensors = d_t.size();
-  Expects(ntensors > 0);
+  EXPECTS(ntensors > 0);
   int ndiis = d_rs[0]->size();
-  Expects(ndiis > 0);
+  EXPECTS(ndiis > 0);
   for(int i=0; i<ntensors; i++) {
-    Expects(d_rs[i]->size() == ndiis);
+    EXPECTS(d_rs[i]->size() == ndiis);
   }
   
   Scalar<T> aexp[ntensors][ndiis][ndiis];

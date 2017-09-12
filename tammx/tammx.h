@@ -26,6 +26,7 @@
 #include "tammx/labeled-block.h"
 #include "tammx/labeled-tensor.h"
 #include "tammx/work.h"
+#include "tammx/fortran.h"
 #include "tammx/ops.h"
 #include "tammx/scheduler.h"
 #include "tammx/execution_context.h"

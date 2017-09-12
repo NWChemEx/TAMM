@@ -55,10 +55,10 @@ class LabelMap {
  public:
   LabelMap& update(const TensorLabel& labels,
                    const TensorVec<T>& ids) {
-    // Expects(labels.size() + labels_.size()  <= labels_.max_size());
+    // EXPECTS(labels.size() + labels_.size()  <= labels_.max_size());
     // labels_.insert_back(labels.begin(), labels.end());
     // ids_.insert_back(ids.begin(), ids.end());
-    Expects(labels.size() == ids.size());
+    EXPECTS(labels.size() == ids.size());
     for(int i=0; i<labels.size(); i++) {
       lmap_[labels[i]] = ids[i];
     }
@@ -69,7 +69,7 @@ class LabelMap {
     TensorVec<T> ret;
     for(auto l: labels) {
       auto itr = lmap_.find(l);
-      Expects(itr != lmap_.end());
+      EXPECTS(itr != lmap_.end());
       ret.push_back(itr->second);
     }
     return ret;
@@ -77,7 +77,7 @@ class LabelMap {
     // using size_type = TensorLabel::size_type;
     // for(size_type i=0; i<labels.size(); i++) {
     //   auto itr = std::find(begin(labels_), end(labels_), labels[i]);
-    //   Expects(itr != end(labels_));
+    //   EXPECTS(itr != end(labels_));
     //   ret[i] = ids_[itr - begin(labels_)];
     // }
     // return ret;
@@ -122,7 +122,7 @@ group_labels(const TensorVec<TensorSymmGroup>& groups, const TensorLabel& labels
   for(auto v : groups) {
     sz += v.size();
   }
-  Expects(sz == labels.size());
+  EXPECTS(sz == labels.size());
 
   size_t pos = 0;
   TensorVec<TensorLabel> ret;
@@ -158,7 +158,7 @@ group_partition(const TensorVec<TensorLabel>& label_groups_1,
     }
     ret_labels.push_back(ret_group);
   }
-  Expects(ret_labels.size() == label_groups_1.size());
+  EXPECTS(ret_labels.size() == label_groups_1.size());
   return ret_labels;
 }
 
@@ -184,12 +184,12 @@ group_partition(const TensorVec<TensorSymmGroup>& indices1,
   auto label_groups_3 = group_labels(indices3, label3);
   auto grp12 = group_partition(label_groups_1, label_groups_2);
   auto grp13 = group_partition(label_groups_1, label_groups_3);
-  Expects(grp12.size() == grp13.size());
+  EXPECTS(grp12.size() == grp13.size());
   auto grp = grp12;
   for(size_t i=0; i<grp.size(); i++) {
     grp[i].insert_back(grp13[i].begin(), grp13[i].end());
   }
-  Expects(grp.size() == indices1.size());
+  EXPECTS(grp.size() == indices1.size());
   return grp;
 }
 
@@ -219,7 +219,7 @@ slice_indices(const TensorVec<TensorSymmGroup>& indices,
   TensorVec<TensorSymmGroup> ret;
   auto grp_labels = group_labels(indices, label);
   for(auto &gl: grp_labels) {
-    Expects(gl.size() > 0);
+    EXPECTS(gl.size() > 0);
     ret.push_back(TensorSymmGroup{gl[0].rt(), gl.size()});
   }
   return ret;
@@ -228,7 +228,7 @@ slice_indices(const TensorVec<TensorSymmGroup>& indices,
 
 inline int
 factorial(int n) {
-  Expects(n >= 0 && n <= maxrank);
+  EXPECTS(n >= 0 && n <= maxrank);
   if (n <= 1) return 1;
   if (n == 2) return 2;
   if (n == 3) return 6;
@@ -254,7 +254,7 @@ class NestedIterator {
   void reset() {
     for(auto& it: itrs_) {
       it.reset();
-      Expects(it.has_more());
+      EXPECTS(it.has_more());
     }
   }
 
@@ -297,12 +297,6 @@ class NestedIterator {
   std::vector<Itr> itrs_;
   bool done_;
 };
-
-inline Integer*
-int_mb() {
-  extern Integer *int_mb_tammx;
-  return int_mb_tammx;
-}
 
 
 } //namespace tammx

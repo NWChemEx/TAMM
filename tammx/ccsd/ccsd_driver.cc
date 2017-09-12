@@ -33,8 +33,9 @@ extern "C" {
 
 void set_fort_vars_(Integer *int_mb_f, double *dbl_mb_f)
 {
-  int_mb_tammx = int_mb_f - 1;
-  dbl_mb_tammx = dbl_mb_f - 1;
+  MA::init(int_mb_f, dbl_mb_f);
+  // tammx::int_mb_tammx = int_mb_f - 1;
+  // tammx::dbl_mb_tammx = dbl_mb_f - 1;
 }
 
 }

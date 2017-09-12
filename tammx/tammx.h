@@ -27,7 +27,7 @@
 #include "tammx/labeled-tensor.h"
 #include "tammx/work.h"
 #include "tammx/ops.h"
-
+#include "tammx/execution_context.h"
 
 #endif  // TAMM_TENSOR_TAMMX_H_
 

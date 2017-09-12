@@ -24,7 +24,7 @@
 #include "tammx/triangle_loop.h"
 #include "tammx/block.h"
 #include "tammx/labeled-block.h"
-#include "tammx/labeled-tensor.h"
+#include "tammx/labeled_tensor.h"
 #include "tammx/work.h"
 #include "tammx/fortran.h"
 #include "tammx/ops.h"

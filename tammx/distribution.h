@@ -99,7 +99,6 @@ class Distribution_NW : public Distribution {
     auto length = hash_[0];
     auto ptr = std::lower_bound(&hash_[1], &hash_[length + 1], key);
     Expects (ptr != &hash_[length + 1]);
-    // std::cout<<"locate. key="<<key<<std::endl;
     Expects (key == *ptr);
     Expects (ptr != &hash_[length + 1] && key == *ptr);
     auto ioffset = *(ptr + length);
@@ -185,8 +184,6 @@ private:
     int rank = flindices.size();
     TCE::Int offset = 1;
     key = 0;
-    // std::cout<<"compute_key. blockid="<<blockid<<std::endl;
-    // std::cout<<"compute_key. bases="<<bases<<std::endl;
     for(int i=rank-1; i>=0; i--) {
       Expects(blockid[i] >= flindices[i].blo());
       Expects(blockid[i] < flindices[i].bhi());

@@ -27,13 +27,6 @@ class Tensor : public TensorBase {
   Tensor<T>& operator = (const Tensor<T>&) = delete;
   Tensor<T>& operator = (Tensor<T>&& tensor) = delete;
 
-  // Tensor(Tensor<T>&& tensor)
-  //     : TensorBase{tensor},
-  //       pg_{tensor.pg_},
-  //       allocation_status_{AllocationStatus::invalid},
-  //       mgr_{std::move(tensor.mgr_)},
-  //       distribution_{std::move(tensor.distribution_)} {}
-
   Tensor(const TensorVec<TensorSymmGroup> &indices,
          TensorRank nupper_indices,
          Irrep irrep,
@@ -42,7 +35,7 @@ class Tensor : public TensorBase {
         TensorBase{indices, nupper_indices, irrep, spin_restricted},
         mgr_{nullptr},
         distribution_{nullptr} {}
-  
+
   Tensor(const IndexInfo& iinfo,
          Irrep irrep,
          bool spin_restricted)
@@ -66,15 +59,6 @@ class Tensor : public TensorBase {
             distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
           }
         }
-
-  // Tensor<T>& operator = (Tensor<T>&& tensor) {
-  //   TensorBase::operator = (tensor);
-  //   pg_ = tensor.pg_;
-  //   allocation_status_ = tensor.allocation_status_;
-  //   mgr_ = std::move(tensor.mgr_);
-  //   distribution_ = std::move(tensor.distribution_);
-  // }
-
   ProcGroup pg() const {
     return pg_;
   }
@@ -109,7 +93,7 @@ class Tensor : public TensorBase {
   void attach(Distribution* distribution, std::shared_ptr<MemoryManager> mgr) {
     pg_ = mgr->proc_group();
     Expects(pg_.is_valid());
-    distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, pg_.size()));    
+    distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, pg_.size()));
     mgr_ = mgr;
     allocation_status_ = AllocationStatus::attached;
   }
@@ -164,11 +148,6 @@ class Tensor : public TensorBase {
     Proc proc;
     auto size = block_size(blockid);
     std::tie(proc, offset) = distribution_->locate(blockid);
-#if 0
-    std::cout<<"---TAMMX. Tensor::add(). proc="<<proc<<" offset="<<offset<<" size="<<size
-             <<"buf[0]"<<*block.buf()
-             <<std::endl;
-#endif
     mgr_->add(proc, offset, Size{size}, block.buf());
   }
 
@@ -227,8 +206,6 @@ class Tensor : public TensorBase {
   bool constructed() const {
     return allocation_status_ != AllocationStatus::invalid;
   }
-  
-  //TensorBuilder<Tensor<T>> builder() const;
 
  protected:
   void pack(TensorLabel& label) {}
@@ -245,65 +222,6 @@ class Tensor : public TensorBase {
   std::shared_ptr<Distribution> distribution_;
 }; // class Tensor
 
-
-// template<typename TensorType>
-// class TensorBuilder {
-//  public:
-//   TensorBuilder<TensorType> indices(const TensorVec<SymmGroup>& ind) {
-//     indices_ = ind;
-//     return *this;
-//   }
-
-//   TensorBuilder<TensorType> indices(const IndexInfo& iinfo) {
-//     indices_ = std::get<0>(iinfo);
-//     nupper_indices_ = std::get<1>(iinfo);
-//     return *this;
-//   }
-
-//   TensorBuilder<TensorType> irrep(Irrep irr) {
-//     irrep_ = irr;
-//     return *this;
-//   }
-
-//   TensorBuilder<TensorType> nupper_indices(int nup) {
-//     nupper_indices_ = nup;
-//     return *this;
-//   }
-
-//   TensorBuilder<TensorType> pg(ProcGroup pg1) {
-//     pg_ = pg1;
-//     return *this;
-//   }
-
-//   TensorBuilder<TensorType> spin_restricted(bool spinr) {
-//     spin_restricted_ = spinr;
-//     return *this;
-//   }
-
-//   template<typename T = typename TensorType::element_type>
-//   Tensor<T> build() {
-//     return Tensor<T>{pg_, indices_, nupper_indices_, irrep_, spin_restricted_,
-//           tensor_.distribution(), tensor_.memory_manager()};
-//   }
-
-//   TensorBuilder(const TensorType& tensor)
-//       : tensor_{tensor},
-//         indices_{tensor.indices()},
-//         nupper_indices_{tensor.nupper_indices()},
-//         pg_{tensor.pg()},
-//         irrep_{tensor.irrep()},
-//         spin_restricted_{tensor.spin_restricted()} {}
-
-//   const TensorType& tensor_;
-//   TensorVec<SymmGroup> indices_;
-//   int nupper_indices_;
-//   ProcGroup pg_;
-//   Irrep irrep_;
-//   bool spin_restricted_;
-
-//   template<typename T>
-//   friend class Tensor;
-// };
 
 template<typename T>
 class Scalar : public Tensor<T> {

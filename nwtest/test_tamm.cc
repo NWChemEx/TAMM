@@ -255,11 +255,11 @@ tammx_tensor_to_tamm_tensor(tammx::Tensor<double> &ttensor) {
     offset_map[i] = map[i];
   }
 
-  std::cout << "tensor tammx -----------\n";
-  for (size_t i = 0; i < length; i++) {
-    std::cout << map[i] << ",";
-  }
-  std::cout << std::endl;
+  // std::cout << "tensor tammx -----------\n";
+  // for (size_t i = 0; i < length; i++) {
+  //   std::cout << map[i] << ",";
+  // }
+  // std::cout << std::endl;
 
   auto mgr_ga = static_cast<tammx::MemoryManagerGA *>(ttensor.memory_manager());
 

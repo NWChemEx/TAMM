@@ -1,7 +1,7 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMMX_UTIL_H__
-#define TAMMX_UTIL_H__
+#ifndef TAMMX_UTIL_H_
+#define TAMMX_UTIL_H_
 
 #include <cassert>
 #include <iosfwd>
@@ -235,36 +235,6 @@ auto intersect(const Container &ctr1, const Container &ctr2) {
 #endif
 }
 
-// inline TensorVec<TensorLabel>
-// group_labels(const TensorVec<SymmGroup>& groups, const TensorLabel& labels) {
-//   // std::accumulate(groups.begin(), groups.end(), 0,
-//   //                 [] (const SymmGroup& sg, int sz) {
-//   //                   return sg.size() + sz;
-//   //                 });
-//   unsigned sz = 0;
-//   for(auto v : groups) {
-//     sz += v.size();
-//   }
-//   Expects(sz == labels.size());
-
-//   size_t pos = 0;
-//   TensorVec<TensorLabel> ret;
-//   for(auto &sg : groups) {
-//     size_t i=0;
-//     while(i<sg.size()) {
-//       TensorLabel lbl{labels[pos+i]};
-//       size_t i1;
-//       for(i1=1; i+i1<sg.size() && labels[pos+i+i1].dt == labels[pos+i].dt; i1++) {
-//         lbl.push_back(labels[pos+i+i1]);
-//       }
-//       ret.push_back(lbl);
-//       i += i1;
-//     }
-//     pos += sg.size();
-//   }
-//   return ret;
-// }
-
 inline TensorVec<TensorLabel>
 group_labels(const TensorVec<TensorSymmGroup>& groups, const TensorLabel& labels) {
   unsigned sz = 0;
@@ -311,16 +281,6 @@ group_partition(const TensorVec<TensorLabel>& label_groups_1,
   return ret_labels;
 }
 
-// inline TensorVec<TensorVec<TensorLabel>>
-// group_partition(const TensorVec<SymmGroup>& indices1,
-//                 const TensorLabel& label1,
-//                 const TensorVec<SymmGroup>& indices2,
-//                 const TensorLabel& label2) {
-//   auto label_groups_1 = group_labels(indices1, label1);
-//   auto label_groups_2 = group_labels(indices2, label2);
-//   return group_partition(label_groups_1, label_groups_2);
-// }
-
 inline TensorVec<TensorVec<TensorLabel>>
 group_partition(const TensorVec<TensorSymmGroup>& indices1,
                 const TensorLabel& label1,
@@ -330,27 +290,6 @@ group_partition(const TensorVec<TensorSymmGroup>& indices1,
   auto label_groups_2 = group_labels(indices2, label2);
   return group_partition(label_groups_1, label_groups_2);
 }
-
-// inline TensorVec<TensorVec<TensorLabel>>
-// group_partition(const TensorVec<SymmGroup>& indices1,
-//                 const TensorLabel& label1,
-//                 const TensorVec<SymmGroup>& indices2,
-//                 const TensorLabel& label2,
-//                 const TensorVec<SymmGroup>& indices3,
-//                 const TensorLabel& label3) {
-//   auto label_groups_1 = group_labels(indices1, label1);
-//   auto label_groups_2 = group_labels(indices2, label2);
-//   auto label_groups_3 = group_labels(indices3, label3);
-//   auto grp12 = group_partition(label_groups_1, label_groups_2);
-//   auto grp13 = group_partition(label_groups_1, label_groups_3);
-//   Expects(grp12.size() == grp13.size());
-//   auto grp = grp12;
-//   for(size_t i=0; i<grp.size(); i++) {
-//     grp[i].insert_back(grp13[i].begin(), grp13[i].end());
-//   }
-//   Expects(grp.size() == indices1.size());
-//   return grp;
-// }
 
 inline TensorVec<TensorVec<TensorLabel>>
 group_partition(const TensorVec<TensorSymmGroup>& indices1,
@@ -381,7 +320,8 @@ to_string(const IndexLabel& lbl) {
 }
 
 template<typename T, int maxsize>
-std::string to_string(const BoundVec<T,maxsize> &vec, const std::string& sep = ",") {
+std::string
+to_string(const BoundVec<T,maxsize> &vec, const std::string& sep = ",") {
   std::string ret;
   for(int i=0; i<vec.size()-1; i++) {
     ret += to_string(vec[i]) + sep;
@@ -391,65 +331,6 @@ std::string to_string(const BoundVec<T,maxsize> &vec, const std::string& sep = "
   }
   return ret;
 }
-
-// template<typename Fn, typename... Fargs>
-// inline void
-// type_dispatch(ElementType element_type, Fn fn, Fargs&& ...args) {
-//   switch(element_type) {
-//     case ElementType::single_precision:
-//       fn(float{}, args...);
-//       break;
-//     case ElementType::double_precision:
-//       fn(double{}, args...);
-//       break;
-//     default:
-//       assert(0); 
-//   }
-// }
-
-// inline void
-// typed_copy(ElementType eltype, void *src, size_t size, void *dst) {
-//   type_dispatch(eltype, [&] (auto type)  {
-//       using dtype = decltype(type);
-//       std::copy_n(reinterpret_cast<dtype*>(src),
-//                   size,
-//                   reinterpret_cast<dtype*>(dst));
-//     });
-// }
-
-// template<typename T>
-// inline void
-// typed_fill(ElementType eltype, void *buf, auto size, T val) {
-//   //Expects(element_type<T> == eltype);
-//   type_dispatch(eltype, [&] (auto type) {
-//       using dtype = decltype(type);
-//       auto tval = static_cast<dtype>(val);
-//       std::fill_n(reinterpret_cast<dtype*>(buf), size, tval);
-//     });
-// }
-
-// inline void
-// typed_zeroout(ElementType eltype, void *buf, auto size) {
-//   type_dispatch(eltype, [&] (auto type) {
-//       using dtype = decltype(type);
-//       std::fill_n(reinterpret_cast<dtype*>(buf), size, 0);
-//     });
-// }
-
-// inline TensorVec<SymmGroup>
-// slice_indices(const TensorVec<SymmGroup>& indices,
-//               const TensorLabel& label) {
-//   TensorVec<SymmGroup> ret;
-//   auto grp_labels = group_labels(indices, label);
-//   for(auto &gl: grp_labels) {
-//     SymmGroup sg;
-//     for(auto &l: gl) {
-//       sg.push_back(l.dt);
-//     }
-//     ret.push_back(sg);
-//   }
-//   return ret;
-// }
 
 inline TensorVec<TensorSymmGroup>
 slice_indices(const TensorVec<TensorSymmGroup>& indices,
@@ -479,65 +360,17 @@ factorial(int n) {
   return ret;
 }
 
-// template<typename Fn, typename... Fargs>
-// inline void
-// ndim_dispatch(TensorIndex& lo, TensorIndex& size, Fn fn, Fargs&& ...args) {
-//   TensorVec<unsigned> bdims, boffset;
-
-//   Expects(lo.size() == size.size());
-//   for(auto sz: size) {
-//     bdims.push_back(sz.value());
-//   }
-//   for(auto off : lo) {
-//     boffset.push_back(off.value());
-//   }
-
-//   switch(lo.size()) {
-//     case 0:
-//       for(unsigned i0=0, c=0; i0<bdims[0]; i0++,c++) {
-//         fn(c, args...);
-//       }
-//       break;
-//     case 1:
-//       for(unsigned i0=0, c=0; i0<bdims[0]; i0++, c++) {
-//         fn(c, boffset[0]+i0, args...);
-//       }
-//       break;
-//     case 2:
-//       for(unsigned i0=0, c=0; i0<bdims[0]; i0++) {
-//         for(unsigned i1=0; i1<bdims[1]; i1++, c++) {
-//           fn(c, boffset[0]+i0, boffset[1]+i1, args...);
-//         }
-//       }
-//       break;
-//     default:
-//       assert(0); 
-//   }
-// }
-
-// template<typename T>
-// inline std::size_t hash(const T& value) {
-//   return std::hash<T>{}(value);
-// }
-
-// template<typename S, typename T>
-// inline std::size_t hash(const StrongNum<S,T>& s) {
-//   return std::hash<typename StrongNum<S,T>::value_type>{}(s.value());
-// ;
-
 using IndexInfo = std::pair<TensorVec<TensorSymmGroup>,int>;
 
 namespace tensor_dims {
 
-const auto E  = TensorVec<TensorSymmGroup>{};
-const auto O  = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::o}};
-const auto V  = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::v}};
-const auto N  = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::n}};
-const auto OO = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::o, 2}};
-const auto OV = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::o}, {DimType::v}};
-const auto VO = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::v}, {DimType::o}};
-const auto VV = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::v, 2}};
-const auto NN = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::n, 2}};
+inline TensorVec<TensorSymmGroup>
+operator - (const TensorVec<TensorSymmGroup>& tv1,
+            const TensorVec<TensorSymmGroup>& tv2) {
+  TensorVec<TensorSymmGroup> ret{tv1};
+  ret.insert_back(tv2.begin(), tv2.end());
+  return ret;
+}
 
 inline IndexInfo
 operator | (const TensorVec<TensorSymmGroup>& tv1,
@@ -555,6 +388,17 @@ operator | (const TensorVec<TensorSymmGroup>& tv1,
   }
   return {ret, sz};
 }
+
+const auto E  = TensorVec<TensorSymmGroup>{};
+const auto O  = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::o}};
+const auto V  = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::v}};
+const auto N  = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::n}};
+const auto OO = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::o, 2}};
+const auto OV = O-V;
+const auto VO = V-O;
+const auto VV = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::v, 2}};
+const auto NN = TensorVec<TensorSymmGroup>{TensorSymmGroup{DimType::n, 2}};
+
 
 } // namespace tensor_dims
 
@@ -626,7 +470,6 @@ class NestedIterator {
     for(; i>=0; i--) {
       itrs_[i].next();
       if (itrs_[i].has_more()) {
-        //std::cout<<"ACTION NEXT HAS MORE"<<std::endl;
         break;
       }
       itrs_[i].reset();
@@ -642,8 +485,8 @@ class NestedIterator {
 };
 
 
-}; //namespace tammx
+} //namespace tammx
 
 
-#endif  // TAMMX_UTIL_H__
+#endif  // TAMMX_UTIL_H_
 

@@ -3,7 +3,6 @@
 #ifndef TAMMX_TYPES_H_
 #define TAMMX_TYPES_H_
 
-#include <cassert>
 #include <iosfwd>
 #include <complex>
 #include "tammx/strong_num.h"
@@ -90,7 +89,7 @@ element_size(ElementType eltype) {
       ret = sizeof(std::complex<double>);
       break;
     default:
-      assert(0);
+      UNREACHABLE();
   }
   return ret;
 }
@@ -140,7 +139,7 @@ to_string(DimType dt) {
       return "n";
       break;
     default:
-      assert(0);
+      UNREACHABLE();
   }
 }
 

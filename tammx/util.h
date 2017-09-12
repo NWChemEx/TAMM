@@ -13,6 +13,9 @@
 #include "tammx/types.h"
 #include "tammx/tce.h"
 #include "tammx/perm.h"
+
+#include "ga.h"
+
 #include "tammx/tensor_dims.h"
 #include "tammx/tensor_labels.h"
 
@@ -294,6 +297,12 @@ class NestedIterator {
   std::vector<Itr> itrs_;
   bool done_;
 };
+
+inline Integer*
+int_mb() {
+  extern Integer *int_mb_tammx;
+  return int_mb_tammx;
+}
 
 
 } //namespace tammx

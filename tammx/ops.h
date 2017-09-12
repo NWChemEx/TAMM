@@ -832,16 +832,6 @@ compute_symmetrization_factor(const LabeledTensorType& ltc,
   return 1.0/ret;
 }
 
-extern Integer *int_mb_tammx;
-extern double *dbl_mb_tammx;
-
-
-inline Integer*
-int_mb() {
-  //assert(0); //@todo implement
-  return int_mb_tammx;
-}
-
 template<typename T>
 std::pair<Integer, Integer *>
 tensor_to_fortran_info(tammx::Tensor<T> &ttensor) {

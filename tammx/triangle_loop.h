@@ -27,7 +27,6 @@ class TriangleLoop {
 
   TriangleLoop& operator ++ () {
     int i;
-    //std::cout<<"TriangleLoop. itr="<<itr_<<std::endl;
     for(i=itr_.size()-1; i>=0 && ++itr_[i] == last_; i--) {
       //no-op
     }

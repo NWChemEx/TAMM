@@ -7,7 +7,6 @@
 namespace tammx {
 
 
-//@todo What should be do with transpose
 template<typename T>
 inline void
 jacobi(Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted) {

@@ -3,7 +3,6 @@
 #ifndef TAMMX_TRIANGLE_LOOP_H__
 #define TAMMX_TRIANGLE_LOOP_H__
 
-#include "tammx/expects.h"
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
 
@@ -27,6 +26,7 @@ class TriangleLoop {
 
   TriangleLoop& operator ++ () {
     int i;
+    //std::cout<<"TriangleLoop. itr="<<itr_<<std::endl;
     for(i=itr_.size()-1; i>=0 && ++itr_[i] == last_; i--) {
       //no-op
     }

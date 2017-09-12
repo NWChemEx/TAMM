@@ -98,12 +98,12 @@ class Distribution_NW : public Distribution {
     auto key = compute_key(blockid);
     auto length = hash_[0];
     auto ptr = std::lower_bound(&hash_[1], &hash_[length + 1], key);
-    Expects (ptr != &hash_[length + 1]);
-    Expects (key == *ptr);
-    Expects (ptr != &hash_[length + 1] && key == *ptr);
+    EXPECTS (ptr != &hash_[length + 1]);
+    EXPECTS (key == *ptr);
+    EXPECTS (ptr != &hash_[length + 1] && key == *ptr);
     auto ioffset = *(ptr + length);
     auto pptr = std::upper_bound(std::begin(proc_offsets_), std::end(proc_offsets_), Offset{ioffset});
-    Expects(pptr != std::begin(proc_offsets_));
+    EXPECTS(pptr != std::begin(proc_offsets_));
     auto proc = Proc{pptr - std::begin(proc_offsets_)};
     proc -= 1;
     auto offset = Offset{ioffset - proc_offsets_[proc.value()].value()};
@@ -111,8 +111,8 @@ class Distribution_NW : public Distribution {
   }
 
   Size buf_size(Proc proc) const {
-    Expects(proc < nproc_);
-    Expects(proc_offsets_.size() > proc.value()+1);
+    EXPECTS(proc < nproc_);
+    EXPECTS(proc_offsets_.size() > proc.value()+1);
     return proc_offsets_[proc.value()+1] - proc_offsets_[proc.value()];
   }
 
@@ -132,7 +132,7 @@ class Distribution_NW : public Distribution {
         length += 1;
       }
     }
-    Expects(length > 0);
+    EXPECTS(length > 0);
 
     hash_.resize(2*length + 1);
     hash_[0] = length;
@@ -145,13 +145,13 @@ class Distribution_NW : public Distribution {
       auto blockid = *itr;
       if(tensor_structure_->nonzero(blockid)) {
         hash_[addr] = compute_key(blockid);
-        Expects(addr==1 || hash_[addr] > hash_[addr-1]);
+        EXPECTS(addr==1 || hash_[addr] > hash_[addr-1]);
         hash_[length + addr] = offset;
         offset += tensor_structure_->block_size(blockid);
         addr += 1;
       }
     }
-    Expects(offset > 0);
+    EXPECTS(offset > 0);
     total_size_ = offset;
 
     auto per_proc_size = offset / nproc.value();
@@ -161,7 +161,7 @@ class Distribution_NW : public Distribution {
       proc_offsets_.push_back(Offset{*itr});
       itr = std::lower_bound(itr, itr_last, i*per_proc_size);
     }
-    Expects(proc_offsets_.size() == nproc.value());
+    EXPECTS(proc_offsets_.size() == nproc.value());
     proc_offsets_.push_back(total_size_);
   }
 
@@ -185,8 +185,8 @@ private:
     TCE::Int offset = 1;
     key = 0;
     for(int i=rank-1; i>=0; i--) {
-      Expects(blockid[i] >= flindices[i].blo());
-      Expects(blockid[i] < flindices[i].bhi());
+      EXPECTS(blockid[i] >= flindices[i].blo());
+      EXPECTS(blockid[i] < flindices[i].bhi());
       key += ((blockid[i].value() - bases[i]) * offset);
       offset *= offsets[i];
     }

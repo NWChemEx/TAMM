@@ -6,6 +6,7 @@
 #include "tammx/memory_manager.h"
 #include "tammx/distribution.h"
 #include "tammx/ops.h"
+#include "tammx/scheduler.h"
 
 namespace tammx {
 class ExecutionContext {

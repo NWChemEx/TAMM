@@ -17,12 +17,12 @@ extern "C" {
   void offset_ccsd_t1_2_1_(Integer *l_t1_2_1_offset, Integer *k_t1_2_1_offset,
                            Integer *size_t1_2_1);
 
-  typedef void add_fn(Integer *ta, Integer *offseta, Integer *irrepa,
-                      Integer *tc, Integer *offsetc, Integer *irrepc);
+  typedef void add_fn(Integer *ta, Integer *offseta, 
+                      Integer *tc, Integer *offsetc);
                        
-  typedef void mult_fn(Integer *ta, Integer *offseta, Integer *irrepa,
-                       Integer *tb, Integer *offsetb, Integer *irrepb,
-                       Integer *tc, Integer *offsetc, Integer *irrepc);
+  typedef void mult_fn(Integer *ta, Integer *offseta,
+                       Integer *tb, Integer *offsetb,
+                       Integer *tc, Integer *offsetc);
 
 
 

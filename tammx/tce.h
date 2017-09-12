@@ -1,7 +1,7 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMMX_TCE_H__
-#define TAMMX_TCE_H__
+#ifndef TAMMX_TCE_H_
+#define TAMMX_TCE_H_
 
 #include <cassert>
 #include <iosfwd>
@@ -114,7 +114,6 @@ class TCE {
 
   static Int compute_tce_key(const TensorDim& flindices,
                              const TensorIndex& is) {
-    //auto flindices = flatten(indices);
     TensorVec<Int> offsets(flindices.size()), bases(flindices.size());
     std::transform(flindices.begin(), flindices.end(), offsets.begin(),
                    [] (DimType dt) -> Int {
@@ -214,19 +213,6 @@ class TCE {
 inline std::pair<BlockDim, BlockDim>
 tensor_index_range(DimType dt) {
   return {TCE::dim_lo(dt), TCE::dim_hi(dt)};
-  // switch(dt) {
-  //   case DimType::o:
-  //     return {BlockDim{0}, TCE::noab()};
-  //     break;
-  //   case DimType::v:
-  //     return {TCE::noab(), TCE::noab()+TCE::nvab()};
-  //     break;
-  //   case DimType::n:
-  //     return {BlockDim{0}, TCE::noab() + TCE::nvab()};
-  //     break;
-  //   default:
-  //     assert(0);
-  // }
 }
 
 class RangeType {
@@ -367,10 +353,6 @@ class TensorSymmGroup {
       : rt_{rt},
         grp_size_{grp_size} {}
 
-  // DimType dt() const {
-  //   return rt_.dt();
-  // }
-
   const RangeType& rt() const {
     return rt_;
   }
@@ -469,12 +451,10 @@ operator << (std::ostream& os, IndexLabel il) {
   return os;
 }
 
-
 using TensorRange = TensorVec<RangeType>;
 using TensorLabel = TensorVec<IndexLabel>;
 
+} //namespace tammx
 
-}; //namespace tammx
 
-
-#endif  // TAMMX_UTIL_H__
+#endif  // TAMMX_TCE_H_

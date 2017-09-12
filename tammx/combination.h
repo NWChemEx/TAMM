@@ -3,7 +3,7 @@
 #ifndef TAMMX_COMBINATION_H_
 #define TAMMX_COMBINATION_H_
 
-#include "tammx/expects.h"
+#include "tammx/errors.h"
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
 

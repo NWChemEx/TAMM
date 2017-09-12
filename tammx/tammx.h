@@ -22,7 +22,6 @@
 #include "tammx/combination.h"
 #include "tammx/product_iterator.h"
 #include "tammx/triangle_loop.h"
-#include "tammx/copy_symmetrizer.h"
 #include "tammx/block.h"
 #include "tammx/labeled-block.h"
 #include "tammx/labeled-tensor.h"

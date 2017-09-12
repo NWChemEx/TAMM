@@ -1,6 +1,7 @@
 #ifndef TAMMX_TENSOR_H_
 #define TAMMX_TENSOR_H_
 
+#include "tammx/errors.h"
 #include "tammx/types.h"
 #include "tammx/tce.h"
 #include "tammx/triangle_loop.h"
@@ -51,7 +52,7 @@ class Tensor : public TensorBase {
       : pg_{pg},
         allocation_status_{AllocationStatus::invalid},
         TensorBase{indices, nupper_indices, irrep, spin_restricted} {
-          Expects(pg.is_valid());
+          EXPECTS(pg.is_valid());
           if(mgr) {
             mgr_ = mgr->clone(pg);
           }
@@ -66,7 +67,7 @@ class Tensor : public TensorBase {
   //@todo implement the factory
   void alloc(ProcGroup pg, Distribution* distribution=nullptr, MemoryManager* memory_manager=nullptr) {
     pg_ = pg;
-    Expects(pg.is_valid());
+    EXPECTS(pg.is_valid());
     if(distribution) {
       // distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
       distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, pg_.size()));
@@ -74,25 +75,25 @@ class Tensor : public TensorBase {
     if(memory_manager) {
       mgr_ = std::shared_ptr<MemoryManager>(memory_manager->clone(pg_));
     }
-    Expects(mgr_.get() != nullptr);
-    Expects(distribution_.get() != nullptr);
+    EXPECTS(mgr_.get() != nullptr);
+    EXPECTS(distribution_.get() != nullptr);
     auto rank = pg_.rank();
     auto buf_size = distribution_->buf_size(rank);
     auto eltype = tensor_element_type<element_type>();
-    Expects(buf_size >=0 );
+    EXPECTS(buf_size >=0 );
     mgr_->alloc(eltype, buf_size);
     allocation_status_ = AllocationStatus::created;
   }
 
   void dealloc() {
-    Expects(allocation_status_ == AllocationStatus::created);
+    EXPECTS(allocation_status_ == AllocationStatus::created);
     mgr_->dealloc();
     allocation_status_ = AllocationStatus::invalid;
   }
 
   void attach(Distribution* distribution, std::shared_ptr<MemoryManager> mgr) {
     pg_ = mgr->proc_group();
-    Expects(pg_.is_valid());
+    EXPECTS(pg_.is_valid());
     distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, pg_.size()));
     mgr_ = mgr;
     allocation_status_ = AllocationStatus::attached;
@@ -114,7 +115,7 @@ class Tensor : public TensorBase {
   }
 
   Block<T> get(const TensorIndex& blockid) {
-    Expects(constructed());
+    EXPECTS(constructed());
     Offset offset;
     Proc proc;
     auto sblockid = find_spin_unique_block(blockid);
@@ -130,9 +131,9 @@ class Tensor : public TensorBase {
   }
 
   void put(const TensorIndex& blockid, const Block<T>& block) {
-    Expects(constructed());
-    Expects(find_spin_unique_block(blockid) == blockid);
-    Expects(find_unique_block(blockid) == blockid);
+    EXPECTS(constructed());
+    EXPECTS(find_spin_unique_block(blockid) == blockid);
+    EXPECTS(find_unique_block(blockid) == blockid);
     Offset offset;
     Proc proc;
     auto size = block_size(blockid);
@@ -141,9 +142,9 @@ class Tensor : public TensorBase {
   }
 
   void add(const TensorIndex& blockid, const Block<T>& block) {
-    Expects(constructed());
-    Expects(find_spin_unique_block(blockid) == blockid);
-    Expects(find_unique_block(blockid) == blockid);
+    EXPECTS(constructed());
+    EXPECTS(find_spin_unique_block(blockid) == blockid);
+    EXPECTS(find_unique_block(blockid) == blockid);
     Offset offset;
     Proc proc;
     auto size = block_size(blockid);

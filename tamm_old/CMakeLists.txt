@@ -220,7 +220,7 @@ target_include_directories(tce_fortran SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${TAM
 target_compile_options(tce_fortran PRIVATE ${tamm_fortran_link_flags})
 
 
-add_executable(ccsd_driver ${TAMMX_PROJECT_DIR}/tammx/ccsd/ccsd_driver.cc ${TAMMX_PROJECT_DIR}/tammx/hartree_fock.cc)
+add_executable(ccsd_driver ${TAMMX_PROJECT_DIR}/tammx/ccsd/ccsd_driver.cc ${TAMMX_PROJECT_DIR}/tammx/hartree_fock.cc ${TAMMX_PROJECT_DIR}/tammx/two_four_index.cc)
 add_dependencies(ccsd_driver fort_deps_tammx fort_deps_c tammx)
 target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${TAMMX_PROJECT_DIR}/tce_fortran ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
 target_link_libraries(ccsd_driver fort_deps_tammx fort_deps_c tammx tce_fortran ${tamm_cflags}

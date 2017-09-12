@@ -20,18 +20,6 @@ namespace tammx {
 template<typename T>
 class Tensor;
 
-// template<typename LabeledTensorType, typename T2>
-// struct SetOpEntry;
-
-// template<typename LabeledTensorType, typename T2>
-// struct AddOpEntry;
-
-// template<typename LabeledTensorType, typename T>
-// struct MultOpEntry;
-
-// template<typename T1, typename T2>
-// struct InnerProductOpEntry;
-
 enum class ResultMode { update, set };
 
 template<typename LabeledTensorType, typename T>

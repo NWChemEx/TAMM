@@ -1,7 +1,7 @@
-#ifndef TAMMX_OPENTRY_H_
-#define TAMMX_OPENTRY_H_
+#ifndef TAMMX_OP_ENTRY_H_
+#define TAMMX_OP_ENTRY_H_
 
-//#include "tammx/labeled-tensor.h"
+#include <vector>
 
 namespace tammx {
 
@@ -33,5 +33,5 @@ struct MapOpEntry {
 };
 }  // mamespace tammx
 
-#endif  // TAMMX_OPENTRY_H_
+#endif  // TAMMX_OP_ENTRY_H_
 

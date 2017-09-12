@@ -47,8 +47,8 @@ struct Combination {
       : n_ {bag.size()},
         k_{std::max(k, bag.size() - k)},
         bag_{bag} {
-          Expects (n_ >= 0);
-          Expects (n_ >= k);
+          EXPECTS (n_ >= 0);
+          EXPECTS (n_ >= k);
           std::sort(bag_.begin(), bag_.end());
         }
 
@@ -71,7 +71,7 @@ struct Combination {
         stack_.push_back({Case::case1, x});
         sub_.push_back(x);
       }
-      Expects(sub_.size() == comb_->k_);
+      EXPECTS(sub_.size() == comb_->k_);
     }
 
     Iterator& operator = (const Iterator& itr) {
@@ -88,8 +88,8 @@ struct Combination {
     
     TensorVec<T> operator *() {
       TensorVec<T> gp1, gp2;
-      Expects(!done_);
-      Expects(sub_.size() == comb_->k_);
+      EXPECTS(!done_);
+      EXPECTS(sub_.size() == comb_->k_);
       if(comb_->k_ > 0) {
         gp2.insert_back(comb_->bag_.begin(), comb_->bag_.begin() + sub_[0]);
         for(Int i=0; i<sub_.size()-1; i++) {
@@ -106,7 +106,7 @@ struct Combination {
     }
 
     Iterator& operator ++ () {
-      Expects(!done_);
+      EXPECTS(!done_);
       do {
         iterate();
       } while(stack_.size()>0 && sub_.size() < comb_->k_);
@@ -114,7 +114,7 @@ struct Combination {
         assert(sub_.size() == 0);
         done_ = true;
       } else {
-        Expects(sub_.size() == comb_->k_);
+        EXPECTS(sub_.size() == comb_->k_);
       }
       return *this;
     }
@@ -123,10 +123,10 @@ struct Combination {
 
     void iterate() {
       if(comb_->k_ == 0) {
-        Expects(sub_.size() == 0);
+        EXPECTS(sub_.size() == 0);
         return;
       }
-      Expects(stack_.size() > 0);
+      EXPECTS(stack_.size() > 0);
       auto case_value = stack_.back().case_value;
       auto i = stack_.back().i;
       Int i1;

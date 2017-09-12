@@ -28,14 +28,14 @@ class ProcGroup {
 
   Proc rank() const {
     int rank;
-    Expects(is_valid());
+    EXPECTS(is_valid());
     MPI_Comm_rank(comm_, &rank);
     return Proc{rank};
   }
 
   Proc size() const {
     int nranks;
-    Expects(is_valid());
+    EXPECTS(is_valid());
     MPI_Comm_size(comm_, &nranks);
     return Proc{nranks};
   }
@@ -45,7 +45,7 @@ class ProcGroup {
   }
 
   ProcGroup clone() const {
-    Expects(is_valid());
+    EXPECTS(is_valid());
     MPI_Comm comm_out{MPI_COMM_NULL};
     MPI_Comm_dup(comm_, &comm_out);
     return ProcGroup{comm_out};
@@ -60,7 +60,7 @@ class ProcGroup {
   }
   
   Proc rank_translate(Proc proc, const ProcGroup& pg2) {
-    Expects(is_valid());
+    EXPECTS(is_valid());
     MPI_Group group1, group2;
     int ranks1{proc.value()};
     int ranks2{MPI_PROC_NULL};

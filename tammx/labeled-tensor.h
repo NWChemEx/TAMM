@@ -5,6 +5,7 @@
 
 #include "tammx/types.h"
 #include "tammx/tensor.h"
+#include "tammx/fortran.h"
 
 extern "C" {
   typedef void add_fn(Integer *ta, Integer *offseta,
@@ -284,8 +285,8 @@ operator |= (ExecutionMode exec_mode, MultOpEntry<LabeledTensor<T>, T1> op) {
 //   for(auto grp : indices)  {
 //     if (grp.size() > 0){
 //       for(int i=0; i<grp.size(); i++) {
-//         //Expects(label[pos+i].dt == label[pos].dt);
-//         Expects(is_dim_subset(grp[i], label[pos+i].dt));
+//         //EXPECTS(label[pos+i].dt == label[pos].dt);
+//         EXPECTS(is_dim_subset(grp[i], label[pos+i].dt));
 //       }
 //     }
 //     pos += grp.size();
@@ -299,8 +300,8 @@ validate_slicing(const TensorVec<TensorSymmGroup>& indices,
   for(auto &grp : indices)  {
     if (grp.size() > 0){
       for(int i=0; i<grp.size(); i++) {
-        //Expects(label[pos+i].dt == label[pos].dt);
-        Expects(is_range_subset(grp.rt(), {label[pos+i].rt()}));
+        //EXPECTS(label[pos+i].dt == label[pos].dt);
+        EXPECTS(is_range_subset(grp.rt(), {label[pos+i].rt()}));
       }
     }
     pos += grp.size();
@@ -312,11 +313,11 @@ inline void
 addop_validate(const LabeledTensorType& ltc,
                const std::tuple<T, LabeledTensorType>& rhs) {
   auto lta = std::get<1>(rhs);
-  Expects(ltc.tensor_ != nullptr);
-  Expects(lta.tensor_ != nullptr);
+  EXPECTS(ltc.tensor_ != nullptr);
+  EXPECTS(lta.tensor_ != nullptr);
   const auto& tc = *ltc.tensor_;
   const auto& ta = *lta.tensor_;
-  Expects(tc.rank() == ta.rank());
+  EXPECTS(tc.rank() == ta.rank());
 
   TensorLabel clabel = ltc.label_;
   TensorLabel alabel = lta.label_;
@@ -324,27 +325,27 @@ addop_validate(const LabeledTensorType& ltc,
   validate_slicing(tc.tindices(), ltc.label_);
   validate_slicing(ta.tindices(), lta.label_);
 
-  Expects(alabel.size() == ta.rank());
-  Expects(clabel.size() == tc.rank());
+  EXPECTS(alabel.size() == ta.rank());
+  EXPECTS(clabel.size() == tc.rank());
 
   //all labels are of compatible type
   for(int i=0; i<alabel.size(); i++) {
-    Expects(is_range_subset(ta.flindices()[i], alabel[i].rt()));
+    EXPECTS(is_range_subset(ta.flindices()[i], alabel[i].rt()));
   }
   for(int i=0; i<clabel.size(); i++) {
-    Expects(is_range_subset(tc.flindices()[i], clabel[i].rt()));
+    EXPECTS(is_range_subset(tc.flindices()[i], clabel[i].rt()));
   }
 
   std::sort(alabel.begin(), alabel.end());
   std::sort(clabel.begin(), clabel.end());
 
   //all labels are unique
-  Expects(std::adjacent_find(alabel.begin(), alabel.end()) == alabel.end());
-  Expects(std::adjacent_find(clabel.begin(), clabel.end()) == clabel.end());
+  EXPECTS(std::adjacent_find(alabel.begin(), alabel.end()) == alabel.end());
+  EXPECTS(std::adjacent_find(clabel.begin(), clabel.end()) == clabel.end());
 
   //all labels in ta are in tb
   for(auto &al: alabel) {
-    Expects(std::find(clabel.begin(), clabel.end(), al) != clabel.end());
+    EXPECTS(std::find(clabel.begin(), clabel.end(), al) != clabel.end());
   }
 }
 
@@ -355,9 +356,9 @@ multop_validate(const LabeledTensorType& ltc,
                 const std::tuple<T, LabeledTensorType, LabeledTensorType>& rhs) {
   auto &lta = std::get<1>(rhs);
   auto &ltb = std::get<2>(rhs);
-  Expects(ltc.tensor_ != nullptr);
-  Expects(lta.tensor_ != nullptr);
-  Expects(ltb.tensor_ != nullptr);
+  EXPECTS(ltc.tensor_ != nullptr);
+  EXPECTS(lta.tensor_ != nullptr);
+  EXPECTS(ltb.tensor_ != nullptr);
   const auto& tc = *ltc.tensor_;
   const auto& ta = *lta.tensor_;
   const auto& tb = *ltb.tensor_;
@@ -366,9 +367,9 @@ multop_validate(const LabeledTensorType& ltc,
   TensorLabel alabel = lta.label_;
   TensorLabel blabel = ltb.label_;
 
-  Expects(clabel.size() == tc.rank());
-  Expects(alabel.size() == ta.rank());
-  Expects(blabel.size() == tb.rank());
+  EXPECTS(clabel.size() == tc.rank());
+  EXPECTS(alabel.size() == ta.rank());
+  EXPECTS(blabel.size() == tb.rank());
 
   validate_slicing(tc.tindices(), ltc.label_);
   validate_slicing(ta.tindices(), lta.label_);
@@ -376,13 +377,13 @@ multop_validate(const LabeledTensorType& ltc,
 
   //all labels are of compatible type
   for(int i=0; i<alabel.size(); i++) {
-    Expects(is_range_subset(ta.flindices()[i], alabel[i].rt()));
+    EXPECTS(is_range_subset(ta.flindices()[i], alabel[i].rt()));
   }
   for(int i=0; i<blabel.size(); i++) {
-    Expects(is_range_subset(tb.flindices()[i], blabel[i].rt()));
+    EXPECTS(is_range_subset(tb.flindices()[i], blabel[i].rt()));
   }
   for(int i=0; i<clabel.size(); i++) {
-    Expects(is_range_subset(tc.flindices()[i], clabel[i].rt()));
+    EXPECTS(is_range_subset(tc.flindices()[i], clabel[i].rt()));
   }
 
   std::sort(alabel.begin(), alabel.end());
@@ -390,9 +391,9 @@ multop_validate(const LabeledTensorType& ltc,
   std::sort(clabel.begin(), clabel.end());
 
   //all labels are unique
-  Expects(std::adjacent_find(alabel.begin(), alabel.end()) == alabel.end());
-  Expects(std::adjacent_find(blabel.begin(), blabel.end()) == blabel.end());
-  Expects(std::adjacent_find(clabel.begin(), clabel.end()) == clabel.end());
+  EXPECTS(std::adjacent_find(alabel.begin(), alabel.end()) == alabel.end());
+  EXPECTS(std::adjacent_find(blabel.begin(), blabel.end()) == blabel.end());
+  EXPECTS(std::adjacent_find(clabel.begin(), clabel.end()) == clabel.end());
 
   TensorLabel slabel;
   std::set_intersection(alabel.begin(), alabel.end(),
@@ -400,18 +401,18 @@ multop_validate(const LabeledTensorType& ltc,
                         std::back_inserter(slabel));
   //summation index is not in the output
   for(auto &sl: slabel) {
-    Expects(std::find(clabel.begin(), clabel.end(), sl) == clabel.end());
+    EXPECTS(std::find(clabel.begin(), clabel.end(), sl) == clabel.end());
   }
   //every label in A/B is either in slabel or clabel
   for(auto &al : alabel) {
-    Expects(std::find(slabel.begin(), slabel.end(), al) != slabel.end()
+    EXPECTS(std::find(slabel.begin(), slabel.end(), al) != slabel.end()
             || std::find(clabel.begin(), clabel.end(), al) != clabel.end());
   }
   for(auto &bl : blabel) {
-    Expects(std::find(slabel.begin(), slabel.end(), bl) != slabel.end()
+    EXPECTS(std::find(slabel.begin(), slabel.end(), bl) != slabel.end()
             || std::find(clabel.begin(), clabel.end(), bl) != clabel.end());
   }
-  Expects(clabel.size() == alabel.size() + blabel.size() - 2 * slabel.size());
+  EXPECTS(clabel.size() == alabel.size() + blabel.size() - 2 * slabel.size());
 }
 
 

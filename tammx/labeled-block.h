@@ -98,8 +98,8 @@ template<typename T>
 inline void
 index_permute_acc(T* dbuf, const T* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
   static_assert(std::is_same<T, double>(), "index_permute_acc only works with doubles");
-  Expects(dbuf!=nullptr && sbuf!=nullptr);
-  Expects(perm.size() == ddims.size());
+  EXPECTS(dbuf!=nullptr && sbuf!=nullptr);
+  EXPECTS(perm.size() == ddims.size());
 
   auto inv_perm = perm_invert(perm);
   auto inv_sizes = perm_apply(ddims, inv_perm);
@@ -120,8 +120,8 @@ template<typename T>
 inline void
 index_permute(T* dbuf, const T* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T scale) {
   static_assert(std::is_same<T, double>(), "index_permute_acc only works with doubles");
-  Expects(dbuf!=nullptr && sbuf!=nullptr);
-  Expects(perm.size() == ddims.size());
+  EXPECTS(dbuf!=nullptr && sbuf!=nullptr);
+  EXPECTS(perm.size() == ddims.size());
 
   auto inv_perm = perm_invert(perm);
   auto inv_sizes = perm_apply(ddims, inv_perm);
@@ -141,8 +141,8 @@ template<typename T>
 // C storage order: A[m,k], B[k,n], C[m,n]
 inline void
 matmul(int m, int n, int k, T *A, int lda, T *B, int ldb, T *C, int ldc, T alpha, T beta) {
-  Expects(m>0 && n>0 && k>0);
-  Expects(A!=nullptr && B!=nullptr && C!=nullptr);
+  EXPECTS(m>0 && n>0 && k>0);
+  EXPECTS(A!=nullptr && B!=nullptr && C!=nullptr);
 
   for(int x=0; x<m; x++) {
     for(int y=0; y<n; y++) {
@@ -241,15 +241,15 @@ block_add (LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>> rhs, bool updat
 
   auto label_perm = perm_compute(alabel, clabel);
   for(unsigned i=0; i<label_perm.size(); i++) {
-    Expects(cblock.block_dims()[i] == ablock.block_dims()[label_perm[i]]);
+    EXPECTS(cblock.block_dims()[i] == ablock.block_dims()[label_perm[i]]);
   }
 
   auto &alayout = ablock.layout();
   auto &clayout = cblock.layout();
 
-  Expects(clayout.size() == cblock.tensor().rank());
-  Expects(clabel.size() == perm_invert(clayout).size());
-  Expects(alabel.size() == perm_invert(alayout).size());
+  EXPECTS(clayout.size() == cblock.tensor().rank());
+  EXPECTS(clabel.size() == perm_invert(clayout).size());
+  EXPECTS(alabel.size() == perm_invert(alayout).size());
   auto cstore = perm_apply(clabel, perm_invert(clayout));
   auto astore = perm_apply(alabel, perm_invert(alayout));
 

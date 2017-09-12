@@ -26,7 +26,7 @@ class MemoryManagerGA : public MemoryManager {
     elsize_ = element_size(eltype_);
     ga_pg_ = GA_Get_pgroup(ga);
 
-    Expects(pg.is_valid());
+    EXPECTS(pg.is_valid());
     auto nranks = pg.size().value();
     auto me = pg.rank().value();
     map_ = std::make_unique<int64_t[]>(nranks+1);
@@ -41,7 +41,7 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   ~MemoryManagerGA() {
-    Expects(allocation_status_ == AllocationStatus::invalid ||
+    EXPECTS(allocation_status_ == AllocationStatus::invalid ||
             allocation_status_ == AllocationStatus::attached);
   }
 
@@ -54,12 +54,12 @@ class MemoryManagerGA : public MemoryManager {
   }
   
   void alloc(ElementType eltype, Size nelements) {
-    Expects(allocation_status_ == AllocationStatus::invalid);
-    Expects(nelements >= 0);
-    Expects(eltype != ElementType::invalid);
+    EXPECTS(allocation_status_ == AllocationStatus::invalid);
+    EXPECTS(nelements >= 0);
+    EXPECTS(eltype != ElementType::invalid);
     eltype_ = eltype;
     int ga_pg_default = GA_Pgroup_get_default();
-    Expects(pg_.is_valid());
+    EXPECTS(pg_.is_valid());
     int nranks = pg_.size().value();
     long long nels = nelements.value();
     
@@ -107,15 +107,15 @@ class MemoryManagerGA : public MemoryManager {
 
     int64_t lo, hi, ld;
     NGA_Distribution64(ga_, pg_.rank().value(), &lo, &hi);
-    Expects(lo == map_[pg_.rank().value()]);
-    Expects(hi == map_[pg_.rank().value()] + nelements.value() - 1);
+    EXPECTS(lo == map_[pg_.rank().value()]);
+    EXPECTS(hi == map_[pg_.rank().value()] + nelements.value() - 1);
     nelements_ = hi - lo + 1;
 
     allocation_status_ = AllocationStatus::created;
   }
 
   void dealloc() {
-    Expects(allocation_status_ == AllocationStatus::created);
+    EXPECTS(allocation_status_ == AllocationStatus::created);
     NGA_Destroy(ga_);
     NGA_Pgroup_destroy(ga_pg_);
     allocation_status_ = AllocationStatus::invalid;
@@ -126,7 +126,7 @@ class MemoryManagerGA : public MemoryManager {
   }
     
   void* access(Offset off) {
-    Expects(allocation_status_ == AllocationStatus::created ||
+    EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     Proc proc{pg_.rank()};
     int64_t nels{1};
@@ -139,7 +139,7 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   const void* access(Offset off) const {
-    Expects(allocation_status_ == AllocationStatus::created ||
+    EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     Proc proc{pg_.rank()};
     int64_t nels{1};
@@ -152,7 +152,7 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   void get(Proc proc, Offset off, Size nelements, void* buf) {
-    Expects(allocation_status_ == AllocationStatus::created ||
+    EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     int iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
@@ -161,7 +161,7 @@ class MemoryManagerGA : public MemoryManager {
   }
   
   void put(Proc proc, Offset off, Size nelements, const void* buf) {
-    Expects(allocation_status_ == AllocationStatus::created ||
+    EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     int iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
@@ -170,7 +170,7 @@ class MemoryManagerGA : public MemoryManager {
   }
   
   void add(Proc proc, Offset off, Size nelements, const void* buf) {
-    Expects(allocation_status_ == AllocationStatus::created ||
+    EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     int iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};

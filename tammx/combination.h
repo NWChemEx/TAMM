@@ -111,7 +111,7 @@ struct Combination {
         iterate();
       } while(stack_.size()>0 && sub_.size() < comb_->k_);
       if(stack_.size() == 0) {
-        assert(sub_.size() == 0);
+        EXPECTS(sub_.size() == 0);
         done_ = true;
       } else {
         EXPECTS(sub_.size() == comb_->k_);

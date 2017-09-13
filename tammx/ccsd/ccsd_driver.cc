@@ -131,7 +131,7 @@ void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
       (ccsd_t1_2_1_  |= t1_2_1(h7,h1)        =        f1(h7,h1))
       (ccsd_t1_2_2_1_|= t1_2_2_1(h7,p3)      =        f1(h7,p3))
       (ccsd_t1_2_2_2_ |= t1_2_2_1(h7,p3)     += -1   * t1(p5,h6)       * v2(h6,h7,p3,p5))
-      (e_fortran |= ccsd_t1_2_2_  |= t1_2_1(h7,h1)       +=        t1(p3,h1)       * t1_2_2_1(h7,p3))
+      (ccsd_t1_2_2_  |= t1_2_1(h7,h1)       +=        t1(p3,h1)       * t1_2_2_1(h7,p3))
       (ccsd_t1_2_3_  |= t1_2_1(h7,h1)       += -1   * t1(p4,h5)       * v2(h5,h7,h1,p4))
       (ccsd_t1_2_4_  |= t1_2_1(h7,h1)       += -0.5 * t2(p3,p4,h1,h5) * v2(h5,h7,p3,p4))
       (ccsd_t1_2_    |= i0(p2,h1)           += -1   * t1(p2,h7)       * t1_2_1(h7,h1))
@@ -363,8 +363,8 @@ std::cout << "p_evl_sorted:" << '\n';
       std::cout << "r1=" << r1 <<" r2="<<r2 << '\n';
       // tensor_print(*d_r1s[off]);
       // tensor_print(d_r1_residual);
-      std::cout << std::setprecision(13) << "residual:" << residual << '\n';
-      std::cout << std::setprecision(13) << "energy:" << energy << '\n';
+      std::cout << std::setprecision(15) << "residual:" << residual << '\n';
+      std::cout << std::setprecision(15) << "energy:" << energy << '\n';
       if(residual < thresh) {
         //nodezero_print();
         break;

@@ -117,7 +117,7 @@ template<typename T>
 struct LabeledTensor {
   using element_type = T;
   Tensor<T>* tensor_;
-  TensorLabel label_;
+  IndexLabelVec label_;
 
   Tensor<T>& tensor() {
     return *tensor_;
@@ -271,7 +271,7 @@ operator |= (ExecutionMode exec_mode, MultOpEntry<LabeledTensor<T>, T1> op) {
 //the same way
 // inline void
 // validate_slicing(const TensorVec<SymmGroup>& indices,
-//                  const TensorLabel& label) {
+//                  const IndexLabelVec& label) {
 //   int pos = 0;
 //   for(auto grp : indices)  {
 //     if (grp.size() > 0){
@@ -286,7 +286,7 @@ operator |= (ExecutionMode exec_mode, MultOpEntry<LabeledTensor<T>, T1> op) {
 
 inline void
 validate_slicing(const TensorVec<TensorSymmGroup>& indices,
-                 const TensorLabel& label) {
+                 const IndexLabelVec& label) {
   int pos = 0;
   for(auto &grp : indices)  {
     if (grp.size() > 0){
@@ -310,8 +310,8 @@ addop_validate(const LabeledTensorType& ltc,
   const auto& ta = *lta.tensor_;
   EXPECTS(tc.rank() == ta.rank());
 
-  TensorLabel clabel = ltc.label_;
-  TensorLabel alabel = lta.label_;
+  IndexLabelVec clabel = ltc.label_;
+  IndexLabelVec alabel = lta.label_;
 
   validate_slicing(tc.tindices(), ltc.label_);
   validate_slicing(ta.tindices(), lta.label_);
@@ -354,9 +354,9 @@ multop_validate(const LabeledTensorType& ltc,
   const auto& ta = *lta.tensor_;
   const auto& tb = *ltb.tensor_;
 
-  TensorLabel clabel = ltc.label_;
-  TensorLabel alabel = lta.label_;
-  TensorLabel blabel = ltb.label_;
+  IndexLabelVec clabel = ltc.label_;
+  IndexLabelVec alabel = lta.label_;
+  IndexLabelVec blabel = ltb.label_;
 
   EXPECTS(clabel.size() == tc.rank());
   EXPECTS(alabel.size() == ta.rank());
@@ -386,7 +386,7 @@ multop_validate(const LabeledTensorType& ltc,
   EXPECTS(std::adjacent_find(blabel.begin(), blabel.end()) == blabel.end());
   EXPECTS(std::adjacent_find(clabel.begin(), clabel.end()) == clabel.end());
 
-  TensorLabel slabel;
+  IndexLabelVec slabel;
   std::set_intersection(alabel.begin(), alabel.end(),
                         blabel.begin(), blabel.end(),
                         std::back_inserter(slabel));

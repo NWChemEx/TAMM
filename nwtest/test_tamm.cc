@@ -198,7 +198,7 @@ tammx_label_to_tamm_label(const tammx::IndexLabel &label) {
 }
 
 std::vector<tamm::IndexName>
-tammx_label_to_tamm_label(const tammx::TensorLabel &label) {
+tammx_label_to_tamm_label(const tammx::IndexLabelVec &label) {
   std::vector<tamm::IndexName> ret;
   for (auto l: label) {
     ret.push_back(tammx_label_to_tamm_label(l));
@@ -272,10 +272,10 @@ tammx_tensor_to_tamm_tensor(tammx::Tensor<double> &ttensor) {
 
 void
 tamm_assign(tammx::Tensor<double> &ttc,
-            const tammx::TensorLabel &tclabel,
+            const tammx::IndexLabelVec &tclabel,
             double alpha,
             tammx::Tensor<double> &tta,
-            const tammx::TensorLabel &talabel) {
+            const tammx::IndexLabelVec &talabel) {
   tamm::Tensor *ta, *tc;
   Integer *amap, *cmap;
   std::tie(ta, amap) = tammx_tensor_to_tamm_tensor(tta);
@@ -291,12 +291,12 @@ tamm_assign(tammx::Tensor<double> &ttc,
 
 void
 tamm_mult(tammx::Tensor<double> &ttc,
-          const tammx::TensorLabel &tclabel,
+          const tammx::IndexLabelVec &tclabel,
           double alpha,
           tammx::Tensor<double> &tta,
-          const tammx::TensorLabel &talabel,
+          const tammx::IndexLabelVec &talabel,
           tammx::Tensor<double> &ttb,
-          const tammx::TensorLabel &tblabel) {
+          const tammx::IndexLabelVec &tblabel) {
   tamm::Tensor *ta, *tb, *tc;
   Integer *amap, *bmap, *cmap;
   std::tie(ta, amap) = tammx_tensor_to_tamm_tensor(tta);
@@ -318,10 +318,10 @@ tamm_mult(tammx::Tensor<double> &ttc,
 bool
 test_assign(tammx::ExecutionContext &ec,
             double alpha,
-            const tammx::TensorLabel &cupper_labels,
-            const tammx::TensorLabel &clower_labels,
-            const tammx::TensorLabel &aupper_labels,
-            const tammx::TensorLabel &alower_labels,
+            const tammx::IndexLabelVec &cupper_labels,
+            const tammx::IndexLabelVec &clower_labels,
+            const tammx::IndexLabelVec &aupper_labels,
+            const tammx::IndexLabelVec &alower_labels,
             AllocationType at) {
   const auto& cindices = tammx_label_to_indices(cupper_labels, clower_labels, is_lhs_n(at));
   const auto& aindices = tammx_label_to_indices(aupper_labels, alower_labels, is_rhs1_n(at));
@@ -362,11 +362,11 @@ test_assign(tammx::ExecutionContext &ec,
 
 bool
 test_assign(tammx::ExecutionContext &ec,
-            const tammx::TensorLabel &cupper_labels,
-            const tammx::TensorLabel &clower_labels,
+            const tammx::IndexLabelVec &cupper_labels,
+            const tammx::IndexLabelVec &clower_labels,
             double alpha,
-            const tammx::TensorLabel &aupper_labels,
-            const tammx::TensorLabel &alower_labels,
+            const tammx::IndexLabelVec &aupper_labels,
+            const tammx::IndexLabelVec &alower_labels,
             AllocationType at) {
   return test_assign(ec, alpha,
                      cupper_labels, clower_labels,
@@ -378,12 +378,12 @@ test_assign(tammx::ExecutionContext &ec,
 bool
 test_mult_no_n(tammx::ExecutionContext &ec,
                double alpha,
-               const tammx::TensorLabel &cupper_labels,
-               const tammx::TensorLabel &clower_labels,
-               const tammx::TensorLabel &aupper_labels,
-               const tammx::TensorLabel &alower_labels,
-               const tammx::TensorLabel &bupper_labels,
-               const tammx::TensorLabel &blower_labels) {
+               const tammx::IndexLabelVec &cupper_labels,
+               const tammx::IndexLabelVec &clower_labels,
+               const tammx::IndexLabelVec &aupper_labels,
+               const tammx::IndexLabelVec &alower_labels,
+               const tammx::IndexLabelVec &bupper_labels,
+               const tammx::IndexLabelVec &blower_labels) {
   const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
   const auto &clower_indices = tammx_label_to_indices(clower_labels);
   const auto &aupper_indices = tammx_label_to_indices(aupper_labels);
@@ -441,13 +441,13 @@ test_mult_no_n(tammx::ExecutionContext &ec,
 
 bool
 test_mult_no_n(tammx::ExecutionContext &ec,
-               const tammx::TensorLabel &cupper_labels,
-               const tammx::TensorLabel &clower_labels,
+               const tammx::IndexLabelVec &cupper_labels,
+               const tammx::IndexLabelVec &clower_labels,
                double alpha,
-               const tammx::TensorLabel &aupper_labels,
-               const tammx::TensorLabel &alower_labels,
-               const tammx::TensorLabel &bupper_labels,
-               const tammx::TensorLabel &blower_labels) {
+               const tammx::IndexLabelVec &aupper_labels,
+               const tammx::IndexLabelVec &alower_labels,
+               const tammx::IndexLabelVec &bupper_labels,
+               const tammx::IndexLabelVec &blower_labels) {
   return test_mult_no_n(ec, alpha, cupper_labels, clower_labels,
                         aupper_labels, alower_labels, bupper_labels, blower_labels);
 }

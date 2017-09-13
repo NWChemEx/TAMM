@@ -37,27 +37,27 @@ using namespace tammx;
   void tammx_finalize();
 
   TensorVec <tammx::TensorSymmGroup>
-  tammx_label_to_indices(const tammx::TensorLabel &labels);
+  tammx_label_to_indices(const tammx::IndexLabelVec &labels);
 
   TensorVec <tammx::TensorSymmGroup>
-  tammx_label_to_indices(const tammx::TensorLabel &upper_labels,
-                         const tammx::TensorLabel &lower_labels,
+  tammx_label_to_indices(const tammx::IndexLabelVec &upper_labels,
+                         const tammx::IndexLabelVec &lower_labels,
                          bool all_n = false);
 
   bool
   test_initval_no_n(tammx::ExecutionContext &ec,
-                    const tammx::TensorLabel &upper_labels,
-                    const tammx::TensorLabel &lower_labels);
+                    const tammx::IndexLabelVec &upper_labels,
+                    const tammx::IndexLabelVec &lower_labels);
 
   bool
   test_symm_assign(tammx::ExecutionContext &ec,
                    const tammx::TensorVec <tammx::TensorSymmGroup> &cindices,
                    const tammx::TensorVec <tammx::TensorSymmGroup> &aindices,
                    int nupper_indices,
-                   const tammx::TensorLabel &clabels,
+                   const tammx::IndexLabelVec &clabels,
                    double alpha,
                    const std::vector<double> &factors,
-                   const std::vector<tammx::TensorLabel> &alabels);
+                   const std::vector<tammx::IndexLabelVec> &alabels);
 
   template<typename LabeledTensorType>
   void
@@ -137,10 +137,10 @@ template<typename T>
 void
 tammx_assign(tammx::ExecutionContext &ec,
              tammx::Tensor <T> &tc,
-             const tammx::TensorLabel &clabel,
+             const tammx::IndexLabelVec &clabel,
              double alpha,
              tammx::Tensor <T> &ta,
-             const tammx::TensorLabel &alabel) {
+             const tammx::IndexLabelVec &alabel) {
   // auto al = tamm_label_to_tammx_label(alabel);
   // auto cl = tamm_label_to_tammx_label(clabel);
   auto &al = alabel;
@@ -161,12 +161,12 @@ template<typename T>
 void
 tammx_mult(tammx::ExecutionContext &ec,
            tammx::Tensor <T> &tc,
-           const tammx::TensorLabel &clabel,
+           const tammx::IndexLabelVec &clabel,
            double alpha,
            tammx::Tensor <T> &ta,
-           const tammx::TensorLabel &alabel,
+           const tammx::IndexLabelVec &alabel,
            tammx::Tensor <T> &tb,
-           const tammx::TensorLabel &blabel) {
+           const tammx::IndexLabelVec &blabel) {
   // tammx::Tensor<double> *ta = tamm_tensor_to_tammx_tensor(ec.pg(), tta);
   // tammx::Tensor<double> *tb = tamm_tensor_to_tammx_tensor(ec.pg(), ttb);
   // tammx::Tensor<double> *tc = tamm_tensor_to_tammx_tensor(ec.pg(), ttc);

@@ -76,7 +76,7 @@ void tammx_finalize() {
 ////////////////////////////////////////////////
 
 TensorVec <tammx::TensorSymmGroup>
-tammx_label_to_indices(const tammx::TensorLabel &labels) {
+tammx_label_to_indices(const tammx::IndexLabelVec &labels) {
   tammx::TensorVec <tammx::TensorSymmGroup> ret;
   tammx::TensorRange tdims;
 
@@ -106,8 +106,8 @@ tammx_label_to_indices(const tammx::TensorLabel &labels) {
 }
 
 TensorVec <tammx::TensorSymmGroup>
-tammx_label_to_indices(const tammx::TensorLabel &upper_labels,
-                       const tammx::TensorLabel &lower_labels,
+tammx_label_to_indices(const tammx::IndexLabelVec &upper_labels,
+                       const tammx::IndexLabelVec &lower_labels,
                        bool all_n) {
   TensorVec<tammx::TensorSymmGroup> ret;
   if(!all_n) {
@@ -147,8 +147,8 @@ tammx_tensor_dump(const tammx::Tensor <T> &tensor, std::ostream &os) {
 
 bool
 test_initval_no_n(tammx::ExecutionContext &ec,
-                  const tammx::TensorLabel &upper_labels,
-                  const tammx::TensorLabel &lower_labels) {
+                  const tammx::IndexLabelVec &upper_labels,
+                  const tammx::IndexLabelVec &lower_labels) {
   const auto &upper_indices = tammx_label_to_indices(upper_labels);
   const auto &lower_indices = tammx_label_to_indices(lower_labels);
 
@@ -196,10 +196,10 @@ test_symm_assign(tammx::ExecutionContext &ec,
                  const tammx::TensorVec <tammx::TensorSymmGroup> &cindices,
                  const tammx::TensorVec <tammx::TensorSymmGroup> &aindices,
                  int nupper_indices,
-                 const tammx::TensorLabel &clabels,
+                 const tammx::IndexLabelVec &clabels,
                  double alpha,
                  const std::vector<double> &factors,
-                 const std::vector<tammx::TensorLabel> &alabels) {
+                 const std::vector<tammx::IndexLabelVec> &alabels) {
   assert(factors.size() > 0);
   assert(factors.size() == alabels.size());
   bool restricted = ec.is_spin_restricted();

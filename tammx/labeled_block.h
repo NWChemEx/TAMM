@@ -46,7 +46,7 @@ operator * (T1 alpha, std::tuple<LabeledBlock<T2>, LabeledBlock<T2>> rhs) {
 template<typename T>
 struct LabeledBlock {
   Block<T> *block_;
-  TensorLabel label_;
+  IndexLabelVec label_;
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
@@ -96,7 +96,7 @@ namespace impl {
  */
 template<typename T1, typename T2>
 inline void
-index_permute_acc(T1* dbuf, const T1* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T2 scale) {
+index_permute_acc(T1* dbuf, const T1* sbuf, const PermVec& perm, const TensorIndex& ddims, T2 scale) {
   static_assert(std::is_same<T1, double>(), "index_permute_acc only works with doubles");
   static_assert(std::is_convertible<T2, double>(), "index_permute_acc only works with scale convertible to double");
   EXPECTS(dbuf!=nullptr && sbuf!=nullptr);
@@ -119,7 +119,7 @@ index_permute_acc(T1* dbuf, const T1* sbuf, const TensorPerm& perm, const Tensor
  */
 template<typename T1, typename T2>
 inline void
-index_permute(T1* dbuf, const T1* sbuf, const TensorPerm& perm, const TensorIndex& ddims, T2 scale) {
+index_permute(T1* dbuf, const T1* sbuf, const PermVec& perm, const TensorIndex& ddims, T2 scale) {
   static_assert(std::is_same<T1, double>(), "index_permute only works with doubles");
   static_assert(std::is_convertible<T2, double>(), "index_permute only works with scale convertible to double");
   EXPECTS(dbuf!=nullptr && sbuf!=nullptr);
@@ -158,8 +158,8 @@ matmul(int m, int n, int k, T *A, int lda, T *B, int ldb, T *C, int ldc, T alpha
 }
 
 template<typename T>
-inline TensorPerm
-perm_compute(const LabeledBlock<T>& lblock_from, const TensorLabel& label_to) {
+inline PermVec
+perm_compute(const LabeledBlock<T>& lblock_from, const IndexLabelVec& label_to) {
   auto store = perm_apply(lblock_from.label_,
                           perm_invert(lblock_from.block_->layout()));
   return perm_compute(store, label_to);

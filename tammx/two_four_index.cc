@@ -1,14 +1,14 @@
 #include "hartree_fock.h"
 
-
-std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const Matrix &C, Matrix &F, libint2::BasisSet &shells){
+std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, const Matrix &C, Matrix &F, libint2::BasisSet &shells){
 
   using libint2::Atom;
   using libint2::Shell;
   using libint2::Engine;
   using libint2::Operator;
+
   // 2-index transform
-  int num_electrons = ndocc;
+  const int num_electrons = ndocc;
   cout << "\n\n** Number of electrons: " << num_electrons << endl;
 
   cout << "\n\t C Matrix:\n";
@@ -20,26 +20,32 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const Matrix &C, 
   const int C_rows = C.rows();
   const int C_cols = C.cols();
 
+  std::cout << "C Cols = " << C_cols << std::endl;
+  std::cout << "noa, num_electrons = " << noa << " : " << num_electrons << std::endl;
+
   // replicate horizontally
   Matrix C_2N(C_rows, 2 * C_cols);
   C_2N << C, C;
   //cout << "\n\t C_2N Matrix:\n";
   //cout << C_2N << endl;
 
-  const int b_rows = 7, nelectrons = 5;
-  Matrix C_noa = C_2N.block<b_rows, nelectrons>(0, 0);
+  const int b_rows = noa;
+  Matrix C_noa = C_2N.block(0, 0,b_rows, num_electrons);
   cout << "\n\t C occupied alpha:\n";
   cout << C_noa << endl;
 
-  Matrix C_nva = C_2N.block<b_rows, b_rows - nelectrons>(0, num_electrons);
+  //Matrix C_nva = C_2N.block<b_rows, b_rows - num_electrons>(0, num_electrons);
+  Matrix C_nva = C_2N.block(0, num_electrons,b_rows, b_rows - num_electrons);
   cout << "\n\t C virtual alpha:\n";
   cout << C_nva << endl;
 
-  Matrix C_nob = C_2N.block<b_rows, nelectrons>(0, C_cols);
+  //Matrix C_nob = C_2N.block<b_rows, num_electrons>(0, C_cols);
+  Matrix C_nob = C_2N.block(0, C_cols,b_rows, num_electrons);
   cout << "\n\t C occupied beta:\n";
   cout << C_nob << endl;
 
-  Matrix C_nvb = C_2N.block<b_rows, b_rows - nelectrons>(0, num_electrons + C_cols);
+//  Matrix C_nvb = C_2N.block<b_rows, b_rows - num_electrons>(0, num_electrons + C_cols);
+  Matrix C_nvb = C_2N.block(0, num_electrons + C_cols,b_rows, b_rows - num_electrons);
   cout << "\n\t C virtual beta:\n";
   cout << C_nvb << endl;
 

@@ -111,7 +111,7 @@ inline std::vector<Atom> read_input_xyz(
 }
 
 
-std::tuple<int,double, libint2::BasisSet> hartree_fock(const string filename, Matrix &C, Matrix &F) {
+std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filename, Matrix &C, Matrix &F) {
 
   // Perform the simple HF calculation (Ed) and 2,4-index transform to get the inputs for CCSD
   using libint2::Atom;
@@ -291,7 +291,7 @@ std::tuple<int,double, libint2::BasisSet> hartree_fock(const string filename, Ma
   cout << "\n** Eigen Values:\n";
   cout << eps << endl;
 
-  return std::make_tuple(ndocc,ehf+enuc,shells);
+  return std::make_tuple(ndocc,nao,ehf+enuc,shells);
 }
 
 

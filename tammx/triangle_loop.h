@@ -10,7 +10,7 @@ namespace tammx {
 
 class TriangleLoop {
  public:
-  using Type = BlockDim;
+  using Type = BlockIndex;
   using ItrType = TensorVec<Type>;
   
   TriangleLoop()

@@ -17,7 +17,7 @@ class TensorBase;
 class Distribution {
  public:
   virtual ~Distribution() {}
-  virtual std::pair<Proc,Offset> locate(const TensorIndex& blockid) = 0;
+  virtual std::pair<Proc,Offset> locate(const BlockDimVec& blockid) = 0;
   virtual Size buf_size(Proc proc) const = 0;
   virtual std::string name() const = 0;
   virtual Distribution* clone(const TensorBase*, Proc) const = 0;
@@ -94,7 +94,7 @@ class Distribution_NW : public Distribution {
     return new Distribution_NW(tensor_structure, nproc);
   }
 
-  std::pair<Proc,Offset> locate(const TensorIndex& blockid) {
+  std::pair<Proc,Offset> locate(const BlockDimVec& blockid) {
     auto key = compute_key(blockid);
     auto length = hash_[0];
     auto ptr = std::lower_bound(&hash_[1], &hash_[length + 1], key);
@@ -170,7 +170,7 @@ class Distribution_NW : public Distribution {
   }
 
 private:
-  TCE::Int compute_key(const TensorIndex& blockid) const {
+  TCE::Int compute_key(const BlockDimVec& blockid) const {
     TCE::Int key;
     TensorVec<TCE::Int> offsets, bases;
 

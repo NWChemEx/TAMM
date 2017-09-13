@@ -14,7 +14,7 @@ namespace tammx {
 //using Fint = int64_t;
 
 struct BlockDimSpace;
-using BlockDim = StrongNum<BlockDimSpace, int64_t>;
+using BlockIndex = StrongNum<BlockDimSpace, int64_t>;
 using TensorRank = int;
 struct IrrepSpace;
 using Irrep = StrongNum<IrrepSpace, int>;
@@ -154,8 +154,8 @@ const TensorRank maxrank{8};
 template<typename T>
 using TensorVec = BoundVec<T, maxrank>;
 
-using TensorIndex = TensorVec<BlockDim>;
-using TensorDim = TensorVec<DimType>;
+using BlockDimVec = TensorVec<BlockIndex>;
+using DimTypeVec = TensorVec<DimType>;
 using PermVec = TensorVec<int>;
 
 } //namespace tammx

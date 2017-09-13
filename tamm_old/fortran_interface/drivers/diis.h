@@ -17,7 +17,7 @@ void dgesv(int* n, int* nrhs, double* a, int* lda, int* ipiv,
 //@todo What should be do wigh transpose
 inline void
 jacobi(Tensor& d_r, Tensor& d_t, double shift, bool transpose, double *p_evl_sorted) {
-  block_for(d_r(), [&] (const TensorIndex& blockid) {
+  block_for(d_r(), [&] (const BlockDimVec& blockid) {
       auto rblock = d_r.get(blockid);
       auto tblock = d_t.alloc(blockid);
       auto bdims = rblock.block_dims();

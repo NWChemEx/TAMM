@@ -19,10 +19,10 @@ class TCE {
   static void init(const std::vector<Spin>& spins,
                    const std::vector<Irrep>& spatials,
                    const std::vector<size_t>& sizes,
-                   BlockDim noa,
-                   BlockDim noab,
-                   BlockDim nva,
-                   BlockDim nvab,
+                   BlockIndex noa,
+                   BlockIndex noab,
+                   BlockIndex nva,
+                   BlockIndex nvab,
                    bool spin_restricted,
                    Irrep irrep_f,
                    Irrep irrep_v,
@@ -67,19 +67,19 @@ class TCE {
     return offsets_.back();
   }
 
-  static Spin spin(BlockDim block) {
+  static Spin spin(BlockIndex block) {
     return spins_[block.value()-1];
   }
 
-  static Irrep spatial(BlockDim block) {
+  static Irrep spatial(BlockIndex block) {
     return spatials_[block.value()-1];
   }
 
-  static size_t size(BlockDim block) {
+  static size_t size(BlockIndex block) {
     return sizes_[block.value()-1];
   }
 
-  static size_t offset(BlockDim block) {
+  static size_t offset(BlockIndex block) {
     return offsets_[block.value()-1];
   }
 
@@ -87,34 +87,34 @@ class TCE {
     return spin_restricted_;
   }
 
-  static BlockDim noab() {
+  static BlockIndex noab() {
     return noab_;
   }
 
-  static BlockDim nvab() {
+  static BlockIndex nvab() {
     return nvab_;
   }
 
-  static BlockDim noa() {
+  static BlockIndex noa() {
     return noa_;
   }
 
-  static BlockDim nob() {
+  static BlockIndex nob() {
     return noab() - noa();
   }
 
-  static BlockDim nva() {
+  static BlockIndex nva() {
     return nva_;
   }
 
-  static BlockDim nvb() {
+  static BlockIndex nvb() {
     return nvab() - nva();
   }
 
   using Int = FortranInt;
 
-  static Int compute_tce_key(const TensorDim& flindices,
-                             const TensorIndex& is) {
+  static Int compute_tce_key(const DimTypeVec& flindices,
+                             const BlockDimVec& is) {
     TensorVec<Int> offsets(flindices.size()), bases(flindices.size());
     std::transform(flindices.begin(), flindices.end(), offsets.begin(),
                    [] (DimType dt) -> Int {
@@ -151,8 +151,8 @@ class TCE {
     return key;
   }
 
-  static BlockDim dim_lo(DimType dt) {
-    BlockDim ret;
+  static BlockIndex dim_lo(DimType dt) {
+    BlockIndex ret;
     switch(dt) {
       case DimType::o:
       case DimType::oa:
@@ -175,8 +175,8 @@ class TCE {
     return ret;
   }
 
-  static BlockDim dim_hi(DimType dt) {
-    BlockDim ret;
+  static BlockIndex dim_hi(DimType dt) {
+    BlockIndex ret;
     switch(dt) {
       case DimType::oa:
         ret = noa() + 1;
@@ -207,11 +207,11 @@ class TCE {
   static bool spin_restricted_;
   static Irrep irrep_f_, irrep_v_, irrep_t_;
   static Irrep irrep_x_, irrep_y_;
-  static BlockDim noa_, noab_;
-  static BlockDim nva_, nvab_;
+  static BlockIndex noa_, noab_;
+  static BlockIndex nva_, nvab_;
 };
 
-inline std::pair<BlockDim, BlockDim>
+inline std::pair<BlockIndex, BlockIndex>
 tensor_index_range(DimType dt) {
   return {TCE::dim_lo(dt), TCE::dim_hi(dt)};
 }
@@ -230,13 +230,13 @@ class RangeType {
   }
 
   RangeType(DimType dt,
-            BlockDim blo,
-            BlockDim bhi = BlockDim{0})
+            BlockIndex blo,
+            BlockIndex bhi = BlockIndex{0})
       : dt_{dt},
         blo_{blo},
         bhi_{bhi} {
           EXPECTS(dt == DimType::c);
-          if(bhi_ == BlockDim{0}) {
+          if(bhi_ == BlockIndex{0}) {
             bhi_ = blo_ + 1;
           }
   }
@@ -245,11 +245,11 @@ class RangeType {
     return dt_;
   }
 
-  std::pair<BlockDim,BlockDim> range() const {
+  std::pair<BlockIndex,BlockIndex> range() const {
     return {blo(), bhi()};
   }
 
-  BlockDim blo() const {
+  BlockIndex blo() const {
     EXPECTS(dt_ != DimType::inv);
     if(dt_ == DimType::c) {
       return blo_;
@@ -257,7 +257,7 @@ class RangeType {
     return TCE::dim_lo(dt_);
   }
 
-  BlockDim bhi() const {
+  BlockIndex bhi() const {
     EXPECTS(dt_ != DimType::inv);
     if(dt_ == DimType::c) {
       return bhi_;
@@ -267,7 +267,7 @@ class RangeType {
 
  private:
   DimType dt_;
-  BlockDim blo_, bhi_;
+  BlockIndex blo_, bhi_;
 };
 
 inline bool
@@ -296,7 +296,7 @@ operator < (const RangeType& lhs, const RangeType& rhs) {
       (lhs.dt() == rhs.dt() && lhs.blo() == rhs.blo() && lhs.bhi() < rhs.bhi());
 }
 
-inline std::pair<BlockDim,BlockDim>
+inline std::pair<BlockIndex,BlockIndex>
 tensor_index_range(const RangeType& rt) {
   return rt.range();
 }
@@ -452,7 +452,7 @@ operator << (std::ostream& os, IndexLabel il) {
   return os;
 }
 
-using TensorRange = TensorVec<RangeType>;
+using RangeTypeVec = TensorVec<RangeType>;
 using IndexLabelVec = TensorVec<IndexLabel>;
 
 } //namespace tammx

@@ -39,7 +39,7 @@ class TensorBase {
     return rank_;
   }
 
-  TensorRange flindices() const {
+  RangeTypeVec flindices() const {
     return flindices_;
   }
 
@@ -59,44 +59,44 @@ class TensorBase {
     return nupper_indices_;
   }
 
-  size_t block_size(const TensorIndex &blockid) const {
+  size_t block_size(const BlockDimVec &blockid) const {
     auto blockdims = block_dims(blockid);
-    auto ret = std::accumulate(blockdims.begin(), blockdims.end(), BlockDim{1}, std::multiplies<BlockDim>());
+    auto ret = std::accumulate(blockdims.begin(), blockdims.end(), BlockIndex{1}, std::multiplies<BlockIndex>());
     return ret.value();
   }
 
-  TensorIndex block_dims(const TensorIndex &blockid) const {
-    TensorIndex ret;
+  BlockDimVec block_dims(const BlockDimVec &blockid) const {
+    BlockDimVec ret;
     for(auto b : blockid) {
-      ret.push_back(BlockDim{TCE::size(b)});
+      ret.push_back(BlockIndex{TCE::size(b)});
     }
     return ret;
   }
 
-  TensorIndex block_offset(const TensorIndex &blockid) const {
-    TensorIndex ret;
+  BlockDimVec block_offset(const BlockDimVec &blockid) const {
+    BlockDimVec ret;
     for(auto b : blockid) {
-      ret.push_back(BlockDim{TCE::offset(b)});
+      ret.push_back(BlockIndex{TCE::offset(b)});
     }
     return ret;
   }
 
-  TensorIndex num_blocks() const {
-    TensorIndex ret;
+  BlockDimVec num_blocks() const {
+    BlockDimVec ret;
     for(auto i: flindices_) {
-      BlockDim lo, hi;
+      BlockIndex lo, hi;
       std::tie(lo, hi) = tensor_index_range(i);
       ret.push_back(hi - lo);
     }
     return ret;
   }
 
-  bool nonzero(const TensorIndex& blockid) const {
+  bool nonzero(const BlockDimVec& blockid) const {
     return spin_nonzero(blockid) &&
         spatial_nonzero(blockid);
   }
 
-  bool spin_unique(const TensorIndex& blockid) const {
+  bool spin_unique(const BlockDimVec& blockid) const {
     if(spin_restricted_ == false) {
       return true;
     }
@@ -107,11 +107,11 @@ class TensorBase {
     return spin != 2 * rank();
   }
 
-  TensorIndex find_spin_unique_block(const TensorIndex& blockid) const {
+  BlockDimVec find_spin_unique_block(const BlockDimVec& blockid) const {
     if(spin_unique(blockid)) {
       return blockid;
     }
-    TensorIndex ret;
+    BlockDimVec ret;
     for(auto b : blockid) {
       if(b > TCE::noab() + TCE::nva()) {
         b -= TCE::nva();
@@ -123,8 +123,8 @@ class TensorBase {
     return ret;
   }
   
-  TensorIndex find_unique_block(const TensorIndex& blockid) const {
-    TensorIndex ret {blockid};
+  BlockDimVec find_unique_block(const BlockDimVec& blockid) const {
+    BlockDimVec ret {blockid};
     int pos = 0;
     for(auto &igrp: indices_) {
       std::sort(ret.begin()+pos, ret.begin()+pos+igrp.size());
@@ -136,7 +136,7 @@ class TensorBase {
   /**
    * @todo Why can't this logic use perm_count_inversions?
    */
-  std::pair<PermVec,Sign> compute_sign_from_unique_block(const TensorIndex& blockid) const {
+  std::pair<PermVec,Sign> compute_sign_from_unique_block(const BlockDimVec& blockid) const {
     EXPECTS(blockid.size() == rank());
     PermVec ret_perm(blockid.size());
     std::iota(ret_perm.begin(), ret_perm.end(), 0);
@@ -153,7 +153,7 @@ class TensorBase {
     return {ret_perm, (num_inversions%2) ? -1 : 1};
   }
 
-  bool spin_nonzero(const TensorIndex& blockid) const {
+  bool spin_nonzero(const BlockDimVec& blockid) const {
     Spin spin_upper {0};
     for(auto itr = std::begin(blockid); itr!= std::begin(blockid) + nupper_indices_; ++itr) {
       spin_upper += TCE::spin(*itr);
@@ -165,7 +165,7 @@ class TensorBase {
     return spin_lower - spin_upper == rank_ - 2 * nupper_indices_;
   }
 
-  bool spatial_nonzero(const TensorIndex& blockid) const {
+  bool spatial_nonzero(const BlockDimVec& blockid) const {
     Irrep spatial {0};
     for(auto b : blockid) {
       spatial ^= TCE::spatial(b);
@@ -174,7 +174,7 @@ class TensorBase {
   }
 
   // @todo @fixme Can this function be deleted?
-  bool spin_restricted_nonzero(const TensorIndex& blockid) const {
+  bool spin_restricted_nonzero(const BlockDimVec& blockid) const {
     Spin spin {std::abs(rank_ - 2 * nupper_indices_)};
     TensorRank rank_even = rank_ + (rank_ % 2);
     for(auto b : blockid) {
@@ -185,8 +185,8 @@ class TensorBase {
 
  private:
 
-  static TensorRange flatten(const TensorVec<TensorSymmGroup>& indices) {
-    TensorRange ret;
+  static RangeTypeVec flatten(const TensorVec<TensorSymmGroup>& indices) {
+    RangeTypeVec ret;
     for(const auto& tsg: indices) {
       for(size_t i=0; i<tsg.size(); i++) {
         ret.push_back(tsg.rt());
@@ -213,7 +213,7 @@ class TensorBase {
   TensorRank nupper_indices_;
   Irrep irrep_;
   bool spin_restricted_;
-  TensorRange flindices_;
+  RangeTypeVec flindices_;
   TensorRank rank_;
 };  // class TensorBase
 
@@ -250,7 +250,7 @@ operator < (const TensorBase& lhs, const TensorBase& rhs) {
 //   for(auto &sg: indices) {
 //     size_t i=1;
 //     for(; i<sg.size() && sg[i]==sg[0]; i++) { }    
-//     BlockDim lo, hi;
+//     BlockIndex lo, hi;
 //     std::tie(lo, hi) = tensor_index_range(sg[0]);
 //     tloops.push_back(TriangleLoop{i, lo, hi});
 //     tloops_last.push_back(tloops.back().get_end());
@@ -276,7 +276,7 @@ inline ProductIterator<TriangleLoop>
 loop_iterator(const TensorVec<TensorSymmGroup>& tindices ) {
   TensorVec<TriangleLoop> tloops, tloops_last;
   for(const auto &sg: tindices) {
-    BlockDim lo, hi;
+    BlockIndex lo, hi;
     std::tie(lo, hi) = tensor_index_range(sg.rt());
     tloops.push_back(TriangleLoop{sg.size(), lo, hi});
     tloops_last.push_back(tloops.back().get_end());

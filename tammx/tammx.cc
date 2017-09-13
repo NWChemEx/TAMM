@@ -9,8 +9,8 @@ std::vector<size_t> TCE::offsets_;
 bool TCE::spin_restricted_;
 Irrep TCE::irrep_f_, TCE::irrep_v_, TCE::irrep_t_;
 Irrep TCE::irrep_x_, TCE::irrep_y_;
-BlockDim TCE::noa_, TCE::noab_;
-BlockDim TCE::nva_, TCE::nvab_;
+BlockIndex TCE::noa_, TCE::noab_;
+BlockIndex TCE::nva_, TCE::nvab_;
 
 // Integer *int_mb_tammx;
 // double *dbl_mb_tammx;

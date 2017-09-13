@@ -32,9 +32,9 @@ flatten(const TensorVec<TensorVec<T>> &vec) {
   return ret;
 }
 
-inline TensorRange
+inline RangeTypeVec
 flatten_range(const TensorVec<TensorSymmGroup> &vec) {
-  TensorRange ret;
+  RangeTypeVec ret;
   for(auto &v : vec) {
     for(size_t i=0; i<v.size(); i++) {
       ret.push_back(v.rt());

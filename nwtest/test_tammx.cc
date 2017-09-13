@@ -26,7 +26,7 @@ void tammx_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted
                 const std::vector<int> &isizes) {
   using Irrep = tammx::Irrep;
   using Spin = tammx::Spin;
-  using BlockDim = tammx::BlockDim;
+  using BlockDim = tammx::BlockIndex;
 
   Irrep irrep_f{0}, irrep_v{0}, irrep_t{0}, irrep_x{0}, irrep_y{0};
 
@@ -78,7 +78,7 @@ void tammx_finalize() {
 TensorVec <tammx::TensorSymmGroup>
 tammx_label_to_indices(const tammx::IndexLabelVec &labels) {
   tammx::TensorVec <tammx::TensorSymmGroup> ret;
-  tammx::TensorRange tdims;
+  tammx::RangeTypeVec tdims;
 
   for (const auto &l : labels) {
     tdims.push_back(l.rt());
@@ -167,7 +167,7 @@ test_initval_no_n(tammx::ExecutionContext &ec,
       (xtc() = xta())
     .execute();
 
-  tammx::TensorIndex id{indices.size(), tammx::BlockDim{0}};
+  tammx::BlockDimVec id{indices.size(), tammx::BlockIndex{0}};
   auto sz = xta.memory_manager()->local_size_in_elements().value();
 
   bool ret = true;
@@ -282,7 +282,7 @@ test_symm_assign(tammx::ExecutionContext &ec,
 
 
 tammx::TensorVec <tammx::TensorSymmGroup>
-tammx_tensor_dim_to_symm_groups(tammx::TensorDim dims, int nup) {
+tammx_tensor_dim_to_symm_groups(tammx::DimTypeVec dims, int nup) {
   tammx::TensorVec <tammx::TensorSymmGroup> ret;
 
   int nlo = dims.size() - nup;

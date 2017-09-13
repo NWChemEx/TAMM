@@ -233,7 +233,7 @@ eigen_assign(EigenTensorBase *tc,
 
 size_t
 compute_tammx_dim_size(tammx::DimType dt) {
-  BlockDim blo, bhi;
+  BlockIndex blo, bhi;
   std::tie(blo, bhi) = tensor_index_range(dt);
   return TCE::offset(bhi) - TCE::offset(blo);
 }
@@ -319,7 +319,7 @@ tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor <T> &tensor) {
   std::array<long, ndim> dims;
   const auto &flindices = tensor.flindices();
   for (int i = 0; i < ndim; i++) {
-    BlockDim blo, bhi;
+    BlockIndex blo, bhi;
     std::tie(blo, bhi) = tensor_index_range(flindices[i]);
     lo_offset[i] = TCE::offset(blo);
     hi_offset[i] = TCE::offset(bhi);
@@ -328,10 +328,10 @@ tammx_tensor_to_eigen_tensor_dispatch(tammx::Tensor <T> &tensor) {
   EigenTensor<ndim> *etensor = new EigenTensor<ndim>(dims);
   etensor->setZero();
 
-  tammx::block_for(tensor(), [&](const TensorIndex &blockid) {
+  tammx::block_for(tensor(), [&](const BlockDimVec &blockid) {
     auto block = tensor.get(blockid);
-    const TensorIndex &boffset = block.block_offset();
-    const TensorIndex &block_dims = block.block_dims();
+    const BlockDimVec &boffset = block.block_offset();
+    const BlockDimVec &block_dims = block.block_dims();
     std::array<int, ndim> rel_offset;
     for (int i = 0; i < ndim; i++) {
       Expects(boffset[i] < hi_offset[i]);

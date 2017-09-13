@@ -20,17 +20,17 @@ Spin operator "" _sp(unsigned long long int val) {
   return Spin{strongint_cast<Spin::value_type>(val)};
 }
 
-BlockDim operator "" _bd(unsigned long long int val) {
-  return BlockDim{strongint_cast<BlockDim::value_type>(val)};
+BlockIndex operator "" _bd(unsigned long long int val) {
+  return BlockIndex{strongint_cast<BlockIndex::value_type>(val)};
 }
 
 std::vector<Spin> spins = {1_sp, -1 * 1_sp, 1_sp, -1 * 1_sp};
 std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir, 0_ir};
 std::vector<size_t> sizes = {2, 4, 2, 1};
-BlockDim noa {1};
-BlockDim noab {2};
-BlockDim nva {1};
-BlockDim nvab {2};
+BlockIndex noa {1};
+BlockIndex noab {2};
+BlockIndex nva {1};
+BlockIndex nvab {2};
 bool spin_restricted = false;
 Irrep irrep_f {0};
 Irrep irrep_v {0};
@@ -126,9 +126,9 @@ void test() {
   assert(ta.constructed() && ta.allocated() && !ta.attached());
 
   cout<<"num_blocks = "<<ta.num_blocks()<<endl;
-  assert(ta.num_blocks() == TensorIndex({2_bd, 2_bd, 4_bd}));
+  assert(ta.num_blocks() == BlockDimVec({2_bd, 2_bd, 4_bd}));
 
-  assert(ta.block_dims({1_bd, 0_bd, 3_bd}) == TensorIndex({4_bd, 4_bd, 5_bd}));
+  assert(ta.block_dims({1_bd, 0_bd, 3_bd}) == BlockDimVec({4_bd, 4_bd, 5_bd}));
   
   assert(ta.block_size({0_bd, 0_bd, 0_bd}) == 64);
   assert(ta.block_size({0_bd, 1_bd, 1_bd}) == 64);
@@ -157,10 +157,10 @@ void test() {
   assert(!ta.nonzero({1_bd, 1_bd, 2_bd}));
   assert(!ta.nonzero({1_bd, 1_bd, 3_bd}));
 
-  assert(ta.find_unique_block({0_bd, 0_bd, 0_bd}) == TensorIndex({0_bd, 0_bd, 0_bd}));
-  assert(ta.find_unique_block({0_bd, 1_bd, 0_bd}) == TensorIndex({0_bd, 1_bd, 0_bd}));
-  assert(ta.find_unique_block({1_bd, 0_bd, 2_bd}) == TensorIndex({0_bd, 1_bd, 2_bd}));
-  assert(ta.find_unique_block({0_bd, 1_bd, 3_bd}) == TensorIndex({0_bd, 1_bd, 3_bd}));
+  assert(ta.find_unique_block({0_bd, 0_bd, 0_bd}) == BlockDimVec({0_bd, 0_bd, 0_bd}));
+  assert(ta.find_unique_block({0_bd, 1_bd, 0_bd}) == BlockDimVec({0_bd, 1_bd, 0_bd}));
+  assert(ta.find_unique_block({1_bd, 0_bd, 2_bd}) == BlockDimVec({0_bd, 1_bd, 2_bd}));
+  assert(ta.find_unique_block({0_bd, 1_bd, 3_bd}) == BlockDimVec({0_bd, 1_bd, 3_bd}));
 
   // tensor_map(ta(), [] (Block& block) {
   //     std::fill_n(reinterpret_cast<double*>(block.buf()), block.size(), 2.0);

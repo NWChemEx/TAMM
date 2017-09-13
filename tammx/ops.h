@@ -118,7 +118,7 @@ struct MapOp : public Op {
 
   void execute() override {
     auto &lhs_tensor = *lhs_.tensor_;
-    auto lambda = [&] (const TensorIndex& blockid) {
+    auto lambda = [&] (const BlockDimVec& blockid) {
       auto size = lhs_tensor.block_size(blockid);
       if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
         return;
@@ -154,7 +154,7 @@ struct MapOp : public Op {
         rhs_{rhs},
         mode_{mode} {}
 
-  RHS_Blocks get_blocks(RHS& rhs, const TensorIndex& id) {
+  RHS_Blocks get_blocks(RHS& rhs, const BlockDimVec& id) {
     RHS_Blocks blocks;
     for(int i=0; i<rhs.size(); i++) {
       blocks[i] = rhs[i].get(id);
@@ -176,7 +176,7 @@ struct MapIdOp : public Op {
 
   void execute() override {
     auto &lhs_tensor = *lhs_.tensor_;
-    auto lambda = [&] (const TensorIndex& blockid) {
+    auto lambda = [&] (const BlockDimVec& blockid) {
       auto size = lhs_tensor.block_size(blockid);
       if(!(lhs_tensor.nonzero(blockid) && lhs_tensor.spin_unique(blockid) && size > 0)) {
         return;
@@ -260,7 +260,7 @@ struct MapIdOp : public Op {
         rhs_{rhs},
         mode_{mode} {}
 
-  RHS_Blocks get_blocks(RHS& rhs, const TensorIndex& id) {
+  RHS_Blocks get_blocks(RHS& rhs, const BlockDimVec& id) {
     RHS_Blocks blocks;
     for(int i=0; i<rhs.size(); i++) {
       blocks[i] = rhs[i].get(id);
@@ -288,7 +288,7 @@ struct ScanOp : public Op {
   void execute() {
     // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": ScanOp\n";
     auto& tensor = *ltensor_.tensor_;
-    auto lambda = [&] (const TensorIndex& blockid) {
+    auto lambda = [&] (const BlockDimVec& blockid) {
       auto size = tensor.block_size(blockid);
       if(!(tensor.nonzero(blockid) && tensor.spin_unique(blockid) && size > 0)) {
         return;
@@ -387,7 +387,7 @@ summation_indices(const LabeledTensor<T>& /*ltc*/,
 
 inline TensorVec<IndexLabelVec>
 group_labels(const IndexLabelVec& label,
-             const TensorIndex& group_sizes) {
+             const BlockDimVec& group_sizes) {
   TensorVec<IndexLabelVec> ret;
   int pos = 0;
   for(auto grp: group_sizes) {
@@ -406,7 +406,7 @@ SetOp<T,LabeledTensorType>::execute() {
   using T1 = typename LabeledTensorType::element_type;
   // std::cerr<<"Calling setop :: execute"<<std::endl;
   auto& tensor = *lhs_.tensor_;
-  auto lambda = [&] (const TensorIndex& blockid) {
+  auto lambda = [&] (const BlockDimVec& blockid) {
     auto size = tensor.block_size(blockid);
     if(!(tensor.nonzero(blockid) && tensor.spin_unique(blockid) && size > 0)) {
       return;
@@ -485,7 +485,7 @@ int find_last_index(const TensorVec<T> lst, size_t lo, size_t hi, T value) {
    @note comb_itr is assumed to be a vector of 0s and 1s
  */
 inline bool
-is_unique_combination(const TensorVec<int>& comb_itr, const TensorIndex& lval) {
+is_unique_combination(const TensorVec<int>& comb_itr, const BlockDimVec& lval) {
   EXPECTS(std::is_sorted(lval.begin(), lval.end()));
   EXPECTS(comb_itr.size() == lval.size());
   for(auto ci: comb_itr) {
@@ -514,7 +514,7 @@ is_unique_combination(const TensorVec<int>& comb_itr, const TensorIndex& lval) {
 class SymmetrizerNew {
  public:
   using element_type = IndexLabel;
-  SymmetrizerNew(const LabelMap<BlockDim>& lmap,
+  SymmetrizerNew(const LabelMap<BlockIndex>& lmap,
                  const IndexLabelVec& olabels,
                  size_t nsymm_indices)
       : lmap_{lmap},
@@ -557,9 +557,9 @@ class SymmetrizerNew {
   }
 
  private:
-  const LabelMap<BlockDim> lmap_;
+  const LabelMap<BlockIndex> lmap_;
   IndexLabelVec olabels_;
-  TensorIndex olval_;
+  BlockDimVec olval_;
   TensorVec<int> comb_itr_;
   size_t nsymm_indices_;
   bool done_;
@@ -569,9 +569,9 @@ class SymmetrizerNew {
 class CopySymmetrizerNew {
  public:
   using element_type = IndexLabel;
-  CopySymmetrizerNew(const LabelMap<BlockDim>& lmap,
+  CopySymmetrizerNew(const LabelMap<BlockIndex>& lmap,
                      const IndexLabelVec& olabels,
-                     const TensorIndex& cur_olval,
+                     const BlockDimVec& cur_olval,
                      size_t nsymm_indices)
       : lmap_{lmap},
         olabels_{olabels},
@@ -622,17 +622,17 @@ class CopySymmetrizerNew {
   }
 
  private:
-  const LabelMap<BlockDim> lmap_;
+  const LabelMap<BlockIndex> lmap_;
   IndexLabelVec olabels_;
   IndexLabelVec cur_label_;
-  TensorIndex cur_olval_;
+  BlockDimVec cur_olval_;
   TensorVec<int> comb_itr_;
   size_t nsymm_indices_;
   bool done_;
 };
 
 inline NestedIterator<SymmetrizerNew>
-symmetrization_iterator(LabelMap<BlockDim> lmap,
+symmetrization_iterator(LabelMap<BlockIndex> lmap,
                         const std::vector<IndexLabelVec>& grps,
                         const std::vector<size_t> nsymm_indices) {
   EXPECTS(grps.size() == nsymm_indices.size());
@@ -644,9 +644,9 @@ symmetrization_iterator(LabelMap<BlockDim> lmap,
 }
 
 inline NestedIterator<CopySymmetrizerNew>
-copy_symmetrization_iterator(LabelMap<BlockDim> lmap,
+copy_symmetrization_iterator(LabelMap<BlockIndex> lmap,
                              const std::vector<IndexLabelVec>& grps,
-                             const std::vector<TensorIndex>& lvals,
+                             const std::vector<BlockDimVec>& lvals,
                              const std::vector<size_t> nsymm_indices) {
   EXPECTS(grps.size() == nsymm_indices.size());
   std::vector<CopySymmetrizerNew> symms;
@@ -663,7 +663,7 @@ copy_symmetrization_iterator(LabelMap<BlockDim> lmap,
  */
 template<typename LabeledTensorType>
 inline NestedIterator<SymmetrizerNew>
-symmetrization_iterator(LabelMap<BlockDim>& lmap,
+symmetrization_iterator(LabelMap<BlockIndex>& lmap,
                         const LabeledTensorType& ltc,
                         const LabeledTensorType& lta) {
   std::vector<IndexLabelVec> cgrps_vec;
@@ -687,7 +687,7 @@ symmetrization_iterator(LabelMap<BlockDim>& lmap,
 
 template<typename LabeledTensorType>
 inline NestedIterator<SymmetrizerNew>
-symmetrization_iterator(LabelMap<BlockDim>& lmap,
+symmetrization_iterator(LabelMap<BlockIndex>& lmap,
                         const LabeledTensorType& ltc,
                         const LabeledTensorType& lta,
                         const LabeledTensorType& ltb) {
@@ -719,10 +719,10 @@ symmetrization_iterator(LabelMap<BlockDim>& lmap,
  */
 template<typename LabeledTensorType>
 inline NestedIterator<CopySymmetrizerNew>
-copy_symmetrization_iterator(LabelMap<BlockDim>& lmap,
+copy_symmetrization_iterator(LabelMap<BlockIndex>& lmap,
                              const LabeledTensorType& ltc,
                              const LabeledTensorType& lta,
-                             const TensorIndex& cur_clval) {
+                             const BlockDimVec& cur_clval) {
   std::vector<IndexLabelVec> cgrps_vec;
   auto cgrps = group_labels(ltc.tensor_->tindices(),
                             ltc.label_);
@@ -739,10 +739,10 @@ copy_symmetrization_iterator(LabelMap<BlockDim>& lmap,
     EXPECTS(csgp.size() >=0 && csgp.size() <= 2);
     nsymm_indices.push_back(csgp[0].size());
   }
-  std::vector<TensorIndex> clvals;
+  std::vector<BlockDimVec> clvals;
   int i = 0;
   for(const auto& csg: ltc.tensor_->tindices()) {
-    clvals.push_back(TensorIndex{cur_clval.begin()+i,
+    clvals.push_back(BlockDimVec{cur_clval.begin()+i,
             cur_clval.begin()+i+csg.size()});
     i += csg.size();
   }
@@ -752,11 +752,11 @@ copy_symmetrization_iterator(LabelMap<BlockDim>& lmap,
 
 template<typename LabeledTensorType>
 inline NestedIterator<CopySymmetrizerNew>
-copy_symmetrization_iterator(LabelMap<BlockDim>& lmap,
+copy_symmetrization_iterator(LabelMap<BlockIndex>& lmap,
                              const LabeledTensorType& ltc,
                              const LabeledTensorType& lta,
                              const LabeledTensorType& ltb,
-                             const TensorIndex& cur_clval) {
+                             const BlockDimVec& cur_clval) {
   std::vector<IndexLabelVec> cgrps_vec;
   auto cgrps = group_labels(ltc.tensor_->tindices(),
                             ltc.label_);
@@ -775,10 +775,10 @@ copy_symmetrization_iterator(LabelMap<BlockDim>& lmap,
     EXPECTS(csgp.size() >=0 && csgp.size() <= 2);
     nsymm_indices.push_back(csgp[0].size());
   }
-  std::vector<TensorIndex> clvals;
+  std::vector<BlockDimVec> clvals;
   int i = 0;
   for(const auto& csg: ltc.tensor_->tindices()) {
-    clvals.push_back(TensorIndex{cur_clval.begin()+i,
+    clvals.push_back(BlockDimVec{cur_clval.begin()+i,
             cur_clval.begin()+i+csg.size()});
     i += csg.size();
   }
@@ -894,7 +894,7 @@ AddOp<T, LabeledTensorType>::execute() {
 #else
   auto citr = loop_iterator(slice_indices(tc.tindices(), ltc.label_));
 #endif
-  auto lambda = [&] (const TensorIndex& cblockid) {
+  auto lambda = [&] (const BlockDimVec& cblockid) {
     //std::cout<<"---tammx assign. cblockid"<<cblockid<<std::endl;
     size_t dimc = tc.block_size(cblockid);
     if(!(tc.nonzero(cblockid) && tc.spin_unique(cblockid) && dimc > 0)) {
@@ -903,14 +903,14 @@ AddOp<T, LabeledTensorType>::execute() {
     auto cbp = tc.alloc(cblockid);
     cbp() = 0;
     //std::cout<<"---tammx assign. ACTION ON cblockid"<<cblockid<<std::endl;
-    auto label_map = LabelMap<BlockDim>().update(ltc.label_, cblockid);
+    auto label_map = LabelMap<BlockIndex>().update(ltc.label_, cblockid);
     auto sit = symmetrization_iterator(label_map,ltc, lta);
     for(; sit.has_more(); sit.next()) {
       IndexLabelVec cur_clbl = sit.get();
       //std::cout<<"ACTION cur_clbl="<<cur_clbl<<std::endl;
       auto cur_cblockid = label_map.get_blockid(cur_clbl);
       //std::cout<<"---tammx assign. ACTION cur_cblockid"<<cur_cblockid<<std::endl;
-      auto ablockid = LabelMap<BlockDim>().update(ltc.label_, cur_cblockid).get_blockid(alabel);
+      auto ablockid = LabelMap<BlockIndex>().update(ltc.label_, cur_cblockid).get_blockid(alabel);
       auto abp = ta.get(ablockid);
       //std::cout<<"ACTION ablockid="<<ablockid<<std::endl;
       //std::cout<<"ACTION symm_factor="<<symm_factor<<std::endl;
@@ -941,7 +941,7 @@ AddOp<T, LabeledTensorType>::execute() {
 
 inline int
 compute_symmetry_scaling_factor(const TensorVec<TensorSymmGroup>& sum_indices,
-                                TensorIndex sumid) {
+                                BlockDimVec sumid) {
   int ret = 1;
   auto itr = sumid.begin();
   for(auto &sg: sum_indices) {
@@ -1020,7 +1020,7 @@ MultOp<T, LabeledTensorType>::execute() {
   IndexLabelVec sum_labels;
   TensorVec<TensorSymmGroup> sum_indices;
   std::tie(sum_indices, sum_labels) = summation_indices(ltc, lta, ltb);
-  auto lambda = [&] (const TensorIndex& cblockid) {
+  auto lambda = [&] (const BlockDimVec& cblockid) {
     auto dimc = tc.block_size(cblockid);
     if(!(tc.nonzero(cblockid) && tc.spin_unique(cblockid) && dimc > 0)) {
       // std::cout<<"MultOp. zero block "<<cblockid<<std::endl;
@@ -1032,7 +1032,7 @@ MultOp<T, LabeledTensorType>::execute() {
     auto cbp = tc.alloc(cblockid);
     cbp() = 0;
     //std::cout<<"MultOp. non-zero block"<<cblockid<<std::endl;
-    auto label_map_outer = LabelMap<BlockDim>().update(ltc.label_, cblockid);
+    auto label_map_outer = LabelMap<BlockIndex>().update(ltc.label_, cblockid);
     auto sit = symmetrization_iterator(label_map_outer,ltc, lta, ltb);
     for(; sit.has_more(); sit.next()) {
       IndexLabelVec cur_clbl = sit.get();
@@ -1042,7 +1042,7 @@ MultOp<T, LabeledTensorType>::execute() {
 
       auto sum_itr_first = loop_iterator(slice_indices(sum_indices, sum_labels));
       auto sum_itr_last = sum_itr_first.get_end();
-      auto label_map = LabelMap<BlockDim>().update(ltc.label_, cur_cblockid);
+      auto label_map = LabelMap<BlockIndex>().update(ltc.label_, cur_cblockid);
 
       for(auto sitr = sum_itr_first; sitr!=sum_itr_last; ++sitr) {
         label_map.update(sum_labels, *sitr);

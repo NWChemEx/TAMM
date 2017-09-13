@@ -28,7 +28,7 @@ void
 tensor_map (LabeledTensor<T> ltc, Lambda func) {
   Tensor<T>& tc = *ltc.tensor_;
   auto citr = loop_iterator(slice_indices(tc.tindices(), ltc.label_));
-  auto lambda = [&] (const TensorIndex& cblockid) {
+  auto lambda = [&] (const BlockDimVec& cblockid) {
     size_t dimc = tc.block_size(cblockid);
     if(tc.nonzero(cblockid) && tc.spin_unique(cblockid) && dimc>0) {
       auto cblock = tc.alloc(cblockid);
@@ -44,7 +44,7 @@ void
 block_for (LabeledTensor<T> ltc, Lambda func) {
   Tensor<T>& tc = *ltc.tensor_;
   auto citr = loop_iterator(slice_indices(tc.tindices(), ltc.label_));
-  auto lambda = [&] (const TensorIndex& cblockid) {
+  auto lambda = [&] (const BlockDimVec& cblockid) {
     size_t dimc = tc.block_size(cblockid);
     if(tc.nonzero(cblockid) && dimc>0) {
       func(cblockid);
@@ -59,7 +59,7 @@ tensor_map (LabeledTensor<T> ltc, LabeledTensor<T> lta, Lambda func) {
   Tensor<T>& tc = *ltc.tensor_;
   Tensor<T>& ta = *lta.tensor_;
   auto citr = loop_iterator(tc.indices());
-  auto lambda = [&] (const TensorIndex& cblockid) {
+  auto lambda = [&] (const BlockDimVec& cblockid) {
     size_t dimc = tc.block_size(cblockid);
     if(tc.nonzero(cblockid) && dimc>0) {
       auto cblock = tc.alloc(cblockid);

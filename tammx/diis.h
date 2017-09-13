@@ -12,7 +12,7 @@ inline void
 jacobi(Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted) {
   EXPECTS(transpose == false);
   std::cout << "shift=" << shift << std::endl;
-  block_for(d_r(), [&] (const TensorIndex& blockid) {
+  block_for(d_r(), [&] (const BlockDimVec& blockid) {
       auto rblock = d_r.get(blockid);
       auto tblock = d_t.alloc(blockid);
       auto bdims = rblock.block_dims();

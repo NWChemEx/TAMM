@@ -81,10 +81,19 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
 
   auto shell2bf = map_shell_to_basis_function(shells);
 
+  const int n_beta = noa - num_electrons;
   // buf[0] points to the target shell set after every call  to engine.compute()
   const auto &buf = engine.results();
   Matrix spin_t = Matrix::Zero(1, 2 * n);
-  spin_t << 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 2, 2;
+  Matrix spin_1 = Matrix::Ones(1,num_electrons);
+  Matrix spin_2 = Matrix::Constant(1,num_electrons,2);
+  Matrix spin_3 = Matrix::Constant(1,n_beta,1);
+  Matrix spin_4 = Matrix::Constant(1,n_beta,2);
+  //spin_t << 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 2, 2; - water
+  spin_t.block(0,0,1,num_electrons) = spin_1;
+  spin_t.block(0,num_electrons,1,num_electrons) = spin_2;
+  spin_t.block(0,2*num_electrons,1, n_beta) = spin_3;
+  spin_t.block(0,2*num_electrons+n_beta,1, n_beta) = spin_4;
 
   cout << "\n\t spin_t\n";
   cout << spin_t << endl;

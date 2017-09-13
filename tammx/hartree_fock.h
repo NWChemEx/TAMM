@@ -34,7 +34,7 @@ using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 // this is a matrix with row-major storage (http://en.wikipedia.org/wiki/Row-major_order)
 // to meet the layout of the integrals returned by the Libint integral library
 
-std::tuple<int,double, libint2::BasisSet> hartree_fock(const string filename,Matrix &C, Matrix &F);
+std::tuple<int,int,double, libint2::BasisSet> hartree_fock(const string filename,Matrix &C, Matrix &F);
 
 size_t max_nprim(const std::vector<libint2::Shell> &shells);
 

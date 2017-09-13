@@ -1,0 +1,31 @@
+start tce_n2
+
+echo
+
+#  symmetry d2h
+geometry units bohr
+  symmetry c1
+  n 0 0   -1.034
+  n 0 0    1.034
+end
+
+#dzp
+basis
+ * library sto-3g
+end
+
+scf
+thresh 1.0e-10
+tol2e 1.0e-10
+singlet
+rhf
+end
+
+tce
+#freeze atomic
+thresh 1.0e-10
+ccsd
+end
+
+task tce energy
+

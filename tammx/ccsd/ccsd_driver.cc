@@ -293,7 +293,7 @@ std::cout << "p_evl_sorted:" << '\n';
       std::cout << p_evl_sorted[p] << '\n';
 }
 
-  std::vector<Tensor<T>*> d_r1s, d_r2s;
+std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
 
   Tensor<T> d_e{E|E, irrep, spin_restricted};
   Tensor<T> d_r1_residual{E|E, irrep, spin_restricted};
@@ -302,7 +302,9 @@ std::cout << "p_evl_sorted:" << '\n';
   for(int i=0; i<ndiis; i++) {
     d_r1s.push_back(new Tensor<T>{{V|O}, irrep, spin_restricted});
     d_r2s.push_back(new Tensor<T>{{VV|OO}, irrep, spin_restricted});
-    ec.allocate(*d_r1s[i], *d_r2s[i]);
+    d_t1s.push_back(new Tensor<T>{{V|O}, irrep, spin_restricted});
+    d_t2s.push_back(new Tensor<T>{{VV|OO}, irrep, spin_restricted});
+    ec.allocate(*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
 
   //void Tensor<T>::operator = (std::pair<Tensor<T>, Tensor<T>> rhs);
@@ -331,9 +333,12 @@ std::cout << "p_evl_sorted:" << '\n';
 
       Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
       sch.io(d_t1_local, d_t1, d_t2, d_f1, d_v2, *d_r1s[off], *d_r2s[off])
+          .output(*d_t1s[off], *d_t2s[off])
         .output(d_e, d_r1_residual, d_r2_residual);
 
-      sch(d_t1_local() = d_t1());
+      sch(d_t1_local() = d_t1())
+          ((*d_t1s[off])() = d_t1())
+          ((*d_t2s[off])() = d_t2());
 
       ccsd_e(sch, d_f1, d_e, d_t1_local, d_t2, d_v2);
       ccsd_t1(sch, d_f1, *d_r1s[off], d_t1_local, d_t2, d_v2);
@@ -372,21 +377,22 @@ std::cout << "p_evl_sorted:" << '\n';
       jacobi(*d_r1s[off], d_t1, -1.0 * zshiftl, false, p_evl_sorted.data());
       jacobi(*d_r2s[off], d_t2, -2.0 * zshiftl, false, p_evl_sorted.data());
     }
-    if(residual < thresh) {
+    if(residual < thresh || titer+ndiis >= maxiter) {
       //nodezero_print();
       break;
     }
     Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
     std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
-    std::vector<Tensor<T>*> ts{&d_t1, &d_t2};
+    std::vector<std::vector<Tensor<T>*>*> ts{&d_t1s, &d_t2s};
+    std::vector<Tensor<T>*> next_t{&d_t1, &d_t2};
     // @fixme why not use brace-initiralizer instead of
     // intermediates? possibly use variadic templates?
-    diis<T>(sch, rs, ts);
+    diis<T>(sch, rs, ts, next_t);
   }
 
   std::cout << "debug ccsd 2\n";
   for(int i=0; i<ndiis; i++) {
-    Tensor<T>::deallocate(*d_r1s[i], *d_r2s[i]);
+    Tensor<T>::deallocate(*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
   d_r1s.clear();
   d_r2s.clear();
@@ -536,10 +542,10 @@ int main(int argc, char *argv[]) {
   Tensor<T> d_t2{VV|OO, irrep, spin_restricted};
   Tensor<T> d_f1{N|N, irrep, spin_restricted};
   Tensor<T> d_v2{NN|NN, irrep, spin_restricted};
-  int maxiter = 100;
+  int maxiter = 50;
   double thresh = 1.0e-10;
   double zshiftl = 0.0;
-  int ndiis = 1005;
+  int ndiis = 5;
 
 
   auto distribution = Distribution_NW();

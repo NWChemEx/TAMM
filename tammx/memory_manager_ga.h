@@ -14,6 +14,12 @@ class MemoryManagerGA : public MemoryManager {
  public:
   explicit MemoryManagerGA(ProcGroup pg)
       : MemoryManager{pg},
+/** \warning
+*  totalview LD on following statement
+*  back traced to tammx::Tensor<double>::alloc shared_ptr_base.h
+*  backtraced to ccsd_driver<double> execution_context.h
+*  back traced to main
+*/
         allocation_status_{AllocationStatus::invalid} {}
 
   MemoryManagerGA(ProcGroup pg, int ga)
@@ -78,6 +84,10 @@ class MemoryManagerGA : public MemoryManager {
 
       GA_Pgroup_set_default(GA_Pgroup_get_world());
       ga_pg_ = GA_Pgroup_create(ranks, nranks);
+/** \warning
+*  totalview LD on following statement
+*  back traced to tammx::Tensor<double>::alloc tensor.h
+*/
       GA_Pgroup_set_default(ga_pg_default);
     }
 

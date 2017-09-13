@@ -62,9 +62,27 @@ jacobi(Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted)
 }
 
 template<typename T>
+inline T
+ddot(LabeledTensor<T> lta, LabeledTensor<T> ltb) {
+  T ret = 0;
+  block_for(lta, [&] (const BlockDimVec& blockid) {
+      auto ablock = lta.tensor_->get(blockid);
+      auto bblock = ltb.tensor_->get(blockid);
+      auto abuf = ablock.buf();
+      auto bbuf = bblock.buf();
+      size_t sz = ablock.size();
+      for(size_t i = 0; i < sz; i++) {
+        ret += abuf[i] * bbuf[i];
+      }
+    });
+  return ret;
+}
+
+template<typename T>
 inline void
 diis(Scheduler& sch,
      std::vector<std::vector<Tensor<T>*>*>& d_rs,
+     std::vector<std::vector<Tensor<T>*>*>& d_ts,
      std::vector<Tensor<T>*> d_t) {
   EXPECTS(d_t.size() == d_rs.size());
   int ntensors = d_t.size();
@@ -75,35 +93,6 @@ diis(Scheduler& sch,
     EXPECTS(d_rs[i]->size() == ndiis);
   }
 
-  Scalar<T> aexp[ntensors][ndiis][ndiis];
-  for(int k=0; k<ntensors; k++) {
-    for(int i=0; i<ndiis; i++) {
-      for(int j=0; j<ndiis; j++) {
-        aexp[k][i][j].alloc(sch.pg(), sch.default_distribution(), sch.default_memory_manager());
-      }
-    }
-  }
-  for(int k=0; k<ntensors; k++) {
-    for(int i=0; i<ndiis; i++) {
-      auto &ta = *d_rs[k]->at(i);
-      sch.io(ta);
-    }
-  }
-
-  for(int k=0; k<ntensors; k++) {
-    for(int i=0; i<ndiis; i++) {
-      for(int j=0; j<ndiis; j++) {
-        auto &ta = *d_rs[k]->at(i);
-        auto &tb = *d_rs[k]->at(j);
-        sch.output(aexp[k][i][j])
-            (aexp[k][i][j]() = 0)
-            (aexp[k][i][j]() += ta() * tb());
-      }
-    }
-  }
-  sch.execute();
-  sch.clear();
-
   using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
   using Vector = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
   Matrix A = Matrix::Zero(ndiis + 1, ndiis + 1);
@@ -111,10 +100,11 @@ diis(Scheduler& sch,
   for(int k=0; k<ntensors; k++) {
     for(int i=0; i<ndiis; i++) {
       for(int j=i; j<ndiis; j++) {
-        A(i, j) += aexp[k][i][j].value();
+        A(i, j) += ddot((*d_rs[k]->at(i))(), (*d_rs[k]->at(j))());
       }
     }
   }
+
   for(int i=0; i<ndiis; i++) {
     for(int j=i; j<ndiis; j++) {
       A(j, i) = A(i, j);
@@ -127,28 +117,17 @@ diis(Scheduler& sch,
 
   b(ndiis, 0) = -1;
 
-  std::cout<<"A:\n"<<A<<"\n";
-  std::cout<<"b:\n"<<b<<"\n";
-
-  for(int k=0; k<ntensors; k++) {
-    for(int i=0; i<ndiis; i++) {
-      for(int j=0; j<ndiis; j++) {
-        aexp[k][i][j].dealloc();
-      }
-    }
-  }
   // Solve AX = B
   // call dgesv(diis+1,1,a,maxdiis+1,iwork,b,maxdiis+1,info)
-  Vector x = A.colPivHouseholderQr().solve(b);
-
-  std::cout<<"x:\n"<<x<<"\n";
+  //Vector x = A.colPivHouseholderQr().solve(b);
+  Vector x = A.lu().solve(b);
 
   for(int k=0; k<ntensors; k++) {
     auto &dt = *d_t[k];
     sch.output(dt)
         (dt() = 0);
     for(int j=0; j<ndiis; j++) {
-      auto &tb = *d_rs[k]->at(j);
+      auto &tb = *d_ts[k]->at(j);
       sch.io(tb)
           (dt() += x(j, 0) * tb());
     }

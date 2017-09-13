@@ -500,7 +500,7 @@ void fortran_finalize() {
 }
 
 
-extern std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const Matrix &C, Matrix &F, libint2::BasisSet &shells);
+extern std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, const Matrix &C, Matrix &F, libint2::BasisSet &shells);
 
 int main(int argc, char *argv[]) {
   MPI_Init(&argc, &argv);
@@ -562,9 +562,9 @@ int main(int argc, char *argv[]) {
   int ndocc{0};
   double hf_energy{0.0};
   libint2::BasisSet shells;
-
-  std::tie(ndocc, hf_energy, shells) = hartree_fock(filename,C,F);
-  std::tie(V) = two_four_index_transform(ndocc, C, F, shells);
+  int noa_g{0};
+  std::tie(ndocc,noa_g, hf_energy, shells) = hartree_fock(filename,C,F);
+  std::tie(V) = two_four_index_transform(ndocc,noa_g, C, F, shells);
   std::cerr << "debug2" << '\n';
 
   //Tensor Map

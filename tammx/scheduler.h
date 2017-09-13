@@ -47,6 +47,11 @@ class Scheduler {
 
   template<typename T, typename LabeledTensorType>
   Scheduler& operator()(SetOpEntry<T, LabeledTensorType> sop) {
+/** \warning
+*  totalview LD on following statement
+*  back traced to tammx::diis<double> in labeled_tensor.h
+*  back traced to ccsd_driver
+*/
     ops_.push_back(new SetOp<LabeledTensorType, T>(sop.value, sop.lhs, sop.mode));
     EXPECTS(tensors_.find(&sop.lhs.tensor()) != tensors_.end());
     EXPECTS(tensors_[&sop.lhs.tensor()].status == TensorStatus::allocated
@@ -115,6 +120,10 @@ class Scheduler {
             || (aop.mode==ResultMode::set
                 && tensors_[&aop.lhs.tensor()].status==TensorStatus::allocated));
     tensors_[&aop.lhs.tensor()].status = TensorStatus::initialized;
+/** \warning
+*  totalview LD on following statement
+*  back traced to ccsd_driver
+*/
     ops_.push_back(new AddOp<LabeledTensorType, T>(aop.alpha, aop.lhs, aop.rhs, aop.mode, aop.exec_mode, aop.fn));
     return *this;
   }

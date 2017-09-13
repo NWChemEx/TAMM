@@ -96,7 +96,7 @@ namespace impl {
  */
 template<typename T1, typename T2>
 inline void
-index_permute_acc(T1* dbuf, const T1* sbuf, const PermVec& perm, const TensorIndex& ddims, T2 scale) {
+index_permute_acc(T1* dbuf, const T1* sbuf, const PermVec& perm, const BlockDimVec& ddims, T2 scale) {
   static_assert(std::is_same<T1, double>(), "index_permute_acc only works with doubles");
   static_assert(std::is_convertible<T2, double>(), "index_permute_acc only works with scale convertible to double");
   EXPECTS(dbuf!=nullptr && sbuf!=nullptr);
@@ -119,7 +119,7 @@ index_permute_acc(T1* dbuf, const T1* sbuf, const PermVec& perm, const TensorInd
  */
 template<typename T1, typename T2>
 inline void
-index_permute(T1* dbuf, const T1* sbuf, const PermVec& perm, const TensorIndex& ddims, T2 scale) {
+index_permute(T1* dbuf, const T1* sbuf, const PermVec& perm, const BlockDimVec& ddims, T2 scale) {
   static_assert(std::is_same<T1, double>(), "index_permute only works with doubles");
   static_assert(std::is_convertible<T2, double>(), "index_permute only works with scale convertible to double");
   EXPECTS(dbuf!=nullptr && sbuf!=nullptr);
@@ -210,15 +210,15 @@ void multiply(LabeledBlock<T>& clb, std::tuple<T1, LabeledBlock<T>, LabeledBlock
 
   // G
   auto alpha = std::get<0>(rhs) * ablock.sign() * bblock.sign();
-  auto lmap = LabelMap<BlockDim>()
+  auto lmap = LabelMap<BlockIndex>()
       .update(alabel, ablock.block_dims())
       .update(blabel, bblock.block_dims());
   auto aext_dims = lmap.get_blockid(aext_labels);
   auto bext_dims = lmap.get_blockid(bext_labels);
   auto sum_dims = lmap.get_blockid(sum_labels);
-  int m = std::accumulate(aext_dims.begin(), aext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
-  int n = std::accumulate(bext_dims.begin(), bext_dims.end(), BlockDim{1}, std::multiplies<>()).value();
-  int k = std::accumulate(sum_dims.begin(), sum_dims.end(), BlockDim{1}, std::multiplies<>()).value();
+  int m = std::accumulate(aext_dims.begin(), aext_dims.end(), BlockIndex{1}, std::multiplies<>()).value();
+  int n = std::accumulate(bext_dims.begin(), bext_dims.end(), BlockIndex{1}, std::multiplies<>()).value();
+  int k = std::accumulate(sum_dims.begin(), sum_dims.end(), BlockIndex{1}, std::multiplies<>()).value();
 
   matmul<T>(m, n, k, abuf_sort.get(), k,
             bbuf_sort.get(), n,

@@ -104,17 +104,17 @@ class Tensor : public TensorBase {
     allocation_status_ = AllocationStatus::invalid;
   }
 
-  Block<T> alloc(const TensorIndex& blockid) {
+  Block<T> alloc(const BlockDimVec& blockid) {
     return {*this, blockid};
   }
 
-  Block<T> alloc(const TensorIndex& blockid,
+  Block<T> alloc(const BlockDimVec& blockid,
                  const PermVec& layout,
                  Sign sign) {
     return {*this, blockid, layout, sign};
   }
 
-  Block<T> get(const TensorIndex& blockid) {
+  Block<T> get(const BlockDimVec& blockid) {
     EXPECTS(constructed());
     Offset offset;
     Proc proc;
@@ -130,7 +130,7 @@ class Tensor : public TensorBase {
     return std::move(block);
   }
 
-  void put(const TensorIndex& blockid, const Block<T>& block) {
+  void put(const BlockDimVec& blockid, const Block<T>& block) {
     EXPECTS(constructed());
     EXPECTS(find_spin_unique_block(blockid) == blockid);
     EXPECTS(find_unique_block(blockid) == blockid);
@@ -141,7 +141,7 @@ class Tensor : public TensorBase {
     mgr_->put(proc, offset, Size{size}, block.buf());
   }
 
-  void add(const TensorIndex& blockid, const Block<T>& block) {
+  void add(const BlockDimVec& blockid, const Block<T>& block) {
     EXPECTS(constructed());
     EXPECTS(find_spin_unique_block(blockid) == blockid);
     EXPECTS(find_unique_block(blockid) == blockid);

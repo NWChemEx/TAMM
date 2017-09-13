@@ -24,7 +24,7 @@ class Block {
   Block<T>& operator = (const Block<T>&) = delete;
   
   Block(Tensor<T>& tensor,
-        const TensorIndex& block_id)
+        const BlockDimVec& block_id)
     : tensor_{tensor},
       block_id_{block_id} {
         block_dims_ = tensor.block_dims(block_id);
@@ -44,7 +44,7 @@ class Block {
         buf_{std::move(block.buf_)} { }
   
   Block(Tensor<T>& tensor,
-        const TensorIndex& block_id,
+        const BlockDimVec& block_id,
         const PermVec& layout,
         Sign sign)
       : tensor_{tensor},
@@ -59,19 +59,19 @@ class Block {
           buf_ = std::make_unique<T[]> (size());
         }
 
-  const TensorIndex& blockid() const {
+  const BlockDimVec& blockid() const {
     return block_id_;
   }
 
-  TensorIndex block_offset() const {
-    TensorIndex ret;
+  BlockDimVec block_offset() const {
+    BlockDimVec ret;
     for(auto id: block_id_) {
-      ret.push_back(BlockDim{TCE::offset(id)});
+      ret.push_back(BlockIndex{TCE::offset(id)});
     }
     return ret;
   }
   
-  const TensorIndex& block_dims() const {
+  const BlockDimVec& block_dims() const {
     return block_dims_;
   }
 
@@ -117,8 +117,8 @@ class Block {
   
  private:
   Tensor<T>& tensor_;
-  TensorIndex block_id_;
-  TensorIndex block_dims_;
+  BlockDimVec block_id_;
+  BlockDimVec block_dims_;
   std::unique_ptr<T[]> buf_;
   PermVec layout_;
   Sign sign_;

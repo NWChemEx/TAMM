@@ -481,7 +481,7 @@ tamm_id_to_tammx_dim(const tamm::Index &id) {
 
 tammx::TensorVec <tammx::TensorSymmGroup>
 tamm_labels_to_tammx_indices(const std::vector<tamm::IndexName> &labels) {
-  tammx::TensorDim tammx_dims;
+  tammx::DimTypeVec tammx_dims;
   for (const auto l : labels) {
     tammx_dims.push_back(tamm_range_to_tammx_dim(tamm_idname_to_tamm_range(l)));
   }

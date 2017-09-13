@@ -20,17 +20,17 @@ Spin operator "" _sp(unsigned long long int val) {
   return Spin{strongint_cast<Spin::value_type>(val)};
 }
 
-BlockDim operator "" _bd(unsigned long long int val) {
-  return BlockDim{strongint_cast<BlockDim::value_type>(val)};
+BlockIndex operator "" _bd(unsigned long long int val) {
+  return BlockIndex{strongint_cast<BlockIndex::value_type>(val)};
 }
 
 std::vector <Spin> spins = {1_sp, -1 * 1_sp, 1_sp, -1 * 1_sp};
 std::vector <Irrep> spatials = {0_ir, 0_ir, 0_ir, 0_ir};
 std::vector <size_t> sizes = {2, 4, 2, 1};
-BlockDim noa{1};
-BlockDim noab{2};
-BlockDim nva{1};
-BlockDim nvab{2};
+BlockIndex noa{1};
+BlockIndex noab{2};
+BlockIndex nva{1};
+BlockIndex nvab{2};
 bool spin_restricted = false;
 Irrep irrep_f{0};
 Irrep irrep_v{0};

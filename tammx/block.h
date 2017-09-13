@@ -45,7 +45,7 @@ class Block {
   
   Block(Tensor<T>& tensor,
         const TensorIndex& block_id,
-        const TensorPerm& layout,
+        const PermVec& layout,
         Sign sign)
       : tensor_{tensor},
         block_id_{block_id},
@@ -75,12 +75,12 @@ class Block {
     return block_dims_;
   }
 
-  LabeledBlock<T> operator () (const TensorLabel& label) {
+  LabeledBlock<T> operator () (const IndexLabelVec& label) {
     return {this, label};
   }
 
   LabeledBlock<T> operator () () {
-    TensorLabel label;
+    IndexLabelVec label;
     for(int i=0; i<block_id_.size(); i++) {
       label.push_back({i, tensor_.flindices()[i]});
     }
@@ -99,7 +99,7 @@ class Block {
     return sign_;
   }
 
-  const TensorPerm& layout() const {
+  const PermVec& layout() const {
     return layout_;
   }
 
@@ -120,7 +120,7 @@ class Block {
   TensorIndex block_id_;
   TensorIndex block_dims_;
   std::unique_ptr<T[]> buf_;
-  TensorPerm layout_;
+  PermVec layout_;
   Sign sign_;
 };
 

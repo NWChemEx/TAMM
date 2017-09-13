@@ -57,21 +57,21 @@ void fortran_finalize();
 
 
 bool test_assign_no_n(tammx::ExecutionContext& ec,
-                 const tammx::TensorLabel &cupper_labels,
-                 const tammx::TensorLabel &clower_labels,
+                 const tammx::IndexLabelVec &cupper_labels,
+                 const tammx::IndexLabelVec &clower_labels,
                  double alpha,
-                 const tammx::TensorLabel &aupper_labels,
-                 const tammx::TensorLabel &alower_labels,
+                 const tammx::IndexLabelVec &aupper_labels,
+                 const tammx::IndexLabelVec &alower_labels,
                  add_fn fortran_assign_fn);
 
 bool test_mult_no_n(tammx::ExecutionContext &ec,
-               const tammx::TensorLabel &cupper_labels,
-               const tammx::TensorLabel &clower_labels,
+               const tammx::IndexLabelVec &cupper_labels,
+               const tammx::IndexLabelVec &clower_labels,
                double alpha,
-               const tammx::TensorLabel &aupper_labels,
-               const tammx::TensorLabel &alower_labels,
-               const tammx::TensorLabel &bupper_labels,
-               const tammx::TensorLabel &blower_labels,
+               const tammx::IndexLabelVec &aupper_labels,
+               const tammx::IndexLabelVec &alower_labels,
+               const tammx::IndexLabelVec &bupper_labels,
+               const tammx::IndexLabelVec &blower_labels,
                mult_fn fn );
 
 #endif  // TEST_FORTRAN_H

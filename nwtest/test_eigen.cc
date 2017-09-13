@@ -157,7 +157,7 @@ eigen_tensors_are_equal(EigenTensor<4> &e1,
 
 template<int ndim>
 inline Perm<ndim>
-eigen_perm_compute(const TensorLabel &from, const TensorLabel &to) {
+eigen_perm_compute(const IndexLabelVec &from, const IndexLabelVec &to) {
   Perm<ndim> layout;
 
   assert(from.size() == to.size());
@@ -175,10 +175,10 @@ eigen_perm_compute(const TensorLabel &from, const TensorLabel &to) {
 template<int ndim>
 void
 eigen_assign_dispatch(EigenTensorBase *tc,
-                      const TensorLabel &clabel,
+                      const IndexLabelVec &clabel,
                       double alpha,
                       EigenTensorBase *ta,
-                      const TensorLabel &alabel) {
+                      const IndexLabelVec &alabel) {
   assert(alabel.size() == ndim);
   assert(clabel.size() == ndim);
   auto eperm = eigen_perm_compute<ndim>(alabel, clabel);
@@ -191,10 +191,10 @@ eigen_assign_dispatch(EigenTensorBase *tc,
 
 void
 eigen_assign(EigenTensorBase *tc,
-             const TensorLabel &clabel,
+             const IndexLabelVec &clabel,
              double alpha,
              EigenTensorBase *ta,
-             const TensorLabel &alabel) {
+             const IndexLabelVec &alabel) {
   Expects(clabel.size() == alabel.size());
   if (clabel.size() == 0) {
     assert(0); //@todo implement
@@ -369,10 +369,10 @@ tammx_tensor_to_eigen_tensor(tammx::Tensor <T> &tensor) {
 
 EigenTensorBase *
 eigen_assign(tammx::Tensor<double> &ttc,
-             const tammx::TensorLabel &tclabel,
+             const tammx::IndexLabelVec &tclabel,
              double alpha,
              tammx::Tensor<double> &tta,
-             const tammx::TensorLabel &talabel) {
+             const tammx::IndexLabelVec &talabel) {
   EigenTensorBase *etc, *eta;
   etc = tammx_tensor_to_eigen_tensor(ttc);
   eta = tammx_tensor_to_eigen_tensor(tta);
@@ -384,10 +384,10 @@ eigen_assign(tammx::Tensor<double> &ttc,
 bool
 test_eigen_assign_no_n(tammx::ExecutionContext &ec,
                        double alpha,
-                       const tammx::TensorLabel &cupper_labels,
-                       const tammx::TensorLabel &clower_labels,
-                       const tammx::TensorLabel &aupper_labels,
-                       const tammx::TensorLabel &alower_labels) {
+                       const tammx::IndexLabelVec &cupper_labels,
+                       const tammx::IndexLabelVec &clower_labels,
+                       const tammx::IndexLabelVec &aupper_labels,
+                       const tammx::IndexLabelVec &alower_labels) {
   const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
   const auto &clower_indices = tammx_label_to_indices(clower_labels);
   const auto &aupper_indices = tammx_label_to_indices(aupper_labels);
@@ -457,12 +457,12 @@ test_eigen_assign_no_n(tammx::ExecutionContext &ec,
 template<int ndim>
 void
 eigen_mult_dispatch(EigenTensorBase *tc,
-                      const TensorLabel &clabel,
+                      const IndexLabelVec &clabel,
                       double alpha,
                       EigenTensorBase *ta,
-                      const TensorLabel &alabel,
+                      const IndexLabelVec &alabel,
                       EigenTensorBase *tb,
-                      const TensorLabel &blabel) {
+                      const IndexLabelVec &blabel) {
   assert(alabel.size() == ndim);
   assert(blabel.size() == ndim);
   assert(clabel.size() == ndim);
@@ -481,12 +481,12 @@ eigen_mult_dispatch(EigenTensorBase *tc,
 
 void
 eigen_mult(EigenTensorBase *tc,
-             const TensorLabel &clabel,
+             const IndexLabelVec &clabel,
              double alpha,
              EigenTensorBase *ta,
-             const TensorLabel &alabel,
+             const IndexLabelVec &alabel,
              EigenTensorBase *tb,
-             const TensorLabel &blabel) {
+             const IndexLabelVec &blabel) {
   Expects(clabel.size() == alabel.size());
   if (clabel.size() == 0) {
     assert(0); //@todo implement
@@ -505,12 +505,12 @@ eigen_mult(EigenTensorBase *tc,
 
 EigenTensorBase *
 eigen_mult(tammx::Tensor<double> &ttc,
-             const tammx::TensorLabel &tclabel,
+             const tammx::IndexLabelVec &tclabel,
              double alpha,
              tammx::Tensor<double> &tta,
-             const tammx::TensorLabel &talabel,
+             const tammx::IndexLabelVec &talabel,
              tammx::Tensor<double> &ttb,
-             const tammx::TensorLabel &tblabel) {
+             const tammx::IndexLabelVec &tblabel) {
   EigenTensorBase *etc, *eta, *etb;
   etc = tammx_tensor_to_eigen_tensor(ttc);
   eta = tammx_tensor_to_eigen_tensor(tta);
@@ -524,12 +524,12 @@ eigen_mult(tammx::Tensor<double> &ttc,
 bool
 test_eigen_mult_no_n(tammx::ExecutionContext &ec,
                        double alpha,
-                       const tammx::TensorLabel &cupper_labels,
-                       const tammx::TensorLabel &clower_labels,
-                       const tammx::TensorLabel &aupper_labels,
-                       const tammx::TensorLabel &alower_labels,
-                       const tammx::TensorLabel &bupper_labels,
-                       const tammx::TensorLabel &blower_labels) {
+                       const tammx::IndexLabelVec &cupper_labels,
+                       const tammx::IndexLabelVec &clower_labels,
+                       const tammx::IndexLabelVec &aupper_labels,
+                       const tammx::IndexLabelVec &alower_labels,
+                       const tammx::IndexLabelVec &bupper_labels,
+                       const tammx::IndexLabelVec &blower_labels) {
   const auto &cupper_indices = tammx_label_to_indices(cupper_labels);
   const auto &clower_indices = tammx_label_to_indices(clower_labels);
   const auto &aupper_indices = tammx_label_to_indices(aupper_labels);

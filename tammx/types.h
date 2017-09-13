@@ -156,7 +156,7 @@ using TensorVec = BoundVec<T, maxrank>;
 
 using TensorIndex = TensorVec<BlockDim>;
 using TensorDim = TensorVec<DimType>;
-using TensorPerm = TensorVec<int>;
+using PermVec = TensorVec<int>;
 
 } //namespace tammx
 

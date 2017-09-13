@@ -136,9 +136,9 @@ class TensorBase {
   /**
    * @todo Why can't this logic use perm_count_inversions?
    */
-  std::pair<TensorPerm,Sign> compute_sign_from_unique_block(const TensorIndex& blockid) const {
+  std::pair<PermVec,Sign> compute_sign_from_unique_block(const TensorIndex& blockid) const {
     EXPECTS(blockid.size() == rank());
-    TensorPerm ret_perm(blockid.size());
+    PermVec ret_perm(blockid.size());
     std::iota(ret_perm.begin(), ret_perm.end(), 0);
     int num_inversions=0;
     int pos = 0;

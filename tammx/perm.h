@@ -13,9 +13,9 @@ namespace tammx {
  * Return ret such that.
  * ensures 0<=i<from.size(): to[i] = from[ret[i]]
  */
-inline TensorPerm
-perm_compute(const TensorLabel& from, const TensorLabel& to) {
-  TensorPerm layout;
+inline PermVec
+perm_compute(const IndexLabelVec& from, const IndexLabelVec& to) {
+  PermVec layout;
 
   EXPECTS(from.size() == to.size());
   for(auto p : to) {
@@ -30,13 +30,13 @@ perm_compute(const TensorLabel& from, const TensorLabel& to) {
    Returns number of inversions involved in sorting this permutation
  */
 inline int
-perm_count_inversions(const TensorPerm& perm) {
+perm_count_inversions(const PermVec& perm) {
   int num_inversions = 0;
-  TensorPerm perm_sort{perm};
+  PermVec perm_sort{perm};
 #if 0
   std::sort(perm_sort.begin(), perm_sort.end());
   EXPECTS(std::adjacent_find(perm_sort.begin(), perm_sort.end()) == perm_sort.end());
-  using size_type = TensorPerm::size_type;
+  using size_type = PermVec::size_type;
   for(size_type i=0; i<perm.size(); i++) {
     auto itr = std::find(perm_sort.begin(), perm_sort.end(), perm[i]);
     EXPECTS(itr != perm.end());
@@ -45,7 +45,7 @@ perm_count_inversions(const TensorPerm& perm) {
 #else
   std::sort(perm_sort.begin(), perm_sort.end());
   EXPECTS(std::adjacent_find(perm_sort.begin(), perm_sort.end()) == perm_sort.end());
-  //using size_type = TensorPerm::size_type;
+  //using size_type = PermVec::size_type;
   for(int i=0; i<perm.size(); i++) {
     auto itr = std::find(perm.begin(), perm.end(), i);
     EXPECTS(itr != perm.end());
@@ -65,12 +65,12 @@ perm_count_inversions(const TensorPerm& perm) {
  */
 template<typename T>
 inline TensorVec<T>
-perm_apply(const TensorVec<T>& label, const TensorPerm& perm) {
+perm_apply(const TensorVec<T>& label, const PermVec& perm) {
   TensorVec<T> ret;
   // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": label="<<label<<std::endl;
   // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": perm="<<perm<<std::endl;
   EXPECTS(label.size() == perm.size());
-  using size_type = TensorPerm::size_type;
+  using size_type = PermVec::size_type;
   for(size_type i=0; i<label.size(); i++) {
     ret.push_back(label[perm[i]]);
   }
@@ -85,9 +85,9 @@ perm_apply(const TensorVec<T>& label, const TensorPerm& perm) {
  *
  * ret = p2 . p1
  */
-inline TensorPerm
-perm_compose(const TensorPerm& p1, const TensorPerm& p2) {
-  TensorPerm ret(p1.size());
+inline PermVec
+perm_compose(const PermVec& p1, const PermVec& p2) {
+  PermVec ret(p1.size());
   EXPECTS(p1.size() == p2.size());
   for(unsigned i=0; i<p1.size(); i++) {
     ret[i] = p1[p2[i]];
@@ -96,7 +96,7 @@ perm_compose(const TensorPerm& p1, const TensorPerm& p2) {
 }
 
 inline bool
-is_permutation(TensorPerm perm) {
+is_permutation(PermVec perm) {
   std::sort(perm.begin(), perm.end());
   // return std::adjacent_find(perm.begin(), perm.end()) == perm.end();
   for(int i=0 ;i<perm.size(); i++) {
@@ -118,9 +118,9 @@ is_permutation(TensorPerm perm) {
  * perm_compose(perm, perm_invert(perm)) = Identity(n).
  
  */
-inline TensorPerm
-perm_invert(const TensorPerm& perm) {
-  TensorPerm ret(perm.size());
+inline PermVec
+perm_invert(const PermVec& perm) {
+  PermVec ret(perm.size());
   EXPECTS(is_permutation(perm));
   for(unsigned i=0; i<perm.size(); i++) {
     auto itr = std::find(perm.begin(), perm.end(), i);

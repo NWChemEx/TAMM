@@ -453,7 +453,7 @@ operator << (std::ostream& os, IndexLabel il) {
 }
 
 using TensorRange = TensorVec<RangeType>;
-using TensorLabel = TensorVec<IndexLabel>;
+using IndexLabelVec = TensorVec<IndexLabel>;
 
 } //namespace tammx
 

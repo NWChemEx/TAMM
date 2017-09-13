@@ -109,7 +109,7 @@ class Tensor : public TensorBase {
   }
 
   Block<T> alloc(const TensorIndex& blockid,
-                 const TensorPerm& layout,
+                 const PermVec& layout,
                  Sign sign) {
     return {*this, blockid, layout, sign};
   }
@@ -120,7 +120,7 @@ class Tensor : public TensorBase {
     Proc proc;
     auto sblockid = find_spin_unique_block(blockid);
     auto uniq_blockid = find_unique_block(sblockid);
-    TensorPerm layout;
+    PermVec layout;
     Sign sign;
     std::tie(layout, sign) = compute_sign_from_unique_block(sblockid);
     auto size = block_size(blockid);
@@ -152,12 +152,12 @@ class Tensor : public TensorBase {
     mgr_->add(proc, offset, Size{size}, block.buf());
   }
 
-  LabeledTensor<T> operator () (const TensorLabel& label) {
+  LabeledTensor<T> operator () (const IndexLabelVec& label) {
     return {this, label};
   }
 
   LabeledTensor<T> operator () () {
-    TensorLabel label;
+    IndexLabelVec label;
     for(int i=0; i<rank(); i++) {
       label.push_back({i, flindices()[i]});
     }
@@ -166,7 +166,7 @@ class Tensor : public TensorBase {
 
   template<typename ...Args>
   LabeledTensor<T> operator () (IndexLabel ilbl, Args... rest) {
-    TensorLabel label{ilbl};
+    IndexLabelVec label{ilbl};
     pack(label, rest...);
     return (*this)(label);
   }
@@ -209,10 +209,10 @@ class Tensor : public TensorBase {
   }
 
  protected:
-  void pack(TensorLabel& label) {}
+  void pack(IndexLabelVec& label) {}
 
   template<typename ...Args>
-  void pack(TensorLabel& label, IndexLabel ilbl, Args... rest) {
+  void pack(IndexLabelVec& label, IndexLabel ilbl, Args... rest) {
     label.push_back(ilbl);
     pack(label, rest...);
   }

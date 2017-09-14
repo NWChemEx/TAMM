@@ -62,7 +62,9 @@ if(NOT TAMM_INSTALL_PREFIX)
     set(TAMM_INSTALL_PREFIX ${PROJECT_BINARY_DIR}/oldtamm-install)
 endif()
 
-install(FILES ${TAMMX_PROJECT_DIR}/h2o.xyz DESTINATION ${PROJECT_BINARY_DIR})
+install(FILES ${TAMMX_PROJECT_DIR}/tamm_inputs/h2o.xyz DESTINATION ${PROJECT_BINARY_DIR})
+install(FILES ${TAMMX_PROJECT_DIR}/tamm_inputs/n2.xyz DESTINATION ${PROJECT_BINARY_DIR})
+install(FILES ${TAMMX_PROJECT_DIR}/tamm_inputs/ozone.xyz DESTINATION ${PROJECT_BINARY_DIR})
 
 ##UNCOMMENT-OLD TAMM
 #Uncomment if we use additional cmake modules later

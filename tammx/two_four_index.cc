@@ -10,11 +10,11 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
   // 2-index transform
   cout << "\n\n** Number of electrons: " << ndocc << endl;
 
-  cout << "\n\t C Matrix:\n";
-  cout << C << endl;
-
-  cout << "\n\t F_AO Matrix:\n";
-  cout << F << endl;
+//  cout << "\n\t C Matrix:\n";
+//  cout << C << endl;
+//
+//  cout << "\n\t F_AO Matrix:\n";
+//  cout << F << endl;
 
   const int C_rows = C.rows();
   const int C_cols = C.cols();
@@ -30,40 +30,39 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
 
   const int b_rows = noa;
   Matrix C_noa = C_2N.block(0, 0,b_rows, ndocc);
-  cout << "\n\t C occupied alpha:\n";
-  cout << C_noa << endl;
+//  cout << "\n\t C occupied alpha:\n";
+//  cout << C_noa << endl;
 
   //Matrix C_nva = C_2N.block<b_rows, b_rows - ndocc>(0, ndocc);
   Matrix C_nva = C_2N.block(0, ndocc,b_rows, b_rows - ndocc);
-  cout << "\n\t C virtual alpha:\n";
-  cout << C_nva << endl;
+//  cout << "\n\t C virtual alpha:\n";
+//  cout << C_nva << endl;
 
   //Matrix C_nob = C_2N.block<b_rows, ndocc>(0, C_cols);
   Matrix C_nob = C_2N.block(0, C_cols,b_rows, ndocc);
-  cout << "\n\t C occupied beta:\n";
-  cout << C_nob << endl;
+//  cout << "\n\t C occupied beta:\n";
+//  cout << C_nob << endl;
 
 //  Matrix C_nvb = C_2N.block<b_rows, b_rows - ndocc>(0, ndocc + C_cols);
   Matrix C_nvb = C_2N.block(0, ndocc + C_cols,b_rows, b_rows - ndocc);
-  cout << "\n\t C virtual beta:\n";
-  cout << C_nvb << endl;
+//  cout << "\n\t C virtual beta:\n";
+//  cout << C_nvb << endl;
 
   // For now C_noa = C_nob and C_nva = C_nvb
   Matrix CTiled(C_rows, 2 * C_cols);
   CTiled << C_noa, C_nob, C_nva, C_nvb;
 
-  cout << "\n\t CTiled Matrix = [C_noa C_nob C_nva C_nvb]:\n";
-  cout << CTiled << endl;
+//  cout << "\n\t CTiled Matrix = [C_noa C_nob C_nva C_nvb]:\n";
+//  cout << CTiled << endl;
 
   F = CTiled.transpose() * (F * CTiled);
 
-  cout << "\n\t F_MO Matrix:\n";
-  cout << F << endl;
+//  cout << "\n\t F_MO Matrix:\n";
+//  cout << F << endl;
 
   //Start 4-index transform
   //const auto n = nbasis(shells);
   const auto n = noa;
-  std::cout << "v2 vector = " << n << std::endl;
   Eigen::Tensor<double, 4, Eigen::RowMajor> V2_unfused(2 * n, 2 * n, 2 * n, 2 * n);
   V2_unfused.setZero();
 

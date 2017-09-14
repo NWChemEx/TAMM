@@ -60,7 +60,7 @@ using libint2::Atom;
 inline std::vector<Atom> read_input_xyz(
   std::istream& is)
 {
-  //const double angstrom_to_bohr = 1 / bohr_to_angstrom;
+  const double angstrom_to_bohr = 1.889725989; //1 / bohr_to_angstrom;
   // first line = # of atoms
   size_t natom;
   is >> natom;
@@ -101,10 +101,20 @@ inline std::vector<Atom> read_input_xyz(
 
     atoms[i].atomic_number = Z;
 
-    // .xyz files report Cartesian coordinates in angstroms; convert to bohr
-    atoms[i].x = x ;
-    atoms[i].y = y ;
-    atoms[i].z = z ;
+    const bool nw_units_bohr = true;
+
+    if(nw_units_bohr) {
+      atoms[i].x = x;
+      atoms[i].y = y;
+      atoms[i].z = z;
+    }
+
+    else { // assume angstroms
+      // .xyz files report Cartesian coordinates in angstroms; convert to bohr
+      atoms[i].x = x * angstrom_to_bohr;
+      atoms[i].y = y * angstrom_to_bohr;
+      atoms[i].z = z * angstrom_to_bohr;
+    }
   }
 
   return atoms;

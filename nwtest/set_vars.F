@@ -68,15 +68,15 @@ c      end
 
       integer i, j
 
-      write(*,*) 'spins(1):', spins(1)
+!      write(*,*) 'spins(1):', spins(1)
 
       nprocs = ga_nnodes()
       my_rank = ga_nodeid()
 
-      write(*,*)'noa1: ', noa1
-      write(*,*)'nba1: ', nob1
-      write(*,*)'nva1: ', nva1
-      write(*,*)'nvb1: ', nvb1
+!      write(*,*)'noa1: ', noa1
+!      write(*,*)'nba1: ', nob1
+!      write(*,*)'nva1: ', nva1
+!      write(*,*)'nvb1: ', nvb1
 
       noa = noa1
       nva = nva1
@@ -89,14 +89,14 @@ c      end
       intorb = intorb1;
 
       if(.not. intorb) then
-        write(*,*) 'intorb is set false'
+!        write(*,*) 'intorb is set false'
       else
-        write(*,*) 'intorb is true'
+!        write(*,*) 'intorb is true'
       endif
       if(.not. restricted) then
-        write(*,*)'restricted is set false'
+!        write(*,*)'restricted is set false'
       else
-        write(*,*)'restricted is true'
+!        write(*,*)'restricted is true'
       endif
 
       if(intorb)
@@ -114,14 +114,14 @@ c      end
       if (.not.ma_push_get(mt_int,noa+nob+nva+nvb,"ranges ",
      1     l_range,k_range)) call errquit("tce_tile: MA problem",9,
      2     MA_ERR)
-      
+
       do i = 1, noab+nvab
          int_mb(k_spin+i-1) = spins(i)
          int_mb(k_sym+i-1) = syms(i)
          int_mb(k_range+i-1) = ranges(i)
-         write(*,*) 'spins(',i,') =', spins(i)
-         write(*,*) 'syms(',i,') =', syms(i)
-         write(*,*) 'ranges(',i,') =', ranges(i)
+!         write(*,*) 'spins(',i,') =', spins(i)
+!         write(*,*) 'syms(',i,') =', syms(i)
+!         write(*,*) 'ranges(',i,') =', ranges(i)
       enddo
 
       if(intorb) THEN
@@ -132,11 +132,11 @@ c      end
      1  l_alpha,k_alpha)) call errquit("tce_tile: MA problem",8,
      2  MA_ERR)
       if (.not.ma_push_get(mt_int,noa+nva,"test for alpha spins ",
-     1  l_spin_alpha,k_spin_alpha)) 
+     1  l_spin_alpha,k_spin_alpha))
      2  call errquit("tce_tile: MA problem",9,MA_ERR)
       if (.not.ma_push_get(mt_int,noa+nva,"test for alpha syms ",
      1  l_sym_alpha,k_sym_alpha))
-     2  call errquit("tce_tile: MA problem",9,MA_ERR) 
+     2  call errquit("tce_tile: MA problem",9,MA_ERR)
       if (.not.ma_push_get(mt_int,noa+nva,"test for alpha range ",
      1  l_range_alpha,k_range_alpha))
      2  call errquit("tce_tile: MA problem",9,MA_ERR)
@@ -180,7 +180,7 @@ c$$$      do i = 1,noa+nob+nva+nvb
 c$$$         int_mb(k_b2am+i-1) = b2am(i)
 c$$$      enddo
       endif
-      
+
       ea_unused_spin = 1
       ea_unused_sym = 0
       ip_unused_spin = 1
@@ -228,7 +228,7 @@ c$$$      enddo
       if (.not.ma_pop_stack(l_spin))
      1     call errquit("MA problem: finalize_fortran_vars",0,
      2     MA_ERR)
-      
+
       return
       end
 
@@ -292,7 +292,7 @@ ccx        IF (next.eq.count) THEN
             CALL DFILL(dimc,0.0d0,dbl_mb(k_cs),1)
             DO h7b = 1,noab
              IF (int_mb(k_spin+p2b-1) .eq. int_mb(k_spin+h7b-1)) THEN
-              IF (ieor(int_mb(k_sym+p2b-1),int_mb(k_sym+h7b-1)) 
+              IF (ieor(int_mb(k_sym+p2b-1),int_mb(k_sym+h7b-1))
      1            .eq. irrepa) THEN
                CALL TCE_RESTRICTED_2(p2b,h7b,p2b_1,h7b_1)
                CALL TCE_RESTRICTED_2(h7b,h1b,h7b_2,h1b_2)
@@ -530,4 +530,3 @@ c
       factorial = f
 c
       end
-

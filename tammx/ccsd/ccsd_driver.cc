@@ -243,7 +243,7 @@ double ccsd_driver(ExecutionContext& ec,
 // long lo_offset[ndim], hi_offset[ndim];
 // long int total_orbitals = 0;
 // const auto &flindices = d_f1.flindices();
-
+//
 // for (long i = 0; i < ndim; i++) {
 //  BlockIndex blo, bhi;
 //  std::tie(blo, bhi) = tensor_index_range(flindices[i]);
@@ -253,7 +253,7 @@ double ccsd_driver(ExecutionContext& ec,
 // }
 //
 //  std::cout << "Total orbitals = " << total_orbitals << std::endl;
-//  std::vector<double> p_evl_sorted(total_orbitals);
+//  //std::vector<double> p_evl_sorted(total_orbitals);
 //  //p_evl_sorted.reserve(total_orbitals);
 //  // ec->sop_execute(d_f1, [&] (auto p, auto q, auto& val) {
 //  //     if(p == q) {
@@ -442,7 +442,7 @@ std::vector<Spin> spins = {1_sp, 2_sp,
 std::vector<Irrep> spatials = {0_ir, 0_ir,
                                0_ir, 0_ir};
 //std::vector<size_t> sizes = {3,1,1, 3,1,1, 1,1, 1,1};
-std::vector<size_t> sizes = {5,5, 2,2};
+
 BlockIndex noa {1};
 BlockIndex noab {2};
 BlockIndex nva {1};
@@ -505,6 +505,26 @@ void fortran_finalize() {
 extern std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, const Matrix &C, Matrix &F, libint2::BasisSet &shells);
 
 int main(int argc, char *argv[]) {
+
+
+  const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
+
+  Matrix C;
+  Matrix F;
+  Tensor4D V2;
+  size_t ndocc{0};
+  double hf_energy{0.0};
+  libint2::BasisSet shells;
+  size_t noa_g{0};
+  std::tie(ndocc,noa_g, hf_energy, shells) = hartree_fock(filename,C,F);
+  std::tie(V2) = two_four_index_transform(ndocc,noa_g, C, F, shells);
+
+  std::vector<size_t> sizes = {ndocc,ndocc, noa_g-ndocc,noa_g-ndocc};
+
+  std::cout << "sizes vector -- \n";
+  for(auto x: sizes) std::cout << x << ", ";
+  std::cout << "\n";
+
   MPI_Init(&argc, &argv);
   GA_Initialize();
   MA_init(MT_DBL, 8000000, 20000000);
@@ -556,17 +576,7 @@ int main(int argc, char *argv[]) {
 
   Tensor<T>::allocate(pg, &distribution, mgr, d_t1, d_t2, d_f1, d_v2);
 
-  const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
 
-  Matrix C;
-  Matrix F;
-  Tensor4D V;
-  int ndocc{0};
-  double hf_energy{0.0};
-  libint2::BasisSet shells;
-  int noa_g{0};
-  std::tie(ndocc,noa_g, hf_energy, shells) = hartree_fock(filename,C,F);
-  std::tie(V) = two_four_index_transform(ndocc,noa_g, C, F, shells);
   std::cerr << "debug2" << '\n';
 
   //Tensor Map
@@ -588,7 +598,7 @@ int main(int argc, char *argv[]) {
   });
 
   // tensor_print(d_f1);
-  // std::cerr << "debug1" << '\n';
+  std::cerr << "tensor map d_f1" << '\n';
 
   tensor_map(d_v2(), [&](auto& block) {
     auto buf = block.buf();
@@ -602,7 +612,7 @@ int main(int argc, char *argv[]) {
              k++) {
           for (auto l = block_offset[3]; l < block_offset[3] + block_dims[3];
                l++, c++) {
-            buf[c] = V(i.value(), j.value(), k.value(), l.value());
+            buf[c] = V2(i.value(), j.value(), k.value(), l.value());
           }
         }
       }

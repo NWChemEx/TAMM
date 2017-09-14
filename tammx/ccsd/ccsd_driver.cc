@@ -229,7 +229,7 @@ double ccsd_driver(ExecutionContext& ec,
                    Tensor<T>& d_f1, Tensor<T>& d_v2,
                    int maxiter, double thresh,
                    double zshiftl,
-                   int ndiis, std::vector<double> &p_evl_sorted) {
+                   int ndiis, double hf_energy) {
   std::cout.precision(15);
   // ,
   //   ProcGroup pg,
@@ -239,61 +239,39 @@ double ccsd_driver(ExecutionContext& ec,
   bool spin_restricted = false;
 
 
-// long ndim = d_f1.rank();
-// long lo_offset[ndim], hi_offset[ndim];
-// long int total_orbitals = 0;
-// const auto &flindices = d_f1.flindices();
-//
-// for (long i = 0; i < ndim; i++) {
-//  BlockIndex blo, bhi;
-//  std::tie(blo, bhi) = tensor_index_range(flindices[i]);
-//  lo_offset[i] = TCE::offset(blo);
-//  hi_offset[i] = TCE::offset(bhi);
-//  total_orbitals += hi_offset[i] - lo_offset[i];
-// }
-//
-//  std::cout << "Total orbitals = " << total_orbitals << std::endl;
-//  //std::vector<double> p_evl_sorted(total_orbitals);
-//  //p_evl_sorted.reserve(total_orbitals);
-//  // ec->sop_execute(d_f1, [&] (auto p, auto q, auto& val) {
-//  //     if(p == q) {
-//  //       p_evl_sorted.push_back(val);
-//  //     }
-//  //   });
-//  // {
-//  //   auto lambda = [&] (auto p, auto q, auto& val) {
-//  //     if(p == q) {
-//  //       p_evl_sorted.push_back(val);
-//  //     }
-//  //   };
-//  //   Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
-//  //   using LabeledTensorType = LabeledTensor<T>;
-//  //   using Func = decltype(lambda);
-//  //   sch.io(d_f1)
-//  //       // .template sop<Func, LabeledTensorType, 2>(d_f1(), lambda)
-//  //       .sop(d_f1(), lambda)
-//  //       .execute();
-//  // }
-//{
-//    //p_evl_sorted.resize(total_orbitals);
-//    auto lambda = [&] (const auto& blockid) {
-//      if(blockid[0] == blockid[1]) {
-//        auto block = d_f1.get(blockid);
-//        auto dim = d_f1.block_dims(blockid)[0].value();
-//        auto offset = d_f1.block_offset(blockid)[0].value();
-//        size_t i=0;
-//        for(auto p = offset; p < offset + dim; p++,i++) {
-//          p_evl_sorted[p] = block.buf()[i*dim + i];
-//        }
-//      }
-//    };
-//    block_for(d_f1(), lambda);
-// }
+ long lo_offset, hi_offset;
+ long int total_orbitals = 0;
+ const auto &flindices = d_f1.flindices();
+
+  BlockIndex blo, bhi;
+  std::tie(blo, bhi) = tensor_index_range(flindices[0]);
+  lo_offset = TCE::offset(blo);
+  hi_offset = TCE::offset(bhi);
+  total_orbitals += hi_offset - lo_offset;
+
+  std::cout << "Total orbitals = " << total_orbitals << std::endl;
+  std::vector<double> p_evl_sorted(total_orbitals);
+
+{
+    auto lambda = [&] (const auto& blockid) {
+      if(blockid[0] == blockid[1]) {
+        auto block = d_f1.get(blockid);
+        auto dim = d_f1.block_dims(blockid)[0].value();
+        auto offset = d_f1.block_offset(blockid)[0].value();
+        size_t i=0;
+        for(auto p = offset; p < offset + dim; p++,i++) {
+          p_evl_sorted[p] = block.buf()[i*dim + i];
+        }
+      }
+    };
+    block_for(d_f1(), lambda);
+ }
 
 std::cout << "p_evl_sorted:" << '\n';
   for(auto p = 0; p < p_evl_sorted.size(); p++)
       std::cout << p_evl_sorted[p] << '\n';
 
+  std::cout << "\n\n";
   std::cout << " CCSD iterations" << std::endl;
   std::cout << std::string(66, '-') << std::endl;
   std::cout <<
@@ -315,22 +293,18 @@ std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
     ec.allocate(*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
 
-  //void Tensor<T>::operator = (std::pair<Tensor<T>, Tensor<T>> rhs);
-
   auto get_scalar = [] (Tensor<T>& tensor) -> T {
     EXPECTS(tensor.rank() == 0);
     Block<T> resblock = tensor.get({});
     return *resblock.buf();
   };
 
-  // std::cout << "debug ccsd 1\n";
-
   double corr = 0;
   double residual = 0.0;
   double energy = 0.0;
+  int fiter = 0;
   for(int titer=0; titer<maxiter; titer+=ndiis) {
     for(int iter = titer; iter < std::min(titer+ndiis,maxiter); iter++) {
-      // std::cerr<<"++++++++++++++++++++++++++++++++++++++++++++++"<<std::endl;
       int off = iter - titer;
 
       Tensor<T> d_t1_local(d_t1.tindices(), 1, Irrep{0}, ec.is_spin_restricted());
@@ -360,39 +334,31 @@ std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
       sch.execute();
       d_t1_local.dealloc();
 
-      // std::cout << "------------print d_f1-------------------\n";
-      // tensor_print(d_f1);
-      // std::cout << "------------print i1-------------------\n";
-      // tensor_print(*d_r1s[off]);
-      // std::cout << "------------end print i1--------------\n";
-
-      // std::cerr<<"----------------------------------------------"<<std::endl;
-
       double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
       double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
       residual = std::max(r1, r2);
       energy = get_scalar(d_e);
+
+      fiter = iter+1;
       // Print Iteration number
-      if(iter > 0) {
-    	  std::cout.width(6); std::cout << std::right << iter << "  ";
-      }
-      // if(iter > 0) std::cout << "    " << iter << "  ";
+      assert(fiter > 0);
+    	  std::cout.width(6); std::cout << std::right << fiter << "  ";
+
       // std::cout << "iteration:" << iter << '\n';
       // std::cout << "r1=" << r1 <<" r2="<<r2 << '\n';
       // tensor_print(*d_r1s[off]);
       // tensor_print(d_r1_residual);
       // std::cout << std::setprecision(15) << "residual:" << residual << '\n';
-      if(iter > 0) std::cout << std::setprecision(13) << residual << "  ";
-      // std::cout << std::setprecision(15) << "energy:" << energy << '\n';
-      if(iter > 0) std::cout << std::fixed << std::setprecision(13) << energy << " ";
 
-      if(iter > 0) std::cout << std::string(4, ' ') << "0.0";
-      if(iter > 0) std::cout << std::string(5, ' ') << "0.0";
-      if(iter > 0) std::cout << std::string(5, ' ') << "0.0" << std::endl;
+      std::cout << std::setprecision(13) << residual << "  ";
+      std::cout << std::fixed << std::setprecision(13) << energy << " ";
+      std::cout << std::string(4, ' ') << "0.0";
+      std::cout << std::string(5, ' ') << "0.0";
+      std::cout << std::string(5, ' ') << "0.0" << std::endl;
 
-      if(iter % 5 == 0 && iter > 0) {
+      if(fiter % 5 == 0) {
     	    std::cout << " MICROCYCLE DIIS UPDATE:";
-    	    std::cout.width(21); std::cout << std::right << iter;
+    	    std::cout.width(21); std::cout << std::right << fiter;
     	    std::cout.width(21); std::cout << std::right << "5" << std::endl;
       }
       if(residual < thresh) {
@@ -417,14 +383,13 @@ std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
   std::cout << std::string(66, '-') << std::endl;
   if(residual < thresh) {
 	  std::cout << " Iterations converged" << std::endl;
-	  std::cout << " CCSD correlation energy / hartree =";
-	  std::cout.width(26);
-	  std::cout << std::right << std::fixed << std::setprecision(15) << energy << std::endl;
-	  std::cout << " CCSD total energy / hartree       =" << std::endl;
+    std::cout.precision(15);
+	  std::cout << " CCSD correlation energy / hartree =" << std::setw(26) << std::right << energy << std::endl;
+	  std::cout << " CCSD total energy / hartree       =" << std::setw(26) <<  std::right << energy + hf_energy << std::endl;
 
   }
 
-  std::cout << std::resetiosflags << "debug ccsd 2\n";
+  //std::cout << std::resetiosflags << "debug ccsd 2\n";
   for(int i=0; i<ndiis; i++) {
     Tensor<T>::deallocate(*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
@@ -601,15 +566,11 @@ int main(int argc, char *argv[]) {
   double zshiftl = 0.0;
   int ndiis = 5;
 
-
   auto distribution = Distribution_NW();
   auto pg = ProcGroup{MPI_COMM_WORLD};
   auto mgr = new MemoryManagerGA{pg};
 
   Tensor<T>::allocate(pg, &distribution, mgr, d_t1, d_t2, d_f1, d_v2);
-
-
-  std::cerr << "debug2" << '\n';
 
   //Tensor Map
   tensor_map(d_f1(), [&](auto& block) {
@@ -630,7 +591,7 @@ int main(int argc, char *argv[]) {
   });
 
   // tensor_print(d_f1);
-  std::cerr << "tensor map d_f1" << '\n';
+  //std::cerr << "tensor map d_f1" << '\n';
 
   tensor_map(d_v2(), [&](auto& block) {
     auto buf = block.buf();
@@ -651,31 +612,18 @@ int main(int argc, char *argv[]) {
     }
   });
 
-  std::cerr << "debug3" << '\n';
   ExecutionContext ec {pg, &distribution, mgr, Irrep{0}, false};
 
-  // Scheduler(pg, &distribution, &mgr, Irrep{0}, false)
   ec.scheduler()
     .output(d_t1, d_t2)
       (d_t1() = 0)
       (d_t2() = 0)
     .execute();
 
-  //end tensor map
-
-
-  std::vector<double> p_evl_sorted(F.diagonal().rows());
-
-  for (auto i=0;i<p_evl_sorted.size();i++)
-    p_evl_sorted[i] = F.diagonal()[i];
-
   ccsd_driver(ec, d_t1, d_t2, d_f1, d_v2,
               maxiter, thresh, zshiftl,
-              ndiis, p_evl_sorted);
+              ndiis,hf_energy);
 
-  std::cerr << "debug4" << '\n';
-  // pg,
-  //             &distribution, &mgr);
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
   fortran_finalize();
   TCE::finalize();

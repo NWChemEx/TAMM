@@ -229,7 +229,7 @@ double ccsd_driver(ExecutionContext& ec,
                    Tensor<T>& d_f1, Tensor<T>& d_v2,
                    int maxiter, double thresh,
                    double zshiftl,
-                   int ndiis) {
+                   int ndiis, std::vector<double> &p_evl_sorted) {
   std::cout.precision(15);
   // ,
   //   ProcGroup pg,
@@ -237,61 +237,63 @@ double ccsd_driver(ExecutionContext& ec,
   //   MemoryManager* mgr) {
   Irrep irrep{0};
   bool spin_restricted = false;
-  std::vector<double> p_evl_sorted;
 
- long ndim = d_f1.rank();
- long lo_offset[ndim], hi_offset[ndim];
- long int total_orbitals = 0;
- const auto &flindices = d_f1.flindices();
 
- for (long i = 0; i < ndim; i++) {
-  BlockIndex blo, bhi;
-  std::tie(blo, bhi) = tensor_index_range(flindices[i]);
-  lo_offset[i] = TCE::offset(blo);
-  hi_offset[i] = TCE::offset(bhi);
-  total_orbitals += hi_offset[i] - lo_offset[i];
- }
+// long ndim = d_f1.rank();
+// long lo_offset[ndim], hi_offset[ndim];
+// long int total_orbitals = 0;
+// const auto &flindices = d_f1.flindices();
 
-  //p_evl_sorted.reserve(total_orbitals);
-  // ec->sop_execute(d_f1, [&] (auto p, auto q, auto& val) {
-  //     if(p == q) {
-  //       p_evl_sorted.push_back(val);
-  //     }
-  //   });
-  // {
-  //   auto lambda = [&] (auto p, auto q, auto& val) {
-  //     if(p == q) {
-  //       p_evl_sorted.push_back(val);
-  //     }
-  //   };
-  //   Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
-  //   using LabeledTensorType = LabeledTensor<T>;
-  //   using Func = decltype(lambda);
-  //   sch.io(d_f1)
-  //       // .template sop<Func, LabeledTensorType, 2>(d_f1(), lambda)
-  //       .sop(d_f1(), lambda)
-  //       .execute();
-  // }
-{
-    p_evl_sorted.resize(total_orbitals);
-    auto lambda = [&] (const auto& blockid) {
-      if(blockid[0] == blockid[1]) {
-        auto block = d_f1.get(blockid);
-        auto dim = d_f1.block_dims(blockid)[0].value();
-        auto offset = d_f1.block_offset(blockid)[0].value();
-        size_t i=0;
-        for(auto p = offset; p < offset + dim; p++,i++) {
-          p_evl_sorted[p] = block.buf()[i*dim + i];
-        }
-      }
-    };
-    block_for(d_f1(), lambda);
-
+// for (long i = 0; i < ndim; i++) {
+//  BlockIndex blo, bhi;
+//  std::tie(blo, bhi) = tensor_index_range(flindices[i]);
+//  lo_offset[i] = TCE::offset(blo);
+//  hi_offset[i] = TCE::offset(bhi);
+//  total_orbitals += hi_offset[i] - lo_offset[i];
+// }
+//
+//  std::cout << "Total orbitals = " << total_orbitals << std::endl;
+//  std::vector<double> p_evl_sorted(total_orbitals);
+//  //p_evl_sorted.reserve(total_orbitals);
+//  // ec->sop_execute(d_f1, [&] (auto p, auto q, auto& val) {
+//  //     if(p == q) {
+//  //       p_evl_sorted.push_back(val);
+//  //     }
+//  //   });
+//  // {
+//  //   auto lambda = [&] (auto p, auto q, auto& val) {
+//  //     if(p == q) {
+//  //       p_evl_sorted.push_back(val);
+//  //     }
+//  //   };
+//  //   Scheduler sch{pg, distribution, mgr, irrep, spin_restricted};
+//  //   using LabeledTensorType = LabeledTensor<T>;
+//  //   using Func = decltype(lambda);
+//  //   sch.io(d_f1)
+//  //       // .template sop<Func, LabeledTensorType, 2>(d_f1(), lambda)
+//  //       .sop(d_f1(), lambda)
+//  //       .execute();
+//  // }
+//{
+//    //p_evl_sorted.resize(total_orbitals);
+//    auto lambda = [&] (const auto& blockid) {
+//      if(blockid[0] == blockid[1]) {
+//        auto block = d_f1.get(blockid);
+//        auto dim = d_f1.block_dims(blockid)[0].value();
+//        auto offset = d_f1.block_offset(blockid)[0].value();
+//        size_t i=0;
+//        for(auto p = offset; p < offset + dim; p++,i++) {
+//          p_evl_sorted[p] = block.buf()[i*dim + i];
+//        }
+//      }
+//    };
+//    block_for(d_f1(), lambda);
+// }
 
 std::cout << "p_evl_sorted:" << '\n';
   for(auto p = 0; p < p_evl_sorted.size(); p++)
       std::cout << p_evl_sorted[p] << '\n';
-}
+
 
 std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
 
@@ -619,9 +621,15 @@ int main(int argc, char *argv[]) {
 
   //end tensor map
 
+
+  std::vector<double> p_evl_sorted(F.diagonal().rows());
+
+  for (auto i=0;i<p_evl_sorted.size();i++)
+    p_evl_sorted[i] = F.diagonal()[i];
+
   ccsd_driver(ec, d_t1, d_t2, d_f1, d_v2,
               maxiter, thresh, zshiftl,
-              ndiis);
+              ndiis, p_evl_sorted);
 
   std::cerr << "debug4" << '\n';
   // pg,

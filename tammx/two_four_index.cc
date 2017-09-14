@@ -62,7 +62,9 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
   cout << F << endl;
 
   //Start 4-index transform
-  const auto n = nbasis(shells);
+  //const auto n = nbasis(shells);
+  const auto n = noa;
+  std::cout << "v2 vector = " << n << std::endl;
   Eigen::Tensor<double, 4, Eigen::RowMajor> V2_unfused(2 * n, 2 * n, 2 * n, 2 * n);
   V2_unfused.setZero();
 
@@ -429,6 +431,8 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
   // }
 
   libint2::finalize(); // done with libint
+
+  std::cout << "MAX COEFF A2 == " << A2.maximum() << std::endl;
 
   //return CCSD inputs
   return std::make_tuple(A2);

@@ -294,6 +294,12 @@ std::cout << "p_evl_sorted:" << '\n';
   for(auto p = 0; p < p_evl_sorted.size(); p++)
       std::cout << p_evl_sorted[p] << '\n';
 
+  std::cout << " CCSD iterations" << std::endl;
+  std::cout << std::string(66, '-') << std::endl;
+  std::cout <<
+  " Iter          Residuum       Correlation     Cpu    Wall    V2*C2"
+  << std::endl;
+  std::cout << std::string(66, '-') << std::endl;
 
 std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
 
@@ -317,14 +323,14 @@ std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
     return *resblock.buf();
   };
 
-  std::cout << "debug ccsd 1\n";
+  // std::cout << "debug ccsd 1\n";
 
   double corr = 0;
   double residual = 0.0;
   double energy = 0.0;
   for(int titer=0; titer<maxiter; titer+=ndiis) {
     for(int iter = titer; iter < std::min(titer+ndiis,maxiter); iter++) {
-      std::cerr<<"++++++++++++++++++++++++++++++++++++++++++++++"<<std::endl;
+      // std::cerr<<"++++++++++++++++++++++++++++++++++++++++++++++"<<std::endl;
       int off = iter - titer;
 
       Tensor<T> d_t1_local(d_t1.tindices(), 1, Irrep{0}, ec.is_spin_restricted());
@@ -366,12 +372,29 @@ std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
       double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
       residual = std::max(r1, r2);
       energy = get_scalar(d_e);
-      std::cout << "iteration:" << iter << '\n';
-      std::cout << "r1=" << r1 <<" r2="<<r2 << '\n';
+      // Print Iteration number
+      if(iter > 0) {
+    	  std::cout.width(6); std::cout << std::right << iter << "  ";
+      }
+      // if(iter > 0) std::cout << "    " << iter << "  ";
+      // std::cout << "iteration:" << iter << '\n';
+      // std::cout << "r1=" << r1 <<" r2="<<r2 << '\n';
       // tensor_print(*d_r1s[off]);
       // tensor_print(d_r1_residual);
-      std::cout << std::setprecision(15) << "residual:" << residual << '\n';
-      std::cout << std::setprecision(15) << "energy:" << energy << '\n';
+      // std::cout << std::setprecision(15) << "residual:" << residual << '\n';
+      if(iter > 0) std::cout << std::setprecision(13) << residual << "  ";
+      // std::cout << std::setprecision(15) << "energy:" << energy << '\n';
+      if(iter > 0) std::cout << std::fixed << std::setprecision(13) << energy << " ";
+
+      if(iter > 0) std::cout << std::string(4, ' ') << "0.0";
+      if(iter > 0) std::cout << std::string(5, ' ') << "0.0";
+      if(iter > 0) std::cout << std::string(5, ' ') << "0.0" << std::endl;
+
+      if(iter % 5 == 0 && iter > 0) {
+    	    std::cout << " MICROCYCLE DIIS UPDATE:";
+    	    std::cout.width(21); std::cout << std::right << iter;
+    	    std::cout.width(21); std::cout << std::right << "5" << std::endl;
+      }
       if(residual < thresh) {
         //nodezero_print();
         break;
@@ -391,8 +414,17 @@ std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
     // intermediates? possibly use variadic templates?
     diis<T>(sch, rs, ts, next_t);
   }
+  std::cout << std::string(66, '-') << std::endl;
+  if(residual < thresh) {
+	  std::cout << " Iterations converged" << std::endl;
+	  std::cout << " CCSD correlation energy / hartree =";
+	  std::cout.width(26);
+	  std::cout << std::right << std::fixed << std::setprecision(15) << energy << std::endl;
+	  std::cout << " CCSD total energy / hartree       =" << std::endl;
 
-  std::cout << "debug ccsd 2\n";
+  }
+
+  std::cout << std::resetiosflags << "debug ccsd 2\n";
   for(int i=0; i<ndiis; i++) {
     Tensor<T>::deallocate(*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }

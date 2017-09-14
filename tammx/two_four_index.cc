@@ -8,8 +8,7 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
   using libint2::Operator;
 
   // 2-index transform
-  const int num_electrons = ndocc;
-  cout << "\n\n** Number of electrons: " << num_electrons << endl;
+  cout << "\n\n** Number of electrons: " << ndocc << endl;
 
   cout << "\n\t C Matrix:\n";
   cout << C << endl;
@@ -20,8 +19,8 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
   const int C_rows = C.rows();
   const int C_cols = C.cols();
 
-  std::cout << "C Cols = " << C_cols << std::endl;
-  std::cout << "noa, num_electrons = " << noa << " : " << num_electrons << std::endl;
+  //std::cout << "C Cols = " << C_cols << std::endl;
+  std::cout << "noa, ndocc = " << noa << " : " << ndocc << std::endl;
 
   // replicate horizontally
   Matrix C_2N(C_rows, 2 * C_cols);
@@ -30,22 +29,22 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
   //cout << C_2N << endl;
 
   const int b_rows = noa;
-  Matrix C_noa = C_2N.block(0, 0,b_rows, num_electrons);
+  Matrix C_noa = C_2N.block(0, 0,b_rows, ndocc);
   cout << "\n\t C occupied alpha:\n";
   cout << C_noa << endl;
 
-  //Matrix C_nva = C_2N.block<b_rows, b_rows - num_electrons>(0, num_electrons);
-  Matrix C_nva = C_2N.block(0, num_electrons,b_rows, b_rows - num_electrons);
+  //Matrix C_nva = C_2N.block<b_rows, b_rows - ndocc>(0, ndocc);
+  Matrix C_nva = C_2N.block(0, ndocc,b_rows, b_rows - ndocc);
   cout << "\n\t C virtual alpha:\n";
   cout << C_nva << endl;
 
-  //Matrix C_nob = C_2N.block<b_rows, num_electrons>(0, C_cols);
-  Matrix C_nob = C_2N.block(0, C_cols,b_rows, num_electrons);
+  //Matrix C_nob = C_2N.block<b_rows, ndocc>(0, C_cols);
+  Matrix C_nob = C_2N.block(0, C_cols,b_rows, ndocc);
   cout << "\n\t C occupied beta:\n";
   cout << C_nob << endl;
 
-//  Matrix C_nvb = C_2N.block<b_rows, b_rows - num_electrons>(0, num_electrons + C_cols);
-  Matrix C_nvb = C_2N.block(0, num_electrons + C_cols,b_rows, b_rows - num_electrons);
+//  Matrix C_nvb = C_2N.block<b_rows, b_rows - ndocc>(0, ndocc + C_cols);
+  Matrix C_nvb = C_2N.block(0, ndocc + C_cols,b_rows, b_rows - ndocc);
   cout << "\n\t C virtual beta:\n";
   cout << C_nvb << endl;
 
@@ -83,19 +82,19 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
 
   auto shell2bf = map_shell_to_basis_function(shells);
 
-  const int n_beta = noa - num_electrons;
+  const int n_beta = noa - ndocc;
   // buf[0] points to the target shell set after every call  to engine.compute()
   const auto &buf = engine.results();
   Matrix spin_t = Matrix::Zero(1, 2 * n);
-  Matrix spin_1 = Matrix::Ones(1,num_electrons);
-  Matrix spin_2 = Matrix::Constant(1,num_electrons,2);
+  Matrix spin_1 = Matrix::Ones(1,ndocc);
+  Matrix spin_2 = Matrix::Constant(1,ndocc,2);
   Matrix spin_3 = Matrix::Constant(1,n_beta,1);
   Matrix spin_4 = Matrix::Constant(1,n_beta,2);
   //spin_t << 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 2, 2; - water
-  spin_t.block(0,0,1,num_electrons) = spin_1;
-  spin_t.block(0,num_electrons,1,num_electrons) = spin_2;
-  spin_t.block(0,2*num_electrons,1, n_beta) = spin_3;
-  spin_t.block(0,2*num_electrons+n_beta,1, n_beta) = spin_4;
+  spin_t.block(0,0,1,ndocc) = spin_1;
+  spin_t.block(0,ndocc,1,ndocc) = spin_2;
+  spin_t.block(0,2*ndocc,1, n_beta) = spin_3;
+  spin_t.block(0,2*ndocc+n_beta,1, n_beta) = spin_4;
 
   cout << "\n\t spin_t\n";
   cout << spin_t << endl;
@@ -432,7 +431,7 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
 
   libint2::finalize(); // done with libint
 
-  std::cout << "MAX COEFF A2 == " << A2.maximum() << std::endl;
+  //std::cout << "MAX COEFF A2 == " << A2.maximum() << std::endl;
 
   //return CCSD inputs
   return std::make_tuple(A2);

@@ -138,9 +138,9 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   const std::vector<Atom> atoms = read_input_xyz(is);
 
 
-  std::cout << "Print geometries in bohr units \n";
-  for (auto i = 0; i < atoms.size(); ++i)
-    std::cout << atoms[i].atomic_number << "  " << atoms[i].x<< "  " << atoms[i].y<< "  " << atoms[i].z << std::endl;
+//  std::cout << "Geometries in bohr units \n";
+//  for (auto i = 0; i < atoms.size(); ++i)
+//    std::cout << atoms[i].atomic_number << "  " << atoms[i].x<< "  " << atoms[i].y<< "  " << atoms[i].z << std::endl;
   // count the number of electrons
   auto nelectron = 0;
   for (auto i = 0; i < atoms.size(); ++i)
@@ -159,8 +159,6 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
       enuc += atoms[i].atomic_number * atoms[j].atomic_number / r;
     }
   cout << "\tNuclear repulsion energy = " << enuc << endl;
-
-
 
   // initializes the Libint integrals library ... now ready to compute
   libint2::initialize();
@@ -182,23 +180,23 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
   // compute overlap integrals
   auto S = compute_1body_ints(shells, Operator::overlap);
-  cout << "\n\tOverlap Integrals:\n";
-  cout << S << endl;
+//  cout << "\n\tOverlap Integrals:\n";
+//  cout << S << endl;
 
   // compute kinetic-energy integrals
   auto T = compute_1body_ints(shells, Operator::kinetic);
-  cout << "\n\tKinetic-Energy Integrals:\n";
-  cout << T << endl;
+//  cout << "\n\tKinetic-Energy Integrals:\n";
+//  cout << T << endl;
 
   // compute nuclear-attraction integrals
   Matrix V = compute_1body_ints(shells, Operator::nuclear, atoms);
-  cout << "\n\tNuclear Attraction Integrals:\n";
-  cout << V << endl;
+//  cout << "\n\tNuclear Attraction Integrals:\n";
+//  cout << V << endl;
 
   // Core Hamiltonian = T + V
   Matrix H = T + V;
-  cout << "\n\tCore Hamiltonian:\n";
-  cout << H << endl;
+//  cout << "\n\tCore Hamiltonian:\n";
+//  cout << H << endl;
 
   // T and V no longer needed, free up the memory
   T.resize(0, 0);
@@ -218,8 +216,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(H, S);
     auto eps = gen_eig_solver.eigenvalues();
     auto C = gen_eig_solver.eigenvectors();
-    cout << "\n\tInitial C Matrix:\n";
-    cout << C << endl;
+//    cout << "\n\tInitial C Matrix:\n";
+//    cout << C << endl;
 
     // compute density, D = C(occ) . C(occ)T
     auto C_occ = C.leftCols(ndocc);
@@ -228,8 +226,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     D = compute_soad(atoms);
   }
 
-  cout << "\n\tInitial Density Matrix:\n";
-  cout << D << endl;
+//  cout << "\n\tInitial Density Matrix:\n";
+//  cout << D << endl;
 
   /*** =========================== ***/
   /*** main iterative loop         ***/
@@ -259,10 +257,10 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     F = H;
     F += compute_2body_fock(shells, D);
 
-    if (iter == 1) {
-      cout << "\n\tFock Matrix:\n";
-      cout << F << endl;
-    }
+//    if (iter == 1) {
+//      cout << "\n\tFock Matrix:\n";
+//      cout << F << endl;
+//    }
 
     // solve F C = e S C
     Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);

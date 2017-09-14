@@ -127,7 +127,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   auto is = std::ifstream(filename);
   const std::vector<Atom> atoms = read_input_xyz(is);
 
-  std::cout.precision(15);
+
   std::cout << "Print geometries in bohr units \n";
   for (auto i = 0; i < atoms.size(); ++i)
     std::cout << atoms[i].atomic_number << "  " << atoms[i].x<< "  " << atoms[i].y<< "  " << atoms[i].z << std::endl;
@@ -247,7 +247,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     //auto F = H;
     //F += compute_2body_fock_simple(shells, D);
     F = H;
-    F += compute_2body_fock_simple(shells, D);
+    F += compute_2body_fock(shells, D);
 
     if (iter == 1) {
       cout << "\n\tFock Matrix:\n";
@@ -286,6 +286,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
   } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)) && (iter < maxiter));
 
+  std::cout.precision(15);
   printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
 
   cout << "\n** Eigen Values:\n";

@@ -34,7 +34,7 @@ class TCE {
     sizes_ = sizes;
     noa_ = noa;
     noab_ = noab;
-    nva = nva_;
+    nva_ = nva;
     nvab_ = nvab;
     spin_restricted_ = spin_restricted;
     irrep_f_ = irrep_f;

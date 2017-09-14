@@ -499,7 +499,9 @@ void fortran_finalize() {
 }
 
 
-extern std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, const Matrix &C, Matrix &F, libint2::BasisSet &shells);
+extern std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, const int freeze_core,
+                                                     const int freeze_virtual, const Matrix &C, Matrix &F,
+                                                     libint2::BasisSet &shells);
 
 int main(int argc, char *argv[]) {
 
@@ -509,14 +511,20 @@ int main(int argc, char *argv[]) {
   Matrix C;
   Matrix F;
   Tensor4D V2;
-  size_t ndocc{0};
+  int ov_alpha{0};
+  auto freeze_core = 0;
+  auto freeze_virtual = 0;
+
   double hf_energy{0.0};
   libint2::BasisSet shells;
-  size_t noa_g{0};
-  std::tie(ndocc,noa_g, hf_energy, shells) = hartree_fock(filename,C,F);
-  std::tie(V2) = two_four_index_transform(ndocc,noa_g, C, F, shells);
+  size_t nao{0};
+  std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename,C,F);
+  std::tie(V2) = two_four_index_transform(ov_alpha, nao, freeze_core, freeze_virtual, C, F, shells);
 
-  std::vector<size_t> sizes = {ndocc,ndocc, noa_g-ndocc,noa_g-ndocc};
+  int ov_beta{nao-ov_alpha};
+
+  std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
+  std::vector<size_t> sizes = {ov_alpha-freeze_core, ov_alpha-freeze_core, ov_beta-freeze_virtual, ov_beta-freeze_virtual};
 
   std::cout << "sizes vector -- \n";
   for(auto x: sizes) std::cout << x << ", ";

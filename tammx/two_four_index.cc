@@ -1,6 +1,6 @@
 #include "hartree_fock.h"
 
-std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, const Matrix &C, Matrix &F, libint2::BasisSet &shells){
+std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int nao, const int freeze_core, const int freeze_virtual, const Matrix &C, Matrix &F, libint2::BasisSet &shells){
 
   using libint2::Atom;
   using libint2::Shell;
@@ -17,10 +17,16 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
 //  cout << F << endl;
 
   const int C_rows = C.rows();
+  assert(C_rows == nao);
+
   const int C_cols = C.cols();
+  assert(C_cols == nao);
 
   //std::cout << "C Cols = " << C_cols << std::endl;
-  std::cout << "noa, ndocc = " << noa << " : " << ndocc << std::endl;
+  std::cout << "nao, ndocc = " << nao << " : " << ndocc << std::endl;
+
+  auto ov_alpha_freeze = ndocc - freeze_core;
+  auto ov_beta_freeze = nao - ndocc - freeze_virtual;
 
   // replicate horizontally
   Matrix C_2N(C_rows, 2 * C_cols);
@@ -28,28 +34,28 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
   //cout << "\n\t C_2N Matrix:\n";
   //cout << C_2N << endl;
 
-  const int b_rows = noa;
-  Matrix C_noa = C_2N.block(0, 0,b_rows, ndocc);
+  Matrix C_noa = C_2N.block(0, freeze_core, nao, ov_alpha_freeze);
 //  cout << "\n\t C occupied alpha:\n";
 //  cout << C_noa << endl;
 
-  //Matrix C_nva = C_2N.block<b_rows, b_rows - ndocc>(0, ndocc);
-  Matrix C_nva = C_2N.block(0, ndocc,b_rows, b_rows - ndocc);
+  //Matrix C_nva = C_2N.block<nao, nao - ndocc>(0, ndocc);
+  Matrix C_nva = C_2N.block(0, ndocc,nao, ov_beta_freeze);
 //  cout << "\n\t C virtual alpha:\n";
 //  cout << C_nva << endl;
 
-  //Matrix C_nob = C_2N.block<b_rows, ndocc>(0, C_cols);
-  Matrix C_nob = C_2N.block(0, C_cols,b_rows, ndocc);
+  //Matrix C_nob = C_2N.block<nao, ndocc>(0, C_cols);
+  Matrix C_nob = C_2N.block(0, C_cols + freeze_core, nao, ov_alpha_freeze);
 //  cout << "\n\t C occupied beta:\n";
 //  cout << C_nob << endl;
 
-//  Matrix C_nvb = C_2N.block<b_rows, b_rows - ndocc>(0, ndocc + C_cols);
-  Matrix C_nvb = C_2N.block(0, ndocc + C_cols,b_rows, b_rows - ndocc);
+//  Matrix C_nvb = C_2N.block<nao, nao - ndocc>(0, ndocc + C_cols);
+  Matrix C_nvb = C_2N.block(0, ndocc + C_cols, nao, ov_beta_freeze);
 //  cout << "\n\t C virtual beta:\n";
 //  cout << C_nvb << endl;
 
   // For now C_noa = C_nob and C_nva = C_nvb
-  Matrix CTiled(C_rows, 2 * C_cols);
+  //Matrix CTiled(C_rows, 2 * C_cols);
+  Matrix CTiled(nao, 2 * nao - 2 * freeze_core - 2 * freeze_virtual);
   CTiled << C_noa, C_nob, C_nva, C_nvb;
 
 //  cout << "\n\t CTiled Matrix = [C_noa C_nob C_nva C_nvb]:\n";
@@ -60,13 +66,13 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
 //  cout << "\n\t F_MO Matrix:\n";
 //  cout << F << endl;
 
-  //Start 4-index transform
+    //Start 4-index transform
   //const auto n = nbasis(shells);
-  const auto n = noa;
-  Eigen::Tensor<double, 4, Eigen::RowMajor> V2_unfused(2 * n, 2 * n, 2 * n, 2 * n);
+  const auto v2dim =  2 * nao - 2 * freeze_core - 2 * freeze_virtual;
+  Eigen::Tensor<double, 4, Eigen::RowMajor> V2_unfused(v2dim,v2dim,v2dim,v2dim);
   V2_unfused.setZero();
 
-  Eigen::Tensor<double, 4, Eigen::RowMajor> V2_fully_fused(2 * n, 2 * n, 2 * n, 2 * n);
+  Eigen::Tensor<double, 4, Eigen::RowMajor> V2_fully_fused(v2dim,v2dim,v2dim,v2dim);
   V2_fully_fused.setZero();
 
   const bool unfused_4index = true;
@@ -81,29 +87,29 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
 
   auto shell2bf = map_shell_to_basis_function(shells);
 
-  const int n_beta = noa - ndocc;
+  const int n_alpha = ov_alpha_freeze;
+  const int n_beta = ov_beta_freeze;
   // buf[0] points to the target shell set after every call  to engine.compute()
   const auto &buf = engine.results();
-  Matrix spin_t = Matrix::Zero(1, 2 * n);
-  Matrix spin_1 = Matrix::Ones(1,ndocc);
-  Matrix spin_2 = Matrix::Constant(1,ndocc,2);
+  Matrix spin_t = Matrix::Zero(1, 2 * nao - 2 * freeze_core - 2 * freeze_virtual);
+  Matrix spin_1 = Matrix::Ones(1,n_alpha);
+  Matrix spin_2 = Matrix::Constant(1,n_alpha,2);
   Matrix spin_3 = Matrix::Constant(1,n_beta,1);
   Matrix spin_4 = Matrix::Constant(1,n_beta,2);
   //spin_t << 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 2, 2; - water
-  spin_t.block(0,0,1,ndocc) = spin_1;
-  spin_t.block(0,ndocc,1,ndocc) = spin_2;
-  spin_t.block(0,2*ndocc,1, n_beta) = spin_3;
-  spin_t.block(0,2*ndocc+n_beta,1, n_beta) = spin_4;
+  spin_t.block(0,0,1,n_alpha) = spin_1;
+  spin_t.block(0,n_alpha,1,n_alpha) = spin_2;
+  spin_t.block(0,2*n_alpha,1, n_beta) = spin_3;
+  spin_t.block(0,2*n_alpha+n_beta,1, n_beta) = spin_4;
 
   cout << "\n\t spin_t\n";
   cout << spin_t << endl;
 
-
   if(unfused_4index)  {
-    Eigen::Tensor<double, 4, Eigen::RowMajor> I0(2 * n, 2 * n, 2 * n, 2 * n);
-    Eigen::Tensor<double, 4, Eigen::RowMajor> I1(2 * n, 2 * n, 2 * n, 2 * n);
-    Eigen::Tensor<double, 4, Eigen::RowMajor> I2(2 * n, 2 * n, 2 * n, 2 * n);
-    Eigen::Tensor<double, 4, Eigen::RowMajor> I3(2 * n, 2 * n, 2 * n, 2 * n);
+    Eigen::Tensor<double, 4, Eigen::RowMajor> I0(v2dim,v2dim,v2dim,v2dim);
+    Eigen::Tensor<double, 4, Eigen::RowMajor> I1(v2dim,v2dim,v2dim,v2dim);
+    Eigen::Tensor<double, 4, Eigen::RowMajor> I2(v2dim,v2dim,v2dim,v2dim);
+    Eigen::Tensor<double, 4, Eigen::RowMajor> I3(v2dim,v2dim,v2dim,v2dim);
     I0.setZero();
     I1.setZero();
     I2.setZero();
@@ -153,7 +159,7 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
     }
 
     //I1(p, bf2, bf3, bf4) += CTiled(bf1, p) * I0(bf1, bf2, bf3, bf4);
-    for (auto p = 0; p < 2 * n; p++) {
+    for (auto p = 0; p < v2dim; p++) {
       for (auto s1 = 0; s1 != shells.size(); ++s1) {
         auto bf1_first = shell2bf[s1]; // first basis function in this shell
         auto n1 = shells[s1].size();
@@ -192,8 +198,8 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
     }
 
     //I2(p, r, bf3, bf4) += CTiled(bf2, r) * I1(p, bf2, bf3, bf4);
-    for (auto p = 0; p < 2 * n; p++) {
-      for (auto r = 0; r < 2 * n; r++) {
+    for (auto p = 0; p < v2dim; p++) {
+      for (auto r = 0; r < v2dim; r++) {
         if(spin_t(p)  != spin_t(r)) {
           continue;
         }
@@ -228,12 +234,12 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
     }
 
     //I3(p, r, q, bf4) += CTiled(bf3, q) * I1(p, r, bf3, bf4);
-    for (auto p = 0; p < 2 * n; p++) {
-      for (auto r = 0; r < 2 * n; r++) {
+    for (auto p = 0; p < v2dim; p++) {
+      for (auto r = 0; r < v2dim; r++) {
         if(spin_t(p)  != spin_t(r)) {
           continue;
         }
-        for (auto q = 0; q < 2 * n; q++) {
+        for (auto q = 0; q < v2dim; q++) {
           // loop over shell pairs of the density matrix, {s3,s4}
           // again symmetry is not used for simplicity
           for (auto s3 = 0; s3 != shells.size(); ++s3) {
@@ -258,13 +264,13 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
     }
 
     //V(p, r, q, s) += CTiled(bf4, s) * I1(p, r, q, bf4);
-    for (auto p = 0; p < 2 * n; p++) {
-      for (auto r = 0; r < 2 * n; r++) {
+    for (auto p = 0; p < v2dim; p++) {
+      for (auto r = 0; r < v2dim; r++) {
         if(spin_t(p)  != spin_t(r)) {
           continue;
         }
-        for (auto q = 0; q < 2 * n; q++) {
-          for (auto s = 0; s < 2 * n; s++) {
+        for (auto q = 0; q < v2dim; q++) {
+          for (auto s = 0; s < v2dim; s++) {
             if (spin_t(q) != spin_t(s)) {
               continue;
             }
@@ -285,13 +291,13 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
     }
   }
   if(fully_fused_4index) {
-    for (auto p = 0; p < 2 * n; p++) {
-      for (auto r = 0; r < 2 * n; r++) {
+    for (auto p = 0; p < v2dim; p++) {
+      for (auto r = 0; r < v2dim; r++) {
 
         if (spin_t(p) == spin_t(r)) {
 
-          for (auto q = 0; q < 2 * n; q++) {
-            for (auto s = 0; s < 2 * n; s++) {
+          for (auto q = 0; q < v2dim; q++) {
+            for (auto s = 0; s < v2dim; s++) {
 
               if (spin_t(q) == spin_t(s)) {
 
@@ -361,10 +367,10 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
   //correctness check
   if(fully_fused_4index && unfused_4index) {
     bool error = false;
-    for (auto p = 0; p < 2 * n; p++) {
-      for (auto r = 0; r < 2 * n; r++) {
-        for (auto q = 0; q < 2 * n; q++) {
-          for (auto s = 0; s < 2 * n; s++) {
+    for (auto p = 0; p < v2dim; p++) {
+      for (auto r = 0; r < v2dim; r++) {
+        for (auto q = 0; q < v2dim; q++) {
+          for (auto s = 0; s < v2dim; s++) {
             const double threshold = 1e-12;
             if(std::abs(V2_fully_fused(p, r, q, s) - V2_unfused(p, r, q, s)) > threshold) {
               std::cout<<"4index error. "<<p<<" "<<r<<" "<<q<<" "<<s<<" : "
@@ -389,26 +395,26 @@ std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, co
 //  Eigen::Tensor<double, 4, Eigen::RowMajor> V_psqr = V_prqs.shuffle(psqr_shuffle);
   // Eigen::Tensor<double, 4, Eigen::RowMajor> V_pqrs = V_prqs - V_psqr;
 
-  Eigen::Tensor<double, 4, Eigen::RowMajor> A2(2 * n, 2 * n, 2 * n, 2 * n);
+  Eigen::Tensor<double, 4, Eigen::RowMajor> A2(v2dim,v2dim,v2dim,v2dim);
 
   //cout << "\n\t V_pqrs tensor\n";
 
 
   if(unfused_4index) {
-    for (auto p = 0; p < 2 * n; p++) {
-      for (auto q = 0; q < 2 * n; q++) {
-        for (auto r = 0; r < 2 * n; r++) {
-          for (auto s = 0; s < 2 * n; s++) {
+    for (auto p = 0; p < v2dim; p++) {
+      for (auto q = 0; q < v2dim; q++) {
+        for (auto r = 0; r < v2dim; r++) {
+          for (auto s = 0; s < v2dim; s++) {
             A2(p, q, r, s)= V2_unfused(p,r,q,s) - V2_unfused(p,s,q,r);
           }
         }
       }
     }
   } else if(fully_fused_4index) {
-    for (auto p = 0; p < 2 * n; p++) {
-      for (auto q = 0; q < 2 * n; q++) {
-        for (auto r = 0; r < 2 * n; r++) {
-          for (auto s = 0; s < 2 * n; s++) {
+    for (auto p = 0; p < v2dim; p++) {
+      for (auto q = 0; q < v2dim; q++) {
+        for (auto r = 0; r < v2dim; r++) {
+          for (auto s = 0; s < v2dim; s++) {
             A2(p, q, r, s)= V2_fully_fused(p,r,q,s) - V2_fully_fused(p,s,q,r);
           }
         }

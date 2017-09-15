@@ -471,7 +471,7 @@ int find_first_index(const TensorVec<T> lst, size_t lo, size_t hi, T value) {
    @note Find last index of value in lst[lo,hi). Index hi is exclusive.
  */
 template<typename T>
-int find_last_index(const TensorVec<T> lst, size_t lo, size_t hi, T value) {
+int find_last_index(const TensorVec<T> lst, int lo, int hi, T value) {
   int i = hi - 1;
   for( ;i >= lo; i--) {
     if (lst[i] == value) {

@@ -147,6 +147,7 @@ class Distribution_NW : public Distribution {
     last = pdt.get_end();
     TCE::Int offset = 0;
     int addr = 1;
+
     for(auto itr = pdt; itr != last; ++itr) {
       auto blockid = *itr;
       if(tensor_structure_->nonzero(blockid)) {
@@ -157,18 +158,22 @@ class Distribution_NW : public Distribution {
         addr += 1;
       }
     }
+
     EXPECTS(offset > 0);
     total_size_ = offset;
 
     auto per_proc_size = offset / nproc.value();
-    auto itr = &hash_[length+1];
-    auto itr_last = &hash_[2*length+1];
+    auto itr = hash_.begin() + length + 1;
+    auto itr_last = hash_.end();
+
     for(int i=0; i<nproc.value(); i++) {
       proc_offsets_.push_back(Offset{*itr});
       itr = std::lower_bound(itr, itr_last, i*per_proc_size);
     }
+
     EXPECTS(proc_offsets_.size() == nproc.value());
     proc_offsets_.push_back(total_size_);
+
   }
 
   const std::vector<TCE::Int>& hash() const {

@@ -76,18 +76,22 @@ class BoundVec : public std::array<T, maxsize> {
   }
 
   void push_back(const T& value) {
+    EXPECTS(size_ < maxsize);
     this->at(size_++) = value;
   }
 
   void push_back(T&& value ) {
+    EXPECTS(size_ < maxsize);
     this->at(size_++) = value;
   }
 
   void pop_back() {
+    EXPECTS(size_ > 0);
     size_ -= 1;
   }
 
   void resize(size_type size) {
+    EXPECTS(size >= 0);
     size_ = size;
   }
   

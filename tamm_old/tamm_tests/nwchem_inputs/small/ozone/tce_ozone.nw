@@ -17,12 +17,12 @@ scf
 thresh 1.0e-10
 tol2e 1.0e-10
 singlet
-rhf
+uhf
 end
  
 tce
 ccsd
-tilesize 20
+#tilesize 20
 thresh 1.0d-10
 end
  

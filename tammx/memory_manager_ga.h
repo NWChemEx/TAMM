@@ -140,7 +140,7 @@ class MemoryManagerGA : public MemoryManager {
             allocation_status_ == AllocationStatus::attached);
     Proc proc{pg_.rank()};
     int64_t nels{1};
-    int iproc{proc.value()};
+    int64_t iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nels-1, ld = -1;
     void* buf;
@@ -153,7 +153,7 @@ class MemoryManagerGA : public MemoryManager {
             allocation_status_ == AllocationStatus::attached);
     Proc proc{pg_.rank()};
     int64_t nels{1};
-    int iproc{proc.value()};
+    int64_t iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nels-1, ld = -1;
     void* buf;
@@ -164,7 +164,7 @@ class MemoryManagerGA : public MemoryManager {
   void get(Proc proc, Offset off, Size nelements, void* buf) {
     EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
-    int iproc{proc.value()};
+    int64_t iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     NGA_Get64(ga_, &lo, &hi, buf, &ld);
@@ -173,7 +173,7 @@ class MemoryManagerGA : public MemoryManager {
   void put(Proc proc, Offset off, Size nelements, const void* buf) {
     EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
-    int iproc{proc.value()};
+    int64_t iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     NGA_Put64(ga_, &lo, &hi, const_cast<void*>(buf), &ld);
@@ -182,7 +182,7 @@ class MemoryManagerGA : public MemoryManager {
   void add(Proc proc, Offset off, Size nelements, const void* buf) {
     EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
-    int iproc{proc.value()};
+    int64_t iproc{proc.value()};
     int64_t ioffset{map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     void *alpha;

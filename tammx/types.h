@@ -13,18 +13,21 @@ namespace tammx {
 
 //using Fint = int64_t;
 
+using TAMMX_SIZE = int64_t;
+using TAMMX_INT32 = int64_t;
+
 struct BlockDimSpace;
-using BlockIndex = StrongNum<BlockDimSpace, int64_t>;
+using BlockIndex = StrongNum<BlockDimSpace, TAMMX_SIZE>;
 using TensorRank = size_t;
 struct IrrepSpace;
-using Irrep = StrongNum<IrrepSpace, int64_t>;
+using Irrep = StrongNum<IrrepSpace, TAMMX_INT32>;
 struct SpinSpace;
-using Spin = StrongNum<SpinSpace, int64_t>;
-using Sign = int64_t;
+using Spin = StrongNum<SpinSpace, TAMMX_INT32>;
+using Sign = TAMMX_INT32;
 struct ProcSpace;
-using Proc = StrongNum<ProcSpace, int64_t>;
+using Proc = StrongNum<ProcSpace, TAMMX_INT32>;
 struct OffsetSpace;
-using Offset = StrongNum<OffsetSpace, int64_t>;
+using Offset = StrongNum<OffsetSpace, TAMMX_SIZE>;
 using Size = Offset;
 
 
@@ -156,7 +159,7 @@ using TensorVec = BoundVec<T, maxrank>;
 
 using BlockDimVec = TensorVec<BlockIndex>;
 using DimTypeVec = TensorVec<DimType>;
-using PermVec = TensorVec<int64_t>;
+using PermVec = TensorVec<TAMMX_INT32>;
 
 } //namespace tammx
 

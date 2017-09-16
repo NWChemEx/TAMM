@@ -55,11 +55,11 @@ class MemoryManagerGA : public MemoryManager {
     return pg_;
   }
 
-  void print() const {
+  void print() const override {
     GA_Print(ga());
   }
   
-  void alloc(ElementType eltype, Size nelements) {
+  void alloc(ElementType eltype, Size nelements) override {
     EXPECTS(allocation_status_ == AllocationStatus::invalid);
     EXPECTS(nelements >= 0);
     EXPECTS(eltype != ElementType::invalid);
@@ -124,7 +124,7 @@ class MemoryManagerGA : public MemoryManager {
     allocation_status_ = AllocationStatus::created;
   }
 
-  void dealloc() {
+  void dealloc() override {
     EXPECTS(allocation_status_ == AllocationStatus::created);
     NGA_Destroy(ga_);
     NGA_Pgroup_destroy(ga_pg_);
@@ -135,7 +135,7 @@ class MemoryManagerGA : public MemoryManager {
     return new MemoryManagerGA(pg);
   }
     
-  void* access(Offset off) {
+  void* access(Offset off) override {
     EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     Proc proc{pg_.rank()};
@@ -148,7 +148,7 @@ class MemoryManagerGA : public MemoryManager {
     return buf;
   }
 
-  const void* access(Offset off) const {
+  const void* access(Offset off) const override {
     EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     Proc proc{pg_.rank()};
@@ -161,7 +161,7 @@ class MemoryManagerGA : public MemoryManager {
     return buf;
   }
 
-  void get(Proc proc, Offset off, Size nelements, void* buf) {
+  void get(Proc proc, Offset off, Size nelements, void* buf) override {
     EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     TAMMX_INT32 iproc{proc.value()};
@@ -170,7 +170,7 @@ class MemoryManagerGA : public MemoryManager {
     NGA_Get64(ga_, &lo, &hi, buf, &ld);
   }
   
-  void put(Proc proc, Offset off, Size nelements, const void* buf) {
+  void put(Proc proc, Offset off, Size nelements, const void* buf) override {
     EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     TAMMX_INT32 iproc{proc.value()};
@@ -179,7 +179,7 @@ class MemoryManagerGA : public MemoryManager {
     NGA_Put64(ga_, &lo, &hi, const_cast<void*>(buf), &ld);
   }
   
-  void add(Proc proc, Offset off, Size nelements, const void* buf) {
+  void add(Proc proc, Offset off, Size nelements, const void* buf) override {
     EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     TAMMX_INT32 iproc{proc.value()};

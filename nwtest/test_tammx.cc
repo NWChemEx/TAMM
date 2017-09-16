@@ -85,7 +85,7 @@ tammx_label_to_indices(const tammx::IndexLabelVec &labels) {
   }
   TAMMX_SIZE n = labels.size();
   //tammx::SymmGroup sg;
-  TAMMX_SIZE grp_size = 0;
+  size_t grp_size = 0;
   RangeType last_dt;
   for (const auto &dt: tdims) {
     if (grp_size == 0) {
@@ -203,7 +203,7 @@ test_symm_assign(tammx::ExecutionContext &ec,
   assert(factors.size() > 0);
   assert(factors.size() == alabels.size());
   bool restricted = ec.is_spin_restricted();
-  tammx::TensorRank nup{nupper_indices};
+  tammx::TensorRank nup{static_cast<TensorRank>(nupper_indices)};
   tammx::Tensor<double> tc{cindices, nup, tammx::Irrep{0}, restricted};
   tammx::Tensor<double> ta{aindices, nup, tammx::Irrep{0}, restricted};
   tammx::Tensor<double> tc2{aindices, nup, tammx::Irrep{0}, restricted};

@@ -62,7 +62,7 @@ class ProcGroup {
   Proc rank_translate(Proc proc, const ProcGroup& pg2) {
     EXPECTS(is_valid());
     MPI_Group group1, group2;
-    int ranks1{proc.value()};
+    int ranks1{static_cast<int>(proc.value())};
     int ranks2{MPI_PROC_NULL};
     MPI_Comm_group(comm_, &group1);
     MPI_Comm_group(pg2.comm_, &group2);

@@ -15,7 +15,7 @@ namespace tammx {
 
 struct BlockDimSpace;
 using BlockIndex = StrongNum<BlockDimSpace, int64_t>;
-using TensorRank = int;
+using TensorRank = size_t;
 struct IrrepSpace;
 using Irrep = StrongNum<IrrepSpace, int>;
 struct SpinSpace;

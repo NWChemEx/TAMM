@@ -30,7 +30,9 @@ class TensorBase {
             rank_ += sg.size();
           }
           flindices_ = flatten(indices_);
-          EXPECTS(std::abs(rank_ - 2*nupper_indices_) <= 1);
+          TensorRank echeck = rank_ > 2*nupper_indices_ ? (rank_ - 2*nupper_indices_) : (2*nupper_indices_-rank_);
+          //EXPECTS(std::abs(rank_ - 2*nupper_indices_) <= 1);
+          EXPECTS(echeck <= 1);
         }
 
   virtual ~TensorBase() {}
@@ -175,7 +177,9 @@ class TensorBase {
 
   // @todo @fixme Can this function be deleted?
   bool spin_restricted_nonzero(const BlockDimVec& blockid) const {
-    Spin spin {std::abs(rank_ - 2 * nupper_indices_)};
+    TensorRank echeck = rank_ > 2*nupper_indices_ ? (rank_ - 2*nupper_indices_) : (2*nupper_indices_-rank_);
+    Spin spin {echeck};
+    //Spin spin {std::abs(rank_ - 2 * nupper_indices_)};
     TensorRank rank_even = rank_ + (rank_ % 2);
     for(auto b : blockid) {
       spin += TCE::spin(b);

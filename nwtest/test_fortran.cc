@@ -224,10 +224,10 @@ fortran_mult(tammx::Tensor<double> &xtc,
 //
 
 
-void fortran_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
-                  const std::vector<int> &spins,
-                  const std::vector<int> &syms,
-                  const std::vector<size_t> &ranges) {
+void fortran_init(TAMMX_INT32 noa, TAMMX_INT32 nob, TAMMX_INT32 nva, TAMMX_INT32 nvb, bool intorb, bool restricted,
+                  const std::vector<TAMMX_INT32> &spins,
+                  const std::vector<TAMMX_INT32> &syms,
+                  const std::vector<TAMMX_INT32> &ranges) {
   Integer inoa = noa;
   Integer inob = nob;
   Integer inva = nva;
@@ -372,21 +372,21 @@ int run_fortran_tests(int argc, char *argv[]) {
   bool restricted = false;
 
 #if 0
-  int noa = 1;
-  int nob = 1;
-  int nva = 1;
-  int nvb = 1;
-  std::vector<int> spins = {1, 2, 1, 2};
-  std::vector<int> syms = {0, 0, 0, 0};
-  std::vector<int> ranges = {1, 1, 1, 1};
+  TAMMX_INT32 noa = 1;
+  TAMMX_INT32 nob = 1;
+  TAMMX_INT32 nva = 1;
+  TAMMX_INT32 nvb = 1;
+  std::vector<TAMMX_INT32> spins = {1, 2, 1, 2};
+  std::vector<TAMMX_INT32> syms = {0, 0, 0, 0};
+  std::vector<TAMMX_INT32> ranges = {1, 1, 1, 1};
 #else
-  int noa = 2;
-  int nob = 2;
-  int nva = 2;
-  int nvb = 2;
-  std::vector<int> spins = {1, 1, 2, 2, 1, 1, 2, 2};
-  std::vector<int> syms = {0, 0, 0, 0, 0, 0, 0, 0};
-  std::vector<int> ranges = {4, 4, 4, 4, 4, 4, 4, 4};
+  TAMMX_INT32 noa = 2;
+  TAMMX_INT32 nob = 2;
+  TAMMX_INT32 nva = 2;
+  TAMMX_INT32 nvb = 2;
+  std::vector<TAMMX_INT32> spins = {1, 1, 2, 2, 1, 1, 2, 2};
+  std::vector<TAMMX_INT32> syms = {0, 0, 0, 0, 0, 0, 0, 0};
+  std::vector<TAMMX_INT32> ranges = {4, 4, 4, 4, 4, 4, 4, 4};
 #endif
 
   MPI_Init(&argc, &argv);

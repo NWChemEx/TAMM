@@ -27,12 +27,12 @@ using namespace tammx;
 
 
   tammx::TensorVec <tammx::TensorSymmGroup>
-  tammx_tensor_dim_to_symm_groups(tammx::DimTypeVec dims, int nup);
+  tammx_tensor_dim_to_symm_groups(tammx::DimTypeVec dims, TAMMX_INT32 nup);
 
-  void tammx_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
-    const std::vector<int> &ispins,
-    const std::vector<int> &isyms,
-    const std::vector<int> &isizes);
+  void tammx_init(TAMMX_INT32 noa, TAMMX_INT32 nob, TAMMX_INT32 nva, TAMMX_INT32 nvb, bool intorb, bool restricted,
+    const std::vector<TAMMX_INT32> &ispins,
+    const std::vector<TAMMX_INT32> &isyms,
+    const std::vector<TAMMX_INT32> &isizes);
 
   void tammx_finalize();
 
@@ -53,7 +53,7 @@ using namespace tammx;
   test_symm_assign(tammx::ExecutionContext &ec,
                    const tammx::TensorVec <tammx::TensorSymmGroup> &cindices,
                    const tammx::TensorVec <tammx::TensorSymmGroup> &aindices,
-                   int nupper_indices,
+                   TAMMX_INT32 nupper_indices,
                    const tammx::IndexLabelVec &clabels,
                    double alpha,
                    const std::vector<double> &factors,
@@ -220,7 +220,7 @@ tammx_tensors_are_equal(tammx::ExecutionContext &ec,
   const double *abuf = reinterpret_cast<const T *>(ta.memory_manager()->access(tammx::Offset{0}));
   const double *bbuf = reinterpret_cast<const T *>(tb.memory_manager()->access(tammx::Offset{0}));
   bool ret = true;
-  for (int i = 0; i < asz; i++) {
+  for (TAMMX_INT32 i = 0; i < asz; i++) {
     // std::cout << abuf[i] << ": " << bbuf[i];
     if (std::abs(abuf[i] - bbuf[i]) > std::abs(threshold * abuf[i])) {
       // std::cout << "--\n";

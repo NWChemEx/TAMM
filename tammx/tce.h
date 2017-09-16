@@ -337,8 +337,12 @@ to_string(const RangeType& rt) {
       return "n";
       break;
     case DimType::c:
-      return static_cast<std::ostringstream*>(&(std::ostringstream()<<"c"<<rt.blo()<<".."<<rt.bhi()<<"]"))->str();
+      {
+      std::stringstream dtc;
+      dtc<<"c"<<rt.blo()<<".."<<rt.bhi()<<"]";
+      return dtc.str();
       break;
+      }
     default:
       UNREACHABLE();
   }

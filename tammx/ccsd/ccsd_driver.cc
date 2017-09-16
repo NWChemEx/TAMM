@@ -581,6 +581,16 @@ int main(int argc, char *argv[]) {
 
   Tensor<T>::allocate(pg, &distribution, mgr, d_t1, d_t2, d_f1, d_v2);
 
+  ExecutionContext ec {pg, &distribution, mgr, Irrep{0}, false};
+
+  ec.scheduler()
+      .output(d_t1, d_t2, d_f1, d_v2)
+      (d_t1() = 0)
+      (d_t2() = 0)
+      (d_f1() = 0)
+      (d_v2() = 0)
+    .execute();
+
   //Tensor Map
   tensor_map(d_f1(), [&](auto& block) {
     auto buf = block.buf();
@@ -620,14 +630,6 @@ int main(int argc, char *argv[]) {
       }
     }
   });
-
-  ExecutionContext ec {pg, &distribution, mgr, Irrep{0}, false};
-
-  ec.scheduler()
-    .output(d_t1, d_t2)
-      (d_t1() = 0)
-      (d_t2() = 0)
-    .execute();
 
   ccsd_driver(ec, d_t1, d_t2, d_f1, d_v2,
               maxiter, thresh, zshiftl,

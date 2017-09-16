@@ -33,7 +33,7 @@ class Scheduler {
   template<typename T>
   Tensor<T>* tensor(const IndexInfo& iinfo, Irrep irrep, bool spin_restricted) {
     auto indices = std::get<0>(iinfo);
-    auto nupper_indices = std::get<1>(iinfo);
+    TensorRank nupper_indices = std::get<1>(iinfo);
     Tensor<T>* ptensor = new Tensor<T>{indices, nupper_indices, irrep, spin_restricted};
     tensors_[ptensor] = TensorInfo{TensorStatus::invalid};
     intermediate_tensors_.push_back(ptensor);

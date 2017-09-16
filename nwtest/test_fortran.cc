@@ -227,7 +227,7 @@ fortran_mult(tammx::Tensor<double> &xtc,
 void fortran_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
                   const std::vector<int> &spins,
                   const std::vector<int> &syms,
-                  const std::vector<int> &ranges) {
+                  const std::vector<size_t> &ranges) {
   Integer inoa = noa;
   Integer inob = nob;
   Integer inva = nva;

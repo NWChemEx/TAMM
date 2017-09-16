@@ -499,8 +499,9 @@ void fortran_finalize() {
 }
 
 
-extern std::tuple<Tensor4D> two_four_index_transform(const int ndocc, const int noa, const int freeze_core,
-                                                     const int freeze_virtual, const Matrix &C, Matrix &F,
+extern std::tuple<Tensor4D> two_four_index_transform(const size_t ndocc, const size_t nao,
+                                                     const size_t freeze_core, const size_t,
+                                                     const Matrix &C, Matrix &F,
                                                      libint2::BasisSet &shells);
 
 int main(int argc, char *argv[]) {
@@ -511,9 +512,9 @@ int main(int argc, char *argv[]) {
   Matrix C;
   Matrix F;
   Tensor4D V2;
-  int ov_alpha{0};
-  auto freeze_core = 0;
-  auto freeze_virtual = 0;
+  size_t ov_alpha{0};
+  size_t freeze_core = 0;
+  size_t freeze_virtual = 0;
 
   double hf_energy{0.0};
   libint2::BasisSet shells;
@@ -521,7 +522,7 @@ int main(int argc, char *argv[]) {
   std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename,C,F);
   std::tie(V2) = two_four_index_transform(ov_alpha, nao, freeze_core, freeze_virtual, C, F, shells);
 
-  int ov_beta{nao-ov_alpha};
+  size_t ov_beta{nao-ov_alpha};
 
   std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
   std::vector<size_t> sizes = {ov_alpha-freeze_core, ov_alpha-freeze_core, ov_beta-freeze_virtual, ov_beta-freeze_virtual};

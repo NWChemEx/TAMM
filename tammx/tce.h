@@ -336,12 +336,13 @@ to_string(const RangeType& rt) {
     case DimType::n:
       return "n";
       break;
-    case DimType::c: {
+    case DimType::c:
+      {
       std::stringstream dtc;
-      dtc << "c" << rt.blo() << ".." << rt.bhi() << "]";
+      dtc<<"c"<<rt.blo()<<".."<<rt.bhi()<<"]";
       return dtc.str();
       break;
-    }
+      }
     default:
       UNREACHABLE();
   }

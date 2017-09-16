@@ -40,7 +40,7 @@ class Tensor : public TensorBase {
   Tensor(const IndexInfo& iinfo,
          Irrep irrep,
          bool spin_restricted)
-      : Tensor{std::get<0>(iinfo), std::get<1>(iinfo), irrep, spin_restricted} {}
+      : Tensor{std::get<0>(iinfo), static_cast<TensorRank>(std::get<1>(iinfo)), irrep, spin_restricted} {}
 
   Tensor(ProcGroup pg,
          const TensorVec<TensorSymmGroup> &indices,

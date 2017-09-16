@@ -23,7 +23,7 @@
 void tammx_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
                 const std::vector<int> &ispins,
                 const std::vector<int> &isyms,
-                const std::vector<int> &isizes) {
+                const std::vector<size_t> &isizes) {
   using Irrep = tammx::Irrep;
   using Spin = tammx::Spin;
   using BlockDim = tammx::BlockIndex;

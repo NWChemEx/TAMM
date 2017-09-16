@@ -18,7 +18,7 @@ class TCE {
  public:
   static void init(const std::vector<Spin>& spins,
                    const std::vector<Irrep>& spatials,
-                   const std::vector<int64_t>& sizes,
+                   const std::vector<TAMMX_SIZE>& sizes,
                    BlockIndex noa,
                    BlockIndex noab,
                    BlockIndex nva,
@@ -202,8 +202,8 @@ class TCE {
  private:
   static std::vector<Spin> spins_;
   static std::vector<Irrep> spatials_;
-  static std::vector<int64_t> sizes_;
-  static std::vector<int64_t> offsets_;
+  static std::vector<TAMMX_SIZE> sizes_;
+  static std::vector<TAMMX_SIZE> offsets_;
   static bool spin_restricted_;
   static Irrep irrep_f_, irrep_v_, irrep_t_;
   static Irrep irrep_x_, irrep_y_;

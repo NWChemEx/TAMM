@@ -556,15 +556,14 @@ int main(int argc, char *argv[]) {
   ExecutionContext ec {pg, &distribution, mgr, Irrep{0}, false};
 
   ec.scheduler()
-      .output(d_t1, d_t2, d_f1, d_v2)
+      .output(d_t1, d_t2)
       (d_t1() = 0)
       (d_t2() = 0)
-      (d_f1() = 0)
-      (d_v2() = 0)
     .execute();
 
   //Tensor Map
-  tensor_map(d_f1(), [&](auto& block) {
+  block_for(d_f1(), [&](auto& blockid) {
+      auto block = d_f1.alloc(blockid);
     auto buf = block.buf();
     const auto& block_offset = block.block_offset();
     const auto& block_dims = block.block_dims();
@@ -579,12 +578,11 @@ int main(int argc, char *argv[]) {
         buf[c] = F(i.value(), j.value());
       }
     }
+    d_f1.put(blockid, block);
   });
 
-  // tensor_print(d_f1);
-  //std::cerr << "tensor map d_f1" << '\n';
-
-  tensor_map(d_v2(), [&](auto& block) {
+  block_for(d_v2(), [&](auto& blockid) {
+      auto block = d_v2.alloc(blockid);
     auto buf = block.buf();
     const auto& block_offset = block.block_offset();
     const auto& block_dims = block.block_dims();
@@ -601,6 +599,7 @@ int main(int argc, char *argv[]) {
         }
       }
     }
+    d_v2.put(blockid, block);
   });
 
   ccsd_driver(ec, d_t1, d_t2, d_f1, d_v2,

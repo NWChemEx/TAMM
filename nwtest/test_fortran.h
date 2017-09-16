@@ -40,10 +40,10 @@ extern "C" {
   mult_fn ccsd_t1_2_;
 }
 
-void fortran_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
-                  const std::vector<int> &spins,
-                  const std::vector<int> &syms,
-                  const std::vector<int> &ranges);
+void fortran_init(TAMMX_INT32 noa, TAMMX_INT32 nob, TAMMX_INT32 nva, TAMMX_INT32 nvb, bool intorb, bool restricted,
+                  const std::vector<TAMMX_INT32> &spins,
+                  const std::vector<TAMMX_INT32> &syms,
+                  const std::vector<TAMMX_INT32> &ranges);
 
 void fortran_finalize();
 

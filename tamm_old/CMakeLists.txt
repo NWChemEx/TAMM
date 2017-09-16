@@ -210,8 +210,8 @@ add_library(tammx STATIC ${tammxSources})
 target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3 ${tamm_includes})
 target_link_libraries(tammx PRIVATE ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs})
 
-add_executable(tammx_main ${TAMMX_PROJECT_DIR}/tammx/tammx_main.cc)
-target_link_libraries(tammx_main tammx)
+#add_executable(tammx_main ${TAMMX_PROJECT_DIR}/tammx/tammx_main.cc)
+#target_link_libraries(tammx_main tammx)
 #set_property(TARGET tammx_main PROPERTY CXX_STANDARD 14)
 #set_property(TARGET tammx_main PROPERTY CXX_STANDARD_REQUIRED ON)
 

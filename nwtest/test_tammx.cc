@@ -20,10 +20,10 @@
 
 
 
-void tammx_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
-                const std::vector<int> &ispins,
-                const std::vector<int> &isyms,
-                const std::vector<size_t> &isizes) {
+void tammx_init(TAMMX_INT32 noa, TAMMX_INT32 nob, TAMMX_INT32 nva, TAMMX_INT32 nvb, bool intorb, bool restricted,
+                const std::vector<TAMMX_INT32> &ispins,
+                const std::vector<TAMMX_INT32> &isyms,
+                const std::vector<TAMMX_SIZE> &isizes) {
   using Irrep = tammx::Irrep;
   using Spin = tammx::Spin;
   using BlockDim = tammx::BlockIndex;
@@ -32,7 +32,7 @@ void tammx_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted
 
   std::vector <Spin> spins;
   std::vector <Irrep> irreps;
-  std::vector <size_t> sizes;
+  std::vector <TAMMX_SIZE> sizes;
 
   for (auto s : ispins) {
     spins.push_back(Spin{s});
@@ -41,7 +41,7 @@ void tammx_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted
     irreps.push_back(Irrep{r});
   }
   for (auto s : isizes) {
-    sizes.push_back(size_t{s});
+    sizes.push_back(TAMMX_SIZE{s});
   }
 
   tammx::TCE::init(spins, irreps, sizes,
@@ -83,9 +83,9 @@ tammx_label_to_indices(const tammx::IndexLabelVec &labels) {
   for (const auto &l : labels) {
     tdims.push_back(l.rt());
   }
-  size_t n = labels.size();
+  TAMMX_SIZE n = labels.size();
   //tammx::SymmGroup sg;
-  size_t grp_size = 0;
+  TAMMX_SIZE grp_size = 0;
   RangeType last_dt;
   for (const auto &dt: tdims) {
     if (grp_size == 0) {
@@ -135,10 +135,10 @@ template<typename T>
 void
 tammx_tensor_dump(const tammx::Tensor <T> &tensor, std::ostream &os) {
   const auto &buf = static_cast<const T *>(tensor.memory_manager()->access(tammx::Offset{0}));
-  size_t sz = tensor.memory_manager()->local_size_in_elements().value();
+  TAMMX_SIZE sz = tensor.memory_manager()->local_size_in_elements().value();
   os << "tensor size=" << sz << std::endl;
   os << "tensor size (from distribution)=" << tensor.distribution()->buf_size(Proc{0}) << std::endl;
-  for (size_t i = 0; i < sz; i++) {
+  for (TAMMX_SIZE i = 0; i < sz; i++) {
     os << buf[i] << " ";
   }
   os << std::endl;
@@ -174,14 +174,14 @@ test_initval_no_n(tammx::ExecutionContext &ec,
   const double threshold = 1e-14;
   const auto abuf = reinterpret_cast<double *>(xta.memory_manager()->access(tammx::Offset{0}));
   const auto cbuf = reinterpret_cast<double *>(xtc.memory_manager()->access(tammx::Offset{0}));
-  for (int i = 0; i < sz; i++) {
+  for (TAMMX_INT32 i = 0; i < sz; i++) {
     if (std::abs(abuf[i] - init_val) > threshold) {
       ret = false;
       break;
     }
   }
   if (ret == true) {
-    for (int i = 0; i < sz; i++) {
+    for (TAMMX_INT32 i = 0; i < sz; i++) {
       if (std::abs(cbuf[i] - init_val) > threshold) {
         return false;
       }
@@ -195,7 +195,7 @@ bool
 test_symm_assign(tammx::ExecutionContext &ec,
                  const tammx::TensorVec <tammx::TensorSymmGroup> &cindices,
                  const tammx::TensorVec <tammx::TensorSymmGroup> &aindices,
-                 int nupper_indices,
+                 TAMMX_INT32 nupper_indices,
                  const tammx::IndexLabelVec &clabels,
                  double alpha,
                  const std::vector<double> &factors,
@@ -222,7 +222,7 @@ test_symm_assign(tammx::ExecutionContext &ec,
   auto init_lambda = [](tammx::Block<double> &block) {
     double n = std::rand() % 100;
     auto dbuf = block.buf();
-    for (size_t i = 0; i < block.size(); i++) {
+    for (TAMMX_SIZE i = 0; i < block.size(); i++) {
       dbuf[i] = n + i;
       // std::cout<<"init_lambda. dbuf["<<i<<"]="<<dbuf[i]<<std::endl;
     }
@@ -242,7 +242,7 @@ test_symm_assign(tammx::ExecutionContext &ec,
     .execute();
   //std::cout<<">>>>>>>>>>>>>>>>>>>>>>>>>>>>"<<std::endl;
 
-  for (size_t i = 0; i < factors.size(); i++) {
+  for (TAMMX_SIZE i = 0; i < factors.size(); i++) {
     //std::cout<<"++++++++++++++++++++++++++"<<std::endl;
     ec.scheduler()
       .io(tc2, ta)
@@ -282,10 +282,10 @@ test_symm_assign(tammx::ExecutionContext &ec,
 
 
 tammx::TensorVec <tammx::TensorSymmGroup>
-tammx_tensor_dim_to_symm_groups(tammx::DimTypeVec dims, int nup) {
+tammx_tensor_dim_to_symm_groups(tammx::DimTypeVec dims, TAMMX_INT32 nup) {
   tammx::TensorVec <tammx::TensorSymmGroup> ret;
 
-  int nlo = dims.size() - nup;
+  TAMMX_INT32 nlo = dims.size() - nup;
   if (nup == 0) {
     //no-op
   } else if (nup == 1) {

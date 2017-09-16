@@ -236,9 +236,9 @@ tammx_range_to_tamm_rangetype(tammx::RangeType rt) {
 
 std::pair<tamm::Tensor *, Integer *>
 tammx_tensor_to_tamm_tensor(tammx::Tensor<double> &ttensor) {
-  int ndim = ttensor.rank();
-  int nupper = ttensor.nupper_indices();
-  int irrep = ttensor.irrep().value();
+  TAMMX_INT32 ndim = ttensor.rank();
+  TAMMX_INT32 nupper = ttensor.nupper_indices();
+  TAMMX_INT32 irrep = ttensor.irrep().value();
   tamm::DistType dist_type = tamm::dist_nw;
 
   std::vector<tamm::RangeType> rt;
@@ -246,17 +246,17 @@ tammx_tensor_to_tamm_tensor(tammx::Tensor<double> &ttensor) {
     rt.push_back(tammx_range_to_tamm_rangetype(id));
   }
 
-  auto ptensor = new tamm::Tensor{ndim, nupper, irrep, &rt[0], dist_type};
+  auto ptensor = new tamm::Tensor{static_cast<int>(ndim), static_cast<int>(nupper), static_cast<int>(irrep), &rt[0], dist_type};
   auto dst_nw = static_cast<const tammx::Distribution_NW *>(ttensor.distribution());
   auto map = dst_nw->hash();
   auto length = 2 * map[0] + 1;
   Integer *offset_map = new Integer[length];
-  for (size_t i = 0; i < length; i++) {
+  for (TAMMX_SIZE i = 0; i < length; i++) {
     offset_map[i] = map[i];
   }
 
   // std::cout << "tensor tammx -----------\n";
-  // for (size_t i = 0; i < length; i++) {
+  // for (TAMMX_SIZE i = 0; i < length; i++) {
   //   std::cout << map[i] << ",";
   // }
   // std::cout << std::endl;
@@ -2863,21 +2863,21 @@ int main(int argc, char *argv[]) {
   bool restricted = false;
 
 #if 0
-  int noa = 1;
-  int nob = 1;
-  int nva = 1;
-  int nvb = 1;
-  std::vector<int> spins = {1, 2, 1, 2};
-  std::vector<int> syms = {0, 0, 0, 0};
-  std::vector<int> ranges = {1, 1, 1, 1};
+  TAMMX_INT32 noa = 1;
+  TAMMX_INT32 nob = 1;
+  TAMMX_INT32 nva = 1;
+  TAMMX_INT32 nvb = 1;
+  std::vector<TAMMX_INT32> spins = {1, 2, 1, 2};
+  std::vector<TAMMX_INT32> syms = {0, 0, 0, 0};
+  std::vector<TAMMX_INT32> ranges = {1, 1, 1, 1};
 #else
-  int noa = 2;
-  int nob = 2;
-  int nva = 2;
-  int nvb = 2;
-  std::vector<int> spins = {1, 1, 2, 2, 1, 1, 2, 2};
-  std::vector<int> syms = {0, 0, 0, 0, 0, 0, 0, 0};
-  std::vector<size_t> ranges = {4, 4, 4, 4, 4, 4, 4, 4};
+  TAMMX_INT32 noa = 2;
+  TAMMX_INT32 nob = 2;
+  TAMMX_INT32 nva = 2;
+  TAMMX_INT32 nvb = 2;
+  std::vector<TAMMX_INT32> spins = {1, 1, 2, 2, 1, 1, 2, 2};
+  std::vector<TAMMX_INT32> syms = {0, 0, 0, 0, 0, 0, 0, 0};
+  std::vector<TAMMX_INT32> ranges = {4, 4, 4, 4, 4, 4, 4, 4};
 #endif
 
   MPI_Init(&argc, &argv);

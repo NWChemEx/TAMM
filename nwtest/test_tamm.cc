@@ -138,7 +138,7 @@ using namespace tammx;
 /*
  * @note should be called after fortran_init
  */
-void tamm_init(...) {
+void tamm_init() {
   f_calls_setvars_cxx_();
 }
 
@@ -2877,7 +2877,7 @@ int main(int argc, char *argv[]) {
   int nvb = 2;
   std::vector<int> spins = {1, 1, 2, 2, 1, 1, 2, 2};
   std::vector<int> syms = {0, 0, 0, 0, 0, 0, 0, 0};
-  std::vector<int> ranges = {4, 4, 4, 4, 4, 4, 4, 4};
+  std::vector<size_t> ranges = {4, 4, 4, 4, 4, 4, 4, 4};
 #endif
 
   MPI_Init(&argc, &argv);
@@ -2885,7 +2885,7 @@ int main(int argc, char *argv[]) {
   MA_init(MT_DBL, 8000000, 20000000);
 
   fortran_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
-  tamm_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
+  tamm_init() ;//(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
   tammx_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
 
   tammx::ProcGroup pg{tammx::ProcGroup{MPI_COMM_WORLD}.clone()};

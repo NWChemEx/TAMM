@@ -258,7 +258,7 @@ double ccsd_driver(ExecutionContext& ec,
         auto block = d_f1.get(blockid);
         auto dim = d_f1.block_dims(blockid)[0].value();
         auto offset = d_f1.block_offset(blockid)[0].value();
-        int64_t i=0;
+        TAMMX_SIZE i=0;
         for(auto p = offset; p < offset + dim; p++,i++) {
           p_evl_sorted[p] = block.buf()[i*dim + i];
         }
@@ -344,12 +344,6 @@ std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
       assert(fiter > 0);
     	  std::cout.width(6); std::cout << std::right << fiter << "  ";
 
-      // std::cout << "iteration:" << iter << '\n';
-      // std::cout << "r1=" << r1 <<" r2="<<r2 << '\n';
-      // tensor_print(*d_r1s[off]);
-      // tensor_print(d_r1_residual);
-      // std::cout << std::setprecision(15) << "residual:" << residual << '\n';
-
       std::cout << std::setprecision(13) << residual << "  ";
       std::cout << std::fixed << std::setprecision(13) << energy << " ";
       std::cout << std::string(4, ' ') << "0.0";
@@ -389,7 +383,6 @@ std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
 
   }
 
-  //std::cout << std::resetiosflags << "debug ccsd 2\n";
   for(int i=0; i<ndiis; i++) {
     Tensor<T>::deallocate(*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
@@ -411,20 +404,6 @@ BlockIndex operator "" _bd(unsigned long long int val) {
   return BlockIndex{strongnum_cast<BlockIndex::value_type>(val)};
 }
 
-//std::vector<Spin> spins = {1_sp, 2_sp, 1_sp, 2_sp};
-//std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir, 0_ir};
-//std::vector<int64_t> sizes = {5,5,2,2};
-//BlockIndex noa {1};
-//BlockIndex noab {2};
-//BlockIndex nva {1};
-//BlockIndex nvab {2};
-//bool spin_restricted = false;
-//Irrep irrep_f {0};
-//Irrep irrep_v {0};
-//Irrep irrep_t {0};
-//Irrep irrep_x {0};
-//Irrep irrep_y {0};
-
 
 //std::vector<Spin> spins = {1_sp, 1_sp, 1_sp,
 //                           2_sp, 2_sp, 2_sp,
@@ -438,7 +417,6 @@ std::vector<Spin> spins = {1_sp, 2_sp,
 //                               0_ir, 0_ir};
 std::vector<Irrep> spatials = {0_ir, 0_ir,
                                0_ir, 0_ir};
-//std::vector<int64_t> sizes = {3,1,1, 3,1,1, 1,1, 1,1};
 
 BlockIndex noa {1};
 BlockIndex noab {2};
@@ -452,12 +430,6 @@ Irrep irrep_x {0};
 Irrep irrep_y {0};
 
 
-// void fortran_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
-//                   const std::vector<int> &spins,
-//                   const std::vector<int> &syms,
-//                   const std::vector<int> &ranges);
-// void fortran_finalize();
-
 extern "C" {
 void init_fortran_vars_(Integer *noa1, Integer *nob1, Integer *nva1,
                         Integer *nvb1, logical *intorb1, logical *restricted1,
@@ -466,10 +438,10 @@ void finalize_fortran_vars_();
 }
 
 
-void fortran_init(int64_t noa, int64_t nob, int64_t nva, int64_t nvb, bool intorb, bool restricted,
-                  const std::vector<int64_t> &spins,
-                  const std::vector<int64_t> &syms,
-                  const std::vector<int64_t> &ranges) {
+void fortran_init(TAMMX_INT32 noa, TAMMX_INT32 nob, TAMMX_INT32 nva, TAMMX_INT32 nvb, bool intorb, bool restricted,
+                  const std::vector<TAMMX_INT32> &spins,
+                  const std::vector<TAMMX_INT32> &syms,
+                  const std::vector<TAMMX_INT32> &ranges) {
   Integer inoa = noa;
   Integer inob = nob;
   Integer inva = nva;
@@ -499,8 +471,8 @@ void fortran_finalize() {
 }
 
 
-extern std::tuple<Tensor4D> two_four_index_transform(const int64_t ndocc, const int64_t nao,
-                                                     const int64_t freeze_core, const int64_t,
+extern std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMMX_SIZE nao,
+                                                     const TAMMX_SIZE freeze_core, const TAMMX_SIZE,
                                                      const Matrix &C, Matrix &F,
                                                      libint2::BasisSet &shells);
 
@@ -512,20 +484,20 @@ int main(int argc, char *argv[]) {
   Matrix C;
   Matrix F;
   Tensor4D V2;
-  int64_t ov_alpha{0};
-  int64_t freeze_core = 0;
-  int64_t freeze_virtual = 0;
+  TAMMX_SIZE ov_alpha{0};
+  TAMMX_SIZE freeze_core = 0;
+  TAMMX_SIZE freeze_virtual = 0;
 
   double hf_energy{0.0};
   libint2::BasisSet shells;
-  int64_t nao{0};
+  TAMMX_SIZE nao{0};
   std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename,C,F);
   std::tie(V2) = two_four_index_transform(ov_alpha, nao, freeze_core, freeze_virtual, C, F, shells);
 
-  int64_t ov_beta{nao-ov_alpha};
+  TAMMX_SIZE ov_beta{nao-ov_alpha};
 
   std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
-  std::vector<int64_t> sizes = {ov_alpha-freeze_core, ov_alpha-freeze_core, ov_beta-freeze_virtual, ov_beta-freeze_virtual};
+  std::vector<TAMMX_SIZE> sizes = {ov_alpha-freeze_core, ov_alpha-freeze_core, ov_beta-freeze_virtual, ov_beta-freeze_virtual};
 
   std::cout << "sizes vector -- \n";
   for(auto x: sizes) std::cout << x << ", ";
@@ -548,7 +520,7 @@ int main(int argc, char *argv[]) {
             irrep_y);
   {
     bool intorb = false;
-    std::vector<int64_t> ispins, isyms, iranges;
+    std::vector<TAMMX_INT32> ispins, isyms, iranges;
     for(auto x: spins) {
       ispins.push_back(x.value());
     }
@@ -590,7 +562,7 @@ int main(int argc, char *argv[]) {
     // std::cout << "block dims:" << block_dims << '\n';
     // std::cout << "block size:" << block.size() << '\n';
     EXPECTS(block.tensor().rank() == 2);
-    int64_t c = 0;
+    TAMMX_INT32 c = 0;
     for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
       for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
            j++, c++) {
@@ -607,7 +579,7 @@ int main(int argc, char *argv[]) {
     const auto& block_offset = block.block_offset();
     const auto& block_dims = block.block_dims();
     EXPECTS(block.tensor().rank() == 4);
-    int64_t c = 0;
+    TAMMX_INT32 c = 0;
     for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
       for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++) {
         for (auto k = block_offset[2]; k < block_offset[2] + block_dims[2];

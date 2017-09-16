@@ -26,7 +26,7 @@ class MemoryManagerGA : public MemoryManager {
       : MemoryManager(pg),
         ga_{ga} {
     int ndim;
-    int64_t dims;
+    TAMMX_SIZE dims;
     NGA_Inquire64(ga_, &ga_eltype_, &ndim, &dims);
     eltype_ = from_ga_eltype(ga_eltype_);
     elsize_ = element_size(eltype_);
@@ -35,10 +35,10 @@ class MemoryManagerGA : public MemoryManager {
     EXPECTS(pg.is_valid());
     auto nranks = pg.size().value();
     auto me = pg.rank().value();
-    map_ = std::make_unique<int64_t[]>(nranks+1);
+    map_ = std::make_unique<TAMMX_SIZE[]>(nranks+1);
     map_[0] = 0;
     for(int i = 0; i<nranks; i++) {
-      int64_t lo, hi;
+      TAMMX_SIZE lo, hi;
       NGA_Distribution64(ga_, i, &lo, &hi);
       map_[i+1] = map_[i] + (hi - lo + 1);
     }
@@ -91,22 +91,22 @@ class MemoryManagerGA : public MemoryManager {
       GA_Pgroup_set_default(ga_pg_default);
     }
 
-    map_ = std::make_unique<int64_t[]>(nranks+1);
+    map_ = std::make_unique<TAMMX_SIZE[]>(nranks+1);
 
     ga_eltype_ = to_ga_eltype(eltype_);
     
     GA_Pgroup_set_default(ga_pg_);
-    int64_t nelements_min, nelements_max;
+    TAMMX_SIZE nelements_min, nelements_max;
     MPI_Allreduce(&nels, &nelements_min, 1, MPI_LONG_LONG, MPI_MIN, pg_.comm());
     MPI_Allreduce(&nels, &nelements_max, 1, MPI_LONG_LONG, MPI_MAX, pg_.comm());
     if (nelements_min == nelements.value() && nelements_max == nelements.value()) {
-      int64_t dim = nranks * nels, chunk = -1;
+      TAMMX_SIZE dim = nranks * nels, chunk = -1;
       ga_ = NGA_Create64(ga_eltype_, 1, &dim, const_cast<char*>("array_name"), &chunk);
       map_[0] = 0;
       std::fill_n(map_.get()+1, nranks-1, nels);
       std::partial_sum(map_.get(), map_.get()+nranks, map_.get());
     } else {
-      int64_t dim, block = nranks;
+      TAMMX_SIZE dim, block = nranks;
       MPI_Allreduce(&nels, &dim, 1, MPI_LONG_LONG, MPI_SUM, pg_.comm());
       MPI_Exscan(&nels, &map_[0], 1, MPI_LONG_LONG, MPI_SUM, pg_.comm());
       map_[0] = 0; // @note this is not set by MPI_Exscan
@@ -115,7 +115,7 @@ class MemoryManagerGA : public MemoryManager {
     }
     GA_Pgroup_set_default(ga_pg_default);
 
-    int64_t lo, hi, ld;
+    TAMMX_SIZE lo, hi, ld;
     NGA_Distribution64(ga_, pg_.rank().value(), &lo, &hi);
     EXPECTS(lo == map_[pg_.rank().value()]);
     EXPECTS(hi == map_[pg_.rank().value()] + nelements.value() - 1);
@@ -139,10 +139,10 @@ class MemoryManagerGA : public MemoryManager {
     EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     Proc proc{pg_.rank()};
-    int64_t nels{1};
-    int64_t iproc{proc.value()};
-    int64_t ioffset{map_[proc.value()] + off.value()};
-    int64_t lo = ioffset, hi = ioffset + nels-1, ld = -1;
+    TAMMX_SIZE nels{1};
+    TAMMX_INT32 iproc{proc.value()};
+    TAMMX_SIZE ioffset{map_[proc.value()] + off.value()};
+    TAMMX_SIZE lo = ioffset, hi = ioffset + nels-1, ld = -1;
     void* buf;
     NGA_Access64(ga_, &lo, &hi, reinterpret_cast<void*>(&buf), &ld);
     return buf;
@@ -152,10 +152,10 @@ class MemoryManagerGA : public MemoryManager {
     EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
     Proc proc{pg_.rank()};
-    int64_t nels{1};
-    int64_t iproc{proc.value()};
-    int64_t ioffset{map_[proc.value()] + off.value()};
-    int64_t lo = ioffset, hi = ioffset + nels-1, ld = -1;
+    TAMMX_SIZE nels{1};
+    TAMMX_INT32 iproc{proc.value()};
+    TAMMX_SIZE ioffset{map_[proc.value()] + off.value()};
+    TAMMX_SIZE lo = ioffset, hi = ioffset + nels-1, ld = -1;
     void* buf;
     NGA_Access64(ga_, &lo, &hi, reinterpret_cast<void*>(&buf), &ld);
     return buf;
@@ -164,27 +164,27 @@ class MemoryManagerGA : public MemoryManager {
   void get(Proc proc, Offset off, Size nelements, void* buf) {
     EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
-    int64_t iproc{proc.value()};
-    int64_t ioffset{map_[proc.value()] + off.value()};
-    int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
+    TAMMX_INT32 iproc{proc.value()};
+    TAMMX_SIZE ioffset{map_[proc.value()] + off.value()};
+    TAMMX_SIZE lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     NGA_Get64(ga_, &lo, &hi, buf, &ld);
   }
   
   void put(Proc proc, Offset off, Size nelements, const void* buf) {
     EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
-    int64_t iproc{proc.value()};
-    int64_t ioffset{map_[proc.value()] + off.value()};
-    int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
+    TAMMX_INT32 iproc{proc.value()};
+    TAMMX_SIZE ioffset{map_[proc.value()] + off.value()};
+    TAMMX_SIZE lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     NGA_Put64(ga_, &lo, &hi, const_cast<void*>(buf), &ld);
   }
   
   void add(Proc proc, Offset off, Size nelements, const void* buf) {
     EXPECTS(allocation_status_ == AllocationStatus::created ||
             allocation_status_ == AllocationStatus::attached);
-    int64_t iproc{proc.value()};
-    int64_t ioffset{map_[proc.value()] + off.value()};
-    int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
+    TAMMX_INT32 iproc{proc.value()};
+    TAMMX_SIZE ioffset{map_[proc.value()] + off.value()};
+    TAMMX_SIZE lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     void *alpha;
     switch(eltype_) {
       case ElementType::single_precision:
@@ -210,7 +210,7 @@ class MemoryManagerGA : public MemoryManager {
     return ga_;
   }
 
-  int64_t *map() {
+  TAMMX_SIZE *map() {
     return map_.get();
   }
   
@@ -264,7 +264,7 @@ class MemoryManagerGA : public MemoryManager {
   int ga_eltype_;
   AllocationStatus allocation_status_;
   size_t elsize_;
-  std::unique_ptr<int64_t[]> map_;
+  std::unique_ptr<TAMMX_SIZE[]> map_;
     size_t map_size_;
 
   //constants for NGA_Acc call

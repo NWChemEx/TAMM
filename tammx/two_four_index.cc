@@ -1,5 +1,5 @@
-#include "hartree_fock.h"
-#include "types.h"
+#include "tammx/hartree_fock.h"
+#include "tammx/types.h"
 
 using tammx::TAMMX_SIZE ;
 

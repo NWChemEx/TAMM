@@ -1,6 +1,6 @@
 #include "hartree_fock.h"
 
-std::tuple<Tensor4D> two_four_index_transform(const size_t ndocc, const size_t nao, const size_t freeze_core, const size_t freeze_virtual, const Matrix &C, Matrix &F, libint2::BasisSet &shells){
+std::tuple<Tensor4D> two_four_index_transform(const int64_t ndocc, const int64_t nao, const int64_t freeze_core, const int64_t freeze_virtual, const Matrix &C, Matrix &F, libint2::BasisSet &shells){
 
   using libint2::Atom;
   using libint2::Shell;

@@ -258,7 +258,7 @@ double ccsd_driver(ExecutionContext& ec,
         auto block = d_f1.get(blockid);
         auto dim = d_f1.block_dims(blockid)[0].value();
         auto offset = d_f1.block_offset(blockid)[0].value();
-        size_t i=0;
+        int64_t i=0;
         for(auto p = offset; p < offset + dim; p++,i++) {
           p_evl_sorted[p] = block.buf()[i*dim + i];
         }
@@ -413,7 +413,7 @@ BlockIndex operator "" _bd(unsigned long long int val) {
 
 //std::vector<Spin> spins = {1_sp, 2_sp, 1_sp, 2_sp};
 //std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir, 0_ir};
-//std::vector<size_t> sizes = {5,5,2,2};
+//std::vector<int64_t> sizes = {5,5,2,2};
 //BlockIndex noa {1};
 //BlockIndex noab {2};
 //BlockIndex nva {1};
@@ -438,7 +438,7 @@ std::vector<Spin> spins = {1_sp, 2_sp,
 //                               0_ir, 0_ir};
 std::vector<Irrep> spatials = {0_ir, 0_ir,
                                0_ir, 0_ir};
-//std::vector<size_t> sizes = {3,1,1, 3,1,1, 1,1, 1,1};
+//std::vector<int64_t> sizes = {3,1,1, 3,1,1, 1,1, 1,1};
 
 BlockIndex noa {1};
 BlockIndex noab {2};
@@ -466,10 +466,10 @@ void finalize_fortran_vars_();
 }
 
 
-void fortran_init(int noa, int nob, int nva, int nvb, bool intorb, bool restricted,
-                  const std::vector<int> &spins,
-                  const std::vector<int> &syms,
-                  const std::vector<int> &ranges) {
+void fortran_init(int64_t noa, int64_t nob, int64_t nva, int64_t nvb, bool intorb, bool restricted,
+                  const std::vector<int64_t> &spins,
+                  const std::vector<int64_t> &syms,
+                  const std::vector<int64_t> &ranges) {
   Integer inoa = noa;
   Integer inob = nob;
   Integer inva = nva;
@@ -499,8 +499,8 @@ void fortran_finalize() {
 }
 
 
-extern std::tuple<Tensor4D> two_four_index_transform(const size_t ndocc, const size_t nao,
-                                                     const size_t freeze_core, const size_t,
+extern std::tuple<Tensor4D> two_four_index_transform(const int64_t ndocc, const int64_t nao,
+                                                     const int64_t freeze_core, const int64_t,
                                                      const Matrix &C, Matrix &F,
                                                      libint2::BasisSet &shells);
 
@@ -512,20 +512,20 @@ int main(int argc, char *argv[]) {
   Matrix C;
   Matrix F;
   Tensor4D V2;
-  size_t ov_alpha{0};
-  size_t freeze_core = 0;
-  size_t freeze_virtual = 0;
+  int64_t ov_alpha{0};
+  int64_t freeze_core = 0;
+  int64_t freeze_virtual = 0;
 
   double hf_energy{0.0};
   libint2::BasisSet shells;
-  size_t nao{0};
+  int64_t nao{0};
   std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename,C,F);
   std::tie(V2) = two_four_index_transform(ov_alpha, nao, freeze_core, freeze_virtual, C, F, shells);
 
-  size_t ov_beta{nao-ov_alpha};
+  int64_t ov_beta{nao-ov_alpha};
 
   std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
-  std::vector<size_t> sizes = {ov_alpha-freeze_core, ov_alpha-freeze_core, ov_beta-freeze_virtual, ov_beta-freeze_virtual};
+  std::vector<int64_t> sizes = {ov_alpha-freeze_core, ov_alpha-freeze_core, ov_beta-freeze_virtual, ov_beta-freeze_virtual};
 
   std::cout << "sizes vector -- \n";
   for(auto x: sizes) std::cout << x << ", ";
@@ -535,7 +535,7 @@ int main(int argc, char *argv[]) {
   GA_Initialize();
   MA_init(MT_DBL, 8000000, 20000000);
 
-  TCE::init(spins, spatials, sizes,
+  TCE::init(spins, spatials,sizes,
             noa,
             noab,
             nva,
@@ -548,7 +548,7 @@ int main(int argc, char *argv[]) {
             irrep_y);
   {
     bool intorb = false;
-    std::vector<int> ispins, isyms, iranges;
+    std::vector<int64_t> ispins, isyms, iranges;
     for(auto x: spins) {
       ispins.push_back(x.value());
     }
@@ -590,7 +590,7 @@ int main(int argc, char *argv[]) {
     // std::cout << "block dims:" << block_dims << '\n';
     // std::cout << "block size:" << block.size() << '\n';
     EXPECTS(block.tensor().rank() == 2);
-    int c = 0;
+    int64_t c = 0;
     for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
       for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
            j++, c++) {
@@ -607,7 +607,7 @@ int main(int argc, char *argv[]) {
     const auto& block_offset = block.block_offset();
     const auto& block_dims = block.block_dims();
     EXPECTS(block.tensor().rank() == 4);
-    int c = 0;
+    int64_t c = 0;
     for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
       for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++) {
         for (auto k = block_offset[2]; k < block_offset[2] + block_dims[2];

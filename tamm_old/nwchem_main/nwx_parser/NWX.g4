@@ -28,6 +28,7 @@ PRINT: 'PRINT' | 'print';
 NOPRINT: 'NOPRINT' | 'noprint';
 TASK: 'TASK' | 'task';
 ECCE_PRINT: 'ECCE_PRINT' | 'ecce_print';
+ENERGY: 'ENERGY' | 'energy';
 
 GEOMETRY: 'GEOMETRY' | 'geometry';
 SYMMETRY: 'SYMMETRY' | 'symmetry';
@@ -35,17 +36,125 @@ LOAD: 'LOAD' | 'load';
 RTDB: 'RTDB' | 'rtdb';
 CHARGE: 'CHARGE' | 'charge';
 UNITS: 'UNITS' | 'units';
-
+END: 'END' | 'end';
 COLON: ':';
 STAR: '*';
-// Identifier
-//ID
-//    :   ('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'0'..'9'|'_')*
-//    ;
 
-//Can be file name, dir path or any other name
+// Memory Directive
+TOTAL: 'TOTAL' | 'total';
+STACK: 'STACK' | 'stack';
+HEAP: 'HEAP' | 'heap';
+GLOBAL: 'GLOBAL' | 'global';
+VERIFY: 'VERIFY' | 'verify';
+NOVERIFY: 'NOVERIFY' | 'noverify';
+HARDFAIL: 'HARDFAIL' | 'hardfail';
+NOHARDFAIL: 'NOHARDFAIL' | 'nohardfail';
+
+// SCF Directive
+SCF: 'SCF' | 'scf';
+SINGLET: 'SINGLET' | 'singlet';
+DOUBLET: 'DOUBLET' | 'doublet';
+TRIPLET: 'TRIPLET' | 'triplet';
+QUARTET: 'QUARTET' | 'quartet';
+QUINTET: 'QUINTET' | 'quintet';
+SEXTET: 'SEXTET' | 'sextet';
+SEPTET: 'SEPTET' | 'septet';
+OCTET: 'OCTET' | 'octet';
+NOPEN: 'NOPEN' | 'nopen';
+RHF: 'RHF' | 'rhf';
+ROHF: 'ROHF' | 'rohf';
+UHF: 'UHF' | 'uhf';
+
+// CCSD Directive
+CCSD: 'CCSD' | 'ccsd';
+MAXITER: 'MAXITER' | 'maxiter';
+THRESH: 'THRESH' | 'thresh';
+DIISBAS: 'DIISBAS' | 'diisbas';
+NODISK: 'NODISK' | 'nodisk';
+IPRT: 'IPRT' | 'iprt';
+FREEZE: 'FREEZE' | 'freeze';
+ATOMIC: 'ATOMIC' | 'atomic';
+VIRTUAL: 'VIRTUAL' | 'virtual';
+CORE: 'CORE' | 'core';
+
+
+// Basis Set
+ SPHERICAL: 'SPHERICAL' | 'spherical';
+ CARTESIAN: 'CARTESIAN' | 'cartesian';
+ REL: 'REL' | 'rel';
+ FILE: 'FILE' | 'file';
+ BASIS: 'BASIS' | 'basis';
+ LIBRARY: 'LIBRARY' | 'library';
+ EXCEPT: 'EXCEPT' | 'except';
+
+// TCE Directives
+LCCD: 'LCCD' | 'lccd';
+CCD: 'CCD' | 'ccd';
+CC2: 'CC2' | 'cc2';
+LRCCSD: 'LR-CCSD' | 'lr-ccsd';
+LCCSD: 'LCCSD' | 'lccsd';
+CCSDT: 'CCSDT' | 'ccsdt';
+CCSDTA: 'CCSDTA' | 'ccsdta';
+CCSDTQ: 'CCSDTQ' | 'ccsdtq';
+CCSDPT: 'CCSD(T)' | 'ccsd(t)';
+CCSDBT: 'CCSD[T]' | 'ccsd[t]';
+
+CCSD2: 'CCSD2' | 'ccsd2';
+CCSD2T: 'CCSD(2)_T' | 'ccsd(2)_t';
+
+CCSDT2Q: 'CCSDT(2)_Q' | 'ccsdt(2)_q';
+
+CRCCSDBT: 'CR-CCSD[T]' | 'cr-ccsd[t]';
+CRCCSDPT: 'CR-CCSD(T)' | 'cr-ccsd(t)';
+
+LRCCSDPT: 'LR-CCSD(T)' | 'lr-ccsd(t)';
+LRCCSDPTQ1: 'LR-CCSD(TQ)-1' | 'lr-ccsd(tq)-1';
+
+CREOMSDPT: 'CREOMSD(T)' | 'creomsd(t)';
+
+QCISD: 'QCISD' | 'qcisd';
+CISD: 'CISD' | 'cisd';
+CISDT: 'CISDT' | 'cisdt';
+CISDTQ: 'CISDTQ' | 'cisdtq';
+MBPT2: 'MBPT2' | 'mbpt2';
+
+MBPT3: 'MBPT3' | 'mbpt3';
+MBPT4: 'MBPT4' | 'mbpt4';
+MP2: 'MP2' | 'mp2';
+MP3: 'MP3' | 'mp3';
+MP4: 'MP4' | 'mp4';
+
+// High-level
+
+TCE: 'TCE' | 'tce';
+HF: 'HF' | 'hf';
+DFT: 'DFT' | 'dft';
+
+
+TWO_EORB: '2EORB' | '2eorb';
+TOL2E: 'TOL2E' | 'tol2e';
+TWO_EMET: 'TWO_EMET' | 'two_emet';
+IO: 'IO' | 'io';
+DIIS: 'DIIS' | 'diis';
+LSHIFT: 'LSHIFT' | 'lshift';
+NROOTS: 'NROOTS' | 'nroots';
+TARGET: 'TARGET' | 'target';
+TARGETSYM: 'TARGETSYM' | 'targetsym';
+T3A_LVL: 'T3A_LVL' | 't3a_lvl';
+ACTIVE_OA: 'ACTIVE_OA' | 'active_oa';
+ACTIVE_OB: 'ACTIVE_OB' | 'active_ob';
+ACTIVE_VA: 'ACTIVE_VA' | 'active_va';
+ACTIVE_VB: 'ACTIVE_VB' | 'active_vb';
+DIPOLE: 'DIPOLE' | 'dipole';
+TILESIZE: 'TILESIZE' | 'tilesize';
+FOCK: 'FOCK' | 'fock';
+NOFOCK: 'NOFOCK' | 'nofock';
+FRAGMENT: 'FRAGMENT' | 'fragment';
+
+// Identifier can be file name, dir path or any other name
 ID
-        :('a'..'z'|'A'..'Z'|'0'..'9'|'_'|'/'|'.'|'-');
+        :[a-zA-Z] [a-zA-Z0-9_-]*;
+        //('a'..'z'|'A'..'Z'|'0'..'9'|'_')+; //('a'..'z'|'A'..'Z'|'0'..'9'|'_'|'/'|'.'|'-')*;
          //| '"' ID '"';
 
 //DIR_FILE_PATH
@@ -55,32 +164,54 @@ ID
 
 // Integer Constant
 ICONST
-    :   '0'..'9'+
+    :   [0-9]+
     ;
 
 FRAC
-    :   ('1'..'9')+ '/' ('1'..'9')+
+    :   [1-9]+ '/' [1-9]+
     ;
 
 // Foalting Point Constant
 FCONST
-    :   ('0'..'9')+ '.' ('0'..'9')* EXPONENT?
-    |   '.' ('0'..'9')+ EXPONENT?
-    |   ('0'..'9')+ EXPONENT
+    :   '-'?
+    ( [0-9]+ '.' [0-9]* EXPONENT?
+    |   '.'  [0-9]+ EXPONENT?
+    |    [0-9]+ EXPONENT
+    )
     ;
 
 fragment EXPONENT
-    :   ('e'|'E') ('+'|'-')? ('0'..'9')+
+    :   ('e'|'E'|'d'|'D') ('+'|'-')?  [0-9]+
     ;
+
+//fragment NEWLINE   : '\r' '\n' | '\n' | '\r';
+//
+//: NEWLINE*;
 
 //TODO: http://www.nwchem-sw.org/index.php/Release66:NWChem_Documentation
 
 // translation-unit
 nwchem_input: directive_list EOF;
 
-directive_list: (
-                start_directive
-                );
+directive_list:
+                (start_directive
+                | permanent_dir_directive
+                | scratch_dir_directive
+                | ECHO
+
+                | basis_directive
+                | memory_directive
+                | title_directive
+                | print_directive
+                | set_directive
+                | unset_directive
+                | STOP
+                | geometry_directive
+                | scf_directive
+                | tce_directive
+                | task_directive
+                | ecce_print_directive
+                )*;
 
  /*
  BASIS [<string name default "ao basis">] \
@@ -97,21 +228,16 @@ directive_list: (
  END
  */
 
- SPHERICAL: 'SPHERICAL' | 'spherical';
- CARTESIAN: 'CARTESIAN' | 'cartesian';
- REL: 'REL' | 'rel';
- FILE: 'FILE' | 'file';
- BASIS: 'BASIS' | 'basis';
- LIBRARY: 'LIBRARY' | 'library';
- EXCEPT: 'EXCEPT' | 'except';
+
+
 
 
  basis_directive: BASIS ID? (SPHERICAL | CARTESIAN)? (PRINT | NOPRINT)? REL?
-                  ID LIBRARY ID?
+                  (ID|STAR) LIBRARY ID?
                   ID (FILE ID)?
                   (EXCEPT ID+)? REL?
 
-                  ID ID REL? FCONST FCONST+
+                  (ID ID REL? FCONST FCONST)*
                   END;
 
 /* Effective Core Potentials
@@ -217,17 +343,10 @@ douglas_kroll_directive: DOUGLAS_KROLL
             [<units>] [verify|noverify] [hardfail|nohardfail]
 */
 
-TOTAL: 'TOTAL' | 'total';
-STACK: 'STACK' | 'stack';
-HEAP: 'HEAP' | 'heap';
-GLOBAL: 'GLOBAL' | 'global';
-VERIFY: 'VERIFY' | 'verify';
-NOVERIFY: 'NOVERIFY' | 'noverify';
-HARDFAIL: 'HARDFAIL' | 'hardfail';
-NOHARDFAIL: 'NOHARDFAIL' | 'nohardfail';
 
-memory_directive: MEMORY (TOTAL? ICONST)? (STACK ICONST)?
-                  (HEAP ICONST)? (GLOBAL ICONST)? ID?
+
+memory_directive: MEMORY (TOTAL? ICONST)? (STACK ICONST ID?)?
+                  (HEAP ICONST ID?)? (GLOBAL ICONST ID?)?
                   (VERIFY | NOVERIFY)? (HARDFAIL | NOHARDFAIL)?;
 
 title_directive: TITLE ID;
@@ -250,13 +369,13 @@ charge_directive: (CHARGE FCONST);
 (RESTART || START) [<string file_prefix default input_file_prefix>] \
                    [rtdb <string rtdb_file_name default file_prefix.db>]
 */
-start_directive:  (START | RESTART) ID? (RTDB ID?)? ;
+start_directive:  (START | RESTART) ID? (RTDB ID?)?  ;
 
-ecce_print_directive: ECCE_PRINT ID;
+ecce_print_directive: ECCE_PRINT ID ;
 
-permanent_dir_directive: PERMANENT_DIR ( ( (ID | ICONST) COLON)? ID)+;
+permanent_dir_directive: PERMANENT_DIR ( ( (ID | ICONST) COLON)? ID)+ ;
 
-scratch_dir_directive: SCRATCH_DIR ( ( (ID | ICONST) COLON)? ID)+;
+scratch_dir_directive: SCRATCH_DIR ( ( (ID | ICONST) COLON)? ID)+ ;
 
 SETTING: 'SETTING' | 'setting';
 GROUP: 'GROUP' | 'group';
@@ -264,14 +383,14 @@ GROUP: 'GROUP' | 'group';
 // [SYMMETRY [group] <string group_name>|<integer group number> [setting <integer setting>] [print] \
 //          [tol <real tol default 1d-2>]]
 
-symmetry_directive: SYMMETRY  GROUP (ID | ICONST) (SETTING ICONST)? PRINT? (TOL FCONST)?;
+symmetry_directive: SYMMETRY  GROUP? (ID | ICONST) (SETTING ICONST)? PRINT? (TOL FCONST)? ;
 
 SYM: 'SYM' | 'sym';
 ADAPT : 'ADAPT' | 'adapt';
 sym_switch: SYM (ON|OFF)?; //FIXME: can it be symmetry keyword?
 adapt_switch: ADAPT (ON | OFF)?;
 
-TOL2E: 'TOL2E' | 'tol2e';
+
 
 // TOL2E <real tol2e default min(10e-7 , 0.01*thresh)>
 tolerance_directive: TOL2E FCONST?;
@@ -285,8 +404,7 @@ tolerance_directive: TOL2E FCONST?;
 
 MASS: 'MASS' | 'mass';
 
-cartesian_coord_directive: (ID FCONST FCONST FCONST (FCONST FCONST FCONST)?
-                           charge_directive? (MASS FCONST)? (NUCLEUS ID)?)+;
+cartesian_coord_directive: (ID FCONST FCONST FCONST)+;
 
 
 /* [ LOAD [format xyz||pdb]  [frame <int frame>] \
@@ -336,7 +454,6 @@ ZMAT_TAG: 'tag'ICONST;
 ZMATRIX: 'ZMATRIX' | 'ZMT' | 'ZMAT' | 'zmatrix' | 'zmt' | 'zmat';
 VARIABLES: 'VARIABLES' | 'variables';
 CONSTANTS: 'CONSTANTS' | 'constants';
-END: 'END' | 'end';
 ZEND: 'ZEND' | 'zend';
 
 zmatrix_directive:
@@ -390,7 +507,7 @@ system_directive: SYSTEM (MOLECULE|POLYMER|SURFACE|CRYSTAL)?
                   ALPHA FCONST BETA FCONST GAMMA FCONST;
 
 geometry_directive: GEOMETRY ID?
-                    (UNITS ID?)?
+                    (UNITS ID)?  //check if ID can be optional
                     (ID FCONST?)?
                     (PRINT ID? | NOPRINT)?
                     (CENTER | NOCENTER)?
@@ -399,7 +516,7 @@ geometry_directive: GEOMETRY ID?
                     (NUCLEUS ID )?
                     symmetry_directive? load_directive?
                     cartesian_coord_directive? zmatrix_directive?
-                    zcoord_directive? system_directive?
+                    zcoord_directive? system_directive? END
                     ;
 
 
@@ -417,8 +534,22 @@ ADJUST: 'ADJUST' | 'adjust';
 NUCLEUS: 'NUCLEUS' | 'nucleus' | 'NUC' | 'nuc' | 'NUCL' | 'nucl';
 
 IGNORE: 'IGNORE'  | 'ignore';
+GRADIENT: 'gradient' | 'GRADIENT';
+OPTIMIZE: 'OPTIMIZE' | 'optimize';
+SADDLE: 'saddle' | 'SADDLE';
+HESSIAN: 'hessian' | 'HESSIAN';
+FREQ: 'freq' | 'FREQ';
+FREQUENCIES: 'frequencies' | 'FREQUENCIES';
+VSCF: 'vscf' | 'VSCF';
+PROPERTY: 'property' | 'PROPERTY';
+DYNAMICS: 'dynamics' | 'DYNAMICS';
+THERMODYNAMICS: 'thermodynamics' | 'THERMODYNAMICS';
 
-task_directive: TASK ID (ID)? IGNORE?;
+task_directive: TASK
+    ( SCF | DFT | SODFT | MP2 | DIRECT_MP2 | RIMP2 | CCSD | CCSD_T
+     | MSSCF | SELCI | MD | PSPW | BAND | TCE)
+    (ENERGY | GRADIENT | OPTIMIZE | SADDLE | HESSIAN | FREQ | FREQUENCIES |
+     VSCF | PROPERTY | DYNAMICS | THERMODYNAMICS)? IGNORE?;
 
 /*
 BSSE
@@ -446,31 +577,27 @@ bsse_directive: BSSE MON ID ICONST
                 OFF? ON? END;
 
 //http://www.nwchem-sw.org/index.php/Release66:Hartree-Fock_Theory_for_Molecules
-SCF: 'SCF' | 'scf';
-SINGLET: 'SINGLET' | 'singlet';
-DOUBLET: 'DOUBLET' | 'doublet';
-TRIPLET: 'TRIPLET' | 'triplet';
-QUARTET: 'QUARTET' | 'quartet';
-QUINTET: 'QUINTET' | 'quintet';
-SEXTET: 'SEXTET' | 'sextet';
-SEPTET: 'SEPTET' | 'septet';
-OCTET: 'OCTET' | 'octet';
-NOPEN: 'NOPEN' | 'nopen';
-RHF: 'RHF' | 'rhf';
-ROHF: 'ROHF' | 'rohf';
-UHF: 'UHF' | 'uhf';
+
+
+wavefn_type:                  SINGLET?
+                              DOUBLET?
+                              TRIPLET?
+                              QUARTET?
+                              QUINTET?
+                              SEXTET?
+                              SEPTET?
+                              OCTET?
+                              (NOPEN ICONST)?
+                              (RHF | ROHF | UHF);
 
 scf_directive: SCF
-                 SINGLET?
-                 DOUBLET?
-                 TRIPLET?
-                 QUARTET?
-                 QUINTET?
-                 SEXTET?
-                 SEPTET?
-                 OCTET?
-                 (NOPEN ICONST)?
-                 (RHF | ROHF | UHF)
+                (
+                  (SYM (ON|OFF))
+                | (TOL2E FCONST)
+                | (ADAPT (ON|OFF))
+                | (THRESH FCONST)
+                | wavefn_type
+                )*
                END;
 
 /*
@@ -503,16 +630,7 @@ scf_directive: SCF
  END
 */
 
-CCSD: 'CCSD' | 'ccsd';
-MAXITER: 'MAXITER' | 'maxiter';
-THRESH: 'THRESH' | 'thresh';
-DIISBAS: 'DIISBAS' | 'diisbas';
-NODISK: 'NODISK' | 'nodisk';
-IPRT: 'IPRT' | 'iprt';
-FREEZE: 'FREEZE' | 'freeze';
-ATOMIC: 'ATOMIC' | 'atomic';
-VIRTUAL: 'VIRTUAL' | 'virtual';
-CORE: 'CORE' | 'core';
+
 
 
 maxiter_directive: MAXITER ICONST?;
@@ -573,45 +691,7 @@ ccsd_directive: CCSD
  END
 */
 
-LCCD: 'LCCD' | 'lccd';
-CCD: 'CCD' | 'ccd';
-CC2: 'CC2' | 'cc2';
-LRCCSD: 'LR-CCSD' | 'lr-ccsd';
-LCCSD: 'LCCSD' | 'lccsd';
-CCSDT: 'CCSDT' | 'ccsdt';
-CCSDTA: 'CCSDTA' | 'ccsdta';
-CCSDTQ: 'CCSDTQ' | 'ccsdtq';
-CCSDPT: 'CCSD(T)' | 'ccsd(t)';
-CCSDBT: 'CCSD[T]' | 'ccsd[t]';
 
-CCSD2: 'CCSD2' | 'ccsd2';
-CCSD2T: 'CCSD(2)_T' | 'ccsd(2)_t';
-
-CCSDT2Q: 'CCSDT(2)_Q' | 'ccsdt(2)_q';
-
-CRCCSDBT: 'CR-CCSD[T]' | 'cr-ccsd[t]';
-CRCCSDPT: 'CR-CCSD(T)' | 'cr-ccsd(t)';
-
-LRCCSDPT: 'LR-CCSD(T)' | 'lr-ccsd(t)';
-LRCCSDPTQ1: 'LR-CCSD(TQ)-1' | 'lr-ccsd(tq)-1';
-
-CREOMSDPT: 'CREOMSD(T)' | 'creomsd(t)';
-
-QCISD: 'QCISD' | 'qcisd';
-CISD: 'CISD' | 'cisd';
-CISDT: 'CISDT' | 'cisdt';
-CISDTQ: 'CISDTQ' | 'cisdtq';
-MBPT2: 'MBPT2' | 'mbpt2';
-
-MBPT3: 'MBPT3' | 'mbpt3';
-MBPT4: 'MBPT4' | 'mbpt4';
-MP2: 'MP2' | 'mp2';
-MP3: 'MP3' | 'mp3';
-MP4: 'MP4' | 'mp4';
-
-TCE: 'TCE' | 'tce';
-HF: 'HF' | 'hf';
-DFT: 'DFT' | 'dft';
 
 logical_directive: '.true.' | '.false' | '.TRUE.' | '.FALSE';
 
@@ -623,64 +703,41 @@ tce_theories:
      QCISD | CISD | CISDT | CISDTQ |
      MBPT2 | MBPT3 | MBPT4 | MP2 | MP3 | MP4;
 
-TWO_EORB: '2EORB' | '2eorb';
-TWO_EMET: 'TWO_EMET' | 'two_emet';
-IO: 'IO' | 'io';
-DIIS: 'DIIS' | 'diis';
-LSHIFT: 'LSHIFT' | 'lshift';
-NROOTS: 'NROOTS' | 'nroots';
-TARGET: 'TARGET' | 'target';
-TARGETSYM: 'TARGETSYM' | 'targetsym';
-T3A_LVL: 'T3A_LVL' | 't3a_lvl';
-ACTIVE_OA: 'ACTIVE_OA' | 'active_oa';
-ACTIVE_OB: 'ACTIVE_OB' | 'active_ob';
-ACTIVE_VA: 'ACTIVE_VA' | 'active_va';
-ACTIVE_VB: 'ACTIVE_VB' | 'active_vb';
-DIPOLE: 'DIPOLE' | 'dipole';
-TILESIZE: 'TILESIZE' | 'tilesize';
-FOCK: 'FOCK' | 'fock';
-NOFOCK: 'NOFOCK' | 'nofock';
-FRAGMENT: 'FRAGMENT' | 'fragment';
+
 
 tce_directive: TCE
-   (DFT | HF | SCF)?
-   freeze_directive?
-   tce_theories?
-   threshold_directive?
-   maxiter_directive?
-   print_directive?
-   (IO ('fortran' | 'eaf' | 'ga' | 'sf' | 'replicated' | 'dra' | 'ga_eaf') )?
-   (DIIS ICONST?)?
-   (LSHIFT FCONST?)?
-   (NROOTS ICONST?)?
-   (TARGET ICONST?)?
-   (TARGETSYM ID?)? //FIXME: check syntax
-   (SYMMETRY)?
-   (TWO_EORB)?
-   (TWO_EMET ICONST?)?
-   (T3A_LVL)?
-   (ACTIVE_OA)?
-   (ACTIVE_OB)?
-   (ACTIVE_VA)?
-   (ACTIVE_VB)?
-   (DIPOLE)?
-   (TILESIZE ICONST)? //FIXME: CHECK
-   ( (FOCK | NOFOCK) logical_directive)?
-   (FRAGMENT ICONST)?
+
+   (
+   (DFT | HF | SCF)
+   | freeze_directive
+   | tce_theories
+   | threshold_directive
+   | maxiter_directive
+   | print_directive
+   | (IO ('fortran' | 'eaf' | 'ga' | 'sf' | 'replicated' | 'dra' | 'ga_eaf') )
+   | (DIIS ICONST?)
+   | (LSHIFT FCONST?)
+   | (NROOTS ICONST?)
+   | (TARGET ICONST?)
+   | (TARGETSYM ID?) //FIXME: check syntax
+   | (SYMMETRY)
+   | (TWO_EORB)
+   | (TWO_EMET ICONST?)
+   | (T3A_LVL)
+   | (ACTIVE_OA)
+   | (ACTIVE_OB)
+   | (ACTIVE_VA)
+   | (ACTIVE_VB)
+   | (DIPOLE)
+   | (TILESIZE ICONST) //FIXME: CHECK
+   | ( (FOCK | NOFOCK) logical_directive)
+   | (FRAGMENT ICONST)
+   )*
    END;
 
 
-Whitespace
-    :   [ \t]+
-        -> skip
-    ;
+WS : [ \t\r\n]+ -> skip ; // skip spaces, tabs, newlines
 
-Newline
-    :   (   '\r' '\n'?
-        |   '\n'
-        )
-        -> skip
-    ;
 
 BlockComment
     :   '/*' .*? '*/'
@@ -688,6 +745,6 @@ BlockComment
     ;
 
 LineComment
-    :   '//' ~[\r\n]*
+    :   '#' ~[\r\n]*
         -> skip
     ;

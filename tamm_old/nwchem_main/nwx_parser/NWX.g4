@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// Copyright (C) 2016, Pacific Northwest National Laboratory
+// Copyright (C) 2016-2017, Pacific Northwest National Laboratory
 // This software is subject to copyright protection under the laws of the
 // United States and other countries
 //
@@ -129,7 +129,15 @@ MP4: 'MP4' | 'mp4';
 TCE: 'TCE' | 'tce';
 HF: 'HF' | 'hf';
 DFT: 'DFT' | 'dft';
-
+SODFT: 'SODFT' | 'sodft';
+RIMP2: 'RIMP2' | 'rimp2';
+CCSD_T: 'CCSD(T)' | 'ccsd(t)';
+MSSCF: 'MSSCF' | 'msscf';
+SELCI: 'SELCI' | 'selci';
+MD: 'MD' | 'md';
+PSPW: 'PSPW' | 'pspw';
+BAND: 'BAND' | 'band';
+DIRECT_MP2: 'DIRECT_MP2' | 'direct_mp2';
 
 TWO_EORB: '2EORB' | '2eorb';
 TOL2E: 'TOL2E' | 'tol2e';
@@ -151,16 +159,21 @@ FOCK: 'FOCK' | 'fock';
 NOFOCK: 'NOFOCK' | 'nofock';
 FRAGMENT: 'FRAGMENT' | 'fragment';
 
+//('a'..'z'|'A'..'Z'|'0'..'9'|'_')+; //('a'..'z'|'A'..'Z'|'0'..'9'|'_'|'/'|'.'|'-')*;
 // Identifier can be file name, dir path or any other name
+
+// Alphabets only
+//ID_ALPHA: [a-zA-Z]+;
+
+// Alphanumeric, but start with alphabet
+//ID_ALPHANUM_SWA: [a-zA-Z][a-zA-Z0-9]*;
+
 ID
-        :[a-zA-Z] [a-zA-Z0-9_-]*;
-        //('a'..'z'|'A'..'Z'|'0'..'9'|'_')+; //('a'..'z'|'A'..'Z'|'0'..'9'|'_'|'/'|'.'|'-')*;
-         //| '"' ID '"';
+        : [a-zA-Z][a-zA-Z0-9_-]*;
 
 //DIR_FILE_PATH
 //    : ('a'..'z'|'A'..'Z'|'0'..'9'|'_'|'/'|'.'|'-')+
 //    ;
-
 
 // Integer Constant
 ICONST
@@ -188,7 +201,37 @@ fragment EXPONENT
 //
 //: NEWLINE*;
 
-//TODO: http://www.nwchem-sw.org/index.php/Release66:NWChem_Documentation
+// Quoted string
+StringLiteral
+  : UnterminatedStringLiteral '"'
+  ;
+
+UnterminatedStringLiteral
+  : '"' (~["\\\r\n] | '\\' (. | EOF))*
+  ;
+
+fragment HEX_DIGIT : ('0'..'9'|'a'..'f'|'A'..'F') ;
+
+fragment ESC_SEQ
+    :   '\\' ('b'|'t'|'n'|'f'|'r'|'\"'|'\''|'\\')
+    |   UNICODE_ESC
+    |   OCTAL_ESC
+    ;
+fragment OCTAL_ESC
+    :   '\\' ('0'..'3') ('0'..'7') ('0'..'7')
+    |   '\\' ('0'..'7') ('0'..'7')
+    |   '\\' ('0'..'7')
+    ;
+fragment UNICODE_ESC
+    :   '\\' 'u' HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT
+    ;
+
+UnquotedString
+    :   ( ESC_SEQ | ~('\\'|'"'|' '|'\t'|'\n'|'#') )*
+    ;
+
+// Alphanumeric
+//id_general: ;
 
 // translation-unit
 nwchem_input: directive_list EOF;
@@ -198,7 +241,6 @@ directive_list:
                 | permanent_dir_directive
                 | scratch_dir_directive
                 | ECHO
-
                 | basis_directive
                 | memory_directive
                 | title_directive
@@ -233,8 +275,8 @@ directive_list:
 
 
  basis_directive: BASIS ID? (SPHERICAL | CARTESIAN)? (PRINT | NOPRINT)? REL?
-                  (ID|STAR) LIBRARY ID?
-                  ID (FILE ID)?
+                  (ID|STAR) LIBRARY UnquotedString?
+                  ID? (FILE ID)?
                   (EXCEPT ID+)? REL?
 
                   (ID ID REL? FCONST FCONST)*
@@ -343,13 +385,30 @@ douglas_kroll_directive: DOUGLAS_KROLL
             [<units>] [verify|noverify] [hardfail|nohardfail]
 */
 
+/*
+real and double (synonyms)
+integer
+real and double (synonyms)
+integer
+byte
+kb (kilobytes)
+mb (megabytes)
+mw (megawords, 64-bit word)
+*/
+memory_units: 'real' | 'REAL'
+             | 'double' | 'DOUBLE'
+             | 'integer' | 'INTEGER'
+             | 'byte' | 'BYTE'
+             | 'kb' | 'KB'
+             | 'mb' | 'MB'
+             | 'mw' | 'MW'
+             ;
 
-
-memory_directive: MEMORY (TOTAL? ICONST)? (STACK ICONST ID?)?
-                  (HEAP ICONST ID?)? (GLOBAL ICONST ID?)?
+memory_directive: MEMORY (TOTAL? memory_units)? (STACK ICONST memory_units?)?
+                  (HEAP ICONST memory_units?)? (GLOBAL ICONST memory_units?)?
                   (VERIFY | NOVERIFY)? (HARDFAIL | NOHARDFAIL)?;
 
-title_directive: TITLE ID;
+title_directive: TITLE (ID|StringLiteral);
 
 NONE: 'NONE' | 'none';
 LOW: 'LOW' | 'low';
@@ -472,6 +531,7 @@ zmatrix_directive:
                  [<real value>] [<string name>] [constant]
      END]
 */
+
 
 BOND: 'BOND' | 'bond';
 ZCOORD: 'ZCOORD' | 'zcoord';

@@ -78,11 +78,19 @@ if(NOT GA_CONFIG)
     message(FATAL_ERROR "TAMM ERROR: CMAKE variable GA_CONFIG not set")
 else()
     set(GA_CONFIG ${GA_CONFIG}/ga-config)
+    if (NOT EXISTS ${GA_CONFIG})
+        message(FATAL_ERROR "${GA_CONFIG} not found. Please make sure the path exists \
+        and GA_CONFIG is set correctly in the toolchain file provided: ${CMAKE_TOOLCHAIN_FILE}")
+    endif()
 endif()
 
 if(NOT NWCHEM_TOP)
     message(FATAL_ERROR "TAMM ERROR: CMAKE variable NWCHEM_TOP not set")
 else()
+    if (NOT EXISTS ${NWCHEM_TOP})
+        message(FATAL_ERROR "${NWCHEM_TOP} not found. Please make sure the path exists \
+        and NWCHEM_TOP is set correctly in the toolchain file provided: ${CMAKE_TOOLCHAIN_FILE}")
+    endif()
     message(STATUS "NWCHEM_TOP set to: ${NWCHEM_TOP}")
 endif()
 

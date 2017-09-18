@@ -16,9 +16,14 @@ class MemoryManagerGA : public MemoryManager {
       : MemoryManager{pg},
 /** \warning
 *  totalview LD on following statement
-*  back traced to tammx::Tensor<double>::alloc shared_ptr_base.h
-*  backtraced to ccsd_driver<double> execution_context.h
-*  back traced to main
+*  back traced to tammx::Tensor<double>::alloc 
+*  at line 572 shared_ptr_base.h
+*  backtraced to ccsd_driver<double> line 37 execution_context.h
+*  back traced to main line 607 ccsd_driver.cc
+*
+*  separate LD at same location
+*  back traced to __libc_start_main in libc.so.6
+*  further back traced to _start line 110 new_allocator.h
 */
         allocation_status_{AllocationStatus::invalid} {}
 

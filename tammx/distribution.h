@@ -94,8 +94,8 @@ class Distribution_NW : public Distribution {
 /** \warning
 *  totalview LD on following statement
 *  back traced to tammx::Tensor<double>::alloc shared_ptr_base.h
-*  backtraced to ccsd_driver<double> execution_context.h
-*  back traced to main
+*  backtraced to ccsd_driver<double> line 37 execution_context.h
+*  back traced to main line 6077 ccsd_driver.cc
 */
     return new Distribution_NW(tensor_structure, nproc);
   }

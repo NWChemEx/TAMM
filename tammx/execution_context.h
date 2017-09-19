@@ -34,6 +34,12 @@ class ExecutionContext {
 
   template<typename T, typename ...Args>
   void allocate(Tensor<T>& tensor, Args& ... tensor_list) {
+/** \warning
+*  totalview LD on following statement
+*  forward traced to tammx::Tensor<double>::alloc in shared_ptr_base.h
+*  back traced to ccsd_driver<double> line 37 execution_context.h
+*  back traced to main line 607 ccsd_driver.cc
+*/
     tensor.alloc(pg_, default_distribution_, default_memory_manager_);
     allocate(tensor_list...);
   }

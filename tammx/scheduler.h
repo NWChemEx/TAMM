@@ -49,8 +49,9 @@ class Scheduler {
   Scheduler& operator()(SetOpEntry<T, LabeledTensorType> sop) {
 /** \warning
 *  totalview LD on following statement
-*  back traced to tammx::diis<double> in labeled_tensor.h
-*  back traced to ccsd_driver
+*  back traced to tammx::diis<double> line 128 diis.h
+*  back traced to ccsd_driver<double> line 426 stl_vector.h
+*  back traced to main line 607 ccsd_driver.cc
 */
     ops_.push_back(new SetOp<LabeledTensorType, T>(sop.value, sop.lhs, sop.mode));
     EXPECTS(tensors_.find(&sop.lhs.tensor()) != tensors_.end());

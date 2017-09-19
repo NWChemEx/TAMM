@@ -40,6 +40,10 @@ class Tensor : public TensorBase {
   Tensor(const IndexInfo& iinfo,
          Irrep irrep,
          bool spin_restricted)
+/** \warning
+*  totalview LD on following statement
+*  back traced to ccsd_driver line 607 main
+*/
       : Tensor{std::get<0>(iinfo), static_cast<TensorRank>(std::get<1>(iinfo)), irrep, spin_restricted} {}
 
   Tensor(ProcGroup pg,
@@ -82,6 +86,13 @@ class Tensor : public TensorBase {
     auto eltype = tensor_element_type<element_type>();
     EXPECTS(buf_size >=0 );
     mgr_->alloc(eltype, buf_size);
+/** \warning
+*  totalview LD on following statement
+*  forward traced to tammx::MemoryManagerGA::alloc 
+*  line 91 memory_manager_ga.h
+*  bach traced to line 37 execution_context.h
+*  back traced to main line 607 ccsd_driver
+*/
     allocation_status_ = AllocationStatus::created;
   }
 

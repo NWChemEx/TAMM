@@ -864,6 +864,15 @@ AddOp<T, LabeledTensorType>::execute() {
   if(exec_mode_ == ExecutionMode::fortran) {
     bool t1_is_double = std::is_same<T1, double>::value;
     EXPECTS(t1_is_double);
+/** \warning
+*  totalview LD on following statement
+*  back traced to line 110 new_allocator.h
+*  back traced to tammx::MemoryManagerGA::alloc 
+*  line 91 memory_manager_ga.h
+*  back traced to tammx::Tensor<double>::alloc 
+*  line 85 tensor.h
+*  back traced to line 21 execution_context.h 
+*/
     EXPECTS(fn_ != nullptr);
 
     FortranInt da, *offseta_map;

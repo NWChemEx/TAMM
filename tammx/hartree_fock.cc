@@ -306,7 +306,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
 // computes Superposition-Of-Atomic-Densities guess for the molecular density matrix
 // in minimal basis; occupies subshells by smearing electrons evenly over the orbitals
-Matrix compute_soad(const std::vector<libint2::Atom> &atoms) {
+Matrix  compute_soad(const std::vector<libint2::Atom> &atoms) {
 
   // compute number of atomic orbitals
   size_t nao = 0;

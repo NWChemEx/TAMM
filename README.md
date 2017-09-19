@@ -19,9 +19,9 @@ git checkout devel
 ```
 
 - Modify any toolchain file in ${TAMM_ROOT}/dependencies/cmake/toolchains to  
- adjust BLAS_INCLUDE_PATH, NWCHEM_TOP. Optionally adjust TAMM_PROC_COUNT, EIGEN3_INSTALL_PATH,
- LIBINT_INSTALL_PATH & ANTLR_CPPRUNTIME_PATH. Eigen3, Libint, ANTLR and googletest will be
- built if they do not exist.
+ adjust BLAS_INCLUDE_PATH, NWCHEM_TOP. Optionally adjust TAMM_PROC_COUNT,
+ LIBINT_INSTALL_PATH & ANTLR_CPPRUNTIME_PATH. Libint, ANTLR and googletest will be
+ built if they do not exist. Eigen3 will be built by default.
 
 
 ```
@@ -34,7 +34,7 @@ make
 - After missing dependencies are built:
 
 ```
-cd ${TAMM_ROOT}  
+cd ${TAMM_ROOT}/tamm_old  
 mkdir build && cd build  
 cmake .. -DCMAKE_TOOLCHAIN_FILE=${TAMM_ROOT}/dependencies/build/tamm_build.cmake  
 make install

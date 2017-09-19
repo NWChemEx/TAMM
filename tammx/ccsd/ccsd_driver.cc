@@ -15,6 +15,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <chrono>
 
 #include "mpi.h"
 #include "macdecls.h"
@@ -491,8 +492,20 @@ int main(int argc, char *argv[]) {
   double hf_energy{0.0};
   libint2::BasisSet shells;
   TAMMX_SIZE nao{0};
+
+  auto hf_t1 = std::chrono::high_resolution_clock::now();
   std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename,C,F);
+  auto hf_t2 = std::chrono::high_resolution_clock::now();
+
+  double hf_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
+  std::cout << "Time taken for Hartree-Fock: " << hf_time << " secs\n";
+
+  hf_t1 = std::chrono::high_resolution_clock::now();
   std::tie(V2) = two_four_index_transform(ov_alpha, nao, freeze_core, freeze_virtual, C, F, shells);
+  hf_t2 = std::chrono::high_resolution_clock::now();
+  double two_4index_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
+  std::cout << "Time taken for 2&4-index transforms: " << two_4index_time << " secs\n";
+
 
   TAMMX_SIZE ov_beta{nao-ov_alpha};
 
@@ -580,6 +593,8 @@ int main(int argc, char *argv[]) {
     }
     d_f1.put(blockid, block);
   });
+
+  //  tensor_print(d_f1);
 
   block_for(d_v2(), [&](auto& blockid) {
       auto block = d_v2.alloc(blockid);

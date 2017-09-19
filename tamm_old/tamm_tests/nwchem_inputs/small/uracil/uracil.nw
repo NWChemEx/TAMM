@@ -26,8 +26,8 @@ basis
 end
  
 scf
-thresh 1.0e-10
-tol2e 1.0e-10
+thresh 1.0e-12
+tol2e 1.0e-12
 singlet
 uhf
 end

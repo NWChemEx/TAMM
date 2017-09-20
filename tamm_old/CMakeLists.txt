@@ -176,11 +176,16 @@ else()
             ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a)
 endif()
 
+SET(CBLAS_LIBRARY_PATH ${BLAS_LIBRARY_PATH})
+if (EXISTS ${BLAS_LIBRARY64_PATH})
+    set(CBLAS_LIBRARY_PATH ${BLAS_LIBRARY64_PATH})
+endif()
+
 set(CBLAS_LIBRARIES
-        ${BLAS_LIBRARY_PATH}/libblas.a
-        ${BLAS_LIBRARY_PATH}/libcblas.a
-        ${BLAS_LIBRARY_PATH}/liblapack.a
-        )
+    ${CBLAS_LIBRARY_PATH}/libblas.a
+    ${CBLAS_LIBRARY_PATH}/libcblas.a
+    ${CBLAS_LIBRARY_PATH}/liblapack.a
+    )
 
 
 add_library(fort_deps STATIC ${FORTRAN_DEPS_SRC} ${EXTRA_FORT_TAMM})

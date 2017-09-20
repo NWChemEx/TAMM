@@ -493,6 +493,9 @@ int main(int argc, char *argv[]) {
   libint2::BasisSet shells;
   TAMMX_SIZE nao{0};
 
+  //omp_set_num_threads(1);
+  omp_set_num_threads(omp_get_max_threads());
+
   auto hf_t1 = std::chrono::high_resolution_clock::now();
   std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename,C,F);
   auto hf_t2 = std::chrono::high_resolution_clock::now();

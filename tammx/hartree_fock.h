@@ -22,6 +22,11 @@
 
 //#define EIGEN_USE_BLAS
 
+
+#ifdef _OPENMP
+  #include <omp.h>
+#endif
+
 using std::string;
 using std::cout;
 using std::cerr;

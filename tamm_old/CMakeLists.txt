@@ -176,6 +176,12 @@ else()
             ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a)
 endif()
 
+set(CBLAS_LIBRARIES
+        ${BLAS_LIBRARY_PATH}/libcblas.a
+        #${BLAS_LIBRARY_PATH}/liblapack.a
+        )
+
+
 add_library(fort_deps STATIC ${FORTRAN_DEPS_SRC} ${EXTRA_FORT_TAMM})
 target_include_directories(fort_deps SYSTEM PUBLIC ${tamm_includes} ${TAMMX_PROJECT_DIR}/tce_fortran)
 target_compile_options(fort_deps PRIVATE ${tamm_fortran_link_flags})
@@ -231,12 +237,11 @@ add_library(tce_fortran ${TAMMX_PROJECT_DIR}/tammx/ccsd/ccsd_t1.F ${TAMMX_PROJEC
 target_include_directories(tce_fortran SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${TAMMX_PROJECT_DIR}/tce_fortran ${tamm_includes})
 target_compile_options(tce_fortran PRIVATE ${tamm_fortran_link_flags})
 
-
 add_executable(ccsd_driver ${TAMMX_PROJECT_DIR}/tammx/ccsd/ccsd_driver.cc)
 add_dependencies(ccsd_driver fort_deps_tammx fort_deps_c tammx)
 target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${TAMMX_PROJECT_DIR}/tce_fortran ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
 target_link_libraries(ccsd_driver fort_deps_tammx fort_deps_c tammx tce_fortran ${tamm_cflags} -fopenmp
-        ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
+        ${tamm_ldflags} ${CBLAS_LIBRARIES}  ${tamm_libs} ${CBLAS_LIBRARIES} -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
 
 # add_executable(hf nwchem_main/hartree_fock.cc)
 # target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)

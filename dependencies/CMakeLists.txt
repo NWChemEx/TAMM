@@ -59,6 +59,7 @@ else()
 
     include(libint)
     include(eigen)
+    include(blas_lapack)
     #include(globalarrays)
     include(antlr)
     include(googletest)
@@ -86,7 +87,8 @@ else()
     file(APPEND ${TAMM_TOOLCHAIN_FILE} "set(ANTLR_CPPRUNTIME_PATH ${ANTLR_CPPRUNTIME_PATH}) \n")
     #file(APPEND ${TAMM_TOOLCHAIN_FILE} "set(GA_INSTALL_PATH ${GA_INSTALL_PATH}) \n")
     file(APPEND ${TAMM_TOOLCHAIN_FILE} "set(EIGEN3_INSTALL_PATH ${EIGEN3_INSTALL_PATH}) \n")
-    file(APPEND ${TAMM_TOOLCHAIN_FILE} "set(BLAS_INCLUDE_PATH ${EIGEN3_INSTALL_PATH}/include/eigen3/Eigen/src/misc/) \n")
+    file(APPEND ${TAMM_TOOLCHAIN_FILE} "set(BLAS_INCLUDE_PATH ${CMAKE_INSTALL_PREFIX}/blas_lapack/include) \n")
+    file(APPEND ${TAMM_TOOLCHAIN_FILE} "set(BLAS_LIBRARY_PATH ${CMAKE_INSTALL_PREFIX}/blas_lapack/lib) \n")
 
     file(APPEND ${TAMM_TOOLCHAIN_FILE} "set(GTEST_INSTALL_PATH ${GTEST_INSTALL_PATH}) \n\n")
 

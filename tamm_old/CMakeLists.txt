@@ -177,8 +177,9 @@ else()
 endif()
 
 set(CBLAS_LIBRARIES
+        ${BLAS_LIBRARY_PATH}/libblas.a
         ${BLAS_LIBRARY_PATH}/libcblas.a
-        #${BLAS_LIBRARY_PATH}/liblapack.a
+        ${BLAS_LIBRARY_PATH}/liblapack.a
         )
 
 
@@ -197,10 +198,10 @@ target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 add_executable(nwtest ${TAMMX_PROJECT_DIR}/nwtest/test_tamm.cc
         ${TAMMX_PROJECT_DIR}/nwtest/test_fortran.cc ${TAMMX_PROJECT_DIR}/nwtest/test_tammx.cc ${TESTING_DEPS_SRC})
 add_dependencies(nwtest fort_deps fort_deps_c tamm tammx)
-target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes}
+target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes} ${BLAS_LIBRARY_PATH}
         ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include)
 target_compile_options(nwtest PUBLIC ${tamm_cflags})
-target_link_libraries(nwtest fort_deps fort_deps_c tamm tammx tce_fortran ${tamm_cflags}
+target_link_libraries(nwtest fort_deps fort_deps_c tamm tammx tce_fortran ${tamm_cflags} ${CBLAS_LIBRARIES}
         ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest -fopenmp)
 
 add_executable(eigen_tests EXCLUDE_FROM_ALL ${TAMMX_PROJECT_DIR}/nwtest/test_eigen.cc
@@ -221,7 +222,8 @@ target_link_libraries(eigen_tests fort_deps fort_deps_c tammx tce_fortran ${tamm
         ${TAMMX_PROJECT_DIR}/tammx/two_four_index.cc)
 
 add_library(tammx STATIC ${tammxSources})
-target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3 ${tamm_includes})
+target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${LIBINT_INSTALL_PATH}/include
+        ${EIGEN3_INSTALL_PATH}/include/eigen3 ${tamm_includes} ${BLAS_INCLUDE_PATH})
 target_link_libraries(tammx PRIVATE ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} -fopenmp)
 
 #add_executable(tammx_main ${TAMMX_PROJECT_DIR}/tammx/tammx_main.cc)
@@ -239,7 +241,8 @@ target_compile_options(tce_fortran PRIVATE ${tamm_fortran_link_flags})
 
 add_executable(ccsd_driver ${TAMMX_PROJECT_DIR}/tammx/ccsd/ccsd_driver.cc)
 add_dependencies(ccsd_driver fort_deps_tammx fort_deps_c tammx)
-target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${TAMMX_PROJECT_DIR}/tce_fortran ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
+target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${TAMMX_PROJECT_DIR}/tce_fortran
+        ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3 ${BLAS_INCLUDE_PATH})
 target_link_libraries(ccsd_driver fort_deps_tammx fort_deps_c tammx tce_fortran ${tamm_cflags} -fopenmp
         ${tamm_ldflags} ${CBLAS_LIBRARIES}  ${tamm_libs} ${CBLAS_LIBRARIES} -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
 

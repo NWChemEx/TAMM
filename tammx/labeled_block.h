@@ -3,6 +3,7 @@
 
 #include "tammx/types.h"
 #include "tammx/block.h"
+#include "cblas.h"
 
 namespace tammx {
 
@@ -146,15 +147,17 @@ matmul(int m, int n, int k, T *A, int lda, T *B, int ldb, T *C, int ldc, T alpha
   EXPECTS(m>0 && n>0 && k>0);
   EXPECTS(A!=nullptr && B!=nullptr && C!=nullptr);
 
-  for(int x=0; x<m; x++) {
-    for(int y=0; y<n; y++) {
-      T value = 0;
-      for(int z=0; z<k; z++) {
-        value += A[x*lda + z] * B[z*ldb + y];
-      }
-      C[x*ldc + y] = beta * C[x*ldc + y] + alpha * value;
-    }
-  }
+//  for(int x=0; x<m; x++) {
+//    for(int y=0; y<n; y++) {
+//      T value = 0;
+//      for(int z=0; z<k; z++) {
+//        value += A[x*lda + z] * B[z*ldb + y];
+//      }
+//      C[x*ldc + y] = beta * C[x*ldc + y] + alpha * value;
+//    }
+//  }
+
+  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
 }
 
 template<typename T>

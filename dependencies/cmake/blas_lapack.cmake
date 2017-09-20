@@ -19,6 +19,6 @@ else()
         INSTALL_COMMAND make install
     )
 
-    set(BLAS_INCLUDE_PATH ${CMAKE_INSTALL_PREFIX}/blas_lapack/include)
-    set(BLAS_LIBRARY_PATH ${CMAKE_INSTALL_PREFIX}/blas_lapack/lib)
+#    set(BLAS_INCLUDE_PATH ${CMAKE_INSTALL_PREFIX}/blas_lapack/include)
+#    set(BLAS_LIBRARY_PATH ${CMAKE_INSTALL_PREFIX}/blas_lapack/lib)
 endif()

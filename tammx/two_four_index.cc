@@ -108,61 +108,20 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
   cout << "\n\t spin_t\n";
   cout << spin_t << endl;
 
-  if(unfused_4index)  {
-    Eigen::Tensor<double, 4, Eigen::RowMajor> I0(v2dim,v2dim,v2dim,v2dim);
-    Eigen::Tensor<double, 4, Eigen::RowMajor> I1(v2dim,v2dim,v2dim,v2dim);
-    Eigen::Tensor<double, 4, Eigen::RowMajor> I2(v2dim,v2dim,v2dim,v2dim);
-    Eigen::Tensor<double, 4, Eigen::RowMajor> I3(v2dim,v2dim,v2dim,v2dim);
+  if(unfused_4index) {
+    Eigen::Tensor<double, 4, Eigen::RowMajor> I0(v2dim, v2dim, v2dim, v2dim);
+    Eigen::Tensor<double, 4, Eigen::RowMajor> I1(v2dim, v2dim, v2dim, v2dim);
+    Eigen::Tensor<double, 4, Eigen::RowMajor> I2(v2dim, v2dim, v2dim, v2dim);
+    Eigen::Tensor<double, 4, Eigen::RowMajor> I3(v2dim, v2dim, v2dim, v2dim);
     I0.setZero();
     I1.setZero();
     I2.setZero();
     I3.setZero();
 
     //I0(s1, s2, s2, s4) = integral_function()
-    for (auto s1 = 0; s1 != shells.size(); ++s1) {
-      auto bf1_first = shell2bf[s1]; // first basis function in this shell
-      auto n1 = shells[s1].size();
-
-      for (auto s2 = 0; s2 != shells.size(); ++s2) {
-        auto bf2_first = shell2bf[s2];
-        auto n2 = shells[s2].size();
-
-        // loop over shell pairs of the density matrix, {s3,s4}
-        // again symmetry is not used for simplicity
-        for (auto s3 = 0; s3 != shells.size(); ++s3) {
-          auto bf3_first = shell2bf[s3];
-          auto n3 = shells[s3].size();
-
-          for (auto s4 = 0; s4 != shells.size(); ++s4) {
-            auto bf4_first = shell2bf[s4];
-            auto n4 = shells[s4].size();
-
-            // Coulomb contribution to the Fock matrix is from {s1,s2,s3,s4} integrals
-            engine.compute(shells[s1], shells[s2], shells[s3], shells[s4]);
-            const auto *buf_1234 = buf[0];
-            if (buf_1234 == nullptr)
-              continue; // if all integrals screened out, skip to next quartet
-
-            for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
-              const auto bf1 = f1 + bf1_first;
-              for (auto f2 = 0; f2 != n2; ++f2) {
-                const auto bf2 = f2 + bf2_first;
-                for (auto f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
-                    const auto bf4 = f4 + bf4_first;
-                    I0(bf1, bf2, bf3, bf4) += buf_1234[f1234];
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    //I1(p, bf2, bf3, bf4) += CTiled(bf1, p) * I0(bf1, bf2, bf3, bf4);
-    for (auto p = 0; p < v2dim; p++) {
+//#pragma omp parallel default(none), shared(shells, I0, shell2bf,engine,buf)
+  //  {
+      //#pragma omp for schedule(guided)
       for (auto s1 = 0; s1 != shells.size(); ++s1) {
         auto bf1_first = shell2bf[s1]; // first basis function in this shell
         auto n1 = shells[s1].size();
@@ -181,15 +140,21 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
               auto bf4_first = shell2bf[s4];
               auto n4 = shells[s4].size();
 
-              for (auto f1 = 0; f1 != n1; ++f1) {
+              // Coulomb contribution to the Fock matrix is from {s1,s2,s3,s4} integrals
+              engine.compute(shells[s1], shells[s2], shells[s3], shells[s4]);
+              const auto *buf_1234 = buf[0];
+              if (buf_1234 == nullptr)
+                continue; // if all integrals screened out, skip to next quartet
+
+              for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
                 const auto bf1 = f1 + bf1_first;
                 for (auto f2 = 0; f2 != n2; ++f2) {
                   const auto bf2 = f2 + bf2_first;
                   for (auto f3 = 0; f3 != n3; ++f3) {
                     const auto bf3 = f3 + bf3_first;
-                    for (auto f4 = 0; f4 != n4; ++f4) {
+                    for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
                       const auto bf4 = f4 + bf4_first;
-                      I1(p, bf2, bf3, bf4) += CTiled(bf1, p) * I0(bf1, bf2, bf3, bf4);
+                      I0(bf1, bf2, bf3, bf4) += buf_1234[f1234];
                     }
                   }
                 }
@@ -198,35 +163,43 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
           }
         }
       }
-    }
+//    }//omp parallel
 
-    //I2(p, r, bf3, bf4) += CTiled(bf2, r) * I1(p, bf2, bf3, bf4);
-    for (auto p = 0; p < v2dim; p++) {
-      for (auto r = 0; r < v2dim; r++) {
-        if(spin_t(p)  != spin_t(r)) {
-          continue;
-        }
-        for (auto s2 = 0; s2 != shells.size(); ++s2) {
-          auto bf2_first = shell2bf[s2];
-          auto n2 = shells[s2].size();
+    //I1(p, bf2, bf3, bf4) += CTiled(bf1, p) * I0(bf1, bf2, bf3, bf4);
+#pragma omp parallel default(none), firstprivate(v2dim), shared(engine,shells, CTiled, I0, I1, shell2bf)
+    {
+#pragma  omp for schedule(guided)
 
-          // loop over shell pairs of the density matrix, {s3,s4}
-          // again symmetry is not used for simplicity
-          for (auto s3 = 0; s3 != shells.size(); ++s3) {
-            auto bf3_first = shell2bf[s3];
-            auto n3 = shells[s3].size();
+      for (auto p = 0; p < v2dim; p++) {
+        for (auto s1 = 0; s1 != shells.size(); ++s1) {
+          auto bf1_first = shell2bf[s1]; // first basis function in this shell
+          auto n1 = shells[s1].size();
 
-            for (auto s4 = 0; s4 != shells.size(); ++s4) {
-              auto bf4_first = shell2bf[s4];
-              auto n4 = shells[s4].size();
+          for (auto s2 = 0; s2 != shells.size(); ++s2) {
+            auto bf2_first = shell2bf[s2];
+            auto n2 = shells[s2].size();
 
-              for (auto f2 = 0; f2 != n2; ++f2) {
-                const auto bf2 = f2 + bf2_first;
-                for (auto f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for (auto f4 = 0; f4 != n4; ++f4) {
-                    const auto bf4 = f4 + bf4_first;
-                    I2(p, r, bf3, bf4) += CTiled(bf2, r) * I1(p, bf2, bf3, bf4);
+            // loop over shell pairs of the density matrix, {s3,s4}
+            // again symmetry is not used for simplicity
+            for (auto s3 = 0; s3 != shells.size(); ++s3) {
+              auto bf3_first = shell2bf[s3];
+              auto n3 = shells[s3].size();
+
+              for (auto s4 = 0; s4 != shells.size(); ++s4) {
+                auto bf4_first = shell2bf[s4];
+                auto n4 = shells[s4].size();
+
+                for (auto f1 = 0; f1 != n1; ++f1) {
+                  const auto bf1 = f1 + bf1_first;
+                  for (auto f2 = 0; f2 != n2; ++f2) {
+                    const auto bf2 = f2 + bf2_first;
+                    for (auto f3 = 0; f3 != n3; ++f3) {
+                      const auto bf3 = f3 + bf3_first;
+                      for (auto f4 = 0; f4 != n4; ++f4) {
+                        const auto bf4 = f4 + bf4_first;
+                        I1(p, bf2, bf3, bf4) += CTiled(bf1, p) * I0(bf1, bf2, bf3, bf4);
+                      }
+                    }
                   }
                 }
               }
@@ -234,30 +207,107 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
           }
         }
       }
-    }
+    }//omp parallel
+
+    //I2(p, r, bf3, bf4) += CTiled(bf2, r) * I1(p, bf2, bf3, bf4);
+#pragma omp parallel default(none), firstprivate(v2dim), shared(shells, CTiled, I1, I2, spin_t, shell2bf)
+    {
+#pragma  omp for schedule(guided)
+      for (auto p = 0; p < v2dim; p++) {
+        for (auto r = 0; r < v2dim; r++) {
+          if (spin_t(p) != spin_t(r)) {
+            continue;
+          }
+          for (auto s2 = 0; s2 != shells.size(); ++s2) {
+            auto bf2_first = shell2bf[s2];
+            auto n2 = shells[s2].size();
+
+            // loop over shell pairs of the density matrix, {s3,s4}
+            // again symmetry is not used for simplicity
+            for (auto s3 = 0; s3 != shells.size(); ++s3) {
+              auto bf3_first = shell2bf[s3];
+              auto n3 = shells[s3].size();
+
+              for (auto s4 = 0; s4 != shells.size(); ++s4) {
+                auto bf4_first = shell2bf[s4];
+                auto n4 = shells[s4].size();
+
+                for (auto f2 = 0; f2 != n2; ++f2) {
+                  const auto bf2 = f2 + bf2_first;
+                  for (auto f3 = 0; f3 != n3; ++f3) {
+                    const auto bf3 = f3 + bf3_first;
+                    for (auto f4 = 0; f4 != n4; ++f4) {
+                      const auto bf4 = f4 + bf4_first;
+                      I2(p, r, bf3, bf4) += CTiled(bf2, r) * I1(p, bf2, bf3, bf4);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }//omp parallel
+
 
     //I3(p, r, q, bf4) += CTiled(bf3, q) * I1(p, r, bf3, bf4);
-    for (auto p = 0; p < v2dim; p++) {
-      for (auto r = 0; r < v2dim; r++) {
-        if(spin_t(p)  != spin_t(r)) {
-          continue;
+#pragma omp parallel default(none), firstprivate(v2dim), shared(shells, CTiled, I3, I2, spin_t, shell2bf)
+    {
+#pragma  omp for schedule(guided)
+      for (auto p = 0; p < v2dim; p++) {
+        for (auto r = 0; r < v2dim; r++) {
+          if (spin_t(p) != spin_t(r)) {
+            continue;
+          }
+          for (auto q = 0; q < v2dim; q++) {
+            // loop over shell pairs of the density matrix, {s3,s4}
+            // again symmetry is not used for simplicity
+            for (auto s3 = 0; s3 != shells.size(); ++s3) {
+              auto bf3_first = shell2bf[s3];
+              auto n3 = shells[s3].size();
+
+              for (auto s4 = 0; s4 != shells.size(); ++s4) {
+                auto bf4_first = shell2bf[s4];
+                auto n4 = shells[s4].size();
+
+                for (auto f3 = 0; f3 != n3; ++f3) {
+                  const auto bf3 = f3 + bf3_first;
+                  for (auto f4 = 0; f4 != n4; ++f4) {
+                    const auto bf4 = f4 + bf4_first;
+                    I3(p, r, q, bf4) += CTiled(bf3, q) * I2(p, r, bf3, bf4);
+                  }
+                }
+              }
+            }
+          }
         }
-        for (auto q = 0; q < v2dim; q++) {
-          // loop over shell pairs of the density matrix, {s3,s4}
-          // again symmetry is not used for simplicity
-          for (auto s3 = 0; s3 != shells.size(); ++s3) {
-            auto bf3_first = shell2bf[s3];
-            auto n3 = shells[s3].size();
+      }
+    }//omp parallel
 
-            for (auto s4 = 0; s4 != shells.size(); ++s4) {
-              auto bf4_first = shell2bf[s4];
-              auto n4 = shells[s4].size();
 
-              for (auto f3 = 0; f3 != n3; ++f3) {
-                const auto bf3 = f3 + bf3_first;
+    //V(p, r, q, s) += CTiled(bf4, s) * I1(p, r, q, bf4);
+#pragma omp parallel default(none), firstprivate(v2dim), shared(shells, CTiled, I3, V2_unfused, spin_t, shell2bf)
+    {
+#pragma  omp for schedule(guided)
+      for (auto p = 0; p < v2dim; p++) {
+        for (auto r = 0; r < v2dim; r++) {
+          if (spin_t(p) != spin_t(r)) {
+            continue;
+          }
+          for (auto q = 0; q < v2dim; q++) {
+            for (auto s = 0; s < v2dim; s++) {
+              if (spin_t(q) != spin_t(s)) {
+                continue;
+              }
+              // loop over shell pairs of the density matrix, {s3,s4}
+              // again symmetry is not used for simplicity
+              for (auto s4 = 0; s4 != shells.size(); ++s4) {
+                auto bf4_first = shell2bf[s4];
+                auto n4 = shells[s4].size();
+
                 for (auto f4 = 0; f4 != n4; ++f4) {
                   const auto bf4 = f4 + bf4_first;
-                  I3(p, r, q, bf4) += CTiled(bf3, q) * I2(p, r, bf3, bf4);
+                  V2_unfused(p, r, q, s) += CTiled(bf4, s) * I3(p, r, q, bf4);
                 }
               }
             }
@@ -265,34 +315,8 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
         }
       }
     }
+  }//omp parallel
 
-    //V(p, r, q, s) += CTiled(bf4, s) * I1(p, r, q, bf4);
-    for (auto p = 0; p < v2dim; p++) {
-      for (auto r = 0; r < v2dim; r++) {
-        if(spin_t(p)  != spin_t(r)) {
-          continue;
-        }
-        for (auto q = 0; q < v2dim; q++) {
-          for (auto s = 0; s < v2dim; s++) {
-            if (spin_t(q) != spin_t(s)) {
-              continue;
-            }
-            // loop over shell pairs of the density matrix, {s3,s4}
-            // again symmetry is not used for simplicity
-            for (auto s4 = 0; s4 != shells.size(); ++s4) {
-              auto bf4_first = shell2bf[s4];
-              auto n4 = shells[s4].size();
-
-              for (auto f4 = 0; f4 != n4; ++f4) {
-                const auto bf4 = f4 + bf4_first;
-                V2_unfused(p, r, q, s) += CTiled(bf4, s) * I3(p, r, q, bf4);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
   if(fully_fused_4index) {
     for (auto p = 0; p < v2dim; p++) {
       for (auto r = 0; r < v2dim; r++) {
@@ -404,11 +428,15 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
 
 
   if(unfused_4index) {
-    for (auto p = 0; p < v2dim; p++) {
-      for (auto q = 0; q < v2dim; q++) {
-        for (auto r = 0; r < v2dim; r++) {
-          for (auto s = 0; s < v2dim; s++) {
-            A2(p, q, r, s)= V2_unfused(p,r,q,s) - V2_unfused(p,s,q,r);
+#pragma omp parallel default(none), firstprivate(v2dim), shared(A2,V2_unfused)
+    {
+#pragma  omp for schedule(guided)
+      for (auto p = 0; p < v2dim; p++) {
+        for (auto q = 0; q < v2dim; q++) {
+          for (auto r = 0; r < v2dim; r++) {
+            for (auto s = 0; s < v2dim; s++) {
+              A2(p, q, r, s) = V2_unfused(p, r, q, s) - V2_unfused(p, s, q, r);
+            }
           }
         }
       }

@@ -9,20 +9,22 @@
 
 namespace tammx {
 
+class ExecutionContext;
+
 /////////////////////////////////////////////////////////////////////
 //         operators
 /////////////////////////////////////////////////////////////////////
 
 class Op {
  public:
-  virtual void execute() = 0;
+  virtual void execute(const ProcGroup& ec_pg) = 0;
   virtual ~Op() {}
 };
 
 
 template<typename T, typename LabeledTensorType>
 struct SetOp : public Op {
-  void execute() override;
+  void execute(const ProcGroup& ec_pg) override;
 
   SetOp(T value, LabeledTensorType& lhs, ResultMode mode)
       : value_{value},
@@ -36,7 +38,7 @@ struct SetOp : public Op {
 
 template<typename T, typename LabeledTensorType>
 struct AddOp : public Op {
-  void execute() override;
+  void execute(const ProcGroup& ec_pg) override;
 
   AddOp(T alpha, const LabeledTensorType& lhs, const LabeledTensorType& rhs, ResultMode mode,
         ExecutionMode exec_mode,
@@ -57,7 +59,7 @@ struct AddOp : public Op {
 
 template<typename T, typename LabeledTensorType>
 struct MultOp : public Op {
-  void execute() override;
+  void execute(const ProcGroup& ec_pg) override;
 
   MultOp(T alpha, const LabeledTensorType& lhs, const LabeledTensorType& rhs1,
          const LabeledTensorType& rhs2, ResultMode mode,
@@ -80,7 +82,7 @@ struct MultOp : public Op {
 
 template<typename TensorType>
 struct AllocOp: public Op {
-  void execute() override {
+  void execute(const ProcGroup& ec_pg) override {
     EXPECTS(pg_.is_valid());
     tensor_->alloc(pg_, distribution_, memory_manager_);
   }
@@ -99,7 +101,7 @@ struct AllocOp: public Op {
 
 template<typename TensorType>
 struct DeallocOp: public Op {
-  void execute() override {
+  void execute(const ProcGroup& ec_pg) override {
     tensor_->dealloc();
   }
 
@@ -116,7 +118,7 @@ struct MapOp : public Op {
   using T = typename LabeledTensorType::element_type;
   using RHS_Blocks = std::array<Block<T>, N>;
 
-  void execute() override {
+  void execute(const ProcGroup& ec_pg) override {
     auto &lhs_tensor = *lhs_.tensor_;
     auto lambda = [&] (const BlockDimVec& blockid) {
       auto size = lhs_tensor.block_size(blockid);
@@ -145,7 +147,12 @@ struct MapOp : public Op {
 #else
     auto itr_first = loop_iterator(slice_indices(lhs_tensor.tindices(), lhs_.label_));
 #endif
-    parallel_work(itr_first, itr_first.get_end(), lambda);
+    if(ec_pg.size() > lhs_tensor.tensor_->pg().size()) {
+      parallel_work(lhs_tensor.tensor_->pg(), itr_first, itr_first.get_end(), lambda);
+    } else {
+      parallel_work(ec_pg, itr_first, itr_first.get_end(), lambda);
+    }
+    //parallel_work(itr_first, itr_first.get_end(), lambda);
   }
 
   MapOp(LabeledTensorType& lhs, Func func, RHS& rhs, ResultMode mode = ResultMode::set)
@@ -174,7 +181,7 @@ struct MapIdOp : public Op {
   using T = typename LabeledTensorType::element_type;
   using RHS_Blocks = std::array<Block<T>, N>;
 
-  void execute() override {
+  void execute(const ProcGroup& ec_pg) override {
     auto &lhs_tensor = *lhs_.tensor_;
     auto lambda = [&] (const BlockDimVec& blockid) {
       auto size = lhs_tensor.block_size(blockid);
@@ -251,7 +258,12 @@ struct MapIdOp : public Op {
 #else
     auto itr_first = loop_iterator(slice_indices(lhs_tensor.tindices(), lhs_.label_));
 #endif
-    parallel_work(itr_first, itr_first.get_end(), lambda);
+    if(ec_pg.size() > lhs_tensor.tensor_->pg().size()) {
+      parallel_work(lhs_tensor.tensor_->pg(), itr_first, itr_first.get_end(), lambda);
+    } else {
+      parallel_work(ec_pg, itr_first, itr_first.get_end(), lambda);
+    }
+    //parallel_work(itr_first, itr_first.get_end(), lambda);
   }
 
   MapIdOp(LabeledTensorType& lhs, Func func, RHS& rhs, ResultMode mode = ResultMode::set)
@@ -285,7 +297,7 @@ struct MapIdOp : public Op {
  */
 template<typename Func, typename LabeledTensorType>
 struct ScanOp : public Op {
-  void execute() {
+  void execute(const ProcGroup& ec_pg) {
     // std::cerr<<__FUNCTION__<<":"<<__LINE__<<": ScanOp\n";
     auto& tensor = *ltensor_.tensor_;
     auto lambda = [&] (const BlockDimVec& blockid) {
@@ -305,7 +317,12 @@ struct ScanOp : public Op {
 #else
     auto itr_first = loop_iterator(slice_indices(tensor.tindices(), ltensor_.label_));
 #endif
-    parallel_work(itr_first, itr_first.get_end(), lambda);
+    if(ec_pg.size() > tensor->pg().size()) {
+      parallel_work(tensor->pg(), itr_first, itr_first.get_end(), lambda);
+    } else {
+      parallel_work(ec_pg, itr_first, itr_first.get_end(), lambda);
+    }
+    //parallel_work(itr_first, itr_first.get_end(), lambda);
   }
 
   ScanOp(const LabeledTensorType& ltensor, Func func)
@@ -402,7 +419,7 @@ group_labels(const IndexLabelVec& label,
 
 template<typename T, typename LabeledTensorType>
 inline void
-SetOp<T,LabeledTensorType>::execute() {
+SetOp<T,LabeledTensorType>::execute(const ProcGroup& ec_pg) {
   using T1 = typename LabeledTensorType::element_type;
   // std::cerr<<"Calling setop :: execute"<<std::endl;
   auto& tensor = *lhs_.tensor_;
@@ -430,7 +447,12 @@ SetOp<T,LabeledTensorType>::execute() {
 #else
   auto itr_first = loop_iterator(slice_indices(tensor.tindices(), lhs_.label_));
 #endif
-  parallel_work(itr_first, itr_first.get_end(), lambda);
+  if(ec_pg.size() > lhs_.tensor_->pg().size()) {
+    parallel_work(lhs_.tensor_->pg(), itr_first, itr_first.get_end(), lambda);
+  } else {
+    parallel_work(ec_pg, itr_first, itr_first.get_end(), lambda);
+  }
+  //parallel_work(ec_pg, itr_first, itr_first.get_end(), lambda);
 }
 
 //--------------- new symmetrization routines
@@ -854,7 +876,7 @@ tensor_to_fortran_info(tammx::Tensor<T> &ttensor) {
 // symmetrization or unsymmetrization, but not both in one symmetry group
 template<typename T, typename LabeledTensorType>
 inline void
-AddOp<T, LabeledTensorType>::execute() {
+AddOp<T, LabeledTensorType>::execute(const ProcGroup& ec_pg) {
   using T1 = typename LabeledTensorType::element_type;
 
   //std::cout<<"ADD_OP. C"<<lhs_.label_<<" += "<<alpha_<<" * A"<<rhs_.label_<<"\n";
@@ -934,7 +956,12 @@ AddOp<T, LabeledTensorType>::execute() {
       tc.put(cblockid, cbp);
     }
   };
-  parallel_work(citr, citr.get_end(), lambda);
+  if(ec_pg.size() > ltc.tensor_->pg().size()) {
+    parallel_work(ltc.tensor_->pg(), citr, citr.get_end(), lambda);
+  } else {
+    parallel_work(ec_pg, citr, citr.get_end(), lambda);
+  }
+  
   //tensor_print(*lhs_.tensor_);
 }
 
@@ -966,7 +993,7 @@ compute_symmetry_scaling_factor(const TensorVec<TensorSymmGroup>& sum_indices,
 
 template<typename T, typename LabeledTensorType>
 inline void
-MultOp<T, LabeledTensorType>::execute() {
+MultOp<T, LabeledTensorType>::execute(const ProcGroup& ec_pg) {
   using T1 = typename LabeledTensorType::element_type;
   // std::cout<<"MULT_OP. C"<<lhs_.label_<<" += "<<alpha_
   //          <<" * A"<<rhs1_.label_
@@ -1117,7 +1144,11 @@ MultOp<T, LabeledTensorType>::execute() {
 #else
   auto citr = loop_iterator(slice_indices(tc.tindices(), ltc.label_));
 #endif
-  parallel_work(citr, citr.get_end(), lambda);
+  if(ec_pg.size() > ltc.tensor_->pg().size()) {
+    parallel_work(ltc.tensor_->pg(), citr, citr.get_end(), lambda);
+  } else {
+    parallel_work(ec_pg, citr, citr.get_end(), lambda);
+  }
   //tensor_print(*lhs_.tensor_);
 }
 

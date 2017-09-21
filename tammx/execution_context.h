@@ -18,7 +18,9 @@ class ExecutionContext {
         default_distribution_{default_distribution},
         default_memory_manager_{default_memory_manager},
         default_irrep_{default_irrep},
-        default_spin_restricted_{default_spin_restricted} {}
+        default_spin_restricted_{default_spin_restricted} {
+          pg_self_ = ProcGroup{MPI_COMM_SELF};
+        }
 
   Scheduler scheduler() {
     return Scheduler{pg_,
@@ -68,9 +70,10 @@ class ExecutionContext {
   bool is_spin_restricted() const {
     return default_spin_restricted_;
   }
-
+  
  private:
   ProcGroup pg_;
+  ProcGroup pg_self_;
   Distribution* default_distribution_;
   MemoryManager* default_memory_manager_;
   Irrep default_irrep_;

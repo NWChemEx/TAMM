@@ -11,7 +11,7 @@ set(BLAS_INCLUDE_PATH /Applications/Xcode.app/Contents/Developer/Platforms/iPhon
 
 # General NWCHEM Options
 # Set the following when using the NWCHEM CMAKE build
-set(NWCHEM_TOP /Users/panyala/software/libraries/nwchem-cmake/nwchem-devel)
+set(NWCHEM_TOP /Users/sriram/code/nwchem-cmake/nwchem-devel)
 set(GA_CONFIG ${NWCHEM_TOP}/build/nwchem-install/external/ga/bin)
 set(NWCHEM_BUILD_DIR ${NWCHEM_TOP}/build/)
 option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" ON)

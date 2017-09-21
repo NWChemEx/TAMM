@@ -166,7 +166,7 @@ class Scheduler {
 
   void execute() {
     for(auto &op_ptr: ops_) {
-      op_ptr->execute();
+      op_ptr->execute(pg_);
     }
   }
 

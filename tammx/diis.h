@@ -3,16 +3,18 @@
 
 #include "tammx/tammx.h"
 #include <Eigen/Dense>
+#include "ga.h"
 
 namespace tammx {
 
 
 template<typename T>
 inline void
-jacobi(Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted) {
+jacobi(ExecutionContext& ec,
+       Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted) {
   EXPECTS(transpose == false);
   // std::cout << "shift=" << shift << std::endl;
-  block_for(d_r(), [&] (const BlockDimVec& blockid) {
+  block_parfor(ec.pg(), d_r(), [&] (const BlockDimVec& blockid) {
       auto rblock = d_r.get(blockid);
       auto tblock = d_t.alloc(blockid);
       auto bdims = rblock.block_dims();
@@ -59,13 +61,14 @@ jacobi(Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted)
         assert(0);  // @todo implement
       }
     });
+  //GA_Sync();
 }
 
 template<typename T>
 inline T
-ddot(LabeledTensor<T> lta, LabeledTensor<T> ltb) {
+ddot(ExecutionContext& ec, LabeledTensor<T> lta, LabeledTensor<T> ltb) {
   T ret = 0;
-  block_for(lta, [&] (const BlockDimVec& blockid) {
+  block_for(ec.pg(), lta, [&] (const BlockDimVec& blockid) {
       auto ablock = lta.tensor_->get(blockid);
       auto bblock = ltb.tensor_->get(blockid);
       auto abuf = ablock.buf();
@@ -80,7 +83,7 @@ ddot(LabeledTensor<T> lta, LabeledTensor<T> ltb) {
 
 template<typename T>
 inline void
-diis(Scheduler& sch,
+diis(ExecutionContext& ec,
      std::vector<std::vector<Tensor<T>*>*>& d_rs,
      std::vector<std::vector<Tensor<T>*>*>& d_ts,
      std::vector<Tensor<T>*> d_t) {
@@ -100,7 +103,7 @@ diis(Scheduler& sch,
   for(int k=0; k<ntensors; k++) {
     for(int i=0; i<ndiis; i++) {
       for(int j=i; j<ndiis; j++) {
-        A(i, j) += ddot((*d_rs[k]->at(i))(), (*d_rs[k]->at(j))());
+        A(i, j) += ddot(ec, (*d_rs[k]->at(i))(), (*d_rs[k]->at(j))());
       }
     }
   }
@@ -122,6 +125,7 @@ diis(Scheduler& sch,
   //Vector x = A.colPivHouseholderQr().solve(b);
   Vector x = A.lu().solve(b);
 
+  auto sch = ec.scheduler();
   for(int k=0; k<ntensors; k++) {
     auto &dt = *d_t[k];
     sch.output(dt)
@@ -132,7 +136,9 @@ diis(Scheduler& sch,
           (dt() += x(j, 0) * tb());
     }
   }
+  //GA_Sync();
   sch.execute();
+  //GA_Sync();
   sch.clear();
 }
 

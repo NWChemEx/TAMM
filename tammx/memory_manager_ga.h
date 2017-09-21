@@ -108,17 +108,29 @@ class MemoryManagerGA : public MemoryManager {
     } else {
       TAMMX_SIZE dim, block = nranks;
       MPI_Allreduce(&nels, &dim, 1, MPI_LONG_LONG, MPI_SUM, pg_.comm());
-      MPI_Exscan(&nels, &map_[0], 1, MPI_LONG_LONG, MPI_SUM, pg_.comm());
+      //std::cerr<<pg_.rank()<<":------ GA CREATE nels="<<nels<<std::endl;
+      MPI_Allgather(&nels, 1, MPI_LONG_LONG, &map_[1], 1, MPI_LONG_LONG, pg_.comm());
+      //MPI_Exscan(&nels, &map_[0], 1, MPI_LONG_LONG, MPI_SUM, pg_.comm());
       map_[0] = 0; // @note this is not set by MPI_Exscan
+      std::partial_sum(map_.get(), map_.get()+nranks, map_.get());      
+      //std::cerr<<"------ GA CREATE irreg map="<<map_[0]<<" "<<map_[1]<<" "<<map_[2]<<std::endl;
       std::string array_name{"array_name"};
-      ga_ = NGA_Create_irreg64(ga_eltype_, 1, &dim, const_cast<char*>(array_name.c_str()), &block, map_.get());
+      for(block = nranks; block>0 && map_[block-1] == dim; --block) {
+        //no-op
+      }
+      int64_t *map_start = map_.get();
+      for(int i=0; i<nranks && *(map_start+1)==0; ++i, ++map_start, --block) {
+        //no-op
+      }
+      ga_ = NGA_Create_irreg64(ga_eltype_, 1, &dim, const_cast<char*>(array_name.c_str()), &block, map_start);
     }
     GA_Pgroup_set_default(ga_pg_default);
 
     TAMMX_SIZE lo, hi, ld;
     NGA_Distribution64(ga_, pg_.rank().value(), &lo, &hi);
-    EXPECTS(lo == map_[pg_.rank().value()]);
-    EXPECTS(hi == map_[pg_.rank().value()] + nelements.value() - 1);
+    //std::cerr<<pg_.rank()<<"-----ALLOC. LO="<<lo<<" HI="<<hi<<" nelements="<<nelements<<std::endl;
+    EXPECTS(nels<=0 || lo == map_[pg_.rank().value()]);
+    EXPECTS(nels<=0 || hi == map_[pg_.rank().value()] + nelements.value() - 1);
     nelements_ = hi - lo + 1;
 
     allocation_status_ = AllocationStatus::created;
@@ -167,7 +179,9 @@ class MemoryManagerGA : public MemoryManager {
     TAMMX_INT32 iproc{proc.value()};
     TAMMX_SIZE ioffset{map_[proc.value()] + off.value()};
     TAMMX_SIZE lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
+    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     NGA_Get64(ga_, &lo, &hi, buf, &ld);
+    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
   }
   
   void put(Proc proc, Offset off, Size nelements, const void* buf) override {

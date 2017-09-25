@@ -19,12 +19,6 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
 //  cout << "\n\t F_AO Matrix:\n";
 //  cout << F << endl;
 
-  const int C_rows = C.rows();
-  assert(C_rows == nao);
-
-  const int C_cols = C.cols();
-  assert(C_cols == nao);
-
   //std::cout << "C Cols = " << C_cols << std::endl;
   std::cout << "nao, ndocc = " << nao << " : " << ndocc << std::endl;
 
@@ -32,7 +26,7 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
   auto ov_beta_freeze = nao - ndocc - freeze_virtual;
 
   // replicate horizontally
-  Matrix C_2N(C_rows, 2 * C_cols);
+  Matrix C_2N(nao, 2 * nao);
   C_2N << C, C;
   //cout << "\n\t C_2N Matrix:\n";
   //cout << C_2N << endl;
@@ -41,23 +35,19 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
 //  cout << "\n\t C occupied alpha:\n";
 //  cout << C_noa << endl;
 
-  //Matrix C_nva = C_2N.block<nao, nao - ndocc>(0, ndocc);
   Matrix C_nva = C_2N.block(0, ndocc,nao, ov_beta_freeze);
 //  cout << "\n\t C virtual alpha:\n";
 //  cout << C_nva << endl;
 
-  //Matrix C_nob = C_2N.block<nao, ndocc>(0, C_cols);
-  Matrix C_nob = C_2N.block(0, C_cols + freeze_core, nao, ov_alpha_freeze);
+  Matrix C_nob = C_2N.block(0, nao + freeze_core, nao, ov_alpha_freeze);
 //  cout << "\n\t C occupied beta:\n";
 //  cout << C_nob << endl;
 
-//  Matrix C_nvb = C_2N.block<nao, nao - ndocc>(0, ndocc + C_cols);
-  Matrix C_nvb = C_2N.block(0, ndocc + C_cols, nao, ov_beta_freeze);
+  Matrix C_nvb = C_2N.block(0, ndocc + nao, nao, ov_beta_freeze);
 //  cout << "\n\t C virtual beta:\n";
 //  cout << C_nvb << endl;
 
   // For now C_noa = C_nob and C_nva = C_nvb
-  //Matrix CTiled(C_rows, 2 * C_cols);
   Matrix CTiled(nao, 2 * nao - 2 * freeze_core - 2 * freeze_virtual);
   CTiled << C_noa, C_nob, C_nva, C_nvb;
 

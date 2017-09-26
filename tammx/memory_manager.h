@@ -13,12 +13,12 @@ namespace tammx {
 
 enum class MemoryManagerType { local, distributed };
 
-class MemoryPoolBase;
+class MemoryRegion;
 
 class MemoryManager {
  public:
-  virtual MemoryPoolBase* alloc_coll(ElementType eltype, Size nelements) = 0;
-  virtual MemoryPoolBase* attach_coll(MemoryPoolBase& mpb) = 0;
+  virtual MemoryRegion* alloc_coll(ElementType eltype, Size nelements) = 0;
+  virtual MemoryRegion* attach_coll(MemoryRegion& mpb) = 0;
 
   ProcGroup pg() const {
     return pg_;    
@@ -31,27 +31,27 @@ class MemoryManager {
   virtual ~MemoryManager() {}
 
  public:
-  virtual void dealloc_coll(MemoryPoolBase& mp) = 0;
-  virtual void detach_coll(MemoryPoolBase& mp) = 0;
+  virtual void dealloc_coll(MemoryRegion& mp) = 0;
+  virtual void detach_coll(MemoryRegion& mp) = 0;
 
-  void* access(MemoryPoolBase& mp, Offset off) {
+  void* access(MemoryRegion& mp, Offset off) {
     return const_cast<void*>(static_cast<const MemoryManager&>(*this).access(mp, off));
   }
 
-  virtual const void* access(const MemoryPoolBase& mp, Offset off) const = 0;
-  virtual void get(MemoryPoolBase& mp, Proc proc, Offset off, Size nelements, void* buf) = 0;
-  virtual void put(MemoryPoolBase& mp, Proc proc, Offset off, Size nelements, const void* buf) = 0;
-  virtual void add(MemoryPoolBase& mp, Proc proc, Offset off, Size nelements, const void* buf) = 0;
-  virtual void print_coll(const MemoryPoolBase& mp, std::ostream& os) = 0;
+  virtual const void* access(const MemoryRegion& mp, Offset off) const = 0;
+  virtual void get(MemoryRegion& mp, Proc proc, Offset off, Size nelements, void* buf) = 0;
+  virtual void put(MemoryRegion& mp, Proc proc, Offset off, Size nelements, const void* buf) = 0;
+  virtual void add(MemoryRegion& mp, Proc proc, Offset off, Size nelements, const void* buf) = 0;
+  virtual void print_coll(const MemoryRegion& mp, std::ostream& os) = 0;
 
   ProcGroup pg_;
   
-  friend class MemoryPoolBase;
+  friend class MemoryRegion;
 }; // class MemoryManager
 
-class MemoryPoolBase {
+class MemoryRegion {
  public:
-  MemoryPoolBase(Size nelements = Size{0})
+  MemoryRegion(Size nelements = Size{0})
       : allocation_status_{AllocationStatus::invalid},
         local_nelements_{nelements} {}
 
@@ -59,7 +59,7 @@ class MemoryPoolBase {
     return allocation_status_;
   }
   
-  virtual ~MemoryPoolBase() {
+  virtual ~MemoryRegion() {
     EXPECTS(allocation_status_ == AllocationStatus::invalid);
   }
 
@@ -131,10 +131,10 @@ class MemoryPoolBase {
 
   Size local_nelements_;
   AllocationStatus allocation_status_;
-}; // class MemoryPoolBase
+}; // class MemoryRegion
 
 template<typename MgrType>
-class MemoryPoolImpl : public MemoryPoolBase {
+class MemoryPoolImpl : public MemoryRegion {
  public:
   MemoryPoolImpl(MgrType& mgr)
       : mgr_{mgr} {}

@@ -183,31 +183,31 @@ class MemoryPoolImpl : public MemoryPoolBase {
 
 ///////////////////////////////////////////////////////////////////////////
 //
-//          Sequential memory manager and memory pool
+//          Local memory manager and memory pool
 //
 ///////////////////////////////////////////////////////////////////////////
 
-class MemoryManagerSequential : public MemoryManager {
+class MemoryManagerLocal : public MemoryManager {
  public:
-  static MemoryManagerSequential* create_coll(ProcGroup pg) {
-    return new MemoryManagerSequential{pg};
+  static MemoryManagerLocal* create_coll(ProcGroup pg) {
+    return new MemoryManagerLocal{pg};
   }
 
-  static void destroy_coll(MemoryManagerSequential* mms) {
+  static void destroy_coll(MemoryManagerLocal* mms) {
     delete mms;
   }
 
-  class MemoryPool : public MemoryPoolImpl<MemoryManagerSequential> {
+  class MemoryPool : public MemoryPoolImpl<MemoryManagerLocal> {
    public:
-    MemoryPool(MemoryManagerSequential& mgr)
-        : MemoryPoolImpl<MemoryManagerSequential>(mgr) {}
+    MemoryPool(MemoryManagerLocal& mgr)
+        : MemoryPoolImpl<MemoryManagerLocal>(mgr) {}
     
    private:
     size_t elsize_;
     ElementType eltype_;
     uint8_t* buf_;
     
-    friend class MemoryManagerSequential;
+    friend class MemoryManagerLocal;
   }; // class MemoryPool
 
   MemoryPoolBase* alloc_coll(ElementType eltype, Size nelements) override {
@@ -232,14 +232,14 @@ class MemoryManagerSequential : public MemoryManager {
   }
 
   protected:
-  explicit MemoryManagerSequential(ProcGroup pg)
+  explicit MemoryManagerLocal(ProcGroup pg)
       : MemoryManager{pg} {
     //sequential. So process group size should be 1
     EXPECTS(pg.is_valid());
     EXPECTS(pg_.size() == 1);
   }
 
-  ~MemoryManagerSequential() {}
+  ~MemoryManagerLocal() {}
 
  public:
   void dealloc_coll(MemoryPoolBase& mpb) override {
@@ -312,7 +312,7 @@ class MemoryManagerSequential : public MemoryManager {
   void print_coll(const MemoryPoolBase& mpb, std::ostream& os) override {
     const MemoryPool& mp = static_cast<const MemoryPool&>(mpb);
     EXPECTS(mp.buf_ != nullptr);
-    os<<"MemoryManagerSequential. contents\n";
+    os<<"MemoryManagerLocal. contents\n";
     for(size_t i=0; i<mp.local_nelements().value(); i++) {
       switch(mp.eltype_) {
         case ElementType::double_precision:
@@ -324,7 +324,7 @@ class MemoryManagerSequential : public MemoryManager {
     }
     os<<"\n\n";
   }
-}; // class MemoryManagerSequential
+}; // class MemoryManagerLocal
 
 
 // class MemoryPoolSequential : public MemoryPoolImpl<MemoryManagerSequential> {

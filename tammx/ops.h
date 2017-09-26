@@ -868,7 +868,7 @@ tensor_to_fortran_info(tammx::Tensor<T> &ttensor) {
     offseta[i] = ahash[i];
   }
 
-  auto amp_ga = static_cast<tammx::MemoryPoolGA&>(ttensor.memory_pool());
+  auto amp_ga = static_cast<tammx::MemoryRegionGA&>(ttensor.memory_pool());
   FortranInt da = amp_ga.ga();
   return {da, offseta};
 }

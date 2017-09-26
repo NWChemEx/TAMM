@@ -238,8 +238,6 @@ double ccsd_driver(ExecutionContext& ec,
   Irrep irrep{0};
   bool spin_restricted = false;
 
-std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-
  long lo_offset, hi_offset;
  long int total_orbitals = 0;
  const auto &flindices = d_f1.flindices();
@@ -253,53 +251,45 @@ std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n
   std::cout << "Total orbitals = " << total_orbitals << std::endl;
   std::vector<double> p_evl_sorted(total_orbitals);
 
-  //std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-{
+  {
     auto lambda = [&] (const auto& blockid) {
-      //std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
       if(blockid[0] == blockid[1]) {
-      std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
         auto block = d_f1.get(blockid);
-      std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
         auto dim = d_f1.block_dims(blockid)[0].value();
-      //std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
         auto offset = d_f1.block_offset(blockid)[0].value();
         TAMMX_SIZE i=0;
         for(auto p = offset; p < offset + dim; p++,i++) {
           p_evl_sorted[p] = block.buf()[i*dim + i];
         }
-      std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
       }
-      //std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     };
     block_for(ec.pg(), d_f1(), lambda);
- }
-std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-//GA_Sync();
-MPI_Barrier(GA_MPI_Comm());
-std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-
-std::cout << "p_evl_sorted:" << '\n';
-  for(auto p = 0; p < p_evl_sorted.size(); p++)
+  }
+  //GA_Sync();
+  MPI_Barrier(GA_MPI_Comm());
+  
+  if(ec.pg().rank() == 0) {
+    std::cout << "p_evl_sorted:" << '\n';
+    for(auto p = 0; p < p_evl_sorted.size(); p++)
       std::cout << p_evl_sorted[p] << '\n';
+  }
+  
+  if(ec.pg().rank() == 0) {
+    std::cout << "\n\n";
+    std::cout << " CCSD iterations" << std::endl;
+    std::cout << std::string(66, '-') << std::endl;
+    std::cout <<
+        " Iter          Residuum       Correlation     Cpu    Wall    V2*C2"
+              << std::endl;
+    std::cout << std::string(66, '-') << std::endl;
+  }
 
-  std::cout << "\n\n";
-  std::cout << " CCSD iterations" << std::endl;
-  std::cout << std::string(66, '-') << std::endl;
-  std::cout <<
-  " Iter          Residuum       Correlation     Cpu    Wall    V2*C2"
-  << std::endl;
-  std::cout << std::string(66, '-') << std::endl;
-std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-
-std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
+  std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
 
   Tensor<T> d_e{E|E, irrep, spin_restricted};
   Tensor<T> d_r1_residual{E|E, irrep, spin_restricted};
   Tensor<T> d_r2_residual{E|E, irrep, spin_restricted};
-std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
   ec.allocate(d_e, d_r1_residual, d_r2_residual);
-std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
   for(int i=0; i<ndiis; i++) {
     d_r1s.push_back(new Tensor<T>{{V|O}, irrep, spin_restricted});
     d_r2s.push_back(new Tensor<T>{{VV|OO}, irrep, spin_restricted});
@@ -317,13 +307,11 @@ std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n
   double corr = 0;
   double residual = 0.0;
   double energy = 0.0;
-int fiter = 0;
-std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
+  int fiter = 0;
   for(int titer=0; titer<maxiter; titer+=ndiis) {
     for(int iter = titer; iter < std::min(titer+ndiis,maxiter); iter++) {
       int off = iter - titer;
 
-      std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
 #if 0
       Tensor<T> d_t1_local(d_t1.tindices(), 1, Irrep{0}, ec.is_spin_restricted());
       MemoryManagerSequential mseq{ProcGroup{MPI_COMM_SELF}};
@@ -331,7 +319,6 @@ std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n
                        ec.distribution(),
                        &mseq);
 #endif
-      std::cerr<<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
       Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
       sch//.io(d_t1_local)
           .io(d_t1, d_t2, d_f1, d_v2, *d_r1s[off], *d_r2s[off])
@@ -357,10 +344,8 @@ std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n
         (d_r2_residual() += (*d_r2s[off])()  * (*d_r2s[off])())
         ;
 #endif
-      //std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
       sch.execute();
       GA_Sync();
-      //std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
       //d_t1_local.dealloc();
       double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
       double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
@@ -369,34 +354,33 @@ std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n
       fiter = iter+1;
       // Print Iteration number
       assert(fiter > 0);
-    	  std::cout.width(6); std::cout << std::right << fiter << "  ";
 
-      std::cout << std::setprecision(13) << residual << "  ";
-      std::cout << std::fixed << std::setprecision(13) << energy << " ";
-      std::cout << std::string(4, ' ') << "0.0";
-      std::cout << std::string(5, ' ') << "0.0";
-      std::cout << std::string(5, ' ') << "0.0" << std::endl;
-
-      if(fiter % 5 == 0) {
+      if(ec.pg().rank() == 0) {
+        std::cout.width(6); std::cout << std::right << fiter << "  ";
+        std::cout << std::setprecision(13) << residual << "  ";
+        std::cout << std::fixed << std::setprecision(13) << energy << " ";
+        std::cout << std::string(4, ' ') << "0.0";
+        std::cout << std::string(5, ' ') << "0.0";
+        std::cout << std::string(5, ' ') << "0.0" << std::endl;
+      
+        if(fiter % 5 == 0) {
     	    std::cout << " MICROCYCLE DIIS UPDATE:";
     	    std::cout.width(21); std::cout << std::right << fiter;
     	    std::cout.width(21); std::cout << std::right << "5" << std::endl;
+        }
       }
       GA_Sync();
       if(residual < thresh) {
         //nodezero_print();
         break;
       }
-#if 1
       jacobi(ec, *d_r1s[off], d_t1, -1.0 * zshiftl, false, p_evl_sorted.data());
       jacobi(ec, *d_r2s[off], d_t2, -2.0 * zshiftl, false, p_evl_sorted.data());
-#endif
     }
     if(residual < thresh || titer+ndiis >= maxiter) {
       //nodezero_print();
       break;
     }
-#if 1
     Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
     std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
     std::vector<std::vector<Tensor<T>*>*> ts{&d_t1s, &d_t2s};
@@ -404,15 +388,15 @@ std::cerr<<ec.pg().rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n
     // @fixme why not use brace-initiralizer instead of
     // intermediates? possibly use variadic templates?
     diis<T>(ec, rs, ts, next_t);
-#endif
   }
-  std::cout << std::string(66, '-') << std::endl;
-  if(residual < thresh) {
-	  std::cout << " Iterations converged" << std::endl;
-    std::cout.precision(15);
-	  std::cout << " CCSD correlation energy / hartree =" << std::setw(26) << std::right << energy << std::endl;
-	  std::cout << " CCSD total energy / hartree       =" << std::setw(26) <<  std::right << energy + hf_energy << std::endl;
-
+  if(ec.pg().rank() == 0) {
+    std::cout << std::string(66, '-') << std::endl;
+    if(residual < thresh) {
+      std::cout << " Iterations converged" << std::endl;
+      std::cout.precision(15);
+      std::cout << " CCSD correlation energy / hartree =" << std::setw(26) << std::right << energy << std::endl;
+      std::cout << " CCSD total energy / hartree       =" << std::setw(26) <<  std::right << energy + hf_energy << std::endl;
+    }
   }
 
   for(int i=0; i<ndiis; i++) {
@@ -541,7 +525,6 @@ int main(int argc, char *argv[]) {
 
   int mpi_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-  std::cerr<<"--------MPI RANK="<<mpi_rank<<std::endl;
   
   TCE::init(spins, spatials,sizes,
             noa,
@@ -583,23 +566,19 @@ int main(int argc, char *argv[]) {
   double zshiftl = 0.0;
   int ndiis = 5;
 
-  auto pg = ProcGroup{GA_MPI_Comm()};
-  auto distribution = Distribution_NW();
-  auto mgr = new MemoryManagerGA{pg};
+  ProcGroup pg{GA_MPI_Comm()};
+  Distribution_NW distribution;
+  auto mgr = MemoryManagerGA::create_coll(ProcGroup{GA_MPI_Comm()});
 
-
-  std::cerr<<"--------GA COMM "<<pg.rank()<<"/"<<pg.size()<<"\n";
   Tensor<T>::allocate(pg, &distribution, mgr, d_t1, d_t2, d_f1, d_v2);
 
   ExecutionContext ec {pg, &distribution, mgr, Irrep{0}, false};
 
-std::cout<<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
   ec.scheduler()
       .output(d_t1, d_t2)
       (d_t1() = 0)
       (d_t2() = 0)
     .execute();
-std::cout<<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
 
   //Tensor Map
   block_parfor(ec.pg(), d_f1(), [&](auto& blockid) {
@@ -607,9 +586,6 @@ std::cout<<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     auto buf = block.buf();
     const auto& block_offset = block.block_offset();
     const auto& block_dims = block.block_dims();
-    // std::cout << "block offset:" << block_offset << '\n';
-    // std::cout << "block dims:" << block_dims << '\n';
-    // std::cout << "block size:" << block.size() << '\n';
     EXPECTS(block.tensor().rank() == 2);
     TAMMX_INT32 c = 0;
     for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
@@ -642,11 +618,16 @@ std::cout<<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     d_v2.put(blockid, block);
     });
 
+#if 1
   ccsd_driver(ec, d_t1, d_t2, d_f1, d_v2,
               maxiter, thresh, zshiftl,
               ndiis,hf_energy);
-
+#endif
+  
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
+  
+  MemoryManagerGA::destroy_coll(mgr);
+  
   fortran_finalize();
   TCE::finalize();
 

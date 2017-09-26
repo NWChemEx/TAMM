@@ -54,7 +54,7 @@ void tensor_print(Tensor<T>& t)  {
   auto distribution = Distribution_NW();
 
   auto pg = ProcGroup{MPI_COMM_WORLD};
-  auto mgr = MemoryManagerSequential(pg);
+  auto mgr = MemoryManagerLocal(pg);
   Scheduler sch{pg, &distribution, &mgr, irrep, spin_restricted};
   using LabeledTensorType = LabeledTensor<T>;
   using Func = decltype(lambda);
@@ -314,7 +314,7 @@ double ccsd_driver(ExecutionContext& ec,
 
 #if 0
       Tensor<T> d_t1_local(d_t1.tindices(), 1, Irrep{0}, ec.is_spin_restricted());
-      MemoryManagerSequential mseq{ProcGroup{MPI_COMM_SELF}};
+      MemoryManagerLocal mseq{ProcGroup{MPI_COMM_SELF}};
       d_t1_local.alloc(ProcGroup{MPI_COMM_SELF},
                        ec.distribution(),
                        &mseq);

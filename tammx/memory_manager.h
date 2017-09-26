@@ -9,6 +9,9 @@
 //@todo Check that offset+size for remote gets and puts is within the
 //remote size
 
+//@todo Remove uses of void*
+
+
 namespace tammx {
 
 enum class MemoryManagerType { local, distributed };
@@ -58,6 +61,15 @@ class MemoryRegion {
   AllocationStatus allocation_status() const {
     return allocation_status_;
   }
+
+  bool created() const {
+    return allocation_status_ == AllocationStatus::created;
+  }
+
+  bool attached() const {
+    return allocation_status_ == AllocationStatus::attached;
+  }
+
   
   virtual ~MemoryRegion() {
     EXPECTS(allocation_status_ == AllocationStatus::invalid);
@@ -71,48 +83,43 @@ class MemoryRegion {
   virtual MemoryManager& mgr() const = 0;
 
   void dealloc_coll() {
-    EXPECTS(allocation_status_ == AllocationStatus::created);
+    EXPECTS(created());
     dealloc_coll_impl();
     allocation_status_ = AllocationStatus::invalid;
   }
 
   void detach_coll() {
-    EXPECTS(allocation_status_ == AllocationStatus::attached);
+    EXPECTS(attached());
     detach_coll_impl();
     allocation_status_ = AllocationStatus::invalid;
   }
 
   const void* access(Offset off) const {
-    EXPECTS(allocation_status_ == AllocationStatus::created ||
-            allocation_status_ == AllocationStatus::attached);
+    EXPECTS(created() || attached());
     EXPECTS(off < local_nelements_);
     return access_impl(off);
   }
 
   void get(Proc proc, Offset off, Size nelements, void* buf) {
-    EXPECTS(allocation_status_ == AllocationStatus::created ||
-            allocation_status_ == AllocationStatus::attached);
+    EXPECTS(created() || attached());
     EXPECTS(nelements >= 0);
     return get_impl(proc, off, nelements, buf);
   }
 
   void put(Proc proc, Offset off, Size nelements, const void* buf) {
-    EXPECTS(allocation_status_ == AllocationStatus::created ||
-            allocation_status_ == AllocationStatus::attached);
+    EXPECTS(created() || attached());
     EXPECTS(nelements >= 0);
     return put_impl(proc, off, nelements, buf);
   }
 
   void add(Proc proc, Offset off, Size nelements, const void* buf) {
-    EXPECTS(allocation_status_ == AllocationStatus::created ||
-            allocation_status_ == AllocationStatus::attached);
+    EXPECTS(created() || attached());
     EXPECTS(nelements >= 0);
     return add_impl(proc, off, nelements, buf);
   }
 
   void print_coll(std::ostream& os = std::cout) {
-    EXPECTS(allocation_status_ == AllocationStatus::created ||
-            allocation_status_ == AllocationStatus::attached);
+    EXPECTS(created() || attached());
     print_coll_impl(os);
   }
 
@@ -180,310 +187,6 @@ class MemoryPoolImpl : public MemoryRegion {
  private:
   MgrType& mgr_;
 };  // class MemoryPoolImpl
-
-
-// class MemoryPoolSequential : public MemoryPoolImpl<MemoryManagerSequential> {
-//  public:
-//   MemoryPoolSequential(MemoryManagerSequential& mgr)
-//       : MemoryPoolImpl<MemoryManagerSequential>(mgr) {}
-
-//  private:
-//   size_t elsize_;
-//   ElementType eltype_;
-//   uint8_t* buf_;
-  
-//   friend class MemoryManagerSequential;
-// };
-
-// #if 0
-// MemoryManagerSequential::MemoryManagerSequential(ProcGroup pg)
-//     : MemoryManager{pg} {
-//   //sequential. So process group size should be 1
-//   EXPECTS(pg.is_valid());
-//   EXPECTS(pg_.size() == 1);
-// }
-
-// MemoryPool*
-// MemoryManagerSequential::alloc(ElementType eltype, Size nelements) {
-//   MemoryPoolSequential* ret = new MemoryPoolSequential(*this);
-//   ret->eltype_ = eltype;
-//   ret->elsize_ = element_size(eltype);
-//   ret->local_nelements_ = nelements;
-//   ret->buf_ = new uint8_t[nelements.value() * ret->elsize_];
-//   return ret;
-// }
-
-// void
-// MemoryManagerSequential::dealloc(MemoryPool& mp) {
-//   MemoryPoolSequential& mps = *static_cast<MemoryPoolSequential*>(&mp);
-//   delete [] mps.buf_;
-//   mps.buf_ = nullptr;
-// }
-
-// void*
-// MemoryManagerSequential::access(MemoryPool& mp, Offset off) {
-//   MemoryPoolSequential& mps = *static_cast<MemoryPoolSequential*>(&mp);
-//   return &mps.buf_[mps.elsize_ * off.value()];
-// }
-
-// const void*
-// MemoryManagerSequential::access(MemoryPool& mp, Offset off) const {
-//   MemoryPoolSequential& mps = *static_cast<MemoryPoolSequential*>(&mp);
-//   return &mps.buf_[mps.elsize_ * off.value()];
-// }
-
-// void
-// MemoryManagerSequential::get(MemoryPool& mp, Proc proc, Offset off, Size nelements, void* to_buf) {
-//   MemoryPoolSequential& mps = *static_cast<MemoryPoolSequential*>(&mp);
-//   EXPECTS(proc.value() == 0);
-//   EXPECTS(mps.buf_ != nullptr);
-//   std::copy_n(mps.buf_ + mps.elsize_ * off.value(),
-//               mps.elsize_*nelements.value(),
-//               reinterpret_cast<uint8_t*>(to_buf));
-// }
-
-// void
-// MemoryManagerSequential::put(MemoryPool& mp, Proc proc, Offset off, Size nelements, const void* from_buf) {
-//   MemoryPoolSequential& mps = *static_cast<MemoryPoolSequential*>(&mp);
-//   EXPECTS(proc.value() == 0);
-//   EXPECTS(mps.buf_ != nullptr);
-//   std::copy_n(reinterpret_cast<const uint8_t*>(from_buf),
-//               mps.elsize_*nelements.value(),
-//               mps.buf_ + mps.elsize_*off.value());
-// }
-
-// void
-// MemoryManagerSequential::add(MemoryPool& mp, Proc proc, Offset off, Size nelements, const void* from_buf) {
-//   MemoryPoolSequential& mps = *static_cast<MemoryPoolSequential*>(&mp);
-//   EXPECTS(proc.value() == 0);
-//   EXPECTS(mps.buf_ != nullptr);
-//   int hi = nelements.value();
-//   uint8_t *to_buf = mps.buf_ + mps.elsize_*off.value();
-//   switch(mps.eltype_) {
-//     case ElementType::single_precision:
-//       for(int i=0; i<hi; i++) {
-//         reinterpret_cast<float*>(to_buf)[i] += reinterpret_cast<const float*>(from_buf)[i];
-//       }
-//       break;
-//     case ElementType::double_precision:
-//       for(int i=0; i<hi; i++) {
-//         reinterpret_cast<double*>(to_buf)[i] += reinterpret_cast<const double*>(from_buf)[i];
-//       }
-//       break;
-//     case ElementType::single_complex:
-//       for(int i=0; i<hi; i++) {
-//         reinterpret_cast<std::complex<float>*>(to_buf)[i] += reinterpret_cast<const std::complex<float>*>(from_buf)[i];
-//       }
-//       break;
-//     case ElementType::double_complex:
-//       for(int i=0; i<hi; i++) {
-//         reinterpret_cast<std::complex<double>*>(to_buf)[i] += reinterpret_cast<const std::complex<double>*>(from_buf)[i];
-//       }
-//       break;
-//     default:
-//       assert(0);
-//   }
-// }
-
-// void
-// MemoryManagerSequential::print(const MemoryPool& mp, std::ostream& os) {
-//   const MemoryPoolSequential& mps = *static_cast<const MemoryPoolSequential*>(&mp);
-//   EXPECTS(mps.buf_ != nullptr);
-//   os<<"MemoryManagerSequential. contents\n";
-//   for(size_t i=0; i<mps.local_nelements().value(); i++) {
-//     switch(mps.eltype_) {
-//       case ElementType::double_precision:
-//         os<<i<<"     "<<(reinterpret_cast<const double*>(mps.buf_))[i]<<"\n";
-//         break;
-//       default:
-//         NOT_IMPLEMENTED();
-//     }
-//   }
-//   os<<"\n\n";
-// }
-// #endif
-
-/////////////////////////////////////////////////////////////////////////////////
-
-// #if 0
-// class MemoryManager {
-//  public:
-//   explicit MemoryManager(ProcGroup pg)
-//       : pg_{pg},
-//         eltype_{ElementType::invalid},
-//         nelements_{0} {}
-
-//   virtual ~MemoryManager() {}
-
-//   ProcGroup proc_group() const {
-//     return pg_;
-//   }
-
-//   virtual void alloc(ElementType eltype, Size nelements) = 0;
-//   virtual void dealloc() = 0;
-
-//   Size local_size_in_elements() const {
-//     return nelements_;
-//   }
-
-//   // template<typename T1>
-//   virtual MemoryManager* clone(ProcGroup) const = 0;
-
-//   virtual void* access(Offset off) = 0;
-//   virtual const void* access(Offset off) const = 0;
-//   virtual void get(Proc proc, Offset off, Size nelements, void* buf) = 0;
-//   virtual void put(Proc proc, Offset off, Size nelements, const void* buf) = 0;
-//   virtual void add(Proc proc, Offset off, Size nelements, const void* buf) = 0;
-//   virtual void print() const = 0;
-
-//  protected:
-//   ProcGroup pg_;
-//   ElementType eltype_;
-//   Size nelements_;
-// }; // class MemoryManager
-
-// class MemoryManagerSequential : public MemoryManager {
-//  public:
-//   explicit MemoryManagerSequential(ProcGroup pg)
-//       : MemoryManager(pg),
-//         buf_{nullptr},
-//         elsize_{0},
-//         allocation_status_{AllocationStatus::invalid} {
-//           //sequential. So process group size should be 1
-//           EXPECTS(pg.is_valid());
-//           EXPECTS(MemoryManager::pg_.size() == 1);
-//   }
-
-//   MemoryManagerSequential(ProcGroup pg, uint8_t *buf, ElementType eltype, Size nelements)
-//       : MemoryManager(pg),
-//         buf_{buf},
-//         elsize_{element_size(eltype_)} {
-//           eltype_ = eltype;
-//           nelements_ = nelements;
-//           EXPECTS(pg.is_valid());
-//           EXPECTS(MemoryManager::pg_.size() == 1);
-//           allocation_status_ = AllocationStatus::attached;
-//   }
-
-//   ~MemoryManagerSequential() {
-//     EXPECTS(allocation_status_ == AllocationStatus::invalid ||
-//             allocation_status_ == AllocationStatus::attached);
-//   }
-
-//   MemoryManager* clone(ProcGroup pg) const {
-//     EXPECTS(pg.is_valid());
-//     return new MemoryManagerSequential(pg);
-//   }
-
-//   void alloc(ElementType eltype, Size nelements) {
-//     EXPECTS(allocation_status_ == AllocationStatus::invalid);
-//     eltype_ = eltype;
-//     elsize_ = element_size(eltype);
-//     nelements_ = nelements;
-//     buf_ = new uint8_t[nelements_.value() * elsize_];
-//     allocation_status_ = AllocationStatus::created;
-//   }
-
-//   void dealloc() {
-//     EXPECTS(allocation_status_ == AllocationStatus::created);
-//     delete [] buf_;
-//     buf_ = nullptr;
-//     allocation_status_ = AllocationStatus::invalid;
-//   }
-
-//   void* access(Offset off) {
-//     EXPECTS(allocation_status_ == AllocationStatus::created ||
-//             allocation_status_ == AllocationStatus::attached);
-//     EXPECTS(off < nelements_);
-//     return &buf_[elsize_ * off.value()];
-//   }
-
-//   const void* access(Offset off) const {
-//     EXPECTS(allocation_status_ == AllocationStatus::created ||
-//             allocation_status_ == AllocationStatus::attached);
-//     EXPECTS(off < nelements_);
-//     return &buf_[elsize_ * off.value()];
-//   }
-
-//   void get(Proc proc, Offset off, Size nelements, void* to_buf) {
-//     EXPECTS(allocation_status_ == AllocationStatus::created ||
-//             allocation_status_ == AllocationStatus::attached);
-//     EXPECTS(buf_ != nullptr);
-//     EXPECTS(nelements >= 0);
-//     EXPECTS(off + nelements <= nelements_);
-//     EXPECTS(proc.value() == 0);
-//     std::copy_n(buf_ + elsize_*off.value(), elsize_*nelements.value(),
-//                 reinterpret_cast<uint8_t*>(to_buf));
-//   }
-
-//   void put(Proc proc, Offset off, Size nelements, const void* from_buf) {
-//     EXPECTS(allocation_status_ == AllocationStatus::created ||
-//             allocation_status_ == AllocationStatus::attached);
-//     EXPECTS(buf_ != nullptr);
-//     EXPECTS(nelements >= 0);
-//     EXPECTS(off + nelements <= nelements_);
-//     EXPECTS(proc.value() == 0);
-//     std::copy_n(reinterpret_cast<const uint8_t*>(from_buf),
-//                 elsize_*nelements.value(),
-//                 buf_ + elsize_*off.value());
-//   }
-
-//   void add(Proc proc, Offset off, Size nelements, const void* from_buf) {
-//     EXPECTS(allocation_status_ == AllocationStatus::created ||
-//             allocation_status_ == AllocationStatus::attached);
-//     EXPECTS(buf_ != nullptr);
-//     EXPECTS(nelements >= 0);
-//     EXPECTS(off + nelements <= nelements_);
-//     EXPECTS(proc.value() == 0);
-//     int hi = nelements.value();
-//     uint8_t *to_buf = buf_ + elsize_*off.value();
-//     switch(eltype_) {
-//       case ElementType::single_precision:
-//         for(int i=0; i<hi; i++) {
-//           reinterpret_cast<float*>(to_buf)[i] += reinterpret_cast<const float*>(from_buf)[i];
-//         }
-//         break;
-//       case ElementType::double_precision:
-//         for(int i=0; i<hi; i++) {
-//           reinterpret_cast<double*>(to_buf)[i] += reinterpret_cast<const double*>(from_buf)[i];
-//         }
-//         break;
-//       case ElementType::single_complex:
-//         for(int i=0; i<hi; i++) {
-//           reinterpret_cast<std::complex<float>*>(to_buf)[i] += reinterpret_cast<const std::complex<float>*>(from_buf)[i];
-//         }
-//         break;
-//       case ElementType::double_complex:
-//         for(int i=0; i<hi; i++) {
-//           reinterpret_cast<std::complex<double>*>(to_buf)[i] += reinterpret_cast<const std::complex<double>*>(from_buf)[i];
-//         }
-//         break;
-//       default:
-//         assert(0);
-//     }
-//   }
-
-//   void print() const {
-//     std::cout<<"MemoryManagerSequential. contents\n";
-//     for(size_t i=0; i<nelements_.value(); i++) {
-//       switch(eltype_) {
-//         case ElementType::double_precision:
-//           std::cout<<i<<"     "<<(reinterpret_cast<const double*>(buf_))[i]<<"\n";
-//           break;
-//         default:
-//           assert(0); //not implemented yet
-//       }
-//     }
-//     std::cout<<"\n\n";
-//   }
-
-//  private:
-//   size_t elsize_;
-//   uint8_t* buf_;
-//   AllocationStatus allocation_status_;
-// }; // class MemoryManagerSequential
-
-// #endif
 
 }  // namespace tammx
 

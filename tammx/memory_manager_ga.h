@@ -147,6 +147,7 @@ class MemoryManagerGA : public MemoryManager {
   
   void put(MemoryPoolBase& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
     const MemoryPool& mp = static_cast<const MemoryPool&>(mpb);
+
     TAMMX_SIZE ioffset{mp.map_[proc.value()] + off.value()};
     long long lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     NGA_Put64(mp.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld);
@@ -358,12 +359,10 @@ class MemoryManagerGA : public MemoryManager {
 //     } else {
 //       TAMMX_SIZE dim, block = nranks;
 //       MPI_Allreduce(&nels, &dim, 1, MPI_LONG_LONG, MPI_SUM, pg_.comm());
-//       //std::cerr<<pg_.rank()<<":------ GA CREATE nels="<<nels<<std::endl;
 //       MPI_Allgather(&nels, 1, MPI_LONG_LONG, &map_[1], 1, MPI_LONG_LONG, pg_.comm());
 //       //MPI_Exscan(&nels, &map_[0], 1, MPI_LONG_LONG, MPI_SUM, pg_.comm());
 //       map_[0] = 0; // @note this is not set by MPI_Exscan
 //       std::partial_sum(map_.get(), map_.get()+nranks, map_.get());      
-//       //std::cerr<<"------ GA CREATE irreg map="<<map_[0]<<" "<<map_[1]<<" "<<map_[2]<<std::endl;
 //       std::string array_name{"array_name"};
 //       for(block = nranks; block>0 && map_[block-1] == dim; --block) {
 //         //no-op
@@ -378,7 +377,6 @@ class MemoryManagerGA : public MemoryManager {
 
 //     TAMMX_SIZE lo, hi, ld;
 //     NGA_Distribution64(ga_, pg_.rank().value(), &lo, &hi);
-//     //std::cerr<<pg_.rank()<<"-----ALLOC. LO="<<lo<<" HI="<<hi<<" nelements="<<nelements<<std::endl;
 //     EXPECTS(nels<=0 || lo == map_[pg_.rank().value()]);
 //     EXPECTS(nels<=0 || hi == map_[pg_.rank().value()] + nelements.value() - 1);
 //     nelements_ = hi - lo + 1;
@@ -402,7 +400,6 @@ class MemoryManagerGA : public MemoryManager {
 //             allocation_status_ == AllocationStatus::attached);
 //     Proc proc{pg_.rank()};
 //     TAMMX_SIZE nels{1};
-//     //TAMMX_INT32 iproc{proc.value()};
 //     TAMMX_SIZE ioffset{map_[proc.value()] + off.value()};
 //     TAMMX_SIZE lo = ioffset, hi = ioffset + nels-1, ld = -1;
 //     void* buf;
@@ -415,7 +412,6 @@ class MemoryManagerGA : public MemoryManager {
 //             allocation_status_ == AllocationStatus::attached);
 //     Proc proc{pg_.rank()};
 //     TAMMX_SIZE nels{1};
-//     //TAMMX_INT32 iproc{proc.value()};
 //     TAMMX_SIZE ioffset{map_[proc.value()] + off.value()};
 //     TAMMX_SIZE lo = ioffset, hi = ioffset + nels-1, ld = -1;
 //     void* buf;
@@ -426,18 +422,14 @@ class MemoryManagerGA : public MemoryManager {
 //   void get(Proc proc, Offset off, Size nelements, void* buf) override {
 //     EXPECTS(allocation_status_ == AllocationStatus::created ||
 //             allocation_status_ == AllocationStatus::attached);
-//     //TAMMX_INT32 iproc{proc.value()};
 //     TAMMX_SIZE ioffset{map_[proc.value()] + off.value()};
 //     TAMMX_SIZE lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
-//     //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
 //     NGA_Get64(ga_, &lo, &hi, buf, &ld);
-//     //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
 //   }
   
 //   void put(Proc proc, Offset off, Size nelements, const void* buf) override {
 //     EXPECTS(allocation_status_ == AllocationStatus::created ||
 //             allocation_status_ == AllocationStatus::attached);
-//     //TAMMX_INT32 iproc{proc.value()};
 //     TAMMX_SIZE ioffset{map_[proc.value()] + off.value()};
 //     TAMMX_SIZE lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
 //     NGA_Put64(ga_, &lo, &hi, const_cast<void*>(buf), &ld);
@@ -446,7 +438,6 @@ class MemoryManagerGA : public MemoryManager {
 //   void add(Proc proc, Offset off, Size nelements, const void* buf) override {
 //     EXPECTS(allocation_status_ == AllocationStatus::created ||
 //             allocation_status_ == AllocationStatus::attached);
-//     //TAMMX_INT32 iproc{proc.value()};
 //     TAMMX_SIZE ioffset{map_[proc.value()] + off.value()};
 //     TAMMX_SIZE lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
 //     void *alpha;

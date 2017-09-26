@@ -15,6 +15,22 @@
 
 namespace tammx {
 
+class MemoryManagerLocal;
+
+class MemoryPoolLocal : public MemoryPoolImpl<MemoryManagerLocal> {
+ public:
+  MemoryPoolLocal(MemoryManagerLocal& mgr)
+      : MemoryPoolImpl<MemoryManagerLocal>(mgr) {}
+
+ private:
+  size_t elsize_;
+  ElementType eltype_;
+  uint8_t* buf_;
+
+  friend class MemoryManagerLocal;
+}; // class MemoryPoolLocal
+
+
 class MemoryManagerLocal : public MemoryManager {
  public:
   static MemoryManagerLocal* create_coll(ProcGroup pg) {
@@ -25,21 +41,8 @@ class MemoryManagerLocal : public MemoryManager {
     delete mms;
   }
 
-  class MemoryPool : public MemoryPoolImpl<MemoryManagerLocal> {
-   public:
-    MemoryPool(MemoryManagerLocal& mgr)
-        : MemoryPoolImpl<MemoryManagerLocal>(mgr) {}
-    
-   private:
-    size_t elsize_;
-    ElementType eltype_;
-    uint8_t* buf_;
-    
-    friend class MemoryManagerLocal;
-  }; // class MemoryPool
-
   MemoryPoolBase* alloc_coll(ElementType eltype, Size nelements) override {
-    MemoryPool* ret = new MemoryPool(*this);
+    MemoryPoolLocal* ret = new MemoryPoolLocal(*this);
     ret->eltype_ = eltype;
     ret->elsize_ = element_size(eltype);
     ret->local_nelements_ = nelements;
@@ -47,10 +50,10 @@ class MemoryManagerLocal : public MemoryManager {
     ret->set_status(AllocationStatus::created);
     return ret;
   }
-  
+
   MemoryPoolBase* attach_coll(MemoryPoolBase& mpb) override {
-    MemoryPool& mp = static_cast<MemoryPool&>(mpb);
-    MemoryPool* ret = new MemoryPool(*this);
+    MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
+    MemoryPoolLocal* ret = new MemoryPoolLocal(*this);
     ret->eltype_ = mp.eltype_;
     ret->elsize_ = mp.elsize_;
     ret->local_nelements_ = mp.local_nelements_;
@@ -71,33 +74,33 @@ class MemoryManagerLocal : public MemoryManager {
 
  public:
   void dealloc_coll(MemoryPoolBase& mpb) override {
-    MemoryPool& mp = static_cast<MemoryPool&>(mpb);
+    MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
     delete [] mp.buf_;
     mp.buf_ = nullptr;
   }
 
   void detach_coll(MemoryPoolBase& mpb) override {
-    MemoryPool& mp = static_cast<MemoryPool&>(mpb);
+    MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
     delete [] mp.buf_;
     mp.buf_ = nullptr;
   }
 
   const void* access(const MemoryPoolBase& mpb, Offset off) const override {
-    const MemoryPool& mp = static_cast<const MemoryPool&>(mpb);
+    const MemoryPoolLocal& mp = static_cast<const MemoryPoolLocal&>(mpb);
     return &mp.buf_[mp.elsize_ * off.value()];
   }
-  
+
   void get(MemoryPoolBase& mpb, Proc proc, Offset off, Size nelements, void* to_buf) override {
-    MemoryPool& mp = static_cast<MemoryPool&>(mpb);
+    MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
     std::copy_n(mp.buf_ + mp.elsize_ * off.value(),
                 mp.elsize_*nelements.value(),
                 reinterpret_cast<uint8_t*>(to_buf));
   }
-  
+
   void put(MemoryPoolBase& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
-    MemoryPool& mp = static_cast<MemoryPool&>(mpb);
+    MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
     std::copy_n(reinterpret_cast<const uint8_t*>(from_buf),
@@ -106,7 +109,7 @@ class MemoryManagerLocal : public MemoryManager {
   }
 
   void add(MemoryPoolBase& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
-    MemoryPool& mp = static_cast<MemoryPool&>(mpb);
+    MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
     int hi = nelements.value();
@@ -136,9 +139,9 @@ class MemoryManagerLocal : public MemoryManager {
         NOT_IMPLEMENTED();
     }
   }
-  
+
   void print_coll(const MemoryPoolBase& mpb, std::ostream& os) override {
-    const MemoryPool& mp = static_cast<const MemoryPool&>(mpb);
+    const MemoryPoolLocal& mp = static_cast<const MemoryPoolLocal&>(mpb);
     EXPECTS(mp.buf_ != nullptr);
     os<<"MemoryManagerLocal. contents\n";
     for(size_t i=0; i<mp.local_nelements().value(); i++) {

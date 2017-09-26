@@ -32,9 +32,10 @@ class Tensor : public TensorBase {
          TensorRank nupper_indices,
          Irrep irrep,
          bool spin_restricted)
-      : allocation_status_{AllocationStatus::invalid},
+      : //allocation_status_{AllocationStatus::invalid},
         TensorBase{indices, nupper_indices, irrep, spin_restricted},
-        mgr_{nullptr},
+        //mgr_{nullptr},
+        mpb_{nullptr},
         distribution_{nullptr} {}
 
   Tensor(const IndexInfo& iinfo,
@@ -42,6 +43,7 @@ class Tensor : public TensorBase {
          bool spin_restricted)
       : Tensor{std::get<0>(iinfo), static_cast<TensorRank>(std::get<1>(iinfo)), irrep, spin_restricted} {}
 
+#if 0
   Tensor(ProcGroup pg,
          const TensorVec<TensorSymmGroup> &indices,
          TensorRank nupper_indices,
@@ -60,48 +62,60 @@ class Tensor : public TensorBase {
             distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
           }
         }
+#endif
   ProcGroup pg() const {
-    return pg_;
+    EXPECTS(mpb_ != nullptr);
+    return mpb_->mgr().pg();
   }
 
   //@todo implement the factory
-  void alloc(ProcGroup pg, Distribution* distribution=nullptr, MemoryManager* memory_manager=nullptr) {
-    pg_ = pg;
-    EXPECTS(pg.is_valid());
+  void alloc(Distribution* distribution=nullptr, MemoryManager* memory_manager=nullptr) {
+    //std::cerr<<__FUNCTION__<<__LINE__<<std::endl;
+    //pg_ = pg;
+    //EXPECTS(pg.is_valid());
     if(distribution) {
       // distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
-      distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, pg_.size()));
+      distribution_ = std::shared_ptr<Distribution>(
+          distribution->clone(this,
+                              memory_manager->pg().size()));
     }
-    if(memory_manager) {
-      mgr_ = std::shared_ptr<MemoryManager>(memory_manager->clone(pg_));
-    }
-    EXPECTS(mgr_.get() != nullptr);
+    // if(memory_manager) {
+    //   mgr_ = memory_manager; //std::shared_ptr<MemoryManager>(memory_manager->clone(pg_));
+    // }
+    //EXPECTS(mgr_.get() != nullptr);
     EXPECTS(distribution_.get() != nullptr);
-    auto rank = pg_.rank();
+    //std::cerr<<__FUNCTION__<<__LINE__<<std::endl;
+    auto rank = memory_manager->pg().rank();
+    //std::cerr<<__FUNCTION__<<__LINE__<<std::endl;
     auto buf_size = distribution_->buf_size(rank);
     auto eltype = tensor_element_type<element_type>();
     EXPECTS(buf_size >=0 );
-    mgr_->alloc(eltype, buf_size);
-    allocation_status_ = AllocationStatus::created;
+    mpb_ = std::unique_ptr<MemoryPoolBase>{memory_manager->alloc_coll(eltype, buf_size)};
+    //allocation_status_ = AllocationStatus::created;
   }
 
   void dealloc() {
-    EXPECTS(allocation_status_ == AllocationStatus::created);
-    mgr_->dealloc();
-    allocation_status_ = AllocationStatus::invalid;
+    //EXPECTS(allocation_status_ == AllocationStatus::created);
+    EXPECTS(mpb_);
+    mpb_->dealloc_coll();
+    //allocation_status_ = AllocationStatus::invalid;
   }
 
-  void attach(Distribution* distribution, std::shared_ptr<MemoryManager> mgr) {
-    pg_ = mgr->proc_group();
-    EXPECTS(pg_.is_valid());
+  void attach(Distribution* distribution, MemoryPoolBase* mpb) {
+    //pg_ = mgr->proc_group();
+    //EXPECTS(pg_.is_valid());
+    EXPECTS(distribution != nullptr);
+    EXPECTS(mpb != nullptr);
     distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, pg_.size()));
-    mgr_ = mgr;
-    allocation_status_ = AllocationStatus::attached;
+    mpb_ = mpb->mgr().attach_coll(*mpb);
+    //mgr_ = mgr.get();
+    //allocation_status_ = AllocationStatus::attached;
   }
 
   void detach() {
-    mgr_ = nullptr;
-    allocation_status_ = AllocationStatus::invalid;
+    //mgr_ = nullptr;
+    //allocation_status_ = AllocationStatus::invalid;
+    mpb_->detach_coll();
   }
 
   Block<T> alloc(const BlockDimVec& blockid) {
@@ -126,7 +140,8 @@ class Tensor : public TensorBase {
     auto size = block_size(blockid);
     auto block {alloc(blockid, layout, sign)};
     std::tie(proc, offset) = distribution_->locate(uniq_blockid);
-    mgr_->get(proc, offset, Size{size}, block.buf());
+    //mgr_->get(proc, offset, Size{size}, block.buf());
+    mpb_->get(proc, offset, Size{size}, block.buf());
     return std::move(block);
   }
 
@@ -138,7 +153,8 @@ class Tensor : public TensorBase {
     Proc proc;
     auto size = block_size(blockid);
     std::tie(proc, offset) = distribution_->locate(blockid);
-    mgr_->put(proc, offset, Size{size}, block.buf());
+    //mgr_->put(proc, offset, Size{size}, block.buf());
+    mpb_->put(proc, offset, Size{size}, block.buf());
   }
 
   void add(const BlockDimVec& blockid, const Block<T>& block) {
@@ -149,7 +165,8 @@ class Tensor : public TensorBase {
     Proc proc;
     auto size = block_size(blockid);
     std::tie(proc, offset) = distribution_->locate(blockid);
-    mgr_->add(proc, offset, Size{size}, block.buf());
+    // mgr_->add(proc, offset, Size{size}, block.buf());
+    mpb_->add(proc, offset, Size{size}, block.buf());
   }
 
   LabeledTensor<T> operator () (const IndexLabelVec& label) {
@@ -175,21 +192,29 @@ class Tensor : public TensorBase {
     return distribution_.get();
   }
 
-  const MemoryManager* memory_manager() const {
-    return mgr_.get();
+  const MemoryManager& memory_manager() const {
+    return mpb_->mgr();
   }
 
-  MemoryManager* memory_manager() {
-    return mgr_.get();
+  MemoryManager& memory_manager() {
+    return mpb_->mgr();
   }
 
+  const MemoryPoolBase& memory_pool() const {
+    return *mpb_.get();
+  }
+  
+  MemoryPoolBase& memory_pool() {
+    return *mpb_.get();
+  }
+  
   static void allocate(ProcGroup pg, Distribution* distribution, MemoryManager* memory_manager) {
     //no-op
   }
 
   template<typename ...Args>
   static void allocate(ProcGroup pg, Distribution* distribution, MemoryManager* memory_manager, Tensor<T>& tensor, Args& ... tensor_list) {
-    tensor.alloc(pg, distribution, memory_manager);
+    tensor.alloc(distribution, memory_manager);
     allocate(pg, distribution, memory_manager, tensor_list...);
   }
 
@@ -205,7 +230,8 @@ class Tensor : public TensorBase {
   }
 
   bool constructed() const {
-    return allocation_status_ != AllocationStatus::invalid;
+    return mpb_ != nullptr
+        && mpb_->allocation_status() != AllocationStatus::invalid;
   }
 
  protected:
@@ -218,8 +244,10 @@ class Tensor : public TensorBase {
   }
 
   ProcGroup pg_;
-  AllocationStatus allocation_status_;
-  std::shared_ptr<MemoryManager> mgr_;
+  //AllocationStatus allocation_status_;
+  //MemoryManager* mgr_;  //@note non-owned pointer
+  std::unique_ptr<MemoryPoolBase> mpb_; //@note owned pointer
+  //std::shared_ptr<MemoryManager> mgr_;
   std::shared_ptr<Distribution> distribution_;
 }; // class Tensor
 

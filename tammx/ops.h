@@ -84,7 +84,7 @@ template<typename TensorType>
 struct AllocOp: public Op {
   void execute(const ProcGroup& ec_pg) override {
     EXPECTS(pg_.is_valid());
-    tensor_->alloc(pg_, distribution_, memory_manager_);
+    tensor_->alloc(distribution_, memory_manager_);
   }
 
   AllocOp(TensorType& tensor, ProcGroup pg, Distribution* distribution, MemoryManager* memory_manager)
@@ -868,8 +868,8 @@ tensor_to_fortran_info(tammx::Tensor<T> &ttensor) {
     offseta[i] = ahash[i];
   }
 
-  auto amgr_ga = static_cast<tammx::MemoryManagerGA *>(ttensor.memory_manager());
-  FortranInt da = amgr_ga->ga();
+  auto amp_ga = static_cast<tammx::MemoryManagerGA::MemoryPool&>(ttensor.memory_pool());
+  FortranInt da = amp_ga.ga();
   return {da, offseta};
 }
 

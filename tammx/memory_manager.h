@@ -21,7 +21,7 @@ class MemoryRegion;
 class MemoryManager {
  public:
   virtual MemoryRegion* alloc_coll(ElementType eltype, Size nelements) = 0;
-  virtual MemoryRegion* attach_coll(MemoryRegion& mpb) = 0;
+  virtual MemoryRegion* attach_coll(MemoryRegion& mr) = 0;
 
   ProcGroup pg() const {
     return pg_;    
@@ -34,18 +34,18 @@ class MemoryManager {
   virtual ~MemoryManager() {}
 
  public:
-  virtual void dealloc_coll(MemoryRegion& mp) = 0;
-  virtual void detach_coll(MemoryRegion& mp) = 0;
+  virtual void dealloc_coll(MemoryRegion& mr) = 0;
+  virtual void detach_coll(MemoryRegion& mr) = 0;
 
-  void* access(MemoryRegion& mp, Offset off) {
-    return const_cast<void*>(static_cast<const MemoryManager&>(*this).access(mp, off));
+  void* access(MemoryRegion& mr, Offset off) {
+    return const_cast<void*>(static_cast<const MemoryManager&>(*this).access(mr, off));
   }
 
-  virtual const void* access(const MemoryRegion& mp, Offset off) const = 0;
-  virtual void get(MemoryRegion& mp, Proc proc, Offset off, Size nelements, void* buf) = 0;
-  virtual void put(MemoryRegion& mp, Proc proc, Offset off, Size nelements, const void* buf) = 0;
-  virtual void add(MemoryRegion& mp, Proc proc, Offset off, Size nelements, const void* buf) = 0;
-  virtual void print_coll(const MemoryRegion& mp, std::ostream& os) = 0;
+  virtual const void* access(const MemoryRegion& mr, Offset off) const = 0;
+  virtual void get(MemoryRegion& mr, Proc proc, Offset off, Size nelements, void* buf) = 0;
+  virtual void put(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf) = 0;
+  virtual void add(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf) = 0;
+  virtual void print_coll(const MemoryRegion& mr, std::ostream& os) = 0;
 
   ProcGroup pg_;
   

@@ -47,16 +47,16 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   MemoryRegion* alloc_coll(ElementType eltype, Size local_nelements) override {
-    MemoryRegionGA* pmp = new MemoryRegionGA(*this);
+    MemoryRegionGA* pmr = new MemoryRegionGA(*this);
 
     int ga_pg_default = GA_Pgroup_get_default();
     GA_Pgroup_set_default(ga_pg_);
     int nranks = pg_.size().value();
     int ga_eltype = to_ga_eltype(eltype);
 
-    pmp->map_.resize(nranks+1);
-    pmp->eltype_ = eltype;
-    pmp->local_nelements_ = local_nelements;
+    pmr->map_.resize(nranks+1);
+    pmr->eltype_ = eltype;
+    pmr->local_nelements_ = local_nelements;
     long long nels = local_nelements.value();
 
     GA_Pgroup_set_default(ga_pg_);
@@ -65,46 +65,46 @@ class MemoryManagerGA : public MemoryManager {
     MPI_Allreduce(&nels, &nelements_max, 1, MPI_LONG_LONG, MPI_MAX, pg_.comm());
     if (nelements_min == nels && nelements_max == nels) {
       long long dim = nranks * nels, chunk = -1;
-      pmp->ga_ = NGA_Create64(ga_eltype, 1, &dim, const_cast<char*>("array_name"), &chunk);
-      pmp->map_[0] = 0;
-      std::fill_n(pmp->map_.begin()+1, nranks-1, nels);
-      std::partial_sum(pmp->map_.begin(), pmp->map_.begin()+nranks, pmp->map_.begin());
+      pmr->ga_ = NGA_Create64(ga_eltype, 1, &dim, const_cast<char*>("array_name"), &chunk);
+      pmr->map_[0] = 0;
+      std::fill_n(pmr->map_.begin()+1, nranks-1, nels);
+      std::partial_sum(pmr->map_.begin(), pmr->map_.begin()+nranks, pmr->map_.begin());
     } else {
       long long dim, block = nranks;
       MPI_Allreduce(&nels, &dim, 1, MPI_LONG_LONG, MPI_SUM, pg_.comm());
-      MPI_Allgather(&nels, 1, MPI_LONG_LONG, &pmp->map_[1], 1, MPI_LONG_LONG, pg_.comm());
-      pmp->map_[0] = 0; // @note this is not set by MPI_Exscan
-      std::partial_sum(pmp->map_.begin(), pmp->map_.begin()+nranks, pmp->map_.begin());
+      MPI_Allgather(&nels, 1, MPI_LONG_LONG, &pmr->map_[1], 1, MPI_LONG_LONG, pg_.comm());
+      pmr->map_[0] = 0; // @note this is not set by MPI_Exscan
+      std::partial_sum(pmr->map_.begin(), pmr->map_.begin()+nranks, pmr->map_.begin());
       std::string array_name{"array_name"};
-      for(block = nranks; block>0 && pmp->map_[block-1] == dim; --block) {
+      for(block = nranks; block>0 && pmr->map_[block-1] == dim; --block) {
         //no-op
       }
-      int64_t *map_start = &pmp->map_[0];
+      int64_t *map_start = &pmr->map_[0];
       for(int i=0; i<nranks && *(map_start+1)==0; ++i, ++map_start, --block) {
         //no-op
       }
-      pmp->ga_ = NGA_Create_irreg64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()), &block, map_start);
+      pmr->ga_ = NGA_Create_irreg64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()), &block, map_start);
     }
     GA_Pgroup_set_default(ga_pg_default);
 
     long long lo, hi, ld;
-    NGA_Distribution64(pmp->ga_, pg_.rank().value(), &lo, &hi);
-    EXPECTS(nels<=0 || lo == pmp->map_[pg_.rank().value()]);
-    EXPECTS(nels<=0 || hi == pmp->map_[pg_.rank().value()] + nels - 1);
-    pmp->set_status(AllocationStatus::created);
-    return pmp;
+    NGA_Distribution64(pmr->ga_, pg_.rank().value(), &lo, &hi);
+    EXPECTS(nels<=0 || lo == pmr->map_[pg_.rank().value()]);
+    EXPECTS(nels<=0 || hi == pmr->map_[pg_.rank().value()] + nels - 1);
+    pmr->set_status(AllocationStatus::created);
+    return pmr;
   }
 
-  MemoryRegion* attach_coll(MemoryRegion& mpb) override {
-    MemoryRegionGA& mp = static_cast<MemoryRegionGA&>(mpb);
-    MemoryRegionGA* pmp = new MemoryRegionGA(*this);
+  MemoryRegion* attach_coll(MemoryRegion& mrb) override {
+    MemoryRegionGA& mr_rhs = static_cast<MemoryRegionGA&>(mrb);
+    MemoryRegionGA* pmr = new MemoryRegionGA(*this);
 
-    pmp->map_ = mp.map_;
-    pmp->eltype_ = mp.eltype_;
-    pmp->local_nelements_ = mp.local_nelements_;
-    pmp->ga_ = mp.ga_;
-    pmp->set_status(AllocationStatus::attached);
-    return pmp;
+    pmr->map_ = mr_rhs.map_;
+    pmr->eltype_ = mr_rhs.eltype_;
+    pmr->local_nelements_ = mr_rhs.local_nelements_;
+    pmr->ga_ = mr_rhs.ga_;
+    pmr->set_status(AllocationStatus::attached);
+    return pmr;
   }
 
   protected:
@@ -119,49 +119,49 @@ class MemoryManagerGA : public MemoryManager {
   }
 
  public:
-  void dealloc_coll(MemoryRegion& mpb) override {
-    MemoryRegionGA& mp = static_cast<MemoryRegionGA&>(mpb);
-    NGA_Destroy(mp.ga_);
-    mp.ga_ = -1;
+  void dealloc_coll(MemoryRegion& mrb) override {
+    MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
+    NGA_Destroy(mr.ga_);
+    mr.ga_ = -1;
   }
 
-  void detach_coll(MemoryRegion& mpb) override {
-    MemoryRegionGA& mp = static_cast<MemoryRegionGA&>(mpb);
-    mp.ga_ = -1;
+  void detach_coll(MemoryRegion& mrb) override {
+    MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
+    mr.ga_ = -1;
   }
 
-  const void* access(const MemoryRegion& mpb, Offset off) const override {
-    const MemoryRegionGA& mp = static_cast<const MemoryRegionGA&>(mpb);
+  const void* access(const MemoryRegion& mrb, Offset off) const override {
+    const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
     Proc proc{pg_.rank()};
     TAMMX_SIZE nels{1};
-    TAMMX_SIZE ioffset{mp.map_[proc.value()] + off.value()};
+    TAMMX_SIZE ioffset{mr.map_[proc.value()] + off.value()};
     long long lo = ioffset, hi = ioffset + nels-1, ld = -1;
     void* buf;
-    NGA_Access64(mp.ga_, &lo, &hi, reinterpret_cast<void*>(&buf), &ld);
+    NGA_Access64(mr.ga_, &lo, &hi, reinterpret_cast<void*>(&buf), &ld);
     return buf;
   }
 
-  void get(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, void* to_buf) override {
-    const MemoryRegionGA& mp = static_cast<const MemoryRegionGA&>(mpb);
-    TAMMX_SIZE ioffset{mp.map_[proc.value()] + off.value()};
+  void get(MemoryRegion& mrb, Proc proc, Offset off, Size nelements, void* to_buf) override {
+    const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
+    TAMMX_SIZE ioffset{mr.map_[proc.value()] + off.value()};
     long long lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
-    NGA_Get64(mp.ga_, &lo, &hi, to_buf, &ld);
+    NGA_Get64(mr.ga_, &lo, &hi, to_buf, &ld);
   }
 
-  void put(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
-    const MemoryRegionGA& mp = static_cast<const MemoryRegionGA&>(mpb);
+  void put(MemoryRegion& mrb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
+    const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
 
-    TAMMX_SIZE ioffset{mp.map_[proc.value()] + off.value()};
+    TAMMX_SIZE ioffset{mr.map_[proc.value()] + off.value()};
     long long lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
-    NGA_Put64(mp.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld);
+    NGA_Put64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld);
   }
 
-  void add(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
-    const MemoryRegionGA& mp = static_cast<const MemoryRegionGA&>(mpb);
-    TAMMX_SIZE ioffset{mp.map_[proc.value()] + off.value()};
+  void add(MemoryRegion& mrb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
+    const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
+    TAMMX_SIZE ioffset{mr.map_[proc.value()] + off.value()};
     long long lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     void *alpha;
-    switch(mp.eltype_) {
+    switch(mr.eltype_) {
       case ElementType::single_precision:
         alpha = reinterpret_cast<void*>(&sp_alpha);
         break;
@@ -178,12 +178,12 @@ class MemoryManagerGA : public MemoryManager {
       default:
         UNREACHABLE();
     }
-    NGA_Acc64(mp.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld, alpha);
+    NGA_Acc64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld, alpha);
   }
 
-  void print_coll(const MemoryRegion& mpb, std::ostream& os) override {
-    const MemoryRegionGA& mp = static_cast<const MemoryRegionGA&>(mpb);
-    GA_Print(mp.ga_);
+  void print_coll(const MemoryRegion& mrb, std::ostream& os) override {
+    const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
+    GA_Print(mr.ga_);
   }
 
  private:

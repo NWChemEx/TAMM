@@ -58,7 +58,7 @@ class Tensor : public TensorBase {
     auto buf_size = distribution_->buf_size(rank);
     auto eltype = tensor_element_type<element_type>();
     EXPECTS(buf_size >=0 );
-    mpb_ = std::unique_ptr<MemoryPoolBase>{memory_manager->alloc_coll(eltype, buf_size)};
+    mpb_ = std::unique_ptr<MemoryRegion>{memory_manager->alloc_coll(eltype, buf_size)};
   }
 
   void dealloc() {
@@ -66,7 +66,7 @@ class Tensor : public TensorBase {
     mpb_->dealloc_coll();
   }
 
-  void attach(Distribution* distribution, MemoryPoolBase* mpb) {
+  void attach(Distribution* distribution, MemoryRegion* mpb) {
     EXPECTS(distribution != nullptr);
     EXPECTS(mpb != nullptr);
     distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, pg_.size()));
@@ -157,11 +157,11 @@ class Tensor : public TensorBase {
     return mpb_->mgr();
   }
 
-  const MemoryPoolBase& memory_pool() const {
+  const MemoryRegion& memory_pool() const {
     return *mpb_.get();
   }
   
-  MemoryPoolBase& memory_pool() {
+  MemoryRegion& memory_pool() {
     return *mpb_.get();
   }
   
@@ -201,7 +201,7 @@ class Tensor : public TensorBase {
   }
 
   ProcGroup pg_;
-  std::unique_ptr<MemoryPoolBase> mpb_;
+  std::unique_ptr<MemoryRegion> mpb_;
   std::shared_ptr<Distribution> distribution_;
 }; // class Tensor
 

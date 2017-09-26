@@ -41,7 +41,7 @@ class MemoryManagerLocal : public MemoryManager {
     delete mms;
   }
 
-  MemoryPoolBase* alloc_coll(ElementType eltype, Size nelements) override {
+  MemoryRegion* alloc_coll(ElementType eltype, Size nelements) override {
     MemoryPoolLocal* ret = new MemoryPoolLocal(*this);
     ret->eltype_ = eltype;
     ret->elsize_ = element_size(eltype);
@@ -51,7 +51,7 @@ class MemoryManagerLocal : public MemoryManager {
     return ret;
   }
 
-  MemoryPoolBase* attach_coll(MemoryPoolBase& mpb) override {
+  MemoryRegion* attach_coll(MemoryRegion& mpb) override {
     MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
     MemoryPoolLocal* ret = new MemoryPoolLocal(*this);
     ret->eltype_ = mp.eltype_;
@@ -73,24 +73,24 @@ class MemoryManagerLocal : public MemoryManager {
   ~MemoryManagerLocal() {}
 
  public:
-  void dealloc_coll(MemoryPoolBase& mpb) override {
+  void dealloc_coll(MemoryRegion& mpb) override {
     MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
     delete [] mp.buf_;
     mp.buf_ = nullptr;
   }
 
-  void detach_coll(MemoryPoolBase& mpb) override {
+  void detach_coll(MemoryRegion& mpb) override {
     MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
     delete [] mp.buf_;
     mp.buf_ = nullptr;
   }
 
-  const void* access(const MemoryPoolBase& mpb, Offset off) const override {
+  const void* access(const MemoryRegion& mpb, Offset off) const override {
     const MemoryPoolLocal& mp = static_cast<const MemoryPoolLocal&>(mpb);
     return &mp.buf_[mp.elsize_ * off.value()];
   }
 
-  void get(MemoryPoolBase& mpb, Proc proc, Offset off, Size nelements, void* to_buf) override {
+  void get(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, void* to_buf) override {
     MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
@@ -99,7 +99,7 @@ class MemoryManagerLocal : public MemoryManager {
                 reinterpret_cast<uint8_t*>(to_buf));
   }
 
-  void put(MemoryPoolBase& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
+  void put(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
     MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
@@ -108,7 +108,7 @@ class MemoryManagerLocal : public MemoryManager {
                 mp.buf_ + mp.elsize_*off.value());
   }
 
-  void add(MemoryPoolBase& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
+  void add(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
     MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
@@ -140,7 +140,7 @@ class MemoryManagerLocal : public MemoryManager {
     }
   }
 
-  void print_coll(const MemoryPoolBase& mpb, std::ostream& os) override {
+  void print_coll(const MemoryRegion& mpb, std::ostream& os) override {
     const MemoryPoolLocal& mp = static_cast<const MemoryPoolLocal&>(mpb);
     EXPECTS(mp.buf_ != nullptr);
     os<<"MemoryManagerLocal. contents\n";

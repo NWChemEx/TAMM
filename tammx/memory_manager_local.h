@@ -17,9 +17,9 @@ namespace tammx {
 
 class MemoryManagerLocal;
 
-class MemoryPoolLocal : public MemoryPoolImpl<MemoryManagerLocal> {
+class MemoryRegionLocal : public MemoryPoolImpl<MemoryManagerLocal> {
  public:
-  MemoryPoolLocal(MemoryManagerLocal& mgr)
+  MemoryRegionLocal(MemoryManagerLocal& mgr)
       : MemoryPoolImpl<MemoryManagerLocal>(mgr) {}
 
  private:
@@ -28,7 +28,7 @@ class MemoryPoolLocal : public MemoryPoolImpl<MemoryManagerLocal> {
   uint8_t* buf_;
 
   friend class MemoryManagerLocal;
-}; // class MemoryPoolLocal
+}; // class MemoryRegionLocal
 
 
 class MemoryManagerLocal : public MemoryManager {
@@ -42,7 +42,7 @@ class MemoryManagerLocal : public MemoryManager {
   }
 
   MemoryRegion* alloc_coll(ElementType eltype, Size nelements) override {
-    MemoryPoolLocal* ret = new MemoryPoolLocal(*this);
+    MemoryRegionLocal* ret = new MemoryRegionLocal(*this);
     ret->eltype_ = eltype;
     ret->elsize_ = element_size(eltype);
     ret->local_nelements_ = nelements;
@@ -52,8 +52,8 @@ class MemoryManagerLocal : public MemoryManager {
   }
 
   MemoryRegion* attach_coll(MemoryRegion& mpb) override {
-    MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
-    MemoryPoolLocal* ret = new MemoryPoolLocal(*this);
+    MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
+    MemoryRegionLocal* ret = new MemoryRegionLocal(*this);
     ret->eltype_ = mp.eltype_;
     ret->elsize_ = mp.elsize_;
     ret->local_nelements_ = mp.local_nelements_;
@@ -74,24 +74,24 @@ class MemoryManagerLocal : public MemoryManager {
 
  public:
   void dealloc_coll(MemoryRegion& mpb) override {
-    MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
+    MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
     delete [] mp.buf_;
     mp.buf_ = nullptr;
   }
 
   void detach_coll(MemoryRegion& mpb) override {
-    MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
+    MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
     delete [] mp.buf_;
     mp.buf_ = nullptr;
   }
 
   const void* access(const MemoryRegion& mpb, Offset off) const override {
-    const MemoryPoolLocal& mp = static_cast<const MemoryPoolLocal&>(mpb);
+    const MemoryRegionLocal& mp = static_cast<const MemoryRegionLocal&>(mpb);
     return &mp.buf_[mp.elsize_ * off.value()];
   }
 
   void get(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, void* to_buf) override {
-    MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
+    MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
     std::copy_n(mp.buf_ + mp.elsize_ * off.value(),
@@ -100,7 +100,7 @@ class MemoryManagerLocal : public MemoryManager {
   }
 
   void put(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
-    MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
+    MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
     std::copy_n(reinterpret_cast<const uint8_t*>(from_buf),
@@ -109,7 +109,7 @@ class MemoryManagerLocal : public MemoryManager {
   }
 
   void add(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
-    MemoryPoolLocal& mp = static_cast<MemoryPoolLocal&>(mpb);
+    MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
     int hi = nelements.value();
@@ -141,7 +141,7 @@ class MemoryManagerLocal : public MemoryManager {
   }
 
   void print_coll(const MemoryRegion& mpb, std::ostream& os) override {
-    const MemoryPoolLocal& mp = static_cast<const MemoryPoolLocal&>(mpb);
+    const MemoryRegionLocal& mp = static_cast<const MemoryRegionLocal&>(mpb);
     EXPECTS(mp.buf_ != nullptr);
     os<<"MemoryManagerLocal. contents\n";
     for(size_t i=0; i<mp.local_nelements().value(); i++) {

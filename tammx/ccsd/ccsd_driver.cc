@@ -570,7 +570,7 @@ int main(int argc, char *argv[]) {
   Distribution_NW distribution;
   auto mgr = MemoryManagerGA::create_coll(ProcGroup{GA_MPI_Comm()});
 
-  Tensor<T>::allocate(pg, &distribution, mgr, d_t1, d_t2, d_f1, d_v2);
+  Tensor<T>::allocate(&distribution, mgr, d_t1, d_t2, d_f1, d_v2);
 
   ExecutionContext ec {pg, &distribution, mgr, Irrep{0}, false};
 

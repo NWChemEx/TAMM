@@ -165,14 +165,14 @@ class Tensor : public TensorBase {
     return *mpb_.get();
   }
   
-  static void allocate(ProcGroup pg, Distribution* distribution, MemoryManager* memory_manager) {
+  static void allocate(Distribution* distribution, MemoryManager* memory_manager) {
     //no-op
   }
 
   template<typename ...Args>
-  static void allocate(ProcGroup pg, Distribution* distribution, MemoryManager* memory_manager, Tensor<T>& tensor, Args& ... tensor_list) {
+  static void allocate(Distribution* distribution, MemoryManager* memory_manager, Tensor<T>& tensor, Args& ... tensor_list) {
     tensor.alloc(distribution, memory_manager);
-    allocate(pg, distribution, memory_manager, tensor_list...);
+    allocate(distribution, memory_manager, tensor_list...);
   }
 
 

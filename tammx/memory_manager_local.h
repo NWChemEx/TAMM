@@ -17,10 +17,10 @@ namespace tammx {
 
 class MemoryManagerLocal;
 
-class MemoryRegionLocal : public MemoryPoolImpl<MemoryManagerLocal> {
+class MemoryRegionLocal : public MemoryRegionImpl<MemoryManagerLocal> {
  public:
   MemoryRegionLocal(MemoryManagerLocal& mgr)
-      : MemoryPoolImpl<MemoryManagerLocal>(mgr) {}
+      : MemoryRegionImpl<MemoryManagerLocal>(mgr) {}
 
  private:
   size_t elsize_;

@@ -141,12 +141,12 @@ class MemoryRegion {
 }; // class MemoryRegion
 
 template<typename MgrType>
-class MemoryPoolImpl : public MemoryRegion {
+class MemoryRegionImpl : public MemoryRegion {
  public:
-  MemoryPoolImpl(MgrType& mgr)
+  MemoryRegionImpl(MgrType& mgr)
       : mgr_{mgr} {}
 
-  virtual ~MemoryPoolImpl() {}
+  virtual ~MemoryRegionImpl() {}
 
   ProcGroup pg() const {
     return mgr_.pg();
@@ -186,7 +186,7 @@ class MemoryPoolImpl : public MemoryRegion {
 
  private:
   MgrType& mgr_;
-};  // class MemoryPoolImpl
+};  // class MemoryRegionImpl
 
 }  // namespace tammx
 

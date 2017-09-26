@@ -156,7 +156,7 @@ class Distribution_NW : public Distribution {
         EXPECTS(addr==1 || hash_[addr] > hash_[addr-1]);
         hash_[length + addr] = offset;
         if(GA_Nodeid() == 1) {
-          std::cerr<<"-----DISTRIBUTIO_NW. addr="<<addr<<" offset="<<offset<<" block_size="<<tensor_structure_->block_size(blockid)<<"\n";
+          //std::cerr<<"-----DISTRIBUTIO_NW. addr="<<addr<<" offset="<<offset<<" block_size="<<tensor_structure_->block_size(blockid)<<"\n";
         }
         offset += tensor_structure_->block_size(blockid);
         addr += 1;
@@ -171,7 +171,7 @@ class Distribution_NW : public Distribution {
     auto itr_last = hash_.end();
 
     if(GA_Nodeid() == 1) {
-      std::cerr<<"------DISTRIB_NW. total size="<<total_size_<<" nproc="<<nproc<<" per_proc_size="<<per_proc_size<<"\n";
+      //std::cerr<<"------DISTRIB_NW. total size="<<total_size_<<" nproc="<<nproc<<" per_proc_size="<<per_proc_size<<"\n";
     }
     for(int i=0; i<nproc.value(); i++) {
       if(itr != itr_last) {
@@ -182,7 +182,7 @@ class Distribution_NW : public Distribution {
       
       itr = std::lower_bound(itr, itr_last, (i+1)*per_proc_size);
       if(GA_Nodeid() == 1) {
-        std::cerr<<"------DISTRIB_NW. *new_itr="<<*itr<<"\n";
+        //std::cerr<<"------DISTRIB_NW. *new_itr="<<*itr<<"\n";
       }
     }
 
@@ -190,11 +190,11 @@ class Distribution_NW : public Distribution {
     proc_offsets_.push_back(total_size_);
 
     if(GA_Nodeid() == 1){
-      std::cerr<<"------PROC OFFSETS:";
-      for(auto off: proc_offsets_) {
-        std::cerr<<off<<" ";
-      }
-      std::cerr<<"\n";
+      // std::cerr<<"------PROC OFFSETS:";
+      // for(auto off: proc_offsets_) {
+      //   std::cerr<<off<<" ";
+      // }
+      // std::cerr<<"\n";
     }
   }
 

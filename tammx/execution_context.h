@@ -36,7 +36,7 @@ class ExecutionContext {
 
   template<typename T, typename ...Args>
   void allocate(Tensor<T>& tensor, Args& ... tensor_list) {
-    tensor.alloc(pg_, default_distribution_, default_memory_manager_);
+    tensor.alloc(default_distribution_, default_memory_manager_);
     allocate(tensor_list...);
   }
 

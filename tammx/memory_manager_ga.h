@@ -18,9 +18,9 @@ namespace tammx {
 
 class MemoryManagerGA;
 
-class MemoryPoolGA : public MemoryPoolImpl<MemoryManagerGA> {
+class MemoryRegionGA : public MemoryPoolImpl<MemoryManagerGA> {
  public:
-  MemoryPoolGA(MemoryManagerGA& mgr)
+  MemoryRegionGA(MemoryManagerGA& mgr)
       : MemoryPoolImpl<MemoryManagerGA>(mgr) {}
 
   int ga() const {
@@ -33,7 +33,7 @@ class MemoryPoolGA : public MemoryPoolImpl<MemoryManagerGA> {
   std::vector<TAMMX_SIZE> map_;
 
   friend class MemoryManagerGA;
-}; // class MemoryPoolGA
+}; // class MemoryRegionGA
 
 
 class MemoryManagerGA : public MemoryManager {
@@ -47,7 +47,7 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   MemoryRegion* alloc_coll(ElementType eltype, Size local_nelements) override {
-    MemoryPoolGA* pmp = new MemoryPoolGA(*this);
+    MemoryRegionGA* pmp = new MemoryRegionGA(*this);
 
     int ga_pg_default = GA_Pgroup_get_default();
     GA_Pgroup_set_default(ga_pg_);
@@ -96,8 +96,8 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   MemoryRegion* attach_coll(MemoryRegion& mpb) override {
-    MemoryPoolGA& mp = static_cast<MemoryPoolGA&>(mpb);
-    MemoryPoolGA* pmp = new MemoryPoolGA(*this);
+    MemoryRegionGA& mp = static_cast<MemoryRegionGA&>(mpb);
+    MemoryRegionGA* pmp = new MemoryRegionGA(*this);
 
     pmp->map_ = mp.map_;
     pmp->eltype_ = mp.eltype_;
@@ -120,18 +120,18 @@ class MemoryManagerGA : public MemoryManager {
 
  public:
   void dealloc_coll(MemoryRegion& mpb) override {
-    MemoryPoolGA& mp = static_cast<MemoryPoolGA&>(mpb);
+    MemoryRegionGA& mp = static_cast<MemoryRegionGA&>(mpb);
     NGA_Destroy(mp.ga_);
     mp.ga_ = -1;
   }
 
   void detach_coll(MemoryRegion& mpb) override {
-    MemoryPoolGA& mp = static_cast<MemoryPoolGA&>(mpb);
+    MemoryRegionGA& mp = static_cast<MemoryRegionGA&>(mpb);
     mp.ga_ = -1;
   }
 
   const void* access(const MemoryRegion& mpb, Offset off) const override {
-    const MemoryPoolGA& mp = static_cast<const MemoryPoolGA&>(mpb);
+    const MemoryRegionGA& mp = static_cast<const MemoryRegionGA&>(mpb);
     Proc proc{pg_.rank()};
     TAMMX_SIZE nels{1};
     TAMMX_SIZE ioffset{mp.map_[proc.value()] + off.value()};
@@ -142,14 +142,14 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   void get(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, void* to_buf) override {
-    const MemoryPoolGA& mp = static_cast<const MemoryPoolGA&>(mpb);
+    const MemoryRegionGA& mp = static_cast<const MemoryRegionGA&>(mpb);
     TAMMX_SIZE ioffset{mp.map_[proc.value()] + off.value()};
     long long lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     NGA_Get64(mp.ga_, &lo, &hi, to_buf, &ld);
   }
 
   void put(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
-    const MemoryPoolGA& mp = static_cast<const MemoryPoolGA&>(mpb);
+    const MemoryRegionGA& mp = static_cast<const MemoryRegionGA&>(mpb);
 
     TAMMX_SIZE ioffset{mp.map_[proc.value()] + off.value()};
     long long lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
@@ -157,7 +157,7 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   void add(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
-    const MemoryPoolGA& mp = static_cast<const MemoryPoolGA&>(mpb);
+    const MemoryRegionGA& mp = static_cast<const MemoryRegionGA&>(mpb);
     TAMMX_SIZE ioffset{mp.map_[proc.value()] + off.value()};
     long long lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     void *alpha;
@@ -182,7 +182,7 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   void print_coll(const MemoryRegion& mpb, std::ostream& os) override {
-    const MemoryPoolGA& mp = static_cast<const MemoryPoolGA&>(mpb);
+    const MemoryRegionGA& mp = static_cast<const MemoryRegionGA&>(mpb);
     GA_Print(mp.ga_);
   }
 

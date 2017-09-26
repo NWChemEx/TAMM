@@ -16,6 +16,26 @@
 
 namespace tammx {
 
+class MemoryManagerGA;
+
+class MemoryPoolGA : public MemoryPoolImpl<MemoryManagerGA> {
+ public:
+  MemoryPoolGA(MemoryManagerGA& mgr)
+      : MemoryPoolImpl<MemoryManagerGA>(mgr) {}
+
+  int ga() const {
+    return ga_;
+  }
+
+ private:
+  int ga_;
+  ElementType eltype_;
+  std::vector<TAMMX_SIZE> map_;
+
+  friend class MemoryManagerGA;
+}; // class MemoryPoolGA
+
+
 class MemoryManagerGA : public MemoryManager {
  public:
   static MemoryManagerGA* create_coll(ProcGroup pg) {
@@ -25,27 +45,10 @@ class MemoryManagerGA : public MemoryManager {
   static void destroy_coll(MemoryManagerGA* mmga) {
     delete mmga;
   }
-  
-  class MemoryPool : public MemoryPoolImpl<MemoryManagerGA> {
-   public:
-    MemoryPool(MemoryManagerGA& mgr)
-        : MemoryPoolImpl<MemoryManagerGA>(mgr) {}
-
-    int ga() const {
-      return ga_;
-    }
-    
-   private:
-    int ga_;
-    ElementType eltype_;
-    std::vector<TAMMX_SIZE> map_;
-
-    friend class MemoryManagerGA;
-  }; // class MemoryPool
 
   MemoryPoolBase* alloc_coll(ElementType eltype, Size local_nelements) override {
-    MemoryPool* pmp = new MemoryPool(*this);
-    
+    MemoryPoolGA* pmp = new MemoryPoolGA(*this);
+
     int ga_pg_default = GA_Pgroup_get_default();
     GA_Pgroup_set_default(ga_pg_);
     int nranks = pg_.size().value();
@@ -55,7 +58,7 @@ class MemoryManagerGA : public MemoryManager {
     pmp->eltype_ = eltype;
     pmp->local_nelements_ = local_nelements;
     long long nels = local_nelements.value();
-    
+
     GA_Pgroup_set_default(ga_pg_);
     long long nelements_min, nelements_max;
     MPI_Allreduce(&nels, &nelements_min, 1, MPI_LONG_LONG, MPI_MIN, pg_.comm());
@@ -93,8 +96,8 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   MemoryPoolBase* attach_coll(MemoryPoolBase& mpb) override {
-    MemoryPool& mp = static_cast<MemoryPool&>(mpb);
-    MemoryPool* pmp = new MemoryPool(*this);
+    MemoryPoolGA& mp = static_cast<MemoryPoolGA&>(mpb);
+    MemoryPoolGA* pmp = new MemoryPoolGA(*this);
 
     pmp->map_ = mp.map_;
     pmp->eltype_ = mp.eltype_;
@@ -103,7 +106,7 @@ class MemoryManagerGA : public MemoryManager {
     pmp->set_status(AllocationStatus::attached);
     return pmp;
   }
-  
+
   protected:
   explicit MemoryManagerGA(ProcGroup pg)
       : MemoryManager{pg} {
@@ -117,18 +120,18 @@ class MemoryManagerGA : public MemoryManager {
 
  public:
   void dealloc_coll(MemoryPoolBase& mpb) override {
-    MemoryPool& mp = static_cast<MemoryPool&>(mpb);
+    MemoryPoolGA& mp = static_cast<MemoryPoolGA&>(mpb);
     NGA_Destroy(mp.ga_);
     mp.ga_ = -1;
   }
 
   void detach_coll(MemoryPoolBase& mpb) override {
-    MemoryPool& mp = static_cast<MemoryPool&>(mpb);
+    MemoryPoolGA& mp = static_cast<MemoryPoolGA&>(mpb);
     mp.ga_ = -1;
   }
 
   const void* access(const MemoryPoolBase& mpb, Offset off) const override {
-    const MemoryPool& mp = static_cast<const MemoryPool&>(mpb);
+    const MemoryPoolGA& mp = static_cast<const MemoryPoolGA&>(mpb);
     Proc proc{pg_.rank()};
     TAMMX_SIZE nels{1};
     TAMMX_SIZE ioffset{mp.map_[proc.value()] + off.value()};
@@ -137,16 +140,16 @@ class MemoryManagerGA : public MemoryManager {
     NGA_Access64(mp.ga_, &lo, &hi, reinterpret_cast<void*>(&buf), &ld);
     return buf;
   }
-  
+
   void get(MemoryPoolBase& mpb, Proc proc, Offset off, Size nelements, void* to_buf) override {
-    const MemoryPool& mp = static_cast<const MemoryPool&>(mpb);
+    const MemoryPoolGA& mp = static_cast<const MemoryPoolGA&>(mpb);
     TAMMX_SIZE ioffset{mp.map_[proc.value()] + off.value()};
     long long lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     NGA_Get64(mp.ga_, &lo, &hi, to_buf, &ld);
   }
-  
+
   void put(MemoryPoolBase& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
-    const MemoryPool& mp = static_cast<const MemoryPool&>(mpb);
+    const MemoryPoolGA& mp = static_cast<const MemoryPoolGA&>(mpb);
 
     TAMMX_SIZE ioffset{mp.map_[proc.value()] + off.value()};
     long long lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
@@ -154,7 +157,7 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   void add(MemoryPoolBase& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
-    const MemoryPool& mp = static_cast<const MemoryPool&>(mpb);
+    const MemoryPoolGA& mp = static_cast<const MemoryPoolGA&>(mpb);
     TAMMX_SIZE ioffset{mp.map_[proc.value()] + off.value()};
     long long lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     void *alpha;
@@ -177,12 +180,12 @@ class MemoryManagerGA : public MemoryManager {
     }
     NGA_Acc64(mp.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld, alpha);
   }
-  
+
   void print_coll(const MemoryPoolBase& mpb, std::ostream& os) override {
-    const MemoryPool& mp = static_cast<const MemoryPool&>(mpb);
+    const MemoryPoolGA& mp = static_cast<const MemoryPoolGA&>(mpb);
     GA_Print(mp.ga_);
   }
-  
+
  private:
   static int create_ga_process_group_coll(const ProcGroup& pg) {
     MPI_Group group, group_world;
@@ -190,9 +193,9 @@ class MemoryManagerGA : public MemoryManager {
     int nranks = pg.size().value();
     int ranks[nranks], ranks_world[nranks];
     MPI_Comm_group(comm, &group);
-  
+
     MPI_Comm_group(MPI_COMM_WORLD, &group_world);
-  
+
     for (int i = 0; i < nranks; i++) {
       ranks[i] = i;
     }
@@ -249,7 +252,7 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   int ga_pg_;
-  
+
   //constants for NGA_Acc call
   float sp_alpha = 1.0;
   double dp_alpha = 1.0;
@@ -309,7 +312,7 @@ class MemoryManagerGA : public MemoryManager {
 //   void print() const override {
 //     GA_Print(ga());
 //   }
-  
+
 //   void alloc(ElementType eltype, Size nelements) override {
 //     EXPECTS(allocation_status_ == AllocationStatus::invalid);
 //     EXPECTS(nelements >= 0);
@@ -319,7 +322,7 @@ class MemoryManagerGA : public MemoryManager {
 //     EXPECTS(pg_.is_valid());
 //     int nranks = pg_.size().value();
 //     long long nels = nelements.value();
-    
+
 //     {
 //       MPI_Group group, group_world;
 //       MPI_Comm comm = pg_.comm();
@@ -345,7 +348,7 @@ class MemoryManagerGA : public MemoryManager {
 //     map_ = std::make_unique<TAMMX_SIZE[]>(nranks+1);
 
 //     ga_eltype_ = to_ga_eltype(eltype_);
-    
+
 //     GA_Pgroup_set_default(ga_pg_);
 //     TAMMX_SIZE nelements_min, nelements_max;
 //     MPI_Allreduce(&nels, &nelements_min, 1, MPI_LONG_LONG, MPI_MIN, pg_.comm());
@@ -362,7 +365,7 @@ class MemoryManagerGA : public MemoryManager {
 //       MPI_Allgather(&nels, 1, MPI_LONG_LONG, &map_[1], 1, MPI_LONG_LONG, pg_.comm());
 //       //MPI_Exscan(&nels, &map_[0], 1, MPI_LONG_LONG, MPI_SUM, pg_.comm());
 //       map_[0] = 0; // @note this is not set by MPI_Exscan
-//       std::partial_sum(map_.get(), map_.get()+nranks, map_.get());      
+//       std::partial_sum(map_.get(), map_.get()+nranks, map_.get());
 //       std::string array_name{"array_name"};
 //       for(block = nranks; block>0 && map_[block-1] == dim; --block) {
 //         //no-op
@@ -394,7 +397,7 @@ class MemoryManagerGA : public MemoryManager {
 //   MemoryManager* clone(ProcGroup pg) const override {
 //     return new MemoryManagerGA(pg);
 //   }
-    
+
 //   void* access(Offset off) override {
 //     EXPECTS(allocation_status_ == AllocationStatus::created ||
 //             allocation_status_ == AllocationStatus::attached);
@@ -426,7 +429,7 @@ class MemoryManagerGA : public MemoryManager {
 //     TAMMX_SIZE lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
 //     NGA_Get64(ga_, &lo, &hi, buf, &ld);
 //   }
-  
+
 //   void put(Proc proc, Offset off, Size nelements, const void* buf) override {
 //     EXPECTS(allocation_status_ == AllocationStatus::created ||
 //             allocation_status_ == AllocationStatus::attached);
@@ -434,7 +437,7 @@ class MemoryManagerGA : public MemoryManager {
 //     TAMMX_SIZE lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
 //     NGA_Put64(ga_, &lo, &hi, const_cast<void*>(buf), &ld);
 //   }
-  
+
 //   void add(Proc proc, Offset off, Size nelements, const void* buf) override {
 //     EXPECTS(allocation_status_ == AllocationStatus::created ||
 //             allocation_status_ == AllocationStatus::attached);
@@ -468,7 +471,7 @@ class MemoryManagerGA : public MemoryManager {
 //   TAMMX_SIZE *map() {
 //     return map_.get();
 //   }
-  
+
 //  protected:
 
 //   static int to_ga_eltype(ElementType eltype) {

@@ -18,10 +18,10 @@ namespace tammx {
 
 class MemoryManagerGA;
 
-class MemoryRegionGA : public MemoryPoolImpl<MemoryManagerGA> {
+class MemoryRegionGA : public MemoryRegionImpl<MemoryManagerGA> {
  public:
   MemoryRegionGA(MemoryManagerGA& mgr)
-      : MemoryPoolImpl<MemoryManagerGA>(mgr) {}
+      : MemoryRegionImpl<MemoryManagerGA>(mgr) {}
 
   int ga() const {
     return ga_;

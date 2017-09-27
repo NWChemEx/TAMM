@@ -202,7 +202,7 @@ fragment EXPONENT
 //: NEWLINE*;
 
 // Quoted string
-StringLiteral
+QuotedString
   : UnterminatedStringLiteral '"'
   ;
 
@@ -212,8 +212,9 @@ UnterminatedStringLiteral
 
 fragment HEX_DIGIT : ('0'..'9'|'a'..'f'|'A'..'F') ;
 
+//'\"'
 fragment ESC_SEQ
-    :   '\\' ('b'|'t'|'n'|'f'|'r'|'\"'|'\''|'\\')
+    :   '\\' ('b'|'t'|'n'|'f'|'r'|'\''|'\\')
     |   UNICODE_ESC
     |   OCTAL_ESC
     ;
@@ -255,6 +256,8 @@ directive_list:
                 | ecce_print_directive
                 )*;
 
+//StringLiteral: (QuotedString | UnquotedString);
+
  /*
  BASIS [<string name default "ao basis">] \
        [(spherical || cartesian) default cartesian] \
@@ -275,7 +278,7 @@ directive_list:
 
 
  basis_directive: BASIS ID? (SPHERICAL | CARTESIAN)? (PRINT | NOPRINT)? REL?
-                  (ID|STAR) LIBRARY UnquotedString?
+                  (ID|STAR) LIBRARY (QuotedString|UnquotedString)?
                   ID? (FILE ID)?
                   (EXCEPT ID+)? REL?
 
@@ -408,7 +411,7 @@ memory_directive: MEMORY (TOTAL? memory_units)? (STACK ICONST memory_units?)?
                   (HEAP ICONST memory_units?)? (GLOBAL ICONST memory_units?)?
                   (VERIFY | NOVERIFY)? (HARDFAIL | NOHARDFAIL)?;
 
-title_directive: TITLE (ID|StringLiteral);
+title_directive: TITLE (QuotedString|UnquotedString);
 
 NONE: 'NONE' | 'none';
 LOW: 'LOW' | 'low';
@@ -656,6 +659,7 @@ scf_directive: SCF
                 | (TOL2E FCONST)
                 | (ADAPT (ON|OFF))
                 | (THRESH FCONST)
+                | (MAXITER ICONST)
                 | wavefn_type
                 )*
                END;

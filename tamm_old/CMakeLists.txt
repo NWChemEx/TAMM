@@ -185,6 +185,7 @@ set(CBLAS_LIBRARIES
     ${CBLAS_LIBRARY_PATH}/libblas.a
     ${CBLAS_LIBRARY_PATH}/libcblas.a
     ${CBLAS_LIBRARY_PATH}/liblapack.a
+    ${CBLAS_LIBRARY_PATH}/liblapacke.a
     )
 
 

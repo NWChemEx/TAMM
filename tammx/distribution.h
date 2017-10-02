@@ -20,7 +20,8 @@ class Distribution {
   virtual std::pair<Proc,Offset> locate(const BlockDimVec& blockid) = 0;
   virtual Size buf_size(Proc proc) const = 0;
   virtual std::string name() const = 0;
-  virtual Distribution* clone(const TensorBase*, Proc) const = 0;
+  // virtual Distribution* clone(const TensorBase*, Proc) const = 0;
+  virtual std::shared_ptr<Distribution> clone(const TensorBase*, Proc) const = 0;
 
  protected:
   Distribution(const TensorBase* tensor_structure, Proc nproc)
@@ -57,7 +58,8 @@ class DistributionFactory {
     if(distributions_.find(key) != distributions_.end()) {
       return distributions_.find(key)->second;
     }
-    auto dist = std::shared_ptr<Distribution>{distribution.clone(tensor_structure, nproc)};
+    // auto dist = std::shared_ptr<Distribution>{distribution.clone(tensor_structure, nproc)};
+    auto dist = distribution.clone(tensor_structure, nproc);
     distributions_[key] = dist;
     // return std::get<0>(distributions_.insert(key, std::shared_ptr<Distribution>(dist)))->second;
     return dist;
@@ -90,14 +92,16 @@ class Distribution_NW : public Distribution {
     return "Distribution_NW"; //Distribution_NW::class_name;
   }
 
-  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const {
+  // Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const {
+  std::shared_ptr<Distribution> clone(const TensorBase* tensor_structure, Proc nproc) const {
 /** \warning
 *  totalview LD on following statement
 *  back traced to tammx::Tensor<double>::alloc shared_ptr_base.h
 *  backtraced to ccsd_driver<double> line 37 execution_context.h
 *  back traced to main line 607 ccsd_driver.cc
 */
-    return new Distribution_NW(tensor_structure, nproc);
+    // return new Distribution_NW(tensor_structure, nproc);
+    return std::make_shared<Distribution_NW>(tensor_structure, nproc);
   }
 
   std::pair<Proc,Offset> locate(const BlockDimVec& blockid) {

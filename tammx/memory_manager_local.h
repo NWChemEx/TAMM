@@ -62,6 +62,10 @@ class MemoryManagerLocal : public MemoryManager {
     return ret;
   }
 
+  void fence(MemoryRegion& mr) {
+    //no-op
+  }
+
   protected:
   explicit MemoryManagerLocal(ProcGroup pg)
       : MemoryManager{pg} {

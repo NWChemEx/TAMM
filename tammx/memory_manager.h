@@ -22,15 +22,14 @@ class MemoryManager {
  public:
   virtual MemoryRegion* alloc_coll(ElementType eltype, Size nelements) = 0;
   virtual MemoryRegion* attach_coll(MemoryRegion& mr) = 0;
-
   ProcGroup pg() const {
-    return pg_;    
+    return pg_;
   }
-  
+
  protected:
-  MemoryManager(ProcGroup pg)
-      : pg_{pg}  {}
-  
+  explicit MemoryManager(ProcGroup pg)
+      : pg_{pg} {}
+
   virtual ~MemoryManager() {}
 
  public:
@@ -41,14 +40,16 @@ class MemoryManager {
     return const_cast<void*>(static_cast<const MemoryManager&>(*this).access(mr, off));
   }
 
+  virtual void fence(MemoryRegion& mr) = 0;
   virtual const void* access(const MemoryRegion& mr, Offset off) const = 0;
   virtual void get(MemoryRegion& mr, Proc proc, Offset off, Size nelements, void* buf) = 0;
   virtual void put(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf) = 0;
   virtual void add(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf) = 0;
   virtual void print_coll(const MemoryRegion& mr, std::ostream& os) = 0;
 
+ protected:
   ProcGroup pg_;
-  
+
   friend class MemoryRegion;
 }; // class MemoryManager
 
@@ -70,7 +71,6 @@ class MemoryRegion {
     return allocation_status_ == AllocationStatus::attached;
   }
 
-  
   virtual ~MemoryRegion() {
     EXPECTS(allocation_status_ == AllocationStatus::invalid);
   }
@@ -92,6 +92,11 @@ class MemoryRegion {
     EXPECTS(attached());
     detach_coll_impl();
     allocation_status_ = AllocationStatus::invalid;
+  }
+
+  void fence() {
+    EXPECTS(attached() || created());
+    fence_impl();
   }
 
   const void* access(Offset off) const {
@@ -125,18 +130,22 @@ class MemoryRegion {
 
   virtual void dealloc_coll_impl() = 0;
   virtual void detach_coll_impl() = 0;
+  virtual void fence_impl() = 0;
   virtual const void* access_impl(Offset off) const = 0;
   virtual void get_impl(Proc proc, Offset off, Size nelements, void* buf) = 0;
   virtual void put_impl(Proc proc, Offset off, Size nelements, const void* buf) = 0;
   virtual void add_impl(Proc proc, Offset off, Size nelements, const void* buf) = 0;
   virtual void print_coll_impl(std::ostream& os) = 0;
-  
+
  protected:
   void set_status(AllocationStatus allocation_status) {
     allocation_status_ = allocation_status;
   }
 
   Size local_nelements_;
+ private:
+  // size_t elsize_;
+  // uint8_t* buf_;
   AllocationStatus allocation_status_;
 }; // class MemoryRegion
 
@@ -164,6 +173,10 @@ class MemoryRegionImpl : public MemoryRegion {
     mgr_.detach_coll(*this);
   }
 
+  void fence_impl() override {
+    mgr_.fence(*this);
+  }
+
   const void* access_impl(Offset off) const override {
     return mgr_.access(*this, off);
   }
@@ -179,7 +192,7 @@ class MemoryRegionImpl : public MemoryRegion {
   void add_impl(Proc proc, Offset off, Size nelements, const void* buf) override {
     mgr_.add(*this, proc, off, nelements, buf);
   }
-  
+
   void print_coll_impl(std::ostream& os) override {
     mgr_.print_coll(*this, os);
   }

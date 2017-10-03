@@ -274,11 +274,11 @@ std::cout << "p_evl_sorted:" << '\n';
 
   std::cout << "\n\n";
   std::cout << " CCSD iterations" << std::endl;
-  std::cout << std::string(66, '-') << std::endl;
+  std::cout << " " << std::string(65, '-') << std::endl;
   std::cout <<
   " Iter          Residuum       Correlation     Cpu    Wall    V2*C2"
   << std::endl;
-  std::cout << std::string(66, '-') << std::endl;
+  std::cout << " " << std::string(65, '-') << std::endl;
 
 std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
 
@@ -343,10 +343,10 @@ std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
       fiter = iter+1;
       // Print Iteration number
       assert(fiter > 0);
-    	  std::cout.width(6); std::cout << std::right << fiter << "  ";
-
-      std::cout << std::setprecision(13) << residual << "  ";
-      std::cout << std::fixed << std::setprecision(13) << energy << " ";
+    	  std::cout.width(5); std::cout << std::right << fiter << " ";
+    	  std::cout.precision(13);
+      std::cout << std::setw(17) << std::fixed << std::right << residual << " ";
+      std::cout << std::setw(17) << std::fixed << std::right << energy << " ";
       std::cout << std::string(4, ' ') << "0.0";
       std::cout << std::string(5, ' ') << "0.0";
       std::cout << std::string(5, ' ') << "0.0" << std::endl;
@@ -375,7 +375,7 @@ std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
     // intermediates? possibly use variadic templates?
     diis<T>(sch, rs, ts, next_t);
   }
-  std::cout << std::string(66, '-') << std::endl;
+  std::cout << " " << std::string(65, '-') << std::endl;
   if(residual < thresh) {
 	  std::cout << " Iterations converged" << std::endl;
     std::cout.precision(15);

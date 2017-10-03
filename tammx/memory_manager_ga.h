@@ -107,6 +107,10 @@ class MemoryManagerGA : public MemoryManager {
     return pmr;
   }
 
+  void fence(MemoryRegion& mr) {
+    GA_Fence();
+  }
+
   protected:
   explicit MemoryManagerGA(ProcGroup pg)
       : MemoryManager{pg} {

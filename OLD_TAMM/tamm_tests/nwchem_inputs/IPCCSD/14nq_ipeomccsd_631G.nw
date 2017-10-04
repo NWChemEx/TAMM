@@ -1,0 +1,59 @@
+start 14nq_ipeomccsd_631G
+
+permanent_dir .
+
+memory stack 1400 mb heap 100 mb global 2100 mb noverify
+
+geometry units angstrom
+C      0.00000000     0.69835120     2.67596198
+C      0.00000000    -0.69835120     2.67596198
+C      0.00000000     1.39720197     1.47373975
+C      0.00000000    -1.39720197     1.47373975
+C      0.00000000     0.70291404     0.26272699
+C      0.00000000    -0.70291404     0.26272699
+C      0.00000000     1.46297542    -1.02167447
+C      0.00000000    -1.46297542    -1.02167447
+C      0.00000000     0.66973692    -2.27651297
+C      0.00000000    -0.66973692    -2.27651297
+O      0.00000000     2.68121008    -1.05809282
+O      0.00000000    -2.68121008    -1.05809282
+H      0.00000000     1.23980475     3.61503525
+H      0.00000000    -1.23980475     3.61503525
+H      0.00000000     2.47999912     1.44820279
+H      0.00000000    -2.47999912     1.44820279
+H      0.00000000     1.25099095    -3.19219661
+H      0.00000000    -1.25099095    -3.19219661
+end
+
+basis spherical 
+ * library  6-31G
+end 
+
+scf
+  singlet
+  rhf
+  thresh 1.0e-10
+  tol2e 1d-10
+end
+
+tce
+freeze atomic
+ipccsd
+2eorb
+2emet 13
+tilesize 35
+attilesize 40
+thresh 1.0d-5
+maxiter 100
+nroots 1
+end
+
+set tce:maxeorb 0.5
+#set tce:tceiop 2048
+#set tce:writeint T
+#set tce:writet T
+#set tce:readint T
+#set tce:readt T
+
+task tce energy
+

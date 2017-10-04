@@ -6,6 +6,6 @@
 [subrepo]
 	remote = git@github.com:NWChemEx-Project/OLD_TAMM
 	branch = master
-	commit = eb852cc354723efa26d54390e3ef5267da4e8b78
-	parent = 641084f987aa8a652693179a78cb3c012dbb9d8b
+	commit = 9c3346c68e75347b53b37931366e5693d78b5f8e
+	parent = e93e6ab4fe15cbaf17d46fc676806522ef6d9752
 	cmdver = 0.3.1

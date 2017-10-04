@@ -1,0 +1,78 @@
+#!/bin/csh -f
+#MSUB -l nodes=3:ppn=16,walltime=1:00:00
+#MSUB -A emsls49669
+#MSUB -o naphthalene_ccpvdz_lr.output.%j
+#MSUB -e ./naphthalene_ccpvdz_lr.err.%j
+#MSUB -N naphthalene_ccpvdz_lr
+#MSUB -V
+#MSUB -m ea
+#MSUB -M kowalski@emsl.pnl.gov
+
+############################################################################
+# Print out some information for refund purposes
+############################################################################
+
+echo "refund: UserID = kowalski"
+echo "refund: SLURM Job ID = ${SLURM_JOBID}"
+echo "refund: Number of nodes          = 3"
+echo "refund: Number of cores per node = 16"
+echo "refund: Number of cores          = 48"
+echo "refund: Amount of time requested = 1:00"
+echo "refund: Directory = ${PWD}"
+echo " "
+echo Processor list
+echo " "
+echo "${SLURM_JOB_NODELIST}"
+echo " "
+
+############################################################################
+# Copy NWChem binary to local scratch directory
+############################################################################
+# pdsh -f 30 -w "${SLURM_JOB_NODELIST}" cp /dtemp/kowalski/nwchem_sliced_intel/bin/LINUX64/nwchem /scratch/nwchem
+## srun -n ${SLURM_NNODES} -N ${SLURM_NNODES} --wait=600 cp /dtemp/kowalski/nwchem_sliced_intel/bin/LINUX64/nwchem /scratch/nwchem
+#bcastf /dtemp/kowalski/nwchem_sliced_intel/bin/LINUX64/nwchem /scratch/nwchem
+#replaced scratch based bcastf with dtemp copy
+#mkdir -p /dtemp/kowalski/.bin
+#cp /dtemp/kowalski/nwchem_sliced_intel/bin/LINUX64/nwchem /dtemp/kowalski/.bin/nwchem
+
+############################################################################
+# Actually run the job
+############################################################################
+
+source /etc/profile.d/modules.csh
+module purge
+#module load nwchem/6.3
+# module load intel/14.0.3
+# module load micsetup
+# module load impi
+source /msc/apps/compilers/intel/15.0.090/composer_xe_2015.0.090/bin/compilervars.csh intel64
+source /msc/apps/compilers/intel/impi/5.0.1.035/intel64/bin/mpivars.csh intel64
+
+
+cd /scratch
+
+setenv ARMCI_DEFAULT_SHMMAX 32768
+setenv NWCHEM_BASIS_LIBRARY "/home/scicons/cascade/apps/nwchem-6.6//src/basis/libraries/"
+setenv NWCHEM_NWPW_LIBRARY "/home/scicons/cascade/apps/nwchem-6.6//src/nwpw/libraryps/"
+#this disables xeon phi offload
+setenv NWC_RANKS_PER_DEVICE 0
+#this disables threaded in MKL since it is better to keep it to advanced users
+setenv OMP_NUM_THREADS 1
+setenv MKL_NUM_THREADS 1
+setenv NWC_RANKS_PER_DEVICE 0
+setenv ARMCI_OPENIB_DEVICE mlx4_0
+setenv OFFLOAD_INIT on_offload
+
+
+setenv MPIRETURN 999
+#mpirun -n $SLURM_NPROCS /scratch/nwchem /home/kowalski/SC2017/CROSS_CHECK/naphthalene_ccpvdz_lr.nw
+#mpirun -prepend-rank -ordered-output -n $SLURM_NPROCS -ppn 16 /dtemp/kowalski/nwchem_sliced_intel/bin/LINUX64/nwchem  /home/kowalski/SC2017/CROSS_CHECK/naphthalene_ccpvdz_lr.nw
+srun --mpi=pmi2 -n $SLURM_NPROCS -K1    /dtemp/kowalski/nwchem_sliced_intel/bin/LINUX64/nwchem  /home/kowalski/SC2017/CROSS_CHECK/naphthalene_ccpvdz_lr.nw
+setenv MPIRETURN $?
+
+############################################################################
+# End of the job script
+############################################################################
+
+exit $MPIRETURN
+

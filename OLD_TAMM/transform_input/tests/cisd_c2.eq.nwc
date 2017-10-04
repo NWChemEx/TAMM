@@ -1,0 +1,11 @@
+  i0 ( p3 p4 h1 h2 )_v + = 1 * v ( p3 p4 h1 h2 )_v;
+  i0 ( p3 p4 h1 h2 )_tf + = 1 * P( 4 ) * t ( p3 h1 )_t * f ( p4 h2 )_f;
+  i0 ( p3 p4 h1 h2 )_vt + = -1 * P( 2 ) * Sum ( h5 ) * t ( p3 h5 )_t * v ( h5 p4 h1 h2 )_v;
+  i0 ( p3 p4 h1 h2 )_vt + = -1 * P( 2 ) * Sum ( p5 ) * t ( p5 h1 )_t * v ( p3 p4 h2 p5 )_v;
+  i0 ( p3 p4 h1 h2 )_tf + = -1 * P( 2 ) * Sum ( h5 ) * t ( p3 p4 h1 h5 )_t * f ( h5 h2 )_f;
+  i0 ( p3 p4 h1 h2 )_tf + = 1 * P( 2 ) * Sum ( p5 ) * t ( p3 p5 h1 h2 )_t * f ( p4 p5 )_f;
+  i0 ( p3 p4 h1 h2 )_vt + = 1/2 * Sum ( h5 h6 ) * t ( p3 p4 h5 h6 )_t * v ( h5 h6 h1 h2 )_v;
+  i0 ( p3 p4 h1 h2 )_vt + = -1 * P( 4 ) * Sum ( h6 p5 ) * t ( p3 p5 h1 h6 )_t * v ( h6 p4 h2 p5 )_v;
+  i0 ( p3 p4 h1 h2 )_vt + = 1/2 * Sum ( p5 p6 ) * t ( p5 p6 h1 h2 )_t * v ( p3 p4 p5 p6 )_v;
+  i0 ( p3 p4 h1 h2 )_te + = -1 * e ( )_e * t ( p3 p4 h1 h2 )_t;
+  

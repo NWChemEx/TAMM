@@ -1,0 +1,11 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = git@github.com:NWChemEx-Project/OLD_TAMM
+	branch = master
+	commit = eb852cc354723efa26d54390e3ef5267da4e8b78
+	parent = 641084f987aa8a652693179a78cb3c012dbb9d8b
+	cmdver = 0.3.1

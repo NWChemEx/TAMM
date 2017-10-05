@@ -2,6 +2,7 @@
 #define TAMMX_MEMORY_MANAGER_GA_H_
 
 #include "tammx/memory_manager.h"
+#include "armci.h"
 #include "ga.h"
 #include "mpi.h"
 
@@ -108,7 +109,7 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   void fence(MemoryRegion& mr) {
-    GA_Fence();
+    ARMCI_AllFence();
   }
 
   protected:

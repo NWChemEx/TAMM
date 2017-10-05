@@ -167,6 +167,10 @@ class Scheduler {
   void execute() {
     for(auto &op_ptr: ops_) {
       op_ptr->execute(pg_);
+      for(auto t : op_ptr->reads()) {
+        t->memory_region().fence();
+      }
+      //pg_.barrier();
     }
   }
 

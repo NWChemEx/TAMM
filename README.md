@@ -7,15 +7,16 @@ Requirements
 - C++14 compiler
 
 **NOTE:** The current TAMM code has only been tested with gcc versions >= 6.0.
-It also works with Intel 18 compilers, but does not build with Intel Compiler versions <= 17.0.  The devel branch does not support building with Clang.
+It also works with Intel 18 compilers, but does not build with Intel Compiler versions <= 17.0.  
+The devel branch does not support building with Clang.
 
 
 BUILD
 -----
 
 ```
-TAMM_ROOT=/opt/nwx_sandbox  
-git clone https://github.com/NWChemEx-Project/NWX_Sandbox.git $TAMM_ROOT  
+TAMM_ROOT=/opt/TAMM  
+git clone https://github.com/NWChemEx-Project/TAMM.git $TAMM_ROOT  
 git checkout devel
 ```
 
@@ -36,13 +37,11 @@ make
 - After missing dependencies are built:
 
 ```
-cd ${TAMM_ROOT}/tamm_old  
+cd ${TAMM_ROOT}  
 mkdir build && cd build  
-cmake .. -DCMAKE_TOOLCHAIN_FILE=${TAMM_ROOT}/dependencies/build/tamm_build.cmake  
+cmake .. -DBUILD_OLD_TAMM=ON  -DCMAKE_TOOLCHAIN_FILE=${TAMM_ROOT}/dependencies/build/tamm_build.cmake  
 make install
-
-As needed:
-make patch
-make link
-make unpatch
 ```
+
+**NOTE:** At this point, we do not support building without OLD TAMM i.e, passing -DBUILD_OLD_TAMM=OFF above does not work.
+

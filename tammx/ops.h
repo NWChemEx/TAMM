@@ -18,6 +18,8 @@ class ExecutionContext;
 class Op {
  public:
   virtual void execute(const ProcGroup& ec_pg) = 0;
+  virtual TensorImpl* writes() const = 0;
+  virtual std::vector<TensorImpl*> reads() const = 0;
   virtual ~Op() {}
 };
 
@@ -30,6 +32,14 @@ struct SetOp : public Op {
       : value_{value},
         lhs_{lhs},
         mode_{mode} {}
+
+  TensorImpl* writes() const override {
+    return lhs_.tensor_;
+  }
+
+  std::vector<TensorImpl*> reads() const {
+    return {};
+  }
 
   T value_;
   LabeledTensorType lhs_;
@@ -49,6 +59,14 @@ struct AddOp : public Op {
         mode_{mode},
         exec_mode_{exec_mode},
         fn_{fn} { }
+
+  TensorImpl* writes() const override {
+    return lhs_.tensor_;
+  }
+
+  std::vector<TensorImpl*> reads() const {
+    return {rhs_.tensor_};
+  }
 
   T alpha_;
   LabeledTensorType lhs_, rhs_;
@@ -73,6 +91,14 @@ struct MultOp : public Op {
         exec_mode_{exec_mode},
         fn_{fn} { }
 
+  TensorImpl* writes() const override {
+    return lhs_.tensor_;
+  }
+
+  std::vector<TensorImpl*> reads() const {
+    return {rhs1_.tensor_, rhs2_.tensor_};
+  }
+
   T alpha_;
   LabeledTensorType lhs_, rhs1_, rhs2_;
   ResultMode mode_;
@@ -93,6 +119,14 @@ struct AllocOp: public Op {
         distribution_{distribution},
         memory_manager_{memory_manager} {}
 
+  TensorImpl* writes() const override {
+    return tensor_;
+  }
+
+  std::vector<TensorImpl*> reads() const {
+    return {};
+  }
+
   TensorType *tensor_;
   ProcGroup pg_;
   Distribution* distribution_;
@@ -107,6 +141,14 @@ struct DeallocOp: public Op {
 
   DeallocOp(TensorType* tensor)
       : tensor_{tensor} {}
+
+  TensorImpl* writes() const override {
+    return tensor_;
+  }
+
+  std::vector<TensorImpl*> reads() const {
+    return {};
+  }
 
   TensorType *tensor_;
 };
@@ -167,6 +209,18 @@ struct MapOp : public Op {
       blocks[i] = rhs[i].get(id);
     }
     return blocks;
+  }
+
+  TensorImpl* writes() const override {
+    return lhs_.tensor_;
+  }
+
+  std::vector<TensorImpl*> reads() const {
+    std::vector<TensorImpl*> ret;
+    for(auto& lt: rhs_) {
+      ret.push_back(lt.tensor_);
+    }
+    return ret;
   }
 
   LabeledTensorType& lhs_;
@@ -280,6 +334,18 @@ struct MapIdOp : public Op {
     return blocks;
   }
 
+  TensorImpl* writes() const override {
+    return lhs_.tensor_;
+  }
+
+  std::vector<TensorImpl*> reads() const {
+    std::vector<TensorImpl*> ret;
+    for(auto& lt: rhs_) {
+      ret.push_back(lt.tensor_);
+    }
+    return ret;
+  }
+
   LabeledTensorType& lhs_;
   Func func_;
   std::array<LabeledTensorType, N> rhs_;
@@ -329,6 +395,14 @@ struct ScanOp : public Op {
       : ltensor_{ltensor},
         func_{func} {
     EXPECTS(ltensor.tensor_ != nullptr);
+  }
+
+  TensorImpl* writes() const override {
+    return ltensor_.tensor_;
+  }
+
+  std::vector<TensorImpl*> reads() const {
+    return {};
   }
 
   LabeledTensorType ltensor_;
@@ -868,7 +942,7 @@ tensor_to_fortran_info(tammx::Tensor<T> &ttensor) {
     offseta[i] = ahash[i];
   }
 
-  auto amp_ga = static_cast<tammx::MemoryRegionGA&>(ttensor.memory_pool());
+  auto amp_ga = static_cast<tammx::MemoryRegionGA&>(ttensor.memory_region());
   FortranInt da = amp_ga.ga();
   return {da, offseta};
 }
@@ -880,7 +954,7 @@ AddOp<T, LabeledTensorType>::execute(const ProcGroup& ec_pg) {
   using T1 = typename LabeledTensorType::element_type;
 
   //std::cout<<"ADD_OP. C"<<lhs_.label_<<" += "<<alpha_<<" * A"<<rhs_.label_<<"\n";
-  
+
   //tensor_print(*lhs_.tensor_);
   //tensor_print(*rhs_.tensor_);
   if(exec_mode_ == ExecutionMode::fortran) {
@@ -961,7 +1035,7 @@ AddOp<T, LabeledTensorType>::execute(const ProcGroup& ec_pg) {
   } else {
     parallel_work(ec_pg, citr, citr.get_end(), lambda);
   }
-  
+
   //tensor_print(*lhs_.tensor_);
 }
 

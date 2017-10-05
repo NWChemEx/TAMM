@@ -12,11 +12,9 @@ cmake_minimum_required(VERSION 3.7 FATAL_ERROR)
 project (TAMM C CXX Fortran)
 
 if (BUILD_OLD_TAMM)
-    message(STATUS "Building OLD_TAMM -> ${BUILD_OLD_TAMM}")
+    message(STATUS "Building OLD_TAMM!")
 else()
-  #Build TAMMX only
-  message(STATUS "Building TAMMX with old_tamm")
-  option(BUILD_OLD_TAMM ON)
+    message(STATUS "Building TAMM!")
 endif()
 
 if(TAMM_PROC_COUNT)
@@ -50,9 +48,6 @@ if (BUILD_OLD_TAMM)
     SOURCE_DIR ${PROJECT_SOURCE_DIR}
     BINARY_DIR ${PROJECT_BINARY_DIR}
     DEPENDS OLD_TAMM
-    #Only this line is needed when building with toolchain - print all vars and double check.
-    #CMAKE_ARGS -DNWCHEM_SUPERBUILD=OFF -DGA_ROOT_DIR=${GA_ROOT_DIR} -DCMAKE_INSTALL_PREFIX=${NWCHEM_INSTALL_DIR}
-    #The following command is not needed if everyone agrees to use toolchain files instead of env vars
     CMAKE_ARGS -DBUILD_OLD_TAMM=OFF -DCMAKE_INSTALL_PREFIX=${NWCHEM_INSTALL_DIR}
     -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
     -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DTAMM_PROC_COUNT=${TAMM_PROC_COUNT} 
@@ -67,12 +62,9 @@ if (BUILD_OLD_TAMM)
     BUILD_COMMAND make -j${NWCHEM_PROC_COUNT}
     INSTALL_COMMAND make install
   )
-   # End Driver for NWCHEM cmake
-
   return() # stop further processing
-else()
-    message(STATUS "Now building tammx!!!!")
-    #return()
+# else()
+#     message(STATUS "Building TAMM!")
 endif()
 
 set(CMAKE_BUILD_TYPE Debug)

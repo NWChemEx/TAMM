@@ -206,17 +206,31 @@ else()
     message(FATAL_ERROR "Only GNU/Intel Fortran compilers supported")
 endif()
 
-if (EXISTS ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a)
-set(BLAS_LIBRARIES
-    ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsc.a
-    ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a
-    ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a
-    ${NWCHEM_BUILD_DIR}/src/lapack/libnwclapack.a)
+
+if (NWCHEM_CMAKE_BUILD)
+    if (EXISTS ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a)
+    set(BLAS_LIBRARIES
+        ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsc.a
+        ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a
+        ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a
+        ${NWCHEM_BUILD_DIR}/src/lapack/libnwclapack.a)
+
+    else()
+        set(BLAS_LIBRARIES
+                ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsc.a
+                ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a)
+    endif()
 
 else()
-    set(BLAS_LIBRARIES
-            ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsc.a
-            ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a)
+    if (EXISTS ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libnwcblas.a)
+    set(BLAS_LIBRARIES        
+        ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libpeigs.a
+        ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libnwcblas.a
+        ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libnwclapack.a)
+    else()
+        set(BLAS_LIBRARIES
+           ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libpeigs.a)
+    endif()
 endif()
 
 SET(CBLAS_LIBRARY_PATH ${BLAS_LIBRARY_PATH})

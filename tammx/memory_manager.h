@@ -11,7 +11,7 @@
 
 //@todo Remove uses of void*
 
-
+// \file
 namespace tammx {
 
 enum class MemoryManagerType { local, distributed };

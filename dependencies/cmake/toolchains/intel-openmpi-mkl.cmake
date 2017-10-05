@@ -16,9 +16,8 @@ set(GA_CONFIG ${NWCHEM_TOP}/build/nwchem-install/external/ga/bin)
 set(NWCHEM_BUILD_DIR ${NWCHEM_TOP}/build/)
 option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" ON)
 
-# Set the following when using the old Makefile-based NWCHEM build
 # set(NWCHEM_TOP /opt/libraries/nwchem-devel)
-# set(NWCHEM_BUILD_DIR ${NWCHEM_TOP}/src/)
+# set(NWCHEM_BUILD_TARGET LINUX64)
 # set(GA_CONFIG ${NWCHEM_TOP}/src/tools/install/bin)
 # option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" OFF)
 

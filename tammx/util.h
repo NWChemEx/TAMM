@@ -238,61 +238,32 @@ factorial(int n) {
   return ret;
 }
 
-
-template<typename Itr>
-class NestedIterator {
+template<typename Gen>
+class NestedPermutationGen {
  public:
-  NestedIterator(const std::vector<Itr>& itrs)
-      : itrs_{itrs},
-        done_{false} {
-          reset();
-        }
+  using element_type = typename Gen::element_type;
+  NestedPermutationGen(const std::vector<Gen>& gens)
+      : gens_{gens} {}
+  NestedPermutationGen(std::vector<Gen>&& gens)
+      : gens_{gens} {}
 
-  void reset() {
-    for(auto& it: itrs_) {
-      it.reset();
-      EXPECTS(it.has_more());
-    }
-  }
-
-  size_t itr_size() const {
-    size_t ret = 0;
-    for(const auto& it: itrs_) {
-      ret += it.size();
-    }
-    return ret;
-  }
-
-  bool has_more() {
-    return !done_;
-  }
-
-  IndexLabelVec get() const {
+  element_type get() const {
     IndexLabelVec ret;
-    for(const auto& it: itrs_) {
-      auto vtmp = it.get();
+    for(const auto& gen: gens_) {
+      auto vtmp = gen.get();
       ret.insert_back(vtmp.begin(), vtmp.end());
     }
     return ret;
   }
 
-  void next() {
-    int i = itrs_.size()-1;
-    for(; i>=0; i--) {
-      itrs_[i].next();
-      if (itrs_[i].has_more()) {
-        break;
-      }
-      itrs_[i].reset();
-    }
-    if (i<0) {
-      done_ = true;
-    }
+  bool next() {
+    int i = gens_.size()-1;
+    while (i>=0 && !gens_[i].next()) { --i; }
+    return i>=0;
   }
 
  private:
-  std::vector<Itr> itrs_;
-  bool done_;
+  std::vector<Gen> gens_;
 };
 
 
@@ -300,4 +271,3 @@ class NestedIterator {
 
 
 #endif  // TAMMX_UTIL_H_
-

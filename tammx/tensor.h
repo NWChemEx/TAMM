@@ -17,8 +17,17 @@ namespace tammx {
 template<typename T>
 class LabeledTensor;
 
+class TensorImpl : public TensorBase {
+ public:
+  using TensorBase::TensorBase;
+  virtual ~TensorImpl() {}
+  virtual MemoryRegion& memory_region() = 0;
+  virtual const MemoryRegion& memory_region() const = 0;
+};
+
+
 template<typename T>
-class Tensor : public TensorBase {
+class Tensor : public TensorImpl {
  public:
   using element_type = T;
 
@@ -32,7 +41,7 @@ class Tensor : public TensorBase {
          TensorRank nupper_indices,
          Irrep irrep,
          bool spin_restricted)
-      : TensorBase{indices, nupper_indices, irrep, spin_restricted},
+      : TensorImpl{indices, nupper_indices, irrep, spin_restricted},
         mpb_{nullptr},
         distribution_{nullptr} {}
 
@@ -157,11 +166,11 @@ class Tensor : public TensorBase {
     return mpb_->mgr();
   }
 
-  const MemoryRegion& memory_pool() const {
+  const MemoryRegion& memory_region() const override {
     return *mpb_.get();
   }
   
-  MemoryRegion& memory_pool() {
+  MemoryRegion& memory_region() override {
     return *mpb_.get();
   }
   

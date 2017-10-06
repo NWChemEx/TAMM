@@ -3,7 +3,12 @@
 
 #include "tammx/types.h"
 #include "tammx/block.h"
-#include "cblas.h"
+
+#if defined(__ICC) || defined(__INTEL_COMPILER)
+  #include "mkl_cblas.h"
+#else
+  #include "cblas.h"
+#endif
 
 namespace tammx {
 

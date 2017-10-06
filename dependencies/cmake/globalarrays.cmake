@@ -5,8 +5,8 @@ set (GA_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/ga)
 if(EXISTS ${CMAKE_INSTALL_PREFIX}/ga/lib/libga.a)
     add_custom_target(GLOBALARRAYS ALL)
 else()
-    message("Building Global Arrays 5.6.1")
-    set(GA_VERSION ga-5.6.1)
+    message("Building Global Arrays 5.6.2")
+    set(GA_VERSION ga-5.6.2)
 
 
     if(NOT ARMCI_NETWORK)
@@ -76,11 +76,12 @@ endif()
 if (DEFINED BLAS_LIBRARIES)
     set(GA_BLAS "--with-blas8=${BLAS_LIBRARIES}")
 else()
-    set(GA_BLAS --without-blas --without-scalapack)
+    #Assume scalapack is not provided if blas is not specified  
+    set(GA_BLAS "--with-blas8=-lblas -llapack --without-scalapack")
 endif()
 
 if (DEFINED LAPACK_LIBRARIES)
-    set(GA_LAPACK "--with-lapack=${LAPACK_LIBRARIES}")
+    set(GA_LAPACK "--with-lapack=-lblas -llapack")
 endif()
 
 if (DEFINED SCALAPACK_LIBRARIES)
@@ -94,16 +95,18 @@ endif()
 include(ExternalProject)
 ExternalProject_Add(GLOBALARRAYS
     PREFIX GLOBALARRAYS
-    GIT_REPOSITORY https://github.com/GlobalArrays/ga.git
-    GIT_TAG "hotfix/5.6.1"
+    URL https://github.com/GlobalArrays/ga/releases/download/v5.6.2/ga-5.6.2.tar.gz
+    # GIT_REPOSITORY https://github.com/GlobalArrays/ga.git
+    # GIT_TAG "hotfix/5.6.1"
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}
     #Pass location where autotools needs to be built 
     CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}/autogen.sh 
      #${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}/autotools 
     COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}/configure --with-tcgmsg 
-    ${GA_MPI} --enable-peigs --enable-underscoring --disable-mpi-tests 
+    ${GA_MPI} --enable-underscoring --disable-mpi-tests #--enable-peigs
     ${GA_SCALAPACK} ${GA_BLAS} ${GA_LAPACK} ${GA_ARMCI} ${GA_OFFLOAD} CC=${CMAKE_C_COMPILER}
     CXX=${CMAKE_CXX_COMPILER} F77=${CMAKE_Fortran_COMPILER} ${GA_SYSVSHMEM} --prefix=${GA_INSTALL_PATH} #--enable-cxx
+    LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/blas_lapack/lib
     BUILD_COMMAND make -j${TAMM_PROC_COUNT}
     INSTALL_COMMAND make install
     BUILD_IN_SOURCE 1

@@ -6,7 +6,7 @@ Requirements
 - cmake >= 3.7
 - C++14 compiler
 
-**NOTE:** The current build has only been tested with gcc versions >= 6.0.
+**NOTE:** The current build has only been tested with gcc versions >= 6.0 and Intel 18 compilers.
 
 BUILD
 -----

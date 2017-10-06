@@ -7,24 +7,26 @@ set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_Fortran_COMPILER gfortran)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# General NWCHEM Options
-# Set the following when using the NWCHEM CMAKE build
-set(NWCHEM_TOP /opt/nwchem-cmake/nwchem-devel)
-set(GA_CONFIG ${NWCHEM_TOP}/build/nwchem-install/external/ga/bin)
-set(NWCHEM_BUILD_DIR ${NWCHEM_TOP}/build/)
-option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" ON)
-
-# Set the following when using the old Makefile-based NWCHEM build
-# set(NWCHEM_TOP /opt/libraries/nwchem-devel)
-# set(NWCHEM_BUILD_TARGET LINUX64)
-# set(GA_CONFIG ${NWCHEM_TOP}/src/tools/install/bin)
-# option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" OFF)
-
+# The MPI settings below will soon be made optional, but they have to be specified for now.
+set(MPI_INCLUDE_PATH /usr/lib/x86_64-linux-gnu/openmpi/include)
+set(MPI_LIBRARY_PATH /usr/lib/x86_64-linux-gnu/openmpi/lib)
+set(MPI_LIBRARIES "-lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi")
 
 #------------------ OPTIONAL ---------------------
 
 #Number of cores to be used for the build
 set(TAMM_PROC_COUNT 2)
+
+# GA CONFIGURATION
+#set(ARMCI_NETWORK OPENIB)
+#set(USE_OFFLOAD "OFFLOAD" ON)
+
+# BLAS, LAPACK & SCALAPACK. Support only 8-byte integers for now.
+#set(BLAS_INCLUDE_PATH /opt/blas/include)
+#set(BLAS_LIBRARY_PATH /opt/blas/lib)
+# set(BLAS_LIBRARIES "-lblas -llapack" CACHE STRING "BLAS linker flags")
+# set(LAPACK_LIBRARIES "${BLAS_LIBRARIES}" CACHE STRING "LAPACK linker flags")
+#set(SCALAPACK_LIBRARIES "-mkl -lmkl_scalapack_ilp64 -lmkl_blacs_openmpi_ilp64 -lmkl_intel_thread -lpthread -lm -ldl" CACHE STRING "SCALAPACK linker flags")
 
 #Location where the dependencies need to be installed.
 #Default location: cmake_build_folder/tamm-deps
@@ -33,8 +35,6 @@ set(TAMM_PROC_COUNT 2)
 #set(LIBINT_INSTALL_PATH /opt/libint2) 
 #set(ANTLR_CPPRUNTIME_PATH /opt/ANTLR/CppRuntime) 
 #set(EIGEN3_INSTALL_PATH /opt/eigen3) 
-#set(BLAS_INCLUDE_PATH /opt/blas_lapack/include) 
-#set(BLAS_LIBRARY_PATH /opt/blas_lapack/lib) 
 #set(GTEST_INSTALL_PATH /opt/googletest) 
 
 #set(TALSH_INSTALL_PATH /opt/TAL_SH)

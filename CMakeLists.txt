@@ -56,7 +56,7 @@ if (BUILD_OLD_TAMM)
     -DBLAS_LIBRARY_PATH=${BLAS_LIBRARY_PATH} -DBLAS_LIBRARY64_PATH=${BLAS_LIBRARY64_PATH}
     -DGTEST_INSTALL_PATH=${GTEST_INSTALL_PATH} -DTALSH_INSTALL_PATH=${TALSH_INSTALL_PATH}
     -DCMAKE_EXPORT_COMPILE_COMMANDS=${CMAKE_EXPORT_COMPILE_COMMANDS}
-    -DNWCHEM_TOP=${NWCHEM_TOP} 
+    -DNWCHEM_TOP=${NWCHEM_TOP} -DOLD_TAMM=ON
     -DGA_CONFIG=${GA_CONFIG} -DNWCHEM_BUILD_DIR=${NWCHEM_BUILD_DIR} 
     -DNWCHEM_CMAKE_BUILD=${NWCHEM_CMAKE_BUILD} 
     BUILD_COMMAND make -j${NWCHEM_PROC_COUNT}
@@ -98,11 +98,57 @@ else()
     message(FATAL_ERROR "LIBINT not found. Please provide LIBINT insall path")
 endif()
 
-#Build old tamm as part of super build
-set(OLD_TAMM_PROJECT_DIR "${PROJECT_SOURCE_DIR}/OLD_TAMM")
 include_directories( ${PROJECT_SOURCE_DIR} )
-include_directories( ${OLD_TAMM_PROJECT_DIR} )
-set(OLD_TAMM_LIB ${PROJECT_SOURCE_DIR}/OLD_TAMM/build/oldtamm-install/lib/libtamm.a)
+
+if(OLD_TAMM)
+
+    if(NOT NWCHEM_TOP)
+        message(FATAL_ERROR "TAMM ERROR: CMAKE variable NWCHEM_TOP not set")
+    else()
+    if (NOT EXISTS ${NWCHEM_TOP})
+        message(FATAL_ERROR "${NWCHEM_TOP} not found. Please make sure the path exists \
+        and NWCHEM_TOP is set correctly in the toolchain file provided: ${CMAKE_TOOLCHAIN_FILE}")
+    endif()
+        message(STATUS "NWCHEM_TOP set to: ${NWCHEM_TOP}")
+    endif()
+
+    #Setup required for building OLD TAMM code
+    set(OLD_TAMM_PROJECT_DIR "${PROJECT_SOURCE_DIR}/OLD_TAMM")
+    include_directories( ${OLD_TAMM_PROJECT_DIR} )
+    set(OLD_TAMM_LIB ${PROJECT_SOURCE_DIR}/OLD_TAMM/build/oldtamm-install/lib/libtamm.a)
+
+    if (NWCHEM_CMAKE_BUILD)
+        if (EXISTS ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a)
+        set(BLAS_LIBRARIES
+            ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsc.a
+            ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a
+            ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a
+            ${NWCHEM_BUILD_DIR}/src/lapack/libnwclapack.a)
+
+        else()
+            set(BLAS_LIBRARIES
+                    ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsc.a
+                    ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a)
+        endif()
+
+    else()
+        if (EXISTS ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libnwcblas.a)
+        set(BLAS_LIBRARIES        
+            ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libpeigs.a
+            ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libnwcblas.a
+            ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libnwclapack.a)
+        else()
+            set(BLAS_LIBRARIES
+            ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libpeigs.a)
+        endif()
+    endif()
+
+else()
+    set(GA_CONFIG "${GA_INSTALL_PATH}/bin")
+    set(GA_LIB_PATH "${GA_INSTALL_PATH}/lib")
+endif()
+
+
 
 # Install
 if(NOT TAMM_INSTALL_PREFIX)
@@ -127,17 +173,9 @@ else()
     endif()
 endif()
 
-if(NOT NWCHEM_TOP)
-    message(FATAL_ERROR "TAMM ERROR: CMAKE variable NWCHEM_TOP not set")
-else()
-    if (NOT EXISTS ${NWCHEM_TOP})
-        message(FATAL_ERROR "${NWCHEM_TOP} not found. Please make sure the path exists \
-        and NWCHEM_TOP is set correctly in the toolchain file provided: ${CMAKE_TOOLCHAIN_FILE}")
-    endif()
-    message(STATUS "NWCHEM_TOP set to: ${NWCHEM_TOP}")
-endif()
 
 add_definitions(-DMPICH_IGNORE_CXX_SEEK)
+
 execute_process(COMMAND ${GA_CONFIG} --cc OUTPUT_VARIABLE tamm_c_compiler OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND ${GA_CONFIG} --f77 OUTPUT_VARIABLE tamm_f77_compiler OUTPUT_STRIP_TRAILING_WHITESPACE)
 
@@ -207,31 +245,6 @@ else()
 endif()
 
 
-if (NWCHEM_CMAKE_BUILD)
-    if (EXISTS ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a)
-    set(BLAS_LIBRARIES
-        ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsc.a
-        ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a
-        ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a
-        ${NWCHEM_BUILD_DIR}/src/lapack/libnwclapack.a)
-
-    else()
-        set(BLAS_LIBRARIES
-                ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsc.a
-                ${NWCHEM_BUILD_DIR}/src/peigs/libpeigsf.a)
-    endif()
-
-else()
-    if (EXISTS ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libnwcblas.a)
-    set(BLAS_LIBRARIES        
-        ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libpeigs.a
-        ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libnwcblas.a
-        ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libnwclapack.a)
-    else()
-        set(BLAS_LIBRARIES
-           ${NWCHEM_TOP}/lib/${NWCHEM_BUILD_TARGET}/libpeigs.a)
-    endif()
-endif()
 
 SET(CBLAS_LIBRARY_PATH ${BLAS_LIBRARY_PATH})
 if (EXISTS ${BLAS_LIBRARY64_PATH})
@@ -258,6 +271,7 @@ target_compile_options(fort_deps_tammx PRIVATE ${tamm_fortran_link_flags})
 add_library(fort_deps_c STATIC ${PROJECT_SOURCE_DIR}/nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
+if(OLD_TAMM)
 add_executable(nwtest ${PROJECT_SOURCE_DIR}/nwtest/test_tamm.cc
         ${PROJECT_SOURCE_DIR}/nwtest/test_fortran.cc ${PROJECT_SOURCE_DIR}/nwtest/test_tammx.cc ${TESTING_DEPS_SRC})
 add_dependencies(nwtest fort_deps fort_deps_c tammx)
@@ -266,6 +280,7 @@ target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes} ${BLAS_LIBRARY_
 target_compile_options(nwtest PUBLIC ${tamm_cflags})
 target_link_libraries(nwtest fort_deps fort_deps_c tammx tce_fortran ${tamm_cflags} ${CBLAS_LIBRARIES} ${OLD_TAMM_LIB}
         ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest -fopenmp)
+endif()
 
 add_executable(eigen_tests EXCLUDE_FROM_ALL ${PROJECT_SOURCE_DIR}/nwtest/test_eigen.cc
          ${PROJECT_SOURCE_DIR}/nwtest/test_tammx.cc)
@@ -307,7 +322,7 @@ add_dependencies(ccsd_driver fort_deps_tammx fort_deps_c tammx)
 target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/tce_fortran
         ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3 ${BLAS_INCLUDE_PATH})
 target_link_libraries(ccsd_driver fort_deps_tammx fort_deps_c tammx tce_fortran ${tamm_cflags} -fopenmp
-        ${tamm_ldflags} ${CBLAS_LIBRARIES}  ${tamm_libs} ${CBLAS_LIBRARIES} -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
+        ${tamm_ldflags} ${CBLAS_LIBRARIES}  ${tamm_libs} -L${CBLAS_LIBRARY_PATH} ${CBLAS_LIBRARIES} -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
 
 # add_executable(hf nwchem_main/hartree_fock.cc)
 # target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)

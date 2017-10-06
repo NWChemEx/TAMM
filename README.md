@@ -6,9 +6,7 @@ Requirements
 - cmake >= 3.7
 - C++14 compiler
 
-**NOTE:** The current TAMM code has only been tested with gcc versions >= 6.0.
-It also works with Intel 18 compilers, but does not build with Intel Compiler versions <= 17.0.  
-
+**NOTE:** The current build has only been tested with gcc versions >= 6.0.
 
 BUILD
 -----

@@ -245,19 +245,22 @@ else()
 endif()
 
 
-
 SET(CBLAS_LIBRARY_PATH ${BLAS_LIBRARY_PATH})
 if (EXISTS ${BLAS_LIBRARY64_PATH})
     set(CBLAS_LIBRARY_PATH ${BLAS_LIBRARY64_PATH})
 endif()
 
-set(CBLAS_LIBRARIES
+
+if (BLAS_LIBRARIES AND LAPACK_LIBRARIES)
+  set(CBLAS_LIBRARIES "${BLAS_LIBRARIES} ${LAPACK_LIBRARIES}")
+else()
+  set(CBLAS_LIBRARIES
     ${CBLAS_LIBRARY_PATH}/libblas.a
     ${CBLAS_LIBRARY_PATH}/libcblas.a
     ${CBLAS_LIBRARY_PATH}/liblapack.a
     ${CBLAS_LIBRARY_PATH}/liblapacke.a
     )
-
+endif()
 
 add_library(fort_deps STATIC ${FORTRAN_DEPS_SRC} ${EXTRA_FORT_TAMM})
 target_include_directories(fort_deps SYSTEM PUBLIC ${tamm_includes} ${PROJECT_SOURCE_DIR}/tce_fortran)
@@ -272,14 +275,14 @@ add_library(fort_deps_c STATIC ${PROJECT_SOURCE_DIR}/nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
 if(OLD_TAMM)
-add_executable(nwtest ${PROJECT_SOURCE_DIR}/nwtest/test_tamm.cc
-        ${PROJECT_SOURCE_DIR}/nwtest/test_fortran.cc ${PROJECT_SOURCE_DIR}/nwtest/test_tammx.cc ${TESTING_DEPS_SRC})
-add_dependencies(nwtest fort_deps fort_deps_c tammx)
-target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes} ${BLAS_LIBRARY_PATH}
-        ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include)
-target_compile_options(nwtest PUBLIC ${tamm_cflags})
-target_link_libraries(nwtest fort_deps fort_deps_c tammx tce_fortran ${tamm_cflags} ${CBLAS_LIBRARIES} ${OLD_TAMM_LIB}
-        ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest -fopenmp)
+    add_executable(nwtest ${PROJECT_SOURCE_DIR}/nwtest/test_tamm.cc
+            ${PROJECT_SOURCE_DIR}/nwtest/test_fortran.cc ${PROJECT_SOURCE_DIR}/nwtest/test_tammx.cc ${TESTING_DEPS_SRC})
+    add_dependencies(nwtest fort_deps fort_deps_c tammx)
+    target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes} ${BLAS_LIBRARY_PATH}
+            ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include)
+    target_compile_options(nwtest PUBLIC ${tamm_cflags})
+    target_link_libraries(nwtest fort_deps fort_deps_c tammx tce_fortran ${tamm_cflags} ${CBLAS_LIBRARIES} ${OLD_TAMM_LIB}
+            ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest -fopenmp)
 endif()
 
 add_executable(eigen_tests EXCLUDE_FROM_ALL ${PROJECT_SOURCE_DIR}/nwtest/test_eigen.cc

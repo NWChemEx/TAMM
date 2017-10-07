@@ -1,0 +1,11 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = git@github.com:NWChemEx-Project/NWChemExBase.git
+	branch = master
+	commit = 6391291b38762d56893f326fd51290a860759d27
+	parent = 6199b633fa6c37ed9d3a5956e16dd1cd739541ed
+	cmdver = 0.3.1

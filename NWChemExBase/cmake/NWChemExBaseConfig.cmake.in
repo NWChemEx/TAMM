@@ -1,0 +1,34 @@
+################################################################################
+#                                                                              #
+# This file generated from NWChemExBaseConfig.cmake.in. Do not edit.           #
+#                                                                              #
+################################################################################
+include(FindPackageHandleStandardArgs)
+set(__name NWCHEMEXBASE)
+
+#Get the install root by asusming we are in root/share/cmake/ProjectName
+#In theory all the modules are in here too
+set(${__name}_MODULE_PATH  "${CMAKE_CURRENT_LIST_DIR}") #ProjectName/
+
+#Find assert module
+find_path(ASSERT_MODULE_PATH AssertMacros.cmake PATHS ${${__name}_MODULE_PATH})
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(ASSERT_MODULE DEFAULT_MSG ASSERT_MODULE_PATH)
+include(${ASSERT_MODULE_PATH}/AssertMacros.cmake)
+#For good measure make sure it's the one we think it is
+assert_strings_are_equal(ASSERT_MODULE_PATH ${__name}_MODULE_PATH)
+
+#Find the rest of the modules
+set(__modules @__PLB_FILES@)
+foreach(__module_i ${__modules})
+   get_filename_component(__file_name ${__module_i} NAME_WE)
+   list(APPEND ${__name}_MODULES ${__file_name}_MODULE)
+   find_path(${__file_name}_MODULE ${__file_name}.cmake
+             PATHS ${${__name}_MODULE_PATH})
+   assert_strings_are_equal(${__file_name}_MODULE ${__name}_MODULE_PATH)
+endforeach()
+
+#Find the testing infrastructure
+find_package(CatchEx REQUIRED)
+
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(${__name} DEFAULT_MSG ${${__name}_MODULES})
+list(APPEND CMAKE_MODULE_PATH ${${__name}_MODULES})

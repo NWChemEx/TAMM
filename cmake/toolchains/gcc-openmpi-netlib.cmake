@@ -15,7 +15,7 @@ set(MPI_LIBRARIES "-lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi")
 #------------------ OPTIONAL ---------------------
 
 #Number of cores to be used for the build
-set(TAMM_PROC_COUNT 2)
+set(NWX_PROC_COUNT 2)
 
 # GA CONFIGURATION
 #set(ARMCI_NETWORK OPENIB)

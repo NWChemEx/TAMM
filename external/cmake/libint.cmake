@@ -27,7 +27,7 @@ else()
             CXX=${CMAKE_CXX_COMPILER}
                     CC=${CMAKE_C_COMPILER}
                     CXXFLAGS=${LIBINT_FLAGS}
-            BUILD_COMMAND make -j${TAMM_PROC_COUNT}
+            BUILD_COMMAND make -j${NWX_PROC_COUNT}
             INSTALL_COMMAND make install
             BUILD_IN_SOURCE 1
             #LOG_CONFIGURE 1

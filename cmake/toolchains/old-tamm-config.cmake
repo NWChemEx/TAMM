@@ -26,7 +26,7 @@ option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" ON)
 #------------------ OPTIONAL ---------------------
 
 #Number of cores to be used for the build
-set(TAMM_PROC_COUNT 2)
+set(NWX_PROC_COUNT 2)
 
 #Location where the dependencies need to be installed.
 #Default location: cmake_build_folder/tamm-deps

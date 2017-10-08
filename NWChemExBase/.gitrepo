@@ -4,8 +4,8 @@
 ; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
 ;
 [subrepo]
-	remote = git@github.com:NWChemEx-Project/OLD_TAMM
+	remote = git@github.com:NWChemEx-Project/NWChemExBase.git
 	branch = master
-	commit = 9c3346c68e75347b53b37931366e5693d78b5f8e
-	parent = aa48eb39da175f79c5b74bef182400269c8dccea
+	commit = 6391291b38762d56893f326fd51290a860759d27
+	parent = 40de7a02f7cde7942ea4c1ab1b58a12d5043df23
 	cmdver = 0.3.1

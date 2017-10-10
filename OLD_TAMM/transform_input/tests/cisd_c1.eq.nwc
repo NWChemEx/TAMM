@@ -1,9 +1,0 @@
-  i0 ( p2 h1 )_f + = 1 * f ( p2 h1 )_f;
-  i0 ( p2 h1 )_tf + = -1 * Sum ( h3 ) * t ( p2 h3 )_t * f ( h3 h1 )_f;
-  i0 ( p2 h1 )_tf + = 1 * Sum ( p3 ) * t ( p3 h1 )_t * f ( p2 p3 )_f;
-  i0 ( p2 h1 )_vt + = -1 * Sum ( h4 p3 ) * t ( p3 h4 )_t * v ( h4 p2 h1 p3 )_v;
-  i0 ( p2 h1 )_tf + = 1 * Sum ( p4 h3 ) * t ( p2 p4 h1 h3 )_t * f ( h3 p4 )_f;
-  i0 ( p2 h1 )_vt + = -1/2 * Sum ( h4 h5 p3 ) * t ( p2 p3 h4 h5 )_t * v ( h4 h5 h1 p3 )_v;
-  i0 ( p2 h1 )_vt + = -1/2 * Sum ( h5 p3 p4 ) * t ( p3 p4 h1 h5 )_t * v ( h5 p2 p3 p4 )_v;
-  i0 ( p2 h1 )_te + = -1 * e ( )_e * t ( p2 h1 )_t;
- 

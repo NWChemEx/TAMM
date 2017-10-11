@@ -21,7 +21,6 @@ void
 parallel_work_ga(ProcGroup pg, Itr first, Itr last, Fn fn) {
   AtomicCounter *ac = new AtomicCounterGA(pg, 1);
   ac->allocate(0);
-#if 1
   int64_t next = ac->fetch_add(0, 1);
   for(int64_t count=0; first != last; ++first, ++count) {
     if(next == count) {
@@ -29,8 +28,7 @@ parallel_work_ga(ProcGroup pg, Itr first, Itr last, Fn fn) {
       next = ac->fetch_add(0, 1);
     }
   }
-#endif
-  //GA_Sync();
+  pg.barrier();
   ac->deallocate();
   delete ac;
 }

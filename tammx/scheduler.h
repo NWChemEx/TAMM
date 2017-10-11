@@ -22,12 +22,23 @@ class Scheduler {
         pg_{pg} {}
 
   ~Scheduler() {
-    for(auto &ptr_op : ops_) {
-      delete ptr_op;
-    }
+    reset_for_execution();
+    clear();
+  }
+
+  void reset_for_execution() {
     for(auto &ptensor: intermediate_tensors_) {
       delete ptensor;
     }
+    intermediate_tensors_.clear();
+  }
+
+  void clear() {
+    for(auto &ptr_op : ops_) {
+      delete ptr_op;
+    }
+    ops_.clear();
+    tensors_.clear();
   }
 
   template<typename T>
@@ -172,11 +183,6 @@ class Scheduler {
       }
       pg_.barrier();
     }
-  }
-
-  void clear() {
-    ops_.clear();
-    tensors_.clear();
   }
 
   Distribution* default_distribution() {

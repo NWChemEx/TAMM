@@ -20,7 +20,12 @@ class ExecutionContext {
         default_irrep_{default_irrep},
         default_spin_restricted_{default_spin_restricted} {
           pg_self_ = ProcGroup{MPI_COMM_SELF};
+          memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
         }
+
+  ~ExecutionContext() {
+    MemoryManagerLocal::destroy_coll(memory_manager_local_);
+  }
 
   Scheduler scheduler() {
     return Scheduler{pg_,
@@ -37,6 +42,16 @@ class ExecutionContext {
   template<typename T, typename ...Args>
   void allocate(Tensor<T>& tensor, Args& ... tensor_list) {
     tensor.alloc(default_distribution_, default_memory_manager_);
+    allocate(tensor_list...);
+  }
+
+  void allocate_local() {
+    //no-op
+  }
+
+  template<typename T, typename ...Args>
+  void allocate_local(Tensor<T>& tensor, Args& ... tensor_list) {
+    tensor.alloc(default_distribution_, memory_manager_local_);
     allocate(tensor_list...);
   }
 
@@ -70,12 +85,13 @@ class ExecutionContext {
   bool is_spin_restricted() const {
     return default_spin_restricted_;
   }
-  
+
  private:
   ProcGroup pg_;
   ProcGroup pg_self_;
   Distribution* default_distribution_;
   MemoryManager* default_memory_manager_;
+  MemoryManagerLocal* memory_manager_local_;
   Irrep default_irrep_;
   bool default_spin_restricted_;
 }; // class ExecutionContext
@@ -83,4 +99,3 @@ class ExecutionContext {
 } // namespace tammx
 
 #endif // TAMMX_EXECUTION_CONTEXT_H_
-

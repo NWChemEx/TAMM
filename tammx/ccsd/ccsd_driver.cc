@@ -266,7 +266,8 @@ double ccsd_driver(ExecutionContext& ec,
     block_for(ec.pg(), d_f1(), lambda);
   }
   //GA_Sync();
-  MPI_Barrier(GA_MPI_Comm());
+  //MPI_Barrier(GA_MPI_Comm());
+  ec.pg().barrier();
   
   if(ec.pg().rank() == 0) {
     std::cout << "p_evl_sorted:" << '\n';
@@ -312,31 +313,26 @@ double ccsd_driver(ExecutionContext& ec,
     for(int iter = titer; iter < std::min(titer+ndiis,maxiter); iter++) {
       int off = iter - titer;
 
-#if 0
       Tensor<T> d_t1_local(d_t1.tindices(), 1, Irrep{0}, ec.is_spin_restricted());
-      MemoryManagerLocal mseq{ProcGroup{MPI_COMM_SELF}};
-      d_t1_local.alloc(ProcGroup{MPI_COMM_SELF},
-                       ec.distribution(),
-                       &mseq);
-#endif
+      ec.allocate_local(d_t1_local);
       Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
-      sch//.io(d_t1_local)
+      sch.io(d_t1_local)
           .io(d_t1, d_t2, d_f1, d_v2, *d_r1s[off], *d_r2s[off])
           .output(*d_t1s[off], *d_t2s[off])
         .output(d_e, d_r1_residual, d_r2_residual);
 
-      sch//(d_t1_local() = d_t1())
+      sch(d_t1_local() = d_t1())
           ((*d_t1s[off])() = d_t1())
           ((*d_t2s[off])() = d_t2())
           ;
-
 #if 1
-      // ccsd_e(sch, d_f1, d_e, d_t1_local, d_t2, d_v2);
-      // ccsd_t1(sch, d_f1, *d_r1s[off], d_t1_local, d_t2, d_v2);
-      // ccsd_t2(sch, d_f1, *d_r2s[off], d_t1_local, d_t2, d_v2);
-      ccsd_e(sch, d_f1, d_e, d_t1, d_t2, d_v2);
-      ccsd_t1(sch, d_f1, *d_r1s[off], d_t1, d_t2, d_v2);
-      ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
+#if 1
+      ccsd_e(sch, d_f1, d_e, d_t1_local, d_t2, d_v2);
+      ccsd_t1(sch, d_f1, *d_r1s[off], d_t1_local, d_t2, d_v2);
+      ccsd_t2(sch, d_f1, *d_r2s[off], d_t1_local, d_t2, d_v2);
+      // ccsd_e(sch, d_f1, d_e, d_t1, d_t2, d_v2);
+      // ccsd_t1(sch, d_f1, *d_r1s[off], d_t1, d_t2, d_v2);
+      // ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
 
       sch(d_r1_residual() = 0)
         (d_r1_residual() += (*d_r1s[off])()  * (*d_r1s[off])())
@@ -344,9 +340,12 @@ double ccsd_driver(ExecutionContext& ec,
         (d_r2_residual() += (*d_r2s[off])()  * (*d_r2s[off])())
         ;
 #endif
+#endif
       sch.execute();
-      GA_Sync();
-      //d_t1_local.dealloc();
+      //GA_Sync();
+      ec.pg().barrier();
+      ec.deallocate(d_t1_local);
+#if 1
       double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
       double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
       residual = std::max(r1, r2);
@@ -369,13 +368,15 @@ double ccsd_driver(ExecutionContext& ec,
     	    std::cout.width(21); std::cout << std::right << "5" << std::endl;
         }
       }
-      GA_Sync();
+      ec.pg().barrier();
+      //GA_Sync();
       if(residual < thresh) {
         //nodezero_print();
         break;
       }
       jacobi(ec, *d_r1s[off], d_t1, -1.0 * zshiftl, false, p_evl_sorted.data());
       jacobi(ec, *d_r2s[off], d_t2, -2.0 * zshiftl, false, p_evl_sorted.data());
+#endif
     }
     if(residual < thresh || titer+ndiis >= maxiter) {
       //nodezero_print();
@@ -572,6 +573,7 @@ int main(int argc, char *argv[]) {
 
   Tensor<T>::allocate(&distribution, mgr, d_t1, d_t2, d_f1, d_v2);
 
+  {
   ExecutionContext ec {pg, &distribution, mgr, Irrep{0}, false};
 
   ec.scheduler()
@@ -627,6 +629,7 @@ int main(int argc, char *argv[]) {
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
   
   MemoryManagerGA::destroy_coll(mgr);
+  }
   
   fortran_finalize();
   TCE::finalize();

@@ -1,6 +1,7 @@
 #ifndef ATOMIC_COUNTER_H_
 #define ATOMIC_COUNTER_H_
 
+#include "ga-mpi.h"
 #include <atomic>
 #include "tammx/proc_group.h"
 
@@ -49,19 +50,10 @@ class AtomicCounterGA : public AtomicCounter {
   
   void allocate(int64_t init_val) {
     EXPECTS(allocated_ == false);
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     int64_t size = num_counters_;
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     ga_pg_ = create_ga_process_group(pg_);
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-    int ga_pg_default = GA_Pgroup_get_default();
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-    GA_Pgroup_set_default(ga_pg_);
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     char name[] = "atomic-counter";
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-    ga_ = NGA_Create64(MT_C_LONGLONG, 1, &size, name, nullptr);
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
+    ga_ = NGA_Create_config64(MT_C_LONGLONG, 1, &size, name, nullptr, ga_pg_);
     EXPECTS(ga_ != 0);
     if(GA_Pgroup_nodeid(ga_pg_) == 0) {
       int64_t lo[1] = {0};
@@ -71,13 +63,9 @@ class AtomicCounterGA : public AtomicCounter {
       for(int i=0; i<num_counters_; i++) {
         buf[i] = init_val;
       }
-      //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
       NGA_Put64(ga_, lo, hi, buf, &ld);
-      //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     }
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     GA_Pgroup_sync(ga_pg_);
-    GA_Pgroup_set_default(ga_pg_default);
     allocated_ = true;
   }
 
@@ -113,21 +101,19 @@ class AtomicCounterGA : public AtomicCounter {
   int ga_pg_;
 
   static int create_ga_process_group(const ProcGroup& pg) {
-    MPI_Group group, group_world;
+    MPI_Group group, group_default;
     MPI_Comm comm = pg.comm();
     int nranks = pg.size().value();
-    int ranks[nranks], ranks_world[nranks];
+    int ranks[nranks], ranks_default[nranks];
     MPI_Comm_group(comm, &group);
   
-    MPI_Comm_group(MPI_COMM_WORLD, &group_world);
-  
+    MPI_Comm_group(GA_MPI_Comm_pgroup_default(), &group_default);
+
     for (int i = 0; i < nranks; i++) {
       ranks[i] = i;
     }
-    MPI_Group_translate_ranks(group, nranks, ranks, group_world, ranks_world);
-  
-    GA_Pgroup_set_default(GA_Pgroup_get_world());
-    return GA_Pgroup_create(ranks, nranks);
+    MPI_Group_translate_ranks(group, nranks, ranks, group_default, ranks_default);
+    return GA_Pgroup_create(ranks_default, nranks);
   }
 
 

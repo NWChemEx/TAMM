@@ -220,6 +220,36 @@ void ccsd_t2(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
              t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1);
 }
 
+void iteration_print(const ExecutionContext& ec, int iter, double residual, double energy) {
+  if(ec.pg().rank() == 0) {
+    std::cout.width(6); std::cout << std::right << iter+1 << "  ";
+    std::cout << std::setprecision(13) << residual << "  ";
+    std::cout << std::fixed << std::setprecision(13) << energy << " ";
+    std::cout << std::string(4, ' ') << "0.0";
+    std::cout << std::string(5, ' ') << "0.0";
+    std::cout << std::string(5, ' ') << "0.0" << std::endl;
+  }
+}
+
+double iteration_summarize(const ExecutionContext& ec,
+                         int iter,
+                         Tensor<double>& d_r1_residual,
+                         Tensor<double>& d_r2_residual,
+                         Tensor<double>& d_e) {
+  auto get_scalar = [] (Tensor<double>& tensor) -> double {
+    EXPECTS(tensor.rank() == 0);
+    Block<double> resblock = tensor.get({});
+    return *resblock.buf();
+  };
+
+  double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
+  double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
+  double residual = std::max(r1, r2);
+  double energy = get_scalar(d_e);
+  iteration_print(ec, iter, residual, energy);
+  return residual;
+}
+
 /**
  * ref, corr
  */
@@ -268,13 +298,13 @@ double ccsd_driver(ExecutionContext& ec,
   //GA_Sync();
   //MPI_Barrier(GA_MPI_Comm());
   ec.pg().barrier();
-  
+
   if(ec.pg().rank() == 0) {
     std::cout << "p_evl_sorted:" << '\n';
     for(auto p = 0; p < p_evl_sorted.size(); p++)
       std::cout << p_evl_sorted[p] << '\n';
   }
-  
+
   if(ec.pg().rank() == 0) {
     std::cout << "\n\n";
     std::cout << " CCSD iterations" << std::endl;
@@ -346,23 +376,26 @@ double ccsd_driver(ExecutionContext& ec,
       ec.pg().barrier();
       ec.deallocate(d_t1_local);
 #if 1
-      double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
-      double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
-      residual = std::max(r1, r2);
-      energy = get_scalar(d_e);
-      fiter = iter+1;
-      // Print Iteration number
-      assert(fiter > 0);
+      residual = iteration_summarize(ec, iter, d_r1_residual, d_r2_residual, d_e);
+      // double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
+      // double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
+      // residual = std::max(r1, r2);
+      // energy = get_scalar(d_e);
+      // fiter = iter+1;
+      // // Print Iteration number
+      // assert(fiter > 0);
+
+      // iteration_print(ec, iter, residual, energy);
 
       if(ec.pg().rank() == 0) {
-        std::cout.width(6); std::cout << std::right << fiter << "  ";
-        std::cout << std::setprecision(13) << residual << "  ";
-        std::cout << std::fixed << std::setprecision(13) << energy << " ";
-        std::cout << std::string(4, ' ') << "0.0";
-        std::cout << std::string(5, ' ') << "0.0";
-        std::cout << std::string(5, ' ') << "0.0" << std::endl;
-      
-        if(fiter % 5 == 0) {
+        // std::cout.width(6); std::cout << std::right << fiter << "  ";
+        // std::cout << std::setprecision(13) << residual << "  ";
+        // std::cout << std::fixed << std::setprecision(13) << energy << " ";
+        // std::cout << std::string(4, ' ') << "0.0";
+        // std::cout << std::string(5, ' ') << "0.0";
+        // std::cout << std::string(5, ' ') << "0.0" << std::endl;
+
+        if((iter+1) % 5 == 0) {
     	    std::cout << " MICROCYCLE DIIS UPDATE:";
     	    std::cout.width(21); std::cout << std::right << fiter;
     	    std::cout.width(21); std::cout << std::right << "5" << std::endl;
@@ -526,7 +559,7 @@ int main(int argc, char *argv[]) {
 
   int mpi_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-  
+
   TCE::init(spins, spatials,sizes,
             noa,
             noab,
@@ -625,12 +658,12 @@ int main(int argc, char *argv[]) {
               maxiter, thresh, zshiftl,
               ndiis,hf_energy);
 #endif
-  
+
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
-  
+
   MemoryManagerGA::destroy_coll(mgr);
   }
-  
+
   fortran_finalize();
   TCE::finalize();
 

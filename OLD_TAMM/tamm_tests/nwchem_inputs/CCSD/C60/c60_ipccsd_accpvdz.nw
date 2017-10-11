@@ -1,0 +1,87 @@
+title "c60_ccsd_accpvdz"
+echo
+start c60_ccsd_accpvdz
+
+MEMORY stack 1400 mb heap 100 mb global 2800 mb
+permanent_dir /dtemp/kowalski
+
+
+geometry print xyz units bohr
+ symmetry d2h
+C      0.0000000000        6.5776597000        1.3147448000
+C      2.2251790000        5.7277170000        2.6899811000
+C      1.3752363000        4.3524807000        4.9151601000
+C      4.3524807000        4.9151601000        1.3752363000
+C      2.6899811000        2.2251790000        5.7277170000
+C      4.9151601000        1.3752363000        4.3524807000
+C      5.7277170000        2.6899811000        2.2251790000
+C      6.5776597000        1.3147448000        0.0000000000
+C      1.3147448000        0.0000000000        6.5776597000
+end
+
+basis spherical
+#BASIS SET: (10s,5p,2d) -> [4s,3p,2d]
+C    S
+   6665.0000000              0.0006920             -0.0001460
+   1000.0000000              0.0053290             -0.0011540
+    228.0000000              0.0270770             -0.0057250
+     64.7100000              0.1017180             -0.0233120
+     21.0600000              0.2747400             -0.0639550
+      7.4950000              0.4485640             -0.1499810
+      2.7970000              0.2850740             -0.1272620
+      0.5215000              0.0152040              0.5445290
+C    S
+      0.1596000              1.0000000
+C    S
+      0.0469000              1.0000000
+C    P
+      9.4390000              0.0381090
+      2.0020000              0.2094800
+      0.5456000              0.5085570
+C    P
+      0.1517000              1.0000000
+C    P
+      0.0404100              1.0000000
+C    D
+      0.5500000              1.0000000
+C    D
+      0.1510000              1.0000000
+end
+
+
+scf
+  singlet
+  rhf
+  thresh 1.0e-8
+  tol2e 1.0e-8
+  maxiter 200
+end
+
+tce
+freeze atomic
+ipccsd
+2eorb
+2emet 13
+tilesize 40
+attilesize 45
+thresh 1.0d-4
+maxiter 100
+symmetry
+targetsym b1u
+nroots 1
+end
+
+set tce:tceiop 2048
+
+#set tce:writeint T
+#set tce:writet T
+
+set tce:readint T
+set tce:readt T
+
+#set tce:nts T
+
+set tce:maxeorb 0.3
+
+task tce energy
+

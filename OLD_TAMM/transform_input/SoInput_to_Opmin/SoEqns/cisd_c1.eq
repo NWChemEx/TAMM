@@ -1,0 +1,8 @@
+[ + 1.0 ] * f ( p2 h1 )
+[ - 1.0 ] * Sum ( h3 ) * f ( h3 h1 ) * t ( p2 h3 )
+[ + 1.0 ] * Sum ( p3 ) * f ( p2 p3 ) * t ( p3 h1 )
+[ - 1.0 ] * Sum ( h4 p3 ) * t ( p3 h4 ) * v ( h4 p2 h1 p3 )
+[ + 1.0 ] * Sum ( h3 p4 ) * f ( h3 p4 ) * t ( p4 p2 h3 h1 )
+[ + 0.5 ] * Sum ( h4 h5 p3 ) * t ( p3 p2 h4 h5 ) * v ( h4 h5 h1 p3 )
+[ + 0.5 ] * Sum ( h5 p3 p4 ) * t ( p3 p4 h5 h1 ) * v ( h5 p2 p3 p4 )
+[ - 1.0 ] * e ( ) * t ( p2 h1 )

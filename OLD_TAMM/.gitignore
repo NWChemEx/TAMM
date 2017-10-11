@@ -1,0 +1,10 @@
+*~
+*#*
+*CMakeFiles*
+*.o
+*.a
+.idea
+.project
+.cproject
+/bin/
+/build/

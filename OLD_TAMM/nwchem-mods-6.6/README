@@ -1,0 +1,23 @@
+This folder contains necessary modifications to *.F files 
+to enable the use of libtamm
+
+Ignore the following instructions if you ran make patch in the tce build directory
+
+Included is a script to autopatch the gnumakefile and copy over the .F files
+
+make sure $NWCHEM_TOP is set
+
+Then do:
+
+./nwchem-fix.bash TAMM_LIB_PATH
+
+otherwise:
+
+1.  cp -R ./src $NWCHEM_TOP/	
+
+2.	GNUmakefile in folder $NWCHEM_TOP/src is modified to include
+		path to libtamm as under:
+
+  	$(PURIFY) $(LINK.f) -o $(BINDIR)/$(NWBINNAME) nwchem.o stubs.o -lnwctask
+-L/<tamm install dir>/lib  $(LIBS) -ltamm -lstdc++
+

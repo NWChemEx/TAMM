@@ -170,7 +170,7 @@ class Scheduler {
       for(auto t : op_ptr->reads()) {
         t->memory_region().fence();
       }
-      //pg_.barrier();
+      pg_.barrier();
     }
   }
 

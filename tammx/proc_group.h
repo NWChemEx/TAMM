@@ -58,6 +58,10 @@ class ProcGroup {
     comm_ = MPI_COMM_NULL;
     is_valid_ = false;
   }
+
+  void barrier() {
+    MPI_Barrier(comm_);
+  }
   
   Proc rank_translate(Proc proc, const ProcGroup& pg2) {
     EXPECTS(is_valid());

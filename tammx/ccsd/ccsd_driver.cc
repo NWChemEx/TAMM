@@ -317,10 +317,13 @@ double ccsd_driver(ExecutionContext& ec,
 
   std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
 
-  Tensor<T> d_e{E|E, irrep, spin_restricted};
-  Tensor<T> d_r1_residual{E|E, irrep, spin_restricted};
-  Tensor<T> d_r2_residual{E|E, irrep, spin_restricted};
-  ec.allocate(d_e, d_r1_residual, d_r2_residual);
+  // Tensor<T> d_e{E|E, irrep, spin_restricted};
+  // Tensor<T> d_r1_residual{E|E, irrep, spin_restricted};
+  // Tensor<T> d_r2_residual{E|E, irrep, spin_restricted};
+  // Tensor<T> d_e{E|E, irrep, spin_restricted};
+  // Tensor<T> d_r1_residual{E|E, irrep, spin_restricted};
+  // Tensor<T> d_r2_residual{E|E, irrep, spin_restricted};
+  //ec.allocate(d_e, d_r1_residual, d_r2_residual);
   for(int i=0; i<ndiis; i++) {
     d_r1s.push_back(new Tensor<T>{{V|O}, irrep, spin_restricted});
     d_r2s.push_back(new Tensor<T>{{VV|OO}, irrep, spin_restricted});
@@ -343,77 +346,53 @@ double ccsd_driver(ExecutionContext& ec,
     for(int iter = titer; iter < std::min(titer+ndiis,maxiter); iter++) {
       int off = iter - titer;
 
-      Tensor<T> d_t1_local(d_t1.tindices(), 1, Irrep{0}, ec.is_spin_restricted());
-      ec.allocate_local(d_t1_local);
-      Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
-      sch.io(d_t1_local)
-          .io(d_t1, d_t2, d_f1, d_v2, *d_r1s[off], *d_r2s[off])
-          .output(*d_t1s[off], *d_t2s[off])
-        .output(d_e, d_r1_residual, d_r2_residual);
+      Scheduler sch = ec.scheduler();
+      Tensor<T>& d_t1_local = *sch.tensor<T>(V|O);
+      auto& d_r1_residual = *sch.tensor<T>(E|E);
+      auto& d_r2_residual = *sch.tensor<T>(E|E);
+      auto& d_e = *sch.tensor<T>(E|E);
 
-      sch(d_t1_local() = d_t1())
-          ((*d_t1s[off])() = d_t1())
-          ((*d_t2s[off])() = d_t2())
+      sch.io(d_t1, d_t2, d_f1, d_v2, *d_r1s[off], *d_r2s[off])
+          .output(*d_t1s[off], *d_t2s[off])
+          .alloc(d_t1_local,d_r1_residual, d_r2_residual, d_e)
           ;
-#if 1
-#if 1
+      sch
+          (d_t1_local() = d_t1())
+          ;
       ccsd_e(sch, d_f1, d_e, d_t1_local, d_t2, d_v2);
       ccsd_t1(sch, d_f1, *d_r1s[off], d_t1_local, d_t2, d_v2);
       ccsd_t2(sch, d_f1, *d_r2s[off], d_t1_local, d_t2, d_v2);
-      // ccsd_e(sch, d_f1, d_e, d_t1, d_t2, d_v2);
-      // ccsd_t1(sch, d_f1, *d_r1s[off], d_t1, d_t2, d_v2);
-      // ccsd_t2(sch, d_f1, *d_r2s[off], d_t1, d_t2, d_v2);
 
-      sch(d_r1_residual() = 0)
-        (d_r1_residual() += (*d_r1s[off])()  * (*d_r1s[off])())
-        (d_r2_residual() = 0)
-        (d_r2_residual() += (*d_r2s[off])()  * (*d_r2s[off])())
-        ;
-#endif
-#endif
+      sch
+          (d_r1_residual() = (*d_r1s[off])()  * (*d_r1s[off])())
+          (d_r2_residual() = (*d_r2s[off])()  * (*d_r2s[off])())
+          ( [&]() {
+            residual = iteration_summarize(ec, iter, d_r1_residual, d_r2_residual, d_e);
+          })
+          ;
+      sch.dealloc(d_t1_local, d_r1_residual, d_r2_residual, d_e);
+      sch
+          ((*d_t1s[off])() = d_t1())
+          ((*d_t2s[off])() = d_t2())
+          ;
       sch.execute();
-      //GA_Sync();
-      ec.pg().barrier();
-      ec.deallocate(d_t1_local);
-#if 1
-      residual = iteration_summarize(ec, iter, d_r1_residual, d_r2_residual, d_e);
-      // double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
-      // double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
-      // residual = std::max(r1, r2);
-      // energy = get_scalar(d_e);
-      // fiter = iter+1;
-      // // Print Iteration number
-      // assert(fiter > 0);
 
-      // iteration_print(ec, iter, residual, energy);
-
-      if(ec.pg().rank() == 0) {
-        // std::cout.width(6); std::cout << std::right << fiter << "  ";
-        // std::cout << std::setprecision(13) << residual << "  ";
-        // std::cout << std::fixed << std::setprecision(13) << energy << " ";
-        // std::cout << std::string(4, ' ') << "0.0";
-        // std::cout << std::string(5, ' ') << "0.0";
-        // std::cout << std::string(5, ' ') << "0.0" << std::endl;
-
-        if((iter+1) % 5 == 0) {
-    	    std::cout << " MICROCYCLE DIIS UPDATE:";
-    	    std::cout.width(21); std::cout << std::right << fiter;
-    	    std::cout.width(21); std::cout << std::right << "5" << std::endl;
-        }
-      }
-      ec.pg().barrier();
-      //GA_Sync();
       if(residual < thresh) {
-        //nodezero_print();
         break;
       }
       jacobi(ec, *d_r1s[off], d_t1, -1.0 * zshiftl, false, p_evl_sorted.data());
       jacobi(ec, *d_r2s[off], d_t2, -2.0 * zshiftl, false, p_evl_sorted.data());
-#endif
     }
     if(residual < thresh || titer+ndiis >= maxiter) {
-      //nodezero_print();
       break;
+    }
+    if(ec.pg().rank() == 0) {
+      // if((iter+1) % 5 == 0)
+      {
+        std::cout << " MICROCYCLE DIIS UPDATE:";
+        std::cout.width(21); std::cout << std::right << fiter;
+        std::cout.width(21); std::cout << std::right << "5" << std::endl;
+      }
     }
     Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
     std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
@@ -438,7 +417,7 @@ double ccsd_driver(ExecutionContext& ec,
   }
   d_r1s.clear();
   d_r2s.clear();
-  ec.deallocate(d_e, d_r1_residual, d_r2_residual);
+  //ec.deallocate(d_e, d_r1_residual, d_r2_residual);
   return corr;
 }
 

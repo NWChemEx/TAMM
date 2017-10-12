@@ -23,6 +23,26 @@ class Op {
   virtual ~Op() {}
 };
 
+template<typename Func>
+struct LambdaOp : public Op {
+  void execute(const ProcGroup& ec_pg) override {
+    func_();
+  }
+
+  LambdaOp(Func func)
+      : func_{func} {}
+
+  TensorImpl* writes() const override {
+    nullptr;
+  }
+
+  std::vector<TensorImpl*> reads() const {
+    return {};
+  }
+ private:
+  Func func_;
+};
+
 
 template<typename T, typename LabeledTensorType>
 struct SetOp : public Op {

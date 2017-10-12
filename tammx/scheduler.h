@@ -139,6 +139,13 @@ class Scheduler {
     return *this;
   }
 
+
+  template<typename Func>
+  Scheduler& operator() (Func func) {
+    ops_.push_back(new LambdaOp<Func>{func});
+    return *this;
+  }
+
   template<typename T, typename LabeledTensorType>
   Scheduler& operator()(MultOpEntry<T, LabeledTensorType> aop) {
     EXPECTS(tensors_.find(&aop.lhs.tensor()) != tensors_.end());

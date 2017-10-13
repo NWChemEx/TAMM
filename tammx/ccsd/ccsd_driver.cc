@@ -76,8 +76,8 @@ void ccsd_e(Scheduler &sch, Tensor<T>& f1, Tensor<T>& de,
             Tensor<T>& t1, Tensor<T>& t2, Tensor<T>& v2) {
   auto &i1 = *sch.tensor<T>(O|V);
   sch.alloc(i1)
-      // .io(f1,v2,t1,t2)
-      // .output(de)
+      .io(f1,v2,t1,t2)
+      .output(de)
       (i1(h6,p5) =        f1(h6,p5))
       (i1(h6,p5) += 0.5  * t1(p3,h4)       * v2(h4,h6,p3,p5))
       (de() = 0)

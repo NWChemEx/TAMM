@@ -22,22 +22,25 @@ class Scheduler {
         pg_{pg} {}
 
   ~Scheduler() {
-    reset_for_execution();
     clear();
   }
 
-  void reset_for_execution() {
+  void prepare_for_execution() {
     for(auto &ptensor: intermediate_tensors_) {
-      delete ptensor;
+      EXPECTS(tensors_[ptensor].status == TensorStatus::deallocated);
     }
-    intermediate_tensors_.clear();
+    //@todo Also check that io/output tensors are initialized
   }
 
   void clear() {
     for(auto &ptr_op : ops_) {
       delete ptr_op;
     }
+    for(auto &itensor : intermediate_tensors_) {
+      delete itensor;
+    }
     ops_.clear();
+    intermediate_tensors_.clear();
     tensors_.clear();
   }
 
@@ -183,6 +186,7 @@ class Scheduler {
   }
 
   void execute() {
+    prepare_for_execution(); // check before execution
     for(auto &op_ptr: ops_) {
       op_ptr->execute(pg_);
       for(auto t : op_ptr->reads()) {

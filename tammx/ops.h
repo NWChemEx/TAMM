@@ -26,7 +26,7 @@ class Op {
 template<typename Func>
 struct LambdaOp : public Op {
   void execute(const ProcGroup& ec_pg) override {
-    func_();
+    func_(ec_pg);
   }
 
   LambdaOp(Func func)

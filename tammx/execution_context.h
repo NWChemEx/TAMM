@@ -18,7 +18,14 @@ class ExecutionContext {
         default_distribution_{default_distribution},
         default_memory_manager_{default_memory_manager},
         default_irrep_{default_irrep},
-        default_spin_restricted_{default_spin_restricted} {}
+        default_spin_restricted_{default_spin_restricted} {
+          pg_self_ = ProcGroup{MPI_COMM_SELF};
+          memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
+        }
+
+  ~ExecutionContext() {
+    MemoryManagerLocal::destroy_coll(memory_manager_local_);
+  }
 
   Scheduler scheduler() {
     return Scheduler{pg_,
@@ -34,13 +41,17 @@ class ExecutionContext {
 
   template<typename T, typename ...Args>
   void allocate(Tensor<T>& tensor, Args& ... tensor_list) {
-/** \warning
-*  totalview LD on following statement
-*  forward traced to tammx::Tensor<double>::alloc in shared_ptr_base.h
-*  back traced to ccsd_driver<double> line 37 execution_context.h
-*  back traced to main line 607 ccsd_driver.cc
-*/
-    tensor.alloc(pg_, default_distribution_, default_memory_manager_);
+    tensor.alloc(default_distribution_, default_memory_manager_);
+    allocate(tensor_list...);
+  }
+
+  void allocate_local() {
+    //no-op
+  }
+
+  template<typename T, typename ...Args>
+  void allocate_local(Tensor<T>& tensor, Args& ... tensor_list) {
+    tensor.alloc(default_distribution_, memory_manager_local_);
     allocate(tensor_list...);
   }
 
@@ -77,8 +88,10 @@ class ExecutionContext {
 
  private:
   ProcGroup pg_;
+  ProcGroup pg_self_;
   Distribution* default_distribution_;
   MemoryManager* default_memory_manager_;
+  MemoryManagerLocal* memory_manager_local_;
   Irrep default_irrep_;
   bool default_spin_restricted_;
 }; // class ExecutionContext
@@ -86,4 +99,3 @@ class ExecutionContext {
 } // namespace tammx
 
 #endif // TAMMX_EXECUTION_CONTEXT_H_
-

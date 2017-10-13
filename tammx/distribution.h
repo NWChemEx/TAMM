@@ -5,6 +5,7 @@
 #include <tuple>
 #include <map>
 #include <type_traits>
+#include "ga.h"
 
 #include "tammx/types.h"
 #include "tammx/tce.h"
@@ -158,6 +159,9 @@ class Distribution_NW : public Distribution {
         hash_[addr] = compute_key(blockid);
         EXPECTS(addr==1 || hash_[addr] > hash_[addr-1]);
         hash_[length + addr] = offset;
+        if(GA_Nodeid() == 1) {
+          //std::cerr<<"-----DISTRIBUTIO_NW. addr="<<addr<<" offset="<<offset<<" block_size="<<tensor_structure_->block_size(blockid)<<"\n";
+        }
         offset += tensor_structure_->block_size(blockid);
         addr += 1;
       }
@@ -166,18 +170,36 @@ class Distribution_NW : public Distribution {
     EXPECTS(offset > 0);
     total_size_ = offset;
 
-    auto per_proc_size = offset / nproc.value();
+    auto per_proc_size = std::max(offset / nproc.value(), 1ll);
     auto itr = hash_.begin() + length + 1;
     auto itr_last = hash_.end();
 
+    if(GA_Nodeid() == 1) {
+      //std::cerr<<"------DISTRIB_NW. total size="<<total_size_<<" nproc="<<nproc<<" per_proc_size="<<per_proc_size<<"\n";
+    }
     for(int i=0; i<nproc.value(); i++) {
-      proc_offsets_.push_back(Offset{*itr});
-      itr = std::lower_bound(itr, itr_last, i*per_proc_size);
+      if(itr != itr_last) {
+        proc_offsets_.push_back(Offset{*itr});
+      } else {
+        proc_offsets_.push_back(Offset{total_size_});        
+      }
+      
+      itr = std::lower_bound(itr, itr_last, (i+1)*per_proc_size);
+      if(GA_Nodeid() == 1) {
+        //std::cerr<<"------DISTRIB_NW. *new_itr="<<*itr<<"\n";
+      }
     }
 
     EXPECTS(proc_offsets_.size() == nproc.value());
     proc_offsets_.push_back(total_size_);
 
+    if(GA_Nodeid() == 1){
+      // std::cerr<<"------PROC OFFSETS:";
+      // for(auto off: proc_offsets_) {
+      //   std::cerr<<off<<" ";
+      // }
+      // std::cerr<<"\n";
+    }
   }
 
   const std::vector<TCE::Int>& hash() const {

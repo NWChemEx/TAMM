@@ -20,6 +20,7 @@
 #include "mpi.h"
 #include "macdecls.h"
 #include "ga.h"
+#include "ga-mpi.h"
 
 #include "tammx/tammx.h"
 #include "tammx/work.h"
@@ -54,7 +55,7 @@ void tensor_print(Tensor<T>& t)  {
   auto distribution = Distribution_NW();
 
   auto pg = ProcGroup{MPI_COMM_WORLD};
-  auto mgr = MemoryManagerSequential(pg);
+  auto mgr = MemoryManagerLocal(pg);
   Scheduler sch{pg, &distribution, &mgr, irrep, spin_restricted};
   using LabeledTensorType = LabeledTensor<T>;
   using Func = decltype(lambda);
@@ -76,15 +77,14 @@ void ccsd_e(Scheduler &sch, Tensor<T>& f1, Tensor<T>& de,
             Tensor<T>& t1, Tensor<T>& t2, Tensor<T>& v2) {
   auto &i1 = *sch.tensor<T>(O|V);
   sch.alloc(i1)
-      // .io(f1,v2,t1,t2)
-      // .output(de)
+      .io(f1,v2,t1,t2)
+      .output(de)
       (i1(h6,p5) =        f1(h6,p5))
       (i1(h6,p5) += 0.5  * t1(p3,h4)       * v2(h4,h6,p3,p5))
       (de() = 0)
       (de()      +=        t1(p5,h6)       * i1(h6,p5))
       (de()      += 0.25 * t2(p1,p2,h3,h4) * v2(h3,h4,p1,p2))
     .dealloc(i1);
-
 }
 
 
@@ -126,8 +126,8 @@ void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
   auto &t1_6_1 = *sch.tensor<T>(OO|OV);
 
   sch.alloc(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
-    // .io(t1,t2,f1,v2)
-    // .output(i0)
+    .io(t1,t2,f1,v2)
+    .output(i0)
       (ccsd_t1_1_    |= i0(p2,h1)            =        f1(p2,h1))
       (ccsd_t1_2_1_  |= t1_2_1(h7,h1)        =        f1(h7,h1))
       (ccsd_t1_2_2_1_|= t1_2_2_1(h7,p3)      =        f1(h7,p3))
@@ -169,8 +169,8 @@ void ccsd_t2(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
 
   sch.alloc(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
             t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1)
-            // .io(t1,t2,f1,v2)
-            // .output(i0)
+      .io(t1,t2,f1,v2)
+      .output(i0)
       (ccsd_t2_1_     |= i0(p3,p4,h1,h2)            =        v2(p3,p4,h1,h2))
       (ccsd_t2_2_1_   |= t2_2_1(h10,p3,h1,h2)       =        v2(h10,p3,h1,h2))
       (ccsd_t2_2_2_1_ |= t2_2_2_1(h10,h11,h1,h2)    = -1  *  v2(h10,h11,h1,h2))
@@ -221,6 +221,91 @@ void ccsd_t2(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
              t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1);
 }
 
+void iteration_print(const ProcGroup& pg, int iter, double residual, double energy) {
+  if(pg.rank() == 0) {
+    std::cout.width(6); std::cout << std::right << iter+1 << "  ";
+    std::cout << std::setprecision(13) << residual << "  ";
+    std::cout << std::fixed << std::setprecision(13) << energy << " ";
+    std::cout << std::string(4, ' ') << "0.0";
+    std::cout << std::string(5, ' ') << "0.0";
+    std::cout << std::string(5, ' ') << "0.0" << std::endl;
+  }
+}
+
+double iteration_summarize(const ProcGroup& pg,
+                           int iter,
+                           Tensor<double>& d_r1_residual,
+                           Tensor<double>& d_r2_residual,
+                           Tensor<double>& d_e) {
+  auto get_scalar = [] (Tensor<double>& tensor) -> double {
+    EXPECTS(tensor.rank() == 0);
+    Block<double> resblock = tensor.get({});
+    return *resblock.buf();
+  };
+
+  double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
+  double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
+  double residual = std::max(r1, r2);
+  double energy = get_scalar(d_e);
+  iteration_print(pg, iter, residual, energy);
+  return residual;
+}
+
+
+template<typename T>
+void
+ccsd_iteration_scheduler(Scheduler& sch,
+                         Tensor<T>& d_t1,
+                         Tensor<T>& d_t2,
+                         Tensor<T>& d_f1,
+                         Tensor<T>& d_v2,
+                         Tensor<T>& d_r1,
+                         Tensor<T>& d_r2,
+                         std::vector<T>& p_evl_sorted,
+                         double zshiftl,
+                         double& residual,
+                         double& energy
+                         ) {
+  auto get_scalar = [] (Tensor<double>& tensor) -> double {
+    EXPECTS(tensor.rank() == 0);
+    Block<double> resblock = tensor.get({});
+    return *resblock.buf();
+  };
+
+  Tensor<T>& d_t1_local = *sch.tensor<T>(V|O);
+  auto& d_r1_residual = *sch.tensor<T>(E|E);
+  auto& d_r2_residual = *sch.tensor<T>(E|E);
+  auto& d_e = *sch.tensor<T>(E|E);
+
+  sch
+      .io(d_t1, d_t2, d_f1, d_v2, d_r1, d_r2)
+      .alloc(d_t1_local,d_r1_residual, d_r2_residual, d_e)
+      (d_t1_local() = d_t1())
+      ;
+
+  ccsd_e(sch, d_f1, d_e, d_t1_local, d_t2, d_v2);
+  ccsd_t1(sch, d_f1, d_r1, d_t1_local, d_t2, d_v2);
+  ccsd_t2(sch, d_f1, d_r2, d_t1_local, d_t2, d_v2);
+
+  sch
+      (d_r1_residual() = d_r1()  * d_r1())
+      (d_r2_residual() = d_r2()  * d_r2())
+      ( [&](const ProcGroup& ec_pg) {
+        double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
+        double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
+        residual = std::max(r1, r2);
+        energy = get_scalar(d_e);
+      })
+      ( [&](const ProcGroup& pg) {
+        jacobi(pg, d_r1, d_t1, -1.0 * zshiftl, false, p_evl_sorted.data());
+      })
+      ( [&](const ProcGroup& pg) {
+        jacobi(pg, d_r2, d_t2, -2.0 * zshiftl, false, p_evl_sorted.data());
+      })
+      .dealloc(d_t1_local, d_r1_residual, d_r2_residual, d_e)
+      ;
+}
+
 /**
  * ref, corr
  */
@@ -239,7 +324,6 @@ double ccsd_driver(ExecutionContext& ec,
   Irrep irrep{0};
   bool spin_restricted = false;
 
-
  long lo_offset, hi_offset;
  long int total_orbitals = 0;
  const auto &flindices = d_f1.flindices();
@@ -253,7 +337,7 @@ double ccsd_driver(ExecutionContext& ec,
   std::cout << "Total orbitals = " << total_orbitals << std::endl;
   std::vector<double> p_evl_sorted(total_orbitals);
 
-{
+  {
     auto lambda = [&] (const auto& blockid) {
       if(blockid[0] == blockid[1]) {
         auto block = d_f1.get(blockid);
@@ -265,27 +349,28 @@ double ccsd_driver(ExecutionContext& ec,
         }
       }
     };
-    block_for(d_f1(), lambda);
- }
+    block_for(ec.pg(), d_f1(), lambda);
+  }
+  ec.pg().barrier();
 
-std::cout << "p_evl_sorted:" << '\n';
-  for(auto p = 0; p < p_evl_sorted.size(); p++)
+  if(ec.pg().rank() == 0) {
+    std::cout << "p_evl_sorted:" << '\n';
+    for(auto p = 0; p < p_evl_sorted.size(); p++)
       std::cout << p_evl_sorted[p] << '\n';
+  }
 
-  std::cout << "\n\n";
-  std::cout << " CCSD iterations" << std::endl;
-  std::cout << " " << std::string(65, '-') << std::endl;
-  std::cout <<
-  " Iter          Residuum       Correlation     Cpu    Wall    V2*C2"
-  << std::endl;
-  std::cout << " " << std::string(65, '-') << std::endl;
+  if(ec.pg().rank() == 0) {
+    std::cout << "\n\n";
+    std::cout << " CCSD iterations" << std::endl;
+    std::cout << std::string(66, '-') << std::endl;
+    std::cout <<
+        " Iter          Residuum       Correlation     Cpu    Wall    V2*C2"
+              << std::endl;
+    std::cout << std::string(66, '-') << std::endl;
+  }
 
-std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
+  std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
 
-  Tensor<T> d_e{E|E, irrep, spin_restricted};
-  Tensor<T> d_r1_residual{E|E, irrep, spin_restricted};
-  Tensor<T> d_r2_residual{E|E, irrep, spin_restricted};
-  ec.allocate(d_e, d_r1_residual, d_r2_residual);
   for(int i=0; i<ndiis; i++) {
     d_r1s.push_back(new Tensor<T>{{V|O}, irrep, spin_restricted});
     d_r2s.push_back(new Tensor<T>{{VV|OO}, irrep, spin_restricted});
@@ -293,6 +378,10 @@ std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
     d_t2s.push_back(new Tensor<T>{{VV|OO}, irrep, spin_restricted});
     ec.allocate(*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
+
+  Tensor<T> d_r1{{V|O}, irrep, spin_restricted};
+  Tensor<T> d_r2{{VV|OO}, irrep, spin_restricted};
+  ec.allocate(d_r1, d_r2);
 
   auto get_scalar = [] (Tensor<T>& tensor) -> T {
     EXPECTS(tensor.rank() == 0);
@@ -303,85 +392,66 @@ std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
   double corr = 0;
   double residual = 0.0;
   double energy = 0.0;
-  int fiter = 0;
+
   for(int titer=0; titer<maxiter; titer+=ndiis) {
     for(int iter = titer; iter < std::min(titer+ndiis,maxiter); iter++) {
       int off = iter - titer;
 
-      Tensor<T> d_t1_local(d_t1.tindices(), 1, Irrep{0}, ec.is_spin_restricted());
-      MemoryManagerSequential mseq{ProcGroup{MPI_COMM_SELF}};
-      d_t1_local.alloc(ProcGroup{MPI_COMM_SELF},
-                       ec.distribution(),
-                       &mseq);
+      Scheduler sch = ec.scheduler();
+      ccsd_iteration_scheduler(sch,
+                               d_t1,
+                               d_t2,
+                               d_f1,
+                               d_v2,
+                               d_r1,
+                               d_r2,
+                               p_evl_sorted,
+                               zshiftl,
+                               residual,
+                               energy);
 
-      Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
-      sch.io(d_t1_local, d_t1, d_t2, d_f1, d_v2, *d_r1s[off], *d_r2s[off])
+      ec.scheduler()
+          .io(d_t1, d_t2)
           .output(*d_t1s[off], *d_t2s[off])
-        .output(d_e, d_r1_residual, d_r2_residual);
-
-      sch(d_t1_local() = d_t1())
           ((*d_t1s[off])() = d_t1())
-          ((*d_t2s[off])() = d_t2());
-
-      ccsd_e(sch, d_f1, d_e, d_t1_local, d_t2, d_v2);
-      ccsd_t1(sch, d_f1, *d_r1s[off], d_t1_local, d_t2, d_v2);
-      ccsd_t2(sch, d_f1, *d_r2s[off], d_t1_local, d_t2, d_v2);
-
-      sch(d_r1_residual() = 0)
-        (d_r1_residual() += (*d_r1s[off])()  * (*d_r1s[off])())
-        (d_r2_residual() = 0)
-        (d_r2_residual() += (*d_r2s[off])()  * (*d_r2s[off])())
-        ;
+          ((*d_t2s[off])() = d_t2())
+          .execute();
       sch.execute();
-      d_t1_local.dealloc();
-
-      double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
-      double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
-      residual = std::max(r1, r2);
-      energy = get_scalar(d_e);
-
-      fiter = iter+1;
-      // Print Iteration number
-      assert(fiter > 0);
-    	  std::cout.width(5); std::cout << std::right << fiter << " ";
-    	  std::cout.precision(13);
-      std::cout << std::setw(17) << std::fixed << std::right << residual << " ";
-      std::cout << std::setw(17) << std::fixed << std::right << energy << " ";
-      std::cout << std::string(4, ' ') << "0.0";
-      std::cout << std::string(5, ' ') << "0.0";
-      std::cout << std::string(5, ' ') << "0.0" << std::endl;
-
-      if(fiter % 5 == 0) {
-    	    std::cout << " MICROCYCLE DIIS UPDATE:";
-    	    std::cout.width(21); std::cout << std::right << fiter;
-    	    std::cout.width(21); std::cout << std::right << "5" << std::endl;
-      }
+      ec.scheduler()
+          .io(d_r1, d_r2)
+          .output(*d_r1s[off], *d_r2s[off])
+          ((*d_r1s[off])() = d_r1())
+          ((*d_r2s[off])() = d_r2())
+          .execute();
+      iteration_print(ec.pg(), iter, residual, energy);
       if(residual < thresh) {
-        //nodezero_print();
         break;
       }
-      jacobi(*d_r1s[off], d_t1, -1.0 * zshiftl, false, p_evl_sorted.data());
-      jacobi(*d_r2s[off], d_t2, -2.0 * zshiftl, false, p_evl_sorted.data());
     }
     if(residual < thresh || titer+ndiis >= maxiter) {
-      //nodezero_print();
       break;
     }
-    Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
+    if(ec.pg().rank() == 0) {
+      std::cout << " MICROCYCLE DIIS UPDATE:";
+      std::cout.width(21); std::cout << std::right << std::min(titer+ndiis,maxiter)+1;
+      std::cout.width(21); std::cout << std::right << "5" << std::endl;
+    }
+    //Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
     std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
     std::vector<std::vector<Tensor<T>*>*> ts{&d_t1s, &d_t2s};
     std::vector<Tensor<T>*> next_t{&d_t1, &d_t2};
     // @fixme why not use brace-initiralizer instead of
     // intermediates? possibly use variadic templates?
-    diis<T>(sch, rs, ts, next_t);
+    diis<T>(ec, rs, ts, next_t);
   }
-  std::cout << " " << std::string(65, '-') << std::endl;
-  if(residual < thresh) {
-	  std::cout << " Iterations converged" << std::endl;
-    std::cout.precision(15);
-	  std::cout << " CCSD correlation energy / hartree =" << std::setw(26) << std::right << energy << std::endl;
-	  std::cout << " CCSD total energy / hartree       =" << std::setw(26) <<  std::right << energy + hf_energy << std::endl;
-
+  if(ec.pg().rank() == 0) {
+    std::cout << std::string(66, '-') << std::endl;
+    if(residual < thresh) {
+      std::cout << " Iterations converged" << std::endl;
+      std::cout.precision(15);
+      std::cout << " CCSD correlation energy / hartree =" << std::setw(26) << std::right << energy << std::endl;
+      std::cout << " CCSD total energy / hartree       =" << std::setw(26) <<  std::right << energy + hf_energy << std::endl;
+    }
   }
 
   for(int i=0; i<ndiis; i++) {
@@ -389,7 +459,8 @@ std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
   }
   d_r1s.clear();
   d_r2s.clear();
-  ec.deallocate(d_e, d_r1_residual, d_r2_residual);
+  ec.deallocate(d_r1, d_r2);
+  //ec.deallocate(d_e, d_r1_residual, d_r2_residual);
   return corr;
 }
 
@@ -523,6 +594,9 @@ int main(int argc, char *argv[]) {
   GA_Initialize();
   MA_init(MT_DBL, 8000000, 20000000);
 
+  int mpi_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
   TCE::init(spins, spatials,sizes,
             noa,
             noab,
@@ -563,12 +637,13 @@ int main(int argc, char *argv[]) {
   double zshiftl = 0.0;
   int ndiis = 5;
 
-  auto distribution = Distribution_NW();
-  auto pg = ProcGroup{MPI_COMM_WORLD};
-  auto mgr = new MemoryManagerGA{pg};
+  ProcGroup pg{GA_MPI_Comm()};
+  Distribution_NW distribution;
+  auto mgr = MemoryManagerGA::create_coll(ProcGroup{GA_MPI_Comm()});
 
-  Tensor<T>::allocate(pg, &distribution, mgr, d_t1, d_t2, d_f1, d_v2);
+  Tensor<T>::allocate(&distribution, mgr, d_t1, d_t2, d_f1, d_v2);
 
+  {
   ExecutionContext ec {pg, &distribution, mgr, Irrep{0}, false};
 
   ec.scheduler()
@@ -578,14 +653,11 @@ int main(int argc, char *argv[]) {
     .execute();
 
   //Tensor Map
-  block_for(d_f1(), [&](auto& blockid) {
+  block_parfor(ec.pg(), d_f1(), [&](auto& blockid) {
       auto block = d_f1.alloc(blockid);
     auto buf = block.buf();
     const auto& block_offset = block.block_offset();
     const auto& block_dims = block.block_dims();
-    // std::cout << "block offset:" << block_offset << '\n';
-    // std::cout << "block dims:" << block_dims << '\n';
-    // std::cout << "block size:" << block.size() << '\n';
     EXPECTS(block.tensor().rank() == 2);
     TAMMX_INT32 c = 0;
     for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
@@ -595,11 +667,9 @@ int main(int argc, char *argv[]) {
       }
     }
     d_f1.put(blockid, block);
-  });
+    });
 
-  //  tensor_print(d_f1);
-
-  block_for(d_v2(), [&](auto& blockid) {
+  block_parfor(ec.pg(), d_v2(), [&](auto& blockid) {
       auto block = d_v2.alloc(blockid);
     auto buf = block.buf();
     const auto& block_offset = block.block_offset();
@@ -618,13 +688,19 @@ int main(int argc, char *argv[]) {
       }
     }
     d_v2.put(blockid, block);
-  });
+    });
 
+#if 1
   ccsd_driver(ec, d_t1, d_t2, d_f1, d_v2,
               maxiter, thresh, zshiftl,
               ndiis,hf_energy);
+#endif
 
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
+
+  MemoryManagerGA::destroy_coll(mgr);
+  }
+
   fortran_finalize();
   TCE::finalize();
 

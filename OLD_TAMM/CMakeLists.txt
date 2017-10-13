@@ -54,14 +54,14 @@ endif()
 #Uncomment if we use additional cmake modules later
 #set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
-if(NOT ANTLR_CPPRUNTIME)
-    message(FATAL_ERROR "TAMM ERROR: ANTLR_CPPRUNTIME not set")
+if(NOT ANTLR_CPPRUNTIME_PATH)
+    message(FATAL_ERROR "TAMM ERROR: ANTLR_CPPRUNTIME_PATH not set")
 else()
-    if (NOT EXISTS ${ANTLR_CPPRUNTIME})
-        message(FATAL_ERROR "${ANTLR_CPPRUNTIME} not found. Please make sure the path exists \
+    if (NOT EXISTS ${ANTLR_CPPRUNTIME_PATH})
+        message(FATAL_ERROR "${ANTLR_CPPRUNTIME_PATH} not found. Please make sure the path exists \
         and GA_CONFIG is set correctly in the toolchain file provided: ${CMAKE_TOOLCHAIN_FILE}")
     else()
-        message(STATUS "ANTLR C++ runtime found at: " ${ANTLR_CPPRUNTIME})
+        message(STATUS "ANTLR C++ runtime found at: " ${ANTLR_CPPRUNTIME_PATH})
     endif()
 endif()
 
@@ -202,13 +202,13 @@ set(tammLibSources
 
 
 ADD_LIBRARY(a4runtime STATIC IMPORTED)
-SET_TARGET_PROPERTIES(a4runtime PROPERTIES IMPORTED_LOCATION ${ANTLR_CPPRUNTIME}/lib/libantlr4-runtime.a)
+SET_TARGET_PROPERTIES(a4runtime PROPERTIES IMPORTED_LOCATION ${ANTLR_CPPRUNTIME_PATH}/lib/libantlr4-runtime.a)
 
 
 add_library(tamm STATIC ${tammParserSources} ${tammLibSources} ${refCodeSources})
-link_directories(${ANTLR_CPPRUNTIME}/lib ${TAMM_BLAS_LIB})
+link_directories(${ANTLR_CPPRUNTIME_PATH}/lib ${TAMM_BLAS_LIB})
 target_include_directories(tamm SYSTEM PUBLIC  ${PROJECT_BINARY_DIR} ${ParserSrcDir} ${tamm_includes}
-                        ${BLAS_INCLUDE_PATH} ${ANTLR_CPPRUNTIME}/include/antlr4-runtime/)
+                        ${BLAS_INCLUDE_PATH} ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime/)
 target_link_libraries(tamm a4runtime)
 
 
@@ -276,7 +276,7 @@ add_custom_command(TARGET "style" PRE_BUILD
 add_custom_target("patch")
 add_custom_command(TARGET "patch" POST_BUILD
     COMMAND ${CMAKE_COMMAND} ARGS -E chdir ${CMAKE_SOURCE_DIR}/nwchem-mods ${patch_script}
-     ${NWCHEM_TOP} ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME}/lib/libantlr4-runtime.a
+     ${NWCHEM_TOP} ${TAMM_INSTALL_PREFIX}/lib ${ANTLR_CPPRUNTIME_PATH}/lib/libantlr4-runtime.a
     COMMENT "=================== Patching nwchem..." )
 
 add_custom_target("unpatch")

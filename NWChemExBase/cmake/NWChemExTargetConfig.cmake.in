@@ -4,12 +4,10 @@
 #                                                                              #
 ################################################################################
 
-#TODO: Handle versioning
-
 include(FindPackageHandleStandardArgs)
 find_package(NWChemExBase REQUIRED)
 include(AssertMacros)
-#Get the install root by asusming we are in root/share/cmake/ProjectName
+#Get the install root by assuming we are in root/share/cmake/ProjectName
 set(INSTALL_ROOT      "${CMAKE_CURRENT_LIST_DIR}") #ProjectName/
 get_filename_component(INSTALL_ROOT "${INSTALL_ROOT}" DIRECTORY) # cmake/
 get_filename_component(INSTALL_ROOT "${INSTALL_ROOT}" DIRECTORY) #share/
@@ -53,7 +51,7 @@ set(${__NAME}_INCLUDE_DIRS ${${__NAME}_INCLUDE_DIR})
 
 #Find the dependencies
 include(DependencyMacros)
-set(__depends @PULSAR_LIBRARY_DEPENDS@)
+set(__depends @NWCHEMEX_LIBRARY_DEPENDS@)
 foreach(__depend_i ${__depends})
     find_dependency(${__depend_i} ${__NAME}_INCLUDE_DIRS
                                   ${__NAME}_LIBRARIES
@@ -70,4 +68,4 @@ target_compile_definitions(${__name} INTERFACE ${${__NAME}_DEFINITIONS})
 #Print our hardwork out
 message(STATUS "Found ${__name} include paths: ${${__NAME}_INCLUDE_DIRS}")
 message(STATUS "Found ${__name} libraries: ${${__NAME}_LIBRARIES}")
-message(STATUS "Found ${__name} defintions: ${${__NAME}_DEFINITIONS}")
+message(STATUS "Found ${__name} definitions: ${${__NAME}_DEFINITIONS}")

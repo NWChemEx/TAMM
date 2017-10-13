@@ -415,7 +415,6 @@ double ccsd_driver(ExecutionContext& ec,
           ((*d_t1s[off])() = d_t1())
           ((*d_t2s[off])() = d_t2())
           .execute();
-      //sch.reset_for_execution();
       sch.execute();
       ec.scheduler()
           .io(d_r1, d_r2)
@@ -436,7 +435,7 @@ double ccsd_driver(ExecutionContext& ec,
       std::cout.width(21); std::cout << std::right << std::min(titer+ndiis,maxiter)+1;
       std::cout.width(21); std::cout << std::right << "5" << std::endl;
     }
-    Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
+    //Scheduler sch = ec.scheduler();//{pg, distribution, mgr, irrep, spin_restricted};
     std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
     std::vector<std::vector<Tensor<T>*>*> ts{&d_t1s, &d_t2s};
     std::vector<Tensor<T>*> next_t{&d_t1, &d_t2};

@@ -265,51 +265,23 @@ ccsd_iteration_scheduler(Scheduler& sch,
                          double& residual,
                          double& energy
                          ) {
-      // Tensor<T>& d_t1_local = *sch.tensor<T>(V|O);
-      // auto& d_r1_residual = *sch.tensor<T>(E|E);
-      // auto& d_r2_residual = *sch.tensor<T>(E|E);
-      // auto& d_e = *sch.tensor<T>(E|E);
+  auto get_scalar = [] (Tensor<double>& tensor) -> double {
+    EXPECTS(tensor.rank() == 0);
+    Block<double> resblock = tensor.get({});
+    return *resblock.buf();
+  };
 
-      // sch.io(d_t1, d_t2, d_f1, d_v2, *d_r1s[off], *d_r2s[off])
-      //     .output(*d_t1s[off], *d_t2s[off])
-      //     .alloc(d_t1_local,d_r1_residual, d_r2_residual, d_e)
-      //     ;
-      // sch
-      //     (d_t1_local() = d_t1())
-      //     ;
-      // ccsd_e(sch, d_f1, d_e, d_t1_local, d_t2, d_v2);
-      // ccsd_t1(sch, d_f1, *d_r1s[off], d_t1_local, d_t2, d_v2);
-      // ccsd_t2(sch, d_f1, *d_r2s[off], d_t1_local, d_t2, d_v2);
-
-      // sch
-      //     (d_r1_residual() = (*d_r1s[off])()  * (*d_r1s[off])())
-      //     (d_r2_residual() = (*d_r2s[off])()  * (*d_r2s[off])())
-      //     ( [&](const ProcGroup& ec_pg) {
-      //       residual = iteration_summarize(ec, iter, d_r1_residual, d_r2_residual, d_e);
-      //     })
-      //     ;
-      // sch.dealloc(d_t1_local, d_r1_residual, d_r2_residual, d_e);
-      // sch
-      //     ((*d_t1s[off])() = d_t1())
-      //     ((*d_t2s[off])() = d_t2())
-      //     ([&](const ProcGroup& pg) {
-      //       jacobi(pg, *d_r1s[off], d_t1, -1.0 * zshiftl, false, p_evl_sorted.data());
-      //     })
-      //     ([&](const ProcGroup& pg) {
-      //       jacobi(pg, *d_r2s[off], d_t2, -2.0 * zshiftl, false, p_evl_sorted.data());
-      //     })
-      //     ;
   Tensor<T>& d_t1_local = *sch.tensor<T>(V|O);
   auto& d_r1_residual = *sch.tensor<T>(E|E);
   auto& d_r2_residual = *sch.tensor<T>(E|E);
   auto& d_e = *sch.tensor<T>(E|E);
 
-  sch.io(d_t1, d_t2, d_f1, d_v2, d_r1, d_r2)
-      .alloc(d_t1_local,d_r1_residual, d_r2_residual, d_e)
-      ;
   sch
+      .io(d_t1, d_t2, d_f1, d_v2, d_r1, d_r2)
+      .alloc(d_t1_local,d_r1_residual, d_r2_residual, d_e)
       (d_t1_local() = d_t1())
       ;
+
   ccsd_e(sch, d_f1, d_e, d_t1_local, d_t2, d_v2);
   ccsd_t1(sch, d_f1, d_r1, d_t1_local, d_t2, d_v2);
   ccsd_t2(sch, d_f1, d_r2, d_t1_local, d_t2, d_v2);
@@ -318,28 +290,19 @@ ccsd_iteration_scheduler(Scheduler& sch,
       (d_r1_residual() = d_r1()  * d_r1())
       (d_r2_residual() = d_r2()  * d_r2())
       ( [&](const ProcGroup& ec_pg) {
-        auto get_scalar = [] (Tensor<double>& tensor) -> double {
-          EXPECTS(tensor.rank() == 0);
-          Block<double> resblock = tensor.get({});
-          return *resblock.buf();
-        };
         double r1 = 0.5*std::sqrt(get_scalar(d_r1_residual));
         double r2 = 0.5*std::sqrt(get_scalar(d_r2_residual));
         residual = std::max(r1, r2);
         energy = get_scalar(d_e);
       })
-      ;
-#if 1
-  sch
-      ([&](const ProcGroup& pg) {
+      ( [&](const ProcGroup& pg) {
         jacobi(pg, d_r1, d_t1, -1.0 * zshiftl, false, p_evl_sorted.data());
       })
-      ([&](const ProcGroup& pg) {
+      ( [&](const ProcGroup& pg) {
         jacobi(pg, d_r2, d_t2, -2.0 * zshiftl, false, p_evl_sorted.data());
       })
+      .dealloc(d_t1_local, d_r1_residual, d_r2_residual, d_e)
       ;
-#endif
-  sch.dealloc(d_t1_local, d_r1_residual, d_r2_residual, d_e);
 }
 
 /**
@@ -452,7 +415,7 @@ double ccsd_driver(ExecutionContext& ec,
           ((*d_t1s[off])() = d_t1())
           ((*d_t2s[off])() = d_t2())
           .execute();
-      sch.reset_for_execution();
+      //sch.reset_for_execution();
       sch.execute();
       ec.scheduler()
           .io(d_r1, d_r2)

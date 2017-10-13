@@ -22,12 +22,26 @@ class Scheduler {
         pg_{pg} {}
 
   ~Scheduler() {
+    clear();
+  }
+
+  void prepare_for_execution() {
+    for(auto &ptensor: intermediate_tensors_) {
+      EXPECTS(tensors_[ptensor].status == TensorStatus::deallocated);
+    }
+    //@todo Also check that io/output tensors are initialized
+  }
+
+  void clear() {
     for(auto &ptr_op : ops_) {
       delete ptr_op;
     }
-    for(auto &ptensor: intermediate_tensors_) {
-      delete ptensor;
+    for(auto &itensor : intermediate_tensors_) {
+      delete itensor;
     }
+    ops_.clear();
+    intermediate_tensors_.clear();
+    tensors_.clear();
   }
 
   template<typename T>
@@ -67,8 +81,11 @@ class Scheduler {
 
   template<typename ...Args>
   Scheduler& io(TensorBase &tensor, Args& ... args) {
-    EXPECTS(tensors_.find(&tensor) == tensors_.end());
-    tensors_[&tensor] = TensorInfo{TensorStatus::initialized};
+    if(tensors_.find(&tensor) == tensors_.end()) {
+      tensors_[&tensor] = TensorInfo{TensorStatus::initialized};
+    } else {
+      EXPECTS(tensors_[&tensor].status == TensorStatus::initialized);
+    }
     return io(args...);
   }
 
@@ -78,8 +95,12 @@ class Scheduler {
 
   template<typename ...Args>
   Scheduler& output(TensorBase& tensor, Args& ... args) {
-    EXPECTS(tensors_.find(&tensor) == tensors_.end());
-    tensors_[&tensor] = TensorInfo{TensorStatus::allocated};
+    if(tensors_.find(&tensor) == tensors_.end()) {
+      tensors_[&tensor] = TensorInfo{TensorStatus::allocated};
+    } else {
+      EXPECTS(tensors_[&tensor].status == TensorStatus::allocated
+              || tensors_[&tensor].status == TensorStatus::initialized);
+    }
     return output(args...);
   }
 
@@ -129,6 +150,13 @@ class Scheduler {
     return *this;
   }
 
+
+  template<typename Func>
+  Scheduler& operator() (Func func) {
+    ops_.push_back(new LambdaOp<Func>{func});
+    return *this;
+  }
+
   template<typename T, typename LabeledTensorType>
   Scheduler& operator()(MultOpEntry<T, LabeledTensorType> aop) {
     EXPECTS(tensors_.find(&aop.lhs.tensor()) != tensors_.end());
@@ -166,14 +194,14 @@ class Scheduler {
   }
 
   void execute() {
+    prepare_for_execution(); // check before execution
     for(auto &op_ptr: ops_) {
-      op_ptr->execute();
+      op_ptr->execute(pg_);
+      for(auto t : op_ptr->reads()) {
+        t->memory_region().fence();
+      }
+      pg_.barrier();
     }
-  }
-
-  void clear() {
-    ops_.clear();
-    tensors_.clear();
   }
 
   Distribution* default_distribution() {

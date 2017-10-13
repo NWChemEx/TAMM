@@ -80,8 +80,11 @@ class Scheduler {
 
   template<typename ...Args>
   Scheduler& io(TensorBase &tensor, Args& ... args) {
-    EXPECTS(tensors_.find(&tensor) == tensors_.end());
-    tensors_[&tensor] = TensorInfo{TensorStatus::initialized};
+    if(tensors_.find(&tensor) == tensors_.end()) {
+      tensors_[&tensor] = TensorInfo{TensorStatus::initialized};
+    } else {
+      EXPECTS(tensors_[&tensor].status == TensorStatus::initialized);
+    }
     return io(args...);
   }
 
@@ -91,8 +94,12 @@ class Scheduler {
 
   template<typename ...Args>
   Scheduler& output(TensorBase& tensor, Args& ... args) {
-    EXPECTS(tensors_.find(&tensor) == tensors_.end());
-    tensors_[&tensor] = TensorInfo{TensorStatus::allocated};
+    if(tensors_.find(&tensor) == tensors_.end()) {
+      tensors_[&tensor] = TensorInfo{TensorStatus::allocated};
+    } else {
+      EXPECTS(tensors_[&tensor].status == TensorStatus::allocated
+              || tensors_[&tensor].status == TensorStatus::initialized);
+    }
     return output(args...);
   }
 

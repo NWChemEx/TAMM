@@ -125,8 +125,8 @@ void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
   auto &t1_6_1 = *sch.tensor<T>(OO|OV);
 
   sch.alloc(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
-    // .io(t1,t2,f1,v2)
-    // .output(i0)
+    .io(t1,t2,f1,v2)
+    .output(i0)
       (ccsd_t1_1_    |= i0(p2,h1)            =        f1(p2,h1))
       (ccsd_t1_2_1_  |= t1_2_1(h7,h1)        =        f1(h7,h1))
       (ccsd_t1_2_2_1_|= t1_2_2_1(h7,p3)      =        f1(h7,p3))
@@ -168,8 +168,8 @@ void ccsd_t2(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
 
   sch.alloc(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
             t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1)
-            // .io(t1,t2,f1,v2)
-            // .output(i0)
+      .io(t1,t2,f1,v2)
+      .output(i0)
       (ccsd_t2_1_     |= i0(p3,p4,h1,h2)            =        v2(p3,p4,h1,h2))
       (ccsd_t2_2_1_   |= t2_2_1(h10,p3,h1,h2)       =        v2(h10,p3,h1,h2))
       (ccsd_t2_2_2_1_ |= t2_2_2_1(h10,h11,h1,h2)    = -1  *  v2(h10,h11,h1,h2))

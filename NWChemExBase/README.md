@@ -67,3 +67,5 @@ How To Use
 4. Fill in the source files and public headers of your library in
    `MyRepo/CMakeLists.txt`
 5. Add your tests to `MyRepo-Test/CMakeLists.txt`
+
+For detailed instructions can be found [here](dox/ExtendingNWChemExBase.md).

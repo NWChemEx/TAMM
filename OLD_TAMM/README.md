@@ -22,7 +22,7 @@ git checkout devel
   - NWCHEM_TOP (path to nwchem root folder),
   - GA_CONFIG (path to ga_config),
   - NWCHEM_BUILD_DIR (path to nwchem build folder)
-  - ANTLR_CPPRUNTIME (path to ANTLR CPP runtime lib)
+  - ANTLR_CPPRUNTIME_PATH (path to ANTLR CPP runtime lib)
 
 ```
 cd ${OLD_TAMM_ROOT}

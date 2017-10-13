@@ -47,19 +47,27 @@ function(nwchemex_add_library __name __srcs __headers __flags)
     set(__headers_copy ${${__headers}})
     make_full_paths(__srcs_copy)
     make_full_paths(__headers_copy)
+    foreach(__depend ${NWCHEMEX_LIBRARY_DEPENDS})
+        find_dependency(${_depend} __DEPEND_INCLUDES
+                                   __DEPEND_LIBRARIES
+                                   __DEPEND_FLAGS
+                                   REQUIRED
+        )
+    endforeach()
+    list(APPEND __all_flags ${__flags} ${__DEPEND_FLAGS})
     if(NOT ${__srcs_copy} STREQUAL "")#Only add a library if we have sources
-        message(STATUS ${__srcs_copy})
-        add_library(${__name} SHARED ${__srcs_copy})
-        nwchemex_set_up_target(${__name} "${__flags}"
-                              "${NWCHEMEX_LIBRARY_INCLUDE_DIRS}"
-                             "${NWCHEMEX_LIBRARY_LIBRARIES}" lib/${__name})
+        add_library(${__name} ${__srcs_copy})
+        nwchemex_set_up_target(${__name} "${__all_flags}"
+                              "${__DEPEND_INCLUDES}"
+                              "${__DEPEND_LIBRARIES}" lib/${__name})
         set(HAS_LIBRARY TRUE)
     else()
         set(HAS_LIBRARY FALSE)
     endif()
     set(NWCHEMEX_LIBRARY_NAME ${__name})
     set(NWCHEMEX_LIBRARY_HEADERS ${${__headers}})
-    configure_file("${DIR_OF_TARGET_MACROS}/NWChemExTargetConfig.cmake.in"
+    get_filename_component(__CONFIG_FILE ${DIR_OF_TARGET_MACROS} DIRECTORY)
+    configure_file("${__CONFIG_FILE}/NWChemExTargetConfig.cmake.in"
                     ${__name}Config.cmake @ONLY)
     install(FILES ${CMAKE_BINARY_DIR}/${__name}Config.cmake
             DESTINATION share/cmake/${__name})
@@ -87,7 +95,7 @@ function(nwchemex_add_test __name __test_file __target)
     add_executable(${__name} ${__file_copy})
     nwchemex_set_up_target(${__name} "" "${__target}" "${__target}" "tests")
     add_test(NAME ${__name} COMMAND ./${__name})
-    target_include_directories(${__name} PRIVATE ${CatchEx_INCLUDE_DIRS})
+    target_include_directories(${__name} PRIVATE ${NWX_Catch_INCLUDE_DIRS})
     install(FILES ${CMAKE_BINARY_DIR}/CTestTestfile.cmake DESTINATION tests)
 endfunction()
 

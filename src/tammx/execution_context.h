@@ -9,6 +9,12 @@
 #include "tammx/scheduler.h"
 
 namespace tammx {
+
+/**
+ * @brief Wrapper class to hold information during execution.
+ *
+ * This class holds the choice of default memory manager, distribution, irrep, etc.
+ */
 class ExecutionContext {
  public:
   ExecutionContext(ProcGroup pg, Distribution* default_distribution,
@@ -27,6 +33,10 @@ class ExecutionContext {
     MemoryManagerLocal::destroy_coll(memory_manager_local_);
   }
 
+  /**
+   * Construct a scheduler object
+   * @return Scheduler object
+   */
   Scheduler scheduler() {
     return Scheduler{pg_,
           default_distribution_,

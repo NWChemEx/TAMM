@@ -9,6 +9,15 @@
 
 namespace tammx {
 
+/**
+ * @brief A class to enumerate combinations when picking k items from a set of n items.
+ *
+ * The class enumerates combinations of elements in a given input vector.
+ *
+ * @tparam T Type of each item in the set of items
+ *
+ * @todo Make this a generator rather than a C++ iterator.
+ */
 template<typename T>
 struct Combination {
   enum class Case : int { case0=0, case1=1, case2=2 };
@@ -175,10 +184,18 @@ struct Combination {
 
   };
 
+  /**
+   * @brief Get the beginning iterator
+   * @return Iterator to the first combination
+   */
   Combination<T>::Iterator begin() const {
     return Iterator(const_cast<Combination<T>*>(this));
   }
 
+  /**
+   * @brief Get the end iterator
+   * @return Iterator past the last combination
+   */
   Combination<T>::Iterator end() const {
     auto itr = Iterator(const_cast<Combination<T>*>(this));
     itr.stack_.clear();

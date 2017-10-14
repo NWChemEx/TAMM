@@ -42,7 +42,21 @@ Target strongnum_cast(Source s) {
   return checked_cast<Target>(s);
 }
 
-
+/**
+ * @brief Strongly typed wrapper for a numeric type.
+ *
+ * This class provides a strongly typed alias that cannot be implicitly converted to another type. To define a new StrongNum wrapper StrongInt to, say, int, we do the following:
+ *
+ * @code
+ * class StrongIntSpace;
+ * using StrongInt = StrongNum<StrongIntSpace, int>;
+ * @endcode
+ *
+ * Checked casts are to be used to convert between types and possibly check the conversions in debug mode.
+ *
+ * @tparam Space Unique type name
+ * @tparam T Numeric typed being wrapper
+ */
 template<typename Space, typename T>
 struct StrongNum {
   using value_type = T;

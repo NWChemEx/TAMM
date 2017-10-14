@@ -11,6 +11,16 @@
 
 namespace tammx {
 
+/**
+ * @brief Vector of bounded length.
+ *
+ * This class provides a vector-like interface while having bounded size like an array. Bounds checks can be added in debug mode.
+ *
+ * @tparam T Type of each element contained in the vector
+ * @tparam maxsize Maximum size of the vector
+ *
+ * @todo Add bounds checking when BOUNDVEC_DEBUG option is enabled
+ */
 template<typename T, int maxsize>
 class BoundVec : public std::array<T, maxsize> {
  public:

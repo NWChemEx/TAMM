@@ -6,11 +6,22 @@
 #include "tammx/errors.h"
 #include "tammx/types.h"
 
+/**
+ * @file Operations on permutations
+ * @defgroup perm
+ */
+
 namespace tammx {
 
 /**
- * requires from.size() == to.size()
- * Return ret such that.
+ * @ingroup perm
+ * @brief Compute permutation to be performed to permute vector @p from to vector @p to.
+ * @param from Source vector for the permutation
+ * @param to Target vector for the permutation
+ * @pre @p from and @p to are permutations of each other
+ * @pre from.size() == to.size()
+ * @return Vector to permute @p from to @p to.
+ * @post Return ret such that:
  * ensures 0<=i<from.size(): to[i] = from[ret[i]]
  */
 inline PermVec
@@ -27,7 +38,13 @@ perm_compute(const IndexLabelVec& from, const IndexLabelVec& to) {
 }
 
 /**
-   Returns number of inversions involved in sorting this permutation
+ * @ingroup perm
+ * @brief Returns number of inversions (https://en.wikipedia.org/wiki/Inversion_(discrete_mathematics)) involved in sorting this permutation.
+ * The input vector should be a permutation vector.
+ *
+ * @param perm Permutation vector
+ * @pre @p perm is a permutation of integers [0,perm.size()-1].
+ * @return Number of inversions
  */
 inline int
 perm_count_inversions(const PermVec& perm) {
@@ -56,10 +73,18 @@ perm_count_inversions(const PermVec& perm) {
 }
 
 /**
- * requires label.size() == perm.size. say n = label.size().
- * Returns ret such that
+ * @ingroup perm
+ * @brief Apply a permutation to a given vector
+ *
+ * @tparam T Type of tensor vector element
+ * @param label Vector to be permuted
+ * @param perm Permutation to be applied on @p label
+ * @return Permuted vector
+ * @pre label.size() == perm.size, say, n = label.size()
+ * @post Returns ret such that
  * 0<=i<n: ret[i] = label[perm[i]].
  *
+ * @note
  * perm_apply(from, perm_compute(from,to)) == to.
  * perm_compute(from, perm_apply(from, perm)) == perm.
  */
@@ -78,12 +103,16 @@ perm_apply(const TensorVec<T>& label, const PermVec& perm) {
 }
 
 /**
- * requires p1.size() == p2.size(). say p1.size() ==n.
- * requires p1 and p2 are permutations of [0..n-1].
- * Returns ret such that.
- * 0<=i<n: ret[i] = p1[p2[i]]
+ * @ingroup perm
+ * @brief Compose two permutations.
  *
- * ret = p2 . p1
+ * @param p1 First permutation
+ * @param p2 Second permutation
+ * @return Composed permutation ret = p2 . p1
+ * @pre p1.size() == p2.size(). say p1.size() == n.
+ * @pre p1 and p2 are permutations of [0..n-1].
+ * @post Returns ret such that ret = p2.p1, as in,
+ * 0<=i<n: ret[i] = p1[p2[i]]
  */
 inline PermVec
 perm_compose(const PermVec& p1, const PermVec& p2) {
@@ -95,6 +124,13 @@ perm_compose(const PermVec& p1, const PermVec& p2) {
   return ret;
 }
 
+/**
+ * @ingroup perm
+ * @brief Checks whether the argument is a permutation vector
+ *
+ * @param perm Vector to be checked
+ * @return true if @p perm is a permutation of integers in [0,perm.size()-1]. false otherwise.
+ */
 inline bool
 is_permutation(PermVec perm) {
   std::sort(perm.begin(), perm.end());
@@ -107,16 +143,20 @@ is_permutation(PermVec perm) {
 }
 
 /**
- * requires is_permutation(perm).
- * say n = perm.size().
- * Returns ret such that.
- * 0<=i<n: ret[perm[i]] = i
+ * @ingroup perm
+ * @brief Invert a permutation
  *
- * ret = perm^{-1}
+ * @param perm Input permutation
+ * @return Return ret = perm^{-1}
+ * @pre is_permutation(perm).
+ * @post Returns ret such that.
+ * 0<=i<perm.size(): ret[perm[i]] = i
  *
+ * @note
+ * @code
  * Identity(n) = [0, 1, ..., n-1].
  * perm_compose(perm, perm_invert(perm)) = Identity(n).
- 
+ * @endcode
  */
 inline PermVec
 perm_invert(const PermVec& perm) {

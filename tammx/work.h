@@ -8,14 +8,29 @@
 #include "tammx/tensor.h"
 #include "tammx/atomic_counter.h"
 
+/**
+ * @file Execution algorithms
+ */
 namespace tammx {
 
+/**
+ * Execution policy
+ */
 enum ExecutionPolicy {
-  sequential_replicated,
-  sequential_single,
-  parallel
+  sequential_replicated, //<Sequential execution on all ranks
+  sequential_single,     //<Sequential execution on one rank
+  parallel               //<Parallel distributed execution
 };
 
+/**
+ * @brief Parallel execution using GA atomic counters
+ * @tparam Itr Type of iterator
+ * @tparam Fn Function type to be applied on each iterated element
+ * @param pg Process group on which the iterator is to be executed
+ * @param first Begin task iterator
+ * @param last End task iterator
+ * @param fn Function to be applied on each iterator element
+ */
 template<typename Itr, typename Fn>
 void
 parallel_work_ga(ProcGroup pg, Itr first, Itr last, Fn fn) {
@@ -44,6 +59,11 @@ parallel_work_ga(ProcGroup pg, Itr first, Itr last, Fn fn) {
 //   parallel_work_ga(pg_, first, last, fn);
 // }
 
+/**
+ * @brief Parallel execution of an iterator on a process group
+ *
+ * @copydetails parallel_work_ga()
+ */
 template<typename Itr, typename Fn>
 void
 parallel_work(const ProcGroup& pg, Itr first, Itr last, Fn fn) {
@@ -55,6 +75,10 @@ parallel_work(const ProcGroup& pg, Itr first, Itr last, Fn fn) {
   parallel_work_ga(pg, first, last, fn);
 }
 
+/**
+ * Sequential replicated execution of tasks
+ * @copydetails parallel_work()
+ */
 template<typename Itr, typename Fn>
 void
 seq_work(const ProcGroup& pg, Itr first, Itr last, Fn fn) {
@@ -68,6 +92,11 @@ seq_work(const ProcGroup& pg, Itr first, Itr last, Fn fn) {
   //std::cerr<<pg.rank()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
 }
 
+/**
+ * @brief Execute iterator using the given execution policy
+ * @copydetails parallel_work()
+ * @param exec_policy Execution policy
+ */
 template<typename Itr, typename Fn>
 void
 do_work(const ProcGroup& pg, Itr first, Itr last, Fn fn, ExecutionPolicy exec_policy) {
@@ -82,6 +111,15 @@ do_work(const ProcGroup& pg, Itr first, Itr last, Fn fn, ExecutionPolicy exec_po
   }
 }
 
+/**
+ * Iterate over all blocks in a labeled tensor and apply a given function
+ * @tparam T Type of element in each tensor
+ * @tparam Lambda Function to be applied on each block
+ * @param ec_pg Process group in which this call is invoked
+ * @param ltc Labeled tensor whose blocks are to be iterated
+ * @param func Function to be applied on each block
+ * @param exec_policy Execution policy to be used
+ */
 template<typename T, typename Lambda>
 void
 block_for (const ProcGroup& ec_pg, LabeledTensor<T> ltc, Lambda func,
@@ -102,6 +140,14 @@ block_for (const ProcGroup& ec_pg, LabeledTensor<T> ltc, Lambda func,
   }
 }
 
+/**
+ * @brief Parallel iteration and execution over all blocks in the given labeled tensor
+ * @tparam T Type of element in each tensor
+ * @tparam Lambda Function to be applied on each block
+ * @param ec_pg Process group in which this call is invoked
+ * @param ltc Labeled tensor whose blocks are to be iterated
+ * @param func Function to be applied on each block
+ */
 template<typename T, typename Lambda>
 void
 block_parfor (const ProcGroup& ec_pg, LabeledTensor<T> ltc, Lambda func) {

@@ -7,16 +7,36 @@
 
 namespace tammx {
 
+/**
+ * Base class for atomic counters used to parallelize iterators
+ */
 class AtomicCounter {
  public:
   AtomicCounter() {}
 
+  /**
+   * @brief allocate one or more atomic counters. The number is decided in the derived classes.
+   * @param init_val Initial value for the atomic counter
+   */
   virtual void allocate(int64_t init_val) = 0;
 
+  /**
+   * Deallocate the atomic counter
+   */
   virtual void deallocate() = 0;
-  
+
+  /**
+   * Atomically fetch and add an atomic counter
+   * @param index The @p index-th counter  is to be incremented
+   * @param sz The counter is incrementd by @p sz
+   * @return The value of the counter before @p sz is added to it
+   */
   virtual int64_t fetch_add(int64_t index, int64_t sz) = 0;
-  
+
+  /**
+   * Destructor.
+   * @pre The counter has already been deallocated.
+   */
   virtual ~AtomicCounter() {}
 };
 
@@ -41,13 +61,30 @@ class AtomicCounter {
 //   std::atomic<int> ctr_;
 // };
 
+/**
+ * @brief Atomic counter using GA.
+ *
+ * This is analogous to the GA-based atomic counter used in NWChem TCE.
+ */
 class AtomicCounterGA : public AtomicCounter {
  public:
+  /**
+   * @brief Construct atomic counter.
+   *
+   * Note that this does not allocate the counter.
+   * @param pg Process group in which the atomic counter GA is created
+   * @param num_counters Number of counters (i.e., size of the global array)
+   */
   AtomicCounterGA(const ProcGroup& pg, int64_t num_counters)
       : pg_{pg},
         allocated_{false},
         num_counters_{num_counters} { }
-  
+
+  /**
+   * @brief Allocate the global array of counters and initialize all of them.
+   * @param init_val Value to which all counters are initialized
+   * @todo Should this have an _coll suffix to denote it is a collective
+   */
   void allocate(int64_t init_val) {
     EXPECTS(allocated_ == false);
     int64_t size = num_counters_;
@@ -69,6 +106,10 @@ class AtomicCounterGA : public AtomicCounter {
     allocated_ = true;
   }
 
+  /**
+   * @brief Deallocate the global array of counters.
+   *
+   */
   void deallocate() {
     EXPECTS(allocated_ == true);
     //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
@@ -80,7 +121,10 @@ class AtomicCounterGA : public AtomicCounter {
     //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     allocated_ = false;
   }
-  
+
+  /**
+   * @copydoc AtomicCounter::fetch_and_add()
+   */
   int64_t fetch_add(int64_t index, int64_t amount) {
     EXPECTS(allocated_ == true);
     //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
@@ -88,7 +132,10 @@ class AtomicCounterGA : public AtomicCounter {
     //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     return ret;
   }
-  
+
+  /**
+   * @copydoc AtomicCounter::~AtomicCounter()
+   */
   ~AtomicCounterGA() {
     EXPECTS(allocated_ == false);
   }
@@ -100,6 +147,12 @@ class AtomicCounterGA : public AtomicCounter {
   ProcGroup pg_;
   int ga_pg_;
 
+  /**
+   * @brief Create a GA process group from a wrapped MPI communicator
+   * @param pg Wrapped MPI communicator
+   * @return GA process group on the MPI communicator
+   * @note Collective on the current default GA process group
+   */
   static int create_ga_process_group(const ProcGroup& pg) {
     MPI_Group group, group_default;
     MPI_Comm comm = pg.comm();

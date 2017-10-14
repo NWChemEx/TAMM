@@ -904,7 +904,7 @@ copy_symmetrization_iterator(LabelMap<BlockIndex>& lmap,
 
 template<typename LabeledTensorType>
 double
-symmetrization_factor(const LabeledTensorType& ltc,
+compute_symmetrization_factor(const LabeledTensorType& ltc,
                               const LabeledTensorType& lta) {
   auto cgrp_parts = group_partition(ltc.tensor_->tindices(),
                                     ltc.label_,
@@ -926,7 +926,7 @@ symmetrization_factor(const LabeledTensorType& ltc,
 
 template<typename LabeledTensorType>
 double
-symmetrization_factor(const LabeledTensorType& ltc,
+compute_symmetrization_factor(const LabeledTensorType& ltc,
                               const LabeledTensorType& lta,
                               const LabeledTensorType& ltb) {
   auto cgrp_parts = group_partition(ltc.tensor_->tindices(),
@@ -980,15 +980,6 @@ AddOp<T, LabeledTensorType>::execute(const ProcGroup& ec_pg) {
   if(exec_mode_ == ExecutionMode::fortran) {
     bool t1_is_double = std::is_same<T1, double>::value;
     EXPECTS(t1_is_double);
-/** \warning
-*  totalview LD on following statement
-*  back traced to line 110 new_allocator.h
-*  back traced to tammx::MemoryManagerGA::alloc
-*  line 91 memory_manager_ga.h
-*  back traced to tammx::Tensor<double>::alloc
-*  line 85 tensor.h
-*  back traced to line 21 execution_context.h
-*/
     EXPECTS(fn_ != nullptr);
 
     FortranInt da, *offseta_map;
@@ -1012,7 +1003,7 @@ AddOp<T, LabeledTensorType>::execute(const ProcGroup& ec_pg) {
   const auto &alabel = lta.label_;
   Tensor<T1>& ta = *lta.tensor_;
   Tensor<T1>& tc = *ltc.tensor_;
-  double symm_factor = symmetrization_factor(ltc, lta);
+  double symm_factor = compute_symmetrization_factor(ltc, lta);
   //std::cout<<"===symm factor="<<symm_factor<<std::endl;
 #if 0
   auto citr = loop_iterator(slice_indices(tc.indices(), ltc.label_));
@@ -1070,7 +1061,7 @@ AddOp<T, LabeledTensorType>::execute(const ProcGroup& ec_pg) {
 
 
 inline int
-symmetry_scaling_factor(const TensorVec<TensorSymmGroup>& sum_indices,
+compute_symmetry_scaling_factor(const TensorVec<TensorSymmGroup>& sum_indices,
                                 BlockDimVec sumid) {
   int ret = 1;
   auto itr = sumid.begin();
@@ -1145,7 +1136,7 @@ MultOp<T, LabeledTensorType>::execute(const ProcGroup& ec_pg) {
   Tensor<T1>& tb = *ltb.tensor_;
   Tensor<T1>& tc = *ltc.tensor_;
 
-  double symm_factor = 1; //symmetrization_factor(ltc, lta, ltb);
+  double symm_factor = 1; //compute_symmetrization_factor(ltc, lta, ltb);
 
   IndexLabelVec sum_labels;
   TensorVec<TensorSymmGroup> sum_indices;
@@ -1203,7 +1194,7 @@ MultOp<T, LabeledTensorType>::execute(const ProcGroup& ec_pg) {
         // }
         // std::cout<<"\n";
 
-        auto symm_scaling_factor = symmetry_scaling_factor(sum_indices, *sitr);
+        auto symm_scaling_factor = compute_symmetry_scaling_factor(sum_indices, *sitr);
         auto scale = alpha_ * symm_factor * symm_scaling_factor;
         //std::cout<<"--MultOp. symm_factor="<<symm_factor<<"  symm_scaling_factor="<<symm_scaling_factor<<std::endl;
 

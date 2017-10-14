@@ -166,7 +166,8 @@ class Distribution_NW : public Distribution {
     EXPECTS(offset > 0);
     total_size_ = offset;
 
-    auto per_proc_size = std::max(offset / nproc.value(), 1ll);
+    TCE::Int max_2nd_arg=1;
+    auto per_proc_size = std::max(offset / nproc.value(), max_2nd_arg);
     auto itr = hash_.begin() + length + 1;
     auto itr_last = hash_.end();
 

@@ -100,6 +100,7 @@ else()
 endif()
 
 include_directories( ${PROJECT_SOURCE_DIR} )
+include_directories( ${PROJECT_SOURCE_DIR}/src )
 
 if(OLD_TAMM)
 
@@ -203,36 +204,36 @@ execute_process(COMMAND mpicxx --showme:link OUTPUT_VARIABLE mpi_link OUTPUT_STR
 #Build fortran code for unit testing
 
 set(FORTRAN_DEPS_SRC
-${PROJECT_SOURCE_DIR}/nwtest/put_hash_block.F
-${PROJECT_SOURCE_DIR}/nwtest/add_block.F
-${PROJECT_SOURCE_DIR}/nwtest/get_block.F
-${PROJECT_SOURCE_DIR}/nwtest/get_block_ind.F
-${PROJECT_SOURCE_DIR}/nwtest/add_hash_block.F
-${PROJECT_SOURCE_DIR}/nwtest/get_hash_block.F
-${PROJECT_SOURCE_DIR}/nwtest/get_hash_block_ma.F
-${PROJECT_SOURCE_DIR}/nwtest/nxtask.F
-${PROJECT_SOURCE_DIR}/nwtest/nxtval_ga.F
-#${PROJECT_SOURCE_DIR}/nwtest/errquit.F
-${PROJECT_SOURCE_DIR}/nwtest/put_block.F
-${PROJECT_SOURCE_DIR}/nwtest/tce_hash.F
-${PROJECT_SOURCE_DIR}/nwtest/tce_hash_ind.F
-${PROJECT_SOURCE_DIR}/nwtest/tce_restricted.F
-${PROJECT_SOURCE_DIR}/nwtest/tce_sort.F
-${PROJECT_SOURCE_DIR}/nwtest/tce_sortacc.F
-${PROJECT_SOURCE_DIR}/nwtest/misc.F
-${PROJECT_SOURCE_DIR}/nwtest/ccsd_t1.F
-${PROJECT_SOURCE_DIR}/nwtest/ccsd_t2.F
-${PROJECT_SOURCE_DIR}/nwtest/cc2_t1.F
-${PROJECT_SOURCE_DIR}/nwtest/cc2_t2.F
+${PROJECT_SOURCE_DIR}/src/nwtest/put_hash_block.F
+${PROJECT_SOURCE_DIR}/src/nwtest/add_block.F
+${PROJECT_SOURCE_DIR}/src/nwtest/get_block.F
+${PROJECT_SOURCE_DIR}/src/nwtest/get_block_ind.F
+${PROJECT_SOURCE_DIR}/src/nwtest/add_hash_block.F
+${PROJECT_SOURCE_DIR}/src/nwtest/get_hash_block.F
+${PROJECT_SOURCE_DIR}/src/nwtest/get_hash_block_ma.F
+${PROJECT_SOURCE_DIR}/src/nwtest/nxtask.F
+${PROJECT_SOURCE_DIR}/src/nwtest/nxtval_ga.F
+#${PROJECT_SOURCE_DIR}/src/nwtest/errquit.F
+${PROJECT_SOURCE_DIR}/src/nwtest/put_block.F
+${PROJECT_SOURCE_DIR}/src/nwtest/tce_hash.F
+${PROJECT_SOURCE_DIR}/src/nwtest/tce_hash_ind.F
+${PROJECT_SOURCE_DIR}/src/nwtest/tce_restricted.F
+${PROJECT_SOURCE_DIR}/src/nwtest/tce_sort.F
+${PROJECT_SOURCE_DIR}/src/nwtest/tce_sortacc.F
+${PROJECT_SOURCE_DIR}/src/nwtest/misc.F
+${PROJECT_SOURCE_DIR}/src/nwtest/ccsd_t1.F
+${PROJECT_SOURCE_DIR}/src/nwtest/ccsd_t2.F
+${PROJECT_SOURCE_DIR}/src/nwtest/cc2_t1.F
+${PROJECT_SOURCE_DIR}/src/nwtest/cc2_t2.F
 )
 
-set(EXTRA_FORT_TAMM ${PROJECT_SOURCE_DIR}/nwtest/set_vars_tamm.F)
-set(EXTRA_FORT ${PROJECT_SOURCE_DIR}/nwtest/set_vars.F)
+set(EXTRA_FORT_TAMM ${PROJECT_SOURCE_DIR}/src/nwtest/set_vars_tamm.F)
+set(EXTRA_FORT ${PROJECT_SOURCE_DIR}/src/nwtest/set_vars.F)
 
 set(TESTING_DEPS_SRC
-#${PROJECT_SOURCE_DIR}/nwtest/fort_assign_tests.cc
-#${PROJECT_SOURCE_DIR}/nwtest/ccsd_t1_test.cc
-#${PROJECT_SOURCE_DIR}/nwtest/ccsd_t2_test.cc
+#${PROJECT_SOURCE_DIR}/src/nwtest/fort_assign_tests.cc
+#${PROJECT_SOURCE_DIR}/src/nwtest/ccsd_t1_test.cc
+#${PROJECT_SOURCE_DIR}/src/nwtest/ccsd_t2_test.cc
 )
 
 #SET(CMAKE_Fortran_COMPILER mpif90)
@@ -264,20 +265,20 @@ else()
 endif()
 
 add_library(fort_deps STATIC ${FORTRAN_DEPS_SRC} ${EXTRA_FORT_TAMM})
-target_include_directories(fort_deps SYSTEM PUBLIC ${tamm_includes} ${PROJECT_SOURCE_DIR}/tce_fortran)
+target_include_directories(fort_deps SYSTEM PUBLIC ${tamm_includes} ${PROJECT_SOURCE_DIR}/src/tce_fortran)
 target_compile_options(fort_deps PRIVATE ${tamm_fortran_link_flags})
 
 
 add_library(fort_deps_tammx STATIC ${FORTRAN_DEPS_SRC} ${EXTRA_FORT})
-target_include_directories(fort_deps_tammx SYSTEM PUBLIC ${tamm_includes} ${PROJECT_SOURCE_DIR}/tce_fortran)
+target_include_directories(fort_deps_tammx SYSTEM PUBLIC ${tamm_includes} ${PROJECT_SOURCE_DIR}/src/tce_fortran)
 target_compile_options(fort_deps_tammx PRIVATE ${tamm_fortran_link_flags})
 
-add_library(fort_deps_c STATIC ${PROJECT_SOURCE_DIR}/nwtest/util_gnxtval.c)
+add_library(fort_deps_c STATIC ${PROJECT_SOURCE_DIR}/src/nwtest/util_gnxtval.c)
 target_include_directories(fort_deps_c SYSTEM PUBLIC ${tamm_includes})
 
 if(OLD_TAMM)
-    add_executable(nwtest ${PROJECT_SOURCE_DIR}/nwtest/test_tamm.cc
-            ${PROJECT_SOURCE_DIR}/nwtest/test_fortran.cc ${PROJECT_SOURCE_DIR}/nwtest/test_tammx.cc ${TESTING_DEPS_SRC})
+    add_executable(nwtest EXCLUDE_FROM_ALL ${PROJECT_SOURCE_DIR}/src/nwtest/test_tamm.cc
+            ${PROJECT_SOURCE_DIR}/src/nwtest/test_fortran.cc ${PROJECT_SOURCE_DIR}/src/nwtest/test_tammx.cc ${TESTING_DEPS_SRC})
     add_dependencies(nwtest fort_deps fort_deps_c tammx)
     target_include_directories(nwtest SYSTEM PUBLIC ${tamm_includes} ${BLAS_LIBRARY_PATH}
             ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include)
@@ -286,8 +287,8 @@ if(OLD_TAMM)
             ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest -fopenmp)
 endif()
 
-add_executable(eigen_tests EXCLUDE_FROM_ALL ${PROJECT_SOURCE_DIR}/nwtest/test_eigen.cc
-         ${PROJECT_SOURCE_DIR}/nwtest/test_tammx.cc)
+add_executable(eigen_tests EXCLUDE_FROM_ALL ${PROJECT_SOURCE_DIR}/src/nwtest/test_eigen.cc
+         ${PROJECT_SOURCE_DIR}/src/nwtest/test_tammx.cc)
 add_dependencies(eigen_tests fort_deps fort_deps_c tammx)
 target_include_directories(eigen_tests SYSTEM PUBLIC ${tamm_includes}
             ${GTEST_INSTALL_PATH}/include)
@@ -298,17 +299,17 @@ target_link_libraries(eigen_tests fort_deps fort_deps_c tammx tce_fortran ${tamm
                 
 #BUILD TAMMX
     set(tammxSources
-        ${PROJECT_SOURCE_DIR}/tammx/tammx.cc
-        ${PROJECT_SOURCE_DIR}/tammx/index_sort.cc
-        ${PROJECT_SOURCE_DIR}/tammx/hartree_fock.cc
-        ${PROJECT_SOURCE_DIR}/tammx/two_four_index.cc)
+        ${PROJECT_SOURCE_DIR}/src/tammx/tammx.cc
+        ${PROJECT_SOURCE_DIR}/src/tammx/index_sort.cc
+        ${PROJECT_SOURCE_DIR}/src/tammx/hartree_fock.cc
+        ${PROJECT_SOURCE_DIR}/src/tammx/two_four_index.cc)
 
 add_library(tammx STATIC ${tammxSources})
 target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${LIBINT_INSTALL_PATH}/include
         ${EIGEN3_INSTALL_PATH}/include/eigen3 ${tamm_includes} ${BLAS_INCLUDE_PATH})
 target_link_libraries(tammx PRIVATE ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} -fopenmp)
 
-#add_executable(tammx_main ${PROJECT_SOURCE_DIR}/tammx/tammx_main.cc)
+#add_executable(tammx_main ${PROJECT_SOURCE_DIR}/src/tammx/tammx_main.cc)
 #target_link_libraries(tammx_main tammx)
 #set_property(TARGET tammx_main PROPERTY CXX_STANDARD 14)
 #set_property(TARGET tammx_main PROPERTY CXX_STANDARD_REQUIRED ON)
@@ -317,13 +318,13 @@ if(NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
   set(TAMM_LINK_EXTRA -lrt)
 endif()
 
-add_library(tce_fortran ${PROJECT_SOURCE_DIR}/tammx/ccsd/ccsd_t1.F ${PROJECT_SOURCE_DIR}/tce_fortran/errquit.F)
-target_include_directories(tce_fortran SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/tce_fortran ${tamm_includes})
+add_library(tce_fortran ${PROJECT_SOURCE_DIR}/src/tammx/ccsd/ccsd_t1.F ${PROJECT_SOURCE_DIR}/src/tce_fortran/errquit.F)
+target_include_directories(tce_fortran SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src/tce_fortran ${tamm_includes})
 target_compile_options(tce_fortran PRIVATE ${tamm_fortran_link_flags})
 
-add_executable(ccsd_driver ${PROJECT_SOURCE_DIR}/tammx/ccsd/ccsd_driver.cc)
+add_executable(ccsd_driver ${PROJECT_SOURCE_DIR}/src/tammx/ccsd/ccsd_driver.cc)
 add_dependencies(ccsd_driver fort_deps_tammx fort_deps_c tammx)
-target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/tce_fortran
+target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src/tce_fortran
         ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3 ${BLAS_INCLUDE_PATH})
 target_link_libraries(ccsd_driver fort_deps_tammx fort_deps_c tammx tce_fortran ${tamm_cflags} -fopenmp
         ${tamm_ldflags} ${CBLAS_LIBRARIES}  ${tamm_libs} -L${CBLAS_LIBRARY_PATH} ${CBLAS_LIBRARIES} -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
@@ -332,8 +333,8 @@ target_link_libraries(ccsd_driver fort_deps_tammx fort_deps_c tammx tce_fortran 
 # target_include_directories(hf SYSTEM PUBLIC ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3)
 # target_link_libraries(hf -L${LIBINT_INSTALL_PATH}/lib -lint2)
 
-add_executable(tammx_talsh EXCLUDE_FROM_ALL ${PROJECT_SOURCE_DIR}/tammx/tammx_talsh.cc 
-                ${PROJECT_SOURCE_DIR}/tammx/tammx.cc ${PROJECT_SOURCE_DIR}/tammx/index_sort.cc)
+add_executable(tammx_talsh EXCLUDE_FROM_ALL ${PROJECT_SOURCE_DIR}/src/tammx/tammx_talsh.cc 
+                ${PROJECT_SOURCE_DIR}/src/tammx/tammx.cc ${PROJECT_SOURCE_DIR}/src/tammx/index_sort.cc)
 target_include_directories(tammx_talsh SYSTEM PUBLIC  ${PROJECT_BINARY_DIR}
 ${TALSH_INSTALL_PATH})
 target_link_libraries(tammx_talsh -L${TALSH_INSTALL_PATH} -ltalsh -fopenmp)
@@ -366,15 +367,15 @@ FIND_PACKAGE(Doxygen)
 if(DOXYGEN_FOUND)
     set(DOCS "${PROJECT_BINARY_DIR}/docs")
     message(STATUS "Documentation will be built at: " ${DOCS})
-    execute_process(COMMAND mkdir -p ${DOCS})
+    execute_process(COMMAND mkdir -p ${DOCS}/src)
     set(DOCOUTPUT ${DOCS}/html)
     # Custom Target to build the Doxygen documentation.
     ADD_CUSTOM_COMMAND(OUTPUT ${DOCOUTPUT}
             COMMAND cmake -E copy ${PROJECT_SOURCE_DIR}/Doxyfile.in ${DOCS}/Doxyfile.in
-            COMMAND cmake -E copy_directory ${PROJECT_SOURCE_DIR}/tammx ${DOCS}/tammx
+            COMMAND cmake -E copy_directory ${PROJECT_SOURCE_DIR}/src/tammx ${DOCS}/src/tammx
             # Change to docs folder before building the documentation.
             COMMAND cmake -E chdir ${DOCS} doxygen ${DOCS}/Doxyfile.in
-            COMMAND cmake -E remove_directory ${DOCS}/tammx
+            COMMAND cmake -E remove_directory ${DOCS}/src/tammx
             COMMAND cmake -E remove -f ${DOCS}/Doxyfile.in
             DEPENDS ${PROJECT_SOURCE_DIR}/Doxyfile.in
             COMMENT "Building Doxygen documentation."

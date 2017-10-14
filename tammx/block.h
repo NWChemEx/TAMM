@@ -15,6 +15,13 @@ class LabeledBlock;
 template<typename T>
 class Tensor;
 
+/**
+ * @brief A data block in a tensor.
+ *
+ * Communication on tensors happens in the forms of blocks. Blocks track the underlying tensor, block dimensions, and simplify communication management.
+ *
+ * @tparam T Type of element in the block
+ */
 template<typename T>
 class Block {
  public:
@@ -22,7 +29,12 @@ class Block {
   Block() = delete;
   Block(const Block<T>&) = delete;
   Block<T>& operator = (const Block<T>&) = delete;
-  
+
+  /**
+   * @brief Construct a block to hold data in a specific block in a tensor.
+   * @param tensor Tensor from which data is to be stored
+   * @param block_id Id of block in the tensor
+   */
   Block(Tensor<T>& tensor,
         const BlockDimVec& block_id)
     : tensor_{tensor},
@@ -35,6 +47,10 @@ class Block {
         buf_ = std::make_unique<T[]> (size());
       }
 
+  /**
+   * Move constructor from another block.
+   * @param block Block being moved from
+   */
   Block(Block<T>&& block)
       : tensor_{block.tensor_},
         block_id_{block.block_id_},
@@ -42,7 +58,20 @@ class Block {
         layout_{block.layout_},
         sign_{block.sign_},
         buf_{std::move(block.buf_)} { }
-  
+
+  /**
+   * @brief Construct a block with a specific layout and sign.
+   *
+   * Applying the layout transformation and the sign pre-factor on the underlying
+   * stored data gives the data actually stored at @p block_id in @p tensor. This
+   * is used to avoid construct explicit layout transformation for every communication
+   * operation. Operations on blocks need to take the underlying layout and sign into account.
+   *
+   * @param tensor Tensor's whose block is being costructed
+   * @param block_id Id of block in the tensor
+   * @param layout Layout (index order) of dimensions in the block
+   * @param sign sign pre-factor
+   */
   Block(Tensor<T>& tensor,
         const BlockDimVec& block_id,
         const PermVec& layout,
@@ -59,10 +88,18 @@ class Block {
           buf_ = std::make_unique<T[]> (size());
         }
 
+  /**
+   * Block id of this block
+   * @return This block's block id
+   */
   const BlockDimVec& blockid() const {
     return block_id_;
   }
 
+  /**
+   * Offset of the block in the tensor
+   * @return Block offset
+   */
   BlockDimVec block_offset() const {
     BlockDimVec ret;
     for(auto id: block_id_) {
@@ -70,15 +107,28 @@ class Block {
     }
     return ret;
   }
-  
+
+  /**
+   * Dimensions of this block
+   * @return Block dimensions
+   */
   const BlockDimVec& block_dims() const {
     return block_dims_;
   }
 
+  /**
+   * Construct a labeled block from this block
+   * @param label Label to be associated with this block
+   * @return Constructed labeled block
+   */
   LabeledBlock<T> operator () (const IndexLabelVec& label) {
     return {this, label};
   }
 
+  /**
+   * Construct a labeled block from this block, with default labels
+   * @return Constructed labeled block
+   */
   LabeledBlock<T> operator () () {
     IndexLabelVec label;
     for(int i=0; i<block_id_.size(); i++) {
@@ -86,7 +136,11 @@ class Block {
     }
     return operator ()(label);
   }
-  
+
+  /**
+   * Number of elements in this block
+   * @return Block size (in number of elements)
+   */
   size_t size() const {
     size_t sz = 1;
     for(auto x : block_dims_) {
@@ -95,22 +149,41 @@ class Block {
     return sz;
   }
 
+  /**
+   * Sign prefactor accessor
+   * @return Sign prefactor
+   */
   Sign sign() const {
     return sign_;
   }
 
+  /**
+   * layout accessor
+   * @return Sign prefactor
+   */
   const PermVec& layout() const {
     return layout_;
   }
 
+  /**
+   * Get the buffer storing the block's data
+   * @return Pointer to underlying buffer
+   */
   T* buf() {
     return buf_.get();
   }
 
+  /**
+   * @copydoc Block::buf()
+   */
   const T* buf() const {
     return buf_.get();
   }
 
+  /**
+   * Access to underlying tensor
+   * @return Block's tensor
+   */
   Tensor<T>& tensor() {
     return tensor_;
   }

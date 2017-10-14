@@ -120,6 +120,17 @@ jacobi(ExecutionContext& ec,
   //GA_Sync();
 }
 
+/**
+ * @brief dot product between data held in two labeled tensors. Corresponding elements are multiplied.
+ *
+ * This routine ignores permutation symmetry, and associated symmetrizatin factors
+ *
+ * @tparam T Type of elements in both tensors
+ * @param ec Execution context in which this function is invoked
+ * @param lta Labeled tensor A
+ * @param ltb labeled Tensor B
+ * @return dot product A . B
+ */
 template<typename T>
 inline T
 ddot(ExecutionContext& ec, LabeledTensor<T> lta, LabeledTensor<T> ltb) {
@@ -137,6 +148,17 @@ ddot(ExecutionContext& ec, LabeledTensor<T> lta, LabeledTensor<T> ltb) {
   return ret;
 }
 
+/**
+ * @brief DIIS routine
+ * @tparam T Type of element in each tensor
+ * @param ec Execution context in which this function invoked
+ * @param[in] d_rs Vector of R tensors
+ * @param[in] d_ts Vector of T tensors
+ * @param[out] d_t Vector of T tensors produced by DIIS
+ * @pre d_rs.size() == d_ts.size()
+ * @pre 0<=i<d_rs.size(): d_rs[i].size() == d_t.size()
+ * @pre 0<=i<d_ts.size(): d_ts[i].size() == d_t.size()
+ */
 template<typename T>
 inline void
 diis(ExecutionContext& ec,

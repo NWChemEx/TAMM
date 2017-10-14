@@ -58,20 +58,20 @@ class MemoryManagerGA : public MemoryManager {
     pmr->map_.resize(nranks+1);
     pmr->eltype_ = eltype;
     pmr->local_nelements_ = local_nelements;
-    long long nels = local_nelements.value();
+    int64_t nels = local_nelements.value();
 
     GA_Pgroup_set_default(ga_pg_);
-    long long nelements_min, nelements_max;
+    int64_t nelements_min, nelements_max;
     MPI_Allreduce(&nels, &nelements_min, 1, MPI_LONG_LONG, MPI_MIN, pg_.comm());
     MPI_Allreduce(&nels, &nelements_max, 1, MPI_LONG_LONG, MPI_MAX, pg_.comm());
     if (nelements_min == nels && nelements_max == nels) {
-      long long dim = nranks * nels, chunk = -1;
+      int64_t dim = nranks * nels, chunk = -1;
       pmr->ga_ = NGA_Create64(ga_eltype, 1, &dim, const_cast<char*>("array_name"), &chunk);
       pmr->map_[0] = 0;
       std::fill_n(pmr->map_.begin()+1, nranks-1, nels);
       std::partial_sum(pmr->map_.begin(), pmr->map_.begin()+nranks, pmr->map_.begin());
     } else {
-      long long dim, block = nranks;
+      int64_t dim, block = nranks;
       MPI_Allreduce(&nels, &dim, 1, MPI_LONG_LONG, MPI_SUM, pg_.comm());
       MPI_Allgather(&nels, 1, MPI_LONG_LONG, &pmr->map_[1], 1, MPI_LONG_LONG, pg_.comm());
       pmr->map_[0] = 0; // @note this is not set by MPI_Exscan
@@ -88,7 +88,7 @@ class MemoryManagerGA : public MemoryManager {
     }
     GA_Pgroup_set_default(ga_pg_default);
 
-    long long lo, hi, ld;
+    int64_t lo, hi, ld;
     NGA_Distribution64(pmr->ga_, pg_.rank().value(), &lo, &hi);
     EXPECTS(nels<=0 || lo == pmr->map_[pg_.rank().value()]);
     EXPECTS(nels<=0 || hi == pmr->map_[pg_.rank().value()] + nels - 1);
@@ -140,7 +140,7 @@ class MemoryManagerGA : public MemoryManager {
     Proc proc{pg_.rank()};
     TAMMX_SIZE nels{1};
     TAMMX_SIZE ioffset{mr.map_[proc.value()] + off.value()};
-    long long lo = ioffset, hi = ioffset + nels-1, ld = -1;
+    int64_t lo = ioffset, hi = ioffset + nels-1, ld = -1;
     void* buf;
     NGA_Access64(mr.ga_, &lo, &hi, reinterpret_cast<void*>(&buf), &ld);
     return buf;
@@ -149,7 +149,7 @@ class MemoryManagerGA : public MemoryManager {
   void get(MemoryRegion& mrb, Proc proc, Offset off, Size nelements, void* to_buf) override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
     TAMMX_SIZE ioffset{mr.map_[proc.value()] + off.value()};
-    long long lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
+    int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     NGA_Get64(mr.ga_, &lo, &hi, to_buf, &ld);
   }
 
@@ -157,14 +157,14 @@ class MemoryManagerGA : public MemoryManager {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
 
     TAMMX_SIZE ioffset{mr.map_[proc.value()] + off.value()};
-    long long lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
+    int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     NGA_Put64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld);
   }
 
   void add(MemoryRegion& mrb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
     TAMMX_SIZE ioffset{mr.map_[proc.value()] + off.value()};
-    long long lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
+    int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     void *alpha;
     switch(mr.eltype_) {
       case ElementType::single_precision:

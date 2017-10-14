@@ -360,6 +360,29 @@ message(STATUS "Installing TAMM library at: " ${TAMM_INSTALL_PREFIX})
 install(TARGETS tammx
         DESTINATION ${TAMM_INSTALL_PREFIX}/lib)
 
+# Find Doxygen
+FIND_PACKAGE(Doxygen)
+
+if(DOXYGEN_FOUND)
+    set(DOCS "${PROJECT_BINARY_DIR}/docs")
+    message(STATUS "Documentation will be built at: " ${DOCS})
+    execute_process(COMMAND mkdir -p ${DOCS})
+    set(DOCOUTPUT ${DOCS}/html)
+    # Custom Target to build the Doxygen documentation.
+    ADD_CUSTOM_COMMAND(OUTPUT ${DOCOUTPUT}
+            COMMAND cmake -E copy ${PROJECT_SOURCE_DIR}/Doxyfile.in ${DOCS}/Doxyfile.in
+            COMMAND cmake -E copy_directory ${PROJECT_SOURCE_DIR}/tammx ${DOCS}/tammx
+            # Change to docs folder before building the documentation.
+            COMMAND cmake -E chdir ${DOCS} doxygen ${DOCS}/Doxyfile.in
+            COMMAND cmake -E remove_directory ${DOCS}/tammx
+            COMMAND cmake -E remove -f ${DOCS}/Doxyfile.in
+            DEPENDS ${PROJECT_SOURCE_DIR}/Doxyfile.in
+            COMMENT "Building Doxygen documentation."
+            VERBATIM)
+    ADD_CUSTOM_TARGET(docs DEPENDS ${DOCOUTPUT})
+endif()
+        
+
 # file(GLOB TAMM_HEADERS RELATIVE ${PROJECT_SOURCE_DIR} "${PROJECT_SOURCE_DIR}/frontend/*.h" "${PROJECT_SOURCE_DIR}/tensor/*.h")
 # install(FILES ${TAMM_HEADERS} DESTINATION ${TAMM_INSTALL_PREFIX}/include)
 

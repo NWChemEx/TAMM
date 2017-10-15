@@ -1,13 +1,18 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMMX_TRIANGLE_LOOP_H__
-#define TAMMX_TRIANGLE_LOOP_H__
+#ifndef TAMMX_TRIANGLE_LOOP_H_
+#define TAMMX_TRIANGLE_LOOP_H_
 
 #include "tammx/boundvec.h"
 #include "tammx/types.h"
 
 namespace tammx {
 
+/**
+ * @brief Set of triangular loops.
+ *
+ * This is used to iterate over symmetric index groups. All loops in the loop nest run over the same range of indices.
+ */
 class TriangleLoop {
  public:
   using Type = BlockIndex;
@@ -17,6 +22,12 @@ class TriangleLoop {
       : nloops_{0},
         done_{false} {}
 
+  /**
+   * Construct a triangle loop nest
+   * @param nloops Number of loops in the loop nest
+   * @param first First element in the range for each loop in the loop nest
+   * @param last Last element in the range for each loop in the loop nest. @p last is not included in the loop.
+   */
   TriangleLoop(size_t nloops, Type first, Type last)
       : nloops_{nloops},
         first_{first},
@@ -24,6 +35,10 @@ class TriangleLoop {
         itr_(nloops, first),
         done_{false} {}
 
+  /**
+   * Pre-increment the triangular loop
+   * @return Return the current loop index (after increment)
+   */
   TriangleLoop& operator ++ () {
     int i;
     //std::cout<<"TriangleLoop. itr="<<itr_<<std::endl;
@@ -40,24 +55,44 @@ class TriangleLoop {
     return *this;
   }
 
+  /**
+   * Post-increment the triangular loop
+   * @return Return the loop index before the increment
+   */
   TriangleLoop operator ++ (int) {
     auto ret = *this;
     ++ *this;
     return ret;
   }
 
+  /**
+   * Get the vector of values for the loop nest
+   * @return Current loop index values
+   */
   const ItrType& operator * () {
     return itr_;
   }
 
+  /**
+   * Get pointer to vector of values for the loop nest
+   * @return Current loop index values
+   */
   const ItrType* operator -> () const {
     return &itr_;
   }
 
+  /**
+   * Number of loops in the triangle loop
+   * @return Loop nest depth
+   */
   size_t itr_size() const {
     return itr_.size();
   }
-  
+
+  /**
+   * The last element in the triangle loop
+   * @return Get the end for this iterator
+   */
   TriangleLoop get_end() const {
     TriangleLoop tl {nloops_, first_, last_};
     tl.itr_ = TensorVec<Type>(nloops_, last_);
@@ -90,10 +125,7 @@ operator != (const TriangleLoop& tl1, const TriangleLoop& tl2) {
   return !(tl1 == tl2);
 }
 
-
-
-
 }; // namespace tammx
 
-#endif  // TAMMX_TRIANGLE_LOOP_H__
+#endif  // TAMMX_TRIANGLE_LOOP_H_
 

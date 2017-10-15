@@ -3,11 +3,25 @@
 
 #include "tammx/types.h"
 
+/**
+ * @defgroup tensor_dims
+ * Convenience objects to specify tensor dimension types in constructing tensors
+ */
 namespace tammx {
+
+/**
+ * @brief Group of indices for a tensor to be constructed. The int in the pair tracks the number of upper indices in the TensorVec (first member of the pair).
+ */
 using IndexInfo = std::pair<TensorVec<TensorSymmGroup>,int>;
 
 namespace tensor_dims {
 
+/**
+ * @brief Combine tensor indices. Both input vector of indices are combined into one vector. The combined list will be part of either an upper or a lower index list.
+ * @param tv1 Vector of indices
+ * @param tv2 vector of indices
+ * @return tv1 + tv2
+ */
 inline TensorVec<TensorSymmGroup>
 operator - (const TensorVec<TensorSymmGroup>& tv1,
             const TensorVec<TensorSymmGroup>& tv2) {
@@ -16,6 +30,12 @@ operator - (const TensorVec<TensorSymmGroup>& tv1,
   return ret;
 }
 
+/**
+ * @brief Construct an IndexInfo object from upper and lower indices
+ * @param tv1 Upper indices
+ * @param tv2 Lower indices
+ * @return IndexInfo object
+ */
 inline IndexInfo
 operator | (const TensorVec<TensorSymmGroup>& tv1,
             const TensorVec<TensorSymmGroup>& tv2) {

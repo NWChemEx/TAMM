@@ -4,19 +4,36 @@
 #include "tammx/types.h"
 #include "tammx/tce.h"
 
+/**
+ * @defgroup tensor_labels
+ * @brief Convenience objects to label tensor indices
+ */
+
 namespace tammx {
 namespace tensor_labels {
 
+/**
+ * @ingroup tensor_labels
+ * Label for an occupied index
+ */
 struct OLabel : public IndexLabel {
   OLabel(int n)
       : IndexLabel{n, RangeType{DimType::o}} {}
 };
 
+/**
+ * @ingroup tensor_labels
+ * Label for an virtual index
+ */
 struct VLabel : public IndexLabel {
   VLabel(int n)
       : IndexLabel{n, RangeType{DimType::v}} {}
 };
 
+/**
+ * @ingroup tensor_labels
+ * Label for an N (occupied + virtual) index
+ */
 struct NLabel : public IndexLabel {
   NLabel(int n)
       : IndexLabel{n, RangeType{DimType::n}} {}

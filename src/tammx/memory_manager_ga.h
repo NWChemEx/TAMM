@@ -19,11 +19,19 @@ namespace tammx {
 
 class MemoryManagerGA;
 
+/**
+ * @ingroup memory_management
+ * @brief Memory region that allocates memory using Global Arrays
+ */
 class MemoryRegionGA : public MemoryRegionImpl<MemoryManagerGA> {
  public:
   MemoryRegionGA(MemoryManagerGA& mgr)
       : MemoryRegionImpl<MemoryManagerGA>(mgr) {}
 
+  /**
+   * Access the underying global arrays
+   * @return Handle to underlying global array
+   */
   int ga() const {
     return ga_;
   }
@@ -37,16 +45,35 @@ class MemoryRegionGA : public MemoryRegionImpl<MemoryManagerGA> {
 }; // class MemoryRegionGA
 
 
+/**
+ * @ingroup memory_management
+ * @brief Memory manager that wraps Glocal Arrays API
+ */
 class MemoryManagerGA : public MemoryManager {
  public:
+  /**
+   * @brief Collectively create a MemoryManagerGA.
+   *
+   * Creation of a GA memory manager involves creation of a GA process group.
+   * To make this explicit, the call is static with an _coll suffix.
+   * @param pg Process group in which to create GA memory manager
+   * @return Constructed GA memory manager
+   */
   static MemoryManagerGA* create_coll(ProcGroup pg) {
     return new MemoryManagerGA{pg};
   }
 
+  /**
+   * @brief Collectively destroy a GA meomry manager
+   * @param mmga
+   */
   static void destroy_coll(MemoryManagerGA* mmga) {
     delete mmga;
   }
 
+  /**
+   * @copydoc MemoryManager::attach_coll
+   */
   MemoryRegion* alloc_coll(ElementType eltype, Size local_nelements) override {
     MemoryRegionGA* pmr = new MemoryRegionGA(*this);
 
@@ -96,6 +123,9 @@ class MemoryManagerGA : public MemoryManager {
     return pmr;
   }
 
+  /**
+   * @copydoc MemoryManager::attach_coll
+   */
   MemoryRegion* attach_coll(MemoryRegion& mrb) override {
     MemoryRegionGA& mr_rhs = static_cast<MemoryRegionGA&>(mrb);
     MemoryRegionGA* pmr = new MemoryRegionGA(*this);
@@ -108,6 +138,12 @@ class MemoryManagerGA : public MemoryManager {
     return pmr;
   }
 
+  /**
+   * @brief Fence all operations on this memory region
+   * @param mr Memory region to be fenced
+   *
+   * @todo Use a possibly more efficient fence
+   */
   void fence(MemoryRegion& mr) {
     ARMCI_AllFence();
   }
@@ -124,17 +160,26 @@ class MemoryManagerGA : public MemoryManager {
   }
 
  public:
+  /**
+   * @copydoc MemoryManager::dealloc_coll
+   */
   void dealloc_coll(MemoryRegion& mrb) override {
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
     NGA_Destroy(mr.ga_);
     mr.ga_ = -1;
   }
 
+  /**
+   * @copydoc MemoryManager::detach_coll
+   */
   void detach_coll(MemoryRegion& mrb) override {
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
     mr.ga_ = -1;
   }
 
+  /**
+   * @copydoc MemoryManager::access
+   */
   const void* access(const MemoryRegion& mrb, Offset off) const override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
     Proc proc{pg_.rank()};
@@ -146,6 +191,9 @@ class MemoryManagerGA : public MemoryManager {
     return buf;
   }
 
+  /**
+   * @copydoc MemoryManager::get
+   */
   void get(MemoryRegion& mrb, Proc proc, Offset off, Size nelements, void* to_buf) override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
     TAMMX_SIZE ioffset{mr.map_[proc.value()] + off.value()};
@@ -153,6 +201,9 @@ class MemoryManagerGA : public MemoryManager {
     NGA_Get64(mr.ga_, &lo, &hi, to_buf, &ld);
   }
 
+  /**
+   * @copydoc MemoryManager::put
+   */
   void put(MemoryRegion& mrb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
 
@@ -161,6 +212,9 @@ class MemoryManagerGA : public MemoryManager {
     NGA_Put64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld);
   }
 
+  /**
+   * @copydoc MemoryManager::add
+   */
   void add(MemoryRegion& mrb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
     TAMMX_SIZE ioffset{mr.map_[proc.value()] + off.value()};
@@ -186,12 +240,20 @@ class MemoryManagerGA : public MemoryManager {
     NGA_Acc64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld, alpha);
   }
 
+  /**
+   * @copydoc MemoryManager::print_coll
+   */
   void print_coll(const MemoryRegion& mrb, std::ostream& os) override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
     GA_Print(mr.ga_);
   }
 
  private:
+  /**
+   * Create a GA process group corresponding to the given proc group
+   * @param pg TAMM process group
+   * @return GA processes group on this TAMM process group
+   */
   static int create_ga_process_group_coll(const ProcGroup& pg) {
     MPI_Group group, group_world;
     MPI_Comm comm = pg.comm();
@@ -213,6 +275,11 @@ class MemoryManagerGA : public MemoryManager {
     return ga_pg;
   }
 
+  /**
+   * Convert a TAMM element type to a GA element type
+   * @param eltype TAMM element type
+   * @return Corresponding GA element type
+   */
   static int to_ga_eltype(ElementType eltype) {
     int ret;
     switch(eltype) {
@@ -235,6 +302,11 @@ class MemoryManagerGA : public MemoryManager {
     return ret;
   }
 
+  /**
+   * Convert a GA element type to a TAMM element type
+   * @param eltype GA element type
+   * @return Corresponding TAMM element type
+   */
   static ElementType from_ga_eltype(int eltype) {
     ElementType ret;
     switch(eltype) {

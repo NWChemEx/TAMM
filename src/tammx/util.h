@@ -17,11 +17,23 @@
 #include "tammx/tensor_labels.h"
 
 /**
+ * @defgroup utilities
+ *
+ * @brief Miscellaneous routines
+ *
  * @todo Check types are convertible to necessary type rather than is_same
  */
 
 namespace tammx {
 
+/**
+ * @ingroup utilities
+ * @brief flatten a nested tensor vector into a flat vector
+ *
+ * @tparam T Type of each element
+ * @param vec Tensor vector of tensor vectors
+ * @return A flattened tensor vector
+ */
 template<typename T>
 TensorVec<T>
 flatten(const TensorVec<TensorVec<T>> &vec) {
@@ -32,6 +44,12 @@ flatten(const TensorVec<TensorVec<T>> &vec) {
   return ret;
 }
 
+/**
+ * @ingroup utilities
+ * @brief flatten a vector of tensor symmetry group into a vector of range types
+ * @param vec Vector of tensor symmetry groups
+ * @return Flat vector of range types
+ */
 inline RangeTypeVec
 flatten_range(const TensorVec<TensorSymmGroup> &vec) {
   RangeTypeVec ret;
@@ -44,12 +62,29 @@ flatten_range(const TensorVec<TensorSymmGroup> &vec) {
 }
 
 /**
+ * @ingroup utilities
+ * @brief Efficient map from labels to templated values
+ *
+ * Keys are index labels. Values are of the templated type.
+ * In principle, LabelMap<T> is equivalent to map<IndexLabel,T>.
+ * But with finite index label space, LabelMap<> might be more
+ * efficiently than a std::map.
+ *
+ * @tparam T type of each value in the map
  * @todo @bug Check if this works when a label already presented is
  * updated
  */
 template<typename T>
 class LabelMap {
  public:
+  /**
+   * @brief Update the label map with a list of keys and corresponding values.
+   * @param labels Vector of labels as keys
+   * @param ids Vector of values, one per key in @p labels
+   * @return Updated label map
+   *
+   * @pre labels.size() == ids.size()
+   */
   LabelMap& update(const IndexLabelVec& labels,
                    const TensorVec<T>& ids) {
     // EXPECTS(labels.size() + labels_.size()  <= labels_.max_size());
@@ -62,6 +97,11 @@ class LabelMap {
     return *this;
   }
 
+  /**
+   * Get the tensor vector of values corresponding to a tensor vector of index labels (as keys)
+   * @param labels Vector of index labels
+   * @return Vector of values corresponding to the vector of index labels
+   */
   TensorVec<T> get_blockid(const IndexLabelVec& labels) const {
     TensorVec<T> ret;
     for(auto l: labels) {
@@ -87,7 +127,19 @@ class LabelMap {
   std::map<IndexLabel, T> lmap_;
 };
 
-
+/**
+ * @ingroup utilities
+ *
+ * @brief Generic intersection of containers.
+ *
+ * This is just convenience for the sequence of calls to std::set_intersection()
+ * @tparam Container Type of container being intersected
+ * @param ctr1 Container 1
+ * @param ctr2 Container 1
+ * @return Intersection of the two containers
+ *
+ * @note intersection does not maintain the order of elements in either @p ctr1 or @p ctr2
+ */
 template<typename Container>
 auto intersect(const Container &ctr1, const Container &ctr2) {
 #if 0
@@ -113,6 +165,23 @@ auto intersect(const Container &ctr1, const Container &ctr2) {
 #endif
 }
 
+/**
+ * @ingroup utilities
+ * @brief Group a label vector based on a given list of symmetry groups.
+ *
+ * @param groups A vector of symmetry groups
+ * @param labels A vector of labels
+ * @return @p labels grouped the same was the vector of symmetry group
+ *
+ * @pre sum(0<=i<groups.size(): groups[i].size()) == labels.size()
+ *
+ * @post return value ret such that: ret.size() == groups.size() &&
+ * 0<=i<groups.size(): groups[i].size() == ret[i].size() &&
+ * sum(0<=i<ret.size(): ret[i].size()) == labels.size()
+ *
+ * @post say 0<=i<groups.size(): off(i) = sum(0<=j<i: groups[j].size()).
+ * ret[i][j] = labels[off(i)+j]
+ */
 inline TensorVec<IndexLabelVec>
 group_labels(const TensorVec<TensorSymmGroup>& groups, const IndexLabelVec& labels) {
   unsigned sz = 0;
@@ -138,7 +207,6 @@ group_labels(const TensorVec<TensorSymmGroup>& groups, const IndexLabelVec& labe
   }
   return ret;
 }
-
 
 
 inline TensorVec<TensorVec<IndexLabelVec>>
@@ -192,11 +260,28 @@ group_partition(const TensorVec<TensorSymmGroup>& indices1,
 
 using std::to_string;
 
+/**
+ * @ingroup utilities
+ * @brief String representation of an index label
+ *
+ * @param lbl Index label
+ * @return String representation of @p lbl
+ */
 inline std::string
 to_string(const IndexLabel& lbl) {
   return to_string(lbl.rt()) + to_string(lbl.label);
 }
 
+/**
+ * @ingroup utilities
+ * @brief String conversion for a BoundVec
+ *
+ * @tparam T elements in the bounded vector
+ * @tparam maxsize maximum number of elements in the bounded vector
+ * @param vec Vector to be converted to string
+ * @param sep string to separate string representation of each variable in the vector
+ * @return
+ */
 template<typename T, int maxsize>
 std::string
 to_string(const BoundVec<T,maxsize> &vec, const std::string& sep = ",") {
@@ -223,6 +308,15 @@ slice_indices(const TensorVec<TensorSymmGroup>& indices,
 }
 
 
+/**
+ * @ingroup utilities
+ * @brief Simple factorial function
+ *
+ * @param n input non-negative number
+ * @return n!
+ *
+ * @pre n>=0 && n<=maxrank
+ */
 inline int
 factorial(int n) {
   EXPECTS(n >= 0 && n <= maxrank);
@@ -238,7 +332,20 @@ factorial(int n) {
   return ret;
 }
 
-
+/**
+ * @ingroup utilities
+ * @brief A nested iterator, akin to product iterator, but with a different syntax.
+ *
+ * @tparam Itr Type of iterators to be nested
+ * @note
+ * Usage mode:
+ * @code
+ * while (!nitr.has_more()) {
+ *  auto itr = nitr.get();
+ *  nitr.next();
+ * }
+ * @endcode
+ */
 template<typename Itr>
 class NestedIterator {
  public:

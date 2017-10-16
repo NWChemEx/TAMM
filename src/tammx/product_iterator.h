@@ -10,6 +10,8 @@
 namespace tammx {
 
 /**
+ * @brief Cartesian product iterator
+ *
  * @todo operator * () needs to be avoid constructing a vector everytime
  *
  * @todo support efficient * and -> operators

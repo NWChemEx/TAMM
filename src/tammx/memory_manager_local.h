@@ -17,6 +17,14 @@ namespace tammx {
 
 class MemoryManagerLocal;
 
+/**
+ * @ingroup memory_management
+ * @brief Local memory region.
+ *
+ * Local memory region allocates all data on a process group of size 1.
+ * In particular, it allocates all its memory on the local rank. Thes can
+ * be keep local copies of distributed memory regions, replicate tensors, etc.
+ */
 class MemoryRegionLocal : public MemoryRegionImpl<MemoryManagerLocal> {
  public:
   MemoryRegionLocal(MemoryManagerLocal& mgr)
@@ -31,16 +39,37 @@ class MemoryRegionLocal : public MemoryRegionImpl<MemoryManagerLocal> {
 }; // class MemoryRegionLocal
 
 
+/**
+ * @ingroup memory_management
+ * @brief Memory manager for local memory regions.
+ */
 class MemoryManagerLocal : public MemoryManager {
  public:
+  /**
+   * @brief Collective create a MemoryManagerLocal object.
+   *
+   * Note that this call is collective on a process group of rank 1, consisting of the invoking rank only.
+   *
+   * @param pg Process which on this the memory manager is to be created
+   * @return Created memory manager
+   *
+   * @pre pg is a TAMM process group wrapping just MPI_COMM_SELF
+   */
   static MemoryManagerLocal* create_coll(ProcGroup pg) {
     return new MemoryManagerLocal{pg};
   }
 
+  /**
+   * Collectively destroy this memory manager object
+   * @param mms Memory manager object to be destroyed
+   */
   static void destroy_coll(MemoryManagerLocal* mms) {
     delete mms;
   }
 
+  /**
+   * @copydoc MemoryManager::alloc_coll
+   */
   MemoryRegion* alloc_coll(ElementType eltype, Size nelements) override {
     MemoryRegionLocal* ret = new MemoryRegionLocal(*this);
     ret->eltype_ = eltype;
@@ -51,6 +80,9 @@ class MemoryManagerLocal : public MemoryManager {
     return ret;
   }
 
+  /**
+   * @copydoc MemoryManager::attach_coll
+   */
   MemoryRegion* attach_coll(MemoryRegion& mpb) override {
     MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
     MemoryRegionLocal* ret = new MemoryRegionLocal(*this);
@@ -62,6 +94,9 @@ class MemoryManagerLocal : public MemoryManager {
     return ret;
   }
 
+  /**
+   * @copydoc MemoryManager::fence
+   */
   void fence(MemoryRegion& mr) {
     //no-op
   }
@@ -77,23 +112,35 @@ class MemoryManagerLocal : public MemoryManager {
   ~MemoryManagerLocal() {}
 
  public:
+  /**
+   * @copydoc MemoryManager::dealloc_coll
+   */
   void dealloc_coll(MemoryRegion& mpb) override {
     MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
     delete [] mp.buf_;
     mp.buf_ = nullptr;
   }
 
+  /**
+   * @copydoc MemoryManager::detach_coll
+   */
   void detach_coll(MemoryRegion& mpb) override {
     MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
     delete [] mp.buf_;
     mp.buf_ = nullptr;
   }
 
+  /**
+   * @copydoc MemoryManager::access
+   */
   const void* access(const MemoryRegion& mpb, Offset off) const override {
     const MemoryRegionLocal& mp = static_cast<const MemoryRegionLocal&>(mpb);
     return &mp.buf_[mp.elsize_ * off.value()];
   }
 
+  /**
+   * @copydoc MemoryManager::get
+   */
   void get(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, void* to_buf) override {
     MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
     EXPECTS(proc.value() == 0);
@@ -103,6 +150,9 @@ class MemoryManagerLocal : public MemoryManager {
                 reinterpret_cast<uint8_t*>(to_buf));
   }
 
+  /**
+   * @copydoc MemoryManager::put
+   */
   void put(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
     MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
     EXPECTS(proc.value() == 0);
@@ -112,6 +162,9 @@ class MemoryManagerLocal : public MemoryManager {
                 mp.buf_ + mp.elsize_*off.value());
   }
 
+  /**
+   * @copydoc MemoryManager::add
+   */
   void add(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, const void* from_buf) override {
     MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
     EXPECTS(proc.value() == 0);
@@ -144,6 +197,9 @@ class MemoryManagerLocal : public MemoryManager {
     }
   }
 
+  /**
+   * @copydoc MemoryManager::print_coll
+   */
   void print_coll(const MemoryRegion& mpb, std::ostream& os) override {
     const MemoryRegionLocal& mp = static_cast<const MemoryRegionLocal&>(mpb);
     EXPECTS(mp.buf_ != nullptr);

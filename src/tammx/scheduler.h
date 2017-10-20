@@ -8,8 +8,19 @@
 #include "tammx/ops.h"
 
 namespace tammx {
+
+/**
+ * @brief Scheduler to execute a list of operations.
+ * @ingroup operations
+ */
 class Scheduler {
  public:
+  /**
+   * @brief Allocation status of tensor.
+   *
+   * This is used to perform some correctness checks on the list of operations.
+   * @todo Can this be replaced by AllocationStatus
+   */
   enum class TensorStatus { invalid, allocated, deallocated, initialized };
 
   Scheduler(ProcGroup pg, Distribution* default_distribution,
@@ -25,6 +36,9 @@ class Scheduler {
     clear();
   }
 
+  /**
+   * @brief Check for correctness before execution.
+   */
   void prepare_for_execution() {
     for(auto &ptensor: intermediate_tensors_) {
       EXPECTS(tensors_[ptensor].status == TensorStatus::deallocated);
@@ -32,6 +46,9 @@ class Scheduler {
     //@todo Also check that io/output tensors are initialized
   }
 
+  /**
+   * @brief clear all internal state
+   */
   void clear() {
     for(auto &ptr_op : ops_) {
       delete ptr_op;
@@ -44,6 +61,15 @@ class Scheduler {
     tensors_.clear();
   }
 
+  /**
+   * Create a temporary tensor
+   * @tparam T Type of elements in tensor
+   * @param iinfo Indices in the tensor
+   * @param irrep Irrep to be used
+   * @param spin_restricted Is the tensor spin restricted
+   * @return Pointer to the constructed tensor
+   * @todo Why not return a reference?
+   */
   template<typename T>
   Tensor<T>* tensor(const IndexInfo& iinfo, Irrep irrep, bool spin_restricted) {
     auto indices = std::get<0>(iinfo);
@@ -54,11 +80,26 @@ class Scheduler {
     return ptensor;
   }
 
+  /**
+   * Construct a temporary tensor with given indices and other default parameters
+   * @tparam T Type of elements in the tensor to be created
+   * @param iinfo Indices in the tensor
+   * @return Pointer to constructed tensor.
+   * @note The user does not need to destruct the created tensor
+   * @todo Why not return a reference?
+   */
   template<typename T>
   Tensor<T>* tensor(const IndexInfo& iinfo) {
     return tensor<T>(iinfo, default_irrep_, default_spin_restricted_);
   }
 
+  /**
+   * Add a SetOp object to the scheduler
+   * @tparam T Type of RHS value
+   * @tparam LabeledTensorType Type of LHS tensor
+   * @param sop SetOpEntry object
+   * @return Reference to the this scheduler
+   */
   template<typename T, typename LabeledTensorType>
   Scheduler& operator()(SetOpEntry<T, LabeledTensorType> sop) {
 /** \warning
@@ -79,6 +120,15 @@ class Scheduler {
     return *this;
   }
 
+  /**
+   * @brief Annotate a list of tensors as being input/output
+   *
+   * IO tensors are assumed to be allocated and initialized at this point.
+   * @tparam Args Types of tensors being annotated
+   * @param tensor First tensor in the list
+   * @param args Rest of tensors in the list
+   * @return Reference to this scheduler
+   */
   template<typename ...Args>
   Scheduler& io(TensorBase &tensor, Args& ... args) {
     if(tensors_.find(&tensor) == tensors_.end()) {
@@ -93,6 +143,17 @@ class Scheduler {
     return *this;
   }
 
+  /**
+   * @brief Annotate a list of tensors as being output
+   *
+   * Output tensors are assumed to be allocated (but not initialized) at this point.
+   * Output tensors cannot be used in RHS of an operation util they are initialized.
+   *
+   * @tparam Args Types of tensors being annotated
+   * @param tensor First tensor in the list
+   * @param args Rest of tensors in the list
+   * @return Reference to this scheduler
+   */
   template<typename ...Args>
   Scheduler& output(TensorBase& tensor, Args& ... args) {
     if(tensors_.find(&tensor) == tensors_.end()) {
@@ -108,6 +169,14 @@ class Scheduler {
     return *this;
   }
 
+  /**
+   * Allocate a list of tensors
+   * @tparam TensorType Type of the first tensor to be allocated
+   * @tparam Args Types of the rest of tensors
+   * @param tensor First tensor in the list to be allocated
+   * @param args Rest of tensors to be allocated
+   * @return Reference to this scheduler
+   */
   template<typename TensorType, typename ...Args>
   Scheduler& alloc(TensorType& tensor, Args& ... args) {
     EXPECTS(tensors_.find(&tensor) != tensors_.end());
@@ -122,6 +191,14 @@ class Scheduler {
     return *this;
   }
 
+  /**
+   * Deallocate a list of tensors
+   * @tparam TensorType Type of the first tensor to be deallocated
+   * @tparam Args Types of the rest of tensors
+   * @param tensor First tensor in the list to be deallocated
+   * @param args Rest of tensors to be deallocated
+   * @return Reference to this scheduler
+   */
   template<typename TensorType, typename ...Args>
   Scheduler& dealloc(TensorType& tensor, Args& ... args) {
     EXPECTS(tensors_.find(&tensor) != tensors_.end());
@@ -132,7 +209,13 @@ class Scheduler {
     return dealloc(args...);
   }
 
-
+  /**
+   * Add an add-op entry to the list of operations to be executed by the scheduler
+   * @tparam T Type of scalar factor
+   * @tparam LabeledTensorType Type of labeled tensor
+   * @param aop Add operation entry to the add to the scheduler
+   * @return Reference to this scheduler
+   */
   template<typename T, typename LabeledTensorType>
   Scheduler& operator()(AddOpEntry<T, LabeledTensorType> aop) {
     EXPECTS(tensors_.find(&aop.lhs.tensor()) != tensors_.end());
@@ -151,12 +234,29 @@ class Scheduler {
   }
 
 
+  /**
+   * @brief Execute an arbitrary function on this scheduler
+   *
+   * Arbitrary functions constrain the ability of the scheduler to reorder operations
+   *
+   * @tparam Func Type of function to be executed
+   * @param func Function object to be executed
+   * @return Reference to this scheduler
+   */
   template<typename Func>
   Scheduler& operator() (Func func) {
     ops_.push_back(new LambdaOp<Func>{func});
     return *this;
   }
 
+  /**
+   * Add a tensor contraction operation to scheduler
+   * @tparam T Tensor of scalar
+   * @tparam LabeledTensorType Type of labeled tensor
+   * @param aop Tensor contraction operation to be added
+   * @return Reference to this scheduler
+   * @todo Relabel @param aop to @param mop
+   */
   template<typename T, typename LabeledTensorType>
   Scheduler& operator()(MultOpEntry<T, LabeledTensorType> aop) {
     EXPECTS(tensors_.find(&aop.lhs.tensor()) != tensors_.end());

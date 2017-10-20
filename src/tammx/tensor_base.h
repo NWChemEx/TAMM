@@ -4,9 +4,14 @@
 #include "tammx/errors.h"
 #include "tammx/types.h"
 
+/**
+ * @defgroup tensors
+ */
+
 namespace tammx {
 
 /**
+ * @ingroup tensors
  * @brief Base class for tensors.
  *
  * This class handles the indexing logic for tensors. Memory management is done by subclasses.

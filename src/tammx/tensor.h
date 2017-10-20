@@ -17,6 +17,9 @@ namespace tammx {
 template<typename T>
 class LabeledTensor;
 
+/**
+ * @ingroup tensors
+ */
 class TensorImpl : public TensorBase {
  public:
   using TensorBase::TensorBase;
@@ -26,6 +29,10 @@ class TensorImpl : public TensorBase {
 };
 
 
+/**
+ * @ingroup tensors
+ * @tparam T Type of elements in the tensor
+ */
 template<typename T>
 class Tensor : public TensorImpl {
  public:
@@ -218,7 +225,10 @@ class Tensor : public TensorImpl {
   std::shared_ptr<Distribution> distribution_;
 }; // class Tensor
 
-
+/**
+ * @ingroup tensors
+ * @tparam T Type of scalar element
+ */
 template<typename T>
 class Scalar : public Tensor<T> {
  public:

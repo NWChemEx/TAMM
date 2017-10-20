@@ -208,7 +208,17 @@ group_labels(const TensorVec<TensorSymmGroup>& groups, const IndexLabelVec& labe
   return ret;
 }
 
-
+/**
+ * @brief Partition labels in one vector of groups based on whether they are also together in the other group.
+ *
+ * This routines is used to determine any need for symmetrization.
+ *
+ * @param label_groups_1 Vector of groups to be partitioned
+ * @param label_groups_2 Vector of groups used to determine which labels in @p label_groups_1 stay together
+ * @return Partitioned group of vectos
+ *
+ * @todo Add an example
+ */
 inline TensorVec<TensorVec<IndexLabelVec>>
 group_partition(const TensorVec<IndexLabelVec>& label_groups_1,
                 const TensorVec<IndexLabelVec>& label_groups_2) {
@@ -227,6 +237,18 @@ group_partition(const TensorVec<IndexLabelVec>& label_groups_1,
   return ret_labels;
 }
 
+/**
+/**
+ * @brief Partition labels in one vector of groups based on whether they are also together in the other group.
+ *
+ * This routines is used to determine any need for symmetrization.
+ *
+ * @param indices1 Group of indices 1
+ * @param labels1 Vector of labels to be partitioned, corresponding to indices in @param indices1
+ * @param indices2 Group of indices 2
+ * @param label2 Vector of groups used to determine which labels in @p label1 stay together, corresponding to indices in @param indices2
+ * @return Partitioned group of vectors
+ */
 inline TensorVec<TensorVec<IndexLabelVec>>
 group_partition(const TensorVec<TensorSymmGroup>& indices1,
                 const IndexLabelVec& label1,
@@ -237,6 +259,20 @@ group_partition(const TensorVec<TensorSymmGroup>& indices1,
   return group_partition(label_groups_1, label_groups_2);
 }
 
+/**
+/**
+ * @brief Partition labels in one vector of groups based on whether they are also together in the **two** other groups.
+ *
+ * This routines is used to determine any need for symmetrization.
+ *
+ * @param indices1 Group of indices 1
+ * @param labels1 Vector of labels to be partitioned, corresponding to indices in @param indices1
+ * @param indices2 Group of indices 2
+ * @param label2 Vector of groups used to determine which labels in @param label1 stay together, corresponding to indices in @param indices2
+ * @param indices3 Group of indices 3
+ * @param label2 Vector of groups used to determine which labels in @param label1 stay together, corresponding to indices in @param indices3
+ * @return Partitioned group of vectors
+ */
 inline TensorVec<TensorVec<IndexLabelVec>>
 group_partition(const TensorVec<TensorSymmGroup>& indices1,
                 const IndexLabelVec& label1,

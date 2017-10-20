@@ -6,14 +6,33 @@
 
 namespace tammx {
 
-// @todo For now, we cannot handle tensors in which number of upper
-// and lower indices differ by more than one. This relates to
-// correctly handling spin symmetry.
-
-// @fixme SymmGroup has a different connotation. Change name
-
+/**
+ * @brief Base class for tensors.
+ *
+ * This class handles the indexing logic for tensors. Memory management is done by subclasses.
+ * The class supports MO indices that are permutation symmetric with anti-symmetry.
+ *
+ * @note In a spin-restricted tensor, a 𝛽𝛽|𝛽𝛽 block is mapped to its corresponding to αα|αα block.
+ *
+ * @todo For now, we cannot handle tensors in which number of upper
+ * and lower indices differ by more than one. This relates to
+ * correctly handling spin symmetry.
+ * @todo SymmGroup has a different connotation. Change name
+ *
+ */
 class TensorBase {
  public:
+  /**
+   * Constructor.
+   * @param indices Vector of groups of indices. Each group corresponds to a permutation symmetric group.
+   * @param nupper_indices Number of upper indices
+   * @param irrep Irrep of this tensor, to determine spatial symmetry
+   * @param spin_restricted Is this tensor spin restricted (as in NWChem)
+   *
+   * @pre 0<=i<indices.size(): indices[i].size() > 0
+   * @pre rank = sum(0<=i<indices.size(): indices[i].size())
+   * @pre rank-1 <= 2*nupper_indices <= rank+1
+   */
   TensorBase(const TensorVec<TensorSymmGroup>& indices,
              TensorRank nupper_indices,
              Irrep irrep,
@@ -37,36 +56,75 @@ class TensorBase {
 
   virtual ~TensorBase() {}
 
+  /**
+   * Get the number of dimensions in this tensor.
+   * @return This tensor's rank
+   */
   TensorRank rank() const {
     return rank_;
   }
 
+  /**
+   * @brief A flattened list of indices.
+   * This is derived from the symmetric list of indices in the contructor by explicitly repeating the indices.
+   * @return ret such that ret.size() == rank
+   */
   RangeTypeVec flindices() const {
     return flindices_;
   }
 
+  /**
+   * Access this tensor's irrep
+   * @return this tensor's irrep
+   */
   Irrep irrep() const {
     return irrep_;
   }
 
+  /**
+   * Is this tensor spin restricted?
+   * @return true if this tensor is spin restricted
+   */
   bool spin_restricted() const {
     return spin_restricted_;
   }
 
+  /**
+   * Indices (with permutation symmetry groups) given to the constructor.
+   * @return Tensor's indices with permutation symmetry
+   */
   TensorVec<TensorSymmGroup> tindices() const {
     return indices_;
   }
 
+  /**
+   * Number of upper indices
+   * @return Number of upper indices
+   */
   TensorRank nupper_indices() const {
     return nupper_indices_;
   }
 
+  /**
+   * Size of a block (in number of elements)
+   * @param blockid Id of a block
+   * @return The block's size
+   *
+   * @pre block.size() == rank()
+   */
   size_t block_size(const BlockDimVec &blockid) const {
     auto blockdims = block_dims(blockid);
     auto ret = std::accumulate(blockdims.begin(), blockdims.end(), BlockIndex{1}, std::multiplies<BlockIndex>());
     return ret.value();
   }
 
+  /**
+   * Dimensions of a block
+   * @param blockid Id of a block
+   * @return Number of elements in this block along each dimension
+   *
+   * @pre blockid.size() == rank()
+   */
   BlockDimVec block_dims(const BlockDimVec &blockid) const {
     BlockDimVec ret;
     for(auto b : blockid) {
@@ -75,6 +133,19 @@ class TensorBase {
     return ret;
   }
 
+  /**
+   * @brief Offset of a block in this tensor along each dimension
+   *
+   * A tensor stores a subrange of the totral index range.
+   * Offset returns the offset of a block with respect to the subrange stored in ths tensor.
+   * Offset along an index dimension is specified as the sum of block index sizes of all tiles
+   * preceding this block id in this tensor.
+   *
+   * @param blockid Id of a block
+   * @return Number of elements in this block along each dimension
+   *
+   * @pre blockid.size() == rank()
+   */
   BlockDimVec block_offset(const BlockDimVec &blockid) const {
     BlockDimVec ret;
     for(auto b : blockid) {
@@ -83,6 +154,12 @@ class TensorBase {
     return ret;
   }
 
+  /**
+   * Number of blocks stored in this tensor along each dimension
+   * @return Number of blocks along each dimension.
+   *
+   * @post return ret such that ret.size() == rank()
+   */
   BlockDimVec num_blocks() const {
     BlockDimVec ret;
     for(auto i: flindices_) {
@@ -93,11 +170,24 @@ class TensorBase {
     return ret;
   }
 
+  /**
+   * Is a given block non-zero based on spin and spatial symmetry.
+   * @param blockid Id of a block
+   * @return true if it is non-zero based on spin and spatial symnmetry
+   */
   bool nonzero(const BlockDimVec& blockid) const {
     return spin_nonzero(blockid) &&
         spatial_nonzero(blockid);
   }
 
+  /**
+   * @nrief Is a block unique based on spin symmetry.
+   *
+   * Spin non-unique blocks exists in the spin restricted case.
+   * In particular, 𝛽𝛽|𝛽𝛽 blocks are non-unique in the spin-restricted case.
+   * @param blockid
+   * @return true if @param blockid is spin-unique.
+   */
   bool spin_unique(const BlockDimVec& blockid) const {
     if(spin_restricted_ == false) {
       return true;
@@ -109,6 +199,14 @@ class TensorBase {
     return spin != 2 * rank();
   }
 
+  /**
+   * @brief Find the unique block if corresponding to given block id based on spin symmetry.
+   *
+   * If a block is spin unique, the same block id is returned.
+   * If not, the spin-unique block id is returned.
+   * @param blockid Id of a block
+   * @return Id of block equal to @param blockid but also spin-unique.
+   */
   BlockDimVec find_spin_unique_block(const BlockDimVec& blockid) const {
     if(spin_unique(blockid)) {
       return blockid;
@@ -124,7 +222,15 @@ class TensorBase {
     }
     return ret;
   }
-  
+
+  /**
+   * Find the unique block corresponding to a given block based on permuutation symmetry.
+   * @param blockid Id of block
+   * @return Id of block equivalent to @param blockid in terms of permutation symmetry
+   *
+   * @pre blockid.size() == rank()
+   * @post return ret such that ret.size() == blockid.size()
+   */
   BlockDimVec find_unique_block(const BlockDimVec& blockid) const {
     BlockDimVec ret {blockid};
     int pos = 0;
@@ -136,6 +242,9 @@ class TensorBase {
   }
 
   /**
+   * @brief Copmute the sign change (due to anti-symmetry) involved in computing this @param blockid from its unique blockid.
+   * @param blockid Input blockid
+   * @return Sign prefactor due to permutation anti-symmetry
    * @todo Why can't this logic use perm_count_inversions?
    */
   std::pair<PermVec,Sign> compute_sign_from_unique_block(const BlockDimVec& blockid) const {
@@ -155,6 +264,11 @@ class TensorBase {
     return {ret_perm, (num_inversions%2) ? -1 : 1};
   }
 
+  /**
+   * Is the given blockid non-zero due to spin
+   * @param blockid Given blockid
+   * @return Is it zero due to spin?
+   */
   bool spin_nonzero(const BlockDimVec& blockid) const {
     Spin spin_upper {0};
     for(auto itr = std::begin(blockid); itr!= std::begin(blockid) + nupper_indices_; ++itr) {
@@ -167,6 +281,11 @@ class TensorBase {
     return spin_lower - spin_upper == rank_ - 2 * nupper_indices_;
   }
 
+  /**
+   * Is the given blockid non-zero due to spatial symmetry
+   * @param blockid Given blockid
+   * @return Is @param blockid zero due to spatial symmetry?
+   */
   bool spatial_nonzero(const BlockDimVec& blockid) const {
     Irrep spatial {0};
     for(auto b : blockid) {
@@ -175,7 +294,13 @@ class TensorBase {
     return spatial == irrep_;
   }
 
-  // @todo @fixme Can this function be deleted?
+  /**
+   * Is the given block zero to spin-restricted spin symmetry
+   * @param blockid Given blockid
+   * @return true if @param blockid is non-zero due to spin retriction
+   * @todo Can this function be deleted?
+   * @bug A block is only unique or not (due to spin restriction). It is not zero.
+   */
   bool spin_restricted_nonzero(const BlockDimVec& blockid) const {
     TensorRank echeck = rank_ > 2*nupper_indices_ ? (rank_ - 2*nupper_indices_) : (2*nupper_indices_-rank_);
     Spin spin {echeck};

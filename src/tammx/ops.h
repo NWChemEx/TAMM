@@ -7,6 +7,10 @@
 #include "tammx/util.h"
 #include "tammx/fortran.h"
 
+/**
+ * @defgroup operations
+ */
+
 namespace tammx {
 
 class ExecutionContext;
@@ -15,6 +19,10 @@ class ExecutionContext;
 //         operators
 /////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief Base class for any operation executed using the scheduler.
+ * @ingroup operations
+ */
 class Op {
  public:
   virtual void execute(const ProcGroup& ec_pg) = 0;
@@ -23,6 +31,13 @@ class Op {
   virtual ~Op() {}
 };
 
+/**
+ * @brief An operation corresponding to arbitrary function execution.
+ * @ingroup operations
+ *
+ * This operation is opaque and constrains what a scheduler can do with it.
+ * @tparam Func Type of function to be executed
+ */
 template<typename Func>
 struct LambdaOp : public Op {
   void execute(const ProcGroup& ec_pg) override {
@@ -44,6 +59,15 @@ struct LambdaOp : public Op {
 };
 
 
+/**
+ * @brief Set operation
+ *
+ * Set the labeled tensor to a value
+ *
+ * @ingroup operations
+ * @tparam T Type of RHS value
+ * @tparam LabeledTensorType Typed of LHS labeled tensor
+ */
 template<typename T, typename LabeledTensorType>
 struct SetOp : public Op {
   void execute(const ProcGroup& ec_pg) override;
@@ -66,6 +90,15 @@ struct SetOp : public Op {
   ResultMode mode_;
 };
 
+/**
+ * @ingroup operations
+ * @brief Add operation
+ *
+ * Adds a scaled RHS labeled tensor to an LHS labeled tensor
+ *
+ * @tparam T Type of scaling factor
+ * @tparam LabeledTensorType Type of LHS and RHS labeled tensors
+ */
 template<typename T, typename LabeledTensorType>
 struct AddOp : public Op {
   void execute(const ProcGroup& ec_pg) override;
@@ -95,6 +128,15 @@ struct AddOp : public Op {
   add_fn* fn_;
 };
 
+/**
+ * @ingroup operations
+ * @brief Multipication operation
+ *
+ * Sets or updates an LHS labeled tensor as a scaled product of two RHS labeled tensors.
+ *
+ * @tparam T Type of scaling factor
+ * @tparam LabeledTensorType Type of LHS and RHS labeled tensors
+ */
 template<typename T, typename LabeledTensorType>
 struct MultOp : public Op {
   void execute(const ProcGroup& ec_pg) override;
@@ -126,6 +168,11 @@ struct MultOp : public Op {
   mult_fn* fn_;
 };
 
+/**
+ * @ingroup operations
+ * @brief Operation to allocate a tensor
+ * @tparam TensorType Type of tensor to be allocated
+ */
 template<typename TensorType>
 struct AllocOp: public Op {
   void execute(const ProcGroup& ec_pg) override {
@@ -153,6 +200,11 @@ struct AllocOp: public Op {
   MemoryManager* memory_manager_;
 };
 
+/**
+ * @ingroup operations
+ * @brief Operation to deallocate a tensor
+ * @tparam TensorType  Type of tensor to be deallocated
+ */
 template<typename TensorType>
 struct DeallocOp: public Op {
   void execute(const ProcGroup& ec_pg) override {
@@ -173,7 +225,13 @@ struct DeallocOp: public Op {
   TensorType *tensor_;
 };
 
-
+/**
+ * @ingroup operations
+ * @brief Map operation. Invoke a function on each block of a tensor to set it.
+ * @tparam LabeledTensorType
+ * @tparam Func
+ * @tparam N
+ */
 template<typename LabeledTensorType, typename Func, int N>
 struct MapOp : public Op {
   using RHS = std::array<LabeledTensorType, N>;

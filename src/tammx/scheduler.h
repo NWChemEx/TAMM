@@ -293,6 +293,9 @@ class Scheduler {
     return *this;
   }
 
+  /**
+   * @brief Execute the list of operations given to this scheduler
+   */
   void execute() {
     prepare_for_execution(); // check before execution
     for(auto &op_ptr: ops_) {
@@ -304,10 +307,18 @@ class Scheduler {
     }
   }
 
+  /**
+   * Access the default distribution used by this scheduler
+   * @return Default distribution
+   */
   Distribution* default_distribution() {
     return default_distribution_;
   }
 
+  /**
+   * Access the default memory manager used by this scheduler
+   * @return Default memory manager
+   */
   MemoryManager* default_memory_manager() {
     return default_memory_manager_;
   }

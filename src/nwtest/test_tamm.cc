@@ -261,11 +261,12 @@ tammx_tensor_to_tamm_tensor(tammx::Tensor<double> &ttensor) {
   // }
   // std::cout << std::endl;
 
-  auto mgr_ga = static_cast<tammx::MemoryManagerGA *>(ttensor.memory_manager());
-
+  //auto mgr_ga = static_cast<tammx::MemoryManagerGA *>(&ttensor.memory_manager());
+  auto mr = static_cast<tammx::MemoryRegionGA&>(ttensor.memory_region());
+  
   auto fma_offset_index = offset_map - tamm::Variables::int_mb();
   auto fma_offset_handle = -1; //@todo @bug FIX THIS
-  auto array_handle = mgr_ga->ga();
+  auto array_handle = mr.ga();
   ptensor->attach(fma_offset_index, fma_offset_handle, array_handle);
   return {ptensor, offset_map};
 }
@@ -2888,21 +2889,25 @@ int main(int argc, char *argv[]) {
   tamm_init() ;//(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
   tammx_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
 
-  tammx::ProcGroup pg{tammx::ProcGroup{MPI_COMM_WORLD}.clone()};
+  tammx::ProcGroup pg{GA_MPI_Comm()};
   auto default_distribution = tammx::Distribution_NW();
-  tammx::MemoryManagerGA default_memory_manager{pg};
+  tammx::MemoryManagerGA* default_memory_manager = tammx::MemoryManagerGA::create_coll(tammx::ProcGroup{GA_MPI_Comm()});
   auto default_irrep = tammx::Irrep{0};
   auto default_spin_restricted = false;
 
   ::testing::InitGoogleTest(&argc, argv);
 
-  tammx::ExecutionContext ec{pg, &default_distribution, &default_memory_manager,
-                             default_irrep, default_spin_restricted};
-
-  testing::AddGlobalTestEnvironment(new TestEnvironment(&ec));
-
-  int ret = RUN_ALL_TESTS();
-
+  int ret;
+  {
+    tammx::ExecutionContext ec{pg, &default_distribution, default_memory_manager,
+          default_irrep, default_spin_restricted};
+    
+    testing::AddGlobalTestEnvironment(new TestEnvironment(&ec));
+    
+    ret = RUN_ALL_TESTS();
+  }
+  
+  MemoryManagerGA::destroy_coll(default_memory_manager);
   pg.destroy();
   tammx_finalize();
   tamm_finalize();

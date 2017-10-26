@@ -112,8 +112,8 @@ tammx_tensor_to_fortran_info(tammx::Tensor<double> &ttensor) {
     offseta[i] = ahash[i];
   }
 
-  auto amgr_ga = static_cast<tammx::MemoryManagerGA *>(ttensor.memory_manager());
-  Integer da = amgr_ga->ga();
+  auto mr = static_cast<tammx::MemoryRegionGA&>(ttensor.memory_region());
+  Integer da = mr.ga();
   return {da, offseta};
 }
 
@@ -399,7 +399,7 @@ int run_fortran_tests(int argc, char *argv[]) {
 
   tammx::ProcGroup pg{tammx::ProcGroup{MPI_COMM_WORLD}.clone()};
   auto default_distribution = tammx::Distribution_NW();
-  tammx::MemoryManagerGA default_memory_manager{pg};
+  tammx::MemoryManagerGA* default_memory_manager = tammx::MemoryManagerGA::create_coll(tammx::ProcGroup{GA_MPI_Comm()});
   auto default_irrep = tammx::Irrep{0};
   auto default_spin_restricted = false;
 
@@ -407,13 +407,15 @@ int run_fortran_tests(int argc, char *argv[]) {
 
   int ret = 0;
 
-  tammx::ExecutionContext ec{pg, &default_distribution, &default_memory_manager,
+  {
+  tammx::ExecutionContext ec{pg, &default_distribution, default_memory_manager,
                              default_irrep, default_spin_restricted};
 
   testing::AddGlobalTestEnvironment(new TestEnvironment(&ec));
 
   // temporarily commented
   ret = RUN_ALL_TESTS();
+  }
   // test_assign_2d(ec);
   // test_assign_4d(ec);
   // test_assign(ec);
@@ -441,6 +443,7 @@ test_assign_ipccsd_x1(ec);
 test_assign_ipccsd_x2(ec);
 #endif
 
+MemoryManagerGA::destroy_coll(default_memory_manager);
   pg.destroy();
   tammx_finalize();
   //tamm_finalize();

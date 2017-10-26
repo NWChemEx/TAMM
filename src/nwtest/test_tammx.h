@@ -90,16 +90,19 @@ using namespace tammx;
   tammx_tensor_fill(tammx::ExecutionContext &ec,
                     LabeledTensorType ltensor) {
     using T = typename LabeledTensorType::element_type;
-    auto init_lambda = [](tammx::Block <T> &block) {
+    auto& tensor = *ltensor.tensor_;
+    auto init_lambda = [&](auto& blockid) {
       double n = std::rand() % 5;
-      auto dbuf = block.buf();
+      auto block = tensor.alloc(blockid);
+      auto dbuf = block.buf();      
       for (size_t i = 0; i < block.size(); i++) {
         dbuf[i] = T{n + i};
         //std::cout << "init_lambda. dbuf[" << i << "]=" << dbuf[i] << std::endl;
       }
+      tensor.put(blockid, block);
     };
 
-    tensor_map(ltensor, init_lambda);
+    tammx::block_parfor(ec.pg(), ltensor, init_lambda);
     tammx_symmetrize(ec, ltensor);
   }
 
@@ -209,16 +212,18 @@ tammx_tensors_are_equal(tammx::ExecutionContext &ec,
                         const LabeledTensorType &ta,
                         const LabeledTensorType &tb,
                         double threshold = 1.0e-12) {
-  auto asz = ta.memory_manager()->local_size_in_elements().value();
-  auto bsz = tb.memory_manager()->local_size_in_elements().value();
+  // auto asz = ta.memory_manager()->local_size_in_elements().value();
+  // auto bsz = tb.memory_manager()->local_size_in_elements().value();
+  auto asz = ta.memory_region().local_nelements().value();
+  auto bsz = tb.memory_region().local_nelements().value();
 
   if (asz != bsz) {
     return false;
   }
 
   using T = typename LabeledTensorType::element_type;
-  const double *abuf = reinterpret_cast<const T *>(ta.memory_manager()->access(tammx::Offset{0}));
-  const double *bbuf = reinterpret_cast<const T *>(tb.memory_manager()->access(tammx::Offset{0}));
+  const double *abuf = reinterpret_cast<const T *>(ta.memory_region().access(tammx::Offset{0}));
+  const double *bbuf = reinterpret_cast<const T *>(tb.memory_region().access(tammx::Offset{0}));
   bool ret = true;
   for (TAMMX_INT32 i = 0; i < asz; i++) {
     // std::cout << abuf[i] << ": " << bbuf[i];

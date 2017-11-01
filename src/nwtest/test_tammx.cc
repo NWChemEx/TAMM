@@ -134,8 +134,8 @@ tammx_label_to_indices(const tammx::IndexLabelVec &upper_labels,
 template<typename T>
 void
 tammx_tensor_dump(const tammx::Tensor <T> &tensor, std::ostream &os) {
-  const auto &buf = static_cast<const T *>(tensor.memory_manager()->access(tammx::Offset{0}));
-  TAMMX_SIZE sz = tensor.memory_manager()->local_size_in_elements().value();
+  const auto &buf = static_cast<const T *>(tensor.memory_region().access(tammx::Offset{0}));
+  TAMMX_SIZE sz = tensor.memory_region().local_nelements().value();
   os << "tensor size=" << sz << std::endl;
   os << "tensor size (from distribution)=" << tensor.distribution()->buf_size(Proc{0}) << std::endl;
   for (TAMMX_SIZE i = 0; i < sz; i++) {
@@ -168,12 +168,12 @@ test_initval_no_n(tammx::ExecutionContext &ec,
     .execute();
 
   tammx::BlockDimVec id{indices.size(), tammx::BlockIndex{0}};
-  auto sz = xta.memory_manager()->local_size_in_elements().value();
+  auto sz = xta.memory_region().local_nelements().value();
 
   bool ret = true;
   const double threshold = 1e-14;
-  const auto abuf = reinterpret_cast<double *>(xta.memory_manager()->access(tammx::Offset{0}));
-  const auto cbuf = reinterpret_cast<double *>(xtc.memory_manager()->access(tammx::Offset{0}));
+  const auto abuf = reinterpret_cast<const double*>(xta.memory_region().access(tammx::Offset{0}));
+  const auto cbuf = reinterpret_cast<const double*>(xtc.memory_region().access(tammx::Offset{0}));
   for (TAMMX_INT32 i = 0; i < sz; i++) {
     if (std::abs(abuf[i] - init_val) > threshold) {
       ret = false;
@@ -219,19 +219,31 @@ test_symm_assign(tammx::ExecutionContext &ec,
       (tc2() = 0)
     .execute();
 
-  auto init_lambda = [](tammx::Block<double> &block) {
-    double n = std::rand() % 100;
-    auto dbuf = block.buf();
-    for (TAMMX_SIZE i = 0; i < block.size(); i++) {
+  // auto init_lambda = [](tammx::Block<double> &block) {
+  //   double n = std::rand() % 100;
+  //   auto dbuf = block.buf();
+  //   for (TAMMX_SIZE i = 0; i < block.size(); i++) {
+  //     dbuf[i] = n + i;
+  //     // std::cout<<"init_lambda. dbuf["<<i<<"]="<<dbuf[i]<<std::endl;
+  //   }
+  //   //std::generate_n(reinterpret_cast<double *>(block.buf()), block.size(), [&]() { return n++; });
+  // };
+
+  auto& tensor = ta;
+  auto init_lambda = [&](auto& blockid) {
+    double n = std::rand() % 5;
+    auto block = tensor.alloc(blockid);
+    auto dbuf = block.buf();      
+    for (size_t i = 0; i < block.size(); i++) {
       dbuf[i] = n + i;
-      // std::cout<<"init_lambda. dbuf["<<i<<"]="<<dbuf[i]<<std::endl;
+      //std::cout << "init_lambda. dbuf[" << i << "]=" << dbuf[i] << std::endl;
     }
-    //std::generate_n(reinterpret_cast<double *>(block.buf()), block.size(), [&]() { return n++; });
+    tensor.put(blockid, block);
   };
 
-
-  tensor_map(ta(), init_lambda);
+  block_parfor(ec.pg(), ta(), init_lambda);
   tammx_symmetrize(ec, ta());
+  
   // std::cout<<"TA=\n";
   // tammx_tensor_dump(ta, std::cout);
 

@@ -461,8 +461,8 @@ struct ScanOp : public Op {
 #else
     auto itr_first = loop_iterator(slice_indices(tensor.tindices(), ltensor_.label_));
 #endif
-    if(ec_pg.size() > tensor->pg().size()) {
-      parallel_work(tensor->pg(), itr_first, itr_first.get_end(), lambda);
+    if(ec_pg.size() > tensor.pg().size()) {
+      parallel_work(tensor.pg(), itr_first, itr_first.get_end(), lambda);
     } else {
       parallel_work(ec_pg, itr_first, itr_first.get_end(), lambda);
     }

@@ -106,6 +106,19 @@ g++ ParserTest.cc -I../../frontend/ -L/home/panyala/EclipseWS/workspacePTP/tamm/
 https://www.google.com/search?q=MyErrorStrategy&oq=MyErrorStrategy&aqs=chrome..69i57&sourceid=chrome&ie=UTF-8
 
 
+CMAKE Build
+===========
+
+PGI Compiler support
+--------------------
+  - Eigen/ANTLR Cpp runtime do not build with PGI compilers - use GCC here.
+  - GA - openmpi has to be built manually with PGI compilers, openmpi bundled with PGI install does not seem to work
+  - CC=pgcc CXX=pgc++ FC=pgfortran ./configure --prefix=/opt/openmpi-2.1 --enable-mpi-cxx --enable-mpi-fortran
+
+  - TAMM code compiles fine, but link line fails due to some (PGI compiler) incompatibility with Eigen
+
+Note: When using GNU compilers, adding pgi-install-path/lib directory to LD_LIBRARY_PATH causes link errors like `libhwloc.so.5: undefined reference to move_pages@libnuma_1.2`
+
 ECLIPSE
 ========
 Download Eclipse for Parallel Application Developers

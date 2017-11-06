@@ -90,7 +90,6 @@ else()
     set(SCALAPACK_LIBRARIES OFF)
 endif()
 
-
 # Build GA
 include(ExternalProject)
 ExternalProject_Add(GLOBALARRAYS
@@ -100,9 +99,9 @@ ExternalProject_Add(GLOBALARRAYS
     # GIT_TAG "hotfix/5.6.1"
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}
     #Pass location where autotools needs to be built 
-    CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}/autogen.sh 
-     #${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}/autotools 
-    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}/configure --with-tcgmsg 
+    ####CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}/autogen.sh 
+    #${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}/autotools 
+    CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}/configure --with-tcgmsg 
     ${GA_MPI} --enable-underscoring --disable-mpi-tests #--enable-peigs
     ${GA_SCALAPACK} ${GA_BLAS} ${GA_LAPACK} ${GA_ARMCI} ${GA_OFFLOAD} CC=${CMAKE_C_COMPILER}
     CXX=${CMAKE_CXX_COMPILER} F77=${CMAKE_Fortran_COMPILER} ${GA_SYSVSHMEM} --prefix=${GA_INSTALL_PATH} #--enable-cxx
@@ -113,6 +112,8 @@ ExternalProject_Add(GLOBALARRAYS
     #LOG_CONFIGURE 1
     #LOG_BUILD 1
 )
+
+
 endif()
 
 

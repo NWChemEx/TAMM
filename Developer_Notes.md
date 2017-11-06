@@ -12,9 +12,9 @@ then use clang-tidy as follows:
 clang-tidy -p $tamm_root/build/ tensor.cc
 clang-tidy -checks="*" -list-checks -header-filter=".*" -p ../build/  tensor.cc
 
-clang-tidy  -checks='-*,modernize-*,mpi-*' -p ../build/  tensor.cc 
+clang-tidy  -checks='-*,modernize-*,mpi-*' -p ../build/  tensor.cc
 clang-tidy  -checks='-*,modernize-*,cppcoreguidelines-*,mpi-*' -p ../build/  tensor.cc
-clang-tidy  -checks='*,-clang-analyzer-*,-cppcoreguidelines-*' -p ../build/  tensor.cc 
+clang-tidy  -checks='*,-clang-analyzer-*,-cppcoreguidelines-*' -p ../build/  tensor.cc
 
 
 
@@ -78,7 +78,7 @@ Unfactorized equations Test
 - icsd unfactorizes okay, but does not work - something to do with tamm and NW fortran code
 
 - ipccsd_x1 and x2 do not work - check if they unfactorize okay? original eqs work  
-- eaccsd_x1 and x2 do not work - mostly due to uneven indices ? 
+- eaccsd_x1 and x2 do not work - mostly due to uneven indices ?
 
 - and add exp i0[] = a1[] + a2[] does not work --> tamm iterator cannot handle AddOp involving scalars (assert ndim>0 in tensors_and_ops.cc)
   - for this reason, we do not include unfactorized ccsd_e,cisd_e,and small gamma eqns - pp,hh,hp - since they are 1-2 ops only, they do not matter anyway
@@ -109,6 +109,14 @@ https://www.google.com/search?q=MyErrorStrategy&oq=MyErrorStrategy&aqs=chrome..6
 CMAKE Build
 ===========
 
+
+Prerequisites
+-------------
+On Mac OSX:
+brew install lzlib wget flex bison doxygen autoconf automake libtool
+brew install gcc openmpi
+
+
 PGI Compiler support
 --------------------
   - Eigen/ANTLR Cpp runtime do not build with PGI compilers - use GCC here.
@@ -118,6 +126,43 @@ PGI Compiler support
   - TAMM code compiles fine, but link line fails due to some (PGI compiler) incompatibility with Eigen
 
 Note: When using GNU compilers, adding pgi-install-path/lib directory to LD_LIBRARY_PATH causes link errors like `libhwloc.so.5: undefined reference to move_pages@libnuma_1.2`
+
+Clang Compiler Support
+----------------------
+ - Tested on Linux only with Clang >= 4.0
+ - GA is still built with GNU compilers due to some issues when mixing clang and gfortran.
+ - Works only with LLVM Clang built with OpenMP support and configured to use GNU libstdc++ instead of Clang libc++
+ - Install LLVM Clang using the script below:
+
+```
+version=4.0.0
+current_dir=`pwd`
+
+mkdir stage-$version
+cd stage-$version
+
+bases="llvm-${version}.src cfe-${version}.src compiler-rt-${version}.src"
+bases="${bases} openmp-${version}.src polly-${version}.src"
+bases="${bases} clang-tools-extra-${version}.src"
+
+for base in ${bases}
+do
+  wget -t inf -c http://llvm.org/releases/${version}/${base}.tar.xz
+  tar xvf ${base}.tar.xz
+done
+
+llvm_root=llvm-${version}.src
+mv -v cfe-${version}.src ${llvm_root}/tools/clang
+mv -v clang-tools-extra-${version}.src ${llvm_root}/tools/clang/tools/extra
+mv -v compiler-rt-${version}.src ${llvm_root}/projects/compiler-rt
+mv -v openmp-${version}.src ${llvm_root}/projects/openmp
+
+mkdir ${llvm_root}/build
+cd ${llvm_root}/build
+cmake .. -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc -DCMAKE_INSTALL_PREFIX=/opt/llvm4 -DCMAKE_BUILD_TYPE=Release
+make -j2
+make install
+```
 
 ECLIPSE
 ========
@@ -144,7 +189,7 @@ To create an SSH remote project from the RSE perspective in Eclipse:
 Define a new connection and choose SSH Only from the Select Remote System Type screen in the New Connection dialog.
 Enter the connection information then choose Finish.
 Connect to the new host. (Assumes SSH keys are already setup.)
-Once connected, drill down into the host's Sftp Files, choose a folder and select Create Remote Project from the item's context menu. 
+Once connected, drill down into the host's Sftp Files, choose a folder and select Create Remote Project from the item's context menu.
 
 You should now see a new remote project accessible from the Project Explorer.
 
@@ -155,7 +200,7 @@ You should now see a new remote project accessible from the Project Explorer.
 
 This should be enough for eclipse to find all standard libs,includes,etc
 
-C/C++ Build -> Settings -> Tool Settings -> GCC C++ Compiler -> Miscellaneous -> Other Flags. 
+C/C++ Build -> Settings -> Tool Settings -> GCC C++ Compiler -> Miscellaneous -> Other Flags.
 Put  -std=c++14 at the end . ... instead of GCC C++ Compiler
 
 #To enable c++14 only for a selected project:
@@ -165,12 +210,3 @@ Select the Providers tab, click on compiler settings row for the compiler you us
 Add -std=c++14 to Command to get compiler specs. Should look something like:
 
 ${COMMAND} -E -P -v -dD "${INPUTS}" -std=c++14
- 
-
-
-
-
-
-
-
-

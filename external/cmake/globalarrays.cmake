@@ -92,6 +92,25 @@ endif()
 
 # Build GA
 include(ExternalProject)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+
+ExternalProject_Add(GLOBALARRAYS
+    PREFIX GLOBALARRAYS
+    URL https://github.com/GlobalArrays/ga/releases/download/v5.6.2/ga-5.6.2.tar.gz
+    SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}
+    CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}/configure --with-tcgmsg 
+    ${GA_MPI} --enable-underscoring --disable-mpi-tests #--enable-peigs
+    ${GA_SCALAPACK} ${GA_BLAS} ${GA_LAPACK} ${GA_ARMCI} ${GA_OFFLOAD} CC=gcc
+    CXX=g++ F77=gfortran ${GA_SYSVSHMEM} --prefix=${GA_INSTALL_PATH} #--enable-cxx
+    LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/blas_lapack/lib
+    BUILD_COMMAND make -j${NWX_PROC_COUNT}
+    INSTALL_COMMAND make install
+    BUILD_IN_SOURCE 1
+)
+
+else()
+
 ExternalProject_Add(GLOBALARRAYS
     PREFIX GLOBALARRAYS
     URL https://github.com/GlobalArrays/ga/releases/download/v5.6.2/ga-5.6.2.tar.gz
@@ -109,9 +128,9 @@ ExternalProject_Add(GLOBALARRAYS
     BUILD_COMMAND make -j${NWX_PROC_COUNT}
     INSTALL_COMMAND make install
     BUILD_IN_SOURCE 1
-    #LOG_CONFIGURE 1
-    #LOG_BUILD 1
 )
+
+endif()
 
 
 endif()

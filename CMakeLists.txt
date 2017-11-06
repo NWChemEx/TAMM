@@ -77,8 +77,15 @@ set (TAMM_VERSION_MINOR 1)
 #Cannot set the following since cmake cannot handle clang
 #set(CMAKE_CXX_STANDARD 14)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -g  -Ofast -fopenmp")#  -Wextra  -Wall")
-set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} -std=c++14 -g -Ofast -fopenmp")# -Wextra  -Wall")
+set(TAMM_OPENMP_FLAGS -fopenmp)
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "PGI")
+    set(TAMM_OPENMP_FLAGS -mp)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --c++14 -g  -O3 -mp --gnu --gnu_extensions")
+    set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} --c++14 -mp -g  -O0 --gnu --gnu_extensions")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -g  -Ofast ${TAMM_OPENMP_FLAGS}")#  -Wextra  -Wall")
+    set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} -std=c++14 -g -Ofast ${TAMM_OPENMP_FLAGS}")# -Wextra  -Wall")
+endif()
 #set(CMAKE_CXX_FLAGS_MINSIZEREL     "")
 #set(CMAKE_CXX_FLAGS_RELEASE        "")
 #set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "")
@@ -237,13 +244,13 @@ set(TESTING_DEPS_SRC
 )
 
 #SET(CMAKE_Fortran_COMPILER mpif90)
-if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
+if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_Fortran_COMPILER_ID}" STREQUAL "PGI")
   set(tamm_fortran_link_flags ${tamm_fflags})
   set(tamm_libs ${tamm_libs} ${mpi_link})
 elseif("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
   set(tamm_fortran_link_flags -i8)
 else()
-    message(FATAL_ERROR "Only GNU/Intel Fortran compilers supported")
+    message(FATAL_ERROR "Only GNU/Intel/PGI Fortran compilers supported")
 endif()
 
 
@@ -284,7 +291,7 @@ if(OLD_TAMM)
             ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include)
     target_compile_options(nwtest PUBLIC ${tamm_cflags})
     target_link_libraries(nwtest fort_deps fort_deps_c tammx tce_fortran ${tamm_cflags} ${CBLAS_LIBRARIES} ${OLD_TAMM_LIB}
-            ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest -fopenmp)
+            ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest ${TAMM_OPENMP_FLAGS})
 endif()
 
 add_executable(eigen_tests EXCLUDE_FROM_ALL ${PROJECT_SOURCE_DIR}/src/nwtest/test_eigen.cc
@@ -294,7 +301,7 @@ target_include_directories(eigen_tests SYSTEM PUBLIC ${tamm_includes}
             ${GTEST_INSTALL_PATH}/include)
 target_compile_options(eigen_tests PUBLIC ${tamm_cflags})
 target_link_libraries(eigen_tests fort_deps fort_deps_c tammx tce_fortran ${tamm_cflags}
-        ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} fort_deps -L${GTEST_INSTALL_PATH}/lib -lgtest -fopenmp)
+        ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} fort_deps -L${GTEST_INSTALL_PATH}/lib -lgtest ${TAMM_OPENMP_FLAGS})
 
                 
 #BUILD TAMMX
@@ -307,7 +314,7 @@ target_link_libraries(eigen_tests fort_deps fort_deps_c tammx tce_fortran ${tamm
 add_library(tammx STATIC ${tammxSources})
 target_include_directories(tammx SYSTEM PUBLIC ${PROJECT_BINARY_DIR} ${LIBINT_INSTALL_PATH}/include
         ${EIGEN3_INSTALL_PATH}/include/eigen3 ${tamm_includes} ${BLAS_INCLUDE_PATH})
-target_link_libraries(tammx PRIVATE ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} -fopenmp)
+target_link_libraries(tammx PRIVATE ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${TAMM_OPENMP_FLAGS})
 
 #add_executable(tammx_main ${PROJECT_SOURCE_DIR}/src/tammx/tammx_main.cc)
 #target_link_libraries(tammx_main tammx)
@@ -326,7 +333,7 @@ add_executable(ccsd_driver ${PROJECT_SOURCE_DIR}/src/tammx/ccsd/ccsd_driver.cc)
 add_dependencies(ccsd_driver fort_deps_tammx fort_deps_c tammx)
 target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src/tce_fortran
         ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3 ${BLAS_INCLUDE_PATH})
-target_link_libraries(ccsd_driver fort_deps_tammx fort_deps_c tammx tce_fortran ${tamm_cflags} -fopenmp
+target_link_libraries(ccsd_driver fort_deps_tammx fort_deps_c tammx tce_fortran ${tamm_cflags} ${TAMM_OPENMP_FLAGS}
         ${tamm_ldflags} ${CBLAS_LIBRARIES}  ${tamm_libs} -L${CBLAS_LIBRARY_PATH} ${CBLAS_LIBRARIES} -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
 
 # add_executable(hf nwchem_main/hartree_fock.cc)
@@ -337,7 +344,7 @@ add_executable(tammx_talsh EXCLUDE_FROM_ALL ${PROJECT_SOURCE_DIR}/src/tammx/tamm
                 ${PROJECT_SOURCE_DIR}/src/tammx/tammx.cc ${PROJECT_SOURCE_DIR}/src/tammx/index_sort.cc)
 target_include_directories(tammx_talsh SYSTEM PUBLIC  ${PROJECT_BINARY_DIR}
 ${TALSH_INSTALL_PATH})
-target_link_libraries(tammx_talsh -L${TALSH_INSTALL_PATH} -ltalsh -fopenmp)
+target_link_libraries(tammx_talsh -L${TALSH_INSTALL_PATH} -ltalsh ${TAMM_OPENMP_FLAGS})
 
 # message(STATUS "ANTLR C++ runtime found at: " ${ANTLR_CPPRUNTIME_PATH})
 # ADD_LIBRARY(a4runtime STATIC IMPORTED)

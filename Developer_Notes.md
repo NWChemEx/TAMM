@@ -106,64 +106,6 @@ g++ ParserTest.cc -I../../frontend/ -L/home/panyala/EclipseWS/workspacePTP/tamm/
 https://www.google.com/search?q=MyErrorStrategy&oq=MyErrorStrategy&aqs=chrome..69i57&sourceid=chrome&ie=UTF-8
 
 
-CMAKE Build
-===========
-
-
-Prerequisites
--------------
-On Mac OSX:
-brew install lzlib wget flex bison doxygen autoconf automake libtool
-brew install gcc openmpi
-
-
-PGI Compiler support
---------------------
-  - Eigen/ANTLR Cpp runtime do not build with PGI compilers - use GCC here.
-  - GA - openmpi has to be built manually with PGI compilers, openmpi bundled with PGI install does not seem to work
-  - CC=pgcc CXX=pgc++ FC=pgfortran ./configure --prefix=/opt/openmpi-2.1 --enable-mpi-cxx --enable-mpi-fortran
-
-  - TAMM code compiles fine, but link line fails due to some (PGI compiler) incompatibility with Eigen
-
-Note: When using GNU compilers, adding pgi-install-path/lib directory to LD_LIBRARY_PATH causes link errors like `libhwloc.so.5: undefined reference to move_pages@libnuma_1.2`
-
-Clang Compiler Support
-----------------------
- - Tested on Linux only with Clang >= 4.0
- - GA is still built with GNU compilers due to some issues when mixing clang and gfortran.
- - Works only with LLVM Clang built with OpenMP support and configured to use GNU libstdc++ instead of Clang libc++
- - Install LLVM Clang using the script below:
-
-```
-version=4.0.0
-current_dir=`pwd`
-
-mkdir stage-$version
-cd stage-$version
-
-bases="llvm-${version}.src cfe-${version}.src compiler-rt-${version}.src"
-bases="${bases} openmp-${version}.src polly-${version}.src"
-bases="${bases} clang-tools-extra-${version}.src"
-
-for base in ${bases}
-do
-  wget -t inf -c http://llvm.org/releases/${version}/${base}.tar.xz
-  tar xvf ${base}.tar.xz
-done
-
-llvm_root=llvm-${version}.src
-mv -v cfe-${version}.src ${llvm_root}/tools/clang
-mv -v clang-tools-extra-${version}.src ${llvm_root}/tools/clang/tools/extra
-mv -v compiler-rt-${version}.src ${llvm_root}/projects/compiler-rt
-mv -v openmp-${version}.src ${llvm_root}/projects/openmp
-
-mkdir ${llvm_root}/build
-cd ${llvm_root}/build
-cmake .. -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc -DCMAKE_INSTALL_PREFIX=/opt/llvm4 -DCMAKE_BUILD_TYPE=Release
-make -j2
-make install
-```
-
 ECLIPSE
 ========
 Download Eclipse for Parallel Application Developers

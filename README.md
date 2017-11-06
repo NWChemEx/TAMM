@@ -1,10 +1,12 @@
 
-Requirements
+Prerequisites
 ------------
 - Git
 - autotools
 - cmake >= 3.7
 - C++14 compiler
+
+**Please see [CMake Build Notes](CMake_Build_Notes.md) for more details on installing Prerequisites**
 
 Supported Compilers
 --------------------

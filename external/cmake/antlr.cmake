@@ -20,7 +20,26 @@ else()
 
     # Build the ANTLR C Runtime library.
     include(ExternalProject)
-    ExternalProject_Add(ANTLR
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "PGI")
+    
+        ExternalProject_Add(ANTLR
+            PREFIX ANTLR
+            URL http://www.antlr.org/download/antlr4-cpp-runtime-4.7-source.zip
+            SOURCE_DIR ${PROJECT_BINARY_DIR}/external/ANTLR
+            UPDATE_COMMAND mkdir -p "${PROJECT_BINARY_DIR}/external/ANTLR/build"
+            BINARY_DIR ${PROJECT_BINARY_DIR}/external/ANTLR/build
+            PATCH_COMMAND patch < ${PROJECT_SOURCE_DIR}/cmake/antlr_cmakelists.patch
+            CMAKE_ARGS -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_CXX_COMPILER=g++
+            -DCMAKE_C_COMPILER=gcc  -DWITH_DEMO=OFF
+            -DCMAKE_INSTALL_PREFIX=${ANTLR_CPPRUNTIME_PATH}
+            BUILD_COMMAND make -j${NWX_PROC_COUNT}
+            INSTALL_COMMAND make install
+        )
+
+    else()
+
+        ExternalProject_Add(ANTLR
         PREFIX ANTLR
         URL http://www.antlr.org/download/antlr4-cpp-runtime-4.7-source.zip
         SOURCE_DIR ${PROJECT_BINARY_DIR}/external/ANTLR
@@ -31,8 +50,10 @@ else()
         -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}  -DWITH_DEMO=OFF
         -DCMAKE_INSTALL_PREFIX=${ANTLR_CPPRUNTIME_PATH}
         BUILD_COMMAND make -j${NWX_PROC_COUNT}
-        INSTALL_COMMAND make install
-    )
+        INSTALL_COMMAND make install)
+
+
+    endif()
 
 endif()
 

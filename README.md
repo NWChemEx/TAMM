@@ -6,7 +6,13 @@ Requirements
 - cmake >= 3.7
 - C++14 compiler
 
-**NOTE:** The current build has only been tested with gcc versions >= 6.0 and Intel 18 compilers.
+Supported Compilers
+--------------------
+- GCC versions >= 6.0
+- Intel 18 compilers
+- LLVM/Clang >=4.0 (Linux Only): TAMM build works only with LLVM Clang built with OpenMP support and configured to use GNU libstdc++ instead of Clang libc++. Still require GCC compilers >= 6.0 to be present (Fortran code is compiled using gfortran)
+
+- MAC OSX users: AppleClang is not Supported. Please use GCC installed via brew or macports.
 
 BUILD
 -----
@@ -29,7 +35,7 @@ git checkout devel
   **NOTE:** Eigen3, Netlib blas+lapack, Libint, ANTLR, googletest will be
   built if they do not exist. GA will always be built. Pre-exisiting GA setup
   cannot be specified.
-  
+
 
 ```
 cd ${TAMM_ROOT}/external  

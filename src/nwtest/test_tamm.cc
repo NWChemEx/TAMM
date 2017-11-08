@@ -262,7 +262,7 @@ tammx_tensor_to_tamm_tensor(tammx::Tensor<double> &ttensor) {
   // std::cout << std::endl;
 
   //auto mgr_ga = static_cast<tammx::MemoryManagerGA *>(&ttensor.memory_manager());
-  auto mr = static_cast<tammx::MemoryRegionGA&>(ttensor.memory_region());
+  auto &mr = static_cast<tammx::MemoryRegionGA&>(ttensor.memory_region());
   
   auto fma_offset_index = offset_map - tamm::Variables::int_mb();
   auto fma_offset_handle = -1; //@todo @bug FIX THIS

@@ -156,9 +156,9 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
 //    }//omp parallel
 
     //I1(p, bf2, bf3, bf4) += CTiled(bf1, p) * I0(bf1, bf2, bf3, bf4);
-#pragma omp parallel default(none), firstprivate(v2dim), shared(engine,shells, CTiled, I0, I1, shell2bf)
-    {
-#pragma  omp for schedule(guided)
+//#pragma omp parallel default(none), firstprivate(v2dim), shared(engine,shells, CTiled, I0, I1, shell2bf)
+  //  {
+//#pragma  omp for schedule(guided)
 
       for (auto p = 0; p < v2dim; p++) {
         for (auto s1 = 0; s1 != shells.size(); ++s1) {
@@ -197,12 +197,12 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
           }
         }
       }
-    }//omp parallel
+  //  }//omp parallel
 
     //I2(p, r, bf3, bf4) += CTiled(bf2, r) * I1(p, bf2, bf3, bf4);
-#pragma omp parallel default(none), firstprivate(v2dim), shared(shells, CTiled, I1, I2, spin_t, shell2bf)
-    {
-#pragma  omp for schedule(guided)
+//#pragma omp parallel default(none), firstprivate(v2dim), shared(shells, CTiled, I1, I2, spin_t, shell2bf)
+ //   {
+//#pragma  omp for schedule(guided)
       for (auto p = 0; p < v2dim; p++) {
         for (auto r = 0; r < v2dim; r++) {
           if (spin_t(p) != spin_t(r)) {
@@ -237,13 +237,13 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
           }
         }
       }
-    }//omp parallel
+  //  }//omp parallel
 
 
     //I3(p, r, q, bf4) += CTiled(bf3, q) * I1(p, r, bf3, bf4);
-#pragma omp parallel default(none), firstprivate(v2dim), shared(shells, CTiled, I3, I2, spin_t, shell2bf)
-    {
-#pragma  omp for schedule(guided)
+//#pragma omp parallel default(none), firstprivate(v2dim), shared(shells, CTiled, I3, I2, spin_t, shell2bf)
+//    {
+//#pragma  omp for schedule(guided)
       for (auto p = 0; p < v2dim; p++) {
         for (auto r = 0; r < v2dim; r++) {
           if (spin_t(p) != spin_t(r)) {
@@ -272,13 +272,13 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
           }
         }
       }
-    }//omp parallel
+   // }//omp parallel
 
 
     //V(p, r, q, s) += CTiled(bf4, s) * I1(p, r, q, bf4);
-#pragma omp parallel default(none), firstprivate(v2dim), shared(shells, CTiled, I3, V2_unfused, spin_t, shell2bf)
-    {
-#pragma  omp for schedule(guided)
+//#pragma omp parallel default(none), firstprivate(v2dim), shared(shells, CTiled, I3, V2_unfused, spin_t, shell2bf)
+ //   {
+//#pragma  omp for schedule(guided)
       for (auto p = 0; p < v2dim; p++) {
         for (auto r = 0; r < v2dim; r++) {
           if (spin_t(p) != spin_t(r)) {
@@ -305,7 +305,7 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
         }
       }
     }
-  }//omp parallel
+ // }//omp parallel
 
   if(fully_fused_4index) {
     for (auto p = 0; p < v2dim; p++) {
@@ -418,9 +418,9 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
 
 
   if(unfused_4index) {
-#pragma omp parallel default(none), firstprivate(v2dim), shared(A2,V2_unfused)
-    {
-#pragma  omp for schedule(guided)
+//#pragma omp parallel default(none), firstprivate(v2dim), shared(A2,V2_unfused)
+    //{
+//#pragma  omp for schedule(guided)
       for (auto p = 0; p < v2dim; p++) {
         for (auto q = 0; q < v2dim; q++) {
           for (auto r = 0; r < v2dim; r++) {
@@ -430,7 +430,7 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMM
           }
         }
       }
-    }
+    //}
   } else if(fully_fused_4index) {
     for (auto p = 0; p < v2dim; p++) {
       for (auto q = 0; q < v2dim; q++) {

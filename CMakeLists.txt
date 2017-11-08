@@ -271,6 +271,10 @@ else()
     )
 endif()
 
+if(NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
+    set(TAMM_LINK_EXTRA -lrt)
+endif()
+
 add_library(fort_deps STATIC ${FORTRAN_DEPS_SRC} ${EXTRA_FORT_TAMM})
 target_include_directories(fort_deps SYSTEM PUBLIC ${tamm_includes} ${PROJECT_SOURCE_DIR}/src/tce_fortran)
 target_compile_options(fort_deps PRIVATE ${tamm_fortran_link_flags})
@@ -291,7 +295,7 @@ if(OLD_TAMM)
             ${ANTLR_CPPRUNTIME_PATH}/include/antlr4-runtime ${GTEST_INSTALL_PATH}/include)
     target_compile_options(nwtest PUBLIC ${tamm_cflags})
     target_link_libraries(nwtest fort_deps fort_deps_c tammx tce_fortran ${tamm_cflags} ${CBLAS_LIBRARIES} ${OLD_TAMM_LIB}
-            ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest ${TAMM_OPENMP_FLAGS})
+            ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} -L${GTEST_INSTALL_PATH}/lib -lgtest ${TAMM_LINK_EXTRA} ${TAMM_OPENMP_FLAGS})
 endif()
 
 add_executable(eigen_tests EXCLUDE_FROM_ALL ${PROJECT_SOURCE_DIR}/src/nwtest/test_eigen.cc
@@ -300,7 +304,7 @@ add_dependencies(eigen_tests fort_deps fort_deps_c tammx)
 target_include_directories(eigen_tests SYSTEM PUBLIC ${tamm_includes}
             ${GTEST_INSTALL_PATH}/include)
 target_compile_options(eigen_tests PUBLIC ${tamm_cflags})
-target_link_libraries(eigen_tests fort_deps fort_deps_c tammx tce_fortran ${tamm_cflags}
+target_link_libraries(eigen_tests fort_deps fort_deps_c tammx tce_fortran ${tamm_cflags} ${TAMM_LINK_EXTRA}
         ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_libs} ${BLAS_LIBRARIES} fort_deps -L${GTEST_INSTALL_PATH}/lib -lgtest ${TAMM_OPENMP_FLAGS})
 
                 
@@ -321,9 +325,7 @@ target_link_libraries(tammx PRIVATE ${tamm_ldflags} ${BLAS_LIBRARIES}  ${tamm_li
 #set_property(TARGET tammx_main PROPERTY CXX_STANDARD 14)
 #set_property(TARGET tammx_main PROPERTY CXX_STANDARD_REQUIRED ON)
 
-if(NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
-  set(TAMM_LINK_EXTRA -lrt)
-endif()
+
 
 add_library(tce_fortran ${PROJECT_SOURCE_DIR}/src/tammx/ccsd/ccsd_t1.F ${PROJECT_SOURCE_DIR}/src/tce_fortran/errquit.F)
 target_include_directories(tce_fortran SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src/tce_fortran ${tamm_includes})
@@ -333,7 +335,7 @@ add_executable(ccsd_driver ${PROJECT_SOURCE_DIR}/src/tammx/ccsd/ccsd_driver.cc)
 add_dependencies(ccsd_driver fort_deps_tammx fort_deps_c tammx)
 target_include_directories(ccsd_driver SYSTEM PUBLIC ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src/tce_fortran
         ${LIBINT_INSTALL_PATH}/include ${EIGEN3_INSTALL_PATH}/include/eigen3 ${BLAS_INCLUDE_PATH})
-target_link_libraries(ccsd_driver fort_deps_tammx fort_deps_c tammx tce_fortran ${tamm_cflags} ${TAMM_OPENMP_FLAGS}
+target_link_libraries(ccsd_driver fort_deps_tammx fort_deps_c tammx tce_fortran ${TAMM_LINK_EXTRA} ${tamm_cflags} ${TAMM_OPENMP_FLAGS}
         ${tamm_ldflags} ${CBLAS_LIBRARIES}  ${tamm_libs} -L${CBLAS_LIBRARY_PATH} ${CBLAS_LIBRARIES} -L${LIBINT_INSTALL_PATH}/lib -lint2 ${TAMM_LINK_EXTRA})
 
 # add_executable(hf nwchem_main/hartree_fock.cc)
@@ -344,7 +346,7 @@ add_executable(tammx_talsh EXCLUDE_FROM_ALL ${PROJECT_SOURCE_DIR}/src/tammx/tamm
                 ${PROJECT_SOURCE_DIR}/src/tammx/tammx.cc ${PROJECT_SOURCE_DIR}/src/tammx/index_sort.cc)
 target_include_directories(tammx_talsh SYSTEM PUBLIC  ${PROJECT_BINARY_DIR}
 ${TALSH_INSTALL_PATH})
-target_link_libraries(tammx_talsh -L${TALSH_INSTALL_PATH} -ltalsh ${TAMM_OPENMP_FLAGS})
+target_link_libraries(tammx_talsh -L${TALSH_INSTALL_PATH} ${TAMM_LINK_EXTRA} -ltalsh ${TAMM_OPENMP_FLAGS})
 
 # message(STATUS "ANTLR C++ runtime found at: " ${ANTLR_CPPRUNTIME_PATH})
 # ADD_LIBRARY(a4runtime STATIC IMPORTED)

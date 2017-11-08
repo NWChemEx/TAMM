@@ -10,7 +10,7 @@ else()
 
 
     if(NOT ARMCI_NETWORK)
-        set(GA_ARMCI "--with-mpi-ts") #Default if ARMCI_NETWORK is not set
+        set(GA_ARMCI "--with-mpi-pr") #Default if ARMCI_NETWORK is not set
     else()
         string(FIND ${ARMCI_NETWORK} "BGML" BGML_FOUND)
         string(FIND ${ARMCI_NETWORK} "DCMF" DCMF_FOUND)
@@ -59,7 +59,7 @@ else()
         #   set(GA_ARMCI "--with-armci")    
         else()
             message(WARNING "Unknown ARMCI Network ${ARMCI_NETWORK} provided. Using MPI-TS")
-            set(GA_ARMCI "--with-mpi-ts")
+            set(GA_ARMCI "--with-mpi-pr")
         endif()
 endif()
 
@@ -124,7 +124,7 @@ ExternalProject_Add(GLOBALARRAYS
     ${GA_MPI} --enable-underscoring --disable-mpi-tests #--enable-peigs
     ${GA_SCALAPACK} ${GA_BLAS} ${GA_LAPACK} ${GA_ARMCI} ${GA_OFFLOAD} CC=${CMAKE_C_COMPILER}
     CXX=${CMAKE_CXX_COMPILER} F77=${CMAKE_Fortran_COMPILER} ${GA_SYSVSHMEM} --prefix=${GA_INSTALL_PATH} #--enable-cxx
-    LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/blas_lapack/lib
+    #LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/blas_lapack/lib
     BUILD_COMMAND make -j${NWX_PROC_COUNT}
     INSTALL_COMMAND make install
     BUILD_IN_SOURCE 1

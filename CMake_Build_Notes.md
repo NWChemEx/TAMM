@@ -35,7 +35,7 @@ wget https://www.open-mpi.org/software/ompi/v2.1/downloads/openmpi-2.1.2.tar.gz
 tar xf openmpi-2.1.2.tar.gz
 echo "Building depend mpi"
 cd openmpi-2.1.0
-./configure --prefix=/opt/openmpi-2.1 --enable-mpi-cxx --enable-mpi-fortran
+./configure --prefix=/opt/openmpi-2.1 --enable-mpi-cxx --enable-mpi-fortran --enable-mpi-thread-multiple
 make -j 16
 make install
 ```

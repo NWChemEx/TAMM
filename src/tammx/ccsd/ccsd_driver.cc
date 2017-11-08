@@ -590,49 +590,9 @@ int main(int argc, char *argv[]) {
   for(auto x: sizes) std::cout << x << ", ";
   std::cout << "\n";
 
-#include "tammx/mpi_checks.h"
 
-int mpi_rank, provided;
-
-#define USE_MPI_INIT_THREAD_MULTIPLE
-
-#if defined(USE_MPI_INIT)
-
-MPI_Init( &argc, &argv );
-//MPI_Comm_rank( MPI_COMM_WORLD, &world_rank );
-
-#else
-
-int requested = -1;
-
-#  if defined(USE_MPI_INIT_THREAD_MULTIPLE)
-requested = MPI_THREAD_MULTIPLE;
-#  elif defined(USE_MPI_INIT_THREAD_SERIALIZED)
-requested = MPI_THREAD_SERIALIZED;
-#  elif defined(USE_MPI_INIT_THREAD_FUNNELED)
-requested = MPI_THREAD_FUNNELED;
-#  else
-requested = MPI_THREAD_SINGLE;
-#  endif
-
-MPI_Init_thread( &argc, &argv, requested, &provided );
-//MPI_Comm_rank( MPI_COMM_WORLD, &world_rank );
-
-if (provided>requested)
-{
-if (mpi_rank==0) printf("MPI_Init_thread returned %s instead of %s, but this is okay. \n",
-                          MPI_THREAD_STRING(provided), MPI_THREAD_STRING(requested) );
-}
-if (provided<requested)
-{
-if (mpi_rank==0) printf("MPI_Init_thread returned %s instead of %s so the test will exit. \n",
-                          MPI_THREAD_STRING(provided), MPI_THREAD_STRING(requested) );
-MPI_Abort(MPI_COMM_WORLD, 1);
-}
-
-#endif
-
-  //MPI_Init(&argc, &argv);
+  int mpi_rank;
+  MPI_Init(&argc, &argv);
   GA_Initialize();
   MA_init(MT_DBL, 8000000, 20000000);
 

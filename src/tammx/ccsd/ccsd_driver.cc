@@ -550,6 +550,13 @@ extern std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, con
 
 int main(int argc, char *argv[]) {
 
+  MPI_Init(&argc, &argv);
+
+  GA_Initialize();
+  MA_init(MT_DBL, 8000000, 20000000);
+  
+  int mpi_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
   const auto filename = (argc > 1) ? argv[1] : "h2o.xyz";
 
@@ -567,36 +574,33 @@ int main(int argc, char *argv[]) {
   //omp_set_num_threads(1);
   //omp_set_num_threads(omp_get_max_threads());
 
-  auto hf_t1 = std::chrono::high_resolution_clock::now();
-  std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename,C,F);
-  auto hf_t2 = std::chrono::high_resolution_clock::now();
+  std::vector<TAMMX_SIZE> sizes;  
 
-  double hf_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
-  std::cout << "Time taken for Hartree-Fock: " << hf_time << " secs\n";
+  //if (mpi_rank==0){
+    auto hf_t1 = std::chrono::high_resolution_clock::now();
+    std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename,C,F);
+    auto hf_t2 = std::chrono::high_resolution_clock::now();
 
-  hf_t1 = std::chrono::high_resolution_clock::now();
-  std::tie(V2) = two_four_index_transform(ov_alpha, nao, freeze_core, freeze_virtual, C, F, shells);
-  hf_t2 = std::chrono::high_resolution_clock::now();
-  double two_4index_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
-  std::cout << "Time taken for 2&4-index transforms: " << two_4index_time << " secs\n";
+    double hf_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
+    std::cout << "Time taken for Hartree-Fock: " << hf_time << " secs\n";
 
+    hf_t1 = std::chrono::high_resolution_clock::now();
+    std::tie(V2) = two_four_index_transform(ov_alpha, nao, freeze_core, freeze_virtual, C, F, shells);
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    double two_4index_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
+    std::cout << "Time taken for 2&4-index transforms: " << two_4index_time << " secs\n";
 
-  TAMMX_SIZE ov_beta{nao-ov_alpha};
+    TAMMX_SIZE ov_beta{nao-ov_alpha};
 
-  std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
-  std::vector<TAMMX_SIZE> sizes = {ov_alpha-freeze_core, ov_alpha-freeze_core, ov_beta-freeze_virtual, ov_beta-freeze_virtual};
+    std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
+    sizes = {ov_alpha-freeze_core, ov_alpha-freeze_core, ov_beta-freeze_virtual, ov_beta-freeze_virtual};
 
-  std::cout << "sizes vector -- \n";
-  for(auto x: sizes) std::cout << x << ", ";
-  std::cout << "\n";
+    std::cout << "sizes vector -- \n";
+    for(auto x: sizes) std::cout << x << ", ";
+    std::cout << "\n";
+  //}
 
-
-  int mpi_rank;
-  MPI_Init(&argc, &argv);
-  GA_Initialize();
-  MA_init(MT_DBL, 8000000, 20000000);
-
-  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+  GA_Sync();
 
   TCE::init(spins, spatials,sizes,
             noa,

@@ -12,7 +12,6 @@ On Mac OSX:
 On Linux, use the following script to build GCC and OpenMPI from sources if they are not available through a package manager (usually happens when using an older Linux OS). It can be used on Mac OSX as well:
 
 ```
-
 wget http://mirrors-usa.go-parts.com/gcc/releases/gcc-6.3.0/gcc-6.3.0.tar.gz
 tar xf gcc-6.3.0.tar.gz
 cd gcc-6.3.0
@@ -31,24 +30,23 @@ make -j16
 make install
 cd ../
 
+#Setup one of mpich or openmpi
+wget http://www.mpich.org/static/downloads/3.2/mpich-3.2.tar.gz
+tar xf mpich-3.2.tar.gz
+cd mpich-3.2
+echo "Building mpich"
+./configure --prefix=/opt/mpich-3.2 --enable-fortran=all --enable-cxx --enable-threads=runtime --enable-g=all
+make -j 16
+make install
+
 wget https://www.open-mpi.org/software/ompi/v2.1/downloads/openmpi-2.1.2.tar.gz
 tar xf openmpi-2.1.2.tar.gz
-echo "Building depend mpi"
+echo "Building openmpi"
 cd openmpi-2.1.0
 ./configure --prefix=/opt/openmpi-2.1 --enable-mpi-cxx --enable-mpi-fortran --enable-mpi-thread-multiple
 make -j 16
 make install
 ```
-
-PGI Compiler support
---------------------
-  - Eigen/ANTLR Cpp runtime do not build with PGI compilers - use GCC here.
-  - GA - openmpi has to be built manually with PGI compilers, openmpi bundled with PGI install does not seem to work
-  - CC=pgcc CXX=pgc++ FC=pgfortran ./configure --prefix=/opt/openmpi-2.1 --enable-mpi-cxx --enable-mpi-fortran
-
-  - TAMM code compiles fine, but link line fails due to some (PGI compiler) incompatibility with Eigen
-
-Note: When using GNU compilers, adding pgi-install-path/lib directory to LD_LIBRARY_PATH causes link errors like `libhwloc.so.5: undefined reference to move_pages@libnuma_1.2`
 
 Clang Compiler Support
 ----------------------
@@ -83,6 +81,17 @@ mv -v openmp-${version}.src ${llvm_root}/projects/openmp
 mkdir ${llvm_root}/build
 cd ${llvm_root}/build
 cmake .. -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc -DCMAKE_INSTALL_PREFIX=/opt/llvm4 -DCMAKE_BUILD_TYPE=Release
-make -j2
+make -j16
 make install
 ```
+
+
+PGI Compiler support (Not ready yet)
+-------------------------------------
+  - Eigen/ANTLR Cpp runtime do not build with PGI compilers - use GCC here.
+  - GA - openmpi/mpich has to be built manually with PGI compilers, openmpi bundled with PGI install does not seem to work
+  - CC=pgcc CXX=pgc++ FC=pgfortran ./configure --prefix=/opt/openmpi-2.1 --enable-mpi-cxx --enable-mpi-fortran
+
+  - TAMM code compiles fine, but link line fails due to PGI compiler incompatibility with Eigen
+
+Note: When using GNU compilers, adding pgi-install-path/lib directory to LD_LIBRARY_PATH causes link errors like `libhwloc.so.5: undefined reference to move_pages@libnuma_1.2`

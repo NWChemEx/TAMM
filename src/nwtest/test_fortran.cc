@@ -240,9 +240,9 @@ void fortran_init(TAMMX_INT32 noa, TAMMX_INT32 nob, TAMMX_INT32 nva, TAMMX_INT32
   assert(syms.size() == noa + nob + nva + nvb);
   assert(ranges.size() == noa + nob + nva + nvb);
 
-  Integer ispins[noa + nob + nvb + nvb];
-  Integer isyms[noa + nob + nvb + nvb];
-  Integer iranges[noa + nob + nvb + nvb];
+  Integer ispins[noa + nob + nva + nvb];
+  Integer isyms[noa + nob + nva + nvb];
+  Integer iranges[noa + nob + nva + nvb];
 
   std::copy_n(&spins[0], noa + nob + nva + nvb, &ispins[0]);
   std::copy_n(&syms[0], noa + nob + nva + nvb, &isyms[0]);

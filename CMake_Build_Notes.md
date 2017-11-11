@@ -9,7 +9,7 @@ On Mac OSX:
 - brew install gcc openmpi
 - brew install cmake
 
-On Linux, use the following script to build GCC and OpenMPI from sources if they are not available through a package manager (usually happens when using an older Linux OS). It can be used on Mac OSX as well:
+On Linux, use the following script to build GCC-6 and OpenMPI/MPICH from sources if they are not available through a package manager (usually happens when using an older Linux OS). It can be used on Mac OSX as well:
 
 ```
 wget http://mirrors-usa.go-parts.com/gcc/releases/gcc-6.3.0/gcc-6.3.0.tar.gz
@@ -30,7 +30,7 @@ make -j16
 make install
 cd ../
 
-#Setup one of mpich or openmpi
+#Setup MPICH/OpenMPI (the above installed GCC should be in your system PATH)
 wget http://www.mpich.org/static/downloads/3.2/mpich-3.2.tar.gz
 tar xf mpich-3.2.tar.gz
 cd mpich-3.2
@@ -51,6 +51,7 @@ make install
 Clang Compiler Support
 ----------------------
  - Tested on Linux only with Clang >= 4.0
+ - Still requires GCC compilers >= 6.0 to be present (Fortran code is compiled using gfortran)
  - GA is still built with GNU compilers due to some issues when mixing clang and gfortran.
  - Works only with LLVM Clang built with OpenMP support and configured to use GNU libstdc++ instead of Clang libc++
  - Install LLVM Clang using the script below:

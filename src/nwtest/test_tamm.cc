@@ -2863,14 +2863,14 @@ int main(int argc, char *argv[]) {
   bool intorb = false;
   bool restricted = false;
 
-#if 0
-  TAMMX_INT32 noa = 1;
-  TAMMX_INT32 nob = 1;
-  TAMMX_INT32 nva = 1;
-  TAMMX_INT32 nvb = 1;
-  std::vector<TAMMX_INT32> spins = {1, 2, 1, 2};
-  std::vector<TAMMX_INT32> syms = {0, 0, 0, 0};
-  std::vector<TAMMX_INT32> ranges = {1, 1, 1, 1};
+#if 1
+  TAMMX_INT32 noa = 3;
+  TAMMX_INT32 nob = 3;
+  TAMMX_INT32 nva = 3;
+  TAMMX_INT32 nvb = 3;
+  std::vector<TAMMX_INT32> spins = {1,1,1, 2,2,2, 1,1,1, 2,2,2};
+  std::vector<TAMMX_INT32> syms = {0,0,0, 0,0,0, 0,0,0, 0,0,0};
+  std::vector<TAMMX_INT32> ranges = {4,4,4, 4,4,4, 4,4,4, 4,4,4};
 #else
   TAMMX_INT32 noa = 2;
   TAMMX_INT32 nob = 2;

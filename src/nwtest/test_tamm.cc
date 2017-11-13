@@ -2857,33 +2857,45 @@ ASSERT_TRUE(test_mult_no_n(*g_ec,
 // }
 
 
-
-
 int main(int argc, char *argv[]) {
-  bool intorb = false;
-  bool restricted = false;
-
-#if 1
-  TAMMX_INT32 noa = 3;
-  TAMMX_INT32 nob = 3;
-  TAMMX_INT32 nva = 3;
-  TAMMX_INT32 nvb = 3;
-  std::vector<TAMMX_INT32> spins = {1,1,1, 2,2,2, 1,1,1, 2,2,2};
-  std::vector<TAMMX_INT32> syms = {0,0,0, 0,0,0, 0,0,0, 0,0,0};
-  std::vector<TAMMX_INT32> ranges = {4,4,4, 4,4,4, 4,4,4, 4,4,4};
-#else
-  TAMMX_INT32 noa = 2;
-  TAMMX_INT32 nob = 2;
-  TAMMX_INT32 nva = 2;
-  TAMMX_INT32 nvb = 2;
-  std::vector<TAMMX_INT32> spins = {1, 1, 2, 2, 1, 1, 2, 2};
-  std::vector<TAMMX_INT32> syms = {0, 0, 0, 0, 0, 0, 0, 0};
-  std::vector<TAMMX_INT32> ranges = {4, 4, 4, 4, 4, 4, 4, 4};
-#endif
 
   MPI_Init(&argc, &argv);
   GA_Initialize();
   MA_init(MT_DBL, 8000000, 20000000);
+  
+  int ret=0;
+  // int mpi_rank;
+  // MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+  if(GA_Nodeid() == 0){
+
+  bool intorb = false;
+  bool restricted = false;
+
+   if (argc <= 4){ 
+     std::cout << "Please provide tile sizes: \n"; 
+     std::cout << "usage: mpirun -n 2 ./nwtest noa nob nva nvb \n";
+     std::cout << "ex: mpirun -n 2 ./nwtest 2 2 2 2 \n";
+   }
+
+  TAMMX_INT32 noa = atoi(argv[1]);
+  TAMMX_INT32 nob = atoi(argv[2]);
+  TAMMX_INT32 nva = atoi(argv[3]);
+  TAMMX_INT32 nvb = atoi(argv[4]);
+
+  std::vector<TAMMX_INT32> spins(noa+nob+nva+nvb);
+  // {1,1,1,1, 2,2,2,2, 1,1,1,1, 2,2,2,2};
+  std::fill(spins.begin(),spins.begin()+noa,1); 
+  std::fill(spins.begin()+noa,spins.begin()+noa+nob,2);
+  std::fill(spins.begin()+noa+nob,spins.begin()+noa+nob+nva,1);
+  std::fill(spins.begin()+noa+nob+nva,spins.end(),2);
+  
+  std::vector<TAMMX_INT32> syms(noa+nob+nva+nvb);
+  std::fill(syms.begin(),syms.end(),0);
+  std::vector<TAMMX_INT32> ranges(noa+nob+nva+nvb);
+  std::fill(ranges.begin(),ranges.end(),4);
+  
+
 
   fortran_init(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
   tamm_init() ;//(noa, nob, nva, nvb, intorb, restricted, spins, syms, ranges);
@@ -2897,7 +2909,7 @@ int main(int argc, char *argv[]) {
 
   ::testing::InitGoogleTest(&argc, argv);
 
-  int ret;
+  
   {
     tammx::ExecutionContext ec{pg, &default_distribution, default_memory_manager,
           default_irrep, default_spin_restricted};
@@ -2912,6 +2924,8 @@ int main(int argc, char *argv[]) {
   tammx_finalize();
   tamm_finalize();
   fortran_finalize();
+
+  }
 
   GA_Terminate();
   MPI_Finalize();

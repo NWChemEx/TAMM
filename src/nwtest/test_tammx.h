@@ -226,13 +226,12 @@ tammx_tensors_are_equal(tammx::ExecutionContext &ec,
   const double *bbuf = reinterpret_cast<const T *>(tb.memory_region().access(tammx::Offset{0}));
   bool ret = true;
   for (TAMMX_INT32 i = 0; i < asz; i++) {
-    // std::cout << abuf[i] << ": " << bbuf[i];
     if (std::abs(abuf[i] - bbuf[i]) > std::abs(threshold * abuf[i])) {
-      // std::cout << "--\n";
-      ret = false;
-      break;
+      //if(!(std::abs(abuf[i] <= 5e-13) && std::abs(bbuf[i]<=5e-13)) ){
+      //   std::cout << abuf[i] << ": " << bbuf[i] << std::endl;
+        ret = false;
+        break;
     }
-    //std::cout << "\n";
   }
   return ret;
 }

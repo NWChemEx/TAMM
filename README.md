@@ -17,6 +17,13 @@ Supported Compilers
 
 - MAC OSX users: AppleClang is not Supported. Please use GCC installed via brew or macports.
 
+Supported Configurations
+-------------------------
+- The following configurations are recommended since they are tested and are known to work:
+  - GCC6 + OpenMPI-2.x/MPICH-3.x built using GCC6
+  - GCC7 + OpenMPI-2.x/MPICH-3.x built using GCC7
+  - Intel 18 + Intel MPI Library
+
 BUILD
 -----
 

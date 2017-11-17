@@ -1,0 +1,21 @@
+--- a/cmake/EigenTesting.cmake
++++ b/cmake/EigenTesting.cmake
+@@ -544,16 +544,18 @@ macro(ei_get_compilerver VAR)
+       include(EigenDetermineVSServicePack)
+       EigenDetermineVSServicePack( my_service_pack )
+
+       if( my_service_pack )
+         set(${VAR} ${my_service_pack})
+       else()
+         set(${VAR} "na")
+       endif()
++    elseif(${CMAKE_CXX_COMPILER_ID} MATCHES "PGI")
++      set(${VAR} "${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}")
+     else()
+     # on all other system we rely on ${CMAKE_CXX_COMPILER}
+     # supporting a "--version" or "/version" flag
+
+     if(WIN32 AND ${CMAKE_CXX_COMPILER_ID} EQUAL "Intel")
+       set(EIGEN_CXX_FLAG_VERSION "/version")
+     else()
+       set(EIGEN_CXX_FLAG_VERSION "--version")

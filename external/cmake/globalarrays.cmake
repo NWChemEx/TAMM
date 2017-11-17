@@ -104,7 +104,6 @@ ExternalProject_Add(GLOBALARRAYS
     ${GA_SCALAPACK} ${GA_BLAS} ${GA_LAPACK} ${GA_ARMCI} ${GA_OFFLOAD} CC=gcc
     CXX=g++ F77=gfortran ${GA_SYSVSHMEM} --prefix=${GA_INSTALL_PATH} #--enable-cxx
     LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/blas_lapack/lib
-    BUILD_COMMAND make -j${NWX_PROC_COUNT}
     INSTALL_COMMAND make install
     BUILD_IN_SOURCE 1
 )
@@ -125,7 +124,6 @@ ExternalProject_Add(GLOBALARRAYS
     ${GA_SCALAPACK} ${GA_BLAS} ${GA_LAPACK} ${GA_ARMCI} ${GA_OFFLOAD} CC=${CMAKE_C_COMPILER}
     CXX=${CMAKE_CXX_COMPILER} F77=${CMAKE_Fortran_COMPILER} ${GA_SYSVSHMEM} --prefix=${GA_INSTALL_PATH} #--enable-cxx
     #LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/blas_lapack/lib
-    BUILD_COMMAND make -j${NWX_PROC_COUNT}
     INSTALL_COMMAND make install
     BUILD_IN_SOURCE 1
 )

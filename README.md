@@ -27,7 +27,7 @@ Supported Configurations
 BUILD
 -----
 
-- Make sure the compiler and MPI executables (gcc,mpirun,etc) you want to use are in your system PATH.
+- Make sure the compiler and MPI executables (gcc,mpirun,etc) you want to use are in your system's standard search PATH.
 
 ```
 TAMM_ROOT=/opt/TAMM  

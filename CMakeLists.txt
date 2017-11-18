@@ -22,7 +22,6 @@ if (BUILD_OLD_TAMM)
   include(ExternalProject)
   ExternalProject_Add (OLD_TAMM
   SOURCE_DIR ${PROJECT_SOURCE_DIR}/OLD_TAMM
-  BINARY_DIR ${PROJECT_SOURCE_DIR}/OLD_TAMM/build
   CMAKE_ARGS 
   -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
   -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DNWCHEM_TOP=${NWCHEM_TOP} 
@@ -30,7 +29,7 @@ if (BUILD_OLD_TAMM)
   -DNWCHEM_CMAKE_BUILD=${NWCHEM_CMAKE_BUILD} 
   -DANTLR_CPPRUNTIME_PATH=${ANTLR_CPPRUNTIME_PATH}
   -DCMAKE_EXPORT_COMPILE_COMMANDS=${CMAKE_EXPORT_COMPILE_COMMANDS}
-  BUILD_COMMAND make -j${NWCHEM_PROC_COUNT}
+  -DTAMM_INSTALL_PREFIX=${PROJECT_BINARY_DIR}/old_tamm_install
   INSTALL_COMMAND make install
   )
 
@@ -50,7 +49,6 @@ if (BUILD_OLD_TAMM)
     # -DNWCHEM_TOP=${NWCHEM_TOP} 
     # -DGA_CONFIG=${GA_CONFIG} -DNWCHEM_BUILD_DIR=${NWCHEM_BUILD_DIR} 
     # -DNWCHEM_CMAKE_BUILD=${NWCHEM_CMAKE_BUILD} 
-    BUILD_COMMAND make -j${NWCHEM_PROC_COUNT}
     INSTALL_COMMAND make install
   )
   return() # stop further processing
@@ -114,7 +112,7 @@ if(OLD_TAMM)
     #Setup required for building OLD TAMM code
     set(OLD_TAMM_PROJECT_DIR "${PROJECT_SOURCE_DIR}/OLD_TAMM")
     include_directories( ${OLD_TAMM_PROJECT_DIR} )
-    set(OLD_TAMM_LIB ${PROJECT_SOURCE_DIR}/OLD_TAMM/build/oldtamm-install/lib/libtamm.a)
+    set(OLD_TAMM_LIB ${PROJECT_BINARY_DIR}/old_tamm_install/lib/libtamm.a)
 
     if (NWCHEM_CMAKE_BUILD)
         if (EXISTS ${NWCHEM_BUILD_DIR}/src/blas/libnwcblas.a)
@@ -355,7 +353,7 @@ else()
 endif()
 #message(STATUS "cblas header: " ${cblas_header_name})
 
-message(STATUS "Installing TAMM library at: " ${TAMM_INSTALL_PREFIX})
+message(STATUS "Installing TAMMX library at: " ${TAMM_INSTALL_PREFIX})
 
 install(TARGETS tammx
         DESTINATION ${TAMM_INSTALL_PREFIX}/lib)

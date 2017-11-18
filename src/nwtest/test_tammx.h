@@ -227,10 +227,11 @@ tammx_tensors_are_equal(tammx::ExecutionContext &ec,
   bool ret = true;
   for (TAMMX_INT32 i = 0; i < asz; i++) {
     if (std::abs(abuf[i] - bbuf[i]) > std::abs(threshold * abuf[i])) {
-      //if(!(std::abs(abuf[i] <= 5e-13) && std::abs(bbuf[i]<=5e-13)) ){
+      if(!(std::abs(abuf[i]) <= 5e-13 && std::abs(bbuf[i])<= 5e-13) ) {
       //   std::cout << abuf[i] << ": " << bbuf[i] << std::endl;
         ret = false;
         break;
+      }
     }
   }
   return ret;

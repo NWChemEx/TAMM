@@ -87,12 +87,12 @@ make install
 ```
 
 
-PGI Compiler support (Not ready yet)
--------------------------------------
-  - Eigen/ANTLR Cpp runtime do not build with PGI compilers - use GCC here.
+PGI Compiler support - Linux Only (Not ready yet)
+--------------------------------------------------
+  - ANTLR CppRuntime library does not build with PGI compilers - use GCC here.
   - GA - openmpi/mpich has to be built manually with PGI compilers, openmpi bundled with PGI install does not seem to work
   - CC=pgcc CXX=pgc++ FC=pgfortran ./configure --prefix=/opt/openmpi-2.1 --enable-mpi-cxx --enable-mpi-fortran
 
-  - TAMM code compiles fine, but link line fails due to PGI compiler incompatibility with Eigen
+  - TAMM code compiles fine, but link line fails due since PGI compiler does not support some SIMD intrinsics used in Eigen.
 
 Note: When using GNU compilers, adding pgi-install-path/lib directory to LD_LIBRARY_PATH causes link errors like `libhwloc.so.5: undefined reference to move_pages@libnuma_1.2`

@@ -17,8 +17,7 @@ else()
         set(LIBINT_FLAGS ${CMAKE_CXX_FLAGS} -fPIC)
         include(ExternalProject)
         ExternalProject_Add(LIBINT
-            #URL https://github.com/evaleev/libint/releases/download/v2.4.1/libint-2.4.1.tgz
-            URL https://github.com/evaleev/libint/releases/download/v2.3.1/libint-2.3.1.tgz 
+            URL https://github.com/evaleev/libint/releases/download/v2.4.2/libint-2.4.2.tgz
             CONFIGURE_COMMAND ./configure --prefix=${LIBINT_INSTALL_PATH}
                 CXX=${CMAKE_CXX_COMPILER}
                 CC=${CMAKE_C_COMPILER}

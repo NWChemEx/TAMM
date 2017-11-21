@@ -2876,6 +2876,7 @@ int main(int argc, char *argv[]) {
      std::cout << "Please provide tile sizes: \n"; 
      std::cout << "usage: mpirun -n 2 ./nwtest noa nob nva nvb \n";
      std::cout << "ex: mpirun -n 2 ./nwtest 2 2 2 2 \n";
+     exit(1);
    }
 
   TAMMX_INT32 noa = atoi(argv[1]);

@@ -11,6 +11,21 @@
 cmake_minimum_required(VERSION 3.7 FATAL_ERROR)
 project (TAMM C CXX Fortran)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6")
+        message(FATAL_ERROR "GCC version provided (${CMAKE_CXX_COMPILER_VERSION}) \
+        is insufficient. Need GCC >= 6 for building TAMM.")
+    endif()
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "18")
+        message(FATAL_ERROR "ICC version provided (${CMAKE_CXX_COMPILER_VERSION}) \
+        is insufficient. Need ICC >= 18 for building TAMM.")
+    endif()
+endif()
+
+
 if (BUILD_OLD_TAMM)
     message(STATUS "Building OLD_TAMM!")
 else()

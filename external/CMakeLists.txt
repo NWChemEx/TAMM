@@ -1,6 +1,20 @@
 cmake_minimum_required(VERSION 3.7.0 FATAL_ERROR)
 project (TAMM_DEPENDENCIES C CXX Fortran)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6")
+    message(FATAL_ERROR "GCC version provided (${CMAKE_CXX_COMPILER_VERSION}) \
+    is insufficient. Need GCC >= 6 for building TAMM.")
+endif()
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "18")
+    message(FATAL_ERROR "ICC version provided (${CMAKE_CXX_COMPILER_VERSION}) \
+    is insufficient. Need ICC >= 18 for building TAMM.")
+endif()
+endif()
+
 if(BUILD_OLD_TAMM)
     option (BUILD_GA "This will build blas+lapack if required" OFF)
 else()

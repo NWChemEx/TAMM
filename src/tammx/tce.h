@@ -266,7 +266,7 @@ class TCE {
         ret = noab() + 1;
         break;
       case DimType::vb:
-        ret = noab() + nvb() + 1;
+        ret = noab() + nva() + 1;
         break;
       default:
         UNREACHABLE();

@@ -25,14 +25,14 @@ class MemoryRegion;
  * @ingroup memory_management
  * @brief Abstract base class for memory manager.
  *
- * Memory manager is associated with a process group.
- * Memory manager implements the operations to manage each type of memory.
- * Each memory allocation is tracked in a memory region.
- * Memory region allocates a buffer at each rank in a given process group.
- * Multiple memory regions can be allocated using the same memory manager and share the same process group.
- * Each memory manager implementation (sub-class) provides the implementation of all
+ * - Memory manager implements the operations to manage each type of memory.
+ * - Memory manager is associated with a process group.
+ * - Each memory allocation is tracked in a memory region.
+ * - Memory region allocates a buffer at each rank in a given process group.
+ * - Multiple memory regions can be allocated using the same memory manager and share the same process group.
+ * - Each memory manager implementation (sub-class) provides the implementation of all
  * operations on memory regions managed by it.
- * The user access data in the memory regions, using the memory region API's routines. The memory region
+ * - The user accesses data in the memory regions using the memory region API's routines. The memory region
  * delegates to the implementation in the memory manager.
  *
  * @note Memory regions use for their operations the memory manager that allocated them.

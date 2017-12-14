@@ -1,10 +1,19 @@
-*~
-*#*
-*CMakeFiles*
-*.o
-*.a
-.idea
-.project
-.cproject
-/bin/
-/build/
+#These are configuration files for QtCreator
+TAMM.config
+TAMM.files
+TAMM.includes
+TAMM.creator
+TAMM.creator.user
+*.autosave
+
+#These are configuration files for CLion
+.idea/
+
+#This is the documentation build directory
+docs/
+
+#These are common build directory names
+Debug/
+Release/
+cmake-build-debug/
+cmake-build-release/

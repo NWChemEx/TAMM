@@ -59,6 +59,7 @@ else()
         include(globalarrays)
     endif()
     include(antlr)
+    include(TALSH)
     include(googletest)
 
     set(TAMM_TOOLCHAIN_FILE "${PROJECT_BINARY_DIR}/tamm_build.cmake")

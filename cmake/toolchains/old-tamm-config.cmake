@@ -25,8 +25,8 @@ option(NWCHEM_CMAKE_BUILD "Using NWCHEM CMAKE build" ON)
 
 #------------------ OPTIONAL ---------------------
 
-#Number of cores to be used for the build
-set(NWX_PROC_COUNT 2)
+#Enable/Disable GPU support
+set(TAMM_ENABLE_GPU OFF)
 
 #Location where the dependencies need to be installed.
 #Default location: cmake_build_folder/tamm-deps

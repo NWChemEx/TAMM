@@ -65,19 +65,19 @@ void test() {
   Tensor<Type> ta {iinfo1, irrep, false};
   auto distribution = DistributionType();
 
-  auto pg = ProcGroup{};
-  auto mgr = MemoryManagerSequential(pg);
-  ta.alloc(pg, &distribution, &mgr);
-
-  {
-    Scheduler sch(pg, &distribution, &mgr, Irrep{0}, false);
-    
-    auto &tb = *sch.tensor<Type>(iinfo1);
-    
-    sch.io(ta)
-        .execute();
-  }
-  ta.dealloc();
+//  auto pg = ProcGroup{};
+//  auto mgr = MemoryManagerSequential(pg);
+//  ta.alloc(pg, &distribution, &mgr);
+//
+//  {
+//    Scheduler sch(pg, &distribution, &mgr, Irrep{0}, false);
+//
+//    auto &tb = *sch.tensor<Type>(iinfo1);
+//
+//    sch.io(ta)
+//        .execute();
+//  }
+//  ta.dealloc();
   
 #if 0
   TensorVec<SymmGroup> indices1{SymmGroup{DimType::o, DimType::o}, SymmGroup{DimType::v}};

@@ -26,7 +26,7 @@ BlockIndex operator "" _bd(unsigned long long int val) {
 
 std::vector<Spin> spins = {1_sp, 2_sp, 1_sp, 2_sp};
 std::vector<Irrep> spatials = {0_ir, 0_ir, 0_ir, 0_ir};
-std::vector<size_t> sizes = {2, 4, 2, 1};
+std::vector<TAMMX_SIZE> sizes = {2, 4, 2, 1};
 BlockIndex noa {1};
 BlockIndex noab {2};
 BlockIndex nva {1};

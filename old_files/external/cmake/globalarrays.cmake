@@ -96,13 +96,12 @@ include(ExternalProject)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
 ExternalProject_Add(GLOBALARRAYS
-    PREFIX GLOBALARRAYS
-    URL https://github.com/GlobalArrays/ga/releases/download/v5.6.2/ga-5.6.2.tar.gz
+    URL https://github.com/GlobalArrays/ga/releases/download/v5.6.3/ga-5.6.3.tar.gz
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}
     CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}/configure --with-tcgmsg 
     ${GA_MPI} --enable-underscoring --disable-mpi-tests #--enable-peigs
     ${GA_SCALAPACK} ${GA_BLAS} ${GA_LAPACK} ${GA_ARMCI} ${GA_OFFLOAD} CC=gcc
-    CXX=g++ F77=gfortran ${GA_SYSVSHMEM} --prefix=${GA_INSTALL_PATH} #--enable-cxx
+    CXX=g++ F77=${CMAKE_Fortran_COMPILER} ${GA_SYSVSHMEM} --prefix=${GA_INSTALL_PATH} #--enable-cxx
     LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/blas_lapack/lib
     INSTALL_COMMAND make install
     BUILD_IN_SOURCE 1
@@ -111,8 +110,7 @@ ExternalProject_Add(GLOBALARRAYS
 else()
 
 ExternalProject_Add(GLOBALARRAYS
-    PREFIX GLOBALARRAYS
-    URL https://github.com/GlobalArrays/ga/releases/download/v5.6.2/ga-5.6.2.tar.gz
+    URL https://github.com/GlobalArrays/ga/releases/download/v5.6.3/ga-5.6.3.tar.gz
     # GIT_REPOSITORY https://github.com/GlobalArrays/ga.git
     # GIT_TAG "hotfix/5.6.1"
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}

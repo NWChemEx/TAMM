@@ -72,12 +72,16 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"
    OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     set(TAMM_CODECOV_FLAGS "-fprofile-arcs -ftest-coverage")
 endif()
-set(TAMM_OPENMP_FLAGS -fopenmp)
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    set(TAMM_OPENMP_FLAGS -fopenmp=libgomp)
+
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    set(TAMM_OPENMP_FLAGS -fopenmp)
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
     set(TAMM_OPENMP_FLAGS -qopenmp)
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    #AppleClang does not have OpenMP support
+     set(TAMM_OPENMP_FLAGS -fopenmp=libgomp)
 endif()
+
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "PGI")
     set(TAMM_OPENMP_FLAGS -mp)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --c++14 -g  -O3 -mp --gnu --gnu_extensions")

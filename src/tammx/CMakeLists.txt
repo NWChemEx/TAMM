@@ -9,7 +9,8 @@ add_subdirectory(ccsd)
 #Add the current directory's sources to the list
 set(TAMM_SRCS ${TAMM_SRCS}
                hartree_fock.cc index_sort.cc tammx.cc
-               tammx_main.cc  two_four_index.cc)
+               two_four_index.cc)
+# Has a main tammx_main.cc
 # not working? noga_fb_main.cc tammx_tests.cc tammx_talsh.cc
 
 #Add the current directory's header files to the list

@@ -11,20 +11,7 @@
 cmake_minimum_required(VERSION 3.7 FATAL_ERROR)
 project (TAMM C CXX Fortran)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6")
-        message(FATAL_ERROR "GCC version provided (${CMAKE_CXX_COMPILER_VERSION}) \
-        is insufficient. Need GCC >= 6 for building TAMM.")
-    endif()
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "18")
-        message(FATAL_ERROR "ICC version provided (${CMAKE_CXX_COMPILER_VERSION}) \
-        is insufficient. Need ICC >= 18 for building TAMM.")
-    endif()
-endif()
-
+include(${PROJECT_SOURCE_DIR}/external/cmake/check_user_env.cmake)
 
 if (BUILD_OLD_TAMM)
     message(STATUS "Building OLD_TAMM!")
@@ -80,8 +67,13 @@ set (TAMM_VERSION_MINOR 1)
 #Cannot set the following since cmake cannot handle clang
 #set(CMAKE_CXX_STANDARD 14)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang"
+   OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    set(TAMM_CODECOV_FLAGS "-fprofile-arcs -ftest-coverage")
+endif()
 set(TAMM_OPENMP_FLAGS -fopenmp)
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND APPLE)
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set(TAMM_OPENMP_FLAGS -fopenmp=libgomp)
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
     set(TAMM_OPENMP_FLAGS -qopenmp)
@@ -91,8 +83,8 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "PGI")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --c++14 -g  -O3 -mp --gnu --gnu_extensions")
     set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} --c++14 -mp -g  -O0 --gnu --gnu_extensions")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14 -g -fprofile-arcs -ftest-coverage -Ofast ${TAMM_OPENMP_FLAGS}")#  -Wextra  -Wall")
-    set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} -std=gnu++14 -g -fprofile-arcs -ftest-coverage -Ofast ${TAMM_OPENMP_FLAGS}")# -Wextra  -Wall")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14 -g ${TAMM_CODECOV_FLAGS} -Ofast ${TAMM_OPENMP_FLAGS}")#  -Wextra  -Wall")
+    set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} -std=gnu++14 -g ${TAMM_CODECOV_FLAGS} -Ofast ${TAMM_OPENMP_FLAGS}")# -Wextra  -Wall")
 endif()
 #set(CMAKE_CXX_FLAGS_MINSIZEREL     "")
 #set(CMAKE_CXX_FLAGS_RELEASE        "")

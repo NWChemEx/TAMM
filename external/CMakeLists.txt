@@ -1,33 +1,8 @@
 cmake_minimum_required(VERSION 3.7.0 FATAL_ERROR)
 project (TAMM_DEPENDENCIES C CXX Fortran)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" 
-   OR CMAKE_CXX_COMPILER_ID STREQUAL "XL"
-   OR CMAKE_CXX_COMPILER_ID STREQUAL "Cray"
-   OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    message(FATAL_ERROR "TAMM does not support ${CMAKE_CXX_COMPILER_ID} compilers ")
-endif()
-
-if (TAMM_ENABLE_GPU)
-    if("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
-    message(FATAL_ERROR "TAMM does not support building with GPU support \
-    on MACOSX. Please use TAMM_ENABLE_GPU=OFF for MACOSX builds")
-    endif()
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "6")
-    message(FATAL_ERROR "GCC version provided (${CMAKE_CXX_COMPILER_VERSION}) \
-    is insufficient. Need GCC >= 6 for building TAMM.")
-endif()
-endif()
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "18")
-    message(FATAL_ERROR "ICC version provided (${CMAKE_CXX_COMPILER_VERSION}) \
-    is insufficient. Need ICC >= 18 for building TAMM.")
-endif()
-endif()
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
+include(check_user_env)
 
 if(BUILD_OLD_TAMM)
     option (BUILD_GA "This will build blas+lapack if required" OFF)
@@ -35,12 +10,9 @@ else()
     option (BUILD_GA "This will build blas+lapack if required" ON)
 endif()
 
-
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set (CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/tamm-deps" CACHE PATH "default install path" FORCE)
 endif()
-
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 include(ExternalProject)
 
@@ -63,6 +35,9 @@ if(BUILD_GA)
 
 else()
 
+if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set (CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/tamm-deps" CACHE PATH "default install path" FORCE)
+endif()
     include(libint)
     include(eigen)
     if (BUILD_OLD_TAMM)

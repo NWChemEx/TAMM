@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
 project(TAMM VERSION 0.0.0 LANGUAGES CXX)
 set(NWX_DEPENDENCIES NWX_MPI NWX_BLAS NWX_LAPACK Eigen3 GlobalArrays LibInt)
-set(NWX_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tammx)
+set(NWX_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/tammx)
 add_subdirectory(NWChemExBase)

@@ -1,5 +1,5 @@
 
-if(DEFINED ANTLR_CPPRUNTIME_PATH AND EXISTS ${ANTLR_CPPRUNTIME_PATH}/libantlr4-runtime.a)
+if(DEFINED ANTLR_CPPRUNTIME_PATH AND EXISTS ${ANTLR_CPPRUNTIME_PATH}/lib/libantlr4-runtime.a)
 
 message(STATUS "ANTLR_CPPRUNTIME found at: ${ANTLR_CPPRUNTIME_PATH}")
 ADD_CUSTOM_TARGET(ANTLR ALL)
@@ -25,7 +25,7 @@ else()
     
         ExternalProject_Add(ANTLR
             PREFIX ANTLR
-            URL http://www.antlr.org/download/antlr4-cpp-runtime-4.7-source.zip
+            URL http://www.antlr.org/download/antlr4-cpp-runtime-4.7.1-source.zip
             SOURCE_DIR ${PROJECT_BINARY_DIR}/external/ANTLR
             UPDATE_COMMAND mkdir -p "${PROJECT_BINARY_DIR}/external/ANTLR/build"
             BINARY_DIR ${PROJECT_BINARY_DIR}/external/ANTLR/build
@@ -40,7 +40,7 @@ else()
 
         ExternalProject_Add(ANTLR
         PREFIX ANTLR
-        URL http://www.antlr.org/download/antlr4-cpp-runtime-4.7-source.zip
+        URL http://www.antlr.org/download/antlr4-cpp-runtime-4.7.1-source.zip
         SOURCE_DIR ${PROJECT_BINARY_DIR}/external/ANTLR
         UPDATE_COMMAND mkdir -p "${PROJECT_BINARY_DIR}/external/ANTLR/build"
         BINARY_DIR ${PROJECT_BINARY_DIR}/external/ANTLR/build

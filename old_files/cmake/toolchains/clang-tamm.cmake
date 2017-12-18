@@ -9,11 +9,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 #set(BUILD_NETLIB_BLAS_LAPACK ON)
 # The MPI settings below will soon be made optional, but they have to be specified for now.
-set(MPI_INCLUDE_PATH /usr/lib/x86_64-linux-gnu/openmpi/include)
-set(MPI_LIBRARY_PATH /usr/lib/x86_64-linux-gnu/openmpi/lib)
+set(MPI_INCLUDE_PATH /usr/local/Cellar/open-mpi/3.0.0/include)
+set(MPI_LIBRARY_PATH /usr/local/Cellar/open-mpi/3.0.0/lib)
 set(MPI_LIBRARIES "-lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi")
 
 #------------------ OPTIONAL ---------------------
+
+#Enable/Disable GPU support
+set(TAMM_ENABLE_GPU OFF)
 
 # GA CONFIGURATION
 #set(ARMCI_NETWORK OPENIB)

@@ -21,8 +21,8 @@ set(MPI_LIBRARIES "-lmpiprofilesupport -lmpi_usempi -lmpi_mpifh -lmpi_ibm")
 
 #------------------ OPTIONAL ---------------------
 
-#Number of cores to be used for the build
-set(NWX_PROC_COUNT 2)
+#Enable/Disable GPU support
+set(TAMM_ENABLE_GPU OFF)
 
 # GA CONFIGURATION
 #set(ARMCI_NETWORK OPENIB)

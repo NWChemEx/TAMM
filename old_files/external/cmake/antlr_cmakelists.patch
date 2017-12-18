@@ -1,9 +1,16 @@
---- CMakeLists.txt	2017-10-07 16:50:52.530718262 -0700
-+++ CMakeLists_patched.txt	2017-10-07 16:50:02.418934502 -0700
-@@ -31,10 +31,10 @@
-   CMAKE_POLICY(SET CMP0059 OLD)
+--- a/runtime/Cpp/CMakeLists.txt
++++ b/runtime/Cpp/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ # -*- mode:cmake -*-
+-cmake_minimum_required (VERSION 2.8)
++cmake_minimum_required (VERSION 3.0)
+ # 2.8 needed because of ExternalProject
+
+ # Detect build type, fallback to release and throw a warning if use didn't specify any
+@@ -37,10 +37,10 @@ if(CMAKE_VERSION VERSION_EQUAL "3.3.0" OR
+   CMAKE_POLICY(SET CMP0054 OLD)
  endif()
- 
+
 -if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 -  find_package(PkgConfig REQUIRED)
 -  pkg_check_modules(UUID REQUIRED uuid)
@@ -15,14 +22,3 @@
  if(APPLE)
    find_library(COREFOUNDATION_LIBRARY CoreFoundation)
  endif()
-@@ -97,8 +97,8 @@
-     if (WITH_LIBCXX)
-         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-     endif()
--else ()
--    message(FATAL_ERROR "Your C++ compiler does not support C++11.")
-+#else ()
-+#    message(FATAL_ERROR "Your C++ compiler does not support C++11.")
- endif ()
- 
- 

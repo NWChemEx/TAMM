@@ -9,8 +9,8 @@ add_subdirectory(ccsd)
 #Add the current directory's sources to the list
 set(TAMM_SRCS ${TAMM_SRCS}
                hartree_fock.cc index_sort.cc tammx.cc
-               tammx_main.cc tammx_talsh.cc tammx_tests.cc two_four_index.cc)
-# not working? noga_fb_main.cc
+               tammx_main.cc  two_four_index.cc)
+# not working? noga_fb_main.cc tammx_tests.cc tammx_talsh.cc
 
 #Add the current directory's header files to the list
 set(TAMM_INCLUDES ${TAMM_INCLUDES}
@@ -24,5 +24,5 @@ set(TAMM_INCLUDES ${TAMM_INCLUDES}
                    work.h)
 
 set(TAMM_DEFINITIONS )
-set(TAMM_LFLAGS)
+set(TAMM_LFLAGS )
 nwchemex_add_library(TAMM TAMM_SRCS TAMM_INCLUDES TAMM_DEFINTIONS TAMM_LFLAGS)

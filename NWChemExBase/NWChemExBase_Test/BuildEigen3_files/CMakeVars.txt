@@ -1,0 +1,2 @@
+set(BuildEigen3_DEPENDENCIES "Eigen3" CACHE STRING "")
+set(BUILD_Eigen3 TRUE CACHE BOOL "")

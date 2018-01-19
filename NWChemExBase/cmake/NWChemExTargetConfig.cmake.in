@@ -9,9 +9,10 @@ find_package(NWChemExBase REQUIRED)
 include(AssertMacros)
 #Get the install root by assuming we are in root/share/cmake/ProjectName
 set(INSTALL_ROOT      "${CMAKE_CURRENT_LIST_DIR}") #ProjectName/
-get_filename_component(INSTALL_ROOT "${INSTALL_ROOT}" DIRECTORY) # cmake/
-get_filename_component(INSTALL_ROOT "${INSTALL_ROOT}" DIRECTORY) #share/
-get_filename_component(INSTALL_ROOT "${INSTALL_ROOT}" DIRECTORY) #root/
+
+foreach(__iter RANGE 2)
+    get_filename_component(INSTALL_ROOT "${INSTALL_ROOT}" DIRECTORY)
+endforeach()
 
 #Name of the library
 set(__name @NWCHEMEX_LIBRARY_NAME@)
@@ -19,7 +20,7 @@ string(TOUPPER ${__name} __NAME)
 
 #Find the actual library (if there is one)
 if(@HAS_LIBRARY@)
-    find_library(${__NAME}_LIBRARY lib${__name}.so
+    find_library(${__NAME}_LIBRARY ${__name}
                  PATHS ${INSTALL_ROOT}/lib/${__name})
     FIND_PACKAGE_HANDLE_STANDARD_ARGS(${__NAME} DEFAULT_MSG ${__NAME}_LIBRARY)
 endif()
@@ -51,19 +52,14 @@ set(${__NAME}_INCLUDE_DIRS ${${__NAME}_INCLUDE_DIR})
 
 #Find the dependencies
 include(DependencyMacros)
-set(__depends @NWCHEMEX_LIBRARY_DEPENDS@)
+set(__depends @NWX_DEPENDENCIES@)
 foreach(__depend_i ${__depends})
     find_dependency(${__depend_i} ${__NAME}_INCLUDE_DIRS
                                   ${__NAME}_LIBRARIES
                                   ${__NAME}_DEFINITIONS
-                                  REQUIRED)
+                                  ${__NAME}_LINK_FLAGS
+                                  ${__NAME}_FOUND)
 endforeach()
-
-#Make an interface target for use in other files
-add_library(${__name} INTERFACE)
-target_link_libraries(${__name} INTERFACE ${${__NAME}_LIBRARIES})
-target_include_directories(${__name} INTERFACE ${${__NAME}_INCLUDE_DIRS})
-target_compile_definitions(${__name} INTERFACE ${${__NAME}_DEFINITIONS})
 
 #Print our hardwork out
 message(STATUS "Found ${__name} include paths: ${${__NAME}_INCLUDE_DIRS}")

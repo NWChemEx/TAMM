@@ -16,6 +16,9 @@ docs/
 Debug/
 Release/
 
+#These are the build directories used by the tests
+build/
+
 #These are CLion's build dirs
 cmake-build-debug/
 cmake-build-release/

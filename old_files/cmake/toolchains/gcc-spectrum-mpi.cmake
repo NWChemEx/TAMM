@@ -12,12 +12,6 @@ set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_C_COMPILER gcc)
 set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_Fortran_COMPILER gfortran)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-# The MPI settings below will soon be made optional, but they have to be specified for now.
-set(MPI_INCLUDE_PATH /autofs/nccs-svm1_sw/summitdev/.swci/1-compute/opt/spack/20171006/linux-rhel7-ppc64le/gcc-6.3.1/spectrum-mpi-10.1.0.4-20170915-mwst4ujoupnioe3kqzbeqh2efbptssqz/include)
-set(MPI_LIBRARY_PATH /autofs/nccs-svm1_sw/summitdev/.swci/1-compute/opt/spack/20171006/linux-rhel7-ppc64le/gcc-6.3.1/spectrum-mpi-10.1.0.4-20170915-mwst4ujoupnioe3kqzbeqh2efbptssqz/lib)
-set(MPI_LIBRARIES "-lmpiprofilesupport -lmpi_usempi -lmpi_mpifh -lmpi_ibm")
 
 #------------------ OPTIONAL ---------------------
 

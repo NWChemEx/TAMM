@@ -5,12 +5,6 @@ set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_C_COMPILER gcc)
 set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_Fortran_COMPILER gfortran)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-# The MPI settings below will soon be made optional, but they have to be specified for now.
-set(MPI_INCLUDE_PATH /usr/lib/x86_64-linux-gnu/openmpi/include)
-set(MPI_LIBRARY_PATH /usr/lib/x86_64-linux-gnu/openmpi/lib)
-set(MPI_LIBRARIES "-lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi")
 
 #------------------ OPTIONAL ---------------------
 

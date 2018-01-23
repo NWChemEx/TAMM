@@ -8,7 +8,6 @@ set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_C_COMPILER gcc)
 set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_Fortran_COMPILER gfortran)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # General NWCHEM Options
 # Set the following when using the NWCHEM CMAKE build

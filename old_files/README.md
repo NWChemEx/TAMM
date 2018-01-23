@@ -32,13 +32,11 @@ BUILD
 ```
 TAMM_ROOT=/opt/TAMM  
 git clone https://github.com/NWChemEx-Project/TAMM.git $TAMM_ROOT  
-git checkout devel
+git checkout devel  
+TAMM_ROOT=/opt/TAMM/old_files
 ```
 
-- Modify any toolchain file (*except old-tamm-config.cmake*) in ${TAMM_ROOT}/cmake/toolchains to  
-  adjust compilers and MPI_INCLUDE_PATH, MPI_LIBRARY_PATH, MPI_LIBRARIES.
-
-  Following are optional:
+- Optionally modify any toolchain file (*except old-tamm-config.cmake*) in ${TAMM_ROOT}/cmake/toolchains to adjust the following:
   - GA Configure Options.
   - BLAS include & library paths.
   - TAMM_PROC_COUNT, EIGEN3_INSTALL_PATH, LIBINT_INSTALL_PATH,

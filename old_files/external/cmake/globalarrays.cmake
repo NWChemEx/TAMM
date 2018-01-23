@@ -5,8 +5,8 @@ set (GA_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/ga)
 if(EXISTS ${CMAKE_INSTALL_PREFIX}/ga/lib/libga.a)
     add_custom_target(GLOBALARRAYS ALL)
 else()
-    message("Building Global Arrays 5.6.2")
-    set(GA_VERSION ga-5.6.2)
+    message("Building Global Arrays 5.6.3")
+    set(GA_VERSION ga-5.6.3)
 
 
     if(NOT ARMCI_NETWORK)
@@ -63,7 +63,33 @@ else()
         endif()
 endif()
 
-set(GA_MPI "--with-mpi=-I${MPI_INCLUDE_PATH} -L${MPI_LIBRARY_PATH} ${MPI_LIBRARIES}")
+#set(GA_MPI "--with-mpi=-I${MPI_INCLUDE_PATH} -L${MPI_LIBRARY_PATH} ${MPI_LIBRARIES}")
+#-----------------------------------------------------------------
+set(BUILD_SHARED_LIBS OFF)
+find_package(MPI REQUIRED)
+set(_nwx_mpi_libraries ${MPI_C_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${MPI_EXTRA_LIBRARY}) #${MPI_CXX_LIBRARIES}
+set(_nwx_mpi_include_dirs ${MPI_C_INCLUDE_PATH} ${MPI_Fortran_INCLUDE_PATH}) #${MPI_CXX_INCLUDE_PATH}
+
+message("mpi_include_dirs found: ${_nwx_mpi_include_dirs}")
+message("mpi_libraries found: ${_nwx_mpi_libraries}")
+
+
+foreach(_nwx_mpi_inc ${_nwx_mpi_include_dirs})
+    set(NWX_MPI_INCLUDE_DIRS "${NWX_MPI_INCLUDE_DIRS} -I${_nwx_mpi_inc}")
+endforeach()
+
+foreach(_nwx_mpi_lib ${_nwx_mpi_libraries})
+    get_filename_component(_nwx_mpi_lib_path ${_nwx_mpi_lib} DIRECTORY) #get lib path
+    set(NWX_MPI_LIBRARY_PATH "${NWX_MPI_LIBRARY_PATH} -L${_nwx_mpi_lib_path}")
+
+    get_filename_component(_nwx_mpi_lib_we ${_nwx_mpi_lib} NAME_WE) #get lib name
+    string(SUBSTRING ${_nwx_mpi_lib_we} 3 -1 _nwx_mpi_lib_we) #Strip lib prefix from lib name
+    set(NWX_MPI_LIBRARIES "${NWX_MPI_LIBRARIES} -l${_nwx_mpi_lib_we}")
+endforeach()
+
+set(GA_MPI "--with-mpi=${NWX_MPI_INCLUDE_DIRS} ${NWX_MPI_LIBRARY_PATH} ${NWX_MPI_LIBRARIES}")
+
+#-----------------------------------------------------------
 
 set(GA_SYSVSHMEM "ARMCI_DEFAULT_SHMMAX_UBOUND=131072")
 

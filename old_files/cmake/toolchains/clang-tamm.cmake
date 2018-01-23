@@ -5,13 +5,6 @@ set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_Fortran_COMPILER gfortran)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-#set(BUILD_NETLIB_BLAS_LAPACK ON)
-# The MPI settings below will soon be made optional, but they have to be specified for now.
-set(MPI_INCLUDE_PATH /usr/local/Cellar/open-mpi/3.0.0/include)
-set(MPI_LIBRARY_PATH /usr/local/Cellar/open-mpi/3.0.0/lib)
-set(MPI_LIBRARIES "-lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi")
 
 #------------------ OPTIONAL ---------------------
 

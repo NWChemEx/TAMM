@@ -65,7 +65,6 @@ endif()
 
 #set(GA_MPI "--with-mpi=-I${MPI_INCLUDE_PATH} -L${MPI_LIBRARY_PATH} ${MPI_LIBRARIES}")
 #-----------------------------------------------------------------
-set(BUILD_SHARED_LIBS OFF)
 find_package(MPI REQUIRED)
 set(_nwx_mpi_libraries ${MPI_C_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${MPI_EXTRA_LIBRARY}) #${MPI_CXX_LIBRARIES}
 set(_nwx_mpi_include_dirs ${MPI_C_INCLUDE_PATH} ${MPI_Fortran_INCLUDE_PATH}) #${MPI_CXX_INCLUDE_PATH}

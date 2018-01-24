@@ -13,9 +13,8 @@ Supported Compilers
 --------------------
 - GCC versions >= 6.0
 - Intel 18 compilers
-- LLVM/Clang >=4.0 (Linux Only): Please see [Clang Compiler Support](CMake_Build_Notes.md#clang-compiler-support)
-
-- MAC OSX users: AppleClang is not Supported. Please use GCC installed via brew or macports.
+- Apple Clang 
+- LLVM Clang >=4.0 (Linux Only): Please see [Clang Compiler Support](CMake_Build_Notes.md#clang-compiler-support)
 
 Supported Configurations
 -------------------------
@@ -23,6 +22,7 @@ Supported Configurations
   - GCC6 + OpenMPI-2.x/MPICH-3.x built using GCC6
   - GCC7 + OpenMPI-2.x/MPICH-3.x built using GCC7
   - Intel 18 + Intel MPI Library
+  - Apple Clang/LLVM Clang + OpenMPI-2.x/MPICH-3.x 
 
 BUILD
 -----

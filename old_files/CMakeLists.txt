@@ -223,7 +223,15 @@ string(REPLACE "-I" "" tamm_cmake_inc ${tamm_includes})
 #To be recognized as a list, the strings must be seperated by ;
 string(REPLACE " " ";" tamm_includes ${tamm_cmake_inc})
 
-execute_process(COMMAND mpicxx --showme:link OUTPUT_VARIABLE mpi_link OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+#execute_process(COMMAND mpicxx --showme:link OUTPUT_VARIABLE mpi_link OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+find_package(MPI REQUIRED)
+foreach(_nwx_mpi_lib ${MPI_CXX_LIBRARIES})
+    get_filename_component(_nwx_mpi_lib_we ${_nwx_mpi_lib} NAME_WE) #get lib name
+    string(SUBSTRING ${_nwx_mpi_lib_we} 3 -1 _nwx_mpi_lib_we) #Strip lib prefix from lib name
+    set(mpi_link "${mpi_link} -l${_nwx_mpi_lib_we}")
+    string(STRIP ${mpi_link} mpi_link)
+endforeach()
+
 
 #Build fortran code for unit testing
 

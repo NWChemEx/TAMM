@@ -2,6 +2,7 @@
 #define TAMMY_ERRORS_H_
 
 #include <cassert>
+#include <iostream>
 
 namespace tammy {
 
@@ -9,7 +10,7 @@ namespace tammy {
  * @brief Mark code options that are not yet implemented.
  */
 #define NOT_IMPLEMENTED() do {                        \
-  std::cout<<"ERROR: "                                \
+  std::cerr<<"ERROR: "                                \
            <<"file:"<<__FILE__                        \
            <<"function:"<<__func__                    \
            <<" line:"<<__LINE__                       \
@@ -20,7 +21,7 @@ namespace tammy {
  * @brief Mark code paths that should be unreachable
  */
 #define UNREACHABLE() do {                            \
-    std::cout<<"ERROR: "                              \
+    std::cerr<<"ERROR: "                              \
              <<"file:"<<__FILE__                      \
              <<"function:"<<__func__                  \
              <<" line:"<<__LINE__                     \

@@ -13,25 +13,23 @@
 
 namespace tammy {
 
-//using Fint = int64_t;
-
-// using TAMMY_SIZE = int64_t;
-// using TAMMY_INT32 = int64_t;
-
-struct BlockDimSpace;
-using BlockIndex = StrongNum<BlockDimSpace, int64_t>;
-using TensorRank = size_t;
 struct IrrepSpace;
-using Irrep = StrongNum<IrrepSpace, int64_t>;
+using Irrep = StrongNum<IrrepSpace, uint32_t>;
 struct SpinSpace;
-using Spin = StrongNum<SpinSpace, int64_t>;
-using Sign = int64_t;
+using Spin = StrongNum<SpinSpace, uint32_t>;
+using TensorRank = uint32_t;
+struct OffsetSpace;
+using Offset = StrongNum<OffsetSpace, uint64_t>;
+struct BlockIndexSpace;
+using BlockIndex = StrongNum<BlockIndexSpace, uint64_t>;
 struct ProcSpace;
 using Proc = StrongNum<ProcSpace, int64_t>;
-struct OffsetSpace;
-using Offset = StrongNum<OffsetSpace, int64_t>;
-using Size = Offset;
 
+//these are typedefs for usability
+using Size = Offset;
+using BlockCount = BlockIndex;
+using Label = int;
+using Sign = int64_t;
 
 enum class AllocationStatus {
   invalid,
@@ -176,23 +174,23 @@ enum class IndexPosition { upper, lower, neither};
 //////////////////
 
 namespace SpinType {
-Spin alpha{1};
-Spin beta{2};
+const Spin alpha{1};
+const Spin beta{2};
 }; //namespace SpinType
 
 
-/**
- * @brief Signature of a tensor addition operation in NWChem TCE
- */
-typedef void add_fn(MPI_Fint *ta, MPI_Fint *offseta,
-                    MPI_Fint *tc, MPI_Fint *offsetc);
+// /**
+//  * @brief Signature of a tensor addition operation in NWChem TCE
+//  */
+// typedef void add_fn(MPI_Fint *ta, MPI_Fint *offseta,
+//                     MPI_Fint *tc, MPI_Fint *offsetc);
 
-/**
- * @brief Signature of a tensor addition operation in NWChem TCE
- */
-typedef void mult_fn(MPI_Fint *ta, MPI_Fint *offseta,
-                     MPI_Fint *tb, MPI_Fint *offsetb,
-                     MPI_Fint *tc, MPI_Fint *offsetc);
+// /**
+//  * @brief Signature of a tensor addition operation in NWChem TCE
+//  */
+// typedef void mult_fn(MPI_Fint *ta, MPI_Fint *offseta,
+//                      MPI_Fint *tb, MPI_Fint *offsetb,
+//                      MPI_Fint *tc, MPI_Fint *offsetc);
 
 } //namespace tammy
 

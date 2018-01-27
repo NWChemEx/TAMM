@@ -3,6 +3,7 @@
 #ifndef TAMMY_STRONGNUM_H__
 #define TAMMY_STRONGNUM_H__
 
+#include <vector>
 #include <limits>
 #include <iosfwd>
 #include <functional>
@@ -13,6 +14,10 @@ namespace tammy {
 /**
  * @todo Check the narrow cast implementation in:
  *  http://stackoverflow.com/questions/17860657/well-defined-narrowing-cast
+ */
+
+/**
+ * @todo Add debug mode checks for overflow and underflow
  */
 
 #define DEBUG
@@ -112,11 +117,45 @@ struct StrongNum {
   T v;
 };
 
+template<typename Space, typename Int, typename T>
+inline bool operator==(T val, StrongNum<Space,Int> sint) {
+  return val == sint.value();
+}
+
+template<typename Space, typename Int, typename T>
+inline bool operator==(StrongNum<Space,Int> sint, T val) {
+  return val == sint.value();
+}
+
 template<typename Space, typename Int, typename Int2>
 StrongNum<Space,Int> operator * (Int2 value, StrongNum<Space,Int> sint) {
   return StrongNum<Space,Int>{checked_cast<Int>(sint.value() * value)};
 }
 
+template<typename T, typename Index>
+class StrongNumIndexedVector : public std::vector<T> {
+ public:
+  using std::vector<T>::vector;
+
+  StrongNumIndexedVector(const std::vector<T>& vec)
+      : std::vector<T>{vec} {}
+
+  StrongNumIndexedVector(const StrongNumIndexedVector<T,Index>& svec)
+      : std::vector<T>{svec} {}
+
+  T operator [] (Index sint) const {
+    return this->operator[](sint.value());
+  }
+
+  T& operator [] (Index sint) {
+    return this->operator[](sint.value());
+  }
+};
+
+// template<typename T, typename Space, typename Int>
+// T operator [] (const std::vector<T>& vec, StrongNum<Space,Int> sint) {
+//   return vec[sint.value()];
+// }
 
 template<typename S, typename T>
 std::ostream& operator<<(std::ostream& os, const StrongNum<S, T>& s) {

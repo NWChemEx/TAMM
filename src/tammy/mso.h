@@ -16,9 +16,9 @@ class MSO : public IndexSpace {
  public:
   MSO() = default; //@todo delete after debugging
   MSO(BlockCount noa, BlockCount nob, BlockCount nva, BlockCount nvb,
-     const std::vector<Irrep>& spatials,
-     const std::vector<Spin>& spins,
-      const std::vector<Size,BlockIndex>& sizes)
+     const StrongNumIndexedVector<Irrep,BlockIndex>& spatials,
+     const StrongNumIndexedVector<Spin,BlockIndex>& spins,
+      const StrongNumIndexedVector<Size,BlockIndex>& sizes)
       : noa_{noa},
         nob_{nob},
         nva_{nva},
@@ -77,19 +77,19 @@ class MSO : public IndexSpace {
         ret += 0;
         break;
       case range_ob:
-        ret += noa_;
+        ret += noa_.value();
         break;
       case range_v:
-        ret += noa_ + nob_;
+        ret += noa_.value() + nob_.value();
         break;
       case range_va:
-        ret += noa_ + nob_;
+        ret += noa_.value() + nob_.value();
         break;
       case range_vb:
-        ret += noa_ + nob_ + nva_;
+        ret += noa_.value() + nob_.value() + nva_.value();
         break;
       case range_e:
-        ret += noa_ + nob_ + nva_ + nvb_;
+        ret += noa_.value() + nob_.value() + nva_.value() + nvb_.value();
         break;
       default:
         assert(0);
@@ -103,28 +103,28 @@ class MSO : public IndexSpace {
     auto ret = block_indices_.begin();
     switch(rv) {
       case range_n:
-        ret += noa_ + nob_ + nva_ + nvb_;
+        ret += noa_.value() + nob_.value() + nva_.value() + nvb_.value();
         break;
       case range_o:
-        ret += noa_ + nob_;
+        ret += noa_.value() + nob_.value();
         break;
       case range_oa:
-        ret += noa_;
+        ret += noa_.value();
         break;
       case range_ob:
-        ret += noa_ + nob_;
+        ret += noa_.value() + nob_.value();
         break;
       case range_v:
-        ret += noa_ + nob_ + nva_ + nvb_;
+        ret += noa_.value() + nob_.value() + nva_.value() + nvb_.value();
         break;
       case range_va:
-        ret += noa_ + nob_ + nva_;
+        ret += noa_.value() + nob_.value() + nva_.value();
         break;
       case range_vb:
-        ret += noa_ + nob_ + nva_ + nvb_;
+        ret += noa_.value() + nob_.value() + nva_.value() + nvb_.value();
         break;
       case range_e:
-        ret += noa_ + nob_ + nva_ + nvb_;
+        ret += noa_.value() + nob_.value() + nva_.value() + nvb_.value();
         break;
       default:
         assert(0);
@@ -208,11 +208,15 @@ class MSO : public IndexSpace {
   BlockCount nob_;
   BlockCount nva_;
   BlockCount nvb_;
-  std::vector<Irrep> spatials_;
-  std::vector<Spin> spins_;
+  
+  // std::vector<Irrep> spatials_;
+  // std::vector<Spin> spins_;
   // std::vector<Size> sizes_;
+  // std::vector<Offset> offsets_;
+  StrongNumIndexedVector<Irrep,BlockIndex> spatials_;
+  StrongNumIndexedVector<Spin,BlockIndex> spins_;
   StrongNumIndexedVector<Size,BlockIndex> sizes_;
-  std::vector<Offset> offsets_;
+  StrongNumIndexedVector<Offset,BlockIndex> offsets_;
   std::vector<BlockIndex> block_indices_;
 
   static const RangeValue range_e   = 0x00;

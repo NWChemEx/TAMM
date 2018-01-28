@@ -44,14 +44,10 @@ class IndexSpace {
   IndexLabel E(Label label) const;
 
   template<typename... LabelArgs>
-  auto N(Label label, LabelArgs... labels) const {
-    return std::make_tuple(N(label), N(labels)...);
-  }
+  auto N(Label label, LabelArgs... labels) const;
 
   template<typename... LabelArgs>
-  auto E(Label label, LabelArgs... labels) const {
-    return std::make_tuple(E(label), E(labels)...);
-  }
+  auto E(Label label, LabelArgs... labels) const;
 
   bool is_identical_to(const IndexSpace& is) const {
     return this == &is;
@@ -94,7 +90,6 @@ operator >= (const IndexSpace& lhs, const IndexSpace& rhs) {
 }
 
 ///////////////////////////////////////////////////////////
-
 
 class IndexRange {
  public:
@@ -277,6 +272,17 @@ IndexSpace::E(Label label) const {
   return IndexLabel{ER(), label};
 }
 
+template<typename... LabelArgs>
+inline auto 
+IndexSpace::N(Label label, LabelArgs... labels) const {
+  return std::make_tuple(N(label), N(labels)...);
+}
+
+template<typename... LabelArgs>
+inline auto 
+IndexSpace::E(Label label, LabelArgs... labels) const {
+  return std::make_tuple(E(label), E(labels)...);
+}
 ///////////////////////////////////////////////////////////
 
 

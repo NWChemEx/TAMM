@@ -5,9 +5,9 @@
 
 #include <iosfwd>
 #include <complex>
-#include "tammy/strong_num.h"
-#include "tammy/boundvec.h"
-#include "tammy/errors.h"
+#include "strong_num.h"
+#include "boundvec.h"
+#include "errors.h"
 
 #include <mpi.h>
 

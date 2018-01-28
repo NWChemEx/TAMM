@@ -66,70 +66,72 @@ class MSO : public IndexSpace {
                  const BlockDimVec& bdv={}) const override {    
     EXPECTS(bdv.size() == 0);
     auto ret = block_indices_.begin();
+    BlockCount off;
     switch(rv) {
       case range_n:
-        ret += 0;
+        off = BlockCount{0};
         break;
       case range_o:
-        ret += 0;
+        off = BlockCount{0};
         break;
       case range_oa:
-        ret += 0;
+        off = BlockCount{0};
         break;
       case range_ob:
-        ret += noa_.value();
+        off = noa_;
         break;
       case range_v:
-        ret += noa_.value() + nob_.value();
+        off = noa_ + nob_;
         break;
       case range_va:
-        ret += noa_.value() + nob_.value();
+        off = noa_ + nob_;
         break;
       case range_vb:
-        ret += noa_.value() + nob_.value() + nva_.value();
+        off = noa_ + nob_ + nva_;
         break;
       case range_e:
-        ret += noa_.value() + nob_.value() + nva_.value() + nvb_.value();
+        off = noa_ + nob_ + nva_ + nvb_;
         break;
       default:
         assert(0);
     }
-    return ret;
+    return ret + strongnum_cast<size_t>(off.value());
   }
   
   Iterator end(RangeValue rv,
                const BlockDimVec& bdv={}) const override {
     EXPECTS(bdv.size() == 0);
     auto ret = block_indices_.begin();
+    BlockCount off;
     switch(rv) {
       case range_n:
-        ret += noa_.value() + nob_.value() + nva_.value() + nvb_.value();
+        off = noa_ + nob_ + nva_ + nvb_;
         break;
       case range_o:
-        ret += noa_.value() + nob_.value();
+        off = noa_ + nob_;
         break;
       case range_oa:
-        ret += noa_.value();
+        off = noa_;
         break;
       case range_ob:
-        ret += noa_.value() + nob_.value();
+        off = noa_ + nob_;
         break;
       case range_v:
-        ret += noa_.value() + nob_.value() + nva_.value() + nvb_.value();
+        off = noa_ + nob_ + nva_ + nvb_;
         break;
       case range_va:
-        ret += noa_.value() + nob_.value() + nva_.value();
+        off = noa_ + nob_ + nva_;
         break;
       case range_vb:
-        ret += noa_.value() + nob_.value() + nva_.value() + nvb_.value();
+        off = noa_ + nob_ + nva_ + nvb_;
         break;
       case range_e:
-        ret += noa_.value() + nob_.value() + nva_.value() + nvb_.value();
+        off = noa_ + nob_ + nva_ + nvb_;
         break;
       default:
         assert(0);
     }
-    return ret;
+    return ret + strongnum_cast<size_t>(off.value());
   }    
 
   IndexRange NR() const override {

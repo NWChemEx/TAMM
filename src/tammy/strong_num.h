@@ -69,7 +69,7 @@ struct StrongNum {
   explicit StrongNum(const T2 v1): v(checked_cast<T>(v1)) {}
 
   NumType& operator=(const T& t)        { v = t; return *this; }
-
+  
   NumType& operator+=(const T& t)       { v += t; return *this; }
   NumType& operator+=(const NumType& d) { v += d.v; return *this; }
   NumType& operator-=(const T& t)       { v -= t; return *this; }
@@ -137,15 +137,17 @@ class StrongNumIndexedVector : public std::vector<T> {
  public:
   using std::vector<T>::vector;
 
+  StrongNumIndexedVector() = default;
+
   StrongNumIndexedVector(const std::vector<T>& vec)
       : std::vector<T>{vec} {}
 
   StrongNumIndexedVector(const StrongNumIndexedVector<T,Index>& svec)
       : std::vector<T>{svec} {}
 
-  // T operator [] (Index sint) const {
-  //   return this->operator[](sint.value());
-  // }
+  const T& operator [] (Index sint) const {
+    return std::vector<T>::operator[](sint.value());
+  }
 
   T& operator [] (Index sint) {
     return std::vector<T>::operator[](sint.value());

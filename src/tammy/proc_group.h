@@ -7,7 +7,7 @@
 #include <map>
 #include <vector>
 
-#include "tammy/types.h"
+#include "types.h"
 
 namespace tammy {
 

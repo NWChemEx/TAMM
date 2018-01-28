@@ -143,12 +143,12 @@ class StrongNumIndexedVector : public std::vector<T> {
   StrongNumIndexedVector(const StrongNumIndexedVector<T,Index>& svec)
       : std::vector<T>{svec} {}
 
-  T operator [] (Index sint) const {
-    return this->operator[](sint.value());
-  }
+  // T operator [] (Index sint) const {
+  //   return this->operator[](sint.value());
+  // }
 
   T& operator [] (Index sint) {
-    return this->operator[](sint.value());
+    return std::vector<T>::operator[](sint.value());
   }
 };
 

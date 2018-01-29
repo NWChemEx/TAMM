@@ -2,9 +2,11 @@
 #include "strong_num.h"
 #include "types.h"
 #include "index_space.h"
+#include "proc_group.h"
 #include "mso.h"
 #include "ao.h"
 #include "tensor_base.h"
+#include "tensor.h"
 
 // //#include "memory_manager_ga.h"
 // #include "proc_group.h"

@@ -4,7 +4,7 @@
 #include "index_space.h"
 #include "mso.h"
 #include "ao.h"
-//#include "tensor_base.h"
+#include "tensor_base.h"
 
 // //#include "memory_manager_ga.h"
 // #include "proc_group.h"

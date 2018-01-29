@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <numeric>
+#include <algorithm>
 
 #include "index_space.h"
 #include "types.h"

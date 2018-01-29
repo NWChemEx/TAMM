@@ -95,7 +95,8 @@ class MSO : public IndexSpace {
       default:
         assert(0);
     }
-    return ret + strongnum_cast<size_t>(off.value());
+    using size_type = decltype(block_indices_)::size_type;
+    return ret + off.template value<size_type>();
   }
   
   Iterator end(RangeValue rv,
@@ -131,7 +132,8 @@ class MSO : public IndexSpace {
       default:
         assert(0);
     }
-    return ret + strongnum_cast<size_t>(off.value());
+    using size_type = decltype(block_indices_)::size_type;
+    return ret + off.template value<size_type>();
   }    
 
   IndexRange NR() const override {
@@ -211,10 +213,6 @@ class MSO : public IndexSpace {
   BlockCount nva_;
   BlockCount nvb_;
   
-  // std::vector<Irrep> spatials_;
-  // std::vector<Spin> spins_;
-  // std::vector<Size> sizes_;
-  // std::vector<Offset> offsets_;
   StrongNumIndexedVector<Irrep,BlockIndex> spatials_;
   StrongNumIndexedVector<Spin,BlockIndex> spins_;
   StrongNumIndexedVector<Size,BlockIndex> sizes_;

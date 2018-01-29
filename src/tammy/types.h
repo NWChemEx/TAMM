@@ -24,12 +24,13 @@ struct BlockIndexSpace;
 using BlockIndex = StrongNum<BlockIndexSpace, uint64_t>;
 struct ProcSpace;
 using Proc = StrongNum<ProcSpace, int64_t>;
+struct SignSpace;
+using Sign = StrongNum<SignSpace, int32_t>;
 
 //these are typedefs for usability
 using Size = Offset;
 using BlockCount = BlockIndex;
 using Label = int;
-using Sign = int64_t;
 
 enum class AllocationStatus {
   invalid,

@@ -52,7 +52,8 @@ class AO : public IndexSpace {
       default:
         UNREACHABLE();
     }
-    return ret + strongnum_cast<size_t>(off.value());
+    using size_type = decltype(block_indices_)::size_type;
+    return ret + off.template value<size_type>();
   }
 
   Iterator end(RangeValue rv,
@@ -76,7 +77,8 @@ class AO : public IndexSpace {
       default:
         UNREACHABLE();
     }
-    return ret + strongnum_cast<size_t>(off.value());
+    using size_type = decltype(block_indices_)::size_type;
+    return ret + off.template value<size_type>();
   }    
 
   IndexRange NR() const override {
@@ -117,8 +119,8 @@ class AO : public IndexSpace {
   BlockCount no_;
   BlockCount nv_;  
   std::vector<BlockIndex> block_indices_;
-  std::vector<Size> sizes_;
-  std::vector<Offset> offsets_;
+  StrongNumIndexedVector<Size,BlockIndex> sizes_;
+  StrongNumIndexedVector<Offset,BlockIndex> offsets_;
 
   static const RangeValue range_e = 0x0;
   static const RangeValue range_o = 0x1;

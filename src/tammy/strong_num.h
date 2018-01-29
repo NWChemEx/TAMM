@@ -66,7 +66,7 @@ struct StrongNum {
   ~StrongNum() = default;
 
   template<typename T2>
-  explicit StrongNum(const T2 v1): v(checked_cast<T>(v1)) {}
+  explicit StrongNum(const T2 v1): v{checked_cast<T>(v1)} {}
 
   NumType& operator=(const T& t)        { v = t; return *this; }
   

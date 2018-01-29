@@ -301,6 +301,8 @@ IndexLabel::operator() (IndexLabel il1, IndexLabel il2) const {
   return {*this, {il1, il2}};
 }
 
+///////////////////////////////////////////////////////////
+using IndexLabelVec = TensorVec<IndexLabel>;
 
 }  // namespace tammy
 

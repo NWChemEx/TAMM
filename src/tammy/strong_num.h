@@ -110,8 +110,13 @@ struct StrongNum {
   bool operator> (const T& t) const { return v >  t; }
   bool operator< (const T& t) const { return v <  t; }
 
-  T value() const { return v; }
-  T& value() { return v; }
+  // T value() const { return v; }
+  // T& value() { return v; }
+
+  template<typename T1>
+  T1 value() const {
+    return checked_cast<T1>(v);
+  }
 
  private:
   T v;
@@ -119,7 +124,7 @@ struct StrongNum {
 
 template<typename Space, typename Int, typename T>
 inline bool operator==(T val, StrongNum<Space,Int> sint) {
-  return val == sint.value();
+  return StrongNum<Space,Int>{checked_cast<Int>(val)} == sint;
 }
 
 template<typename Space, typename Int, typename T>
@@ -129,14 +134,15 @@ inline bool operator==(StrongNum<Space,Int> sint, T val) {
 
 template<typename Space, typename Int, typename Int2>
 StrongNum<Space,Int> operator * (Int2 value, StrongNum<Space,Int> sint) {
-  return StrongNum<Space,Int>{checked_cast<Int>(sint.value() * value)};
+  return StrongNum<Space,Int>{checked_cast<Int>(value)} * sint;
 }
 
 template<typename T, typename Index>
 class StrongNumIndexedVector : public std::vector<T> {
  public:
   using std::vector<T>::vector;
-
+  using size_type = typename std::vector<T>::size_type;
+  
   StrongNumIndexedVector() = default;
 
   StrongNumIndexedVector(const std::vector<T>& vec)
@@ -146,18 +152,13 @@ class StrongNumIndexedVector : public std::vector<T> {
       : std::vector<T>{svec} {}
 
   const T& operator [] (Index sint) const {
-    return std::vector<T>::operator[](sint.value());
+    return std::vector<T>::operator[](sint.template value<size_type>());
   }
 
   T& operator [] (Index sint) {
-    return std::vector<T>::operator[](sint.value());
+    return std::vector<T>::operator[](sint.template value<size_type>());
   }
 };
-
-// template<typename T, typename Space, typename Int>
-// T operator [] (const std::vector<T>& vec, StrongNum<Space,Int> sint) {
-//   return vec[sint.value()];
-// }
 
 template<typename S, typename T>
 std::ostream& operator<<(std::ostream& os, const StrongNum<S, T>& s) {

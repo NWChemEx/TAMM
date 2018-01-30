@@ -40,6 +40,8 @@ class IndexSpace {
   virtual IndexRange ER() const = 0;
   virtual IndexRange NR() const = 0;
 
+  virtual int num_indep_indices() const = 0;
+  
   IndexLabel N(Label label) const;
   IndexLabel E(Label label) const;
 
@@ -113,6 +115,10 @@ class IndexRange {
     return rv_;
   }
 
+  int num_indep_indices() const {
+    return is_->num_indep_indices();
+  }
+  
   IndexSpace::Iterator begin(const BlockDimVec& indep_indices = {}) const {
     return is().begin(rv_, indep_indices);
   }
@@ -170,7 +176,9 @@ class IndexLabel {
       : ir_{ir},
         label_{label} {}
 
-  IndexLabel() = default;
+  IndexLabel()
+      : label_{-1} {}
+  
   IndexLabel(const IndexLabel&) = default;
   IndexLabel& operator = (const IndexLabel&) = default;
   

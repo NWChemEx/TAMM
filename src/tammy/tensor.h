@@ -10,8 +10,78 @@
 
 namespace tammy {
 
+// class MemoryRegion;
+// class MemoryManager;
+// class Distribution;
+
 template<typename T>
-class TensorImpl;
+class TensorImpl : public TensorBase, public TensorImplBase {
+ public:
+  using ElementType = T;
+  using TensorBase::TensorBase;
+
+  TensorImpl() = default;
+  TensorImpl(TensorImpl &&) = default;
+  TensorImpl(const TensorImpl &) = default;
+  TensorImpl &operator=(TensorImpl &&) = default;
+  TensorImpl &operator=(const TensorImpl &) = default;
+  ~TensorImpl() = default;
+
+  TensorImpl(const TensorVec<IndexRange>& dim_ranges,
+             const TensorVec<IndexPosition>& ipmask,
+             Irrep irrep = Irrep{0},
+             Spin spin_total = Spin{0},
+             TensorRank rank = 0)
+          : TensorBase(dim_ranges, ipmask, irrep, spin_total),
+            rank_{rank} {}
+  
+
+  TensorRank rank() const override {
+    return rank_;
+  }
+  bool is_unique(const BlockDimVec& bdv) const override {
+    return false;
+  }
+  BlockDimVec get_unique(const BlockDimVec& bdv) const override {
+    BlockDimVec ret;
+
+    return ret;
+  }
+  bool is_nonzero(const BlockDimVec& bdv) const override {
+    return false;
+  }
+  Size block_size(const BlockDimVec& bdv) const override {
+    Size ret;
+    return ret;
+  }
+
+  //LabeledTensor<T> operator() (const IndexLabelVec& ilv) const override {}
+
+  void set_proc_group(ProcGroup proc_group) override {}
+  //Tensor& set_distribution(Distribution* distribution) override {}
+  //Tensor& set_memory_manager(MemoryManager* memory_manager) override {}
+
+  ProcGroup proc_group() const override {
+    return pg_;
+  }
+
+  //Distribution* distribution() override {}
+  //MemoryManager* memory_manager() override {}
+  void allocate() override {}
+  void deallocate() override {}
+  //void attach(MemoryRegion* memory_region) override {}
+  void detach() override {}
+
+  //std::pair<Codelet*,Codelet*> get(const BlockDimVec& bdv, Block<T>& block) const override {}
+  //std::pair<Codelet*,Codelet*> put(const BlockDimVec& bdv, Block<T>& block) override {}
+  //std::pair<Codelet*,Codelet*> add(const BlockDimVec& bdv, Block<T>& block) override {}
+
+ private:
+  TensorRank rank_;
+  ProcGroup pg_;
+  // std::unique_ptr<MemoryRegion> mpb_;
+  // std::shared_ptr<Distribution> distribution_;
+};
 
 template<typename T>
 class LabeledTensor;

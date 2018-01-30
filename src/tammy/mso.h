@@ -16,9 +16,9 @@ class MSO : public IndexSpace {
  public:
   MSO() = default; //@todo delete after debugging
   MSO(BlockCount noa, BlockCount nob, BlockCount nva, BlockCount nvb,
-     const StrongNumIndexedVector<Irrep,BlockIndex>& spatials,
-     const StrongNumIndexedVector<Spin,BlockIndex>& spins,
-      const StrongNumIndexedVector<Size,BlockIndex>& sizes)
+     const std::vector<Irrep>& spatials,
+     const std::vector<Spin>& spins,
+      const std::vector<Size>& sizes)
       : noa_{noa},
         nob_{nob},
         nva_{nva},

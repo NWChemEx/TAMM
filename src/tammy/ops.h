@@ -12,7 +12,7 @@ namespace tammy {
 
 class Op {
  public:
-  virtual Op* clone() = 0;
+  virtual Op* clone() const = 0;
   virtual void execute();
   virtual ~Op() {}
 };
@@ -39,11 +39,11 @@ class AddOp :  public Op {
     return is_assign_;
   }
 
-  Op* clone() const {
+  Op* clone() const override {
     return new AddOp<T,LabeledTensorT>{*this};
   }
 
-  void execue() {
+  void execute() override {
   }
   
  protected:
@@ -54,7 +54,7 @@ class AddOp :  public Op {
 
 
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2>
-class MultOp {
+class MultOp : public Op {
  public:
   MultOp(T alpha, LabeledTensorT1 rhs1, LabeledTensorT2 rhs2, bool is_assign)
       : alpha_{alpha},
@@ -80,11 +80,11 @@ class MultOp {
     return is_assign_;
   }
 
-  Op* clone() const {
+  Op* clone() const override {
     return new MultOp{*this};
   }
 
-  void execue() {
+  void execute() override {
   }
   
  protected:

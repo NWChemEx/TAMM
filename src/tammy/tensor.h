@@ -34,27 +34,26 @@ class TensorImpl : public TensorBase, public TensorImplBase {
           : TensorBase(dim_ranges, ipmask, irrep, spin_total),
             rank_{rank} {}
   
+  TensorImpl(const IndexLabel& il1, 
+             const IndexLabel& il2);
+  
+  TensorImpl(const DependentIndexLabel& dil1, 
+             const IndexLabel& il2);
+  TensorImpl(const IndexLabel& il1, 
+             const DependentIndexLabel& dil2);
+
+  TensorImpl(const DependentIndexLabel& dil1, 
+             const DependentIndexLabel& dil2);
 
   TensorRank rank() const override {
     return rank_;
   }
-  bool is_unique(const BlockDimVec& bdv) const override {
-    return false;
-  }
-  BlockDimVec get_unique(const BlockDimVec& bdv) const override {
-    BlockDimVec ret;
+  bool is_unique(const BlockDimVec& bdv) const override;
+  BlockDimVec get_unique(const BlockDimVec& bdv) const override;
+  bool is_nonzero(const BlockDimVec& bdv) const override;
+  Size block_size(const BlockDimVec& bdv) const override;
 
-    return ret;
-  }
-  bool is_nonzero(const BlockDimVec& bdv) const override {
-    return false;
-  }
-  Size block_size(const BlockDimVec& bdv) const override {
-    Size ret;
-    return ret;
-  }
-
-  void set_proc_group(ProcGroup proc_group) override {}
+  void set_proc_group(ProcGroup proc_group) override;
   //Tensor& set_distribution(Distribution* distribution) override {}
   //Tensor& set_memory_manager(MemoryManager* memory_manager) override {}
 

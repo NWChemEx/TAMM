@@ -74,9 +74,7 @@ class TensorImpl : public TensorBase, public TensorImplBase {
   //std::pair<Codelet*,Codelet*> add(const BlockDimVec& bdv, Block<T>& block) override {}
 
   // Operations
-  
-  LabeledTensor<T> operator() (const IndexLabelVec& ilv) const {}
-  
+   
 
  private:
   TensorRank rank_;
@@ -95,6 +93,9 @@ class Tensor {
   Tensor& operator = (const Tensor&) = default;
   ~Tensor() = default;
 
+  Tensor(Tensor&& tensor)
+      : impl_{std::move(tensor.impl_)} { }
+  
   template<typename TensorImplT, typename... Args>
   static Tensor create(Args&&... args) {
     static_assert(std::is_same<ElementType, typename TensorImplT::ElementType>::value,
@@ -124,11 +125,11 @@ class Tensor {
   }
 
   LabeledTensor<T> operator() (const IndexLabelVec& ilv) const {
-    return impl_->operator()(ilv);
+    return LabeledTensor<T>{*this, ilv};
   }
 
   LabeledTensor<T> operator() (const IndexLabel& il1, const IndexLabel& il2) const {
-    return impl_->operator()({il1,il2});
+    return operator()({il1,il2});
   }
 
   void set_proc_group(ProcGroup proc_group) {

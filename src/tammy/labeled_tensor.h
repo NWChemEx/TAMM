@@ -17,22 +17,26 @@ class LabeledTensor {
   LabeledTensor() = default;
   LabeledTensor(const LabeledTensor&) = default;
 
-  LabeledTensor(const Tensor& tensor,
+  LabeledTensor(const Tensor<T>& tensor,
                 const IndexLabelVec ilv)
       : tensor_{tensor},
         ilv_{ilv} {}
 
-  AddOp<int,LabeledTensor<T>> operator += (const LabeledTensor<T>& rhs);
+  AddOp<T,LabeledTensor<T>> operator += (const LabeledTensor<T>& rhs);
+
+  AddOp<T,LabeledTensor<T>> operator += (const T& rhs);
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-  AddOp<T1,LabeledTensor<T>> operator += (const std::pair<T, LabeledTensor<T>& rhs);
+  AddOp<T1,LabeledTensor<T>> operator += (const std::pair<T1, LabeledTensor<T>>& rhs);
 
-  AddOp<int,LabeledTensor<T>> operator = (const LabeledTensor<T>& rhs);
+  AddOp<T,LabeledTensor<T>> operator = (const LabeledTensor<T>& rhs);
+
+  AddOp<T,LabeledTensor<T>> operator = (const T& rhs);
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-  AddOp<T1,LabeledTensor<T>> operator = (const std::pair<T, LabeledTensor<T>>& rhs);
+  AddOp<T1,LabeledTensor<T>> operator = (const std::pair<T1, LabeledTensor<T>>& rhs);
 
   MultOp<T,LabeledTensor<T>,LabeledTensor<T>>
   operator += (const std::tuple<LabeledTensor, LabeledTensor<T>>& rhs);
@@ -51,22 +55,25 @@ class LabeledTensor {
   operator = (const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs);
 
  protected:
-  Tensor tensor_;
+  Tensor<T> tensor_;
   IndexLabelVec ilv_;
 };
 
-inline std::pair<T, LabeledTensor>
-operator * (T val, const LabeledTensor& rhs) {
+template<typename T1, typename T2>
+inline std::pair<T1, LabeledTensor<T2>>
+operator * (T1 val, const LabeledTensor<T2>& rhs) {
   return {val, rhs};
 }
 
-inline std::pair<LabeledTensor, LabeledTensor>
-operator * (const LabeledTensor& rhs1, const LabeledTensor& rhs2) {
+template<typename T>
+inline std::pair<LabeledTensor<T>, LabeledTensor<T>>
+operator * (const LabeledTensor<T>& rhs1, const LabeledTensor<T>& rhs2) {
   return {rhs1, rhs2};
 }
 
-inline std::tuple<T, LabeledTensor, LabeledTensor>
-operator * (std::pair<T, LabeledTensor> rhs1, const LabeledTensor& rhs2) {
+template<typename T1, typename T2>
+inline std::tuple<T1, LabeledTensor<T2>, LabeledTensor<T2>>
+operator * (std::pair<T1, LabeledTensor<T2>> rhs1, const LabeledTensor<T2>& rhs2) {
   return {std::get<0>(rhs1), std::get<1>(rhs1), rhs2};
 }
 

@@ -137,29 +137,6 @@ StrongNum<Space,Int> operator * (Int2 value, StrongNum<Space,Int> sint) {
   return StrongNum<Space,Int>{checked_cast<Int>(value)} * sint;
 }
 
-template<typename T, typename Index>
-class StrongNumIndexedVector : public std::vector<T> {
- public:
-  using std::vector<T>::vector;
-  using size_type = typename std::vector<T>::size_type;
-  
-  StrongNumIndexedVector() = default;
-
-  StrongNumIndexedVector(const std::vector<T>& vec)
-      : std::vector<T>{vec} {}
-
-  StrongNumIndexedVector(const StrongNumIndexedVector<T,Index>& svec)
-      : std::vector<T>{svec} {}
-
-  const T& operator [] (Index sint) const {
-    return std::vector<T>::operator[](sint.template value<size_type>());
-  }
-
-  T& operator [] (Index sint) {
-    return std::vector<T>::operator[](sint.template value<size_type>());
-  }
-};
-
 template<typename S, typename T>
 std::ostream& operator<<(std::ostream& os, const StrongNum<S, T>& s) {
   return os << s.value();

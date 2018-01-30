@@ -7,6 +7,7 @@
 #include "ao.h"
 #include "tensor_base.h"
 #include "tensor.h"
+#include "labeled_tensor.h"
 
 // //#include "memory_manager_ga.h"
 // #include "proc_group.h"
@@ -30,20 +31,32 @@
 
 //#include "ops.h"
 
-// using StrongInt = tammy::StrongNum<int,int>;
-// using SIndexedVector = tammy::StrongNumIndexedVector<int, StrongInt>;
+using namespace tammy;
 
-// int main()
-// {
-//   std::vector<int> vec = {1,2,3};
-//   StrongInt temp;
-//   temp = 1;
-//   SIndexedVector str_index_vec{vec};
+int main()
+{
+  IndexRange i_r, j_r, k_r, l_r;
+  TensorVec<IndexRange> ranges{};
+  TensorVec<IndexPosition> ipmasks{};
+  IndexLabel i{i_r,0}, j{j_r,1}, k{k_r,2}, l{l_r,2};
 
-//   std::cout<< str_index_vec[temp] << std::endl;
-//   str_index_vec[temp] = 10;
-//   std::cout<< str_index_vec[temp] << std::endl;
+  Tensor<double> T1 = Tensor<double>::create<TensorImpl<double>>(ranges, ipmasks);
+  Tensor<double> T2 = Tensor<double>::create<TensorImpl<double>>(ranges, ipmasks);
+  Tensor<double> T3 = Tensor<double>::create<TensorImpl<double>>(ranges, ipmasks);
 
-//   return 0;
-// }
+
+  T1(i,j) = 0;
+  T1(i,j) += .52;
+  T1(i,j) = T2(j,i);
+  T1(i,j) += T2(j,i);
+  T1(i,j) = 3 * T2(j,i);
+  T1(i,j) += 3 * T2(j,i);
+  T1(i,j) = T2(j,i) * T3(k,j);
+  T1(i,j) += T2(j,i) * T3(k,j);
+  T1(i,j) = 3 * T2(j,i) * T3(j,l);
+  T1(i,j) += 3 * T2(j,i) * T3(j,l);
+  
+
+  return 0;
+}
 

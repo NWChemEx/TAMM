@@ -196,6 +196,35 @@ class TensorBase {
   }
 };  // TensorBase
 
+//@todo: update the functions once the other classes added. 
+
+class TensorImplBase {
+ public:
+  virtual TensorRank rank() const = 0;
+  virtual bool is_unique(const BlockDimVec& bdv) const = 0;
+  virtual BlockDimVec get_unique(const BlockDimVec& bdv) const = 0;
+  virtual bool is_nonzero(const BlockDimVec& bdv) const = 0;
+  virtual Size block_size(const BlockDimVec& bdv) const = 0;
+
+  //virtual LabeledTensor<T> operator() (const IndexLabelVec& ilv) const = 0;
+
+  virtual void set_proc_group(ProcGroup proc_group) = 0;
+  //virtual Tensor& set_distribution(Distribution* distribution) = 0;
+  //virtual Tensor& set_memory_manager(MemoryManager* memory_manager) = 0;
+
+  virtual ProcGroup proc_group() const = 0;
+
+  //virtual Distribution* distribution() = 0;
+  //virtual MemoryManager* memory_manager() = 0;
+  virtual void allocate() = 0;
+  virtual void deallocate() = 0;
+  //virtual void attach(MemoryRegion* memory_region) = 0;
+  virtual void detach() = 0;
+
+  //virtual std::pair<Codelet*,Codelet*> get(const BlockDimVec& bdv, Block<T>& block) const = 0;
+  //virtual std::pair<Codelet*,Codelet*> put(const BlockDimVec& bdv, Block<T>& block) = 0;
+  //virtual std::pair<Codelet*,Codelet*> add(const BlockDimVec& bdv, Block<T>& block) = 0;
+};
 
 }  // namespace tammy
 

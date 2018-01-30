@@ -237,6 +237,10 @@ operator >= (const IndexLabel& lhs, const IndexLabel& rhs) {
 
 class DependentIndexLabel {
  public:
+  DependentIndexLabel()
+      : il_{},
+        indep_labels_{} {}
+  
   DependentIndexLabel(IndexRange& ir,
                       Label label,
                       const TensorVec<IndexLabel>& indep_labels)
@@ -296,6 +300,7 @@ IndexSpace::E(Label label, LabelArgs... labels) const {
 
 inline DependentIndexLabel
 IndexLabel::operator() (IndexLabel il1) const {
+  EXPECTS(ir_.num_indep_indices() == 1);
   return {*this, {il1}};
 }
 
@@ -306,11 +311,71 @@ IndexLabel::operator() () const {
 
 inline DependentIndexLabel
 IndexLabel::operator() (IndexLabel il1, IndexLabel il2) const {
+  EXPECTS(ir_.num_indep_indices() == 2);
   return {*this, {il1, il2}};
 }
 
 ///////////////////////////////////////////////////////////
+class IndexInfo {
+ public:
+  IndexInfo (const IndexInfo& info)
+      : labels_{info.labels_},
+        group_sizes_{info.group_sizes_} {}
+
+  IndexInfo (const IndexLabel& il)
+      : labels_{TensorVec<DependentIndexLabel>{il()}},
+        group_sizes_{1} {}
+  
+  IndexInfo (const DependentIndexLabel& dil)
+      : labels_{TensorVec<DependentIndexLabel>{dil}},
+        group_sizes_{1} {}
+
+  void add_to_last_group(DependentIndexLabel dil) {
+    EXPECTS(group_sizes_.size() > 0);
+    labels_.push_back(dil);
+    group_sizes_.back() += 1;
+  }
+  
+  const TensorVec<DependentIndexLabel>& labels() const {
+    return labels_;
+  }
+  
+  TensorVec<IndexPosition> ipmask() const {
+    TensorVec<IndexPosition> ipvec;
+    assert(group_sizes_.size() == 3);
+    std::fill_n(ipvec.end(), group_sizes_[0], IndexPosition::neither);
+    std::fill_n(ipvec.end(), group_sizes_[1], IndexPosition::upper);
+    std::fill_n(ipvec.end(), group_sizes_[2], IndexPosition::lower);
+    return ipvec;
+  }
+  
+ protected:
+  TensorVec<DependentIndexLabel> labels_;
+  TensorVec<size_t> group_sizes_;
+
+  friend IndexInfo operator | (IndexInfo lhs,  const IndexInfo& rhs){
+    lhs.labels_.insert_back(rhs.labels_.begin(),
+                            rhs.labels_.end());
+    lhs.group_sizes_.insert_back(rhs.group_sizes_.begin(),
+                            rhs.group_sizes_.end());    
+    return lhs;
+  }
+};
+
+IndexInfo operator + (IndexInfo lhs, const DependentIndexLabel& rhs) {
+  lhs.add_to_last_group(rhs);
+  return lhs;
+}
+
+IndexInfo operator + (IndexInfo lhs, const IndexLabel& rhs) {
+  lhs.add_to_last_group(rhs());
+  return lhs;
+}
+
+
+/////////////////////////////////////////////
 using IndexLabelVec = TensorVec<IndexLabel>;
+
 
 }  // namespace tammy
 

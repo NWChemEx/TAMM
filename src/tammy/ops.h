@@ -17,7 +17,7 @@ class Op {
   virtual ~Op() {}
 };
 
-template<typename T, LabeledTensorT>
+template<typename T, typename LabeledTensorT>
 class AddOp :  public Op {
  public:
   AddOp(T alpha, LabeledTensorT rhs, bool is_assign)
@@ -25,13 +25,13 @@ class AddOp :  public Op {
         rhs_{rhs},
         is_assign_{is_assign} {}
 
-  AddOp(const AddOp<T>&) = default;
+  AddOp(const AddOp<T,LabeledTensorT>&) = default;
 
   T alpha() const {
-    return alpha
+    return alpha;
   }
 
-  LabeledTensor rhs() const {
+  LabeledTensorT rhs() const {
     return rhs_;
   }
 
@@ -40,7 +40,7 @@ class AddOp :  public Op {
   }
 
   Op* clone() const {
-    return new AddOp<T>{*this};
+    return new AddOp<T,LabeledTensorT>{*this};
   }
 
   void execue() {
@@ -65,7 +65,7 @@ class MultOp {
   MultOp(const MultOp<T,LabeledTensorT1,LabeledTensorT2>&) = default;
   
   T alpha() const {
-    return alpha
+    return alpha;
   }
 
   LabeledTensorT1 rhs1() const {

@@ -10,9 +10,8 @@
 
 namespace tammy {
 
-// class MemoryRegion;
-// class MemoryManager;
-// class Distribution;
+template<typename T>
+class LabeledTensor;
 
 template<typename T>
 class TensorImpl : public TensorBase, public TensorImplBase {
@@ -55,8 +54,6 @@ class TensorImpl : public TensorBase, public TensorImplBase {
     return ret;
   }
 
-  //LabeledTensor<T> operator() (const IndexLabelVec& ilv) const override {}
-
   void set_proc_group(ProcGroup proc_group) override {}
   //Tensor& set_distribution(Distribution* distribution) override {}
   //Tensor& set_memory_manager(MemoryManager* memory_manager) override {}
@@ -76,15 +73,17 @@ class TensorImpl : public TensorBase, public TensorImplBase {
   //std::pair<Codelet*,Codelet*> put(const BlockDimVec& bdv, Block<T>& block) override {}
   //std::pair<Codelet*,Codelet*> add(const BlockDimVec& bdv, Block<T>& block) override {}
 
+  // Operations
+  
+  LabeledTensor<T> operator() (const IndexLabelVec& ilv) const {}
+  
+
  private:
   TensorRank rank_;
   ProcGroup pg_;
   // std::unique_ptr<MemoryRegion> mpb_;
   // std::shared_ptr<Distribution> distribution_;
 };
-
-template<typename T>
-class LabeledTensor;
 
 template<typename T>
 class Tensor {
@@ -100,7 +99,8 @@ class Tensor {
   static Tensor create(Args&&... args) {
     static_assert(std::is_same<ElementType, typename TensorImplT::ElementType>::value,
                   "Mismatched element type between Tensor and Tensor implementation classes");
-    return Tensor{new TensorImplT(std::forward<Args>(args)...)};
+    // return Tensor{new TensorImplT(std::forward<Args>(args)...)};
+    return Tensor{std::make_shared<TensorImplT>(std::forward<Args>(args)...)};    
   }
 
   TensorRank rank() const {
@@ -125,6 +125,10 @@ class Tensor {
 
   LabeledTensor<T> operator() (const IndexLabelVec& ilv) const {
     return impl_->operator()(ilv);
+  }
+
+  LabeledTensor<T> operator() (const IndexLabel& il1, const IndexLabel& il2) const {
+    return impl_->operator()({il1,il2});
   }
 
   void set_proc_group(ProcGroup proc_group) {

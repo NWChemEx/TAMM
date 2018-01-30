@@ -9,6 +9,7 @@
 #include "index_space.h"
 #include "types.h"
 #include "errors.h"
+#include "strong_num_indexed_vector.h"
 
 namespace tammy {
 

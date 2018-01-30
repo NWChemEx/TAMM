@@ -8,6 +8,7 @@
 #include "tensor_base.h"
 #include "tensor.h"
 #include "labeled_tensor.h"
+#include "ops.h"
 
 // //#include "memory_manager_ga.h"
 // #include "proc_group.h"
@@ -17,7 +18,7 @@
 // #include "generator.h"
 // #include "memory_manager_local.h"
 // #include "errors.h"
-// #include "memory_manager.h"
+#include "memory_manager.h"
 // #include "perm_symmetry.h"
 // #include "strong_num.h"
 // #include "block.h"
@@ -35,12 +36,17 @@ using namespace tammy;
 
 int main()
 {
-  IndexRange i_r, j_r, k_r, l_r;
+  // IndexRange i_r, j_r, k_r, l_r;
   TensorVec<IndexRange> ranges{};
   TensorVec<IndexPosition> ipmasks{};
-  IndexLabel i{i_r,0}, j{j_r,1}, k{k_r,2}, l{l_r,2};
+  // IndexLabel i{i_r,0}, j{j_r,1}, k{k_r,2}, l{l_r,2};
 
-  Tensor<double> T1 = Tensor<double>::create<TensorImpl<double>>(ranges, ipmasks);
+  MSO mso;
+  IndexLabel i, j, k, l;
+  std::tie(i,j,k,l) = mso.N(0,1,2,3);
+
+  auto T1 = Tensor<double>::create<TensorImpl<double>>(i, j);
+  //Tensor<double> T1 = Tensor<double>::create<TensorImpl<double>>(ranges, ipmasks);
   Tensor<double> T2 = Tensor<double>::create<TensorImpl<double>>(ranges, ipmasks);
   Tensor<double> T3 = Tensor<double>::create<TensorImpl<double>>(ranges, ipmasks);
 

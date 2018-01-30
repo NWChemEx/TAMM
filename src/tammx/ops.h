@@ -1117,6 +1117,69 @@ AddOp<T, LabeledTensorType>::execute(const ProcGroup& ec_pg) {
   //tensor_print(*lhs_.tensor_);
 }
 
+template<typename T, typename LabeledTensorType>
+inline void
+AddOp<T, LabeledTensorType>::execute_gpu(const ProcGroup& ec_pg) {
+  using T1 = typename LabeledTensorType::element_type;
+
+  EXPECTS(exec_mode_ == ExecutionMode::gpu);
+
+  const LabeledTensor<T1>& lta = rhs_;
+  const LabeledTensor<T1>& ltc = lhs_;
+  const auto &clabel = ltc.label_;
+  const auto &alabel = lta.label_;
+  Tensor<T1>& ta = *lta.tensor_;
+  Tensor<T1>& tc = *ltc.tensor_;
+  double symm_factor = compute_symmetrization_factor(ltc, lta);
+  auto citr = loop_iterator(slice_indices(tc.tindices(), ltc.label_));
+  auto lambda = [&] (const BlockDimVec& cblockid) {
+    size_t dimc = tc.block_size(cblockid);
+    if(!(tc.nonzero(cblockid) && tc.spin_unique(cblockid) && dimc > 0)) {
+      return;
+    }
+    auto cbp = tc.alloc<CudaHostAllocator>(cblockid);
+    cbp() = 0;
+    //std::cout<<"---tammx assign. ACTION ON cblockid"<<cblockid<<std::endl;
+    auto label_map = LabelMap<BlockIndex>().update(ltc.label_, cblockid);
+    auto sit = symmetrization_iterator(label_map,ltc, lta);
+    for(; sit.has_more(); sit.next()) {
+      IndexLabelVec cur_clbl = sit.get();
+      //std::cout<<"ACTION cur_clbl="<<cur_clbl<<std::endl;
+      auto cur_cblockid = label_map.get_blockid(cur_clbl);
+      //std::cout<<"---tammx assign. ACTION cur_cblockid"<<cur_cblockid<<std::endl;
+      auto ablockid = LabelMap<BlockIndex>().update(ltc.label_, cur_cblockid).get_blockid(alabel);
+      auto abp = ta.get<CudaHostAllocator>(ablockid);
+      //std::cout<<"ACTION ablockid="<<ablockid<<std::endl;
+      //std::cout<<"ACTION symm_factor="<<symm_factor<<std::endl;
+
+      auto csbp = tc.alloc<CudaHostAlloc>(cur_cblockid);
+      csbp() = 0;
+      execute_on_gpu(csbp(clabel) += alpha_ * symm_factor * abp(alabel));
+
+      auto csit = copy_symmetrization_iterator(label_map, ltc, lta, cur_cblockid);
+      for(IndexLabelVec csym_clbl = csit.get(); csit.has_more(); csit.next(), csym_clbl = csit.get()) {
+        // int csym_sign = (perm_count_inversions(perm_compute(cur_clbl, csym_clbl)) % 2) ? -1 : 1;
+        int csym_sign = (perm_count_inversions(perm_compute(csym_clbl, clabel)) % 2) ? -1 : 1;
+        //std::cout<<"===csym sign="<<csym_sign<<std::endl;
+        //std::cout<<"===clabel="<<clabel<<" csym label="<<csym_clbl<<std::endl;
+        cbp(clabel) += csym_sign * csbp(csym_clbl);
+      }
+    }
+    if(mode_ == ResultMode::update) {
+      tc.add(cblockid, cbp);
+    } else {
+      tc.put(cblockid, cbp);
+    }
+  };
+  if(ec_pg.size() > ltc.tensor_->pg().size()) {
+    parallel_work(ltc.tensor_->pg(), citr, citr.get_end(), lambda);
+  } else {
+    parallel_work(ec_pg, citr, citr.get_end(), lambda);
+  }
+
+  //tensor_print(*lhs_.tensor_);
+}
+
 
 inline int
 compute_symmetry_scaling_factor(const TensorVec<TensorSymmGroup>& sum_indices,

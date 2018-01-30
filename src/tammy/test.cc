@@ -45,13 +45,13 @@ int main()
   // Tensor<double> T3 = Tensor<double>::create<TensorImpl<double>>(ranges, ipmasks);
 
   MSO mso;
-  IndexLabel i, j, k, l;
+  IndexLabel i, j, k, l, E;
   std::tie(i,j,k,l) = mso.N(0,1,2,3);
 
   auto T1 = Tensor<double>::create<TensorImpl<double>>(i, j);
-  auto T2 = Tensor<double>::create<TensorImpl<double>>(i(k), j);
-  auto T3 = Tensor<double>::create<TensorImpl<double>>(i, j(l));
-  auto T4 = Tensor<double>::create<TensorImpl<double>>(i(k), j(l));
+  auto T2 = Tensor<double>::create<TensorImpl<double>>(i(k) + j | E | E);
+  auto T3 = Tensor<double>::create<TensorImpl<double>>(E | i + j(l) | E);
+  auto T4 = Tensor<double>::create<TensorImpl<double>>(i(k) + j(l) | E | E);
 
   T1(i,j) = 0;
   T1(i,j) += .52;
@@ -65,6 +65,21 @@ int main()
   T1(i,j) += 3 * T2(j,i) * T3(j,l);
   
 
+#if 0
+  Scheduler()(
+      T1(i,j)  = 0,
+      T1(i,j) += .52,
+      T1(i,j)  =     T2(j,i),
+      T1(i,j) +=     T2(j,i),
+      T1(i,j)  = 3 * T2(j,i),
+      T1(i,j) += 3 * T2(j,i),
+      T1(i,j)  =     T2(j,i) * T3(k,j),
+      T1(i,j) +=     T2(j,i) * T3(k,j),
+      T1(i,j)  = 3 * T2(j,i) * T3(j,l),
+      T1(i,j) += 3 * T2(j,i) * T3(j,l)
+              ).execute();
+#endif
+  
   return 0;
 }
 

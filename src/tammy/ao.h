@@ -31,6 +31,15 @@ class AO : public IndexSpace {
             block_indices_.push_back({i});
           }
         }
+  Size size(BlockIndex bid) const override {
+    return sizes_[bid];
+  }
+  Offset offset(BlockIndex bid) const override {
+    return offsets_[bid];
+  }
+  int num_indep_indices() const override {
+    return 0;
+  }
 
   Iterator begin(RangeValue rv,
                  const BlockDimVec& bdv={}) const override {

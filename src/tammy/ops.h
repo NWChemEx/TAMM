@@ -18,10 +18,46 @@ class Op {
 };
 
 template<typename T, typename LabeledTensorT>
+class SetOp :  public Op {
+ public:
+  SetOp(LabeledTensorT lhs, T alpha, bool is_assign)
+      : lhs_{lhs},
+        alpha_{alpha},
+        is_assign_{is_assign} {}
+
+  SetOp(const SetOp<T,LabeledTensorT>&) = default;
+
+  T alpha() const {
+    return alpha;
+  }
+
+  LabeledTensorT lhs() const {
+    return lhs_;
+  }
+
+  bool is_assign() const {
+    return is_assign_;
+  }
+
+  Op* clone() const override {
+    return new SetOp<T,LabeledTensorT>{*this};
+  }
+
+  void execute() override {
+  }
+  
+ protected:
+  T alpha_;
+  LabeledTensorT lhs_;
+  bool is_assign_;
+};  // class AddOp
+
+template<typename T, typename LabeledTensorT>
 class AddOp :  public Op {
  public:
-  AddOp(T alpha, LabeledTensorT rhs, bool is_assign)
-      : alpha_{alpha},
+  AddOp(LabeledTensorT lhs, T alpha, LabeledTensorT rhs, bool is_assign)
+      : lhs_{lhs},
+        alpha_{alpha},
         rhs_{rhs},
         is_assign_{is_assign} {}
 
@@ -29,6 +65,10 @@ class AddOp :  public Op {
 
   T alpha() const {
     return alpha;
+  }
+
+  LabeledTensorT lhs() const {
+    return lhs_;
   }
 
   LabeledTensorT rhs() const {
@@ -47,32 +87,38 @@ class AddOp :  public Op {
   }
   
  protected:
+  LabeledTensorT lhs_;
   T alpha_;
   LabeledTensorT rhs_;
   bool is_assign_;
 };  // class AddOp
 
 
-template<typename T, typename LabeledTensorT1, typename LabeledTensorT2>
+template<typename T, typename LabeledTensorT>
 class MultOp : public Op {
  public:
-  MultOp(T alpha, LabeledTensorT1 rhs1, LabeledTensorT2 rhs2, bool is_assign)
-      : alpha_{alpha},
+  MultOp(LabeledTensorT lhs, T alpha, LabeledTensorT rhs1, LabeledTensorT rhs2, bool is_assign)
+      : lhs_{lhs},
+        alpha_{alpha},
         rhs1_{rhs1},
         rhs2_{rhs2},
         is_assign_{is_assign} {}
   
-  MultOp(const MultOp<T,LabeledTensorT1,LabeledTensorT2>&) = default;
+  MultOp(const MultOp<T,LabeledTensorT>&) = default;
   
+  LabeledTensor lhs() const {
+    return lhs_;
+  }
+
   T alpha() const {
     return alpha;
   }
 
-  LabeledTensorT1 rhs1() const {
+  LabeledTensorT rhs1() const {
     return rhs1_;
   }
 
-  LabeledTensorT2 rhs2() const {
+  LabeledTensorT rhs2() const {
     return rhs2_;
   }
 
@@ -88,11 +134,60 @@ class MultOp : public Op {
   }
   
  protected:
+  LabeledTensorT lhs_;
   T alpha_;
-  LabeledTensorT1 rhs1_;
-  LabeledTensorT2 rhs2_;
+  LabeledTensorT rhs1_;
+  LabeledTensorT rhs2_;
   bool is_assign_;
 }; //class MultOp
+
+template<typename TensorType>
+class AllocOp : public Op {
+ public:
+  AllocOp(TensorTypetensor)
+      : tensor_{tensor} {}
+  
+  AllocOp(const AllocOp<TensorType>&) = default;
+
+  TensorType tensor() const {
+    return tensor_;
+  }
+
+  Op* clone() const override {
+    return new AllocOp{*this};
+  }
+
+  void execute() override {
+    tensor_.allocate();
+  }
+  
+ protected:
+  TensorType tensor_;
+}; // class AllocOp
+
+template<typename TensorType>
+class DeallocOp : public Op {
+ public:
+  DeallocOp(TensorTypetensor)
+      : tensor_{tensor} {}
+  
+  DeallocOp(const DeallocOp<TensorType>&) = default;
+
+  TensorType tensor() const {
+    return tensor_;
+  }
+
+  Op* clone() const override {
+    return new DeallocOp{*this};
+  }
+
+  void execute() override {
+    tensor_.deallocate();
+  }
+  
+ protected:
+  TensorType tensor_;
+}; // class AllocOp
 
 }   // namespace tammy
 

@@ -55,7 +55,10 @@ class SetOp :  public Op {
 template<typename T, typename LabeledTensorT>
 class AddOp :  public Op {
  public:
-  AddOp(LabeledTensorT lhs, T alpha, LabeledTensorT rhs, bool is_assign)
+  AddOp(LabeledTensorT lhs,
+        T alpha,
+        LabeledTensorT rhs,
+        bool is_assign)
       : lhs_{lhs},
         alpha_{alpha},
         rhs_{rhs},
@@ -97,7 +100,11 @@ class AddOp :  public Op {
 template<typename T, typename LabeledTensorT>
 class MultOp : public Op {
  public:
-  MultOp(LabeledTensorT lhs, T alpha, LabeledTensorT rhs1, LabeledTensorT rhs2, bool is_assign)
+  MultOp(LabeledTensorT lhs,
+         T alpha,
+         LabeledTensorT rhs1,
+         LabeledTensorT rhs2,
+         bool is_assign)
       : lhs_{lhs},
         alpha_{alpha},
         rhs1_{rhs1},

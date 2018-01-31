@@ -258,7 +258,11 @@ class DependentIndexLabel {
   const IndexRange& ir() const {
     return il_.ir();
   }
-
+  
+  const IndexLabel& il() const {
+    return il_;
+  }
+  
   Label label() const {
     return il_.label();
   }
@@ -272,6 +276,10 @@ class DependentIndexLabel {
   TensorVec<IndexLabel> indep_labels_;
 };  // class DependentIndexLabel
 
+inline bool
+operator == (const DependentIndexLabel& lhs, const IndexLabel& rhs) {
+  return lhs.il() == rhs;
+}
 ///////////////////////////////////////////////////////////
 
 inline IndexLabel
@@ -347,6 +355,20 @@ class IndexInfo {
     std::fill_n(ipvec.end(), group_sizes_[1], IndexPosition::upper);
     std::fill_n(ipvec.end(), group_sizes_[2], IndexPosition::lower);
     return ipvec;
+  }
+
+  bool is_valid() const{
+    for(auto l : labels_)
+    {
+      for(auto indep: l.indep_labels())
+      {
+        auto u = std::find(labels_.begin(), labels_.end(), indep);
+        if(u == labels_.end())
+          return false;
+      }
+    }
+
+    return true;
   }
   
  protected:

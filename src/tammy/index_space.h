@@ -276,10 +276,6 @@ class DependentIndexLabel {
   TensorVec<IndexLabel> indep_labels_;
 };  // class DependentIndexLabel
 
-inline bool
-operator == (const DependentIndexLabel& lhs, const IndexLabel& rhs) {
-  return lhs.il() == rhs;
-}
 ///////////////////////////////////////////////////////////
 
 inline IndexLabel
@@ -358,12 +354,15 @@ class IndexInfo {
   }
 
   bool is_valid() const{
-    for(auto l : labels_)
-    {
-      for(auto indep: l.indep_labels())
-      {
-        auto u = std::find(labels_.begin(), labels_.end(), indep);
-        if(u == labels_.end())
+    TensorVec<IndexLabel> i_labels;
+    for(auto l : labels_){
+      i_labels.push_back(l.il());
+    }
+
+    for(auto l : labels_) {
+      for(auto indep: l.indep_labels()) {
+        auto u = std::find(i_labels.begin(), i_labels.end(), indep);
+        if(u == i_labels.end())
           return false;
       }
     }

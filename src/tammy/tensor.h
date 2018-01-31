@@ -33,20 +33,20 @@ class TensorImpl : public TensorBase, public TensorImplBase {
              TensorRank rank = 0)
           : TensorBase(dim_ranges, ipmask, irrep, spin_total),
             rank_{rank} {}
-  
+
   TensorImpl(const IndexInfo& info){
     EXPECTS(info.is_valid());
   }
 
-  TensorImpl(const IndexLabel& il1, 
+  TensorImpl(const IndexLabel& il1,
              const IndexLabel& il2);
-  
-  TensorImpl(const DependentIndexLabel& dil1, 
+
+  TensorImpl(const DependentIndexLabel& dil1,
              const IndexLabel& il2);
-  TensorImpl(const IndexLabel& il1, 
+  TensorImpl(const IndexLabel& il1,
              const DependentIndexLabel& dil2);
 
-  TensorImpl(const DependentIndexLabel& dil1, 
+  TensorImpl(const DependentIndexLabel& dil1,
              const DependentIndexLabel& dil2);
 
   TensorRank rank() const override {
@@ -77,7 +77,7 @@ class TensorImpl : public TensorBase, public TensorImplBase {
   //std::pair<Codelet*,Codelet*> add(const BlockDimVec& bdv, Block<T>& block) override {}
 
   // Operations
-   
+
 
  private:
   TensorRank rank_;
@@ -90,102 +90,137 @@ template<typename T>
 class Tensor {
  public:
   using ElementType = T;
-  Tensor() = delete;
 
+  Tensor() = default;
   Tensor(const Tensor&) = default;
   Tensor& operator = (const Tensor&) = default;
   ~Tensor() = default;
 
   Tensor(Tensor&& tensor)
       : impl_{std::move(tensor.impl_)} { }
-  
+
   template<typename TensorImplT, typename... Args>
   static Tensor create(Args&&... args) {
     static_assert(std::is_same<ElementType, typename TensorImplT::ElementType>::value,
                   "Mismatched element type between Tensor and Tensor implementation classes");
     // return Tensor{new TensorImplT(std::forward<Args>(args)...)};
-    return Tensor{std::make_shared<TensorImplT>(std::forward<Args>(args)...)};    
+    return Tensor{std::make_shared<TensorImplT>(std::forward<Args>(args)...)};
   }
 
   TensorRank rank() const {
+    EXPECTS(impl_);
     return impl_->rank();
   }
 
   bool is_unique(const BlockDimVec& bdv) const {
+    EXPECTS(impl_);
     return impl_->is_unique(bdv);
   }
 
   BlockDimVec get_unique(const BlockDimVec& bdv) const {
+    EXPECTS(impl_);
     return impl_->get_unique(bdv);
   }
 
   bool is_nonzero(const BlockDimVec& bdv) const {
+    EXPECTS(impl_);
     return impl_->is_nonzero(bdv);
   }
 
   Size block_size(const BlockDimVec& bdv) const {
+    EXPECTS(impl_);
     return impl_->block_size(bdv);
   }
 
   LabeledTensor<T> operator() (const IndexLabelVec& ilv) const {
+    EXPECTS(impl_);
     return LabeledTensor<T>{*this, ilv};
   }
 
   LabeledTensor<T> operator() (const IndexLabel& il1, const IndexLabel& il2) const {
+    EXPECTS(impl_);
     return operator()({il1,il2});
   }
 
   void set_proc_group(ProcGroup proc_group) {
+    EXPECTS(impl_);
     return impl_->set_proc_group(proc_group);
   }
 
   // Tensor& set_distribution(Distribution* distribution) {
+    // EXPECTS(impl_);
   //   impl_->set_distribution(distribution);
   //   return *this;
   // }
 
   // Tensor& set_memory_manager(MemoryManager* memory_manager) {
+    // EXPECTS(impl_);
   //   impl_->set_memory_manager(memory_manager);
   //   return *this;
   // }
 
   ProcGroup proc_group() const {
+    EXPECTS(impl_);
     return impl_->proc_group();
   }
 
   // Distribution* distribution() {
+      // EXPECTS(impl_);
   //   return impl_->distribution();
   // }
 
   // MemoryManager* memory_manager() {
+    // EXPECTS(impl_);
   //   return impl_->memory_manager();
   // }
 
   void allocate() {
+    EXPECTS(impl_);
     impl_->allocate();
   }
 
+  bool is_allocated() {
+    EXPECTS(impl_);
+    impl_->is_allocated();
+  }
+
   void deallocate() {
+    EXPECTS(impl_);
     impl_->deallocate();
   }
 
   // void attach(MemoryRegion* memory_region) {
+    // EXPECTS(impl_);
   //   impl_->attach(memory_region);
   // }
 
+  bool is_attached() {
+    EXPECTS(impl_);
+    impl_->is_allocated();
+  }
+
   void detach() {
+    EXPECTS(impl_);
     impl_->detach();
   }
 
+  bool is_constructed() {
+    EXPECTS(impl_);
+    impl_->is_constructed();
+  }
+
   // std::pair<Codelet*,Codelet*> get(const BlockDimVec& bdv, Block<T>& block) const {
+    // EXPECTS(impl_);
   //   return impl_->get(bdv, block);
   // }
 
   // std::pair<Codelet*,Codelet*> put(const BlockDimVec& bdv, Block<T>& block) {
+    // EXPECTS(impl_);
   //   return impl_->put(bdv, block);
   // }
 
   // std::pair<Codelet*,Codelet*> add(const BlockDimVec& bdv, Block<T>& block) {
+    // EXPECTS(impl_);
   //   return impl_->add(bdv, block);
   // }
 
@@ -245,7 +280,7 @@ class Tensor {
 //          const TensorVec<IndexPosition>& ipmask,
 //          Irrep irrep = Irrep{0},
 //          Spin spin_total = Spin{0},
-//          bool spin_restricted = false) 
+//          bool spin_restricted = false)
 //       : TensorImpl{dim_ranges, ipmask, irrep, spin_total, spin_restricted},
 //         mpb_{nullptr},
 //         distribution_{nullptr} {}
@@ -260,7 +295,7 @@ class Tensor {
 // */
 //       : Tensor{std::get<0>(iinfo), static_cast<TensorRank>(std::get<1>(iinfo)), irrep, spin_restricted} {}
 // #endif
-  
+
 //   ProcGroup pg() const {
 //     EXPECTS(mpb_ != nullptr);
 //     return mpb_->mgr().pg();
@@ -366,7 +401,7 @@ class Tensor {
 //     return (*this)(label);
 //   }
 // #endif
-  
+
 //   const Distribution* distribution() const {
 //     return distribution_.get();
 //   }
@@ -382,11 +417,11 @@ class Tensor {
 //   const MemoryRegion& memory_region() const override {
 //     return *mpb_.get();
 //   }
-  
+
 //   MemoryRegion& memory_region() override {
 //     return *mpb_.get();
 //   }
-  
+
 //   static void allocate(Distribution* distribution, MemoryManager* memory_manager) {
 //     //no-op
 //   }

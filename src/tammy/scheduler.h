@@ -17,6 +17,74 @@ namespace tammy {
 class Distribution;
 class MemoryManager;
 
+class TensorHolder {
+ public:
+  enum TensorType {
+    single_precision,
+    double_precision,
+    single_complex,
+    double_complex
+  };
+  
+  template<typename T>
+  TensorHolder(Tensor<T> tensor) {
+    switch(to_tensor_type(T{})) {
+      case single_precision:
+        type_ = TensorType::single_precision;
+        tensor_float_ = tensor;
+        break;
+      case double_precision:
+        type_ = TensorType::double_precision;
+        tensor_double_ = tensor;
+        break;
+      case single_complex:
+        type_ = TensorType::single_complex;
+        //impl_.tensor_ = tensor;
+        break;
+      case double_complex:
+        type_ = TensorType::double_complex;
+        //impl_.tensor_ = tensor;
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  ~TensorHolder() {
+    switch(type_) {
+      case single_precision:
+        tensor_float_.Tensor<float>::~Tensor();
+        break;
+      case double_precision:
+        tensor_double_.Tensor<double>::~Tensor();
+        break;
+      case single_complex:
+        //~impl_.tensor_();
+        break;
+      case double_complex:
+        //~impl_.tensor_();
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  
+ private:
+  Tensor<double> tensor_double_;
+  Tensor<float> tensor_float_;
+  //Tensor<std::complex> tensor_complex_;
+  TensorType type_;
+  
+  static TensorType to_tensor_type(float) {
+    return TensorType::single_precision;
+  }
+
+  static TensorType to_tensor_type(double) {
+    return TensorType::double_precision;
+  }
+
+};
+
 /**
  * @brief Scheduler to execute a list of operations.
  * @ingroup operations
@@ -50,7 +118,7 @@ class Scheduler {
 
   template<typename ElementType, typename... ElementTypes>
   Scheduler& tensors(Tensor<ElementType> tensor, Tensor<ElementTypes> ... rhs) {
-    tensors_.insert(&tensor);
+    tensors_.insert(TensorHolder{tensor});
     return tensors(rhs...);
   }
 
@@ -83,6 +151,10 @@ class Scheduler {
       op->execute();
     }
   }
+
+  ~Scheduler() {
+    //delete ops
+  }
   
  protected:
 
@@ -105,7 +177,7 @@ class Scheduler {
   MemoryManager* default_memory_manager_;
   ProcGroup pg_;
   std::vector<Op*> ops_;
-  std::set<TensorBase*> tensors_;
+  std::set<TensorHolder> tensors_;
   std::set<TensorBase*> live_in_tensors_;
   std::set<TensorBase*> live_out_tensors_;
   

@@ -23,6 +23,8 @@ class TensorBase {
   bool has_spin_symmetry_;
   TensorVec<SpinMask> spin_mask_;
 
+  TensorBase() = default;
+
   TensorBase(const TensorVec<IndexRange>& dim_ranges,
              const TensorVec<IndexPosition>& ipmask,
              Irrep irrep = Irrep{0},

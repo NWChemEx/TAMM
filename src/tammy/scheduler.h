@@ -1,14 +1,21 @@
 #ifndef TAMMY_SCHEDULER_H_
 #define TAMMY_SCHEDULER_H_
 
+
+#include <set>
+
 #include "tammy/types.h"
 #include "tammy/proc_group.h"
-#include "tammy/memory_manager.h"
-#include "tammy/distribution.h"
+// #include "tammy/memory_manager.h"
+// #include "tammy/distribution.h"
 #include "tammy/ops.h"
 #include "tammy/tensor.h"
 
+
 namespace tammy {
+
+class Distribution;
+class MemoryManager;
 
 /**
  * @brief Scheduler to execute a list of operations.
@@ -28,7 +35,7 @@ class Scheduler {
             Distribution* default_distribution,
             MemoryManager* default_memory_manager)
       : default_distribution_{default_distribution},
-        default_memory_manager_{default_memory_manager}
+        default_memory_manager_{default_memory_manager},
         pg_{pg} {}
 
   Scheduler& operator () () {
@@ -42,32 +49,32 @@ class Scheduler {
   }
 
   template<typename ElementType, typename... ElementTypes>
-  Scheduler& tensors(Tensor<ElementType> tensors, Tensor<ElementType...> ... tensors) {
-    tensors_.push_back(&tensors);
+  Scheduler& tensors(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
+    tensors_.insert(&tensor);
     return operator()(tensors...);
   }
 
   template<typename ElementType, typename... ElementTypes>
-  Scheduler& live_in(Tensor<ElementType> tensor, Tensor<ElementType...> ... tensors) {
-    live_in_tensors_.push_back(&tensor);
+  Scheduler& live_in(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
+    live_in_tensors_.insert(&tensor);
     return operator()(tensors...);
   }
 
   template<typename ElementType, typename... ElementTypes>
-  Scheduler& live_out(Tensor<ElementType> tensor, Tensor<ElementType...> ... tensors) {
-    live_out_tensors_.push_back(&tensor);
+  Scheduler& live_out(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
+    live_out_tensors_.insert(&tensor);
     return operator()(tensors...);
   }
 
   template<typename ElementType, typename... ElementTypes>
-  Scheduler& allocate(Tensor<ElementType> tensor, Tensor<ElementType...> ... tensors) {
-    ops_.push_back(new AllocOp<Tensor<ElementType>>);
+  Scheduler& allocate(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
+    ops_.push_back(new AllocOp<Tensor<ElementType>>{tensor});
     return operator()(tensors...);
   }
 
   template<typename ElementType, typename... ElementTypes>
-  Scheduler& deallocate(Tensor<ElementType> tensor, Tensor<ElementType...> ... tensors) {
-    ops_.push_back(new DeAllocOp<Tensor<ElementType>>);
+  Scheduler& deallocate(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
+    ops_.push_back(new DeallocOp<Tensor<ElementType>>{tensor});
     return operator()(tensors...);
   }
   
@@ -415,38 +422,38 @@ class Scheduler {
 //   std::vector<TensorBase*> intermediate_tensors_;
 }; // class Scheduler
 
-template<typename T>
-inline void
-assert_zero(Scheduler& sch, Tensor<T>& tc, double threshold = 1.0e-12) {
-  auto lambda = [&] (auto &val) {
-    //    std::cout<<"assert_zero. val="<<val<<std::endl;
-    EXPECTS(std::abs(val) < threshold);
-  };
-  sch.io(tc)
-      .sop(tc(), lambda)
-      .execute();
-}
+// template<typename T>
+// inline void
+// assert_zero(Scheduler& sch, Tensor<T>& tc, double threshold = 1.0e-12) {
+//   auto lambda = [&] (auto &val) {
+//     //    std::cout<<"assert_zero. val="<<val<<std::endl;
+//     EXPECTS(std::abs(val) < threshold);
+//   };
+//   sch.io(tc)
+//       .sop(tc(), lambda)
+//       .execute();
+// }
 
-template<typename LabeledTensorType, typename T>
-inline void
-assert_equal(Scheduler& sch, LabeledTensorType tc, T value, double threshold = 1.0e-12) {
-  auto lambda = [&] (auto &val) {
-    EXPECTS(std::abs(val - value) < threshold);
-  };
-  sch.io(tc.tensor())
-      .sop(tc, lambda)
-      .execute();
-}
+// template<typename LabeledTensorType, typename T>
+// inline void
+// assert_equal(Scheduler& sch, LabeledTensorType tc, T value, double threshold = 1.0e-12) {
+//   auto lambda = [&] (auto &val) {
+//     EXPECTS(std::abs(val - value) < threshold);
+//   };
+//   sch.io(tc.tensor())
+//       .sop(tc, lambda)
+//       .execute();
+// }
 
-template<typename LabeledTensorType>
-inline void
-tensor_print(Scheduler& sch, LabeledTensorType ltensor) {
-  sch.io(ltensor.tensor())
-      .sop(ltensor, [] (auto &ival) {
-          std::cout<<ival<<" ";
-        })
-      .execute();
-}
+// template<typename LabeledTensorType>
+// inline void
+// tensor_print(Scheduler& sch, LabeledTensorType ltensor) {
+//   sch.io(ltensor.tensor())
+//       .sop(ltensor, [] (auto &ival) {
+//           std::cout<<ival<<" ";
+//         })
+//       .execute();
+// }
 
 }  // namespace tammy
 

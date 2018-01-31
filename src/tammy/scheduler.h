@@ -49,33 +49,33 @@ class Scheduler {
   }
 
   template<typename ElementType, typename... ElementTypes>
-  Scheduler& tensors(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
+  Scheduler& tensors(Tensor<ElementType> tensor, Tensor<ElementTypes> ... rhs) {
     tensors_.insert(&tensor);
-    return operator()(tensors...);
+    return tensors(rhs...);
   }
 
   template<typename ElementType, typename... ElementTypes>
   Scheduler& live_in(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
     live_in_tensors_.insert(&tensor);
-    return operator()(tensors...);
+    return live_in(tensors...);
   }
 
   template<typename ElementType, typename... ElementTypes>
   Scheduler& live_out(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
     live_out_tensors_.insert(&tensor);
-    return operator()(tensors...);
+    return live_out(tensors...);
   }
 
   template<typename ElementType, typename... ElementTypes>
   Scheduler& allocate(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
     ops_.push_back(new AllocOp<Tensor<ElementType>>{tensor});
-    return operator()(tensors...);
+    return allocate(tensors...);
   }
 
   template<typename ElementType, typename... ElementTypes>
   Scheduler& deallocate(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
     ops_.push_back(new DeallocOp<Tensor<ElementType>>{tensor});
-    return operator()(tensors...);
+    return deallocate(tensors...);
   }
   
   void execute() {

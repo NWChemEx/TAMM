@@ -66,6 +66,25 @@ int main()
   T1(i,j) += 3 * T2(j,i) * T3(j,l);
   
 
+  Scheduler sch{ProcGroup{}, nullptr, nullptr};
+
+  sch
+      // .tensors(T1, T2, T3)
+      // .live_in(T2, T3)
+      // .live_out(T1)
+      (T1(i,j)  = 0,
+       T1(i,j) += .52,
+       T1(i,j)  =     T2(j,i),
+       T1(i,j) +=     T2(j,i),
+       T1(i,j)  = 3 * T2(j,i),
+       T1(i,j) += 3 * T2(j,i),
+       T1(i,j)  =     T2(j,i) * T3(k,j),
+       T1(i,j) +=     T2(j,i) * T3(k,j),
+       T1(i,j)  = 3 * T2(j,i) * T3(j,l),
+       T1(i,j) += 3 * T2(j,i) * T3(j,l)
+       )
+      .execute();
+  
 #if 0
   Scheduler()(
       T1(i,j)  = 0,

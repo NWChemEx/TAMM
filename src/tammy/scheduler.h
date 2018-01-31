@@ -31,11 +31,11 @@ class TensorHolder {
     switch(to_tensor_type(T{})) {
       case single_precision:
         type_ = TensorType::single_precision;
-        tensor_float_ = tensor;
+        set(tensor);
         break;
       case double_precision:
         type_ = TensorType::double_precision;
-        tensor_double_ = tensor;
+        set(tensor);
         break;
       case single_complex:
         type_ = TensorType::single_complex;
@@ -69,6 +69,9 @@ class TensorHolder {
     }
   }
   
+  template<typename T>
+  void set(Tensor<T> tensor);
+
  private:
   Tensor<double> tensor_double_;
   Tensor<float> tensor_float_;
@@ -84,6 +87,18 @@ class TensorHolder {
   }
 
 };
+
+  template<>
+  void TensorHolder::set<double>(Tensor<double> tensor){
+    tensor_double_ = tensor;
+  }
+
+  template<>
+  void TensorHolder::set<float>(Tensor<float> tensor){
+    tensor_float_ = tensor;
+  }
+
+////////////////////////////////////////////////////
 
 /**
  * @brief Scheduler to execute a list of operations.
@@ -116,21 +131,33 @@ class Scheduler {
     return operator()(ops...);
   }
 
+  Scheduler& tensors() {
+    return *this;
+  }
+
   template<typename ElementType, typename... ElementTypes>
-  Scheduler& tensors(Tensor<ElementType> tensor, Tensor<ElementTypes> ... rhs) {
-    tensors_.insert(TensorHolder{tensor});
+  Scheduler& tensors(Tensor<ElementType> tensor, Tensor<ElementTypes>... rhs) {
+    tensors_.push_back(TensorHolder{tensor});
     return tensors(rhs...);
+  }
+
+  Scheduler& live_in() {
+    return *this;
   }
 
   template<typename ElementType, typename... ElementTypes>
   Scheduler& live_in(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
-    live_in_tensors_.insert(&tensor);
+    live_in_tensors_.push_back(TensorHolder{tensor});
     return live_in(tensors...);
+  }
+
+  Scheduler& live_out() {
+    return *this;
   }
 
   template<typename ElementType, typename... ElementTypes>
   Scheduler& live_out(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
-    live_out_tensors_.insert(&tensor);
+    live_out_tensors_.push_back(TensorHolder{tensor});
     return live_out(tensors...);
   }
 
@@ -177,9 +204,9 @@ class Scheduler {
   MemoryManager* default_memory_manager_;
   ProcGroup pg_;
   std::vector<Op*> ops_;
-  std::set<TensorHolder> tensors_;
-  std::set<TensorBase*> live_in_tensors_;
-  std::set<TensorBase*> live_out_tensors_;
+  std::vector<TensorHolder> tensors_;
+  std::vector<TensorHolder> live_in_tensors_;
+  std::vector<TensorHolder> live_out_tensors_;
   
 //   ~Scheduler() {
 //     clear();

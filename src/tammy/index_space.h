@@ -384,12 +384,14 @@ class IndexInfo {
   }
 };
 
-IndexInfo operator + (IndexInfo lhs, const DependentIndexLabel& rhs) {
+inline IndexInfo
+operator + (IndexInfo lhs, const DependentIndexLabel& rhs) {
   lhs.add_to_last_group(rhs);
   return lhs;
 }
 
-IndexInfo operator + (IndexInfo lhs, const IndexLabel& rhs) {
+inline IndexInfo
+operator + (IndexInfo lhs, const IndexLabel& rhs) {
   lhs.add_to_last_group(rhs());
   return lhs;
 }

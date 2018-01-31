@@ -4,6 +4,7 @@
 #define TAMMY_INDEX_SPACE_H_
 
 #include <vector>
+#include <algorithm>
 
 #include "boundvec.h"
 #include "types.h"

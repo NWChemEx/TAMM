@@ -38,20 +38,20 @@ class LabeledTensor {
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
   AddOp<T1,LabeledTensor<T>> operator = (const std::pair<T1, LabeledTensor<T>>& rhs);
 
-  MultOp<T,LabeledTensor<T>,LabeledTensor<T>>
+  MultOp<T,LabeledTensor<T>>
   operator += (const std::tuple<LabeledTensor, LabeledTensor<T>>& rhs);
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-  MultOp<T1,LabeledTensor<T>,LabeledTensor<T>>
+  MultOp<T1,LabeledTensor<T>>
   operator += (const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs);
 
-  MultOp<T,LabeledTensor<T>,LabeledTensor<T>>
+  MultOp<T,LabeledTensor<T>>
   operator = (const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs);
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-  MultOp<T1,LabeledTensor<T>,LabeledTensor<T>>
+  MultOp<T1,LabeledTensor<T>>
   operator = (const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs);
 
  protected:

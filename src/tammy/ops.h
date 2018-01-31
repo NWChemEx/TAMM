@@ -113,7 +113,7 @@ class MultOp : public Op {
   
   MultOp(const MultOp<T,LabeledTensorT>&) = default;
   
-  LabeledTensor lhs() const {
+  LabeledTensorT lhs() const {
     return lhs_;
   }
 
@@ -151,7 +151,7 @@ class MultOp : public Op {
 template<typename TensorType>
 class AllocOp : public Op {
  public:
-  AllocOp(TensorTypetensor)
+  AllocOp(TensorType tensor)
       : tensor_{tensor} {}
   
   AllocOp(const AllocOp<TensorType>&) = default;
@@ -175,7 +175,7 @@ class AllocOp : public Op {
 template<typename TensorType>
 class DeallocOp : public Op {
  public:
-  DeallocOp(TensorTypetensor)
+  DeallocOp(TensorType tensor)
       : tensor_{tensor} {}
   
   DeallocOp(const DeallocOp<TensorType>&) = default;

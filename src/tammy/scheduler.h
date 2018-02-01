@@ -4,46 +4,43 @@
 
 #include <set>
 
-#include "tammy/types.h"
-#include "tammy/proc_group.h"
-// #include "tammy/memory_manager.h"
-// #include "tammy/distribution.h"
-#include "tammy/ops.h"
-#include "tammy/tensor.h"
+#include "types.h"
+#include "proc_group.h"
+#include "memory_manager.h"
+#include "distribution.h"
+#include "ops.h"
+#include "tensor.h"
 
 
 namespace tammy {
 
-class Distribution;
-class MemoryManager;
+// class Distribution;
+// class MemoryManager;
 
 class TensorHolder {
  public:
-  enum TensorType {
-    single_precision,
-    double_precision,
-    single_complex,
-    double_complex
-  };
-  
+ 
   template<typename T>
   TensorHolder(Tensor<T> tensor) {
-    switch(to_tensor_type(T{})) {
-      case single_precision:
-        type_ = TensorType::single_precision;
+    switch(tensor_element_type<T>()) {
+      case ElementType::single_precision:
+        type_ = ElementType::single_precision;
         set(tensor);
         break;
-      case double_precision:
-        type_ = TensorType::double_precision;
+      case ElementType::double_precision:
+        type_ = ElementType::double_precision;
         set(tensor);
         break;
-      case single_complex:
-        type_ = TensorType::single_complex;
+      case ElementType::single_complex:
+        type_ = ElementType::single_complex;
         //impl_.tensor_ = tensor;
         break;
-      case double_complex:
-        type_ = TensorType::double_complex;
+      case ElementType::double_complex:
+        type_ = ElementType::double_complex;
         //impl_.tensor_ = tensor;
+        break;
+      case ElementType::invalid:
+        UNREACHABLE();
         break;
       default:
         UNREACHABLE();
@@ -52,50 +49,56 @@ class TensorHolder {
 
   ~TensorHolder() {
     switch(type_) {
-      case single_precision:
+      case ElementType::single_precision:
         tensor_float_.Tensor<float>::~Tensor();
         break;
-      case double_precision:
+      case ElementType::double_precision:
         tensor_double_.Tensor<double>::~Tensor();
         break;
-      case single_complex:
+      case ElementType::single_complex:
         //~impl_.tensor_();
         break;
-      case double_complex:
+      case ElementType::double_complex:
         //~impl_.tensor_();
         break;
       default:
         UNREACHABLE();
+        break;
     }
   }
   
   template<typename T>
-  void set(Tensor<T> tensor);
+  void set(Tensor<T> const& tensor);
+
+  template<typename T>
+  Tensor<T> const& tensor();
 
  private:
   Tensor<double> tensor_double_;
   Tensor<float> tensor_float_;
-  //Tensor<std::complex> tensor_complex_;
-  TensorType type_;
-  
-  static TensorType to_tensor_type(float) {
-    return TensorType::single_precision;
-  }
-
-  static TensorType to_tensor_type(double) {
-    return TensorType::double_precision;
-  }
-
+  //Tensor<std::complex<double>> tensor_complex_d_;
+  //Tensor<std::complex<float>> tensor_complex_f_;  
+  ElementType type_;
 };
 
   template<>
-  void TensorHolder::set<double>(Tensor<double> tensor){
+  void TensorHolder::set<double>(Tensor<double> const& tensor){
     tensor_double_ = tensor;
   }
 
   template<>
-  void TensorHolder::set<float>(Tensor<float> tensor){
+  void TensorHolder::set<float>(Tensor<float> const& tensor){
     tensor_float_ = tensor;
+  }
+  
+  template<>
+  Tensor<double> const& TensorHolder::tensor<double>() {
+    return tensor_double_;
+  }
+
+  template<>
+  Tensor<float> const& TensorHolder::tensor<float>() {
+    return tensor_float_;
   }
 
 ////////////////////////////////////////////////////

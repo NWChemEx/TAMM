@@ -3,8 +3,8 @@
 
 #include <iosfwd>
 
-#include "tammy/types.h"
-#include "tammy/proc_group.h"
+#include "types.h"
+#include "proc_group.h"
 
 /**
  * @defgroup memory_management
@@ -388,7 +388,7 @@ class MemoryRegionImpl : public MemoryRegion {
 
   virtual ~MemoryRegionImpl() {}
 
-  ProcGroup pg() const {
+  ProcGroup pg() const override {
     return mgr_.pg();
   }
 

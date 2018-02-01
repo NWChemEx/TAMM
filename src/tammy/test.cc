@@ -10,6 +10,9 @@
 #include "labeled_tensor.h"
 #include "ops.h"
 #include "scheduler.h"
+#include "memory_manager.h"
+#include "memory_manager_local.h"
+#include "distribution.h"
 
 // //#include "memory_manager_ga.h"
 // #include "proc_group.h"

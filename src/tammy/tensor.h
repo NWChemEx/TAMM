@@ -3,10 +3,11 @@
 
 #include <memory>
 
-#include "boundvec.h"
-#include "errors.h"
-#include "types.h"
-#include "proc_group.h"
+#include "tammy/boundvec.h"
+#include "tammy/errors.h"
+#include "tammy/types.h"
+#include "tammy/proc_group.h"
+#include "tammy/memory_manager.h"
 
 namespace tammy {
 
@@ -209,6 +210,11 @@ class Tensor {
     impl_->is_constructed();
   }
 
+  AllocationStatus allocation_status() const {
+    EXPECTS(impl_);
+    impl_->allocation_status();
+  }
+  
   // std::pair<Codelet*,Codelet*> get(const BlockDimVec& bdv, Block<T>& block) const {
     // EXPECTS(impl_);
   //   return impl_->get(bdv, block);

@@ -97,7 +97,7 @@ class MemoryManagerLocal : public MemoryManager {
   /**
    * @copydoc MemoryManager::fence
    */
-  void fence(MemoryRegion& mr) {
+  void fence(MemoryRegion& mr) override {
     //no-op
   }
 

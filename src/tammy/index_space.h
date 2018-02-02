@@ -34,23 +34,20 @@ class IndexSpace {
   virtual Size size(BlockIndex) const = 0;
   virtual Offset offset(BlockIndex) const = 0;
   virtual Iterator begin(RangeValue rv,
-                         const BlockDimVec& indep_indices={}) const = 0;
+                         const TensorVec<Iterator>& indep_indices={}) const = 0;
   virtual Iterator end(RangeValue rv,
-                       const BlockDimVec& indep_indices={}) const = 0;
+                       const TensorVec<Iterator>& indep_indices={}) const = 0;
 
   virtual IndexRange ER() const = 0;
   virtual IndexRange NR() const = 0;
 
   virtual int num_indep_indices() const = 0;
   
-  IndexLabel N(Label label) const;
-  IndexLabel E(Label label) const;
+  template<typename... LabelArgs>
+  auto N(LabelArgs... labels) const;
 
   template<typename... LabelArgs>
-  auto N(Label label, LabelArgs... labels) const;
-
-  template<typename... LabelArgs>
-  auto E(Label label, LabelArgs... labels) const;
+  auto E(LabelArgs... labels) const;
 
   bool is_identical_to(const IndexSpace& is) const {
     return this == &is;
@@ -119,12 +116,17 @@ class IndexRange {
   int num_indep_indices() const {
     return is_->num_indep_indices();
   }
-  
-  IndexSpace::Iterator begin(const BlockDimVec& indep_indices = {}) const {
+
+  IndexLabel labels(Label label) const;
+
+  template<typename... LabelArgs>
+  auto labels(Label label, LabelArgs... labels) const;
+
+  IndexSpace::Iterator begin(const TensorVec<IndexSpace::Iterator>& indep_indices = {}) const {
     return is().begin(rv_, indep_indices);
   }
 
-  IndexSpace::Iterator end(const BlockDimVec& indep_indices = {}) const {
+  IndexSpace::Iterator end(const TensorVec<IndexSpace::Iterator>& indep_indices = {}) const {
     return is().end(rv_, indep_indices);
   }
 
@@ -279,29 +281,33 @@ class DependentIndexLabel {
 
 ///////////////////////////////////////////////////////////
 
-inline IndexLabel
-IndexSpace::N(Label label) const {
-  return IndexLabel{NR(), label};
-}
-
-inline IndexLabel
-IndexSpace::E(Label label) const {
-  return IndexLabel{ER(), label};
+template<typename... LabelArgs>
+inline auto 
+IndexSpace::N(LabelArgs... labels) const {
+  // return std::make_tuple(N(label), N(labels)...);
+  return NR().labels(labels...);
 }
 
 template<typename... LabelArgs>
 inline auto 
-IndexSpace::N(Label label, LabelArgs... labels) const {
-  return std::make_tuple(N(label), N(labels)...);
-}
-
-template<typename... LabelArgs>
-inline auto 
-IndexSpace::E(Label label, LabelArgs... labels) const {
-  return std::make_tuple(E(label), E(labels)...);
+IndexSpace::E(LabelArgs... labels) const {
+  // return std::make_tuple(E(label), E(labels)...);
+  return ER().labels(labels...);
 }
 ///////////////////////////////////////////////////////////
 
+inline IndexLabel
+IndexRange::labels(Label label) const {
+  return IndexLabel{*this, label};
+}
+
+template<typename... LabelArgs>
+inline auto 
+IndexRange::labels(Label label, LabelArgs... rest) const {
+  return std::make_tuple(labels(label), labels(rest)...);
+}
+
+///////////////////////////////////////////////////////////
 
 inline DependentIndexLabel
 IndexLabel::operator() (IndexLabel il1) const {

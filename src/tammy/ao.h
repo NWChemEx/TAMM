@@ -42,7 +42,7 @@ class AO : public IndexSpace {
   }
 
   Iterator begin(RangeValue rv,
-                 const BlockDimVec& bdv={}) const override {
+                 const TensorVec<IndexSpace::Iterator>& bdv={}) const override {
     EXPECTS(bdv.size() == 0);
     auto ret = block_indices_.begin();
     BlockCount off;
@@ -67,7 +67,7 @@ class AO : public IndexSpace {
   }
 
   Iterator end(RangeValue rv,
-               const BlockDimVec& bdv={}) const override {
+               const TensorVec<IndexSpace::Iterator>& bdv={}) const override {
     EXPECTS(bdv.size() == 0);
     auto ret = block_indices_.begin();
     BlockCount off;
@@ -116,13 +116,13 @@ class AO : public IndexSpace {
   }
 
   template<typename... LabelArgs>
-  auto O(Label label, LabelArgs... labels) const {
-    return std::make_tuple(O(label), O(labels)...);
+  auto O(LabelArgs... labels) const {
+    return OR().labels(labels...);
   }
 
   template<typename... LabelArgs>
-  auto V(Label label, LabelArgs... labels) const {
-    return std::make_tuple(V(label), V(labels)...);
+  auto V(LabelArgs... labels) const {
+    return VR().labels(labels...);
   }
 
  protected:

@@ -93,19 +93,26 @@ operator >= (const IndexSpace& lhs, const IndexSpace& rhs) {
 
 class IndexRange {
  public:
+  using BeginEndFn = IndexSpace::Iterator  (*) (const IndexRange& ir,
+                                                const TensorVec<IndexSpace::Iterator>& indep_indices);
   IndexRange()
       : is_{nullptr},
-        rv_{0} {}
+        rv_{0},
+        begin_fn_{default_begin_},
+        end_fn_{default_end_} {}
   
   IndexRange(const IndexSpace& is,
              RangeValue rv)
       : is_{&is},
-        rv_{rv} {}
+        rv_{rv},
+        begin_fn_{default_begin_},
+        end_fn_{default_end_} {}
 
   IndexRange(const IndexRange& ir) = default;
   IndexRange& operator = (const IndexRange& ir) = default;
 
   const IndexSpace& is() const {
+    EXPECTS(is_);
     return *is_;
   }
 
@@ -123,17 +130,46 @@ class IndexRange {
   auto labels(Label label, LabelArgs... labels) const;
 
   IndexSpace::Iterator begin(const TensorVec<IndexSpace::Iterator>& indep_indices = {}) const {
-    return is().begin(rv_, indep_indices);
+    return begin_fn_(*this, indep_indices);
   }
 
   IndexSpace::Iterator end(const TensorVec<IndexSpace::Iterator>& indep_indices = {}) const {
-    return is().end(rv_, indep_indices);
+    return end_fn_(*this, indep_indices);
   }
 
+  IndexRange& set_begin(BeginEndFn fn) {
+    begin_fn_ = fn;
+    return *this;
+  }
+  
+  IndexRange& set_end(BeginEndFn fn) {
+    end_fn_ = fn;
+    return *this;
+  }
+  
  private:
   const IndexSpace* is_; //non-owning pointer (using pointer to get default constructor)
   RangeValue rv_;
+
+  BeginEndFn begin_fn_;
+  BeginEndFn end_fn_;
+
+  static BeginEndFn default_begin_;
+  
+  static BeginEndFn default_end_;  
 };  // IndexRange
+
+IndexRange::BeginEndFn
+IndexRange::default_begin_ = [] (const IndexRange& ir,
+                                 const TensorVec<IndexSpace::Iterator>& indep_indices) {
+  return ir.is().begin(ir.rv(), indep_indices);
+};
+
+IndexRange::BeginEndFn
+IndexRange::default_end_ = [] (const IndexRange& ir,
+                               const TensorVec<IndexSpace::Iterator>& indep_indices) {
+  return ir.is().end(ir.rv(), indep_indices);
+};
 
 inline bool
 operator == (const IndexRange& lhs, const IndexRange& rhs) {

@@ -115,14 +115,14 @@ class Distribution_NW : public Distribution {
     EXPECTS(pptr != std::begin(proc_offsets_));
     auto proc = Proc{pptr - std::begin(proc_offsets_)};
     proc -= 1;
-    Offset offset = Offset{ioffset - proc_offsets_[proc.template value<size_t>()];
+    Offset offset = Offset{ioffset - proc_offsets_[proc.template value<size_t>()].template value<int64_t>()};
     return {proc, offset};
   }
 
   Size buf_size(Proc proc) const {
     EXPECTS(proc >= Proc{0});
     EXPECTS(proc < nproc_);
-    EXPECTS(proc_offsets_.size() > static_cast<uint64_t>(proc.value()+1));
+    EXPECTS(proc_offsets_.size() > static_cast<uint64_t>(proc.template value<size_t>()+1));
     return proc_offsets_[proc.template value<size_t>()+1] - proc_offsets_[proc.template value<size_t>()];
   }
 
@@ -133,7 +133,8 @@ class Distribution_NW : public Distribution {
       return;
     }
 
-#if 1
+//@todo: Update TensorBase operations with new structure
+#if 0
     int64_t length = 0;
     for(auto& uitr = *tensor_structure_->unique_generator();
         uitr.has_more(); uitr.next()) {
@@ -164,7 +165,7 @@ class Distribution_NW : public Distribution {
         addr += 1;
       }
     }
-#else   
+#elif 0
     auto indices = tensor_structure_->tindices();
     auto pdt =  loop_iterator(indices);
     auto last = pdt.get_end();
@@ -198,7 +199,11 @@ class Distribution_NW : public Distribution {
       }
     }
 #endif
-    
+    //@todo: remove after TensorBase update
+    int64_t length = 0;
+    int64_t offset = 0;
+    ///////////////////
+
     EXPECTS(offset > 0);
     total_size_ = offset;
 
@@ -217,13 +222,13 @@ class Distribution_NW : public Distribution {
         proc_offsets_.push_back(Offset{total_size_});        
       }
       
-      itr = std::lower_bound(itr, itr_last, (i+1)*per_proc_size);
+      itr = std::lower_bound(itr, itr_last, (i+1).template value<int64_t>()*per_proc_size);
       // if(GA_Nodeid() == 1) {
       //   //std::cerr<<"------DISTRIB_NW. *new_itr="<<*itr<<"\n";
       // }
     }
 
-    EXPECTS(proc_offsets_.size() == static_cast<uint64_t>(nproc.value()));
+    EXPECTS(proc_offsets_.size() == static_cast<uint64_t>(nproc.template value<size_t>()));
     proc_offsets_.push_back(total_size_);
 
     // if(GA_Nodeid() == 1){
@@ -244,6 +249,8 @@ private:
     int64_t key;
     TensorVec<int64_t> offsets, bases;
 
+//@todo: Update TensorBase operations with new structure
+#if 0
     const auto& drs = tensor_structure_->dim_ranges();
     for(const auto &dr: drs) {
       offsets.push_back(dr.bhi().value() - dr.blo().value());
@@ -260,6 +267,8 @@ private:
       key += ((blockid[i].value() - bases[i]) * offset);
       offset *= offsets[i];
     }
+#endif
+
     return key;
   }
 

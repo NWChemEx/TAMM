@@ -66,7 +66,7 @@ class MSO : public IndexSpace {
     return 0;
   }
   Iterator begin(RangeValue rv,
-                 const BlockDimVec& bdv={}) const override {    
+                 const TensorVec<IndexSpace::Iterator>& bdv={}) const override {    
     EXPECTS(bdv.size() == 0);
     auto ret = block_indices_.begin();
     BlockCount off;
@@ -103,7 +103,7 @@ class MSO : public IndexSpace {
   }
   
   Iterator end(RangeValue rv,
-               const BlockDimVec& bdv={}) const override {
+                 const TensorVec<IndexSpace::Iterator>& bdv={}) const override {    
     EXPECTS(bdv.size() == 0);
     auto ret = block_indices_.begin();
     BlockCount off;
@@ -166,48 +166,29 @@ class MSO : public IndexSpace {
     return {*this, range_vb};
   }
 
-  IndexLabel O(Label label) const {
-    return {OR(),label};
-  }
-  IndexLabel V(Label label) const {
-    return {VR(),label};
-  }    
-  IndexLabel Oa(Label label) const {
-    return {OaR(),label};
-  }
-  IndexLabel Va(Label label) const {
-    return {VaR(),label};
-  }
-  IndexLabel Ob(Label label) const {
-    return {ObR(),label};
-  }
-  IndexLabel Vb(Label label) const {
-    return {VbR(),label};
-  }
-
   template<typename... LabelArgs>
-  auto O(Label label, LabelArgs... labels) const {
-    return std::make_tuple(O(label), O(labels)...);
+  auto O(LabelArgs... labels) const {
+    return OR().labels(labels...);
   }
   template<typename... LabelArgs>
-  auto V(Label label, LabelArgs... labels) const {
-    return std::make_tuple(V(label), V(labels)...);
+  auto V(LabelArgs... labels) const {
+    return VR().labels(labels...);
   }    
   template<typename... LabelArgs> auto
-  Oa(Label label, LabelArgs... labels) const {
-    return std::make_tuple(Oa(label), Oa(labels)...);
+  Oa(LabelArgs... labels) const {
+    return OaR().labels(labels...);
   }
   template<typename... LabelArgs> auto
-  Va(Label label, LabelArgs... labels) const {
-    return std::make_tuple(Va(label), Va(labels)...);
+  Va(LabelArgs... labels) const {
+    return VaR().labels(labels...);
   }
   template<typename... LabelArgs> auto
-  Ob(Label label, LabelArgs... labels) const {
-    return std::make_tuple(Ob(label), Ob(labels)...);
+  Ob(LabelArgs... labels) const {
+    return ObR().labels(labels...);
   }
   template<typename... LabelArgs> auto
-  Vb(Label label, LabelArgs... labels) const {
-    return std::make_tuple(Vb(label), Vb(labels)...);
+  Vb(LabelArgs... labels) const {
+    return VbR().labels(labels...);
   }
 
  protected:

@@ -57,6 +57,21 @@ int main()
   auto T3 = Tensor<double>::create<TensorImpl<double>>(E | i + j(l) | E);
   auto T4 = Tensor<double>::create<TensorImpl<double>>(i(k) + j(l) | E | E);
 
+  // Valid Tensor Creation
+  auto V_T1 = Tensor<double>::create<TensorImpl<double>>(i, j);
+  auto V_T2 = Tensor<double>::create<TensorImpl<double>>(i + j | E | E);
+  auto V_T3 = Tensor<double>::create<TensorImpl<double>>(E | i(k) | k);
+  auto V_T4 = Tensor<double>::create<TensorImpl<double>>(E | i(k) + j | k);
+  auto V_T5 = Tensor<double>::create<TensorImpl<double>>(E | i(k) + j(l) | k + l);
+  auto V_T6 = Tensor<double>::create<TensorImpl<double>>(i | j | k);
+  auto V_T7 = Tensor<double>::create<TensorImpl<double>>(i + j| E | k(j) + l);
+
+  // Invalid Tensor Creation
+  auto I_T1 = Tensor<double>::create<TensorImpl<double>>(i(k)); // IndexLabel k is not present
+  auto I_T2 = Tensor<double>::create<TensorImpl<double>>(i(k) | E | E); // IndexLabel k is not present
+  auto I_T3 = Tensor<double>::create<TensorImpl<double>>(i(k) + j(l) | E | k); // IndexLabel l is not present
+  auto I_T4 = Tensor<double>::create<TensorImpl<double>>(i(k) + j(l) | E | E); // IndexLabel k and l is not present
+
   // T1(i,j) = 0;
   // T1(i,j) += .52;
   // T1(i,j) = T2(j,i);

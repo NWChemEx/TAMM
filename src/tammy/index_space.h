@@ -360,6 +360,14 @@ class IndexInfo {
     return ipvec;
   }
 
+  IndexInfo& operator |= (const IndexInfo& rhs){
+    labels_.insert_back(rhs.labels_.begin(),
+                            rhs.labels_.end());
+    group_sizes_.insert_back(rhs.group_sizes_.begin(),
+                            rhs.group_sizes_.end());    
+    return *this;
+  }
+
   bool is_valid() const{
     TensorVec<IndexLabel> i_labels;
     for(auto l : labels_){
@@ -381,13 +389,6 @@ class IndexInfo {
   TensorVec<DependentIndexLabel> labels_;
   TensorVec<size_t> group_sizes_;
 
-  friend IndexInfo operator | (IndexInfo lhs,  const IndexInfo& rhs){
-    lhs.labels_.insert_back(rhs.labels_.begin(),
-                            rhs.labels_.end());
-    lhs.group_sizes_.insert_back(rhs.group_sizes_.begin(),
-                            rhs.group_sizes_.end());    
-    return lhs;
-  }
 };
 
 inline IndexInfo
@@ -402,6 +403,11 @@ operator + (IndexInfo lhs, const IndexLabel& rhs) {
   return lhs;
 }
 
+inline IndexInfo 
+operator | (IndexInfo lhs, const IndexInfo& rhs) {
+  lhs |= rhs;
+  return lhs;
+}
 
 /////////////////////////////////////////////
 using IndexLabelVec = TensorVec<IndexLabel>;

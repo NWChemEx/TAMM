@@ -51,9 +51,15 @@ int main()
   MSO mso;
   IndexLabel i, j, k, l, E;
   std::tie(i,j,k,l) = mso.N(0,1,2,3);
+  SubMSO sub_mso;
+  IndexLabel i1, j1, k1, l1;
+  std::tie(i1,j1,k1,l1) = sub_mso.N(0,1,2,3);
 
-  auto T1 = Tensor<double>::create<TensorImpl<double>>(i, j);
-  auto T2 = Tensor<double>::create<TensorImpl<double>>(i(k) + j | E | E);
+  // do we want , or just +. Are these indices neither upper nor lower
+  auto T1 = Tensor<double>::create<TensorImpl<double>>(i, j); 
+
+  //dependent index labels should only be constructed for dependent index spaces
+  auto T2 = Tensor<double>::create<TensorImpl<double>>(i1(k) + j | E | E);
   auto T3 = Tensor<double>::create<TensorImpl<double>>(E | i + j(l) | E);
   auto T4 = Tensor<double>::create<TensorImpl<double>>(i(k) + j(l) | E | E);
 
@@ -71,6 +77,8 @@ int main()
   auto I_T2 = Tensor<double>::create<TensorImpl<double>>(i(k) | E | E); // IndexLabel k is not present
   auto I_T3 = Tensor<double>::create<TensorImpl<double>>(i(k) + j(l) | E | k); // IndexLabel l is not present
   auto I_T4 = Tensor<double>::create<TensorImpl<double>>(i(k) + j(l) | E | E); // IndexLabel k and l is not present
+  auto I_T5 = Tensor<double>::create<TensorImpl<double>>(i + i | E | E); // duplicated index labels
+  auto I_T5 = Tensor<double>::create<TensorImpl<double>>(i(k) + i | E | E); // duplicated index labels
 
   // T1(i,j) = 0;
   // T1(i,j) += .52;

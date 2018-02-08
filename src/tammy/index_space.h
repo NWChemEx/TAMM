@@ -38,6 +38,9 @@ class IndexSpace {
   virtual Iterator end(RangeValue rv,
                        const TensorVec<Iterator>& indep_indices={}) const = 0;
 
+  virtual bool is_superset_of(RangeValue rv1,
+                              RangeValue rv2) const = 0;
+  
   virtual IndexRange ER() const = 0;
   virtual IndexRange NR() const = 0;
 
@@ -145,6 +148,11 @@ class IndexRange {
   IndexRange& set_end(BeginEndFn fn) {
     end_fn_ = fn;
     return *this;
+  }
+
+  bool is_superset_of(const IndexRange& ir) const {
+    EXPECTS(is_->is_compatible_with(ir.is_));
+    is_->is_superset_of(rv_, ir.rv_);
   }
   
  private:

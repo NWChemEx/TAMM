@@ -139,6 +139,11 @@ class MSO : public IndexSpace {
     return ret + off.template value<size_type>();
   }    
 
+  bool is_superset_of(RangeValue rv1,
+                      RangeValue rv2) const override {
+    return (rv1 & rv2) == rv2;
+  }
+
   IndexRange NR() const override {
     return {*this, range_n};
   }

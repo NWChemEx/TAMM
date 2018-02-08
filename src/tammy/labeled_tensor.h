@@ -37,11 +37,11 @@ class LabeledTensor {
     return {*this, 1, rhs, is_assign};
   }
 
-  AddOp<T,LabeledTensor<T>> operator += (const T& rhs);
+  SetOp<T,LabeledTensor<T>> operator += (const T& rhs);
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-  AddOp<T1,LabeledTensor<T>> operator += (const std::pair<T1, LabeledTensor<T>>& rhs) {
+  AddOp<T1,LabeledTensor<T>> operator += (const std::tuple<T1, LabeledTensor<T>>& rhs) {
     addop_validate(*this, std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)));
     bool is_assign = false;
     
@@ -55,11 +55,11 @@ class LabeledTensor {
     return {*this, 1, rhs, is_assign};
   }
 
-  AddOp<T,LabeledTensor<T>> operator = (const T& rhs);
+  SetOp<T,LabeledTensor<T>> operator = (const T& rhs);
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-  AddOp<T1,LabeledTensor<T>> operator = (const std::pair<T1, LabeledTensor<T>>& rhs) {
+  AddOp<T1,LabeledTensor<T>> operator = (const std::tuple<T1, LabeledTensor<T>>& rhs) {
     addop_validate(*this, std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)));
     bool is_assign = true;
     
@@ -108,20 +108,20 @@ class LabeledTensor {
 };
 
 template<typename T1, typename T2>
-inline std::pair<T1, LabeledTensor<T2>>
+inline std::tuple<T1, LabeledTensor<T2>>
 operator * (T1 val, const LabeledTensor<T2>& rhs) {
   return {val, rhs};
 }
 
 template<typename T>
-inline std::pair<LabeledTensor<T>, LabeledTensor<T>>
+inline std::tuple<LabeledTensor<T>, LabeledTensor<T>>
 operator * (const LabeledTensor<T>& rhs1, const LabeledTensor<T>& rhs2) {
   return {rhs1, rhs2};
 }
 
 template<typename T1, typename T2>
 inline std::tuple<T1, LabeledTensor<T2>, LabeledTensor<T2>>
-operator * (std::pair<T1, LabeledTensor<T2>> rhs1, const LabeledTensor<T2>& rhs2) {
+operator * (std::tuple<T1, LabeledTensor<T2>> rhs1, const LabeledTensor<T2>& rhs2) {
   return {std::get<0>(rhs1), std::get<1>(rhs1), rhs2};
 }
 

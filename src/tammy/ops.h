@@ -13,7 +13,7 @@ namespace tammy {
 class Op {
  public:
   virtual Op* clone() const = 0;
-  virtual void execute();
+  virtual void execute() = 0;
   virtual ~Op() {}
 };
 

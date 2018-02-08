@@ -145,9 +145,12 @@ class Tensor {
     return LabeledTensor<T>{*this, ilv};
   }
 
-  LabeledTensor<T> operator() (const IndexLabel& il1, const IndexLabel& il2) const {
+  template<typename ...Args>
+  LabeledTensor<T> operator () (IndexLabel ilbl, Args... rest) {
     EXPECTS(impl_);
-    return operator()({il1,il2});
+    IndexLabelVec label{ilbl};
+    pack(label, rest...);
+    return (*this)(label);
   }
 
   void set_proc_group(ProcGroup proc_group) {
@@ -238,6 +241,14 @@ class Tensor {
   // }
 
  protected:
+  void pack(IndexLabelVec& label) {}
+
+  template<typename ...Args>
+  void pack(IndexLabelVec& label, IndexLabel ilbl, Args... rest) {
+    label.push_back(ilbl);
+    pack(label, rest...);
+  }
+
   Tensor(std::shared_ptr<TensorImpl<T>> impl)
       :impl_{impl} {}
 

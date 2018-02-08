@@ -33,11 +33,13 @@ class LabeledTensor {
   AddOp<T,LabeledTensor<T>> operator += (const LabeledTensor<T>& rhs) {
     addop_validate(*this, std::make_tuple(1, rhs));
     bool is_assign = false;
-
     return {*this, 1, rhs, is_assign};
   }
 
-  SetOp<T,LabeledTensor<T>> operator += (const T& rhs);
+  SetOp<T,LabeledTensor<T>> operator += (const T& rhs) {
+    bool is_assign = false;
+    return {*this, rhs, is_assign};
+  }
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
@@ -55,7 +57,10 @@ class LabeledTensor {
     return {*this, 1, rhs, is_assign};
   }
 
-  SetOp<T,LabeledTensor<T>> operator = (const T& rhs);
+  SetOp<T,LabeledTensor<T>> operator = (const T& rhs) {
+    bool is_assign = true;
+    return {*this, rhs, is_assign};
+  }
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>

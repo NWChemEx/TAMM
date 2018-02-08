@@ -82,7 +82,39 @@ int main()
   // T1(i,j) += T2(j,i) * T3(k,j);
   // T1(i,j) = 3 * T2(j,i) * T3(j,l);
   // T1(i,j) += 3 * T2(j,i) * T3(j,l);
-  
+
+  // Failing operations
+  // General Case: tensor with same index label
+  T1(i,j) = T2(k,k);
+  T1(i,j) += T2(j,j);
+  T1(i,j) = T2(j,i) * T3(k,k);
+  T1(i,i) += T2(i,j) * T3(k,l);
+
+  // General Case: length of the index label vector does not match the rank in the tensor
+  T1(i,j) += T2(j,i,k);
+  T1(i,j) = 3 * T3(i,j,k);
+  T1(i,j) += T2(j,i) * T3(i,j,l);
+
+  // Addition Case: each index label should occur exactly once in LHS and RHS
+  T1(i,j) += T2(j,i,j);
+
+  // Multiplication Case: every outer index label appears in exactly one RHS tensor
+  T1(i,j) = T2(j,i) * T4(i,k);
+
+  // Multiplication Case: every inner index label appears exactly once in both RHS tensors
+  T1(i,j) += T2(j,i) * T3(k,j);
+
+  // Passing operations
+  T1(i,j) = 0;
+  T1(i,j) += .52;
+  T1(i,j) = T2(j,i);
+  T1(i,j) += T2(j,i);
+  T1(i,j) = 3 * T2(j,i);
+  T1(i,j) += 3 * T2(j,i);
+  T1(i,j) = T2(i,k) * T3(k,j);
+  T1(i,j) += T2(i,k) * T3(k,j);
+  T1(i,j) = 3 * T2(i,l) * T3(j,l);
+  T1(i,j) += 3 * T2(i,l) * T3(j,l);
 
   Scheduler sch{ProcGroup{}, nullptr, nullptr};
 

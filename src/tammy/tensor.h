@@ -35,9 +35,10 @@ class TensorImpl : public TensorBase, public TensorImplBase {
           : TensorBase(dim_ranges, ipmask, irrep, spin_total),
             rank_{rank} {}
 
-  TensorImpl(const IndexInfo& info){
-    EXPECTS(info.is_valid());
-  }
+  TensorImpl(const IndexInfo& info)
+          : TensorBase(info) {
+            EXPECTS(info.is_valid());
+          }
 
   TensorImpl(const IndexLabel& il1,
              const IndexLabel& il2);

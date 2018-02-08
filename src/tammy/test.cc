@@ -51,9 +51,9 @@ int main()
   MSO mso;
   IndexLabel i, j, k, l, E;
   std::tie(i,j,k,l) = mso.N(0,1,2,3);
-  SubMSO sub_mso;
+  // SubMSO sub_mso;
   IndexLabel i1, j1, k1, l1;
-  std::tie(i1,j1,k1,l1) = sub_mso.N(0,1,2,3);
+  // std::tie(i1,j1,k1,l1) = sub_mso.N(0,1,2,3);
 
   // do we want , or just +. Are these indices neither upper nor lower
   auto T1 = Tensor<double>::create<TensorImpl<double>>(i, j); 
@@ -78,7 +78,7 @@ int main()
   auto I_T3 = Tensor<double>::create<TensorImpl<double>>(i(k) + j(l) | E | k); // IndexLabel l is not present
   auto I_T4 = Tensor<double>::create<TensorImpl<double>>(i(k) + j(l) | E | E); // IndexLabel k and l is not present
   auto I_T5 = Tensor<double>::create<TensorImpl<double>>(i + i | E | E); // duplicated index labels
-  auto I_T5 = Tensor<double>::create<TensorImpl<double>>(i(k) + i | E | E); // duplicated index labels
+  auto I_T6 = Tensor<double>::create<TensorImpl<double>>(i(k) + i | E | E); // duplicated index labels
 
   // T1(i,j) = 0;
   // T1(i,j) += .52;

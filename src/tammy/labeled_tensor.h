@@ -30,37 +30,77 @@ class LabeledTensor {
     return ilv_;
   }
 
-  AddOp<T,LabeledTensor<T>> operator += (const LabeledTensor<T>& rhs);
+  AddOp<T,LabeledTensor<T>> operator += (const LabeledTensor<T>& rhs) {
+    addop_validate(*this, std::make_tuple(1, rhs));
+    bool is_assign = false;
+
+    return {*this, 1, rhs, is_assign};
+  }
 
   AddOp<T,LabeledTensor<T>> operator += (const T& rhs);
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-  AddOp<T1,LabeledTensor<T>> operator += (const std::pair<T1, LabeledTensor<T>>& rhs);
+  AddOp<T1,LabeledTensor<T>> operator += (const std::pair<T1, LabeledTensor<T>>& rhs) {
+    addop_validate(*this, std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)));
+    bool is_assign = false;
+    
+    return {*this, std::get<0>(rhs), std::get<1>(rhs), is_assign};
+  }
 
-  AddOp<T,LabeledTensor<T>> operator = (const LabeledTensor<T>& rhs);
+  AddOp<T,LabeledTensor<T>> operator = (const LabeledTensor<T>& rhs) {
+    addop_validate(*this, std::make_tuple(1, rhs));
+    bool is_assign = true;
+
+    return {*this, 1, rhs, is_assign};
+  }
 
   AddOp<T,LabeledTensor<T>> operator = (const T& rhs);
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-  AddOp<T1,LabeledTensor<T>> operator = (const std::pair<T1, LabeledTensor<T>>& rhs);
+  AddOp<T1,LabeledTensor<T>> operator = (const std::pair<T1, LabeledTensor<T>>& rhs) {
+    addop_validate(*this, std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)));
+    bool is_assign = true;
+    
+    return {*this, std::get<0>(rhs), std::get<1>(rhs), is_assign};
+  }
 
   MultOp<T,LabeledTensor<T>>
-  operator += (const std::tuple<LabeledTensor, LabeledTensor<T>>& rhs);
+  operator += (const std::tuple<LabeledTensor, LabeledTensor<T>>& rhs) {
+    multop_validate(*this, std::make_tuple(1, std::get<0>(rhs), std::get<1>(rhs)));
+    bool is_assign = false;
+
+    return {*this, 1, std::get<0>(rhs), std::get<1>(rhs), is_assign};
+  }
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
   MultOp<T1,LabeledTensor<T>>
-  operator += (const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs);
+  operator += (const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
+    multop_validate(*this, rhs);
+    bool is_assign = false;
+
+    return {*this, std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), is_assign};
+  }
 
   MultOp<T,LabeledTensor<T>>
-  operator = (const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs);
+  operator = (const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {
+    multop_validate(*this, std::make_tuple(1, std::get<0>(rhs), std::get<1>(rhs)));
+    bool is_assign = true;
+
+    return {*this, 1, std::get<0>(rhs), std::get<1>(rhs), is_assign};
+  }
 
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
   MultOp<T1,LabeledTensor<T>>
-  operator = (const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs);
+  operator = (const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
+    multop_validate(*this, rhs);
+    bool is_assign = true;
+
+    return {*this, std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), is_assign};
+  }
 
  protected:
   Tensor<T> tensor_;

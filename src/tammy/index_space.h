@@ -151,7 +151,7 @@ class IndexRange {
   }
 
   bool is_superset_of(const IndexRange& ir) const {
-    EXPECTS(is_->is_compatible_with(ir.is_));
+    EXPECTS(is_->is_compatible_with(*ir.is_));
     is_->is_superset_of(rv_, ir.rv_);
   }
   
@@ -210,6 +210,44 @@ inline bool
 operator >= (const IndexRange& lhs, const IndexRange& rhs) {
   return (lhs > rhs) || (lhs == rhs);
 }
+
+///////////////////////////////////////////////////////////
+
+class SubIndexSpace : public IndexSpace {
+ public:
+  SubIndexSpace(IndexSpace& full_space)
+      : full_space_{full_space} {}
+
+  virtual Size size(BlockIndex) const = 0;
+  virtual Offset offset(BlockIndex) const = 0;
+  virtual Iterator begin(RangeValue rv,
+                         const TensorVec<Iterator>& indep_indices={}) const = 0;
+  virtual Iterator end(RangeValue rv,
+                       const TensorVec<Iterator>& indep_indices={}) const = 0;
+
+  virtual bool is_superset_of(RangeValue rv1,
+                              RangeValue rv2) const = 0;
+  
+  virtual IndexRange ER() const = 0;
+  virtual IndexRange NR() const = 0;
+
+  virtual int num_indep_indices() const = 0;
+  
+
+  bool is_identical_to(const IndexSpace& is) const{
+    return this == &is;
+  }
+
+  //strict definition of compatbility
+  bool is_compatible_with(const IndexSpace& is) const{
+    return full_space_.is_compatible_with(is);
+  }
+
+ protected:
+  IndexSpace& full_space_;
+  std::vector<std::vector<BlockIndex>> block_indices_;
+};  // SubIndexSpace
+
 
 ///////////////////////////////////////////////////////////
 
@@ -408,7 +446,7 @@ class IndexInfo {
     labels_.insert_back(rhs.labels_.begin(),
                             rhs.labels_.end());
     group_sizes_.insert_back(rhs.group_sizes_.begin(),
-                            rhs.group_sizes_.end());    
+                             rhs.group_sizes_.end());    
     return *this;
   }
 
@@ -428,11 +466,20 @@ class IndexInfo {
 
     return true;
   }
+
+  const TensorVec<IndexRange>& ranges() const {
+      
+    TensorVec<IndexRange> ranges;
+    for(auto l : labels_) {
+      ranges.push_back(l.ir());
+    }
+    
+    return ranges;
+  }
   
  protected:
   TensorVec<DependentIndexLabel> labels_;
   TensorVec<size_t> group_sizes_;
-
 };
 
 inline IndexInfo

@@ -53,6 +53,11 @@ class TensorImpl : public TensorBase, public TensorImplBase {
   TensorRank rank() const override {
     return rank_;
   }
+
+  TensorVec<IndexRange> dim_ranges() const {
+    return dim_ranges_;
+  }
+
   bool is_unique(const BlockDimVec& bdv) const override;
   BlockDimVec get_unique(const BlockDimVec& bdv) const override;
   bool is_nonzero(const BlockDimVec& bdv) const override;
@@ -76,9 +81,6 @@ class TensorImpl : public TensorBase, public TensorImplBase {
   //std::pair<Codelet*,Codelet*> get(const BlockDimVec& bdv, Block<T>& block) const override {}
   //std::pair<Codelet*,Codelet*> put(const BlockDimVec& bdv, Block<T>& block) override {}
   //std::pair<Codelet*,Codelet*> add(const BlockDimVec& bdv, Block<T>& block) override {}
-
-  // Operations
-
 
  private:
   TensorRank rank_;
@@ -113,6 +115,11 @@ class Tensor {
     return impl_->rank();
   }
 
+  TensorVec<IndexRange> dim_ranges() const {
+    EXPECTS(impl_);
+    return impl_->dim_ranges();
+  }
+
   bool is_unique(const BlockDimVec& bdv) const {
     EXPECTS(impl_);
     return impl_->is_unique(bdv);
@@ -138,9 +145,12 @@ class Tensor {
     return LabeledTensor<T>{*this, ilv};
   }
 
-  LabeledTensor<T> operator() (const IndexLabel& il1, const IndexLabel& il2) const {
+  template<typename ...Args>
+  LabeledTensor<T> operator () (IndexLabel ilbl, Args... rest) {
     EXPECTS(impl_);
-    return operator()({il1,il2});
+    IndexLabelVec label{ilbl};
+    pack(label, rest...);
+    return (*this)(label);
   }
 
   void set_proc_group(ProcGroup proc_group) {
@@ -231,6 +241,14 @@ class Tensor {
   // }
 
  protected:
+  void pack(IndexLabelVec& label) {}
+
+  template<typename ...Args>
+  void pack(IndexLabelVec& label, IndexLabel ilbl, Args... rest) {
+    label.push_back(ilbl);
+    pack(label, rest...);
+  }
+
   Tensor(std::shared_ptr<TensorImpl<T>> impl)
       :impl_{impl} {}
 

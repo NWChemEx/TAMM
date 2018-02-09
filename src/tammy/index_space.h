@@ -425,10 +425,29 @@ class IndexInfo {
       group_sizes_ = {1};
     }
   }
-  
+
   IndexInfo (const DependentIndexLabel& dil)
       : labels_{TensorVec<DependentIndexLabel>{dil}},
         group_sizes_{1} {}
+
+
+  template<typename... LabelArgs>
+  IndexInfo (const IndexLabel& lbl, LabelArgs... labels) {
+    if(lbl.label() != -1)
+      labels_.push_back(lbl());
+    pack(labels_, labels...);
+
+    group_sizes_ = {labels_.size(), 0, 0};  
+  }
+
+  template<typename... LabelArgs>
+  IndexInfo (const DependentIndexLabel& dlbl, LabelArgs... labels) {
+    if(dlbl.il().label() != -1)
+      labels_.push_back(dlbl);
+    pack(labels_, labels...);
+
+    group_sizes_ = {labels_.size(), 0, 0};
+  }
 
   void add_to_last_group(DependentIndexLabel dil) {
     EXPECTS(group_sizes_.size() > 0);
@@ -491,6 +510,21 @@ class IndexInfo {
  protected:
   TensorVec<DependentIndexLabel> labels_;
   TensorVec<size_t> group_sizes_;
+
+  void pack(TensorVec<DependentIndexLabel>& label) {}
+
+  template<typename ...Args>
+  void pack(TensorVec<DependentIndexLabel>& label, IndexLabel ilbl, Args... rest) {
+    if(ilbl.label() != -1)
+      label.push_back(ilbl());
+    pack(label, rest...);
+  }
+
+  template<typename ...Args>
+  void pack(TensorVec<DependentIndexLabel>& label, DependentIndexLabel dilbl, Args... rest) {
+    label.push_back(dilbl);
+    pack(label, rest...);
+  }
 };
 
 inline IndexInfo

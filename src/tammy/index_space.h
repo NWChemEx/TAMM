@@ -393,7 +393,8 @@ IndexRange::labels(Label label, LabelArgs... rest) const {
 
 inline DependentIndexLabel
 IndexLabel::operator() (IndexLabel il1) const {
-  EXPECTS(ir_.num_indep_indices() == 1);
+  // @todo: disabled for testing should be enabled with SubIndexSpaces
+  // EXPECTS(ir_.num_indep_indices() == 1);
   return {*this, {il1}};
 }
 
@@ -415,9 +416,15 @@ class IndexInfo {
       : labels_{info.labels_},
         group_sizes_{info.group_sizes_} {}
 
-  IndexInfo (const IndexLabel& il)
-      : labels_{TensorVec<DependentIndexLabel>{il()}},
-        group_sizes_{1} {}
+  IndexInfo (const IndexLabel& il) {
+    if(il.label() < 0){
+      group_sizes_ = {0};
+    }
+    else {
+      labels_ = TensorVec<DependentIndexLabel>{il()};
+      group_sizes_ = {1};
+    }
+  }
   
   IndexInfo (const DependentIndexLabel& dil)
       : labels_{TensorVec<DependentIndexLabel>{dil}},
@@ -436,9 +443,9 @@ class IndexInfo {
   TensorVec<IndexPosition> ipmask() const {
     TensorVec<IndexPosition> ipvec;
     assert(group_sizes_.size() == 3);
-    std::fill_n(ipvec.end(), group_sizes_[0], IndexPosition::neither);
-    std::fill_n(ipvec.end(), group_sizes_[1], IndexPosition::upper);
-    std::fill_n(ipvec.end(), group_sizes_[2], IndexPosition::lower);
+    std::fill_n(std::back_inserter(ipvec), group_sizes_[0], IndexPosition::neither);
+    std::fill_n(std::back_inserter(ipvec), group_sizes_[1], IndexPosition::upper);
+    std::fill_n(std::back_inserter(ipvec), group_sizes_[2], IndexPosition::lower);
     return ipvec;
   }
 
@@ -456,9 +463,14 @@ class IndexInfo {
       i_labels.push_back(l.il());
     }
 
+    std::sort(i_labels.begin(), i_labels.end());
+    //all labels are unique
+    EXPECTS(std::adjacent_find(i_labels.begin(), i_labels.end()) == i_labels.end());
+
     for(auto l : labels_) {
       for(auto indep: l.indep_labels()) {
         auto u = std::find(i_labels.begin(), i_labels.end(), indep);
+        EXPECTS(u != i_labels.end());
         if(u == i_labels.end())
           return false;
       }
@@ -467,13 +479,12 @@ class IndexInfo {
     return true;
   }
 
-  const TensorVec<IndexRange>& ranges() const {
+  TensorVec<IndexRange> ranges() const {
       
     TensorVec<IndexRange> ranges;
     for(auto l : labels_) {
       ranges.push_back(l.ir());
     }
-    
     return ranges;
   }
   

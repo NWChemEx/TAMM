@@ -394,7 +394,7 @@ IndexRange::labels(Label label, LabelArgs... rest) const {
 inline DependentIndexLabel
 IndexLabel::operator() (IndexLabel il1) const {
   // @todo: disabled for testing should be enabled with SubIndexSpaces
-  // EXPECTS(ir_.num_indep_indices() == 1);
+  EXPECTS(ir_.num_indep_indices() == 1);
   return {*this, {il1}};
 }
 
@@ -428,7 +428,7 @@ class IndexInfo {
 
   IndexInfo (const DependentIndexLabel& dil)
       : labels_{TensorVec<DependentIndexLabel>{dil}},
-        group_sizes_{1} {}
+        group_sizes_{1} { }
 
 
   template<typename... LabelArgs>
@@ -489,6 +489,7 @@ class IndexInfo {
     for(auto l : labels_) {
       for(auto indep: l.indep_labels()) {
         auto u = std::find(i_labels.begin(), i_labels.end(), indep);
+        // all sub-index spaces should be in the construction
         EXPECTS(u != i_labels.end());
         if(u == i_labels.end())
           return false;

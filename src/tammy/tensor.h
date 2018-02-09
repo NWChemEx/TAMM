@@ -36,12 +36,13 @@ class TensorImpl : public TensorBase, public TensorImplBase {
             rank_{rank} {}
 
   TensorImpl(const IndexInfo& info)
-          : TensorBase(info) {
+          : TensorBase(info),
+            rank_{static_cast<TensorRank>(info.ranges().size())} {
             EXPECTS(info.is_valid());
           }
 
   TensorImpl(const IndexLabel& il1,
-             const IndexLabel& il2);
+             const IndexLabel& il2) {}
 
   TensorImpl(const DependentIndexLabel& dil1,
              const IndexLabel& il2);
@@ -59,12 +60,22 @@ class TensorImpl : public TensorBase, public TensorImplBase {
     return dim_ranges_;
   }
 
-  bool is_unique(const BlockDimVec& bdv) const override;
-  BlockDimVec get_unique(const BlockDimVec& bdv) const override;
-  bool is_nonzero(const BlockDimVec& bdv) const override;
-  Size block_size(const BlockDimVec& bdv) const override;
+  bool is_unique(const BlockDimVec& bdv) const override {
+    return false;
+  }
+  BlockDimVec get_unique(const BlockDimVec& bdv) const override {
+    return BlockDimVec{};
+  }
+  bool is_nonzero(const BlockDimVec& bdv) const override {
+    return false;
+  }
+  Size block_size(const BlockDimVec& bdv) const override {
+    return Size{0};
+  }
 
-  void set_proc_group(ProcGroup proc_group) override;
+  void set_proc_group(ProcGroup proc_group) override {
+    pg_ = proc_group;
+  }
   //Tensor& set_distribution(Distribution* distribution) override {}
   //Tensor& set_memory_manager(MemoryManager* memory_manager) override {}
 

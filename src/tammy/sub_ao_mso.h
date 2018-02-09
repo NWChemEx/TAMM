@@ -1,7 +1,7 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMMY_AO_H_
-#define TAMMY_AO_H_
+#ifndef TAMMY_SUB_AO_MSO_H_
+#define TAMMY_SUB_AO_MSO_H_
 
 #include <vector>
 #include <numeric>
@@ -10,27 +10,37 @@
 #include "types.h"
 #include "errors.h"
 #include "strong_num_indexed_vector.h"
+#include "mso.h"
+#include "ao.h"
 
 namespace tammy {
 
-class AO : public IndexSpace {
+// @to-do: This is just mock-up SubIndexSpace example. Should be implemented properly.
+class SubAO_MSO : public SubIndexSpace {
  public:
-  AO() = default; //@todo delete after debugging
-  AO(BlockCount no, BlockCount nv, 
-     const std::vector<Size>& sizes)
-      : no_{no},
-        nv_{nv},
-        sizes_{sizes} {
-          // EXPECTS(noa_ >=0 && nva_ >=0);
-          // EXPECTS(nob_ >=0 && nvb_ >= 0);
-          BlockCount nov = no_ + nv_;
-          EXPECTS(sizes_.size() == nov);          
-          offsets_.emplace_back(0);
-          std::partial_sum(sizes_.begin(), sizes_.end(), std::back_inserter(offsets_));
-          for(BlockIndex i{0}; i<nov; i++) {
-            block_indices_.push_back({i});
-          }
-        }
+  SubAO_MSO() = default; //@todo delete after debugging
+
+  SubAO_MSO(MSO& mso, AO& ao)
+      : SubIndexSpace{ao},
+        mso_{mso} {}
+
+  // SubAO_MSO(BlockCount no, BlockCount nv, 
+  //    const std::vector<Size>& sizes)
+  //     : no_{no},
+  //       nv_{nv},
+  //       sizes_{sizes} {
+  //         // EXPECTS(noa_ >=0 && nva_ >=0);
+  //         // EXPECTS(nob_ >=0 && nvb_ >= 0);
+  //         BlockCount nov = no_ + nv_;
+  //         EXPECTS(sizes_.size() == nov);          
+  //         offsets_.emplace_back(0);
+  //         std::partial_sum(sizes_.begin(), sizes_.end(), std::back_inserter(offsets_));
+  //         for(BlockIndex i{0}; i<nov; i++) {
+  //           block_indices_.push_back({i});
+  //         }
+  //       }
+
+
   Size size(BlockIndex bid) const override {
     return sizes_[bid];
   }
@@ -38,7 +48,7 @@ class AO : public IndexSpace {
     return offsets_[bid];
   }
   int num_indep_indices() const override {
-    return 0;
+    return 1;
   }
 
   Iterator begin(RangeValue rv,
@@ -93,7 +103,8 @@ class AO : public IndexSpace {
 
   bool is_superset_of(RangeValue rv1,
                       RangeValue rv2) const override {
-    return (rv1 & rv2) == rv2;
+    return mso_.is_superset_of(rv1, rv2) ||
+           full_space_.is_superset_of(rv1, rv2);
   }
 
   IndexRange NR() const override {
@@ -131,6 +142,8 @@ class AO : public IndexSpace {
   }
 
  protected:
+  MSO& mso_;
+
   BlockCount no_;
   BlockCount nv_;  
   std::vector<BlockIndex> block_indices_;
@@ -143,7 +156,6 @@ class AO : public IndexSpace {
   static const RangeValue range_n = 0x3;
 };  // AO
 
+} // namespace tammy
 
-}  // namespace tammy
-
-#endif  // TAMMY_AO_H_
+#endif // TAMMY_SUB_AO_MSO_H_

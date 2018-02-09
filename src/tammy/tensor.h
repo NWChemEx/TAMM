@@ -41,16 +41,15 @@ class TensorImpl : public TensorBase, public TensorImplBase {
             EXPECTS(info.is_valid());
           }
 
-  TensorImpl(const IndexLabel& il1,
-             const IndexLabel& il2) {}
+  TensorImpl(const IndexLabel& il1) 
+          : TensorImpl{il1()} { }
 
-  TensorImpl(const DependentIndexLabel& dil1,
-             const IndexLabel& il2);
-  TensorImpl(const IndexLabel& il1,
-             const DependentIndexLabel& dil2);
+  TensorImpl(const DependentIndexLabel& dil1) 
+          : TensorImpl{dil1 | IndexLabel{} | IndexLabel{}} { }
 
-  TensorImpl(const DependentIndexLabel& dil1,
-             const DependentIndexLabel& dil2);
+  template<typename... LabelArgs>
+  TensorImpl(LabelArgs... labels) 
+          : TensorImpl{IndexInfo{labels...}} { } 
 
   TensorRank rank() const override {
     return rank_;

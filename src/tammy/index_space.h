@@ -38,6 +38,7 @@ class IndexSpace {
   virtual Iterator end(RangeValue rv,
                        const TensorVec<Iterator>& indep_indices={}) const = 0;
 
+  //@todo implement for sub-spaces
   virtual bool is_superset_of(RangeValue rv1,
                               RangeValue rv2) const = 0;
   

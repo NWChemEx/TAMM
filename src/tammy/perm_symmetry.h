@@ -178,7 +178,7 @@ class PermGroup {
   template<typename T>
   std::unique_ptr<Generator<T>>
   unique_generator(const TensorVec<T>& lo,
-                  const TensorVec<T>& hi) const {
+                   const TensorVec<T>& hi) const {
     //@todo validate hi and lo
     assert(lo.size() == size_);
     assert(hi.size() == size_);
@@ -205,7 +205,7 @@ class PermGroup {
 
   template<typename Itr, typename T> 
   std::unique_ptr<LBLoopNest<Itr>>
-  unique_loop_nest(const TensorVec<T>& vec) const {
+  unique_loop_nest(const TensorVec<IndexRange>& vec) const {
 
     TensorVec<std::unique_ptr<LBLoopNest<Itr>>> loops;
 
@@ -428,6 +428,28 @@ operator | (const T&, PermGroupInfo pgi) {
   return pgi;
 }
 #endif
+
+class OuterLabeledLoopNest : public LabeledLBLoopNest {
+};
+
+class InnerLabeledLoopNest : public LabeledLBLoopNest {
+};
+
+inline OuterLabeledLoopNest
+outer(PermGroupInfo) {
+}
+
+inline OuterLabeledLoopNest
+outer(IndexLabel) {
+}
+
+inline InnerLabeledLoopNest
+inner(PermGroupInfo) {
+}
+
+inline OuterLabeledLoopNest
+inner(IndexLabel) {
+}
 
 }  // namespace tammy
 

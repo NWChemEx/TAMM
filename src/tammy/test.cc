@@ -115,7 +115,7 @@ int main()
   T1(i,j) += 3 * T2(j,i);
   T1(i,j) = T2(i,k) * T3(k,j);
   T1(i,j) += T2(i,k) * T3(k,j);
-  T1(i,j) = 3 * T2(i,l) * T4(j,l);
+  T1(i,j,k,l) = outer(i<j | k<l) * inner(m) * 3 * T2(i,j,m) * T4(k,l,m);
   T1(i,j) += 3 * T2(i,l) * T4(j,l);
 
   // Scheduler sch{ProcGroup{}, nullptr, nullptr};
@@ -137,6 +137,21 @@ int main()
   //      )
   //     .execute();
 // #endif
+  
+#if 0
+  Scheduler()(
+      T1(i,j)  = 0,
+      T1(i,j) += .52,
+      T1(i,j)  =     T2(j,i),
+      T1(i,j) +=     T2(j,i),
+      T1(i,j)  = 3 * T2(j,i),
+      T1(i,j) += 3 * T2(j,i),
+      T1(i,j)  =     T2(j,i) * T3(k,j),
+      T1(i,j) +=     T2(j,i) * T3(k,j),
+      T1(i,j)  = 3 * T2(j,i) * T3(j,l),
+      T1(i,j) += 3 * T2(j,i) * T3(j,l)
+              ).execute();
+#endif
   
   return 0;
 }

@@ -10,6 +10,7 @@
 #include "index_space.h"
 #include "types.h"
 #include "errors.h"
+#include "perm_symmetry.h"
 
 namespace tammy {
 
@@ -17,6 +18,7 @@ class TensorBase {
  public:
   TensorVec<IndexRange> dim_ranges_;
   TensorVec<IndexPosition> ipmask_;
+  PermGroup perm_groups_;
   Irrep irrep_;
   Spin spin_total_;
   bool has_spatial_symmetry_;
@@ -27,10 +29,12 @@ class TensorBase {
 
   TensorBase(const TensorVec<IndexRange>& dim_ranges,
              const TensorVec<IndexPosition>& ipmask,
+             const PermGroup& perm_groups,
              Irrep irrep = Irrep{0},
              Spin spin_total = Spin{0})
       : dim_ranges_{dim_ranges},
         ipmask_{ipmask},
+        perm_groups_{perm_groups},
         irrep_{irrep},
         spin_total_{spin_total},
         has_spatial_symmetry_{true},
@@ -42,11 +46,24 @@ class TensorBase {
   TensorBase(const std::tuple<
              TensorVec<IndexRange>,
              TensorVec<IndexRange>>& ranges,
+             const PermGroup& perm_groups,
              Irrep irrep = Irrep{0},
              Spin spin_total = Spin{0})
       : TensorBase{TensorBase::compute_index_range(ranges),
         compute_ipmask(ranges),
+        perm_groups,
         irrep,
+        spin_total} { }
+
+    TensorBase(const std::tuple<
+             TensorVec<IndexRange>,
+             TensorVec<IndexRange>>& ranges,
+             Irrep irrep = Irrep{0},
+             Spin spin_total = Spin{0})
+      : TensorBase{TensorBase::compute_index_range(ranges),
+          compute_ipmask(ranges),
+          default_perm_group(compute_ipmask(ranges).size()),
+          irrep,
         spin_total} { }
 
   TensorBase(const std::tuple<
@@ -57,6 +74,7 @@ class TensorBase {
              Spin spin_total = Spin{0})
       : TensorBase{compute_index_range(ranges),
         compute_ipmask(ranges),
+        default_perm_group(compute_ipmask(ranges).size()),
         irrep,
         spin_total} { }
 
@@ -65,6 +83,7 @@ class TensorBase {
          Spin spin_total = Spin{0})
       : TensorBase{info.ranges(),
                    info.ipmask(),
+        default_perm_group(info.ipmask().size()),
                    irrep,
                    spin_total} {}
   
@@ -105,7 +124,20 @@ class TensorBase {
     return spin_upper - spin_lower == spin_total_;
   }
 
+  const PermGroup& perm_groups() const {
+    return perm_groups_;
+  }
+
  private:
+  PermGroup default_perm_group(size_t rank) {
+    TensorVec<unsigned> indices;
+    
+    for(size_t i=0; i<rank; i++) {
+      indices.push_back(i);
+    }
+    return {rank, indices, PermRelation::none};
+  }
+  
   void init_spatial_check() {
     for(size_t i=0; i<dim_ranges_.size(); i++) {
       if(ipmask_[i] == IndexPosition::upper

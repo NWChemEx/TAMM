@@ -29,10 +29,11 @@ class TensorImpl : public TensorBase, public TensorImplBase {
 
   TensorImpl(const TensorVec<IndexRange>& dim_ranges,
              const TensorVec<IndexPosition>& ipmask,
+             const PermGroup& perm_groups,
              Irrep irrep = Irrep{0},
              Spin spin_total = Spin{0},
              TensorRank rank = 0)
-          : TensorBase(dim_ranges, ipmask, irrep, spin_total),
+      : TensorBase(dim_ranges, ipmask, perm_groups, irrep, spin_total),
             rank_{rank} {}
 
   TensorImpl(const IndexInfo& info)

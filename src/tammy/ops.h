@@ -20,10 +20,9 @@ class Op {
 template<typename T, typename LabeledTensorT>
 class SetOp :  public Op {
  public:
-  using Itr = IndexSpace::Iterator;
   SetOp(LabeledTensorT lhs,
         T alpha,
-        const LBLoopNest<Itr>& loop_nest,
+        const LabeledLoop& loop_nest,
         bool is_assign)
       : lhs_{lhs},
         alpha_{alpha},
@@ -32,7 +31,7 @@ class SetOp :  public Op {
 
   // SetOp(LabeledTensorT lhs,
   //       T alpha,
-  //       const LBLoopNest<Itr>& loop_nest,
+  //       const LabeledLoop& loop_nest,
   //       bool is_assign)
   //     : lhs_{lhs},
   //       alpha_{alpha},
@@ -63,18 +62,17 @@ class SetOp :  public Op {
  protected:
   T alpha_;
   LabeledTensorT lhs_;
-  LBLoopNest<Itr> loop_nest_;
+  LabeledLoop loop_nest_;
   bool is_assign_;
 };  // class AddOp
 
 template<typename T, typename LabeledTensorT>
 class AddOp :  public Op {
  public:
-  using Itr = IndexSpace::Iterator;
   AddOp(LabeledTensorT lhs,
         T alpha,
         LabeledTensorT rhs,
-        const LBLoopNest<Itr>& loop_nest,
+        const LabeledLoop& loop_nest,
         bool is_assign)
       : lhs_{lhs},
         alpha_{alpha},
@@ -111,7 +109,7 @@ class AddOp :  public Op {
   LabeledTensorT lhs_;
   T alpha_;
   LabeledTensorT rhs_;
-  LBLoopNest<Itr> loop_nest_;
+  LabeledLoop loop_nest_;
   bool is_assign_;
 };  // class AddOp
 
@@ -119,13 +117,12 @@ class AddOp :  public Op {
 template<typename T, typename LabeledTensorT>
 class MultOp : public Op {
  public:
-  using Itr = IndexSpace::Iterator;
   MultOp(LabeledTensorT lhs,
          T alpha,
          LabeledTensorT rhs1,
          LabeledTensorT rhs2,
-         LBLoopNest<Itr> outer_loop_nest,
-         LBLoopNest<Itr> inner_loop_nest,
+         LabeledLoop outer_loop_nest,
+         LabeledLoop inner_loop_nest,
          SymmFactor symm_factor,
          bool is_assign)
       : lhs_{lhs},
@@ -171,8 +168,8 @@ class MultOp : public Op {
   T alpha_;
   LabeledTensorT rhs1_;
   LabeledTensorT rhs2_;
-  LBLoopNest<Itr> outer_loop_nest_;
-  LBLoopNest<Itr> inner_loop_nest_;
+  LabeledLoop outer_loop_nest_;
+  LabeledLoop inner_loop_nest_;
   SymmFactor symm_factor_;
   bool is_assign_;
 }; //class MultOp

@@ -334,17 +334,18 @@ namespace tammy {
 //   std::vector<Itr> clo_;
 // };  // TriangleLoop
 
+  
+struct LBCondition {
+  size_t pos;
+  std::vector<size_t> lhs;
+  std::vector<size_t> rhs;
+};  
+
 template<typename Itr>
 class LBLoopNest {
  public:
   using T = typename Itr::value_type;
   using Iterator = Itr;
-  
-  struct LBCondition {
-    size_t pos;
-    std::vector<size_t> lhs;
-    std::vector<size_t> rhs;
-  };  
   
   LBLoopNest(const std::vector<Itr>& begin,
              const std::vector<Itr>& end,
@@ -470,7 +471,7 @@ class LabeledLoop : public LBLoopNest<IndexSpace::Iterator> {
   LabeledLoop(const IndexLabelVec& ilv,
               const std::vector<Iterator>& begin,
               const std::vector<Iterator>& end,
-              const std::vector<std::vector<LBLoopNest::LBCondition>>& lbs)
+              const std::vector<std::vector<LBCondition>>& lbs)
       : LBLoopNest{begin, end, lbs},
         ilv_{ilv} {}
 

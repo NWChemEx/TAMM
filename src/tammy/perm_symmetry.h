@@ -7,8 +7,10 @@
 #include "tammy/types.h"
 #include "tammy/errors.h"
 // #include "tammy/generator.h"
-#include "tammy_old/generator.h"
+//#include "tammy_old/generator.h"
 #include "tammy/loops.h"
+
+#include <memory>
 
 namespace tammy {
 enum class PermRelation { symmetry, antisymmetry, none };
@@ -33,15 +35,15 @@ class PermGroup {
         pgi.perm_list_,
         pgi.perm_relation_} { }
 
-  // PermGroup(const PermGroup& pg)
-  //     : size_{pg.size_},
-  //       indices_{pg.indices_},
-  //       relation_{pg.relation_} {
-  //         for(const auto& grp: pg.groups_) {
-  //           auto ptr = std::make_unique<PermGroup>(*grp);
-  //           groups_.push_back(std::move(ptr));
-  //         }
-  //       }
+  PermGroup(const PermGroup& pg)
+      : size_{pg.size_},
+        indices_{pg.indices_},
+        relation_{pg.relation_} {
+          for(const auto& grp: pg.groups_) {
+            auto ptr = std::make_unique<PermGroup>(*grp);
+            groups_.push_back(std::move(ptr));
+          }
+        }
 
   PermGroup(size_t size,
             const TensorVec<unsigned>& indices,
@@ -175,33 +177,33 @@ class PermGroup {
     }
   }
 
-  template<typename T>
-  std::unique_ptr<Generator<T>>
-  unique_generator(const TensorVec<T>& lo,
-                   const TensorVec<T>& hi) const {
-    //@todo validate hi and lo
-    assert(lo.size() == size_);
-    assert(hi.size() == size_);
+  // template<typename T>
+  // std::unique_ptr<Generator<T>>
+  // unique_generator(const TensorVec<T>& lo,
+  //                  const TensorVec<T>& hi) const {
+  //   //@todo validate hi and lo
+  //   assert(lo.size() == size_);
+  //   assert(hi.size() == size_);
 
-    TensorVec<std::unique_ptr<Generator<T>>> itrs;
-    for(const auto& idx: indices_) {
-      itrs.push_back(std::make_unique<SimpleGenerator<T>>(idx, lo[idx], hi[idx]));
-    }
-    for(const auto& grp: groups_) {
-      itrs.push_back(grp->unique_generator<T>(lo, hi));
-    }
-    assert(itrs.size() > 0);
-    if(itrs.size() == 1) {
-      return std::move(itrs[0]);
-    }
+  //   TensorVec<std::unique_ptr<Generator<T>>> itrs;
+  //   for(const auto& idx: indices_) {
+  //     itrs.push_back(std::make_unique<SimpleGenerator<T>>(idx, lo[idx], hi[idx]));
+  //   }
+  //   for(const auto& grp: groups_) {
+  //     itrs.push_back(grp->unique_generator<T>(lo, hi));
+  //   }
+  //   assert(itrs.size() > 0);
+  //   if(itrs.size() == 1) {
+  //     return std::move(itrs[0]);
+  //   }
 
-    if(relation_ == PermRelation::symmetry ||
-       relation_ == PermRelation::antisymmetry) {
-      return std::make_unique<TriangleGenerator<T>>(std::move(itrs));
-    } else {
-      return std::make_unique<CartesianGenerator<T>>(std::move(itrs));
-    }
-  }
+  //   if(relation_ == PermRelation::symmetry ||
+  //      relation_ == PermRelation::antisymmetry) {
+  //     return std::make_unique<TriangleGenerator<T>>(std::move(itrs));
+  //   } else {
+  //     return std::make_unique<CartesianGenerator<T>>(std::move(itrs));
+  //   }
+  // }
 
   template<typename Itr, typename T> 
   std::unique_ptr<LBLoopNest<Itr>>
@@ -429,27 +431,28 @@ operator | (const T&, PermGroupInfo pgi) {
 }
 #endif
 
-class OuterLabeledLoopNest : public LabeledLBLoopNest {
-};
 
-class InnerLabeledLoopNest : public LabeledLBLoopNest {
-};
+// class OuterLabeledLoopNest : public LabeledLBLoopNest {
+// };
 
-inline OuterLabeledLoopNest
-outer(PermGroupInfo) {
-}
+// class InnerLabeledLoopNest : public LabeledLBLoopNest {
+// };
 
-inline OuterLabeledLoopNest
-outer(IndexLabel) {
-}
+// inline OuterLabeledLoopNest
+// outer(PermGroupInfo) {
+// }
 
-inline InnerLabeledLoopNest
-inner(PermGroupInfo) {
-}
+// inline OuterLabeledLoopNest
+// outer(IndexLabel) {
+// }
 
-inline OuterLabeledLoopNest
-inner(IndexLabel) {
-}
+// inline InnerLabeledLoopNest
+// inner(PermGroupInfo) {
+// }
+
+// inline OuterLabeledLoopNest
+// inner(IndexLabel) {
+// }
 
 }  // namespace tammy
 

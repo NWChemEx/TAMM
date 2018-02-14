@@ -33,12 +33,12 @@ class LabeledTensor {
   AddOp<T,LabeledTensor<T>> operator += (const LabeledTensor<T>& rhs) {
     addop_validate(*this, std::make_tuple(1, rhs));
     bool is_assign = false;
-    return {*this, 1, rhs, is_assign};
+    return {*this, 1, rhs, loop_nest(), is_assign};
   }
 
   SetOp<T,LabeledTensor<T>> operator += (const T& rhs) {
     bool is_assign = false;
-    return {*this, rhs, is_assign};
+    return {*this, rhs, loop_nest(), is_assign};
   }
 
   template<typename T1,
@@ -47,19 +47,19 @@ class LabeledTensor {
     addop_validate(*this, std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)));
     bool is_assign = false;
     
-    return {*this, std::get<0>(rhs), std::get<1>(rhs), is_assign};
+    return {*this, std::get<0>(rhs), std::get<1>(rhs), loop_nest(), is_assign};
   }
 
   AddOp<T,LabeledTensor<T>> operator = (const LabeledTensor<T>& rhs) {
     addop_validate(*this, std::make_tuple(1, rhs));
     bool is_assign = true;
 
-    return {*this, 1, rhs, is_assign};
+    return {*this, 1, rhs, loop_nest(), is_assign};
   }
 
   SetOp<T,LabeledTensor<T>> operator = (const T& rhs) {
     bool is_assign = true;
-    return {*this, rhs, is_assign};
+    return {*this, rhs, loop_nest(), is_assign};
   }
 
   template<typename T1,
@@ -68,7 +68,7 @@ class LabeledTensor {
     addop_validate(*this, std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)));
     bool is_assign = true;
     
-    return {*this, std::get<0>(rhs), std::get<1>(rhs), is_assign};
+    return {*this, std::get<0>(rhs), std::get<1>(rhs), loop_nest(), is_assign};
   }
 
   MultOp<T,LabeledTensor<T>>
@@ -76,7 +76,11 @@ class LabeledTensor {
     multop_validate(*this, std::make_tuple(1, std::get<0>(rhs), std::get<1>(rhs)));
     bool is_assign = false;
 
-    return {*this, 1, std::get<0>(rhs), std::get<1>(rhs), is_assign};
+    return {*this, 1, std::get<0>(rhs), std::get<1>(rhs),
+          loop_nest(),
+          inner_loop_nest(std::get<0>(rhs), std::get<1>(rhs)),
+          SymmFactor{},
+          is_assign};
   }
 
   template<typename T1,
@@ -86,7 +90,11 @@ class LabeledTensor {
     multop_validate(*this, rhs);
     bool is_assign = false;
 
-    return {*this, std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), is_assign};
+    return {*this, std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs),
+          loop_nest(),
+          inner_loop_nest(std::get<1>(rhs), std::get<2>(rhs)),
+          SymmFactor{},
+          is_assign};
   }
 
   MultOp<T,LabeledTensor<T>>
@@ -94,7 +102,11 @@ class LabeledTensor {
     multop_validate(*this, std::make_tuple(1, std::get<0>(rhs), std::get<1>(rhs)));
     bool is_assign = true;
 
-    return {*this, 1, std::get<0>(rhs), std::get<1>(rhs), is_assign};
+    return {*this, 1, std::get<0>(rhs), std::get<1>(rhs),
+          loop_nest(),
+          inner_loop_nest(std::get<0>(rhs), std::get<1>(rhs)),
+          SymmFactor{},
+          is_assign};
   }
 
   template<typename T1,
@@ -104,12 +116,27 @@ class LabeledTensor {
     multop_validate(*this, rhs);
     bool is_assign = true;
 
-    return {*this, std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs), is_assign};
+    return {*this, std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs),
+          loop_nest(),
+          inner_loop_nest(std::get<1>(rhs), std::get<2>(rhs)),
+          SymmFactor{},
+          is_assign};
   }
 
  protected:
   Tensor<T> tensor_;
   IndexLabelVec ilv_;
+
+  LabeledLoop loop_nest() const {
+    //@todo implement
+  }  
+
+  template<typename T1>
+  static LabeledLoop inner_loop_nest(
+      const LabeledTensor<T1>& ltensor1,
+      const LabeledTensor<T1>& ltensor2) {
+    //@todo implement
+  }
 };
 
 template<typename T1, typename T2>

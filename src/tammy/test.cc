@@ -44,7 +44,7 @@ int main()
 {
   MSO mso;
   AO ao;
-  IndexLabel i, j, k, l, E;
+  IndexLabel i, j, k, l, m, n, E;
   std::tie(i,j,k,l) = mso.N(0,1,2,3);
   
   SubAO_MSO sub_ao{mso, ao};
@@ -115,7 +115,8 @@ int main()
   T1(i,j) += 3 * T2(j,i);
   T1(i,j) = T2(i,k) * T3(k,j);
   T1(i,j) += T2(i,k) * T3(k,j);
-  T1(i,j,k,l) = outer(i<j | k<l) * inner(m) * 3 * T2(i,j,m) * T4(k,l,m);
+  //T1(i,j,k,l) = outer({i-j,-1}, {k-l, 1}) * inner(m,n) * 3 * T2(i,j,m,n) * T4(k,l,m,n);
+  T1(i,j,k,l) = 3 * T2(i,j,m,n) * T4(k,l,m,n);
   T1(i,j) += 3 * T2(i,l) * T4(j,l);
 
   // Scheduler sch{ProcGroup{}, nullptr, nullptr};

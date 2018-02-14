@@ -442,7 +442,6 @@ operator | (PermGroupInfo lhs,
   lhs.size_ += rhs.size_;
   lhs.perm_list_.insert_back(rhs.perm_list_.begin(), rhs.perm_list_.end());
   lhs.perm_relation_.insert_back(rhs.perm_relation_.begin(), rhs.perm_relation_.end());
-
   return lhs;
 }
 

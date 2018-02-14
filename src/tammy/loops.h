@@ -375,7 +375,7 @@ class LBLoopNest {
         }
   
   LBLoopNest():
-      LBLoopNest{{}, {}, {}, {}} {}
+      LBLoopNest{{}, {}, {}} {}
 
   LBLoopNest(const LBLoopNest&) = default;
   
@@ -468,6 +468,8 @@ namespace tammy {
 
 class LabeledLoop : public LBLoopNest<IndexSpace::Iterator> {
  public:
+  LabeledLoop() = default;
+  
   LabeledLoop(const IndexLabelVec& ilv,
               const std::vector<Iterator>& begin,
               const std::vector<Iterator>& end,

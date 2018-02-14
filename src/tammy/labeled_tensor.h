@@ -134,9 +134,9 @@ operator * (std::tuple<T1, LabeledTensor<T2>> rhs1, const LabeledTensor<T2>& rhs
 inline void
 validate_slicing(const TensorVec<IndexRange>& index_ranges,
                  const IndexLabelVec& label) {
-  // for(size_t i=0; i<index_ranges.size(); i++) {
-  //   EXPECTS(index_ranges[i].is_superset(label[i].ir()));
-  // }
+  for(size_t i=0; i<index_ranges.size(); i++) {
+    EXPECTS(index_ranges[i].is_superset_of(label[i].ir()));
+  }
 }
 
 template<typename LabeledTensorType, typename T>

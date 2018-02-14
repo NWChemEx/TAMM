@@ -239,6 +239,11 @@ class PermGroup {
     return combine(loops);
   }
 
+  template<typename Itr> 
+  LBLoopNest<Itr> unique_loop_nest() const {
+
+  }
+
  private:
   //@todo Not sure this is checking all cases, especially recursive ones.
   static void validate(unsigned int size,
@@ -431,28 +436,55 @@ operator | (const T&, PermGroupInfo pgi) {
 }
 #endif
 
+inline PermGroupInfo
+operator | (PermGroupInfo lhs, 
+            PermGroupInfo rhs) {
+  lhs.size_ += rhs.size_;
+  lhs.perm_list_.insert_back(rhs.perm_list_.begin(), rhs.perm_list_.end());
+  lhs.perm_relation_.insert_back(rhs.perm_relation_.begin(), rhs.perm_relation_.end());
 
-// class OuterLabeledLoopNest : public LabeledLBLoopNest {
-// };
+  return lhs;
+}
 
-// class InnerLabeledLoopNest : public LabeledLBLoopNest {
-// };
+inline PermGroupInfo
+operator - (const IndexLabel& lhs,
+            const IndexLabel& rhs){
+  
+  return {2, {{static_cast<unsigned int>(lhs.label()), static_cast<unsigned int>(rhs.label())}}, {}};
+}
 
-// inline OuterLabeledLoopNest
-// outer(PermGroupInfo) {
-// }
+class OuterLabeledLoop : public LabeledLoop {
+  public: 
+    OuterLabeledLoop() = default;
+};
 
-// inline OuterLabeledLoopNest
-// outer(IndexLabel) {
-// }
+class InnerLabeledLoop : public LabeledLoop {
+  public:
+    InnerLabeledLoop() = default;
+};
 
-// inline InnerLabeledLoopNest
-// inner(PermGroupInfo) {
-// }
+inline OuterLabeledLoop
+outer(const PermGroupInfo& info) {
+  PermGroup pg(info);
 
-// inline OuterLabeledLoopNest
-// inner(IndexLabel) {
-// }
+  //return pg.unique_loop_nest();
+}
+
+inline OuterLabeledLoop
+outer(const IndexLabel& il) {
+  return outer({1, {{static_cast<unsigned int>(il.label())}}, {} });
+}
+
+inline InnerLabeledLoop
+inner(const PermGroupInfo& info) {
+  PermGroup pg(info);
+
+}
+
+inline InnerLabeledLoop
+inner(const IndexLabel& il) {
+  return inner({1, {{static_cast<unsigned int>(il.label())}}, {}});
+}
 
 }  // namespace tammy
 

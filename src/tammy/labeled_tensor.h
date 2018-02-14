@@ -256,7 +256,23 @@ class LabeledTensor {
   static InnerLabeledLoop inner_loop_nest(
       const LabeledTensor<T1>& ltensor1,
       const LabeledTensor<T1>& ltensor2) {
-    //@todo implement
+    using Itr = IndexSpace::Iterator;
+    IndexLabelVec labels1{ltensor1.labels()};
+    IndexLabelVec labels2{ltensor2.labels()};
+
+    std::sort(labels1.begin(), labels1.end());
+    std::sort(labels2.begin(), labels2.end());
+
+    IndexLabelVec inner_labels;
+    std::set_intersection(labels1.begin(), labels1.end(),
+                          labels2.begin(), labels2.end(),
+                          std::back_inserter(inner_labels));
+    std::vector<Itr> begins, ends;
+    for(const auto& il : inner_labels) {
+      begins.push_back(il.ir().begin());
+      ends.push_back(il.ir().end());
+    }
+    return InnerLabeledLoop{inner_labels, begins, ends, {}};
   }
 };
 

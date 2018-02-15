@@ -130,7 +130,7 @@ class TensorBase {
 
  private:
   PermGroup default_perm_group(size_t rank) {
-    TensorVec<unsigned> indices;
+    TensorVec<size_t> indices;
     
     for(size_t i=0; i<rank; i++) {
       indices.push_back(i);

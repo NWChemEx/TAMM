@@ -25,9 +25,10 @@ class PermGroup {
  private:
   size_t size_; //maximum size of the enclosing permutation group
   size_t index_;
-  TensorVec<PermGroup> groups_;
+  std::vector<PermGroup> groups_;
   size_t num_groups_;
   PermRelation relation_;
+  
  public:
   PermGroup() :
       size_{0},
@@ -56,7 +57,7 @@ class PermGroup {
         }
 
   PermGroup(size_t size,
-            const TensorVec<PermGroup>& groups,
+            const std::vector<PermGroup>& groups,
             PermRelation relation)
       : size_{size},
         index_{0},
@@ -99,7 +100,7 @@ class PermGroup {
     
     for(int g=0; g<ngrps; g++)  {
       EXPECTS(perm_list[g].size() > 0);
-      TensorVec<PermGroup> lgroups;
+      std::vector<PermGroup> lgroups;
       if(perm_list[g][0] < size) {
         for(size_t i=0; i<perm_list[g].size(); i++) {
           EXPECTS(perm_list[g][i] < size);
@@ -163,7 +164,7 @@ class PermGroup {
     return index_;
   }
 
-  const TensorVec<PermGroup>& groups() const {
+  const std::vector<PermGroup>& groups() const {
     return groups_;
   }
 
@@ -366,13 +367,13 @@ class PermGroup {
       }
     }
 
-    TensorVec<PermGroup> nested_groups;
+    std::vector<PermGroup> nested_groups;
     for(size_t i=0; i<nested_grp_ids.size(); i++) {
       EXPECTS(nested_grp_ids[i].size() > 0);
       if(nested_grp_ids[i].size() == 1) {
         nested_groups.push_back(groups_[nested_grp_ids[i][0]].slice(ilv));
       } else {
-        TensorVec<PermGroup> lgroups;
+        std::vector<PermGroup> lgroups;
         for(size_t grp_id : nested_grp_ids[i]) {
           lgroups.push_back(groups_[grp_id].slice(ilv));
         }

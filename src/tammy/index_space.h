@@ -549,6 +549,7 @@ operator | (IndexInfo lhs, const IndexInfo& rhs) {
 
 /////////////////////////////////////////////
 using IndexLabelVec = TensorVec<IndexLabel>;
+using IndexRangeVec = TensorVec<IndexRange>;
 
 
 }  // namespace tammy

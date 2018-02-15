@@ -446,8 +446,8 @@ class LBLoopNest {
     std::vector<std::vector<LBCondition>> lbs;
     for(auto& lng : loop_nest_groups) {
       lng.shift_lbs(off);
-      begin.insert(begin.end(), lng.begin().begin(), lng.begin().end());
-      end.insert(end.end(), lng.end().begin(), lng.end().end());
+      begin.insert(begin.end(), lng.begin_.begin(), lng.begin_.end());
+      end.insert(end.end(), lng.end_.begin(), lng.end_.end());
       if (lexicographic_concat == false) {
         lbs.insert(lbs.end(), lng.lbs().begin(), lng.lbs().end());
       } else {

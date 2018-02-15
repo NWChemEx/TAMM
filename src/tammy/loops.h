@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <memory>
 
-//#include "boundvec.h"
-//#include "types.h"
+#include "boundvec.h"
+#include "types.h"
 #include "errors.h"
 
 namespace tammy {
@@ -429,9 +429,55 @@ class LBLoopNest {
   
   size_t size() const {
     return size_;
+  }  
+
+  void shift_lbs(size_t off) {
+    //@todo implement
   }
   
+  friend LBLoopNest<Itr>
+  loop_nest_concat(TensorVec<LBLoopNest<Itr>> loop_nest_groups,
+                   bool lexicographic_concat) {
+    if(loop_nest_groups.size() == 1) {
+      return loop_nest_groups[0];
+    }
+    size_t off = 0;
+    std::vector<Itr> begin, end;
+    std::vector<std::vector<LBCondition>> lbs;
+    for(auto& lng : loop_nest_groups) {
+      lng.shift_lbs(off);
+      begin.insert(begin.end(), lng.begin().begin(), lng.begin().end());
+      end.insert(end.end(), lng.end().begin(), lng.end().end());
+      if (lexicographic_concat == false) {
+        lbs.insert(lbs.end(), lng.lbs().begin(), lng.lbs().end());
+      } else {
+        if (off == 0) {
+          lbs.insert(lbs.end(), lng.lbs().begin(), lng.lbs().end());
+        } else {
+          for(size_t i = 0; i<lng.size(); i++) {
+            size_t pos = off + i - lng.size();
+            std::vector<size_t> lhs, rhs;
+            for(size_t j = 0; j> i; j++) {
+              lhs.push_back(off + j - lng.size());
+              rhs.push_back(off + j);
+            }
+            std::vector<LBCondition> lb{lng.lbs()[i]};
+            lb.push_back({pos, lhs, rhs});
+            lbs.push_back(lb);
+          }
+        }
+      }
+      off += lng.size();
+    }
+    return {begin, end, lbs};
+  }
+
+  
  protected:
+  const std::vector<std::vector<LBCondition>>& lbs() const {
+    return lbs_;
+  }
+  
   void reset(size_t j) {
     EXPECTS(j >= 0 && j < size_);
     itr_[j] = begin_[j];
@@ -477,12 +523,27 @@ class LabeledLoop : public LBLoopNest<IndexSpace::Iterator> {
       : LBLoopNest{begin, end, lbs},
         ilv_{ilv} {}
 
+  LabeledLoop(const IndexLabelVec& ilv,
+              const LBLoopNest<IndexSpace::Iterator>& lb_loop) 
+      : LBLoopNest{lb_loop},
+        ilv_{ilv} {}
+
   const IndexLabelVec& labels() const {
     return ilv_;
   }
   
  protected:
   IndexLabelVec ilv_;
+};
+
+class InnerLabeledLoop : public LabeledLoop {
+ public:
+  using LabeledLoop::LabeledLoop;
+};
+
+class OuterLabeledLoop : public LabeledLoop {
+ public:
+  using LabeledLoop::LabeledLoop;
 };
 
 class SymmLoop {

@@ -380,8 +380,25 @@ class LBLoopNest {
   LBLoopNest(const LBLoopNest&) = default;
   
   void reset() {
-    for(size_t i=0; i<size_; i++) {
-      reset(i);
+    if(size_ == 0) {
+      return;
+    }
+    reset_starting_from(0);
+  }
+
+  void reset_starting_from(size_t start) {
+    EXPECTS(start < size_);
+    reset_with_lb(start);
+    for(size_t i = start+1; i < size_ && itr_[0] < end_[0]; i++) {
+      reset_with_lb(i);
+      for (; itr_[i] == end_[i] && i >= 1; i--) {
+        itr_[i-1]++;
+        EXPECTS(itr_[i-1] <= end_[i-1]);
+      }
+    }
+    if(itr_[0] == end_[0]) {
+      itr_ = end_;
+      done_ = true;
     }
   }
 
@@ -410,16 +427,15 @@ class LBLoopNest {
     ssize_t i = static_cast<ssize_t>(size_) - 1;
     for(; i >= 0; i--) {
       itr_[i]++;
-      if(itr_[i] <= end_[i]) {
+      if(itr_[i] < end_[i]) {
         break;
       }
     }
     if(i < 0) {
+      itr_ = end_;
       done_ = true;
-    } else {
-      for(size_t j = i+1; j < size_; j++) {
-        reset(j);
-      }
+    } else if(i+1 < size_) {
+      reset_starting_from(i+1);
     }
   }
   
@@ -432,7 +448,17 @@ class LBLoopNest {
   }  
 
   void shift_lbs(size_t off) {
-    //@todo implement
+    for(auto& lb_v : lbs_) {
+      for(auto& lb_el : lb_v) {
+        lb_el.pos += off;
+        for(auto &l : lb_el.lhs) {
+          l += off;
+        }
+        for(auto &r : lb_el.rhs) {
+          r += off;
+        }
+      }      
+    }
   }
   
   friend LBLoopNest<Itr>
@@ -477,8 +503,9 @@ class LBLoopNest {
   const std::vector<std::vector<LBCondition>>& lbs() const {
     return lbs_;
   }
-  
-  void reset(size_t j) {
+
+  //@post itr_[j]  <= end_[j]
+  void reset_with_lb(size_t j) {
     EXPECTS(j >= 0 && j < size_);
     itr_[j] = begin_[j];
     for(const auto& lb_el : lbs_[j]) {
@@ -492,6 +519,9 @@ class LBLoopNest {
       if(consider) {
         itr_[j] = std::max(itr_[j], itr_[lb_el.pos]);
       }
+    }
+    if(itr_[j] >= end_[j]) {
+      itr_[j] = end_[j];
     }
   }
 

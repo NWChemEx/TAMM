@@ -187,6 +187,11 @@ class Tensor {
     return impl_->proc_group();
   }
 
+  PermGroup perm_group() const {
+    EXPECTS(impl_);
+    return impl_->perm_group();
+  }
+
   // Distribution* distribution() {
       // EXPECTS(impl_);
   //   return impl_->distribution();

@@ -261,7 +261,7 @@ class LabeledTensor {
   IndexLabelVec ilv_;
 
   OuterLabeledLoop loop_nest() const {
-    //@todo implement
+    return {labels(), tensor().perm_group().sliced_loop_nest(labels())};
   }  
 
   template<typename T1>

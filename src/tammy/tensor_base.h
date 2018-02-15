@@ -124,7 +124,7 @@ class TensorBase {
     return spin_upper - spin_lower == spin_total_;
   }
 
-  const PermGroup& perm_groups() const {
+  const PermGroup& perm_group() const {
     return perm_groups_;
   }
 

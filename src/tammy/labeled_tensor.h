@@ -65,6 +65,18 @@ class LoopSpec {
     return has_symm_factor_;
   }
 
+  OuterLabeledLoop oll() const{
+    return oll_;
+  }
+
+  InnerLabeledLoop ill() const{
+    return ill_;
+  }
+
+  SymmFactor symm_factor() const{
+    return symm_factor_;
+  }
+
  private:
   OuterLabeledLoop oll_;
   InnerLabeledLoop ill_;
@@ -92,13 +104,13 @@ class LabeledTensor {
     return tensor_;
   }
 
-  IndexLabelVec label() const {
+  IndexLabelVec labels() const {
     return ilv_;
   }
 
   AddOp<T,LabeledTensor<T>> operator += (const std::tuple<LoopSpec,
                                          LabeledTensor<T>>& rhs) {
-    construct_addop(rhs, false);
+    construct_addop(std::make_tuple(std::get<0>(rhs), 1, std::get<1>(rhs)), false);
     // addop_validate(*this, std::make_tuple(1, std::get<1>(rhs)));
     // bool is_assign = false;
     // const auto& loop_spec = std::get<0>(rhs);
@@ -194,20 +206,20 @@ class LabeledTensor {
   construct_setop (const std::tuple<LoopSpec, T>& rhs, bool is_assign) {
     const auto& loop_spec = std::get<0>(rhs);
     if(loop_spec.has_oll()) {
-      return {*this, rhs, loop_spec.oll(), is_assign};
+      return {*this, std::get<1>(rhs), loop_spec.oll(), is_assign};
     } else {
-      return {*this, rhs, loop_nest(), is_assign};
+      return {*this, std::get<1>(rhs), loop_nest(), is_assign};
     }
   }
 
-    template<typename T1,
-           typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+  template<typename T1,
+          typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
   AddOp<T1,LabeledTensor<T>>
   construct_addop (const std::tuple<LoopSpec, T1, LabeledTensor<T>>& rhs, bool is_assign) {
-    addop_validate(*this, std::make_tuple(1, std::get<2>(rhs)));
+    addop_validate(*this, std::make_tuple(std::get<1>(rhs), std::get<2>(rhs)));
     const auto& loop_spec = std::get<0>(rhs);
     T1 alpha = std::get<1>(rhs);
-    auto& rhs_tensor = std::get<1>(rhs);
+    auto& rhs_tensor = std::get<2>(rhs);
     if(loop_spec.has_oll()) {
       return {*this, alpha, rhs_tensor, loop_spec.oll(), is_assign};
     } else {
@@ -219,7 +231,7 @@ class LabeledTensor {
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
   MultOp<T1,LabeledTensor<T>>
   construct_multop (const std::tuple<LoopSpec, T1, LabeledTensor<T>, LabeledTensor<T>>& rhs, bool is_assign) {  
-    multop_validate(*this, rhs);
+    multop_validate(*this, std::make_tuple(std::get<1>(rhs), std::get<2>(rhs), std::get<3>(rhs)));
 
     const auto& loop_spec = std::get<0>(rhs);
     OuterLabeledLoop oll;
@@ -297,7 +309,7 @@ operator * (LoopSpec ls, T rhs) {
 template<typename... Types, typename T>
 inline std::tuple<LoopSpec, Types..., T>
 operator * (std::tuple<LoopSpec, Types...> lhs, T rhs) {
-  return std::tuple_cat(lhs, rhs);
+  return std::tuple_cat(lhs, std::forward_as_tuple(rhs));
 }
 
 
@@ -416,12 +428,12 @@ addop_validate(const LabeledTensorType& ltc,
   //tensors should have same rank
   EXPECTS(tc.rank() == ta.rank());
 
-  IndexLabelVec clabel = ltc.label();
-  IndexLabelVec alabel = lta.label();
+  IndexLabelVec clabel = ltc.labels();
+  IndexLabelVec alabel = lta.labels();
 
   //index range underlying an index label is the same or a subset of the tensor’s index range along that dimension 
-  validate_slicing(tc.dim_ranges(), ltc.label());
-  validate_slicing(ta.dim_ranges(), lta.label());
+  validate_slicing(tc.dim_ranges(), ltc.labels());
+  validate_slicing(ta.dim_ranges(), lta.labels());
 
   //length of the index label vector matches the rank (number of indices) in the tensor
   EXPECTS(alabel.size() == ta.rank());
@@ -464,9 +476,9 @@ multop_validate(const LabeledTensorType& ltc,
   const auto& ta = lta.tensor();
   const auto& tb = ltb.tensor();
 
-  IndexLabelVec clabel = ltc.label();
-  IndexLabelVec alabel = lta.label();
-  IndexLabelVec blabel = ltb.label();
+  IndexLabelVec clabel = ltc.labels();
+  IndexLabelVec alabel = lta.labels();
+  IndexLabelVec blabel = ltb.labels();
 
   //length of the index label vector matches the rank (number of indices) in the tensor
   EXPECTS(clabel.size() == tc.rank());
@@ -474,9 +486,9 @@ multop_validate(const LabeledTensorType& ltc,
   EXPECTS(blabel.size() == tb.rank());
 
   //index range underlying an index label is the same or a subset of the tensor’s index range along that dimension 
-  validate_slicing(tc.dim_ranges(), ltc.label());
-  validate_slicing(ta.dim_ranges(), lta.label());
-  validate_slicing(tb.dim_ranges(), ltb.label());
+  validate_slicing(tc.dim_ranges(), ltc.labels());
+  validate_slicing(ta.dim_ranges(), lta.labels());
+  validate_slicing(tb.dim_ranges(), ltb.labels());
 
 #if 0
   //all labels are of compatible type

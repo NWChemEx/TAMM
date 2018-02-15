@@ -460,6 +460,12 @@ class OuterLabeledLoop : public LabeledLoop {
 class InnerLabeledLoop : public LabeledLoop {
   public:
     InnerLabeledLoop() = default;
+
+    InnerLabeledLoop(const IndexLabelVec& ilv,
+                     const std::vector<Iterator>& begin,
+                     const std::vector<Iterator>& end,
+                     const std::vector<std::vector<LBCondition>>& lbs)
+          : LabeledLoop {ilv, begin, end, lbs} {}
 };
 
 inline OuterLabeledLoop

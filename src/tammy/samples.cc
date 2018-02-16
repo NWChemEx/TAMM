@@ -25,11 +25,9 @@ void four_index_transform(const AO& ao,
   PermGroup perm_i2 = perm_a4.remove_index(3);
 
   Tensor<double> I0 = TensorImpl<double>::create(E | f1 + f2 | f3 + f4, perm_s4);
-
-  Tensor<double> I0 = Tensor<double>::create<TensorImpl<double>>(E | f1 + f2 | f3 + f4, perm_s4);
-  Tensor<double> I1 = Tensor<double>::create<TensorImpl<double>>(E | p + f2 | f3 + f4, perm_s4);
-  Tensor<double> I2 = Tensor<double>::create<TensorImpl<double>>(E | p + q | f3 + f4, perm_i2);
-  Tensor<double> I3 = Tensor<double>::create<TensorImpl<double>>(E | p + q | r + f4, perm_a4);
+  Tensor<double> I1 = TensorImpl<double>::create(E | p + f2 | f3 + f4, perm_s4);
+  Tensor<double> I2 = TensorImpl<double>::create(E | p + q | f3 + f4, perm_i2);
+  Tensor<double> I3 = TensorImpl<double>::create(E | p + q | r + f4, perm_a4);
   
   //I0(f1, f2, f2, f4) = integral_function()
   I1(p, f2, f3, f4) += tC(f1, p) * I0(f1, f2, f3, f4);
@@ -49,7 +47,7 @@ void two_index_transform(const AO& ao,
   std::tie(f1, f2) = ao.N(1, 2);
   std::tie(p, q) = mso.N(1, 2);
 
-  Tensor<double> I0 = Tensor<double>::create<TensorImpl<double>>(E | p | f2);
+  Tensor<double> I0 = TensorImpl<double>::create(E | p | f2);
   
   I0(p, f2)    = tC(f1, p) * tF_ao(f1, f2);
   tF_mso(p, q) = tC(f1, q) * I0(f1, p);
@@ -72,10 +70,10 @@ compute_two_body_fock(Scheduler& sch,
 
   std::tie(a, b, c, d) = ao.N(1,2, 3, 4);
 
-  Tensor<double> G = Tensor<double>::create<TensorImpl<double>>(E | a + b | E);
+  Tensor<double> G = TensorImpl<double>::create(E | a + b | E);
 
-  // Tensor<double> Integral = Tensor<double>::create<TensorImpl<double>>(E | f1 + f2 | f3 + f4);
-  Tensor<double> Integrals = Tensor<double>::create<TensorImpl<double>>(E | a + b | c + d);
+  // Tensor<double> Integral = TensorImpl<double>::create(E | f1 + f2 | f3 + f4);
+  Tensor<double> Integrals = TensorImpl<double>::create(E | a + b | c + d);
 
   sch(
       tF(a, b) += 2.0 * tD(c, d) * Integrals(a, b, c, d),
@@ -102,7 +100,7 @@ hartree_fock(const AO& ao,
   // compute nuclear-attraction integrals
   Tensor<double> V/*  = compute_1body_ints(shells, Operator::nuclear, atoms) */;
   
-  Tensor<double> H = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
+  Tensor<double> H = TensorImpl<double>::create(a + b | E | E);
 
   Scheduler()(
       H()  = T(),
@@ -124,20 +122,20 @@ hartree_fock(const AO& ao,
   double ehf = 0.0;
   int iter = 0;
 
-  Tensor<double> EHF, EHS_last, EDIFF, RMSD;
-  std::tie(EHF, EHS_last, EDIFF, RMSD) = TensorImpl<double>::create_list<4>(E|E|E);
+//   Tensor<double> EHF, EHS_last, EDIFF, RMSD;
+//   std::tie(EHF, EHS_last, EDIFF, RMSD) = TensorImpl<double>::create_list<4>(E|E|E);
   
-  // Tensor<double> EHF = Tensor<double>::create<TensorImpl<double>>(E|E|E);
-  // Tensor<double> EHF_last = Tensor<double>::create<TensorImpl<double>>(E|E|E);
-  // Tensor<double> EDIFF = Tensor<double>::create<TensorImpl<double>>(E|E|E);
-  // Tensor<double> RMSD = Tensor<double>::create<TensorImpl<double>>(E|E|E);
+  Tensor<double> EHF = TensorImpl<double>::create(E|E|E);
+  Tensor<double> EHF_last = TensorImpl<double>::create(E|E|E);
+  Tensor<double> EDIFF = TensorImpl<double>::create(E|E|E);
+  Tensor<double> RMSD = TensorImpl<double>::create(E|E|E);
 
-  Tensor<double> TMP, TMP1, D_last;
-  std::tie(TMP, TMP1, D_last) = TensorImpl<double>::create_list<3>(a + b | E | E);
+//   Tensor<double> TMP, TMP1, D_last;
+//   std::tie(TMP, TMP1, D_last) = TensorImpl<double>::create_list<3>(a + b | E | E);
 
-  // Tensor<double> TMP = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
-  // Tensor<double> TMP1 = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
-  // Tensor<double> D_last = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
+  Tensor<double> TMP = TensorImpl<double>::create(a + b | E | E);
+  Tensor<double> TMP1 = TensorImpl<double>::create(a + b | E | E);
+  Tensor<double> D_last = TensorImpl<double>::create(a + b | E | E);
 
   do {
     Scheduler sch;

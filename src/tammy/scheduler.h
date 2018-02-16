@@ -124,6 +124,9 @@ class Scheduler {
         default_memory_manager_{default_memory_manager},
         pg_{pg} {}
 
+  // @to-do: what is the default scheduler?
+  Scheduler() = default;
+
   Scheduler& operator () () {
     return *this;
   }

@@ -183,6 +183,14 @@ class LabeledTensor {
     return construct_multop(rhs, false);
   }
 
+  // @to-do: implement properly.
+  template<typename T1,
+           typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+  MultOp<T1,LabeledTensor<T>>
+  operator -= (const std::tuple<LoopSpec, T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
+    return construct_multop(rhs, false);
+  }
+
   template<typename T1,
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
   MultOp<T1,LabeledTensor<T>>

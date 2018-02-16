@@ -20,10 +20,14 @@ void four_index_transform(const AO& ao,
   std::tie(f1, f2, f3, f4) = ao.N(1, 2, 3, 4);
   std::tie(p, q, r, s) = mso.N(1, 2, 3, 4);
 
-  Tensor<double> I0 = Tensor<double>::create<TensorImpl<double>>(E | f1 + f2 | f3 + f4/* , perm_s4d */);
-  Tensor<double> I1 = Tensor<double>::create<TensorImpl<double>>(E | p + f2 | f3 + f4/* , perm_n2d + perm_s2d */);
-  Tensor<double> I2 = Tensor<double>::create<TensorImpl<double>>(E | p + q | f3 + f4/* , perm_a2d + perm_n2d */);
-  Tensor<double> I3 = Tensor<double>::create<TensorImpl<double>>(E | p + q | r + f4/* , perm_s2d + perm_n2d */);
+  PermGroup perm_s4 = PermGroup::antisymm(2, 2);
+  PermGroup perm_a4 = PermGroup::symm(4);
+  PermGroup perm_i2 = perm_a4.remove_index(3);
+  
+  Tensor<double> I0 = Tensor<double>::create<TensorImpl<double>>(E | f1 + f2 | f3 + f4, perm_s4);
+  Tensor<double> I1 = Tensor<double>::create<TensorImpl<double>>(E | p + f2 | f3 + f4 /*, perm_s4*/);
+  Tensor<double> I2 = Tensor<double>::create<TensorImpl<double>>(E | p + q | f3 + f4 /*, perm_i2*/);
+  Tensor<double> I3 = Tensor<double>::create<TensorImpl<double>>(E | p + q | r + f4 /*, perm_a4*/);
   
   //I0(f1, f2, f2, f4) = integral_function()
   I1(p, f2, f3, f4) += tC(f1, p) * I0(f1, f2, f3, f4);
@@ -175,9 +179,9 @@ hartree_fock(const AO& ao,
         RMSD()     = TMP1(a, b) * TMP1(a, b)
         ).execute();
 
-    ehf = EHF.get();
-    ediff = EDIFF.get();
-    rmsd = RMSD.get();
+    // ehf = EHF.get();
+    // ediff = EDIFF.get();
+    // rmsd = RMSD.get();
     
     iter++;
   } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)) && (iter < maxiter));

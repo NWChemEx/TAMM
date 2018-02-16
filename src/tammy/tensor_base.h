@@ -86,7 +86,17 @@ class TensorBase {
         default_perm_group(info.ipmask().size()),
                    irrep,
                    spin_total} {}
-  
+
+  TensorBase(const IndexInfo& info,
+             const PermGroup& perm_group,
+             Irrep irrep = Irrep{0},
+             Spin spin_total = Spin{0})
+      : TensorBase{info.ranges(),
+        info.ipmask(),
+        perm_group.slice(info.labels()),
+                   irrep,
+                   spin_total} {}
+
   bool spatial_nonzero(const BlockDimVec& bdv) const {
     if(!has_spatial_symmetry_)
       return true;

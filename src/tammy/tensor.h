@@ -43,6 +43,13 @@ class TensorImpl : public TensorBase, public TensorImplBase {
             EXPECTS(info.is_valid());
           }
 
+  TensorImpl(const IndexInfo& info,
+             const PermGroup& perm_group)
+      : TensorBase(info, perm_group),
+            rank_{static_cast<TensorRank>(info.ranges().size())} {
+            EXPECTS(info.is_valid());
+          }
+
   TensorImpl(const IndexLabel& il1) 
           : TensorImpl{il1()} { }
 

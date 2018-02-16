@@ -341,6 +341,20 @@ class DependentIndexLabel {
   DependentIndexLabel(const DependentIndexLabel&) = default;
   DependentIndexLabel& operator = (const DependentIndexLabel&) = default;
 
+  bool operator == (const DependentIndexLabel& rhs) {
+
+    if (il_ != rhs.il() || indep_labels_.size() != rhs.indep_labels().size())
+      return false;
+
+    for(int i = 0; i < indep_labels_.size(); i++){
+      if(indep_labels_[i] != rhs.indep_labels()[i]){
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   const IndexRange& ir() const {
     return il_.ir();
   }

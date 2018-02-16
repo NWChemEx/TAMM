@@ -25,9 +25,9 @@ void four_index_transform(const AO& ao,
   PermGroup perm_i2 = perm_a4.remove_index(3);
   
   Tensor<double> I0 = Tensor<double>::create<TensorImpl<double>>(E | f1 + f2 | f3 + f4, perm_s4);
-  Tensor<double> I1 = Tensor<double>::create<TensorImpl<double>>(E | p + f2 | f3 + f4 /*, perm_s4*/);
-  Tensor<double> I2 = Tensor<double>::create<TensorImpl<double>>(E | p + q | f3 + f4 /*, perm_i2*/);
-  Tensor<double> I3 = Tensor<double>::create<TensorImpl<double>>(E | p + q | r + f4 /*, perm_a4*/);
+  Tensor<double> I1 = Tensor<double>::create<TensorImpl<double>>(E | p + f2 | f3 + f4, perm_s4);
+  Tensor<double> I2 = Tensor<double>::create<TensorImpl<double>>(E | p + q | f3 + f4, perm_i2);
+  Tensor<double> I3 = Tensor<double>::create<TensorImpl<double>>(E | p + q | r + f4, perm_a4);
   
   //I0(f1, f2, f2, f4) = integral_function()
   I1(p, f2, f3, f4) += tC(f1, p) * I0(f1, f2, f3, f4);

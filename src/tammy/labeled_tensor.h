@@ -108,6 +108,17 @@ class LabeledTensor {
     return ilv_;
   }
 
+
+  // @to-do: implement.
+  template<typename T1,
+           typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+  MultOp<T1,LabeledTensor<T>>
+  operator -= (const std::tuple<LoopSpec, T1, LabeledTensor<T>, LabeledTensor<T>>& rhs);
+
+  // @to-do: implement.
+  AddOp<T,LabeledTensor<T>>
+  operator = (const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs);
+
   AddOp<T,LabeledTensor<T>> operator += (const std::tuple<LoopSpec,
                                          LabeledTensor<T>>& rhs) {
     construct_addop(std::make_tuple(std::get<0>(rhs), 1, std::get<1>(rhs)), false);
@@ -180,14 +191,6 @@ class LabeledTensor {
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
   MultOp<T1,LabeledTensor<T>>
   operator += (const std::tuple<LoopSpec, T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-    return construct_multop(rhs, false);
-  }
-
-  // @to-do: implement properly.
-  template<typename T1,
-           typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-  MultOp<T1,LabeledTensor<T>>
-  operator -= (const std::tuple<LoopSpec, T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
     return construct_multop(rhs, false);
   }
 
@@ -320,7 +323,12 @@ operator * (std::tuple<LoopSpec, Types...> lhs, T rhs) {
   return std::tuple_cat(lhs, std::forward_as_tuple(rhs));
 }
 
-
+// @to-do: implement properly
+template<typename T>
+inline std::tuple<LabeledTensor<T>, LabeledTensor<T>>
+operator - (LabeledTensor<T> lhs, LabeledTensor<T> rhs) {
+  return {lhs, rhs};
+}
 
 
 

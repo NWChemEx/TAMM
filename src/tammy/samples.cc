@@ -23,7 +23,9 @@ void four_index_transform(const AO& ao,
   PermGroup perm_s4 = PermGroup::antisymm(2, 2);
   PermGroup perm_a4 = PermGroup::symm(4);
   PermGroup perm_i2 = perm_a4.remove_index(3);
-  
+
+  Tensor<double> I0 = TensorImpl<double>::create(E | f1 + f2 | f3 + f4, perm_s4);
+
   Tensor<double> I0 = Tensor<double>::create<TensorImpl<double>>(E | f1 + f2 | f3 + f4, perm_s4);
   Tensor<double> I1 = Tensor<double>::create<TensorImpl<double>>(E | p + f2 | f3 + f4, perm_s4);
   Tensor<double> I2 = Tensor<double>::create<TensorImpl<double>>(E | p + q | f3 + f4, perm_i2);
@@ -122,15 +124,21 @@ hartree_fock(const AO& ao,
   double ehf = 0.0;
   int iter = 0;
 
-  Tensor<double> EHF = Tensor<double>::create<TensorImpl<double>>(E|E|E);
-  Tensor<double> EHF_last = Tensor<double>::create<TensorImpl<double>>(E|E|E);
-  Tensor<double> EDIFF = Tensor<double>::create<TensorImpl<double>>(E|E|E);
-  Tensor<double> RMSD = Tensor<double>::create<TensorImpl<double>>(E|E|E);
-
-  Tensor<double> TMP = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
-  Tensor<double> TMP1 = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
-  Tensor<double> D_last = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
+  Tensor<double> EHF, EHS_last, EDIFF, RMSD;
+  std::tie(EHF, EHS_last, EDIFF, RMSD) = TensorImpl<double>::create_list<4>(E|E|E);
   
+  // Tensor<double> EHF = Tensor<double>::create<TensorImpl<double>>(E|E|E);
+  // Tensor<double> EHF_last = Tensor<double>::create<TensorImpl<double>>(E|E|E);
+  // Tensor<double> EDIFF = Tensor<double>::create<TensorImpl<double>>(E|E|E);
+  // Tensor<double> RMSD = Tensor<double>::create<TensorImpl<double>>(E|E|E);
+
+  Tensor<double> TMP, TMP1, D_last;
+  std::tie(TMP, TMP1, D_last) = TensorImpl<double>::create_list<3>(a + b | E | E);
+
+  // Tensor<double> TMP = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
+  // Tensor<double> TMP1 = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
+  // Tensor<double> D_last = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
+
   do {
     Scheduler sch;
     // Save a copy of the energy and the density

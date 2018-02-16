@@ -16,6 +16,9 @@ template<typename T>
 class LabeledTensor;
 
 template<typename T>
+class Tensor;
+
+template<typename T>
 class TensorImpl : public TensorBase, public TensorImplBase {
  public:
   using ElementType = T;
@@ -102,6 +105,13 @@ class TensorImpl : public TensorBase, public TensorImplBase {
   //std::pair<Codelet*,Codelet*> put(const BlockDimVec& bdv, Block<T>& block) override {}
   //std::pair<Codelet*,Codelet*> add(const BlockDimVec& bdv, Block<T>& block) override {}
 
+  template<typename... Args>
+  static Tensor<T>
+  create(Args... args);
+  // {
+  //   return Tensor<T>::create<TensorImpl<T>>(args...);
+  // }
+  
  private:
   TensorRank rank_;
   ProcGroup pg_;
@@ -286,6 +296,12 @@ class Tensor {
   std::shared_ptr<TensorImpl<T>> impl_;
 };
 
+template<typename T>
+template<typename... Args>
+Tensor<T>
+TensorImpl<T>::create(Args... args) {
+  return Tensor<T>::create<TensorImpl<T>>(args...);
+}
 
 
 // #include "tammy/errors.h"

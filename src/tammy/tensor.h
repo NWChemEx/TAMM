@@ -153,6 +153,9 @@ class Tensor {
     return impl_->block_size(bdv);
   }
 
+  // @to-do: implement
+  LabeledTensor<T> operator() (); 
+
   LabeledTensor<T> operator() (const IndexLabelVec& ilv) const {
     EXPECTS(impl_);
     return LabeledTensor<T>{*this, ilv};
@@ -242,6 +245,9 @@ class Tensor {
     EXPECTS(impl_);
     impl_->allocation_status();
   }
+
+  // to-do: implement.
+  T get() const;
   
   // std::pair<Codelet*,Codelet*> get(const BlockDimVec& bdv, Block<T>& block) const {
     // EXPECTS(impl_);

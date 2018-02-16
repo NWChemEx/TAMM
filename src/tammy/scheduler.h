@@ -167,15 +167,23 @@ class Scheduler {
     return live_out(tensors...);
   }
 
-  template<typename ElementType, typename... ElementTypes>
-  Scheduler& allocate(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
-    ops_.push_back(new AllocOp<Tensor<ElementType>>{tensor});
+  Scheduler& allocate() {
+    return *this;
+  }
+
+  template<typename TensorType, typename... Args>
+  Scheduler& allocate(TensorType tensor, Args& ... tensors) {
+    ops_.push_back(new AllocOp<TensorType>{tensor});
     return allocate(tensors...);
   }
 
-  template<typename ElementType, typename... ElementTypes>
-  Scheduler& deallocate(Tensor<ElementType> tensor, Tensor<ElementTypes> ... tensors) {
-    ops_.push_back(new DeallocOp<Tensor<ElementType>>{tensor});
+  Scheduler& deallocate() {
+    return *this;
+  }
+
+  template<typename TensorType, typename... Args>
+  Scheduler& deallocate(TensorType tensor, Args& ... tensors) {
+    ops_.push_back(new DeallocOp<TensorType>{tensor});
     return deallocate(tensors...);
   }
   

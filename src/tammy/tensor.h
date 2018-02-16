@@ -3,10 +3,11 @@
 
 #include <memory>
 
+#include "tammy/proc_group.h"
+#include "tammy/tensor_base.h"
 #include "tammy/boundvec.h"
 #include "tammy/errors.h"
 #include "tammy/types.h"
-#include "tammy/proc_group.h"
 #include "tammy/memory_manager.h"
 
 namespace tammy {

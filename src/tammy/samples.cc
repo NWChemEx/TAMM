@@ -87,7 +87,6 @@ compute_two_body_fock(Scheduler& sch,
       G(a,c) -= 0.25 * Integrals(a,c,b,d) * tD(b,d),
       //    F(a,d) -= 1/4 * (ab|cd) * D(b,c)
       G(a,d) -= 0.25 * Integrals(a,c,b,d) * tD(b,c),
-      
       F(a,b) += 0.5*G(a,b),
       F(a,b) += 0.5*G(b,a)
       );
@@ -95,91 +94,91 @@ compute_two_body_fock(Scheduler& sch,
 
 
 
-// void
-// hartree_fock(const AO& ao,
-//              Tensor<double> C,
-//              Tensor<double> F) {
+void
+hartree_fock(const AO& ao,
+             Tensor<double> C,
+             Tensor<double> F) {
 
-//   IndexLabel a, b, c, E;
-//   std::tie(a, b, c) = ao.N(1, 2, 3);
+  IndexLabel a, b, c, E;
+  std::tie(a, b, c) = ao.N(1, 2, 3);
 
-//   // compute overlap integrals
-//   Tensor<double> S/*  = compute_1body_ints(shells, Operator::overlap) */;
+  // compute overlap integrals
+  Tensor<double> S/*  = compute_1body_ints(shells, Operator::overlap) */;
 
-//   // compute kinetic-energy integrals
-//   Tensor<double> T/*  = compute_1body_ints(shells, Operator::kinetic) */;
+  // compute kinetic-energy integrals
+  Tensor<double> T/*  = compute_1body_ints(shells, Operator::kinetic) */;
 
-//   // compute nuclear-attraction integrals
-//   Tensor<double> V/*  = compute_1body_ints(shells, Operator::nuclear, atoms) */;
+  // compute nuclear-attraction integrals
+  Tensor<double> V/*  = compute_1body_ints(shells, Operator::nuclear, atoms) */;
   
-//   Tensor<double> H = Tensor<double>::create<TensorImpl<double>(a + b | E | E);
+  Tensor<double> H = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
 
-//   Scheduler() (
-//       H()  = T(),
-//       H() += V(),
-//       dealloc(T, V)
-//                ).execute();
+  Scheduler()(
+      H()  = T(),
+      H() += V())
+      .deallocate(T, V)
+      .execute();
 
-//   Tensor<double> D;
+  Tensor<double> D;
 //   eigen_solve(H, S, eps, C);
 
-//   Scheduler() (
-//       D(a, b) = C(a, c) * C(c, b)
-//                ).execute();
+  Scheduler() (
+      D(a, b) = C(a, c) * C(c, b)
+               ).execute();
   
-//   const auto maxiter = 100;
-//   const auto conv = 1e-12;
-//   double rmsd = 0.0;
-//   double ediff = 0.0;
-//   double ehf = 0.0;
-//   int iter = 0;
+  const auto maxiter = 100;
+  const auto conv = 1e-12;
+  double rmsd = 0.0;
+  double ediff = 0.0;
+  double ehf = 0.0;
+  int iter = 0;
 
-//   Tensor<double> EHF = Tensor<double>::create<TensorImpl<double>>(E|E|E);
-//   Tensor<double> EHF_last = Tensor<double>::create<TensorImpl<double>>(E|E|E);
-//   Tensor<double> EDIFF = Tensor<double>::create<TensorImpl<double>>(E|E|E);
-//   Tensor<double> RMSD = Tensor<double>::create<TensorImpl<double>>(E|E|E);
+  Tensor<double> EHF = Tensor<double>::create<TensorImpl<double>>(E|E|E);
+  Tensor<double> EHF_last = Tensor<double>::create<TensorImpl<double>>(E|E|E);
+  Tensor<double> EDIFF = Tensor<double>::create<TensorImpl<double>>(E|E|E);
+  Tensor<double> RMSD = Tensor<double>::create<TensorImpl<double>>(E|E|E);
 
-//   Tensor<double> TMP = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
-//   Tensor<double> TMP1 = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
-//   Tensor<double> D_last = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
+  Tensor<double> TMP = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
+  Tensor<double> TMP1 = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
+  Tensor<double> D_last = Tensor<double>::create<TensorImpl<double>>(a + b | E | E);
   
-//   do {
-//     Scheduler sch;
-//     // Save a copy of the energy and the density
-//     sch(
-//         EHF_last() = EHF(),
-//         D_last(a, b) = D(a, b)
-//         );
+  do {
+    Scheduler sch;
+    // Save a copy of the energy and the density
+    sch(
+        EHF_last() = EHF(),
+        D_last(a, b) = D(a, b)
+        );
 
-//     // build a new Fock matrix
-//     sch(F() = H());
-//     compute_two_body_fock(sch, shells, D, F);
-//     sch.execute();
+    // build a new Fock matrix
+    sch(F() = H());
+    compute_two_body_fock(sch, ao, D, F);
+    sch.execute();
     
-//     // solve F C = e S C
-//     eigen_solve(F, S, eps, C);
+    // solve F C = e S C
+    // eigen_solve(F, S, eps, C);
     
-//     sch(D(a, b) = C(a, c) * C(c, b));
+    sch(D(a, b) = C(a, c) * C(c, b));
 
-//     // compute HF energy
-//     sch(
-//         TMP(a,b)  = H(a,b),
-//         TMP(a,b) += F(a,b),
-//         EHF()     = D(a, b) * TMP(a, b)
-//         );
+    // compute HF energy
+    sch(
+        TMP(a,b)  = H(a,b),
+        TMP(a,b) += F(a,b),
+        EHF()     = D(a, b) * TMP(a, b)
+        );
 
-//     // compute difference with last iteration
-//     sch(
-//         EDIFF()    = EHF() - EHF_LAST(),
-//         TMP1(a, b) = D(a, b),
-//         TMP1(a,b) += -1.0* D_last(a, b),
-//         RMSD()     = TMP1(a, b) * TMP1(a, b)
-//         ).execute();
+    // compute difference with last iteration
+    sch(
+        EDIFF()    = EHF() - EHF_last(),
+        TMP1(a, b) = D(a, b),
+        TMP1(a,b) += -1.0 * D_last(a, b),
+        RMSD()     = TMP1(a, b) * TMP1(a, b)
+        ).execute();
 
-//     ehf = EHF.get();
-//     ediff = EDIFF.get();
-//     rmsd = RMSD.get();
+    ehf = EHF.get();
+    ediff = EDIFF.get();
+    rmsd = RMSD.get();
     
-//     iter++;
-//   } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)) && (iter < maxiter));
-// } 
+    iter++;
+  } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)) && (iter < maxiter));
+} 

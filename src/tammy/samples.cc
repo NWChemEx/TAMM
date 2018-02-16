@@ -65,7 +65,7 @@ void
 compute_two_body_fock(Scheduler& sch,
                       const AO& ao,
                       Tensor<double> tD,
-                      Tensor<double> F) {
+                      Tensor<double> tF) {
   IndexLabel a, b, c, d, E;
 
   std::tie(a, b, c, d) = ao.N(1,2, 3, 4);
@@ -74,25 +74,10 @@ compute_two_body_fock(Scheduler& sch,
 
   // Tensor<double> Integral = Tensor<double>::create<TensorImpl<double>>(E | f1 + f2 | f3 + f4);
   Tensor<double> Integrals = Tensor<double>::create<TensorImpl<double>>(E | a + b | c + d);
-  
-  // 1) each shell set of integrals contributes up to 6 shell sets of the Fock matrix:
-  //    F(a,b) += (ab|cd) * D(c,d)
 
   sch(
-      G(a,b) = 0,
-      G(a,b) += Integrals(a,c,b,d) * tD(c,d),
-      //    F(c,d) += (ab|cd) * D(a,b)
-      G(c,d) += Integrals(a,c,b,d) * tD(a,b),
-      //    F(b,d) -= 1/4 * (ab|cd) * D(a,c)
-      G(b,d) -= 0.25 * Integrals(a,c,b,d) * tD(a,c),
-      //    F(b,c) -= 1/4 * (ab|cd) * D(a,d)
-      G(b,c) -= 0.25 * Integrals(a,c,b,d) * tD(a,d),
-      //    F(a,c) -= 1/4 * (ab|cd) * D(b,d)
-      G(a,c) -= 0.25 * Integrals(a,c,b,d) * tD(b,d),
-      //    F(a,d) -= 1/4 * (ab|cd) * D(b,c)
-      G(a,d) -= 0.25 * Integrals(a,c,b,d) * tD(b,c),
-      F(a,b) += 0.5*G(a,b),
-      F(a,b) += 0.5*G(b,a)
+      tF(a, b) += 2.0 * tD(c, d) * Integrals(a, b, c, d),
+      tF(a, b) += -1.0 * tD(c, d) * Integrals(a, c, b, d)
       );
 }
 

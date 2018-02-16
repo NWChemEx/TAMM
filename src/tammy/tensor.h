@@ -108,9 +108,10 @@ class TensorImpl : public TensorBase, public TensorImplBase {
   template<typename... Args>
   static Tensor<T>
   create(Args... args);
-  // {
-  //   return Tensor<T>::create<TensorImpl<T>>(args...);
-  // }
+
+  template<typename... Args>
+  static auto
+  create_list(Args... args);
   
  private:
   TensorRank rank_;
@@ -300,9 +301,15 @@ template<typename T>
 template<typename... Args>
 Tensor<T>
 TensorImpl<T>::create(Args... args) {
-  return Tensor<T>::create<TensorImpl<T>>(args...);
+ return Tensor<T>::template create<TensorImpl<T>>(args...);
 }
 
+template<typename T>
+template<typename... Args>
+auto
+TensorImpl<T>::create_list(Args... args) {
+  return Tensor<T>::template create<TensorImpl<T>>(args...);
+}
 
 // #include "tammy/errors.h"
 // #include "tammy/types.h"

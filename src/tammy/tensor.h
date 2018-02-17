@@ -40,12 +40,6 @@ class TensorImpl : public TensorBase, public TensorImplBase {
       : TensorBase(dim_ranges, ipmask, perm_groups, irrep, spin_total),
             rank_{rank} {}
 
-  TensorImpl(const IndexInfo& info)
-          : TensorBase(info),
-            rank_{static_cast<TensorRank>(info.ranges().size())} {
-            EXPECTS(info.is_valid());
-          }
-
   TensorImpl(const IndexInfo& info,
              const PermGroup& perm_group)
       : TensorBase(info, perm_group),

@@ -43,6 +43,17 @@ class TensorBase {
     init_spin_check();
   }
 
+  TensorBase(const TensorVec<IndexRange>& dim_ranges)
+      : dim_ranges_{dim_ranges},
+        ipmask_{TensorVec<IndexPosition>(dim_ranges_.size(),
+                                         IndexPosition::neither)},
+        perm_groups_{dim_ranges_.size()},
+        irrep_{0},
+        spin_total_{0},
+        has_spatial_symmetry_{false},
+        has_spin_symmetry_{false} {}
+        
+
   TensorBase(const std::tuple<
              TensorVec<IndexRange>,
              TensorVec<IndexRange>>& ranges,
@@ -55,7 +66,7 @@ class TensorBase {
         irrep,
         spin_total} { }
 
-    TensorBase(const std::tuple<
+  TensorBase(const std::tuple<
              TensorVec<IndexRange>,
              TensorVec<IndexRange>>& ranges,
              Irrep irrep = Irrep{0},

@@ -49,7 +49,7 @@ class PermGroup {
   }
 
   PermGroup(size_t size,
-            size_t index)
+            size_t index = 0)
       : size_{size},
         index_{index},
         relation_{PermRelation::none} {
@@ -466,7 +466,7 @@ class PermGroup {
     size_t nupper = size / 2;
     std::vector<PermGroup> groups;
     for(size_t i=0; i<nupper; i++) {
-      groups.push_back({size, {i, i + nupper}, PermRelation::symmetry});
+      groups.push_back({size, TensorVec<size_t>{i, i + nupper}, PermRelation::symmetry});
     }
     return {size, groups, PermRelation::symmetry};
   }

@@ -109,7 +109,7 @@ class TensorImpl : public TensorBase, public TensorImplBase {
   static Tensor<T>
   create(Args... args);
 
-  template<typename... Args>
+  template<unsigned N, typename... Args>
   static auto
   create_list(Args... args);
   
@@ -139,6 +139,13 @@ class Tensor {
                   "Mismatched element type between Tensor and Tensor implementation classes");
     // return Tensor{new TensorImplT(std::forward<Args>(args)...)};
     return Tensor{std::make_shared<TensorImplT>(std::forward<Args>(args)...)};
+  }
+
+  template<unsigned N, typename TensorImplT, typename... Args>
+  static auto create_list(Args&&... args) {
+    static_assert(std::is_same<ElementType, typename TensorImplT::ElementType>::value,
+                  "Mismatched element type between Tensor and Tensor implementation classes");
+    return CreateListImpl<N,Args...>::create(args...);
   }
 
   TensorRank rank() const {
@@ -283,6 +290,21 @@ class Tensor {
   // }
 
  protected:
+  template<unsigned N, typename... Args>
+  struct CreateListImpl {
+    static auto create(Args... args) {
+      return std::tuple_cat(CreateListImpl<N-1,Args...>::create(args...),
+                            CreateListImpl<1,Args...>::create(args...));
+    }
+  };
+  
+  template<typename... Args>
+  struct CreateListImpl<1,Args...> {
+    static auto create(Args... args) {
+      return std::make_tuple(Tensor<T>::template create<TensorImpl<T>>(args...));
+    }
+  };
+
   void pack(IndexLabelVec& label) {}
 
   template<typename ...Args>
@@ -305,10 +327,11 @@ TensorImpl<T>::create(Args... args) {
 }
 
 template<typename T>
-template<typename... Args>
+template<unsigned N, typename... Args>
 auto
 TensorImpl<T>::create_list(Args... args) {
-  return Tensor<T>::template create<TensorImpl<T>>(args...);
+  return Tensor<T>::template create_list<N,TensorImpl<T>>(args...);
+  //return Tensor<T>::template create<TensorImpl<T>>(args...);
 }
 
 // #include "tammy/errors.h"

@@ -229,7 +229,7 @@ class Tensor {
     impl_->allocate();
   }
 
-  bool is_allocated() {
+  bool is_allocated() const {
     EXPECTS(impl_);
     impl_->is_allocated();
   }
@@ -244,7 +244,7 @@ class Tensor {
   //   impl_->attach(memory_region);
   // }
 
-  bool is_attached() {
+  bool is_attached() const {
     EXPECTS(impl_);
     impl_->is_allocated();
   }
@@ -254,7 +254,7 @@ class Tensor {
     impl_->detach();
   }
 
-  bool is_constructed() {
+  bool is_constructed() const {
     EXPECTS(impl_);
     impl_->is_constructed();
   }

@@ -122,13 +122,13 @@ hartree_fock(const AO& ao,
   double ehf = 0.0;
   int iter = 0;
 
-//   Tensor<double> EHF, EHS_last, EDIFF, RMSD;
-//   std::tie(EHF, EHS_last, EDIFF, RMSD) = TensorImpl<double>::create_list<4>(E|E|E);
+  Tensor<double> EHF, EHF_last, EDIFF, RMSD;
+  std::tie(EHF, EHF_last, EDIFF, RMSD) = TensorImpl<double>::create_list<4>(E|E|E);
   
-  Tensor<double> EHF = TensorImpl<double>::create(E|E|E);
-  Tensor<double> EHF_last = TensorImpl<double>::create(E|E|E);
-  Tensor<double> EDIFF = TensorImpl<double>::create(E|E|E);
-  Tensor<double> RMSD = TensorImpl<double>::create(E|E|E);
+  // Tensor<double> EHF = TensorImpl<double>::create(E|E|E);
+  // Tensor<double> EHF_last = TensorImpl<double>::create(E|E|E);
+  // Tensor<double> EDIFF = TensorImpl<double>::create(E|E|E);
+  // Tensor<double> RMSD = TensorImpl<double>::create(E|E|E);
 
 //   Tensor<double> TMP, TMP1, D_last;
 //   std::tie(TMP, TMP1, D_last) = TensorImpl<double>::create_list<3>(a + b | E | E);

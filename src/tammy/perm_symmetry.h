@@ -6,8 +6,6 @@
 #include "tammy/boundvec.h"
 #include "tammy/types.h"
 #include "tammy/errors.h"
-// #include "tammy/generator.h"
-//#include "tammy_old/generator.h"
 #include "tammy/loops.h"
 
 #include <memory>
@@ -205,78 +203,6 @@ class PermGroup {
     }
   }
 
-  // template<typename T>
-  // std::unique_ptr<Generator<T>>
-  // unique_generator(const TensorVec<T>& lo,
-  //                  const TensorVec<T>& hi) const {
-  //   //@todo validate hi and lo
-  //   assert(lo.size() == size_);
-  //   assert(hi.size() == size_);
-
-  //   TensorVec<std::unique_ptr<Generator<T>>> itrs;
-  //   for(const auto& idx: indices_) {
-  //     itrs.push_back(std::make_unique<SimpleGenerator<T>>(idx, lo[idx], hi[idx]));
-  //   }
-  //   for(const auto& grp: groups_) {
-  //     itrs.push_back(grp->unique_generator<T>(lo, hi));
-  //   }
-  //   assert(itrs.size() > 0);
-  //   if(itrs.size() == 1) {
-  //     return std::move(itrs[0]);
-  //   }
-
-  //   if(relation_ == PermRelation::symmetry ||
-  //      relation_ == PermRelation::antisymmetry) {
-  //     return std::make_unique<TriangleGenerator<T>>(std::move(itrs));
-  //   } else {
-  //     return std::make_unique<CartesianGenerator<T>>(std::move(itrs));
-  //   }
-  // }
-
-  // template<typename Itr, typename T>
-  // std::unique_ptr<LBLoopNest<Itr>>
-  // unique_loop_nest(const TensorVec<IndexRange>& vec) const {
-
-  //   TensorVec<std::unique_ptr<LBLoopNest<Itr>>> loops;
-
-  //   std::vector<Itr> begin;
-  //   std::vector<Itr> end;
-  //   std::vector<std::vector<LBCondition>> lbs;
-  //   size_t pos = -1;
-  //   for(const auto& idx: indices_){
-  //     begin.push_back(vec[idx].begin());
-  //     end.push_back(vec[idx].end());
-  //     if(pos < 0){
-  //       lbs.push_back({});
-  //     }
-  //     else {
-  //       lbs.push_back({pos++, {}, {}});
-  //     }
-  //   }
-  //   loops.push_back(std::make_unique<LBLoopNest<Itr>>(begin, end, lbs));
-
-  //   for(const auto& grp: groups_) {
-  //     loops.push_back(grp->unique_loop_nest<Itr, T>(vec));
-  //   }
-
-  //   EXPECTS(loops.size() > 0);
-  //   if(loops.size() == 1) {
-  //     return std::move(loops[0]);
-  //   }
-
-  //   return combine(loops);
-  // }
-
-  // LBLoopNest<IndexSpace::Iterator>
-  // sliced_loop_nest(const IndexLabelVec& ilv) const {
-  //   PermGroup perm_group = slice(ilv);
-  //   TensorVec<IndexRange> irs;
-  //   for(const auto& lbl: ilv) {
-  //     irs.push_back(lbl.ir());
-  //   }
-  //   return unique_loop_nest(irs);
-  // }
-
   LBLoopNest<IndexSpace::Iterator>
   unique_loop_nest(const IndexRangeVec& irv) const {
     EXPECTS(size() == irv.size());
@@ -303,93 +229,6 @@ class PermGroup {
     return unique_loop_nest(irv);
   }
 
-  // static LBLoopNest<IndexSpace::Iterator>
-  // combine(size_t size,
-  //         TensorVec<LBLoopNest<IndexSpace::Iterator>> loop_nest_groups,
-  //         PermRelation relation) {
-  //   if(loop_nest_groups.size() == 1) {
-  //     return loop_nest_groups[0];
-  //   }
-  //   size_t off = 0;
-  //   using Itr = IndexSpace::Iterator;
-  //   std::vector<Itr> begin, end;
-  //   std::vector<std::vector<LBCondition>> lbs;
-  //   for(auto& lng : loop_nest_groups) {
-  //     lng.shift_lbs(off);
-  //     begin.insert(begin.end(), lng.begin().begin(), lng.begin().end());
-  //     end.insert(end.end(), lng.end().begin(), lng.end().end());
-  //     if (relation == PermRelation::none) {
-  //       lbs.insert(lbs.end(), lng.lbs().begin(), lng.lbs().end());
-  //     } if(relation == PermRelation::symm || relation == PermRelation::anti) {
-  //       for(size_t i = 0; i<lng.size(); i++) {
-  //         size_t pos = off + i - lng.size();
-  //         std::vector<size_t> lhs, rhs;
-  //         for(size_t j = 0; j> i; j++) {
-  //           lhs.push_back(off + j - lng.size());
-  //           rhs.push_back(off + j);
-  //         }          
-  //         lng.lbs()[i].push_back({pos, lhs, rhs});
-  //         lbs.push_back(lng.lbs()[i]);
-  //       }
-  //     } else {
-  //       NOT_IMPLEMENTED();
-  //     }
-  //     off += lng.size();
-  //   }
-  // }
-  
-  // PermGroup
-  // slice(const IndexRangeVec& ilv) const {
-  //   if(num_groups() == 0 || num_groups() == 1) {
-  //     return *this;
-  //   }
-
-  //   TensorVec<IndexRangeVec> group_ranges;
-  //   for(size_t i=0; i<num_groups(); i++) {
-  //     IndexLabelVec gilv = gather(irv, i);
-  //     IndexRangeVec irg;
-  //     for(const auto& lbl : gilv) {
-  //       irg.push_back(lbl.ir());
-  //     }
-  //     group_ranges.push_back(irg);
-  //   }
-  //   TensorVec<TensorVec<size_t>> nested_grp_ids;
-  //   TensorVec<bool> considered(num_groups(), false);
-  //   for(auto itr = considered.begin();
-  //       itr != considered.end();
-  //       itr = std::find(itr+1, considered.end(), false)) {
-  //     unsigned i = itr - considered.begin();
-  //     nested_grp_ids.push_back({i});
-  //     for(size_t j = i+1; j<num_groups(); j++) {
-  //       if (std::equal(group_ranges[j].begin(),
-  //                      group_ranges[j].end(),
-  //                      group_ranges[i].begin())) {
-  //         EXPECTS(considered[j] == false);
-  //         nested_grp_ids.back().push_back(j);
-  //         considered[j] = true;
-  //       }
-  //     }
-  //   }
-
-  //   std::vector<PermGroup> nested_groups;
-  //   for(size_t i=0; i<nested_grp_ids.size(); i++) {
-  //     EXPECTS(nested_grp_ids[i].size() > 0);
-  //     if(nested_grp_ids[i].size() == 1) {
-  //       nested_groups.push_back(groups_[nested_grp_ids[i][0]].slice(ilv));
-  //     } else {
-  //       std::vector<PermGroup> lgroups;
-  //       for(size_t grp_id : nested_grp_ids[i]) {
-  //         lgroups.push_back(groups_[grp_id].slice(ilv));
-  //       }
-  //       nested_groups.push_back(PermGroup{size_, lgroups, relation_});
-  //     }
-  //   }
-  //   if(nested_grp_ids.size() == 1) {
-  //     return nested_groups[0];
-  //   } else {
-  //     return PermGroup{size_, nested_groups, PermRelation::none};
-  //   }
-  // }
   template<typename T>
   PermGroup
   slice(const TensorVec<T>& tv) const {
@@ -499,15 +338,6 @@ class PermGroup {
     return ret;
   }
 
-  // IndexRangeVec gather_ranges(const IndexLabelVec& ilv, size_t grp_id) const {
-  //   IndexLabelVec gilv = gather(ilv, grp_id);
-  //   IndexRangeVec ret;
-  //   for(const auto& gil: gilv) {
-  //     ret.push_back(gil.ir());
-  //   }
-  //   return ret;
-  // }
-
   template<typename T>
   TensorVec<T> gather(const TensorVec<T>& tv) const {
     TensorVec<T> ret;
@@ -569,22 +399,6 @@ class PermGroup {
       assert(flags[i] == true);
     }
   }
-
-  // template<typename Itr>
-  // std::unique_ptr<LBLoopNest<Itr>>
-  // combine(TensorVec<std::unique_ptr<LBLoopNest<Itr>>> loops) {
-  //   // @todo: Combine LBLoopNest
-
-  //   std::vector<Itr> begin;
-  //   std::vector<Itr> end;
-  //   std::vector<std::vector<LBCondition>> lbs;
-
-  //   for(const auto& loop: loops) {
-
-  //   }
-
-  //   return std::make_unique<LBLoopNest<Itr>>(begin, end, lbs);
-  // }
 
   template<typename T>
   static void
@@ -674,48 +488,6 @@ operator + (const PermGroup& perm_group_1,
         PermRelation::none};
 }
 
-// inline PermGroupInfo
-// antisymm(unsigned int nupper, unsigned int nlower) {
-//   TensorVec<TensorVec<unsigned int>> perm_list;
-//   TensorVec<PermRelation> perm_relation;
-
-//   if(nupper > 0) {
-//     TensorVec<unsigned int> upper;
-//     for(unsigned int i=0; i<nupper; i++) {
-//       upper.push_back(i);
-//     }
-//     perm_list.push_back(upper);
-//     perm_relation.push_back(PermRelation::antisymmetry);
-//   }
-
-//   if(nlower > 0) {
-//     TensorVec<unsigned int> lower;
-//     for(unsigned int i=0; i<nlower; i++) {
-//       lower.push_back(nupper + i);
-//     }
-//     perm_list.push_back(lower);
-//     perm_relation.push_back(PermRelation::antisymmetry);
-//   }
-//   return {nupper+nlower, perm_list, perm_relation};
-// }
-
-// inline PermGroupInfo
-// symm(unsigned int nupper, unsigned int nlower) {
-//   assert(nupper == nlower);
-//   TensorVec<PermRelation> perm_relation(nupper+1, PermRelation::symmetry);
-
-//   TensorVec<TensorVec<unsigned int>> perm_groups;
-//   for(unsigned int i=0; i<nupper; i++) {
-//     perm_groups.push_back({i, i+nupper});
-//   }
-//   TensorVec<unsigned int> last;
-//   for(unsigned int i=0; i<nupper; i++) {
-//     last.push_back(nupper + nlower + i);
-//   }
-//   perm_groups.push_back(last);
-//   return {nupper+nlower, perm_groups, perm_relation};
-// }
-
 #if 0
 template<typename T>
 inline PermGroupInfo
@@ -749,22 +521,6 @@ operator - (const IndexLabel& lhs,
 
   return {2, {{static_cast<unsigned int>(lhs.label()), static_cast<unsigned int>(rhs.label())}}, {}};
 }
-
-// class OuterLabeledLoop : public LabeledLoop {
-//   public:
-//     OuterLabeledLoop() = default;
-// };
-
-// class InnerLabeledLoop : public LabeledLoop {
-//   public:
-//     InnerLabeledLoop() = default;
-
-//     InnerLabeledLoop(const IndexLabelVec& ilv,
-//                      const std::vector<Iterator>& begin,
-//                      const std::vector<Iterator>& end,
-//                      const std::vector<std::vector<LBCondition>>& lbs)
-//           : LabeledLoop {ilv, begin, end, lbs} {}
-// };
 
 inline OuterLabeledLoop
 outer(const PermGroupInfo& info) {

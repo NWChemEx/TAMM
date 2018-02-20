@@ -87,8 +87,6 @@ class LoopSpec {
   bool has_symm_factor_;
 };
 
-
-
 template<typename T>
 class LabeledTensor {
  public:
@@ -122,14 +120,6 @@ class LabeledTensor {
   AddOp<T,LabeledTensor<T>> operator += (const std::tuple<LoopSpec,
                                          LabeledTensor<T>>& rhs) {
     construct_addop(std::make_tuple(std::get<0>(rhs), 1, std::get<1>(rhs)), false);
-    // addop_validate(*this, std::make_tuple(1, std::get<1>(rhs)));
-    // bool is_assign = false;
-    // const auto& loop_spec = std::get<0>(rhs);
-    // if(loop_spec.has_oll()) {
-    //   return {*this, 1, rhs, loop_spec.oll(), is_assign};
-    // } else {
-    //   return {*this, 1, rhs, loop_nest(), is_assign};
-    // }
   }
 
   AddOp<T,LabeledTensor<T>> operator += (LabeledTensor<T> rhs) {
@@ -138,8 +128,6 @@ class LabeledTensor {
 
   SetOp<T,LabeledTensor<T>>
   operator += (const T& rhs) {
-    // bool is_assign = false;
-    // return {*this, rhs, loop_nest(), is_assign};
     return *this += loop_nest() * rhs;
   }
 
@@ -162,11 +150,6 @@ class LabeledTensor {
            typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
   AddOp<T1,LabeledTensor<T>>
   operator += (const std::tuple<LoopSpec, T1, LabeledTensor<T>>& rhs) {
-    // addop_validate(*this, std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)));
-    // bool is_assign = false;
-    
-    // return {*this, std::get<0>(rhs), std::get<1>(rhs), loop_nest(), is_assign};
-    //return *this += loop_nest() * std::get<0>(rhs) * std::get<1>(rhs);
     construct_addop(rhs, false);
   }
 
@@ -330,71 +313,6 @@ operator - (LabeledTensor<T> lhs, LabeledTensor<T> rhs) {
   return {lhs, rhs};
 }
 
-
-
-
-
-
-// template<typename... Types>
-// inline std::tuple<InnerLabeledLoop, std::tuple<Types>>
-// operator * (InnerLabeledLoop oll, const std::tuple<Tuples...>& rhs) {
-//   return {std::forward_as_tuple(oll), rhs};
-// }
-
-// template<typename T1>
-// inline std::tuple<OuterLabeledLoop, T1>
-// operator * (OuterLabeledLoop oll, const T1& rhs) {
-//   return {oll, rhs};
-// }
-
-// template<typename T1, typename T2, typename T3>
-// inline std::tuple<OuterLabeledLoop, T1, T2, T3>
-// operator * (OuterLabeledLoop oll,
-//             const std::tuple<T1,T2, T3>& rhs) {
-//   return {oll, std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs)};
-// }
-
-// template<typename T1, typename T2, typename T3, typename T4>
-// inline std::tuple<OuterLabeledLoop, T1, T2, T3, T4>
-// operator * (OuterLabeledLoop oll,
-//             const std::tuple<T1,T2, T3, T4>& rhs) {
-//   return {oll,
-//         std::get<0>(rhs),
-//         std::get<1>(rhs),
-//         std::get<2>(rhs),
-//         std::get<3>(rhs)};
-// }
-
-// template<typename T1, typename T2>
-// inline std::tuple<InnerLabeledLoop, T1, T2>
-// operator * (InnerLabeledLoop oll, const std::tuple<T1,T2>& rhs) {
-//   return {oll, std::get<0>(rhs), std::get<1>(rhs)};
-// }
-
-// template<typename T1>
-// inline std::tuple<InnerLabeledLoop, T1>
-// operator * (InnerLabeledLoop oll, const T1& rhs) {
-//   return {oll, rhs};
-// }
-
-// template<typename T1, typename T2, typename T3>
-// inline std::tuple<InnerLabeledLoop, T1, T2, T3>
-// operator * (InnerLabeledLoop oll,
-//             const std::tuple<T1,T2, T3>& rhs) {
-//   return {oll, std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs)};
-// }
-
-// template<typename T1, typename T2, typename T3, typename T4>
-// inline std::tuple<InnerLabeledLoop, T1, T2, T3, T4>
-// operator * (InnerLabeledLoop oll,
-//             const std::tuple<T1,T2, T3, T4>& rhs) {
-//   return {oll,
-//         std::get<0>(rhs),
-//         std::get<1>(rhs),
-//         std::get<2>(rhs),
-//         std::get<3>(rhs)};
-// }
-
 template<typename T1,
          typename T2,
          typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
@@ -403,25 +321,12 @@ operator * (T1 val, const LabeledTensor<T2>& rhs) {
   return {LoopSpec{}, val, rhs};
 }
 
-// template<typename T1, typename T2>
-// inline std::tuple<T1, LabeledTensor<T2>>
-// operator * (T1 val, const LabeledTensor<T2>& rhs) {
-//   return {val, rhs};
-// }
-
 
 template<typename T>
 inline std::tuple<LoopSpec, LabeledTensor<T>, LabeledTensor<T>>
 operator * (const LabeledTensor<T>& rhs1, const LabeledTensor<T>& rhs2) {
   return {LoopSpec{}, rhs1, rhs2};
 }
-
-// template<typename T1, typename T2>
-// inline std::tuple<T1, LabeledTensor<T2>, LabeledTensor<T2>>
-// operator * (std::tuple<T1, LabeledTensor<T2>> rhs1, const LabeledTensor<T2>& rhs2) {
-//   return {std::get<0>(rhs1), std::get<1>(rhs1), rhs2};
-// }
-
 
 inline void
 validate_slicing(const TensorVec<IndexRange>& index_ranges,

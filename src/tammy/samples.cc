@@ -23,11 +23,33 @@ void four_index_transform(const AO& ao,
   PermGroup perm_s4 = PermGroup::antisymm(2, 2);
   PermGroup perm_a4 = PermGroup::symm(4);
   PermGroup perm_i2 = perm_a4.remove_index(3);
+  
+  TensorVec<IndexPosition> ipmask_u2_l2 = {IndexPosition::upper, IndexPosition::upper, IndexPosition::lower, IndexPosition::lower}; 
 
-  Tensor<double> I0 = TensorImpl<double>::create(E | f1 + f2 | f3 + f4, perm_s4);
-  Tensor<double> I1 = TensorImpl<double>::create(E | p + f2 | f3 + f4, perm_s4);
-  Tensor<double> I2 = TensorImpl<double>::create(E | p + q | f3 + f4, perm_i2);
-  Tensor<double> I3 = TensorImpl<double>::create(E | p + q | r + f4, perm_a4);
+  Tensor<double> I0 = TensorImpl<double>::create(
+      TensorVec<IndexLabel>{f1, f2, f3, f4}, 
+      ipmask_u2_l2, 
+      perm_s4);
+  Tensor<double> I1 = TensorImpl<double>::create(
+      TensorVec<const IndexSpace*>{&mso, &ao, &ao, &ao},
+      ipmask_u2_l2,
+      perm_s4);
+
+  Tensor<double> I2 = TensorImpl<double>::create(
+      TensorVec<IndexRange>{p.ir(), q.ir(), f3.ir(), f4.ir()},
+      ipmask_u2_l2,
+      perm_i2);
+
+  Tensor<double> I3 = TensorImpl<double>::create(
+      TensorVec<IndexLabel>{p, q, r, f4},
+      ipmask_u2_l2,
+      perm_a4);
+
+
+  // Tensor<double> I0 = TensorImpl<double>::create(E | f1 + f2 | f3 + f4, perm_s4);
+  // Tensor<double> I1 = TensorImpl<double>::create(E | p + f2 | f3 + f4, perm_s4);
+  // Tensor<double> I2 = TensorImpl<double>::create(E | p + q | f3 + f4, perm_i2);
+  // Tensor<double> I3 = TensorImpl<double>::create(E | p + q | r + f4, perm_a4);
   
   //I0(f1, f2, f2, f4) = integral_function()
   I1(p, f2, f3, f4) += tC(f1, p) * I0(f1, f2, f3, f4);
@@ -46,8 +68,9 @@ void two_index_transform(const AO& ao,
   
   std::tie(f1, f2) = ao.N(1, 2);
   std::tie(p, q) = mso.N(1, 2);
+  TensorVec<IndexPosition> ipmask_u1_l1 = {IndexPosition::upper, IndexPosition::lower};
 
-  Tensor<double> I0 = TensorImpl<double>::create(E | p | f2);
+  Tensor<double> I0 /* = TensorImpl<double>::create(E | p | f2) */;
   
   I0(p, f2)    = tC(f1, p) * tF_ao(f1, f2);
   tF_mso(p, q) = tC(f1, q) * I0(f1, p);
@@ -70,10 +93,10 @@ compute_two_body_fock(Scheduler& sch,
 
   std::tie(a, b, c, d) = ao.N(1,2, 3, 4);
 
-  Tensor<double> G = TensorImpl<double>::create(E | a + b | E);
+  Tensor<double> G /* = TensorImpl<double>::create(E | a + b | E) */;
 
   // Tensor<double> Integral = TensorImpl<double>::create(E | f1 + f2 | f3 + f4);
-  Tensor<double> Integrals = TensorImpl<double>::create(E | a + b | c + d);
+  Tensor<double> Integrals /* = TensorImpl<double>::create(E | a + b | c + d) */;
 
   sch(
       tF(a, b) += 2.0 * tD(c, d) * Integrals(a, b, c, d),
@@ -100,7 +123,7 @@ hartree_fock(const AO& ao,
   // compute nuclear-attraction integrals
   Tensor<double> V/*  = compute_1body_ints(shells, Operator::nuclear, atoms) */;
   
-  Tensor<double> H = TensorImpl<double>::create(a + b | E | E);
+  Tensor<double> H /* = TensorImpl<double>::create(a + b | E | E) */;
 
   Scheduler()(
       H()  = T(),
@@ -123,7 +146,7 @@ hartree_fock(const AO& ao,
   int iter = 0;
 
   Tensor<double> EHF, EHF_last, EDIFF, RMSD;
-  std::tie(EHF, EHF_last, EDIFF, RMSD) = TensorImpl<double>::create_list<4>(E|E|E);
+  // std::tie(EHF, EHF_last, EDIFF, RMSD) = TensorImpl<double>::create_list<4>(E|E|E);
   
   // Tensor<double> EHF = TensorImpl<double>::create(E|E|E);
   // Tensor<double> EHF_last = TensorImpl<double>::create(E|E|E);
@@ -133,9 +156,9 @@ hartree_fock(const AO& ao,
 //   Tensor<double> TMP, TMP1, D_last;
 //   std::tie(TMP, TMP1, D_last) = TensorImpl<double>::create_list<3>(a + b | E | E);
 
-  Tensor<double> TMP = TensorImpl<double>::create(a + b | E | E);
-  Tensor<double> TMP1 = TensorImpl<double>::create(a + b | E | E);
-  Tensor<double> D_last = TensorImpl<double>::create(a + b | E | E);
+  Tensor<double> TMP /* = TensorImpl<double>::create(a + b | E | E) */;
+  Tensor<double> TMP1 /* = TensorImpl<double>::create(a + b | E | E) */;
+  Tensor<double> D_last /* = TensorImpl<double>::create(a + b | E | E) */;
 
   do {
     Scheduler sch;

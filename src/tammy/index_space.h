@@ -408,7 +408,6 @@ IndexRange::labels(Label label, LabelArgs... rest) const {
 
 inline DependentIndexLabel
 IndexLabel::operator() (IndexLabel il1) const {
-  // @todo: disabled for testing should be enabled with SubIndexSpaces
   EXPECTS(ir_.num_indep_indices() == 1);
   return {*this, {il1}};
 }
@@ -424,147 +423,33 @@ IndexLabel::operator() (IndexLabel il1, IndexLabel il2) const {
   return {*this, {il1, il2}};
 }
 
-///////////////////////////////////////////////////////////
-class IndexInfo {
- public:
-  IndexInfo (const IndexInfo& info)
-      : labels_{info.labels_},
-        group_sizes_{info.group_sizes_} {}
-
-  IndexInfo (const IndexLabel& il) {
-    if(il.label() < 0){
-      group_sizes_ = {0};
-    }
-    else {
-      labels_ = TensorVec<DependentIndexLabel>{il()};
-      group_sizes_ = {1};
-    }
-  }
-
-  IndexInfo (const DependentIndexLabel& dil)
-      : labels_{TensorVec<DependentIndexLabel>{dil}},
-        group_sizes_{1} { }
-
-
-  template<typename... LabelArgs>
-  IndexInfo (const IndexLabel& lbl, LabelArgs... labels) {
-    if(lbl.label() != -1)
-      labels_.push_back(lbl());
-    pack(labels_, labels...);
-
-    group_sizes_ = {labels_.size(), 0, 0};  
-  }
-
-  template<typename... LabelArgs>
-  IndexInfo (const DependentIndexLabel& dlbl, LabelArgs... labels) {
-    if(dlbl.il().label() != -1)
-      labels_.push_back(dlbl);
-    pack(labels_, labels...);
-
-    group_sizes_ = {labels_.size(), 0, 0};
-  }
-
-  void add_to_last_group(DependentIndexLabel dil) {
-    EXPECTS(group_sizes_.size() > 0);
-    labels_.push_back(dil);
-    group_sizes_.back() += 1;
-  }
-  
-  const TensorVec<DependentIndexLabel>& labels() const {
-    return labels_;
-  }
-  
-  TensorVec<IndexPosition> ipmask() const {
-    TensorVec<IndexPosition> ipvec;
-    assert(group_sizes_.size() == 3);
-    std::fill_n(std::back_inserter(ipvec), group_sizes_[0], IndexPosition::neither);
-    std::fill_n(std::back_inserter(ipvec), group_sizes_[1], IndexPosition::upper);
-    std::fill_n(std::back_inserter(ipvec), group_sizes_[2], IndexPosition::lower);
-    return ipvec;
-  }
-
-  IndexInfo& operator |= (const IndexInfo& rhs){
-    labels_.insert_back(rhs.labels_.begin(),
-                            rhs.labels_.end());
-    group_sizes_.insert_back(rhs.group_sizes_.begin(),
-                             rhs.group_sizes_.end());    
-    return *this;
-  }
-
-  bool is_valid() const{
-    TensorVec<IndexLabel> i_labels;
-    for(auto l : labels_){
-      i_labels.push_back(l.il());
-    }
-
-    std::sort(i_labels.begin(), i_labels.end());
-    //all labels are unique
-    EXPECTS(std::adjacent_find(i_labels.begin(), i_labels.end()) == i_labels.end());
-
-    for(auto l : labels_) {
-      for(auto indep: l.indep_labels()) {
-        auto u = std::find(i_labels.begin(), i_labels.end(), indep);
-        // all sub-index spaces should be in the construction
-        EXPECTS(u != i_labels.end());
-        if(u == i_labels.end())
-          return false;
-      }
-    }
-
-    return true;
-  }
-
-  TensorVec<IndexRange> ranges() const {
-      
-    TensorVec<IndexRange> ranges;
-    for(auto l : labels_) {
-      ranges.push_back(l.ir());
-    }
-    return ranges;
-  }
-  
- protected:
-  TensorVec<DependentIndexLabel> labels_;
-  TensorVec<size_t> group_sizes_;
-
-  void pack(TensorVec<DependentIndexLabel>& label) {}
-
-  template<typename ...Args>
-  void pack(TensorVec<DependentIndexLabel>& label, IndexLabel ilbl, Args... rest) {
-    if(ilbl.label() != -1)
-      label.push_back(ilbl());
-    pack(label, rest...);
-  }
-
-  template<typename ...Args>
-  void pack(TensorVec<DependentIndexLabel>& label, DependentIndexLabel dilbl, Args... rest) {
-    label.push_back(dilbl);
-    pack(label, rest...);
-  }
-};
-
-inline IndexInfo
-operator + (IndexInfo lhs, const DependentIndexLabel& rhs) {
-  lhs.add_to_last_group(rhs);
-  return lhs;
-}
-
-inline IndexInfo
-operator + (IndexInfo lhs, const IndexLabel& rhs) {
-  lhs.add_to_last_group(rhs());
-  return lhs;
-}
-
-inline IndexInfo 
-operator | (IndexInfo lhs, const IndexInfo& rhs) {
-  lhs |= rhs;
-  return lhs;
-}
-
 /////////////////////////////////////////////
 using IndexLabelVec = TensorVec<IndexLabel>;
 using IndexRangeVec = TensorVec<IndexRange>;
 
+// Validity check for Tensor constructor
+//   bool is_valid() const{
+//     TensorVec<IndexLabel> i_labels;
+//     for(auto l : labels_){
+//       i_labels.push_back(l.il());
+//     }
+
+//     std::sort(i_labels.begin(), i_labels.end());
+//     //all labels are unique
+//     EXPECTS(std::adjacent_find(i_labels.begin(), i_labels.end()) == i_labels.end());
+
+//     for(auto l : labels_) {
+//       for(auto indep: l.indep_labels()) {
+//         auto u = std::find(i_labels.begin(), i_labels.end(), indep);
+//         // all sub-index spaces should be in the construction
+//         EXPECTS(u != i_labels.end());
+//         if(u == i_labels.end())
+//           return false;
+//       }
+//     }
+
+//     return true;
+//   }
 
 }  // namespace tammy
 

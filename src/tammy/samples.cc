@@ -26,24 +26,11 @@ void four_index_transform(const AO& ao,
   
   TensorVec<IndexPosition> ipmask_u2_l2 = {IndexPosition::upper, IndexPosition::upper, IndexPosition::lower, IndexPosition::lower}; 
 
-  Tensor<double> I0 = TensorImpl<double>::create(
-      TensorVec<IndexLabel>{f1, f2, f3, f4}, 
-      ipmask_u2_l2, 
-      perm_s4);
-  Tensor<double> I1 = TensorImpl<double>::create(
-      TensorVec<const IndexSpace*>{&mso, &ao, &ao, &ao},
-      ipmask_u2_l2,
-      perm_s4);
 
-  Tensor<double> I2 = TensorImpl<double>::create(
-      TensorVec<IndexRange>{p.ir(), q.ir(), f3.ir(), f4.ir()},
-      ipmask_u2_l2,
-      perm_i2);
-
-  Tensor<double> I3 = TensorImpl<double>::create(
-      TensorVec<IndexLabel>{p, q, r, f4},
-      ipmask_u2_l2,
-      perm_a4);
+  Tensor<double> I0 = TensorImpl<double>::create(f1, f2, perm_s4, ipmask_u2_l2);
+  Tensor<double> I1 = TensorImpl<double>::create(mso, ao, ao, ao, perm_s4, ipmask_u2_l2);
+  Tensor<double> I2 = TensorImpl<double>::create(p.ir(), q.ir(), f3.ir(), f4.ir(), ipmask_u2_l2, perm_i2);
+  Tensor<double> I3/*  = TensorImpl<double>::create(p, ipmask_u2_l2) */;
 
 
   // Tensor<double> I0 = TensorImpl<double>::create(E | f1 + f2 | f3 + f4, perm_s4);

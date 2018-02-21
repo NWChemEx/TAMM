@@ -68,13 +68,33 @@ class TensorImpl : public TensorBase, public TensorImplBase {
   // @to-do: implement.
   TensorImpl(const DependentIndexLabel& dil1);
 
+  TensorImpl(const std::tuple<TensorVec<IndexLabel>,
+                              TensorVec<IndexPosition>,
+                              PermGroup>& tpl)
+      :TensorImpl{ranges(std::get<0>(tpl)), std::get<1>(tpl), std::get<2>(tpl)} {}
+
+  TensorImpl(const std::tuple<TensorVec<const IndexSpace*>,
+                              TensorVec<IndexPosition>,
+                              PermGroup>& tpl)
+      :TensorImpl{ranges(std::get<0>(tpl)), std::get<1>(tpl), std::get<2>(tpl)} {}
+
+  TensorImpl(const std::tuple<TensorVec<IndexRange>,
+                              TensorVec<IndexPosition>,
+                              PermGroup>& tpl)
+      :TensorImpl{std::get<0>(tpl), std::get<1>(tpl), std::get<2>(tpl)} {}
+
   template<typename ...Args>
-  TensorImpl(const IndexSpace* is, Args... rest)
-    :TensorImpl{pack_vec<const IndexSpace*>(is, rest...)} {}
+  TensorImpl(const IndexSpace& is, Args... rest)
+    :TensorImpl{pack_tuple_is(is, rest...)} {}
 
   template<typename ...Args>
   TensorImpl(const IndexLabel& il, Args... rest)
-    :TensorImpl{pack_vec<IndexLabel>(il, rest...)} {}
+    :TensorImpl{pack_tuple<IndexLabel>(il, rest...)} {}
+
+
+  template<typename ...Args>
+  TensorImpl(const IndexRange& il, Args... rest)
+    :TensorImpl{pack_tuple<IndexRange>(il, rest...)} {}
 
   TensorRank rank() const override {
     return rank_;
@@ -131,7 +151,6 @@ class TensorImpl : public TensorBase, public TensorImplBase {
   ProcGroup pg_;
   // std::unique_ptr<MemoryRegion> mpb_;
   // std::shared_ptr<Distribution> distribution_;
-
   template<typename ItemType, typename... Args>
   TensorVec<ItemType> pack_vec(ItemType item, Args... rest) {
     TensorVec<ItemType> ret = {item};
@@ -140,9 +159,69 @@ class TensorImpl : public TensorBase, public TensorImplBase {
     return ret;
   }
 
-  template<typename ItemType>
-  void pack(TensorVec<ItemType>& is) {}
+  template<typename ...Args>
+  std::tuple<TensorVec<const IndexSpace*>, 
+             TensorVec<IndexPosition>,
+             PermGroup> pack_tuple_is(const IndexSpace& item, Args... rest) {
+    TensorVec<const IndexSpace*> ret = {&item};
+    pack_is(ret, rest...);
 
+    TensorVec<IndexPosition> ipmask{TensorVec<IndexPosition>{ret.size(), IndexPosition::neither}};
+    PermGroup pg{ret.size()};
+    
+    unpack(ipmask, pg);
+
+    return std::make_tuple(ret, ipmask, pg);
+  }
+
+  template<typename ...Args>
+  void pack_is(TensorVec<IndexSpace*>& isl, Args...) {}
+  
+  template<typename ...Args>
+  void pack_is(TensorVec<const IndexSpace*>& item_vec, const IndexSpace& item, Args... rest) {
+    item_vec.push_back(&item);
+    pack(item_vec, rest...);
+  }
+
+  template<typename ItemType, typename... Args>
+  std::tuple<TensorVec<ItemType>, 
+             TensorVec<IndexPosition>,
+             PermGroup> pack_tuple(ItemType item, Args... rest) {
+    TensorVec<ItemType> ret = {item};
+    pack<ItemType>(ret, rest...);
+
+    TensorVec<IndexPosition> ipmask{TensorVec<IndexPosition>{ret.size(), IndexPosition::neither}};
+    PermGroup pg{ret.size()};
+    
+    unpack(ipmask, pg);
+
+    return std::make_tuple(ret, ipmask, pg);
+  }
+
+  void unpack(const TensorVec<IndexPosition>& ipmask,
+              const PermGroup& pg) {}
+
+  template<typename ...Args> 
+  void unpack(const TensorVec<IndexPosition>& ipmask,
+              const PermGroup& pg, 
+              TensorVec<IndexPosition> mask, 
+              Args... rest){
+    ipmask = mask;
+    unpack(ipmask, pg, rest...);
+  }
+
+  template<typename ...Args> 
+  void unpack(const TensorVec<IndexPosition>& ipmask,
+              const PermGroup& pg, 
+              PermGroup p, 
+              Args... rest){
+    pg = p;
+    unpack(ipmask, pg, rest...);
+  }
+
+  template<typename ItemType, typename ...Args>
+  void pack(TensorVec<ItemType>& isl, Args...) {}
+  
   template<typename ItemType, typename ...Args>
   void pack(TensorVec<ItemType>& item_vec, ItemType item, Args... rest) {
     item_vec.push_back(item);

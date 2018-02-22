@@ -3,11 +3,11 @@
 #ifndef TAMMY_TYPES_H_
 #define TAMMY_TYPES_H_
 
-#include <iosfwd>
-#include <complex>
-#include "strong_num.h"
 #include "boundvec.h"
 #include "errors.h"
+#include "strong_num.h"
+#include <complex>
+#include <iosfwd>
 
 #include <mpi.h>
 
@@ -16,7 +16,7 @@ namespace tammy {
 struct IrrepSpace;
 using Irrep = StrongNum<IrrepSpace, uint32_t>;
 struct SpinSpace;
-using Spin = StrongNum<SpinSpace, uint32_t>;
+using Spin       = StrongNum<SpinSpace, uint32_t>;
 using TensorRank = uint32_t;
 struct OffsetSpace;
 using Offset = StrongNum<OffsetSpace, uint64_t>;
@@ -27,77 +27,61 @@ using Proc = StrongNum<ProcSpace, int64_t>;
 struct SignSpace;
 using Sign = StrongNum<SignSpace, int32_t>;
 
-//these are typedefs for usability
-using Size = Offset;
+// these are typedefs for usability
+using Size       = Offset;
 using BlockCount = BlockIndex;
-using Label = int;
+using Label      = int;
 
-enum class AllocationStatus {
-  invalid,
-  created,
-  attached
-};
+enum class AllocationStatus { invalid, created, attached };
 
 enum class ElementType {
-  invalid,
-  single_precision,
-  double_precision,
-  single_complex,
-  double_complex
+    invalid,
+    single_precision,
+    double_precision,
+    single_complex,
+    double_complex
 };
 
 template<typename T>
-constexpr ElementType
-tensor_element_type() {
-  return ElementType::invalid;
+constexpr ElementType tensor_element_type() {
+    return ElementType::invalid;
 }
 
 template<>
-constexpr ElementType
-tensor_element_type<double>() {
-  return ElementType::double_precision;
+constexpr ElementType tensor_element_type<double>() {
+    return ElementType::double_precision;
 }
 
 template<>
-constexpr ElementType
-tensor_element_type<float>() {
-  return ElementType::single_precision;
+constexpr ElementType tensor_element_type<float>() {
+    return ElementType::single_precision;
 }
 
 template<>
-constexpr ElementType
-tensor_element_type<std::complex<float>>() {
-  return ElementType::single_complex;
+constexpr ElementType tensor_element_type<std::complex<float>>() {
+    return ElementType::single_complex;
 }
 
 template<>
-constexpr ElementType
-tensor_element_type<std::complex<double>>() {
-  return ElementType::double_complex;
+constexpr ElementType tensor_element_type<std::complex<double>>() {
+    return ElementType::double_complex;
 }
 
-static inline constexpr size_t
-element_size(ElementType eltype) {
-  size_t ret = 0;
-  switch(eltype) {
-    case ElementType::single_precision:
-      ret = sizeof(float);
-      break;
-    case ElementType::double_precision:
-      ret = sizeof(double);
-      break;
-    case ElementType::single_complex:
-      ret = sizeof(std::complex<float>);
-      break;
-    case ElementType::double_complex:
-      ret = sizeof(std::complex<double>);
-      break;
-    default:
-      UNREACHABLE();
-  }
-  return ret;
+static inline constexpr size_t element_size(ElementType eltype) {
+    size_t ret = 0;
+    switch(eltype) {
+        case ElementType::single_precision: ret = sizeof(float); break;
+        case ElementType::double_precision: ret = sizeof(double); break;
+        case ElementType::single_complex:
+            ret = sizeof(std::complex<float>);
+            break;
+        case ElementType::double_complex:
+            ret = sizeof(std::complex<double>);
+            break;
+        default: UNREACHABLE();
+    }
+    return ret;
 }
-
 
 // enum class DimType {
 //   o  = 0b0011,
@@ -159,7 +143,7 @@ template<typename T>
 using TensorVec = BoundVec<T, maxrank>;
 
 using BlockDimVec = TensorVec<BlockIndex>;
-//using DimTypeVec = TensorVec<DimType>;
+// using DimTypeVec = TensorVec<DimType>;
 using PermVec = TensorVec<uint32_t>;
 
 ///////////
@@ -168,17 +152,16 @@ using PermVec = TensorVec<uint32_t>;
 
 using RangeValue = int64_t;
 
-//enum class IndexSpaceType { mo, mso, ao, aso, aux };
-enum class SpinMask { ignore, upper, lower};
-enum class IndexPosition { upper, lower, neither};
+// enum class IndexSpaceType { mo, mso, ao, aso, aux };
+enum class SpinMask { ignore, upper, lower };
+enum class IndexPosition { upper, lower, neither };
 
 //////////////////
 
 namespace SpinType {
 const Spin alpha{1};
 const Spin beta{2};
-}; //namespace SpinType
-
+}; // namespace SpinType
 
 // /**
 //  * @brief Signature of a tensor addition operation in NWChem TCE
@@ -193,7 +176,6 @@ const Spin beta{2};
 //                      MPI_Fint *tb, MPI_Fint *offsetb,
 //                      MPI_Fint *tc, MPI_Fint *offsetc);
 
-} //namespace tammy
+} // namespace tammy
 
-
-#endif  // TAMMY_TYPES_H_
+#endif // TAMMY_TYPES_H_

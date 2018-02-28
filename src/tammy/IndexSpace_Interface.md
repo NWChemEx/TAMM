@@ -2,14 +2,14 @@
 
 ## Notation
 
-- **IndexRange** is list of values, $ IR = p_0,p_1...p_n \mid \forall i \in \{0,1...n\}, p_i \in \mathbb{Z}^+ \cup \{0\}$ and $p_i \le p_{i+1}$. 
+- **IndexRange** is list of values, $ IR = p_0,p_1...p_n \mid \forall i \in \{0,1...n\}, p_i \in \mathbb{Z}^+ \cup \{0\}$ and $p_i \lt p_{i+1}$. 
 - **IndexSpace** is list of **IndexRange** values, $ IS  = IR_0, IR_1,...,IR_n \mid \forall i, j, i \neq j, IR_i \cap IR_j = \emptyset$. 
 - **SubIndexSpace** of an **IndexSpace**, $Sub(IS)$, is list of subsets of **IndexRange**s constructing **IS**, $Sub(IS) = Sub(IR_0), Sub(IR_1), ...,Sub(IR_n) \mid \forall i, Sub(IR_i) \subseteq IR_i$. 
 - **SubIndexSpace** is an **IndexSpace**. 
 - **Tiling** of an **IndexRange**, IR, is a partition of the list of values in IR 
 - **Tiling** of an **IndexSpace**, $Tiling(IS)$, is a list of tiled version of **IndexRange**s, $Tiling(IS) = Tiling(IR_0),Tiling(IR_1),...,Tiling(IR_n)$. 
 - **Tiling** of an **IndexSpace**, IS, doesn't imply the tiling of a **SubIndexSpace** of IS.
-
+v
 ----
 
 ## TAMM Interface Procedures

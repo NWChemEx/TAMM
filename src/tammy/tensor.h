@@ -279,7 +279,7 @@ class Tensor {
     }
 
     // @to-do: implement
-    LabeledTensor<T> operator()();
+    LabeledTensor<T> operator()() {}
 
     LabeledTensor<T> operator()(const IndexLabelVec& ilv) const {
         EXPECTS(impl_);

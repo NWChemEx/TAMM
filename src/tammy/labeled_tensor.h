@@ -8,6 +8,7 @@
 #include "ops.h"
 #include "proc_group.h"
 #include "types.h"
+#include "tensor.h"
 
 namespace tammy {
 
@@ -85,7 +86,7 @@ class LabeledTensor {
 
     // @to-do: implement.
     AddOp<T, LabeledTensor<T>> operator=(
-      const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs);
+      const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {}
 
     AddOp<T, LabeledTensor<T>> operator+=(
       const std::tuple<LoopSpec, LabeledTensor<T>>& rhs) {

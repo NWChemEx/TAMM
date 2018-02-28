@@ -11,6 +11,7 @@
 #include "index_space.h"
 #include "perm_symmetry.h"
 #include "types.h"
+#include "proc_group.h"
 
 namespace tammy {
 

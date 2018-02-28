@@ -39,10 +39,10 @@ void four_index_transform(const AO& ao,
   // Tensor<double> I3 = TensorImpl<double>::create(E | p + q | r + f4, perm_a4);
   
   //I0(f1, f2, f2, f4) = integral_function()
-  I1(p, f2, f3, f4) += tC(f1, p) * I0(f1, f2, f3, f4);
-  I2(p, r, f3, f4)  += tC(f2, r) * I1(p, f2, f3, f4);
-  I3(p, r, q, f4)   += tC(f3, q) * I2(p, r, f3, f4);
-  tV(p, r, q, s)     = tC(f4, s) * I3(p, r, q, f4);
+  I1(p, f2, f3, f4) = tC(f1, p) * I0(f1, f2, f3, f4);
+  I2(p, r, f3, f4)  = tC(f2, r) * I1(p, f2, f3, f4);
+  I3(p, r, q, f4)   = tC(f3, q) * I2(p, r, f3, f4);
+  tV(p, r, q, s)    = tC(f4, s) * I3(p, r, q, f4);
 }
 
 void two_index_transform(const AO& ao,

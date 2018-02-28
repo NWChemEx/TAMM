@@ -50,6 +50,9 @@ int main() {
     IndexLabel i1, j1, k1, l1;
     std::tie(i1, j1, k1, l1) = sub_ao.N(0, 1, 2, 3);
 
+    auto T1 = TensorImpl<double>::create_list<2>(i,j);
+
+#if 0
     // do we want , or just +. Are these indices neither upper nor lower
     auto T1 = Tensor<double>::create<TensorImpl<double>>(i, j);
     auto T2 = Tensor<double>::create<TensorImpl<double>>(i | j | E);
@@ -75,7 +78,7 @@ int main() {
     auto V_T7 =
       Tensor<double>::create<TensorImpl<double>>(i + j | E | k1(j) + l);
 
-#if 0
+
   Invalid Tensor Creation
   auto I_T1 = Tensor<double>::create<TensorImpl<double>>(i(k)); // IndexLabel k is not present
   auto I_T2 = Tensor<double>::create<TensorImpl<double>>(i(k) | E | E); // IndexLabel k is not present
@@ -84,7 +87,6 @@ int main() {
   auto I_T5 = Tensor<double>::create<TensorImpl<double>>(i + i | E | E); // duplicated index labels
   auto I_T6 = Tensor<double>::create<TensorImpl<double>>(i(k) + i | E | E); // duplicated index labels
 
-#endif
 
     // Failing operations
     // General Case: tensor with same index label
@@ -139,7 +141,7 @@ int main() {
     //     .execute();
     // #endif
 
-#if 0
+
   Scheduler()(
       T1(i,j)  = 0,
       T1(i,j) += .52,

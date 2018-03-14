@@ -95,11 +95,29 @@ Index temp_i = MSO(0);
 An `TiledIndexSpace` associates a tiling with an `IndexSpace`. A valid tiling of an `IndexSpace` ensures that no tile spans multiple index space fragments. An `TiledIndexSpace`'s size N is the number of tiles in it. A `TiledIndexSpace` provides an iterator to iterate over the tiles. Each tile, in turn, can be queried for its size and provides an iterator to iterate over the points it aggregates.
 
 - A default `TiledIndexSpace` can be constructed from a `IndexSpace`, where each tile is of size 1.
+- It includes methods for accessing different ranges of the index space
+    - `range("occ")` returns a range value, `TiledIndexRange`, for the occupied index space fragment
+    - `range_labels("occ", 1, 2)` returns a tuple of `TiledIndexLabel` which is associeated with the specific range and integer label.
+    - (**Q: how is the range map is introduced to `TiledIndexSpace`? Is it provided at construction or is it defined over `IndexSpaceFragment`s?**)
+- It also includes methods for validating the applicability of the operations over the index spaces 
+    - `is_identical_to(TiledIndexSpace)` checks if the index space and the tiling is identical
+    - `is_compatible_with(TiledIndexSpace)` checks if the index space and tiling is compatible (compatibility is described in details under ;'Implementation Considerations')
+
 
 ***Code Examples***
 ```c++
 // TiledIndexSpace defined over MSO with tile size of 20
 TiledIndexSpace MSO_t20(MSO, 20);
+
+TiledIndexRange mso_O = MSO_t20.range("occ");
+TiledIndexRange mso_V = MSO_t20.range("virt");
+TiledIndexRange mso_N = MSO_t20.range("all");
+
+TiledIndexLabel i,j,k,l;
+
+std::tie(i,j) = MSO_t20.range_labels("occ", 1, 2);
+std::tie(k,l) = MSO_t20.range_labels("virt", 1, 2);
+
 
 ```
 
@@ -110,21 +128,37 @@ An `TiledIndexRange` is a list of tiles from an `TiledIndexSpace`. If the `Tiled
 A tensor's dimension is defined in terms of `TiledIndexRange` objects.
 
 NOTE: An `TiledIndexSpace` might provide routines to obtain specific index ranges as a map, with key being a string ("occ," "virt," etc.).
+
+Main use case of `TiledIndexRange` is constructing `Tensor`s using a range value from `TiledIndexSpace`s. 
+
+***Code Examples***
 ```c++
-TiledIndexRange ir1 = is1.range("occ");
+const TiledIndexRange& O = MSO_t20.range("occ");
+const TiledIndexRange& V = MSO_t20.range("virt");
+
+Tensor<T> i1{O, V};
 ```
 
 ### TiledIndexLabel
 
 An `TiledIndexLabel` combines an `TiledIndexRange` and an integer label.
 
-A `TiledIndexLabel` for a dependent index-space needs to be bound to tiled index labels corresponding to the spaces it depends on.
+A `TiledIndexLabel` for a dependent index space needs to be bound to tiled index labels corresponding to the spaces it depends on.
 
-(***TODO: examples***)
+`TiledIndexLabel` is the main construct used for `Tensor` operations. 
 
-### Attributes (spin, spatial, has_spin):
+***Code Examples***
+```c++
+const TiledIndexRange& N = AO.range("all");
+const TiledIndexRange& O = AO.range("occ");
 
-Attributes such as spin, spatial, etc. are associated with `IndexSpaceFragment` objects and then carried over to index spaces.
+TiledIndexLabel a,b,c;
+TiledIndexLabel ao,bo,co;
+
+std::tie(a,b,c) = AO.range_labels("all", 1, 2, 3);
+std::tie(ao,bo,co) = AO.range_labels("occ", 1, 2, 3);
+```
+
 
 ## Implementation Considerations
 

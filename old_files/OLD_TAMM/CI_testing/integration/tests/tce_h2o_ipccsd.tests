@@ -1,3 +1,0 @@
-10 "CCSD iterations" 4 19 " " 3 "CCSD Residuum does not match." DIIS
-13 "CCSD correlation energy" 0 1 "=" 2 "CCSD Correlation energy does not match." DIIS
-14 "CCSD total energy" 0 1 "=" 2 "CCSD Total Energy does not match." DIIS

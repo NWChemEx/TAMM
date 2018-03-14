@@ -37,7 +37,7 @@
 // #include "operators.h"
 
 //#include "ops.h"
-
+#if 0
 using namespace tammy;
 
 int main() {
@@ -158,3 +158,5 @@ int main() {
 
     return 0;
 }
+
+#endif

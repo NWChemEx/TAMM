@@ -1117,6 +1117,7 @@ AddOp<T, LabeledTensorType>::execute(const ProcGroup& ec_pg) {
   //tensor_print(*lhs_.tensor_);
 }
 
+#if 0
 template<typename T, typename LabeledTensorType>
 inline void
 AddOp<T, LabeledTensorType>::execute_gpu(const ProcGroup& ec_pg) {
@@ -1179,7 +1180,7 @@ AddOp<T, LabeledTensorType>::execute_gpu(const ProcGroup& ec_pg) {
 
   //tensor_print(*lhs_.tensor_);
 }
-
+#endif
 
 inline int
 compute_symmetry_scaling_factor(const TensorVec<TensorSymmGroup>& sum_indices,

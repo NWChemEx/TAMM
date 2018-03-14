@@ -33,6 +33,7 @@ using namespace tammx;
 using namespace tammx::tensor_dims;
 using namespace tammx::tensor_labels;
 
+#if 0
 extern "C" {
 
 void set_fort_vars_(Integer *int_mb_f, double *dbl_mb_f)
@@ -44,7 +45,7 @@ void set_fort_vars_(Integer *int_mb_f, double *dbl_mb_f)
 
 }
 
-#if 0
+
 template<typename T>
 void tensor_print(Tensor<T>& t)  {
   auto lambda = [&] (auto& val) {
@@ -87,7 +88,7 @@ void ccsd_e(Scheduler &sch, Tensor<T>& f1, Tensor<T>& de,
     .dealloc(i1);
 }
 
-
+#if 0
 extern "C" {
 add_fn ccsd_t1_1_, ccsd_t1_2_1_, ccsd_t1_2_2_1_, ccsd_t1_3_1_;  // ccsd_t1
 add_fn ccsd_t1_5_1_, ccsd_t1_6_1_;  // ccsd_t1
@@ -112,6 +113,7 @@ static const auto sch = ExecutionMode::sch;
 static const auto fortran = ExecutionMode::fortran;
 
 }
+#endif
 
 static const auto e_sch = ExecutionMode::sch;
 static const auto e_fortran = ExecutionMode::fortran;
@@ -128,26 +130,26 @@ void ccsd_t1(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
   sch.alloc(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
     .io(t1,t2,f1,v2)
     .output(i0)
-      (ccsd_t1_1_    |= i0(p2,h1)            =        f1(p2,h1))
-      (ccsd_t1_2_1_  |= t1_2_1(h7,h1)        =        f1(h7,h1))
-      (ccsd_t1_2_2_1_|= t1_2_2_1(h7,p3)      =        f1(h7,p3))
-      (ccsd_t1_2_2_2_ |= t1_2_2_1(h7,p3)     += -1   * t1(p5,h6)       * v2(h6,h7,p3,p5))
-      (ccsd_t1_2_2_  |= t1_2_1(h7,h1)       +=        t1(p3,h1)       * t1_2_2_1(h7,p3))
-      (ccsd_t1_2_3_  |= t1_2_1(h7,h1)       += -1   * t1(p4,h5)       * v2(h5,h7,h1,p4))
-      (ccsd_t1_2_4_  |= t1_2_1(h7,h1)       += -0.5 * t2(p3,p4,h1,h5) * v2(h5,h7,p3,p4))
-      (ccsd_t1_2_    |= i0(p2,h1)           += -1   * t1(p2,h7)       * t1_2_1(h7,h1))
-      (ccsd_t1_3_1_  |= t1_3_1(p2,p3)        =        f1(p2,p3))
-      (ccsd_t1_3_2_  |= t1_3_1(p2,p3)       += -1   * t1(p4,h5)       * v2(h5,p2,p3,p4))
-      (ccsd_t1_3_    |= i0(p2,h1)           +=        t1(p3,h1)       * t1_3_1(p2,p3))
-      (ccsd_t1_4_    |= i0(p2,h1)           += -1   * t1(p3,h4)       * v2(h4,p2,h1,p3))
-      (ccsd_t1_5_1_  |= t1_5_1(h8,p7)        =        f1(h8,p7))
+      ( i0(p2,h1)            =        f1(p2,h1))
+      ( t1_2_1(h7,h1)        =        f1(h7,h1))
+      ( t1_2_2_1(h7,p3)      =        f1(h7,p3))
+      ( t1_2_2_1(h7,p3)     += -1   * t1(p5,h6)       * v2(h6,h7,p3,p5))
+      ( t1_2_1(h7,h1)       +=        t1(p3,h1)       * t1_2_2_1(h7,p3))
+      ( t1_2_1(h7,h1)       += -1   * t1(p4,h5)       * v2(h5,h7,h1,p4))
+      ( t1_2_1(h7,h1)       += -0.5 * t2(p3,p4,h1,h5) * v2(h5,h7,p3,p4))
+      ( i0(p2,h1)           += -1   * t1(p2,h7)       * t1_2_1(h7,h1))
+      ( t1_3_1(p2,p3)        =        f1(p2,p3))
+      ( t1_3_1(p2,p3)       += -1   * t1(p4,h5)       * v2(h5,p2,p3,p4))
+      ( i0(p2,h1)           +=        t1(p3,h1)       * t1_3_1(p2,p3))
+      ( i0(p2,h1)           += -1   * t1(p3,h4)       * v2(h4,p2,h1,p3))
+      ( t1_5_1(h8,p7)        =        f1(h8,p7))
 
-      (ccsd_t1_5_2_  |= t1_5_1(h8,p7)       +=        t1(p5,h6)       * v2(h6,h8,p5,p7))
-      (ccsd_t1_5_    |= i0(p2,h1)           +=        t2(p2,p7,h1,h8) * t1_5_1(h8,p7))
-      (ccsd_t1_6_1_  |= t1_6_1(h4,h5,h1,p3)  =        v2(h4,h5,h1,p3))
-      (ccsd_t1_6_2_  |= t1_6_1(h4,h5,h1,p3) += -1   * t1(p6,h1)       * v2(h4,h5,p3,p6))
-      (ccsd_t1_6_    |= i0(p2,h1)           += -0.5 * t2(p2,p3,h4,h5) * t1_6_1(h4,h5,h1,p3))
-      (ccsd_t1_7_    |= i0(p2,h1)           += -0.5 * t2(p3,p4,h1,h5) * v2(h5,p2,p3,p4))
+      ( t1_5_1(h8,p7)       +=        t1(p5,h6)       * v2(h6,h8,p5,p7))
+      ( i0(p2,h1)           +=        t2(p2,p7,h1,h8) * t1_5_1(h8,p7))
+      ( t1_6_1(h4,h5,h1,p3)  =        v2(h4,h5,h1,p3))
+      ( t1_6_1(h4,h5,h1,p3) += -1   * t1(p6,h1)       * v2(h4,h5,p3,p6))
+      ( i0(p2,h1)           += -0.5 * t2(p2,p3,h4,h5) * t1_6_1(h4,h5,h1,p3))
+      ( i0(p2,h1)           += -0.5 * t2(p3,p4,h1,h5) * v2(h5,p2,p3,p4))
     .dealloc(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1);
 }
 
@@ -171,49 +173,49 @@ void ccsd_t2(Scheduler& sch, Tensor<T>& f1, Tensor<T>& i0,
             t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1)
       .io(t1,t2,f1,v2)
       .output(i0)
-      (ccsd_t2_1_     |= i0(p3,p4,h1,h2)            =        v2(p3,p4,h1,h2))
-      (ccsd_t2_2_1_   |= t2_2_1(h10,p3,h1,h2)       =        v2(h10,p3,h1,h2))
-      (ccsd_t2_2_2_1_ |= t2_2_2_1(h10,h11,h1,h2)    = -1  *  v2(h10,h11,h1,h2))
-      (ccsd_t2_2_2_2_1_ |= t2_2_2_2_1(h10,h11,h1,p5)  =         v2(h10,h11,h1,p5))
-      (ccsd_t2_2_2_2_2_ |= t2_2_2_2_1(h10,h11,h1,p5) += -0.5 * t1(p6,h1) * v2(h10,h11,p5,p6))
-      (ccsd_t2_2_2_2_  |= t2_2_2_1(h10,h11,h1,h2)   +=        t1(p5,h1) * t2_2_2_2_1(h10,h11,h2,p5))
-      (ccsd_t2_2_2_3_ |= t2_2_2_1(h10,h11,h1,h2)   += -0.5 * t2(p7,p8,h1,h2) * v2(h10,h11,p7,p8))
-      (ccsd_t2_2_2_ |= t2_2_1(h10,p3,h1,h2)      += 0.5  * t1(p3,h11) * t2_2_2_1(h10,h11,h1,h2))
-      (ccsd_t2_2_4_1_ |= t2_2_4_1(h10,p5)           =        f1(h10,p5))
-      (ccsd_t2_2_4_2_ |= t2_2_4_1(h10,p5)          += -1   * t1(p6,h7) * v2(h7,h10,p5,p6))
-      (ccsd_t2_2_4_ |= t2_2_1(h10,p3,h1,h2)      += -1   * t2(p3,p5,h1,h2) * t2_2_4_1(h10,p5))
-      (ccsd_t2_2_5_1_ |= t2_2_5_1(h7,h10,h1,p9)     =        v2(h7,h10,h1,p9))
-      (ccsd_t2_2_5_2_ |= t2_2_5_1(h7,h10,h1,p9)    +=        t1(p5,h1) * v2(h7,h10,p5,p9))
-      (ccsd_t2_2_5_ |= t2_2_1(h10,p3,h1,h2)      +=        t2(p3,p9,h1,h7) * t2_2_5_1(h7,h10,h2,p9))
-      (/*c2f_t2_t12_ |= */ t2(p1,p2,h3,h4)           += 0.5  * t1(p1,h3) * t1(p2,h4))
-      (ccsd_t2_2_6_ |= t2_2_1(h10,p3,h1,h2)      += 0.5  * t2(p5,p6,h1,h2) * v2(h10,p3,p5,p6))
-      (/*c2d_t2_t12_ |= */ t2(p1,p2,h3,h4)           += -0.5 * t1(p1,h3) * t1(p2,h4))
-      (ccsd_t2_2_ |= i0(p3,p4,h1,h2)           += -1   * t1(p3,h10) * t2_2_1(h10,p4,h1,h2))
-      (lccsd_t2_3x_ |= i0(p3,p4,h1,h2)           += -1   * t1(p5,h1) * v2(p3,p4,h2,p5))
-      (ccsd_t2_4_1_ |= t2_4_1(h9,h1)              =        f1(h9,h1))
-      (ccsd_t2_4_2_1_ |= t2_4_2_1(h9,p8)            =        f1(h9,p8))
-      (ccsd_t2_4_2_2_ |= t2_4_2_1(h9,p8)           +=        t1(p6,h7) * v2(h7,h9,p6,p8))
-      (ccsd_t2_4_2_ |= t2_4_1(h9,h1)             +=        t1(p8,h1) * t2_4_2_1(h9,p8))
-      (ccsd_t2_4_3_ |= t2_4_1(h9,h1)             += -1   * t1(p6,h7) * v2(h7,h9,h1,p6))
-      (ccsd_t2_4_4_ |= t2_4_1(h9,h1)             += -0.5 * t2(p6,p7,h1,h8) * v2(h8,h9,p6,p7))
-      (ccsd_t2_4_ |= i0(p3,p4,h1,h2)           += -1   * t2(p3,p4,h1,h9) * t2_4_1(h9,h2))
-      (ccsd_t2_5_1_ |= t2_5_1(p3,p5)              =        f1(p3,p5))
-      (ccsd_t2_5_2_ |= t2_5_1(p3,p5)             += -1   * t1(p6,h7) * v2(h7,p3,p5,p6))
-      (ccsd_t2_5_3_ |= t2_5_1(p3,p5)             += -0.5 * t2(p3,p6,h7,h8) * v2(h7,h8,p5,p6))
-      (ccsd_t2_5_ |= i0(p3,p4,h1,h2)           += 1    * t2(p3,p5,h1,h2) * t2_5_1(p4,p5))
-      (ccsd_t2_6_1_ |= t2_6_1(h9,h11,h1,h2)       = -1   * v2(h9,h11,h1,h2))
-      (ccsd_t2_6_2_1_ |= t2_6_2_1(h9,h11,h1,p8)     =        v2(h9,h11,h1,p8))
-      (ccsd_t2_6_2_2_ |= t2_6_2_1(h9,h11,h1,p8)    += 0.5  * t1(p6,h1) * v2(h9,h11,p6,p8))
-      (ccsd_t2_6_2_ |= t2_6_1(h9,h11,h1,h2)      +=        t1(p8,h1) * t2_6_2_1(h9,h11,h2,p8))
-      (ccsd_t2_6_3_ |= t2_6_1(h9,h11,h1,h2)      += -0.5 * t2(p5,p6,h1,h2) * v2(h9,h11,p5,p6))
-      (ccsd_t2_6_ |= i0(p3,p4,h1,h2)           += -0.5 * t2(p3,p4,h9,h11) * t2_6_1(h9,h11,h1,h2))
-      (ccsd_t2_7_1_ |= t2_7_1(h6,p3,h1,p5)        =        v2(h6,p3,h1,p5))
-      (ccsd_t2_7_2_ |= t2_7_1(h6,p3,h1,p5)       += -1   * t1(p7,h1) * v2(h6,p3,p5,p7))
-      (ccsd_t2_7_3_ |= t2_7_1(h6,p3,h1,p5)       += -0.5 * t2(p3,p7,h1,h8) * v2(h6,h8,p5,p7))
-      (ccsd_t2_7_ |= i0(p3,p4,h1,h2)           += -1   * t2(p3,p5,h1,h6) * t2_7_1(h6,p4,h2,p5))
+      (i0(p3,p4,h1,h2)            =        v2(p3,p4,h1,h2))
+      (t2_2_1(h10,p3,h1,h2)       =        v2(h10,p3,h1,h2))
+      (t2_2_2_1(h10,h11,h1,h2)    = -1  *  v2(h10,h11,h1,h2))
+      (t2_2_2_2_1(h10,h11,h1,p5)  =         v2(h10,h11,h1,p5))
+      (t2_2_2_2_1(h10,h11,h1,p5) += -0.5 * t1(p6,h1) * v2(h10,h11,p5,p6))
+      (t2_2_2_1(h10,h11,h1,h2)   +=        t1(p5,h1) * t2_2_2_2_1(h10,h11,h2,p5))
+      (t2_2_2_1(h10,h11,h1,h2)   += -0.5 * t2(p7,p8,h1,h2) * v2(h10,h11,p7,p8))
+      (t2_2_1(h10,p3,h1,h2)      += 0.5  * t1(p3,h11) * t2_2_2_1(h10,h11,h1,h2))
+      (t2_2_4_1(h10,p5)           =        f1(h10,p5))
+      (t2_2_4_1(h10,p5)          += -1   * t1(p6,h7) * v2(h7,h10,p5,p6))
+      (t2_2_1(h10,p3,h1,h2)      += -1   * t2(p3,p5,h1,h2) * t2_2_4_1(h10,p5))
+      (t2_2_5_1(h7,h10,h1,p9)     =        v2(h7,h10,h1,p9))
+      (t2_2_5_1(h7,h10,h1,p9)    +=        t1(p5,h1) * v2(h7,h10,p5,p9))
+      (t2_2_1(h10,p3,h1,h2)      +=        t2(p3,p9,h1,h7) * t2_2_5_1(h7,h10,h2,p9))
+      (t2(p1,p2,h3,h4)           += 0.5  * t1(p1,h3) * t1(p2,h4))
+      (t2_2_1(h10,p3,h1,h2)      += 0.5  * t2(p5,p6,h1,h2) * v2(h10,p3,p5,p6))
+      (t2(p1,p2,h3,h4)           += -0.5 * t1(p1,h3) * t1(p2,h4))
+      (i0(p3,p4,h1,h2)           += -1   * t1(p3,h10) * t2_2_1(h10,p4,h1,h2))
+      (i0(p3,p4,h1,h2)           += -1   * t1(p5,h1) * v2(p3,p4,h2,p5))
+      (t2_4_1(h9,h1)              =        f1(h9,h1))
+      ( t2_4_2_1(h9,p8)            =        f1(h9,p8))
+      ( t2_4_2_1(h9,p8)           +=        t1(p6,h7) * v2(h7,h9,p6,p8))
+      (t2_4_1(h9,h1)             +=        t1(p8,h1) * t2_4_2_1(h9,p8))
+      (t2_4_1(h9,h1)             += -1   * t1(p6,h7) * v2(h7,h9,h1,p6))
+      (t2_4_1(h9,h1)             += -0.5 * t2(p6,p7,h1,h8) * v2(h8,h9,p6,p7))
+      (i0(p3,p4,h1,h2)           += -1   * t2(p3,p4,h1,h9) * t2_4_1(h9,h2))
+      (t2_5_1(p3,p5)              =        f1(p3,p5))
+      (t2_5_1(p3,p5)             += -1   * t1(p6,h7) * v2(h7,p3,p5,p6))
+      (t2_5_1(p3,p5)             += -0.5 * t2(p3,p6,h7,h8) * v2(h7,h8,p5,p6))
+      (i0(p3,p4,h1,h2)           += 1    * t2(p3,p5,h1,h2) * t2_5_1(p4,p5))
+      (t2_6_1(h9,h11,h1,h2)       = -1   * v2(h9,h11,h1,h2))
+      (t2_6_2_1(h9,h11,h1,p8)     =        v2(h9,h11,h1,p8))
+      (t2_6_2_1(h9,h11,h1,p8)    += 0.5  * t1(p6,h1) * v2(h9,h11,p6,p8))
+      (t2_6_1(h9,h11,h1,h2)      +=        t1(p8,h1) * t2_6_2_1(h9,h11,h2,p8))
+      (t2_6_1(h9,h11,h1,h2)      += -0.5 * t2(p5,p6,h1,h2) * v2(h9,h11,p5,p6))
+      (i0(p3,p4,h1,h2)           += -0.5 * t2(p3,p4,h9,h11) * t2_6_1(h9,h11,h1,h2))
+      (t2_7_1(h6,p3,h1,p5)        =        v2(h6,p3,h1,p5))
+      (t2_7_1(h6,p3,h1,p5)       += -1   * t1(p7,h1) * v2(h6,p3,p5,p7))
+      (t2_7_1(h6,p3,h1,p5)       += -0.5 * t2(p3,p7,h1,h8) * v2(h6,h8,p5,p7))
+      (i0(p3,p4,h1,h2)           += -1   * t2(p3,p5,h1,h6) * t2_7_1(h6,p4,h2,p5))
       ( vt1t1_1(h5,p3,h1,h2)       = 0)
-      (vt1t1_1_2_ |= vt1t1_1(h5,p3,h1,h2)      += -2   * t1(p6,h1) * v2(h5,p3,h2,p6))
-      (vt1t1_1_ |= i0(p3,p4,h1,h2)           += -0.5 * t1(p3,h5) * vt1t1_1(h5,p4,h1,h2))
+      (vt1t1_1(h5,p3,h1,h2)      += -2   * t1(p6,h1) * v2(h5,p3,h2,p6))
+      (i0(p3,p4,h1,h2)           += -0.5 * t1(p3,h5) * vt1t1_1(h5,p4,h1,h2))
       (/*c2f_t2_t12_ |= */ t2(p1,p2,h3,h4)           += 0.5  * t1(p1,h3) * t1(p2,h4))
       (/*ccsd_t2_8_ |= */ i0(p3,p4,h1,h2)           += 0.5  * t2(p5,p6,h1,h2) * v2(p3,p4,p5,p6))
       (/*c2d_t2_t12_ |= */ t2(p1,p2,h3,h4)           += -0.5 * t1(p1,h3) * t1(p2,h4))
@@ -501,7 +503,7 @@ Irrep irrep_t {0};
 Irrep irrep_x {0};
 Irrep irrep_y {0};
 
-
+#if 0
 extern "C" {
 void init_fortran_vars_(Integer *noa1, Integer *nob1, Integer *nva1,
                         Integer *nvb1, logical *intorb1, logical *restricted1,
@@ -541,7 +543,7 @@ void fortran_init(TAMMX_INT32 noa, TAMMX_INT32 nob, TAMMX_INT32 nva, TAMMX_INT32
 void fortran_finalize() {
   finalize_fortran_vars_();
 }
-
+#endif
 
 extern std::tuple<Tensor4D> two_four_index_transform(const TAMMX_SIZE ndocc, const TAMMX_SIZE nao,
                                                      const TAMMX_SIZE freeze_core, const TAMMX_SIZE,
@@ -623,9 +625,9 @@ int main(int argc, char *argv[]) {
     for(auto x: sizes) {
       iranges.push_back(x);
     }
-    fortran_init(noa.value(), noab.value()-noa.value(),
+   /* fortran_init(noa.value(), noab.value()-noa.value(),
                  nva.value(), nvab.value()-nva.value(),
-                 intorb, spin_restricted, ispins, isyms, iranges);
+                 intorb, spin_restricted, ispins, isyms, iranges); */
   }
 
   using T = double;
@@ -704,7 +706,7 @@ int main(int argc, char *argv[]) {
   MemoryManagerGA::destroy_coll(mgr);
   }
 
-  fortran_finalize();
+  //fortran_finalize();
   TCE::finalize();
 
   GA_Terminate();

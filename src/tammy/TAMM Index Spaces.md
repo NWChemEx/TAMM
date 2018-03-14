@@ -24,11 +24,32 @@ A sub-`IndexSpaceFragment` is a sublist of elements in another `IndexSpaceFragme
 
 Note: In the common case, a `IndexSpaceFragment` can be a interval `[lo,hi]`. This will enable compact representation and manipulation. Subspaces need more general lists.
 
-***Examples***
+- `IndexSpaceFragment` has `spin` and `spatial` attributes which are carried into `IndexSpace`s. 
+- `Index` values can be accessed via `iterator`s. 
+- `IndexSpaceFragment` has `is_subset` method  for checking if another fragment is a subset which will be used for validating sub-spaces. 
+- It also has a `is_disjoint` method for checking the disjointness of the each fragment in an `IndexSpace`.
+
+The most common use case for `IndexSpaceFragment`s will be constructing blocks for different ranges (i.e. `"occ"`, `"virt"`) of the `IndexSpace`s.
+
+***Code Examples***
 ```c++
-IndexSpaceFragment isf(0, 10);
-IndexSpaceFragment sub_isf = {0,1,2,3,4};
-Index i_0 = isf.point(0);
+IndexSpaceFragment isf1(0, 4, {10,20,30,40,50});
+IndexSpaceFragment isf2(5, 10, {60, 70, 80, 90, 100}, Spin{1});
+
+Index i_0 = isf1.point(0);
+Index i_1 = isf1(1);
+
+if(isf1.is_disjoint(isf2)){
+    ...
+}
+
+if(isf1.is_subset(isf2)){
+    ...
+}
+
+for(auto itr = isf1.begin(); itr != isf1.end()){
+    ...
+}
 ```
 
 ### IndexSpace
@@ -49,18 +70,38 @@ When a `IndexSpace` satisfies the disjointedness condition, we refer to it as a 
 
 A sub-`IndexSpace` is ordered list of sub-`IndexSpaceFragment`s in another `IndexSpace`.  **(Q: should they be in the same order?)**
 
-***Examples***
+- `IndexSpace` has direct access to the fragments and indices.
+- `IndexSpace` as it is doesn't include any `tiling` information, instead it will be used as a building block for `TiledIndexSpace`
+- Disjointness property is checked using `is_disjoint` method from `IndexSpaceFragments`.
+- It also has method, `is_subset`, for checking if two `IndexSpace` is a subspace or not. 
+
+The common use case for `IndexSpace` is for dynamically constructing new index spaces which will be a reference for `TiledIndexSpace`s. 
+
+***Code Examples***
 ```c++
-	[10000, 10, 250,1040]
-	range(10, 100)
-  ```
-More TBD
+IndexSpaceFragment occ_a, occ_b, virt_a, virt_b;
+// Initialize IndexSpaceFragment's
+
+IndexSpace MSO({occ_a, occ_b, virt_a, virt_b});
+// IndexSpace MSO = {occ_a, occ_b, virt_a, virt_b};
+
+IndexSpaceFragment temp_isf = MSO.fragment(0);
+Index temp_i = MSO(0);
+    
+```
 
 ### TiledIndexSpace
 
-An `TiledIndexSpace` associates a tiling with an `IndexSpace`. A valid tiling of an `IndexSpace` ensures that no tile spans multiple point space fragments. An `TiledIndexSpace`'s size N is the number of tiles in it. A `TiledIndexSpace` provides an iterator to iterate over the tiles. Each tile, in turn, can be queried for its size and provides an iterator to iterate over the points it aggregates.
+An `TiledIndexSpace` associates a tiling with an `IndexSpace`. A valid tiling of an `IndexSpace` ensures that no tile spans multiple index space fragments. An `TiledIndexSpace`'s size N is the number of tiles in it. A `TiledIndexSpace` provides an iterator to iterate over the tiles. Each tile, in turn, can be queried for its size and provides an iterator to iterate over the points it aggregates.
 
-A default `TiledIndexSpace` can be constructed from a `IndexSpace`, where each tile is of size 1.
+- A default `TiledIndexSpace` can be constructed from a `IndexSpace`, where each tile is of size 1.
+
+***Code Examples***
+```c++
+// TiledIndexSpace defined over MSO with tile size of 20
+TiledIndexSpace MSO_t20(MSO, 20);
+
+```
 
 ### TiledIndexRange
 
@@ -68,7 +109,7 @@ An `TiledIndexRange` is a list of tiles from an `TiledIndexSpace`. If the `Tiled
 
 A tensor's dimension is defined in terms of `TiledIndexRange` objects.
 
-NOTE: An `TiledIndexSpace` might be provide routines to obtain specific index ranges as a map, with key being a string ("occ," "virt," etc.).
+NOTE: An `TiledIndexSpace` might provide routines to obtain specific index ranges as a map, with key being a string ("occ," "virt," etc.).
 ```c++
 TiledIndexRange ir1 = is1.range("occ");
 ```

@@ -63,32 +63,3 @@ cmake ..  -DCMAKE_TOOLCHAIN_FILE=${TAMM_ROOT}/external/build/tamm_build.cmake
 make install
 ```
 
-
-BUILD OLD TAMM CODE (OPTIONAL)
-------------------------------
-
-```
-TAMM_ROOT=/opt/TAMM  
-git clone https://github.com/NWChemEx-Project/TAMM.git $TAMM_ROOT  
-git checkout devel
-```
-
- - Modify old-tamm-config.cmake in ${TAMM_ROOT}/external/cmake/toolchains to  
-  adjust compilers, NWCHEM_TOP (path to nwchem root folder), GA_CONFIG (path to ga_config)
-  and NWCHEM_BUILD_TARGET/NWCHEM_BUILD_DIR.
-
-```
-cd ${TAMM_ROOT}/external  
-mkdir build && cd build  
-cmake .. -DBUILD_OLD_TAMM=ON -DCMAKE_TOOLCHAIN_FILE=${TAMM_ROOT}/cmake/toolchains/gcc-openmpi-netlib.cmake
-make  
-```
-
-- After missing dependencies are built:
-
-```
-cd ${TAMM_ROOT}  
-mkdir build && cd build  
-cmake ..  -DBUILD_OLD_TAMM=ON -DCMAKE_TOOLCHAIN_FILE=${TAMM_ROOT}/external/build/tamm_build.cmake  
-make install
-```

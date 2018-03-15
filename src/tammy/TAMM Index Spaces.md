@@ -69,7 +69,7 @@ An `IndexSpace` may or may not be a list of disjoint fragments.
 
 When a `IndexSpace` satisfies the disjointedness condition, we refer to it as a disjointed index space fragment list.
 
-A sub-`IndexSpace` is ordered list of sub-`IndexSpaceFragment`s in another `IndexSpace`.  **(Q: should they be in the same order?)**
+A sub-`IndexSpace` is ordered list of sub-`IndexSpaceFragment`s in another `IndexSpace`.  **(Q: should they be in the same order?)** 
 
 - `IndexSpace` has direct access to the fragments and indices.
 - `IndexSpace` as it is doesn't include any `tiling` information, instead it will be used as a building block for `TiledIndexSpace`
@@ -118,8 +118,6 @@ TiledIndexLabel i,j,k,l;
 
 std::tie(i,j) = MSO_t20.range_labels("occ", 1, 2);
 std::tie(k,l) = MSO_t20.range_labels("virt", 1, 2);
-
-
 ```
 
 ### TiledIndexRange
@@ -140,13 +138,13 @@ const TiledIndexRange& V = MSO_t20.range("virt");
 Tensor<T> i1{O, V};
 ```
 
-### TiledIndexLabel
+### TiledIndexLabel - DependentIndexLabel
 
 An `TiledIndexLabel` combines an `TiledIndexRange` and an integer label.
 
-A `TiledIndexLabel` for a dependent index space needs to be bound to tiled index labels corresponding to the spaces it depends on.
+A `TiledIndexLabel` for a dependent index space needs to be bound to tiled index labels corresponding to the spaces it depends on. This is done by constructing `DependentIndexLabel`s using operator overloads in `TiledIndexLabel`. `DependentIndexLabel` holds extra information about the dependent labels which is later used on bounding the indicies accessed on Tensor operations.
 
-`TiledIndexLabel` is the main construct used for `Tensor` operations. 
+`TiledIndexLabel` is the main construct used for `Tensor` operations for describing the tensor operation over different ranges.
 
 ***Code Examples***
 ```c++
@@ -158,6 +156,7 @@ TiledIndexLabel ao,bo,co;
 
 std::tie(a,b,c) = AO.range_labels("all", 1, 2, 3);
 std::tie(ao,bo,co) = AO.range_labels("occ", 1, 2, 3);
+
 ```
 
 
@@ -580,3 +579,34 @@ double dlpno_ccsd(const TiledIndexSpace& AO, const TiledIndexSpace& MO,
 }
 ```
 ### DLPNO MP2 (from Ed)
+
+
+------
+
+### TAMM Code Sketch from DLPNO Google Docs
+
+```c++
+TiledIndexLabel i{N_ao}, k{N_ao};
+TiledIndexLabel j_atom; 
+TiledIndexLabel A{N_atom};
+
+Tensor<T> tC{N_ao,N_ao, N_atom};
+Tensor<T> tA{N_ao,N_ao};
+Tensor<T> tB{N_ao,N_ao};
+tC(i, k, A) = tA(i, j_atom(A)) * tB(j_atom(A), k);
+
+for i, k in AO {
+  for A in Atom {
+    Alloc tC(i, k, A) as Cbuf(i0, k0, A0)
+    Cbuf(i0,k0,A0) = 0
+    for j_atom in DepAO_Atom(A) { 
+      Get tA(i, j_atom) to Abuf(i0, j0)
+      Get tB(j_atom, k, k) to Bbuf(j0, k0)
+      Cbuf(i0,k0,A0) += Abuf(i0, j0) * Bbuf(j0, k0)
+    } //for j_atom in DepAO_Atom(A)
+    Put Cbuf(i0,k0,A0) to tC(i,k,A)
+    Dealloc Abuf, Bbuf, Cbuf
+  } // for A
+} //for i, k
+
+```

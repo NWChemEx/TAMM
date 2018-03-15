@@ -1,0 +1,150 @@
+%
+%\documentclass[aps,pra,twocolumn,groupedaddress]{revtex4-1}
+\documentclass[aps,pra,groupedaddress]{revtex4-1}
+%\bibliographystyle{apsrev4-1}
+
+\usepackage{amsmath}
+\usepackage{cases}
+\usepackage{graphicx}
+
+\begin{document}
+
+
+\title{Fock matrix}
+
+
+\begin{equation}
+F_{pq}=h_{pq}+\sum_{rs} D_{rs}\langle ps || qr \rangle
+\end{equation}
+$D_{rs}$ $\rightarrow$ density matrix
+
+\begin{eqnarray}
+\langle ps || qr \rangle &=& \langle ps|qr\rangle - \langle ps|rq\rangle  \\
+                                   &=& (pq|sr)-(pr|sq) 
+\end{eqnarray}
+
+
+\noindent DF-based decomposition of 2-electron integrals:
+\begin{equation}
+(pq|sr)=\sum_Q b_{pq}^Q b_{sr}^Q
+\end{equation}
+\begin{equation}
+(pr|sq)=\sum_Q b_{pr}^Q b_{sq}^Q
+\end{equation}
+
+
+\begin{eqnarray}
+F_{pq} &=& h_{pq}+\sum_{rs} D_{rs} \langle ps||qr\rangle  \\
+&=& h_{pq}+\sum{rs} D_{rs} \lbrace (pq|sr)-(pr|sq) \rbrace \\
+&=& h_{pq} + \sum_{rs}\sum_Q D_{rs} b_{pq}^Q b_{rs}^Q -\sum_{rs}\sum_Q D_{rs} b_{pr}^Q b_{sq}^Q 
+\end{eqnarray}
+
+
+\noindent Factorization: 
+
+\begin{eqnarray}
+F_{pq}  &=& h_{pq} + \sum_{rs}\sum_Q D_{rs} b_{pq}^Q b_{rs}^Q -\sum_{rs}\sum_Q D_{rs} b_{pr}^Q b_{sq}^Q  \\
+&=& h_{pq}+ \sum_Q b_{pq}^Q \lbrace  \sum_{rs} D_{rs}  b_{rs}^Q \rbrace  - \sum_r \sum_Q b_{pr}^Q \lbrace  \sum_s D_{rs} b_{sq}^Q  \rbrace  \\
+&=& h_{pq} + \sum_Q b_{pq}^Q \alpha(Q) -  \sum_Q \sum_r b_{pr}^Q A_{rq}^Q 
+\end{eqnarray}
+
+\newpage
+
+\begin{eqnarray}
+F_{pq}  &=& h_{pq} + \sum_{rs}\sum_Q D_{rs} b_{pq}^Q b_{rs}^Q -\sum_{rs}\sum_Q D_{rs} b_{pr}^Q b_{sq}^Q  \\[0.2cm]
+%
+&=& h_{pq} + \sum_{ij}\sum_Q D_{ij} b_{pq}^Q b_{ij}^Q+ \sum_{ia}\sum_Q D_{ia} b_{pq}^Q b_{ia}^Q+
+\sum_{ai}\sum_Q D_{ai} b_{pq}^Q b_{ai}^Q + \sum_{ab}\sum_Q D_{ab} b_{pq}^Q b_{ab}^Q \\
+&& - \sum_{ij}\sum_Q D_{ij} b_{pi}^Q b_{jq}^Q - \sum_{ia}\sum_Q D_{ia} b_{pi}^Q b_{aq}^Q 
+- \sum_{ai}\sum_Q D_{ai} b_{pa}^Q b_{iq}^Q - \sum_{ab}\sum_Q D_{ab} b_{pa}^Q b_{bq}^Q \\[0.2cm]
+%
+&=& h_{pq} + \sum_{ij}\sum_Q (\delta_{ij}+ X_{ij}) b_{pq}^Q b_{ij}^Q+ \sum_{ia}\sum_Q X_{ia} b_{pq}^Q b_{ia}^Q+
+\sum_{ai}\sum_Q X_{ai} b_{pq}^Q b_{ai}^Q + \sum_{ab}\sum_Q X_{ab} b_{pq}^Q b_{ab}^Q \\
+&& - \sum_{ij}\sum_Q (\delta_{ij}+X_{ij}) b_{pi}^Q b_{jq}^Q - \sum_{ia}\sum_Q X_{ia} b_{pi}^Q b_{aq}^Q 
+- \sum_{ai}\sum_Q X_{ai} b_{pa}^Q b_{iq}^Q - \sum_{ab}\sum_Q X_{ab} b_{pa}^Q b_{bq}^Q \\[0.2cm]
+%
+&=& h_{pq} + \sum_{i}\sum_Q  b_{pq}^Q b_{ii}^Q+ \sum_{ij}\sum_Q X_{ij} b_{pq}^Q b_{ij}^Q +
+\sum_{ia}\sum_Q X_{ia} b_{pq}^Q b_{ia}^Q+
+\sum_{ai}\sum_Q X_{ai} b_{pq}^Q b_{ai}^Q + \sum_{ab}\sum_Q X_{ab} b_{pq}^Q b_{ab}^Q \\
+&& -  \sum_{i}\sum_Q  b_{pi}^Q b_{iq}^Q    - \sum_{ij}\sum_Q X_{ij} b_{pi}^Q b_{jq}^Q - \sum_{ia}\sum_Q X_{ia} b_{pi}^Q b_{aq}^Q 
+- \sum_{ai}\sum_Q X_{ai} b_{pa}^Q b_{iq}^Q - \sum_{ab}\sum_Q X_{ab} b_{pa}^Q b_{bq}^Q \\[0.9cm]
+%
+&=& h_{pq} + \sum_{i}\sum_Q  b_{pq}^Q b_{ii}^Q+ \sum_{ij}\sum_Q X_{ij} b_{pq}^Q b_{ij}^Q +
+2\sum_{ia}\sum_Q X_{ia} b_{pq}^Q b_{ia}^Q+
+ \sum_{ab}\sum_Q X_{ab} b_{pq}^Q b_{ab}^Q \\
+&& -  \sum_{i}\sum_Q  b_{pi}^Q b_{iq}^Q    - \sum_{ij}\sum_Q X_{ij} b_{pi}^Q b_{jq}^Q - \sum_{ia}\sum_Q X_{ia} b_{pi}^Q b_{aq}^Q 
+- \sum_{ai}\sum_Q X_{ia} b_{pa}^Q b_{iq}^Q - \sum_{ab}\sum_Q X_{ab} b_{pa}^Q b_{bq}^Q \\[0.9cm]
+%
+%
+%
+&=& h_{pq} + \sum_Q  b_{pq}^Q \sum_i b_{ii}^Q+  \sum_Q  b_{pq}^Q  \sum_{ij} X_{ij} b_{ij}^Q +
+2\sum_Q  b_{pq}^Q  \sum_{ia}   X_{ia}  b_{ia}^Q+
+\sum_Q b_{pq}^Q  \sum_{ab}  X_{ab}   b_{ab}^Q \\
+&& - \sum_Q  \sum_i b_{pi}^Q b_{iq}^Q  
+-  \sum_Q  \sum_{i} b_{pi}^Q  \sum_j X_{ij}  b_{jq}^Q 
+- \sum_{Q}\sum_i  b_{pi}^Q  \sum_a X_{ia}  b_{aq}^Q 
+- \sum_{Q}\sum_i    b_{iq}^Q  \sum_a X_{ia} b_{pa}^Q  \\
+&& - \sum_{Q}\sum_a  b_{pa}^Q  \sum_b X_{ab} b_{bq}^Q 
+%
+%
+%
+%
+\end{eqnarray}
+
+\newpage
+
+$p=m \;\;\;\; q=n$
+\begin{eqnarray}
+F_{mn} &=& h_{mn} + \sum_Q  b_{mn}^Q \sum_i b_{ii}^Q+  \sum_Q  b_{mn}^Q  \sum_{ij} X_{ij} b_{ij}^Q +
+2\sum_Q  b_{mn}^Q  \sum_{ia}   X_{ia}  b_{ia}^Q+
+\sum_Q b_{mn}^Q  \sum_{ab}  X_{ab}   b_{ab}^Q \\
+&& - \sum_Q  \sum_i b_{mi}^Q b_{in}^Q  
+-  \sum_Q  \sum_{i} b_{mi}^Q  \sum_j X_{ij}  b_{jn}^Q 
+- \sum_{Q}\sum_i  b_{mi}^Q  \sum_a X_{ia}  b_{an}^Q 
+- \sum_{Q}\sum_i    b_{in}^Q  \sum_a X_{ia} b_{ma}^Q  \\
+&& - \sum_{Q}\sum_a  b_{ma}^Q  \sum_b X_{ab} b_{bn}^Q 
+\end{eqnarray}
+
+
+
+$p=m \;\;\;\; q=e$
+\begin{eqnarray}
+F_{me} &=& h_{me} + \sum_Q  b_{me}^Q \sum_i b_{ii}^Q+  \sum_Q  b_{me}^Q  \sum_{ij} X_{ij} b_{ij}^Q +
+2\sum_Q  b_{me}^Q  \sum_{ia}   X_{ia}  b_{ia}^Q+
+\sum_Q b_{me}^Q  \sum_{ab}  X_{ab}   b_{ab}^Q \\
+&& - \sum_Q  \sum_i b_{mi}^Q b_{ie}^Q  
+-  \sum_Q  \sum_{i} b_{mi}^Q  \sum_j X_{ij}  b_{je}^Q 
+- \sum_{Q}\sum_i  b_{mi}^Q  \sum_a X_{ia}  b_{ae}^Q 
+- \sum_{Q}\sum_i    b_{ie}^Q  \sum_a X_{ia} b_{ma}^Q  \\
+&& - \sum_{Q}\sum_a  b_{ma}^Q  \sum_b X_{ab} b_{be}^Q 
+\end{eqnarray}
+
+$p=e \;\;\;\; q=m$
+\begin{eqnarray}
+F_{em}&=& h_{em} + \sum_Q  b_{em}^Q \sum_i b_{ii}^Q+  \sum_Q  b_{em}^Q  \sum_{ij} X_{ij} b_{ij}^Q +
+2\sum_Q  b_{em}^Q  \sum_{ia}   X_{ia}  b_{ia}^Q+
+\sum_Q b_{em}^Q  \sum_{ab}  X_{ab}   b_{ab}^Q \\
+&& - \sum_Q  \sum_i b_{ei}^Q b_{im}^Q  
+-  \sum_Q  \sum_{i} b_{ei}^Q  \sum_j X_{ij}  b_{jm}^Q 
+- \sum_{Q}\sum_i  b_{ei}^Q  \sum_a X_{ia}  b_{am}^Q 
+- \sum_{Q}\sum_i    b_{im}^Q  \sum_a X_{ia} b_{ea}^Q  \\
+&& - \sum_{Q}\sum_a  b_{ea}^Q  \sum_b X_{ab} b_{bm}^Q
+\end{eqnarray}
+
+
+$p=e \;\;\;\; q=f$
+\begin{eqnarray}
+F_{ef} &=& h_{ef} + \sum_Q  b_{ef}^Q \sum_i b_{ii}^Q+  \sum_Q  b_{ef}^Q  \sum_{ij} X_{ij} b_{ij}^Q +
+2\sum_Q  b_{ef}^Q  \sum_{ia}   X_{ia}  b_{ia}^Q+
+\sum_Q b_{ef}^Q  \sum_{ab}  X_{ab}   b_{ab}^Q \\
+&& - \sum_Q  \sum_i b_{ei}^Q b_{if}^Q  
+-  \sum_Q  \sum_{i} b_{ei}^Q  \sum_j X_{ij}  b_{jf}^Q 
+- \sum_{Q}\sum_i  b_{ei}^Q  \sum_a X_{ia}  b_{af}^Q 
+- \sum_{Q}\sum_i    b_{if}^Q  \sum_a X_{ia} b_{ea}^Q  \\
+&& - \sum_{Q}\sum_a  b_{ea}^Q  \sum_b X_{ab} b_{bf}^Q
+\end{eqnarray}
+
+\end{document}
+%
+% ****** End of file apstemplate.tex ******
+

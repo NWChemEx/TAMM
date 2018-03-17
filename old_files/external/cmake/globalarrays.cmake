@@ -130,7 +130,7 @@ ExternalProject_Add(GLOBALARRAYS
     CONFIGURE_COMMAND ${CMAKE_CURRENT_BINARY_DIR}/external/${GA_VERSION}/configure --with-tcgmsg 
     ${GA_MPI} --enable-underscoring --disable-mpi-tests #--enable-peigs
     ${GA_SCALAPACK} ${GA_BLAS} ${GA_LAPACK} ${GA_ARMCI} ${GA_OFFLOAD} CC=${CMAKE_C_COMPILER}
-    CXX=${CMAKE_CXX_COMPILER} F77=${CMAKE_Fortran_COMPILER} ${GA_SYSVSHMEM} --prefix=${GA_INSTALL_PATH} CFLAGS="-fPIC" 
+    CXX=${CMAKE_CXX_COMPILER} F77=${CMAKE_Fortran_COMPILER} ${GA_SYSVSHMEM} --prefix=${GA_INSTALL_PATH} CFLAGS=-fPIC 
     #--enable-cxx LDFLAGS=-L${CMAKE_INSTALL_PREFIX}/blas_lapack/lib
     INSTALL_COMMAND make install
     BUILD_IN_SOURCE 1

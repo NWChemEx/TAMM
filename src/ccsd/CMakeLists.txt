@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION ${CMAKE_VERSION})
 project(CCSD_DRIVER VERSION ${PROJECT_VERSION} LANGUAGES CXX)
-include(TargetMacros) #For nwchemex_add_executable
+include(TargetMacros) 
 
 set(CCSD_DRIVER_SRCS ccsd_driver.cc)
 set(CCSD_DRIVER_DEFINITONS )

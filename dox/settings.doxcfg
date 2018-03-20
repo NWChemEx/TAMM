@@ -4,7 +4,7 @@
 # title of most generated pages and in a few other places.
 # The default value is: My Project.
 
-PROJECT_NAME           = "NWChemEx"
+PROJECT_NAME           = "NWChemEx TAMM"
 
 # The PROJECT_NUMBER tag can be used to enter a project or revision number. This
 # could be handy for archiving the generated documentation or if some version
@@ -16,7 +16,7 @@ PROJECT_NUMBER         = "0.0.0"
 # for a project that appears at the top of each page and should give viewer a
 # quick idea about the purpose of the project. Keep the description short.
 
-PROJECT_BRIEF          = "It's NWChem, but with an Ex"
+PROJECT_BRIEF          = "Tensor Algebra for many-body methods (TAMM)"
 
 # The INPUT tag is used to specify the files and/or directories that contain
 # documented source files. You may enter file names like myfile.cpp or
@@ -24,4 +24,4 @@ PROJECT_BRIEF          = "It's NWChem, but with an Ex"
 # spaces.
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  =
+INPUT                  = dox/mainpage.md dox/IndexSpaces.md

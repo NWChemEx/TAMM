@@ -7,7 +7,7 @@
 
 ### IndexSpaceFragment
 
-`IndexSpaceFragment` is an ordered list of `Index` values. Mathematically, a `IndexSpaceFragment` maps the interval [0, N-1] to an ordered list of indices. Any `IndexSpaceFragment`, isf, satisfies the following properties:
+`IndexSpaceFragment` is an ordered list of `Index` values. Mathematically, a `IndexSpaceFragment` maps the interval [0, N-1] to an ordered list of indices. Any `IndexSpaceFragment`, `isf`, satisfies the following properties:
 
 - isf.operator() : [0,N-1] $\rightarrow$ `Index`$^N$
 - (Bijective function) N = $|$isf$|$, $\forall$ i, j $\in$ [0,N-1], 
@@ -29,16 +29,18 @@ Note: In the common case, a `IndexSpaceFragment` can be a interval `[lo,hi]`. Th
 - `Index` values can be accessed via `iterator`s. 
 - `IndexSpaceFragment` has `is_subset` method  for checking if another fragment is a subset which will be used for validating sub-spaces. 
 - It also has a `is_disjoint` method for checking the disjointness of the each fragment in an `IndexSpace`.
+- `IndexSpaceFragment` also overloads comparison operators (<=, >=, ==, != etc.)
 
 The most common use case for `IndexSpaceFragment`s will be constructing blocks for different ranges (i.e. `"occ"`, `"virt"`) of the `IndexSpace`s.
 
 ***Code Examples***
 ```c++
-IndexSpaceFragment isf1(0, 4, {10,20,30,40,50});
-IndexSpaceFragment isf2(5, 10, {60, 70, 80, 90, 100}, Spin{1});
+IndexSpaceFragment isf1(0, 4);
+IndexSpaceFragment isf2(5, 10, Spin{1});
 
 Index i_0 = isf1.point(0);
 Index i_1 = isf1(1);
+Index i_2 = isf1[2];
 
 if(isf1.is_disjoint(isf2)){
     ...
@@ -48,7 +50,11 @@ if(isf1.is_subset(isf2)){
     ...
 }
 
-for(auto itr = isf1.begin(); itr != isf1.end()){
+for(auto itr = isf1.begin(); itr != isf1.end(); ++itr){
+    ...
+}
+
+for(auto& i : isf1){
     ...
 }
 ```
@@ -64,14 +70,15 @@ for(auto itr = isf1.begin(); itr != isf1.end()){
 
 An `IndexSpace` may or may not be a list of disjoint fragments. 
 
-- (optional: disjointedness): $\forall$ i, j $\in$ [0,N$_F$-1], 
+- (disjointedness): $\forall$ i, j $\in$ [0,N$_F$-1], 
    is.fragment(i).range() $\cap$ is.fragment(j).range() = $\emptyset$
 
-When a `IndexSpace` satisfies the disjointedness condition, we refer to it as a disjointed index space fragment list.
+When a `IndexSpace` satisfies the disjointedness condition, we refer to it as a disjoint index space fragment list.
 
 A sub-`IndexSpace` is ordered list of sub-`IndexSpaceFragment`s in another `IndexSpace`.  **(Q: should they be in the same order?)** 
 
 - `IndexSpace` has direct access to the fragments and indices.
+- `IndexSpace`s can be constructed from other `IndexSpace`s which simply will be combining `IndexSpaceFragment`s of each `IndexSpace`.
 - `IndexSpace` as it is doesn't include any `tiling` information, instead it will be used as a building block for `TiledIndexSpace`
 - Disjointness property is checked using `is_disjoint` method from `IndexSpaceFragments`.
 - It also has method, `is_subset`, for checking if two `IndexSpace` is a subspace or not. 
@@ -91,6 +98,19 @@ Index temp_i = MSO(0);
     
 ```
 
+### SubIndexSpace
+`SubIndexSpace` is constructed from a reference `IndexSpace` by having ordered list of subset of its `IndexSpaceFragments`. Different than `IndexSpace`s, it also holds a reference to the full space that is used in the construction 
+
+General use case is for defining a subspace of a full index space (i.e. occupied local MOs in DLPNO?). 
+
+### DependentIndexSpace 
+`DependentIndexSpace` is used for constructing dependent index spaces where the indicies are dependent on a different index space. The general use case for using `DependentIndexSpace` will be defining a mapping of indicies from two different index spaces (i.e. mapping PAOs to Atoms in DLPNO).
+
+There two main use cases for `DependentIndexSpace`s:
+
+- Generating Tensor objects with dependent indicies
+- Generating index labels from a dependent index space for bounding the indicies from an index space with a dependent index space in a Tensor operation 
+
 ### TiledIndexSpace
 
 An `TiledIndexSpace` associates a tiling with an `IndexSpace`. A valid tiling of an `IndexSpace` ensures that no tile spans multiple index space fragments. An `TiledIndexSpace`'s size N is the number of tiles in it. A `TiledIndexSpace` provides an iterator to iterate over the tiles. Each tile, in turn, can be queried for its size and provides an iterator to iterate over the points it aggregates.
@@ -107,7 +127,7 @@ An `TiledIndexSpace` associates a tiling with an `IndexSpace`. A valid tiling of
 
 ***Code Examples***
 ```c++
-// TiledIndexSpace defined over MSO with tile size of 20
+// TiledIndexSpace defined over MSO with tile size of 20 indicies
 TiledIndexSpace MSO_t20(MSO, 20);
 
 TiledIndexRange mso_O = MSO_t20.range("occ");
@@ -142,21 +162,31 @@ Tensor<T> i1{O, V};
 
 An `TiledIndexLabel` combines an `TiledIndexRange` and an integer label.
 
-A `TiledIndexLabel` for a dependent index space needs to be bound to tiled index labels corresponding to the spaces it depends on. This is done by constructing `DependentIndexLabel`s using operator overloads in `TiledIndexLabel`. `DependentIndexLabel` holds extra information about the dependent labels which is later used on bounding the indicies accessed on Tensor operations.
+A `TiledIndexLabel` for a dependent index space needs to be bound to tiled index labels corresponding to the spaces it depends on. This is done by constructing `DependentIndexLabel`s using operator overloads in `TiledIndexLabel`. `DependentIndexLabel` holds extra information about the dependent labels which is later used on bounding the indicies accessed on Tensor operations
 
 `TiledIndexLabel` is the main construct used for `Tensor` operations for describing the tensor operation over different ranges.
 
 ***Code Examples***
 ```c++
-const TiledIndexRange& N = AO.range("all");
-const TiledIndexRange& O = AO.range("occ");
+const TiledIndexRange& N = MO.range("all");
+const TiledIndexRange& O = MO.range("occ");
 
+// Constructing TiledIndexLabels from TiledIndexRanges
+TiledIndexLabel i{N};
+TiledIndexLabel j{O}
+
+// Constructing multiple TiledIndexLabels from TiledIndexSpaces
 TiledIndexLabel a,b,c;
 TiledIndexLabel ao,bo,co;
 
-std::tie(a,b,c) = AO.range_labels("all", 1, 2, 3);
-std::tie(ao,bo,co) = AO.range_labels("occ", 1, 2, 3);
+std::tie(a,b,c) = MO.range_labels("all", 1, 2, 3);
+std::tie(ao,bo,co) = MO.range_labels("occ", 1, 2, 3);
 
+const TiledIndexRange& N_AO = AO.range("all");
+const TiledIndexRange& N_Atom = Atom.range("all");
+
+// Constructing DependentTiledIndexLabels from TiledIndexRanges
+DependentTiledIndexLabel k_atom{N_AO, N_Atom};
 ```
 
 
@@ -199,6 +229,34 @@ Tmo(iao) = Tao(iao); //runtime error Tmo(iao)
 Tmo(iao) = 0; //runtime error
 Tmo(imo) = translate(imo,iao) * Tao(iao);
 ```
+### Indexing a tensor dimension using a dependent index label
+Consider a dimension d of a tensor, `T`, allocated on dependent index spaces with index ranges, `TIR_ao` and `TIR_atom`. When this dimension is indexed using a `DependentTiledIndexLabel`, `dep_lbl`, which depends on a `TiledIndexLabel`, `lbl`, as illustrated below:
+
+```c++
+TiledIndexRange TIR_ao = AO.range("all");
+TiledIndexRange TIR_atom = Atom.range("all");
+
+Tensor T{TIR_ao, TIR_atom};
+Tensor R{TIR_atom}
+
+DependentTiledIndexLabel dep_lbl{TIR_ao, TIR_atom};
+TiledIndexLabel lbl{TIR_atom};
+
+// Assigning ranges on tensor with dependent index spaces
+T(dep_lbl(lbl)) = R(lbl);
+
+// Assigning scalar on tensor with dependent index spaces
+T(dep_lbl, lbl) = 0;
+```
+
+The following predicates has to hold for validating the assignment operations in `Tensor`s that are defined of dependent index spaces:
+
+- predicate $A$ $\equiv$ `dep_lbl.ref_index_range() == TIR_atom && dep_lbl.dep_index_range() == TIR_ao`
+- predicate $B$ $\equiv$ `dep_lbl.ref_index_range() == lbl.tiled_index_range()`
+
+
+
+
 
 (***TODO: dependent index labels***)
 (***TODO: sub-spaces***)
@@ -590,7 +648,7 @@ TiledIndexLabel i{N_ao}, k{N_ao};
 TiledIndexLabel j_atom; 
 TiledIndexLabel A{N_atom};
 
-Tensor<T> tC{N_ao,N_ao, N_atom};
+Tensor<T> tC{N_ao, N_ao, N_atom};
 Tensor<T> tA{N_ao,N_ao};
 Tensor<T> tB{N_ao,N_ao};
 tC(i, k, A) = tA(i, j_atom(A)) * tB(j_atom(A), k);

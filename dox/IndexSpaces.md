@@ -9,14 +9,14 @@
 
 `IndexSpaceFragment` is an ordered list of `Index` values. Mathematically, a `IndexSpaceFragment` maps the interval [0, N-1] to an ordered list of indices. Any `IndexSpaceFragment`, `isf`, satisfies the following properties:
 
-- isf.operator() : [0,N-1] $\rightarrow$ `Index`$^N$
-- (Bijective function) N = $|$isf$|$, $\forall$ i, j $\in$ [0,N-1], 
-   (i $\neq$ j) $\equiv$ (isf.point(i) $\neq$ isf.point(j))
+- isf.operator() : [0,N-1] @f$\rightarrow@f$ `Index`@f$^N@f$
+- (Bijective function) N = @f$|@f$isf@f$|@f$, @f$\forall@f$ i, j @f$\in@f$ [0,N-1], 
+   (i @f$\neq@f$ j) @f$\equiv@f$ (isf.point(i) @f$\neq@f$ isf.point(j))
 
 An additional property would be useful in checking and optimizing operations:
 
-- (Ordered): N = $|$isf$|$, $\forall$ i, j $\in$ [0,N-1], 
-   (i < j) $\equiv$ (isf.point(i) < isf.point(j))
+- (Ordered): N = @f$|@f$isf@f$|@f$, @f$\forall@f$ i, j @f$\in@f$ [0,N-1], 
+   (i < j) @f$\equiv@f$ (isf.point(i) < isf.point(j))
 
 Note: The ordered constraint might not hold in some cases. Think about a specific order of paired index spaces.
 
@@ -63,15 +63,15 @@ for(auto& i : isf1){
 
 `IndexSpace` is an ordered list of `IndexSpaceFragment` objects. Any `IndexSpace`, is, satisfies the following properties:
 
-- is.operator() : [0,N-1] $\rightarrow$ `Index`$^N$
-- is.fragment() : [0,N$_F$-1] $\rightarrow$ `IndexSpaceFragment`$^{N_F}$
+- is.operator() : [0,N-1] @f$\rightarrow@f$ `Index`@f$^N@f$
+- is.fragment() : [0,N@f$_F@f$-1] @f$\rightarrow@f$ `IndexSpaceFragment`@f$^{N_F}@f$
 - is.operator(i) = isf.operator(m) where isf = is.fragment(j), 
-      k = $\sum_{n=0}^{j-1}$ $|$is.fragment(n)$|$, i = m + k
+      k = @f$\sum_{n=0}^{j-1}@f$ @f$|@f$is.fragment(n)@f$|@f$, i = m + k
 
 An `IndexSpace` may or may not be a list of disjoint fragments. 
 
-- (disjointedness): $\forall$ i, j $\in$ [0,N$_F$-1], 
-   is.fragment(i).range() $\cap$ is.fragment(j).range() = $\emptyset$
+- (disjointedness): @f$\forall@f$ i, j @f$\in@f$ [0,N@f$_F@f$-1], 
+   is.fragment(i).range() @f$\cap@f$ is.fragment(j).range() = @f$\emptyset@f$
 
 When a `IndexSpace` satisfies the disjointedness condition, we refer to it as a disjoint index space fragment list.
 
@@ -200,24 +200,24 @@ Tensor T{TIR};
 T(lbl) = 0;
 ```
 we define the following predicates:
-- predicate $A$ $\equiv$ `lbl.tiled_index_range() == TIR`
-- predicate $B$ $\equiv$ `lbl.tiled_index_range().tiled_index_space() == TIR.tiled_index_space()`
-- predicate $C$ $\equiv$ `lbl.tiled_index_range().tiled_index_space().is() == IR.tiled_index_space().is()`
+- predicate @f$A@f$ @f$\equiv@f$ `lbl.tiled_index_range() == TIR`
+- predicate @f$B@f$ @f$\equiv@f$ `lbl.tiled_index_range().tiled_index_space() == TIR.tiled_index_space()`
+- predicate @f$C@f$ @f$\equiv@f$ `lbl.tiled_index_range().tiled_index_space().is() == IR.tiled_index_space().is()`
 
 We can define the following relationships between `TIR` and `lbl`:
-- Case 1: $A$:
+- Case 1: @f$A@f$:
 `lbl` is over the same tiled index range `TIR`. This is the most efficient case. 
 
-- Case 2: $\neg A \wedge B$
+- Case 2: @f$\neg A \wedge B@f$
 `lbl` is over a different tiled index range, `tir2`, but over the same `TiledIndexSpace` as `TIR`. In this case, either 
 	- (1) `tir2` is a contiguous subspace of the tiles in `TIR`, when a simple offset would suffice, or
 	- (2) `tir2` is not a contiguous subspace of the tiles in `TIR`.  Each tile of `tir2` to be checked for
 membership. What we do with a non-member tile is up to the user (ignore or flag as error).
 
-- Case 3: $\neg A \wedge \neg B \wedge C$
+- Case 3: @f$\neg A \wedge \neg B \wedge C@f$
 `lbl` is over a different `TiledIndexSpace` but over the same `IndexSpace`. Optimizing this would be difficult. We might just have to do "decay" both indices to run over degenerately tiled (as in tile size 1 for all tiles) and then do the same we did in case 1. One problem is that the storage is not pointwise. Therefore, we will need support to read/write partial tiles. Overall this can get expensive and should be avoided. We will not implement this to start with.
 
-- Case 4: $\neg A \wedge \neg B \wedge \neg C$
+- Case 4: @f$\neg A \wedge \neg B \wedge \neg C@f$
 lbl is over the a different `IndexSpace` than `TIR`. We will report this an error.
 
 Examples:
@@ -251,8 +251,8 @@ T(dep_lbl, lbl) = 0;
 
 The following predicates has to hold for validating the assignment operations in `Tensor`s that are defined of dependent index spaces:
 
-- predicate $A$ $\equiv$ `dep_lbl.ref_index_range() == TIR_atom && dep_lbl.dep_index_range() == TIR_ao`
-- predicate $B$ $\equiv$ `dep_lbl.ref_index_range() == lbl.tiled_index_range()`
+- predicate @f$A@f$ @f$\equiv@f$ `dep_lbl.ref_index_range() == TIR_atom && dep_lbl.dep_index_range() == TIR_ao`
+- predicate @f$B@f$ @f$\equiv@f$ `dep_lbl.ref_index_range() == lbl.tiled_index_range()`
 
 
 

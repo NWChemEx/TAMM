@@ -17,6 +17,8 @@ struct IrrepSpace;
 using Irrep = StrongNum<IrrepSpace, uint32_t>;
 struct SpinSpace;
 using Spin       = StrongNum<SpinSpace, uint32_t>;
+struct SpatialSpace;
+using Spatial    = StrongNum<SpatialSpace, uint32_t>;
 using TensorRank = uint32_t;
 struct OffsetSpace;
 using Offset = StrongNum<OffsetSpace, uint64_t>;

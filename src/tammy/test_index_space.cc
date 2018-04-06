@@ -7,10 +7,10 @@
 
 using namespace tammy;
 
-void printIndices(IndexSpace is) {
+void printIndices(const IndexSpace& is) {
     std::cout << "Indices: ";
     for(const auto& point : is) { std::cout << point << " "; }
-    std::cout << std::endl << std::endl;
+    std::cout << std::endl;
 }
 
 int main() {
@@ -20,14 +20,16 @@ int main() {
     printIndices(is1);
 
     // By specifying the indicies it represents -
-    // IndexSpace(std::initializer_list<Index> list)
-    IndexSpace is2{
-      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-      {{"occ", {range(0, 5)}},
-       {"virt", {range(5, 10)}},
-       {"alpha", {range(0, 3), range(5, 8)}},
-       {"beta",
-        {range(3, 5), range(8, 10)}}}}; // indicies = {0,1,2,3,4,5,6,7,8,9}
+    // IndexSpace with subspace and attributes
+    // indicies = {0,1,2,3,4,5,6,7,8,9}
+    IndexSpace is2{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+                   {{"occ", {range(0, 5)}},
+                    {"virt", {range(5, 10)}},
+                    {"alpha", {range(0, 3), range(5, 8)}},
+                    {"beta", {range(3, 5), range(8, 10)}}},
+                   {{Spin{1}, {range(2, 5), range(7, 10)}},
+                    {Spin{2}, {range(0, 2), range(5, 7)}}}};
+                    
     std::cout << "Full is2 \t";
     printIndices(is2);
 

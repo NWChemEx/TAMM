@@ -13,6 +13,7 @@ namespace tammy {
 using Index         = uint32_t;
 using IndexVector   = std::vector<Index>;
 using IndexIterator = std::vector<Index>::const_iterator;
+using Tile          = uint32_t;
 
 /**
  * \brief Helper methods for Range based constructors.
@@ -27,8 +28,12 @@ struct Range {
     Range(Index lo, Index hi, Index step = 1) : lo_{lo}, hi_{hi}, step_{step} {}
 };
 
-static Range range(Index lo, Index high, Index step = 1) {
-    return Range(lo, high, step);
+static bool compare_range(const Range& lhs, const Range& rhs) {
+    return lhs.lo_ < rhs.lo_;
+}
+
+static Range range(Index lo, Index hi, Index step = 1) {
+    return Range(lo, hi, step);
 }
 
 static Range range(Index end) { return range(Index{0}, end); }
@@ -53,7 +58,10 @@ static IndexVector construct_index_vector(const Range& range) {
  *        and corresponding set of ranges (e.g. "occ", "virt")
  *
  */
-using SubspaceMap = std::map<std::string, const std::vector<Range>>;
+using NameToRangeMap = std::map<std::string, const std::vector<Range>>;
+
+template<typename AttributeType>
+using AttributeToRangeMap = std::map<AttributeType, std::vector<Range>>;
 
 // TODO: Finalize attribute type
 /**
@@ -66,6 +74,7 @@ template<typename T>
 class Attribute {
     public:
     Attribute() = default;
+    Attribute(const AttributeToRangeMap<T> attr_map) : attr_map_{attr_map} {}
 
     Attribute(const Attribute&) = default;
     Attribute& operator=(const Attribute&) = default;
@@ -78,7 +87,17 @@ class Attribute {
      * \param ind Index argument
      * \return T  associated Attribute value
      */
-    T operator()(Index ind) { NOT_IMPLEMENTED(); }
+    T operator()(Index ind) {
+        for(const auto& kv : attr_map_) {
+            for(const auto& vec : kv.second) {
+                if(std::find(vec.begin(), vec.end(), ind) != vec.end()) {
+                    return kv.first;
+                }
+            }
+        }
+
+        return T{0};
+    }
 
     /**
      * \brief Getting the iterators for Index vectors
@@ -88,15 +107,15 @@ class Attribute {
      * \return std::vector<IndexVector>::const_iterator returns an iterator for
      * set of Index vectors
      */
-    std::vector<IndexVector>::const_iterator begin(const T& val) {
-        NOT_IMPLEMENTED();
+    std::vector<Range>::const_iterator begin(const T& val) {
+        return attr_map_[val].begin();
     }
-    std::vector<IndexVector>::const_iterator end(const T& val) {
-        NOT_IMPLEMENTED();
+    std::vector<Range>::const_iterator end(const T& val) {
+        return attr_map_[val].end();
     }
 
     protected:
-    std::map<T, std::vector<IndexVector>> attr_map_;
+    AttributeToRangeMap<T> attr_map_;
 }; // Attribute
 
 /**
@@ -122,16 +141,20 @@ class IndexSpaceImpl {
     virtual Index operator[](Index i) const                                 = 0;
 
     // Subspace Accesors (e.g. MO("occ"))
-    virtual const IndexSpace& operator()(
+    virtual IndexSpace operator()(
       const IndexVector& indep_index = {}) const = 0;
-    virtual const IndexSpace& operator()(
+    virtual IndexSpace operator()(
       const std::string& named_subspace_id) const = 0;
 
     // Iterators
     virtual IndexIterator begin() const = 0;
     virtual IndexIterator end() const   = 0;
-
+    // Size of this index space
     virtual Index size() const = 0;
+
+    // Attribute Accesors
+    virtual SpinAttribute get_spin() const       = 0;
+    virtual SpatialAttribute get_spatial() const = 0;
 
     protected:
     std::weak_ptr<IndexSpaceImpl> this_weak_ptr_;
@@ -173,18 +196,18 @@ class IndexSpace {
 
     // Initializer-list / vector based. no inherited named subspaces
     IndexSpace(const std::initializer_list<Index>& indices) :
-      IndexSpace{indices, {}, SpinAttribute{}, SpatialAttribute{}} {}
+      IndexSpace{indices, {}, {}, {}} {}
 
-    IndexSpace(const Range& range, const SubspaceMap& named_subspaces = {},
-               const SpinAttribute& spin       = SpinAttribute{},
-               const SpatialAttribute& spatial = SpatialAttribute{}) :
+    IndexSpace(const Range& range, const NameToRangeMap& named_subspaces = {},
+               const AttributeToRangeMap<Spin>& spin       = {},
+               const AttributeToRangeMap<Spatial>& spatial = {}) :
       IndexSpace{construct_index_vector(range), named_subspaces, spin,
                  spatial} {}
 
     IndexSpace(const IndexVector& indices,
-               const SubspaceMap& named_subspaces = {},
-               const SpinAttribute& spin          = SpinAttribute{},
-               const SpatialAttribute& spatial    = SpatialAttribute{}) :
+               const NameToRangeMap& named_subspaces       = {},
+               const AttributeToRangeMap<Spin>& spin       = {},
+               const AttributeToRangeMap<Spatial>& spatial = {}) :
       impl_{std::dynamic_pointer_cast<IndexSpaceImpl>(
         std::make_shared<RangeIndexSpaceImpl>(indices, named_subspaces, spin,
                                               spatial))} {
@@ -199,7 +222,7 @@ class IndexSpace {
     // TODO: we also need string based named subspaces. e.g. "alpha" =
     // "occ_alpha, virt_alpha".
     IndexSpace(const IndexSpace& is, const Range& range,
-               const SubspaceMap& named_subspaces = {}) :
+               const NameToRangeMap& named_subspaces = {}) :
       impl_{std::dynamic_pointer_cast<IndexSpaceImpl>(
         std::make_shared<SubSpaceImpl>(is, range, named_subspaces))} {
         impl_->set_weak_ptr(impl_);
@@ -213,7 +236,7 @@ class IndexSpace {
     // Basically fn(i) returns spaces[i]. IndexSpace(const
     IndexSpace(const std::vector<IndexSpace>& spaces,
                const std::vector<std::string>& names = {},
-               const SubspaceMap& named_subspaces    = {},
+               const NameToRangeMap& named_subspaces = {},
                const std::map<std::string, std::vector<std::string>>&
                  subspace_references = {}) :
       impl_{std::dynamic_pointer_cast<IndexSpaceImpl>(
@@ -257,8 +280,8 @@ class IndexSpace {
     Index operator[](Index i) const;
 
     // Subspace Accessors
-    const IndexSpace& operator()(const IndexVector& indep_index = {}) const;
-    const IndexSpace& operator()(const std::string& named_subspace_id) const;
+    IndexSpace operator()(const IndexVector& indep_index = {}) const;
+    IndexSpace operator()(const std::string& named_subspace_id) const;
 
     // Iterators
     IndexIterator begin() const;
@@ -266,6 +289,22 @@ class IndexSpace {
 
     // Size of this index space
     Index size() const;
+
+    // Attribute Accesors
+    SpinAttribute get_spin() const;
+    SpatialAttribute get_spatial() const;
+
+    bool is_identical(const IndexSpace& rhs) const {
+        return impl_ == rhs.impl_;
+    }
+
+    bool is_less_than(const IndexSpace& rhs) const { return impl_ < rhs.impl_; }
+
+    // TODO: implement
+    bool is_compatible(const IndexSpace& rhs) const {
+        // NOT_IMPLEMENTED();
+        return true;
+    }
 
     protected:
     std::shared_ptr<IndexSpaceImpl> impl_;
@@ -285,14 +324,14 @@ class RangeIndexSpaceImpl : public IndexSpaceImpl {
     // TODO: optimization - constructing map<string, IndexSpace> can be delayed
     // until a specific subspace is requested
     RangeIndexSpaceImpl(const IndexVector& indices,
-                        const SubspaceMap& named_ranges,
-                        const SpinAttribute& spin,
-                        const SpatialAttribute& spatial) :
+                        const NameToRangeMap& named_ranges,
+                        const AttributeToRangeMap<Spin>& spin,
+                        const AttributeToRangeMap<Spatial>& spatial) :
       indices_{indices},
       named_ranges_{named_ranges},
       named_subspaces_{construct_subspaces(named_ranges)},
-      spin_{spin},
-      spatial_{spatial} {}
+      spin_{construct_spin(spin)},
+      spatial_{construct_spatial(spatial)} {}
 
     // TODO : do we need these copy/move constructor/operators?
     RangeIndexSpaceImpl(RangeIndexSpaceImpl&&)      = default;
@@ -308,11 +347,11 @@ class RangeIndexSpaceImpl : public IndexSpaceImpl {
     Index operator[](Index i) const { return indices_[i]; }
 
     // Subspace Accesors
-    const IndexSpace& operator()(const IndexVector& indep_index = {}) const {
+    IndexSpace operator()(const IndexVector& indep_index = {}) const {
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
-    const IndexSpace& operator()(const std::string& named_subspace_id) const {
+    IndexSpace operator()(const std::string& named_subspace_id) const {
         return named_subspaces_.at(named_subspace_id);
     }
 
@@ -320,11 +359,16 @@ class RangeIndexSpaceImpl : public IndexSpaceImpl {
     IndexIterator begin() const { return indices_.begin(); }
     IndexIterator end() const { return indices_.end(); }
 
+    // Size of this index space
     Index size() const { return indices_.size(); }
+
+    // Attribute Accesors
+    SpinAttribute get_spin() const { return spin_; }
+    SpatialAttribute get_spatial() const { return spatial_; }
 
     protected:
     IndexVector indices_;
-    SubspaceMap named_ranges_;
+    NameToRangeMap named_ranges_;
     std::map<std::string, IndexSpace> named_subspaces_;
     SpinAttribute spin_;
     SpatialAttribute spatial_;
@@ -334,12 +378,12 @@ class RangeIndexSpaceImpl : public IndexSpaceImpl {
      *        string values to IndexSpaces. Mainly used for
      *        constructing the subspaces.
      *
-     * \param in_map SubspaceMap argument holding string to Range map
+     * \param in_map NameToRangeMap argument holding string to Range map
      * \return std::map<std::string, IndexSpace> returns the map from
      *                                           strings to subspaces
      */
     std::map<std::string, IndexSpace> construct_subspaces(
-      const SubspaceMap& in_map) {
+      const NameToRangeMap& in_map) {
         std::map<std::string, IndexSpace> ret;
         for(auto& kv : in_map) {
             std::string name      = kv.first;
@@ -353,6 +397,37 @@ class RangeIndexSpaceImpl : public IndexSpaceImpl {
         }
 
         return ret;
+    }
+
+    /**
+     * \brief Helper method for constructing the attributes for
+     *        new subspace by "chopping" the attributes from the
+     *        reference IndexSpace
+     *
+     * \param is reference IndexSpace argument
+     * \param range Range argument
+     * \return Attribute an "chopped" version of the reference Attribute
+     */
+    SpinAttribute construct_spin(const AttributeToRangeMap<Spin>& spin) {
+        // return default spin value (Spin{0}) for the whole range
+        if(spin.empty()) {
+            return SpinAttribute({{Spin{0}, {range(indices_.size())}}});
+        }
+
+        // TODO: validation -> no overlap, full space coverage
+
+        return SpinAttribute{spin};
+    }
+    // TODO: Implement depending on Attribute structure
+    SpatialAttribute construct_spatial(
+      const AttributeToRangeMap<Spatial>& spatial) {
+        // return default spatial value (Spatial{0}) for the whole range
+        if(spatial.empty()) {
+            return SpatialAttribute({{Spatial{0}, {range(indices_.size())}}});
+        }
+        // TODO: validation -> no overlap, full space coverage
+
+        return SpatialAttribute{spatial};
     }
 }; // RangeIndexSpaceImpl
 
@@ -370,7 +445,7 @@ class SubSpaceImpl : public IndexSpaceImpl {
     // TODO: optimization - constructing map<string, IndexSpace> can be delayed
     // until a specific subspace is requested
     SubSpaceImpl(const IndexSpace& is, const Range& range,
-                 const SubspaceMap& named_ranges) :
+                 const NameToRangeMap& named_ranges) :
       ref_space_{is},
       indices_{construct_indices(is, range)},
       named_ranges_{named_ranges},
@@ -392,11 +467,11 @@ class SubSpaceImpl : public IndexSpaceImpl {
     Index operator[](Index i) const { return indices_[i]; }
 
     // Subspace Accesors
-    const IndexSpace& operator()(const IndexVector& indep_index = {}) const {
+    IndexSpace operator()(const IndexVector& indep_index = {}) const {
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
-    const IndexSpace& operator()(const std::string& named_subspace_id) const {
+    IndexSpace operator()(const std::string& named_subspace_id) const {
         return named_subspaces_.at(named_subspace_id);
     }
 
@@ -404,12 +479,17 @@ class SubSpaceImpl : public IndexSpaceImpl {
     IndexIterator begin() const { return indices_.begin(); }
     IndexIterator end() const { return indices_.end(); }
 
+    // Size of this index space
     Index size() const { return indices_.size(); }
+
+    // Attribute Accesors
+    SpinAttribute get_spin() const { return spin_; }
+    SpatialAttribute get_spatial() const { return spatial_; }
 
     protected:
     IndexSpace ref_space_;
     IndexVector indices_;
-    SubspaceMap named_ranges_;
+    NameToRangeMap named_ranges_;
     std::map<std::string, IndexSpace> named_subspaces_;
     SpinAttribute spin_;
     SpatialAttribute spatial_;
@@ -437,12 +517,12 @@ class SubSpaceImpl : public IndexSpaceImpl {
      *        string values to IndexSpaces. Mainly used for
      *        constructing the subspaces.
      *
-     * \param in_map SubspaceMap argument holding string to Range map
+     * \param in_map NameToRangeMap argument holding string to Range map
      * \return std::map<std::string, IndexSpace> returns the map from
      *                                           strings to subspaces
      */
     std::map<std::string, IndexSpace> construct_subspaces(
-      const SubspaceMap& in_map) {
+      const NameToRangeMap& in_map) {
         std::map<std::string, IndexSpace> ret;
         for(auto& kv : in_map) {
             std::string name    = kv.first;
@@ -495,7 +575,7 @@ class AggregateSpaceImpl : public IndexSpaceImpl {
     // until a specific subspace is requested
     AggregateSpaceImpl(const std::vector<IndexSpace>& spaces,
                        const std::vector<std::string>& names,
-                       const SubspaceMap& named_ranges,
+                       const NameToRangeMap& named_ranges,
                        const std::map<std::string, std::vector<std::string>>&
                          subspace_references) :
       ref_spaces_{spaces},
@@ -524,11 +604,11 @@ class AggregateSpaceImpl : public IndexSpaceImpl {
     Index operator[](Index i) const { return indices_[i]; }
 
     // Subspace Accessors
-    const IndexSpace& operator()(const IndexVector& indep_index = {}) const {
+    IndexSpace operator()(const IndexVector& indep_index = {}) const {
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
-    const IndexSpace& operator()(const std::string& named_subspace_id) const {
+    IndexSpace operator()(const std::string& named_subspace_id) const {
         return named_subspaces_.at(named_subspace_id);
     }
 
@@ -539,10 +619,14 @@ class AggregateSpaceImpl : public IndexSpaceImpl {
     // Size of this index space
     Index size() const { return indices_.size(); }
 
+    // Attribute Accesors
+    SpinAttribute get_spin() const { return spin_; }
+    SpatialAttribute get_spatial() const { return spatial_; }
+
     protected:
     std::vector<IndexSpace> ref_spaces_;
     IndexVector indices_;
-    SubspaceMap named_ranges_;
+    NameToRangeMap named_ranges_;
     std::map<std::string, IndexSpace> named_subspaces_;
     SpinAttribute spin_;
     SpatialAttribute spatial_;
@@ -599,12 +683,12 @@ class AggregateSpaceImpl : public IndexSpaceImpl {
      *        string values to IndexSpaces. Mainly used for
      *        constructing the subspaces.
      *
-     * \param in_map SubspaceMap argument holding string to Range map
+     * \param in_map NameToRangeMap argument holding string to Range map
      * \return std::map<std::string, IndexSpace> returns the map from
      *                                           strings to subspaces
      */
     std::map<std::string, IndexSpace> construct_subspaces(
-      const SubspaceMap& in_map) {
+      const NameToRangeMap& in_map) {
         std::map<std::string, IndexSpace> ret;
         for(auto& kv : in_map) {
             std::string name    = kv.first;
@@ -688,12 +772,12 @@ class DependentIndexSpaceImpl : public IndexSpaceImpl {
     Index operator[](Index i) const { NOT_IMPLEMENTED(); }
 
     // Subspace Accessors
-    const IndexSpace& operator()(const IndexVector& indep_index = {}) const {
+    IndexSpace operator()(const IndexVector& indep_index = {}) const {
         return dep_space_relation_.at(indep_index);
     }
 
     // TODO: What should this return?
-    const IndexSpace& operator()(const std::string& named_subspace_id) const {
+    IndexSpace operator()(const std::string& named_subspace_id) const {
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
@@ -704,6 +788,10 @@ class DependentIndexSpaceImpl : public IndexSpaceImpl {
 
     // TODO: What should this return?
     Index size() const { NOT_IMPLEMENTED(); }
+
+    // Attribute Accesors
+    SpinAttribute get_spin() const { NOT_IMPLEMENTED(); }
+    SpatialAttribute get_spatial() const { NOT_IMPLEMENTED(); }
 
     protected:
     std::vector<IndexSpace> dep_spaces_;
@@ -720,11 +808,10 @@ Index IndexSpace::point(Index i, const IndexVector& indep_index) {
 Index IndexSpace::operator[](Index i) const { return impl_->operator[](i); }
 
 // Subspace Accessors
-const IndexSpace& IndexSpace::operator()(const IndexVector& indep_index) const {
+IndexSpace IndexSpace::operator()(const IndexVector& indep_index) const {
     return impl_->operator()(indep_index);
 }
-const IndexSpace& IndexSpace::operator()(
-  const std::string& named_subspace_id) const {
+IndexSpace IndexSpace::operator()(const std::string& named_subspace_id) const {
     return impl_->operator()(named_subspace_id);
 }
 
@@ -734,6 +821,174 @@ IndexIterator IndexSpace::end() const { return impl_->end(); }
 
 // Size of this index space
 Index IndexSpace::size() const { return impl_->size(); }
+
+// Attribute Accesors
+SpinAttribute IndexSpace::get_spin() const { return impl_->get_spin(); }
+SpatialAttribute IndexSpace::get_spatial() const {
+    return impl_->get_spatial();
+}
+
+inline bool operator==(const IndexSpace& lhs, const IndexSpace& rhs) {
+    return lhs.is_identical(rhs);
+}
+
+inline bool operator<(const IndexSpace& lhs, const IndexSpace& rhs) {
+    return lhs.is_less_than(rhs);
+}
+
+inline bool operator!=(const IndexSpace& lhs, const IndexSpace& rhs) {
+    return !(lhs == rhs);
+}
+
+inline bool operator>(const IndexSpace& lhs, const IndexSpace& rhs) {
+    return !(lhs < rhs) && (lhs != rhs);
+}
+
+inline bool operator<=(const IndexSpace& lhs, const IndexSpace& rhs) {
+    return (lhs < rhs) || (lhs == rhs);
+}
+
+inline bool operator>=(const IndexSpace& lhs, const IndexSpace& rhs) {
+    return (lhs > rhs) || (lhs == rhs);
+}
+
+////////////////////////////////////////////////////////////////////
+
+class TiledIndexLabel;
+
+class TiledIndexSpace {
+    public:
+    // Ctors
+    TiledIndexSpace() = default;
+
+    // IndexSpace based
+    TiledIndexSpace(const IndexSpace& is, Tile size = 1) :
+      is_{is},
+      size_{size} {}
+
+    // Sub-space
+    TiledIndexSpace(const TiledIndexSpace& t_is, const Range& range,
+                    Tile size = 1) :
+      TiledIndexSpace(IndexSpace{t_is.is_, range}, size) {}
+    TiledIndexSpace(const TiledIndexSpace& t_is, const std::string& id,
+                    Tile size = 1) :
+      TiledIndexSpace(t_is.is_(id), size) {}
+
+    // Copy Ctors
+    TiledIndexSpace(const TiledIndexSpace&) = default;
+    TiledIndexSpace& operator=(const TiledIndexSpace&) = default;
+
+    // Dtor
+    ~TiledIndexSpace() = default;
+
+    // Get labels for subspace
+    TiledIndexLabel labels(std::string id, Label lbl) const;
+
+    // TODO: Implement with variadic templates
+    template<unsigned c_lbl>
+    auto range_labels(std::string id, Label start = 0);
+
+    TiledIndexSpace operator()(std::string id) const {
+        return TiledIndexSpace((*this), id);
+    }
+
+    // Iterators
+    IndexIterator begin() { NOT_IMPLEMENTED(); }
+    IndexIterator end() { NOT_IMPLEMENTED(); }
+
+    private:
+    IndexSpace is_;
+    Tile size_;
+
+}; // TiledIndexSpace
+
+// TODO:  Implement based on IndexSpace comparison operators
+inline bool operator==(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs);
+inline bool operator<(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs);
+
+inline bool operator!=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
+    return !(lhs == rhs);
+}
+
+inline bool operator>(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
+    return !(lhs < rhs) && (lhs != rhs);
+}
+
+inline bool operator<=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
+    return (lhs < rhs) || (lhs == rhs);
+}
+
+inline bool operator>=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
+    return (lhs > rhs) || (lhs == rhs);
+}
+
+class TiledIndexLabel {
+    public:
+    // Constructor
+    TiledIndexLabel() = default;
+
+    TiledIndexLabel(TiledIndexSpace t_is, Label lbl,
+                    const std::vector<TiledIndexLabel> dep_labels = {}) :
+      tis_{t_is},
+      label_{lbl},
+      dep_labels_{dep_labels} {}
+
+    TiledIndexLabel(TiledIndexLabel t_il,
+                    std::vector<TiledIndexLabel> dep_labels) :
+      tis_{t_il.tis_},
+      label_{t_il.label_},
+      dep_labels_{dep_labels} {}
+
+    // Copy Construtors
+    TiledIndexLabel(const TiledIndexLabel&) = default;
+    TiledIndexLabel& operator=(const TiledIndexLabel&) = default;
+
+    // Destructor
+    ~TiledIndexLabel() = default;
+
+    TiledIndexLabel operator()(TiledIndexLabel il1) const {
+        return TiledIndexLabel{*this, {il1}};
+    }
+    TiledIndexLabel operator()() const {
+        return {*this};
+    }
+
+    TiledIndexLabel operator()(TiledIndexLabel il1, TiledIndexLabel il2) const {
+        return TiledIndexLabel{*this, {il1,il2}};
+    }
+
+    private:
+    TiledIndexSpace tis_;
+    Label label_;
+    std::vector<TiledIndexLabel> dep_labels_;
+}; // TiledIndexLabel
+
+// TODO: Implement based on TiledIndexSpace comparison operators
+inline bool operator==(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs);
+inline bool operator<(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs);
+
+inline bool operator!=(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
+    return !(lhs == rhs);
+}
+
+inline bool operator>(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
+    return !(lhs < rhs) && (lhs != rhs);
+}
+
+inline bool operator<=(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
+    return (lhs < rhs) || (lhs == rhs);
+}
+
+inline bool operator>=(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
+    return (lhs > rhs) || (lhs == rhs);
+}
+
+///////////////////////////////////////////////////////////
+
+inline TiledIndexLabel TiledIndexSpace::labels(std::string id,
+                                               Label lbl) const {
+    return TiledIndexLabel{(*this)(id), lbl};
+}
 
 } // namespace tammy
 

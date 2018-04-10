@@ -29,9 +29,12 @@ int main() {
                     {"beta", {range(3, 5), range(8, 10)}}},
                    {{Spin{1}, {range(2, 5), range(7, 10)}},
                     {Spin{2}, {range(0, 2), range(5, 7)}}}};
-                    
+
     std::cout << "Full is2 \t";
     printIndices(is2);
+
+    std::cout << "all_is2 \t";
+    printIndices(is2("all"));
 
     std::cout << "occ_is2 \t";
     printIndices(is2("occ"));
@@ -60,7 +63,8 @@ int main() {
 
     // Constructing index spaces from other index spaces
     // IndexSpace(IndexSpace& is1, IndexSpace& is2)
-    IndexSpace is7{{is3, is5}}; // indicies = {0,1,2,3,4,5,6,7,8,9}
+    IndexSpace is7{
+      std::vector<IndexSpace>{is3, is5}}; // indicies = {0,1,2,3,4,5,6,7,8,9}
     std::cout << "Aggregated is7 \t";
     printIndices(is7);
     // printIndices(is7("occ"));
@@ -68,10 +72,9 @@ int main() {
     IndexSpace is8{
       {is5, is2("occ")},
       {"occ", "virt"},
-      {{"occ_alpha", {range(0, 3)}},
-       {"occ_beta", {range(3, 5)}},
-       {"virt_alpha", {range(5, 8)}},
-       {"virt_beta", {range(8, 10)}}}}; // indicies = {5,6,7,8,9,0,1,2,3,4}
+      {{"alpha", {range(0, 3), range(5, 8)}},
+       {"beta",
+        {range(3, 5), range(8, 10)}}}}; // indicies = {5,6,7,8,9,0,1,2,3,4}
 
     std::cout << "Aggregated is8 \t";
     printIndices(is8);
@@ -82,36 +85,44 @@ int main() {
     std::cout << "virt_is8 \t";
     printIndices(is8("virt"));
 
-    std::cout << "occ_alpha_is8 \t";
-    printIndices(is8("occ_alpha"));
+    std::cout << "alpha_is8 \t";
+    printIndices(is8("alpha"));
 
-    std::cout << "occ_beta_is8 \t";
-    printIndices(is8("occ_beta"));
+    std::cout << "beta_is8 \t";
+    printIndices(is8("beta"));
 
-    std::cout << "virt_alpha_is8 \t";
-    printIndices(is8("virt_alpha"));
+    IndexSpace temp_is{range(10, 20),
+                       {{"occ", {range(0, 5)}},
+                        {"virt", {range(5, 10)}},
+                        {"alpha", {range(0, 3), range(5, 8)}},
+                        {"beta", {range(3, 5), range(8, 10)}}},
+                       {{Spin{1}, {range(2, 5), range(7, 10)}},
+                        {Spin{2}, {range(0, 2), range(5, 7)}}}};
 
-    std::cout << "virt_beta_is8 \t";
-    printIndices(is8("virt_beta"));
-
-    IndexSpace is18{{is5, is2("occ")},
+    IndexSpace is18{{temp_is, is2},
                     {"occ", "virt"},
                     {{"local", {range(2, 5)}}},
-                    {{"alpha", {"occ::alpha", "virt::alpha"}},
-                     {"beta", {"occ::beta", "virt::beta"}}}};
+                    {{"alpha", {"occ:alpha", "virt:alpha"}},
+                     {"beta", {"occ:beta", "virt:beta"}}}};
+
     std::cout << "Aggregated is18 \t";
     printIndices(is18);
     std::cout << "local_is18 \t";
     printIndices(is18("local"));
+    std::cout << "alpha_is18 \t";
+    printIndices(is18("alpha"));
+    std::cout << "beta_is18 \t";
+    printIndices(is18("beta"));
 
     // Disjoint aggregation
     IndexSpace is9{{is3, is5}}; // indicies = {0,1,2,3,4,5,6,7,8,9}
     std::cout << "Aggregated is9 \t";
     printIndices(is9);
-    // Non-disjoint aggregation
-    IndexSpace is10{{is3, is3}}; // indicies = {0,1,2,3,4,0,1,2,3,4}
-    std::cout << "Aggregated is10 \t";
-    printIndices(is10);
+
+    // Non-disjoint aggregation - This will give an error as it is not allowed
+    // IndexSpace is10{{is3, is3}}; // indicies = {0,1,2,3,4,0,1,2,3,4}
+    // std::cout << "Aggregated is10 \t";
+    // printIndices(is10);
 
     // Sub-space by permuting the indicies of another index space
     // IndexSpace(IndexSpace& ref, range r)
@@ -132,6 +143,16 @@ int main() {
     printIndices(is12("occ"));
     std::cout << "virt_is12 \t";
     printIndices(is12("virt"));
+
+    TiledIndexSpace tis{is18, 10};
+
+    TiledIndexSpace tis2{tis, "occ"};
+
+    TiledIndexLabel i, j, k;
+    std::tie(i, j, k) = tis.range_labels<3>("occ", 4);
+    std::cout << "label i " << i.get_label() << std::endl;
+    std::cout << "label j " << j.get_label() << std::endl;
+    std::cout << "label k " << k.get_label() << std::endl;
 
     // Get the index value from an index space
     // By using point method - Point IndexSpace::point(Index i)

@@ -28,7 +28,7 @@ using Tile          = uint32_t;
  *          - sorting a copy of the vector
  *          - check for adjacent repeation
  *
- * @tparam ValueType type of the data hold in the vector
+ * \tparam ValueType type of the data hold in the vector
  * \param data_vec input vector
  * \return true returned if there are duplicates
  * \return false retuned if there are no duplicates
@@ -47,23 +47,21 @@ static bool has_duplicate(const std::vector<ValueType>& data_vec) {
  *        is to split a string into vector of strings with
  *        respect to a deliminator
  *
- * @tparam Out updated result iterator
+ * \tparam Out updated result iterator
  * \param s string to be split
  * \param delim used char deliminator
  * \param result vector iterator to be updated with the split
  *
- * @todo use find() and substr()
- */
-template<typename Out>
-static void split(const std::string& s, char delim, Out result) {
-    std::stringstream ss(s);
-    std::string item;
-    while(std::getline(ss, item, delim)) { *(result++) = item; }
-}
 
-static std::vector<std::string> split(const std::string& s, char delim) {
+ */
+static std::vector<std::string> split(const std::string& str, char delim) {
     std::vector<std::string> elems;
-    split(s, delim, std::back_inserter(elems));
+    std::size_t start = 0, end = 0;
+    while((end = str.find(delim, start)) != std::string::npos) {
+        if(end != start) { elems.push_back(str.substr(start, end - start)); }
+        start = end + 1;
+    }
+    if(end != start) { elems.push_back(str.substr(start)); }
     return elems;
 }
 
@@ -80,14 +78,33 @@ static std::vector<std::string> split(const std::string& s, char delim) {
  * @todo Write functions to check for empty intersection
  *
  */
-struct Range {
+class Range {
+    public:
+    // Default Ctors
+    Range() = default;
+
+    // Copy/Move Ctors and Assignment Operators
+    Range(Range&&)      = default;
+    Range(const Range&) = default;
+    Range& operator=(Range&&) = default;
+    Range& operator=(const Range&) = default;
+
+    // Dtor
+    ~Range() = default;
+
+    // Ctors
+    Range(Index lo, Index hi, Index step = 1) : lo_{lo}, hi_{hi}, step_{step} {}
+
+    // Accessors
+    Index lo() const { return lo_; }
+    Index hi() const { return hi_; }
+    Index step() const { return step_; }
+
+    protected:
     Index lo_;
     Index hi_;
     Index step_;
-
-    Range(Index lo, Index hi, Index step = 1) : lo_{lo}, hi_{hi}, step_{step} {}
-    Range(const Range& rhs) : lo_{rhs.lo_}, hi_{rhs.hi_}, step_{rhs.step_} {}
-};
+}; // Range
 
 /**
  * \brief Range constructor with low, high and step size
@@ -111,7 +128,7 @@ static inline Range range(Index count) { return range(Index{0}, count); }
  */
 static inline IndexVector construct_index_vector(const Range& range) {
     IndexVector ret;
-    for(Index i = range.lo_; i < range.hi_; i += range.step_) {
+    for(Index i = range.lo(); i < range.hi(); i += range.step()) {
         ret.push_back(i);
     }
 
@@ -137,32 +154,30 @@ using AttributeToRangeMap = std::map<AttributeType, std::vector<Range>>;
 template<typename T>
 class Attribute {
     public:
-    Attribute() = default;
+    Attribute()                 = default;
     Attribute(const Attribute&) = default;
-    Attribute(Attribute&&) = default;
+    Attribute(Attribute&&)      = default;
     Attribute& operator=(const Attribute&) = default;
-  Attribute& operator=(Attribute&&) = default;
-    ~Attribute()                           = default;
+    Attribute& operator=(Attribute&&) = default;
+    ~Attribute()                      = default;
 
     Attribute(const AttributeToRangeMap<T>& attr_map) : attr_map_{attr_map} {}
 
-  /**
+    /**
      * \brief Given an Index, ind, user can query
      *        associated Attribute value
      *
      * \param ind Index argument
      * \return T  associated Attribute value
+     * @todo: update with methods from range for checking if
+     *        index is in the range or not.
      */
-    T operator()(Index ind) {
+    T operator()(Index ind) const {
         for(const auto& kv : attr_map_) {
-            for(const auto& vec : kv.second) {
-                if(std::find(vec.begin(), vec.end(), ind) != vec.end()) {
-                    return kv.first;
-                }
-            }
+            for(const auto& vec : kv.second) {}
         }
 
-        // return defaul attribute value if not found
+        // return default attribute value if not found
         // assumption for default attribute -> {0}
         return T{0};
     }
@@ -193,20 +208,17 @@ class Attribute {
 using SpinAttribute    = Attribute<Spin>;
 using SpatialAttribute = Attribute<Spatial>;
 
-// forward decleration for IndexSpaceImpl
+// forward decleration for IndexSpaceInterface
 class IndexSpace;
 
 /**
  * \brief Base abstract implementation class as an interface
  *        for the different IndexSpace implementations
- *
- *        @todo Rename to IndexSpaceInterface (?)
- *
  */
-class IndexSpaceImpl {
+class IndexSpaceInterface {
     public:
     //@todo specify (=default or =delete) the implicit functions
-    virtual ~IndexSpaceImpl() {}
+    virtual ~IndexSpaceInterface() {}
 
     // Index Accessors (e.g. MO[Index{10}])
     virtual Index point(Index i, const IndexVector& indep_index = {}) const = 0;
@@ -225,18 +237,28 @@ class IndexSpaceImpl {
     virtual Index size() const = 0;
 
     // Attribute Accessors
-    virtual SpinAttribute get_spin() const       = 0;
-    virtual SpatialAttribute get_spatial() const = 0;
+    virtual Spin spin(Index idx) const       = 0;
+    virtual Spatial spatial(Index idx) const = 0;
+
+    virtual std::vector<Range> spin_ranges(Spin spin) const          = 0;
+    virtual std::vector<Range> spatial_ranges(Spatial spatial) const = 0;
+
+    virtual bool has_spin() const    = 0;
+    virtual bool has_spatial() const = 0;
+    /**
+     *  has_spin(IndexSpace)
+     *  has_spatial(IndexSpace)
+     */
 
     protected:
-    std::weak_ptr<IndexSpaceImpl> this_weak_ptr_;
+    std::weak_ptr<IndexSpaceInterface> this_weak_ptr_;
 
     /**
      * \brief Check if the input attributes is valid:
      *        - no-overlap between attribute ranges
      *        - covers all indicies
      *
-     * @tparam AttributeType an attribute type (e.g. Spin, Spatial)
+     * \tparam AttributeType an attribute type (e.g. Spin, Spatial)
      * \param indices set of indices to check against
      * \param att attribute map to check for validity
      * \return true if there is no overlap on the ranges and fully covers
@@ -273,12 +295,12 @@ class IndexSpaceImpl {
     }
 
     private:
-    void set_weak_ptr(std::weak_ptr<IndexSpaceImpl> weak_ptr) {
+    void set_weak_ptr(std::weak_ptr<IndexSpaceInterface> weak_ptr) {
         this_weak_ptr_ = weak_ptr;
     }
 
     friend class IndexSpace;
-}; // IndexSpaceImpl
+}; // IndexSpaceInterface
 
 /**
  * \brief Forward class declarations for different types
@@ -322,7 +344,7 @@ class IndexSpace {
                const NameToRangeMap& named_subspaces       = {},
                const AttributeToRangeMap<Spin>& spin       = {},
                const AttributeToRangeMap<Spatial>& spatial = {}) :
-      impl_{std::dynamic_pointer_cast<IndexSpaceImpl>(
+      impl_{std::dynamic_pointer_cast<IndexSpaceInterface>(
         std::make_shared<RangeIndexSpaceImpl>(indices, named_subspaces, spin,
                                               spatial))} {
         impl_->set_weak_ptr(impl_);
@@ -337,7 +359,7 @@ class IndexSpace {
     // "occ_alpha, virt_alpha".
     IndexSpace(const IndexSpace& is, const Range& range,
                const NameToRangeMap& named_subspaces = {}) :
-      impl_{std::dynamic_pointer_cast<IndexSpaceImpl>(
+      impl_{std::dynamic_pointer_cast<IndexSpaceInterface>(
         std::make_shared<SubSpaceImpl>(is, range, named_subspaces))} {
         impl_->set_weak_ptr(impl_);
     }
@@ -353,7 +375,7 @@ class IndexSpace {
                const NameToRangeMap& named_subspaces = {},
                const std::map<std::string, std::vector<std::string>>&
                  subspace_references = {}) :
-      impl_{std::dynamic_pointer_cast<IndexSpaceImpl>(
+      impl_{std::dynamic_pointer_cast<IndexSpaceInterface>(
         std::make_shared<AggregateSpaceImpl>(spaces, names, named_subspaces,
                                              subspace_references))} {
         impl_->set_weak_ptr(impl_);
@@ -365,7 +387,7 @@ class IndexSpace {
     // one another. Attributes in dep_space_relation are inherited by default.
     IndexSpace(const std::vector<IndexSpace>& indep_spaces,
                const std::map<IndexVector, IndexSpace>& dep_space_relation) :
-      impl_{std::dynamic_pointer_cast<IndexSpaceImpl>(
+      impl_{std::dynamic_pointer_cast<IndexSpaceInterface>(
         std::make_shared<DependentIndexSpaceImpl>(indep_spaces,
                                                   dep_space_relation))} {
         impl_->set_weak_ptr(impl_);
@@ -380,14 +402,14 @@ class IndexSpace {
     IndexSpace(const std::vector<IndexSpace>& indep_spaces,
                const IndexSpace& ref_space,
                const std::map<IndexVector, IndexSpace>& dep_space_relation) :
-      impl_{std::dynamic_pointer_cast<IndexSpaceImpl>(
+      impl_{std::dynamic_pointer_cast<IndexSpaceInterface>(
         std::make_shared<DependentIndexSpaceImpl>(indep_spaces, ref_space,
                                                   dep_space_relation))} {
         impl_->set_weak_ptr(impl_);
     }
 
     // constructor to wrap a shared_ptr
-    IndexSpace(const std::shared_ptr<IndexSpaceImpl> impl) : impl_{impl} {}
+    IndexSpace(const std::shared_ptr<IndexSpaceInterface> impl) : impl_{impl} {}
 
     // Index Accessors
     Index point(Index i, const IndexVector& indep_index = {});
@@ -405,8 +427,14 @@ class IndexSpace {
     Index size() const;
 
     // Attribute Accessors
-    SpinAttribute get_spin() const;
-    SpatialAttribute get_spatial() const;
+    Spin spin(Index idx) const;
+    Spatial spatial(Index idx) const;
+
+    std::vector<Range> spin_ranges(Spin spin) const;
+    std::vector<Range> spatial_ranges(Spatial spatial) const;
+
+    bool has_spin() const;
+    bool has_spatial() const;
 
     bool is_identical(const IndexSpace& rhs) const {
         return impl_ == rhs.impl_;
@@ -420,7 +448,7 @@ class IndexSpace {
     }
 
     protected:
-    std::shared_ptr<IndexSpaceImpl> impl_;
+    std::shared_ptr<IndexSpaceInterface> impl_;
 }; // IndexSpace
 
 /**
@@ -430,7 +458,7 @@ class IndexSpace {
  *        @todo Add override keyword for virtual functions
  *
  */
-class RangeIndexSpaceImpl : public IndexSpaceImpl {
+class RangeIndexSpaceImpl : public IndexSpaceInterface {
     public:
     // TODO: do we need a default constructor?
     // RangeIndexSpaceImpl() = default;
@@ -458,30 +486,36 @@ class RangeIndexSpaceImpl : public IndexSpaceImpl {
     ~RangeIndexSpaceImpl()                                     = default;
 
     // Index Accessors
-    Index point(Index i, const IndexVector& indep_index = {}) const {
+    Index point(Index i, const IndexVector& indep_index = {}) const override {
         return indices_[i];
     }
-    Index operator[](Index i) const { return indices_[i]; }
+    Index operator[](Index i) const override { return indices_[i]; }
 
     // Subspace Accessors
-    IndexSpace operator()(const IndexVector& indep_index = {}) const {
+    IndexSpace operator()(const IndexVector& indep_index = {}) const override {
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
-    IndexSpace operator()(const std::string& named_subspace_id) const {
+    IndexSpace operator()(const std::string& named_subspace_id) const override {
         return named_subspaces_.at(named_subspace_id);
     }
 
     // Iterators
-    IndexIterator begin() const { return indices_.begin(); }
-    IndexIterator end() const { return indices_.end(); }
+    IndexIterator begin() const override { return indices_.begin(); }
+    IndexIterator end() const override { return indices_.end(); }
 
     // Size of this index space
-    Index size() const { return indices_.size(); }
+    Index size() const override { return indices_.size(); }
 
     // Attribute Accessors
-    SpinAttribute get_spin() const { return spin_; }
-    SpatialAttribute get_spatial() const { return spatial_; }
+    Spin spin(Index idx) const override { return spin_(idx); }
+    Spatial spatial(Index idx) const override { return spatial_(idx); }
+
+    std::vector<Range> spin_ranges(Spin spin) const override {}
+    std::vector<Range> spatial_ranges(Spatial spatial) const override {}
+
+    bool has_spin() const override {}
+    bool has_spatial() const override {}
 
     protected:
     IndexVector indices_;
@@ -557,7 +591,7 @@ class RangeIndexSpaceImpl : public IndexSpaceImpl {
  *        IndexSpace construction.
  *
  */
-class SubSpaceImpl : public IndexSpaceImpl {
+class SubSpaceImpl : public IndexSpaceInterface {
     public:
     // TODO: do we need a default constructor?
     // SubSpaceImpl() = default;
@@ -581,30 +615,38 @@ class SubSpaceImpl : public IndexSpaceImpl {
     ~SubSpaceImpl()                              = default;
 
     // Index Accessors
-    Index point(Index i, const IndexVector& indep_index = {}) const {
+    Index point(Index i, const IndexVector& indep_index = {}) const override {
         return indices_[i];
     }
-    Index operator[](Index i) const { return indices_[i]; }
+    Index operator[](Index i) const override { return indices_[i]; }
 
     // Subspace Accessors
-    IndexSpace operator()(const IndexVector& indep_index = {}) const {
+    IndexSpace operator()(const IndexVector& indep_index = {}) const override {
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
-    IndexSpace operator()(const std::string& named_subspace_id) const {
+    IndexSpace operator()(const std::string& named_subspace_id) const override {
         return named_subspaces_.at(named_subspace_id);
     }
 
     // Iterators
-    IndexIterator begin() const { return indices_.begin(); }
-    IndexIterator end() const { return indices_.end(); }
+    IndexIterator begin() const override { return indices_.begin(); }
+    IndexIterator end() const override { return indices_.end(); }
 
     // Size of this index space
-    Index size() const { return indices_.size(); }
+    Index size() const override { return indices_.size(); }
 
     // Attribute Accessors
-    SpinAttribute get_spin() const { return ref_space_.get_spin(); }
-    SpatialAttribute get_spatial() const { return ref_space_.get_spatial(); }
+    Spin spin(Index idx) const override { return ref_space_.spin(idx); }
+    Spatial spatial(Index idx) const override {
+        return ref_space_.spatial(idx);
+    }
+
+    std::vector<Range> spin_ranges(Spin spin) const override {}
+    std::vector<Range> spatial_ranges(Spatial spatial) const override {}
+
+    bool has_spin() const override {}
+    bool has_spatial() const override {}
 
     protected:
     IndexSpace ref_space_;
@@ -663,7 +705,7 @@ class SubSpaceImpl : public IndexSpaceImpl {
  *        based IndexSpace construction.
  *
  */
-class AggregateSpaceImpl : public IndexSpaceImpl {
+class AggregateSpaceImpl : public IndexSpaceInterface {
     public:
     // TODO: do we need a default constructor?
     // AggregateSpaceImpl() = default;
@@ -695,36 +737,38 @@ class AggregateSpaceImpl : public IndexSpaceImpl {
     ~AggregateSpaceImpl()                                    = default;
 
     // Index Accessors
-    Index point(Index i, const IndexVector& indep_index = {}) const {
+    Index point(Index i, const IndexVector& indep_index = {}) const override {
         return indices_[i];
     }
-    Index operator[](Index i) const { return indices_[i]; }
+    Index operator[](Index i) const override { return indices_[i]; }
 
     // Subspace Accessors
-    IndexSpace operator()(const IndexVector& indep_index = {}) const {
+    IndexSpace operator()(const IndexVector& indep_index = {}) const override {
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
-    IndexSpace operator()(const std::string& named_subspace_id) const {
+    IndexSpace operator()(const std::string& named_subspace_id) const override {
         return named_subspaces_.at(named_subspace_id);
     }
 
     // Iterators
-    IndexIterator begin() const { return indices_.begin(); }
-    IndexIterator end() const { return indices_.end(); }
+    IndexIterator begin() const override { return indices_.begin(); }
+    IndexIterator end() const override { return indices_.end(); }
 
     // Size of this index space
-    Index size() const { return indices_.size(); }
+    Index size() const override { return indices_.size(); }
 
     // TODO: what should these return? Currently, it returns the
     // first reference space's spin and spatial attributes.
     // Attribute Accessors
-    Spin spin(Index idx) const { /*@todo implement*/ }
-   std::vector<Range> spin_ranges(Spin spin) const { /*@todo implement*/ }
-  Spatial spatial(Index idx) const {
-        return ref_spaces_[0].get_spatial();
-    }
-    //@todo spatial_ranges() similar to spin_ranges()
+    Spin spin(Index idx) const override {}
+    Spatial spatial(Index idx) const override {}
+
+    std::vector<Range> spin_ranges(Spin spin) const override {}
+    std::vector<Range> spatial_ranges(Spatial spatial) const override {}
+
+    bool has_spin() const override {}
+    bool has_spatial() const override {}
 
     protected:
     std::vector<IndexSpace> ref_spaces_;
@@ -830,7 +874,7 @@ class AggregateSpaceImpl : public IndexSpaceImpl {
  *        dependent IndexSpaces
  *
  */
-class DependentIndexSpaceImpl : public IndexSpaceImpl {
+class DependentIndexSpaceImpl : public IndexSpaceInterface {
     public:
     // TODO: do we need a default constructor?
     // DependentIndexSpaceImpl() = default;
@@ -865,34 +909,40 @@ class DependentIndexSpaceImpl : public IndexSpaceImpl {
      * \param indep_index a vector of Index
      * \return Index an Index value from the dependent IndexSpace
      */
-    Index point(Index i, const IndexVector& indep_index = {}) const {
+    Index point(Index i, const IndexVector& indep_index = {}) const override {
         return dep_space_relation_.at(indep_index)[i];
     }
 
     // TODO: what should ve returned?
-    Index operator[](Index i) const { NOT_IMPLEMENTED(); }
+    Index operator[](Index i) const override { NOT_IMPLEMENTED(); }
 
     // Subspace Accessors
-    IndexSpace operator()(const IndexVector& indep_index = {}) const {
+    IndexSpace operator()(const IndexVector& indep_index = {}) const override {
         return dep_space_relation_.at(indep_index);
     }
 
     // TODO: What should this return, currently returning itself
-    IndexSpace operator()(const std::string& named_subspace_id) const {
+    IndexSpace operator()(const std::string& named_subspace_id) const override {
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
     // Iterators
     // TODO: Error on call
-    IndexIterator begin() const { NOT_IMPLEMENTED(); }
-    IndexIterator end() const { NOT_IMPLEMENTED(); }
+    IndexIterator begin() const override { NOT_IMPLEMENTED(); }
+    IndexIterator end() const override { NOT_IMPLEMENTED(); }
 
     // TODO: What should this return?
-    Index size() const { NOT_IMPLEMENTED(); }
+    Index size() const override { NOT_IMPLEMENTED(); }
 
     // Attribute Accessors
-    SpinAttribute get_spin() const { NOT_IMPLEMENTED(); }
-    SpatialAttribute get_spatial() const { NOT_IMPLEMENTED(); }
+    Spin spin(Index idx) const override { NOT_IMPLEMENTED(); }
+    Spatial spatial(Index idx) const override { NOT_IMPLEMENTED(); }
+
+    std::vector<Range> spin_ranges(Spin spin) const override {}
+    std::vector<Range> spatial_ranges(Spatial spatial) const override {}
+
+    bool has_spin() const override {}
+    bool has_spatial() const override {}
 
     protected:
     std::vector<IndexSpace> dep_spaces_;
@@ -925,10 +975,14 @@ IndexIterator IndexSpace::end() const { return impl_->end(); }
 Index IndexSpace::size() const { return impl_->size(); }
 
 // Attribute Accessors
-SpinAttribute IndexSpace::get_spin() const { return impl_->get_spin(); }
-SpatialAttribute IndexSpace::get_spatial() const {
-    return impl_->get_spatial();
-}
+Spin IndexSpace::spin(Index idx) const { return impl_->spin(idx); }
+Spatial IndexSpace::spatial(Index idx) const { return impl_->spatial(idx); }
+
+std::vector<Range> IndexSpace::spin_ranges(Spin spin) const {}
+std::vector<Range> IndexSpace::spatial_ranges(Spatial spatial) const {}
+
+bool IndexSpace::has_spin() const {}
+bool IndexSpace::has_spatial() const {}
 
 // Comparison operator implementations
 inline bool operator==(const IndexSpace& lhs, const IndexSpace& rhs) {

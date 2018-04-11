@@ -51,6 +51,8 @@ static bool has_duplicate(const std::vector<ValueType>& data_vec) {
  * \param s string to be split
  * \param delim used char deliminator
  * \param result vector iterator to be updated with the split
+ *
+ * @todo use find() and substr()
  */
 template<typename Out>
 static void split(const std::string& s, char delim, Out result) {
@@ -717,10 +719,12 @@ class AggregateSpaceImpl : public IndexSpaceImpl {
     // TODO: what should these return? Currently, it returns the
     // first reference space's spin and spatial attributes.
     // Attribute Accessors
-    SpinAttribute get_spin() const { return ref_spaces_[0].get_spin(); }
-    SpatialAttribute get_spatial() const {
+    Spin spin(Index idx) const { /*@todo implement*/ }
+   std::vector<Range> spin_ranges(Spin spin) const { /*@todo implement*/ }
+  Spatial spatial(Index idx) const {
         return ref_spaces_[0].get_spatial();
     }
+    //@todo spatial_ranges() similar to spin_ranges()
 
     protected:
     std::vector<IndexSpace> ref_spaces_;

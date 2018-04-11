@@ -18,6 +18,11 @@ using IndexIterator = std::vector<Index>::const_iterator;
 using Tile          = uint32_t;
 
 /**
+ * @todo Move functions such as has_duplicate() and split()
+ * to the scope in which they are used.
+ */
+
+/**
  * \brief Helper method checking if a vector of data
  *        has any duplicates by:
  *          - sorting a copy of the vector
@@ -64,6 +69,14 @@ static std::vector<std::string> split(const std::string& s, char delim) {
  * \brief Helper methods for Range based constructors.
  *        For now we are using a simple range representation
  *        We will use range constructs from Utilities repo.
+ *
+ * @todo Make it a class. Possibly better, replace with Range class
+ * in Utilities repo.
+ *
+ * @todo A function to check if an index belongs in this range.
+ *
+ * @todo Write functions to check for empty intersection
+ *
  */
 struct Range {
     Index lo_;
@@ -78,7 +91,7 @@ struct Range {
  * \brief Range constructor with low, high and step size
  *
  */
-static Range range(Index lo, Index hi, Index step = 1) {
+static inline Range range(Index lo, Index hi, Index step = 1) {
     return Range(lo, hi, step);
 }
 
@@ -86,7 +99,7 @@ static Range range(Index lo, Index hi, Index step = 1) {
  * \brief Range constructor by giving only a count
  *
  */
-static Range range(Index count) { return range(Index{0}, count); }
+static inline Range range(Index count) { return range(Index{0}, count); }
 
 /**
  * \brief Helper method for constructing IndexVector for a given Range
@@ -94,8 +107,8 @@ static Range range(Index count) { return range(Index{0}, count); }
  * \param range a Range type argument
  * \return IndexVector the Index vector for the corresponding range
  */
-static IndexVector construct_index_vector(const Range& range) {
-    IndexVector ret = {};
+static inline IndexVector construct_index_vector(const Range& range) {
+    IndexVector ret;
     for(Index i = range.lo_; i < range.hi_; i += range.step_) {
         ret.push_back(i);
     }
@@ -123,13 +136,15 @@ template<typename T>
 class Attribute {
     public:
     Attribute() = default;
-    Attribute(const AttributeToRangeMap<T> attr_map) : attr_map_{attr_map} {}
-
     Attribute(const Attribute&) = default;
+    Attribute(Attribute&&) = default;
     Attribute& operator=(const Attribute&) = default;
+  Attribute& operator=(Attribute&&) = default;
     ~Attribute()                           = default;
 
-    /**
+    Attribute(const AttributeToRangeMap<T>& attr_map) : attr_map_{attr_map} {}
+
+  /**
      * \brief Given an Index, ind, user can query
      *        associated Attribute value
      *
@@ -183,10 +198,13 @@ class IndexSpace;
  * \brief Base abstract implementation class as an interface
  *        for the different IndexSpace implementations
  *
+ *        @todo Rename to IndexSpaceInterface (?)
+ *
  */
 class IndexSpaceImpl {
     public:
-    virtual ~IndexSpaceImpl(){};
+    //@todo specify (=default or =delete) the implicit functions
+    virtual ~IndexSpaceImpl() {}
 
     // Index Accessors (e.g. MO[Index{10}])
     virtual Index point(Index i, const IndexVector& indep_index = {}) const = 0;
@@ -406,6 +424,8 @@ class IndexSpace {
 /**
  * \brief IndexSpace implementation for range based
  *        IndexSpace construction.
+ *
+ *        @todo Add override keyword for virtual functions
  *
  */
 class RangeIndexSpaceImpl : public IndexSpaceImpl {

@@ -59,8 +59,8 @@
   IndexSpace is11{is1, range(0, 4)};   // indicies = {0,1,2,3}
   // @TODO: Discussion syntax to specify ranges, list, etc. 
 
-  // By specifying range with MAX
-  IndexSpace is12{is1, range(5, MAX)};     // indicies = {4,5,6,7,8,9} 
+  // By specifying range 
+  IndexSpace is12{is1, range(5, is1.size())};     // indicies = {4,5,6,7,8,9} 
 
   // @TODO: Idiomatic ways of creating sub-spaces using ranges, lists, etc.
 
@@ -102,6 +102,10 @@
                  {"occ", "virt"},
                  {"alpha", {"occ:alpha", "virt:alpha"},
                   "beta",  {"occ:beta", "virt:beta"}}};
+  // is3("occ")   => is1 ~ {0,...,99}
+  // is3("virt")  => is2 ~ {100,...,199}
+  // is3("alpha") => is1("alpha") + is2("alpha") ~ {25,...,49,75,...,99,125,...,149,175,...,199}
+  // is3("beta")  => is1("beta") + is2("beta") ~ {0,...,24,50,...,74,100,...,124,...,150,...,174}
 ```
 - **TiledIndexSpace:** A tiled index space segments an index spaces. Specifically, it maps values (referred to a tile indices) in an integer to a index interval. A valid tiling ensures that all indices in tile have the same attribute values.
   - **[Default tiling]** A TiledIndexSpace can be constructed from any IndexSpace where all the tiles are of size 1.
@@ -124,8 +128,8 @@
     // TiledIndexSpace(TiledIndexSpace& ref, range r)
     TiledIndexSpace tis3{tis1, range(0,5)};  // indicies = [0,1,2,3,4] && tile_size = 1
 
-    // By specifying range with MAX
-    TiledIndexSpace tis4{tis2, Index{1}} ;    // indicies = [{5,6,7,8,9}] && tile_size = 5
+    // By specifying range 
+    TiledIndexSpace tis4{tis2, range(1, tis2.size())} ;    // indicies = [{5,6,7,8,9}] && tile_size = 5
     // @TODO: Idiomatic ways of creating tiled sub-spaces using ranges, list of indicies, etc. 
 
     ```
@@ -154,9 +158,13 @@
   ```c++
   // Creating index spaces MO and Atom
   // Note: constructor details are ommitted
-  TiledIndexSpace MO(...);
-  TiledIndexSpace Atom(...);
-  DependentIndexSpace subMO_atom{MO, Atom};
+  IndexSpace MO(...);
+  IndexSpace Atom(...);
+  std::map<IndexVector, IndexSpace> mo_atom_relation(...);
+  // DependentIndexSpace(const std::vector<IndexSpace>& dep_spaces,
+  //                     const IndexSpace& ref_space,
+  //                     const std::map<IndexVector, IndexSpace> dep_relation)
+  DependentIndexSpace subMO_atom{{MO}, Atom, mo_atom_relation};
   ```
 
 - **[TiledIndexLabel]** A TiledIndexLabel pairs a TiledIndexSpace with an integer.
@@ -178,11 +186,11 @@ If a tensor dimension over a tiled index space `p` that depends on another tiled
 
   ```c++
   // Creating a tensor with different TiledIndexSpaces
-  TiledIndexSpace t10_MO{MO, /*tiled with tile size of 10*/};
+  TiledIndexSpace t10_MO{subMO_atom, /*tiled with tile size of 10*/};
   TiledIndexSpace t20_AO{AO, /*tiled with tile size of 20*/};
   Tensor T1{t10_MO, t20_AO}; //2-d MOxAO tensor
   TiledIndexLabel q = is_atom.labels("all", 4);
-  TiledIndexLabel p = is_ao_atom.labels("all", 0);
+  TiledIndexLabel p = is_mo_atom.labels("all", 0);
   Tensor T2{p(q), q}; //2-d tensor where the first dimension is the the list of AOs relevant to each atom
   ```
 
@@ -241,7 +249,7 @@ Tensor T_4{tis1_4, tis2_4, tis3_4};
 ```c++
 // Spliting is_2 into two sub-spaces with 4 and 6 elements
 IndexSpace is1_5{is_2, range(0, 4)};
-IndexSpace is2_5{is_2, range(4, MAX)};
+IndexSpace is2_5{is_2, range(4, is_2.size())};
 // Create index space combining sub-spaces
 IndexSpace is3_5{{is1_5, is2_5}};
 // Apply default tiling 
@@ -257,7 +265,7 @@ Tensor T_5{tis1_5};
 ```c++
 // Spliting is1_3 from 3 into two sub-spaces with 4 and 6 elements
 IndexSpace is1_6{is1_3, range(0, 4)};  
-IndexSpace is2_6{is1_3, range(4, MAX)}; 
+IndexSpace is2_6{is1_3, range(4, is1_3.size()}; 
 // Create index space combining sub-spaces
 IndexSpace is3_6{{is1_6, is2_6}};
 // Apply default tiling
@@ -273,7 +281,7 @@ Tensor T_6{tis_6, tis2_3};
 ```c++
 // Spliting is2_3 from 3 into two sub-spaces with 12 and 8 elements
 IndexSpace is1_7{is2_3, range(0, 12)};  
-IndexSpace is2_7{is2_3, range(12, MAX)}; 
+IndexSpace is2_7{is2_3, range(12, is2_3.size())}; 
 // Create index space combining sub-spaces
 IndexSpace is3_7{{is1_7, is2_7}};
 // Apply default tiling
@@ -309,7 +317,7 @@ Tensor T_10{tis1_4, tis_7, tis3_4};
 ```c++
 // Split the index space form 4 into sub-spaces of length 13 and 17
 IndexSpace is1_11{is3_4, range(0, 13)};
-IndexSpace is2_11{is3_4, range(13, MAX)};
+IndexSpace is2_11{is3_4, range(13, is3_4.size())};
 // Combine the sub-spaces into another index space
 IndexSpace is3_11{{is1_11, is2_11}};
 // Apply default tiling
@@ -418,7 +426,7 @@ IndexSpace is2_20{range(0,10,2)};
 IndexSpace is3_20{is1_20, is2_20};
 // Spliting is3_20 into two sub-spaces with 4 and 6 elements
 IndexSpace is4_20{is3_20, range(0, 4)};  
-IndexSpace is5_20{is3_20, range(4, MAX)};
+IndexSpace is5_20{is3_20, range(4, is3_20.size())};
 // Aggregate split indexes
 IndexSpace is6_20{is4_20, is5_20};
 // Apply default tiling
@@ -462,7 +470,7 @@ void driver() {
 	// Construction of tiled index space MO from skretch
 	IndexSpace MO_IS{range(0,200), {"occ", {range(0,100)}, 
                                   "virt", {range(100,200)}}};
-	TiledIndexSpace MO{MO_IS, 10);
+	TiledIndexSpace MO{MO_IS, 10};
 	
 	const TiledIndexSpace& O = MO("occ");
 	const TiledIndexSpace& V = MO("virt");
@@ -528,7 +536,7 @@ void driver() {
 	// Construction of tiled index space MO from skretch
 	IndexSpace MO_IS{range(0,200), {"occ", {range(0,100)}, 
                                   "virt", {range(100,200)}}};
-	TiledIndexSpace MO{MO_IS, 10);
+	TiledIndexSpace MO{MO_IS, 10};
 	
 	const TiledIndexSpace& O = MO("occ");
 	const TiledIndexSpace& V = MO("virt");
@@ -668,7 +676,7 @@ void driver() {
 	// Construction of tiled index space MO from skretch
 	IndexSpace AO_IS{range(0,200), {"occ", {range(0,100)}, 
                                   "virt", {range(100,200)}}};
-	TiledIndexSpace AO{AO_IS, 10);
+	TiledIndexSpace AO{AO_IS, 10};
 
 	const TiledIndexSpace& N = AO("all");
 	

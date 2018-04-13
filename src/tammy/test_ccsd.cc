@@ -234,30 +234,10 @@ std::pair<double,double> rest(ExecutionContext& ec,
 }
 
 
-int main() {
-
-    // Construction of tiled index space MO from skretch
-    IndexSpace MO_IS{range(0, 200),
-                     {{"occ", {range(0, 100)}}, {"virt", {range(100, 200)}}}};
-    TiledIndexSpace MO{MO_IS, 10};
-
-    const TiledIndexSpace &N = MO("all");
-
-    using T = double;
-
-    Tensor<T> f1{N, N};
-    Tensor<T> v2{N, N, N, N};
-
-    //@todo construct f1
-    //@todo construct v2
-
-    ccsd_driver(MO, f1, v2);
-}
-
 void ccsd_driver(const TiledIndexSpace& MO,
                  const Tensor<T>& d_f1,
-  const Tensor<T>& d_v2,
-double threshold)
+                const Tensor<T>& d_v2,
+                double threshold) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
     const TiledIndexSpace &N = MO("all");
@@ -302,3 +282,24 @@ double threshold)
         std::tie(residual, energy) = rest(ec, MO, i1, i2, de, p_evl_sorted);
     }
 }
+
+int main() {
+
+    // Construction of tiled index space MO from skretch
+    IndexSpace MO_IS{range(0, 200),
+                     {{"occ", {range(0, 100)}}, {"virt", {range(100, 200)}}}};
+    TiledIndexSpace MO{MO_IS, 10};
+
+    const TiledIndexSpace &N = MO("all");
+
+    using T = double;
+
+    Tensor<T> f1{N, N};
+    Tensor<T> v2{N, N, N, N};
+
+    //@todo construct f1
+    //@todo construct v2
+
+    ccsd_driver(MO, f1, v2);
+}
+

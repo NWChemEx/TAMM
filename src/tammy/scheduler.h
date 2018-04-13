@@ -15,49 +15,33 @@ namespace tammy {
 // class Distribution;
 // class MemoryManager;
 
-// class TensorHolder {
-//     public:
-//     template<typename T>
-//     TensorHolder(Tensor<T> tensor) {
-//         switch(tensor_element_type<T>()) {
-//             case ElementType::single_precision:
-//                 type_ = ElementType::single_precision;
-//                 set(tensor);
-//                 break;
-//             case ElementType::double_precision:
-//                 type_ = ElementType::double_precision;
-//                 set(tensor);
-//                 break;
-//             case ElementType::single_complex:
-//                 type_ = ElementType::single_complex;
-//                 // impl_.tensor_ = tensor;
-//                 break;
-//             case ElementType::double_complex:
-//                 type_ = ElementType::double_complex;
-//                 // impl_.tensor_ = tensor;
-//                 break;
-//             case ElementType::invalid: UNREACHABLE(); break;
-//             default: UNREACHABLE();
-//         }
-//     }
 
-//     ~TensorHolder() {
-//         switch(type_) {
-//             case ElementType::single_precision:
-//                 tensor_float_.Tensor<float>::~Tensor();
-//                 break;
-//             case ElementType::double_precision:
-//                 tensor_double_.Tensor<double>::~Tensor();
-//                 break;
-//             case ElementType::single_complex:
-//                 //~impl_.tensor_();
-//                 break;
-//             case ElementType::double_complex:
-//                 //~impl_.tensor_();
-//                 break;
-//             default: UNREACHABLE(); break;
-//         }
-//     }
+template<>
+constexpr ElementType tensor_element_type<double>() {
+    return ElementType::double_precision;
+}
+
+class TensorHolder {
+    public:
+    template<typename T>
+    TensorHolder(Tensor<T> tensor) {
+        switch(tensor_element_type<T>()) {
+            case ElementType::double_precision:
+                type_ = ElementType::double_precision;
+                set(tensor);
+                break;
+            default: UNREACHABLE();
+        }
+    }
+
+    ~TensorHolder() {
+        switch(type_) {
+            case ElementType::double_precision:
+                tensor_double_.Tensor<double>::~Tensor();
+                break;
+            default: UNREACHABLE(); break;
+        }
+    }
 
 //     template<typename T>
 //     void set(Tensor<T> const& tensor);
@@ -113,7 +97,7 @@ class Scheduler {
     // @to-do: what is the default scheduler?
     Scheduler() = default;
 
-   // Scheduler& operator()() { return *this; }
+    Scheduler& operator()() { return *this; }
 
     // template<typename OpType, typename... OpTypes>
     // Scheduler& operator()(const OpType& op, const OpTypes&... ops) {
@@ -164,6 +148,10 @@ class Scheduler {
     //     return deallocate(tensors...);
     // }
 
+   Scheduler& scheduler() {
+       return _scheduler ;
+   }
+
     void execute() {
         /* for(auto& op : ops_) {  op->execute(); } */ 
     }
@@ -173,6 +161,7 @@ class Scheduler {
     }
 
     protected:
+    Scheduler _scheduler;
     // void validate() {
     //     // 1. every tensor used by operarions should be listed in tensors_
 
@@ -192,7 +181,7 @@ class Scheduler {
     // MemoryManager* default_memory_manager_;
     // ProcGroup pg_;
    // std::vector<Op*> ops_;
-   // std::vector<TensorHolder> tensors_;
+    //std::vector<TensorHolder> tensors_;
     // std::vector<TensorHolder> live_in_tensors_;
     // std::vector<TensorHolder> live_out_tensors_;
 

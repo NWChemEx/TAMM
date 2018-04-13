@@ -30,6 +30,10 @@ class Tensor {
     static void allocate(Tensor<T>& tensor) {}
     static void deallocate(Tensor<T>& tensor) {}
 
+
+     void allocate() {}
+     void deallocate() {}
+
     template<typename... Args>
     static void allocate(const ExecutionContext& exec, Args... rest) {}
 
@@ -38,7 +42,7 @@ class Tensor {
 
     T* access(Index idx) {}
     
-    void get(IndexVector idx_vec, T* buff, std::size_t buff_size) {}
+    void get(IndexVector idx_vec, T* buff, std::size_t buff_size) const {}
 
     private:
     std::vector<TiledIndexSpace> block_indices_;

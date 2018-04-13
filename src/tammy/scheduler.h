@@ -8,7 +8,7 @@
 // #include "ops.h"
 //#include "proc_group.h"
 #include "tensor_sketch.h"
-//#include "types.h"
+#include "ops.h"
 #include "execution_context.h"
 
 namespace tammy {
@@ -111,11 +111,11 @@ class Scheduler {
 
     Scheduler& operator()() { return *this; }
 
-    // template<typename OpType, typename... OpTypes>
-    // Scheduler& operator()(const OpType& op, const OpTypes&... ops) {
-    //     ops_.push_back(op.clone());
-    //     return operator()(ops...);
-    // }
+    template<typename OpType, typename... OpTypes>
+    Scheduler& operator()(const OpType& op, const OpTypes&... ops) {
+        //ops_.push_back(op);
+        return operator()(ops...);
+    }
 
    // Scheduler& tensors() { return *this; }
 
@@ -146,19 +146,19 @@ class Scheduler {
 
     Scheduler& allocate() { return *this; }
 
-    // template<typename TensorType, typename... Args>
-    // Scheduler& allocate(TensorType tensor, Args&... tensors) {
-    //     ops_.push_back(new AllocOp<TensorType>{tensor});
-    //     return allocate(tensors...);
-    // }
+    template<typename TensorType, typename... Args>
+    Scheduler& allocate(TensorType tensor, Args&... tensors) {
+        ops_.push_back(new AllocOp<TensorType>{tensor});
+        return allocate(tensors...);
+    }
 
     Scheduler& deallocate() { return *this; }
 
-    // template<typename TensorType, typename... Args>
-    // Scheduler& deallocate(TensorType tensor, Args&... tensors) {
-    //     ops_.push_back(new DeallocOp<TensorType>{tensor});
-    //     return deallocate(tensors...);
-    // }
+    template<typename TensorType, typename... Args>
+    Scheduler& deallocate(TensorType tensor, Args&... tensors) {
+        ops_.push_back(new DeallocOp<TensorType>{tensor});
+        return deallocate(tensors...);
+    }
 
    ExecutionContext& ec(){
        return ec_;
@@ -192,7 +192,7 @@ class Scheduler {
     // Distribution* default_distribution_;
     // MemoryManager* default_memory_manager_;
     // ProcGroup pg_;
-   // std::vector<Op*> ops_;
+   std::vector<Op*> ops_;
     //std::vector<TensorHolder> tensors_;
     // std::vector<TensorHolder> live_in_tensors_;
     // std::vector<TensorHolder> live_out_tensors_;

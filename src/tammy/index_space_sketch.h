@@ -1219,6 +1219,8 @@ class TiledIndexLabel {
 
     Label get_label() const { return label_; }
 
+    const TiledIndexSpace& tiled_index_space() const { return tis_; }
+
     protected:
     TiledIndexSpace tis_;
     Label label_;

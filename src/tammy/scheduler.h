@@ -97,6 +97,8 @@ class Scheduler {
     // @to-do: what is the default scheduler?
     Scheduler() = default;
 
+    Scheduler(ExecutionContext ec): ec(ec) {}
+
     Scheduler& operator()() { return *this; }
 
     // template<typename OpType, typename... OpTypes>
@@ -148,8 +150,8 @@ class Scheduler {
     //     return deallocate(tensors...);
     // }
 
-   Scheduler& scheduler() {
-       return _scheduler ;
+   ExecutionContext& ec(){
+       return ec;
    }
 
     void execute() {
@@ -161,7 +163,7 @@ class Scheduler {
     }
 
     protected:
-    Scheduler _scheduler;
+    ExecutionContext ec;
     // void validate() {
     //     // 1. every tensor used by operarions should be listed in tensors_
 

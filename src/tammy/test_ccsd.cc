@@ -250,6 +250,8 @@ int main() {
     Tensor<T> i1{};
     Tensor<T> i2{};
 
+    //Tensor<T> i0{V,O};
+    Tensor<T> de{};
     Tensor<T> t1{V, O};
     Tensor<T> t2{V, V, O, O};
     Tensor<T> f1{N, N};
@@ -267,6 +269,14 @@ int main() {
     double *p_evl_sorted = EVL.access({0});
     
     double energy, residual;
+    // ProcGroup pg{GA_MPI_Comm()};
+    // Distribution_NW distribution;
+    // auto mgr = MemoryManagerGA::create_coll(ProcGroup{GA_MPI_Comm()});
+
+ExecutionContext ec {};
+    Tensor<T>::allocate(ec, d_t1, d_t2, d_f1, d_v2);
+    
+    
     while(true) {
         ccsd_e(MO, de, t1, t2, f1, v2);
         ccsd_t1(MO, i1, t1, t2, f1, v2);

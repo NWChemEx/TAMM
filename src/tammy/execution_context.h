@@ -37,7 +37,8 @@ class ExecutionContext {
   }
 
   
-// private:
+  private:
+    Scheduler _scheduler;
 
 }; // class ExecutionContext
 

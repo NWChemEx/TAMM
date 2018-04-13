@@ -191,7 +191,7 @@ void ccsd_t2(const TiledIndexSpace& MO, Tensor<T>& i0,
 }
 // class Scheduler;
 template<typename T>
-void jacobi(Scheduler& sch, Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose,
+void jacobi(Scheduler& sch, const Tensor<T>& d_r, const Tensor<T>& d_t, T shift, bool transpose,
             const Tensor<T>& EVL) {
     //@todo implement
 }
@@ -211,7 +211,7 @@ std::pair<double,double> rest(ExecutionContext& ec,
                               const Tensor<T>& d_t1,
                               const Tensor<T>& d_t2,                              
                               const Tensor<T>& de,
-                              const T* const p_evl_sorted, T zshiftl) {
+                              const Tensor<T>& EVL, T zshiftl) {
     
     T residual, energy;
     Scheduler sch{ec.scheduler()};
@@ -229,10 +229,10 @@ std::pair<double,double> rest(ExecutionContext& ec,
         de.get({}, &energy, sizeof(double));
       })
       ( [&](Scheduler& sch) {
-        jacobi(sch, d_r1, d_t1, -1.0 * zshiftl, false, p_evl_sorted);
+        jacobi(sch, d_r1, d_t1, -1.0 * zshiftl, false, EVL);
       })
       ( [&](Scheduler& sch) {
-        jacobi(sch, d_r2, d_t2, -2.0 * zshiftl, false, p_evl_sorted);
+        jacobi(sch, d_r2, d_t2, -2.0 * zshiftl, false, EVL);
       })
       .deallocate(d_r1_residual, d_r2_residual)
         .execute();

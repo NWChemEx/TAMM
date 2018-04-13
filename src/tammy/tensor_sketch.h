@@ -3,6 +3,7 @@
 
 #include "index_space_sketch.h"
 #include "labeled_tensor_sketch.h"
+#include "execution_context.h"
 
 namespace tammy {
 
@@ -25,6 +26,17 @@ class Tensor {
     LabeledTensor<T> operator()(Ts... inputs) const {
         return LabeledTensor<T>{*this, IndexLabelVec{inputs...}};
     }
+
+    static void allocate(Tensor<T>& tensor) {}
+    static void deallocate(Tensor<T>& tensor) {}
+
+    template<typename... Args>
+    static void allocate(const ExecutionContext& exec, Args... rest) {}
+
+    template<typename... Args>
+    static void deallocate(const ExecutionContext& exec, Args... rest) {}
+
+    T* access(Index idx) {}
 
     private:
     std::vector<TiledIndexSpace> block_indices_;

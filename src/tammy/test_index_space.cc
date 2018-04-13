@@ -3,7 +3,6 @@
 // #include <iostream>
 
 #include "index_space_sketch.h"
-#include "tensor_sketch.h"
 
 using namespace tammy;
 
@@ -33,14 +32,6 @@ int main() {
     std::cout << "Full is2 \t";
     printIndices(is2);
 
-    TiledIndexSpace tis1{is1,4};
-
-    for(const auto& i : tis1) {
-        std::cout << "index: "<<  i << std::endl;
-    }
-
-
-#if 0
     std::cout << "all_is2 \t";
     printIndices(is2("all"));
 
@@ -170,6 +161,6 @@ int main() {
     // By using operator[] - Point& IndexSpace::operator[](Index i)
     const Index& j4 = is5[Index{4}]; // index j => 9
     std::cout << "Index is5[4]\t" << j4 << std::endl;
-#endif
+
     return 1;
 }

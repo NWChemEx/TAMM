@@ -10,7 +10,8 @@ using tammy::ExecutionContext;
 using tammy::Scheduler;
 
 template<typename T>
-void ccsd_e(const TiledIndexSpace& MO, Tensor<T>& de, const Tensor<T>& t1,
+void ccsd_e(ExecutionContext &ec,
+            const TiledIndexSpace& MO, Tensor<T>& de, const Tensor<T>& t1,
             const Tensor<T>& t2, const Tensor<T>& f1, const Tensor<T>& v2) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
@@ -22,16 +23,19 @@ void ccsd_e(const TiledIndexSpace& MO, Tensor<T>& de, const Tensor<T>& t1,
     std::tie(p1, p2, p3, p4, p5) = MO.range_labels<5>("virt");
     std::tie(h3, h4, h5, h6)     = MO.range_labels<4>("occ");
 
-    i1(h6, p5) = f1(h6, p5);
-    i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5);
-    de() = 0;
-    de() += t1(p5, h6) * i1(h6, p5);
-    de() += 0.25 * t2(p1, p2, h3, h4) * v2(h3, h4, p1, p2);
+    Scheduler sch{ec.scheduler()};
+    sch
+    (i1(h6, p5) = f1(h6, p5))
+    (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
+    (de() = 0)
+    (de() += t1(p5, h6) * i1(h6, p5))
+    (de() += 0.25 * t2(p1, p2, h3, h4) * v2(h3, h4, p1, p2))
+    .execute();
 }
 
 
 template<typename T>
-void ccsd_t1(ExecutionContext &ec,const TiledIndexSpace& MO, Tensor<T>& i0, const Tensor<T>& t1,
+void ccsd_t1(ExecutionContext &ec, const TiledIndexSpace& MO, Tensor<T>& i0, const Tensor<T>& t1,
              const Tensor<T>& t2, const Tensor<T>& f1, const Tensor<T>& v2) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
@@ -69,7 +73,8 @@ void ccsd_t1(ExecutionContext &ec,const TiledIndexSpace& MO, Tensor<T>& i0, cons
     (t1_6_1(h4, h5, h1, p3) += -1 * t1(p6, h1) * v2(h4, h5, p3, p6))
     (i0(p2, h1) += -0.5 * t2(p2, p3, h4, h5) * t1_6_1(h4, h5, h1, p3))
     (i0(p2, h1) += -0.5 * t2(p3, p4, h1, h5) * v2(h5, p2, p3, p4))
-    .deallocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1);
+    .deallocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
+    .execute();
 }
 
 template<typename T>
@@ -244,7 +249,7 @@ void ccsd_driver(const TiledIndexSpace& MO,
     const T zshiftl = 0.0;
 
     while(residual > threshold) {
-        ccsd_e(MO, de, d_t1, d_t2, d_f1, d_v2);
+        ccsd_e(ec, MO, de, d_t1, d_t2, d_f1, d_v2);
         ccsd_t1(ec,MO, i1, d_t1, d_t2, d_f1, d_v2);
         ccsd_t2(ec,MO, i2, d_t1, d_t2, d_f1, d_v2);
         std::tie(residual, energy) = rest(ec, MO, i1, i2, d_t1, d_t2, de, EVL,zshiftl);

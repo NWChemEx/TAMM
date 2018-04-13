@@ -16,6 +16,17 @@ namespace tammy {
                   << " line:" << __LINE__ << ". This is not implemented\n"; \
     } while(0)
 
+
+/**
+ * @brief Mark code options that are not yet allowed.
+ */
+#define NOT_ALLOWED()                                                       \
+    do {                                                                    \
+        std::cerr << "ERROR: "                                              \
+                  << "file:" << __FILE__ << "function:" << __func__         \
+                  << " line:" << __LINE__ << ". This is not implemented\n"; \
+    } while(0)
+
 /**
  * @brief Mark code paths that should be unreachable
  */

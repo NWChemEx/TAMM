@@ -233,18 +233,34 @@ std::pair<double,double> rest(ExecutionContext& ec,
     return {residual, energy};
 }
 
+
 int main() {
 
     // Construction of tiled index space MO from skretch
     IndexSpace MO_IS{range(0, 200),
-                    {{"occ", {range(0, 100)}}, {"virt", {range(100, 200)}}}};
+                     {{"occ", {range(0, 100)}}, {"virt", {range(100, 200)}}}};
     TiledIndexSpace MO{MO_IS, 10};
 
-    const TiledIndexSpace& O = MO("occ");
-    const TiledIndexSpace& V = MO("virt");
-    const TiledIndexSpace& N = MO("all");
+    const TiledIndexSpace &N = MO("all");
 
     using T = double;
+
+    Tensor<T> f1{N, N};
+    Tensor<T> v2{N, N, N, N};
+
+    //@todo construct f1
+    //@todo construct v2
+
+    ccsd_driver(MO, f1, v2);
+}
+
+void ccsd_driver(const TiledIndexSpace& MO,
+                 const Tensor<T>& d_f1,
+  const Tensor<T>& d_v2,
+double threshold)
+    const TiledIndexSpace& O = MO("occ");
+    const TiledIndexSpace& V = MO("virt");
+    const TiledIndexSpace &N = MO("all");
 
     Tensor<T> de{};
     Tensor<T> i1{};
@@ -252,12 +268,13 @@ int main() {
 
     //Tensor<T> i0{V,O};
     Tensor<T> de{};
-    Tensor<T> t1{V, O};
-    Tensor<T> t2{V, V, O, O};
-    Tensor<T> f1{N, N};
-    Tensor<T> v2{N, N, N, N};
+    Tensor<T> d_t1{V, O};
+    Tensor<T> d_t2{V, V, O, O};
 
-    TiledIndexSpace UnitTiledMO{MO_IS, 1};
+    //@todo initial t1 guess
+    //@todo initial t2 guess
+
+    TiledIndexSpace UnitTiledMO{MO.is(), 1};
     Tensor<T> EVL{N};
     //@todo Set EVL to have local distribution (one copy in each MPI rank)
     Tensor<T>::allocate(EVL);
@@ -267,7 +284,7 @@ int main() {
     std::tie(n1) = UnitTiledMO.range_labels<1>("all");
     EVL(n1) = f1(n1, n1);
     double *p_evl_sorted = EVL.access({0});
-    
+
     double energy, residual;
     // ProcGroup pg{GA_MPI_Comm()};
     // Distribution_NW distribution;
@@ -275,13 +292,13 @@ int main() {
 
     ExecutionContext ec {};
     Tensor<T>::allocate(ec, d_t1, d_t2, d_f1, d_v2);
-    
-    
-    while(true) {
-        ccsd_e(MO, de, t1, t2, f1, v2);
-        ccsd_t1(MO, i1, t1, t2, f1, v2);
-        ccsd_t2(MO, i2, t1, t2, f1, v2);
+
+    T energy;
+    T residual=1000/*some large number*/;
+    while(residual > threshold) {
+        ccsd_e(MO, de, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t1(MO, i1, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t2(MO, i2, d_t1, d_t2, d_f1, d_v2);
         std::tie(residual, energy) = rest(ec, MO, i1, i2, de, p_evl_sorted);
     }
-    return 0;
 }

@@ -1,10 +1,10 @@
 #ifndef TAMMY_EXECUTION_CONTEXT_H_
 #define TAMMY_EXECUTION_CONTEXT_H_
 
-#include "scheduler.h"
 
 namespace tammy {
 
+class Scheduler;
 /**
  * @brief Wrapper class to hold information during execution.
  *
@@ -26,8 +26,8 @@ class ExecutionContext {
    * Construct a scheduler object
    * @return Scheduler object
    */
-  Scheduler scheduler() {
-    return Scheduler{};
+  Scheduler& scheduler() {
+    // return Scheduler{};
   }
 
   void allocate() {

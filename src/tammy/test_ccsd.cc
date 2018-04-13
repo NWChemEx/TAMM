@@ -1,10 +1,11 @@
 #include "tensor_sketch.h"
-
+#include "execution_context.h"
 using tammy::IndexSpace;
 using tammy::TiledIndexSpace;
 using tammy::TiledIndexLabel;
 using tammy::Tensor;
 using tammy::range;
+using tammy::ExecutionContext;
 
 template<typename T>
 void ccsd_e(const TiledIndexSpace& MO, Tensor<T>& de, const Tensor<T>& t1,
@@ -106,8 +107,8 @@ void ccsd_t1(const TiledIndexSpace& MO, Tensor<T>& i0, const Tensor<T>& t1,
 //}
 
 template<typename T>
-void ccsd_t2(const TiledIndexSpace& MO, Tensor<T>& f1, Tensor<T>& i0,
-             Tensor<T>& t1, Tensor<T>& t2, Tensor<T>& v2) {
+void ccsd_t2(const TiledIndexSpace& MO, Tensor<T>& i0,
+             const Tensor<T>& t1, Tensor<T>& t2, const Tensor<T>& f1, const Tensor<T>& v2) {
 
     const TiledIndexSpace &O = MO("occ");
     const TiledIndexSpace &V = MO("virt");
@@ -205,8 +206,12 @@ std::pair<double,double> rest(ExecutionContext& ec,
                               const TiledIndexSpace& MO,
                               const Tensor<T>& d_r1,
                               const Tensor<T>& d_r2,
+                              const Tensor<T>& d_t1,
+                              const Tensor<T>& d_t2,                              
                               const Tensor<T>& de,
-                              const T* const p_evl_sorted) {
+                              const T* const p_evl_sorted, T zshiftl) {
+    
+    T residual, energy;
     Scheduler sch{ec.scheduler()};
     Tensor<T> d_r1_residual{}, d_r2_residual{};
     sch
@@ -233,28 +238,27 @@ std::pair<double,double> rest(ExecutionContext& ec,
     return {residual, energy};
 }
 
-
+template<typename T>
 void ccsd_driver(const TiledIndexSpace& MO,
                  const Tensor<T>& d_f1,
                 const Tensor<T>& d_v2,
                 double threshold) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
-    const TiledIndexSpace &N = MO("all");
+    const TiledIndexSpace& N = MO("all");
 
     Tensor<T> de{};
     Tensor<T> i1{};
     Tensor<T> i2{};
 
     //Tensor<T> i0{V,O};
-    Tensor<T> de{};
     Tensor<T> d_t1{V, O};
     Tensor<T> d_t2{V, V, O, O};
 
     //@todo initial t1 guess
     //@todo initial t2 guess
 
-    TiledIndexSpace UnitTiledMO{MO.is(), 1};
+    TiledIndexSpace UnitTiledMO{MO.index_space(), 1};
     Tensor<T> EVL{N};
     //@todo Set EVL to have local distribution (one copy in each MPI rank)
     Tensor<T>::allocate(EVL);
@@ -262,24 +266,25 @@ void ccsd_driver(const TiledIndexSpace& MO,
     TiledIndexLabel n1;
 
     std::tie(n1) = UnitTiledMO.range_labels<1>("all");
-    EVL(n1) = f1(n1, n1);
+    EVL(n1) = d_t1(n1, n1);
     double *p_evl_sorted = EVL.access({0});
 
-    double energy, residual;
     // ProcGroup pg{GA_MPI_Comm()};
     // Distribution_NW distribution;
     // auto mgr = MemoryManagerGA::create_coll(ProcGroup{GA_MPI_Comm()});
 
-    ExecutionContext ec {};
+    ExecutionContext ec;
     Tensor<T>::allocate(ec, d_t1, d_t2, d_f1, d_v2);
 
-    T energy;
+    T energy=0.0;
     T residual=1000/*some large number*/;
+    T zshiftl = 0.0;
+
     while(residual > threshold) {
         ccsd_e(MO, de, d_t1, d_t2, d_f1, d_v2);
         ccsd_t1(MO, i1, d_t1, d_t2, d_f1, d_v2);
         ccsd_t2(MO, i2, d_t1, d_t2, d_f1, d_v2);
-        std::tie(residual, energy) = rest(ec, MO, i1, i2, de, p_evl_sorted);
+        std::tie(residual, energy) = rest(ec, MO, i1, i2, d_t1, d_t2, de, p_evl_sorted,zshiftl);
     }
 }
 
@@ -300,6 +305,6 @@ int main() {
     //@todo construct f1
     //@todo construct v2
 
-    ccsd_driver(MO, f1, v2);
+    ccsd_driver<T>(MO, f1, v2, 1e-10);
 }
 

@@ -1139,6 +1139,8 @@ class TiledIndexSpace {
     bool has_spin() const { return is_.has_spin(); }
     bool has_spatial() const { return is_.has_spatial(); }
 
+    const IndexSpace& index_space() const {return is_;}
+
     protected:
     IndexSpace is_;
     Tile size_;

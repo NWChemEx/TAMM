@@ -3,95 +3,95 @@
 
 #include <set>
 
-#include "distribution.h"
-#include "memory_manager.h"
-#include "ops.h"
-#include "proc_group.h"
-#include "tensor.h"
-#include "types.h"
+// #include "distribution.h"
+// #include "memory_manager.h"
+// #include "ops.h"
+//#include "proc_group.h"
+#include "tensor_sketch.h"
+//#include "types.h"
 
 namespace tammy {
 
 // class Distribution;
 // class MemoryManager;
 
-class TensorHolder {
-    public:
-    template<typename T>
-    TensorHolder(Tensor<T> tensor) {
-        switch(tensor_element_type<T>()) {
-            case ElementType::single_precision:
-                type_ = ElementType::single_precision;
-                set(tensor);
-                break;
-            case ElementType::double_precision:
-                type_ = ElementType::double_precision;
-                set(tensor);
-                break;
-            case ElementType::single_complex:
-                type_ = ElementType::single_complex;
-                // impl_.tensor_ = tensor;
-                break;
-            case ElementType::double_complex:
-                type_ = ElementType::double_complex;
-                // impl_.tensor_ = tensor;
-                break;
-            case ElementType::invalid: UNREACHABLE(); break;
-            default: UNREACHABLE();
-        }
-    }
+// class TensorHolder {
+//     public:
+//     template<typename T>
+//     TensorHolder(Tensor<T> tensor) {
+//         switch(tensor_element_type<T>()) {
+//             case ElementType::single_precision:
+//                 type_ = ElementType::single_precision;
+//                 set(tensor);
+//                 break;
+//             case ElementType::double_precision:
+//                 type_ = ElementType::double_precision;
+//                 set(tensor);
+//                 break;
+//             case ElementType::single_complex:
+//                 type_ = ElementType::single_complex;
+//                 // impl_.tensor_ = tensor;
+//                 break;
+//             case ElementType::double_complex:
+//                 type_ = ElementType::double_complex;
+//                 // impl_.tensor_ = tensor;
+//                 break;
+//             case ElementType::invalid: UNREACHABLE(); break;
+//             default: UNREACHABLE();
+//         }
+//     }
 
-    ~TensorHolder() {
-        switch(type_) {
-            case ElementType::single_precision:
-                tensor_float_.Tensor<float>::~Tensor();
-                break;
-            case ElementType::double_precision:
-                tensor_double_.Tensor<double>::~Tensor();
-                break;
-            case ElementType::single_complex:
-                //~impl_.tensor_();
-                break;
-            case ElementType::double_complex:
-                //~impl_.tensor_();
-                break;
-            default: UNREACHABLE(); break;
-        }
-    }
+//     ~TensorHolder() {
+//         switch(type_) {
+//             case ElementType::single_precision:
+//                 tensor_float_.Tensor<float>::~Tensor();
+//                 break;
+//             case ElementType::double_precision:
+//                 tensor_double_.Tensor<double>::~Tensor();
+//                 break;
+//             case ElementType::single_complex:
+//                 //~impl_.tensor_();
+//                 break;
+//             case ElementType::double_complex:
+//                 //~impl_.tensor_();
+//                 break;
+//             default: UNREACHABLE(); break;
+//         }
+//     }
 
-    template<typename T>
-    void set(Tensor<T> const& tensor);
+//     template<typename T>
+//     void set(Tensor<T> const& tensor);
 
-    template<typename T>
-    Tensor<T> const& tensor();
+//     template<typename T>
+//     Tensor<T> const& tensor();
 
-    private:
-    Tensor<double> tensor_double_;
-    Tensor<float> tensor_float_;
-    // Tensor<std::complex<double>> tensor_complex_d_;
-    // Tensor<std::complex<float>> tensor_complex_f_;
-    ElementType type_;
-};
+//     private:
+//     Tensor<double> tensor_double_;
+//     Tensor<float> tensor_float_;
+//     // Tensor<std::complex<double>> tensor_complex_d_;
+//     // Tensor<std::complex<float>> tensor_complex_f_;
+//     ElementType type_;
+// };
 
-template<>
-void TensorHolder::set<double>(Tensor<double> const& tensor) {
-    tensor_double_ = tensor;
-}
+// template<>
+// void TensorHolder::set<double>(Tensor<double> const& tensor) {
+//     tensor_double_ = tensor;
+// }
 
-template<>
-void TensorHolder::set<float>(Tensor<float> const& tensor) {
-    tensor_float_ = tensor;
-}
+// template<>
+// void TensorHolder::set<float>(Tensor<float> const& tensor) {
+//     tensor_float_ = tensor;
+// }
 
-template<>
-Tensor<double> const& TensorHolder::tensor<double>() {
-    return tensor_double_;
-}
+// template<>
+// Tensor<double> const& TensorHolder::tensor<double>() {
+//     return tensor_double_;
+// }
 
-template<>
-Tensor<float> const& TensorHolder::tensor<float>() {
-    return tensor_float_;
-}
+// template<>
+// Tensor<float> const& TensorHolder::tensor<float>() {
+//     return tensor_float_;
+// }
 
 ////////////////////////////////////////////////////
 
@@ -108,70 +108,64 @@ class Scheduler {
      * operations.
      * @todo Can this be replaced by AllocationStatus
      */
-    enum class TensorStatus { invalid, allocated, deallocated, initialized };
-
-    Scheduler(ProcGroup pg, Distribution* default_distribution,
-              MemoryManager* default_memory_manager) :
-      default_distribution_{default_distribution},
-      default_memory_manager_{default_memory_manager},
-      pg_{pg} {}
+   // enum class TensorStatus { invalid, allocated, deallocated, initialized };
 
     // @to-do: what is the default scheduler?
     Scheduler() = default;
 
-    Scheduler& operator()() { return *this; }
+   // Scheduler& operator()() { return *this; }
 
-    template<typename OpType, typename... OpTypes>
-    Scheduler& operator()(const OpType& op, const OpTypes&... ops) {
-        ops_.push_back(op.clone());
-        return operator()(ops...);
-    }
+    // template<typename OpType, typename... OpTypes>
+    // Scheduler& operator()(const OpType& op, const OpTypes&... ops) {
+    //     ops_.push_back(op.clone());
+    //     return operator()(ops...);
+    // }
 
-    Scheduler& tensors() { return *this; }
+   // Scheduler& tensors() { return *this; }
 
-    template<typename ElementType, typename... ElementTypes>
-    Scheduler& tensors(Tensor<ElementType> tensor,
-                       Tensor<ElementTypes>... rhs) {
-        tensors_.push_back(TensorHolder{tensor});
-        return tensors(rhs...);
-    }
+    // template<typename ElementType, typename... ElementTypes>
+    // Scheduler& tensors(Tensor<ElementType> tensor,
+    //                    Tensor<ElementTypes>... rhs) {
+    //     tensors_.push_back(TensorHolder{tensor});
+    //     return tensors(rhs...);
+    // }
 
-    Scheduler& live_in() { return *this; }
+    // Scheduler& live_in() { return *this; }
 
-    template<typename ElementType, typename... ElementTypes>
-    Scheduler& live_in(Tensor<ElementType> tensor,
-                       Tensor<ElementTypes>... tensors) {
-        live_in_tensors_.push_back(TensorHolder{tensor});
-        return live_in(tensors...);
-    }
+    // template<typename ElementType, typename... ElementTypes>
+    // Scheduler& live_in(Tensor<ElementType> tensor,
+    //                    Tensor<ElementTypes>... tensors) {
+    //     live_in_tensors_.push_back(TensorHolder{tensor});
+    //     return live_in(tensors...);
+    // }
 
-    Scheduler& live_out() { return *this; }
+    // Scheduler& live_out() { return *this; }
 
-    template<typename ElementType, typename... ElementTypes>
-    Scheduler& live_out(Tensor<ElementType> tensor,
-                        Tensor<ElementTypes>... tensors) {
-        live_out_tensors_.push_back(TensorHolder{tensor});
-        return live_out(tensors...);
-    }
+    // template<typename ElementType, typename... ElementTypes>
+    // Scheduler& live_out(Tensor<ElementType> tensor,
+    //                     Tensor<ElementTypes>... tensors) {
+    //     live_out_tensors_.push_back(TensorHolder{tensor});
+    //     return live_out(tensors...);
+    // }
 
     Scheduler& allocate() { return *this; }
 
-    template<typename TensorType, typename... Args>
-    Scheduler& allocate(TensorType tensor, Args&... tensors) {
-        ops_.push_back(new AllocOp<TensorType>{tensor});
-        return allocate(tensors...);
-    }
+    // template<typename TensorType, typename... Args>
+    // Scheduler& allocate(TensorType tensor, Args&... tensors) {
+    //     ops_.push_back(new AllocOp<TensorType>{tensor});
+    //     return allocate(tensors...);
+    // }
 
     Scheduler& deallocate() { return *this; }
 
-    template<typename TensorType, typename... Args>
-    Scheduler& deallocate(TensorType tensor, Args&... tensors) {
-        ops_.push_back(new DeallocOp<TensorType>{tensor});
-        return deallocate(tensors...);
-    }
+    // template<typename TensorType, typename... Args>
+    // Scheduler& deallocate(TensorType tensor, Args&... tensors) {
+    //     ops_.push_back(new DeallocOp<TensorType>{tensor});
+    //     return deallocate(tensors...);
+    // }
 
     void execute() {
-        for(auto& op : ops_) { op->execute(); }
+        /* for(auto& op : ops_) {  op->execute(); } */ 
     }
 
     ~Scheduler() {
@@ -179,28 +173,28 @@ class Scheduler {
     }
 
     protected:
-    void validate() {
-        // 1. every tensor used by operarions should be listed in tensors_
+    // void validate() {
+    //     // 1. every tensor used by operarions should be listed in tensors_
 
-        // 2. every tensor must be initialized (part of LHS) or be an
-        // input (ilve_in) tensor before it is used
+    //     // 2. every tensor must be initialized (part of LHS) or be an
+    //     // input (ilve_in) tensor before it is used
 
-        // 3. every output tensor should be allocated and set (be LHS in
-        // at least one operation or be a live_in tensor)
+    //     // 3. every output tensor should be allocated and set (be LHS in
+    //     // at least one operation or be a live_in tensor)
 
-        // 4. every tensor must be allocated before it is used
+    //     // 4. every tensor must be allocated before it is used
 
-        // 5. every non-output (not in live_out) tensor must be
-        // deallocated
-    }
+    //     // 5. every non-output (not in live_out) tensor must be
+    //     // deallocated
+    // }
 
-    Distribution* default_distribution_;
-    MemoryManager* default_memory_manager_;
-    ProcGroup pg_;
-    std::vector<Op*> ops_;
-    std::vector<TensorHolder> tensors_;
-    std::vector<TensorHolder> live_in_tensors_;
-    std::vector<TensorHolder> live_out_tensors_;
+    // Distribution* default_distribution_;
+    // MemoryManager* default_memory_manager_;
+    // ProcGroup pg_;
+   // std::vector<Op*> ops_;
+   // std::vector<TensorHolder> tensors_;
+    // std::vector<TensorHolder> live_in_tensors_;
+    // std::vector<TensorHolder> live_out_tensors_;
 
     //   ~Scheduler() {
     //     clear();

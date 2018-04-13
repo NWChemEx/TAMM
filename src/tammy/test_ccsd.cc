@@ -1,11 +1,13 @@
 #include "tensor_sketch.h"
-#include "execution_context.h"
+#include "scheduler.h"
+
 using tammy::IndexSpace;
 using tammy::TiledIndexSpace;
 using tammy::TiledIndexLabel;
 using tammy::Tensor;
 using tammy::range;
 using tammy::ExecutionContext;
+using tammy::Scheduler;
 
 template<typename T>
 void ccsd_e(const TiledIndexSpace& MO, Tensor<T>& de, const Tensor<T>& t1,
@@ -187,7 +189,7 @@ void ccsd_t2(const TiledIndexSpace& MO, Tensor<T>& i0,
     //          t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1);
 
 }
-class Scheduler;
+// class Scheduler;
 template<typename T>
 void jacobi(Scheduler& sch, Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose,
             const T* const p_evl_sorted) {

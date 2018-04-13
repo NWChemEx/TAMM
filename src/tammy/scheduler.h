@@ -9,39 +9,45 @@
 //#include "proc_group.h"
 #include "tensor_sketch.h"
 //#include "types.h"
+#include "execution_context.h"
 
 namespace tammy {
 
 // class Distribution;
 // class MemoryManager;
 
+// enum class ElementType {
+//     invalid,
+//     single_precision,
+//     double_precision,
+//     single_complex,
+//     double_complex
+// };
 
-template<>
-constexpr ElementType tensor_element_type<double>() {
-    return ElementType::double_precision;
-}
 
-class TensorHolder {
-    public:
-    template<typename T>
-    TensorHolder(Tensor<T> tensor) {
-        switch(tensor_element_type<T>()) {
-            case ElementType::double_precision:
-                type_ = ElementType::double_precision;
-                set(tensor);
-                break;
-            default: UNREACHABLE();
-        }
-    }
 
-    ~TensorHolder() {
-        switch(type_) {
-            case ElementType::double_precision:
-                tensor_double_.Tensor<double>::~Tensor();
-                break;
-            default: UNREACHABLE(); break;
-        }
-    }
+// class TensorHolder {
+//     public:
+//     template<typename T>
+//     TensorHolder(Tensor<T> tensor) {
+//         switch(tensor_element_type<T>()) {
+//             case ElementType::double_precision:
+//                 type_ = ElementType::double_precision;
+//                 set(tensor);
+//                 break;
+//             default: UNREACHABLE();
+//         }
+//     }
+
+//     ~TensorHolder() {
+//         switch(type_) {
+//             case ElementType::double_precision:
+//                 tensor_double_.Tensor<double>::~Tensor();
+//                 break;
+//             default: UNREACHABLE(); break;
+//         }
+//     }
+// };
 
 //     template<typename T>
 //     void set(Tensor<T> const& tensor);
@@ -96,6 +102,10 @@ class Scheduler {
 
     // @to-do: what is the default scheduler?
     Scheduler() = default;
+    Scheduler(const Scheduler&) = default;
+    Scheduler(Scheduler&&) = default;
+    Scheduler operator=(const Scheduler&) = default;
+    Scheduler operator=(Scheduler&&) = default;
 
     Scheduler(ExecutionContext ec): ec(ec) {}
 
@@ -162,7 +172,7 @@ class Scheduler {
         // delete ops
     }
 
-    protected:
+    private:
     ExecutionContext ec;
     // void validate() {
     //     // 1. every tensor used by operarions should be listed in tensors_

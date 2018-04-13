@@ -192,7 +192,7 @@ void ccsd_t2(const TiledIndexSpace& MO, Tensor<T>& i0,
 // class Scheduler;
 template<typename T>
 void jacobi(Scheduler& sch, Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose,
-            const T* const p_evl_sorted) {
+            const Tensor<T>& EVL) {
     //@todo implement
 }
 
@@ -269,7 +269,6 @@ void ccsd_driver(const TiledIndexSpace& MO,
 
     std::tie(n1) = UnitTiledMO.range_labels<1>("all");
     EVL(n1) = d_t1(n1, n1);
-    double *p_evl_sorted = EVL.access({0});
 
     // ProcGroup pg{GA_MPI_Comm()};
     // Distribution_NW distribution;
@@ -280,14 +279,15 @@ void ccsd_driver(const TiledIndexSpace& MO,
 
     T energy=0.0;
     T residual=1000/*some large number*/;
-    T zshiftl = 0.0;
+    const T zshiftl = 0.0;
 
     while(residual > threshold) {
         ccsd_e(MO, de, d_t1, d_t2, d_f1, d_v2);
         ccsd_t1(MO, i1, d_t1, d_t2, d_f1, d_v2);
         ccsd_t2(MO, i2, d_t1, d_t2, d_f1, d_v2);
-        std::tie(residual, energy) = rest(ec, MO, i1, i2, d_t1, d_t2, de, p_evl_sorted,zshiftl);
+        std::tie(residual, energy) = rest(ec, MO, i1, i2, d_t1, d_t2, de, EVL,zshiftl);
     }
+    Tensor<T>::deallocate(EVL);
 }
 
 int main() {

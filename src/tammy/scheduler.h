@@ -16,16 +16,6 @@ namespace tammy {
 // class Distribution;
 // class MemoryManager;
 
-// enum class ElementType {
-//     invalid,
-//     single_precision,
-//     double_precision,
-//     single_complex,
-//     double_complex
-// };
-
-
-
 // class TensorHolder {
 //     public:
 //     template<typename T>
@@ -148,7 +138,7 @@ class Scheduler {
 
     template<typename TensorType, typename... Args>
     Scheduler& allocate(TensorType tensor, Args&... tensors) {
-        ops_.push_back(new AllocOp<TensorType>{tensor});
+        //ops_.push_back(new AllocOp<TensorType>{tensor});
         return allocate(tensors...);
     }
 
@@ -156,7 +146,7 @@ class Scheduler {
 
     template<typename TensorType, typename... Args>
     Scheduler& deallocate(TensorType tensor, Args&... tensors) {
-        ops_.push_back(new DeallocOp<TensorType>{tensor});
+        //ops_.push_back(new DeallocOp<TensorType>{tensor});
         return deallocate(tensors...);
     }
 

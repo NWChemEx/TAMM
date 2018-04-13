@@ -9,7 +9,7 @@
 #include <complex>
 #include <iosfwd>
 
-#include <mpi.h>
+//#include <mpi.h>
 
 namespace tammy {
 

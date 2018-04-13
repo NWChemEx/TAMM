@@ -16,9 +16,7 @@ class ExecutionContext {
  public:
   ExecutionContext() = default;
       
-  ~ExecutionContext() {
-    
-  }
+  ~ExecutionContext() {}
 
   /**
    * Construct a scheduler object
@@ -37,8 +35,8 @@ class ExecutionContext {
   }
 
   
-  private:
-    Scheduler _scheduler;
+  // private:
+  //   Scheduler _scheduler;
 
 }; // class ExecutionContext
 

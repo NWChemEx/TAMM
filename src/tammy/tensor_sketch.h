@@ -37,6 +37,8 @@ class Tensor {
     static void deallocate(const ExecutionContext& exec, Args... rest) {}
 
     T* access(Index idx) {}
+    
+    void get(IndexVector idx_vec, T* buff, std::size_t buff_size) {}
 
     private:
     std::vector<TiledIndexSpace> block_indices_;

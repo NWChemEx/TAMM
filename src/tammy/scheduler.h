@@ -104,10 +104,10 @@ class Scheduler {
     Scheduler() = default;
     Scheduler(const Scheduler&) = default;
     Scheduler(Scheduler&&) = default;
-    Scheduler operator=(const Scheduler&) = default;
-    Scheduler operator=(Scheduler&&) = default;
+    Scheduler& operator=(const Scheduler&) = default;
+    Scheduler& operator=(Scheduler&&) = default;
 
-    Scheduler(ExecutionContext ec): ec(ec) {}
+    Scheduler(ExecutionContext ec): ec_{ec} {}
 
     Scheduler& operator()() { return *this; }
 
@@ -161,7 +161,7 @@ class Scheduler {
     // }
 
    ExecutionContext& ec(){
-       return ec;
+       return ec_;
    }
 
     void execute() {
@@ -173,7 +173,7 @@ class Scheduler {
     }
 
     private:
-    ExecutionContext ec;
+    ExecutionContext ec_;
     // void validate() {
     //     // 1. every tensor used by operarions should be listed in tensors_
 

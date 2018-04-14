@@ -1,5 +1,5 @@
-#ifndef INDEX_SPACE_H_
-#define INDEX_SPACE_H_
+#ifndef TAMM_INDEX_SPACE_H_
+#define TAMM_INDEX_SPACE_H_
 
 #include "tamm/types.h"
 #include <algorithm>

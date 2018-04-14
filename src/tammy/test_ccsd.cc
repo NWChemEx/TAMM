@@ -1,13 +1,13 @@
-#include "tensor_sketch.h"
+#include "tensor_impl.h"
 #include "scheduler.h"
 
-using tammy::IndexSpace;
-using tammy::TiledIndexSpace;
-using tammy::TiledIndexLabel;
-using tammy::Tensor;
-using tammy::range;
-using tammy::ExecutionContext;
-using tammy::Scheduler;
+using tamm::IndexSpace;
+using tamm::TiledIndexSpace;
+using tamm::TiledIndexLabel;
+using tamm::Tensor;
+using tamm::range;
+using tamm::ExecutionContext;
+using tamm::Scheduler;
 
 template<typename T>
 void ccsd_e(ExecutionContext &ec,

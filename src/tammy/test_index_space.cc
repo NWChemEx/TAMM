@@ -4,7 +4,7 @@
 
 #include "index_space_sketch.h"
 
-using namespace tammy;
+using namespace tamm;
 
 void printIndices(const IndexSpace& is) {
     std::cout << "Indices: ";

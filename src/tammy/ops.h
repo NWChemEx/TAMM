@@ -1,5 +1,5 @@
-#ifndef TAMMY_OPS_H_
-#define TAMMY_OPS_H_
+#ifndef TAMM_OPS_H_
+#define TAMM_OPS_H_
 
 #include <memory>
 
@@ -8,7 +8,7 @@
 #include "proc_group.h"
 #include "types.h"
 
-namespace tammy {
+namespace tamm {
 
 class Op {
     public:
@@ -171,6 +171,6 @@ class DeallocOp : public Op {
     TensorType tensor_;
 }; // class AllocOp
 
-} // namespace tammy
+} // namespace tamm
 
-#endif // TAMMY_OPS_H_
+#endif // TAMM_OPS_H_

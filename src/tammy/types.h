@@ -1,7 +1,7 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMMY_TYPES_H_
-#define TAMMY_TYPES_H_
+#ifndef TAMM_TYPES_H_
+#define TAMM_TYPES_H_
 
 #include "boundvec.h"
 #include "errors.h"
@@ -11,7 +11,7 @@
 
 //#include <mpi.h>
 
-namespace tammy {
+namespace tamm {
 
 struct IrrepSpace;
 using Irrep = StrongNum<IrrepSpace, uint32_t>;
@@ -178,6 +178,6 @@ const Spin beta{2};
 //                      MPI_Fint *tb, MPI_Fint *offsetb,
 //                      MPI_Fint *tc, MPI_Fint *offsetc);
 
-} // namespace tammy
+} // namespace tamm
 
-#endif // TAMMY_TYPES_H_
+#endif // TAMM_TYPES_H_

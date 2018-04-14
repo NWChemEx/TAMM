@@ -1,5 +1,5 @@
 
-The prerequisites needed to build TAMM can be found [here](old_files/README.md) 
+The prerequisites needed to build TAMM can be found [here](dox/prerequisites.md) 
 
 - TAMM uses [NWChemEx Base Repository](https://github.com/NWChemEx-Project/CMakeBuild) to manage the build process and can be built as follows:
 

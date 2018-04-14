@@ -1,5 +1,5 @@
-#ifndef LABELED_TENSOR_H_
-#define LABELED_TENSOR_H_
+#ifndef TAMM_LABELED_TENSOR_H_
+#define TAMM_LABELED_TENSOR_H_
 
 #include "tamm/loops.h"
 #include "tamm/ops.h"

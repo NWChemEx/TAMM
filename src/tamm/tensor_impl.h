@@ -1,5 +1,5 @@
-#ifndef TENSOR_IMPL_H_
-#define TENSOR_IMPL_H_
+#ifndef TAMM_TENSOR_IMPL_H_
+#define TAMM_TENSOR_IMPL_H_
 
 #include "tamm/index_space.h"
 #include "tamm/labeled_tensor.h"

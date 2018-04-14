@@ -1,5 +1,4 @@
-#include "tamm/tensor_impl.h"
-#include "tamm/scheduler.h"
+#include "tamm/tamm.h"
 
 using tamm::IndexSpace;
 using tamm::TiledIndexSpace;

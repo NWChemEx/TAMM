@@ -19,16 +19,18 @@ class ExecutionContext {
   ExecutionContext(ExecutionContext&&) = default;
   ExecutionContext& operator=(const ExecutionContext&) = default;
   ExecutionContext& operator=(ExecutionContext&&) = default;
-      
+
   ~ExecutionContext() {}
 
   /**
    * Construct a scheduler object
    * @return Scheduler object
    */
+#if 0
   Scheduler& scheduler() {
     // return Scheduler{};
   }
+#endif
 
   void allocate() {
     //no-op
@@ -38,7 +40,7 @@ class ExecutionContext {
     //no-op
   }
 
-  
+
   // private:
   //   Scheduler _scheduler;
 

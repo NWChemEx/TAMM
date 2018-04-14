@@ -104,7 +104,8 @@ class Scheduler {
     template<typename OpType, typename... OpTypes>
     Scheduler& operator()(const OpType& op, const OpTypes&... ops) {
         //ops_.push_back(op);
-        return operator()(ops...);
+      //return operator()(ops...);
+      return *this;
     }
 
    // Scheduler& tensors() { return *this; }
@@ -155,7 +156,7 @@ class Scheduler {
    }
 
     void execute() {
-        /* for(auto& op : ops_) {  op->execute(); } */ 
+        /* for(auto& op : ops_) {  op->execute(); } */
     }
 
     ~Scheduler() {

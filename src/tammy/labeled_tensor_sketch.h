@@ -83,81 +83,97 @@ class LabeledTensor {
 
     // @to-do: implement.
     AddOp<T, LabeledTensor<T>> operator=(
-      const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {}
+      const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {
+      return {};
+    }
 
     AddOp<T, LabeledTensor<T>> operator+=(
       const std::tuple<LoopSpec, LabeledTensor<T>>& rhs) {
-        construct_addop(std::make_tuple(std::get<0>(rhs), 1, std::get<1>(rhs)),
-                        false);
+        // construct_addop(std::make_tuple(std::get<0>(rhs), 1, std::get<1>(rhs)),
+        //                 false);
+      return {};
     }
 
     AddOp<T, LabeledTensor<T>> operator+=(LabeledTensor<T> rhs) {
-        return *this += loop_nest() * rhs;
+        // return *this += loop_nest() * rhs;
+      return {};
     }
 
     SetOp<T, LabeledTensor<T>> operator+=(const T& rhs) {
-        return *this += loop_nest() * rhs;
+      //return *this += loop_nest() * rhs;
+      return {};
     }
 
     SetOp<T, LabeledTensor<T>> operator+=(const std::tuple<LoopSpec, T>& rhs) {
-        construct_setop(rhs, false);
+        // construct_setop(rhs, false);
+      return {};
     }
 
     SetOp<T, LabeledTensor<T>> operator=(T rhs) {
-        return *this = loop_nest() * rhs;
+        // return *this = loop_nest() * rhs;
+      return {};
     }
 
     SetOp<T, LabeledTensor<T>> operator=(const std::tuple<LoopSpec, T>& rhs) {
-        construct_setop(rhs, true);
+      //construct_setop(rhs, true);
+      return {};
     }
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
     AddOp<T1, LabeledTensor<T>> operator+=(
       const std::tuple<LoopSpec, T1, LabeledTensor<T>>& rhs) {
-        construct_addop(rhs, false);
+        // construct_addop(rhs, false);
+      return {};
     }
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
     AddOp<T1, LabeledTensor<T>> operator=(
       const std::tuple<LoopSpec, T1, LabeledTensor<T>>& rhs) {
-        construct_addop(rhs, true);
+        // construct_addop(rhs, true);
+      return {};
     }
 
     AddOp<T, LabeledTensor<T>> operator=(
       const std::tuple<LoopSpec, LabeledTensor<T>> rhs) {
-        return *this = std::get<0>(rhs) * T{1} * std::get<1>(rhs);
+        // return *this = std::get<0>(rhs) * T{1} * std::get<1>(rhs);
+      return {};
     }
 
     AddOp<T, LabeledTensor<T>> operator=(const LabeledTensor<T>& rhs) {
-        return *this = loop_nest() * T{1} * rhs;
+      // return *this = loop_nest() * T{1} * rhs;
+      return {};
     }
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
     MultOp<T1, LabeledTensor<T>> operator+=(
       const std::tuple<LoopSpec, T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return construct_multop(rhs, false);
+        // return construct_multop(rhs, false);
+      return {};
     }
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
     MultOp<T1, LabeledTensor<T>> operator=(
       const std::tuple<LoopSpec, T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return construct_multop(rhs, true);
+        // return construct_multop(rhs, true);
+      return {};
     }
 
     MultOp<T, LabeledTensor<T>> operator+=(
       const std::tuple<LoopSpec, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return *this +=
-               std::get<0>(rhs) * T{1} * std::get<1>(rhs) * std::get<2>(rhs);
+        // return *this +=
+        //        std::get<0>(rhs) * T{1} * std::get<1>(rhs) * std::get<2>(rhs);
+      return {};
     }
 
     MultOp<T, LabeledTensor<T>> operator=(
       const std::tuple<LoopSpec, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return *this =
-                 std::get<0>(rhs) * T{1} * std::get<1>(rhs) * std::get<2>(rhs);
+        // return *this =
+        //          std::get<0>(rhs) * T{1} * std::get<1>(rhs) * std::get<2>(rhs);
+      return {};
     }
 
     protected:
@@ -226,6 +242,7 @@ class LabeledTensor {
 
     OuterLabeledLoop loop_nest() const {
         // return {labels(), tensor().perm_group().unique_loop_nest(labels())};
+      return {};
     }
 
     template<typename T1>

@@ -1,7 +1,7 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMM_STRONGNUM_H__
-#define TAMM_STRONGNUM_H__
+#ifndef TAMM_STRONGNUM_H_
+#define TAMM_STRONGNUM_H_
 
 #include <functional>
 #include <iosfwd>

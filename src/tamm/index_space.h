@@ -28,7 +28,8 @@ using Tile          = uint32_t;
  *          - sorting a copy of the vector
  *          - check for adjacent repeation
  *
- * @tparam ContainerType std container type with iterator (RandomAccessIterator) support 
+ * @tparam ContainerType std container type with iterator (RandomAccessIterator)
+ * support
  * @param data_vec input vector
  * @return true returned if there are duplicates
  * @return false retuned if there are no duplicates
@@ -125,9 +126,7 @@ class Range {
 
         if(rhs.hi() <= lo_ && hi_ <= rhs.lo()) { return true; }
 
-        if(step_ == rhs.step()) {
-            return (lo_ % step_ == rhs.lo() % step_);
-        }
+        if(step_ == rhs.step()) { return (lo_ % step_ == rhs.lo() % step_); }
 
         return false;
     }
@@ -214,13 +213,19 @@ class Attribute {
         return T{0};
     }
 
+    std::vector<Range> attribute_range(T att) const {
+        return ((attr_map_.find(att) == attr_map_.end()) ?
+                  std::vector<Range>{} :
+                  attr_map_.at(att));
+    }
+
     /**
      * @brief Getting the iterators for Index vectors
      *        for a given Attribute value (e.g. Spin{1})
      *
      * @param val an Attribute value as an argument
-     * @return std::vector<IndexVector>::const_iterator returns an iterator for
-     * set of Index vectors
+     * @return std::vector<IndexVector>::const_iterator returns an iterator
+     * for set of Index vectors
      */
     std::vector<Range>::const_iterator begin(const T& val) {
         return attr_map_[val].begin();
@@ -546,8 +551,12 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
     Spin spin(Index idx) const override { return spin_(idx); }
     Spatial spatial(Index idx) const override { return spatial_(idx); }
 
-    std::vector<Range> spin_ranges(Spin spin) const override {}
-    std::vector<Range> spatial_ranges(Spatial spatial) const override {}
+    std::vector<Range> spin_ranges(Spin spin) const override {
+        return spin_.attribute_range(spin);
+    }
+    std::vector<Range> spatial_ranges(Spatial spatial) const override {
+        return spatial_.attribute_range(spatial);
+    }
 
     bool has_spin() const override { return spin_.empty(); }
     bool has_spatial() const override { return spatial_.empty(); }
@@ -677,8 +686,12 @@ class SubSpaceImpl : public IndexSpaceInterface {
         return ref_space_.spatial(idx);
     }
 
-    std::vector<Range> spin_ranges(Spin spin) const override {}
-    std::vector<Range> spatial_ranges(Spatial spatial) const override {}
+    std::vector<Range> spin_ranges(Spin spin) const override {
+        return ref_space_.spin_ranges(spin);
+    }
+    std::vector<Range> spatial_ranges(Spatial spatial) const override {
+        return ref_space_.spatial_ranges(spatial);
+    }
 
     bool has_spin() const override { return ref_space_.has_spin(); }
     bool has_spatial() const override { return ref_space_.has_spatial(); }
@@ -796,11 +809,23 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
     // @todo what should these return? Currently, it returns the
     // first reference space's spin and spatial attributes.
     // Attribute Accessors
-    Spin spin(Index idx) const override {}
-    Spatial spatial(Index idx) const override {}
+    Spin spin(Index idx) const override {
+        NOT_ALLOWED();
+        return Spin{0};
+    }
+    Spatial spatial(Index idx) const override {
+        NOT_ALLOWED();
+        return Spatial{0};
+    }
 
-    std::vector<Range> spin_ranges(Spin spin) const override {}
-    std::vector<Range> spatial_ranges(Spatial spatial) const override {}
+    std::vector<Range> spin_ranges(Spin spin) const override {
+        NOT_ALLOWED();
+        return {};
+    }
+    std::vector<Range> spatial_ranges(Spatial spatial) const override {
+        NOT_ALLOWED();
+        return {};
+    }
 
     bool has_spin() const override {
         for(const auto& space : ref_spaces_) {
@@ -959,7 +984,10 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
     }
 
     // @todo what should ve returned?
-    Index operator[](Index i) const override { NOT_ALLOWED(); }
+    Index operator[](Index i) const override {
+        NOT_ALLOWED();
+        return Index{0};
+    }
 
     // Subspace Accessors
     IndexSpace operator()(const IndexVector& indep_index = {}) const override {
@@ -973,23 +1001,48 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
 
     // Iterators
     // @todo Error on call
-    IndexIterator begin() const override { NOT_ALLOWED(); }
-    IndexIterator end() const override { NOT_ALLOWED(); }
-
-    // @todo What should this return?
-    Index size() const override { NOT_ALLOWED(); }
-
-    // Attribute Accessors
-    Spin spin(Index idx) const override { NOT_ALLOWED(); }
-    Spatial spatial(Index idx) const override { NOT_ALLOWED(); }
-
-    std::vector<Range> spin_ranges(Spin spin) const override { NOT_ALLOWED(); }
-    std::vector<Range> spatial_ranges(Spatial spatial) const override {
+    IndexIterator begin() const override {
         NOT_ALLOWED();
+        return IndexIterator();
+    }
+    IndexIterator end() const override {
+        NOT_ALLOWED();
+        return IndexIterator();
     }
 
-    bool has_spin() const override { NOT_ALLOWED(); }
-    bool has_spatial() const override { NOT_ALLOWED(); }
+    // @todo What should this return?
+    Index size() const override {
+        NOT_ALLOWED();
+        return Index{0};
+    }
+
+    // Attribute Accessors
+    Spin spin(Index idx) const override {
+        NOT_ALLOWED();
+        return Spin{0};
+    }
+    Spatial spatial(Index idx) const override {
+        NOT_ALLOWED();
+        return Spatial{0};
+    }
+
+    std::vector<Range> spin_ranges(Spin spin) const override {
+        NOT_ALLOWED();
+        return {};
+    }
+    std::vector<Range> spatial_ranges(Spatial spatial) const override {
+        NOT_ALLOWED();
+        return {};
+    }
+
+    bool has_spin() const override {
+        NOT_ALLOWED();
+        return false;
+    }
+    bool has_spatial() const override {
+        NOT_ALLOWED();
+        return false;
+    }
 
     protected:
     std::vector<IndexSpace> dep_spaces_;
@@ -1141,7 +1194,7 @@ class TiledIndexSpace {
 
     template<std::size_t... Is>
     auto labels_impl(std::string id, Label start,
-                           std::index_sequence<Is...>) const;
+                     std::index_sequence<Is...>) const;
 
 }; // TiledIndexSpace
 
@@ -1255,7 +1308,7 @@ inline TiledIndexLabel TiledIndexSpace::label(std::string id, Label lbl) const {
 
 template<std::size_t... Is>
 auto TiledIndexSpace::labels_impl(std::string id, Label start,
-                                        std::index_sequence<Is...>) const {
+                                  std::index_sequence<Is...>) const {
     return std::make_tuple(label(id, start + Is)...);
 }
 

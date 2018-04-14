@@ -9,7 +9,7 @@ TAMM_INSTALL_PATH=/opt/NWChemEx/install
 git clone git@github.com:NWChemEx-Project/CMakeBuild.git
 cd CMakeBuild
 mkdir build && cd build
-cmake .. -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/CMakeBuild
+cmake .. -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/CMakeBuild
 make -j3
 make install
 ```
@@ -20,7 +20,7 @@ cd TAMM
 git checkout tamm
 mkdir build && cd build
 #Add -DENABLE_GPU=ON below if you want to build TAMM with GPU support
-cmake .. -DBUILD_TESTS=OFF -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMM -DBUILD_SHARED_LIBS=OFF 
+cmake .. -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran -DBUILD_TESTS=OFF -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMM -DBUILD_SHARED_LIBS=OFF 
 make -j3
 make install
 ```

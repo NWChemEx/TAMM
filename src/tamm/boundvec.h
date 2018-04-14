@@ -7,7 +7,7 @@
 #include <iosfwd>
 #include <string>
 
-#include "errors.h"
+#include "tamm/errors.h"
 
 namespace tamm {
 

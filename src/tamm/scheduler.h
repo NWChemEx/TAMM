@@ -7,9 +7,9 @@
 // #include "memory_manager.h"
 // #include "ops.h"
 //#include "proc_group.h"
-#include "tensor_impl.h"
-#include "ops.h"
-#include "execution_context.h"
+#include "tamm/tensor_impl.h"
+#include "tamm/ops.h"
+#include "tamm/execution_context.h"
 
 namespace tamm {
 

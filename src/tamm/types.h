@@ -3,9 +3,9 @@
 #ifndef TAMM_TYPES_H_
 #define TAMM_TYPES_H_
 
-#include "boundvec.h"
-#include "errors.h"
-#include "strong_num.h"
+#include "tamm/boundvec.h"
+#include "tamm/errors.h"
+#include "tamm/strong_num.h"
 #include <complex>
 #include <iosfwd>
 

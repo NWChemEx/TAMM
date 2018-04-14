@@ -1,9 +1,9 @@
 #ifndef TENSOR_IMPL_H_
 #define TENSOR_IMPL_H_
 
-#include "index_space.h"
-#include "labeled_tensor.h"
-#include "execution_context.h"
+#include "tamm/index_space.h"
+#include "tamm/labeled_tensor.h"
+#include "tamm/execution_context.h"
 
 namespace tamm {
 

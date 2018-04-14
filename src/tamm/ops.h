@@ -3,10 +3,9 @@
 
 #include <memory>
 
-#include "boundvec.h"
-#include "errors.h"
-#include "proc_group.h"
-#include "types.h"
+#include "tamm/boundvec.h"
+#include "tamm/errors.h"
+#include "tamm/types.h"
 
 namespace tamm {
 

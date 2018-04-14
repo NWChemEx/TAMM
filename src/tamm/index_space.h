@@ -1,7 +1,7 @@
 #ifndef INDEX_SPACE_H_
 #define INDEX_SPACE_H_
 
-#include "types.h"
+#include "tamm/types.h"
 #include <algorithm>
 #include <iterator>
 #include <map>

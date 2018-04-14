@@ -1,8 +1,8 @@
 #ifndef LABELED_TENSOR_H_
 #define LABELED_TENSOR_H_
 
-#include "loops.h"
-#include "ops.h"
+#include "tamm/loops.h"
+#include "tamm/ops.h"
 
 namespace tamm {
 

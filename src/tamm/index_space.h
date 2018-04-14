@@ -10,7 +10,7 @@
 
 namespace tamm {
 /**
- * \brief Type definitios for Index, IndexVector and IndexIterators
+ * @brief Type definitios for Index, IndexVector and IndexIterators
  */
 using Index         = uint32_t;
 using IndexVector   = std::vector<Index>;
@@ -23,19 +23,19 @@ using Tile          = uint32_t;
  */
 
 /**
- * \brief Helper method checking if a vector of data
+ * @brief Helper method checking if a vector of data
  *        has any duplicates by:
  *          - sorting a copy of the vector
  *          - check for adjacent repeation
  *
- * \tparam ValueType type of the data hold in the vector
- * \param data_vec input vector
- * \return true returned if there are duplicates
- * \return false retuned if there are no duplicates
+ * @tparam ContainerType std container type with iterator (RandomAccessIterator) support 
+ * @param data_vec input vector
+ * @return true returned if there are duplicates
+ * @return false retuned if there are no duplicates
  */
-template<typename ValueType>
-static bool has_duplicate(const std::vector<ValueType>& data_vec) {
-    std::vector<ValueType> temp_vec = data_vec;
+template<typename ContainerType>
+static bool has_duplicate(const ContainerType& data_vec) {
+    ContainerType temp_vec = data_vec;
     std::sort(temp_vec.begin(), temp_vec.end());
 
     return (std::adjacent_find(temp_vec.begin(), temp_vec.end()) ==
@@ -43,16 +43,13 @@ static bool has_duplicate(const std::vector<ValueType>& data_vec) {
 }
 
 /**
- * \brief Helper methods for string manupulation, the main use
+ * @brief Helper methods for string manupulation, the main use
  *        is to split a string into vector of strings with
  *        respect to a deliminator
  *
- * \tparam Out updated result iterator
- * \param s string to be split
- * \param delim used char deliminator
- * \param result vector iterator to be updated with the split
- *
-
+ * @param str string to be split
+ * @param delim used char deliminator
+ * @param result vector iterator to be updated with the split
  */
 static std::vector<std::string> split(const std::string& str, char delim) {
     std::vector<std::string> elems;
@@ -66,7 +63,7 @@ static std::vector<std::string> split(const std::string& str, char delim) {
 }
 
 /**
- * \brief Helper methods for Range based constructors.
+ * @brief Helper methods for Range based constructors.
  *        For now we are using a simple range representation
  *        We will use range constructs from Utilities repo.
  *
@@ -98,12 +95,12 @@ class Range {
     Index step() const { return step_; }
 
     /**
-     * \brief Method for checking if a given Index value
+     * @brief Method for checking if a given Index value
      *        is within a range or not
      *
-     * \param idx Index value being checked for
-     * \return true
-     * \return false
+     * @param idx Index value being checked for
+     * @return true
+     * @return false
      */
     bool contains(Index idx) const {
         if(idx == lo_) { return true; }
@@ -116,11 +113,11 @@ class Range {
     }
 
     /**
-     * \brief Method for checking disjointness of two ranges
+     * @brief Method for checking disjointness of two ranges
      *
-     * \param rhs Input Range value for checking disjointness
-     * \return true
-     * \return false
+     * @param rhs Input Range value for checking disjointness
+     * @return true
+     * @return false
      */
     // @todo implement
     bool is_disjoint_with(const Range& rhs) const {
@@ -129,11 +126,7 @@ class Range {
         if(rhs.hi() <= lo_ && hi_ <= rhs.lo()) { return true; }
 
         if(step_ == rhs.step()) {
-            if(lo_ % step_ == rhs.lo() % step_) {
-                return true;
-            } else {
-                return false;
-            }
+            return (lo_ % step_ == rhs.lo() % step_);
         }
 
         return false;
@@ -146,7 +139,7 @@ class Range {
 }; // Range
 
 /**
- * \brief Range constructor with low, high and step size
+ * @brief Range constructor with low, high and step size
  *
  */
 static inline Range range(Index lo, Index hi, Index step = 1) {
@@ -154,16 +147,16 @@ static inline Range range(Index lo, Index hi, Index step = 1) {
 }
 
 /**
- * \brief Range constructor by giving only a count
+ * @brief Range constructor by giving only a count
  *
  */
 static inline Range range(Index count) { return range(Index{0}, count); }
 
 /**
- * \brief Helper method for constructing IndexVector for a given Range
+ * @brief Helper method for constructing IndexVector for a given Range
  *
- * \param range a Range type argument
- * \return IndexVector the Index vector for the corresponding range
+ * @param range a Range type argument
+ * @return IndexVector the Index vector for the corresponding range
  */
 static inline IndexVector construct_index_vector(const Range& range) {
     IndexVector ret;
@@ -175,7 +168,7 @@ static inline IndexVector construct_index_vector(const Range& range) {
 }
 
 /**
- * \brief Type definition for the map between range names
+ * @brief Type definition for the map between range names
  *        and corresponding set of ranges (e.g. "occ", "virt")
  *
  */
@@ -185,10 +178,10 @@ template<typename AttributeType>
 using AttributeToRangeMap = std::map<AttributeType, std::vector<Range>>;
 
 /**
- * \brief Attribute definition which will be used for representing
+ * @brief Attribute definition which will be used for representing
  *        Spin, Spatial and any other attributes required.
  *
- * \tparam T is an Attribute type (e.g. Spin, Spatial)
+ * @tparam T is an Attribute type (e.g. Spin, Spatial)
  */
 template<typename T>
 class Attribute {
@@ -203,11 +196,11 @@ class Attribute {
     Attribute(const AttributeToRangeMap<T>& attr_map) : attr_map_{attr_map} {}
 
     /**
-     * \brief Given an Index, ind, user can query
+     * @brief Given an Index, ind, user can query
      *        associated Attribute value
      *
-     * \param ind Index argument
-     * \return T  associated Attribute value
+     * @param ind Index argument
+     * @return T  associated Attribute value
      */
     T operator()(Index idx) const {
         for(const auto& kv : attr_map_) {
@@ -222,11 +215,11 @@ class Attribute {
     }
 
     /**
-     * \brief Getting the iterators for Index vectors
+     * @brief Getting the iterators for Index vectors
      *        for a given Attribute value (e.g. Spin{1})
      *
-     * \param val an Attribute value as an argument
-     * \return std::vector<IndexVector>::const_iterator returns an iterator for
+     * @param val an Attribute value as an argument
+     * @return std::vector<IndexVector>::const_iterator returns an iterator for
      * set of Index vectors
      */
     std::vector<Range>::const_iterator begin(const T& val) {
@@ -237,14 +230,14 @@ class Attribute {
     }
 
     // Attribute is empty if it has the default attribute (spin/spatial) value
-    bool is_empty() const { return attr_map_.find(T{0}) != attr_map_.end(); }
+    bool empty() const { return attr_map_.find(T{0}) != attr_map_.end(); }
 
     protected:
     AttributeToRangeMap<T> attr_map_;
 }; // Attribute
 
 /**
- * \brief Type definitions for Spin and Spatial attributes
+ * @brief Type definitions for Spin and Spatial attributes
  *
  */
 using SpinAttribute    = Attribute<Spin>;
@@ -254,7 +247,7 @@ using SpatialAttribute = Attribute<Spatial>;
 class IndexSpace;
 
 /**
- * \brief Base abstract implementation class as an interface
+ * @brief Base abstract implementation class as an interface
  *        for the different IndexSpace implementations
  */
 class IndexSpaceInterface {
@@ -296,16 +289,16 @@ class IndexSpaceInterface {
     std::weak_ptr<IndexSpaceInterface> this_weak_ptr_;
 
     /**
-     * \brief Check if the input attributes is valid:
+     * @brief Check if the input attributes is valid:
      *        - no-overlap between attribute ranges
      *        - covers all indicies
      *
-     * \tparam AttributeType an attribute type (e.g. Spin, Spatial)
-     * \param indices set of indices to check against
-     * \param att attribute map to check for validity
-     * \return true if there is no overlap on the ranges and fully covers
+     * @tparam AttributeType an attribute type (e.g. Spin, Spatial)
+     * @param indices set of indices to check against
+     * @param att attribute map to check for validity
+     * @return true if there is no overlap on the ranges and fully covers
      *              indices
-     * \return false otherwise
+     * @return false otherwise
      */
     template<typename AttributeType>
     bool is_valid_attribute(const IndexVector& indices,
@@ -321,8 +314,7 @@ class IndexSpaceInterface {
         }
         // Check no overlap on the ranges
         std::sort(att_indices.begin(), att_indices.end());
-        EXPECTS(std::adjacent_find(att_indices.begin(), att_indices.end()) ==
-                att_indices.end());
+        EXPECTS(has_duplicate<IndexVector>(att_indices));
 
         // Check for full coverage of the indices
         EXPECTS(indices.size() == att_indices.size());
@@ -345,7 +337,7 @@ class IndexSpaceInterface {
 }; // IndexSpaceInterface
 
 /**
- * \brief Forward class declarations for different types
+ * @brief Forward class declarations for different types
  *        of IndexSpace implementations
  */
 class RangeIndexSpaceImpl;
@@ -354,7 +346,7 @@ class AggregateSpaceImpl;
 class DependentIndexSpaceImpl;
 
 /**
- * \brief Main IndexSpace class that users will be using
+ * @brief Main IndexSpace class that users will be using
  *        Implemented using PIMPL idiom.
  */
 class IndexSpace {
@@ -389,15 +381,17 @@ class IndexSpace {
                const AttributeToRangeMap<Spatial>& spatial = {}) :
       impl_{std::dynamic_pointer_cast<IndexSpaceInterface>(
         std::make_shared<RangeIndexSpaceImpl>(indices, named_subspaces, spin,
-                                              spatial))} {
+                                              spatial)
+
+          )} {
         impl_->set_weak_ptr(impl_);
     }
 
     // Sub-space. no inherited named subspaces
-    // all attributes in \param{is} are inherited.
+    // all attributes in @param{is} are inherited.
     // to iterate over the ranges into which an attribute partitions this index
     // space, the parent space's attributes are accessed by using the
-    // \param{range}.
+    // @param{range}.
     // @todo we also need string based named subspaces. e.g. "alpha" =
     // "occ_alpha, virt_alpha".
     IndexSpace(const IndexSpace& is, const Range& range,
@@ -407,8 +401,8 @@ class IndexSpace {
         impl_->set_weak_ptr(impl_);
     }
 
-    // Aggregate. named subspaces from all space in \param{spaces} with a
-    // non-empty name are "inherited" any attributes in all sp in \param{spaces}
+    // Aggregate. named subspaces from all space in @param{spaces} with a
+    // non-empty name are "inherited" any attributes in all sp in @param{spaces}
     // is inherited. If any of the aggregated spaces does not have an attribute,
     // that attribute is not inherited.
     // @todo we could have functions to get "named" subspaces by position.
@@ -440,7 +434,7 @@ class IndexSpace {
     // named subspaces in dep_space_relation are "inherited" by default. Note
     // that the index spaces in dep_space_relation are all subspaces of
     // ref_space.
-    // all attributes in \param{ref_space} are "inherited". see also the
+    // all attributes in @param{ref_space} are "inherited". see also the
     // sub-space constructor comments.
     IndexSpace(const std::vector<IndexSpace>& indep_spaces,
                const IndexSpace& ref_space,
@@ -495,7 +489,7 @@ class IndexSpace {
 }; // IndexSpace
 
 /**
- * \brief IndexSpace implementation for range based
+ * @brief IndexSpace implementation for range based
  *        IndexSpace construction.
  *
  */
@@ -516,7 +510,7 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
       named_subspaces_{construct_subspaces(named_ranges)},
       spin_{construct_spin(spin)},
       spatial_{construct_spatial(spatial)} {
-        EXPECTS(has_duplicate<Index>(indices_));
+        EXPECTS(has_duplicate<IndexVector>(indices_));
     }
 
     // @todo do we need these copy/move constructor/operators?
@@ -555,8 +549,8 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
     std::vector<Range> spin_ranges(Spin spin) const override {}
     std::vector<Range> spatial_ranges(Spatial spatial) const override {}
 
-    bool has_spin() const override { return spin_.is_empty(); }
-    bool has_spatial() const override { return spatial_.is_empty(); }
+    bool has_spin() const override { return spin_.empty(); }
+    bool has_spatial() const override { return spatial_.empty(); }
 
     protected:
     IndexVector indices_;
@@ -566,12 +560,12 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
     SpatialAttribute spatial_;
 
     /**
-     * \brief Helper method for generating the map between
+     * @brief Helper method for generating the map between
      *        string values to IndexSpaces. Mainly used for
      *        constructing the subspaces.
      *
-     * \param in_map NameToRangeMap argument holding string to Range map
-     * \return std::map<std::string, IndexSpace> returns the map from
+     * @param in_map NameToRangeMap argument holding string to Range map
+     * @return std::map<std::string, IndexSpace> returns the map from
      *                                           strings to subspaces
      */
     std::map<std::string, IndexSpace> construct_subspaces(
@@ -592,13 +586,13 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
     }
 
     /**
-     * \brief Helper method for constructing the attributes for
+     * @brief Helper method for constructing the attributes for
      *        new subspace by "chopping" the attributes from the
      *        reference IndexSpace
      *
-     * \param is reference IndexSpace argument
-     * \param range Range argument
-     * \return Attribute an "chopped" version of the reference Attribute
+     * @param is reference IndexSpace argument
+     * @param range Range argument
+     * @return Attribute an "chopped" version of the reference Attribute
      */
     SpinAttribute construct_spin(const AttributeToRangeMap<Spin>& spin) {
         // return default spin value (Spin{0}) for the whole range
@@ -628,7 +622,7 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
 }; // RangeIndexSpaceImpl
 
 /**
- * \brief IndexSpace implementation for subspace based
+ * @brief IndexSpace implementation for subspace based
  *        IndexSpace construction.
  *
  */
@@ -697,12 +691,12 @@ class SubSpaceImpl : public IndexSpaceInterface {
     std::map<std::string, IndexSpace> named_subspaces_;
 
     /**
-     * \brief Helper method for constructing the new set of
+     * @brief Helper method for constructing the new set of
      *        indicies from the reference IndexSpace
      *
-     * \param ref_space reference IndexSpace argument
-     * \param range     Range argument for generating the subspace
-     * \return IndexVector returns a vector of Indicies
+     * @param ref_space reference IndexSpace argument
+     * @param range     Range argument for generating the subspace
+     * @return IndexVector returns a vector of Indicies
      */
     IndexVector construct_indices(const IndexSpace& ref_space,
                                   const Range& range) {
@@ -715,12 +709,12 @@ class SubSpaceImpl : public IndexSpaceInterface {
     }
 
     /**
-     * \brief Helper method for generating the map between
+     * @brief Helper method for generating the map between
      *        string values to IndexSpaces. Mainly used for
      *        constructing the subspaces.
      *
-     * \param in_map NameToRangeMap argument holding string to Range map
-     * \return std::map<std::string, IndexSpace> returns the map from
+     * @param in_map NameToRangeMap argument holding string to Range map
+     * @return std::map<std::string, IndexSpace> returns the map from
      *                                           strings to subspaces
      */
     std::map<std::string, IndexSpace> construct_subspaces(
@@ -742,7 +736,7 @@ class SubSpaceImpl : public IndexSpaceInterface {
 }; // SubSpaceImpl
 
 /**
- * \brief IndexSpace implementation for aggregation
+ * @brief IndexSpace implementation for aggregation
  *        based IndexSpace construction.
  *
  */
@@ -763,7 +757,7 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
       indices_{construct_indices(spaces)},
       named_ranges_{named_ranges},
       named_subspaces_{construct_subspaces(named_ranges)} {
-        EXPECTS(has_duplicate<Index>(indices_));
+        EXPECTS(has_duplicate<IndexVector>(indices_));
         if(names.size() > 0) { add_ref_names(spaces, names); }
         if(subspace_references.size() > 0) {
             add_subspace_references(subspace_references);
@@ -828,11 +822,11 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
     std::map<std::string, IndexSpace> named_subspaces_;
 
     /**
-     * \brief Add subspaces reference names foreach aggregated
+     * @brief Add subspaces reference names foreach aggregated
      *        IndexSpace
      *
-     * \param ref_spaces a vector of reference IndexSpaces
-     * \param ref_names  a vector of associated names for each
+     * @param ref_spaces a vector of reference IndexSpaces
+     * @param ref_names  a vector of associated names for each
      *                   reference IndexSpace
      */
     void add_ref_names(const std::vector<IndexSpace>& ref_spaces,
@@ -846,10 +840,10 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
     }
 
     /**
-     * \brief Add extra references for subspace names
+     * @brief Add extra references for subspace names
      *        associated with the reference subspaces.
      *
-     * \param subspace_references a map from subspace names
+     * @param subspace_references a map from subspace names
      *                            to reference subspace names
      */
     void add_subspace_references(
@@ -875,11 +869,11 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
     }
 
     /**
-     * \brief Construct set of indicies from the aggregated
+     * @brief Construct set of indicies from the aggregated
      *        IndexSpaces
      *
-     * \param spaces vector of IndexSpaces
-     * \return IndexVector returns a vector Index objects
+     * @param spaces vector of IndexSpaces
+     * @return IndexVector returns a vector Index objects
      */
     IndexVector construct_indices(const std::vector<IndexSpace>& spaces) {
         IndexVector ret = {};
@@ -891,12 +885,12 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
     }
 
     /**
-     * \brief Helper method for generating the map between
+     * @brief Helper method for generating the map between
      *        string values to IndexSpaces. Mainly used for
      *        constructing the subspaces.
      *
-     * \param in_map NameToRangeMap argument holding string to Range map
-     * \return std::map<std::string, IndexSpace> returns the map from
+     * @param in_map NameToRangeMap argument holding string to Range map
+     * @return std::map<std::string, IndexSpace> returns the map from
      *                                           strings to subspaces
      */
     std::map<std::string, IndexSpace> construct_subspaces(
@@ -921,7 +915,7 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
 }; // AggregateSpaceImpl
 
 /**
- * \brief IndexSpace implementation for constructing
+ * @brief IndexSpace implementation for constructing
  *        dependent IndexSpaces
  *
  */
@@ -953,12 +947,12 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
 
     // Index Accessors
     /**
-     * \brief Given an Index and a IndexVector return
+     * @brief Given an Index and a IndexVector return
      *        corresponding Index from the dependent IndexSpace
      *
-     * \param i an Index argument
-     * \param indep_index a vector of Index
-     * \return Index an Index value from the dependent IndexSpace
+     * @param i an Index argument
+     * @param indep_index a vector of Index
+     * @return Index an Index value from the dependent IndexSpace
      */
     Index point(Index i, const IndexVector& indep_index = {}) const override {
         return dep_space_relation_.at(indep_index)[i];
@@ -1095,12 +1089,12 @@ class TiledIndexSpace {
     // Dtor
     ~TiledIndexSpace() = default;
 
-    // Get labels for subspace
-    TiledIndexLabel labels(std::string id, Label lbl) const;
+    // Get label for subspace
+    TiledIndexLabel label(std::string id, Label lbl) const;
 
     template<std::size_t c_lbl>
-    auto range_labels(std::string id, Label start = 0) const {
-        return range_labels_impl(id, start, std::make_index_sequence<c_lbl>{});
+    auto labels(std::string id, Label start = 0) const {
+        return labels_impl(id, start, std::make_index_sequence<c_lbl>{});
     }
 
     TiledIndexSpace operator()(std::string id) const {
@@ -1118,7 +1112,7 @@ class TiledIndexSpace {
     IndexIterator end(Index blck_ind) { return begin(blck_ind) + size_; }
 
     bool is_identical(const TiledIndexSpace& rhs) const {
-        return (size_ == rhs.size_) && (is_ == rhs.is_);
+        return std::tie(size_, is_) == std::tie(rhs.size_, rhs.is_);
     }
 
     bool is_less_than(const TiledIndexSpace& rhs) const {
@@ -1139,14 +1133,14 @@ class TiledIndexSpace {
     bool has_spin() const { return is_.has_spin(); }
     bool has_spatial() const { return is_.has_spatial(); }
 
-    const IndexSpace& index_space() const {return is_;}
+    const IndexSpace& index_space() const { return is_; }
 
     protected:
     IndexSpace is_;
     Tile size_;
 
     template<std::size_t... Is>
-    auto range_labels_impl(std::string id, Label start,
+    auto labels_impl(std::string id, Label start,
                            std::index_sequence<Is...>) const;
 
 }; // TiledIndexSpace
@@ -1165,7 +1159,7 @@ inline bool operator!=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
 }
 
 inline bool operator>(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
-    return !(lhs < rhs) && (lhs != rhs);
+    return (rhs < lhs);
 }
 
 inline bool operator<=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
@@ -1173,7 +1167,7 @@ inline bool operator<=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
 }
 
 inline bool operator>=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
-    return (lhs > rhs) || (lhs == rhs);
+    return (rhs <= lhs);
 }
 
 class TiledIndexLabel {
@@ -1210,8 +1204,8 @@ class TiledIndexLabel {
     }
 
     bool is_identical(const TiledIndexLabel& rhs) const {
-        return (label_ == rhs.label_) && (dep_labels_ == rhs.dep_labels_) &&
-               (tis_ == rhs.tis_);
+        return (std::tie(label_, dep_labels_, tis_) ==
+                std::tie(rhs.label_, rhs.dep_labels_, rhs.tis_));
     }
 
     bool is_less_than(const TiledIndexLabel& rhs) const {
@@ -1242,7 +1236,7 @@ inline bool operator!=(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
 }
 
 inline bool operator>(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
-    return !(lhs < rhs) && (lhs != rhs);
+    return (rhs < lhs);
 }
 
 inline bool operator<=(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
@@ -1250,22 +1244,21 @@ inline bool operator<=(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
 }
 
 inline bool operator>=(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
-    return (lhs > rhs) || (lhs == rhs);
+    return (rhs <= lhs);
 }
 
 ///////////////////////////////////////////////////////////
 
-inline TiledIndexLabel TiledIndexSpace::labels(std::string id,
-                                               Label lbl) const {
+inline TiledIndexLabel TiledIndexSpace::label(std::string id, Label lbl) const {
     return TiledIndexLabel{(*this)(id), lbl};
 }
 
 template<std::size_t... Is>
-auto TiledIndexSpace::range_labels_impl(std::string id, Label start,
+auto TiledIndexSpace::labels_impl(std::string id, Label start,
                                         std::index_sequence<Is...>) const {
-    return std::make_tuple(labels(id, start + Is)...);
+    return std::make_tuple(label(id, start + Is)...);
 }
 
 } // namespace tamm
 
-#endif // INDEX_SPACE_H_
+#endif // INDEX_SPACE_H_ƒ

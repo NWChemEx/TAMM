@@ -23,14 +23,13 @@ void ccsd_e(ExecutionContext &ec,
     std::tie(p1, p2, p3, p4, p5) = MO.range_labels<5>("virt");
     std::tie(h3, h4, h5, h6)     = MO.range_labels<4>("occ");
 
-    Scheduler sch{ec.scheduler()};
-    sch
-    (i1(h6, p5) = f1(h6, p5))
-    (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
-    (de() = 0)
-    (de() += t1(p5, h6) * i1(h6, p5))
-    (de() += 0.25 * t2(p1, p2, h3, h4) * v2(h3, h4, p1, p2))
-    .execute();
+    Scheduler{ec}
+        (i1(h6, p5) = f1(h6, p5))
+        (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
+        (de() = 0)
+        (de() += t1(p5, h6) * i1(h6, p5))
+        (de() += 0.25 * t2(p1, p2, h3, h4) * v2(h3, h4, p1, p2))
+        .execute();
 }
 
 
@@ -51,9 +50,9 @@ void ccsd_t1(ExecutionContext &ec, const TiledIndexSpace& MO, Tensor<T>& i0, con
     std::tie(p2, p3, p4, p5, p6, p7) = MO.range_labels<6>("virt");
     std::tie(h1, h4, h5, h6, h7, h8) = MO.range_labels<6>("occ");
 
-    Scheduler sch{ec.scheduler()};
+    Scheduler sch{ec};
     sch
-      .allocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)      
+      .allocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
     (i0(p2, h1)       = f1(p2, h1))
     (t1_2_1(h7, h1)   = f1(h7, h1))
     (t1_2_2_1(h7, p3) = f1(h7, p3))
@@ -103,7 +102,7 @@ void ccsd_t2(ExecutionContext &ec,const TiledIndexSpace& MO, Tensor<T>& i0,
     std::tie(p1, p2, p3, p4, p5, p6, p7, p8, p9) = MO.range_labels<9>("virt");
     std::tie(h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11) = MO.range_labels<11>("occ");
 
-    Scheduler sch{ec.scheduler()};
+    Scheduler sch{ec};
     sch.allocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
              t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1)
     (i0(p3, p4, h1, h2) = v2(p3, p4, h1, h2))
@@ -176,12 +175,12 @@ std::pair<double,double> rest(ExecutionContext& ec,
                               const Tensor<T>& d_r1,
                               const Tensor<T>& d_r2,
                               const Tensor<T>& d_t1,
-                              const Tensor<T>& d_t2,                              
+                              const Tensor<T>& d_t2,
                               const Tensor<T>& de,
                               const Tensor<T>& EVL, T zshiftl) {
-    
+
     T residual, energy;
-    Scheduler sch{ec.scheduler()};
+    Scheduler sch{ec};
     Tensor<T> d_r1_residual{}, d_r2_residual{};
     sch
       .allocate(d_r1_residual, d_r2_residual)
@@ -227,22 +226,25 @@ void ccsd_driver(const TiledIndexSpace& MO,
     //@todo initial t1 guess
     //@todo initial t2 guess
 
-    TiledIndexSpace UnitTiledMO{MO.index_space(), 1};
-    Tensor<T> EVL{N};
-    //@todo Set EVL to have local distribution (one copy in each MPI rank)
-    Tensor<T>::allocate(EVL);
+    ExecutionContext ec;
 
+    TiledIndexSpace UnitTiledMO{MO.index_space(), 1};
+    Tensor<T> d_evl{N};
+    //@todo Set EVL to have local distribution (one copy in each MPI rank)
+    Tensor<T>::allocate(ec, d_evl);
     TiledIndexLabel n1;
 
     std::tie(n1) = UnitTiledMO.range_labels<1>("all");
-    EVL(n1) = d_t1(n1, n1);
+
+    Scheduler{ec}
+    (d_evl(n1) = 0.0)
+        .execute();
 
     // ProcGroup pg{GA_MPI_Comm()};
     // Distribution_NW distribution;
     // auto mgr = MemoryManagerGA::create_coll(ProcGroup{GA_MPI_Comm()});
 
-    ExecutionContext ec;
-    Tensor<T>::allocate(ec, d_t1, d_t2, d_f1, d_v2);
+    Tensor<T>::allocate(ec, d_t1, d_t2);
 
     T energy=0.0;
     T residual=1000/*some large number*/;
@@ -252,9 +254,10 @@ void ccsd_driver(const TiledIndexSpace& MO,
         ccsd_e(ec, MO, de, d_t1, d_t2, d_f1, d_v2);
         ccsd_t1(ec,MO, i1, d_t1, d_t2, d_f1, d_v2);
         ccsd_t2(ec,MO, i2, d_t1, d_t2, d_f1, d_v2);
-        std::tie(residual, energy) = rest(ec, MO, i1, i2, d_t1, d_t2, de, EVL,zshiftl);
+        std::tie(residual, energy) = rest(ec, MO, i1, i2, d_t1, d_t2, de, d_evl, zshiftl);
+        break; //@todo remove once iterative procedure is implemented
     }
-    Tensor<T>::deallocate(EVL);
+    Tensor<T>::deallocate(d_evl, d_t1, d_t2);
 }
 
 int main() {
@@ -276,4 +279,3 @@ int main() {
 
     ccsd_driver<T>(MO, f1, v2, 1e-10);
 }
-

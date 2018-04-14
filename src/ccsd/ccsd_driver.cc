@@ -19,8 +19,8 @@ void ccsd_e(ExecutionContext &ec,
     TiledIndexLabel p1, p2, p3, p4, p5;
     TiledIndexLabel h3, h4, h5, h6;
 
-    std::tie(p1, p2, p3, p4, p5) = MO.range_labels<5>("virt");
-    std::tie(h3, h4, h5, h6)     = MO.range_labels<4>("occ");
+    std::tie(p1, p2, p3, p4, p5) = MO.labels<5>("virt");
+    std::tie(h3, h4, h5, h6)     = MO.labels<4>("occ");
 
     Scheduler{ec}
         (i1(h6, p5) = f1(h6, p5))
@@ -46,8 +46,8 @@ void ccsd_t1(ExecutionContext &ec, const TiledIndexSpace& MO, Tensor<T>& i0, con
     TiledIndexLabel p2, p3, p4, p5, p6, p7;
     TiledIndexLabel h1, h4, h5, h6, h7, h8;
 
-    std::tie(p2, p3, p4, p5, p6, p7) = MO.range_labels<6>("virt");
-    std::tie(h1, h4, h5, h6, h7, h8) = MO.range_labels<6>("occ");
+    std::tie(p2, p3, p4, p5, p6, p7) = MO.labels<6>("virt");
+    std::tie(h1, h4, h5, h6, h7, h8) = MO.labels<6>("occ");
 
     Scheduler sch{ec};
     sch
@@ -98,8 +98,8 @@ void ccsd_t2(ExecutionContext &ec,const TiledIndexSpace& MO, Tensor<T>& i0,
     TiledIndexLabel p1, p2, p3, p4, p5, p6, p7, p8, p9;
     TiledIndexLabel h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11;
 
-    std::tie(p1, p2, p3, p4, p5, p6, p7, p8, p9) = MO.range_labels<9>("virt");
-    std::tie(h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11) = MO.range_labels<11>("occ");
+    std::tie(p1, p2, p3, p4, p5, p6, p7, p8, p9) = MO.labels<9>("virt");
+    std::tie(h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11) = MO.labels<11>("occ");
 
     Scheduler sch{ec};
     sch.allocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
@@ -233,7 +233,7 @@ void ccsd_driver(const TiledIndexSpace& MO,
     Tensor<T>::allocate(ec, d_evl);
     TiledIndexLabel n1;
 
-    std::tie(n1) = UnitTiledMO.range_labels<1>("all");
+    std::tie(n1) = UnitTiledMO.labels<1>("all");
 
     Scheduler{ec}
     (d_evl(n1) = 0.0)

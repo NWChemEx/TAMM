@@ -1,8 +1,8 @@
-#ifndef TAMMY_EXECUTION_CONTEXT_H_
-#define TAMMY_EXECUTION_CONTEXT_H_
+#ifndef TAMM_EXECUTION_CONTEXT_H_
+#define TAMM_EXECUTION_CONTEXT_H_
 
 
-namespace tammy {
+namespace tamm {
 
 class Scheduler;
 /**
@@ -46,6 +46,6 @@ class ExecutionContext {
 
 }; // class ExecutionContext
 
-} // namespace tammy
+} // namespace tamm
 
-#endif // TAMMY_EXECUTION_CONTEXT_H_
+#endif // TAMM_EXECUTION_CONTEXT_H_

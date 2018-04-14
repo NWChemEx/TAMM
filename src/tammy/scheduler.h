@@ -1,5 +1,5 @@
-#ifndef TAMMY_SCHEDULER_H_
-#define TAMMY_SCHEDULER_H_
+#ifndef TAMM_SCHEDULER_H_
+#define TAMM_SCHEDULER_H_
 
 #include <set>
 
@@ -7,11 +7,11 @@
 // #include "memory_manager.h"
 // #include "ops.h"
 //#include "proc_group.h"
-#include "tensor_sketch.h"
+#include "tensor_impl.h"
 #include "ops.h"
 #include "execution_context.h"
 
-namespace tammy {
+namespace tamm {
 
 // class Distribution;
 // class MemoryManager;
@@ -265,7 +265,7 @@ class Scheduler {
     //   Scheduler& operator()(SetOpEntry<T, LabeledTensorType> sop) {
     // /** \warning
     // *  totalview LD on following statement
-    // *  back traced to tammy::diis<double> line 128 diis.h
+    // *  back traced to tamm::diis<double> line 128 diis.h
     // *  back traced to ccsd_driver<double> line 426 stl_vector.h
     // *  back traced to main line 607 ccsd_driver.cc
     // */
@@ -554,6 +554,6 @@ class Scheduler {
 //       .execute();
 // }
 
-} // namespace tammy
+} // namespace tamm
 
-#endif // TAMMY_SCHEDULER_H_
+#endif // TAMM_SCHEDULER_H_

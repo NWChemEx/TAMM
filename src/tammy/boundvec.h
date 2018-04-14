@@ -1,7 +1,7 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMMY_BOUNDVEC_H_
-#define TAMMY_BOUNDVEC_H_
+#ifndef TAMM_BOUNDVEC_H_
+#define TAMM_BOUNDVEC_H_
 
 #include <array>
 #include <iosfwd>
@@ -9,7 +9,7 @@
 
 #include "errors.h"
 
-namespace tammy {
+namespace tamm {
 
 /**
  * @brief Vector of bounded length.
@@ -170,6 +170,6 @@ std::ostream& operator<<(std::ostream& os, const BoundVec<T, maxsize>& bvec) {
     return os;
 }
 
-} // namespace tammy
+} // namespace tamm
 
-#endif // TAMMY_BOUNDVEC_H_
+#endif // TAMM_BOUNDVEC_H_

@@ -1,10 +1,10 @@
-#ifndef TAMMY_ERRORS_H_
-#define TAMMY_ERRORS_H_
+#ifndef TAMM_ERRORS_H_
+#define TAMM_ERRORS_H_
 
 #include <cassert>
 #include <iostream>
 
-namespace tammy {
+namespace tamm {
 
 /**
  * @brief Mark code options that are not yet implemented.
@@ -46,6 +46,6 @@ namespace tammy {
  */
 #define EXPECTS(cond) assert(cond)
 
-} // namespace tammy
+} // namespace tamm
 
-#endif // TAMMY_ERRORS_H_
+#endif // TAMM_ERRORS_H_

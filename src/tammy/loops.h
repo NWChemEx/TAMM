@@ -1,7 +1,7 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMMY_LOOPS_H_
-#define TAMMY_LOOPS_H_
+#ifndef TAMM_LOOPS_H_
+#define TAMM_LOOPS_H_
 
 #include <algorithm>
 #include <memory>
@@ -9,10 +9,10 @@
 
 #include "boundvec.h"
 #include "errors.h"
-#include "index_space_sketch.h"
+#include "index_space.h"
 #include "types.h"
 
-namespace tammy {
+namespace tamm {
 
 using IndexLabelVec = std::vector<TiledIndexLabel>;
 
@@ -310,6 +310,6 @@ class OpTemplate {
     }
 };
 
-} // namespace tammy
+} // namespace tamm
 
-#endif // TAMMY_LOOPS_H_
+#endif // TAMM_LOOPS_H_

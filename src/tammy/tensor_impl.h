@@ -1,11 +1,11 @@
-#ifndef TENSOR_SKETCH_H_
-#define TENSOR_SKETCH_H_
+#ifndef TENSOR_IMPL_H_
+#define TENSOR_IMPL_H_
 
-#include "index_space_sketch.h"
-#include "labeled_tensor_sketch.h"
+#include "index_space.h"
+#include "labeled_tensor.h"
 #include "execution_context.h"
 
-namespace tammy {
+namespace tamm {
 
 template<typename T>
 class Tensor {
@@ -53,6 +53,6 @@ class Tensor {
     std::vector<TiledIndexSpace> block_indices_;
 };
 
-} // namespace tammy
+} // namespace tamm
 
-#endif // TENSOR_SKETCH_H_
+#endif // TENSOR_IMPL_H_

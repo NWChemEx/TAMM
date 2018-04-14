@@ -1,14 +1,14 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMMY_STRONGNUM_H__
-#define TAMMY_STRONGNUM_H__
+#ifndef TAMM_STRONGNUM_H__
+#define TAMM_STRONGNUM_H__
 
 #include <functional>
 #include <iosfwd>
 #include <limits>
 #include <vector>
 
-namespace tammy {
+namespace tamm {
 
 /**
  * @todo Check the narrow cast implementation in:
@@ -189,6 +189,6 @@ std::istream& operator>>(std::istream& is, StrongNum<S, T>& s) {
     return is;
 }
 
-} // namespace tammy
+} // namespace tamm
 
-#endif // TAMMY_STRONGNUM_H_
+#endif // TAMM_STRONGNUM_H_

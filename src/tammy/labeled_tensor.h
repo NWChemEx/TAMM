@@ -1,16 +1,13 @@
-#ifndef TAMMY_LABELED_TENSOR_H_
-#define TAMMY_LABELED_TENSOR_H_
+#ifndef LABELED_TENSOR_H_
+#define LABELED_TENSOR_H_
 
-#include <memory>
-
-#include "boundvec.h"
-#include "errors.h"
+#include "loops.h"
 #include "ops.h"
-#include "proc_group.h"
-#include "types.h"
-#include "tensor.h"
 
-namespace tammy {
+namespace tamm {
+
+template<typename T>
+class Tensor;
 
 class LoopSpec {
     public:
@@ -70,7 +67,7 @@ class LabeledTensor {
     LabeledTensor()                     = default;
     LabeledTensor(const LabeledTensor&) = default;
 
-    LabeledTensor(const Tensor<T>& tensor, const IndexLabelVec ilv) :
+    LabeledTensor(const Tensor<T>& tensor, const IndexLabelVec& ilv) :
       tensor_{tensor},
       ilv_{ilv} {}
 
@@ -86,81 +83,97 @@ class LabeledTensor {
 
     // @to-do: implement.
     AddOp<T, LabeledTensor<T>> operator=(
-      const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {}
+      const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {
+      return {};
+    }
 
     AddOp<T, LabeledTensor<T>> operator+=(
       const std::tuple<LoopSpec, LabeledTensor<T>>& rhs) {
-        construct_addop(std::make_tuple(std::get<0>(rhs), 1, std::get<1>(rhs)),
-                        false);
+        // construct_addop(std::make_tuple(std::get<0>(rhs), 1, std::get<1>(rhs)),
+        //                 false);
+      return {};
     }
 
     AddOp<T, LabeledTensor<T>> operator+=(LabeledTensor<T> rhs) {
-        return *this += loop_nest() * rhs;
+        // return *this += loop_nest() * rhs;
+      return {};
     }
 
     SetOp<T, LabeledTensor<T>> operator+=(const T& rhs) {
-        return *this += loop_nest() * rhs;
+      //return *this += loop_nest() * rhs;
+      return {};
     }
 
     SetOp<T, LabeledTensor<T>> operator+=(const std::tuple<LoopSpec, T>& rhs) {
-        construct_setop(rhs, false);
+        // construct_setop(rhs, false);
+      return {};
     }
 
     SetOp<T, LabeledTensor<T>> operator=(T rhs) {
-        return *this = loop_nest() * rhs;
+        // return *this = loop_nest() * rhs;
+      return {};
     }
 
     SetOp<T, LabeledTensor<T>> operator=(const std::tuple<LoopSpec, T>& rhs) {
-        construct_setop(rhs, true);
+      //construct_setop(rhs, true);
+      return {};
     }
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
     AddOp<T1, LabeledTensor<T>> operator+=(
       const std::tuple<LoopSpec, T1, LabeledTensor<T>>& rhs) {
-        construct_addop(rhs, false);
+        // construct_addop(rhs, false);
+      return {};
     }
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
     AddOp<T1, LabeledTensor<T>> operator=(
       const std::tuple<LoopSpec, T1, LabeledTensor<T>>& rhs) {
-        construct_addop(rhs, true);
+        // construct_addop(rhs, true);
+      return {};
     }
 
     AddOp<T, LabeledTensor<T>> operator=(
       const std::tuple<LoopSpec, LabeledTensor<T>> rhs) {
-        return *this = std::get<0>(rhs) * T{1} * std::get<1>(rhs);
+        // return *this = std::get<0>(rhs) * T{1} * std::get<1>(rhs);
+      return {};
     }
 
     AddOp<T, LabeledTensor<T>> operator=(const LabeledTensor<T>& rhs) {
-        return *this = loop_nest() * T{1} * rhs;
+      // return *this = loop_nest() * T{1} * rhs;
+      return {};
     }
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
     MultOp<T1, LabeledTensor<T>> operator+=(
       const std::tuple<LoopSpec, T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return construct_multop(rhs, false);
+        // return construct_multop(rhs, false);
+      return {};
     }
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
     MultOp<T1, LabeledTensor<T>> operator=(
       const std::tuple<LoopSpec, T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return construct_multop(rhs, true);
+        // return construct_multop(rhs, true);
+      return {};
     }
 
     MultOp<T, LabeledTensor<T>> operator+=(
       const std::tuple<LoopSpec, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return *this +=
-               std::get<0>(rhs) * T{1} * std::get<1>(rhs) * std::get<2>(rhs);
+        // return *this +=
+        //        std::get<0>(rhs) * T{1} * std::get<1>(rhs) * std::get<2>(rhs);
+      return {};
     }
 
     MultOp<T, LabeledTensor<T>> operator=(
       const std::tuple<LoopSpec, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return *this =
-                 std::get<0>(rhs) * T{1} * std::get<1>(rhs) * std::get<2>(rhs);
+        // return *this =
+        //          std::get<0>(rhs) * T{1} * std::get<1>(rhs) * std::get<2>(rhs);
+      return {};
     }
 
     protected:
@@ -228,7 +241,8 @@ class LabeledTensor {
     IndexLabelVec ilv_;
 
     OuterLabeledLoop loop_nest() const {
-        return {labels(), tensor().perm_group().unique_loop_nest(labels())};
+        // return {labels(), tensor().perm_group().unique_loop_nest(labels())};
+      return {};
     }
 
     template<typename T1>
@@ -245,10 +259,10 @@ class LabeledTensor {
         std::set_intersection(labels1.begin(), labels1.end(), labels2.begin(),
                               labels2.end(), std::back_inserter(inner_labels));
         std::vector<Itr> begins, ends;
-        for(const auto& il : inner_labels) {
-            begins.push_back(il.ir().begin());
-            ends.push_back(il.ir().end());
-        }
+        // for(const auto& il : inner_labels) {
+        //     begins.push_back(il.ir().begin());
+        //     ends.push_back(il.ir().end());
+        // }
         return InnerLabeledLoop{inner_labels, begins, ends, {}};
     }
 };
@@ -292,16 +306,17 @@ inline std::tuple<LoopSpec, LabeledTensor<T>, LabeledTensor<T>> operator*(
     return {LoopSpec{}, rhs1, rhs2};
 }
 
-inline void validate_slicing(const TensorVec<IndexRange>& index_ranges,
-                             const IndexLabelVec& label) {
-    for(size_t i = 0; i < index_ranges.size(); i++) {
-        EXPECTS(index_ranges[i].is_superset_of(label[i].ir()));
-    }
-}
+// inline void validate_slicing(const TensorVec<IndexRange>& index_ranges,
+//                              const IndexLabelVec& label) {
+//     for(size_t i = 0; i < index_ranges.size(); i++) {
+//         EXPECTS(index_ranges[i].is_superset_of(label[i].ir()));
+//     }
+// }
 
 template<typename LabeledTensorType, typename T>
 inline void addop_validate(const LabeledTensorType& ltc,
                            const std::tuple<T, LabeledTensorType>& rhs) {
+#if 0
     auto lta = std::get<1>(rhs);
     // EXPECTS(ltc.tensor() != nullptr);
     // EXPECTS(lta.tensor() != nullptr);
@@ -345,12 +360,14 @@ inline void addop_validate(const LabeledTensorType& ltc,
     for(auto& al : alabel) {
         EXPECTS(std::find(clabel.begin(), clabel.end(), al) != clabel.end());
     }
+#endif
 }
 
 template<typename LabeledTensorType, typename T>
 inline void multop_validate(
   const LabeledTensorType& ltc,
   const std::tuple<T, LabeledTensorType, LabeledTensorType>& rhs) {
+#if 0
     auto& lta = std::get<1>(rhs);
     auto& ltb = std::get<2>(rhs);
     // EXPECTS(ltc.tensor_ != nullptr);
@@ -439,8 +456,8 @@ inline void multop_validate(
     // }
 
     EXPECTS(clabel.size() == alabel.size() + blabel.size() - 2 * slabel.size());
+#endif
 }
-
-} // namespace tammy
-
-#endif // TAMMY_LABELED_TENSOR_H_
+ 
+} // tamm
+#endif // LABELED_TENSOR_H_

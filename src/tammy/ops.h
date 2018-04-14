@@ -20,12 +20,16 @@ class Op {
 template<typename T, typename LabeledTensorT>
 class SetOp : public Op {
     public:
+  SetOp() = default;
+
+#if 0
     SetOp(LabeledTensorT lhs, T alpha, const LabeledLoop& loop_nest,
           bool is_assign) :
       lhs_{lhs},
       alpha_{alpha},
       loop_nest_{loop_nest},
       is_assign_{is_assign} {}
+#endif
 
     // SetOp(LabeledTensorT lhs,
     //       T alpha,
@@ -51,13 +55,14 @@ class SetOp : public Op {
     protected:
     T alpha_;
     LabeledTensorT lhs_;
-    LabeledLoop loop_nest_;
+  //LabeledLoop loop_nest_;
     bool is_assign_;
 }; // class AddOp
 
 template<typename T, typename LabeledTensorT>
 class AddOp : public Op {
     public:
+  AddOp() = default;
     AddOp(LabeledTensorT lhs, T alpha, LabeledTensorT rhs,
           const LabeledLoop& loop_nest, bool is_assign) :
       lhs_{lhs},
@@ -91,6 +96,7 @@ class AddOp : public Op {
 template<typename T, typename LabeledTensorT>
 class MultOp : public Op {
     public:
+  MultOp() = default;
     MultOp(LabeledTensorT lhs, T alpha, LabeledTensorT rhs1,
            LabeledTensorT rhs2, LabeledLoop outer_loop_nest,
            LabeledLoop inner_loop_nest, SymmFactor symm_factor,

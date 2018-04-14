@@ -20,28 +20,33 @@ class Tensor {
         }
     }
 
-    LabeledTensor<T> operator()() const {}
+    LabeledTensor<T> operator()() const {
+      return {};
+    }
 
     template<class... Ts>
     LabeledTensor<T> operator()(Ts... inputs) const {
-        return LabeledTensor<T>{*this, IndexLabelVec{inputs...}};
+      //return LabeledTensor<T>{*this, IndexLabelVec{inputs...}};
+      return {};
     }
 
-    static void allocate(Tensor<T>& tensor) {}
-    static void deallocate(Tensor<T>& tensor) {}
+  static void allocate(ExecutionContext& ec, Tensor<T>& tensor) {}
+  static void deallocate(Tensor<T>& tensor) {}
 
 
      void allocate() {}
      void deallocate() {}
 
     template<typename... Args>
-    static void allocate(const ExecutionContext& exec, Args... rest) {}
+    static void allocate(const ExecutionContext& exec, Args... rest) {
+
+    }
 
     template<typename... Args>
-    static void deallocate(const ExecutionContext& exec, Args... rest) {}
+    static void deallocate(Args... rest) {}
 
     T* access(Index idx) {}
-    
+
     void get(IndexVector idx_vec, T* buff, std::size_t buff_size) const {}
 
     private:

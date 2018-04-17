@@ -5,278 +5,556 @@
 ### Index
 `Index` is an integral type to index into an array/tensor. Typically, an `int` or a typed version thereof.
 
-### IndexSpaceFragment
-
-`IndexSpaceFragment` is an ordered list of `Index` values. Mathematically, a `IndexSpaceFragment` maps the interval [0, N-1] to an ordered list of indices. Any `IndexSpaceFragment`, `isf`, satisfies the following properties:
-
-- isf.operator() : [0,N-1] @f$\rightarrow@f$ `Index`@f$^N@f$
-- (Bijective function) N = @f$|@f$isf@f$|@f$, @f$\forall@f$ i, j @f$\in@f$ [0,N-1], 
-   (i @f$\neq@f$ j) @f$\equiv@f$ (isf.point(i) @f$\neq@f$ isf.point(j))
-
-An additional property would be useful in checking and optimizing operations:
-
-- (Ordered): N = @f$|@f$isf@f$|@f$, @f$\forall@f$ i, j @f$\in@f$ [0,N-1], 
-   (i < j) @f$\equiv@f$ (isf.point(i) < isf.point(j))
-
-Note: The ordered constraint might not hold in some cases. Think about a specific order of paired index spaces.
-
-
-A sub-`IndexSpaceFragment` is a sublist of elements in another `IndexSpaceFragment`.
-
-Note: In the common case, a `IndexSpaceFragment` can be a interval `[lo,hi]`. This will enable compact representation and manipulation. Subspaces need more general lists.
-
-- `IndexSpaceFragment` has `spin` and `spatial` attributes which are carried into `IndexSpace`s. 
-- `Index` values can be accessed via `iterator`s. 
-- `IndexSpaceFragment` has `is_subset` method  for checking if another fragment is a subset which will be used for validating sub-spaces. 
-- It also has a `is_disjoint` method for checking the disjointness of the each fragment in an `IndexSpace`.
-- `IndexSpaceFragment` also overloads comparison operators (<=, >=, ==, != etc.)
-
-The most common use case for `IndexSpaceFragment`s will be constructing blocks for different ranges (i.e. `"occ"`, `"virt"`) of the `IndexSpace`s.
-
-***Code Examples***
-```c++
-IndexSpaceFragment isf1(0, 4);
-IndexSpaceFragment isf2(5, 10, Spin{1});
-
-Index i_0 = isf1.point(0);
-Index i_1 = isf1(1);
-Index i_2 = isf1[2];
-
-if(isf1.is_disjoint(isf2)){
-    ...
-}
-
-if(isf1.is_subset(isf2)){
-    ...
-}
-
-for(auto itr = isf1.begin(); itr != isf1.end(); ++itr){
-    ...
-}
-
-for(auto& i : isf1){
-    ...
-}
-```
-
 ### IndexSpace
-
-`IndexSpace` is an ordered list of `IndexSpaceFragment` objects. Any `IndexSpace`, is, satisfies the following properties:
-
-- is.operator() : [0,N-1] @f$\rightarrow@f$ `Index`@f$^N@f$
-- is.fragment() : [0,N@f$_F@f$-1] @f$\rightarrow@f$ `IndexSpaceFragment`@f$^{N_F}@f$
-- is.operator(i) = isf.operator(m) where isf = is.fragment(j), 
-      k = @f$\sum_{n=0}^{j-1}@f$ @f$|@f$is.fragment(n)@f$|@f$, i = m + k
-
-An `IndexSpace` may or may not be a list of disjoint fragments. 
-
-- (disjointedness): @f$\forall@f$ i, j @f$\in@f$ [0,N@f$_F@f$-1], 
-   is.fragment(i).range() @f$\cap@f$ is.fragment(j).range() = @f$\emptyset@f$
-
-When a `IndexSpace` satisfies the disjointedness condition, we refer to it as a disjoint index space fragment list.
-
-A sub-`IndexSpace` is ordered list of sub-`IndexSpaceFragment`s in another `IndexSpace`.  **(Q: should they be in the same order?)** 
-
-- `IndexSpace` has direct access to the fragments and indices.
-- `IndexSpace`s can be constructed from other `IndexSpace`s which simply will be combining `IndexSpaceFragment`s of each `IndexSpace`.
-- `IndexSpace` as it is doesn't include any `tiling` information, instead it will be used as a building block for `TiledIndexSpace`
-- Disjointness property is checked using `is_disjoint` method from `IndexSpaceFragments`.
-- It also has method, `is_subset`, for checking if two `IndexSpace` is a subspace or not. 
-
-The common use case for `IndexSpace` is for dynamically constructing new index spaces which will be a reference for `TiledIndexSpace`s. 
-
-***Code Examples***
+- An index spaces maps the values (referred to as indices) in an integer interval to a collection of indices.
 ```c++
-IndexSpaceFragment occ_a, occ_b, virt_a, virt_b;
-// Initialize IndexSpaceFragment's
+// Construct an index space spanning from 0 to N-1 => [0,N)
+// By giving a count - IndexSpace(range r)
+IndexSpace is1{range(10)};      // indicies => {0,1,2,3,4,5,6,7,8,9}
 
-IndexSpace MSO({occ_a, occ_b, virt_a, virt_b});
-// IndexSpace MSO = {occ_a, occ_b, virt_a, virt_b};
+// Range based constructor with named sub-spaces 
+IndexSpace is2{range(10),                 // is2("all)    => {0,1,2,3,4,5,6,7,8,9}
+                {{"occ",   {range(0,5)}},  // is2("occ")   => {0,1,2,3,4}
+                {"virt",  {range(5,10)}}  // is2("virt")  => {5,6,7,8,9}
+                }
+};
 
-IndexSpaceFragment temp_isf = MSO.fragment(0);
-Index temp_i = MSO(0);
+// By specifying the indicies it represents - IndexSpace(std::initializer_list<Index> list)
+IndexSpace is3{0,1,2,3,4}                // indicies => {0,1,2,3,4}
+
+// By giving a range - IndexSpace(range r)
+IndexSpace is4{range(0, 10)};      // indicies => {0,1,2,3,4,5,6,7,8,9}
+IndexSpace is5{range(5, 10)};      // indicies => {5,6,7,8,9}
+```
+
+- An index space can be queried to get a point at an index, or the index for a point. [Note the discussion below about non-disjoint index spaces and getting an index for a point]
+```c++
+// Get the index value from an index space
+// By using point method - Index IndexSpace::index(Index i)
+Index i = is4.index(Index{4}); // index i => 4
+
+// By using operator[] - Index IndexSpace::operator[](Index i)
+Index j = is5[Index{4}];       // index j => 9
+```
+
+- An index space can be constructed by aggregating/concatenating other index spaces. In this case, the index spaces maps an interval [0,N-1], where N is the sum of sizes of all aggregated index spaces, to the points in the index spaces aggregated.
+```c++
+// Constructing index spaces from other index spaces 
+// IndexSpace(std::vector<IndexSpace> index_spaces)
+IndexSpace is6{{is3, is5}};   // indicies => {0,1,2,3,4,5,6,7,8,9}
+IndexSpace is7{{is5, is3}};   // indicies => {5,6,7,8,9,0,1,2,3,4}
+
+// IndexSpace aggregation with named sub-spaces
+IndexSpace is9{{is3, is5},      // is9("all") => {0,1,2,3,4,5,6,7,8,9}
+                {"occ", "virt"}  // is9("occ") => {0,1,2,3,4}
+};                              // is9("virt")=> {5,6,7,8,9}
+```
+
+- The aggregation might be disjoint or non-disjoint. The same point might appear multiple times in non-disjoint index space. Some operations might not be defined on such an index space (example get the index for a particular point in the index space).
+```c++
+// Disjoint aggregation
+IndexSpace is9{{is3, is5}};   // indicies => {0,1,2,3,4,5,6,7,8,9}
+// Non-disjoint aggregation
+IndexSpace is10{{is3, is3}};   // indicies => {0,1,2,3,4,0,1,2,3,4}
+```
+
+- **Sub-Space:** An index space can be constructed from a permuted sub-list of indices in another index space (referred to as the parent index space). In this case, the domain is [0,N-1], where N is the size of the sub-list, and the points are the points in the parent index space. 
+```c++
+// Sub-space by permuting the indicies of another index space
+// IndexSpace(IndexSpace& ref, range r)
+
+// By specifying sub-space with range
+IndexSpace is11{is1, range(0, 4)};   // indicies => {0,1,2,3}
+
+// By specifying range using the reference index space
+IndexSpace is12{is1, range(5, is1.size())};     // indicies => {4,5,6,7,8,9} 
+
+// Constructing from the full index space
+IndexSpace is13{is1};        // indicies => {0,1,2,3,4,5,6,7,8,9}
+
+// Sub-index space construction with name sub-spaces
+IndexSpace is14{is1, range(0,10,2),       // indices     => {0,2,4,6,8}
+                {{"occ", {range(0,3)}},   // is14("occ") => {0,2,4} 
+                {"virt", {range(3,5)}}   // is14("virt")=> {6,8}
+                }
+}
+```
+----
+
+**NOTE:** An index space is treated as a read-only object after it is constructed.
+
+### IndexSpace Specialization
+- **Attributes:** An index space might partition its indices into groups, each of which is associated with a set of attributes. All indices in a group have the same attribute values. Attribute specification is part of the constructor.
+```c++
+// Index space constructor with spin specialization
+// Combine index spaces with different spin attributes
+IndexSpace is1{range(100),                                // is1("all")   => {0,...,99}
+               {{"occ",   {range(0,50)}},                  // is1("occ")   => {0,...,49}
+                {"virt",  {range(50,100)}},                // is1("virt")  => {50,...,99}
+                {"alpha", {range(0,25), range(50,75)}}     // is1("alpha") => {0,...25,50,...,74}
+                {"beta",  {range(25,50), range(75,100)}}}, // is1("beta")  => {25,...,49,75,...,100}
+               {{Spin{1}, {range(0,25), range(50,75)}},
+                {Spin{2}, {range(25,50), range(75,100)}}}};
+```
+- **Aggregation:** An index space might be constructed from other index spaces and can be partitioned using the available parititions in the used index spaces.
+```c++
+  // Index space construction (will be used for aggregation)
+  IndexSpace is2{range(100,200),                                // is2("all")   => {100,...,199}             
+                 {{"occ",   {range(100,140)}},                  // is2("occ")   => {100,...,139}
+                  {"virt",  {range(140,200)}},                  // is2("virt")  => {140,...,199}
+                  {"alpha", {range(100,125), range(150,175)}},  // is2("alpha") => {100,...,124,150,...,175}
+                  {"beta",  {range(125,150), range(175,200)}}}, // is2("beta")  => {125,...,149,175,...,199}
+                 {{Spin{1}, {range(100,125), range(150,175)}}, 
+                  {Spin{2}, {range(125,150), range(175,200)}}}}};
+
+  // Construction of aggregated index space with subspace names
+  IndexSpace is3{{is1, is2},
+                 {"occ", "virt"},
+                 {"alpha", {"occ:alpha", "virt:alpha"},
+                  "beta",  {"occ:beta", "virt:beta"}}};
+  // is3("occ")   => is1 ~ {0,...,99}
+  // is3("virt")  => is2 ~ {100,...,199}
+  // is3("alpha") => is1("alpha") + is2("alpha") ~ {25,...,49,75,...,99,125,...,149,175,...,199}
+  // is3("beta")  => is1("beta") + is2("beta") ~ {0,...,24,50,...,74,100,...,124,...,150,...,174}
+```
+- **TiledIndexSpace:** A tiled index space segments an index spaces. Specifically, it maps values (referred to a tile indices) in an integer to a index interval. A valid tiling ensures that all indices in tile have the same attribute values.
+  - **[Default tiling]** A TiledIndexSpace can be constructed from any IndexSpace where all the tiles are of size 1.
+```c++
+// Constructing tiled index spaces - TiledIndexSpace(IndexSpace& is, size_t tile_size = 1)
+// Construction with default tiling size
+TiledIndexSpace tis1{is1};    // indicies = [0,1,2,3,4,5,6,7,8,9] && tile_size = 1
+
+// Construction with specific tiling size
+TiledIndexSpace tis2{is1, /*blocked distribution with tile size of 5*/ 5}; // indicies = [{0,1,2,3,4},{5,6,7,8,9}] && tile_size = 5
+
+```
+
+  - ***[Sub-space]*** A TiledIndexSpace can be a constructed from another TiledIndexSpace by choosing a permuted sub-list of tiles in the parent TiledIndexSpace.
+  **NOTE:** Tiling of a sub-index space is not the same the sub-space of a TiledIndexSpace.
+```c++
+// Constructing tiled sub-spaces from tiled index spaces
+// TiledIndexSpace(TiledIndexSpace& ref, range r)
+TiledIndexSpace tis3{tis1, range(0,5)};  // indicies = [0,1,2,3,4] && tile_size = 1
+
+// By specifying range 
+TiledIndexSpace tis4{tis2, range(1, tis2.size())} ;    // indicies = [{5,6,7,8,9}] && tile_size = 5
+```
+
+- **[Convenience tiled index sub-spaces]** A TiledIndexSpace can store and return commonly used sub-spaces of that TiledIndexSpace. 
+
+    **NOTE:** An index space can be queried to be an index sub-space or an index range. @TODO What do we want?
+```c++
+// Create index spaces with identifier string
+IndexSpace is_occ_mo{range(0, 4), "occ"};
+IndexSpace is_virt_mo{range(4, 10), "virt"};
+// Combine index spaces for "occ" and "virt"
+IndexSpace is_mo{is_occ, is_virt};
+// Apply default tiling
+TiledIndexSpace tis_mo{is_mo};  
+
+// Get a specific sub-space by identifier
+TiledIndexSpace& O = tis_mo("occ");
+TiledIndexSpace& V = tis_mo("virt");
+// Identifier "all" will implicitly return whole space
+TiledIndexSpace& N = tis_mo("all"); 
+```
+
+- **[Dependent index space]** An index space can depend on other tiled index spaces. In this case, the index space becomes a relation that, given a specific value of its dependent index spaces, returns an index space.
+```c++
+// Creating index spaces MO and Atom
+// Note: constructor details are ommitted
+IndexSpace MO(...);
+IndexSpace Atom(...);
+std::map<IndexVector, IndexSpace> mo_atom_relation(...);
+// DependentIndexSpace(const std::vector<IndexSpace>& dep_spaces,
+//                     const IndexSpace& ref_space,
+//                     const std::map<IndexVector, IndexSpace> dep_relation)
+DependentIndexSpace subMO_atom{{MO}, Atom, mo_atom_relation};
+```
+
+- **[TiledIndexLabel]** A TiledIndexLabel pairs a TiledIndexSpace with an integer.
+```c++
+    // Generate TiledIndexLabels for a specific sub-space
+    TiledIndexLabel i, j, k, l, m, n;
+    std::tie(i,j) = tis_mo.range_labels<2>("occ");
+    std::tie(k,l) = tis_mo.range_labels<2>("virt");
+    m = tis_mo.labels("all", 9);
+    n = tis_mo.labels("all", 10);
+```
+---
+
+### Tensor Construction
+
+- **[Tensor dimensions]** Tensors are created over a multi-dimensional space, where each dimension is defined using a TiledIndexSpace.
+If a tensor dimension over a tiled index space `p` that depends on another tiled index space `q`, some other dimension of the tensor should be defined over the tiled index space `q`.
+```c++
+// Creating a tensor with different TiledIndexSpaces
+TiledIndexSpace t10_MO{subMO_atom, /*tiled with tile size of 10*/ 10};
+TiledIndexSpace t20_AO{AO, /*tiled with tile size of 20*/ 20};
+Tensor T1{t10_MO, t20_AO}; //2-d MOxAO tensor
+TiledIndexLabel q = is_atom.labels("all", 4);
+TiledIndexLabel p = is_mo_atom.labels("all", 0);
+Tensor T2{p(q), q}; //2-d tensor where the first dimension is the the list of AOs relevant to each atom
+```
+
+- **[Labeling a tensor dimension]** A tensor dimension can be labeled by an index label that is over the same space or a sub-space as that dimension. If a label is defined over a dependent (tiled) index space, its use in a operation should bind that label with the label it depends on. 
+  ```c++
+
+  ```
+---
+
+### Examples from Comments on Documentation
+> 1. scalar
+
+```c++
+// Construct a scalar value 
+Tensor T_1{};
+```
+
+> 2. vector of say length 10
+
+```c++
+// Create an index space of length 10
+IndexSpace is_2{range(10)};
+// Apply default tiling
+TiledIndexSpace tis_2{is_2};
+// Create a vector with index space is_2
+Tensor T_2{tis_2};
+```
+
+> 3. matrix that is say 10 by 20
+
+```c++
+// Create an index space of length 10 and 20
+IndexSpace is1_3{range(10)};
+IndexSpace is2_3{range(20)};
+// Apply default tiling
+TiledIndexSpace tis1_3{is1_3}, tis2_3{is2_3};
+// Create a matrix on tiled index spaces tis1_3, tis2_3
+Tensor T_3{tis1_3, tis2_3};
+```
+
+> 4. order 3 tensor that is say 10 by 20 by 30
+
+```c++
+// Create an index space of length 10, 20 and 30
+IndexSpace is1_4{range(10)};
+IndexSpace is2_4{range(20)};
+IndexSpace is3_4{range(30)};
+// Apply default tiling
+TiledIndexSpace tis1_4{is1_4}, tis2_4{is2_4}, tis3_4{is3_4};
+// Construct order 3 tensor in tiled index spaces tis1_4, tis2_4 and tis3_4
+Tensor T_4{tis1_4, tis2_4, tis3_4};
+```
+
+> 5. vector from 2 with subspaces of length 4 and 6
+
+```c++
+// Spliting is_2 into two sub-spaces with 4 and 6 elements
+IndexSpace is1_5{is_2, range(0, 4)};
+IndexSpace is2_5{is_2, range(4, is_2.size())};
+// Create index space combining sub-spaces
+IndexSpace is3_5{{is1_5, is2_5}};
+// Apply default tiling 
+TiledIndexSpace tis_5{is3_5};
+// Create a vector over combined index space
+Tensor T_5{tis1_5};
+```
+
+> 6. matrix from 3 whose rows are split into two subspaces of length 4 and 6
+
+- **Do you mean this?**
+
+```c++
+// Spliting is1_3 from 3 into two sub-spaces with 4 and 6 elements
+IndexSpace is1_6{is1_3, range(0, 4)};  
+IndexSpace is2_6{is1_3, range(4, is1_3.size()}; 
+// Create index space combining sub-spaces
+IndexSpace is3_6{{is1_6, is2_6}};
+// Apply default tiling
+TiledIndexSpace tis_6{is3_6};
+// Create a matrix with rows on combined tiled index space
+// columns on tis2_3 from 3
+Tensor T_6{tis_6, tis2_3};
+```
+- **In general, split cannot be post-facto. They need to be specified during construction. Or we end up with a new index space.**
+
+> 7. matrix from 3 whose columns are split into two subspaces of lengths 12 and 8
+
+```c++
+// Spliting is2_3 from 3 into two sub-spaces with 12 and 8 elements
+IndexSpace is1_7{is2_3, range(0, 12)};  
+IndexSpace is2_7{is2_3, range(12, is2_3.size())}; 
+// Create index space combining sub-spaces
+IndexSpace is3_7{{is1_7, is2_7}};
+// Apply default tiling
+TiledIndexSpace tis_7{is3_7};
+// Create a matrix with rows on tis1_3 from 3
+// columns on combined tiled index space
+Tensor T_7{tis1_3, tis_7};
+```
+
+> 8. matrix from 3 having subspaces of both 6 and 7
+
+```c++
+// Create matrix on tis_6 from 6 and tis_7 from 7
+Tensor T_8{tis_6, tis_7};
+```
+
+> 9. tensor with mode 0 split into subspaces of 4 and 6
+
+```c++
+// Create order 3 tensor using split version from 5
+// and full spaces from 4
+Tensor T_9{tis_5, tis2_4, tis3_4};
+```
+> 10. tensor with mode 1 split into subspaces of 12 and 8
+
+```c++
+// Create order 3 tensor using split version from 7
+// and full spaces from 4
+Tensor T_10{tis1_4, tis_7, tis3_4};
+```
+> 11. tensor with mode 2 split into subspaces of 13 and 17
+
+```c++
+// Split the index space form 4 into sub-spaces of length 13 and 17
+IndexSpace is1_11{is3_4, range(0, 13)};
+IndexSpace is2_11{is3_4, range(13, is3_4.size())};
+// Combine the sub-spaces into another index space
+IndexSpace is3_11{{is1_11, is2_11}};
+// Apply default tiling
+TiledIndexSpace tis_11{is3_11};
+// Create order 3 tensor using new split version
+// and full spaces from 4
+Tensor T_11{tis1_4, tis2_4, tis_11};
+```
+> 12. Combine 9 and 10
+
+```c++
+// Create order 3 tensor using splits from 9 and 10
+// tis_5  --> split length 4 and 6
+// tis_7  --> split length 12 and 8
+// tis3_4 --> length 30 index space
+Tensor T12{tis_5,tis_7,tis3_4};
+```
+> 13. Combine 9 and 11
+
+```c++
+// Create order 3 tensor using splits from 9 and 11
+// tis_5  --> split length 4 and 6
+// tis2_4 --> length 20 index space
+// tis_11 --> split length 13 and 17
+Tensor T13{tis_5,tis2_4,tis_11};
+```
+> 14. Combine 10 and 11
+
+```c++
+// Create order 3 tensor using splits from 9 and 11
+// tis1_4 --> length 10 index space
+// tis_7  --> split length 12 and 8
+// tis_11 --> split length 13 and 17
+Tensor T14{tis1_4,tis_7,tis_11};
+```
+> 15. Combine 9, 10, and 11
+
+```c++
+// Create order 3 tensor using splits from 9 and 11
+// tis_5  --> split length 4 and 6
+// tis_7  --> split length 12 and 8
+// tis_11 --> split length 13 and 17
+Tensor T15{tis_5,tis_7,tis_11};
+```
+> 16. Vector from 2 with the first subspace split again into a subspaces of size 1 and 3
+
+```c++
+// Split the sub-space from 5 into another with size 1 and 3
+// is1_5  --> split of size 4
+// is2_5  --> split of size 6
+IndexSpace is1_16{is1_5, range(0,1)};
+IndexSpace is2_16{is1_5, range(1,3)};
+// Combine all into a full space
+IndexSpace is3_16{{is1_16, is2_16, is2_5}};
+// Apply default tiling
+TiledIndexSpace tis_16{is3_16};
+// Create a vector over new tiled index space
+Tensor T16{tis_16};
+```
+> 17. matrix from 8 with the 4 by 12 subspace split further into a 1 by 12 and a 3 by 12
+
+```c++
+// Create a matrix from splits from 16 and 7 
+// tis_16 --> split of size 1, 3 and 6
+// tis_7  --> split of size 12 and 8
+Tensor T17{tis_16, tis_7};
+```
+
+> 18. vector from 1 where odd numbered elements are in one space and even numbered elements are in another
+  
+```c++
+// Odd numbered elements from 1 to 9
+IndexSpace is1_18{range(1,10,2)};
+// Even numbered elements from 0 to 8
+IndexSpace is2_18{range(0,10,2)};
+// Aggregate odd and even numbered index spaces 
+IndexSpace is3_18{{is1_18, is2_18}};
+// Apply default tiling
+TiledIndexSpace tis3_18{is3_18};
+// Create a vector with tiled index space
+Tensor T18{tis3_18};
+```
+> 19. matrix from 2 where odd rows are in one space even in another
+
+```c++
+// Odd numbered elements from 1 to 9
+IndexSpace is1_19{range(1,10,2)};
+// Even numbered elements from 0 to 8
+IndexSpace is2_19{range(0,10,2)};
+// Aggregate odd and even numbered index spaces 
+IndexSpace is3_19{{is1_19, is2_19}};
+// Apply default tiling
+TiledIndexSpace tis1_19{is3_19};
+// Create a matrix using tiled index space with odd and even numbered
+// elements as the row and tiled index space from 3 a columns
+Tensor T19{tis1_19, tis2_3};
+```
+> 20. matrix from 6 that also has the odd rows in one space and the even in another
+
+```c++
+// Odd numbered elements from 1 to 9
+IndexSpace is1_20{range(1,10,2)};
+// Even numbered elements from 0 to 8
+IndexSpace is2_20{range(0,10,2)};
+// Aggregate odd and even numbered index spaces 
+IndexSpace is3_20{is1_20, is2_20};
+// Spliting is3_20 into two sub-spaces with 4 and 6 elements
+IndexSpace is4_20{is3_20, range(0, 4)};  
+IndexSpace is5_20{is3_20, range(4, is3_20.size())};
+// Aggregate split indexes
+IndexSpace is6_20{is4_20, is5_20};
+// Apply default tiling
+TiledIndexSpace tis1_20{is6_20};
+// Create a matrix using tiled index space with odd and even numbered
+// elements then splitted as the row and tiled index space 
+// from 3 a columns
+Tensor T20{tis1_20, tis2_3};
+```
+
+### Canonical CCSD E
+
+```c++
+// Up-to-date version can be found at ccsd/ccsd_driver.cc
+template<typename T>
+void ccsd_e(const TiledIndexSpace& MO, 
+		    Tensor<T>& de,
+		    const Tensor<T>& t1,
+		    const Tensor<T>& t2,
+		    const Tensor<T>& f1,
+		    const Tensor<T>& v2) {
     
+	const TiledIndexSpace& O = MO("occ");
+	const TiledIndexSpace& V = MO("virt");
+	Tensor<T> i1{O, V};
+
+	TiledIndexLabel p1, p2, p3, p4, p5;
+	TiledIndexLabel h3, h4, h5, h6;
+
+	std::tie(p1, p2, p3, p4, p5) = MO.labels<5>("virt");
+	std::tie(h3, h4, h5, h6) = MO.labels<4>("occ");
+
+	i1(h6,p5) = f1(h6,p5);
+	i1(h6,p5) +=  0.5  * t1(p3,h4) * v2(h4,h6,p3,p5);
+	de() =  0;
+	de() += t1(p5,h6) * i1(h6,p5);
+	de() +=  0.25  * t2(p1,p2,h3,h4) * v2(h3,h4,p1,p2);
+}
+
+template<typename T>
+void driver() {
+	// Construction of tiled index space MO from skretch
+	IndexSpace MO_IS{range(0,200), {"occ", {range(0,100)}, 
+                                  "virt", {range(100,200)}}};
+	TiledIndexSpace MO{MO_IS, 10};
+	
+	const TiledIndexSpace& O = MO("occ");
+	const TiledIndexSpace& V = MO("virt");
+	const TiledIndexSpace& N = MO("all");
+	Tensor<T> de{};
+	Tensor<T> t1{V, O};
+	Tensor<T> t2{V, V, O, O};
+	Tensor<T> f1{N, N};
+	Tensor<T> v2{N, N, N, N};
+	ccsd_e(MO, de, t1, t2, f1, v2);
+}
 ```
+----
 
-### SubIndexSpace
-`SubIndexSpace` is constructed from a reference `IndexSpace` by having ordered list of subset of its `IndexSpaceFragments`. Different than `IndexSpace`s, it also holds a reference to the full space that is used in the construction 
-
-General use case is for defining a subspace of a full index space (i.e. occupied local MOs in DLPNO?). 
-
-### DependentIndexSpace 
-`DependentIndexSpace` is used for constructing dependent index spaces where the indicies are dependent on a different index space. The general use case for using `DependentIndexSpace` will be defining a mapping of indicies from two different index spaces (i.e. mapping PAOs to Atoms in DLPNO).
-
-There two main use cases for `DependentIndexSpace`s:
-
-- Generating Tensor objects with dependent indicies
-- Generating index labels from a dependent index space for bounding the indicies from an index space with a dependent index space in a Tensor operation 
-
-### TiledIndexSpace
-
-An `TiledIndexSpace` associates a tiling with an `IndexSpace`. A valid tiling of an `IndexSpace` ensures that no tile spans multiple index space fragments. An `TiledIndexSpace`'s size N is the number of tiles in it. A `TiledIndexSpace` provides an iterator to iterate over the tiles. Each tile, in turn, can be queried for its size and provides an iterator to iterate over the points it aggregates.
-
-- A default `TiledIndexSpace` can be constructed from a `IndexSpace`, where each tile is of size 1.
-- It includes methods for accessing different ranges of the index space
-    - `range("occ")` returns a range value, `TiledIndexRange`, for the occupied index space fragment
-    - `range_labels("occ", 1, 2)` returns a tuple of `TiledIndexLabel` which is associeated with the specific range and integer label.
-    - (**Q: how is the range map is introduced to `TiledIndexSpace`? Is it provided at construction or is it defined over `IndexSpaceFragment`s?**)
-- It also includes methods for validating the applicability of the operations over the index spaces 
-    - `is_identical_to(TiledIndexSpace)` checks if the index space and the tiling is identical
-    - `is_compatible_with(TiledIndexSpace)` checks if the index space and tiling is compatible (compatibility is described in details under ;'Implementation Considerations')
-
-
-***Code Examples***
-```c++
-// TiledIndexSpace defined over MSO with tile size of 20 indicies
-TiledIndexSpace MSO_t20(MSO, 20);
-
-TiledIndexRange mso_O = MSO_t20.range("occ");
-TiledIndexRange mso_V = MSO_t20.range("virt");
-TiledIndexRange mso_N = MSO_t20.range("all");
-
-TiledIndexLabel i,j,k,l;
-
-std::tie(i,j) = MSO_t20.range_labels("occ", 1, 2);
-std::tie(k,l) = MSO_t20.range_labels("virt", 1, 2);
-```
-
-### TiledIndexRange
-
-An `TiledIndexRange` is a list of tiles from an `TiledIndexSpace`. If the `TiledIndexSpace` is not disjointed, the index range cannot include tiles from more than one index space fragments in the underlying index space. 
-
-A tensor's dimension is defined in terms of `TiledIndexRange` objects.
-
-NOTE: An `TiledIndexSpace` might provide routines to obtain specific index ranges as a map, with key being a string ("occ," "virt," etc.).
-
-Main use case of `TiledIndexRange` is constructing `Tensor`s using a range value from `TiledIndexSpace`s. 
-
-***Code Examples***
-```c++
-const TiledIndexRange& O = MSO_t20.range("occ");
-const TiledIndexRange& V = MSO_t20.range("virt");
-
-Tensor<T> i1{O, V};
-```
-
-### TiledIndexLabel - DependentIndexLabel
-
-An `TiledIndexLabel` combines an `TiledIndexRange` and an integer label.
-
-A `TiledIndexLabel` for a dependent index space needs to be bound to tiled index labels corresponding to the spaces it depends on. This is done by constructing `DependentIndexLabel`s using operator overloads in `TiledIndexLabel`. `DependentIndexLabel` holds extra information about the dependent labels which is later used on bounding the indicies accessed on Tensor operations
-
-`TiledIndexLabel` is the main construct used for `Tensor` operations for describing the tensor operation over different ranges.
-
-***Code Examples***
-```c++
-const TiledIndexRange& N = MO.range("all");
-const TiledIndexRange& O = MO.range("occ");
-
-// Constructing TiledIndexLabels from TiledIndexRanges
-TiledIndexLabel i{N};
-TiledIndexLabel j{O}
-
-// Constructing multiple TiledIndexLabels from TiledIndexSpaces
-TiledIndexLabel a,b,c;
-TiledIndexLabel ao,bo,co;
-
-std::tie(a,b,c) = MO.range_labels("all", 1, 2, 3);
-std::tie(ao,bo,co) = MO.range_labels("occ", 1, 2, 3);
-
-const TiledIndexRange& N_AO = AO.range("all");
-const TiledIndexRange& N_Atom = Atom.range("all");
-
-// Constructing DependentTiledIndexLabels from TiledIndexRanges
-DependentTiledIndexLabel k_atom{N_AO, N_Atom};
-```
-
-
-## Implementation Considerations
-
-### Indexing a tensor dimension using an index label
-
-Consider a dimension d of a tensor, `T`, allocated on a tiled index range, `TIR`. When this dimension is indexed using an `TiledIndexLabel`, `lbl`, as illustrated below:
-```c++
-Tensor T{TIR};
-T(lbl) = 0;
-```
-we define the following predicates:
-- predicate @f$A@f$ @f$\equiv@f$ `lbl.tiled_index_range() == TIR`
-- predicate @f$B@f$ @f$\equiv@f$ `lbl.tiled_index_range().tiled_index_space() == TIR.tiled_index_space()`
-- predicate @f$C@f$ @f$\equiv@f$ `lbl.tiled_index_range().tiled_index_space().is() == IR.tiled_index_space().is()`
-
-We can define the following relationships between `TIR` and `lbl`:
-- Case 1: @f$A@f$:
-`lbl` is over the same tiled index range `TIR`. This is the most efficient case. 
-
-- Case 2: @f$\neg A \wedge B@f$
-`lbl` is over a different tiled index range, `tir2`, but over the same `TiledIndexSpace` as `TIR`. In this case, either 
-	- (1) `tir2` is a contiguous subspace of the tiles in `TIR`, when a simple offset would suffice, or
-	- (2) `tir2` is not a contiguous subspace of the tiles in `TIR`.  Each tile of `tir2` to be checked for
-membership. What we do with a non-member tile is up to the user (ignore or flag as error).
-
-- Case 3: @f$\neg A \wedge \neg B \wedge C@f$
-`lbl` is over a different `TiledIndexSpace` but over the same `IndexSpace`. Optimizing this would be difficult. We might just have to do "decay" both indices to run over degenerately tiled (as in tile size 1 for all tiles) and then do the same we did in case 1. One problem is that the storage is not pointwise. Therefore, we will need support to read/write partial tiles. Overall this can get expensive and should be avoided. We will not implement this to start with.
-
-- Case 4: @f$\neg A \wedge \neg B \wedge \neg C@f$
-lbl is over the a different `IndexSpace` than `TIR`. We will report this an error.
-
-Examples:
-```c++
-Tensor Tmo{TIR_mo}, Tao{TIR_ao};
-TiledIndexLabel imo{TIR_mo}, iao{TIR_ao};
-Tmo(imo) = Tao(imo); //runtime error Tao(imo)
-Tmo(iao) = Tao(iao); //runtime error Tmo(iao)
-Tmo(iao) = 0; //runtime error
-Tmo(imo) = translate(imo,iao) * Tao(iao);
-```
-### Indexing a tensor dimension using a dependent index label
-Consider a dimension d of a tensor, `T`, allocated on dependent index spaces with index ranges, `TIR_ao` and `TIR_atom`. When this dimension is indexed using a `DependentTiledIndexLabel`, `dep_lbl`, which depends on a `TiledIndexLabel`, `lbl`, as illustrated below:
+### Canonical  T1
 
 ```c++
-TiledIndexRange TIR_ao = AO.range("all");
-TiledIndexRange TIR_atom = Atom.range("all");
+// Up-to-date version can be found at ccsd/ccsd_driver.cc
+template<typename T>
+void  ccsd_t1(const TiledIndexSpace& MO, 
+		      Tensor<T>& i0, 
+		      const Tensor<T>& t1, 
+		      const Tensor<T>& t2,
+          const Tensor<T>& f1, 
+          const Tensor<T>& v2) { 
 
-Tensor T{TIR_ao, TIR_atom};
-Tensor R{TIR_atom}
+  const TiledIndexSpace& O = MO("occ");
+  const TiledIndexSpace& V = MO("virt");
+  Tensor<T> t1_2_1{O, O};
+  Tensor<T> t1_2_2_1{O, V};
+  Tensor<T> t1_3_1{V, V};
+  Tensor<T> t1_5_1{O, V};
+  Tensor<T> t1_6_1{O, O, V, V};
 
-DependentTiledIndexLabel dep_lbl{TIR_ao, TIR_atom};
-TiledIndexLabel lbl{TIR_atom};
+  TiledIndexLabel p2, p3, p4, p5, p6, p7;
+  TiledIndexLabel h1, h4, h5, h6, h7, h8;
 
-// Assigning ranges on tensor with dependent index spaces
-T(dep_lbl(lbl)) = R(lbl);
+  std::tie(p2, p3, p4, p5, p6, p7) = MO.labels<6>("virt");
+  std::tie(h1, h4, h5, h6, h7, h8) = MO.labels<6>("occ");  
 
-// Assigning scalar on tensor with dependent index spaces
-T(dep_lbl, lbl) = 0;
+  i0(p2,h1)             =   f1(p2,h1);
+  t1_2_1(h7,h1)         =   f1(h7,h1);
+  t1_2_2_1(h7,p3)       =   f1(h7,p3);
+  t1_2_2_1(h7,p3)      +=   -1 * t1(p5,h6) * v2(h6,h7,p3,p5);
+  t1_2_1(h7,h1)        +=   t1(p3,h1) * t1_2_2_1(h7,p3);
+  t1_2_1(h7,h1)        +=   -1 * t1(p4,h5) * v2(h5,h7,h1,p4);
+  t1_2_1(h7,h1)        +=   -0.5 * t2(p3,p4,h1,h5) * v2(h5,h7,p3,p4);
+  i0(p2,h1)            +=   -1 * t1(p2,h7) * t1_2_1(h7,h1);
+  t1_3_1(p2,p3)         =   f1(p2,p3);
+  t1_3_1(p2,p3)        +=   -1 * t1(p4,h5) * v2(h5,p2,p3,p4);
+  i0(p2,h1)            +=   t1(p3,h1) * t1_3_1(p2,p3);
+  i0(p2,h1)            +=   -1 * t1(p3,h4) * v2(h4,p2,h1,p3);
+  t1_5_1(h8,p7)         =   f1(h8,p7);
+  t1_5_1(h8,p7)        +=   t1(p5,h6) * v2(h6,h8,p5,p7);
+  i0(p2,h1)            +=   t2(p2,p7,h1,h8) * t1_5_1(h8,p7);
+  t1_6_1(h4,h5,h1,p3)   =   v2(h4,h5,h1,p3);
+  t1_6_1(h4,h5,h1,p3)  +=   -1 * t1(p6,h1) * v2(h4,h5,p3,p6);
+  i0(p2,h1)            +=   -0.5 * t2(p2,p3,h4,h5) * t1_6_1(h4,h5,h1,p3);
+  i0(p2,h1)            +=   -0.5 * t2(p3,p4,h1,h5) * v2(h5,p2,p3,p4);
+}
+
+template<typename T>
+void driver() {
+	// Construction of tiled index space MO from skretch
+	IndexSpace MO_IS{range(0,200), {"occ", {range(0,100)}, 
+                                  "virt", {range(100,200)}}};
+	TiledIndexSpace MO{MO_IS, 10};
+	
+	const TiledIndexSpace& O = MO("occ");
+	const TiledIndexSpace& V = MO("virt");
+	const TiledIndexSpace& N = MO("all");
+
+	Tensor<T> i0{};
+	Tensor<T> t1{V, O};
+	Tensor<T> t2{V, V, O, O};
+	Tensor<T> f1{N, N};
+	Tensor<T> v2{N, N, N, N};
+	ccsd_t1(MO, i0, t1, t2, f1, v2);
+}
 ```
-
-The following predicates has to hold for validating the assignment operations in `Tensor`s that are defined of dependent index spaces:
-
-- predicate @f$A@f$ @f$\equiv@f$ `dep_lbl.ref_index_range() == TIR_atom && dep_lbl.dep_index_range() == TIR_ao`
-- predicate @f$B@f$ @f$\equiv@f$ `dep_lbl.ref_index_range() == lbl.tiled_index_range()`
-
-
-
-
-
-(***TODO: dependent index labels***)
-(***TODO: sub-spaces***)
-
-### Index Translation
-Sometimes we are not matching points, but mapping one point in a range to another. This could be within the same or a different `IndexSpace`s. This is done on a pointwise basis. The i-th point in one index range is mapped to the i-th point in the next index range. One possible optimization: if the tile sizes match, then the corresponding tiles can be mapped without translating individual points.
-
-## Comments / clarifications / notes
-
-* Q: Why is `IndexSpaceFragment` not just `std::vector`?
-	A: This is to support attributes
-* Q: Is there a use case for general `IndexSpaceFragment` objects? Why not just contiguous ranges (as in Python `range`)
-	A: Subspaces might be the most common use case. Needs to be described and illustrated.
-
-* In the examples, include how to support partial trace (Step 2 in Ryan’s DLPNO_CCSD example in CoupledCluster repo in github)
-* Index spaces in PNO: atom spaces, PNO, PAO, AO, MO, transformed MO space (cf. Step 3)
-
-## Code Examples
-
-In the examples below, we only focus on aspects of TAMM relating to index spaces. Other details (e.g., scheduler, tensor allocation/deallocation, etc.) are ignored. Even Tensor object constructors need to be discussed/refined.
 
 ### Canonical HF (work in progress)
 
@@ -286,9 +564,11 @@ In the examples below, we only focus on aspects of TAMM relating to index spaces
 void compute_2body_fock(const TiledIndexSpace& AO,
 			const std::vector<libint2::Shell> &shells, 
 			const Tensor<T> &D, Tensor<T> &F) {
-  const TiledIndexRange& N = AO.range("all");
+  // auto will correspond to a TiledIndexSpace or
+  // a TiledIndexRange depending on the decision
+  const auto& N = AO("all");
   TiledIndexLabel s1, s2, s3, s4;
-  std::tie(s1,s2, s3, s4) = AO.range_labels("all", 1, 2, 3, 4);
+  std::tie(s1,s2, s3, s4) = AO.range_labels<4>("all");
   const auto n = nbasis(shells);
   Tensor<T> G{N,N};
   //TODO: construct D from C
@@ -316,13 +596,13 @@ template<typename T>
 void hartree_fock(const TiledIndexSpace& AO, 
 		          const Tensor<T>& C,
 		          Tensor<T>& F) {
-  const TiledIndexRange& N = AO.range("all");
-  const TiledIndexRange& O = AO.range("occ");
+  const TiledIndexSpace& N = AO("all");
+  const TiledIndexSpace& O = AO("occ");
 
   TiledIndexLabel a,b,c;
   TiledIndexLabel ao,bo,co;
-  std::tie(a,b,c) = AO.range_labels("all", 1, 2, 3);
-  std::tie(ao,bo,co) = AO.range_labels("occ", 1, 2, 3);
+  std::tie(a,b,c) = AO.range_labels<3>("all");
+  std::tie(ao,bo,co) = AO.range_labels<3>("occ");
 	
   // compute overlap integrals
   //Tensor<T> S{N,N};
@@ -395,108 +675,22 @@ void hartree_fock(const TiledIndexSpace& AO,
 	//TODO: only put rmsd_local in process 0 to rmsd
   } while (((fabs(get_scalar(ediff)) > conv) || (fabs(get_scalar(rmsd)) > conv)) && (iter < maxiter));
 }
-```
-
-### Canonical CCSD E
-
-```c++
-template<typename T>
-void ccsd_e(const TiledIndexSpace& MO, 
-		    Tensor<T>& de,
-		    const Tensor<T>& t1,
-		    const Tensor<T>& t2,
-		    const Tensor<T>& f1,
-		    const Tensor<T>& v2) {
-	const TiledIndexRange& O = MO.range("occ");
-	const TiledIndexRange& V = MO.range("virt");
-	Tensor<T> i1{O, V};
-
-	TiledIndexLabel p1, p2, p3, p4, p5;
-	TiledIndexLabel h3, h4, h5, h6;
-
-	std::tie(p1, p2, p3, p4, p5) = MO.range_labels("virt", 1, 2, 3, 4, 5);
-	std::tie(h3, h4, h5, h6) = MO.range_labels("occ", 1, 2, 3, 4);
-
-	i1(h6,p5) = f1(h6,p5);
-	i1(h6,p5) +=  0.5  * t1(p3,h4) * v2(h4,h6,p3,p5);
-	de() =  0;
-	de() += t1(p5,h6) * i1(h6,p5);
-	de() +=  0.25  * t2(p1,p2,h3,h4) * v2(h3,h4,p1,p2);
-}
 
 template<typename T>
-void driver(const TiledIndexSpace& MO) {
-	const TiledIndexRange& O = MO.range("occ");
-	const TiledIndexRange& V = MO.range("virt");
-	const TiledIndexRange& N = MO.range("all");
-	Tensor<T> de{};
-	Tensor<T> t1{V, O};
-	Tensor<T> t2{V, V, O, O};
-	Tensor<T> f1{N, N};
-	Tensor<T> v2{N, N, N, N};
-	ccsd_e(MO, de, t1, t2, f1, v2);
+void driver() {
+	// Construction of tiled index space MO from skretch
+	IndexSpace AO_IS{range(0,200), {"occ", {range(0,100)}, 
+                                  "virt", {range(100,200)}}};
+	TiledIndexSpace AO{AO_IS, 10};
+
+	const TiledIndexSpace& N = AO("all");
+	
+	Tensor<T> C{N, N};
+	Tensor<T> F{N, N};
+	hartree_fock(AO, C, F);
 }
 ```
 
-### Canonical  T1
-
-```c++
-template<typename T>
-void  ccsd_t1(const TiledIndexSpace& MO, 
-		      Tensor<T>& i0, 
-		      const Tensor<T>& t1, 
-		      const Tensor<T>& t2,
-              const Tensor<T>& f1, 
-              const Tensor<T>& v2) { 
-  const TiledIndexRange& O = MO.range("occ");
-  const TiledIndexRange& V = MO.range("virt");
-  Tensor<T> t1_2_1{O, O};
-  Tensor<T> t1_2_2_1{O, V};
-  Tensor<T> t1_3_1{V, V};
-  Tensor<T> t1_5_1{O, V};
-  Tensor<T> t1_6_1{O, O, V, V};
-
-  TiledIndexLabel p2, p3, p4, p5, p6, p7;
-  TiledIndexLabel h1, h4, h5, h6, h7, h8;
-
-  std::tie(p2, p3, p4, p5, p6, p7) = MO.range_labels("virt", 1, 2, 3, 4, 5, 6);
-  std::tie(h1, h4, h5, h6, h7, h8) = MO.range_labels("occ", 1, 2, 3, 4, 5, 6);  
-
-  i0(p2,h1)             =   f1(p2,h1);
-  t1_2_1(h7,h1)         =   f1(h7,h1);
-  t1_2_2_1(h7,p3)       =   f1(h7,p3);
-  t1_2_2_1(h7,p3)      +=   -1 * t1(p5,h6) * v2(h6,h7,p3,p5);
-  t1_2_1(h7,h1)        +=   t1(p3,h1) * t1_2_2_1(h7,p3);
-  t1_2_1(h7,h1)        +=   -1 * t1(p4,h5) * v2(h5,h7,h1,p4);
-  t1_2_1(h7,h1)        +=   -0.5 * t2(p3,p4,h1,h5) * v2(h5,h7,p3,p4);
-  i0(p2,h1)            +=   -1 * t1(p2,h7) * t1_2_1(h7,h1);
-  t1_3_1(p2,p3)         =   f1(p2,p3);
-  t1_3_1(p2,p3)        +=   -1 * t1(p4,h5) * v2(h5,p2,p3,p4);
-  i0(p2,h1)            +=   t1(p3,h1) * t1_3_1(p2,p3);
-  i0(p2,h1)            +=   -1 * t1(p3,h4) * v2(h4,p2,h1,p3);
-  t1_5_1(h8,p7)         =   f1(h8,p7);
-  t1_5_1(h8,p7)        +=   t1(p5,h6) * v2(h6,h8,p5,p7);
-  i0(p2,h1)            +=   t2(p2,p7,h1,h8) * t1_5_1(h8,p7);
-  t1_6_1(h4,h5,h1,p3)   =   v2(h4,h5,h1,p3);
-  t1_6_1(h4,h5,h1,p3)  +=   -1 * t1(p6,h1) * v2(h4,h5,p3,p6);
-  i0(p2,h1)            +=   -0.5 * t2(p2,p3,h4,h5) * t1_6_1(h4,h5,h1,p3);
-  i0(p2,h1)            +=   -0.5 * t2(p3,p4,h1,h5) * v2(h5,p2,p3,p4);
-}
-
-template<typename T>
-void driver(const TiledIndexSpace& MO) {
-	const TiledIndexRange& O = MO.range("occ");
-	const TiledIndexRange& V = MO.range("virt");
-	const TiledIndexRange& N = MO.range("all");
-
-	Tensor<T> i0{};
-	Tensor<T> t1{V, O};
-	Tensor<T> t2{V, V, O, O};
-	Tensor<T> f1{N, N};
-	Tensor<T> v2{N, N, N, N};
-	ccsd_t1(MO, i0, t1, t2, f1, v2);
-}
-```
 
 ### DLPNO CCSD (work in progress)
 ```c++
@@ -508,22 +702,23 @@ double dlpno_ccsd(const TiledIndexSpace& AO, const TiledIndexSpace& MO,
                   const Tensor<T>& dmat, const Tensor<T>& F,
                   const Tensor<T>& I,
                   const Tensor<T>& Cvirtt){
-   
-    const TiledIndexRange& N_ao = AO.range("all"); 
-    const TiledIndexRange& N_atom = AtomSpace.range("all");
-    const TiledIndexRange& N_pao = SubPAO.range("all");
-    const TiledIndexRange& O_mo = MO.range("occ");
-    const TiledIndexRange& O_submo = SubMO.range("occ");
+	  
+	
+    const TiledIndexSpace& N_ao = AO("all"); 
+    const TiledIndexSpace& N_atom = AtomSpace("all");
+    const TiledIndexSpace& N_pao = SubPAO("all");
+    const TiledIndexSpace& O_mo = MO("occ");
+    const TiledIndexSpace& O_submo = SubMO("occ");
     
     TiledIndexLabel mu, nu, mu_p, nu_p;
     TiledIndexLabel i, j, i_p, j_p;
     TiledIndexLabel A, B;
 
-    std::tie(mu, nu) = AO.range_labels("all", 0, 1);
-    std::tie(mu_p, nu_p) = SubPAO.range_labels("all", 0, 1);
-    std::tie(i,j) = MO.range_labels("occ", 0, 1);
-    std::tie(i_p,j_p) = SubMO.range_labels("occ", 0, 1);
-    std::tie(A, B) = AtomSpace.range_labels("all", 0, 1);
+    std::tie(mu, nu) = AO.range_labels<2>("all");
+    std::tie(mu_p, nu_p) = SubPAO.range_labels<2>("all");
+    std::tie(i,j) = MO.range_labels<2>("occ");
+    std::tie(i_p,j_p) = SubMO.range_labels<2>("occ");
+    std::tie(A, B) = AtomSpace.range_labels<2>("all");
     
     Tensor<T> F{N_ao, N_ao};
     //Tensor<T> C{A, mu, i_p(A)};
@@ -542,21 +737,19 @@ double dlpno_ccsd(const TiledIndexSpace& AO, const TiledIndexSpace& MO,
 	
 	//we now have SubMO dependent on AtomSpace
 	TiledIndexLabel i_p; //..define
-)or<T> SCCS{N_ao, N_ao};
+    Tensor<T> SCCS{N_ao, N_ao};
     //auto SC(A, mu, i_p) = S(mu, nu) * C(A, nu, i);    auto SCCS(mu, nu) = SC(mu, i) * SC(nu, i_p);
     
     Tensor<T> L{N_ao, N_ao};
     L(mu, nu) = S(mu, nu);
     L(mu, nu) += -1 * SCCS(mu,nu)
 
-	//now we interpret L to construct the mu_tilde (mu_p) index space  
-
+	//now we interpret L to construct the mu_tilde (mu_p) index space 
+	
     //Step 2
-    Tens
-    //TODO: support for absolute sum is needed
-    l(A,B  
-    //Step 2
-    Tensor<T> l{N_atom, N_atom}; L(mu_subatom(A), u_subatom(B));
+    Tensor<T> l{N_atom, N_atom}; 
+    //TODO: support for absolute sum is need
+    l(A,B) = L(mu_subatom(A), mu_subatom(B));
     //l(i,j) = outer(fn(i,j)) * A(i, j);
     //e.g.: T1(mu_pp(m,n)) = A(n,m);
     //e.g.: Tensor<T> T5{i, a(i)};

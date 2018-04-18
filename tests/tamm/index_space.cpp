@@ -138,3 +138,68 @@ TEST_CASE("IndexSpace construction by aggregating with subnames") {
   check_indices(agg_is("beta"), {3, 4, 8, 9, 13, 14, 18, 19});
 
 }
+
+
+TEST_CASE("IndexSpace construction using dependent IndexSpaces") {
+    IndexSpace is1{range(0, 10)}; 
+    IndexSpace is2{range(0, 10, 2)};
+    IndexSpace is3{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+                   {{"occ", {range(0, 5)}},
+                    {"virt", {range(5, 10)}},
+                    {"alpha", {range(0, 3), range(5, 8)}},
+                    {"beta", {range(3, 5), range(8, 10)}}}};
+
+    IndexSpace temp_is1{0,1,2};
+    IndexSpace temp_is2{8,9};
+
+    std::map<IndexVector, IndexSpace> dep_relation{ {{0,8}, is1},
+                                                    {{0,9}, is2},
+                                                    {{1,8}, temp_is2},
+                                                    {{1,9}, is2},
+                                                    {{2,8}, is1},
+                                                    {{2,9}, is3}};
+
+    // Dependent IndexSpace construction using dependency relation
+    IndexSpace dep_is{{temp_is1, temp_is2}, dep_relation};
+    
+    // Check the dependency relation
+    REQUIRE(dep_is(IndexVector{0,8}) == is1);
+    REQUIRE(dep_is(IndexVector{0,9}) == is2);
+    REQUIRE(dep_is(IndexVector{1,8}) == temp_is2);
+    REQUIRE(dep_is(IndexVector{1,9}) == is2);
+    REQUIRE(dep_is(IndexVector{2,8}) == is1);
+    REQUIRE(dep_is(IndexVector{2,9}) == is3);
+    
+}
+
+TEST_CASE("TiledIndexSpace construction") {
+
+    IndexSpace is{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+                   {{"occ", {range(0, 5)}},
+                    {"virt", {range(5, 10)}},
+                    {"alpha", {range(0, 3), range(5, 8)}},
+                    {"beta", {range(3, 5), range(8, 10)}}}};
+    // TiledIndexSpace construction with tile size of 5
+    TiledIndexSpace t5_is{is, 5};
+    
+    // TiledIndexSpace construction with tile size of 5
+    TiledIndexSpace t3_is{is, 3};
+    
+
+    // Check if the reference index space is equal to argument
+    REQUIRE(t5_is.index_space() == is);
+    REQUIRE(t3_is.index_space() == is);
+
+    TiledIndexLabel i,j,k;
+
+    // Construct TiledIndexLabels from TiledIndexSpace
+    std::tie(i,j) = t5_is.labels<2>("all");
+    // Check reference TiledIndexSpace on the labels
+    REQUIRE(i.tiled_index_space() == t5_is);
+    REQUIRE(j.tiled_index_space() == t5_is);
+    // Construct TiledIndexLabels from TiledIndexSpace
+    k = t3_is.label("all", 1);
+    // Check reference TiledIndexSpace on the label
+    REQUIRE(k.tiled_index_space() == t3_is);
+
+}

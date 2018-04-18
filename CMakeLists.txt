@@ -4,7 +4,7 @@ set(NWX_PROJECTS tamm)
 set(tamm_DEPENDENCIES NWX_MPI)
 
 set(tamm_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/tamm)
-set(tamm_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/tamm)
+set(tamm_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 
 find_package(CMakeBuild)
 build_nwchemex_module(${CMAKE_CURRENT_LIST_DIR})

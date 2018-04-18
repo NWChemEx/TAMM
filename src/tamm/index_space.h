@@ -1660,14 +1660,14 @@ class TiledIndexLabel {
     // Constructor
     TiledIndexLabel() = default;
 
-    TiledIndexLabel(TiledIndexSpace t_is, Label lbl = 0,
+    TiledIndexLabel(const TiledIndexSpace& t_is, Label lbl = 0,
                     const std::vector<TiledIndexLabel> dep_labels = {}) :
       tis_{t_is},
       label_{lbl},
       dep_labels_{dep_labels} {}
 
-    TiledIndexLabel(TiledIndexLabel t_il,
-                    std::vector<TiledIndexLabel> dep_labels) :
+    TiledIndexLabel(const TiledIndexLabel& t_il,
+                    const std::vector<TiledIndexLabel>& dep_labels) :
       tis_{t_il.tis_},
       label_{t_il.label_},
       dep_labels_{dep_labels} {}
@@ -1735,6 +1735,8 @@ inline bool operator>=(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
 ///////////////////////////////////////////////////////////
 
 inline TiledIndexLabel TiledIndexSpace::label(std::string id, Label lbl) const {
+    if(id == "all")
+        return TiledIndexLabel{(*this),lbl};
     return TiledIndexLabel{(*this)(id), lbl};
 }
 

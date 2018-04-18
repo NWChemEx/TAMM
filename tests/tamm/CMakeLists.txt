@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION ${CMAKE_VERSION})
-project(TAMM-Test VERSION 0.0.0 LANGUAGES CXX)
-find_package(TAMM REQUIRED)
+project(tamm-Test VERSION 0.0.0 LANGUAGES CXX)
+find_package(tamm REQUIRED)
 include(TargetMacros)
 
 add_cxx_unit_test(index_space)

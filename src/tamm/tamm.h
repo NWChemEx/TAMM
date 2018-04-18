@@ -14,6 +14,10 @@
 #include <type_traits>
 
 #include "tamm/index_space.h"
+#include "tamm/labeled_tensor.h"
+#include "tamm/ops.h"
+#include "tamm/scheduler.h"
+#include "tamm/execution_context.h"
 
 #endif  // TAMM_TAMM_H_
 

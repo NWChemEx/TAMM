@@ -13,12 +13,7 @@
 #include <iostream>
 #include <type_traits>
 
-#include "tamm/boundvec.h"
-#include "tamm/types.h"
-#include "tamm/labeled_tensor.h"
-#include "tamm/ops.h"
-#include "tamm/scheduler.h"
-#include "tamm/execution_context.h"
+#include "tamm/index_space.h"
 
 #endif  // TAMM_TAMM_H_
 

@@ -195,11 +195,11 @@ TEST_CASE("TiledIndexSpace construction") {
     // Construct TiledIndexLabels from TiledIndexSpace
     std::tie(i,j) = t5_is.labels<2>("all");
     // Check reference TiledIndexSpace on the labels
-    REQUIRE(i.tiled_index_space() == t5_is);
-    REQUIRE(j.tiled_index_space() == t5_is);
+    REQUIRE(i.tiled_index_space().index_space() == t5_is.index_space());
+     REQUIRE(j.tiled_index_space().index_space() == t5_is.index_space());
     // Construct TiledIndexLabels from TiledIndexSpace
     k = t3_is.label("all", 1);
     // Check reference TiledIndexSpace on the label
-    REQUIRE(k.tiled_index_space() == t3_is);
+    REQUIRE(k.tiled_index_space().index_space() == t3_is.index_space());
 
 }

@@ -23,7 +23,7 @@ using Tile          = uint32_t;
  * @todo Possibly replace with Range class in Utilities repo.
  */
 class Range {
-    public:
+public:
     // Default Ctors
     Range() = default;
 
@@ -103,12 +103,12 @@ class Range {
         return true;
     }
 
-    protected:
+protected:
     Index lo_;
     Index hi_;
     Index step_;
 
-    private:
+private:
     /**
      * @brief Euclid's extended gcd for is_disjoint_with method
      *        - ax + by = gcd(a,b)
@@ -176,7 +176,7 @@ using AttributeToRangeMap = std::map<AttributeType, std::vector<Range>>;
  */
 template<typename T>
 class Attribute {
-    public:
+public:
     /**
      * @brief Construct a new Attribute object using default implementation
      *
@@ -261,7 +261,7 @@ class Attribute {
      */
     bool empty() const { return attr_map_.find(T{0}) != attr_map_.end(); }
 
-    protected:
+protected:
     AttributeToRangeMap<T> attr_map_; //
 };                                    // Attribute
 
@@ -277,7 +277,7 @@ class IndexSpace;
  *        for the different IndexSpace implementations
  */
 class IndexSpaceInterface {
-    public:
+public:
     /**
      * @brief Destroy the Index Space Interface object
      *
@@ -343,11 +343,11 @@ class IndexSpaceInterface {
     virtual IndexIterator end() const = 0;
     /**
      * @brief Returns the size of the IndexVector associated with the
-     * IndexSpaceß
+     * IndexSpace
      *
      * @returns size of the IndexVector
      */
-    virtual Index size() const = 0;
+    virtual std::size_t size() const = 0;
 
     /**
      * @brief Accessor methods to Spin value associated with the input Index
@@ -395,7 +395,14 @@ class IndexSpaceInterface {
      */
     virtual bool has_spatial() const = 0;
 
-    protected:
+    /**
+     * @brief Get the named ranges map
+     *
+     * @returns NameToRangeMap object from IndexSpace
+     */
+    virtual const NameToRangeMap& get_named_ranges() const = 0;
+
+protected:
     std::weak_ptr<IndexSpaceInterface> this_weak_ptr_;
 
     /**
@@ -480,7 +487,7 @@ class IndexSpaceInterface {
         return true;
     }
 
-    private:
+private:
     /**
      * @brief Set the weak ptr object for IndexSpaceInterface
      *
@@ -506,7 +513,7 @@ class DependentIndexSpaceImpl;
  *
  */
 class IndexSpace {
-    public:
+public:
     using Iterator = IndexIterator;
     // Constructors
     IndexSpace() = default;
@@ -551,7 +558,7 @@ class IndexSpace {
      * subspaces
      * @param [in] spin map from Spin attribute values to corresponding ranges
      * in the IndexSpace
-     * @param [in] spatial map from Spatial attributeß values to corresponding
+     * @param [in] spatial map from Spatial attribute values to corresponding
      * ranges in the IndexSpace
      */
     IndexSpace(const IndexVector& indices,
@@ -656,7 +663,7 @@ class IndexSpace {
     IndexIterator end() const;
 
     // Size of this index space
-    Index size() const;
+    std::size_t size() const;
 
     // Attribute Accessors
     Spin spin(Index idx) const;
@@ -667,6 +674,8 @@ class IndexSpace {
 
     bool has_spin() const;
     bool has_spatial() const;
+
+    const NameToRangeMap& get_named_ranges() const;
 
     bool is_identical(const IndexSpace& rhs) const {
         return impl_ == rhs.impl_;
@@ -679,7 +688,7 @@ class IndexSpace {
         return is_identical(rhs);
     }
 
-    protected:
+protected:
     std::shared_ptr<IndexSpaceInterface> impl_;
 }; // IndexSpace
 
@@ -689,7 +698,7 @@ class IndexSpace {
  *
  */
 class RangeIndexSpaceImpl : public IndexSpaceInterface {
-    public:
+public:
     // @todo do we need a default constructor?
     // RangeIndexSpaceImpl() = default;
 
@@ -744,7 +753,7 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
     IndexIterator end() const override { return indices_.end(); }
 
     // Size of this index space
-    Index size() const override { return indices_.size(); }
+    std::size_t size() const override { return indices_.size(); }
 
     // Attribute Accessors
     Spin spin(Index idx) const override { return spin_(idx); }
@@ -760,7 +769,11 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
     bool has_spin() const override { return spin_.empty(); }
     bool has_spatial() const override { return spatial_.empty(); }
 
-    protected:
+    const NameToRangeMap& get_named_ranges() const override {
+        return named_ranges_;
+    }
+
+protected:
     IndexVector indices_;
     NameToRangeMap named_ranges_;
     std::map<std::string, IndexSpace> named_subspaces_;
@@ -843,7 +856,7 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
  *
  */
 class SubSpaceImpl : public IndexSpaceInterface {
-    public:
+public:
     // @todo do we need a default constructor?
     // SubSpaceImpl() = default;
 
@@ -892,7 +905,7 @@ class SubSpaceImpl : public IndexSpaceInterface {
     IndexIterator end() const override { return indices_.end(); }
 
     // Size of this index space
-    Index size() const override { return indices_.size(); }
+    std::size_t size() const override { return indices_.size(); }
 
     // Attribute Accessors
     Spin spin(Index idx) const override { return ref_space_.spin(idx); }
@@ -910,7 +923,11 @@ class SubSpaceImpl : public IndexSpaceInterface {
     bool has_spin() const override { return ref_space_.has_spin(); }
     bool has_spatial() const override { return ref_space_.has_spatial(); }
 
-    protected:
+    const NameToRangeMap& get_named_ranges() const override {
+        return named_ranges_;
+    }
+
+protected:
     IndexSpace ref_space_;
     Range ref_range_;
     IndexVector indices_;
@@ -968,7 +985,7 @@ class SubSpaceImpl : public IndexSpaceInterface {
  *
  */
 class AggregateSpaceImpl : public IndexSpaceInterface {
-    public:
+public:
     // @todo do we need a default constructor?
     // AggregateSpaceImpl() = default;
 
@@ -1024,7 +1041,7 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
     IndexIterator end() const override { return indices_.end(); }
 
     // Size of this index space
-    Index size() const override { return indices_.size(); }
+    std::size_t size() const override { return indices_.size(); }
 
     // @todo what should these return? Currently, it returns the
     // first reference space's spin and spatial attributes.
@@ -1060,7 +1077,11 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
         return true;
     }
 
-    protected:
+    const NameToRangeMap& get_named_ranges() const override {
+        return named_ranges_;
+    }
+
+protected:
     std::vector<IndexSpace> ref_spaces_;
     IndexVector indices_;
     NameToRangeMap named_ranges_;
@@ -1077,10 +1098,14 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
     void add_ref_names(const std::vector<IndexSpace>& ref_spaces,
                        const std::vector<std::string>& ref_names) {
         EXPECTS(ref_spaces.size() == ref_names.size());
-        size_t i = 0;
+        std::size_t i        = 0;
+        std::size_t curr_idx = 0;
         for(const auto& space : ref_spaces) {
             named_subspaces_.insert({ref_names[i], space});
+            named_ranges_.insert(
+              {ref_names[i], {range(curr_idx, curr_idx + space.size())}});
             i++;
+            curr_idx += space.size();
         }
     }
 
@@ -1095,21 +1120,44 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
       const std::map<std::string, std::vector<std::string>>&
         subspace_references) {
         for(const auto& kv : subspace_references) {
-            IndexVector temp_indices = {};
+            IndexVector temp_indices;
+            std::vector<Range> ranges;
 
             std::string key = kv.first;
             for(const auto& ref_str : kv.second) {
                 std::vector<std::string> ref_names = split(ref_str, ':');
-                IndexSpace temp_is = named_subspaces_.at(ref_names[0]);
+                IndexSpace temp_is   = named_subspaces_.at(ref_names[0]);
+                const auto& temp_map = temp_is.get_named_ranges();
 
-                for(size_t i = 1; i < ref_names.size(); i++) {
-                    temp_is = temp_is(ref_names[i]);
+                auto ref_it =
+                  std::find(ref_spaces_.begin(), ref_spaces_.end(), temp_is);
+                EXPECTS(ref_it != ref_spaces_.end());
+                auto it            = ref_spaces_.begin();
+                std::size_t offset = 0;
+
+                while(it != ref_it) {
+                    offset += (*it).size();
+                    it++;
                 }
+                // for(size_t i = 1; i < ref_names.size(); i++) {
+                //     temp_is = temp_is(ref_names[i]);
+                // }
+
+                // for each range for the corresponding sub-name
+                for(const auto& rng : temp_map.at(ref_names[1])) {
+                    // update the range values and push to the ranges
+                    ranges.push_back(
+                      range(rng.lo() + offset, rng.hi() + offset));
+                }
+
+                // for now we will support 1 depth references (e.g. "occ:alpha")
+                temp_is = temp_is(ref_names[1]);
 
                 temp_indices.insert(temp_indices.end(), temp_is.begin(),
                                     temp_is.end());
             }
             named_subspaces_.insert({key, IndexSpace{temp_indices}});
+            named_ranges_.insert({key, ranges});
         }
     }
 
@@ -1145,8 +1193,6 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
             IndexVector indices = {};
             for(auto& range : kv.second) {
                 for(auto& i : construct_index_vector(range)) {
-                    // std::cout << "index: "<< i << " value: "<< indices_[i] <<
-                    // std::endl;
                     indices.push_back(indices_[i]);
                 }
             }
@@ -1164,7 +1210,7 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
  *
  */
 class DependentIndexSpaceImpl : public IndexSpaceInterface {
-    public:
+public:
     // @todo do we need a default constructor?
     // DependentIndexSpaceImpl() = default;
 
@@ -1179,7 +1225,8 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
       const std::vector<IndexSpace>& indep_spaces,
       const std::map<IndexVector, IndexSpace>& dep_space_relation) :
       dep_spaces_{indep_spaces},
-      dep_space_relation_{dep_space_relation} {}
+      dep_space_relation_{dep_space_relation},
+      named_ranges_{} {}
 
     /**
      * @brief Construct a new Dependent Index Space Impl object
@@ -1193,7 +1240,8 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
       const std::vector<IndexSpace>& indep_spaces, const IndexSpace& ref_space,
       const std::map<IndexVector, IndexSpace>& dep_space_relation) :
       dep_spaces_{indep_spaces},
-      dep_space_relation_{dep_space_relation} {}
+      dep_space_relation_{dep_space_relation},
+      named_ranges_{} {}
 
     // @todo do we need these constructor/operators
     DependentIndexSpaceImpl(DependentIndexSpaceImpl&&)      = default;
@@ -1244,7 +1292,7 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
     }
 
     // @todo What should this return?
-    Index size() const override {
+    std::size_t size() const override {
         NOT_ALLOWED();
         return Index{0};
     }
@@ -1277,10 +1325,16 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
         return false;
     }
 
-    protected:
+    const NameToRangeMap& get_named_ranges() const override {
+        NOT_ALLOWED();
+        return named_ranges_;
+    }
+
+protected:
     std::vector<IndexSpace> dep_spaces_;
     IndexSpace ref_space_;
     std::map<IndexVector, IndexSpace> dep_space_relation_;
+    NameToRangeMap named_ranges_;
 }; // DependentIndexSpaceImpl
 
 ////////////////////////////////////////////////////////////////
@@ -1372,7 +1426,7 @@ IndexIterator IndexSpace::begin() const { return impl_->begin(); }
 IndexIterator IndexSpace::end() const { return impl_->end(); }
 
 // Size of this index space
-Index IndexSpace::size() const { return impl_->size(); }
+std::size_t IndexSpace::size() const { return impl_->size(); }
 
 // Attribute Accessors
 Spin IndexSpace::spin(Index idx) const { return impl_->spin(idx); }
@@ -1387,6 +1441,10 @@ std::vector<Range> IndexSpace::spatial_ranges(Spatial spatial) const {
 
 bool IndexSpace::has_spin() const { return impl_->has_spin(); }
 bool IndexSpace::has_spatial() const { return impl_->has_spatial(); }
+
+const NameToRangeMap& IndexSpace::get_named_ranges() const {
+    return impl_->get_named_ranges();
+}
 
 // Comparison operator implementations
 inline bool operator==(const IndexSpace& lhs, const IndexSpace& rhs) {
@@ -1421,7 +1479,7 @@ class TiledIndexLabel;
  *
  */
 class TiledIndexSpace {
-    public:
+public:
     // Ctors
     TiledIndexSpace() = default;
 
@@ -1434,7 +1492,8 @@ class TiledIndexSpace {
      */
     TiledIndexSpace(const IndexSpace& is, Tile size = 1) :
       is_{is},
-      size_{size} {}
+      size_{size},
+      tiled_indices_{construct_tiled_indices(is, size)} {}
 
     /**
      * @brief Construct a new TiledIndexSpace object from a sub-space of a
@@ -1508,7 +1567,7 @@ class TiledIndexSpace {
      * @returns a const_iterator to an Index at the first element of the
      * IndexSpace
      */
-    IndexIterator begin() const { return is_.begin(); }
+    IndexIterator begin() const { return tiled_indices_.begin(); }
 
     /**
      * @brief Iterator accessor to the end of the reference IndexSpace
@@ -1516,7 +1575,7 @@ class TiledIndexSpace {
      * @returns a const_iterator to an Index at the size-th element of the
      * IndexSpace
      */
-    IndexIterator end() const { return begin() + size_; }
+    IndexIterator end() const { return tiled_indices_.end() - 1; }
 
     /**
      * @brief Iterator accessor to the first Index element of a specific block
@@ -1526,7 +1585,8 @@ class TiledIndexSpace {
      * block
      */
     IndexIterator block_begin(Index blck_ind) const {
-        return is_.begin() + (size_ * blck_ind);
+        EXPECTS(blck_ind <= size());
+        return is_.begin() + tiled_indices_[blck_ind];
     }
     /**
      * @brief Iterator accessor to the last Index element of a specific block
@@ -1536,7 +1596,8 @@ class TiledIndexSpace {
      * block
      */
     IndexIterator block_end(Index blck_ind) const {
-        return block_begin(blck_ind) + size_;
+        EXPECTS(blck_ind <= size());
+        return is_.begin() + tiled_indices_[blck_ind + 1];
     }
 
     /**
@@ -1620,9 +1681,52 @@ class TiledIndexSpace {
      */
     const IndexSpace& index_space() const { return is_; }
 
-    protected:
+    /**
+     * @brief Get the number of tiled index blocks in TiledIndexSpace
+     *
+     * @returns size of TiledIndexSpace
+     */
+    std::size_t size() const { return tiled_indices_.size() - 1; }
+
+protected:
     IndexSpace is_;
     Tile size_;
+    std::vector<Index> tiled_indices_;
+
+    /**
+     * @brief Construct starting and ending indices of each tile with respect to
+     * the named subspaces
+     *
+     * @param [in] is reference IndexSpace
+     * @param [in] size Tile size value
+     * @returns a vector of indices corresponding to the start and end of each
+     * tile
+     */
+    std::vector<Index> construct_tiled_indices(const IndexSpace& is,
+                                               Tile size) {
+        IndexVector idx_vec, ret;
+        for(const auto& kv : is.get_named_ranges()) {
+            for(const auto& range : kv.second) {
+                idx_vec.push_back(range.lo());
+                idx_vec.push_back(range.hi());
+            }
+        }
+
+        std::sort(idx_vec.begin(), idx_vec.end());
+        auto last = std::unique(idx_vec.begin(), idx_vec.end());
+        idx_vec.erase(last, idx_vec.end());
+
+        std::size_t i = 0;
+        std::size_t j = (i == idx_vec[0]) ? 1 : 0;
+
+        while(i < is.size()) {
+            ret.push_back(i);
+            i = (i + size_ > idx_vec[j]) ? idx_vec[j++] : (i + size_);
+        }
+        ret.push_back(is.size());
+
+        return ret;
+    }
 
     template<std::size_t... Is>
     auto labels_impl(std::string id, Label start,
@@ -1656,7 +1760,7 @@ inline bool operator>=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
 }
 
 class TiledIndexLabel {
-    public:
+public:
     // Constructor
     TiledIndexLabel() = default;
 
@@ -1702,7 +1806,7 @@ class TiledIndexLabel {
 
     const TiledIndexSpace& tiled_index_space() const { return tis_; }
 
-    protected:
+protected:
     TiledIndexSpace tis_;
     Label label_;
     std::vector<TiledIndexLabel> dep_labels_;
@@ -1735,8 +1839,7 @@ inline bool operator>=(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
 ///////////////////////////////////////////////////////////
 
 inline TiledIndexLabel TiledIndexSpace::label(std::string id, Label lbl) const {
-    if(id == "all")
-        return TiledIndexLabel{(*this),lbl};
+    if(id == "all") return TiledIndexLabel{(*this), lbl};
     return TiledIndexLabel{(*this)(id), lbl};
 }
 
@@ -1748,4 +1851,4 @@ auto TiledIndexSpace::labels_impl(std::string id, Label start,
 
 } // namespace tamm
 
-#endif // INDEX_SPACE_H_ƒ
+#endif // INDEX_SPACE_H_

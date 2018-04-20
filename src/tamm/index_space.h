@@ -20,6 +20,8 @@ using Tile          = uint32_t;
  *        For now we are using a simple range representation
  *        We will use range constructs from Utilities repo.
  *
+ * @todo Possibly move to separate header file
+ *
  * @todo Possibly replace with Range class in Utilities repo.
  */
 class Range {
@@ -113,6 +115,8 @@ private:
      * @brief Euclid's extended gcd for is_disjoint_with method
      *        - ax + by = gcd(a,b)
      *
+     * @todo Move to a separate header/folder for utility functions like this
+     *
      * @param [in] a first number for calculating gcd
      * @param [in] b second number for calculating gcd
      * @returns a tuple for gcd, x and y coefficients
@@ -171,6 +175,8 @@ using AttributeToRangeMap = std::map<AttributeType, std::vector<Range>>;
  * @class Attribute
  * @brief Attribute definition which will be used for representing
  *        Spin, Spatial and any other attributes required.
+ * 
+ * @todo Possibly move to a separate header file
  *
  * @tparam T is an Attribute type (e.g. Spin, Spatial)
  */
@@ -511,6 +517,7 @@ class DependentIndexSpaceImpl;
  * @brief Main IndexSpace class that clients will be actively
  *        using for constructing Tensors via TiledIndexSpaces.
  *
+ * @todo Possibly use named parameters idiom for construction
  */
 class IndexSpace {
 public:
@@ -1704,6 +1711,8 @@ protected:
      */
     std::vector<Index> construct_tiled_indices(const IndexSpace& is,
                                                Tile size) {
+        if(is.get_named_ranges().empty()) { return {}; }
+
         IndexVector idx_vec, ret;
         for(const auto& kv : is.get_named_ranges()) {
             for(const auto& range : kv.second) {

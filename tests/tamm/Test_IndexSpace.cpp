@@ -132,7 +132,8 @@ TEST_CASE("IndexSpace construction by aggregating with subnames") {
     // check indices for subspace name "local"
     check_indices(agg_is("local"), {18, 19, 20, 21, 22});
     // check indices for subspace name "alpha"
-    check_indices(agg_is("alpha"), {10, 11, 12, 15, 16, 17, 20, 21, 22, 25, 26, 27});
+    check_indices(agg_is("alpha"),
+                  {10, 11, 12, 15, 16, 17, 20, 21, 22, 25, 26, 27});
     // check indices for subspace name "beta"
     check_indices(agg_is("beta"), {13, 14, 18, 19, 23, 24, 28, 29});
 }
@@ -163,6 +164,23 @@ TEST_CASE("IndexSpace construction using dependent IndexSpaces") {
     REQUIRE(dep_is(IndexVector{1, 9}) == is2);
     REQUIRE(dep_is(IndexVector{2, 8}) == is1);
     REQUIRE(dep_is(IndexVector{2, 9}) == is3);
+}
+
+TEST_CASE(
+  "IndexSpace construction for sub AO space dependent over ATOM index space") {
+    IndexSpace AO{range(0, 20)};
+    IndexSpace ATOM{{0, 1, 2, 3, 4}};
+
+    std::map<IndexVector, IndexSpace> ao_atom_relation{
+      /*atom 0*/ {IndexVector{0}, IndexSpace{AO, IndexVector{3, 4, 7}}},
+      /*atom 1*/ {IndexVector{1}, IndexSpace{AO, IndexVector{1, 5, 7}}},
+      /*atom 2*/ {IndexVector{2}, IndexSpace{AO, IndexVector{1, 9, 11}}},
+      /*atom 3*/ {IndexVector{3}, IndexSpace{AO, IndexVector{11, 14}}},
+      /*atom 4*/ {IndexVector{4}, IndexSpace{AO, IndexVector{2, 5, 13, 17}}}};
+
+    CHECK_NOTHROW(IndexSpace{/*dependent spaces*/ {ATOM},
+                             /*reference space*/ AO,
+                             /*relation*/ ao_atom_relation});
 }
 
 TEST_CASE("TiledIndexSpace construction") {
@@ -221,18 +239,19 @@ TEST_CASE("TiledIndexSpace tiling check") {
     TiledIndexSpace t10_is{tempIS3, 10};
 
     // Reference tiled index vectors with respect to each name subspace
-    std::vector<IndexVector> tiled_iv{{10, 11, 12, 13, 14, 15, 16, 17, 18, 19}, // occ + alpha
-                                      {20, 21, 22},                             // occ + alpha
-                                      {23, 24, 25, 26, 27, 28, 29},             // occ + beta
-                                      {30, 31, 32, 33, 34, 35, 36, 37, 38, 39}, // occ + alpha
-                                      {40, 41, 42},                             // occ + alpha
-                                      {43, 44, 45, 46, 47, 48, 49},             // occ + beta
-                                      {50, 51, 52, 53, 54, 55, 56, 57},         // virt + alpha
-                                      {58, 59, 60, 61, 62, 63, 64, 65, 66, 67}, // virt + beta
-                                      {68, 69},                                 // virt + beta
-                                      {70, 71, 72, 73, 74, 75, 76, 77},         // virt + alpha
-                                      {78, 79, 80, 81, 82, 83, 84, 85, 86, 87}, // virt + beta
-                                      {88, 89}};                                // virt + beta
+    std::vector<IndexVector> tiled_iv{
+      {10, 11, 12, 13, 14, 15, 16, 17, 18, 19}, // occ + alpha
+      {20, 21, 22},                             // occ + alpha
+      {23, 24, 25, 26, 27, 28, 29},             // occ + beta
+      {30, 31, 32, 33, 34, 35, 36, 37, 38, 39}, // occ + alpha
+      {40, 41, 42},                             // occ + alpha
+      {43, 44, 45, 46, 47, 48, 49},             // occ + beta
+      {50, 51, 52, 53, 54, 55, 56, 57},         // virt + alpha
+      {58, 59, 60, 61, 62, 63, 64, 65, 66, 67}, // virt + beta
+      {68, 69},                                 // virt + beta
+      {70, 71, 72, 73, 74, 75, 76, 77},         // virt + alpha
+      {78, 79, 80, 81, 82, 83, 84, 85, 86, 87}, // virt + beta
+      {88, 89}};                                // virt + beta
 
     for(size_t i = 0; i < t10_is.size(); i++) {
         auto it     = t10_is.block_begin(i);

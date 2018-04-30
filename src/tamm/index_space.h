@@ -175,7 +175,7 @@ using AttributeToRangeMap = std::map<AttributeType, std::vector<Range>>;
  * @class Attribute
  * @brief Attribute definition which will be used for representing
  *        Spin, Spatial and any other attributes required.
- * 
+ *
  * @todo Possibly move to a separate header file
  *
  * @tparam T is an Attribute type (e.g. Spin, Spatial)
@@ -588,6 +588,16 @@ public:
      */
     IndexSpace(const IndexSpace& is, const Range& range,
                const NameToRangeMap& named_subspaces = {});
+    /**
+     * @brief Construct a new (Sub-)IndexSpace object by getting a set of
+     * indices from the reference index space
+     *
+     * @param [in] is reference IndexSpace
+     * @param [in] indices set of indices used for constructing the sub space
+     * @param [in] named_subspaces map from strings to (sub-)IndexSpace object
+     */
+    IndexSpace(const IndexSpace& is, const IndexVector& indices,
+               const NameToRangeMap& named_subspaces = {});
 
     /**
      * @brief Construct a new (Aggregated) Index Space object by aggregating
@@ -884,6 +894,18 @@ public:
       indices_{construct_indices(is, range)},
       named_ranges_{named_ranges},
       named_subspaces_{construct_subspaces(named_ranges)} {}
+
+    /**
+     * @brief
+     *
+     * @todo: Implement
+     *
+     * @param [in] is
+     * @param [in] indices
+     * @param [in] named_ranges
+     */
+    SubSpaceImpl(const IndexSpace& is, const IndexVector& indices,
+                 const NameToRangeMap& named_ranges) {}
 
     // @todo do we need these copy/move constructor/operators
     SubSpaceImpl(SubSpaceImpl&&)      = default;
@@ -1364,6 +1386,12 @@ IndexSpace::IndexSpace(const IndexSpace& is, const Range& range,
     impl_->set_weak_ptr(impl_);
 }
 
+IndexSpace::IndexSpace(const IndexSpace& is, const IndexVector& indices,
+                       const NameToRangeMap& named_subspaces) :
+  impl_{std::make_shared<SubSpaceImpl>(is, indices, named_subspaces)} {
+    impl_->set_weak_ptr(impl_);
+}
+
 IndexSpace::IndexSpace(
   const std::vector<IndexSpace>& spaces, const std::vector<std::string>& names,
   const NameToRangeMap& named_subspaces,
@@ -1501,6 +1529,22 @@ public:
       is_{is},
       size_{size},
       tiled_indices_{construct_tiled_indices(is, size)} {}
+
+    /**
+     * @brief Constructor with multiple tile sizes
+     *
+     * @todo Implement
+     *
+     * @param [in] is
+     * @param [in] sizes
+     */
+    TiledIndexSpace(const IndexSpace& is, const std::vector<Tile>& sizes) {
+        EXPECTS(is.size() == [sizes]() {
+            size_t ret = 0;
+            for(const auto& var : sizes) { ret += var; }
+            return ret;
+        }());
+    }
 
     /**
      * @brief Construct a new TiledIndexSpace object from a sub-space of a
@@ -1699,6 +1743,7 @@ protected:
     IndexSpace is_;
     Tile size_;
     std::vector<Index> tiled_indices_;
+    std::vector<Tile> sizes_;
 
     /**
      * @brief Construct starting and ending indices of each tile with respect to

@@ -6,7 +6,7 @@ def INTEL_ROOT="/blues/gpfs/home/software/spack-0.10.1/opt/spack/linux-centos7-x
 
 def buildModuleMatrix = [
     		   "GCC":(commonModules + "gcc/7.1.0"),
-		   "Intel":(commonModules + "gcc/7.1.0 intel-parallel-studio/cluster.2018.1-egcacag intel-mkl/2018.1.163-4okndez")
+		   "Intel":(commonModules + "gcc/7.1.0 intel-parallel-studio/cluster.2018.1-egcacag")
 		  ]
 def cmakeCommandMatrix = [
     		   "GCC":"-DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran -DBUILD_SHARED_LIBS=OFF",

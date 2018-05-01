@@ -1585,7 +1585,7 @@ public:
      * @param [in] lbl an integer value for associated Label
      * @returns a TiledIndexLabel associated with a TiledIndexSpace
      */
-    TiledIndexLabel label(std::string id, Label lbl) const;
+    TiledIndexLabel label(std::string id, Label lbl = 0) const;
 
     /**
      * @brief Construct a tuple of TiledIndexLabel given a count, subspace name

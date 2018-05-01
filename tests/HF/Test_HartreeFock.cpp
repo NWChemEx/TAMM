@@ -107,7 +107,7 @@ void hartree_fock(ExecutionContext& ec, const TiledIndexSpace& AO,
           .allocate(tmp1, tmp2)(ehf() = 0.0)(tmp1(i, j) = H(i, j))(
             tmp1(i, j) += F(i, j))(ehf() = D(i, j) * tmp1(i, j))
           // compute difference with last iteration
-          (ediff() = ehf())(ediff() = -1.0 * ehf_last())(tmp2(i, j) = D(i, j))(
+          (ediff() = ehf())(ediff() += -1.0 * ehf_last())(tmp2(i, j) = D(i, j))(
             tmp2(i, j) += -1.0 * D_last(i, j))
           .execute();
 

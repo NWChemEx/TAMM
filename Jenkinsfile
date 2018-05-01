@@ -36,7 +36,7 @@ for (int i=0; i<buildTypeList.size(); i++){
     }
 
     stage('${buildType}: Import Jenkins Commands'){
-        sh "wget https://raw.githubusercontent.com/NWChemEx-Project/DeveloperTools/jenkins/ci/Jenkins/nwxJenkins.groovy"
+        sh "wget https://raw.githubusercontent.com/NWChemEx-Project/DeveloperTools/master/ci/Jenkins/nwxJenkins.groovy"
     	nwxJenkins=load("nwxJenkins.groovy")
     }
 

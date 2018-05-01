@@ -1,12 +1,12 @@
 def repoName= "TAMM"
 def depends = ["CMakeBuild"] as String[]
 def commonModules = "cmake llvm "
-def MKL_ROOT="/blues/gpfs/home/software/spack-0.10.1/opt/spack/linux-centos7-x86_64/gcc-4.8.5/intel-parallel-studio-cluster.2018.1-egcacagjokllneqafnpkfnp4njzklpsk/compilers_and_libraries_2018.1.163/linux/mkl"
-def INTEL_ROOT="/blues/gpfs/home/software/spack-0.10.1/opt/spack/linux-centos7-x86_64/gcc-4.8.5/intel-parallel-studio-cluster.2018.1-egcacagjokllneqafnpkfnp4njzklpsk/compilers_and_libraries_2018.1.163/linux"
+def MKL_ROOT="/blues/gpfs/home/software/spack-0.10.1/opt/spack/linux-centos7-x86_64/gcc-4.8.5/intel-parallel-studio-cluster.2018.0-tpfbvgalxkjs4i6yhyyuxhyporbxpivw/compilers_and_libraries_2018.1.163/linux/mkl"
+def INTEL_ROOT="/blues/gpfs/home/software/spack-0.10.1/opt/spack/linux-centos7-x86_64/gcc-4.8.5/intel-parallel-studio-cluster.2018.0-tpfbvgalxkjs4i6yhyyuxhyporbxpivw/compilers_and_libraries_2018.1.163/linux"
 
 def buildModuleMatrix = [
     		   "GCC":(commonModules + "gcc/7.1.0"),
-		   "Intel":(commonModules + "gcc/7.1.0 intel-parallel-studio/cluster.2018.1-egcacag")
+		   "Intel":(commonModules + "gcc/7.1.0 intel-parallel-studio/cluster.2018.0-tpfbvga")
 		  ]
 def cmakeCommandMatrix = [
     		   "GCC":"-DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran -DBUILD_SHARED_LIBS=OFF",

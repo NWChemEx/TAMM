@@ -212,6 +212,50 @@ TEST_CASE("TiledIndexSpace construction") {
     REQUIRE(k.tiled_index_space() == t3_is);
 }
 
+TEST_CASE("TiledIndexSpace construction with multiple tile size") {
+    IndexSpace is1{range(10, 20)};
+
+    TiledIndexSpace tis1{is1, {2, 3, 5}};
+
+    std::vector<IndexVector> tiled_iv{
+      {10, 11}, {12, 13, 14}, {15, 16, 17, 18, 19}};
+
+    for(size_t i = 0; i < tis1.size(); i++) {
+        auto it     = tis1.block_begin(i);
+        auto it_ref = tiled_iv[i].begin();
+
+        while(it != tis1.block_end(i)) {
+            REQUIRE((*it) == (*it_ref));
+            it++;
+            it_ref++;
+        }
+    }
+}
+
+TEST_CASE("TiledIndexSpace construction with multiple tile size,named "
+          "subspaces and attributes") {
+    IndexSpace is1{range(10, 20),
+                   {{"occ", {range(0, 5)}}, {"virt", {range(5, 10)}}},
+                   {{Spin{1}, {range(0, 5)}}, {Spin{2}, {range(5, 10)}}},
+                   {{Spatial{1}, {range(5, 10)}}, {Spatial{2}, {range(0, 5)}}}};
+
+    TiledIndexSpace tis1{is1, {2, 3, 5}};
+
+    std::vector<IndexVector> tiled_iv{
+      {10, 11}, {12, 13, 14}, {15, 16, 17, 18, 19}};
+
+    for(size_t i = 0; i < tis1.size(); i++) {
+        auto it     = tis1.block_begin(i);
+        auto it_ref = tiled_iv[i].begin();
+
+        while(it != tis1.block_end(i)) {
+            REQUIRE((*it) == (*it_ref));
+            it++;
+            it_ref++;
+        }
+    }
+}
+
 TEST_CASE("TiledIndexSpace tiling check") {
     // Create a (range-based) IndexSpace with name subspaces
     IndexSpace tempIS1{range(10, 50),

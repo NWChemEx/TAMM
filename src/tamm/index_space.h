@@ -260,6 +260,8 @@ public:
         return attr_map_[val].end();
     }
 
+    const AttributeToRangeMap<T>& get_map() { return attr_map_; }
+
     /**
      * @brief Check if the attribute relations are empty
      *
@@ -400,6 +402,20 @@ public:
      * IndexSpace
      */
     virtual bool has_spatial() const = 0;
+
+    /**
+     * @brief Get the spin attribute object associated with IndexSpace
+     *
+     * @returns const reference to associated SpinAttribute
+     */
+    virtual SpinAttribute get_spin() const = 0;
+
+    /**
+     * @brief Get the spatial attribute object associated with IndexSpace
+     *
+     * @returns const reference to associated SpatialAttribute
+     */
+    virtual SpatialAttribute get_spatial() const = 0;
 
     /**
      * @brief Get the named ranges map
@@ -705,6 +721,9 @@ public:
         return is_identical(rhs);
     }
 
+    SpinAttribute get_spin() const;
+    SpatialAttribute get_spatial() const;
+
 protected:
     std::shared_ptr<IndexSpaceInterface> impl_;
 }; // IndexSpace
@@ -783,8 +802,11 @@ public:
         return spatial_.attribute_range(spatial);
     }
 
-    bool has_spin() const override { return spin_.empty(); }
-    bool has_spatial() const override { return spatial_.empty(); }
+    bool has_spin() const override { return !(spin_.empty()); }
+    bool has_spatial() const override { return !(spatial_.empty()); }
+
+    SpinAttribute get_spin() const override { return spin_; }
+    SpatialAttribute get_spatial() const override { return spatial_; }
 
     const NameToRangeMap& get_named_ranges() const override {
         return named_ranges_;
@@ -952,6 +974,11 @@ public:
     bool has_spin() const override { return ref_space_.has_spin(); }
     bool has_spatial() const override { return ref_space_.has_spatial(); }
 
+    SpinAttribute get_spin() const override { return ref_space_.get_spin(); }
+    SpatialAttribute get_spatial() const override {
+        return ref_space_.get_spatial();
+    }
+
     const NameToRangeMap& get_named_ranges() const override {
         return named_ranges_;
     }
@@ -1104,6 +1131,15 @@ public:
             if(space.has_spatial() == false) { return false; }
         }
         return true;
+    }
+
+    SpinAttribute get_spin() const override {
+        NOT_ALLOWED();
+        return SpinAttribute{};
+    }
+    SpatialAttribute get_spatial() const override {
+        NOT_ALLOWED();
+        return SpatialAttribute{};
     }
 
     const NameToRangeMap& get_named_ranges() const override {
@@ -1354,6 +1390,15 @@ public:
         return false;
     }
 
+    SpinAttribute get_spin() const override {
+        NOT_ALLOWED();
+        return SpinAttribute();
+    }
+    SpatialAttribute get_spatial() const override {
+        NOT_ALLOWED();
+        return SpatialAttribute();
+    }
+
     const NameToRangeMap& get_named_ranges() const override {
         NOT_ALLOWED();
         return named_ranges_;
@@ -1477,6 +1522,11 @@ std::vector<Range> IndexSpace::spatial_ranges(Spatial spatial) const {
 bool IndexSpace::has_spin() const { return impl_->has_spin(); }
 bool IndexSpace::has_spatial() const { return impl_->has_spatial(); }
 
+SpinAttribute IndexSpace::get_spin() const { return impl_->get_spin(); }
+SpatialAttribute IndexSpace::get_spatial() const {
+    return impl_->get_spatial();
+}
+
 const NameToRangeMap& IndexSpace::get_named_ranges() const {
     return impl_->get_named_ranges();
 }
@@ -1538,13 +1588,10 @@ public:
      * @param [in] is
      * @param [in] sizes
      */
-    TiledIndexSpace(const IndexSpace& is, const std::vector<Tile>& sizes) {
-        EXPECTS(is.size() == [sizes]() {
-            size_t ret = 0;
-            for(const auto& var : sizes) { ret += var; }
-            return ret;
-        }());
-    }
+    TiledIndexSpace(const IndexSpace& is, const std::vector<Tile>& sizes) :
+      is_{is},
+      sizes_{sizes},
+      tiled_indices_{construct_tiled_indices(is, sizes)} {}
 
     /**
      * @brief Construct a new TiledIndexSpace object from a sub-space of a
@@ -1742,7 +1789,7 @@ public:
 protected:
     IndexSpace is_;
     Tile size_;
-    std::vector<Index> tiled_indices_;
+    IndexVector tiled_indices_;
     std::vector<Tile> sizes_;
 
     /**
@@ -1754,30 +1801,120 @@ protected:
      * @returns a vector of indices corresponding to the start and end of each
      * tile
      */
-    std::vector<Index> construct_tiled_indices(const IndexSpace& is,
-                                               Tile size) {
-        if(is.get_named_ranges().empty()) { return {}; }
+    IndexVector construct_tiled_indices(const IndexSpace& is, Tile size) {
+        if(is.size() == 0) { return {}; }
 
-        IndexVector idx_vec, ret;
+        IndexVector boundries, ret;
+        // Get lo and hi for each named subspace ranges
         for(const auto& kv : is.get_named_ranges()) {
             for(const auto& range : kv.second) {
-                idx_vec.push_back(range.lo());
-                idx_vec.push_back(range.hi());
+                boundries.push_back(range.lo());
+                boundries.push_back(range.hi());
             }
         }
 
-        std::sort(idx_vec.begin(), idx_vec.end());
-        auto last = std::unique(idx_vec.begin(), idx_vec.end());
-        idx_vec.erase(last, idx_vec.end());
-
-        std::size_t i = 0;
-        std::size_t j = (i == idx_vec[0]) ? 1 : 0;
-
-        while(i < is.size()) {
-            ret.push_back(i);
-            i = (i + size_ > idx_vec[j]) ? idx_vec[j++] : (i + size_);
+        // Get SpinAttribute boundries
+        if(is.has_spin()) {
+            for(const auto& kv : is.get_spin().get_map()) {
+                for(const auto& range : kv.second) {
+                    boundries.push_back(range.lo());
+                    boundries.push_back(range.hi());
+                }
+            }
         }
+        // Get SpinAttribute boundries
+        if(is.has_spatial()) {
+            for(const auto& kv : is.get_spatial().get_map()) {
+                for(const auto& range : kv.second) {
+                    boundries.push_back(range.lo());
+                    boundries.push_back(range.hi());
+                }
+            }
+        }
+
+        // If no boundry clean split with respect to tile size
+        if(boundries.empty()) {
+            // add starting indices
+            for(size_t i = 0; i < is.size(); i += size) { ret.push_back(i); }
+            // add size of IndexSpace for the last block
+            ret.push_back(is.size());
+        } else { // Remove duplicates
+            std::sort(boundries.begin(), boundries.end());
+            auto last = std::unique(boundries.begin(), boundries.end());
+            boundries.erase(last, boundries.end());
+
+            // Construct start indices for blocks according to boundries.
+            std::size_t i = 0;
+            std::size_t j = (i == boundries[0]) ? 1 : 0;
+
+            while(i < is.size()) {
+                ret.push_back(i);
+                i = (i + size_ > boundries[j]) ? boundries[j++] : (i + size_);
+            }
+            // add size of IndexSpace for the last block
+            ret.push_back(is.size());
+        }
+
+        return ret;
+    }
+
+    IndexVector construct_tiled_indices(const IndexSpace& is,
+                                        const std::vector<Tile>& tiles) {
+        if(is.size() == 0) { return {}; }
+        // Check if sizes match
+        EXPECTS(is.size() == [&tiles]() {
+            size_t ret = 0;
+            for(const auto& var : tiles) { ret += var; }
+            return ret;
+        }());
+
+        IndexVector ret, boundries;
+
+        if(is.has_spin()) {
+            auto spin_map = is.get_spin().get_map();
+            for(const auto& kv : spin_map) {
+                for(const auto& range : kv.second) {
+                    boundries.push_back(range.lo());
+                    boundries.push_back(range.hi());
+                }
+            }
+        }
+
+        if(is.has_spatial()) {
+            auto spatial_map = is.get_spatial().get_map();
+            for(const auto& kv : spatial_map) {
+                for(const auto& range : kv.second) {
+                    boundries.push_back(range.lo());
+                    boundries.push_back(range.hi());
+                }
+            }
+        }
+
+        if(is.get_named_ranges().empty()) {
+            for(const auto& kv : is.get_named_ranges()) {
+                for(const auto& range : kv.second) {
+                    boundries.push_back(range.lo());
+                    boundries.push_back(range.hi());
+                }
+            }
+        }
+
+        // add starting indices
+        size_t j = 0;
+        for(size_t i = 0; i < is.size(); i += tiles[j++]) { ret.push_back(i); }
+        // add size of IndexSpace for the last block
         ret.push_back(is.size());
+
+        if(!(boundries.empty())) {
+            std::sort(boundries.begin(), boundries.end());
+            auto last = std::unique(boundries.begin(), boundries.end());
+            boundries.erase(last, boundries.end());
+            // check if there is any mismatch between boudries and generated
+            // start indices
+            for(auto& bound : boundries) {
+                EXPECTS(std::binary_search(ret.begin(), ret.end(), bound));
+            }
+        }
 
         return ret;
     }

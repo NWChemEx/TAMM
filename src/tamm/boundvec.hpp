@@ -1,13 +1,13 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMM_BOUNDVEC_H_
-#define TAMM_BOUNDVEC_H_
+#ifndef TAMM_BOUNDVEC_HPP_
+#define TAMM_BOUNDVEC_HPP_
 
 #include <array>
 #include <iosfwd>
 #include <string>
 
-#include "tamm/errors.h"
+#include "tamm/errors.hpp"
 
 namespace tamm {
 
@@ -24,7 +24,7 @@ namespace tamm {
  */
 template<typename T, int maxsize>
 class BoundVec : public std::array<T, maxsize> {
-    public:
+public:
     using size_type        = typename std::array<T, maxsize>::size_type;
     using value_type       = typename std::array<T, maxsize>::value_type;
     using iterator         = typename std::array<T, maxsize>::iterator;
@@ -148,7 +148,7 @@ class BoundVec : public std::array<T, maxsize> {
         return this->at(size_ - 1);
     }
 
-    private:
+private:
     size_type size_;
     friend bool operator==(const BoundVec<T, maxsize>& lhs,
                            const BoundVec<T, maxsize>& rhs) {
@@ -172,4 +172,4 @@ std::ostream& operator<<(std::ostream& os, const BoundVec<T, maxsize>& bvec) {
 
 } // namespace tamm
 
-#endif // TAMM_BOUNDVEC_H_
+#endif // TAMM_BOUNDVEC_HPP_

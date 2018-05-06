@@ -3,16 +3,19 @@ project(tamm VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For nwchemex_add_library
 
 #Add the current directory's sources to the list
-set(tamm_SRCS tamm.cc)
+set(tamm_SRCS tamm.cpp index_space.cpp)
 
 #Add the current directory's header files to the list
 set(tamm_INCLUDES  
-    tamm.h
-    types.h
-    errors.h 
-    strong_num.h
-    boundvec.h
-    index_space.h
+    tamm.hpp
+    types.hpp
+    errors.hpp 
+    strong_num.hpp
+    boundvec.hpp
+    index_space.hpp
+    index_space_interface.hpp
+    attribute.hpp
+    range.hpp
    )
 
 set(tamm_DEFINITIONS )

@@ -1,8 +1,8 @@
 #define CATCH_CONFIG_MAIN
 #include <catch/catch.hpp>
 
-#include <tamm/index_space.h>
-#include <tamm/tensor_impl.h>
+#include <tamm/index_space.hpp>
+#include <tamm/tensor_impl.hpp>
 using namespace tamm;
 
 template<typename T>

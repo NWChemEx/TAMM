@@ -1,15 +1,14 @@
-#ifndef TAMM_SCHEDULER_H_
-#define TAMM_SCHEDULER_H_
+#ifndef TAMM_SCHEDULER_HPP_
+#define TAMM_SCHEDULER_HPP_
 
 #include <set>
 
 // #include "distribution.h"
 // #include "memory_manager.h"
-// #include "ops.h"
 //#include "proc_group.h"
-#include "tamm/tensor_impl.h"
-#include "tamm/ops.h"
-#include "tamm/execution_context.h"
+#include "tamm/tensor_impl.hpp"
+#include "tamm/ops.hpp"
+#include "tamm/execution_context.hpp"
 
 namespace tamm {
 
@@ -556,4 +555,4 @@ class Scheduler {
 
 } // namespace tamm
 
-#endif // TAMM_SCHEDULER_H_
+#endif // TAMM_SCHEDULER_HPP_

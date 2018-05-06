@@ -1,11 +1,11 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMM_TYPES_H_
-#define TAMM_TYPES_H_
+#ifndef TAMM_TYPES_HPP_
+#define TAMM_TYPES_HPP_
 
-#include "tamm/boundvec.h"
-#include "tamm/errors.h"
-#include "tamm/strong_num.h"
+#include "tamm/boundvec.hpp"
+#include "tamm/errors.hpp"
+#include "tamm/strong_num.hpp"
 #include <complex>
 #include <iosfwd>
 
@@ -13,13 +13,20 @@
 
 namespace tamm {
 
+// IndexSpace related type definitions
+using Index         = uint32_t;
+using IndexVector   = std::vector<Index>;
+using IndexIterator = std::vector<Index>::const_iterator;
+using Tile          = uint32_t;
+
+//////////////////////////////////
 struct IrrepSpace;
 using Irrep = StrongNum<IrrepSpace, uint32_t>;
 struct SpinSpace;
 using Spin = StrongNum<SpinSpace, uint32_t>;
 struct SpatialSpace;
 using Spatial    = StrongNum<SpatialSpace, uint32_t>;
-using TensorRank = size_t;
+using TensorRank = uint32_t;
 struct OffsetSpace;
 using Offset = StrongNum<OffsetSpace, uint64_t>;
 struct BlockIndexSpace;
@@ -180,4 +187,4 @@ const Spin beta{2};
 
 } // namespace tamm
 
-#endif // TAMM_TYPES_H_
+#endif // TAMM_TYPES_HPP_

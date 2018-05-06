@@ -1,7 +1,8 @@
 #define CATCH_CONFIG_MAIN
 #include <catch/catch.hpp>
 
-#include <tamm/index_space.h>
+#include <tamm/index_space.hpp>
+
 using namespace tamm;
 
 void check_indices(IndexSpace is, IndexVector iv) {

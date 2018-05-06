@@ -1,5 +1,5 @@
-#ifndef TAMM_ERRORS_H_
-#define TAMM_ERRORS_H_
+#ifndef TAMM_ERRORS_HPP_
+#define TAMM_ERRORS_HPP_
 
 #include <cassert>
 #include <iostream>
@@ -15,7 +15,6 @@ namespace tamm {
                   << "file:" << __FILE__ << "function:" << __func__         \
                   << " line:" << __LINE__ << ". This is not implemented\n"; \
     } while(0)
-
 
 /**
  * @brief Mark code options that are not yet allowed.
@@ -48,4 +47,4 @@ namespace tamm {
 
 } // namespace tamm
 
-#endif // TAMM_ERRORS_H_
+#endif // TAMM_ERRORS_HPP_

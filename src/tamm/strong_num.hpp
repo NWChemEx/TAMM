@@ -1,7 +1,7 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMM_STRONGNUM_H_
-#define TAMM_STRONGNUM_H_
+#ifndef TAMM_STRONGNUM_HPP_
+#define TAMM_STRONGNUM_HPP_
 
 #include <functional>
 #include <iosfwd>
@@ -159,7 +159,7 @@ struct StrongNum {
         return checked_cast<T1>(v);
     }
 
-    private:
+private:
     T v;
 };
 
@@ -191,4 +191,4 @@ std::istream& operator>>(std::istream& is, StrongNum<S, T>& s) {
 
 } // namespace tamm
 
-#endif // TAMM_STRONGNUM_H_
+#endif // TAMM_STRONGNUM_HPP_

@@ -12,10 +12,10 @@ void tensor_contruction(const TiledIndexSpace& T_AO,
                         const TiledIndexSpace& T_AO_ATOM) {
     TiledIndexLabel A, r, s, mu, mu_A;
 
-    A              = T_ATOM.label("all");
+    A              = T_ATOM.label("all",1);
     std::tie(r, s) = T_MO.labels<2>("all");
-    mu             = T_AO.label("all");
-    mu_A           = T_AO_ATOM.label("all");
+    mu             = T_AO.label("all",1);
+    mu_A           = T_AO_ATOM.label("all",1);
 
     // Tensor Q{T_ATOM, T_MO, T_MO}, C{T_AO,T_MO}, SC{T_AO,T_MO};
     Tensor<T> Q{A, r, s}, C{mu, r}, SC{mu, s};

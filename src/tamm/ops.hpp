@@ -1,11 +1,11 @@
-#ifndef TAMM_OPS_H_
-#define TAMM_OPS_H_
+#ifndef TAMM_OPS_HPP_
+#define TAMM_OPS_HPP_
 
 #include <memory>
 
-#include "tamm/boundvec.h"
-#include "tamm/errors.h"
-#include "tamm/types.h"
+#include "tamm/boundvec.hpp"
+#include "tamm/errors.hpp"
+#include "tamm/types.hpp"
 
 namespace tamm {
 
@@ -172,4 +172,4 @@ class DeallocOp : public Op {
 
 } // namespace tamm
 
-#endif // TAMM_OPS_H_
+#endif // TAMM_OPS_HPP_

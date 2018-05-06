@@ -1,8 +1,8 @@
-#ifndef TAMM_LABELED_TENSOR_H_
-#define TAMM_LABELED_TENSOR_H_
+#ifndef TAMM_LABELED_TENSOR_HPP_
+#define TAMM_LABELED_TENSOR_HPP_
 
-#include "tamm/loops.h"
-#include "tamm/ops.h"
+#include "tamm/loops.hpp"
+#include "tamm/ops.hpp"
 
 namespace tamm {
 
@@ -460,4 +460,4 @@ inline void multop_validate(
 }
  
 } // tamm
-#endif // LABELED_TENSOR_H_
+#endif // LABELED_TENSOR_HPP_

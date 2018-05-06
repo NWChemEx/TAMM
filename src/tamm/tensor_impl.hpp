@@ -1,9 +1,9 @@
-#ifndef TAMM_TENSOR_IMPL_H_
-#define TAMM_TENSOR_IMPL_H_
+#ifndef TAMM_TENSOR_IMPL_HPP_
+#define TAMM_TENSOR_IMPL_HPP_
 
-#include "tamm/execution_context.h"
-#include "tamm/index_space.h"
-#include "tamm/labeled_tensor.h"
+#include "tamm/execution_context.hpp"
+#include "tamm/index_space.hpp"
+#include "tamm/labeled_tensor.hpp"
 
 namespace tamm {
 
@@ -197,7 +197,7 @@ public:
     void put(const IndexVector& idx_vec, span<T> buff_span) {}
 
 protected:
-    using TensorBase::TensorBase;
+    //using TensorBase::TensorBase;
 
     TensorRank rank_;
 }; // TensorImpl
@@ -327,4 +327,4 @@ private:
 
 } // namespace tamm
 
-#endif // TENSOR_IMPL_H_
+#endif // TENSOR_IMPL_HPP_

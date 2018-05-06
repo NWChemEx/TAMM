@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_MAIN
 #include <catch/catch.hpp>
-#include <tamm/tamm.h>
+#include <tamm/tamm.hpp>
 
 using tamm::ExecutionContext;
 using tamm::IndexSpace;

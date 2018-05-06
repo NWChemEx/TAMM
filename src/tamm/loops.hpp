@@ -1,16 +1,16 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMM_LOOPS_H_
-#define TAMM_LOOPS_H_
+#ifndef TAMM_LOOPS_HPP_
+#define TAMM_LOOPS_HPP_
 
 #include <algorithm>
 #include <memory>
 #include <vector>
 
-#include "tamm/boundvec.h"
-#include "tamm/errors.h"
-#include "tamm/index_space.h"
-#include "tamm/types.h"
+#include "tamm/boundvec.hpp"
+#include "tamm/errors.hpp"
+#include "tamm/index_space.hpp"
+#include "tamm/types.hpp"
 
 namespace tamm {
 
@@ -312,4 +312,4 @@ class OpTemplate {
 
 } // namespace tamm
 
-#endif // TAMM_LOOPS_H_
+#endif // TAMM_LOOPS_HPP_

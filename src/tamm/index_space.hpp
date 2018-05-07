@@ -450,6 +450,20 @@ public:
      */
     std::size_t size() const { return tiled_indices_.size() - 1; }
 
+    // Comparison operators
+    friend bool operator==(const TiledIndexSpace& lhs,
+                           const TiledIndexSpace& rhs);
+    friend bool operator<(const TiledIndexSpace& lhs,
+                          const TiledIndexSpace& rhs);
+    friend bool operator!=(const TiledIndexSpace& lhs,
+                           const TiledIndexSpace& rhs);
+    friend bool operator>(const TiledIndexSpace& lhs,
+                          const TiledIndexSpace& rhs);
+    friend bool operator<=(const TiledIndexSpace& lhs,
+                           const TiledIndexSpace& rhs);
+    friend bool operator>=(const TiledIndexSpace& lhs,
+                           const TiledIndexSpace& rhs);
+
 protected:
     IndexSpace is_;
     Tile size_;
@@ -660,6 +674,20 @@ public:
     Label get_label() const { return label_; }
 
     const TiledIndexSpace& tiled_index_space() const { return tis_; }
+
+    // Comparison operators
+    friend bool operator==(const TiledIndexLabel& lhs,
+                           const TiledIndexLabel& rhs);
+    friend bool operator<(const TiledIndexLabel& lhs,
+                          const TiledIndexLabel& rhs);
+    friend bool operator!=(const TiledIndexLabel& lhs,
+                           const TiledIndexLabel& rhs);
+    friend bool operator>(const TiledIndexLabel& lhs,
+                          const TiledIndexLabel& rhs);
+    friend bool operator<=(const TiledIndexLabel& lhs,
+                           const TiledIndexLabel& rhs);
+    friend bool operator>=(const TiledIndexLabel& lhs,
+                           const TiledIndexLabel& rhs);
 
 protected:
     TiledIndexSpace tis_;

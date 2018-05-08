@@ -24,9 +24,9 @@ struct LBCondition {
 
 template<typename Itr>
 class LBLoopNest {
-    public:
-    using T        = typename Itr::value_type;
-    using Iterator = Itr;
+public:
+    using value_type = typename Itr::value_type;
+    using Iterator   = Itr;
 
     LBLoopNest(const std::vector<Itr>& begin, const std::vector<Itr>& end,
                const std::vector<std::vector<LBCondition>>& lbs) :
@@ -77,14 +77,14 @@ class LBLoopNest {
         // }
     }
 
-    void get(std::vector<T>& loop_iteration) const {
+    void get(std::vector<value_type>& loop_iteration) const {
         // loop_iteration.clear();
         // auto bi = std::back_inserter(loop_iteration);
         // for(const auto& it : itr_) { *bi++ = *it; }
     }
 
-    std::vector<T> get() const {
-        // std::vector<T> loop_iteration;
+    std::vector<value_type> get() const {
+        // std::vector<value_type> loop_iteration;
         // get(loop_iteration);
         // return loop_iteration;
     }
@@ -156,7 +156,7 @@ class LBLoopNest {
         return {begin, end, lbs};
     }
 
-    protected:
+protected:
     const std::vector<std::vector<LBCondition>>& lbs() const { return lbs_; }
 
     //@post itr_[j]  <= end_[j]
@@ -186,7 +186,7 @@ class LBLoopNest {
 }; // LBLoopNest
 
 class LabeledLoop : public LBLoopNest<IndexSpace::Iterator> {
-    public:
+public:
     LabeledLoop() = default;
 
     LabeledLoop(const IndexLabelVec& ilv, const std::vector<Iterator>& begin,
@@ -202,22 +202,22 @@ class LabeledLoop : public LBLoopNest<IndexSpace::Iterator> {
 
     const IndexLabelVec& labels() const { return ilv_; }
 
-    protected:
+protected:
     IndexLabelVec ilv_;
 };
 
 class InnerLabeledLoop : public LabeledLoop {
-    public:
+public:
     using LabeledLoop::LabeledLoop;
 };
 
 class OuterLabeledLoop : public LabeledLoop {
-    public:
+public:
     using LabeledLoop::LabeledLoop;
 };
 
 class SymmLoop {
-    public:
+public:
     SymmLoop() = default;
 
     SymmLoop(const std::vector<std::pair<int, IndexLabelVec>>& relabel_list) :
@@ -233,13 +233,13 @@ class SymmLoop {
 
     std::pair<int, IndexLabelVec> get() const { return *it_; }
 
-    protected:
+protected:
     std::vector<std::pair<int, IndexLabelVec>> relabel_list_;
     std::vector<std::pair<int, IndexLabelVec>>::const_iterator it_;
 };
 
 class SymmFactor {
-    public:
+public:
     SymmFactor(const std::vector<IndexLabelVec>& ilv_vec) : ilv_vec_{ilv_vec} {}
 
     SymmFactor()                  = default;
@@ -260,7 +260,7 @@ class SymmFactor {
     //     return ret;
     // }
 
-    private:
+private:
     static int factorial(size_t x) {
         EXPECTS(x < 6); // check for overflow
         int ret = 1;
@@ -276,7 +276,7 @@ inline SymmFactor symm_factor(
 }
 
 class OpTemplate {
-    protected:
+protected:
     LabeledLoop outer_loops;
     LabeledLoop inner_loops;
     SymmLoop symm_loop;

@@ -35,7 +35,7 @@ public:
      * @param [in] block_indices vector of TiledIndexSpace objects for each mode
      * used to construct the tensor
      */
-    TensorBase(const std::vector<TiledIndexSpace>& block_indices) :
+    TensorBase(std::vector<TiledIndexSpace> block_indices) :
       block_indices_{block_indices} {}
 
     /**
@@ -82,11 +82,11 @@ public:
     virtual ~TensorBase(){};
 
     /**
-     * @brief Method for getting the number of modes (rank) of the tensor
+     * @brief Method for getting the number of modes of the tensor
      *
-     * @returns a TensorRank typed number as the rank of the tensor
+     * @returns a size_t for the number of nodes of the tensor
      */
-    virtual TensorRank rank() const = 0;
+    size_t num_modes() { return num_modes_; };
 
     /**
      * @brief Memory allocation method for the tensor object
@@ -106,6 +106,7 @@ protected:
     bool has_spatial_symmetry_;
     bool has_spin_symmetry_;
 
+    size_t num_modes_;
     // std::vector<IndexPosition> ipmask_;
     // PermGroup perm_groups_;
     // Irrep irrep_;
@@ -126,24 +127,20 @@ public:
      * @brief Construct a new TensorImpl object using a vector of
      * TiledIndexSpace objects for each mode of the tensor
      *
-     * @param [in] block_indices vector of TiledIndexSpace objects for each mode
-     * used to construct the tensor
+     * @param [in] block_indices vector of TiledIndexSpace objects for each
+     * mode used to construct the tensor
      */
-    TensorImpl(const std::vector<TiledIndexSpace>& tis) :
-      TensorBase{tis},
-      rank_{tis.size()} {}
+    TensorImpl(std::vector<TiledIndexSpace> tis) : TensorBase{tis} {}
 
     /**
      * @brief Construct a new TensorImpl object using a vector of
      * TiledIndexSpace objects for each mode of the tensor
      *
      * @param [in] lbls vector of tiled index labels used for extracting
-     * corresponding TiledIndexSpace objects for each mode used to construct the
-     * tensor
+     * corresponding TiledIndexSpace objects for each mode used to construct
+     * the tensor
      */
-    TensorImpl(const std::vector<TiledIndexLabel>& lbls) :
-      TensorBase{lbls},
-      rank_{lbls.size()} {}
+    TensorImpl(const std::vector<TiledIndexLabel>& lbls) : TensorBase{lbls} {}
 
     /**
      * @brief Construct a new TensorBase object recursively with a set of
@@ -156,7 +153,7 @@ public:
     template<class... Ts>
     TensorImpl(const TiledIndexSpace& tis, Ts... rest) :
       TensorBase{tis, rest...} {
-        rank_ = block_indices_.size();
+        num_modes_ = block_indices_.size();
     }
 
     // Copy/Move Ctors and Assignment Operators
@@ -169,14 +166,14 @@ public:
     ~TensorImpl() = default;
 
     // Overriden methods
-    TensorRank rank() const override { return rank_; }
+
     void allocate() override {}
     void deallocate() override {}
 
     // Tensor Accessors
     /**
-     * @brief Tensor accessor method for getting values from a set of indices to
-     * specified memory span
+     * @brief Tensor accessor method for getting values from a set of
+     * indices to specified memory span
      *
      * @tparam T type of the values hold on the tensor object
      * @param [in] idx_vec a vector of indices to fetch the values
@@ -186,8 +183,8 @@ public:
     void get(const IndexVector& idx_vec, span<T> buff_span) const {}
 
     /**
-     * @brief Tensor accessor method for putting values to a set of indices with
-     * the specified memory span
+     * @brief Tensor accessor method for putting values to a set of indices
+     * with the specified memory span
      *
      * @tparam T type of the values hold on the tensor object
      * @param [in] idx_vec a vector of indices to put the values
@@ -197,15 +194,12 @@ public:
     void put(const IndexVector& idx_vec, span<T> buff_span) {}
 
 protected:
-    //using TensorBase::TensorBase;
-
-    TensorRank rank_;
 }; // TensorImpl
 
 /**
  * @brief Templated Tensor class designed using PIMPL (pointer to
- * implementation) idiom. All of the implementation (except the static methods)
- * are done in TensorImpl class
+ * implementation) idiom. All of the implementation (except the static
+ * methods) are done in TensorImpl class
  *
  * @tparam T type for the Tensor value
  */
@@ -220,7 +214,7 @@ public:
      *
      * @param [in] tis set of TiledIndexSpace objects for each mode
      */
-    Tensor(const std::initializer_list<TiledIndexSpace>& tis) :
+    Tensor(std::initializer_list<TiledIndexSpace> tis) :
       impl_{std::make_shared<TensorImpl>(tis)} {}
 
     /**
@@ -238,8 +232,8 @@ public:
      * TiledIndexSpace objects followed by a lambda expression
      *
      * @tparam Ts variadic template for the input arguments
-     * @param [in] tis TiledIndexSpace object for the corresponding mode of the
-     * Tensor object
+     * @param [in] tis TiledIndexSpace object for the corresponding mode of
+     * the Tensor object
      * @param [in] rest remaining parts of the input arguments
      */
     template<class... Ts>
@@ -247,12 +241,12 @@ public:
       impl_{std::make_shared<TensorImpl>(tis, rest...)} {}
 
     /**
-     * @brief Operator overload for constructing a LabeledTensor object (main
-     * construct for Tensor operations)
+     * @brief Operator overload for constructing a LabeledTensor object
+     * (main construct for Tensor operations)
      *
      * @returns a LabeledTensor object to be used in Tensor operations
      */
-    LabeledTensor<T> operator()() const { return {}; }
+    // LabeledTensor<T> operator()() const { return {}; }
 
     /**
      * @brief Operator overload for constructing a LabeledTensor object with
@@ -306,7 +300,8 @@ public:
      * @brief Static memory allocation method for a set of Tensors
      *
      * @tparam Args variadic template for set of Tensor objects
-     * @param [in] exec input ExecutionContext object to be used for allocation
+     * @param [in] exec input ExecutionContext object to be used for
+     * allocation
      * @param [in] rest set of Tensor objects to be allocated
      */
     template<typename... Args>

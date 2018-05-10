@@ -12,9 +12,9 @@ using Shell =
   std::tuple<std::vector<double>, std::vector<Contraction>,
              std::array<double, 3>, std::vector<double>>; // libint2::Shell
 
-auto one_body_overlap_integral_lambda = [&](auto& val) {};
-auto one_body_kinetic_integral_lambda = [&](auto& val) {};
-auto one_body_nuclear_integral_lambda = [&](auto& val) {};
+auto one_body_overlap_integral_lambda = [](auto& val) {};
+auto one_body_kinetic_integral_lambda = [](auto& val) {};
+auto one_body_nuclear_integral_lambda = [](auto& val) {};
 
 template<typename T>
 void compute_soad(const std::vector<Atom>& atoms, Tensor<T>& D) {}

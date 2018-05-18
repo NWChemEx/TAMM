@@ -61,6 +61,7 @@ class LoopSpec {
     bool has_symm_factor_;
 };
 
+
 template<typename T>
 class LabeledTensor {
     public:
@@ -87,27 +88,27 @@ class LabeledTensor {
       return {};
     }
 
-    AddOp<T, LabeledTensor<T>> operator+=(
-      const std::tuple<LoopSpec, LabeledTensor<T>>& rhs) {
-        // construct_addop(std::make_tuple(std::get<0>(rhs), 1, std::get<1>(rhs)),
-        //                 false);
-      return {};
-    }
+    // AddOp<T, LabeledTensor<T>> operator+=(
+    //   const std::tuple<LoopSpec, LabeledTensor<T>>& rhs) {
+    //     // construct_addop(std::make_tuple(std::get<0>(rhs), 1, std::get<1>(rhs)),
+    //     //                 false);
+    //   return {};
+    // }
 
     AddOp<T, LabeledTensor<T>> operator+=(LabeledTensor<T> rhs) {
         // return *this += loop_nest() * rhs;
       return {};
     }
 
-    SetOp<T, LabeledTensor<T>> operator+=(const T& rhs) {
-      //return *this += loop_nest() * rhs;
-      return {};
-    }
+    // SetOp<T, LabeledTensor<T>> operator+=(const T& rhs) {
+    //   //return *this += loop_nest() * rhs;
+    //   return {};
+    // }
 
-    SetOp<T, LabeledTensor<T>> operator+=(const std::tuple<LoopSpec, T>& rhs) {
-        // construct_setop(rhs, false);
-      return {};
-    }
+    // SetOp<T, LabeledTensor<T>> operator+=(const std::tuple<LoopSpec, T>& rhs) {
+    //     // construct_setop(rhs, false);
+    //   return {};
+    // }
 
     SetOp<T, LabeledTensor<T>> operator=(T rhs) {
         // return *this = loop_nest() * rhs;
@@ -135,11 +136,11 @@ class LabeledTensor {
       return {};
     }
 
-    AddOp<T, LabeledTensor<T>> operator=(
-      const std::tuple<LoopSpec, LabeledTensor<T>> rhs) {
-        // return *this = std::get<0>(rhs) * T{1} * std::get<1>(rhs);
-      return {};
-    }
+    // AddOp<T, LabeledTensor<T>> operator=(
+    //   const std::tuple<LoopSpec, LabeledTensor<T>> rhs) {
+    //     // return *this = std::get<0>(rhs) * T{1} * std::get<1>(rhs);
+    //   return {};
+    // }
 
     AddOp<T, LabeledTensor<T>> operator=(const LabeledTensor<T>& rhs) {
       // return *this = loop_nest() * T{1} * rhs;

@@ -22,6 +22,7 @@ set(tamm_INCLUDES
     tensor_impl.hpp
     labeled_tensor.hpp
     execution_context.hpp
+    dag_impl.hpp
    )
 
 set(tamm_DEFINITIONS )

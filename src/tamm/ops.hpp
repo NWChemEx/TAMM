@@ -11,10 +11,23 @@ namespace tamm {
 
 class Op {
     public:
-    virtual Op* clone() const = 0;
+    virtual std::shared_ptr<Op> clone() const = 0;
     virtual void execute()    = 0;
     virtual ~Op() {}
 };
+
+class OpList : public std::vector<std::shared_ptr<Op>>{
+    public:
+    // Ctors
+    OpList() {}
+
+    template <typename T, typename ...Args>
+    OpList(T l_op, Args... args) : OpList(args...) {
+        insert(begin(), l_op.clone());
+    }
+
+
+}; // OpList
 
 template<typename T, typename LabeledTensorT>
 class SetOp : public Op {
@@ -47,7 +60,7 @@ class SetOp : public Op {
 
     bool is_assign() const { return is_assign_; }
 
-    Op* clone() const override { return new SetOp<T, LabeledTensorT>{*this}; }
+    std::shared_ptr<Op>  clone() const override { return std::shared_ptr<Op>(new SetOp<T, LabeledTensorT>{*this}); }
 
     void execute() override {}
 
@@ -80,7 +93,7 @@ class AddOp : public Op {
 
     bool is_assign() const { return is_assign_; }
 
-    Op* clone() const override { return new AddOp<T, LabeledTensorT>{*this}; }
+    std::shared_ptr<Op> clone() const override { return std::shared_ptr<Op>(new AddOp<T, LabeledTensorT>{*this}); }
 
     void execute() override {}
 
@@ -121,7 +134,7 @@ class MultOp : public Op {
 
     bool is_assign() const { return is_assign_; }
 
-    Op* clone() const override { return new MultOp{*this}; }
+    std::shared_ptr<Op> clone() const override { return std::shared_ptr<Op>(new MultOp{*this}); }
 
     void execute() override {}
 
@@ -145,7 +158,7 @@ class AllocOp : public Op {
 
     TensorType tensor() const { return tensor_; }
 
-    Op* clone() const override { return new AllocOp{*this}; }
+    std::shared_ptr<Op> clone() const override { return std::shared_ptr<Op>(new AllocOp{*this}); }
 
     void execute() override { tensor_.allocate(); }
 
@@ -162,7 +175,7 @@ class DeallocOp : public Op {
 
     TensorType tensor() const { return tensor_; }
 
-    Op* clone() const override { return new DeallocOp{*this}; }
+    std::shared_ptr<Op> clone() const override { return std::shared_ptr<Op>(new DeallocOp{*this}); }
 
     void execute() override { tensor_.deallocate(); }
 

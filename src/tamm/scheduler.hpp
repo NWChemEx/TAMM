@@ -6,12 +6,12 @@
 // #include "distribution.h"
 // #include "memory_manager.h"
 //#include "proc_group.h"
-#include "tamm/tensor_impl.hpp"
-#include "tamm/ops.hpp"
+#include "tamm/dag_impl.hpp"
 #include "tamm/execution_context.hpp"
+#include "tamm/ops.hpp"
+#include "tamm/tensor_impl.hpp"
 
 namespace tamm {
-
 // class Distribution;
 // class MemoryManager;
 
@@ -71,15 +71,14 @@ namespace tamm {
 // Tensor<float> const& TensorHolder::tensor<float>() {
 //     return tensor_float_;
 // }
-
+using detail_::DAGImpl;
 ////////////////////////////////////////////////////
-
 /**
  * @brief Scheduler to execute a list of operations.
  * @ingroup operations
  */
 class Scheduler {
-    public:
+public:
     /**
      * @brief Allocation status of tensor.
      *
@@ -87,27 +86,27 @@ class Scheduler {
      * operations.
      * @todo Can this be replaced by AllocationStatus
      */
-   // enum class TensorStatus { invalid, allocated, deallocated, initialized };
+    // enum class TensorStatus { invalid, allocated, deallocated, initialized };
 
     // @to-do: what is the default scheduler?
-    Scheduler() = default;
+    Scheduler()                 = default;
     Scheduler(const Scheduler&) = default;
-    Scheduler(Scheduler&&) = default;
+    Scheduler(Scheduler&&)      = default;
     Scheduler& operator=(const Scheduler&) = default;
     Scheduler& operator=(Scheduler&&) = default;
 
-    Scheduler(ExecutionContext ec): ec_{ec} {}
+    Scheduler(ExecutionContext ec) : ec_{ec} {}
 
     Scheduler& operator()() { return *this; }
 
     template<typename OpType, typename... OpTypes>
     Scheduler& operator()(const OpType& op, const OpTypes&... ops) {
-        //ops_.push_back(op);
-      //return operator()(ops...);
-      return *this;
+        // ops_.push_back(op);
+        // return operator()(ops...);
+        return *this;
     }
 
-   // Scheduler& tensors() { return *this; }
+    // Scheduler& tensors() { return *this; }
 
     // template<typename ElementType, typename... ElementTypes>
     // Scheduler& tensors(Tensor<ElementType> tensor,
@@ -138,7 +137,7 @@ class Scheduler {
 
     template<typename TensorType, typename... Args>
     Scheduler& allocate(TensorType tensor, Args&... tensors) {
-        //ops_.push_back(new AllocOp<TensorType>{tensor});
+        // ops_.push_back(new AllocOp<TensorType>{tensor});
         return allocate(tensors...);
     }
 
@@ -146,23 +145,23 @@ class Scheduler {
 
     template<typename TensorType, typename... Args>
     Scheduler& deallocate(TensorType tensor, Args&... tensors) {
-        //ops_.push_back(new DeallocOp<TensorType>{tensor});
+        // ops_.push_back(new DeallocOp<TensorType>{tensor});
         return deallocate(tensors...);
     }
 
-   ExecutionContext& ec(){
-       return ec_;
-   }
+    ExecutionContext& ec() { return ec_; }
 
-    void execute() {
-        /* for(auto& op : ops_) {  op->execute(); } */
+    void execute() { /* for(auto& op : ops_) {  op->execute(); } */
     }
+
+    template<typename Func, typename... Args>
+    static void execute(DAGImpl<Func, Args...> dag) {}
 
     ~Scheduler() {
         // delete ops
     }
 
-    private:
+private:
     ExecutionContext ec_;
     // void validate() {
     //     // 1. every tensor used by operarions should be listed in tensors_
@@ -182,8 +181,8 @@ class Scheduler {
     // Distribution* default_distribution_;
     // MemoryManager* default_memory_manager_;
     // ProcGroup pg_;
-   std::vector<Op*> ops_;
-    //std::vector<TensorHolder> tensors_;
+    std::vector<Op*> ops_;
+    // std::vector<TensorHolder> tensors_;
     // std::vector<TensorHolder> live_in_tensors_;
     // std::vector<TensorHolder> live_out_tensors_;
 

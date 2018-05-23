@@ -3,16 +3,10 @@
 
 #include "tamm/loops.hpp"
 #include "tamm/ops.hpp"
+#include <experimental/type_traits>
 #include <type_traits>
 
 namespace tamm {
-
-
-using std::get;
-using std::is_same;
-using std::tuple_size;
-using std::is_convertible;
-using std::remove_reference;
 
 template<typename T>
 class Tensor;
@@ -41,82 +35,100 @@ class LabeledTensor {
       ilv_{ilv} {}
 
     Tensor<T> tensor() const { return tensor_; }
-
     IndexLabelVec labels() const { return ilv_; }
-
 
     using LTT = LabeledTensor<T>;
     template<typename T1> 
     auto operator=(T1&& rhs){
+      using std::get;
+      using std::tuple_size;
+      using std::remove_reference;
+      using std::experimental::is_same_v;
+      using std::experimental::is_convertible_v;
+
       //LT = alpha
-      if constexpr (is_convertible<T1, T>())
-        return SetOp<T,LTT>(*this,rhs,true);
+      if constexpr (is_convertible_v<T1, T>)
+        return SetOp<T,LTT>{*this,rhs,true};
       
       // LT = LT
-      else if constexpr (is_same<T1, LTT>())
-        return AddOp<T,T1>(*this,T{1.0},rhs,true);
+      else if constexpr (is_same_v<T1, LTT>)
+        return AddOp<T,T1>{*this,T{1.0},rhs,true};
       
       else if constexpr (is_tuple<T1>()){
-        static_assert(!(std::tuple_size<T1>()>3), "Operation can only be of the form c [+]= [alpha] * a [*b]");
-        
-        //is_same<typename tuple_element<0,T1>::type,T&>()
+        static_assert(!(std::tuple_size<T1>()>3), 
+        "Operation can only be of the form c [+]= [alpha] * a [*b]");
+        using rhs0_t = decltype(get<0>(rhs));
+        using rhs1_t = decltype(get<1>(rhs));
+        using rhs0_twr = typename remove_reference<rhs0_t>::type;
+
         if constexpr(tuple_size<T1>() == 2){
           // LT = alpha * LT
-          if constexpr(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
-              && is_same<decltype(get<1>(rhs)), LTT&>())
-              return AddOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),true);
+          if constexpr(is_convertible_v<rhs0_twr, T>
+              && is_same_v<rhs1_t, LTT&>)
+              return AddOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),true};
             //  LT = LT * LT
-          else if constexpr(is_same<decltype(get<0>(rhs)), LTT&>()
-              && is_same<decltype(get<1>(rhs)), LTT&>())
-              return MultOp<T,LTT>(*this,T{1.0},get<0>(rhs),get<1>(rhs),true);
+          else if constexpr(is_same_v<rhs0_t, LTT&>
+              && is_same_v<rhs1_t, LTT&>)
+              return MultOp<T,LTT>{*this,T{1.0},get<0>(rhs),get<1>(rhs),true};
         }
         
          // LT = alpha * LT * LT
         else if constexpr(tuple_size<T1>() == 3){
-          static_assert(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
-           && is_same<decltype(get<1>(rhs)), LTT&>()
-           && is_same<decltype(get<2>(rhs)), LTT&>()
+          using rhs2_t = decltype(get<2>(rhs));
+          static_assert(is_convertible_v<rhs0_twr, T>
+           && is_same_v<rhs1_t, LTT&>
+           && is_same_v<rhs2_t, LTT&>
            ,"Operation can only be of the form c = alpha * a * b");
-          return MultOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),get<2>(rhs),true);
+          return MultOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),get<2>(rhs),true};
         }
       } 
-    }
+    } //operator =
 
     template<typename T1>
     auto operator+=(T1&& rhs){
+      using std::get;
+      using std::tuple_size;
+      using std::remove_reference;
+      using std::experimental::is_same_v;      
+      using std::experimental::is_convertible_v;
+      
       //LT = alpha
-      if constexpr (is_convertible<T1, T>())
-        return SetOp<T,LTT>(*this,rhs,true);
+      if constexpr (is_convertible_v<T1, T>)
+        return SetOp<T,LTT>{*this,rhs,false};
       
       // LT = LT
-      else if constexpr (is_same<T1, LTT>())
-        return AddOp<T,T1>(*this,T{1.0},rhs,true);
+      else if constexpr (is_same_v<T1, LTT>)
+        return AddOp<T,T1>{*this,T{1.0},rhs,false};
       
       else if constexpr (is_tuple<T1>()){
-        static_assert(std::tuple_size<T1>()<=3, "Operation can only be of the form c [+]= [alpha] * a [*b]");
+        static_assert(std::tuple_size<T1>()<=3, 
+        "Operation can only be of the form c [+]= [alpha] * a [*b]");
+        using rhs0_t = decltype(get<0>(rhs));
+        using rhs1_t = decltype(get<1>(rhs));
+        using rhs0_twr = typename remove_reference<rhs0_t>::type;
 
         if constexpr(tuple_size<T1>() == 2){
           // LT = alpha * LT
-          if constexpr(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
-              && is_same<decltype(get<1>(rhs)), LTT&>())
-              return AddOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),true);
-            //  LT = LT * LT
-          else if constexpr(is_same<decltype(get<0>(rhs)), LTT&>()
-              && is_same<decltype(get<1>(rhs)), LTT&>())
-              return MultOp<T,LTT>(*this,T{1.0},get<0>(rhs),get<1>(rhs),true);
+          if constexpr(is_convertible_v<rhs0_twr, T>
+              && is_same_v<rhs1_t, LTT&>)
+              return AddOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),false};
+          //  LT = LT * LT
+          else if constexpr(is_same_v<rhs0_t, LTT&>
+              && is_same_v<rhs1_t, LTT&>)
+              return MultOp<T,LTT>{*this,T{1.0},get<0>(rhs),get<1>(rhs),false};
         }
         
          // alpha * LT * LT
         else if constexpr(tuple_size<T1>() == 3){
-          static_assert(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
-           && is_same<decltype(get<1>(rhs)), LTT&>()
-           && is_same<decltype(get<2>(rhs)), LTT&>()
+          using rhs2_t = decltype(get<2>(rhs));
+          static_assert(is_convertible_v<rhs0_twr, T>
+           && is_same_v<rhs1_t, LTT&>
+           && is_same_v<rhs2_t, LTT&>
            , "Operation can only be of the form c += alpha * a * b");
-          return MultOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),get<2>(rhs),true);
+          return MultOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),get<2>(rhs),false};
         }
-      }
-        
-    }
+      }  
+    } //operator +=
 
     protected:
       Tensor<T> tensor_;
@@ -138,7 +150,7 @@ class LabeledTensor {
 
 //     AddOp<T, LabeledTensor<T>> operator+=(
 //       const std::tuple<LoopSpec, LabeledTensor<T>>& rhs) {
-//         // construct_addop(std::make_tuple(get<0>(rhs), 1, get<1>(rhs)),
+//         // construct_addop(std::make_tuple(rhs0_t, 1, rhs1_t),
 //         //                 false);
 //       return {};
 //     }
@@ -186,7 +198,7 @@ class LabeledTensor {
 
 //     AddOp<T, LabeledTensor<T>> operator=(
 //       const std::tuple<LoopSpec, LabeledTensor<T>> rhs) {
-//         // return *this = get<0>(rhs) * T{1} * get<1>(rhs);
+//         // return *this = rhs0_t * T{1} * rhs1_t;
 //       return {};
 //     }
 
@@ -214,25 +226,25 @@ class LabeledTensor {
 //     MultOp<T, LabeledTensor<T>> operator+=(
 //       const std::tuple<LoopSpec, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
 //         // return *this +=
-//         //        get<0>(rhs) * T{1} * get<1>(rhs) * get<2>(rhs);
+//         //        rhs0_t * T{1} * rhs1_t * get<2>(rhs);
 //       return {};
 //     }
 
 //     MultOp<T, LabeledTensor<T>> operator=(
 //       const std::tuple<LoopSpec, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
 //         // return *this =
-//         //          get<0>(rhs) * T{1} * get<1>(rhs) * get<2>(rhs);
+//         //          rhs0_t * T{1} * rhs1_t * get<2>(rhs);
 //       return {};
 //     }
 
 //     protected:
 //     SetOp<T, LabeledTensor<T>> construct_setop(
 //       const std::tuple<LoopSpec, T>& rhs, bool is_assign) {
-//         const auto& loop_spec = get<0>(rhs);
+//         const auto& loop_spec = rhs0_t;
 //         if(loop_spec.has_oll()) {
-//             return {*this, get<1>(rhs), loop_spec.oll(), is_assign};
+//             return {*this, rhs1_t, loop_spec.oll(), is_assign};
 //         } else {
-//             return {*this, get<1>(rhs), loop_nest(), is_assign};
+//             return {*this, rhs1_t, loop_nest(), is_assign};
 //         }
 //     }
 
@@ -241,9 +253,9 @@ class LabeledTensor {
 //     AddOp<T1, LabeledTensor<T>> construct_addop(
 //       const std::tuple<LoopSpec, T1, LabeledTensor<T>>& rhs, bool is_assign) {
 //         addop_validate(*this,
-//                        std::make_tuple(get<1>(rhs), get<2>(rhs)));
-//         const auto& loop_spec = get<0>(rhs);
-//         T1 alpha              = get<1>(rhs);
+//                        std::make_tuple(rhs1_t, get<2>(rhs)));
+//         const auto& loop_spec = rhs0_t;
+//         T1 alpha              = rhs1_t;
 //         auto& rhs_tensor      = get<2>(rhs);
 //         if(loop_spec.has_oll()) {
 //             return {*this, alpha, rhs_tensor, loop_spec.oll(), is_assign};
@@ -258,10 +270,10 @@ class LabeledTensor {
 //       const std::tuple<LoopSpec, T1, LabeledTensor<T>, LabeledTensor<T>>& rhs,
 //       bool is_assign) {
 //         multop_validate(*this,
-//                         std::make_tuple(get<1>(rhs), get<2>(rhs),
+//                         std::make_tuple(rhs1_t, get<2>(rhs),
 //                                         get<3>(rhs)));
 
-//         const auto& loop_spec = get<0>(rhs);
+//         const auto& loop_spec = rhs0_t;
 //         OuterLabeledLoop oll;
 //         InnerLabeledLoop ill;
 //         SymmFactor sf;
@@ -282,7 +294,7 @@ class LabeledTensor {
 //         }
 
 //         return {
-//           *this, get<1>(rhs), get<2>(rhs), get<3>(rhs), oll, ill,
+//           *this, rhs1_t, get<2>(rhs), get<3>(rhs), oll, ill,
 //           sf,    is_assign};
 //     }
 
@@ -366,7 +378,7 @@ template<typename LabeledTensorType, typename T>
 inline void addop_validate(const LabeledTensorType& ltc,
                            const std::tuple<T, LabeledTensorType>& rhs) {
 #if 0
-    auto lta = get<1>(rhs);
+    auto lta = rhs1_t;
     // EXPECTS(ltc.tensor() != nullptr);
     // EXPECTS(lta.tensor() != nullptr);
     const auto& tc = ltc.tensor();
@@ -417,7 +429,7 @@ inline void multop_validate(
   const LabeledTensorType& ltc,
   const std::tuple<T, LabeledTensorType, LabeledTensorType>& rhs) {
 #if 0
-    auto& lta = get<1>(rhs);
+    auto& lta = rhs1_t;
     auto& ltb = get<2>(rhs);
     // EXPECTS(ltc.tensor_ != nullptr);
     // EXPECTS(lta.tensor_ != nullptr);

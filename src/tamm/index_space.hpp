@@ -296,7 +296,7 @@ public:
      * @param [in] lbl an integer value for associated Label
      * @returns a TiledIndexLabel associated with a TiledIndexSpace
      */
-    TiledIndexLabel label(std::string id, Label lbl) const;
+    TiledIndexLabel label(std::string id, Label lbl = Label{0}) const;
 
     /**
      * @brief Construct a tuple of TiledIndexLabel given a count, subspace name
@@ -308,7 +308,7 @@ public:
      * @returns a tuple of TiledIndexLabel
      */
     template<std::size_t c_lbl>
-    auto labels(std::string id, Label start = 0) const {
+    auto labels(std::string id, Label start = Label{0}) const {
         return labels_impl(id, start, std::make_index_sequence<c_lbl>{});
     }
 
@@ -449,6 +449,20 @@ public:
      * @returns size of TiledIndexSpace
      */
     std::size_t size() const { return tiled_indices_.size() - 1; }
+
+    // Comparison operators
+    friend bool operator==(const TiledIndexSpace& lhs,
+                           const TiledIndexSpace& rhs);
+    friend bool operator<(const TiledIndexSpace& lhs,
+                          const TiledIndexSpace& rhs);
+    friend bool operator!=(const TiledIndexSpace& lhs,
+                           const TiledIndexSpace& rhs);
+    friend bool operator>(const TiledIndexSpace& lhs,
+                          const TiledIndexSpace& rhs);
+    friend bool operator<=(const TiledIndexSpace& lhs,
+                           const TiledIndexSpace& rhs);
+    friend bool operator>=(const TiledIndexSpace& lhs,
+                           const TiledIndexSpace& rhs);
 
 protected:
     IndexSpace is_;
@@ -660,6 +674,20 @@ public:
     Label get_label() const { return label_; }
 
     const TiledIndexSpace& tiled_index_space() const { return tis_; }
+
+    // Comparison operators
+    friend bool operator==(const TiledIndexLabel& lhs,
+                           const TiledIndexLabel& rhs);
+    friend bool operator<(const TiledIndexLabel& lhs,
+                          const TiledIndexLabel& rhs);
+    friend bool operator!=(const TiledIndexLabel& lhs,
+                           const TiledIndexLabel& rhs);
+    friend bool operator>(const TiledIndexLabel& lhs,
+                          const TiledIndexLabel& rhs);
+    friend bool operator<=(const TiledIndexLabel& lhs,
+                           const TiledIndexLabel& rhs);
+    friend bool operator>=(const TiledIndexLabel& lhs,
+                           const TiledIndexLabel& rhs);
 
 protected:
     TiledIndexSpace tis_;

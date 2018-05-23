@@ -7,9 +7,6 @@
 #include <vector>
 
 namespace tamm {
-// forward decleration for IndexSpaceInterface
-class IndexSpace;
-
 /**
  * @class IndexSpaceInterface
  * @brief Base abstract implementation class as an interface
@@ -252,12 +249,6 @@ private:
 
     friend class IndexSpace;
 }; // IndexSpaceInterface
-
-// Forward class declarations for different types
-class RangeIndexSpaceImpl;
-class SubSpaceImpl;
-class AggregateSpaceImpl;
-class DependentIndexSpaceImpl;
 
 /**
  * @brief IndexSpace implementation for range based
@@ -941,8 +932,6 @@ protected:
     std::map<IndexVector, IndexSpace> dep_space_relation_;
     NameToRangeMap named_ranges_;
 }; // DependentIndexSpaceImpl
-
-////////////////////////////////////////////////////////////////
 
 } // namespace tamm
 

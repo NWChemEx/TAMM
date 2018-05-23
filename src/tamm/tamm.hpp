@@ -13,6 +13,11 @@
 #include <type_traits>
 #include <vector>
 
+#include "tamm/execution_context.hpp"
 #include "tamm/index_space.hpp"
+#include "tamm/labeled_tensor.hpp"
+#include "tamm/ops.hpp"
+#include "tamm/scheduler.hpp"
+#include "tamm/tensor_impl.hpp"
 
-#endif // TAMM_TAMM_HPP_
+#endif // TAMM_TAMM_H_

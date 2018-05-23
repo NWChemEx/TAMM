@@ -43,14 +43,14 @@ class SetOp : public Op {
       is_assign_{is_assign} {}
 #endif
 
-    // SetOp(LabeledTensorT lhs,
-    //       T alpha,
-    //       const LabeledLoop& loop_nest,
-    //       bool is_assign)
-    //     : lhs_{lhs},
-    //       alpha_{alpha},
-    //       loop_nest_{loop_nest},
-    //       is_assign_{is_assign} {}
+    SetOp(LabeledTensorT lhs,
+          T alpha,
+/*          const LabeledLoop& loop_nest,*/
+          bool is_assign)
+        : lhs_{lhs},
+          alpha_{alpha},
+          //loop_nest_{loop_nest},
+          is_assign_{is_assign} {}
 
     SetOp(const SetOp<T, LabeledTensorT>&) = default;
 
@@ -69,18 +69,18 @@ class SetOp : public Op {
     LabeledTensorT lhs_;
   //LabeledLoop loop_nest_;
     bool is_assign_;
-}; // class AddOp
+}; // class SetOp
 
 template<typename T, typename LabeledTensorT>
 class AddOp : public Op {
     public:
   AddOp() = default;
     AddOp(LabeledTensorT lhs, T alpha, LabeledTensorT rhs,
-          const LabeledLoop& loop_nest, bool is_assign) :
+          /*const LabeledLoop& loop_nest,*/ bool is_assign) :
       lhs_{lhs},
       alpha_{alpha},
       rhs_{rhs},
-      loop_nest_{loop_nest},
+      //loop_nest_{loop_nest},
       is_assign_{is_assign} {}
 
     AddOp(const AddOp<T, LabeledTensorT>&) = default;
@@ -101,7 +101,7 @@ class AddOp : public Op {
     LabeledTensorT lhs_;
     T alpha_;
     LabeledTensorT rhs_;
-    LabeledLoop loop_nest_;
+    //LabeledLoop loop_nest_;
     bool is_assign_;
 }; // class AddOp
 
@@ -110,17 +110,17 @@ class MultOp : public Op {
     public:
   MultOp() = default;
     MultOp(LabeledTensorT lhs, T alpha, LabeledTensorT rhs1,
-           LabeledTensorT rhs2, LabeledLoop outer_loop_nest,
-           LabeledLoop inner_loop_nest, SymmFactor symm_factor,
+           LabeledTensorT rhs2, //LabeledLoop outer_loop_nest,
+           /*LabeledLoop inner_loop_nest, SymmFactor symm_factor,*/
            bool is_assign) :
       lhs_{lhs},
       alpha_{alpha},
       rhs1_{rhs1},
       rhs2_{rhs2},
-      outer_loop_nest_{outer_loop_nest},
-      inner_loop_nest_{inner_loop_nest},
-      symm_factor_{symm_factor},
-      is_assign_{is_assign} {}
+    //   outer_loop_nest_{outer_loop_nest},
+    //   inner_loop_nest_{inner_loop_nest},
+    //   symm_factor_{symm_factor},
+    is_assign_{is_assign} {}
 
     MultOp(const MultOp<T, LabeledTensorT>&) = default;
 
@@ -143,9 +143,9 @@ class MultOp : public Op {
     T alpha_;
     LabeledTensorT rhs1_;
     LabeledTensorT rhs2_;
-    LabeledLoop outer_loop_nest_;
-    LabeledLoop inner_loop_nest_;
-    SymmFactor symm_factor_;
+    // LabeledLoop outer_loop_nest_;
+    // LabeledLoop inner_loop_nest_;
+    // SymmFactor symm_factor_;
     bool is_assign_;
 }; // class MultOp
 

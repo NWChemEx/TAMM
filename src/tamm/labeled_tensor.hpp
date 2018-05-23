@@ -19,16 +19,6 @@ class Tensor;
 template <typename> struct is_tuple: std::false_type {};
 template <typename ...T> struct is_tuple<std::tuple<T...>>: std::true_type {};
 
-//is_same<typename tuple_element<0,T1>::type,T&>()
-//is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type,T>()
-// template <typename T, typename U>
-// struct isconv : 
-//    // std::is_convertible<typename std::decay<T>::type, U>::type 
-//    // std::is_convertible<typename typeid(T), U>::type
-// {};
- 
-
-
 template<typename T1, typename T2>
 auto operator*(T1&& left, T2&& right){
   if constexpr(is_tuple<T1>())
@@ -58,7 +48,7 @@ class LabeledTensor {
     template<typename T1> 
     auto operator=(T1&& rhs){
       //LT = alpha
-      if constexpr (is_same<T1, T>())
+      if constexpr (is_convertible<T1, T>())
         return SetOp<T,LTT>(*this,rhs,true);
       
       // LT = LT
@@ -67,7 +57,8 @@ class LabeledTensor {
       
       else if constexpr (is_tuple<T1>()){
         // LT = alpha * LT
-       if constexpr(is_same<decltype(get<0>(rhs)),T&>()
+        //is_same<typename tuple_element<0,T1>::type,T&>()
+       if constexpr(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
           && is_same<decltype(get<1>(rhs)), LTT&>())
           return AddOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),true);
          //  LT = LT * LT
@@ -76,7 +67,7 @@ class LabeledTensor {
           return MultOp<T,LTT>(*this,T{1.0},get<0>(rhs),get<1>(rhs),true);
         
          // LT = alpha * LT * LT
-        else if constexpr(is_same<decltype(get<0>(rhs)),T&>()
+        else if constexpr(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
            && is_same<decltype(get<1>(rhs)), LTT&>()
            && is_same<decltype(get<2>(rhs)), LTT&>())
           return MultOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),get<2>(rhs),true);
@@ -86,7 +77,7 @@ class LabeledTensor {
     template<typename T1>
     auto operator+=(T1&& rhs){
       //LT = alpha
-      if constexpr (is_same<T1, T>())
+      if constexpr (is_convertible<T1, T>())
         return SetOp<T,LTT>(*this,rhs,true);
       
       // LT = LT
@@ -95,7 +86,7 @@ class LabeledTensor {
       
       else if constexpr (is_tuple<T1>()){
         // LT = alpha * LT
-       if constexpr(is_same<decltype(get<0>(rhs)),T&>()
+       if constexpr(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
           && is_same<decltype(get<1>(rhs)), LTT&>())
           return AddOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),true);
          //  LT * LT
@@ -104,7 +95,7 @@ class LabeledTensor {
           return MultOp<T,LTT>(*this,T{1.0},get<0>(rhs),get<1>(rhs),true);
         
          // alpha * LT * LT
-        else if constexpr(is_same<decltype(get<0>(rhs)),T&>()
+        else if constexpr(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
            && is_same<decltype(get<1>(rhs)), LTT&>()
            && is_same<decltype(get<2>(rhs)), LTT&>())
           return MultOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),get<2>(rhs),true);

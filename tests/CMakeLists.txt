@@ -4,3 +4,5 @@ find_package(tamm REQUIRED)
 include(TargetMacros)
 
 include(${CMAKE_CURRENT_LIST_DIR}/tamm/test_tamm.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/ccsd/test_ccsd.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/HF/test_hf.cmake)

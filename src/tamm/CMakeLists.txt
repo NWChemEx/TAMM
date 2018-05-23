@@ -16,6 +16,12 @@ set(tamm_INCLUDES
     index_space_interface.hpp
     attribute.hpp
     range.hpp
+    loops.hpp
+    ops.hpp
+    scheduler.hpp
+    tensor_impl.hpp
+    labeled_tensor.hpp
+    execution_context.hpp
    )
 
 set(tamm_DEFINITIONS )

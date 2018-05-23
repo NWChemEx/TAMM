@@ -16,12 +16,14 @@ template <typename ...T> struct is_tuple<std::tuple<T...>>: std::true_type {};
 
 template<typename T1, typename T2>
 auto operator*(T1&& left, T2&& right){
-  if constexpr(is_tuple<T1>())
+  if constexpr(is_tuple<T1>() && is_tuple<T2>())
+    return std::tuple_cat(left, right);
+  else if constexpr(is_tuple<T1>())
     return std::tuple_cat(left, std::forward_as_tuple(right));
   else if constexpr(is_tuple<T2>())
     return std::tuple_cat(std::forward_as_tuple(left), right);
-  else
-  return std::tuple_cat(std::forward_as_tuple(left), std::forward_as_tuple(right));
+  else 
+    return std::tuple_cat(std::forward_as_tuple(left), std::forward_as_tuple(right));
 }
 
 template<typename T>
@@ -55,29 +57,28 @@ class LabeledTensor {
         return AddOp<T,T1>{*this,T{1.0},rhs,true};
       
       else if constexpr (is_tuple<T1>()){
-        static_assert(!(std::tuple_size<T1>()>3), 
-        "Operation can only be of the form c [+]= [alpha] * a [*b]");
-        using rhs0_t = decltype(get<0>(rhs));
-        using rhs1_t = decltype(get<1>(rhs));
-        using rhs0_twr = typename remove_reference<rhs0_t>::type;
+        static_assert(!(tuple_size<T1>()>3) && !(tuple_size<T1>()<2), 
+        "Operation can only be of the form c [+]= [alpha] * a [* b]");
+        using rhs0_t = typename remove_reference<decltype(get<0>(rhs))>::type;
+        using rhs1_t = typename remove_reference<decltype(get<1>(rhs))>::type;
 
         if constexpr(tuple_size<T1>() == 2){
           // LT = alpha * LT
-          if constexpr(is_convertible_v<rhs0_twr, T>
-              && is_same_v<rhs1_t, LTT&>)
+          if constexpr(is_convertible_v<rhs0_t, T>
+              && is_same_v<rhs1_t, LTT>)
               return AddOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),true};
             //  LT = LT * LT
-          else if constexpr(is_same_v<rhs0_t, LTT&>
-              && is_same_v<rhs1_t, LTT&>)
+          else if constexpr(is_same_v<rhs0_t, LTT>
+              && is_same_v<rhs1_t, LTT>)
               return MultOp<T,LTT>{*this,T{1.0},get<0>(rhs),get<1>(rhs),true};
         }
         
          // LT = alpha * LT * LT
         else if constexpr(tuple_size<T1>() == 3){
-          using rhs2_t = decltype(get<2>(rhs));
-          static_assert(is_convertible_v<rhs0_twr, T>
-           && is_same_v<rhs1_t, LTT&>
-           && is_same_v<rhs2_t, LTT&>
+          using rhs2_t = typename remove_reference<decltype(get<2>(rhs))>::type;
+          static_assert(is_convertible_v<rhs0_t, T>
+           && is_same_v<rhs1_t, LTT>
+           && is_same_v<rhs2_t, LTT>
            ,"Operation can only be of the form c = alpha * a * b");
           return MultOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),get<2>(rhs),true};
         }
@@ -101,29 +102,28 @@ class LabeledTensor {
         return AddOp<T,T1>{*this,T{1.0},rhs,false};
       
       else if constexpr (is_tuple<T1>()){
-        static_assert(std::tuple_size<T1>()<=3, 
-        "Operation can only be of the form c [+]= [alpha] * a [*b]");
-        using rhs0_t = decltype(get<0>(rhs));
-        using rhs1_t = decltype(get<1>(rhs));
-        using rhs0_twr = typename remove_reference<rhs0_t>::type;
+        static_assert(!(tuple_size<T1>()>3) && !(tuple_size<T1>()<2), 
+        "Operation can only be of the form c [+]= [alpha] * a [* b]");
+        using rhs0_t = typename remove_reference<decltype(get<0>(rhs))>::type;
+        using rhs1_t = typename remove_reference<decltype(get<1>(rhs))>::type;
 
         if constexpr(tuple_size<T1>() == 2){
           // LT = alpha * LT
-          if constexpr(is_convertible_v<rhs0_twr, T>
-              && is_same_v<rhs1_t, LTT&>)
+          if constexpr(is_convertible_v<rhs0_t, T>
+              && is_same_v<rhs1_t, LTT>)
               return AddOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),false};
           //  LT = LT * LT
-          else if constexpr(is_same_v<rhs0_t, LTT&>
-              && is_same_v<rhs1_t, LTT&>)
+          else if constexpr(is_same_v<rhs0_t, LTT>
+              && is_same_v<rhs1_t, LTT>)
               return MultOp<T,LTT>{*this,T{1.0},get<0>(rhs),get<1>(rhs),false};
         }
         
          // alpha * LT * LT
         else if constexpr(tuple_size<T1>() == 3){
-          using rhs2_t = decltype(get<2>(rhs));
-          static_assert(is_convertible_v<rhs0_twr, T>
-           && is_same_v<rhs1_t, LTT&>
-           && is_same_v<rhs2_t, LTT&>
+          using rhs2_t = typename remove_reference<decltype(get<2>(rhs))>::type;
+          static_assert(is_convertible_v<rhs0_t, T>
+           && is_same_v<rhs1_t, LTT>
+           && is_same_v<rhs2_t, LTT>
            , "Operation can only be of the form c += alpha * a * b");
           return MultOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),get<2>(rhs),false};
         }

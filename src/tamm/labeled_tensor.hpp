@@ -10,6 +10,7 @@ namespace tamm {
 
 using std::get;
 using std::is_same;
+using std::tuple_size;
 using std::is_convertible;
 using std::remove_reference;
 
@@ -56,21 +57,28 @@ class LabeledTensor {
         return AddOp<T,T1>(*this,T{1.0},rhs,true);
       
       else if constexpr (is_tuple<T1>()){
-        // LT = alpha * LT
+        static_assert(!(std::tuple_size<T1>()>3), "Operation can only be of the form c [+]= [alpha] * a [*b]");
+        
         //is_same<typename tuple_element<0,T1>::type,T&>()
-       if constexpr(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
-          && is_same<decltype(get<1>(rhs)), LTT&>())
-          return AddOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),true);
-         //  LT = LT * LT
-        else if constexpr(is_same<decltype(get<0>(rhs)), LTT&>()
-          && is_same<decltype(get<1>(rhs)), LTT&>())
-          return MultOp<T,LTT>(*this,T{1.0},get<0>(rhs),get<1>(rhs),true);
+        if constexpr(tuple_size<T1>() == 2){
+          // LT = alpha * LT
+          if constexpr(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
+              && is_same<decltype(get<1>(rhs)), LTT&>())
+              return AddOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),true);
+            //  LT = LT * LT
+          else if constexpr(is_same<decltype(get<0>(rhs)), LTT&>()
+              && is_same<decltype(get<1>(rhs)), LTT&>())
+              return MultOp<T,LTT>(*this,T{1.0},get<0>(rhs),get<1>(rhs),true);
+        }
         
          // LT = alpha * LT * LT
-        else if constexpr(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
+        else if constexpr(tuple_size<T1>() == 3){
+          static_assert(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
            && is_same<decltype(get<1>(rhs)), LTT&>()
-           && is_same<decltype(get<2>(rhs)), LTT&>())
+           && is_same<decltype(get<2>(rhs)), LTT&>()
+           ,"Operation can only be of the form c = alpha * a * b");
           return MultOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),get<2>(rhs),true);
+        }
       } 
     }
 
@@ -85,21 +93,27 @@ class LabeledTensor {
         return AddOp<T,T1>(*this,T{1.0},rhs,true);
       
       else if constexpr (is_tuple<T1>()){
-        // LT = alpha * LT
-       if constexpr(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
-          && is_same<decltype(get<1>(rhs)), LTT&>())
-          return AddOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),true);
-         //  LT * LT
-        else if constexpr(is_same<decltype(get<0>(rhs)), LTT&>()
-          && is_same<decltype(get<1>(rhs)), LTT&>())
-          return MultOp<T,LTT>(*this,T{1.0},get<0>(rhs),get<1>(rhs),true);
+        static_assert(std::tuple_size<T1>()<=3, "Operation can only be of the form c [+]= [alpha] * a [*b]");
+
+        if constexpr(tuple_size<T1>() == 2){
+          // LT = alpha * LT
+          if constexpr(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
+              && is_same<decltype(get<1>(rhs)), LTT&>())
+              return AddOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),true);
+            //  LT = LT * LT
+          else if constexpr(is_same<decltype(get<0>(rhs)), LTT&>()
+              && is_same<decltype(get<1>(rhs)), LTT&>())
+              return MultOp<T,LTT>(*this,T{1.0},get<0>(rhs),get<1>(rhs),true);
+        }
         
          // alpha * LT * LT
-        else if constexpr(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
+        else if constexpr(tuple_size<T1>() == 3){
+          static_assert(is_convertible<typename remove_reference<decltype(get<0>(rhs))>::type, T>()
            && is_same<decltype(get<1>(rhs)), LTT&>()
-           && is_same<decltype(get<2>(rhs)), LTT&>())
+           && is_same<decltype(get<2>(rhs)), LTT&>()
+           , "Operation can only be of the form c += alpha * a * b");
           return MultOp<T,LTT>(*this,get<0>(rhs),get<1>(rhs),get<2>(rhs),true);
-
+        }
       }
         
     }

@@ -10,7 +10,7 @@ namespace tamm {
 namespace internal {
   template <typename> struct is_tuple: std::false_type {};
   template <typename ...T> struct is_tuple<std::tuple<T...>>: std::true_type {};
-  template <typename T> constexpr bool is_tuple_v = is_tuple<T>::value;
+  template <typename T> inline constexpr bool is_tuple_v = is_tuple<T>::value;
 }
 
 template<typename T>
@@ -18,15 +18,13 @@ class Tensor;
 
 template<typename T1, typename T2>
 auto operator*(T1&& left, T2&& right){
+    
   using internal::is_tuple_v;
-  if constexpr(is_tuple_v<T1> && is_tuple_v<T2>)
-    return std::tuple_cat(left, right);
-  else if constexpr(is_tuple_v<T1>)
+  if constexpr(is_tuple_v<T1>)
     return std::tuple_cat(left, std::forward_as_tuple(right));
-  else if constexpr(is_tuple_v<T2>)
-    return std::tuple_cat(std::forward_as_tuple(left), right);
   else 
     return std::tuple_cat(std::forward_as_tuple(left), std::forward_as_tuple(right));
+
 }
 
 template<typename T>

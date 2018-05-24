@@ -71,7 +71,7 @@ namespace tamm {
 // Tensor<float> const& TensorHolder::tensor<float>() {
 //     return tensor_float_;
 // }
-using detail_::DAGImpl;
+using internal::DAGImpl;
 ////////////////////////////////////////////////////
 /**
  * @brief Scheduler to execute a list of operations.

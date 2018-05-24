@@ -8,7 +8,7 @@
 
 namespace tamm {
 
-namespace detail_ {
+namespace internal {
   template <typename> struct is_tuple: std::false_type {};
   template <typename ...T> struct is_tuple<std::tuple<T...>>: std::true_type {};
   template< typename T> inline constexpr bool is_tuple_v = is_tuple<T>::value;
@@ -19,7 +19,7 @@ class Tensor;
 
 template<typename T1, typename T2>
 auto operator*(T1&& left, T2&& right){
-  using detail_::is_tuple_v;
+  using internal::is_tuple_v;
   if constexpr(is_tuple_v<T1> && is_tuple_v<T2>)
     return std::tuple_cat(left, right);
   else if constexpr(is_tuple_v<T1>)
@@ -47,7 +47,7 @@ class LabeledTensor {
     template<typename T1> 
     auto operator=(T1&& rhs){
       using std::get;
-      using detail_::is_tuple_v;
+      using internal::is_tuple_v;
       using std::tuple_size_v;
       using std::remove_reference;
       using std::experimental::is_same_v;
@@ -92,7 +92,7 @@ class LabeledTensor {
 
     template<typename T1>
     auto operator+=(T1&& rhs){
-      using detail_::is_tuple_v;
+      using internal::is_tuple_v;
       using std::get;
       using std::tuple_size_v;
       using std::remove_reference;

@@ -6,7 +6,7 @@
 
 namespace tamm {
 
-namespace detail_ {
+namespace internal {
 
 class DAGBase {
 public:
@@ -53,9 +53,9 @@ protected:
     std::tuple<Args...> args_;
 }; // DAGImpl
 
-} // namespace detail_
+} // namespace internal
 
-using detail_::DAGImpl;
+using internal::DAGImpl;
 
 template<typename Func, typename... Args>
 static DAGImpl<Func, Args...> make_dag(Func func, Args... args) {

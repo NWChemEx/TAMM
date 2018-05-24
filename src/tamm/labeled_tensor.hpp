@@ -3,7 +3,6 @@
 
 #include "tamm/loops.hpp"
 #include "tamm/ops.hpp"
-#include <experimental/type_traits>
 #include <type_traits>
 
 namespace tamm {
@@ -11,7 +10,7 @@ namespace tamm {
 namespace internal {
   template <typename> struct is_tuple: std::false_type {};
   template <typename ...T> struct is_tuple<std::tuple<T...>>: std::true_type {};
-  template< typename T> inline constexpr bool is_tuple_v = is_tuple<T>::value;
+  template <typename T> constexpr bool is_tuple_v = is_tuple<T>::value;
 }
 
 template<typename T>
@@ -50,8 +49,8 @@ class LabeledTensor {
       using internal::is_tuple_v;
       using std::tuple_size_v;
       using std::remove_reference;
-      using std::experimental::is_same_v;
-      using std::experimental::is_convertible_v;
+      using std::is_same_v;
+      using std::is_convertible_v;
 
       //LT = alpha
       if constexpr (is_convertible_v<T1, T>)
@@ -96,8 +95,8 @@ class LabeledTensor {
       using std::get;
       using std::tuple_size_v;
       using std::remove_reference;
-      using std::experimental::is_same_v;      
-      using std::experimental::is_convertible_v;
+      using std::is_same_v;      
+      using std::is_convertible_v;
       
       //LT = alpha
       if constexpr (is_convertible_v<T1, T>)

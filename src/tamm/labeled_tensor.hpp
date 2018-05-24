@@ -8,19 +8,23 @@
 
 namespace tamm {
 
+namespace detail_ {
+  template <typename> struct is_tuple: std::false_type {};
+  template <typename ...T> struct is_tuple<std::tuple<T...>>: std::true_type {};
+  template< typename T> inline constexpr bool is_tuple_v = is_tuple<T>::value;
+}
+
 template<typename T>
 class Tensor;
 
-template <typename> struct is_tuple: std::false_type {};
-template <typename ...T> struct is_tuple<std::tuple<T...>>: std::true_type {};
-
 template<typename T1, typename T2>
 auto operator*(T1&& left, T2&& right){
-  if constexpr(is_tuple<T1>() && is_tuple<T2>())
+  using detail_::is_tuple_v;
+  if constexpr(is_tuple_v<T1> && is_tuple_v<T2>)
     return std::tuple_cat(left, right);
-  else if constexpr(is_tuple<T1>())
+  else if constexpr(is_tuple_v<T1>)
     return std::tuple_cat(left, std::forward_as_tuple(right));
-  else if constexpr(is_tuple<T2>())
+  else if constexpr(is_tuple_v<T2>)
     return std::tuple_cat(std::forward_as_tuple(left), right);
   else 
     return std::tuple_cat(std::forward_as_tuple(left), std::forward_as_tuple(right));
@@ -43,7 +47,8 @@ class LabeledTensor {
     template<typename T1> 
     auto operator=(T1&& rhs){
       using std::get;
-      using std::tuple_size;
+      using detail_::is_tuple_v;
+      using std::tuple_size_v;
       using std::remove_reference;
       using std::experimental::is_same_v;
       using std::experimental::is_convertible_v;
@@ -56,13 +61,13 @@ class LabeledTensor {
       else if constexpr (is_same_v<T1, LTT>)
         return AddOp<T,T1>{*this,T{1.0},rhs,true};
       
-      else if constexpr (is_tuple<T1>()){
-        static_assert(!(tuple_size<T1>()>3) && !(tuple_size<T1>()<2), 
+      else if constexpr (is_tuple_v<T1>){
+        static_assert(!(tuple_size_v<T1> > 3) && !(tuple_size_v<T1> < 2), 
         "Operation can only be of the form c [+]= [alpha] * a [* b]");
         using rhs0_t = typename remove_reference<decltype(get<0>(rhs))>::type;
         using rhs1_t = typename remove_reference<decltype(get<1>(rhs))>::type;
 
-        if constexpr(tuple_size<T1>() == 2){
+        if constexpr(tuple_size_v<T1> == 2){
           // LT = alpha * LT
           if constexpr(is_convertible_v<rhs0_t, T>
               && is_same_v<rhs1_t, LTT>)
@@ -74,7 +79,7 @@ class LabeledTensor {
         }
         
          // LT = alpha * LT * LT
-        else if constexpr(tuple_size<T1>() == 3){
+        else if constexpr(tuple_size_v<T1> == 3){
           using rhs2_t = typename remove_reference<decltype(get<2>(rhs))>::type;
           static_assert(is_convertible_v<rhs0_t, T>
            && is_same_v<rhs1_t, LTT>
@@ -87,8 +92,9 @@ class LabeledTensor {
 
     template<typename T1>
     auto operator+=(T1&& rhs){
+      using detail_::is_tuple_v;
       using std::get;
-      using std::tuple_size;
+      using std::tuple_size_v;
       using std::remove_reference;
       using std::experimental::is_same_v;      
       using std::experimental::is_convertible_v;
@@ -101,13 +107,13 @@ class LabeledTensor {
       else if constexpr (is_same_v<T1, LTT>)
         return AddOp<T,T1>{*this,T{1.0},rhs,false};
       
-      else if constexpr (is_tuple<T1>()){
-        static_assert(!(tuple_size<T1>()>3) && !(tuple_size<T1>()<2), 
+      else if constexpr (is_tuple_v<T1>){
+        static_assert(!(tuple_size_v<T1> > 3) && !(tuple_size_v<T1> < 2), 
         "Operation can only be of the form c [+]= [alpha] * a [* b]");
         using rhs0_t = typename remove_reference<decltype(get<0>(rhs))>::type;
         using rhs1_t = typename remove_reference<decltype(get<1>(rhs))>::type;
 
-        if constexpr(tuple_size<T1>() == 2){
+        if constexpr(tuple_size_v<T1> == 2){
           // LT = alpha * LT
           if constexpr(is_convertible_v<rhs0_t, T>
               && is_same_v<rhs1_t, LTT>)
@@ -119,7 +125,7 @@ class LabeledTensor {
         }
         
          // alpha * LT * LT
-        else if constexpr(tuple_size<T1>() == 3){
+        else if constexpr(tuple_size_v<T1> == 3){
           using rhs2_t = typename remove_reference<decltype(get<2>(rhs))>::type;
           static_assert(is_convertible_v<rhs0_t, T>
            && is_same_v<rhs1_t, LTT>

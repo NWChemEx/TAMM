@@ -19,5 +19,6 @@
 #include "tamm/ops.hpp"
 #include "tamm/scheduler.hpp"
 #include "tamm/tensor_impl.hpp"
+#include "tamm/dag_impl.hpp"
 
 #endif // TAMM_TAMM_H_

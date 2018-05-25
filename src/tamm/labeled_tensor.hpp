@@ -52,7 +52,7 @@ class LabeledTensor {
 
       //LT = alpha
       if constexpr (is_convertible_v<T1, T>)
-        return SetOp<T,LTT>{*this,rhs,true};
+        return SetOp<T,LTT>{*this,T(rhs),true};
       
       // LT = LT
       else if constexpr (is_same_v<T1, LTT>)

@@ -14,6 +14,7 @@
 namespace tamm {
 
 // Free functions
+#if __cplusplus < 201703L
 namespace detail_ {
 template<class F, class Tuple, std::size_t... I>
 constexpr decltype(auto) apply_impl(F&& f, Tuple&& t,
@@ -28,6 +29,7 @@ constexpr decltype(auto) apply(F&& f, Tuple&& t) {
       std::forward<F>(f), std::forward<Tuple>(t),
       std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value>{});
 }
+#endif
 // End Free functions
 
 

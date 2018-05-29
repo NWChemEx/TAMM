@@ -15,7 +15,7 @@ namespace tamm {
 
 // Free functions
 #if __cplusplus < 201703L
-namespace detail_ {
+namespace internal {
 template<class F, class Tuple, std::size_t... I>
 constexpr decltype(auto) apply_impl(F&& f, Tuple&& t,
                                     std::index_sequence<I...>) {
@@ -25,7 +25,7 @@ constexpr decltype(auto) apply_impl(F&& f, Tuple&& t,
 
 template<class F, class Tuple>
 constexpr decltype(auto) apply(F&& f, Tuple&& t) {
-    return detail_::apply_impl(
+    return internal::apply_impl(
       std::forward<F>(f), std::forward<Tuple>(t),
       std::make_index_sequence<std::tuple_size<std::decay_t<Tuple>>::value>{});
 }

@@ -3,14 +3,6 @@
 
 #include "tamm/tamm.hpp"
 
-// using tamm::ExecutionContext;
-// using tamm::IndexSpace;
-// using tamm::range;
-// using tamm::Scheduler;
-// using tamm::span;
-// using tamm::Tensor;
-// using tamm::TiledIndexLabel;
-// using tamm::TiledIndexSpace;
 using namespace tamm;
 
 template<typename T>
@@ -171,17 +163,20 @@ std::pair<double, double> rest(ExecutionContext& ec, const TiledIndexSpace& MO,
     Scheduler sch{ec};
     Tensor<T> d_r1_residual{}, d_r2_residual{};
     sch
-      .allocate(d_r1_residual,
-                d_r2_residual)(d_r1_residual() = d_r1() * d_r1())(
-        d_r2_residual() = d_r2() * d_r2())([&](Scheduler& sch) {
+      .allocate(d_r1_residual, d_r2_residual)
+      (d_r1_residual() = d_r1() * d_r1())
+      (d_r2_residual() = d_r2() * d_r2())
+      ([&](Scheduler& sch) {
           T r1, r2;
           d_r1_residual.get({}, span<T>(&r1, sizeof(T)));
           d_r2_residual.get({}, span<T>(&r2, sizeof(T)));
           residual = std::max(0.5 * std::sqrt(r1), 0.5 * std::sqrt(r2));
           de.get({}, span<T>(&energy, sizeof(T)));
-      })([&](Scheduler& sch) {
+      })
+      ([&](Scheduler& sch) {
           jacobi(sch, d_r1, d_t1, -1.0 * zshiftl, false, EVL);
-      })([&](Scheduler& sch) {
+      })
+      ([&](Scheduler& sch) {
           jacobi(sch, d_r2, d_t2, -2.0 * zshiftl, false, EVL);
       })
       .deallocate(d_r1_residual, d_r2_residual)
@@ -218,7 +213,9 @@ void ccsd_driver(const TiledIndexSpace& MO, const Tensor<T>& d_f1,
 
     std::tie(n1) = UnitTiledMO.labels<1>("all");
 
-    Scheduler{ec}(d_evl(n1) = 0.0).execute();
+    Scheduler{ec}
+        (d_evl(n1) = 0.0)
+        .execute();
 
     // ProcGroup pg{GA_MPI_Comm()};
     // Distribution_NW distribution;

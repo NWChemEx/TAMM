@@ -41,22 +41,23 @@ class LabeledTensor {
     IndexLabelVec labels() const { return ilv_; }
 
     using LTT = LabeledTensor<T>;
-    template<typename T1> 
-    auto operator=(T1&& rhs){
+
+    template<typename T1>
+    auto make_op(T1&& rhs, bool is_assign){
       using std::get;
-      using internal::is_tuple_v;
-      using std::tuple_size_v;
-      using std::remove_reference;
       using std::is_same_v;
+      using std::tuple_size_v;
+      using internal::is_tuple_v;
+      using std::remove_reference;
       using std::is_convertible_v;
 
       //LT = alpha
       if constexpr (is_convertible_v<T1, T>)
-        return SetOp<T,LTT>{*this,T(rhs),true};
+        return SetOp<T,LTT>{*this,T(rhs),is_assign};
       
       // LT = LT
       else if constexpr (is_same_v<T1, LTT>)
-        return AddOp<T,T1>{*this,T{1.0},rhs,true};
+        return AddOp<T,T1>{*this,T{1.0},rhs,is_assign};
       
       else if constexpr (is_tuple_v<T1>){
         static_assert(!(tuple_size_v<T1> > 3) && !(tuple_size_v<T1> < 2), 
@@ -68,11 +69,11 @@ class LabeledTensor {
           // LT = alpha * LT
           if constexpr(is_convertible_v<rhs0_t, T>
               && is_same_v<rhs1_t, LTT>)
-              return AddOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),true};
+              return AddOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),is_assign};
             //  LT = LT * LT
           else if constexpr(is_same_v<rhs0_t, LTT>
               && is_same_v<rhs1_t, LTT>)
-              return MultOp<T,LTT>{*this,T{1.0},get<0>(rhs),get<1>(rhs),true};
+              return MultOp<T,LTT>{*this,T{1.0},get<0>(rhs),get<1>(rhs),is_assign};
         }
         
          // LT = alpha * LT * LT
@@ -82,62 +83,24 @@ class LabeledTensor {
            && is_same_v<rhs1_t, LTT>
            && is_same_v<rhs2_t, LTT>
            ,"Operation can only be of the form c = alpha * a * b");
-          return MultOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),get<2>(rhs),true};
+          return MultOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),get<2>(rhs),is_assign};
         }
-      } 
+      }
+    } //end make_op
+
+    template<typename T1> 
+    auto operator=(T1&& rhs){
+      return make_op<T1>(std::move(rhs), true);
     } //operator =
 
     template<typename T1>
     auto operator+=(T1&& rhs){
-      using internal::is_tuple_v;
-      using std::get;
-      using std::tuple_size_v;
-      using std::remove_reference;
-      using std::is_same_v;      
-      using std::is_convertible_v;
-      
-      //LT = alpha
-      if constexpr (is_convertible_v<T1, T>)
-        return SetOp<T,LTT>{*this,rhs,false};
-      
-      // LT = LT
-      else if constexpr (is_same_v<T1, LTT>)
-        return AddOp<T,T1>{*this,T{1.0},rhs,false};
-      
-      else if constexpr (is_tuple_v<T1>){
-        static_assert(!(tuple_size_v<T1> > 3) && !(tuple_size_v<T1> < 2), 
-        "Operation can only be of the form c [+]= [alpha] * a [* b]");
-
-        using rhs0_t = typename remove_reference<decltype(get<0>(rhs))>::type;
-        using rhs1_t = typename remove_reference<decltype(get<1>(rhs))>::type;
-
-        if constexpr(tuple_size_v<T1> == 2){
-          // LT = alpha * LT
-          if constexpr(is_convertible_v<rhs0_t, T>
-              && is_same_v<rhs1_t, LTT>)
-              return AddOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),false};
-          //  LT = LT * LT
-          else if constexpr(is_same_v<rhs0_t, LTT>
-              && is_same_v<rhs1_t, LTT>)
-              return MultOp<T,LTT>{*this,T{1.0},get<0>(rhs),get<1>(rhs),false};
-        }
-        
-         // alpha * LT * LT
-        else if constexpr(tuple_size_v<T1> == 3){
-          using rhs2_t = typename remove_reference<decltype(get<2>(rhs))>::type;
-          static_assert(is_convertible_v<rhs0_t, T>
-           && is_same_v<rhs1_t, LTT>
-           && is_same_v<rhs2_t, LTT>
-           , "Operation can only be of the form c += alpha * a * b");
-          return MultOp<T,LTT>{*this,get<0>(rhs),get<1>(rhs),get<2>(rhs),false};
-        }
-      }  
+      return make_op<T1>(std::move(rhs), false);
     } //operator +=
 
     protected:
       Tensor<T> tensor_;
       IndexLabelVec ilv_;
-
 };
 #endif
 

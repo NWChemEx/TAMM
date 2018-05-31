@@ -53,11 +53,11 @@ class LabeledTensor {
 
       //LT = alpha
       if constexpr (is_convertible_v<T1, T>)
-        return SetOp<T,LTT>{*this,T(sub_v * rhs),is_assign};
+        return SetOp{*this,T(sub_v * rhs),is_assign};
       
       // LT = LT
       else if constexpr (is_same_v<T1, LTT>)
-        return AddOp<T,T1>{*this,T{sub_v * 1.0},rhs,is_assign};
+        return AddOp{*this,T{sub_v * 1.0},rhs,is_assign};
       
       else if constexpr (is_tuple_v<T1>){
         static_assert(!(tuple_size_v<T1> > 3) && !(tuple_size_v<T1> < 2), 
@@ -69,11 +69,11 @@ class LabeledTensor {
           // LT = alpha * LT
           if constexpr(is_convertible_v<rhs0_t, T>
               && is_same_v<rhs1_t, LTT>)
-              return AddOp<T,LTT>{*this,sub_v * get<0>(rhs),get<1>(rhs),is_assign};
+              return AddOp{*this,sub_v * get<0>(rhs),get<1>(rhs),is_assign};
             //  LT = LT * LT
           else if constexpr(is_same_v<rhs0_t, LTT>
               && is_same_v<rhs1_t, LTT>)
-              return MultOp<T,LTT>{*this,T{sub_v * 1.0},get<0>(rhs),get<1>(rhs),is_assign};
+              return MultOp{*this,T{sub_v * 1.0},get<0>(rhs),get<1>(rhs),is_assign};
         }
         
          // LT = alpha * LT * LT
@@ -83,24 +83,24 @@ class LabeledTensor {
            && is_same_v<rhs1_t, LTT>
            && is_same_v<rhs2_t, LTT>
            ,"Operation can only be of the form c [+-] = alpha * a * b");
-          return MultOp<T,LTT>{*this,sub_v * get<0>(rhs),get<1>(rhs),get<2>(rhs),is_assign};
+          return MultOp{*this,sub_v * get<0>(rhs),get<1>(rhs),get<2>(rhs),is_assign};
         }
       }
     } //end make_op
 
     template<typename T1> 
     auto operator=(T1&& rhs){
-      return make_op<T1>(std::move(rhs), true);
+      return make_op(std::move(rhs), true);
     } //operator =
 
     template<typename T1>
     auto operator+=(T1&& rhs){
-      return make_op<T1>(std::move(rhs), false);
+      return make_op(std::move(rhs), false);
     } //operator +=
 
     template<typename T1>
     auto operator-=(T1&& rhs){
-      return make_op<T1>(std::move(rhs), false, -1);
+      return make_op(std::move(rhs), false, -1);
     } //operator -=
 
     protected:

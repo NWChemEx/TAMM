@@ -33,12 +33,23 @@ class LabeledTensor {
     LabeledTensor()                     = default;
     LabeledTensor(const LabeledTensor&) = default;
 
-    LabeledTensor(const Tensor<T>& tensor, const IndexLabelVec& ilv) :
+    // LabeledTensor(const Tensor<T>& tensor, const IndexLabelVec& ilv) :
+    //   tensor_{tensor},
+    //   ilv_{ilv} {}
+
+    template <typename ...Args>
+    LabeledTensor(const Tensor<T>& tensor, Args... args):
       tensor_{tensor},
-      ilv_{ilv} {}
+      ilv_{IndexLabelVec(tensor_.num_modes())},
+      slv_{StringLabelVec(tensor_.num_modes())},
+      str_map_{std::vector<bool>(tensor_.num_modes())} {
+        unpack(0, args...);
+      }
 
     Tensor<T> tensor() const { return tensor_; }
     IndexLabelVec labels() const { return ilv_; }
+    StringLabelVec str_labels() const { return slv_; }
+    std::vector<bool> str_map() const { return str_map_; }
 
     using LTT = LabeledTensor<T>;
 
@@ -50,7 +61,7 @@ class LabeledTensor {
       using internal::is_tuple_v;
       using std::remove_reference;
       using std::is_convertible_v;
-
+      
       //LT = alpha
       if constexpr (is_convertible_v<T1, T>)
         return SetOp{*this,T(sub_v * rhs),is_assign};
@@ -83,7 +94,7 @@ class LabeledTensor {
            && is_same_v<rhs1_t, LTT>
            && is_same_v<rhs2_t, LTT>
            ,"Operation can only be of the form c [+-] = alpha * a * b");
-          return MultOp{*this,sub_v * get<0>(rhs),get<1>(rhs),get<2>(rhs),is_assign};
+          return MultOp{*this, sub_v * get<0>(rhs), get<1>(rhs), get<2>(rhs), is_assign};
         }
       }
     } //end make_op
@@ -106,6 +117,26 @@ class LabeledTensor {
     protected:
       Tensor<T> tensor_;
       IndexLabelVec ilv_;
+      StringLabelVec slv_;
+      std::vector<bool> str_map_;
+    private:
+      void unpack(size_t index) {
+        EXPECTS(index == tensor_.num_modes());
+      }
+      
+      template <typename ...Args>
+      void unpack(size_t index, const std::string& str, Args... rest){
+        slv_[index] = str;
+        str_map_[index] = true;
+        unpack(++index, rest...);
+      }
+
+      template <typename ...Args>
+      void unpack(size_t index, const TiledIndexLabel& label, Args... rest){
+        ilv_[index] = label;
+        str_map_[index] = false;
+        unpack(++index, rest...);
+      }
 };
 #endif
 
@@ -172,13 +203,23 @@ class LabeledTensor {
     LabeledTensor()                     = default;
     LabeledTensor(const LabeledTensor&) = default;
 
-    LabeledTensor(const Tensor<T>& tensor, const IndexLabelVec& ilv) :
+    // LabeledTensor(const Tensor<T>& tensor, const IndexLabelVec& ilv) :
+    //   tensor_{tensor},
+    //   ilv_{ilv} {}
+
+    template <typename ...Args>
+    LabeledTensor(const Tensor<T>& tensor, Args... args):
       tensor_{tensor},
-      ilv_{ilv} {}
+      ilv_{IndexLabelVec(tensor_.num_modes())},
+      slv_{StringLabelVec(tensor_.num_modes())},
+      str_map_{std::vector<bool>(tensor_.num_modes())} {
+        unpack(0, args...);
+      }
 
     Tensor<T> tensor() const { return tensor_; }
-
     IndexLabelVec labels() const { return ilv_; }
+    StringLabelVec str_labels() const { return slv_; }
+    std::vector<bool> str_map() const { return str_map_; }
 
     // @to-do: implement.
     AddOp<T, LabeledTensor<T>> operator=(
@@ -322,6 +363,12 @@ class LabeledTensor {
     }
 
     protected:
+
+    Tensor<T> tensor_;
+    IndexLabelVec ilv_;
+    StringLabelVec slv_;
+    std::vector<bool> str_map_;
+
     SetOp<T, LabeledTensor<T>> construct_setop(
       const std::tuple<LoopSpec, T>& rhs, bool is_assign) {
         const auto& loop_spec = std::get<0>(rhs);
@@ -382,9 +429,6 @@ class LabeledTensor {
           sf,    is_assign};
     }
 
-    Tensor<T> tensor_;
-    IndexLabelVec ilv_;
-
     OuterLabeledLoop loop_nest() const {
         // return {labels(), tensor().perm_group().unique_loop_nest(labels())};
       return {};
@@ -410,6 +454,25 @@ class LabeledTensor {
         // }
         return InnerLabeledLoop{inner_labels, begins, ends, {}};
     }
+
+    private:
+      void unpack(size_t index) {
+        EXPECTS(index == tensor_.num_modes());
+      }
+      
+      template <typename ...Args>
+      void unpack(size_t index, const std::string& str, Args... rest){
+        slv_[index] = str;
+        str_map_[index] = true;
+        unpack(++index, rest...);
+      }
+
+      template <typename ...Args>
+      void unpack(size_t index, const TiledIndexLabel& label, Args... rest){
+        ilv_[index] = label;
+        str_map_[index] = false;
+        unpack(++index, rest...);
+      }
 };
 
 inline LoopSpec operator*(LoopSpec ls, const InnerLabeledLoop& ill) {

@@ -40,6 +40,7 @@ using IndexIterator = std::vector<Index>::const_iterator;
 using Tile          = uint32_t;
 // DAG related Hash
 using HashData      = uint64_t;
+using StringLabelVec    = std::vector<std::string>;
 
 //////////////////////////////////
 struct IrrepSpace;

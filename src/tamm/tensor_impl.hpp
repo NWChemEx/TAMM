@@ -100,6 +100,8 @@ public:
      */
     virtual void deallocate() = 0;
 
+    auto get_spaces()const {return block_indices_;}
+
 protected:
     std::vector<TiledIndexSpace> block_indices_;
     Spin spin_total_;
@@ -261,6 +263,8 @@ public:
         // return LabeledTensor<T>{*this, IndexLabelVec{inputs...}};
         return {};
     }
+
+    auto get_spaces() const {return impl_->get_spaces();}
 
     /**
      * @brief Memory allocation method for the Tensor object

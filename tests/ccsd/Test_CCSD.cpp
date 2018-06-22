@@ -219,8 +219,8 @@ void ccsd_driver(const TiledIndexSpace& MO,
     const TiledIndexSpace& N = MO("all");
 
     Tensor<T> de{};
-    Tensor<T> i1{};
-    Tensor<T> i2{};
+    Tensor<T> i1{V, O};
+    Tensor<T> i2{V, V, O, O};
 
     //Tensor<T> i0{V,O};
     Tensor<T> d_t1{V, O};
@@ -255,8 +255,8 @@ void ccsd_driver(const TiledIndexSpace& MO,
 
     while(residual > threshold) {
         ccsd_e(ec, MO, de, d_t1, d_t2, d_f1, d_v2);
-        ccsd_t1(ec,MO, i1, d_t1, d_t2, d_f1, d_v2);
-        ccsd_t2(ec,MO, i2, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t1(ec, MO, i1, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t2(ec, MO, i2, d_t1, d_t2, d_f1, d_v2);
         std::tie(residual, energy) = rest(ec, MO, i1, i2, d_t1, d_t2, de, d_evl, zshiftl);
         break; //@todo remove once iterative procedure is implemented
     }

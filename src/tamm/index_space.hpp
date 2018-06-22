@@ -239,10 +239,10 @@ public:
      * @param [in] is reference IndexSpace
      * @param [in] size tile size (default: 1)
      */
-    TiledIndexSpace(const IndexSpace& is, Tile size = 1) :
+    TiledIndexSpace(const IndexSpace& is, Tile tile_size = 1) :
       is_{is},
-      size_{size},
-      tiled_indices_{construct_tiled_indices(is, size)} {}
+      tile_size_{tile_size},
+      tiled_indices_{construct_tiled_indices(is, tile_size)} {}
 
     /**
      * @brief Constructor with multiple tile sizes
@@ -370,7 +370,7 @@ public:
      * @returns true if the Tile size and the reference IndexSpace is equal
      */
     bool is_identical(const TiledIndexSpace& rhs) const {
-        return std::tie(size_, is_) == std::tie(rhs.size_, rhs.is_);
+        return std::tie(tile_size_, is_) == std::tie(rhs.tile_size_, rhs.is_);
     }
 
     /**
@@ -381,7 +381,7 @@ public:
      * @returns true if the Tile size and the reference IndexSpace is equal
      */
     bool is_less_than(const TiledIndexSpace& rhs) const {
-        return (size_ == rhs.size_) && (is_.is_less_than(rhs.is_));
+        return (tile_size_ == rhs.tile_size_) && (is_.is_less_than(rhs.is_));
     }
 
     /**
@@ -450,6 +450,13 @@ public:
      */
     std::size_t size() const { return tiled_indices_.size() - 1; }
 
+    /**
+     * @brief Get the tile size for the index blocks
+     * 
+     * @returns Tile size
+     */
+    Tile tile_size() const { return tile_size_; }
+
     // Comparison operators
     friend bool operator==(const TiledIndexSpace& lhs,
                            const TiledIndexSpace& rhs);
@@ -466,7 +473,7 @@ public:
 
 protected:
     IndexSpace is_;
-    Tile size_;
+    Tile tile_size_;
     IndexVector tiled_indices_;
     std::vector<Tile> sizes_;
 
@@ -479,7 +486,7 @@ protected:
      * @returns a vector of indices corresponding to the start and end of each
      * tile
      */
-    IndexVector construct_tiled_indices(const IndexSpace& is, Tile size) {
+    IndexVector construct_tiled_indices(const IndexSpace& is, Tile tile_size) {
         if(is.size() == 0) { return {}; }
 
         IndexVector boundries, ret;
@@ -513,7 +520,7 @@ protected:
         // If no boundry clean split with respect to tile size
         if(boundries.empty()) {
             // add starting indices
-            for(size_t i = 0; i < is.size(); i += size) { ret.push_back(i); }
+            for(size_t i = 0; i < is.size(); i += tile_size) { ret.push_back(i); }
             // add size of IndexSpace for the last block
             ret.push_back(is.size());
         } else { // Remove duplicates
@@ -527,7 +534,7 @@ protected:
 
             while(i < is.size()) {
                 ret.push_back(i);
-                i = (i + size_ > boundries[j]) ? boundries[j++] : (i + size_);
+                i = (i + tile_size > boundries[j]) ? boundries[j++] : (i + tile_size);
             }
             // add size of IndexSpace for the last block
             ret.push_back(is.size());

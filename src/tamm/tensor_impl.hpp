@@ -36,7 +36,8 @@ public:
      * used to construct the tensor
      */
     TensorBase(std::vector<TiledIndexSpace> block_indices) :
-      block_indices_{block_indices} {}
+      block_indices_{block_indices},
+      num_modes_{block_indices.size()} {}
 
     /**
      * @brief Construct a new TensorBase object using a vector of
@@ -46,7 +47,8 @@ public:
      * corresponding TiledIndexSpace objects for each mode used to construct the
      * tensor
      */
-    TensorBase(const std::vector<TiledIndexLabel>& lbls) {
+    TensorBase(const std::vector<TiledIndexLabel>& lbls) : 
+      num_modes_{lbls.size()} {
         for(const auto& lbl : lbls) {
             block_indices_.push_back(lbl.tiled_index_space());
         }
@@ -99,8 +101,6 @@ public:
      *
      */
     virtual void deallocate() = 0;
-
-    auto get_spaces()const {return block_indices_;}
 
 protected:
     std::vector<TiledIndexSpace> block_indices_;
@@ -208,7 +208,8 @@ protected:
 template<typename T>
 class Tensor {
 public:
-    Tensor() = default;
+    Tensor() : 
+      impl_{std::make_shared<TensorImpl>()} {}
 
     /**
      * @brief Construct a new Tensor object from a set of TiledIndexSpace
@@ -258,13 +259,17 @@ public:
      * @param [in] inputs input TiledIndexLabels
      * @returns a LabeledTensro object created with the input arguments
      */
-    template<class... Ts>
-    LabeledTensor<T> operator()(Ts... inputs) const {
-        // return LabeledTensor<T>{*this, IndexLabelVec{inputs...}};
-        return {};
+    template<class... Args>
+    LabeledTensor<T> operator()(Args&&... rest) const {
+        return LabeledTensor<T>{*this, std::forward<Args>(rest)...};
+        // return {};
     }
 
-    auto get_spaces() const {return impl_->get_spaces();}
+    // template <typename ...Args>
+    // LabeledTensor<T> operator()(const std::string str, Args... rest) const {}
+    // LabeledTensor<T> operator()(std::initializer_list<const std::string> lbl_strs) const {
+    //     return LabeledTensor<T>(*this, lbl_strs);
+    // }
 
     /**
      * @brief Memory allocation method for the Tensor object
@@ -319,6 +324,11 @@ public:
      */
     template<typename... Args>
     static void deallocate(Args... rest) {}
+
+
+    size_t num_modes() const {
+        return impl_->num_modes();
+    }
 
 private:
     std::shared_ptr<TensorImpl> impl_;

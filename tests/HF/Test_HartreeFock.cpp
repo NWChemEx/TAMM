@@ -91,7 +91,8 @@ void hartree_fock(ExecutionContext& ec, const TiledIndexSpace& AO,
         // S);  eps = gen_eig_solver(F,S).eigenvalues();  C =
         // gen_eig_solver(F,S).eigenvectors();
         double eps;
-        std::tie(C, eps) = eigen_solve(F, S);
+        // @to-do un-comment once the eigen_solve is ready
+        // std::tie(C, eps) = eigen_solve(F, S);
 
         // compute density, D = C(occ) . C(occ)T
         // C_occ(ao,bo) = C(ao,bo); //C.leftCols(ndocc);

@@ -32,7 +32,7 @@ constexpr decltype(auto) apply(F&& f, Tuple&& t) {
 #endif
 // End Free functions
 
-
+using TAMM_SIZE = uint64_t;
 // IndexSpace related type definitions
 using Index         = uint32_t;
 using IndexVector   = std::vector<Index>;

@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_MAIN
 #include "catch/catch.hpp"
-
+#include "ga-mpi.h"
 #include "tamm/tamm.hpp"
 
 using namespace tamm;
@@ -185,7 +185,12 @@ void ccsd_driver(const TiledIndexSpace& MO, const Tensor<T>& d_f1,
     //@todo initial t1 guess
     //@todo initial t2 guess
 
-    ExecutionContext ec;
+    //ProcGroup pg{MPI_COMM_SELF};
+    //auto mgr = MemoryManagerLocal::create_coll(pg);
+    ProcGroup pg{GA_MPI_Comm()};
+    auto mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext ec{pg,&distribution,mgr};
 
     TiledIndexSpace UnitTiledMO{MO.index_space(), 1};
     Tensor<T> d_evl{N};
@@ -195,10 +200,6 @@ void ccsd_driver(const TiledIndexSpace& MO, const Tensor<T>& d_f1,
     Scheduler{ec}
         (d_evl("n1") = 0.0)
         .execute();
-
-    // ProcGroup pg{GA_MPI_Comm()};
-    // Distribution_NW distribution;
-    // auto mgr = MemoryManagerGA::create_coll(ProcGroup{GA_MPI_Comm()});
 
     Tensor<T>::allocate(ec, d_t1, d_t2);
 

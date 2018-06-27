@@ -20,9 +20,16 @@ set(tamm_INCLUDES
     ops.hpp
     scheduler.hpp
     tensor_impl.hpp
+    tensor_base.hpp
+    distribution.hpp
     labeled_tensor.hpp
     execution_context.hpp
     dag_impl.hpp
+    proc_group.hpp
+    memory_manager.hpp
+    memory_manager_ga.hpp
+    memory_manager_local.hpp
+    
    )
 
 set(tamm_DEFINITIONS )

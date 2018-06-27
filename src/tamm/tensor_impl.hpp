@@ -1,9 +1,12 @@
 #ifndef TAMM_TENSOR_IMPL_HPP_
 #define TAMM_TENSOR_IMPL_HPP_
 
-#include "tamm/execution_context.hpp"
 #include "tamm/index_space.hpp"
 #include "tamm/labeled_tensor.hpp"
+#include "tamm/tensor_base.hpp"
+#include "tamm/memory_manager_local.hpp"
+#include "tamm/distribution.hpp"
+#include "tamm/execution_context.hpp"
 
 namespace tamm {
 
@@ -18,102 +21,6 @@ struct span {
 
     span(T* ref, size_t size) : ref_{ref}, size_{size} {}
 };
-
-/**
- * @brief Base class for a tensor
- *
- */
-class TensorBase {
-public:
-    // Ctors
-    TensorBase() = default;
-
-    /**
-     * @brief Construct a new TensorBase object using a vector of
-     * TiledIndexSpace objects for each mode of the tensor
-     *
-     * @param [in] block_indices vector of TiledIndexSpace objects for each mode
-     * used to construct the tensor
-     */
-    TensorBase(std::vector<TiledIndexSpace> block_indices) :
-      block_indices_{block_indices},
-      num_modes_{block_indices.size()} {}
-
-    /**
-     * @brief Construct a new TensorBase object using a vector of
-     * TiledIndexSpace objects for each mode of the tensor
-     *
-     * @param [in] lbls vector of tiled index labels used for extracting
-     * corresponding TiledIndexSpace objects for each mode used to construct the
-     * tensor
-     */
-    TensorBase(const std::vector<TiledIndexLabel>& lbls) : 
-      num_modes_{lbls.size()} {
-        for(const auto& lbl : lbls) {
-            block_indices_.push_back(lbl.tiled_index_space());
-        }
-    }
-
-    /**
-     * @brief Construct a new TensorBase object recursively with a set of
-     * TiledIndexSpace objects followed by a lambda expression
-     *
-     * @tparam Ts variadic template for rest of the arguments
-     * @param [in] tis TiledIndexSpace object used as a mode
-     * @param [in] rest remaining part of the arguments
-     */
-    template<class... Ts>
-    TensorBase(const TiledIndexSpace& tis, Ts... rest) : TensorBase{rest...} {
-        block_indices_.insert(block_indices_.begin(), tis);
-    }
-
-    /**
-     * @brief Construct a new TensorBase object from a single TiledIndexSpace
-     * object and a lambda expression
-     *
-     * @tparam Func template for lambda expression
-     * @param [in] tis TiledIndexSpace object used as the mode of the tensor
-     * @param [in] func lambda expression
-     */
-    template<typename Func>
-    TensorBase(const TiledIndexSpace& tis, const Func& func) {
-        block_indices_.insert(block_indices_.begin(), tis);
-    }
-
-    // Dtor
-    virtual ~TensorBase(){};
-
-    /**
-     * @brief Method for getting the number of modes of the tensor
-     *
-     * @returns a size_t for the number of nodes of the tensor
-     */
-    size_t num_modes() { return num_modes_; };
-
-    /**
-     * @brief Memory allocation method for the tensor object
-     *
-     */
-    virtual void allocate() = 0;
-
-    /**
-     * @brief Memory deallocation method for the tensor object
-     *
-     */
-    virtual void deallocate() = 0;
-
-protected:
-    std::vector<TiledIndexSpace> block_indices_;
-    Spin spin_total_;
-    bool has_spatial_symmetry_;
-    bool has_spin_symmetry_;
-
-    size_t num_modes_;
-    // std::vector<IndexPosition> ipmask_;
-    // PermGroup perm_groups_;
-    // Irrep irrep_;
-    // std::vector<SpinMask> spin_mask_;
-}; // TensorBase
 
 /**
  * @brief Implementation class for TensorBase class
@@ -132,7 +39,7 @@ public:
      * @param [in] block_indices vector of TiledIndexSpace objects for each
      * mode used to construct the tensor
      */
-    TensorImpl(std::vector<TiledIndexSpace> tis) : TensorBase{tis} {}
+    TensorImpl(const std::vector<TiledIndexSpace>& tis) : TensorBase{tis} {}
 
     /**
      * @brief Construct a new TensorImpl object using a vector of
@@ -167,10 +74,26 @@ public:
     // Dtor
     ~TensorImpl() = default;
 
-    // Overriden methods
+  void deallocate() {
+    EXPECTS(mpb_);
+    mpb_->dealloc_coll();
+  }
 
-    void allocate() override {}
-    void deallocate() override {}
+  void allocate(const ExecutionContext& ec) {
+    Distribution* distribution = ec.distribution();
+    MemoryManager* memory_manager = ec.memory_manager();
+    EXPECTS(distribution != nullptr);
+    EXPECTS(memory_manager != nullptr);
+    // distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
+    distribution_ = std::shared_ptr<Distribution>(
+        distribution->clone(this,
+                            memory_manager->pg().size()));
+    auto rank = memory_manager->pg().rank();
+    auto buf_size = distribution_->buf_size(rank);
+    auto eltype = tensor_element_type<double>();
+    EXPECTS(buf_size >=0 );
+    mpb_ = std::unique_ptr<MemoryRegion>{memory_manager->alloc_coll(eltype, buf_size)};
+  }
 
     // Tensor Accessors
     /**
@@ -196,6 +119,8 @@ public:
     void put(const IndexVector& idx_vec, span<T> buff_span) {}
 
 protected:
+    std::shared_ptr<Distribution> distribution_;
+    std::unique_ptr<MemoryRegion> mpb_;
 }; // TensorImpl
 
 /**
@@ -271,18 +196,6 @@ public:
     //     return LabeledTensor<T>(*this, lbl_strs);
     // }
 
-    /**
-     * @brief Memory allocation method for the Tensor object
-     *
-     */
-    void allocate() { impl_->allocate(); }
-
-    /**
-     * @brief Memory deallocation method for the Tensor object
-     *
-     */
-    void deallocate() { impl_->deallocate(); }
-
     // Tensor Accessors
     /**
      * @brief Get method for Tensor values
@@ -304,6 +217,19 @@ public:
         impl_->put(idx_vec, buff_span);
     }
 
+
+    /**
+     * @brief Memory allocation method for the Tensor object
+     *
+     */
+    static void allocate(const ExecutionContext& ec) { } // impl_->allocate(ec); 
+
+    /**
+     * @brief Memory deallocation method for the Tensor object
+     *
+     */
+    static void deallocate() {} //impl_->deallocate(); }
+
     // Static methods for allocate/deallocate
     /**
      * @brief Static memory allocation method for a set of Tensors
@@ -314,7 +240,10 @@ public:
      * @param [in] rest set of Tensor objects to be allocated
      */
     template<typename... Args>
-    static void allocate(const ExecutionContext& exec, Args... rest) {}
+    static void allocate(const ExecutionContext& ec, Tensor<T>& tensor, Args& ... rest) {
+       tensor.impl_->allocate(ec);
+       allocate(ec,rest...);
+    }
 
     /**
      * @brief Static memory deallocation method for a set of Tensors
@@ -323,14 +252,17 @@ public:
      * @param [in] rest set of Tensor objects to be deallocated
      */
     template<typename... Args>
-    static void deallocate(Args... rest) {}
+    static void deallocate(Tensor<T>& tensor, Args& ... rest) {
+        tensor.impl_->deallocate();
+        deallocate(rest...);
+    }
 
 
     size_t num_modes() const {
         return impl_->num_modes();
     }
 
-private:
+//private:
     std::shared_ptr<TensorImpl> impl_;
 };
 

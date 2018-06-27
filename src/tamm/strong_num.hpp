@@ -151,8 +151,8 @@ struct StrongNum {
     bool operator>(const T& t) const { return v > t; }
     bool operator<(const T& t) const { return v < t; }
 
-    // T value() const { return v; }
-    // T& value() { return v; }
+    T value() const { return v; }
+    T& value() { return v; }
 
     template<typename T1>
     T1 value() const {

@@ -22,7 +22,7 @@ class IndexSpaceInterface;
  * @todo Possibly use named parameters idiom for construction
  */
 class IndexSpace {
-public:
+    public:
     using Iterator = IndexIterator;
     // Constructors
     IndexSpace() = default;
@@ -196,6 +196,8 @@ public:
 
     const NameToRangeMap& get_named_ranges() const;
 
+    IndexSpace root_index_space() const;
+
     bool is_identical(const IndexSpace& rhs) const {
         return impl_ == rhs.impl_;
     }
@@ -205,6 +207,14 @@ public:
     // @todo Re-visit later
     bool is_compatible(const IndexSpace& rhs) const {
         return is_identical(rhs);
+    }
+
+    bool is_identical_reference(const IndexSpace& rhs) const {
+        return (*this).root_index_space().is_identical(rhs.root_index_space());
+    }
+
+    bool is_compatible_reference(const IndexSpace& rhs) const {
+        return (*this).root_index_space().is_compatible(rhs.root_index_space());
     }
 
     SpinAttribute get_spin() const;
@@ -218,7 +228,7 @@ public:
     friend bool operator<=(const IndexSpace& lhs, const IndexSpace& rhs);
     friend bool operator>=(const IndexSpace& lhs, const IndexSpace& rhs);
 
-protected:
+    protected:
     std::shared_ptr<IndexSpaceInterface> impl_;
 }; // IndexSpace
 
@@ -228,7 +238,7 @@ class TiledIndexLabel;
  *
  */
 class TiledIndexSpace {
-public:
+    public:
     // Ctors
     TiledIndexSpace() = default;
 
@@ -452,7 +462,7 @@ public:
 
     /**
      * @brief Get the tile size for the index blocks
-     * 
+     *
      * @returns Tile size
      */
     Tile tile_size() const { return tile_size_; }
@@ -471,7 +481,7 @@ public:
     friend bool operator>=(const TiledIndexSpace& lhs,
                            const TiledIndexSpace& rhs);
 
-protected:
+    protected:
     IndexSpace is_;
     Tile tile_size_;
     IndexVector tiled_indices_;
@@ -520,7 +530,9 @@ protected:
         // If no boundry clean split with respect to tile size
         if(boundries.empty()) {
             // add starting indices
-            for(size_t i = 0; i < is.size(); i += tile_size) { ret.push_back(i); }
+            for(size_t i = 0; i < is.size(); i += tile_size) {
+                ret.push_back(i);
+            }
             // add size of IndexSpace for the last block
             ret.push_back(is.size());
         } else { // Remove duplicates
@@ -534,7 +546,8 @@ protected:
 
             while(i < is.size()) {
                 ret.push_back(i);
-                i = (i + tile_size > boundries[j]) ? boundries[j++] : (i + tile_size);
+                i = (i + tile_size > boundries[j]) ? boundries[j++] :
+                                                     (i + tile_size);
             }
             // add size of IndexSpace for the last block
             ret.push_back(is.size());
@@ -636,7 +649,7 @@ inline bool operator>=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
 }
 
 class TiledIndexLabel {
-public:
+    public:
     // Constructor
     TiledIndexLabel() = default;
 
@@ -696,7 +709,7 @@ public:
     friend bool operator>=(const TiledIndexLabel& lhs,
                            const TiledIndexLabel& rhs);
 
-protected:
+    protected:
     TiledIndexSpace tis_;
     Label label_;
     std::vector<TiledIndexLabel> dep_labels_;

@@ -1,7 +1,6 @@
 #include "tamm/index_space.hpp"
 #include "tamm/index_space_interface.hpp"
 
-
 namespace tamm {
 // IndexSpace Method Implementations
 // Ctors
@@ -120,6 +119,10 @@ SpatialAttribute IndexSpace::get_spatial() const {
 
 const NameToRangeMap& IndexSpace::get_named_ranges() const {
     return impl_->get_named_ranges();
+}
+
+IndexSpace IndexSpace::root_index_space() const {
+    return impl_->root_index_space();
 }
 
 // Comparison operator implementations

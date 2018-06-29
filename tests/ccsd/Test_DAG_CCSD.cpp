@@ -1,5 +1,9 @@
-#define CATCH_CONFIG_MAIN
+//#define CATCH_CONFIG_MAIN
+#define CATCH_CONFIG_RUNNER
 #include "catch/catch.hpp"
+#include "ga.h"
+#include "mpi.h"
+#include "macdecls.h"
 #include "ga-mpi.h"
 #include "tamm/tamm.hpp"
 
@@ -222,8 +226,20 @@ void ccsd_driver(const TiledIndexSpace& MO, const Tensor<T>& d_f1,
     Tensor<T>::deallocate(d_evl, d_t1, d_t2);
 }
 
+int main( int argc, char* argv[] )
+{
+    MPI_Init(&argc,&argv);
+    GA_Initialize();
+    MA_init(MT_DBL, 8000000, 20000000);
+    
+    int mpi_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+    return Catch::Session().run(argc, argv);
+}
+
 TEST_CASE("CCSD Driver") {
-    // Construction of tiled index space MO from skretch
+    // Construction of tiled index space MO from sketch
     IndexSpace MO_IS{range(0, 200),
                      {{"occ", {range(0, 100)}}, {"virt", {range(100, 200)}}}};
     TiledIndexSpace MO{MO_IS, 10};

@@ -13,7 +13,7 @@ namespace tamm {
  *        for the different IndexSpace implementations
  */
 class IndexSpaceInterface {
-public:
+    public:
     /**
      * @brief Destroy the Index Space Interface object
      *
@@ -152,7 +152,9 @@ public:
      */
     virtual const NameToRangeMap& get_named_ranges() const = 0;
 
-protected:
+    virtual IndexSpace root_index_space() const = 0;
+
+    protected:
     std::weak_ptr<IndexSpaceInterface> this_weak_ptr_;
 
     /**
@@ -237,7 +239,7 @@ protected:
         return true;
     }
 
-private:
+    private:
     /**
      * @brief Set the weak ptr object for IndexSpaceInterface
      *
@@ -256,7 +258,7 @@ private:
  *
  */
 class RangeIndexSpaceImpl : public IndexSpaceInterface {
-public:
+    public:
     // @todo do we need a default constructor?
     // RangeIndexSpaceImpl() = default;
 
@@ -334,7 +336,11 @@ public:
         return named_ranges_;
     }
 
-protected:
+    IndexSpace root_index_space() const override {
+        return IndexSpace{this_weak_ptr_.lock()};
+    }
+
+    protected:
     IndexVector indices_;
     NameToRangeMap named_ranges_;
     std::map<std::string, IndexSpace> named_subspaces_;
@@ -417,7 +423,7 @@ protected:
  *
  */
 class SubSpaceImpl : public IndexSpaceInterface {
-public:
+    public:
     // @todo do we need a default constructor?
     // SubSpaceImpl() = default;
 
@@ -437,7 +443,8 @@ public:
       ref_range_{range},
       indices_{construct_indices(is, range)},
       named_ranges_{named_ranges},
-      named_subspaces_{construct_subspaces(named_ranges)} {}
+      named_subspaces_{construct_subspaces(named_ranges)},
+      root_space_{is.root_index_space()} {}
 
     /**
      * @brief
@@ -505,12 +512,15 @@ public:
         return named_ranges_;
     }
 
-protected:
+    IndexSpace root_index_space() const override { return root_space_; }
+
+    protected:
     IndexSpace ref_space_;
     Range ref_range_;
     IndexVector indices_;
     NameToRangeMap named_ranges_;
     std::map<std::string, IndexSpace> named_subspaces_;
+    IndexSpace root_space_;
 
     /**
      * @brief Helper method for constructing the new set of
@@ -563,7 +573,7 @@ protected:
  *
  */
 class AggregateSpaceImpl : public IndexSpaceInterface {
-public:
+    public:
     // @todo do we need a default constructor?
     // AggregateSpaceImpl() = default;
 
@@ -668,7 +678,11 @@ public:
         return named_ranges_;
     }
 
-protected:
+    IndexSpace root_index_space() const override {
+        return IndexSpace{this_weak_ptr_.lock()};
+    }
+
+    protected:
     std::vector<IndexSpace> ref_spaces_;
     IndexVector indices_;
     NameToRangeMap named_ranges_;
@@ -797,7 +811,7 @@ protected:
  *
  */
 class DependentIndexSpaceImpl : public IndexSpaceInterface {
-public:
+    public:
     // @todo do we need a default constructor?
     // DependentIndexSpaceImpl() = default;
 
@@ -926,7 +940,11 @@ public:
         return named_ranges_;
     }
 
-protected:
+    IndexSpace root_index_space() const override {
+        return IndexSpace{this_weak_ptr_.lock()};
+    }
+
+    protected:
     std::vector<IndexSpace> dep_spaces_;
     IndexSpace ref_space_;
     std::map<IndexVector, IndexSpace> dep_space_relation_;

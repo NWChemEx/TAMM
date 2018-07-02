@@ -14,7 +14,9 @@
 
 namespace tamm {
 
+using IndexRangeVec = std::vector<Range>;
 using IndexLabelVec = std::vector<TiledIndexLabel>;
+using TiledIndexSpaceVec = std::vector<TiledIndexSpace>;
 
 struct LBCondition {
     size_t pos;

@@ -1,8 +1,8 @@
-#ifndef TAMM_TENSOR_BASE_H_
-#define TAMM_TENSOR_BASE_H_
+#ifndef TAMM_TENSOR_BASE_HPP_
+#define TAMM_TENSOR_BASE_HPP_
 
 #include "tamm/errors.hpp"
-#include "tamm/types.hpp"
+#include "tamm/loops.hpp"
 #include "tamm/index_space.hpp"
 
 /**
@@ -146,7 +146,31 @@ operator < (const TensorBase& lhs, const TensorBase& rhs) {
   return (lhs <= rhs) && (lhs != rhs);
 }
 
+inline LBLoopNest<IndexSpace::Iterator> loop_iterator(
+    const TiledIndexSpaceVec& tisv)  {
+    std::vector<IndexSpace::Iterator> lbloops, lbloops_last;
+    for(const auto& tis : tisv) { 
+        //std::vector<NameToRangeMap> n2rm = lbl.index_space().get_named_ranges(); 
+        lbloops.push_back(tis.begin()); //iterator to indexvector - each index in vec points to begin of each tile in IS
+        lbloops_last.push_back(tis.end());
+    }
+
+    //scalar??
+    if(tisv.size() == 0){
+        lbloops.push_back({});
+        lbloops_last.push_back({});
+    }
+
+    return LBLoopNest<IndexSpace::Iterator>{lbloops,lbloops_last,{}};
+}
+
+inline LBLoopNest<IndexSpace::Iterator> loop_iterator(
+    const IndexLabelVec& ilv)  {
+    TiledIndexSpaceVec tisv;
+    for(const auto& tis : ilv) { tisv.push_back(tis.tiled_index_space()); }
+    return loop_iterator(tisv);
+}
 
 }  // namespace tamm
 
-#endif  // TAMM_TENSOR_BASE_H_
+#endif  // TAMM_TENSOR_BASE_HPP_

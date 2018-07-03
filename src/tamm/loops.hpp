@@ -63,6 +63,12 @@ public:
         // reset_starting_from(0);
     }
 
+    LBLoopNest get_end() const{
+        LBLoopNest lbl{begin_,end_,{}};
+        lbl.itr_ = end_;
+        return lbl;
+    }
+
     void reset_starting_from(size_t start) {
         // EXPECTS(start < size_);
         // reset_with_lb(start);

@@ -154,16 +154,16 @@ class Distribution_NW : public Distribution {
     auto itr = pdt;
     while(!pdt.has_more()) {
       itr = pdt;
-     auto blockid = *itr;
-      //if(tensor_structure_->nonzero(blockid)) {
-        hash_[addr] = compute_key(blockid);
-        EXPECTS(addr==1 || hash_[addr] > hash_[addr-1]);
-        hash_[length + addr] = offset;
-        if(GA_Nodeid() == 1) {
-          //std::cerr<<"-----DISTRIBUTIO_NW. addr="<<addr<<" offset="<<offset<<" block_size="<<tensor_structure_->block_size(blockid)<<"\n";
-        }
-        offset += tensor_structure_->block_size(blockid);
-        addr += 1;
+    //  auto blockid = *itr;
+    //   //if(tensor_structure_->nonzero(blockid)) {
+    //     hash_[addr] = compute_key(blockid);
+    //     EXPECTS(addr==1 || hash_[addr] > hash_[addr-1]);
+    //     hash_[length + addr] = offset;
+    //     if(GA_Nodeid() == 1) {
+    //       //std::cerr<<"-----DISTRIBUTIO_NW. addr="<<addr<<" offset="<<offset<<" block_size="<<tensor_structure_->block_size(blockid)<<"\n";
+    //     }
+    //     offset += tensor_structure_->block_size(blockid);
+    //     addr += 1;
       //}
       pdt.next();
      }

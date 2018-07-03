@@ -131,36 +131,42 @@ class Distribution_NW : public Distribution {
 
     auto indices = tensor_structure_->tindices();
     auto pdt =  loop_iterator(indices);
-    // auto last = pdt.get_end();
-    // int length = 0;
-    // for(auto itr = pdt; itr != last; ++itr) {
+    auto last = pdt.get_end();
+    int length = pdt.size();
+    // auto itr = pdt;
+    // while(!pdt.has_more()) {
+    //   itr = pdt;
     //   if (tensor_structure_->nonzero(*itr)) {
-    //     length += 1;
+    //      length += 1;
     //   }
+    //     pdt.next();
     // }
-    // EXPECTS(length > 0);
+    EXPECTS(length > 0);
 
-    // hash_.resize(2*length + 1);
-    // hash_[0] = length;
-    // //start over
-    // pdt =  loop_iterator(indices);
-    // last = pdt.get_end();
-    // Integer offset = 0;
-    // int addr = 1;
+    hash_.resize(2*length + 1);
+    hash_[0] = length;
+    //start over
+    pdt =  loop_iterator(indices);
+    last = pdt.get_end();
+    Integer offset = 0;
+    int addr = 1;
 
-    //for(auto itr = pdt; itr != last; ++itr) {
-     // auto blockid = *itr;
-      // if(tensor_structure_->nonzero(blockid)) {
-      //   hash_[addr] = compute_key(blockid);
-      //   EXPECTS(addr==1 || hash_[addr] > hash_[addr-1]);
-      //   hash_[length + addr] = offset;
-      //   if(GA_Nodeid() == 1) {
-      //     //std::cerr<<"-----DISTRIBUTIO_NW. addr="<<addr<<" offset="<<offset<<" block_size="<<tensor_structure_->block_size(blockid)<<"\n";
-      //   }
-      //   offset += tensor_structure_->block_size(blockid);
-      //   addr += 1;
-      // }
-    // }
+    auto itr = pdt;
+    while(!pdt.has_more()) {
+      itr = pdt;
+     auto blockid = *itr;
+      //if(tensor_structure_->nonzero(blockid)) {
+        hash_[addr] = compute_key(blockid);
+        EXPECTS(addr==1 || hash_[addr] > hash_[addr-1]);
+        hash_[length + addr] = offset;
+        if(GA_Nodeid() == 1) {
+          //std::cerr<<"-----DISTRIBUTIO_NW. addr="<<addr<<" offset="<<offset<<" block_size="<<tensor_structure_->block_size(blockid)<<"\n";
+        }
+        offset += tensor_structure_->block_size(blockid);
+        addr += 1;
+      //}
+      pdt.next();
+     }
 
     // EXPECTS(offset > 0);
     // total_size_ = offset;

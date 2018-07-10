@@ -106,7 +106,7 @@ public:
      *
      */
     //virtual void deallocate() = 0;
-
+  
 protected:
     std::vector<TiledIndexSpace> block_indices_;
     Spin spin_total_;

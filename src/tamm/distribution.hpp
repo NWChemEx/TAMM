@@ -17,7 +17,7 @@ class TensorBase;
 class Distribution {
  public:
   virtual ~Distribution() {}
-  virtual std::pair<Proc,Offset> locate(const BlockDimVec& blockid) = 0;
+  virtual std::pair<Proc,Offset> locate(const IndexVector& blockid) = 0;
   virtual Size buf_size(Proc proc) const = 0;
   virtual std::string name() const = 0;
   virtual Distribution* clone(const TensorBase*, Proc) const = 0;
@@ -100,7 +100,7 @@ class Distribution_NW : public Distribution {
     return new Distribution_NW(tensor_structure, nproc);
   }
 
-  std::pair<Proc,Offset> locate(const BlockDimVec& blockid) {
+  std::pair<Proc,Offset> locate(const IndexVector& blockid) {
     auto key = compute_key(blockid);
     auto length = hash_[0];
     auto ptr = std::lower_bound(&hash_[1], &hash_[length + 1], key);
@@ -209,26 +209,30 @@ class Distribution_NW : public Distribution {
   }
 
 private:
-  Integer compute_key(const BlockDimVec& blockid) const {
-    Integer key;
-    // TensorVec<Integer> offsets, bases;
-
-    // const auto &flindices = tensor_structure_->flindices();
-    // for(const auto &ind: flindices) {
-    //   offsets.push_back(ind.bhi().value() - ind.blo().value());
-    // }
-    // for(auto ind: flindices) {
-    //   bases.push_back(ind.blo().value());
-    // }
-    // int rank = flindices.size();
-    // Integer offset = 1;
-    // key = 0;
-    // for(int i=rank-1; i>=0; i--) {
-    //   EXPECTS(blockid[i] >= flindices[i].blo());
-    //   EXPECTS(blockid[i] < flindices[i].bhi());
-    //   key += ((blockid[i].value() - bases[i]) * offset);
-    //   offset *= offsets[i];
-    // }
+  TAMM_SIZE compute_key(const IndexVector& blockid) const {
+    TAMM_SIZE key;
+    const auto &tis_list = tensor_structure_->tindices();
+    std::vector<TAMM_SIZE> offsets;
+    for(const auto &tis: tis_list) {
+      auto msi = tis.max_size();
+      TAMM_SIZE pp{};
+      for(size_t i = 1; i < tis.size()+1; i++) { //num_blocks
+        pp = i;
+        for(auto j=i;j<tis_list.size();j++)
+          pp *= tis_list[j].max_size();
+      }
+      offsets.push_back(pp);
+    }
+    auto rank = tis_list.size();
+    TAMM_SIZE offset = 1;
+    key = 0;
+    for(auto i=rank-1; i>=0; i--) {
+      //EXPECTS(blockid[i] >= flindices[i].blo());
+      //EXPECTS(blockid[i] < flindices[i].bhi());
+      //key += ((blockid[i].value() - bases[i]) * offset);
+      key+=blockid[i]*offset;
+      offset *= offsets[i];
+    }
     return key;
   }
 

@@ -184,6 +184,9 @@ class IndexSpace {
     // Size of this index space
     std::size_t size() const;
 
+    // Maximum size of this index space for any dependent index
+    std::size_t max_size() const;
+
     // Attribute Accessors
     Spin spin(Index idx) const;
     Spatial spatial(Index idx) const;

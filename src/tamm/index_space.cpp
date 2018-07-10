@@ -98,6 +98,9 @@ IndexIterator IndexSpace::end() const { return impl_->end(); }
 // Size of this index space
 std::size_t IndexSpace::size() const { return impl_->size(); }
 
+// Maximum size of this index space for any dependent index
+std::size_t IndexSpace::max_size() const { return impl_->max_size(); }
+
 // Attribute Accessors
 Spin IndexSpace::spin(Index idx) const { return impl_->spin(idx); }
 Spatial IndexSpace::spatial(Index idx) const { return impl_->spatial(idx); }

@@ -76,6 +76,12 @@ operator + (IndexBoundCondition ibc1, const IndexBoundCondition& ibc2) {
   return ibc1;
 }
 
+inline IndexBoundCondition
+operator == (const IndexBoundCondition& lhs, const IndexBoundCondition& rhs) {
+  return (lhs <= rhs) + (lhs >= rhs);
+}
+
+
 
 class IndexLoopNest {
  public:

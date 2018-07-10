@@ -1,131 +1,70 @@
-#ifndef TAMM_INDEX_LOOP_NEST_HPP__
-#define TAMM_INDEX_LOOP_NEST_HPP__
+#ifndef TAMM_INDEX_LOOP_NEST_HPP_
+#define TAMM_INDEX_LOOP_NEST_HPP_
 
+#include "tamm/index_space.hpp"
 #include <cassert>
 #include <iostream>
 #include <vector>
 #include <map>
 #include <algorithm>
 
-////////////////////////////////////////////////////////////////
-//
-//              stub code to test loop iterators
-//
-////////////////////////////////////////////////////////////////
-
 namespace tamm {
-
-using Index = int;
-using IndexVector = std::vector<Index>;
-using IndexIterator = std::vector<Index>::const_iterator;
-
-class IndexSpace {
- public:
-  std::pair<IndexIterator,IndexIterator> construct_iterators(const IndexVector& ivec = {}) const {
-    return {indices_.begin(), indices_.end()};
-  }
-  // IndexIterator begin() const;
-  // IndexIterator end() const;
-
-  IndexSpace(int id, const std::vector<Index>& indices)
-      : id_{id},
-        indices_{indices} {}
-
-  int id() const {
-    return id_;
-  }
-
-  const std::vector<Index>& indices() const {
-    return indices_;
-  }
-  
-  bool operator == (const IndexSpace& rhs) const {
-    return id_ == rhs.id_;
-  }
- private:
-  int id_;
-  std::vector<Index> indices_;
-};
-
-class IndexLabel {
- public:
-  IndexLabel(IndexSpace is,
-             int val)
-      : is_{is},
-        val_{val} {}
-  
-  IndexSpace is() const {
-    return is_;
-  }
-
-  int val() const {
-    return val_;
-  }
-  
-  bool operator == (const IndexLabel& rhs) const {
-    return is_ == rhs.is_ &&
-        val_ == rhs.val_;
-  }
-  
- private:
-  IndexSpace is_;
-  int val_;
-};
-
-////////////////////////////////////////////////////////////////
-//
-//                   loop iterator code follows
-//
-////////////////////////////////////////////////////////////////
-
 
 class IndexBoundCondition {
  public:
-  IndexBoundCondition(IndexLabel this_label,
-                      const std::vector<IndexLabel>& lb_labels = {},
-                      const std::vector<IndexLabel>& ub_labels = {})
+  IndexBoundCondition(TiledIndexLabel this_label,
+                      const std::vector<TiledIndexLabel>& lb_labels = {},
+                      const std::vector<TiledIndexLabel>& ub_labels = {})
       : this_label_{this_label},
         lb_labels_{lb_labels},
         ub_labels_{ub_labels} {}
 
-  IndexLabel this_label() const {
+  TiledIndexLabel this_label() const {
     return this_label_;
   }
 
-  std::vector<IndexLabel>& lb_labels() {
+  std::vector<TiledIndexLabel>& lb_labels() {
     return lb_labels_;
   }
 
-  std::vector<IndexLabel>& ub_labels() {
+  std::vector<TiledIndexLabel>& ub_labels() {
     return ub_labels_;
   }
 
-  const std::vector<IndexLabel>& lb_labels() const {
+  const std::vector<TiledIndexLabel>& lb_labels() const {
     return lb_labels_;
   }
 
-  const std::vector<IndexLabel>& ub_labels() const {
+  const std::vector<TiledIndexLabel>& ub_labels() const {
     return ub_labels_;
   }
-
+  
  private:
-  IndexLabel this_label_;
-  std::vector<IndexLabel> lb_labels_;
-  std::vector<IndexLabel> ub_labels_;
+  TiledIndexLabel this_label_;
+  std::vector<TiledIndexLabel> lb_labels_;
+  std::vector<TiledIndexLabel> ub_labels_;
 };
 
 
-IndexBoundCondition
-operator <= (const IndexLabel& ref, const IndexLabel& ub) {
-  return {ref, {}, {ub}};
+inline IndexBoundCondition
+operator <= (const IndexBoundCondition& ref, const IndexBoundCondition& ub) {
+  assert(ref.lb_labels().size() == 0);
+  assert(ref.ub_labels().size() == 0);
+  assert(ub.lb_labels().size() == 0);
+  assert(ub.ub_labels().size() == 0);
+  return {ref.this_label(), {}, {ub.this_label()}};
 }
 
-IndexBoundCondition
-operator >= (const IndexLabel& ref, const IndexLabel& lb) {
-  return {ref, {lb}, {}};
+inline IndexBoundCondition
+operator >= (const IndexBoundCondition& ref, const IndexBoundCondition& lb) {
+  assert(ref.lb_labels().size() == 0);
+  assert(ref.ub_labels().size() == 0);
+  assert(lb.lb_labels().size() == 0);
+  assert(lb.ub_labels().size() == 0);
+  return {ref.this_label(), {lb.this_label()}, {}};
 }
 
-IndexBoundCondition
+inline IndexBoundCondition
 operator + (IndexBoundCondition ibc1, const IndexBoundCondition& ibc2) {
   assert(ibc1.this_label() == ibc2.this_label());
   ibc1.lb_labels().insert(ibc1.lb_labels().end(),
@@ -138,17 +77,19 @@ operator + (IndexBoundCondition ibc1, const IndexBoundCondition& ibc2) {
 }
 
 
-
 class IndexLoopNest {
  public:
-  IndexLoopNest() = default;
+  IndexLoopNest() {
+    reset();
+  }
+  
   IndexLoopNest(const IndexLoopNest&) = default;
   IndexLoopNest(IndexLoopNest&&) = default;
   ~IndexLoopNest() = default;
   IndexLoopNest& operator = (const IndexLoopNest&) = default;
   IndexLoopNest& operator = (IndexLoopNest&&) = default;
 
-  IndexLoopNest(const std::vector<IndexSpace>& iss,
+  IndexLoopNest(const std::vector<TiledIndexSpace>& iss,
                 const std::vector<int>& lb_indices,
                 const std::vector<int>& ub_indices,
                 const std::vector<std::vector<int>>& indep_indices)
@@ -159,25 +100,19 @@ class IndexLoopNest {
           reset();
         }  
   
-  void reset() {
-    itbegin_ = Iterator{this};
-    itend_ = Iterator{this};
-    itend_.set_end();
-  }
-  
   template<typename... Args>
   IndexLoopNest(const IndexBoundCondition& ibc, Args&&... args)
       : IndexLoopNest{std::vector<IndexBoundCondition>{ibc, std::forward<Args>(args)...}} {
   }
 
   IndexLoopNest(const std::vector<IndexBoundCondition>& ibcs) {
-    std::vector<IndexLabel> labels;
+    std::vector<TiledIndexLabel> labels;
 
     for(const auto& ibc: ibcs) {
       //every label is unique
       assert(std::find(labels.begin(), labels.end(), ibc.this_label()) == labels.end());
       labels.push_back(ibc.this_label());
-      iss_.push_back(ibc.this_label().is());
+      iss_.push_back(ibc.this_label().tiled_index_space());
       indep_indices_.push_back({});
       /*
         //indep labels
@@ -202,7 +137,7 @@ class IndexLoopNest {
     }
     reset();
   }
-
+  
   class Iterator {
    public:
     Iterator() = default;
@@ -211,7 +146,7 @@ class IndexLoopNest {
     ~Iterator() = default;
     Iterator& operator = (const Iterator&) = default;
     Iterator& operator = (Iterator&&) = default;
-    
+
     Iterator(IndexLoopNest* loop_nest)
         : loop_nest_{loop_nest} {
       bases_.resize(size());
@@ -221,7 +156,7 @@ class IndexLoopNest {
       done_ = false;
       reset_forward(0);
     }
-    
+     
     bool operator == (const Iterator& rhs) const {
       return loop_nest_ == rhs.loop_nest_ &&
           done_ == rhs.done_ &&
@@ -243,7 +178,7 @@ class IndexLoopNest {
       return ret;
     }
     
-    void operator ++ () {
+    Iterator operator ++ () {
       int i = rollback(size()-1);
       if (i<0) {
         set_end();
@@ -251,8 +186,15 @@ class IndexLoopNest {
         itrs_[i]++;
         reset_forward(i+1);
       }
+      return *this;
     }
 
+    Iterator operator ++ (int) {
+      Iterator ret{*this};
+      ++(*this);
+      return ret;
+    }
+    
    private:
     int rollback(int index) {
       int i;
@@ -276,8 +218,13 @@ class IndexLoopNest {
           indep_vals.push_back(bases_[id][itrs_[id]]);
         }
         IndexIterator cbeg, cend;
-        
+        assert(indep_vals.size()==0); //@bug no support for dependent index spaces yet
+#if 0
         std::tie(cbeg, cend) =  loop_nest_->iss_[i].construct_iterators(indep_vals);
+#else
+        cbeg = loop_nest_->iss_[i].begin();
+        cend = loop_nest_->iss_[i].end();
+#endif
         bases_[i] = cbeg;
         ends_[i] = std::distance(cbeg, cend);
         for (const auto& id: loop_nest_->lb_indices_[i]) {
@@ -317,7 +264,7 @@ class IndexLoopNest {
     bool done_;
     friend class IndexLoopNest;
   };  
-  
+
   const Iterator& begin() const {
     return itbegin_;
   }
@@ -354,26 +301,19 @@ class IndexLoopNest {
     return iss_.size();
   }
 
-
- private:
-  std::vector<IndexSpace> iss_;
+  void reset() {
+    itbegin_ = Iterator{this};
+    itend_ = Iterator{this};
+    itend_.set_end();
+  }
+  
+  std::vector<TiledIndexSpace> iss_;
   std::vector<std::vector<int>> lb_indices_;
   std::vector<std::vector<int>> ub_indices_;
   std::vector<std::vector<int>> indep_indices_;
   Iterator itbegin_;
   Iterator itend_;
 };  // class IndexLoopNest
-
-// template<typename T>
-// std::ostream&
-// operator << (std::ostream& os, const std::vector<T>& vec) {
-//   os<<"[";
-//   for(const auto& v: vec) {
-//     os<<v<<",";
-//   }
-//   os<<"]"<<std::endl;
-//   return os;
-// }
 
 template<typename... Args>
 inline IndexLoopNest loop_spec(Args... args) {
@@ -382,29 +322,9 @@ inline IndexLoopNest loop_spec(Args... args) {
   return iln;
 }
 
-
-// int main() {
-//   IndexSpace is1{1, {1, 2, 3, 4, 5}};
-
-//   IndexLabel il11{is1, 1}, il12{is1, 2}, il13{is1, 3};
-
-//   IndexLoopNest iln{il11, il12 + (il12 >= il11)};
-
-//   std::cout<< iln.size()<<std::endl;
-//   std::cout<<__FUNCTION__<<" "<<__LINE__<<std::endl;
-//   auto it = iln.begin();
-//   //std::cout << *it << std::endl;
-//   while(it != iln.end()) {
-//     //std::cout<<__FUNCTION__<<" "<<__LINE__<<std::endl;
-//     std::cout << *it << std::endl;
-//     ++it;
-//   }
-//   return 0;
-// }
-
-}; //namespace tamm
+} //namespace tamm
 
 
 
-#endif // TAMM_INDEX_LOOP_NEST_HPP__
+#endif // TAMM_INDEX_LOOP_NEST_HPP_
 

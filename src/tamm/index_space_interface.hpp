@@ -78,12 +78,22 @@ class IndexSpaceInterface {
      */
     virtual IndexIterator end() const = 0;
     /**
-     * @brief Returns the size of the IndexVector associated with the
+     * @brief Returns the number of indices associated with the
      * IndexSpace
      *
-     * @returns size of the IndexVector
+     * @returns size of the index space
      */
     virtual std::size_t size() const = 0;
+
+    /**
+     * @brief Returns the maximum number of indices associated with
+     * this index space. This is equal to size() for independent index
+     * spaces. For dependent index spaces, this is the largest of the
+     * sizes of the encapsulated index spaces.
+     *
+     * @returns maximum size of the index space
+     */
+    virtual std::size_t max_size() const = 0;
 
     /**
      * @brief Accessor methods to Spin value associated with the input Index
@@ -315,6 +325,9 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
     // Size of this index space
     std::size_t size() const override { return indices_.size(); }
 
+    // Maximum size of this index space
+    std::size_t max_size() const override { return indices_.size(); }
+
     // Attribute Accessors
     Spin spin(Index idx) const override { return spin_(idx); }
     Spatial spatial(Index idx) const override { return spatial_(idx); }
@@ -487,6 +500,9 @@ class SubSpaceImpl : public IndexSpaceInterface {
     // Size of this index space
     std::size_t size() const override { return indices_.size(); }
 
+    // Maximum size of this index space
+    std::size_t max_size() const override { return indices_.size(); }
+
     // Attribute Accessors
     Spin spin(Index idx) const override { return ref_space_.spin(idx); }
     Spatial spatial(Index idx) const override {
@@ -630,6 +646,9 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
 
     // Size of this index space
     std::size_t size() const override { return indices_.size(); }
+
+    // Maximum size of this index space
+    std::size_t max_size() const override { return indices_.size(); }
 
     // @todo what should these return? Currently, it returns the
     // first reference space's spin and spatial attributes.
@@ -827,7 +846,12 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
       const std::map<IndexVector, IndexSpace>& dep_space_relation) :
       dep_spaces_{indep_spaces},
       dep_space_relation_{dep_space_relation},
-      named_ranges_{} {}
+      named_ranges_{} {
+        max_size_ = 0;
+        for(const auto& pair: dep_space_relation) {
+          max_size_ = std::max(max_size_, pair.second.size());
+        }
+      }
 
     /**
      * @brief Construct a new Dependent Index Space Impl object
@@ -895,7 +919,11 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
     // @todo What should this return?
     std::size_t size() const override {
         NOT_ALLOWED();
-        return Index{0};
+        return 0;
+    }
+
+    std::size_t max_size() const override {
+      return max_size_;
     }
 
     // Attribute Accessors
@@ -949,6 +977,7 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
     IndexSpace ref_space_;
     std::map<IndexVector, IndexSpace> dep_space_relation_;
     NameToRangeMap named_ranges_;
+    std::size_t max_size_;
 }; // DependentIndexSpaceImpl
 
 } // namespace tamm

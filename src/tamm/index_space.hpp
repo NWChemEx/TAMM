@@ -464,11 +464,20 @@ class TiledIndexSpace {
     std::size_t size() const { return tiled_indices_.size() - 1; }
 
     /**
+     * @brief Get the max. number of tiled index blocks in TiledIndexSpace
+     *
+     * @returns max size of TiledIndexSpace
+     */
+    std::size_t max_size() const { return tiled_indices_.size(); }
+
+    /**
      * @brief Get the tile size for the index blocks
      *
      * @returns Tile size
      */
     Tile tile_size() const { return tile_size_; }
+
+    std::vector<Tile> tile_sizes() const { return sizes_; }
 
     // Comparison operators
     friend bool operator==(const TiledIndexSpace& lhs,

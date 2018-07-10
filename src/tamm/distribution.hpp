@@ -19,18 +19,19 @@ class Distribution {
   virtual ~Distribution() {}
   virtual std::pair<Proc,Offset> locate(const IndexVector& blockid) = 0;
   virtual Size buf_size(Proc proc) const = 0;
-  virtual std::string name() const = 0;
-  virtual Distribution* clone(const TensorBase*, Proc) const = 0;
+  // virtual std::string name() const = 0;
+  // virtual Distribution* clone(const TensorBase*, Proc) const = 0;
 
- protected:
   Distribution(const TensorBase* tensor_structure, Proc nproc)
       : tensor_structure_{tensor_structure},
         nproc_{nproc} {}
 
+ protected:
   const TensorBase* tensor_structure_;
   Proc nproc_;
 };
 
+#if 0
 // @fixme Can this code be cleaned up?
 class DistributionFactory {
  public:
@@ -81,6 +82,7 @@ class DistributionFactory {
   };
   static std::map<Key, std::shared_ptr<Distribution>,KeyLessThan> distributions_;
 };  // class DistributionFactory
+#endif
 
 class Distribution_NW : public Distribution {
  public:
@@ -129,71 +131,66 @@ class Distribution_NW : public Distribution {
       return;
     }
 
-    auto indices = tensor_structure_->tindices();
-    auto pdt =  loop_iterator(indices);
-    auto last = pdt.get_end();
-    int length = pdt.size();
-    // auto itr = pdt;
-    // while(!pdt.has_more()) {
-    //   itr = pdt;
-    //   if (tensor_structure_->nonzero(*itr)) {
-    //      length += 1;
-    //   }
-    //     pdt.next();
-    // }
+    // auto indices = tensor_structure_->tindices();
+    auto iln = tensor_structure_->loop_nest();
+    for(const auto& it: iln) {
+      // if (tensor_structure_->nonzero(*itr))
+      {
+         length += 1;
+      }
+    }
     EXPECTS(length > 0);
+
+    compute_key_offsets();
 
     hash_.resize(2*length + 1);
     hash_[0] = length;
     //start over
-    pdt =  loop_iterator(indices);
-    last = pdt.get_end();
+    // pdt =  loop_iterator(indices);
+    // last = pdt.get_end();
     Integer offset = 0;
     int addr = 1;
 
-    auto itr = pdt;
-    while(!pdt.has_more()) {
-      itr = pdt;
-    //  auto blockid = *itr;
+    //auto itr = pdt;
+    for(const auto& it: iln) {
+      //itr = pdt;
+      auto blockid = *itr;
     //   //if(tensor_structure_->nonzero(blockid)) {
-    //     hash_[addr] = compute_key(blockid);
-    //     EXPECTS(addr==1 || hash_[addr] > hash_[addr-1]);
-    //     hash_[length + addr] = offset;
+      hash_[addr] = compute_key(blockid);
+      EXPECTS(addr==1 || hash_[addr] > hash_[addr-1]);
+      hash_[length + addr] = offset;
     //     if(GA_Nodeid() == 1) {
     //       //std::cerr<<"-----DISTRIBUTIO_NW. addr="<<addr<<" offset="<<offset<<" block_size="<<tensor_structure_->block_size(blockid)<<"\n";
     //     }
-    //     offset += tensor_structure_->block_size(blockid);
-    //     addr += 1;
-      //}
-      pdt.next();
-     }
+      offset += tensor_structure_->block_size(blockid);
+      addr += 1;
+    }
+    EXPECTS(offset > 0);
+    total_size_ = offset;
 
-    // EXPECTS(offset > 0);
-    // total_size_ = offset;
-
-    // Integer max_2nd_arg=1;
-    // Integer per_proc_size = std::max(Integer{offset / nproc.value()}, Integer{1});//max_2nd_arg);
-    // auto itr = hash_.begin() + length + 1;
-    // auto itr_last = hash_.end();
+    Integer max_2nd_arg=1;
+    Integer per_proc_size = std::max(Integer{offset / nproc.value()}, Integer{1});
+    auto itr = hash_.begin() + length + 1;
+    auto itr_last = hash_.end();
 
     if(GA_Nodeid() == 1) {
       //std::cerr<<"------DISTRIB_NW. total size="<<total_size_<<" nproc="<<nproc<<" per_proc_size="<<per_proc_size<<"\n";
     }
-    // for(int i=0; i<nproc.value(); i++) {
-    //   if(itr != itr_last) {
-    //     proc_offsets_.push_back(Offset{*itr});
-    //   } else {
-    //     proc_offsets_.push_back(Offset{total_size_});        
-    //   }
+    for(int i=0; i<nproc.value(); i++) {
+      if(itr != itr_last) {
+        proc_offsets_.push_back(Offset{*itr});
+      } else {
+        proc_offsets_.push_back(Offset{total_size_});        
+      }
       
-    //   itr = std::lower_bound(itr, itr_last, (i+1)*per_proc_size);
+      itr = std::lower_bound(itr, itr_last, (i+1)*per_proc_size);
     //   if(GA_Nodeid() == 1) {
     //     //std::cerr<<"------DISTRIB_NW. *new_itr="<<*itr<<"\n";
     //   }
-    // }
+    }
 
-    // EXPECTS(proc_offsets_.size() == nproc.value());
-    // proc_offsets_.push_back(total_size_);
+    EXPECTS(proc_offsets_.size() == nproc.value());
+    proc_offsets_.push_back(total_size_);
 
     if(GA_Nodeid() == 1){
       // std::cerr<<"------PROC OFFSETS:";
@@ -209,37 +206,53 @@ class Distribution_NW : public Distribution {
   }
 
 private:
+  void compute_key_offsets() {
+    const auto &tis_list = tensor_structure_->tindices();
+    Offset offset = 1;
+    auto rank = tis_list.size();
+    key_offsets_.resize(rank);
+    key_offsets_[rank-1] = 1;
+    for(auto i = rank-2; i>=0; i--) {
+      key_offsets_[i] = key_offsets_[i-1] * tis_list[i-1].max_size();
+    }
+  }
+  
   TAMM_SIZE compute_key(const IndexVector& blockid) const {
     TAMM_SIZE key;
-    const auto &tis_list = tensor_structure_->tindices();
-    std::vector<TAMM_SIZE> offsets;
-    for(const auto &tis: tis_list) {
-      auto msi = tis.max_size();
-      TAMM_SIZE pp{};
-      for(size_t i = 1; i < tis.size()+1; i++) { //num_blocks
-        pp = i;
-        for(auto j=i;j<tis_list.size();j++)
-          pp *= tis_list[j].max_size();
-      }
-      offsets.push_back(pp);
-    }
-    auto rank = tis_list.size();
-    TAMM_SIZE offset = 1;
+    // const auto &tis_list = tensor_structure_->tindices();
+    // std::vector<TAMM_SIZE> offsets;
+    // for(const auto &tis: tis_list) {
+    //   auto msi = tis.max_size();
+    //   TAMM_SIZE pp{};
+    //   for(size_t i = 1; i < tis.size()+1; i++) { //num_blocks
+    //     pp = i;
+    //     for(auto j=i;j<tis_list.size();j++)
+    //       pp *= tis_list[j].max_size();
+    //   }
+    //   offsets.push_back(pp);
+    // }
+    // auto rank = tis_list.size();
+    // TAMM_SIZE offset = 1;
+    // key = 0;
+    // for(auto i=rank-1; i>=0; i--) {
+    //   //EXPECTS(blockid[i] >= flindices[i].blo());
+    //   //EXPECTS(blockid[i] < flindices[i].bhi());
+    //   //key += ((blockid[i].value() - bases[i]) * offset);
+    //   key+=blockid[i]*offset;
+    //   offset *= offsets[i];
+    // }
     key = 0;
-    for(auto i=rank-1; i>=0; i--) {
-      //EXPECTS(blockid[i] >= flindices[i].blo());
-      //EXPECTS(blockid[i] < flindices[i].bhi());
-      //key += ((blockid[i].value() - bases[i]) * offset);
-      key+=blockid[i]*offset;
-      offset *= offsets[i];
-    }
+    for(auto i=0; i<rank; i++) {
+      key += blockid[i] * key_offsets_[i];
+    }    
     return key;
   }
 
   std::vector<Integer> hash_;
   std::vector<Offset> proc_offsets_;
   Offset total_size_;
-
+  std::vector<Offset> key_offsets_;
+  
   friend class DistributionFactory;
 }; // class Distribution_NW
 

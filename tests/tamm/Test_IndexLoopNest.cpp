@@ -130,3 +130,21 @@ TEST_CASE("Two-dimensional diagonal index loop nest") {
   REQUIRE(itr == iln.end());
 }
 
+TEST_CASE("Three-dimensional diagonal index loop nest") {
+  const unsigned ri=11;
+  IndexSpace is{range(ri)};
+  TiledIndexSpace tis{is,1};
+  TiledIndexLabel i, j, k;
+  std::tie(i, j, k) = tis.labels<3>("all");
+  
+  IndexLoopNest iln{i,
+        j + (IndexBoundCondition{j}<=i) + (IndexBoundCondition{j}>=i),
+        IndexBoundCondition{k} == j
+        };
+  auto itr = iln.begin();
+  for(unsigned ci=0; ci<ri; ci++, itr++) {
+    REQUIRE(itr != iln.end());
+    REQUIRE(*itr == IndexVector{ci, ci, ci});
+  }
+  REQUIRE(itr == iln.end());
+}

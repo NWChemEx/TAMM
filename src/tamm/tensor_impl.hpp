@@ -86,8 +86,7 @@ public:
     EXPECTS(memory_manager != nullptr);
     // distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
     distribution_ = std::shared_ptr<Distribution>(
-        distribution->clone(this,
-                            memory_manager->pg().size()));
+        distribution); //->clone(this,memory_manager->pg().size()));
     auto rank = memory_manager->pg().rank();
     auto buf_size = distribution_->buf_size(rank);
     auto eltype = tensor_element_type<double>();

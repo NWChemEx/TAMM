@@ -477,6 +477,8 @@ class TiledIndexSpace {
      */
     Tile tile_size() const { return tile_size_; }
 
+    IndexVector tindices() const { return tiled_indices_; }
+
     std::vector<Tile> tile_sizes() const { return sizes_; }
 
     // Comparison operators

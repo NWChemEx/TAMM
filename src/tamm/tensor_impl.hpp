@@ -200,8 +200,14 @@ public:
      * @param [in] inputs input TiledIndexLabels
      * @returns a LabeledTensro object created with the input arguments
      */
+
     template<class... Args>
-     LabeledTensor<T> operator()(Args&&... rest) const; 
+    LabeledTensor<T> operator()(Args&&... rest) const {
+        return LabeledTensor<T>{*this, std::forward<Args>(rest)...};
+    }
+
+    // template<class... Args>
+    //  LabeledTensor<T> operator()(Args&&... rest) const; 
     //  {
     //      return LabeledTensor<T>{*this, std::forward<Args>(rest)...};
     // }

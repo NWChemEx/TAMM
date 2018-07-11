@@ -17,10 +17,18 @@ template<typename T>
  *
  */
 struct span {
+public:
+    span(T* ref, size_t size) : ref_{ref}, size_{size} {}
+
+    const T* ref() const { return ref_; }
+
+    T* ref() { return ref_; }
+    
+    size_t size() const { return size_; }
+
+private:
     T* ref_;
     size_t size_;
-
-    span(T* ref, size_t size) : ref_{ref}, size_{size} {}
 };
 
 template<typename T>
@@ -108,7 +116,12 @@ public:
      * @param [in] buff_span memory span where to put the fetched values
      */
     template<typename T>
-    void get(const IndexVector& idx_vec, span<T> buff_span) const {}
+    void get(const IndexVector& idx_vec, span<T> buff_span) const {
+        Proc proc;
+        Offset offset;
+        std::tie(proc, offset) = distribution_->locate(idx_vec);
+        mpb_->mgr().get(*mpb_.get(), proc, offset, Size{buff_span.size()}, buff_span.ref());
+    }
 
     /**
      * @brief Tensor accessor method for putting values to a set of indices
@@ -119,7 +132,12 @@ public:
      * @param [in] buff_span buff_span memory span for the values to put
      */
     template<typename T>
-    void put(const IndexVector& idx_vec, span<T> buff_span) {}
+    void put(const IndexVector& idx_vec, span<T> buff_span) {
+        Proc proc;
+        Offset offset;
+        std::tie(proc, offset) = distribution_->locate(idx_vec);
+        mpb_->mgr().put(*mpb_.get(), proc, offset, Size{buff_span.size()}, buff_span.ref());
+    }
 
     /**
      * @brief Tensor accessor method for adding svalues to a set of indices
@@ -130,7 +148,12 @@ public:
      * @param [in] buff_span buff_span memory span for the values to put
      */
     template<typename T>
-    void add(const IndexVector& idx_vec, span<T> buff_span) {}
+    void add(const IndexVector& idx_vec, span<T> buff_span) {
+        Proc proc;
+        Offset offset;
+        std::tie(proc, offset) = distribution_->locate(idx_vec);
+        mpb_->mgr().add(*mpb_.get(), proc, offset, Size{buff_span.size()}, buff_span.ref());
+    }
 
 protected:
     std::shared_ptr<Distribution> distribution_;

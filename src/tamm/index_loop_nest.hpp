@@ -96,9 +96,9 @@ class IndexLoopNest {
   IndexLoopNest& operator = (IndexLoopNest&&) = default;
 
   IndexLoopNest(const std::vector<TiledIndexSpace>& iss,
-                const std::vector<int>& lb_indices,
-                const std::vector<int>& ub_indices,
-                const std::vector<std::vector<int>>& indep_indices)
+                const std::vector<IndexVector>& lb_indices,
+                const std::vector<IndexVector>& ub_indices,
+                const std::vector<IndexVector>& indep_indices)
       : iss_{iss},
         lb_indices_{lb_indices},
         ub_indices_{ub_indices},
@@ -263,9 +263,9 @@ class IndexLoopNest {
     }
 
     std::vector<IndexIterator> bases_;
-    std::vector<int> itrs_;
-    std::vector<int> begins_; //current begin
-    std::vector<int> ends_; //current end
+    IndexVector itrs_;
+    IndexVector begins_; //current begin
+    IndexVector ends_; //current end
     IndexLoopNest* loop_nest_;
     bool done_;
     friend class IndexLoopNest;
@@ -314,9 +314,9 @@ class IndexLoopNest {
   }
   
   std::vector<TiledIndexSpace> iss_;
-  std::vector<std::vector<int>> lb_indices_;
-  std::vector<std::vector<int>> ub_indices_;
-  std::vector<std::vector<int>> indep_indices_;
+  std::vector<IndexVector> lb_indices_;
+  std::vector<IndexVector> ub_indices_;
+  std::vector<IndexVector> indep_indices_;
   Iterator itbegin_;
   Iterator itend_;
 };  // class IndexLoopNest

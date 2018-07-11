@@ -131,6 +131,7 @@ class Distribution_NW : public Distribution {
       return;
     }
 
+    int length{0};
     // auto indices = tensor_structure_->tindices();
     auto iln = tensor_structure_->loop_nest();
     for(const auto& it: iln) {
@@ -151,10 +152,9 @@ class Distribution_NW : public Distribution {
     Integer offset = 0;
     int addr = 1;
 
-    //auto itr = pdt;
+
     for(const auto& it: iln) {
-      //itr = pdt;
-      auto blockid = *itr;
+      auto blockid = it;
     //   //if(tensor_structure_->nonzero(blockid)) {
       hash_[addr] = compute_key(blockid);
       EXPECTS(addr==1 || hash_[addr] > hash_[addr-1]);
@@ -208,7 +208,7 @@ class Distribution_NW : public Distribution {
 private:
   void compute_key_offsets() {
     const auto &tis_list = tensor_structure_->tindices();
-    Offset offset = 1;
+    //Offset offset = 1;
     auto rank = tis_list.size();
     key_offsets_.resize(rank);
     key_offsets_[rank-1] = 1;
@@ -218,39 +218,17 @@ private:
   }
   
   TAMM_SIZE compute_key(const IndexVector& blockid) const {
-    TAMM_SIZE key;
-    // const auto &tis_list = tensor_structure_->tindices();
-    // std::vector<TAMM_SIZE> offsets;
-    // for(const auto &tis: tis_list) {
-    //   auto msi = tis.max_size();
-    //   TAMM_SIZE pp{};
-    //   for(size_t i = 1; i < tis.size()+1; i++) { //num_blocks
-    //     pp = i;
-    //     for(auto j=i;j<tis_list.size();j++)
-    //       pp *= tis_list[j].max_size();
-    //   }
-    //   offsets.push_back(pp);
-    // }
-    // auto rank = tis_list.size();
-    // TAMM_SIZE offset = 1;
-    // key = 0;
-    // for(auto i=rank-1; i>=0; i--) {
-    //   //EXPECTS(blockid[i] >= flindices[i].blo());
-    //   //EXPECTS(blockid[i] < flindices[i].bhi());
-    //   //key += ((blockid[i].value() - bases[i]) * offset);
-    //   key+=blockid[i]*offset;
-    //   offset *= offsets[i];
-    // }
-    key = 0;
+    TAMM_SIZE key{0};
+    auto rank = tensor_structure_->tindices().size();
     for(auto i=0; i<rank; i++) {
-      key += blockid[i] * key_offsets_[i];
+      key += blockid[i] * key_offsets_[i].value();
     }    
     return key;
   }
 
+  Offset total_size_;
   std::vector<Integer> hash_;
   std::vector<Offset> proc_offsets_;
-  Offset total_size_;
   std::vector<Offset> key_offsets_;
   
   friend class DistributionFactory;

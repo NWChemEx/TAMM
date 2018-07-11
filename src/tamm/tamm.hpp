@@ -1,4 +1,4 @@
-#ifndef TAMM_TAMM_HPP
+#ifndef TAMM_TAMM_HPP_
 #define TAMM_TAMM_HPP_
 
 #include <algorithm>

@@ -635,7 +635,7 @@ class TiledIndexSpace {
     auto labels_impl(std::string id, Label start,
                      std::index_sequence<Is...>) const;
 
-}; // TiledIndexSpace
+}; // class TiledIndexSpace
 
 // Comparison operator implementations
 inline bool operator==(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
@@ -727,7 +727,7 @@ class TiledIndexLabel {
     TiledIndexSpace tis_;
     Label label_;
     std::vector<TiledIndexLabel> dep_labels_;
-}; // TiledIndexLabel
+}; // class TiledIndexLabel
 
 // Comparison operator implementations
 inline bool operator==(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {

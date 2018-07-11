@@ -30,6 +30,7 @@ class Tensor;
 template<typename T>
 class LabeledTensor {
     public:
+    using element_type = T;
     LabeledTensor()                     = default;
     LabeledTensor(const LabeledTensor&) = default;
 
@@ -200,6 +201,7 @@ class LoopSpec {
 template<typename T>
 class LabeledTensor {
     public:
+    using element_type = T;
     LabeledTensor()                     = default;
     LabeledTensor(const LabeledTensor&) = default;
 

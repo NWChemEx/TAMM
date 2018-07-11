@@ -7,6 +7,7 @@
 #include "tamm/memory_manager_local.hpp"
 #include "tamm/distribution.hpp"
 #include "tamm/execution_context.hpp"
+#include "tamm/index_loop_nest.hpp"
 
 namespace tamm {
 
@@ -21,6 +22,9 @@ struct span {
 
     span(T* ref, size_t size) : ref_{ref}, size_{size} {}
 };
+
+template<typename T>
+class LabeledTensor;
 
 /**
  * @brief Implementation class for TensorBase class
@@ -117,6 +121,17 @@ public:
     template<typename T>
     void put(const IndexVector& idx_vec, span<T> buff_span) {}
 
+    /**
+     * @brief Tensor accessor method for adding svalues to a set of indices
+     * with the specified memory span
+     *
+     * @tparam T type of the values hold on the tensor object
+     * @param [in] idx_vec a vector of indices to put the values
+     * @param [in] buff_span buff_span memory span for the values to put
+     */
+    template<typename T>
+    void add(const IndexVector& idx_vec, span<T> buff_span) {}
+
 protected:
     std::shared_ptr<Distribution> distribution_;
     std::unique_ptr<MemoryRegion> mpb_;
@@ -132,6 +147,8 @@ protected:
 template<typename T>
 class Tensor {
 public:
+    using element_type = T;
+
     Tensor() : 
       impl_{std::make_shared<TensorImpl>()} {}
 
@@ -184,10 +201,10 @@ public:
      * @returns a LabeledTensro object created with the input arguments
      */
     template<class... Args>
-    LabeledTensor<T> operator()(Args&&... rest) const {
-        return LabeledTensor<T>{*this, std::forward<Args>(rest)...};
-        // return {};
-    }
+     LabeledTensor<T> operator()(Args&&... rest) const; 
+    //  {
+    //      return LabeledTensor<T>{*this, std::forward<Args>(rest)...};
+    // }
 
     // template <typename ...Args>
     // LabeledTensor<T> operator()(const std::string str, Args... rest) const {}
@@ -216,6 +233,23 @@ public:
         impl_->put(idx_vec, buff_span);
     }
 
+    /**
+     * @brief Add method for Tensor values
+     *
+     * @param [in] idx_vec set of indices to put data to
+     * @param [in] buff_span a memory span for the data to be put
+     */
+    void add(IndexVector idx_vec, span<T> buff_span) {
+        impl_->add(idx_vec, buff_span);
+    }
+
+    IndexLoopNest loop_nest() const {
+        return impl_->loop_nest();
+    }
+
+    size_t block_size(const IndexVector& blockid) const {
+        return impl_->block_size(blockid);
+    }
 
     /**
      * @brief Memory allocation method for the Tensor object
@@ -255,7 +289,6 @@ public:
         tensor.impl_->deallocate();
         deallocate(rest...);
     }
-
 
     size_t num_modes() const {
         return impl_->num_modes();

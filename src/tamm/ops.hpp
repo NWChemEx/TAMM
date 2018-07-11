@@ -6,8 +6,47 @@
 #include "tamm/boundvec.hpp"
 #include "tamm/errors.hpp"
 #include "tamm/types.hpp"
+#include "tamm/labeled_tensor.hpp"
+#include "tamm/tensor_impl.hpp"
 
 namespace tamm {
+
+namespace internal {
+
+template<typename T>
+class LabelMap {
+ public:
+  LabelMap() = default;
+  LabelMap(const LabelMap&) = default;
+  LabelMap(LabelMap&&) = default;
+  LabelMap& operator = (const LabelMap&) = default;
+  LabelMap& operator = (LabelMap&&) = default;
+  ~LabelMap() = default;
+  
+  LabelMap& update(const IndexLabelVec& labels,
+                   const std::vector<T>& vals) {
+    EXPECTS(labels.size() == vals.size());
+    for(size_t i=0; i<vals.size(); i++) {
+      map_[labels[i]] = vals[i];
+    }
+    return *this;
+  }
+
+  std::vector<T> get(const IndexLabelVec& labels) {
+    std::vector<T> ret;
+    for(const auto& lbl : labels) {
+      auto itr = map_.find(lbl);
+      EXPECTS(itr != map_.end());
+      ret.push_back(itr->second);
+    }
+    return ret;
+  }
+  
+ private:
+  std::map<TiledIndexLabel, T> map_;
+};
+
+}  //namespace internal
 
 class Op {
     public:
@@ -25,8 +64,6 @@ class OpList : public std::vector<std::shared_ptr<Op>>{
     OpList(T l_op, Args... args) : OpList(args...) {
         insert(begin(), l_op.clone());
     }
-
-
 }; // OpList
 
 template<typename T, typename LabeledTensorT>
@@ -54,7 +91,7 @@ class SetOp : public Op {
 
     SetOp(const SetOp<T, LabeledTensorT>&) = default;
 
-    T alpha() const { return alpha; }
+    T alpha() const { return alpha_; }
 
     LabeledTensorT lhs() const { return lhs_; }
 
@@ -63,20 +100,26 @@ class SetOp : public Op {
     std::shared_ptr<Op>  clone() const override { return std::shared_ptr<Op>(new SetOp<T, LabeledTensorT>{*this}); }
 
     void execute() override {
-#if 0
-      using TensorElType = LabeledTensorT::element_type;
+      using TensorElType = typename LabeledTensorT::element_type;
       //the iterator to generate the tasks
-      auto loop_nest = lhs_.tensor()->loop_nest();
+      auto loop_nest = lhs_.tensor().loop_nest();
       //function to compute one block
       auto lambda = [&] (const IndexVector blockid) {
-        auto& tensor = *lhs_.tensor();
+        auto tensor = lhs_.tensor();
         size_t size = tensor.block_size(blockid);
-        TensorElType *buf = new TensorElType[size];
-        std::fill_n(buf, size, static_cast<T>(alpha));
-        tensor.put(blockid, span(buf,size));
-        delete [] buf;
+        std::vector<TensorElType> buf(size, static_cast<TensorElType>(alpha()));
+        if(is_assign_) {
+          tensor.put(blockid, span<TensorElType>(&buf[0],size));
+        } else {
+          tensor.add(blockid, span<TensorElType>(&buf[0], size));
+        }
       };
-#endif      
+      //ec->...(loop_nest, lambda);
+      //@todo use a scheduler
+      //@todo make parallel
+      for(const auto& blockid: loop_nest) {
+        lambda(blockid);
+      }
     }
 
     protected:
@@ -85,44 +128,6 @@ class SetOp : public Op {
   //LabeledLoop loop_nest_;
     bool is_assign_;
 }; // class SetOp
-
-namespace detail {
-
-template<typename T>
-class LabelMap {
- public:
-  LabelMap() = default;
-  LabelMap(const LabelMap&) = default;
-  LabelMap(LabelMap&&) = default;
-  LabelMap& operator = (const LabelMap&) = default;
-  LabelMap& operator = (LabelMap&&) = default;
-  ~LabelMap() = default;
-  
-  LabelMap& update(const std::vector<TiledIndexLabel>& labels,
-                   const std::vector<T> vals) {
-    EXPECTS(labels.size() == vals.size());
-    for(size_t i=0; i<vals.size(); i++) {
-      map_[labels[i]] = vals[i];
-    }
-    return *this;
-  }
-
-  std::vector<T> get(const std::vector<TiledIndexLabel>& labels) {
-    std::vector<T> ret;
-    for(const auto& lbl : labels) {
-      auto itr = map_.find(lbl);
-      EXPECTS(itr != map_.end());
-      ret.push_back(*itr);
-    }
-    return ret;
-  }
-
-  
- private:
-  std::map<TiledIndexLabel, T> map_;
-};
-
-}  //namespace detail
 
 template<typename T, typename LabeledTensorT>
 class AddOp : public Op {
@@ -138,7 +143,7 @@ class AddOp : public Op {
 
     AddOp(const AddOp<T, LabeledTensorT>&) = default;
 
-    T alpha() const { return alpha; }
+    T alpha() const { return alpha_; }
 
     LabeledTensorT lhs() const { return lhs_; }
 
@@ -149,31 +154,36 @@ class AddOp : public Op {
     std::shared_ptr<Op> clone() const override { return std::shared_ptr<Op>(new AddOp<T, LabeledTensorT>{*this}); }
 
     void execute() override {
-#if 0
-      using TensorElType = LabeledTensorT::element_type;
+      using TensorElType = typename LabeledTensorT::element_type;
       //the iterator to generate the tasks
-      auto loop_nest = lhs_.tensor()->loop_nest();
+      auto loop_nest = lhs_.tensor().loop_nest();
       //function to compute one block
       auto lambda = [&] (const IndexVector lblockid) {
-        auto& ltensor = *lhs_.tensor();
-        auto& rtensor = *rhs_.tensor();
-        size_t size = tensor.block_size(lblockid);
+        auto ltensor = lhs_.tensor();
+        auto rtensor = rhs_.tensor();
+        size_t size = ltensor.block_size(lblockid);
         IndexVector rblockid =
-        LabelMap<Index>()
-        .update(lhs_.label(), lblockid);
-        .get(rhs_.label());
-        std::vector<TensorElType> buf(lsize);
-        tensor.get(rblockid, span(&buf[0], size));
+          internal::LabelMap<Index>()
+          .update(lhs_.labels(), lblockid)
+          .get(rhs_.labels());
+        std::vector<TensorElType> buf(size);
+        rtensor.get(rblockid, span<TensorElType>(&buf[0], size));
+        //@bug @todo Take labels into account when doing the add
         for(auto& v : buf) {
-          v *= static_cast<TensorElType>(alpha);
+          v *= static_cast<TensorElType>(alpha());
         }
         if(is_assign_) {
-          tensor.put(lblockid, span(&buf[0],size));
+          ltensor.put(lblockid, span<TensorElType>(&buf[0],size));
         } else {
-          tensor.add(lblockid, span(&buf[0],size));
+          ltensor.add(lblockid, span<TensorElType>(&buf[0],size));
         }
       };
-#endif
+      //ec->...(loop_nest, lambda);
+      //@todo use a scheduler
+      //@todo make parallel
+      for(const auto& lblockid: loop_nest) {
+        lambda(lblockid);
+      }
     }
 
     protected:
@@ -205,7 +215,7 @@ class MultOp : public Op {
 
     LabeledTensorT lhs() const { return lhs_; }
 
-    T alpha() const { return alpha; }
+    T alpha() const { return alpha_; }
 
     LabeledTensorT rhs1() const { return rhs1_; }
 

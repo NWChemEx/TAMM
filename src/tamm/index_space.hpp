@@ -753,6 +753,11 @@ inline bool operator>=(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
     return (rhs <= lhs);
 }
 
+/**
+ * @brief Vector of tiled index labels
+ */
+using IndexLabelVec = std::vector<TiledIndexLabel>;
+
 ///////////////////////////////////////////////////////////
 
 inline TiledIndexLabel TiledIndexSpace::label(std::string id, Label lbl) const {

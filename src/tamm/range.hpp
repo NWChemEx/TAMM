@@ -123,7 +123,7 @@ private:
 
         return std::make_tuple(gcd, (y - (b / a) * x), x);
     }
-}; // Range
+}; // class Range
 
 /**
  * @brief Range constructor with low, high and step size

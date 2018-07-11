@@ -62,7 +62,22 @@ class SetOp : public Op {
 
     std::shared_ptr<Op>  clone() const override { return std::shared_ptr<Op>(new SetOp<T, LabeledTensorT>{*this}); }
 
-    void execute() override {}
+    void execute() override {
+#if 0
+      using TensorElType = LabeledTensorT::element_type;
+      //the iterator to generate the tasks
+      auto loop_nest = lhs_.tensor()->loop_nest();
+      //function to compute one block
+      auto lambda = [&] (const IndexVector blockid) {
+        auto& tensor = *lhs_.tensor();
+        size_t size = tensor.block_size(blockid);
+        TensorElType *buf = new TensorElType[size];
+        std::fill_n(buf, size, static_cast<T>(alpha));
+        tensor.put(blockid, span(buf,size));
+        delete [] buf;
+      };
+#endif      
+    }
 
     protected:
     T alpha_;
@@ -70,6 +85,44 @@ class SetOp : public Op {
   //LabeledLoop loop_nest_;
     bool is_assign_;
 }; // class SetOp
+
+namespace detail {
+
+template<typename T>
+class LabelMap {
+ public:
+  LabelMap() = default;
+  LabelMap(const LabelMap&) = default;
+  LabelMap(LabelMap&&) = default;
+  LabelMap& operator = (const LabelMap&) = default;
+  LabelMap& operator = (LabelMap&&) = default;
+  ~LabelMap() = default;
+  
+  LabelMap& update(const std::vector<TiledIndexLabel>& labels,
+                   const std::vector<T> vals) {
+    EXPECTS(labels.size() == vals.size());
+    for(size_t i=0; i<vals.size(); i++) {
+      map_[labels[i]] = vals[i];
+    }
+    return *this;
+  }
+
+  std::vector<T> get(const std::vector<TiledIndexLabel>& labels) {
+    std::vector<T> ret;
+    for(const auto& lbl : labels) {
+      auto itr = map_.find(lbl);
+      EXPECTS(itr != map_.end());
+      ret.push_back(*itr);
+    }
+    return ret;
+  }
+
+  
+ private:
+  std::map<TiledIndexLabel, T> map_;
+};
+
+}  //namespace detail
 
 template<typename T, typename LabeledTensorT>
 class AddOp : public Op {
@@ -95,7 +148,33 @@ class AddOp : public Op {
 
     std::shared_ptr<Op> clone() const override { return std::shared_ptr<Op>(new AddOp<T, LabeledTensorT>{*this}); }
 
-    void execute() override {}
+    void execute() override {
+#if 0
+      using TensorElType = LabeledTensorT::element_type;
+      //the iterator to generate the tasks
+      auto loop_nest = lhs_.tensor()->loop_nest();
+      //function to compute one block
+      auto lambda = [&] (const IndexVector lblockid) {
+        auto& ltensor = *lhs_.tensor();
+        auto& rtensor = *rhs_.tensor();
+        size_t size = tensor.block_size(lblockid);
+        IndexVector rblockid =
+        LabelMap<Index>()
+        .update(lhs_.label(), lblockid);
+        .get(rhs_.label());
+        std::vector<TensorElType> buf(lsize);
+        tensor.get(rblockid, span(&buf[0], size));
+        for(auto& v : buf) {
+          v *= static_cast<TensorElType>(alpha);
+        }
+        if(is_assign_) {
+          tensor.put(lblockid, span(&buf[0],size));
+        } else {
+          tensor.add(lblockid, span(&buf[0],size));
+        }
+      };
+#endif
+    }
 
     protected:
     LabeledTensorT lhs_;

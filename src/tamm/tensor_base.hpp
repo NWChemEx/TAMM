@@ -118,20 +118,21 @@ public:
     //virtual void deallocate() = 0;
 
     IndexLoopNest loop_nest() const {
-        std::vector<IndexVector> lbloops, ubloops;
-        for(const auto& tis : block_indices_) {
-            //iterator to indexvector - each index in vec points to begin of each tile in IS 
-            lbloops.push_back(tis.tindices()); 
-            ubloops.push_back(tis.tindices());
-        }
-
-        //scalar??
-        // if(tisv.size() == 0){
-        //     lbloops.push_back({});
-        //     ubloops.push_back({});
+        // std::vector<IndexVector> lbloops, ubloops;
+        // for(const auto& tis : block_indices_) {
+        //     //iterator to indexvector - each index in vec points to begin of each tile in IS 
+        //     lbloops.push_back(tis.tindices()); 
+        //     ubloops.push_back(tis.tindices());
         // }
 
-        return IndexLoopNest{block_indices_,lbloops,ubloops,{}};
+        // //scalar??
+        // // if(tisv.size() == 0){
+        // //     lbloops.push_back({});
+        // //     ubloops.push_back({});
+        // // }
+
+        // return IndexLoopNest{block_indices_,lbloops,ubloops,{}};
+      return {block_indices_, {}, {}, {}};
     }
 
   

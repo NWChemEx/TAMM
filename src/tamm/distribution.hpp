@@ -20,7 +20,7 @@ class Distribution {
   virtual std::pair<Proc,Offset> locate(const IndexVector& blockid) = 0;
   virtual Size buf_size(Proc proc) const = 0;
   // virtual std::string name() const = 0;
-  // virtual Distribution* clone(const TensorBase*, Proc) const = 0;
+  virtual Distribution* clone(const TensorBase*, Proc) const = 0;
 
   Distribution(const TensorBase* tensor_structure, Proc nproc)
       : tensor_structure_{tensor_structure},

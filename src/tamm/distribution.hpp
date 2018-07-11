@@ -209,11 +209,11 @@ private:
   void compute_key_offsets() {
     const auto &tis_list = tensor_structure_->tindices();
     //Offset offset = 1;
-    auto rank = tis_list.size();
+    int rank = tis_list.size();
     key_offsets_.resize(rank);
     key_offsets_[rank-1] = 1;
-    for(auto i = rank-2; i>=0; i--) {
-      key_offsets_[i] = key_offsets_[i-1] * tis_list[i-1].max_size();
+    for(int i = rank-2; i>=0; i--) {
+      key_offsets_[i] = key_offsets_[i+1] * tis_list[i+1].max_size();
     }
   }
   

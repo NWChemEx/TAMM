@@ -103,7 +103,10 @@ class IndexLoopNest {
         lb_indices_{lb_indices},
         ub_indices_{ub_indices},
         indep_indices_{indep_indices} {
-          reset();
+        lb_indices_.resize(iss_.size());
+        ub_indices_.resize(iss_.size());
+        indep_indices_.resize(iss_.size());
+        reset();
         }  
   
   template<typename... Args>

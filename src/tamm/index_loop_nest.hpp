@@ -2,7 +2,7 @@
 #define TAMM_INDEX_LOOP_NEST_HPP_
 
 #include "tamm/index_space.hpp"
-#include <cassert>
+#include "tamm/errors.hpp"
 #include <iostream>
 #include <vector>
 #include <map>
@@ -10,74 +10,146 @@
 
 namespace tamm {
 
-class IndexBoundCondition {
+/**
+ * @brief Bound class for tiled index loop nest.
+ * The bounds are defined in terms of index labels: the label for this 
+ * loop index (say i) and labels for lower bounds (say lo1, lo2, ..) and 
+ * upper bounds (say hi1, hi2, ..). A loop bound specifies the range:
+ * 
+ * max(lb, lo1, lo2, ...) <= i < min(ub, hi1, h2, ..)
+ * 
+ * where lb and ub are the lower and upper bouhd for the range of indices 
+ * for index label i's index space.
+ */
+class IndexLoopBound {
  public:
-  IndexBoundCondition(TiledIndexLabel this_label,
-                      const std::vector<TiledIndexLabel>& lb_labels = {},
-                      const std::vector<TiledIndexLabel>& ub_labels = {})
+  /**
+   * @brief Index loop bound constructor
+   * 
+   * @paramn [in] this_label Label for which the bound is being specified
+   * @param [in] lb_labels List of lower bound labels
+   * @param [in] ub_labels List of upper bound labels
+   */
+  IndexLoopBound(TiledIndexLabel this_label,
+                const std::vector<TiledIndexLabel>& lb_labels = {},
+                const std::vector<TiledIndexLabel>& ub_labels = {})
       : this_label_{this_label},
         lb_labels_{lb_labels},
         ub_labels_{ub_labels} {}
 
-  TiledIndexLabel this_label() const {
+  /**
+   * @brief Access this index loop bound's label
+   * 
+   * @return this loop bound's label
+   */
+  TiledIndexLabel this_label() const noexcept {
     return this_label_;
   }
 
-  std::vector<TiledIndexLabel>& lb_labels() {
+  /**
+   * @brief Access this index loop bound's label
+   * 
+   * @return this loop bound's label
+   */
+  constexpr const std::vector<TiledIndexLabel>& lb_labels() const noexcept {
     return lb_labels_;
+  }
+
+  /**
+   * @brief Access this index loop bound's label
+   * 
+   * @return this loop bound's label
+   */
+  constexpr const std::vector<TiledIndexLabel>& ub_labels() const noexcept {
+    return ub_labels_;
+  }
+  
+ private:
+  TiledIndexLabel this_label_; /**< Index label for this loop*/
+  std::vector<TiledIndexLabel> lb_labels_; /**< Index labels of lower bounds*/
+  std::vector<TiledIndexLabel> ub_labels_; /**<Index labels of upper bounds*/
+
+  std::vector<TiledIndexLabel>& lb_labels() {
+     return lb_labels_;
   }
 
   std::vector<TiledIndexLabel>& ub_labels() {
     return ub_labels_;
   }
 
-  const std::vector<TiledIndexLabel>& lb_labels() const {
-    return lb_labels_;
-  }
-
-  const std::vector<TiledIndexLabel>& ub_labels() const {
-    return ub_labels_;
-  }
-  
- private:
-  TiledIndexLabel this_label_;
-  std::vector<TiledIndexLabel> lb_labels_;
-  std::vector<TiledIndexLabel> ub_labels_;
-};
+  friend IndexLoopBound operator + (IndexLoopBound ilb1,  const IndexLoopBound& ilb2);
+}; // class IndexLoopBound
 
 
-inline IndexBoundCondition
-operator <= (const IndexBoundCondition& ref, const IndexBoundCondition& ub) {
-  assert(ref.lb_labels().size() == 0);
-  assert(ref.ub_labels().size() == 0);
-  assert(ub.lb_labels().size() == 0);
-  assert(ub.ub_labels().size() == 0);
+/**
+ * @brief Specify an upper bound
+ * 
+ * @param [in] ref the index label for which upper bound is being specified
+ * @param [in] ub the upper bound index label
+ * 
+ * @return index loop bound corresponding to ref < ub
+ */
+inline IndexLoopBound
+operator <= (const IndexLoopBound& ref, const IndexLoopBound& ub) {
+  EXPECTS(ref.lb_labels().size() == 0);
+  EXPECTS(ref.ub_labels().size() == 0);
+  EXPECTS(ub.lb_labels().size() == 0);
+  EXPECTS(ub.ub_labels().size() == 0);
   return {ref.this_label(), {}, {ub.this_label()}};
 }
 
-inline IndexBoundCondition
-operator >= (const IndexBoundCondition& ref, const IndexBoundCondition& lb) {
-  assert(ref.lb_labels().size() == 0);
-  assert(ref.ub_labels().size() == 0);
-  assert(lb.lb_labels().size() == 0);
-  assert(lb.ub_labels().size() == 0);
+/**
+ * @brief Specify an lower bound
+ * 
+ * @param [in] ref the index label for which lower bound is being specified
+ * @param [in] ub the lower bound index label
+ * 
+ * @return index loop bound corresponding to ref >= lb
+ */
+inline IndexLoopBound
+operator >= (const IndexLoopBound& ref, const IndexLoopBound& lb) {
+  EXPECTS(ref.lb_labels().size() == 0);
+  EXPECTS(ref.ub_labels().size() == 0);
+  EXPECTS(lb.lb_labels().size() == 0);
+  EXPECTS(lb.ub_labels().size() == 0);
   return {ref.this_label(), {lb.this_label()}, {}};
 }
 
-inline IndexBoundCondition
-operator + (IndexBoundCondition ibc1, const IndexBoundCondition& ibc2) {
-  assert(ibc1.this_label() == ibc2.this_label());
-  ibc1.lb_labels().insert(ibc1.lb_labels().end(),
-                          ibc2.lb_labels().begin(),
-                          ibc2.lb_labels().end());
-  ibc1.ub_labels().insert(ibc1.ub_labels().end(),
-                          ibc2.ub_labels().begin(),
-                          ibc2.ub_labels().end());
-  return ibc1;
+/**
+ * @brief Combine index loop bounds. Both bounds are to be on the same index 
+ * label. The lower and upper bounds from both conditions are combined to create
+ * a new index loop bound.
+ * 
+ * @param [in] ilb1 first loop bound 
+ * @param [in] ilb2 second loop bound
+ * 
+ * @pre @code ilb1.this_label() == ilb2.this_label() @endcode
+ * 
+ * @return index loop bound that satisfies the loop conditions in both @param 
+ * ilb1 and @param ilb2
+ */
+inline IndexLoopBound
+operator + (IndexLoopBound ilb1, const IndexLoopBound& ilb2) {
+  EXPECTS(ilb1.this_label() == ilb2.this_label());
+  ilb1.lb_labels().insert(ilb1.lb_labels().end(),
+                          ilb2.lb_labels().begin(),
+                          ilb2.lb_labels().end());
+  ilb1.ub_labels().insert(ilb1.ub_labels().end(),
+                          ilb2.ub_labels().begin(),
+                          ilb2.ub_labels().end());
+  return ilb1;
 }
 
-inline IndexBoundCondition
-operator == (const IndexBoundCondition& lhs, const IndexBoundCondition& rhs) {
+/**
+ * @brief Equality comparison operator
+ * 
+ * @param [in] lhs Left-hand side
+ * @param [in] rhs Right-hand side
+ * 
+ * @return true if lhs == rhs
+ */
+inline IndexLoopBound
+operator == (const IndexLoopBound& lhs, const IndexLoopBound& rhs) {
   return (lhs <= rhs) + (lhs >= rhs);
 }
 
@@ -96,9 +168,9 @@ class IndexLoopNest {
   IndexLoopNest& operator = (IndexLoopNest&&) = default;
 
   IndexLoopNest(const std::vector<TiledIndexSpace>& iss,
-                const std::vector<IndexVector>& lb_indices,
-                const std::vector<IndexVector>& ub_indices,
-                const std::vector<IndexVector>& indep_indices)
+                const std::vector<std::vector<int>>& lb_indices,
+                const std::vector<std::vector<int>>& ub_indices,
+                const std::vector<std::vector<int>>& indep_indices)
       : iss_{iss},
         lb_indices_{lb_indices},
         ub_indices_{ub_indices},
@@ -110,16 +182,16 @@ class IndexLoopNest {
         }  
   
   template<typename... Args>
-  IndexLoopNest(const IndexBoundCondition& ibc, Args&&... args)
-      : IndexLoopNest{std::vector<IndexBoundCondition>{ibc, std::forward<Args>(args)...}} {
+  IndexLoopNest(const IndexLoopBound& ibc, Args&&... args)
+      : IndexLoopNest{std::vector<IndexLoopBound>{ibc, std::forward<Args>(args)...}} {
   }
 
-  IndexLoopNest(const std::vector<IndexBoundCondition>& ibcs) {
+  IndexLoopNest(const std::vector<IndexLoopBound>& ibcs) {
     std::vector<TiledIndexLabel> labels;
 
     for(const auto& ibc: ibcs) {
       //every label is unique
-      assert(std::find(labels.begin(), labels.end(), ibc.this_label()) == labels.end());
+      EXPECTS(std::find(labels.begin(), labels.end(), ibc.this_label()) == labels.end());
       labels.push_back(ibc.this_label());
       iss_.push_back(ibc.this_label().tiled_index_space());
       indep_indices_.push_back({});
@@ -133,14 +205,14 @@ class IndexLoopNest {
       for(const auto& lbl: ibc.ub_labels()) {
         auto itr = std::find(labels.begin(), labels.end(), lbl);
         //upper bound label exists
-        assert(itr != labels.end());
+        EXPECTS(itr != labels.end());
         ub_indices_.back().push_back(itr - labels.begin());
       }
       lb_indices_.push_back({});
       for(const auto& lbl: ibc.lb_labels()) {
         auto itr = std::find(labels.begin(), labels.end(), lbl);
         //lower bound label exists
-        assert(itr != labels.end());
+        EXPECTS(itr != labels.end());
         lb_indices_.back().push_back(itr - labels.begin());
       }
     }
@@ -177,8 +249,8 @@ class IndexLoopNest {
     }
 
     IndexVector operator * () const {
-      assert(!done_);
-      assert(itrs_.size() == bases_.size());
+      EXPECTS(!done_);
+      EXPECTS(itrs_.size() == bases_.size());
       
       IndexVector ret;
       for(int i=0; i<(int)itrs_.size(); i++) {
@@ -218,7 +290,7 @@ class IndexLoopNest {
     }
     
     void reset_forward(int index) {
-      assert(index >= 0);
+      EXPECTS(index >= 0);
       
       int i = index;
       while (i >=0 && i < size()) {
@@ -227,7 +299,7 @@ class IndexLoopNest {
           indep_vals.push_back(bases_[id][itrs_[id]]);
         }
         IndexIterator cbeg, cend;
-        assert(indep_vals.size()==0); //@bug no support for dependent index spaces yet
+        EXPECTS(indep_vals.size()==0); //@bug no support for dependent index spaces yet
 #if 0
         std::tie(cbeg, cend) =  loop_nest_->iss_[i].construct_iterators(indep_vals);
 #else
@@ -237,11 +309,11 @@ class IndexLoopNest {
         bases_[i] = cbeg;
         ends_[i] = std::distance(cbeg, cend);
         for (const auto& id: loop_nest_->lb_indices_[i]) {
-          assert(id < i);
+          EXPECTS(id < i);
           begins_[i] = std::max(begins_[i], itrs_[id]);
         }
         for (const auto& id: loop_nest_->ub_indices_[i]) {
-          assert(id < i);
+          EXPECTS(id < i);
           ends_[i] = std::min(ends_[i], itrs_[id]+1);
         }
         if (begins_[i] < ends_[i]) {
@@ -317,9 +389,9 @@ class IndexLoopNest {
   }
   
   std::vector<TiledIndexSpace> iss_;
-  std::vector<IndexVector> lb_indices_;
-  std::vector<IndexVector> ub_indices_;
-  std::vector<IndexVector> indep_indices_;
+  std::vector<std::vector<int>> lb_indices_;
+  std::vector<std::vector<int>> ub_indices_;
+  std::vector<std::vector<int>> indep_indices_;
   Iterator itbegin_;
   Iterator itend_;
 };  // class IndexLoopNest
@@ -327,13 +399,11 @@ class IndexLoopNest {
 template<typename... Args>
 inline IndexLoopNest loop_spec(Args... args) {
   IndexLoopNest iln{args...};
-  assert(iln.is_valid());
+  EXPECTS(iln.is_valid());
   return iln;
 }
 
 } //namespace tamm
-
-
 
 #endif // TAMM_INDEX_LOOP_NEST_HPP_
 

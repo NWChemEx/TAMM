@@ -6,7 +6,7 @@
 
 namespace tamm {
 
-#if __cplusplus >= 201703L
+#if __cplusplus >= 202003L
 
 namespace internal {
   template <typename> struct is_tuple: std::false_type {};
@@ -140,7 +140,7 @@ class LabeledTensor {
 };
 #endif
 
-#if __cplusplus < 201703L
+#if __cplusplus <= 201703L
 
 template<typename T>
 class Tensor;

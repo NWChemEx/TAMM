@@ -247,4 +247,6 @@ int main( int argc, char* argv[] )
     //@todo construct v2
 
     ccsd_driver<double>(MO, f1, v2, 1e-10);
+    GA_Terminate();
+    MPI_Finalize();
 }

@@ -120,7 +120,7 @@ class MemoryManagerGA : public MemoryManager {
     }
     GA_Pgroup_set_default(ga_pg_default);
 
-    int64_t lo, hi, ld;
+    int64_t lo, hi;//, ld;
     NGA_Distribution64(pmr->ga_, pg_.rank().value(), &lo, &hi);
     EXPECTS(nels<=0 || lo == pmr->map_[pg_.rank().value()]);
     EXPECTS(nels<=0 || hi == pmr->map_[pg_.rank().value()] + nels - 1);

@@ -69,7 +69,7 @@ public:
      */
     const std::vector<Range>& attribute_range(T att) const {
         return ((attr_map_.find(att) == attr_map_.end()) ?
-                  std::vector<Range>{} :
+                  empty_range_ :
                   attr_map_.at(att));
     }
 
@@ -108,6 +108,7 @@ public:
 
 protected:
     AttributeToRangeMap<T> attr_map_; //
+    std::vector<Range> empty_range_;
 };                                    // Attribute
 using SpinAttribute    = Attribute<Spin>;
 using SpatialAttribute = Attribute<Spatial>;

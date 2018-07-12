@@ -105,7 +105,8 @@ class MemoryManagerGA : public MemoryManager {
       pmr->map_[0] = 0; // @note this is not set by MPI_Exscan
       std::partial_sum(pmr->map_.begin(), pmr->map_.begin()+nranks, pmr->map_.begin());
       std::string array_name{"array_name"};
-      for(block = nranks; block>0 && pmr->map_[block-1] == dim; --block) {
+      
+      for(block = nranks; block>0 && static_cast<int64_t>(pmr->map_[block-1]) == dim; --block) {
         //no-op
       }
 
@@ -122,8 +123,8 @@ class MemoryManagerGA : public MemoryManager {
 
     int64_t lo, hi;//, ld;
     NGA_Distribution64(pmr->ga_, pg_.rank().value(), &lo, &hi);
-    EXPECTS(nels<=0 || lo == pmr->map_[pg_.rank().value()]);
-    EXPECTS(nels<=0 || hi == pmr->map_[pg_.rank().value()] + nels - 1);
+    EXPECTS(nels<=0 || lo == static_cast<int64_t>(pmr->map_[pg_.rank().value()]));
+    EXPECTS(nels<=0 || hi == static_cast<int64_t>(pmr->map_[pg_.rank().value()]) + nels - 1);
     pmr->set_status(AllocationStatus::created);
     return pmr;
   }

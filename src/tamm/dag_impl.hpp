@@ -115,8 +115,8 @@ public:
      * @returns a HashData for the hash of DAG unit
      */
     HashData hash() {
-        HashData ret;
-
+        //FIXME
+        HashData ret{0};
         return ret;
     }
 

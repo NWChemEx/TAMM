@@ -194,7 +194,7 @@ class Distribution_NW : public Distribution {
     //   }
     }
 
-    EXPECTS(proc_offsets_.size() == static_cast<int64_t>(nproc.value()));
+    EXPECTS(proc_offsets_.size() == static_cast<uint64_t>(nproc.value()));
     proc_offsets_.push_back(total_size_);
 
     if(GA_Nodeid() == 1){
@@ -225,7 +225,7 @@ private:
   Key compute_key(const IndexVector& blockid) const {
     Key key{0};
     auto rank = tensor_structure_->tindices().size();
-    for(auto i=0; i<rank; i++) {
+    for(size_t i=0; i<rank; i++) {
       key += blockid[i] * key_offsets_[i].value();
     }    
     return key;

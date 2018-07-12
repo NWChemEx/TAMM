@@ -665,11 +665,11 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
 
     const std::vector<Range>& spin_ranges(Spin spin) const override {
         NOT_ALLOWED();
-        return {};
+        return empty_range_;
     }
     const std::vector<Range>& spatial_ranges(Spatial spatial) const override {
         NOT_ALLOWED();
-        return {};
+        return empty_range_;
     }
 
     bool has_spin() const override {
@@ -707,6 +707,7 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
     IndexVector indices_;
     NameToRangeMap named_ranges_;
     std::map<std::string, IndexSpace> named_subspaces_;
+    std::vector<Range> empty_range_;
 
     /**
      * @brief Add subspaces reference names foreach aggregated
@@ -939,11 +940,11 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
 
     const std::vector<Range>& spin_ranges(Spin spin) const override {
         NOT_ALLOWED();
-        return {};
+        return empty_range_;
     }
     const std::vector<Range>& spatial_ranges(Spatial spatial) const override {
         NOT_ALLOWED();
-        return {};
+        return empty_range_;
     }
 
     bool has_spin() const override {
@@ -979,6 +980,7 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
     std::map<IndexVector, IndexSpace> dep_space_relation_;
     NameToRangeMap named_ranges_;
     std::size_t max_size_;
+    std::vector<Range> empty_range_;
 }; // DependentIndexSpaceImpl
 
 } // namespace tamm

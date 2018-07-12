@@ -367,11 +367,10 @@ class MemoryRegion {
     allocation_status_ = allocation_status;
   }
 
-  Size local_nelements_;
- private:
   // size_t elsize_;
   // uint8_t* buf_;
   AllocationStatus allocation_status_;
+  Size local_nelements_;
 }; // class MemoryRegion
 
 /**

@@ -99,8 +99,10 @@ public:
         TAMM_SIZE bsize{1};
         size_t rank = block_indices_.size();
         for(size_t i=0; i<rank; i++) {
-            bsize *= block_indices_[i].tile_sizes()[blockid[i]];
+            auto tile_offsets = block_indices_[i].tindices();
+            bsize *= tile_offsets[i+1] - tile_offsets[i];
         }
+        
         // std::accumulate(blockdims.begin(),blockdims.end(),Index{1},std::multiplies<Index>());
         return bsize;
     }

@@ -88,6 +88,9 @@ class Distribution_NW : public Distribution {
  public:
   static const std::string class_name;// = "Distribution_NW";
 
+  using HashValue = Integer;
+  using Key = HashValue;
+
   std::string name() const {
     return "Distribution_NW"; //Distribution_NW::class_name;
   }
@@ -119,19 +122,21 @@ class Distribution_NW : public Distribution {
   }
 
   Size buf_size(Proc proc) const {
+    EXPECTS(proc >= 0);
     EXPECTS(proc < nproc_);
-    EXPECTS(proc_offsets_.size() > proc.value()+1);
+    EXPECTS(proc_offsets_.size() > static_cast<uint64_t>(proc.value())+1);
     return proc_offsets_[proc.value()+1] - proc_offsets_[proc.value()];
   }
 
  public:
   Distribution_NW(const TensorBase* tensor_structure=nullptr, Proc nproc = Proc{1})
       : Distribution{tensor_structure, nproc} {
+        EXPECTS(nproc > 0);
     if(tensor_structure == nullptr) {
       return;
     }
 
-    int length{0};
+    int64_t length{0};
     // auto indices = tensor_structure_->tindices();
     auto iln = tensor_structure_->loop_nest();
     for(const auto& it: iln) {
@@ -149,7 +154,7 @@ class Distribution_NW : public Distribution {
     //start over
     // pdt =  loop_iterator(indices);
     // last = pdt.get_end();
-    Integer offset = 0;
+    HashValue offset = 0;
     int addr = 1;
 
 
@@ -168,8 +173,8 @@ class Distribution_NW : public Distribution {
     EXPECTS(offset > 0);
     total_size_ = offset;
 
-    Integer max_2nd_arg=1;
-    Integer per_proc_size = std::max(Integer{offset / nproc.value()}, Integer{1});
+    //Integer max_2nd_arg=1;
+    HashValue per_proc_size = std::max(Integer{offset / nproc.value()}, Integer{1});
     auto itr = hash_.begin() + length + 1;
     auto itr_last = hash_.end();
 
@@ -189,7 +194,7 @@ class Distribution_NW : public Distribution {
     //   }
     }
 
-    EXPECTS(proc_offsets_.size() == nproc.value());
+    EXPECTS(proc_offsets_.size() == static_cast<int64_t>(nproc.value()));
     proc_offsets_.push_back(total_size_);
 
     if(GA_Nodeid() == 1){
@@ -217,8 +222,8 @@ private:
     }
   }
   
-  TAMM_SIZE compute_key(const IndexVector& blockid) const {
-    TAMM_SIZE key{0};
+  Key compute_key(const IndexVector& blockid) const {
+    Key key{0};
     auto rank = tensor_structure_->tindices().size();
     for(auto i=0; i<rank; i++) {
       key += blockid[i] * key_offsets_[i].value();
@@ -227,7 +232,7 @@ private:
   }
 
   Offset total_size_;
-  std::vector<Integer> hash_;
+  std::vector<HashValue> hash_;
   std::vector<Offset> proc_offsets_;
   std::vector<Offset> key_offsets_;
   

@@ -55,7 +55,7 @@ TEST_CASE("One-dimensional index loop nest with index bound constructor") {
 TEST_CASE("One-dimensional index loop nest with list of arguments constructor") {
   IndexSpace is{range(10)};
   TiledIndexSpace tis{is,1};
-  IndexLoopNest iln{{tis}, {IndexVector{}}, {IndexVector{}}, {IndexVector{}}};
+  IndexLoopNest iln{{tis}, {}, {}, {}};
   unsigned cnt = 0;
   for(auto itr = iln.begin(); itr != iln.end();itr++,cnt++) {
     //std::cout<<"--"<<it<<std::endl;

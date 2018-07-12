@@ -2,6 +2,7 @@
 #define TAMM_INDEX_SPACE_INTERFACE_HPP_
 
 #include "tamm/types.hpp"
+#include "tamm/index_space.hpp"
 #include <algorithm>
 #include <memory>
 #include <vector>
@@ -116,7 +117,7 @@ class IndexSpaceInterface {
      * @param [in] spin input Spin value
      * @returns a vector of Ranges associated with the input Spin value
      */
-    virtual std::vector<Range> spin_ranges(Spin spin) const = 0;
+    virtual const std::vector<Range>& spin_ranges(Spin spin) const = 0;
 
     /**
      * @brief Accessor method for the set of Ranges associated with a Spatial
@@ -125,7 +126,7 @@ class IndexSpaceInterface {
      * @param [in] spatial input Spatial value
      * @returns a vector of Ranges associated with the input Spatial value
      */
-    virtual std::vector<Range> spatial_ranges(Spatial spatial) const = 0;
+    virtual const std::vector<Range>& spatial_ranges(Spatial spatial) const = 0;
 
     /**
      * @brief Boolean method for checking if an IndexSpace has SpinAttribute
@@ -332,10 +333,10 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
     Spin spin(Index idx) const override { return spin_(idx); }
     Spatial spatial(Index idx) const override { return spatial_(idx); }
 
-    std::vector<Range> spin_ranges(Spin spin) const override {
+    const std::vector<Range>& spin_ranges(Spin spin) const override {
         return spin_.attribute_range(spin);
     }
-    std::vector<Range> spatial_ranges(Spatial spatial) const override {
+    const std::vector<Range>& spatial_ranges(Spatial spatial) const override {
         return spatial_.attribute_range(spatial);
     }
 
@@ -509,10 +510,10 @@ class SubSpaceImpl : public IndexSpaceInterface {
         return ref_space_.spatial(idx);
     }
 
-    std::vector<Range> spin_ranges(Spin spin) const override {
+    const std::vector<Range>& spin_ranges(Spin spin) const override {
         return ref_space_.spin_ranges(spin);
     }
-    std::vector<Range> spatial_ranges(Spatial spatial) const override {
+    const std::vector<Range>& spatial_ranges(Spatial spatial) const override {
         return ref_space_.spatial_ranges(spatial);
     }
 
@@ -662,11 +663,11 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
         return Spatial{0};
     }
 
-    std::vector<Range> spin_ranges(Spin spin) const override {
+    const std::vector<Range>& spin_ranges(Spin spin) const override {
         NOT_ALLOWED();
         return {};
     }
-    std::vector<Range> spatial_ranges(Spatial spatial) const override {
+    const std::vector<Range>& spatial_ranges(Spatial spatial) const override {
         NOT_ALLOWED();
         return {};
     }
@@ -936,11 +937,11 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
         return Spatial{0};
     }
 
-    std::vector<Range> spin_ranges(Spin spin) const override {
+    const std::vector<Range>& spin_ranges(Spin spin) const override {
         NOT_ALLOWED();
         return {};
     }
-    std::vector<Range> spatial_ranges(Spatial spatial) const override {
+    const std::vector<Range>& spatial_ranges(Spatial spatial) const override {
         NOT_ALLOWED();
         return {};
     }

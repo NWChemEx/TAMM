@@ -9,17 +9,19 @@
 namespace tamm {
 
 /**
- * @brief Helper methods for Range based constructors.
+ * @brief Helper methods for Range based constructors. 
+ * A range is represented by a triplet [lo,hi,step] and includes all elements 
+ * i in lo, lo+step, lo+2*step, ..., hi, but excluding ih.
  *        For now we are using a simple range representation
  *        We will use range constructs from Utilities repo.
- *
- * @todo Possibly move to separate header file
  *
  * @todo Possibly replace with Range class in Utilities repo.
  */
 class Range {
 public:
-    // Default Ctors
+    /**
+     *  @brief Default constructor
+     */
     Range() = default;
 
     // Copy/Move Ctors and Assignment Operators
@@ -28,39 +30,76 @@ public:
     Range& operator=(Range&&) = default;
     Range& operator=(const Range&) = default;
 
-    // Dtor
+    /**
+     * @brief Default destructor
+     */
     ~Range() = default;
 
-    // Ctors
-    Range(Index lo, Index hi, Index step = 1) : lo_{lo}, hi_{hi}, step_{step} {}
-
-    // Accessors
-    Index lo() const { return lo_; }
-    Index hi() const { return hi_; }
-    Index step() const { return step_; }
+    /**
+     * @brief Range constructor
+     * 
+     * @param [in] lo Low end of the range
+     * @param [in] hi High end of the range
+     * @param [in] step Step size
+     * 
+     * @pre @param step > 0 
+     * @pre @param lo <= @param hi
+     * 
+     * @todo Make ranges work with negative step sizes
+     */
+    Range(Index lo, Index hi, Index step = 1) 
+        : lo_{lo}, hi_{hi}, step_{step} {
+            EXPECTS(step > 0);
+            EXPECTS(lo_ <= hi_);
+        }
 
     /**
-     * @brief Method for checking if a given Index value
-     *        is within a range or not
+     * @brief Accessor for low end of range
+     * 
+     * @return Low end of range
+     */
+    constexpr Index lo() const { return lo_; }
+
+    /**
+     * @brief Accessor for high end of range
+     * 
+     * @return High end of range
+     */
+    constexpr Index hi() const { return hi_; }
+
+    /**
+     * @brief Accessor for range's step size
+     * 
+     * @return Step size
+     */
+    constexpr Index step() const { return step_; }
+
+    /**
+     * @brief Method for checking if a given index value
+     *        is in this range
      *
      * @param [in] idx Index value being checked for
-     * @returns true if range includes corresponding index idx
+     * @return true if range includes index @param idx
      */
-    bool contains(Index idx) const {
-        if(idx == lo_) { return true; }
+    constexpr bool contains(Index idx) const {
+        return idx >= lo_ && idx < hi_ && (idx-lo_)%step_ == 0;
+        // if(idx == lo_) { return true; }
 
-        if(idx < lo_ && hi_ <= idx) { return false; }
+        // if(idx < lo_ && hi_ <= idx) { return false; }
 
-        if(step_ > 1) { return ((idx - lo_) % step_ == 0); }
+        // if(step_ > 1) { return ((idx - lo_) % step_ == 0); }
 
-        return true;
+        // return true;
     }
 
     /**
      * @brief Method for checking disjointness of two ranges
      *
-     * @param [in] rhs input Range value for checking disjointness
-     * @returns true if ranges are disjoint
+     * @param [in] rhs input range for checking disjointedness
+     * 
+     * @return true if ranges are disjoint
+     * 
+     * @todo Recheck this algorithm and cite a reference
      */
     bool is_disjoint_with(const Range& rhs) const {
         if(lo_ == rhs.lo()) { return false; }
@@ -99,9 +138,9 @@ public:
     }
 
 protected:
-    Index lo_;
-    Index hi_;
-    Index step_;
+    Index lo_; /**< Low end of range */
+    Index hi_; /**< High end of range */
+    Index step_; /**< step size for the range */
 
 private:
     /**
@@ -112,7 +151,8 @@ private:
      *
      * @param [in] a first number for calculating gcd
      * @param [in] b second number for calculating gcd
-     * @returns a tuple for gcd, x and y coefficients
+     * 
+     * @return a tuple for gcd, x and y coefficients
      */
     std::tuple<int, int, int> extended_gcd(int a, int b) const {
         if(a == 0) { return std::make_tuple(b, 0, 1); }
@@ -128,13 +168,22 @@ private:
 /**
  * @brief Range constructor with low, high and step size
  *
+ * @param [in] lo Low end of the range
+ * @param [in] hi High end of the range
+ * @param [in] step Step size
+ * 
+ * @return Constructed Range object
  */
 static inline Range range(Index lo, Index hi, Index step = 1) {
-    return Range(lo, hi, step);
+    return Range{lo, hi, step};
 }
 
 /**
- * @brief Range constructor by giving only a count
+ * @brief Construct a range object from 0 to a given number
+ * 
+ * @param [in] count Upper bound on range
+ * 
+ * @return range with low 0, high @param count, and step 1
  *
  */
 static inline Range range(Index count) { return range(Index{0}, count); }

@@ -41,7 +41,7 @@ public:
     /**
      * @brief Constructor a zero-sized vector
      */
-    BoundVec() : size_{0} {}
+    BoundVec() noexcept : size_{0} {}
 
     /**
      * @brief Construct a vector of specified size, with an optional initial value
@@ -77,26 +77,26 @@ public:
      * 
      * @return Size of the vector
      */
-    constexpr size_type size() const { return size_; }
+    constexpr size_type size() const noexcept { return size_; }
 
     /**
      * @brief Maximum number of elements this vector can hold
      * 
      * @return Maximum size of this vector
      */
-    constexpr size_type max_size() const { return maxsize; }
+    constexpr size_type max_size() const noexcept { return maxsize; }
 
     /**
      * @brief Is this vector empty
      * 
      * @return True if this vector is empty, false otherwise.
      */
-    constexpr bool empty() const { return size_ == 0; }
+    constexpr bool empty() const noexcept { return size_ == 0; }
 
     /**
      * @brief Clear the contents of this vector
      */
-    void clear() {
+    void clear() noexcept {
         for(auto& v : *this) {
             v.~value_type();
         }
@@ -132,7 +132,7 @@ public:
      * 
      * @pre size() > 0
      */
-    void pop_back() {
+    void pop_back() noexcept {
         EXPECTS(size() > 0);
         back().~value_type();
         size_ -= 1;
@@ -147,8 +147,12 @@ public:
      */
     void resize(size_type size) {
         EXPECTS(size >= 0);
-        for(size_t i = size; size < size_; i++) {
+        EXPECTS(size < maxsize);
+        for(size_t i = size; i < size_; i++) {
             this->at(i).~value_type();
+        }
+        for(size_t i = size_; i < size; i++) {
+            this->at(i) = value_type();
         }
         size_ = size;
     }
@@ -203,14 +207,14 @@ public:
      * 
      * @return The end iterator
      */
-    iterator end() { return std::array<T, maxsize>::begin() + size_; }
+    iterator end() noexcept { return std::array<T, maxsize>::begin() + size_; }
 
     /**
      * @brief Obtain end iterator past the last element in the vector
      * 
      * @return Const end iterator
      */
-    const_iterator end() const {
+    const_iterator end() const noexcept {
         return std::array<T, maxsize>::begin() + size_;
     }
 
@@ -225,7 +229,7 @@ public:
      * 
      * @return Reference to first element
      */
-    reference front() {
+    reference front() noexcept {
         EXPECTS(size() > 0);
         return this->at(0);
     }
@@ -237,7 +241,7 @@ public:
      * 
      * @return Reference to first element
      */
-    const_reference front() const {
+    const_reference front() const noexcept {
         EXPECTS(size() > 0);
         return this->at(0);
     }
@@ -249,7 +253,7 @@ public:
      * 
      * @return Reference to last element
      */
-    reference back() {
+    reference back() noexcept {
         EXPECTS(size() > 0);
         return this->at(size_ - 1);
     }
@@ -261,7 +265,7 @@ public:
      * 
      * @return Const reference to last element
      */
-    const_reference back() const {
+    const_reference back() const noexcept {
         EXPECTS(size() > 0);
         return this->at(size_ - 1);
     }

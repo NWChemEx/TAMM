@@ -57,7 +57,11 @@ public:
     BoundVec(BoundVec&&) = default;
     BoundVec& operator = (const BoundVec&) = default;
     BoundVec& operator = (BoundVec&&) = default;
-    ~BoundVec() = default;
+    ~BoundVec() {
+        for(auto& v : *this) {
+            v.~value_type();
+        }
+    }
 
     template<typename Itr>
     BoundVec(Itr first, Itr last) : size_{0} {
@@ -92,7 +96,12 @@ public:
     /**
      * @brief Clear the contents of this vector
      */
-    void clear() { size_ = 0; }
+    void clear() {
+        for(auto& v : *this) {
+            v.~value_type();
+        }
+        size_ = 0;
+    }
 
     /**
      * @brief Push one element to the back of the vector
@@ -125,6 +134,7 @@ public:
      */
     void pop_back() {
         EXPECTS(size() > 0);
+        back().~value_type();
         size_ -= 1;
     }
 
@@ -137,6 +147,9 @@ public:
      */
     void resize(size_type size) {
         EXPECTS(size >= 0);
+        for(size_t i = size; size < size_; i++) {
+            this->at(i).~value_type();
+        }
         size_ = size;
     }
 

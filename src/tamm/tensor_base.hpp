@@ -99,7 +99,7 @@ public:
         TAMM_SIZE bsize{1};
         size_t rank = block_indices_.size();
         for(size_t i=0; i<rank; i++) {
-            auto tile_offsets = block_indices_[i].tindices();
+            auto tile_offsets = block_indices_[i].tile_offsets();
             bsize *= tile_offsets[i+1] - tile_offsets[i];
         }
         

@@ -236,43 +236,47 @@ class IndexSpace {
 }; // IndexSpace
 
 class TiledIndexLabel;
+
 /**
- * @brief
+ * @brief TiledIndexSpace class
  *
  */
 class TiledIndexSpace {
     public:
-    // Ctors
     TiledIndexSpace() = default;
+    TiledIndexSpace(const TiledIndexSpace&) = default;
+    TiledIndexSpace(TiledIndexSpace&&) = default;
+    TiledIndexSpace& operator=(TiledIndexSpace&&) = default;
+    TiledIndexSpace& operator=(const TiledIndexSpace&) = default;
+    ~TiledIndexSpace() = default;
 
     /**
-     * @brief Construct a new TiledIndexSpace object from a reference
-     * IndexSpace and a tile size
+     * @brief Construct a new TiledIndexSpace from
+     * a reference IndexSpace and a tile size
      *
      * @param [in] is reference IndexSpace
      * @param [in] size tile size (default: 1)
      */
     TiledIndexSpace(const IndexSpace& is, Tile tile_size = 1) :
       is_{is},
-      tile_size_{tile_size},
-      tiled_indices_{construct_tiled_indices(is, tile_size)} {}
+      input_tile_size_{tile_size},
+      tile_offsets_{construct_tiled_indices(is, tile_size)} {}
 
     /**
-     * @brief Constructor with multiple tile sizes
-     *
-     * @todo Implement
+     * @brief Construct a new TiledIndexSpace from a reference
+     * IndexSpace and varying tile sizes
      *
      * @param [in] is
      * @param [in] sizes
      */
     TiledIndexSpace(const IndexSpace& is, const std::vector<Tile>& sizes) :
       is_{is},
-      sizes_{sizes},
-      tiled_indices_{construct_tiled_indices(is, sizes)} {}
+      input_tile_size_{0}, ///FIXME: default when irregular tile sizes are provided?
+      tile_offsets_{construct_tiled_indices(is, sizes)} {}
 
     /**
-     * @brief Construct a new TiledIndexSpace object from a sub-space of a
-     * reference TiledIndexSpace
+     * @brief Construct a new TiledIndexSpace object from 
+     * a sub-space of a reference TiledIndexSpace
      *
      * @param [in] t_is reference TiledIndexSpace
      * @param [in] range Range of the reference TiledIndexSpace
@@ -293,13 +297,6 @@ class TiledIndexSpace {
     TiledIndexSpace(const TiledIndexSpace& t_is, const std::string& id,
                     Tile size = 1) :
       TiledIndexSpace(t_is.is_(id), size) {}
-
-    // Copy Ctors
-    TiledIndexSpace(const TiledIndexSpace&) = default;
-    TiledIndexSpace& operator=(const TiledIndexSpace&) = default;
-
-    // Dtor
-    ~TiledIndexSpace() = default;
 
     /**
      * @brief Get a TiledIndexLabel for a specific subspace of the
@@ -342,7 +339,7 @@ class TiledIndexSpace {
      * @returns a const_iterator to an Index at the first element of the
      * IndexSpace
      */
-    IndexIterator begin() const { return tiled_indices_.begin(); }
+    IndexIterator begin() const { return tile_offsets_.begin(); }
 
     /**
      * @brief Iterator accessor to the end of the reference IndexSpace
@@ -350,7 +347,7 @@ class TiledIndexSpace {
      * @returns a const_iterator to an Index at the size-th element of the
      * IndexSpace
      */
-    IndexIterator end() const { return tiled_indices_.end() - 1; }
+    IndexIterator end() const { return tile_offsets_.end() - 1; }
 
     /**
      * @brief Iterator accessor to the first Index element of a specific block
@@ -361,7 +358,7 @@ class TiledIndexSpace {
      */
     IndexIterator block_begin(Index blck_ind) const {
         EXPECTS(blck_ind <= size());
-        return is_.begin() + tiled_indices_[blck_ind];
+        return is_.begin() + tile_offsets_[blck_ind];
     }
     /**
      * @brief Iterator accessor to the last Index element of a specific block
@@ -372,7 +369,7 @@ class TiledIndexSpace {
      */
     IndexIterator block_end(Index blck_ind) const {
         EXPECTS(blck_ind <= size());
-        return is_.begin() + tiled_indices_[blck_ind + 1];
+        return is_.begin() + tile_offsets_[blck_ind + 1];
     }
 
     /**
@@ -383,18 +380,20 @@ class TiledIndexSpace {
      * @returns true if the Tile size and the reference IndexSpace is equal
      */
     bool is_identical(const TiledIndexSpace& rhs) const {
-        return std::tie(tile_size_, is_) == std::tie(rhs.tile_size_, rhs.is_);
+        //FIXME:return std::tie(tile_size_, is_) == std::tie(rhs.tile_size_, rhs.is_);
+        return is_ == rhs.is_;
     }
 
     /**
-     * @brief Boolean method for checking if given TiledIndexSpace is subspace
-     * of this TiledIndexSpace
+     * @brief Boolean method for checking if given TiledIndexSpace 
+     * is a subspace of this TiledIndexSpace
      *
      * @param [in] rhs reference TiledIndexSpace
      * @returns true if the Tile size and the reference IndexSpace is equal
      */
     bool is_less_than(const TiledIndexSpace& rhs) const {
-        return (tile_size_ == rhs.tile_size_) && (is_.is_less_than(rhs.is_));
+        //FIXME:return (tile_size_ == rhs.tile_size_) && (is_.is_less_than(rhs.is_));
+        return is_.is_less_than(rhs.is_);
     }
 
     /**
@@ -461,25 +460,23 @@ class TiledIndexSpace {
      *
      * @returns size of TiledIndexSpace
      */
-    std::size_t size() const { return tiled_indices_.size() - 1; }
+    std::size_t size() const { return tile_offsets_.size() - 1; }
 
     /**
      * @brief Get the max. number of tiled index blocks in TiledIndexSpace
      *
      * @returns max size of TiledIndexSpace
      */
-    std::size_t max_size() const { return tiled_indices_.size(); }
+    std::size_t max_size() const { return tile_offsets_.size(); }
 
     /**
      * @brief Get the tile size for the index blocks
      *
      * @returns Tile size
      */
-    Tile tile_size() const { return tile_size_; }
+    Index tile_size(Index i) const { return tile_offsets_[i]; }
 
-    IndexVector tindices() const { return tiled_indices_; }
-
-    std::vector<Tile> tile_sizes() const { return sizes_; }
+    IndexVector tile_offsets() const { return tile_offsets_; }
 
     // Comparison operators
     friend bool operator==(const TiledIndexSpace& lhs,
@@ -497,9 +494,11 @@ class TiledIndexSpace {
 
     protected:
     IndexSpace is_;
-    Tile tile_size_;
-    IndexVector tiled_indices_;
-    std::vector<Tile> sizes_;
+    IndexVector tile_offsets_;
+
+    private:
+    /// Internal Use Only: user specified tile size
+    Tile input_tile_size_; 
 
     /**
      * @brief Construct starting and ending indices of each tile with respect to

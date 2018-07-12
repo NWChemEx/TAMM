@@ -67,7 +67,7 @@ public:
      * @returns Range vector for the corresponding attribute value
      *          (empty vector if it doesn't exist)
      */
-    std::vector<Range> attribute_range(T att) const {
+    const std::vector<Range>& attribute_range(T att) const {
         return ((attr_map_.find(att) == attr_map_.end()) ?
                   std::vector<Range>{} :
                   attr_map_.at(att));

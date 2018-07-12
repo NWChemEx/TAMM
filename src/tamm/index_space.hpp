@@ -409,7 +409,7 @@ class TiledIndexSpace {
      * @returns a const_iterator to an Index at the first element of the
      * IndexSpace
      */
-    IndexIterator begin() const { return tile_offsets_.begin(); }
+    IndexIterator begin() const { return construct_index_vector(range(0,tile_offsets_.size()-1)).begin(); }
 
     /**
      * @brief Iterator accessor to the end of the reference IndexSpace
@@ -417,7 +417,7 @@ class TiledIndexSpace {
      * @returns a const_iterator to an Index at the size-th element of the
      * IndexSpace
      */
-    IndexIterator end() const { return tile_offsets_.end() - 1; }
+    IndexIterator end() const { return construct_index_vector(range(0,tile_offsets_.size()-1)).end(); }
 
     /**
      * @brief Iterator accessor to the first Index element of a specific block
@@ -605,14 +605,13 @@ class TiledIndexSpace {
             std::sort(boundries.begin(), boundries.end());
             auto last = std::unique(boundries.begin(), boundries.end());
             boundries.erase(last, boundries.end());
-
             // Construct start indices for blocks according to boundries.
             std::size_t i = 0;
             std::size_t j = (i == boundries[0]) ? 1 : 0;
 
             while(i < is.size()) {
                 ret.push_back(i);
-                i = (i + tile_size > boundries[j]) ? boundries[j++] :
+                i = (i + tile_size >= boundries[j]) ? boundries[j++] :
                                                      (i + tile_size);
             }
             // add size of IndexSpace for the last block

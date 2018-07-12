@@ -105,10 +105,11 @@ std::size_t IndexSpace::max_size() const { return impl_->max_size(); }
 Spin IndexSpace::spin(Index idx) const { return impl_->spin(idx); }
 Spatial IndexSpace::spatial(Index idx) const { return impl_->spatial(idx); }
 
-std::vector<Range> IndexSpace::spin_ranges(Spin spin) const {
+const std::vector<Range> IndexSpace::spin_ranges(Spin spin) const {
     return impl_->spin_ranges(spin);
 }
-std::vector<Range> IndexSpace::spatial_ranges(Spatial spatial) const {
+
+const std::vector<Range> IndexSpace::spatial_ranges(Spatial spatial) const {
     return impl_->spatial_ranges(spatial);
 }
 

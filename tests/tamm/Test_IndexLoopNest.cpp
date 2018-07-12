@@ -120,7 +120,7 @@ TEST_CASE("Two-dimensional upper triangular index loop nest") {
   TiledIndexLabel i, j;
   std::tie(i, j) = tis.labels<2>("all");
   
-  IndexLoopNest iln{i, j + (IndexBoundCondition{j}>=i)};
+  IndexLoopNest iln{i, j + (IndexLoopBound{j}>=i)};
   auto itr = iln.begin();
   for(unsigned ci=0; ci<ri; ci++) {
     for(unsigned cj=ci; cj<ri; cj++, itr++) {
@@ -138,7 +138,7 @@ TEST_CASE("Two-dimensional lower triangular index loop nest") {
   TiledIndexLabel i, j;
   std::tie(i, j) = tis.labels<2>("all");
   
-  IndexLoopNest iln{i, j + (IndexBoundCondition{j}<=i)};
+  IndexLoopNest iln{i, j + (IndexLoopBound{j}<=i)};
   auto itr = iln.begin();
   for(unsigned ci=0; ci<ri; ci++) {
     for(unsigned cj=0; cj<=ci; cj++, itr++) {
@@ -156,7 +156,7 @@ TEST_CASE("Two-dimensional diagonal index loop nest") {
   TiledIndexLabel i, j;
   std::tie(i, j) = tis.labels<2>("all");
   
-  IndexLoopNest iln{i, j + (IndexBoundCondition{j}<=i) + (IndexBoundCondition{j}>=i)};
+  IndexLoopNest iln{i, j + (IndexLoopBound{j}<=i) + (IndexLoopBound{j}>=i)};
   auto itr = iln.begin();
   for(unsigned ci=0; ci<ri; ci++, itr++) {
     REQUIRE(itr != iln.end());
@@ -173,8 +173,8 @@ TEST_CASE("Three-dimensional diagonal index loop nest") {
   std::tie(i, j, k) = tis.labels<3>("all");
   
   IndexLoopNest iln{i,
-        j + (IndexBoundCondition{j}<=i) + (IndexBoundCondition{j}>=i),
-        IndexBoundCondition{k} == j
+        j + (IndexLoopBound{j}<=i) + (IndexLoopBound{j}>=i),
+        IndexLoopBound{k} == j
         };
   auto itr = iln.begin();
   for(unsigned ci=0; ci<ri; ci++, itr++) {

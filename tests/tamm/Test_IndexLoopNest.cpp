@@ -17,8 +17,18 @@ operator << (std::ostream& os, const std::vector<T>& vec) {
   return os;
 }
 
-TEST_CASE("Zero-dimensional index loop nest") {
+TEST_CASE("Zero-dimensional index loop nest with index bound constructor") {
   IndexLoopNest iln{};
+  int cnt = 0;
+  REQUIRE(iln.begin() != iln.end());
+  for(const auto &it: iln) {
+    cnt += 1;
+  }
+  REQUIRE(cnt == 1);
+}
+
+TEST_CASE("Zero-dimensional index loop nest with list of arguments constructor") {
+  IndexLoopNest iln{{}, {}, {}, {}};
   int cnt = 0;
   REQUIRE(iln.begin() != iln.end());
   for(const auto &it: iln) {
@@ -27,12 +37,12 @@ TEST_CASE("Zero-dimensional index loop nest") {
   REQUIRE(cnt == 1);  
 }
 
-TEST_CASE("One-dimensional index loop nest") {
+TEST_CASE("One-dimensional index loop nest with index bound constructor") {
   IndexSpace is{range(10)};
   TiledIndexSpace tis{is,1};
   TiledIndexLabel i;
   std::tie(i) = tis.labels<1>("all");
-  
+
   IndexLoopNest iln{i};
   unsigned cnt = 0;
   for(auto itr = iln.begin(); itr != iln.end();itr++,cnt++) {
@@ -42,13 +52,38 @@ TEST_CASE("One-dimensional index loop nest") {
   REQUIRE(cnt == 10);
 }
 
-TEST_CASE("Two-dimensional square index loop nest") {
+TEST_CASE("One-dimensional index loop nest with list of arguments constructor") {
+  IndexSpace is{range(10)};
+  TiledIndexSpace tis{is,1};
+  IndexLoopNest iln{{tis}, {IndexVector{}}, {IndexVector{}}, {IndexVector{}}};
+  unsigned cnt = 0;
+  for(auto itr = iln.begin(); itr != iln.end();itr++,cnt++) {
+    //std::cout<<"--"<<it<<std::endl;
+    REQUIRE(*itr == IndexVector{cnt});
+  }
+  REQUIRE(cnt == 10);
+}
+
+TEST_CASE("Two-dimensional square index loop nest with index bound constructor") {
   IndexSpace is{range(10)};
   TiledIndexSpace tis{is,1};
   TiledIndexLabel i, j;
   std::tie(i, j) = tis.labels<2>("all");
-  
   IndexLoopNest iln{i, j};
+  auto itr = iln.begin();
+  for(unsigned ci=0; ci<10; ci++) {
+    for(unsigned cj=0; cj<10; cj++, itr++) {
+      REQUIRE(itr != iln.end());
+      REQUIRE(*itr == IndexVector{ci, cj});
+    }
+  }
+  REQUIRE(itr == iln.end());
+}
+
+TEST_CASE("Two-dimensional square index loop nest with list of arguments constructor") {
+  IndexSpace is{range(10)};
+  TiledIndexSpace tis{is,1};
+  IndexLoopNest iln{{tis, tis}, {}, {}, {}};
   auto itr = iln.begin();
   for(unsigned ci=0; ci<10; ci++) {
     for(unsigned cj=0; cj<10; cj++, itr++) {

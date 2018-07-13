@@ -51,7 +51,7 @@ class LabelMap {
 class Op {
     public:
     virtual std::shared_ptr<Op> clone() const = 0;
-    virtual void execute()    = 0;
+    virtual void execute() = 0;
     virtual ~Op() {}
 };
 

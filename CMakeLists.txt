@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.8)
 project(tamm VERSION 0.0.0 LANGUAGES CXX)
 set(NWX_PROJECTS tamm)
 set(tamm_DEPENDENCIES GlobalArrays NWX_MPI CBLAS LAPACKE )

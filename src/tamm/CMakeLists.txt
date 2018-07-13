@@ -5,6 +5,7 @@ include(TargetMacros) #For nwchemex_add_library
 #Add the current directory's sources to the list
 set(tamm_SRCS tamm.cpp index_space.cpp)
 set(ccsd_SRCS tamm.cpp index_space.cpp ccsd_driver.cpp)
+set(test_SRCS tamm.cpp index_space.cpp test_tensor.cpp)
 
 #Add the current directory's header files to the list
 set(tamm_INCLUDES  
@@ -37,5 +38,6 @@ set(tamm_LFLAGS )
 
 nwchemex_add_library(tamm tamm_SRCS tamm_INCLUDES tamm_DEFINTIONS tamm_LFLAGS)
 nwchemex_add_executable(ccsd_driver ccsd_SRCS "" tamm_DEFINTIONS tamm_LFLAGS)
+nwchemex_add_executable(test_tensor test_SRCS "" tamm_DEFINTIONS tamm_LFLAGS)
 
 

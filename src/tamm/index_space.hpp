@@ -408,7 +408,7 @@ class TiledIndexSpace {
      * @returns a (sub)TiledIndexSpace associated with the subspace name string
      */
     TiledIndexSpace operator()(std::string id) const {
-        return TiledIndexSpace((*this), id);
+        return TiledIndexSpace((*this), id, input_tile_size_);
     }
 
     /**

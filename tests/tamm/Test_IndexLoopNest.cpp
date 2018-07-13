@@ -196,3 +196,65 @@ TEST_CASE("Zero-dimensional index loop nest with index bound constructor") {
     }
     REQUIRE(cnt == 20);
   }
+
+  TEST_CASE("Two-dimensional split index loop nest with index bound constructor") {
+    IndexSpace is{range(20),
+                {{"r1", {range(0, 10)}},
+                {"r2", {range(10,20)}}}};
+    TiledIndexSpace tis{is,10};
+    TiledIndexLabel i, j;
+    std::tie(i,j) = tis.labels<2>("all");
+    IndexLoopNest iln{i, j};
+    auto itr = iln.begin();
+    for(unsigned c1=0; c1<20/10; c1++) {
+      for(unsigned c2=0; c2<20/10; c2++, itr++) {
+        REQUIRE(itr != iln.end());
+        REQUIRE(*itr == IndexVector{c1, c2});
+      }
+    }
+    REQUIRE(itr == iln.end());
+  }
+
+  TEST_CASE("Three-dimensional split index loop nest with index bound constructor") {
+    Tile tilesize = 10;
+    IndexSpace is{range(20),
+                {{"r1", {range(0, 10)}},
+                {"r2", {range(10,20)}}}};
+    TiledIndexSpace tis{is,tilesize};
+    TiledIndexLabel i, j, k;
+    std::tie(i,j,k) = tis.labels<3>("all");
+    IndexLoopNest iln{i, j, k};
+    auto itr = iln.begin();
+    for(unsigned c1=0; c1<20/tilesize; c1++) {
+      for(unsigned c2=0; c2<20/tilesize; c2++) {
+        for(unsigned c3=0; c3<20/tilesize; c3++, itr++) {
+          REQUIRE(itr != iln.end());
+          REQUIRE(*itr == IndexVector{c1, c2, c3});
+        }
+      }
+    }
+    REQUIRE(itr == iln.end());
+  }
+
+  TEST_CASE("Four-dimensional split index loop nest with index bound constructor") {
+    Tile tilesize = 10;
+    IndexSpace is{range(20),
+                {{"r1", {range(0, 10)}},
+                {"r2", {range(10,20)}}}};
+    TiledIndexSpace tis{is,tilesize};
+    TiledIndexLabel i, j, k, l;
+    std::tie(i,j,k,l) = tis.labels<4>("all");
+    IndexLoopNest iln{i, j, k, l};
+    auto itr = iln.begin();
+    for(unsigned c1=0; c1<20/tilesize; c1++) {
+      for(unsigned c2=0; c2<20/tilesize; c2++) {
+        for(unsigned c3=0; c3<20/tilesize; c3++) {
+          for(unsigned c4=0; c4<20/tilesize; c4++, itr++) {
+            REQUIRE(itr != iln.end());
+            REQUIRE(*itr == IndexVector{c1, c2, c3, c4});
+          }
+        }
+      }
+    }
+    REQUIRE(itr == iln.end());
+  }

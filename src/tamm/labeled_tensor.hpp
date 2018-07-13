@@ -6,7 +6,7 @@
 
 namespace tamm {
 
-#if __cplusplus >= 202003L
+#if __cplusplus >= 202203L
 
 namespace internal {
   template <typename> struct is_tuple: std::false_type {};

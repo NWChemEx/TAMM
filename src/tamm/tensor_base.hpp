@@ -100,7 +100,7 @@ public:
         size_t rank = block_indices_.size();
         for(size_t i=0; i<rank; i++) {
             auto tile_offsets = block_indices_[i].tile_offsets();
-            bsize *= tile_offsets[i+1] - tile_offsets[i];
+            bsize *= tile_offsets[blockid[i]+1] - tile_offsets[blockid[i]];
         }
         
         // std::accumulate(blockdims.begin(),blockdims.end(),Index{1},std::multiplies<Index>());

@@ -101,9 +101,8 @@ public:
 
     template<typename OpType, typename... OpTypes>
     Scheduler& operator()(const OpType& op, const OpTypes&... ops) {
-        // ops_.push_back(op);
-        // return operator()(ops...);
-        return *this;
+        ops_.push_back(op);
+        return operator()(ops...);
     }
 
     // Scheduler& tensors() { return *this; }
@@ -151,7 +150,8 @@ public:
 
     ExecutionContext* ec() { return ec_; }
 
-    void execute() {  for(auto& op : ops_) {  op->execute(); } 
+    void execute() { 
+        for(auto& op : ops_) {  op.execute(); } 
     }
 
     template<typename Func, typename... Args>
@@ -181,7 +181,7 @@ private:
     // Distribution* default_distribution_;
     // MemoryManager* default_memory_manager_;
     // ProcGroup pg_;
-    std::vector<Op*> ops_;
+    std::vector<Op> ops_;
     // std::vector<TensorHolder> tensors_;
     // std::vector<TensorHolder> live_in_tensors_;
     // std::vector<TensorHolder> live_out_tensors_;

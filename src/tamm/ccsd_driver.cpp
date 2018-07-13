@@ -213,25 +213,26 @@ void ccsd_driver(const TiledIndexSpace& MO, const Tensor<T>& d_f1,
          EXPECTS(buf[i]==2.2);
     }
 
-    Tensor<T>::allocate(ec, d_t1, d_t2);
+    Tensor<T>::deallocate(d_evl);
+    // Tensor<T>::allocate(ec, d_t1, d_t2);
 
-    T energy        = 0.0;
-    T residual      = 1000 /*some large number*/;
-    const T zshiftl = 0.0;
+    // T energy        = 0.0;
+    // T residual      = 1000 /*some large number*/;
+    // const T zshiftl = 0.0;
 
-    auto ccsd_e_dag = make_dag(ccsd_e<T>, MO, de, d_t1, d_t2, d_f1, d_v2);
-    auto ccsd_t1_dag = make_dag(ccsd_t1<T>, MO, i1, d_t1, d_t2, d_f1, d_v2);
-    auto ccsd_t2_dag = make_dag(ccsd_t2<T>, MO, i2, d_t1, d_t2, d_f1, d_v2);
+    // auto ccsd_e_dag = make_dag(ccsd_e<T>, MO, de, d_t1, d_t2, d_f1, d_v2);
+    // auto ccsd_t1_dag = make_dag(ccsd_t1<T>, MO, i1, d_t1, d_t2, d_f1, d_v2);
+    // auto ccsd_t2_dag = make_dag(ccsd_t2<T>, MO, i2, d_t1, d_t2, d_f1, d_v2);
 
-    while(residual > threshold) {
-        Scheduler::execute(ccsd_e_dag);
-        Scheduler::execute(ccsd_t1_dag);
-        Scheduler::execute(ccsd_t2_dag);
-        std::tie(residual, energy) =
-          rest(ec, MO, i1, i2, d_t1, d_t2, de, d_evl, zshiftl);
-        break; //@todo remove once iterative procedure is implemented
-    }
-    Tensor<T>::deallocate(d_evl, d_t1, d_t2);
+    // while(residual > threshold) {
+    //     Scheduler::execute(ccsd_e_dag);
+    //     Scheduler::execute(ccsd_t1_dag);
+    //     Scheduler::execute(ccsd_t2_dag);
+    //     std::tie(residual, energy) =
+    //       rest(ec, MO, i1, i2, d_t1, d_t2, de, d_evl, zshiftl);
+    //     break; //@todo remove once iterative procedure is implemented
+    // }
+    // Tensor<T>::deallocate(d_evl, d_t1, d_t2);
 }
 
 int main( int argc, char* argv[] )

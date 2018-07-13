@@ -330,7 +330,11 @@ class TiledIndexSpace {
     TiledIndexSpace(const IndexSpace& is, Tile tile_size = 1) :
       is_{is},
       input_tile_size_{tile_size},
-      tile_offsets_{construct_tiled_indices(is, tile_size)} {}
+      tile_offsets_{construct_tiled_indices(is, tile_size)} {
+          for(Index i=0; i<tile_offsets_.size()-1; i++) {
+              simple_vec_.push_back(i);
+          }
+      }
 
     /**
      * @brief Construct a new TiledIndexSpace from a reference
@@ -342,7 +346,11 @@ class TiledIndexSpace {
     TiledIndexSpace(const IndexSpace& is, const std::vector<Tile>& sizes) :
       is_{is},
       input_tile_size_{0}, ///FIXME: default when irregular tile sizes are provided?
-      tile_offsets_{construct_tiled_indices(is, sizes)} {}
+      tile_offsets_{construct_tiled_indices(is, sizes)} {
+          for(Index i=0; i<tile_offsets_.size()-1; i++) {
+              simple_vec_.push_back(i);
+          }
+      }
 
     /**
      * @brief Construct a new TiledIndexSpace object from 
@@ -409,7 +417,9 @@ class TiledIndexSpace {
      * @returns a const_iterator to an Index at the first element of the
      * IndexSpace
      */
-    IndexIterator begin() const { return construct_index_vector(range(0,tile_offsets_.size()-1)).begin(); }
+    IndexIterator begin() const {
+        return simple_vec_.begin();
+    }
 
     /**
      * @brief Iterator accessor to the end of the reference IndexSpace
@@ -417,7 +427,9 @@ class TiledIndexSpace {
      * @returns a const_iterator to an Index at the size-th element of the
      * IndexSpace
      */
-    IndexIterator end() const { return construct_index_vector(range(0,tile_offsets_.size()-1)).end(); }
+    IndexIterator end() const {
+        return simple_vec_.end();
+    }
 
     /**
      * @brief Iterator accessor to the first Index element of a specific block
@@ -689,6 +701,7 @@ class TiledIndexSpace {
     IndexSpace is_; /**< The index space being tiled*/
     Tile input_tile_size_; /**< User-specified tile size*/
     IndexVector tile_offsets_; /**< Tile offsets */
+    IndexVector simple_vec_; /**< vector where at(i) = i*/
 
     /**
      * @brief Equality comparison operator

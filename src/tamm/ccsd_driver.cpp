@@ -138,7 +138,7 @@ void jacobi(Scheduler& sch, const Tensor<T>& d_r, const Tensor<T>& d_t, T shift,
  * @return pair of residual and energy
  */
 template<typename T>
-std::pair<double, double> rest(ExecutionContext& ec, const TiledIndexSpace& MO,
+std::pair<double, double> rest(ExecutionContext* ec, const TiledIndexSpace& MO,
                                const Tensor<T>& d_r1, const Tensor<T>& d_r2,
                                const Tensor<T>& d_t1, const Tensor<T>& d_t2,
                                const Tensor<T>& de, const Tensor<T>& EVL,
@@ -192,14 +192,13 @@ void ccsd_driver(const TiledIndexSpace& MO, const Tensor<T>& d_f1,
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext ec{pg,&distribution,mgr};
+    
+    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
 
     TiledIndexSpace UnitTiledMO{MO.index_space(), 1};
     Tensor<T> d_evl{N};
     //@todo Set EVL to have local distribution (one copy in each MPI rank)
     Tensor<T>::allocate(ec, d_evl);
-
-    //auto ecsp = std::shared_ptr<ExecutionContext>(&ec);
   
     Scheduler{ec}
         (d_evl("n1") = 0.0)

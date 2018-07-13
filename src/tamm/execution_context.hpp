@@ -35,12 +35,12 @@ class ExecutionContext {
       default_memory_manager_{default_memory_manager} 
       {
         pg_self_ = ProcGroup{MPI_COMM_SELF};
-        /** @todo needs to enabled but with shared pointers */
-        //memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
+        /** @todo use shared pointers */
+        memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
       }
 
   ~ExecutionContext() {
-    //MemoryManagerLocal::destroy_coll(memory_manager_local_);
+    MemoryManagerLocal::destroy_coll(memory_manager_local_);
   }
 
   /**

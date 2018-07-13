@@ -237,7 +237,7 @@ class LabeledTensor {
 
     SetOp<T, LabeledTensor<T>> operator+=(const T& rhs) {
       //return *this += loop_nest() * rhs;
-      return {};
+      return construct_setop(rhs,false);
     }
 
     AddOp<T, LabeledTensor<T>> operator-=(
@@ -248,13 +248,11 @@ class LabeledTensor {
     }
 
     SetOp<T, LabeledTensor<T>> operator-=(const T& rhs) {
-        // construct_setop(rhs, false);
-      return {};
+      return construct_setop(rhs,false);
     }
 
     SetOp<T, LabeledTensor<T>> operator=(const T& rhs) {
-      //construct_setop(rhs, true);
-      return {};
+      return construct_setop(rhs, true);
     }
 
     template<typename T1,
@@ -342,7 +340,7 @@ class LabeledTensor {
 
     SetOp<T, LabeledTensor<T>> construct_setop(
       const T& rhs, bool is_assign) {
-        return {*this, std::get<0>(rhs), is_assign};
+        return {*this, rhs, is_assign};
     }
 
     template<typename T1,

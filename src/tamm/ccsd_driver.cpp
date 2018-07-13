@@ -201,8 +201,17 @@ void ccsd_driver(const TiledIndexSpace& MO, const Tensor<T>& d_f1,
     Tensor<T>::allocate(ec, d_evl);
   
     Scheduler{ec}
-        (d_evl("n1") = 0.0)
+        (d_evl("n1") = 2.2)
         .execute();
+
+    for (auto it: d_evl.loop_nest())
+    {
+        auto size = d_evl.block_size(it);
+        T* buf = new T[size];
+        d_evl.get(it,span<T>(buf,size));
+        for (auto i = 0; i < size;i++)
+         EXPECTS(buf[i]==2.2);
+    }
 
     Tensor<T>::allocate(ec, d_t1, d_t2);
 

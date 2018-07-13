@@ -151,7 +151,7 @@ public:
 
     ExecutionContext* ec() { return ec_; }
 
-    void execute() { /* for(auto& op : ops_) {  op->execute(); } */
+    void execute() {  for(auto& op : ops_) {  op->execute(); } 
     }
 
     template<typename Func, typename... Args>

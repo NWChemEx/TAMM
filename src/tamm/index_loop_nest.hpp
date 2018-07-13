@@ -154,9 +154,12 @@ operator == (const IndexLoopBound& lhs, const IndexLoopBound& rhs) {
 }
 
 
-
 class IndexLoopNest {
  public:
+  /**
+   * @brief Construct a new Index Loop Nest object
+   *
+   */
   IndexLoopNest() {
     reset();
   }
@@ -307,6 +310,7 @@ class IndexLoopNest {
         cend = loop_nest_->iss_[i].end();
 #endif
         bases_[i] = cbeg;
+        begins_[i] = 0;
         ends_[i] = std::distance(cbeg, cend);
         for (const auto& id: loop_nest_->lb_indices_[i]) {
           EXPECTS(id < i);

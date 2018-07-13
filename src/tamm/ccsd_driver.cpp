@@ -198,6 +198,8 @@ void ccsd_driver(const TiledIndexSpace& MO, const Tensor<T>& d_f1,
     Tensor<T> d_evl{N};
     //@todo Set EVL to have local distribution (one copy in each MPI rank)
     Tensor<T>::allocate(ec, d_evl);
+
+    //auto ecsp = std::shared_ptr<ExecutionContext>(&ec);
   
     Scheduler{ec}
         (d_evl("n1") = 0.0)

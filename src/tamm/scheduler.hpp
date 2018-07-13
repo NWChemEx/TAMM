@@ -95,7 +95,7 @@ public:
     Scheduler& operator=(const Scheduler&) = default;
     Scheduler& operator=(Scheduler&&) = default;
 
-    Scheduler(ExecutionContext ec) : ec_{ec} {}
+    Scheduler(ExecutionContext* ec) : ec_{ec} {}
 
     Scheduler& operator()() { return *this; }
 
@@ -149,7 +149,7 @@ public:
         return deallocate(tensors...);
     }
 
-    ExecutionContext& ec() { return ec_; }
+    ExecutionContext* ec() { return ec_; }
 
     void execute() { /* for(auto& op : ops_) {  op->execute(); } */
     }
@@ -162,7 +162,7 @@ public:
     }
 
 private:
-    ExecutionContext ec_;
+    ExecutionContext* ec_;
     // void validate() {
     //     // 1. every tensor used by operarions should be listed in tensors_
 

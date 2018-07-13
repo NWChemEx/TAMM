@@ -91,9 +91,9 @@ public:
     mpb_->dealloc_coll();
   }
 
-  void allocate(const ExecutionContext& ec) {
-    Distribution* distribution = ec.distribution();
-    MemoryManager* memory_manager = ec.memory_manager();
+  void allocate(const ExecutionContext* ec) {
+    Distribution* distribution = ec->distribution();
+    MemoryManager* memory_manager = ec->memory_manager();
     EXPECTS(distribution != nullptr);
     EXPECTS(memory_manager != nullptr);
     // distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
@@ -284,7 +284,7 @@ public:
      * @brief Memory allocation method for the Tensor object
      *
      */
-    static void allocate(const ExecutionContext& ec) { } // impl_->allocate(ec); 
+    static void allocate(const ExecutionContext* ec) { } // impl_->allocate(ec); 
 
     /**
      * @brief Memory deallocation method for the Tensor object
@@ -302,7 +302,7 @@ public:
      * @param [in] rest set of Tensor objects to be allocated
      */
     template<typename... Args>
-    static void allocate(const ExecutionContext& ec, Tensor<T>& tensor, Args& ... rest) {
+    static void allocate(const ExecutionContext* ec, Tensor<T>& tensor, Args& ... rest) {
        tensor.impl_->allocate(ec);
        allocate(ec,rest...);
     }

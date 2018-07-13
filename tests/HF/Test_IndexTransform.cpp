@@ -11,7 +11,7 @@ using tamm::TiledIndexSpace;
 using tamm::range;
 
 template<typename T>
-void four_index_transform(ExecutionContext& ec, const TiledIndexSpace& AO,
+void four_index_transform(ExecutionContext* ec, const TiledIndexSpace& AO,
                           const TiledIndexSpace& MSO, Tensor<T> tC,
                           Tensor<T> tV) {
     TiledIndexLabel f1, f2, f3, f4;
@@ -36,7 +36,7 @@ void four_index_transform(ExecutionContext& ec, const TiledIndexSpace& AO,
 }
 
 template<typename T>
-void two_index_transform(ExecutionContext& ec, const TiledIndexSpace& AO,
+void two_index_transform(ExecutionContext* ec, const TiledIndexSpace& AO,
                          const TiledIndexSpace& MSO, Tensor<T> tC,
                          Tensor<T> tF_ao, Tensor<T> tF_mso) {
     TiledIndexLabel f1, f2;
@@ -76,7 +76,7 @@ TEST_CASE("2/4-Index Transform") {
     //@todo construct tF_ao
     //@todo construct tF_mso
     //@todo construct tV
-    ExecutionContext ec;
+    ExecutionContext* ec = new ExecutionContext();
 
     CHECK_NOTHROW(two_index_transform<double>(ec, AO, MSO, tC, tF_ao, tF_mso));
     CHECK_NOTHROW(four_index_transform<double>(ec, AO, MSO, tC, tV));

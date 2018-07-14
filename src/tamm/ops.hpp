@@ -123,8 +123,8 @@ class SetOp : public Op {
     }
 
     protected:
-    T alpha_;
     LabeledTensorT lhs_;
+    T alpha_;
   //LabeledLoop loop_nest_;
     bool is_assign_;
 }; // class SetOp

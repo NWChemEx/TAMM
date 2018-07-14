@@ -98,7 +98,8 @@ struct StrongNum {
     ~StrongNum()                                     = default;
 
     template<typename T2,
-             typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
+             typename = std::enable_if_t<std::is_arithmetic<T2>::value>,
+             typename = std::enable_if_t<std::is_convertible<T2, T>::value>>
     StrongNum(const T2 v1) : v{checked_cast<T>(v1)} {}
 
     template<typename T2,

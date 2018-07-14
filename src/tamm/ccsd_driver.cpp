@@ -196,12 +196,14 @@ void ccsd_driver(const TiledIndexSpace& MO, const Tensor<T>& d_f1,
     ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
 
     TiledIndexSpace UnitTiledMO{MO.index_space(), 1};
-    Tensor<T> d_evl{N};
+    Tensor<T> d_evl{N,N};
+    Tensor<T> xt{N,N};
     //@todo Set EVL to have local distribution (one copy in each MPI rank)
-    Tensor<T>::allocate(ec, d_evl);
+    Tensor<T>::allocate(ec, d_evl,xt);
   
     Scheduler{ec}
-        (d_evl("n1") = 2.2)
+        (d_evl("n1","n2") = 2.2)
+        (xt("n1","n2") = d_evl("n1","n2"))
         .execute();
 
     for (auto it: d_evl.loop_nest())
@@ -213,7 +215,17 @@ void ccsd_driver(const TiledIndexSpace& MO, const Tensor<T>& d_f1,
          EXPECTS(buf[i]==2.2);
     }
 
-    Tensor<T>::deallocate(d_evl);
+    for (auto it: xt.loop_nest())
+    {
+        auto size = xt.block_size(it);
+        T* buf = new T[size];
+        xt.get(it,span<T>(buf,size));
+        for (auto i = 0; i < size;i++)
+         EXPECTS(buf[i]==2.2);
+    }
+
+
+    Tensor<T>::deallocate(d_evl,xt);
     // Tensor<T>::allocate(ec, d_t1, d_t2);
 
     // T energy        = 0.0;

@@ -230,9 +230,7 @@ class LabeledTensor {
 
     AddOp<T, LabeledTensor<T>> operator+=(
       const LabeledTensor<T> rhs) {
-        // construct_addop(std::make_tuple(std::get<0>(rhs), 1, std::get<1>(rhs)),
-        //                 false);
-      return {};
+        return construct_addop(std::make_tuple(1.0, rhs),false);
     }
 
     SetOp<T, LabeledTensor<T>> operator+=(const T& rhs) {
@@ -242,9 +240,7 @@ class LabeledTensor {
 
     AddOp<T, LabeledTensor<T>> operator-=(
       const LabeledTensor<T> rhs) {
-        // construct_addop(std::make_tuple(std::get<0>(rhs), 1, std::get<1>(rhs)),
-        //                 false);
-      return {};
+        return construct_addop(std::make_tuple(-1.0, rhs),false);
     }
 
     SetOp<T, LabeledTensor<T>> operator-=(const T& rhs) {
@@ -259,30 +255,26 @@ class LabeledTensor {
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
     AddOp<T1, LabeledTensor<T>> operator+=(
       const std::tuple<T1, LabeledTensor<T>>& rhs) {
-        // construct_addop(rhs, false);
-      return {};
+        return construct_addop(std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)), false);
     }
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
     AddOp<T1, LabeledTensor<T>> operator-=(
       const std::tuple<T1, LabeledTensor<T>>& rhs) {
-        // construct_addop(rhs, false);
-      return {};
+        return construct_addop(std::make_tuple(std::get<0>(rhs)*-1.0, std::get<1>(rhs)), false);
     }
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
     AddOp<T1, LabeledTensor<T>> operator=(
       const std::tuple<T1, LabeledTensor<T>>& rhs) {
-        // construct_addop(rhs, true);
-      return {};
+        return construct_addop(std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)), true);
     }
 
     AddOp<T, LabeledTensor<T>> operator=(
       const LabeledTensor<T> rhs) {
-        // return *this = T{1} * std::get<1>(rhs);
-      return {};
+        return construct_addop(std::make_tuple(1.0, rhs),true);
     }
 
     template<typename T1,

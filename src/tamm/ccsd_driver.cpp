@@ -203,7 +203,7 @@ void ccsd_driver(const TiledIndexSpace& MO, const Tensor<T>& d_f1,
   
     Scheduler{ec}
         (d_evl("n1","n2") = 2.2)
-        (xt("n1","n2") = d_evl("n1","n2"))
+        (xt("n1","n2") = 2.0*d_evl("n1","n2"))
         .execute();
 
     for (auto it: d_evl.loop_nest())
@@ -221,7 +221,7 @@ void ccsd_driver(const TiledIndexSpace& MO, const Tensor<T>& d_f1,
         T* buf = new T[size];
         xt.get(it,span<T>(buf,size));
         for (auto i = 0; i < size;i++)
-         EXPECTS(buf[i]==2.2);
+         EXPECTS(buf[i]==4.4);
     }
 
 

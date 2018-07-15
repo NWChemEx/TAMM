@@ -10,6 +10,40 @@
 using namespace tamm;
 
 template<typename T>
+std::ostream& operator << (std::ostream &os, std::vector<T>& vec){
+    os << "[";
+    for(auto &x: vec)
+        os << x << ",";
+    os << "]\n";
+    return os;
+}
+
+template<typename T>
+void print_tensor(Tensor<T> &t){
+    for (auto it: t.loop_nest())
+    {
+        TAMM_SIZE size = t.block_size(it);
+        T* buf = new T[size];
+        t.get(it,span<T>(buf,size));
+        std::cout << "block" << it;
+        for (TAMM_SIZE i = 0; i < size;i++)
+         std::cout << i << std::endl;
+    }
+}
+
+template<typename T>
+void check_value(Tensor<T> &t, T val){
+    for (auto it: t.loop_nest())
+    {
+        TAMM_SIZE size = t.block_size(it);
+        T* buf = new T[size];
+        t.get(it,span<T>(buf,size));
+        for (TAMM_SIZE i = 0; i < size;i++)
+         EXPECTS(buf[i]==val);
+    }
+}
+
+template<typename T>
 void test_ops(const TiledIndexSpace& MO) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
@@ -30,50 +64,36 @@ void test_ops(const TiledIndexSpace& MO) {
     T cx=42;
     size_t size = 1000;
     T* buf = new T[size];
-    for(auto i=0;i<size;i++)
+    for(size_t i=0;i<size;i++)
       buf[i]=cx++;
     T1.put(IndexVector{1,0,1}, span<T>(buf,size));
 
     T* gbuf = new T[size];
     T1.get(IndexVector{1,0,1}, span<T>(gbuf,size));
-    for(auto i=0;i<size;i++)
+    for(size_t i=0;i<size;i++)
         EXPECTS(gbuf[i]==buf[i]);
         
     Tensor<T>::deallocate(T1);
 
-    Tensor<T> d_evl{N,N};
-    Tensor<T> xt{N,N};
-    //@todo Set EVL to have local distribution (one copy in each MPI rank)
-    Tensor<T>::allocate(ec, d_evl,xt);
+    Tensor<T> xt1{N,N};
+    Tensor<T> xt2{N,N};
+    Tensor<T> xt3{N,N};
+    Tensor<T>::allocate(ec,xt1,xt2,xt3);
   
     Scheduler{ec}
-        (d_evl("n1","n2") = 2.2)
-        (xt("n1","n2") = 2.0*d_evl("n1","n2"))
+        (xt1("n1","n2") = 2.2)
+        (xt2("n1","n2") = 2.0*xt1("n1","n2"))
+        (xt3("n1","n2") = 2.0*xt1("n1","nk")*xt2("nk","n2")) //no-op
         .execute();
 
-    for (auto it: d_evl.loop_nest())
-    {
-        auto size = d_evl.block_size(it);
-        T* buf = new T[size];
-        d_evl.get(it,span<T>(buf,size));
-        for (auto i = 0; i < size;i++)
-         EXPECTS(buf[i]==2.2);
-    }
+    check_value(xt1,2.2);
+    check_value(xt2,4.4);
 
-    for (auto it: xt.loop_nest())
-    {
-        auto size = xt.block_size(it);
-        T* buf = new T[size];
-        xt.get(it,span<T>(buf,size));
-        for (auto i = 0; i < size;i++)
-         EXPECTS(buf[i]==4.4);
-    }
-
-    Tensor<T>::deallocate(d_evl,xt);
+    Tensor<T>::deallocate(xt1,xt2,xt3);
 
 }
 
-int main( int argc, char* argv[] )
+int main(int argc, char* argv[])
 {
     MPI_Init(&argc,&argv);
     GA_Initialize();
@@ -89,7 +109,7 @@ int main( int argc, char* argv[] )
     return res;
 }
 
-TEST_CASE("CCSD Driver") {
+TEST_CASE("Test Ops") {
     // Construction of tiled index space MO from sketch
     IndexSpace MO_IS{range(0, 200),
                      {{"occ", {range(0, 100)}}, {"virt", {range(100, 200)}}}};

@@ -971,7 +971,7 @@ public:
 
     // @todo What should this return?
     std::size_t size() const override {
-        // NOT_ALLOWED();
+        NOT_ALLOWED();
         return 0;
     }
 

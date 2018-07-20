@@ -673,6 +673,8 @@ protected:
      * tile
      */
     IndexVector construct_tiled_indices(const IndexSpace& is, Tile tile_size) {
+        if(is.is_dependent()) { return {}; }
+
         if(is.size() == 0) { return {}; }
 
         IndexVector boundries, ret;
@@ -733,6 +735,8 @@ protected:
 
     IndexVector construct_tiled_indices(const IndexSpace& is,
                                         const std::vector<Tile>& tiles) {
+        if(is.is_dependent()) { return {}; }
+
         if(is.size() == 0) { return {}; }
         // Check if sizes match
         EXPECTS(is.size() == [&tiles]() {

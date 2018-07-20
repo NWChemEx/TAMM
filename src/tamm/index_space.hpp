@@ -259,6 +259,15 @@ class IndexSpace {
 
     IndexSpace root_index_space() const;
 
+    const std::vector<IndexSpace>& key_tiled_index_spaces() const;
+
+    /**
+     * @brief Number of index spaces this index space depends on
+     * 
+     * @return Number of index spaces this index space depends on
+     */
+    size_t num_key_tiled_index_spaces() const;
+
     /**
      * @brief Are two index spaces identical
      * 

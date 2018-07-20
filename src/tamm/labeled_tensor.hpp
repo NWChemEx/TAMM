@@ -372,12 +372,18 @@ class LabeledTensor {
        * @brief Check that the labeled tensor is valid. In particular, 
        * check that the labels are valid.
        * 
-       * An index label vector is valid if each element in the index label vector
-       * 1. Each 
-       * 
+       * An index label vector is valid if each element el in the index 
+       * label vector
+       * @code 
+       * el.tiled_index_space().num_keys() == el.dep_labels().size()
+       * @endcode
        */
       void validate() {
-
+        for(const auto& lbl: ilv_) {
+          EXPECTS(lbl.tiled_index_space().index_space().num_key_tiled_index_spaces() == 
+            lbl.dep_labels().size());
+          EXPECTS(lbl.tiled_index_space().
+        }
       }
       void unpack(size_t index) {
         EXPECTS(index == tensor_.num_modes());

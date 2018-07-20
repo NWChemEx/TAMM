@@ -76,6 +76,14 @@ IndexSpace::IndexSpace(const std::vector<IndexSpace>& indep_spaces,
     impl_->set_weak_ptr(impl_);
 }
 
+const std::vector<IndexSpace>& IndexSpace::key_tiled_index_spaces() const {
+    return impl_->key_tiled_index_spaces();
+}
+
+size_t IndexSpace::num_key_tiled_index_spaces() const {
+    return impl_->num_key_tiled_index_spaces();
+}
+
 // Index Accessors
 Index IndexSpace::index(Index i, const IndexVector& indep_index) {
     return impl_->index(i, indep_index);

@@ -382,7 +382,7 @@ class LabeledTensor {
         for(const auto& lbl: ilv_) {
           EXPECTS(lbl.tiled_index_space().index_space().num_key_tiled_index_spaces() == 
             lbl.dep_labels().size());
-          EXPECTS(lbl.tiled_index_space().
+          //EXPECTS(lbl.tiled_index_space().
         }
       }
       void unpack(size_t index) {

@@ -1,8 +1,8 @@
 #ifndef TAMM_INDEX_SPACE_INTERFACE_HPP_
 #define TAMM_INDEX_SPACE_INTERFACE_HPP_
 
-#include "tamm/types.hpp"
 #include "tamm/index_space.hpp"
+#include "tamm/types.hpp"
 #include <algorithm>
 #include <memory>
 #include <vector>
@@ -14,7 +14,7 @@ namespace tamm {
  *        for the different IndexSpace implementations
  */
 class IndexSpaceInterface {
-    public:
+public:
     /**
      * @brief Destroy the Index Space Interface object
      *
@@ -96,17 +96,17 @@ class IndexSpaceInterface {
      */
     virtual std::size_t max_size() const = 0;
 
-
     /**
      * @brief Index spaces this index space depends on
-     * 
+     *
      * @return The index spaces this index space depends on
      */
-    virtual const std::vector<IndexSpace>& key_tiled_index_spaces() const = 0;
+    virtual const std::vector<TiledIndexSpace>& key_tiled_index_spaces()
+      const = 0;
 
     /**
      * @brief Number of index spaces this index space depends on
-     * 
+     *
      * @return Number of index spaces this index space depends on
      */
     virtual size_t num_key_tiled_index_spaces() const = 0;
@@ -180,7 +180,7 @@ class IndexSpaceInterface {
 
     virtual IndexSpace root_index_space() const = 0;
 
-    protected:
+protected:
     std::weak_ptr<IndexSpaceInterface> this_weak_ptr_;
 
     /**
@@ -265,7 +265,7 @@ class IndexSpaceInterface {
         return true;
     }
 
-    private:
+private:
     /**
      * @brief Set the weak ptr object for IndexSpaceInterface
      *
@@ -284,7 +284,7 @@ class IndexSpaceInterface {
  *
  */
 class RangeIndexSpaceImpl : public IndexSpaceInterface {
-    public:
+public:
     // @todo do we need a default constructor?
     // RangeIndexSpaceImpl() = default;
 
@@ -344,13 +344,12 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
     // Maximum size of this index space
     std::size_t max_size() const override { return indices_.size(); }
 
-    const std::vector<IndexSpace>& key_tiled_index_spaces() const override {
+    const std::vector<TiledIndexSpace>& key_tiled_index_spaces()
+      const override {
         return empty_vec_;
     }
 
-    size_t num_key_tiled_index_spaces() const override {
-        return 0;
-    }
+    size_t num_key_tiled_index_spaces() const override { return 0; }
 
     // Attribute Accessors
     Spin spin(Index idx) const override { return spin_(idx); }
@@ -377,14 +376,13 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
-    protected:
+protected:
     IndexVector indices_;
     NameToRangeMap named_ranges_;
     std::map<std::string, IndexSpace> named_subspaces_;
     SpinAttribute spin_;
     SpatialAttribute spatial_;
-    std::vector<IndexSpace> empty_vec_;
-
+    std::vector<TiledIndexSpace> empty_vec_;
 
     /**
      * @brief Helper method for generating the map between string values to
@@ -462,7 +460,7 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
  *
  */
 class SubSpaceImpl : public IndexSpaceInterface {
-    public:
+public:
     // @todo do we need a default constructor?
     // SubSpaceImpl() = default;
 
@@ -529,13 +527,12 @@ class SubSpaceImpl : public IndexSpaceInterface {
     // Maximum size of this index space
     std::size_t max_size() const override { return indices_.size(); }
 
-    const std::vector<IndexSpace>& key_tiled_index_spaces() const override {
+    const std::vector<TiledIndexSpace>& key_tiled_index_spaces()
+      const override {
         return empty_vec_;
     }
 
-    size_t num_key_tiled_index_spaces() const override {
-        return 0;
-    }
+    size_t num_key_tiled_index_spaces() const override { return 0; }
 
     // Attribute Accessors
     Spin spin(Index idx) const override { return ref_space_.spin(idx); }
@@ -564,14 +561,14 @@ class SubSpaceImpl : public IndexSpaceInterface {
 
     IndexSpace root_index_space() const override { return root_space_; }
 
-    protected:
+protected:
     IndexSpace ref_space_;
     Range ref_range_;
     IndexVector indices_;
     NameToRangeMap named_ranges_;
     std::map<std::string, IndexSpace> named_subspaces_;
     IndexSpace root_space_;
-    std::vector<IndexSpace> empty_vec_;
+    std::vector<TiledIndexSpace> empty_vec_;
 
     /**
      * @brief Helper method for constructing the new set of
@@ -624,7 +621,7 @@ class SubSpaceImpl : public IndexSpaceInterface {
  *
  */
 class AggregateSpaceImpl : public IndexSpaceInterface {
-    public:
+public:
     // @todo do we need a default constructor?
     // AggregateSpaceImpl() = default;
 
@@ -685,13 +682,12 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
     // Maximum size of this index space
     std::size_t max_size() const override { return indices_.size(); }
 
-    const std::vector<IndexSpace>& key_tiled_index_spaces() const override {
+    const std::vector<TiledIndexSpace>& key_tiled_index_spaces()
+      const override {
         return empty_vec_;
     }
 
-    size_t num_key_tiled_index_spaces() const override {
-        return 0;
-    }
+    size_t num_key_tiled_index_spaces() const override { return 0; }
     // @todo what should these return? Currently, it returns the
     // first reference space's spin and spatial attributes.
     // Attribute Accessors
@@ -743,13 +739,13 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
-    protected:
+protected:
     std::vector<IndexSpace> ref_spaces_;
     IndexVector indices_;
     NameToRangeMap named_ranges_;
     std::map<std::string, IndexSpace> named_subspaces_;
     std::vector<Range> empty_range_;
-    std::vector<IndexSpace> empty_vec_;
+    std::vector<TiledIndexSpace> empty_vec_;
 
     /**
      * @brief Add subspaces reference names foreach aggregated
@@ -874,7 +870,7 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
  *
  */
 class DependentIndexSpaceImpl : public IndexSpaceInterface {
-    public:
+public:
     // @todo do we need a default constructor?
     // DependentIndexSpaceImpl() = default;
 
@@ -886,16 +882,16 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
      * IndexSpaces
      */
     DependentIndexSpaceImpl(
-      const std::vector<IndexSpace>& indep_spaces,
+      const std::vector<TiledIndexSpace>& indep_spaces,
       const std::map<IndexVector, IndexSpace>& dep_space_relation) :
       dep_spaces_{indep_spaces},
       dep_space_relation_{dep_space_relation},
       named_ranges_{} {
         max_size_ = 0;
-        for(const auto& pair: dep_space_relation) {
-          max_size_ = std::max(max_size_, pair.second.size());
+        for(const auto& pair : dep_space_relation) {
+            max_size_ = std::max(max_size_, pair.second.size());
         }
-      }
+    }
 
     /**
      * @brief Construct a new Dependent Index Space Impl object
@@ -906,7 +902,8 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
      * IndexSpaces
      */
     DependentIndexSpaceImpl(
-      const std::vector<IndexSpace>& indep_spaces, const IndexSpace& ref_space,
+      const std::vector<TiledIndexSpace>& indep_spaces,
+      const IndexSpace& ref_space,
       const std::map<IndexVector, IndexSpace>& dep_space_relation) :
       dep_spaces_{indep_spaces},
       dep_space_relation_{dep_space_relation},
@@ -966,17 +963,13 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
         return 0;
     }
 
-    std::size_t max_size() const override {
-      return max_size_;
-    }
+    std::size_t max_size() const override { return max_size_; }
 
-    const std::vector<IndexSpace>& key_tiled_index_spaces() const {
+    const std::vector<TiledIndexSpace>& key_tiled_index_spaces() const {
         return dep_spaces_;
     }
 
-    size_t num_key_tiled_index_spaces() const {
-        return dep_spaces_.size();
-    }
+    size_t num_key_tiled_index_spaces() const { return dep_spaces_.size(); }
 
     // Attribute Accessors
     Spin spin(Index idx) const override {
@@ -1024,8 +1017,8 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
-    protected:
-    std::vector<IndexSpace> dep_spaces_;
+protected:
+    std::vector<TiledIndexSpace> dep_spaces_;
     IndexSpace ref_space_;
     std::map<IndexVector, IndexSpace> dep_space_relation_;
     NameToRangeMap named_ranges_;

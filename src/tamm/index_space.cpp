@@ -36,7 +36,7 @@ IndexSpace::IndexSpace(
     impl_->set_weak_ptr(impl_);
 }
 
-IndexSpace::IndexSpace(const std::vector<IndexSpace>& indep_spaces,
+IndexSpace::IndexSpace(const std::vector<TiledIndexSpace>& indep_spaces,
                        const std::map<Range, IndexSpace>& dep_space_relation) {
     std::map<IndexVector, IndexSpace> ret;
     for(const auto& kv : dep_space_relation) {
@@ -48,7 +48,7 @@ IndexSpace::IndexSpace(const std::vector<IndexSpace>& indep_spaces,
 }
 
 IndexSpace::IndexSpace(
-  const std::vector<IndexSpace>& indep_spaces,
+  const std::vector<TiledIndexSpace>& indep_spaces,
   const std::map<IndexVector, IndexSpace>& dep_space_relation) :
   impl_{std::make_shared<DependentIndexSpaceImpl>(indep_spaces,
                                                   dep_space_relation)} {
@@ -56,14 +56,14 @@ IndexSpace::IndexSpace(
 }
 
 IndexSpace::IndexSpace(
-  const std::vector<IndexSpace>& indep_spaces, const IndexSpace& ref_space,
+  const std::vector<TiledIndexSpace>& indep_spaces, const IndexSpace& ref_space,
   const std::map<IndexVector, IndexSpace>& dep_space_relation) :
   impl_{std::make_shared<DependentIndexSpaceImpl>(indep_spaces, ref_space,
                                                   dep_space_relation)} {
     impl_->set_weak_ptr(impl_);
 }
 
-IndexSpace::IndexSpace(const std::vector<IndexSpace>& indep_spaces,
+IndexSpace::IndexSpace(const std::vector<TiledIndexSpace>& indep_spaces,
                        const IndexSpace& ref_space,
                        const std::map<Range, IndexSpace>& dep_space_relation) {
     std::map<IndexVector, IndexSpace> ret;
@@ -76,7 +76,7 @@ IndexSpace::IndexSpace(const std::vector<IndexSpace>& indep_spaces,
     impl_->set_weak_ptr(impl_);
 }
 
-const std::vector<IndexSpace>& IndexSpace::key_tiled_index_spaces() const {
+const std::vector<TiledIndexSpace>& IndexSpace::key_tiled_index_spaces() const {
     return impl_->key_tiled_index_spaces();
 }
 

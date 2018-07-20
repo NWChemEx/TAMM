@@ -84,6 +84,11 @@ size_t IndexSpace::num_key_tiled_index_spaces() const {
     return impl_->num_key_tiled_index_spaces();
 }
 
+const std::map<IndexVector, IndexSpace>& IndexSpace::map_tiled_index_spaces()
+  const {
+    return impl_->map_tiled_index_spaces();
+}
+
 // Index Accessors
 Index IndexSpace::index(Index i, const IndexVector& indep_index) {
     return impl_->index(i, indep_index);

@@ -270,6 +270,8 @@ public:
      */
     size_t num_key_tiled_index_spaces() const;
 
+    const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces() const;
+
     /**
      * @brief Are two index spaces identical
      *

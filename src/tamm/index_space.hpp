@@ -301,6 +301,10 @@ public:
         return (*this).root_index_space().is_compatible(rhs.root_index_space());
     }
 
+    bool is_dependent() const {
+        return (num_key_tiled_index_spaces() > 0);
+    }
+
     SpinAttribute get_spin() const;
     SpatialAttribute get_spatial() const;
 
@@ -581,6 +585,8 @@ public:
      * @return Tile offsets
      */
     const IndexVector& tile_offsets() const { return tile_offsets_; }
+
+    const bool is_dependent() const { return is_.is_dependent(); }
 
     /**
      * @brief Equality comparison operator

@@ -96,6 +96,21 @@ class IndexSpaceInterface {
      */
     virtual std::size_t max_size() const = 0;
 
+
+    /**
+     * @brief Index spaces this index space depends on
+     * 
+     * @return The index spaces this index space depends on
+     */
+    virtual const std::vector<IndexSpace>& key_tiled_index_spaces() const = 0;
+
+    /**
+     * @brief Number of index spaces this index space depends on
+     * 
+     * @return Number of index spaces this index space depends on
+     */
+    virtual size_t num_key_tiled_index_spaces() const = 0;
+
     /**
      * @brief Accessor methods to Spin value associated with the input Index
      *
@@ -329,6 +344,14 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
     // Maximum size of this index space
     std::size_t max_size() const override { return indices_.size(); }
 
+    const std::vector<IndexSpace>& key_tiled_index_spaces() const override {
+        return empty_vec_;
+    }
+
+    size_t num_key_tiled_index_spaces() const override {
+        return 0;
+    }
+
     // Attribute Accessors
     Spin spin(Index idx) const override { return spin_(idx); }
     Spatial spatial(Index idx) const override { return spatial_(idx); }
@@ -360,6 +383,8 @@ class RangeIndexSpaceImpl : public IndexSpaceInterface {
     std::map<std::string, IndexSpace> named_subspaces_;
     SpinAttribute spin_;
     SpatialAttribute spatial_;
+    std::vector<IndexSpace> empty_vec_;
+
 
     /**
      * @brief Helper method for generating the map between string values to
@@ -504,6 +529,14 @@ class SubSpaceImpl : public IndexSpaceInterface {
     // Maximum size of this index space
     std::size_t max_size() const override { return indices_.size(); }
 
+    const std::vector<IndexSpace>& key_tiled_index_spaces() const override {
+        return empty_vec_;
+    }
+
+    size_t num_key_tiled_index_spaces() const override {
+        return 0;
+    }
+
     // Attribute Accessors
     Spin spin(Index idx) const override { return ref_space_.spin(idx); }
     Spatial spatial(Index idx) const override {
@@ -538,6 +571,7 @@ class SubSpaceImpl : public IndexSpaceInterface {
     NameToRangeMap named_ranges_;
     std::map<std::string, IndexSpace> named_subspaces_;
     IndexSpace root_space_;
+    std::vector<IndexSpace> empty_vec_;
 
     /**
      * @brief Helper method for constructing the new set of
@@ -651,6 +685,13 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
     // Maximum size of this index space
     std::size_t max_size() const override { return indices_.size(); }
 
+    const std::vector<IndexSpace>& key_tiled_index_spaces() const override {
+        return empty_vec_;
+    }
+
+    size_t num_key_tiled_index_spaces() const override {
+        return 0;
+    }
     // @todo what should these return? Currently, it returns the
     // first reference space's spin and spatial attributes.
     // Attribute Accessors
@@ -708,6 +749,7 @@ class AggregateSpaceImpl : public IndexSpaceInterface {
     NameToRangeMap named_ranges_;
     std::map<std::string, IndexSpace> named_subspaces_;
     std::vector<Range> empty_range_;
+    std::vector<IndexSpace> empty_vec_;
 
     /**
      * @brief Add subspaces reference names foreach aggregated
@@ -926,6 +968,14 @@ class DependentIndexSpaceImpl : public IndexSpaceInterface {
 
     std::size_t max_size() const override {
       return max_size_;
+    }
+
+    const std::vector<IndexSpace>& key_tiled_index_spaces() const {
+        return dep_spaces_;
+    }
+
+    size_t num_key_tiled_index_spaces() const {
+        return dep_spaces_.size();
     }
 
     // Attribute Accessors

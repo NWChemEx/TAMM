@@ -840,6 +840,10 @@ class TiledIndexLabel {
 
     Label get_label() const { return label_; }
 
+    const std::vector<TiledIndexLabel>& dep_labels() const {
+        return dep_labels_;
+    }
+
     const TiledIndexSpace& tiled_index_space() const { return tis_; }
 
     // Comparison operators

@@ -367,6 +367,18 @@ class LabeledTensor {
     // }
 
     private:
+
+      /**
+       * @brief Check that the labeled tensor is valid. In particular, 
+       * check that the labels are valid.
+       * 
+       * An index label vector is valid if each element in the index label vector
+       * 1. Each 
+       * 
+       */
+      void validate() {
+
+      }
       void unpack(size_t index) {
         EXPECTS(index == tensor_.num_modes());
       }

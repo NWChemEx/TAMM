@@ -112,6 +112,15 @@ public:
     virtual size_t num_key_tiled_index_spaces() const = 0;
 
     /**
+     * @brief Relation map defined over the dependent index spaces
+     * 
+     * @returns Relation map defined over the dependent index spaces
+     */
+    virtual const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces() const {
+        return empty_map_;
+    }
+
+    /**
      * @brief Accessor methods to Spin value associated with the input Index
      *
      * @param [in] idx input Index value
@@ -266,6 +275,7 @@ protected:
     }
 
 private:
+    std::map<IndexVector, IndexSpace> empty_map_;
     /**
      * @brief Set the weak ptr object for IndexSpaceInterface
      *
@@ -872,6 +882,7 @@ protected:
 class DependentIndexSpaceImpl : public IndexSpaceInterface {
 public:
     // @todo do we need a default constructor?
+    // @todo validate the dependency relation map!
     // DependentIndexSpaceImpl() = default;
 
     /**
@@ -895,6 +906,7 @@ public:
 
     /**
      * @brief Construct a new Dependent Index Space Impl object
+     *
      *
      * @param [in] indep_spaces a vector of dependent IndexSpace objects
      * @param [in] ref_space a reference IndexSpace
@@ -970,6 +982,10 @@ public:
     }
 
     size_t num_key_tiled_index_spaces() const { return dep_spaces_.size(); }
+
+    const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces() const override {
+        return dep_space_relation_;
+    }
 
     // Attribute Accessors
     Spin spin(Index idx) const override {

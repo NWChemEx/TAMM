@@ -343,6 +343,11 @@ public:
         for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
             simple_vec_.push_back(i);
         }
+
+        for(const auto& kv : is.map_tiled_index_spaces()) {
+            tiled_dep_map_.insert(std::pair<IndexVector, TiledIndexSpace>{
+              kv.first, TiledIndexSpace{kv.second, tile_size}});
+        }
     }
 
     /**
@@ -354,11 +359,15 @@ public:
      */
     TiledIndexSpace(const IndexSpace& is, const std::vector<Tile>& sizes) :
       is_{is},
-      input_tile_size_{
-        0}, /// FIXME: default when irregular tile sizes are provided?
+      input_tile_size_{0}, /// @todo default when irregular tile size provided
       tile_offsets_{construct_tiled_indices(is, sizes)} {
         for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
             simple_vec_.push_back(i);
+        }
+
+        for(const auto& kv : is.map_tiled_index_spaces()) {
+            tiled_dep_map_.insert(std::pair<IndexVector, TiledIndexSpace>{
+              kv.first, TiledIndexSpace{kv.second, sizes}});
         }
     }
 
@@ -469,7 +478,7 @@ public:
      */
     bool is_identical(const TiledIndexSpace& rhs) const {
         //@todo return std::tie(tile_size_, is_) == std::tie(rhs.tile_size_,
-        //rhs.is_);
+        // rhs.is_);
         return is_ == rhs.is_;
     }
 
@@ -572,6 +581,81 @@ public:
      * @return Tile offsets
      */
     const IndexVector& tile_offsets() const { return tile_offsets_; }
+
+    /**
+     * @brief Equality comparison operator
+     *
+     * @param [in] lhs Left-hand side
+     * @param [in] rhs Right-hand side
+     *
+     * @return true if lhs == rhs
+     */
+    friend bool operator==(const TiledIndexSpace& lhs,
+                           const TiledIndexSpace& rhs);
+
+    /**
+     * @brief Ordering comparison operator
+     *
+     * @param [in] lhs Left-hand side
+     * @param [in] rhs Right-hand side
+     *
+     * @return true if lhs < rhs
+     */
+    friend bool operator<(const TiledIndexSpace& lhs,
+                          const TiledIndexSpace& rhs);
+
+    /**
+     * @brief Inequality comparison operator
+     *
+     * @param [in] lhs Left-hand side
+     * @param [in] rhs Right-hand side
+     *
+     * @return true if lhs != rhs
+     */
+    friend bool operator!=(const TiledIndexSpace& lhs,
+                           const TiledIndexSpace& rhs);
+
+    /**
+     * @brief Ordering comparison operator
+     *
+     * @param [in] lhs Left-hand side
+     * @param [in] rhs Right-hand side
+     *
+     * @return true if lhs > rhs
+     */
+    friend bool operator>(const TiledIndexSpace& lhs,
+                          const TiledIndexSpace& rhs);
+
+    /**
+     * @brief Ordering comparison operator
+     *
+     * @param [in] lhs Left-hand side
+     * @param [in] rhs Right-hand side
+     *
+     * @return true if lhs <= rhs
+     */
+    friend bool operator<=(const TiledIndexSpace& lhs,
+                           const TiledIndexSpace& rhs);
+
+    /**
+     * @brief Ordering comparison operator
+     *
+     * @param [in] lhs Left-hand side
+     * @param [in] rhs Right-hand side
+     *
+     * @return true if lhs >= rhs
+     */
+    friend bool operator>=(const TiledIndexSpace& lhs,
+                           const TiledIndexSpace& rhs);
+
+protected:
+    IndexSpace is_;            /**< The index space being tiled*/
+    Tile input_tile_size_;     /**< User-specified tile size*/
+    IndexVector tile_offsets_; /**< Tile offsets */
+    IndexVector simple_vec_;   /**< vector where at(i) = i*/
+
+    std::map<IndexVector, TiledIndexSpace>
+      tiled_dep_map_; /**< Tiled dependency map for dependent index spaces*/
 
     /**
      * @brief Construct starting and ending indices of each tile with respect to
@@ -706,76 +790,6 @@ public:
     auto labels_impl(std::string id, Label start,
                      std::index_sequence<Is...>) const;
 
-    IndexSpace is_;            /**< The index space being tiled*/
-    Tile input_tile_size_;     /**< User-specified tile size*/
-    IndexVector tile_offsets_; /**< Tile offsets */
-    IndexVector simple_vec_;   /**< vector where at(i) = i*/
-
-    /**
-     * @brief Equality comparison operator
-     *
-     * @param [in] lhs Left-hand side
-     * @param [in] rhs Right-hand side
-     *
-     * @return true if lhs == rhs
-     */
-    friend bool operator==(const TiledIndexSpace& lhs,
-                           const TiledIndexSpace& rhs);
-
-    /**
-     * @brief Ordering comparison operator
-     *
-     * @param [in] lhs Left-hand side
-     * @param [in] rhs Right-hand side
-     *
-     * @return true if lhs < rhs
-     */
-    friend bool operator<(const TiledIndexSpace& lhs,
-                          const TiledIndexSpace& rhs);
-
-    /**
-     * @brief Inequality comparison operator
-     *
-     * @param [in] lhs Left-hand side
-     * @param [in] rhs Right-hand side
-     *
-     * @return true if lhs != rhs
-     */
-    friend bool operator!=(const TiledIndexSpace& lhs,
-                           const TiledIndexSpace& rhs);
-
-    /**
-     * @brief Ordering comparison operator
-     *
-     * @param [in] lhs Left-hand side
-     * @param [in] rhs Right-hand side
-     *
-     * @return true if lhs > rhs
-     */
-    friend bool operator>(const TiledIndexSpace& lhs,
-                          const TiledIndexSpace& rhs);
-
-    /**
-     * @brief Ordering comparison operator
-     *
-     * @param [in] lhs Left-hand side
-     * @param [in] rhs Right-hand side
-     *
-     * @return true if lhs <= rhs
-     */
-    friend bool operator<=(const TiledIndexSpace& lhs,
-                           const TiledIndexSpace& rhs);
-
-    /**
-     * @brief Ordering comparison operator
-     *
-     * @param [in] lhs Left-hand side
-     * @param [in] rhs Right-hand side
-     *
-     * @return true if lhs >= rhs
-     */
-    friend bool operator>=(const TiledIndexSpace& lhs,
-                           const TiledIndexSpace& rhs);
 }; // class TiledIndexSpace
 
 // Comparison operator implementations

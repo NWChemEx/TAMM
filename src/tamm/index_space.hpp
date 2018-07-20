@@ -13,6 +13,8 @@
 namespace tamm {
 
 class IndexSpaceInterface;
+class TiledIndexSpace;
+class TiledIndexLabel;
 
 /**
  * @class IndexSpace
@@ -22,7 +24,7 @@ class IndexSpaceInterface;
  * @todo Possibly use named parameters idiom for construction
  */
 class IndexSpace {
-    public:
+public:
     /**
      * @brief Type alias for iterators from this index space
      */
@@ -141,7 +143,7 @@ class IndexSpace {
      * @param [in] dep_space_relation relation between each set of indices on
      * dependent IndexSpaces
      */
-    IndexSpace(const std::vector<IndexSpace>& indep_spaces,
+    IndexSpace(const std::vector<TiledIndexSpace>& indep_spaces,
                const std::map<IndexVector, IndexSpace>& dep_space_relation);
     /**
      * @brief Construct a new (Dependent) IndexSpace object using a vector of
@@ -152,14 +154,14 @@ class IndexSpace {
      * @param [in] dep_space_relation relation between each set of indices on
      * dependent IndexSpace
      */
-    IndexSpace(const std::vector<IndexSpace>& indep_spaces,
+    IndexSpace(const std::vector<TiledIndexSpace>& indep_spaces,
                const IndexSpace& ref_space,
                const std::map<IndexVector, IndexSpace>& dep_space_relation);
 
-    IndexSpace(const std::vector<IndexSpace>& indep_spaces,
+    IndexSpace(const std::vector<TiledIndexSpace>& indep_spaces,
                const std::map<Range, IndexSpace>& dep_space_relation);
 
-    IndexSpace(const std::vector<IndexSpace>& indep_spaces,
+    IndexSpace(const std::vector<TiledIndexSpace>& indep_spaces,
                const IndexSpace& ref_space,
                const std::map<Range, IndexSpace>& dep_space_relation);
     /**
@@ -170,8 +172,8 @@ class IndexSpace {
      *
      * @param [in] impl input shared_ptr to IndexSpaceInterface implementation
      */
-    IndexSpace(const std::shared_ptr<IndexSpaceInterface>& impl) 
-        : impl_{impl} {}
+    IndexSpace(const std::shared_ptr<IndexSpaceInterface>& impl) :
+      impl_{impl} {}
 
     // Index Accessors
     Index index(Index i, const IndexVector& indep_index = {});
@@ -187,92 +189,92 @@ class IndexSpace {
 
     /**
      * @brief Size of this index space in terms of the number of indices in it
-     * 
+     *
      * @return index space size
      */
     std::size_t size() const;
 
     /**
-     * @brief Maximum size of this index space for any value of indices this 
+     * @brief Maximum size of this index space for any value of indices this
      * index space depends on
-     * 
+     *
      * @return maximum size of the index space
      */
     std::size_t max_size() const;
 
     /**
      * @brief Spin attribute accessor for an index
-     * 
+     *
      * @param [in] idx Index value
-     * 
+     *
      * @return spin attribute
      */
     Spin spin(Index idx) const;
 
     /**
      * @brief Spatial attribute accessor for an index
-     * 
+     *
      * @param [in] idx Index value
-     * 
+     *
      * @return spatial attribute
      */
     Spatial spatial(Index idx) const;
 
     /**
      * @brief Access ranges of indices with a specific spin value
-     * 
+     *
      * @param [in] spin Spin value
-     * 
+     *
      * @return Ranges of indices with the given spin value
      */
     const std::vector<Range>& spin_ranges(Spin spin) const;
 
     /**
      * @brief Access ranges of indices with a specific spatial value
-     * 
+     *
      * @param [in] spatial Spatial  value
-     * 
+     *
      * @return Ranges of indices with the given spatial value
      */
     const std::vector<Range>& spatial_ranges(Spatial spatial) const;
 
     /**
      * @brief Does this index space have spin attribute
-     * 
+     *
      * @return true if this index space has spin attribute
      */
     bool has_spin() const;
 
     /**
      * @brief Does this index space have spatial attribute
-     * 
+     *
      * @return true if this index space has spatial attribute
      */
     bool has_spatial() const;
 
     /**
      * @brief Access the named ranges in this index space
-     * 
+     *
      * @return Map of named ranges
      */
     const NameToRangeMap& get_named_ranges() const;
 
     IndexSpace root_index_space() const;
 
-    const std::vector<IndexSpace>& key_tiled_index_spaces() const;
+    const std::vector<TiledIndexSpace>& key_tiled_index_spaces() const;
 
     /**
      * @brief Number of index spaces this index space depends on
-     * 
+     *
      * @return Number of index spaces this index space depends on
      */
     size_t num_key_tiled_index_spaces() const;
 
     /**
      * @brief Are two index spaces identical
-     * 
+     *
      * @param [in] rhs Index space to be compared with
-     * 
+     *
      * @return true if this index space is idential to @param rhs
      */
     bool is_identical(const IndexSpace& rhs) const {
@@ -282,9 +284,7 @@ class IndexSpace {
     /**
      * @todo @bug Do we need this routine?
      */
-    bool is_less_than(const IndexSpace& rhs) const { 
-        return impl_ < rhs.impl_;
-    }
+    bool is_less_than(const IndexSpace& rhs) const { return impl_ < rhs.impl_; }
 
     // @todo Re-visit later
     bool is_compatible(const IndexSpace& rhs) const {
@@ -310,24 +310,22 @@ class IndexSpace {
     friend bool operator<=(const IndexSpace& lhs, const IndexSpace& rhs);
     friend bool operator>=(const IndexSpace& lhs, const IndexSpace& rhs);
 
-    protected:
+protected:
     std::shared_ptr<IndexSpaceInterface> impl_;
-}; // IndexSpace
-
-class TiledIndexLabel;
+}; // class IndexSpace
 
 /**
  * @brief TiledIndexSpace class
  *
  */
 class TiledIndexSpace {
-    public:
-    TiledIndexSpace() = default;
+public:
+    TiledIndexSpace()                       = default;
     TiledIndexSpace(const TiledIndexSpace&) = default;
-    TiledIndexSpace(TiledIndexSpace&&) = default;
+    TiledIndexSpace(TiledIndexSpace&&)      = default;
     TiledIndexSpace& operator=(TiledIndexSpace&&) = default;
     TiledIndexSpace& operator=(const TiledIndexSpace&) = default;
-    ~TiledIndexSpace() = default;
+    ~TiledIndexSpace()                                 = default;
 
     /**
      * @brief Construct a new TiledIndexSpace from
@@ -340,10 +338,10 @@ class TiledIndexSpace {
       is_{is},
       input_tile_size_{tile_size},
       tile_offsets_{construct_tiled_indices(is, tile_size)} {
-          for(Index i=0; i<tile_offsets_.size()-1; i++) {
-              simple_vec_.push_back(i);
-          }
-      }
+        for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
+            simple_vec_.push_back(i);
+        }
+    }
 
     /**
      * @brief Construct a new TiledIndexSpace from a reference
@@ -354,15 +352,16 @@ class TiledIndexSpace {
      */
     TiledIndexSpace(const IndexSpace& is, const std::vector<Tile>& sizes) :
       is_{is},
-      input_tile_size_{0}, ///FIXME: default when irregular tile sizes are provided?
+      input_tile_size_{
+        0}, /// FIXME: default when irregular tile sizes are provided?
       tile_offsets_{construct_tiled_indices(is, sizes)} {
-          for(Index i=0; i<tile_offsets_.size()-1; i++) {
-              simple_vec_.push_back(i);
-          }
-      }
+        for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
+            simple_vec_.push_back(i);
+        }
+    }
 
     /**
-     * @brief Construct a new TiledIndexSpace object from 
+     * @brief Construct a new TiledIndexSpace object from
      * a sub-space of a reference TiledIndexSpace
      *
      * @param [in] t_is reference TiledIndexSpace
@@ -426,9 +425,7 @@ class TiledIndexSpace {
      * @returns a const_iterator to an Index at the first element of the
      * IndexSpace
      */
-    IndexIterator begin() const {
-        return simple_vec_.begin();
-    }
+    IndexIterator begin() const { return simple_vec_.begin(); }
 
     /**
      * @brief Iterator accessor to the end of the reference IndexSpace
@@ -436,9 +433,7 @@ class TiledIndexSpace {
      * @returns a const_iterator to an Index at the size-th element of the
      * IndexSpace
      */
-    IndexIterator end() const {
-        return simple_vec_.end();
-    }
+    IndexIterator end() const { return simple_vec_.end(); }
 
     /**
      * @brief Iterator accessor to the first Index element of a specific block
@@ -471,19 +466,21 @@ class TiledIndexSpace {
      * @returns true if the Tile size and the reference IndexSpace is equal
      */
     bool is_identical(const TiledIndexSpace& rhs) const {
-        //@todo return std::tie(tile_size_, is_) == std::tie(rhs.tile_size_, rhs.is_);
+        //@todo return std::tie(tile_size_, is_) == std::tie(rhs.tile_size_,
+        //rhs.is_);
         return is_ == rhs.is_;
     }
 
     /**
-     * @brief Boolean method for checking if given TiledIndexSpace 
+     * @brief Boolean method for checking if given TiledIndexSpace
      * is a subspace of this TiledIndexSpace
      *
      * @param [in] rhs reference TiledIndexSpace
      * @returns true if the Tile size and the reference IndexSpace is equal
      */
     bool is_less_than(const TiledIndexSpace& rhs) const {
-        //@todo return (tile_size_ == rhs.tile_size_) && (is_.is_less_than(rhs.is_));
+        //@todo return (tile_size_ == rhs.tile_size_) &&
+        //(is_.is_less_than(rhs.is_));
         return is_.is_less_than(rhs.is_);
     }
 
@@ -569,8 +566,8 @@ class TiledIndexSpace {
 
     /**
      * @brief Accessor to tile offsets
-     * 
-     * @return Tile offsets 
+     *
+     * @return Tile offsets
      */
     const IndexVector& tile_offsets() const { return tile_offsets_; }
 
@@ -633,7 +630,7 @@ class TiledIndexSpace {
             while(i < is.size()) {
                 ret.push_back(i);
                 i = (i + tile_size >= boundries[j]) ? boundries[j++] :
-                                                     (i + tile_size);
+                                                      (i + tile_size);
             }
             // add size of IndexSpace for the last block
             ret.push_back(is.size());
@@ -707,17 +704,17 @@ class TiledIndexSpace {
     auto labels_impl(std::string id, Label start,
                      std::index_sequence<Is...>) const;
 
-    IndexSpace is_; /**< The index space being tiled*/
-    Tile input_tile_size_; /**< User-specified tile size*/
+    IndexSpace is_;            /**< The index space being tiled*/
+    Tile input_tile_size_;     /**< User-specified tile size*/
     IndexVector tile_offsets_; /**< Tile offsets */
-    IndexVector simple_vec_; /**< vector where at(i) = i*/
+    IndexVector simple_vec_;   /**< vector where at(i) = i*/
 
     /**
      * @brief Equality comparison operator
-     * 
+     *
      * @param [in] lhs Left-hand side
      * @param [in] rhs Right-hand side
-     * 
+     *
      * @return true if lhs == rhs
      */
     friend bool operator==(const TiledIndexSpace& lhs,
@@ -725,10 +722,10 @@ class TiledIndexSpace {
 
     /**
      * @brief Ordering comparison operator
-     * 
+     *
      * @param [in] lhs Left-hand side
      * @param [in] rhs Right-hand side
-     * 
+     *
      * @return true if lhs < rhs
      */
     friend bool operator<(const TiledIndexSpace& lhs,
@@ -736,10 +733,10 @@ class TiledIndexSpace {
 
     /**
      * @brief Inequality comparison operator
-     * 
+     *
      * @param [in] lhs Left-hand side
      * @param [in] rhs Right-hand side
-     * 
+     *
      * @return true if lhs != rhs
      */
     friend bool operator!=(const TiledIndexSpace& lhs,
@@ -747,10 +744,10 @@ class TiledIndexSpace {
 
     /**
      * @brief Ordering comparison operator
-     * 
+     *
      * @param [in] lhs Left-hand side
      * @param [in] rhs Right-hand side
-     * 
+     *
      * @return true if lhs > rhs
      */
     friend bool operator>(const TiledIndexSpace& lhs,
@@ -758,10 +755,10 @@ class TiledIndexSpace {
 
     /**
      * @brief Ordering comparison operator
-     * 
+     *
      * @param [in] lhs Left-hand side
      * @param [in] rhs Right-hand side
-     * 
+     *
      * @return true if lhs <= rhs
      */
     friend bool operator<=(const TiledIndexSpace& lhs,
@@ -769,10 +766,10 @@ class TiledIndexSpace {
 
     /**
      * @brief Ordering comparison operator
-     * 
+     *
      * @param [in] lhs Left-hand side
      * @param [in] rhs Right-hand side
-     * 
+     *
      * @return true if lhs >= rhs
      */
     friend bool operator>=(const TiledIndexSpace& lhs,
@@ -805,7 +802,7 @@ inline bool operator>=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
 }
 
 class TiledIndexLabel {
-    public:
+public:
     // Constructor
     TiledIndexLabel() = default;
 
@@ -869,7 +866,7 @@ class TiledIndexLabel {
     friend bool operator>=(const TiledIndexLabel& lhs,
                            const TiledIndexLabel& rhs);
 
-    protected:
+protected:
     TiledIndexSpace tis_;
     Label label_;
     std::vector<TiledIndexLabel> dep_labels_;

@@ -1,0 +1,232 @@
+#define CATCH_CONFIG_MAIN
+#include <catch/catch.hpp>
+
+#include <tamm/labeled_tensor.hpp>
+#include <iostream>
+
+using namespace tamm;
+
+template<typename T>
+std::ostream&
+operator << (std::ostream& os, const std::vector<T>& vec) {
+  os<<"[";
+  for(const auto& v: vec) {
+    os<<v<<",";
+  }
+  os<<"]"<<std::endl;
+  return os;
+}
+
+TEST_CASE("Zero-dimensional tensor") {
+  bool failed = false;
+  //IndexSpace is {range(10)};
+  //TiledIndexSpace tis{is};
+  Tensor<double> T1{};
+  try {
+    auto lt = T1();
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(!failed);
+}
+
+TEST_CASE("Zero-dimensional tensor wrong str count") {
+  bool failed = false;
+  //IndexSpace is {range(10)};
+  //TiledIndexSpace tis{is};
+  Tensor<double> T1{};
+  try {
+    LabeledTensor<double> lt{T1("a")};
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(failed);
+}
+
+TEST_CASE("Zero-dimensional tensor wrong label count") {
+  bool failed = false;
+  IndexSpace is {range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double> T1{};
+  try {
+    LabeledTensor<double> lt{T1(tis)};
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(failed);
+}
+
+TEST_CASE("One-dimensional tensor") {
+  bool failed = false;
+  IndexSpace is {range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double> T1{tis};
+  try {
+    auto lt = T1();
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(!failed);
+}
+
+TEST_CASE("One-dimensional tensor with correct string count") {
+  bool failed = false;
+  IndexSpace is {range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double> T1{tis};
+  try {
+    auto lt = T1("i");
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(!failed);
+}
+
+TEST_CASE("One-dimensional tensor with correct label count") {
+  bool failed = false;
+  IndexSpace is {range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double> T1{tis};
+  try {
+    auto lt = T1(tis.label());
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(!failed);
+}
+
+TEST_CASE("One-dimensional tensor with wrong string count") {
+  bool failed = false;
+  IndexSpace is {range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double> T1{tis};
+  try {
+    auto lt = T1("i", "i");
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(failed);
+}
+
+TEST_CASE("One-dimensional tensor with wrong label count") {
+  bool failed = false;
+  IndexSpace is {range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double> T1{tis};
+  try {
+    auto lt = T1(tis.label(0), tis.label(1));
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(failed);
+}
+
+TEST_CASE("Two-dimensional tensor") {
+  bool failed = false;
+  IndexSpace is {range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double> T1{tis, tis};
+  try {
+    auto lt = T1();
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(!failed);
+}
+
+TEST_CASE("Two-dimensional tensor with correct string count") {
+  bool failed = false;
+  IndexSpace is {range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double> T1{tis, tis};
+  try {
+    auto lt = T1("i", "j");
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(!failed);
+}
+
+TEST_CASE("Two-dimensional tensor with correct label count") {
+  bool failed = false;
+  IndexSpace is {range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double> T1{tis, tis};
+  try {
+    auto lt = T1(tis.label(0), tis.label(1));
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(!failed);
+}
+
+TEST_CASE("Two-dimensional tensor with smaller string count") {
+  bool failed = false;
+  IndexSpace is {range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double> T1{tis, tis};
+  try {
+    auto lt = T1("i");
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(failed);
+}
+
+TEST_CASE("Two-dimensional tensor with smaller label count") {
+  bool failed = false;
+  IndexSpace is {range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double> T1{tis, tis};
+  try {
+    auto lt = T1(tis.label(0));
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(failed);
+}
+
+TEST_CASE("Two-dimensional tensor with larger string count") {
+  bool failed = false;
+  IndexSpace is {range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double> T1{tis, tis};
+  try {
+    auto lt = T1("i", "j", "k");
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(failed);
+}
+
+TEST_CASE("Two-dimensional tensor with larger label count") {
+  bool failed = false;
+  IndexSpace is {range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double> T1{tis, tis};
+  try {
+    auto lt = T1(tis.label(0), tis.label(1), tis.label(2));
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(failed);
+}
+
+
+TEST_CASE("One-dimensional dependent index tensor") {
+  bool failed = false;
+  IndexSpace is {range(1)};
+  TiledIndexSpace tis{is};
+  IndexSpace is2{range(5)};
+  std::map<IndexVector, IndexSpace> dep_space_relation{{{0}, is2}};
+  IndexSpace dis{{tis}, dep_space_relation};
+  TiledIndexSpace tdis{dis};
+
+  //Tensor<double> T1{tdis};
+  try {
+    //auto lt = T1();
+  } catch (...) {
+    failed = true;
+  }
+  REQUIRE(!failed);
+}

@@ -42,6 +42,7 @@ IndexSpace::IndexSpace(const std::vector<TiledIndexSpace>& indep_spaces,
     for(const auto& kv : dep_space_relation) {
         ret.insert({construct_index_vector(kv.first), kv.second});
     }
+    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
 
     impl_ = std::make_shared<DependentIndexSpaceImpl>(indep_spaces, ret);
     impl_->set_weak_ptr(impl_);
@@ -165,6 +166,12 @@ bool operator<=(const IndexSpace& lhs, const IndexSpace& rhs) {
 
 bool operator>=(const IndexSpace& lhs, const IndexSpace& rhs) {
     return (lhs > rhs) || (lhs == rhs);
+}
+
+
+TiledIndexLabel
+TiledIndexSpace::label(Label lbl) const {
+    return TiledIndexLabel(*this, lbl);
 }
 
 } // namespace tamm

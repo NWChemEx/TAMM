@@ -900,10 +900,12 @@ public:
       dep_spaces_{indep_spaces},
       dep_space_relation_{dep_space_relation},
       named_ranges_{} {
+        std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
         max_size_ = 0;
         for(const auto& pair : dep_space_relation) {
             max_size_ = std::max(max_size_, pair.second.size());
         }
+        std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
     }
 
     /**

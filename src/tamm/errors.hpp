@@ -43,7 +43,13 @@ namespace tamm {
  * This is meant to identify preconditions and possibly include additional
  * operations (e.g., an error message).
  */
-#define EXPECTS(cond) assert(cond)
+//#define EXPECTS(cond) assert(cond)
+#define EXPECTS(cond)                                                          \
+    do {                                                                       \
+        if(!(cond)) {                                                          \
+            throw std::string{"EXPECT condition failed: "}+std::string{#cond}; \
+        }                                                                      \
+    } while(0)
 
 } // namespace tamm
 

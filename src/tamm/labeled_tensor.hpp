@@ -407,7 +407,7 @@ private:
      *  or equal to the number tiled index spaces the label's index space
      *  depends on
      *
-     * 4. If any label 'a' is used as being dependent on another label 'l1'
+     * 5. If any label 'a' is used as being dependent on another label 'l1'
      * (a(l1)), it cannot be a used as being dependent on another label 'l2'.
      * For example, this is not valid: T1(a(l1), a(l2)).
      *
@@ -420,7 +420,25 @@ private:
             }
         }
         for(size_t i = 0; i < ilv_.size(); i++) {
-            EXPECTS(ilv_[i].is_compatible_with(tensor_.));
+            EXPECTS(ilv_[i].tiled_index_space().is_compatible_with(
+                tensor_.tiled_index_spaces()[i]));
+        }
+        for(size_t i = 0; i < ilv_.size(); i++) {
+            size_t sz = ilv_[i].dep_labels().size();
+            EXPECTS(sz == 0 ||
+              sz == tensor_.tiled_index_spaces()[i].num_key_tiled_index_spaces());
+        }
+        for(size_t i = 0; i < ilv_.size(); i++) {
+            const auto& ilbl = ilv_[i];
+            for(size_t j = i+1; j < ilv_.size(); j++) {
+                const auto& jlbl = ilv_[j];
+                if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
+                    ilbl.get_label() == jlbl.get_label()) {
+                    EXPECTS(ilbl.dep_labels().size() == 0 ||
+                            jlbl.dep_labels().size() == 0 ||
+                            ilbl == jlbl);
+                }
+            }
         }
     }
     void unpack(size_t index) { EXPECTS(index == tensor_.num_modes()); }

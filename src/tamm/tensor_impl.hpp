@@ -220,8 +220,8 @@ public:
      * input TiledIndexLabel objects (main construct for Tensor operations)
      *
      * @tparam Ts variadic template for set of input TiledIndexLabels
-     * @param [in] inputs input TiledIndexLabels
-     * @returns a LabeledTensro object created with the input arguments
+     * @param [in] input TiledIndexLabels
+     * @returns a LabeledTensor object created with the input arguments
      */
 
     template<class... Args>

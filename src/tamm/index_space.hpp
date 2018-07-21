@@ -301,9 +301,7 @@ public:
         return (*this).root_index_space().is_compatible(rhs.root_index_space());
     }
 
-    bool is_dependent() const {
-        return (num_key_tiled_index_spaces() > 0);
-    }
+    bool is_dependent() const { return (num_key_tiled_index_spaces() > 0); }
 
     SpinAttribute get_spin() const;
     SpatialAttribute get_spatial() const;
@@ -344,17 +342,16 @@ public:
       is_{is},
       input_tile_size_{tile_size},
       tile_offsets_{construct_tiled_indices(is, tile_size)} {
-    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
-        for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
-            simple_vec_.push_back(i);
+        if(!is.is_dependent()) {
+            for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
+                simple_vec_.push_back(i);
+            }
         }
-    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
 
         for(const auto& kv : is.map_tiled_index_spaces()) {
             tiled_dep_map_.insert(std::pair<IndexVector, TiledIndexSpace>{
               kv.first, TiledIndexSpace{kv.second, tile_size}});
         }
-    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
     }
 
     /**
@@ -368,8 +365,10 @@ public:
       is_{is},
       input_tile_size_{0}, /// @todo default when irregular tile size provided
       tile_offsets_{construct_tiled_indices(is, sizes)} {
-        for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
-            simple_vec_.push_back(i);
+        if(!is.is_dependent()) {
+            for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
+                simple_vec_.push_back(i);
+            }
         }
 
         for(const auto& kv : is.map_tiled_index_spaces()) {

@@ -83,6 +83,8 @@ IndexSpace is14{is1, range(0,10,2),       // indices     => {0,2,4,6,8}
 
 **NOTE:** An index space is treated as a read-only object after it is constructed.
 
+**TO-DO:** Revise and update the documetation.
+
 ### IndexSpace Specialization
 - **Attributes:** An index space might partition its indices into groups, each of which is associated with a set of attributes. All indices in a group have the same attribute values. Attribute specification is part of the constructor.
 ```c++

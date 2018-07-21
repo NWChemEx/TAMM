@@ -95,12 +95,12 @@ TEST_CASE("Retrieval of a point in IndexSpace") {
 TEST_CASE("IndexSpace construction by concatenation of other IndexSpaces") {
 
     IndexSpace is1{2, 4, 5, 6, 7, 8};
-    IndexSpace is2{3, 7, 9};
+    IndexSpace is2{3, 10, 9};
 
     IndexSpace is{{is1, is2}};
 
     // check if the indices are equal
-    IndexVector is3{2, 4, 5, 6, 7, 8, 3, 7, 9};
+    IndexVector is3{2, 4, 5, 6, 7, 8, 3, 10, 9};
     check_indices(is, is3);
 
 //    IndexVector is4{2, 4, 5, 6, 7, 8, 3, 7, 9, 3, 7, 9};
@@ -196,20 +196,22 @@ TEST_CASE("IndexSpace construction using dependent IndexSpaces") {
     IndexSpace temp_is1{0, 1, 2};
     IndexSpace temp_is2{8, 9};
 
+    TiledIndexSpace t_is1{temp_is1, 2};
+    TiledIndexSpace t_is2{temp_is2, 1};
+
     std::map<IndexVector, IndexSpace> dep_relation{
-      {{0, 8}, is1}, {{0, 9}, is2}, {{1, 8}, temp_is2},
-      {{1, 9}, is2}, {{2, 8}, is1}, {{2, 9}, is3}};
+      {{0, 0}, is1}, {{0, 1}, is2}, {{1, 0}, temp_is2},
+      {{1, 1}, is2}};
 
     // Dependent IndexSpace construction using dependency relation
-    IndexSpace dep_is{{temp_is1, temp_is2}, dep_relation};
+    IndexSpace dep_is{{t_is1, t_is2}, dep_relation};
 
     // Check the dependency relation
-    REQUIRE(dep_is(IndexVector{0, 8}) == is1);
-    REQUIRE(dep_is(IndexVector{0, 9}) == is2);
-    REQUIRE(dep_is(IndexVector{1, 8}) == temp_is2);
-    REQUIRE(dep_is(IndexVector{1, 9}) == is2);
-    REQUIRE(dep_is(IndexVector{2, 8}) == is1);
-    REQUIRE(dep_is(IndexVector{2, 9}) == is3);
+    REQUIRE(dep_is(IndexVector{0, 0}) == is1);
+    REQUIRE(dep_is(IndexVector{0, 1}) == is2);
+    REQUIRE(dep_is(IndexVector{1, 0}) == temp_is2);
+    REQUIRE(dep_is(IndexVector{1, 1}) == is2);
+
 }
 
 TEST_CASE(
@@ -217,6 +219,7 @@ TEST_CASE(
     IndexSpace AO{range(0, 20)};
     IndexSpace ATOM{{0, 1, 2, 3, 4}};
 
+    TiledIndexSpace T_ATOM{ATOM, 2};
     std::map<IndexVector, IndexSpace> ao_atom_relation{
       /*atom 0*/ {IndexVector{0}, IndexSpace{AO, IndexVector{3, 4, 7}}},
       /*atom 1*/ {IndexVector{1}, IndexSpace{AO, IndexVector{1, 5, 7}}},
@@ -224,7 +227,7 @@ TEST_CASE(
       /*atom 3*/ {IndexVector{3}, IndexSpace{AO, IndexVector{11, 14}}},
       /*atom 4*/ {IndexVector{4}, IndexSpace{AO, IndexVector{2, 5, 13, 17}}}};
 
-    CHECK_NOTHROW(IndexSpace{/*dependent spaces*/ {ATOM},
+    CHECK_NOTHROW(IndexSpace{/*dependent spaces*/ {T_ATOM},
                              /*reference space*/ AO,
                              /*relation*/ ao_atom_relation});
 }

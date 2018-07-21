@@ -280,6 +280,10 @@ public:
         return impl_->block_size(blockid);
     }
 
+    std::vector<TiledIndexSpace>& tiled_index_spaces() const {
+        return impl_->tiled_index_spaces();
+    }
+
     /**
      * @brief Memory allocation method for the Tensor object
      *

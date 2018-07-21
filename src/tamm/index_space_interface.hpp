@@ -114,6 +114,8 @@ public:
     /**
      * @brief Relation map defined over the dependent index spaces
      * 
+     * @todo distribute implementation to all child classes
+     * 
      * @returns Relation map defined over the dependent index spaces
      */
     virtual const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces() const {
@@ -653,7 +655,7 @@ public:
       indices_{construct_indices(spaces)},
       named_ranges_{named_ranges},
       named_subspaces_{construct_subspaces(named_ranges)} {
-        EXPECTS(has_duplicate<IndexVector>(indices_));
+        // EXPECTS(has_duplicate<IndexVector>(indices_));
         if(names.size() > 0) { add_ref_names(spaces, names); }
         if(subspace_references.size() > 0) {
             add_subspace_references(subspace_references);

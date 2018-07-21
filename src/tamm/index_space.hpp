@@ -344,14 +344,17 @@ public:
       is_{is},
       input_tile_size_{tile_size},
       tile_offsets_{construct_tiled_indices(is, tile_size)} {
+    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
         for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
             simple_vec_.push_back(i);
         }
+    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
 
         for(const auto& kv : is.map_tiled_index_spaces()) {
             tiled_dep_map_.insert(std::pair<IndexVector, TiledIndexSpace>{
               kv.first, TiledIndexSpace{kv.second, tile_size}});
         }
+    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
     }
 
     /**
@@ -408,6 +411,8 @@ public:
      * @returns a TiledIndexLabel associated with a TiledIndexSpace
      */
     TiledIndexLabel label(std::string id, Label lbl = Label{0}) const;
+
+    TiledIndexLabel label(Label lbl = Label{0}) const;
 
     /**
      * @brief Construct a tuple of TiledIndexLabel given a count, subspace name
@@ -680,7 +685,7 @@ protected:
     IndexVector construct_tiled_indices(const IndexSpace& is, Tile tile_size) {
         if(is.is_dependent()) { return {}; }
 
-        if(is.size() == 0) { return {}; }
+        if(is.size() == 0) { return {0}; }
 
         IndexVector boundries, ret;
         // Get lo and hi for each named subspace ranges
@@ -742,7 +747,7 @@ protected:
                                         const std::vector<Tile>& tiles) {
         if(is.is_dependent()) { return {}; }
 
-        if(is.size() == 0) { return {}; }
+        if(is.size() == 0) { return {0}; }
         // Check if sizes match
         EXPECTS(is.size() == [&tiles]() {
             size_t ret = 0;

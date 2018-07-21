@@ -222,6 +222,7 @@ public:
       slv_{StringLabelVec(tensor_.num_modes())},
       str_map_{std::vector<bool>(tensor_.num_modes())} {
         unpack(0, args...);
+        validate();
     }
 
     Tensor<T> tensor() const { return tensor_; }
@@ -426,22 +427,22 @@ private:
             }
         }
         for(size_t i = 0; i < ilv_.size(); i++) {
-            if(!str_map[i]) {
+            if(!str_map_[i]) {
                 EXPECTS(ilv_[i].tiled_index_space().is_compatible_with(
                     tensor_.tiled_index_spaces()[i]));
             }
         }
         for(size_t i = 0; i < ilv_.size(); i++) {
-            if(!str_map[i]) {
+            if(!str_map_[i]) {
                 size_t sz = ilv_[i].dep_labels().size();
                 EXPECTS(sz == 0 ||
-                  sz == tensor_.tiled_index_spaces()[i].num_key_tiled_index_spaces());
+                  sz == tensor_.tiled_index_spaces()[i].index_space().num_key_tiled_index_spaces());
             }
         }
         for(size_t i = 0; i < ilv_.size(); i++) {
             const auto& ilbl = ilv_[i];
             for(size_t j = i+1; j < ilv_.size(); j++) {
-                if(!str_map[i] && !str_map[j]) {
+                if(!str_map_[i] && !str_map_[j]) {
                     const auto& jlbl = ilv_[j];
                     if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
                         ilbl.get_label() == jlbl.get_label()) {
@@ -454,7 +455,7 @@ private:
         }
         for(size_t i = 0; i < ilv_.size(); i++) {
             for(size_t j = i+1; j < ilv_.size(); j++) {
-                if(str_map[i] && str_map[j] && slv_[i] == slv_[j]) {
+                if(str_map_[i] && str_map_[j] && slv_[i] == slv_[j]) {
                     const auto& is = tensor_.tiled_index_spaces()[i];
                     const auto& js = tensor_.tiled_index_spaces()[j];
                     EXPECTS(is.is_identical(js));

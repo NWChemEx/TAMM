@@ -98,7 +98,7 @@ IndexSpace is1{range(100),                                // is1("all")   => {0,
                {{Spin{1}, {range(0,25), range(50,75)}},
                 {Spin{2}, {range(25,50), range(75,100)}}}};
 ```
-- **Aggregation:** An index space might be constructed from other index spaces and can be partitioned using the available parititions in the used index spaces.
+- **Aggregation:** An index space might be constructed from other index spaces and can be partitioned using the available parititions in the existing index spaces.
 ```c++
   // Index space construction (will be used for aggregation)
   IndexSpace is2{range(100,200),                                // is2("all")   => {100,...,199}             
@@ -119,8 +119,8 @@ IndexSpace is1{range(100),                                // is1("all")   => {0,
   // is3("alpha") => is1("alpha") + is2("alpha") ~ {25,...,49,75,...,99,125,...,149,175,...,199}
   // is3("beta")  => is1("beta") + is2("beta") ~ {0,...,24,50,...,74,100,...,124,...,150,...,174}
 ```
-- **TiledIndexSpace:** A tiled index space segments an index spaces. Specifically, it maps values (referred to a tile indices) in an integer to a index interval. A valid tiling ensures that all indices in tile have the same attribute values.
-  - **[Default tiling]** A TiledIndexSpace can be constructed from any IndexSpace where all the tiles are of size 1.
+- **TiledIndexSpace:** A tiled index space segments an index space. Specifically, it maps values (referred to as tile indices) in an integer to a index interval. A valid tiling ensures that all indices in a tile have the same attribute values.
+  - **[Default tiling]** A TiledIndexSpace can be constructed from any IndexSpace where all tiles are of size 1.
 ```c++
 // Constructing tiled index spaces - TiledIndexSpace(IndexSpace& is, size_t tile_size = 1)
 // Construction with default tiling size
@@ -161,7 +161,7 @@ TiledIndexSpace& V = tis_mo("virt");
 TiledIndexSpace& N = tis_mo("all"); 
 ```
 
-- **[Dependent index space]** An index space can depend on other tiled index spaces. In this case, the index space becomes a relation that, given a specific value of its dependent index spaces, returns an index space.
+- **[Dependent index space]** An index space can depend on other index spaces. In this case, the index space becomes a relation that, given a specific value of its dependent index spaces, returns an index space.
 ```c++
 // Creating index spaces MO and Atom
 // Note: constructor details are ommitted

@@ -872,6 +872,15 @@ public:
 
     Label get_label() const { return label_; }
 
+    bool is_compatible_with(const TiledIndexSpace& tis) const {
+        const auto& key_tiss = tis_.index_space().key_tiled_index_spaces();
+        EXPECTS(key_tiss.size() == dep_labels().size());
+        for(size_t i = 0; i < dep_labels().size(); i++) {
+            dep_labels()[i].is_compatible_with(key_tiss[i]);
+        }
+        return true;
+    }
+
     const std::vector<TiledIndexLabel>& dep_labels() const {
         return dep_labels_;
     }

@@ -137,6 +137,9 @@ public:
       return {block_indices_, {}, {}, {}};
     }
 
+    const std::vector<TiledIndexSpace>& tiled_index_spaces() const {
+        return block_indices_;
+    }
   
 protected:
     std::vector<TiledIndexSpace> block_indices_;

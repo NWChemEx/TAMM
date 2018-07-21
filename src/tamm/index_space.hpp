@@ -486,6 +486,11 @@ public:
         return is_ == rhs.is_;
     }
 
+    bool is_compatible_with(const TiledIndexSpace& tis) const {
+        NOT_IMPLEMENTED();
+        return true;
+    }
+
     /**
      * @brief Boolean method for checking if given TiledIndexSpace
      * is a subspace of this TiledIndexSpace

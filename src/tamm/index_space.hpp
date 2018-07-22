@@ -851,7 +851,9 @@ public:
                     const std::vector<TiledIndexLabel>& dep_labels) :
       tis_{t_il.tis_},
       label_{t_il.label_},
-      dep_labels_{dep_labels} {}
+      dep_labels_{dep_labels} {
+          EXPECTS(is_compatible_with(tis_));
+      }
 
     // Copy Construtors
     TiledIndexLabel(const TiledIndexLabel&) = default;
@@ -881,11 +883,12 @@ public:
 
     Label get_label() const { return label_; }
 
+    /// @todo: this is never called from outside currently, should this be private and used internally?
     bool is_compatible_with(const TiledIndexSpace& tis) const {
-        const auto& key_tiss = tis_.index_space().key_tiled_index_spaces();
+        const auto& key_tiss = tis.index_space().key_tiled_index_spaces();
         EXPECTS(key_tiss.size() == dep_labels().size());
         for(size_t i = 0; i < dep_labels().size(); i++) {
-            dep_labels()[i].is_compatible_with(key_tiss[i]);
+            dep_labels()[i].tiled_index_space().is_compatible_with(key_tiss[i]);
         }
         return true;
     }

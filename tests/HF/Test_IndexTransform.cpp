@@ -48,7 +48,7 @@ void two_index_transform(ExecutionContext* ec, const TiledIndexSpace& AO,
     Tensor<T> I0{MSO, AO};
     Scheduler{ec}
       .allocate(I0)(I0(p, f2) = tC(f1, p) * tF_ao(f1, f2))(
-        tF_mso(p, q) = tC(f1, q) * I0(f1, p))
+        tF_mso(p, q) = tC(f1, q) * I0(p, f1))
       .deallocate(I0)
       .execute();
 }

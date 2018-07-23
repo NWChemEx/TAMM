@@ -91,20 +91,28 @@ public:
      *
      * @returns a size_t for the number of nodes of the tensor
      */
-    TensorRank num_modes() { return num_modes_; };
+    TensorRank num_modes() const { return num_modes_; };
 
     auto tindices() const { return block_indices_; }
 
     TAMM_SIZE block_size(const IndexVector& blockid) const { 
-        TAMM_SIZE bsize{1};
+        size_t ret = 1;
+        EXPECTS(blockid.size() == num_modes());
         size_t rank = block_indices_.size();
         for(size_t i=0; i<rank; i++) {
-            auto tile_offsets = block_indices_[i].tile_offsets();
-            bsize *= tile_offsets[blockid[i]+1] - tile_offsets[blockid[i]];
+            ret *= block_indices_[i].tile_size(blockid[i]);
         }
-        
-        // std::accumulate(blockdims.begin(),blockdims.end(),Index{1},std::multiplies<Index>());
-        return bsize;
+        return ret;
+    }
+
+    std::vector<size_t> block_dims(const IndexVector& blockid) const { 
+        std::vector<size_t> ret;
+        EXPECTS(blockid.size() == num_modes());
+        size_t rank = block_indices_.size();
+        for(size_t i=0; i<rank; i++) {
+            ret.push_back(block_indices_[i].tile_size(blockid[i]));
+        }
+        return ret;
     }
 
     /**

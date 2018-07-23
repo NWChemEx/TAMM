@@ -229,6 +229,13 @@ public:
     const IndexLabelVec& labels() const { return ilv_; }
     const StringLabelVec& str_labels() const { return slv_; }
     const std::vector<bool>& str_map() const { return str_map_; }
+    void set_labels(const IndexLabelVec& ilv) {
+        EXPECTS(ilv_.size() == ilv.size());
+        ilv_ = ilv;
+        slv_.clear();
+        slv_.resize(ilv_.size());
+        str_map_ = std::vector<bool>(ilv_.size(), false);
+    }
 
     AddOp<T, LabeledTensor<T>> operator+=(const LabeledTensor<T> rhs) {
         return construct_addop(std::make_tuple(1.0, rhs), false);
@@ -411,17 +418,24 @@ private:
      * 5. If any label 'a' is used as being dependent on another label 'l1'
      * (a(l1)), it cannot be a used as being dependent on another label 'l2'.
      * For example, this is not valid: T1(a(l1), a(l2)).
-     * 
+     *
      * 6. If two string labels (say at positions i and j) are identical, the
      *  tensor's index spaces at the same positions (i and j) are identical.
      *
+     * 7. If a dimension of a tensor is a dependent dimension, with dependency
+     * on dimensions i, j, etc., the corresponding label should be a dependent
+     * label on the same dependent index space and should be dependent on the
+     * same dimension positions. E.g., with a declaration T{i, a(i), k}, the use
+     * T(x, y(z),z) is invalid. For now, we will check that the label is over
+     * the same tiled index space as the dimension.
+     *
      */
     void validate() {
-        std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
+        std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
         EXPECTS(tensor_.num_modes() == ilv_.size());
         for(size_t i = 0; i < ilv_.size(); i++) {
             if(!str_map_[i]) {
-                for(const auto& dlbl: ilv_[i].dep_labels()) {
+                for(const auto& dlbl : ilv_[i].dep_labels()) {
                     EXPECTS(dlbl.dep_labels().size() == 0);
                 }
             }
@@ -429,32 +443,34 @@ private:
         for(size_t i = 0; i < ilv_.size(); i++) {
             if(!str_map_[i]) {
                 EXPECTS(ilv_[i].tiled_index_space().is_compatible_with(
-                    tensor_.tiled_index_spaces()[i]));
+                  tensor_.tiled_index_spaces()[i]));
             }
         }
         for(size_t i = 0; i < ilv_.size(); i++) {
             if(!str_map_[i]) {
                 size_t sz = ilv_[i].dep_labels().size();
-                EXPECTS(sz == 0 ||
-                  sz == tensor_.tiled_index_spaces()[i].index_space().num_key_tiled_index_spaces());
+                EXPECTS(sz == 0 || sz == tensor_.tiled_index_spaces()[i]
+                                           .index_space()
+                                           .num_key_tiled_index_spaces());
             }
         }
         for(size_t i = 0; i < ilv_.size(); i++) {
             const auto& ilbl = ilv_[i];
-            for(size_t j = i+1; j < ilv_.size(); j++) {
+            for(size_t j = i + 1; j < ilv_.size(); j++) {
                 if(!str_map_[i] && !str_map_[j]) {
                     const auto& jlbl = ilv_[j];
                     if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
-                        ilbl.get_label() == jlbl.get_label()) {
-                        EXPECTS(ilbl.dep_labels().size() == 0 ||
-                                jlbl.dep_labels().size() == 0 ||
-                                ilbl == jlbl);
+                       ilbl.get_label() == jlbl.get_label()) {
+                        // EXPECTS(ilbl.dep_labels().size() == 0 ||
+                        //         jlbl.dep_labels().size() == 0 ||
+                        //         ilbl == jlbl);
+                        EXPECTS(ilbl == jlbl);
                     }
                 }
             }
         }
         for(size_t i = 0; i < ilv_.size(); i++) {
-            for(size_t j = i+1; j < ilv_.size(); j++) {
+            for(size_t j = i + 1; j < ilv_.size(); j++) {
                 if(str_map_[i] && str_map_[j] && slv_[i] == slv_[j]) {
                     const auto& is = tensor_.tiled_index_spaces()[i];
                     const auto& js = tensor_.tiled_index_spaces()[j];
@@ -462,16 +478,39 @@ private:
                 }
             }
         }
+#if 0
+        //enable once Tensor::dep_map() is implemented
+        std::vector<std::vector<size_t>>& dep_map = tensor_.dep_map();
+        EXPECTS(dep_map.size() == ilv_.size());
+        for(size_t i=0; i < dep_map.size(); i++) {
+            if(dep_map[i].size() > 0) {
+                EXPECTS(str_map_[i] == false);
+                EXPECTS(dep_map[i].size() == ilv_[i].dep_labels().size());
+                for(size_t j=0; j< dep_map.size(); j++) {
+                    size_t dlpos = dep_map[i][j];
+                    EXPECTS(str_map_[dlpos] == false);
+                    const auto& ltis = ilv_[dlpos].tiled_index_space();
+                    Label llbl = ilv_[dlpos].get_label();
+                    const auto& rtis = ilv_[i].dep_labels()[j].tiled_index_space();
+                    Label rlbl = ilv_[i].dep_labels()[j].get_label();
+                    EXPECTS(ltis==rtis && llbl==rlbl);
+                }
+            }
+        }
+#endif
     }
-    void unpack(size_t index) { 
+    void unpack(size_t index) {
         if(index == 0) {
-            for(size_t i=0; i<ilv_.size(); i++) {
-                ilv_[i] = tensor_.tiled_index_spaces()[i].label("all");
+            for(size_t i = 0; i < ilv_.size(); i++) {
+                ilv_[i]     = tensor_.tiled_index_spaces()[i].label(i);
                 str_map_[i] = false;
             }
         } else {
             EXPECTS(index == tensor_.num_modes());
         }
+        EXPECTS(str_map_.size() == tensor_.num_modes());
+        EXPECTS(ilv_.size() == tensor_.num_modes());
+        EXPECTS(slv_.size() == tensor_.num_modes());
     }
 
     template<typename... Args>
@@ -539,29 +578,68 @@ inline std::tuple<LabeledTensor<T>, LabeledTensor<T>> operator*(
 #endif
 
 /**
- * @brief Check if the parameters forma valid add operation. The parameters 
+ * @brief Check if the setop operation is valid. A set operation is valid if:
+ *
+ * 1. The scalar is convertible to to the tensor element type
+ *
+ * 2. All labels used as keys in some tensor label are the primary labels in
+ * other some other position.
+ *
+ * @tparam LabeledTensorType type of labeled tensor LHS
+ * @tparam T Type of scalar being assigned to the tensor
+ * @param ltc Tensor being set
+ * @param alpha Scalar used to set the tensor
+ *
+ * @pre ltc.validate() has been invoked
+ */
+template<typename LabeledTensorType, typename T>
+inline void setop_validate(const LabeledTensorType& ltc, T alpha) {
+    using tensor_el_type = typename LabeledTensorType::element_type;
+
+    static_assert(std::is_convertible<T, tensor_el_type>(),
+                  "Error setop: mismatch between scalar type and tensor type");
+
+    size_t rank         = ltc.tensor().num_modes();
+    const auto& lbl_vec = ltc.labels();
+    for(size_t i = 0; i < rank; i++) {
+        if(!ltc.str_map()[i] && lbl_vec[i].dep_labels().size() > 0) {
+            for(const auto& dlbl : lbl_vec[i].dep_labels()) {
+                size_t j = 0;
+                for(; j < rank; j++) {
+                    if(dlbl.primary_label() == lbl_vec[j].primary_label()) {
+                        break;
+                    }
+                }
+                EXPECTS(j < rank);
+            }
+        }
+    }
+}
+
+/**
+ * @brief Check if the parameters forma valid add operation. The parameters
  * (ltc, tuple(alpha,lta)) form a valid add operation if:
- * 
+ *
  * 1. Every label depended on by another label (i.e., all 'd' such that there
  *  exists label 'l(d)') is bound at least once
- * 
- * 2. There are no conflicting dependent label specifications. That if 'a(i)' 
+ *
+ * 2. There are no conflicting dependent label specifications. That if 'a(i)'
  * is a label in either lta or ltc,
  * there is no label 'a(j)' (i!=j) in either lta or ltc.
- * 
+ *
  * @tparam LabeledTensorType Type RHS labeled tensor
  * @tparam T Type of scaling factor (alpha)
  * @param ltc LHS tensor being added to
  * @param rhs RHS (scaling factor and labeled tensor)
- * 
+ *
  * @pre ltc.validate() has been invoked
  * @pre lta.validate() has been invoked
  */
 template<typename LabeledTensorType, typename T>
 inline void addop_validate(const LabeledTensorType& ltc,
                            const std::tuple<T, LabeledTensorType>& rhs) {
-    T alpha = std::get<0>(rhs);
-    const auto&lta =std::get<1>(rhs);
+    T alpha         = std::get<0>(rhs);
+    const auto& lta = std::get<1>(rhs);
 #if 0
     auto lta = rhs1_t;
     // EXPECTS(ltc.tensor() != nullptr);

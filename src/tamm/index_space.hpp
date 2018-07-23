@@ -363,7 +363,8 @@ public:
      */
     TiledIndexSpace(const IndexSpace& is, const std::vector<Tile>& sizes) :
       is_{is},
-      input_tile_size_{0}, /// @todo default when irregular tile size provided
+      input_tile_size_{0},
+      input_tile_sizes_{sizes},
       tile_offsets_{construct_tiled_indices(is, sizes)} {
         if(!is.is_dependent()) {
             for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
@@ -435,6 +436,10 @@ public:
      * @returns a (sub)TiledIndexSpace associated with the subspace name string
      */
     TiledIndexSpace operator()(std::string id) const {
+        if(id == "all"){
+            return (*this);
+        }
+
         return TiledIndexSpace((*this), id, input_tile_size_);
     }
 
@@ -491,7 +496,37 @@ public:
     }
 
     bool is_compatible_with(const TiledIndexSpace& tis) const {
-        NOT_IMPLEMENTED();
+        // NOT_IMPLEMENTED();
+        // Check if the input tile size match
+        if(tis.input_tile_size() != input_tile_size_) { return false; }
+
+        // Check if the input tile sizes match
+        const auto& rhs_tile_sizes = tis.input_tile_sizes();
+        EXPECTS(rhs_tile_sizes.size() == input_tile_sizes_.size());
+        for(size_t i = 0; i < rhs_tile_sizes.size(); i++) {
+            if(rhs_tile_sizes[i] != input_tile_sizes_[i]) { return false; }
+        }
+
+        // Check if dependencies match
+        if(tis.is_dependent() != (*this).is_dependent()) { return false; }
+
+        if(tis.is_dependent()) {
+            const auto& dep_map = tis.tiled_dep_map();
+            // Check if each tiled index space in a dependency map is compatible
+            // @todo: check subspaces for dependent tiled index space
+            for(const auto& kv : tiled_dep_map_) {
+                if(!kv.second.is_compatible_with(dep_map.at(kv.first))) {
+                    return false;
+                }
+            }
+        } else {
+            // Check index spaces have compatible reference spaces
+            if(!(*this).index_space().is_compatible_reference(
+                 tis.index_space())) {
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -589,12 +624,42 @@ public:
     Index tile_size(Index i) const { return tile_offsets_[i]; }
 
     /**
+     * @brief Get the input tile size for tiled index space
+     *
+     * @returns input tile size
+     */
+    Tile input_tile_size() const { return input_tile_size_; }
+
+    /**
+     * @brief Get the input tile size for tiled index space
+     *
+     * @returns input tile sizes
+     */
+    const std::vector<Tile>& input_tile_sizes() const {
+        return input_tile_sizes_;
+    }
+
+    /**
+     * @brief Get tiled dependent spaces map
+     *
+     * @returns a map from dependent indicies to tiled index spaces
+     */
+    const std::map<IndexVector, TiledIndexSpace>& tiled_dep_map() const {
+        return tiled_dep_map_;
+    }
+
+    /**
      * @brief Accessor to tile offsets
      *
      * @return Tile offsets
      */
     const IndexVector& tile_offsets() const { return tile_offsets_; }
 
+    /**
+     * @brief Check if reference index space is a dependent index space
+     *
+     * @returns true if the reference index space is a dependent index space
+     */
     const bool is_dependent() const { return is_.is_dependent(); }
 
     /**
@@ -664,8 +729,10 @@ public:
                            const TiledIndexSpace& rhs);
 
 protected:
-    IndexSpace is_;            /**< The index space being tiled*/
-    Tile input_tile_size_;     /**< User-specified tile size*/
+    IndexSpace is_;        /**< The index space being tiled*/
+    Tile input_tile_size_; /**< User-specified tile size*/
+    std::vector<Tile>
+      input_tile_sizes_;       /**< User-specified multiple tile sizes*/
     IndexVector tile_offsets_; /**< Tile offsets */
     IndexVector simple_vec_;   /**< vector where at(i) = i*/
 
@@ -839,7 +906,7 @@ inline bool operator>=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
 /**
  * @brief Index label to index into tensors. The labels used by the user need to
  * be positive.
- * 
+ *
  */
 class TiledIndexLabel {
 public:
@@ -857,8 +924,8 @@ public:
       tis_{t_il.tis_},
       label_{t_il.label_},
       dep_labels_{dep_labels} {
-          EXPECTS(is_compatible_with(tis_));
-      }
+        EXPECTS(is_compatible_with(tis_));
+    }
 
     // Copy Construtors
     TiledIndexLabel(const TiledIndexLabel&) = default;
@@ -868,11 +935,16 @@ public:
     ~TiledIndexLabel() = default;
 
     TiledIndexLabel operator()(TiledIndexLabel il1) const {
+        EXPECTS(!(*this).is_identical(il1));
+
         return TiledIndexLabel{*this, {il1}};
     }
     TiledIndexLabel operator()() const { return {*this}; }
 
     TiledIndexLabel operator()(TiledIndexLabel il1, TiledIndexLabel il2) const {
+        EXPECTS(!(*this).is_identical(il1));
+        EXPECTS(!(*this).is_identical(il2));
+
         return TiledIndexLabel{*this, {il1, il2}};
     }
 
@@ -888,7 +960,8 @@ public:
 
     Label get_label() const { return label_; }
 
-    /// @todo: this is never called from outside currently, should this be private and used internally?
+    /// @todo: this is never called from outside currently, should this be
+    /// private and used internally?
     bool is_compatible_with(const TiledIndexSpace& tis) const {
         const auto& key_tiss = tis.index_space().key_tiled_index_spaces();
         EXPECTS(key_tiss.size() == dep_labels().size());

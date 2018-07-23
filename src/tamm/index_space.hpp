@@ -338,21 +338,10 @@ public:
      * @param [in] is reference IndexSpace
      * @param [in] size tile size (default: 1)
      */
-    TiledIndexSpace(const IndexSpace& is, Tile tile_size = 1) :
-      is_{is},
-      input_tile_size_{tile_size},
-      tile_offsets_{construct_tiled_indices(is, tile_size)} {
-        if(!is.is_dependent()) {
-            for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
-                simple_vec_.push_back(i);
-            }
-        }
-
-        for(const auto& kv : is.map_tiled_index_spaces()) {
-            tiled_dep_map_.insert(std::pair<IndexVector, TiledIndexSpace>{
-              kv.first, TiledIndexSpace{kv.second, tile_size}});
-        }
-    }
+    TiledIndexSpace(const IndexSpace& is, Tile input_tile_size = 1) :
+      tiled_info_{std::make_shared<TiledIndexSpace::TiledIndexSpaceInfo>(
+        is, input_tile_size, std::vector<Tile>{})} {}
+    
 
     /**
      * @brief Construct a new TiledIndexSpace from a reference
@@ -361,21 +350,11 @@ public:
      * @param [in] is
      * @param [in] sizes
      */
-    TiledIndexSpace(const IndexSpace& is, const std::vector<Tile>& sizes) :
-      is_{is},
-      input_tile_size_{0}, /// @todo default when irregular tile size provided
-      tile_offsets_{construct_tiled_indices(is, sizes)} {
-        if(!is.is_dependent()) {
-            for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
-                simple_vec_.push_back(i);
-            }
-        }
-
-        for(const auto& kv : is.map_tiled_index_spaces()) {
-            tiled_dep_map_.insert(std::pair<IndexVector, TiledIndexSpace>{
-              kv.first, TiledIndexSpace{kv.second, sizes}});
-        }
-    }
+    TiledIndexSpace(const IndexSpace& is,
+                    const std::vector<Tile>& input_sizes) :
+      tiled_info_{std::make_shared<TiledIndexSpace::TiledIndexSpaceInfo>(
+        is, 0, input_sizes)} {}
+    
 
     /**
      * @brief Construct a new TiledIndexSpace object from
@@ -387,7 +366,7 @@ public:
      */
     TiledIndexSpace(const TiledIndexSpace& t_is, const Range& range,
                     Tile size = 1) :
-      TiledIndexSpace(IndexSpace{t_is.is_, range}, size) {}
+      TiledIndexSpace(IndexSpace{(*t_is.tiled_info_).is_, range}, size) {}
 
     /**
      * @brief Construct a new TiledIndexSpace object from a reference
@@ -399,7 +378,7 @@ public:
      */
     TiledIndexSpace(const TiledIndexSpace& t_is, const std::string& id,
                     Tile size = 1) :
-      TiledIndexSpace(t_is.is_(id), size) {}
+      TiledIndexSpace((*t_is.tiled_info_).is_(id), size) {}
 
     /**
      * @brief Get a TiledIndexLabel for a specific subspace of the
@@ -435,7 +414,10 @@ public:
      * @returns a (sub)TiledIndexSpace associated with the subspace name string
      */
     TiledIndexSpace operator()(std::string id) const {
-        return TiledIndexSpace((*this), id, input_tile_size_);
+        if(id == "all") { return (*this); }
+
+        return TiledIndexSpace((*this), id,
+                               (*(*this).tiled_info_).input_tile_size_);
     }
 
     /**
@@ -444,7 +426,7 @@ public:
      * @returns a const_iterator to an Index at the first element of the
      * IndexSpace
      */
-    IndexIterator begin() const { return simple_vec_.begin(); }
+    IndexIterator begin() const { return (*tiled_info_).simple_vec_.begin(); }
 
     /**
      * @brief Iterator accessor to the end of the reference IndexSpace
@@ -452,7 +434,7 @@ public:
      * @returns a const_iterator to an Index at the size-th element of the
      * IndexSpace
      */
-    IndexIterator end() const { return simple_vec_.end(); }
+    IndexIterator end() const { return (*tiled_info_).simple_vec_.end(); }
 
     /**
      * @brief Iterator accessor to the first Index element of a specific block
@@ -463,7 +445,8 @@ public:
      */
     IndexIterator block_begin(Index blck_ind) const {
         EXPECTS(blck_ind <= size());
-        return is_.begin() + tile_offsets_[blck_ind];
+        return (*tiled_info_).is_.begin() +
+               (*tiled_info_).tile_offsets_[blck_ind];
     }
     /**
      * @brief Iterator accessor to the last Index element of a specific block
@@ -474,7 +457,8 @@ public:
      */
     IndexIterator block_end(Index blck_ind) const {
         EXPECTS(blck_ind <= size());
-        return is_.begin() + tile_offsets_[blck_ind + 1];
+        return (*tiled_info_).is_.begin() +
+               (*tiled_info_).tile_offsets_[blck_ind + 1];
     }
 
     /**
@@ -487,11 +471,43 @@ public:
     bool is_identical(const TiledIndexSpace& rhs) const {
         //@todo return std::tie(tile_size_, is_) == std::tie(rhs.tile_size_,
         // rhs.is_);
-        return is_ == rhs.is_;
+        // return is_ == rhs.is_;
+        return tiled_info_ == rhs.tiled_info_;
     }
 
     bool is_compatible_with(const TiledIndexSpace& tis) const {
-        NOT_IMPLEMENTED();
+        // NOT_IMPLEMENTED();
+        //Check if the input tile size match
+        if(tis.input_tile_size() != (*tiled_info_).input_tile_size_) { return false; }
+
+        // Check if the input tile sizes match
+        const auto& rhs_tile_sizes = tis.input_tile_sizes();
+        EXPECTS(rhs_tile_sizes.size() == (*tiled_info_).input_tile_sizes_.size());
+        for(size_t i = 0; i < rhs_tile_sizes.size(); i++) {
+            if(rhs_tile_sizes[i] != (*tiled_info_).input_tile_sizes_[i]) { return false; }
+        }
+
+        // Check if dependencies match
+        if(tis.is_dependent() != (*this).is_dependent()) { return false; }
+
+        if(tis.is_dependent()) {
+            const auto& dep_map = tis.tiled_dep_map();
+            // Check if each tiled index space in a dependency map is
+            // compatible
+            // @todo: check subspaces for dependent tiled index space
+            for(const auto& kv : (*tiled_info_).tiled_dep_map_) {
+                if(!kv.second.is_compatible_with(dep_map.at(kv.first))) {
+                    return false;
+                }
+            }
+        } else {
+            // Check index spaces have compatible reference spaces
+            if(!(*this).index_space().is_compatible_reference(
+                 tis.index_space())) {
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -505,7 +521,8 @@ public:
     bool is_less_than(const TiledIndexSpace& rhs) const {
         //@todo return (tile_size_ == rhs.tile_size_) &&
         //(is_.is_less_than(rhs.is_));
-        return is_.is_less_than(rhs.is_);
+        // return is_.is_less_than(rhs.is_);
+        return tiled_info_ < rhs.tiled_info_;
     }
 
     /**
@@ -514,7 +531,7 @@ public:
      * @param [in] idx input Index value
      * @returns associated Spin value for the input Index value
      */
-    Spin spin(Index idx) const { return is_.spin(idx); }
+    Spin spin(Index idx) const { return (*tiled_info_).is_.spin(idx); }
 
     /**
      * @brief Accessor methods to Spatial value associated with the input Index
@@ -522,7 +539,7 @@ public:
      * @param [in] idx input Index value
      * @returns associated Spatial value for the input Index value
      */
-    Spatial spatial(Index idx) const { return is_.spatial(idx); }
+    Spatial spatial(Index idx) const { return (*tiled_info_).is_.spatial(idx); }
 
     /**
      * @brief Accessor method for the set of Ranges associated with a Spin value
@@ -531,7 +548,7 @@ public:
      * @returns a vector of Ranges associated with the input Spin value
      */
     std::vector<Range> spin_ranges(Spin spin) const {
-        return is_.spin_ranges(spin);
+        return (*tiled_info_).is_.spin_ranges(spin);
     }
 
     /**
@@ -542,7 +559,7 @@ public:
      * @returns a vector of Ranges associated with the input Spatial value
      */
     std::vector<Range> spatial_ranges(Spatial spatial) const {
-        return is_.spatial_ranges(spatial);
+        return (*tiled_info_).is_.spatial_ranges(spatial);
     }
 
     /**
@@ -550,7 +567,7 @@ public:
      *
      * @returns true if there is a SpinAttribute associated with the IndexSpace
      */
-    bool has_spin() const { return is_.has_spin(); }
+    bool has_spin() const { return (*tiled_info_).is_.has_spin(); }
 
     /**
      * @brief Boolean method for checking if an IndexSpace has SpatialAttribute
@@ -558,44 +575,78 @@ public:
      * @return true if there is a SpatialAttribute associated with the
      * IndexSpace
      */
-    bool has_spatial() const { return is_.has_spatial(); }
+    bool has_spatial() const { return (*tiled_info_).is_.has_spatial(); }
 
     /**
      * @brief Getter method for the reference IndexSpace
      *
      * @return IndexSpace reference
      */
-    const IndexSpace& index_space() const { return is_; }
+    const IndexSpace& index_space() const { return (*tiled_info_).is_; }
 
     /**
      * @brief Get the number of tiled index blocks in TiledIndexSpace
      *
      * @return size of TiledIndexSpace
      */
-    std::size_t size() const { return tile_offsets_.size() - 1; }
+    std::size_t size() const { return (*tiled_info_).tile_offsets_.size() - 1; }
 
     /**
      * @brief Get the max. number of tiled index blocks in TiledIndexSpace
      *
      * @return max size of TiledIndexSpace
      */
-    std::size_t max_size() const { return tile_offsets_.size(); }
+    std::size_t max_size() const { return (*tiled_info_).tile_offsets_.size(); }
 
     /**
      * @brief Get the tile size for the index blocks
      *
      * @return Tile size
      */
-    Index tile_size(Index i) const { return tile_offsets_[i]; }
+    Index tile_size(Index i) const { return (*tiled_info_).tile_offsets_[i]; }
+
+    /**
+     * @brief Get the input tile size for tiled index space
+     *
+     * @returns input tile size
+     */
+    Tile input_tile_size() const { return (*tiled_info_).input_tile_size_; }
+
+    /**
+     * @brief Get the input tile size for tiled index space
+     *
+     * @returns input tile sizes
+     */
+    const std::vector<Tile>& input_tile_sizes() const {
+        return (*tiled_info_).input_tile_sizes_;
+    }
+
+    /**
+     * @brief Get tiled dependent spaces map
+     *
+     * @returns a map from dependent indicies to tiled index spaces
+     */
+    const std::map<IndexVector, TiledIndexSpace>& tiled_dep_map() const {
+        return (*tiled_info_).tiled_dep_map_;
+    }
 
     /**
      * @brief Accessor to tile offsets
      *
      * @return Tile offsets
      */
-    const IndexVector& tile_offsets() const { return tile_offsets_; }
+    const IndexVector& tile_offsets() const {
+        return (*tiled_info_).tile_offsets_;
+    }
 
-    const bool is_dependent() const { return is_.is_dependent(); }
+    /**
+     * @brief Check if reference index space is a dependent index space
+     *
+     * @returns true if the reference index space is a dependent index space
+     */
+    const bool is_dependent() const {
+        return (*tiled_info_).is_.is_dependent();
+    }
 
     /**
      * @brief Equality comparison operator
@@ -664,146 +715,188 @@ public:
                            const TiledIndexSpace& rhs);
 
 protected:
-    IndexSpace is_;            /**< The index space being tiled*/
-    Tile input_tile_size_;     /**< User-specified tile size*/
-    IndexVector tile_offsets_; /**< Tile offsets */
-    IndexVector simple_vec_;   /**< vector where at(i) = i*/
+    struct TiledIndexSpaceInfo {
+        /* data */
+        IndexSpace is_;        /**< The index space being tiled*/
+        Tile input_tile_size_; /**< User-specified tile size*/
+        std::vector<Tile>
+          input_tile_sizes_;       /**< User-specified multiple tile sizes*/
+        IndexVector tile_offsets_; /**< Tile offsets */
+        IndexVector simple_vec_;   /**< vector where at(i) = i*/
 
-    std::map<IndexVector, TiledIndexSpace>
-      tiled_dep_map_; /**< Tiled dependency map for dependent index spaces*/
+        std::map<IndexVector, TiledIndexSpace>
+          tiled_dep_map_; /**< Tiled dependency map for dependent index spaces*/
 
-    /**
-     * @brief Construct starting and ending indices of each tile with respect to
-     * the named subspaces
-     *
-     * @param [in] is reference IndexSpace
-     * @param [in] size Tile size value
-     * @returns a vector of indices corresponding to the start and end of each
-     * tile
-     */
-    IndexVector construct_tiled_indices(const IndexSpace& is, Tile tile_size) {
-        if(is.is_dependent()) { return {}; }
-
-        if(is.size() == 0) { return {0}; }
-
-        IndexVector boundries, ret;
-        // Get lo and hi for each named subspace ranges
-        for(const auto& kv : is.get_named_ranges()) {
-            for(const auto& range : kv.second) {
-                boundries.push_back(range.lo());
-                boundries.push_back(range.hi());
+        TiledIndexSpaceInfo(IndexSpace is, Tile input_tile_size,
+                            const std::vector<Tile>& input_tile_sizes) :
+          is_{is},
+          input_tile_size_{input_tile_size},
+          input_tile_sizes_{input_tile_sizes} {
+            if(input_tile_sizes.size() > 0) {
+                // construct indices with set of tile sizes
+                tile_offsets_ = construct_tiled_indices(is, input_tile_sizes);
+                // construct dependency according to tile sizes
+                for(const auto& kv : is.map_tiled_index_spaces()) {
+                    tiled_dep_map_.insert(
+                      std::pair<IndexVector, TiledIndexSpace>{
+                        kv.first,
+                        TiledIndexSpace{kv.second, input_tile_sizes}});
+                }
+            } else {
+                // construct indices with input tile size
+                tile_offsets_ = construct_tiled_indices(is, input_tile_size);
+                // construct dependency according to tile size
+                for(const auto& kv : is.map_tiled_index_spaces()) {
+                    tiled_dep_map_.insert(
+                      std::pair<IndexVector, TiledIndexSpace>{
+                        kv.first, TiledIndexSpace{kv.second, input_tile_size}});
+                }
             }
-        }
 
-        // Get SpinAttribute boundries
-        if(is.has_spin()) {
-            for(const auto& kv : is.get_spin().get_map()) {
-                for(const auto& range : kv.second) {
-                    boundries.push_back(range.lo());
-                    boundries.push_back(range.hi());
+            if(!is.is_dependent()) {
+                for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
+                    simple_vec_.push_back(i);
                 }
             }
         }
-        // Get SpinAttribute boundries
-        if(is.has_spatial()) {
-            for(const auto& kv : is.get_spatial().get_map()) {
-                for(const auto& range : kv.second) {
-                    boundries.push_back(range.lo());
-                    boundries.push_back(range.hi());
-                }
-            }
-        }
+        /**
+         * @brief Construct starting and ending indices of each tile with
+         * respect to the named subspaces
+         *
+         * @param [in] is reference IndexSpace
+         * @param [in] size Tile size value
+         * @returns a vector of indices corresponding to the start and end of
+         * each tile
+         */
+        IndexVector construct_tiled_indices(const IndexSpace& is,
+                                            Tile tile_size) {
+            if(is.is_dependent()) { return {}; }
 
-        // If no boundry clean split with respect to tile size
-        if(boundries.empty()) {
-            // add starting indices
-            for(size_t i = 0; i < is.size(); i += tile_size) {
-                ret.push_back(i);
-            }
-            // add size of IndexSpace for the last block
-            ret.push_back(is.size());
-        } else { // Remove duplicates
-            std::sort(boundries.begin(), boundries.end());
-            auto last = std::unique(boundries.begin(), boundries.end());
-            boundries.erase(last, boundries.end());
-            // Construct start indices for blocks according to boundries.
-            std::size_t i = 0;
-            std::size_t j = (i == boundries[0]) ? 1 : 0;
+            if(is.size() == 0) { return {0}; }
 
-            while(i < is.size()) {
-                ret.push_back(i);
-                i = (i + tile_size >= boundries[j]) ? boundries[j++] :
-                                                      (i + tile_size);
-            }
-            // add size of IndexSpace for the last block
-            ret.push_back(is.size());
-        }
-
-        return ret;
-    }
-
-    IndexVector construct_tiled_indices(const IndexSpace& is,
-                                        const std::vector<Tile>& tiles) {
-        if(is.is_dependent()) { return {}; }
-
-        if(is.size() == 0) { return {0}; }
-        // Check if sizes match
-        EXPECTS(is.size() == [&tiles]() {
-            size_t ret = 0;
-            for(const auto& var : tiles) { ret += var; }
-            return ret;
-        }());
-
-        IndexVector ret, boundries;
-
-        if(is.has_spin()) {
-            auto spin_map = is.get_spin().get_map();
-            for(const auto& kv : spin_map) {
-                for(const auto& range : kv.second) {
-                    boundries.push_back(range.lo());
-                    boundries.push_back(range.hi());
-                }
-            }
-        }
-
-        if(is.has_spatial()) {
-            auto spatial_map = is.get_spatial().get_map();
-            for(const auto& kv : spatial_map) {
-                for(const auto& range : kv.second) {
-                    boundries.push_back(range.lo());
-                    boundries.push_back(range.hi());
-                }
-            }
-        }
-
-        if(is.get_named_ranges().empty()) {
+            IndexVector boundries, ret;
+            // Get lo and hi for each named subspace ranges
             for(const auto& kv : is.get_named_ranges()) {
                 for(const auto& range : kv.second) {
                     boundries.push_back(range.lo());
                     boundries.push_back(range.hi());
                 }
             }
-        }
 
-        // add starting indices
-        size_t j = 0;
-        for(size_t i = 0; i < is.size(); i += tiles[j++]) { ret.push_back(i); }
-        // add size of IndexSpace for the last block
-        ret.push_back(is.size());
-
-        if(!(boundries.empty())) {
-            std::sort(boundries.begin(), boundries.end());
-            auto last = std::unique(boundries.begin(), boundries.end());
-            boundries.erase(last, boundries.end());
-            // check if there is any mismatch between boudries and generated
-            // start indices
-            for(auto& bound : boundries) {
-                EXPECTS(std::binary_search(ret.begin(), ret.end(), bound));
+            // Get SpinAttribute boundries
+            if(is.has_spin()) {
+                for(const auto& kv : is.get_spin().get_map()) {
+                    for(const auto& range : kv.second) {
+                        boundries.push_back(range.lo());
+                        boundries.push_back(range.hi());
+                    }
+                }
             }
+            // Get SpinAttribute boundries
+            if(is.has_spatial()) {
+                for(const auto& kv : is.get_spatial().get_map()) {
+                    for(const auto& range : kv.second) {
+                        boundries.push_back(range.lo());
+                        boundries.push_back(range.hi());
+                    }
+                }
+            }
+
+            // If no boundry clean split with respect to tile size
+            if(boundries.empty()) {
+                // add starting indices
+                for(size_t i = 0; i < is.size(); i += tile_size) {
+                    ret.push_back(i);
+                }
+                // add size of IndexSpace for the last block
+                ret.push_back(is.size());
+            } else { // Remove duplicates
+                std::sort(boundries.begin(), boundries.end());
+                auto last = std::unique(boundries.begin(), boundries.end());
+                boundries.erase(last, boundries.end());
+                // Construct start indices for blocks according to boundries.
+                std::size_t i = 0;
+                std::size_t j = (i == boundries[0]) ? 1 : 0;
+
+                while(i < is.size()) {
+                    ret.push_back(i);
+                    i = (i + tile_size >= boundries[j]) ? boundries[j++] :
+                                                          (i + tile_size);
+                }
+                // add size of IndexSpace for the last block
+                ret.push_back(is.size());
+            }
+
+            return ret;
         }
 
-        return ret;
-    }
+        IndexVector construct_tiled_indices(const IndexSpace& is,
+                                            const std::vector<Tile>& tiles) {
+            if(is.is_dependent()) { return {}; }
+
+            if(is.size() == 0) { return {0}; }
+            // Check if sizes match
+            EXPECTS(is.size() == [&tiles]() {
+                size_t ret = 0;
+                for(const auto& var : tiles) { ret += var; }
+                return ret;
+            }());
+
+            IndexVector ret, boundries;
+
+            if(is.has_spin()) {
+                auto spin_map = is.get_spin().get_map();
+                for(const auto& kv : spin_map) {
+                    for(const auto& range : kv.second) {
+                        boundries.push_back(range.lo());
+                        boundries.push_back(range.hi());
+                    }
+                }
+            }
+
+            if(is.has_spatial()) {
+                auto spatial_map = is.get_spatial().get_map();
+                for(const auto& kv : spatial_map) {
+                    for(const auto& range : kv.second) {
+                        boundries.push_back(range.lo());
+                        boundries.push_back(range.hi());
+                    }
+                }
+            }
+
+            if(is.get_named_ranges().empty()) {
+                for(const auto& kv : is.get_named_ranges()) {
+                    for(const auto& range : kv.second) {
+                        boundries.push_back(range.lo());
+                        boundries.push_back(range.hi());
+                    }
+                }
+            }
+
+            // add starting indices
+            size_t j = 0;
+            for(size_t i = 0; i < is.size(); i += tiles[j++]) {
+                ret.push_back(i);
+            }
+            // add size of IndexSpace for the last block
+            ret.push_back(is.size());
+
+            if(!(boundries.empty())) {
+                std::sort(boundries.begin(), boundries.end());
+                auto last = std::unique(boundries.begin(), boundries.end());
+                boundries.erase(last, boundries.end());
+                // check if there is any mismatch between boudries and generated
+                // start indices
+                for(auto& bound : boundries) {
+                    EXPECTS(std::binary_search(ret.begin(), ret.end(), bound));
+                }
+            }
+
+            return ret;
+        }
+    };
+
+    std::shared_ptr<TiledIndexSpaceInfo> tiled_info_;
 
     template<std::size_t... Is>
     auto labels_impl(std::string id, Label start,
@@ -836,6 +929,11 @@ inline bool operator>=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
     return (rhs <= lhs);
 }
 
+/**
+ * @brief Index label to index into tensors. The labels used by the user need to
+ * be positive.
+ *
+ */
 class TiledIndexLabel {
 public:
     // Constructor
@@ -852,8 +950,8 @@ public:
       tis_{t_il.tis_},
       label_{t_il.label_},
       dep_labels_{dep_labels} {
-          EXPECTS(is_compatible_with(tis_));
-      }
+        EXPECTS(is_compatible_with(tis_));
+    }
 
     // Copy Construtors
     TiledIndexLabel(const TiledIndexLabel&) = default;
@@ -863,11 +961,16 @@ public:
     ~TiledIndexLabel() = default;
 
     TiledIndexLabel operator()(TiledIndexLabel il1) const {
+        EXPECTS(!(*this).is_identical(il1));
+
         return TiledIndexLabel{*this, {il1}};
     }
     TiledIndexLabel operator()() const { return {*this}; }
 
     TiledIndexLabel operator()(TiledIndexLabel il1, TiledIndexLabel il2) const {
+        EXPECTS(!(*this).is_identical(il1));
+        EXPECTS(!(*this).is_identical(il2));
+
         return TiledIndexLabel{*this, {il1, il2}};
     }
 
@@ -883,7 +986,8 @@ public:
 
     Label get_label() const { return label_; }
 
-    /// @todo: this is never called from outside currently, should this be private and used internally?
+    /// @todo: this is never called from outside currently, should this be
+    /// private and used internally?
     bool is_compatible_with(const TiledIndexSpace& tis) const {
         const auto& key_tiss = tis.index_space().key_tiled_index_spaces();
         EXPECTS(key_tiss.size() == dep_labels().size());
@@ -895,6 +999,10 @@ public:
 
     const std::vector<TiledIndexLabel>& dep_labels() const {
         return dep_labels_;
+    }
+
+    std::pair<TiledIndexSpace, Label> primary_label() const {
+        return {tis_, label_};
     }
 
     const TiledIndexSpace& tiled_index_space() const { return tis_; }

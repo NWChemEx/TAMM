@@ -62,7 +62,7 @@ using Sign = StrongNum<SignSpace, int32_t>;
 // these are typedefs for usability
 using Size       = Offset;
 using BlockCount = BlockIndex;
-using Label      = int;
+using Label      = int; //needs to support negative values
 
 enum class AllocationStatus { invalid, created, attached };
 

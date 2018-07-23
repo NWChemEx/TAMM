@@ -42,6 +42,9 @@ using Tile          = uint32_t;
 using HashData      = uint64_t;
 using StringLabelVec    = std::vector<std::string>;
 
+using Perm = int32_t;
+using PermVector = std::vector<Perm>;
+
 //////////////////////////////////
 struct IrrepSpace;
 using Irrep = StrongNum<IrrepSpace, uint32_t>;

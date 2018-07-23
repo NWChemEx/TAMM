@@ -421,6 +421,13 @@ private:
      * 
      * 6. If two string labels (say at positions i and j) are identical, the
      *  tensor's index spaces at the same positions (i and j) are identical.
+     * 
+     * 7. If a dimension of a tensor is a dependent dimension, with dependency
+     * on dimensions i, j, etc., the corresponding label should be a dependent 
+     * label on the same dependent index space and should be dependent on the 
+     * same dimension positions. E.g., with a declaration T{i, a(i), k}, the use
+     * T(x, y(z),z) is invalid. For now, we will check that the label is over 
+     * the same tiled index space as the dimension.
      *
      */
     void validate() {
@@ -453,9 +460,10 @@ private:
                     const auto& jlbl = ilv_[j];
                     if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
                         ilbl.get_label() == jlbl.get_label()) {
-                        EXPECTS(ilbl.dep_labels().size() == 0 ||
-                                jlbl.dep_labels().size() == 0 ||
-                                ilbl == jlbl);
+                        // EXPECTS(ilbl.dep_labels().size() == 0 ||
+                        //         jlbl.dep_labels().size() == 0 ||
+                        //         ilbl == jlbl);
+                        EXPECTS(ilbl == jlbl);
                     }
                 }
             }
@@ -469,16 +477,36 @@ private:
                 }
             }
         }
+        std::vector<std::vector<size_t>> dep_map;// = tensor_.dep_map();
+        EXPECTS(dep_map.size() == ilv_.size());
+        for(size_t i=0; i < dep_map.size(); i++) {
+            if(dep_map[i].size() > 0) {
+                EXPECTS(str_map_[i] == false);
+                EXPECTS(dep_map[i].size() == ilv_[i].dep_labels().size());
+                for(size_t j=0; j< dep_map.size(); j++) {
+                    size_t dlpos = dep_map[i][j];
+                    EXPECTS(str_map_[dlpos] == false);
+                    const auto& ltis = ilv_[dlpos].tiled_index_space();
+                    Label llbl = ilv_[dlpos].get_label();
+                    const auto& rtis = ilv_[i].dep_labels()[j].tiled_index_space();
+                    Label rlbl = ilv_[i].dep_labels()[j].get_label();
+                    EXPECTS(ltis==rtis && llbl==rlbl);
+                }
+            }
+        }
     }
     void unpack(size_t index) { 
         if(index == 0) {
             for(size_t i=0; i<ilv_.size(); i++) {
-                ilv_[i] = tensor_.tiled_index_spaces()[i].label("all", i);
+                ilv_[i] = tensor_.tiled_index_spaces()[i].label(i);
                 str_map_[i] = false;
             }
         } else {
             EXPECTS(index == tensor_.num_modes());
         }
+        EXPECTS(str_map_.size() == tensor_.num_modes());
+        EXPECTS(ilv_.size() == tensor_.num_modes());
+        EXPECTS(slv_.size() == tensor_.num_modes());
     }
 
     template<typename... Args>

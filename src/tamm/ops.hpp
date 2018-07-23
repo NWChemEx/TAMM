@@ -87,7 +87,9 @@ class SetOp : public Op {
         : lhs_{lhs},
           alpha_{alpha},
           //loop_nest_{loop_nest},
-          is_assign_{is_assign} {}
+          is_assign_{is_assign} {
+            fillin_labels();
+          }
 
     SetOp(const SetOp<T, LabeledTensorT>&) = default;
 
@@ -123,6 +125,28 @@ class SetOp : public Op {
     }
 
     protected:
+
+    void fillin_labels() {
+      IndexLabelVec new_labels = lhs_.labels();
+      const std::vector<bool>& str_map = lhs_.str_map();
+      const std::vector<std::string> str_labels = lhs_.str_labels();
+      size_t sz = lhs_.labels().size();
+
+      std::map<std::string, Label> str_to_labels;
+      for(size_t i=0; i<sz; i++) {
+        if(str_map[i]) {
+          str_to_labels[str_labels[i]] = -i-1;
+        }
+      }
+      for(size_t i=0; i<sz; i++) {
+        if(str_map[i]) {
+          new_labels[i] = lhs_.tensor().tiled_index_spaces()[i].
+            label(str_to_labels[str_labels[i]]);
+        }
+      }
+      lhs_.set_labels(new_labels);
+    }
+
     LabeledTensorT lhs_;
     T alpha_;
   //LabeledLoop loop_nest_;

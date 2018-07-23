@@ -229,6 +229,13 @@ public:
     const IndexLabelVec& labels() const { return ilv_; }
     const StringLabelVec& str_labels() const { return slv_; }
     const std::vector<bool>& str_map() const { return str_map_; }
+    void set_labels(const IndexLabelVec& ilv) {
+        EXPECTS(ilv_.size() == ilv.size());
+        ilv_ = ilv;
+        slv_.clear();
+        slv_.resize(ilv_.size());
+        str_map_ = std::vector<bool>(ilv_.size(), false);
+    }
 
     AddOp<T, LabeledTensor<T>> operator+=(const LabeledTensor<T> rhs) {
         return construct_addop(std::make_tuple(1.0, rhs), false);
@@ -466,7 +473,7 @@ private:
     void unpack(size_t index) { 
         if(index == 0) {
             for(size_t i=0; i<ilv_.size(); i++) {
-                ilv_[i] = tensor_.tiled_index_spaces()[i].label("all");
+                ilv_[i] = tensor_.tiled_index_spaces()[i].label("all", i);
                 str_map_[i] = false;
             }
         } else {
@@ -537,6 +544,46 @@ inline std::tuple<LabeledTensor<T>, LabeledTensor<T>> operator*(
 // }
 
 #endif
+
+/**
+ * @brief Check if the setop operation is valid. A set operation is valid if:
+ * 
+ * 1. The scalar is convertible to to the tensor element type
+ * 
+ * 2. All labels used as keys in some tensor label are the primary labels in 
+ * other some other position.
+ * 
+ * @tparam LabeledTensorType type of labeled tensor LHS
+ * @tparam T Type of scalar being assigned to the tensor
+ * @param ltc Tensor being set
+ * @param alpha Scalar used to set the tensor
+ * 
+ * @pre ltc.validate() has been invoked
+ */
+template<typename LabeledTensorType, typename T>
+inline void setop_validate(const LabeledTensorType& ltc,
+                            T alpha) {
+    using tensor_el_type = typename LabeledTensorType::element_type;
+
+    static_assert(std::is_convertible<T, tensor_el_type>(),
+                "Error setop: mismatch between scalar type and tensor type");
+
+    size_t rank = ltc.tensor().num_modes();
+    const auto& lbl_vec = ltc.labels();
+    for(size_t i=0; i<rank; i++) {
+        if(!ltc.str_map()[i] && lbl_vec[i].dep_labels().size()>0) {
+            for(const auto& dlbl: lbl_vec[i].dep_labels()) {
+                size_t j=0;
+                for(; j<rank; j++) {
+                    if(dlbl.primary_label() == lbl_vec[j].primary_label()) {
+                        break;
+                    }
+                }
+                EXPECTS(j < rank);
+            }
+        }
+    }
+}
 
 /**
  * @brief Check if the parameters forma valid add operation. The parameters 

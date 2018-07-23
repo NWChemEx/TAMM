@@ -836,6 +836,11 @@ inline bool operator>=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
     return (rhs <= lhs);
 }
 
+/**
+ * @brief Index label to index into tensors. The labels used by the user need to
+ * be positive.
+ * 
+ */
 class TiledIndexLabel {
 public:
     // Constructor
@@ -895,6 +900,10 @@ public:
 
     const std::vector<TiledIndexLabel>& dep_labels() const {
         return dep_labels_;
+    }
+
+    std::pair<TiledIndexSpace, Label> primary_label() const {
+        return {tis_, label_};
     }
 
     const TiledIndexSpace& tiled_index_space() const { return tis_; }

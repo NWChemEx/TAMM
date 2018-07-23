@@ -70,6 +70,128 @@ inline void fillin_tensor_label_from_map(
     ltensor.set_labels(new_labels);
 }
 
+inline size_t
+idx(int n, size_t *id, size_t *sz, int *p) {
+  size_t idx = 0;
+  for (int i = 0; i < n - 1; i++) {
+    idx = (idx + id[p[i]]) * sz[p[i + 1]];
+  }
+  if (n > 0) {
+    idx += id[p[n - 1]];
+  }
+  // std::cerr<<"idx return = "<<idx<<std::endl;
+  return idx;
+}
+
+template<typename T1, typename T2>
+inline void
+index_permute(T1* dbuf, const T1* sbuf, const PermVector& perm_to_dest, 
+              const std::vector<size_t>& ddims, T1 scale) {
+  // static_assert(std::is_same<T1, double>(), "index_permute only works with doubles");
+  // static_assert(std::is_convertible<T2, double>(), "index_permute only works with scale convertible to double");
+  EXPECTS(dbuf!=nullptr && sbuf!=nullptr);
+  EXPECTS(perm_to_dest.size() == ddims.size());
+
+  const size_t ndim = perm_to_dest.size();
+  EXPECTS(ddims.size() == ndim);
+
+  if(ndim == 0) {
+    dbuf[0] = scale * sbuf[0];
+  } else if(ndim == 1) {
+    for(size_t i=0; i<ddims[0]; i++) {
+      dbuf[i] = scale * sbuf[i];
+    }
+  } else if(ndim == 2) {
+    size_t sz[] = {ddims[0], ddims[1]};
+    size_t i[2], c;
+    for(c=0, i[0]=0; i[0]<sz[0]; i[0]++) {
+      for(i[1]=0; i[1]<sz[1]; i[1]++, c++) {
+        dbuf[c] = scale * sbuf[idx(2, i, sz, &perm_to_dest[0])];
+      }
+    }
+  } else if(ndim == 3) {
+    size_t sz[] = {ddims[0], ddims[1], ddims[2]};
+    size_t i[3], c;
+    for(c=0, i[0]=0; i[0]<sz[0]; i[0]++) {
+      for(i[1]=0; i[1]<sz[1]; i[1]++) {
+        for(i[2]=0; i[2]<sz[1]; i[2]++, c++) {
+          dbuf[c] = scale * sbuf[idx(3, i, sz, &perm_to_dest[0])];
+        }
+      }
+    }
+  } else if(ndim == 4) {
+    size_t sz[] = {ddims[0], ddims[1], ddims[2], ddims[3]};
+    size_t i[4], c;
+    for(c=0, i[0]=0; i[0]<sz[0]; i[0]++) {
+      for(i[1]=0; i[1]<sz[1]; i[1]++) {
+        for(i[2]=0; i[2]<sz[2]; i[2]++) {
+          for(i[3]=0; i[3]<sz[3]; i[3]++, c++) {
+            dbuf[c] = scale * sbuf[idx(4, i, sz, &perm_to_dest[0])];
+          }
+        }
+      }
+    }
+  } else {
+    NOT_IMPLEMENTED();
+  }
+  // //auto inv_perm = perm_invert(perm);
+  // auto inv_sizes = perm_apply(ddims, inv_perm);
+  // TensorVec<size_t> sizes;
+  // TensorVec<int> iperm;
+  // for(unsigned i=0; i<ddims.size(); i++) {
+  //   sizes.push_back(inv_sizes[i].value());
+  //   iperm.push_back(perm[i]+1);
+  // }
+  // index_sort(sbuf, dbuf,
+  //            sizes.size(), &sizes[0], &iperm[0], scale);
+}
+
+/**
+ * @ingroup perm
+ * @brief Compute permutation to be performed to permute vector @p from to vector @p to.
+ * @param from Source vector for the permutation
+ * @param to Target vector for the permutation
+ * @pre @p from and @p to are permutations of each other
+ * @pre from.size() == to.size()
+ * @return Vector to permute @p from to @p to.
+ * @post Return ret such that:
+ * ensures 0<=i<from.size(): to[i] = from[ret[i]]
+ */
+inline PermVec
+perm_compute(const IndexLabelVec& from, const IndexLabelVec& to) {
+  PermVec layout;
+
+  EXPECTS(from.size() == to.size());
+  for(auto p : to) {
+    auto itr = std::find(from.begin(), from.end(), p);
+    EXPECTS(itr != from.end());
+    layout.push_back(itr - from.begin());
+  }
+  return layout;
+}
+
+template<typename T, typename T1>
+inline void
+block_add (T* dbuf, const std::vector<size_t>& ddims, 
+          const IndexLabelVec& dlabel, 
+          T* sbuf, const std::vector<size_t>& sdims,
+          const IndexLabelVec& slabel,
+          T scale, bool update) {
+  EXPECTS(slabel.size() == dlabel.size());
+  EXPECTS(sdims.size() == slabel.size());
+  EXPECTS(ddims.size() == dlabel.size());
+  auto label_perm = perm_compute(dlabel, slabel);
+  for(unsigned i=0; i<label_perm.size(); i++) {
+    EXPECTS(ddims[i] == sdims[label_perm[i]]);
+  }
+  if(!update) {
+    index_permute(dbuf, sbuf, label_perm, ddims, scale);
+  } else {
+    //index_permute_acc(dbuf, sbuf, label_perm, ddims, scale);
+  }
+}
+
+
 } // namespace internal
 
 class Op {
@@ -203,14 +325,16 @@ public:
             IndexVector rblockid = internal::LabelMap<Index>()
                                      .update(lhs_.labels(), lblockid)
                                      .get(rhs_.labels());
-            std::vector<TensorElType> buf(size);
-            rtensor.get(rblockid, span<TensorElType>(&buf[0], size));
+            std::vector<TensorElType> rbuf(size);
+            std::vector<TensorElType> lbuf(size);
+            rtensor.get(rblockid, span<TensorElType>(&rbuf[0], size));
+            //block_add(lbuf, lsizes, llabel, rbuf, rsizes, rlabel);
             //@bug @todo Take labels into account when doing the add
-            for(auto& v : buf) { v *= static_cast<TensorElType>(alpha()); }
+            //for(auto& v : buf) { v *= static_cast<TensorElType>(alpha()); }
             if(is_assign_) {
-                ltensor.put(lblockid, span<TensorElType>(&buf[0], size));
+                ltensor.put(lblockid, span<TensorElType>(&lbuf[0], size));
             } else {
-                ltensor.add(lblockid, span<TensorElType>(&buf[0], size));
+                ltensor.add(lblockid, span<TensorElType>(&lbuf[0], size));
             }
         };
         // ec->...(loop_nest, lambda);

@@ -280,6 +280,10 @@ public:
         return impl_->block_size(blockid);
     }
 
+    std::vector<size_t> block_dims(const IndexVector& blockid) const {
+        return impl_->block_dims(blockid);
+    }
+
     const std::vector<TiledIndexSpace>& tiled_index_spaces() const {
         return impl_->tiled_index_spaces();
     }

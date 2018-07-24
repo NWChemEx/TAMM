@@ -154,26 +154,29 @@ public:
         return block_indices_;
     }
 
-    const std::map<Index,IndexVector>& dep_map() const {
-        return dep_map_;
-    }
+    const std::map<Index, IndexVector>& dep_map() const { return dep_map_; }
 
-    void construct_dep_map() {
-        std::map<TiledIndexSpace, Index> tmap;
-        for(size_t i = 0; i < block_indices_.size(); i++) {
-            tmap[block_indices_[i]] = Index{i};
+    Index find_dep(const TiledIndexSpace& tis) {
+        Index bis = block_indices_.size();
+        for(size_t i = 0; i < bis; i++) {
+            if(block_indices_[i].is_identical(tis)) return i;
         }
-
-        for(size_t i = 0; i < block_indices_.size(); i++) {
+        return bis;
+    }
+    
+    void construct_dep_map() {
+        Index bis = block_indices_.size();
+        for(Index i = 0; i < bis; i++) {
             auto tis = block_indices_[i];
             if(tis.is_dependent()) {
                 for(auto& dep : tis.index_space().key_tiled_index_spaces()) {
-                    auto itr = tmap.find(dep);
-                    if(itr != tmap.end() && itr->first != tis){
+                    Index pos = find_dep(dep);
+                    if(pos != bis)
+                    { 
                         auto itr1 = dep_map_.find(i);
-                        if(itr1 != dep_map_.end())
-                            dep_map_.at(i).push_back(itr->second);                        
-                         dep_map_[Index{i}] = IndexVector{itr->second};
+                        if(itr1 != dep_map_.end()) 
+                            dep_map_.at(i).push_back(pos);
+                        else dep_map_[Index{i}] = IndexVector{pos};
                     }
                 }
             }

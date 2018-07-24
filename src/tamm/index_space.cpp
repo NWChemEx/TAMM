@@ -42,7 +42,7 @@ IndexSpace::IndexSpace(const std::vector<TiledIndexSpace>& indep_spaces,
     for(const auto& kv : dep_space_relation) {
         ret.insert({construct_index_vector(kv.first), kv.second});
     }
-    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
+    std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
 
     impl_ = std::make_shared<DependentIndexSpaceImpl>(indep_spaces, ret);
     impl_->set_weak_ptr(impl_);
@@ -88,6 +88,10 @@ size_t IndexSpace::num_key_tiled_index_spaces() const {
 const std::map<IndexVector, IndexSpace>& IndexSpace::map_tiled_index_spaces()
   const {
     return impl_->map_tiled_index_spaces();
+}
+
+const std::map<std::string, IndexSpace>& IndexSpace::map_named_sub_index_spaces() const {
+    return impl_->map_named_sub_index_spaces();
 }
 
 // Index Accessors
@@ -168,9 +172,7 @@ bool operator>=(const IndexSpace& lhs, const IndexSpace& rhs) {
     return (lhs > rhs) || (lhs == rhs);
 }
 
-
-TiledIndexLabel
-TiledIndexSpace::label(Label lbl) const {
+TiledIndexLabel TiledIndexSpace::label(Label lbl) const {
     return TiledIndexLabel(*this, lbl);
 }
 

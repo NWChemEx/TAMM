@@ -478,27 +478,21 @@ private:
                 }
             }
         }
-#if 0
-        //enable once Tensor::dep_map() is implemented
-        std::vector<std::vector<size_t>>& dep_map = tensor_.dep_map();
-        EXPECTS(dep_map.size() == ilv_.size());
-        for(size_t i=0; i < dep_map.size(); i++) {
-            if(dep_map[i].size() > 0) {
-                EXPECTS(str_map_[i] == false);
-                EXPECTS(dep_map[i].size() == ilv_[i].dep_labels().size());
-                for(size_t j=0; j< dep_map.size(); j++) {
-                    size_t dlpos = dep_map[i][j];
-                    EXPECTS(str_map_[dlpos] == false);
-                    const auto& ltis = ilv_[dlpos].tiled_index_space();
-                    Label llbl = ilv_[dlpos].get_label();
-                    const auto& rtis = ilv_[i].dep_labels()[j].tiled_index_space();
-                    Label rlbl = ilv_[i].dep_labels()[j].get_label();
-                    EXPECTS(ltis==rtis && llbl==rlbl);
-                }
+
+        const std::map<Index,IndexVector>& dep_map = tensor_.dep_map();
+        for(auto itr = dep_map.begin(); itr!=dep_map.end(); ++itr){
+            const auto& dep_iv = itr->second;
+            for(auto &dlpos: dep_iv) {
+                EXPECTS(str_map_[dlpos] == false);
+                const auto& ltis = ilv_[dlpos].tiled_index_space();
+                Label llbl = ilv_[dlpos].get_label();
+                const auto& rtis = ilv_[itr->first].dep_labels()[dlpos].tiled_index_space();
+                Label rlbl = ilv_[itr->first].dep_labels()[dlpos].get_label();
+                EXPECTS(ltis==rtis && llbl==rlbl);
             }
         }
-#endif
-    }
+    } //validate
+
     void unpack(size_t index) {
         if(index == 0) {
             for(size_t i = 0; i < ilv_.size(); i++) {

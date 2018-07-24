@@ -1068,7 +1068,13 @@ public:
                     const std::vector<TiledIndexLabel> dep_labels = {}) :
       tis_{t_is},
       label_{lbl},
-      dep_labels_{dep_labels} {}
+      dep_labels_{dep_labels} {
+        // all labels dependent should be unique
+        auto temp_ilv = std::vector<TiledIndexLabel>{dep_labels};
+        std::sort(temp_ilv.begin(), temp_ilv.end());
+        EXPECTS(std::adjacent_find(temp_ilv.begin(), temp_ilv.end()) ==
+                temp_ilv.end());
+    }
 
     TiledIndexLabel(const TiledIndexLabel& t_il,
                     const std::vector<TiledIndexLabel>& dep_labels) :
@@ -1076,6 +1082,11 @@ public:
       label_{t_il.label_},
       dep_labels_{dep_labels} {
         EXPECTS(is_compatible_with(tis_));
+        // all labels dependent should be unique
+        auto temp_ilv = std::vector<TiledIndexLabel>{dep_labels};
+        std::sort(temp_ilv.begin(), temp_ilv.end());
+        EXPECTS(std::adjacent_find(temp_ilv.begin(), temp_ilv.end()) ==
+                temp_ilv.end());
     }
 
     // Copy Construtors
@@ -1088,18 +1099,31 @@ public:
     // Destructor
     ~TiledIndexLabel() = default;
 
-    TiledIndexLabel operator()(TiledIndexLabel il1) const {
-        EXPECTS(!(*this).is_identical(il1));
+    TiledIndexLabel operator()() const {
+        // all labels dependent should be unique
+        auto temp_ilv = std::vector<TiledIndexLabel>{dep_labels_};
+        std::sort(temp_ilv.begin(), temp_ilv.end());
+        EXPECTS(std::adjacent_find(temp_ilv.begin(), temp_ilv.end()) ==
+                temp_ilv.end());
 
-        return TiledIndexLabel{*this, {il1}};
+        return (*this);
     }
-    TiledIndexLabel operator()() const { return {*this}; }
 
-    TiledIndexLabel operator()(TiledIndexLabel il1, TiledIndexLabel il2) const {
-        EXPECTS(!(*this).is_identical(il1));
-        EXPECTS(!(*this).is_identical(il2));
+    template<typename... Args>
+    TiledIndexLabel operator()(const TiledIndexLabel& il1, Args... rest) {
+        dep_labels_.push_back(il1);
+        return (*this)(rest...);
+    }
 
-        return TiledIndexLabel{*this, {il1, il2}};
+    TiledIndexLabel operator()(const std::vector<TiledIndexLabel>& dep_ilv) {
+        // all labels dependent should be unique
+        auto temp_ilv = std::vector<TiledIndexLabel>{dep_ilv};
+        std::sort(temp_ilv.begin(), temp_ilv.end());
+        EXPECTS(std::adjacent_find(temp_ilv.begin(), temp_ilv.end()) ==
+                temp_ilv.end());
+
+        dep_labels_ = std::vector<TiledIndexLabel>{dep_ilv};
+        return (*this);
     }
 
     bool is_identical(const TiledIndexLabel& rhs) const {

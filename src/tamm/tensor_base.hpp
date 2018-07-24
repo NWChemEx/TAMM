@@ -58,6 +58,7 @@ public:
       num_modes_{lbls.size()} {
         for(const auto& lbl : lbls) {
             block_indices_.push_back(lbl.tiled_index_space());
+            tlabels_.push_back(lbl);
         }
         construct_dep_map();
     }
@@ -156,29 +157,31 @@ public:
 
     const std::map<Index, IndexVector>& dep_map() const { return dep_map_; }
 
-    Index find_dep(const TiledIndexSpace& tis) {
-        Index bis = block_indices_.size();
-        for(size_t i = 0; i < bis; i++) {
-            if(block_indices_[i].is_identical(tis)) return i;
+    Index find_dep(const TiledIndexLabel& til) {
+        Index bis = tlabels_.size();
+        for(Index i = 0; i < bis; i++) {
+            if(block_indices_[i].is_identical(til.tiled_index_space()) && til == tlabels_[i])
+                return i;
         }
         return bis;
     }
-    
+
     void construct_dep_map() {
-        Index bis = block_indices_.size();
-        for(Index i = 0; i < bis; i++) {
+        Index til = tlabels_.size();
+        for(Index i = 0; i < til; i++) {
+            auto il  = tlabels_[i];
             auto tis = block_indices_[i];
             if(tis.is_dependent()) {
-                for(auto& dep : tis.index_space().key_tiled_index_spaces()) {
+                for(auto& dep : il.dep_labels()) {
                     Index pos = find_dep(dep);
-                    if(pos != bis)
-                    { 
-                        auto itr1 = dep_map_.find(i);
-                        if(itr1 != dep_map_.end()) 
-                            dep_map_.at(i).push_back(pos);
-                        else dep_map_[Index{i}] = IndexVector{pos};
+                    if(pos != til) {
+                        if(dep_map_.find(i) != dep_map_.end())
+                            dep_map_[i].push_back(pos);
+                        else
+                            dep_map_[Index{i}] = IndexVector{pos};
                     }
                 }
+                EXPECTS(dep_map_.find(i) != dep_map_.end());
             }
         }
     }
@@ -190,6 +193,9 @@ protected:
     bool has_spin_symmetry_;
 
     TensorRank num_modes_;
+    /// When a tensor is constructed using Tiled Index Labels that correspond to
+    /// tiled dependent index spaces.
+    std::vector<TiledIndexLabel> tlabels_;
 
     /// Map that maintains position of dependent index space(s) for a given
     /// dependent index space.

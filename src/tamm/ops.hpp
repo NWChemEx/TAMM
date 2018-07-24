@@ -9,6 +9,7 @@
 #include "tamm/labeled_tensor.hpp"
 #include "tamm/tensor_impl.hpp"
 #include "tamm/types.hpp"
+#include "tamm/work.hpp"
 
 namespace tamm {
 
@@ -347,8 +348,8 @@ block_add (T* dbuf, const std::vector<size_t>& ddims,
 
 class Op {
 public:
-    virtual std::shared_ptr<Op> clone() const = 0;
-    virtual void execute()                    = 0;
+    virtual std::shared_ptr<Op> clone() const    = 0;
+    virtual void execute(ProcGroup ec_pg) = 0;
     virtual ~Op() {}
 };
 
@@ -399,7 +400,7 @@ public:
         return std::shared_ptr<Op>(new SetOp<T, LabeledTensorT>{*this});
     }
 
-    void execute() override {
+    void execute(ProcGroup ec_pg) override {
         using TensorElType = typename LabeledTensorT::element_type;
         // the iterator to generate the tasks
         auto loop_nest = lhs_.tensor().loop_nest();
@@ -417,8 +418,7 @@ public:
         };
         // ec->...(loop_nest, lambda);
         //@todo use a scheduler
-        //@todo make parallel
-        for(const auto& blockid : loop_nest) { lambda(blockid); }
+        do_work(ec_pg, loop_nest, lambda);
     }
 
 protected:
@@ -465,7 +465,7 @@ public:
         return std::shared_ptr<Op>(new AddOp<T, LabeledTensorT>{*this});
     }
 
-    void execute() override {
+    void execute(ProcGroup ec_pg) override {
         using TensorElType = typename LabeledTensorT::element_type;
         // the iterator to generate the tasks
         auto loop_nest = lhs_.tensor().loop_nest();
@@ -493,7 +493,7 @@ public:
         // ec->...(loop_nest, lambda);
         //@todo use a scheduler
         //@todo make parallel
-        for(const auto& lblockid : loop_nest) { lambda(lblockid); }
+        do_work(ec_pg, loop_nest, lambda);
     }
 
 protected:
@@ -598,7 +598,7 @@ public:
         return std::shared_ptr<Op>(new MultOp{*this});
     }
 
-    void execute() override {}
+    void execute(ProcGroup ec_pg) override {}
 
 protected:
     void fillin_labels() {
@@ -686,7 +686,7 @@ public:
         return std::shared_ptr<Op>(new AllocOp{*this});
     }
 
-    void execute() override { tensor_.allocate(); }
+    void execute(ProcGroup ec_pg) override { tensor_.allocate(); }
 
 protected:
     TensorType tensor_;
@@ -705,7 +705,7 @@ public:
         return std::shared_ptr<Op>(new DeallocOp{*this});
     }
 
-    void execute() override { tensor_.deallocate(); }
+    void execute(ProcGroup ec_pg) override { tensor_.deallocate(); }
 
 protected:
     TensorType tensor_;

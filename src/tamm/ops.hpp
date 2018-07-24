@@ -283,6 +283,19 @@ std::vector<T> perm_map_apply(const std::vector<T>& input_vec,
     return ret;
 }
 
+inline IndexLabelVec sort_on_dependence(const IndexLabelVec& labels) {
+    IndexLabelVec ret;
+    for(const auto& lbl : labels) {
+        for(const auto& dlbl : lbl.dep_labels()) {
+            const auto it = std::find(ret.begin(), ret.end(), dlbl);
+            if(it == ret.end()) { ret.push_back(dlbl); }
+        }
+        const auto it = std::find(ret.begin(), ret.end(), lbl);
+        if(it == ret.end()) { ret.push_back(lbl); }
+    }
+    return ret;
+}
+
 /**
  * @brief 
  * 
@@ -299,12 +312,10 @@ std::vector<T> perm_map_apply(const std::vector<T>& input_vec,
  * @param update 
  */
 template<typename T>
-inline void
-block_add (T* dbuf, const std::vector<size_t>& ddims, 
-          const IndexLabelVec& dlabel, 
-          T* sbuf, const std::vector<size_t>& sdims,
-          const IndexLabelVec& slabel,
-          T scale, bool update) {
+inline void block_add(T* dbuf, const std::vector<size_t>& ddims,
+                      const IndexLabelVec& dlabel, T* sbuf,
+                      const std::vector<size_t>& sdims,
+                      const IndexLabelVec& slabel, T scale, bool update) {
     if(are_permutations(dlabel, slabel)) {
         EXPECTS(slabel.size() == dlabel.size());
         EXPECTS(sdims.size() == slabel.size());
@@ -319,28 +330,76 @@ block_add (T* dbuf, const std::vector<size_t>& ddims,
             index_permute_acc(dbuf, sbuf, label_perm, ddims, scale);
         }
     } else {
-        const auto unique_labels = unique_entries(dlabel);
+        IndexLabelVec unique_labels = unique_entries(dlabel);
+        unique_labels = sort_on_dependence(unique_labels);
         // std::sort(unique_labels.begin(), unique_labels.end());
         // std::unique(unique_labels.begin(), unique_labels.end());
         const auto& dperm_map = perm_map_compute(unique_labels, dlabel);
         const auto& sperm_map = perm_map_compute(unique_labels, slabel);
 
+        auto idx = [](const auto& index_vec, const auto& dims_vec) {
+            size_t ret = 0, ld = 1;
+            EXPECTS(index_vec.size() == dims_vec.size());
+            for(size_t i = index_vec.size(); i >= 0; i--) {
+                ret += ld * index_vec[i];
+                ld *= dims_vec[i];
+            }
+            return ret;
+        };
+
         std::vector<IndexLoopBound> ilbs;
-        for(const auto& lbl: unique_labels) {
-          ilbs.push_back({lbl});
-        }
+        for(const auto& lbl : unique_labels) { ilbs.push_back({lbl}); }
         IndexLoopNest iln = IndexLoopNest{ilbs};
-        for(const auto& itval: iln) {
-          const auto& sindex = perm_map_apply(slabel, itval);
-          const auto& dindex = perm_map_apply(dlabel, itval);
-          #if 0
-          if(!update) {
-            dbuf[idx(dindex, ddims)] = scale * sbuf[idx(sindex, sdims)];
-          }else {
-            dbuf[idx(dindex, ddims)] += scale * sbuf[idx(sindex, sdims)];
-          }
-          #endif
+        for(const auto& itval : iln) {
+            const auto& sindex = perm_map_apply(sperm_map, itval);
+            const auto& dindex = perm_map_apply(dperm_map, itval);
+            if(!update) {
+                dbuf[idx(dindex, ddims)] = scale * sbuf[idx(sindex, sdims)];
+            } else {
+                dbuf[idx(dindex, ddims)] += scale * sbuf[idx(sindex, sdims)];
+            }
         }
+    }
+}
+
+template<typename T>
+inline void block_mult(T cscale, T* cbuf, const std::vector<size_t>& cdims,
+                       const IndexLabelVec& clabel, T abscale, T* abuf,
+                       const std::vector<size_t>& adims,
+                       const IndexLabelVec& alabel, T* bbuf,
+                       const std::vector<size_t>& bdims,
+                       const IndexLabelVec& blabel) {
+    IndexLabelVec all_labels{clabel};
+    all_labels.insert(all_labels.end(), alabel.begin(), alabel.end());
+    all_labels.insert(all_labels.end(), blabel.begin(), blabel.end());
+    IndexLabelVec unique_labels = unique_entries(all_labels);
+    unique_labels = sort_on_dependence(unique_labels);
+    // std::sort(unique_labels.begin(), unique_labels.end());
+    // std::unique(unique_labels.begin(), unique_labels.end());
+    const auto& cperm_map = perm_map_compute(unique_labels, clabel);
+    const auto& bperm_map = perm_map_compute(unique_labels, alabel);
+    const auto& aperm_map = perm_map_compute(unique_labels, blabel);
+
+    auto idx = [](const auto& index_vec, const auto& dims_vec) {
+        size_t ret = 0, ld = 1;
+        EXPECTS(index_vec.size() == dims_vec.size());
+        for(size_t i = index_vec.size(); i >= 0; i--) {
+            ret += ld * index_vec[i];
+            ld *= dims_vec[i];
+        }
+        return ret;
+    };
+
+    std::vector<IndexLoopBound> ilbs;
+    for(const auto& lbl : unique_labels) { ilbs.push_back({lbl}); }
+    IndexLoopNest iln = IndexLoopNest{ilbs};
+    for(const auto& itval : iln) {
+        const auto& cindex = perm_map_apply(cperm_map, itval);
+        const auto& aindex = perm_map_apply(aperm_map, itval);
+        const auto& bindex = perm_map_apply(bperm_map, itval);
+        size_t cidx        = idx(cindex, cdims);
+        cbuf[cidx] = cscale * cbuf[cidx] + abscale * abuf[idx(aindex, adims)] *
+                                             bbuf[idx(bindex, bdims)];
     }
 }
 

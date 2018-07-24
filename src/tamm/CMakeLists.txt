@@ -6,7 +6,9 @@ include(TargetMacros) #For nwchemex_add_library
 set(tamm_SRCS tamm.cpp index_space.cpp)
 
 #Add the current directory's header files to the list
-set(tamm_INCLUDES  
+set(tamm_INCLUDES
+    atomic_counter.h
+    work.hpp
     tamm.hpp
     types.hpp
     errors.hpp 

@@ -482,13 +482,15 @@ private:
         const std::map<Index,IndexVector>& dep_map = tensor_.dep_map();
         for(auto itr = dep_map.begin(); itr!=dep_map.end(); ++itr){
             const auto& dep_iv = itr->second;
+            auto dc_ = 0;
             for(auto &dlpos: dep_iv) {
                 EXPECTS(str_map_[dlpos] == false);
                 const auto& ltis = ilv_[dlpos].tiled_index_space();
                 Label llbl = ilv_[dlpos].get_label();
-                const auto& rtis = ilv_[itr->first].dep_labels()[dlpos].tiled_index_space();
-                Label rlbl = ilv_[itr->first].dep_labels()[dlpos].get_label();
+                const auto& rtis = ilv_[itr->first].dep_labels()[dc_].tiled_index_space();
+                Label rlbl = ilv_[itr->first].dep_labels()[dc_].get_label();
                 EXPECTS(ltis==rtis && llbl==rlbl);
+                dc_++;
             }
         }
     } //validate

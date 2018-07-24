@@ -75,6 +75,7 @@ public:
     TensorImpl(const TiledIndexSpace& tis, Ts... rest) :
       TensorBase{tis, rest...} {
         num_modes_ = block_indices_.size();
+        construct_dep_map();
     }
 
     // Copy/Move Ctors and Assignment Operators

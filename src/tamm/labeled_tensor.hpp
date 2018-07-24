@@ -489,6 +489,7 @@ private:
                 EXPECTS(str_map_[dlpos] == false);
                 const auto& ltis = ilv_[dlpos].tiled_index_space();
                 Label llbl = ilv_[dlpos].get_label();
+                EXPECTS(ilv_[itr->first].dep_labels().size() > 0);
                 const auto& rtis = ilv_[itr->first].dep_labels()[dc_].tiled_index_space();
                 Label rlbl = ilv_[itr->first].dep_labels()[dc_].get_label();
                 EXPECTS(ltis==rtis && llbl==rlbl);
@@ -506,8 +507,18 @@ private:
 
     void unpack(size_t index) {
         if(index == 0) {
+            int lc=0;
+            for (size_t i=0;i < ilv_.size();i++) 
+                ilv_[i] = tensor_.tiled_index_spaces()[i].label(--lc);
             for(size_t i = 0; i < ilv_.size(); i++) {
-                ilv_[i]     = tensor_.tiled_index_spaces()[i].label(i);
+                auto dep_map = tensor_.dep_map();
+                auto itr = dep_map.find(i);
+                if(itr != dep_map.end()){
+                    IndexLabelVec tempv;
+                    for(auto idx: itr->second)
+                        tempv.push_back(ilv_[idx]);  
+                    ilv_[i] = TiledIndexLabel{ilv_[i],tempv};
+                }
                 str_map_[i] = false;
             }
         } else {

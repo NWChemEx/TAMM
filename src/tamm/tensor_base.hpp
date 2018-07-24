@@ -155,6 +155,10 @@ public:
         return block_indices_;
     }
 
+    const std::vector<TiledIndexLabel>& tlabels() const {
+        return tlabels_;
+    }
+
     const std::map<Index, IndexVector>& dep_map() const { return dep_map_; }
 
     Index find_dep(const TiledIndexLabel& til) {

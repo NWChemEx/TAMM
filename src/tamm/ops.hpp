@@ -2,6 +2,7 @@
 #define TAMM_OPS_HPP_
 
 #include <memory>
+#include <algorithm>
 
 #include "tamm/boundvec.hpp"
 #include "tamm/errors.hpp"
@@ -224,26 +225,123 @@ perm_compute(const IndexLabelVec& from, const IndexLabelVec& to) {
 }
 
 template<typename T>
+inline bool are_permutations(const std::vector<T>& vec1,
+const std::vector<T>& vec2) {
+  if(vec1.size() != vec2.size()) {
+    return false;
+  }
+  std::vector<bool> taken(vec1.size(), false);
+  for(size_t i=0; i<vec1.size(); i++) {
+    auto it = std::find(vec2.begin(), vec2.end(), vec1[i]);
+    if(it == vec2.end()) {
+      return false;
+    }
+    if(taken[std::distance(vec2.begin(), it)] == true) {
+      return false;
+    }
+  }
+  return true;
+}
+
+template<typename T>
+std::vector<T> unique_entries(const std::vector<T>& input_vec) {
+    std::vector<T> ret;
+#if 1
+    for(const auto& val : input_vec) {
+        auto it = std::find(ret.begin(), ret.end(), val);
+        if(it == ret.end()) { ret.push_back(val); }
+    }
+#else
+    ret = input_vec;
+    std::sort(ret.begin(), ret.end());
+    std::unique(ret.begin(), ret.end());
+#endif
+    return ret;
+}
+
+template<typename T>
+std::vector<size_t> perm_map_compute(const std::vector<T>& unique_vec,
+                                     const std::vector<T>& vec_required) {
+    std::vector<size_t> ret;
+    for(const auto& val : unique_vec) {
+        auto it = std::find(unique_vec.begin(), unique_vec.end(), val);
+        EXPECTS(it != unique_vec.end());
+        ret.push_back(it - unique_vec.begin());
+    }
+    return ret;
+}
+
+template<typename T, typename Integer>
+std::vector<T> perm_map_apply(const std::vector<T>& input_vec,
+                              const std::vector<Integer>& perm_map) {
+    std::vector<T> ret;
+    for(const auto& pm : perm_map) {
+        EXPECTS(pm < input_vec.size());
+        ret.push_back(input_vec[pm]);
+    }
+    return ret;
+}
+
+/**
+ * @brief 
+ * 
+ * @todo add support for triangular arrays
+ * 
+ * @tparam T 
+ * @param dbuf 
+ * @param ddims 
+ * @param dlabel 
+ * @param sbuf 
+ * @param sdims 
+ * @param slabel 
+ * @param scale 
+ * @param update 
+ */
+template<typename T>
 inline void
 block_add (T* dbuf, const std::vector<size_t>& ddims, 
           const IndexLabelVec& dlabel, 
           T* sbuf, const std::vector<size_t>& sdims,
           const IndexLabelVec& slabel,
           T scale, bool update) {
-  EXPECTS(slabel.size() == dlabel.size());
-  EXPECTS(sdims.size() == slabel.size());
-  EXPECTS(ddims.size() == dlabel.size());
-  auto label_perm = perm_compute(dlabel, slabel);
-  for(unsigned i=0; i<label_perm.size(); i++) {
-    EXPECTS(ddims[i] == sdims[label_perm[i]]);
-  }
-  if(!update) {
-    index_permute(dbuf, sbuf, label_perm, ddims, scale);
-  } else {
-    index_permute_acc(dbuf, sbuf, label_perm, ddims, scale);
-  }
-}
+    if(are_permutations(dlabel, slabel)) {
+        EXPECTS(slabel.size() == dlabel.size());
+        EXPECTS(sdims.size() == slabel.size());
+        EXPECTS(ddims.size() == dlabel.size());
+        auto label_perm = perm_compute(dlabel, slabel);
+        for(unsigned i = 0; i < label_perm.size(); i++) {
+            EXPECTS(ddims[i] == sdims[label_perm[i]]);
+        }
+        if(!update) {
+            index_permute(dbuf, sbuf, label_perm, ddims, scale);
+        } else {
+            index_permute_acc(dbuf, sbuf, label_perm, ddims, scale);
+        }
+    } else {
+        const auto unique_labels = unique_entries(dlabel);
+        // std::sort(unique_labels.begin(), unique_labels.end());
+        // std::unique(unique_labels.begin(), unique_labels.end());
+        const auto& dperm_map = perm_map_compute(unique_labels, dlabel);
+        const auto& sperm_map = perm_map_compute(unique_labels, slabel);
 
+        std::vector<IndexLoopBound> ilbs;
+        for(const auto& lbl: unique_labels) {
+          ilbs.push_back({lbl});
+        }
+        IndexLoopNest iln = IndexLoopNest{ilbs};
+        for(const auto& itval: iln) {
+          const auto& sindex = perm_map_apply(slabel, itval);
+          const auto& dindex = perm_map_apply(dlabel, itval);
+          #if 0
+          if(!update) {
+            dbuf[idx(dindex, ddims)] = scale * sbuf[idx(sindex, sdims)];
+          }else {
+            dbuf[idx(dindex, ddims)] += scale * sbuf[idx(sindex, sdims)];
+          }
+          #endif
+        }
+    }
+}
 
 } // namespace internal
 
@@ -350,6 +448,7 @@ public:
       // loop_nest_{loop_nest},
       is_assign_{is_assign} {
         fillin_labels();
+        validate();
     }
 
     AddOp(const AddOp<T, LabeledTensorT>&) = default;
@@ -408,6 +507,54 @@ protected:
         fillin_tensor_label_from_map(rhs_, str_to_labels);
     }
 
+    /**
+     * @brief Check if the parameters forma valid add operation. The parameters
+     * (ltc, tuple(alpha,lta)) form a valid add operation if:
+     *
+     * 1. Every label depended on by another label (i.e., all 'd' such that
+     * there exists label 'l(d)') is bound at least once
+     *
+     * 2. There are no conflicting dependent label specifications. That if
+     * 'a(i)' is a label in either lta or ltc, there is no label 'a(j)' (i!=j)
+     * in either lta or ltc.
+     *
+     * @tparam LabeledTensorType Type RHS labeled tensor
+     * @tparam T Type of scaling factor (alpha)
+     * @param ltc LHS tensor being added to
+     * @param rhs RHS (scaling factor and labeled tensor)
+     *
+     * @pre ltc.validate() has been invoked
+     * @pre lta.validate() has been invoked
+     */
+    void validate() {
+        IndexLabelVec ilv{lhs_.labels()};
+        ilv.insert(ilv.end(), rhs_.labels().begin(), rhs_.labels().end());
+
+        for(size_t i = 0; i < ilv.size(); i++) {
+            for(const auto& dl : ilv[i].dep_labels()) {
+                size_t j;
+                for(j = 0; j < ilv.size(); j++) {
+                    if(dl.tiled_index_space() == ilv[j].tiled_index_space() &&
+                       dl.get_label() == ilv[j].get_label()) {
+                        break;
+                    }
+                }
+                EXPECTS(j < ilv.size());
+            }
+        }
+
+        for(size_t i = 0; i < ilv.size(); i++) {
+            const auto& ilbl = ilv[i];
+            for(size_t j = i + 1; j < ilv.size(); j++) {
+                const auto& jlbl = ilv[j];
+                if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
+                   ilbl.get_label() == jlbl.get_label()) {
+                    EXPECTS(ilbl == jlbl);
+                }
+            }
+        }
+    }
+
     LabeledTensorT lhs_;
     T alpha_;
     LabeledTensorT rhs_;
@@ -432,6 +579,7 @@ public:
       //   symm_factor_{symm_factor},
       is_assign_{is_assign} {
         fillin_labels();
+        validate();
     }
 
     MultOp(const MultOp<T, LabeledTensorT>&) = default;
@@ -469,6 +617,50 @@ protected:
         fillin_tensor_label_from_map(lhs_, str_to_labels);
         fillin_tensor_label_from_map(rhs1_, str_to_labels);
         fillin_tensor_label_from_map(rhs2_, str_to_labels);
+    }
+
+    /**
+     * @brief Check if the parameters forma valid add operation. The parameters
+     * (ltc, tuple(alpha,lta)) form a valid add operation if:
+     *
+     * 1. Every label depended on by another label (i.e., all 'd' such that
+     * there exists label 'l(d)') is bound at least once
+     *
+     * 2. There are no conflicting dependent label specifications. That if
+     * 'a(i)' is a label in either lta or ltc, there is no label 'a(j)' (i!=j)
+     * in either lta or ltc.
+     *
+     * @pre lhs_.validate(), rhs1_.validate() and rhs2_.validate() have been
+     *  invoked
+     */
+    void validate() {
+        IndexLabelVec ilv{lhs_.labels()};
+        ilv.insert(ilv.end(), rhs1_.labels().begin(), rhs1_.labels().end());
+        ilv.insert(ilv.end(), rhs2_.labels().begin(), rhs2_.labels().end());
+
+        for(size_t i = 0; i < ilv.size(); i++) {
+            for(const auto& dl : ilv[i].dep_labels()) {
+                size_t j;
+                for(j = 0; j < ilv.size(); j++) {
+                    if(dl.tiled_index_space() == ilv[j].tiled_index_space() &&
+                       dl.get_label() == ilv[j].get_label()) {
+                        break;
+                    }
+                }
+                EXPECTS(j < ilv.size());
+            }
+        }
+
+        for(size_t i = 0; i < ilv.size(); i++) {
+            const auto& ilbl = ilv[i];
+            for(size_t j = i + 1; j < ilv.size(); j++) {
+                const auto& jlbl = ilv[j];
+                if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
+                   ilbl.get_label() == jlbl.get_label()) {
+                    EXPECTS(ilbl == jlbl);
+                }
+            }
+        }
     }
 
     LabeledTensorT lhs_;

@@ -122,6 +122,8 @@ public:
         return empty_map_;
     }
 
+    virtual const std::map<std::string, IndexSpace>& map_named_sub_index_spaces() const = 0;
+
     /**
      * @brief Accessor methods to Spin value associated with the input Index
      *
@@ -388,6 +390,10 @@ public:
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
+    const std::map<std::string, IndexSpace>& map_named_sub_index_spaces() const override {
+        return named_subspaces_;
+    }
+
 protected:
     IndexVector indices_;
     NameToRangeMap named_ranges_;
@@ -573,6 +579,10 @@ public:
 
     IndexSpace root_index_space() const override { return root_space_; }
 
+    const std::map<std::string, IndexSpace>& map_named_sub_index_spaces() const override {
+        return named_subspaces_;
+    }
+
 protected:
     IndexSpace ref_space_;
     Range ref_range_;
@@ -749,6 +759,10 @@ public:
 
     IndexSpace root_index_space() const override {
         return IndexSpace{this_weak_ptr_.lock()};
+    }
+
+    const std::map<std::string, IndexSpace>& map_named_sub_index_spaces() const override {
+        return named_subspaces_;
     }
 
 protected:
@@ -1037,6 +1051,10 @@ public:
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
+    const std::map<std::string, IndexSpace>& map_named_sub_index_spaces() const override {
+        return empty_named_subspace_map_;
+    }
+
 protected:
     std::vector<TiledIndexSpace> dep_spaces_;
     IndexSpace ref_space_;
@@ -1044,6 +1062,7 @@ protected:
     NameToRangeMap named_ranges_;
     std::size_t max_size_;
     std::vector<Range> empty_range_;
+    std::map<std::string, IndexSpace> empty_named_subspace_map_;
 }; // DependentIndexSpaceImpl
 
 } // namespace tamm

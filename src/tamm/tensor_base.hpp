@@ -14,10 +14,12 @@ namespace tamm {
  * @ingroup tensors
  * @brief Base class for tensors.
  *
- * This class handles the indexing logic for tensors. Memory management is done by subclasses.
- * The class supports MO indices that are permutation symmetric with anti-symmetry.
+ * This class handles the indexing logic for tensors. Memory management is done
+ * by subclasses. The class supports MO indices that are permutation symmetric
+ * with anti-symmetry.
  *
- * @note In a spin-restricted tensor, a 𝛽𝛽|𝛽𝛽 block is mapped to its corresponding to αα|αα block.
+ * @note In a spin-restricted tensor, a 𝛽𝛽|𝛽𝛽 block is mapped to its
+ * corresponding to αα|αα block.
  *
  * @todo For now, we cannot handle tensors in which number of upper
  * and lower indices differ by more than one. This relates to
@@ -40,7 +42,9 @@ public:
      */
     TensorBase(const std::vector<TiledIndexSpace>& block_indices) :
       block_indices_{block_indices},
-      num_modes_{block_indices.size()} {}
+      num_modes_{block_indices.size()} {
+        construct_dep_map();
+    }
 
     /**
      * @brief Construct a new TensorBase object using a vector of
@@ -50,11 +54,12 @@ public:
      * corresponding TiledIndexSpace objects for each mode used to construct the
      * tensor
      */
-    TensorBase(const std::vector<TiledIndexLabel>& lbls) : 
+    TensorBase(const std::vector<TiledIndexLabel>& lbls) :
       num_modes_{lbls.size()} {
         for(const auto& lbl : lbls) {
             block_indices_.push_back(lbl.tiled_index_space());
         }
+        construct_dep_map();
     }
 
     /**
@@ -95,21 +100,21 @@ public:
 
     auto tindices() const { return block_indices_; }
 
-    TAMM_SIZE block_size(const IndexVector& blockid) const { 
+    TAMM_SIZE block_size(const IndexVector& blockid) const {
         size_t ret = 1;
         EXPECTS(blockid.size() == num_modes());
         size_t rank = block_indices_.size();
-        for(size_t i=0; i<rank; i++) {
+        for(size_t i = 0; i < rank; i++) {
             ret *= block_indices_[i].tile_size(blockid[i]);
         }
         return ret;
     }
 
-    std::vector<size_t> block_dims(const IndexVector& blockid) const { 
+    std::vector<size_t> block_dims(const IndexVector& blockid) const {
         std::vector<size_t> ret;
         EXPECTS(blockid.size() == num_modes());
         size_t rank = block_indices_.size();
-        for(size_t i=0; i<rank; i++) {
+        for(size_t i = 0; i < rank; i++) {
             ret.push_back(block_indices_[i].tile_size(blockid[i]));
         }
         return ret;
@@ -119,19 +124,19 @@ public:
      * @brief Memory allocation method for the tensor object
      *
      */
-    //virtual void allocate() = 0;
+    // virtual void allocate() = 0;
 
     /**
      * @brief Memory deallocation method for the tensor object
      *
      */
-    //virtual void deallocate() = 0;
+    // virtual void deallocate() = 0;
 
     IndexLoopNest loop_nest() const {
         // std::vector<IndexVector> lbloops, ubloops;
         // for(const auto& tis : block_indices_) {
-        //     //iterator to indexvector - each index in vec points to begin of each tile in IS 
-        //     lbloops.push_back(tis.tindices()); 
+        //     //iterator to indexvector - each index in vec points to begin of
+        //     each tile in IS lbloops.push_back(tis.tindices());
         //     ubloops.push_back(tis.tindices());
         // }
 
@@ -142,13 +147,39 @@ public:
         // // }
 
         // return IndexLoopNest{block_indices_,lbloops,ubloops,{}};
-      return {block_indices_, {}, {}, {}};
+        return {block_indices_, {}, {}, {}};
     }
 
     const std::vector<TiledIndexSpace>& tiled_index_spaces() const {
         return block_indices_;
     }
-  
+
+    const std::map<Index,IndexVector>& dep_map() const {
+        return dep_map_;
+    }
+
+    void construct_dep_map() {
+        std::map<TiledIndexSpace, Index> tmap;
+        for(size_t i = 0; i < block_indices_.size(); i++) {
+            tmap[block_indices_[i]] = Index{i};
+        }
+
+        for(size_t i = 0; i < block_indices_.size(); i++) {
+            auto tis = block_indices_[i];
+            if(tis.is_dependent()) {
+                for(auto& dep : tis.index_space().key_tiled_index_spaces()) {
+                    auto itr = tmap.find(dep);
+                    if(itr != tmap.end() && itr->first != tis){
+                        auto itr1 = dep_map_.find(i);
+                        if(itr1 != dep_map_.end())
+                            dep_map_.at(i).push_back(itr->second);                        
+                         dep_map_[Index{i}] = IndexVector{itr->second};
+                    }
+                }
+            }
+        }
+    }
+
 protected:
     std::vector<TiledIndexSpace> block_indices_;
     Spin spin_total_;
@@ -156,38 +187,38 @@ protected:
     bool has_spin_symmetry_;
 
     TensorRank num_modes_;
+
+    /// Map that maintains position of dependent index space(s) for a given
+    /// dependent index space.
+    std::map<Index, IndexVector> dep_map_;
     // std::vector<IndexPosition> ipmask_;
     // PermGroup perm_groups_;
     // Irrep irrep_;
     // std::vector<SpinMask> spin_mask_;
 }; // TensorBase
 
-inline bool
-operator <= (const TensorBase& lhs, const TensorBase& rhs) {
-  return (lhs.tindices() <= rhs.tindices());
-      //&& (lhs.nupper_indices() <= rhs.nupper_indices())
-      //&& (lhs.irrep() < rhs.irrep())
-      //&& (lhs.spin_restricted () < rhs.spin_restricted());
+inline bool operator<=(const TensorBase& lhs, const TensorBase& rhs) {
+    return (lhs.tindices() <= rhs.tindices());
+    //&& (lhs.nupper_indices() <= rhs.nupper_indices())
+    //&& (lhs.irrep() < rhs.irrep())
+    //&& (lhs.spin_restricted () < rhs.spin_restricted());
 }
 
-inline bool
-operator == (const TensorBase& lhs, const TensorBase& rhs) {
-  return (lhs.tindices() == rhs.tindices());
-      //&& (lhs.nupper_indices() == rhs.nupper_indices())
-      //&& (lhs.irrep() < rhs.irrep())
-      //&& (lhs.spin_restricted () < rhs.spin_restricted());
+inline bool operator==(const TensorBase& lhs, const TensorBase& rhs) {
+    return (lhs.tindices() == rhs.tindices());
+    //&& (lhs.nupper_indices() == rhs.nupper_indices())
+    //&& (lhs.irrep() < rhs.irrep())
+    //&& (lhs.spin_restricted () < rhs.spin_restricted());
 }
 
-inline bool
-operator != (const TensorBase& lhs, const TensorBase& rhs) {
-  return !(lhs == rhs);
+inline bool operator!=(const TensorBase& lhs, const TensorBase& rhs) {
+    return !(lhs == rhs);
 }
 
-inline bool
-operator < (const TensorBase& lhs, const TensorBase& rhs) {
-  return (lhs <= rhs) && (lhs != rhs);
+inline bool operator<(const TensorBase& lhs, const TensorBase& rhs) {
+    return (lhs <= rhs) && (lhs != rhs);
 }
 
-}  // namespace tamm
+} // namespace tamm
 
-#endif  // TAMM_TENSOR_BASE_HPP_
+#endif // TAMM_TENSOR_BASE_HPP_

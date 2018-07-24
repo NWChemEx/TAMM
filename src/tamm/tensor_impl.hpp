@@ -288,6 +288,10 @@ public:
         return impl_->tiled_index_spaces();
     }
 
+    const std::map<Index,IndexVector>& dep_map() const {
+        return impl_->dep_map();
+    }
+
     /**
      * @brief Memory allocation method for the Tensor object
      *

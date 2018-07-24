@@ -113,9 +113,7 @@ TEST_CASE("Test Ops") {
     // Construction of tiled index space MO from sketch
     IndexSpace MO_IS{range(0, 200),
                      {{"occ", {range(0, 100)}}, {"virt", {range(100, 200)}}}};
-    TiledIndexSpace MO{MO_IS, 10};
-
-    const TiledIndexSpace& N = MO("all");
+    TiledIndexSpace MO{MO_IS, 1};
 
     CHECK_NOTHROW(test_ops<double>(MO));
 }

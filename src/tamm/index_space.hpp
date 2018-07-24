@@ -957,6 +957,9 @@ public:
     TiledIndexLabel(const TiledIndexLabel&) = default;
     TiledIndexLabel& operator=(const TiledIndexLabel&) = default;
 
+    TiledIndexLabel(TiledIndexLabel&&) = default;
+    TiledIndexLabel& operator=(TiledIndexLabel&&) = default;
+
     // Destructor
     ~TiledIndexLabel() = default;
 

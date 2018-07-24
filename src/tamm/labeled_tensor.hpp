@@ -428,6 +428,8 @@ private:
      * same dimension positions. E.g., with a declaration T{i, a(i), k}, the use
      * T(x, y(z),z) is invalid. For now, we will check that the label is over
      * the same tiled index space as the dimension.
+     * 
+     * 8. No self dependences. e.g., label 'i(i)', are not allowed.
      *
      */
     void validate() {
@@ -493,7 +495,14 @@ private:
                 dc_++;
             }
         }
-    } //validate
+
+        for(const auto& lbl : ilv_) {
+            for(const auto& dlbl : lbl.dep_labels()) {
+                EXPECTS(lbl.tiled_index_space() != dlbl.tiled_index_space() ||
+                        lbl.get_label() != dlbl.get_label());
+            }
+        }
+    } // validate
 
     void unpack(size_t index) {
         if(index == 0) {

@@ -504,6 +504,78 @@ protected:
     bool is_assign_;
 }; // class SetOp
 
+template<typename Func, typename LabeledTensorType>
+struct ScanOp : public Op {
+  void execute(const ProcGroup& ec_pg) {
+   
+  }
+
+  ScanOp(const LabeledTensorType& ltensor, Func func)
+      : ltensor_{ltensor},
+        func_{func} {
+    EXPECTS(ltensor.tensor_ != nullptr);
+  }
+
+  TensorImpl* writes() const override {
+    return ltensor_.tensor_;
+  }
+
+  std::vector<TensorImpl*> reads() const {
+    return {};
+  }
+
+  LabeledTensorType ltensor_;
+  Func func_;
+};
+
+/**
+ * @ingroup operations
+ * @brief Map operation. Invoke a function on each block of a tensor to set it.
+ * @tparam LabeledTensorType
+ * @tparam Func
+ * @tparam N
+ */
+template<typename LabeledTensorType, typename Func, int N>
+struct MapOp : public Op {
+  using RHS = std::array<LabeledTensorType, N>;
+  using T = typename LabeledTensorType::element_type;
+  //using RHS_Blocks = std::array<Block<T>, N>;
+
+  void execute(const ProcGroup& ec_pg) override {
+  }
+
+  MapOp(LabeledTensorType& lhs, Func func, RHS& rhs) //, ResultMode mode = ResultMode::set)
+      : lhs_{lhs},
+        func_{func},
+        rhs_{rhs} {}
+        //mode_{mode} 
+
+//   RHS_Blocks get_blocks(RHS& rhs, const BlockDimVec& id) {
+//     RHS_Blocks blocks;
+//     for(int i=0; i<rhs.size(); i++) {
+//       blocks[i] = rhs[i].get(id);
+//     }
+//     return blocks;
+//   }
+
+  TensorImpl* writes() const override {
+    return lhs_.tensor_;
+  }
+
+  std::vector<TensorImpl*> reads() const {
+    std::vector<TensorImpl*> ret;
+    for(auto& lt: rhs_) {
+      ret.push_back(lt.tensor_);
+    }
+    return ret;
+  }
+
+  LabeledTensorType& lhs_;
+  Func func_;
+  std::array<LabeledTensorType, N> rhs_;
+  //ResultMode mode_;
+};
+
 template<typename T, typename LabeledTensorT>
 class AddOp : public Op {
 public:

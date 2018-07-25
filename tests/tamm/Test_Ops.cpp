@@ -66,15 +66,15 @@ void test_ops(const TiledIndexSpace& MO) {
     T* buf = new T[size];
     for(size_t i=0;i<size;i++)
       buf[i]=cx++;
+
     T1.put(IndexVector{1,0,1}, span<T>(buf,size));
 
     T* gbuf = new T[size];
     T1.get(IndexVector{1,0,1}, span<T>(gbuf,size));
-    for(size_t i=0;i<size;i++)
+    for(size_t i=0;i<T1.block_size({1,0,1});i++)
         EXPECTS(gbuf[i]==buf[i]);
-        
     Tensor<T>::deallocate(T1);
-
+#if 0
     Tensor<T> xt1{N,N};
     Tensor<T> xt2{N,N};
     Tensor<T> xt3{N,N};
@@ -90,7 +90,7 @@ void test_ops(const TiledIndexSpace& MO) {
     check_value(xt2,4.4);
 
     Tensor<T>::deallocate(xt1,xt2,xt3);
-
+#endif
 }
 
 int main(int argc, char* argv[])

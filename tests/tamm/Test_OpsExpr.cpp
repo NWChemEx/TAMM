@@ -1,9 +1,11 @@
 #define CATCH_CONFIG_MAIN
-#include <catch/catch.hpp>
 
-#include <tamm/labeled_tensor.hpp>
-#include <iostream>
-#include <string>
+#include "catch/catch.hpp"
+#include "ga.h"
+#include "mpi.h"
+#include "macdecls.h"
+#include "ga-mpi.h"
+#include "tamm/tamm.hpp"
 
 using namespace tamm;
 

@@ -20,6 +20,7 @@ set(tamm_INCLUDES
     range.hpp
     ops.hpp
     scheduler.hpp
+    tensor.hpp
     tensor_impl.hpp
     tensor_base.hpp
     distribution.hpp

@@ -224,7 +224,7 @@ TEST_CASE("Two-dimensional tensor") {
   failed = false;
 }
 
-TEST_CASE("SCF commutator declarations") {
+TEST_CASE("SCF Commutator declarations") {
     bool failed = false;
     try {
         using tensor_type = tamm::Tensor<double>;
@@ -232,7 +232,6 @@ TEST_CASE("SCF commutator declarations") {
         using index_type = tamm::TiledIndexLabel;
 
         tensor_type comm, temp, F, D, S;
-        space_type AOs = D.get_spaces()[0];
         index_type mu, nu, lambda;
 
         temp(mu, lambda) = F(mu,nu)*D(nu, lambda); //FD
@@ -240,6 +239,20 @@ TEST_CASE("SCF commutator declarations") {
         temp(mu, lambda) = S(mu, nu)*D(nu, lambda); //SD
         comm(mu, lambda) += -1.0*temp(mu, nu)*F(nu, lambda);//FDS - SDF
 
+    } catch (...) {
+        failed = true;
+    }
+    REQUIRE(failed);
+}
+TEST_CASE("SCF GuessDensity declarations") {
+    bool failed = false;
+    try {
+        using tensor_type = tamm::Tensor<double>;
+        tamm::TiledIndexSpace MOs = rv.C.get_spaces()[1];
+        tamm::TiledIndexSpace AOs = rv.C.get_spaces()[0];
+        tamm::TiledIndexLabel i, mu, nu;
+        std::tie(mu, nu) = AOs.labels<2>("all");
+        std::tie(i) = MOs.labels<1>("all");
     } catch (...) {
         failed = true;
     }

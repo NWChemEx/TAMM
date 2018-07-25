@@ -144,15 +144,18 @@ public:
      * @brief Memory allocation method for the Tensor object
      *
      */
-    static void allocate(const ExecutionContext* ec) { } // impl_->allocate(ec); 
+    void alloc(const ExecutionContext* ec) { impl_->allocate(ec); }
 
     /**
      * @brief Memory deallocation method for the Tensor object
      *
      */
-    static void deallocate() {} //impl_->deallocate(); }
+    void dealloc() { impl_->deallocate(); }
 
     // Static methods for allocate/deallocate
+
+    static void allocate(const ExecutionContext* ec) {}
+    static void deallocate() {}
     /**
      * @brief Static memory allocation method for a set of Tensors
      *

@@ -77,13 +77,14 @@ void test_ops(const TiledIndexSpace& MO) {
     Tensor<T> xt1{N,N};
     Tensor<T> xt2{N,N};
     Tensor<T> xt3{N,N};
-    Tensor<T>::allocate(ec,xt1,xt2,xt3);
+   // Tensor<T>::allocate(ec,xt1,xt2,xt3);
   
 #if 1
-    Scheduler{ec}
+    Scheduler{ec}.allocate(xt1,xt2,xt3)
         (xt1("n1","n2") = 2.2)
         (xt2("n1","n2") = 2.0*xt1("n1","n2"))
         //(xt3("n1","n2") = 2.0*xt1("n1","nk")*xt2("nk","n2")) //no-op
+        //.deallocate(xt3)
         .execute();
 
     check_value(xt1,2.2);

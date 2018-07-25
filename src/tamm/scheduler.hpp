@@ -134,9 +134,11 @@ public:
 
     Scheduler& allocate() { return *this; }
 
+    ExecutionContext* ec() { return ec_; }
+
     template<typename TensorType, typename... Args>
     Scheduler& allocate(TensorType tensor, Args&... tensors) {
-        // ops_.push_back(new AllocOp<TensorType>{tensor});
+        ops_.push_back(std::make_shared<AllocOp<TensorType>>(tensor,ec()));
         return allocate(tensors...);
     }
 
@@ -144,11 +146,9 @@ public:
 
     template<typename TensorType, typename... Args>
     Scheduler& deallocate(TensorType tensor, Args&... tensors) {
-        // ops_.push_back(new DeallocOp<TensorType>{tensor});
+        ops_.push_back(std::make_shared<DeallocOp<TensorType>>(tensor));
         return deallocate(tensors...);
     }
-
-    ExecutionContext* ec() { return ec_; }
 
     void execute() {
         for(auto& op : ops_) {  op->execute(ec()->pg()); } 

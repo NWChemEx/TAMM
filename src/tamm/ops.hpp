@@ -1095,7 +1095,7 @@ protected:
 template<typename TensorType>
 class AllocOp : public Op {
 public:
-    AllocOp(TensorType tensor) : tensor_{tensor} {}
+    AllocOp(TensorType tensor, ExecutionContext* ec) : tensor_{tensor}, ec_{ec} {}
 
     AllocOp(const AllocOp<TensorType>&) = default;
 
@@ -1105,10 +1105,11 @@ public:
         return std::shared_ptr<Op>(new AllocOp{*this});
     }
 
-    void execute(ProcGroup ec_pg) override { tensor_.allocate(); }
+    void execute(ProcGroup ec_pg) override { tensor_.alloc(ec_); }
 
 protected:
     TensorType tensor_;
+    ExecutionContext* ec_;
 }; // class AllocOp
 
 template<typename TensorType>
@@ -1124,7 +1125,7 @@ public:
         return std::shared_ptr<Op>(new DeallocOp{*this});
     }
 
-    void execute(ProcGroup ec_pg) override { tensor_.deallocate(); }
+    void execute(ProcGroup ec_pg) override { tensor_.dealloc(); }
 
 protected:
     TensorType tensor_;

@@ -161,6 +161,7 @@ public:
 
     const std::map<Index, IndexVector>& dep_map() const { return dep_map_; }
 
+    /// @todo The following methods could be refactored.
     Index find_dep(const TiledIndexLabel& til) {
         Index bis = tlabels_.size();
         for(Index i = 0; i < bis; i++) {
@@ -170,7 +171,22 @@ public:
         return bis;
     }
 
+    /// @todo refactor
+    bool check_duplicates(){
+        Index til = tlabels_.size();
+        for(Index i1 = 0; i1 < til; i1++) {
+            for(Index i2 = i1+1; i2 < til; i2++) {
+                auto tl1 = tlabels_[i1];
+                auto tl2 = tlabels_[i2];
+                EXPECTS(!(tl1.tiled_index_space().is_identical(tl2.tiled_index_space())
+                        && tl1 == tl2));
+            }
+        }
+    }
+
+    /// @todo refactor
     void construct_dep_map() {
+        check_duplicates();
         Index til = tlabels_.size();
         for(Index i = 0; i < til; i++) {
             auto il  = tlabels_[i];

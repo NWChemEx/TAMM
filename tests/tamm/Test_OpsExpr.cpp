@@ -242,8 +242,9 @@ TEST_CASE("SCF Commutator declarations") {
     } catch (...) {
         failed = true;
     }
-    REQUIRE(failed);
+    REQUIRE(!failed);
 }
+
 TEST_CASE("SCF GuessDensity declarations") {
     bool failed = false;
     try {
@@ -258,5 +259,37 @@ TEST_CASE("SCF GuessDensity declarations") {
     } catch (...) {
         failed = true;
     }
-    REQUIRE(failed);
+    REQUIRE(!failed);
+}
+
+TEST_CASE("SCF JK declarations") {
+    bool failed = false;
+    try {
+        using tensor_type = tamm::Tensor<double>;
+        //tamm::TiledIndexSpace Aux = M.get_spaces()[0];
+        //tamm::TiledIndexSpace AOs = I.get_spaces()[1];
+        //tamm::TiledIndexSpace tMOs = MOs.Cdagger.get_spaces()[0];
+        tamm::TiledIndexSpace Aux;
+        tamm::TiledIndexSpace AOs;
+        tamm::TiledIndexSpace tMOs;
+        tamm::TiledIndexLabel P, Q, mu, nu, i;
+        std::tie(P, Q) = Aux.labels<2>("all");
+        std::tie(mu, nu) = AOs.labels<2>("all");
+        std::tie(i) = tMOs.labels<1>("all");
+
+        tensor_type L;
+        tensor_type Linv;
+        tensor_type Itemp, D, d, J, K;
+
+        //Itemp(Q, i, nu) = MOs.Cdagger(i, mu) * I(Q, mu, nu);
+        D(P, i, mu) = Linv(P, Q) * Itemp(Q, i, mu);
+        //d(P) = D(P, i, mu) * MOs.Cdagger(i, mu);
+        Itemp(Q) = d(P) * Linv(P, Q);
+        //J(mu, nu) = Itemp(P) * I(P, mu, nu);
+        K(mu, nu) = D(P, i, mu) * D(P, i, nu);
+
+    } catch (...) {
+        failed = true;
+    }
+    REQUIRE(!failed);
 }

@@ -111,8 +111,8 @@ int main(int argc, char* argv[])
 
 TEST_CASE("Test Ops") {
     // Construction of tiled index space MO from sketch
-    IndexSpace MO_IS{range(0, 200),
-                     {{"occ", {range(0, 100)}}, {"virt", {range(100, 200)}}}};
+    IndexSpace MO_IS{range(0, 10),
+                     {{"occ", {range(0, 5)}}, {"virt", {range(5, 10)}}}};
     TiledIndexSpace MO{MO_IS, 1};
 
     CHECK_NOTHROW(test_ops<double>(MO));

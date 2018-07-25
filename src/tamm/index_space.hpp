@@ -1068,8 +1068,7 @@ public:
                     const std::vector<TiledIndexLabel> dep_labels = {}) :
       tis_{t_is},
       label_{lbl},
-      dep_labels_{dep_labels} {
-    }
+      dep_labels_{dep_labels} {}
 
     TiledIndexLabel(const TiledIndexLabel& t_il,
                     const std::vector<TiledIndexLabel>& dep_labels) :
@@ -1089,19 +1088,17 @@ public:
     // Destructor
     ~TiledIndexLabel() = default;
 
-    TiledIndexLabel operator()() const {
-        return (*this);
-    }
+    TiledIndexLabel operator()() const { return {*this}; }
 
     template<typename... Args>
     TiledIndexLabel operator()(const TiledIndexLabel& il1, Args... rest) {
-        dep_labels_.push_back(il1);
-        return (*this)(rest...);
+        std::vector<TiledIndexLabel> dep_ilv;
+        unpack_dep(dep_ilv, il1, rest...);
+        return {*this, dep_ilv};
     }
 
     TiledIndexLabel operator()(const std::vector<TiledIndexLabel>& dep_ilv) {
-        dep_labels_ = std::vector<TiledIndexLabel>{dep_ilv};
-        return (*this);
+        return {*this, dep_ilv};
     }
 
     bool is_identical(const TiledIndexLabel& rhs) const {
@@ -1155,6 +1152,18 @@ protected:
     TiledIndexSpace tis_;
     Label label_;
     std::vector<TiledIndexLabel> dep_labels_;
+
+private:
+    void unpack_dep(std::vector<TiledIndexLabel>& in_vec) {}
+
+    template<typename... Args>
+    void unpack_dep(std::vector<TiledIndexLabel>& in_vec,
+                    const TiledIndexLabel& il1, Args... rest) {
+        EXPECTS(!(*this).is_identical(il1));
+        
+        in_vec.push_back(il1);
+        unpack_dep(in_vec, rest...);
+    }
 }; // class TiledIndexLabel
 
 // Comparison operator implementations

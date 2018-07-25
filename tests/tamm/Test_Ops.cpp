@@ -191,7 +191,7 @@ TEST_CASE("Zero-dimensional ops") {
     {
         Tensor<T> T1{}, T2{};
         Scheduler{ec}
-          .allocate(T1, T2)(T1()=42)(T2() = 3)(T1() -= 4.0*T2())
+          .allocate(T1, T2)(T1()=42)(T2() = 3)(T1() -= 4*T2())
           .deallocate(T2)
           .execute();
         check_value(T1, 30.0);

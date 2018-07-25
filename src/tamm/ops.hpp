@@ -80,7 +80,6 @@ idx(int n, const size_t *id, const size_t *sz, const PermVector& p) {
   if (n > 0) {
     idx += id[p[n - 1]];
   }
-  // std::cerr<<"idx return = "<<idx<<std::endl;
   return idx;
 }
 
@@ -376,13 +375,13 @@ inline void block_mult(T cscale, T* cbuf, const std::vector<size_t>& cdims,
     // std::sort(unique_labels.begin(), unique_labels.end());
     // std::unique(unique_labels.begin(), unique_labels.end());
     const auto& cperm_map = perm_map_compute(unique_labels, clabel);
-    const auto& bperm_map = perm_map_compute(unique_labels, alabel);
-    const auto& aperm_map = perm_map_compute(unique_labels, blabel);
+    const auto& aperm_map = perm_map_compute(unique_labels, alabel);
+    const auto& bperm_map = perm_map_compute(unique_labels, blabel);
 
     auto idx = [](const auto& index_vec, const auto& dims_vec) {
         size_t ret = 0, ld = 1;
         EXPECTS(index_vec.size() == dims_vec.size());
-        for(size_t i = index_vec.size(); i >= 0; i--) {
+        for(int i = -1 + index_vec.size(); i >= 0; i--) {
             ret += ld * index_vec[i];
             ld *= dims_vec[i];
         }
@@ -936,7 +935,7 @@ public:
       is_assign_{is_assign} {
         fillin_labels();
         validate();
-        if(!is_assign_) {
+        if(is_assign_) {
             NOT_IMPLEMENTED(); //C+=A*B not implemented
         }    
     }

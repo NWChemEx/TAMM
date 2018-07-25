@@ -223,3 +223,25 @@ TEST_CASE("Two-dimensional tensor") {
   REQUIRE(failed);
   failed = false;
 }
+
+TEST_CASE("SCF commutator declarations") {
+    bool failed = false;
+    try {
+        using tensor_type = tamm::Tensor<double>;
+        using space_type = tamm::TiledIndexSpace;
+        using index_type = tamm::TiledIndexLabel;
+
+        tensor_type comm, temp, F, D, S;
+        space_type AOs = D.get_spaces()[0];
+        index_type mu, nu, lambda;
+
+        temp(mu, lambda) = F(mu,nu)*D(nu, lambda); //FD
+        comm(mu, lambda) = temp(mu, nu)*S(nu, lambda); //FDS
+        temp(mu, lambda) = S(mu, nu)*D(nu, lambda); //SD
+        comm(mu, lambda) += -1.0*temp(mu, nu)*F(nu, lambda);//FDS - SDF
+
+    } catch (...) {
+        failed = true;
+    }
+    REQUIRE(failed);
+}

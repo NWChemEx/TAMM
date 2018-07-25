@@ -171,7 +171,7 @@ TEST_CASE("Zero-dimensional ops") {
     {
         Tensor<T> T1{}, T2{};
         Scheduler{ec}
-          .allocate(T1, T2)(T1()=3)(T2() = 42)(T1() += 2.5*T2())
+          .allocate(T1, T2)(T1()=42)(T2() = 3)(T1() += 2.5*T2())
           .deallocate(T2)
           .execute();
         check_value(T1, 49.5);
@@ -179,41 +179,35 @@ TEST_CASE("Zero-dimensional ops") {
     }
 
     {
-        // Tensor<T> T1{}, T2{};
-        // Scheduler{ec}
-        //   .allocate(T1, T2)(T1()=3)(T2() = 42)(T1() -= T2())
-        //   .deallocate(T2)
-        //   .execute();
-        // check_value(T1, 39.0);
-        // Tensor<T>::deallocate(T1);
+        Tensor<T> T1{}, T2{};
+        Scheduler{ec}
+          .allocate(T1, T2)(T1()=42)(T2() = 3)(T1() -= T2())
+          .deallocate(T2)
+          .execute();
+        check_value(T1, 39.0);
+        Tensor<T>::deallocate(T1);
     }
 
     {
-        // Tensor<T> T1{}, T2{};
-        // Scheduler{ec}
-        //   .allocate(T1, T2)(T1()=3)(T2() = 42)(T1() -= 4*T2())
-        //   .deallocate(T2)
-        //   .execute();
-        // check_value(T1, 30.0);
-        // Tensor<T>::deallocate(T1);
+        Tensor<T> T1{}, T2{};
+        Scheduler{ec}
+          .allocate(T1, T2)(T1()=42)(T2() = 3)(T1() -= 4.0*T2())
+          .deallocate(T2)
+          .execute();
+        check_value(T1, 30.0);
+        Tensor<T>::deallocate(T1);
     }
 
-    // {
-    //     Tensor<T> T1{};
-    //     Scheduler{ec}.allocate(T1)(T1() = 42).execute();
-    //     check_value(T1, 42.0);
-    //     Tensor<T>::deallocate(T1);
-    // }
-
-    // {
-    //     Tensor<T> T1{};
-    //     Scheduler{ec}
-    //         .allocate(T1)
-    //         (T1() = 42)
-    //         .execute();
-    //     check_value(T1, 42.0);
-    //     Tensor<T>::deallocate(T1);
-    // }
+    {
+        Tensor<T> T1{}, T2{},T3{};
+        Scheduler{ec}
+          .allocate(T1, T2, T3)(T1()=0)(T2() = 3)(T3() = 5)
+          (T1() += T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, 15.0);
+        Tensor<T>::deallocate(T1);
+    }
 
     MemoryManagerGA::destroy_coll(mgr);
     delete ec;

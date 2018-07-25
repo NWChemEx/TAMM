@@ -444,6 +444,7 @@ public:
       // loop_nest_{loop_nest},
       is_assign_{is_assign} {
         fillin_labels();
+        validate();
     }
 
     SetOp(const SetOp<T, LabeledTensorT>&) = default;
@@ -497,33 +498,150 @@ protected:
         fillin_tensor_label_from_map(lhs_, str_to_labels);
     }
 
+    /**
+     * @brief Check if the parameters form a valid operation. The parameters
+     * form a valid operation if:
+     *
+     * 1. Every label depended on by another label (i.e., all 'd' such that
+     * there exists label 'l(d)') is bound at least once
+     *
+     * 2. There are no conflicting dependent label specifications. That if
+     * 'a(i)' is a label in either lta or ltc, there is no label 'a(j)' (i!=j)
+     * in either lta or ltc.
+     *
+     * @pre lhs_.validate(), rhs1_.validate() and rhs2_.validate() have been
+     *  invoked
+     */
+    void validate() {
+        IndexLabelVec ilv{lhs_.labels()};
+
+        for(size_t i = 0; i < ilv.size(); i++) {
+            for(const auto& dl : ilv[i].dep_labels()) {
+                size_t j;
+                for(j = 0; j < ilv.size(); j++) {
+                    if(dl.tiled_index_space() == ilv[j].tiled_index_space() &&
+                       dl.get_label() == ilv[j].get_label()) {
+                        break;
+                    }
+                }
+                EXPECTS(j < ilv.size());
+            }
+        }
+
+        for(size_t i = 0; i < ilv.size(); i++) {
+            const auto& ilbl = ilv[i];
+            for(size_t j = i + 1; j < ilv.size(); j++) {
+                const auto& jlbl = ilv[j];
+                if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
+                   ilbl.get_label() == jlbl.get_label()) {
+                    EXPECTS(ilbl == jlbl);
+                }
+            }
+        }
+    }
+
     LabeledTensorT lhs_;
     T alpha_;
     // LabeledLoop loop_nest_;
     bool is_assign_;
 }; // class SetOp
 
-template<typename Func, typename LabeledTensorType>
-struct ScanOp : public Op {
-  void execute(const ProcGroup& ec_pg) {
-   
-  }
-
-  ScanOp(const LabeledTensorType& ltensor, Func func)
-      : ltensor_{ltensor},
+template<typename Func, typename LabeledTensorT>
+class ScanOp : public Op {
+    public:
+  ScanOp(const LabeledTensorT& lhs, Func func)
+      : lhs_{lhs},
         func_{func} {
-    EXPECTS(ltensor.tensor_ != nullptr);
+    EXPECTS(lhs.tensor_ != nullptr);
+    fillin_labels();
   }
 
-  TensorImpl* writes() const override {
-    return ltensor_.tensor_;
+//   TensorImpl* writes() const override {
+//     return ltensor_.tensor_;
+//   }
+
+//   std::vector<TensorImpl*> reads() const {
+//     return {};
+//   }
+
+  void execute(const ProcGroup& ec_pg) override {
+        using TensorElType = typename LabeledTensorT::element_type;
+        // the iterator to generate the tasks
+        const auto& tensor = lhs_.tensor();
+        const IndexLabelVec& iter_labels = internal::sort_on_dependence(lhs_.labels());
+        std::vector<IndexLoopBound> ilbs;
+        for(const auto& lbl : iter_labels) { ilbs.push_back({lbl}); }
+        IndexLoopNest loop_nest { ilbs };
+        const std::vector<size_t>& lhs_pm =
+          internal::perm_map_compute(iter_labels, lhs_.labels());
+        // auto loop_nest = lhs_.tensor().loop_nest();
+        // function to compute one block
+        auto lambda = [&](const IndexVector itval) {
+            auto tensor = lhs_.tensor();
+            const IndexVector& blockid =
+              internal::perm_map_apply(itval, lhs_pm);
+            size_t size = tensor.block_size(blockid);
+            std::vector<TensorElType> buf(size);
+            tensor.get(blockid, span<TensorElType>(&buf[0], size));
+            func_(tensor, blockid, buf);
+        };
+        // ec->...(loop_nest, lambda);
+        //@todo use a scheduler
+        do_work(ec_pg, loop_nest, lambda);
   }
 
-  std::vector<TensorImpl*> reads() const {
-    return {};
-  }
+protected:
+    void fillin_labels() {    
+        using internal::update_fillin_map;
+        using internal::fillin_tensor_label_from_map;
+        std::map<std::string, Label> str_to_labels;
+        update_fillin_map(str_to_labels, lhs_.str_map(), lhs_.str_labels(), 0);
+        fillin_tensor_label_from_map(lhs_, str_to_labels);
+    }
 
-  LabeledTensorType ltensor_;
+    /**
+     * @brief Check if the parameters form a valid operation. The parameters
+     * form a valid operation if:
+     *
+     * 1. Every label depended on by another label (i.e., all 'd' such that
+     * there exists label 'l(d)') is bound at least once
+     *
+     * 2. There are no conflicting dependent label specifications. That if
+     * 'a(i)' is a label in either lta or ltc, there is no label 'a(j)' (i!=j)
+     * in either lta or ltc.
+     *
+     * @pre lhs_.validate(), rhs1_.validate() and rhs2_.validate() have been
+     *  invoked
+     */
+    void validate() {
+        IndexLabelVec ilv{lhs_.labels()};
+
+        for(size_t i = 0; i < ilv.size(); i++) {
+            for(const auto& dl : ilv[i].dep_labels()) {
+                size_t j;
+                for(j = 0; j < ilv.size(); j++) {
+                    if(dl.tiled_index_space() == ilv[j].tiled_index_space() &&
+                       dl.get_label() == ilv[j].get_label()) {
+                        break;
+                    }
+                }
+                EXPECTS(j < ilv.size());
+            }
+        }
+
+        for(size_t i = 0; i < ilv.size(); i++) {
+            const auto& ilbl = ilv[i];
+            for(size_t j = i + 1; j < ilv.size(); j++) {
+                const auto& jlbl = ilv[j];
+                if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
+                   ilbl.get_label() == jlbl.get_label()) {
+                    EXPECTS(ilbl == jlbl);
+                }
+            }
+        }
+    }
+
+  LabeledTensorT lhs_;
   Func func_;
 };
 
@@ -534,45 +652,95 @@ struct ScanOp : public Op {
  * @tparam Func
  * @tparam N
  */
-template<typename LabeledTensorType, typename Func, int N>
-struct MapOp : public Op {
-  using RHS = std::array<LabeledTensorType, N>;
-  using T = typename LabeledTensorType::element_type;
-  //using RHS_Blocks = std::array<Block<T>, N>;
+template<typename LabeledTensorT, typename Func, int N>
+class MapOp : public Op {
+public:
+    using RHS = std::array<LabeledTensorT, N>;
+    using T   = typename LabeledTensorT::element_type;
+    // using RHS_Blocks = std::array<Block<T>, N>;
 
-  void execute(const ProcGroup& ec_pg) override {
-  }
-
-  MapOp(LabeledTensorType& lhs, Func func, RHS& rhs) //, ResultMode mode = ResultMode::set)
-      : lhs_{lhs},
-        func_{func},
-        rhs_{rhs} {}
-        //mode_{mode} 
-
-//   RHS_Blocks get_blocks(RHS& rhs, const BlockDimVec& id) {
-//     RHS_Blocks blocks;
-//     for(int i=0; i<rhs.size(); i++) {
-//       blocks[i] = rhs[i].get(id);
-//     }
-//     return blocks;
-//   }
-
-  TensorImpl* writes() const override {
-    return lhs_.tensor_;
-  }
-
-  std::vector<TensorImpl*> reads() const {
-    std::vector<TensorImpl*> ret;
-    for(auto& lt: rhs_) {
-      ret.push_back(lt.tensor_);
+    MapOp(LabeledTensorT& lhs, Func func,
+          RHS& rhs) //, ResultMode mode = ResultMode::set)
+      :
+      lhs_{lhs},
+      func_{func},
+      rhs_{rhs} {
+        fillin_labels();
+        validate();
     }
-    return ret;
-  }
 
-  LabeledTensorType& lhs_;
-  Func func_;
-  std::array<LabeledTensorType, N> rhs_;
-  //ResultMode mode_;
+    //   TensorImpl* writes() const override {
+    //     return lhs_.tensor_;
+    //   }
+
+    //   std::vector<TensorImpl*> reads() const {
+    //     std::vector<TensorImpl*> ret;
+    //     for(auto& lt: rhs_) {
+    //       ret.push_back(lt.tensor_);
+    //     }
+    //     return ret;
+    //   }
+
+    void execute(const ProcGroup& ec_pg) override {
+
+        
+    }
+
+protected:
+    void fillin_labels() {
+        using internal::fillin_tensor_label_from_map;
+        using internal::update_fillin_map;
+        std::map<std::string, Label> str_to_labels;
+        update_fillin_map(str_to_labels, lhs_.str_map(), lhs_.str_labels(), 0);
+        size_t off = lhs_.str_labels().size();
+        update_fillin_map(str_to_labels, lhs_.str_map(), lhs_.str_labels(), 0);
+        for(size_t i = 0; i < N; i++) {
+            update_fillin_map(str_to_labels, rhs_[i].str_map(),
+                              rhs_[i].str_labels(), off);
+            off += rhs_[i].str_labels().size();
+        }
+        fillin_tensor_label_from_map(lhs_, str_to_labels);
+        for(size_t i = 0; i < N; i++) {
+            fillin_tensor_label_from_map(rhs_[i], str_to_labels);
+        }
+    }
+
+    void validate() {
+        IndexLabelVec ilv{lhs_.labels()};
+        for(size_t i = 0; i < N; i++) {
+            ilv.insert(ilv.end(), rhs_[i].labels().begin(),
+                       rhs_[i].labels().end());
+        }
+
+        for(size_t i = 0; i < ilv.size(); i++) {
+            for(const auto& dl : ilv[i].dep_labels()) {
+                size_t j;
+                for(j = 0; j < ilv.size(); j++) {
+                    if(dl.tiled_index_space() == ilv[j].tiled_index_space() &&
+                       dl.get_label() == ilv[j].get_label()) {
+                        break;
+                    }
+                }
+                EXPECTS(j < ilv.size());
+            }
+        }
+
+        for(size_t i = 0; i < ilv.size(); i++) {
+            const auto& ilbl = ilv[i];
+            for(size_t j = i + 1; j < ilv.size(); j++) {
+                const auto& jlbl = ilv[j];
+                if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
+                   ilbl.get_label() == jlbl.get_label()) {
+                    EXPECTS(ilbl == jlbl);
+                }
+            }
+        }
+    }
+
+    LabeledTensorT& lhs_;
+    Func func_;
+    std::array<LabeledTensorT, N> rhs_;
+    // ResultMode mode_;
 };
 
 template<typename T, typename LabeledTensorT>

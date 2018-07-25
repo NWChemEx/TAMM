@@ -248,8 +248,10 @@ TEST_CASE("SCF GuessDensity declarations") {
     bool failed = false;
     try {
         using tensor_type = tamm::Tensor<double>;
-        tamm::TiledIndexSpace MOs = rv.C.get_spaces()[1];
-        tamm::TiledIndexSpace AOs = rv.C.get_spaces()[0];
+        //tamm::TiledIndexSpace MOs = rv.C.get_spaces()[1];
+        //tamm::TiledIndexSpace AOs = rv.C.get_spaces()[0];
+        tamm::TiledIndexSpace MOs ;
+        tamm::TiledIndexSpace AOs ;
         tamm::TiledIndexLabel i, mu, nu;
         std::tie(mu, nu) = AOs.labels<2>("all");
         std::tie(i) = MOs.labels<1>("all");

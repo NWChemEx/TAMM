@@ -15,6 +15,7 @@ set(tamm_INCLUDES
     strong_num.hpp
     boundvec.hpp
     index_space.hpp
+    tiled_index_space.hpp
     index_space_interface.hpp
     attribute.hpp
     range.hpp

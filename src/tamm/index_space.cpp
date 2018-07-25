@@ -1,4 +1,4 @@
-#include "tamm/index_space.hpp"
+#include "tamm/tiled_index_space.hpp"
 #include "tamm/index_space_interface.hpp"
 
 namespace tamm {

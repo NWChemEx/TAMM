@@ -1,7 +1,7 @@
 #ifndef TAMM_INDEX_LOOP_NEST_HPP_
 #define TAMM_INDEX_LOOP_NEST_HPP_
 
-#include "tamm/index_space.hpp"
+#include "tamm/tiled_index_space.hpp"
 #include "tamm/errors.hpp"
 #include <iostream>
 #include <vector>

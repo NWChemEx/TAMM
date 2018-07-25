@@ -506,12 +506,7 @@ protected:
                         kv.first,
                         TiledIndexSpace{kv.second, input_tile_sizes}});
                 }
-                // construct tiled spaces for named subspaces
-                for(const auto& str_subis : is.map_named_sub_index_spaces()) {
-                    tiled_named_subspaces_.insert(
-                      {str_subis.first,
-                       TiledIndexSpace{str_subis.second, input_tile_sizes}});
-                }
+                // in case of multiple tile sizes no named spacing carried.
             } else {
                 // construct indices with input tile size
                 tile_offsets_ = construct_tiled_indices(is, input_tile_size);

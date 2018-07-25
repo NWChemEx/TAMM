@@ -682,8 +682,44 @@ public:
     //   }
 
     void execute(const ProcGroup& ec_pg) override {
-
-        
+        using TensorElType = typename LabeledTensorT::element_type;
+        // the iterator to generate the tasks
+        const auto& tensor = lhs_.tensor();
+        const IndexLabelVec& iter_labels = internal::sort_on_dependence(lhs_.labels());
+        std::vector<IndexLoopBound> ilbs;
+        for(const auto& lbl : iter_labels) { ilbs.push_back({lbl}); }
+        IndexLoopNest loop_nest { ilbs };
+        const std::vector<size_t>& lhs_pm =
+          internal::perm_map_compute(iter_labels, lhs_.labels());
+        std::vector<size_t> rhs_pm[N];
+        for(size_t i=0; i<N; i++) {
+            rhs_pm[i] = internal::perm_map_compute(iter_labels, rhs_[i].labels());
+        }
+        // auto loop_nest = lhs_.tensor().loop_nest();
+        // function to compute one block
+        auto lambda = [&](const IndexVector itval) {
+            auto ltensor = lhs_.tensor();
+            const IndexVector& lblockid =
+              internal::perm_map_apply(itval, lhs_pm);
+            IndexVector rblockid[N];
+            for(size_t i=0; i<N; i++) {
+              rblockid[i] = internal::perm_map_apply(itval, rhs_pm[i]);
+            }
+            const size_t lsize = ltensor.block_size(lblockid);
+            std::vector<TensorElType> lbuf(lsize);
+            std::vector<TensorElType> rbuf[N];
+            for(size_t i=0; i<N; i++) {
+                const auto& rtensor_i = rhs_[i].tensor();
+                size_t isz = rtensor_i.block_size(rblockid[i]);
+                rbuf[i].resize(isz);
+                rtensor_i.get(rblockid[i], span<TensorElType>(&rbuf[i], isz));
+            }
+            func_(tensor, lblockid, lbuf, rblockid, rbuf);
+            ltensor.put(lblockid, span<TensorElType>(&lbuf, lsize));
+        };
+        // ec->...(loop_nest, lambda);
+        //@todo use a scheduler
+        do_work(ec_pg, loop_nest, lambda);
     }
 
 protected:

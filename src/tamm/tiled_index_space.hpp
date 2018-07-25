@@ -5,7 +5,6 @@
 
 namespace tamm {
 
-class IndexSpaceInterface;
 class TiledIndexLabel;
 
 /**
@@ -31,7 +30,9 @@ public:
     TiledIndexSpace(const IndexSpace& is, Tile input_tile_size = 1) :
       tiled_info_{std::make_shared<TiledIndexSpace::TiledIndexSpaceInfo>(
         is, input_tile_size, std::vector<Tile>{})},
-      root_tiled_info_{tiled_info_} {}
+      root_tiled_info_{tiled_info_} {
+        EXPECTS(input_tile_size > 0);
+    }
 
     /**
      * @brief Construct a new TiledIndexSpace from a reference
@@ -44,7 +45,9 @@ public:
                     const std::vector<Tile>& input_tile_sizes) :
       tiled_info_{std::make_shared<TiledIndexSpace::TiledIndexSpaceInfo>(
         is, 0, input_tile_sizes)},
-      root_tiled_info_{tiled_info_} {}
+      root_tiled_info_{tiled_info_} {
+        for(const auto& in_tsize : input_tile_sizes) { EXPECTS(in_tsize > 0); }
+    }
 
     /**
      * @brief Construct a new TiledIndexSpace object from
@@ -201,49 +204,6 @@ public:
     }
 
     bool is_compatible_with(const TiledIndexSpace& tis) const {
-        // NOT_IMPLEMENTED();
-
-        // // Check if identical
-        // if((*this).is_identical(tis)) { return true; }
-
-        // // Check if the input tile size match
-        // if(tis.input_tile_size() != tiled_info_->input_tile_size_) {
-        //     return false;
-        // }
-
-        // // Check if the input tile sizes match
-        // const auto& rhs_tile_sizes = tis.input_tile_sizes();
-        // EXPECTS(rhs_tile_sizes.size() ==
-        //         tiled_info_->input_tile_sizes_.size());
-        // for(size_t i = 0; i < rhs_tile_sizes.size(); i++) {
-        //     if(rhs_tile_sizes[i] != tiled_info_->input_tile_sizes_[i]) {
-        //         return false;
-        //     }
-        // }
-
-        // // Check if dependencies match
-        // if(tis.is_dependent() != (*this).is_dependent()) { return false; }
-
-        // if(tis.is_dependent()) {
-        //     const auto& dep_map = tis.tiled_dep_map();
-        //     // Check if each tiled index space in a dependency map is
-        //     // compatible
-        //     // @todo: check subspaces for dependent tiled index space
-        //     for(const auto& kv : tiled_info_->tiled_dep_map_) {
-        //         if(!kv.second.is_compatible_with(dep_map.at(kv.first))) {
-        //             return false;
-        //         }
-        //     }
-        // } else {
-        //     // Check index spaces have compatible reference spaces
-        //     if(!(*this).index_space().is_compatible_reference(
-        //          tis.index_space())) {
-        //         return false;
-        //     }
-        // }
-
-        // return true;
-
         return (this->root_tiled_info_.lock() == tis.root_tiled_info_.lock());
     }
 
@@ -843,7 +803,7 @@ private:
     void unpack_dep(std::vector<TiledIndexLabel>& in_vec,
                     const TiledIndexLabel& il1, Args... rest) {
         EXPECTS(!(*this).is_identical(il1));
-        
+
         in_vec.push_back(il1);
         unpack_dep(in_vec, rest...);
     }

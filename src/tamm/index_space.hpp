@@ -14,7 +14,6 @@ namespace tamm {
 
 class IndexSpaceInterface;
 class TiledIndexSpace;
-class TiledIndexLabel;
 
 /**
  * @class IndexSpace

@@ -231,14 +231,35 @@ TEST_CASE("SCF Commutator declarations") {
         using space_type = tamm::TiledIndexSpace;
         using index_type = tamm::TiledIndexLabel;
 
-        tensor_type comm, temp, F, D, S;
+        IndexSpace is{range(10)};
+        space_type tis{is};
+
+        tensor_type comm{tis, tis}, temp{tis, tis}, F{tis, tis}, D{tis, tis}, S{tis, tis};
         index_type mu, nu, lambda;
 
+        ProcGroup pg{GA_MPI_Comm()};
+        auto mgr = MemoryManagerGA::create_coll(pg);
+        Distribution_NW distribution;
+        ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
+
+        tensor_type::allocate(ec, comm, temp, F, D, S);
+
+        /*
         temp(mu, lambda) = F(mu,nu)*D(nu, lambda); //FD
         comm(mu, lambda) = temp(mu, nu)*S(nu, lambda); //FDS
         temp(mu, lambda) = S(mu, nu)*D(nu, lambda); //SD
         comm(mu, lambda) += -1.0*temp(mu, nu)*F(nu, lambda);//FDS - SDF
+         */
 
+        Scheduler{ec}
+            (temp(mu, lambda) = F(mu,nu)*D(nu, lambda)) //FD
+            (comm(mu, lambda) = temp(mu, nu)*S(nu, lambda)) //FDS
+            (temp(mu, lambda) = S(mu, nu)*D(nu, lambda)) //SD
+            (comm(mu, lambda) += -1.0*temp(mu, nu)*F(nu, lambda))//FDS - SDF
+            .execute();
+
+
+        tensor_type::deallocate(comm, temp, F, D, S);
     } catch (...) {
         failed = true;
     }

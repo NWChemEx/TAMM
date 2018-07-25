@@ -1,12 +1,12 @@
 #ifndef TAMM_LABELED_TENSOR_HPP_
 #define TAMM_LABELED_TENSOR_HPP_
 
-#include "tamm/ops.hpp"
 #include <type_traits>
+#include "tamm/ops.hpp"
 
 namespace tamm {
 
-#if __cplusplus >= 202203L
+#if __cplusplus >= 202303L
 
 namespace internal {
 template<typename>
@@ -48,12 +48,21 @@ public:
       slv_{StringLabelVec(tensor_.num_modes())},
       str_map_{std::vector<bool>(tensor_.num_modes())} {
         unpack(0, args...);
+        validate();
     }
 
     Tensor<T> tensor() const { return tensor_; }
-    IndexLabelVec labels() const { return ilv_; }
-    StringLabelVec str_labels() const { return slv_; }
-    std::vector<bool> str_map() const { return str_map_; }
+    const IndexLabelVec& labels() const { return ilv_; }
+    const StringLabelVec& str_labels() const { return slv_; }
+    const std::vector<bool>& str_map() const { return str_map_; }
+
+    void set_labels(const IndexLabelVec& ilv) {
+        EXPECTS(ilv_.size() == ilv.size());
+        ilv_ = ilv;
+        slv_.clear();
+        slv_.resize(ilv_.size());
+        str_map_ = std::vector<bool>(ilv_.size(), false);
+    }
 
     using LTT = LabeledTensor<T>;
 
@@ -133,10 +142,140 @@ protected:
     std::vector<bool> str_map_;
 
 private:
-    void unpack(size_t index) { EXPECTS(index == tensor_.num_modes()); }
+    /**
+     * @brief Check that the labeled tensor is valid. Following conditions
+     * need to be satisfied:
+     *
+     * 1. Number of labels in the label vector is equal to the tensor's rank/
+     * mode
+     *
+     * 2. If any label is a dependent label, dependent on some other label l,
+     * then l cannot have any key (dep labels)
+     *
+     * 3. The i-th label's tiled index space is compatible with the tiled
+     *  index space corresponding to the tensor's i-th dimension
+     *
+     * 4. For each label, the number of key labels (dep labels) is either zero
+     *  or equal to the number tiled index spaces the label's index space
+     *  depends on
+     *
+     * 5. If any label 'a' is used as being dependent on another label 'l1'
+     * (a(l1)), it cannot be a used as being dependent on another label 'l2'.
+     * For example, this is not valid: T1(a(l1), a(l2)).
+     *
+     * 6. If two string labels (say at positions i and j) are identical, the
+     *  tensor's index spaces at the same positions (i and j) are identical.
+     *
+     * 7. If a dimension of a tensor is a dependent dimension, with dependency
+     * on dimensions i, j, etc., the corresponding label should be a dependent
+     * label on the same dependent index space and should be dependent on the
+     * same dimension positions. E.g., with a declaration T{i, a(i), k}, the use
+     * T(x, y(z),z) is invalid. For now, we will check that the label is over
+     * the same tiled index space as the dimension.
+     * 
+     * 8. No self dependences. e.g., label 'i(i)', are not allowed.
+     *
+     */
+    void validate() {
+        std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+        EXPECTS(tensor_.num_modes() == ilv_.size());
+        for(size_t i = 0; i < ilv_.size(); i++) {
+            if(!str_map_[i]) {
+                for(const auto& dlbl : ilv_[i].dep_labels()) {
+                    EXPECTS(dlbl.dep_labels().size() == 0);
+                }
+            }
+        }
+        for(size_t i = 0; i < ilv_.size(); i++) {
+            if(!str_map_[i]) {
+                EXPECTS(ilv_[i].tiled_index_space().is_compatible_with(
+                  tensor_.tiled_index_spaces()[i]));
+            }
+        }
+        for(size_t i = 0; i < ilv_.size(); i++) {
+            if(!str_map_[i]) {
+                size_t sz = ilv_[i].dep_labels().size();
+                EXPECTS(sz == 0 || sz == tensor_.tiled_index_spaces()[i]
+                                           .index_space()
+                                           .num_key_tiled_index_spaces());
+            }
+        }
+        for(size_t i = 0; i < ilv_.size(); i++) {
+            const auto& ilbl = ilv_[i];
+            for(size_t j = i + 1; j < ilv_.size(); j++) {
+                if(!str_map_[i] && !str_map_[j]) {
+                    const auto& jlbl = ilv_[j];
+                    if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
+                       ilbl.get_label() == jlbl.get_label()) {
+                        // EXPECTS(ilbl.dep_labels().size() == 0 ||
+                        //         jlbl.dep_labels().size() == 0 ||
+                        //         ilbl == jlbl);
+                        EXPECTS(ilbl == jlbl);
+                    }
+                }
+            }
+        }
+        for(size_t i = 0; i < ilv_.size(); i++) {
+            for(size_t j = i + 1; j < ilv_.size(); j++) {
+                if(str_map_[i] && str_map_[j] && slv_[i] == slv_[j]) {
+                    const auto& is = tensor_.tiled_index_spaces()[i];
+                    const auto& js = tensor_.tiled_index_spaces()[j];
+                    EXPECTS(is.is_identical(js));
+                }
+            }
+        }
+
+        const std::map<Index,IndexVector>& dep_map = tensor_.dep_map();
+        for(auto itr = dep_map.begin(); itr!=dep_map.end(); ++itr){
+            const auto& dep_iv = itr->second;
+            auto dc_ = 0;
+            for(auto &dlpos: dep_iv) {
+                EXPECTS(str_map_[dlpos] == false);
+                const auto& ltis = ilv_[dlpos].tiled_index_space();
+                Label llbl = ilv_[dlpos].get_label();
+                EXPECTS(ilv_[itr->first].dep_labels().size() > 0);
+                const auto& rtis = ilv_[itr->first].dep_labels()[dc_].tiled_index_space();
+                Label rlbl = ilv_[itr->first].dep_labels()[dc_].get_label();
+                EXPECTS(ltis==rtis && llbl==rlbl);
+                dc_++;
+            }
+        }
+
+        for(const auto& lbl : ilv_) {
+            for(const auto& dlbl : lbl.dep_labels()) {
+                EXPECTS(lbl.tiled_index_space() != dlbl.tiled_index_space() ||
+                        lbl.get_label() != dlbl.get_label());
+            }
+        }
+    } // validate
+
+    void unpack(size_t index) {
+        if(index == 0) {
+            int lc=0;
+            for (size_t i=0;i < ilv_.size();i++) 
+                ilv_[i] = tensor_.tiled_index_spaces()[i].label(--lc);
+            for(size_t i = 0; i < ilv_.size(); i++) {
+                auto dep_map = tensor_.dep_map();
+                auto itr = dep_map.find(i);
+                if(itr != dep_map.end()){
+                    IndexLabelVec tempv;
+                    for(auto idx: itr->second)
+                        tempv.push_back(ilv_[idx]);  
+                    ilv_[i] = TiledIndexLabel{ilv_[i],tempv};
+                }
+                str_map_[i] = false;
+            }
+        } else {
+            EXPECTS(index == tensor_.num_modes());
+        }
+        EXPECTS(str_map_.size() == tensor_.num_modes());
+        EXPECTS(ilv_.size() == tensor_.num_modes());
+        EXPECTS(slv_.size() == tensor_.num_modes());
+    }
 
     template<typename... Args>
     void unpack(size_t index, const std::string& str, Args... rest) {
+        EXPECTS(index < tensor_.num_modes());
         slv_[index]     = str;
         str_map_[index] = true;
         unpack(++index, rest...);
@@ -144,6 +283,7 @@ private:
 
     template<typename... Args>
     void unpack(size_t index, const TiledIndexLabel& label, Args... rest) {
+        EXPECTS(index < tensor_.num_modes());
         ilv_[index]     = label;
         str_map_[index] = false;
         unpack(++index, rest...);
@@ -259,15 +399,15 @@ public:
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-    AddOp<T1, LabeledTensor<T>> operator+=(
+    AddOp<T, LabeledTensor<T>> operator+=(
       const std::tuple<T1, LabeledTensor<T>>& rhs) {
         return construct_addop(
-          std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)), false);
+          std::make_tuple(std::get<0>(rhs)*1.0, std::get<1>(rhs)), false);
     }
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-    AddOp<T1, LabeledTensor<T>> operator-=(
+    AddOp<T, LabeledTensor<T>> operator-=(
       const std::tuple<T1, LabeledTensor<T>>& rhs) {
         return construct_addop(
           std::make_tuple(std::get<0>(rhs) * -1.0, std::get<1>(rhs)), false);
@@ -275,10 +415,10 @@ public:
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-    AddOp<T1, LabeledTensor<T>> operator=(
+    AddOp<T, LabeledTensor<T>> operator=(
       const std::tuple<T1, LabeledTensor<T>>& rhs) {
         return construct_addop(
-          std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)), true);
+          std::make_tuple(std::get<0>(rhs)*1.0, std::get<1>(rhs)), true);
     }
 
     AddOp<T, LabeledTensor<T>> operator=(const LabeledTensor<T> rhs) {
@@ -287,17 +427,17 @@ public:
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-    MultOp<T1, LabeledTensor<T>> operator+=(
+    MultOp<T, LabeledTensor<T>> operator+=(
       const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
         return construct_multop(
-          std::make_tuple(std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs)),
+          std::make_tuple(std::get<0>(rhs)*1.0, std::get<1>(rhs), std::get<2>(rhs)),
           false);
     }
 
     // @to-do: implement.
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-    MultOp<T1, LabeledTensor<T>> operator-=(
+    MultOp<T, LabeledTensor<T>> operator-=(
       const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
         return construct_multop(std::make_tuple(-1.0 * std::get<0>(rhs),
                                                 std::get<1>(rhs),
@@ -307,10 +447,10 @@ public:
 
     template<typename T1,
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-    MultOp<T1, LabeledTensor<T>> operator=(
+    MultOp<T, LabeledTensor<T>> operator=(
       const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
         return construct_multop(
-          std::make_tuple(std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs)),
+          std::make_tuple(std::get<0>(rhs)*1.0, std::get<1>(rhs), std::get<2>(rhs)),
           true);
     }
 

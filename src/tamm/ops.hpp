@@ -2,13 +2,25 @@
 #define TAMM_OPS_HPP_
 
 #include <memory>
+#include <vector>
 #include <algorithm>
+#include <iostream>
 
 #include "tamm/boundvec.hpp"
 #include "tamm/errors.hpp"
 #include "tamm/tensor.hpp"
 #include "tamm/types.hpp"
 #include "tamm/work.hpp"
+
+// template<typename T>
+// inline std::ostream& operator << (std::ostream& os, const std::vector<T>& vec) {
+//     os<<"[";
+//     for(const auto& v: vec) {
+//         os<<v<<" ";
+//     }
+//     os<<"]";
+//     return os;
+// }
 
 namespace tamm {
 
@@ -264,8 +276,9 @@ template<typename T>
 std::vector<size_t> perm_map_compute(const std::vector<T>& unique_vec,
                                      const std::vector<T>& vec_required) {
     std::vector<size_t> ret;
-    for(const auto& val : unique_vec) {
+    for(const auto& val : vec_required) {
         auto it = std::find(unique_vec.begin(), unique_vec.end(), val);
+        EXPECTS(it >= unique_vec.begin());
         EXPECTS(it != unique_vec.end());
         ret.push_back(it - unique_vec.begin());
     }
@@ -283,6 +296,16 @@ std::vector<T> perm_map_apply(const std::vector<T>& input_vec,
     return ret;
 }
 
+template<typename T, typename Integer>
+void perm_map_apply(std::vector<T>& out_vec, const std::vector<T>& input_vec,
+                    const std::vector<Integer>& perm_map) {
+    out_vec.resize(perm_map.size());
+    for(size_t i=0; i<perm_map.size(); i++) {
+        EXPECTS(perm_map[i] < input_vec.size());
+        out_vec[i] = input_vec[perm_map[i]];
+    }
+}
+
 inline IndexLabelVec sort_on_dependence(const IndexLabelVec& labels) {
     IndexLabelVec ret;
     for(const auto& lbl : labels) {
@@ -294,6 +317,26 @@ inline IndexLabelVec sort_on_dependence(const IndexLabelVec& labels) {
         if(it == ret.end()) { ret.push_back(lbl); }
     }
     return ret;
+}
+
+
+template<typename T>
+bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
+    EXPECTS(itr.size() == end.size());
+    // if(!std::lexicographical_compare(itr.begin(), itr.end(), end.begin(),
+    //                                  end.end())) {
+    //     return false;
+    // }
+    int i;
+    for(i = -1 + itr.size(); i>=0 && itr[i] == end[i]; i--) {
+        itr[i] = T{0};        
+    }
+    // EXPECTS(itr.size() == 0 || i>=0);
+    if(i>=0) {
+        ++itr[i];
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -336,6 +379,7 @@ inline void block_add(T* dbuf, const std::vector<size_t>& ddims,
         // std::unique(unique_labels.begin(), unique_labels.end());
         const auto& dperm_map = perm_map_compute(unique_labels, dlabel);
         const auto& sperm_map = perm_map_compute(unique_labels, slabel);
+        const auto& dinv_pm = perm_map_compute(dlabel, unique_labels);
 
         auto idx = [](const auto& index_vec, const auto& dims_vec) {
             size_t ret = 0, ld = 1;
@@ -347,10 +391,14 @@ inline void block_add(T* dbuf, const std::vector<size_t>& ddims,
             return ret;
         };
 
-        std::vector<IndexLoopBound> ilbs;
-        for(const auto& lbl : unique_labels) { ilbs.push_back({lbl}); }
-        IndexLoopNest iln = IndexLoopNest{ilbs};
-        for(const auto& itval : iln) {
+        // std::vector<IndexLoopBound> ilbs;
+        // for(const auto& lbl : unique_labels) { ilbs.push_back({lbl}); }
+        // IndexLoopNest iln = IndexLoopNest{ilbs};
+        std::vector<size_t> itrv(unique_labels.size(), 0);
+        std::vector<size_t> endv(unique_labels.size());
+        internal::perm_map_apply(endv, ddims, dinv_pm);
+        do {
+            const auto& itval = itrv;
             const auto& sindex = perm_map_apply(sperm_map, itval);
             const auto& dindex = perm_map_apply(dperm_map, itval);
             if(!update) {
@@ -358,7 +406,7 @@ inline void block_add(T* dbuf, const std::vector<size_t>& ddims,
             } else {
                 dbuf[idx(dindex, ddims)] += scale * sbuf[idx(sindex, sdims)];
             }
-        }
+        } while(internal::cartesian_iteration(itrv, endv));
     }
 }
 
@@ -369,16 +417,26 @@ inline void block_mult(T cscale, T* cbuf, const std::vector<size_t>& cdims,
                        const IndexLabelVec& alabel, T* bbuf,
                        const std::vector<size_t>& bdims,
                        const IndexLabelVec& blabel) {
+    for(const auto& d : cdims) {
+        if(d == 0) { return; }
+    }
+    for(const auto& d : adims) {
+        if(d == 0) { return; }
+    }
+    for(const auto& d : bdims) {
+        if(d == 0) { return; }
+    }
     IndexLabelVec all_labels{clabel};
     all_labels.insert(all_labels.end(), alabel.begin(), alabel.end());
     all_labels.insert(all_labels.end(), blabel.begin(), blabel.end());
     IndexLabelVec unique_labels = unique_entries(all_labels);
-    unique_labels = sort_on_dependence(unique_labels);
+    IndexLabelVec sorted_labels = sort_on_dependence(unique_labels);
     // std::sort(unique_labels.begin(), unique_labels.end());
     // std::unique(unique_labels.begin(), unique_labels.end());
     const auto& cperm_map = perm_map_compute(unique_labels, clabel);
     const auto& aperm_map = perm_map_compute(unique_labels, alabel);
     const auto& bperm_map = perm_map_compute(unique_labels, blabel);
+    const auto& all_inv_pm = perm_map_compute(all_labels, unique_labels);
 
     auto idx = [](const auto& index_vec, const auto& dims_vec) {
         size_t ret = 0, ld = 1;
@@ -393,14 +451,29 @@ inline void block_mult(T cscale, T* cbuf, const std::vector<size_t>& cdims,
     std::vector<IndexLoopBound> ilbs;
     for(const auto& lbl : unique_labels) { ilbs.push_back({lbl}); }
     IndexLoopNest iln = IndexLoopNest{ilbs};
-    for(const auto& itval : iln) {
-        const auto& cindex = perm_map_apply(cperm_map, itval);
-        const auto& aindex = perm_map_apply(aperm_map, itval);
-        const auto& bindex = perm_map_apply(bperm_map, itval);
+
+    std::vector<size_t> itrv(sorted_labels.size(), 0);
+    std::vector<size_t> endv(sorted_labels.size());
+
+    std::vector<size_t> all_dims {cdims};
+    all_dims.insert(all_dims.end(), adims.begin(), adims.end());
+    all_dims.insert(all_dims.end(), bdims.begin(), bdims.end());    
+    internal::perm_map_apply(endv, all_dims, all_inv_pm);
+
+    do {
+        const auto& itval = itrv;
+        const auto& cindex = perm_map_apply(itval, cperm_map);
+        const auto& aindex = perm_map_apply(itval, aperm_map);
+        const auto& bindex = perm_map_apply(itval, bperm_map);
         size_t cidx        = idx(cindex, cdims);
+        // std::cerr<<__FUNCTION__<<"aidx="<<idx(aindex, adims)
+        // <<"bidx="<<idx(bindex, bdims)<<"cidx="<<cidx<<"\n";
+        // std::cerr<<"abscale="<<abscale<<" cscale="<<cscale<<"\n";
+        // std::cerr<<"abuf[0]="<<abuf[0]<<" bbuf[0]="<<bbuf[0]<<"\n";
         cbuf[cidx] = cscale * cbuf[cidx] + abscale * abuf[idx(aindex, adims)] *
                                              bbuf[idx(bindex, bdims)];
-    }
+        // std::cerr<<__FUNCTION__<<" updated cbuf[cidx]="<<cbuf[cidx]<<"\n";
+    } while(internal::cartesian_iteration(itrv, endv));
 }
 
 } // namespace internal
@@ -967,20 +1040,34 @@ public:
         EXPECTS(!is_assign_);
         using TensorElType = typename LabeledTensorT::element_type;
         // the iterator to generate the tasks
-        IndexLabelVec sorted_labels;
-        const std::vector<size_t>& cpm =
-          internal::perm_map_compute(sorted_labels, lhs_.labels());
-        const std::vector<size_t>& apm =
-          internal::perm_map_compute(sorted_labels, rhs1_.labels());
-        const std::vector<size_t>& bpm =
-          internal::perm_map_compute(sorted_labels, rhs2_.labels());
-#if 1
         IndexLabelVec all_labels{lhs_.labels()};
-        all_labels.insert(all_labels.end(), rhs1_.labels().begin(), rhs1_.labels().end());
-        all_labels.insert(all_labels.end(), rhs2_.labels().begin(), rhs2_.labels().end());
+        all_labels.insert(all_labels.end(), rhs1_.labels().begin(),
+                          rhs1_.labels().end());
+        all_labels.insert(all_labels.end(), rhs2_.labels().begin(),
+                          rhs2_.labels().end());
         IndexLabelVec unique_labels = internal::unique_entries(all_labels);
         unique_labels = internal::sort_on_dependence(unique_labels);
 
+        // std::cerr << __FUNCTION__ << " " << __LINE__
+        //           << "clbl.size=" << lhs_.labels().size() << "\n";
+        const std::vector<size_t>& cpm =
+          internal::perm_map_compute(unique_labels, lhs_.labels());
+        // std::cerr << __FUNCTION__ << " " << __LINE__
+        //           << "albl.size=" << rhs1_.labels().size() << "\n";
+        const std::vector<size_t>& apm =
+          internal::perm_map_compute(unique_labels, rhs1_.labels());
+        // std::cerr << __FUNCTION__ << " " << __LINE__
+        //           << "blbl.size=" << rhs2_.labels().size() << "\n";
+        const std::vector<size_t>& bpm =
+          internal::perm_map_compute(unique_labels, rhs2_.labels());
+        // std::cerr << __FUNCTION__ << " " << __LINE__
+        //           << "apm.size=" << apm.size() << "\n";
+        // std::cerr << __FUNCTION__ << " " << __LINE__
+        //           << "bpm.size=" << bpm.size() << "\n";
+        // std::cerr << __FUNCTION__ << " " << __LINE__
+        //           << "cpm.size=" << cpm.size() << "\n";
+
+#if 1
         std::vector<IndexLoopBound> ilbs;
         for(const auto& lbl : unique_labels) { ilbs.push_back({lbl}); }
         IndexLoopNest loop_nest{ilbs};
@@ -992,15 +1079,33 @@ public:
             auto ctensor         = lhs_.tensor();
             auto atensor         = rhs1_.tensor();
             auto btensor         = rhs2_.tensor();
+            // if(cpm.size() > 0) {
+            //     std::cerr<<"cpm[0] = "<<cpm[0]<<"\n";
+            // }
+            // if(apm.size() > 0) {
+            // std::cerr<<"apm[0] = "<<apm[0]<<"\n";
+            // }
+            // if(bpm.size() > 0) {
+            // std::cerr<<"bpm[0] = "<<bpm[0]<<"\n";
+            // }
+            // if(itval.size() > 0) {
+            // std::cerr<<"itval[0] = "<<itval[0]<<"\n";
+            // }
             const IndexVector& cblockid =
               internal::perm_map_apply(itval, cpm);
             const IndexVector& ablockid =
               internal::perm_map_apply(itval, apm);
             const IndexVector& bblockid =
               internal::perm_map_apply(itval, bpm);
+            // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"ablockid.size="<<ablockid.size()<<"\n";
+            // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"bblockid.size="<<bblockid.size()<<"\n";
+            // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"cblockid.size="<<cblockid.size()<<"\n";
             size_t csize          = ctensor.block_size(cblockid);
             size_t asize          = atensor.block_size(ablockid);
             size_t bsize          = btensor.block_size(bblockid);
+            // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"asize="<<asize<<"\n";
+            // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"bsize="<<bsize<<"\n";
+            // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"csize="<<csize<<"\n";
             std::vector<TensorElType> cbuf(csize);
             std::vector<TensorElType> abuf(asize);
             std::vector<TensorElType> bbuf(bsize);
@@ -1010,8 +1115,10 @@ public:
             const auto& adims = atensor.block_dims(ablockid);
             const auto& bdims = btensor.block_dims(bblockid);
             double cscale = is_assign_ ? 0 : 1;
-            internal::block_mult(0.0, &cbuf[0], cdims, lhs_.labels(),
-            alpha_, &abuf[0], adims, rhs1_.labels(), &bbuf[0], bdims, rhs2_.labels());
+            // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+            internal::block_mult(0.0, &cbuf[0], cdims, lhs_.labels(), alpha_,
+                                 &abuf[0], adims, rhs1_.labels(), &bbuf[0],
+                                 bdims, rhs2_.labels());
             // if(is_assign_) {
             //     ctensor.put(cblockid, span<TensorElType>(&cbuf[0], csize));
             // } else {
@@ -1022,6 +1129,7 @@ public:
         //@todo use a scheduler
         //@todo make parallel
         do_work(ec_pg, loop_nest, lambda);
+        // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
 #endif
     }
 

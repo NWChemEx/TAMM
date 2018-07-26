@@ -44,12 +44,14 @@ namespace tamm {
  * operations (e.g., an error message).
  */
 //#define EXPECTS(cond) assert(cond)
-#define EXPECTS(cond)                                                          \
-    do {                                                                       \
-        if(!(cond)) {                                                          \
-            std::cerr<<"EXPECTS failed. Condition: "<<#cond<<"\n";               \
-            throw std::string{"EXPECT condition failed: "}+std::string{#cond}; \
-        }                                                                      \
+#define EXPECTS(cond)                                                     \
+    do {                                                                  \
+        if(!(cond)) {                                                     \
+            std::cerr << "EXPECTS failed. Condition: " << __FILE__ << " " \
+                      << __LINE__ << " " << #cond << "\n";                \
+            throw std::string{"EXPECT condition failed: "} +              \
+              std::string{#cond};                                         \
+        }                                                                 \
     } while(0)
 
 } // namespace tamm

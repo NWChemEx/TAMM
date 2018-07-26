@@ -172,6 +172,7 @@ TEST_CASE("Zero-dimensional ops") {
 
         Scheduler{ec}(T2() = 42)(T1() = T2()).execute();
         Scheduler{ec}.gop(T1(),lambda).execute();
+        //Scheduler{ec}.gop(T1(),std::array{T2()},lambda).execute();
         check_value(T1, 42.0);
         Tensor<T>::deallocate(T1, T2);
     }

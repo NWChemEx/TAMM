@@ -251,24 +251,26 @@ TEST_CASE("Zero-dimensional ops") {
 }
 
 template<typename T>
-bool test_setop(ExecutionContext *ec, Tensor<T> T1, LabeledTensor<T> LT1,
-std::vector<LabeledTensor<T>> rest_lts) {
+bool test_setop(ExecutionContext* ec, Tensor<T> T1, LabeledTensor<T> LT1,
+                std::vector<LabeledTensor<T>> rest_lts = {}) {
     bool success = true;
     try {
         Tensor<T>::allocate(ec, T1);
-        Scheduler{ec}(T1() = -1.0)(LT1 = 42).execute();
-        check_value(LT1, 42.0);
-        for(const auto& lt: rest_lts) {
-            check_value(lt, -1.0);
+        try {
+            Scheduler{ec}(T1() = -1.0)(LT1 = 42).execute();
+            check_value(LT1, 42.0);
+            for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
+        } catch(std::string& e) {
+            std::cerr << "Caught exception: " << e << "\n";
+            success = false;
         }
         Tensor<T>::deallocate(T1);
-    } catch(std::string &e) {
+    } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
         success = false;
     }
     return success;
 }
-
 
 TEST_CASE("One-dimensional ops") {
     bool failed;
@@ -279,46 +281,36 @@ TEST_CASE("One-dimensional ops") {
     using T              = double;
 
     IndexSpace IS{range(0, 10),
-                      {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
+                  {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
     TiledIndexSpace TIS{IS, 1};
+    TiledIndexLabel l1, l2, lall, lnone;
+    std::tie(l1) = TIS.labels<1>("nr1");
+    std::tie(l2) = TIS.labels<1>("nr2");
+    std::tie(lall) = TIS.labels<1>("all");
+    //std::tie(lnone) = TIS.labels<1>("none");
 
     {
         Tensor<T> T1{TIS};
-        // Tensor<T>::allocate(ec, T1);
-        // Scheduler{ec}(T1() = 42).execute();
-        // check_value(T1, 42.0);
-        // Tensor<T>::deallocate(T1);
-        REQUIRE(test_setop(ec, T1,T1(), {}));
+        REQUIRE(test_setop(ec, T1, T1()));
     }
 
-    //@todo Erdal:the test below fails because of index space incompatibility.
     {
         Tensor<T> T1{TIS};
-        try {
-            failed = false;
-            Tensor<T>::allocate(ec, T1);
-            TiledIndexLabel l1, l2;
-            std::tie(l1) = TIS.labels<1>("nr1");
-            std::tie(l2) = TIS.labels<1>("nr2");
-            Scheduler{ec}(T1(l1) = 42).execute();
-            check_value(T1(l1), 42.0);
-            Tensor<T>::deallocate(T1);
-        } catch(std::string& e) {
-            std::cerr << "Caught exception: " << e << "\n";
-            failed = true;
-        }
+        //@todo Erdal: #else path fails. Can you check?
+#if 1
+        REQUIRE(test_setop(ec, T1, T1(l1)));
+#else
+        REQUIRE(test_setop(ec, T1, T1(l1), {T1(l2)}));
+#endif
     }
-    REQUIRE(!failed);
 
     try {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS};
         Scheduler{ec}
-        .allocate(T1, T2)
-        (T2() = 42)
-        (T1() = T2())
-        .deallocate(T2)
-        .execute();
+          .allocate(T1, T2)(T2() = 42)(T1() = T2())
+          .deallocate(T2)
+          .execute();
         check_value(T1, 42.0);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
@@ -331,12 +323,9 @@ TEST_CASE("One-dimensional ops") {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS};
         Scheduler{ec}
-        .allocate(T1, T2)
-        (T1() = 4)
-        (T2() = 42)
-        (T1() += T2())
-        .deallocate(T2)
-        .execute();
+          .allocate(T1, T2)(T1() = 4)(T2() = 42)(T1() += T2())
+          .deallocate(T2)
+          .execute();
         check_value(T1, 46.0);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
@@ -349,12 +338,9 @@ TEST_CASE("One-dimensional ops") {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS};
         Scheduler{ec}
-        .allocate(T1, T2)
-        (T1() = 4)
-        (T2() = 42)
-        (T1() += 3*T2())
-        .deallocate(T2)
-        .execute();
+          .allocate(T1, T2)(T1() = 4)(T2() = 42)(T1() += 3 * T2())
+          .deallocate(T2)
+          .execute();
         check_value(T1, 130.0);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
@@ -367,12 +353,9 @@ TEST_CASE("One-dimensional ops") {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS};
         Scheduler{ec}
-        .allocate(T1, T2)
-        (T1() = 4)
-        (T2() = 42)
-        (T1() -= T2())
-        .deallocate(T2)
-        .execute();
+          .allocate(T1, T2)(T1() = 4)(T2() = 42)(T1() -= T2())
+          .deallocate(T2)
+          .execute();
         check_value(T1, -38.0);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
@@ -385,12 +368,9 @@ TEST_CASE("One-dimensional ops") {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS};
         Scheduler{ec}
-        .allocate(T1, T2)
-        (T1() = 4)
-        (T2() = 42)
-        (T1() += -3.1*T2())
-        .deallocate(T2)
-        .execute();
+          .allocate(T1, T2)(T1() = 4)(T2() = 42)(T1() += -3.1 * T2())
+          .deallocate(T2)
+          .execute();
         check_value(T1, -126.2);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
@@ -403,13 +383,10 @@ TEST_CASE("One-dimensional ops") {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
         Scheduler{ec}
-        .allocate(T1, T2, T3)
-        (T1() = 0)
-        (T2() = 8)
-        (T3() = 4)
-        (T1() += T2() * T3())
-        .deallocate(T2, T3)
-        .execute();
+          .allocate(T1, T2,
+                    T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
         check_value(T1, 32.0);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
@@ -422,14 +399,11 @@ TEST_CASE("One-dimensional ops") {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
         Scheduler{ec}
-        .allocate(T1, T2, T3)
-        (T1() = 9)
-        (T2() = 8)
-        (T3() = 4)
-        (T1() += 1.5 * T3() * T2())
-        .deallocate(T2, T3)
-        .execute();
-        check_value(T1, 9 + 1.5*8*4);
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, 9 + 1.5 * 8 * 4);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -441,14 +415,11 @@ TEST_CASE("One-dimensional ops") {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
         Scheduler{ec}
-        .allocate(T1, T2, T3)
-        (T1() = 9)
-        (T2() = 8)
-        (T3() = 4)
-        (T3() += 1.5 * T1() * T2())
-        .deallocate(T1, T2)
-        .execute();
-        check_value(T3, 4 + 1.5*10*9*8);
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
+          .deallocate(T1, T2)
+          .execute();
+        check_value(T3, 4 + 1.5 * 10 * 9 * 8);
         Tensor<T>::deallocate(T3);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";

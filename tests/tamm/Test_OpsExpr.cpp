@@ -1,4 +1,4 @@
-#define CATCH_CONFIG_MAIN
+#define CATCH_CONFIG_RUNNER
 
 #include "catch/catch.hpp"
 #include "ga.h"
@@ -231,16 +231,18 @@ TEST_CASE("SCF Commutator declarations") {
         using space_type = tamm::TiledIndexSpace;
         using index_type = tamm::TiledIndexLabel;
 
+        ProcGroup pg{GA_MPI_Comm()};
+        auto mgr = MemoryManagerGA::create_coll(pg);
+        Distribution_NW distribution;
+        ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
+
         IndexSpace is{range(10)};
         space_type tis{is};
 
         tensor_type comm{tis, tis}, temp{tis, tis}, F{tis, tis}, D{tis, tis}, S{tis, tis};
         index_type mu, nu, lambda;
 
-        ProcGroup pg{GA_MPI_Comm()};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
+        std::tie(mu,nu,lambda) = tis.labels<3>("all");
 
         tensor_type::allocate(ec, comm, temp, F, D, S);
 
@@ -313,4 +315,20 @@ TEST_CASE("SCF JK declarations") {
         failed = true;
     }
     REQUIRE(!failed);
+}
+
+int main(int argc, char* argv[])
+{
+    MPI_Init(&argc,&argv);
+    GA_Initialize();
+    MA_init(MT_DBL, 8000000, 20000000);
+    
+    int mpi_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+    int res = Catch::Session().run(argc, argv);
+    GA_Terminate();
+    MPI_Finalize();
+
+    return res;
 }

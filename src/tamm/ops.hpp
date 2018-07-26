@@ -1122,7 +1122,7 @@ public:
             double cscale = is_assign_ ? 0 : 1;
             // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
             //do the block-block multiply
-            internal::block_mult(0.0, &cbuf[0], cdims, lhs_.labels(), alpha_,
+            internal::block_mult((TensorElType)0.0, &cbuf[0], cdims, lhs_.labels(), alpha_,
                                  &abuf[0], adims, rhs1_.labels(), &bbuf[0],
                                  bdims, rhs2_.labels());
             // if(is_assign_) {

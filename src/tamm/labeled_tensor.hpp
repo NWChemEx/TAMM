@@ -378,7 +378,7 @@ public:
     }
 
     AddOp<T, LabeledTensor<T>> operator+=(const LabeledTensor<T> rhs) {
-        return construct_addop(std::make_tuple(1.0, rhs), false);
+        return construct_addop(std::make_tuple((T)1.0, rhs), false);
     }
 
     SetOp<T, LabeledTensor<T>> operator+=(const T& rhs) {
@@ -386,7 +386,7 @@ public:
     }
 
     AddOp<T, LabeledTensor<T>> operator-=(const LabeledTensor<T> rhs) {
-        return construct_addop(std::make_tuple(-1.0, rhs), false);
+        return construct_addop(std::make_tuple((T)-1.0, rhs), false);
     }
 
     SetOp<T, LabeledTensor<T>> operator-=(const T& rhs) {
@@ -402,7 +402,7 @@ public:
     AddOp<T, LabeledTensor<T>> operator+=(
       const std::tuple<T1, LabeledTensor<T>>& rhs) {
         return construct_addop(
-          std::make_tuple(std::get<0>(rhs)*1.0, std::get<1>(rhs)), false);
+          std::make_tuple((T)(std::get<0>(rhs)*1.0), std::get<1>(rhs)), false);
     }
 
     template<typename T1,
@@ -410,7 +410,7 @@ public:
     AddOp<T, LabeledTensor<T>> operator-=(
       const std::tuple<T1, LabeledTensor<T>>& rhs) {
         return construct_addop(
-          std::make_tuple(std::get<0>(rhs) * -1.0, std::get<1>(rhs)), false);
+          std::make_tuple((T)(std::get<0>(rhs) * -1.0), std::get<1>(rhs)), false);
     }
 
     template<typename T1,
@@ -418,11 +418,11 @@ public:
     AddOp<T, LabeledTensor<T>> operator=(
       const std::tuple<T1, LabeledTensor<T>>& rhs) {
         return construct_addop(
-          std::make_tuple(std::get<0>(rhs)*1.0, std::get<1>(rhs)), true);
+          std::make_tuple((T)(std::get<0>(rhs)*1.0), std::get<1>(rhs)), true);
     }
 
     AddOp<T, LabeledTensor<T>> operator=(const LabeledTensor<T> rhs) {
-        return construct_addop(std::make_tuple(1.0, rhs), true);
+        return construct_addop(std::make_tuple((T)1.0, rhs), true);
     }
 
     template<typename T1,
@@ -430,7 +430,7 @@ public:
     MultOp<T, LabeledTensor<T>> operator+=(
       const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
         return construct_multop(
-          std::make_tuple(std::get<0>(rhs)*1.0, std::get<1>(rhs), std::get<2>(rhs)),
+          std::make_tuple((T)(std::get<0>(rhs)*1.0), std::get<1>(rhs), std::get<2>(rhs)),
           false);
     }
 
@@ -439,7 +439,7 @@ public:
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
     MultOp<T, LabeledTensor<T>> operator-=(
       const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return construct_multop(std::make_tuple(-1.0 * std::get<0>(rhs),
+        return construct_multop(std::make_tuple((T)-1.0 * std::get<0>(rhs),
                                                 std::get<1>(rhs),
                                                 std::get<2>(rhs)),
                                 false);
@@ -450,26 +450,26 @@ public:
     MultOp<T, LabeledTensor<T>> operator=(
       const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
         return construct_multop(
-          std::make_tuple(std::get<0>(rhs)*1.0, std::get<1>(rhs), std::get<2>(rhs)),
+          std::make_tuple((T)(std::get<0>(rhs)*1.0), std::get<1>(rhs), std::get<2>(rhs)),
           true);
     }
 
     MultOp<T, LabeledTensor<T>> operator+=(
       const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {
         return construct_multop(
-          std::make_tuple(1.0, std::get<0>(rhs), std::get<1>(rhs)), false);
+          std::make_tuple((T)1.0, std::get<0>(rhs), std::get<1>(rhs)), false);
     }
 
     MultOp<T, LabeledTensor<T>> operator-=(
       const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {
         return construct_multop(
-          std::make_tuple(-1.0, std::get<0>(rhs), std::get<1>(rhs)), false);
+          std::make_tuple((T)-1.0, std::get<0>(rhs), std::get<1>(rhs)), false);
     }
 
     MultOp<T, LabeledTensor<T>> operator=(
       const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {
         return construct_multop(
-          std::make_tuple(1.0, std::get<0>(rhs), std::get<1>(rhs)), true);
+          std::make_tuple((T)1.0, std::get<0>(rhs), std::get<1>(rhs)), true);
     }
 
 protected:

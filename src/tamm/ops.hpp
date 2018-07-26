@@ -328,7 +328,7 @@ bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
     //     return false;
     // }
     int i;
-    for(i = -1 + itr.size(); i>=0 && itr[i] == end[i]; i--) {
+    for(i = -1 + itr.size(); i>=0 && itr[i]+1 == end[i]; i--) {
         itr[i] = T{0};        
     }
     // EXPECTS(itr.size() == 0 || i>=0);

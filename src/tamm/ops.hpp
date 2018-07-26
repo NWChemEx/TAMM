@@ -547,7 +547,7 @@ protected:
     bool is_assign_;
 }; // class SetOp
 
-template<typename Func, typename LabeledTensorT>
+template<typename LabeledTensorT,typename Func>
 class ScanOp : public Op {
 public:
     ScanOp(const LabeledTensorT& lhs, Func func) : lhs_{lhs}, func_{func} {
@@ -563,7 +563,7 @@ public:
     //   }
 
     std::shared_ptr<Op> clone() const override {
-        return std::shared_ptr<Op>(new ScanOp<Func,LabeledTensorT>{*this});
+        return std::shared_ptr<Op>(new ScanOp<LabeledTensorT,Func>{*this});
     }
 
   void execute(ProcGroup ec_pg) override {
@@ -682,6 +682,10 @@ public:
     //     }
     //     return ret;
     //   }
+
+    std::shared_ptr<Op> clone() const override {
+        return std::shared_ptr<Op>(new MapOp<LabeledTensorT,Func,N>{*this});
+    }
 
     void execute(const ProcGroup& ec_pg) override {
         using TensorElType = typename LabeledTensorT::element_type;

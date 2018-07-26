@@ -433,10 +433,10 @@ inline void block_mult(T cscale, T* cbuf, const std::vector<size_t>& cdims,
     IndexLabelVec sorted_labels = sort_on_dependence(unique_labels);
     // std::sort(unique_labels.begin(), unique_labels.end());
     // std::unique(unique_labels.begin(), unique_labels.end());
-    const auto& cperm_map = perm_map_compute(unique_labels, clabel);
-    const auto& aperm_map = perm_map_compute(unique_labels, alabel);
-    const auto& bperm_map = perm_map_compute(unique_labels, blabel);
-    const auto& all_inv_pm = perm_map_compute(all_labels, unique_labels);
+    const auto& cperm_map = perm_map_compute(sorted_labels, clabel);
+    const auto& aperm_map = perm_map_compute(sorted_labels, alabel);
+    const auto& bperm_map = perm_map_compute(sorted_labels, blabel);
+    const auto& all_inv_pm = perm_map_compute(all_labels, sorted_labels);
 
     auto idx = [](const auto& index_vec, const auto& dims_vec) {
         size_t ret = 0, ld = 1;
@@ -449,7 +449,7 @@ inline void block_mult(T cscale, T* cbuf, const std::vector<size_t>& cdims,
     };
 
     std::vector<IndexLoopBound> ilbs;
-    for(const auto& lbl : unique_labels) { ilbs.push_back({lbl}); }
+    for(const auto& lbl : sorted_labels) { ilbs.push_back({lbl}); }
     IndexLoopNest iln = IndexLoopNest{ilbs};
 
     std::vector<size_t> itrv(sorted_labels.size(), 0);
@@ -458,21 +458,25 @@ inline void block_mult(T cscale, T* cbuf, const std::vector<size_t>& cdims,
     std::vector<size_t> all_dims {cdims};
     all_dims.insert(all_dims.end(), adims.begin(), adims.end());
     all_dims.insert(all_dims.end(), bdims.begin(), bdims.end());    
-    internal::perm_map_apply(endv, all_dims, all_inv_pm);
+    //internal::perm_map_apply(endv, all_dims, all_inv_pm);
+    endv = internal::perm_map_apply(all_dims, all_inv_pm);
 
+    if(std::fabs(cscale) > 1e-11) {
+        NOT_IMPLEMENTED();
+    }
     do {
         const auto& itval = itrv;
         const auto& cindex = perm_map_apply(itval, cperm_map);
         const auto& aindex = perm_map_apply(itval, aperm_map);
         const auto& bindex = perm_map_apply(itval, bperm_map);
         size_t cidx        = idx(cindex, cdims);
-        // std::cerr<<__FUNCTION__<<"aidx="<<idx(aindex, adims)
-        // <<"bidx="<<idx(bindex, bdims)<<"cidx="<<cidx<<"\n";
-        // std::cerr<<"abscale="<<abscale<<" cscale="<<cscale<<"\n";
-        // std::cerr<<"abuf[0]="<<abuf[0]<<" bbuf[0]="<<bbuf[0]<<"\n";
-        cbuf[cidx] = cscale * cbuf[cidx] + abscale * abuf[idx(aindex, adims)] *
+        std::cerr<<__FUNCTION__<<" aidx="<<idx(aindex, adims)
+        <<" bidx="<<idx(bindex, bdims)<<" cidx="<<cidx<<"\n";
+        std::cerr<<"abscale="<<abscale<<" cscale="<<cscale<<"\n";
+        std::cerr<<"abuf[aidx]="<<abuf[idx(aindex,adims)]<<" bbuf[bidx]="<<bbuf[idx(bindex,bdims)]<<"\n";
+        cbuf[cidx] += abscale * abuf[idx(aindex, adims)] *
                                              bbuf[idx(bindex, bdims)];
-        // std::cerr<<__FUNCTION__<<" updated cbuf[cidx]="<<cbuf[cidx]<<"\n";
+         std::cerr<<__FUNCTION__<<" updated cbuf[cidx]="<<cbuf[cidx]<<"\n";
     } while(internal::cartesian_iteration(itrv, endv));
 }
 
@@ -1118,7 +1122,7 @@ public:
             // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"asize="<<asize<<"\n";
             // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"bsize="<<bsize<<"\n";
             // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"csize="<<csize<<"\n";
-            std::vector<TensorElType> cbuf(csize);
+            std::vector<TensorElType> cbuf(csize, 0);
             std::vector<TensorElType> abuf(asize);
             std::vector<TensorElType> bbuf(bsize);
             //get inputs
@@ -1127,7 +1131,9 @@ public:
             const auto& cdims = ctensor.block_dims(cblockid);
             const auto& adims = atensor.block_dims(ablockid);
             const auto& bdims = btensor.block_dims(bblockid);
-            double cscale = is_assign_ ? 0 : 1;
+            //double cscale = is_assign_ ? 0 : 1;
+            TensorElType cscale = 0.0;
+            //std::fill_n(cbuf.begin(), csize, 0);
             // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
             //do the block-block multiply
             internal::block_mult((TensorElType)0.0, &cbuf[0], cdims, lhs_.labels(), alpha_,

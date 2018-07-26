@@ -92,6 +92,7 @@ public:
     mpb_->dealloc_coll();
   }
 
+  template<typename T>
   void allocate(const ExecutionContext* ec) {
     Distribution* distribution = ec->distribution();
     MemoryManager* memory_manager = ec->memory_manager();
@@ -102,7 +103,7 @@ public:
         distribution->clone(this,memory_manager->pg().size()));
     auto rank = memory_manager->pg().rank();
     auto buf_size = distribution_->buf_size(rank);
-    auto eltype = tensor_element_type<double>();
+    auto eltype = tensor_element_type<T>();
     EXPECTS(buf_size >=0 );
     mpb_ = std::unique_ptr<MemoryRegion>{memory_manager->alloc_coll(eltype, buf_size)};
   }

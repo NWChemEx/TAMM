@@ -275,23 +275,23 @@ TEST_CASE("One-dimensional ops") {
     }
 
     //@todo Erdal:the test below fails because of index space incompatibility.
-    // {
-    //     Tensor<T> T1{TIS};
-    //     try {
-    //         failed = false;
-    //         Tensor<T>::allocate(ec, T1);
-    //         TiledIndexLabel l1, l2;
-    //         std::tie(l1) = TIS.labels<1>("nr1");
-    //         std::tie(l2) = TIS.labels<1>("nr2");
-    //         // Scheduler{ec}(T1(l1) = 42).execute();
-    //         check_value_lt(T1(l1), 42.0);
-    //         Tensor<T>::deallocate(T1);
-    //     } catch(std::string& e) {
-    //         std::cerr << "Caught exception: " << e << "\n";
-    //         failed = true;
-    //     }
-    // }
-    // REQUIRE(!failed);
+    {
+        Tensor<T> T1{TIS};
+        try {
+            failed = false;
+            Tensor<T>::allocate(ec, T1);
+            TiledIndexLabel l1, l2;
+            std::tie(l1) = TIS.labels<1>("nr1");
+            std::tie(l2) = TIS.labels<1>("nr2");
+            // Scheduler{ec}(T1(l1) = 42).execute();
+            check_value_lt(T1(l1), 42.0);
+            Tensor<T>::deallocate(T1);
+        } catch(std::string& e) {
+            std::cerr << "Caught exception: " << e << "\n";
+            failed = true;
+        }
+    }
+    REQUIRE(!failed);
 
     try {
         failed = false;

@@ -59,8 +59,7 @@ void check_value(Tensor<T> &t, T val){
 }
 
 template<typename T>
-void check_value_lt(LabeledTensor<T> lt, T val){
-#if 0
+void check_value(LabeledTensor<T> lt, T val){
     Tensor<T> t = lt.tensor();
     std::vector<IndexLoopBound> ilbs;
     for(const auto& lbl: lt.labels()) {
@@ -69,16 +68,13 @@ void check_value_lt(LabeledTensor<T> lt, T val){
     IndexLoopNest loop_nest{ilbs};
     for (const auto& it: loop_nest)
     {
-        std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
         TAMM_SIZE size = t.block_size(it);
         T* buf = new T[size];
         t.get(it,span<T>(buf,size));
         for (TAMM_SIZE i = 0; i < size;i++) {
-            std::cerr<<"Calling expects\n";
-          REQUIRE(buf[i]==val);
+          REQUIRE(std::fabs(buf[i]-val)< 1.0e-10);
        }
     }
-#endif
 }
 
 template<typename T>
@@ -254,6 +250,26 @@ TEST_CASE("Zero-dimensional ops") {
     delete ec;
 }
 
+template<typename T>
+bool test_setop(ExecutionContext *ec, Tensor<T> T1, LabeledTensor<T> LT1,
+std::vector<LabeledTensor<T>> rest_lts) {
+    bool success = true;
+    try {
+        Tensor<T>::allocate(ec, T1);
+        Scheduler{ec}(T1() = -1.0)(LT1 = 42).execute();
+        check_value(LT1, 42.0);
+        for(const auto& lt: rest_lts) {
+            check_value(lt, -1.0);
+        }
+        Tensor<T>::deallocate(T1);
+    } catch(std::string &e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        success = false;
+    }
+    return success;
+}
+
+
 TEST_CASE("One-dimensional ops") {
     bool failed;
     ProcGroup pg{GA_MPI_Comm()};
@@ -268,10 +284,11 @@ TEST_CASE("One-dimensional ops") {
 
     {
         Tensor<T> T1{TIS};
-        Tensor<T>::allocate(ec, T1);
-        Scheduler{ec}(T1() = 42).execute();
-        check_value(T1, 42.0);
-        Tensor<T>::deallocate(T1);
+        // Tensor<T>::allocate(ec, T1);
+        // Scheduler{ec}(T1() = 42).execute();
+        // check_value(T1, 42.0);
+        // Tensor<T>::deallocate(T1);
+        REQUIRE(test_setop(ec, T1,T1(), {}));
     }
 
     //@todo Erdal:the test below fails because of index space incompatibility.
@@ -283,8 +300,8 @@ TEST_CASE("One-dimensional ops") {
             TiledIndexLabel l1, l2;
             std::tie(l1) = TIS.labels<1>("nr1");
             std::tie(l2) = TIS.labels<1>("nr2");
-            // Scheduler{ec}(T1(l1) = 42).execute();
-            check_value_lt(T1(l1), 42.0);
+            Scheduler{ec}(T1(l1) = 42).execute();
+            check_value(T1(l1), 42.0);
             Tensor<T>::deallocate(T1);
         } catch(std::string& e) {
             std::cerr << "Caught exception: " << e << "\n";

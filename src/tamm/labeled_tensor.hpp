@@ -573,7 +573,6 @@ private:
      *
      */
     void validate() {
-        std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
         EXPECTS(tensor_.num_modes() == ilv_.size());
         for(size_t i = 0; i < ilv_.size(); i++) {
             if(!str_map_[i]) {

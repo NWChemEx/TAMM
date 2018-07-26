@@ -192,6 +192,8 @@ public:
             auto il  = tlabels_[i];
             auto tis = block_indices_[i];
             if(tis.is_dependent()) {
+                /// @todo do we need this check here?
+                EXPECTS(il.dep_labels().size() == il.tiled_index_space().index_space().num_key_tiled_index_spaces());
                 for(auto& dep : il.dep_labels()) {
                     Index pos = find_dep(dep);
                     if(pos != til) {

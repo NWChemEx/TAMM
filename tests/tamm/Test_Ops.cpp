@@ -261,8 +261,8 @@ bool test_setop(ExecutionContext* ec, Tensor<T> T1, LabeledTensor<T> LT1,
         Tensor<T>::allocate(ec, T1);
         try {
             Scheduler{ec}(T1() = -1.0)(LT1 = 42).execute();
-            check_value(LT1, 42.0);
-            for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
+            check_value(LT1, (T)42.0);
+            for(auto lt : rest_lts) { check_value(lt, (T)-1.0); }
         } catch(std::string& e) {
             std::cerr << "Caught exception: " << e << "\n";
             success = false;

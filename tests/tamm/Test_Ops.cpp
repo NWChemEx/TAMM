@@ -339,8 +339,36 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
 template<typename T>
 void test_setop_with_T(int tilesize) {
     //0-4 dimensional setops
-
     //0-4 dimensional setops
+
+    bool failed;
+    ProcGroup pg{GA_MPI_Comm()};
+    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
+    IndexSpace IS{range(0, 10),
+                  {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
+    TiledIndexSpace TIS{IS, tilesize};
+    TiledIndexLabel l1, l2, lall, lnone;
+    std::tie(l1) = TIS.labels<1>("nr1");
+    std::tie(l2) = TIS.labels<1>("nr2");
+    std::tie(lall) = TIS.labels<1>("all");
+    //@todo is there a "none" slice?
+    //std::tie(lnone) = TIS.labels<1>("none");
+    {
+        Tensor<T> T1{TIS, TIS};
+        REQUIRE(test_setop(ec, T1, T1(l1, l1)));
+    }
+
+    {
+        Tensor<T> T1{TIS, TIS};
+        REQUIRE(test_setop(ec, T1, T1(l1, l1), {T1(l1, l2), T1(l2, l1), T1(l2, l2)}));
+    }
+    REQUIRE(!failed);
+    MemoryManagerGA::destroy_coll(mgr);
+    delete ec;
+
 }
 
 //addop with T  (call with tilesize 1 and 3)
@@ -369,6 +397,37 @@ TEST_CASE("addop with double") {
 TEST_CASE("addop with float") {
     test_addop_with_T<float>(1);
     test_addop_with_T<float>(3);
+}
+
+TEST_CASE("Two-dimensional ops") {
+    bool failed;
+    ProcGroup pg{GA_MPI_Comm()};
+    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    using T              = double;
+
+    IndexSpace IS{range(0, 10),
+                  {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
+    TiledIndexSpace TIS{IS, 1};
+    TiledIndexLabel l1, l2, lall, lnone;
+    std::tie(l1) = TIS.labels<1>("nr1");
+    std::tie(l2) = TIS.labels<1>("nr2");
+    std::tie(lall) = TIS.labels<1>("all");
+    //@todo is there a "none" slice?
+    //std::tie(lnone) = TIS.labels<1>("none");
+    {
+        Tensor<T> T1{TIS, TIS};
+        REQUIRE(test_setop(ec, T1, T1(l1, l1)));
+    }
+
+    {
+        Tensor<T> T1{TIS, TIS};
+        REQUIRE(test_setop(ec, T1, T1(l1, l1), {T1(l1, l2), T1(l2, l1), T1(l2, l2)}));
+    }
+    REQUIRE(!failed);
+    MemoryManagerGA::destroy_coll(mgr);
+    delete ec;
 }
 
 TEST_CASE("One-dimensional ops") {

@@ -290,8 +290,8 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
 
     try {
         success = true;
-        Scheduler{ec}(T1() = -1.0)(T1() = 4)(T2() = 42)(T1() += T2()).execute();
-        check_value(T1, 46.0);
+        Scheduler{ec}(T1() = -1.0)(LT1 = 4)(LT2 = 42)(LT1 += LT2).execute();
+        check_value(LT1, 46.0);
         for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
     } catch(std::string& e) {
         std::cerr << "AddOp. Test 1. Exception: " << e << "\n";
@@ -300,7 +300,7 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
 
     try {
         success = true;
-        Scheduler{ec}(T1() = -1.0)(T1() = 4)(T2() = 42)(T1() += 3 * T2())
+        Scheduler{ec}(T1() = -1.0)(LT1 = 4)(LT2 = 42)(LT1 += 3 * LT2)
           .execute();
         check_value(T1, 130.0);
         for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
@@ -333,6 +333,42 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
 
     Tensor<T>::deallocate(T1, T2);
     return success;
+}
+
+//setop with T (call with tilesize 1 and 3)
+template<typename T>
+void test_setop_with_T(int tilesize) {
+    //0-4 dimensional setops
+
+    //0-4 dimensional setops
+}
+
+//addop with T  (call with tilesize 1 and 3)
+template<typename T>
+void test_addop_with_T(int tilesize) {
+    //0-4 dimensional addops
+
+    //0-4 dimensional addops
+}
+
+TEST_CASE("setop with double") {
+    test_setop_with_T<double>(1);
+    test_setop_with_T<double>(3);
+}
+
+TEST_CASE("setop with float") {
+    test_setop_with_T<float>(1);
+    test_setop_with_T<float>(3);
+}
+
+TEST_CASE("addop with double") {
+    test_addop_with_T<double>(1);
+    test_addop_with_T<double>(3);
+}
+
+TEST_CASE("addop with float") {
+    test_addop_with_T<float>(1);
+    test_addop_with_T<float>(3);
 }
 
 TEST_CASE("One-dimensional ops") {

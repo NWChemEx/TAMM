@@ -144,7 +144,7 @@ public:
      * @brief Memory allocation method for the Tensor object
      *
      */
-    void alloc(const ExecutionContext* ec) { impl_->allocate(ec); }
+    void alloc(const ExecutionContext* ec) { impl_->allocate<T>(ec); }
 
     /**
      * @brief Memory deallocation method for the Tensor object
@@ -166,7 +166,7 @@ public:
      */
     template<typename... Args>
     static void allocate(const ExecutionContext* ec, Tensor<T>& tensor, Args& ... rest) {
-       tensor.impl_->allocate(ec);
+       tensor.impl_->allocate<T>(ec);
        allocate(ec,rest...);
     }
 

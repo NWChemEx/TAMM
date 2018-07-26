@@ -9,7 +9,19 @@
 
 #include <string>
 
+/**
+ * @brief Tests for operations
+ * 
+ * @todo Test operations on subspaces
+ * 
+ * @todo Test for different tile sizes
+ * 
+ * @todo Test various permutation orders
+ * 
+ */
+
 using namespace tamm;
+
 
 template<typename T>
 std::ostream& operator << (std::ostream &os, std::vector<T>& vec){
@@ -428,4 +440,175 @@ TEST_CASE("One-dimensional ops") {
     REQUIRE(!failed);
     MemoryManagerGA::destroy_coll(mgr);
     delete ec;
+}
+
+TEST_CASE("Two-dimensional ops part I") {
+    bool failed;
+    ProcGroup pg{GA_MPI_Comm()};
+    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    using T              = double;
+
+    IndexSpace IS{range(0, 10),
+                      {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
+    TiledIndexSpace TIS{IS, 1};
+
+    //setop
+    {
+        Tensor<T> T1{TIS, TIS};
+        Tensor<T>::allocate(ec, T1);
+        Scheduler{ec}(T1() = 42).execute();
+        check_value(T1, 42.0);
+        Tensor<T>::deallocate(T1);
+    }
+
+    //addop
+    try {
+        failed = false;
+        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
+        Scheduler{ec}
+        .allocate(T1, T2)
+        (T2() = 42)
+        (T1() = T2())
+        .deallocate(T2)
+        .execute();
+        check_value(T1, 42.0);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
+        Scheduler{ec}
+        .allocate(T1, T2)
+        (T1() = 4)
+        (T2() = 42)
+        (T1() += T2())
+        .deallocate(T2)
+        .execute();
+        check_value(T1, 46.0);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
+        Scheduler{ec}
+        .allocate(T1, T2)
+        (T1() = 4)
+        (T2() = 42)
+        (T1() += 3*T2())
+        .deallocate(T2)
+        .execute();
+        check_value(T1, 130.0);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
+        Scheduler{ec}
+        .allocate(T1, T2)
+        (T1() = 4)
+        (T2() = 42)
+        (T1() -= T2())
+        .deallocate(T2)
+        .execute();
+        check_value(T1, -38.0);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
+        Scheduler{ec}
+        .allocate(T1, T2)
+        (T1() = 4)
+        (T2() = 42)
+        (T1() += -3.1*T2())
+        .deallocate(T2)
+        .execute();
+        check_value(T1, -126.2);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+
+    //multop
+    try {
+        failed = false;
+        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{};
+        Scheduler{ec}
+        .allocate(T1, T2, T3)
+        (T1() = 4)
+        (T2() = 42)
+        (T3() = 5)
+        (T1() += -3.1*T2()*T3())
+        .deallocate(T2, T3)
+        .execute();
+        check_value(T1, 4 -3.1*42*5);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{};
+        Scheduler{ec}
+        .allocate(T1, T2, T3)
+        (T1() = 4)
+        (T2() = 42)
+        (T3() = 5)
+        (T1() -= -3.1*T2()*T3())
+        .deallocate(T2, T3)
+        .execute();
+        check_value(T1, 4 +3.1*42*5);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{}, T2{TIS,TIS}, T3{TIS,TIS};
+        Scheduler{ec}
+        .allocate(T1, T2, T3)
+        (T1() = 4)
+        (T2() = 42)
+        (T3() = 5)
+        (T1() += -3.1*T2()*T3())
+        .deallocate(T2, T3)
+        .execute();
+        check_value(T1, 4 -3.1*10*10*42*5);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
 }

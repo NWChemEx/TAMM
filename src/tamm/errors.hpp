@@ -47,6 +47,7 @@ namespace tamm {
 #define EXPECTS(cond)                                                          \
     do {                                                                       \
         if(!(cond)) {                                                          \
+            std::cerr<<"EXPECTS failed. Condition: "<<#cond<<"\n";               \
             throw std::string{"EXPECT condition failed: "}+std::string{#cond}; \
         }                                                                      \
     } while(0)

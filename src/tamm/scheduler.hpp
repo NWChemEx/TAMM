@@ -162,16 +162,16 @@ public:
     }
 
 
-    template<typename Func, typename LabeledTensorType>
+    template<typename LabeledTensorType,typename Func>
     Scheduler& gop(LabeledTensorType lhs, Func func) {
-        ops_.push_back(std::make_shared<ScanOp<Func,LabeledTensorType>>(lhs, func));
+        ops_.push_back(std::make_shared<ScanOp<LabeledTensorType,Func>>(lhs, func));
         return *this;
     }
 
-    template<typename Func, typename LabeledTensorType, int N>
-    Scheduler& gop(LabeledTensorType lhs, Func func,
+    template<typename LabeledTensorType,typename Func, int N>
+    Scheduler& gop(LabeledTensorType lhs, 
                    std::array<LabeledTensorType, N> rhs,
-                   ResultMode mode = ResultMode::set) {
+                   Func func, ResultMode mode = ResultMode::set) {
         ops_.push_back(
           std::make_shared<MapOp<LabeledTensorType, Func, N>>(lhs, func, rhs, mode));
         return *this;

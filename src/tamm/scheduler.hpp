@@ -168,7 +168,7 @@ public:
         return *this;
     }
 
-    template<typename LabeledTensorType,typename Func, int N>
+    template<typename LabeledTensorType,typename Func, size_t N>
     Scheduler& gop(LabeledTensorType lhs, 
                    std::array<LabeledTensorType, N> rhs,
                    Func func, ResultMode mode = ResultMode::set) {

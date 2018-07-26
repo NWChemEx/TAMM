@@ -262,6 +262,7 @@ TEST_CASE("SCF Commutator declarations") {
 
 
         tensor_type::deallocate(comm, temp, F, D, S);
+        delete ec;
     } catch (...) {
         failed = true;
     }
@@ -289,20 +290,31 @@ TEST_CASE("SCF JK declarations") {
     bool failed = false;
     try {
         using tensor_type = tamm::Tensor<double>;
+
+        ProcGroup pg{GA_MPI_Comm()};
+        auto mgr = MemoryManagerGA::create_coll(pg);
+        Distribution_NW distribution;
+        ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
+
+        IndexSpace is{range(10)};
+        tamm::TiledIndexSpace tis{is};
+
         //tamm::TiledIndexSpace Aux = M.get_spaces()[0];
         //tamm::TiledIndexSpace AOs = I.get_spaces()[1];
         //tamm::TiledIndexSpace tMOs = MOs.Cdagger.get_spaces()[0];
-        tamm::TiledIndexSpace Aux;
-        tamm::TiledIndexSpace AOs;
-        tamm::TiledIndexSpace tMOs;
+        tamm::TiledIndexSpace Aux{is};
+        tamm::TiledIndexSpace AOs{is};
+        tamm::TiledIndexSpace tMOs{is};
         tamm::TiledIndexLabel P, Q, mu, nu, i;
         std::tie(P, Q) = Aux.labels<2>("all");
         std::tie(mu, nu) = AOs.labels<2>("all");
         std::tie(i) = tMOs.labels<1>("all");
 
-        tensor_type L;
-        tensor_type Linv;
-        tensor_type Itemp, D, d, J, K;
+        tensor_type L{tis, tis};
+        tensor_type Linv{tis, tis};
+        tensor_type Itemp{tis}, D{tis, tis, tis}, d{tis}, J{tis, tis}, K{tis, tis};
+
+        tensor_type::allocate(ec, L, Linv, Itemp, D, d, J, K);
 
         //Itemp(Q, i, nu) = MOs.Cdagger(i, mu) * I(Q, mu, nu);
         D(P, i, mu) = Linv(P, Q) * Itemp(Q, i, mu);
@@ -311,6 +323,8 @@ TEST_CASE("SCF JK declarations") {
         //J(mu, nu) = Itemp(P) * I(P, mu, nu);
         K(mu, nu) = D(P, i, mu) * D(P, i, nu);
 
+        tensor_type::deallocate(L, Linv, Itemp, D, d, J, K);
+        delete ec;
     } catch (...) {
         failed = true;
     }

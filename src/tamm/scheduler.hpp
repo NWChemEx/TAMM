@@ -9,7 +9,7 @@
 #include "tamm/dag_impl.hpp"
 #include "tamm/execution_context.hpp"
 #include "tamm/ops.hpp"
-#include "tamm/tensor_impl.hpp"
+#include "tamm/tensor.hpp"
 
 namespace tamm {
 // class Distribution;
@@ -138,7 +138,7 @@ public:
 
     template<typename TensorType, typename... Args>
     Scheduler& allocate(TensorType tensor, Args&... tensors) {
-        ops_.push_back(std::make_shared<AllocOp<TensorType>>(tensor,ec()));
+        ops_.push_back(std::make_shared<AllocOp<TensorType>>(tensor, ec()));
         return allocate(tensors...);
     }
 
@@ -151,7 +151,7 @@ public:
     }
 
     void execute() {
-        for(auto& op : ops_) {  op->execute(ec()->pg()); } 
+        for(auto& op : ops_) { op->execute(ec()->pg()); }
     }
 
     template<typename Func, typename... Args>
@@ -159,6 +159,22 @@ public:
 
     ~Scheduler() {
         // delete ops
+    }
+
+
+    template<typename Func, typename LabeledTensorType>
+    Scheduler& gop(LabeledTensorType lhs, Func func) {
+        ops_.push_back(std::make_shared<ScanOp<Func,LabeledTensorType>>(lhs, func));
+        return *this;
+    }
+
+    template<typename Func, typename LabeledTensorType, int N>
+    Scheduler& gop(LabeledTensorType lhs, Func func,
+                   std::array<LabeledTensorType, N> rhs,
+                   ResultMode mode = ResultMode::set) {
+        ops_.push_back(
+          std::make_shared<MapOp<LabeledTensorType, Func, N>>(lhs, func, rhs, mode));
+        return *this;
     }
 
 private:
@@ -459,14 +475,6 @@ private:
     //     func, mode)); return *this;
     //   }
 
-    //   template<typename Func, typename LabeledTensorType>
-    //   Scheduler& sop(LabeledTensorType lhs, Func func) {
-    //     EXPECTS(tensors_.find(&lhs.tensor()) != tensors_.end());
-    //     EXPECTS(tensors_[&lhs.tensor()].status == TensorStatus::initialized);
-    //     tensors_[&lhs.tensor()].status = TensorStatus::initialized;
-    //     ops_.push_back(new ScanOp<Func,LabeledTensorType>(lhs, func));
-    //     return *this;
-    //   }
 
     //   /**
     //    * @brief Execute the list of operations given to this scheduler

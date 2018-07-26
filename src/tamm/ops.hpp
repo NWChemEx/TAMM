@@ -12,6 +12,8 @@
 
 namespace tamm {
 
+enum class ResultMode { update, set };
+
 namespace internal {
 
 template<typename T>
@@ -547,23 +549,24 @@ protected:
 
 template<typename Func, typename LabeledTensorT>
 class ScanOp : public Op {
-    public:
-  ScanOp(const LabeledTensorT& lhs, Func func)
-      : lhs_{lhs},
-        func_{func} {
-    EXPECTS(lhs.tensor_ != nullptr);
-    fillin_labels();
-  }
+public:
+    ScanOp(const LabeledTensorT& lhs, Func func) : lhs_{lhs}, func_{func} {
+        fillin_labels();
+    }
 
-//   TensorImpl* writes() const override {
-//     return ltensor_.tensor_;
-//   }
+    //   TensorImpl* writes() const override {
+    //     return ltensor_.tensor_;
+    //   }
 
-//   std::vector<TensorImpl*> reads() const {
-//     return {};
-//   }
+    //   std::vector<TensorImpl*> reads() const {
+    //     return {};
+    //   }
 
-  void execute(const ProcGroup& ec_pg) override {
+    std::shared_ptr<Op> clone() const override {
+        return std::shared_ptr<Op>(new ScanOp<Func,LabeledTensorT>{*this});
+    }
+
+  void execute(ProcGroup ec_pg) override {
         using TensorElType = typename LabeledTensorT::element_type;
         // the iterator to generate the tasks
         const auto& tensor = lhs_.tensor();
@@ -659,7 +662,7 @@ public:
     // using RHS_Blocks = std::array<Block<T>, N>;
 
     MapOp(LabeledTensorT& lhs, Func func,
-          RHS& rhs) //, ResultMode mode = ResultMode::set)
+          RHS& rhs, ResultMode mode = ResultMode::set)
       :
       lhs_{lhs},
       func_{func},

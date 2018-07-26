@@ -536,11 +536,18 @@ public:
     void execute(ProcGroup ec_pg) override {
         using TensorElType = typename LabeledTensorT::element_type;
         // the iterator to generate the tasks
-        const IndexLabelVec& sorted_labels =
-          internal::sort_on_dependence(lhs_.labels());
+        IndexLabelVec unique_labels = internal::unique_entries(lhs_.labels());
+        // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+        // std::cerr << "Unique Labels Size: " << unique_labels.size() << "\n";
+        //sort unique labels to put dependent indices after the indices they depend on
+        const IndexLabelVec& sorted_labels = internal::sort_on_dependence(unique_labels);
+        // std::cerr << "Sorted Labels Size: " << sorted_labels.size() << "\n";
+
         std::vector<IndexLoopBound> ilbs;
         for(const auto& lbl : sorted_labels) { ilbs.push_back({lbl}); }
+        // std::cerr<< "Before Loop Nest\n";
         IndexLoopNest loop_nest { ilbs };
+        // std::cerr << "After Loop Nest\n";
         const std::vector<size_t>& lhs_pm =
           internal::perm_map_compute(sorted_labels, lhs_.labels());
         // auto loop_nest = lhs_.tensor().loop_nest();
@@ -890,8 +897,9 @@ public:
     void execute(ProcGroup ec_pg) override {
         using TensorElType = typename LabeledTensorT::element_type;
         // the iterator to generate the tasks
-        const IndexLabelVec& sorted_labels =
-          internal::sort_on_dependence(lhs_.labels());
+        IndexLabelVec unique_labels = internal::unique_entries(lhs_.labels());
+        //sort unique labels to put dependent indices after the indices they depend on
+        const IndexLabelVec& sorted_labels = internal::sort_on_dependence(unique_labels);
         std::vector<IndexLoopBound> ilbs;
         for(const auto& lbl : sorted_labels) { ilbs.push_back({lbl}); }
         IndexLoopNest loop_nest{ilbs};

@@ -307,6 +307,16 @@ public:
     SpinAttribute get_spin() const;
     SpatialAttribute get_spatial() const;
 
+    int find_pos(Index idx) const {
+        int pos = 0;
+        for(auto i = begin(); i != end(); i++, pos++) {
+            if((*i) == idx) {
+                return pos;
+            }
+        }
+        return -1;
+    }
+
     // Comparison operators
     friend bool operator==(const IndexSpace& lhs, const IndexSpace& rhs);
     friend bool operator<(const IndexSpace& lhs, const IndexSpace& rhs);

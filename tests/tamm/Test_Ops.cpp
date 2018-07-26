@@ -252,7 +252,7 @@ TEST_CASE("Zero-dimensional ops") {
 
 template<typename T>
 bool test_setop(ExecutionContext* ec, Tensor<T> T1, LabeledTensor<T> LT1,
-                std::vector<LabeledTensor<T>> rest_lts = {}) {
+                const std::vector<LabeledTensor<T>>& rest_lts = {}) {
     bool success = true;
     try {
         Tensor<T>::allocate(ec, T1);
@@ -272,6 +272,69 @@ bool test_setop(ExecutionContext* ec, Tensor<T> T1, LabeledTensor<T> LT1,
     return success;
 }
 
+template<typename T>
+bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
+                LabeledTensor<T> LT1, LabeledTensor<T> LT2,
+                std::vector<LabeledTensor<T>> rest_lts = {}) {
+    bool success = true;
+    Tensor<T>::allocate(ec, T1, T2);
+
+    try {
+        Scheduler{ec}(T1() = -1.0)(LT2 = 42)(LT1 = LT2).execute();
+        check_value(LT1, 42.0);
+        for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
+    } catch(std::string& e) {
+        std::cerr << "AddOp. Test 0. Exception: " << e << "\n";
+        success = false;
+    }
+
+    try {
+        success = true;
+        Scheduler{ec}(T1() = -1.0)(T1() = 4)(T2() = 42)(T1() += T2()).execute();
+        check_value(T1, 46.0);
+        for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
+    } catch(std::string& e) {
+        std::cerr << "AddOp. Test 1. Exception: " << e << "\n";
+        success = false;
+    }
+
+    try {
+        success = true;
+        Scheduler{ec}(T1() = -1.0)(T1() = 4)(T2() = 42)(T1() += 3 * T2())
+          .execute();
+        check_value(T1, 130.0);
+        for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
+    } catch(std::string& e) {
+        std::cerr << "AddOp. Test 2. Exception: " << e << "\n";
+        success = false;
+    }
+
+    try {
+        success = true;
+        Scheduler{ec}(T1() = -1.0)(T1() = 4)(T2() = 42)(T1() -= T2()).execute();
+        check_value(T1, -38.0);
+        for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
+    } catch(std::string& e) {
+        std::cerr << "AddOp. Test 3. Exception: " << e << "\n";
+        success = false;
+    }
+
+    try {
+        success = true;
+        Scheduler{ec}
+          (T1() = -1.0)(T1() = 4)(T2() = 42)(T1() += -3.1 * T2())
+          .execute();
+        check_value(T1, -126.2);
+        for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
+    } catch(std::string& e) {
+        std::cerr << "AddOp. Test 4. Exception: " << e << "\n";
+        success = false;
+    }
+
+    Tensor<T>::deallocate(T1, T2);
+    return success;
+}
+
 TEST_CASE("One-dimensional ops") {
     bool failed;
     ProcGroup pg{GA_MPI_Comm()};
@@ -287,6 +350,7 @@ TEST_CASE("One-dimensional ops") {
     std::tie(l1) = TIS.labels<1>("nr1");
     std::tie(l2) = TIS.labels<1>("nr2");
     std::tie(lall) = TIS.labels<1>("all");
+    //@todo is there a "none" slice?
     //std::tie(lnone) = TIS.labels<1>("none");
 
     {
@@ -304,81 +368,12 @@ TEST_CASE("One-dimensional ops") {
 #endif
     }
 
-    try {
-        failed = false;
+    //@todo slice addop tests
+    {
         Tensor<T> T1{TIS}, T2{TIS};
-        Scheduler{ec}
-          .allocate(T1, T2)(T2() = 42)(T1() = T2())
-          .deallocate(T2)
-          .execute();
-        check_value(T1, 42.0);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
+        test_addop(ec, T1, T2, T1(), T2());
     }
-    REQUIRE(!failed);
-
-    try {
-        failed = false;
-        Tensor<T> T1{TIS}, T2{TIS};
-        Scheduler{ec}
-          .allocate(T1, T2)(T1() = 4)(T2() = 42)(T1() += T2())
-          .deallocate(T2)
-          .execute();
-        check_value(T1, 46.0);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
-
-    try {
-        failed = false;
-        Tensor<T> T1{TIS}, T2{TIS};
-        Scheduler{ec}
-          .allocate(T1, T2)(T1() = 4)(T2() = 42)(T1() += 3 * T2())
-          .deallocate(T2)
-          .execute();
-        check_value(T1, 130.0);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
-
-    try {
-        failed = false;
-        Tensor<T> T1{TIS}, T2{TIS};
-        Scheduler{ec}
-          .allocate(T1, T2)(T1() = 4)(T2() = 42)(T1() -= T2())
-          .deallocate(T2)
-          .execute();
-        check_value(T1, -38.0);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
-
-    try {
-        failed = false;
-        Tensor<T> T1{TIS}, T2{TIS};
-        Scheduler{ec}
-          .allocate(T1, T2)(T1() = 4)(T2() = 42)(T1() += -3.1 * T2())
-          .deallocate(T2)
-          .execute();
-        check_value(T1, -126.2);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
-
+ 
     try {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};

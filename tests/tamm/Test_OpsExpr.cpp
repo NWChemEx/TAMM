@@ -271,7 +271,7 @@ TEST_CASE("SCF Commutator declarations") {
 TEST_CASE("SCF GuessDensity declarations") {
     bool failed = false;
     try {
-        using tensor_type = tamm::Tensor<double>;
+        //using tensor_type = tamm::Tensor<double>;
         //tamm::TiledIndexSpace MOs = rv.C.get_spaces()[1];
         //tamm::TiledIndexSpace AOs = rv.C.get_spaces()[0];
         tamm::TiledIndexSpace MOs ;

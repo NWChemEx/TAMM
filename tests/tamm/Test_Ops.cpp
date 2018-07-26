@@ -284,8 +284,8 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
 
     try {
         Scheduler{ec}(T1() = -1.0)(LT2 = 42)(LT1 = LT2).execute();
-        check_value(LT1, 42.0);
-        for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
+        check_value(LT1, (T)42.0);
+        for(const auto& lt : rest_lts) { check_value(lt, (T)-1.0); }
     } catch(std::string& e) {
         std::cerr << "AddOp. Test 0. Exception: " << e << "\n";
         success = false;
@@ -294,8 +294,8 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
     try {
         success = true;
         Scheduler{ec}(T1() = -1.0)(LT1 = 4)(LT2 = 42)(LT1 += LT2).execute();
-        check_value(LT1, 46.0);
-        for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
+        check_value(LT1, (T)46.0);
+        for(const auto& lt : rest_lts) { check_value(lt, (T)-1.0); }
     } catch(std::string& e) {
         std::cerr << "AddOp. Test 1. Exception: " << e << "\n";
         success = false;
@@ -305,8 +305,8 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
         success = true;
         Scheduler{ec}(T1() = -1.0)(LT1 = 4)(LT2 = 42)(LT1 += 3 * LT2)
           .execute();
-        check_value(T1, 130.0);
-        for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
+        check_value(T1, (T)130.0);
+        for(const auto& lt : rest_lts) { check_value(lt, (T)-1.0); }
     } catch(std::string& e) {
         std::cerr << "AddOp. Test 2. Exception: " << e << "\n";
         success = false;
@@ -315,8 +315,8 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
     try {
         success = true;
         Scheduler{ec}(T1() = -1.0)(T1() = 4)(T2() = 42)(T1() -= T2()).execute();
-        check_value(T1, -38.0);
-        for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
+        check_value(T1, (T)-38.0);
+        for(const auto& lt : rest_lts) { check_value(lt, (T)-1.0); }
     } catch(std::string& e) {
         std::cerr << "AddOp. Test 3. Exception: " << e << "\n";
         success = false;
@@ -327,8 +327,8 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
         Scheduler{ec}
           (T1() = -1.0)(T1() = 4)(T2() = 42)(T1() += -3.1 * T2())
           .execute();
-        check_value(T1, -126.2);
-        for(const auto& lt : rest_lts) { check_value(lt, -1.0); }
+        check_value(T1, (T)-126.2);
+        for(const auto& lt : rest_lts) { check_value(lt, (T)-1.0); }
     } catch(std::string& e) {
         std::cerr << "AddOp. Test 4. Exception: " << e << "\n";
         success = false;
@@ -398,7 +398,7 @@ void test_addop_with_T(int tilesize) {
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
           .deallocate(T2, T3)
           .execute();
-        check_value(T1, 32.0);
+        check_value(T1, (T)32.0);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -414,7 +414,7 @@ void test_addop_with_T(int tilesize) {
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
           .deallocate(T2, T3)
           .execute();
-        check_value(T1, 9 + 1.5 * 8 * 4);
+        check_value(T1, (T)(9 + 1.5 * 8 * 4));
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -430,7 +430,7 @@ void test_addop_with_T(int tilesize) {
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
           .deallocate(T1, T2)
           .execute();
-        check_value(T3, 4 + 1.5 * 10 * 9 * 8);
+        check_value(T3, (T)(4 + 1.5 * 10 * 9 * 8));
         Tensor<T>::deallocate(T3);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -701,7 +701,7 @@ TEST_CASE("Two-dimensional ops part I") {
         (T1() += 3*T2())
         .deallocate(T2)
         .execute();
-        check_value(T1, 130.0);
+        check_value(T1, (T)130.0);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -719,7 +719,7 @@ TEST_CASE("Two-dimensional ops part I") {
         (T1() -= T2())
         .deallocate(T2)
         .execute();
-        check_value(T1, -38.0);
+        check_value(T1, (T)-38.0);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -737,7 +737,7 @@ TEST_CASE("Two-dimensional ops part I") {
         (T1() += -3.1*T2())
         .deallocate(T2)
         .execute();
-        check_value(T1, -126.2);
+        check_value(T1, (T)-126.2);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";

@@ -143,7 +143,12 @@ TEST_CASE("Zero-dimensional ops") {
     {
         Tensor<T> T1{},T2{};
         Tensor<T>::allocate(ec, T1, T2);
+        auto lambda = [](Tensor<T>& t, const IndexVector& iv, std::vector<T>& buf) {
+            std::cout << "hi" <<  std::endl;
+        };
+
         Scheduler{ec}(T2() = 42)(T1() = T2()).execute();
+        Scheduler{ec}.gop(T1(),lambda).execute();
         check_value(T1, 42.0);
         Tensor<T>::deallocate(T1, T2);
     }

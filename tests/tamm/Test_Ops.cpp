@@ -426,64 +426,6 @@ TEST_CASE("One-dimensional ops") {
         failed = true;
     }
     REQUIRE(!failed);
-
-    // try {
-    //     failed = false;
-    //     Tensor<T> T1{TIS}, T2{TIS}, T3{};
-    //     Scheduler{ec}
-    //     .allocate(T1, T2, T3)
-    //     (T1() = 4)
-    //     (T2() = 8)
-    //     (T3() = 11.1)
-    //     (T1() += T2() * T3())
-    //     .deallocate(T2, T3)
-    //     .execute();
-    //     check_value(T1, 43.1);
-    //     Tensor<T>::deallocate(T1);
-    // } catch(std::string& e) {
-    //     std::cerr << "Caught exception: " << e << "\n";
-    //     failed = true;
-    // }
-    // REQUIRE(!failed);
-
-    // try {
-    //     failed = false;
-    //     Tensor<T> T1{TIS}, T2{TIS}, T3{};
-    //     Scheduler{ec}
-    //     .allocate(T1, T2, T3)
-    //     (T1() = 4)
-    //     (T2() = 8)
-    //     (T3() = 0)
-    //     (T1() += 0.2 * T2() * T3())
-    //     .deallocate(T2, T3)
-    //     .execute();
-    //     check_value(T1, 6.4);
-    //     Tensor<T>::deallocate(T1);
-    // } catch(std::string& e) {
-    //     std::cerr << "Caught exception: " << e << "\n";
-    //     failed = true;
-    // }
-    // REQUIRE(!failed);
-
-    // try {
-    //     failed = false;
-    //     Tensor<T> T1{TIS}, T2{TIS}, T3{};
-    //     Scheduler{ec}
-    //     .allocate(T1, T2, T3)
-    //     (T1() = 4)
-    //     (T2() = 8)
-    //     (T3() = 11.1)
-    //     (T1() += 5.3 * T2() * T3())
-    //     .deallocate(T2, T3)
-    //     .execute();
-    //     check_value(T1, 11.1 + 5.3*4*8);
-    //     Tensor<T>::deallocate(T1);
-    // } catch(std::string& e) {
-    //     std::cerr << "Caught exception: " << e << "\n";
-    //     failed = true;
-    // }
-    // REQUIRE(!failed);
-
     MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }

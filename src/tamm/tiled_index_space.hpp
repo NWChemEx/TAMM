@@ -33,12 +33,8 @@ public:
       root_tiled_info_{tiled_info_} {
         EXPECTS(input_tile_size > 0);
 
-        // construct tiled spaces for named subspaces
-        for(const auto& str_subis : is.map_named_sub_index_spaces()) {
-            auto t_is = TiledIndexSpace{str_subis.second, input_tile_size};
-            t_is.set_root(tiled_info_);
-            tiled_info_->tiled_named_subspaces_.insert({str_subis.first, t_is});
-        }
+        // construct tiling for named subspaces
+        tile_named_subspaces(is);
     }
 
     /**
@@ -666,8 +662,52 @@ protected:
         return (*it);
     }
 
-    void set_root(std::shared_ptr<TiledIndexSpaceInfo> root) {
+    void set_root(const std::shared_ptr<TiledIndexSpaceInfo>& root) {
         root_tiled_info_ = root;
+    }
+
+    void set_tiled_info(const std::shared_ptr<TiledIndexSpaceInfo>& tiled_info){
+        tiled_info_ = tiled_info;
+    }
+
+    void tile_named_subspaces(const IndexSpace& is) {
+        // construct tiled spaces for named subspaces
+        for(const auto& str_subis : is.map_named_sub_index_spaces()) {
+            auto named_is = str_subis.second;
+
+            IndexVector indices;
+
+            for(const auto& idx : named_is) {
+                // find position in the parent index space
+                size_t pos = is.find_pos(idx);
+                // named subspace should always find it
+                EXPECTS(pos >= 0);
+
+                size_t tile_idx     = 0;
+                const auto& offsets = tiled_info_->tile_offsets_;
+                // find in which tiles in the parent it would be
+                for(Index i = 0; pos >= offsets[i]; i++) { tile_idx = i; }
+                indices.push_back(tile_idx);
+            }
+            // remove duplicates from the indices
+            std::sort(indices.begin(), indices.end());
+            auto last = std::unique(indices.begin(), indices.end());
+            indices.erase(last, indices.end());
+
+            IndexVector new_offsets;
+
+            new_offsets.push_back(0);
+            for(const auto& idx : indices) {
+                new_offsets.push_back(new_offsets.back() +
+                                      root_tiled_info_.lock()->tile_size(idx));
+            }
+            TiledIndexSpace tempTIS{};
+            tempTIS.set_tiled_info(std::make_shared<TiledIndexSpaceInfo>(
+              (*tiled_info_), new_offsets, indices));
+            tempTIS.set_root(tiled_info_);
+
+            tiled_info_->tiled_named_subspaces_.insert({str_subis.first, tempTIS});
+        }
     }
 
     template<std::size_t... Is>

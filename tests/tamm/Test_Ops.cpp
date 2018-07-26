@@ -60,18 +60,29 @@ void check_value(Tensor<T> &t, T val){
 
 template<typename T>
 void check_value(LabeledTensor<T> lt, T val){
+    // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
     Tensor<T> t = lt.tensor();
+    IndexLabelVec unique_labels = internal::unique_entries(lt.labels());
+    
+    const IndexLabelVec& sorted_labels = internal::sort_on_dependence(unique_labels);
+
     std::vector<IndexLoopBound> ilbs;
-    for(const auto& lbl: lt.labels()) {
+    for(const auto& lbl: sorted_labels) {
         ilbs.push_back(lbl);
     }
     IndexLoopNest loop_nest{ilbs};
+
+    const std::vector<size_t>& lhs_pm =
+        internal::perm_map_compute(sorted_labels, lt.labels());
+
     for (const auto& it: loop_nest)
     {
-        TAMM_SIZE size = t.block_size(it);
+        const IndexVector& blockid =
+            internal::perm_map_apply(it, lhs_pm);
+        size_t size = t.block_size(blockid);
         T* buf = new T[size];
-        t.get(it,span<T>(buf,size));
-        for (TAMM_SIZE i = 0; i < size;i++) {
+        t.get(blockid, span<T>(buf,size));
+        for (TAMM_SIZE i = 0; i < size; i++) {
           REQUIRE(std::fabs(buf[i]-val)< 1.0e-10);
        }
     }
@@ -167,7 +178,7 @@ TEST_CASE("Zero-dimensional ops") {
         Tensor<T> T1{};
         Tensor<T>::allocate(ec, T1);
         Scheduler{ec}(T1() = 42).execute();
-        check_value(T1, 42.0);
+        check_value(T1, (T)42.0);
         Tensor<T>::deallocate(T1);
     }
 
@@ -183,8 +194,8 @@ TEST_CASE("Zero-dimensional ops") {
 
         Scheduler{ec}(T2() = 42)(T1() = T2()).execute();
         Scheduler{ec}.gop(T1(),lambda1).execute();
+        check_value(T1, (T)42.0);
         Scheduler{ec}.gop(T1(),std::array<decltype(T2()),1>{T2()},lambda2).execute();
-        check_value(T1, 42.0);
         Tensor<T>::deallocate(T1, T2);
     }
 
@@ -194,7 +205,7 @@ TEST_CASE("Zero-dimensional ops") {
           .allocate(T1, T2)(T2() = 42)(T1() = T2())
           .deallocate(T2)
           .execute();
-        check_value(T1, 42.0);
+        check_value(T1, (T)42.0);
         Tensor<T>::deallocate(T1);
     }
 
@@ -204,7 +215,7 @@ TEST_CASE("Zero-dimensional ops") {
           .allocate(T1, T2)(T1()=3)(T2() = 42)(T1() += T2())
           .deallocate(T2)
           .execute();
-        check_value(T1, 45.0);
+        check_value(T1, (T)45.0);
         Tensor<T>::deallocate(T1);
     }
 
@@ -214,7 +225,7 @@ TEST_CASE("Zero-dimensional ops") {
           .allocate(T1, T2)(T1()=42)(T2() = 3)(T1() += 2.5*T2())
           .deallocate(T2)
           .execute();
-        check_value(T1, 49.5);
+        check_value(T1, (T)49.5);
         Tensor<T>::deallocate(T1);
     }
 
@@ -224,7 +235,7 @@ TEST_CASE("Zero-dimensional ops") {
           .allocate(T1, T2)(T1()=42)(T2() = 3)(T1() -= T2())
           .deallocate(T2)
           .execute();
-        check_value(T1, 39.0);
+        check_value(T1, (T)39.0);
         Tensor<T>::deallocate(T1);
     }
 
@@ -234,7 +245,7 @@ TEST_CASE("Zero-dimensional ops") {
           .allocate(T1, T2)(T1()=42)(T2() = 3)(T1() -= 4*T2())
           .deallocate(T2)
           .execute();
-        check_value(T1, 30.0);
+        check_value(T1, (T)30.0);
         Tensor<T>::deallocate(T1);
     }
 
@@ -245,7 +256,7 @@ TEST_CASE("Zero-dimensional ops") {
           (T1() += T2() * T3())
           .deallocate(T2, T3)
           .execute();
-        check_value(T1, 15.0);
+        check_value(T1, (T)15.0);
         Tensor<T>::deallocate(T1);
     }
 
@@ -422,7 +433,7 @@ void test_setop_with_T(int tilesize) {
 
     {
         Tensor<T> T1{TIS, TIS, TIS, TIS};
-        REQUIRE(test_setop(ec, T1, T1(l1, l2, l2, l1), {T1(l1, l1, l1, l1), T1(l1, l1, l1, l2), T1(l1, l1, l2, l1), T1(l1, l1, l2, l2), T1(l1, l2, l1, l1), T1(l1, l2, l1, l2), T1(l1, l2, l2, l1), T1(l1, l2, l2, l2), T1(l2, l1, l1, l1), T1(l2, l1, l1, l2), T1(l2, l1, l2, l1), T1(l2, l2, l1, l1), T1(l2, l2, l1, l2), T1(l2, l2, l2, l1), T1(l2, l2, l2, l2)}));
+        REQUIRE(test_setop(ec, T1, T1(l1, l2, l2, l1), {T1(l1, l1, l1, l1), T1(l1, l1, l1, l2), T1(l1, l1, l2, l1), T1(l1, l1, l2, l2), T1(l1, l2, l1, l1), T1(l1, l2, l1, l2), T1(l1, l2, l2, l2), T1(l2, l1, l1, l1), T1(l2, l1, l1, l2), T1(l2, l1, l2, l1), T1(l2, l2, l1, l1), T1(l2, l2, l1, l2), T1(l2, l2, l2, l1), T1(l2, l2, l2, l2)}));
    }
 
     MemoryManagerGA::destroy_coll(mgr);
@@ -772,7 +783,7 @@ TEST_CASE("Two-dimensional ops") {
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
           .deallocate(T2, T3)
           .execute();
-        check_value(T1, 32.0);
+        check_value(T1, (T)32.0);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -862,7 +873,7 @@ TEST_CASE("One-dimensional ops") {
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
           .deallocate(T2, T3)
           .execute();
-        check_value(T1, 32.0);
+        check_value(T1, (T)32.0);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -922,7 +933,7 @@ TEST_CASE("Two-dimensional ops part I") {
         Tensor<T> T1{TIS, TIS};
         Tensor<T>::allocate(ec, T1);
         Scheduler{ec}(T1() = 42).execute();
-        check_value(T1, 42.0);
+        check_value(T1, (T)42.0);
         Tensor<T>::deallocate(T1);
     }
 
@@ -936,7 +947,7 @@ TEST_CASE("Two-dimensional ops part I") {
         (T1() = T2())
         .deallocate(T2)
         .execute();
-        check_value(T1, 42.0);
+        check_value(T1, (T)42.0);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -954,7 +965,7 @@ TEST_CASE("Two-dimensional ops part I") {
         (T1() += T2())
         .deallocate(T2)
         .execute();
-        check_value(T1, 46.0);
+        check_value(T1, (T)46.0);
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";

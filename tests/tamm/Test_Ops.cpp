@@ -37,12 +37,10 @@ template<typename T>
 void check_value(Tensor<T> &t, T val){
     for (auto it: t.loop_nest())
     {
-        std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
         TAMM_SIZE size = t.block_size(it);
         T* buf = new T[size];
         t.get(it,span<T>(buf,size));
         for (TAMM_SIZE i = 0; i < size;i++) {
-            std::cerr<<"Calling expects\n";
           REQUIRE(std::fabs(buf[i]-val)< 1.0e-10);
        }
     }
@@ -385,6 +383,44 @@ TEST_CASE("One-dimensional ops") {
         .execute();
         check_value(T1, 32.0);
         Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS}, T2{TIS}, T3{};
+        Scheduler{ec}
+        .allocate(T1, T2, T3)
+        (T1() = 9)
+        (T2() = 8)
+        (T3() = 4)
+        (T1() += 1.5 * T3() * T2())
+        .deallocate(T2, T3)
+        .execute();
+        check_value(T1, 9 + 1.5*8*4);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS}, T2{TIS}, T3{};
+        Scheduler{ec}
+        .allocate(T1, T2, T3)
+        (T1() = 9)
+        (T2() = 8)
+        (T3() = 4)
+        (T3() += 1.5 * T1() * T2())
+        .deallocate(T1, T2)
+        .execute();
+        check_value(T3, 4 + 1.5*10*9*8);
+        Tensor<T>::deallocate(T3);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
         failed = true;

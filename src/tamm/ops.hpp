@@ -760,7 +760,7 @@ public:
         return std::shared_ptr<Op>(new MapOp<LabeledTensorT,Func,N>{*this});
     }
 
-    void execute(const ProcGroup& ec_pg) override {
+    void execute(ProcGroup ec_pg) override {
         using TensorElType = typename LabeledTensorT::element_type;
         // the iterator to generate the tasks
         const auto& tensor = lhs_.tensor();
@@ -791,10 +791,10 @@ public:
                 const auto& rtensor_i = rhs_[i].tensor();
                 size_t isz = rtensor_i.block_size(rblockid[i]);
                 rbuf[i].resize(isz);
-                rtensor_i.get(rblockid[i], span<TensorElType>(&rbuf[i], isz));
+                rtensor_i.get(rblockid[i], span<TensorElType>(rbuf[i].data(), isz));
             }
             func_(tensor, lblockid, lbuf, rblockid, rbuf);
-            ltensor.put(lblockid, span<TensorElType>(&lbuf, lsize));
+            ltensor.put(lblockid, span<TensorElType>(lbuf.data(), lsize));
         };
         // ec->...(loop_nest, lambda);
         //@todo use a scheduler

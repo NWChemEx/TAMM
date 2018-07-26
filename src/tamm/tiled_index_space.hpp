@@ -32,6 +32,13 @@ public:
         is, input_tile_size, std::vector<Tile>{})},
       root_tiled_info_{tiled_info_} {
         EXPECTS(input_tile_size > 0);
+
+        // construct tiled spaces for named subspaces
+        for(const auto& str_subis : is.map_named_sub_index_spaces()) {
+            auto t_is = TiledIndexSpace{str_subis.second, input_tile_size};
+            t_is.set_root(tiled_info_);
+            tiled_info_->tiled_named_subspaces_.insert({str_subis.first, t_is});
+        }
     }
 
     /**
@@ -476,13 +483,6 @@ protected:
                       std::pair<IndexVector, TiledIndexSpace>{
                         kv.first, TiledIndexSpace{kv.second, input_tile_size}});
                 }
-
-                // construct tiled spaces for named subspaces
-                for(const auto& str_subis : is.map_named_sub_index_spaces()) {
-                    tiled_named_subspaces_.insert(
-                      {str_subis.first,
-                       TiledIndexSpace{str_subis.second, input_tile_size}});
-                }
             }
 
             if(!is.is_dependent()) {
@@ -664,6 +664,10 @@ protected:
         EXPECTS(it != new_info.simple_vec_.end());
 
         return (*it);
+    }
+
+    void set_root(std::shared_ptr<TiledIndexSpaceInfo> root) {
+        root_tiled_info_ = root;
     }
 
     template<std::size_t... Is>

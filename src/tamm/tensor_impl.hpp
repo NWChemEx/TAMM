@@ -93,24 +93,18 @@ public:
   }
 
   void allocate(const ExecutionContext* ec) {
-      std::cerr<<__FUNCTION__<<" "<<__LINE__<<" \n";
     Distribution* distribution = ec->distribution();
-      std::cerr<<__FUNCTION__<<" "<<__LINE__<<" \n";
     MemoryManager* memory_manager = ec->memory_manager();
-      std::cerr<<__FUNCTION__<<" "<<__LINE__<<" \n";
     EXPECTS(distribution != nullptr);
     EXPECTS(memory_manager != nullptr);
     // distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
     distribution_ = std::shared_ptr<Distribution>(
         distribution->clone(this,memory_manager->pg().size()));
-      std::cerr<<__FUNCTION__<<" "<<__LINE__<<" \n";
     auto rank = memory_manager->pg().rank();
     auto buf_size = distribution_->buf_size(rank);
     auto eltype = tensor_element_type<double>();
     EXPECTS(buf_size >=0 );
-      std::cerr<<__FUNCTION__<<" "<<__LINE__<<" \n";
     mpb_ = std::unique_ptr<MemoryRegion>{memory_manager->alloc_coll(eltype, buf_size)};
-      std::cerr<<__FUNCTION__<<" "<<__LINE__<<" \n";
   }
 
     // Tensor Accessors

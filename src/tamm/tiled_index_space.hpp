@@ -153,6 +153,20 @@ public:
     }
 
     /**
+     * @brief Operator overload for getting TiledIndexSpace from dependent
+     * relation map
+     *
+     * @param [in] dep_idx_vec set of dependent index values
+     * @returns TiledIndexSpace from the relation map
+     */
+    TiledIndexSpace operator()(const IndexVector& dep_idx_vec = {}) const {
+        if(dep_idx_vec.empty()) { return (*this); }
+        const auto& t_dep_map = tiled_info_->tiled_dep_map_;
+        EXPECTS(t_dep_map.find(dep_idx_vec) != t_dep_map.end());
+        return t_dep_map.at(dep_idx_vec);
+    }
+
+    /**
      * @brief Iterator accessor to the start of the reference IndexSpace
      *
      * @returns a const_iterator to an Index at the first element of the
@@ -666,7 +680,8 @@ protected:
         root_tiled_info_ = root;
     }
 
-    void set_tiled_info(const std::shared_ptr<TiledIndexSpaceInfo>& tiled_info){
+    void set_tiled_info(
+      const std::shared_ptr<TiledIndexSpaceInfo>& tiled_info) {
         tiled_info_ = tiled_info;
     }
 
@@ -706,7 +721,8 @@ protected:
               (*tiled_info_), new_offsets, indices));
             tempTIS.set_root(tiled_info_);
 
-            tiled_info_->tiled_named_subspaces_.insert({str_subis.first, tempTIS});
+            tiled_info_->tiled_named_subspaces_.insert(
+              {str_subis.first, tempTIS});
         }
     }
 

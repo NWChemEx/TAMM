@@ -712,42 +712,68 @@ void test_dependent_space_with_T(unsigned tilesize) {
     REQUIRE(success);
 
 
+    TiledIndexSpace Sub_TIS1{T_IS, range(0,5)};
+    TiledIndexSpace Sub_TIS2{T_IS, range(5,10)};
+
+    std::map<IndexVector, TiledIndexSpace> sub_relation1{
+        {IndexVector{0}, Sub_TIS1},
+        {IndexVector{1}, Sub_TIS1},
+        {IndexVector{2}, Sub_TIS1},
+        {IndexVector{3}, Sub_TIS1},
+        {IndexVector{4}, Sub_TIS1},
+        {IndexVector{5}, Sub_TIS1},
+        {IndexVector{6}, Sub_TIS1},
+        {IndexVector{7}, Sub_TIS1},
+        {IndexVector{8}, Sub_TIS1},
+        {IndexVector{9}, Sub_TIS1}
+    };
+
+    std::map<IndexVector, TiledIndexSpace> sub_relation2{
+        {IndexVector{0}, Sub_TIS2},
+        {IndexVector{1}, Sub_TIS2},
+        {IndexVector{2}, Sub_TIS2},
+        {IndexVector{3}, Sub_TIS2},
+        {IndexVector{4}, Sub_TIS2},
+        {IndexVector{5}, Sub_TIS2},
+        {IndexVector{6}, Sub_TIS2},
+        {IndexVector{7}, Sub_TIS2},
+        {IndexVector{8}, Sub_TIS2},
+        {IndexVector{9}, Sub_TIS2}
+    };
+
+    // Creating sub tiled spaces Dependent-TiledIndexSpace
+    {
+        success = true;
+        try
+        {
+            TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
+            TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};            
+        }
+        catch(const std::string& e)
+        {
+            std::cerr << "Caught exception: " << e << "\n";
+            success = false;
+        }
+        REQUIRE(success);
+    }
+
+    TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
+    TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};
+
+    TiledIndexLabel sub_a1, sub_a2;
+
+    sub_a1 = Sub_TDIS1.label("all");
+    sub_a2 = Sub_TDIS2.label("all");
+
+    // SetOp with sub dependent spaces 
+    {
+        Tensor<T> T1{a(i),i};
+        REQUIRE(test_setop(ec, T1, T1(sub_a1(i), i), {T1(sub_a2(i), i)}));
+    } 
+
+
     MemoryManagerGA::destroy_coll(mgr);
     delete ec;
-
-    // TiledIndexSpace Sub_TIS1{T_IS, range(0,5)};
-    // TiledIndexSpace Sub_TIS2{T_IS, range(5,10)};
-
-    // std::map<IndexVector, TiledIndexSpace> sub_relation1{
-    //     {IndexVector{0}, Sub_TIS1},
-    //     {IndexVector{1}, Sub_TIS1},
-    //     {IndexVector{2}, Sub_TIS1},
-    //     {IndexVector{3}, Sub_TIS1},
-    //     {IndexVector{4}, Sub_TIS1}
-    // };
-
-    // std::map<IndexVector, TiledIndexSpace> sub_relation2{
-    //     {IndexVector{5}, Sub_TIS2},
-    //     {IndexVector{6}, Sub_TIS2},
-    //     {IndexVector{7}, Sub_TIS2},
-    //     {IndexVector{8}, Sub_TIS2},
-    //     {IndexVector{9}, Sub_TIS2}
-    // };
-    // // Creating sub tiled spaces Dependent-TiledIndexSpace
-    // {
-    //     success = true;
-    //     try
-    //     {
-    //         TiledIndexSpace SUB_TDIS1{T_DIS, sub_relation1};
-    //         TiledIndexSpace SUB_TDIS2{T_DIS, sub_relation2};            
-    //     }
-    //     catch(const std::string& e)
-    //     {
-    //         std::cerr << "Caught exception: " << e << "\n";
-    //         success = false;
-    //     }
-    //     REQUIRE(success);
-    // }
 
 }
 

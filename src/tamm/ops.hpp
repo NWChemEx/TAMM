@@ -476,7 +476,7 @@ inline void block_mult(T cscale, T* cbuf, const std::vector<size_t>& cdims,
         // std::cerr<<"abuf[aidx]="<<abuf[idx(aindex,adims)]<<" bbuf[bidx]="<<bbuf[idx(bindex,bdims)]<<"\n";
         cbuf[cidx] += abscale * abuf[idx(aindex, adims)] *
                                              bbuf[idx(bindex, bdims)];
-         std::cerr<<__FUNCTION__<<" updated cbuf[cidx]="<<cbuf[cidx]<<"\n";
+         //std::cerr<<__FUNCTION__<<" updated cbuf[cidx]="<<cbuf[cidx]<<"\n";
     } while(internal::cartesian_iteration(itrv, endv));
 }
 

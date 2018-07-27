@@ -37,8 +37,8 @@ void print_tensor(Tensor<T> &t){
     for (auto it: t.loop_nest())
     {
         TAMM_SIZE size = t.block_size(it);
-        T* buf = new T[size];
-        t.get(it,span<T>(buf,size));
+        std::vector<T> buf(size);
+        t.get(it,span<T>(&buf[0],size));
         std::cout << "block" << it;
         for (TAMM_SIZE i = 0; i < size;i++)
          std::cout << i << std::endl;
@@ -50,8 +50,8 @@ void check_value(Tensor<T> &t, T val){
     for (auto it: t.loop_nest())
     {
         TAMM_SIZE size = t.block_size(it);
-        T* buf = new T[size];
-        t.get(it,span<T>(buf,size));
+        std::vector<T> buf(size);
+        t.get(it,span<T>(&buf[0],size));
         for (TAMM_SIZE i = 0; i < size;i++) {
           REQUIRE(std::fabs(buf[i]-val)< 1.0e-10);
        }
@@ -80,8 +80,8 @@ void check_value(LabeledTensor<T> lt, T val){
         const IndexVector& blockid =
             internal::perm_map_apply(it, lhs_pm);
         size_t size = t.block_size(blockid);
-        T* buf = new T[size];
-        t.get(blockid, span<T>(buf,size));
+        std::vector<T> buf(size);
+        t.get(blockid, span<T>(&buf[0],size));
         for (TAMM_SIZE i = 0; i < size; i++) {
           REQUIRE(std::fabs(buf[i]-val)< 1.0e-10);
        }
@@ -164,7 +164,7 @@ int main(int argc, char* argv[])
 //     CHECK_NOTHROW(test_ops<double>(MO));
 // }
 
-#if 0
+#if 1
 TEST_CASE("Zero-dimensional ops") {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
@@ -727,7 +727,7 @@ void test_addop_with_T(int tilesize) {
 }
 #endif
 
-#if 0
+#if 1
 TEST_CASE("setop with double") {
     test_setop_with_T<double>(1);
     test_setop_with_T<double>(3);
@@ -740,18 +740,18 @@ TEST_CASE("setop with float") {
 #endif
 
 TEST_CASE("addop with double") {
-    //test_addop_with_T<double>(1);
+    test_addop_with_T<double>(1);
     test_addop_with_T<double>(3);
 }
 
-#if 0
+#if 1
 TEST_CASE("addop with float") {
     test_addop_with_T<float>(1);
     test_addop_with_T<float>(3);
 }
 #endif
 
-#if 0
+#if 1
 TEST_CASE("Two-dimensional ops") {
     bool failed;
     ProcGroup pg{GA_MPI_Comm()};
@@ -823,7 +823,7 @@ TEST_CASE("Two-dimensional ops") {
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
           .deallocate(T1, T2)
           .execute();
-        check_value(T3, 4 + 1.5 * 10 * 9 * 8);
+        check_value(T3, 4 + 1.5 * 100 * 9 * 8);
         Tensor<T>::deallocate(T3);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -859,12 +859,7 @@ TEST_CASE("One-dimensional ops") {
 
     {
         Tensor<T> T1{TIS};
-        //@todo Erdal: #else path fails. Can you check?
-#if 1
-        REQUIRE(test_setop(ec, T1, T1(l1)));
-#else
         REQUIRE(test_setop(ec, T1, T1(l1), {T1(l2)}));
-#endif
     }
 
     //@todo slice addop tests

@@ -171,9 +171,9 @@ class IndexLoopNest {
   IndexLoopNest& operator = (IndexLoopNest&&) = default;
 
   IndexLoopNest(const std::vector<TiledIndexSpace>& iss,
-                const std::vector<std::vector<int>>& lb_indices,
-                const std::vector<std::vector<int>>& ub_indices,
-                const std::vector<std::vector<int>>& indep_indices)
+                const std::vector<std::vector<size_t>>& lb_indices,
+                const std::vector<std::vector<size_t>>& ub_indices,
+                const std::vector<std::vector<size_t>>& indep_indices)
       : iss_{iss},
         lb_indices_{lb_indices},
         ub_indices_{ub_indices},
@@ -313,11 +313,11 @@ class IndexLoopNest {
         begins_[i] = 0;
         ends_[i] = std::distance(cbeg, cend);
         for (const auto& id: loop_nest_->lb_indices_[i]) {
-          EXPECTS(id < i);
+          EXPECTS(static_cast<int>(id) < i);
           begins_[i] = std::max(begins_[i], itrs_[id]);
         }
         for (const auto& id: loop_nest_->ub_indices_[i]) {
-          EXPECTS(id < i);
+          EXPECTS(static_cast<int>(id) < i);
           ends_[i] = std::min(ends_[i], itrs_[id]+1);
         }
         if (begins_[i] < ends_[i]) {
@@ -369,12 +369,12 @@ class IndexLoopNest {
         //check that thay are already in existing list of labels
         }
     */
-    for(int i=0; i<(int)ub_indices_.size(); i++) {
+    for(size_t i=0; i<ub_indices_.size(); i++) {
       for(const auto uid : ub_indices_[i]) {
         ret = ret && uid >=0 && uid < i;
       }
     }
-    for(int i=0; i<(int)lb_indices_.size(); i++) {
+    for(size_t i=0; i<lb_indices_.size(); i++) {
       for(const auto lid : lb_indices_[i]) {
         ret = ret && lid >=0 && lid < i;
       }
@@ -393,9 +393,9 @@ class IndexLoopNest {
   }
   
   std::vector<TiledIndexSpace> iss_;
-  std::vector<std::vector<int>> lb_indices_;
-  std::vector<std::vector<int>> ub_indices_;
-  std::vector<std::vector<int>> indep_indices_;
+  std::vector<std::vector<size_t>> lb_indices_;
+  std::vector<std::vector<size_t>> ub_indices_;
+  std::vector<std::vector<size_t>> indep_indices_;
   Iterator itbegin_;
   Iterator itend_;
 };  // class IndexLoopNest

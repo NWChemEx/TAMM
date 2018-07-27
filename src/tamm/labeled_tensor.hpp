@@ -620,7 +620,7 @@ private:
             }
         }
 
-        const std::map<Index,IndexVector>& dep_map = tensor_.dep_map();
+        const std::map<size_t,std::vector<size_t>>& dep_map = tensor_.dep_map();
         for(auto itr = dep_map.begin(); itr!=dep_map.end(); ++itr){
             const auto& dep_iv = itr->second;
             auto dc_ = 0;

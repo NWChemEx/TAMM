@@ -147,8 +147,17 @@ public:
         // //     ubloops.push_back({});
         // // }
 
+        std::vector<std::vector<size_t>> indep_indices(num_modes());
+        for(const auto& kv : dep_map_) {
+            Index key = kv.first;
+            const auto& indices = kv.second;
+            EXPECTS(key < indep_indices.size());
+            EXPECTS(indep_indices[key].size() == 0);
+            indep_indices[key] = indices;
+        }
+
         // return IndexLoopNest{block_indices_,lbloops,ubloops,{}};
-        return {block_indices_, {}, {}, {}};
+        return {block_indices_, {}, {}, indep_indices};
     }
 
     const std::vector<TiledIndexSpace>& tiled_index_spaces() const {
@@ -159,12 +168,12 @@ public:
         return tlabels_;
     }
 
-    const std::map<Index, IndexVector>& dep_map() const { return dep_map_; }
+    const std::map<size_t, std::vector<size_t>>& dep_map() const { return dep_map_; }
 
     /// @todo The following methods could be refactored.
-    Index find_dep(const TiledIndexLabel& til) {
-        Index bis = tlabels_.size();
-        for(Index i = 0; i < bis; i++) {
+    size_t find_dep(const TiledIndexLabel& til) {
+        size_t bis = tlabels_.size();
+        for(size_t i = 0; i < bis; i++) {
             if(block_indices_[i].is_identical(til.tiled_index_space()) && til == tlabels_[i])
                 return i;
         }
@@ -187,20 +196,25 @@ public:
     /// @todo refactor
     void construct_dep_map() {
         check_duplicates();
-        Index til = tlabels_.size();
-        for(Index i = 0; i < til; i++) {
+        size_t til = tlabels_.size();
+        for(size_t i = 0; i < til; i++) {
             auto il  = tlabels_[i];
             auto tis = block_indices_[i];
             if(tis.is_dependent()) {
                 /// @todo do we need this check here?
-                EXPECTS(il.dep_labels().size() == il.tiled_index_space().index_space().num_key_tiled_index_spaces());
+                EXPECTS(il.dep_labels().size() ==
+                        il.tiled_index_space()
+                          .index_space()
+                          .num_key_tiled_index_spaces());
                 for(auto& dep : il.dep_labels()) {
-                    Index pos = find_dep(dep);
+                    size_t pos = find_dep(dep);
+                    EXPECTS(pos != til);
                     if(pos != til) {
-                        if(dep_map_.find(i) != dep_map_.end())
-                            dep_map_[i].push_back(pos);
-                        else
-                            dep_map_[Index{i}] = IndexVector{pos};
+                        dep_map_[i].push_back(pos);
+                        // if(dep_map_.find(i) != dep_map_.end())
+                        //     dep_map_[i].push_back(pos);
+                        // else
+                        //     dep_map_[i].push_back({pos});// = IndexVector{pos};
                     }
                 }
                 EXPECTS(dep_map_.find(i) != dep_map_.end());
@@ -221,7 +235,7 @@ protected:
 
     /// Map that maintains position of dependent index space(s) for a given
     /// dependent index space.
-    std::map<Index, IndexVector> dep_map_;
+    std::map<size_t, std::vector<size_t>> dep_map_;
     // std::vector<IndexPosition> ipmask_;
     // PermGroup perm_groups_;
     // Irrep irrep_;

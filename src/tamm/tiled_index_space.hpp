@@ -300,13 +300,24 @@ public:
     /**
      * @brief Get the number of tiled index blocks in TiledIndexSpace
      *
+     * @todo: rename!
+     * 
      * @return size of TiledIndexSpace
      */
-    std::size_t size() const { return tiled_info_->tile_offsets_.size() - 1; }
+    std::size_t size() const { 
+
+        if(is_dependent()){
+            NOT_ALLOWED();
+        }
+        
+        return tiled_info_->tile_offsets_.size() - 1; 
+    }
 
     /**
      * @brief Get the max. number of tiled index blocks in TiledIndexSpace
      *
+     * @todo: rename!
+     * 
      * @return max size of TiledIndexSpace
      */
     std::size_t max_size() const { return tiled_info_->max_size(); }

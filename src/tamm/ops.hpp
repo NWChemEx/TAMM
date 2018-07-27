@@ -896,7 +896,8 @@ class AddOp : public Op {
 public:
     AddOp() = default;
     AddOp(LabeledTensorT lhs, T alpha, LabeledTensorT rhs,
-          /*const LabeledLoop& loop_nest,*/ bool is_assign) :
+          /*const LabeledLoop& loop_nest,*/ 
+          bool is_assign) :
       lhs_{lhs},
       alpha_{alpha},
       rhs_{rhs},
@@ -922,6 +923,7 @@ public:
 
     void execute(ProcGroup ec_pg) override {
         using TensorElType = typename LabeledTensorT::element_type;
+#if 0
         // the iterator to generate the tasks
         IndexLabelVec unique_labels = internal::unique_entries(lhs_.labels());
         //sort unique labels to put dependent indices after the indices they depend on
@@ -959,9 +961,39 @@ public:
                 ltensor.add(lblockid, span<TensorElType>(&lbuf[0], size));
             }
         };
+#else
+        IndexLabelVec merged_labels{lhs_.labels()};
+        merged_labels.insert(merged_labels.end(), rhs_.labels().begin(), rhs_.labels().end());
+
+        LabelLoopNest loop_nest{merged_labels};
+
+        auto lambda = [&](const IndexVector& blockid) {
+            auto ltensor = lhs_.tensor();
+            auto rtensor = rhs_.tensor();
+            IndexVector lblockid, rblockid;
+            split_block_id(lblockid, rblockid, lhs_.labels().size(), rhs_.labels().size(), blockid);
+            size_t size = ltensor.block_size(lblockid);
+            // IndexVector rblockid = internal::LabelMap<Index>()
+            //                          .update(lhs_.labels(), lblockid)
+            //                          .get(rhs_.labels());
+            std::vector<TensorElType> rbuf(size);
+            std::vector<TensorElType> lbuf(size);
+            rtensor.get(rblockid, span<TensorElType>(&rbuf[0], size));
+            const auto& ldims = lhs_.tensor().block_dims(lblockid);
+            const auto& rdims = rhs_.tensor().block_dims(rblockid);
+            internal::block_add(&lbuf[0], ldims, lhs_.labels(), &rbuf[0], rdims,
+                                rhs_.labels(), alpha_, !is_assign_);
+            if(is_assign_) {
+                ltensor.put(lblockid, span<TensorElType>(&lbuf[0], size));
+            } else {
+                ltensor.add(lblockid, span<TensorElType>(&lbuf[0], size));
+            }
+        };
+
         // ec->...(loop_nest, lambda);
         //@todo use a scheduler
         //@todo make parallel
+#endif
         do_work(ec_pg, loop_nest, lambda);
     }
 
@@ -974,6 +1006,16 @@ protected:
         update_fillin_map(str_to_labels, lhs_.str_map(), lhs_.str_labels(), 0);
         fillin_tensor_label_from_map(lhs_, str_to_labels);
         fillin_tensor_label_from_map(rhs_, str_to_labels);
+    }
+
+    void split_block_id(IndexVector& lhs_lbls, IndexVector& rhs_lbls, size_t lhs_size, size_t rhs_size , const IndexVector& full_blockid) const {
+        IndexVector new_lhs, new_rhs;
+        
+        new_lhs.insert(new_lhs.end(), full_blockid.begin(), full_blockid.begin()+ lhs_size);
+        new_rhs.insert(new_rhs.end(), full_blockid.begin()+lhs_size, full_blockid.end());
+        
+        lhs_lbls = new_lhs;
+        rhs_lbls = new_rhs;
     }
 
     /**

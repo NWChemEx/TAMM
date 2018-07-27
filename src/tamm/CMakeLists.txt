@@ -33,6 +33,7 @@ set(tamm_INCLUDES
     memory_manager_ga.hpp
     memory_manager_local.hpp
     index_loop_nest.hpp
+    utils.hpp
    )
 
 set(tamm_DEFINITIONS )

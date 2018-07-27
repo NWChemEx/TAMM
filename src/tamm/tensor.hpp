@@ -166,7 +166,7 @@ public:
      */
     template<typename... Args>
     static void allocate(const ExecutionContext* ec, Tensor<T>& tensor, Args& ... rest) {
-       tensor.impl_->allocate<T>(ec);
+       tensor.impl_->template allocate<T>(ec);
        allocate(ec,rest...);
     }
 

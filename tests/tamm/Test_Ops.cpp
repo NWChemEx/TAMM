@@ -1005,6 +1005,93 @@ TEST_CASE("Three-dimensional mult ops part I") {
 
 }
 
+TEST_CASE("Four-dimensional mult ops part I") {
+    bool failed;
+    ProcGroup pg{GA_MPI_Comm()};
+    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    using T              = double;
+    const size_t tilesize = 1;
+
+    IndexSpace IS{range(0, 10),
+                      {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
+    TiledIndexSpace TIS{IS, tilesize};
+    TiledIndexLabel i, j, k, l, m, n;
+    std::tie(i, j, k, l, m, n) = TIS.labels<6>("all");
+
+    //mult 4x4x0
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2, T3)(T1() = 2)(T2()=3)(T3() = 4)(T1() += 6.9 * T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)(2+6.9*3*4));
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    //mult 4x0x4
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2, T3)(T1() = 2)(T2()=3)(T3() = 4)(T1() += 1.7 * T3() * T2())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)(2+1.7*3*4));
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    //mult 4x2x2
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS}, T3{TIS,TIS};
+        Scheduler{ec}
+          .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
+            T1(i, j, k, l) += 1.7 * T2(i, j) * T3(k, l))
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)(2 + 1.7 * 3 * 4));
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    //mult 4x4x4
+#if 1
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{TIS, TIS, TIS, TIS};
+        Scheduler{ec}
+          .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
+            T1(i, j, k, l) += 1.7 * T2(j, l, k, m) * T3(l, i, k, m))
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)(2 + 1.7 * 3 * 4*10));
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+#endif
+    MemoryManagerGA::destroy_coll(mgr);
+    delete ec;
+
+}
+
 #if 1
 TEST_CASE("Two-dimensional ops part I") {
     bool failed;

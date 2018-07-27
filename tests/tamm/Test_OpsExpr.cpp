@@ -254,14 +254,16 @@ TEST_CASE("SCF Commutator declarations") {
          */
 
         Scheduler{ec}
-            (temp(mu, lambda) = F(mu,nu)*D(nu, lambda)) //FD
-            (comm(mu, lambda) = temp(mu, nu)*S(nu, lambda)) //FDS
-            (temp(mu, lambda) = S(mu, nu)*D(nu, lambda)) //SD
+            (temp(mu, lambda) += F(mu,nu)*D(nu, lambda)) //FD
+            (comm(mu, lambda) += temp(mu, nu)*S(nu, lambda)) //FDS
+            (temp(mu, lambda) += S(mu, nu)*D(nu, lambda)) //SD
             (comm(mu, lambda) += -1.0*temp(mu, nu)*F(nu, lambda))//FDS - SDF
             .execute();
 
 
         tensor_type::deallocate(comm, temp, F, D, S);
+        MemoryManagerGA::destroy_coll(mgr);
+
         delete ec;
     } catch (...) {
         failed = true;
@@ -291,10 +293,10 @@ TEST_CASE("SCF JK declarations") {
     try {
         using tensor_type = tamm::Tensor<double>;
 
-        ProcGroup pg{GA_MPI_Comm()};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
+    ProcGroup pg{GA_MPI_Comm()};
+    auto mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
 
         IndexSpace is{range(10)};
         tamm::TiledIndexSpace tis{is};
@@ -311,24 +313,33 @@ TEST_CASE("SCF JK declarations") {
         std::tie(i) = tMOs.labels<1>("all");
 
         tensor_type L{tis, tis};
-        tensor_type Linv{tis, tis};
-        tensor_type Itemp{tis}, D{tis, tis, tis}, d{tis}, J{tis, tis}, K{tis, tis};
+        tensor_type Linv{Aux, Aux};
+        tensor_type Itemp{Aux, tMOs, AOs};
+        tensor_type D{Aux, tMOs, AOs};
+        tensor_type d{Aux};
+        tensor_type J{tis, tis};
+        tensor_type K{AOs, AOs};
 
         tensor_type::allocate(ec, L, Linv, Itemp, D, d, J, K);
 
         //Itemp(Q, i, nu) = MOs.Cdagger(i, mu) * I(Q, mu, nu);
-        D(P, i, mu) = Linv(P, Q) * Itemp(Q, i, mu);
+        Scheduler{ec}
+        (D(P, i, mu) = Linv(P, Q) * Itemp(Q, i, mu))
         //d(P) = D(P, i, mu) * MOs.Cdagger(i, mu);
-        Itemp(Q) = d(P) * Linv(P, Q);
+        //(Itemp(Q) = d(P) * Linv(P, Q))
         //J(mu, nu) = Itemp(P) * I(P, mu, nu);
-        K(mu, nu) = D(P, i, mu) * D(P, i, nu);
+        //(K(mu, nu) = D(P, i, mu) * D(P, i, nu))
+        .execute();
 
         tensor_type::deallocate(L, Linv, Itemp, D, d, J, K);
+        MemoryManagerGA::destroy_coll(mgr);
         delete ec;
+
     } catch (...) {
         failed = true;
     }
     REQUIRE(!failed);
+    
 }
 
 int main(int argc, char* argv[])

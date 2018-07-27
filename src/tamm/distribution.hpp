@@ -105,6 +105,7 @@ class Distribution_NW : public Distribution {
     return new Distribution_NW(tensor_structure, nproc);
   }
 
+#if 0
   std::pair<Proc,Offset> locate(const IndexVector& blockid) {
     auto key = compute_key(blockid);
     auto length = hash_[0];
@@ -120,6 +121,25 @@ class Distribution_NW : public Distribution {
     auto offset = Offset{ioffset - proc_offsets_[proc.value()].value()};
     return {proc, offset};
   }
+#else
+  std::pair<Proc,Offset> locate(const IndexVector& blockid) {
+    auto key = compute_key(blockid);
+    auto itr =
+      std::lower_bound(hash_.begin(), hash_.end(), KeyOffsetPair{key, 0},
+                       [](const KeyOffsetPair& lhs, const KeyOffsetPair& rhs) {
+                           return lhs.key_ < rhs.key_;
+                       });
+    EXPECTS (itr != hash_.end());
+    EXPECTS (key == itr->key_);
+    auto ioffset = itr->offset_;
+    auto pptr = std::upper_bound(std::begin(proc_offsets_), std::end(proc_offsets_), Offset{ioffset});
+    EXPECTS(pptr != std::begin(proc_offsets_));
+    auto proc = Proc{pptr - std::begin(proc_offsets_)};
+    proc -= 1;
+    auto offset = Offset{ioffset - proc_offsets_[proc.value()].value()};
+    return {proc, offset};
+  }
+#endif
 
   Size buf_size(Proc proc) const {
     EXPECTS(proc >= 0);
@@ -137,7 +157,6 @@ class Distribution_NW : public Distribution {
     }
 
     int64_t length{0};
-    // auto indices = tensor_structure_->tindices();
     auto iln = tensor_structure_->loop_nest();
     for(const auto& it: iln) {
       // if (tensor_structure_->nonzero(*itr))
@@ -149,33 +168,22 @@ class Distribution_NW : public Distribution {
 
     compute_key_offsets();
 
-    hash_.resize(2*length + 1);
-    hash_[0] = length;
-    //start over
-    // pdt =  loop_iterator(indices);
-    // last = pdt.get_end();
+    hash_.resize(length);
     HashValue offset = 0;
-    int addr = 1;
-
+    size_t addr = 0;
 
     for(const auto& it: iln) {
       auto blockid = it;
-    //   //if(tensor_structure_->nonzero(blockid)) {
-      hash_[addr] = compute_key(blockid);
-      EXPECTS(addr==1 || hash_[addr] > hash_[addr-1]);
-      hash_[length + addr] = offset;
-    //     if(GA_Nodeid() == 1) {
-    //       //std::cerr<<"-----DISTRIBUTIO_NW. addr="<<addr<<" offset="<<offset<<" block_size="<<tensor_structure_->block_size(blockid)<<"\n";
-    //     }
+      hash_[addr].key_ = compute_key(blockid);
+      hash_[addr].offset_ = offset;
       offset += tensor_structure_->block_size(blockid);
       addr += 1;
     }
     EXPECTS(offset > 0);
     total_size_ = offset;
 
-    //Integer max_2nd_arg=1;
     HashValue per_proc_size = std::max(Integer{offset / nproc.value()}, Integer{1});
-    auto itr = hash_.begin() + length + 1;
+    auto itr = hash_.begin();
     auto itr_last = hash_.end();
 
     if(GA_Nodeid() == 1) {
@@ -183,37 +191,32 @@ class Distribution_NW : public Distribution {
     }
     for(int i=0; i<nproc.value(); i++) {
       if(itr != itr_last) {
-        proc_offsets_.push_back(Offset{*itr});
+        proc_offsets_.push_back(Offset{itr->offset_});
       } else {
         proc_offsets_.push_back(Offset{total_size_});        
       }
-      
-      itr = std::lower_bound(itr, itr_last, (i+1)*per_proc_size);
-    //   if(GA_Nodeid() == 1) {
-    //     //std::cerr<<"------DISTRIB_NW. *new_itr="<<*itr<<"\n";
-    //   }
     }
 
     EXPECTS(proc_offsets_.size() == static_cast<uint64_t>(nproc.value()));
     proc_offsets_.push_back(total_size_);
 
-    if(GA_Nodeid() == 1){
-      // std::cerr<<"------PROC OFFSETS:";
-      // for(auto off: proc_offsets_) {
-      //   std::cerr<<off<<" ";
-      // }
-      // std::cerr<<"\n";
-    }
+    std::sort(hash_.begin(), hash_.end(),
+              [](const KeyOffsetPair& lhs, const KeyOffsetPair& rhs) {
+                  return lhs.key_ < rhs.key_;
+              });
   }
 
-  const std::vector<Integer>& hash() const {
-    return hash_;
-  }
+  // const std::vector<Integer>& hash() const {
+  //   return hash_;
+  // }
 
 private:
+  struct KeyOffsetPair {
+    HashValue key_;
+    Offset offset_;
+  };
   void compute_key_offsets() {
     const auto &tis_list = tensor_structure_->tindices();
-    //Offset offset = 1;
     int rank = tis_list.size();
     key_offsets_.resize(rank);
     if(rank>0) {
@@ -234,10 +237,10 @@ private:
   }
 
   Offset total_size_;
-  std::vector<HashValue> hash_;
+  std::vector<KeyOffsetPair> hash_;
   std::vector<Offset> proc_offsets_;
   std::vector<Offset> key_offsets_;
-  
+
   friend class DistributionFactory;
 }; // class Distribution_NW
 

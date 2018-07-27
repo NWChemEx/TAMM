@@ -3,6 +3,7 @@
 
 #include "tamm/errors.hpp"
 #include "tamm/index_loop_nest.hpp"
+#include "tamm/utils.hpp"
 
 /**
  * @defgroup tensors
@@ -44,6 +45,9 @@ public:
       block_indices_{block_indices},
       num_modes_{block_indices.size()} {
         construct_dep_map();
+        for(size_t i=0; i<block_indices_.size(); i++) {
+            tlabels_.push_back(block_indices_[i].label(-i-1));
+        }
     }
 
     /**
@@ -74,6 +78,7 @@ public:
     template<class... Ts>
     TensorBase(const TiledIndexSpace& tis, Ts... rest) : TensorBase{rest...} {
         block_indices_.insert(block_indices_.begin(), tis);
+        tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 - block_indices_.size()));
     }
 
     /**
@@ -87,6 +92,7 @@ public:
     template<typename Func>
     TensorBase(const TiledIndexSpace& tis, const Func& func) {
         block_indices_.insert(block_indices_.begin(), tis);
+        tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1));
     }
 
     // Dtor
@@ -145,7 +151,7 @@ public:
      */
     // virtual void deallocate() = 0;
 
-    IndexLoopNest loop_nest() const {
+    LabelLoopNest loop_nest() const {
         // std::vector<IndexVector> lbloops, ubloops;
         // for(const auto& tis : block_indices_) {
         //     //iterator to indexvector - each index in vec points to begin of
@@ -158,7 +164,7 @@ public:
         // //     lbloops.push_back({});
         // //     ubloops.push_back({});
         // // }
-
+#if 0
         std::vector<std::vector<size_t>> indep_indices(num_modes());
         for(const auto& kv : dep_map_) {
             Index key = kv.first;
@@ -170,6 +176,9 @@ public:
 
         // return IndexLoopNest{block_indices_,lbloops,ubloops,{}};
         return {block_indices_, {}, {}, indep_indices};
+#else
+        return LabelLoopNest{tlabels()};
+#endif
     }
 
     const std::vector<TiledIndexSpace>& tiled_index_spaces() const {

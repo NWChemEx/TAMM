@@ -309,7 +309,7 @@ public:
      *
      * @return max size of TiledIndexSpace
      */
-    std::size_t max_size() const { return tiled_info_->tile_offsets_.size(); }
+    std::size_t max_size() const { return tiled_info_->max_size(); }
 
     /**
      * @brief Get the tile size for the index blocks
@@ -658,6 +658,21 @@ protected:
         std::size_t tile_size(Index i) const {
             EXPECTS(i >= 0 && i < tile_offsets_.size());
             return tile_offsets_[i + 1] - tile_offsets_[i];
+        }
+
+        std::size_t max_size() const {
+            std::size_t ret = 0;
+            if(tiled_dep_map_.empty()) {
+                return tile_offsets_.size();
+            } else {
+                for(const auto& kv : tiled_dep_map_) {
+                    if(ret < kv.second.max_size()){
+                        ret = kv.second.max_size();
+                    }
+                }
+            }
+
+            return ret;
         }
     };
 

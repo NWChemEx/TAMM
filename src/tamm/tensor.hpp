@@ -136,7 +136,7 @@ public:
         return impl_->tiled_index_spaces();
     }
 
-    const std::map<Index,IndexVector>& dep_map() const {
+    const std::map<size_t,std::vector<size_t>>& dep_map() const {
         return impl_->dep_map();
     }
 

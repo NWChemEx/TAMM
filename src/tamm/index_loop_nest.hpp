@@ -3,6 +3,7 @@
 
 #include "tamm/tiled_index_space.hpp"
 #include "tamm/errors.hpp"
+#include "tamm/utils.hpp"
 #include <iostream>
 #include <vector>
 #include <map>
@@ -181,7 +182,9 @@ class IndexLoopNest {
         lb_indices_.resize(iss_.size());
         ub_indices_.resize(iss_.size());
         indep_indices_.resize(iss_.size());
+    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
         reset();
+    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
         }  
   
   template<typename... Args>
@@ -221,7 +224,7 @@ class IndexLoopNest {
     }
     reset();
   }
-  
+
   class Iterator {
    public:
     Iterator() = default;
@@ -238,7 +241,10 @@ class IndexLoopNest {
       begins_.resize(size());
       ends_.resize(size());
       done_ = false;
+          std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
       reset_forward(0);
+          std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
+
     }
      
     bool operator == (const Iterator& rhs) const {
@@ -251,7 +257,7 @@ class IndexLoopNest {
       return !(*this == rhs);
     }
 
-    IndexVector operator * () const {
+    virtual IndexVector operator * () const {
       EXPECTS(!done_);
       EXPECTS(itrs_.size() == bases_.size());
       
@@ -279,6 +285,12 @@ class IndexLoopNest {
       return ret;
     }
     
+    void set_end() {
+      itrs_.clear();
+      done_ = true;
+    }
+
+
    private:
     int rollback(int index) {
       int i;
@@ -294,21 +306,25 @@ class IndexLoopNest {
     
     void reset_forward(int index) {
       EXPECTS(index >= 0);
-      
+
+      std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";      
       int i = index;
       while (i >=0 && i < size()) {
         std::vector<Index> indep_vals;
+        EXPECTS(i< loop_nest_->indep_indices_.size());
+      std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";      
         for (const auto& id : loop_nest_->indep_indices_[i]) {
-          indep_vals.push_back(bases_[id][itrs_[id]]);
+          indep_vals.push_back(*(bases_[id]+itrs_[id]));
         }
         IndexIterator cbeg, cend;
-        EXPECTS(indep_vals.size()==0); //@bug no support for dependent index spaces yet
+        //EXPECTS(indep_vals.size()==0); //@bug no support for dependent index spaces yet
 #if 0
         std::tie(cbeg, cend) =  loop_nest_->iss_[i].construct_iterators(indep_vals);
 #else
-        cbeg = loop_nest_->iss_[i].begin();
-        cend = loop_nest_->iss_[i].end();
+        cbeg = loop_nest_->iss_[i](indep_vals).begin();
+        cend = loop_nest_->iss_[i](indep_vals).end();
 #endif
+      std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";      
         bases_[i] = cbeg;
         begins_[i] = 0;
         ends_[i] = std::distance(cbeg, cend);
@@ -316,10 +332,12 @@ class IndexLoopNest {
           EXPECTS(static_cast<int>(id) < i);
           begins_[i] = std::max(begins_[i], itrs_[id]);
         }
+      std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";      
         for (const auto& id: loop_nest_->ub_indices_[i]) {
           EXPECTS(static_cast<int>(id) < i);
           ends_[i] = std::min(ends_[i], itrs_[id]+1);
         }
+      std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";      
         if (begins_[i] < ends_[i]) {
           itrs_[i] = begins_[i];
           i++;
@@ -334,11 +352,6 @@ class IndexLoopNest {
       if (i < 0) {
         set_end();
       }
-    }
-
-    void set_end() {
-      itrs_.clear();
-      done_ = true;
     }
 
     std::vector<IndexIterator> bases_;
@@ -387,9 +400,13 @@ class IndexLoopNest {
   }
 
   void reset() {
+    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
     itbegin_ = Iterator{this};
+    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
     itend_ = Iterator{this};
+    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
     itend_.set_end();
+    std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
   }
   
   std::vector<TiledIndexSpace> iss_;
@@ -399,6 +416,129 @@ class IndexLoopNest {
   Iterator itbegin_;
   Iterator itend_;
 };  // class IndexLoopNest
+
+
+class LabelLoopNest {
+public:
+  LabelLoopNest(const LabelLoopNest&) = default;
+  LabelLoopNest(LabelLoopNest&&) = default;
+  ~LabelLoopNest() = default;
+  LabelLoopNest& operator = (const LabelLoopNest&) = default;
+  LabelLoopNest& operator = (LabelLoopNest&&) = default;
+
+  LabelLoopNest(const IndexLabelVec& input_labels)
+  : input_labels_{input_labels} {
+    const IndexLabelVec& unique_labels = internal::unique_entries(input_labels_);
+    sorted_unique_labels_ = internal::sort_on_dependence(unique_labels);
+
+    std::vector<TiledIndexSpace> iss;
+    for(const auto& lbl: sorted_unique_labels_) {
+      iss.push_back(lbl.tiled_index_space());
+    }
+    std::vector<std::vector<size_t>> indep_indices =
+      construct_dep_map(sorted_unique_labels_);
+    index_loop_nest_ = IndexLoopNest{iss, {}, {}, indep_indices};
+  }
+
+  class Iterator {
+    public:
+    Iterator() = default;
+    Iterator(const Iterator&) = default;
+    Iterator(Iterator&&) = default;
+    ~Iterator() = default;
+    Iterator& operator = (const Iterator&) = default;
+    Iterator& operator = (Iterator&&) = default;
+
+    Iterator(LabelLoopNest& label_loop_nest) :
+      label_loop_nest_{&label_loop_nest},
+      index_loop_itr_{&label_loop_nest.index_loop_nest_} {}
+
+    bool operator == (const Iterator& rhs) const {
+      return label_loop_nest_ == rhs.label_loop_nest_ &&
+          index_loop_itr_ == rhs.index_loop_itr_;
+    }
+
+    bool operator != (const Iterator& rhs) const {
+      return !(*this == rhs);
+    }
+
+    virtual IndexVector operator * () const {
+      IndexVector itval = *index_loop_itr_;
+      return internal::perm_map_apply(
+        itval, label_loop_nest_->perm_map_sorted_to_input_labels_);
+    }
+
+    Iterator operator ++ () {
+      ++index_loop_itr_;
+      return *this;
+    }
+
+    Iterator operator ++ (int) {
+      Iterator ret{*this};
+      ++(*this);
+      return ret;
+    }
+
+    private:
+    void set_end() {
+      index_loop_itr_.set_end();
+    }
+    LabelLoopNest*          label_loop_nest_;
+    IndexLoopNest::Iterator index_loop_itr_;
+  }; //class LabelLoopNest::Iterator
+
+  const Iterator& begin() const {
+    return itbegin_;  
+  }
+
+  const Iterator& end() const {
+    return itend_;
+  }
+
+private:
+
+    std::vector<std::vector<size_t>> construct_dep_map(
+      const IndexLabelVec& labels) {
+        std::vector<std::vector<size_t>> dep_map(labels.size());
+        size_t til = labels.size();
+        // std::vector<TiledIndexSpace> iss;
+        // for(const auto& lbl: labels) {
+        //   iss.push_back(lbl.tiled_index_space());
+        // }
+        for(size_t i = 0; i < til; i++) {
+            auto il  = labels[i];
+            auto tis = labels[i].tiled_index_space();
+            if(tis.is_dependent()) {
+                /// @todo do we need this check here?
+                EXPECTS(il.dep_labels().size() ==
+                        il.tiled_index_space()
+                          .index_space()
+                          .num_key_tiled_index_spaces());
+                for(auto& dep : il.dep_labels()) {
+                    size_t pos = 0;
+                    for(pos = 0; pos < labels.size(); pos++) {
+                        if(labels[pos].tiled_index_space() ==
+                             dep.tiled_index_space() &&
+                           dep.get_label() == labels[pos].get_label()) {
+                            dep_map[i].push_back(pos);
+                            break;
+                        }
+                    }
+                    EXPECTS(pos < labels.size());
+                }
+            }
+        }
+        return dep_map;
+    }
+
+  IndexLabelVec input_labels_;
+  IndexLoopNest index_loop_nest_;
+  IndexLabelVec sorted_unique_labels_;
+  std::vector<size_t> perm_map_input_to_sorted_labels_;
+  std::vector<size_t> perm_map_sorted_to_input_labels_;
+  Iterator itbegin_;
+  Iterator itend_;
+}; //class LabelLoopNest
 
 template<typename... Args>
 inline IndexLoopNest loop_spec(Args... args) {

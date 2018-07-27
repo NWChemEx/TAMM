@@ -1122,6 +1122,7 @@ public:
         all_labels.insert(all_labels.end(), rhs2_.labels().begin(),
                           rhs2_.labels().end());
                           //determine unique labels we need to iterate on
+#if 0
         IndexLabelVec unique_labels = internal::unique_entries(all_labels);
         //sort unique labels to put dependent indices after the indices they depend on
         unique_labels = internal::sort_on_dependence(unique_labels);
@@ -1145,7 +1146,6 @@ public:
         // std::cerr << __FUNCTION__ << " " << __LINE__
         //           << "cpm.size=" << cpm.size() << "\n";
 
-#if 1
         //construct the loop nest from the sorted unique labels. note that this
         // needs to change when we have triangular loops and tensor storage
         std::vector<IndexLoopBound> ilbs;
@@ -1210,12 +1210,57 @@ public:
                 ctensor.add(cblockid, span<TensorElType>(&cbuf[0], csize));
             // }
         };
+#else
+        LabelLoopNest loop_nest{all_labels};
+        // function to compute one block
+        auto lambda = [this](const IndexVector itval) {
+            auto ctensor         = lhs_.tensor();
+            auto atensor         = rhs1_.tensor();
+            auto btensor         = rhs2_.tensor();
+            //compute blockids from the loop indices. itval is the loop index
+            auto it = itval.begin();
+            const IndexVector cblockid{it, it+lhs_.labels().size()};
+            it += lhs_.labels().size();
+            const IndexVector ablockid{it, it+rhs1_.labels().size()};
+            it += rhs1_.labels().size();
+            const IndexVector bblockid{it, it+rhs2_.labels().size()};
+            //compute block size and allocate buffers
+            size_t csize          = ctensor.block_size(cblockid);
+            size_t asize          = atensor.block_size(ablockid);
+            size_t bsize          = btensor.block_size(bblockid);
+            // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"asize="<<asize<<"\n";
+            // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"bsize="<<bsize<<"\n";
+            // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"csize="<<csize<<"\n";
+            std::vector<TensorElType> cbuf(csize, 0);
+            std::vector<TensorElType> abuf(asize);
+            std::vector<TensorElType> bbuf(bsize);
+            //get inputs
+            atensor.get(ablockid, span<TensorElType>(&abuf[0], asize));
+            btensor.get(bblockid, span<TensorElType>(&bbuf[0], bsize));
+            const auto& cdims = ctensor.block_dims(cblockid);
+            const auto& adims = atensor.block_dims(ablockid);
+            const auto& bdims = btensor.block_dims(bblockid);
+            //double cscale = is_assign_ ? 0 : 1;
+            TensorElType cscale = 0.0;
+            //std::fill_n(cbuf.begin(), csize, 0);
+            // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+            //do the block-block multiply
+            internal::block_mult((TensorElType)0.0, &cbuf[0], cdims, lhs_.labels(), alpha_,
+                                 &abuf[0], adims, rhs1_.labels(), &bbuf[0],
+                                 bdims, rhs2_.labels());
+            // if(is_assign_) {
+            //     ctensor.put(cblockid, span<TensorElType>(&cbuf[0], csize));
+            // } else {
+                //add the computed update to the tensor
+                ctensor.add(cblockid, span<TensorElType>(&cbuf[0], csize));
+            // }
+        };
+#endif
         // ec->...(loop_nest, lambda);
         //@todo use a scheduler
         //@todo make parallel
         do_work(ec_pg, loop_nest, lambda);
         // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
-#endif
     }
 
 protected:

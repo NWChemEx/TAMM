@@ -353,7 +353,7 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
 
 //setop with T (call with tilesize 1 and 3)
 template<typename T>
-void test_setop_with_T(int tilesize) {
+void test_setop_with_T(unsigned tilesize) {
     //0-4 dimensional setops
     //0-4 dimensional setops
 
@@ -443,10 +443,9 @@ void test_setop_with_T(int tilesize) {
 
 }
 
-#if 1
 //addop with T  (call with tilesize 1 and 3)
 template<typename T>
-void test_addop_with_T(int tilesize) {
+void test_addop_with_T(unsigned tilesize) {
     //0-4 dimensional addops
     bool failed;
     ProcGroup pg{GA_MPI_Comm()};
@@ -725,7 +724,6 @@ void test_addop_with_T(int tilesize) {
     MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }
-#endif
 
 #if 1
 TEST_CASE("setop with double") {
@@ -737,14 +735,12 @@ TEST_CASE("setop with float") {
     test_setop_with_T<float>(1);
     test_setop_with_T<float>(3);
 }
-#endif
 
 TEST_CASE("addop with double") {
     test_addop_with_T<double>(1);
     test_addop_with_T<double>(3);
 }
 
-#if 1
 TEST_CASE("addop with float") {
     test_addop_with_T<float>(1);
     test_addop_with_T<float>(3);
@@ -918,7 +914,98 @@ TEST_CASE("One-dimensional ops") {
     MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }
+#endif
 
+TEST_CASE("Three-dimensional mult ops part I") {
+    bool failed;
+    ProcGroup pg{GA_MPI_Comm()};
+    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    using T              = double;
+    const size_t tilesize = 1;
+
+    IndexSpace IS{range(0, 10),
+                      {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
+    TiledIndexSpace TIS{IS, tilesize};
+    TiledIndexLabel i, j, k, l;
+    std::tie(i, j, k, l) = TIS.labels<4>("all");
+
+    #if 1
+    //mult 3x3x0
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2, T3)(T1() = 2)(T2()=3)(T3() = 4)(T1() += 6.9 * T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)(2+6.9*3*4));
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    //mult 3x0x3
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2, T3)(T1() = 2)(T2()=3)(T3() = 4)(T1() += 1.7 * T3() * T2())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)(2+1.7*3*4));
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    //mult 3x2x1
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS}, T3{TIS};
+        Scheduler{ec}
+          .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
+            T1(i, j, k) += 1.7 * T2(i, j) * T3(k))
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)(2 + 1.7 * 3 * 4));
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+    #endif
+
+    //mult 3x3x3
+#if 1
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{TIS, TIS, TIS};
+        Scheduler{ec}
+          .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
+            T1(i, j, k) += 1.7 * T2(j, l, i) * T3(l, i, k))
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)(2 + 1.7 * 3 * 4*10));
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+#endif
+    MemoryManagerGA::destroy_coll(mgr);
+    delete ec;
+
+}
+
+#if 1
 TEST_CASE("Two-dimensional ops part I") {
     bool failed;
     ProcGroup pg{GA_MPI_Comm()};
@@ -1196,6 +1283,48 @@ TEST_CASE("Two-dimensional ops part I") {
     }
     REQUIRE(!failed);
 
+    //multop 2,2,2
+    try {
+        failed = false;
+        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS,TIS};
+        TiledIndexLabel i, j, k;
+        std::tie(i, j, k) = TIS.labels<3>("all");
+        Scheduler{ec}
+        .allocate(T1, T2, T3)
+        (T1() = 4)
+        (T2() = 42)
+        (T3() = 5)
+        (T1(i,j) += -3.1*T2(i,j)*T3(i,j))
+        .deallocate(T2, T3)
+        .execute();
+        check_value(T1, 4 -3.1*42*5);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+   try {
+        failed = false;
+        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS,TIS};
+        TiledIndexLabel i, j, k;
+        std::tie(i, j, k) = TIS.labels<3>("all");
+        Scheduler{ec}
+        .allocate(T1, T2, T3)
+        (T1() = 4)
+        (T2() = 42)
+        (T3() = 5)
+        (T1(i,j) += -3.1*T2(i,k)*T3(j,k))
+        .deallocate(T2, T3)
+        .execute();
+        check_value(T1, 4 -3.1*42*5*10);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
 
 }
 #endif

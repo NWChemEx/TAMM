@@ -226,7 +226,7 @@ private:
   
   Key compute_key(const IndexVector& blockid) const {
     Key key{0};
-    auto rank = tensor_structure_->tindices().max_size();
+    auto rank = tensor_structure_->tindices().size();
     for(size_t i=0; i<rank; i++) {
       key += blockid[i] * key_offsets_[i].value();
     }    

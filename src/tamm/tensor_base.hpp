@@ -106,7 +106,13 @@ public:
         EXPECTS(blockid.size() == num_modes());
         size_t rank = block_indices_.size();
         for(size_t i = 0; i < rank; i++) {
-            ret *= block_indices_[i].tile_size(blockid[i]);
+            IndexVector dep_idx_vals{};
+            if(dep_map_.find(i) != dep_map_.end()) {
+                for(const auto& pos : dep_map_.at(i)) {
+                    dep_idx_vals.push_back(blockid[pos]);
+                }
+            }
+            ret *= block_indices_[i](dep_idx_vals).tile_size(blockid[i]);
         }
         return ret;
     }
@@ -116,7 +122,13 @@ public:
         EXPECTS(blockid.size() == num_modes());
         size_t rank = block_indices_.size();
         for(size_t i = 0; i < rank; i++) {
-            ret.push_back(block_indices_[i].tile_size(blockid[i]));
+            IndexVector dep_idx_vals{};
+            if(dep_map_.find(i) != dep_map_.end()) {
+                for(const auto& pos : dep_map_.at(i)) {
+                    dep_idx_vals.push_back(blockid[pos]);
+                }
+            }
+            ret.push_back(block_indices_[i](dep_idx_vals).tile_size(blockid[i]));
         }
         return ret;
     }

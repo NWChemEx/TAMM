@@ -1110,5 +1110,92 @@ TEST_CASE("Two-dimensional ops part I") {
         failed = true;
     }
     REQUIRE(!failed);
+
+    //multop 2,2,1
+    try {
+        failed = false;
+        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS};
+        TiledIndexLabel i, j;
+        std::tie(i,j) = TIS.labels<2>("all");
+        Scheduler{ec}
+        .allocate(T1, T2, T3)
+        (T1() = 4)
+        (T2() = 42)
+        (T3() = 5)
+        (T1(i,j) += -3.1*T2(i,j)*T3(i))
+        .deallocate(T2, T3)
+        .execute();
+        check_value(T1, 4 -3.1*42*5);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS};
+        TiledIndexLabel i, j;
+        std::tie(i,j) = TIS.labels<2>("all");
+        Scheduler{ec}
+        .allocate(T1, T2, T3)
+        (T1() = 4)
+        (T2() = 42)
+        (T3() = 5)
+        (T1(i,j) += -3.1*T2(j,i)*T3(i))
+        .deallocate(T2, T3)
+        .execute();
+        check_value(T1, 4 -3.1*42*5);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS};
+        TiledIndexLabel i, j;
+        std::tie(i,j) = TIS.labels<2>("all");
+        Scheduler{ec}
+        .allocate(T1, T2, T3)
+        (T1() = 4)
+        (T2() = 42)
+        (T3() = 5)
+        (T1(i,j) += -3.1*T2(i,j)*T3(j))
+        .deallocate(T2, T3)
+        .execute();
+        check_value(T1, 4 -3.1*42*5);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS};
+        TiledIndexLabel i, j;
+        std::tie(i,j) = TIS.labels<2>("all");
+        Scheduler{ec}
+        .allocate(T1, T2, T3)
+        (T1() = 4)
+        (T2() = 42)
+        (T3() = 5)
+        (T1(i,j) += -3.1*T3(j)*T2(j,i))
+        .deallocate(T2, T3)
+        .execute();
+        check_value(T1, 4 -3.1*42*5);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+
 }
 #endif

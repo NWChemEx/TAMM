@@ -470,10 +470,10 @@ inline void block_mult(T cscale, T* cbuf, const std::vector<size_t>& cdims,
         const auto& aindex = perm_map_apply(itval, aperm_map);
         const auto& bindex = perm_map_apply(itval, bperm_map);
         size_t cidx        = idx(cindex, cdims);
-        std::cerr<<__FUNCTION__<<" aidx="<<idx(aindex, adims)
-        <<" bidx="<<idx(bindex, bdims)<<" cidx="<<cidx<<"\n";
-        std::cerr<<"abscale="<<abscale<<" cscale="<<cscale<<"\n";
-        std::cerr<<"abuf[aidx]="<<abuf[idx(aindex,adims)]<<" bbuf[bidx]="<<bbuf[idx(bindex,bdims)]<<"\n";
+        // std::cerr<<__FUNCTION__<<" aidx="<<idx(aindex, adims)
+        // <<" bidx="<<idx(bindex, bdims)<<" cidx="<<cidx<<"\n";
+        // std::cerr<<"abscale="<<abscale<<" cscale="<<cscale<<"\n";
+        // std::cerr<<"abuf[aidx]="<<abuf[idx(aindex,adims)]<<" bbuf[bidx]="<<bbuf[idx(bindex,bdims)]<<"\n";
         cbuf[cidx] += abscale * abuf[idx(aindex, adims)] *
                                              bbuf[idx(bindex, bdims)];
          std::cerr<<__FUNCTION__<<" updated cbuf[cidx]="<<cbuf[cidx]<<"\n";

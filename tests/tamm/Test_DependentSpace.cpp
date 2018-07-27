@@ -534,29 +534,14 @@ void test_addop_with_T(unsigned tilesize) {
     delete ec;
 }
 
-int main(int argc, char* argv[])
-{
-    MPI_Init(&argc,&argv);
-    GA_Initialize();
-    MA_init(MT_DBL, 8000000, 20000000);
-    
-    int mpi_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
-    int res = Catch::Session().run(argc, argv);
-    GA_Terminate();
-    MPI_Finalize();
-
-    return res;
-}
-
-TEST_CASE("Two-dimensional ops on dependent space") {
+template<typename T> 
+void test_dependent_space_with_T(unsigned tilesize) {
     bool success = false;
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
-    using T              = double;
 
     IndexSpace IS{range(0, 10)};
     TiledIndexSpace T_IS{IS};
@@ -575,14 +560,14 @@ TEST_CASE("Two-dimensional ops on dependent space") {
 
     IndexSpace DIS{{T_IS}, dep_relation};
 
-    TiledIndexSpace T_DIS{DIS};
+    TiledIndexSpace T_DIS{DIS, tilesize};
 
     TiledIndexLabel a, i;
 
     std::tie(a) = T_DIS.labels<1>("all");
     std::tie(i) = T_IS.labels<1>("all");
 
-    
+    std::cerr << "Tensor Construction"	<< std::endl;
     // Tensor Construction 
     {
         success = true;
@@ -598,22 +583,7 @@ TEST_CASE("Two-dimensional ops on dependent space") {
         REQUIRE(success);
     }
 
-    // Tensor Allocation 
-    {
-        success = true;
-        try
-        {
-            Tensor<T> T1{a(i), i};
-            Tensor<T>::allocate(ec, T1);
-        }
-        catch(const std::string & e)
-        {
-            std::cerr << "Caught exception: " << e << "\n";
-            success = false;
-        }
-        REQUIRE(success);
-    }
-
+    std::cerr << "Tensor Allocate/Deallocate"	<< std::endl;
     // Tensor Allocation / Deallocate
     {
         success = true;
@@ -650,7 +620,7 @@ TEST_CASE("Two-dimensional ops on dependent space") {
         REQUIRE(success);
     }
 
-    // SetOp test with zero labels
+    // SetOp test with no labels
     {
         Tensor<T> T1{a(i), i};
         REQUIRE(test_setop(ec, T1, T1()));
@@ -662,38 +632,148 @@ TEST_CASE("Two-dimensional ops on dependent space") {
         REQUIRE(test_setop(ec, T1, T1(a(i),i)));
     }
 
-    TiledIndexSpace Sub_TIS1{T_IS, range(0,5)};
-    TiledIndexSpace Sub_TIS2{T_IS, range(5,10)};
-
-    std::map<IndexVector, TiledIndexSpace> sub_relation1{
-        {IndexVector{0}, Sub_TIS1},
-        {IndexVector{1}, Sub_TIS1},
-        {IndexVector{2}, Sub_TIS1},
-        {IndexVector{3}, Sub_TIS1},
-        {IndexVector{4}, Sub_TIS1}
-    };
-
-    std::map<IndexVector, TiledIndexSpace> sub_relation2{
-        {IndexVector{5}, Sub_TIS2},
-        {IndexVector{6}, Sub_TIS2},
-        {IndexVector{7}, Sub_TIS2},
-        {IndexVector{8}, Sub_TIS2},
-        {IndexVector{9}, Sub_TIS2}
-    };
-    // Creating sub tiled spaces Dependent-TiledIndexSpace
+    // AddOp test with no labels
     {
-        success = true;
-        try
-        {
-            TiledIndexSpace SUB_TDIS1{T_DIS, sub_relation1};
-            TiledIndexSpace SUB_TDIS2{T_DIS, sub_relation2};            
-        }
-        catch(const std::string& e)
-        {
-            std::cerr << "Caught exception: " << e << "\n";
-            success = false;
-        }
-        REQUIRE(success);
+        Tensor<T> T1{a(i), i};
+        Tensor<T> T2{a(i), i};
+        REQUIRE(test_addop(ec, T1, T2, T1(), T2()));
+    }
+    
+    // AddOp test with no labels on rhs
+    {
+        Tensor<T> T1{a(i), i};
+        Tensor<T> T2{a(i), i};
+        REQUIRE(test_addop(ec, T1, T2, T1(a(i), i), T2()));
     }
 
+    // AddOp test with no labels in lhs
+    {
+        Tensor<T> T1{a(i), i};
+        Tensor<T> T2{a(i), i};
+        REQUIRE(test_addop(ec, T1, T2, T1(), T2(a(i), i)));
+    }
+
+    // AddOp test with labels
+    {
+        Tensor<T> T1{a(i), i};
+        Tensor<T> T2{a(i), i};
+        REQUIRE(test_addop(ec, T1, T2, T1(a(i), i), T2(a(i), i)));
+    }
+
+    // MultOp 2-dim += 2-dim * 0-dim
+    try {
+        success = true;
+        Tensor<T> T1{a(i), i}, T2{a(i), i}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
+        check_value<T>(T1, (T)32.0);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        success = false;
+    }
+    REQUIRE(success);
+
+    // MultOp 2-dim += alpha * 0-dim * 2-dim 
+    try {
+        success = true;
+        Tensor<T> T1{a(i), i}, T2{a(i), i}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
+          .deallocate(T2, T3)
+          .execute();
+        check_value<T>(T1, 9 + 1.5 * 8 * 4);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        success = false;
+    }
+    REQUIRE(success);
+
+    // MultOp 0-dim += alpha * 2-dim * 2-dim 
+    try {
+        success = true;
+        Tensor<T> T1{a(i), i}, T2{a(i), i}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
+          .deallocate(T1, T2)
+          .execute();
+        check_value<T>(T3, 4 + 1.5 * 100 * 9 * 8);
+        Tensor<T>::deallocate(T3);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        success = false;
+    }
+    REQUIRE(success);
+
+
+    MemoryManagerGA::destroy_coll(mgr);
+    delete ec;
+
+    // TiledIndexSpace Sub_TIS1{T_IS, range(0,5)};
+    // TiledIndexSpace Sub_TIS2{T_IS, range(5,10)};
+
+    // std::map<IndexVector, TiledIndexSpace> sub_relation1{
+    //     {IndexVector{0}, Sub_TIS1},
+    //     {IndexVector{1}, Sub_TIS1},
+    //     {IndexVector{2}, Sub_TIS1},
+    //     {IndexVector{3}, Sub_TIS1},
+    //     {IndexVector{4}, Sub_TIS1}
+    // };
+
+    // std::map<IndexVector, TiledIndexSpace> sub_relation2{
+    //     {IndexVector{5}, Sub_TIS2},
+    //     {IndexVector{6}, Sub_TIS2},
+    //     {IndexVector{7}, Sub_TIS2},
+    //     {IndexVector{8}, Sub_TIS2},
+    //     {IndexVector{9}, Sub_TIS2}
+    // };
+    // // Creating sub tiled spaces Dependent-TiledIndexSpace
+    // {
+    //     success = true;
+    //     try
+    //     {
+    //         TiledIndexSpace SUB_TDIS1{T_DIS, sub_relation1};
+    //         TiledIndexSpace SUB_TDIS2{T_DIS, sub_relation2};            
+    //     }
+    //     catch(const std::string& e)
+    //     {
+    //         std::cerr << "Caught exception: " << e << "\n";
+    //         success = false;
+    //     }
+    //     REQUIRE(success);
+    // }
+
+}
+
+
+TEST_CASE("Tensor ops for double") {
+    test_dependent_space_with_T<double>(1);
+    test_dependent_space_with_T<double>(3);
+}
+
+TEST_CASE("Tensor ops for float") {
+    test_dependent_space_with_T<float>(1);
+    test_dependent_space_with_T<float>(3);
+}
+
+int main(int argc, char* argv[])
+{
+    MPI_Init(&argc,&argv);
+    GA_Initialize();
+    MA_init(MT_DBL, 8000000, 20000000);
+    
+    int mpi_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+    int res = Catch::Session().run(argc, argv);
+    GA_Terminate();
+    MPI_Finalize();
+
+    return res;
 }

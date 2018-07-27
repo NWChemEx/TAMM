@@ -324,11 +324,12 @@ TEST_CASE("SCF JK declarations") {
 
         //Itemp(Q, i, nu) = MOs.Cdagger(i, mu) * I(Q, mu, nu);
         Scheduler{ec}
-        (D(P, i, mu) = Linv(P, Q) * Itemp(Q, i, mu))
+        (D(P, i, mu) += Linv(P, Q) * Itemp(Q, i, mu))
         //d(P) = D(P, i, mu) * MOs.Cdagger(i, mu);
+        //@TODO cannot use itemp this way
         //(Itemp(Q) = d(P) * Linv(P, Q))
         //J(mu, nu) = Itemp(P) * I(P, mu, nu);
-        //(K(mu, nu) = D(P, i, mu) * D(P, i, nu))
+        (K(mu, nu) += D(P, i, mu) * D(P, i, nu))
         .execute();
 
         tensor_type::deallocate(L, Linv, Itemp, D, d, J, K);

@@ -120,7 +120,7 @@ public:
         impl_->add(idx_vec, buff_span);
     }
 
-    IndexLoopNest loop_nest() const {
+    LabelLoopNest loop_nest() const {
         return impl_->loop_nest();
     }
 

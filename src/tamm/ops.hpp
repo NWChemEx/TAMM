@@ -59,32 +59,32 @@ private:
     std::map<TiledIndexLabel, T> map_;
 };
 
-inline void update_fillin_map(std::map<std::string, Label>& str_to_labels,
-                              const std::vector<bool>& str_map,
-                              const std::vector<std::string>& str_labels,
-                              int initial_off) {
-    const size_t sz = str_labels.size();
-    for(size_t i = 0; i < sz; i++) {
-        if(str_map[i]) {
-            str_to_labels[str_labels[i]] = -initial_off - i - 1;
-        }
-    }
-}
+// inline void update_fillin_map(std::map<std::string, Label>& str_to_labels,
+//                               const std::vector<bool>& str_map,
+//                               const std::vector<std::string>& str_labels,
+//                               int initial_off) {
+//     const size_t sz = str_labels.size();
+//     for(size_t i = 0; i < sz; i++) {
+//         if(str_map[i]) {
+//             str_to_labels[str_labels[i]] = -initial_off - i - 1;
+//         }
+//     }
+// }
 
-template<typename LabelTensorT>
-inline void fillin_tensor_label_from_map(
-  LabelTensorT& ltensor, const std::map<std::string, Label>& str_to_labels) {
-    IndexLabelVec new_labels = ltensor.labels();
-    const size_t sz          = ltensor.labels().size();
-    for(size_t i = 0; i < sz; i++) {
-        if(ltensor.str_map()[i]) {
-          EXPECTS(str_to_labels.find(ltensor.str_labels()[i]) != str_to_labels.end());
-            new_labels[i] = ltensor.tensor().tiled_index_spaces()[i].label(
-              str_to_labels.find(ltensor.str_labels()[i])->second);
-        }
-    }
-    ltensor.set_labels(new_labels);
-}
+// template<typename LabelTensorT>
+// inline void fillin_tensor_label_from_map(
+//   LabelTensorT& ltensor, const std::map<std::string, Label>& str_to_labels) {
+//     IndexLabelVec new_labels = ltensor.labels();
+//     const size_t sz          = ltensor.labels().size();
+//     for(size_t i = 0; i < sz; i++) {
+//         if(ltensor.str_map()[i]) {
+//           EXPECTS(str_to_labels.find(ltensor.str_labels()[i]) != str_to_labels.end());
+//             new_labels[i] = ltensor.tensor().tiled_index_spaces()[i].label(
+//               str_to_labels.find(ltensor.str_labels()[i])->second);
+//         }
+//     }
+//     ltensor.set_labels(new_labels);
+// }
 
 inline size_t
 idx(int n, const size_t *id, const size_t *sz, const PermVector& p) {

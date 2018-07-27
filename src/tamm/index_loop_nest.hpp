@@ -415,16 +415,25 @@ public:
       input_labels_{input_labels} {
         const IndexLabelVec& unique_labels =
           internal::unique_entries(input_labels_);
+        //std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
         sorted_unique_labels_ = internal::sort_on_dependence(unique_labels);
+
+        perm_map_input_to_sorted_labels_ =
+          internal::perm_map_compute(input_labels_, sorted_unique_labels_);
+        perm_map_sorted_to_input_labels_ =
+          internal::perm_map_compute(sorted_unique_labels_, input_labels_);
 
         std::vector<TiledIndexSpace> iss;
         for(const auto& lbl : sorted_unique_labels_) {
             iss.push_back(lbl.tiled_index_space());
         }
+        //std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
         std::vector<std::vector<size_t>> indep_indices =
           construct_dep_map(sorted_unique_labels_);
         index_loop_nest_ = IndexLoopNest{iss, {}, {}, indep_indices};
+        //std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
         reset();
+        //std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
     }
 
     class Iterator {

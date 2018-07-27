@@ -540,6 +540,7 @@ public:
 
     void execute(ProcGroup ec_pg) override {
         using TensorElType = typename LabeledTensorT::element_type;
+    #if 0
         // the iterator to generate the tasks
         IndexLabelVec unique_labels = internal::unique_entries(lhs_.labels());
         // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
@@ -570,6 +571,26 @@ public:
                 tensor.add(blockid, span<TensorElType>(&buf[0], size));
             }
         };
+    #else
+        LabelLoopNest loop_nest {lhs_.labels()};
+        // std::cerr << "After Loop Nest\n";
+        // function to compute one block
+        auto lambda = [&](const IndexVector& blockid) {
+            auto tensor = lhs_.tensor();
+            EXPECTS(blockid.size() == lhs_.labels().size());
+            EXPECTS(blockid.size() == tensor.num_modes());
+            // const IndexVector& blockid =
+            //   internal::perm_map_apply(itval, lhs_pm);
+            size_t size = tensor.block_size(blockid);
+            std::vector<TensorElType> buf(size,
+                                          static_cast<TensorElType>(alpha()));
+            if(is_assign_) {
+                tensor.put(blockid, span<TensorElType>(&buf[0], size));
+            } else {
+                tensor.add(blockid, span<TensorElType>(&buf[0], size));
+            }
+        };    
+    #endif
         // ec->...(loop_nest, lambda);
         //@todo use a scheduler
         do_work(ec_pg, loop_nest, lambda);

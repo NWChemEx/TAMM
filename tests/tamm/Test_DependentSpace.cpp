@@ -536,7 +536,7 @@ void test_addop_with_T(unsigned tilesize) {
 
 
 template<typename T> 
-void test_dependent_space_with_T(unsigned tilesize) {
+void test_dependent_space_with_T(Index tilesize) {
     bool success = false;
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
@@ -548,10 +548,10 @@ void test_dependent_space_with_T(unsigned tilesize) {
 
     std::map<IndexVector, IndexSpace> dep_relation;
 
-    size_t tile_count = (10 / tilesize);
+    Index tile_count = (10 / tilesize);
     if((10 % tilesize) > 0){ tile_count++; }
 
-    for (size_t i = 0; i < tile_count; i++) {
+    for (Index i = 0; i < tile_count; i++) {
         dep_relation.insert({IndexVector{i}, IS});
     }
 

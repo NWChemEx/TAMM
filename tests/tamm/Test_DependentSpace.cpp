@@ -544,19 +544,16 @@ void test_dependent_space_with_T(unsigned tilesize) {
     ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
 
     IndexSpace IS{range(0, 10)};
-    TiledIndexSpace T_IS{IS};
-    std::map<IndexVector, IndexSpace> dep_relation{
-        {IndexVector{0}, IS},
-        {IndexVector{1}, IS},
-        {IndexVector{2}, IS},
-        {IndexVector{3}, IS},
-        {IndexVector{4}, IS},
-        {IndexVector{5}, IS},
-        {IndexVector{6}, IS},
-        {IndexVector{7}, IS},
-        {IndexVector{8}, IS},
-        {IndexVector{9}, IS}
-    };
+    TiledIndexSpace T_IS{IS, tilesize};
+
+    std::map<IndexVector, IndexSpace> dep_relation;
+
+    size_t tile_count = (10 / tilesize);
+    if((10 % tilesize) > 0){ tile_count++; }
+
+    for (size_t i = 0; i < tile_count; i++) {
+        dep_relation.insert({IndexVector{i}, IS});
+    }
 
     IndexSpace DIS{{T_IS}, dep_relation};
 
@@ -711,35 +708,16 @@ void test_dependent_space_with_T(unsigned tilesize) {
     }
     REQUIRE(success);
 
+    std::cerr << "Finished default dependent space"	<< std::endl;
 
-    TiledIndexSpace Sub_TIS1{T_IS, range(0,5)};
-    TiledIndexSpace Sub_TIS2{T_IS, range(5,10)};
+    std::map<IndexVector, TiledIndexSpace> tiled_dep_map = T_DIS.tiled_dep_map();
+    std::map<IndexVector, TiledIndexSpace> sub_relation1, sub_relation2;
 
-    std::map<IndexVector, TiledIndexSpace> sub_relation1{
-        {IndexVector{0}, Sub_TIS1},
-        {IndexVector{1}, Sub_TIS1},
-        {IndexVector{2}, Sub_TIS1},
-        {IndexVector{3}, Sub_TIS1},
-        {IndexVector{4}, Sub_TIS1},
-        {IndexVector{5}, Sub_TIS1},
-        {IndexVector{6}, Sub_TIS1},
-        {IndexVector{7}, Sub_TIS1},
-        {IndexVector{8}, Sub_TIS1},
-        {IndexVector{9}, Sub_TIS1}
-    };
-
-    std::map<IndexVector, TiledIndexSpace> sub_relation2{
-        {IndexVector{0}, Sub_TIS2},
-        {IndexVector{1}, Sub_TIS2},
-        {IndexVector{2}, Sub_TIS2},
-        {IndexVector{3}, Sub_TIS2},
-        {IndexVector{4}, Sub_TIS2},
-        {IndexVector{5}, Sub_TIS2},
-        {IndexVector{6}, Sub_TIS2},
-        {IndexVector{7}, Sub_TIS2},
-        {IndexVector{8}, Sub_TIS2},
-        {IndexVector{9}, Sub_TIS2}
-    };
+    // std::cerr << "tile_count" << tile_count << " half "  << tile_count / 2<< std::endl;
+    for(const auto& kv : tiled_dep_map) {
+        sub_relation1.insert({kv.first, TiledIndexSpace{kv.second, range(0,tile_count/2)}});
+        sub_relation2.insert({kv.first, TiledIndexSpace{kv.second, range(tile_count/2,tile_count)}});        
+    }
 
     // Creating sub tiled spaces Dependent-TiledIndexSpace
     {
@@ -770,7 +748,6 @@ void test_dependent_space_with_T(unsigned tilesize) {
         Tensor<T> T1{a(i),i};
         REQUIRE(test_setop(ec, T1, T1(sub_a1(i), i), {T1(sub_a2(i), i)}));
     } 
-
 
     MemoryManagerGA::destroy_coll(mgr);
     delete ec;

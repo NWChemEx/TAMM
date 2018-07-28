@@ -385,7 +385,7 @@ inline void block_add(T* dbuf, const std::vector<size_t>& ddims,
         auto idx = [](const auto& index_vec, const auto& dims_vec) {
             size_t ret = 0, ld = 1;
             EXPECTS(index_vec.size() == dims_vec.size());
-            for(size_t i = index_vec.size(); i >= 0; i--) {
+            for(int i = index_vec.size(); i >= 0; i--) {
                 ret += ld * index_vec[i];
                 ld *= dims_vec[i];
             }

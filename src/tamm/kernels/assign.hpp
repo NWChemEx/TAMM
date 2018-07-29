@@ -1,5 +1,9 @@
-#ifndef TAMM_ASSIGN_H_
-#define TAMM_ASSIGN_H_
+#ifndef TAMM_KERNELS_ASSIGN_H_
+#define TAMM_KERNELS_ASSIGN_H_
+
+#include "tamm/types.hpp"
+#include "tamm/errors.hpp"
+#include "tamm/utils.hpp"
 
 #include <vector>
 #include <cassert>
@@ -9,25 +13,22 @@
 #include <numeric>
 #include <chrono>
 
-#define NOT_IMPLEMENTED() assert(0)
-#define EXPECTS(cond) assert(cond)
-
 namespace tamm {
 
 namespace internal {
 
 template<typename T>
-void ip0(const std::vector<size_t>& /*loop_dims*/, T* dst, const std::vector<size_t>& /*loop_dld*/,
-         T scale, const T* src, const std::vector<size_t>& /*loop_sld*/) {
+void ip0(const SizeVec& /*loop_dims*/, T* dst, const SizeVec& /*loop_dld*/,
+         T scale, const T* src, const SizeVec& /*loop_sld*/) {
   dst[0] = scale * src[0];
 }
 
 template<typename T>
-void ip1(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size_t>& loop_dld,
-         T scale, const T* src, const std::vector<size_t>& loop_sld) {
+void ip1(const SizeVec& loop_dims, T* dst, const SizeVec& loop_dld,
+         T scale, const T* src, const SizeVec& loop_sld) {
   const size_t ndim = 1;
-  size_t soff[ndim], doff[ndim];
-  size_t i[ndim];
+  Size soff[ndim], doff[ndim];
+  Size i[ndim];
 
   for(i[0] = 0, soff[0]=0, doff[0]=0; i[0] < loop_dims[0]; i[0]++, soff[0]+=loop_sld[0], doff[0]+=loop_dld[0]) {
     dst[doff[0]] = scale * src[soff[0]];
@@ -35,11 +36,11 @@ void ip1(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size_t>
 }
 
 template<typename T>
-void ip2(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size_t>& loop_dld,
-         T scale, const T* src, const std::vector<size_t>& loop_sld) {
+void ip2(const SizeVec& loop_dims, T* dst, const SizeVec& loop_dld,
+         T scale, const T* src, const SizeVec& loop_sld) {
   const size_t ndim = 2;
-  size_t soff[ndim], doff[ndim];
-  size_t i[ndim];
+  Size soff[ndim], doff[ndim];
+  Size i[ndim];
 
   for(i[0] = 0, soff[0]=0, doff[0]=0; i[0] < loop_dims[0]; i[0]++, soff[0]+=loop_sld[0], doff[0]+=loop_dld[0]) {
     for(i[1] = 0, soff[1]=soff[0], doff[1]=doff[0]; i[1] < loop_dims[1]; i[1]++, soff[1]+=loop_sld[1], doff[1]+=loop_dld[1]) {
@@ -49,11 +50,11 @@ void ip2(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size_t>
 }
 
 template<typename T>
-void ip3(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size_t>& loop_dld,
-         T scale, const T* src, const std::vector<size_t>& loop_sld) {
+void ip3(const SizeVec& loop_dims, T* dst, const SizeVec& loop_dld,
+         T scale, const T* src, const SizeVec& loop_sld) {
   const size_t ndim = 3;
-  size_t soff[ndim], doff[ndim];
-  size_t i[ndim];
+  Size soff[ndim], doff[ndim];
+  Size i[ndim];
 
   for(i[0] = 0, soff[0]=0, doff[0]=0; i[0] < loop_dims[0]; i[0]++, soff[0]+=loop_sld[0], doff[0]+=loop_dld[0]) {
     for(i[1] = 0, soff[1]=soff[0], doff[1]=doff[0]; i[1] < loop_dims[1]; i[1]++, soff[1]+=loop_sld[1], doff[1]+=loop_dld[1]) {
@@ -65,11 +66,11 @@ void ip3(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size_t>
 }
 
 template<typename T>
-void ip4(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size_t>& loop_dld,
-         T scale, const T* src, const std::vector<size_t>& loop_sld) {
+void ip4(const SizeVec& loop_dims, T* dst, const SizeVec& loop_dld,
+         T scale, const T* src, const SizeVec& loop_sld) {
   const size_t ndim = 4;
-  size_t soff[ndim], doff[ndim];
-  size_t i[ndim];
+  Size soff[ndim], doff[ndim];
+  Size i[ndim];
 
   for(i[0] = 0, soff[0]=0, doff[0]=0; i[0] < loop_dims[0]; i[0]++, soff[0]+=loop_sld[0], doff[0]+=loop_dld[0]) {
     for(i[1] = 0, soff[1]=soff[0], doff[1]=doff[0]; i[1] < loop_dims[1]; i[1]++, soff[1]+=loop_sld[1], doff[1]+=loop_dld[1]) {
@@ -83,17 +84,17 @@ void ip4(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size_t>
 }
 
 template<typename T>
-void ipacc0(const std::vector<size_t>& /*loop_dims*/, T* dst, const std::vector<size_t>& /*loop_dld*/,
-            T scale, const T* src, const std::vector<size_t>& /*loop_sld*/) {
+void ipacc0(const SizeVec& /*loop_dims*/, T* dst, const SizeVec& /*loop_dld*/,
+            T scale, const T* src, const SizeVec& /*loop_sld*/) {
   dst[0] += scale * src[0];
 }
 
 template<typename T>
-void ipacc1(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size_t>& loop_dld,
-            T scale, const T* src, const std::vector<size_t>& loop_sld) {
+void ipacc1(const SizeVec& loop_dims, T* dst, const SizeVec& loop_dld,
+            T scale, const T* src, const SizeVec& loop_sld) {
   const size_t ndim = 1;
-  size_t soff[ndim], doff[ndim];
-  size_t i[ndim];
+  Size soff[ndim], doff[ndim];
+  Size i[ndim];
 
   for(i[0] = 0, soff[0]=0, doff[0]=0; i[0] < loop_dims[0]; i[0]++, soff[0]+=loop_sld[0], doff[0]+=loop_dld[0]) {
     dst[doff[0]] += scale * src[soff[0]];
@@ -101,11 +102,11 @@ void ipacc1(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size
 }
 
 template<typename T>
-void ipacc2(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size_t>& loop_dld,
-            T scale, const T* src, const std::vector<size_t>& loop_sld) {
+void ipacc2(const SizeVec& loop_dims, T* dst, const SizeVec& loop_dld,
+            T scale, const T* src, const SizeVec& loop_sld) {
   const size_t ndim = 2;
-  size_t soff[ndim], doff[ndim];
-  size_t i[ndim];
+  Size soff[ndim], doff[ndim];
+  Size i[ndim];
 
   for(i[0] = 0, soff[0]=0, doff[0]=0; i[0] < loop_dims[0]; i[0]++, soff[0]+=loop_sld[0], doff[0]+=loop_dld[0]) {
     for(i[1] = 0, soff[1]=soff[0], doff[1]=doff[0]; i[1] < loop_dims[1]; i[1]++, soff[1]+=loop_sld[1], doff[1]+=loop_dld[1]) {
@@ -115,11 +116,11 @@ void ipacc2(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size
 }
 
 template<typename T>
-void ipacc3(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size_t>& loop_dld,
-            T scale, const T* src, const std::vector<size_t>& loop_sld) {
+void ipacc3(const SizeVec& loop_dims, T* dst, const SizeVec& loop_dld,
+            T scale, const T* src, const SizeVec& loop_sld) {
   const size_t ndim = 3;
-  size_t soff[ndim], doff[ndim];
-  size_t i[ndim];
+  Size soff[ndim], doff[ndim];
+  Size i[ndim];
 
   for(i[0] = 0, soff[0]=0, doff[0]=0; i[0] < loop_dims[0]; i[0]++, soff[0]+=loop_sld[0], doff[0]+=loop_dld[0]) {
     for(i[1] = 0, soff[1]=soff[0], doff[1]=doff[0]; i[1] < loop_dims[1]; i[1]++, soff[1]+=loop_sld[1], doff[1]+=loop_dld[1]) {
@@ -131,11 +132,11 @@ void ipacc3(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size
 }
 
 template<typename T>
-void ipacc4(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size_t>& loop_dld,
-            T scale, const T* src, const std::vector<size_t>& loop_sld) {
+void ipacc4(const SizeVec& loop_dims, T* dst, const SizeVec& loop_dld,
+            T scale, const T* src, const SizeVec& loop_sld) {
   const size_t ndim = 4;
-  size_t soff[ndim], doff[ndim];
-  size_t i[ndim];
+  Size soff[ndim], doff[ndim];
+  Size i[ndim];
 
   for(i[0] = 0, soff[0]=0, doff[0]=0; i[0] < loop_dims[0]; i[0]++, soff[0]+=loop_sld[0], doff[0]+=loop_dld[0]) {
     for(i[1] = 0, soff[1]=soff[0], doff[1]=doff[0]; i[1] < loop_dims[1]; i[1]++, soff[1]+=loop_sld[1], doff[1]+=loop_dld[1]) {
@@ -148,33 +149,22 @@ void ipacc4(const std::vector<size_t>& loop_dims, T* dst, const std::vector<size
   }
 }
 
-} // namaepsce internal
-
-
-//////////////////////////////////////////////////////////////////////////
-
-namespace internal {
-using PermVector = std::vector<size_t>;
-using IndexLabelVec = std::vector<size_t>;
-
 inline size_t
-idx(int n, const size_t *id, const size_t *sz, const PermVector& p) {
-  size_t idx = 0;
+idx(int n, const Size *id, const Size *sz, const PermVector& p) {
+  Size idx = 0;
   for (int i = 0; i < n - 1; i++) {
     idx = (idx + id[p[i]]) * sz[p[i + 1]];
   }
   if (n > 0) {
     idx += id[p[n - 1]];
   }
-  return idx;
+  return idx.value();
 }
 
 template<typename T>
-inline void
+void
 index_permute(T* dbuf, const T* sbuf, const PermVector& perm_to_dest, 
-              const std::vector<size_t>& ddims, T scale) {
-  // static_assert(std::is_same<T1, double>(), "index_permute only works with doubles");
-  // static_assert(std::is_convertible<T2, double>(), "index_permute only works with scale convertible to double");
+              const SizeVec& ddims, T scale) {
   EXPECTS(dbuf!=nullptr && sbuf!=nullptr);
   EXPECTS(perm_to_dest.size() == ddims.size());
 
@@ -184,20 +174,20 @@ index_permute(T* dbuf, const T* sbuf, const PermVector& perm_to_dest,
   if(ndim == 0) {
     dbuf[0] = scale * sbuf[0];
   } else if(ndim == 1) {
-    for(size_t i=0; i<ddims[0]; i++) {
+    for(Size i=0; i<ddims[0]; i++) {
       dbuf[i] = scale * sbuf[i];
     }
   } else if(ndim == 2) {
-    size_t sz[] = {ddims[0], ddims[1]};
-    size_t i[2], c;
+    Size sz[] = {ddims[0], ddims[1]};
+    Size i[2], c;
     for(c=0, i[0]=0; i[0]<sz[0]; i[0]++) {
       for(i[1]=0; i[1]<sz[1]; i[1]++, c++) {
         dbuf[c] = scale * sbuf[idx(2, i, sz, perm_to_dest)];
       }
     }
   } else if(ndim == 3) {
-    size_t sz[] = {ddims[0], ddims[1], ddims[2]};
-    size_t i[3], c;
+    Size sz[] = {ddims[0], ddims[1], ddims[2]};
+    Size i[3], c;
     for(c=0, i[0]=0; i[0]<sz[0]; i[0]++) {
       for(i[1]=0; i[1]<sz[1]; i[1]++) {
         for(i[2]=0; i[2]<sz[2]; i[2]++, c++) {
@@ -206,8 +196,8 @@ index_permute(T* dbuf, const T* sbuf, const PermVector& perm_to_dest,
       }
     }
   } else if(ndim == 4) {
-    size_t sz[] = {ddims[0], ddims[1], ddims[2], ddims[3]};
-    size_t i[4], c;
+    Size sz[] = {ddims[0], ddims[1], ddims[2], ddims[3]};
+    Size i[4], c;
     for(c=0, i[0]=0; i[0]<sz[0]; i[0]++) {
       for(i[1]=0; i[1]<sz[1]; i[1]++) {
         for(i[2]=0; i[2]<sz[2]; i[2]++) {
@@ -220,101 +210,91 @@ index_permute(T* dbuf, const T* sbuf, const PermVector& perm_to_dest,
   } else {
     NOT_IMPLEMENTED();
   }
-  // //auto inv_perm = perm_invert(perm);
-  // auto inv_sizes = perm_apply(ddims, inv_perm);
-  // TensorVec<size_t> sizes;
-  // TensorVec<int> iperm;
-  // for(unsigned i=0; i<ddims.size(); i++) {
-  //   sizes.push_back(inv_sizes[i].value());
-  //   iperm.push_back(perm[i]+1);
-  // }
-  // index_sort(sbuf, dbuf,
-  //            sizes.size(), &sizes[0], &iperm[0], scale);
 }
 
-inline PermVector
-perm_compute(const IndexLabelVec& from, const IndexLabelVec& to) {
-  PermVector layout;
+// inline PermVector
+// perm_compute(const IntLabelVec& from, const IntLabelVec& to) {
+//   PermVector layout;
 
-  EXPECTS(from.size() == to.size());
-  for(auto p : to) {
-    auto itr = std::find(from.begin(), from.end(), p);
-    EXPECTS(itr != from.end());
-    layout.push_back(itr - from.begin());
-  }
-  return layout;
-}
+//   EXPECTS(from.size() == to.size());
+//   for(auto p : to) {
+//     auto itr = std::find(from.begin(), from.end(), p);
+//     EXPECTS(itr != from.end());
+//     layout.push_back(itr - from.begin());
+//   }
+//   return layout;
+// }
+
+// template<typename T>
+// SizeVec perm_map_compute(const std::vector<T>& unique_vec,
+//                                      const std::vector<T>& vec_required) {
+//   SizeVec ret;
+//   for(const auto& val : vec_required) {
+//     auto it = std::find(unique_vec.begin(), unique_vec.end(), val);
+//     EXPECTS(it >= unique_vec.begin());
+//     EXPECTS(it != unique_vec.end());
+//     ret.push_back(it - unique_vec.begin());
+//   }
+//   return ret;
+// }
+
+// template<typename T, typename Integer>
+// std::vector<T> perm_map_apply(const std::vector<T>& input_vec,
+//                               const std::vector<Integer>& perm_map) {
+//   std::vector<T> ret;
+//   for(const auto& pm : perm_map) {
+//     EXPECTS(pm < input_vec.size());
+//     ret.push_back(input_vec[pm]);
+//   }
+//   return ret;
+// }
+
+// template<typename T, typename Integer>
+// void perm_map_apply(std::vector<T>& out_vec, const std::vector<T>& input_vec,
+//                     const std::vector<Integer>& perm_map) {
+//   out_vec.resize(perm_map.size());
+//   for(Size i=0; i<perm_map.size(); i++) {
+//     EXPECTS(perm_map[i] < input_vec.size());
+//     out_vec[i] = input_vec[perm_map[i]];
+//   }
+// }
+
+
+// template<typename T>
+// bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
+//   EXPECTS(itr.size() == end.size());
+//   // if(!std::lexicographical_compare(itr.begin(), itr.end(), end.begin(),
+//   //                                  end.end())) {
+//   //     return false;
+//   // }
+//   int i;
+//   for(i = -1 + itr.size(); i>=0 && itr[i]+1 == end[i]; i--) {
+//     itr[i] = T{0};        
+//   }
+//   // EXPECTS(itr.size() == 0 || i>=0);
+//   if(i>=0) {
+//     ++itr[i];
+//     return true;
+//   }
+//   return false;
+// }
+
+
+// template<typename T>
+// std::vector<T> unique_entries(const std::vector<T>& input_vec) {
+//     std::vector<T> ret;
+//     for(const auto& val : input_vec) {
+//         auto it = std::find(ret.begin(), ret.end(), val);
+//         if(it == ret.end()) { ret.push_back(val); }
+//     }
+//     return ret;
+// }
 
 template<typename T>
-std::vector<size_t> perm_map_compute(const std::vector<T>& unique_vec,
-                                     const std::vector<T>& vec_required) {
-  std::vector<size_t> ret;
-  for(const auto& val : vec_required) {
-    auto it = std::find(unique_vec.begin(), unique_vec.end(), val);
-    EXPECTS(it >= unique_vec.begin());
-    EXPECTS(it != unique_vec.end());
-    ret.push_back(it - unique_vec.begin());
-  }
-  return ret;
-}
-
-template<typename T, typename Integer>
-std::vector<T> perm_map_apply(const std::vector<T>& input_vec,
-                              const std::vector<Integer>& perm_map) {
-  std::vector<T> ret;
-  for(const auto& pm : perm_map) {
-    EXPECTS(pm < input_vec.size());
-    ret.push_back(input_vec[pm]);
-  }
-  return ret;
-}
-
-template<typename T, typename Integer>
-void perm_map_apply(std::vector<T>& out_vec, const std::vector<T>& input_vec,
-                    const std::vector<Integer>& perm_map) {
-  out_vec.resize(perm_map.size());
-  for(size_t i=0; i<perm_map.size(); i++) {
-    EXPECTS(perm_map[i] < input_vec.size());
-    out_vec[i] = input_vec[perm_map[i]];
-  }
-}
-
-
-template<typename T>
-bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
-  EXPECTS(itr.size() == end.size());
-  // if(!std::lexicographical_compare(itr.begin(), itr.end(), end.begin(),
-  //                                  end.end())) {
-  //     return false;
-  // }
-  int i;
-  for(i = -1 + itr.size(); i>=0 && itr[i]+1 == end[i]; i--) {
-    itr[i] = T{0};        
-  }
-  // EXPECTS(itr.size() == 0 || i>=0);
-  if(i>=0) {
-    ++itr[i];
-    return true;
-  }
-  return false;
-}
-
-
-template<typename T>
-std::vector<T> unique_entries(const std::vector<T>& input_vec) {
-    std::vector<T> ret;
-    for(const auto& val : input_vec) {
-        auto it = std::find(ret.begin(), ret.end(), val);
-        if(it == ret.end()) { ret.push_back(val); }
-    }
-    return ret;
-}
-
-template<typename T>
-void ip_gen(T* dst, const std::vector<size_t>& ddims, const std::vector<size_t>& dlabels,
-            T scale, const T* src, const std::vector<size_t>& sdims, const std::vector<size_t>& slabels,
+void ip_gen(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
+            T scale, const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
             bool is_assign=true) {
-  IndexLabelVec unique_labels = unique_entries(dlabels);
+  IntLabelVec unique_labels = unique_entries(dlabels);
   //unique_labels = sort_on_dependence(unique_labels);
   // std::sort(unique_labels.begin(), unique_labels.end());
   // std::unique(unique_labels.begin(), unique_labels.end());
@@ -323,7 +303,7 @@ void ip_gen(T* dst, const std::vector<size_t>& ddims, const std::vector<size_t>&
   const auto& dinv_pm = perm_map_compute(dlabels, unique_labels);
 
   auto idx = [](const auto& index_vec, const auto& dims_vec) {
-    size_t ret = 0, ld = 1;
+    Size ret = 0, ld = 1;
     EXPECTS(index_vec.size() == dims_vec.size());
     for(int i = index_vec.size(); i >= 0; i--) {
       ret += ld * index_vec[i];
@@ -336,30 +316,30 @@ void ip_gen(T* dst, const std::vector<size_t>& ddims, const std::vector<size_t>&
   // std::vector<IndexLoopBound> ilbs;
   // for(const auto& lbl : unique_labels) { ilbs.push_back({lbl}); }
   // IndexLoopNest iln = IndexLoopNest{ilbs};
-  std::vector<size_t> itrv(unique_labels.size(), 0);
-  std::vector<size_t> endv(unique_labels.size());
+  SizeVec itrv(unique_labels.size(), 0);
+  SizeVec endv(unique_labels.size());
   endv = internal::perm_map_apply(ddims, dinv_pm);
   do {
     const auto& itval = itrv;
     const auto& sindex = perm_map_apply(itval, sperm_map);
     const auto& dindex = perm_map_apply(itval, dperm_map);
-    //if(!update) {
-#if 0
+    if(is_assign) {
     dst[idx(dindex, ddims)] = scale * src[idx(sindex, sdims)];
-#endif
-    //} else {
-      //dbuf[idx(dindex, ddims)] += scale * sbuf[idx(sindex, sdims)];
-      //}
+    } else {
+      dst[idx(dindex, ddims)] += scale * src[idx(sindex, sdims)];
+    }
   } while(internal::cartesian_iteration(itrv, endv));
 }
 
 } // namespace internal
 
+
 //////////////////////////////////////////////////////////////////////////
 
+namespace kernels {
 template<typename T>
-void ip(T* dst, const std::vector<size_t>& ddims, const std::vector<size_t>& dlabels,
-        T scale, const T* src, const std::vector<size_t>& sdims, const std::vector<size_t>& slabels,
+void ip(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
+        T scale, const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
         bool is_assign=true) {
   const size_t ndim = ddims.size();
 
@@ -367,13 +347,13 @@ void ip(T* dst, const std::vector<size_t>& ddims, const std::vector<size_t>& dla
   assert(ddims.size() == dlabels.size());
   assert(sdims.size() == slabels.size());
 
-  std::vector<size_t> sld{sdims}, dld{ddims};
+  SizeVec sld{sdims}, dld{ddims};
   sld.insert(sld.end(), 1);
   dld.insert(dld.end(), 1);
   std::partial_sum(sld.rbegin(), sld.rend(), sld.rbegin(), std::multiplies<T>());
   std::partial_sum(dld.rbegin(), dld.rend(), dld.rbegin(), std::multiplies<T>());
     
-  std::vector<size_t> loop_labels;
+  IntLabelVec loop_labels;
   for(const auto& lbl: dlabels) {
     if(std::find(loop_labels.begin(), loop_labels.end(), lbl) == loop_labels.end()) {
       loop_labels.push_back(lbl);
@@ -384,7 +364,7 @@ void ip(T* dst, const std::vector<size_t>& ddims, const std::vector<size_t>& dla
       loop_labels.push_back(lbl);
     }
   }
-  std::vector<size_t> loop_dims(loop_labels.size()), loop_sld(loop_labels.size()), loop_dld(loop_labels.size());
+  SizeVec loop_dims(loop_labels.size()), loop_sld(loop_labels.size()), loop_dld(loop_labels.size());
   for(size_t i=0; i<loop_labels.size(); i++) {
     const auto& lbl = loop_labels[i];
     auto sit = std::find(slabels.begin(), slabels.end(), lbl);
@@ -402,7 +382,6 @@ void ip(T* dst, const std::vector<size_t>& ddims, const std::vector<size_t>& dla
       loop_dims[i] = ddims[dit - dlabels.begin()];
     }
   }
-
   // std::cerr<<"loop labels =[";
   // for(const auto v : loop_labels) {
   //   std::cerr<<v<<" ";
@@ -427,6 +406,7 @@ void ip(T* dst, const std::vector<size_t>& ddims, const std::vector<size_t>& dla
   // }
   // std::cerr<<"]\n";
 
+
 #if 0
   auto perm_to_dest = internal::perm_compute(dlabels, slabels);
   if(is_assign) {
@@ -435,7 +415,7 @@ void ip(T* dst, const std::vector<size_t>& ddims, const std::vector<size_t>& dla
     NOT_IMPLEMENTED();
     //internal::index_permute_acc(dst, src, perm_to_dest, ddims, scale);
   }
-#elif 1
+#elif 0
   internal::ip_gen(dst, ddims, dlabels, scale, src, sdims, slabels, is_assign);
 #else
   if(is_assign) {
@@ -469,6 +449,7 @@ void ip(T* dst, const std::vector<size_t>& ddims, const std::vector<size_t>& dla
   }
 #endif
 }
+} // namespace kernels
 
 // int main() {
 //   int ret = 0;
@@ -517,8 +498,6 @@ void ip(T* dst, const std::vector<size_t>& ddims, const std::vector<size_t>& dla
 //   return int(dst[0]);
 // }
 
-//#undef N
-
 } //namespace tamm
 
-#endif // TAMM_ASSIGN_H_
+#endif // TAMM_KERNELS_ASSIGN_H_

@@ -1,9 +1,9 @@
 #ifndef TAMM_MULTIPLY_H_
 #define TAMM_MULTIPLY_H_
 
-//#include "kernels/assign.hpp"
 #include "tamm/errors.hpp"
 #include "tamm/types.hpp"
+#include "tamm/kernels/assign.hpp"
 
 #include <algorithm>
 #include <cblas.h>
@@ -168,10 +168,8 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     std::vector<T> ainter_buf(static_cast<size_t>(asize.value())),
       binter_buf(static_cast<size_t>(bsize.value())),
       cinter_buf(static_cast<size_t>(csize.value()));
-#if 0
     ip(ainter_buf, ainter_dims, ainter_labels, 1.0, abuf, adims, alabels, true);
     ip(binter_buf, binter_dims, binter_labels, 1.0, bbuf, bdims, blabels, true);
-#endif
     auto transA   = CblasNoTrans;
     auto transB   = CblasNoTrans;
     int ainter_ld = K;
@@ -186,10 +184,8 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
                                   binter_buf.data() + i * batch_ld, binter_ld,
                                   beta, cbuf.data() + i * batch_ld, cinter_ld);
     }
-#if 0
     ip(cbuf, cdims, clabels, 1.0, cinter_buf, cinter_dims, cinter_labels, true);
-#endif
-} // block_multiply
+} // block_multiply()
 
 } // namespace kernels
 

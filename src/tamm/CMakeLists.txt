@@ -34,6 +34,7 @@ set(tamm_INCLUDES
     memory_manager_local.hpp
     index_loop_nest.hpp
     utils.hpp
+    kernels/multiply.hpp
    )
 
 set(tamm_DEFINITIONS )

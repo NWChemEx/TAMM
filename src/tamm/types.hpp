@@ -67,6 +67,11 @@ using Size       = Offset;
 using BlockCount = BlockIndex;
 using Label      = int; //needs to support negative values
 
+using IntLabel = size_t; //a simple integer label for indices
+using IntLabelVec = std::vector<IntLabel>;
+
+using SizeVec = std::vector<Size>;
+
 enum class AllocationStatus { invalid, created, attached };
 
 enum class ElementType {

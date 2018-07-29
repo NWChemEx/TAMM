@@ -370,7 +370,26 @@ std::vector<TiledIndexSpace> tamm_label_to_indices(const IndexLabelVec &ilv) {
   return tisv;
 }
 
-using IndexLabelList = std::initializer_list<TiledIndexLabel>;
+  template<typename LabeledTensorType>
+  void
+  tamm_tensor_fill(ExecutionContext &ec,
+                    LabeledTensorType ltensor) {
+    using T = typename LabeledTensorType::element_type;
+    auto tensor = ltensor.tensor();
+
+    for (auto it: tensor.loop_nest())
+    {
+        TAMM_SIZE size = tensor.block_size(it);
+        std::vector<T> buf(size);
+        tensor.get(it,span<T>(&buf[0],size));
+        double n = std::rand() % 5;
+        for (TAMM_SIZE i = 0; i < size;i++) {
+          buf[i] = T{n + i};
+       }
+       tensor.put(it, span<T>(&buf[0],size));
+    }
+
+  }
 
 bool
 test_eigen_assign_no_n(tamm::ExecutionContext &ec,
@@ -402,7 +421,7 @@ test_eigen_assign_no_n(tamm::ExecutionContext &ec,
       (tc2() = 0)
     .execute();
 
-  // tamm_tensor_fill(ec, ta());
+  tamm_tensor_fill(ec, ta());
 
   // auto clabels = cupper_labels;
   // clabels.insert_back(clower_labels.begin(), clower_labels.end());
@@ -546,8 +565,8 @@ test_eigen_mult_no_n(tamm::ExecutionContext &ec,
       (tc2() = 0)
     .execute();
 
-  // tamm_tensor_fill(ec, ta());
-  // tamm_tensor_fill(ec, tb());
+  tamm_tensor_fill(ec, ta());
+  tamm_tensor_fill(ec, tb());
 
   // auto clabels = cupper_labels;
   // clabels.insert_back(clower_labels.begin(), clower_labels.end());

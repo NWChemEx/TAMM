@@ -370,6 +370,7 @@ std::vector<TiledIndexSpace> tamm_label_to_indices(const IndexLabelVec &ilv) {
   return tisv;
 }
 
+using IndexLabelList = std::initializer_list<TiledIndexLabel>;
 
 bool
 test_eigen_assign_no_n(tamm::ExecutionContext &ec,
@@ -389,17 +390,17 @@ test_eigen_assign_no_n(tamm::ExecutionContext &ec,
   auto aindices = aupper_indices;
   aindices.insert(aindices.end(),alower_indices.begin(), alower_indices.end());
  
-  // tamm::Tensor<double> tc1{cindices};
-  // tamm::Tensor<double> tc2{cindices};
-  // tamm::Tensor<double> ta{aindices};
+  tamm::Tensor<double> tc1{cindices};
+  tamm::Tensor<double> tc2{cindices};
+  tamm::Tensor<double> ta{aindices};
 
-  //Tensor<double>::allocate(&ec,ta, tc1, tc2);
+  Tensor<double>::allocate(&ec,ta, tc1, tc2);
 
-  // Scheduler{&ec}
-  //     (ta() = 0)
-  //     (tc1() = 0)
-  //     (tc2() = 0)
-  //   .execute();
+  Scheduler{&ec}
+      (ta() = 0)
+      (tc1() = 0)
+      (tc2() = 0)
+    .execute();
 
   // tamm_tensor_fill(ec, ta());
 
@@ -432,7 +433,7 @@ test_eigen_assign_no_n(tamm::ExecutionContext &ec,
   //   status = eigen_tensors_are_equal<double>(*et1, *et2);
   // }
 
-  // Tensor<double>::deallocate(tc1, tc2, ta);
+  Tensor<double>::deallocate(tc1, tc2, ta);
   // delete etc1;
   // delete etc2;
 
@@ -510,47 +511,40 @@ eigen_mult(tamm::Tensor<double> &ttc,
 bool
 test_eigen_mult_no_n(tamm::ExecutionContext &ec,
                        double alpha,
-                       const tamm::IndexVector &cupper_labels,
-                       const tamm::IndexVector &clower_labels,
-                       const tamm::IndexVector &aupper_labels,
-                       const tamm::IndexVector &alower_labels,
-                       const tamm::IndexVector &bupper_labels,
-                       const tamm::IndexVector &blower_labels) {
+                       const IndexLabelVec &cupper_labels,
+                       const IndexLabelVec &clower_labels,
+                       const IndexLabelVec &aupper_labels,
+                       const IndexLabelVec &alower_labels,
+                       const IndexLabelVec &bupper_labels,
+                       const IndexLabelVec &blower_labels) {
 
-  /// FIXME                       
-  // const auto &cupper_indices = tamm_label_to_indices(cupper_labels);
-  // const auto &clower_indices = tamm_label_to_indices(clower_labels);
-  // const auto &aupper_indices = tamm_label_to_indices(aupper_labels);
-  // const auto &alower_indices = tamm_label_to_indices(alower_labels);
-  // const auto &bupper_indices = tamm_label_to_indices(bupper_labels);
-  // const auto &blower_indices = tamm_label_to_indices(blower_labels);
+  const auto &cupper_indices = tamm_label_to_indices(cupper_labels);
+  const auto &clower_indices = tamm_label_to_indices(clower_labels);
+  const auto &aupper_indices = tamm_label_to_indices(aupper_labels);
+  const auto &alower_indices = tamm_label_to_indices(alower_labels);
+  const auto &bupper_indices = tamm_label_to_indices(bupper_labels);
+  const auto &blower_indices = tamm_label_to_indices(blower_labels);
 
-  // auto cindices = cupper_indices;
-  // cindices.insert_back(clower_indices.begin(), clower_indices.end());
-  // auto aindices = aupper_indices;
-  // aindices.insert_back(alower_indices.begin(), alower_indices.end());
-  // auto bindices = bupper_indices;
-  // bindices.insert_back(blower_indices.begin(), blower_indices.end());
-  // auto irrep = ec.irrep();
-  // auto restricted = ec.is_spin_restricted();
-  // auto cnup = cupper_labels.size();
-  // auto anup = aupper_labels.size();
-  // auto bnup = bupper_labels.size();
+  auto cindices = cupper_indices;
+  cindices.insert(cindices.end(),clower_indices.begin(), clower_indices.end());
+  auto aindices = aupper_indices;
+  aindices.insert(aindices.end(),alower_indices.begin(), alower_indices.end());
+  auto bindices = bupper_indices;
+  bindices.insert(bindices.end(),blower_indices.begin(), blower_indices.end());
 
-  // tamm::Tensor<double> tc1{cindices, cnup, irrep, restricted};
-  // tamm::Tensor<double> tc2{cindices, cnup, irrep, restricted};
-  // tamm::Tensor<double> ta{aindices, anup, irrep, restricted};
-  // tamm::Tensor<double> tb{bindices, bnup, irrep, restricted};
+  tamm::Tensor<double> tc1{cindices};
+  tamm::Tensor<double> tc2{cindices};
+  tamm::Tensor<double> ta{aindices};
+  tamm::Tensor<double> tb{bindices};
 
-  // Tensor<double>::allocate(ec,ta, tb, tc1, tc2);
+  Tensor<double>::allocate(&ec,ta, tb, tc1, tc2);
 
-  // Scheduler{ec}
-  //   .io(ta, tb, tc1, tc2)
-  //     (ta() = 0)
-  //     (tb() = 0)
-  //     (tc1() = 0)
-  //     (tc2() = 0)
-  //   .execute();
+  Scheduler{&ec}
+      (ta() = 0)
+      (tb() = 0)
+      (tc1() = 0)
+      (tc2() = 0)
+    .execute();
 
   // tamm_tensor_fill(ec, ta());
   // tamm_tensor_fill(ec, tb());
@@ -585,9 +579,9 @@ test_eigen_mult_no_n(tamm::ExecutionContext &ec,
   //   status = eigen_tensors_are_equal<double>(*et1, *et2);
   // }
 
-  // Tensor<double>::deallocate(tc1, tc2, ta, tb);
-  // delete etc1;
-  // delete etc2;
+  Tensor<double>::deallocate(tc1, tc2, ta, tb);
+  //delete etc1;
+  //delete etc2;
 
   return status;
 }
@@ -618,7 +612,6 @@ ProcGroup pg{GA_MPI_Comm()};
 MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
 Distribution_NW distribution;
 ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
-//auto &ec = *ec;
 
 //-----------------------------------------------------------------------
 //

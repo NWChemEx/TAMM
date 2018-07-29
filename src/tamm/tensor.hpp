@@ -23,6 +23,10 @@ public:
     Tensor() : 
       impl_{std::make_shared<TensorImpl>()} {}
 
+
+    Tensor(std::vector<TiledIndexSpace> tis) :
+      impl_{std::make_shared<TensorImpl>(tis)} {}
+
     /**
      * @brief Construct a new Tensor object from a set of TiledIndexSpace
      * objects as modes of the Tensor

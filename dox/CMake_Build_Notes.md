@@ -5,18 +5,22 @@ Installing Prerequisites
 -------------------------
 
 On Mac OSX:
-- brew install lzlib wget flex bison doxygen autoconf automake libtool
-- brew install gcc openmpi
 - brew install cmake
+- brew install gcc openmpi
+- brew install lzlib wget flex bison doxygen autoconf automake libtool
 
-On Linux, use the following script to build GCC-6 and OpenMPI/MPICH from sources if they are not available through a package manager (usually happens when using an older Linux OS). It can be used on Mac OSX as well:
+On Linux:
+
+We recommend using the [Spack package manager](https://spack.io) to install and manage the Prerequisites
+
+For manual setup, use the following script to build GCC (change version number accordingly) and OpenMPI/MPICH from sources if they are not available through a package manager (usually happens when using an older Linux OS). The following can be used on Mac OSX as well:
 
 ```
-wget http://mirrors-usa.go-parts.com/gcc/releases/gcc-6.3.0/gcc-6.3.0.tar.gz
-tar xf gcc-6.3.0.tar.gz
-cd gcc-6.3.0
+wget http://mirrors-usa.go-parts.com/gcc/releases/gcc-8.1.0/gcc-8.1.0.tar.gz
+tar xf gcc-8.1.0.tar.gz
+cd gcc-8.1.0
 ./contrib/download_prerequisites
-./configure --prefix=/opt/gcc-6.3 --disable-multilib --enable-languages=c,c++,fortran
+./configure --prefix=/opt/gcc-8.1 --disable-multilib --enable-languages=c,c++,fortran
 make -j16
 make install
 cd ../
@@ -50,14 +54,13 @@ make install
 
 Clang Compiler Support
 ----------------------
- - Tested on Linux only with Clang >= 4.0
- - Still requires GCC compilers >= 6.0 to be present (Fortran code is compiled using gfortran)
- - GA is still built with GNU compilers due to some issues when mixing clang and gfortran.
+ - Tested on Linux only with Clang >= 5.x
+ - Still requires GCC compilers >= 7.2 to be present (Fortran code is compiled using gfortran)
  - Works only with LLVM Clang built with OpenMP support and configured to use GNU libstdc++ instead of Clang libc++
  - Install LLVM Clang using the script below:
 
 ```
-version=4.0.0
+version=5.0.0
 current_dir=`pwd`
 
 mkdir stage-$version
@@ -81,7 +84,7 @@ mv -v openmp-${version}.src ${llvm_root}/projects/openmp
 
 mkdir ${llvm_root}/build
 cd ${llvm_root}/build
-cmake .. -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc -DCMAKE_INSTALL_PREFIX=/opt/llvm4 -DCMAKE_BUILD_TYPE=Release
+cmake .. -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc -DCMAKE_INSTALL_PREFIX=/opt/llvm5 -DCMAKE_BUILD_TYPE=Release
 make -j16
 make install
 ```

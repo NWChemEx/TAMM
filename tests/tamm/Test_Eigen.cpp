@@ -219,13 +219,13 @@ eigen_assign(EigenTensorBase *tc,
 //
 ////////////////////////////////////////////////////////
 
-// template<typename T, int ndim>
-// void
-// patch_copy(T *sbuf, Eigen::Tensor<T, ndim, Eigen::RowMajor> &etensor,
-//            const std::array<int, ndim> &block_dims,
-//            const std::array<int, ndim> &rel_offset) {
-//   assert(0);
-// }
+template<typename T, int ndim>
+void
+patch_copy(T *sbuf, Eigen::Tensor<T, ndim, Eigen::RowMajor> &etensor,
+           const std::array<int, ndim> &block_dims,
+           const std::array<int, ndim> &rel_offset) {
+  assert(0);
+}
 
 template<typename T>
 void
@@ -364,6 +364,13 @@ eigen_assign(tamm::Tensor<double> &ttc,
   return etc;
 }
 
+std::vector<TiledIndexSpace> tamm_label_to_indices(const IndexLabelVec &ilv) {
+  std::vector<TiledIndexSpace> tisv{ilv.size()};
+  for(auto &x: ilv) tisv.push_back(x.tiled_index_space());
+  return tisv;
+}
+
+
 bool
 test_eigen_assign_no_n(tamm::ExecutionContext &ec,
                        double alpha,
@@ -371,28 +378,24 @@ test_eigen_assign_no_n(tamm::ExecutionContext &ec,
                        const IndexLabelVec &clower_labels,
                        const IndexLabelVec &aupper_labels,
                        const IndexLabelVec &alower_labels) {
-  // const auto &cupper_indices = tamm_label_to_indices(cupper_labels);
-  // const auto &clower_indices = tamm_label_to_indices(clower_labels);
-  // const auto &aupper_indices = tamm_label_to_indices(aupper_labels);
-  // const auto &alower_indices = tamm_label_to_indices(alower_labels);
 
-  // auto cindices = cupper_indices;
-  // cindices.insert_back(clower_indices.begin(), clower_indices.end());
-  // auto aindices = aupper_indices;
-  // aindices.insert_back(alower_indices.begin(), alower_indices.end());
-  // auto irrep = ec.irrep();
-  // auto restricted = ec.is_spin_restricted();
-  // auto cnup = cupper_labels.size();
-  // auto anup = aupper_labels.size();
+  auto cupper_indices = tamm_label_to_indices(cupper_labels);
+  auto clower_indices = tamm_label_to_indices(clower_labels);
+  auto aupper_indices = tamm_label_to_indices(aupper_labels);
+  auto alower_indices = tamm_label_to_indices(alower_labels);
 
-  // tamm::Tensor<double> tc1{cindices, cnup, irrep, restricted};
-  // tamm::Tensor<double> tc2{cindices, cnup, irrep, restricted};
-  // tamm::Tensor<double> ta{aindices, anup, irrep, restricted};
+  auto cindices = cupper_indices; 
+  cindices.insert(cindices.end(),clower_indices.begin(), clower_indices.end());
+  auto aindices = aupper_indices;
+  aindices.insert(aindices.end(),alower_indices.begin(), alower_indices.end());
+ 
+  // tamm::Tensor<double> tc1{cindices};
+  // tamm::Tensor<double> tc2{cindices};
+  // tamm::Tensor<double> ta{aindices};
 
-  // Tensor<double>::allocate(ec,ta, tc1, tc2);
+  //Tensor<double>::allocate(&ec,ta, tc1, tc2);
 
-  // Scheduler{ec}
-  //   .io(ta, tc1, tc2)
+  // Scheduler{&ec}
   //     (ta() = 0)
   //     (tc1() = 0)
   //     (tc2() = 0)
@@ -405,8 +408,8 @@ test_eigen_assign_no_n(tamm::ExecutionContext &ec,
   // auto alabels = aupper_labels;
   // alabels.insert_back(alower_labels.begin(), alower_labels.end());
 
-  // EigenTensorBase *etc1 = eigen_assign(tc1, clabels, alpha, ta, alabels);
-  // tamm_assign(ec, tc2, clabels, alpha, ta, alabels);
+  //EigenTensorBase *etc1 = eigen_assign(tc1, cindices, alpha, ta, aindices);
+  // tamm_assign(ec, tc2, cindices, alpha, ta, aindices);
 
   // EigenTensorBase *etc2 = tamm_tensor_to_eigen_tensor(tc2);
 

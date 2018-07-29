@@ -5,13 +5,14 @@
 #include "tamm/errors.hpp"
 #include "tamm/utils.hpp"
 
+#include "hptt.h"
+
 #include <vector>
 #include <cassert>
 #include <algorithm>
 #include <functional>
 #include <iostream>
 #include <numeric>
-#include <chrono>
 
 namespace tamm {
 
@@ -331,6 +332,84 @@ void ip_gen(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
   } while(internal::cartesian_iteration(itrv, endv));
 }
 
+template<typename T>
+void ip_gen_loop(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
+            T scale, const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
+            bool is_assign=true) {
+  const size_t ndim = ddims.size();
+
+  assert(ddims.size() == sdims.size());
+  assert(ddims.size() == dlabels.size());
+  assert(sdims.size() == slabels.size());
+
+  SizeVec sld{sdims}, dld{ddims};
+  sld.insert(sld.end(), 1);
+  dld.insert(dld.end(), 1);
+  std::partial_sum(sld.rbegin(), sld.rend(), sld.rbegin(), std::multiplies<T>());
+  std::partial_sum(dld.rbegin(), dld.rend(), dld.rbegin(), std::multiplies<T>());
+    
+  IntLabelVec loop_labels;
+  for(const auto& lbl: dlabels) {
+    if(std::find(loop_labels.begin(), loop_labels.end(), lbl) == loop_labels.end()) {
+      loop_labels.push_back(lbl);
+    }
+  }
+  for(const auto& lbl: slabels) {
+    if(std::find(loop_labels.begin(), loop_labels.end(), lbl) == loop_labels.end()) {
+      loop_labels.push_back(lbl);
+    }
+  }
+  SizeVec loop_dims(loop_labels.size()), loop_sld(loop_labels.size()), loop_dld(loop_labels.size());
+  for(size_t i=0; i<loop_labels.size(); i++) {
+    const auto& lbl = loop_labels[i];
+    auto sit = std::find(slabels.begin(), slabels.end(), lbl);
+    if(sit != slabels.end()) {
+      loop_sld[i] = sld[sit - slabels.begin()+1];
+      loop_dims[i] = sdims[sit - slabels.begin()];
+    }
+  }
+
+  for(size_t i=0; i<loop_labels.size(); i++) {
+    const auto& lbl = loop_labels[i];
+    auto dit = std::find(dlabels.begin(), dlabels.end(), lbl);
+    if(dit != dlabels.end()) {
+      loop_dld[i] = dld[dit - dlabels.begin()+1];
+      loop_dims[i] = ddims[dit - dlabels.begin()];
+    }
+  }
+
+  if(is_assign) {
+    if(ndim == 0) {
+      internal::ip0(loop_dims, dst, loop_dld, scale, src, loop_sld);
+    } else if(ndim == 1) {
+      internal::ip1(loop_dims, dst, loop_dld, scale, src, loop_sld);
+    } else if(ndim == 2) {
+      internal::ip2(loop_dims, dst, loop_dld, scale, src, loop_sld);
+    } else if(ndim == 3) {
+      internal::ip3(loop_dims, dst, loop_dld, scale, src, loop_sld);
+    } else if(ndim == 4) {
+      internal::ip4(loop_dims, dst, loop_dld, scale, src, loop_sld);
+    } else {
+      NOT_IMPLEMENTED();
+    }
+  } else {
+    if(ndim == 0) {
+      internal::ipacc0(loop_dims, dst, loop_dld, scale, src, loop_sld);
+    } else if(ndim == 1) {
+      internal::ipacc1(loop_dims, dst, loop_dld, scale, src, loop_sld);
+    } else if(ndim == 2) {
+      internal::ipacc2(loop_dims, dst, loop_dld, scale, src, loop_sld);
+    } else if(ndim == 3) {
+      internal::ipacc3(loop_dims, dst, loop_dld, scale, src, loop_sld);
+    } else if(ndim == 4) {
+      internal::ipacc4(loop_dims, dst, loop_dld, scale, src, loop_sld);
+    } else {
+      NOT_IMPLEMENTED();
+    }
+  }
+
+            }
+
 } // namespace internal
 
 
@@ -418,35 +497,36 @@ void ip(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
 #elif 0
   internal::ip_gen(dst, ddims, dlabels, scale, src, sdims, slabels, is_assign);
 #else
-  if(is_assign) {
-    if(ndim == 0) {
-      internal::ip0(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    } else if(ndim == 1) {
-      internal::ip1(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    } else if(ndim == 2) {
-      internal::ip2(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    } else if(ndim == 3) {
-      internal::ip3(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    } else if(ndim == 4) {
-      internal::ip4(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    } else {
-      NOT_IMPLEMENTED();
-    }
-  } else {
-    if(ndim == 0) {
-      internal::ipacc0(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    } else if(ndim == 1) {
-      internal::ipacc1(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    } else if(ndim == 2) {
-      internal::ipacc2(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    } else if(ndim == 3) {
-      internal::ipacc3(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    } else if(ndim == 4) {
-      internal::ipacc4(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    } else {
-      NOT_IMPLEMENTED();
-    }
-  }
+  internal::ip_gen_loop(dst, ddims, dlabels, scale, src, sdims,slabels, is_assign);
+  // if(is_assign) {
+  //   if(ndim == 0) {
+  //     internal::ip0(loop_dims, dst, loop_dld, scale, src, loop_sld);
+  //   } else if(ndim == 1) {
+  //     internal::ip1(loop_dims, dst, loop_dld, scale, src, loop_sld);
+  //   } else if(ndim == 2) {
+  //     internal::ip2(loop_dims, dst, loop_dld, scale, src, loop_sld);
+  //   } else if(ndim == 3) {
+  //     internal::ip3(loop_dims, dst, loop_dld, scale, src, loop_sld);
+  //   } else if(ndim == 4) {
+  //     internal::ip4(loop_dims, dst, loop_dld, scale, src, loop_sld);
+  //   } else {
+  //     NOT_IMPLEMENTED();
+  //   }
+  // } else {
+  //   if(ndim == 0) {
+  //     internal::ipacc0(loop_dims, dst, loop_dld, scale, src, loop_sld);
+  //   } else if(ndim == 1) {
+  //     internal::ipacc1(loop_dims, dst, loop_dld, scale, src, loop_sld);
+  //   } else if(ndim == 2) {
+  //     internal::ipacc2(loop_dims, dst, loop_dld, scale, src, loop_sld);
+  //   } else if(ndim == 3) {
+  //     internal::ipacc3(loop_dims, dst, loop_dld, scale, src, loop_sld);
+  //   } else if(ndim == 4) {
+  //     internal::ipacc4(loop_dims, dst, loop_dld, scale, src, loop_sld);
+  //   } else {
+  //     NOT_IMPLEMENTED();
+  //   }
+  // }
 #endif
 }
 } // namespace kernels

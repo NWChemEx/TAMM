@@ -51,7 +51,7 @@ public:
      * @param [in] block_indices vector of TiledIndexSpace objects for each
      * mode used to construct the tensor
      */
-    TensorImpl(const std::vector<TiledIndexSpace>& tis) : TensorBase{tis} {}
+    //TensorImpl(const std::vector<TiledIndexSpace>& tis) : TensorBase{tis} {}
 
     /**
      * @brief Construct a new TensorImpl object using a vector of
@@ -61,19 +61,26 @@ public:
      * corresponding TiledIndexSpace objects for each mode used to construct
      * the tensor
      */
-    TensorImpl(const std::vector<TiledIndexLabel>& lbls) : TensorBase{lbls} {}
+   // TensorImpl(const std::vector<TiledIndexLabel>& lbls) : TensorBase{lbls} {}
 
     /**
      * @brief Construct a new TensorBase object recursively with a set of
-     * TiledIndexSpace objects followed by a lambda expression
+     * TiledIndexSpace/TiledIndexLabel objects followed by a lambda expression
      *
      * @tparam Ts variadic template for rest of the arguments
-     * @param [in] tis TiledIndexSpace object used as a mode
+     * @param [in] tis TiledIndexSpace/TiledIndexLabel object used as a mode
      * @param [in] rest remaining part of the arguments
      */
     template<class... Ts>
     TensorImpl(const TiledIndexSpace& tis, Ts... rest) :
       TensorBase{tis, rest...} {
+        num_modes_ = block_indices_.size();
+        construct_dep_map();
+    }
+
+    template<class... Ts>
+    TensorImpl(const TiledIndexLabel& til, Ts... rest) :
+      TensorBase{til, rest...} {
         num_modes_ = block_indices_.size();
         construct_dep_map();
     }

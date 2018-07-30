@@ -24,17 +24,14 @@ public:
       impl_{std::make_shared<TensorImpl>()} {}
 
 
-    Tensor(std::vector<TiledIndexSpace> tis) :
-      impl_{std::make_shared<TensorImpl>(tis)} {}
-
     /**
      * @brief Construct a new Tensor object from a set of TiledIndexSpace
      * objects as modes of the Tensor
      *
      * @param [in] tis set of TiledIndexSpace objects for each mode
      */
-    Tensor(std::initializer_list<TiledIndexSpace> tis) :
-      impl_{std::make_shared<TensorImpl>(tis)} {}
+    // Tensor(std::initializer_list<TiledIndexSpace> tis) :
+    //   impl_{std::make_shared<TensorImpl>(tis)} {}
 
     /**
      * @brief Construct a new Tensor object from a set of TiledIndexLabel
@@ -43,8 +40,19 @@ public:
      *
      * @param [in] tis set of TiledIndexLabel objects for each mode
      */
-    Tensor(const std::initializer_list<TiledIndexLabel>& lbls) :
-      impl_{std::make_shared<TensorImpl>(lbls)} {}
+    // Tensor(const std::initializer_list<TiledIndexLabel>& lbls) :
+    //   impl_{std::make_shared<TensorImpl>(lbls)} {}
+
+
+    /**
+     * @brief Construct a new Tensor object from a list of 
+     * TiledIndexSpace/TiledIndexLabel objects as modes of the Tensor
+     *
+     * @param [in] tis set of TiledIndexSpace/TiledIndexLabel objects for each mode
+     */
+    template<class... Ts>
+    Tensor(Ts... rest) :
+      impl_{std::make_shared<TensorImpl>(rest...)} {}
 
     /**
      * @brief Construct a new Tensor object recursively with a set of

@@ -190,7 +190,7 @@ public:
      * block
      */
     IndexIterator block_begin(Index blck_ind) const {
-        EXPECTS(blck_ind <= size());
+        EXPECTS(blck_ind <= num_tiles());
         return tiled_info_->is_.begin() + tiled_info_->tile_offsets_[blck_ind];
     }
     /**
@@ -201,7 +201,7 @@ public:
      * block
      */
     IndexIterator block_end(Index blck_ind) const {
-        EXPECTS(blck_ind <= size());
+        EXPECTS(blck_ind <= num_tiles());
         return tiled_info_->is_.begin() +
                tiled_info_->tile_offsets_[blck_ind + 1];
     }
@@ -300,27 +300,20 @@ public:
     /**
      * @brief Get the number of tiled index blocks in TiledIndexSpace
      *
-     * @todo: rename!
-     * 
-     * @return size of TiledIndexSpace
+     * @return number of tiles in the TiledIndexSpace
      */
-    std::size_t size() const { 
+    std::size_t num_tiles() const {
+        if(is_dependent()) { NOT_ALLOWED(); }
 
-        if(is_dependent()){
-            NOT_ALLOWED();
-        }
-        
-        return tiled_info_->tile_offsets_.size() - 1; 
+        return tiled_info_->tile_offsets_.size() - 1;
     }
 
     /**
-     * @brief Get the max. number of tiled index blocks in TiledIndexSpace
+     * @brief Get the maximum number of tiled index blocks in TiledIndexSpace
      *
-     * @todo: rename!
-     * 
-     * @return max size of TiledIndexSpace
+     * @return maximum number of tiles in the TiledIndexSpace
      */
-    std::size_t max_size() const { return tiled_info_->max_size(); }
+    std::size_t max_num_tiles() const { return tiled_info_->max_num_tiles(); }
 
     /**
      * @brief Get the tile size for the index blocks
@@ -543,7 +536,7 @@ protected:
                                             Tile tile_size) {
             if(is.is_dependent()) { return {}; }
 
-            if(is.size() == 0) { return {0}; }
+            if(is.num_indices() == 0) { return {0}; }
 
             IndexVector boundries, ret;
             // Get lo and hi for each named subspace ranges
@@ -576,11 +569,11 @@ protected:
             // If no boundry clean split with respect to tile size
             if(boundries.empty()) {
                 // add starting indices
-                for(size_t i = 0; i < is.size(); i += tile_size) {
+                for(size_t i = 0; i < is.num_indices(); i += tile_size) {
                     ret.push_back(i);
                 }
                 // add size of IndexSpace for the last block
-                ret.push_back(is.size());
+                ret.push_back(is.num_indices());
             } else { // Remove duplicates
                 std::sort(boundries.begin(), boundries.end());
                 auto last = std::unique(boundries.begin(), boundries.end());
@@ -589,13 +582,13 @@ protected:
                 std::size_t i = 0;
                 std::size_t j = (i == boundries[0]) ? 1 : 0;
 
-                while(i < is.size()) {
+                while(i < is.num_indices()) {
                     ret.push_back(i);
                     i = (i + tile_size >= boundries[j]) ? boundries[j++] :
                                                           (i + tile_size);
                 }
                 // add size of IndexSpace for the last block
-                ret.push_back(is.size());
+                ret.push_back(is.num_indices());
             }
 
             return ret;
@@ -605,9 +598,9 @@ protected:
                                             const std::vector<Tile>& tiles) {
             if(is.is_dependent()) { return {}; }
 
-            if(is.size() == 0) { return {0}; }
+            if(is.num_indices() == 0) { return {0}; }
             // Check if sizes match
-            EXPECTS(is.size() == [&tiles]() {
+            EXPECTS(is.num_indices() == [&tiles]() {
                 size_t ret = 0;
                 for(const auto& var : tiles) { ret += var; }
                 return ret;
@@ -646,11 +639,11 @@ protected:
 
             // add starting indices
             size_t j = 0;
-            for(size_t i = 0; i < is.size(); i += tiles[j++]) {
+            for(size_t i = 0; i < is.num_indices(); i += tiles[j++]) {
                 ret.push_back(i);
             }
             // add size of IndexSpace for the last block
-            ret.push_back(is.size());
+            ret.push_back(is.num_indices());
 
             if(!(boundries.empty())) {
                 std::sort(boundries.begin(), boundries.end());
@@ -671,14 +664,14 @@ protected:
             return tile_offsets_[i + 1] - tile_offsets_[i];
         }
 
-        std::size_t max_size() const {
+        std::size_t max_num_tiles() const {
             std::size_t ret = 0;
             if(tiled_dep_map_.empty()) {
-                return tile_offsets_.size();
+                return (tile_offsets_.size() - 1);
             } else {
                 for(const auto& kv : tiled_dep_map_) {
-                    if(ret < kv.second.max_size()){
-                        ret = kv.second.max_size();
+                    if(ret < kv.second.max_num_tiles()) {
+                        ret = kv.second.max_num_tiles();
                     }
                 }
             }

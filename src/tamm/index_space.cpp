@@ -1,5 +1,5 @@
-#include "tamm/tiled_index_space.hpp"
 #include "tamm/index_space_interface.hpp"
+#include "tamm/tiled_index_space.hpp"
 
 namespace tamm {
 // IndexSpace Method Implementations
@@ -90,7 +90,8 @@ const std::map<IndexVector, IndexSpace>& IndexSpace::map_tiled_index_spaces()
     return impl_->map_tiled_index_spaces();
 }
 
-const std::map<std::string, IndexSpace>& IndexSpace::map_named_sub_index_spaces() const {
+const std::map<std::string, IndexSpace>&
+IndexSpace::map_named_sub_index_spaces() const {
     return impl_->map_named_sub_index_spaces();
 }
 
@@ -114,10 +115,12 @@ IndexIterator IndexSpace::begin() const { return impl_->begin(); }
 IndexIterator IndexSpace::end() const { return impl_->end(); }
 
 // Size of this index space
-std::size_t IndexSpace::size() const { return impl_->size(); }
+std::size_t IndexSpace::num_indices() const { return impl_->num_indices(); }
 
 // Maximum size of this index space for any dependent index
-std::size_t IndexSpace::max_size() const { return impl_->max_size(); }
+std::size_t IndexSpace::max_num_indices() const {
+    return impl_->max_num_indices();
+}
 
 // Attribute Accessors
 Spin IndexSpace::spin(Index idx) const { return impl_->spin(idx); }
@@ -132,9 +135,11 @@ const std::vector<Range>& IndexSpace::spatial_ranges(Spatial spatial) const {
 }
 
 bool IndexSpace::has_spin() const { return impl_->has_spin(); }
+
 bool IndexSpace::has_spatial() const { return impl_->has_spatial(); }
 
 SpinAttribute IndexSpace::get_spin() const { return impl_->get_spin(); }
+
 SpatialAttribute IndexSpace::get_spatial() const {
     return impl_->get_spatial();
 }
@@ -177,4 +182,3 @@ TiledIndexLabel TiledIndexSpace::label(Label lbl) const {
 }
 
 } // namespace tamm
-  ////////////////////////////////////////////////////////////////////

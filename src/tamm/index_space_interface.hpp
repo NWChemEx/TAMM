@@ -82,9 +82,9 @@ public:
      * @brief Returns the number of indices associated with the
      * IndexSpace
      *
-     * @returns size of the index space
+     * @returns number of indices in the index space
      */
-    virtual std::size_t size() const = 0;
+    virtual std::size_t num_indices() const = 0;
 
     /**
      * @brief Returns the maximum number of indices associated with
@@ -92,9 +92,9 @@ public:
      * spaces. For dependent index spaces, this is the largest of the
      * sizes of the encapsulated index spaces.
      *
-     * @returns maximum size of the index space
+     * @returns maximum number of indices in the index space
      */
-    virtual std::size_t max_size() const = 0;
+    virtual std::size_t max_num_indices() const = 0;
 
     /**
      * @brief Index spaces this index space depends on
@@ -113,16 +113,16 @@ public:
 
     /**
      * @brief Relation map defined over the dependent index spaces
-     * 
+     *
      * @todo distribute implementation to all child classes
-     * 
+     *
      * @returns Relation map defined over the dependent index spaces
      */
-    virtual const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces() const {
-        return empty_map_;
-    }
+    virtual const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces()
+      const = 0;
 
-    virtual const std::map<std::string, IndexSpace>& map_named_sub_index_spaces() const = 0;
+    virtual const std::map<std::string, IndexSpace>&
+    map_named_sub_index_spaces() const = 0;
 
     /**
      * @brief Accessor methods to Spin value associated with the input Index
@@ -279,7 +279,6 @@ protected:
     }
 
 private:
-    std::map<IndexVector, IndexSpace> empty_map_;
     /**
      * @brief Set the weak ptr object for IndexSpaceInterface
      *
@@ -352,15 +351,20 @@ public:
     IndexIterator begin() const override { return indices_.begin(); }
     IndexIterator end() const override { return indices_.end(); }
 
-    // Size of this index space
-    std::size_t size() const override { return indices_.size(); }
+    // Number of indices in this index space
+    std::size_t num_indices() const override { return indices_.size(); }
 
-    // Maximum size of this index space
-    std::size_t max_size() const override { return indices_.size(); }
+    // Maximum number of indices in this index space
+    std::size_t max_num_indices() const override { return indices_.size(); }
 
     const std::vector<TiledIndexSpace>& key_tiled_index_spaces()
       const override {
         return empty_vec_;
+    }
+
+    const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces()
+      const override {
+        return empty_map_;
     }
 
     size_t num_key_tiled_index_spaces() const override { return 0; }
@@ -390,7 +394,8 @@ public:
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
-    const std::map<std::string, IndexSpace>& map_named_sub_index_spaces() const override {
+    const std::map<std::string, IndexSpace>& map_named_sub_index_spaces()
+      const override {
         return named_subspaces_;
     }
 
@@ -401,6 +406,7 @@ protected:
     SpinAttribute spin_;
     SpatialAttribute spatial_;
     std::vector<TiledIndexSpace> empty_vec_;
+    std::map<IndexVector, IndexSpace> empty_map_;
 
     /**
      * @brief Helper method for generating the map between string values to
@@ -539,15 +545,20 @@ public:
     IndexIterator begin() const override { return indices_.begin(); }
     IndexIterator end() const override { return indices_.end(); }
 
-    // Size of this index space
-    std::size_t size() const override { return indices_.size(); }
+    // Number of indices in this index space
+    std::size_t num_indices() const override { return indices_.size(); }
 
-    // Maximum size of this index space
-    std::size_t max_size() const override { return indices_.size(); }
+    // Maximum number of indices in this index space
+    std::size_t max_num_indices() const override { return indices_.size(); }
 
     const std::vector<TiledIndexSpace>& key_tiled_index_spaces()
       const override {
         return empty_vec_;
+    }
+
+    const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces()
+      const override {
+        return empty_map_;
     }
 
     size_t num_key_tiled_index_spaces() const override { return 0; }
@@ -579,7 +590,8 @@ public:
 
     IndexSpace root_index_space() const override { return root_space_; }
 
-    const std::map<std::string, IndexSpace>& map_named_sub_index_spaces() const override {
+    const std::map<std::string, IndexSpace>& map_named_sub_index_spaces()
+      const override {
         return named_subspaces_;
     }
 
@@ -591,7 +603,7 @@ protected:
     std::map<std::string, IndexSpace> named_subspaces_;
     IndexSpace root_space_;
     std::vector<TiledIndexSpace> empty_vec_;
-
+    std::map<IndexVector, IndexSpace> empty_map_;
     /**
      * @brief Helper method for constructing the new set of
      *        indicies from the reference IndexSpace
@@ -698,15 +710,20 @@ public:
     IndexIterator begin() const override { return indices_.begin(); }
     IndexIterator end() const override { return indices_.end(); }
 
-    // Size of this index space
-    std::size_t size() const override { return indices_.size(); }
+    // Number of indices in this index space
+    std::size_t num_indices() const override { return indices_.size(); }
 
-    // Maximum size of this index space
-    std::size_t max_size() const override { return indices_.size(); }
+    // Maximum number of indices in this index space
+    std::size_t max_num_indices() const override { return indices_.size(); }
 
     const std::vector<TiledIndexSpace>& key_tiled_index_spaces()
       const override {
         return empty_vec_;
+    }
+
+    const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces()
+      const override {
+        return empty_map_;
     }
 
     size_t num_key_tiled_index_spaces() const override { return 0; }
@@ -761,7 +778,8 @@ public:
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
-    const std::map<std::string, IndexSpace>& map_named_sub_index_spaces() const override {
+    const std::map<std::string, IndexSpace>& map_named_sub_index_spaces()
+      const override {
         return named_subspaces_;
     }
 
@@ -772,6 +790,7 @@ protected:
     std::map<std::string, IndexSpace> named_subspaces_;
     std::vector<Range> empty_range_;
     std::vector<TiledIndexSpace> empty_vec_;
+    std::map<IndexVector, IndexSpace> empty_map_;
 
     /**
      * @brief Add subspaces reference names foreach aggregated
@@ -789,9 +808,9 @@ protected:
         for(const auto& space : ref_spaces) {
             named_subspaces_.insert({ref_names[i], space});
             named_ranges_.insert(
-              {ref_names[i], {range(curr_idx, curr_idx + space.size())}});
+              {ref_names[i], {range(curr_idx, curr_idx + space.num_indices())}});
             i++;
-            curr_idx += space.size();
+            curr_idx += space.num_indices();
         }
     }
 
@@ -822,7 +841,7 @@ protected:
                 std::size_t offset = 0;
 
                 while(it != ref_it) {
-                    offset += (*it).size();
+                    offset += (*it).num_indices();
                     it++;
                 }
                 // for(size_t i = 1; i < ref_names.size(); i++) {
@@ -914,15 +933,15 @@ public:
       dep_spaces_{indep_spaces},
       dep_space_relation_{dep_space_relation},
       named_ranges_{} {
-        std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
+        // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
         max_size_ = 0;
         for(const auto& pair : dep_space_relation) {
-            max_size_ = std::max(max_size_, pair.second.size());
+            max_size_ = std::max(max_size_, pair.second.num_indices());
         }
-        std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
+        // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
     }
 
-    /**
+    /***
      * @brief Construct a new Dependent Index Space Impl object
      *
      *
@@ -977,23 +996,25 @@ public:
     }
 
     // Iterators
-    // @todo Error on call
+    // Not allowed to call begin on dependent index space
     IndexIterator begin() const override {
         NOT_ALLOWED();
         return IndexIterator();
     }
+    
+    // Not allowed to call end on dependent index space
     IndexIterator end() const override {
         NOT_ALLOWED();
         return IndexIterator();
     }
 
-    // @todo What should this return?
-    std::size_t size() const override {
+    // Not allowed to call num_indices on dependent index space
+    std::size_t num_indices() const override {
         NOT_ALLOWED();
         return 0;
     }
 
-    std::size_t max_size() const override { return max_size_; }
+    std::size_t max_num_indices() const override { return max_size_; }
 
     const std::vector<TiledIndexSpace>& key_tiled_index_spaces() const {
         return dep_spaces_;
@@ -1001,7 +1022,8 @@ public:
 
     size_t num_key_tiled_index_spaces() const { return dep_spaces_.size(); }
 
-    const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces() const override {
+    const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces()
+      const override {
         return dep_space_relation_;
     }
 
@@ -1051,7 +1073,8 @@ public:
         return IndexSpace{this_weak_ptr_.lock()};
     }
 
-    const std::map<std::string, IndexSpace>& map_named_sub_index_spaces() const override {
+    const std::map<std::string, IndexSpace>& map_named_sub_index_spaces()
+      const override {
         return empty_named_subspace_map_;
     }
 

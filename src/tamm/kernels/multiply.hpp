@@ -58,12 +58,6 @@ void gemm_wrapper<std::complex<float>>(
 
 namespace kernels {
 
-/*
-void cblas_dgemm(const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE
-TransA, const enum CBLAS_TRANSPOSE TransB, const int M, const int N, const int
-K, const double alpha, const double *A, const int lda, const double *B, const
-int ldb, const double beta, double *C, const int ldc);
-*/
 template<typename T>
 void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
                     const IntLabelVec& alabels, T beta, const T* bbuf,
@@ -168,8 +162,10 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     std::vector<T> ainter_buf(static_cast<size_t>(asize.value())),
       binter_buf(static_cast<size_t>(bsize.value())),
       cinter_buf(static_cast<size_t>(csize.value()));
-    ip(ainter_buf, ainter_dims, ainter_labels, 1.0, abuf, adims, alabels, true);
-    ip(binter_buf, binter_dims, binter_labels, 1.0, bbuf, bdims, blabels, true);
+    assign(ainter_buf, ainter_dims, ainter_labels, 1.0, abuf, adims, alabels,
+           true);
+    assign(binter_buf, binter_dims, binter_labels, 1.0, bbuf, bdims, blabels,
+           true);
     auto transA   = CblasNoTrans;
     auto transB   = CblasNoTrans;
     int ainter_ld = K;
@@ -184,7 +180,8 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
                                   binter_buf.data() + i * batch_ld, binter_ld,
                                   beta, cbuf.data() + i * batch_ld, cinter_ld);
     }
-    ip(cbuf, cdims, clabels, 1.0, cinter_buf, cinter_dims, cinter_labels, true);
+    assign(cbuf, cdims, clabels, 1.0, cinter_buf, cinter_dims, cinter_labels,
+           true);
 } // block_multiply()
 
 } // namespace kernels

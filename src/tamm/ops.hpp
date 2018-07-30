@@ -984,6 +984,12 @@ public:
             const auto& rdims = rhs_.tensor().block_dims(rblockid);
             internal::block_add(&lbuf[0], ldims, lhs_.labels(), &rbuf[0], rdims,
                                 rhs_.labels(), alpha_, !is_assign_);
+            // void assign(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
+            // const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
+            // bool is_assign = true);
+
+            // kernels::assign(&lbuf[0], ldims, lhs_.labels(), &rbuf[0], rdims,
+            //                 rhs_.labels(), alpha_, is_assign_);
             if(is_assign_) {
                 ltensor.put(lblockid, span<TensorElType>(&lbuf[0], size));
             } else {

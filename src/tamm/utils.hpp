@@ -50,8 +50,9 @@ inline void fillin_tensor_label_from_map(
  * @post Return ret such that:
  * ensures 0<=i<from.size(): to[i] = from[ret[i]]
  */
-inline PermVector
-perm_compute(const IndexLabelVec& from, const IndexLabelVec& to) {
+template<typename T>
+PermVector
+perm_compute(const std::vector<T>& from, const std::vector<T>& to) {
   PermVector layout;
 
   EXPECTS(from.size() == to.size());
@@ -64,24 +65,16 @@ perm_compute(const IndexLabelVec& from, const IndexLabelVec& to) {
 }
 
 template<typename T>
-inline bool are_permutations(const std::vector<T>& vec1,
-const std::vector<T>& vec2) {
-  if(vec1.size() != vec2.size()) {
-    return false;
-  }
-  std::vector<bool> taken(vec1.size(), false);
-  for(size_t i=0; i<vec1.size(); i++) {
-    auto it = std::find(vec2.begin(), vec2.end(), vec1[i]);
-    if(it == vec2.end()) {
-      return false;
+bool are_permutations(const std::vector<T>& vec1, const std::vector<T>& vec2) {
+    if(vec1.size() != vec2.size()) { return false; }
+    std::vector<bool> taken(vec1.size(), false);
+    for(size_t i = 0; i < vec1.size(); i++) {
+        auto it = std::find(vec2.begin(), vec2.end(), vec1[i]);
+        if(it == vec2.end()) { return false; }
+        if(taken[std::distance(vec2.begin(), it)] == true) { return false; }
     }
-    if(taken[std::distance(vec2.begin(), it)] == true) {
-      return false;
-    }
-  }
-  return true;
+    return true;
 }
-
 
 template<typename T>
 std::vector<T> unique_entries(const std::vector<T>& input_vec) {

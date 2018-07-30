@@ -14,6 +14,7 @@
 
 #include <string>
 
+#define ASSIGN_TEST_0D 0
 #define INITVAL_TEST_0D 1
 #define INITVAL_TEST_1D 1
 #define INITVAL_TEST_2D 1
@@ -285,16 +286,10 @@ EigenTensorBase *
 tamm_tensor_to_eigen_tensor_dispatch(Tensor <T> &tensor) {
   EXPECTS(tensor.num_modes() == ndim);
 
-  std::array<int, ndim> lo_offset, hi_offset;
   std::array<long, ndim> dims;
-  const auto &flindices = tensor.tiled_index_spaces();
+  const auto &tindices = tensor.tiled_index_spaces();
   for (int i = 0; i < ndim; i++) {
-    BlockIndex blo, bhi;
-    /// FIXME
-    // std::tie(blo, bhi) = tensor_index_range(flindices[i]);
-    // lo_offset[i] = TCE::offset(blo);
-    // hi_offset[i] = TCE::offset(bhi);
-    // dims[i] = hi_offset[i] - lo_offset[i];
+    dims[i] = tindices[i].index_space().num_indices();
   }
   EigenTensor<ndim> *etensor = new EigenTensor<ndim>(dims);
   etensor->setZero();
@@ -316,6 +311,15 @@ tamm_tensor_to_eigen_tensor_dispatch(Tensor <T> &tensor) {
 
   //   patch_copy<T>(block.buf(), *etensor, block_size, rel_offset);
   // });
+
+      for (auto it: tensor.loop_nest())
+    {
+        TAMM_SIZE size = tensor.block_size(it);
+        std::vector<T> buf(size);
+        tensor.get(it,span<T>(&buf[0],size));
+ 
+       //patch_copy<T>(buf.data(), *etensor, size, rel_offset);
+    }
 
   return etensor;
 }
@@ -349,10 +353,10 @@ tamm_assign(ExecutionContext &ec,
              const IndexLabelVec &alabel) {
   auto &al = alabel;
   auto &cl = clabel;
-  /// FIXME
-  // Scheduler{&ec}
-  //     ((tc)(cl) += alpha * (ta)(al))
-  //   .execute();
+  
+  Scheduler{&ec}
+      ((tc)(cl) += alpha * (ta)(al))
+    .execute();
 }
 
 EigenTensorBase *
@@ -481,11 +485,10 @@ tamm_mult(ExecutionContext &ec,
   auto &bl = blabel;
   auto &cl = clabel;
 
-  /// FIXME
-  // Scheduler{&ec}
-  //     ((tc)() = 0.0)
-  //     ((tc)(cl) += alpha * (ta)(al) * (tb)(bl))
-  //   .execute();
+  Scheduler{&ec}
+      ((tc)() = 0.0)
+      ((tc)(cl) += alpha * (ta)(al) * (tb)(bl))
+    .execute();
 
 }
 
@@ -662,6 +665,22 @@ MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
 Distribution_NW distribution;
 ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
 
+
+template<typename T>
+bool check_value(Tensor<T> &t, T val){
+  bool status = true;
+    for (auto it: t.loop_nest())
+    {
+        TAMM_SIZE size = t.block_size(it);
+        std::vector<T> buf(size);
+        t.get(it,span<T>(&buf[0],size));
+        for (TAMM_SIZE i = 0; i < size;i++) {
+          status &= (std::fabs(buf[i]-val) < 1.0e-12);
+       }
+    }
+    return status;
+}
+
 //-----------------------------------------------------------------------
 //
 //                            Initval 0-d
@@ -688,11 +707,14 @@ test_initval_no_n(ExecutionContext &ec,
       (xtc() = xta())
     .execute();
 
-  /// @todo Fix all commented 
+    bool ret = true;
+
+    ret &= check_value(xta,init_val);
+    ret &= check_value(xtc,init_val);
+
+  /// FIXME: Remove old code
   // BlockDimVec id{indices.size(), BlockIndex{0}};
   // auto sz = xta.memory_region().local_nelements().value();
-
-   bool ret = true;
   // const double threshold = 1e-14;
   // const auto abuf = reinterpret_cast<const double*>(xta.memory_region().access(Offset{0}));
   // const auto cbuf = reinterpret_cast<const double*>(xtc.memory_region().access(Offset{0}));
@@ -709,7 +731,8 @@ test_initval_no_n(ExecutionContext &ec,
   //     }
   //   }
   // }
-  // ec->deallocate(xta, xtc);
+  
+   Tensor<double>::deallocate(xta, xtc);
    return ret;
 }
 
@@ -805,30 +828,32 @@ REQUIRE(test_initval_no_n(*ec, {p1, p2}, {p3, p4}));
 //@todo tamm might not work with zero dimensions. So directly testing tamm.
 TEST_CASE ("AssignTest - ZeroDim") {
 
-Tensor<double> xta{};
-Tensor<double> xtc{};
+  Tensor<double> xta{};
+  Tensor<double> xtc{};
 
-double init_val_a = 9.1, init_val_c = 8.2, alpha = 3.5;
+  double init_val_a = 9.1, init_val_c = 8.2, alpha = 3.5;
 
- Tensor<double>::allocate(ec, xta, xtc);
- Scheduler{ec}
- (xta() = init_val_a)
- (xtc() = init_val_c)
- (xtc() += alpha *xta())
- .execute();
+  Tensor<double>::allocate(ec, xta, xtc);
+  Scheduler{ec}
+  (xta() = init_val_a)
+  (xtc() = init_val_c)
+  (xtc() += alpha *xta())
+  .execute();
 
-/// FIXME
-// auto sz = xta.memory_manager()->local_size_in_elements().value();
-// bool status = true;
-// const double threshold = 1e-14;
-// const auto cbuf = reinterpret_cast<double *>(xtc.memory_manager()->access(Offset{0}));
-// for (int i = 0;i<sz;i++) {
-//   if (std::abs(cbuf[i]- (init_val_a *alpha+ init_val_c)) > threshold) {
-//   status = false;break;
-//   }
-// }
-// ec->deallocate(xta, xtc);
-// REQUIRE(status);
+  bool status = check_value(xtc,init_val_a *alpha+ init_val_c);
+  Tensor<double>::deallocate(xta, xtc);
+
+  // auto sz = xta.memory_manager()->local_size_in_elements().value();
+  // bool status = true;
+  // const double threshold = 1e-14;
+  // const auto cbuf = reinterpret_cast<double *>(xtc.memory_manager()->access(Offset{0}));
+  // for (int i = 0;i<sz;i++) {
+  //   if (std::abs(cbuf[i]- (init_val_a *alpha+ init_val_c)) > threshold) {
+  //   status = false;break;
+  //   }
+  // }
+  REQUIRE(status);
+
 }
 #endif
 
@@ -1367,14 +1392,16 @@ Scheduler{ec}
 
 double threshold = 1.0e-12;
 bool status = true;
-auto lambda = [&](auto &val) {
-  status &= (std::abs(val - alpha1 * alpha2) < threshold);
+
+using T = double;
+auto lambda = [&](Tensor<T>& t, const IndexVector& iv, std::vector<T>& buf) {
+  for (auto& val : buf) 
+    status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
 
-/// @todo FIXME: lambda should have right params
-// Scheduler{ec}
-// .gop(xtc(), lambda)
-// .execute();
+Scheduler{ec}
+.gop(xtc(), lambda)
+.execute();
 
 Tensor<double>::deallocate(xta, xtb, xtc);
 
@@ -1401,14 +1428,16 @@ Scheduler{ec}
 
 double threshold = 1.0e-12;
 bool status = true;
-auto lambda = [&](auto &val) {
-  status &= (std::abs(val - alpha1 * alpha2) < threshold);
+
+using T = double;
+auto lambda = [&](Tensor<T>& t, const IndexVector& iv, std::vector<T>& buf) {
+  for (auto& val : buf) 
+    status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
 
-/// @todo FIXME
-// Scheduler{ec}
-// .gop(xtc(), lambda)
-// .execute();
+Scheduler{ec}
+.gop(xtc(), lambda)
+.execute();
 
 Tensor<double>::deallocate(xta, xtb, xtc);
 
@@ -1431,14 +1460,16 @@ Scheduler{ec}
 
 double threshold = 1.0e-12;
 bool status = true;
-auto lambda = [&](auto &val) {
-  status &= (std::abs(val - alpha1 * alpha2) < threshold);
+
+using T = double;
+auto lambda = [&](Tensor<T>& t, const IndexVector& iv, std::vector<T>& buf) {
+  for (auto& val : buf) 
+    status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
 
-/// FIXME
-// Scheduler{ec}
-//   .gop(xtc(), lambda)
-// .execute();
+Scheduler{ec}
+  .gop(xtc(), lambda)
+.execute();
 
 Tensor<double>::deallocate(xta, xtb, xtc);
 
@@ -1461,15 +1492,17 @@ Scheduler{ec}
 
 double threshold = 1.0e-12;
 bool status = true;
-auto lambda = [&](auto &val) {
-  status &= (std::abs(val - alpha1 * alpha2) < threshold);
+
+using T = double;
+auto lambda = [&](Tensor<T>& t, const IndexVector& iv, std::vector<T>& buf) {
+  for (auto& val : buf) 
+    status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
 
 
-/// @todo FIXME
-// Scheduler{ec}
-// .gop(xtc(), lambda)
-// .execute();
+Scheduler{ec}
+.gop(xtc(), lambda)
+.execute();
 
 Tensor<double>::deallocate(xta, xtb, xtc);
 
@@ -1492,14 +1525,16 @@ Scheduler{ec}
 
 double threshold = 1.0e-12;
 bool status = true;
-auto lambda = [&](auto &val) {
-  status &= (std::abs(val - alpha1 * alpha2) < threshold);
+
+using T = double;
+auto lambda = [&](Tensor<T>& t, const IndexVector& iv, std::vector<T>& buf) {
+  for (auto& val : buf) 
+    status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
 
-/// FIXME
-// Scheduler{ec}
-//   .gop(xtc(), lambda)
-//   .execute();
+Scheduler{ec}
+  .gop(xtc(), lambda)
+  .execute();
 
 Tensor<double>::deallocate(xta, xtb, xtc);
 

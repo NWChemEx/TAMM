@@ -1,6 +1,10 @@
 
 
 #define CATCH_CONFIG_RUNNER
+// Eigen matrix algebra library
+#include <Eigen/Dense>
+#include <unsupported/Eigen/CXX11/Tensor>
+
 #include "catch/catch.hpp"
 #include "ga.h"
 #include "mpi.h"
@@ -31,9 +35,7 @@
 //
 /////////////////////////////////////////////////////
 
-// Eigen matrix algebra library
-#include <Eigen/Dense>
-#include <unsupported/Eigen/CXX11/Tensor>
+
 
 
 //using Tensor2D = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;

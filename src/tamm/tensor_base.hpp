@@ -69,7 +69,7 @@ public:
 
     /**
      * @brief Construct a new TensorBase object recursively with a set of
-     * TiledIndexSpace objects followed by a lambda expression
+     * TiledIndexSpace/TiledIndexLabel objects followed by a lambda expression
      *
      * @tparam Ts variadic template for rest of the arguments
      * @param [in] tis TiledIndexSpace object used as a mode
@@ -78,6 +78,12 @@ public:
     template<class... Ts>
     TensorBase(const TiledIndexSpace& tis, Ts... rest) : TensorBase{rest...} {
         block_indices_.insert(block_indices_.begin(), tis);
+        tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 - block_indices_.size()));
+    }
+
+    template<class... Ts>
+    TensorBase(const TiledIndexLabel& til, Ts... rest) : TensorBase{rest...} {
+        block_indices_.insert(block_indices_.begin(), til.tiled_index_space());
         tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 - block_indices_.size()));
     }
 

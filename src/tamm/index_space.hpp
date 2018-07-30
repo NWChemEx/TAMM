@@ -138,7 +138,7 @@ public:
      * input dependent IndexSpaces with a non-empty name/attributes are
      * accessible through the dependent index spaces
      *
-     * @param [in] indep_spaces dependent IndexSpaces used for construction
+     * @param [in] indep_spaces dependent TiledIndexSpaces used for construction
      * @param [in] dep_space_relation relation between each set of indices on
      * dependent IndexSpaces
      */
@@ -148,7 +148,7 @@ public:
      * @brief Construct a new (Dependent) IndexSpace object using a vector of
      * dependent index spaces and a specific reference index space
      *
-     * @param [in] indep_spaces dependent IndexSpaces used for construction
+     * @param [in] indep_spaces dependent TiledIndexSpaces used for construction
      * @param [in] ref_space reference IndexSpace
      * @param [in] dep_space_relation relation between each set of indices on
      * dependent IndexSpace
@@ -187,19 +187,20 @@ public:
     IndexIterator end() const;
 
     /**
-     * @brief Size of this index space in terms of the number of indices in it
+     * @brief Number of indices in this index space in terms of the number of
+     * indices in it
      *
-     * @return index space size
+     * @return number of indices in the index space
      */
-    std::size_t size() const;
+    std::size_t num_indices() const;
 
     /**
-     * @brief Maximum size of this index space for any value of indices this
-     * index space depends on
+     * @brief Maximum number of indices in this index space for any value of
+     * indices this index space depends on
      *
-     * @return maximum size of the index space
+     * @return maximum number of indices in the index space
      */
-    std::size_t max_size() const;
+    std::size_t max_num_indices() const;
 
     /**
      * @brief Spin attribute accessor for an index
@@ -310,9 +311,7 @@ public:
     int find_pos(Index idx) const {
         int pos = 0;
         for(auto i = begin(); i != end(); i++, pos++) {
-            if((*i) == idx) {
-                return pos;
-            }
+            if((*i) == idx) { return pos; }
         }
         return -1;
     }

@@ -223,7 +223,7 @@ private:
       key_offsets_[rank-1] = 1;
     }
     for(int i = rank-2; i>=0; i--) {
-      key_offsets_[i] = key_offsets_[i+1] * tis_list[i+1].max_size();
+      key_offsets_[i] = key_offsets_[i+1] * tis_list[i+1].max_num_tiles();
     }
   }
   

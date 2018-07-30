@@ -8,7 +8,6 @@
 #include "hptt.h"
 
 #include <algorithm>
-#include <cassert>
 #include <functional>
 #include <iostream>
 #include <numeric>
@@ -182,6 +181,55 @@ inline size_t idx(int n, const Size* id, const Size* sz, const PermVector& p) {
     if(n > 0) { idx += id[p[n - 1]]; }
     return idx.value();
 }
+
+template<typename T>
+void index_permute_acc(T* dbuf, const T* sbuf, const PermVector& perm_to_dest,
+                   const SizeVec& ddims, T scale) {
+    EXPECTS(dbuf != nullptr && sbuf != nullptr);
+    EXPECTS(perm_to_dest.size() == ddims.size());
+
+    const size_t ndim = perm_to_dest.size();
+    EXPECTS(ddims.size() == ndim);
+
+    if(ndim == 0) {
+        dbuf[0] += scale * sbuf[0];
+    } else if(ndim == 1) {
+        for(Size i = 0; i < ddims[0]; i++) { dbuf[i] = scale * sbuf[i]; }
+    } else if(ndim == 2) {
+        Size sz[] = {ddims[0], ddims[1]};
+        Size i[2], c;
+        for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
+            for(i[1] = 0; i[1] < sz[1]; i[1]++, c++) {
+                dbuf[c] += scale * sbuf[idx(2, i, sz, perm_to_dest)];
+            }
+        }
+    } else if(ndim == 3) {
+        Size sz[] = {ddims[0], ddims[1], ddims[2]};
+        Size i[3], c;
+        for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
+            for(i[1] = 0; i[1] < sz[1]; i[1]++) {
+                for(i[2] = 0; i[2] < sz[2]; i[2]++, c++) {
+                    dbuf[c] += scale * sbuf[idx(3, i, sz, perm_to_dest)];
+                }
+            }
+        }
+    } else if(ndim == 4) {
+        Size sz[] = {ddims[0], ddims[1], ddims[2], ddims[3]};
+        Size i[4], c;
+        for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
+            for(i[1] = 0; i[1] < sz[1]; i[1]++) {
+                for(i[2] = 0; i[2] < sz[2]; i[2]++) {
+                    for(i[3] = 0; i[3] < sz[3]; i[3]++, c++) {
+                        dbuf[c] += scale * sbuf[idx(4, i, sz, perm_to_dest)];
+                    }
+                }
+            }
+        }
+    } else {
+        NOT_IMPLEMENTED();
+    }
+}
+
 
 template<typename T>
 void index_permute(T* dbuf, const T* sbuf, const PermVector& perm_to_dest,
@@ -430,7 +478,7 @@ void ip_gen_loop(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
 }
 
 template<typename T>
-void ip_gen_hptt(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
+void ip_hptt(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
                  T scale, const T* src, const SizeVec& sdims,
                  const IntLabelVec& slabels, bool is_assign = true) {
     const int ndim = ddims.size();
@@ -469,46 +517,46 @@ void ip(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
     assert(ddims.size() == dlabels.size());
     assert(sdims.size() == slabels.size());
 
-    SizeVec sld{sdims}, dld{ddims};
-    sld.insert(sld.end(), 1);
-    dld.insert(dld.end(), 1);
-    std::partial_sum(sld.rbegin(), sld.rend(), sld.rbegin(),
-                     std::multiplies<T>());
-    std::partial_sum(dld.rbegin(), dld.rend(), dld.rbegin(),
-                     std::multiplies<T>());
+    // SizeVec sld{sdims}, dld{ddims};
+    // sld.insert(sld.end(), 1);
+    // dld.insert(dld.end(), 1);
+    // std::partial_sum(sld.rbegin(), sld.rend(), sld.rbegin(),
+    //                  std::multiplies<T>());
+    // std::partial_sum(dld.rbegin(), dld.rend(), dld.rbegin(),
+    //                  std::multiplies<T>());
 
-    IntLabelVec loop_labels;
-    for(const auto& lbl : dlabels) {
-        if(std::find(loop_labels.begin(), loop_labels.end(), lbl) ==
-           loop_labels.end()) {
-            loop_labels.push_back(lbl);
-        }
-    }
-    for(const auto& lbl : slabels) {
-        if(std::find(loop_labels.begin(), loop_labels.end(), lbl) ==
-           loop_labels.end()) {
-            loop_labels.push_back(lbl);
-        }
-    }
-    SizeVec loop_dims(loop_labels.size()), loop_sld(loop_labels.size()),
-      loop_dld(loop_labels.size());
-    for(size_t i = 0; i < loop_labels.size(); i++) {
-        const auto& lbl = loop_labels[i];
-        auto sit        = std::find(slabels.begin(), slabels.end(), lbl);
-        if(sit != slabels.end()) {
-            loop_sld[i]  = sld[sit - slabels.begin() + 1];
-            loop_dims[i] = sdims[sit - slabels.begin()];
-        }
-    }
+    // IntLabelVec loop_labels;
+    // for(const auto& lbl : dlabels) {
+    //     if(std::find(loop_labels.begin(), loop_labels.end(), lbl) ==
+    //        loop_labels.end()) {
+    //         loop_labels.push_back(lbl);
+    //     }
+    // }
+    // for(const auto& lbl : slabels) {
+    //     if(std::find(loop_labels.begin(), loop_labels.end(), lbl) ==
+    //        loop_labels.end()) {
+    //         loop_labels.push_back(lbl);
+    //     }
+    // }
+    // SizeVec loop_dims(loop_labels.size()), loop_sld(loop_labels.size()),
+    //   loop_dld(loop_labels.size());
+    // for(size_t i = 0; i < loop_labels.size(); i++) {
+    //     const auto& lbl = loop_labels[i];
+    //     auto sit        = std::find(slabels.begin(), slabels.end(), lbl);
+    //     if(sit != slabels.end()) {
+    //         loop_sld[i]  = sld[sit - slabels.begin() + 1];
+    //         loop_dims[i] = sdims[sit - slabels.begin()];
+    //     }
+    // }
 
-    for(size_t i = 0; i < loop_labels.size(); i++) {
-        const auto& lbl = loop_labels[i];
-        auto dit        = std::find(dlabels.begin(), dlabels.end(), lbl);
-        if(dit != dlabels.end()) {
-            loop_dld[i]  = dld[dit - dlabels.begin() + 1];
-            loop_dims[i] = ddims[dit - dlabels.begin()];
-        }
-    }
+    // for(size_t i = 0; i < loop_labels.size(); i++) {
+    //     const auto& lbl = loop_labels[i];
+    //     auto dit        = std::find(dlabels.begin(), dlabels.end(), lbl);
+    //     if(dit != dlabels.end()) {
+    //         loop_dld[i]  = dld[dit - dlabels.begin() + 1];
+    //         loop_dims[i] = ddims[dit - dlabels.begin()];
+    //     }
+    // }
     // std::cerr<<"loop labels =[";
     // for(const auto v : loop_labels) {
     //   std::cerr<<v<<" ";
@@ -533,50 +581,29 @@ void ip(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
     // }
     // std::cerr<<"]\n";
 
-#if 0
-  auto perm_to_dest = internal::perm_compute(dlabels, slabels);
-  if(is_assign) {
-    internal::index_permute(dst, src, perm_to_dest, ddims, scale);
-  } else {
-    NOT_IMPLEMENTED();
-    //internal::index_permute_acc(dst, src, perm_to_dest, ddims, scale);
-  }
-#elif 0
-    internal::ip_gen(dst, ddims, dlabels, scale, src, sdims, slabels,
-                     is_assign);
-#else
-    internal::ip_gen_loop(dst, ddims, dlabels, scale, src, sdims, slabels,
-                          is_assign);
-    // if(is_assign) {
-    //   if(ndim == 0) {
-    //     internal::ip0(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    //   } else if(ndim == 1) {
-    //     internal::ip1(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    //   } else if(ndim == 2) {
-    //     internal::ip2(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    //   } else if(ndim == 3) {
-    //     internal::ip3(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    //   } else if(ndim == 4) {
-    //     internal::ip4(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    //   } else {
-    //     NOT_IMPLEMENTED();
-    //   }
-    // } else {
-    //   if(ndim == 0) {
-    //     internal::ipacc0(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    //   } else if(ndim == 1) {
-    //     internal::ipacc1(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    //   } else if(ndim == 2) {
-    //     internal::ipacc2(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    //   } else if(ndim == 3) {
-    //     internal::ipacc3(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    //   } else if(ndim == 4) {
-    //     internal::ipacc4(loop_dims, dst, loop_dld, scale, src, loop_sld);
-    //   } else {
-    //     NOT_IMPLEMENTED();
-    //   }
+    // if(are_permutations(dlabel, slabel)) {
     // }
+    if(internal::are_permutations(slabels, dlabels)) {
+#if 1
+        auto perm_to_dest = internal::perm_compute(dlabels, slabels);
+        if(is_assign) {
+            internal::index_permute(dst, src, perm_to_dest, ddims, scale);
+        } else {
+            internal::index_permute_acc(dst, src, perm_to_dest, ddims, scale);
+        }
+#else
+        internal::ip_hptt(dst, ddims, dlabels, scale, src, sdims, slabels,
+                          is_assign);
 #endif
+    } else {
+#if 0
+        internal::ip_gen(dst, ddims, dlabels, scale, src, sdims, slabels,
+                         is_assign);
+#else
+        internal::ip_gen_loop(dst, ddims, dlabels, scale, src, sdims, slabels,
+                              is_assign);
+#endif
+    }
 }
 } // namespace kernels
 

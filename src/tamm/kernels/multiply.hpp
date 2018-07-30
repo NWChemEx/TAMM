@@ -178,7 +178,7 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
         internal::gemm_wrapper<T>(CblasRowMajor, transA, transB, M, N, K, alpha,
                                   ainter_buf.data() + i * batch_ld, ainter_ld,
                                   binter_buf.data() + i * batch_ld, binter_ld,
-                                  beta, cbuf.data() + i * batch_ld, cinter_ld);
+                                  beta, cbuf + i * batch_ld, cinter_ld);
     }
     assign(cbuf, cdims, clabels, 1.0, cinter_buf, cinter_dims, cinter_labels,
            true);

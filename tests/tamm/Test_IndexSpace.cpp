@@ -7,7 +7,7 @@ using namespace tamm;
 
 void check_indices(IndexSpace is, IndexVector iv) {
     int i = 0;
-    REQUIRE(is.size() == iv.size());
+    REQUIRE(is.num_indices() == iv.size());
     for(const auto& index : is) { REQUIRE(index == iv[i++]); }
 }
 
@@ -95,18 +95,18 @@ TEST_CASE("Retrieval of a point in IndexSpace") {
 TEST_CASE("IndexSpace construction by concatenation of other disjoint IndexSpaces") {
 
     IndexSpace is1{2, 4, 5, 6, 7, 8};
-    IndexSpace is2{3, 10, 9};
+    IndexSpace is2{3, 7, 9};
 
     IndexSpace is{{is1, is2}};
 
     // check if the indices are equal
-    IndexVector is3{2, 4, 5, 6, 7, 8, 3, 10, 9};
+    IndexVector is3{2, 4, 5, 6, 7, 8, 3, 7, 9};
     check_indices(is, is3);
 }
 TEST_CASE("IndexSpace construction with named subspaces by concatenation of other disjoint indexspaces") {
 
     IndexSpace is1{2, 4, 5};
-    IndexSpace is2{1, 8};
+    IndexSpace is2{1, 3};
     IndexSpace is3{3, 6};
 
 
@@ -120,15 +120,15 @@ TEST_CASE("IndexSpace construction with named subspaces by concatenation of othe
          {"beta",  {range(1, 7, 2)}}}};
 
     // check indices for full space
-    check_indices(is, {2, 4, 5, 1, 8, 3, 6});
+    check_indices(is, {2, 4, 5, 1, 3, 3, 6});
     // check indices for subspace named all
-    check_indices(is("all"), {2, 4, 5, 1, 8, 3, 6});
+    check_indices(is("all"), {2, 4, 5, 1, 3, 3, 6});
     // check indices for subspace named occ
     check_indices(is("occ"), {5});
     // check indices for subspace named virt
     check_indices(is("virt"), {4, 5, 1});
     // check indices for subspace named alpha
-    check_indices(is("alpha"), {2, 5, 8, 6});
+    check_indices(is("alpha"), {2, 5, 3, 6});
     // check indices for subspace named beta
     check_indices(is("beta"), {4, 1, 3});
 }

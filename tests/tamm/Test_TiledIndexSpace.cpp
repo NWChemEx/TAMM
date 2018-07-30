@@ -51,7 +51,7 @@ TEST_CASE("TiledIndexSpace construction with multiple tile size") {
     std::vector<IndexVector> tiled_iv{
       {10, 11}, {12, 13, 14}, {15, 16, 17, 18, 19}};
 
-    for(size_t i = 0; i < tis1.size(); i++) {
+    for(size_t i = 0; i < tis1.num_tiles(); i++) {
         auto it     = tis1.block_begin(i);
         auto it_ref = tiled_iv[i].begin();
 
@@ -73,7 +73,7 @@ TEST_CASE("TiledIndexSpace construction with multiple tile size,named "
     std::vector<IndexVector> tiled_iv{
       {10, 11}, {12, 13, 14}, {15, 16, 17, 18, 19}};
 
-    for(size_t i = 0; i < tis1.size(); i++) {
+    for(size_t i = 0; i < tis1.num_tiles(); i++) {
         auto it     = tis1.block_begin(i);
         auto it_ref = tiled_iv[i].begin();
 
@@ -126,7 +126,7 @@ TEST_CASE("TiledIndexSpace tiling check") {
       {78, 79, 80, 81, 82, 83, 84, 85, 86, 87}, // virt + beta
       {88, 89}};                                // virt + beta
 
-    for(size_t i = 0; i < t10_is.size(); i++) {
+    for(size_t i = 0; i < t10_is.num_tiles(); i++) {
         auto it     = t10_is.block_begin(i);
         auto it_ref = tiled_iv[i].begin();
 
@@ -180,7 +180,7 @@ TEST_CASE("TiledIndexSpace tiling with different name subspaces") {
       {78, 79, 80, 81, 82, 83, 84, 85, 86, 87}, // virt + beta
       {88, 89}};                                // virt + beta
 
-    for(size_t i = 0; i < t10_is.size(); i++) {
+    for(size_t i = 0; i < t10_is.num_tiles(); i++) {
         auto it     = t10_is.block_begin(i);
         auto it_ref = tiled_iv[i].begin();
 

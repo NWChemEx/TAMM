@@ -53,7 +53,7 @@ public:
     }
 
     /**
-     * @brief Construct a new TiledIndexSpace object from
+     * @brief Construct a new sub TiledIndexSpace object from
      * a sub-space of a reference TiledIndexSpace
      *
      * @param [in] t_is reference TiledIndexSpace
@@ -63,7 +63,7 @@ public:
       TiledIndexSpace{t_is, construct_index_vector(range)} {}
 
     /**
-     * @brief Construct a new TiledIndexSpace object from
+     * @brief Construct a new sub TiledIndexSpace object from
      * a sub-space of a reference TiledIndexSpace
      *
      * @param [in] t_is reference TiledIndexSpace
@@ -211,15 +211,21 @@ public:
      * to this TiledIndexSpace
      *
      * @param [in] rhs reference TiledIndexSpace
-     * @returns true if the Tile size and the reference IndexSpace is equal
+     * @returns true if the tiled_info_ pointer is the same for both
+     * TiledIndexSpaces
      */
     bool is_identical(const TiledIndexSpace& rhs) const {
-        //@todo return std::tie(tile_size_, is_) == std::tie(rhs.tile_size_,
-        // rhs.is_);
-        // return is_ == rhs.is_;
-        return tiled_info_ == rhs.tiled_info_;
+        return (tiled_info_ == rhs.tiled_info_);
     }
 
+    /**
+     * @brief Boolean method for checking if given TiledIndexSpace is compatible
+     * to this TiledIndexSpace
+     *
+     * @param [in] tis reference TiledIndexSpace
+     * @returns true if the root_tiled_info_ is the same for both
+     * TiledIndexSpaces
+     */
     bool is_compatible_with(const TiledIndexSpace& tis) const {
         return (this->root_tiled_info_.lock() == tis.root_tiled_info_.lock());
     }
@@ -229,13 +235,11 @@ public:
      * is a subspace of this TiledIndexSpace
      *
      * @param [in] rhs reference TiledIndexSpace
-     * @returns true if the Tile size and the reference IndexSpace is equal
+     * @returns true if the TiledIndexInfo object of rhs is constructed later
+     * then this
      */
     bool is_less_than(const TiledIndexSpace& rhs) const {
-        //@todo return (tile_size_ == rhs.tile_size_) &&
-        //(is_.is_less_than(rhs.is_));
-        // return is_.is_less_than(rhs.is_);
-        return tiled_info_ < rhs.tiled_info_;
+        return (tiled_info_ < rhs.tiled_info_);
     }
 
     /**
@@ -459,6 +463,12 @@ public:
                            const TiledIndexSpace& rhs);
 
 protected:
+    /**
+     * @brief Internal struct for representing a TiledIndexSpace details. Mainly
+     * used for comparing TiledIndexSpace between eachother for compatibility
+     * checks. This also behaves as PIMPL to ease the copy of TiledIndexSpaces.
+     *
+     */
     struct TiledIndexSpaceInfo {
         /* data */
         IndexSpace is_;        /**< The index space being tiled*/
@@ -472,6 +482,16 @@ protected:
         std::map<std::string, TiledIndexSpace>
           tiled_named_subspaces_; /**< Tiled named subspaces map string ids*/
 
+        /**
+         * @brief Construct a new TiledIndexSpaceInfo object from an IndexSpace
+         * and input tile size(s). The size can be a single size or a set of
+         * tile sizes. Note that, set of tiles sizes are required to tile the
+         * underlying IndexSpace completely.
+         *
+         * @param [in] is reference IndexSpace to be tiled
+         * @param [in] input_tile_size input single tile size
+         * @param [in] input_tile_sizes input set of tile sizes
+         */
         TiledIndexSpaceInfo(IndexSpace is, Tile input_tile_size,
                             const std::vector<Tile>& input_tile_sizes) :
           is_{is},
@@ -506,6 +526,15 @@ protected:
             }
         }
 
+        /**
+         * @brief Construct a new sub-TiledIndexSpaceInfo object from a parent
+         * TiledIndexInfo object along with a set of offsets and indices
+         * corresponding to the parent object
+         *
+         * @param [in] parent TiledIndexSpaceInfo object
+         * @param [in] offsets input offsets from the parent
+         * @param [in] indices input indices from the parent
+         */
         TiledIndexSpaceInfo(const TiledIndexSpaceInfo& parent,
                             const IndexVector& offsets,
                             const IndexVector& indices) :
@@ -515,6 +544,15 @@ protected:
           tile_offsets_{offsets},
           simple_vec_{indices} {}
 
+        /**
+         * @brief Construct a new TiledIndexSpaceInfo object from a parent
+         * (dependent) TiledIndexSpaceInfo object with a new set of relations
+         * for the dependency relation.
+         *
+         * @param [in] parent TiledIndexSpaceInfo object
+         * @param [in] dep_map dependency relation between indices of the
+         * dependent TiledIndexSpace and corresponding TiledIndexSpaces
+         */
         TiledIndexSpaceInfo(
           const TiledIndexSpaceInfo& parent,
           const std::map<IndexVector, TiledIndexSpace>& dep_map) :
@@ -525,7 +563,7 @@ protected:
 
         /**
          * @brief Construct starting and ending indices of each tile with
-         * respect to the named subspaces
+         * respect to input tile size.
          *
          * @param [in] is reference IndexSpace
          * @param [in] size Tile size value
@@ -594,6 +632,15 @@ protected:
             return ret;
         }
 
+        /**
+         * @brief Construct starting and ending indices of each tile with
+         * respect to input tile sizes
+         *
+         * @param [in] is reference IndexSpace
+         * @param [in] sizes set of input Tile sizes
+         * @returns a vector of indices corresponding to the start and end of
+         * each tile
+         */
         IndexVector construct_tiled_indices(const IndexSpace& is,
                                             const std::vector<Tile>& tiles) {
             if(is.is_dependent()) { return {}; }
@@ -659,11 +706,26 @@ protected:
             return ret;
         }
 
-        std::size_t tile_size(Index i) const {
-            EXPECTS(i >= 0 && i < tile_offsets_.size());
-            return tile_offsets_[i + 1] - tile_offsets_[i];
+        /**
+         * @brief Accessor for getting the size of a specific tile in the
+         * TiledIndexSpaceInfo object
+         *
+         * @param [in] idx input index
+         * @returns the size of the tile at the corresponding index
+         */
+        std::size_t tile_size(Index idx) const {
+            EXPECTS(idx >= 0 && idx < tile_offsets_.size());
+            return tile_offsets_[idx + 1] - tile_offsets_[idx];
         }
 
+        /**
+         * @brief Gets the maximum number of tiles in the TiledIndexSpaceInfo
+         * object. In case of independent TiledIndexSpace it returns the number
+         * of tiles, otherwise returns the maximum size of the TiledIndexSpaces
+         * in the dependency relation
+         *
+         * @returns the maximum number of tiles in the TiledIndexSpaceInfo
+         */
         std::size_t max_num_tiles() const {
             std::size_t ret = 0;
             if(tiled_dep_map_.empty()) {
@@ -678,11 +740,24 @@ protected:
 
             return ret;
         }
-    };
+    }; // struct TiledIndexSpaceInfo
 
-    std::shared_ptr<TiledIndexSpaceInfo> tiled_info_;
-    std::weak_ptr<TiledIndexSpaceInfo> root_tiled_info_;
+    std::shared_ptr<TiledIndexSpaceInfo>
+      tiled_info_; /**< Shared pointer to the TiledIndexSpaceInfo object*/
+    std::weak_ptr<TiledIndexSpaceInfo>
+      root_tiled_info_; /**< Weak pointer to the root TiledIndexSpaceInfo
+                           object*/
 
+    /**
+     * @brief Return the corresponding tile position of an index for a give
+     * TiledIndexSpaceInfo object
+     *
+     * @param [in] id index position to be found on input TiledIndexSpaceInfo
+     * object
+     * @param [in] new_info reference input TiledIndexSpaceInfo object
+     * @returns The tile index of the corresponding from the reference
+     * TiledIndexSpaceInfo object
+     */
     std::size_t info_translate(size_t id,
                                const TiledIndexSpaceInfo& new_info) const {
         EXPECTS(id >= 0 && id < tiled_info_->simple_vec_.size());
@@ -695,15 +770,30 @@ protected:
         return (*it);
     }
 
+    /**
+     * @brief Set the root TiledIndexSpaceInfo object
+     *
+     * @param [in] root a shared pointer to a TiledIndexSpaceInfo object
+     */
     void set_root(const std::shared_ptr<TiledIndexSpaceInfo>& root) {
         root_tiled_info_ = root;
     }
 
+    /**
+     * @brief Set the shared pointer to TiledIndexSpaceInfo object
+     *
+     * @param [in] tiled_info shared pointer to TiledIndexSpaceInfo object
+     */
     void set_tiled_info(
       const std::shared_ptr<TiledIndexSpaceInfo>& tiled_info) {
         tiled_info_ = tiled_info;
     }
 
+    /**
+     * @brief Method for tiling all the named subspaces in an IndexSpace
+     *
+     * @param [in] is input IndexSpace
+     */
     void tile_named_subspaces(const IndexSpace& is) {
         // construct tiled spaces for named subspaces
         for(const auto& str_subis : is.map_named_sub_index_spaces()) {
@@ -786,12 +876,28 @@ public:
     // Constructor
     TiledIndexLabel() = default;
 
+    /**
+     * @brief Construct a new TiledIndexLabel object from a reference
+     * TiledIndexSpace object and a label
+     *
+     * @param [in] t_is reference TiledIndexSpace object
+     * @param [in] lbl input label (default: 0, negative values used internally)
+     * @param [in] dep_labels set of dependent TiledIndexLabels (default: empty
+     * set)
+     */
     TiledIndexLabel(const TiledIndexSpace& t_is, Label lbl = 0,
                     const std::vector<TiledIndexLabel> dep_labels = {}) :
       tis_{t_is},
       label_{lbl},
       dep_labels_{dep_labels} {}
 
+    /**
+     * @brief Construct a new TiledIndexLabel object from another one with input
+     * dependent labels
+     *
+     * @param [in] t_il reference TiledIndexLabel object
+     * @param [in] dep_labels set of dependent TiledIndexLabels
+     */
     TiledIndexLabel(const TiledIndexLabel& t_il,
                     const std::vector<TiledIndexLabel>& dep_labels) :
       tis_{t_il.tis_},
@@ -810,8 +916,24 @@ public:
     // Destructor
     ~TiledIndexLabel() = default;
 
-    TiledIndexLabel operator()() const { return {*this}; }
+    /**
+     * @brief Operator overload for () to construct dependent TiledIndexLabel
+     * objects from the input TiledIndexLabels
+     *
+     * @returns a new TiledIndexSpace from this.
+     */
+    TiledIndexLabel operator()() const { return (*this); }
 
+    /**
+     * @brief Operator overload for () to construct dependent TiledIndexLabel
+     * objects from the input TiledIndexLabels
+     *
+     * @tparam Args variadic template for multiple TiledIndexLabel object
+     * @param [in] il1 input TiledIndexLabel object
+     * @param [in] rest variadic template for rest of the arguments
+     * @returns a new TiledIndexLabel object with corresponding dependent
+     * TiledIndexLabels
+     */
     template<typename... Args>
     TiledIndexLabel operator()(const TiledIndexLabel& il1, Args... rest) {
         std::vector<TiledIndexLabel> dep_ilv;
@@ -819,15 +941,39 @@ public:
         return {*this, dep_ilv};
     }
 
+    /**
+     * @brief Operator overload for () to construct dependent TiledIndexLabel
+     * objects from the input TiledIndexLabels
+     *
+     * @param [in] dep_ilv
+     * @returns
+     */
     TiledIndexLabel operator()(const std::vector<TiledIndexLabel>& dep_ilv) {
         return {*this, dep_ilv};
     }
 
+    /**
+     * @brief Boolean method for checking if two TiledIndexLabels are identical.
+     * Checks if the label, dependent labels and TiledIndexSpace objects are
+     * identical
+     *
+     * @param [in] rhs input TiledIndexLabel object
+     * @returns true if the label, dependent labels and TiledIndexSpaces are
+     * identicals
+     */
     bool is_identical(const TiledIndexLabel& rhs) const {
         return (std::tie(label_, dep_labels_, tis_) ==
                 std::tie(rhs.label_, rhs.dep_labels_, rhs.tis_));
     }
 
+    /**
+     * @brief Boolean method for checking if this label is less then a reference
+     * TiledIndexLabel
+     *
+     * @param [in] rhs reference TiledIndexLabel object
+     * @returns true if reference TiledIndexSpace of rhs is less than or the
+     * label is less than this label
+     */
     bool is_less_than(const TiledIndexLabel& rhs) const {
         return (tis_ < rhs.tis_) ||
                ((tis_ == rhs.tis_) && (label_ < rhs.label_));
@@ -846,14 +992,31 @@ public:
         return true;
     }
 
+    /**
+     * @brief Accessor method to dependent labels
+     *
+     * @returns a set of dependent TiledIndexLabels
+     */
     const std::vector<TiledIndexLabel>& dep_labels() const {
         return dep_labels_;
     }
 
+    /**
+     * @brief The primary label pair that is composed of the reference
+     * TiledIndexLabel and the label value
+     *
+     * @returns a pair of TiledIndexSpace object and Label value for the
+     * TiledIndexLabel
+     */
     std::pair<TiledIndexSpace, Label> primary_label() const {
         return {tis_, label_};
     }
 
+    /**
+     * @brief Accessor to the reference TiledIndexSpace
+     *
+     * @returns the reference TiledIndexSpace object
+     */
     const TiledIndexSpace& tiled_index_space() const { return tis_; }
 
     // Comparison operators

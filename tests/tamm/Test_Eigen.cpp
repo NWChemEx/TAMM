@@ -147,7 +147,7 @@ eigen_tensors_are_equal(EigenTensor<4> &e1,
 
 template<int ndim>
 inline PermEigen<ndim>
-eigen_perm_compute(const IndexVector &from, const IndexVector &to) {
+eigen_perm_compute(const IndexLabelVec &from, const IndexLabelVec &to) {
   PermEigen<ndim> layout;
 
   assert(from.size() == to.size());
@@ -165,10 +165,10 @@ eigen_perm_compute(const IndexVector &from, const IndexVector &to) {
 template<int ndim>
 void
 eigen_assign_dispatch(EigenTensorBase *tc,
-                      const IndexVector &clabel,
+                      const IndexLabelVec &clabel,
                       double alpha,
                       EigenTensorBase *ta,
-                      const IndexVector &alabel) {
+                      const IndexLabelVec &alabel) {
   assert(alabel.size() == ndim);
   assert(clabel.size() == ndim);
   auto eperm = eigen_perm_compute<ndim>(alabel, clabel);
@@ -181,10 +181,10 @@ eigen_assign_dispatch(EigenTensorBase *tc,
 
 void
 eigen_assign(EigenTensorBase *tc,
-             const IndexVector &clabel,
+             const IndexLabelVec &clabel,
              double alpha,
              EigenTensorBase *ta,
-             const IndexVector &alabel) {
+             const IndexLabelVec &alabel) {
   EXPECTS(clabel.size() == alabel.size());
   if (clabel.size() == 0) {
     assert(0); //@todo implement
@@ -200,19 +200,6 @@ eigen_assign(EigenTensorBase *tc,
     assert(0); //@todo implement
   }
 }
-
-
-//void
-//eigen_mult(tamm::Tensor* tc,
-//          const std::vector<tamm::IndexName>& clabel,
-//          double alpha,
-//          tamm::Tensor* ta,
-//          const std::vector<tamm::IndexName>& alabel,
-//          tamm::Tensor* tb,
-//          const std::vector<tamm::IndexName>& blabel) {
-//    tamm::Multiplication mult(tc, clabel, ta, alabel, tb, blabel, alpha);
-//    mult.execute();
-//}
 
 /////////////////////////////////////////////////////////
 //
@@ -295,7 +282,7 @@ patch_copy(T *sbuf, Eigen::Tensor<T, 4, Eigen::RowMajor> &etensor,
 
 template<typename T, int ndim>
 EigenTensorBase *
-tamm_tensor_to_eigen_tensor_dispatch(tamm::Tensor <T> &tensor) {
+tamm_tensor_to_eigen_tensor_dispatch(Tensor <T> &tensor) {
   EXPECTS(tensor.num_modes() == ndim);
 
   std::array<int, ndim> lo_offset, hi_offset;
@@ -313,7 +300,7 @@ tamm_tensor_to_eigen_tensor_dispatch(tamm::Tensor <T> &tensor) {
   etensor->setZero();
 
   /// FIXME
-  // tamm::block_for(tensor(), [&](const BlockDimVec &blockid) {
+  // block_for(tensor(), [&](const BlockDimVec &blockid) {
   //   auto block = tensor.get(blockid);
   //   const BlockDimVec &boffset = block.block_offset();
   //   const BlockDimVec &block_dims = block.block_dims();
@@ -335,7 +322,7 @@ tamm_tensor_to_eigen_tensor_dispatch(tamm::Tensor <T> &tensor) {
 
 template<typename T>
 EigenTensorBase *
-tamm_tensor_to_eigen_tensor(tamm::Tensor <T> &tensor) {
+tamm_tensor_to_eigen_tensor(Tensor <T> &tensor) {
 //   if(tensor.num_modes() == 0) {
 //     return tamm_tensor_to_eigen_tensor_dispatch<T,0>(tensor);
 //   } else
@@ -352,12 +339,28 @@ tamm_tensor_to_eigen_tensor(tamm::Tensor <T> &tensor) {
   return nullptr;
 }
 
-EigenTensorBase *
-eigen_assign(tamm::Tensor<double> &ttc,
-             const tamm::IndexVector &tclabel,
+template<typename T>
+void
+tamm_assign(ExecutionContext &ec,
+             Tensor <T> &tc,
+             const IndexLabelVec &clabel,
              double alpha,
-             tamm::Tensor<double> &tta,
-             const tamm::IndexVector &talabel) {
+             Tensor <T> &ta,
+             const IndexLabelVec &alabel) {
+  auto &al = alabel;
+  auto &cl = clabel;
+  /// FIXME
+  // Scheduler{&ec}
+  //     ((tc)(cl) += alpha * (ta)(al))
+  //   .execute();
+}
+
+EigenTensorBase *
+eigen_assign(Tensor<double> &ttc,
+             const IndexLabelVec &tclabel,
+             double alpha,
+             Tensor<double> &tta,
+             const IndexLabelVec &talabel) {
   EigenTensorBase *etc, *eta;
   etc = tamm_tensor_to_eigen_tensor(ttc);
   eta = tamm_tensor_to_eigen_tensor(tta);
@@ -394,7 +397,7 @@ std::vector<TiledIndexSpace> tamm_label_to_indices(const IndexLabelVec &ilv) {
   }
 
 bool
-test_eigen_assign_no_n(tamm::ExecutionContext &ec,
+test_eigen_assign_no_n(ExecutionContext &ec,
                        double alpha,
                        const IndexLabelVec &cupper_labels,
                        const IndexLabelVec &clower_labels,
@@ -411,9 +414,9 @@ test_eigen_assign_no_n(tamm::ExecutionContext &ec,
   auto aindices = aupper_indices;
   aindices.insert(aindices.end(),alower_indices.begin(), alower_indices.end());
  
-  tamm::Tensor<double> tc1{cindices};
-  tamm::Tensor<double> tc2{cindices};
-  tamm::Tensor<double> ta{aindices};
+  Tensor<double> tc1{cindices};
+  Tensor<double> tc2{cindices};
+  Tensor<double> ta{aindices};
 
   Tensor<double>::allocate(&ec,ta, tc1, tc2);
 
@@ -425,52 +428,77 @@ test_eigen_assign_no_n(tamm::ExecutionContext &ec,
 
   tamm_tensor_fill(ec, ta());
 
-  // auto clabels = cupper_labels;
-  // clabels.insert_back(clower_labels.begin(), clower_labels.end());
-  // auto alabels = aupper_labels;
-  // alabels.insert_back(alower_labels.begin(), alower_labels.end());
+  auto clabels = cupper_labels;
+  clabels.insert(clabels.end(),clower_labels.begin(), clower_labels.end());
+  auto alabels = aupper_labels;
+  alabels.insert(alabels.end(),alower_labels.begin(), alower_labels.end());
 
-  //EigenTensorBase *etc1 = eigen_assign(tc1, cindices, alpha, ta, aindices);
-  // tamm_assign(ec, tc2, cindices, alpha, ta, aindices);
+  EigenTensorBase *etc1 = eigen_assign(tc1, clabels, alpha, ta, alabels);
+  tamm_assign(ec, tc2, clabels, alpha, ta, alabels);
 
-  // EigenTensorBase *etc2 = tamm_tensor_to_eigen_tensor(tc2);
+  EigenTensorBase *etc2 = tamm_tensor_to_eigen_tensor(tc2);
 
    bool status = false;
-  // if (tc1.rank() == 1) {
-  //   auto *et1 = dynamic_cast<EigenTensor<1> *>(etc1);
-  //   auto *et2 = dynamic_cast<EigenTensor<1> *>(etc2);
-  //   status = eigen_tensors_are_equal<double>(*et1, *et2);
-  // } else if (tc1.rank() == 2) {
-  //   auto *et1 = dynamic_cast<EigenTensor<2> *>(etc1);
-  //   auto *et2 = dynamic_cast<EigenTensor<2> *>(etc2);
-  //   status = eigen_tensors_are_equal<double>(*et1, *et2);
-  // } else if (tc1.rank() == 3) {
-  //   auto *et1 = dynamic_cast<EigenTensor<3> *>(etc1);
-  //   auto *et2 = dynamic_cast<EigenTensor<3> *>(etc2);
-  //   status = eigen_tensors_are_equal<double>(*et1, *et2);
-  // } else if (tc1.rank() == 4) {
-  //   auto *et1 = dynamic_cast<EigenTensor<4> *>(etc1);
-  //   auto *et2 = dynamic_cast<EigenTensor<4> *>(etc2);
-  //   status = eigen_tensors_are_equal<double>(*et1, *et2);
-  // }
+  if (tc1.num_modes() == 1) {
+    auto *et1 = dynamic_cast<EigenTensor<1> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<1> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  } else if (tc1.num_modes() == 2) {
+    auto *et1 = dynamic_cast<EigenTensor<2> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<2> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  } else if (tc1.num_modes() == 3) {
+    auto *et1 = dynamic_cast<EigenTensor<3> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<3> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  } else if (tc1.num_modes() == 4) {
+    auto *et1 = dynamic_cast<EigenTensor<4> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<4> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  }
 
   Tensor<double>::deallocate(tc1, tc2, ta);
-  // delete etc1;
-  // delete etc2;
+  delete etc1;
+  delete etc2;
 
   return status;
+}
+
+
+
+template<typename T>
+void
+tamm_mult(ExecutionContext &ec,
+           Tensor <T> &tc,
+           const IndexLabelVec &clabel,
+           double alpha,
+           Tensor <T> &ta,
+           const IndexLabelVec &alabel,
+           Tensor <T> &tb,
+           const IndexLabelVec &blabel) {
+
+  auto &al = alabel;
+  auto &bl = blabel;
+  auto &cl = clabel;
+
+  /// FIXME
+  // Scheduler{&ec}
+  //     ((tc)() = 0.0)
+  //     ((tc)(cl) += alpha * (ta)(al) * (tb)(bl))
+  //   .execute();
+
 }
 
 
 template<int ndim>
 void
 eigen_mult_dispatch(EigenTensorBase *tc,
-                      const IndexVector &clabel,
+                      const IndexLabelVec &clabel,
                       double alpha,
                       EigenTensorBase *ta,
-                      const IndexVector &alabel,
+                      const IndexLabelVec &alabel,
                       EigenTensorBase *tb,
-                      const IndexVector &blabel) {
+                      const IndexLabelVec &blabel) {
   assert(alabel.size() == ndim);
   assert(blabel.size() == ndim);
   assert(clabel.size() == ndim);
@@ -489,12 +517,12 @@ eigen_mult_dispatch(EigenTensorBase *tc,
 
 void
 eigen_mult(EigenTensorBase *tc,
-             const IndexVector &clabel,
+             const IndexLabelVec &clabel,
              double alpha,
              EigenTensorBase *ta,
-             const IndexVector &alabel,
+             const IndexLabelVec &alabel,
              EigenTensorBase *tb,
-             const IndexVector &blabel) {
+             const IndexLabelVec &blabel) {
   EXPECTS(clabel.size() == alabel.size());
   if (clabel.size() == 0) {
     assert(0); //@todo implement
@@ -512,13 +540,13 @@ eigen_mult(EigenTensorBase *tc,
 }
 
 EigenTensorBase *
-eigen_mult(tamm::Tensor<double> &ttc,
-             const tamm::IndexVector &tclabel,
+eigen_mult(Tensor<double> &ttc,
+             const IndexLabelVec &tclabel,
              double alpha,
-             tamm::Tensor<double> &tta,
-             const tamm::IndexVector &talabel,
-             tamm::Tensor<double> &ttb,
-             const tamm::IndexVector &tblabel) {
+             Tensor<double> &tta,
+             const IndexLabelVec &talabel,
+             Tensor<double> &ttb,
+             const IndexLabelVec &tblabel) {
   EigenTensorBase *etc, *eta, *etb;
   etc = tamm_tensor_to_eigen_tensor(ttc);
   eta = tamm_tensor_to_eigen_tensor(tta);
@@ -530,7 +558,7 @@ eigen_mult(tamm::Tensor<double> &ttc,
 }
 
 bool
-test_eigen_mult_no_n(tamm::ExecutionContext &ec,
+test_eigen_mult_no_n(ExecutionContext &ec,
                        double alpha,
                        const IndexLabelVec &cupper_labels,
                        const IndexLabelVec &clower_labels,
@@ -553,10 +581,10 @@ test_eigen_mult_no_n(tamm::ExecutionContext &ec,
   auto bindices = bupper_indices;
   bindices.insert(bindices.end(),blower_indices.begin(), blower_indices.end());
 
-  tamm::Tensor<double> tc1{cindices};
-  tamm::Tensor<double> tc2{cindices};
-  tamm::Tensor<double> ta{aindices};
-  tamm::Tensor<double> tb{bindices};
+  Tensor<double> tc1{cindices};
+  Tensor<double> tc2{cindices};
+  Tensor<double> ta{aindices};
+  Tensor<double> tb{bindices};
 
   Tensor<double>::allocate(&ec,ta, tb, tc1, tc2);
 
@@ -570,39 +598,39 @@ test_eigen_mult_no_n(tamm::ExecutionContext &ec,
   tamm_tensor_fill(ec, ta());
   tamm_tensor_fill(ec, tb());
 
-  // auto clabels = cupper_labels;
-  // clabels.insert_back(clower_labels.begin(), clower_labels.end());
-  // auto alabels = aupper_labels;
-  // alabels.insert_back(alower_labels.begin(), alower_labels.end());
-  // auto blabels = bupper_labels;
-  // blabels.insert_back(blower_labels.begin(), blower_labels.end());
+  auto clabels = cupper_labels;
+  clabels.insert(clabels.end(),clower_labels.begin(), clower_labels.end());
+  auto alabels = aupper_labels;
+  alabels.insert(alabels.end(),alower_labels.begin(), alower_labels.end());
+  auto blabels = bupper_labels;
+  blabels.insert(blabels.end(),blower_labels.begin(), blower_labels.end());
 
-  // EigenTensorBase *etc1 = eigen_mult(tc1, clabels, alpha, ta, alabels, tb, blabels);
-  // tamm_mult(ec, tc2, clabels, alpha, ta, alabels, tb, blabels);
-  // EigenTensorBase *etc2 = tamm_tensor_to_eigen_tensor(tc2);
+  EigenTensorBase *etc1 = eigen_mult(tc1, clabels, alpha, ta, alabels, tb, blabels);
+  tamm_mult(ec, tc2, clabels, alpha, ta, alabels, tb, blabels);
+  EigenTensorBase *etc2 = tamm_tensor_to_eigen_tensor(tc2);
 
    bool status = false;
-  // if (tc1.rank() == 1) {
-  //   auto *et1 = dynamic_cast<EigenTensor<1> *>(etc1);
-  //   auto *et2 = dynamic_cast<EigenTensor<1> *>(etc2);
-  //   status = eigen_tensors_are_equal<double>(*et1, *et2);
-  // } else if (tc1.rank() == 2) {
-  //   auto *et1 = dynamic_cast<EigenTensor<2> *>(etc1);
-  //   auto *et2 = dynamic_cast<EigenTensor<2> *>(etc2);
-  //   status = eigen_tensors_are_equal<double>(*et1, *et2);
-  // } else if (tc1.rank() == 3) {
-  //   auto *et1 = dynamic_cast<EigenTensor<3> *>(etc1);
-  //   auto *et2 = dynamic_cast<EigenTensor<3> *>(etc2);
-  //   status = eigen_tensors_are_equal<double>(*et1, *et2);
-  // } else if (tc1.rank() == 4) {
-  //   auto *et1 = dynamic_cast<EigenTensor<4> *>(etc1);
-  //   auto *et2 = dynamic_cast<EigenTensor<4> *>(etc2);
-  //   status = eigen_tensors_are_equal<double>(*et1, *et2);
-  // }
+  if (tc1.num_modes() == 1) {
+    auto *et1 = dynamic_cast<EigenTensor<1> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<1> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  } else if (tc1.num_modes() == 2) {
+    auto *et1 = dynamic_cast<EigenTensor<2> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<2> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  } else if (tc1.num_modes() == 3) {
+    auto *et1 = dynamic_cast<EigenTensor<3> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<3> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  } else if (tc1.num_modes() == 4) {
+    auto *et1 = dynamic_cast<EigenTensor<4> *>(etc1);
+    auto *et2 = dynamic_cast<EigenTensor<4> *>(etc2);
+    status = eigen_tensors_are_equal<double>(*et1, *et2);
+  }
 
   Tensor<double>::deallocate(tc1, tc2, ta, tb);
-  //delete etc1;
-  //delete etc2;
+  delete etc1;
+  delete etc2;
 
   return status;
 }
@@ -641,34 +669,33 @@ ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
 //-----------------------------------------------------------------------
 
 bool
-test_initval_no_n(tamm::ExecutionContext &ec,
-                  const tamm::IndexLabelVec &upper_labels,
-                  const tamm::IndexLabelVec &lower_labels) {
-  // const auto &upper_indices = tamm_label_to_indices(upper_labels);
-  // const auto &lower_indices = tamm_label_to_indices(lower_labels);
+test_initval_no_n(ExecutionContext &ec,
+                  const IndexLabelVec &upper_labels,
+                  const IndexLabelVec &lower_labels) {
+  const auto &upper_indices = tamm_label_to_indices(upper_labels);
+  const auto &lower_indices = tamm_label_to_indices(lower_labels);
 
-  // tamm::TensorRank nupper{upper_labels.size()};
-  // tamm::TensorVec <tamm::TensorSymmGroup> indices{upper_indices};
-  // indices.insert_back(lower_indices.begin(), lower_indices.end());
-  // tamm::Tensor<double> xta{indices, nupper, tamm::Irrep{0}, false};
-  // tamm::Tensor<double> xtc{indices, nupper, tamm::Irrep{0}, false};
+  auto indices = upper_indices;
+  indices.insert(indices.end(),lower_indices.begin(), lower_indices.end());
+  Tensor<double> xta{indices};
+  Tensor<double> xtc{indices};
 
-  // double init_val = 9.1;
+  double init_val = 9.1;
 
-  // ec->allocate(xta, xtc);
-  // ec->scheduler()
-  //   .io(xta, xtc)
-  //     (xta() = init_val)
-  //     (xtc() = xta())
-  //   .execute();
+  Tensor<double>::allocate(&ec,xta, xtc);
+  Scheduler{&ec}
+      (xta() = init_val)
+      (xtc() = xta())
+    .execute();
 
-  // tamm::BlockDimVec id{indices.size(), tamm::BlockIndex{0}};
+  /// @todo Fix all commented 
+  // BlockDimVec id{indices.size(), BlockIndex{0}};
   // auto sz = xta.memory_region().local_nelements().value();
 
    bool ret = true;
   // const double threshold = 1e-14;
-  // const auto abuf = reinterpret_cast<const double*>(xta.memory_region().access(tamm::Offset{0}));
-  // const auto cbuf = reinterpret_cast<const double*>(xtc.memory_region().access(tamm::Offset{0}));
+  // const auto abuf = reinterpret_cast<const double*>(xta.memory_region().access(Offset{0}));
+  // const auto cbuf = reinterpret_cast<const double*>(xtc.memory_region().access(Offset{0}));
   // for (TAMMX_INT32 i = 0; i < sz; i++) {
   //   if (std::abs(abuf[i] - init_val) > threshold) {
   //     ret = false;
@@ -777,26 +804,24 @@ REQUIRE(test_initval_no_n(*ec, {p1, p2}, {p3, p4}));
 
 //@todo tamm might not work with zero dimensions. So directly testing tamm.
 TEST_CASE ("AssignTest - ZeroDim") {
-// tamm::TensorRank nupper{0};
-// tamm::Irrep irrep{0};
-// tamm::TensorVec <tamm::SymmGroup> indices{};
-// bool restricted = false;
-// tamm::Tensor<double> xta{indices, nupper, irrep, restricted};
-// tamm::Tensor<double> xtc{indices, nupper, irrep, restricted};
 
-// double init_val_a = 9.1, init_val_c = 8.2, alpha = 3.5;
+Tensor<double> xta{};
+Tensor<double> xtc{};
 
-// ec->allocate(xta, xtc);
-// ec->scheduler().io(xta, xtc)
-// (xta() = init_val_a)
-// (xtc() = init_val_c)
-// (xtc()+=alpha *xta())
-// .execute();
+double init_val_a = 9.1, init_val_c = 8.2, alpha = 3.5;
 
+ Tensor<double>::allocate(ec, xta, xtc);
+ Scheduler{ec}
+ (xta() = init_val_a)
+ (xtc() = init_val_c)
+ (xtc() += alpha *xta())
+ .execute();
+
+/// FIXME
 // auto sz = xta.memory_manager()->local_size_in_elements().value();
 // bool status = true;
 // const double threshold = 1e-14;
-// const auto cbuf = reinterpret_cast<double *>(xtc.memory_manager()->access(tamm::Offset{0}));
+// const auto cbuf = reinterpret_cast<double *>(xtc.memory_manager()->access(Offset{0}));
 // for (int i = 0;i<sz;i++) {
 //   if (std::abs(cbuf[i]- (init_val_a *alpha+ init_val_c)) > threshold) {
 //   status = false;break;
@@ -1327,9 +1352,9 @@ REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p4, p3}
 #if MULT_TEST_0D_0D
 
 TEST_CASE ("MultTest - Dim_0_0_0") {
-tamm::Tensor<double> xtc{};
-tamm::Tensor<double> xta{};
-tamm::Tensor<double> xtb{};
+Tensor<double> xtc{};
+Tensor<double> xta{};
+Tensor<double> xtb{};
 
 double alpha1 = 0.91, alpha2 = 0.56;
 
@@ -1361,9 +1386,9 @@ REQUIRE(status);
 #if MULT_TEST_0D_1D
 
 TEST_CASE ("MultTest, Dim_o_0_o_up") {
-tamm::Tensor<double> xtc{O};
-tamm::Tensor<double> xta{};
-tamm::Tensor<double> xtb{O};
+Tensor<double> xtc{O};
+Tensor<double> xta{};
+Tensor<double> xtb{O};
 
 double alpha1 = 0.91, alpha2 = 0.56;
 
@@ -1391,9 +1416,9 @@ REQUIRE(status);
 }
 
 TEST_CASE ("MultTest - Dim_o_0_o_lo") {
-tamm::Tensor<double> xtc{O};
-tamm::Tensor<double> xta{};
-tamm::Tensor<double> xtb{O};
+Tensor<double> xtc{O};
+Tensor<double> xta{};
+Tensor<double> xtb{O};
 
 double alpha1 = 0.91, alpha2 = 0.56;
 
@@ -1421,9 +1446,9 @@ REQUIRE(status);
 }
 
 TEST_CASE ("MultTest - Dim_v_v_0_hi") {
-tamm::Tensor<double> xtc{V};
-tamm::Tensor<double> xta{V};
-tamm::Tensor<double> xtb{};
+Tensor<double> xtc{V};
+Tensor<double> xta{V};
+Tensor<double> xtb{};
 
 double alpha1 = 0.91, alpha2 = 0.56;
 
@@ -1452,9 +1477,9 @@ REQUIRE(status);
 }
 
 TEST_CASE ("MultTest - Dim_v_v_0_lo") {
-tamm::Tensor<double> xtc{V};
-tamm::Tensor<double> xta{V};
-tamm::Tensor<double> xtb{};
+Tensor<double> xtc{V};
+Tensor<double> xta{V};
+Tensor<double> xtb{};
 
 double alpha1 = 0.91, alpha2 = 0.56;
 

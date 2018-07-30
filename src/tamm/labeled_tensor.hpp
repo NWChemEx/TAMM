@@ -365,6 +365,15 @@ public:
         validate();
     }
 
+    LabeledTensor(const Tensor<T>& tensor, const std::vector<TiledIndexSpace>& labels) :
+      tensor_{tensor},
+      ilv_{IndexLabelVec(tensor_.num_modes())},
+      slv_{StringLabelVec(tensor_.num_modes())},
+      str_map_{std::vector<bool>(tensor_.num_modes())} {
+        unpack(0, labels);
+        validate();
+    }
+
     Tensor<T> tensor() const { return tensor_; }
     const IndexLabelVec& labels() const { return ilv_; }
     const StringLabelVec& str_labels() const { return slv_; }
@@ -378,7 +387,7 @@ public:
     }
 
     AddOp<T, LabeledTensor<T>> operator+=(const LabeledTensor<T> rhs) {
-        return construct_addop(std::make_tuple((T)1.0, rhs), false);
+        return construct_addop(std::make_tuple(static_cast<T>(1.0), rhs), false);
     }
 
     SetOp<T, LabeledTensor<T>> operator+=(const T& rhs) {
@@ -386,7 +395,7 @@ public:
     }
 
     AddOp<T, LabeledTensor<T>> operator-=(const LabeledTensor<T> rhs) {
-        return construct_addop(std::make_tuple((T)-1.0, rhs), false);
+        return construct_addop(std::make_tuple(static_cast<T>(-1.0), rhs), false);
     }
 
     SetOp<T, LabeledTensor<T>> operator-=(const T& rhs) {
@@ -402,7 +411,7 @@ public:
     AddOp<T, LabeledTensor<T>> operator+=(
       const std::tuple<T1, LabeledTensor<T>>& rhs) {
         return construct_addop(
-          std::make_tuple((T)(std::get<0>(rhs)*1.0), std::get<1>(rhs)), false);
+          std::make_tuple(static_cast<T>((std::get<0>(rhs)*1.0)), std::get<1>(rhs)), false);
     }
 
     template<typename T1,
@@ -410,7 +419,7 @@ public:
     AddOp<T, LabeledTensor<T>> operator-=(
       const std::tuple<T1, LabeledTensor<T>>& rhs) {
         return construct_addop(
-          std::make_tuple((T)(std::get<0>(rhs) * -1.0), std::get<1>(rhs)), false);
+          std::make_tuple(static_cast<T>((std::get<0>(rhs) * -1.0)), std::get<1>(rhs)), false);
     }
 
     template<typename T1,
@@ -418,11 +427,11 @@ public:
     AddOp<T, LabeledTensor<T>> operator=(
       const std::tuple<T1, LabeledTensor<T>>& rhs) {
         return construct_addop(
-          std::make_tuple((T)(std::get<0>(rhs)*1.0), std::get<1>(rhs)), true);
+          std::make_tuple(static_cast<T>((std::get<0>(rhs)*1.0)), std::get<1>(rhs)), true);
     }
 
     AddOp<T, LabeledTensor<T>> operator=(const LabeledTensor<T> rhs) {
-        return construct_addop(std::make_tuple((T)1.0, rhs), true);
+        return construct_addop(std::make_tuple(static_cast<T>(1.0), rhs), true);
     }
 
     template<typename T1,
@@ -430,7 +439,7 @@ public:
     MultOp<T, LabeledTensor<T>> operator+=(
       const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
         return construct_multop(
-          std::make_tuple((T)(std::get<0>(rhs)*1.0), std::get<1>(rhs), std::get<2>(rhs)),
+          std::make_tuple(static_cast<T>((std::get<0>(rhs)*1.0)), std::get<1>(rhs), std::get<2>(rhs)),
           false);
     }
 
@@ -439,7 +448,7 @@ public:
              typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
     MultOp<T, LabeledTensor<T>> operator-=(
       const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return construct_multop(std::make_tuple((T)-1.0 * std::get<0>(rhs),
+        return construct_multop(std::make_tuple(static_cast<T>(-1.0 * std::get<0>(rhs)),
                                                 std::get<1>(rhs),
                                                 std::get<2>(rhs)),
                                 false);
@@ -450,26 +459,26 @@ public:
     MultOp<T, LabeledTensor<T>> operator=(
       const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
         return construct_multop(
-          std::make_tuple((T)(std::get<0>(rhs)*1.0), std::get<1>(rhs), std::get<2>(rhs)),
+          std::make_tuple(static_cast<T>((std::get<0>(rhs)*1.0)), std::get<1>(rhs), std::get<2>(rhs)),
           true);
     }
 
     MultOp<T, LabeledTensor<T>> operator+=(
       const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {
         return construct_multop(
-          std::make_tuple((T)1.0, std::get<0>(rhs), std::get<1>(rhs)), false);
+          std::make_tuple(static_cast<T>(1.0), std::get<0>(rhs), std::get<1>(rhs)), false);
     }
 
     MultOp<T, LabeledTensor<T>> operator-=(
       const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {
         return construct_multop(
-          std::make_tuple((T)-1.0, std::get<0>(rhs), std::get<1>(rhs)), false);
+          std::make_tuple(static_cast<T>(-1.0), std::get<0>(rhs), std::get<1>(rhs)), false);
     }
 
     MultOp<T, LabeledTensor<T>> operator=(
       const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {
         return construct_multop(
-          std::make_tuple((T)1.0, std::get<0>(rhs), std::get<1>(rhs)), true);
+          std::make_tuple(static_cast<T>(1.0), std::get<0>(rhs), std::get<1>(rhs)), true);
     }
 
 protected:
@@ -682,6 +691,16 @@ private:
         ilv_[index]     = label;
         str_map_[index] = false;
         unpack(++index, rest...);
+    }
+
+    
+    void unpack(size_t index, const std::vector<TiledIndexLabel>& labels) {
+        EXPECTS(index < tensor_.num_modes());
+        for(auto label: labels){
+            ilv_[index]     = label;
+            str_map_[index] = false;
+            ++index;
+        }
     }
 };
 

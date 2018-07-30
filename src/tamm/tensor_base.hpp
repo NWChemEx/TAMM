@@ -84,7 +84,7 @@ public:
     template<class... Ts>
     TensorBase(const TiledIndexLabel& til, Ts... rest) : TensorBase{rest...} {
         block_indices_.insert(block_indices_.begin(), til.tiled_index_space());
-        tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 - block_indices_.size()));
+        tlabels_.insert(tlabels_.begin(), til);
     }
 
     /**

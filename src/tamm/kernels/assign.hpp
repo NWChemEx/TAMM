@@ -405,7 +405,7 @@ void ip_hptt(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
     T beta = is_assign ? 0 : 1;
     int numThreads = 1;
     for(size_t i=0; i<sdims.size(); i++) {
-      size[i] = sdims[i];
+      size[i] = sdims[i].value();
     }
     for(size_t i=0; i<dlabels.size(); i++) {
       auto it = std::find(slabels.begin(), slabels.end(), dlabels[i]);

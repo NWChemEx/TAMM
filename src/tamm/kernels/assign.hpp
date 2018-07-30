@@ -426,9 +426,9 @@ void ip_hptt(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
 
 namespace kernels {
 template<typename T>
-void ip(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
-        const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
-        bool is_assign = true) {
+void assign(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
+            const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
+            bool is_assign = true) {
     const size_t ndim = ddims.size();
 
     assert(ddims.size() == sdims.size());

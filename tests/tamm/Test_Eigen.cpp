@@ -312,13 +312,24 @@ tamm_tensor_to_eigen_tensor_dispatch(Tensor <T> &tensor) {
   //   patch_copy<T>(block.buf(), *etensor, block_size, rel_offset);
   // });
 
+    
       for (auto it: tensor.loop_nest())
     {
         TAMM_SIZE size = tensor.block_size(it);
+        
         std::vector<T> buf(size);
         tensor.get(it,span<T>(&buf[0],size));
+
+        std::array<int, ndim> block_size;
+        std::array<int, ndim> rel_offset;
+        auto &tiss = tensor.tiled_index_spaces();
+        auto block_dims = tensor.block_dims(it);
+        for (auto i = 0; i < ndim; i++) {
+          block_size[i] = block_dims[i];
+          rel_offset[i] = tiss[i].tile_offset(it[i]);
+        }
  
-       //patch_copy<T>(buf.data(), *etensor, size, rel_offset);
+        patch_copy<T>(buf.data(), *etensor, block_size, rel_offset);
     }
 
   return etensor;
@@ -502,18 +513,19 @@ eigen_mult_dispatch(EigenTensorBase *tc,
                       const IndexLabelVec &alabel,
                       EigenTensorBase *tb,
                       const IndexLabelVec &blabel) {
-  assert(alabel.size() == ndim);
-  assert(blabel.size() == ndim);
-  assert(clabel.size() == ndim);
-  auto eperm_a = eigen_perm_compute<ndim>(alabel, clabel);
-  auto eperm_b = eigen_perm_compute<ndim>(blabel, clabel);
+/// fixme test_eigen_mult_no_n is not used
+  // assert(alabel.size() == ndim);
+  // assert(blabel.size() == ndim);
+  // assert(clabel.size() == ndim);
+  // auto eperm_a = eigen_perm_compute<ndim>(alabel, clabel);
+  // auto eperm_b = eigen_perm_compute<ndim>(blabel, clabel);
 
-  auto ec1 = static_cast<EigenTensor<ndim> *>(tc);
-  auto ea = static_cast<EigenTensor<ndim> *>(ta);
-  auto eb = static_cast<EigenTensor<ndim> *>(tb);
+  //auto ec1 = static_cast<EigenTensor<ndim> *>(tc);
+  // auto ea = static_cast<EigenTensor<ndim> *>(ta);
+  // auto eb = static_cast<EigenTensor<ndim> *>(tb);
 
-  auto tmp_a = (*ea).shuffle(eperm_a);
-  auto tmp_b = (*eb).shuffle(eperm_b);
+  // auto tmp_a = (*ea).shuffle(eperm_a);
+  // auto tmp_b = (*eb).shuffle(eperm_b);
   //tmp_a = tmp_a * alpha;
   //(*ec1) += tmp_a * tmp_b;
 }

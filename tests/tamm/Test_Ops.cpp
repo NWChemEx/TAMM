@@ -8,6 +8,7 @@
 #include "tamm/tamm.hpp"
 
 #include <string>
+#include <complex>
 
 /**
  * @brief Tests for operations
@@ -22,6 +23,8 @@
 
 using namespace tamm;
 
+using complex_single = std::complex<float>;
+using complex_double = std::complex<double>;
 
 template<typename T>
 std::ostream& operator << (std::ostream &os, std::vector<T>& vec){
@@ -865,6 +868,16 @@ TEST_CASE("setop with float") {
     test_setop_with_T<float>(3);
 }
 
+TEST_CASE("setop with single complex") {
+    test_setop_with_T<complex_single>(1);
+    test_setop_with_T<complex_single>(3);
+}
+
+TEST_CASE("setop with double complex") {
+    test_setop_with_T<complex_double>(1);
+    test_setop_with_T<complex_double>(3);
+}
+
 TEST_CASE("mapop with double") {
     test_mapop_with_T<double>(1);
     test_mapop_with_T<double>(3);
@@ -873,6 +886,16 @@ TEST_CASE("mapop with double") {
 TEST_CASE("mapop with float") {
     test_mapop_with_T<float>(1);
     test_mapop_with_T<float>(3);
+}
+
+TEST_CASE("mapop with single complex") {
+    test_mapop_with_T<complex_single>(1);
+    test_mapop_with_T<complex_single>(3);
+}
+
+TEST_CASE("mapop with double complex") {
+    test_mapop_with_T<complex_double>(1);
+    test_mapop_with_T<complex_double>(3);
 }
 
 TEST_CASE("addop with double") {
@@ -884,6 +907,17 @@ TEST_CASE("addop with float") {
     test_addop_with_T<float>(1);
     test_addop_with_T<float>(3);
 }
+//  FIXME: Fix compiling errors on LabeledTensor
+// TEST_CASE("addop with single complex") {
+//     test_addop_with_T<complex_single>(1);
+//     test_addop_with_T<complex_single>(3);
+// }
+
+//  FIXME: Fix compiling errors on LabeledTensor
+// TEST_CASE("addop with double complex") {
+//     test_addop_with_T<complex_double>(1);
+//     test_addop_with_T<complex_double>(3);
+// }
 #endif
 
 #if 1

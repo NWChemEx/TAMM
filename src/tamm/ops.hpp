@@ -567,9 +567,9 @@ public:
             std::vector<TensorElType> buf(size,
                                           static_cast<TensorElType>(alpha()));
             if(is_assign_) {
-                tensor.put(blockid, span<TensorElType>(&buf[0], size));
+                tensor.put(blockid, buf);
             } else {
-                tensor.add(blockid, span<TensorElType>(&buf[0], size));
+                tensor.add(blockid, buf);
             }
         };
     #else
@@ -582,13 +582,13 @@ public:
             EXPECTS(blockid.size() == tensor.num_modes());
             // const IndexVector& blockid =
             //   internal::perm_map_apply(itval, lhs_pm);
-            size_t size = tensor.block_size(blockid);
+            const size_t size = tensor.block_size(blockid);
             std::vector<TensorElType> buf(size,
                                           static_cast<TensorElType>(alpha()));
             if(is_assign_) {
-                tensor.put(blockid, span<TensorElType>(&buf[0], size));
+                tensor.put(blockid, buf);
             } else {
-                tensor.add(blockid, span<TensorElType>(&buf[0], size));
+                tensor.add(blockid, buf);
             }
         };    
     #endif
@@ -689,9 +689,9 @@ public:
             auto tensor = lhs_.tensor();
             const IndexVector& blockid =
               internal::perm_map_apply(itval, lhs_pm);
-            size_t size = tensor.block_size(blockid);
+            const size_t size = tensor.block_size(blockid);
             std::vector<TensorElType> buf(size);
-            tensor.get(blockid, span<TensorElType>(&buf[0], size));
+            tensor.get(blockid, buf);
             func_(tensor, blockid, buf);
         };
         // ec->...(loop_nest, lambda);
@@ -823,12 +823,12 @@ public:
             std::vector<TensorElType> rbuf[N];
             for(size_t i=0; i<N; i++) {
                 const auto& rtensor_i = rhs_[i].tensor();
-                size_t isz = rtensor_i.block_size(rblockid[i]);
+                const size_t isz = rtensor_i.block_size(rblockid[i]);
                 rbuf[i].resize(isz);
-                rtensor_i.get(rblockid[i], span<TensorElType>(rbuf[i].data(), isz));
+                rtensor_i.get(rblockid[i], rbuf[i]);
             }
             func_(tensor, lblockid, lbuf, rblockid, rbuf);
-            ltensor.put(lblockid, span<TensorElType>(lbuf.data(), lsize));
+            ltensor.put(lblockid, lbuf);
         };
         // ec->...(loop_nest, lambda);
         //@todo use a scheduler
@@ -973,13 +973,13 @@ public:
             auto rtensor = rhs_.tensor();
             IndexVector lblockid, rblockid;
             split_block_id(lblockid, rblockid, lhs_.labels().size(), rhs_.labels().size(), blockid);
-            size_t size = ltensor.block_size(lblockid);
+            const size_t size = ltensor.block_size(lblockid);
             // IndexVector rblockid = internal::LabelMap<Index>()
             //                          .update(lhs_.labels(), lblockid)
             //                          .get(rhs_.labels());
             std::vector<TensorElType> rbuf(size);
             std::vector<TensorElType> lbuf(size);
-            rtensor.get(rblockid, span<TensorElType>(&rbuf[0], size));
+            rtensor.get(rblockid, rbuf);
             const auto& ldims = lhs_.tensor().block_dims(lblockid);
             const auto& rdims = rhs_.tensor().block_dims(rblockid);
             internal::block_add(&lbuf[0], ldims, lhs_.labels(), &rbuf[0], rdims,
@@ -991,9 +991,9 @@ public:
             // kernels::assign(&lbuf[0], ldims, lhs_.labels(), &rbuf[0], rdims,
             //                 rhs_.labels(), alpha_, is_assign_);
             if(is_assign_) {
-                ltensor.put(lblockid, span<TensorElType>(&lbuf[0], size));
+                ltensor.put(lblockid, lbuf);
             } else {
-                ltensor.add(lblockid, span<TensorElType>(&lbuf[0], size));
+                ltensor.add(lblockid, lbuf);
             }
         };
 
@@ -1232,9 +1232,9 @@ public:
             it += rhs1_.labels().size();
             const IndexVector bblockid{it, it+rhs2_.labels().size()};
             //compute block size and allocate buffers
-            size_t csize          = ctensor.block_size(cblockid);
-            size_t asize          = atensor.block_size(ablockid);
-            size_t bsize          = btensor.block_size(bblockid);
+            const size_t csize = ctensor.block_size(cblockid);
+            const size_t asize = atensor.block_size(ablockid);
+            const size_t bsize = btensor.block_size(bblockid);
             // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"asize="<<asize<<"\n";
             // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"bsize="<<bsize<<"\n";
             // std::cerr<<__FUNCTION__<<" "<<__LINE__<<"csize="<<csize<<"\n";
@@ -1242,8 +1242,8 @@ public:
             std::vector<TensorElType> abuf(asize);
             std::vector<TensorElType> bbuf(bsize);
             //get inputs
-            atensor.get(ablockid, span<TensorElType>(&abuf[0], asize));
-            btensor.get(bblockid, span<TensorElType>(&bbuf[0], bsize));
+            atensor.get(ablockid, abuf);
+            btensor.get(bblockid, bbuf);
             const auto& cdims = ctensor.block_dims(cblockid);
             const auto& adims = atensor.block_dims(ablockid);
             const auto& bdims = btensor.block_dims(bblockid);
@@ -1259,7 +1259,7 @@ public:
             //     ctensor.put(cblockid, span<TensorElType>(&cbuf[0], csize));
             // } else {
                 //add the computed update to the tensor
-                ctensor.add(cblockid, span<TensorElType>(&cbuf[0], csize));
+                ctensor.add(cblockid, cbuf);
             // }
         };
 #endif

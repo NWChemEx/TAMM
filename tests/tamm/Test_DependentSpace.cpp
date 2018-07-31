@@ -25,7 +25,7 @@ void print_tensor(Tensor<T> &t){
     {
         TAMM_SIZE size = t.block_size(it);
         std::vector<T> buf(size);
-        t.get(it,span<T>(&buf[0],size));
+        t.get(it, buf);
         std::cout << "block" << it;
         for (TAMM_SIZE i = 0; i < size;i++)
          std::cout << i << std::endl;
@@ -38,7 +38,7 @@ void check_value(Tensor<T> &t, T val){
     {
         TAMM_SIZE size = t.block_size(it);
         std::vector<T> buf(size);
-        t.get(it,span<T>(&buf[0],size));
+        t.get(it, buf);
         for (TAMM_SIZE i = 0; i < size;i++) {
           REQUIRE(std::fabs(buf[i]-val)< 1.0e-10);
        }
@@ -68,7 +68,7 @@ void check_value(LabeledTensor<T> lt, T val){
             internal::perm_map_apply(it, lhs_pm);
         size_t size = t.block_size(blockid);
         std::vector<T> buf(size);
-        t.get(blockid, span<T>(&buf[0],size));
+        t.get(blockid, buf);
         for (TAMM_SIZE i = 0; i < size; i++) {
           REQUIRE(std::fabs(buf[i]-val)< 1.0e-10);
        }

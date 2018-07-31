@@ -10,7 +10,6 @@ using tamm::Tensor;
 using tamm::range;
 using tamm::ExecutionContext;
 using tamm::Scheduler;
-using tamm::span;
 
 template<typename T>
 void ccsd_e(ExecutionContext &ec,
@@ -191,11 +190,11 @@ std::pair<double,double> rest(ExecutionContext& ec,
       (d_r2_residual() = d_r2()  * d_r2())
       ( [&](Scheduler& sch) {
         T r1, r2;
-        d_r1_residual.get({}, span<T>(&r1, sizeof(T)));
-        d_r2_residual.get({}, span<T>(&r2, sizeof(T)));
+        d_r1_residual.get({}, {&r1, 1});
+        d_r2_residual.get({}, {&r2, 1});
         residual = std::max(0.5*std::sqrt(r1),
                             0.5*std::sqrt(r2));
-        de.get({}, span<T>(&energy, sizeof(T)));
+        de.get({}, {&energy, 1});
       })
       ( [&](Scheduler& sch) {
         jacobi(sch, d_r1, d_t1, -1.0 * zshiftl, false, EVL);

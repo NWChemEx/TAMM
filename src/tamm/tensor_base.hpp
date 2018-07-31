@@ -140,46 +140,8 @@ public:
         return ret;
     }
 
-    /**
-     * @brief Memory allocation method for the tensor object
-     *
-     */
-    // virtual void allocate() = 0;
-
-    /**
-     * @brief Memory deallocation method for the tensor object
-     *
-     */
-    // virtual void deallocate() = 0;
-
     LabelLoopNest loop_nest() const {
-        // std::vector<IndexVector> lbloops, ubloops;
-        // for(const auto& tis : block_indices_) {
-        //     //iterator to indexvector - each index in vec points to begin of
-        //     each tile in IS lbloops.push_back(tis.tindices());
-        //     ubloops.push_back(tis.tindices());
-        // }
-
-        // //scalar??
-        // // if(tisv.size() == 0){
-        // //     lbloops.push_back({});
-        // //     ubloops.push_back({});
-        // // }
-#if 0
-        std::vector<std::vector<size_t>> indep_indices(num_modes());
-        for(const auto& kv : dep_map_) {
-            Index key = kv.first;
-            const auto& indices = kv.second;
-            EXPECTS(key < indep_indices.size());
-            EXPECTS(indep_indices[key].size() == 0);
-            indep_indices[key] = indices;
-        }
-
-        // return IndexLoopNest{block_indices_,lbloops,ubloops,{}};
-        return {block_indices_, {}, {}, indep_indices};
-#else
         return LabelLoopNest{tlabels()};
-#endif
     }
 
     const std::vector<TiledIndexSpace>& tiled_index_spaces() const {

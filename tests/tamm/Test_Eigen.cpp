@@ -315,10 +315,10 @@ tamm_tensor_to_eigen_tensor_dispatch(Tensor <T> &tensor) {
     
       for (auto it: tensor.loop_nest())
     {
-        TAMM_SIZE size = tensor.block_size(it);
+        const TAMM_SIZE size = tensor.block_size(it);
         
         std::vector<T> buf(size);
-        tensor.get(it,span<T>(&buf[0],size));
+        tensor.get(it,buf[0]);
 
         std::array<int, ndim> block_size;
         std::array<int, ndim> rel_offset;
@@ -399,14 +399,14 @@ std::vector<TiledIndexSpace> tamm_label_to_indices(const IndexLabelVec &ilv) {
 
     for (auto it: tensor.loop_nest())
     {
-        TAMM_SIZE size = tensor.block_size(it);
+        const TAMM_SIZE size = tensor.block_size(it);
         std::vector<T> buf(size);
-        tensor.get(it,span<T>(&buf[0],size));
+        tensor.get(it, buf);
         double n = std::rand() % 5;
         for (TAMM_SIZE i = 0; i < size;i++) {
           buf[i] = T{n + i};
        }
-       tensor.put(it, span<T>(&buf[0],size));
+       tensor.put(it, buf);
     }
 
   }
@@ -685,7 +685,7 @@ bool check_value(Tensor<T> &t, T val){
     {
         TAMM_SIZE size = t.block_size(it);
         std::vector<T> buf(size);
-        t.get(it,span<T>(&buf[0],size));
+        t.get(it, buf);
         for (TAMM_SIZE i = 0; i < size;i++) {
           status &= (std::fabs(buf[i]-val) < 1.0e-12);
        }

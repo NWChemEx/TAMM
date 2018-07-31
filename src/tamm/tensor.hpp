@@ -127,18 +127,40 @@ public:
         return impl_->loop_nest();
     }
 
+    /**
+     * @brief Get the size of a block
+     * 
+     * @param [in] blockid The id of the block
+     * @return size_t The size of the block
+     */
     size_t block_size(const IndexVector& blockid) const {
         return impl_->block_size(blockid);
     }
 
+    /**
+     * @brief Get dimensions of a block
+     * 
+     * @param [in] blockid The id of the block
+     * @return std::vector<size_t>  The vector of dimensions
+     */
     std::vector<size_t> block_dims(const IndexVector& blockid) const {
         return impl_->block_dims(blockid);
     }
 
+    /**
+     * @brief Get index spaces of a vector
+     * 
+     * @return const std::vector<TiledIndexSpace>& 
+     */
     const std::vector<TiledIndexSpace>& tiled_index_spaces() const {
         return impl_->tiled_index_spaces();
     }
 
+    /**
+     * @brief Return dependency map of the tensor's index spaces
+     * 
+     * @return const std::map<size_t,std::vector<size_t>>& The dependence map that maps indices of index spaces to a vector of indices that each space depends on.
+     */
     const std::map<size_t,std::vector<size_t>>& dep_map() const {
         return impl_->dep_map();
     }
@@ -163,7 +185,7 @@ public:
      * @brief Static memory allocation method for a set of Tensors
      *
      * @tparam Args variadic template for set of Tensor objects
-     * @param [in] exec input ExecutionContext object to be used for
+     * @param [in] ec input ExecutionContext object to be used for
      * allocation
      * @param [in] rest set of Tensor objects to be allocated
      */
@@ -189,7 +211,7 @@ public:
         return impl_->num_modes();
     }
 
-//private:
+private:
     std::shared_ptr<TensorImpl> impl_;
 };
 

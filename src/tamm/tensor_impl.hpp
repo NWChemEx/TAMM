@@ -9,16 +9,64 @@
 #include "tamm/execution_context.hpp"
 #include "tamm/index_loop_nest.hpp"
 
+#include <type_traits>
+
 namespace tamm {
 
 template<typename T>
+struct span;
+
+namespace detail {
+    template <class T>
+    struct is_span_helper : std::false_type {};
+    template <class T>
+    struct is_span_helper<span<T>> : std::true_type {};
+    template <class T>
+    struct is_span : public is_span_helper<std::remove_cv_t<T>> {};
+    template <class T>
+    struct is_std_array_helper : std::false_type {};
+    template <class T, std::size_t N>
+    struct is_std_array_helper<std::array<T, N>> : std::true_type {};
+    template <class T>
+    struct is_std_array : public is_std_array_helper<std::remove_cv_t<T>> { };
+}
+
 /**
- * @brief A struct for mimicing use of gsl::span
+ * @brief A struct for mimicing use of \c gsl::span and \c std::span
  *
+ * @note This class will be made compatible with C++20 \c std::span or it
+ * will be replaced by it.
+ *
+ * @tparam T Element type; must be a complete type that is not an abstract class
+ * type.
  */
+template<typename T>
 struct span {
 public:
+    /**
+     * @brief Construct a new span object from a pointer and a size
+     * 
+     * @param ref Pointer to elements.
+     * @param size The amount of elements stored.
+     */
     span(T* ref, size_t size) : ref_{ref}, size_{size} {}
+
+    /**
+     * @brief Construct a new span object from a container
+     *
+     * @note In C++17, we would use \c std::data() and \c std::size()
+     * instead of member functions
+     *
+     * @tparam Type of the container The container to construct the span from.  
+     * @param c The container to construct the span from.
+     */
+    template<typename Container,
+             typename = std::enable_if_t<
+                        !detail::is_span<Container>::value && !detail::is_std_array<Container>::value &&
+                        std::is_convertible<typename Container::pointer, T*>::value &&
+                        std::is_convertible<typename Container::pointer,
+                                            decltype(std::declval<Container>().data())>::value>>
+    span(Container& c) : ref_{c.data()}, size_{c.size()} {}
 
     const T* ref() const { return ref_; }
 
@@ -30,6 +78,11 @@ private:
     T* ref_;
     size_t size_;
 };
+// C++17 deduction guides
+// template<class Container>
+// span(Container&) -> span<typename Container::value_type>;
+// template<class Container>
+// span(const Container&) -> span<const typename Container::value_type>;
 
 template<typename T>
 class LabeledTensor;
@@ -48,7 +101,7 @@ public:
      * @brief Construct a new TensorImpl object using a vector of
      * TiledIndexSpace objects for each mode of the tensor
      *
-     * @param [in] block_indices vector of TiledIndexSpace objects for each
+     * @param [in] tis vector of TiledIndexSpace objects for each
      * mode used to construct the tensor
      */
     TensorImpl(const std::vector<TiledIndexSpace>& tis) : TensorBase{tis} {}

@@ -559,7 +559,17 @@ protected:
           is_{parent.is_},
           input_tile_size_{parent.input_tile_size_},
           input_tile_sizes_{parent.input_tile_sizes_},
-          tiled_dep_map_{dep_map} {}
+          tiled_dep_map_{dep_map} {
+            // Check if the new dependency relation is sub set of parent
+            // dependency relation
+            const auto& parent_dep = parent.tiled_dep_map_;
+            for(const auto& dep_kv : dep_map) {
+                const auto& key     = dep_kv.first;
+                const auto& dep_tis = dep_kv.second;
+                EXPECTS(parent_dep.find(key) != parent_dep.end());
+                EXPECTS(parent_dep.at(key).is_compatible_with(dep_tis));
+            }
+        }
 
         /**
          * @brief Construct starting and ending indices of each tile with

@@ -559,12 +559,12 @@ void test_dependent_space_with_T(Index tilesize) {
 
     TiledIndexSpace T_DIS{DIS, tilesize};
 
-    TiledIndexLabel a, i;
+    TiledIndexLabel a, b, i, j;
 
-    std::tie(a) = T_DIS.labels<1>("all");
-    std::tie(i) = T_IS.labels<1>("all");
+    std::tie(a, b) = T_DIS.labels<2>("all");
+    std::tie(i, j) = T_IS.labels<2>("all");
 
-    std::cerr << "Tensor Construction"	<< std::endl;
+    // 2-dimensional tests
     // Tensor Construction 
     {
         success = true;
@@ -580,7 +580,6 @@ void test_dependent_space_with_T(Index tilesize) {
         REQUIRE(success);
     }
 
-    std::cerr << "Tensor Allocate/Deallocate"	<< std::endl;
     // Tensor Allocation / Deallocate
     {
         success = true;
@@ -709,25 +708,57 @@ void test_dependent_space_with_T(Index tilesize) {
     REQUIRE(success);
 
     std::cerr << "Finished default dependent space"	<< std::endl;
+    {
+        std::map<IndexVector, TiledIndexSpace> tiled_dep_map = T_DIS.tiled_dep_map();
+        std::map<IndexVector, TiledIndexSpace> sub_relation1, sub_relation2;
 
-    std::map<IndexVector, TiledIndexSpace> tiled_dep_map = T_DIS.tiled_dep_map();
-    std::map<IndexVector, TiledIndexSpace> sub_relation1, sub_relation2;
+        // std::cerr << "tile_count" << tile_count << " half "  << tile_count / 2<< std::endl;
+        for(const auto& kv : tiled_dep_map) {
+            sub_relation1.insert({kv.first, TiledIndexSpace{kv.second, range(0,tile_count/2)}});
+            sub_relation2.insert({kv.first, TiledIndexSpace{kv.second, range(tile_count/2,tile_count)}});        
+        }
 
-    // std::cerr << "tile_count" << tile_count << " half "  << tile_count / 2<< std::endl;
-    for(const auto& kv : tiled_dep_map) {
-        sub_relation1.insert({kv.first, TiledIndexSpace{kv.second, range(0,tile_count/2)}});
-        sub_relation2.insert({kv.first, TiledIndexSpace{kv.second, range(tile_count/2,tile_count)}});        
+        // Creating sub tiled spaces Dependent-TiledIndexSpace
+        {
+            success = true;
+            try
+            {
+                TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
+                TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};            
+            }
+            catch(const std::string& e)
+            {
+                std::cerr << "Caught exception: " << e << "\n";
+                success = false;
+            }
+            REQUIRE(success);
+        }
+
+        TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
+        TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};
+
+        TiledIndexLabel sub_a1, sub_a2;
+
+        sub_a1 = Sub_TDIS1.label("all");
+        sub_a2 = Sub_TDIS2.label("all");
+
+        // SetOp with sub dependent spaces 
+        {
+            Tensor<T> T1{a(i),i};
+            REQUIRE(test_setop(ec, T1, T1(sub_a1(i), i), {T1(sub_a2(i), i)}));
+        } 
     }
-
-    // Creating sub tiled spaces Dependent-TiledIndexSpace
+    ///////////////////////////////////////////////////////////////
+    
+    // 3-dimensional tests
+    // Tensor Construction 
     {
         success = true;
         try
         {
-            TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
-            TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};            
+            Tensor<T> T1{a(i), i, j};
         }
-        catch(const std::string& e)
+        catch(const std::string & e)
         {
             std::cerr << "Caught exception: " << e << "\n";
             success = false;
@@ -735,19 +766,364 @@ void test_dependent_space_with_T(Index tilesize) {
         REQUIRE(success);
     }
 
-    TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
-    TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};
-
-    TiledIndexLabel sub_a1, sub_a2;
-
-    sub_a1 = Sub_TDIS1.label("all");
-    sub_a2 = Sub_TDIS2.label("all");
-
-    // SetOp with sub dependent spaces 
+    // Tensor Allocation / Deallocate
     {
-        Tensor<T> T1{a(i),i};
-        REQUIRE(test_setop(ec, T1, T1(sub_a1(i), i), {T1(sub_a2(i), i)}));
-    } 
+        success = true;
+        try
+        {
+            Tensor<T> T1{a(i), i, j};
+            Tensor<T>::allocate(ec, T1);
+            Tensor<T>::deallocate(T1);
+        }
+        catch(const std::string & e)
+        {
+            std::cerr << "Caught exception: " << e << "\n";
+            success = false;
+        }
+        REQUIRE(success);
+    }
+    
+    // Basic SetOp 
+    {
+        success = true;
+        try
+        {
+            Tensor<T> T1{a(i), i, j};
+            Tensor<T>::allocate(ec, T1);
+            Scheduler{ec}(T1() = 42).execute();
+            check_value(T1, (T)42.0);
+            Tensor<T>::deallocate(T1);
+        }
+        catch(const std::string & e)
+        {
+            std::cerr << "Caught exception: " << e << "\n";
+            success = false;
+        }
+        REQUIRE(success);
+    }
+
+    // SetOp test with no labels
+    {
+        Tensor<T> T1{a(i), i, j};
+        REQUIRE(test_setop(ec, T1, T1()));
+    }
+
+    // SetOp test with labels provided 
+    {
+        Tensor<T> T1{a(i), i, j};
+        REQUIRE(test_setop(ec, T1, T1(a(i), i, j)));
+    }
+
+    // AddOp test with no labels
+    {
+        Tensor<T> T1{a(i), i, j};
+        Tensor<T> T2{a(i), i, j};
+        REQUIRE(test_addop(ec, T1, T2, T1(), T2()));
+    }
+    
+    // AddOp test with no labels on rhs
+    {
+        Tensor<T> T1{a(i), i, j};
+        Tensor<T> T2{a(i), i, j};
+        REQUIRE(test_addop(ec, T1, T2, T1(a(i), i, j), T2()));
+    }
+
+    // AddOp test with no labels in lhs
+    {
+        Tensor<T> T1{a(i), i, j};
+        Tensor<T> T2{a(i), i, j};
+        REQUIRE(test_addop(ec, T1, T2, T1(), T2(a(i), i, j)));
+    }
+
+    // AddOp test with labels
+    {
+        Tensor<T> T1{a(i), i, j};
+        Tensor<T> T2{a(i), i, j};
+        REQUIRE(test_addop(ec, T1, T2, T1(a(i), i, j), T2(a(i), i, j)));
+    }
+
+    // MultOp 3-dim += 3-dim * 0-dim
+    try {
+        success = true;
+        Tensor<T> T1{a(i), i, j}, T2{a(i), i, j}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
+        check_value<T>(T1, (T)32.0);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        success = false;
+    }
+    REQUIRE(success);
+
+    // MultOp 3-dim += alpha * 0-dim * 3-dim 
+    try {
+        success = true;
+        Tensor<T> T1{a(i), i, j}, T2{a(i), i, j}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
+          .deallocate(T2, T3)
+          .execute();
+        check_value<T>(T1, 9 + 1.5 * 8 * 4);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        success = false;
+    }
+    REQUIRE(success);
+
+    std::cerr << "/* message */"	<< std::endl;
+    // MultOp 0-dim += alpha * 3-dim * 3-dim 
+    try {
+        success = true;
+        Tensor<T> T1{a(i), i, j}, T2{a(i), i, j}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
+          .deallocate(T1, T2)
+          .execute();
+        check_value<T>(T3, 4 + 1.5 * 1000 * 9 * 8);
+        Tensor<T>::deallocate(T3);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        success = false;
+    }
+    REQUIRE(success);
+
+    std::cerr << "Finished default dependent space"	<< std::endl;
+
+    {    
+        std::map<IndexVector, TiledIndexSpace> tiled_dep_map = T_DIS.tiled_dep_map();
+        std::map<IndexVector, TiledIndexSpace> sub_relation1, sub_relation2;
+
+        // std::cerr << "tile_count" << tile_count << " half "  << tile_count / 2<< std::endl;
+        for(const auto& kv : tiled_dep_map) {
+            sub_relation1.insert({kv.first, TiledIndexSpace{kv.second, range(0,tile_count/2)}});
+            sub_relation2.insert({kv.first, TiledIndexSpace{kv.second, range(tile_count/2,tile_count)}});        
+        }
+
+        // Creating sub tiled spaces Dependent-TiledIndexSpace
+        {
+            success = true;
+            try
+            {
+                TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
+                TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};            
+            }
+            catch(const std::string& e)
+            {
+                std::cerr << "Caught exception: " << e << "\n";
+                success = false;
+            }
+            REQUIRE(success);
+        }
+
+        TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
+        TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};
+
+        TiledIndexLabel sub_a1, sub_a2;
+
+        sub_a1 = Sub_TDIS1.label("all");
+        sub_a2 = Sub_TDIS2.label("all");
+
+        // SetOp with sub dependent spaces 
+        {
+            Tensor<T> T1{a(i), i, j};
+            REQUIRE(test_setop(ec, T1, T1(sub_a1(i), i, j), {T1(sub_a2(i), i, j)}));
+        } 
+    }
+    ///////////////////////////////////////////////////////////////
+    
+    // 4-dimensional tests
+    // Tensor Construction 
+    {
+        success = true;
+        try
+        {
+            Tensor<T> T1{a(i), i, b(j), j};
+        }
+        catch(const std::string & e)
+        {
+            std::cerr << "Caught exception: " << e << "\n";
+            success = false;
+        }
+        REQUIRE(success);
+    }
+
+    // Tensor Allocation / Deallocate
+    {
+        success = true;
+        try
+        {
+            Tensor<T> T1{a(i), i, b(j), j};
+            Tensor<T>::allocate(ec, T1);
+            Tensor<T>::deallocate(T1);
+        }
+        catch(const std::string & e)
+        {
+            std::cerr << "Caught exception: " << e << "\n";
+            success = false;
+        }
+        REQUIRE(success);
+    }
+    
+    // Basic SetOp 
+    {
+        success = true;
+        try
+        {
+            Tensor<T> T1{a(i), i, b(j), j};
+            Tensor<T>::allocate(ec, T1);
+            Scheduler{ec}(T1() = 42).execute();
+            check_value(T1, (T)42.0);
+            Tensor<T>::deallocate(T1);
+        }
+        catch(const std::string & e)
+        {
+            std::cerr << "Caught exception: " << e << "\n";
+            success = false;
+        }
+        REQUIRE(success);
+    }
+
+    // SetOp test with no labels
+    {
+        Tensor<T> T1{a(i), i, j};
+        REQUIRE(test_setop(ec, T1, T1()));
+    }
+
+    // SetOp test with labels provided 
+    {
+        Tensor<T> T1{a(i), i, b(j), j};
+        REQUIRE(test_setop(ec, T1, T1(a(i), i, b(j), j)));
+    }
+
+    // AddOp test with no labels
+    {
+        Tensor<T> T1{a(i), i, b(j), j};
+        Tensor<T> T2{a(i), i, b(j), j};
+        REQUIRE(test_addop(ec, T1, T2, T1(), T2()));
+    }
+    
+    // AddOp test with no labels on rhs
+    {
+        Tensor<T> T1{a(i), i, b(j), j};
+        Tensor<T> T2{a(i), i, b(j), j};
+        REQUIRE(test_addop(ec, T1, T2, T1(a(i), i, b(j), j), T2()));
+    }
+
+    // AddOp test with no labels in lhs
+    {
+        Tensor<T> T1{a(i), i, b(j), j};
+        Tensor<T> T2{a(i), i, b(j), j};
+        REQUIRE(test_addop(ec, T1, T2, T1(), T2(a(i), i, b(j), j)));
+    }
+
+    // AddOp test with labels
+    {
+        Tensor<T> T1{a(i), i, b(j), j};
+        Tensor<T> T2{a(i), i, b(j), j};
+        REQUIRE(test_addop(ec, T1, T2, T1(a(i), i, b(j), j), T2(a(i), i, b(j), j)));
+    }
+
+    // MultOp 4-dim += 4-dim * 0-dim
+    try {
+        success = true;
+        Tensor<T> T1{a(i), i, b(j), j}, T2{a(i), i, b(j), j}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
+        check_value<T>(T1, (T)32.0);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        success = false;
+    }
+    REQUIRE(success);
+
+    // MultOp 4-dim += alpha * 0-dim * 4-dim 
+    try {
+        success = true;
+        Tensor<T> T1{a(i), i, b(j), j}, T2{a(i), i, b(j), j}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
+          .deallocate(T2, T3)
+          .execute();
+        check_value<T>(T1, 9 + 1.5 * 8 * 4);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        success = false;
+    }
+    REQUIRE(success);
+
+    // MultOp 0-dim += alpha * 3-dim * 3-dim 
+    try {
+        success = true;
+        Tensor<T> T1{a(i), i, b(j), j}, T2{a(i), i, b(j), j}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
+          .deallocate(T1, T2)
+          .execute();
+        check_value<T>(T3, 4 + 1.5 * 10000 * 9 * 8);
+        Tensor<T>::deallocate(T3);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        success = false;
+    }
+    REQUIRE(success);
+
+    std::cerr << "Finished default dependent space"	<< std::endl;
+
+    {    
+        std::map<IndexVector, TiledIndexSpace> tiled_dep_map = T_DIS.tiled_dep_map();
+        std::map<IndexVector, TiledIndexSpace> sub_relation1, sub_relation2;
+
+        // std::cerr << "tile_count" << tile_count << " half "  << tile_count / 2<< std::endl;
+        for(const auto& kv : tiled_dep_map) {
+            sub_relation1.insert({kv.first, TiledIndexSpace{kv.second, range(0,tile_count/2)}});
+            sub_relation2.insert({kv.first, TiledIndexSpace{kv.second, range(tile_count/2,tile_count)}});        
+        }
+
+        // Creating sub tiled spaces Dependent-TiledIndexSpace
+        {
+            success = true;
+            try
+            {
+                TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
+                TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};            
+            }
+            catch(const std::string& e)
+            {
+                std::cerr << "Caught exception: " << e << "\n";
+                success = false;
+            }
+            REQUIRE(success);
+        }
+
+        TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
+        TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};
+
+        TiledIndexLabel sub_a1, sub_a2;
+
+        sub_a1 = Sub_TDIS1.label("all");
+        sub_a2 = Sub_TDIS2.label("all");
+
+        // SetOp with sub dependent spaces 
+        {
+            Tensor<T> T1{a(i), i, b(j), j};
+            REQUIRE(test_setop(ec, T1, T1(sub_a1(i), i, b(j), j), {T1(sub_a2(i), i, b(j), j)}));
+        } 
+    }
+    ///////////////////////////////////////////////////////////////
 
     MemoryManagerGA::destroy_coll(mgr);
     delete ec;

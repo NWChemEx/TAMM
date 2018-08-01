@@ -318,7 +318,7 @@ tamm_tensor_to_eigen_tensor_dispatch(Tensor <T> &tensor) {
         const TAMM_SIZE size = tensor.block_size(it);
         
         std::vector<T> buf(size);
-        tensor.get(it,span<T>(buf.data(),size));
+        tensor.get(it,buf);
 
         std::array<int, ndim> block_size;
         std::array<int, ndim> rel_offset;

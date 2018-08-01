@@ -1,15 +1,15 @@
-#define CATCH_CONFIG_MAIN
-#include "catch/catch.hpp"
+#define CATCH_CONFIG_RUNNER
 
+#include "toyHF/hartree_fock.hpp"
+#include "catch/catch.hpp"
+#include "ga.h"
+#include "mpi.h"
+#include "macdecls.h"
+#include "ga-mpi.h"
 #include "tamm/tamm.hpp"
 
-using tamm::IndexSpace;
-using tamm::TiledIndexSpace;
-using tamm::TiledIndexLabel;
-using tamm::Tensor;
-using tamm::range;
-using tamm::ExecutionContext;
-using tamm::Scheduler;
+
+using namespace tamm;
 
 template<typename T>
 void ccsd_e(ExecutionContext &ec,
@@ -25,7 +25,7 @@ void ccsd_e(ExecutionContext &ec,
     std::tie(p1, p2, p3, p4, p5) = MO.labels<5>("virt");
     std::tie(h3, h4, h5, h6)     = MO.labels<4>("occ");
 
-    Scheduler{ec}
+    Scheduler{&ec}
         (i1(h6, p5) = f1(h6, p5))
         (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
         (de() = 0)
@@ -52,7 +52,7 @@ void ccsd_t1(ExecutionContext &ec, const TiledIndexSpace& MO, Tensor<T>& i0, con
     std::tie(p2, p3, p4, p5, p6, p7) = MO.labels<6>("virt");
     std::tie(h1, h4, h5, h6, h7, h8) = MO.labels<6>("occ");
 
-    Scheduler sch{ec};
+    Scheduler sch{&ec};
     sch
       .allocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
     (i0(p2, h1)       = f1(p2, h1))
@@ -104,7 +104,7 @@ void ccsd_t2(ExecutionContext &ec,const TiledIndexSpace& MO, Tensor<T>& i0,
     std::tie(p1, p2, p3, p4, p5, p6, p7, p8, p9) = MO.labels<9>("virt");
     std::tie(h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11) = MO.labels<11>("occ");
 
-    Scheduler sch{ec};
+    Scheduler sch{&ec};
     sch.allocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
              t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1)
     (i0(p3, p4, h1, h2) = v2(p3, p4, h1, h2))
@@ -182,37 +182,44 @@ std::pair<double,double> rest(ExecutionContext& ec,
                               const Tensor<T>& EVL, T zshiftl) {
 
     T residual, energy;
-    Scheduler sch{ec};
+    Scheduler sch{&ec};
     Tensor<T> d_r1_residual{}, d_r2_residual{};
+    Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
     sch
-      .allocate(d_r1_residual, d_r2_residual)
       (d_r1_residual() = d_r1()  * d_r1())
       (d_r2_residual() = d_r2()  * d_r2())
-      ( [&](Scheduler& sch) {
+      .execute();
+
+      auto l0 = [&](Scheduler& sch) {
         T r1, r2;
         d_r1_residual.get({}, {&r1, 1});
         d_r2_residual.get({}, {&r2, 1});
         residual = std::max(0.5*std::sqrt(r1),
                             0.5*std::sqrt(r2));
         de.get({}, {&energy, 1});
-      })
-      ( [&](Scheduler& sch) {
+      };
+
+      auto l1 =  [&](Scheduler& sch) {
         jacobi(sch, d_r1, d_t1, -1.0 * zshiftl, false, EVL);
-      })
-      ( [&](Scheduler& sch) {
+      };
+      auto l2 = [&](Scheduler& sch) {
         jacobi(sch, d_r2, d_t2, -2.0 * zshiftl, false, EVL);
-      })
-      .deallocate(d_r1_residual, d_r2_residual)
-        .execute();
-      ;
+      };
+
+      l0(sch);
+      l1(sch);
+      l2(sch);
+
+      Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
+      
     return {residual, energy};
 }
 
 template<typename T>
 void ccsd_driver(const TiledIndexSpace& MO,
                  const Tensor<T>& d_f1,
-                const Tensor<T>& d_v2,
-                double threshold) {
+                 const Tensor<T>& d_v2,
+                 double threshold) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
     const TiledIndexSpace& N = MO("all");
@@ -221,30 +228,29 @@ void ccsd_driver(const TiledIndexSpace& MO,
     Tensor<T> i1{V, O};
     Tensor<T> i2{V, V, O, O};
 
-    //Tensor<T> i0{V,O};
+    Tensor<T> i0{V,O};
     Tensor<T> d_t1{V, O};
     Tensor<T> d_t2{V, V, O, O};
 
     //@todo initial t1 guess
     //@todo initial t2 guess
 
-    ExecutionContext ec;
+    ProcGroup pg{GA_MPI_Comm()};
+    auto mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
 
-    TiledIndexSpace UnitTiledMO{MO.index_space(), 1};
     Tensor<T> d_evl{N};
     //@todo Set EVL to have local distribution (one copy in each MPI rank)
     Tensor<T>::allocate(ec, d_evl);
-    TiledIndexLabel n1;
 
-    std::tie(n1) = UnitTiledMO.labels<1>("all");
+    TiledIndexLabel n1;
+    //TiledIndexSpace UnitTiledMO{MO.index_space(), 1};
+    std::tie(n1) = MO.labels<1>("all");
 
     Scheduler{ec}
     (d_evl(n1) = 0.0)
-        .execute();
-
-    // ProcGroup pg{GA_MPI_Comm()};
-    // Distribution_NW distribution;
-    // auto mgr = MemoryManagerGA::create_coll(ProcGroup{GA_MPI_Comm()});
+    .execute();
 
     Tensor<T>::allocate(ec, d_t1, d_t2);
 
@@ -253,17 +259,73 @@ void ccsd_driver(const TiledIndexSpace& MO,
     const T zshiftl = 0.0;
 
     while(residual > threshold) {
-        ccsd_e(ec, MO, de, d_t1, d_t2, d_f1, d_v2);
-        ccsd_t1(ec, MO, i1, d_t1, d_t2, d_f1, d_v2);
-        ccsd_t2(ec, MO, i2, d_t1, d_t2, d_f1, d_v2);
-        std::tie(residual, energy) = rest(ec, MO, i1, i2, d_t1, d_t2, de, d_evl, zshiftl);
+        ccsd_e(*ec, MO, de, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t1(*ec, MO, i1, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t2(*ec, MO, i2, d_t1, d_t2, d_f1, d_v2);
+        std::tie(residual, energy) = rest(*ec, MO, i1, i2, d_t1, d_t2, de, d_evl, zshiftl);
         break; //@todo remove once iterative procedure is implemented
     }
     Tensor<T>::deallocate(d_evl, d_t1, d_t2);
 }
 
+std::string filename{}; //bad
+int main( int argc, char* argv[] )
+{
+    MPI_Init(&argc,&argv);
+    GA_Initialize();
+    MA_init(MT_DBL, 8000000, 20000000);
+    
+    int mpi_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+    filename = (argc > 1) ? argv[1] : "h2o.xyz";
+    int res = Catch::Session().run(argc, argv);
+    
+    GA_Terminate();
+    MPI_Finalize();
+
+    return res;
+}
+
 TEST_CASE("CCSD Driver") {
-    // Construction of tiled index space MO from skretch
+
+  Matrix C;
+  Matrix F;
+  Tensor4D V2;
+  TAMM_SIZE ov_alpha{0};
+  TAMM_SIZE freeze_core = 0;
+  TAMM_SIZE freeze_virtual = 0;
+
+  double hf_energy{0.0};
+  libint2::BasisSet shells;
+  TAMM_SIZE nao{0};
+
+
+  std::vector<TAMM_SIZE> sizes;  
+
+  // auto hf_t1 = std::chrono::high_resolution_clock::now();
+  // std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename,C,F);
+  // auto hf_t2 = std::chrono::high_resolution_clock::now();
+
+  // double hf_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
+  // std::cout << "Time taken for Hartree-Fock: " << hf_time << " secs\n";
+
+  // hf_t1 = std::chrono::high_resolution_clock::now();
+  // std::tie(V2) = two_four_index_transform(ov_alpha, nao, freeze_core, freeze_virtual, C, F, shells);
+  // hf_t2 = std::chrono::high_resolution_clock::now();
+  // double two_4index_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
+  // std::cout << "Time taken for 2&4-index transforms: " << two_4index_time << " secs\n";
+
+  // TAMM_SIZE ov_beta{nao-ov_alpha};
+
+  // std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
+  // sizes = {ov_alpha-freeze_core, ov_alpha-freeze_core, ov_beta-freeze_virtual, ov_beta-freeze_virtual};
+
+  // std::cout << "sizes vector -- \n";
+  // for(auto x: sizes) std::cout << x << ", ";
+  // std::cout << "\n";
+
+    // Construction of tiled index space MO
     IndexSpace MO_IS{range(0, 200),
                      {{"occ", {range(0, 100)}}, {"virt", {range(100, 200)}}}};
     TiledIndexSpace MO{MO_IS, 10};

@@ -1,6 +1,7 @@
 #define CATCH_CONFIG_RUNNER
 
 #include "toyHF/hartree_fock.hpp"
+#include "toyHF/4index_transform.hpp"
 #include "catch/catch.hpp"
 #include "ga.h"
 #include "mpi.h"
@@ -289,6 +290,18 @@ int main( int argc, char* argv[] )
 
 TEST_CASE("CCSD Driver") {
 
+    // Construction of tiled index space MO
+    IndexSpace MO_IS{range(0, 200),
+                     {{"occ", {range(0, 100)}}, {"virt", {range(100, 200)}}}};
+    TiledIndexSpace MO{MO_IS, 10};
+
+    const TiledIndexSpace& O = MO("occ");
+    const TiledIndexSpace& V = MO("virt");
+    const TiledIndexSpace& N = MO("all");
+
+    using T = double;
+
+
   Matrix C;
   Matrix F;
   Tensor4D V2;
@@ -300,39 +313,69 @@ TEST_CASE("CCSD Driver") {
   libint2::BasisSet shells;
   TAMM_SIZE nao{0};
 
-
   std::vector<TAMM_SIZE> sizes;  
 
-  // auto hf_t1 = std::chrono::high_resolution_clock::now();
-  // std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename,C,F);
-  // auto hf_t2 = std::chrono::high_resolution_clock::now();
+  auto hf_t1 = std::chrono::high_resolution_clock::now();
+  std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename,C,F);
+  auto hf_t2 = std::chrono::high_resolution_clock::now();
 
-  // double hf_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
-  // std::cout << "Time taken for Hartree-Fock: " << hf_time << " secs\n";
+  double hf_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
+  std::cout << "Time taken for Hartree-Fock: " << hf_time << " secs\n";
 
-  // hf_t1 = std::chrono::high_resolution_clock::now();
-  // std::tie(V2) = two_four_index_transform(ov_alpha, nao, freeze_core, freeze_virtual, C, F, shells);
-  // hf_t2 = std::chrono::high_resolution_clock::now();
-  // double two_4index_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
-  // std::cout << "Time taken for 2&4-index transforms: " << two_4index_time << " secs\n";
+  hf_t1 = std::chrono::high_resolution_clock::now();
+  std::tie(V2) = four_index_transform(ov_alpha, nao, freeze_core, freeze_virtual, C, F, shells);
+  hf_t2 = std::chrono::high_resolution_clock::now();
+  double two_4index_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
+  std::cout << "Time taken for 2&4-index transforms: " << two_4index_time << " secs\n";
 
-  // TAMM_SIZE ov_beta{nao-ov_alpha};
+  TAMM_SIZE ov_beta{nao-ov_alpha};
 
-  // std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
-  // sizes = {ov_alpha-freeze_core, ov_alpha-freeze_core, ov_beta-freeze_virtual, ov_beta-freeze_virtual};
+  std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
+  sizes = {ov_alpha-freeze_core, ov_alpha-freeze_core, ov_beta-freeze_virtual, ov_beta-freeze_virtual};
 
-  // std::cout << "sizes vector -- \n";
-  // for(auto x: sizes) std::cout << x << ", ";
-  // std::cout << "\n";
+  std::cout << "sizes vector -- \n";
+  for(auto x: sizes) std::cout << x << ", ";
+  std::cout << "\n";
 
-    // Construction of tiled index space MO
-    IndexSpace MO_IS{range(0, 200),
-                     {{"occ", {range(0, 100)}}, {"virt", {range(100, 200)}}}};
-    TiledIndexSpace MO{MO_IS, 10};
+  Tensor<T> d_t1{V,O};
+  Tensor<T> d_t2{V,V,O,O};
+  Tensor<T> d_f1{N,N};
+  Tensor<T> d_v2{N,N,N,N};
+  int maxiter = 50;
+  double thresh = 1.0e-10;
+  double zshiftl = 0.0;
+  int ndiis = 5;
 
-    const TiledIndexSpace &N = MO("all");
+    ProcGroup pg{GA_MPI_Comm()};
+    auto mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
 
-    using T = double;
+  Tensor<T>::allocate(ec, d_t1, d_t2, d_f1, d_v2);
+
+  Scheduler{ec}
+      (d_t1() = 0)
+      (d_t2() = 0)
+    .execute();
+
+  #if 0
+  //Tensor Map
+  block_parfor(ec.pg(), d_f1(), [&](auto& blockid) {
+      auto block = d_f1.alloc(blockid);
+    auto buf = block.buf();
+    const auto& block_offset = block.block_offset();
+    const auto& block_dims = block.block_dims();
+    EXPECTS(block.tensor().rank() == 2);
+    TAMMX_INT32 c = 0;
+    for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
+      for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+           j++, c++) {
+        buf[c] = F(i.value(), j.value());
+      }
+    }
+    d_f1.put(blockid, block);
+    });
+  #endif
 
     Tensor<T> f1{N, N};
     Tensor<T> v2{N, N, N, N};

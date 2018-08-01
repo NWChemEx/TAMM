@@ -1,4 +1,6 @@
 
+#ifndef TAMM_TESTS_HF_HPP_
+#define TAMM_TESTS_HF_HPP_
 
 // standard C++ headers
 #include <cmath>
@@ -36,21 +38,7 @@ using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 // this is a matrix with row-major storage (http://en.wikipedia.org/wiki/Row-major_order)
 // to meet the layout of the integrals returned by the Libint integral library
 
-std::tuple<int,int,double, libint2::BasisSet> hartree_fock(const string filename,Matrix &C, Matrix &F);
-
-size_t max_nprim(const std::vector<libint2::Shell> &shells);
-
-int max_l(const std::vector<libint2::Shell> &shells);
-
-size_t nbasis(const std::vector<libint2::Shell> &shells);
-
-std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell> &shells);
-
 Matrix compute_soad(const std::vector<libint2::Atom> &atoms);
-
-Matrix compute_1body_ints(const std::vector<libint2::Shell> &shells,
-                          libint2::Operator t,
-                          const std::vector<libint2::Atom> &atoms = std::vector<libint2::Atom>());
 
 // simple-to-read, but inefficient Fock builder; computes ~16 times as many ints as possible
 Matrix compute_2body_fock_simple(const std::vector<libint2::Shell> &shells,
@@ -142,7 +130,7 @@ inline std::vector<Atom> read_input_xyz(
 
     atoms[i].atomic_number = Z;
 
-    const bool nw_units_bohr = false;
+    const bool nw_units_bohr = true;
 
     if(nw_units_bohr) {
       atoms[i].x = x;
@@ -161,6 +149,59 @@ inline std::vector<Atom> read_input_xyz(
   return atoms;
 }
 
+Matrix compute_1body_ints(const std::vector<libint2::Shell> &shells,
+                          libint2::Operator obtype,
+                          const std::vector<libint2::Atom> &atoms = std::vector<libint2::Atom>()){
+  using libint2::Shell;
+  using libint2::Engine;
+  using libint2::Operator;
+
+  const auto n = nbasis(shells);
+  Matrix result(n, n);
+
+  // construct the overlap integrals engine
+  Engine engine(obtype, max_nprim(shells), max_l(shells), 0);
+  // nuclear attraction ints engine needs to know where the charges sit ...
+  // the nuclei are charges in this case; in QM/MM there will also be classical charges
+  if (obtype == Operator::nuclear) {
+    std::vector<std::pair<double, std::array<double, 3>>> q;
+    for (const auto &atom : atoms) {
+      q.push_back({static_cast<double>(atom.atomic_number), {{atom.x, atom.y, atom.z}}});
+    }
+    engine.set_params(q);
+  }
+
+  auto shell2bf = map_shell_to_basis_function(shells);
+
+  // buf[0] points to the target shell set after every call  to engine.compute()
+  const auto &buf = engine.results();
+
+  // loop over unique shell pairs, {s1,s2} such that s1 >= s2
+  // this is due to the permutational symmetry of the real integrals over Hermitian operators: (1|2) = (2|1)
+  for (auto s1 = 0; s1 != shells.size(); ++s1) {
+
+    auto bf1 = shell2bf[s1]; // first basis function in this shell
+    auto n1 = shells[s1].size();
+
+    for (auto s2 = 0; s2 <= s1; ++s2) {
+
+      auto bf2 = shell2bf[s2];
+      auto n2 = shells[s2].size();
+
+      // compute shell pair; return is the pointer to the buffer
+      engine.compute(shells[s1], shells[s2]);
+
+      // "map" buffer to a const Eigen Matrix, and copy it to the corresponding blocks of the result
+      Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
+      result.block(bf1, bf2, n1, n2) = buf_mat;
+      if (s1 != s2) // if s1 >= s2, copy {s1,s2} to the corresponding {s2,s1} block, note the transpose!
+        result.block(bf2, bf1, n2, n1) = buf_mat.transpose();
+
+    }
+  }
+
+  return result;
+}
 
 std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filename, Matrix &C, Matrix &F) {
 
@@ -383,59 +424,7 @@ Matrix  compute_soad(const std::vector<libint2::Atom> &atoms) {
   return D * 0.5; // we use densities normalized to # of electrons/2
 }
 
-Matrix compute_1body_ints(const std::vector<libint2::Shell> &shells,
-                          libint2::Operator obtype,
-                          const std::vector<libint2::Atom> &atoms) {
-  using libint2::Shell;
-  using libint2::Engine;
-  using libint2::Operator;
 
-  const auto n = nbasis(shells);
-  Matrix result(n, n);
-
-  // construct the overlap integrals engine
-  Engine engine(obtype, max_nprim(shells), max_l(shells), 0);
-  // nuclear attraction ints engine needs to know where the charges sit ...
-  // the nuclei are charges in this case; in QM/MM there will also be classical charges
-  if (obtype == Operator::nuclear) {
-    std::vector<std::pair<double, std::array<double, 3>>> q;
-    for (const auto &atom : atoms) {
-      q.push_back({static_cast<double>(atom.atomic_number), {{atom.x, atom.y, atom.z}}});
-    }
-    engine.set_params(q);
-  }
-
-  auto shell2bf = map_shell_to_basis_function(shells);
-
-  // buf[0] points to the target shell set after every call  to engine.compute()
-  const auto &buf = engine.results();
-
-  // loop over unique shell pairs, {s1,s2} such that s1 >= s2
-  // this is due to the permutational symmetry of the real integrals over Hermitian operators: (1|2) = (2|1)
-  for (auto s1 = 0; s1 != shells.size(); ++s1) {
-
-    auto bf1 = shell2bf[s1]; // first basis function in this shell
-    auto n1 = shells[s1].size();
-
-    for (auto s2 = 0; s2 <= s1; ++s2) {
-
-      auto bf2 = shell2bf[s2];
-      auto n2 = shells[s2].size();
-
-      // compute shell pair; return is the pointer to the buffer
-      engine.compute(shells[s1], shells[s2]);
-
-      // "map" buffer to a const Eigen Matrix, and copy it to the corresponding blocks of the result
-      Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
-      result.block(bf1, bf2, n1, n2) = buf_mat;
-      if (s1 != s2) // if s1 >= s2, copy {s1,s2} to the corresponding {s2,s1} block, note the transpose!
-        result.block(bf2, bf1, n2, n1) = buf_mat.transpose();
-
-    }
-  }
-
-  return result;
-}
 
 Matrix compute_2body_fock_simple(const std::vector<libint2::Shell> &shells,
                                  const Matrix &D) {
@@ -656,3 +645,5 @@ Matrix compute_2body_fock(const std::vector<libint2::Shell> &shells,
   Matrix Gt = G.transpose();
   return 0.5 * (G + Gt);
 }
+
+#endif //TAMM_TESTS_HF_HPP_

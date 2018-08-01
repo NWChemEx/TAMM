@@ -672,19 +672,13 @@ TiledIndexLabel p4 = MO.label("virt",3);
 TiledIndexLabel p5 = MO.label("virt",4);
 TiledIndexLabel p6 = MO.label("virt",5);
 
-ProcGroup pg{GA_MPI_Comm()};
-MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-Distribution_NW distribution;
-ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
 
-
-template<typename T>
-bool check_value(Tensor<T> &t, T val){
+bool check_value(Tensor<double> &t, double val){
   bool status = true;
     for (auto it: t.loop_nest())
     {
         TAMM_SIZE size = t.block_size(it);
-        std::vector<T> buf(size);
+        std::vector<double> buf(size);
         t.get(it, buf);
         for (TAMM_SIZE i = 0; i < size;i++) {
           status &= (std::fabs(buf[i]-val) < 1.0e-12);
@@ -706,8 +700,8 @@ test_initval_no_n(ExecutionContext &ec,
   const auto &upper_indices = tamm_label_to_indices(upper_labels);
   const auto &lower_indices = tamm_label_to_indices(lower_labels);
 
-  auto indices = upper_indices;
-  indices.insert(indices.end(),lower_indices.begin(), lower_indices.end());
+  auto indices = upper_labels;
+  indices.insert(indices.end(),lower_labels.begin(), lower_labels.end());
   Tensor<double> xta{indices};
   Tensor<double> xtc{indices};
 
@@ -751,6 +745,12 @@ test_initval_no_n(ExecutionContext &ec,
 #if INITVAL_TEST_0D
 
 TEST_CASE ("InitvalTest - ZeroDim"){
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_initval_no_n(*ec, {}, {}));
 }
 #endif
@@ -758,6 +758,12 @@ REQUIRE(test_initval_no_n(*ec, {}, {}));
 #if INITVAL_TEST_1D
 
 TEST_CASE ("InitvalTest - OneDim") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_initval_no_n(*ec, {}, {h1}));
 REQUIRE(test_initval_no_n(*ec, {}, {p1}));
 REQUIRE(test_initval_no_n(*ec, {h1}, {}));
@@ -769,6 +775,12 @@ REQUIRE(test_initval_no_n(*ec, {p1}, {}));
 #if INITVAL_TEST_2D
 
 TEST_CASE ("InitvalTest - TwoDim") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_initval_no_n(*ec, {h1}, {h2}));
 REQUIRE(test_initval_no_n(*ec, {h1}, {p2}));
 REQUIRE(test_initval_no_n(*ec, {p1}, {h2}));
@@ -780,6 +792,12 @@ REQUIRE(test_initval_no_n(*ec, {p1}, {p2}));
 #if INITVAL_TEST_3D
 
 TEST_CASE ("InitvalTest - ThreeDim") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_initval_no_n(*ec, {h1}, {h2, h3}));
 REQUIRE(test_initval_no_n(*ec, {h1}, {h2, p3}));
 REQUIRE(test_initval_no_n(*ec, {h1}, {p2, h3}));
@@ -806,6 +824,12 @@ REQUIRE(test_initval_no_n(*ec, {p1, p2}, {p3}));
 #if INITVAL_TEST_4D
 
 TEST_CASE ("InitvalTest - FourDim") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_initval_no_n(*ec, {h1, h2}, {h3, h4}));
 REQUIRE(test_initval_no_n(*ec, {h1, h2}, {h3, p4}));
 REQUIRE(test_initval_no_n(*ec, {h1, h2}, {p3, h4}));
@@ -839,6 +863,12 @@ REQUIRE(test_initval_no_n(*ec, {p1, p2}, {p3, p4}));
 
 //@todo tamm might not work with zero dimensions. So directly testing tamm.
 TEST_CASE ("AssignTest - ZeroDim") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 
   Tensor<double> xta{};
   Tensor<double> xtc{};
@@ -878,18 +908,42 @@ TEST_CASE ("AssignTest - ZeroDim") {
 #if EIGEN_ASSIGN_TEST_1D
 
 TEST_CASE ("EigenAssignTest - OneDim_o1e_o1e") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1}, {}, {h1}, {}));
 }
 
 TEST_CASE ("EigenAssignTest - OneDim_eo1_eo1") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {}, {h1}, {}, {h1}));
 }
 
 TEST_CASE ("EigenAssignTest - OneDim_v1e_v1e") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1}, {}, {p1}, {}));
 }
 
 TEST_CASE("EigenAssignTest - OneDim_ev1_ev1") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {}, {p1}, {}, {p1}));
 }
 
@@ -907,34 +961,82 @@ REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {}, {p1}, {}, {p1}));
 #if EIGEN_ASSIGN_TEST_2D
 
 TEST_CASE ("EigenAssignTest - TwoDim_O1O2_O1O2") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h4}, {h1}, {h4}, {h1}));
 }
 
 TEST_CASE ("EigenAssignTest - TwoDim_O1O2_O2O1") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 1.23, {h4}, {h1}, {h1}, {h4}));
 }
 
 TEST_CASE ("EigenAssignTest - TwoDim_OV_OV") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h4}, {p1}, {h4}, {p1}));
 }
 
 TEST_CASE ("EigenAssignTest - TwoDim_OV_VO") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 1.23, {h4}, {p1}, {p1}, {h4}));
 }
 
 TEST_CASE ("EigenAssignTest - TwoDim_VO_VO") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1}, {h1}, {p1}, {h1}));
 }
 
 TEST_CASE ("EigenAssignTest - TwoDim_VO_OV") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 1.23, {p1}, {h1}, {h1}, {p1}));
 }
 
 TEST_CASE ("EigenAssignTest - TwoDim_V1V2_V1V2") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p4}, {p1}, {p4}, {p1}));
 }
 
 TEST_CASE ("EigenAssignTest - TwoDim_V1V2_V2V1") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 1.23, {p4}, {p1}, {p1}, {p4}));
 }
 
@@ -944,140 +1046,332 @@ REQUIRE(test_eigen_assign_no_n(*ec, 1.23, {p4}, {p1}, {p1}, {p4}));
 #if EIGEN_ASSIGN_TEST_3D
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1_o2o3__o1_o2o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1}, {h2, h3}, {h1}, {h2, h3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1_o2o3__o1_o3o2") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1}, {h2, h3}, {h1}, {h3, h2}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1_o2v3__o1_o2v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1}, {h2, p3}, {h1}, {h2, p3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1_o2v3__o1_v3o2") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1}, {h2, p3}, {h1}, {p3, h2}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1_v2o3__o1_v2o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1}, {p2, h3}, {h1}, {p2, h3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1_v2o3__o1_o3v2") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1}, {p2, h3}, {h1}, {h3, p2}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1_v2v3__o1_v2v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1}, {p2, p3}, {h1}, {p2, p3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1_v2v3__o1_v3v2") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1}, {p2, p3}, {h1}, {p3, p2}));
 }
 
 ///////////
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1_o2o3__v1_o2o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1}, {h2, h3}, {p1}, {h2, h3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1_o2o3__v1_o3o2") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1}, {h2, h3}, {p1}, {h3, h2}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1_o2v3__v1_o2v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1}, {h2, p3}, {p1}, {h2, p3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1_o2v3__v1_v3o2") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1}, {h2, p3}, {p1}, {p3, h2}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1_v2o3__v1_v2o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1}, {p2, h3}, {p1}, {p2, h3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1_v2o3__v1_o3v2") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1}, {p2, h3}, {p1}, {h3, p2}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1_v2v3__v1_v2v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1}, {p2, p3}, {p1}, {p2, p3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1_v2v3__v1_v3v2") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1}, {p2, p3}, {p1}, {p3, p2}));
 }
 
 //////////////////
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1o2_o3__o1o2_o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {h3}, {h1, h2}, {h3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1o2_o3__o2o1_o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {h3}, {h2, h1}, {h3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1o2_v3__o1o2_v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {p3}, {h1, h2}, {p3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1o2_v3__o2o1_v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {p3}, {h2, h1}, {p3}));
 }
 
 /////////
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1v2_o3__o1v2_o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {h3}, {h1, p2}, {h3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1v2_o3__v2o1_o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {h3}, {p2, h1}, {h3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1v2_v3__o1v2_v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {p3}, {h1, p2}, {p3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_o1v2_v3__v2o1_v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {p3}, {p2, h1}, {p3}));
 }
 
 //////////////////
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1o2_o3__v1o2_o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {h3}, {p1, h2}, {h3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1o2_o3__o2v1_o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {h3}, {h2, p1}, {h3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1o2_v3__v1o2_v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {p3}, {p1, h2}, {p3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1o2_v3__o2v1_v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {p3}, {h2, p1}, {p3}));
 }
 
 /////////
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1v2_o3__v1v2_o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {h3}, {p1, p2}, {h3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1v2_o3__v2v1_o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {h3}, {p2, p1}, {h3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1v2_v3__v1v2_v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {p3}, {p1, p2}, {p3}));
 }
 
 TEST_CASE ("EigenAssignTest - ThreeDim_v1v2_v3__v2v1_v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {p3}, {p2, p1}, {p3}));
 }
 
@@ -1095,54 +1389,126 @@ REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {p3}, {p2, p1}, {p3}));
 #if EIGEN_ASSIGN_TEST_4D
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2o3o4_o1o2o3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {h3, h4}, {h1, h2}, {h3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2o3o4_o1o2o4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {h3, h4}, {h1, h2}, {h4, h3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2o3o4_o2o1o3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {h3, h4}, {h2, h1}, {h3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2o3o4_o2o1o4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h2, h1}, {h3, h4}, {h2, h1}, {h4, h3}));
 }
 
 ///////
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2o3v4_o1o2o3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h2, h1}, {h3, p4}, {h1, h2}, {h3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2o3v4_o1o2v4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {h3, p4}, {h1, h2}, {p4, h3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2o3v4_o2o1o3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {h3, p4}, {h2, h1}, {h3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2o3v4_o2o1v4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {h3, p4}, {h2, h1}, {p4, h3}));
 }
 
 ////////
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2v3o4_o1o2v3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h2, h1}, {p3, h4}, {h1, h2}, {p3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2v3o4_o1o2o4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {p3, h4}, {h1, h2}, {h4, p3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2v3o4_o2o1v3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {p3, h4}, {h2, h1}, {p3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2v3o4_o2o1o4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {p3, h4}, {h2, h1}, {h4, p3}));
 }
 
@@ -1150,72 +1516,168 @@ REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {p3, h4}, {h2, h1}, {h4, p3}
 ////////
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2v3v4_o1o2v3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h2, h1}, {p3, p4}, {h1, h2}, {p3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2v3v4_o1o2v4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {p3, p4}, {h1, h2}, {p4, p3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2v3v4_o2o1v3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {p3, p4}, {h2, h1}, {p3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1o2v3v4_o2o1v4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, h2}, {p3, p4}, {h2, h1}, {p4, p3}));
 }
 
 ///////////////////////
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2o3o4_o1v2o3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {h3, h4}, {h1, p2}, {h3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2o3o4_o1v2o4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {h3, h4}, {h1, p2}, {h4, h3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2o3o4_v2o1o3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {h3, h4}, {p2, h1}, {h3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2o3o4_v2o1o4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p2, h1}, {h3, h4}, {p2, h1}, {h4, h3}));
 }
 
 ///////
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2o3v4_o1v2o3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p2, h1}, {h3, p4}, {h1, p2}, {h3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2o3v4_o1v2v4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {h3, p4}, {h1, p2}, {p4, h3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2o3v4_v2o1o3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {h3, p4}, {p2, h1}, {h3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2o3v4_v2o1v4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {h3, p4}, {p2, h1}, {p4, h3}));
 }
 
 ////////
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2v3o4_o1v2v3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p2, h1}, {p3, h4}, {h1, p2}, {p3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2v3o4_o1v2o4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {p3, h4}, {h1, p2}, {h4, p3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2v3o4_v2o1v3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {p3, h4}, {p2, h1}, {p3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2v3o4_v2o1o4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {p3, h4}, {p2, h1}, {h4, p3}));
 }
 
@@ -1223,72 +1685,168 @@ REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {p3, h4}, {p2, h1}, {h4, p3}
 ////////
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2v3v4_o1v2v3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p2, h1}, {p3, p4}, {h1, p2}, {p3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2v3v4_o1v2v4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {p3, p4}, {h1, p2}, {p4, p3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2v3v4_v2o1v3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {p3, p4}, {p2, h1}, {p3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_o1v2v3v4_v2o1v4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h1, p2}, {p3, p4}, {p2, h1}, {p4, p3}));
 }
 
 //////////////////////////////////////
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2o3o4_v1o2o3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {h3, h4}, {p1, h2}, {h3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2o3o4_v1o2o4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {h3, h4}, {p1, h2}, {h4, h3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2o3o4_o2v1o3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {h3, h4}, {h2, p1}, {h3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2o3o4_o2v1o4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h2, p1}, {h3, h4}, {h2, p1}, {h4, h3}));
 }
 
 ///////
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2o3v4_v1o2o3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h2, p1}, {h3, p4}, {p1, h2}, {h3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2o3v4_v1o2v4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {h3, p4}, {p1, h2}, {p4, h3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2o3v4_o2v1o3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {h3, p4}, {h2, p1}, {h3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2o3v4_o2v1v4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {h3, p4}, {h2, p1}, {p4, h3}));
 }
 
 ////////
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2v3o4_v1o2v3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h2, p1}, {p3, h4}, {p1, h2}, {p3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2v3o4_v1o2o4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {p3, h4}, {p1, h2}, {h4, p3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2v3o4_o2v1v3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {p3, h4}, {h2, p1}, {p3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2v3o4_o2v1o4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {p3, h4}, {h2, p1}, {h4, p3}));
 }
 
@@ -1296,72 +1854,168 @@ REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {p3, h4}, {h2, p1}, {h4, p3}
 ////////
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2v3v4_v1o2v3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {h2, p1}, {p3, p4}, {p1, h2}, {p3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2v3v4_v1o2v4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {p3, p4}, {p1, h2}, {p4, p3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2v3v4_o2v1v3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {p3, p4}, {h2, p1}, {p3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1o2v3v4_o2v1v4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, h2}, {p3, p4}, {h2, p1}, {p4, p3}));
 }
 
 //////////////////////////////////////
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2o3o4_v1v2o3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {h3, h4}, {p1, p2}, {h3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2o3o4_v1v2o4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {h3, h4}, {p1, p2}, {h4, h3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2o3o4_v2v1o3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {h3, h4}, {p2, p1}, {h3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2o3o4_v2v1o4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p2, p1}, {h3, h4}, {p2, p1}, {h4, h3}));
 }
 
 ///////
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2o3v4_v1v2o3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p2, p1}, {h3, p4}, {p1, p2}, {h3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2o3v4_v1v2v4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {h3, p4}, {p1, p2}, {p4, h3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2o3v4_v2v1o3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {h3, p4}, {p2, p1}, {h3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2o3v4_v2v1v4o3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {h3, p4}, {p2, p1}, {p4, h3}));
 }
 
 ////////
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2v3o4_v1v2v3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p2, p1}, {p3, h4}, {p1, p2}, {p3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2v3o4_v1v2o4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {p3, h4}, {p1, p2}, {h4, p3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2v3o4_v2v1v3o4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {p3, h4}, {p2, p1}, {p3, h4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2v3o4_v2v1o4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {p3, h4}, {p2, p1}, {h4, p3}));
 }
 
@@ -1369,18 +2023,42 @@ REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {p3, h4}, {p2, p1}, {h4, p3}
 ////////
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2v3v4_v1v2v3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p2, p1}, {p3, p4}, {p1, p2}, {p3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2v3v4_v1v2v4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {p3, p4}, {p1, p2}, {p4, p3}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2v3v4_v2v1v3v4") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p3, p4}));
 }
 
 TEST_CASE ("EigenAssignTest - FourDim_v1v2v3v4_v2v1v4v3") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p4, p3}));
 }
 
@@ -1389,6 +2067,12 @@ REQUIRE(test_eigen_assign_no_n(*ec, 0.24, {p1, p2}, {p3, p4}, {p2, p1}, {p4, p3}
 #if MULT_TEST_0D_0D
 
 TEST_CASE ("MultTest - Dim_0_0_0") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 Tensor<double> xtc{};
 Tensor<double> xta{};
 Tensor<double> xtb{};
@@ -1425,6 +2109,12 @@ REQUIRE(status);
 #if MULT_TEST_0D_1D
 
 TEST_CASE ("MultTest, Dim_o_0_o_up") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 Tensor<double> xtc{O};
 Tensor<double> xta{};
 Tensor<double> xtb{O};
@@ -1457,6 +2147,12 @@ REQUIRE(status);
 }
 
 TEST_CASE ("MultTest - Dim_o_0_o_lo") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 Tensor<double> xtc{O};
 Tensor<double> xta{};
 Tensor<double> xtb{O};
@@ -1489,6 +2185,12 @@ REQUIRE(status);
 }
 
 TEST_CASE ("MultTest - Dim_v_v_0_hi") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 Tensor<double> xtc{V};
 Tensor<double> xta{V};
 Tensor<double> xtb{};
@@ -1522,6 +2224,12 @@ REQUIRE(status);
 }
 
 TEST_CASE ("MultTest - Dim_v_v_0_lo") {
+
+ProcGroup pg{GA_MPI_Comm()};
+MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution;
+ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
 Tensor<double> xtc{V};
 Tensor<double> xta{V};
 Tensor<double> xtb{};

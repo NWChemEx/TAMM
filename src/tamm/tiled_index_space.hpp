@@ -899,7 +899,9 @@ public:
                     const std::vector<TiledIndexLabel> dep_labels = {}) :
       tis_{t_is},
       label_{lbl},
-      dep_labels_{dep_labels} {}
+      dep_labels_{dep_labels} {
+        validate();
+    }
 
     /**
      * @brief Construct a new TiledIndexLabel object from another one with input
@@ -914,6 +916,7 @@ public:
       label_{t_il.label_},
       dep_labels_{dep_labels} {
         EXPECTS(is_compatible_with(tis_));
+        validate();
     }
 
     // Copy Construtors
@@ -1047,6 +1050,25 @@ protected:
     TiledIndexSpace tis_;
     Label label_;
     std::vector<TiledIndexLabel> dep_labels_;
+
+    /**
+     * @brief Validates a TiledIndexLabel object with regard to its reference
+     * TiledIndexSpace and dependent labels
+     *
+     */
+    void validate() {
+        if(tis_.is_dependent()) {
+            const auto& dep_tis = tis_.index_space().key_tiled_index_spaces();
+            auto num_dep_tis    = dep_tis.size();
+            auto num_dep_lbl    = dep_labels_.size();
+            EXPECTS((num_dep_lbl == 0) || (num_dep_lbl == num_dep_tis));
+            for(size_t i = 0; i < num_dep_lbl; i++) {
+                EXPECTS(dep_labels_[i].is_compatible_with(dep_tis[i]));
+            }
+        } else {
+            EXPECTS(dep_labels_.empty());
+        }
+    }
 
 private:
     void unpack_dep(std::vector<TiledIndexLabel>& in_vec) {}

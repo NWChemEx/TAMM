@@ -1,10 +1,11 @@
+
+#ifndef TAMM_TESTS_IT_HPP_
+#define TAMM_TESTS_IT_HPP_
+
 #include "hartree_fock.hpp"
-#include "tamm/types.h"
 
-using namespace tamm;
-
-std::tuple<Tensor4D> two_four_index_transform(const TAMM_SIZE ndocc, const TAMM_SIZE nao, const TAMM_SIZE freeze_core, 
-                              const TAMM_SIZE freeze_virtual, const Matrix &C, Matrix &F, libint2::BasisSet &shells) {
+std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t nao, const uint64_t freeze_core, 
+                              const uint64_t freeze_virtual, const Matrix &C, Matrix &F, libint2::BasisSet &shells) {
 
   using libint2::Atom;
   using libint2::Shell;
@@ -464,3 +465,5 @@ std::tuple<Tensor4D> two_four_index_transform(const TAMM_SIZE ndocc, const TAMM_
   return std::make_tuple(A2);
 
 }
+
+#endif //TAMM_TESTS_IT_HPP_

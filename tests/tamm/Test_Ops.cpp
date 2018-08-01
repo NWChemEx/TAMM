@@ -387,6 +387,18 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
         success = false;
     }
 
+    try {
+        success = true;
+        Scheduler{ec}
+          (T1() = -1.0)(T1() = 4)(T2() = 42)(T1() -= 3.1 * T2())
+          .execute();
+        check_value(T1, (T)-126.2);
+        for(const auto& lt : rest_lts) { check_value(lt, (T)-1.0); }
+    } catch(std::string& e) {
+        std::cerr << "AddOp. Test 4. Exception: " << e << "\n";
+        success = false;
+    }
+
     Tensor<T>::deallocate(T1, T2);
     return success;
 }
@@ -593,6 +605,7 @@ void test_addop_with_T(unsigned tilesize) {
         Tensor<T> T1{}, T2{};
         test_addop(ec, T1, T2, T1(), T2());
     }
+
     try {
         failed = false;
         Tensor<T> T1{}, T2{}, T3{};
@@ -614,10 +627,42 @@ void test_addop_with_T(unsigned tilesize) {
         Tensor<T> T1{}, T2{}, T3{};
         Scheduler{ec}
           .allocate(T1, T2,
+                    T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() -= T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)-32.0);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{}, T2{}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
           .deallocate(T2, T3)
           .execute();
         check_value(T1, (T)(9 + 1.5 * 8 * 4));
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{}, T2{}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() -= 1.5 * T3() * T2())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)(9 - 1.5 * 8 * 4));
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -641,11 +686,28 @@ void test_addop_with_T(unsigned tilesize) {
     }
     REQUIRE(!failed);
 
+    try {
+        failed = false;
+        Tensor<T> T1{}, T2{}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() -= 1.5 * T1() * T2())
+          .deallocate(T1, T2)
+          .execute();
+        check_value(T3, (T)(4 - 1.5 * 9 * 8));
+        Tensor<T>::deallocate(T3);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
     //1-dimension tests
     {
         Tensor<T> T1{TIS}, T2{TIS};
         test_addop(ec, T1, T2, T1(), T2());
     }
+
     try {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
@@ -662,6 +724,23 @@ void test_addop_with_T(unsigned tilesize) {
     }
     REQUIRE(!failed);
 
+     try {
+        failed = false;
+        Tensor<T> T1{TIS}, T2{TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() -= T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)-32.0);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+
     try {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
@@ -671,6 +750,22 @@ void test_addop_with_T(unsigned tilesize) {
           .deallocate(T2, T3)
           .execute();
         check_value(T1, (T)(9 + 1.5 * 8 * 4));
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS}, T2{TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() -= 1.5 * T3() * T2())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)(9 - 1.5 * 8 * 4));
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -694,11 +789,28 @@ void test_addop_with_T(unsigned tilesize) {
     }
     REQUIRE(!failed);
 
+    try {
+        failed = false;
+        Tensor<T> T1{TIS}, T2{TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() -= 1.5 * T1() * T2())
+          .deallocate(T1, T2)
+          .execute();
+        check_value(T3, (T)(4 - 1.5 * 10 * 9 * 8));
+        Tensor<T>::deallocate(T3);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
     //2-dimension tests
     {
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS};
         test_addop(ec, T1, T2, T1(), T2());
     }
+
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
@@ -720,10 +832,42 @@ void test_addop_with_T(unsigned tilesize) {
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
         Scheduler{ec}
           .allocate(T1, T2,
+                    T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() -= T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)-32.0);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
           .deallocate(T2, T3)
           .execute();
         check_value(T1, (T)(9 + 1.5 * 8 * 4));
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() -= 1.5 * T3() * T2())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)(9 - 1.5 * 8 * 4));
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -746,12 +890,29 @@ void test_addop_with_T(unsigned tilesize) {
         failed = true;
     }
     REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() -= 1.5 * T1() * T2())
+          .deallocate(T1, T2)
+          .execute();
+        check_value(T3, (T)(4 - 1.5 * 100 * 9 * 8));
+        Tensor<T>::deallocate(T3);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
  
     //3-dimension tests
     {
         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS};
         test_addop(ec, T1, T2, T1(), T2());
     }
+
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
@@ -773,10 +934,42 @@ void test_addop_with_T(unsigned tilesize) {
         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
         Scheduler{ec}
           .allocate(T1, T2,
+                    T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() -= T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)-32.0);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
           .deallocate(T2, T3)
           .execute();
         check_value(T1, (T)(9 + 1.5 * 8 * 4));
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() -= 1.5 * T3() * T2())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)(9 - 1.5 * 8 * 4));
         Tensor<T>::deallocate(T1);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
@@ -799,12 +992,29 @@ void test_addop_with_T(unsigned tilesize) {
         failed = true;
     }
     REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() -= 1.5 * T1() * T2())
+          .deallocate(T1, T2)
+          .execute();
+        check_value(T3, (T)(4 - 1.5 * 1000 * 9 * 8));
+        Tensor<T>::deallocate(T3);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
  
     //4-dimension tests
     {
         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS};
         test_addop(ec, T1, T2, T1(), T2());
     }
+    
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
@@ -820,6 +1030,23 @@ void test_addop_with_T(unsigned tilesize) {
         failed = true;
     }
     REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() -= T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)-32.0);
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+    
 
     try {
         failed = false;
@@ -842,10 +1069,42 @@ void test_addop_with_T(unsigned tilesize) {
         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
         Scheduler{ec}
           .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() -= 1.5 * T3() * T2())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)(9 - 1.5 * 8 * 4));
+        Tensor<T>::deallocate(T1);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
           .deallocate(T1, T2)
           .execute();
         check_value(T3, (T)(4 + 1.5 * 10000 * 9 * 8));
+        Tensor<T>::deallocate(T3);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() -= 1.5 * T1() * T2())
+          .deallocate(T1, T2)
+          .execute();
+        check_value(T3, (T)(4 - 1.5 * 10000 * 9 * 8));
         Tensor<T>::deallocate(T3);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";

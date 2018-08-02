@@ -498,16 +498,16 @@ private:
             auto tis = labels[i].tiled_index_space();
             if(tis.is_dependent()) {
                 /// @todo do we need this check here?
-                EXPECTS(il.dep_labels().size() ==
+                EXPECTS(il.secondary_labels().size() ==
                         il.tiled_index_space()
                           .index_space()
                           .num_key_tiled_index_spaces());
-                for(auto& dep : il.dep_labels()) {
+                for(auto& dep : il.secondary_labels()) {
                     size_t pos = 0;
                     for(pos = 0; pos < labels.size(); pos++) {
                         if(labels[pos].tiled_index_space() ==
                              dep.tiled_index_space() &&
-                           dep.get_label() == labels[pos].get_label()) {
+                           dep.label() == labels[pos].label()) {
                             dep_map[i].push_back(pos);
                             break;
                         }

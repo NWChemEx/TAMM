@@ -127,18 +127,28 @@ void perm_map_apply(std::vector<T>& out_vec, const std::vector<T>& input_vec,
 }
 
 inline IndexLabelVec sort_on_dependence(const IndexLabelVec& labels) {
-    IndexLabelVec ret;
+    std::vector<TileLabelElement> primary_labels;
+    std::vector<size_t> sorted_order;
     for(const auto& lbl : labels) {
-        for(const auto& dlbl : lbl.dep_labels()) {
-            const auto it = std::find(ret.begin(), ret.end(), dlbl);
-            if(it == ret.end()) { ret.push_back(dlbl); }
-        }
-        const auto it = std::find(ret.begin(), ret.end(), lbl);
-        if(it == ret.end()) { ret.push_back(lbl); }
+        primary_labels.push_back(lbl.primary_label());
     }
+    for(size_t i = 0; i < labels.size(); i++) {
+        const auto& lbl = labels[i];
+        for(const auto& slbl : lbl.secondary_labels()) {
+            const auto it =
+              std::find(primary_labels.begin(), primary_labels.end(), slbl);
+            EXPECTS(it != primary_labels.end());
+            const auto sit = std::find(sorted_order.begin(), sorted_order.end(),
+                                       it - primary_labels.begin());
+            if(sit == sorted_order.end()) { sorted_order.push_back(i); }
+        }
+        const auto it = std::find(sorted_order.begin(), sorted_order.end(), i);
+        if(it == sorted_order.end()) { sorted_order.push_back(i); }
+    }
+    IndexLabelVec ret;
+    for(const auto& pos : sorted_order) { ret.push_back(labels[pos]); }
     return ret;
 }
-
 
 template<typename T>
 bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {

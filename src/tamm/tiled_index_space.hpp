@@ -541,8 +541,12 @@ protected:
           is_{parent.is_},
           input_tile_size_{parent.input_tile_size_},
           input_tile_sizes_{parent.input_tile_sizes_},
-          tile_offsets_{offsets},
-          simple_vec_{indices} {}
+          tile_offsets_{offsets} {
+
+              for (size_t i = 0; i < tile_offsets_.size() - 1; i++) {
+                  simple_vec_.push_back(Index{i});
+              }
+          }
 
         /**
          * @brief Construct a new TiledIndexSpaceInfo object from a parent

@@ -544,7 +544,7 @@ protected:
           tile_offsets_{offsets} {
 
               for (size_t i = 0; i < tile_offsets_.size() - 1; i++) {
-                  simple_vec_.push_back(Index{i});
+                  simple_vec_.push_back(i);
               }
           }
 

@@ -677,18 +677,19 @@ public:
         using TensorElType = typename LabeledTensorT::element_type;
         // the iterator to generate the tasks
         const auto& tensor = lhs_.tensor();
-        const IndexLabelVec& iter_labels = internal::sort_on_dependence(lhs_.labels());
-        std::vector<IndexLoopBound> ilbs;
-        for(const auto& lbl : iter_labels) { ilbs.push_back({lbl}); }
-        IndexLoopNest loop_nest { ilbs };
-        const std::vector<size_t>& lhs_pm =
-          internal::perm_map_compute(iter_labels, lhs_.labels());
+        LabelLoopNest loop_nest {lhs_.labels()};
+        // const IndexLabelVec& iter_labels = internal::sort_on_dependence(lhs_.labels());
+        // std::vector<IndexLoopBound> ilbs;
+        // for(const auto& lbl : iter_labels) { ilbs.push_back({lbl}); }
+        // IndexLoopNest loop_nest { ilbs };
+        // const std::vector<size_t>& lhs_pm =
+        //   internal::perm_map_compute(iter_labels, lhs_.labels());
         // auto loop_nest = lhs_.tensor().loop_nest();
         // function to compute one block
-        auto lambda = [&](const IndexVector itval) {
+        auto lambda = [&](const IndexVector& blockid) {
             auto tensor = lhs_.tensor();
-            const IndexVector& blockid =
-              internal::perm_map_apply(itval, lhs_pm);
+            // const IndexVector& blockid =
+            //   internal::perm_map_apply(itval, lhs_pm);
             const size_t size = tensor.block_size(blockid);
             std::vector<TensorElType> buf(size);
             tensor.get(blockid, buf);
@@ -797,27 +798,43 @@ public:
     void execute(ProcGroup ec_pg) override {
         using TensorElType = typename LabeledTensorT::element_type;
         // the iterator to generate the tasks
-        const auto& tensor = lhs_.tensor();
-        const IndexLabelVec& iter_labels = internal::sort_on_dependence(lhs_.labels());
-        std::vector<IndexLoopBound> ilbs;
-        for(const auto& lbl : iter_labels) { ilbs.push_back({lbl}); }
-        IndexLoopNest loop_nest { ilbs };
-        const std::vector<size_t>& lhs_pm =
-          internal::perm_map_compute(iter_labels, lhs_.labels());
-        std::vector<size_t> rhs_pm[N];
-        for(size_t i=0; i<N; i++) {
-            rhs_pm[i] = internal::perm_map_compute(iter_labels, rhs_[i].labels());
-        }
+        // const auto& tensor = lhs_.tensor();
+        // const IndexLabelVec& iter_labels = internal::sort_on_dependence(lhs_.labels());
+        // std::vector<IndexLoopBound> ilbs;
+        // for(const auto& lbl : iter_labels) { ilbs.push_back({lbl}); }
+        // IndexLoopNest loop_nest { ilbs };
+        // const std::vector<size_t>& lhs_pm =
+        //   internal::perm_map_compute(iter_labels, lhs_.labels());
+        // std::vector<size_t> rhs_pm[N];
+        // for(size_t i=0; i<N; i++) {
+        //     rhs_pm[i] = internal::perm_map_compute(iter_labels, rhs_[i].labels());
+        // }
         // auto loop_nest = lhs_.tensor().loop_nest();
         // function to compute one block
-        auto lambda = [&](const IndexVector itval) {
+        IndexLabelVec merged_labels{lhs_.labels()};
+        for(const auto& rlt : rhs_) {
+            merged_labels.insert(merged_labels.end(), rlt.labels().begin(),
+                                 rlt.labels().end());
+        }
+        LabelLoopNest loop_nest{merged_labels};
+
+        auto lambda = [&](const IndexVector& itval) {
             auto ltensor = lhs_.tensor();
-            const IndexVector& lblockid =
-              internal::perm_map_apply(itval, lhs_pm);
-            IndexVector rblockid[N];
-            for(size_t i=0; i<N; i++) {
-              rblockid[i] = internal::perm_map_apply(itval, rhs_pm[i]);
+            IndexVector lblockid, rblockid[N];
+            auto it = itval.begin();
+            lblockid.insert(lblockid.end(), it, it + lhs_.labels().size());
+            it += lhs_.labels().size();
+            for(size_t i = 0; i < N; i++) {
+                rblockid[i].insert(rblockid[i].end(), it,
+                                   it + rhs_[i].labels().size());
+                it += rhs_[i].labels().size();
             }
+            // const IndexVector& lblockid =
+            //   internal::perm_map_apply(itval, lhs_pm);
+            // IndexVector rblockid[N];
+            // for(size_t i=0; i<N; i++) {
+            //   rblockid[i] = internal::perm_map_apply(itval, rhs_pm[i]);
+            // }
             const size_t lsize = ltensor.block_size(lblockid);
             std::vector<TensorElType> lbuf(lsize);
             std::vector<TensorElType> rbuf[N];
@@ -827,7 +844,7 @@ public:
                 rbuf[i].resize(isz);
                 rtensor_i.get(rblockid[i], rbuf[i]);
             }
-            func_(tensor, lblockid, lbuf, rblockid, rbuf);
+            func_(ltensor, lblockid, lbuf, rblockid, rbuf);
             ltensor.put(lblockid, lbuf);
         };
         // ec->...(loop_nest, lambda);

@@ -155,10 +155,10 @@ public:
     const std::map<size_t, std::vector<size_t>>& dep_map() const { return dep_map_; }
 
     /// @todo The following methods could be refactored.
-    size_t find_dep(const TiledIndexLabel& til) {
+    size_t find_dep(const TileLabelElement& til) {
         size_t bis = tlabels_.size();
         for(size_t i = 0; i < bis; i++) {
-            if(block_indices_[i].is_identical(til.tiled_index_space()) && til == tlabels_[i])
+            if(block_indices_[i].is_identical(til.tiled_index_space()) && til == tlabels_[i].primary_label())
                 return i;
         }
         return bis;
@@ -186,11 +186,11 @@ public:
             auto tis = block_indices_[i];
             if(tis.is_dependent()) {
                 /// @todo do we need this check here?
-                EXPECTS(il.dep_labels().size() ==
+                EXPECTS(il.secondary_labels().size() ==
                         il.tiled_index_space()
                           .index_space()
                           .num_key_tiled_index_spaces());
-                for(auto& dep : il.dep_labels()) {
+                for(auto& dep : il.secondary_labels()) {
                     size_t pos = find_dep(dep);
                     EXPECTS(pos != til);
                     if(pos != til) {

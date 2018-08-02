@@ -181,8 +181,8 @@ private:
         EXPECTS(tensor_.num_modes() == ilv_.size());
         for(size_t i = 0; i < ilv_.size(); i++) {
             if(!str_map_[i]) {
-                for(const auto& dlbl : ilv_[i].dep_labels()) {
-                    EXPECTS(dlbl.dep_labels().size() == 0);
+                for(const auto& dlbl : ilv_[i].secondary_labels()) {
+                    EXPECTS(dlbl.secondary_labels().size() == 0);
                 }
             }
         }
@@ -194,7 +194,7 @@ private:
         }
         for(size_t i = 0; i < ilv_.size(); i++) {
             if(!str_map_[i]) {
-                size_t sz = ilv_[i].dep_labels().size();
+                size_t sz = ilv_[i].secondary_labels().size();
                 EXPECTS(sz == 0 || sz == tensor_.tiled_index_spaces()[i]
                                            .index_space()
                                            .num_key_tiled_index_spaces());
@@ -206,9 +206,9 @@ private:
                 if(!str_map_[i] && !str_map_[j]) {
                     const auto& jlbl = ilv_[j];
                     if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
-                       ilbl.get_label() == jlbl.get_label()) {
-                        // EXPECTS(ilbl.dep_labels().size() == 0 ||
-                        //         jlbl.dep_labels().size() == 0 ||
+                       ilbl.label() == jlbl.label()) {
+                        // EXPECTS(ilbl.secondary_labels().size() == 0 ||
+                        //         jlbl.secondary_labels().size() == 0 ||
                         //         ilbl == jlbl);
                         EXPECTS(ilbl == jlbl);
                     }
@@ -232,19 +232,19 @@ private:
             for(auto &dlpos: dep_iv) {
                 EXPECTS(str_map_[dlpos] == false);
                 const auto& ltis = ilv_[dlpos].tiled_index_space();
-                Label llbl = ilv_[dlpos].get_label();
-                EXPECTS(ilv_[itr->first].dep_labels().size() > 0);
-                const auto& rtis = ilv_[itr->first].dep_labels()[dc_].tiled_index_space();
-                Label rlbl = ilv_[itr->first].dep_labels()[dc_].get_label();
+                Label llbl = ilv_[dlpos].label();
+                EXPECTS(ilv_[itr->first].secondary_labels().size() > 0);
+                const auto& rtis = ilv_[itr->first].secondary_labels()[dc_].tiled_index_space();
+                Label rlbl = ilv_[itr->first].secondary_labels()[dc_].label();
                 EXPECTS(ltis==rtis && llbl==rlbl);
                 dc_++;
             }
         }
 
         for(const auto& lbl : ilv_) {
-            for(const auto& dlbl : lbl.dep_labels()) {
+            for(const auto& dlbl : lbl.secondary_labels()) {
                 EXPECTS(lbl.tiled_index_space() != dlbl.tiled_index_space() ||
-                        lbl.get_label() != dlbl.get_label());
+                        lbl.label() != dlbl.label());
             }
         }
     } // validate
@@ -555,7 +555,7 @@ private:
      * mode
      *
      * 2. If any label is a dependent label, dependent on some other label l,
-     * then l cannot have any key (dep labels)
+     * then l cannot have any key (dep labels) (REMOVED)
      *
      * 3. The i-th label's tiled index space is compatible with the tiled
      *  index space corresponding to the tensor's i-th dimension
@@ -583,13 +583,13 @@ private:
      */
     void validate() {
         EXPECTS(tensor_.num_modes() == ilv_.size());
-        for(size_t i = 0; i < ilv_.size(); i++) {
-            if(!str_map_[i]) {
-                for(const auto& dlbl : ilv_[i].dep_labels()) {
-                    EXPECTS(dlbl.dep_labels().size() == 0);
-                }
-            }
-        }
+        // for(size_t i = 0; i < ilv_.size(); i++) {
+        //     if(!str_map_[i]) {
+        //         for(const auto& dlbl : ilv_[i].secondary_labels()) {
+        //             EXPECTS(dlbl.secondary_labels().size() == 0);
+        //         }
+        //     }
+        // }
         for(size_t i = 0; i < ilv_.size(); i++) {
             if(!str_map_[i]) {
                 EXPECTS(ilv_[i].tiled_index_space().is_compatible_with(
@@ -598,7 +598,7 @@ private:
         }
         for(size_t i = 0; i < ilv_.size(); i++) {
             if(!str_map_[i]) {
-                size_t sz = ilv_[i].dep_labels().size();
+                size_t sz = ilv_[i].secondary_labels().size();
                 EXPECTS(sz == 0 || sz == tensor_.tiled_index_spaces()[i]
                                            .index_space()
                                            .num_key_tiled_index_spaces());
@@ -609,10 +609,9 @@ private:
             for(size_t j = i + 1; j < ilv_.size(); j++) {
                 if(!str_map_[i] && !str_map_[j]) {
                     const auto& jlbl = ilv_[j];
-                    if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
-                       ilbl.get_label() == jlbl.get_label()) {
-                        // EXPECTS(ilbl.dep_labels().size() == 0 ||
-                        //         jlbl.dep_labels().size() == 0 ||
+                    if(ilbl.primary_label() == jlbl.primary_label()) {
+                        // EXPECTS(ilbl.secondary_labels().size() == 0 ||
+                        //         jlbl.secondary_labels().size() == 0 ||
                         //         ilbl == jlbl);
                         EXPECTS(ilbl == jlbl);
                     }
@@ -636,19 +635,18 @@ private:
             for(auto &dlpos: dep_iv) {
                 EXPECTS(str_map_[dlpos] == false);
                 const auto& ltis = ilv_[dlpos].tiled_index_space();
-                Label llbl = ilv_[dlpos].get_label();
-                EXPECTS(ilv_[itr->first].dep_labels().size() > 0);
-                const auto& rtis = ilv_[itr->first].dep_labels()[dc_].tiled_index_space();
-                Label rlbl = ilv_[itr->first].dep_labels()[dc_].get_label();
+                Label llbl = ilv_[dlpos].label();
+                EXPECTS(ilv_[itr->first].secondary_labels().size() > 0);
+                const auto& rtis = ilv_[itr->first].secondary_labels()[dc_].tiled_index_space();
+                Label rlbl = ilv_[itr->first].secondary_labels()[dc_].label();
                 EXPECTS(ltis==rtis && llbl==rlbl);
                 dc_++;
             }
         }
 
         for(const auto& lbl : ilv_) {
-            for(const auto& dlbl : lbl.dep_labels()) {
-                EXPECTS(lbl.tiled_index_space() != dlbl.tiled_index_space() ||
-                        lbl.get_label() != dlbl.get_label());
+            for(const auto& dlbl : lbl.secondary_labels()) {
+                EXPECTS(lbl.primary_label() != dlbl);
             }
         }
     } // validate
@@ -776,8 +774,8 @@ inline void setop_validate(const LabeledTensorType& ltc, T alpha) {
     size_t rank         = ltc.tensor().num_modes();
     const auto& lbl_vec = ltc.labels();
     for(size_t i = 0; i < rank; i++) {
-        if(!ltc.str_map()[i] && lbl_vec[i].dep_labels().size() > 0) {
-            for(const auto& dlbl : lbl_vec[i].dep_labels()) {
+        if(!ltc.str_map()[i] && lbl_vec[i].secondary_labels().size() > 0) {
+            for(const auto& dlbl : lbl_vec[i].secondary_labels()) {
                 size_t j = 0;
                 for(; j < rank; j++) {
                     if(dlbl.primary_label() == lbl_vec[j].primary_label()) {

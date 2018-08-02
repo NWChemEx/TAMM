@@ -876,6 +876,66 @@ inline bool operator>=(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
     return (rhs <= lhs);
 }
 
+class TileLabelElement {
+public:
+    TileLabelElement()                         = default;
+    TileLabelElement(const TileLabelElement&) = default;
+    TileLabelElement(TileLabelElement&&)      = default;
+    ~TileLabelElement()                        = default;
+    TileLabelElement& operator=(const TileLabelElement&) = default;
+    TileLabelElement& operator=(TileLabelElement&&) = default;
+
+    TileLabelElement(const TiledIndexSpace& tis, Label label=0) :
+      tis_{tis},
+      label_{label} {}
+
+    const TiledIndexSpace& tiled_index_space() const { return tis_; }
+
+    Label label() const { return label_; }
+
+    bool is_compatible_with(const TiledIndexSpace& tis) const {
+        return tis_.is_compatible_with(tis);
+    }
+
+private:
+    TiledIndexSpace tis_;
+    Label label_;
+}; // class TileLabelElement
+
+// Comparison operator implementations
+inline bool operator==(const TileLabelElement& lhs,
+                       const TileLabelElement& rhs) {
+    return lhs.tiled_index_space() == rhs.tiled_index_space() &&
+           lhs.label() == rhs.label();
+}
+
+inline bool operator<(const TileLabelElement& lhs,
+                      const TileLabelElement& rhs) {
+    return lhs.tiled_index_space() < rhs.tiled_index_space() ||
+           (lhs.tiled_index_space() == rhs.tiled_index_space() &&
+            lhs.label() < rhs.label());
+}
+
+inline bool operator!=(const TileLabelElement& lhs,
+                       const TileLabelElement& rhs) {
+    return !(lhs == rhs);
+}
+
+inline bool operator>(const TileLabelElement& lhs,
+                      const TileLabelElement& rhs) {
+    return (rhs < lhs);
+}
+
+inline bool operator<=(const TileLabelElement& lhs,
+                       const TileLabelElement& rhs) {
+    return (lhs < rhs) || (lhs == rhs);
+}
+
+inline bool operator>=(const TileLabelElement& lhs,
+                       const TileLabelElement& rhs) {
+    return (rhs <= lhs);
+}
+
 /**
  * @brief Index label to index into tensors. The labels used by the user need to
  * be positive.
@@ -885,21 +945,53 @@ class TiledIndexLabel {
 public:
     // Constructor
     TiledIndexLabel() = default;
+    TiledIndexLabel(const TiledIndexLabel&) = default;
+    TiledIndexLabel(TiledIndexLabel&&) = default;
+    ~TiledIndexLabel() = default;
+
+    TiledIndexLabel& operator = (const TiledIndexLabel&) = default;
+    TiledIndexLabel& operator = (TiledIndexLabel&&) = default;
 
     /**
      * @brief Construct a new TiledIndexLabel object from a reference
-     * TiledIndexSpace object and a label
+     * TileLabelElement object and a label
      *
-     * @param [in] t_is reference TiledIndexSpace object
+     * @param [in] t_is reference TileLabelElement object
      * @param [in] lbl input label (default: 0, negative values used internally)
      * @param [in] dep_labels set of dependent TiledIndexLabels (default: empty
      * set)
      */
-    TiledIndexLabel(const TiledIndexSpace& t_is, Label lbl = 0,
-                    const std::vector<TiledIndexLabel> dep_labels = {}) :
-      tis_{t_is},
-      label_{lbl},
-      dep_labels_{dep_labels} {
+    TiledIndexLabel(const TiledIndexSpace& tis, Label lbl = 0,
+                    const std::vector<TileLabelElement>& secondary_labels = {}) :
+      TiledIndexLabel{TileLabelElement{tis, lbl}, secondary_labels} {
+          //no-op
+    }
+
+    TiledIndexLabel(const TiledIndexSpace& tis, Label lbl,
+                    const std::vector<TiledIndexLabel>& secondary_labels) :
+      TiledIndexLabel{TileLabelElement{tis, lbl}, secondary_labels} {
+          //no-op
+    }
+
+    TiledIndexLabel(const TiledIndexSpace& tis, 
+                    const std::vector<TiledIndexLabel>& secondary_labels) :
+      TiledIndexLabel{TileLabelElement{tis, Label{0}}, secondary_labels} {
+          //no-op
+    }
+
+    TiledIndexLabel(const TileLabelElement& primary_label,
+                    const std::vector<TileLabelElement>& secondary_labels = {}) :
+      primary_label_{primary_label},
+      secondary_labels_{secondary_labels} {
+        validate();
+    }
+
+    TiledIndexLabel(const TileLabelElement& primary_label,
+                    const std::vector<TiledIndexLabel>& secondary_labels = {}) :
+      primary_label_{primary_label} {
+        for(const auto& lbl : secondary_labels) {
+            secondary_labels_.push_back(lbl.primary_label());
+        }
         validate();
     }
 
@@ -910,32 +1002,29 @@ public:
      * @param [in] t_il reference TiledIndexLabel object
      * @param [in] dep_labels set of dependent TiledIndexLabels
      */
-    TiledIndexLabel(const TiledIndexLabel& t_il,
-                    const std::vector<TiledIndexLabel>& dep_labels) :
-      tis_{t_il.tis_},
-      label_{t_il.label_},
-      dep_labels_{dep_labels} {
-        EXPECTS(is_compatible_with(tis_));
+    TiledIndexLabel(const TiledIndexLabel& til,
+                    const std::vector<TileLabelElement>& secondary_labels) :
+      primary_label_{til.primary_label()},
+      secondary_labels_{secondary_labels} {
         validate();
     }
 
-    // Copy Construtors
-    TiledIndexLabel(const TiledIndexLabel&) = default;
-    TiledIndexLabel& operator=(const TiledIndexLabel&) = default;
-
-    TiledIndexLabel(TiledIndexLabel&&) = default;
-    TiledIndexLabel& operator=(TiledIndexLabel&&) = default;
-
-    // Destructor
-    ~TiledIndexLabel() = default;
+    TiledIndexLabel(const TiledIndexLabel& til,
+                    const std::vector<TiledIndexLabel>& secondary_labels) :
+      primary_label_{til.primary_label()} {
+        for(const auto& lbl : secondary_labels) {
+            secondary_labels_.push_back(lbl.primary_label());
+        }
+        validate();
+    }
 
     /**
      * @brief Operator overload for () to construct dependent TiledIndexLabel
      * objects from the input TiledIndexLabels
      *
-     * @returns a new TiledIndexSpace from this.
+     * @returns a new TiledIndexLabel from this.
      */
-    TiledIndexLabel operator()() const { return (*this); }
+    const TiledIndexLabel& operator()() const { return (*this); }
 
     /**
      * @brief Operator overload for () to construct dependent TiledIndexLabel
@@ -949,9 +1038,9 @@ public:
      */
     template<typename... Args>
     TiledIndexLabel operator()(const TiledIndexLabel& il1, Args... rest) {
-        std::vector<TiledIndexLabel> dep_ilv;
-        unpack_dep(dep_ilv, il1, rest...);
-        return {*this, dep_ilv};
+        std::vector<TileLabelElement> secondary_labels;
+        unpack(secondary_labels, il1, rest...);
+        return {*this, secondary_labels};
     }
 
     /**
@@ -961,8 +1050,9 @@ public:
      * @param [in] dep_ilv
      * @returns
      */
-    TiledIndexLabel operator()(const std::vector<TiledIndexLabel>& dep_ilv) {
-        return {*this, dep_ilv};
+    TiledIndexLabel operator()(
+      const std::vector<TileLabelElement>& secondary_labels) {
+        return {*this, secondary_labels};
     }
 
     /**
@@ -974,10 +1064,11 @@ public:
      * @returns true if the label, dependent labels and TiledIndexSpaces are
      * identicals
      */
-    bool is_identical(const TiledIndexLabel& rhs) const {
-        return (std::tie(label_, dep_labels_, tis_) ==
-                std::tie(rhs.label_, rhs.dep_labels_, rhs.tis_));
-    }
+    // bool is_identical(const TiledIndexLabel& rhs) const {
+    //     return primary_label() == rhs.primary_label() && 
+    //     (std::tie(label_, dep_labels_, tis_) ==
+    //             std::tie(rhs.label_, rhs.dep_labels_, rhs.tis_));
+    // }
 
     /**
      * @brief Boolean method for checking if this label is less then a reference
@@ -987,22 +1078,23 @@ public:
      * @returns true if reference TiledIndexSpace of rhs is less than or the
      * label is less than this label
      */
-    bool is_less_than(const TiledIndexLabel& rhs) const {
-        return (tis_ < rhs.tis_) ||
-               ((tis_ == rhs.tis_) && (label_ < rhs.label_));
-    }
+    // bool is_less_than(const TiledIndexLabel& rhs) const {
+    //     return (tis_ < rhs.tis_) ||
+    //            ((tis_ == rhs.tis_) && (label_ < rhs.label_));
+    // }
 
-    Label get_label() const { return label_; }
+    Label label() const { return primary_label_.label(); }
 
     /// @todo: this is never called from outside currently, should this be
     /// private and used internally?
     bool is_compatible_with(const TiledIndexSpace& tis) const {
-        const auto& key_tiss = tis.index_space().key_tiled_index_spaces();
-        EXPECTS(key_tiss.size() == dep_labels().size());
-        for(size_t i = 0; i < dep_labels().size(); i++) {
-            dep_labels()[i].tiled_index_space().is_compatible_with(key_tiss[i]);
-        }
-        return true;
+        return tiled_index_space().is_compatible_with(tis);
+        // const auto& key_tiss = tis.index_space().key_tiled_index_spaces();
+        // EXPECTS(key_tiss.size() == dep_labels().size());
+        // for(size_t i = 0; i < dep_labels().size(); i++) {
+        //     dep_labels()[i].tiled_index_space().is_compatible_with(key_tiss[i]);
+        // }
+        // return true;
     }
 
     /**
@@ -1010,8 +1102,8 @@ public:
      *
      * @returns a set of dependent TiledIndexLabels
      */
-    const std::vector<TiledIndexLabel>& dep_labels() const {
-        return dep_labels_;
+    const std::vector<TileLabelElement>& secondary_labels() const {
+        return secondary_labels_;
     }
 
     /**
@@ -1021,8 +1113,8 @@ public:
      * @returns a pair of TiledIndexSpace object and Label value for the
      * TiledIndexLabel
      */
-    std::pair<TiledIndexSpace, Label> primary_label() const {
-        return {tis_, label_};
+    const TileLabelElement& primary_label() const {
+        return primary_label_;;
     }
 
     /**
@@ -1030,7 +1122,9 @@ public:
      *
      * @returns the reference TiledIndexSpace object
      */
-    const TiledIndexSpace& tiled_index_space() const { return tis_; }
+    const TiledIndexSpace& tiled_index_space() const {
+        return primary_label_.tiled_index_space();
+    }
 
     // Comparison operators
     friend bool operator==(const TiledIndexLabel& lhs,
@@ -1047,9 +1141,11 @@ public:
                            const TiledIndexLabel& rhs);
 
 protected:
-    TiledIndexSpace tis_;
-    Label label_;
-    std::vector<TiledIndexLabel> dep_labels_;
+    // TiledIndexSpace* tis_;
+    // Label label_;
+    TileLabelElement primary_label_;
+    std::vector<TileLabelElement> secondary_labels_;
+    //std::vector<TiledIndexLabel> dep_labels_;
 
     /**
      * @brief Validates a TiledIndexLabel object with regard to its reference
@@ -1057,38 +1153,62 @@ protected:
      *
      */
     void validate() {
-        if(tis_.is_dependent()) {
-            const auto& dep_tis = tis_.index_space().key_tiled_index_spaces();
-            auto num_dep_tis    = dep_tis.size();
-            auto num_dep_lbl    = dep_labels_.size();
-            EXPECTS((num_dep_lbl == 0) || (num_dep_lbl == num_dep_tis));
-            for(size_t i = 0; i < num_dep_lbl; i++) {
-                EXPECTS(dep_labels_[i].is_compatible_with(dep_tis[i]));
+        const auto& tis = tiled_index_space();
+        if(tis.is_dependent()) {
+            const auto& sec_tis = tis.index_space().key_tiled_index_spaces();
+            auto num_sec_tis    = sec_tis.size();
+            auto num_sec_lbl    = secondary_labels_.size();
+            EXPECTS((num_sec_lbl == 0) || (num_sec_lbl == num_sec_tis));
+            for(size_t i = 0; i < num_sec_lbl; i++) {
+                EXPECTS(secondary_labels_[i].is_compatible_with(sec_tis[i]));
             }
         } else {
-            EXPECTS(dep_labels_.empty());
+            EXPECTS(secondary_labels_.empty());
         }
     }
 
 private:
-    void unpack_dep(std::vector<TiledIndexLabel>& in_vec) {}
+    void unpack(std::vector<TileLabelElement>& in_vec) {}
 
     template<typename... Args>
-    void unpack_dep(std::vector<TiledIndexLabel>& in_vec,
-                    const TiledIndexLabel& il1, Args... rest) {
-        EXPECTS(!(*this).is_identical(il1));
-
+    void unpack(std::vector<TileLabelElement>& in_vec,
+                const TileLabelElement& il1) {
         in_vec.push_back(il1);
-        unpack_dep(in_vec, rest...);
+    }
+
+    template<typename... Args>
+    void unpack(std::vector<TileLabelElement>& in_vec,
+                const TiledIndexLabel& il1) {
+        in_vec.push_back(il1.primary_label());
+    }
+
+    template<typename... Args>
+    void unpack(std::vector<TileLabelElement>& in_vec,
+                const TileLabelElement& il1, Args... rest) {
+        in_vec.push_back(il1);
+        unpack(in_vec, std::forward<Args>(rest)...);
+    }
+
+    template<typename... Args>
+    void unpack(std::vector<TileLabelElement>& in_vec,
+                const TiledIndexLabel& il1, Args... rest) {
+        in_vec.push_back(il1.primary_label());
+        unpack(in_vec, std::forward<Args>(rest)...);
     }
 }; // class TiledIndexLabel
 
 // Comparison operator implementations
 inline bool operator==(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
-    return lhs.is_identical(rhs);
+    return lhs.primary_label() == rhs.primary_label() &&
+           lhs.secondary_labels() == rhs.secondary_labels();
 }
+
 inline bool operator<(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
-    return lhs.is_less_than(rhs);
+    return (lhs.primary_label() < rhs.primary_label()) ||
+           (lhs.primary_label() == rhs.primary_label() &&
+            std::lexicographical_compare(
+              lhs.secondary_labels().begin(), lhs.secondary_labels().end(),
+              rhs.secondary_labels().begin(), rhs.secondary_labels().end()));
 }
 
 inline bool operator!=(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
@@ -1115,7 +1235,7 @@ using IndexLabelVec = std::vector<TiledIndexLabel>;
 ///////////////////////////////////////////////////////////
 
 inline TiledIndexLabel TiledIndexSpace::label(std::string id, Label lbl) const {
-    if(id == "all") return TiledIndexLabel{(*this), lbl};
+    if(id == "all") return TiledIndexLabel{*this, lbl};
     return TiledIndexLabel{(*this)(id), lbl};
 }
 

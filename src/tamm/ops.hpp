@@ -311,7 +311,7 @@ index_permute_acc(T* dbuf, const T* sbuf, const PermVector& perm_to_dest,
 // inline IndexLabelVec sort_on_dependence(const IndexLabelVec& labels) {
 //     IndexLabelVec ret;
 //     for(const auto& lbl : labels) {
-//         for(const auto& dlbl : lbl.dep_labels()) {
+//         for(const auto& dlbl : lbl.secondary_labels()) {
 //             const auto it = std::find(ret.begin(), ret.end(), dlbl);
 //             if(it == ret.end()) { ret.push_back(dlbl); }
 //         }
@@ -624,11 +624,11 @@ protected:
         IndexLabelVec ilv{lhs_.labels()};
 
         for(size_t i = 0; i < ilv.size(); i++) {
-            for(const auto& dl : ilv[i].dep_labels()) {
+            for(const auto& dl : ilv[i].secondary_labels()) {
                 size_t j;
                 for(j = 0; j < ilv.size(); j++) {
                     if(dl.tiled_index_space() == ilv[j].tiled_index_space() &&
-                       dl.get_label() == ilv[j].get_label()) {
+                       dl.label() == ilv[j].label()) {
                         break;
                     }
                 }
@@ -641,7 +641,7 @@ protected:
             for(size_t j = i + 1; j < ilv.size(); j++) {
                 const auto& jlbl = ilv[j];
                 if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
-                   ilbl.get_label() == jlbl.get_label()) {
+                   ilbl.label() == jlbl.label()) {
                     EXPECTS(ilbl == jlbl);
                 }
             }
@@ -726,11 +726,11 @@ protected:
         IndexLabelVec ilv{lhs_.labels()};
 
         for(size_t i = 0; i < ilv.size(); i++) {
-            for(const auto& dl : ilv[i].dep_labels()) {
+            for(const auto& dl : ilv[i].secondary_labels()) {
                 size_t j;
                 for(j = 0; j < ilv.size(); j++) {
                     if(dl.tiled_index_space() == ilv[j].tiled_index_space() &&
-                       dl.get_label() == ilv[j].get_label()) {
+                       dl.label() == ilv[j].label()) {
                         break;
                     }
                 }
@@ -743,7 +743,7 @@ protected:
             for(size_t j = i + 1; j < ilv.size(); j++) {
                 const auto& jlbl = ilv[j];
                 if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
-                   ilbl.get_label() == jlbl.get_label()) {
+                   ilbl.label() == jlbl.label()) {
                     EXPECTS(ilbl == jlbl);
                 }
             }
@@ -862,11 +862,11 @@ protected:
         }
 
         for(size_t i = 0; i < ilv.size(); i++) {
-            for(const auto& dl : ilv[i].dep_labels()) {
+            for(const auto& dl : ilv[i].secondary_labels()) {
                 size_t j;
                 for(j = 0; j < ilv.size(); j++) {
                     if(dl.tiled_index_space() == ilv[j].tiled_index_space() &&
-                       dl.get_label() == ilv[j].get_label()) {
+                       dl.label() == ilv[j].label()) {
                         break;
                     }
                 }
@@ -879,7 +879,7 @@ protected:
             for(size_t j = i + 1; j < ilv.size(); j++) {
                 const auto& jlbl = ilv[j];
                 if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
-                   ilbl.get_label() == jlbl.get_label()) {
+                   ilbl.label() == jlbl.label()) {
                     EXPECTS(ilbl == jlbl);
                 }
             }
@@ -1049,11 +1049,11 @@ protected:
         ilv.insert(ilv.end(), rhs_.labels().begin(), rhs_.labels().end());
 
         for(size_t i = 0; i < ilv.size(); i++) {
-            for(const auto& dl : ilv[i].dep_labels()) {
+            for(const auto& dl : ilv[i].secondary_labels()) {
                 size_t j;
                 for(j = 0; j < ilv.size(); j++) {
                     if(dl.tiled_index_space() == ilv[j].tiled_index_space() &&
-                       dl.get_label() == ilv[j].get_label()) {
+                       dl.label() == ilv[j].label()) {
                         break;
                     }
                 }
@@ -1066,7 +1066,7 @@ protected:
             for(size_t j = i + 1; j < ilv.size(); j++) {
                 const auto& jlbl = ilv[j];
                 if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
-                   ilbl.get_label() == jlbl.get_label()) {
+                   ilbl.label() == jlbl.label()) {
                     EXPECTS(ilbl == jlbl);
                 }
             }
@@ -1309,11 +1309,11 @@ protected:
         ilv.insert(ilv.end(), rhs2_.labels().begin(), rhs2_.labels().end());
 
         for(size_t i = 0; i < ilv.size(); i++) {
-            for(const auto& dl : ilv[i].dep_labels()) {
+            for(const auto& dl : ilv[i].secondary_labels()) {
                 size_t j;
                 for(j = 0; j < ilv.size(); j++) {
                     if(dl.tiled_index_space() == ilv[j].tiled_index_space() &&
-                       dl.get_label() == ilv[j].get_label()) {
+                       dl.label() == ilv[j].label()) {
                         break;
                     }
                 }
@@ -1326,7 +1326,7 @@ protected:
             for(size_t j = i + 1; j < ilv.size(); j++) {
                 const auto& jlbl = ilv[j];
                 if(ilbl.tiled_index_space() == jlbl.tiled_index_space() &&
-                   ilbl.get_label() == jlbl.get_label()) {
+                   ilbl.label() == jlbl.label()) {
                     EXPECTS(ilbl == jlbl);
                 }
             }

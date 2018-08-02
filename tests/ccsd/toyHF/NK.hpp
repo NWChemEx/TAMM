@@ -1,6 +1,12 @@
+#ifndef TAMM_TESTS_NK_HPP_
+#define TAMM_TESTS_NK_HPP_
+
+#include <Eigen/Dense>
 #include "tamm/tamm.hpp"
 
 using namespace tamm;
+
+using EMatrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
 static const int NUM_NK_ITER = 6;
 
@@ -140,3 +146,5 @@ void fn() {
         Tensor<T>::deallocate(X1[i],X2[i]);
     }
 }
+
+#endif

@@ -3,12 +3,11 @@
 #include "toyHF/hartree_fock.hpp"
 #include "toyHF/diis.hpp"
 #include "toyHF/4index_transform.hpp"
+#include "toyHF/NK.hpp"
 #include "catch/catch.hpp"
-#include "ga.h"
-#include "mpi.h"
+#include "tamm/tamm.hpp"
 #include "macdecls.h"
 #include "ga-mpi.h"
-#include "tamm/tamm.hpp"
 
 
 using namespace tamm;
@@ -297,7 +296,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     d_t2s.push_back(new Tensor<T>{V,V,O,O});
     Tensor<T>::allocate(ec,*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
-
+ 
   Tensor<T> d_r1{V,O};
   Tensor<T> d_r2{V,V,O,O};
   Tensor<T>::allocate(ec,d_r1, d_r2);
@@ -407,14 +406,7 @@ int main( int argc, char* argv[] )
 }
 
 TEST_CASE("CCSD Driver") {
-    // Construction of tiled index space MO
-    IndexSpace MO_IS{range(0, 20),
-                     {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
-    TiledIndexSpace MO{MO_IS, 10};
 
-    const TiledIndexSpace& O = MO("occ");
-    const TiledIndexSpace& V = MO("virt");
-    const TiledIndexSpace& N = MO("all");
 
     using T = double;
 
@@ -455,8 +447,22 @@ TEST_CASE("CCSD Driver") {
              ov_beta - freeze_virtual, ov_beta - freeze_virtual};
 
     std::cout << "sizes vector -- \n";
-    for(auto x : sizes) std::cout << x << ", ";
+    for(const auto& x : sizes) std::cout << x << ", ";
     std::cout << "\n";
+    
+    // Construction of tiled index space MO
+    IndexSpace MO_IS{range(0, 20),
+                     {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
+    TiledIndexSpace MO{MO_IS, 1};
+
+    ProcGroup pg{GA_MPI_Comm()};
+    auto mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
+
+     TiledIndexSpace O = MO("occ");
+     TiledIndexSpace V = MO("virt");
+     TiledIndexSpace N = MO("all");
 
     Tensor<T> d_t1{V, O};
     Tensor<T> d_t2{V, V, O, O};
@@ -467,19 +473,15 @@ TEST_CASE("CCSD Driver") {
     double zshiftl = 0.0;
     int ndiis      = 5;
 
-    ProcGroup pg{GA_MPI_Comm()};
-    auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
+  Tensor<double>::allocate(ec, d_t1);// ,d_t2,d_f1, d_v2);
 
-  Tensor<T>::allocate(ec, d_t1,d_t2,d_f1, d_v2);
-
+#if 0  
   Scheduler{ec}
       (d_t1() = 0)
       (d_t2() = 0)
     .execute();
 
-  #if 0
+
   //Tensor Map
   block_parfor(ec.pg(), d_f1(), [&](auto& blockid) {
       auto block = d_f1.alloc(blockid);
@@ -496,11 +498,10 @@ TEST_CASE("CCSD Driver") {
     }
     d_f1.put(blockid, block);
     });
-  #endif
 
     CHECK_NOTHROW(ccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_v2, maxiter, thresh, zshiftl,
               ndiis,hf_energy));
     Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
     MemoryManagerGA::destroy_coll(mgr);
-
+#endif
 }

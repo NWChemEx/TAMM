@@ -1,6 +1,7 @@
 #define CATCH_CONFIG_RUNNER
 
 #include "toyHF/hartree_fock.hpp"
+#include "toyHF/diis.hpp"
 #include "toyHF/4index_transform.hpp"
 #include "catch/catch.hpp"
 #include "ga.h"
@@ -216,57 +217,174 @@ std::pair<double,double> rest(ExecutionContext& ec,
     return {residual, energy};
 }
 
+void iteration_print(const ProcGroup& pg, int iter, double residual, double energy) {
+  if(pg.rank() == 0) {
+    std::cout.width(6); std::cout << std::right << iter+1 << "  ";
+    std::cout << std::setprecision(13) << residual << "  ";
+    std::cout << std::fixed << std::setprecision(13) << energy << " ";
+    std::cout << std::string(4, ' ') << "0.0";
+    std::cout << std::string(5, ' ') << "0.0";
+    std::cout << std::string(5, ' ') << "0.0" << std::endl;
+  }
+}
+
 template<typename T>
-void ccsd_driver(const TiledIndexSpace& MO,
-                 const Tensor<T>& d_f1,
-                 const Tensor<T>& d_v2,
-                 double threshold) {
+void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
+                   Tensor<T>& d_t1, Tensor<T>& d_t2,
+                   Tensor<T>& d_f1, Tensor<T>& d_v2,
+                   int maxiter, double thresh,
+                   double zshiftl,
+                   int ndiis, double hf_energy) {
+
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
     const TiledIndexSpace& N = MO("all");
 
-    Tensor<T> de{};
-    Tensor<T> i1{V, O};
-    Tensor<T> i2{V, V, O, O};
-
-    Tensor<T> i0{V,O};
-    Tensor<T> d_t1{V, O};
-    Tensor<T> d_t2{V, V, O, O};
-
-    //@todo initial t1 guess
-    //@todo initial t2 guess
-
-    ProcGroup pg{GA_MPI_Comm()};
-    auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
+    std::cout.precision(15);
 
     Tensor<T> d_evl{N};
-    //@todo Set EVL to have local distribution (one copy in each MPI rank)
     Tensor<T>::allocate(ec, d_evl);
-
     TiledIndexLabel n1;
-    //TiledIndexSpace UnitTiledMO{MO.index_space(), 1};
     std::tie(n1) = MO.labels<1>("all");
 
-    Scheduler{ec}
-    (d_evl(n1) = 0.0)
+    Scheduler sch{ec};
+
+    sch(d_evl(n1) = 0.0)
     .execute();
 
-    Tensor<T>::allocate(ec, d_t1, d_t2);
+  //long int total_orbitals = 0;
+  //std::cout << "Total orbitals = " << total_orbitals << std::endl;
+  //std::vector<double> p_evl_sorted(14); //(total_orbitals);
 
-    T energy=0.0;
-    T residual=1000/*some large number*/;
-    const T zshiftl = 0.0;
+  // {
+  //   auto lambda = [&] (const auto& blockid) {
+  //     if(blockid[0] == blockid[1]) {
+  //       auto block = d_f1.get(blockid);
+  //       auto dim = d_f1.block_dims(blockid)[0].value();
+  //       auto offset = d_f1.block_offset(blockid)[0].value();
+  //       TAMMX_SIZE i=0;
+  //       for(auto p = offset; p < offset + dim; p++,i++) {
+  //         p_evl_sorted[p] = block.buf()[i*dim + i];
+  //       }
+  //     }
+  //   };
+  //   block_for(ec.pg(), d_f1(), lambda);
+  // }
+  // ec.pg().barrier();
 
-    while(residual > threshold) {
-        ccsd_e(*ec, MO, de, d_t1, d_t2, d_f1, d_v2);
-        ccsd_t1(*ec, MO, i1, d_t1, d_t2, d_f1, d_v2);
-        ccsd_t2(*ec, MO, i2, d_t1, d_t2, d_f1, d_v2);
-        std::tie(residual, energy) = rest(*ec, MO, i1, i2, d_t1, d_t2, de, d_evl, zshiftl);
-        break; //@todo remove once iterative procedure is implemented
+  // if(ec.pg().rank() == 0) {
+  //   std::cout << "p_evl_sorted:" << '\n';
+  //   for(auto p = 0; p < p_evl_sorted.size(); p++)
+  //     std::cout << p_evl_sorted[p] << '\n';
+  // }
+
+  if(ec->pg().rank() == 0) {
+    std::cout << "\n\n";
+    std::cout << " CCSD iterations" << std::endl;
+    std::cout << std::string(66, '-') << std::endl;
+    std::cout <<
+        " Iter          Residuum       Correlation     Cpu    Wall    V2*C2"
+              << std::endl;
+    std::cout << std::string(66, '-') << std::endl;
+  }
+   
+  std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
+
+  for(int i=0; i<ndiis; i++) {
+    d_r1s.push_back(new Tensor<T>{V,O});
+    d_r2s.push_back(new Tensor<T>{V,V,O,O});
+    d_t1s.push_back(new Tensor<T>{V,O});
+    d_t2s.push_back(new Tensor<T>{V,V,O,O});
+    Tensor<T>::allocate(ec,*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
+  }
+
+  Tensor<T> d_r1{V,O};
+  Tensor<T> d_r2{V,V,O,O};
+  Tensor<T>::allocate(ec,d_r1, d_r2);
+
+  double corr = 0;
+  double residual = 0.0;
+  double energy = 0.0;
+
+#if 1
+for(int titer=0; titer<maxiter; titer+=ndiis) {
+    for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
+        int off = iter - titer;
+
+        Tensor<T> d_t1_local{V,O};
+        Tensor<T> d_e{};
+        Tensor<T> d_r1_residual{};
+        Tensor<T> d_r2_residual{};
+
+        sch
+          .allocate(d_t1_local, d_r1_residual, d_r2_residual,
+                 d_e)(d_t1_local() = d_t1());
+
+        ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t1(*ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
+        std::tie(residual, energy) =
+          rest(*ec, MO, d_r1, d_r2, d_t1, d_t2, d_e, d_evl, zshiftl);
+
+        //Scheduler sch = ec->scheduler();
+        sch         
+          ((*d_t1s[off])() = d_t1())
+          ((*d_t2s[off])() = d_t2())
+          .execute();
+        sch.execute();
+        sch((*d_r1s[off])() = d_r1())
+           ((*d_r2s[off])() = d_r2())
+          .execute();
+        iteration_print(ec->pg(), iter, residual, energy);
+        if(residual < thresh) { break; }
     }
-    Tensor<T>::deallocate(d_evl, d_t1, d_t2);
+
+    if(residual < thresh || titer + ndiis >= maxiter) { break; }
+    if(ec->pg().rank() == 0) {
+        std::cout << " MICROCYCLE DIIS UPDATE:";
+        std::cout.width(21);
+        std::cout << std::right << std::min(titer + ndiis, maxiter) + 1;
+        std::cout.width(21);
+        std::cout << std::right << "5" << std::endl;
+    }
+    std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
+    std::vector<std::vector<Tensor<T>*>*> ts{&d_t1s, &d_t2s};
+    std::vector<Tensor<T>*> next_t{&d_t1, &d_t2};
+
+    //fixme 
+    //diis<T>(ec, rs, ts, next_t);
+  }
+
+  if(ec->pg().rank() == 0) {
+    std::cout << std::string(66, '-') << std::endl;
+    if(residual < thresh) {
+        std::cout << " Iterations converged" << std::endl;
+        std::cout.precision(15);
+        std::cout << " CCSD correlation energy / hartree ="
+                  << std::setw(26) << std::right << energy
+                  << std::endl;
+        std::cout << " CCSD total energy / hartree       ="
+                  << std::setw(26) << std::right
+                  << energy + hf_energy << std::endl;
+    }
+  }
+#endif
+
+  for(int i=0; i<ndiis; i++) {
+    Tensor<T>::deallocate(*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
+  }
+  d_r1s.clear();
+  d_r2s.clear();
+  Tensor<T>::deallocate(d_r1, d_r2);
+
+    // while(residual > thresh) {
+    //     ccsd_e(*ec, MO, de, d_t1, d_t2, d_f1, d_v2);
+    //     ccsd_t1(*ec, MO, i1, d_t1, d_t2, d_f1, d_v2);
+    //     ccsd_t2(*ec, MO, i2, d_t1, d_t2, d_f1, d_v2);
+    //     std::tie(residual, energy) = rest(*ec, MO, i1, i2, d_t1, d_t2, de, d_evl, zshiftl);
+    //     break; //@todo remove once iterative procedure is implemented
+    // }
+    // Tensor<T>::deallocate(i1,i2,de,d_evl);
 }
 
 std::string filename{}; //bad
@@ -289,10 +407,9 @@ int main( int argc, char* argv[] )
 }
 
 TEST_CASE("CCSD Driver") {
-
     // Construction of tiled index space MO
-    IndexSpace MO_IS{range(0, 200),
-                     {{"occ", {range(0, 100)}}, {"virt", {range(100, 200)}}}};
+    IndexSpace MO_IS{range(0, 20),
+                     {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
     TiledIndexSpace MO{MO_IS, 10};
 
     const TiledIndexSpace& O = MO("occ");
@@ -301,57 +418,61 @@ TEST_CASE("CCSD Driver") {
 
     using T = double;
 
+    Matrix C;
+    Matrix F;
+    Tensor4D V2;
+    TAMM_SIZE ov_alpha{0};
+    TAMM_SIZE freeze_core    = 0;
+    TAMM_SIZE freeze_virtual = 0;
 
-  Matrix C;
-  Matrix F;
-  Tensor4D V2;
-  TAMM_SIZE ov_alpha{0};
-  TAMM_SIZE freeze_core = 0;
-  TAMM_SIZE freeze_virtual = 0;
+    double hf_energy{0.0};
+    libint2::BasisSet shells;
+    TAMM_SIZE nao{0};
 
-  double hf_energy{0.0};
-  libint2::BasisSet shells;
-  TAMM_SIZE nao{0};
+    std::vector<TAMM_SIZE> sizes;
 
-  std::vector<TAMM_SIZE> sizes;  
+    auto hf_t1 = std::chrono::high_resolution_clock::now();
+    std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename, C, F);
+    auto hf_t2 = std::chrono::high_resolution_clock::now();
 
-  auto hf_t1 = std::chrono::high_resolution_clock::now();
-  std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename,C,F);
-  auto hf_t2 = std::chrono::high_resolution_clock::now();
+    double hf_time =
+      std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
+    std::cout << "Time taken for Hartree-Fock: " << hf_time << " secs\n";
 
-  double hf_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
-  std::cout << "Time taken for Hartree-Fock: " << hf_time << " secs\n";
+    hf_t1        = std::chrono::high_resolution_clock::now();
+    std::tie(V2) = four_index_transform(ov_alpha, nao, freeze_core,
+                                        freeze_virtual, C, F, shells);
+    hf_t2        = std::chrono::high_resolution_clock::now();
+    double two_4index_time =
+      std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
+    std::cout << "Time taken for 2&4-index transforms: " << two_4index_time
+              << " secs\n";
 
-  hf_t1 = std::chrono::high_resolution_clock::now();
-  std::tie(V2) = four_index_transform(ov_alpha, nao, freeze_core, freeze_virtual, C, F, shells);
-  hf_t2 = std::chrono::high_resolution_clock::now();
-  double two_4index_time = std::chrono::duration_cast<std::chrono::seconds>((hf_t2 - hf_t1)).count();
-  std::cout << "Time taken for 2&4-index transforms: " << two_4index_time << " secs\n";
+    TAMM_SIZE ov_beta{nao - ov_alpha};
 
-  TAMM_SIZE ov_beta{nao-ov_alpha};
+    std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
+    sizes = {ov_alpha - freeze_core, ov_alpha - freeze_core,
+             ov_beta - freeze_virtual, ov_beta - freeze_virtual};
 
-  std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
-  sizes = {ov_alpha-freeze_core, ov_alpha-freeze_core, ov_beta-freeze_virtual, ov_beta-freeze_virtual};
+    std::cout << "sizes vector -- \n";
+    for(auto x : sizes) std::cout << x << ", ";
+    std::cout << "\n";
 
-  std::cout << "sizes vector -- \n";
-  for(auto x: sizes) std::cout << x << ", ";
-  std::cout << "\n";
-
-  Tensor<T> d_t1{V,O};
-  Tensor<T> d_t2{V,V,O,O};
-  Tensor<T> d_f1{N,N};
-  Tensor<T> d_v2{N,N,N,N};
-  int maxiter = 50;
-  double thresh = 1.0e-10;
-  double zshiftl = 0.0;
-  int ndiis = 5;
+    Tensor<T> d_t1{V, O};
+    Tensor<T> d_t2{V, V, O, O};
+    Tensor<T> d_f1{N, N};
+    Tensor<T> d_v2{N, N, N, N};
+    int maxiter    = 50;
+    double thresh  = 1.0e-10;
+    double zshiftl = 0.0;
+    int ndiis      = 5;
 
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
 
-  Tensor<T>::allocate(ec, d_t1, d_t2, d_f1, d_v2);
+  Tensor<T>::allocate(ec, d_t1,d_t2,d_f1, d_v2);
 
   Scheduler{ec}
       (d_t1() = 0)
@@ -377,11 +498,9 @@ TEST_CASE("CCSD Driver") {
     });
   #endif
 
-    Tensor<T> f1{N, N};
-    Tensor<T> v2{N, N, N, N};
+    CHECK_NOTHROW(ccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_v2, maxiter, thresh, zshiftl,
+              ndiis,hf_energy));
+    Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
+    MemoryManagerGA::destroy_coll(mgr);
 
-    //@todo construct f1
-    //@todo construct v2
-
-    CHECK_NOTHROW(ccsd_driver<T>(MO, f1, v2, 1e-10));
 }

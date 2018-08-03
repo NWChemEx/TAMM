@@ -333,9 +333,10 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
 
         
         ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
+        //fixme -uncomment
         //ccsd_t1(*ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
-       //fixme ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
-        //std::tie(residual, energy) =
+       // ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
+        std::tie(residual, energy) =
         rest(*ec, MO, d_r1, d_r2, d_t1, d_t2, d_e, d_evl, zshiftl);                 
 
         Scheduler{ec}
@@ -362,10 +363,10 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
         std::cout << std::right << "5" << std::endl;
     }
     ////fixme 
-    // std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
-    // std::vector<std::vector<Tensor<T>*>*> ts{&d_t1s, &d_t2s};
-    // std::vector<Tensor<T>*> next_t{&d_t1, &d_t2};
-    //diis<T>(ec, rs, ts, next_t);
+    std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
+    std::vector<std::vector<Tensor<T>*>*> ts{&d_t1s, &d_t2s};
+    std::vector<Tensor<T>*> next_t{&d_t1, &d_t2};
+    diis<T>(*ec, rs, ts, next_t);
   }
 
   if(ec->pg().rank() == 0) {

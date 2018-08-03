@@ -976,6 +976,8 @@ public:
             auto rtensor = rhs_.tensor();
             IndexVector lblockid, rblockid;
             split_block_id(lblockid, rblockid, lhs_.labels().size(), rhs_.labels().size(), blockid);
+            lblockid = internal::translate_blockid(lblockid, ltensor, lhs_);
+            rblockid = internal::translate_blockid(rblockid, rtensor, rhs_);
             const size_t size = ltensor.block_size(lblockid);
             // IndexVector rblockid = internal::LabelMap<Index>()
             //                          .update(lhs_.labels(), lblockid)
@@ -1229,11 +1231,16 @@ public:
             auto btensor         = rhs2_.tensor();
             //compute blockids from the loop indices. itval is the loop index
             auto it = itval.begin();
-            const IndexVector cblockid{it, it+lhs_.labels().size()};
+            IndexVector cblockid{it, it+lhs_.labels().size()};
             it += lhs_.labels().size();
-            const IndexVector ablockid{it, it+rhs1_.labels().size()};
+            IndexVector ablockid{it, it+rhs1_.labels().size()};
             it += rhs1_.labels().size();
-            const IndexVector bblockid{it, it+rhs2_.labels().size()};
+            IndexVector bblockid{it, it+rhs2_.labels().size()};
+
+            cblockid = internal::translate_blockid(cblockid, ctensor, lhs_);
+            ablockid = internal::translate_blockid(ablockid, atensor, rhs1_);
+            bblockid = internal::translate_blockid(bblockid, btensor, rhs2_);
+        
             //compute block size and allocate buffers
             const size_t csize = ctensor.block_size(cblockid);
             const size_t asize = atensor.block_size(ablockid);

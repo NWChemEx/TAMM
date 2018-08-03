@@ -159,11 +159,11 @@ bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
     return false;
 }
 
-template <typename TensorT, typename LabeledTensorT>
+template <typename LabeledTensorT>
 IndexVector translate_blockid(const IndexVector& blockid,
-                              const TensorT& tensor,
                               const LabeledTensorT& ltensor) {
     EXPECTS(blockid.size() == ltensor.labels().size());
+    const auto& tensor = ltensor.tensor();
     EXPECTS(blockid.size() == tensor.num_modes());
     IndexVector translate_blockid;
     for(size_t i = 0; i < blockid.size(); i++) {

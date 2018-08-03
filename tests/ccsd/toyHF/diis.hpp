@@ -10,39 +10,55 @@ namespace tamm {
 template<typename T>
 inline void
 jacobi(ExecutionContext& ec,
-       const Tensor<T>& d_r, const Tensor<T>& d_t, T shift, bool transpose, const Tensor<T>& p_evl_sorted) {
+       const Tensor<T>& d_r, const Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted) {
   EXPECTS(transpose == false);
-  #if 0
-  block_parfor(ec.pg(), d_r(), [&] (IndexVector blockid) {
-      auto rblock = d_r.get(blockid);
-      auto tblock = d_t.alloc(blockid);
-      auto bdims = rblock.block_dims();
+  #if 1
+  block_for(ec.pg(), d_r(), [&] (IndexVector blockid) {
 
-      if(d_r.rank() == 2) {
-        auto ioff = TCE::offset(blockid[0]);
-        auto joff = TCE::offset(blockid[1]);
-        auto isize = bdims[0].value();
-        auto jsize = bdims[1].value();
-        T* rbuf = rblock.buf();
-        T* tbuf = tblock.buf();
+    Tensor<T> rtensor = d_r().tensor();
+    const TAMM_SIZE rsize = rtensor.block_size(blockid);
+    
+    std::vector<T> rbuf(rsize);
+    rtensor.get(blockid, rbuf);
+
+    Tensor<T> ttensor = d_t().tensor();
+    const TAMM_SIZE tsize = ttensor.block_size(blockid);
+    
+    std::vector<T> tbuf(tsize);
+    ttensor.get(blockid, tbuf);
+
+    auto &rtiss = rtensor.tiled_index_spaces();
+    auto rblock_dims = rtensor.block_dims(blockid);
+
+      if(d_r.num_modes() == 2) {
+        auto ioff = rtiss[0].tile_offset(blockid[0]);
+        auto joff = rtiss[1].tile_offset(blockid[1]);
+        auto isize = rblock_dims[0];
+        auto jsize = rblock_dims[1];
+        // T* rbuf = rblock.buf();
+        // T* tbuf = tblock.buf();
         for(int i=0, c=0; i<isize; i++) {
           for(int j=0; j<jsize; j++, c++) {
             tbuf[c] = rbuf[c] / (-p_evl_sorted[ioff+i] + p_evl_sorted[joff+j] + shift);
           }
         }
-        d_t.add(tblock.blockid(), tblock);
-      } else if(d_r.rank() == 4) {
-        auto off = rblock.block_offset();
-        TensorVec<int64_t> ioff;
-        for(auto x: off) {
-          ioff.push_back(x.value());
+        ttensor.add(blockid, tbuf);
+      } 
+      else if(d_r.num_modes() == 4) {
+        const int ndim = 4;
+        std::array<int, ndim> rblock_offset;
+        for(auto i = 0; i < ndim; i++) {
+            rblock_offset[i] = rtiss[i].tile_offset(blockid[i]);
         }
-        TensorVec<int64_t> isize;
-        for(auto x: bdims) {
-          isize.push_back(x.value());
+        std::vector<size_t> ioff;
+        for(auto x: rblock_offset) {
+          ioff.push_back(x);
         }
-        T* rbuf = rblock.buf();
-        T* tbuf = tblock.buf();
+        std::vector<size_t> isize;
+        for(auto x: rblock_dims) {
+          isize.push_back(x);
+        }
+
         for(int i0=0, c=0; i0<isize[0]; i0++) {
           for(int i1=0; i1<isize[1]; i1++) {
             for(int i2=0; i2<isize[2]; i2++) {
@@ -54,7 +70,7 @@ jacobi(ExecutionContext& ec,
             }
           }
         }
-        d_t.add(tblock.blockid(), tblock);
+        ttensor.add(blockid, tbuf);
       }
       else {
         assert(0);  // @todo implement

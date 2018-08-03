@@ -199,7 +199,7 @@ std::pair<double,double> rest(ExecutionContext& ec,
                               const Tensor<T>& d_t1,
                               const Tensor<T>& d_t2,
                               const Tensor<T>& de,
-                              const Tensor<T>& EVL, T zshiftl) {
+                              std::vector<T>& p_evl_sorted, T zshiftl) {
 
     T residual, energy;
     Scheduler sch{&ec};
@@ -222,10 +222,10 @@ std::pair<double,double> rest(ExecutionContext& ec,
       };
 
       auto l1 =  [&]() {
-        jacobi(ec, d_r1, d_t1, -1.0 * zshiftl, false, EVL);
+        jacobi(ec, d_r1, d_t1, -1.0 * zshiftl, false, p_evl_sorted.data());
       };
       auto l2 = [&]() {
-        jacobi(ec, d_r2, d_t2, -2.0 * zshiftl, false, EVL);
+        jacobi(ec, d_r2, d_t2, -2.0 * zshiftl, false, p_evl_sorted.data());
       };
 
       l0();
@@ -254,7 +254,8 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
                    Tensor<T>& d_f1, Tensor<T>& d_v2,
                    int maxiter, double thresh,
                    double zshiftl,
-                   int ndiis, double hf_energy) {
+                   int ndiis, double hf_energy,
+                   long int total_orbitals) {
 
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
@@ -262,42 +263,55 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 
     std::cout.precision(15);
 
-  ///fixme - what to do with p_evl_sorted
-  //long int total_orbitals = 0;
-  //std::cout << "Total orbitals = " << total_orbitals << std::endl;
-  //std::vector<double> p_evl_sorted(14); //(total_orbitals);
-
-    Tensor<T> d_evl{N};
-    Tensor<T>::allocate(ec, d_evl);
-    TiledIndexLabel n1;
-    std::tie(n1) = MO.labels<1>("all");
 
     Scheduler sch{ec};
+  /// @todo: make it a tamm tensor
+  std::cout << "Total orbitals = " << total_orbitals << std::endl;
+  std::vector<double> p_evl_sorted(total_orbitals);
 
-    sch(d_evl(n1) = 0.0)
-    .execute();
+    // Tensor<T> d_evl{N};
+    // Tensor<T>::allocate(ec, d_evl);
+    // TiledIndexLabel n1;
+    // std::tie(n1) = MO.labels<1>("all");
 
-  // { ///fixme
-  //   auto lambda = [&] (const auto& blockid) {
-  //     if(blockid[0] == blockid[1]) {
-  //       auto block = d_f1.get(blockid);
-  //       auto dim = d_f1.block_dims(blockid)[0].value();
-  //       auto offset = d_f1.block_offset(blockid)[0].value();
-  //       TAMMX_SIZE i=0;
-  //       for(auto p = offset; p < offset + dim; p++,i++) {
-  //         p_evl_sorted[p] = block.buf()[i*dim + i];
-  //       }
-  //     }
-  //   };
-  //   block_for(ec.pg(), d_f1(), lambda);
-  // }
-  // ec.pg().barrier();
+    // sch(d_evl(n1) = 0.0)
+    // .execute();
 
-  // if(ec.pg().rank() == 0) {
-  //   std::cout << "p_evl_sorted:" << '\n';
-  //   for(auto p = 0; p < p_evl_sorted.size(); p++)
-  //     std::cout << p_evl_sorted[p] << '\n';
-  // }
+  {
+      auto lambda = [&](const IndexVector& blockid) {
+          if(blockid[0] == blockid[1]) {
+              Tensor<T> tensor     = d_f1().tensor();
+              const TAMM_SIZE size = tensor.block_size(blockid);
+
+              std::vector<T> buf(size);
+
+              tensor.get(blockid, buf);
+
+              const int ndim = 2;
+              std::array<int, ndim> block_offset;
+              auto& tiss      = tensor.tiled_index_spaces();
+              auto block_dims = tensor.block_dims(blockid);
+              for(auto i = 0; i < ndim; i++) {
+                  block_offset[i] = tiss[i].tile_offset(blockid[i]);
+              }
+
+              auto dim    = block_dims[0];
+              auto offset = block_offset[0];
+              TAMM_SIZE i = 0;
+              for(auto p = offset; p < offset + dim; p++, i++) {
+                  p_evl_sorted[p] = buf[i * dim + i];
+              }
+          }
+      };
+      block_for(ec->pg(), d_f1(), lambda);
+  }
+  ec->pg().barrier();
+
+  if(ec->pg().rank() == 0) {
+    std::cout << "p_evl_sorted:" << '\n';
+    for(auto p = 0; p < p_evl_sorted.size(); p++)
+      std::cout << p_evl_sorted[p] << '\n';
+  }
 
   if(ec->pg().rank() == 0) {
     std::cout << "\n\n";
@@ -353,7 +367,7 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
         ccsd_t1(*ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
         ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
         std::tie(residual, energy) =
-        rest(*ec, MO, d_r1, d_r2, d_t1, d_t2, d_e, d_evl, zshiftl);                 
+        rest(*ec, MO, d_r1, d_r2, d_t1, d_t2, d_e, p_evl_sorted, zshiftl);                 
 
         Scheduler{ec}
             ((*d_r1s[off])() = d_r1())
@@ -405,7 +419,7 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
   }
   d_r1s.clear();
   d_r2s.clear();
-  Tensor<T>::deallocate(d_evl,d_r1, d_r2);
+  Tensor<T>::deallocate(d_r1, d_r2);
 
 }
 
@@ -472,10 +486,20 @@ TEST_CASE("CCSD Driver") {
     std::cout << "sizes vector -- \n";
     for(const auto& x : sizes) std::cout << x << ", ";
     std::cout << "\n";
+
+    const long int total_orbitals = 2*ov_alpha+2*ov_beta;
     
     // Construction of tiled index space MO
-    IndexSpace MO_IS{range(0, 20),
-                     {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
+    // IndexSpace MO_IS{range(0, 20),
+    //                  {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
+
+    // IndexSpace MO_IS{range(0, total_orbitals),
+    //                 {{"occ", {range(0, ov_alpha+ov_beta)}},
+    //                  {"virt", {range(total_orbitals/2, total_orbitals)}}}};
+    IndexSpace MO_IS{range(0, total_orbitals),
+                     {{"occ", {range(0, ov_alpha),range(ov_alpha,ov_alpha+ov_beta)}},
+                      {"virt", {range(ov_alpha+ov_beta, 2*ov_alpha+ov_beta),
+                      range(2*ov_alpha+ov_beta,total_orbitals)}}}};
     TiledIndexSpace MO{MO_IS, 10};
 
     ProcGroup pg{GA_MPI_Comm()};
@@ -501,6 +525,8 @@ TEST_CASE("CCSD Driver") {
   Scheduler{ec}
       (d_t1() = 0)
       (d_t2() = 0)
+      (d_f1() = 0)
+      (d_v2() = 0)
     .execute();
 
 
@@ -563,7 +589,7 @@ TEST_CASE("CCSD Driver") {
 
     //print_tensor(d_f1);
     CHECK_NOTHROW(ccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_v2,
-                  maxiter, thresh, zshiftl,ndiis,hf_energy));
+                  maxiter, thresh, zshiftl,ndiis,hf_energy,total_orbitals));
 
     Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
     MemoryManagerGA::destroy_coll(mgr);

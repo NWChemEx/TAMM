@@ -85,7 +85,7 @@ public:
         }
 
         tiled_info_ = std::make_shared<TiledIndexSpaceInfo>(
-          (*t_is.tiled_info_), new_offsets, new_indices);
+          (*t_is.root_tiled_info_.lock()), new_offsets, new_indices);
     }
 
     /**
@@ -380,10 +380,13 @@ public:
      * @returns an index from the new_tis that corresponds to [in] id
      */
     std::size_t translate(size_t id, const TiledIndexSpace& new_tis) const {
-        EXPECTS(id >= 0 && id < tiled_info_->simple_vec_.size());
+        EXPECTS(id >= 0 && id < tiled_info_->ref_indices_.size());
 
-        auto it = std::find(new_tis.begin(), new_tis.end(),
-                            tiled_info_->simple_vec_[id]);
+        auto new_ref_indices = new_tis.tiled_info_->ref_indices_;
+        EXPECTS(new_ref_indices.size() == new_tis.tiled_info_->simple_vec_.size());
+
+        auto it = std::find(new_ref_indices.begin(), new_ref_indices.end(),
+                            tiled_info_->ref_indices_[id]);
         EXPECTS(it != new_tis.end());
 
         return (*it);
@@ -476,6 +479,7 @@ protected:
         std::vector<Tile>
           input_tile_sizes_;       /**< User-specified multiple tile sizes*/
         IndexVector tile_offsets_; /**< Tile offsets */
+        IndexVector ref_indices_;  /**< Reference indices to root */
         IndexVector simple_vec_;   /**< vector where at(i) = i*/
         std::map<IndexVector, TiledIndexSpace>
           tiled_dep_map_; /**< Tiled dependency map for dependent index spaces*/
@@ -522,53 +526,70 @@ protected:
             if(!is.is_dependent()) {
                 for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
                     simple_vec_.push_back(i);
+                    ref_indices_.push_back(i);
                 }
             }
+
+            //Post-condition
+            EXPECTS(simple_vec_.size() == ref_indices_.size());
+            EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
         }
 
         /**
-         * @brief Construct a new sub-TiledIndexSpaceInfo object from a parent
+         * @brief Construct a new sub-TiledIndexSpaceInfo object from a root
          * TiledIndexInfo object along with a set of offsets and indices
-         * corresponding to the parent object
+         * corresponding to the root object
          *
-         * @param [in] parent TiledIndexSpaceInfo object
-         * @param [in] offsets input offsets from the parent
-         * @param [in] indices input indices from the parent
+         * @param [in] root TiledIndexSpaceInfo object
+         * @param [in] offsets input offsets from the root
+         * @param [in] indices input indices from the root
          */
-        TiledIndexSpaceInfo(const TiledIndexSpaceInfo& parent,
+        TiledIndexSpaceInfo(const TiledIndexSpaceInfo& root,
                             const IndexVector& offsets,
                             const IndexVector& indices) :
-          is_{parent.is_},
-          input_tile_size_{parent.input_tile_size_},
-          input_tile_sizes_{parent.input_tile_sizes_},
+          is_{root.is_},
+          input_tile_size_{root.input_tile_size_},
+          input_tile_sizes_{root.input_tile_sizes_},
           tile_offsets_{offsets},
-          simple_vec_{indices} {}
+          ref_indices_{indices} {
+            for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
+                simple_vec_.push_back(i);
+            }
+
+            //Post-condition
+            EXPECTS(simple_vec_.size() == ref_indices_.size());
+            EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
+        }
 
         /**
-         * @brief Construct a new TiledIndexSpaceInfo object from a parent
+         * @brief Construct a new TiledIndexSpaceInfo object from a root
          * (dependent) TiledIndexSpaceInfo object with a new set of relations
          * for the dependency relation.
          *
-         * @param [in] parent TiledIndexSpaceInfo object
+         * @param [in] root TiledIndexSpaceInfo object
          * @param [in] dep_map dependency relation between indices of the
          * dependent TiledIndexSpace and corresponding TiledIndexSpaces
          */
         TiledIndexSpaceInfo(
-          const TiledIndexSpaceInfo& parent,
+          const TiledIndexSpaceInfo& root,
           const std::map<IndexVector, TiledIndexSpace>& dep_map) :
-          is_{parent.is_},
-          input_tile_size_{parent.input_tile_size_},
-          input_tile_sizes_{parent.input_tile_sizes_},
+          is_{root.is_},
+          input_tile_size_{root.input_tile_size_},
+          input_tile_sizes_{root.input_tile_sizes_},
           tiled_dep_map_{dep_map} {
-            // Check if the new dependency relation is sub set of parent
+            // Check if the new dependency relation is sub set of root
             // dependency relation
-            const auto& parent_dep = parent.tiled_dep_map_;
+            const auto& root_dep = root.tiled_dep_map_;
             for(const auto& dep_kv : dep_map) {
                 const auto& key     = dep_kv.first;
                 const auto& dep_tis = dep_kv.second;
-                EXPECTS(parent_dep.find(key) != parent_dep.end());
-                EXPECTS(parent_dep.at(key).is_compatible_with(dep_tis));
+                EXPECTS(root_dep.find(key) != root_dep.end());
+                EXPECTS(root_dep.at(key).is_compatible_with(dep_tis));
             }
+
+            //Post-condition
+            EXPECTS(simple_vec_.size() == ref_indices_.size());
+            EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
         }
 
         /**
@@ -770,12 +791,13 @@ protected:
      */
     std::size_t info_translate(size_t id,
                                const TiledIndexSpaceInfo& new_info) const {
-        EXPECTS(id >= 0 && id < tiled_info_->simple_vec_.size());
+        EXPECTS(id >= 0 && id < tiled_info_->ref_indices_.size());
+        EXPECTS(new_info.ref_indices_.size() == new_info.simple_vec_.size());
 
         auto it =
-          std::find(new_info.simple_vec_.begin(), new_info.simple_vec_.end(),
-                    tiled_info_->simple_vec_[id]);
-        EXPECTS(it != new_info.simple_vec_.end());
+          std::find(new_info.ref_indices_.begin(), new_info.ref_indices_.end(),
+                    tiled_info_->ref_indices_[id]);
+        EXPECTS(it != new_info.ref_indices_.end());
 
         return (*it);
     }
@@ -812,14 +834,14 @@ protected:
             IndexVector indices;
 
             for(const auto& idx : named_is) {
-                // find position in the parent index space
+                // find position in the root index space
                 size_t pos = is.find_pos(idx);
                 // named subspace should always find it
                 EXPECTS(pos >= 0);
 
                 size_t tile_idx     = 0;
                 const auto& offsets = tiled_info_->tile_offsets_;
-                // find in which tiles in the parent it would be
+                // find in which tiles in the root it would be
                 for(Index i = 0; pos >= offsets[i]; i++) { tile_idx = i; }
                 indices.push_back(tile_idx);
             }
@@ -837,7 +859,7 @@ protected:
             }
             TiledIndexSpace tempTIS{};
             tempTIS.set_tiled_info(std::make_shared<TiledIndexSpaceInfo>(
-              (*tiled_info_), new_offsets, indices));
+              (*root_tiled_info_.lock()), new_offsets, indices));
             tempTIS.set_root(tiled_info_);
 
             tiled_info_->tiled_named_subspaces_.insert(

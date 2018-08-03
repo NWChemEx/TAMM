@@ -580,15 +580,18 @@ public:
             auto tensor = lhs_.tensor();
             EXPECTS(blockid.size() == lhs_.labels().size());
             EXPECTS(blockid.size() == tensor.num_modes());
+            const auto& translated_blockid = internal::translate_blockid(blockid, tensor, lhs_);
+
+
             // const IndexVector& blockid =
             //   internal::perm_map_apply(itval, lhs_pm);
-            const size_t size = tensor.block_size(blockid);
+            const size_t size = tensor.block_size(translated_blockid);
             std::vector<TensorElType> buf(size,
                                           static_cast<TensorElType>(alpha()));
             if(is_assign_) {
-                tensor.put(blockid, buf);
+                tensor.put(translated_blockid, buf);
             } else {
-                tensor.add(blockid, buf);
+                tensor.add(translated_blockid, buf);
             }
         };    
     #endif

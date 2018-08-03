@@ -333,9 +333,8 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
 
         
         ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
-        //fixme -uncomment
-        //ccsd_t1(*ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
-       // ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t1(*ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
         std::tie(residual, energy) =
         rest(*ec, MO, d_r1, d_r2, d_t1, d_t2, d_e, d_evl, zshiftl);                 
 
@@ -467,7 +466,7 @@ TEST_CASE("CCSD Driver") {
     // Construction of tiled index space MO
     IndexSpace MO_IS{range(0, 20),
                      {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
-    TiledIndexSpace MO{MO_IS, 1};
+    TiledIndexSpace MO{MO_IS, 10};
 
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);

@@ -673,18 +673,27 @@ TiledIndexLabel p5 = MO.label("virt",4);
 TiledIndexLabel p6 = MO.label("virt",5);
 
 
-bool check_value(Tensor<double> &t, double val){
-  bool status = true;
-    for (auto it: t.loop_nest())
-    {
-        TAMM_SIZE size = t.block_size(it);
-        std::vector<double> buf(size);
-        t.get(it, buf);
-        for (TAMM_SIZE i = 0; i < size;i++) {
-          status &= (std::fabs(buf[i]-val) < 1.0e-12);
-       }
+template<typename T>
+bool check_value(LabeledTensor<T> lt, T val) {
+    LabelLoopNest loop_nest{lt.labels()};
+
+    for(const auto& itval : loop_nest) {
+        const IndexVector blockid = internal::translate_blockid(itval, lt);
+        size_t size               = lt.tensor().block_size(blockid);
+        std::vector<T> buf(size);
+        lt.tensor().get(blockid, buf);
+        for(TAMM_SIZE i = 0; i < size; i++) {
+            if(std::fabs(buf[i] - val) >= 1.0e-10) {
+              return false;
+            }
+        }
     }
-    return status;
+    return true;
+}
+
+template<typename T>
+bool check_value(Tensor<T>& t, T val) {
+    return check_value(t(), val);
 }
 
 //-----------------------------------------------------------------------

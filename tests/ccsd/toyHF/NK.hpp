@@ -46,6 +46,7 @@ void fn(ExecutionContext *ec, TiledIndexSpace TIS) {
 
     Tensor<T>::allocate(ec,res,res1,res2,res1_tmp);
 
+    // res_loc = ||R(T)||;
     Scheduler{ec}
         (res1() = 0)
         (res2() = 0)
@@ -62,9 +63,8 @@ void fn(ExecutionContext *ec, TiledIndexSpace TIS) {
     
     Scheduler sch{ec};
     while(res_local > tol) {
-        // 3: = ||R(T(k))||; -- ignore
 
-        // 4: V (:; 1)   R(T(k))= ;
+        // 4: X(:;0) = R(T)/res_loc;
         sch
             (R1() /= res())
             (R2() /= res())
@@ -73,26 +73,27 @@ void fn(ExecutionContext *ec, TiledIndexSpace TIS) {
             .execute();
 
         const double h = 1.0e-2;
+        Tensor<T> Htmp[NUM_NK_ITER+1][NUM_NK_ITER]; 
+
         // 5: for j = 1, 2,...maxgmiter do
         for(size_t j = 0; j < NUM_NK_ITER; j++) {
+            // 6: R_tmp = R[T + h*X(:,)];
             Tensor<T> T1_tmp{a, i}, T2_tmp{a, b, i, j};
             Tensor<T> R1_tmp{a, i}, R2_tmp{a, b, i, j};
             Scheduler{}(T1_tmp() = h * X1[j] + T1())(T2_tmp() =
                                                        h * X2[j] + T2())
               .execute();
-            // 6: W   R[T(k) + hV (:; j)];
             R1_tmp = ccsd_t1(T1_tmp, T2_tmp, F1, V2);
             R2_tmp = ccsd_t2(T1_tmp, T2_tmp, F1, V2);
-            // 7: W   (W 􀀀 R(T(k)))=h;
+            // 7: R_tmp = (R_tmp - R(T))/h;
             sch
                 (R1_tmp() -= R1())
                 (R2_tmp() -= R2())
                 (R1_tmp() /= h)
                 (R2_tmp() /= h)
                 .execute();
-            // 8: H(:; 1 : j)   V (:; 1 : j)TW;
-            // 9: W   W 􀀀 V (:; 1 : j)h;
-            Tensor<T> Htmp[NUM_NK_ITER+1][NUM_NK_ITER]; //all scalars
+            // 8: H(:; 1 : j) = transpose(X (:;1 :j))* W;
+            // 9: R_tmp =  R_tmp - X (:;1 :j)*H(:,1:j);
             
             for(size_t j1=0; j1 < j; j1++) {
                 sch
@@ -112,11 +113,13 @@ void fn(ExecutionContext *ec, TiledIndexSpace TIS) {
             res_local = sqrt(res_local);
             res1_tmp.put({}, span<T>{&res_local, 1});
 
-            // 11: V (:; j + 1) = W=H(j + 1; j);
+            // 11: X(:;j+1) = R_tmp/H(j + 1; j);
             sch
                 (Htmp[j+1][j]() = res1_tmp())
+                // if (j < NUM_NK_ITER) {
                 (X1[j+1]() = R1_tmp() / res1_tmp())
                 (X2[j+1]() = R2_tmp() / res1_tmp())
+                //}
                 .execute();
             // 12: end for
         }
@@ -128,7 +131,7 @@ void fn(ExecutionContext *ec, TiledIndexSpace TIS) {
         //@todo copy Htmp to Htmp_eigen
         //@call the eigen least squares solver with the result in s
 
-        //14: T(k+1) = V s; 
+        //14: T = X*s; 
         {
             Scheduler sch;
             for(size_t j=0; j<NUM_NK_ITER; j++) {
@@ -142,6 +145,19 @@ void fn(ExecutionContext *ec, TiledIndexSpace TIS) {
         //16: Evaluate R(T(k)); 
         R1 = ccsd_t1(T1, T2, F1, V2);
         R2 = ccsd_t2(T1, T2, F1, V2);
+    
+        Scheduler{ec}
+            (res1() = 0)
+            (res2() = 0)
+            (res1() += R1() * R1())
+            (res2() += R2() * R2())
+            (res() += res1())
+            (res() += res2())
+        .execute();
+    
+        res.get({}, span<T>{&res_local, 1});
+        res_local = sqrt(res_local);
+        res.put({}, span<T>{&res_local, 1});
         //17: end while
     } //while
 

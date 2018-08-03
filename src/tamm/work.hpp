@@ -91,6 +91,28 @@ do_work(ProcGroup& ec_pg, Iterable& iterable, Fn fn, const ExecutionPolicy exec_
   do_work(ec_pg, iterable.begin(), iterable.end(), fn, exec_policy);
 }
 
+/**
+ * Iterate over all blocks in a labeled tensor and apply a given function
+ * @tparam T Type of element in each tensor
+ * @tparam Lambda Function to be applied on each block
+ * @param ec_pg Process group in which this call is invoked
+ * @param ltc Labeled tensor whose blocks are to be iterated
+ * @param func Function to be applied on each block
+ * @param exec_policy Execution policy to be used
+ */
+template<typename T, typename Lambda>
+void
+block_for(ProcGroup ec_pg, LabeledTensor<T> ltc, Lambda func,
+           ExecutionPolicy exec_policy = ExecutionPolicy::parallel) {
+  LabelLoopNest loop_nest{ltc.labels()};
+
+  if(exec_policy == ExecutionPolicy::sequential_replicated) {
+    seq_work(ec_pg, loop_nest.begin(), loop_nest.end(), func);
+  } else {
+    parallel_work(ec_pg, loop_nest.begin(), loop_nest.end(), func);
+  }
+}
+
 } // namespace tamm
 
 #endif  // TAMM_WORK_HPP_

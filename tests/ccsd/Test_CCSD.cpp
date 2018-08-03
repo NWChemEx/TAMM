@@ -13,6 +13,28 @@
 using namespace tamm;
 
 template<typename T>
+std::ostream& operator << (std::ostream &os, std::vector<T>& vec){
+    os << "[";
+    for(auto &x: vec)
+        os << x << ",";
+    os << "]\n";
+    return os;
+}
+
+template<typename T>
+void print_tensor(Tensor<T> &t){
+    for (auto it: t.loop_nest())
+    {
+        TAMM_SIZE size = t.block_size(it);
+        std::vector<T> buf(size);
+        t.get(it, buf);
+        std::cout << "block" << it;
+        for (TAMM_SIZE i = 0; i < size;i++)
+         std::cout << buf[i] << std::endl;
+    }
+}
+
+template<typename T>
 void ccsd_e(ExecutionContext &ec,
             const TiledIndexSpace& MO, Tensor<T>& de, const Tensor<T>& t1,
             const Tensor<T>& t2, const Tensor<T>& f1, const Tensor<T>& v2) {
@@ -184,9 +206,11 @@ std::pair<double,double> rest(ExecutionContext& ec,
     Tensor<T> d_r1_residual{}, d_r2_residual{};
     Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
     sch
-      (d_r1_residual() = d_r1()  * d_r1())
-      (d_r2_residual() = d_r2()  * d_r2());
-      //fixme .execute();
+      (d_r1_residual() = 0)
+      (d_r2_residual() = 0)
+      (d_r1_residual() += d_r1()  * d_r1())
+      (d_r2_residual() += d_r2()  * d_r2())
+      .execute();
 
       auto l0 = [&]() {
         T r1, r2;
@@ -299,13 +323,6 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
   Tensor<T> d_r2{V,V,O,O};
   Tensor<T>::allocate(ec,d_r1, d_r2);
 
-  /// fixme -not needed here probably
-  //   auto get_scalar = [] (Tensor<T>& tensor) -> T {
-  //   EXPECTS(tensor.rank() == 0);
-  //   Block<T> resblock = tensor.get({});
-  //   return *resblock.buf();
-  // };
-
   double corr = 0;
   double residual = 0.0;
   double energy = 0.0;
@@ -315,12 +332,12 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
     for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
         int off = iter - titer;
 
-        Tensor<T> d_t1_local{V,O}; ///fixme not used
+       /// Tensor<T> d_t1_local{V,O}; 
         Tensor<T> d_e{};
         Tensor<T> d_r1_residual{};
         Tensor<T> d_r2_residual{};
 
-        Tensor<T>::allocate(ec,d_e,d_t1_local, 
+        Tensor<T>::allocate(ec,d_e, 
           d_r1_residual,d_r2_residual);
 
         Scheduler{ec}         
@@ -328,8 +345,8 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
           ((*d_t2s[off])() = d_t2())
           .execute();
 
-        Scheduler{ec}
-           (d_t1_local() = d_t1()).execute();
+        // Scheduler{ec}
+        //    (d_t1_local() = d_t1()).execute();
 
         
         ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
@@ -344,7 +361,7 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
            .execute();
         iteration_print(ec->pg(), iter, residual, energy);
 
-         Tensor<T>::deallocate(d_e,d_t1_local, 
+         Tensor<T>::deallocate(d_e, 
           d_r1_residual,d_r2_residual);
 
         if(residual < thresh) { break; }
@@ -361,7 +378,7 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
         std::cout.width(21);
         std::cout << std::right << "5" << std::endl;
     }
-    ////fixme 
+    
     std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
     std::vector<std::vector<Tensor<T>*>*> ts{&d_t1s, &d_t2s};
     std::vector<Tensor<T>*> next_t{&d_t1, &d_t2};
@@ -390,14 +407,6 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
   d_r2s.clear();
   Tensor<T>::deallocate(d_evl,d_r1, d_r2);
 
-    // while(residual > thresh) {
-    //     ccsd_e(*ec, MO, de, d_t1, d_t2, d_f1, d_v2);
-    //     ccsd_t1(*ec, MO, i1, d_t1, d_t2, d_f1, d_v2);
-    //     ccsd_t2(*ec, MO, i2, d_t1, d_t2, d_f1, d_v2);
-    //     std::tie(residual, energy) = rest(*ec, MO, i1, i2, d_t1, d_t2, de, d_evl, zshiftl);
-    //     break; //@todo remove once iterative procedure is implemented
-    // }
-    // Tensor<T>::deallocate(i1,i2,de,d_evl);
 }
 
 std::string filename{}; //bad
@@ -418,6 +427,7 @@ int main( int argc, char* argv[] )
 
     return res;
 }
+
 
 TEST_CASE("CCSD Driver") {
 
@@ -494,26 +504,64 @@ TEST_CASE("CCSD Driver") {
     .execute();
 
 
-  //Tensor Map //fixme
-  #if 0  
-  block_parfor(ec.pg(), d_f1(), [&](auto& blockid) {
-      auto block = d_f1.alloc(blockid);
-    auto buf = block.buf();
-    const auto& block_offset = block.block_offset();
-    const auto& block_dims = block.block_dims();
-    EXPECTS(block.tensor().rank() == 2);
-    TAMMX_INT32 c = 0;
+  //Tensor Map 
+  #if 1  
+  block_for(ec->pg(), d_f1(), [&](IndexVector it) {
+    Tensor<T> tensor = d_f1().tensor();
+    const TAMM_SIZE size = tensor.block_size(it);
+    
+    std::vector<T> buf(size);
+
+    const int ndim=2;
+    std::array<int, ndim> block_offset;
+    auto &tiss = tensor.tiled_index_spaces();
+    auto block_dims = tensor.block_dims(it);
+    for (auto i = 0; i < ndim; i++) {
+      block_offset[i] = tiss[i].tile_offset(it[i]);
+    }
+
+    TAMM_SIZE c=0;
     for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
       for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
            j++, c++) {
-        buf[c] = F(i.value(), j.value());
+        buf[c] = F(i, j);
       }
     }
-    d_f1.put(blockid, block);
-    });
+    d_f1.put(it,buf);
+  });
 
-    ///fixme same for V2->d_v2
+  block_for(ec->pg(), d_v2(), [&](IndexVector it) {
+      Tensor<T> tensor     = d_v2().tensor();
+      const TAMM_SIZE size = tensor.block_size(it);
+
+      std::vector<T> buf(size);
+
+      const int ndim = 4;
+      std::array<int, ndim> block_offset;
+      auto& tiss      = tensor.tiled_index_spaces();
+      auto block_dims = tensor.block_dims(it);
+      for(auto i = 0; i < ndim; i++) {
+          block_offset[i] = tiss[i].tile_offset(it[i]);
+      }
+
+      TAMM_SIZE c = 0;
+      for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
+          for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+              j++) {
+              for(auto k = block_offset[2]; k < block_offset[2] + block_dims[2];
+                  k++) {
+                  for(auto l = block_offset[3];
+                      l < block_offset[3] + block_dims[3]; l++, c++) {
+                      buf[c] = V2(i,j,k,l);
+                  }
+              }
+          }
+      }
+      d_v2.put(it, buf);
+  });
 #endif
+
+    //print_tensor(d_f1);
     CHECK_NOTHROW(ccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_v2,
                   maxiter, thresh, zshiftl,ndiis,hf_energy));
 

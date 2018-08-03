@@ -44,7 +44,7 @@ void print_tensor(Tensor<T> &t){
         t.get(it, buf);
         std::cout << "block" << it;
         for (TAMM_SIZE i = 0; i < size;i++)
-         std::cout << i << std::endl;
+         std::cout << buf[i] << std::endl;
     }
 }
 

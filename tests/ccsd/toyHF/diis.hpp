@@ -95,13 +95,18 @@ template<typename T>
 inline T
 ddot(ExecutionContext& ec, LabeledTensor<T> lta, LabeledTensor<T> ltb) {
   T ret = 0;
-  #if 0
-  block_for(ec.pg(), lta, [&] (const BlockDimVec& blockid) {
-      auto ablock = lta.tensor_->get(blockid);
-      auto bblock = ltb.tensor_->get(blockid);
-      auto abuf = ablock.buf();
-      auto bbuf = bblock.buf();
-      size_t sz = ablock.size();
+  #if 1
+  block_for(ec.pg(), lta, [&] (IndexVector blockid) {
+
+      Tensor<T> atensor = lta.tensor();
+      const TAMM_SIZE asize = atensor.block_size(blockid);
+      std::vector<T> abuf(asize);
+
+      Tensor<T> btensor = ltb.tensor();
+      const TAMM_SIZE bsize = btensor.block_size(blockid);
+      std::vector<T> bbuf(bsize);
+
+      const size_t sz = asize;
       for(size_t i = 0; i < sz; i++) {
         ret += abuf[i] * bbuf[i];
       }

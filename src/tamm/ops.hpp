@@ -428,9 +428,21 @@ inline void block_mult(T cscale, T* cbuf, const std::vector<size_t>& cdims,
     for(const auto& d : bdims) {
         if(d == 0) { return; }
     }
+    // IndexLabelVec alabel, blabel, clabel;
+    // for(const auto& lbl: alabel_in) {
+    //     alabel.push_back(lbl.primary_label());
+    // }
+    // for(const auto& lbl: blabel_in) {
+    //     blabel.push_back(lbl.primary_label());
+    // }
+    // for(const auto& lbl: clabel_in) {
+    //     clabel.push_back(lbl.primary_label());
+    // }
+
     IndexLabelVec all_labels{clabel};
     all_labels.insert(all_labels.end(), alabel.begin(), alabel.end());
     all_labels.insert(all_labels.end(), blabel.begin(), blabel.end());
+
     IndexLabelVec unique_labels = unique_entries(all_labels);
     IndexLabelVec sorted_labels = sort_on_dependence(unique_labels);
     // std::sort(unique_labels.begin(), unique_labels.end());
@@ -450,9 +462,9 @@ inline void block_mult(T cscale, T* cbuf, const std::vector<size_t>& cdims,
         return ret;
     };
 
-    std::vector<IndexLoopBound> ilbs;
-    for(const auto& lbl : sorted_labels) { ilbs.push_back({lbl}); }
-    IndexLoopNest iln = IndexLoopNest{ilbs};
+    // std::vector<IndexLoopBound> ilbs;
+    // for(const auto& lbl : sorted_labels) { ilbs.push_back({lbl}); }
+    // IndexLoopNest iln = IndexLoopNest{ilbs};
 
     std::vector<size_t> itrv(sorted_labels.size(), 0);
     std::vector<size_t> endv(sorted_labels.size());

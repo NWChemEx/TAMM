@@ -13,7 +13,7 @@ jacobi(ExecutionContext& ec,
        const Tensor<T>& d_r, const Tensor<T>& d_t, T shift, bool transpose, const Tensor<T>& p_evl_sorted) {
   EXPECTS(transpose == false);
   #if 0
-  block_parfor(ec.pg(), d_r(), [&] (const BlockDimVec& blockid) {
+  block_parfor(ec.pg(), d_r(), [&] (IndexVector blockid) {
       auto rblock = d_r.get(blockid);
       auto tblock = d_t.alloc(blockid);
       auto bdims = rblock.block_dims();
@@ -156,14 +156,12 @@ diis(ExecutionContext& ec,
        (dt() = 0);
     for(int j=0; j<ndiis; j++) {
       auto &tb = *d_ts[k]->at(j);
-      // FIXME
-      // sch(dt() += x(j, 0) * tb());
+      sch(dt() += x(j, 0) * tb());
     }
   }
   //GA_Sync();
   sch.execute();
   //GA_Sync();
-  //sch.clear();
 }
 
 }  // namespace tamm

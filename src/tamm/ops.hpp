@@ -1099,7 +1099,7 @@ public:
         fillin_labels();
         validate();
         if(is_assign_) {
-            NOT_IMPLEMENTED(); //C+=A*B not implemented
+            NOT_IMPLEMENTED(); //C=A*B not implemented
         }    
     }
 

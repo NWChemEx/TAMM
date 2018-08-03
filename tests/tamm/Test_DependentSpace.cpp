@@ -46,32 +46,16 @@ void check_value(Tensor<T> &t, T val){
 }
 
 template<typename T>
-void check_value(LabeledTensor<T> lt, T val){
-    // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
-    Tensor<T> t = lt.tensor();
-    IndexLabelVec unique_labels = internal::unique_entries(lt.labels());
-    
-    const IndexLabelVec& sorted_labels = internal::sort_on_dependence(unique_labels);
+void check_value(LabeledTensor<T> lt, T val) {
+    LabelLoopNest loop_nest{lt.labels()};
 
-    std::vector<IndexLoopBound> ilbs;
-    for(const auto& lbl: sorted_labels) {
-        ilbs.push_back(lbl);
-    }
-    IndexLoopNest loop_nest{ilbs};
-
-    const std::vector<size_t>& lhs_pm =
-        internal::perm_map_compute(sorted_labels, lt.labels());
-
-    for (const auto& it: loop_nest)
-    {
-        const IndexVector& blockid =
-            internal::perm_map_apply(it, lhs_pm);
-        size_t size = t.block_size(blockid);
+    for(const auto& blockid : loop_nest) {
+        size_t size = lt.tensor().block_size(blockid);
         std::vector<T> buf(size);
-        t.get(blockid, buf);
-        for (TAMM_SIZE i = 0; i < size; i++) {
-          REQUIRE(std::fabs(buf[i]-val)< 1.0e-10);
-       }
+        lt.tensor().get(blockid, buf);
+        for(TAMM_SIZE i = 0; i < size; i++) {
+            REQUIRE(std::fabs(buf[i] - val) < 1.0e-10);
+        }
     }
 }
 

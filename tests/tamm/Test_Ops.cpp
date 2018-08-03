@@ -82,9 +82,12 @@ void check_value(LabeledTensor<T> lt, T val){
     {
         const IndexVector& blockid =
             internal::perm_map_apply(it, lhs_pm);
-        size_t size = t.block_size(blockid);
+
+        IndexVector translate_blockid = internal::translate_blockid(blockid, t, lt);
+        
+        size_t size = t.block_size(translate_blockid);
         std::vector<T> buf(size);
-        t.get(blockid, buf);
+        t.get(translate_blockid, buf);
         for (TAMM_SIZE i = 0; i < size; i++) {
           REQUIRE(std::fabs(buf[i]-val)< 1.0e-10);
        }
@@ -1116,12 +1119,12 @@ void test_addop_with_T(unsigned tilesize) {
     delete ec;
 }
 
-#if 1
+
 TEST_CASE("setop with double") {
     test_setop_with_T<double>(1);
     test_setop_with_T<double>(3);
 }
-
+#if 0
 TEST_CASE("setop with float") {
     test_setop_with_T<float>(1);
     test_setop_with_T<float>(3);
@@ -1179,672 +1182,673 @@ TEST_CASE("addop with float") {
 // }
 #endif
 
-#if 1
-TEST_CASE("Two-dimensional ops") {
-    bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
-    using T              = double;
 
-    IndexSpace IS{range(0, 10),
-                  {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
-    TiledIndexSpace TIS{IS, 1};
-    TiledIndexLabel l1, l2, lall, lnone;
-    std::tie(l1) = TIS.labels<1>("nr1");
-    std::tie(l2) = TIS.labels<1>("nr2");
-    std::tie(lall) = TIS.labels<1>("all");
-    //@todo is there a "none" slice?
-    //std::tie(lnone) = TIS.labels<1>("none");
-    {
-        Tensor<T> T1{TIS, TIS};
-        REQUIRE(test_setop(ec, T1, T1(l1, l1)));
-    }
+// #if 1
+// TEST_CASE("Two-dimensional ops") {
+//     bool failed;
+//     ProcGroup pg{GA_MPI_Comm()};
+//     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+//     Distribution_NW distribution;
+//     ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+//     using T              = double;
 
-    {
-        Tensor<T> T1{TIS, TIS};
-        REQUIRE(test_setop(ec, T1, T1(l1, l1), {T1(l1, l2), T1(l2, l1), T1(l2, l2)}));
-    }
+//     IndexSpace IS{range(0, 10),
+//                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
+//     TiledIndexSpace TIS{IS, 1};
+//     TiledIndexLabel l1, l2, lall, lnone;
+//     std::tie(l1) = TIS.labels<1>("nr1");
+//     std::tie(l2) = TIS.labels<1>("nr2");
+//     std::tie(lall) = TIS.labels<1>("all");
+//     //@todo is there a "none" slice?
+//     //std::tie(lnone) = TIS.labels<1>("none");
+//     {
+//         Tensor<T> T1{TIS, TIS};
+//         REQUIRE(test_setop(ec, T1, T1(l1, l1)));
+//     }
 
-    {
-        Tensor<T> T1{TIS, TIS}, T2{TIS, TIS};
-        test_addop(ec, T1, T2, T1(), T2());
-    }
-    try {
-        failed = false;
-        Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
-          .allocate(T1, T2,
-                    T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
-          .deallocate(T2, T3)
-          .execute();
-        check_value(T1, (T)32.0);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     {
+//         Tensor<T> T1{TIS, TIS};
+//         REQUIRE(test_setop(ec, T1, T1(l1, l1), {T1(l1, l2), T1(l2, l1), T1(l2, l2)}));
+//     }
 
-    try {
-        failed = false;
-        Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
-          .allocate(T1, T2,
-                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
-          .deallocate(T2, T3)
-          .execute();
-        check_value(T1, 9 + 1.5 * 8 * 4);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     {
+//         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS};
+//         test_addop(ec, T1, T2, T1(), T2());
+//     }
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
+//         Scheduler{ec}
+//           .allocate(T1, T2,
+//                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
+//           .deallocate(T2, T3)
+//           .execute();
+//         check_value(T1, (T)32.0);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    try {
-        failed = false;
-        Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
-          .allocate(T1, T2,
-                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
-          .deallocate(T1, T2)
-          .execute();
-        check_value(T3, 4 + 1.5 * 100 * 9 * 8);
-        Tensor<T>::deallocate(T3);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
-    MemoryManagerGA::destroy_coll(mgr);
-    delete ec;
-}
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
+//         Scheduler{ec}
+//           .allocate(T1, T2,
+//                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
+//           .deallocate(T2, T3)
+//           .execute();
+//         check_value(T1, 9 + 1.5 * 8 * 4);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-TEST_CASE("One-dimensional ops") {
-    bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
-    using T              = double;
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
+//         Scheduler{ec}
+//           .allocate(T1, T2,
+//                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
+//           .deallocate(T1, T2)
+//           .execute();
+//         check_value(T3, 4 + 1.5 * 100 * 9 * 8);
+//         Tensor<T>::deallocate(T3);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
+//     MemoryManagerGA::destroy_coll(mgr);
+//     delete ec;
+// }
 
-    IndexSpace IS{range(0, 10),
-                  {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
-    TiledIndexSpace TIS{IS, 1};
-    TiledIndexLabel l1, l2, lall, lnone;
-    std::tie(l1) = TIS.labels<1>("nr1");
-    std::tie(l2) = TIS.labels<1>("nr2");
-    std::tie(lall) = TIS.labels<1>("all");
-    //@todo is there a "none" slice?
-    //std::tie(lnone) = TIS.labels<1>("none");
+// TEST_CASE("One-dimensional ops") {
+//     bool failed;
+//     ProcGroup pg{GA_MPI_Comm()};
+//     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+//     Distribution_NW distribution;
+//     ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+//     using T              = double;
 
-    {
-        Tensor<T> T1{TIS};
-        REQUIRE(test_setop(ec, T1, T1()));
-    }
+//     IndexSpace IS{range(0, 10),
+//                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
+//     TiledIndexSpace TIS{IS, 1};
+//     TiledIndexLabel l1, l2, lall, lnone;
+//     std::tie(l1) = TIS.labels<1>("nr1");
+//     std::tie(l2) = TIS.labels<1>("nr2");
+//     std::tie(lall) = TIS.labels<1>("all");
+//     //@todo is there a "none" slice?
+//     //std::tie(lnone) = TIS.labels<1>("none");
 
-    {
-        Tensor<T> T1{TIS};
-        REQUIRE(test_setop(ec, T1, T1(l1), {T1(l2)}));
-    }
+//     {
+//         Tensor<T> T1{TIS};
+//         REQUIRE(test_setop(ec, T1, T1()));
+//     }
 
-    //@todo slice addop tests
-    {
-        Tensor<T> T1{TIS}, T2{TIS};
-        test_addop(ec, T1, T2, T1(), T2());
-    }
+//     {
+//         Tensor<T> T1{TIS};
+//         REQUIRE(test_setop(ec, T1, T1(l1), {T1(l2)}));
+//     }
+
+//     //@todo slice addop tests
+//     {
+//         Tensor<T> T1{TIS}, T2{TIS};
+//         test_addop(ec, T1, T2, T1(), T2());
+//     }
  
-    try {
-        failed = false;
-        Tensor<T> T1{TIS}, T2{TIS}, T3{};
-        Scheduler{ec}
-          .allocate(T1, T2,
-                    T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
-          .deallocate(T2, T3)
-          .execute();
-        check_value(T1, (T)32.0);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS}, T2{TIS}, T3{};
+//         Scheduler{ec}
+//           .allocate(T1, T2,
+//                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
+//           .deallocate(T2, T3)
+//           .execute();
+//         check_value(T1, (T)32.0);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    try {
-        failed = false;
-        Tensor<T> T1{TIS}, T2{TIS}, T3{};
-        Scheduler{ec}
-          .allocate(T1, T2,
-                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
-          .deallocate(T2, T3)
-          .execute();
-        check_value(T1, 9 + 1.5 * 8 * 4);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS}, T2{TIS}, T3{};
+//         Scheduler{ec}
+//           .allocate(T1, T2,
+//                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
+//           .deallocate(T2, T3)
+//           .execute();
+//         check_value(T1, 9 + 1.5 * 8 * 4);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    try {
-        failed = false;
-        Tensor<T> T1{TIS}, T2{TIS}, T3{};
-        Scheduler{ec}
-          .allocate(T1, T2,
-                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
-          .deallocate(T1, T2)
-          .execute();
-        check_value(T3, 4 + 1.5 * 10 * 9 * 8);
-        Tensor<T>::deallocate(T3);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
-    MemoryManagerGA::destroy_coll(mgr);
-    delete ec;
-}
-#endif
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS}, T2{TIS}, T3{};
+//         Scheduler{ec}
+//           .allocate(T1, T2,
+//                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
+//           .deallocate(T1, T2)
+//           .execute();
+//         check_value(T3, 4 + 1.5 * 10 * 9 * 8);
+//         Tensor<T>::deallocate(T3);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
+//     MemoryManagerGA::destroy_coll(mgr);
+//     delete ec;
+// }
+// #endif
 
-TEST_CASE("Three-dimensional mult ops part I") {
-    bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
-    using T              = double;
-    const size_t tilesize = 1;
+// TEST_CASE("Three-dimensional mult ops part I") {
+//     bool failed;
+//     ProcGroup pg{GA_MPI_Comm()};
+//     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+//     Distribution_NW distribution;
+//     ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+//     using T              = double;
+//     const size_t tilesize = 1;
 
-    IndexSpace IS{range(0, 10),
-                      {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
-    TiledIndexSpace TIS{IS, tilesize};
-    TiledIndexLabel i, j, k, l;
-    std::tie(i, j, k, l) = TIS.labels<4>("all");
+//     IndexSpace IS{range(0, 10),
+//                       {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
+//     TiledIndexSpace TIS{IS, tilesize};
+//     TiledIndexLabel i, j, k, l;
+//     std::tie(i, j, k, l) = TIS.labels<4>("all");
 
-    #if 1
-    //mult 3x3x0
-    try {
-        failed = false;
-        Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
-          .allocate(T1, T2, T3)(T1() = 2)(T2()=3)(T3() = 4)(T1() += 6.9 * T2() * T3())
-          .deallocate(T2, T3)
-          .execute();
-        check_value(T1, (T)(2+6.9*3*4));
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     #if 1
+//     //mult 3x3x0
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
+//         Scheduler{ec}
+//           .allocate(T1, T2, T3)(T1() = 2)(T2()=3)(T3() = 4)(T1() += 6.9 * T2() * T3())
+//           .deallocate(T2, T3)
+//           .execute();
+//         check_value(T1, (T)(2+6.9*3*4));
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    //mult 3x0x3
-    try {
-        failed = false;
-        Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
-          .allocate(T1, T2, T3)(T1() = 2)(T2()=3)(T3() = 4)(T1() += 1.7 * T3() * T2())
-          .deallocate(T2, T3)
-          .execute();
-        check_value(T1, (T)(2+1.7*3*4));
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     //mult 3x0x3
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
+//         Scheduler{ec}
+//           .allocate(T1, T2, T3)(T1() = 2)(T2()=3)(T3() = 4)(T1() += 1.7 * T3() * T2())
+//           .deallocate(T2, T3)
+//           .execute();
+//         check_value(T1, (T)(2+1.7*3*4));
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    //mult 3x2x1
-    try {
-        failed = false;
-        Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS}, T3{TIS};
-        Scheduler{ec}
-          .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
-            T1(i, j, k) += 1.7 * T2(i, j) * T3(k))
-          .deallocate(T2, T3)
-          .execute();
-        check_value(T1, (T)(2 + 1.7 * 3 * 4));
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
-    #endif
+//     //mult 3x2x1
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS}, T3{TIS};
+//         Scheduler{ec}
+//           .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
+//             T1(i, j, k) += 1.7 * T2(i, j) * T3(k))
+//           .deallocate(T2, T3)
+//           .execute();
+//         check_value(T1, (T)(2 + 1.7 * 3 * 4));
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
+//     #endif
 
-    //mult 3x3x3
-#if 1
-    try {
-        failed = false;
-        Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{TIS, TIS, TIS};
-        Scheduler{ec}
-          .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
-            T1(i, j, k) += 1.7 * T2(j, l, i) * T3(l, i, k))
-          .deallocate(T2, T3)
-          .execute();
-        check_value(T1, (T)(2 + 1.7 * 3 * 4*10));
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
-#endif
-    MemoryManagerGA::destroy_coll(mgr);
-    delete ec;
+//     //mult 3x3x3
+// #if 1
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{TIS, TIS, TIS};
+//         Scheduler{ec}
+//           .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
+//             T1(i, j, k) += 1.7 * T2(j, l, i) * T3(l, i, k))
+//           .deallocate(T2, T3)
+//           .execute();
+//         check_value(T1, (T)(2 + 1.7 * 3 * 4*10));
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
+// #endif
+//     MemoryManagerGA::destroy_coll(mgr);
+//     delete ec;
 
-}
+// }
 
-TEST_CASE("Four-dimensional mult ops part I") {
-    bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
-    using T              = double;
-    const size_t tilesize = 1;
+// TEST_CASE("Four-dimensional mult ops part I") {
+//     bool failed;
+//     ProcGroup pg{GA_MPI_Comm()};
+//     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+//     Distribution_NW distribution;
+//     ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+//     using T              = double;
+//     const size_t tilesize = 1;
 
-    IndexSpace IS{range(0, 10),
-                      {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
-    TiledIndexSpace TIS{IS, tilesize};
-    TiledIndexLabel i, j, k, l, m, n;
-    std::tie(i, j, k, l, m, n) = TIS.labels<6>("all");
+//     IndexSpace IS{range(0, 10),
+//                       {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
+//     TiledIndexSpace TIS{IS, tilesize};
+//     TiledIndexLabel i, j, k, l, m, n;
+//     std::tie(i, j, k, l, m, n) = TIS.labels<6>("all");
 
-    //mult 4x4x0
-    try {
-        failed = false;
-        Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
-          .allocate(T1, T2, T3)(T1() = 2)(T2()=3)(T3() = 4)(T1() += 6.9 * T2() * T3())
-          .deallocate(T2, T3)
-          .execute();
-        check_value(T1, (T)(2+6.9*3*4));
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     //mult 4x4x0
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
+//         Scheduler{ec}
+//           .allocate(T1, T2, T3)(T1() = 2)(T2()=3)(T3() = 4)(T1() += 6.9 * T2() * T3())
+//           .deallocate(T2, T3)
+//           .execute();
+//         check_value(T1, (T)(2+6.9*3*4));
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    //mult 4x0x4
-    try {
-        failed = false;
-        Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
-          .allocate(T1, T2, T3)(T1() = 2)(T2()=3)(T3() = 4)(T1() += 1.7 * T3() * T2())
-          .deallocate(T2, T3)
-          .execute();
-        check_value(T1, (T)(2+1.7*3*4));
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     //mult 4x0x4
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
+//         Scheduler{ec}
+//           .allocate(T1, T2, T3)(T1() = 2)(T2()=3)(T3() = 4)(T1() += 1.7 * T3() * T2())
+//           .deallocate(T2, T3)
+//           .execute();
+//         check_value(T1, (T)(2+1.7*3*4));
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    //mult 4x2x2
-    try {
-        failed = false;
-        Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS}, T3{TIS,TIS};
-        Scheduler{ec}
-          .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
-            T1(i, j, k, l) += 1.7 * T2(i, j) * T3(k, l))
-          .deallocate(T2, T3)
-          .execute();
-        check_value(T1, (T)(2 + 1.7 * 3 * 4));
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     //mult 4x2x2
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS}, T3{TIS,TIS};
+//         Scheduler{ec}
+//           .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
+//             T1(i, j, k, l) += 1.7 * T2(i, j) * T3(k, l))
+//           .deallocate(T2, T3)
+//           .execute();
+//         check_value(T1, (T)(2 + 1.7 * 3 * 4));
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    //mult 4x4x4
-#if 1
-    try {
-        failed = false;
-        Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{TIS, TIS, TIS, TIS};
-        Scheduler{ec}
-          .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
-            T1(i, j, k, l) += 1.7 * T2(j, l, k, m) * T3(l, i, k, m))
-          .deallocate(T2, T3)
-          .execute();
-        check_value(T1, (T)(2 + 1.7 * 3 * 4*10));
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
-#endif
-    MemoryManagerGA::destroy_coll(mgr);
-    delete ec;
+//     //mult 4x4x4
+// #if 1
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{TIS, TIS, TIS, TIS};
+//         Scheduler{ec}
+//           .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
+//             T1(i, j, k, l) += 1.7 * T2(j, l, k, m) * T3(l, i, k, m))
+//           .deallocate(T2, T3)
+//           .execute();
+//         check_value(T1, (T)(2 + 1.7 * 3 * 4*10));
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
+// #endif
+//     MemoryManagerGA::destroy_coll(mgr);
+//     delete ec;
 
-}
+// }
 
-#if 1
-TEST_CASE("Two-dimensional ops part I") {
-    bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
-    using T              = double;
+// #if 1
+// TEST_CASE("Two-dimensional ops part I") {
+//     bool failed;
+//     ProcGroup pg{GA_MPI_Comm()};
+//     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+//     Distribution_NW distribution;
+//     ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+//     using T              = double;
 
-    IndexSpace IS{range(0, 10),
-                      {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
-    TiledIndexSpace TIS{IS, 1};
+//     IndexSpace IS{range(0, 10),
+//                       {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
+//     TiledIndexSpace TIS{IS, 1};
 
-    //setop
-    {
-        Tensor<T> T1{TIS, TIS};
-        Tensor<T>::allocate(ec, T1);
-        Scheduler{ec}(T1() = 42).execute();
-        check_value(T1, (T)42.0);
-        Tensor<T>::deallocate(T1);
-    }
+//     //setop
+//     {
+//         Tensor<T> T1{TIS, TIS};
+//         Tensor<T>::allocate(ec, T1);
+//         Scheduler{ec}(T1() = 42).execute();
+//         check_value(T1, (T)42.0);
+//         Tensor<T>::deallocate(T1);
+//     }
 
-    //addop
-    try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
-        Scheduler{ec}
-        .allocate(T1, T2)
-        (T2() = 42)
-        (T1() = T2())
-        .deallocate(T2)
-        .execute();
-        check_value(T1, (T)42.0);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     //addop
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
+//         Scheduler{ec}
+//         .allocate(T1, T2)
+//         (T2() = 42)
+//         (T1() = T2())
+//         .deallocate(T2)
+//         .execute();
+//         check_value(T1, (T)42.0);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
-        Scheduler{ec}
-        .allocate(T1, T2)
-        (T1() = 4)
-        (T2() = 42)
-        (T1() += T2())
-        .deallocate(T2)
-        .execute();
-        check_value(T1, (T)46.0);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
+//         Scheduler{ec}
+//         .allocate(T1, T2)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T1() += T2())
+//         .deallocate(T2)
+//         .execute();
+//         check_value(T1, (T)46.0);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
-        Scheduler{ec}
-        .allocate(T1, T2)
-        (T1() = 4)
-        (T2() = 42)
-        (T1() += 3*T2())
-        .deallocate(T2)
-        .execute();
-        check_value(T1, (T)130.0);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
+//         Scheduler{ec}
+//         .allocate(T1, T2)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T1() += 3*T2())
+//         .deallocate(T2)
+//         .execute();
+//         check_value(T1, (T)130.0);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
-        Scheduler{ec}
-        .allocate(T1, T2)
-        (T1() = 4)
-        (T2() = 42)
-        (T1() -= T2())
-        .deallocate(T2)
-        .execute();
-        check_value(T1, (T)-38.0);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
+//         Scheduler{ec}
+//         .allocate(T1, T2)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T1() -= T2())
+//         .deallocate(T2)
+//         .execute();
+//         check_value(T1, (T)-38.0);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
-        Scheduler{ec}
-        .allocate(T1, T2)
-        (T1() = 4)
-        (T2() = 42)
-        (T1() += -3.1*T2())
-        .deallocate(T2)
-        .execute();
-        check_value(T1, (T)-126.2);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS,TIS};
+//         Scheduler{ec}
+//         .allocate(T1, T2)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T1() += -3.1*T2())
+//         .deallocate(T2)
+//         .execute();
+//         check_value(T1, (T)-126.2);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
 
-    //multop: 2,2,0
-    try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{};
-        Scheduler{ec}
-        .allocate(T1, T2, T3)
-        (T1() = 4)
-        (T2() = 42)
-        (T3() = 5)
-        (T1() += -3.1*T2()*T3())
-        .deallocate(T2, T3)
-        .execute();
-        check_value(T1, 4 -3.1*42*5);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     //multop: 2,2,0
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{};
+//         Scheduler{ec}
+//         .allocate(T1, T2, T3)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T3() = 5)
+//         (T1() += -3.1*T2()*T3())
+//         .deallocate(T2, T3)
+//         .execute();
+//         check_value(T1, 4 -3.1*42*5);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{};
-        Scheduler{ec}
-        .allocate(T1, T2, T3)
-        (T1() = 4)
-        (T2() = 42)
-        (T3() = 5)
-        (T1() -= -3.1*T2()*T3())
-        .deallocate(T2, T3)
-        .execute();
-        check_value(T1, 4 +3.1*42*5);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{};
+//         Scheduler{ec}
+//         .allocate(T1, T2, T3)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T3() = 5)
+//         (T1() -= -3.1*T2()*T3())
+//         .deallocate(T2, T3)
+//         .execute();
+//         check_value(T1, 4 +3.1*42*5);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    try {
-        failed = false;
-        Tensor<T> T1{}, T2{TIS,TIS}, T3{TIS,TIS};
-        Scheduler{ec}
-        .allocate(T1, T2, T3)
-        (T1() = 4)
-        (T2() = 42)
-        (T3() = 5)
-        (T1() += -3.1*T2()*T3())
-        .deallocate(T2, T3)
-        .execute();
-        check_value(T1, 4 -3.1*10*10*42*5);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     try {
+//         failed = false;
+//         Tensor<T> T1{}, T2{TIS,TIS}, T3{TIS,TIS};
+//         Scheduler{ec}
+//         .allocate(T1, T2, T3)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T3() = 5)
+//         (T1() += -3.1*T2()*T3())
+//         .deallocate(T2, T3)
+//         .execute();
+//         check_value(T1, 4 -3.1*10*10*42*5);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    //multop 2,1,1
-    try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS}, T3{TIS};
-        TiledIndexLabel i, j;
-        std::tie(i,j) = TIS.labels<2>("all");
-        Scheduler{ec}
-        .allocate(T1, T2, T3)
-        (T1() = 4)
-        (T2() = 42)
-        (T3() = 5)
-        (T1(i,j) += -3.1*T2(i)*T3(j))
-        .deallocate(T2, T3)
-        .execute();
-        check_value(T1, 4 -3.1*42*5);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     //multop 2,1,1
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS}, T3{TIS};
+//         TiledIndexLabel i, j;
+//         std::tie(i,j) = TIS.labels<2>("all");
+//         Scheduler{ec}
+//         .allocate(T1, T2, T3)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T3() = 5)
+//         (T1(i,j) += -3.1*T2(i)*T3(j))
+//         .deallocate(T2, T3)
+//         .execute();
+//         check_value(T1, 4 -3.1*42*5);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    //multop 2,2,1
-    try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS};
-        TiledIndexLabel i, j;
-        std::tie(i,j) = TIS.labels<2>("all");
-        Scheduler{ec}
-        .allocate(T1, T2, T3)
-        (T1() = 4)
-        (T2() = 42)
-        (T3() = 5)
-        (T1(i,j) += -3.1*T2(i,j)*T3(i))
-        .deallocate(T2, T3)
-        .execute();
-        check_value(T1, 4 -3.1*42*5);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     //multop 2,2,1
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS};
+//         TiledIndexLabel i, j;
+//         std::tie(i,j) = TIS.labels<2>("all");
+//         Scheduler{ec}
+//         .allocate(T1, T2, T3)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T3() = 5)
+//         (T1(i,j) += -3.1*T2(i,j)*T3(i))
+//         .deallocate(T2, T3)
+//         .execute();
+//         check_value(T1, 4 -3.1*42*5);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS};
-        TiledIndexLabel i, j;
-        std::tie(i,j) = TIS.labels<2>("all");
-        Scheduler{ec}
-        .allocate(T1, T2, T3)
-        (T1() = 4)
-        (T2() = 42)
-        (T3() = 5)
-        (T1(i,j) += -3.1*T2(j,i)*T3(i))
-        .deallocate(T2, T3)
-        .execute();
-        check_value(T1, 4 -3.1*42*5);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS};
+//         TiledIndexLabel i, j;
+//         std::tie(i,j) = TIS.labels<2>("all");
+//         Scheduler{ec}
+//         .allocate(T1, T2, T3)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T3() = 5)
+//         (T1(i,j) += -3.1*T2(j,i)*T3(i))
+//         .deallocate(T2, T3)
+//         .execute();
+//         check_value(T1, 4 -3.1*42*5);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS};
-        TiledIndexLabel i, j;
-        std::tie(i,j) = TIS.labels<2>("all");
-        Scheduler{ec}
-        .allocate(T1, T2, T3)
-        (T1() = 4)
-        (T2() = 42)
-        (T3() = 5)
-        (T1(i,j) += -3.1*T2(i,j)*T3(j))
-        .deallocate(T2, T3)
-        .execute();
-        check_value(T1, 4 -3.1*42*5);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS};
+//         TiledIndexLabel i, j;
+//         std::tie(i,j) = TIS.labels<2>("all");
+//         Scheduler{ec}
+//         .allocate(T1, T2, T3)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T3() = 5)
+//         (T1(i,j) += -3.1*T2(i,j)*T3(j))
+//         .deallocate(T2, T3)
+//         .execute();
+//         check_value(T1, 4 -3.1*42*5);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS};
-        TiledIndexLabel i, j;
-        std::tie(i,j) = TIS.labels<2>("all");
-        Scheduler{ec}
-        .allocate(T1, T2, T3)
-        (T1() = 4)
-        (T2() = 42)
-        (T3() = 5)
-        (T1(i,j) += -3.1*T3(j)*T2(j,i))
-        .deallocate(T2, T3)
-        .execute();
-        check_value(T1, 4 -3.1*42*5);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS};
+//         TiledIndexLabel i, j;
+//         std::tie(i,j) = TIS.labels<2>("all");
+//         Scheduler{ec}
+//         .allocate(T1, T2, T3)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T3() = 5)
+//         (T1(i,j) += -3.1*T3(j)*T2(j,i))
+//         .deallocate(T2, T3)
+//         .execute();
+//         check_value(T1, 4 -3.1*42*5);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-    //multop 2,2,2
-    try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS,TIS};
-        TiledIndexLabel i, j, k;
-        std::tie(i, j, k) = TIS.labels<3>("all");
-        Scheduler{ec}
-        .allocate(T1, T2, T3)
-        (T1() = 4)
-        (T2() = 42)
-        (T3() = 5)
-        (T1(i,j) += -3.1*T2(i,j)*T3(i,j))
-        .deallocate(T2, T3)
-        .execute();
-        check_value(T1, 4 -3.1*42*5);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//     //multop 2,2,2
+//     try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS,TIS};
+//         TiledIndexLabel i, j, k;
+//         std::tie(i, j, k) = TIS.labels<3>("all");
+//         Scheduler{ec}
+//         .allocate(T1, T2, T3)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T3() = 5)
+//         (T1(i,j) += -3.1*T2(i,j)*T3(i,j))
+//         .deallocate(T2, T3)
+//         .execute();
+//         check_value(T1, 4 -3.1*42*5);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-   try {
-        failed = false;
-        Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS,TIS};
-        TiledIndexLabel i, j, k;
-        std::tie(i, j, k) = TIS.labels<3>("all");
-        Scheduler{ec}
-        .allocate(T1, T2, T3)
-        (T1() = 4)
-        (T2() = 42)
-        (T3() = 5)
-        (T1(i,j) += -3.1*T2(i,k)*T3(j,k))
-        .deallocate(T2, T3)
-        .execute();
-        check_value(T1, 4 -3.1*42*5*10);
-        Tensor<T>::deallocate(T1);
-    } catch(std::string& e) {
-        std::cerr << "Caught exception: " << e << "\n";
-        failed = true;
-    }
-    REQUIRE(!failed);
+//    try {
+//         failed = false;
+//         Tensor<T> T1{TIS,TIS}, T2{TIS,TIS}, T3{TIS,TIS};
+//         TiledIndexLabel i, j, k;
+//         std::tie(i, j, k) = TIS.labels<3>("all");
+//         Scheduler{ec}
+//         .allocate(T1, T2, T3)
+//         (T1() = 4)
+//         (T2() = 42)
+//         (T3() = 5)
+//         (T1(i,j) += -3.1*T2(i,k)*T3(j,k))
+//         .deallocate(T2, T3)
+//         .execute();
+//         check_value(T1, 4 -3.1*42*5*10);
+//         Tensor<T>::deallocate(T1);
+//     } catch(std::string& e) {
+//         std::cerr << "Caught exception: " << e << "\n";
+//         failed = true;
+//     }
+//     REQUIRE(!failed);
 
-}
-#endif
+// }
+// #endif
 

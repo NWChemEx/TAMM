@@ -49,10 +49,13 @@ void ccsd_e(ExecutionContext &ec,
     std::tie(h3, h4, h5, h6)     = MO.labels<4>("occ");
 
     Scheduler{&ec}.allocate(i1)
+        // fixme
+        #if 1
         (i1(h6, p5) = f1(h6, p5))
         (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
         (de() = 0)
         (de() += t1(p5, h6) * i1(h6, p5))
+        #endif
         (de() += 0.25 * t2(p1, p2, h3, h4) * v2(h3, h4, p1, p2))
         .deallocate(i1)
         .execute();
@@ -79,6 +82,8 @@ void ccsd_t1(ExecutionContext &ec, const TiledIndexSpace& MO, Tensor<T>& i0, con
     Scheduler sch{&ec};
     sch
       .allocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
+      //fixme
+      #if 1
     (i0(p2, h1)       = f1(p2, h1))
     (t1_2_1(h7, h1)   = f1(h7, h1))
     (t1_2_2_1(h7, p3) = f1(h7, p3))
@@ -98,6 +103,7 @@ void ccsd_t1(ExecutionContext &ec, const TiledIndexSpace& MO, Tensor<T>& i0, con
     (t1_6_1(h4, h5, h1, p3) += -1 * t1(p6, h1) * v2(h4, h5, p3, p6))
     (i0(p2, h1) += -0.5 * t2(p2, p3, h4, h5) * t1_6_1(h4, h5, h1, p3))
     (i0(p2, h1) += -0.5 * t2(p3, p4, h1, h5) * v2(h5, p2, p3, p4))
+    #endif
     .deallocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
     .execute();
 }
@@ -132,6 +138,8 @@ void ccsd_t2(ExecutionContext &ec,const TiledIndexSpace& MO, Tensor<T>& i0,
     sch.allocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
              t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1)
     (i0(p3, p4, h1, h2) = v2(p3, p4, h1, h2))
+    ///fixme uncomment
+    #if 0
     (t2_2_1(h10, p3, h1, h2) = v2(h10, p3, h1, h2))
     (t2_2_2_1(h10, h11, h1, h2) = -1 * v2(h10, h11, h1, h2))
     (t2_2_2_2_1(h10, h11, h1, p5) = v2(h10, h11, h1, p5))
@@ -177,6 +185,7 @@ void ccsd_t2(ExecutionContext &ec,const TiledIndexSpace& MO, Tensor<T>& i0,
     (t2(p1, p2, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4))
     (i0(p3, p4, h1, h2) += 0.5 * t2(p5, p6, h1, h2) * v2(p3, p4, p5, p6))
     (t2(p1, p2, h3, h4) += -0.5 * t1(p1, h3) * t1(p2, h4))
+    #endif
     .deallocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
               t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1);
     sch.execute();
@@ -337,11 +346,15 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
   Tensor<T> d_r2{V,V,O,O};
   Tensor<T>::allocate(ec,d_r1, d_r2);
 
+  Scheduler{ec}   
+  (d_r1() = 0)
+  (d_r2() = 0)
+  .execute();
+
   double corr = 0;
   double residual = 0.0;
   double energy = 0.0;
 
-#if 1
 for(int titer=0; titer<maxiter; titer+=ndiis) {
     for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
         int off = iter - titer;
@@ -353,6 +366,12 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
 
         Tensor<T>::allocate(ec,d_e, 
           d_r1_residual,d_r2_residual);
+
+        Scheduler{ec}   
+          (d_e() = 0)
+          (d_r1_residual() = 0)
+          (d_r2_residual() = 0)
+          .execute();
 
         Scheduler{ec}         
           ((*d_t1s[off])() = d_t1())
@@ -373,6 +392,7 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
             ((*d_r1s[off])() = d_r1())
             ((*d_r2s[off])() = d_r2())
            .execute();
+
         iteration_print(ec->pg(), iter, residual, energy);
 
          Tensor<T>::deallocate(d_e, 
@@ -412,7 +432,6 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
                   << energy + hf_energy << std::endl;
     }
   }
-#endif
 
   for(int i=0; i<ndiis; i++) {
     Tensor<T>::deallocate(*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
@@ -493,13 +512,13 @@ TEST_CASE("CCSD Driver") {
     // IndexSpace MO_IS{range(0, 20),
     //                  {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
 
-    // IndexSpace MO_IS{range(0, total_orbitals),
-    //                 {{"occ", {range(0, ov_alpha+ov_beta)}},
-    //                  {"virt", {range(total_orbitals/2, total_orbitals)}}}};
     IndexSpace MO_IS{range(0, total_orbitals),
-                     {{"occ", {range(0, ov_alpha),range(ov_alpha,ov_alpha+ov_beta)}},
-                      {"virt", {range(ov_alpha+ov_beta, 2*ov_alpha+ov_beta),
-                      range(2*ov_alpha+ov_beta,total_orbitals)}}}};
+                    {{"occ", {range(0, ov_alpha+ov_beta)}},
+                     {"virt", {range(total_orbitals/2, total_orbitals)}}}};
+    // IndexSpace MO_IS{range(0, total_orbitals),
+    //                  {{"occ", {range(0, ov_alpha),range(ov_alpha,ov_alpha+ov_beta)}},
+    //                   {"virt", {range(ov_alpha+ov_beta, 2*ov_alpha+ov_beta),
+    //                   range(2*ov_alpha+ov_beta,total_orbitals)}}}};
     TiledIndexSpace MO{MO_IS, 10};
 
     ProcGroup pg{GA_MPI_Comm()};
@@ -531,7 +550,6 @@ TEST_CASE("CCSD Driver") {
 
 
   //Tensor Map 
-  #if 1  
   block_for(ec->pg(), d_f1(), [&](IndexVector it) {
     Tensor<T> tensor = d_f1().tensor();
     const TAMM_SIZE size = tensor.block_size(it);
@@ -585,7 +603,7 @@ TEST_CASE("CCSD Driver") {
       }
       d_v2.put(it, buf);
   });
-#endif
+
 
     //print_tensor(d_f1);
     CHECK_NOTHROW(ccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_v2,

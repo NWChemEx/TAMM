@@ -180,9 +180,16 @@ class IndexLoopNest {
         lb_indices_{lb_indices},
         ub_indices_{ub_indices},
         indep_indices_{indep_indices} {
+          EXPECTS(indep_indices.size() == 0 || indep_indices_.size() == iss.size());
         lb_indices_.resize(iss_.size());
         ub_indices_.resize(iss_.size());
         indep_indices_.resize(iss_.size());
+
+        for(size_t i=0; i<indep_indices_.size();i++) {
+          for(const auto id : indep_indices_[i]) {
+            EXPECTS(id < i);
+          }
+        }
         reset();
         }  
   
@@ -200,13 +207,16 @@ class IndexLoopNest {
       labels.push_back(ibc.this_label());
       iss_.push_back(ibc.this_label().tiled_index_space());
       indep_indices_.push_back({});
+      size_t pos = 0;
       for(const TileLabelElement& slbl : ibc.this_label().secondary_labels()) {
           auto it = std::find_if(labels.begin(), labels.end(),
                               [&](const TiledIndexLabel& a) -> bool {
                                   return a.primary_label() == slbl;
                               });
           EXPECTS(it != labels.end());
+          EXPECTS(it - labels.begin() < pos);
           indep_indices_.back().push_back(it - labels.begin());
+          pos += 1;
       }
       /*
         //indep labels
@@ -316,6 +326,8 @@ class IndexLoopNest {
         std::vector<Index> indep_vals;
         EXPECTS(i< loop_nest_->indep_indices_.size());
         for (const auto& id : loop_nest_->indep_indices_[i]) {
+          EXPECTS(id>=0 && id<itrs_.size() && id<bases_.size());
+          EXPECTS(id < i);
           indep_vals.push_back(*(bases_[id]+itrs_[id]));
         }
         IndexIterator cbeg, cend;
@@ -439,6 +451,13 @@ public:
         //std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
         std::vector<std::vector<size_t>> indep_indices =
           construct_dep_map(sorted_unique_labels_);
+
+        for(size_t i=0; i<indep_indices.size();i++) {
+          for(const auto id : indep_indices[i]) {
+            EXPECTS(id < i);
+          }
+        }
+
         index_loop_nest_ = IndexLoopNest{iss, {}, {}, indep_indices};
         //std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
         reset();
@@ -514,9 +533,8 @@ private:
                 for(auto& dep : il.secondary_labels()) {
                     size_t pos = 0;
                     for(pos = 0; pos < labels.size(); pos++) {
-                        if(labels[pos].tiled_index_space() ==
-                             dep.tiled_index_space() &&
-                           dep.label() == labels[pos].label()) {
+                        if(labels[pos].primary_label() == dep) {
+                          EXPECTS(pos < i);
                             dep_map[i].push_back(pos);
                             break;
                         }

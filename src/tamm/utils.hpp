@@ -140,7 +140,9 @@ inline IndexLabelVec sort_on_dependence(const IndexLabelVec& labels) {
             EXPECTS(it != primary_labels.end());
             const auto sit = std::find(sorted_order.begin(), sorted_order.end(),
                                        it - primary_labels.begin());
-            if(sit == sorted_order.end()) { sorted_order.push_back(i); }
+            if(sit == sorted_order.end()) {
+                sorted_order.push_back(it - primary_labels.begin());
+            }
         }
         const auto it = std::find(sorted_order.begin(), sorted_order.end(), i);
         if(it == sorted_order.end()) { sorted_order.push_back(i); }

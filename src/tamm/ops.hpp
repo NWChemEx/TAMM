@@ -580,7 +580,7 @@ public:
             auto tensor = lhs_.tensor();
             EXPECTS(blockid.size() == lhs_.labels().size());
             EXPECTS(blockid.size() == tensor.num_modes());
-            const auto& translated_blockid = internal::translate_blockid(blockid, tensor, lhs_);
+            const auto& translated_blockid = internal::translate_blockid(blockid, lhs_);
 
 
             // const IndexVector& blockid =
@@ -976,8 +976,8 @@ public:
             auto rtensor = rhs_.tensor();
             IndexVector lblockid, rblockid;
             split_block_id(lblockid, rblockid, lhs_.labels().size(), rhs_.labels().size(), blockid);
-            lblockid = internal::translate_blockid(lblockid, ltensor, lhs_);
-            rblockid = internal::translate_blockid(rblockid, rtensor, rhs_);
+            lblockid = internal::translate_blockid(lblockid, lhs_);
+            rblockid = internal::translate_blockid(rblockid, rhs_);
             const size_t size = ltensor.block_size(lblockid);
             // IndexVector rblockid = internal::LabelMap<Index>()
             //                          .update(lhs_.labels(), lblockid)
@@ -1237,9 +1237,9 @@ public:
             it += rhs1_.labels().size();
             IndexVector bblockid{it, it+rhs2_.labels().size()};
 
-            cblockid = internal::translate_blockid(cblockid, ctensor, lhs_);
-            ablockid = internal::translate_blockid(ablockid, atensor, rhs1_);
-            bblockid = internal::translate_blockid(bblockid, btensor, rhs2_);
+            cblockid = internal::translate_blockid(cblockid, lhs_);
+            ablockid = internal::translate_blockid(ablockid, rhs1_);
+            bblockid = internal::translate_blockid(bblockid, rhs2_);
         
             //compute block size and allocate buffers
             const size_t csize = ctensor.block_size(cblockid);

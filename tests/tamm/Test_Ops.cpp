@@ -83,7 +83,7 @@ void check_value(LabeledTensor<T> lt, T val){
         const IndexVector& blockid =
             internal::perm_map_apply(it, lhs_pm);
 
-        IndexVector translate_blockid = internal::translate_blockid(blockid, t, lt);
+        IndexVector translate_blockid = internal::translate_blockid(blockid, lt);
         
         size_t size = t.block_size(translate_blockid);
         std::vector<T> buf(size);

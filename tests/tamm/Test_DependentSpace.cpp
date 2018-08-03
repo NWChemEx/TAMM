@@ -66,9 +66,11 @@ void check_value(LabeledTensor<T> lt, T val){
     {
         const IndexVector& blockid =
             internal::perm_map_apply(it, lhs_pm);
-        size_t size = t.block_size(blockid);
+     
+        const IndexVector translate_blockid = internal::translate_blockid(blockid, lt);
+        size_t size = t.block_size(translate_blockid);
         std::vector<T> buf(size);
-        t.get(blockid, buf);
+        t.get(translate_blockid, buf);
         for (TAMM_SIZE i = 0; i < size; i++) {
           REQUIRE(std::fabs(buf[i]-val)< 1.0e-10);
        }

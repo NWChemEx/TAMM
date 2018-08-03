@@ -142,18 +142,19 @@ operator + (IndexLoopBound ilb1, const IndexLoopBound& ilb2) {
 }
 
 /**
- * @brief Equality comparison operator
- * 
+ * @brief Construct a "diagonal" loop
+ *
  * @param [in] lhs Left-hand side
  * @param [in] rhs Right-hand side
- * 
- * @return true if lhs == rhs
+ *
+ * @return index loop bound conditions for the two loop variables i and j such
+ * that the only iterated values are (i,j) such that i==j.
  */
 inline IndexLoopBound
 operator == (const IndexLoopBound& lhs, const IndexLoopBound& rhs) {
   return (lhs <= rhs) + (lhs >= rhs);
 }
-
+  
 
 class IndexLoopNest {
  public:
@@ -199,6 +200,14 @@ class IndexLoopNest {
       labels.push_back(ibc.this_label());
       iss_.push_back(ibc.this_label().tiled_index_space());
       indep_indices_.push_back({});
+      for(const TileLabelElement& slbl : ibc.this_label().secondary_labels()) {
+          auto it = std::find_if(labels.begin(), labels.end(),
+                              [&](const TiledIndexLabel& a) -> bool {
+                                  return a.primary_label() == slbl;
+                              });
+          EXPECTS(it != labels.end());
+          indep_indices_.back().push_back(it - labels.begin());
+      }
       /*
         //indep labels
         for(const auto& is : ibc.this_label().is().indep_is()) {

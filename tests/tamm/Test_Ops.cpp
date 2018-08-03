@@ -49,49 +49,23 @@ void print_tensor(Tensor<T> &t){
 }
 
 template<typename T>
-void check_value(Tensor<T> &t, T val){
-    for (auto it: t.loop_nest())
-    {
-        TAMM_SIZE size = t.block_size(it);
+void check_value(LabeledTensor<T> lt, T val) {
+    LabelLoopNest loop_nest{lt.labels()};
+
+    for(const auto& itval : loop_nest) {
+        const IndexVector blockid = internal::translate_blockid(itval, lt);
+        size_t size               = lt.tensor().block_size(blockid);
         std::vector<T> buf(size);
-        t.get(it, buf);
-        for (TAMM_SIZE i = 0; i < size;i++) {
-          REQUIRE(std::fabs(buf[i]-val)< 1.0e-10);
-       }
+        lt.tensor().get(blockid, buf);
+        for(TAMM_SIZE i = 0; i < size; i++) {
+            REQUIRE(std::fabs(buf[i] - val) < 1.0e-10);
+        }
     }
 }
 
 template<typename T>
-void check_value(LabeledTensor<T> lt, T val){
-    // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
-    Tensor<T> t = lt.tensor();
-    IndexLabelVec unique_labels = internal::unique_entries(lt.labels());
-    
-    const IndexLabelVec& sorted_labels = internal::sort_on_dependence(unique_labels);
-
-    std::vector<IndexLoopBound> ilbs;
-    for(const auto& lbl: sorted_labels) {
-        ilbs.push_back(lbl);
-    }
-    IndexLoopNest loop_nest{ilbs};
-
-    const std::vector<size_t>& lhs_pm =
-        internal::perm_map_compute(sorted_labels, lt.labels());
-
-    for (const auto& it: loop_nest)
-    {
-        const IndexVector& blockid =
-            internal::perm_map_apply(it, lhs_pm);
-
-        IndexVector translate_blockid = internal::translate_blockid(blockid, lt);
-        
-        size_t size = t.block_size(translate_blockid);
-        std::vector<T> buf(size);
-        t.get(translate_blockid, buf);
-        for (TAMM_SIZE i = 0; i < size; i++) {
-          REQUIRE(std::fabs(buf[i]-val)< 1.0e-10);
-       }
-    }
+void check_value(Tensor<T>& t, T val) {
+    check_value(t(), val);
 }
 
 template<typename T>

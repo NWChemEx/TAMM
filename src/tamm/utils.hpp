@@ -171,7 +171,21 @@ bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
     return false;
 }
 
-
+template <typename LabeledTensorT>
+IndexVector translate_blockid(const IndexVector& blockid,
+                              const LabeledTensorT& ltensor) {
+    EXPECTS(blockid.size() == ltensor.labels().size());
+    const auto& tensor = ltensor.tensor();
+    EXPECTS(blockid.size() == tensor.num_modes());
+    IndexVector translate_blockid;
+    for(size_t i = 0; i < blockid.size(); i++) {
+        const auto& label_tis  = ltensor.labels()[i].tiled_index_space();
+        const auto& tensor_tis = tensor.tiled_index_spaces()[i];
+        Index val = label_tis.translate(blockid[i], tensor_tis);
+        translate_blockid.push_back(val);
+    }
+    return translate_blockid;
+}
 } // namespace tamm::internal
 
 

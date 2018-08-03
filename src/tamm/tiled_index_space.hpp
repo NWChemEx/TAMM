@@ -312,6 +312,7 @@ public:
         return tiled_info_->tile_offsets_.size() - 1;
     }
 
+    const IndexVector& ref_indices() const { return tiled_info_->ref_indices_; }
     /**
      * @brief Get the maximum number of tiled index blocks in TiledIndexSpace
      *
@@ -380,10 +381,13 @@ public:
      * @returns an index from the new_tis that corresponds to [in] id
      */
     std::size_t translate(size_t id, const TiledIndexSpace& new_tis) const {
+        EXPECTS(!is_dependent());
         EXPECTS(id >= 0 && id < tiled_info_->ref_indices_.size());
+        if(new_tis == (*this)) { return id; }
 
         auto new_ref_indices = new_tis.tiled_info_->ref_indices_;
-        EXPECTS(new_ref_indices.size() == new_tis.tiled_info_->simple_vec_.size());
+        EXPECTS(new_ref_indices.size() ==
+                new_tis.tiled_info_->simple_vec_.size());
 
         auto it = std::find(new_ref_indices.begin(), new_ref_indices.end(),
                             tiled_info_->ref_indices_[id]);
@@ -530,9 +534,11 @@ protected:
                 }
             }
 
-            //Post-condition
+            // Post-condition
             EXPECTS(simple_vec_.size() == ref_indices_.size());
-            EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
+            if(!is_.is_dependent()) {
+                EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
+            }
         }
 
         /**
@@ -556,9 +562,11 @@ protected:
                 simple_vec_.push_back(i);
             }
 
-            //Post-condition
+            // Post-condition
             EXPECTS(simple_vec_.size() == ref_indices_.size());
-            EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
+            if(!is_.is_dependent()) {
+                EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
+            }
         }
 
         /**
@@ -587,9 +595,11 @@ protected:
                 EXPECTS(root_dep.at(key).is_compatible_with(dep_tis));
             }
 
-            //Post-condition
+            // Post-condition
             EXPECTS(simple_vec_.size() == ref_indices_.size());
-            EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
+            if(!is_.is_dependent()) {
+                EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
+            }
         }
 
         /**
@@ -745,7 +755,7 @@ protected:
          * @returns the size of the tile at the corresponding index
          */
         std::size_t tile_size(Index idx) const {
-            EXPECTS(idx >= 0 && idx < tile_offsets_.size());
+            EXPECTS(idx >= 0 && idx < tile_offsets_.size() - 1);
             return tile_offsets_[idx + 1] - tile_offsets_[idx];
         }
 

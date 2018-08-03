@@ -33,30 +33,23 @@ void print_tensor(Tensor<T> &t){
 }
 
 template<typename T>
-void check_value(Tensor<T> &t, T val){
-    for (auto it: t.loop_nest())
-    {
-        TAMM_SIZE size = t.block_size(it);
-        std::vector<T> buf(size);
-        t.get(it, buf);
-        for (TAMM_SIZE i = 0; i < size;i++) {
-          REQUIRE(std::fabs(buf[i]-val)< 1.0e-10);
-       }
-    }
-}
-
-template<typename T>
 void check_value(LabeledTensor<T> lt, T val) {
     LabelLoopNest loop_nest{lt.labels()};
 
-    for(const auto& blockid : loop_nest) {
-        size_t size = lt.tensor().block_size(blockid);
+    for(const auto& itval : loop_nest) {
+        const IndexVector blockid = internal::translate_blockid(itval, lt);
+        size_t size               = lt.tensor().block_size(blockid);
         std::vector<T> buf(size);
         lt.tensor().get(blockid, buf);
         for(TAMM_SIZE i = 0; i < size; i++) {
             REQUIRE(std::fabs(buf[i] - val) < 1.0e-10);
         }
     }
+}
+
+template<typename T>
+void check_value(Tensor<T>& t, T val) {
+    check_value(t(), val);
 }
 
 template<typename T>

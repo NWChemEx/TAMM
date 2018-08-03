@@ -44,10 +44,11 @@ public:
     TensorBase(const std::vector<TiledIndexSpace>& block_indices) :
       block_indices_{block_indices},
       num_modes_{block_indices.size()} {
+          for(const auto& tis: block_indices_) {
+              EXPECTS(!tis.is_dependent());
+          }
+        fillin_tlabels();
         construct_dep_map();
-        for(size_t i=0; i<block_indices_.size(); i++) {
-            tlabels_.push_back(block_indices_[i].label(-i-1));
-        }
     }
 
     /**
@@ -62,8 +63,9 @@ public:
       num_modes_{lbls.size()} {
         for(const auto& lbl : lbls) {
             block_indices_.push_back(lbl.tiled_index_space());
-            tlabels_.push_back(lbl);
+            //tlabels_.push_back(lbl);
         }
+        tlabels_ = lbls;
         construct_dep_map();
     }
 
@@ -77,8 +79,11 @@ public:
      */
     template<class... Ts>
     TensorBase(const TiledIndexSpace& tis, Ts... rest) : TensorBase{rest...} {
+        EXPECTS(!tis.is_dependent());
         block_indices_.insert(block_indices_.begin(), tis);
-        tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 - block_indices_.size()));
+        fillin_tlabels();
+        construct_dep_map();
+        // tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 - block_indices_.size()));
     }
 
 
@@ -92,8 +97,11 @@ public:
      */
     template<typename Func>
     TensorBase(const TiledIndexSpace& tis, const Func& func) {
+        EXPECTS(!tis.is_dependent());
         block_indices_.insert(block_indices_.begin(), tis);
-        tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1));
+        //tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1));
+        fillin_tlabels();
+        construct_dep_map();
     }
 
     // Dtor
@@ -207,6 +215,13 @@ public:
     }
 
 protected:
+    void fillin_tlabels() {
+        tlabels_.clear();
+        for(size_t i=0; i < block_indices_.size(); i++) {
+            tlabels_.push_back(block_indices_[i].label(-1-i));
+        }
+    }
+
     std::vector<TiledIndexSpace> block_indices_;
     Spin spin_total_;
     bool has_spatial_symmetry_;

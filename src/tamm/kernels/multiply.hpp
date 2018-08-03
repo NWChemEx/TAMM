@@ -15,16 +15,16 @@ namespace tamm {
 
 namespace internal {
 template<typename T>
-void gemm_wrapper(const enum CBLAS_ORDER Order,
-                  const enum CBLAS_TRANSPOSE TransA,
-                  const enum CBLAS_TRANSPOSE TransB, const int M, const int N,
+void gemm_wrapper(const  CBLAS_ORDER Order,
+                  const  CBLAS_TRANSPOSE TransA,
+                  const  CBLAS_TRANSPOSE TransB, const int M, const int N,
                   const int K, T alpha, const T* A, const int lda, const T* B,
                   const int ldb, T beta, T* C, const int ldc);
 
 template<>
-void gemm_wrapper<double>(const enum CBLAS_ORDER Order,
-                          const enum CBLAS_TRANSPOSE TransA,
-                          const enum CBLAS_TRANSPOSE TransB, const int M,
+void gemm_wrapper<double>(const  CBLAS_ORDER Order,
+                          const  CBLAS_TRANSPOSE TransA,
+                          const  CBLAS_TRANSPOSE TransB, const int M,
                           const int N, const int K, double alpha,
                           const double* A, const int lda, const double* B,
                           const int ldb, double beta, double* C,
@@ -34,9 +34,9 @@ void gemm_wrapper<double>(const enum CBLAS_ORDER Order,
 }
 
 template<>
-void gemm_wrapper<float>(const enum CBLAS_ORDER Order,
-                         const enum CBLAS_TRANSPOSE TransA,
-                         const enum CBLAS_TRANSPOSE TransB, const int M,
+void gemm_wrapper<float>(const  CBLAS_ORDER Order,
+                         const  CBLAS_TRANSPOSE TransA,
+                         const  CBLAS_TRANSPOSE TransB, const int M,
                          const int N, const int K, float alpha, const float* A,
                          const int lda, const float* B, const int ldb,
                          float beta, float* C, const int ldc) {
@@ -46,8 +46,8 @@ void gemm_wrapper<float>(const enum CBLAS_ORDER Order,
 
 template<>
 void gemm_wrapper<std::complex<float>>(
-  const enum CBLAS_ORDER Order, const enum CBLAS_TRANSPOSE TransA,
-  const enum CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+  const  CBLAS_ORDER Order, const  CBLAS_TRANSPOSE TransA,
+  const  CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
   std::complex<float> alpha, const std::complex<float>* A, const int lda,
   const std::complex<float>* B, const int ldb, std::complex<float> beta,
   std::complex<float>* C, const int ldc) {

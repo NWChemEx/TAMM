@@ -1,5 +1,5 @@
-#ifndef TAMM_DIIS_H_
-#define TAMM_DIIS_H_
+#ifndef TAMM_DIIS_HPP_
+#define TAMM_DIIS_HPP_
 
 #include "tamm/tamm.hpp"
 #include <Eigen/Dense>
@@ -9,67 +9,8 @@ namespace tamm {
 
 template<typename T>
 inline void
-jacobi(const ProcGroup& pg,
-       Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted) {
-  EXPECTS(transpose == false);
-  // std::cout << "shift=" << shift << std::endl;
-  #if 0
-  block_parfor(pg, d_r(), [&] (const BlockDimVec& blockid) {
-      auto rblock = d_r.get(blockid);
-      auto tblock = d_t.alloc(blockid);
-      auto bdims = rblock.block_dims();
-
-      if(d_r.rank() == 2) {
-        auto ioff = TCE::offset(blockid[0]);
-        auto joff = TCE::offset(blockid[1]);
-        auto isize = bdims[0].value();
-        auto jsize = bdims[1].value();
-        T* rbuf = rblock.buf();
-        T* tbuf = tblock.buf();
-        for(int i=0, c=0; i<isize; i++) {
-          for(int j=0; j<jsize; j++, c++) {
-            tbuf[c] = rbuf[c] / (-p_evl_sorted[ioff+i] + p_evl_sorted[joff+j] + shift);
-          }
-        }
-        d_t.add(tblock.blockid(), tblock);
-      } else if(d_r.rank() == 4) {
-        auto off = rblock.block_offset();
-        TensorVec<int64_t> ioff;
-        for(auto x: off) {
-          ioff.push_back(x.value());
-        }
-        TensorVec<int64_t> isize;
-        for(auto x: bdims) {
-          isize.push_back(x.value());
-        }
-        T* rbuf = rblock.buf();
-        T* tbuf = tblock.buf();
-        for(int i0=0, c=0; i0<isize[0]; i0++) {
-          for(int i1=0; i1<isize[1]; i1++) {
-            for(int i2=0; i2<isize[2]; i2++) {
-              for(int i3=0; i3<isize[3]; i3++, c++) {
-                tbuf[c] = rbuf[c] / (- p_evl_sorted[ioff[0]+i0] - p_evl_sorted[ioff[1]+i1]
-                                     + p_evl_sorted[ioff[2]+i2] + p_evl_sorted[ioff[3]+i3]
-                                     + shift);
-              }
-            }
-          }
-        }
-        d_t.add(tblock.blockid(), tblock);
-      }
-      else {
-        assert(0);  // @todo implement
-      }
-    });
-    #endif
-  //GA_Sync();
-}
-
-
-template<typename T>
-inline void
 jacobi(ExecutionContext& ec,
-       Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted) {
+       const Tensor<T>& d_r, const Tensor<T>& d_t, T shift, bool transpose, const Tensor<T>& p_evl_sorted) {
   EXPECTS(transpose == false);
   #if 0
   block_parfor(ec.pg(), d_r(), [&] (const BlockDimVec& blockid) {
@@ -211,13 +152,12 @@ diis(ExecutionContext& ec,
   auto sch = Scheduler{&ec};
   for(int k=0; k<ntensors; k++) {
     Tensor<T> &dt = *d_t[k];
-    //sch.
-      //  (dt() = 0);
+    sch
+       (dt() = 0);
     for(int j=0; j<ndiis; j++) {
       auto &tb = *d_ts[k]->at(j);
       // FIXME
-      // sch.
-      //     (dt() += x(j, 0) * tb());
+      // sch(dt() += x(j, 0) * tb());
     }
   }
   //GA_Sync();
@@ -228,4 +168,4 @@ diis(ExecutionContext& ec,
 
 }  // namespace tamm
 
-#endif // TAMM_DIIS_H_
+#endif // TAMM_DIIS_HPP_

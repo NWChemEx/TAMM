@@ -26,12 +26,13 @@ void ccsd_e(ExecutionContext &ec,
     std::tie(p1, p2, p3, p4, p5) = MO.labels<5>("virt");
     std::tie(h3, h4, h5, h6)     = MO.labels<4>("occ");
 
-    Scheduler{&ec}
+    Scheduler{&ec}.allocate(i1)
         (i1(h6, p5) = f1(h6, p5))
         (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
         (de() = 0)
         (de() += t1(p5, h6) * i1(h6, p5))
         (de() += 0.25 * t2(p1, p2, h3, h4) * v2(h3, h4, p1, p2))
+        .deallocate(i1)
         .execute();
 }
 
@@ -156,14 +157,10 @@ void ccsd_t2(ExecutionContext &ec,const TiledIndexSpace& MO, Tensor<T>& i0,
     (t2(p1, p2, h3, h4) += -0.5 * t1(p1, h3) * t1(p2, h4))
     .deallocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
               t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1);
+    sch.execute();
 
 }
-// class Scheduler;
-template<typename T>
-void jacobi(Scheduler& sch, const Tensor<T>& d_r, const Tensor<T>& d_t, T shift, bool transpose,
-            const Tensor<T>& EVL) {
-    //@todo implement
-}
+
 
 /**
  *
@@ -188,10 +185,10 @@ std::pair<double,double> rest(ExecutionContext& ec,
     Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
     sch
       (d_r1_residual() = d_r1()  * d_r1())
-      (d_r2_residual() = d_r2()  * d_r2())
-      .execute();
+      (d_r2_residual() = d_r2()  * d_r2());
+      //fixme .execute();
 
-      auto l0 = [&](Scheduler& sch) {
+      auto l0 = [&]() {
         T r1, r2;
         d_r1_residual.get({}, {&r1, 1});
         d_r2_residual.get({}, {&r2, 1});
@@ -200,16 +197,16 @@ std::pair<double,double> rest(ExecutionContext& ec,
         de.get({}, {&energy, 1});
       };
 
-      auto l1 =  [&](Scheduler& sch) {
-        jacobi(sch, d_r1, d_t1, -1.0 * zshiftl, false, EVL);
+      auto l1 =  [&]() {
+        jacobi(ec, d_r1, d_t1, -1.0 * zshiftl, false, EVL);
       };
-      auto l2 = [&](Scheduler& sch) {
-        jacobi(sch, d_r2, d_t2, -2.0 * zshiftl, false, EVL);
+      auto l2 = [&]() {
+        jacobi(ec, d_r2, d_t2, -2.0 * zshiftl, false, EVL);
       };
 
-      l0(sch);
-      l1(sch);
-      l2(sch);
+      l0();
+      l1();
+      l2();
 
       Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
       
@@ -241,6 +238,11 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 
     std::cout.precision(15);
 
+  ///fixme - what to do with p_evl_sorted
+  //long int total_orbitals = 0;
+  //std::cout << "Total orbitals = " << total_orbitals << std::endl;
+  //std::vector<double> p_evl_sorted(14); //(total_orbitals);
+
     Tensor<T> d_evl{N};
     Tensor<T>::allocate(ec, d_evl);
     TiledIndexLabel n1;
@@ -251,11 +253,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     sch(d_evl(n1) = 0.0)
     .execute();
 
-  //long int total_orbitals = 0;
-  //std::cout << "Total orbitals = " << total_orbitals << std::endl;
-  //std::vector<double> p_evl_sorted(14); //(total_orbitals);
-
-  // {
+  // { ///fixme
   //   auto lambda = [&] (const auto& blockid) {
   //     if(blockid[0] == blockid[1]) {
   //       auto block = d_f1.get(blockid);
@@ -301,6 +299,13 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
   Tensor<T> d_r2{V,V,O,O};
   Tensor<T>::allocate(ec,d_r1, d_r2);
 
+  /// fixme -not needed here probably
+  //   auto get_scalar = [] (Tensor<T>& tensor) -> T {
+  //   EXPECTS(tensor.rank() == 0);
+  //   Block<T> resblock = tensor.get({});
+  //   return *resblock.buf();
+  // };
+
   double corr = 0;
   double residual = 0.0;
   double energy = 0.0;
@@ -310,34 +315,44 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
     for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
         int off = iter - titer;
 
-        Tensor<T> d_t1_local{V,O};
+        Tensor<T> d_t1_local{V,O}; ///fixme not used
         Tensor<T> d_e{};
         Tensor<T> d_r1_residual{};
         Tensor<T> d_r2_residual{};
 
-        sch
-          .allocate(d_t1_local, d_r1_residual, d_r2_residual,
-                 d_e)(d_t1_local() = d_t1());
+        Tensor<T>::allocate(ec,d_e,d_t1_local, 
+          d_r1_residual,d_r2_residual);
 
+        Scheduler{ec}         
+          ((*d_t1s[off])() = d_t1())
+          ((*d_t2s[off])() = d_t2())
+          .execute();
+
+        Scheduler{ec}
+           (d_t1_local() = d_t1()).execute();
+
+        
         ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
         ccsd_t1(*ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
         ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
         std::tie(residual, energy) =
-          rest(*ec, MO, d_r1, d_r2, d_t1, d_t2, d_e, d_evl, zshiftl);
+        rest(*ec, MO, d_r1, d_r2, d_t1, d_t2, d_e, d_evl, zshiftl);                 
 
-        //Scheduler sch = ec->scheduler();
-        sch         
-          ((*d_t1s[off])() = d_t1())
-          ((*d_t2s[off])() = d_t2())
-          .execute();
-        sch.execute();
-        sch((*d_r1s[off])() = d_r1())
-           ((*d_r2s[off])() = d_r2())
-          .execute();
+        Scheduler{ec}
+            ((*d_r1s[off])() = d_r1())
+            ((*d_r2s[off])() = d_r2())
+           .execute();
         iteration_print(ec->pg(), iter, residual, energy);
+
+         Tensor<T>::deallocate(d_e,d_t1_local, 
+          d_r1_residual,d_r2_residual);
+
         if(residual < thresh) { break; }
+
+       
     }
 
+    
     if(residual < thresh || titer + ndiis >= maxiter) { break; }
     if(ec->pg().rank() == 0) {
         std::cout << " MICROCYCLE DIIS UPDATE:";
@@ -346,12 +361,11 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
         std::cout.width(21);
         std::cout << std::right << "5" << std::endl;
     }
+    ////fixme 
     std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
     std::vector<std::vector<Tensor<T>*>*> ts{&d_t1s, &d_t2s};
     std::vector<Tensor<T>*> next_t{&d_t1, &d_t2};
-
-    //fixme 
-    //diis<T>(ec, rs, ts, next_t);
+    diis<T>(*ec, rs, ts, next_t);
   }
 
   if(ec->pg().rank() == 0) {
@@ -374,7 +388,7 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
   }
   d_r1s.clear();
   d_r2s.clear();
-  Tensor<T>::deallocate(d_r1, d_r2);
+  Tensor<T>::deallocate(d_evl,d_r1, d_r2);
 
     // while(residual > thresh) {
     //     ccsd_e(*ec, MO, de, d_t1, d_t2, d_f1, d_v2);
@@ -406,7 +420,6 @@ int main( int argc, char* argv[] )
 }
 
 TEST_CASE("CCSD Driver") {
-
 
     using T = double;
 
@@ -453,7 +466,7 @@ TEST_CASE("CCSD Driver") {
     // Construction of tiled index space MO
     IndexSpace MO_IS{range(0, 20),
                      {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
-    TiledIndexSpace MO{MO_IS, 1};
+    TiledIndexSpace MO{MO_IS, 10};
 
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
@@ -468,21 +481,21 @@ TEST_CASE("CCSD Driver") {
     Tensor<T> d_t2{V, V, O, O};
     Tensor<T> d_f1{N, N};
     Tensor<T> d_v2{N, N, N, N};
-    int maxiter    = 50;
+    int maxiter    = 5;
     double thresh  = 1.0e-10;
     double zshiftl = 0.0;
     int ndiis      = 5;
 
-  Tensor<double>::allocate(ec, d_t1);// ,d_t2,d_f1, d_v2);
+  Tensor<double>::allocate(ec,d_t1,d_t2,d_f1,d_v2);
 
-#if 0  
   Scheduler{ec}
       (d_t1() = 0)
       (d_t2() = 0)
     .execute();
 
 
-  //Tensor Map
+  //Tensor Map //fixme
+  #if 0  
   block_parfor(ec.pg(), d_f1(), [&](auto& blockid) {
       auto block = d_f1.alloc(blockid);
     auto buf = block.buf();
@@ -499,9 +512,12 @@ TEST_CASE("CCSD Driver") {
     d_f1.put(blockid, block);
     });
 
-    CHECK_NOTHROW(ccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_v2, maxiter, thresh, zshiftl,
-              ndiis,hf_energy));
+    ///fixme same for V2->d_v2
+#endif
+    CHECK_NOTHROW(ccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_v2,
+                  maxiter, thresh, zshiftl,ndiis,hf_energy));
+
     Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
     MemoryManagerGA::destroy_coll(mgr);
-#endif
+
 }

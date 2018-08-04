@@ -12,6 +12,7 @@
 #include "tamm/types.hpp"
 #include "tamm/work.hpp"
 #include "tamm/utils.hpp"
+#include "tamm/kernels/assign.hpp"
 #include "tamm/kernels/multiply.hpp"
 
 // template<typename T>
@@ -937,6 +938,7 @@ public:
       // loop_nest_{loop_nest},
       is_assign_{is_assign} {
         fillin_labels();
+        fillin_int_labels();
         validate();
     }
 
@@ -1016,14 +1018,23 @@ public:
             rtensor.get(rblockid, rbuf);
             const auto& ldims = lhs_.tensor().block_dims(lblockid);
             const auto& rdims = rhs_.tensor().block_dims(rblockid);
+#if 0
             internal::block_add(&lbuf[0], ldims, lhs_.labels(), &rbuf[0], rdims,
                                 rhs_.labels(), alpha_, !is_assign_);
-            // void assign(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
-            // const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
-            // bool is_assign = true);
-
-            // kernels::assign(&lbuf[0], ldims, lhs_.labels(), &rbuf[0], rdims,
-            //                 rhs_.labels(), alpha_, is_assign_);
+#else
+// void assign(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
+//             const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
+//             bool is_assign = true);
+            SizeVec ldims_sz, rdims_sz;
+            for(const auto v : ldims) {
+                ldims_sz.push_back(v);
+            }
+            for(const auto v : rdims) {
+                rdims_sz.push_back(v);
+            }
+            kernels::assign(&lbuf[0], ldims_sz, lhs_int_labels_, alpha_, &rbuf[0],
+                            rdims_sz, rhs_int_labels_, is_assign_);
+#endif
             if(is_assign_) {
                 ltensor.put(lblockid, lbuf);
             } else {
@@ -1107,10 +1118,29 @@ protected:
         }
     }
 
+    void fillin_int_labels() {
+        std::map<TileLabelElement, int> primary_labels_map;
+        int cnt = -1;
+        for(const auto& lbl: lhs_.labels()) {
+            primary_labels_map[lbl.primary_label()] = --cnt;
+        }
+        for(const auto& lbl: rhs_.labels()) {
+            primary_labels_map[lbl.primary_label()] = --cnt;
+        }
+        for(const auto& lbl: lhs_.labels()) {
+            lhs_int_labels_.push_back(primary_labels_map[lbl.primary_label()]);
+        }
+        for(const auto& lbl: rhs_.labels()) {
+            rhs_int_labels_.push_back(primary_labels_map[lbl.primary_label()]);
+        }
+    }
+
+
     LabeledTensorT lhs_;
     T alpha_;
     LabeledTensorT rhs_;
     // LabeledLoop loop_nest_;
+    IntLabelVec lhs_int_labels_, rhs_int_labels_;
     bool is_assign_;
 }; // class AddOp
 
@@ -1131,6 +1161,7 @@ public:
       //   symm_factor_{symm_factor},
       is_assign_{is_assign} {
         fillin_labels();
+        fillin_int_labels();
         validate();
         if(is_assign_) {
             NOT_IMPLEMENTED(); //C=A*B not implemented
@@ -1287,18 +1318,35 @@ public:
             const auto& adims = atensor.block_dims(ablockid);
             const auto& bdims = btensor.block_dims(bblockid);
             //double cscale = is_assign_ ? 0 : 1;
-            TensorElType cscale = 0.0;
+            TensorElType cscale{0};
             //std::fill_n(cbuf.begin(), csize, 0);
             // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+#if 0
             //do the block-block multiply
             internal::block_mult((TensorElType)0.0, &cbuf[0], cdims, lhs_.labels(), alpha_,
                                  &abuf[0], adims, rhs1_.labels(), &bbuf[0],
                                  bdims, rhs2_.labels());
+#else
+            SizeVec adims_sz, bdims_sz, cdims_sz;
+            for(const auto v : adims) {
+                adims_sz.push_back(v);
+            }
+            for(const auto v : bdims) {
+                bdims_sz.push_back(v);
+            }
+            for(const auto v : cdims) {
+                cdims_sz.push_back(v);
+            }
+            kernels::block_multiply(alpha_, abuf.data(), adims_sz,
+                                    rhs1_int_labels_, bbuf.data(), bdims_sz,
+                                    rhs2_int_labels_, cscale, cbuf.data(),
+                                    cdims_sz, lhs_int_labels_);
+#endif
             // if(is_assign_) {
             //     ctensor.put(cblockid, span<TensorElType>(&cbuf[0], csize));
             // } else {
-                //add the computed update to the tensor
-                ctensor.add(cblockid, cbuf);
+            // add the computed update to the tensor
+            ctensor.add(cblockid, cbuf);
             // }
         };
 #endif
@@ -1327,6 +1375,30 @@ protected:
         fillin_tensor_label_from_map(rhs1_, str_to_labels);
         fillin_tensor_label_from_map(rhs2_, str_to_labels);
     }
+
+    void fillin_int_labels() {
+        std::map<TileLabelElement, int> primary_labels_map;
+        int cnt = -1;
+        for(const auto& lbl: lhs_.labels()) {
+            primary_labels_map[lbl.primary_label()] = --cnt;
+        }
+        for(const auto& lbl: rhs1_.labels()) {
+            primary_labels_map[lbl.primary_label()] = --cnt;
+        }
+        for(const auto& lbl: rhs2_.labels()) {
+            primary_labels_map[lbl.primary_label()] = --cnt;
+        }
+        for(const auto& lbl: lhs_.labels()) {
+            lhs_int_labels_.push_back(primary_labels_map[lbl.primary_label()]);
+        }
+        for(const auto& lbl: rhs1_.labels()) {
+            rhs1_int_labels_.push_back(primary_labels_map[lbl.primary_label()]);
+        }
+        for(const auto& lbl: rhs2_.labels()) {
+            rhs2_int_labels_.push_back(primary_labels_map[lbl.primary_label()]);
+        }
+    }
+
 
     /**
      * @brief Check if the parameters forma valid add operation. The parameters
@@ -1376,6 +1448,9 @@ protected:
     T alpha_;
     LabeledTensorT rhs1_;
     LabeledTensorT rhs2_;
+    IntLabelVec lhs_int_labels_;
+    IntLabelVec rhs1_int_labels_;
+    IntLabelVec rhs2_int_labels_;
     // LabeledLoop outer_loop_nest_;
     // LabeledLoop inner_loop_nest_;
     // SymmFactor symm_factor_;

@@ -509,16 +509,17 @@ TEST_CASE("CCSD Driver") {
     const long int total_orbitals = 2*ov_alpha+2*ov_beta;
     
     // Construction of tiled index space MO
-    // IndexSpace MO_IS{range(0, 20),
-    //                  {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
+
+    // IndexSpace MO_IS{range(0, total_orbitals),
+    //                 {{"occ", {range(0, ov_alpha+ov_beta)}},
+    //                  {"virt", {range(total_orbitals/2, total_orbitals)}}}};
 
     IndexSpace MO_IS{range(0, total_orbitals),
-                    {{"occ", {range(0, ov_alpha+ov_beta)}},
-                     {"virt", {range(total_orbitals/2, total_orbitals)}}}};
-    // IndexSpace MO_IS{range(0, total_orbitals),
-    //                  {{"occ", {range(0, ov_alpha),range(ov_alpha,ov_alpha+ov_beta)}},
-    //                   {"virt", {range(ov_alpha+ov_beta, 2*ov_alpha+ov_beta),
-    //                   range(2*ov_alpha+ov_beta,total_orbitals)}}}};
+                    {{"occ", {range(0, ov_alpha+ov_beta)}}, //0-7
+                     {"virt", {range(total_orbitals/2, total_orbitals)}}, //7-14
+                     {"alpha", {range(0, ov_alpha),range(ov_alpha+ov_beta,2*ov_alpha+ov_beta)}}, //0-5,7-12
+                     {"beta", {range(ov_alpha,ov_alpha+ov_beta), range(2*ov_alpha+ov_beta,total_orbitals)}} //5-7,12-14   
+                     }};
     TiledIndexSpace MO{MO_IS, 10};
 
     ProcGroup pg{GA_MPI_Comm()};

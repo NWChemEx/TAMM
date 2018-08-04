@@ -12,6 +12,7 @@
 #include "tamm/types.hpp"
 #include "tamm/work.hpp"
 #include "tamm/utils.hpp"
+#include "tamm/kernels/assign.hpp"
 #include "tamm/kernels/multiply.hpp"
 
 // template<typename T>

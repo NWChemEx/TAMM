@@ -419,19 +419,24 @@ test_eigen_assign_no_n(ExecutionContext &ec,
                        const IndexLabelVec &aupper_labels,
                        const IndexLabelVec &alower_labels) {
 
-  auto cupper_indices = tamm_label_to_indices(cupper_labels);
-  auto clower_indices = tamm_label_to_indices(clower_labels);
-  auto aupper_indices = tamm_label_to_indices(aupper_labels);
-  auto alower_indices = tamm_label_to_indices(alower_labels);
+  // auto cupper_indices = tamm_label_to_indices(cupper_labels);
+  // auto clower_indices = tamm_label_to_indices(clower_labels);
+  // auto aupper_indices = tamm_label_to_indices(aupper_labels);
+  // auto alower_indices = tamm_label_to_indices(alower_labels);
 
-  auto cindices = cupper_indices; 
-  cindices.insert(cindices.end(),clower_indices.begin(), clower_indices.end());
-  auto aindices = aupper_indices;
-  aindices.insert(aindices.end(),alower_indices.begin(), alower_indices.end());
+  // auto cindices = cupper_indices; 
+  // cindices.insert(cindices.end(),clower_indices.begin(), clower_indices.end());
+  // auto aindices = aupper_indices;
+  // aindices.insert(aindices.end(),alower_indices.begin(), alower_indices.end());
+
+  auto clabels = cupper_labels;
+  clabels.insert(clabels.end(),clower_labels.begin(), clower_labels.end());
+  auto alabels = aupper_labels;
+  alabels.insert(alabels.end(),alower_labels.begin(), alower_labels.end());
  
-  Tensor<double> tc1{cindices};
-  Tensor<double> tc2{cindices};
-  Tensor<double> ta{aindices};
+  Tensor<double> tc1{clabels};
+  Tensor<double> tc2{clabels};
+  Tensor<double> ta{alabels};
 
   Tensor<double>::allocate(&ec,ta, tc1, tc2);
 
@@ -443,10 +448,7 @@ test_eigen_assign_no_n(ExecutionContext &ec,
 
   tamm_tensor_fill(ec, ta());
 
-  auto clabels = cupper_labels;
-  clabels.insert(clabels.end(),clower_labels.begin(), clower_labels.end());
-  auto alabels = aupper_labels;
-  alabels.insert(alabels.end(),alower_labels.begin(), alower_labels.end());
+
 
   EigenTensorBase *etc1 = eigen_assign(tc1, clabels, alpha, ta, alabels);
   tamm_assign(ec, tc2, clabels, alpha, ta, alabels);
@@ -2092,7 +2094,8 @@ Tensor<double>::allocate(ec,xta, xtb, xtc);
 Scheduler{ec}
   (xta() = alpha1)
   (xtb() = alpha2)
-  (xtc() = xta() * xtb())
+  //fixme shud be =
+  (xtc() += xta() * xtb())
   .execute();
 
 double threshold = 1.0e-12;
@@ -2134,7 +2137,8 @@ Tensor<double>::allocate(ec,xta, xtb, xtc);
 Scheduler{ec}
 (xta() = alpha1)
 (xtb() = alpha2)
-(xtc() = xta() * xtb())
+//fixme =
+(xtc() += xta() * xtb())
 .execute();
 
 double threshold = 1.0e-12;
@@ -2172,7 +2176,8 @@ Tensor<double>::allocate(ec,xta, xtb, xtc);
 Scheduler{ec}
 (xta() = alpha1)
 (xtb() = alpha2)
-(xtc() = xta() * xtb())
+//fixme =
+(xtc() += xta() * xtb())
 .execute();
 
 double threshold = 1.0e-12;
@@ -2210,7 +2215,8 @@ Tensor<double>::allocate(ec,xta, xtb, xtc);
 Scheduler{ec}
 (xta() = alpha1)
 (xtb() = alpha2)
-(xtc() = xta() * xtb())
+//fixme =
+(xtc() += xta() * xtb())
 .execute();
 
 double threshold = 1.0e-12;
@@ -2249,7 +2255,8 @@ Tensor<double>::allocate(ec,xta, xtb, xtc);
 Scheduler{ec}
   (xta() = alpha1)
   (xtb() = alpha2)
-  (xtc() = xta() * xtb())
+  //fixme =
+  (xtc() += xta() * xtb())
   .execute();
 
 double threshold = 1.0e-12;

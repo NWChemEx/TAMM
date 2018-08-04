@@ -10,7 +10,7 @@ namespace tamm {
 template<typename T>
 inline void
 jacobi(ExecutionContext& ec,
-       const Tensor<T>& d_r, const Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted) {
+       Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted) {
   EXPECTS(transpose == false);
   #if 1
   block_for(ec.pg(), d_r(), [&] (IndexVector blockid) {

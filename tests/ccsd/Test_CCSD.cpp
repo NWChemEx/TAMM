@@ -81,7 +81,7 @@ void ccsd_t1(ExecutionContext &ec, const TiledIndexSpace& MO, Tensor<T>& i0, con
 
     Scheduler sch{&ec};
     sch
-      .allocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
+      .allocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1)//, t1_6_1)
       //fixme
       #if 1
     (i0(p2, h1)       = f1(p2, h1))
@@ -99,12 +99,12 @@ void ccsd_t1(ExecutionContext &ec, const TiledIndexSpace& MO, Tensor<T>& i0, con
     (t1_5_1(h8, p7) = f1(h8, p7))
     (t1_5_1(h8, p7) += t1(p5, h6) * v2(h6, h8, p5, p7))
     (i0(p2, h1) += t2(p2, p7, h1, h8) * t1_5_1(h8, p7))
-    (t1_6_1(h4, h5, h1, p3) = v2(h4, h5, h1, p3))
-    (t1_6_1(h4, h5, h1, p3) += -1 * t1(p6, h1) * v2(h4, h5, p3, p6))
-    (i0(p2, h1) += -0.5 * t2(p2, p3, h4, h5) * t1_6_1(h4, h5, h1, p3))
+    //(t1_6_1(h4, h5, h1, p3) = v2(h4, h5, h1, p3))
+    //(t1_6_1(h4, h5, h1, p3) += -1 * t1(p6, h1) * v2(h4, h5, p3, p6))
+    //(i0(p2, h1) += -0.5 * t2(p2, p3, h4, h5) * t1_6_1(h4, h5, h1, p3))
     (i0(p2, h1) += -0.5 * t2(p3, p4, h1, h5) * v2(h5, p2, p3, p4))
     #endif
-    .deallocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
+    .deallocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1)//, t1_6_1)
     .execute();
 }
 
@@ -203,10 +203,10 @@ void ccsd_t2(ExecutionContext &ec,const TiledIndexSpace& MO, Tensor<T>& i0,
 template<typename T>
 std::pair<double,double> rest(ExecutionContext& ec,
                               const TiledIndexSpace& MO,
-                              const Tensor<T>& d_r1,
-                              const Tensor<T>& d_r2,
-                              const Tensor<T>& d_t1,
-                              const Tensor<T>& d_t2,
+                               Tensor<T>& d_r1,
+                               Tensor<T>& d_r2,
+                               Tensor<T>& d_t1,
+                               Tensor<T>& d_t2,
                               const Tensor<T>& de,
                               std::vector<T>& p_evl_sorted, T zshiftl) {
 
@@ -225,9 +225,11 @@ std::pair<double,double> rest(ExecutionContext& ec,
         T r1, r2;
         d_r1_residual.get({}, {&r1, 1});
         d_r2_residual.get({}, {&r2, 1});
-        residual = std::max(0.5*std::sqrt(r1),
-                            0.5*std::sqrt(r2));
+        r1 = 0.5*std::sqrt(r1);
+        r2 = 0.5*std::sqrt(r2);
         de.get({}, {&energy, 1});
+        residual = std::max(r1,r2);
+        //std::cout << "r1,r2= " << r1 << ":" << r2 << std::endl;
       };
 
       auto l1 =  [&]() {
@@ -385,6 +387,7 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
         ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
         ccsd_t1(*ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
         ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
+
         std::tie(residual, energy) =
         rest(*ec, MO, d_r1, d_r2, d_t1, d_t2, d_e, p_evl_sorted, zshiftl);                 
 

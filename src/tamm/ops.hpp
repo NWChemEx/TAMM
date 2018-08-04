@@ -1318,18 +1318,35 @@ public:
             const auto& adims = atensor.block_dims(ablockid);
             const auto& bdims = btensor.block_dims(bblockid);
             //double cscale = is_assign_ ? 0 : 1;
-            TensorElType cscale = 0.0;
+            TensorElType cscale{0};
             //std::fill_n(cbuf.begin(), csize, 0);
             // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+#if 0
             //do the block-block multiply
             internal::block_mult((TensorElType)0.0, &cbuf[0], cdims, lhs_.labels(), alpha_,
                                  &abuf[0], adims, rhs1_.labels(), &bbuf[0],
                                  bdims, rhs2_.labels());
+#else
+            SizeVec adims_sz, bdims_sz, cdims_sz;
+            for(const auto v : adims) {
+                adims_sz.push_back(v);
+            }
+            for(const auto v : bdims) {
+                bdims_sz.push_back(v);
+            }
+            for(const auto v : cdims) {
+                cdims_sz.push_back(v);
+            }
+            kernels::block_multiply(alpha_, abuf.data(), adims_sz,
+                                    rhs1_int_labels_, bbuf.data(), bdims_sz,
+                                    rhs2_int_labels_, cscale, cbuf.data(),
+                                    cdims_sz, lhs_int_labels_);
+#endif
             // if(is_assign_) {
             //     ctensor.put(cblockid, span<TensorElType>(&cbuf[0], csize));
             // } else {
-                //add the computed update to the tensor
-                ctensor.add(cblockid, cbuf);
+            // add the computed update to the tensor
+            ctensor.add(cblockid, cbuf);
             // }
         };
 #endif

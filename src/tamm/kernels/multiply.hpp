@@ -60,15 +60,16 @@ namespace kernels {
 
 template<typename T>
 void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
-                    const IntLabelVec& alabels, T beta, const T* bbuf,
-                    const SizeVec& bdims, const IntLabelVec& blabels, T* cbuf,
+                    const IntLabelVec& alabels, const T* bbuf,
+                    const SizeVec& bdims, const IntLabelVec& blabels, 
+                    T beta, T* cbuf,
                     const SizeVec& cdims, const IntLabelVec& clabels) {
     const Size asize =
-      std::accumulate(adims.begin(), adims.end(), 1, std::multiplies<Size>());
+      std::accumulate(adims.begin(), adims.end(), Size{1}, std::multiplies<Size>());
     const Size bsize =
-      std::accumulate(bdims.begin(), bdims.end(), 1, std::multiplies<Size>());
+      std::accumulate(bdims.begin(), bdims.end(), Size{1}, std::multiplies<Size>());
     const Size csize =
-      std::accumulate(cdims.begin(), cdims.end(), 11, std::multiplies<Size>());
+      std::accumulate(cdims.begin(), cdims.end(), Size{1}, std::multiplies<Size>());
 
     EXPECTS(abuf != nullptr && bbuf != nullptr && cbuf != nullptr);
 
@@ -143,17 +144,17 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     cinter_labels.insert(cinter_labels.end(), bouter_labels.begin(),
                          bouter_labels.end());
 
-    std::vector<SizeVec> ainter_dims{batch_dims};
+    SizeVec ainter_dims{batch_dims};
     ainter_dims.insert(ainter_dims.end(), aouter_dims.begin(),
                        aouter_dims.end());
     ainter_dims.insert(ainter_dims.end(), inner_dims.begin(), inner_dims.end());
 
-    std::vector<SizeVec> binter_dims{batch_dims};
+    SizeVec binter_dims{batch_dims};
     binter_dims.insert(binter_dims.end(), inner_dims.begin(), inner_dims.end());
     binter_dims.insert(binter_dims.end(), bouter_dims.begin(),
                        bouter_dims.end());
 
-    std::vector<SizeVec> cinter_dims{batch_dims};
+    SizeVec cinter_dims{batch_dims};
     cinter_dims.insert(cinter_dims.end(), aouter_dims.begin(),
                        aouter_dims.end());
     cinter_dims.insert(cinter_dims.end(), bouter_dims.begin(),
@@ -162,9 +163,9 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     std::vector<T> ainter_buf(static_cast<size_t>(asize.value())),
       binter_buf(static_cast<size_t>(bsize.value())),
       cinter_buf(static_cast<size_t>(csize.value()));
-    assign(ainter_buf, ainter_dims, ainter_labels, 1.0, abuf, adims, alabels,
+    assign(ainter_buf.data(), ainter_dims, ainter_labels, T{1}, abuf, adims, alabels,
            true);
-    assign(binter_buf, binter_dims, binter_labels, 1.0, bbuf, bdims, blabels,
+    assign(binter_buf.data(), binter_dims, binter_labels, T{1}, bbuf, bdims, blabels,
            true);
     auto transA   = CblasNoTrans;
     auto transB   = CblasNoTrans;
@@ -173,14 +174,16 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     int cinter_ld = N;
     int batch_ld  = M * N * K;
 
+    //std::cerr<<"M="<<M<<" N="<<N<<" K="<<K<<" B="<<B<<" alpha="<<alpha<<" beta="<<beta<<"\n";
     // dgemm
     for(size_t i = 0; i < B; i++) {
         internal::gemm_wrapper<T>(CblasRowMajor, transA, transB, M, N, K, alpha,
                                   ainter_buf.data() + i * batch_ld, ainter_ld,
                                   binter_buf.data() + i * batch_ld, binter_ld,
-                                  beta, cbuf + i * batch_ld, cinter_ld);
+                                  beta, cinter_buf.data() + i * batch_ld, cinter_ld);
     }
-    assign(cbuf, cdims, clabels, 1.0, cinter_buf, cinter_dims, cinter_labels,
+    //std::cerr<<"A[0]="<<ainter_buf[0]<<" B[0]="<<binter_buf[0]<<" C[0]="<<cinter_buf[0]<<"\n";
+    assign(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims, cinter_labels,
            true);
 } // block_multiply()
 

@@ -937,6 +937,7 @@ public:
       // loop_nest_{loop_nest},
       is_assign_{is_assign} {
         fillin_labels();
+        fillin_int_labels();
         validate();
     }
 
@@ -1016,14 +1017,23 @@ public:
             rtensor.get(rblockid, rbuf);
             const auto& ldims = lhs_.tensor().block_dims(lblockid);
             const auto& rdims = rhs_.tensor().block_dims(rblockid);
+#if 0
             internal::block_add(&lbuf[0], ldims, lhs_.labels(), &rbuf[0], rdims,
                                 rhs_.labels(), alpha_, !is_assign_);
-            // void assign(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
-            // const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
-            // bool is_assign = true);
-
-            // kernels::assign(&lbuf[0], ldims, lhs_.labels(), &rbuf[0], rdims,
-            //                 rhs_.labels(), alpha_, is_assign_);
+#else
+// void assign(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
+//             const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
+//             bool is_assign = true);
+            SizeVec ldims_sz, rdims_sz;
+            for(const auto v : ldims) {
+                ldims_sz.push_back(v);
+            }
+            for(const auto v : rdims) {
+                rdims_sz.push_back(v);
+            }
+            kernels::assign(&lbuf[0], ldims_sz, lhs_int_labels_, alpha_, &rbuf[0],
+                            rdims_sz, rhs_int_labels_, is_assign_);
+#endif
             if(is_assign_) {
                 ltensor.put(lblockid, lbuf);
             } else {
@@ -1107,10 +1117,29 @@ protected:
         }
     }
 
+    void fillin_int_labels() {
+        std::map<TileLabelElement, int> primary_labels_map;
+        int cnt = -1;
+        for(const auto& lbl: lhs_.labels()) {
+            primary_labels_map[lbl.primary_label()] = --cnt;
+        }
+        for(const auto& lbl: rhs_.labels()) {
+            primary_labels_map[lbl.primary_label()] = --cnt;
+        }
+        for(const auto& lbl: lhs_.labels()) {
+            lhs_int_labels_.push_back(primary_labels_map[lbl.primary_label()]);
+        }
+        for(const auto& lbl: rhs_.labels()) {
+            rhs_int_labels_.push_back(primary_labels_map[lbl.primary_label()]);
+        }
+    }
+
+
     LabeledTensorT lhs_;
     T alpha_;
     LabeledTensorT rhs_;
     // LabeledLoop loop_nest_;
+    IntLabelVec lhs_int_labels_, rhs_int_labels_;
     bool is_assign_;
 }; // class AddOp
 
@@ -1131,6 +1160,7 @@ public:
       //   symm_factor_{symm_factor},
       is_assign_{is_assign} {
         fillin_labels();
+        fillin_int_labels();
         validate();
         if(is_assign_) {
             NOT_IMPLEMENTED(); //C=A*B not implemented
@@ -1328,6 +1358,30 @@ protected:
         fillin_tensor_label_from_map(rhs2_, str_to_labels);
     }
 
+    void fillin_int_labels() {
+        std::map<TileLabelElement, int> primary_labels_map;
+        int cnt = -1;
+        for(const auto& lbl: lhs_.labels()) {
+            primary_labels_map[lbl.primary_label()] = --cnt;
+        }
+        for(const auto& lbl: rhs1_.labels()) {
+            primary_labels_map[lbl.primary_label()] = --cnt;
+        }
+        for(const auto& lbl: rhs2_.labels()) {
+            primary_labels_map[lbl.primary_label()] = --cnt;
+        }
+        for(const auto& lbl: lhs_.labels()) {
+            lhs_int_labels_.push_back(primary_labels_map[lbl.primary_label()]);
+        }
+        for(const auto& lbl: rhs1_.labels()) {
+            rhs1_int_labels_.push_back(primary_labels_map[lbl.primary_label()]);
+        }
+        for(const auto& lbl: rhs2_.labels()) {
+            rhs2_int_labels_.push_back(primary_labels_map[lbl.primary_label()]);
+        }
+    }
+
+
     /**
      * @brief Check if the parameters forma valid add operation. The parameters
      * (ltc, tuple(alpha,lta)) form a valid add operation if:
@@ -1376,6 +1430,9 @@ protected:
     T alpha_;
     LabeledTensorT rhs1_;
     LabeledTensorT rhs2_;
+    IntLabelVec lhs_int_labels_;
+    IntLabelVec rhs1_int_labels_;
+    IntLabelVec rhs2_int_labels_;
     // LabeledLoop outer_loop_nest_;
     // LabeledLoop inner_loop_nest_;
     // SymmFactor symm_factor_;

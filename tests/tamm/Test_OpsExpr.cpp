@@ -27,7 +27,8 @@ void print_tensor(Tensor<T> &t){
         t.get(it, buf);
         std::cout << "block" << it;
         for (TAMM_SIZE i = 0; i < size;i++)
-         std::cout << buf[i] << std::endl;
+         std::cout << buf[i] << " ";
+        std::cout << std::endl;
     }
 }
 
@@ -387,14 +388,14 @@ TEST_CASE("CCSD T2") {
         TiledIndexSpace V = MO("virt");
         TiledIndexSpace N = MO("all");
 
-        Tensor<T> d_f1{N,N};
-        Tensor<T> d_r1{N,N};
+        Tensor<T> d_f1{N,N,N,N};
+        Tensor<T> d_r1{O,O,O,O};
         Tensor<T>::allocate(ec, d_r1, d_f1);
 
-        TiledIndexLabel h1, h2;
-        TiledIndexLabel p1, p2;
-        std::tie(h1, h2) = MO.labels<2>("occ");
-        std::tie(p1, p2) = MO.labels<2>("occ");
+        TiledIndexLabel h1, h2,h3,h4;
+        TiledIndexLabel p1, p2,p3,p4;
+        std::tie(h1, h2,h3,h4) = MO.labels<4>("occ");
+        std::tie(p1, p2,p3,p4) = MO.labels<4>("occ");
 
         Scheduler{ec}(d_r1() = 0).execute();
 
@@ -404,7 +405,7 @@ TEST_CASE("CCSD T2") {
 
             std::vector<T> buf(size);
 
-            const int ndim = 2;
+            const int ndim = 4;
             std::array<int, ndim> block_offset;
             auto& tiss      = tensor.tiled_index_spaces();
             auto block_dims = tensor.block_dims(it);
@@ -415,16 +416,22 @@ TEST_CASE("CCSD T2") {
             TAMM_SIZE c = 0;
             for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
                 i++) {
-                double n = std::rand() % 5;
                 for(auto j = block_offset[1];
-                    j < block_offset[1] + block_dims[1]; j++, c++) {
-                    buf[c] = n + j;
+                    j < block_offset[1] + block_dims[1]; j++) {
+                    for(auto k = block_offset[2];
+                        k < block_offset[2] + block_dims[2]; k++) {
+                        double n = rand() % 5;
+                        for(auto l = block_offset[3];
+                            l < block_offset[3] + block_dims[3]; l++, c++) {
+                            buf[c] = n + l;
+                        }
+                    }
                 }
             }
             d_f1.put(it, buf);
         });
 
-        Scheduler{ec}(d_r1(p2, h1) = d_f1(p2, h1)).execute();
+        Scheduler{ec}(d_r1(p2,h1,p1,h2) = d_f1(p2, h1,p1,h2)).execute();
 
         // std::cout << "d_f1\n";
         // print_tensor(d_f1);

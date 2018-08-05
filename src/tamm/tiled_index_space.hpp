@@ -485,6 +485,7 @@ protected:
         IndexVector tile_offsets_; /**< Tile offsets */
         IndexVector ref_indices_;  /**< Reference indices to root */
         IndexVector simple_vec_;   /**< vector where at(i) = i*/
+        std::size_t max_num_tiles_; /**<Maximum number of tiles in this tiled space*/
         std::map<IndexVector, TiledIndexSpace>
           tiled_dep_map_; /**< Tiled dependency map for dependent index spaces*/
         std::map<std::string, TiledIndexSpace>
@@ -533,12 +534,8 @@ protected:
                     ref_indices_.push_back(i);
                 }
             }
-
-            // Post-condition
-            EXPECTS(simple_vec_.size() == ref_indices_.size());
-            if(!is_.is_dependent()) {
-                EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
-            }
+            compute_max_num_tiles();
+            validate();
         }
 
         /**
@@ -561,12 +558,8 @@ protected:
             for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
                 simple_vec_.push_back(i);
             }
-
-            // Post-condition
-            EXPECTS(simple_vec_.size() == ref_indices_.size());
-            if(!is_.is_dependent()) {
-                EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
-            }
+            compute_max_num_tiles();
+            validate();
         }
 
         /**
@@ -594,14 +587,9 @@ protected:
                 EXPECTS(root_dep.find(key) != root_dep.end());
                 EXPECTS(root_dep.at(key).is_compatible_with(dep_tis));
             }
-
-            // Post-condition
-            EXPECTS(simple_vec_.size() == ref_indices_.size());
-            if(!is_.is_dependent()) {
-                EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
-            }
-        }
-
+            compute_max_num_tiles();
+            validate();
+          }
         /**
          * @brief Construct starting and ending indices of each tile with
          * respect to input tile size.
@@ -768,18 +756,28 @@ protected:
          * @returns the maximum number of tiles in the TiledIndexSpaceInfo
          */
         std::size_t max_num_tiles() const {
-            std::size_t ret = 0;
+            return max_num_tiles_;
+        }
+
+        void compute_max_num_tiles() {
             if(tiled_dep_map_.empty()) {
-                return (tile_offsets_.size() - 1);
+                max_num_tiles_ = tile_offsets_.size() - 1;
             } else {
+                max_num_tiles_ = 0;
                 for(const auto& kv : tiled_dep_map_) {
-                    if(ret < kv.second.max_num_tiles()) {
-                        ret = kv.second.max_num_tiles();
+                    if(max_num_tiles_ < kv.second.max_num_tiles()) {
+                        max_num_tiles_ = kv.second.max_num_tiles();
                     }
                 }
             }
+        }
 
-            return ret;
+        void validate() {
+            // Post-condition
+            EXPECTS(simple_vec_.size() == ref_indices_.size());
+            if(!is_.is_dependent()) {
+                EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
+            }
         }
     }; // struct TiledIndexSpaceInfo
 

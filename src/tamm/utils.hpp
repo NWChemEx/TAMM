@@ -1,5 +1,5 @@
-#if !defined(TAMM_UTILS_H_)
-#define TAMM_UTILS_H_
+#ifndef TAMM_UTILS_HPP_
+#define TAMM_UTILS_HPP_
 
 #include "tamm/types.hpp"
 #include "tamm/errors.hpp"
@@ -191,4 +191,4 @@ IndexVector translate_blockid(const IndexVector& blockid,
 
 } // namespace tamm
 
-#endif // TAMM_UTILS_H_
+#endif // TAMM_UTILS_HPP_

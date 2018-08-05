@@ -10,14 +10,25 @@
 using namespace tamm;
 
 template<typename T>
-std::ostream&
-operator << (std::ostream& os, const std::vector<T>& vec) {
-  os<<"[";
-  for(const auto& v: vec) {
-    os<<v<<",";
-  }
-  os<<"]"<<std::endl;
-  return os;
+std::ostream& operator << (std::ostream &os, std::vector<T>& vec){
+    os << "[";
+    for(auto &x: vec)
+        os << x << ",";
+    os << "]\n";
+    return os;
+}
+
+template<typename T>
+void print_tensor(Tensor<T> &t){
+    for (auto it: t.loop_nest())
+    {
+        TAMM_SIZE size = t.block_size(it);
+        std::vector<T> buf(size);
+        t.get(it, buf);
+        std::cout << "block" << it;
+        for (TAMM_SIZE i = 0; i < size;i++)
+         std::cout << buf[i] << std::endl;
+    }
 }
 
 TEST_CASE("Zero-dimensional tensor with double") {
@@ -344,6 +355,91 @@ TEST_CASE("SCF JK declarations") {
     }
     REQUIRE(!failed);
     
+}
+
+TEST_CASE("CCSD T2") {
+
+    bool failed = false;
+
+    try {
+        using T     = double;
+
+        ProcGroup pg{GA_MPI_Comm()};
+        auto mgr = MemoryManagerGA::create_coll(pg);
+        Distribution_NW distribution;
+        ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+
+        IndexSpace MO_IS{range(0, 14),
+                        {
+                          {"occ", {range(0, 7)}},                  
+                          {"virt", {range(7, 14)}}
+                        }};
+        // IndexSpace MO_IS{range(0, 14),
+        //                  {
+        //                    {"occ", {range(0, 7)}},                  // 0-7
+        //                    {"virt", {range(7, 14)}},                // 7-14
+        //                    {"alpha", {range(0, 5), range(7,12)}}, // 0-5,7-12
+        //                    {"beta", {range(5,7), range(12,14)}} // 5-7,12-14
+        //                 }};
+        TiledIndexSpace MO{MO_IS, 10};
+
+        TiledIndexSpace O = MO("occ");
+        TiledIndexSpace V = MO("virt");
+        TiledIndexSpace N = MO("all");
+
+        Tensor<T> d_f1{N,N};
+        Tensor<T> d_r1{N,N};
+        Tensor<T>::allocate(ec, d_r1, d_f1);
+
+        TiledIndexLabel h1, h2;
+        TiledIndexLabel p1, p2;
+        std::tie(h1, h2) = MO.labels<2>("occ");
+        std::tie(p1, p2) = MO.labels<2>("occ");
+
+        Scheduler{ec}(d_r1() = 0).execute();
+
+        block_for(ec->pg(), d_f1(), [&](IndexVector it) {
+            Tensor<T> tensor     = d_f1().tensor();
+            const TAMM_SIZE size = tensor.block_size(it);
+
+            std::vector<T> buf(size);
+
+            const int ndim = 2;
+            std::array<int, ndim> block_offset;
+            auto& tiss      = tensor.tiled_index_spaces();
+            auto block_dims = tensor.block_dims(it);
+            for(auto i = 0; i < ndim; i++) {
+                block_offset[i] = tiss[i].tile_offset(it[i]);
+            }
+
+            TAMM_SIZE c = 0;
+            for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                double n = std::rand() % 5;
+                for(auto j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++, c++) {
+                    buf[c] = n + j;
+                }
+            }
+            d_f1.put(it, buf);
+        });
+
+        Scheduler{ec}(d_r1(p2, h1) = d_f1(p2, h1)).execute();
+
+        // std::cout << "d_f1\n";
+        // print_tensor(d_f1);
+        // std::cout << "-----------\nd_r1\n";
+        // print_tensor(d_r1);
+
+        Tensor<T>::deallocate(d_r1, d_f1);
+        MemoryManagerGA::destroy_coll(mgr);
+        delete ec;
+
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
 }
 
 int main(int argc, char* argv[])

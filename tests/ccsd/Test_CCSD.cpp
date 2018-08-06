@@ -378,10 +378,7 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
           ((*d_t2s[off])() = d_t2())
           .execute();
 
-        // Scheduler{ec}
-        //    (d_t1_local() = d_t1()).execute();
-
-        
+       
         ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
         ccsd_t1(*ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
         ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
@@ -511,17 +508,17 @@ TEST_CASE("CCSD Driver") {
     
     // Construction of tiled index space MO
 
-    // IndexSpace MO_IS{range(0, total_orbitals),
-    //                 {{"occ", {range(0, ov_alpha+ov_beta)}},
-    //                  {"virt", {range(total_orbitals/2, total_orbitals)}}}};
-
     IndexSpace MO_IS{range(0, total_orbitals),
-                    {{"occ", {range(0, ov_alpha+ov_beta)}}, //0-7
-                     {"virt", {range(total_orbitals/2, total_orbitals)}}, //7-14
-                     {"alpha", {range(0, ov_alpha),range(ov_alpha+ov_beta,2*ov_alpha+ov_beta)}}, //0-5,7-12
-                     {"beta", {range(ov_alpha,ov_alpha+ov_beta), range(2*ov_alpha+ov_beta,total_orbitals)}} //5-7,12-14   
-                     }};
-    TiledIndexSpace MO{MO_IS, 10};
+                    {{"occ", {range(0, 2*ov_alpha)}},
+                     {"virt", {range(2*ov_alpha, total_orbitals)}}}};
+
+    // IndexSpace MO_IS{range(0, total_orbitals),
+    //                 {{"occ", {range(0, ov_alpha+ov_beta)}}, //0-7
+    //                  {"virt", {range(total_orbitals/2, total_orbitals)}}, //7-14
+    //                  {"alpha", {range(0, ov_alpha),range(ov_alpha+ov_beta,2*ov_alpha+ov_beta)}}, //0-5,7-12
+    //                  {"beta", {range(ov_alpha,ov_alpha+ov_beta), range(2*ov_alpha+ov_beta,total_orbitals)}} //5-7,12-14   
+    //                  }};
+    TiledIndexSpace MO{MO_IS, {ov_alpha,ov_alpha,ov_beta,ov_beta}};
 
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);

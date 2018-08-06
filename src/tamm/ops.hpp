@@ -704,12 +704,15 @@ public:
         // function to compute one block
         auto lambda = [&](const IndexVector& blockid) {
             auto tensor = lhs_.tensor();
+            EXPECTS(blockid.size() == lhs_.labels().size());
+            EXPECTS(blockid.size() == tensor.num_modes());
+            const auto& translated_blockid = internal::translate_blockid(blockid, lhs_);
             // const IndexVector& blockid =
             //   internal::perm_map_apply(itval, lhs_pm);
-            const size_t size = tensor.block_size(blockid);
+            const size_t size = tensor.block_size(translated_blockid);
             std::vector<TensorElType> buf(size);
-            tensor.get(blockid, buf);
-            func_(tensor, blockid, buf);
+            tensor.get(translated_blockid, buf);
+            func_(tensor, translated_blockid, buf);
         };
         // ec->...(loop_nest, lambda);
         //@todo use a scheduler
@@ -844,7 +847,11 @@ public:
                 rblockid[i].insert(rblockid[i].end(), it,
                                    it + rhs_[i].labels().size());
                 it += rhs_[i].labels().size();
+                // Translate each rhs blockid
+                rblockid[i] = internal::translate_blockid(rblockid[i], rhs_[i]);
             }
+            // Translate lhs blockid
+            lblockid = internal::translate_blockid(lblockid, lhs_);
             // const IndexVector& lblockid =
             //   internal::perm_map_apply(itval, lhs_pm);
             // IndexVector rblockid[N];

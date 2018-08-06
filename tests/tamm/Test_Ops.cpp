@@ -1113,7 +1113,7 @@ TEST_CASE("setop with double complex") {
     test_setop_with_T<complex_double>(1);
     test_setop_with_T<complex_double>(3);
 }
-#if 0
+
 TEST_CASE("mapop with double") {
     test_mapop_with_T<double>(1);
     test_mapop_with_T<double>(3);
@@ -1133,7 +1133,6 @@ TEST_CASE("mapop with double complex") {
     test_mapop_with_T<complex_double>(1);
     test_mapop_with_T<complex_double>(3);
 }
-#endif
 
 TEST_CASE("addop with double") {
     test_addop_with_T<double>(1);

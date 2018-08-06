@@ -1,12 +1,11 @@
 #ifndef TAMM_UTILS_HPP_
 #define TAMM_UTILS_HPP_
 
-#include "tamm/types.hpp"
 #include "tamm/errors.hpp"
 #include "tamm/tiled_index_space.hpp"
+#include "tamm/types.hpp"
 
 #include <vector>
-
 
 namespace tamm {
 
@@ -18,9 +17,7 @@ inline void update_fillin_map(std::map<std::string, Label>& str_to_labels,
                               int initial_off) {
     const size_t sz = str_labels.size();
     for(size_t i = 0; i < sz; i++) {
-        if(str_map[i]) {
-            str_to_labels[str_labels[i]] = -initial_off - i - 1;
-        }
+        if(str_map[i]) { str_to_labels[str_labels[i]] = -initial_off - i - 1; }
     }
 }
 
@@ -31,7 +28,8 @@ inline void fillin_tensor_label_from_map(
     const size_t sz          = ltensor.labels().size();
     for(size_t i = 0; i < sz; i++) {
         if(ltensor.str_map()[i]) {
-          EXPECTS(str_to_labels.find(ltensor.str_labels()[i]) != str_to_labels.end());
+            EXPECTS(str_to_labels.find(ltensor.str_labels()[i]) !=
+                    str_to_labels.end());
             new_labels[i] = ltensor.tensor().tiled_index_spaces()[i].label(
               str_to_labels.find(ltensor.str_labels()[i])->second);
         }
@@ -41,7 +39,8 @@ inline void fillin_tensor_label_from_map(
 
 /**
  * @ingroup perm
- * @brief Compute permutation to be performed to permute vector @p from to vector @p to.
+ * @brief Compute permutation to be performed to permute vector @p from to
+ * vector @p to.
  * @param from Source vector for the permutation
  * @param to Target vector for the permutation
  * @pre @p from and @p to are permutations of each other
@@ -51,17 +50,16 @@ inline void fillin_tensor_label_from_map(
  * ensures 0<=i<from.size(): to[i] = from[ret[i]]
  */
 template<typename T>
-PermVector
-perm_compute(const std::vector<T>& from, const std::vector<T>& to) {
-  PermVector layout;
+PermVector perm_compute(const std::vector<T>& from, const std::vector<T>& to) {
+    PermVector layout;
 
-  EXPECTS(from.size() == to.size());
-  for(auto p : to) {
-    auto itr = std::find(from.begin(), from.end(), p);
-    EXPECTS(itr != from.end());
-    layout.push_back(itr - from.begin());
-  }
-  return layout;
+    EXPECTS(from.size() == to.size());
+    for(auto p : to) {
+        auto itr = std::find(from.begin(), from.end(), p);
+        EXPECTS(itr != from.end());
+        layout.push_back(itr - from.begin());
+    }
+    return layout;
 }
 
 template<typename T>
@@ -121,7 +119,7 @@ template<typename T, typename Integer>
 void perm_map_apply(std::vector<T>& out_vec, const std::vector<T>& input_vec,
                     const std::vector<Integer>& perm_map) {
     out_vec.resize(perm_map.size());
-    for(size_t i=0; i<perm_map.size(); i++) {
+    for(size_t i = 0; i < perm_map.size(); i++) {
         EXPECTS(perm_map[i] < input_vec.size());
         out_vec[i] = input_vec[perm_map[i]];
     }
@@ -161,34 +159,46 @@ bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
     //     return false;
     // }
     int i;
-    for(i = -1 + itr.size(); i>=0 && itr[i]+1 == end[i]; i--) {
-        itr[i] = T{0};        
+    for(i = -1 + itr.size(); i >= 0 && itr[i] + 1 == end[i]; i--) {
+        itr[i] = T{0};
     }
     // EXPECTS(itr.size() == 0 || i>=0);
-    if(i>=0) {
+    if(i >= 0) {
         ++itr[i];
         return true;
     }
     return false;
 }
 
-template <typename LabeledTensorT>
+IndexVector indep_values(const IndexVector& blockid, const Index& idx,
+                         const std::map<size_t, std::vector<size_t>>& dep_map) {
+    IndexVector ret{};
+    if(dep_map.find(idx) != dep_map.end()) {
+        for(const auto& dep_id : dep_map.at(idx)) {
+            ret.push_back(blockid[dep_id]);
+        }
+    }
+    return ret;
+}
+
+template<typename LabeledTensorT>
 IndexVector translate_blockid(const IndexVector& blockid,
                               const LabeledTensorT& ltensor) {
     EXPECTS(blockid.size() == ltensor.labels().size());
-    const auto& tensor = ltensor.tensor();
+    const auto& tensor  = ltensor.tensor();
+    const auto& dep_map = tensor.dep_map();
     EXPECTS(blockid.size() == tensor.num_modes());
     IndexVector translate_blockid;
     for(size_t i = 0; i < blockid.size(); i++) {
-        const auto& label_tis  = ltensor.labels()[i].tiled_index_space();
-        const auto& tensor_tis = tensor.tiled_index_spaces()[i];
-        Index val = label_tis.translate(blockid[i], tensor_tis);
+        auto indep_vals = indep_values(blockid, i, dep_map);
+        const auto& label_tis  = ltensor.labels()[i].tiled_index_space()(indep_vals);
+        const auto& tensor_tis = tensor.tiled_index_spaces()[i](indep_vals);
+        Index val              = label_tis.translate(blockid[i], tensor_tis);
         translate_blockid.push_back(val);
     }
     return translate_blockid;
 }
-} // namespace tamm::internal
-
+} // namespace internal
 
 } // namespace tamm
 

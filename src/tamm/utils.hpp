@@ -72,6 +72,7 @@ bool are_permutations(const std::vector<T>& vec1, const std::vector<T>& vec2) {
         auto it = std::find(vec2.begin(), vec2.end(), vec1[i]);
         if(it == vec2.end()) { return false; }
         if(taken[std::distance(vec2.begin(), it)] == true) { return false; }
+        taken[std::distance(vec2.begin(), it)] = true;
     }
     return true;
 }

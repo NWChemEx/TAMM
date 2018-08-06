@@ -50,6 +50,8 @@ public:
         is, 0, input_tile_sizes)},
       root_tiled_info_{tiled_info_} {
         for(const auto& in_tsize : input_tile_sizes) { EXPECTS(in_tsize > 0); }
+        // construct tiling for named subspaces
+        tile_named_subspaces(is);
     }
 
     /**

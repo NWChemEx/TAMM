@@ -51,6 +51,17 @@ void gemm_wrapper<std::complex<float>>(
   std::complex<float> alpha, const std::complex<float>* A, const int lda,
   const std::complex<float>* B, const int ldb, std::complex<float> beta,
   std::complex<float>* C, const int ldc) {
+    cblas_cgemm(Order, TransA, TransB, M, N, K, &alpha, A, lda, B, ldb, &beta,
+                C, ldc);
+}
+
+template<>
+void gemm_wrapper<std::complex<double>>(
+  const  CBLAS_ORDER Order, const  CBLAS_TRANSPOSE TransA,
+  const  CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+  std::complex<double> alpha, const std::complex<double>* A, const int lda,
+  const std::complex<double>* B, const int ldb, std::complex<double> beta,
+  std::complex<double>* C, const int ldc) {
     cblas_zgemm(Order, TransA, TransB, M, N, K, &alpha, A, lda, B, ldb, &beta,
                 C, ldc);
 }

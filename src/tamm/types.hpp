@@ -67,7 +67,7 @@ using Size       = Offset;
 using BlockCount = BlockIndex;
 using Label      = int; //needs to support negative values
 
-using IntLabel = size_t; //a simple integer label for indices
+using IntLabel = int32_t; //a simple integer label for indices
 using IntLabelVec = std::vector<IntLabel>;
 
 using SizeVec = std::vector<Size>;

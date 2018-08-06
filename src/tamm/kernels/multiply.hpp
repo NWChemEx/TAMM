@@ -73,7 +73,7 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
 
     EXPECTS(abuf != nullptr && bbuf != nullptr && cbuf != nullptr);
 
-    std::vector<size_t> asorted_labels{alabels}, bsorted_labels{blabels},
+    IntLabelVec asorted_labels{alabels}, bsorted_labels{blabels},
       csorted_labels{clabels};
     std::sort(asorted_labels.begin(), asorted_labels.end());
     std::sort(bsorted_labels.begin(), bsorted_labels.end());

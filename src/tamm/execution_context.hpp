@@ -22,7 +22,7 @@ class Tensor;
  */
 class ExecutionContext {
  public:
-   ExecutionContext() {};
+   ExecutionContext() = default;
   // ExecutionContext(const ExecutionContext&) = default;
   // ExecutionContext(ExecutionContext&&) = default;
   // ExecutionContext& operator=(const ExecutionContext&) = default;
@@ -36,11 +36,11 @@ class ExecutionContext {
       {
         pg_self_ = ProcGroup{MPI_COMM_SELF};
         /** @todo use shared pointers */
-        memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
+        //memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
       }
 
   ~ExecutionContext() {
-    MemoryManagerLocal::destroy_coll(memory_manager_local_);
+    //MemoryManagerLocal::destroy_coll(memory_manager_local_);
   }
 
   /**

@@ -172,15 +172,17 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     int ainter_ld = K;
     int binter_ld = N;
     int cinter_ld = N;
-    int batch_ld  = M * N * K;
+    int cbatch_ld  = M * N;
+    int abatch_ld  = M * K;
+    int bbatch_ld  = K * N;
 
     //std::cerr<<"M="<<M<<" N="<<N<<" K="<<K<<" B="<<B<<" alpha="<<alpha<<" beta="<<beta<<"\n";
     // dgemm
     for(size_t i = 0; i < B; i++) {
         internal::gemm_wrapper<T>(CblasRowMajor, transA, transB, M, N, K, alpha,
-                                  ainter_buf.data() + i * batch_ld, ainter_ld,
-                                  binter_buf.data() + i * batch_ld, binter_ld,
-                                  beta, cinter_buf.data() + i * batch_ld, cinter_ld);
+                                  ainter_buf.data() + i * abatch_ld, ainter_ld,
+                                  binter_buf.data() + i * bbatch_ld, binter_ld,
+                                  beta, cinter_buf.data() + i * cbatch_ld, cinter_ld);
     }
     //std::cerr<<"A[0]="<<ainter_buf[0]<<" B[0]="<<binter_buf[0]<<" C[0]="<<cinter_buf[0]<<"\n";
     assign(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims, cinter_labels,

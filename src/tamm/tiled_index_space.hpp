@@ -30,7 +30,8 @@ public:
     TiledIndexSpace(const IndexSpace& is, Tile input_tile_size = 1) :
       tiled_info_{std::make_shared<TiledIndexSpace::TiledIndexSpaceInfo>(
         is, input_tile_size, std::vector<Tile>{})},
-      root_tiled_info_{tiled_info_} {
+      root_tiled_info_{tiled_info_},
+      parent_tis_{nullptr} {
         EXPECTS(input_tile_size > 0);
 
         // construct tiling for named subspaces
@@ -48,7 +49,8 @@ public:
                     const std::vector<Tile>& input_tile_sizes) :
       tiled_info_{std::make_shared<TiledIndexSpace::TiledIndexSpaceInfo>(
         is, 0, input_tile_sizes)},
-      root_tiled_info_{tiled_info_} {
+      root_tiled_info_{tiled_info_},
+      parent_tis_{nullptr} {
         for(const auto& in_tsize : input_tile_sizes) { EXPECTS(in_tsize > 0); }
         // construct tiling for named subspaces
         tile_named_subspaces(is);
@@ -72,7 +74,8 @@ public:
      * @param [in] indices set of indices of the reference TiledIndexSpace
      */
     TiledIndexSpace(const TiledIndexSpace& t_is, const IndexVector& indices) :
-      root_tiled_info_{t_is.root_tiled_info_} {
+      root_tiled_info_{t_is.root_tiled_info_},
+      parent_tis_{std::make_shared<TiledIndexSpace>(t_is)} {
         IndexVector new_indices, new_offsets;
 
         for(const auto& idx : indices) {
@@ -101,7 +104,8 @@ public:
                     const std::map<IndexVector, TiledIndexSpace>& dep_map) :
       tiled_info_{std::make_shared<TiledIndexSpace::TiledIndexSpaceInfo>(
         (*t_is.tiled_info_), dep_map)},
-      root_tiled_info_{t_is.root_tiled_info_} {}
+      root_tiled_info_{t_is.root_tiled_info_},
+      parent_tis_{std::make_shared<TiledIndexSpace>(t_is)} {}
 
     // /**
     //  * @brief Construct a new TiledIndexSpace object from a reference
@@ -221,6 +225,24 @@ public:
     }
 
     /**
+     * @brief Boolean method for checking if this TiledIndexSpace is a subset of 
+     * input TiledIndexSpace
+     *
+     * @param [in] tis reference TiledIndexSpace
+     * @returns true if this is a subset of input TiledIndexSpace
+     */
+    bool is_subset_of(const TiledIndexSpace& tis) const {
+
+        if(this->is_identical(tis)){
+            return true;
+        } else if(this->parent_tis_ != nullptr){
+            return (this->parent_tis_->is_subset_of(tis));
+        }
+
+        return false;
+    }
+
+    /**
      * @brief Boolean method for checking if given TiledIndexSpace is compatible
      * to this TiledIndexSpace
      *
@@ -230,7 +252,7 @@ public:
      */
     bool is_compatible_with(const TiledIndexSpace& tis) const {
         return (this->root_tiled_info_.lock() == tis.root_tiled_info_.lock()) &&
-               (this->tiled_info_->is_subset_of(tis.tiled_info_));
+               (is_subset_of(tis));
     }
 
     /**
@@ -781,19 +803,6 @@ protected:
                 EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
             }
         }
-
-        bool is_subset_of(const std::shared_ptr<TiledIndexSpaceInfo>& t_info) {
-            EXPECTS(t_info != nullptr);
-            const auto& in_ref_indices = t_info->ref_indices_;
-            for(const auto& idx : ref_indices_) {
-                if(std::find(in_ref_indices.begin(), in_ref_indices.end(),
-                             idx) == in_ref_indices.end()) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
     }; // struct TiledIndexSpaceInfo
 
     std::shared_ptr<TiledIndexSpaceInfo>
@@ -801,6 +810,8 @@ protected:
     std::weak_ptr<TiledIndexSpaceInfo>
       root_tiled_info_; /**< Weak pointer to the root TiledIndexSpaceInfo
                            object*/
+    std::shared_ptr<TiledIndexSpace> parent_tis_; /**< Weak pointer to the parent
+                                                   TiledIndexSpace object*/
 
     /**
      * @brief Return the corresponding tile position of an index for a give
@@ -832,6 +843,15 @@ protected:
      */
     void set_root(const std::shared_ptr<TiledIndexSpaceInfo>& root) {
         root_tiled_info_ = root;
+    }
+
+    /**
+     * @brief Set the parent TiledIndexSpace object
+     *
+     * @param [in] parent a shared pointer to a TiledIndexSpace object
+     */
+    void set_parent(const std::shared_ptr<TiledIndexSpace>& parent) {
+        parent_tis_ = parent;
     }
 
     /**
@@ -884,6 +904,7 @@ protected:
             tempTIS.set_tiled_info(std::make_shared<TiledIndexSpaceInfo>(
               (*root_tiled_info_.lock()), new_offsets, indices));
             tempTIS.set_root(tiled_info_);
+            tempTIS.set_parent(std::make_shared<TiledIndexSpace>(*this));
 
             tiled_info_->tiled_named_subspaces_.insert(
               {str_subis.first, tempTIS});

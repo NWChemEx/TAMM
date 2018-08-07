@@ -82,25 +82,28 @@ void ccsd_t1(ExecutionContext &ec, const TiledIndexSpace& MO, Tensor<T>& i0, con
     sch
       .allocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
     #if 1
-    (i0(p2, h1)       = f1(p2, h1))
-    (t1_2_1(h7, h1)   = f1(h7, h1))
-    (t1_2_2_1(h7, p3) = f1(h7, p3))
-    (t1_2_2_1(h7, p3) += -1 * t1(p5, h6) * v2(h6, h7, p3, p5))
-    (t1_2_1(h7, h1)  += t1(p3, h1) * t1_2_2_1(h7, p3))
-    (t1_2_1(h7, h1) += -1 * t1(p4, h5) * v2(h5, h7, h1, p4))
-    (t1_2_1(h7, h1) += -0.5 * t2(p3, p4, h1, h5) * v2(h5, h7, p3, p4))
-    (i0(p2, h1) += -1 * t1(p2, h7) * t1_2_1(h7, h1))
-    (t1_3_1(p2, p3) = f1(p2, p3))
-    (t1_3_1(p2, p3) += -1 * t1(p4, h5) * v2(h5, p2, p3, p4))
-    (i0(p2, h1) += t1(p3, h1) * t1_3_1(p2, p3))
-    (i0(p2, h1) += -1 * t1(p3, h4) * v2(h4, p2, h1, p3))
-    (t1_5_1(h8, p7) = f1(h8, p7))
-    (t1_5_1(h8, p7) += t1(p5, h6) * v2(h6, h8, p5, p7))
-    (i0(p2, h1) += t2(p2, p7, h1, h8) * t1_5_1(h8, p7))
-    (t1_6_1(h4, h5, h1, p3) = v2(h4, h5, h1, p3))
-    (t1_6_1(h4, h5, h1, p3) += -1 * t1(p6, h1) * v2(h4, h5, p3, p6))
-    (i0(p2, h1) += -0.5 * t2(p2, p3, h4, h5) * t1_6_1(h4, h5, h1, p3))
-    (i0(p2, h1) += -0.5 * t2(p3, p4, h1, h5) * v2(h5, p2, p3, p4))
+      (t1_2_1(h7, h1) = 0)
+      (t1_3_1(p2, p3)  = 0)
+      
+      ( i0(p2,h1)            =        f1(p2,h1))
+      //( t1_2_1(h7,h1)        =        f1(h7,h1))
+      ( t1_2_2_1(h7,p3)      =        f1(h7,p3))
+      ( t1_2_2_1(h7,p3)     += -1   * t1(p5,h6)       * v2(h6,h7,p3,p5))
+      ( t1_2_1(h7,h1)       +=        t1(p3,h1)       * t1_2_2_1(h7,p3))
+      ( t1_2_1(h7,h1)       += -1   * t1(p4,h5)       * v2(h5,h7,h1,p4))
+      ( t1_2_1(h7,h1)       += -0.5 * t2(p3,p4,h1,h5) * v2(h5,h7,p3,p4))
+      ( i0(p2,h1)           += -1   * t1(p2,h7)       * t1_2_1(h7,h1))
+      // ( t1_3_1(p2,p3)        =        f1(p2,p3))
+      ( t1_3_1(p2,p3)       += -1   * t1(p4,h5)       * v2(h5,p2,p3,p4))
+      ( i0(p2,h1)           +=        t1(p3,h1)       * t1_3_1(p2,p3))
+      ( i0(p2,h1)           += -1   * t1(p3,h4)       * v2(h4,p2,h1,p3))
+      ( t1_5_1(h8,p7)        =        f1(h8,p7))
+      ( t1_5_1(h8,p7)       +=        t1(p5,h6)       * v2(h6,h8,p5,p7))
+      ( i0(p2,h1)           +=        t2(p2,p7,h1,h8) * t1_5_1(h8,p7))
+      ( t1_6_1(h4,h5,h1,p3)  =        v2(h4,h5,h1,p3))
+      ( t1_6_1(h4,h5,h1,p3) += -1   * t1(p6,h1)       * v2(h4,h5,p3,p6))
+      ( i0(p2,h1)           += -0.5 * t2(p2,p3,h4,h5) * t1_6_1(h4,h5,h1,p3))
+      ( i0(p2,h1)           += -0.5 * t2(p3,p4,h1,h5) * v2(h5,p2,p3,p4))
     #endif
     .deallocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
     .execute();
@@ -137,52 +140,52 @@ void ccsd_t2(ExecutionContext &ec,const TiledIndexSpace& MO, Tensor<T>& i0,
              t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1)
     (i0(p3, p4, h1, h2) = v2(p3, p4, h1, h2))
     ///fixme uncomment
-    #if 0
-    (t2_2_1(h10, p3, h1, h2) = v2(h10, p3, h1, h2))
-    (t2_2_2_1(h10, h11, h1, h2) = -1 * v2(h10, h11, h1, h2))
-    (t2_2_2_2_1(h10, h11, h1, p5) = v2(h10, h11, h1, p5))
-    (t2_2_2_2_1(h10, h11, h1, p5) += -0.5 * t1(p6, h1) * v2(h10, h11, p5, p6))
-    (t2_2_2_1(h10, h11, h1, h2) += t1(p5, h1) * t2_2_2_2_1(h10, h11, h2, p5))
-    (t2_2_2_1(h10, h11, h1, h2) += -0.5 * t2(p7, p8, h1, h2) * v2(h10, h11, p7, p8))
-    (t2_2_1(h10, p3, h1, h2) += 0.5 * t1(p3, h11) * t2_2_2_1(h10, h11, h1, h2))
-    (t2_2_4_1(h10, p5) = f1(h10, p5))
-    (t2_2_4_1(h10, p5) += -1 * t1(p6, h7) * v2(h7, h10, p5, p6))
-    (t2_2_1(h10, p3, h1, h2) += -1 * t2(p3, p5, h1, h2) * t2_2_4_1(h10, p5))
-    (t2_2_5_1(h7, h10, h1, p9) = v2(h7, h10, h1, p9))
-    (t2_2_5_1(h7, h10, h1, p9) += t1(p5, h1) * v2(h7, h10, p5, p9))
-    (t2_2_1(h10, p3, h1, h2) += t2(p3, p9, h1, h7) * t2_2_5_1(h7, h10, h2, p9))
-    (t2(p1, p2, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4))
-    (t2_2_1(h10, p3, h1, h2) += 0.5 * t2(p5, p6, h1, h2) * v2(h10, p3, p5, p6))
-    (t2(p1, p2, h3, h4) += -0.5 * t1(p1, h3) * t1(p2, h4))
-    (i0(p3, p4, h1, h2) += -1 * t1(p3, h10) * t2_2_1(h10, p4, h1, h2))
-    (i0(p3, p4, h1, h2) += -1 * t1(p5, h1) * v2(p3, p4, h2, p5))
-    (t2_4_1(h9, h1) = f1(h9, h1))
-    (t2_4_2_1(h9, p8) = f1(h9, p8))
-    (t2_4_2_1(h9, p8) += t1(p6, h7) * v2(h7, h9, p6, p8))
-    (t2_4_1(h9, h1) += t1(p8, h1) * t2_4_2_1(h9, p8))
-    (t2_4_1(h9, h1) += -1 * t1(p6, h7) * v2(h7, h9, h1, p6))
-    (t2_4_1(h9, h1) += -0.5 * t2(p6, p7, h1, h8) * v2(h8, h9, p6, p7))
-    (i0(p3, p4, h1, h2) += -1 * t2(p3, p4, h1, h9) * t2_4_1(h9, h2))
-    (t2_5_1(p3, p5) = f1(p3, p5))
-    (t2_5_1(p3, p5) += -1 * t1(p6, h7) * v2(h7, p3, p5, p6))
-    (t2_5_1(p3, p5) += -0.5 * t2(p3, p6, h7, h8) * v2(h7, h8, p5, p6))
-    (i0(p3, p4, h1, h2) += 1 * t2(p3, p5, h1, h2) * t2_5_1(p4, p5))
-    (t2_6_1(h9, h11, h1, h2) = -1 * v2(h9, h11, h1, h2))
-    (t2_6_2_1(h9, h11, h1, p8) = v2(h9, h11, h1, p8))
-    (t2_6_2_1(h9, h11, h1, p8) += 0.5 * t1(p6, h1) * v2(h9, h11, p6, p8))
-    (t2_6_1(h9, h11, h1, h2) += t1(p8, h1) * t2_6_2_1(h9, h11, h2, p8))
-    (t2_6_1(h9, h11, h1, h2) += -0.5 * t2(p5, p6, h1, h2) * v2(h9, h11, p5, p6))
-    (i0(p3, p4, h1, h2) += -0.5 * t2(p3, p4, h9, h11) * t2_6_1(h9, h11, h1, h2))
-    (t2_7_1(h6, p3, h1, p5) = v2(h6, p3, h1, p5))
-    (t2_7_1(h6, p3, h1, p5) += -1 * t1(p7, h1) * v2(h6, p3, p5, p7))
-    (t2_7_1(h6, p3, h1, p5) += -0.5 * t2(p3, p7, h1, h8) * v2(h6, h8, p5, p7))
-    (i0(p3, p4, h1, h2) += -1 * t2(p3, p5, h1, h6) * t2_7_1(h6, p4, h2, p5))
-    (vt1t1_1(h5, p3, h1, h2) = 0)
-    (vt1t1_1(h5, p3, h1, h2) += -2 * t1(p6, h1) * v2(h5, p3, h2, p6))
-    (i0(p3, p4, h1, h2) += -0.5 * t1(p3, h5) * vt1t1_1(h5, p4, h1, h2))
-    (t2(p1, p2, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4))
-    (i0(p3, p4, h1, h2) += 0.5 * t2(p5, p6, h1, h2) * v2(p3, p4, p5, p6))
-    (t2(p1, p2, h3, h4) += -0.5 * t1(p1, h3) * t1(p2, h4))
+    #if 1
+    // (t2_2_1(h10, p3, h1, h2) = v2(h10, p3, h1, h2))
+    // (t2_2_2_1(h10, h11, h1, h2) = -1 * v2(h10, h11, h1, h2))
+    // (t2_2_2_2_1(h10, h11, h1, p5) = v2(h10, h11, h1, p5))
+    // (t2_2_2_2_1(h10, h11, h1, p5) += -0.5 * t1(p6, h1) * v2(h10, h11, p5, p6))
+    // (t2_2_2_1(h10, h11, h1, h2) += t1(p5, h1) * t2_2_2_2_1(h10, h11, h2, p5))
+    // (t2_2_2_1(h10, h11, h1, h2) += -0.5 * t2(p7, p8, h1, h2) * v2(h10, h11, p7, p8))
+    // (t2_2_1(h10, p3, h1, h2) += 0.5 * t1(p3, h11) * t2_2_2_1(h10, h11, h1, h2))
+    // (t2_2_4_1(h10, p5) = f1(h10, p5))
+    // (t2_2_4_1(h10, p5) += -1 * t1(p6, h7) * v2(h7, h10, p5, p6))
+    // (t2_2_1(h10, p3, h1, h2) += -1 * t2(p3, p5, h1, h2) * t2_2_4_1(h10, p5))
+    // (t2_2_5_1(h7, h10, h1, p9) = v2(h7, h10, h1, p9))
+    // (t2_2_5_1(h7, h10, h1, p9) += t1(p5, h1) * v2(h7, h10, p5, p9))
+    // (t2_2_1(h10, p3, h1, h2) += t2(p3, p9, h1, h7) * t2_2_5_1(h7, h10, h2, p9))
+    // (t2(p1, p2, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4))
+    // (t2_2_1(h10, p3, h1, h2) += 0.5 * t2(p5, p6, h1, h2) * v2(h10, p3, p5, p6))
+    // (t2(p1, p2, h3, h4) += -0.5 * t1(p1, h3) * t1(p2, h4))
+    // (i0(p3, p4, h1, h2) += -1 * t1(p3, h10) * t2_2_1(h10, p4, h1, h2))
+    // (i0(p3, p4, h1, h2) += -1 * t1(p5, h1) * v2(p3, p4, h2, p5))
+    //(t2_4_1(h9, h1) = f1(h9, h1))
+    // (t2_4_2_1(h9, p8) = f1(h9, p8))
+    // (t2_4_2_1(h9, p8) += t1(p6, h7) * v2(h7, h9, p6, p8))
+    // (t2_4_1(h9, h1) += t1(p8, h1) * t2_4_2_1(h9, p8))
+    // (t2_4_1(h9, h1) += -1 * t1(p6, h7) * v2(h7, h9, h1, p6))
+    // (t2_4_1(h9, h1) += -0.5 * t2(p6, p7, h1, h8) * v2(h8, h9, p6, p7))
+    //(i0(p3, p4, h1, h2) += -1 * t2(p3, p4, h1, h9) * t2_4_1(h9, h2))
+    // (t2_5_1(p3, p5) = f1(p3, p5))
+    // (t2_5_1(p3, p5) += -1 * t1(p6, h7) * v2(h7, p3, p5, p6))
+    // (t2_5_1(p3, p5) += -0.5 * t2(p3, p6, h7, h8) * v2(h7, h8, p5, p6))
+    // (i0(p3, p4, h1, h2) += 1 * t2(p3, p5, h1, h2) * t2_5_1(p4, p5))
+    // (t2_6_1(h9, h11, h1, h2) = -1 * v2(h9, h11, h1, h2))
+    // (t2_6_2_1(h9, h11, h1, p8) = v2(h9, h11, h1, p8))
+    // (t2_6_2_1(h9, h11, h1, p8) += 0.5 * t1(p6, h1) * v2(h9, h11, p6, p8))
+    // (t2_6_1(h9, h11, h1, h2) += t1(p8, h1) * t2_6_2_1(h9, h11, h2, p8))
+    // (t2_6_1(h9, h11, h1, h2) += -0.5 * t2(p5, p6, h1, h2) * v2(h9, h11, p5, p6))
+    // (i0(p3, p4, h1, h2) += -0.5 * t2(p3, p4, h9, h11) * t2_6_1(h9, h11, h1, h2))
+    // (t2_7_1(h6, p3, h1, p5) = v2(h6, p3, h1, p5))
+    // (t2_7_1(h6, p3, h1, p5) += -1 * t1(p7, h1) * v2(h6, p3, p5, p7))
+    // (t2_7_1(h6, p3, h1, p5) += -0.5 * t2(p3, p7, h1, h8) * v2(h6, h8, p5, p7))
+    // (i0(p3, p4, h1, h2) += -1 * t2(p3, p5, h1, h6) * t2_7_1(h6, p4, h2, p5))
+    // (vt1t1_1(h5, p3, h1, h2) = 0)
+    // (vt1t1_1(h5, p3, h1, h2) += -2 * t1(p6, h1) * v2(h5, p3, h2, p6))
+    // (i0(p3, p4, h1, h2) += -0.5 * t1(p3, h5) * vt1t1_1(h5, p4, h1, h2))
+    // (t2(p1, p2, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4))
+    // (i0(p3, p4, h1, h2) += 0.5 * t2(p5, p6, h1, h2) * v2(p3, p4, p5, p6))
+    // (t2(p1, p2, h3, h4) += -0.5 * t1(p1, h3) * t1(p2, h4))
     #endif
     .deallocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
               t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1);
@@ -269,6 +272,8 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
     const TiledIndexSpace& N = MO("all");
+
+    print_tensor(d_f1);
 
     std::cout.precision(15);
 
@@ -518,7 +523,9 @@ TEST_CASE("CCSD Driver") {
     //                  {"alpha", {range(0, ov_alpha),range(ov_alpha+ov_beta,2*ov_alpha+ov_beta)}}, //0-5,7-12
     //                  {"beta", {range(ov_alpha,ov_alpha+ov_beta), range(2*ov_alpha+ov_beta,total_orbitals)}} //5-7,12-14   
     //                  }};
-    TiledIndexSpace MO{MO_IS, {ov_alpha,ov_alpha,ov_beta,ov_beta}};
+    const unsigned int ova = static_cast<unsigned int>(ov_alpha);
+    const unsigned int ovb = static_cast<unsigned int>(ov_beta);
+    TiledIndexSpace MO{MO_IS, {ova,ova,ovb,ovb}};
 
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
@@ -533,7 +540,7 @@ TEST_CASE("CCSD Driver") {
     Tensor<T> d_t2{V, V, O, O};
     Tensor<T> d_f1{N, N};
     Tensor<T> d_v2{N, N, N, N};
-    int maxiter    = 5;
+    int maxiter    = 30;
     double thresh  = 1.0e-10;
     double zshiftl = 0.0;
     int ndiis      = 5;

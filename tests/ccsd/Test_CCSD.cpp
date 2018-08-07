@@ -49,7 +49,7 @@ void ccsd_e(ExecutionContext &ec,
     std::tie(h3, h4, h5, h6)     = MO.labels<4>("occ");
 
     Scheduler{&ec}.allocate(i1)
-        #if 0
+        #if 1
         (i1(h6, p5) = f1(h6, p5))
         (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
         (de() = 0)
@@ -81,7 +81,7 @@ void ccsd_t1(ExecutionContext &ec, const TiledIndexSpace& MO, Tensor<T>& i0, con
     Scheduler sch{&ec};
     sch
       .allocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
-    #if 0
+    #if 1
     (i0(p2, h1)       = f1(p2, h1))
     (t1_2_1(h7, h1)   = f1(h7, h1))
     (t1_2_2_1(h7, p3) = f1(h7, p3))
@@ -231,10 +231,10 @@ std::pair<double,double> rest(ExecutionContext& ec,
       };
 
       auto l1 =  [&]() {
-        jacobi(ec, d_r1, d_t1, -1.0 * zshiftl, false, p_evl_sorted.data());
+        jacobi(ec, d_r1, d_t1, -1.0 * zshiftl, false, p_evl_sorted);
       };
       auto l2 = [&]() {
-        jacobi(ec, d_r2, d_t2, -2.0 * zshiftl, false, p_evl_sorted.data());
+        jacobi(ec, d_r2, d_t2, -2.0 * zshiftl, false, p_evl_sorted);
       };
 
       l0();

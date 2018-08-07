@@ -290,9 +290,18 @@ TEST_CASE("TiledIndexSpace construction checks") {
     REQUIRE(failed);
     failed = false;
 
-    
-}
+    // Test for compatibilities of named subspaces
+    {
+        const auto& N = tis_named("all");
+        const auto& O = tis_named("occ");
+        const auto& V = tis_named("virt");
 
-TEST_CASE("TiledIndexSpace construction with dependent IndexSpace ") {
+        REQUIRE(!O.is_compatible_with(V));
+        REQUIRE(!V.is_compatible_with(O));
+        REQUIRE(!N.is_compatible_with(O));
+        REQUIRE(!N.is_compatible_with(V));
+        REQUIRE(O.is_compatible_with(N));
+        REQUIRE(V.is_compatible_with(N));
+    }
     
 }

@@ -10,18 +10,18 @@ namespace tamm {
 template<typename T>
 inline void
 jacobi(ExecutionContext& ec,
-       Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, T* p_evl_sorted) {
+       Tensor<T>& d_r, Tensor<T>& d_t, T shift, bool transpose, std::vector<double>& evl_sorted) {
   EXPECTS(transpose == false);
   #if 1
   block_for(ec.pg(), d_r(), [&] (IndexVector blockid) {
 
-    Tensor<T> rtensor = d_r().tensor();
+    Tensor<T> rtensor = d_r;
     const TAMM_SIZE rsize = rtensor.block_size(blockid);
     
     std::vector<T> rbuf(rsize);
     rtensor.get(blockid, rbuf);
 
-    Tensor<T> ttensor = d_t().tensor();
+    Tensor<T> ttensor = d_t;
     const TAMM_SIZE tsize = ttensor.block_size(blockid);
     
     std::vector<T> tbuf(tsize);
@@ -29,6 +29,11 @@ jacobi(ExecutionContext& ec,
 
     auto &rtiss = rtensor.tiled_index_spaces();
     auto rblock_dims = rtensor.block_dims(blockid);
+
+    std::vector<double> p_evl_sorted_occ(10);
+    std::vector<double> p_evl_sorted_virt(4);
+    std::copy(evl_sorted.begin(),evl_sorted.begin()+10,p_evl_sorted_occ.begin());
+    std::copy(evl_sorted.begin()+10,evl_sorted.end(),p_evl_sorted_virt.begin());
 
       if(d_r.num_modes() == 2) {
         auto ioff = rtiss[0].tile_offset(blockid[0]);
@@ -39,7 +44,7 @@ jacobi(ExecutionContext& ec,
         // T* tbuf = tblock.buf();
         for(int i=0, c=0; i<isize; i++) {
           for(int j=0; j<jsize; j++, c++) {
-            tbuf[c] = rbuf[c] / (-p_evl_sorted[ioff+i] + p_evl_sorted[joff+j] + shift);
+            tbuf[c] = rbuf[c] / (-p_evl_sorted_virt[ioff+i] + p_evl_sorted_occ[joff+j] + shift);
           }
         }
         ttensor.add(blockid, tbuf);
@@ -63,8 +68,8 @@ jacobi(ExecutionContext& ec,
           for(int i1=0; i1<isize[1]; i1++) {
             for(int i2=0; i2<isize[2]; i2++) {
               for(int i3=0; i3<isize[3]; i3++, c++) {
-                tbuf[c] = rbuf[c] / (- p_evl_sorted[ioff[0]+i0] - p_evl_sorted[ioff[1]+i1]
-                                     + p_evl_sorted[ioff[2]+i2] + p_evl_sorted[ioff[3]+i3]
+                tbuf[c] = rbuf[c] / (- p_evl_sorted_virt[ioff[0]+i0] - p_evl_sorted_virt[ioff[1]+i1]
+                                     + p_evl_sorted_occ[ioff[2]+i2] + p_evl_sorted_occ[ioff[3]+i3]
                                      + shift);
               }
             }

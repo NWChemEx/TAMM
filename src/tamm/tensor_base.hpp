@@ -43,7 +43,7 @@ public:
      */
     TensorBase(const std::vector<TiledIndexSpace>& block_indices) :
       block_indices_{block_indices},
-      num_modes_{block_indices.size()} {
+      num_modes_{block_indices.size()} {    
           for(const auto& tis: block_indices_) {
               EXPECTS(!tis.is_dependent());
           }
@@ -79,7 +79,7 @@ public:
      */
     template<class... Ts>
     TensorBase(const TiledIndexSpace& tis, Ts... rest) : TensorBase{rest...} {
-        EXPECTS(!tis.is_dependent());
+        EXPECTS(!tis.is_dependent()); 
         block_indices_.insert(block_indices_.begin(), tis);
         fillin_tlabels();
         construct_dep_map();
@@ -90,19 +90,22 @@ public:
     /**
      * @brief Construct a new TensorBase object from a single TiledIndexSpace
      * object and a lambda expression
+     * 
+     * @todo: Fix case for variadic template calls
      *
      * @tparam Func template for lambda expression
      * @param [in] tis TiledIndexSpace object used as the mode of the tensor
      * @param [in] func lambda expression
      */
-    template<typename Func>
-    TensorBase(const TiledIndexSpace& tis, const Func& func) {
-        EXPECTS(!tis.is_dependent());
-        block_indices_.insert(block_indices_.begin(), tis);
-        //tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1));
-        fillin_tlabels();
-        construct_dep_map();
-    }
+    // template<typename Func>
+    // TensorBase(const TiledIndexSpace& tis, const Func& func) {
+    //     std::cout << "TensorBase func"	<< std::endl;
+    //     EXPECTS(!tis.is_dependent());
+    //     block_indices_.insert(block_indices_.begin(), tis);
+    //     //tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1));
+    //     fillin_tlabels();
+    //     construct_dep_map();
+    // }
 
     // Dtor
     virtual ~TensorBase(){};

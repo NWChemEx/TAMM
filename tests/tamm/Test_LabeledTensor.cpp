@@ -212,84 +212,6 @@ TEST_CASE("Two-dimensional tensor with larger label count") {
   REQUIRE(failed);
 }
 
-TEST_CASE("One-dimensional dependent index tensor") {
-  bool failed = false;
-  IndexSpace is {range(1)};
-  TiledIndexSpace tis{is};
-  IndexSpace is2{range(5)};
-  std::map<IndexVector, IndexSpace> dep_space_relation{{{0}, is2}};
-  IndexSpace dis{{tis}, dep_space_relation};
-  TiledIndexSpace tdis{dis};
-
-  TiledIndexLabel i = tis.label(0);
-  TiledIndexLabel a = tdis.label(1);
-  Tensor<double> T1{tdis};
-
-  try {
-    auto lt = T1();
-  } catch (...) {
-    failed = true;
-  }
-  REQUIRE(!failed);
-  failed = false;
-
-  try {
-    auto lt = T1("x");
-  } catch (...) {
-    failed = true;
-  }
-  REQUIRE(!failed);
-  failed = false;
-
-  try {
-    auto lt = T1(a);
-  } catch (...) {
-    failed = true;
-  }
-  REQUIRE(!failed);
-  failed = false;
-
-  try {
-    auto lt = T1(a(i));
-  } catch (...) {
-    failed = true;
-  }
-  REQUIRE(!failed);
-  failed = false;
-
-  try {
-    auto lt = T1(i);
-  } catch (...) {
-    failed = true;
-  }
-  REQUIRE(failed);
-  failed = false;
-
-  try {
-    auto lt = T1(i(a));
-  } catch (...) {
-    failed = true;
-  }
-  REQUIRE(failed);
-  failed = false;
-
-  try {
-    auto lt = T1(a(a));
-  } catch (...) {
-    failed = true;
-  }
-  REQUIRE(failed);
-  failed = false;
-
-  try {
-    auto lt = T1(i(i));
-  } catch (...) {
-    failed = true;
-  }
-  REQUIRE(failed);
-  failed = false;
-}
-
 TEST_CASE("Two-dimensional dependent index tensor") {
   bool failed = false;
   IndexSpace is {range(1)};
@@ -310,7 +232,7 @@ TEST_CASE("Two-dimensional dependent index tensor") {
   } catch (...) {
     failed = true;
   }
-  REQUIRE(!failed);
+  REQUIRE(failed);
   failed = false;
 
   try {

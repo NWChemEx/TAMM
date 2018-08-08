@@ -1,6 +1,3 @@
-
-
-
 ## Tensor Construction Syntax
 **Using TiledIndexSpace** 
 The main construction for `Tensor` objects are based on a list of `TiledIndexSpace` objects for each mode (dimension) of the tensor. Users can use operator overloads to get a specific portion of `TiledIndexSpace` (i.e. occ, virt etc.) while constructing Tensor objects. Note that the generated `TiledIndexSpace` will have the same tiling size as the parent index space. 
@@ -43,6 +40,37 @@ Tensor<double> B{a, a, a}; // 3-mode tensor (AO index space for all three modes)
 Tensor<double> C{k, a}; // 2-mode tensor (occupied MO by AO) with double elements
 ```
 
+For `Tensor` objects over **dependent** `TiledIndexSpace`s can only be done using `TiledIndexLabel`s as the construction will dependent on the relation between `TiledIndexSpaces`
+```c++
+// Creating index spaces MO, AO, and Atom
+IndexSpace MO_is{range(0, 100),
+            {{"occ", range(0, 50)},
+            {"virt", range(50, 100)}}};
+
+IndexSpace Atom_is{range(0, 5)};
+// Tile Atom space with tiling size of 3
+TiledIndexSpace T_Atom{Atom_is, 3};
+
+// Construct dependency relation for Atom indices
+std::map<IndexVector, IndexSpace> dep_relation{
+    {IndexVector{0}, MO_is("occ")},                   
+    {IndexVector{1}, MO_is("virt")}
+};
+
+
+// IndexSpace(const std::vector<TiledIndexSpace>& dep_spaces,
+//            const std::map<IndexVector, IndexSpace> dep_relation)
+IndexSpace subMO_Atom_is{{T_Atom}, dep_relation};
+
+TiledIndexSpace T_subMO_Atom{subMO_Atom_is, 3}
+
+TiledIndexLabel a = T_subMO_Atom.label("all");
+TiledIndexLabel i = T_Atom.label("all");
+
+// 2-mode tensor (subMO_Atom by Atom index space) with double elements
+Tensor<double> T{a(i), i}; 
+```
+
 **Specialized constructors**
 For now only specialization for `Tensor` object construction is having a lambda expression for special calculations over `Tensor` data. The lambda expression will be stored and can be invoked through `Tensor` interface.
 
@@ -60,6 +88,82 @@ auto one_body_overlap_integral_lambda = [] (auto val) { /* lambda body*/ };
 // 2-mode tensor (AO by MO index space) with
 // double elements and specialized lambda expression
 Tensor<double> B{AO, MO, one_body_overlap_integral_lambda};
+```
+----
+## Tensor Allocation and Deallocation
+
+For allocating and deallocating a `Tensor` object is explicitly done using an `ExecutionContext` constructed by TAMM memory manager and distribution:
+
+```c++
+// Constructing process group, memory manager, distribution to construct 
+// an execution context for allocation
+ProcGroup pg{GA_MPI_Comm()};
+auto manager = MemoryManagerGA::create_coll(pg);
+Distribution_NW distribution{};
+ExecutionContext ec{pg, &distribution, manager};
+
+TiledIndexSpace MO{/*...*/};
+
+TiledIndexSpace O = MO("occ");
+TiledIndexSpace V = MO("virt");
+TiledIndexSpace N = MO("all");
+
+Tensor<double> d_f1{N, N, N, N};
+Tensor<double> d_r1{O, O, O, O};
+
+// Allocation for the tensors d_r1 and d_f1
+Tensor<double>::allocate(&ec, d_r1, d_f1);
+
+/* Do work on tensors */
+
+// Deallocation for tensors d_r1 and d_f1
+Tensor<double>::deallocate(d_r1, d_f1);
+```
+
+**Note:** The tensors are has to be explicitly allocated using the specified execution context before being used and they should be deallocated once their use is finished. 
+
+## Tensor Accessors
+
+TAMM provides tensor accessors based on the `TiledIndexSpace`s used for construction, as a result the block IDs provided to any accessor will correspond to the tile ID for each mode of `Tensor` object.
+
+```c++
+TiledIndexSpace MO{/*...*/};
+
+TiledIndexSpace O = MO("occ");
+TiledIndexSpace V = MO("virt");
+TiledIndexSpace N = MO("all");
+
+Tensor<double> d_f1{N, N, N, N};
+Tensor<double> d_r1{O, O, O, O};
+
+// Allocation for the tensors d_r1 and d_f1
+Tensor<double>::allocate(&ec, d_r1, d_f1);
+
+// Construct a block ID using the tile indices for each mode
+IndexVector blockId{0, 0, 0, 0};
+
+// Get the size of the corresponding block
+size_t size = d_r1.block_size(blockId);
+
+// Construct the data to put 
+std::vector<double> buff{size};
+
+// Read data from a source
+ReadData(buff, size);
+
+// Put a value to a block of tensor d_r1
+d_r1.put(blockId, buff);   // internally buff will be converted to a span 
+
+// Similarly, users can read from the tensor 
+std::vector<double> readBuff{size};
+d_r1.get(blockId, readBuff);
+
+// Or can do an accumulate on the tensor
+d_r1.add(blockId, buff);
+
+// Deallocation for tensors d_r1 and d_f1
+Tensor<double>::deallocate(d_r1, d_f1);
+
 ```
 
 <!-- ## Operation Syntax
@@ -155,6 +259,7 @@ void ccsd_driver() {
     sch.execute(ccsd_e_dag(MO, de, t1, t2, new_f1, v2));
 }
 ``` -->
+---
 
 ### Examples from Comments on Documentation
 > 1. scalar

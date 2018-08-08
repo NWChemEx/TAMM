@@ -89,7 +89,7 @@ using libint2::Atom;
 inline std::vector<Atom> read_input_xyz(
   std::istream& is)
 {
-  const double angstrom_to_bohr = 1.889725989; //1 / bohr_to_angstrom;
+  const double angstrom_to_bohr = 1.889725989; //1 / bohr_to_angstrom; //1.889726125
   // first line = # of atoms
   size_t natom;
   is >> natom;
@@ -115,12 +115,11 @@ inline std::vector<Atom> read_input_xyz(
 
     // .xyz files report element labels, hence convert to atomic numbers
     int Z = -1;
-    using libint2::chemistry::element_info;
-    for(const auto& e: element_info) {
-      if (libint2::strcaseequal(e.symbol, element_symbol)) {
-        Z = e.Z;
-        break;
-      }
+    for(const auto& e: libint2::chemistry::get_element_info()) {
+        if (strcaseequal(e.symbol, element_symbol)) {
+          Z = e.Z;
+          break;
+        }
     }
     if (Z == -1) {
       std::ostringstream oss;

@@ -357,7 +357,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 
   if(ec->pg().rank() == 0) {
     std::cout << "p_evl_sorted:" << '\n';
-    for(auto p = 0; p < p_evl_sorted.size(); p++)
+    for(size_t p = 0; p < p_evl_sorted.size(); p++)
       std::cout << p_evl_sorted[p] << '\n';
   }
 
@@ -470,7 +470,7 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
     }
   }
 
-  for(int i=0; i<ndiis; i++) {
+  for(size_t i=0; i<ndiis; i++) {
     Tensor<T>::deallocate(*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
   d_r1s.clear();
@@ -577,7 +577,7 @@ TEST_CASE("CCSD Driver") {
     int maxiter    = 30;
     double thresh  = 1.0e-10;
     double zshiftl = 0.0;
-    int ndiis      = 5;
+    size_t ndiis      = 5;
 
   Tensor<double>::allocate(ec,d_t1,d_t2,d_f1,d_v2);
 

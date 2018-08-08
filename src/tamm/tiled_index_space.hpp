@@ -611,7 +611,7 @@ protected:
                 const auto& key     = dep_kv.first;
                 const auto& dep_tis = dep_kv.second;
                 EXPECTS(root_dep.find(key) != root_dep.end());
-                EXPECTS(root_dep.at(key).is_compatible_with(dep_tis));
+                EXPECTS(dep_tis.is_compatible_with(root_dep.at(key)));
             }
             compute_max_num_tiles();
             validate();

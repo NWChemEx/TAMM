@@ -21,6 +21,7 @@ std::ostream& operator << (std::ostream &os, std::vector<T>& vec){
 
 template<typename T>
 void print_tensor(Tensor<T> &t){
+    std::cout << "Print tensor: " << &t << std::endl;
     for (auto it: t.loop_nest())
     {
         TAMM_SIZE size = t.block_size(it);
@@ -28,7 +29,8 @@ void print_tensor(Tensor<T> &t){
         t.get(it, buf);
         std::cout << "block" << it;
         for (TAMM_SIZE i = 0; i < size;i++)
-         std::cout << i << std::endl;
+         std::cout << i << " ";
+        std::cout << std::endl;
     }
 }
 
@@ -611,7 +613,8 @@ void test_dependent_space_with_T(Index tilesize) {
         Tensor<T> T2{a(i), i};
         REQUIRE(test_addop(ec, T1, T2, T1(), T2()));
     }
-    
+
+#if 0
     // AddOp test with no labels on rhs
     {
         Tensor<T> T1{a(i), i};
@@ -625,7 +628,7 @@ void test_dependent_space_with_T(Index tilesize) {
         Tensor<T> T2{a(i), i};
         REQUIRE(test_addop(ec, T1, T2, T1(), T2(a(i), i)));
     }
-
+#endif
     // AddOp test with labels
     {
         Tensor<T> T1{a(i), i};
@@ -797,7 +800,7 @@ void test_dependent_space_with_T(Index tilesize) {
         Tensor<T> T2{a(i), i, j};
         REQUIRE(test_addop(ec, T1, T2, T1(), T2()));
     }
-    
+#if 0    
     // AddOp test with no labels on rhs
     {
         Tensor<T> T1{a(i), i, j};
@@ -811,7 +814,7 @@ void test_dependent_space_with_T(Index tilesize) {
         Tensor<T> T2{a(i), i, j};
         REQUIRE(test_addop(ec, T1, T2, T1(), T2(a(i), i, j)));
     }
-
+#endif
     // AddOp test with labels
     {
         Tensor<T> T1{a(i), i, j};
@@ -985,7 +988,8 @@ void test_dependent_space_with_T(Index tilesize) {
         Tensor<T> T2{a(i), i, b(j), j};
         REQUIRE(test_addop(ec, T1, T2, T1(), T2()));
     }
-    
+
+#if 0
     // AddOp test with no labels on rhs
     {
         Tensor<T> T1{a(i), i, b(j), j};
@@ -999,7 +1003,7 @@ void test_dependent_space_with_T(Index tilesize) {
         Tensor<T> T2{a(i), i, b(j), j};
         REQUIRE(test_addop(ec, T1, T2, T1(), T2(a(i), i, b(j), j)));
     }
-
+#endif
     // AddOp test with labels
     {
         Tensor<T> T1{a(i), i, b(j), j};

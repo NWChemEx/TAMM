@@ -56,10 +56,15 @@ inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
             d_t.add(blockid, tbuf);
         } else if(d_r.num_modes() == 4) {
             const int ndim = 4;
-            std::array<int, ndim> rblock_offset;
-            for(auto i = 0; i < ndim; i++) {
-                rblock_offset[i] = rtiss[i].tile_offset(blockid[i]);
-            }
+            std::array<int, ndim> rblock_offset{
+             rtiss[0].tile_offset(blockid[0]),   
+             rtiss[1].tile_offset(blockid[1]),
+             rtiss[2].tile_offset(blockid[2]),
+             rtiss[3].tile_offset(blockid[3])                
+            };
+            // for(auto i = 0; i < ndim; i++) {
+            //     rblock_offset[i] = rtiss[i].tile_offset(blockid[i]);
+            // }
             std::vector<size_t> ioff;
             for(auto x : rblock_offset) { ioff.push_back(x); }
             std::vector<size_t> isize;

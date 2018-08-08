@@ -335,12 +335,13 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
               tensor.get(blockid, buf);
 
               const int ndim = 2;
-              std::array<int, ndim> block_offset;
               auto& tiss      = tensor.tiled_index_spaces();
               auto block_dims = tensor.block_dims(blockid);
-              for(auto i = 0; i < ndim; i++) {
-                  block_offset[i] = tiss[i].tile_offset(blockid[i]);
-              }
+              std::array<int, ndim> block_offset{tiss[0].tile_offset(blockid[0]),
+                                  tiss[1].tile_offset(blockid[1])};
+              // for(auto i = 0; i < ndim; i++) {
+              //     block_offset[i] = tiss[i].tile_offset(blockid[i]);
+              // }
 
               auto dim    = block_dims[0];
               auto offset = block_offset[0];

@@ -103,7 +103,7 @@ inline std::vector<Atom> read_input_xyz(
 
   // rest of lines are atoms
   std::vector<Atom> atoms(natom);
-  for (auto i = 0; i < natom; i++) {
+  for (size_t i = 0; i < natom; i++) {
     // read line
     std::string line;
     std::getline(is, line);
@@ -116,7 +116,7 @@ inline std::vector<Atom> read_input_xyz(
     // .xyz files report element labels, hence convert to atomic numbers
     int Z = -1;
     for(const auto& e: libint2::chemistry::get_element_info()) {
-        if (strcaseequal(e.symbol, element_symbol)) {
+        if (libint2::strcaseequal(e.symbol, element_symbol)) {
           Z = e.Z;
           break;
         }

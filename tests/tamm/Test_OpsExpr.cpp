@@ -372,30 +372,24 @@ TEST_CASE("CCSD T2") {
 
         IndexSpace MO_IS{range(0, 14),
                         {
-                          {"occ", {range(0, 7)}},                  
-                          {"virt", {range(7, 14)}}
+                          {"occ", {range(0, 10)}},                  
+                          {"virt", {range(10, 14)}}
                         }};
-        // IndexSpace MO_IS{range(0, 14),
-        //                  {
-        //                    {"occ", {range(0, 7)}},                  // 0-7
-        //                    {"virt", {range(7, 14)}},                // 7-14
-        //                    {"alpha", {range(0, 5), range(7,12)}}, // 0-5,7-12
-        //                    {"beta", {range(5,7), range(12,14)}} // 5-7,12-14
-        //                 }};
+
         TiledIndexSpace MO{MO_IS, 10};
 
         TiledIndexSpace O = MO("occ");
         TiledIndexSpace V = MO("virt");
         TiledIndexSpace N = MO("all");
 
-        Tensor<T> d_f1{N,N,N,N};
-        Tensor<T> d_r1{O,O,O,O};
+        Tensor<T> d_f1{N,N};
+        Tensor<T> d_r1{O,O};
         Tensor<T>::allocate(ec, d_r1, d_f1);
 
         TiledIndexLabel h1, h2,h3,h4;
         TiledIndexLabel p1, p2,p3,p4;
-        std::tie(h1, h2,h3,h4) = MO.labels<4>("occ");
-        std::tie(p1, p2,p3,p4) = MO.labels<4>("occ");
+        std::tie(h1,h2,h3,h4) = MO.labels<4>("occ");
+        std::tie(p1,p2,p3,p4) = MO.labels<4>("virt");
 
         Scheduler{ec}(d_r1() = 0).execute();
 
@@ -405,7 +399,7 @@ TEST_CASE("CCSD T2") {
 
             std::vector<T> buf(size);
 
-            const int ndim = 4;
+            const int ndim = 2;
             std::array<int, ndim> block_offset;
             auto& tiss      = tensor.tiled_index_spaces();
             auto block_dims = tensor.block_dims(it);
@@ -416,22 +410,17 @@ TEST_CASE("CCSD T2") {
             TAMM_SIZE c = 0;
             for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
                 i++) {
+                double n = rand() % 5;
                 for(auto j = block_offset[1];
-                    j < block_offset[1] + block_dims[1]; j++) {
-                    for(auto k = block_offset[2];
-                        k < block_offset[2] + block_dims[2]; k++) {
-                        double n = rand() % 5;
-                        for(auto l = block_offset[3];
-                            l < block_offset[3] + block_dims[3]; l++, c++) {
-                            buf[c] = n + l;
-                        }
-                    }
+                    j < block_offset[1] + block_dims[1]; j++, c++) {
+                    buf[c] = n + j;
                 }
             }
+
             d_f1.put(it, buf);
         });
 
-        Scheduler{ec}(d_r1(p2,h1,p1,h2) = d_f1(p2, h1,p1,h2)).execute();
+        Scheduler{ec}(d_r1(h1,h2) = d_f1(h1,h2)).execute();
 
         // std::cout << "d_f1\n";
         // print_tensor(d_f1);

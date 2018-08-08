@@ -22,7 +22,7 @@ void gemm_wrapper(const  CBLAS_ORDER Order,
                   const int ldb, T beta, T* C, const int ldc);
 
 template<>
-void gemm_wrapper<double>(const  CBLAS_ORDER Order,
+inline void gemm_wrapper<double>(const  CBLAS_ORDER Order,
                           const  CBLAS_TRANSPOSE TransA,
                           const  CBLAS_TRANSPOSE TransB, const int M,
                           const int N, const int K, double alpha,
@@ -34,7 +34,7 @@ void gemm_wrapper<double>(const  CBLAS_ORDER Order,
 }
 
 template<>
-void gemm_wrapper<float>(const  CBLAS_ORDER Order,
+inline void gemm_wrapper<float>(const  CBLAS_ORDER Order,
                          const  CBLAS_TRANSPOSE TransA,
                          const  CBLAS_TRANSPOSE TransB, const int M,
                          const int N, const int K, float alpha, const float* A,
@@ -45,7 +45,7 @@ void gemm_wrapper<float>(const  CBLAS_ORDER Order,
 }
 
 template<>
-void gemm_wrapper<std::complex<float>>(
+inline void gemm_wrapper<std::complex<float>>(
   const  CBLAS_ORDER Order, const  CBLAS_TRANSPOSE TransA,
   const  CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
   std::complex<float> alpha, const std::complex<float>* A, const int lda,
@@ -56,7 +56,7 @@ void gemm_wrapper<std::complex<float>>(
 }
 
 template<>
-void gemm_wrapper<std::complex<double>>(
+inline void gemm_wrapper<std::complex<double>>(
   const  CBLAS_ORDER Order, const  CBLAS_TRANSPOSE TransA,
   const  CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
   std::complex<double> alpha, const std::complex<double>* A, const int lda,

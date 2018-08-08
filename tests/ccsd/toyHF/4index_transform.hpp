@@ -114,21 +114,21 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
 //#pragma omp parallel default(none), shared(shells, I0, shell2bf,engine,buf)
   //  {
       //#pragma omp for schedule(guided)
-      for (auto s1 = 0; s1 != shells.size(); ++s1) {
+      for (size_t s1 = 0; s1 != shells.size(); ++s1) {
         auto bf1_first = shell2bf[s1]; // first basis function in this shell
         auto n1 = shells[s1].size();
 
-        for (auto s2 = 0; s2 != shells.size(); ++s2) {
+        for (size_t s2 = 0; s2 != shells.size(); ++s2) {
           auto bf2_first = shell2bf[s2];
           auto n2 = shells[s2].size();
 
           // loop over shell pairs of the density matrix, {s3,s4}
           // again symmetry is not used for simplicity
-          for (auto s3 = 0; s3 != shells.size(); ++s3) {
+          for (size_t s3 = 0; s3 != shells.size(); ++s3) {
             auto bf3_first = shell2bf[s3];
             auto n3 = shells[s3].size();
 
-            for (auto s4 = 0; s4 != shells.size(); ++s4) {
+            for (size_t s4 = 0; s4 != shells.size(); ++s4) {
               auto bf4_first = shell2bf[s4];
               auto n4 = shells[s4].size();
 
@@ -138,13 +138,13 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
               if (buf_1234 == nullptr)
                 continue; // if all integrals screened out, skip to next quartet
 
-              for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+              for (size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
                 const auto bf1 = f1 + bf1_first;
-                for (auto f2 = 0; f2 != n2; ++f2) {
+                for (size_t f2 = 0; f2 != n2; ++f2) {
                   const auto bf2 = f2 + bf2_first;
-                  for (auto f3 = 0; f3 != n3; ++f3) {
+                  for (size_t f3 = 0; f3 != n3; ++f3) {
                     const auto bf3 = f3 + bf3_first;
-                    for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
+                    for (size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
                       const auto bf4 = f4 + bf4_first;
                       I0(bf1, bf2, bf3, bf4) += buf_1234[f1234];
                     }
@@ -162,32 +162,32 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
   //  {
 //#pragma  omp for schedule(guided)
 
-      for (auto p = 0; p < v2dim; p++) {
-        for (auto s1 = 0; s1 != shells.size(); ++s1) {
+      for (size_t p = 0; p < v2dim; p++) {
+        for (size_t s1 = 0; s1 != shells.size(); ++s1) {
           auto bf1_first = shell2bf[s1]; // first basis function in this shell
           auto n1 = shells[s1].size();
 
-          for (auto s2 = 0; s2 != shells.size(); ++s2) {
+          for (size_t s2 = 0; s2 != shells.size(); ++s2) {
             auto bf2_first = shell2bf[s2];
             auto n2 = shells[s2].size();
 
             // loop over shell pairs of the density matrix, {s3,s4}
             // again symmetry is not used for simplicity
-            for (auto s3 = 0; s3 != shells.size(); ++s3) {
+            for (size_t s3 = 0; s3 != shells.size(); ++s3) {
               auto bf3_first = shell2bf[s3];
               auto n3 = shells[s3].size();
 
-              for (auto s4 = 0; s4 != shells.size(); ++s4) {
+              for (size_t s4 = 0; s4 != shells.size(); ++s4) {
                 auto bf4_first = shell2bf[s4];
                 auto n4 = shells[s4].size();
 
-                for (auto f1 = 0; f1 != n1; ++f1) {
+                for (size_t f1 = 0; f1 != n1; ++f1) {
                   const auto bf1 = f1 + bf1_first;
-                  for (auto f2 = 0; f2 != n2; ++f2) {
+                  for (size_t f2 = 0; f2 != n2; ++f2) {
                     const auto bf2 = f2 + bf2_first;
-                    for (auto f3 = 0; f3 != n3; ++f3) {
+                    for (size_t f3 = 0; f3 != n3; ++f3) {
                       const auto bf3 = f3 + bf3_first;
-                      for (auto f4 = 0; f4 != n4; ++f4) {
+                      for (size_t f4 = 0; f4 != n4; ++f4) {
                         const auto bf4 = f4 + bf4_first;
                         I1(p, bf2, bf3, bf4) += CTiled(bf1, p) * I0(bf1, bf2, bf3, bf4);
                       }
@@ -205,30 +205,30 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
 //#pragma omp parallel default(none), firstprivate(v2dim), shared(shells, CTiled, I1, I2, spin_t, shell2bf)
  //   {
 //#pragma  omp for schedule(guided)
-      for (auto p = 0; p < v2dim; p++) {
-        for (auto r = 0; r < v2dim; r++) {
+      for (size_t p = 0; p < v2dim; p++) {
+        for (size_t r = 0; r < v2dim; r++) {
           if (spin_t(p) != spin_t(r)) {
             continue;
           }
-          for (auto s2 = 0; s2 != shells.size(); ++s2) {
+          for (size_t s2 = 0; s2 != shells.size(); ++s2) {
             auto bf2_first = shell2bf[s2];
             auto n2 = shells[s2].size();
 
             // loop over shell pairs of the density matrix, {s3,s4}
             // again symmetry is not used for simplicity
-            for (auto s3 = 0; s3 != shells.size(); ++s3) {
+            for (size_t s3 = 0; s3 != shells.size(); ++s3) {
               auto bf3_first = shell2bf[s3];
               auto n3 = shells[s3].size();
 
-              for (auto s4 = 0; s4 != shells.size(); ++s4) {
+              for (size_t s4 = 0; s4 != shells.size(); ++s4) {
                 auto bf4_first = shell2bf[s4];
                 auto n4 = shells[s4].size();
 
-                for (auto f2 = 0; f2 != n2; ++f2) {
+                for (size_t f2 = 0; f2 != n2; ++f2) {
                   const auto bf2 = f2 + bf2_first;
-                  for (auto f3 = 0; f3 != n3; ++f3) {
+                  for (size_t f3 = 0; f3 != n3; ++f3) {
                     const auto bf3 = f3 + bf3_first;
-                    for (auto f4 = 0; f4 != n4; ++f4) {
+                    for (size_t f4 = 0; f4 != n4; ++f4) {
                       const auto bf4 = f4 + bf4_first;
                       I2(p, r, bf3, bf4) += CTiled(bf2, r) * I1(p, bf2, bf3, bf4);
                     }
@@ -246,25 +246,25 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
 //#pragma omp parallel default(none), firstprivate(v2dim), shared(shells, CTiled, I3, I2, spin_t, shell2bf)
 //    {
 //#pragma  omp for schedule(guided)
-      for (auto p = 0; p < v2dim; p++) {
-        for (auto r = 0; r < v2dim; r++) {
+      for (size_t p = 0; p < v2dim; p++) {
+        for (size_t r = 0; r < v2dim; r++) {
           if (spin_t(p) != spin_t(r)) {
             continue;
           }
-          for (auto q = 0; q < v2dim; q++) {
+          for (size_t q = 0; q < v2dim; q++) {
             // loop over shell pairs of the density matrix, {s3,s4}
             // again symmetry is not used for simplicity
-            for (auto s3 = 0; s3 != shells.size(); ++s3) {
+            for (size_t s3 = 0; s3 != shells.size(); ++s3) {
               auto bf3_first = shell2bf[s3];
               auto n3 = shells[s3].size();
 
-              for (auto s4 = 0; s4 != shells.size(); ++s4) {
+              for (size_t s4 = 0; s4 != shells.size(); ++s4) {
                 auto bf4_first = shell2bf[s4];
                 auto n4 = shells[s4].size();
 
-                for (auto f3 = 0; f3 != n3; ++f3) {
+                for (size_t f3 = 0; f3 != n3; ++f3) {
                   const auto bf3 = f3 + bf3_first;
-                  for (auto f4 = 0; f4 != n4; ++f4) {
+                  for (size_t f4 = 0; f4 != n4; ++f4) {
                     const auto bf4 = f4 + bf4_first;
                     I3(p, r, q, bf4) += CTiled(bf3, q) * I2(p, r, bf3, bf4);
                   }
@@ -281,24 +281,24 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
 //#pragma omp parallel default(none), firstprivate(v2dim), shared(shells, CTiled, I3, V2_unfused, spin_t, shell2bf)
  //   {
 //#pragma  omp for schedule(guided)
-      for (auto p = 0; p < v2dim; p++) {
-        for (auto r = 0; r < v2dim; r++) {
+      for (size_t p = 0; p < v2dim; p++) {
+        for (size_t r = 0; r < v2dim; r++) {
           if (spin_t(p) != spin_t(r)) {
             continue;
           }
-          for (auto q = 0; q < v2dim; q++) {
-            for (auto s = 0; s < v2dim; s++) {
+          for (size_t q = 0; q < v2dim; q++) {
+            for (size_t s = 0; s < v2dim; s++) {
               if (spin_t(q) != spin_t(s)) {
                 continue;
               }
               // loop over shell pairs of the density matrix, {s3,s4}
               // again symmetry is not used for simplicity
-              for (auto s4 = 0; s4 != shells.size(); ++s4) {
+              for (size_t s4 = 0; s4 != shells.size(); ++s4) {
                 auto bf4_first = shell2bf[s4];
                 auto n4 = shells[s4].size();
 
-                for (auto f4 = 0; f4 != n4; ++f4) {
-                  const auto bf4 = f4 + bf4_first;
+                for (size_t f4 = 0; f4 != n4; ++f4) {
+                  const size_t bf4 = f4 + bf4_first;
                   V2_unfused(p, r, q, s) += CTiled(bf4, s) * I3(p, r, q, bf4);
                 }
               }
@@ -310,36 +310,36 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
  // }//omp parallel
 
   if(fully_fused_4index) {
-    for (auto p = 0; p < v2dim; p++) {
-      for (auto r = 0; r < v2dim; r++) {
+    for (size_t p = 0; p < v2dim; p++) {
+      for (size_t r = 0; r < v2dim; r++) {
 
         if (spin_t(p) == spin_t(r)) {
 
-          for (auto q = 0; q < v2dim; q++) {
-            for (auto s = 0; s < v2dim; s++) {
+          for (size_t q = 0; q < v2dim; q++) {
+            for (size_t s = 0; s < v2dim; s++) {
 
               if (spin_t(q) == spin_t(s)) {
 
                 // loop over shell pairs of the Fock matrix, {s1,s2}
                 // Fock matrix is symmetric, but skipping it here for simplicity (see compute_2body_fock)
-                for (auto s1 = 0; s1 != shells.size(); ++s1) {
+                for (size_t s1 = 0; s1 != shells.size(); ++s1) {
 
                   auto bf1_first = shell2bf[s1]; // first basis function in this shell
                   auto n1 = shells[s1].size();
 
-                  for (auto s2 = 0; s2 != shells.size(); ++s2) {
+                  for (size_t s2 = 0; s2 != shells.size(); ++s2) {
 
                     auto bf2_first = shell2bf[s2];
                     auto n2 = shells[s2].size();
 
                     // loop over shell pairs of the density matrix, {s3,s4}
                     // again symmetry is not used for simplicity
-                    for (auto s3 = 0; s3 != shells.size(); ++s3) {
+                    for (size_t s3 = 0; s3 != shells.size(); ++s3) {
 
                       auto bf3_first = shell2bf[s3];
                       auto n3 = shells[s3].size();
 
-                      for (auto s4 = 0; s4 != shells.size(); ++s4) {
+                      for (size_t s4 = 0; s4 != shells.size(); ++s4) {
 
                         auto bf4_first = shell2bf[s4];
                         auto n4 = shells[s4].size();
@@ -354,13 +354,13 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
                         // hence some manual labor here:
                         // 1) loop over every integral in the shell set (= nested loops over basis functions in each shell)
                         // and 2) add contribution from each integral
-                        for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                        for (size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
                           const auto bf1 = f1 + bf1_first;
-                          for (auto f2 = 0; f2 != n2; ++f2) {
+                          for (size_t f2 = 0; f2 != n2; ++f2) {
                             const auto bf2 = f2 + bf2_first;
-                            for (auto f3 = 0; f3 != n3; ++f3) {
+                            for (size_t f3 = 0; f3 != n3; ++f3) {
                               const auto bf3 = f3 + bf3_first;
-                              for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
+                              for (size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
                                 const auto bf4 = f4 + bf4_first;
                                 //V4i(p*2*n+r,q*2*n+s) += CTiled(bf1,p) * CTiled(bf2,r) * CTiled(bf3,q) * CTiled(bf4,s) * buf_1234[f1234];
                                 V2_fully_fused(p, r, q, s) +=
@@ -386,10 +386,10 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
   //correctness check
   if(fully_fused_4index && unfused_4index) {
     bool error = false;
-    for (auto p = 0; p < v2dim; p++) {
-      for (auto r = 0; r < v2dim; r++) {
-        for (auto q = 0; q < v2dim; q++) {
-          for (auto s = 0; s < v2dim; s++) {
+    for (size_t p = 0; p < v2dim; p++) {
+      for (size_t r = 0; r < v2dim; r++) {
+        for (size_t q = 0; q < v2dim; q++) {
+          for (size_t s = 0; s < v2dim; s++) {
             const double threshold = 1e-12;
             if(std::abs(V2_fully_fused(p, r, q, s) - V2_unfused(p, r, q, s)) > threshold) {
               std::cout<<"4index error. "<<p<<" "<<r<<" "<<q<<" "<<s<<" : "
@@ -423,10 +423,10 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
 //#pragma omp parallel default(none), firstprivate(v2dim), shared(A2,V2_unfused)
     //{
 //#pragma  omp for schedule(guided)
-      for (auto p = 0; p < v2dim; p++) {
-        for (auto q = 0; q < v2dim; q++) {
-          for (auto r = 0; r < v2dim; r++) {
-            for (auto s = 0; s < v2dim; s++) {
+      for (size_t p = 0; p < v2dim; p++) {
+        for (size_t q = 0; q < v2dim; q++) {
+          for (size_t r = 0; r < v2dim; r++) {
+            for (size_t s = 0; s < v2dim; s++) {
               A2(p, q, r, s) = V2_unfused(p, r, q, s) - V2_unfused(p, s, q, r);
             }
           }
@@ -434,10 +434,10 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
       }
     //}
   } else if(fully_fused_4index) {
-    for (auto p = 0; p < v2dim; p++) {
-      for (auto q = 0; q < v2dim; q++) {
-        for (auto r = 0; r < v2dim; r++) {
-          for (auto s = 0; s < v2dim; s++) {
+    for (size_t p = 0; p < v2dim; p++) {
+      for (size_t q = 0; q < v2dim; q++) {
+        for (size_t r = 0; r < v2dim; r++) {
+          for (size_t s = 0; s < v2dim; s++) {
             A2(p, q, r, s)= V2_fully_fused(p,r,q,s) - V2_fully_fused(p,s,q,r);
           }
         }

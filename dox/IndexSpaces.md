@@ -193,6 +193,9 @@
   IndexSpace AO{range(100,200)};
   IndexSpace Atom{range(0, 5)};
 
+  // Tile Atom space with default tiling
+  TiledIndexSpace T_Atom{Atom};
+
   // Construct dependency relation for Atom indices
   std::map<IndexVector, IndexSpace> dep_relation{
         {IndexVector{0}, MO("occ")},                   
@@ -202,12 +205,10 @@
         {IndexVector{4}, IndexSpace{AO, range(0, 40)}}
   };
 
-  // Tile Atom space with default tiling
-  TiledIndexSpace T_Atom{Atom};
 
-  // DependentIndexSpace(const std::vector<TiledIndexSpace>& dep_spaces,
-  //                     const std::map<IndexVector, IndexSpace> dep_relation)
-  DependentIndexSpace subMO_atom{{T_Atom}, dep_relation};
+  // IndexSpace(const std::vector<TiledIndexSpace>& dep_spaces,
+  //            const std::map<IndexVector, IndexSpace> dep_relation)
+  ndexSpace subMO_atom{{T_Atom}, dep_relation};
   ```
 
 - **[Tiling a DependentIndex]** If input IndexSpace to a TiledIndexSpace is a dependent IndexSpace, the tiling spans over the dependency relation. While constructing a sub-TiledIndexSpace from tiled dependent index space, users will have to construct the new dependency out of the tiled dependency

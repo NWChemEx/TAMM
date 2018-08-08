@@ -115,8 +115,14 @@ inline std::vector<Atom> read_input_xyz(
 
     // .xyz files report element labels, hence convert to atomic numbers
     int Z = -1;
-    for(const auto& e: libint2::chemistry::get_element_info()) {
-        if (libint2::strcaseequal(e.symbol, element_symbol)) {
+    #if __cplusplus >= 201703L 
+      for(const auto& e: libint2::chemistry::get_element_info()) {
+          if (libint2::strcaseequal(e.symbol, element_symbol)) {
+    #else
+      using libint2::chemistry::element_info;
+      for(const auto& e: element_info) {
+      if (libint2::strcaseequal(e.symbol, element_symbol)) {
+    #endif
           Z = e.Z;
           break;
         }
@@ -177,12 +183,12 @@ Matrix compute_1body_ints(const std::vector<libint2::Shell> &shells,
 
   // loop over unique shell pairs, {s1,s2} such that s1 >= s2
   // this is due to the permutational symmetry of the real integrals over Hermitian operators: (1|2) = (2|1)
-  for (auto s1 = 0; s1 != shells.size(); ++s1) {
+  for (size_t s1 = 0; s1 != shells.size(); ++s1) {
 
     auto bf1 = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();
 
-    for (auto s2 = 0; s2 <= s1; ++s2) {
+    for (size_t s2 = 0; s2 <= s1; ++s2) {
 
       auto bf2 = shell2bf[s2];
       auto n2 = shells[s2].size();
@@ -224,14 +230,14 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 //    std::cout << atoms[i].atomic_number << "  " << atoms[i].x<< "  " << atoms[i].y<< "  " << atoms[i].z << std::endl;
   // count the number of electrons
   auto nelectron = 0;
-  for (auto i = 0; i < atoms.size(); ++i)
+  for (size_t i = 0; i < atoms.size(); ++i)
     nelectron += atoms[i].atomic_number;
   const auto ndocc = nelectron / 2;
 
   // compute the nuclear repulsion energy
   auto enuc = 0.0;
-  for (auto i = 0; i < atoms.size(); i++)
-    for (auto j = i + 1; j < atoms.size(); j++) {
+  for (size_t i = 0; i < atoms.size(); i++)
+    for (size_t j = i + 1; j < atoms.size(); j++) {
       auto xij = atoms[i].x - atoms[j].x;
       auto yij = atoms[i].y - atoms[j].y;
       auto zij = atoms[i].z - atoms[j].z;
@@ -252,7 +258,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   libint2::BasisSet shells(std::string("sto-3g"), atoms);
   //auto shells = make_sto3g_basis(atoms);
   size_t nao = 0;
-  for (auto s = 0; s < shells.size(); ++s)
+  for (size_t s = 0; s < shells.size(); ++s)
     nao += shells[s].size();
 
   /*** =========================== ***/
@@ -356,8 +362,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
     // compute HF energy
     ehf = 0.0;
-    for (auto i = 0; i < nao; i++)
-      for (auto j = 0; j < nao; j++)
+    for (size_t i = 0; i < nao; i++)
+      for (size_t j = 0; j < nao; j++)
         ehf += D(i, j) * (H(i, j) + F(i, j));
 
     // compute difference with last iteration
@@ -445,24 +451,24 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell> &shells,
 
   // loop over shell pairs of the Fock matrix, {s1,s2}
   // Fock matrix is symmetric, but skipping it here for simplicity (see compute_2body_fock)
-  for (auto s1 = 0; s1 != shells.size(); ++s1) {
+  for (size_t s1 = 0; s1 != shells.size(); ++s1) {
 
     auto bf1_first = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();
 
-    for (auto s2 = 0; s2 != shells.size(); ++s2) {
+    for (size_t s2 = 0; s2 != shells.size(); ++s2) {
 
       auto bf2_first = shell2bf[s2];
       auto n2 = shells[s2].size();
 
       // loop over shell pairs of the density matrix, {s3,s4}
       // again symmetry is not used for simplicity
-      for (auto s3 = 0; s3 != shells.size(); ++s3) {
+      for (size_t s3 = 0; s3 != shells.size(); ++s3) {
 
         auto bf3_first = shell2bf[s3];
         auto n3 = shells[s3].size();
 
-        for (auto s4 = 0; s4 != shells.size(); ++s4) {
+        for (size_t s4 = 0; s4 != shells.size(); ++s4) {
 
           auto bf4_first = shell2bf[s4];
           auto n4 = shells[s4].size();
@@ -477,13 +483,13 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell> &shells,
           // hence some manual labor here:
           // 1) loop over every integral in the shell set (= nested loops over basis functions in each shell)
           // and 2) add contribution from each integral
-          for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+          for (size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
             const auto bf1 = f1 + bf1_first;
-            for (auto f2 = 0; f2 != n2; ++f2) {
+            for (size_t f2 = 0; f2 != n2; ++f2) {
               const auto bf2 = f2 + bf2_first;
-              for (auto f3 = 0; f3 != n3; ++f3) {
+              for (size_t f3 = 0; f3 != n3; ++f3) {
                 const auto bf3 = f3 + bf3_first;
-                for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
+                for (size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
                   const auto bf4 = f4 + bf4_first;
                   G(bf1, bf2) += D(bf3, bf4) * 2.0 * buf_1234[f1234];
                 }
@@ -495,13 +501,13 @@ Matrix compute_2body_fock_simple(const std::vector<libint2::Shell> &shells,
           engine.compute(shells[s1], shells[s3], shells[s2], shells[s4]);
           const auto *buf_1324 = buf[0];
 
-          for (auto f1 = 0, f1324 = 0; f1 != n1; ++f1) {
+          for (size_t f1 = 0, f1324 = 0; f1 != n1; ++f1) {
             const auto bf1 = f1 + bf1_first;
-            for (auto f3 = 0; f3 != n3; ++f3) {
+            for (size_t f3 = 0; f3 != n3; ++f3) {
               const auto bf3 = f3 + bf3_first;
-              for (auto f2 = 0; f2 != n2; ++f2) {
+              for (size_t f2 = 0; f2 != n2; ++f2) {
                 const auto bf2 = f2 + bf2_first;
-                for (auto f4 = 0; f4 != n4; ++f4, ++f1324) {
+                for (size_t f4 = 0; f4 != n4; ++f4, ++f1324) {
                   const auto bf4 = f4 + bf4_first;
                   G(bf1, bf2) -= D(bf3, bf4) * buf_1324[f1324];
                 }
@@ -563,23 +569,23 @@ Matrix compute_2body_fock(const std::vector<libint2::Shell> &shells,
   // (ab|cd) contributes. STOP READING and try to figure it out yourself. (to check your answer see below)
 
   // loop over permutationally-unique set of shells
-  for (auto s1 = 0; s1 != shells.size(); ++s1) {
+  for (size_t s1 = 0; s1 != shells.size(); ++s1) {
 
     auto bf1_first = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();   // number of basis functions in this shell
 
-    for (auto s2 = 0; s2 <= s1; ++s2) {
+    for (size_t s2 = 0; s2 <= s1; ++s2) {
 
       auto bf2_first = shell2bf[s2];
       auto n2 = shells[s2].size();
 
-      for (auto s3 = 0; s3 <= s1; ++s3) {
+      for (size_t s3 = 0; s3 <= s1; ++s3) {
 
         auto bf3_first = shell2bf[s3];
         auto n3 = shells[s3].size();
 
         const auto s4_max = (s1 == s3) ? s2 : s3;
-        for (auto s4 = 0; s4 <= s4_max; ++s4) {
+        for (size_t s4 = 0; s4 <= s4_max; ++s4) {
 
           auto bf4_first = shell2bf[s4];
           auto n4 = shells[s4].size();
@@ -611,13 +617,13 @@ Matrix compute_2body_fock(const std::vector<libint2::Shell> &shells,
           // 2) each permutationally-unique integral (shell set) must be scaled by its degeneracy,
           //    i.e. the number of the integrals/sets equivalent to it
           // 3) the end result must be symmetrized
-          for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+          for (size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
             const auto bf1 = f1 + bf1_first;
-            for (auto f2 = 0; f2 != n2; ++f2) {
+            for (size_t f2 = 0; f2 != n2; ++f2) {
               const auto bf2 = f2 + bf2_first;
-              for (auto f3 = 0; f3 != n3; ++f3) {
+              for (size_t f3 = 0; f3 != n3; ++f3) {
                 const auto bf3 = f3 + bf3_first;
-                for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
+                for (size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
                   const auto bf4 = f4 + bf4_first;
 
                   const auto value = buf_1234[f1234];

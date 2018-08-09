@@ -100,7 +100,7 @@ class ExecutionContext {
    */
   template<typename T, typename ...Args>
   static void deallocate(Tensor<T>& tensor, Args& ... tensor_list) {
-    tensor.dealloc();
+    tensor.deallocate();
     deallocate(tensor_list...);
   }
 

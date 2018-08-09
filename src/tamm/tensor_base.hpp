@@ -43,7 +43,8 @@ public:
      */
     TensorBase(const std::vector<TiledIndexSpace>& block_indices) :
       block_indices_{block_indices},
-      num_modes_{block_indices.size()} {    
+      num_modes_{block_indices.size()},
+      allocation_status_{AllocationStatus::invalid} {    
           for(const auto& tis: block_indices_) {
               EXPECTS(!tis.is_dependent());
           }
@@ -60,7 +61,8 @@ public:
      * tensor
      */
     TensorBase(const std::vector<TiledIndexLabel>& lbls) :
-      num_modes_{lbls.size()} {
+      num_modes_{lbls.size()},
+      allocation_status_{AllocationStatus::invalid} {
         for(const auto& lbl : lbls) {
             block_indices_.push_back(lbl.tiled_index_space());
             //tlabels_.push_back(lbl);
@@ -108,7 +110,9 @@ public:
     // }
 
     // Dtor
-    virtual ~TensorBase(){};
+    virtual ~TensorBase(){
+        EXPECTS(allocation_status_ == AllocationStatus::invalid);
+    };
 
     /**
      * @brief Method for getting the number of modes of the tensor
@@ -217,6 +221,14 @@ public:
         }
     }
 
+    AllocationStatus allocation_status() {
+        return allocation_status_;
+    }
+
+    void update_status(AllocationStatus status) {
+        allocation_status_ = status;
+    }
+
 protected:
     void fillin_tlabels() {
         tlabels_.clear();
@@ -229,6 +241,7 @@ protected:
     Spin spin_total_;
     bool has_spatial_symmetry_;
     bool has_spin_symmetry_;
+    AllocationStatus allocation_status_;
 
     TensorRank num_modes_;
     /// When a tensor is constructed using Tiled Index Labels that correspond to

@@ -142,12 +142,15 @@ public:
     ~TensorImpl() = default;
 
   void deallocate() {
+    EXPECTS(allocation_status_ != AllocationStatus::invalid);
     EXPECTS(mpb_);
     mpb_->dealloc_coll();
+    update_status(AllocationStatus::invalid);
   }
 
   template<typename T>
   void allocate(const ExecutionContext* ec) {
+    EXPECTS(allocation_status_ == AllocationStatus::invalid);
     Distribution* distribution = ec->distribution();
     MemoryManager* memory_manager = ec->memory_manager();
     EXPECTS(distribution != nullptr);
@@ -160,6 +163,8 @@ public:
     auto eltype = tensor_element_type<T>();
     EXPECTS(buf_size >=0 );
     mpb_ = std::unique_ptr<MemoryRegion>{memory_manager->alloc_coll(eltype, buf_size)};
+
+    update_status(AllocationStatus::created);
   }
 
     // Tensor Accessors
@@ -173,6 +178,7 @@ public:
      */
     template<typename T>
     void get(const IndexVector& idx_vec, span<T> buff_span) const {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
         Proc proc;
         Offset offset;
         std::tie(proc, offset) = distribution_->locate(idx_vec);
@@ -191,6 +197,7 @@ public:
      */
     template<typename T>
     void put(const IndexVector& idx_vec, span<T> buff_span) {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
         Proc proc;
         Offset offset;
         std::tie(proc, offset) = distribution_->locate(idx_vec);
@@ -209,6 +216,7 @@ public:
      */
     template<typename T>
     void add(const IndexVector& idx_vec, span<T> buff_span) {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
         Proc proc;
         Offset offset;
         std::tie(proc, offset) = distribution_->locate(idx_vec);

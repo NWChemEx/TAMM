@@ -374,13 +374,14 @@ TEST_CASE("CCSD T2") {
 
             std::vector<T> buf(size);
 
-            const int ndim = 2;
-            std::array<int, ndim> block_offset;
+            // const int ndim = 2;
+            // std::array<int, ndim> block_offset;
             auto& tiss      = tensor.tiled_index_spaces();
             auto block_dims = tensor.block_dims(it);
-            for(auto i = 0; i < ndim; i++) {
-                block_offset[i] = tiss[i].tile_offset(it[i]);
-            }
+            // for(auto i = 0; i < ndim; i++) {
+            //     block_offset[i] = tiss[i].tile_offset(it[i]);
+            // }
+            auto block_offset = tensor.block_offsets(it);
 
             TAMM_SIZE c = 0;
             for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];

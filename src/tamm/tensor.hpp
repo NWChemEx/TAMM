@@ -151,6 +151,16 @@ public:
     }
 
     /**
+     * @brief Get offsets of a block
+     * 
+     * @param [in] blockid The id of the block
+     * @returns std::vector<size_t> The vector of offsets
+     */
+    std::vector<size_t> block_offsets(const IndexVector& blockid) const {
+        return impl_->block_offsets(blockid);
+    }
+
+    /**
      * @brief Get index spaces of a vector
      *
      * @return const std::vector<TiledIndexSpace>&

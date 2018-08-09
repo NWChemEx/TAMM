@@ -111,13 +111,35 @@ TiledIndexSpace N = MO("all");
 Tensor<double> d_f1{N, N, N, N};
 Tensor<double> d_r1{O, O, O, O};
 
-// Allocation for the tensors d_r1 and d_f1
+// Tensor allocation using static methods
 Tensor<double>::allocate(&ec, d_r1, d_f1);
 
 /* Do work on tensors */
 
 // Deallocation for tensors d_r1 and d_f1
 Tensor<double>::deallocate(d_r1, d_f1);
+
+
+// Tensor allocation using Tensor object member functions
+d_r1.allocate(&ec);
+d_f1.allocate(&ec);
+
+/* Do work on tensors */
+
+// Deallocation for tensors d_r1 and d_f1
+d_r1.deallocate();
+d_f1.deallocate();
+
+// Tensor allocation using Scheduler member functions
+
+Scheduler{&ec}
+// Allocate tensors
+.allocate(d_r1, d_f1)
+(/*Do work on tensors*/)
+// Deallocate the tensors (unless will be used afterwards)
+.deallocate(d_r1, d_f1)
+.execute();
+
 ```
 
 **Note:** The tensors are has to be explicitly allocated using the specified execution context before being used and they should be deallocated once their use is finished. 

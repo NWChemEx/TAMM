@@ -157,6 +157,18 @@ inline void diis(ExecutionContext& ec,
                  std::vector<std::vector<Tensor<T>*>*>& d_rs,
                  std::vector<std::vector<Tensor<T>*>*>& d_ts,
                  std::vector<Tensor<T>*> d_t) {
+                 //,const TiledIndexSpace& MO) {
+
+    // const TiledIndexSpace& O = MO("occ");
+    // const TiledIndexSpace& V = MO("virt");
+    // Tensor<T> i1{O, V};
+
+    // TiledIndexLabel p1, p2, p3;
+    // TiledIndexLabel h1, h2, h3;
+
+    // std::tie(p1, p2, p3) = MO.labels<3>("virt");
+    // std::tie(h1, h2, h3) = MO.labels<3>("occ");
+
     EXPECTS(d_t.size() == d_rs.size());
     int ntensors = d_t.size();
     EXPECTS(ntensors > 0);
@@ -173,7 +185,22 @@ inline void diis(ExecutionContext& ec,
     for(int k = 0; k < ntensors; k++) {
         for(int i = 0; i < ndiis; i++) {
             for(int j = i; j < ndiis; j++) {
-                A(i, j) += ddot(ec, (*d_rs[k]->at(i))(), (*d_rs[k]->at(j))());
+                Tensor<T> d_r1{};
+                Tensor<T>::allocate(&ec,d_r1);
+                Tensor<T>& t1 = *d_rs[k]->at(i);
+                Tensor<T>& t2 = *d_rs[k]->at(j);
+                Scheduler{&ec}(d_r1() = 0).execute();
+                //A(i, j) += ddot(ec, (*d_rs[k]->at(i))(), (*d_rs[k]->at(j))());
+                if (t1.num_modes() == 2){
+                    Scheduler{&ec}(d_r1() += t1() * t2()).execute();
+                }
+                else if(t1.num_modes() == 4){
+                    Scheduler{&ec}(d_r1() += 0.25 * t1() * t2()).execute();
+                }
+                T r1;
+                d_r1.get({}, {&r1, 1});
+                A(i,j) += r1;
+                Tensor<T>::deallocate(d_r1);
             }
         }
     }

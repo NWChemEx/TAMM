@@ -30,8 +30,10 @@ void print_tensor(Tensor<T> &t){
         t.get(it, buf);
         std::cout << "block" << it;
         for (TAMM_SIZE i = 0; i < size;i++)
-         std::cout << buf[i] << std::endl;
+         std::cout << buf[i] << " ";
+        std::cout << std::endl;
     }
+
 }
 
 template<typename T>
@@ -430,6 +432,7 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
             ((*d_r2s[off])() = d_r2())
            .execute();
 
+       // if(off==0) print_tensor(d_r1);
         iteration_print(ec->pg(), iter, residual, energy);
 
          Tensor<T>::deallocate(d_e, 

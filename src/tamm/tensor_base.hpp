@@ -155,6 +155,24 @@ public:
         return ret;
     }
 
+    std::vector<size_t> block_offsets(const IndexVector& blockid) const {
+
+        std::vector<size_t> ret;
+        EXPECTS(blockid.size() == num_modes());
+        size_t rank = num_modes();
+        for(size_t i = 0; i < rank; i++) {
+            IndexVector dep_idx_vals{};
+            if(dep_map_.find(i) != dep_map_.end()) {
+                for(const auto& pos : dep_map_.at(i)) {
+                    dep_idx_vals.push_back(blockid[pos]);
+                }
+            }
+            ret.push_back(block_indices_[i](dep_idx_vals).tile_offset(blockid[i]));
+        }
+        return ret;
+
+    }
+
     LabelLoopNest loop_nest() const {
         return LabelLoopNest{tlabels()};
     }

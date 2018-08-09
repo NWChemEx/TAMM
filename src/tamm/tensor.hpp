@@ -20,15 +20,31 @@ class Tensor {
 public:
     using element_type = T;
 
-    Tensor() : 
-      impl_{std::make_shared<TensorImpl>()} {}
+    /**
+     * @brief Construct a scalar Tensor with 0-modes
+     *
+     */
+    Tensor() : impl_{std::make_shared<TensorImpl>()} {}
 
-    Tensor(std::vector<TiledIndexSpace> tis) :
-      impl_{std::make_shared<TensorImpl>(tis)} {}
+    /**
+     * @brief Construct a new Tensor object from a vector of TiledIndexSpace
+     * objects
+     *
+     * @param [in] tis_vec a vector of TiledIndexSpace objects for each mode
+     */
+    Tensor(std::vector<TiledIndexSpace> tis_vec) :
+      impl_{std::make_shared<TensorImpl>(tis_vec)} {}
 
-          Tensor(std::vector<TiledIndexLabel> tis) :
-      impl_{std::make_shared<TensorImpl>(tis)} {}
-      
+    /**
+     * @brief Construct a new Tensor object from a vector of TiledIndexLabel
+     * objects
+     *
+     * @param [in] til_vec a vector of TiledIndexLabel objects which will be
+     * used to extract TiledIndexSpace for Tensor construction
+     */
+    Tensor(std::vector<TiledIndexLabel> til_vec) :
+      impl_{std::make_shared<TensorImpl>(til_vec)} {}
+
     /**
      * @brief Construct a new Tensor object from a set of TiledIndexSpace
      * objects as modes of the Tensor
@@ -61,13 +77,6 @@ public:
     Tensor(const TiledIndexSpace& tis, Ts... rest) :
       impl_{std::make_shared<TensorImpl>(tis, rest...)} {}
 
-    /**
-     * @brief Operator overload for constructing a LabeledTensor object
-     * (main construct for Tensor operations)
-     *
-     * @returns a LabeledTensor object to be used in Tensor operations
-     */
-    // LabeledTensor<T> operator()() const { return {}; }
 
     /**
      * @brief Operator overload for constructing a LabeledTensor object with
@@ -82,18 +91,6 @@ public:
     LabeledTensor<T> operator()(Args&&... rest) const {
         return LabeledTensor<T>{*this, std::forward<Args>(rest)...};
     }
-
-    // template<class... Args>
-    //  LabeledTensor<T> operator()(Args&&... rest) const; 
-    //  {
-    //      return LabeledTensor<T>{*this, std::forward<Args>(rest)...};
-    // }
-
-    // template <typename ...Args>
-    // LabeledTensor<T> operator()(const std::string str, Args... rest) const {}
-    // LabeledTensor<T> operator()(std::initializer_list<const std::string> lbl_strs) const {
-    //     return LabeledTensor<T>(*this, lbl_strs);
-    // }
 
     // Tensor Accessors
     /**
@@ -126,13 +123,16 @@ public:
         impl_->add(idx_vec, buff_span);
     }
 
-    LabelLoopNest loop_nest() const {
-        return impl_->loop_nest();
-    }
+    /**
+     * @brief Constructs a LabeledLoopNest object  for Tensor object
+     *
+     * @returns a LabelLoopNest for the Tensor
+     */
+    LabelLoopNest loop_nest() const { return impl_->loop_nest(); }
 
     /**
      * @brief Get the size of a block
-     * 
+     *
      * @param [in] blockid The id of the block
      * @return size_t The size of the block
      */
@@ -142,7 +142,7 @@ public:
 
     /**
      * @brief Get dimensions of a block
-     * 
+     *
      * @param [in] blockid The id of the block
      * @return std::vector<size_t>  The vector of dimensions
      */
@@ -152,8 +152,8 @@ public:
 
     /**
      * @brief Get index spaces of a vector
-     * 
-     * @return const std::vector<TiledIndexSpace>& 
+     *
+     * @return const std::vector<TiledIndexSpace>&
      */
     const std::vector<TiledIndexSpace>& tiled_index_spaces() const {
         return impl_->tiled_index_spaces();
@@ -161,10 +161,12 @@ public:
 
     /**
      * @brief Return dependency map of the tensor's index spaces
-     * 
-     * @return const std::map<size_t,std::vector<size_t>>& The dependence map that maps indices of index spaces to a vector of indices that each space depends on.
+     *
+     * @return const std::map<size_t,std::vector<size_t>>& The dependence map
+     * that maps indices of index spaces to a vector of indices that each space
+     * depends on.
      */
-    const std::map<size_t,std::vector<size_t>>& dep_map() const {
+    const std::map<size_t, std::vector<size_t>>& dep_map() const {
         return impl_->dep_map();
     }
 
@@ -172,18 +174,15 @@ public:
      * @brief Memory allocation method for the Tensor object
      *
      */
-    void alloc(const ExecutionContext* ec) { impl_->allocate<T>(ec); }
+    void allocate(const ExecutionContext* ec) { impl_->allocate<T>(ec); }
 
     /**
      * @brief Memory deallocation method for the Tensor object
      *
      */
-    void dealloc() { impl_->deallocate(); }
+    void deallocate() { impl_->deallocate(); }
 
     // Static methods for allocate/deallocate
-
-    static void allocate(const ExecutionContext* ec) {}
-    static void deallocate() {}
     /**
      * @brief Static memory allocation method for a set of Tensors
      *
@@ -193,9 +192,11 @@ public:
      * @param [in] rest set of Tensor objects to be allocated
      */
     template<typename... Args>
-    static void allocate(const ExecutionContext* ec, Tensor<T>& tensor, Args& ... rest) {
-       tensor.impl_->template allocate<T>(ec);
-       allocate(ec,rest...);
+    static void allocate(const ExecutionContext* ec, Tensor<T>& tensor,
+                         Args&... rest) {
+        // tensor.impl_->template allocate<T>(ec);
+        // allocate(ec, rest...);
+        alloc(ec, tensor, rest...);
     }
 
     /**
@@ -205,17 +206,52 @@ public:
      * @param [in] rest set of Tensor objects to be deallocated
      */
     template<typename... Args>
-    static void deallocate(Tensor<T>& tensor, Args& ... rest) {
-        tensor.impl_->deallocate();
-        deallocate(rest...);
+    static void deallocate(Tensor<T>& tensor, Args&... rest) {
+        // tensor.impl_->deallocate();
+        // deallocate(rest...);
+        dealloc(tensor, rest...);
     }
 
-    size_t num_modes() const {
-        return impl_->num_modes();
-    }
+    /**
+     * @brief Get the number of modes of a Tensor
+     * 
+     * @returns number of modes of a Tensor
+     */
+    size_t num_modes() const { return impl_->num_modes(); }
 
 private:
     std::shared_ptr<TensorImpl> impl_;
+
+    // Private allocate and de-allocate functions
+
+    static void alloc(const ExecutionContext* ec) {}
+    static void dealloc() {}
+    /**
+     * @brief Static memory allocation method for a set of Tensors
+     *
+     * @tparam Args variadic template for set of Tensor objects
+     * @param [in] ec input ExecutionContext object to be used for
+     * allocation
+     * @param [in] rest set of Tensor objects to be allocated
+     */
+    template<typename... Args>
+    static void alloc(const ExecutionContext* ec, Tensor<T>& tensor,
+                         Args&... rest) {
+        tensor.impl_->template allocate<T>(ec);
+        alloc(ec, rest...);
+    }
+
+    /**
+     * @brief Static memory deallocation method for a set of Tensors
+     *
+     * @tparam Args variadic template for set of Tensor objects
+     * @param [in] rest set of Tensor objects to be deallocated
+     */
+    template<typename... Args>
+    static void dealloc(Tensor<T>& tensor, Args&... rest) {
+        tensor.impl_->deallocate();
+        dealloc(rest...);
+    }
 };
 
 } // namespace tamm

@@ -1477,7 +1477,7 @@ public:
         return std::shared_ptr<Op>(new AllocOp{*this});
     }
 
-    void execute(ProcGroup ec_pg) override { tensor_.alloc(ec_); }
+    void execute(ProcGroup ec_pg) override { tensor_.allocate(ec_); }
 
 protected:
     TensorType tensor_;
@@ -1497,7 +1497,7 @@ public:
         return std::shared_ptr<Op>(new DeallocOp{*this});
     }
 
-    void execute(ProcGroup ec_pg) override { tensor_.dealloc(); }
+    void execute(ProcGroup ec_pg) override { tensor_.deallocate(); }
 
 protected:
     TensorType tensor_;

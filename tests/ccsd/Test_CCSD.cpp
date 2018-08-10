@@ -503,7 +503,50 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
         ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2,f1occ,f1virt);
 
         std::tie(residual, energy) =
-        rest(*ec, MO, d_r1, d_r2, d_t1, d_t2, d_e, p_evl_sorted, zshiftl,noab);                 
+        rest(*ec, MO, d_r1, d_r2, d_t1, d_t2, d_e, p_evl_sorted, zshiftl,noab);
+
+        {
+            auto lambdar2 = [&](const IndexVector& blockid) {
+                if(
+                    (blockid[0] == 0 && blockid[1] == 1 && blockid[2] == 1 && blockid[3] == 0)
+                || (blockid[0] == 1 && blockid[1] == 0 && blockid[2] == 0 && blockid[3] == 1)
+                || (blockid[0] == 1 && blockid[1] == 0 && blockid[2] == 1 && blockid[3] == 0)
+                 ) {
+                    Tensor<T> tensor     = d_r2;
+                    const TAMM_SIZE size = tensor.block_size(blockid);
+
+                    std::vector<T> buf(size);
+                    tensor.get(blockid, buf);
+
+                    //const int ndim = 4;
+                    auto block_dims = tensor.block_dims(blockid);
+                    auto block_offset = tensor.block_offsets(blockid);
+                    //auto& tiss      = tensor.tiled_index_spaces();
+            // std::array<int, ndim> block_offset{tiss[0].tile_offset(blockid[0]),
+            //                                    tiss[1].tile_offset(blockid[1]),
+            //                                    tiss[2].tile_offset(blockid[2]),
+            //                                    tiss[3].tile_offset(blockid[3])};
+
+                    TAMM_SIZE c = 0;
+                    for(auto i = block_offset[0];
+                        i < block_offset[0] + block_dims[0]; i++) {
+                        for(auto j = block_offset[1];
+                            j < block_offset[1] + block_dims[1]; j++) {
+                            for(auto k = block_offset[2];
+                                k < block_offset[2] + block_dims[2]; k++) {
+                                for(auto l = block_offset[3];
+                                    l < block_offset[3] + block_dims[3];
+                                    l++, c++) {
+                                    buf[c] = 0;
+                                }
+                            }
+                        }
+                    }
+                    d_r2.put(blockid, buf);
+                }
+            };
+            block_for(ec->pg(), d_r2(), lambdar2);
+        }
 
         Scheduler{ec}
             ((*d_r1s[off])() = d_r1())
@@ -561,7 +604,7 @@ for(int titer=0; titer<maxiter; titer+=ndiis) {
 
 }
 
-std::string filename{}; //bad
+std::string filename; //bad
 int main( int argc, char* argv[] )
 {
     MPI_Init(&argc,&argv);
@@ -571,8 +614,12 @@ int main( int argc, char* argv[] )
     int mpi_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
-    filename = (argc > 1) ? argv[1] : "h2o.xyz";
-    int res = Catch::Session().run(argc, argv);
+    filename = std::string(argv[1]);
+    std::ifstream testinput(filename); 
+    if(!testinput)
+        std::cout << "Input file provided " << filename << " does not exist\n";
+
+    int res = Catch::Session().run();
     
     GA_Terminate();
     MPI_Finalize();
@@ -582,6 +629,8 @@ int main( int argc, char* argv[] )
 
 
 TEST_CASE("CCSD Driver") {
+
+    std::cout << "input file = " << filename << std::endl;
 
     using T = double;
 

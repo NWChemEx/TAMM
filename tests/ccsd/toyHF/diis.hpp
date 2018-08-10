@@ -195,7 +195,7 @@ inline void diis(ExecutionContext& ec,
                     Scheduler{&ec}(d_r1() += t1() * t2()).execute();
                 }
                 else if(t1.num_modes() == 4){
-                    Scheduler{&ec}(d_r1() += 0.25 * t1() * t2()).execute();
+                    Scheduler{&ec}(d_r1() +=  t1() * t2()).execute();
                 }
                 T r1;
                 d_r1.get({}, {&r1, 1});
@@ -204,6 +204,8 @@ inline void diis(ExecutionContext& ec,
             }
         }
     }
+
+    //std::cout << A << std::endl;
 
     for(int i = 0; i < ndiis; i++) {
         for(int j = i; j < ndiis; j++) { A(j, i) = A(i, j); }

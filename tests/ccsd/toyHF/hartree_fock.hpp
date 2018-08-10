@@ -115,16 +115,10 @@ inline std::vector<Atom> read_input_xyz(
 
     // .xyz files report element labels, hence convert to atomic numbers
     int Z = -1;
-    #if __cplusplus >= 201703L 
-      for(const auto& e: libint2::chemistry::get_element_info()) {
-          if (libint2::strcaseequal(e.symbol, element_symbol)) {
-    #else
-      using libint2::chemistry::element_info;
-      for(const auto& e: element_info) {
-      if (libint2::strcaseequal(e.symbol, element_symbol)) {
-    #endif
-          Z = e.Z;
-          break;
+    for(const auto& e : libint2::chemistry::get_element_info()) {
+        if(libint2::strcaseequal(e.symbol, element_symbol)) {
+            Z = e.Z;
+            break;
         }
     }
     if (Z == -1) {

@@ -55,16 +55,9 @@ inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
             }
             d_t.add(blockid, tbuf);
         } else if(d_r.num_modes() == 4) {
-            const int ndim = 4;
-            std::array<int, ndim> rblock_offset{
-             rtiss[0].tile_offset(blockid[0]),   
-             rtiss[1].tile_offset(blockid[1]),
-             rtiss[2].tile_offset(blockid[2]),
-             rtiss[3].tile_offset(blockid[3])                
-            };
-            // for(auto i = 0; i < ndim; i++) {
-            //     rblock_offset[i] = rtiss[i].tile_offset(blockid[i]);
-            // }
+            
+            auto rblock_offset = d_r.block_offsets(blockid);
+
             std::vector<size_t> ioff;
             for(auto x : rblock_offset) { ioff.push_back(x); }
             std::vector<size_t> isize;
@@ -157,17 +150,6 @@ inline void diis(ExecutionContext& ec,
                  std::vector<std::vector<Tensor<T>*>*>& d_rs,
                  std::vector<std::vector<Tensor<T>*>*>& d_ts,
                  std::vector<Tensor<T>*> d_t) {
-                 //,const TiledIndexSpace& MO) {
-
-    // const TiledIndexSpace& O = MO("occ");
-    // const TiledIndexSpace& V = MO("virt");
-    // Tensor<T> i1{O, V};
-
-    // TiledIndexLabel p1, p2, p3;
-    // TiledIndexLabel h1, h2, h3;
-
-    // std::tie(p1, p2, p3) = MO.labels<3>("virt");
-    // std::tie(h1, h2, h3) = MO.labels<3>("occ");
 
     EXPECTS(d_t.size() == d_rs.size());
     int ntensors = d_t.size();
@@ -190,13 +172,9 @@ inline void diis(ExecutionContext& ec,
                 Tensor<T>& t1 = *d_rs[k]->at(i);
                 Tensor<T>& t2 = *d_rs[k]->at(j);
                 Scheduler{&ec}(d_r1() = 0).execute();
-                //A(i, j) += ddot(ec, (*d_rs[k]->at(i))(), (*d_rs[k]->at(j))());
-                if (t1.num_modes() == 2){
-                    Scheduler{&ec}(d_r1() += t1() * t2()).execute();
-                }
-                else if(t1.num_modes() == 4){
-                    Scheduler{&ec}(d_r1() +=  t1() * t2()).execute();
-                }
+                //A(i, j) += ddot(ec, (*d_rs[k]->at(i))(), (*d_rs[k]->at(j))());                
+                Scheduler{&ec}(d_r1() += t1() * t2()).execute();
+
                 T r1;
                 d_r1.get({}, {&r1, 1});
                 A(i,j) += r1;
@@ -204,8 +182,6 @@ inline void diis(ExecutionContext& ec,
             }
         }
     }
-
-    //std::cout << A << std::endl;
 
     for(int i = 0; i < ndiis; i++) {
         for(int j = i; j < ndiis; j++) { A(j, i) = A(i, j); }

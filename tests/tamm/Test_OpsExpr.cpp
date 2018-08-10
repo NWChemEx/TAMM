@@ -494,6 +494,24 @@ TEST_CASE("Tensor operations on named subspaces") {
         REQUIRE(!failed);
     }
 
+    // Test with default ExecutionContext constructor
+    {
+        bool failed = false;
+        try {
+            ExecutionContext temp_ec;
+            temp_ec.set_pg(pg);
+            temp_ec.set_distribution(&distribution);
+            temp_ec.set_memory_manager(mgr);
+
+            Tensor<T>::allocate(&temp_ec, T1, T2, T3, T4, T5, T6, T7);
+            Tensor<T>::deallocate(T1, T2, T3, T4, T5, T6, T7);
+        } catch(std::string& e) {
+            std::cerr << "Caught exception: " << e << "\n";
+            failed = true;
+        }
+        REQUIRE(!failed);
+    }
+
     std::cerr << "Tensor allocate/deallocate with Tensor member functions" << std::endl;
     {
         bool failed = false;

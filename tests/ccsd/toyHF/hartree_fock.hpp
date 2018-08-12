@@ -32,6 +32,7 @@ using std::cerr;
 using std::endl;
 
 using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+using Tensor3D = Eigen::Tensor<double, 3, Eigen::RowMajor>;
 using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 
 // import dense, dynamically sized Matrix type from Eigen;

@@ -309,7 +309,7 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
 
     Scheduler sch{&ec};
 
-    #if 1
+    #if 0
     sch.allocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
              t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1)
     (i0(p3, p4, h1, h2) = v2(p3, p4, h1, h2))
@@ -402,7 +402,7 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
               t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1);
     #endif
 
-    #if 0
+    #if 1
 
     Tensor<T> _a3{V, O};
     Tensor<T> _a16{V, O};
@@ -614,8 +614,8 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
         (i0(p3, p4, h1, h2) += 0.25 * _a2502(p4, h2) * _a2511(p3, h1));
   }
 
-  sch(t2_2_2_1(h10, h11, h1, h2) +=
-                            t1(p5, h1) * t2_2_2_2_1(h10, h11, h2, p5));
+    sch(t2_2_2_1(h10, h11, h1, h2) += t1(p5, h1) * t2_2_2_2_1(h10, h11, h2, p5))
+    (t2_2_2_1(h10, h11, h2, h1) += -1 * t1(p5, h1) * t2_2_2_2_1(h10, h11, h2, p5)); //perm symm                            
 
   //sch(ccsd_t2_2_2_3_ |= t2_2_2_1(h10,h11,h1,h2)   += -0.5 * t2(p7,p8,h1,h2) * v2(h10,h11,p7,p8));
   for (auto x = 0; x < chol.size(); x++) {
@@ -695,9 +695,14 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
         (i0(p3, p4, h1, h2) += -1.0 * t1(p4, h3) * _a1488(p3, h3, h1, h2));
   }
 
-  sch(t2_2_1(h10, p3, h1, h2) +=
-                          t2(p3, p9, h1, h7) * t2_2_5_1(h7, h10, h2, p9))
-      (/*c2f_t2_t12_ |= */ t2(p1, p2, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4));
+    sch(t2_2_1(h10, p3, h1, h2) += t2(p3, p9, h1, h7) * t2_2_5_1(h7, h10, h2, p9))
+    (t2_2_1(h10, p3, h2, h1) += -1 * t2(p3, p9, h1, h7) * t2_2_5_1(h7, h10, h2, p9)); //perm symm                          
+      
+    //sch(/*c2f_t2_t12_ |= */ t2(p1, p2, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4));
+    sch(t2(p1, p2, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4))
+    (t2(p1, p2, h4, h3) += -0.5 * t1(p1, h3) * t1(p2, h4)) //4 perms
+    (t2(p2, p1, h3, h4) += -0.5 * t1(p1, h3) * t1(p2, h4)) //perm
+    (t2(p2, p1, h4, h3) += 0.5 * t1(p1, h3) * t1(p2, h4)); //perm
 
   //sch(ccsd_t2_2_6_ |= t2_2_1(h10,p3,h1,h2)      += 0.5  * t2(p5,p6,h1,h2) * v2(h10,p3,p5,p6));
   for (auto x = 0; x < chol.size(); x++) {
@@ -715,10 +720,18 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
   }
 
   sch(/*c2d_t2_t12_ |= */ t2(p1, p2, h3, h4) += -0.5 * t1(p1, h3) * t1(p2, h4))
-      (i0(p3, p4, h1, h2) +=
-                         -1 * t1(p3, h10) * t2_2_1(h10, p4, h1, h2));
+      (t2(p1, p2, h4, h3) += 0.5 * t1(p1, h3) * t1(p2, h4)) //4 perms
+    (t2(p2, p1, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4)) //perm
+    (t2(p2, p1, h4, h3) += -0.5 * t1(p1, h3) * t1(p2, h4)); //perm
 
-  // sch(lccsd_t2_3x_ |= i0(p3,p4,h1,h2) += -1   * t1(p5,h1) * v2(p3,p4,h2,p5));
+    sch(i0(p3, p4, h1, h2) += -1 * t1(p3, h10) * t2_2_1(h10, p4, h1, h2))
+    (i0(p4, p3, h1, h2) += 1 * t1(p3, h10) * t2_2_1(h10, p4, h1, h2)); //perm sym
+
+  // sch(lccsd_t2_3x_ |= i0(p3,p4,h1,h2) += -1 * t1(p5,h1) * v2(p3,p4,h2,p5));
+  // @todo: Bo
+  //  sch(i0(p3, p4, h1, h2) += -1 * t1(p5, h1) * v2(p3, p4, h2, p5))
+  //  (i0(p3, p4, h2, h1) += 1 * t1(p5, h1) * v2(p3, p4, h2, p5)); //perm sym
+  
   for (auto x = 0; x < chol.size(); x++) {
     Tensor<T> &cholx = (*(chol.at(x)));
     sch(_a16(p4, h2) = 0);
@@ -781,9 +794,10 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     //(i0(p3,p4,h1,h2) += -0.5 * t2(p3,p4,h3,h1) * _a675(h3,h2));
   }
 
-  sch(i0(p3, p4, h1, h2) +=
-                        -1 * t2(p3, p4, h1, h9) * t2_4_1(h9, h2))
-      (t2_5_1(p3, p5) = f1(p3, p5));
+  sch(i0(p3, p4, h1, h2) += -1 * t2(p3, p4, h1, h9) * t2_4_1(h9, h2))
+     (i0(p3, p4, h2, h1) += 1 * t2(p3, p4, h1, h9) * t2_4_1(h9, h2)); //perm sym
+    
+    sch(t2_5_1(p3, p5) = f1(p3, p5));
 
 // sch(ccsd_t2_5_2_ |= t2_5_1(p3,p5) += -1   * t1(p6,h7) * v2(h7,p3,p5,p6));
   for (auto x = 0; x < chol.size(); x++) {
@@ -815,8 +829,8 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     //(i0(p3,p4,h1,h2) += 0.5 * _a555(p4,h3,h1,h2) * _a558(p3,h3));
   }
 
-  sch(i0(p3, p4, h1, h2) +=
-                        1 * t2(p3, p5, h1, h2) * t2_5_1(p4, p5));
+  sch(i0(p3, p4, h1, h2) += 1 * t2(p3, p5, h1, h2) * t2_5_1(p4, p5))
+    (i0(p4, p3, h1, h2) += -1 * t2(p3, p5, h1, h2) * t2_5_1(p4, p5)); //perm sym
 
   //(ccsd_t2_6_1_ |= t2_6_1(h9,h11,h1,h2) = -1   * v2(h9,h11,h1,h2));
   sch(t2_6_1() = 0);
@@ -864,8 +878,8 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
         (i0(p3, p4, h1, h2) += 0.25 * _a1226(h3, h1) * _a1256(p3, p4, h3, h2));
   }
 
-  sch(t2_6_1(h9, h11, h1, h2) +=
-                          t1(p8, h1) * t2_6_2_1(h9, h11, h2, p8));
+  sch(t2_6_1(h9, h11, h1, h2) += t1(p8, h1) * t2_6_2_1(h9, h11, h2, p8))
+     (t2_6_1(h9, h11, h2, h1) += -1 * t1(p8, h1) * t2_6_2_1(h9, h11, h2, p8)); //perm symm
 
   //(ccsd_t2_6_3_ |= t2_6_1(h9,h11,h1,h2)      += -0.5 * t2(p5,p6,h1,h2) * v2(h9,h11,p5,p6))
   for (auto x = 0; x < chol.size(); x++) {
@@ -932,11 +946,18 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
              0.5 * _a709(p4, h4, h3, h1) * _a712(p3, h3, h4, h2));
   }
 
-  sch(i0(p3, p4, h1, h2) +=
-                        -1 * t2(p3, p5, h1, h6) * t2_7_1(h6, p4, h2, p5))
-      (vt1t1_1(h5, p3, h1, h2) = 0);
+  sch(i0(p3, p4, h1, h2) += -1 * t2(p3, p5, h1, h6) * t2_7_1(h6, p4, h2, p5))
+    (i0(p3, p4, h2, h1) += 1 * t2(p3, p5, h1, h6) * t2_7_1(h6, p4, h2, p5)) //4 perms
+    (i0(p4, p3, h1, h2) += 1 * t2(p3, p5, h1, h6) * t2_7_1(h6, p4, h2, p5)) //perm
+    (i0(p4, p3, h2, h1) += -1 * t2(p3, p5, h1, h6) * t2_7_1(h6, p4, h2, p5)); //perm
+
+    sch(vt1t1_1(h5, p3, h1, h2) = 0);
 
   //sch(vt1t1_1_2_ |= vt1t1_1(h5,p3,h1,h2) += -2 * t1(p6,h1) * v2(h5,p3,h2,p6));
+  // @todo: Bo
+  //  sch(vt1t1_1(h5, p3, h1, h2) += -2 * t1(p6, h1) * v2(h5, p3, h2, p6))
+  //  (vt1t1_1(h5, p3, h2, h1) += 2 * t1(p6, h1) * v2(h5, p3, h2, p6)); //perm symm
+  
   for (auto x = 0; x < chol.size(); x++) {
     Tensor<T> &cholx = (*(chol.at(x)));
     sch (_a119(p4, h2) = 0)
@@ -952,9 +973,13 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
         (i0(p3, p4, h1, h2) += 1.0 * cholx(p4, h1) * _a146(p3, h2));
   }
 
-  sch(i0(p3, p4, h1, h2) +=
-                      -0.5 * t1(p3, h5) * vt1t1_1(h5, p4, h1, h2))
-      (/*c2f_t2_t12_ |= */ t2(p1, p2, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4));
+    sch(i0(p3, p4, h1, h2) += -0.5 * t1(p3, h5) * vt1t1_1(h5, p4, h1, h2))
+    (i0(p4, p3, h1, h2) += 0.5 * t1(p3, h5) * vt1t1_1(h5, p4, h1, h2)); //perm symm
+
+    sch(/*c2f_t2_t12_ |= */ t2(p1, p2, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4))
+    (t2(p1, p2, h4, h3) += -0.5 * t1(p1, h3) * t1(p2, h4)) //4 perms
+    (t2(p2, p1, h3, h4) += -0.5 * t1(p1, h3) * t1(p2, h4)) //perm
+    (t2(p2, p1, h4, h3) += 0.5 * t1(p1, h3) * t1(p2, h4)); //perm
 
 //(/*ccsd_t2_8_ |= */ i0(p3,p4,h1,h2) += 0.5 * t2(p5,p6,h1,h2) * v2(p3,p4,p5,p6));
   for (auto x = 0; x < chol.size(); x++) {
@@ -964,7 +989,10 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
         (i0(p3, p4, h1, h2) += 0.25 * cholx(p3, p1) * _a54(p1, p4, h1, h2));
   }
 
-  sch(/*c2d_t2_t12_ |= */ t2(p1, p2, h3, h4) += -0.5 * t1(p1, h3) * t1(p2, h4));
+  sch(/*c2d_t2_t12_ |= */ t2(p1, p2, h3, h4) += -0.5 * t1(p1, h3) * t1(p2, h4))
+    (t2(p1, p2, h4, h3) += 0.5 * t1(p1, h3) * t1(p2, h4)) //4 perms
+    (t2(p2, p1, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4)) //perms
+    (t2(p2, p1, h4, h3) += -0.5 * t1(p1, h3) * t1(p2, h4)); //perms
 
   sch.deallocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1,
               t2_4_2_1, t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1, _a54, _a3,

@@ -72,39 +72,213 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     Tensor<T> t1_5_1{O, V};
     Tensor<T> t1_6_1{O, O, O, V};
 
-    TiledIndexLabel p2, p3, p4, p5, p6, p7;
-    TiledIndexLabel h1, h4, h5, h6, h7, h8;
+    Tensor<T> _a28{V, O};
+    Tensor<T> _a34{V, O};
 
-    std::tie(p2, p3, p4, p5, p6, p7) = MO.labels<6>("virt");
-    std::tie(h1, h4, h5, h6, h7, h8) = MO.labels<6>("occ");
+    Tensor<T> _a17{V, O};
+    Tensor<T> _a22{V, O};
+    Tensor<T> _a148{V, O};
+    Tensor<T> _a172{V, O};
+    Tensor<T> _a149{O, O};
+    Tensor<T> _a175{O, O};
+
+    Tensor<T> _a249{};
+    Tensor<T> _a263{O, V};
+    Tensor<T> _a287{O, V};
+    Tensor<T> _a275{O, O};
+
+    Tensor<T> _a4{V, O};
+    Tensor<T> _a9{};
+    Tensor<T> _a99{};
+    Tensor<T> _a102{V, O};
+    Tensor<T> _a128{V, O};
+    Tensor<T> _a122{O, O};
+
+    Tensor<T> _a302{O, O};
+    Tensor<T> _a303{};
+    Tensor<T> _a378{O, O};
+    Tensor<T> _a405{O, O};
+    Tensor<T> _a408{O, O};
+    Tensor<T> _a477{O, O};
+
+    Tensor<T> _a74{};
+    Tensor<T> _a50{O, O};
+    Tensor<T> _a62{O, O};
+    Tensor<T> _a88{O, O};
+
+    Tensor<T> _a209{O, O};
+    Tensor<T> _a234{O, O};
+    Tensor<T> _a198{V, O};
+    Tensor<T> _a223{V, O};
+
+    TiledIndexLabel p1, p2, p3, p4, p5, p6, p7, p8;
+    TiledIndexLabel h1, h2, h3, h4, h5, h6, h7, h8;
+
+    std::tie(p1, p2, p3, p4, p5, p6, p7, p8) = MO.labels<8>("virt");
+    std::tie(h1, h2, h3, h4, h5, h6, h7, h8) = MO.labels<8>("occ");
 
     Scheduler sch{&ec};
-    sch
-      .allocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
-      (t1_2_1(h7, h1) = 0)
-      (t1_3_1(p2, p3)  = 0)
-      ( i0(p2,h1)            =        f1(p2,h1))
-      ( t1_2_1(h7,h1)        =        f1(h7,h1))
-      ( t1_2_2_1(h7,p3)      =        f1(h7,p3))
-      ( t1_2_2_1(h7,p3)     += -1   * t1(p5,h6)       * v2(h6,h7,p3,p5))
-      ( t1_2_1(h7,h1)       +=        t1(p3,h1)       * t1_2_2_1(h7,p3))
-      ( t1_2_1(h7,h1)       += -1   * t1(p4,h5)       * v2(h5,h7,h1,p4))
-      ( t1_2_1(h7,h1)       += -0.5 * t2(p3,p4,h1,h5) * v2(h5,h7,p3,p4))
-      ( i0(p2,h1)           += -1   * t1(p2,h7)       * t1_2_1(h7,h1))
-      ( t1_3_1(p2,p3)        =        f1(p2,p3))
-      ( t1_3_1(p2,p3)       += -1   * t1(p4,h5)       * v2(h5,p2,p3,p4))
-      ( i0(p2,h1)           +=        t1(p3,h1)       * t1_3_1(p2,p3))
-      ( i0(p2,h1)           += -1   * t1(p3,h4)       * v2(h4,p2,h1,p3))
-      ( t1_5_1(h8,p7)        =        f1(h8,p7))
-      ( t1_5_1(h8,p7)       +=        t1(p5,h6)       * v2(h6,h8,p5,p7))
-      ( i0(p2,h1)           +=        t2(p2,p7,h1,h8) * t1_5_1(h8,p7))
-      ( t1_6_1(h4,h5,h1,p3)  =        v2(h4,h5,h1,p3))
-      ( t1_6_1(h4,h5,h1,p3) += -1   * t1(p6,h1)       * v2(h4,h5,p3,p6))
-      ( i0(p2,h1)           += -0.5 * t2(p2,p3,h4,h5) * t1_6_1(h4,h5,h1,p3))
-      ( i0(p2,h1)           += -0.5 * t2(p3,p4,h1,h5) * v2(h5,p2,p3,p4))
-    .deallocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
-    .execute();
+    sch.allocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1, _a28, _a34, _a17,
+                 _a99, _a102, _a128, _a122, _a22, _a148, _a149, _a172, _a175,
+                 _a263, _a249, _a275, _a287, _a4, _a9, _a302, _a303, _a378,
+                 _a405, _a408, _a477, _a74, _a50, _a62, _a88, _a209, _a234,
+                 _a198, _a223);
 
+    sch(t1_2_1(h7, h1) = 0)
+      (t1_3_1(p2, p3)  = 0);
+      
+    sch(i0(p2, h1) = f1(p2, h1))
+    (t1_2_1(h7, h1) = f1(h7, h1))
+    (t1_2_2_1(h7, p3) = f1(h7, p3));
+    //(ccsd_t1_2_2_2_ |= t1_2_2_1(h7, p3) += -1 * t1(p5, h6) * v2(h6, h7, p3,
+    //p5)) ccsd_t1.chol -> t1_14
+    for(auto x = 0; x < chol.size(); x++) {
+        Tensor<T>& cholx = (*(chol.at(x)));
+        sch (_a302(h2, h1) = 0)
+            (_a303() = 0)
+            (_a378(h2, h1) = 0)
+            (_a405(h3, h1) = 0)
+            (_a408(h2, h3) = 0)
+            (_a477(h2, h1) = 0);
+
+        sch(_a302(h2, h1) += 1.0 * t1(p1, h1) * cholx(h2, p1))(
+          _a303() += 1.0 * t1(p3, h3) * cholx(h3, p3))(
+          _a378(h2, h1) += 1.0 * _a302(h2, h1) * _a303())(
+          i0(p2, h1) += -1.0 * t1(p2, h2) * _a378(h2, h1))(
+          _a405(h3, h1) += 1.0 * t1(p1, h1) * cholx(h3, p1))(
+          _a408(h2, h3) += 1.0 * t1(p3, h3) * cholx(h2, p3))(
+          _a477(h2, h1) += 1.0 * _a405(h3, h1) * _a408(h2, h3))(
+          i0(p2, h1) += 1.0 * t1(p2, h2) * _a477(h2, h1));
+    }
+
+    sch(t1_2_1(h7, h1) += t1(p3, h1) * t1_2_2_1(h7, p3));
+
+    //(ccsd_t1_2_3_ |= t1_2_1(h7, h1) += -1 * t1(p4, h5) * v2(h5, h7, h1, p4));
+    // ccsd_t1.chol -> t1_9
+    for(auto x = 0; x < chol.size(); x++) {
+        Tensor<T>& cholx = (*(chol.at(x)));
+        sch (_a50(h2, h3) = 0)
+            (_a62(h2, h1) = 0)
+            (_a74() = 0)
+            (_a88(h2, h1) = 0);
+
+        sch(_a50(h2, h3) += 1.0 * t1(p1, h3) * cholx(h2, p1))(
+          _a62(h2, h1) += 1.0 * cholx(h3, h1) * _a50(h2, h3))(
+          i0(p2, h1) += 1.0 * t1(p2, h2) * _a62(h2, h1))(
+          _a74() += 1.0 * t1(p1, h3) *
+                   cholx(h3, p1))
+          (_a88(h2, h1) += 1.0 * cholx(h2, h1) * _a74())(
+          i0(p2, h1) += -1.0 * t1(p2, h2) * _a88(h2, h1));
+    }
+
+    //(ccsd_t1_2_4_ |= t1_2_1(h7, h1) += -0.5 * t2(p3, p4, h1, h5) * v2(h5, h7,
+    //p3, p4)) ccsd_t1.chol -> t1_12
+    for(auto x = 0; x < chol.size(); x++) {
+        Tensor<T>& cholx = (*(chol.at(x)));
+        sch(_a198(p1, h1) = 0)
+        (_a209(h3, h1) = 0)
+        (_a223(p3, h1) = 0)
+        (_a234(h3, h1) = 0);
+
+        sch(_a198(p1, h1) += 1.0 * t2(p1, p3, h2, h1) * cholx(h2, p3))(
+          _a209(h3, h1) += 1.0 * cholx(h3, p1) * _a198(p1, h1))(
+          i0(p2, h1) += 0.5 * t1(p2, h3) * _a209(h3, h1))(
+          _a223(p3, h1) += 1.0 * t2(p1, p3, h2, h1) * cholx(h2, p1))(
+          _a234(h3, h1) += 1.0 * cholx(h3, p3) * _a223(p3, h1))(
+          i0(p2, h1) += -0.5 * t1(p2, h3) * _a234(h3, h1));
+    }
+    sch(i0(p2, h1) += -1 * t1(p2, h7) * t1_2_1(h7, h1))(t1_3_1(p2, p3) =
+                                                          f1(p2, p3));
+    //(ccsd_t1_3_2_  |= t1_3_1(p2,p3) += -1 * t1(p4,h5) * v2(h5,p2,p3,p4))
+    // ccsd_t1.chol -> t1_10
+    for(auto x = 0; x < chol.size(); x++) {
+        Tensor<T>& cholx = (*(chol.at(x)));
+        sch(_a99() = 0)
+        (_a102(p1, h1) = 0)
+        (_a122(h2, h1) = 0)
+        (_a128(p3, h1) = 0);
+
+        sch(_a99() += 1.0 * t1(p3, h2) *
+                     cholx(h2, p3))
+        (_a102(p1, h1) += 1.0 * t1(p1, h1) * _a99())(
+          i0(p2, h1) += 1.0 * cholx(p2, p1) * _a102(p1, h1))(
+          _a122(h2, h1) += 1.0 * t1(p1, h1) * cholx(h2, p1))(
+          _a128(p3, h1) += 1.0 * t1(p3, h2) * _a122(h2, h1))(
+          i0(p2, h1) += -1.0 * cholx(p2, p3) * _a128(p3, h1));
+    }
+    sch(i0(p2, h1) += t1(p3, h1) * t1_3_1(p2, p3));
+
+    //(ccsd_t1_4_    |= i0(p2,h1) += -1   * t1(p3,h4) * v2(h4,p2,h1,p3))
+    // ccsd_t1.chol -> t1_4
+    for(auto x = 0; x < chol.size(); x++) {
+        Tensor<T>& cholx = (*(chol.at(x)));
+        sch(_a4(p2, h2) = 0)
+            (_a9() = 0);
+            
+        sch(_a4(p2, h2) += 1.0 * t1(p1, h2) * cholx(p2, p1))(
+          i0(p2, h1) += -1.0 * cholx(h2, h1) * _a4(p2, h2))
+          (_a9() += 1.0 * t1(p1, h2) * cholx(h2, p1))(
+          i0(p2, h1) += 1.0 * cholx(p2, h1) * _a9());
+    }
+    sch(t1_5_1(h8, p7) = f1(h8, p7));
+
+    //(ccsd_t1_5_2_  |= t1_5_1(h8,p7) +=  t1(p5,h6) * v2(h6,h8,p5,p7))
+    // ccsd_t1.chol -> t1_13
+    for(auto x = 0; x < chol.size(); x++) {
+        Tensor<T>& cholx = (*(chol.at(x)));
+        sch(_a249() = 0)
+        (_a263(h2, p1) = 0)
+        (_a275(h2, h3) = 0)
+        (_a287(h2, p1) = 0);
+
+        sch(_a249() += 1.0 * t1(p3, h3) * cholx(h3, p3))(
+          _a263(h2, p1) += 1.0 * cholx(h2, p1) * _a249())(
+          i0(p2, h1) += 1.0 * t2(p1, p2, h2, h1) * _a263(h2, p1))(
+          _a275(h2, h3) += 1.0 * t1(p3, h3) * cholx(h2, p3))(
+          _a287(h2, p1) += 1.0 * cholx(h3, p1) * _a275(h2, h3))(
+          i0(p2, h1) += -1.0 * t2(p1, p2, h2, h1) * _a287(h2, p1));
+    }
+    sch(i0(p2, h1) += t2(p2, p7, h1, h8) * t1_5_1(h8, p7));
+
+    /*(ccsd_t1_6_1_  |= t1_6_1(h4,h5,h1,p3)   =  v2(h4,h5,h1,p3))
+    (ccsd_t1_6_2_  |= t1_6_1(h4,h5,h1,p3) += -1   * t1(p6,h1) * v2(h4,h5,p3,p6))
+    (ccsd_t1_6_    |= i0(p2,h1) += -0.5 * t2(p2,p3,h4,h5) *
+    t1_6_1(h4,h5,h1,p3))*/
+    // ccsd_t1.chol -> t1_6,t1_11
+    for(auto x = 0; x < chol.size(); x++) {
+        Tensor<T>& cholx = (*(chol.at(x)));
+        sch(_a17(p2, h2) = 0)
+        (_a22(p2, h3) = 0)
+        (_a148(p2, h2) = 0)
+        (_a149(h2, h1) = 0)
+        (_a172(p2, h3) = 0)
+        (_a175(h3, h1) = 0)
+        (_a28(p3, h1) = 0)
+        (_a34(p1, h1) = 0);
+
+        sch(_a17(p2, h2) += 1.0 * t2(p1, p2, h2, h3) * cholx(h3, p1))(
+          i0(p2, h1) += 0.5 * cholx(h2, h1) * _a17(p2, h2))(
+          _a22(p2, h3) += 1.0 * t2(p1, p2, h2, h3) * cholx(h2, p1))(
+          i0(p2, h1) += -0.5 * cholx(h3, h1) * _a22(p2, h3))(
+          _a148(p2, h2) += 1.0 * t2(p1, p2, h2, h3) * cholx(h3, p1))(
+          _a149(h2, h1) += 1.0 * t1(p3, h1) * cholx(h2, p3))(
+          i0(p2, h1) += 0.5 * _a148(p2, h2) * _a149(h2, h1))(
+          _a172(p2, h3) += 1.0 * t2(p1, p2, h2, h3) * cholx(h2, p1))(
+          _a175(h3, h1) += 1.0 * t1(p3, h1) * cholx(h3, p3))(
+          i0(p2, h1) += -0.5 * _a172(p2, h3) * _a175(h3, h1))
+          //(ccsd_t1_7_ |= i0(p2,h1) += -0.5 * t2(p3,p4,h1,h5) * v2(h5,p2,
+          //p3,p4)) ccsd_t1.chol -> t1_7
+          (_a28(p3, h1) += 1.0 * t2(p1, p3, h2, h1) * cholx(h2, p1))(
+            i0(p2, h1) += 0.5 * cholx(p2, p3) * _a28(p3, h1))(
+            _a34(p1, h1) += 1.0 * t2(p1, p3, h2, h1) * cholx(h2, p3))(
+            i0(p2, h1) += -0.5 * cholx(p2, p1) * _a34(p1, h1));
+    }
+    sch.deallocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1, _a28, _a34, _a17,
+                   _a99, _a102, _a128, _a122, _a22, _a148, _a149, _a172, _a175,
+                   _a263, _a249, _a275, _a287, _a4, _a9, _a302, _a303, _a378,
+                   _a405, _a408, _a477, _a74, _a50, _a62, _a88, _a209, _a234,
+                   _a198, _a223);
+    sch.execute();
 }
 
 template<typename T>
@@ -134,6 +308,8 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     std::tie(h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11) = MO.labels<11>("occ");
 
     Scheduler sch{&ec};
+
+    #if 1
     sch.allocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
              t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1)
     (i0(p3, p4, h1, h2) = v2(p3, p4, h1, h2))
@@ -224,6 +400,587 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     (t2(p2, p1, h4, h3) += -0.5 * t1(p1, h3) * t1(p2, h4)) //perms
     .deallocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
               t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1);
+    #endif
+
+    #if 0
+
+    Tensor<T> _a3{V, O};
+    Tensor<T> _a16{V, O};
+
+    Tensor<T> _a116{V, O};
+    Tensor<T> _a119{V, O};
+    Tensor<T> _a143{O, O};
+    Tensor<T> _a146{V, O};
+
+    Tensor<T> _a67{V, O};
+    Tensor<T> _a68{V, O};
+    Tensor<T> _a47{V, O};
+    Tensor<T> _a42{V, V, O, O}; // VV_NS | OO_NS
+
+    Tensor<T> _a385{V, V, O, O}; // VV_NS | OO_NS
+    Tensor<T> _a54{V, V, O, O};  // VV_NS | OO_NS
+    Tensor<T> _a30{V, V, O, O};  // VV_NS | OO_NS
+
+    Tensor<T> _a482{};
+    Tensor<T> _a496{V, V};
+    Tensor<T> _a508{V, O};
+    Tensor<T> _a505{V, O, O, O};
+
+    Tensor<T> _a382{O, O};
+    Tensor<T> _a405{V, O};
+    Tensor<T> _a408{V, O};
+
+    Tensor<T> _a430{V, O, O, O}; // | OO_NS
+    Tensor<T> _a443{V, O, O, O}; // | OO_NS
+                                 // Tensor<T> _a455 {V,O , O, O}; // | OO_NS
+                                 // Tensor<T> _a468 {V,O , O, O}; // | OO_NS
+
+    Tensor<T> _a333{O, O};
+    Tensor<T> _a345{O, O};
+    Tensor<T> _a357{};
+    Tensor<T> _a371{O, O};
+
+    Tensor<T> _a233{O, O};
+    Tensor<T> _a238{V, V, O, O}; // VV_NS |  OO_NS
+                                 // auto &_a257 {O , O};
+                                 // auto &_a260 {V, V , O, O}; //VV_NS |  OO_NS
+
+    Tensor<T> _a281{V, O};
+    Tensor<T> _a282{V, O};
+    Tensor<T> _a305{V, O, O, O}; // | OO_NS
+    Tensor<T> _a318{V, O, O, O}; // | OO_NS
+
+    Tensor<T> _a531{V, O, O, O}; // | OO_NS
+    Tensor<T> _a532{V, O};
+    Tensor<T> _a583{V, O, O, O}; // | OO_NS
+    Tensor<T> _a595{O, O, O, O}; // OO_NS |
+
+    Tensor<T> _a636{V, O};
+    Tensor<T> _a650{O, O};
+
+    //_a685,_a686,_a709,_a712
+    Tensor<T> _a685{V, O};
+    Tensor<T> _a686{V, O};
+    Tensor<T> _a709{V, O, O, O}; // | OO_NS
+    Tensor<T> _a712{V, O, O, O}; // | OO_NS
+
+    //_a2069,_a2070,_a2091,_a2112,_a2473,_a2476,_a2502,_a2511
+    Tensor<T> _a2091{V, O};
+    Tensor<T> _a2112{V, O};
+    Tensor<T> _a2502{V, O};
+    Tensor<T> _a2511{V, O};
+    Tensor<T> _a2069{O, O};
+    Tensor<T> _a2070{O, O};
+    Tensor<T> _a2473{O, O};
+    Tensor<T> _a2476{O, O};
+
+    //_a738,_a755,_a837,_a862, _a741, _a841
+    Tensor<T> _a738{V, O};
+    Tensor<T> _a755{V, O};
+    Tensor<T> _a837{V, O};
+    Tensor<T> _a862{V, O};
+    Tensor<T> _a741{O, O};
+    Tensor<T> _a841{O, O};
+
+    //_a1134,_a1160,_a1136,_a1226,_a1256,_a1230
+    Tensor<T> _a1134{O, O};
+    Tensor<T> _a1160{V, V, O, O};
+    Tensor<T> _a1136{O, O};
+    Tensor<T> _a1226{O, O};
+    Tensor<T> _a1256{V, V, O, O};
+    Tensor<T> _a1230{O, O};
+
+    //_a1566,_a1509,_a1511,_a1655,_a1598,_a1602
+    Tensor<T> _a1566{O, O};
+    Tensor<T> _a1509{O, O};
+    Tensor<T> _a1511{O, O};
+    Tensor<T> _a1655{O, O};
+    Tensor<T> _a1598{O, O};
+    Tensor<T> _a1602{};
+
+    //_a1755,_a1724,_a1694,_a1850,_a1819,_a1789
+    Tensor<T> _a1755{V, O, O, O};
+    Tensor<T> _a1694{V, O, O, O};
+    Tensor<T> _a1724{O, O, O, O}; // OO_NS|
+
+    //_a1945,_a1911,_a1882,_a1972,_a2036,_a2003
+    Tensor<T> _a1945{V, O, O, O};
+    Tensor<T> _a1911{O, V};
+    Tensor<T> _a1882{O, O};
+    Tensor<T> _a2036{V, O, O, O};
+    Tensor<T> _a2003{O, V};
+    Tensor<T> _a1972{};
+
+    //_a1324,_a1333,_a1323,_a1488,_a1420,_a1423
+    Tensor<T> _a1324{V, O};
+    Tensor<T> _a1333{V, O};
+    Tensor<T> _a1323{O, O};
+    Tensor<T> _a1488{V, O, O, O};
+    Tensor<T> _a1420{O, O};
+    Tensor<T> _a1423{V, O, O, O};
+
+    //------------------------------CD------------------------------
+      sch.allocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
+            t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1, _a54, _a3, _a16, _a30,
+            _a42, _a47, _a67, _a68, _a482, _a496, _a505, _a508, _a382, _a385,
+            _a405, _a408, _a430, _a443, _a333, _a345, _a357, _a371, _a233,
+            _a238, _a281, _a282, _a305, _a318, _a119, _a116, _a143, _a146,
+            _a531, _a532, _a583, _a595, _a636, _a650, _a685, _a686, _a709,
+            _a712, _a738, _a755, _a837, _a862, _a741, _a841, _a2069, _a2070,
+            _a2091, _a2112, _a2473, _a2476, _a2502, _a2511, _a1134, _a1160,
+            _a1136, _a1226, _a1256, _a1230, _a1566, _a1509, _a1511, _a1655,
+            _a1598, _a1602, _a1755, _a1724, _a1694, _a1945, _a1911, _a1882,
+            _a1972, _a2036, _a2003, _a1324, _a1333, _a1323, _a1488, _a1420,
+            _a1423);
+
+  sch(i0() = 0)
+    (t2_4_1(h9, h1) = 0)
+    (t2_5_1(p3, p5) = 0);
+  //sch(ccsd_t2_1_     |= i0(p3,p4,h1,h2)  =  v2(p3,p4,h1,h2));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(i0(p3, p4, h1, h2) += 1.0 * cholx(p3, h1) * cholx(p4, h2))
+        (i0(p3, p4, h1, h2) += -1.0 * cholx(p3, h2) * cholx(p4, h1));
+  }
+  sch(i0(p3, p4, h1, h2) = 0.25 * i0(p3, p4, h1, h2));
+
+//  sch(ccsd_t2_2_1_   |= t2_2_1(h10,p3,h1,h2)  =  v2(h10,p3,h1,h2));
+  sch(t2_2_1() = 0);
+  
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a3(p3, h1) = 0);
+
+    sch(_a3(p3, h1) += 1.0 * t1(p3, h3) * cholx(h3, h1))
+        (i0(p3, p4, h1, h2) += -1.0 * cholx(p4, h2) * _a3(p3, h1));
+  }
+
+  // sch(ccsd_t2_2_2_1_ |= t2_2_2_1(h10,h11,h1,h2)    = -1  *  v2(h10,h11,h1,h2));
+  sch(t2_2_2_1() = 0);
+
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch  (_a67(p4, h2) = 0)
+         (_a68(p3, h1) = 0);
+
+    sch(_a67(p4, h2) += 1.0 * t1(p4, h3) * cholx(h3, h2))
+        (_a68(p3, h1) += 1.0 * t1(p3, h4) * cholx(h4, h1))
+        (i0(p3, p4, h1, h2) += 0.5 * _a67(p4, h2) * _a68(p3, h1));
+  }
+
+  //sch(ccsd_t2_2_2_2_1_ |= t2_2_2_2_1(h10,h11,h1,p5)   =   v2(h10,h11,h1,p5));
+
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(t2_2_2_2_1() = 0)
+    (_a741(h3, h2) = 0)
+    (_a738(p3, h1) = 0)
+    (_a755(p4, h2) = 0)
+    (_a841(h4, h2) = 0)
+    (_a837(p4, h1) = 0)
+    (_a862(p3, h2) = 0);
+
+    sch(_a741(h3, h2) += 1.0 * t1(p1, h2) * cholx(h3, p1))
+        (_a738(p3, h1) += 1.0 * t1(p3, h4) * cholx(h4, h1))
+        (_a755(p4, h2) += 1.0 * t1(p4, h3) * _a741(h3, h2))
+        (_a841(h4, h2) += 1.0 * t1(p1, h2) * cholx(h4, p1))
+        (_a837(p4, h1) += 1.0 * t1(p4, h3) * cholx(h3, h1))
+        (_a862(p3, h2) += 1.0 * t1(p3, h4) * _a841(h4, h2))
+        (i0(p3, p4, h1, h2) += 0.5 * _a738(p3, h1) * _a755(p4, h2))
+        (i0(p3, p4, h1, h2) += -0.5 * _a837(p4, h1) * _a862(p3, h2));
+  }
+
+  //sch(ccsd_t2_2_2_2_2_ |= t2_2_2_2_1(h10,h11,h1,p5) += -0.5 * t1(p6,h1) * v2(h10,h11,p5,p6));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a2069(h3, h1) = 0)
+    (_a2091(p4, h1) = 0)
+    (_a2070(h4, h2) = 0)
+    (_a2112(p3, h2) = 0)
+    (_a2473(h4, h1) = 0)
+    (_a2476(h3, h2) = 0)
+    (_a2502(p4, h2) = 0)
+    (_a2511(p3, h1) = 0);
+
+    sch(_a2069(h3, h1) += 1.0 * t1(p1, h1) * cholx(h3, p1))
+        (_a2091(p4, h1) += 1.0 * t1(p4, h3) * _a2069(h3, h1))
+        (_a2070(h4, h2) += 1.0 * t1(p2, h2) * cholx(h4, p2))
+        (_a2112(p3, h2) += 1.0 * t1(p3, h4) * _a2070(h4, h2))
+        (_a2473(h4, h1) += 1.0 * t1(p1, h1) * cholx(h4, p1))
+        (_a2476(h3, h2) += 1.0 * t1(p2, h2) * cholx(h3, p2))
+        (_a2502(p4, h2) += 1.0 * t1(p4, h3) * _a2476(h3, h2))
+        (_a2511(p3, h1) += 1.0 * t1(p3, h4) * _a2473(h4, h1))
+        (i0(p3, p4, h1, h2) += -0.25 * _a2091(p4, h1) * _a2112(p3, h2))
+        (i0(p3, p4, h1, h2) += 0.25 * _a2502(p4, h2) * _a2511(p3, h1));
+  }
+
+  sch(t2_2_2_1(h10, h11, h1, h2) +=
+                            t1(p5, h1) * t2_2_2_2_1(h10, h11, h2, p5));
+
+  //sch(ccsd_t2_2_2_3_ |= t2_2_2_1(h10,h11,h1,h2)   += -0.5 * t2(p7,p8,h1,h2) * v2(h10,h11,p7,p8));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a1694(p1, h3, h1, h2) = 0)
+    (_a1724(h4, h3, h1, h2) = 0)
+    (_a1755(p3, h3, h1, h2) = 0);
+
+    sch(_a1694(p1, h3, h1, h2) += 1.0 * t2(p1, p2, h1, h2) * cholx(h3, p2))
+        (_a1724(h4, h3, h1, h2) += 1.0 * cholx(h4, p1) * _a1694(p1, h3, h1, h2))
+        (_a1755(p3, h3, h1, h2) += 1.0 * t1(p3, h4) * _a1724(h4, h3, h1, h2))
+        (i0(p3, p4, h1, h2) += 0.25 * t1(p4, h3) * _a1755(p3, h3, h1, h2));
+  }
+
+  sch(t2_2_1(h10, p3, h1, h2) +=
+                          0.5 * t1(p3, h11) * t2_2_2_1(h10, h11, h1, h2));
+  sch(t2_2_4_1(h10, p5) = f1(h10, p5));
+
+  //sch(ccsd_t2_2_4_2_ |= t2_2_4_1(h10,p5) += -1   * t1(p6,h7) * v2(h7,h10,p5,p6));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+
+    sch(_a1882(h3, h4) = 0)
+    (_a1911(h3, p2) = 0)
+    (_a1945(p3, h3, h1, h2) = 0)
+    (_a1972() = 0)
+    (_a2003(h3, p2) = 0)
+    (_a2036(p3, h3, h1, h2) = 0);
+
+    sch(_a1882(h3, h4) += 1.0 * t1(p1, h4) * cholx(h3, p1))
+        (_a1911(h3, p2) += 1.0 * cholx(h4, p2) * _a1882(h3, h4))
+        (_a1945(p3, h3, h1, h2) += 1.0 * t2(p2, p3, h1, h2) * _a1911(h3, p2))
+        (_a1972() += 1.0 * t1(p1, h4) * cholx(h4, p1))
+        (_a2003(h3, p2) += 1.0 * cholx(h3, p2) * _a1972())
+        (_a2036(p3, h3, h1, h2) += 1.0 * t2(p2, p3, h1, h2) * _a2003(h3, p2))
+        (i0(p3, p4, h1, h2) += -0.5 * t1(p4, h3) * _a1945(p3, h3, h1, h2))
+        (i0(p3, p4, h1, h2) += 0.5 * t1(p4, h3) * _a2036(p3, h3, h1, h2));
+  }
+
+  sch(t2_2_1(h10, p3, h1, h2) +=
+                          -1 * t2(p3, p5, h1, h2) * t2_2_4_1(h10, p5));
+
+  //(ccsd_t2_2_5_1_ |= t2_2_5_1(h7,h10,h1,p9)      =  v2(h7,h10,h1,p9))
+  sch(t2_2_5_1() = 0);
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a281(p3, h2) = 0)
+    (_a282(p4, h1) = 0)
+    (_a305(p3, h4, h3, h2) = 0)
+    (_a318(p3, h4, h1, h2) = 0);
+
+    sch(_a281(p3, h2) += 1.0 * t2(p1, p3, h3, h2) * cholx(h3, p1))
+        (_a282(p4, h1) += 1.0 * t1(p4, h4) * cholx(h4, h1))
+        (i0(p3, p4, h1, h2) += 1.0 * _a281(p3, h2) * _a282(p4, h1))
+        (_a305(p3, h4, h3, h2) += 1.0 * t2(p1, p3, h3, h2) * cholx(h4, p1))
+        (_a318(p3, h4, h1, h2) += 1.0 * cholx(h3, h1) * _a305(p3, h4, h3, h2))
+        (i0(p3, p4, h1, h2) += -1.0 * t1(p4, h4) * _a318(p3, h4, h1, h2));
+  }
+
+  // sch(ccsd_t2_2_5_2_ |= t2_2_5_1(h7,h10,h1,p9) + =  t1(p5,h1) * v2(h7,h10,p5,p9));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a1324(p3, h2) = 0)
+       (_a1323(h3, h1) = 0)
+       (_a1333(p4, h1) = 0)
+       (_a1420(h4, h1) = 0)
+       (_a1423(p3, h3, h4, h2) = 0)
+       (_a1488(p3, h3, h1, h2) = 0);
+
+    sch(_a1324(p3, h2) += 1.0 * t2(p2, p3, h4, h2) * cholx(h4, p2))
+        (_a1323(h3, h1) += 1.0 * t1(p1, h1) * cholx(h3, p1))
+        (_a1333(p4, h1) += 1.0 * t1(p4, h3) * _a1323(h3, h1))
+        (_a1420(h4, h1) += 1.0 * t1(p1, h1) * cholx(h4, p1))
+        (_a1423(p3, h3, h4, h2) += 1.0 * t2(p2, p3, h4, h2) * cholx(h3, p2))
+        (_a1488(p3, h3, h1, h2) += 1.0 * _a1420(h4, h1) * _a1423(p3, h3, h4, h2))
+        (i0(p3, p4, h1, h2) += 1.0 * _a1324(p3, h2) * _a1333(p4, h1))
+        (i0(p3, p4, h1, h2) += -1.0 * t1(p4, h3) * _a1488(p3, h3, h1, h2));
+  }
+
+  sch(t2_2_1(h10, p3, h1, h2) +=
+                          t2(p3, p9, h1, h7) * t2_2_5_1(h7, h10, h2, p9))
+      (/*c2f_t2_t12_ |= */ t2(p1, p2, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4));
+
+  //sch(ccsd_t2_2_6_ |= t2_2_1(h10,p3,h1,h2)      += 0.5  * t2(p5,p6,h1,h2) * v2(h10,p3,p5,p6));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+
+    sch(_a430(p2, h3, h1, h2) = 0)
+    (_a443(p4, h3, h1, h2) = 0);
+
+    sch(_a430(p2, h3, h1, h2) += 1.0 * t2(p1, p2, h1, h2) * cholx(h3, p1))
+        (_a443(p4, h3, h1, h2) += 1.0 * cholx(p4, p2) * _a430(p2, h3, h1, h2))
+        (i0(p3, p4, h1, h2) += -0.5 * t1(p3, h3) * _a443(p4, h3, h1, h2));
+//        (_a455(p1, h3, h1, h2) = 1.0 * t2(p1, p2, h1, h2) * cholx(h3, p2))
+//        (_a468(p4, h3, h1, h2) = 1.0 * cholx(p4, p1) * _a455(p1, h3, h1, h2))
+//        (i0(p3, p4, h1, h2) += 0.25 * t1(p3, h3) * _a468(p4, h3, h1, h2));
+  }
+
+  sch(/*c2d_t2_t12_ |= */ t2(p1, p2, h3, h4) += -0.5 * t1(p1, h3) * t1(p2, h4))
+      (i0(p3, p4, h1, h2) +=
+                         -1 * t1(p3, h10) * t2_2_1(h10, p4, h1, h2));
+
+  // sch(lccsd_t2_3x_ |= i0(p3,p4,h1,h2) += -1   * t1(p5,h1) * v2(p3,p4,h2,p5));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a16(p4, h2) = 0);
+    sch(_a16(p4, h2) += 1.0 * t1(p1, h2) * cholx(p4, p1))
+        (i0(p3, p4, h1, h2) += 1 * cholx(p3, h1) * _a16(p4, h2));
+  }
+
+  sch(t2_4_1(h9, h1) = f1(h9, h1))
+      (t2_4_2_1(h9, p8) = f1(h9, p8));
+
+  // sch(ccsd_t2_4_2_2_ |= t2_4_2_1(h9,p8) + =  t1(p6,h7) * v2(h7,h9,p6,p8));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a1509(h3, h1) = 0)
+    (_a1511(h4, h3) = 0)
+    (_a1566(h4, h1) = 0)
+    (_a1602() = 0)
+    (_a1598(h4, h1) = 0)
+    (_a1655(h4, h1) = 0);
+
+    sch(_a1509(h3, h1) += 1.0 * t1(p1, h1) * cholx(h3, p1))
+        (_a1511(h4, h3) += 1.0 * t1(p2, h3) * cholx(h4, p2))
+        (_a1566(h4, h1) += 1.0 * _a1509(h3, h1) * _a1511(h4, h3))
+        (_a1602() += 1.0 * t1(p2, h3) * cholx(h3, p2))
+        (_a1598(h4, h1) += 1.0 * t1(p1, h1) * cholx(h4, p1))
+        (_a1655(h4, h1) += 1.0 * _a1598(h4, h1) * _a1602())
+        (i0(p3, p4, h1, h2) += 1.0 * t2(p3, p4, h4, h2) * _a1566(h4, h1))
+        (i0(p3, p4, h1, h2) += -1.0 * t2(p3, p4, h4, h2) * _a1655(h4, h1));
+  }
+
+  sch(t2_4_1(h9, h1) += t1(p8, h1) * t2_4_2_1(h9, p8));
+
+// (ccsd_t2_4_3_ |= t2_4_1(h9,h1) += -1   * t1(p6,h7) * v2(h7,h9,h1,p6))
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a333(h3, h4) = 0)
+        (_a345(h3, h1) = 0)
+        (_a357() = 0)
+        (_a371(h3, h1) = 0);
+
+    sch(_a333(h3, h4) += 1.0 * t1(p1, h4) * cholx(h3, p1))
+        (_a345(h3, h1) += 1.0 * cholx(h4, h1) * _a333(h3, h4))
+        (i0(p3, p4, h1, h2) += 1.0 * t2(p3, p4, h3, h2) * _a345(h3, h1))
+        (_a357() += 1.0 * t1(p1, h4) * cholx(h4, p1))
+        (_a371(h3, h1) += 1.0 * cholx(h3, h1) * _a357())
+        (i0(p3, p4, h1, h2) += -1.0 * t2(p3, p4, h3, h2) * _a371(h3, h1));
+  }
+
+  //sch(ccsd_t2_4_4_ |= t2_4_1(h9,h1) += -0.5 * t2(p6,p7,h1,h8) * v2(h8,h9,p6,p7));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a636(p2, h2) = 0)
+       (_a650(h3, h2) = 0);
+
+    sch(_a636(p2, h2) += 1.0 * t2(p1, p2, h4, h2) * cholx(h4, p1))
+        (_a650(h3, h2) += 1.0 * cholx(h3, p2) * _a636(p2, h2))
+        //(_a675(h3,h2) = 1.0 * cholx(h3,p1) * _a661(p1,h2))
+        //(_a661(p1,h2) = 1.0 * t2(p1,p2,h4,h2) * cholx(h4,p2))
+        (i0(p3, p4, h1, h2) += 1.0 * t2(p3, p4, h3, h1) * _a650(h3, h2));
+    //(i0(p3,p4,h1,h2) += -0.5 * t2(p3,p4,h3,h1) * _a675(h3,h2));
+  }
+
+  sch(i0(p3, p4, h1, h2) +=
+                        -1 * t2(p3, p4, h1, h9) * t2_4_1(h9, h2))
+      (t2_5_1(p3, p5) = f1(p3, p5));
+
+// sch(ccsd_t2_5_2_ |= t2_5_1(p3,p5) += -1   * t1(p6,h7) * v2(h7,p3,p5,p6));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a482() = 0)
+        (_a496(p4, p1) = 0)
+        (_a505(p3, h3, h1, h2) = 0)
+        (_a508(p4, h3) = 0);
+
+    sch(_a482() += 1.0 * t1(p2, h3) * cholx(h3, p2))
+        (_a496(p4, p1) += 1.0 * cholx(p4, p1) * _a482())
+        (i0(p3, p4, h1, h2) += -1.0 * t2(p1, p3, h1, h2) * _a496(p4, p1))
+        (_a505(p3, h3, h1, h2) += 1.0 * t2(p1, p3, h1, h2) * cholx(h3, p1))
+        (_a508(p4, h3) += 1.0 * t1(p2, h3) * cholx(p4, p2))
+        (i0(p3, p4, h1, h2) += 1.0 * _a505(p3, h3, h1, h2) * _a508(p4, h3));
+  }
+
+  //sch(ccsd_t2_5_3_ |= t2_5_1(p3,p5) += -0.5 * t2(p3,p6,h7,h8) * v2(h7,h8,p5,p6));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a531(p4, h4, h1, h2) = 0)
+        (_a532(p3, h4) = 0);
+
+    sch(_a531(p4, h4, h1, h2) += 1.0 * t2(p1, p4, h1, h2) * cholx(h4, p1))
+        (_a532(p3, h4) += 1.0 * t2(p2, p3, h3, h4) * cholx(h3, p2))
+        //(_a555(p4,h3,h1,h2) = 1.0 * t2(p1,p4,h1,h2) * cholx(h3,p1))
+        //(_a558(p3,h3) = 1.0 * t2(p2,p3,h3,h4) * cholx(h4,p2))
+        (i0(p3, p4, h1, h2) += -0.5 * _a531(p4, h4, h1, h2) * _a532(p3, h4));
+    //(i0(p3,p4,h1,h2) += 0.5 * _a555(p4,h3,h1,h2) * _a558(p3,h3));
+  }
+
+  sch(i0(p3, p4, h1, h2) +=
+                        1 * t2(p3, p5, h1, h2) * t2_5_1(p4, p5));
+
+  //(ccsd_t2_6_1_ |= t2_6_1(h9,h11,h1,h2) = -1   * v2(h9,h11,h1,h2));
+  sch(t2_6_1() = 0);
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a30(p3, p4, h3, h2) = 0);
+
+    sch(_a30(p3, p4, h3, h2) += 1.0 * t2(p3, p4, h3, h4) * cholx(h4, h2))
+        (i0(p3, p4, h1, h2) += 0.25 * cholx(h3, h1) * _a30(p3, p4, h3, h2));
+    //(i0(p3,p4,h1,h2) += -0.5 * cholx(h3,h2) * _a30(p3,p4,h3,h1));
+  }
+
+  //sch(ccsd_t2_6_2_1_ |= t2_6_2_1(h9,h11,h1,p8)      =  v2(h9,h11,h1,p8));
+  sch(t2_6_2_1() = 0);
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a233(h4, h2) = 0)
+        (_a238(p3, p4, h3, h2) = 0);
+
+    sch(_a233(h4, h2) += 1.0 * t1(p1, h2) * cholx(h4, p1))
+        (_a238(p3, p4, h3, h2) += 1.0 * t2(p3, p4, h3, h4) * _a233(h4, h2))
+        (i0(p3, p4, h1, h2) += 0.5 * cholx(h3, h1) * _a238(p3, p4, h3, h2));
+        //(_a257(h3, h2) = 1.0 * t1(p1, h2) * cholx(h3, p1))
+        //(_a260(p3, p4, h4, h2) = 1.0 * t2(p3, p4, h3, h4) * _a257(h3, h2));
+        //(i0(p3, p4, h1, h2) += -0.25 * cholx(h4, h1) * _a260(p3, p4, h4, h2));
+  }
+
+  //sch(ccsd_t2_6_2_2_ |= t2_6_2_1(h9,h11,h1,p8)    += 0.5  * t1(p6,h1) * v2(h9,h11,p6,p8));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a1134(h4, h1) = 0)
+    (_a1136(h3, h2) = 0)
+    (_a1160(p3, p4, h4, h2) = 0)
+    (_a1226(h3, h1) = 0)
+    (_a1230(h4, h2) = 0)
+    (_a1256(p3, p4, h3, h2) = 0);
+
+    sch(_a1134(h4, h1) += 1.0 * t1(p1, h1) * cholx(h4, p1))
+        (_a1136(h3, h2) += 1.0 * t1(p2, h2) * cholx(h3, p2))
+        (_a1160(p3, p4, h4, h2) += 1.0 * t2(p3, p4, h3, h4) * _a1136(h3, h2))
+        (_a1226(h3, h1) += 1.0 * t1(p1, h1) * cholx(h3, p1))
+        (_a1230(h4, h2) += 1.0 * t1(p2, h2) * cholx(h4, p2))
+        (_a1256(p3, p4, h3, h2) += 1.0 * t2(p3, p4, h3, h4) * _a1230(h4, h2))
+        (i0(p3, p4, h1, h2) += -0.25 * _a1134(h4, h1) * _a1160(p3, p4, h4, h2))
+        (i0(p3, p4, h1, h2) += 0.25 * _a1226(h3, h1) * _a1256(p3, p4, h3, h2));
+  }
+
+  sch(t2_6_1(h9, h11, h1, h2) +=
+                          t1(p8, h1) * t2_6_2_1(h9, h11, h2, p8));
+
+  //(ccsd_t2_6_3_ |= t2_6_1(h9,h11,h1,h2)      += -0.5 * t2(p5,p6,h1,h2) * v2(h9,h11,p5,p6))
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a583(p1, h4, h1, h2) = 0)
+    (_a595(h3, h4, h1, h2) = 0);
+
+    sch(_a583(p1, h4, h1, h2) += 1.0 * t2(p1, p2, h1, h2) * cholx(h4, p2))
+        (_a595(h3, h4, h1, h2) += 1.0 * cholx(h3, p1) * _a583(p1, h4, h1, h2))
+        //(_a610(p2,h4,h1,h2) = 1.0 * t2(p1,p2,h1,h2) * cholx(h4,p1))
+        //(_a622(h3,h4,h1,h2) = 1.0 * cholx(h3,p2) * _a610(p2,h4,h1,h2))
+        (i0(p3, p4, h1, h2) +=
+             0.25 * t2(p3, p4, h3, h4) * _a595(h3, h4, h1, h2));
+    //(i0(p3,p4,h1,h2) += -0.25 * t2(p3,p4,h3,h4) * _a622(h3,h4,h1,h2));
+  }
+
+  sch(i0(p3, p4, h1, h2) +=
+                        -0.5 * t2(p3, p4, h9, h11) * t2_6_1(h9, h11, h1, h2));
+
+  //  sch(ccsd_t2_7_1_ |= t2_7_1(h6,p3,h1,p5)   =  v2(h6,p3,h1,p5));
+  sch(t2_7_1() = 0);
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a42(p3, p4, h3, h2) = 0)
+       (_a47(p3, h2) = 0);
+
+    sch(_a42(p3, p4, h3, h2) += 1.0 * t2(p1, p3, h3, h2) * cholx(p4, p1))
+        (i0(p3, p4, h1, h2) += 1.0 * cholx(h3, h1) * _a42(p3, p4, h3, h2))
+        (_a47(p3, h2) += 1.0 * t2(p1, p3, h3, h2) * cholx(h3, p1))
+        (i0(p3, p4, h1, h2) += -1.0 * cholx(p4, h1) * _a47(p3, h2));
+  }
+
+
+  // sch(ccsd_t2_7_2_ |= t2_7_1(h6,p3,h1,p5) += -1 * t1(p7,h1) * v2(h6,p3,p5,p7));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a382(h3, h1) = 0)
+        (_a385(p1, p3, h2, h1) = 0)
+        (_a405(p3, h2) = 0)
+        (_a408(p4, h1) = 0);
+
+    sch(_a382(h3, h1) += 1.0 * t1(p2, h1) * cholx(h3, p2))
+        (_a385(p1, p3, h2, h1) += 1.0 * t2(p1, p3, h3, h2) * _a382(h3, h1))
+        (i0(p3, p4, h1, h2) += 1.0 * cholx(p4, p1) * _a385(p1, p3, h2, h1))
+        (_a405(p3, h2) += 1.0 * t2(p1, p3, h3, h2) * cholx(h3, p1))
+        (_a408(p4, h1) += 1.0 * t1(p2, h1) * cholx(p4, p2))
+        (i0(p3, p4, h1, h2) += -1.0 * _a405(p3, h2) * _a408(p4, h1));
+  }
+
+  //sch(ccsd_t2_7_3_ |= t2_7_1(h6,p3,h1,p5) += -0.5 * t2(p3,p7,h1,h8) * v2(h6,h8,p5,p7));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch (_a685(p4, h1) = 0)
+        (_a686(p3, h2) = 0)
+        (_a709(p4, h4, h3, h1) = 0)
+        (_a712(p3, h3, h4, h2) = 0);
+
+    sch(_a685(p4, h1) += 1.0 * t2(p1, p4, h3, h1) * cholx(h3, p1))
+        (_a686(p3, h2) += 1.0 * t2(p2, p3, h4, h2) * cholx(h4, p2))
+        (_a709(p4, h4, h3, h1) += 1.0 * t2(p1, p4, h3, h1) * cholx(h4, p1))
+        (_a712(p3, h3, h4, h2) += 1.0 * t2(p2, p3, h4, h2) * cholx(h3, p2))
+        (i0(p3, p4, h1, h2) += -0.5 * _a685(p4, h1) * _a686(p3, h2))
+        (i0(p3, p4, h1, h2) +=
+             0.5 * _a709(p4, h4, h3, h1) * _a712(p3, h3, h4, h2));
+  }
+
+  sch(i0(p3, p4, h1, h2) +=
+                        -1 * t2(p3, p5, h1, h6) * t2_7_1(h6, p4, h2, p5))
+      (vt1t1_1(h5, p3, h1, h2) = 0);
+
+  //sch(vt1t1_1_2_ |= vt1t1_1(h5,p3,h1,h2) += -2 * t1(p6,h1) * v2(h5,p3,h2,p6));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch (_a119(p4, h2) = 0)
+        (_a116(p3, h1) = 0)
+        (_a143(h3, h2) = 0)
+        (_a146(p3, h2) = 0);
+
+    sch(_a119(p4, h2) += 1.0 * t1(p1, h2) * cholx(p4, p1))
+        (_a116(p3, h1) += 1.0 * t1(p3, h3) * cholx(h3, h1))
+        (_a143(h3, h2) += 1.0 * t1(p1, h2) * cholx(h3, p1))
+        (_a146(p3, h2) += 1.0 * t1(p3, h3) * _a143(h3, h2))
+        (i0(p3, p4, h1, h2) += -1.0 * _a116(p3, h1) * _a119(p4, h2))
+        (i0(p3, p4, h1, h2) += 1.0 * cholx(p4, h1) * _a146(p3, h2));
+  }
+
+  sch(i0(p3, p4, h1, h2) +=
+                      -0.5 * t1(p3, h5) * vt1t1_1(h5, p4, h1, h2))
+      (/*c2f_t2_t12_ |= */ t2(p1, p2, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4));
+
+//(/*ccsd_t2_8_ |= */ i0(p3,p4,h1,h2) += 0.5 * t2(p5,p6,h1,h2) * v2(p3,p4,p5,p6));
+  for (auto x = 0; x < chol.size(); x++) {
+    Tensor<T> &cholx = (*(chol.at(x)));
+    sch(_a54(p1, p4, h1, h2) = 0);
+    sch(_a54(p1, p4, h1, h2) += 1.0 * t2(p1, p2, h1, h2) * cholx(p4, p2))
+        (i0(p3, p4, h1, h2) += 0.25 * cholx(p3, p1) * _a54(p1, p4, h1, h2));
+  }
+
+  sch(/*c2d_t2_t12_ |= */ t2(p1, p2, h3, h4) += -0.5 * t1(p1, h3) * t1(p2, h4));
+
+  sch.deallocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1,
+              t2_4_2_1, t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1, _a54, _a3,
+              _a16, _a30, _a42, _a47, _a67, _a68, _a482, _a496, _a505, _a1226,
+              _a508, _a116, _a119, _a143, _a146, _a382, _a385, _a405, _a408,
+              _a430, _a443, _a333, _a345, _a357, _a371, _a233, _a238, _a281,
+              _a282, _a305, _a318, _a531, _a532, _a583, _a595, _a636, _a650,
+              _a685, _a686, _a709, _a712, _a2069, _a2070, _a2091, _a2112,
+              _a2473, _a2476, _a2502, _a2511, _a738, _a755, _a837, _a862, _a741,
+              _a841, _a1134, _a1160, _a1136, _a1256, _a1230, _a1566, _a1509,
+              _a1511, _a1655, _a1598, _a1602, _a1755, _a1724, _a1694, _a1945,
+              _a1911, _a1882, _a1972, _a2036, _a2003, _a1324, _a1333, _a1323,
+              _a1488, _a1420, _a1423);
+    //-----------------------------CD----------------------------------
+    #endif
+
     sch.execute();
 
 }

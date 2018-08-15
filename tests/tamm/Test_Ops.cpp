@@ -1144,19 +1144,16 @@ TEST_CASE("addop with float") {
     test_addop_with_T<float>(3);
 }
 
-#if 0
-//  FIXME: Fix compiling errors on LabeledTensor
-// TEST_CASE("addop with single complex") {
-//     test_addop_with_T<complex_single>(1);
-//     test_addop_with_T<complex_single>(3);
-// }
+TEST_CASE("addop with single complex") {
+    test_addop_with_T<complex_single>(1);
+    test_addop_with_T<complex_single>(3);
+}
 
-//  FIXME: Fix compiling errors on LabeledTensor
-// TEST_CASE("addop with double complex") {
-//     test_addop_with_T<complex_double>(1);
-//     test_addop_with_T<complex_double>(3);
-// }
-#endif
+TEST_CASE("addop with double complex") {
+    test_addop_with_T<complex_double>(1);
+    test_addop_with_T<complex_double>(3);
+}
+
 
 
 #if 1

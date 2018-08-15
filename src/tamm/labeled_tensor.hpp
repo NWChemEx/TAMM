@@ -492,7 +492,9 @@ protected:
     }
 
     template<typename T1,
-             typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+             //not needed since T1 is static cast to T before calling construct_addop
+             //typename = std::enable_if_t<std::is_arithmetic<T1>::value>
+             typename = std::enable_if_t<std::is_same_v<T1,T>> >
     AddOp<T1, LabeledTensor<T>> construct_addop(
       const std::tuple<T1, LabeledTensor<T>>& rhs, bool is_assign) {
         addop_validate(*this,
@@ -503,7 +505,9 @@ protected:
     }
 
     template<typename T1,
-             typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+             //not needed since T1 is static cast to T before calling construct_multop
+             //typename = std::enable_if_t<std::is_arithmetic<T1>::value>
+             typename = std::enable_if_t<std::is_same_v<T1,T>> >
     MultOp<T1, LabeledTensor<T>> construct_multop(
       const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs,
       bool is_assign) {

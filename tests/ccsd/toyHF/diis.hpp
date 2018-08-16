@@ -48,8 +48,8 @@ inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
                 for(int i = 0, c = 0; i < isize; i++) {
                     for(int j = 0; j < jsize; j++, c++) {
                         tbuf[c] =
-                          rbuf[c] / (-p_evl_sorted_occ[joff + j] +
-                                     p_evl_sorted_virt[ioff + i] + shift);
+                          rbuf[c] / (p_evl_sorted_occ[ioff + i] -
+                                     p_evl_sorted_virt[joff + j] + shift);
                     }
                 }
             }
@@ -85,10 +85,10 @@ inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
                             for(int i3 = 0; i3 < isize[3]; i3++, c++) {
                                 tbuf[c] =
                                   rbuf[c] /
-                                  (-p_evl_sorted_occ[ioff[2] + i2] -
-                                   p_evl_sorted_occ[ioff[3] + i3] +
-                                   p_evl_sorted_virt[ioff[0] + i0] +
-                                   p_evl_sorted_virt[ioff[1] + i1] + shift);
+                                  (p_evl_sorted_occ[ioff[0] + i0] +
+                                   p_evl_sorted_occ[ioff[1] + i1] -
+                                   p_evl_sorted_virt[ioff[2] + i2] -
+                                   p_evl_sorted_virt[ioff[3] + i3] + shift);
                             }
                         }
                     }

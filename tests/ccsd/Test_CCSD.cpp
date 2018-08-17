@@ -778,5 +778,6 @@ TEST_CASE("CCSD Driver") {
 
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
   MemoryManagerGA::destroy_coll(mgr);
+  delete ec;
 
 }

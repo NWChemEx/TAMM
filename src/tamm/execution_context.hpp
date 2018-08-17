@@ -150,12 +150,36 @@ public:
         default_memory_manager_ = memory_manager;
     }
 
+    /**
+     * @brief Flush communication in this execution context, synchronize, and 
+     * delete any tensors allocated in this execution context that have gone 
+     * out of scope.
+     * 
+     * @bug @fixme @todo Actually perform a communication/RMA fence
+     * 
+     */
+    void flush_and_sync() {
+        pg_.barrier();
+        for(auto& tb : tensors_to_dealloc_) {
+            tb->deallocate();
+            delete ti;
+        }
+        tensors_to_dealloc_.clear();
+    }
+
+    void register_for_dealloc(TensorBase* tb) {
+        EXPECTS(tb->allocation_status() == AllocationStatus::created);
+        tensors_to_dealloc_.push_back(tb);
+    }
+
 private:
     ProcGroup pg_;
     ProcGroup pg_self_;
     Distribution* default_distribution_;
     MemoryManager* default_memory_manager_;
     MemoryManagerLocal* memory_manager_local_;
+
+    std::vector<TensorBase*> tensors_to_dealloc_;
 
 }; // class ExecutionContext
 

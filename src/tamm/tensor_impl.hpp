@@ -143,33 +143,32 @@ public:
     // Dtor
     ~TensorImpl() = default;
 
-    void deallocate() {
-        EXPECTS(allocation_status_ != AllocationStatus::invalid);
-        EXPECTS(mpb_);
-        mpb_->dealloc_coll();
-        update_status(AllocationStatus::invalid);
-    }
+  void deallocate() override {
+    EXPECTS(allocation_status_ != AllocationStatus::invalid);
+    EXPECTS(mpb_);
+    mpb_->dealloc_coll();
+    update_status(AllocationStatus::invalid);
+  }
 
-    template<typename T>
-    void allocate(const ExecutionContext* ec) {
-        EXPECTS(allocation_status_ == AllocationStatus::invalid);
-        Distribution* distribution    = ec->distribution();
-        MemoryManager* memory_manager = ec->memory_manager();
-        EXPECTS(distribution != nullptr);
-        EXPECTS(memory_manager != nullptr);
-        // distribution_ = DistributionFactory::make_distribution(*distribution,
-        // this, pg.size());
-        distribution_ = std::shared_ptr<Distribution>(
-          distribution->clone(this, memory_manager->pg().size()));
-        auto rank     = memory_manager->pg().rank();
-        auto buf_size = distribution_->buf_size(rank);
-        auto eltype   = tensor_element_type<T>();
-        EXPECTS(buf_size >= 0);
-        mpb_ = std::unique_ptr<MemoryRegion>{
-          memory_manager->alloc_coll(eltype, buf_size)};
+  template<typename T>
+  void allocate(const ExecutionContext* ec) {
+    EXPECTS(allocation_status_ == AllocationStatus::invalid);
+    Distribution* distribution = ec->distribution();
+    MemoryManager* memory_manager = ec->memory_manager();
+    EXPECTS(distribution != nullptr);
+    EXPECTS(memory_manager != nullptr);
+    ec_ = ec;
+    // distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
+    distribution_ = std::shared_ptr<Distribution>(
+        distribution->clone(this,memory_manager->pg().size()));
+    auto rank = memory_manager->pg().rank();
+    auto buf_size = distribution_->buf_size(rank);
+    auto eltype = tensor_element_type<T>();
+    EXPECTS(buf_size >=0 );
+    mpb_ = std::unique_ptr<MemoryRegion>{memory_manager->alloc_coll(eltype, buf_size)};
 
-        update_status(AllocationStatus::created);
-    }
+    update_status(AllocationStatus::created);
+  }
 
     // Tensor Accessors
     /**

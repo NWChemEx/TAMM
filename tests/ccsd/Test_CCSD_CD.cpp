@@ -235,17 +235,17 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     const TiledIndexSpace &V = MO("virt");
 
     Tensor<T> t2_2_1{O, V, O, O};
-    Tensor<T> t2_2_2_1{O, O, O, O};
-    Tensor<T> t2_2_2_2_1{O, O, O, V};
+    // Tensor<T> t2_2_2_1{O, O, O, O};
+    // Tensor<T> t2_2_2_2_1{O, O, O, V};
     Tensor<T> t2_2_4_1{O, V};
-    Tensor<T> t2_2_5_1{O, O, O, V};
+    // Tensor<T> t2_2_5_1{O, O, O, V};
     Tensor<T> t2_4_1{O, O};
     Tensor<T> t2_4_2_1{O, V};
     Tensor<T> t2_5_1{V, V};
-    Tensor<T> t2_6_1{O, O, O, O};
-    Tensor<T> t2_6_2_1{O, O, O, V};
-    Tensor<T> t2_7_1{O, V, O, V};
-    Tensor<T> vt1t1_1{O, V, O, O};
+    // Tensor<T> t2_6_1{O, O, O, O};
+    // Tensor<T> t2_6_2_1{O, O, O, V};
+    // Tensor<T> t2_7_1{O, V, O, V};
+    // Tensor<T> vt1t1_1{O, V, O, O};
     Tensor<T> i0_temp{V, V, O, O};
 
     TiledIndexLabel p1, p2, p3, p4, p5, p6, p7, p8, p9;
@@ -256,7 +256,6 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
 
     Scheduler sch{&ec};
 
-
     Tensor<T> _a3{V, O};
     Tensor<T> _a3_1{V, O};
     Tensor<T> _a16{V, O};
@@ -266,9 +265,6 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     Tensor<T> _a143{O, O};
     Tensor<T> _a146{V, O};
 
-    Tensor<T> _a67{V, O};
-    Tensor<T> _a68{V, O};
-    Tensor<T> _a47{V, O};
     Tensor<T> _a42{V, V, O, O}; // VV_NS | OO_NS
 
     Tensor<T> _a385{V, V, O, O}; // VV_NS | OO_NS
@@ -280,68 +276,39 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     Tensor<T> _a508{V, O};
     Tensor<T> _a505{V, O, O, O};
 
-    Tensor<T> _a382{O, O};
-    Tensor<T> _a405{V, O};
     Tensor<T> _a408{V, O};
 
     Tensor<T> _a430{V, O, O, O}; // | OO_NS
     Tensor<T> _a443{V, O, O, O}; // | OO_NS
-                                 // Tensor<T> _a455 {V,O , O, O}; // | OO_NS
-                                 // Tensor<T> _a468 {V,O , O, O}; // | OO_NS
 
-    Tensor<T> _a333{O, O};
     Tensor<T> _a345{O, O};
     Tensor<T> _a357{};
     Tensor<T> _a371{O, O};
 
-    Tensor<T> _a233{O, O};
     Tensor<T> _a238{V, V, O, O}; // VV_NS |  OO_NS
-                                 // auto &_a257 {O , O};
-                                 // auto &_a260 {V, V , O, O}; //VV_NS |  OO_NS
 
     Tensor<T> _a281{V, O};
-    Tensor<T> _a282{V, O};
-    Tensor<T> _a305{V, O, O, O}; // | OO_NS
     Tensor<T> _a318{V, O, O, O}; // | OO_NS
 
-    Tensor<T> _a531{V, O, O, O}; // | OO_NS
-    Tensor<T> _a532{V, O};
-    Tensor<T> _a583{V, O, O, O}; // | OO_NS
     Tensor<T> _a595{O, O, O, O}; // OO_NS |
 
     Tensor<T> _a636{V, O};
     Tensor<T> _a650{O, O};
 
-    //_a685,_a686,_a709,_a712
-    Tensor<T> _a685{V, O};
-    Tensor<T> _a686{V, O};
-    Tensor<T> _a709{V, O, O, O}; // | OO_NS
-    Tensor<T> _a712{V, O, O, O}; // | OO_NS
-
-    //_a2069,_a2091
+    //_a2091
     Tensor<T> _a2091{V, O};
-    Tensor<T> _a2069{O, O};
 
-    //_a738,_a755,_a862, _a741
-    Tensor<T> _a738{V, O};
+    //_a755, _a741
     Tensor<T> _a755{V, O};
-    Tensor<T> _a862{V, O};
     Tensor<T> _a741{O, O};
 
-    //_a1134,_a1160,_a1136,_a1226,_a1256,_a1230
-    Tensor<T> _a1134{O, O};
+    //_a1160
     Tensor<T> _a1160{V, V, O, O};
-    Tensor<T> _a1136{O, O};
-    Tensor<T> _a1226{O, O};
-    Tensor<T> _a1256{V, V, O, O};
-    Tensor<T> _a1230{O, O};
 
     //_a1566,_a1509,_a1511,_a1655,_a1598,_a1602
     Tensor<T> _a1566{O, O};
     Tensor<T> _a1509{O, O};
-    Tensor<T> _a1511{O, O};
     Tensor<T> _a1655{O, O};
-    Tensor<T> _a1598{O, O};
     Tensor<T> _a1602{};
 
     //_a1755,_a1724,_a1694,_a1850,_a1819,_a1789
@@ -352,32 +319,24 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     //_a1945,_a1911,_a1882,_a1972,_a2036,_a2003
     Tensor<T> _a1945{V, O, O, O};
     Tensor<T> _a1911{O, V};
-    Tensor<T> _a1882{O, O};
     Tensor<T> _a2036{V, O, O, O};
     Tensor<T> _a2003{O, V};
     Tensor<T> _a1972{};
 
     //_a1324,_a1333,_a1323,_a1488,_a1420,_a1423
-    Tensor<T> _a1324{V, O};
     Tensor<T> _a1333{V, O};
-    Tensor<T> _a1323{O, O};
     Tensor<T> _a1488{V, O, O, O};
-    Tensor<T> _a1420{O, O};
-    Tensor<T> _a1423{V, O, O, O};
 
  //------------------------------CD------------------------------
-    sch.allocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
-            t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1, _a54, _a3,_a3_1, _a16, _a30,
-            _a42, _a47, _a67, _a68, _a482, _a496, _a505, _a508, _a382, _a385,
-            _a405, _a408, _a430, _a443, _a333, _a345, _a357, _a371, _a233,
-            _a238, _a281, _a282, _a305, _a318, _a119, _a116, _a143, _a146,
-            _a531, _a532, _a583, _a595, _a636, _a650, _a685, _a686, _a709,
-            _a712, _a738, _a755, _a862, _a741, _a2069, 
-            _a2091, _a1134, _a1160,
-            _a1136, _a1226, _a1256, _a1230, _a1566, _a1509, _a1511, _a1655,
-            _a1598, _a1602, _a1755, _a1724, _a1694, _a1945, _a1911, _a1882,
-            _a1972, _a2036, _a2003, _a1324, _a1333, _a1323, _a1488, _a1420,
-            _a1423,i0_temp);
+    sch.allocate(t2_2_1, t2_2_4_1, /* t2_2_2_1, t2_2_2_2_1, t2_2_5_1,*/ t2_4_1, t2_4_2_1,
+            t2_5_1, /*t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1,*/ _a54, _a3,_a3_1, _a16, _a30,
+            _a42, _a482, _a496, _a505, _a508, _a385,
+            _a408, _a430, _a443, _a345, _a357, _a371, 
+            _a238, _a281, _a318, _a119, _a116, _a143, _a146,
+            _a595, _a636, _a650, _a755, _a741,  
+            _a2091, _a1160, _a1566, _a1509, _a1655,
+            _a1602, _a1755, _a1724, _a1694, _a1945, _a1911, 
+            _a1972, _a2036, _a2003, _a1333,  _a1488, i0_temp);
 
     sch(i0(p3, p4, h1, h2) = 0)
        (i0_temp(p3, p4, h1, h2) = 0)
@@ -464,11 +423,7 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
             ;
 
     //ccsd_t2_2_5_2_: sch(t2_2_5_1(h7, h10, h1, p9) += t1(p5, h1) * v2(h7, h10, p5, p9))
-        sch(_a1324(p3, h2) = 0)
-        (_a1323(h3, h1) = 0)
-        (_a1333(p4, h1) = 0)
-        (_a1423(p3, h3, h4, h2) = 0);
-        
+        sch (_a1333(p4, h1) = 0);
 
         sch (_a1333(p4, h1) += 1.0 * t1(p4, h3) * _a741(h3, h1))
             (_a1488(p3, h3, h1, h2) += -1.0 * _a741(h4, h1) * _a1694(p3, h3, h4, h2))
@@ -624,9 +579,7 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
 
     //ccsd_t2_6_2_2_:
     //sch(t2_6_2_1(h9, h11, h1, p8) += 0.5 * t1(p6, h1) * v2(h9, h11, p6, p8));
-        sch(_a1160(p3, p4, h4, h2) = 0)
-        (_a1226(h3, h1) = 0)
-        (_a1230(h4, h2) = 0);
+        sch(_a1160(p3, p4, h4, h2) = 0);
 
         sch(_a1160(p3, p4, h4, h2) += 1.0 * t2(p3, p4, h3, h4) * _a1509(h3, h2))
             (i0(p3, p4, h1, h2) += -0.5 * _a1509(h4, h1) * _a1160(p3, p4, h4, h2)) //factor 0.25->0.5
@@ -668,8 +621,6 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
 
     //ccsd_t2_7_3_:
     //sch(t2_7_1(h6, p3, h1, p5) += -0.5 * t2(p3, p7, h1, h8) * v2(h6, h8, p5, p7))
-        sch (_a709(p4, h4, h3, h1) = 0);
-
         sch (i0(p3, p4, h1, h2) += -1 * _a636(p4, h1) * _a636(p3, h2))
             (i0(p3, p4, h2, h1) += 1 * _a636(p4, h1) * _a636(p3, h2)) //4 perms
             ;
@@ -766,17 +717,15 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     (t2(p1, p2, h4, h3) += 1 * t1(p1, h3) * t1(p2, h4)); //4 perms
 
 
-  sch.deallocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1,
-              t2_4_2_1, t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1, _a54, _a3,_a3_1,
-              _a16, _a30, _a42, _a47, _a67, _a68, _a482, _a496, _a505, _a1226,
-              _a508, _a116, _a119, _a143, _a146, _a382, _a385, _a405, _a408,
-              _a430, _a443, _a333, _a345, _a357, _a371, _a233, _a238, _a281,
-              _a282, _a305, _a318, _a531, _a532, _a583, _a595, _a636, _a650,
-              _a685, _a686, _a709, _a712, _a2069, _a2091, _a738, _a755, _a862, _a741,
-              _a1134, _a1160, _a1136, _a1256, _a1230, _a1566, _a1509,
-              _a1511, _a1655, _a1598, _a1602, _a1755, _a1724, _a1694, _a1945,
-              _a1911, _a1882, _a1972, _a2036, _a2003, _a1324, _a1333, _a1323,
-              _a1488, _a1420, _a1423,i0_temp);
+  sch.deallocate(t2_2_1, t2_2_4_1, /* t2_2_2_1, t2_2_2_2_1, t2_2_5_1,*/ t2_4_1, t2_4_2_1,
+            t2_5_1, /*t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1,*/ _a54, _a3,_a3_1,
+              _a16, _a30, _a42, _a482, _a496, _a505, 
+              _a508, _a116, _a119, _a143, _a146, _a385, _a408,
+              _a430, _a443, _a345, _a357, _a371, _a238, _a281,
+                _a318, _a595, _a636, _a650, _a2091, _a755, _a741,
+               _a1160, _a1566, _a1509, _a1488,
+               _a1655, _a1602, _a1755, _a1724, _a1694, _a1945,
+              _a1911,  _a1972, _a2036, _a2003,  _a1333, i0_temp);
     //-----------------------------CD----------------------------------
     
     sch.execute();

@@ -1,21 +1,24 @@
 #ifndef TAMM_TENSOR_IMPL_HPP_
 #define TAMM_TENSOR_IMPL_HPP_
 
-#include "tamm/index_space.hpp"
-#include "tamm/labeled_tensor.hpp"
-#include "tamm/tensor_base.hpp"
-#include "tamm/memory_manager_local.hpp"
 #include "tamm/distribution.hpp"
 #include "tamm/execution_context.hpp"
 #include "tamm/index_loop_nest.hpp"
+#include "tamm/index_space.hpp"
+#include "tamm/labeled_tensor.hpp"
+#include "tamm/memory_manager_local.hpp"
+#include "tamm/tensor_base.hpp"
 
+#include <gsl/span>
 #include <type_traits>
 
 namespace tamm {
 
-template<typename T>
-struct span;
+// template<typename T>
+// struct span;
+using gsl::span;
 
+#if 0
 namespace detail {
     template <class T>
     struct is_span_helper : std::false_type {};
@@ -83,7 +86,7 @@ private:
 // span(Container&) -> span<typename Container::value_type>;
 // template<class Container>
 // span(const Container&) -> span<const typename Container::value_type>;
-
+#endif
 template<typename T>
 class LabeledTensor;
 
@@ -131,7 +134,6 @@ public:
         construct_dep_map();
     }
 
-
     // Copy/Move Ctors and Assignment Operators
     TensorImpl(TensorImpl&&)      = default;
     TensorImpl(const TensorImpl&) = default;
@@ -141,31 +143,33 @@ public:
     // Dtor
     ~TensorImpl() = default;
 
-  void deallocate() {
-    EXPECTS(allocation_status_ != AllocationStatus::invalid);
-    EXPECTS(mpb_);
-    mpb_->dealloc_coll();
-    update_status(AllocationStatus::invalid);
-  }
+    void deallocate() {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
+        EXPECTS(mpb_);
+        mpb_->dealloc_coll();
+        update_status(AllocationStatus::invalid);
+    }
 
-  template<typename T>
-  void allocate(const ExecutionContext* ec) {
-    EXPECTS(allocation_status_ == AllocationStatus::invalid);
-    Distribution* distribution = ec->distribution();
-    MemoryManager* memory_manager = ec->memory_manager();
-    EXPECTS(distribution != nullptr);
-    EXPECTS(memory_manager != nullptr);
-    // distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
-    distribution_ = std::shared_ptr<Distribution>(
-        distribution->clone(this,memory_manager->pg().size()));
-    auto rank = memory_manager->pg().rank();
-    auto buf_size = distribution_->buf_size(rank);
-    auto eltype = tensor_element_type<T>();
-    EXPECTS(buf_size >=0 );
-    mpb_ = std::unique_ptr<MemoryRegion>{memory_manager->alloc_coll(eltype, buf_size)};
+    template<typename T>
+    void allocate(const ExecutionContext* ec) {
+        EXPECTS(allocation_status_ == AllocationStatus::invalid);
+        Distribution* distribution    = ec->distribution();
+        MemoryManager* memory_manager = ec->memory_manager();
+        EXPECTS(distribution != nullptr);
+        EXPECTS(memory_manager != nullptr);
+        // distribution_ = DistributionFactory::make_distribution(*distribution,
+        // this, pg.size());
+        distribution_ = std::shared_ptr<Distribution>(
+          distribution->clone(this, memory_manager->pg().size()));
+        auto rank     = memory_manager->pg().rank();
+        auto buf_size = distribution_->buf_size(rank);
+        auto eltype   = tensor_element_type<T>();
+        EXPECTS(buf_size >= 0);
+        mpb_ = std::unique_ptr<MemoryRegion>{
+          memory_manager->alloc_coll(eltype, buf_size)};
 
-    update_status(AllocationStatus::created);
-  }
+        update_status(AllocationStatus::created);
+    }
 
     // Tensor Accessors
     /**
@@ -182,9 +186,10 @@ public:
         Proc proc;
         Offset offset;
         std::tie(proc, offset) = distribution_->locate(idx_vec);
-        Size size = block_size(idx_vec);
+        Size size              = block_size(idx_vec);
         EXPECTS(size <= buff_span.size());
-        mpb_->mgr().get(*mpb_.get(), proc, offset, Size{size}, buff_span.ref());
+        mpb_->mgr().get(*mpb_.get(), proc, offset, Size{size},
+                        buff_span.data());
     }
 
     /**
@@ -201,9 +206,10 @@ public:
         Proc proc;
         Offset offset;
         std::tie(proc, offset) = distribution_->locate(idx_vec);
-        Size size = block_size(idx_vec);
+        Size size              = block_size(idx_vec);
         EXPECTS(size <= buff_span.size());
-        mpb_->mgr().put(*mpb_.get(), proc, offset, Size{size}, buff_span.ref());
+        mpb_->mgr().put(*mpb_.get(), proc, offset, Size{size},
+                        buff_span.data());
     }
 
     /**
@@ -220,9 +226,10 @@ public:
         Proc proc;
         Offset offset;
         std::tie(proc, offset) = distribution_->locate(idx_vec);
-        Size size = block_size(idx_vec);
+        Size size              = block_size(idx_vec);
         EXPECTS(size <= buff_span.size());
-        mpb_->mgr().add(*mpb_.get(), proc, offset, Size{size}, buff_span.ref());
+        mpb_->mgr().add(*mpb_.get(), proc, offset, Size{size},
+                        buff_span.data());
     }
 
 protected:

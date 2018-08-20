@@ -225,17 +225,16 @@ public:
     }
 
     /**
-     * @brief Boolean method for checking if this TiledIndexSpace is a subset of 
+     * @brief Boolean method for checking if this TiledIndexSpace is a subset of
      * input TiledIndexSpace
      *
      * @param [in] tis reference TiledIndexSpace
      * @returns true if this is a subset of input TiledIndexSpace
      */
     bool is_subset_of(const TiledIndexSpace& tis) const {
-
-        if(this->is_identical(tis)){
+        if(this->is_identical(tis)) {
             return true;
-        } else if(this->parent_tis_ != nullptr){
+        } else if(this->parent_tis_ != nullptr) {
             return (this->parent_tis_->is_subset_of(tis));
         }
 
@@ -642,7 +641,8 @@ protected:
 
             // Get SpinAttribute boundries
             if(is.has_spin()) {
-                for(const auto& kv : is.get_spin().get_map()) {
+                auto spin_map = is.get_spin().get_map();
+                for(const auto& kv : spin_map) {
                     for(const auto& range : kv.second) {
                         boundries.push_back(range.lo());
                         boundries.push_back(range.hi());
@@ -651,7 +651,8 @@ protected:
             }
             // Get SpinAttribute boundries
             if(is.has_spatial()) {
-                for(const auto& kv : is.get_spatial().get_map()) {
+                auto spatial_map = is.get_spatial().get_map();
+                for(const auto& kv : spatial_map) {
                     for(const auto& range : kv.second) {
                         boundries.push_back(range.lo());
                         boundries.push_back(range.hi());
@@ -810,8 +811,9 @@ protected:
     std::weak_ptr<TiledIndexSpaceInfo>
       root_tiled_info_; /**< Weak pointer to the root TiledIndexSpaceInfo
                            object*/
-    std::shared_ptr<TiledIndexSpace> parent_tis_; /**< Weak pointer to the parent
-                                                   TiledIndexSpace object*/
+    std::shared_ptr<TiledIndexSpace>
+      parent_tis_; /**< Weak pointer to the parent
+                    TiledIndexSpace object*/
 
     /**
      * @brief Return the corresponding tile position of an index for a give

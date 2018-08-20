@@ -305,3 +305,34 @@ TEST_CASE("TiledIndexSpace construction checks") {
     }
     
 }
+
+TEST_CASE("TiledIndexSpace construction with Spin attributes") {
+    IndexSpace is_att{range(0, 20),
+                      {
+                        {"occ", {range(0,10)}},
+                        {"virt", {range(10,20)}}
+                      },
+                      {
+                        {Spin{2}, {range(0,5), range(10,15)}},
+                        {Spin{1}, {range(5,10), range(15,20)}}
+                      }
+                    };
+
+    REQUIRE(is_att.has_spin() == true);
+
+    std::vector<Tile> tilesizes{3,2,3,2,3,2,3,2};
+
+    TiledIndexSpace tis_att{is_att, 3};
+    TiledIndexSpace tis_att2{is_att, tilesizes};
+
+    REQUIRE(tis_att.num_tiles() == 8);
+    REQUIRE(tis_att2.num_tiles() == 8);
+
+    for (size_t i = 0; i < tis_att.num_tiles(); i++) {
+        
+        REQUIRE(tis_att.tile_size(i) == tilesizes[i]);
+        REQUIRE(tis_att2.tile_size(i) == tilesizes[i]);
+
+    }
+    
+}

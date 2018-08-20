@@ -68,9 +68,8 @@ public:
      *          (empty vector if it doesn't exist)
      */
     const std::vector<Range>& attribute_range(T att) const {
-        return ((attr_map_.find(att) == attr_map_.end()) ?
-                  empty_range_ :
-                  attr_map_.at(att));
+        return ((attr_map_.find(att) == attr_map_.end()) ? empty_range_ :
+                                                           attr_map_.at(att));
     }
 
     /**
@@ -93,11 +92,11 @@ public:
      * @returns std::vector<Range>::const_iterator returns end
      * iterator for associated ranges for the attribute
      */
-    std::vector<Range>::const_iterator attribute_end(const T& val) {
+    std::vector<Range>::const_iterator attribute_end(const T& val) const {
         return attr_map_[val].end();
     }
 
-    const AttributeToRangeMap<T>& get_map() { return attr_map_; }
+    const AttributeToRangeMap<T>& get_map() const { return attr_map_; }
 
     /**
      * @brief Check if the attribute relations are empty
@@ -109,7 +108,7 @@ public:
 protected:
     AttributeToRangeMap<T> attr_map_; //
     std::vector<Range> empty_range_;
-};                                    // Attribute
+}; // Attribute
 using SpinAttribute    = Attribute<Spin>;
 using SpatialAttribute = Attribute<Spatial>;
 } // namespace tamm

@@ -405,6 +405,12 @@ template<typename T>
 void ip_hptt(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
                  T scale, const T* src, const SizeVec& sdims,
                  const IntLabelVec& slabels, bool is_assign = true) {
+    EXPECTS(ddims.size() == dlabels.size());
+    EXPECTS(sdims.size() == slabels.size());
+    EXPECTS(ddims.size() == sdims.size());
+    EXPECTS(src != nullptr);
+    EXPECTS(dst != nullptr);
+
     const int ndim = ddims.size();
     int perm[ndim];
     int size[ndim];

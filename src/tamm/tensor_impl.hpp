@@ -107,7 +107,7 @@ public:
      * @param [in] tis vector of TiledIndexSpace objects for each
      * mode used to construct the tensor
      */
-    TensorImpl(const std::vector<TiledIndexSpace>& tis) : TensorBase{tis} {}
+    TensorImpl(const TiledIndexSpaceVec& tis) : TensorBase{tis} {}
 
     /**
      * @brief Construct a new TensorImpl object using a vector of
@@ -236,6 +236,194 @@ protected:
     std::shared_ptr<Distribution> distribution_;
     std::unique_ptr<MemoryRegion> mpb_;
 }; // TensorImpl
+
+class SpinTensorImpl : public TensorBase {
+public:
+    // Ctors
+    SpinTensorImpl() = default;
+
+    /**
+     * @brief Construct a new SpinTensorImpl object using set of TiledIndexSpace
+     * objects and Spin attribute mask
+     *
+     * @param [in] t_spaces
+     * @param [in] spin_mask
+     */
+    SpinTensorImpl(const TiledIndexSpaceVec& t_spaces,
+                   const SpinMask& spin_mask) :
+      TensorBase(t_spaces) {
+        EXPECTS(t_spaces.size() == spin_mask.size());
+        
+        for(const auto& tis : t_spaces) {
+            EXPECTS(tis.has_spin());
+        }
+
+        spin_mask_         = spin_mask_;
+        has_spin_symmetry_ = true;
+        spin_total_ = calculate_spin();
+    }
+
+    /**
+     * @brief Construct a new SpinTensorImpl object using set of TiledIndexLabel
+     * objects and Spin attribute mask
+     *
+     * @param [in] t_labels
+     * @param [in] spin_mask
+     */
+    SpinTensorImpl(const IndexLabelVec& t_labels,
+                   const SpinMask& spin_mask) :
+      TensorBase(t_labels) {
+        EXPECTS(t_labels.size() == spin_mask.size());
+        for(const auto& tlbl : t_labels) {
+            EXPECTS(tlbl.tiled_index_space().has_spin());
+        }
+        spin_mask_         = spin_mask;
+        has_spin_symmetry_ = true;
+        spin_total_ = calculate_spin();
+    }
+
+    SpinTensorImpl(IndexLabelVec&& t_labels, SpinMask&& spin_mask);
+    /**
+     * @brief Construct a new SpinTensorImpl object
+     *
+     * @todo: implement
+     * 
+     * @tparam Args
+     * @param [in] tis
+     * @param [in] rest
+     */
+    template<typename... Args>
+    SpinTensorImpl(const TiledIndexSpace& tis, Args... rest);
+
+    /**
+     * @brief Construct a new SpinTensorImpl object
+     * 
+     * @todo: implement
+     *
+     * @tparam Args
+     * @param [in] tis
+     * @param [in] rest
+     */
+    template<typename... Args>
+    SpinTensorImpl(const TiledIndexLabel& tis, Args... rest);
+
+    // Copy/Move Ctors and Assignment Operators
+    SpinTensorImpl(SpinTensorImpl&&)      = default;
+    SpinTensorImpl(const SpinTensorImpl&) = default;
+    SpinTensorImpl& operator=(SpinTensorImpl&&) = default;
+    SpinTensorImpl& operator=(const SpinTensorImpl&) = default;
+
+    // Dtor
+    ~SpinTensorImpl() = default;
+
+    // Tensor Allocate/Deallocate
+    void deallocate() {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
+        EXPECTS(mpb_);
+        mpb_->dealloc_coll();
+        update_status(AllocationStatus::invalid);
+    }
+
+    template<typename T>
+    void allocate(const ExecutionContext* ec) {
+        EXPECTS(allocation_status_ == AllocationStatus::invalid);
+
+        Distribution* distribution    = ec->distribution();
+        MemoryManager* memory_manager = ec->memory_manager();
+        EXPECTS(distribution != nullptr);
+        EXPECTS(memory_manager != nullptr);
+        // distribution_ = DistributionFactory::make_distribution(*distribution,
+        // this, pg.size());
+        distribution_ = std::shared_ptr<Distribution>(
+          distribution->clone(this, memory_manager->pg().size()));
+        auto rank     = memory_manager->pg().rank();
+        auto buf_size = distribution_->buf_size(rank);
+        auto eltype   = tensor_element_type<T>();
+        EXPECTS(buf_size >= 0);
+        mpb_ = std::unique_ptr<MemoryRegion>{
+          memory_manager->alloc_coll(eltype, buf_size)};
+
+        update_status(AllocationStatus::created);
+    }
+
+    // Tensor Accessors
+    /**
+     * @brief Tensor accessor method for getting values from a set of
+     * indices to specified memory span
+     *
+     * @tparam T type of the values hold on the tensor object
+     * @param [in] idx_vec a vector of indices to fetch the values
+     * @param [in] buff_span memory span where to put the fetched values
+     */
+    template<typename T>
+    void get(const IndexVector& idx_vec, span<T> buff_span) const {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
+        Proc proc;
+        Offset offset;
+        std::tie(proc, offset) = distribution_->locate(idx_vec);
+        Size size              = block_size(idx_vec);
+        EXPECTS(size <= buff_span.size());
+        mpb_->mgr().get(*mpb_.get(), proc, offset, Size{size},
+                        buff_span.data());
+    }
+
+    /**
+     * @brief Tensor accessor method for putting values to a set of indices
+     * with the specified memory span
+     *
+     * @tparam T type of the values hold on the tensor object
+     * @param [in] idx_vec a vector of indices to put the values
+     * @param [in] buff_span buff_span memory span for the values to put
+     */
+    template<typename T>
+    void put(const IndexVector& idx_vec, span<T> buff_span) {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
+        Proc proc;
+        Offset offset;
+        std::tie(proc, offset) = distribution_->locate(idx_vec);
+        Size size              = block_size(idx_vec);
+        EXPECTS(size <= buff_span.size());
+        mpb_->mgr().put(*mpb_.get(), proc, offset, Size{size},
+                        buff_span.data());
+    }
+
+    /**
+     * @brief Tensor accessor method for adding svalues to a set of indices
+     * with the specified memory span
+     *
+     * @tparam T type of the values hold on the tensor object
+     * @param [in] idx_vec a vector of indices to put the values
+     * @param [in] buff_span buff_span memory span for the values to put
+     */
+    template<typename T>
+    void add(const IndexVector& idx_vec, span<T> buff_span) {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
+        Proc proc;
+        Offset offset;
+        std::tie(proc, offset) = distribution_->locate(idx_vec);
+        Size size              = block_size(idx_vec);
+        EXPECTS(size <= buff_span.size());
+        mpb_->mgr().add(*mpb_.get(), proc, offset, Size{size},
+                        buff_span.data());
+    }
+
+protected:
+    std::shared_ptr<Distribution> distribution_;
+    std::unique_ptr<MemoryRegion> mpb_;
+
+    /**
+     * @brief Calculates the spin value for the given TiledIndexSpace objects
+     *
+     * @todo: implement
+     *
+     * @returns
+     */
+    Spin calculate_spin() {
+        Spin ret;
+
+        return ret;
+    }
+}; // class SpinTensorImpl
 
 } // namespace tamm
 

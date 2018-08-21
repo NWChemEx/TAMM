@@ -405,11 +405,11 @@ template<typename T>
 void ip_hptt(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
                  T scale, const T* src, const SizeVec& sdims,
                  const IntLabelVec& slabels, bool is_assign = true) {
-    EXPECTS(ddims.size() == dlabels.size());
-    EXPECTS(sdims.size() == slabels.size());
-    EXPECTS(ddims.size() == sdims.size());
-    EXPECTS(src != nullptr);
-    EXPECTS(dst != nullptr);
+    // EXPECTS(ddims.size() == dlabels.size());
+    // EXPECTS(sdims.size() == slabels.size());
+    // EXPECTS(ddims.size() == sdims.size());
+    // EXPECTS(src != nullptr);
+    // EXPECTS(dst != nullptr);
 
     const int ndim = ddims.size();
     int perm[ndim];
@@ -426,7 +426,7 @@ void ip_hptt(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
     }
     // create a plan (shared_ptr)
     auto plan = hptt::create_plan(perm, ndim, scale, src, size, NULL, beta, dst,
-                                  NULL, hptt::ESTIMATE, numThreads);
+                                  NULL, hptt::ESTIMATE, numThreads, NULL, true);
 
     // execute the transposition
     plan->execute();
@@ -448,17 +448,17 @@ void assign(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
     assert(sdims.size() == slabels.size());
 
     if(internal::are_permutations(slabels, dlabels)) {
-#if 1
+if (ndim == 0) {
         auto perm_to_dest = internal::perm_compute(dlabels, slabels);
         if(is_assign) {
             internal::index_permute(dst, src, perm_to_dest, ddims, scale);
         } else {
             internal::index_permute_acc(dst, src, perm_to_dest, ddims, scale);
         }
-#else
+}
+else
         internal::ip_hptt(dst, ddims, dlabels, scale, src, sdims, slabels,
                           is_assign);
-#endif
     } else {
 #if 0
         internal::ip_gen(dst, ddims, dlabels, scale, src, sdims, slabels,

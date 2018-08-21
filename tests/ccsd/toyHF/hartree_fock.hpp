@@ -12,6 +12,8 @@
 #include <chrono>
 #include <tuple>
 #include <functional>
+#include <cassert>
+
 
 // Eigen matrix algebra library
 #include <Eigen/Dense>
@@ -102,6 +104,13 @@ inline std::vector<Atom> read_input_xyz(
   std::string comment;
   std::getline(is, comment);
 
+  // third line - geometry units
+  std::string gm_units;
+  std::getline(is, gm_units);
+  std::istringstream iss(gm_units);
+  std::vector<std::string> geom_units{std::istream_iterator<std::string>{iss},
+                      std::istream_iterator<std::string>{}};
+
   // rest of lines are atoms
   std::vector<Atom> atoms(natom);
   for (size_t i = 0; i < natom; i++) {
@@ -130,7 +139,10 @@ inline std::vector<Atom> read_input_xyz(
 
     atoms[i].atomic_number = Z;
 
-    const bool nw_units_bohr = true;
+    bool nw_units_bohr = true;
+    assert(geom_units.size()==3);
+    if (geom_units[2] == "angstrom")
+      nw_units_bohr = false;
 
     if(nw_units_bohr) {
       atoms[i].x = x;
@@ -138,7 +150,7 @@ inline std::vector<Atom> read_input_xyz(
       atoms[i].z = z;
     }
 
-    else { // assume angstroms
+    else { // assume angstrom
       // .xyz files report Cartesian coordinates in angstroms; convert to bohr
       atoms[i].x = x * angstrom_to_bohr;
       atoms[i].y = y * angstrom_to_bohr;

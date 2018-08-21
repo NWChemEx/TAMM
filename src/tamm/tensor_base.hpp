@@ -88,7 +88,6 @@ public:
         // tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 - block_indices_.size()));
     }
 
-
     /**
      * @brief Construct a new TensorBase object from a single TiledIndexSpace
      * object and a lambda expression
@@ -247,6 +246,18 @@ public:
         allocation_status_ = status;
     }
 
+    bool has_spin() const {
+        return has_spin_symmetry_;
+    }
+
+    bool has_spatial() const {
+        return has_spatial_symmetry_;
+    }
+
+    Spin spin_total() const {
+        return spin_total_;
+    }
+
 protected:
     void fillin_tlabels() {
         tlabels_.clear();
@@ -272,7 +283,7 @@ protected:
     // std::vector<IndexPosition> ipmask_;
     // PermGroup perm_groups_;
     // Irrep irrep_;
-    // std::vector<SpinMask> spin_mask_;
+    std::vector<SpinPosition> spin_mask_;
 }; // TensorBase
 
 inline bool operator<=(const TensorBase& lhs, const TensorBase& rhs) {

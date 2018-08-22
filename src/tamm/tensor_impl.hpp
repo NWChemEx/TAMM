@@ -232,6 +232,18 @@ public:
     }
 
 protected:
+    std::function<void> deallocator() override {
+        // The returned lambda will keep a shared pointer to \ref mpb_.  Upon
+        // being called, the lambda will check the use count, and if it is the
+        // last owner, it will deallocate the resources.  Every lambda
+        // invocation resets the pointer to decrease the use count.  Note that
+        // this is not safe in multi-threaded environments.
+        return [=]() {
+            if (mpb_.use_count() == 1) mpb_->dealloc_coll();
+            mpb_.reset();
+        }
+    }
+
     std::shared_ptr<Distribution> distribution_;
     std::unique_ptr<MemoryRegion> mpb_;
 }; // TensorImpl

@@ -160,16 +160,14 @@ public:
      */
     void flush_and_sync() {
         pg_.barrier();
-        for(auto& tb : tensors_to_dealloc_) {
-            tb->deallocate();
-            delete ti;
+        for(auto& tensor_deleter : tensors_to_dealloc_) {
+            tensor_deleter();
         }
         tensors_to_dealloc_.clear();
     }
 
-    void register_for_dealloc(TensorBase* tb) {
-        EXPECTS(tb->allocation_status() == AllocationStatus::created);
-        tensors_to_dealloc_.push_back(tb);
+    void register_for_dealloc(std::function<void> tensor_deleter) {
+        tensors_to_dealloc_.push_back(tensor_deleter);
     }
 
 private:
@@ -179,7 +177,7 @@ private:
     MemoryManager* default_memory_manager_;
     MemoryManagerLocal* memory_manager_local_;
 
-    std::vector<TensorBase*> tensors_to_dealloc_;
+    std::vector<std::function<void>> tensors_to_dealloc_;
 
 }; // class ExecutionContext
 

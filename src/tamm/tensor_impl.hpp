@@ -141,7 +141,11 @@ public:
     TensorImpl& operator=(const TensorImpl&) = default;
 
     // Dtor
-    ~TensorImpl() = default;
+    ~TensorImpl() {
+      if(allocation_status_ == AllocationStatus::created) {
+        ec_->register_for_dealloc(this->deallocator());
+      }
+    }
 
   void deallocate() override {
     EXPECTS(allocation_status_ != AllocationStatus::invalid);
@@ -151,7 +155,7 @@ public:
   }
 
   template<typename T>
-  void allocate(const ExecutionContext* ec) {
+  void allocate(ExecutionContext* ec) {
     EXPECTS(allocation_status_ == AllocationStatus::invalid);
     Distribution* distribution = ec->distribution();
     MemoryManager* memory_manager = ec->memory_manager();
@@ -232,7 +236,7 @@ public:
     }
 
 protected:
-    std::function<void> deallocator() override {
+    std::function<void()> deallocator() {
         // The returned lambda will keep a shared pointer to \ref mpb_.  Upon
         // being called, the lambda will check the use count, and if it is the
         // last owner, it will deallocate the resources.  Every lambda
@@ -241,11 +245,11 @@ protected:
         return [=]() {
             if (mpb_.use_count() == 1) mpb_->dealloc_coll();
             mpb_.reset();
-        }
+        };
     }
 
     std::shared_ptr<Distribution> distribution_;
-    std::unique_ptr<MemoryRegion> mpb_;
+    std::shared_ptr<MemoryRegion> mpb_;
 }; // TensorImpl
 
 } // namespace tamm

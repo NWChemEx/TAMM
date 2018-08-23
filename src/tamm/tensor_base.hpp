@@ -113,9 +113,6 @@ public:
     // Dtor
     virtual ~TensorBase(){
         //EXPECTS(allocation_status_ == AllocationStatus::invalid);
-        if(allocation_status_ == AllocationStatus::created) {
-            ec_->register_for_dealloc(this);
-        }
     };
 
     /**
@@ -255,21 +252,6 @@ public:
     virtual void deallocate() = 0;
 
 protected:
-    /**
-     * @brief ExecutionContext is a friend so it can access the deleter
-     * function.
-     *
-     */
-    friend class ExecutionContext;
-
-    /**
-     * @brief Provide a function that will deallocate the tensor's resources
-     * when called.
-     *
-     * @return std::function<void> 
-     */
-    virtual std::function<void> deallocator() = 0;
-
     void fillin_tlabels() {
         tlabels_.clear();
         for(size_t i=0; i < block_indices_.size(); i++) {

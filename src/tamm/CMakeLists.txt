@@ -36,7 +36,7 @@ set(tamm_INCLUDES
     utils.hpp
     kernels/assign.hpp
     kernels/multiply.hpp
-    spin_tensor.hpp
+    # spin_tensor.hpp
    )
 
 set(tamm_DEFINITIONS )

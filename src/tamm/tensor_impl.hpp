@@ -134,6 +134,116 @@ public:
         construct_dep_map();
     }
 
+#if 1
+    // SpinTensor related constructors
+    /**
+     * @brief Construct a new SpinTensorImpl object using set of TiledIndexSpace
+     * objects and Spin attribute mask
+     *
+     * @param [in] t_spaces
+     * @param [in] spin_mask
+     */
+    TensorImpl(TiledIndexSpaceVec t_spaces, SpinMask spin_mask) :
+      TensorBase(t_spaces) {
+        EXPECTS(t_spaces.size() == spin_mask.size());
+
+        // for(const auto& tis : t_spaces) { EXPECTS(tis.has_spin()); }
+
+        spin_mask_         = spin_mask;
+        has_spin_symmetry_ = true;
+        // spin_total_        = calculate_spin();
+    }
+
+    /**
+     * @brief Construct a new SpinTensorImpl object using set of TiledIndexLabel
+     * objects and Spin attribute mask
+     *
+     * @param [in] t_labels
+     * @param [in] spin_mask
+     */
+    TensorImpl(IndexLabelVec t_labels, SpinMask spin_mask) :
+      TensorBase(t_labels) {
+        EXPECTS(t_labels.size() == spin_mask.size());
+        // for(const auto& tlbl : t_labels) {
+        //     EXPECTS(tlbl.tiled_index_space().has_spin());
+        // }
+        spin_mask_         = spin_mask;
+        has_spin_symmetry_ = true;
+        // spin_total_        = calculate_spin();
+    }
+
+    /**
+     * @brief Construct a new SpinTensorImpl object using set of TiledIndexSpace
+     * objects and Spin attribute mask
+     *
+     * @param [in] t_spaces
+     * @param [in] spin_mask
+     */
+    TensorImpl(TiledIndexSpaceVec t_spaces, std::vector<size_t> spin_sizes) :
+      TensorBase(t_spaces) {
+        // EXPECTS(t_spaces.size() == spin_mask.size());
+        EXPECTS(spin_sizes.size() > 0);
+        // for(const auto& tis : t_spaces) { EXPECTS(tis.has_spin()); }
+        SpinMask spin_mask;
+        size_t upper = spin_sizes[0];
+        size_t lower = spin_sizes.size() > 1 ? spin_sizes[1] : t_spaces.size() - upper;
+        size_t ignore = spin_sizes.size() > 2 ? spin_sizes[1] : t_spaces.size() - (upper + lower);
+
+        for (size_t i = 0; i < upper; i++) {
+            spin_mask.push_back(SpinPosition::upper);
+        }
+
+        for (size_t i = 0; i < lower; i++) {
+            spin_mask.push_back(SpinPosition::lower);
+        }
+
+        for (size_t i = 0; i < upper; i++) {
+            spin_mask.push_back(SpinPosition::ignore);
+        }
+
+        spin_mask_         = spin_mask;
+        has_spin_symmetry_ = true;
+        // spin_total_        = calculate_spin();
+    }
+
+    /**
+     * @brief Construct a new SpinTensorImpl object using set of TiledIndexLabel
+     * objects and Spin attribute mask
+     *
+     * @param [in] t_labels
+     * @param [in] spin_mask
+     */
+    TensorImpl(IndexLabelVec t_labels, std::vector<size_t> spin_sizes) :
+      TensorBase(t_labels) {
+        // EXPECTS(t_labels.size() == spin_mask.size());
+        EXPECTS(spin_sizes.size() > 0);
+        // for(const auto& tlbl : t_labels) {
+        //     EXPECTS(tlbl.tiled_index_space().has_spin());
+        // }
+
+        SpinMask spin_mask;
+        size_t upper = spin_sizes[0];
+        size_t lower = spin_sizes.size() > 1 ? spin_sizes[1] : t_labels.size() - upper;
+        size_t ignore = spin_sizes.size() > 2 ? spin_sizes[1] : t_labels.size() - (upper + lower);
+
+        for (size_t i = 0; i < upper; i++) {
+            spin_mask.push_back(SpinPosition::upper);
+        }
+
+        for (size_t i = 0; i < lower; i++) {
+            spin_mask.push_back(SpinPosition::lower);
+        }
+
+        for (size_t i = 0; i < upper; i++) {
+            spin_mask.push_back(SpinPosition::ignore);
+        }
+
+        spin_mask_         = spin_mask;
+        has_spin_symmetry_ = true;
+        // spin_total_        = calculate_spin();
+    }
+#endif
+
     // Copy/Move Ctors and Assignment Operators
     TensorImpl(TensorImpl&&)      = default;
     TensorImpl(const TensorImpl&) = default;
@@ -183,6 +293,14 @@ public:
     template<typename T>
     void get(const IndexVector& idx_vec, span<T> buff_span) const {
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
+        
+        if(!is_non_zero(idx_vec)) {
+            Size size = block_size(idx_vec);
+            EXPECTS(size <= buff_span.size());
+            for(size_t i = 0; i < size; i++) { buff_span[i] = (T)0; }
+            return;
+        }
+
         Proc proc;
         Offset offset;
         std::tie(proc, offset) = distribution_->locate(idx_vec);
@@ -203,6 +321,9 @@ public:
     template<typename T>
     void put(const IndexVector& idx_vec, span<T> buff_span) {
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+        if(!is_non_zero(idx_vec)) { return; }
+
         Proc proc;
         Offset offset;
         std::tie(proc, offset) = distribution_->locate(idx_vec);
@@ -223,6 +344,9 @@ public:
     template<typename T>
     void add(const IndexVector& idx_vec, span<T> buff_span) {
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+        if(!is_non_zero(idx_vec)) { return; }
+        
         Proc proc;
         Offset offset;
         std::tie(proc, offset) = distribution_->locate(idx_vec);
@@ -253,14 +377,12 @@ public:
                    const SpinMask& spin_mask) :
       TensorBase(t_spaces) {
         EXPECTS(t_spaces.size() == spin_mask.size());
-        
-        for(const auto& tis : t_spaces) {
-            EXPECTS(tis.has_spin());
-        }
 
-        spin_mask_         = spin_mask_;
+        for(const auto& tis : t_spaces) { EXPECTS(tis.has_spin()); }
+
+        spin_mask_         = spin_mask;
         has_spin_symmetry_ = true;
-        spin_total_ = calculate_spin();
+        // spin_total_        = calculate_spin();
     }
 
     /**
@@ -270,8 +392,7 @@ public:
      * @param [in] t_labels
      * @param [in] spin_mask
      */
-    SpinTensorImpl(const IndexLabelVec& t_labels,
-                   const SpinMask& spin_mask) :
+    SpinTensorImpl(const IndexLabelVec& t_labels, const SpinMask& spin_mask) :
       TensorBase(t_labels) {
         EXPECTS(t_labels.size() == spin_mask.size());
         for(const auto& tlbl : t_labels) {
@@ -279,7 +400,7 @@ public:
         }
         spin_mask_         = spin_mask;
         has_spin_symmetry_ = true;
-        spin_total_ = calculate_spin();
+        // spin_total_        = calculate_spin();
     }
 
     SpinTensorImpl(IndexLabelVec&& t_labels, SpinMask&& spin_mask);
@@ -287,7 +408,7 @@ public:
      * @brief Construct a new SpinTensorImpl object
      *
      * @todo: implement
-     * 
+     *
      * @tparam Args
      * @param [in] tis
      * @param [in] rest
@@ -297,7 +418,7 @@ public:
 
     /**
      * @brief Construct a new SpinTensorImpl object
-     * 
+     *
      * @todo: implement
      *
      * @tparam Args
@@ -358,6 +479,13 @@ public:
     template<typename T>
     void get(const IndexVector& idx_vec, span<T> buff_span) const {
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+        if(!is_non_zero(idx_vec)) {
+            Size size = block_size(idx_vec);
+            EXPECTS(size <= buff_span.size());
+            for(size_t i = 0; i < size; i++) { buff_span[i] = T{0}; }
+        }
+
         Proc proc;
         Offset offset;
         std::tie(proc, offset) = distribution_->locate(idx_vec);
@@ -378,6 +506,9 @@ public:
     template<typename T>
     void put(const IndexVector& idx_vec, span<T> buff_span) {
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+        if(!is_non_zero(idx_vec)) { return; }
+
         Proc proc;
         Offset offset;
         std::tie(proc, offset) = distribution_->locate(idx_vec);
@@ -398,6 +529,9 @@ public:
     template<typename T>
     void add(const IndexVector& idx_vec, span<T> buff_span) {
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+        if(!is_non_zero(idx_vec)) { return; }
+
         Proc proc;
         Offset offset;
         std::tie(proc, offset) = distribution_->locate(idx_vec);

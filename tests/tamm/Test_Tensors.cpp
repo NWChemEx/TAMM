@@ -22,7 +22,6 @@ std::ostream& operator << (std::ostream &os, std::vector<T>& vec){
 template<typename T>
 void print_tensor(Tensor<T> &t){
     auto lt = t();
-    size_t prev_row = 0;
     for (auto it: t.loop_nest())
     {
         auto blockid = internal::translate_blockid(it, lt);
@@ -606,8 +605,8 @@ TEST_CASE("Spin Tensor Construction") {
     try {
 
         TiledIndexSpaceVec t_spaces{tis_3, tis_3};
-        Tensor<T> T1{t_spaces, spin_mask_2D};
-        Tensor<T> T2{t_spaces, spin_mask_2D};
+        Tensor<T> T1{t_spaces, {1,1}};
+        Tensor<T> T2{t_spaces, {1,1}};
         T1.allocate(ec);
         T2.allocate(ec);
 

@@ -110,9 +110,7 @@ class MemoryManagerGA : public MemoryManager {
         //no-op
       }
 
-      //uint64_t *map_start = &pmr->map_[0];
-      int64_t *map_start = &pmr->map_[0];
-      
+      int64_t* map_start = &pmr->map_[0];
       for(int i=0; i<nranks && *(map_start+1)==0; ++i, ++map_start, --block) {
         //no-op
       }

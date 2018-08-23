@@ -272,15 +272,19 @@ public:
      * @param [in] idx input Index value
      * @returns associated Spin value for the input Index value
      */
-    Spin spin(Index idx) const { return tiled_info_->is_.spin(idx); }
+    Spin spin(size_t idx) const { 
+        size_t translated_idx = info_translate(idx, (*root_tiled_info_.lock()));
+        return root_tiled_info_.lock()->spin_value(translated_idx); }
 
     /**
      * @brief Accessor methods to Spatial value associated with the input Index
      *
+     * @todo: fix once we have spatial
+     * 
      * @param [in] idx input Index value
      * @returns associated Spatial value for the input Index value
      */
-    Spatial spatial(Index idx) const { return tiled_info_->is_.spatial(idx); }
+    Spatial spatial(size_t idx) const { return tiled_info_->is_.spatial(idx); }
 
     /**
      * @brief Accessor method for the set of Ranges associated with a Spin value
@@ -795,6 +799,10 @@ protected:
                     }
                 }
             }
+        }
+
+        Spin spin_value(size_t id) const {
+            return is_.spin(tile_offsets_[id]);
         }
 
         void validate() {

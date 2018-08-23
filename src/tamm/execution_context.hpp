@@ -1,7 +1,6 @@
 #ifndef TAMM_EXECUTION_CONTEXT_H_
 #define TAMM_EXECUTION_CONTEXT_H_
 
-#include "tamm/distribution.hpp"
 #include "tamm/proc_group.hpp"
 //#include "tamm/tensor_impl.hpp"
 #include "tamm/memory_manager_ga.hpp"
@@ -9,6 +8,12 @@
 
 namespace tamm {
 
+/**
+ * @todo Create a proper forward declarations file.
+ * 
+ */
+
+class Distribution;
 class Scheduler;
 template<typename T>
 class Tensor;
@@ -166,7 +171,7 @@ public:
         tensors_to_dealloc_.clear();
     }
 
-    void register_for_dealloc(std::function<void> tensor_deleter) {
+    void register_for_dealloc(std::function<void()> tensor_deleter) {
         tensors_to_dealloc_.push_back(tensor_deleter);
     }
 
@@ -177,7 +182,7 @@ private:
     MemoryManager* default_memory_manager_;
     MemoryManagerLocal* memory_manager_local_;
 
-    std::vector<std::function<void>> tensors_to_dealloc_;
+    std::vector<std::function<void()>> tensors_to_dealloc_;
 
 }; // class ExecutionContext
 

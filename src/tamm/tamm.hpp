@@ -19,7 +19,7 @@
 #include "tamm/ops.hpp"
 #include "tamm/scheduler.hpp"
 #include "tamm/tensor.hpp"
-#include "tamm/spin_tensor.hpp"
+// #include "tamm/spin_tensor.hpp"
 #include "tamm/dag_impl.hpp"
 
 

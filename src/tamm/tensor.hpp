@@ -45,6 +45,20 @@ public:
     Tensor(std::vector<TiledIndexLabel> til_vec) :
       impl_{std::make_shared<TensorImpl>(til_vec)} {}
 
+#if 1
+    // SpinTensor Constructors
+
+    Tensor(TiledIndexSpaceVec t_spaces, SpinMask spin_mask) :
+      impl_{std::make_shared<TensorImpl>(t_spaces, spin_mask)} {}
+    Tensor(IndexLabelVec t_lbls, SpinMask spin_mask) :
+      impl_{std::make_shared<TensorImpl>(t_lbls, spin_mask)} {}
+
+    Tensor(TiledIndexSpaceVec t_spaces, std::vector<size_t> spin_sizes) :
+      impl_{std::make_shared<TensorImpl>(t_spaces, spin_sizes)} {}
+    Tensor(IndexLabelVec t_lbls, std::vector<size_t> spin_sizes) :
+      impl_{std::make_shared<TensorImpl>(t_lbls, spin_sizes)} {}
+
+#endif
     /**
      * @brief Construct a new Tensor object from a set of TiledIndexSpace
      * objects as modes of the Tensor
@@ -76,7 +90,6 @@ public:
     template<class... Ts>
     Tensor(const TiledIndexSpace& tis, Ts... rest) :
       impl_{std::make_shared<TensorImpl>(tis, rest...)} {}
-
 
     /**
      * @brief Operator overload for constructing a LabeledTensor object with
@@ -152,7 +165,7 @@ public:
 
     /**
      * @brief Get offsets of a block
-     * 
+     *
      * @param [in] blockid The id of the block
      * @returns std::vector<size_t> The vector of offsets
      */
@@ -224,10 +237,14 @@ public:
 
     /**
      * @brief Get the number of modes of a Tensor
-     * 
+     *
      * @returns number of modes of a Tensor
      */
     size_t num_modes() const { return impl_->num_modes(); }
+
+    bool is_non_zero(const IndexVector& blockid) const {
+        return impl_->is_non_zero(blockid);
+    }
 
 private:
     std::shared_ptr<TensorImpl> impl_;
@@ -246,7 +263,7 @@ private:
      */
     template<typename... Args>
     static void alloc(const ExecutionContext* ec, Tensor<T>& tensor,
-                         Args&... rest) {
+                      Args&... rest) {
         tensor.impl_->template allocate<T>(ec);
         alloc(ec, rest...);
     }

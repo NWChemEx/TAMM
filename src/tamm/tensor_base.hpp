@@ -258,6 +258,36 @@ public:
         return spin_total_;
     }
 
+    bool is_non_zero(const IndexVector& blockid) const {
+        if(!has_spin()){
+            return true;
+        }
+
+        EXPECTS(blockid.size() == num_modes());
+
+        size_t rank = num_modes();
+        Spin upper_total = 0, lower_total = 0, other_total = 0;
+        for (size_t i = 0; i < rank; i++) {
+            IndexVector dep_idx_vals{};
+            if(dep_map_.find(i) != dep_map_.end()) {
+                for(const auto& pos : dep_map_.at(i)) {
+                    dep_idx_vals.push_back(blockid[pos]);
+                }
+            }
+
+            const auto& tis = block_indices_[i](dep_idx_vals);
+            if(spin_mask_[i] == SpinPosition::upper){
+                upper_total += tis.spin(blockid[i]);
+            } else if(spin_mask_[i] == SpinPosition::lower){
+                lower_total += tis.spin(blockid[i]);
+            } else {
+                other_total += tis.spin(blockid[i]);
+            }
+        }
+        
+        return (upper_total == lower_total);
+    }
+
 protected:
     void fillin_tlabels() {
         tlabels_.clear();

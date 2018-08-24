@@ -1825,3 +1825,20 @@ TEST_CASE("Two-dimensional ops part I") {
 }
 #endif
 
+TEST_CASE("Tensor Allocation and Deallocation") {
+    ProcGroup pg{GA_MPI_Comm()};
+    auto mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
+
+    {
+        Tensor<double> tensor{};
+        Tensor<double>::allocate(ec, tensor);
+    }
+
+    ec->flush_and_sync();
+
+    MemoryManagerGA::destroy_coll(mgr);
+    delete ec;
+}
+

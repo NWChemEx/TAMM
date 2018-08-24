@@ -40,7 +40,7 @@ class MemoryRegionGA : public MemoryRegionImpl<MemoryManagerGA> {
  private:
   int ga_;
   ElementType eltype_;
-  std::vector<TAMM_SIZE> map_;
+  std::vector<int64_t> map_;
 
   friend class MemoryManagerGA;
 }; // class MemoryRegionGA
@@ -110,14 +110,11 @@ class MemoryManagerGA : public MemoryManager {
         //no-op
       }
 
-      //uint64_t *map_start = &pmr->map_[0];
-      int64_t map_start = pmr->map_[0];
-      
-      
-      for(int i=0; i<nranks && *(&map_start+1)==0; ++i, ++map_start, --block) {
+      int64_t* map_start = &pmr->map_[0];
+      for(int i=0; i<nranks && *(map_start+1)==0; ++i, ++map_start, --block) {
         //no-op
       }
-      pmr->ga_ = NGA_Create_irreg64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()), &block, &map_start);
+      pmr->ga_ = NGA_Create_irreg64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()), &block, map_start);
     }
     GA_Pgroup_set_default(ga_pg_default);
 

@@ -170,13 +170,11 @@ public:
         size_t addr      = 0;
 
         for(const auto& it : iln) {
-            auto blockid = it;
-            if(tensor_structure_->is_non_zero(blockid)) {
-                hash_[addr].key_    = compute_key(blockid);
-                hash_[addr].offset_ = offset;
-                offset += tensor_structure_->block_size(blockid);
-                addr += 1;
-            }
+            auto blockid        = it;
+            hash_[addr].key_    = compute_key(blockid);
+            hash_[addr].offset_ = offset;
+            offset += tensor_structure_->block_size(blockid);
+            addr += 1;
         }
         EXPECTS(offset > 0);
         total_size_ = offset;
@@ -196,6 +194,9 @@ public:
             } else {
                 proc_offsets_.push_back(Offset{total_size_});
             }
+            itr = std::lower_bound(
+              itr, itr_last, (i + 1) * per_proc_size,
+              [](const auto& hv, const auto& v) { return hv.offset_ < v; });
         }
 
         EXPECTS(proc_offsets_.size() == static_cast<uint64_t>(nproc.value()));

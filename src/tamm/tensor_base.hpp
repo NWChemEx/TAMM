@@ -208,7 +208,7 @@ public:
                         && tl1 == tl2));
             }
         }
-        std::cout << "Finished check duplicates!" << std::endl;
+        return true;
     }
 
     /// @todo refactor

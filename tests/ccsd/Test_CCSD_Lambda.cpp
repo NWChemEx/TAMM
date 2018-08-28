@@ -928,27 +928,21 @@ void lambda_ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     // .execute();
 
   {
-      auto lambda = [&](const IndexVector& blockid) {
+      for(const auto& blockid : d_f1.loop_nest()) {
           if(blockid[0] == blockid[1]) {
-              Tensor<T> tensor     = d_f1;
-              const TAMM_SIZE size = tensor.block_size(blockid);
-
+              const TAMM_SIZE size = d_f1.block_size(blockid);
               std::vector<T> buf(size);
-              tensor.get(blockid, buf);
-
-            auto block_dims = tensor.block_dims(blockid);
-            auto block_offset = tensor.block_offsets(blockid);
-
-
-              auto dim    = block_dims[0];
-              auto offset = block_offset[0];
-              TAMM_SIZE i = 0;
+              d_f1.get(blockid, buf);
+              auto block_dims   = d_f1.block_dims(blockid);
+              auto block_offset = d_f1.block_offsets(blockid);
+              auto dim          = block_dims[0];
+              auto offset       = block_offset[0];
+              size_t i          = 0;
               for(auto p = offset; p < offset + dim; p++, i++) {
                   p_evl_sorted[p] = buf[i * dim + i];
               }
           }
-      };
-      block_for(ec->pg(), d_f1(), lambda);
+      }
   }
   ec->pg().barrier();
 

@@ -90,11 +90,18 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     std::sort(bsorted_labels.begin(), bsorted_labels.end());
     std::sort(csorted_labels.begin(), csorted_labels.end());
 
-    std::vector<IntLabel> inner_labels, aouter_labels, bouter_labels,
-      batch_labels;
-    std::vector<Size> inner_dims, aouter_dims, bouter_dims, batch_dims;
+    // IndexLabelVec all_labels;
+    // all_sorted_labels.insert(all_sorted_labels.end(), clabels.begin(), clabels.end());
+    // all_sorted_labels.insert(all_sorted_labels.end(), alabels.begin(), alabels.end());
+    // all_sorted_labels.insert(all_sorted_labels.end(), blabels.begin(), blabels.end());
+    // std::sort(all_sorted_labels.begin(), all_sorted_labels.end());
 
-    int B = 1, M = 1, N = 1, K = 1;
+    std::vector<IntLabel> inner_labels, aouter_labels, bouter_labels,
+      batch_labels, areduce_labels, breduce_labels;
+    std::vector<Size> inner_dims, aouter_dims, bouter_dims, batch_dims,
+      areduce_dims, breduce_dims;
+
+    int B = 1, M = 1, N = 1, K = 1, AR = 1, BR = 1;
     for(size_t i = 0; i < cdims.size(); i++) {
         const auto& lbl = clabels[i];
         bool is_in_a =
@@ -133,17 +140,42 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
         } else if(is_in_c) {
             // no-op -- already added to aouter
         } else {
-            UNREACHABLE();
+            AR *= adims[i].value();
+            areduce_dims.push_back(adims[i]);
+            areduce_labels.push_back(lbl);
         }
     }
 
-    std::vector<IntLabel> ainter_labels{batch_labels};
+    for(size_t i = 0; i < bdims.size(); i++) {
+        const auto& lbl = blabels[i];
+        bool is_in_a =
+          std::binary_search(asorted_labels.begin(), asorted_labels.end(), lbl);
+        bool is_in_c =
+          std::binary_search(csorted_labels.begin(), csorted_labels.end(), lbl);
+        if(is_in_a && is_in_c) {
+            // no-op -- already added in batch_labels
+        } else if(is_in_a) {
+            // no-op -- already in inner_labels
+        } else if(is_in_c) {
+            // no-op -- already added to bouter
+        } else {
+            BR *= bdims[i].value();
+            breduce_dims.push_back(bdims[i]);
+            breduce_labels.push_back(lbl);
+        }
+    }
+
+    std::vector<IntLabel> ainter_labels{areduce_labels};
+    ainter_labels.insert(ainter_labels.end(), batch_labels.begin(),
+                        batch_labels.end());
     ainter_labels.insert(ainter_labels.end(), aouter_labels.begin(),
                          aouter_labels.end());
     ainter_labels.insert(ainter_labels.end(), inner_labels.begin(),
                          inner_labels.end());
 
-    std::vector<IntLabel> binter_labels{batch_labels};
+    std::vector<IntLabel> binter_labels{breduce_labels};
+    binter_labels.insert(binter_labels.end(), batch_labels.begin(),
+                  batch_labels.end());
     binter_labels.insert(binter_labels.end(), inner_labels.begin(),
                          inner_labels.end());
     binter_labels.insert(binter_labels.end(), bouter_labels.begin(),
@@ -155,12 +187,15 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     cinter_labels.insert(cinter_labels.end(), bouter_labels.begin(),
                          bouter_labels.end());
 
-    SizeVec ainter_dims{batch_dims};
+    SizeVec ainter_dims{areduce_dims};
+    ainter_dims.insert(ainter_dims.end(), batch_dims.begin(),
+                       batch_dims.end());
     ainter_dims.insert(ainter_dims.end(), aouter_dims.begin(),
                        aouter_dims.end());
     ainter_dims.insert(ainter_dims.end(), inner_dims.begin(), inner_dims.end());
 
-    SizeVec binter_dims{batch_dims};
+    SizeVec binter_dims{breduce_dims};
+    binter_dims.insert(binter_dims.end(), batch_dims.begin(), batch_dims.end());
     binter_dims.insert(binter_dims.end(), inner_dims.begin(), inner_dims.end());
     binter_dims.insert(binter_dims.end(), bouter_dims.begin(),
                        bouter_dims.end());
@@ -186,16 +221,26 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     int cbatch_ld  = M * N;
     int abatch_ld  = M * K;
     int bbatch_ld  = K * N;
+    int areduce_ld = B * abatch_ld;
+    int breduce_ld = B * bbatch_ld;
 
     //std::cerr<<"M="<<M<<" N="<<N<<" K="<<K<<" B="<<B<<" alpha="<<alpha<<" beta="<<beta<<"\n";
     // dgemm
-    for(size_t i = 0; i < B; i++) {
-        internal::gemm_wrapper<T>(CblasRowMajor, transA, transB, M, N, K, alpha,
-                                  ainter_buf.data() + i * abatch_ld, ainter_ld,
-                                  binter_buf.data() + i * bbatch_ld, binter_ld,
-                                  beta, cinter_buf.data() + i * cbatch_ld, cinter_ld);
+    for(size_t ari = 0; ari < AR; ari++) {
+        for(size_t bri = 0; bri < BR; bri++) {
+            for(size_t i = 0; i < B; i++) {
+                internal::gemm_wrapper<T>(
+                  CblasRowMajor, transA, transB, M, N, K, alpha,
+                  ainter_buf.data() + ari * areduce_ld + i * abatch_ld,
+                  ainter_ld,
+                  binter_buf.data() + bri * breduce_ld + i * bbatch_ld,
+                  binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
+                  cinter_ld);
+            }
+        }
     }
-    //std::cerr<<"A[0]="<<ainter_buf[0]<<" B[0]="<<binter_buf[0]<<" C[0]="<<cinter_buf[0]<<"\n";
+    // std::cerr<<"A[0]="<<ainter_buf[0]<<" B[0]="<<binter_buf[0]<<"
+    // C[0]="<<cinter_buf[0]<<"\n";
     assign(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims, cinter_labels,
            true);
 } // block_multiply()

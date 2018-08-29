@@ -30,7 +30,10 @@ cmake .. \
  -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_STANDARD=17 \ 
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMM \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild 
-[-DCMAKE_BUILD_TYPE=Debug] #Optional
+
+#Optional cmake options for developers
+-DCMAKE_CXX_FLAGS "-fsanitize=address"
+[-DCMAKE_BUILD_TYPE=Debug (OR) -DCMAKE_BUILD_TYPE=RELWITHDEBINFO]
 
 make -j3
 make install

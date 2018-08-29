@@ -198,15 +198,16 @@ public:
 
     /// @todo refactor
     bool check_duplicates(){
-        Index til = tlabels_.size();
-        for(Index i1 = 0; i1 < til; i1++) {
-            for(Index i2 = i1+1; i2 < til; i2++) {
+        size_t til = tlabels_.size();
+        for(size_t i1 = 0; i1 < til; i1++) {
+            for(size_t i2 = i1+1; i2 < til; i2++) {
                 auto tl1 = tlabels_[i1];
                 auto tl2 = tlabels_[i2];
                 EXPECTS(!(tl1.tiled_index_space().is_identical(tl2.tiled_index_space())
                         && tl1 == tl2));
             }
         }
+        return true;
     }
 
     /// @todo refactor

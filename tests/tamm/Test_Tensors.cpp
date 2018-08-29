@@ -45,23 +45,6 @@ TEST_CASE("Dependent Index construction and usage") {
     CHECK_NOTHROW(tensor_contruction<double>(T_AO, T_MO, T_ATOM, T_AO_ATOM));
 }
 
-TEST_CASE("Tensor Allocation and Deallocation") {
-    ProcGroup pg{GA_MPI_Comm()};
-    auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
-
-    {
-        Tensor<double> tensor{};
-        Tensor<double>::allocate(ec, tensor);
-    }
-
-    ec->flush_and_sync();
-
-    MemoryManagerGA::destroy_coll(mgr);
-    delete ec;
-}
-
 TEST_CASE("Tensor Declaration Syntax") {
     using Tensor = Tensor<double>;
 

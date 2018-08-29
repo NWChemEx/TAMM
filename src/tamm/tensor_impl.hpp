@@ -107,7 +107,8 @@ public:
      * @param [in] tis vector of TiledIndexSpace objects for each
      * mode used to construct the tensor
      */
-    TensorImpl(const TiledIndexSpaceVec& tis) : TensorBase{tis} {}
+    TensorImpl(const TiledIndexSpaceVec& tis) : TensorBase{tis} 
+        { has_spin_symmetry_ = false; }
 
     /**
      * @brief Construct a new TensorImpl object using a vector of
@@ -117,7 +118,8 @@ public:
      * corresponding TiledIndexSpace objects for each mode used to construct
      * the tensor
      */
-    TensorImpl(const std::vector<TiledIndexLabel>& lbls) : TensorBase{lbls} {}
+    TensorImpl(const std::vector<TiledIndexLabel>& lbls) : TensorBase{lbls} 
+        { has_spin_symmetry_ = false; }
 
     /**
      * @brief Construct a new TensorBase object recursively with a set of
@@ -132,6 +134,7 @@ public:
       TensorBase{tis, rest...} {
         num_modes_ = block_indices_.size();
         construct_dep_map();
+        has_spin_symmetry_ = false;
     }
 
 #if 1

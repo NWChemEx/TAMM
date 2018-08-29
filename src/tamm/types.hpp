@@ -42,6 +42,11 @@ using Tile          = uint32_t;
 using HashData      = uint64_t;
 using StringLabelVec    = std::vector<std::string>;
 
+class TiledIndexSpace;
+using TiledIndexSpaceVec = std::vector<TiledIndexSpace>;
+class TiledIndexLabel;
+using IndexLabelVec = std::vector<TiledIndexLabel>;
+
 using Perm = int32_t;
 using PermVector = std::vector<Perm>;
 
@@ -193,9 +198,10 @@ using PermVec = TensorVec<uint32_t>;
 using RangeValue = int64_t;
 
 // enum class IndexSpaceType { mo, mso, ao, aso, aux };
-enum class SpinMask { ignore, upper, lower };
+enum class SpinPosition { ignore, upper, lower };
 enum class IndexPosition { upper, lower, neither };
 
+using SpinMask = std::vector<SpinPosition>;
 //////////////////
 
 namespace SpinType {

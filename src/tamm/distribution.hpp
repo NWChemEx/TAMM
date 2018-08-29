@@ -156,56 +156,46 @@ public:
         EXPECTS(nproc > 0);
         if(tensor_structure == nullptr) { return; }
 
-        int64_t length{0};
-        auto iln = tensor_structure_->loop_nest();
-        for(const auto& it : iln) {
-            if(tensor_structure_->is_non_zero(it)) { length += 1; }
-        }
-        EXPECTS(length > 0);
-
         compute_key_offsets();
+        for(const auto& blockid : tensor_structure_->loop_nest()) {
+            if(tensor_structure_->is_non_zero(blockid))
+                hash_.push_back({compute_key(blockid),
+                            tensor_structure_->block_size(blockid)});
+        }
+        EXPECTS(hash_.size() > 0);
 
-        hash_.resize(length);
-        HashValue offset = 0;
-        size_t addr      = 0;
+        std::sort(hash_.begin(), hash_.end(),
+                  [](const KeyOffsetPair& lhs, const KeyOffsetPair& rhs) {
+                      return lhs.key_ < rhs.key_;
+                  });
 
-        for(const auto& it : iln) {
-            auto blockid        = it;
-            hash_[addr].key_    = compute_key(blockid);
-            hash_[addr].offset_ = offset;
-            offset += tensor_structure_->block_size(blockid);
-            addr += 1;
+        Offset offset = 0;
+        for(size_t i=0; i<hash_.size(); i++) {
+          auto sz = hash_[i].offset_;
+          hash_[i].offset_ = offset;
+          offset += sz;
         }
         EXPECTS(offset > 0);
         total_size_ = offset;
 
-        HashValue per_proc_size =
-          std::max(Integer{offset / nproc.value()}, Integer{1});
+        Offset per_proc_size =
+          std::max(offset / nproc.value(), Offset{1});
         auto itr      = hash_.begin();
         auto itr_last = hash_.end();
-
-        if(GA_Nodeid() == 1) {
-            // std::cerr<<"------DISTRIB_NW. total size="<<total_size_<<"
-            // nproc="<<nproc<<" per_proc_size="<<per_proc_size<<"\n";
-        }
         for(int i = 0; i < nproc.value(); i++) {
             if(itr != itr_last) {
                 proc_offsets_.push_back(Offset{itr->offset_});
             } else {
                 proc_offsets_.push_back(Offset{total_size_});
             }
-            itr = std::lower_bound(
-              itr, itr_last, (i + 1) * per_proc_size,
-              [](const auto& hv, const auto& v) { return hv.offset_ < v; });
+            itr =
+              std::lower_bound(itr, itr_last, (Offset{i} + 1) * per_proc_size,
+                               [](const KeyOffsetPair& hv, const Offset& v) {
+                                   return hv.offset_ < v;
+                               });
         }
-
         EXPECTS(proc_offsets_.size() == static_cast<uint64_t>(nproc.value()));
         proc_offsets_.push_back(total_size_);
-
-        std::sort(hash_.begin(), hash_.end(),
-                  [](const KeyOffsetPair& lhs, const KeyOffsetPair& rhs) {
-                      return lhs.key_ < rhs.key_;
-                  });
     }
 
     // const std::vector<Integer>& hash() const {

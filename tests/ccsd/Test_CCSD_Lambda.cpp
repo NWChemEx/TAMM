@@ -419,7 +419,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     // sch(d_evl(n1) = 0.0)
     // .execute();
 
-  d_f1.trace(p_evl_sorted);
+  d_f1.diagonal(p_evl_sorted);
 //   {
 //       for(const auto& blockid : d_f1.loop_nest()) {
 //           if(blockid[0] == blockid[1]) {
@@ -928,7 +928,7 @@ void lambda_ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     // sch(d_evl(n1) = 0.0)
     // .execute();
 
-  d_f1.trace(p_evl_sorted);
+  d_f1.diagonal(p_evl_sorted);
 //   {
 //       for(const auto& blockid : d_f1.loop_nest()) {
 //           if(blockid[0] == blockid[1]) {

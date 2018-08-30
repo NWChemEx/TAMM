@@ -632,30 +632,31 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     // sch(d_evl(n1) = 0.0)
     // .execute();
 
-  {
-      auto lambda = [&](const IndexVector& blockid) {
-          if(blockid[0] == blockid[1]) {
-              Tensor<T> tensor     = d_f1;
-              const TAMM_SIZE size = tensor.block_size(blockid);
+  d_f1.trace(p_evl_sorted);
+//   {
+//       auto lambda = [&](const IndexVector& blockid) {
+//           if(blockid[0] == blockid[1]) {
+//               Tensor<T> tensor     = d_f1;
+//               const TAMM_SIZE size = tensor.block_size(blockid);
 
-              std::vector<T> buf(size);
-              tensor.get(blockid, buf);
+//               std::vector<T> buf(size);
+//               tensor.get(blockid, buf);
 
-            auto block_dims = tensor.block_dims(blockid);
-            auto block_offset = tensor.block_offsets(blockid);
+//             auto block_dims = tensor.block_dims(blockid);
+//             auto block_offset = tensor.block_offsets(blockid);
 
 
-              auto dim    = block_dims[0];
-              auto offset = block_offset[0];
-              TAMM_SIZE i = 0;
-              for(auto p = offset; p < offset + dim; p++, i++) {
-                  p_evl_sorted[p] = buf[i * dim + i];
-              }
-          }
-      };
-      block_for(ec->pg(), d_f1(), lambda);
-  }
-  ec->pg().barrier();
+//               auto dim    = block_dims[0];
+//               auto offset = block_offset[0];
+//               TAMM_SIZE i = 0;
+//               for(auto p = offset; p < offset + dim; p++, i++) {
+//                   p_evl_sorted[p] = buf[i * dim + i];
+//               }
+//           }
+//       };
+//       block_for(ec->pg(), d_f1(), lambda);
+//   }
+//   ec->pg().barrier();
 
   if(ec->pg().rank() == 0) {
     std::cout << "p_evl_sorted:" << '\n';

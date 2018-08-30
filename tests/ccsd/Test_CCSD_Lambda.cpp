@@ -419,24 +419,25 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     // sch(d_evl(n1) = 0.0)
     // .execute();
 
-  {
-      for(const auto& blockid : d_f1.loop_nest()) {
-          if(blockid[0] == blockid[1]) {
-              const TAMM_SIZE size = d_f1.block_size(blockid);
-              std::vector<T> buf(size);
-              d_f1.get(blockid, buf);
-              auto block_dims   = d_f1.block_dims(blockid);
-              auto block_offset = d_f1.block_offsets(blockid);
-              auto dim          = block_dims[0];
-              auto offset       = block_offset[0];
-              size_t i          = 0;
-              for(auto p = offset; p < offset + dim; p++, i++) {
-                  p_evl_sorted[p] = buf[i * dim + i];
-              }
-          }
-      }
-  }
-  ec->pg().barrier();
+  d_f1.trace(p_evl_sorted);
+//   {
+//       for(const auto& blockid : d_f1.loop_nest()) {
+//           if(blockid[0] == blockid[1]) {
+//               const TAMM_SIZE size = d_f1.block_size(blockid);
+//               std::vector<T> buf(size);
+//               d_f1.get(blockid, buf);
+//               auto block_dims   = d_f1.block_dims(blockid);
+//               auto block_offset = d_f1.block_offsets(blockid);
+//               auto dim          = block_dims[0];
+//               auto offset       = block_offset[0];
+//               size_t i          = 0;
+//               for(auto p = offset; p < offset + dim; p++, i++) {
+//                   p_evl_sorted[p] = buf[i * dim + i];
+//               }
+//           }
+//       }
+//   }
+//   ec->pg().barrier();
 
   if(ec->pg().rank() == 0) {
     std::cout << "p_evl_sorted:" << '\n';
@@ -927,24 +928,25 @@ void lambda_ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     // sch(d_evl(n1) = 0.0)
     // .execute();
 
-  {
-      for(const auto& blockid : d_f1.loop_nest()) {
-          if(blockid[0] == blockid[1]) {
-              const TAMM_SIZE size = d_f1.block_size(blockid);
-              std::vector<T> buf(size);
-              d_f1.get(blockid, buf);
-              auto block_dims   = d_f1.block_dims(blockid);
-              auto block_offset = d_f1.block_offsets(blockid);
-              auto dim          = block_dims[0];
-              auto offset       = block_offset[0];
-              size_t i          = 0;
-              for(auto p = offset; p < offset + dim; p++, i++) {
-                  p_evl_sorted[p] = buf[i * dim + i];
-              }
-          }
-      }
-  }
-  ec->pg().barrier();
+  d_f1.trace(p_evl_sorted);
+//   {
+//       for(const auto& blockid : d_f1.loop_nest()) {
+//           if(blockid[0] == blockid[1]) {
+//               const TAMM_SIZE size = d_f1.block_size(blockid);
+//               std::vector<T> buf(size);
+//               d_f1.get(blockid, buf);
+//               auto block_dims   = d_f1.block_dims(blockid);
+//               auto block_offset = d_f1.block_offsets(blockid);
+//               auto dim          = block_dims[0];
+//               auto offset       = block_offset[0];
+//               size_t i          = 0;
+//               for(auto p = offset; p < offset + dim; p++, i++) {
+//                   p_evl_sorted[p] = buf[i * dim + i];
+//               }
+//           }
+//       }
+//   }
+//   ec->pg().barrier();
 
   if(ec->pg().rank() == 0) {
     std::cout << "p_evl_sorted:" << '\n';

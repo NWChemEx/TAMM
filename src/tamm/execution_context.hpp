@@ -165,8 +165,8 @@ public:
      */
     void flush_and_sync() {
         pg_.barrier();
-        for(auto& tensor_deleter : tensors_to_dealloc_) {
-            tensor_deleter();
+        for(auto& tensor_deallocator : tensors_to_dealloc_) {
+            tensor_deallocator();
         }
         tensors_to_dealloc_.clear();
     }

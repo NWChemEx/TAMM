@@ -169,7 +169,7 @@ public:
     auto buf_size = distribution_->buf_size(rank);
     auto eltype = tensor_element_type<T>();
     EXPECTS(buf_size >=0 );
-    mpb_ = std::unique_ptr<MemoryRegion>{memory_manager->alloc_coll(eltype, buf_size)};
+    mpb_.reset(memory_manager->alloc_coll(eltype, buf_size));
 
     update_status(AllocationStatus::created);
   }
@@ -242,7 +242,7 @@ protected:
         // last owner, it will deallocate the resources.  Every lambda
         // invocation resets the pointer to decrease the use count.  Note that
         // this is not safe in multi-threaded environments.
-        return [=]() {
+        return [mpb_ = this->mpb_]() mutable {
             if (mpb_.use_count() == 1) mpb_->dealloc_coll();
             mpb_.reset();
         };

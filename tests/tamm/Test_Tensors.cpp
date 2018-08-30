@@ -40,14 +40,19 @@ void print_tensor(Tensor<T> &t){
 template<typename T>
 void check_value(LabeledTensor<T> lt, T val) {
     LabelLoopNest loop_nest{lt.labels()};
-
+    T ref_val = val;
     for(const auto& itval : loop_nest) {
         const IndexVector blockid = internal::translate_blockid(itval, lt);
         size_t size               = lt.tensor().block_size(blockid);
         std::vector<T> buf(size);
         lt.tensor().get(blockid, buf);
+        if(lt.tensor().is_non_zero(blockid)){
+            ref_val = val;
+        }else {
+            ref_val = (T)0;
+        }
         for(TAMM_SIZE i = 0; i < size; i++) {
-            REQUIRE(std::fabs(buf[i] - val) < 1.0e-10);
+            REQUIRE(std::fabs(buf[i] - ref_val) < 1.0e-10);
         }
     }
 }
@@ -480,20 +485,6 @@ TEST_CASE("Spin Tensor Construction") {
         REQUIRE((SpinTIS("virt").spin(0) == Spin{1}));
         REQUIRE((SpinTIS("virt").spin(1) == Spin{2}));
 
-        TiledIndexSpaceVec t_spaces{SpinTIS, SpinTIS};
-        Tensor<T> tensor{t_spaces, spin_mask_2D};
-
-        std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-        int i = 1;
-        for(auto it : tensor.loop_nest()) {
-            std::cerr << tensor.is_non_zero(it);
-            if(i % SpinTIS.num_tiles() == 0) {
-                std::cerr << std::endl;
-            } else {
-                std::cerr << " ";
-            }
-            i++;
-        }
     }
 
     TiledIndexSpace tis_3{SpinIS, 3};
@@ -518,20 +509,6 @@ TEST_CASE("Spin Tensor Construction") {
         REQUIRE((tis_3("virt").spin(2) == Spin{2}));
         REQUIRE((tis_3("virt").spin(3) == Spin{2}));
 
-        TiledIndexSpaceVec t_spaces{tis_3, tis_3};
-        Tensor<T> tensor{t_spaces, spin_mask_2D};
-
-        std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-        int i = 1;
-        for(auto it : tensor.loop_nest()) {
-            std::cerr << tensor.is_non_zero(it);
-            if(i % tis_3.num_tiles() == 0) {
-                std::cerr << std::endl;
-            } else {
-                std::cerr << " ";
-            }
-            i++;
-        }
     }
 
     ProcGroup pg{GA_MPI_Comm()};
@@ -545,11 +522,7 @@ TEST_CASE("Spin Tensor Construction") {
         Tensor<T> tensor{t_spaces, spin_mask_2D};
         tensor.allocate(ec);
         Scheduler{ec}(tensor() = 42).execute();
-        print_tensor(tensor);
-        // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-        // for(auto it : tensor.loop_nest()) {
-        //     std::cerr << "Size: " << tensor.block_size(it) << std::endl;
-        // }
+        check_value(tensor, (T)42);
         tensor.deallocate();
     } catch(const std::string& e) {
         std::cerr << e << std::endl;
@@ -563,13 +536,9 @@ TEST_CASE("Spin Tensor Construction") {
         TiledIndexSpaceVec t_spaces{tis_3("occ"), tis_3("virt")};
         Tensor<T> tensor{t_spaces, spin_mask_2D};
         tensor.allocate(ec);
-        
+
         Scheduler{ec}(tensor() = 42).execute();
-        std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-        print_tensor(tensor);
-        // for(auto it : tensor.loop_nest()) {
-        //     std::cerr << "Size: " << tensor.block_size(it) << std::endl;
-        // }
+        check_value(tensor, (T)42);
         tensor.deallocate();
     } catch(const std::string& e) {
         std::cerr << e << std::endl;
@@ -587,12 +556,9 @@ TEST_CASE("Spin Tensor Construction") {
         T2.allocate(ec);
 
         Scheduler{ec}(T2() = 3)(T1() = T2()).execute();
-        std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-        print_tensor(T1);
-        print_tensor(T2);
-        // for(auto it : tensor.loop_nest()) {
-        //     std::cerr << "Size: " << tensor.block_size(it) << std::endl;
-        // }
+        check_value(T2, (T)3);
+        check_value(T1, (T)3);
+ 
         T1.deallocate();
         T2.deallocate();
     } catch(const std::string& e) {
@@ -611,14 +577,58 @@ TEST_CASE("Spin Tensor Construction") {
         T2.allocate(ec);
 
         Scheduler{ec}(T1() = 42)(T2() = 3)(T1() += T2()).execute();
-        std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-        print_tensor(T1);
-        print_tensor(T2);
-        // for(auto it : tensor.loop_nest()) {
-        //     std::cerr << "Size: " << tensor.block_size(it) << std::endl;
-        // }
+        check_value(T2, (T)3);
+        check_value(T1, (T)45);
+
         T1.deallocate();
         T2.deallocate();
+    } catch(const std::string& e) {
+        std::cerr << e << std::endl;
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    failed = false;
+    try {
+
+        TiledIndexSpaceVec t_spaces{tis_3, tis_3};
+        Tensor<T> T1{t_spaces, {1,1}};
+        Tensor<T> T2{t_spaces, {1,1}};
+        T1.allocate(ec);
+        T2.allocate(ec);
+
+        Scheduler{ec}(T1() = 42)(T2() = 3)(T1() += 2 * T2()).execute();
+        check_value(T2, (T)3);
+        check_value(T1, (T)48);
+       
+        T1.deallocate();
+        T2.deallocate();
+    } catch(const std::string& e) {
+        std::cerr << e << std::endl;
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    failed = false;
+    try {
+
+        TiledIndexSpaceVec t_spaces{tis_3, tis_3};
+        Tensor<T> T1{t_spaces, {1,1}};
+        Tensor<T> T2{t_spaces, {1,1}};
+        Tensor<T> T3{t_spaces, {1,1}};
+
+        T1.allocate(ec);
+        T2.allocate(ec);
+        T3.allocate(ec);        
+
+        Scheduler{ec}(T1() = 42)(T2() = 3)(T3() = 4)(T1() += T3() * T2()).execute();
+        check_value(T3, (T)4);
+        check_value(T2, (T)3);
+        check_value(T1, (T)54);
+       
+        T1.deallocate();
+        T2.deallocate();
+        T3.deallocate();
     } catch(const std::string& e) {
         std::cerr << e << std::endl;
         failed = true;

@@ -359,6 +359,27 @@ public:
                         buff_span.data());
     }
 
+    template<typename T>
+    void trace(std::vector<T>& dest) {
+        EXPECTS(num_modes() == 2);
+        for(const IndexVector& blockid : loop_nest()) {
+          if(blockid[0] == blockid[1]) {
+              const TAMM_SIZE size = block_size(blockid);
+              std::vector<T> buf(size);
+              span<T> sbuf{buf};
+              get(blockid, sbuf);
+              auto block_dims1   = block_dims(blockid);
+              auto block_offset = block_offsets(blockid);
+              auto dim          = block_dims1[0];
+              auto offset       = block_offset[0];
+              size_t i          = 0;
+              for(auto p = offset; p < offset + dim; p++, i++) {
+                  dest[p] = sbuf[i * dim + i];
+              }
+          }
+      }
+    }
+
 protected:
     std::shared_ptr<Distribution> distribution_;
     std::unique_ptr<MemoryRegion> mpb_;

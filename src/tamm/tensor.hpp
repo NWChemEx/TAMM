@@ -143,6 +143,8 @@ public:
      */
     LabelLoopNest loop_nest() const { return impl_->loop_nest(); }
 
+    void trace(std::vector<T>& dest) const { impl_->trace(dest); }
+
     /**
      * @brief Get the size of a block
      *

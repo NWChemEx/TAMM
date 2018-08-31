@@ -5,6 +5,9 @@
 //#include "tamm/tensor_impl.hpp"
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"
+#include <vector>
+#include <iterator>
+#include <algorithm>
 
 namespace tamm {
 
@@ -165,14 +168,32 @@ public:
      */
     void flush_and_sync() {
         pg_.barrier();
-        for(auto& tensor_deallocator : tensors_to_dealloc_) {
-            tensor_deallocator();
+        std::sort(mem_regs_to_dealloc_.begin(), mem_regs_to_dealloc_.end());
+        std::sort(unregistered_mem_regs_.begin(), unregistered_mem_regs_.end());
+        std::vector<MemoryRegion*> result;
+        std::set_difference(mem_regs_to_dealloc_.begin(), mem_regs_to_dealloc_.end(),
+            unregistered_mem_regs_.begin(), unregistered_mem_regs_.end(),
+            std::inserter(result, result.begin()));
+        mem_regs_to_dealloc_.clear();
+        unregistered_mem_regs_.clear();
+        for(auto mem_reg : result) {
+            EXPECTS(mem_reg->allocation_status() == AllocationStatus::created ||
+                    mem_reg->allocation_status() == AllocationStatus::orphaned);
+            if (mem_reg->allocation_status() == AllocationStatus::orphaned) {
+                mem_reg->dealloc_coll();
+                delete mem_reg;
+            } else {
+                mem_regs_to_dealloc_.push_back(mem_reg);
+            }
         }
-        tensors_to_dealloc_.clear();
     }
 
-    void register_for_dealloc(std::function<void()> tensor_deleter) {
-        tensors_to_dealloc_.push_back(tensor_deleter);
+    void register_for_dealloc(MemoryRegion* mem_reg) {
+        mem_regs_to_dealloc_.push_back(mem_reg);
+    }
+
+    void unregister_for_dealloc(MemoryRegion* mem_reg) {
+        unregistered_mem_regs_.push_back(mem_reg);
     }
 
 private:
@@ -182,7 +203,8 @@ private:
     MemoryManager* default_memory_manager_;
     MemoryManagerLocal* memory_manager_local_;
 
-    std::vector<std::function<void()>> tensors_to_dealloc_;
+    std::vector<MemoryRegion*> mem_regs_to_dealloc_;
+    std::vector<MemoryRegion*> unregistered_mem_regs_;
 
 }; // class ExecutionContext
 

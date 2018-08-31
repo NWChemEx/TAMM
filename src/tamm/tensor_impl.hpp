@@ -367,24 +367,47 @@ public:
     }
 
     template<typename T>
-    void trace(std::vector<T>& dest) {
+    T trace() const {
         EXPECTS(num_modes() == 2);
+        T ts = 0;
         for(const IndexVector& blockid : loop_nest()) {
           if(blockid[0] == blockid[1]) {
               const TAMM_SIZE size = block_size(blockid);
               std::vector<T> buf(size);
-              span<T> sbuf{buf};
-              get(blockid, sbuf);
+              get<T>(blockid, buf);
               auto block_dims1   = block_dims(blockid);
               auto block_offset = block_offsets(blockid);
               auto dim          = block_dims1[0];
               auto offset       = block_offset[0];
               size_t i          = 0;
               for(auto p = offset; p < offset + dim; p++, i++) {
-                  dest[p] = sbuf[i * dim + i];
+                  ts += buf[i * dim + i];
               }
           }
       }
+      return ts;
+    }
+
+    template<typename T>
+    std::vector<T> diagonal() {
+        EXPECTS(num_modes() == 2);
+        std::vector<T> dest;
+        for(const IndexVector& blockid : loop_nest()) {
+          if(blockid[0] == blockid[1]) {
+              const TAMM_SIZE size = block_size(blockid);
+              std::vector<T> buf(size);
+              get<T>(blockid, buf);
+              auto block_dims1   = block_dims(blockid);
+              auto block_offset = block_offsets(blockid);
+              auto dim          = block_dims1[0];
+              auto offset       = block_offset[0];
+              size_t i          = 0;
+              for(auto p = offset; p < offset + dim; p++, i++) {
+                  dest.push_back(buf[i * dim + i]);
+              }
+          }
+      }
+      return dest;
     }
 
 protected:

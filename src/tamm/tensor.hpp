@@ -18,7 +18,6 @@ class LabeledTensor;
 template<typename T>
 class Tensor {
 public:
-    using element_type = T;
 
     /**
      * @brief Construct a scalar Tensor with 0-modes
@@ -143,7 +142,9 @@ public:
      */
     LabelLoopNest loop_nest() const { return impl_->loop_nest(); }
 
-    void trace(std::vector<T>& dest) const { impl_->trace(dest); }
+    T trace() const { return impl_->template trace<T>(); }
+
+    std::vector<T> diagonal() const { return impl_->template diagonal<T>(); }
 
     /**
      * @brief Get the size of a block

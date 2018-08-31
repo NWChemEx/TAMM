@@ -1,14 +1,22 @@
 #ifndef TAMM_EXECUTION_CONTEXT_H_
 #define TAMM_EXECUTION_CONTEXT_H_
 
-#include "tamm/distribution.hpp"
 #include "tamm/proc_group.hpp"
 //#include "tamm/tensor_impl.hpp"
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"
+#include <vector>
+#include <iterator>
+#include <algorithm>
 
 namespace tamm {
 
+/**
+ * @todo Create a proper forward declarations file.
+ * 
+ */
+
+class Distribution;
 class Scheduler;
 template<typename T>
 class Tensor;
@@ -150,12 +158,53 @@ public:
         default_memory_manager_ = memory_manager;
     }
 
+    /**
+     * @brief Flush communication in this execution context, synchronize, and 
+     * delete any tensors allocated in this execution context that have gone 
+     * out of scope.
+     * 
+     * @bug @fixme @todo Actually perform a communication/RMA fence
+     * 
+     */
+    void flush_and_sync() {
+        pg_.barrier();
+        std::sort(mem_regs_to_dealloc_.begin(), mem_regs_to_dealloc_.end());
+        std::sort(unregistered_mem_regs_.begin(), unregistered_mem_regs_.end());
+        std::vector<MemoryRegion*> result;
+        std::set_difference(mem_regs_to_dealloc_.begin(), mem_regs_to_dealloc_.end(),
+            unregistered_mem_regs_.begin(), unregistered_mem_regs_.end(),
+            std::inserter(result, result.begin()));
+        mem_regs_to_dealloc_.clear();
+        unregistered_mem_regs_.clear();
+        for(auto mem_reg : result) {
+            EXPECTS(mem_reg->allocation_status() == AllocationStatus::created ||
+                    mem_reg->allocation_status() == AllocationStatus::orphaned);
+            if (mem_reg->allocation_status() == AllocationStatus::orphaned) {
+                mem_reg->dealloc_coll();
+                delete mem_reg;
+            } else {
+                mem_regs_to_dealloc_.push_back(mem_reg);
+            }
+        }
+    }
+
+    void register_for_dealloc(MemoryRegion* mem_reg) {
+        mem_regs_to_dealloc_.push_back(mem_reg);
+    }
+
+    void unregister_for_dealloc(MemoryRegion* mem_reg) {
+        unregistered_mem_regs_.push_back(mem_reg);
+    }
+
 private:
     ProcGroup pg_;
     ProcGroup pg_self_;
     Distribution* default_distribution_;
     MemoryManager* default_memory_manager_;
     MemoryManagerLocal* memory_manager_local_;
+
+    std::vector<MemoryRegion*> mem_regs_to_dealloc_;
+    std::vector<MemoryRegion*> unregistered_mem_regs_;
 
 }; // class ExecutionContext
 

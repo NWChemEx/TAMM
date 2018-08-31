@@ -4,6 +4,7 @@
 #include "tamm/errors.hpp"
 #include "tamm/index_loop_nest.hpp"
 #include "tamm/utils.hpp"
+#include "tamm/execution_context.hpp"
 
 /**
  * @defgroup tensors
@@ -110,7 +111,7 @@ public:
 
     // Dtor
     virtual ~TensorBase(){
-        EXPECTS(allocation_status_ == AllocationStatus::invalid);
+        //EXPECTS(allocation_status_ == AllocationStatus::invalid);
     };
 
     /**
@@ -311,6 +312,7 @@ protected:
     /// Map that maintains position of dependent index space(s) for a given
     /// dependent index space.
     std::map<size_t, std::vector<size_t>> dep_map_;
+    ExecutionContext *ec_;
     // std::vector<IndexPosition> ipmask_;
     // PermGroup perm_groups_;
     // Irrep irrep_;

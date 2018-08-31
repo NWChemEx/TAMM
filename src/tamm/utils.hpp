@@ -170,7 +170,7 @@ bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
     return false;
 }
 
-IndexVector indep_values(const IndexVector& blockid, const Index& idx,
+inline IndexVector indep_values(const IndexVector& blockid, const Index& idx,
                          const std::map<size_t, std::vector<size_t>>& dep_map) {
     IndexVector ret{};
     if(dep_map.find(idx) != dep_map.end()) {

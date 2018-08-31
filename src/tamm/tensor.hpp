@@ -144,7 +144,7 @@ public:
 
     T trace() const { return impl_->template trace<T>(); }
 
-    void diagonal(std::vector<T>& dest) const { impl_->diagonal(dest); }
+    std::vector<T> diagonal() const { return impl_->template diagonal<T>(); }
 
     /**
      * @brief Get the size of a block

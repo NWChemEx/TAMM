@@ -77,7 +77,7 @@ using IntLabelVec = std::vector<IntLabel>;
 
 using SizeVec = std::vector<Size>;
 
-enum class AllocationStatus { invalid, created, attached };
+enum class AllocationStatus { invalid, created, attached, deallocated, orphaned };
 
 enum class ElementType {
     invalid,

@@ -249,22 +249,25 @@ public:
 
     // Copy/Move Ctors and Assignment Operators
     TensorImpl(TensorImpl&&)      = default;
-    TensorImpl(const TensorImpl&) = default;
+    TensorImpl(const TensorImpl&) = delete;
     TensorImpl& operator=(TensorImpl&&) = default;
-    TensorImpl& operator=(const TensorImpl&) = default;
+    TensorImpl& operator=(const TensorImpl&) = delete;
 
     // Dtor
     ~TensorImpl() {
-      if(allocation_status_ == AllocationStatus::created) {
-        ec_->register_for_dealloc(this->deallocator());
-      }
+        if (mpb_ != nullptr) { 
+            mpb_->allocation_status_ =  AllocationStatus::orphaned;
+        }
     }
 
   void deallocate() {
-    EXPECTS(allocation_status_ != AllocationStatus::invalid);
+    EXPECTS(allocation_status_ == AllocationStatus::created);
     EXPECTS(mpb_);
+    ec_->unregister_for_dealloc(mpb_);
     mpb_->dealloc_coll();
-    update_status(AllocationStatus::invalid);
+    delete mpb_;
+    mpb_ = nullptr;
+    update_status(AllocationStatus::deallocated);
   }
 
   template<typename T>
@@ -282,8 +285,9 @@ public:
     auto buf_size = distribution_->buf_size(rank);
     auto eltype = tensor_element_type<T>();
     EXPECTS(buf_size >=0 );
-    mpb_.reset(memory_manager->alloc_coll(eltype, buf_size));
-
+    mpb_ = memory_manager->alloc_coll(eltype, buf_size);
+    EXPECTS(mpb_ != nullptr);
+    ec_->register_for_dealloc(mpb_);
     update_status(AllocationStatus::created);
   }
 
@@ -312,7 +316,7 @@ public:
         std::tie(proc, offset) = distribution_->locate(idx_vec);
         Size size              = block_size(idx_vec);
         EXPECTS(size <= buff_span.size());
-        mpb_->mgr().get(*mpb_.get(), proc, offset, Size{size},
+        mpb_->mgr().get(*mpb_, proc, offset, Size{size},
                         buff_span.data());
     }
 
@@ -335,7 +339,7 @@ public:
         std::tie(proc, offset) = distribution_->locate(idx_vec);
         Size size              = block_size(idx_vec);
         EXPECTS(size <= buff_span.size());
-        mpb_->mgr().put(*mpb_.get(), proc, offset, Size{size},
+        mpb_->mgr().put(*mpb_, proc, offset, Size{size},
                         buff_span.data());
     }
 
@@ -358,7 +362,7 @@ public:
         std::tie(proc, offset) = distribution_->locate(idx_vec);
         Size size              = block_size(idx_vec);
         EXPECTS(size <= buff_span.size());
-        mpb_->mgr().add(*mpb_.get(), proc, offset, Size{size},
+        mpb_->mgr().add(*mpb_, proc, offset, Size{size},
                         buff_span.data());
     }
 
@@ -384,20 +388,8 @@ public:
     }
 
 protected:
-    std::function<void()> deallocator() {
-        // The returned lambda will keep a shared pointer to \ref mpb_.  Upon
-        // being called, the lambda will check the use count, and if it is the
-        // last owner, it will deallocate the resources.  Every lambda
-        // invocation resets the pointer to decrease the use count.  Note that
-        // this is not safe in multi-threaded environments.
-        return [mpb_ = this->mpb_]() mutable {
-            if (mpb_.use_count() == 1) mpb_->dealloc_coll();
-            mpb_.reset();
-        };
-    }
-
     std::shared_ptr<Distribution> distribution_;
-    std::shared_ptr<MemoryRegion> mpb_;
+    MemoryRegion* mpb_ = nullptr;
 }; // TensorImpl
 
 class SpinTensorImpl : public TensorBase {
@@ -469,9 +461,9 @@ public:
 
     // Copy/Move Ctors and Assignment Operators
     SpinTensorImpl(SpinTensorImpl&&)      = default;
-    SpinTensorImpl(const SpinTensorImpl&) = default;
+    SpinTensorImpl(const SpinTensorImpl&) = delete;
     SpinTensorImpl& operator=(SpinTensorImpl&&) = default;
-    SpinTensorImpl& operator=(const SpinTensorImpl&) = default;
+    SpinTensorImpl& operator=(const SpinTensorImpl&) = delete;
 
     // Dtor
     ~SpinTensorImpl() = default;
@@ -500,8 +492,7 @@ public:
         auto buf_size = distribution_->buf_size(rank);
         auto eltype   = tensor_element_type<T>();
         EXPECTS(buf_size >= 0);
-        mpb_ = std::unique_ptr<MemoryRegion>{
-          memory_manager->alloc_coll(eltype, buf_size)};
+        mpb_.reset(memory_manager->alloc_coll(eltype, buf_size));
 
         update_status(AllocationStatus::created);
     }

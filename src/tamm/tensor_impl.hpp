@@ -382,8 +382,9 @@ public:
     }
 
     template<typename T>
-    void diagonal(std::vector<T>& dest) {
+    std::vector<T> diagonal() {
         EXPECTS(num_modes() == 2);
+        std::vector<T> dest;
         for(const IndexVector& blockid : loop_nest()) {
           if(blockid[0] == blockid[1]) {
               const TAMM_SIZE size = block_size(blockid);
@@ -395,10 +396,11 @@ public:
               auto offset       = block_offset[0];
               size_t i          = 0;
               for(auto p = offset; p < offset + dim; p++, i++) {
-                  dest[p] = buf[i * dim + i];
+                  dest.push_back(buf[i * dim + i]);
               }
           }
       }
+      return dest;
     }
 
 protected:

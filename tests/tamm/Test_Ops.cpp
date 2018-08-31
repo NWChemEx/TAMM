@@ -277,6 +277,130 @@ TEST_CASE("Zero-dimensional ops") {
 }
 #endif
 
+TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
+    ProcGroup pg{GA_MPI_Comm()};
+    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    using T              = double;
+
+    IndexSpace IS{range(0, 10)};
+    TiledIndexSpace TIS{IS, 1};
+
+    {
+        Tensor<T> T1{};
+        Tensor<T>::allocate(ec, T1);
+        Scheduler{ec}(T1() = 42).execute();
+        check_value(T1, (T)42.0);
+    }
+
+    ec->flush_and_sync();
+
+    {
+        Tensor<T> T1{}, T2{}, T3{};
+        Tensor<T>::allocate(ec, T1, T2, T3);
+        auto lambda1 = [](Tensor<T>& t, const IndexVector& iv,
+                          std::vector<T>& buf) {
+            for(auto& v : buf) v = 0;
+        };
+        auto lambda2 = [](const Tensor<T>& t, const IndexVector& lhs_iv,
+                          std::vector<T>& lhs_buf, const IndexVector rhs_iv[],
+                          std::vector<T> rhs_buf[]) {
+            std::copy(rhs_buf[0].begin(), rhs_buf[0].end(), lhs_buf.begin());
+        };
+        auto lambda3 = [](const Tensor<T>& t, const IndexVector& lhs_iv,
+                          std::vector<T>& lhs_buf, const IndexVector rhs_iv[],
+                          std::vector<T> rhs_buf[]) {
+            for(size_t i = 0; i < lhs_buf.size(); ++i) {
+                lhs_buf[i] = rhs_buf[0][i] + rhs_buf[1][i];
+            }
+        };
+
+        Scheduler{ec}(T1() = 42)(T2() = 43)(T3() = 44).execute();
+        // ScanOp
+        Scheduler{ec}.gop(T1(), lambda1).execute();
+        check_value(T1, (T)42);
+        // MapOp
+        Scheduler{ec}
+          .gop(T1(), std::array<decltype(T2()), 1>{T2()}, lambda2)
+          .execute();
+        check_value(T1, (T)43);
+        Scheduler{ec}
+          .gop(T1(), std::array<decltype(T2()), 2>{T2(), T3()}, lambda3)
+          .execute();
+        check_value(T1, (T)43 + 44);
+    }
+
+    ec->flush_and_sync();
+
+    {
+        Tensor<T> T1{}, T2{};
+        Scheduler{ec}
+          .allocate(T1, T2)(T2() = 42)(T1() = T2())
+          .deallocate(T2)
+          .execute();
+        check_value(T1, (T)42.0);
+    }
+
+    ec->flush_and_sync();
+
+    {
+        Tensor<T> T1{}, T2{};
+        Scheduler{ec}
+          .allocate(T1, T2)(T1() = 3)(T2() = 42)(T1() += T2())
+          .deallocate(T2)
+          .execute();
+        check_value(T1, (T)45.0);
+        Tensor<T>::deallocate(T1);
+    }
+
+    // test flush and sync with tensor that has been deallocated (T1 above)
+
+    {
+        Tensor<T> T1{}, T2{};
+        Scheduler{ec}
+          .allocate(T1, T2)(T1() = 42)(T2() = 3)(T1() += 2.5 * T2())
+          .deallocate(T2)
+          .execute();
+        check_value(T1, (T)49.5);
+    }
+    
+    ec->flush_and_sync();
+
+    {
+        Tensor<T> T1{}, T2{};
+        Scheduler{ec}
+          .allocate(T1, T2)(T1() = 42)(T2() = 3)(T1() -= T2())
+          .deallocate(T2)
+          .execute();
+        check_value(T1, (T)39.0);
+    }
+
+    {
+        Tensor<T> T1{}, T2{};
+        Scheduler{ec}
+          .allocate(T1, T2)(T1() = 42)(T2() = 3)(T1() -= 4 * T2())
+          .deallocate(T2)
+          .execute();
+        check_value(T1, (T)30.0);
+    }
+
+    {
+        Tensor<T> T1{}, T2{}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 0)(T2() = 3)(T3() = 5)(T1() += T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)15.0);
+    }
+
+    ec->flush_and_sync();
+
+    MemoryManagerGA::destroy_coll(mgr);
+    delete ec;
+}
+
 template<typename T>
 bool test_setop(ExecutionContext* ec, Tensor<T> T1, LabeledTensor<T> LT1,
                 const std::vector<LabeledTensor<T>>& rest_lts = {}) {
@@ -1272,6 +1396,89 @@ TEST_CASE("Two-dimensional ops") {
         failed = true;
     }
     REQUIRE(!failed);
+    MemoryManagerGA::destroy_coll(mgr);
+    delete ec;
+}
+
+TEST_CASE("Two-dimensional ops with flush and sync") {
+    bool failed;
+    ProcGroup pg{GA_MPI_Comm()};
+    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    using T              = double;
+
+    IndexSpace IS{range(0, 10),
+                  {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
+    TiledIndexSpace TIS{IS, 1};
+    TiledIndexLabel l1, l2, lall, lnone;
+    std::tie(l1)   = TIS.labels<1>("nr1");
+    std::tie(l2)   = TIS.labels<1>("nr2");
+    std::tie(lall) = TIS.labels<1>("all");
+    //@todo is there a "none" slice?
+    // std::tie(lnone) = TIS.labels<1>("none");
+    {
+        Tensor<T> T1{TIS, TIS};
+        REQUIRE(test_setop(ec, T1, T1(l1, l1)));
+    }
+
+    {
+        Tensor<T> T1{TIS, TIS};
+        REQUIRE(
+          test_setop(ec, T1, T1(l1, l1), {T1(l1, l2), T1(l2, l1), T1(l2, l2)}));
+    }
+
+    {
+        Tensor<T> T1{TIS, TIS}, T2{TIS, TIS};
+        test_addop(ec, T1, T2, T1(), T2());
+    }
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, (T)32.0);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
+          .deallocate(T2, T3)
+          .execute();
+        check_value(T1, 9 + 1.5 * 8 * 4);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    try {
+        failed = false;
+        Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
+        Scheduler{ec}
+          .allocate(T1, T2,
+                    T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
+          .deallocate(T1, T2)
+          .execute();
+        check_value(T3, 4 + 1.5 * 100 * 9 * 8);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
+    
+    ec->flush_and_sync();
+    
     MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }

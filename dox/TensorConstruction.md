@@ -142,7 +142,9 @@ Scheduler{&ec}
 
 ```
 
-**Note:** The tensors are has to be explicitly allocated using the specified execution context before being used and they should be deallocated once their use is finished. 
+**Note:** The tensors are has to be explicitly allocated using the specified execution context before being used and they should be deallocated once their use is finished.  Furthermore, allocating a tensor that is either allocated or has been deallocated is an error.  A tensor can be allocated and then deallocated only once.
+
+Tensors that are not explicitly deallocated are registered for deallocation in the execution context that was used to deallocate them.  The member function `flush_and_sync` of an execution context can be used to deallocate tensors that cannot be referenced anymore.  Finally, if any tensors were allocated but not deallocated, `flush_and_sync` should be called to avoid memory and resource leaks.  When calling library functions that can create tensors, `flush_and_sync` should be called unless it is known that the called functions did not postpone deallocation of any tensors.
 
 ## Tensor Accessors
 

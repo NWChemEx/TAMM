@@ -216,6 +216,14 @@ class MemoryRegion {
   }
 
   /**
+   * Has it been orphaned (as in allocated using MemoryManager::allocate_coll and then outlived its owner)?
+   * @return True if the memory region has been created.
+   */
+  bool orphaned() const {
+    return allocation_status_ == AllocationStatus::orphaned;
+  }
+
+  /**
    * Has the memory region been attached  (using MemoryManager::attach_coll())?
    * @return True if the memory region has been attached
    */
@@ -223,9 +231,7 @@ class MemoryRegion {
     return allocation_status_ == AllocationStatus::attached;
   }
 
-  virtual ~MemoryRegion() {
-    EXPECTS(allocation_status_ == AllocationStatus::invalid);
-  }
+  virtual ~MemoryRegion() {}
 
   /**
    * Number of elements associated with this rank in this memory region
@@ -251,9 +257,9 @@ class MemoryRegion {
    * Deallocate this memory region
    */
   void dealloc_coll() {
-    EXPECTS(created());
+    EXPECTS(created() || orphaned());
     dealloc_coll_impl();
-    allocation_status_ = AllocationStatus::invalid;
+    allocation_status_ = AllocationStatus::deallocated;
   }
 
   /**
@@ -371,6 +377,8 @@ class MemoryRegion {
   // uint8_t* buf_;
   AllocationStatus allocation_status_;
   Size local_nelements_;
+
+  friend class TensorImpl;
 }; // class MemoryRegion
 
 /**

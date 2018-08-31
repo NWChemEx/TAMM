@@ -409,7 +409,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     Scheduler sch{ec};
   /// @todo: make it a tamm tensor
   std::cout << "Total orbitals = " << total_orbitals << std::endl;
-  std::vector<double> p_evl_sorted(total_orbitals);
+  //std::vector<double> p_evl_sorted(total_orbitals);
 
     // Tensor<T> d_evl{N};
     // Tensor<T>::allocate(ec, d_evl);
@@ -419,7 +419,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     // sch(d_evl(n1) = 0.0)
     // .execute();
 
-  d_f1.diagonal(p_evl_sorted);
+    std::vector<double> p_evl_sorted = d_f1.diagonal();
 //   {
 //       for(const auto& blockid : d_f1.loop_nest()) {
 //           if(blockid[0] == blockid[1]) {
@@ -918,7 +918,7 @@ void lambda_ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     Scheduler sch{ec};
   /// @todo: make it a tamm tensor
   std::cout << "Total orbitals = " << total_orbitals << std::endl;
-  std::vector<double> p_evl_sorted(total_orbitals);
+  //std::vector<double> p_evl_sorted(total_orbitals);
 
     // Tensor<T> d_evl{N};
     // Tensor<T>::allocate(ec, d_evl);
@@ -928,7 +928,8 @@ void lambda_ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     // sch(d_evl(n1) = 0.0)
     // .execute();
 
-  d_f1.diagonal(p_evl_sorted);
+      std::vector<double> p_evl_sorted = d_f1.diagonal();
+
 //   {
 //       for(const auto& blockid : d_f1.loop_nest()) {
 //           if(blockid[0] == blockid[1]) {

@@ -395,17 +395,19 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     Scheduler sch{ec};
   /// @todo: make it a tamm tensor
   std::cout << "Total orbitals = " << total_orbitals << std::endl;
-  std::vector<double> p_evl_sorted(total_orbitals);
+  //std::vector<double> p_evl_sorted(total_orbitals);
 
     // Tensor<T> d_evl{N};
     // Tensor<T>::allocate(ec, d_evl);
     // TiledIndexLabel n1;
     // std::tie(n1) = MO.labels<1>("all");
 
-    // sch(d_evl(n1) = 0.0)
-    // .execute();
+    // sch(d_evl(n1) = 0.0).execute();
 
-    d_f1.diagonal(p_evl_sorted);
+    std::vector<double> p_evl_sorted = d_f1.diagonal();
+
+    //print_tensor(d_evl);
+
     // auto x = d_f1.trace();
     // std::cout << x << std::endl;
 //   {

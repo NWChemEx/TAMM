@@ -158,7 +158,8 @@ public:
 
         compute_key_offsets();
         for(const auto& blockid : tensor_structure_->loop_nest()) {
-            hash_.push_back({compute_key(blockid),
+            if(tensor_structure_->is_non_zero(blockid))
+                hash_.push_back({compute_key(blockid),
                             tensor_structure_->block_size(blockid)});
         }
         EXPECTS(hash_.size() > 0);

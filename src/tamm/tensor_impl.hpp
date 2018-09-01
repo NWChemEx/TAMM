@@ -11,6 +11,7 @@
 
 #include <gsl/span>
 #include <type_traits>
+#include <functional>
 
 namespace tamm {
 
@@ -94,6 +95,7 @@ class LabeledTensor;
  * @brief Implementation class for TensorBase class
  *
  */
+template <typename T>
 class TensorImpl : public TensorBase {
 public:
     using TensorBase::TensorBase;
@@ -260,36 +262,36 @@ public:
         }
     }
 
-  void deallocate() {
-    EXPECTS(allocation_status_ == AllocationStatus::created);
-    EXPECTS(mpb_);
-    ec_->unregister_for_dealloc(mpb_);
-    mpb_->dealloc_coll();
-    delete mpb_;
-    mpb_ = nullptr;
-    update_status(AllocationStatus::deallocated);
+    virtual void deallocate() {
+        EXPECTS(allocation_status_ == AllocationStatus::created);
+        EXPECTS(mpb_);
+        ec_->unregister_for_dealloc(mpb_);
+        mpb_->dealloc_coll();
+        delete mpb_;
+        mpb_ = nullptr;
+        update_status(AllocationStatus::deallocated);
   }
 
-  template<typename T>
-  void allocate(ExecutionContext* ec) {
-    EXPECTS(allocation_status_ == AllocationStatus::invalid);
-    Distribution* distribution = ec->distribution();
-    MemoryManager* memory_manager = ec->memory_manager();
-    EXPECTS(distribution != nullptr);
-    EXPECTS(memory_manager != nullptr);
-    ec_ = ec;
-    // distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
-    distribution_ = std::shared_ptr<Distribution>(
-        distribution->clone(this,memory_manager->pg().size()));
-    auto rank = memory_manager->pg().rank();
-    auto buf_size = distribution_->buf_size(rank);
-    auto eltype = tensor_element_type<T>();
-    EXPECTS(buf_size >=0 );
-    mpb_ = memory_manager->alloc_coll(eltype, buf_size);
-    EXPECTS(mpb_ != nullptr);
-    ec_->register_for_dealloc(mpb_);
-    update_status(AllocationStatus::created);
-  }
+
+    virtual void allocate(ExecutionContext* ec) {
+        EXPECTS(allocation_status_ == AllocationStatus::invalid);
+        Distribution* distribution = ec->distribution();
+        MemoryManager* memory_manager = ec->memory_manager();
+        EXPECTS(distribution != nullptr);
+        EXPECTS(memory_manager != nullptr);
+        ec_ = ec;
+        // distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
+        distribution_ = std::shared_ptr<Distribution>(
+            distribution->clone(this,memory_manager->pg().size()));
+        auto rank = memory_manager->pg().rank();
+        auto buf_size = distribution_->buf_size(rank);
+        auto eltype = tensor_element_type<T>();
+        EXPECTS(buf_size >=0 );
+        mpb_ = memory_manager->alloc_coll(eltype, buf_size);
+        EXPECTS(mpb_ != nullptr);
+        ec_->register_for_dealloc(mpb_);
+        update_status(AllocationStatus::created);
+    }
 
     // Tensor Accessors
     /**
@@ -300,8 +302,8 @@ public:
      * @param [in] idx_vec a vector of indices to fetch the values
      * @param [in] buff_span memory span where to put the fetched values
      */
-    template<typename T>
-    void get(const IndexVector& idx_vec, span<T> buff_span) const {
+
+    virtual void get(const IndexVector& idx_vec, span<T> buff_span) const {
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
         
         if(!is_non_zero(idx_vec)) {
@@ -328,8 +330,8 @@ public:
      * @param [in] idx_vec a vector of indices to put the values
      * @param [in] buff_span buff_span memory span for the values to put
      */
-    template<typename T>
-    void put(const IndexVector& idx_vec, span<T> buff_span) {
+
+    virtual void put(const IndexVector& idx_vec, span<T> buff_span) {
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
 
         if(!is_non_zero(idx_vec)) { return; }
@@ -351,8 +353,8 @@ public:
      * @param [in] idx_vec a vector of indices to put the values
      * @param [in] buff_span buff_span memory span for the values to put
      */
-    template<typename T>
-    void add(const IndexVector& idx_vec, span<T> buff_span) {
+
+    virtual void add(const IndexVector& idx_vec, span<T> buff_span) {
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
 
         if(!is_non_zero(idx_vec)) { return; }
@@ -366,15 +368,15 @@ public:
                         buff_span.data());
     }
 
-    template<typename T>
-    T trace() const {
+
+    virtual T trace() const {
         EXPECTS(num_modes() == 2);
         T ts = 0;
         for(const IndexVector& blockid : loop_nest()) {
           if(blockid[0] == blockid[1]) {
               const TAMM_SIZE size = block_size(blockid);
               std::vector<T> buf(size);
-              get<T>(blockid, buf);
+              get(blockid, buf);
               auto block_dims1   = block_dims(blockid);
               auto block_offset = block_offsets(blockid);
               auto dim          = block_dims1[0];
@@ -388,15 +390,15 @@ public:
       return ts;
     }
 
-    template<typename T>
-    std::vector<T> diagonal() {
+
+    virtual std::vector<T> diagonal() {
         EXPECTS(num_modes() == 2);
         std::vector<T> dest;
         for(const IndexVector& blockid : loop_nest()) {
           if(blockid[0] == blockid[1]) {
               const TAMM_SIZE size = block_size(blockid);
               std::vector<T> buf(size);
-              get<T>(blockid, buf);
+              get(blockid, buf);
               auto block_dims1   = block_dims(blockid);
               auto block_offset = block_offsets(blockid);
               auto dim          = block_dims1[0];
@@ -415,6 +417,58 @@ protected:
     MemoryRegion* mpb_ = nullptr;
 }; // TensorImpl
 
+template <typename T>
+class LambdaTensorImpl: public TensorImpl<T> {
+    public:
+    using Func = std::function<void(const IndexVector&, span<T>)>;
+    // Ctors
+    LambdaTensorImpl() = default;
+
+    // Copy/Move Ctors and Assignment Operators
+    LambdaTensorImpl(LambdaTensorImpl &&) = default;
+    LambdaTensorImpl(const LambdaTensorImpl &) = delete;
+    LambdaTensorImpl &operator=(LambdaTensorImpl &&) = default;
+    LambdaTensorImpl &operator=(const LambdaTensorImpl &) = delete;
+
+    LambdaTensorImpl(const TiledIndexSpaceVec& tis_vec, Func lambda): TensorImpl<T>(tis_vec), lambda_{lambda} {}
+
+    // Dtor
+    ~LambdaTensorImpl() = default;
+
+    void deallocate() override{
+        NOT_ALLOWED();
+    }
+
+    // template<typename T>
+    void get(const IndexVector& idx_vec, span<T> buff_span) const override {
+        lambda_(idx_vec, buff_span);
+    }
+
+    // template<typename T>
+    void put(const IndexVector& idx_vec, span<T> buff_span) override {
+        NOT_ALLOWED();
+    }
+
+    // template<typename T>
+    void add(const IndexVector& idx_vec, span<T> buff_span) override {
+        NOT_ALLOWED();
+    }    
+
+    // template<typename T>
+    T trace() const override {
+        NOT_ALLOWED();
+    }
+
+    // template<typename T>
+    std::vector<T> diagonal() override {
+        NOT_ALLOWED();
+    }
+
+    protected:
+    Func lambda_;
+}; // class LambdaTensorImpl
+
+#if 0
 class SpinTensorImpl : public TensorBase {
 public:
     // Ctors
@@ -517,6 +571,7 @@ public:
         EXPECTS(buf_size >= 0);
         mpb_.reset(memory_manager->alloc_coll(eltype, buf_size));
 
+
         update_status(AllocationStatus::created);
     }
 
@@ -611,6 +666,8 @@ protected:
         return ret;
     }
 }; // class SpinTensorImpl
+
+#endif
 
 } // namespace tamm
 

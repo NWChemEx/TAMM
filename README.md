@@ -6,7 +6,7 @@ The prerequisites needed to build TAMM can be found [here](dox/prerequisites.md)
 ```
 TAMM_INSTALL_PATH=/opt/NWChemEx/install
 
-git clone git@github.com:NWChemEx-Project/CMakeBuild.git
+git clone https://github.com/NWChemEx-Project/CMakeBuild.git
 cd CMakeBuild
 mkdir build && cd build
 cmake .. \ 
@@ -19,7 +19,7 @@ make install
 ```
 
 ```
-git clone git@github.com:NWChemEx-Project/TAMM.git
+git clone https://github.com/NWChemEx-Project/TAMM.git
 cd TAMM
 # Checkout the branch you want to build
 
@@ -32,7 +32,7 @@ cmake .. \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild 
 
 #Optional cmake options for developers
--DCMAKE_CXX_FLAGS "-fsanitize=address"
+-DCMAKE_CXX_FLAGS "-fsanitize=address -fsanitize=leak -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=undefined"
 [-DCMAKE_BUILD_TYPE=Debug (OR) -DCMAKE_BUILD_TYPE=RELWITHDEBINFO]
 
 make -j3

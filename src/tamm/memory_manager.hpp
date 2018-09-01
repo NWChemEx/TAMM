@@ -378,6 +378,7 @@ class MemoryRegion {
   AllocationStatus allocation_status_;
   Size local_nelements_;
 
+  template <typename T>
   friend class TensorImpl;
 }; // class MemoryRegion
 

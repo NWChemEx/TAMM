@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_RUNNER
 
 #include "toyHF/hartree_fock.hpp"
-#include "toyHF/diis.hpp"
+#include "diis.hpp"
 #include "toyHF/4index_transform.hpp"
 #include "toyHF/NK.hpp"
 #include "catch/catch.hpp"

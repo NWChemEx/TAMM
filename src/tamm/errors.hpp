@@ -43,16 +43,16 @@ namespace tamm {
  * This is meant to identify preconditions and possibly include additional
  * operations (e.g., an error message).
  */
-#define EXPECTS(cond) assert(cond)
-// #define EXPECTS(cond)                                                     \
-//     do {                                                                  \
-//         if(!(cond)) {                                                     \
-//             std::cerr << "EXPECTS failed. Condition: " << __FILE__ << " " \
-//                       << __LINE__ << " " << #cond << "\n";                \
-//             throw std::string{"EXPECT condition failed: "} +              \
-//               std::string{#cond};                                         \
-//         }                                                                 \
-//     } while(0)
+#define EXPECTS_NOTHROW(cond) assert(cond)
+#define EXPECTS(cond)                                                     \
+    do {                                                                  \
+        if(!(cond)) {                                                     \
+            std::cerr << "EXPECTS failed. Condition: " << __FILE__ << " " \
+                      << __LINE__ << " " << #cond << "\n";                \
+            throw std::string{"EXPECT condition failed: "} +              \
+              std::string{#cond};                                         \
+        }                                                                 \
+    } while(0)
 
 } // namespace tamm
 

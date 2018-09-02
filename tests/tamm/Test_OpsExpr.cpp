@@ -477,8 +477,9 @@ TEST_CASE("Tensor operations on named subspaces") {
     Tensor<T> T7{V, N};
 
     std::cerr << "Allocate and deallocate tensors" << std::endl;
+
     ProcGroup pg{GA_MPI_Comm()};
-    auto mgr = MemoryManagerGA::create_coll(pg);
+    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
 
@@ -494,9 +495,20 @@ TEST_CASE("Tensor operations on named subspaces") {
         REQUIRE(!failed);
     }
 
-    // Test with default ExecutionContext constructor
+    //Test with default ExecutionContext constructor
+    //FIXME: We do not allow allocating the same tensor after deallocating it
     {
         bool failed = false;
+
+        using T = double;
+        Tensor<T> T1{N, N};
+        Tensor<T> T2{O, O};
+        Tensor<T> T3{V, V};
+        Tensor<T> T4{O, V};
+        Tensor<T> T5{V, O};
+        Tensor<T> T6{O, N};
+        Tensor<T> T7{V, N};
+
         try {
             ExecutionContext temp_ec;
             temp_ec.set_pg(pg);
@@ -515,6 +527,15 @@ TEST_CASE("Tensor operations on named subspaces") {
     std::cerr << "Tensor allocate/deallocate with Tensor member functions" << std::endl;
     {
         bool failed = false;
+        using T = double;
+        Tensor<T> T1{N, N};
+        Tensor<T> T2{O, O};
+        Tensor<T> T3{V, V};
+        Tensor<T> T4{O, V};
+        Tensor<T> T5{V, O};
+        Tensor<T> T6{O, N};
+        Tensor<T> T7{V, N};
+        
         try {
             std::vector<Tensor<T>> tensor_vec{T1, T2, T3, T4, T5, T6, T7};
 
@@ -537,6 +558,17 @@ TEST_CASE("Tensor operations on named subspaces") {
 
     {
         bool failed = false;
+
+        using T = double;
+        Tensor<T> T1{N, N};
+        Tensor<T> T2{O, O};
+        Tensor<T> T3{V, V};
+        Tensor<T> T4{O, V};
+        Tensor<T> T5{V, O};
+        Tensor<T> T6{O, N};
+        Tensor<T> T7{V, N};
+
+
         try {
             Scheduler{ec}
               .allocate(T1, T2, T3, T4, T5, T6, T7)
@@ -567,6 +599,16 @@ TEST_CASE("Tensor operations on named subspaces") {
 
     {
         bool failed = false;
+
+        using T = double;
+        Tensor<T> T1{N, N};
+        Tensor<T> T2{O, O};
+        Tensor<T> T3{V, V};
+        Tensor<T> T4{O, V};
+        Tensor<T> T5{V, O};
+        Tensor<T> T6{O, N};
+        Tensor<T> T7{V, N};
+
         try {
             Scheduler{ec}
               .allocate(T1, T2, T3, T4, T5, T6, T7)
@@ -602,6 +644,16 @@ TEST_CASE("Tensor operations on named subspaces") {
 
     {
         bool failed = false;
+
+        using T = double;
+        Tensor<T> T1{N, N};
+        Tensor<T> T2{O, O};
+        Tensor<T> T3{V, V};
+        Tensor<T> T4{O, V};
+        Tensor<T> T5{V, O};
+        Tensor<T> T6{O, N};
+        Tensor<T> T7{V, N};
+
         try {
             Scheduler{ec}
               .allocate(T1, T2, T3, T4, T5, T6, T7)

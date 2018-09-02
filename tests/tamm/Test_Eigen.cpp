@@ -2137,6 +2137,7 @@ Tensor<double>::allocate(ec,xta, xtb, xtc);
 Scheduler{ec}
 (xta() = alpha1)
 (xtb() = alpha2)
+(xtc() = 0)
 //fixme =
 (xtc() += xta() * xtb())
 .execute();

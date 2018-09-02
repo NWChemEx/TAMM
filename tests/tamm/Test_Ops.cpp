@@ -2090,4 +2090,80 @@ TEST_CASE("MultOp with RHS reduction") {
         std::cerr << "Caught exception: " << e << "\n";
         failed = true;
     }
+    REQUIRE(!failed);
+
+    try{
+
+        failed = false;
+        IndexSpace cvec{range(0,4)};
+        TiledIndexSpace CV{cvec,1};
+
+        IndexSpace MO_IS{range(0, 14),
+                        {{"occ", {range(0, 10)}},
+                        {"virt", {range(10,14)}}}};
+        TiledIndexSpace MO{MO_IS, {5,5,2,2}};
+
+        TiledIndexSpace O = MO("occ");
+        TiledIndexSpace V = MO("virt");
+        TiledIndexSpace N = MO("all");
+
+        Tensor<T> CV3D{N,N,CV};
+        Tensor<T> CV2D{N,N};
+        Tensor<T> res{O, O};
+        Tensor<T> res1{O, O};
+        Tensor<T> t1{V, O};
+
+        Tensor<T>::allocate(ec,res,res1,t1,CV3D,CV2D);
+        Scheduler sch{ec};
+        
+        sch(CV3D() = 42)
+        (CV2D() = 42)
+        (t1() = 2)
+        (res() = 0)
+        (res1() = 0)
+        .execute();
+
+        TiledIndexLabel cind, h1,h2,p1,p2;
+        std::tie(cind) = CV.labels<1>("all");
+        std::tie(p1, p2) = MO.labels<2>("virt");
+        std::tie(h1, h2) = MO.labels<2>("occ");
+
+        sch(res(h2, h1) += 1.0 * t1(p1, h1) * CV3D(h2, p1, cind));
+        //sch(res() = 0); //REMOVE
+
+        for (auto ci=0;ci<4;ci++){
+            sch(res1(h2, h1) += 1.0 * t1(p1, h1) * CV2D(h2, p1));
+            //sch(res(h2, h1) += 1.0 * t1(p1, h1) * CV2D(h2, p1)); //REMOVE
+        }
+
+        sch.execute();
+
+        for(const IndexVector& blockid : res.loop_nest()) {
+            const TAMM_SIZE size = res.block_size(blockid);
+            std::vector<T> buf(size);
+            res.get(blockid, buf);
+
+            std::vector<T> buf1(size);
+            res1.get(blockid, buf1);
+            auto block_dims   = res.block_dims(blockid);
+            auto block_offset = res.block_offsets(blockid);
+
+            TAMM_SIZE c = 0;
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++, c++) {
+                        REQUIRE(buf[c] == buf1[c]);
+                }
+            }
+        }
+        
+        ec->pg().barrier();
+
+        Tensor<T>::deallocate(res,res1,t1,CV3D,CV2D);
+    } catch(std::string& e) {
+        std::cerr << "Caught exception: " << e << "\n";
+        failed = true;
+    }
+    REQUIRE(!failed);
 }

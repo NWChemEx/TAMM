@@ -2112,8 +2112,10 @@ TEST_CASE("MultOp with RHS reduction") {
         Tensor<T> res{O, O};
         Tensor<T> res1{O, O};
         Tensor<T> t1{V, O};
+        Tensor<T> sc1{};
+        Tensor<T> sc2{};
 
-        Tensor<T>::allocate(ec,res,res1,t1,CV3D,CV2D);
+        Tensor<T>::allocate(ec,sc1,sc2,res,res1,t1,CV3D,CV2D);
         Scheduler sch{ec};
         
         sch(CV3D() = 42)
@@ -2121,7 +2123,51 @@ TEST_CASE("MultOp with RHS reduction") {
         (t1() = 2)
         (res() = 0)
         (res1() = 0)
+        (sc1() = 0)
+        (sc2() = 0)
         .execute();
+
+
+        for(const IndexVector& blockid : CV2D.loop_nest()) {
+            const TAMM_SIZE size = CV2D.block_size(blockid);
+            std::vector<T> buf(size);
+            CV2D.get(blockid, buf);
+
+            auto block_dims   = CV2D.block_dims(blockid);
+            auto block_offset = CV2D.block_offsets(blockid);
+
+            TAMM_SIZE c = 0;
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++, c++) {
+                       buf[c]=i+j*c;
+                }
+            }
+        }
+        
+        for(const IndexVector& blockid : CV3D.loop_nest()) {
+            const TAMM_SIZE size = CV3D.block_size(blockid);
+            std::vector<T> buf(size);
+            CV3D.get(blockid, buf);
+
+            auto block_dims   = CV3D.block_dims(blockid);
+            auto block_offset = CV3D.block_offsets(blockid);
+
+            TAMM_SIZE c = 0;
+            TAMM_SIZE c1 = 0;
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++, c1++) {
+                for(size_t k = block_offset[2];
+                    k < block_offset[2] + block_dims[2]; k++, c++) 
+                       buf[c]=i+j*c1;
+                }
+            }
+        }
+
+        ec->pg().barrier();
 
         TiledIndexLabel cind, h1,h2,p1,p2;
         std::tie(cind) = CV.labels<1>("all");
@@ -2129,10 +2175,12 @@ TEST_CASE("MultOp with RHS reduction") {
         std::tie(h1, h2) = MO.labels<2>("occ");
 
         sch(res(h2, h1) += 1.0 * t1(p1, h1) * CV3D(h2, p1, cind));
+        sch(sc1() += 1.0 * t1(p1, h1) * CV3D(h1, p1, cind));
         //sch(res() = 0); //REMOVE
 
         for (auto ci=0;ci<4;ci++){
             sch(res1(h2, h1) += 1.0 * t1(p1, h1) * CV2D(h2, p1));
+            sch(sc2() += 1.0 * t1(p1, h1) * CV2D(h1, p1));
             //sch(res(h2, h1) += 1.0 * t1(p1, h1) * CV2D(h2, p1)); //REMOVE
         }
 
@@ -2160,7 +2208,13 @@ TEST_CASE("MultOp with RHS reduction") {
         
         ec->pg().barrier();
 
-        Tensor<T>::deallocate(res,res1,t1,CV3D,CV2D);
+        T r1, r2;
+        sc1.get({}, {&r1, 1});
+        sc2.get({}, {&r2, 1});
+
+        REQUIRE(r1==r2);
+
+        Tensor<T>::deallocate(sc1,sc2,res,res1,t1,CV3D,CV2D);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
         failed = true;

@@ -2111,11 +2111,13 @@ TEST_CASE("MultOp with RHS reduction") {
         Tensor<T> CV2D{N,N};
         Tensor<T> res{O, O};
         Tensor<T> res1{O, O};
+        Tensor<T> tmp1{O, O};
+        Tensor<T> tmp2{O, O};
         Tensor<T> t1{V, O};
         Tensor<T> sc1{};
         Tensor<T> sc2{};
 
-        Tensor<T>::allocate(ec,sc1,sc2,res,res1,t1,CV3D,CV2D);
+        Tensor<T>::allocate(ec,sc1,sc2,res,res1,tmp1,tmp2,t1,CV3D,CV2D);
         Scheduler sch{ec};
         
         sch(CV3D() = 42)
@@ -2125,6 +2127,8 @@ TEST_CASE("MultOp with RHS reduction") {
         (res1() = 0)
         (sc1() = 0)
         (sc2() = 0)
+        (tmp1() = 0)
+        (tmp2() = 0)
         .execute();
 
 
@@ -2169,32 +2173,35 @@ TEST_CASE("MultOp with RHS reduction") {
 
         ec->pg().barrier();
 
-        TiledIndexLabel cind, h1,h2,p1,p2;
+        TiledIndexLabel cind, h1,h2,h3,p1,p2,p3;
         std::tie(cind) = CV.labels<1>("all");
-        std::tie(p1, p2) = MO.labels<2>("virt");
-        std::tie(h1, h2) = MO.labels<2>("occ");
+        std::tie(p1, p2,p3) = MO.labels<3>("virt");
+        std::tie(h1, h2,h3) = MO.labels<3>("occ");
 
         sch(res(h2, h1) += 1.0 * t1(p1, h1) * CV3D(h2, p1, cind));
         sch(sc1() += 1.0 * t1(p1, h1) * CV3D(h1, p1, cind));
-        //sch(res() = 0); //REMOVE
+        //sch(tmp1(h2, h1) += -1.0 * res(h2, h1) * sc1());
+        sch(tmp1(h2, h1) += -1.0 * res(h3, h1) * res(h2,h3));
 
         for (auto ci=0;ci<4;ci++){
             sch(res1(h2, h1) += 1.0 * t1(p1, h1) * CV2D(h2, p1));
             sch(sc2() += 1.0 * t1(p1, h1) * CV2D(h1, p1));
-            //sch(res(h2, h1) += 1.0 * t1(p1, h1) * CV2D(h2, p1)); //REMOVE
         }
+        //sch(tmp2(h2, h1) += -1.0 * res1(h3, h1) * sc2());
+        sch(tmp2(h2, h1) += -1.0 * res1(h3, h1) * res1(h2,h3));
+
 
         sch.execute();
 
-        for(const IndexVector& blockid : res.loop_nest()) {
-            const TAMM_SIZE size = res.block_size(blockid);
+        for(const IndexVector& blockid : tmp2.loop_nest()) {
+            const TAMM_SIZE size = tmp2.block_size(blockid);
             std::vector<T> buf(size);
-            res.get(blockid, buf);
+            tmp2.get(blockid, buf);
 
             std::vector<T> buf1(size);
-            res1.get(blockid, buf1);
-            auto block_dims   = res.block_dims(blockid);
-            auto block_offset = res.block_offsets(blockid);
+            tmp1.get(blockid, buf1);
+            auto block_dims   = tmp2.block_dims(blockid);
+            auto block_offset = tmp2.block_offsets(blockid);
 
             TAMM_SIZE c = 0;
             for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
@@ -2208,13 +2215,13 @@ TEST_CASE("MultOp with RHS reduction") {
         
         ec->pg().barrier();
 
-        T r1, r2;
-        sc1.get({}, {&r1, 1});
-        sc2.get({}, {&r2, 1});
+        // T r1, r2;
+        // sc1.get({}, {&r1, 1});
+        // sc2.get({}, {&r2, 1});
 
-        REQUIRE(r1==r2);
+        // REQUIRE(r1==r2);
 
-        Tensor<T>::deallocate(sc1,sc2,res,res1,t1,CV3D,CV2D);
+        Tensor<T>::deallocate(sc1,sc2,res,res1,tmp1,tmp2,t1,CV3D,CV2D);
     } catch(std::string& e) {
         std::cerr << "Caught exception: " << e << "\n";
         failed = true;

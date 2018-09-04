@@ -44,10 +44,10 @@ void ccsd_e(ExecutionContext &ec,
     const TiledIndexSpace& V = MO("virt");
 
 
-    std::vector<SpinPosition> spin_mask_2D{SpinPosition::upper,
-                                           SpinPosition::lower};
+    // std::vector<SpinPosition> {1,1}{SpinPosition::upper,
+    //                                        SpinPosition::lower};
 
-    Tensor<T> i1{TiledIndexSpaceVec{O, V},spin_mask_2D};
+    Tensor<T> i1{{O, V},{1,1}};
 
     TiledIndexLabel p1, p2, p3, p4, p5;
     TiledIndexLabel h3, h4, h5, h6;
@@ -73,17 +73,17 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     const TiledIndexSpace& V = MO("virt");
 
 
-    std::vector<SpinPosition> spin_mask_2D{SpinPosition::upper,
-                                           SpinPosition::lower};
+    // std::vector<SpinPosition> {1,1}{SpinPosition::upper,
+    //                                        SpinPosition::lower};
 
-    std::vector<SpinPosition> spin_mask_4D{SpinPosition::upper,SpinPosition::upper,
-                                           SpinPosition::lower,SpinPosition::lower};
+    // std::vector<SpinPosition> {2,2}{SpinPosition::upper,SpinPosition::upper,
+    //                                        SpinPosition::lower,SpinPosition::lower};
 
-    Tensor<T> t1_2_1{TiledIndexSpaceVec{O, O},spin_mask_2D};
-    Tensor<T> t1_2_2_1{TiledIndexSpaceVec{O, V},spin_mask_2D};
-    Tensor<T> t1_3_1{TiledIndexSpaceVec{V, V},spin_mask_2D};
-    Tensor<T> t1_5_1{TiledIndexSpaceVec{O, V},spin_mask_2D};
-    Tensor<T> t1_6_1{TiledIndexSpaceVec{O, O, O, V},spin_mask_4D};
+    Tensor<T> t1_2_1{{O, O},{1,1}};
+    Tensor<T> t1_2_2_1{{O, V},{1,1}};
+    Tensor<T> t1_3_1{{V, V},{1,1}};
+    Tensor<T> t1_5_1{{O, V},{1,1}};
+    Tensor<T> t1_6_1{{O, O, O, V},{2,2}};
 
     TiledIndexLabel p2, p3, p4, p5, p6, p7;
     TiledIndexLabel h1, h4, h5, h6, h7, h8;
@@ -128,30 +128,30 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     const TiledIndexSpace &V = MO("virt");
 
 
-    std::vector<SpinPosition> spin_mask_2D{SpinPosition::upper,
-                                           SpinPosition::lower};
+    // std::vector<SpinPosition> {1,1}{SpinPosition::upper,
+    //                                        SpinPosition::lower};
 
-    std::vector<SpinPosition> spin_mask_4D{SpinPosition::upper,SpinPosition::upper,
-                                           SpinPosition::lower,SpinPosition::lower};
+    // std::vector<SpinPosition> {2,2}{SpinPosition::upper,SpinPosition::upper,
+    //                                        SpinPosition::lower,SpinPosition::lower};
 
-    Tensor<T> i0_temp{TiledIndexSpaceVec{V, V, O, O},spin_mask_4D};
-    Tensor<T> t2_temp{TiledIndexSpaceVec{V, V, O, O},spin_mask_4D};
-    Tensor<T> t2_2_1{TiledIndexSpaceVec{O, V, O, O},spin_mask_4D};
-    Tensor<T> t2_2_1_temp{TiledIndexSpaceVec{O, V, O, O},spin_mask_4D};
-    Tensor<T> t2_2_2_1{TiledIndexSpaceVec{O, O, O, O},spin_mask_4D};
-    Tensor<T> t2_2_2_1_temp{TiledIndexSpaceVec{O, O, O, O},spin_mask_4D};
-    Tensor<T> t2_2_2_2_1{TiledIndexSpaceVec{O, O, O, V},spin_mask_4D};
-    Tensor<T> t2_2_4_1{TiledIndexSpaceVec{O, V},spin_mask_2D};
-    Tensor<T> t2_2_5_1{TiledIndexSpaceVec{O, O, O, V},spin_mask_4D};
-    Tensor<T> t2_4_1{TiledIndexSpaceVec{O, O},spin_mask_2D};
-    Tensor<T> t2_4_2_1{TiledIndexSpaceVec{O, V},spin_mask_2D};
-    Tensor<T> t2_5_1{TiledIndexSpaceVec{V, V},spin_mask_2D};
-    Tensor<T> t2_6_1{TiledIndexSpaceVec{O, O, O, O},spin_mask_4D};
-    Tensor<T> t2_6_1_temp{TiledIndexSpaceVec{O, O, O, O},spin_mask_4D};
-    Tensor<T> t2_6_2_1{TiledIndexSpaceVec{O, O, O, V},spin_mask_4D};
-    Tensor<T> t2_7_1{TiledIndexSpaceVec{O, V, O, V},spin_mask_4D};
-    Tensor<T> vt1t1_1{TiledIndexSpaceVec{O, V, O, O},spin_mask_4D};
-    Tensor<T> vt1t1_1_temp{TiledIndexSpaceVec{O, V, O, O},spin_mask_4D};
+    Tensor<T> i0_temp{{V, V, O, O},{2,2}};
+    Tensor<T> t2_temp{{V, V, O, O},{2,2}};
+    Tensor<T> t2_2_1{{O, V, O, O},{2,2}};
+    Tensor<T> t2_2_1_temp{{O, V, O, O},{2,2}};
+    Tensor<T> t2_2_2_1{{O, O, O, O},{2,2}};
+    Tensor<T> t2_2_2_1_temp{{O, O, O, O},{2,2}};
+    Tensor<T> t2_2_2_2_1{{O, O, O, V},{2,2}};
+    Tensor<T> t2_2_4_1{{O, V},{1,1}};
+    Tensor<T> t2_2_5_1{{O, O, O, V},{2,2}};
+    Tensor<T> t2_4_1{{O, O},{1,1}};
+    Tensor<T> t2_4_2_1{{O, V},{1,1}};
+    Tensor<T> t2_5_1{{V, V},{1,1}};
+    Tensor<T> t2_6_1{{O, O, O, O},{2,2}};
+    Tensor<T> t2_6_1_temp{{O, O, O, O},{2,2}};
+    Tensor<T> t2_6_2_1{{O, O, O, V},{2,2}};
+    Tensor<T> t2_7_1{{O, V, O, V},{2,2}};
+    Tensor<T> vt1t1_1{{O, V, O, O},{2,2}};
+    Tensor<T> vt1t1_1_temp{{O, V, O, O},{2,2}};
 
     TiledIndexLabel p1, p2, p3, p4, p5, p6, p7, p8, p9;
     TiledIndexLabel h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11;
@@ -410,11 +410,11 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     const TiledIndexSpace& V = MO("virt");
     const TiledIndexSpace& N = MO("all");
 
-    std::vector<SpinPosition> spin_mask_2D{SpinPosition::upper,
-                                           SpinPosition::lower};
+    // std::vector<SpinPosition> {1,1}{SpinPosition::upper,
+    //                                        SpinPosition::lower};
 
-    std::vector<SpinPosition> spin_mask_4D{SpinPosition::upper,SpinPosition::upper,
-                                           SpinPosition::lower,SpinPosition::lower};
+    // std::vector<SpinPosition> {2,2}{SpinPosition::upper,SpinPosition::upper,
+    //                                        SpinPosition::lower,SpinPosition::lower};
 
     std::cout.precision(15);
 
@@ -474,15 +474,15 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
   std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
 
   for(int i=0; i<ndiis; i++) {
-    d_r1s.push_back(new Tensor<T>{TiledIndexSpaceVec{V,O}, spin_mask_2D});
-    d_r2s.push_back(new Tensor<T>{TiledIndexSpaceVec{V,V,O,O}, spin_mask_4D});
-    d_t1s.push_back(new Tensor<T>{TiledIndexSpaceVec{V,O}, spin_mask_2D});
-    d_t2s.push_back(new Tensor<T>{TiledIndexSpaceVec{V,V,O,O}, spin_mask_4D});
+    d_r1s.push_back(new Tensor<T>{{V,O}, {1,1}});
+    d_r2s.push_back(new Tensor<T>{{V,V,O,O}, {2,2}});
+    d_t1s.push_back(new Tensor<T>{{V,O}, {1,1}});
+    d_t2s.push_back(new Tensor<T>{{V,V,O,O}, {2,2}});
     Tensor<T>::allocate(ec,*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
  
-  Tensor<T> d_r1{TiledIndexSpaceVec{V,O}, spin_mask_2D};
-  Tensor<T> d_r2{TiledIndexSpaceVec{V,V,O,O},spin_mask_4D};
+  Tensor<T> d_r1{{V,O}, {1,1}};
+  Tensor<T> d_r2{{V,V,O,O},{2,2}};
   Tensor<T>::allocate(ec,d_r1, d_r2);
 
   Scheduler{ec}   
@@ -735,20 +735,20 @@ TEST_CASE("CCSD Driver") {
     TiledIndexSpace N = MO("all");
 
 
-    std::vector<SpinPosition> spin_mask_2D{SpinPosition::upper,
-                                           SpinPosition::lower};
+    // std::vector<SpinPosition> {1,1}{SpinPosition::upper,
+    //                                        SpinPosition::lower};
 
-    std::vector<SpinPosition> spin_mask_4D{SpinPosition::upper,SpinPosition::upper,
-                                           SpinPosition::lower,SpinPosition::lower};
+    // std::vector<SpinPosition> {2,2}{SpinPosition::upper,SpinPosition::upper,
+    //                                        SpinPosition::lower,SpinPosition::lower};
 
     TiledIndexSpaceVec tis_t1{V,O};
     TiledIndexSpaceVec tis_t2{V,V,O,O};
     TiledIndexSpaceVec tis_f1{N,N};
     TiledIndexSpaceVec tis_v2{N,N,N,N};
-    Tensor<T> d_t1{tis_t1,spin_mask_2D};
-    Tensor<T> d_t2{tis_t2,spin_mask_4D};
-    Tensor<T> d_f1{tis_f1,spin_mask_2D};
-    Tensor<T> d_v2{tis_v2,spin_mask_4D};
+    Tensor<T> d_t1{tis_t1,{1,1}};
+    Tensor<T> d_t2{tis_t2,{2,2}};
+    Tensor<T> d_f1{tis_f1,{1,1}};
+    Tensor<T> d_v2{tis_v2,{2,2}};
     int maxiter    = 50;
     double thresh  = 1.0e-10;
     double zshiftl = 0.0;

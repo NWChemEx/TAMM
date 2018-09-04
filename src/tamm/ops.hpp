@@ -1016,6 +1016,12 @@ public:
             split_block_id(lblockid, rblockid, lhs_.labels().size(), rhs_.labels().size(), blockid);
             lblockid = internal::translate_blockid(lblockid, lhs_);
             rblockid = internal::translate_blockid(rblockid, rhs_);
+
+            // Check if lhs is non-zero
+            if(!ltensor.is_non_zero(lblockid) || !rtensor.is_non_zero(rblockid)) {
+                return;
+            } 
+
             const size_t size = ltensor.block_size(lblockid);
             // IndexVector rblockid = internal::LabelMap<Index>()
             //                          .update(lhs_.labels(), lblockid)
@@ -1307,6 +1313,14 @@ public:
             cblockid = internal::translate_blockid(cblockid, lhs_);
             ablockid = internal::translate_blockid(ablockid, rhs1_);
             bblockid = internal::translate_blockid(bblockid, rhs2_);
+
+            // Check if lhs is non-zero
+            if(!ctensor.is_non_zero(cblockid)) {
+                return;
+            }
+            else if(!atensor.is_non_zero(ablockid) || !btensor.is_non_zero(bblockid)) {
+                return;
+            }
         
             //compute block size and allocate buffers
             const size_t csize = ctensor.block_size(cblockid);

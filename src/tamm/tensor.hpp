@@ -48,11 +48,19 @@ public:
 
     Tensor(TiledIndexSpaceVec t_spaces, SpinMask spin_mask) :
       impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_mask)} {}
+
+    Tensor(std::initializer_list<TiledIndexSpace> t_spaces, SpinMask spin_mask) :
+      impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_mask)} {}
+
     Tensor(IndexLabelVec t_lbls, SpinMask spin_mask) :
       impl_{std::make_shared<TensorImpl<T>>(t_lbls, spin_mask)} {}
 
     Tensor(TiledIndexSpaceVec t_spaces, std::vector<size_t> spin_sizes) :
       impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_sizes)} {}
+
+    Tensor(std::initializer_list<TiledIndexSpace> t_spaces, std::vector<size_t> spin_sizes) :
+      impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_sizes)} {}
+      
     Tensor(IndexLabelVec t_lbls, std::vector<size_t> spin_sizes) :
       impl_{std::make_shared<TensorImpl<T>>(t_lbls, spin_sizes)} {}
 

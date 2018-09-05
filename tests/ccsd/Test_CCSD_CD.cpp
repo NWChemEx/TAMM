@@ -42,7 +42,7 @@ void ccsd_e(ExecutionContext &ec,
             const Tensor<T>& t2, const Tensor<T>& f1, const Tensor<T>& v2) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
-    Tensor<T> i1{O, V};
+    Tensor<T> i1{{O,V},{1,1}};
 
     TiledIndexLabel p1, p2, p3, p4, p5;
     TiledIndexLabel h3, h4, h5, h6;
@@ -66,13 +66,13 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
              const Tensor<T>& v2, std::vector<Tensor<T> *> &chol) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
-    Tensor<T> t1_2_1{O, O};
+    Tensor<T> t1_2_1{{O,O},{1,1}};
  
-    Tensor<T> _a007{O, V};
-    Tensor<T> _a001{O, O};
+    Tensor<T> _a007{{O,V},{1,1}};
+    Tensor<T> _a001{{O,O},{1,1}};
     Tensor<T> _a002{};
-    Tensor<T> _a005{O, O};
-    Tensor<T> _a003{V, O};
+    Tensor<T> _a005{{O,O},{1,1}};
+    Tensor<T> _a003{{V,O},{1,1}};
 
     TiledIndexLabel p1, p2, p3, p4, p5, p6, p7, p8;
     TiledIndexLabel h1, h2, h3, h4, h5, h6, h7, h8;
@@ -137,10 +137,10 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     const TiledIndexSpace &O = MO("occ");
     const TiledIndexSpace &V = MO("virt");
 
-    Tensor<T> _a001{V, V};
-    Tensor<T> _a002{V, O, O, O};
-    Tensor<T> t2_5_1{V, V};
-    Tensor<T> i0_temp{V, V, O, O};
+    Tensor<T> _a001{{V,V},{1,1}};
+    Tensor<T> _a002{{V,O,O,O},{2,2}};
+    Tensor<T> t2_5_1{{V,V},{1,1}};
+    Tensor<T> i0_temp{{V,V,O,O},{2,2}};
     
     TiledIndexLabel p1, p2, p3, p4, p5, p6, p7, p8, p9;
     TiledIndexLabel h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11;
@@ -150,76 +150,76 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
 
     Scheduler sch{&ec};
 
-    Tensor<T> _a3{V, O};
-    Tensor<T> _a3_1{V, O};
-    Tensor<T> _a010{V, O};
+    Tensor<T> _a3{{V,O},{1,1}};
+    Tensor<T> _a3_1{{V,O},{1,1}};
+    Tensor<T> _a010{{V,O},{1,1}};
 
-    Tensor<T> _a116{V, O};
-    Tensor<T> _a119{V, O};
-    Tensor<T> _a143{O, O};
-    Tensor<T> _a146{V, O};
+    Tensor<T> _a116{{V,O},{1,1}};
+    Tensor<T> _a119{{V,O},{1,1}};
+    Tensor<T> _a143{{O,O},{1,1}};
+    Tensor<T> _a146{{V,O},{1,1}};
 
-    Tensor<T> _a42{V, V, O, O}; // VV_NS | OO_NS
+    Tensor<T> _a42{{V,V,O,O},{2,2}}; // VV_NS | OO_NS
 
-    Tensor<T> _a385{V, V, O, O}; // VV_NS | OO_NS
-    Tensor<T> _a008{V, V, O, O};  // VV_NS | OO_NS
-    Tensor<T> _a30{V, V, O, O};  // VV_NS | OO_NS
+    Tensor<T> _a385{{V,V,O,O},{2,2}}; // VV_NS | OO_NS
+    Tensor<T> _a008{{V,V,O,O},{2,2}};  // VV_NS | OO_NS
+    Tensor<T> _a30{{V,V,O,O},{2,2}};  // VV_NS | OO_NS
 
     Tensor<T> _a482{};
-    Tensor<T> _a009{V, V};
-    Tensor<T> _a508{V, O};
-    Tensor<T> _a505{V, O, O, O};
+    Tensor<T> _a009{{V,V},{1,1}};
+    Tensor<T> _a508{{V,O},{1,1}};
+    Tensor<T> _a505{{V,O,O,O},{2,2}};
 
-    Tensor<T> _a408{V, O};
+    Tensor<T> _a408{{V,O},{1,1}};
 
-    Tensor<T> _a430{V, O, O, O}; // | OO_NS
-    Tensor<T> _a443{V, O, O, O}; // | OO_NS
+    Tensor<T> _a430{{V,O,O,O},{2,2}}; // | OO_NS
+    Tensor<T> _a443{{V,O,O,O},{2,2}}; // | OO_NS
 
-    Tensor<T> _a345{O, O};
+    Tensor<T> _a345{{O,O},{1,1}};
     Tensor<T> _a357{};
-    Tensor<T> _a371{O, O};
+    Tensor<T> _a371{{O,O},{1,1}};
 
-    Tensor<T> _a238{V, V, O, O}; // VV_NS |  OO_NS
+    Tensor<T> _a238{{V,V,O,O},{2,2}}; // VV_NS |  OO_NS
 
-    Tensor<T> _a281{V, O};
-    Tensor<T> _a318{V, O, O, O}; // | OO_NS
+    Tensor<T> _a281{{V,O},{1,1}};
+    Tensor<T> _a318{{V,O,O,O},{2,2}}; // | OO_NS
 
-    Tensor<T> _a595{O, O, O, O}; // OO_NS |
+    Tensor<T> _a595{{O,O,O,O},{2,2}}; // OO_NS |
 
-    Tensor<T> _a636{V, O};
-    Tensor<T> _a650{O, O};
+    Tensor<T> _a636{{V,O},{1,1}};
+    Tensor<T> _a650{{O,O},{1,1}};
 
     //_a2091
-    Tensor<T> _a2091{V, O};
+    Tensor<T> _a2091{{V,O},{1,1}};
 
     //_a755, _a741
-    Tensor<T> _a755{V, O};
-    Tensor<T> _a741{O, O};
+    Tensor<T> _a755{{V,O},{1,1}};
+    Tensor<T> _a741{{O,O},{1,1}};
 
     //_a1160
-    Tensor<T> _a1160{V, V, O, O};
+    Tensor<T> _a1160{{V,V,O,O},{2,2}};
 
     //_a1566,_a1509,_a1511,_a1655,_a1598,_a1602
-    Tensor<T> _a1566{O, O};
-    Tensor<T> _a1509{O, O};
-    Tensor<T> _a1655{O, O};
+    Tensor<T> _a1566{{O,O},{1,1}};
+    Tensor<T> _a1509{{O,O},{1,1}};
+    Tensor<T> _a1655{{O,O},{1,1}};
     Tensor<T> _a1602{};
 
     //_a1755,_a1724,_a1694,_a1850,_a1819,_a1789
-    Tensor<T> _a1755{V, O, O, O};
-    Tensor<T> _a1694{V, O, O, O};
-    Tensor<T> _a1724{O, O, O, O}; // OO_NS|
+    Tensor<T> _a1755{{V,O,O,O},{2,2}};
+    Tensor<T> _a1694{{V,O,O,O},{2,2}};
+    Tensor<T> _a1724{{O,O,O,O},{2,2}}; // OO_NS|
 
     //_a1945,_a1911,_a1882,_a1972,_a2036,_a2003
-    Tensor<T> _a1945{V, O, O, O};
-    Tensor<T> _a1911{O, V};
-    Tensor<T> _a2036{V, O, O, O};
-    Tensor<T> _a2003{O, V};
+    Tensor<T> _a1945{{V,O,O,O},{2,2}};
+    Tensor<T> _a1911{{O,V},{1,1}};
+    Tensor<T> _a2036{{V,O,O,O},{2,2}};
+    Tensor<T> _a2003{{O,V},{1,1}};
     Tensor<T> _a1972{};
 
     //_a1324,_a1333,_a1323,_a1488,_a1420,_a1423
-    Tensor<T> _a1333{V, O};
-    Tensor<T> _a1488{V, O, O, O};
+    Tensor<T> _a1333{{V,O},{1,1}};
+    Tensor<T> _a1488{{V,O,O,O},{2,2}};
 
  //------------------------------CD------------------------------
     sch.allocate(_a001, _a002, t2_5_1, _a008, _a3,_a3_1, _a010, _a30,
@@ -759,8 +759,15 @@ TEST_CASE("CCSD Driver") {
     // Construction of tiled index space MO
 
     IndexSpace MO_IS{range(0, total_orbitals),
-                    {{"occ", {range(0, 2*ov_alpha)}},
-                     {"virt", {range(2*ov_alpha, total_orbitals)}}}};
+                    {
+                     {"occ", {range(0, 2*ov_alpha)}},
+                     {"virt", {range(2*ov_alpha, total_orbitals)}}
+                    },
+                    { 
+                     {Spin{1}, {range(0, ov_alpha), range(2*ov_alpha,2*ov_alpha+ov_beta)}},
+                     {Spin{2}, {range(ov_alpha, 2*ov_alpha), range(2*ov_alpha+ov_beta, total_orbitals)}} 
+                    }
+                     };
 
     // IndexSpace MO_IS{range(0, total_orbitals),
     //                 {{"occ", {range(0, ov_alpha+ov_beta)}}, //0-7
@@ -781,10 +788,10 @@ TEST_CASE("CCSD Driver") {
     TiledIndexSpace V = MO("virt");
     TiledIndexSpace N = MO("all");
 
-    Tensor<T> d_t1{V, O};
-    Tensor<T> d_t2{V, V, O, O};
-    Tensor<T> d_f1{N, N};
-    Tensor<T> d_v2{N, N, N, N};
+    Tensor<T> d_t1{{V,O},{1,1}};
+    Tensor<T> d_t2{{V,V,O,O},{2,2}};
+    Tensor<T> d_f1{{N,N},{1,1}};
+    Tensor<T> d_v2{{N,N,N,N},{2,2}};
     int maxiter    = 50;
     double thresh  = 1.0e-10;
     double zshiftl = 0.0;
@@ -806,7 +813,7 @@ TEST_CASE("CCSD Driver") {
   std::vector<Tensor<T> *> chol_vecs(chol_count);
 
   for(auto x = 0; x < chol_count; x++) {
-      Tensor<T>* cholvec = new Tensor<T>{N, N};
+      Tensor<T>* cholvec = new Tensor<T>{{N,N},{1,1}};
       Tensor<T>::allocate(ec, *cholvec);
       Scheduler{ec}((*cholvec)() = 0).execute();
       chol_vecs[x] = cholvec;

@@ -10,6 +10,13 @@
 
 using namespace tamm;
 
+using T = double;
+void lambda_function(const IndexVector& blockid, span<T> buff) {
+    for (size_t i = 0; i < buff.size(); i++) {
+                buff[i] = 42;
+            }
+}
+
 template<typename T>
 std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
     os << "[";
@@ -653,14 +660,34 @@ TEST_CASE("Spin Tensor Construction") {
 
     failed = false;
     try {
-        auto lambda = [&](const IndexVector& blockid, span<T> buff) {
+        auto lambda = [](const IndexVector& blockid, span<T> buff) {
             for (size_t i = 0; i < buff.size(); i++) {
                 buff[i] = 42;
             }
         };
-        TiledIndexSpaceVec t_spaces{TIS, TIS};
-        Tensor<T> S{t_spaces, lambda};
-        Tensor<T> T1{t_spaces};
+        // TiledIndexSpaceVec t_spaces{TIS, TIS};
+        Tensor<T> S{{TIS, TIS}, lambda};
+        Tensor<T> T1{{TIS, TIS}};
+        
+        T1.allocate(ec);
+
+        Scheduler{ec}
+            (T1() = 0)
+            (T1() += 2 * S()).execute();
+        
+        check_value(T1, (T)84);
+        
+    } catch(const std::string& e) {
+        std::cerr << e << std::endl;
+        failed = true;
+    }
+    REQUIRE(!failed);
+
+    failed = false;
+    try {
+    
+        Tensor<T> S{{TIS, TIS}, lambda_function};
+        Tensor<T> T1{{TIS, TIS}};
         
         T1.allocate(ec);
 

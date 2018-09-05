@@ -19,6 +19,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
 #include <unsupported/Eigen/CXX11/Tensor>
+#include <unsupported/Eigen/MatrixFunctions>
 
 // Libint Gaussian integrals library
 #include <libint2.hpp>
@@ -42,6 +43,7 @@ using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 // to meet the layout of the integrals returned by the Libint integral library
 
 Matrix compute_soad(const std::vector<libint2::Atom> &atoms);
+void diis(Matrix& F, Matrix& S, Matrix& D_last, int max_hist); 
 
 // simple-to-read, but inefficient Fock builder; computes ~16 times as many ints as possible
 Matrix compute_2body_fock_simple(const std::vector<libint2::Shell> &shells,
@@ -262,7 +264,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   /*** =========================== ***/
 
   // LIBINT_INSTALL_DIR/share/libint/2.4.0-beta.1/basis
-  libint2::BasisSet shells(std::string("sto-3g"), atoms);
+  libint2::BasisSet shells(std::string("6-31g"), atoms);
   //auto shells = make_sto3g_basis(atoms);
   size_t nao = 0;
   for (size_t s = 0; s < shells.size(); ++s)
@@ -274,6 +276,10 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
   // compute overlap integrals
   auto S = compute_1body_ints(shells, Operator::overlap);
+  // Eigen::EigenSolver<Matrix> diagS(S);
+  // cout << "S eigenvalues\n";
+  // cout << S.eigenvalues() << endl;
+
 //  cout << "\n\tOverlap Integrals:\n";
 //  cout << S << endl;
 
@@ -300,7 +306,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   /*** build initial-guess density ***/
   /*** =========================== ***/
 
-  const auto use_hcore_guess = false;  // use core Hamiltonian eigenstates to guess density?
+  const auto use_hcore_guess = true;  // use core Hamiltonian eigenstates to guess density?
   // set to true to match the result of versions 0, 1, and 2 of the code
   // HOWEVER !!! even for medium-size molecules hcore will usually fail !!!
   // thus set to false to use Superposition-Of-Atomic-Densities (SOAD) guess
@@ -336,6 +342,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 //  Matrix C;
 //  Matrix F;
   Matrix eps;
+  double alpha = 0.75;
+  Matrix F_old;
 
   do {
     const auto tstart = std::chrono::high_resolution_clock::now();
@@ -351,10 +359,18 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     F = H;
     F += compute_2body_fock(shells, D);
 
+    //if(iter==1) cout << D << endl;
+
+     if (iter>1) {
+       F = alpha * F + (1.0-alpha)*F_old;
+     }
+
 //    if (iter == 1) {
 //      cout << "\n\tFock Matrix:\n";
 //      cout << F << endl;
 //    }
+
+   // if(iter>0) diis(F,S,D_last,10);
 
     // solve F C = e S C
     Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);
@@ -367,6 +383,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     auto C_occ = C.leftCols(ndocc);
     D = C_occ * C_occ.transpose();
 
+    
     // compute HF energy
     ehf = 0.0;
     for (size_t i = 0; i < nao; i++)
@@ -377,6 +394,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     ediff = ehf - ehf_last;
     rmsd = (D - D_last).norm();
 
+    //cout << "iter, ehf, ediff, rmsd = " << iter << "," << ehf <<", " << ediff <<  "," <<rmsd << "\n";
     const auto tstop = std::chrono::high_resolution_clock::now();
     const std::chrono::duration<double> time_elapsed = tstop - tstart;
 
@@ -386,7 +404,13 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     // printf(" %02d %20.12f %20.12f %20.12f %20.12f %10.5lf\n", iter, ehf, ehf + enuc,
     //        ediff, rmsd, time_elapsed.count());
 
-  } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)) && (iter < maxiter));
+   if(iter > maxiter) {
+     std::cerr << "HF Does not converge!!!\n";
+     exit(0);
+   }
+
+   F_old = F;
+  } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)));
 
   std::cout.precision(15);
   printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
@@ -397,6 +421,37 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   return std::make_tuple(ndocc,nao,ehf+enuc,shells);
 }
 
+void diis(Matrix& F, Matrix& S, Matrix& D_last, int max_hist=10) {
+  // S^-1/2
+  Matrix Sm12 = S.pow(-0.5);
+  Matrix Sp12 = S.pow(0.5);
+
+  Eigen::EigenSolver<Matrix> sm12_diag(Sm12);
+  Eigen::EigenSolver<Matrix> sp12_diag(Sp12);
+  // cout << "sm12 diag \n";
+  // cout << sm12_diag.eigenvalues() << endl;
+  // cout << "sp12 diag \n";
+  // cout << sp12_diag.eigenvalues() << endl;
+  // exit(0);
+
+  Matrix FSm12 = F * Sm12;
+  Matrix Sp12D  = Sp12 * D_last;
+  Matrix SpFS = Sp12D * FSm12;
+  
+  //Assemble: S^(-1/2)*F*D*S^(1/2) - S^(1/2)*D*F*S^(-1/2)
+  Matrix term1 = SpFS.transpose() - SpFS;
+
+  // --------------------- DIIS CORE -------------------------------
+
+
+
+
+  // ---------------------- DIIS CORE -------------------------------
+  
+
+
+  
+}
 
 // computes Superposition-Of-Atomic-Densities guess for the molecular density matrix
 // in minimal basis; occupies subshells by smearing electrons evenly over the orbitals

@@ -9,9 +9,9 @@
 #include "tamm/memory_manager_local.hpp"
 #include "tamm/tensor_base.hpp"
 
+#include <functional>
 #include <gsl/span>
 #include <type_traits>
-#include <functional>
 
 namespace tamm {
 
@@ -95,7 +95,7 @@ class LabeledTensor;
  * @brief Implementation class for TensorBase class
  *
  */
-template <typename T>
+template<typename T>
 class TensorImpl : public TensorBase {
 public:
     using TensorBase::TensorBase;
@@ -109,8 +109,9 @@ public:
      * @param [in] tis vector of TiledIndexSpace objects for each
      * mode used to construct the tensor
      */
-    TensorImpl(const TiledIndexSpaceVec& tis) : TensorBase{tis} 
-        { has_spin_symmetry_ = false; }
+    TensorImpl(const TiledIndexSpaceVec& tis) : TensorBase{tis} {
+        has_spin_symmetry_ = false;
+    }
 
     /**
      * @brief Construct a new TensorImpl object using a vector of
@@ -120,8 +121,9 @@ public:
      * corresponding TiledIndexSpace objects for each mode used to construct
      * the tensor
      */
-    TensorImpl(const std::vector<TiledIndexLabel>& lbls) : TensorBase{lbls} 
-        { has_spin_symmetry_ = false; }
+    TensorImpl(const std::vector<TiledIndexLabel>& lbls) : TensorBase{lbls} {
+        has_spin_symmetry_ = false;
+    }
 
     /**
      * @brief Construct a new TensorBase object recursively with a set of
@@ -191,18 +193,21 @@ public:
         // for(const auto& tis : t_spaces) { EXPECTS(tis.has_spin()); }
         SpinMask spin_mask;
         size_t upper = spin_sizes[0];
-        size_t lower = spin_sizes.size() > 1 ? spin_sizes[1] : t_spaces.size() - upper;
-        size_t ignore = spin_sizes.size() > 2 ? spin_sizes[1] : t_spaces.size() - (upper + lower);
+        size_t lower =
+          spin_sizes.size() > 1 ? spin_sizes[1] : t_spaces.size() - upper;
+        size_t ignore = spin_sizes.size() > 2 ?
+                          spin_sizes[1] :
+                          t_spaces.size() - (upper + lower);
 
-        for (size_t i = 0; i < upper; i++) {
+        for(size_t i = 0; i < upper; i++) {
             spin_mask.push_back(SpinPosition::upper);
         }
 
-        for (size_t i = 0; i < lower; i++) {
+        for(size_t i = 0; i < lower; i++) {
             spin_mask.push_back(SpinPosition::lower);
         }
 
-        for (size_t i = 0; i < upper; i++) {
+        for(size_t i = 0; i < upper; i++) {
             spin_mask.push_back(SpinPosition::ignore);
         }
 
@@ -228,18 +233,21 @@ public:
 
         SpinMask spin_mask;
         size_t upper = spin_sizes[0];
-        size_t lower = spin_sizes.size() > 1 ? spin_sizes[1] : t_labels.size() - upper;
-        size_t ignore = spin_sizes.size() > 2 ? spin_sizes[1] : t_labels.size() - (upper + lower);
+        size_t lower =
+          spin_sizes.size() > 1 ? spin_sizes[1] : t_labels.size() - upper;
+        size_t ignore = spin_sizes.size() > 2 ?
+                          spin_sizes[1] :
+                          t_labels.size() - (upper + lower);
 
-        for (size_t i = 0; i < upper; i++) {
+        for(size_t i = 0; i < upper; i++) {
             spin_mask.push_back(SpinPosition::upper);
         }
 
-        for (size_t i = 0; i < lower; i++) {
+        for(size_t i = 0; i < lower; i++) {
             spin_mask.push_back(SpinPosition::lower);
         }
 
-        for (size_t i = 0; i < upper; i++) {
+        for(size_t i = 0; i < upper; i++) {
             spin_mask.push_back(SpinPosition::ignore);
         }
 
@@ -257,8 +265,8 @@ public:
 
     // Dtor
     ~TensorImpl() {
-        if (mpb_ != nullptr) { 
-            mpb_->allocation_status_ =  AllocationStatus::orphaned;
+        if(mpb_ != nullptr) {
+            mpb_->allocation_status_ = AllocationStatus::orphaned;
         }
     }
 
@@ -270,23 +278,23 @@ public:
         delete mpb_;
         mpb_ = nullptr;
         update_status(AllocationStatus::deallocated);
-  }
-
+    }
 
     virtual void allocate(ExecutionContext* ec) {
         EXPECTS(allocation_status_ == AllocationStatus::invalid);
-        Distribution* distribution = ec->distribution();
+        Distribution* distribution    = ec->distribution();
         MemoryManager* memory_manager = ec->memory_manager();
         EXPECTS(distribution != nullptr);
         EXPECTS(memory_manager != nullptr);
         ec_ = ec;
-        // distribution_ = DistributionFactory::make_distribution(*distribution, this, pg.size());
+        // distribution_ = DistributionFactory::make_distribution(*distribution,
+        // this, pg.size());
         distribution_ = std::shared_ptr<Distribution>(
-            distribution->clone(this,memory_manager->pg().size()));
-        auto rank = memory_manager->pg().rank();
+          distribution->clone(this, memory_manager->pg().size()));
+        auto rank     = memory_manager->pg().rank();
         auto buf_size = distribution_->buf_size(rank);
-        auto eltype = tensor_element_type<T>();
-        EXPECTS(buf_size >=0 );
+        auto eltype   = tensor_element_type<T>();
+        EXPECTS(buf_size >= 0);
         mpb_ = memory_manager->alloc_coll(eltype, buf_size);
         EXPECTS(mpb_ != nullptr);
         ec_->register_for_dealloc(mpb_);
@@ -305,7 +313,7 @@ public:
 
     virtual void get(const IndexVector& idx_vec, span<T> buff_span) const {
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
-        
+
         if(!is_non_zero(idx_vec)) {
             Size size = block_size(idx_vec);
             EXPECTS(size <= buff_span.size());
@@ -318,8 +326,7 @@ public:
         std::tie(proc, offset) = distribution_->locate(idx_vec);
         Size size              = block_size(idx_vec);
         EXPECTS(size <= buff_span.size());
-        mpb_->mgr().get(*mpb_, proc, offset, Size{size},
-                        buff_span.data());
+        mpb_->mgr().get(*mpb_, proc, offset, Size{size}, buff_span.data());
     }
 
     /**
@@ -341,8 +348,7 @@ public:
         std::tie(proc, offset) = distribution_->locate(idx_vec);
         Size size              = block_size(idx_vec);
         EXPECTS(size <= buff_span.size());
-        mpb_->mgr().put(*mpb_, proc, offset, Size{size},
-                        buff_span.data());
+        mpb_->mgr().put(*mpb_, proc, offset, Size{size}, buff_span.data());
     }
 
     /**
@@ -358,58 +364,55 @@ public:
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
 
         if(!is_non_zero(idx_vec)) { return; }
-        
+
         Proc proc;
         Offset offset;
         std::tie(proc, offset) = distribution_->locate(idx_vec);
         Size size              = block_size(idx_vec);
         EXPECTS(size <= buff_span.size());
-        mpb_->mgr().add(*mpb_, proc, offset, Size{size},
-                        buff_span.data());
+        mpb_->mgr().add(*mpb_, proc, offset, Size{size}, buff_span.data());
     }
-
 
     virtual T trace() const {
         EXPECTS(num_modes() == 2);
         T ts = 0;
         for(const IndexVector& blockid : loop_nest()) {
-          if(blockid[0] == blockid[1]) {
-              const TAMM_SIZE size = block_size(blockid);
-              std::vector<T> buf(size);
-              get(blockid, buf);
-              auto block_dims1   = block_dims(blockid);
-              auto block_offset = block_offsets(blockid);
-              auto dim          = block_dims1[0];
-              auto offset       = block_offset[0];
-              size_t i          = 0;
-              for(auto p = offset; p < offset + dim; p++, i++) {
-                  ts += buf[i * dim + i];
-              }
-          }
-      }
-      return ts;
+            if(blockid[0] == blockid[1]) {
+                const TAMM_SIZE size = block_size(blockid);
+                std::vector<T> buf(size);
+                get(blockid, buf);
+                auto block_dims1  = block_dims(blockid);
+                auto block_offset = block_offsets(blockid);
+                auto dim          = block_dims1[0];
+                auto offset       = block_offset[0];
+                size_t i          = 0;
+                for(auto p = offset; p < offset + dim; p++, i++) {
+                    ts += buf[i * dim + i];
+                }
+            }
+        }
+        return ts;
     }
-
 
     virtual std::vector<T> diagonal() {
         EXPECTS(num_modes() == 2);
         std::vector<T> dest;
         for(const IndexVector& blockid : loop_nest()) {
-          if(blockid[0] == blockid[1]) {
-              const TAMM_SIZE size = block_size(blockid);
-              std::vector<T> buf(size);
-              get(blockid, buf);
-              auto block_dims1   = block_dims(blockid);
-              auto block_offset = block_offsets(blockid);
-              auto dim          = block_dims1[0];
-              auto offset       = block_offset[0];
-              size_t i          = 0;
-              for(auto p = offset; p < offset + dim; p++, i++) {
-                  dest.push_back(buf[i * dim + i]);
-              }
-          }
-      }
-      return dest;
+            if(blockid[0] == blockid[1]) {
+                const TAMM_SIZE size = block_size(blockid);
+                std::vector<T> buf(size);
+                get(blockid, buf);
+                auto block_dims1  = block_dims(blockid);
+                auto block_offset = block_offsets(blockid);
+                auto dim          = block_dims1[0];
+                auto offset       = block_offset[0];
+                size_t i          = 0;
+                for(auto p = offset; p < offset + dim; p++, i++) {
+                    dest.push_back(buf[i * dim + i]);
+                }
+            }
+        }
+        return dest;
     }
 
 protected:
@@ -417,54 +420,51 @@ protected:
     MemoryRegion* mpb_ = nullptr;
 }; // TensorImpl
 
-template <typename T>
-class LambdaTensorImpl: public TensorImpl<T> {
-    public:
+template<typename T>
+class LambdaTensorImpl : public TensorImpl<T> {
+public:
     using Func = std::function<void(const IndexVector&, span<T>)>;
     // Ctors
     LambdaTensorImpl() = default;
 
     // Copy/Move Ctors and Assignment Operators
-    LambdaTensorImpl(LambdaTensorImpl &&) = default;
-    LambdaTensorImpl(const LambdaTensorImpl &) = delete;
-    LambdaTensorImpl &operator=(LambdaTensorImpl &&) = default;
-    LambdaTensorImpl &operator=(const LambdaTensorImpl &) = delete;
+    LambdaTensorImpl(LambdaTensorImpl&&)      = default;
+    LambdaTensorImpl(const LambdaTensorImpl&) = delete;
+    LambdaTensorImpl& operator=(LambdaTensorImpl&&) = default;
+    LambdaTensorImpl& operator=(const LambdaTensorImpl&) = delete;
 
-    LambdaTensorImpl(const TiledIndexSpaceVec& tis_vec, Func lambda): TensorImpl<T>(tis_vec), lambda_{lambda} {}
+    LambdaTensorImpl(const TiledIndexSpaceVec& tis_vec, Func lambda) :
+      TensorImpl<T>(tis_vec),
+      lambda_{lambda} {}
 
     // Dtor
     ~LambdaTensorImpl() = default;
 
-    void deallocate() override{
-        NOT_ALLOWED();
+    void deallocate() override {
+        // NO_OP();
     }
 
-    // template<typename T>
+    void allocate(ExecutionContext* ec) override {
+        // NO_OP();
+    }
+
     void get(const IndexVector& idx_vec, span<T> buff_span) const override {
         lambda_(idx_vec, buff_span);
     }
 
-    // template<typename T>
     void put(const IndexVector& idx_vec, span<T> buff_span) override {
         NOT_ALLOWED();
     }
 
-    // template<typename T>
     void add(const IndexVector& idx_vec, span<T> buff_span) override {
         NOT_ALLOWED();
-    }    
-
-    // template<typename T>
-    T trace() const override {
-        NOT_ALLOWED();
     }
 
-    // template<typename T>
-    std::vector<T> diagonal() override {
-        NOT_ALLOWED();
-    }
+    T trace() const override { NOT_IMPLEMENTED(); }
 
-    protected:
+    std::vector<T> diagonal() override { NOT_IMPLEMENTED(); }
+
+protected:
     Func lambda_;
 }; // class LambdaTensorImpl
 

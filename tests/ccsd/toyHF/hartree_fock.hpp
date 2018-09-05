@@ -264,7 +264,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   /*** =========================== ***/
 
   // LIBINT_INSTALL_DIR/share/libint/2.4.0-beta.1/basis
-  libint2::BasisSet shells(std::string("6-31g"), atoms);
+  libint2::BasisSet shells(std::string("sto-3g"), atoms);
   //auto shells = make_sto3g_basis(atoms);
   size_t nao = 0;
   for (size_t s = 0; s < shells.size(); ++s)

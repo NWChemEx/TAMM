@@ -163,22 +163,26 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     Tensor<T> _a016{{V,O}, {1,1}};
     Tensor<T> _a017{{V,O}, {1,1}};
     Tensor<T> _a018{{V,O,O,O}, {2,2}};
+    Tensor<T> _a019{{O,O,O,O}, {2,2}};
     Tensor<T> _a020{{V,V,O,O}, {2,2}};
     Tensor<T> _a021{{V,V}, {1,1}};
     Tensor<T> i0_temp{{V,V,O,O}, {2,2}};
+    Tensor<T> xxxx{{V,V,O,O}, {2,2}};
 
  //------------------------------CD------------------------------
     sch.allocate(_a001, _a002, _a003, _a004, _a005, _a006, _a007,
                  _a008, _a009, _a010, _a011, _a012, _a013, _a014,
-                 _a015, _a016, _a017, _a018, _a020, _a021,
+                 _a015, _a016, _a017, _a018, _a019, _a020, _a021,
+                 xxxx,
                  i0_temp);
 
     sch (_a001(p1, p2) = 0)
         (_a002(p1, h1, h2, h3) = 0)
-        (_a003(h3, h4, h1, h2) = 0)
         (_a004(p1, p4, h1, h2) = 0)
         (_a005(p3, p1) = 0)
         (_a006(h3, h2) = 0)
+        (_a019(h3, h4, h1, h2) = 0)
+        (_a020(p3, p4, h3, h2) = 0)
         (i0(p3, p4, h1, h2) = 0)
         (i0_temp(p3, p4, h1, h2) = 0)
         ;
@@ -199,28 +203,30 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
             (_a015(p4, h1) = 0)
             (_a016(p4, h2) = 0)
             (_a017(p3, h2) = 0)
-            (_a018(p1, h3, h1, h2) = 0)
-            (_a020(p3, p4, h3, h2) = 0);
+            (_a021(p3, p1) = 0)
+            ;
 
         sch (_a011(p3, h1) +=  1.0 * t1(p3, h3) * cholx(h3, h1))//
             (_a013(p3, h2) +=  1.0 * t2(p1, p3, h3, h2) * cholx(h3, p1))
             (_a007() += 1.0 * t1(p1, h4) * cholx(h4, p1))
             (_a009(h3, h2) +=  1.0 * cholx(h3, p1) * t1(p1, h2))
             (_a016(p4, h3)  +=  1.0 * t1(p2, h3) * cholx(p4, p2))
-            (_a018(p1, h3, h1, h2) +=  1.0 * t2(p1, p2, h1, h2) * cholx(h3, p2)) //-------------
             ;
 
         sch (_a012(p4, h1) +=  1.0 * t1(p4, h3) * _a009(h3, h1))//t1t1        
-            (_a003(h4, h3, h1, h2) +=  1.0 * cholx(h4, p1) * _a018(p1, h3, h1, h2)) //----------------
+            
             (_a010(p2, h3) +=  1.0 * cholx(h3, p2) * _a007())
             (_a010(p2, h3) += -1.0 * cholx(h4, p2) * _a009(h3, h4))
-            (_a002(p3, h3, h1, h2) += -0.5 * t2(p2, p3, h1, h2) * _a010(p2, h3))//t2t1------------------
+            
+            (_a001(p4, p2) += t1(p4, h3) * _a010(p2, h3))
             
             (_a008(h3, h1) +=  1.0 * _a009(h3, h1))//t1
             (_a009(h3, h1) +=  1.0 * cholx(h3, h1))
-            (_a002(p3, h3, h1, h2) += -1.0 * _a009(h4, h1) * _a018(p3, h3, h4, h2));
-            //          t2(p3, p2, h4, h2) * cholx(h3, p2)
-        
+
+            (_a021(p3, p1) += -0.5 * t1(p3, h3) * cholx(h3, p1))
+            (_a020(p4, p1, h4, h1) += -2.0 * _a009(h4, h1) * _a021(p4, p1))
+            ;
+            
         sch (_a006(h4, h1)  +=  1.0 * _a009(h4, h1) * _a007())
             (_a006(h4, h1)  += -1.0 * _a009(h3, h1) * _a008(h4, h3))
             (_a005(p4, p1)  +=  1.0 * cholx(p4, p1) * _a007())
@@ -232,20 +238,13 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
             (_a017(p3, h2)  +=  1.0 * t1(p3, h3) * _a008(h3, h2))//t1t1
             (_a017(p3, h2)  += -1.0 * _a013(p3, h2))//t2
             (_a017(p3, h2)  +=  1.0 * _a011(p3, h2))//t1
-            (_a020(p3, p4, h3, h2) +=  1.0 * t2(p3, p4, h3, h4) * _a008(h4, h2)) //---------------------
-            //                                                   * t1(p1, h2) * cholx(h4, p1))
             (_a006(h3, h2)  +=  1.0 * cholx(h3, p2) * _a013(p2, h2));
             
         sch (_a001(p4, p2) += 1 * _a014(p4, h3) * cholx(h3, p2))
             
-            (i0_temp(p3, p4, h1, h2) += 0.25 * _a009(h4, h1) * _a020(p3, p4, h4, h2))//t1t2+t2---------------------
-            //  (cholx(h4, p1) * t1(p1, h1) + cholx(h4, h1)) * t2(p3, p4, h4, h3) * cholx(h3, p2) * t1(p2, h2)
-
-            (_a020(p3, p4, h3, h2) +=  1.0 * t2(p3, p4, h3, h4) * cholx(h4, h2)) //-----------------------
-            (i0_temp(p3, p4, h1, h2) += 0.25  * cholx(h4, h1) * _a020(p3, p4, h4, h2)) //-----------------
-            (i0_temp(p3, p4, h1, h2) += -1.0 * cholx(p4, p1) * _a020(p1, p3, h2, h1))//t2---------------------
-            //
-
+            (_a019(h4, h1, h3, h2) += 0.25 * _a009(h4, h1) * _a009(h3, h2)) 
+            (_a020(p4, p1, h4, h1) += -1.0 * cholx(p4, p1) * _a009(h4, h1))
+            
             (_a015(p3, h1)    += -1.0 * _a011(p3, h1))
             (i0_temp(p3, p4, h1, h2) += -1.0 * _a013(p3, h2) * _a015(p4, h1))//t2t1
             
@@ -258,37 +257,32 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
             (i0_temp(p3, p4, h1, h2) +=  1.0 * cholx(p4, h1) * _a017(p3, h2))//t1+t1t1+t2
             ;
             
-        sch (_a020(p1, p4, h1, h2) = 0)
-            (_a021(p3, p1) = 0)
+        sch (xxxx(p1, p4, h1, h2) = 0)
             (_a015(p4, h1)  = 0)
             ;
         
-        sch (_a021(p3, p1) += -0.5 * t1(p3, h3) * cholx(h3, p1))
+        sch (xxxx(p2, p3, h1, h2)   += 1 * t2(p2, p1, h1, h2) * _a021(p3, p1)) //-----------------
 
-            (_a020(p2, p3, h1, h2)   += 1 * t2(p2, p1, h1, h2) * _a021(p3, p1)) //-----------------
-
-            (i0_temp(p3, p4, h1, h2) += 1 * _a021(p3, p1) * _a020(p1, p4, h1, h2)) //-----------------
+            (i0_temp(p3, p4, h1, h2) += 1 * _a021(p3, p1) * xxxx(p1, p4, h1, h2)) //-----------------
            
             (_a021(p3, p1) +=  0.25* cholx(p3, p1))
-            (_a020(p2, p3, h1, h2)   += 0.25 * t2(p2, p1, h1, h2) * cholx(p3, p1)) //-----------------
+            (xxxx(p2, p3, h1, h2)   += 0.25 * t2(p2, p1, h1, h2) * cholx(p3, p1)) //-----------------
             (_a015(p3, h2) +=  1.0 * t1(p1, h2) * _a021(p3, p1))
            
             (i0_temp(p4, p3, h1, h2) +=  2.0 * _a015(p3, h2) * _a016(p4, h1))
-            (i0_temp(p4, p3, h1, h2) +=  1.0 * cholx(p4, p2) * _a020(p2, p3, h1, h2)) //----------------
+            (i0_temp(p4, p3, h1, h2) +=  1.0 * cholx(p4, p2) * xxxx(p2, p3, h1, h2)) //----------------
            ;            
     }
 
     // 
-    sch (i0_temp(p3, p4, h1, h2) += -0.5 * t2(p3, p2, h1, h2) * _a001(p4, p2))
-        (i0_temp(p3, p4, h1, h2) += -1.0 * t1(p4, h3) * _a002(p3, h3, h1, h2))
-        ;
-
     sch (i0_temp(p3, p4, h1, h2) += 0.5 * _a004(p3, p4, h1, h2))
-        (_a020(p3, p4, h1, h2) = 0)
-        (_a020(p3, p4, h1, h2) +=   1.0 * t2(p3, p2, h4, h2) * _a004(p2, p4, h1, h4))
-        (i0_temp(p3, p2, h4, h2) += 0.5 * t2(p2, p4, h1, h4) * _a020(p3, p4, h1, h2))
+        (i0_temp(p3, p4, h1, h2) += -0.5 * t2(p3, p2, h1, h2) * _a001(p4, p2))
+        (_a019(h3, h1, h4, h2) += -0.125 * _a004(p1, p2, h4, h3) * t2(p1, p2, h1, h2))
+        (i0_temp(p3, p4, h1, h2) +=  1.0 * _a019(h4, h1, h3, h2) * t2(p3, p4, h4, h3))
+        
+        (_a020(p3, p4, h1, h2) +=   0.5 * t2(p3, p2, h4, h2) * _a004(p2, p4, h1, h4))
+        (i0_temp(p3, p4, h1, h2) +=  1.0 * _a020(p4, p1, h4, h1) * t2(p3, p1, h4, h2))
         ;
-    //
 
     sch (_a006(h9, h1) += f1(h9, h1))
         (_a005(p4, p1) += f1(p4, p1))
@@ -296,7 +290,6 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
 
     sch (i0_temp(p3, p4, h2, h1) += -0.5*t2(p3, p4, h3, h1) * _a006(h3, h2))
         (i0_temp(p3, p4, h1, h2) += -0.5*t2(p1, p3, h1, h2) * _a005(p4, p1))
-        (i0_temp(p3, p4, h1, h2) +=  0.125 * t2(p3, p4, h3, h4) * _a003(h3, h4, h1, h2))
         (i0(p3, p4, h1, h2) +=  1.0 * i0_temp(p3, p4, h1, h2))
         (i0(p3, p4, h2, h1) += -1.0 * i0_temp(p3, p4, h1, h2))
         (i0(p4, p3, h1, h2) += -1.0 * i0_temp(p3, p4, h1, h2))
@@ -311,7 +304,8 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
 
   sch.deallocate(_a001, _a002, _a003, _a004, _a005, _a006, _a007,
                  _a008, _a009, _a010, _a011, _a012, _a013, _a014,
-                 _a015, _a016, _a017, _a018, _a020, _a021,
+                 _a015, _a016, _a017, _a018, _a019, _a020, _a021,
+                 xxxx,
                  i0_temp);
     //-----------------------------CD----------------------------------
     

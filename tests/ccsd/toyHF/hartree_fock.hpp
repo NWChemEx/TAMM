@@ -92,8 +92,8 @@ std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell
 
 using libint2::Atom;
 
-inline std::vector<Atom> read_input_xyz(
-  std::istream& is)
+inline std::tuple<std::vector<Atom>, std::string>
+   read_input_xyz(std::istream& is)
 {
   const double angstrom_to_bohr = 1.889725989; //1 / bohr_to_angstrom; //1.889726125
   // first line = # of atoms
@@ -113,6 +113,11 @@ inline std::vector<Atom> read_input_xyz(
   std::istringstream iss(gm_units);
   std::vector<std::string> geom_units{std::istream_iterator<std::string>{iss},
                       std::istream_iterator<std::string>{}};
+
+  bool nw_units_bohr = true;
+  assert(geom_units.size()==3);
+  if (geom_units[2] == "angstrom")
+    nw_units_bohr = false;
 
   // rest of lines are atoms
   std::vector<Atom> atoms(natom);
@@ -142,11 +147,6 @@ inline std::vector<Atom> read_input_xyz(
 
     atoms[i].atomic_number = Z;
 
-    bool nw_units_bohr = true;
-    assert(geom_units.size()==3);
-    if (geom_units[2] == "angstrom")
-      nw_units_bohr = false;
-
     if(nw_units_bohr) {
       atoms[i].x = x;
       atoms[i].y = y;
@@ -161,7 +161,23 @@ inline std::vector<Atom> read_input_xyz(
     }
   }
 
-  return atoms;
+  std::string basis_set="sto-3g";
+  while (std::getline(is, basis_set)){
+    if (basis_set.empty()) continue;
+    else {
+        std::istringstream bss(basis_set);
+        std::vector<std::string> basis_string{
+          std::istream_iterator<std::string>{bss},
+          std::istream_iterator<std::string>{}};
+        assert(basis_string.size() == 2);
+        assert(basis_string[0] == "basis");
+        basis_set = basis_string[1];
+        //cout << basis_set << endl;
+        break;
+    }
+  }
+
+  return std::make_tuple(atoms,basis_set);
 }
 
 Matrix compute_1body_ints(const std::vector<libint2::Shell> &shells,
@@ -232,7 +248,9 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
   // read geometry from a file; by default read from h2o.xyz, else take filename (.xyz) from the command line
   auto is = std::ifstream(filename);
-  const std::vector<Atom> atoms = read_input_xyz(is);
+  std::vector<Atom> atoms;
+  std::string basis;
+  std::tie(atoms,basis) = read_input_xyz(is);
 
 
 //  std::cout << "Geometries in bohr units \n";

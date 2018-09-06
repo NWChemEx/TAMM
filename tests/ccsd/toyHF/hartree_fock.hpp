@@ -35,6 +35,7 @@ using std::cerr;
 using std::endl;
 
 using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+using Tensor2D = Eigen::Tensor<double, 2, Eigen::RowMajor>;
 using Tensor3D = Eigen::Tensor<double, 3, Eigen::RowMajor>;
 using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 
@@ -43,7 +44,7 @@ using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 // to meet the layout of the integrals returned by the Libint integral library
 
 Matrix compute_soad(const std::vector<libint2::Atom> &atoms);
-void diis(Matrix& F, Matrix& S, Matrix& D_last, int max_hist); 
+void diis(Matrix& F, Matrix& S, Matrix& D_last, int iter, int max_hist); 
 
 // simple-to-read, but inefficient Fock builder; computes ~16 times as many ints as possible
 Matrix compute_2body_fock_simple(const std::vector<libint2::Shell> &shells,
@@ -345,6 +346,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   double alpha = 0.75;
   Matrix F_old;
 
+  const bool simple_convergence = true;
+
   do {
     const auto tstart = std::chrono::high_resolution_clock::now();
     ++iter;
@@ -361,16 +364,17 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
     //if(iter==1) cout << D << endl;
 
-     if (iter>1) {
+     if (iter>1 && simple_convergence) {
        F = alpha * F + (1.0-alpha)*F_old;
      }
+
 
 //    if (iter == 1) {
 //      cout << "\n\tFock Matrix:\n";
 //      cout << F << endl;
 //    }
 
-   // if(iter>0) diis(F,S,D_last,10);
+   if(iter>1 && !simple_convergence) diis(F,S,D_last,iter,10);
 
     // solve F C = e S C
     Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);
@@ -409,7 +413,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
      exit(0);
    }
 
-   F_old = F;
+   if(simple_convergence) F_old = F;
   } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)));
 
   std::cout.precision(15);
@@ -421,7 +425,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   return std::make_tuple(ndocc,nao,ehf+enuc,shells);
 }
 
-void diis(Matrix& F, Matrix& S, Matrix& D_last, int max_hist=10) {
+void diis(Matrix& F, Matrix& S, Matrix& D_last, int iter, int max_hist=10) {
   // S^-1/2
   Matrix Sm12 = S.pow(-0.5);
   Matrix Sp12 = S.pow(0.5);

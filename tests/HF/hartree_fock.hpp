@@ -410,7 +410,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     //  if(iter <= 3 || simple_convergence) { cout << err_mat << endl; }
 
      if(iter >= 1 && !simple_convergence) {
-         if(iter >= 1) {
+         if(iter > 2) {
              ++idiis;
              diis(F, err_mat, D_last, iter, max_hist, idiis, diis_hist,
                   fock_hist);
@@ -491,14 +491,7 @@ void diis(Matrix& F, Matrix& err_mat, Matrix& D_last, int iter, int max_hist,
 
   for(int i = 0; i < idim; i++) {
       for(int j = i; j < idim; j++) {
-          Matrix d_r1(N, N);
-          d_r1.setZero();
-          for(auto x = 0; x < N; x++) {
-              for(auto y = 0; y < N; y++) {
-                  d_r1(x, y) = diis_hist[i](x, y) * diis_hist[j](x, y);
-              }
-          }
-          A(i, j) = d_r1.sum();
+          A(i,j) = (diis_hist[i].transpose() * diis_hist[j]).trace();
       }
   }
 

@@ -1,7 +1,7 @@
 
-#include "toyHF/hartree_fock.hpp"
+#include "HF/hartree_fock.hpp"
 #include "diis.hpp"
-#include "toyHF/4index_transform.hpp"
+#include "4index_transform.hpp"
 #include "tamm/tamm.hpp"
 #include "macdecls.h"
 #include "ga-mpi.h"

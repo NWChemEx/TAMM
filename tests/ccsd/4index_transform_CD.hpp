@@ -2,7 +2,7 @@
 #ifndef TAMM_TESTS_IT_HPP_
 #define TAMM_TESTS_IT_HPP_
 
-#include "hartree_fock.hpp"
+#include "HF/hartree_fock.hpp"
 
 std::tuple<Tensor4D> four_index_transform(
   const uint64_t ndocc, const uint64_t nao, const uint64_t freeze_core,

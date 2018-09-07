@@ -1,5 +1,4 @@
 
 include(TargetMacros)
-# add_cxx_unit_test(Test_DAG_IndexTransform)
-#add_cxx_unit_test(Test_HartreeFock)
-#add_cxx_unit_test(Test_IndexTransform)
+add_mpi_unit_test(Test_HartreeFock 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.xyz")
+

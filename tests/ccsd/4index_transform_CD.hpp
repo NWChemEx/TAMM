@@ -141,7 +141,7 @@ std::tuple<Tensor4D> four_index_transform(
   auto f2 = bfv - shell2bf[s2];
   auto ind12 = f1*n2 + f2;
 
-  auto diagtol = 1.0e-12; // tolerance for the max. diagonal
+  auto diagtol = 1.0e-6; // tolerance for the max. diagonal
   do {
 
     if (count == 0) {
@@ -231,7 +231,7 @@ std::tuple<Tensor4D> four_index_transform(
   } while (max > diagtol && count <= (8*nao)); // At most 8*ao CholVec's. For vast majority cases, this is way
                                               //   more than enough. For very large basis, it can be increased.
   
-  cout << "# of Cholesky vectors: " << count << " max: " << max << endl;
+  cout << "# of Cholesky vectors: " << count << " max: " << max << "(" << diagtol << ")" << endl;
   /*
   // reproduce ao2eint and compare it with libint results -- for test only!
   Eigen::Tensor<double, 4, Eigen::RowMajor> CholV2(nao,nao,nao,nao);

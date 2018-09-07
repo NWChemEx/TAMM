@@ -34,7 +34,7 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
-using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+using Matrix   = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 using Tensor2D = Eigen::Tensor<double, 2, Eigen::RowMajor>;
 using Tensor3D = Eigen::Tensor<double, 3, Eigen::RowMajor>;
 using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
@@ -44,7 +44,8 @@ using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 // to meet the layout of the integrals returned by the Libint integral library
 
 Matrix compute_soad(const std::vector<libint2::Atom> &atoms);
-void diis(Matrix& F, Matrix& S, Matrix& D_last, int iter, int max_hist); 
+void diis(Matrix& F, Matrix& S, Matrix& D_last, int iter, int max_hist, int idiis,
+std::vector<Matrix> &diis_hist, std::vector<Matrix> &fock_hist); 
 
 // simple-to-read, but inefficient Fock builder; computes ~16 times as many ints as possible
 Matrix compute_2body_fock_simple(const std::vector<libint2::Shell> &shells,
@@ -172,7 +173,7 @@ inline std::tuple<std::vector<Atom>, std::string>
         assert(basis_string.size() == 2);
         assert(basis_string[0] == "basis");
         basis_set = basis_string[1];
-        //cout << basis_set << endl;
+       // cout << basis_set << endl;
         break;
     }
   }
@@ -283,7 +284,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   /*** =========================== ***/
 
   // LIBINT_INSTALL_DIR/share/libint/2.4.0-beta.1/basis
-  libint2::BasisSet shells(std::string("sto-3g"), atoms);
+  libint2::BasisSet shells(std::string(basis), atoms);
   //auto shells = make_sto3g_basis(atoms);
   size_t nao = 0;
   for (size_t s = 0; s < shells.size(); ++s)
@@ -353,7 +354,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   /*** =========================== ***/
 
   const auto maxiter = 100;
-  const auto conv = 1e-12;
+  const auto conv = 1e-7;
   auto iter = 0;
   auto rmsd = 0.0;
   auto ediff = 0.0;
@@ -364,7 +365,14 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   double alpha = 0.75;
   Matrix F_old;
 
-  const bool simple_convergence = true;
+  const int N = F.rows();
+
+  const bool simple_convergence = false;
+  int idiis = 0;
+  int max_hist = 10;
+  std::vector<Matrix> diis_hist;
+  std::vector<Matrix> fock_hist;
+
 
   do {
     const auto tstart = std::chrono::high_resolution_clock::now();
@@ -380,19 +388,34 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     F = H;
     F += compute_2body_fock(shells, D);
 
-    //if(iter==1) cout << D << endl;
-
      if (iter>1 && simple_convergence) {
        F = alpha * F + (1.0-alpha)*F_old;
      }
 
+     // S^-1/2
+     Matrix Sm12 = S.pow(-0.5);
+     Matrix Sp12 = S.pow(0.5);
 
-//    if (iter == 1) {
-//      cout << "\n\tFock Matrix:\n";
-//      cout << F << endl;
-//    }
+     Eigen::EigenSolver<Matrix> sm12_diag(Sm12);
+     Eigen::EigenSolver<Matrix> sp12_diag(Sp12);
 
-   if(iter>1 && !simple_convergence) diis(F,S,D_last,iter,10);
+     Matrix FSm12 = F * Sm12;
+     Matrix Sp12D = Sp12 * D_last;
+     Matrix SpFS  = Sp12D * FSm12;
+
+     // Assemble: S^(-1/2)*F*D*S^(1/2) - S^(1/2)*D*F*S^(-1/2)
+     Matrix err_mat = SpFS.transpose() - SpFS;
+    //  Matrix err_mat = (Sm12 * F * D_last * Sp12) - (Sp12 * D_last * F * Sm12);
+
+    //  if(iter <= 3 || simple_convergence) { cout << err_mat << endl; }
+
+     if(iter >= 1 && !simple_convergence) {
+         if(iter >= 1) {
+             ++idiis;
+             diis(F, err_mat, D_last, iter, max_hist, idiis, diis_hist,
+                  fock_hist);
+         }
+   }
 
     // solve F C = e S C
     Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);
@@ -416,7 +439,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     ediff = ehf - ehf_last;
     rmsd = (D - D_last).norm();
 
-    //cout << "iter, ehf, ediff, rmsd = " << iter << "," << ehf <<", " << ediff <<  "," <<rmsd << "\n";
+    cout << "-------------------------------------------------------------------------\n";
+    cout << "iter, ehf, ediff, rmsd = " << iter << "," << ehf <<", " << ediff <<  "," <<rmsd << "\n";
     const auto tstop = std::chrono::high_resolution_clock::now();
     const std::chrono::duration<double> time_elapsed = tstop - tstart;
 
@@ -437,42 +461,67 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   std::cout.precision(15);
   printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
 
-  cout << "\n** Eigen Values:\n";
-  cout << eps << endl;
+  // cout << "\n** Eigen Values:\n";
+  // cout << eps << endl;
 
   return std::make_tuple(ndocc,nao,ehf+enuc,shells);
 }
 
-void diis(Matrix& F, Matrix& S, Matrix& D_last, int iter, int max_hist=10) {
-  // S^-1/2
-  Matrix Sm12 = S.pow(-0.5);
-  Matrix Sp12 = S.pow(0.5);
+void diis(Matrix& F, Matrix& err_mat, Matrix& D_last, int iter, int max_hist, 
+         int ndiis, std::vector<Matrix> &diis_hist,std::vector<Matrix> &fock_hist) {
+      using Vector =
+      Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+ 
 
-  Eigen::EigenSolver<Matrix> sm12_diag(Sm12);
-  Eigen::EigenSolver<Matrix> sp12_diag(Sp12);
-  // cout << "sm12 diag \n";
-  // cout << sm12_diag.eigenvalues() << endl;
-  // cout << "sp12 diag \n";
-  // cout << sp12_diag.eigenvalues() << endl;
-  // exit(0);
+  const int N = F.rows();
+  // const int epos = ((ndiis-1) % max_hist) + 1;
+  int epos = ndiis - 1;
+  if(ndiis > max_hist) { 
+    diis_hist.erase(diis_hist.begin());
+    fock_hist.erase(fock_hist.begin());
+    
+  }
+  diis_hist.push_back(err_mat);
+  fock_hist.push_back(F);
 
-  Matrix FSm12 = F * Sm12;
-  Matrix Sp12D  = Sp12 * D_last;
-  Matrix SpFS = Sp12D * FSm12;
-  
-  //Assemble: S^(-1/2)*F*D*S^(1/2) - S^(1/2)*D*F*S^(-1/2)
-  Matrix term1 = SpFS.transpose() - SpFS;
+  // --------------------- Construct error metric -------------------------------
+  const int idim = std::min(ndiis, max_hist);
+  Matrix A = Matrix::Zero(idim + 1, idim + 1);
+  Vector b = Vector::Zero(idim + 1, 1);
 
-  // --------------------- DIIS CORE -------------------------------
+  for(int i = 0; i < idim; i++) {
+      for(int j = i; j < idim; j++) {
+          Matrix d_r1(N, N);
+          d_r1.setZero();
+          for(auto x = 0; x < N; x++) {
+              for(auto y = 0; y < N; y++) {
+                  d_r1(x, y) = diis_hist[i](x, y) * diis_hist[j](x, y);
+              }
+          }
+          A(i, j) = d_r1.sum();
+      }
+  }
 
+  for(int i = 0; i < idim; i++) {
+      for(int j = i; j < idim; j++) { A(j, i) = A(i, j); }
+    }
+    for(int i = 0; i < idim; i++) {
+        A(i, idim) = -1.0;
+        A(idim, i) = -1.0;
+    }
 
+    b(idim, 0) = -1;
 
+    Vector x = A.lu().solve(b);
 
-  // ---------------------- DIIS CORE -------------------------------
-  
+    F.setZero();
+    for(int j = 0; j < idim; j++) {
+        F += x(j, 0) * fock_hist[j];
+    }
 
-
-  
+    // cout << "-----------iter:" << iter << "--------------\n";
+    // cout << err_mat << endl;
+ 
 }
 
 // computes Superposition-Of-Atomic-Densities guess for the molecular density matrix

@@ -75,7 +75,9 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
 
     TiledIndexLabel p1, p2, p3, p4, p5, p6, p7, p8;
     TiledIndexLabel h1, h2, h3, h4, h5, h6, h7, h8;
+    TiledIndexLabel cind;
 
+    std::tie(cind) = CI.labels<1>("all");
     std::tie(p1, p2, p3, p4, p5, p6, p7, p8) = MO.labels<8>("virt");
     std::tie(h1, h2, h3, h4, h5, h6, h7, h8) = MO.labels<8>("occ");
 
@@ -138,7 +140,9 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
 
     TiledIndexLabel p1, p2, p3, p4, p5, p6, p7, p8, p9;
     TiledIndexLabel h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11;
+    TiledIndexLabel cind;
 
+    std::tie(cind) = CI.labels<1>("all");
     std::tie(p1, p2, p3, p4, p5, p6, p7, p8, p9) = MO.labels<9>("virt");
     std::tie(h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11) = MO.labels<11>("occ");
 

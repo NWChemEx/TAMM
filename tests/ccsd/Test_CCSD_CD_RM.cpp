@@ -65,14 +65,14 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
              const Tensor<T>& v2, std::vector<Tensor<T> *> &chol, Tensor<T>& chol3d) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
-    Tensor<T> t1_2_1{{O,O},{1,1}};
- 
-    Tensor<T> _a007{{O,V},{1,1}};
-    Tensor<T> _a001{{O,O},{1,1}};
-    Tensor<T> _a002{};
-    Tensor<T> _a005{{O,O},{1,1}};
-    Tensor<T> _a003{{V,O},{1,1}};
-
+    
+    Tensor<T> _a01{{O,O,CI},{1,1}};
+    Tensor<T> _a02{CI};
+    Tensor<T> _a03{{V,O,CI},{1,1}};
+    Tensor<T> _a04{{O,O},{1,1}};
+    Tensor<T> _a05{{O,V},{1,1}};
+    Tensor<T> _a06{{O,O,CI},{1,1}};
+    
     TiledIndexLabel p1, p2, p3, p4, p5, p6, p7, p8;
     TiledIndexLabel h1, h2, h3, h4, h5, h6, h7, h8;
     TiledIndexLabel cind;
@@ -82,53 +82,32 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
     std::tie(h1, h2, h3, h4, h5, h6, h7, h8) = MO.labels<8>("occ");
 
     Scheduler sch{&ec};
-    sch.allocate(t1_2_1, _a007, _a001, _a002, _a005, _a003);
-
-    sch(i0(p2, h1) = f1(p2, h1));
-
-    for(auto x = 0; x < chol.size(); x++) {
-        Tensor<T>& cholx = (*(chol.at(x)));
-        sch 
-          (_a001(h2, h1) = 0)
-          (_a005(h2, h1) = 0)
-          (_a002()       = 0)
-          (_a003(p1, h1) = 0)
-          (_a007(h2, p1) = 0);
-
-        sch
-          (_a001(h2, h1) +=  1.0 * t1(p1, h1) * cholx(h2, p1))
-          (_a003(p1, h1) +=  1.0 * t2(p1, p3, h2, h1) * cholx(h2, p3))
-          (_a002()       +=  1.0 * t1(p3, h3) * cholx(h3, p3))
-
-          (_a005(h2, h1) +=  1.0 * cholx(h2, p1) * _a003(p1, h1))
-          (i0(p2, h1)    +=  1.0 * t1(p2, h2) * _a005(h2, h1))//t1-ch-t2-ch
-          
-          (i0(p1, h2)    +=  1.0 * cholx(p1, h2) * _a002())//ch
-          
-          (_a007(h2, p1) += -1.0 * cholx(h3, p1) * _a001(h2, h3))
-          (i0(p2, h1)    +=  1.0 * t2(p1, p2, h2, h1) * _a007(h2, p1))//t2-ch-t1-ch
-          
-          (i0(p2, h1)    += -1.0 * cholx(p2, p1) * _a003(p1, h1))//ch-t2-ch
-          
-          (_a003(p2, h2) += -1.0 * t1(p1, h2) * cholx(p2, p1))
-          (i0(p1, h2)    += -1.0 * _a003(p1, h2) * _a002())//t2-ch + t1-ch
-          
-          (_a003(p2, h3) += -1.0 * t1(p2, h3) * _a002())
-          (_a003(p2, h3) +=  1.0 * t1(p2, h2) * _a001(h2, h3))
-          (_a001(h3, h1) +=  1.0 * cholx(h3, h1))
-          (i0(p2, h1)    +=  1.0 * _a001(h3, h1) * _a003(p2, h3)) //
-          
-          ;
-    }
-
-    sch(t1_2_1(h7, h1) = f1(h7, h1))
-    (t1_2_1(h7, h1) += t1(p3, h1) * f1(h7, p3))
-    (i0(p2, h1) += -1 * t1(p2, h7) * t1_2_1(h7, h1))
-    (i0(p2, h1) += t1(p3, h1) * f1(p2, p3));
-    sch(i0(p2, h1) += t2(p2, p7, h1, h8) * f1(h8, p7));
-
-    sch.deallocate(t1_2_1, _a007, _a001, _a002, _a005, _a003);
-    sch.execute();
+    sch
+        .allocate(_a01, _a02, _a03, _a04, _a05, _a06)
+        (i0(p2, h1) = f1(p2, h1))
+        (_a01(h2, h1, cind) +=  1.0 * t1(p1, h1) * chol3d(h2, p1, cind))
+        (_a02(cind)         +=  1.0 * t1(p3, h3) * chol3d(h3, p3, cind))
+        (_a03(p1, h1, cind) +=  1.0 * t2(p1, p3, h2, h1) * chol3d(h2, p3, cind))
+        (_a04(h2, h1)       +=  1.0 * chol3d(h2, p1, cind) * _a03(p1, h1, cind))
+        (i0(p2, h1)         +=  1.0 * t1(p2, h2) * _a04(h2, h1))
+        (i0(p1, h2)         +=  1.0 * chol3d(p1, h2, cind) * _a02(cind))
+        (_a05(h2, p1)       += -1.0 * chol3d(h3, p1) * _a01(h2, h3, cind))
+        (i0(p2, h1)         +=  1.0 * t2(p1, p2, h2, h1) * _a05(h2, p1))
+        (i0(p2, h1)         += -1.0 * chol3d(p2, p1, cind) * _a03(p1, h1, cind))
+        (_a03(p2, h2, cind) += -1.0 * t1(p1, h2) * chol3d(p2, p1, cind))
+        (i0(p1, h2)         += -1.0 * _a03(p1, h2, cind) * _a02(cind))
+        (_a03(p2, h3, cind) += -1.0 * t1(p2, h3) * _a02(cind))
+        (_a03(p2, h3, cind) +=  1.0 * t1(p2, h2) * _a01(h2, h3, cind))
+        (_a01(h3, h1, cind) +=  1.0 * chol3d(h3, h1, cind))
+        (i0(p2, h1)         +=  1.0 * _a01(h3, h1, cind) * _a03(p2, h3, cind))
+        (_a04(h7, h1)        =  1.0 * f1(h7, h1))
+        (_a04(h7, h1)       +=  1.0 * t1(p3, h1) * f1(h7, p3))
+        (i0(p2, h1)         += -1.0 * t1(p2, h7) * _a04(h7, h1))
+        (i0(p2, h1)         +=  1.0 * t1(p3, h1) * f1(p2, p3))
+        (i0(p2, h1)         +=  1.0 * t2(p2, p7, h1, h8) * f1(h8, p7))
+        
+        .deallocate(_a01, _a02, _a03, _a04, _a05, _a06)
+        .execute();
 }
 
 template<typename T>
@@ -148,109 +127,110 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
 
     Scheduler sch{&ec};
 
-    Tensor<T> _a001{{V,V}, {1,1}};
-    Tensor<T> _a004{{V,O,O,O}, {2,2}};
-    Tensor<T> _a006{{O,O}, {1,1}};
-    Tensor<T> _a007{};
-    Tensor<T> _a008{{O,O}, {1,1}};
-    Tensor<T> _a009{{O,O}, {1,1}};
-    Tensor<T> _a017{{V,O}, {1,1}};
-    Tensor<T> _a019{{O,O,O,O}, {2,2}};
-    Tensor<T> _a020{{V,O,V,O}, {2,2}};
-    Tensor<T> _a021{{V,V}, {1,1}};
-    Tensor<T> _a022{{V,V,O,O}, {2,2}};
+    Tensor<T> _a01{CI};
+    Tensor<T> _a02{{V,O,CI},     {1,1}};
+    Tensor<T> _a03{{O,O,CI},     {1,1}};
+    Tensor<T> _a04{{O,O,CI},     {1,1}};
+    Tensor<T> _a05{{V,V,CI},     {1,1}};
+    Tensor<T> _a06{{O,O,CI},     {1,1}};
+    Tensor<T> _a07{{V,V},        {1,1}};
+    Tensor<T> _a08{{O,O},        {1,1}};
+    Tensor<T> _a09{{O,O,O,O},    {2,2}};
+    Tensor<T> _a10{{V,O,V,O},    {2,2}};
+    Tensor<T> _a11{{V,V,O,O},    {2,2}};
+    Tensor<T> _a12{{V,O,O,O},    {2,2}};
+    Tensor<T> _a13{{V,V},        {1,1}};
     Tensor<T> i0_temp{{V,V,O,O}, {2,2}};
+    Tensor<T> xxxx{{V,V,O,O}, {2,2}};
     
  //------------------------------CD------------------------------
-    sch.allocate(_a001, _a004, _a006, _a007, 
-                 _a008, _a009, _a017, _a019, _a020, _a021,
-                 _a022,
-                 i0_temp);
-
-    sch (_a001(p1, p2) = 0)
-        (_a006(h3, h2) = 0)
-        (_a019(h3, h4, h1, h2) = 0)
-        (_a020(p3, h3, p4, h2) = 0)
-        (i0(p3, p4, h1, h2) = 0)
+    sch
+        .allocate(_a01, _a02, _a03, _a04, _a05, _a06, 
+                 _a07, _a08, _a09, _a10, _a11, _a12,
+                 _a13, //xxxx,
+                 i0_temp)
+        (i0(p3, p4, h1, h2)      = 0)
         (i0_temp(p3, p4, h1, h2) = 0)
-        ;
-    
-    for(auto x = 0; x < chol.size(); x++) {
+        (_a01(cind)              = 0)
+        (_a02(p3, h2, cind)      = 0)
+        (_a03(h4, h1, cind)      = 0)
+        (_a04(h3, h2, cind)      = 0)
+        (_a05(p3, p1, cind)      = 0)
+        (_a06(h3, h1, cind)      = 0)
+        (_a07(p1, p2)            = 0)
+        (_a08(h3, h2)            = 0)
+        (_a09(h3, h4, h1, h2)    = 0)
+        (_a10(p3, h3, p4, h2)    = 0)
+        //(xxxx(p1, p2, p3, p4)    = 0)
+        
+        (_a01(cind)         +=  1.0 * chol3d(h4, p1, cind) * t1(p1, h4))
+        (_a02(p3, h2, cind) += -1.0 * chol3d(h3, p1, cind) * t2(p1, p3, h3, h2))
+        (_a03(h4, h1, cind) += -1.0 * chol3d(h4, p2, cind) * _a02(p2, h1, cind))
+        (_a04(h3, h2, cind) +=  1.0 * chol3d(h3, p1, cind) * t1(p1, h2))
+        (_a05(p3, p1, cind) += -0.5 * chol3d(h3, p1, cind) * t1(p3, h3))
+        (_a05(p3, p1, cind) +=  0.5 * chol3d(p3, p1, cind))
+        (_a02(p3, h2, cind) += -2.0 * t1(p2, h2) * _a05(p3, p2, cind))
+        (_a06(h3, h1, cind) +=  1.0 * _a04(h3, h1, cind))//t1
+        (_a04(h3, h1, cind) +=  1.0 * chol3d(h3, h1, cind))
+        
+        (_a07(p4, p2) += -2.0 * _a05(p4, p2, cind) * _a01(cind))
+        (_a07(p4, p2) += -1.0 * _a02(p4, h2, cind) * chol3d(h2, p2, cind))
+        (_a08(h4, h1) +=  1.0 * _a04(h4, h1, cind) * _a01(cind))
+        (_a08(h4, h1) += -1.0 * _a04(h3, h1, cind) * _a06(h4, h3, cind))
+        (_a09(h4, h3, h1, h2) +=  0.25 * _a04(h4, h1, cind) * _a04(h3, h2, cind)) 
+        (_a10(p4, h4, p1, h1) += -2.0  * _a04(h4, h1, cind) * _a05(p4, p1, cind))
+        
+        (_a02(p3, h2, cind) +=  1.0 * t1(p3, h3) * chol3d(h3, h2, cind))
+        (_a02(p3, h2, cind) += -1.0 * chol3d(p3, h2, cind))
+        (i0_temp(p3, p4, h1, h2) +=  0.5 * _a02(p3, h1, cind) * _a02(p4, h2, cind))
+        
+        (xxxx(p1, p2, p3, p4)     = 0)
+        (xxxx(p1, p2, p3, p4)    += 1.0 * _a05(p1, p3) * _a05(p2, p4))
+        (i0_temp(p3, p4, h1, h2) += 1.0 * xxxx(p3, p4, p1, p2) * t2(p2, p1, h1, h2))
+
+        (_a12(p1, h4, h1, h2)  = 0)
+        (_a12(p2, p1, h3, h4) += 1.0 * chol3d(p2, h3, cind) * chol3d(p1, h4, cind))
+        (_a09(h3, h4, h1, h2) += -0.125 * _a12(p2, p1, h3, h4) * t2(p1, p2, h1, h2))
+        (_a10(p3, h1, p4, h2) +=  0.5   * _a12(p2, p4, h1, h4) * t2(p3, p2, h4, h2))
+
+    /*for(auto x = 0; x < chol.size(); x++) {
         Tensor<T>& cholx = (*(chol.at(x)));
 
-        sch (_a007() = 0)
-            (_a008(h3, h1) = 0)
-            (_a009(h3, h2) = 0)
-            (_a017(p3, h2) = 0)
-            (_a021(p3, p1) = 0)
-            (_a004(p1, h4, h1, h2) = 0)
-            (_a022(p1, p4, h1, h2) = 0)
-            ;
-
-        sch (_a017(p3, h2) += -1.0 * t2(p1, p3, h3, h2) * cholx(h3, p1))
-            (_a006(h4, h1) += -1.0 * cholx(h4, p2) * _a017(p2, h1))
-            (_a007()       +=  1.0 * cholx(h4, p1) * t1(p1, h4))
-            (_a009(h3, h2) +=  1.0 * cholx(h3, p1) * t1(p1, h2))
-            (_a021(p3, p1) += -0.5 * cholx(h3, p1) * t1(p3, h3))
-            (_a021(p3, p1) +=  0.5 * cholx(p3, p1))
-            (_a017(p3, h2) += -2.0 * t1(p2, h2) * _a021(p3, p2))
-            (_a008(h3, h1) +=  1.0 * _a009(h3, h1))//t1
-            (_a009(h3, h1) +=  1.0 * cholx(h3, h1))
-            ;
-            
-        sch (_a001(p4, p2) += -2.0 * _a021(p4, p2) * _a007())
-            (_a001(p4, p2) += -1.0 * _a017(p4, h2) * cholx(h2, p2))
-            (_a006(h4, h1) +=  1.0 * _a009(h4, h1) * _a007())
-            (_a006(h4, h1) += -1.0 * _a009(h3, h1) * _a008(h4, h3))
-            (_a019(h4, h3, h1, h2) +=  0.25 * _a009(h4, h1) * _a009(h3, h2)) 
-            (_a020(p4, h4, p1, h1) += -2.0  * _a009(h4, h1) * _a021(p4, p1))
-            ;
-        
-        sch (_a017(p3, h2) +=  1.0 * t1(p3, h3) * cholx(h3, h2))
-            (_a017(p3, h2) += -1.0 * cholx(p3, h2))
-            (i0_temp(p3, p4, h1, h2) +=  0.5 * _a017(p3, h1) * _a017(p4, h2))
-            
-            (_a022(p2, p3, h1, h2)   += 1.0 * t2(p2, p1, h1, h2) * _a021(p3, p1))
-            (i0_temp(p3, p4, h1, h2) += 1.0 * _a021(p3, p1) * _a022(p1, p4, h1, h2))
-            
-            (_a004(p1, h3, h1, h2) +=  1.0   * cholx(p2, h3) * t2(p1, p2, h1, h2))
-            (_a019(h3, h4, h1, h2) += -0.125 * cholx(p1, h4) * _a004(p1, h3, h1, h2))
-            (_a020(p3, h1, p4, h2) +=  0.5   * cholx(p4, h4) * _a004(p3, h1, h4, h2))
+        sch (_a13(p3, p1) = 0)
+            (_a13(p3, p1) += -0.5 * cholx(h3, p1) * t1(p3, h3))
+            (_a13(p3, p1) +=  0.5 * cholx(p3, p1))
+            (_a11(p1, p4, h1, h2) = 0)
+            (_a11(p2, p3, h1, h2)   += 1.0 * t2(p2, p1, h1, h2) * _a13(p3, p1))
+            (i0_temp(p3, p4, h1, h2) += 1.0 * _a13(p3, p1) * _a11(p1, p4, h1, h2))
+            (_a12(p1, h4, h1, h2) = 0)
+            (_a12(p1, h3, h1, h2) +=  1.0   * cholx(p2, h3) * t2(p1, p2, h1, h2))
+            (_a09(h3, h4, h1, h2) += -0.125 * cholx(p1, h4) * _a12(p1, h3, h1, h2))
+            (_a10(p3, h1, p4, h2) +=  0.5   * cholx(p4, h4) * _a12(p3, h1, h4, h2))
             ;            
-    }
+    }*/
 
-    // 
-    sch (_a001(p4, p1) += -1 * f1(p4, p1))
-        (i0_temp(p3, p4, h1, h2) += -0.5 * t2(p3, p2, h1, h2) * _a001(p4, p2))
+    
+        (_a07(p4, p1) += -1 * f1(p4, p1))
+        (i0_temp(p3, p4, h1, h2) += -0.5 * t2(p3, p2, h1, h2) * _a07(p4, p2))
 
-        (i0_temp(p3, p4, h1, h2) +=  1.0 * _a019(h4, h3, h1, h2) * t2(p3, p4, h4, h3))
+        (i0_temp(p3, p4, h1, h2) +=  1.0 * _a09(h4, h3, h1, h2) * t2(p3, p4, h4, h3))
         
-        (i0_temp(p3, p4, h1, h2) +=  1.0 * _a020(p4, h4, p1, h1) * t2(p3, p1, h4, h2))
-        ;
-
-    sch (_a006(h9, h1) += f1(h9, h1))
-        (_a006(h9, h1) += t1(p8, h1) * f1(h9, p8));
-
-    sch (i0_temp(p3, p4, h2, h1) += -0.5 * t2(p3, p4, h3, h1) * _a006(h3, h2))
+        (i0_temp(p3, p4, h1, h2) +=  1.0 * _a10(p4, h4, p1, h1) * t2(p3, p1, h4, h2))
+        
+        (_a08(h9, h1) += f1(h9, h1))
+        (_a08(h9, h1) += t1(p8, h1) * f1(h9, p8))
+        
+        (i0_temp(p3, p4, h2, h1) += -0.5 * t2(p3, p4, h3, h1) * _a08(h3, h2))
         (i0(p3, p4, h1, h2) +=  1.0 * i0_temp(p3, p4, h1, h2))
         (i0(p3, p4, h2, h1) += -1.0 * i0_temp(p3, p4, h1, h2))
         (i0(p4, p3, h1, h2) += -1.0 * i0_temp(p3, p4, h1, h2))
         (i0(p4, p3, h2, h1) +=  1.0 * i0_temp(p3, p4, h1, h2))    
-        ;
- 
-    
-    //sch(_a009(p3, p5) = 0)
-    //   (_a009(p3, p5) +=  1.0 * t1(p3, h10) * f1(h10, p5))
-    //   (i0(p3, p4, h1, h2) += -1 * _a009(p3, p5) * t2(p4, p5, h1, h2))
-    //   (i0(p4, p3, h1, h2) +=  1 * _a009(p3, p5) * t2(p4, p5, h1, h2));
-
-  sch.deallocate(_a001, _a004, _a006, _a007, 
-                 _a008, _a009, _a017, _a019, _a020, _a021,
-                 _a022,
-                 i0_temp);
-    //-----------------------------CD----------------------------------
-    
-    sch.execute();
+        
+        .deallocate(_a01, _a02, _a03, _a04, _a05, _a06, 
+                 _a07, _a08, _a09, _a10, _a11, _a12,
+                 _a13, //xxxx,
+                 i0_temp)
+        .execute();
 
 }
 

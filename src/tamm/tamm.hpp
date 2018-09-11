@@ -21,6 +21,6 @@
 #include "tamm/tensor.hpp"
 // #include "tamm/spin_tensor.hpp"
 #include "tamm/dag_impl.hpp"
-
+#undef I
 
 #endif // TAMM_TAMM_H_

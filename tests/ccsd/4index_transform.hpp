@@ -67,11 +67,11 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
   Eigen::Tensor<double, 4, Eigen::RowMajor> V2_unfused(v2dim,v2dim,v2dim,v2dim);
   V2_unfused.setZero();
 
-  Eigen::Tensor<double, 4, Eigen::RowMajor> V2_fully_fused(v2dim,v2dim,v2dim,v2dim);
-  V2_fully_fused.setZero();
+  // Eigen::Tensor<double, 4, Eigen::RowMajor> V2_fully_fused(v2dim,v2dim,v2dim,v2dim);
+  // V2_fully_fused.setZero();
 
   const bool unfused_4index = true;
-  const bool fully_fused_4index = false;
+  //const bool fully_fused_4index = false;
 
   //V_prqs.setConstant(0.0d);
   //cout << t << endl;
@@ -309,6 +309,7 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
     }
  // }//omp parallel
 
+#if 0
   if(fully_fused_4index) {
     for (size_t p = 0; p < v2dim; p++) {
       for (size_t r = 0; r < v2dim; r++) {
@@ -407,7 +408,7 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
       assert(0); //crash here to debug
     }
   }
-
+#endif
   //Need to explicitly create an array that contains the permutation
   //Eigen::array<std::ptrdiff_t, 4> psqr_shuffle = {{0, 3, 2, 1}};
 
@@ -433,7 +434,11 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
         }
       }
     //}
-  } else if(fully_fused_4index) {
+  }
+
+  V2_unfused.resize(0,0,0,0);
+  #if 0
+   else if(fully_fused_4index) {
     for (size_t p = 0; p < v2dim; p++) {
       for (size_t q = 0; q < v2dim; q++) {
         for (size_t r = 0; r < v2dim; r++) {
@@ -446,7 +451,7 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
   } else {
     assert(0); //one of two options must be selected
   }
-
+#endif
   // for (auto p = 0; p < 2 * n; p++) {
   //     for (auto q = 0; q < 2 * n; q++) {
   //       for (auto r = 0; r < 2 * n; r++) {

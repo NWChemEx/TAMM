@@ -123,7 +123,7 @@ void fn(ExecutionContext *ec, TiledIndexSpace TIS) {
                 .execute();
             // 12: end for
         }
-        // @todo 13: Solve the the projected linear least squares problem mins kHs 􀀀
+        // @todo 13: Solve the the projected linear least squares problem mins kHs 
         // e1 k 
         EMatrix Htmp_eigen(NUM_NK_ITER+1,NUM_NK_ITER);
         EMatrix s(NUM_NK_ITER+1);

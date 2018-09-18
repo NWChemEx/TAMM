@@ -20,8 +20,8 @@ namespace tamm {
  * by subclasses. The class supports MO indices that are permutation symmetric
  * with anti-symmetry.
  *
- * @note In a spin-restricted tensor, a 𝛽𝛽|𝛽𝛽 block is mapped to its
- * corresponding to αα|αα block.
+ * @note In a spin-restricted tensor, a BB|BB block is mapped to its
+ * corresponding to aa|aa block.
  *
  * @todo For now, we cannot handle tensors in which number of upper
  * and lower indices differ by more than one. This relates to

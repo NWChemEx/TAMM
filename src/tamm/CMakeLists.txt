@@ -3,7 +3,7 @@ project(tamm VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For nwchemex_add_library
 
 #Add the current directory's sources to the list
-set(tamm_SRCS tamm.cpp index_space.cpp)
+set(tamm_SRCS eigen_solvers.cpp tamm.cpp index_space.cpp)
 
 #Add the current directory's header files to the list
 set(tamm_INCLUDES
@@ -11,7 +11,8 @@ set(tamm_INCLUDES
     work.hpp
     tamm.hpp
     types.hpp
-    errors.hpp 
+    eigen_solvers.hpp
+    errors.hpp
     strong_num.hpp
     boundvec.hpp
     index_space.hpp

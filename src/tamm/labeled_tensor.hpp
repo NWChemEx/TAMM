@@ -51,7 +51,7 @@ public:
         validate();
     }
 
-    LabeledTensor(const Tensor<T>& tensor, const std::vector<TiledIndexSpace>& labels) :
+    LabeledTensor(const Tensor<T>& tensor, const IndexLabelVec& labels) :
       tensor_{tensor},
       ilv_{IndexLabelVec(tensor_.num_modes())},
       slv_{StringLabelVec(tensor_.num_modes())},
@@ -296,7 +296,7 @@ private:
     }
 
     
-    void unpack(size_t index, const std::vector<TiledIndexLabel>& labels) {
+    void unpack(size_t index, const IndexLabelVec& labels) {
         EXPECTS(index < tensor_.num_modes());
         for(auto label: labels){
             ilv_[index]     = label;

@@ -944,7 +944,8 @@ using std::vector;
                  for(int jvec = 0; jvec < nroots; jvec++){
                  std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
 //################################################################################
-                sch(d_r1() = xp1.at(ivec)() * x1.at(jvec)());
+                sch(d_r1()  = 0);
+                sch(d_r1() += xp1.at(ivec)() * x1.at(jvec)());
                 sch(d_r1() += xp2.at(ivec)() * x2.at(jvec)());
                 T r1;
                 d_r1.get({}, {&r1, 1});
@@ -959,7 +960,8 @@ using std::vector;
                  for(int jvec = micro*nroots; jvec < nxtrials; jvec++){
                  std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
 //################################################################################
-                  sch(d_r1() = xp1.at(ivec)() * x1.at(jvec)());
+                sch(d_r1()  = 0);
+                  sch(d_r1() += xp1.at(ivec)() * x1.at(jvec)());
                 sch(d_r1() += xp2.at(ivec)() * x2.at(jvec)());
                 T r1;
                 d_r1.get({}, {&r1, 1});
@@ -973,7 +975,8 @@ using std::vector;
                  for(int jvec = 0; jvec < micro*nroots; jvec++){
                  std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
 //################################################################################
-                sch(d_r1() = xp1.at(ivec)() * x1.at(jvec)());
+                sch(d_r1()  = 0);
+                sch(d_r1() += xp1.at(ivec)() * x1.at(jvec)());
                 sch(d_r1() += xp2.at(ivec)() * x2.at(jvec)());
                 T r1;
                 d_r1.get({}, {&r1, 1});
@@ -985,8 +988,6 @@ using std::vector;
               }
            } 
         Tensor<T>::deallocate(d_r1);
-
-     } //end micro
 
 //################################################################################
 //allocate omegar 1D array which has dimension nxtrials
@@ -1020,7 +1021,7 @@ using std::vector;
 //Sort the eigenvectors and corresponding eigenvalues 
 //################################################################################
 
-#if 1
+#if 0
 
 Eigen::EigenSolver<Matrix> hbardiag(hbar.block(0,0,nxtrials,nxtrials));
 auto omegar = hbardiag.eigenvalues();
@@ -1041,7 +1042,6 @@ auto hbar_right = hbardiag.eigenvectors();
     (r2.at(root)()        = 0).execute();
     for(int i = 0; i < nxtrials; i++){
         T hbr_scalar = real(hbar_right(root,i));
-   //**xc                     = scalar    * x
        sch(xc1.at(root)()       += hbr_scalar * x1.at(i)()) 
           (xc2.at(root)() += hbr_scalar * x2.at(i)()).execute();
     }  
@@ -1049,11 +1049,9 @@ auto hbar_right = hbardiag.eigenvectors();
 //
  for(int root = 0; root < nroots; root++){
     T omegar_scalar = -1 * real(omegar(root));
-    // ?????????? omegar(root) = omegar(root)*omegai(root) (can overwrite) not sure if necessary)
     sch(r1.at(root)()        += omegar_scalar * xc1.at(root)() )
     (r2.at(root)() += omegar_scalar * xc2.at(root)() ).execute();
     for(int i = 0; i < nxtrials; i++){
-   //**r                     = scalar    * xp
        T hbr_scalar = real(hbar_right(root,i));
        sch(r1.at(root)()        += hbr_scalar * xp1.at(i)())
        (r2.at(root)() += hbr_scalar *xp2.at(i)()).execute();
@@ -1064,34 +1062,71 @@ auto hbar_right = hbardiag.eigenvectors();
 
 //################################################################################
 //***Call jacobi with the r1/r2's to form the new set of x1/x2's
- for(auto root = 0; root < nroots; root++){
-    //  jacobi(ec, r1.at(root), x1.at(nxtrials+root), zshiftl=0, transpose=false, p_evl_sorted, noab);
-     jacobi(*ec, r1.at(root), x1.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
-     jacobi(*ec, r2.at(root), x2.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
- }
+// for(auto root = 0; root < nroots; root++){
+//     jacobi(*ec, r1.at(root), x1.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
+//     jacobi(*ec, r2.at(root), x2.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
+// }
 //
 // FUTURE: Thee will be a specific Jacobi for x's which accounts for symmetry
 //################################################################################
 
-// ORTHOGONALIZATION
+// ORTHOGONALIZATION and NORMALIZATION
+//Right now u1 and u2 are allocated to be seperate. It is a seperate array to only 
+//store and work with the vector that is currently being orthoginalized. 
+//To save some memory, you can use any one of the xc vectors as a workspace.  
 
+    Tensor<T> oscalar{};
+    Tensor<T>::allocate(ec,oscalar);
+
+    for(int ivec = nxtrials; ivec<nxtrials+nroots; ivec++){
+        Tensor<T> u1 = x1.at(ivec);
+        Tensor<T> u2 = x2.at(ivec);
+        for(int jvec = 0; jvec<ivec; jvec++){
+            sch(oscalar() = 0)
+            (oscalar() += x1.at(ivec)() * x1.at(jvec)())
+            (oscalar() +=  x2.at(ivec)() * x2.at(jvec)()).execute();
+            T tmps;
+            oscalar.get({}, {&tmps,1});
+            sch(u1() = tmps * x1.at(jvec)())
+            (u2() = tmps * x2.at(jvec)()).execute();
+        }
+        // T norm = u1 * u1
+        sch(oscalar() = 0)
+        (oscalar() += u1() * u1());
+    //    norm += u2 * u2
+        sch(oscalar() += u2() * u2()).execute();
+    //    scalar = 1/norm
+        T tmps;
+        oscalar.get({}, {&tmps,1});
+        T newsc = 1/tmps;
+        sch(x1.at(ivec)() = 0)
+        (x1.at(ivec)() += newsc * u1())
+        (x2.at(ivec)() = 0)
+        (x2.at(ivec)() += newsc * u2()).execute(); 
+    }
+    oscalar.deallocate();
+ 
+
+     } //end micro
 
 //################################################################################
 //*** When microeomiter number of iteration is met copy the last xc vectors 
 //*** to the first set of x vectors, 
   std::cout << "COLLAPSE" << std::endl;
-    for(auto root = 0; root < nroots; root++){
-       sch(x1.at(root)() = xc1.at(((microeomiter-1)*nroots)+root)() )
-          (x2.at(root)() = xc2.at(((microeomiter-1)*nroots)+root)() ).execute();
-    }
+//THIS NEEDS TO BE TIED IN WITH THE LAST ROUTINE SO THAT THE LATEST ORTHONORMAL SET 
+//IS USED AS THE INITIAL GUESS.
+//    for(auto root = 0; root < nroots; root++){
+//       sch(x1.at(root)() = xc1.at(((microeomiter-1)*nroots)+root)() )
+//          (x2.at(root)() = xc2.at(((microeomiter-1)*nroots)+root)() ).execute();
+//    }
 //################################################################################
 
   }
 
-// auto deallocate_vtensors = [&](auto&& ...vecx){
-//         (std::for_each(vecx.begin(), vecx.end(), std::mem_fun(&Tensor<T>::deallocate)), ...);
-// };
-//  deallocate_vtensors(x1,x2,xp1,xp2,xc1,xc2,r1,r2);
+auto deallocate_vtensors = [&](auto&& ...vecx){
+        (std::for_each(vecx.begin(), vecx.end(), [](auto &t) { t.deallocate(); } ), ...);
+};
+ deallocate_vtensors(x1,x2,xp1,xp2,xc1,xc2,r1,r2);
 
 //   Tensor<T>::deallocate(hbar);
 

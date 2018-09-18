@@ -704,6 +704,28 @@ TEST_CASE("Spin Tensor Construction") {
         failed = true;
     }
     REQUIRE(!failed);
+    
+    failed=false;
+    try {
+        std::vector<Tensor<T>> x1(5);
+        std::vector<Tensor<T>> x2(5);
+        for (int i =0;i<5;i++){
+           x1[i] = Tensor<T>{TIS,TIS};
+           x2[i] = Tensor<T>{TIS,TIS};
+           Tensor<T>::allocate(ec,x1[i],x2[i]);
+        }
+            
+    auto deallocate_vtensors = [&](auto&& ...vecx){
+            //(std::for_each(vecx.begin(), vecx.end(), std::mem_fun(&Tensor<T>::deallocate)), ...);
+            //(std::for_each(vecx.begin(), vecx.end(), Tensor<T>::deallocate), ...);
+    };
+    deallocate_vtensors(x1,x2);
+
+    } catch(const std::string& e) {
+        std::cerr << e << std::endl;
+        failed = true;
+    }
+    REQUIRE(!failed);
 }
 
 int main(int argc, char* argv[]) {

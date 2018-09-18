@@ -3,11 +3,12 @@ project(tamm VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For nwchemex_add_library
 
 #Add the current directory's sources to the list
-set(tamm_SRCS eigen_solvers.cpp tamm.cpp index_space.cpp)
+set(tamm_SRCS cholesky.cpp eigen_solvers.cpp tamm.cpp index_space.cpp)
 
 #Add the current directory's header files to the list
 set(tamm_INCLUDES
     atomic_counter.h
+    cholesky.hpp
     work.hpp
     tamm.hpp
     types.hpp

@@ -437,6 +437,9 @@ public:
         const IndexLabelVec& unique_labels =
           internal::unique_entries(input_labels_);
         //std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
+        // @to-do: when the labels are not from the same TiledIndexSpace the unique label
+        // check fails causing the loop nest to be constructed over all labels. We should
+        // fix this problem after updating compatibility check for TiledIndexSpaces
         sorted_unique_labels_ = internal::sort_on_dependence(unique_labels);
 
         perm_map_input_to_sorted_labels_ =

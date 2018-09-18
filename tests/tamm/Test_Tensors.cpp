@@ -715,17 +715,47 @@ TEST_CASE("Spin Tensor Construction") {
            Tensor<T>::allocate(ec,x1[i],x2[i]);
         }
             
-    auto deallocate_vtensors = [&](auto&& ...vecx){
-            //(std::for_each(vecx.begin(), vecx.end(), std::mem_fun(&Tensor<T>::deallocate)), ...);
-            //(std::for_each(vecx.begin(), vecx.end(), Tensor<T>::deallocate), ...);
-    };
-    deallocate_vtensors(x1,x2);
+        auto deallocate_vtensors = [&](auto&& ...vecx){
+                //(std::for_each(vecx.begin(), vecx.end(), std::mem_fun(&Tensor<T>::deallocate)), ...);
+                //(std::for_each(vecx.begin(), vecx.end(), Tensor<T>::deallocate), ...);
+        };
+        deallocate_vtensors(x1,x2); 
+    } catch(const std::string& e) {
+        std::cerr << e << std::endl;
+        failed = true;
+    }    
+    REQUIRE(!failed);
+
+    failed = false;
+    try{
+        IndexSpace MO_IS{range(0,7)};
+        TiledIndexSpace MO{MO_IS, {1,1,3,1,1}};
+
+        IndexSpace MO_IS2{range(0,7)};
+        TiledIndexSpace MO2{MO_IS2, {1,1,3,1,1}};
+
+        Tensor<T> pT{MO,MO};
+        Tensor<T> pV{MO2,MO2};
+
+        pT.allocate(ec);
+        pV.allocate(ec);
+
+        auto tis_list = pT.tiled_index_spaces();
+        Tensor<T> H{tis_list};
+        H.allocate(ec);
+
+        auto h_tis = H.tiled_index_spaces();
+
+        Scheduler{ec}
+            (H("mu", "nu") = pT("mu", "nu"))
+            (H("mu", "nu") += pV("mu", "nu"))
+            .execute();
 
     } catch(const std::string& e) {
         std::cerr << e << std::endl;
         failed = true;
     }
-    REQUIRE(!failed);
+    REQUIRE(failed);
 }
 
 int main(int argc, char* argv[]) {

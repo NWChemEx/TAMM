@@ -11,6 +11,14 @@
 using namespace tamm;
 
 using T = double;
+
+ExecutionContext make_execution_context(){
+    ProcGroup pg{GA_MPI_Comm()};
+    auto *pMM = MemoryManagerLocal::create_coll(pg);
+    Distribution_NW* dist = new Distribution_NW();
+    return ExecutionContext(pg, dist, pMM);
+}
+
 void lambda_function(const IndexVector& blockid, span<T> buff) {
     for (size_t i = 0; i < buff.size(); i++) {
                 buff[i] = 42;
@@ -756,6 +764,22 @@ TEST_CASE("Spin Tensor Construction") {
         failed = true;
     }
     REQUIRE(failed);
+
+    failed = false; 
+    try {
+        IndexSpace IS{range(10)};
+        TiledIndexSpace TIS{IS,2};
+
+        Tensor<T> A{TIS, TIS};
+        auto ec = make_execution_context();
+        A.allocate(&ec);
+    }
+    catch (const std::string& e) {
+        std::cerr << e << std::endl;
+        failed = true;
+    }
+    REQUIRE(!failed);
+
 }
 
 int main(int argc, char* argv[]) {

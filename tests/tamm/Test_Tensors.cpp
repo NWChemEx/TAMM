@@ -616,7 +616,9 @@ TEST_CASE("Spin Tensor Construction") {
         T2.allocate(ec);
         T3.allocate(ec);
 
-        Scheduler{ec}(T1() = 42)(T2() = 3)(T3() = 4)(T1() += T3() * T2())
+        Tensor<T> T4 = T3;
+
+        Scheduler{ec}(T1() = 42)(T2() = 3)(T3() = 4)(T1() += T4() * T2())
           .execute();
         check_value(T3, (T)4);
         check_value(T2, (T)3);

@@ -1,4 +1,4 @@
-﻿# Index Spaces in TAMM
+# Index Spaces in TAMM
 
 ## Terminology
 

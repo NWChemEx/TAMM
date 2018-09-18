@@ -37,13 +37,14 @@ public:
     // ExecutionContext& operator=(const ExecutionContext&) = default;
     // ExecutionContext& operator=(ExecutionContext&&) = default;
 
+    /** @todo use shared pointers for solving GitHub issue #43*/
     ExecutionContext(ProcGroup pg, Distribution* default_distribution,
                      MemoryManager* default_memory_manager) :
       pg_{pg},
       default_distribution_{default_distribution},
       default_memory_manager_{default_memory_manager} {
         pg_self_ = ProcGroup{MPI_COMM_SELF};
-        /** @todo use shared pointers */
+       
         // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
     }
 

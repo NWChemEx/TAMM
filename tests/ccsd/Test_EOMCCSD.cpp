@@ -6,6 +6,7 @@
 #include "catch/catch.hpp"
 #include "tamm/tamm.hpp"
 #include <algorithm>
+#include <complex>
 #include "tamm/eigen_utils.hpp"
 #include "macdecls.h"
 #include "ga-mpi.h"
@@ -1019,11 +1020,9 @@ using std::vector;
 //Sort the eigenvectors and corresponding eigenvalues 
 //################################################################################
 
-#if 0
-Matrix hbar_block = Matrix::Zero(nxtrials,nxtrials);
-hbar_block.block(0,0,nxtrials,nxtrials) = hbar.block(0,0,nxtrials,nxtrials);
+#if 1
 
-Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> hbardiag(hbar_block);
+Eigen::EigenSolver<Matrix> hbardiag(hbar.block(0,0,nxtrials,nxtrials));
 auto omegar = hbardiag.eigenvalues();
 auto hbar_right = hbardiag.eigenvectors();
 
@@ -1041,21 +1040,21 @@ auto hbar_right = hbardiag.eigenvectors();
     (r1.at(root)()        = 0)
     (r2.at(root)()        = 0).execute();
     for(int i = 0; i < nxtrials; i++){
-        T hbr_scalar = hbar_right(root,i);
+        T hbr_scalar = real(hbar_right(root,i));
    //**xc                     = scalar    * x
        sch(xc1.at(root)()       += hbr_scalar * x1.at(i)()) 
           (xc2.at(root)() += hbr_scalar * x2.at(i)()).execute();
     }  
  }
 //
- for(auto root = 0; root < nroots; root++){
-    auto omegar_scalar = -1 * omegar(root);
+ for(int root = 0; root < nroots; root++){
+    T omegar_scalar = -1 * real(omegar(root));
     // ?????????? omegar(root) = omegar(root)*omegai(root) (can overwrite) not sure if necessary)
     sch(r1.at(root)()        += omegar_scalar * xc1.at(root)() )
     (r2.at(root)() += omegar_scalar * xc2.at(root)() ).execute();
     for(int i = 0; i < nxtrials; i++){
    //**r                     = scalar    * xp
-       T hbr_scalar = hbar_right(root,i);
+       T hbr_scalar = real(hbar_right(root,i));
        sch(r1.at(root)()        += hbr_scalar * xp1.at(i)())
        (r2.at(root)() += hbr_scalar *xp2.at(i)()).execute();
     }  
@@ -1065,10 +1064,11 @@ auto hbar_right = hbardiag.eigenvectors();
 
 //################################################################################
 //***Call jacobi with the r1/r2's to form the new set of x1/x2's
-//  for(root = 0, root < nroots; root++){
-//      jacobi(ec, r1(root), x1(nxtrials+root), zshiftl=0, transpose=false, p_evl_sorted, noab);
-//      jacobi(ec, r2(root), x2(nxtrials+root), zshiftl=0, transpose=false, p_evl_sorted, noab);
-//  }
+ for(auto root = 0; root < nroots; root++){
+    //  jacobi(ec, r1.at(root), x1.at(nxtrials+root), zshiftl=0, transpose=false, p_evl_sorted, noab);
+     jacobi(*ec, r1.at(root), x1.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
+     jacobi(*ec, r2.at(root), x2.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
+ }
 //
 // FUTURE: Thee will be a specific Jacobi for x's which accounts for symmetry
 //################################################################################
@@ -1080,16 +1080,16 @@ auto hbar_right = hbardiag.eigenvectors();
 //*** When microeomiter number of iteration is met copy the last xc vectors 
 //*** to the first set of x vectors, 
   std::cout << "COLLAPSE" << std::endl;
-//     for(root = 0, ivec < nroots; ivec++){
-//        x1(root)=xc1(((microeomiter-1)*nroots)+root)
-//        x2(root)=xc2(((microeomiter-1)*nroots)+root)
-//     }
+    for(auto root = 0; root < nroots; root++){
+       sch(x1.at(root)() = xc1.at(((microeomiter-1)*nroots)+root)() )
+          (x2.at(root)() = xc2.at(((microeomiter-1)*nroots)+root)() ).execute();
+    }
 //################################################################################
 
   }
 
 // auto deallocate_vtensors = [&](auto&& ...vecx){
-//         (std::for_each(vecx.begin(), vecx.end(), &Tensor<T>::deallocate), ...);
+//         (std::for_each(vecx.begin(), vecx.end(), std::mem_fun(&Tensor<T>::deallocate)), ...);
 // };
 //  deallocate_vtensors(x1,x2,xp1,xp2,xc1,xc2,r1,r2);
 

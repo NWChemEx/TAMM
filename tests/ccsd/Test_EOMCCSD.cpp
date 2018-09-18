@@ -5,6 +5,8 @@
 #include "4index_transform.hpp"
 #include "catch/catch.hpp"
 #include "tamm/tamm.hpp"
+#include <algorithm>
+#include "tamm/eigen_utils.hpp"
 #include "macdecls.h"
 #include "ga-mpi.h"
 
@@ -570,242 +572,238 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
   Tensor<T>::deallocate(d_r1, d_r2);
 }
 
-//template<typename T>
-//void eomccsd_x1(ExecutionContext& ec, const TiledIndexSpace& MO,
-//                Tensor<T>& i0, const Tensor<T>& t1, const Tensor<T>& t2,
-//                const Tensor<T>& x1, const Tensor<T>& x2,
-//                const Tensor<T>& f1, const Tensor<T>& v2) {
-//
-//    const TiledIndexSpace &O = MO("occ");
-//    const TiledIndexSpace &V = MO("virt");
-//
-//    TiledIndexLabel h1, h3, h4, h5, h6, h8;
-//    TiledIndexLabel p2, p3, p4, p5, p6, p7;
-//
-//    std::tie(h1, h3, h4, h5, h6, h8) = MO.labels<6>("occ");
-//    std::tie(p2, p3, p4, p5, p6, p7) = MO.labels<6>("virt");
-//
-//    Tensor<T> i_1   {O, O};
-//    Tensor<T> i_1_1 {O, V};
-//    Tensor<T> i_2   {V, V};
-//    Tensor<T> i_3   {O, V};
-//    Tensor<T> i_4   {O, O, O, V};
-//    Tensor<T> i_5_1 {O, V};
-//    Tensor<T> i_5   {O, O};
-//    Tensor<T> i_5_2 {O, V};
-//    Tensor<T> i_5   {O, O};
-//    Tensor<T> i_6   {V, V};
-//    Tensor<T> i_7   {O, V};
-//    Tensor<T> i_8   {O, O, O, V};
-//
-//    Scheduler sch{&ec};
-//
-//    sch
-//      .allocate(i_1,i_1_1,i_2,i_3,i_4,i_5_1,i_5,i_5_2,i_5,i_6,i_7,i_8)
-//      ( i0(p2,h1)           =  0                                        )
-//      (   i_1(h6,h1)       +=        f2(h6,h1)                          )
-//      (     i_1_1(h6,p7)   +=        f2(h6,p7)                          )
-//      (     i_1_1(h6,p7)   +=        t1(p4,h5)       * v2(h5,h6,p4,p7)  )
-//      (   i_1(h6,h1)       +=        t1(p7,h1)       * i_1_1(h6,p7)     )
-//      (   i_1(h6,h1)       += -1   * t1(p3,h4)       * v2(h4,h6,h1,p3)  )
-//      (   i_1(h6,h1)       += -0.5 * t2(p3,p4,h1,h5) * v2(h5,h6,p3,p4)  )
-//      ( i0(p2,h1)          += -1   * x1(p2,h6)       * i_1(h6,h1)       )
-//      (   i_2(p2,p6)       +=        f2(p2,p6)                          )
-//      (   i_2(p2,p6)       +=        t1(p3,h4)       * v2(h4,p2,p3,p6)  )
-//      ( i0(p2,h1)          +=        x1(p6,h1)       * i_2(p2,p6)       )
-//      ( i0(p2,h1)          += -1   * x1(p4,h3)       * v2(h3,p2,h1,p4)  )
-//      (   i_3(h6,p7)       +=        f2(h6,p7)                          )
-//      (   i_3(h6,p7)       +=        t1(p3,h4)       * v2(h4,h6,p3,p7)  )
-//      ( i0(p2,h1)          +=        x2(p2,p7,h1,h6) * i_3(h6,p7)       )
-//      (   i_4(h6,h8,h1,p7) +=        v2(h6,h8,h1,p7)                    )
-//      (   i_4(h6,h8,h1,p7) +=        t1(p3,h1)       * v2(h6,h8,p3,p7)  )
-//      ( i0(p2,h1)          += -0.5 * x2(p2,p7,h6,h8) * i_4(h6,h8,h1,p7) )
-//      ( i0(p2,h1)          += -0.5 * x2(p4,p5,h1,h3) * v2(h3,p2,p4,p5)  )
-//      (     i_5_1(h8,p3)   +=        f2(h8,p3)                          )
-//      (     i_5_1(h8,p3)   += -1   * t1(p4,h5)       * v2(h5,h8,p3,p4)  )
-//      (   i_5(h8,h1)       +=        x1(p3,h1)       * i_5_1(h8,p3)     )
-//      (   i_5(h8,h1)       += -1   * x1(p5,h4)       * v2(h4,h8,h1,p5)  )
-//      (   i_5(h8,h1)       += -0.5 * x2(p5,p6,h1,h4) * v2(h4,h8,p5,p6)  )
-//      (     i_5_2(h8,p3)   += -1   * x1(p6,h5)       * v2(h5,h8,p3,p6)  )
-//      (   i_5(h8,h1)       +=        t1(p3,h1)       * i_5_2(h8,p3)     )
-//      ( i0(p2,h1)          += -1   * t1(p2,h8)       * i_5(h8,h1)       )
-//      (   i_6(p2,p3)       +=        x1(p5,h4)       * v2(h4,p2,p3,p5)  )
-//      ( i0(p2,h1)          += -1   * t1(p3,h1)       * i_6(p2,p3)       )
-//      (   i_7(h4,p3)       +=        x1(p6,h5)       * v2(h4,h5,p3,p6)  )
-//      ( i0(p2,h1)          +=        t2(p2,p3,h1,h4) * i_7(h4,p3)       )
-//      (   i_8(h4,h5,h1,p3) +=        x1(p6,h1)       * v2(h4,h5,p3,p6)  )
-//      ( i0(p2,h1)          +=  0.5 * t2(p2,p3,h4,h5) * i_8(h4,h5,h1,p3) )
-//      .deallocate(i_1,i_1_1,i_2,i_3,i_4,i_5_1,i_5,i_5_2,
-//                  i_5,i_6,i_7,i_8).execute();
-//}
-//
-//template<typename T>
-//void eomccsd_x2(ExecutionContext& ec, const TiledIndexSpace& MO,
-//                Tensor<T>& i0, const Tensor<T>& t1, const Tensor<T>& t2,
-//                const Tensor<T>& x1, const Tensor<T>& x2,
-//                const Tensor<T>& f1, const Tensor<T>& v2) {
-//
-//    const TiledIndexSpace &O = MO("occ");
-//    const TiledIndexSpace &V = MO("virt");
-//
-//    TiledIndexLabel h1, h2, h5, h6, h7, h8, h9, h10;
-//    TiledIndexLabel p3, p4, p5, p6, p7, p8, p9;
-//
-//    std::tie(h1, h2, h5, h6, h7, h8, h9, h10) = MO.labels<8>("occ");
-//    std::tie(p3, p4, p5, p6, p7, p8, p9) = MO.labels<7>("virt");
-//
-//    Tensor<T> i_1     {O, V, O, O};
-//    Tensor<T> i_1_1   {O, V, O, V};
-//    Tensor<T> i_1_2   {O, V};
-//    Tensor<T> i_1_3   {O, O, O, V};
-//    Tensor<T> i_2     {O, O};
-//    Tensor<T> i_2_1   {O, V};
-//    Tensor<T> i_3     {V, V};
-//    Tensor<T> i_4     {O, O, O, O};
-//    Tensor<T> i_4_1   {O, O, O, V};
-//    Tensor<T> i_5     {O, V, O, V};
-//    Tensor<T> i_6_1   {O, O, O, O};
-//    Tensor<T> i_6_1_1 {O, O, O, V};
-//    Tensor<T> i_6     {O, V, O, O};
-//    Tensor<T> i_6_2   {O, V};
-//    Tensor<T> i_6_3   {O, O, O, V};
-//    Tensor<T> i_6_4   {O, O, O, O};
-//    Tensor<T> i_6_4_1 {O, O, O, V};
-//    Tensor<T> i_6_5   {O, V, O, V};
-//    Tensor<T> i_6_6   {O, V};
-//    Tensor<T> i_6_7   {O, O, O, V};
-//    Tensor<T> i_7     {V, V, O, V};
-//    Tensor<T> i_8_1   {O, V};
-//    Tensor<T> i_8     {O, O};
-//    Tensor<T> i_8_2   {O, V};
-//    Tensor<T> i_9     {O, O, O, O};
-//    Tensor<T> i_9_1   {O, O, O, V};
-//    Tensor<T> i_10    {V, V};
-//    Tensor<T> i_11    {O, V, O, V};
-//
-//    Scheduler sch{&ec};
-//
-//    sch
-//      .allocate(i_1,i_1_1,i_1_2,i_1_3,i_2,i_2_1,i_3,i_4,i_4_1,i_5,
-//                i_6_1,i_6_1_1,i_6,i_6_2,i_6_3,i_6_4,i_6_4_1,i_6_5,
-//                i_6_6,i_6_7,i_7,i_8_1,i_8,i_8_2,i_9,i_9_1,i_10,i_11)
-//      ( i0(p4,p3,h1,h2)              =  0                                               )
-//      (   i_1(h9,p3,h1,h2)          +=         v2(h9,p3,h1,h2)                          )
-//      (     i_1_1(h9,p3,h1,p5)      +=         v2(h9,p3,h1,p5)                          )
-//      (     i_1_1(h9,p3,h1,p5)      += -0.5  * t1(p6,h1)        * v2(h9,p3,p5,p6)       )
-//      (   i_1(h9,p3,h1,h2)          += -1    * t1(p5,h1)        * i_1_1(h9,p3,h2,p5)    )
-//      (   i_1(h9,p3,h2,h1)          +=         t1(p5,h1)        * i_1_1(h9,p3,h2,p5)    ) //P(h1/h2)
-//      (     i_1_2(h9,p8)            +=         f1(h9,p8)                                )
-//      (     i_1_2(h9,p8)            +=         t1(p6,h7)        * v2(h7,h9,p6,p8)       )
-//      (   i_1(h9,p3,h1,h2)          += -1    * t2(p3,p8,h1,h2)  * i_1_2(h9,p8)          )
-//      (     i_1_3(h6,h9,h1,p5)      +=         v2(h6,h9,h1,p5)                          )
-//      (     i_1_3(h6,h9,h1,p5)      += -1    * t1(p7,h1)        * v2(h6,h9,p5,p7)       )
-//      (   i_1(h9,p3,h1,h2)          +=         t2(p3,p5,h1,h6)  * i_1_3(h6,h9,h2,p5)    )
-//      (   i_1(h9,p3,h2,h1)          += -1    * t2(p3,p5,h1,h6)  * i_1_3(h6,h9,h2,p5)    ) //P(h1/h2)
-//      (   i_1(h9,p3,h1,h2)          +=  0.5  * t2(p5,p6,h1,h2)  * v2(h9,p3,p5,p6)       )
-//      ( i0(p3,p4,h1,h2)             += -1    * x1(p3,h9)        * i_1(h9,p4,h1,h2)      )
-//      ( i0(p4,p3,h1,h2)             +=         x1(p3,h9)        * i_1(h9,p4,h1,h2)      ) //P(p3/p4)
-//      ( i0(p3,p4,h1,h2)             += -1    * x1(p5,h1)        * v2(p3,p4,h2,p5)       )
-//      ( i0(p3,p4,h2,h1)             +=         x1(p5,h1)        * v2(p3,p4,h2,p5)       ) //P(h1/h2)
-//      (   i_2(h8,h1)                +=         f1(h8,h1)                                )
-//      (     i_2_1(h8,p9)            +=         f1(h8,p9)                                )
-//      (     i_2_1(h8,p9)            +=         t1(p6,h7)        * v2(h7,h8,p6,p9)       )
-//      (   i_2(h8,h1)                +=         t1(p9,h1)        * i_2_1(h8,p9)          )
-//      (   i_2(h8,h1)                += -1    * t1(p5,h6)        * v2(h6,h8,h1,p5)       )
-//      (   i_2(h8,h1)                += -0.5  * t2(p5,p6,h1,h7)  * v2(h7,h8,p5,p6)       )
-//      ( i0(p3,p4,h1,h2)             += -1    * x2(p3,p4,h1,h8)  * i_2(h8,h2)            )
-//      ( i0(p3,p4,h2,h1)             +=         x2(p3,p4,h1,h8)  * i_2(h8,h2)            ) //P(h1/h2)
-//      (   i_3(p3,p8)                +=         f1(p3,p8)                                )
-//      (   i_3(p3,p8)                +=         t1(p5,h6)        * v2(h6,p3,p5,p8)       )
-//      (   i_3(p3,p8)                +=  0.5  * t2(p3,p5,h6,h7)  * v2(h6,h7,p5,p8)       )
-//      ( i0(p3,p4,h1,h2)             +=         x2(p3,p8,h1,h2)  * i_3(p4,p8)            )
-//      ( i0(p4,p3,h1,h2)             += -1    * x2(p3,p8,h1,h2)  * i_3(p4,p8)            ) //P(p3/p4)
-//      (   i_4(h9,h10,h1,h2)         +=         v2(h9,h10,h1,h2)                         )
-//      (     i_4_1(h9,h10,h1,p5)     +=         v2(h9,h10,h1,p5)                         )
-//      (     i_4_1(h9,h10,h1,p5)     += -0.5  * t1(p6,h1)        * v2(h9,h10,p5,p6)      )
-//      (   i_4(h9,h10,h1,h2)         += -1    * t1(p5,h1)        * i_4_1(h9,h10,h2,p5)   )
-//      (   i_4(h9,h10,h2,h1)         +=         t1(p5,h1)        * i_4_1(h9,h10,h2,p5)   ) //P(h1/h2)
-//      (   i_4(h9,h10,h1,h2)         +=  0.5  * t2(p5,p6,h1,h2)  * v2(h9,h10,p5,p6)      )
-//      ( i0(p3,p4,h1,h2)             +=  0.5  * x2(p3,p4,h9,h10) * i_4(h9,h10,h1,h2)     )
-//      (   i_5(h7,p3,h1,p8)          +=         v2(h7,p3,h1,p8)                          )
-//      (   i_5(h7,p3,h1,p8)          +=         t1(p5,h1)        * v2(h7,p3,p5,p8)       )
-//      ( i0(p3,p4,h1,h2)             += -1    * x2(p3,p8,h1,h7)  * i_5(h7,p4,h2,p8)      )
-//      ( i0(p3,p4,h2,h1)             +=         x2(p3,p8,h1,h7)  * i_5(h7,p4,h2,p8)      ) //P(h1/h2)
-//      ( i0(p4,p3,h1,h2)             +=         x2(p3,p8,h1,h7)  * i_5(h7,p4,h2,p8)      ) //P(p3/p4)
-//      ( i0(p4,p3,h2,h1)             += -1    * x2(p3,p8,h1,h7)  * i_5(h7,p4,h2,p8)      ) //P(h1/h2,p3/p4)
-//      ( i0(p3,p4,h1,h2)             +=  0.5  * x2(p5,p6,h1,h2)  * v2(p3,p4,p5,p6)       )
-//      (     i_6_1(h8,h10,h1,h2)     +=         v2(h8,h10,h1,h2)                         )
-//      (       i_6_1_1(h8,h10,h1,p5) +=         v2(h8,h10,h1,p5)                         )
-//      (       i_6_1_1(h8,h10,h1,p5) += -0.5  * t1(p6,h1)        * v2(h8,h10,p5,p6)      )
-//      (     i_6_1(h8,h10,h1,h2)     += -1    * t1(p5,h1)        * i_6_1_1(h8,h10,h2,p5) )
-//      (     i_6_1(h8,h10,h2,h1)     +=         t1(p5,h1)        * i_6_1_1(h8,h10,h2,p5) ) //P(h1/h2)
-//      (     i_6_1(h8,h10,h1,h2)     +=  0.5  * t2(p5,p6,h1,h2)  * v2(h8,h10,p5,p6)      )
-//      (   i_6(h10,p3,h1,h2)         += -1    * x1(p3,h8)        * i_6_1(h8,h10,h1,h2)   )
-//      (   i_6(h10,p3,h1,h2)         +=         x1(p6,h1)        * v2(h10,p3,h2,p6)      )
-//      (   i_6(h10,p3,h2,h1)         += -1    * x1(p6,h1)        * v2(h10,p3,h2,p6)      ) //P(h1/h2)
-//      (     i_6_2(h10,p5)           +=         f1(h10,p5)                               )
-//      (     i_6_2(h10,p5)           += -1    * t1(p6,h7)        * v2(h7,h10,p5,p6)      )
-//      (   i_6(h10,p3,h1,h2)         +=         x2(p3,p5,h1,h2)  * i_6_2(h10,p5)         )
-//      (     i_6_3(h8,h10,h1,p9)     +=         v2(h8,h10,h1,p9)                         )
-//      (     i_6_3(h8,h10,h1,p9)     +=         t1(p5,h1)        * v2(h8,h10,p5,p9)      )
-//      (   i_6(h10,p3,h1,h2)         += -1    * x2(p3,p9,h1,h8)  * i_6_3(h8,h10,h2,p9)   )
-//      (   i_6(h10,p3,h2,h1)         +=         x2(p3,p9,h1,h8)  * i_6_3(h8,h10,h2,p9)   ) //P(h1/h2)
-//      (   i_6(h10,p3,h1,h2)         += -0.5  * x2(p6,p7,h1,h2)  * v2(h10,p3,p6,p7)      )
-//      (     i_6_4(h9,h10,h1,h2)     +=  0.5  * x1(p7,h1)        * v2(h9,h10,h2,p7)      )
-//      (     i_6_4(h9,h10,h2,h1)     += -0.5  * x1(p7,h1)        * v2(h9,h10,h2,p7)      ) //P(h1/h2)
-//      (     i_6_4(h9,h10,h1,h2)     += -0.25 * x2(p7,p8,h1,h2)  * v2(h9,h10,p7,p8)      )
-//      (       i_6_4_1(h9,h10,h1,p5) += -1    * x1(p8,h1)        * v2(h9,h10,p5,p8)      )
-//      (     i_6_4(h9,h10,h1,h2)     +=  0.5  * t1(p5,h1)        * i_6_4_1(h9,h10,h2,p5) )
-//      (     i_6_4(h9,h10,h2,h1)     += -0.5  * t1(p5,h1)        * i_6_4_1(h9,h10,h2,p5) ) //P(h1/h2)
-//      (   i_6(h10,p3,h1,h2)         +=         t1(p3,h9)        * i_6_4(h9,h10,h1,h2)   )
-//      (     i_6_5(h10,p3,h1,p5)     +=         x1(p7,h1)        * v2(h10,p3,p5,p7)      )
-//      (   i_6(h10,p3,h1,h2)         += -1    * t1(p5,h1)        * i_6_5(h10,p3,h2,p5)   )
-//      (   i_6(h10,p3,h2,h1)         +=         t1(p5,h1)        * i_6_5(h10,p3,h2,p5)   ) //P(h1/h2)
-//      (     i_6_6(h10,p5)           += -1    * x1(p8,h7)        * v2(h7,h10,p5,p8)      )
-//      (   i_6(h10,p3,h1,h2)         +=         t2(p3,p5,h1,h2)  * i_6_6(h10,p5)         )
-//      (     i_6_7(h6,h10,h1,p5)     +=         x1(p8,h1)        * v2(h6,h10,p5,p8)      )
-//      (   i_6(h10,p3,h1,h2)         +=         t2(p3,p5,h1,h6)  * i_6_7(h6,h10,h2,p5)   )
-//      (   i_6(h10,p3,h2,h1)         += -1    * t2(p3,p5,h1,h6)  * i_6_7(h6,h10,h2,p5)   ) //P(h1/h2)
-//      ( i0(p3,p4,h1,h2)             +=         t1(p3,h10)       * i_6(h10,p4,h1,h2)     )
-//      ( i0(p4,p3,h1,h2)             += -1    * t1(p3,h10)       * i_6(h10,p4,h1,h2)     ) //P(p3/p4)
-//      (   i_7(p3,p4,h1,p5)          +=         x1(p6,h1)        * v2(p3,p4,p5,p6)       )
-//      ( i0(p3,p4,h1,h2)             +=         t1(p5,h1)        * i_7(p3,p4,h2,p5)      )
-//      ( i0(p3,p4,h2,h1)             += -1    * t1(p5,h1)        * i_7(p3,p4,h2,p5)      ) //P(h1/h2)
-//      (     i_8_1(h5,p9)            +=         f1(h5,p9)                                )
-//      (     i_8_1(h5,p9)            += -1    * t1(p6,h7)        * v2(h5,h7,p6,p9)       )
-//      (   i_8(h5,h1)                +=         x1(p9,h1)        * i_8_1(h5,p9)          )
-//      (   i_8(h5,h1)                +=         x1(p7,h6)        * v2(h5,h6,h1,p7)       )
-//      (   i_8(h5,h1)                +=  0.5  * x2(p7,p8,h1,h6)  * v2(h5,h6,p7,p8)       )
-//      (     i_8_2(h5,p6)            +=         x1(p8,h7)        * v2(h5,h7,p6,p8)       )
-//      (   i_8(h5,h1)                +=         t1(p6,h1)        * i_8_2(h5,p6)          )
-//      ( i0(p3,p4,h1,h2)             += -1    * t2(p3,p4,h1,h5)  * i_8(h5,h2)            )
-//      ( i0(p3,p4,h2,h1)             +=         t2(p3,p4,h1,h5)  * i_8(h5,h2)            ) //P(h1/h2)
-//      (   i_9(h5,h6,h1,h2)          += -0.5  * x1(p7,h1)        * v2(h5,h6,h2,p7)       )
-//      (   i_9(h5,h6,h2,h1)          +=  0.5  * x1(p7,h1)        * v2(h5,h6,h2,p7)       ) //P(h1/h2)
-//      (   i_9(h5,h6,h1,h2)          +=  0.25 * x2(p7,p8,h1,h2)  * v2(h5,h6,p7,p8)       )
-//      (     i_9_1(h5,h6,h1,p7)      +=         x1(p8,h1)        * v2(h5,h6,p7,p8)       )
-//      (   i_9(h5,h6,h1,h2)          +=  0.5  * t1(p7,h1)        * i_9_1(h5,h6,h2,p7)    )
-//      (   i_9(h5,h6,h2,h1)          += -0.5  * t1(p7,h1)        * i_9_1(h5,h6,h2,p7)    ) //P(h1/h2)
-//      ( i0(p3,p4,h1,h2)             +=         t2(p3,p4,h5,h6)  * i_9(h5,h6,h1,h2)      )
-//      (   i_10(p3,p5)               +=         x1(p7,h6)        * v2(h6,p3,p5,p7)       )
-//      (   i_10(p3,p5)               +=  0.5  * x2(p3,p8,h6,h7)  * v2(h6,h7,p5,p8)       )
-//      ( i0(p3,p4,h1,h2)             += -1    * t2(p3,p5,h1,h2)  * i_10(p4,p5)           )
-//      ( i0(p4,p3,h1,h2)             +=         t2(p3,p5,h1,h2)  * i_10(p4,p5)           ) //P(p3/p4)
-//      (   i_11(h6,p3,h1,p5)         +=         x1(p7,h1)        * v2(h6,p3,p5,p7)       )
-//      (   i_11(h6,p3,h1,p5)         +=         x2(p3,p8,h1,h7)  * v2(h6,h7,p5,p8)       )
-//      ( i0(p3,p4,h1,h2)             +=         t2(p3,p5,h1,h6)  * i_11(h6,p4,h2,p5)     )
-//      ( i0(p3,p4,h2,h1)             += -1    * t2(p3,p5,h1,h6)  * i_11(h6,p4,h2,p5)     ) //P(h1/h2)
-//      ( i0(p4,p3,h1,h2)             += -1    * t2(p3,p5,h1,h6)  * i_11(h6,p4,h2,p5)     ) //P(p3/p4)
-//      ( i0(p4,p3,h2,h1)             +=         t2(p3,p5,h1,h6)  * i_11(h6,p4,h2,p5)     ) //P(h1/h2,p3/p4)
-//      .deallocate(i_1,i_1_1,i_1_2,i_1_3,i_2,i_2_1,i_3,i_4,i_4_1,i_5,
-//                  i_6_1,i_6_1_1,i_6,i_6_2,i_6_3,i_6_4,i_6_4_1,i_6_5,
-//                  i_6_6,i_6_7,i_7,i_8_1,i_8,i_8_2,i_9,i_9_1,i_10,i_11).execute();
-//}
+template<typename T>
+void eomccsd_x1(ExecutionContext& ec, const TiledIndexSpace& MO,
+               Tensor<T>& i0, const Tensor<T>& t1, const Tensor<T>& t2,
+               const Tensor<T>& x1, const Tensor<T>& x2,
+               const Tensor<T>& f1, const Tensor<T>& v2) {
+
+   const TiledIndexSpace &O = MO("occ");
+   const TiledIndexSpace &V = MO("virt");
+
+   auto [h1, h3, h4, h5, h6, h8] = MO.labels<6>("occ");
+   auto [p2, p3, p4, p5, p6, p7] = MO.labels<6>("virt");
+
+   Tensor<T> i_1   {O, O};
+   Tensor<T> i_1_1 {O, V};
+   Tensor<T> i_2   {V, V};
+   Tensor<T> i_3   {O, V};
+   Tensor<T> i_4   {O, O, O, V};
+   Tensor<T> i_5_1 {O, V};
+   Tensor<T> i_5   {O, O};
+   Tensor<T> i_5_2 {O, V};
+   Tensor<T> i_6   {V, V};
+   Tensor<T> i_7   {O, V};
+   Tensor<T> i_8   {O, O, O, V};
+
+   Scheduler sch{&ec};
+
+   sch
+     .allocate(i_1,i_1_1,i_2,i_3,i_4,i_5_1,i_5_2,i_5,i_6,i_7,i_8)
+     ( i0(p2,h1)           =  0                                        )
+     (   i_1(h6,h1)       +=        f1(h6,h1)                          )
+     (     i_1_1(h6,p7)   +=        f1(h6,p7)                          )
+     (     i_1_1(h6,p7)   +=        t1(p4,h5)       * v2(h5,h6,p4,p7)  )
+     (   i_1(h6,h1)       +=        t1(p7,h1)       * i_1_1(h6,p7)     )
+     (   i_1(h6,h1)       += -1   * t1(p3,h4)       * v2(h4,h6,h1,p3)  )
+     (   i_1(h6,h1)       += -0.5 * t2(p3,p4,h1,h5) * v2(h5,h6,p3,p4)  )
+     ( i0(p2,h1)          += -1   * x1(p2,h6)       * i_1(h6,h1)       )
+     (   i_2(p2,p6)       +=        f1(p2,p6)                          )
+     (   i_2(p2,p6)       +=        t1(p3,h4)       * v2(h4,p2,p3,p6)  )
+     ( i0(p2,h1)          +=        x1(p6,h1)       * i_2(p2,p6)       )
+     ( i0(p2,h1)          += -1   * x1(p4,h3)       * v2(h3,p2,h1,p4)  )
+     (   i_3(h6,p7)       +=        f1(h6,p7)                          )
+     (   i_3(h6,p7)       +=        t1(p3,h4)       * v2(h4,h6,p3,p7)  )
+     ( i0(p2,h1)          +=        x2(p2,p7,h1,h6) * i_3(h6,p7)       )
+     (   i_4(h6,h8,h1,p7) +=        v2(h6,h8,h1,p7)                    )
+     (   i_4(h6,h8,h1,p7) +=        t1(p3,h1)       * v2(h6,h8,p3,p7)  )
+     ( i0(p2,h1)          += -0.5 * x2(p2,p7,h6,h8) * i_4(h6,h8,h1,p7) )
+     ( i0(p2,h1)          += -0.5 * x2(p4,p5,h1,h3) * v2(h3,p2,p4,p5)  )
+     (     i_5_1(h8,p3)   +=        f1(h8,p3)                          )
+     (     i_5_1(h8,p3)   += -1   * t1(p4,h5)       * v2(h5,h8,p3,p4)  )
+     (   i_5(h8,h1)       +=        x1(p3,h1)       * i_5_1(h8,p3)     )
+     (   i_5(h8,h1)       += -1   * x1(p5,h4)       * v2(h4,h8,h1,p5)  )
+     (   i_5(h8,h1)       += -0.5 * x2(p5,p6,h1,h4) * v2(h4,h8,p5,p6)  )
+     (     i_5_2(h8,p3)   += -1   * x1(p6,h5)       * v2(h5,h8,p3,p6)  )
+     (   i_5(h8,h1)       +=        t1(p3,h1)       * i_5_2(h8,p3)     )
+     ( i0(p2,h1)          += -1   * t1(p2,h8)       * i_5(h8,h1)       )
+     (   i_6(p2,p3)       +=        x1(p5,h4)       * v2(h4,p2,p3,p5)  )
+     ( i0(p2,h1)          += -1   * t1(p3,h1)       * i_6(p2,p3)       )
+     (   i_7(h4,p3)       +=        x1(p6,h5)       * v2(h4,h5,p3,p6)  )
+     ( i0(p2,h1)          +=        t2(p2,p3,h1,h4) * i_7(h4,p3)       )
+     (   i_8(h4,h5,h1,p3) +=        x1(p6,h1)       * v2(h4,h5,p3,p6)  )
+     ( i0(p2,h1)          +=  0.5 * t2(p2,p3,h4,h5) * i_8(h4,h5,h1,p3) )
+     .deallocate(i_1,i_1_1,i_2,i_3,i_4,i_5_1,i_5,i_5_2,
+                 i_6,i_7,i_8).execute();
+}
+
+template<typename T>
+void eomccsd_x2(ExecutionContext& ec, const TiledIndexSpace& MO,
+               Tensor<T>& i0, const Tensor<T>& t1, const Tensor<T>& t2,
+               const Tensor<T>& x1, const Tensor<T>& x2,
+               const Tensor<T>& f1, const Tensor<T>& v2) {
+
+   const TiledIndexSpace &O = MO("occ");
+   const TiledIndexSpace &V = MO("virt");
+
+   TiledIndexLabel h1, h2, h5, h6, h7, h8, h9, h10;
+   TiledIndexLabel p3, p4, p5, p6, p7, p8, p9;
+
+   std::tie(h1, h2, h5, h6, h7, h8, h9, h10) = MO.labels<8>("occ");
+   std::tie(p3, p4, p5, p6, p7, p8, p9) = MO.labels<7>("virt");
+
+   Tensor<T> i_1     {O, V, O, O};
+   Tensor<T> i_1_1   {O, V, O, V};
+   Tensor<T> i_1_2   {O, V};
+   Tensor<T> i_1_3   {O, O, O, V};
+   Tensor<T> i_2     {O, O};
+   Tensor<T> i_2_1   {O, V};
+   Tensor<T> i_3     {V, V};
+   Tensor<T> i_4     {O, O, O, O};
+   Tensor<T> i_4_1   {O, O, O, V};
+   Tensor<T> i_5     {O, V, O, V};
+   Tensor<T> i_6_1   {O, O, O, O};
+   Tensor<T> i_6_1_1 {O, O, O, V};
+   Tensor<T> i_6     {O, V, O, O};
+   Tensor<T> i_6_2   {O, V};
+   Tensor<T> i_6_3   {O, O, O, V};
+   Tensor<T> i_6_4   {O, O, O, O};
+   Tensor<T> i_6_4_1 {O, O, O, V};
+   Tensor<T> i_6_5   {O, V, O, V};
+   Tensor<T> i_6_6   {O, V};
+   Tensor<T> i_6_7   {O, O, O, V};
+   Tensor<T> i_7     {V, V, O, V};
+   Tensor<T> i_8_1   {O, V};
+   Tensor<T> i_8     {O, O};
+   Tensor<T> i_8_2   {O, V};
+   Tensor<T> i_9     {O, O, O, O};
+   Tensor<T> i_9_1   {O, O, O, V};
+   Tensor<T> i_10    {V, V};
+   Tensor<T> i_11    {O, V, O, V};
+
+   Scheduler sch{&ec};
+
+   sch
+     .allocate(i_1,i_1_1,i_1_2,i_1_3,i_2,i_2_1,i_3,i_4,i_4_1,i_5,
+               i_6_1,i_6_1_1,i_6,i_6_2,i_6_3,i_6_4,i_6_4_1,i_6_5,
+               i_6_6,i_6_7,i_7,i_8_1,i_8,i_8_2,i_9,i_9_1,i_10,i_11)
+     ( i0(p4,p3,h1,h2)              =  0                                               )
+     (   i_1(h9,p3,h1,h2)          +=         v2(h9,p3,h1,h2)                          )
+     (     i_1_1(h9,p3,h1,p5)      +=         v2(h9,p3,h1,p5)                          )
+     (     i_1_1(h9,p3,h1,p5)      += -0.5  * t1(p6,h1)        * v2(h9,p3,p5,p6)       )
+     (   i_1(h9,p3,h1,h2)          += -1    * t1(p5,h1)        * i_1_1(h9,p3,h2,p5)    )
+     (   i_1(h9,p3,h2,h1)          +=         t1(p5,h1)        * i_1_1(h9,p3,h2,p5)    ) //P(h1/h2)
+     (     i_1_2(h9,p8)            +=         f1(h9,p8)                                )
+     (     i_1_2(h9,p8)            +=         t1(p6,h7)        * v2(h7,h9,p6,p8)       )
+     (   i_1(h9,p3,h1,h2)          += -1    * t2(p3,p8,h1,h2)  * i_1_2(h9,p8)          )
+     (     i_1_3(h6,h9,h1,p5)      +=         v2(h6,h9,h1,p5)                          )
+     (     i_1_3(h6,h9,h1,p5)      += -1    * t1(p7,h1)        * v2(h6,h9,p5,p7)       )
+     (   i_1(h9,p3,h1,h2)          +=         t2(p3,p5,h1,h6)  * i_1_3(h6,h9,h2,p5)    )
+     (   i_1(h9,p3,h2,h1)          += -1    * t2(p3,p5,h1,h6)  * i_1_3(h6,h9,h2,p5)    ) //P(h1/h2)
+     (   i_1(h9,p3,h1,h2)          +=  0.5  * t2(p5,p6,h1,h2)  * v2(h9,p3,p5,p6)       )
+     ( i0(p3,p4,h1,h2)             += -1    * x1(p3,h9)        * i_1(h9,p4,h1,h2)      )
+     ( i0(p4,p3,h1,h2)             +=         x1(p3,h9)        * i_1(h9,p4,h1,h2)      ) //P(p3/p4)
+     ( i0(p3,p4,h1,h2)             += -1    * x1(p5,h1)        * v2(p3,p4,h2,p5)       )
+     ( i0(p3,p4,h2,h1)             +=         x1(p5,h1)        * v2(p3,p4,h2,p5)       ) //P(h1/h2)
+     (   i_2(h8,h1)                +=         f1(h8,h1)                                )
+     (     i_2_1(h8,p9)            +=         f1(h8,p9)                                )
+     (     i_2_1(h8,p9)            +=         t1(p6,h7)        * v2(h7,h8,p6,p9)       )
+     (   i_2(h8,h1)                +=         t1(p9,h1)        * i_2_1(h8,p9)          )
+     (   i_2(h8,h1)                += -1    * t1(p5,h6)        * v2(h6,h8,h1,p5)       )
+     (   i_2(h8,h1)                += -0.5  * t2(p5,p6,h1,h7)  * v2(h7,h8,p5,p6)       )
+     ( i0(p3,p4,h1,h2)             += -1    * x2(p3,p4,h1,h8)  * i_2(h8,h2)            )
+     ( i0(p3,p4,h2,h1)             +=         x2(p3,p4,h1,h8)  * i_2(h8,h2)            ) //P(h1/h2)
+     (   i_3(p3,p8)                +=         f1(p3,p8)                                )
+     (   i_3(p3,p8)                +=         t1(p5,h6)        * v2(h6,p3,p5,p8)       )
+     (   i_3(p3,p8)                +=  0.5  * t2(p3,p5,h6,h7)  * v2(h6,h7,p5,p8)       )
+     ( i0(p3,p4,h1,h2)             +=         x2(p3,p8,h1,h2)  * i_3(p4,p8)            )
+     ( i0(p4,p3,h1,h2)             += -1    * x2(p3,p8,h1,h2)  * i_3(p4,p8)            ) //P(p3/p4)
+     (   i_4(h9,h10,h1,h2)         +=         v2(h9,h10,h1,h2)                         )
+     (     i_4_1(h9,h10,h1,p5)     +=         v2(h9,h10,h1,p5)                         )
+     (     i_4_1(h9,h10,h1,p5)     += -0.5  * t1(p6,h1)        * v2(h9,h10,p5,p6)      )
+     (   i_4(h9,h10,h1,h2)         += -1    * t1(p5,h1)        * i_4_1(h9,h10,h2,p5)   )
+     (   i_4(h9,h10,h2,h1)         +=         t1(p5,h1)        * i_4_1(h9,h10,h2,p5)   ) //P(h1/h2)
+     (   i_4(h9,h10,h1,h2)         +=  0.5  * t2(p5,p6,h1,h2)  * v2(h9,h10,p5,p6)      )
+     ( i0(p3,p4,h1,h2)             +=  0.5  * x2(p3,p4,h9,h10) * i_4(h9,h10,h1,h2)     )
+     (   i_5(h7,p3,h1,p8)          +=         v2(h7,p3,h1,p8)                          )
+     (   i_5(h7,p3,h1,p8)          +=         t1(p5,h1)        * v2(h7,p3,p5,p8)       )
+     ( i0(p3,p4,h1,h2)             += -1    * x2(p3,p8,h1,h7)  * i_5(h7,p4,h2,p8)      )
+     ( i0(p3,p4,h2,h1)             +=         x2(p3,p8,h1,h7)  * i_5(h7,p4,h2,p8)      ) //P(h1/h2)
+     ( i0(p4,p3,h1,h2)             +=         x2(p3,p8,h1,h7)  * i_5(h7,p4,h2,p8)      ) //P(p3/p4)
+     ( i0(p4,p3,h2,h1)             += -1    * x2(p3,p8,h1,h7)  * i_5(h7,p4,h2,p8)      ) //P(h1/h2,p3/p4)
+     ( i0(p3,p4,h1,h2)             +=  0.5  * x2(p5,p6,h1,h2)  * v2(p3,p4,p5,p6)       )
+     (     i_6_1(h8,h10,h1,h2)     +=         v2(h8,h10,h1,h2)                         )
+     (       i_6_1_1(h8,h10,h1,p5) +=         v2(h8,h10,h1,p5)                         )
+     (       i_6_1_1(h8,h10,h1,p5) += -0.5  * t1(p6,h1)        * v2(h8,h10,p5,p6)      )
+     (     i_6_1(h8,h10,h1,h2)     += -1    * t1(p5,h1)        * i_6_1_1(h8,h10,h2,p5) )
+     (     i_6_1(h8,h10,h2,h1)     +=         t1(p5,h1)        * i_6_1_1(h8,h10,h2,p5) ) //P(h1/h2)
+     (     i_6_1(h8,h10,h1,h2)     +=  0.5  * t2(p5,p6,h1,h2)  * v2(h8,h10,p5,p6)      )
+     (   i_6(h10,p3,h1,h2)         += -1    * x1(p3,h8)        * i_6_1(h8,h10,h1,h2)   )
+     (   i_6(h10,p3,h1,h2)         +=         x1(p6,h1)        * v2(h10,p3,h2,p6)      )
+     (   i_6(h10,p3,h2,h1)         += -1    * x1(p6,h1)        * v2(h10,p3,h2,p6)      ) //P(h1/h2)
+     (     i_6_2(h10,p5)           +=         f1(h10,p5)                               )
+     (     i_6_2(h10,p5)           += -1    * t1(p6,h7)        * v2(h7,h10,p5,p6)      )
+     (   i_6(h10,p3,h1,h2)         +=         x2(p3,p5,h1,h2)  * i_6_2(h10,p5)         )
+     (     i_6_3(h8,h10,h1,p9)     +=         v2(h8,h10,h1,p9)                         )
+     (     i_6_3(h8,h10,h1,p9)     +=         t1(p5,h1)        * v2(h8,h10,p5,p9)      )
+     (   i_6(h10,p3,h1,h2)         += -1    * x2(p3,p9,h1,h8)  * i_6_3(h8,h10,h2,p9)   )
+     (   i_6(h10,p3,h2,h1)         +=         x2(p3,p9,h1,h8)  * i_6_3(h8,h10,h2,p9)   ) //P(h1/h2)
+     (   i_6(h10,p3,h1,h2)         += -0.5  * x2(p6,p7,h1,h2)  * v2(h10,p3,p6,p7)      )
+     (     i_6_4(h9,h10,h1,h2)     +=  0.5  * x1(p7,h1)        * v2(h9,h10,h2,p7)      )
+     (     i_6_4(h9,h10,h2,h1)     += -0.5  * x1(p7,h1)        * v2(h9,h10,h2,p7)      ) //P(h1/h2)
+     (     i_6_4(h9,h10,h1,h2)     += -0.25 * x2(p7,p8,h1,h2)  * v2(h9,h10,p7,p8)      )
+     (       i_6_4_1(h9,h10,h1,p5) += -1    * x1(p8,h1)        * v2(h9,h10,p5,p8)      )
+     (     i_6_4(h9,h10,h1,h2)     +=  0.5  * t1(p5,h1)        * i_6_4_1(h9,h10,h2,p5) )
+     (     i_6_4(h9,h10,h2,h1)     += -0.5  * t1(p5,h1)        * i_6_4_1(h9,h10,h2,p5) ) //P(h1/h2)
+     (   i_6(h10,p3,h1,h2)         +=         t1(p3,h9)        * i_6_4(h9,h10,h1,h2)   )
+     (     i_6_5(h10,p3,h1,p5)     +=         x1(p7,h1)        * v2(h10,p3,p5,p7)      )
+     (   i_6(h10,p3,h1,h2)         += -1    * t1(p5,h1)        * i_6_5(h10,p3,h2,p5)   )
+     (   i_6(h10,p3,h2,h1)         +=         t1(p5,h1)        * i_6_5(h10,p3,h2,p5)   ) //P(h1/h2)
+     (     i_6_6(h10,p5)           += -1    * x1(p8,h7)        * v2(h7,h10,p5,p8)      )
+     (   i_6(h10,p3,h1,h2)         +=         t2(p3,p5,h1,h2)  * i_6_6(h10,p5)         )
+     (     i_6_7(h6,h10,h1,p5)     +=         x1(p8,h1)        * v2(h6,h10,p5,p8)      )
+     (   i_6(h10,p3,h1,h2)         +=         t2(p3,p5,h1,h6)  * i_6_7(h6,h10,h2,p5)   )
+     (   i_6(h10,p3,h2,h1)         += -1    * t2(p3,p5,h1,h6)  * i_6_7(h6,h10,h2,p5)   ) //P(h1/h2)
+     ( i0(p3,p4,h1,h2)             +=         t1(p3,h10)       * i_6(h10,p4,h1,h2)     )
+     ( i0(p4,p3,h1,h2)             += -1    * t1(p3,h10)       * i_6(h10,p4,h1,h2)     ) //P(p3/p4)
+     (   i_7(p3,p4,h1,p5)          +=         x1(p6,h1)        * v2(p3,p4,p5,p6)       )
+     ( i0(p3,p4,h1,h2)             +=         t1(p5,h1)        * i_7(p3,p4,h2,p5)      )
+     ( i0(p3,p4,h2,h1)             += -1    * t1(p5,h1)        * i_7(p3,p4,h2,p5)      ) //P(h1/h2)
+     (     i_8_1(h5,p9)            +=         f1(h5,p9)                                )
+     (     i_8_1(h5,p9)            += -1    * t1(p6,h7)        * v2(h5,h7,p6,p9)       )
+     (   i_8(h5,h1)                +=         x1(p9,h1)        * i_8_1(h5,p9)          )
+     (   i_8(h5,h1)                +=         x1(p7,h6)        * v2(h5,h6,h1,p7)       )
+     (   i_8(h5,h1)                +=  0.5  * x2(p7,p8,h1,h6)  * v2(h5,h6,p7,p8)       )
+     (     i_8_2(h5,p6)            +=         x1(p8,h7)        * v2(h5,h7,p6,p8)       )
+     (   i_8(h5,h1)                +=         t1(p6,h1)        * i_8_2(h5,p6)          )
+     ( i0(p3,p4,h1,h2)             += -1    * t2(p3,p4,h1,h5)  * i_8(h5,h2)            )
+     ( i0(p3,p4,h2,h1)             +=         t2(p3,p4,h1,h5)  * i_8(h5,h2)            ) //P(h1/h2)
+     (   i_9(h5,h6,h1,h2)          += -0.5  * x1(p7,h1)        * v2(h5,h6,h2,p7)       )
+     (   i_9(h5,h6,h2,h1)          +=  0.5  * x1(p7,h1)        * v2(h5,h6,h2,p7)       ) //P(h1/h2)
+     (   i_9(h5,h6,h1,h2)          +=  0.25 * x2(p7,p8,h1,h2)  * v2(h5,h6,p7,p8)       )
+     (     i_9_1(h5,h6,h1,p7)      +=         x1(p8,h1)        * v2(h5,h6,p7,p8)       )
+     (   i_9(h5,h6,h1,h2)          +=  0.5  * t1(p7,h1)        * i_9_1(h5,h6,h2,p7)    )
+     (   i_9(h5,h6,h2,h1)          += -0.5  * t1(p7,h1)        * i_9_1(h5,h6,h2,p7)    ) //P(h1/h2)
+     ( i0(p3,p4,h1,h2)             +=         t2(p3,p4,h5,h6)  * i_9(h5,h6,h1,h2)      )
+     (   i_10(p3,p5)               +=         x1(p7,h6)        * v2(h6,p3,p5,p7)       )
+     (   i_10(p3,p5)               +=  0.5  * x2(p3,p8,h6,h7)  * v2(h6,h7,p5,p8)       )
+     ( i0(p3,p4,h1,h2)             += -1    * t2(p3,p5,h1,h2)  * i_10(p4,p5)           )
+     ( i0(p4,p3,h1,h2)             +=         t2(p3,p5,h1,h2)  * i_10(p4,p5)           ) //P(p3/p4)
+     (   i_11(h6,p3,h1,p5)         +=         x1(p7,h1)        * v2(h6,p3,p5,p7)       )
+     (   i_11(h6,p3,h1,p5)         +=         x2(p3,p8,h1,h7)  * v2(h6,h7,p5,p8)       )
+     ( i0(p3,p4,h1,h2)             +=         t2(p3,p5,h1,h6)  * i_11(h6,p4,h2,p5)     )
+     ( i0(p3,p4,h2,h1)             += -1    * t2(p3,p5,h1,h6)  * i_11(h6,p4,h2,p5)     ) //P(h1/h2)
+     ( i0(p4,p3,h1,h2)             += -1    * t2(p3,p5,h1,h6)  * i_11(h6,p4,h2,p5)     ) //P(p3/p4)
+     ( i0(p4,p3,h2,h1)             +=         t2(p3,p5,h1,h6)  * i_11(h6,p4,h2,p5)     ) //P(h1/h2,p3/p4)
+     .deallocate(i_1,i_1_1,i_1_2,i_1_3,i_2,i_2_1,i_3,i_4,i_4_1,i_5,
+                 i_6_1,i_6_1_1,i_6,i_6_2,i_6_3,i_6_4,i_6_4_1,i_6_5,
+                 i_6_6,i_6_7,i_7,i_8_1,i_8,i_8_2,i_9,i_9_1,i_10,i_11).execute();
+}
 
 template<typename T>
 void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
-                   Tensor<T>& d_t1, Tensor<T>& d_t2,
-                   Tensor<T>& d_f1, Tensor<T>& d_v2,
+                   Tensor<T>& t1, Tensor<T>& t2,
+                   Tensor<T>& f1, Tensor<T>& v2,
 //                   Tensor<T>& d_x1, Tensor<T>& d_x2,
                    int nroots, int maxeomiter,
                    double eomthresh, int microeomiter,
@@ -821,7 +819,7 @@ void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
   /// @todo: make it a tamm tensor
   std::cout << "Total orbitals = " << total_orbitals << std::endl;
 
-  std::vector<double> p_evl_sorted = d_f1.diagonal();
+  std::vector<double> p_evl_sorted = f1.diagonal();
 
   if(ec->pg().rank() == 0) {
     std::cout << "p_evl_sorted:" << '\n';
@@ -832,34 +830,74 @@ void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 //For jacobi step.
   double zshiftl = 0;
   bool transpose=false;
+  const auto hbardim = nroots*microeomiter;
+  const auto microdim = nroots;
 
-  IndexSpace hbar_is{range(0, nroots*microeomiter)};
-  IndexSpace micro_is{range(0, nroots)};
-  TiledIndexSpace hbardim{hbar_is, 1};
-  TiledIndexSpace microdim{micro_is, 1};
+//   IndexSpace hbar_is{range(0, nroots*microeomiter)};
+//   IndexSpace micro_is{range(0, nroots)};
+//   TiledIndexSpace hbar_tis{hbar_is, 1};
+//   TiledIndexSpace micro_tis{micro_is, 1};
 
-  TiledIndexLabel ivec, jvec;
-  std::tie(ivec, jvec) = hbardim.labels<2>("all");
+//   auto [ivec,jvec] = hbar_tis.labels<2>("all");
 
-  Tensor<T> hbar{hbardim, hbardim};
+//   Tensor<T> hbar{hbar_tis, hbar_tis};
+//   Tensor<T>::allocate(ec, hbar);
 /////  FUTURE: This will be dimension of '# of initial guess + nroots*(microeomiter-1)'
 /////  for the first microcycle and nroots*microeomiter for the remaining.
-  Tensor<T> x1{V, O, hbardim}; 
-  Tensor<T> x2{V, V, O, O, hbardim}; 
-  Tensor<T> xp1{V, O, hbardim}; 
-  Tensor<T> xp2{V, V, O, O, hbardim}; 
-  Tensor<T> xc1{V, O, microdim}; 
-  Tensor<T> xc2{V, V, O, O, microdim}; 
-  Tensor<T> r1{V, O, microdim}; 
-  Tensor<T> r2{V, V, O, O, microdim}; 
+//   Tensor<T> x1{V, O, hbardim}; 
+//   Tensor<T> x2{V, V, O, O, hbardim}; 
+//   Tensor<T> xp1{V, O, hbardim}; 
+//   Tensor<T> xp2{V, V, O, O, hbardim}; 
+//   Tensor<T> xc1{V, O, microdim}; 
+//   Tensor<T> xc2{V, V, O, O, microdim}; 
+//   Tensor<T> r1{V, O, microdim}; 
+//   Tensor<T> r2{V, V, O, O, microdim}; 
+
+Matrix hbar = Matrix::Zero(hbardim,hbardim);
+
+auto populate_vector_of_tensors = [&] (std::vector<Tensor<T>> &vec, bool is2D=true){
+    for (auto x=0;x<vec.size();x++){
+        if(is2D) vec[x] = Tensor<T>{V,O};
+        else vec[x] = Tensor<T>{V,V,O,O};
+
+        Tensor<T>::allocate(ec,vec[x]);
+    }
+};
+
+
+//   Tensor<T> x1{V, O}; 
+//   Tensor<T> x2{V, V, O, O}; 
+//   Tensor<T> xp1{V, O}; 
+//   Tensor<T> xp2{V, V, O, O}; 
+//   Tensor<T> xc1{V, O}; 
+//   Tensor<T> xc2{V, V, O, O}; 
+//   Tensor<T> r1{V, O}; 
+//   Tensor<T> r2{V, V, O, O}; 
+using std::vector;
+
+  vector<Tensor<T>> x1(hbardim);
+  populate_vector_of_tensors(x1);
+  vector<Tensor<T>> x2(hbardim);
+  populate_vector_of_tensors(x2,false);
+  vector<Tensor<T>> xp1(hbardim);
+  populate_vector_of_tensors(xp1);
+  vector<Tensor<T>> xp2(hbardim);
+  populate_vector_of_tensors(xp2,false);
+  vector<Tensor<T>> xc1(microdim);
+  populate_vector_of_tensors(xc1);
+  vector<Tensor<T>> xc2(microdim);
+  populate_vector_of_tensors(xc2,false);
+  vector<Tensor<T>> r1(microdim);
+  populate_vector_of_tensors(r1);
+  vector<Tensor<T>> r2(microdim);
+  populate_vector_of_tensors(r2,false);
+  
 /////  FUTURE: The {x1,x2} and {xp1,xp2} tensors will be
 /////  dimension of '# of initial guess + nroots*(microeomiter-1)'
 /////  for the first microcycle and nroots*microeomiter for the remaining. The
 /////  {xc1,xc2} and {r1,r2} tensors will still be 'nroots'
 
   int nxtrials = nroots;
-
-  Tensor<double>::allocate(ec, hbar, x1, x2, xp1, xp2, xc1, xc2, r1, r2);
 
 //################################################################################
 //  Call the eom_guess routine (external routine)
@@ -885,20 +923,19 @@ void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
         for(int root= 0; root < nroots; root++){
 //################################################################################
         //***CALL x1 and x2 routines for the (xtrials-nroots+root)-th
-        //***update. (Assumes the counting for roots starts at zero.
+        //***update. (Assumes the counting for roots starts at zero)
         //***This produces xp1 and xp2 vectors. 
+        auto counter = nxtrials-nroots+root;
 
-//           call eomccsd_x1(ec, MO, xp1(nxtrials-nroots+root), t1, t2, 
-//                           x1(xtrials-nroots+root), x2(xtrials-nroots+root), 
-//                           f1, v2)
-//           call eomccsd_x2(ec, MO, xp2(xtrials-nroots+root), t1, t2, 
-//                           x1(xtrials-nroots+root), x2(xtrials-nroots+root), 
-//                           f1, v2)
+        eomccsd_x1(*ec, MO, xp1.at(counter), t1, t2, x1.at(counter), x2.at(counter), f1, v2);
+        eomccsd_x2(*ec, MO, xp2.at(counter), t1, t2, x1.at(counter), x2.at(counter), f1, v2);
 //################################################################################
 
         std::cout << iter << " " << micro << " " << root+micro*nroots << std::endl;
         }
 
+            Tensor<T> d_r1{};
+            Tensor<T>::allocate(ec,d_r1);
 //***Update hbar which is a matrix of dot products between the x and xp vectors.
            if(micro == 0){
            std::cout << "HERE" << std::endl;
@@ -906,7 +943,11 @@ void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
                  for(int jvec = 0; jvec < nroots; jvec++){
                  std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
 //################################################################################
-                 //HBAR(ivec,jvec)=dotproduct(xp1(ivec),x1(jvec))
+                sch(d_r1() = xp1.at(ivec)() * x1.at(jvec)());
+                sch(d_r1() += xp2.at(ivec)() * x2.at(jvec)());
+                T r1;
+                d_r1.get({}, {&r1, 1});
+                hbar(ivec,jvec) = r1;
                  //               +dotproduct(xp2(ivec),x2(jvec))
                  //***note the differences of xp# vs x#
 //################################################################################
@@ -917,8 +958,12 @@ void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
                  for(int jvec = micro*nroots; jvec < nxtrials; jvec++){
                  std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
 //################################################################################
-                 //HBAR(ivec,jvec)=dotproduct(xp1(ivec),x1(jvec))
-                 //               +dotproduct(xp2(ivec),x2(jvec))
+                  sch(d_r1() = xp1.at(ivec)() * x1.at(jvec)());
+                sch(d_r1() += xp2.at(ivec)() * x2.at(jvec)());
+                T r1;
+                d_r1.get({}, {&r1, 1});
+                hbar(ivec,jvec) = r1;
+
                  //***note the differences of xp# vs x#
 //################################################################################
                  }
@@ -927,14 +972,20 @@ void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
                  for(int jvec = 0; jvec < micro*nroots; jvec++){
                  std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
 //################################################################################
-                 //HBAR(ivec,jvec)=dotproduct(xp1(ivec),x1(jvec))
-                 //               +dotproduct(xp2(ivec),x2(jvec))
+                sch(d_r1() = xp1.at(ivec)() * x1.at(jvec)());
+                sch(d_r1() += xp2.at(ivec)() * x2.at(jvec)());
+                T r1;
+                d_r1.get({}, {&r1, 1});
+                hbar(ivec,jvec) = r1;
+                
                  //***note the differences of xp# vs x#
 //################################################################################
                  }
               }
            } 
-     }
+        Tensor<T>::deallocate(d_r1);
+
+     } //end micro
 
 //################################################################################
 //allocate omegar 1D array which has dimension nxtrials
@@ -968,6 +1019,14 @@ void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 //Sort the eigenvectors and corresponding eigenvalues 
 //################################################################################
 
+#if 0
+Matrix hbar_block = Matrix::Zero(nxtrials,nxtrials);
+hbar_block.block(0,0,nxtrials,nxtrials) = hbar.block(0,0,nxtrials,nxtrials);
+
+Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> hbardiag(hbar_block);
+auto omegar = hbardiag.eigenvalues();
+auto hbar_right = hbardiag.eigenvectors();
+
 //################################################################################
 //--From the lowest nroots number of eigenvalues and vectors, form xc's which 
 //  takes each of the vectors and uses them to form a linear combination of x 
@@ -976,41 +1035,45 @@ void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 //--Then do the same linear combination trick with xp vectors instead of x's. Add to r1/2's.
 //**** This was previously done with daxpy blas routine
 //
-//  for(root = 0, root < nroots; root++){
-//     xc1({},{},root)       = 0 
-//     xc2({},{},{},{},root) = 0 
-//     r1({},{},root)        = 0
-//     r2({},{},{},{},root)  = 0 
-//     for(i = 0, i < nxtrials; i++){
-//    //**xc                     = scalar    * x
-//        xc1({},{},root)       += hbar_right(root,i)*x1({},{},i) 
-//        xc2({},{},{},{},root) += hbar_right(root,i)*x2({},{},{},{},i) 
-//     }  
-//  }
+ for(auto root = 0; root < nroots; root++){
+    sch(xc1.at(root)()       = 0)
+    (xc2.at(root)() = 0) 
+    (r1.at(root)()        = 0)
+    (r2.at(root)()        = 0).execute();
+    for(int i = 0; i < nxtrials; i++){
+        T hbr_scalar = hbar_right(root,i);
+   //**xc                     = scalar    * x
+       sch(xc1.at(root)()       += hbr_scalar * x1.at(i)()) 
+          (xc2.at(root)() += hbr_scalar * x2.at(i)()).execute();
+    }  
+ }
 //
-//  for(root = 0, root < nroots; root++){
-//     ?????????? omegar(root) = omegar(root)*omegai(root) (can overwrite) not sure if necessary)
-//     r1({},{},root)       += -1 * omegar(root)*xc1({},{},root)
-//     r2({},{},{},{},root) += -1 * omegar(root)*xc2({},{},{},{},root)
-//     for(i = 0, i < nxtrials; i++){
-//    //**r                     = scalar    * xp
-//        r1({},{},root)       += hbar_right(root,i)*xp1({},{},i)
-//        r2({},{},{},{},root) += hbar_right(root,i)*xp2({},{},{},{},i)
-//     }  
-//  }
+ for(auto root = 0; root < nroots; root++){
+    auto omegar_scalar = -1 * omegar(root);
+    // ?????????? omegar(root) = omegar(root)*omegai(root) (can overwrite) not sure if necessary)
+    sch(r1.at(root)()        += omegar_scalar * xc1.at(root)() )
+    (r2.at(root)() += omegar_scalar * xc2.at(root)() ).execute();
+    for(int i = 0; i < nxtrials; i++){
+   //**r                     = scalar    * xp
+       T hbr_scalar = hbar_right(root,i);
+       sch(r1.at(root)()        += hbr_scalar * xp1.at(i)())
+       (r2.at(root)() += hbr_scalar *xp2.at(i)()).execute();
+    }  
+ }
+ #endif
 //################################################################################
 
 //################################################################################
 //***Call jacobi with the r1/r2's to form the new set of x1/x2's
 //  for(root = 0, root < nroots; root++){
-//      jacobi(ec, r1(root), x1(nxtrials+root), zshiftl, transpose, p_evl_sorted, noab);
-//      jacobi(ec, r2(root), x2(nxtrials+root), zshiftl, transpose, p_evl_sorted, noab);
+//      jacobi(ec, r1(root), x1(nxtrials+root), zshiftl=0, transpose=false, p_evl_sorted, noab);
+//      jacobi(ec, r2(root), x2(nxtrials+root), zshiftl=0, transpose=false, p_evl_sorted, noab);
 //  }
 //
 // FUTURE: Thee will be a specific Jacobi for x's which accounts for symmetry
 //################################################################################
 
-
+// ORTHOGONALIZATION
 
 
 //################################################################################
@@ -1024,7 +1087,14 @@ void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 //################################################################################
 
   }
-  Tensor<double>::deallocate(hbar, x1, x2, xp1, xp2, xc1, xc2, r1, r2);
+
+// auto deallocate_vtensors = [&](auto&& ...vecx){
+//         (std::for_each(vecx.begin(), vecx.end(), &Tensor<T>::deallocate), ...);
+// };
+//  deallocate_vtensors(x1,x2,xp1,xp2,xc1,xc2,r1,r2);
+
+//   Tensor<T>::deallocate(hbar);
+
 }
 
 std::string filename; //bad, but no choice
@@ -1239,12 +1309,13 @@ TEST_CASE("CCSD Driver") {
   cc_t2 = std::chrono::high_resolution_clock::now();
 
   ccsd_time =
-    std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
+    std::chrono::duration_cast<std::chrono::duration<T>>((cc_t2 - cc_t1)).count();
   std::cout << "\nTime taken for EOMCCSD: " << ccsd_time << " secs\n";
 
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
 //  Tensor<T>::deallocate(d_t1, d_t2, d_x1, d_x2, d_f1, d_v2);
 //  Tensor<T>::deallocate(d_t1, d_t2, d_y1, d_y2, d_f1, d_v2);
   MemoryManagerGA::destroy_coll(mgr);
+  delete ec;
 
 }

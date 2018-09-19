@@ -141,4 +141,46 @@ eigen_to_tamm_tensor(Tensor <T> &tensor, Eigen::Tensor<T, ndim, Eigen::RowMajor>
 }
 
 
+template<typename T, typename fxn_t>
+void call_eigen_matrix_fxn(const Tensor<T>& tensor, fxn_t fxn) {
+    Tensor<T> copy_t(tensor);
+    auto eigen_t = tamm_to_eigen_tensor<T, 2>(copy_t);
+
+    using eigen_matrix =
+            Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+    using eigen_map = Eigen::Map<eigen_matrix>;
+
+    const auto nrow = eigen_t.dimensions()[0];
+    const auto ncol = eigen_t.dimensions()[1];
+
+    eigen_map mapped_t(eigen_t.data(), nrow, ncol);
+
+    fxn(mapped_t);
+}
+
+template<int nmodes, typename T, typename matrix_type>
+void eigen_matrix_to_tamm(matrix_type&& mat, Tensor<T>& t){
+    using tensor1_type = Eigen::Tensor<T, 1, Eigen::RowMajor>;
+    using tensor2_type = Eigen::Tensor<T, 2, Eigen::RowMajor>;
+
+    const auto nrows = mat.rows();
+
+    if constexpr(nmodes == 1){ //Actually a vector
+        tensor1_type t1(std::array<long int, 1>{nrows});
+        for(long int i = 0; i < nrows; ++i) t1(i) = mat(i);
+        eigen_to_tamm_tensor(t, t1);
+    }
+    else if constexpr(nmodes == 2){
+        const auto ncols = mat.cols();
+        tensor2_type t1(std::array<long int, 2>{nrows, ncols}) ;
+
+        for(long int i=0; i < nrows; ++i)
+            for(long int j =0; j< ncols; ++j)
+                t1(i, j) = mat(i, j);
+
+        eigen_to_tamm_tensor(t, t1);
+    }
+}
+
+
 #endif // TAMM_EIGEN_UTILS_HPP_

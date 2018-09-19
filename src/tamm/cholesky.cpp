@@ -71,29 +71,13 @@ private:
     tensor_type u_;
 
     void compute_(const_reference A) override {
-        tensor_type copy_A(A);
-
-        auto eigen_A = tamm_to_eigen_tensor<T, 2>(copy_A);
-
         using eigen_map = Eigen::Map<matrix_type>;
-        const auto nbf = eigen_A.dimensions()[0];
+        call_eigen_matrix_fxn(A, [&, this](eigen_map map_A){
+            llt_.compute(map_A);
+        });
 
-        eigen_map mapped_A(eigen_A.data(), nbf, nbf);
-
-        llt_.compute(mapped_A);
-
-        const auto& eigen_u = llt_.matrixU();
-        const auto& eigen_l = llt_.matrixL();
-
-        using eigen_tensor = Eigen::Tensor<T, 2, Eigen::RowMajor>;
-        eigen_tensor tensor_l(std::array<long int, 2>{nbf, nbf});
-        eigen_tensor tensor_u(std::array<long int, 2>{nbf, nbf});
-
-        for(long int i = 0; i < nbf; ++i)
-            for (long int j = 0; j < nbf; ++j) {
-                tensor_l(i, j) = j > i ? 0.0 : eigen_l(i, j);
-                tensor_u(i, j) = i > j ? 0.0 : eigen_u(i, j);
-            }
+        matrix_type eigen_u = llt_.matrixU();
+        matrix_type eigen_l = llt_.matrixL();
 
         auto tis = A.tiled_index_spaces()[0];
 
@@ -108,8 +92,8 @@ private:
         tensor_type::allocate(&ec, l);
         tensor_type::allocate(&ec, u);
 
-        eigen_to_tamm_tensor(l, tensor_l);
-        eigen_to_tamm_tensor(u, tensor_u);
+        eigen_matrix_to_tamm<2>(eigen_l, l);
+        eigen_matrix_to_tamm<2>(eigen_u, u);
 
         l_ = l;
         u_ = u;

@@ -69,56 +69,35 @@ private:
     tensor_type evecs_;
 
     void compute_(const_reference A, const_reference B) override {
-        tensor_type copy_A(A);
-        tensor_type copy_B(B);
-
-        auto eigen_A = tamm_to_eigen_tensor<T, 2>(copy_A);
-        auto eigen_B = tamm_to_eigen_tensor<T, 2>(copy_B);
-
         using eigen_map = Eigen::Map<eigen_matrix>;
+        call_eigen_matrix_fxn(A, [&, this](eigen_map map_A){
+            call_eigen_matrix_fxn(B, [&, this](eigen_map map_B){
+                solver_.compute(map_A, map_B);
+            });
+        });
 
-        const auto nbf = eigen_A.dimensions()[0];
-
-        eigen_map mapped_A(eigen_A.data(), nbf, nbf);
-        eigen_map mapped_B(eigen_B.data(), nbf, nbf);
-
-        solver_.compute(mapped_A, mapped_B);
+        //solver_.compute(mapped_A, mapped_B);
 
         const auto& eigen_lambda = solver_.eigenvalues();
         const auto& eigen_nu     = solver_.eigenvectors();
-
         eigen_matrix neigen_nu = eigen_nu.colwise().normalized();
 
-        using eigen_tensor1 = Eigen::Tensor<T, 1, Eigen::RowMajor>;
-        using eigen_tensor2 = Eigen::Tensor<T, 2, Eigen::RowMajor>;
-
-        eigen_tensor1 tensor_lambda(std::array<long int, 1>{nbf});
-        eigen_tensor2 tensor_nu(std::array<long int, 2>{nbf,nbf});
-
-        //Need to be careful b/c the returned Eigen matrices are column major
-        for(long int i = 0; i < nbf; ++i) {
-            tensor_lambda(i) = eigen_lambda(i);
-            for (long int j = 0; j < nbf; ++j)
-                tensor_nu(i, j) = neigen_nu(i, j);
-        }
-
-        auto tis = A.tiled_index_spaces()[0];
 
         //TODO: get from input tensors
         ProcGroup pg{GA_MPI_Comm()};
         auto mgr = MemoryManagerGA::create_coll(pg);
         Distribution_NW distribution;
         ExecutionContext ec{pg,&distribution,mgr};
-
-
+        auto tis = A.tiled_index_spaces()[0];
         tensor_type lambda{tis};
-        tensor_type::allocate(&ec, lambda);
-        eigen_to_tamm_tensor(lambda, tensor_lambda);
-        evals_ = lambda;
-
         tensor_type nu{tis, tis};
+        tensor_type::allocate(&ec, lambda);
         tensor_type::allocate(&ec, nu);
-        eigen_to_tamm_tensor(nu, tensor_nu);
+
+
+        eigen_matrix_to_tamm<1>(eigen_lambda, lambda);
+        eigen_matrix_to_tamm<2>(neigen_nu, nu);
+        evals_ = lambda;
         evecs_ = nu;
     }
 

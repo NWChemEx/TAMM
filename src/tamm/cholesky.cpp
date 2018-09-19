@@ -86,8 +86,8 @@ private:
         const auto& eigen_l = llt_.matrixL();
 
         using eigen_tensor = Eigen::Tensor<T, 2, Eigen::RowMajor>;
-        eigen_tensor tensor_l({nbf, nbf});
-        eigen_tensor tensor_u({nbf, nbf});
+        eigen_tensor tensor_l(std::array<long int, 2>{nbf, nbf});
+        eigen_tensor tensor_u(std::array<long int, 2>{nbf, nbf});
 
         for(long int i = 0; i < nbf; ++i)
             for (long int j = 0; j < nbf; ++j) {

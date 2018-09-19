@@ -92,8 +92,8 @@ private:
         using eigen_tensor1 = Eigen::Tensor<T, 1, Eigen::RowMajor>;
         using eigen_tensor2 = Eigen::Tensor<T, 2, Eigen::RowMajor>;
 
-        eigen_tensor1 tensor_lambda({nbf});
-        eigen_tensor2 tensor_nu({nbf,nbf});
+        eigen_tensor1 tensor_lambda(std::array<long int, 1>{nbf});
+        eigen_tensor2 tensor_nu(std::array<long int, 2>{nbf,nbf});
 
         //Need to be careful b/c the returned Eigen matrices are column major
         for(long int i = 0; i < nbf; ++i) {

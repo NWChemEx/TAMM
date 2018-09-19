@@ -4,13 +4,9 @@
 #include "diis.hpp"
 #include "4index_transform.hpp"
 #include "catch/catch.hpp"
-#include "tamm/tamm.hpp"
-#include <algorithm>
-#include <complex>
-#include "tamm/eigen_utils.hpp"
+#include "eomguess.hpp"
 #include "macdecls.h"
 #include "ga-mpi.h"
-
 
 using namespace tamm;
 
@@ -834,25 +830,6 @@ void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
   const auto hbardim = nroots*microeomiter;
   const auto microdim = nroots;
 
-//   IndexSpace hbar_is{range(0, nroots*microeomiter)};
-//   IndexSpace micro_is{range(0, nroots)};
-//   TiledIndexSpace hbar_tis{hbar_is, 1};
-//   TiledIndexSpace micro_tis{micro_is, 1};
-
-//   auto [ivec,jvec] = hbar_tis.labels<2>("all");
-
-//   Tensor<T> hbar{hbar_tis, hbar_tis};
-//   Tensor<T>::allocate(ec, hbar);
-/////  FUTURE: This will be dimension of '# of initial guess + nroots*(microeomiter-1)'
-/////  for the first microcycle and nroots*microeomiter for the remaining.
-//   Tensor<T> x1{V, O, hbardim}; 
-//   Tensor<T> x2{V, V, O, O, hbardim}; 
-//   Tensor<T> xp1{V, O, hbardim}; 
-//   Tensor<T> xp2{V, V, O, O, hbardim}; 
-//   Tensor<T> xc1{V, O, microdim}; 
-//   Tensor<T> xc2{V, V, O, O, microdim}; 
-//   Tensor<T> r1{V, O, microdim}; 
-//   Tensor<T> r2{V, V, O, O, microdim}; 
 
 Matrix hbar = Matrix::Zero(hbardim,hbardim);
 
@@ -866,14 +843,7 @@ auto populate_vector_of_tensors = [&] (std::vector<Tensor<T>> &vec, bool is2D=tr
 };
 
 
-//   Tensor<T> x1{V, O}; 
-//   Tensor<T> x2{V, V, O, O}; 
-//   Tensor<T> xp1{V, O}; 
-//   Tensor<T> xp2{V, V, O, O}; 
-//   Tensor<T> xc1{V, O}; 
-//   Tensor<T> xc2{V, V, O, O}; 
-//   Tensor<T> r1{V, O}; 
-//   Tensor<T> r2{V, V, O, O}; 
+
 using std::vector;
 
   vector<Tensor<T>> x1(hbardim);
@@ -903,6 +873,7 @@ using std::vector;
 //################################################################################
 //  Call the eom_guess routine (external routine)
 //################################################################################
+eom_guess(nroots,noab,p_evl_sorted,x1);
 
   if(ec->pg().rank() == 0) {
     std::cout << "\n\n";
@@ -918,6 +889,10 @@ using std::vector;
     std::cout << std::string(62, '-') << std::endl;
   }
 
+  Tensor<T> d_r1{};
+  Tensor<T> oscalar{};
+  Tensor<T>::allocate(ec, d_r1, oscalar);
+
   for(int iter = 0; iter < maxeomiter;){
      for(int micro = 0; micro < microeomiter; iter++, micro++){
         nxtrials = (micro+1)*nroots;
@@ -932,11 +907,10 @@ using std::vector;
         eomccsd_x2(*ec, MO, xp2.at(counter), t1, t2, x1.at(counter), x2.at(counter), f1, v2);
 //################################################################################
 
-        std::cout << iter << " " << micro << " " << root+micro*nroots << std::endl;
+        std::cout << iter << " " << micro << " COUNTER  " << counter << std::endl;
         }
 
-            Tensor<T> d_r1{};
-            Tensor<T>::allocate(ec,d_r1);
+
 //***Update hbar which is a matrix of dot products between the x and xp vectors.
            if(micro == 0){
            std::cout << "HERE" << std::endl;
@@ -944,14 +918,12 @@ using std::vector;
                  for(int jvec = 0; jvec < nroots; jvec++){
                  std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
 //################################################################################
-                sch(d_r1()  = 0);
-                sch(d_r1() += xp1.at(ivec)() * x1.at(jvec)());
-                sch(d_r1() += xp2.at(ivec)() * x2.at(jvec)());
-                T r1;
-                d_r1.get({}, {&r1, 1});
-                hbar(ivec,jvec) = r1;
-                 //               +dotproduct(xp2(ivec),x2(jvec))
-                 //***note the differences of xp# vs x#
+               sch(d_r1()  = 0) 
+                  (d_r1() += xp1.at(ivec)() * x1.at(jvec)()) 
+                  (d_r1() += xp2.at(ivec)() * x2.at(jvec)()).execute();
+               T r1;
+               d_r1.get({}, {&r1, 1});
+               hbar(ivec,jvec) = r1;
 //################################################################################
                  }
               }
@@ -960,14 +932,12 @@ using std::vector;
                  for(int jvec = micro*nroots; jvec < nxtrials; jvec++){
                  std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
 //################################################################################
-                sch(d_r1()  = 0);
-                  sch(d_r1() += xp1.at(ivec)() * x1.at(jvec)());
-                sch(d_r1() += xp2.at(ivec)() * x2.at(jvec)());
-                T r1;
-                d_r1.get({}, {&r1, 1});
-                hbar(ivec,jvec) = r1;
-
-                 //***note the differences of xp# vs x#
+               sch(d_r1()  = 0) 
+                  (d_r1() += xp1.at(ivec)() * x1.at(jvec)()) 
+                  (d_r1() += xp2.at(ivec)() * x2.at(jvec)()).execute();
+               T r1;
+               d_r1.get({}, {&r1, 1});
+               hbar(ivec,jvec) = r1;
 //################################################################################
                  }
               }
@@ -975,53 +945,19 @@ using std::vector;
                  for(int jvec = 0; jvec < micro*nroots; jvec++){
                  std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
 //################################################################################
-                sch(d_r1()  = 0);
-                sch(d_r1() += xp1.at(ivec)() * x1.at(jvec)());
-                sch(d_r1() += xp2.at(ivec)() * x2.at(jvec)());
-                T r1;
-                d_r1.get({}, {&r1, 1});
-                hbar(ivec,jvec) = r1;
-                
-                 //***note the differences of xp# vs x#
+                sch(d_r1()  = 0) 
+                  (d_r1() += xp1.at(ivec)() * x1.at(jvec)()) 
+                  (d_r1() += xp2.at(ivec)() * x2.at(jvec)()).execute();
+               T r1;
+               d_r1.get({}, {&r1, 1});
+               hbar(ivec,jvec) = r1;
 //################################################################################
                  }
               }
            } 
-        Tensor<T>::deallocate(d_r1);
 
-//################################################################################
-//allocate omegar 1D array which has dimension nxtrials
-//allocate omegai 1D array which has dimension nxtrials
-//allocate hbar_left(1) ??? may be hbar_left(nxtrials) 
-//allocate hbar_right(nxtrials, nxtrials)
-//alloacte work_array(4*nxtrials)
 
-//***Diagonalize the portion of hbar(0:nxtrials-1,0:nxtrials-1)
-//***May have to copy this portion of HBAR into a smaller matrix.
-
-// call lapack DGEEV( JOBVL, JOBVR, N, A, LDA, WR, WI, VL, LDVL, VR,
-//                    LDVR, WORK, LWORK, INFO )
-//	JOBVL= 'N'
-//	JOBVR= 'V'
-//	N    = nxtrials
-//	A    = hbar(0:nxtrials-1, 0:nxtrials-1) (or the smaller hbar if copied)
-//	LDA  = nxtrials
-//	WR   = omegar
-//	WI   = omegai
-//	VL   = hbar_left (Not even references in DGEEV in JOBVL = 'N'
-//	LDVL = 1
-//	VR   = hbar_right
-//	LDVR = nxtrials
-//	WORK = Work_array
-//	LWORK= 4*nxtrials
-//	INFO = info (integer)
-//################################################################################
-
-//################################################################################
-//Sort the eigenvectors and corresponding eigenvalues 
-//################################################################################
-
-#if 0
+#if 1
 
 Eigen::EigenSolver<Matrix> hbardiag(hbar.block(0,0,nxtrials,nxtrials));
 auto omegar = hbardiag.eigenvalues();
@@ -1061,6 +997,10 @@ auto hbar_right = hbardiag.eigenvectors();
 //################################################################################
 
 //################################################################################
+//Sort the eigenvectors and corresponding eigenvalues 
+//################################################################################
+
+//################################################################################
 //***Call jacobi with the r1/r2's to form the new set of x1/x2's
 // for(auto root = 0; root < nroots; root++){
 //     jacobi(*ec, r1.at(root), x1.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
@@ -1075,36 +1015,38 @@ auto hbar_right = hbardiag.eigenvectors();
 //store and work with the vector that is currently being orthoginalized. 
 //To save some memory, you can use any one of the xc vectors as a workspace.  
 
-    Tensor<T> oscalar{};
-    Tensor<T>::allocate(ec,oscalar);
 
-    for(int ivec = nxtrials; ivec<nxtrials+nroots; ivec++){
-        Tensor<T> u1 = x1.at(ivec);
-        Tensor<T> u2 = x2.at(ivec);
-        for(int jvec = 0; jvec<ivec; jvec++){
-            sch(oscalar() = 0)
-            (oscalar() += x1.at(ivec)() * x1.at(jvec)())
-            (oscalar() +=  x2.at(ivec)() * x2.at(jvec)()).execute();
-            T tmps;
-            oscalar.get({}, {&tmps,1});
-            sch(u1() = tmps * x1.at(jvec)())
-            (u2() = tmps * x2.at(jvec)()).execute();
-        }
-        // T norm = u1 * u1
-        sch(oscalar() = 0)
-        (oscalar() += u1() * u1());
-    //    norm += u2 * u2
-        sch(oscalar() += u2() * u2()).execute();
-    //    scalar = 1/norm
-        T tmps;
-        oscalar.get({}, {&tmps,1});
-        T newsc = 1/tmps;
-        sch(x1.at(ivec)() = 0)
-        (x1.at(ivec)() += newsc * u1())
-        (x2.at(ivec)() = 0)
-        (x2.at(ivec)() += newsc * u2()).execute(); 
-    }
-    oscalar.deallocate();
+
+   if(micro > 0){
+      for(int ivec = nxtrials-nroots; ivec<nxtrials; ivec++){
+          Tensor<T> u1 = x1.at(ivec);
+          Tensor<T> u2 = x2.at(ivec);
+          for(int jvec = 0; jvec<ivec; jvec++){
+             std::cout << ivec << " " << jvec << std::endl;
+             sch(oscalar() = 0)
+                (oscalar() += x1.at(ivec)() * x1.at(jvec)())
+                (oscalar() += x2.at(ivec)() * x2.at(jvec)()).execute();
+              T tmps;
+              oscalar.get({}, {&tmps,1});
+              sch(u1() = tmps * x1.at(jvec)())
+              (u2() = tmps * x2.at(jvec)()).execute();
+          }
+          // T norm = u1 * u1
+          sch(oscalar() = 0)
+          (oscalar() += u1() * u1());
+      //    norm += u2 * u2
+          sch(oscalar() += u2() * u2()).execute();
+      //    scalar = 1/norm
+          T tmps;
+          oscalar.get({}, {&tmps,1});
+          T newsc = 1/sqrt(tmps);
+          sch(x1.at(ivec)() = 0)
+          (x1.at(ivec)() += newsc * u1())
+          (x2.at(ivec)() = 0)
+          (x2.at(ivec)() += newsc * u2()).execute(); 
+      }
+   }
+
  
 
      } //end micro
@@ -1123,12 +1065,16 @@ auto hbar_right = hbardiag.eigenvectors();
 
   }
 
-auto deallocate_vtensors = [&](auto&& ...vecx){
-        (std::for_each(vecx.begin(), vecx.end(), [](auto &t) { t.deallocate(); } ), ...);
-};
- deallocate_vtensors(x1,x2,xp1,xp2,xc1,xc2,r1,r2);
+  Tensor<T>::deallocate(d_r1);
+  Tensor<T>::deallocate(oscalar);
 
-//   Tensor<T>::deallocate(hbar);
+  auto deallocate_vtensors = [&](auto&&... vecx) {
+      (std::for_each(vecx.begin(), vecx.end(), [](auto& t) { t.deallocate(); }),
+       ...);
+  };
+  deallocate_vtensors(x1, x2, xp1, xp2, xc1, xc2, r1, r2);
+
+  //   Tensor<T>::deallocate(hbar);
 
 }
 

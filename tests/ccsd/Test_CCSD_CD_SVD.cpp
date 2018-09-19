@@ -62,7 +62,7 @@ void ccsd_e(ExecutionContext &ec,
 template<typename T>
 void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpace& CI, Tensor<T>& i0,
              const Tensor<T>& t1, const Tensor<T>& t2, const Tensor<T>& f1,
-             const Tensor<T>& v2, std::vector<Tensor<T> *> &chol, Tensor<T>& chol3d) {
+             const Tensor<T>& v2, std::vector<Tensor<T> *> &chol, Tensor<T>& chol3d, Tensor<T>& svd3d, Tensor<T>& ev3d) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
     
@@ -150,7 +150,7 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
 template<typename T>
 void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpace& CI, Tensor<T>& i0,
              const Tensor<T>& t1, Tensor<T>& t2, const Tensor<T>& f1,
-             const Tensor<T>& v2, std::vector<Tensor<T> *> &chol,Tensor<T>& chol3d) {
+             const Tensor<T>& v2, std::vector<Tensor<T> *> &chol,Tensor<T>& chol3d, Tensor<T>& svd3d, Tensor<T>& ev2d) {
     const TiledIndexSpace &O = MO("occ");
     const TiledIndexSpace &V = MO("virt");
     const TiledIndexSpace &N = MO("all");
@@ -513,7 +513,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
                    double zshiftl,
                    int ndiis, double hf_energy,
                    long int total_orbitals, const TAMM_SIZE& noab,
-                   Tensor<T>& cv3d) {
+                   Tensor<T>& cv3d, Tensor<T>& svd3d, Tensor<T>& ev2d) {
 
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
@@ -641,8 +641,8 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
             .execute();
 
           ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
-          ccsd_t1(*ec, MO, CI, d_r1, d_t1, d_t2, d_f1, d_v2, chol, cv3d);
-          ccsd_t2(*ec, MO, CI, d_r2, d_t1, d_t2, d_f1, d_v2, chol, cv3d);
+          ccsd_t1(*ec, MO, CI, d_r1, d_t1, d_t2, d_f1, d_v2, chol, cv3d, svd3d, ev2d);
+          ccsd_t2(*ec, MO, CI, d_r2, d_t1, d_t2, d_f1, d_v2, chol, cv3d, svd3d, ev2d);
 
           std::tie(residual, energy) = rest(*ec, MO, d_r1, d_r2, d_t1, d_t2,
                                             d_e, p_evl_sorted, zshiftl, noab);
@@ -969,11 +969,80 @@ TEST_CASE("CCSD Driver") {
           CV3D.put(it, buf);
       });
 
+        Tensor3D svd3d_eigen(nao,nao,chol_count);
+        svd3d_eigen.setZero();
+        Matrix ev2D_eigen(nao,chol_count);
+        ev2D_eigen.setZero();
+        for (int x=0;x<chol_count;x++){
+            Matrix em = std::get<0>(evs.at(x));
+            for (int i=0;i<nao;i++)
+            for (int j=0;j<nao;j++)
+            svd3d_eigen(i,j,x) = em(i,j);
+            Eigen::RowVectorXd rv = std::get<1>(evs.at(x));
+            for (int i=0;i<nao;i++)
+              ev2D_eigen(i,x) = rv(i);
+        }
+
+#if 1
+      Tensor<T> SVD3D{{N,N,CV},{1,1}};
+      Tensor<T>::allocate(ec,SVD3D);
+      Scheduler{ec}(SVD3D() = 0).execute();
+
+      block_for(ec->pg(), SVD3D(), [&](IndexVector it) {
+          Tensor<T> tensor     = SVD3D().tensor();
+          const TAMM_SIZE size = tensor.block_size(it);
+
+          std::vector<T> buf(size);
+
+          auto block_offset = tensor.block_offsets(it);
+          auto block_dims   = tensor.block_dims(it);
+
+          TAMM_SIZE c = 0;
+          
+          for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
+              i++) {
+              for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+                  j++) {
+                    for(auto k = block_offset[2]; k < block_offset[2] + block_dims[2];
+                        k++,c++) {
+                  buf[c] = svd3d_eigen(i,j,k);
+                  }
+              }
+          }
+          SVD3D.put(it, buf);
+      });
+
+      Tensor<T> EV2D{N,CV};
+      Tensor<T>::allocate(ec,EV2D);
+      Scheduler{ec}(EV2D() = 0).execute();
+
+      block_for(ec->pg(), EV2D(), [&](IndexVector it) {
+          Tensor<T> tensor     = EV2D().tensor();
+          const TAMM_SIZE size = tensor.block_size(it);
+
+          std::vector<T> buf(size);
+
+          auto block_offset = tensor.block_offsets(it);
+          auto block_dims   = tensor.block_dims(it);
+
+          TAMM_SIZE c = 0;
+          
+          for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
+              i++) {
+              for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+                  j++,c++) {
+                  buf[c] = ev2D_eigen(i,j);
+              }
+          }
+          EV2D.put(it, buf);
+      });
+#endif
+
   auto cc_t1 = std::chrono::high_resolution_clock::now();
 
   CHECK_NOTHROW(ccsd_driver<T>(ec, MO, CV, d_t1, d_t2, d_f1, d_v2, chol_vecs,
                                maxiter, thresh, zshiftl, ndiis, hf_energy,
-                               total_orbitals, 2 * ov_alpha, CV3D));
+                               total_orbitals, 2 * ov_alpha, CV3D, SVD3D, EV2D));
 
   auto cc_t2 = std::chrono::high_resolution_clock::now();
 
@@ -984,6 +1053,7 @@ TEST_CASE("CCSD Driver") {
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
   for (auto x = 0; x < chol_count; x++) Tensor<T>::deallocate(*chol_vecs[x]);
   Tensor<T>::deallocate(CV3D);
+  Tensor<T>::deallocate(SVD3D,EV2D);
   MemoryManagerGA::destroy_coll(mgr);
   delete ec;
 

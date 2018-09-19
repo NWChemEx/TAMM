@@ -113,6 +113,22 @@ std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell
   return result;
 }
 
+std::vector<size_t> map_basis_function_to_shell(const std::vector<libint2::Shell> &shells) {
+  
+  std::vector<size_t> result(nbasis(shells));
+
+  auto shell2bf = map_shell_to_basis_function(shells);
+  for (auto s1 = 0; s1 != shells.size(); ++s1) {
+    auto bf1_first = shell2bf[s1]; // first basis function in this shell
+    auto n1 = shells[s1].size();
+    for (auto f1 = 0; f1 != n1; ++f1) {
+      const auto bf1 = f1 + bf1_first;
+      result[bf1] = s1;
+    }
+  }
+  return result;
+}
+
 using libint2::Atom;
 
 inline std::tuple<std::vector<Atom>, std::string>
@@ -346,20 +362,20 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   /*** =========================== ***/
 
   // compute overlap integrals
-  auto S = compute_1body_ints(shells, Operator::overlap);
+  // auto S = compute_1body_ints(shells, Operator::overlap);
 
-  // compute kinetic-energy integrals
-  auto T = compute_1body_ints(shells, Operator::kinetic);
+  // // compute kinetic-energy integrals
+  // auto T = compute_1body_ints(shells, Operator::kinetic);
 
-  // compute nuclear-attraction integrals
-  Matrix V = compute_1body_ints(shells, Operator::nuclear, atoms);
+  // // compute nuclear-attraction integrals
+  // Matrix V = compute_1body_ints(shells, Operator::nuclear, atoms);
 
-  // Core Hamiltonian = T + V
-  Matrix H = T + V;
+  // // Core Hamiltonian = T + V
+  // Matrix H = T + V;
 
-  // T and V no longer needed, free up the memory
-  T.resize(0, 0);
-  V.resize(0, 0);
+  // // T and V no longer needed, free up the memory
+  // T.resize(0, 0);
+  // V.resize(0, 0);
 
   auto one_body_overlap_integral_lambda = [&](const IndexVector& blockid,
                                               span<TensorType> tbuf) {
@@ -530,6 +546,18 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   // cout << "----------------orig H-----------------\n";
   // cout << H << endl;
 
+  Matrix H,S,T,V;
+  H.setZero(N,N);
+  V.setZero(N,N);
+  S.setZero(N,N);
+  T.setZero(N,N);
+
+  tamm_to_eigen_tensor(H1,H);
+  tamm_to_eigen_tensor(T1,T);
+  tamm_to_eigen_tensor(S1,S);
+  tamm_to_eigen_tensor(V1,V);
+
+   H = T + V;
    cout << "For H: ";
    compare_eigen_tamm_tensors(H1,H);
   
@@ -605,21 +633,291 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     Matrix Ftmp = compute_2body_fock(shells, D);
     
     //TODO
-    Tensor2D Ftmp_e(N,N);
-    Ftmp_e.setZero();
-    for (size_t i=0;i<N;i++)
-    for (size_t j=0;j<N;j++)
-      Ftmp_e(i,j) = Ftmp(i,j);
+    #if 1
+    //-------------------------COMPUTE 2 BODY FOCK USING TAMM------------------
+    auto comp_2bf_lambda = [&](IndexVector it) {
+        Tensor<TensorType> tensor = F1tmp;
+        const TAMM_SIZE size      = tensor.block_size(it);
+
+        std::vector<TensorType> tbuf(size);
+
+        auto block_dims   = tensor.block_dims(it);
+        auto block_offset = tensor.block_offsets(it);
+
+        using libint2::Shell;
+        using libint2::Engine;
+        using libint2::Operator;
+
+        Matrix G = Matrix::Zero(N, N);
+        auto ns  = shells.size();
+
+        // construct the 2-electron repulsion integrals engine
+        Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
+
+        auto shell2bf = map_shell_to_basis_function(shells);
+        auto bf2shell = map_basis_function_to_shell(shells);
+
+        const auto& buf = engine.results();
+
+        // loop over permutationally-unique set of shells
+        // for(size_t s1 = 0; s1 != shells.size(); ++s1) {
+        auto s1 = it[0];
+        auto bf1_first = shell2bf[s1]; // first basis function in this shell
+        auto n1 = shells[s1].size(); // number of basis functions in this shell
+
+        // for(size_t s2 = 0; s2 <= s1; ++s2) {
+        auto s2 = it[1];
+        auto bf2_first = shell2bf[s2];
+        auto n2 = shells[s2].size();
+
+        
+                for(size_t s3 = 0; s3 <= s1; ++s3) {
+                    auto bf3_first = shell2bf[s3];
+                    auto n3        = shells[s3].size();
+
+                    const auto s4_max = (s1 == s3) ? s2 : s3;
+                    for(size_t s4 = 0; s4 <= s4_max; ++s4) {
+                        auto bf4_first = shell2bf[s4];
+                        auto n4        = shells[s4].size();
+
+                        // ANSWER
+                        // 1) each shell set of integrals contributes up to 6
+                        // shell sets of the Fock matrix:
+                        //    F(a,b) += (ab|cd) * D(c,d)
+                        //    F(c,d) += (ab|cd) * D(a,b)
+                        //    F(b,d) -= 1/4 * (ab|cd) * D(a,c)
+                        //    F(b,c) -= 1/4 * (ab|cd) * D(a,d)
+                        //    F(a,c) -= 1/4 * (ab|cd) * D(b,d)
+                        //    F(a,d) -= 1/4 * (ab|cd) * D(b,c)
+                        // 2) each permutationally-unique integral (shell set)
+                        // must be scaled by its degeneracy,
+                        //    i.e. the number of the integrals/sets equivalent
+                        //    to it
+                        // 3) the end result must be symmetrized
+                                               
+                        // compute the permutational degeneracy (i.e. # of
+                        // equivalents) of the given shell set
+                        auto s12_deg = (s1 == s2) ? 1.0 : 2.0;
+                        auto s34_deg = (s3 == s4) ? 1.0 : 2.0;
+                        auto s34_12_deg =
+                          (s1 == s3) ? (s2 == s4 ? 1.0 : 2.0) : 2.0;
+                        auto s3412_deg = s12_deg * s34_deg * s34_12_deg;
+
+                        engine.compute(shells[s3], shells[s4], shells[s1],
+                                       shells[s2]);
+                        const auto* buf_3412 = buf[0];
+                        if(buf_3412 == nullptr)
+                            continue; // if all integrals screened out, skip to
+                                      // next quartet
+                        for(size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                        const auto bf1 = f1 + bf1_first;
+                        for(size_t f2 = 0; f2 != n2; ++f2) {
+                        const auto bf2 = f2 + bf2_first;
+                        for(size_t f3 = 0; f3 != n3; ++f3) {
+                        const auto bf3 = f3 + bf3_first;
+                        for(size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
+                        const auto bf4 = f4 + bf4_first;
+                        const auto value = buf_3412[f1234];
+                        const auto value_scal_by_deg = value * s3412_deg;
+                          G(bf1, bf2) += D(bf3, bf4) * value_scal_by_deg;
+                        }
+                        }
+                        }
+                        }
+                        //auto s12_deg = (s1 == s2) ? 1.0 : 2.0;
+                        //auto s34_deg = (s3 == s4) ? 1.0 : 2.0;
+                        auto s12_34_deg =
+                          (s1 == s3) ? (s2 == s4 ? 1.0 : 2.0) : 2.0;
+                        auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
+
+                        engine.compute(shells[s1], shells[s2], shells[s3],
+                                       shells[s4]);
+                        const auto* buf_1234 = buf[0];
+                        if(buf_1234 == nullptr)
+                            continue; // if all integrals screened out, skip to
+                                      // next quartet
+                        for(size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                        const auto bf1 = f1 + bf1_first;
+                        for(size_t f2 = 0; f2 != n2; ++f2) {
+                        const auto bf2 = f2 + bf2_first;
+                        for(size_t f3 = 0; f3 != n3; ++f3) {
+                        const auto bf3 = f3 + bf3_first;
+                        for(size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
+                        const auto bf4 = f4 + bf4_first;
+                        const auto value = buf_1234[f1234];
+                        const auto value_scal_by_deg = value * s1234_deg;
+                          G(bf1, bf2) += D(bf3, bf4) * value_scal_by_deg;
+                        }
+                        }
+                        }
+                        }
+                        auto s42_deg = (s4 == s2) ? 1.0 : 2.0;
+                        auto s31_deg = (s3 == s1) ? 1.0 : 2.0;
+                        auto s42_31_deg =
+                          (s4 == s3) ? (s2 == s1 ? 1.0 : 2.0) : 2.0;
+                        auto s4231_deg = s42_deg * s31_deg * s42_31_deg;
+
+                        engine.compute(shells[s4], shells[s2], shells[s3],
+                                       shells[s1]);
+                        const auto* buf_4231 = buf[0];
+                        if(buf_4231 == nullptr)
+                            continue;
+                        for(size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                        const auto bf1 = f1 + bf1_first;
+                        for(size_t f2 = 0; f2 != n2; ++f2) {
+                        const auto bf2 = f2 + bf2_first;
+                        for(size_t f3 = 0; f3 != n3; ++f3) {
+                        const auto bf3 = f3 + bf3_first;
+                        for(size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
+                        const auto bf4 = f4 + bf4_first;
+                        const auto value = buf_4231[f1234];
+                        const auto value_scal_by_deg = value * s4231_deg;
+                          G(bf2, bf1) -= 0.25 * D(bf4, bf3) * value_scal_by_deg;
+                        }
+                        }
+                        }
+                        }
+                        auto s32_deg = (s3 == s2) ? 1.0 : 2.0;
+                        auto s14_deg = (s1 == s4) ? 1.0 : 2.0;
+                        auto s32_14_deg =
+                          (s3 == s1) ? (s2 == s4 ? 1.0 : 2.0) : 2.0;
+                        auto s3214_deg = s32_deg * s14_deg * s32_14_deg;
+
+                        engine.compute(shells[s3], shells[s2], shells[s1],
+                                       shells[s4]);
+                        const auto* buf_3214 = buf[0];
+                        if(buf_3214 == nullptr)
+                            continue;
+                        for(size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                        const auto bf1 = f1 + bf1_first;
+                        for(size_t f2 = 0; f2 != n2; ++f2) {
+                        const auto bf2 = f2 + bf2_first;
+                        for(size_t f3 = 0; f3 != n3; ++f3) {
+                        const auto bf3 = f3 + bf3_first;
+                        for(size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
+                        const auto bf4 = f4 + bf4_first;
+                        const auto value = buf_3214[f1234];
+                        const auto value_scal_by_deg = value * s3214_deg;
+                          G(bf2, bf1) -= 0.25 * D(bf3, bf4) * value_scal_by_deg;
+                        }
+                        }
+                        }
+                        }
+                        auto s13_deg = (s1 == s3) ? 1.0 : 2.0;
+                        auto s24_deg = (s2 == s4) ? 1.0 : 2.0;
+                        auto s13_24_deg =
+                          (s1 == s2) ? (s3 == s4 ? 1.0 : 2.0) : 2.0;
+                        auto s1324_deg = s13_deg * s24_deg * s13_24_deg;
+
+                        engine.compute(shells[s1], shells[s3], shells[s2],
+                                       shells[s4]);
+                        const auto* buf_1324 = buf[0];
+                        if(buf_1324 == nullptr)
+                            continue;
+                        for(size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                        const auto bf1 = f1 + bf1_first;
+                        for(size_t f2 = 0; f2 != n2; ++f2) {
+                        const auto bf2 = f2 + bf2_first;
+                        for(size_t f3 = 0; f3 != n3; ++f3) {
+                        const auto bf3 = f3 + bf3_first;
+                        for(size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
+                        const auto bf4 = f4 + bf4_first;
+                        const auto value = buf_1324[f1234];
+                        const auto value_scal_by_deg = value * s1324_deg;
+                          G(bf1, bf2) -= 0.25 * D(bf3, bf4) * value_scal_by_deg;
+                        }
+                        }
+                        }
+                        }
+                        //auto s14_deg = (s1 == s4) ? 1.0 : 2.0;
+                        //auto s32_deg = (s3 == s2) ? 1.0 : 2.0;
+                        auto s14_32_deg =
+                          (s1 == s3) ? (s4 == s2 ? 1.0 : 2.0) : 2.0;
+                        auto s1432_deg = s14_deg * s32_deg * s14_32_deg;
+
+                        engine.compute(shells[s1], shells[s4], shells[s3],
+                                       shells[s2]);
+                        const auto* buf_1432 = buf[0];
+                        if(buf_1432 == nullptr)
+                            continue;
+                        for(size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                        const auto bf1 = f1 + bf1_first;
+                        for(size_t f2 = 0; f2 != n2; ++f2) {
+                        const auto bf2 = f2 + bf2_first;
+                        for(size_t f3 = 0; f3 != n3; ++f3) {
+                        const auto bf3 = f3 + bf3_first;
+                        for(size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
+                        const auto bf4 = f4 + bf4_first;
+                        const auto value = buf_1432[f1234];
+                        const auto value_scal_by_deg = value * s1432_deg;
+                          G(bf1, bf2) -= 0.25 * D(bf4, bf3) * value_scal_by_deg;
+                        }
+                        }
+                        }
+                        }
+                                        //G(bf3, bf4) +=
+                                        //  D(bf1, bf2) * value_scal_by_deg;
+                                        //G(bf1, bf3) -= 0.25 * D(bf2, bf4) *
+                                        //               value_scal_by_deg;
+                                        //G(bf2, bf4) -= 0.25 * D(bf1, bf3) *
+                                        //               value_scal_by_deg;
+                                        //G(bf1, bf4) -= 0.25 * D(bf2, bf3) *
+                                        //               value_scal_by_deg;
+                                        //G(bf2, bf3) -= 0.25 * D(bf1, bf4) *
+                                        //               value_scal_by_deg;
+                                        
+                    }
+                }
+        
+        // }
+
+        // symmetrize the result and return
+        //Matrix Gt = G.transpose();
+        //G         = 0.5 * (G + Gt);
+
+        TAMM_SIZE c = 0;
+        //for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
+        //    i++) {
+        //    for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+        //        j++, c++) {
+        //        tbuf[c] = G(i,j);
+        //    }
+        //}
+
+        for(size_t f1 = 0; f1 != n1; ++f1) {
+          const auto bf1 = f1 + bf1_first;
+          for(size_t f2 = 0; f2 != n2; ++f2) {
+            const auto bf2 = f2 + bf2_first;
+            tbuf[c] = G(bf1, bf2);
+            c++;
+          }
+        }
+        //for(auto i = 0; i < N; i++) {
+        //     for (auto j=0;j<N;j++){
+        //         auto si            = bf2shell[i];
+        //         auto sj            = bf2shell[j];
+        //         auto ni            = shells[si].size();
+        //         auto nj            = shells[sj].size();
+        //         auto sibf1         = shell2bf[si];
+        //         auto sjbf1         = shell2bf[sj];
+        //         auto ip            = i - sibf1;
+        //         auto jp            = j - sjbf1;
+        //         tbuf[block_offset[ip * nj + jp]] = G(i, j);
+              
+
+        //     }
+        // }
+
+        F1tmp.put(it, tbuf);
+    };
+    block_for(ec->pg(), F1tmp(), comp_2bf_lambda);
+
+    //---------------------------END COMPUTE 2-BODY FOCK USING
+    //TAMM------------------
+#endif
 
     // sch(F1tmp() = 0).execute();
-    eigen_to_tamm_tensor(F1tmp, Ftmp_e);
-
-    // if(iter==1){
-    //   cout << "Ftmp_e\n-----------\n";
-    //   cout << Ftmp_e << endl;
-    //   cout << "F1TMP\n-----------\n";
-    //    print_tensor(F1tmp);// << endl;
-    // }
+    // eigen_to_tamm_tensor(F1tmp, Ftmp);
 
     sch(F1(mu,nu) = 0)
        (F1(mu,nu) += H1(mu,nu)).execute();
@@ -639,16 +937,16 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
       F(i,j) = F1_eigen(i,j);
     F1_eigen.resize(0,0);
 
-     if (iter>1 && simple_convergence) {
-       F = alpha * F + (1.0-alpha)*F_old;
-     }
+    //  if (iter>1 && simple_convergence) {
+    //    F = alpha * F + (1.0-alpha)*F_old;
+    //  }
+
+    //  Eigen::EigenSolver<Matrix> sm12_diag(Sm12);
+    //  Eigen::EigenSolver<Matrix> sp12_diag(Sp12);
 
      // S^-1/2
      Matrix Sm12 = S.pow(-0.5);
      Matrix Sp12 = S.pow(0.5);
-
-     Eigen::EigenSolver<Matrix> sm12_diag(Sm12);
-     Eigen::EigenSolver<Matrix> sp12_diag(Sp12);
 
      Matrix FSm12 = F * Sm12;
      Matrix Sp12D = Sp12 * D_last;
@@ -709,7 +1007,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
          exit(0);
    }
 
-   if(simple_convergence) F_old = F;
+  //  if(simple_convergence) F_old = F;
   } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)));
 
   std::cout.precision(15);
@@ -939,5 +1237,7 @@ Matrix compute_2body_fock(const std::vector<libint2::Shell> &shells,
   Matrix Gt = G.transpose();
   return 0.5 * (G + Gt);
 }
+
+
 
 #endif //TAMM_TESTS_HF_TAMM_HPP_

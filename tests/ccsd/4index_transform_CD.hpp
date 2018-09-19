@@ -7,7 +7,7 @@
 std::tuple<Tensor4D> four_index_transform(
   const uint64_t ndocc, const uint64_t nao, const uint64_t freeze_core,
   const uint64_t freeze_virtual, const Matrix& C, Matrix& F,
-  libint2::BasisSet& shells, Tensor3D& CholVpr) {
+  libint2::BasisSet& shells, Tensor3D& CholVpr, std::vector<std::pair<Matrix,Eigen::RowVectorXd>>& evs) {
 
     using libint2::Atom;
     using libint2::Shell;
@@ -256,7 +256,8 @@ std::tuple<Tensor4D> four_index_transform(
 
   // Start SVD
 
-  std::vector<std::pair<Matrix,Eigen::RowVectorXd>> evs(count);
+  // std::vector<std::pair<Matrix,Eigen::RowVectorXd>> evs(count);
+  evs.resize(count);
 
   Matrix testev = Matrix::Random(nao,nao);
   for (auto i=0;i<count;i++) {

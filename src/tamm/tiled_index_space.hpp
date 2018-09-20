@@ -1315,6 +1315,7 @@ inline TiledIndexLabel TiledIndexSpace::label(std::string id, Label lbl) const {
     return TiledIndexLabel{(*this)(id), lbl};
 }
 
+// @todo: have a static label value for labeling?
 template<std::size_t... Is>
 auto TiledIndexSpace::labels_impl(std::string id, Label start,
                                   std::index_sequence<Is...>) const {

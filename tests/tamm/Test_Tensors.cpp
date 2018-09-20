@@ -780,6 +780,45 @@ TEST_CASE("Spin Tensor Construction") {
     }
     REQUIRE(!failed);
 
+
+    failed = false;
+    try {
+        IndexSpace AO_IS{range(10)};
+        TiledIndexSpace AO{AO_IS,2};
+        IndexSpace MO_IS{range(10)};
+        TiledIndexSpace MO{MO_IS,2};
+
+        Tensor<T> C{AO, MO};
+        auto ec_temp = make_execution_context();
+        C.allocate(&ec_temp);
+        // Scheduler{&ec}.allocate(C)
+        //     (C() = 42.0).execute();
+        
+
+        const auto AOs = C.tiled_index_spaces()[0];
+        const auto MOs = C.tiled_index_spaces()[1];
+        auto [mu, nu] = AOs.labels<2>("all");
+
+        //TODO: Take the slice of C that is for the occupied orbitals
+        auto [p]  = MOs.labels<1>("all");
+        Tensor<T> rho{AOs, AOs};
+
+        tamm::ProcGroup pg{GA_MPI_Comm()};
+        auto *pMM = tamm::MemoryManagerLocal::create_coll(pg);
+        tamm::Distribution_NW dist;
+        tamm::ExecutionContext ec(pg, &dist, pMM);
+        tamm::Scheduler sch{&ec};
+
+        sch.allocate(rho)
+        (rho() = 0)
+        (rho(mu, nu) += C(mu, p) * C(nu, p)).execute();
+        
+    }
+    catch (const std::string& e) {
+        std::cerr << e << std::endl;
+        failed = true;
+    }
+    REQUIRE(!failed);
 }
 
 int main(int argc, char* argv[]) {

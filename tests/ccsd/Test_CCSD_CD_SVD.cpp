@@ -60,7 +60,7 @@ void ccsd_e(ExecutionContext &ec,
 }
 
 template<typename T>
-void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpace& CI, Tensor<T>& i0,
+void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpace& CI, const TiledIndexSpace& SI, Tensor<T>& i0,
              const Tensor<T>& t1, const Tensor<T>& t2, const Tensor<T>& f1,
              const Tensor<T>& v2, std::vector<Tensor<T> *> &chol, Tensor<T>& chol3d, Tensor<T>& svd3d, Tensor<T>& ev3d) {
     const TiledIndexSpace& O = MO("occ");
@@ -78,6 +78,7 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
     TiledIndexLabel cind;
 
     std::tie(cind) = CI.labels<1>("all");
+     auto [sind] = SI.labels<1>("all");
     std::tie(p1, p2, p3, p4, p5, p6, p7, p8) = MO.labels<8>("virt");
     std::tie(h1, h2, h3, h4, h5, h6, h7, h8) = MO.labels<8>("occ");
 
@@ -148,7 +149,7 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
 }
 
 template<typename T>
-void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpace& CI, Tensor<T>& i0,
+void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpace& CI,  const TiledIndexSpace& SI, Tensor<T>& i0,
              const Tensor<T>& t1, Tensor<T>& t2, const Tensor<T>& f1,
              const Tensor<T>& v2, std::vector<Tensor<T> *> &chol,Tensor<T>& chol3d, Tensor<T>& svd3d, Tensor<T>& ev2d) {
     const TiledIndexSpace &O = MO("occ");
@@ -162,6 +163,7 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
     std::tie(p1, p2, p3, p4, p5, p6, p7, p8, p9) = MO.labels<9>("virt");
     std::tie(h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11) = MO.labels<11>("occ");
     std::tie(cind) = CI.labels<1>("all");
+    auto [sind] = SI.labels<1>("all");
 
     Scheduler sch{&ec};
 
@@ -505,7 +507,7 @@ void iteration_print(const ProcGroup& pg, int iter, double residual, double ener
 
 template<typename T>
 void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
-                    const TiledIndexSpace& CI,
+                    const TiledIndexSpace& CI, const TiledIndexSpace& SI,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_f1, Tensor<T>& d_v2,
                     std::vector<Tensor<T> *> &chol,
@@ -641,8 +643,8 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
             .execute();
 
           ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
-          ccsd_t1(*ec, MO, CI, d_r1, d_t1, d_t2, d_f1, d_v2, chol, cv3d, svd3d, ev2d);
-          ccsd_t2(*ec, MO, CI, d_r2, d_t1, d_t2, d_f1, d_v2, chol, cv3d, svd3d, ev2d);
+          ccsd_t1(*ec, MO, CI, SI, d_r1, d_t1, d_t2, d_f1, d_v2, chol, cv3d, svd3d, ev2d);
+          ccsd_t2(*ec, MO, CI, SI, d_r2, d_t1, d_t2, d_f1, d_v2, chol, cv3d, svd3d, ev2d);
 
           std::tie(residual, energy) = rest(*ec, MO, d_r1, d_r2, d_t1, d_t2,
                                             d_e, p_evl_sorted, zshiftl, noab);
@@ -940,8 +942,10 @@ TEST_CASE("CCSD Driver") {
       });
   }
 
-        IndexSpace cvec{range(0,chol_count)};
+      IndexSpace cvec{range(0,chol_count)};
+      IndexSpace svec{range(0,total_orbitals)}; //svd 
       TiledIndexSpace CV{cvec,1};
+      TiledIndexSpace SV{svec,1};
       Tensor<T> CV3D{{N,N,CV},{1,1}};
       Tensor<T>::allocate(ec,CV3D);
       Scheduler{ec}(CV3D() = 0).execute();
@@ -984,7 +988,7 @@ TEST_CASE("CCSD Driver") {
         }
 
 #if 1
-      Tensor<T> SVD3D{{N,N,CV},{1,1}};
+      Tensor<T> SVD3D{N,SV,CV};
       Tensor<T>::allocate(ec,SVD3D);
       Scheduler{ec}(SVD3D() = 0).execute();
 
@@ -1040,7 +1044,7 @@ TEST_CASE("CCSD Driver") {
 
   auto cc_t1 = std::chrono::high_resolution_clock::now();
 
-  CHECK_NOTHROW(ccsd_driver<T>(ec, MO, CV, d_t1, d_t2, d_f1, d_v2, chol_vecs,
+  CHECK_NOTHROW(ccsd_driver<T>(ec, MO, CV, SV, d_t1, d_t2, d_f1, d_v2, chol_vecs,
                                maxiter, thresh, zshiftl, ndiis, hf_energy,
                                total_orbitals, 2 * ov_alpha, CV3D, SVD3D, EV2D));
 

@@ -798,6 +798,15 @@ void eomccsd_x2(ExecutionContext& ec, const TiledIndexSpace& MO,
 }
 
 template<typename T>
+std::vector<size_t> sort_indexes(std::vector<T>& v){
+    std::vector<size_t> idx(v.size());
+    iota(idx.begin(),idx.end(),0);
+    sort(idx.begin(),idx.end(),[&v](size_t x, size_t y) {return v[x] < v[y];});
+
+    return idx;
+}
+
+template<typename T>
 void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
                    Tensor<T>& t1, Tensor<T>& t2,
                    Tensor<T>& f1, Tensor<T>& v2,
@@ -874,6 +883,8 @@ using std::vector;
 //  Call the eom_guess routine (external routine)
 //################################################################################
 eom_guess(nroots,noab,p_evl_sorted,x1);
+
+
 
   if(ec->pg().rank() == 0) {
     std::cout << "\n\n";
@@ -960,8 +971,28 @@ eom_guess(nroots,noab,p_evl_sorted,x1);
 #if 1
 
 Eigen::EigenSolver<Matrix> hbardiag(hbar.block(0,0,nxtrials,nxtrials));
-auto omegar = hbardiag.eigenvalues();
-auto hbar_right = hbardiag.eigenvectors();
+auto omegar1 = hbardiag.eigenvalues();
+
+const auto nev = omegar1.rows();
+std::vector<T> omegar(nev);
+for (auto x=0; x<nev;x++)
+ omegar[x] = real(omegar1(x));
+
+std::vector<size_t> omegar_sorted_order = sort_indexes(omegar);
+std::sort(omegar.begin(), omegar.end());
+
+// for (auto x: omegar) std::cout << x << " ";
+// std::cout << std::endl;
+// for (auto x: omegar_sorted_order) std::cout << x << " ";
+// std::cout << std::endl;
+
+auto hbar_right1 = hbardiag.eigenvectors();
+assert(hbar_right1.rows() == nev && hbar_right1.cols() == nev);
+Matrix hbar_right(nev,nev);
+hbar_right.setZero();
+
+for (auto x=0;x<nev;x++)
+    hbar_right(x) = hbar_right1(omegar_sorted_order[x]).real();
 
 //################################################################################
 //--From the lowest nroots number of eigenvalues and vectors, form xc's which 
@@ -977,18 +1008,18 @@ auto hbar_right = hbardiag.eigenvectors();
     (r1.at(root)()        = 0)
     (r2.at(root)()        = 0).execute();
     for(int i = 0; i < nxtrials; i++){
-        T hbr_scalar = real(hbar_right(root,i));
+        T hbr_scalar = hbar_right(root,i);
        sch(xc1.at(root)()       += hbr_scalar * x1.at(i)()) 
           (xc2.at(root)() += hbr_scalar * x2.at(i)()).execute();
     }  
  }
 //
  for(int root = 0; root < nroots; root++){
-    T omegar_scalar = -1 * real(omegar(root));
+    T omegar_scalar = -1 * omegar[root];
     sch(r1.at(root)()        += omegar_scalar * xc1.at(root)() )
     (r2.at(root)() += omegar_scalar * xc2.at(root)() ).execute();
     for(int i = 0; i < nxtrials; i++){
-       T hbr_scalar = real(hbar_right(root,i));
+       T hbr_scalar = hbar_right(root,i);
        sch(r1.at(root)()        += hbr_scalar * xp1.at(i)())
        (r2.at(root)() += hbr_scalar *xp2.at(i)()).execute();
     }  

@@ -168,7 +168,8 @@ TEST_CASE("GeneralizedSelfAdjointEigenSolver"){
             SECTION(names[i]){
                 auto A = make_tensor(input_values[i].at("A"), sizes[i]);
                 auto B = make_tensor(input_values[i].at("B"), sizes[i]);
-                GeneralizedSelfAdjointEigenSolver<double> es(A, B);
+                const auto& space = A.tiled_index_spaces()[0];
+                GeneralizedSelfAdjointEigenSolver<double> es(A, B, space);
                 const auto& evals = es.eigenvalues();
                 const auto& evecs = es.eigenvectors();
                 check_tensor(evals, corr_values[i].at("values"));
@@ -182,7 +183,8 @@ TEST_CASE("GeneralizedSelfAdjointEigenSolver"){
             SECTION(names[i]){
                 auto A = make_tensor(input_values[i].at("A"), sizes[i]);
                 auto B = make_tensor(input_values[i].at("B"), sizes[i]);
-                auto& pes = es.compute(A, B);
+                const auto& space = A.tiled_index_spaces()[0];
+                auto& pes = es.compute(A, B, space);
                 REQUIRE(&pes == &es); //check chaining via return
                 const auto& evals = es.eigenvalues();
                 const auto& evecs = es.eigenvectors();

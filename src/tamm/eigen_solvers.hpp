@@ -3,7 +3,7 @@
 
 #include "tamm/labeled_tensor.hpp"
 //#include "tamm/tensor.hpp" //uncomment when suffices to include only this
-#include <memory> //for shared_ptr
+#include <memory> //for unique_ptr
 
 namespace tamm {
 namespace internal {
@@ -47,7 +47,13 @@ public:
     using tensor_type = Tensor<T>;
 
     ///Read-only version of a held tensor
-    using const_reference = const tensor_type&;
+    using const_tensor = const tensor_type&;
+    
+    ///Type of the new space to create
+    using space_type = TiledIndexSpace;
+
+    ///Type of a read-only space.
+    using const_space = const space_type&;
 
     ///Makes the PIMPL
     GeneralizedSelfAdjointEigenSolver();
@@ -76,11 +82,14 @@ public:
      *
      * @param A The matrix to diagonalize
      * @param B The metric matrix for A with respect to the chosen basis set.
+     * @param evec_space The layout of the new space spanned by the
+     *        eigenvectors.
      */
-    GeneralizedSelfAdjointEigenSolver(const tensor_type& A,
-                                      const tensor_type& B) :
+    GeneralizedSelfAdjointEigenSolver(const_tensor A,
+                                      const_tensor B,
+                                      const_space evec_space) :
         GeneralizedSelfAdjointEigenSolver() {
-        compute(A, B);
+        compute(A, B, evec_space);
     }
 
     /**
@@ -88,19 +97,23 @@ public:
      *
      * @param A The matrix to diagonalize.  Must be self-adjoint.
      * @param B The metric matrix for A with respect to the chosen basis set
+     * @param evec_space The layout of the new space spanned by the
+     *        eigenvectors.
      * @return The current instance
      */
-    my_type& compute(const tensor_type& A, const tensor_type& B);
+    my_type& compute(const_tensor A,
+                     const_tensor B,
+                     const_space evec_space);
 
     ///The eigenvalues from the most recent call to compute
-    const_reference eigenvalues() const;
+    const_tensor eigenvalues() const;
 
     ///The eigenvectors from the most recent call to compute
-    const_reference eigenvectors() const;
+    const_tensor eigenvectors() const;
 private:
 
     ///The object actually responsible for implementing this class
-    std::shared_ptr<internal::EigenSolverPIMPL<T>> pimpl_;
+    std::unique_ptr<internal::EigenSolverPIMPL<T>> pimpl_;
 };
 
 //Need to declare all possible specializations

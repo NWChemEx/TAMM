@@ -275,12 +275,6 @@ std::tuple<Tensor4D> four_index_transform(
   //End SVD
 
   const auto v2dim =  2 * nao - 2 * freeze_core - 2 * freeze_virtual;
-  Eigen::Tensor<double, 4, Eigen::RowMajor> V2_unfused(v2dim,v2dim,v2dim,v2dim);
-  V2_unfused.setZero();
-
-  const bool unfused_4index = true;
-  const bool fully_fused_4index = false;
-
   Eigen::Tensor<double, 3, Eigen::RowMajor> Vpsigma(v2dim,nao,count);
   CholVpr = Tensor3D(v2dim,v2dim,count);
   Vpsigma.setZero();
@@ -301,15 +295,7 @@ std::tuple<Tensor4D> four_index_transform(
   spin_t.block(0,2*n_alpha,1, n_beta) = spin_3;
   spin_t.block(0,2*n_alpha+n_beta,1, n_beta) = spin_4;
 
-  //cout << "\n\t spin_t\n";
-  //cout << spin_t << endl;
-
-  // Transform CholVuv to CholVpq
-  if (unfused_4index) {
-    Eigen::Tensor<double, 4, Eigen::RowMajor> V2_FromCholV(v2dim,v2dim,v2dim,v2dim);
-    V2_FromCholV.setZero();
-
-    // From evs to Vpsigma
+      // From evs to Vpsigma
     for (auto p = 0; p < v2dim; p++) {
       for (auto fu = 0; fu != nao; ++fu) {
         for (auto fs = 0; fs != nao; ++fs) {
@@ -336,6 +322,25 @@ std::tuple<Tensor4D> four_index_transform(
         }
       }
     }
+
+  //Bo-ends----------------------------
+
+  Eigen::Tensor<double, 4, Eigen::RowMajor> V2_unfused(v2dim,v2dim,v2dim,v2dim);
+  V2_unfused.setZero();
+
+  const bool unfused_4index = true;
+  const bool fully_fused_4index = false;
+
+
+
+  //cout << "\n\t spin_t\n";
+  //cout << spin_t << endl;
+
+  // Transform CholVuv to CholVpq
+  if (unfused_4index) {
+    Eigen::Tensor<double, 4, Eigen::RowMajor> V2_FromCholV(v2dim,v2dim,v2dim,v2dim);
+    V2_FromCholV.setZero();
+
 
     // Form (pr|qs)
     for (auto p = 0; p < v2dim; p++) {
@@ -364,7 +369,6 @@ std::tuple<Tensor4D> four_index_transform(
   cout << "\n--------------------\n" << endl;
 
 
-  //Bo-ends----------------------------
 
   //Start 4-index transform
   //const auto n = nbasis(shells);

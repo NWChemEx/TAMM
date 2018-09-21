@@ -93,8 +93,12 @@ private:
 
         const auto& eigen_lambda = solver_.eigenvalues();
         const auto& eigen_nu     = solver_.eigenvectors();
-        eigen_matrix neigen_nu = eigen_nu.colwise().normalized();
 
+        /* Note to self, before I break this again.  While the eigenvectors
+         * may appear unnormalized because eigen_nu^T*eigen_nu =/= 1, remember
+         * that this is a generalized eigenvalue problem so the correct inner
+         * product is eigen_nu^T*B*eigen_nu, and that does equal 1.
+         */
 
         //TODO: get from input tensors
         ProcGroup pg{GA_MPI_Comm()};
@@ -102,14 +106,14 @@ private:
         Distribution_NW distribution;
         ExecutionContext ec{pg,&distribution,mgr};
         auto old_space = A.tiled_index_spaces()[0];
+
         tensor_type lambda{new_space};
         tensor_type nu{old_space, new_space};
         tensor_type::allocate(&ec, lambda);
         tensor_type::allocate(&ec, nu);
 
-
         eigen_matrix_to_tamm<1>(eigen_lambda, lambda);
-        eigen_matrix_to_tamm<2>(neigen_nu, nu);
+        eigen_matrix_to_tamm<2>(eigen_nu, nu);
         evals_ = lambda;
         evecs_ = nu;
     }

@@ -307,6 +307,12 @@ void compare_eigen_tamm_tensors(Tensor<TensorType>& tamm_tensor,
     // tamm_2_eigen.resize(0,0);
 }
 
+
+template<typename ...Args>
+auto print_2e(Args&&... args){
+((std::cout << args << ", "), ...);
+}
+
 std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
   const string filename, Matrix& C, Matrix& F) {
     // Perform the simple HF calculation (Ed) and 2,4-index transform to get the
@@ -525,6 +531,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         // }
     };
 
+
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
@@ -628,6 +635,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     Tensor<TensorType> F1tmp{tAO, tAO};
     Tensor<TensorType>::allocate(ec, F1tmp);
 
+
     do {
         const auto tstart = std::chrono::high_resolution_clock::now();
         ++iter;
@@ -709,16 +717,22 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
                 auto con0 = (s3<=s1 && s4 <=s4x_max && s2 <= s1);
                 auto conz = (s3<=s2 && s4 <=s4px_max && s1 <= s2);
               
-              if (con0){
-                auto _s1 = s1;
-                auto _s2 = s2;
-                auto _s3 = s3;
-                auto _s4 = s4;
-                auto _n1 = n1;
-                auto _n2 = n2;
-                auto _n3 = n3;
-                auto _n4 = n4;
+                decltype(s1) _s1 = -1;
+                decltype(s1) _s2 = -1;
+                decltype(s1) _s3 = -1;
+                decltype(s1) _s4 = -1;
+                decltype(s1) _n1 = -1;
+                decltype(s1) _n2 = -1;
+                decltype(s1) _n3 = -1;
+                decltype(s1) _n4 = -1;
 
+                decltype(f1) _f1 = -1;
+                decltype(f1) _f2 = -1;
+                decltype(f1) _f3 = -1;
+                decltype(f1) _f4 = -1;
+
+              auto lambda_2e = [&](std::vector<int> bf_order, double pf=1.0){
+              
                 auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
                 auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
                 auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
@@ -726,444 +740,189 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
                  
                 engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
                 const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) continue; 
+                if(buf_1234 == nullptr) return; 
 
                 for(size_t f3 = 0; f3 != n3; ++f3) {
                   const auto bf3 = f3 + bf3_first;
                   for(size_t f4 = 0; f4 != n4; ++f4) {
                     const auto bf4 = f4 + bf4_first;
-                    auto _f1 = f1;
-                    auto _f2 = f2;
-                    auto _f3 = f3;
-	                auto _f4 = f4;
+                     std::vector<decltype(f1)> fxs{f1,f2,f3,f4};
+                     _f1 = fxs.at(bf_order[0]);
+                     _f2 = fxs.at(bf_order[1]);
+                     _f3 = fxs.at(bf_order[2]);
+	                   _f4 = fxs.at(bf_order[3]);
                     auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
                     const auto value = buf_1234[f1234];
                     const auto value_scal_by_deg = value * s1234_deg;
-                    G(i,j) += D(bf3, bf4) * value_scal_by_deg;
+                    G(i,j) += pf * D(bf3, bf4) * value_scal_by_deg;
                   }
                 }
+
+                };
+
+              if (con0){
+                 _s1 = s1;
+                 _s2 = s2;
+                 _s3 = s3;
+                 _s4 = s4;
+                 _n1 = n1;
+                 _n2 = n2;
+                 _n3 = n3;
+                 _n4 = n4;
+                lambda_2e({0,1,2,3});
               }
               
               if (conz){
-                auto _s1 = s2;
-                auto _s2 = s1;
-                auto _s3 = s3;
-                auto _s4 = s4;
-                auto _n1 = n2;
-                auto _n2 = n1;
-                auto _n3 = n3;
-                auto _n4 = n4;
-
-                auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-                 
-                engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) continue; 
-
-                for(size_t f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
-                    const auto bf4 = f4 + bf4_first;
-                    auto _f1 = f2;
-                    auto _f2 = f1;
-                    auto _f3 = f3;
-	                auto _f4 = f4;
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
-                    const auto value = buf_1234[f1234];
-                    const auto value_scal_by_deg = value * s1234_deg;
-                    G(i,j) += D(bf3, bf4) * value_scal_by_deg;
-                  }
-                }
+                 _s1 = s2;
+                 _s2 = s1;
+                 _s3 = s3;
+                 _s4 = s4;
+                 _n1 = n2;
+                 _n2 = n1;
+                 _n3 = n3;
+                 _n4 = n4;
+                lambda_2e({1,0,2,3});
               }
 
               if (conx){
-	            auto _s1 = s3;
-	            auto _s2 = s4;
-                auto _s3 = s1;
-                auto _s4 = s2;
-                auto _n1 = n3;
-                auto _n2 = n4;
-                auto _n3 = n1;
-                auto _n4 = n2;
-
-                auto s12_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s34_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s3 == _s1) ? (_s4 == _s2 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-
-                engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) continue; 
-
-                for(size_t f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
-                    const auto bf4 = f4 + bf4_first;
-                    auto _f1 = f3;
-                    auto _f2 = f4;
-                    auto _f3 = f1;
-	                auto _f4 = f2;
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
-                    const auto value = buf_1234[f1234];
-                    const auto value_scal_by_deg = value * s1234_deg;
-                    G(i, j) += D(bf3, bf4) * value_scal_by_deg;
-                  }
-                }
+	              _s1 = s3;
+	              _s2 = s4;
+                _s3 = s1;
+                _s4 = s2;
+                _n1 = n3;
+                _n2 = n4;
+                _n3 = n1;
+                _n4 = n2;
+                lambda_2e({2,3,0,1});
+                
               }
 
               if (cony){
-	            auto _s1 = s3;
-	            auto _s2 = s4;
-                auto _s3 = s2;
-                auto _s4 = s1;
-                auto _n1 = n3;
-                auto _n2 = n4;
-                auto _n3 = n2;
-                auto _n4 = n1;
+	              _s1 = s3;
+	              _s2 = s4;
+                _s3 = s2;
+                _s4 = s1;
+                _n1 = n3;
+                _n2 = n4;
+                _n3 = n2;
+                _n4 = n1;
 
-                auto s12_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s34_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s3 == _s1) ? (_s4 == _s2 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-
-                engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) continue; 
-
-                for(size_t f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
-                    const auto bf4 = f4 + bf4_first;
-                    auto _f1 = f3;
-                    auto _f2 = f4;
-	                auto _f3 = f2;
-                    auto _f4 = f1;
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
-                    const auto value = buf_1234[f1234];
-                    const auto value_scal_by_deg = value * s1234_deg;
-                    G(i, j) += D(bf3, bf4) * value_scal_by_deg;
-                  }
-                }
+                lambda_2e({2,3,1,0});
               }
 
 	          if (con1) {	
-                auto _s1 = s1;
-                auto _s2 = s3;
-                auto _s3 = s2;
-                auto _s4 = s4;
-                auto _n1 = n1;
-                auto _n2 = n3;
-                auto _n3 = n2;
-                auto _n4 = n4;
+                _s1 = s1;
+                _s2 = s3;
+                _s3 = s2;
+                _s4 = s4;
+                _n1 = n1;
+                _n2 = n3;
+                _n3 = n2;
+                _n4 = n4;
 
-                auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-
-                engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) continue; 
-
-                for(size_t f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
-                    const auto bf4 = f4 + bf4_first;
-                    auto _f1 = f1;
-                    auto _f2 = f3;
-                    auto _f3 = f2;
-	                auto _f4 = f4;
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
-                    const auto value = buf_1234[f1234];
-                    const auto value_scal_by_deg = value * s1234_deg;
-                    G(i,j) -= 0.25 * D(bf3, bf4) * value_scal_by_deg;
-                  }
-                }
+                lambda_2e({0,2,1,3}, -0.25);
               }
 
 	          if (con2) {	
-                auto _s1 = s2;
-                auto _s2 = s3;
-                auto _s3 = s1;
-                auto _s4 = s4;
-                auto _n1 = n2;
-                auto _n2 = n3;
-                auto _n3 = n1;
-                auto _n4 = n4;
+                _s1 = s2;
+                _s2 = s3;
+                _s3 = s1;
+                _s4 = s4;
+                _n1 = n2;
+                _n2 = n3;
+                _n3 = n1;
+                _n4 = n4;
 
-                auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-
-                engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) continue; 
-
-                for(size_t f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
-                    const auto bf4 = f4 + bf4_first;
-                    auto _f1 = f2;
-                    auto _f2 = f3;
-                    auto _f3 = f1;
-	                auto _f4 = f4;
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
-                    const auto value = buf_1234[f1234];
-                    const auto value_scal_by_deg = value * s1234_deg;
-                    G(i,j) -= 0.25 * D(bf3, bf4) * value_scal_by_deg;
-                  }
-                }
+                lambda_2e({1,2,0,3}, -0.25);
               }
 
 	          if (con3){
-                auto _s1 = s2;
-                auto _s2 = s3;
-                auto _s3 = s4;
-                auto _s4 = s1;
-                auto _n1 = n2;
-                auto _n2 = n3;
-                auto _n3 = n4;
-                auto _n4 = n1;
+                _s1 = s2;
+                _s2 = s3;
+                _s3 = s4;
+                _s4 = s1;
+                _n1 = n2;
+                _n2 = n3;
+                _n3 = n4;
+                _n4 = n1;
 
-                auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-
-                engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) continue; 
-
-                for(size_t f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
-                    const auto bf4 = f4 + bf4_first;
-                    auto _f1 = f2;
-                    auto _f2 = f3;
-                    auto _f3 = f4;
-	                auto _f4 = f1;
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
-                    const auto value = buf_1234[f1234];
-                    const auto value_scal_by_deg = value * s1234_deg;
-                    G(i,j) -= 0.25 * D(bf3, bf4) * value_scal_by_deg;
-                  }
-                }
+                lambda_2e({1,2,3,0}, -0.25);
               }
 
 	          if (con4){
-                auto _s1 = s1;
-                auto _s2 = s3;
-                auto _s3 = s4;
-                auto _s4 = s2;
-                auto _n1 = n1;
-                auto _n2 = n3;
-                auto _n3 = n4;
-                auto _n4 = n2;
+                _s1 = s1;
+                _s2 = s3;
+                _s3 = s4;
+                _s4 = s2;
+                _n1 = n1;
+                _n2 = n3;
+                _n3 = n4;
+                _n4 = n2;
 
-                auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-
-                engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) continue; 
-
-                for(size_t f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
-                    const auto bf4 = f4 + bf4_first;
-                    auto _f1 = f1;
-                    auto _f2 = f3;
-                    auto _f3 = f4;
-	                auto _f4 = f2;
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
-                    const auto value = buf_1234[f1234];
-                    const auto value_scal_by_deg = value * s1234_deg;
-                    G(i,j) -= 0.25 * D(bf3, bf4) * value_scal_by_deg;
-                  }
-                }
-              }
-              }
-              }
-              }
+                lambda_2e({0,2,3,1}, -0.25);
               }
 
-              for(auto i = block_offset[0];i < (block_offset[0] + block_dims[0]);i++){
-                auto s1        = bf2shell[i];
-                auto bf1_first = shell2bf[s1];
-                auto n1        = shells[s1].size();
-              for(auto j = block_offset[1];j < (block_offset[1] + block_dims[1]);j++){
-                auto s2        = bf2shell[j];
-                auto bf2_first = shell2bf[s2];
-                auto n2        = shells[s2].size();
-              for(size_t s3 = 0; s3 != shells.size(); ++s3) {
-                auto bf3_first = shell2bf[s3]; 
-                auto n3        = shells[s3].size(); 
-              for(size_t s4 = 0; s4 <= shells.size(); ++s4) {
-                auto bf4_first = shell2bf[s4];
-                auto n4        = shells[s4].size();
-
-                auto s1p_max = (s3 == s4) ? s2 : s4;
+                 s1p_max = (s3 == s4) ? s2 : s4;
                 auto con5 = (s1<=s1p_max && s2<=s3 && s4 <= s3);
-                auto s2p_max = (s3 == s4) ? s1 : s4;
+                 s2p_max = (s3 == s4) ? s1 : s4;
                 auto con6 = (s2<=s2p_max && s1<=s3 && s4 <= s3);
-                auto s4_max = (s3 == s2) ? s1 : s2;
+                 s4_max = (s3 == s2) ? s1 : s2;
                 auto con7 = (s4<=s4_max && s1<=s3 && s2 <= s3);
-                auto s4p_max = (s3 == s1) ? s2 : s1;
+                 s4p_max = (s3 == s1) ? s2 : s1;
                 auto con8 = (s4<=s4p_max && s2<=s3 && s1 <= s3);
  
               if (con5){
-                auto _s1 = s3;
-                auto _s2 = s2;
-                auto _s3 = s4;
-                auto _s4 = s1;
-                auto _n1 = n3;
-                auto _n2 = n2;
-                auto _n3 = n4;
-                auto _n4 = n1;
+                _s1 = s3;
+                _s2 = s2;
+                _s3 = s4;
+                _s4 = s1;
+                _n1 = n3;
+                _n2 = n2;
+                _n3 = n4;
+                _n4 = n1;
  
-                auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-
-                engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) continue; 
-
-                for(size_t f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
-                    const auto bf4 = f4 + bf4_first;
-                    auto f1 = i - bf1_first;
-                    auto f2 = j - bf2_first;
-                    auto _f1 = f3;
-                    auto _f2 = f2;
-                    auto _f3 = f4;
-                    auto _f4 = f1;
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
-                    const auto value = buf_1234[f1234];
-                    const auto value_scal_by_deg = value * s1234_deg;
-                    G(i, j) -= 0.25 * D(bf3, bf4) * value_scal_by_deg;
-                  }
-                }
+                lambda_2e({2,1,3,0}, -0.25);
               }
 
               if (con6){
-                auto _s1 = s3;
-                auto _s2 = s1;
-                auto _s3 = s4;
-                auto _s4 = s2;
-                auto _n1 = n3;
-                auto _n2 = n1;
-                auto _n3 = n4;
-                auto _n4 = n2;
+                _s1 = s3;
+                _s2 = s1;
+                _s3 = s4;
+                _s4 = s2;
+                _n1 = n3;
+                _n2 = n1;
+                _n3 = n4;
+                _n4 = n2;
  
-                auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-
-                engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) continue; 
-
-                for(size_t f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
-                    const auto bf4 = f4 + bf4_first;
-                    auto f1 = i - bf1_first;
-                    auto f2 = j - bf2_first;
-                    auto _f1 = f3;
-                    auto _f2 = f1;
-                    auto _f3 = f4;
-                    auto _f4 = f2;
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
-                    const auto value = buf_1234[f1234];
-                    const auto value_scal_by_deg = value * s1234_deg;
-                    G(i, j) -= 0.25 * D(bf3, bf4) * value_scal_by_deg;
-                  }
-                }
+                lambda_2e({2,0,3,1}, -0.25);
               }
 
               if (con7){
-                auto _s1 = s3;
-                auto _s2 = s1;
-                auto _s3 = s2;
-                auto _s4 = s4;
-                auto _n1 = n3;
-                auto _n2 = n1;
-                auto _n3 = n2;
-                auto _n4 = n4;
+                _s1 = s3;
+                _s2 = s1;
+                _s3 = s2;
+                _s4 = s4;
+                _n1 = n3;
+                _n2 = n1;
+                _n3 = n2;
+                _n4 = n4;
  
-                auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-
-                engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) continue; 
-
-                for(size_t f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
-                    const auto bf4 = f4 + bf4_first;
-                    auto f1 = i - bf1_first;
-                    auto f2 = j - bf2_first;
-                    auto _f1 = f3;
-                    auto _f2 = f1;
-                    auto _f3 = f2;
-                    auto _f4 = f4;
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
-                    const auto value = buf_1234[f1234];
-                    const auto value_scal_by_deg = value * s1234_deg;
-                    G(i, j) -= 0.25 * D(bf3, bf4) * value_scal_by_deg;
-                  }
-                }
+                lambda_2e({2,0,1,3}, -0.25);
               }
 
               if (con8){
-                auto _s1 = s3;
-                auto _s2 = s2;
-                auto _s3 = s1;
-                auto _s4 = s4;
-                auto _n1 = n3;
-                auto _n2 = n2;
-                auto _n3 = n1;
-                auto _n4 = n4;
+                _s1 = s3;
+                _s2 = s2;
+                _s3 = s1;
+                _s4 = s4;
+                _n1 = n3;
+                _n2 = n2;
+                _n3 = n1;
+                _n4 = n4;
  
-                auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-
-                engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) continue; 
-
-                for(size_t f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
-                    const auto bf4 = f4 + bf4_first;
-                    auto f1 = i - bf1_first;
-                    auto f2 = j - bf2_first;
-                    auto _f1 = f3;
-                    auto _f2 = f2;
-                    auto _f3 = f1;
-                    auto _f4 = f4;
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
-                    const auto value = buf_1234[f1234];
-                    const auto value_scal_by_deg = value * s1234_deg;
-                    G(i, j) -= 0.25 * D(bf3, bf4) * value_scal_by_deg;
-                  }
-                }
+                lambda_2e({2,1,0,3}, -0.25);
               }
+
               }
               }
               }

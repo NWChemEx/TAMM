@@ -1016,7 +1016,7 @@ TEST_CASE("CCSD Driver") {
           SVD3D.put(it, buf);
       });
 
-      Tensor<T> EV2D{N,CV};
+      Tensor<T> EV2D{SV,CV};
       Tensor<T>::allocate(ec,EV2D);
       Scheduler{ec}(EV2D() = 0).execute();
 

@@ -49,7 +49,7 @@ using TensorType = double;
 // integrals returned by the Libint integral library
 
 Matrix compute_soad(const std::vector<libint2::Atom>& atoms);
-void diis(Matrix& F, Matrix& S, Matrix& D_last, int iter, int max_hist,
+void diis(Matrix& F, Matrix& S, int iter, int max_hist,
           int idiis, std::vector<Matrix>& diis_hist,
           std::vector<Matrix>& fock_hist);
 
@@ -542,7 +542,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     std::vector<unsigned int> AO_tiles;
     for(auto s : shells) AO_tiles.push_back(s.size());
     TiledIndexSpace tAO{AO, AO_tiles};
-    auto [mu, nu] = tAO.labels<2>("all");
+    TiledIndexSpace utAO{AO,1};
+    auto [mu, nu, ku] = tAO.labels<3>("all");
+    auto [il, jl, kl] = utAO.labels<3>("all");
 
     Tensor<TensorType> S1{{tAO, tAO}, one_body_overlap_integral_lambda};
     Tensor<TensorType> T1{{tAO, tAO}, one_body_kinetic_integral_lambda};
@@ -625,16 +627,37 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     std::vector<Matrix> diis_hist;
     std::vector<Matrix> fock_hist;
 
-    // Tensor<TensorType> ehf1{}, ediff1{}, rmsd1{};
-    // Tensor<TensorType> eps1{tAO, tAO};
+    Tensor<TensorType> ehf_last_tamm{}, ehf_tamm{}, ediff_tamm{}, rmsd_tamm{};
+    Tensor<TensorType> ehf_tmp{tAO, tAO};
 
     Tensor<TensorType> F1{tAO, tAO};
     Tensor<TensorType> F1_old{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, F1, F1_old);
+    Tensor<TensorType>::allocate(ec, F1, F1_old,ehf_tmp,ehf_last_tamm);
 
     Tensor<TensorType> F1tmp{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, F1tmp);
+    Tensor<TensorType>::allocate(ec, F1tmp, ehf_tamm, ediff_tamm, rmsd_tamm);
 
+    Tensor<TensorType> Sm12_tamm{tAO, tAO}; 
+    Tensor<TensorType> Sp12_tamm{tAO, tAO};
+    Tensor<TensorType> D_tamm{tAO, tAO};
+    Tensor<TensorType> D_last_tamm{tAO, tAO};
+    Tensor<TensorType>::allocate(ec, Sm12_tamm, Sp12_tamm, D_tamm, D_last_tamm);
+
+// FSm12,Sp12D,SpFS
+   Tensor<TensorType> FSm12_tamm{tAO, tAO}; 
+    Tensor<TensorType> Sp12D_tamm{tAO, tAO};
+    Tensor<TensorType> SpFS_tamm{tAO, tAO};
+    Tensor<TensorType> err_mat_tamm{tAO, tAO};
+    Tensor<TensorType>::allocate(ec, FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
+
+    eigen_to_tamm_tensor(D_tamm,D);
+    sch(ehf_tamm() = ehf)
+    (ediff_tamm() = ediff)
+    (rmsd_tamm() = rmsd).execute();
+
+TensorType getehf_tamm = 0.0;
+TensorType getehf_last_tamm = 0.0;
+TensorType getediff_tamm = 0.0;
 
     do {
         const auto tstart = std::chrono::high_resolution_clock::now();
@@ -643,6 +666,10 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         // Save a copy of the energy and the density
         auto ehf_last = ehf;
         auto D_last   = D;
+
+        getehf_last_tamm = getehf_tamm;
+        sch //(ehf_last_tamm() = getehf_tamm)
+           (D_last_tamm(mu,nu) = D_tamm(mu,nu)).execute();
 
         // build a new Fock matrix
         F           = H;
@@ -942,121 +969,196 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
                 // TAMM------------------
 #endif
 
-                  // sch(F1tmp() = 0).execute();
-                  // eigen_to_tamm_tensor(F1tmp, Ftmp);
+        // sch(F1tmp() = 0).execute();
+        // eigen_to_tamm_tensor(F1tmp, Ftmp);
 
-                  sch(F1(mu, nu) = 0)(F1(mu, nu) += H1(mu, nu)).execute();
+        sch(F1(mu, nu) = 0)
+           (F1(mu, nu) += H1(mu, nu)).execute();
 
-                  F += Ftmp;
-                  sch(F1(mu, nu) += F1tmp(mu, nu)).execute();
+        F += Ftmp;
+        sch(F1(mu, nu) += F1tmp(mu, nu)).execute();
 
-                  // print_tensor(F1tmp);
-                  // cout << "G after 2bf: \n";
-                  // if(iter==1){
-                  //  //compare_eigen_tamm_tensors(F1,F);
-                  //  cout << Ftmp << endl;
-                  //  print_tensor(F1tmp);
-                  // }
+        // print_tensor(F1tmp);
+        // cout << "G after 2bf: \n";
+        // if(iter==1){
+        //  //compare_eigen_tamm_tensors(F1,F);
+        //  cout << Ftmp << endl;
+        //  print_tensor(F1tmp);
+        // }
 
-                  auto F1_eigen = tamm_to_eigen_tensor<TensorType, 2>(F1);
-                  for(size_t i = 0; i < N; i++)
-                      for(size_t j = 0; j < N; j++) F(i, j) = F1_eigen(i, j);
-                  F1_eigen.resize(0, 0);
+        auto F1_eigen = tamm_to_eigen_tensor<TensorType, 2>(F1);
+        for(size_t i = 0; i < N; i++)
+            for(size_t j = 0; j < N; j++) F(i, j) = F1_eigen(i, j);
+        F1_eigen.resize(0, 0);
 
-                  //  if (iter>1 && simple_convergence) {
-                  //    F = alpha * F + (1.0-alpha)*F_old;
-                  //  }
+        //  if (iter>1 && simple_convergence) {
+        //    F = alpha * F + (1.0-alpha)*F_old;
+        //  }
 
-                  //  Eigen::EigenSolver<Matrix> sm12_diag(Sm12);
-                  //  Eigen::EigenSolver<Matrix> sp12_diag(Sp12);
+        //  Eigen::EigenSolver<Matrix> sm12_diag(Sm12);
+        //  Eigen::EigenSolver<Matrix> sp12_diag(Sp12);
 
-                  // S^-1/2
-                  Matrix Sm12 = S.pow(-0.5);
-                  Matrix Sp12 = S.pow(0.5);
+        // S^-1/2
+        Matrix Sm12 = S.pow(-0.5);
+        Matrix Sp12 = S.pow(0.5);
 
-                  Matrix FSm12 = F * Sm12;
-                  Matrix Sp12D = Sp12 * D_last;
-                  Matrix SpFS  = Sp12D * FSm12;
+        Matrix FSm12 = F * Sm12;
+        Matrix Sp12D = Sp12 * D_last;
+        Matrix SpFS  = Sp12D * FSm12;
 
-                  // Assemble: S^(-1/2)*F*D*S^(1/2) - S^(1/2)*D*F*S^(-1/2)
-                  Matrix err_mat = SpFS.transpose() - SpFS;
-                  //  Matrix err_mat = (Sm12 * F * D_last * Sp12) - (Sp12 *
-                  //  D_last * F * Sm12);
 
-                  //  if(iter <= 3 || simple_convergence) { cout << err_mat <<
-                  //  endl; }
+        eigen_to_tamm_tensor(Sm12_tamm,Sm12);
+        eigen_to_tamm_tensor(Sp12_tamm,Sp12);
+        // eigen_to_tamm_tensor(D_last_tamm,D_last);
 
-                  if(iter >= 1 && !simple_convergence) {
-                      if(iter > 2) {
-                          ++idiis;
-                          diis(F, err_mat, D_last, iter, max_hist, idiis,
-                               diis_hist, fock_hist);
-                      }
-                  }
+        // if(iter==1){
+        //     print_tensor(F1);
+        //     std::cout << Sm12 << std::endl;
+        //     print_tensor(Sm12_tamm);
+        // } 
 
-                  // solve F C = e S C
-                  Eigen::GeneralizedSelfAdjointEigenSolver<Matrix>
-                    gen_eig_solver(F, S);
-                  // auto
-                  eps = gen_eig_solver.eigenvalues();
-                  C   = gen_eig_solver.eigenvectors();
-                  // auto C1 = gen_eig_solver.eigenvectors();
+        sch(FSm12_tamm() = 0)(FSm12_tamm(mu,nu) += F1(mu,ku) * Sm12_tamm(ku,nu)).execute();
+        sch(Sp12D_tamm() = 0)(Sp12D_tamm(mu,nu) += Sp12_tamm(mu,ku) * D_last_tamm(ku,nu)).execute();
+        
+        sch(SpFS_tamm() = 0)(SpFS_tamm(mu,nu)  += Sp12D_tamm(mu,ku) * FSm12_tamm(ku,nu)).execute();
 
-                  // compute density, D = C(occ) . C(occ)T
-                  auto C_occ = C.leftCols(ndocc);
-                  D          = C_occ * C_occ.transpose();
+        //  cout << "For SpFS: ";
+        //     compare_eigen_tamm_tensors(SpFS_tamm,SpFS);
 
-                  // compute HF energy
-                  ehf = 0.0;
-                  for(size_t i = 0; i < nao; i++)
-                      for(size_t j = 0; j < nao; j++)
-                          ehf += D(i, j) * (H(i, j) + F(i, j));
+        // Assemble: S^(-1/2)*F*D*S^(1/2) - S^(1/2)*D*F*S^(-1/2)
+        Matrix err_mat = SpFS.transpose() - SpFS;
 
-                  // compute difference with last iteration
-                  ediff = ehf - ehf_last;
-                  rmsd  = (D - D_last).norm();
+        
+        sch(err_mat_tamm(mu,nu) = SpFS_tamm(nu,mu))
+           (err_mat_tamm(mu,nu) += -1.0 * SpFS_tamm(mu,nu)).execute();
+        
+        
+        // eigen_to_tamm_tensor(err_mat_tamm,err_mat);
+        // cout << "For err_mat: ";
+        // compare_eigen_tamm_tensors(err_mat_tamm,err_mat);
 
-                  cout << "----------------------------------------------------"
-                          "-------------"
-                          "--------\n";
-                  cout << "iter, ehf, ediff, rmsd = " << iter << "," << ehf
-                       << ", " << ediff << "," << rmsd << "\n";
-                  const auto tstop = std::chrono::high_resolution_clock::now();
-                  const std::chrono::duration<double> time_elapsed =
-                    tstop - tstart;
+        
+        //  Matrix err_mat = (Sm12 * F * D_last * Sp12) - (Sp12 *
+        //  D_last * F * Sm12);
 
-                  // if (iter == 1)
-                  //   std::cout <<
-                  //   "\n\n Iter        E(elec)              E(tot) Delta(E)
-                  //   RMS(D) Time(s)\n";
-                  // printf(" %02d %20.12f %20.12f %20.12f %20.12f %10.5lf\n",
-                  // iter, ehf, ehf
-                  // + enuc,
-                  //        ediff, rmsd, time_elapsed.count());
+        //  if(iter <= 3 || simple_convergence) { cout << err_mat <<
+        //  endl; }
 
-                  if(iter > maxiter) {
-                      std::cerr << "HF Does not converge!!!\n";
-                      exit(0);
-                  }
+        //if(iter >= 1 && !simple_convergence) {
+        if(iter > 2) {
+            ++idiis;
+            diis(F, err_mat, iter, max_hist, idiis,
+                diis_hist, fock_hist);
+        }
+        //}
 
-                  //  if(simple_convergence) F_old = F;
-              }
-              while(((fabs(ediff) > conv) || (fabs(rmsd) > conv)))
-                  ;
+        eigen_to_tamm_tensor(F1,F);
+        
+        // cout << "For F: ";
+        // compare_eigen_tamm_tensors(F1,F);
+    
+        // solve F C = e S C
+        Eigen::GeneralizedSelfAdjointEigenSolver<Matrix>
+        gen_eig_solver(F, S);
+        // auto
+        eps = gen_eig_solver.eigenvalues();
+        C   = gen_eig_solver.eigenvectors();
+        // auto C1 = gen_eig_solver.eigenvectors();
 
-              std::cout.precision(15);
-              printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
+        // compute density, D = C(occ) . C(occ)T
+        auto C_occ = C.leftCols(ndocc);
+        D          = C_occ * C_occ.transpose();
 
-              // cout << "\n** Eigen Values:\n";
-              // cout << eps << endl;
 
-              Tensor<TensorType>::deallocate(H1, F1, F1_old);
-              Tensor<TensorType>::deallocate(F1tmp);
-              return std::make_tuple(ndocc, nao, ehf + enuc, shells);
-          }
+        eigen_to_tamm_tensor(D_tamm,D);
+
+        // compute HF energy 
+        ehf = 0.0;
+        for(size_t i = 0; i < nao; i++)
+            for(size_t j = 0; j < nao; j++)
+                ehf += D(i, j) * (H(i, j) + F(i, j));
+
+        // compute difference with last iteration
+        ediff = ehf - ehf_last;
+        rmsd  = (D - D_last).norm();
+
+        // cout << "For F1: ";
+        // compare_eigen_tamm_tensors(D_tamm,D);
+
+        getehf_tamm = 0.0;
+        sch(ehf_tamm()=0)
+           (ehf_tmp()=0)
+           (ehf_tmp(mu,nu) += H1(mu,nu))
+           (ehf_tmp(mu,nu) += F1(mu,nu))
+           (ehf_tamm() += D_tamm() * ehf_tmp())
+           (rmsd_tamm() = rmsd).execute();
+
+        ehf_tamm.get({}, {&getehf_tamm, 1});
+        // ehf_last_tamm.get({}, {&getehf_last_tamm, 1});
+
+        sch(ediff_tamm() = getehf_tamm)
+            (ediff_tamm() -= getehf_last_tamm)
+            .execute();
+        // sch(ediff_tamm() = ediff).execute();
+
+        // if(fabs(ehf - getehf_tamm) > 1e-10)
+        //     std::cout << "eigen== " << ehf << " tamm== " << getehf_tamm << "\n";
+
+        // ediff_tamm.get({}, {&getediff_tamm, 1});
+        getediff_tamm = getehf_tamm - getehf_last_tamm;
+
+        // std::cout << "ehf,ehf_last = " << ehf << ":" << ehf_last << std::endl;
+        // std::cout << "ehf,ehf_last tamm = " << getehf_tamm << ":" << getehf_last_tamm << std::endl;
+        // if(fabs(ediff - getediff_tamm) > 1e-10)
+        //     std::cout << "eigen== " << ediff << " tamm== " << getediff_tamm << "\n";
+        
+        ehf = getehf_tamm;
+        ehf_last = getehf_last_tamm;
+        ediff = getediff_tamm;
+
+        cout << "----------------------------------------------------"
+                "-------------"
+                "--------\n";
+        cout << "iter, ehf, ediff, rmsd = " << iter << "," << ehf
+            << ", " << ediff << "," << rmsd << "\n";
+        const auto tstop = std::chrono::high_resolution_clock::now();
+        const std::chrono::duration<double> time_elapsed =
+        tstop - tstart;
+
+        // if (iter == 1)
+        //   std::cout <<
+        //   "\n\n Iter        E(elec)              E(tot) Delta(E)
+        //   RMS(D) Time(s)\n";
+        // printf(" %02d %20.12f %20.12f %20.12f %20.12f %10.5lf\n",
+        // iter, ehf, ehf
+        // + enuc,
+        //        ediff, rmsd, time_elapsed.count());
+
+        if(iter > maxiter) {
+            std::cerr << "HF Does not converge!!!\n";
+            exit(0);
+        }
+
+        //  if(simple_convergence) F_old = F;
+    }
+    while(((fabs(ediff) > conv) || (fabs(rmsd) > conv)))
+        ;
+
+    std::cout.precision(15);
+    printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
+
+    // cout << "\n** Eigen Values:\n";
+    // cout << eps << endl;
+
+    Tensor<TensorType>::deallocate(H1, F1, F1_old, D_tamm, ehf_tmp, 
+                    ehf_tamm, ediff_tamm, rmsd_tamm, ehf_last_tamm);
+    Tensor<TensorType>::deallocate(F1tmp,Sm12_tamm, Sp12_tamm,
+    D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
+    return std::make_tuple(ndocc, nao, ehf + enuc, shells);
+    }
 
         void
-        diis(Matrix & F, Matrix & err_mat, Matrix & D_last, int iter,
+        diis(Matrix & F, Matrix & err_mat, int iter,
              int max_hist, int ndiis, std::vector<Matrix>& diis_hist,
              std::vector<Matrix>& fock_hist) {
             using Vector = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic,

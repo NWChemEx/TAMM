@@ -200,6 +200,14 @@ IndexVector translate_blockid(const IndexVector& blockid,
 }
 } // namespace internal
 
+template<typename T>
+T get_scalar(Tensor<T>& tensor){
+    T scalar;
+    EXPECTS(tensor.num_modes() == 0);
+    tensor.get({}, {&scalar, 1});
+    return scalar;
+}
+
 } // namespace tamm
 
 #endif // TAMM_UTILS_HPP_

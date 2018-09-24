@@ -84,7 +84,7 @@ template<typename T>
 void
 patch_copy(std::vector<T> &sbuf, Eigen::Tensor<T, 4, Eigen::RowMajor> &etensor,
            const std::vector<size_t> &block_dims,
-           const std::vector<size_t> &block_offset, bool t2e=false) {
+           const std::vector<size_t> &block_offset, bool t2e=true) {
   size_t c = 0;
   for (size_t i= block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
     for (size_t j= block_offset[1]; j < block_offset[1] + block_dims[1];

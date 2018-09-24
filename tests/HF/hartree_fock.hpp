@@ -294,6 +294,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   /*** compute 1-e integrals       ***/
   /*** =========================== ***/
 
+auto hf_t1 = std::chrono::high_resolution_clock::now();
+
   // compute overlap integrals
   auto S = compute_1body_ints(shells, Operator::overlap);
   // Eigen::EigenSolver<Matrix> diagS(S);
@@ -349,6 +351,12 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 //  cout << "\n\tInitial Density Matrix:\n";
 //  cout << D << endl;
 
+    auto hf_t2 = std::chrono::high_resolution_clock::now();
+
+    double hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    std::cout << "\nTime taken 1st stage: " << hf_time << " secs\n";
+
   /*** =========================== ***/
   /*** main iterative loop         ***/
   /*** =========================== ***/
@@ -373,6 +381,13 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   std::vector<Matrix> diis_hist;
   std::vector<Matrix> fock_hist;
 
+        std::cout << "\n\n";
+        std::cout << " Hartree-Fock iterations" << std::endl;
+        std::cout << std::string(60, '-') << std::endl;
+        std::cout <<
+            " Iter     Energy            E-Diff           RMSD" 
+                << std::endl;
+        std::cout << std::string(60, '-') << std::endl;
 
   do {
     const auto tstart = std::chrono::high_resolution_clock::now();
@@ -439,8 +454,13 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     ediff = ehf - ehf_last;
     rmsd = (D - D_last).norm();
 
-    cout << "-------------------------------------------------------------------------\n";
-    cout << "iter, ehf, ediff, rmsd = " << iter << "," << ehf <<", " << ediff <<  "," <<rmsd << "\n";
+   
+    // cout << "iter, ehf, ediff, rmsd = " << iter << "," << ehf <<", " << ediff <<  "," <<rmsd << "\n";
+                std::cout << std::setw(5) << iter << "  " << std::setw(14);
+            std::cout << std::fixed << std::setprecision(10) << ehf;
+            std::cout << ' ' << std::setw(16)  << ediff;
+            std::cout << ' ' << std::setw(15)  << rmsd << ' ' << "\n";
+
     const auto tstop = std::chrono::high_resolution_clock::now();
     const std::chrono::duration<double> time_elapsed = tstop - tstart;
 

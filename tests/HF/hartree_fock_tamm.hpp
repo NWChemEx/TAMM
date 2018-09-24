@@ -542,9 +542,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     std::vector<unsigned int> AO_tiles;
     for(auto s : shells) AO_tiles.push_back(s.size());
     TiledIndexSpace tAO{AO, AO_tiles};
-    TiledIndexSpace utAO{AO,1};
     auto [mu, nu, ku] = tAO.labels<3>("all");
-    auto [il, jl, kl] = utAO.labels<3>("all");
 
     Tensor<TensorType> S1{{tAO, tAO}, one_body_overlap_integral_lambda};
     Tensor<TensorType> T1{{tAO, tAO}, one_body_kinetic_integral_lambda};
@@ -554,7 +552,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     // Tensor<TensorType> T2{tAO,tAO};
     Tensor<TensorType>::allocate(ec, H1);
 
-    sch(H1(mu, nu) = 0)(H1(mu, nu) += T1(mu, nu))(H1(mu, nu) += V1(mu, nu))
+    sch
+        (H1(mu, nu) = T1(mu, nu))
+        (H1(mu, nu) += V1(mu, nu))
       .execute();
 
     // cout << "----------------tamm H-----------------\n";
@@ -562,20 +562,20 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     // cout << "----------------orig H-----------------\n";
     // cout << H << endl;
 
-    Matrix H, S, T, V;
+    Matrix H, S; //, T, V;
     H.setZero(N, N);
-    V.setZero(N, N);
+    // V.setZero(N, N);
     S.setZero(N, N);
-    T.setZero(N, N);
+    // T.setZero(N, N);
 
     tamm_to_eigen_tensor(H1, H);
-    tamm_to_eigen_tensor(T1, T);
+    // tamm_to_eigen_tensor(T1, T);
     tamm_to_eigen_tensor(S1, S);
-    tamm_to_eigen_tensor(V1, V);
+    // tamm_to_eigen_tensor(V1, V);
 
-    H = T + V;
-    cout << "For H: ";
-    compare_eigen_tamm_tensors(H1, H);
+    // H = T + V;
+    // cout << "For H: ";
+    // compare_eigen_tamm_tensors(H1, H);
 
     /*** =========================== ***/
     /*** build initial-guess density ***/
@@ -619,7 +619,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     //  Matrix F;
     Matrix eps;
     double alpha = 0.75;
-    Matrix F_old;
+    // Matrix F_old;
 
     const bool simple_convergence = false;
     int idiis                     = 0;
@@ -627,15 +627,15 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     std::vector<Matrix> diis_hist;
     std::vector<Matrix> fock_hist;
 
-    Tensor<TensorType> ehf_last_tamm{}, ehf_tamm{}, ediff_tamm{}, rmsd_tamm{};
+    Tensor<TensorType> ehf_tamm{}, rmsd_tamm{};
     Tensor<TensorType> ehf_tmp{tAO, tAO};
 
     Tensor<TensorType> F1{tAO, tAO};
     Tensor<TensorType> F1_old{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, F1, F1_old,ehf_tmp,ehf_last_tamm);
+    Tensor<TensorType>::allocate(ec, F1, F1_old,ehf_tmp);
 
     Tensor<TensorType> F1tmp{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, F1tmp, ehf_tamm, ediff_tamm, rmsd_tamm);
+    Tensor<TensorType>::allocate(ec, F1tmp, ehf_tamm, rmsd_tamm);
 
     Tensor<TensorType> Sm12_tamm{tAO, tAO}; 
     Tensor<TensorType> Sp12_tamm{tAO, tAO};
@@ -652,12 +652,14 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     eigen_to_tamm_tensor(D_tamm,D);
     sch(ehf_tamm() = ehf)
-    (ediff_tamm() = ediff)
     (rmsd_tamm() = rmsd).execute();
 
-TensorType getehf_tamm = 0.0;
-TensorType getehf_last_tamm = 0.0;
-TensorType getediff_tamm = 0.0;
+    TensorType getehf_tamm = 0.0;
+    // TensorType ehf_last_tamm = 0.0;
+    // TensorType ediff_tamm = 0.0;
+
+    F.setZero(N,N);
+    Matrix err_mat = Matrix::Zero(N,N);
 
     do {
         const auto tstart = std::chrono::high_resolution_clock::now();
@@ -667,13 +669,13 @@ TensorType getediff_tamm = 0.0;
         auto ehf_last = ehf;
         auto D_last   = D;
 
-        getehf_last_tamm = getehf_tamm;
-        sch //(ehf_last_tamm() = getehf_tamm)
+        // ehf_last_tamm = getehf_tamm;
+        sch 
            (D_last_tamm(mu,nu) = D_tamm(mu,nu)).execute();
 
         // build a new Fock matrix
-        F           = H;
-        Matrix Ftmp = compute_2body_fock(shells, D);
+        // F           = H;
+        // Matrix Ftmp = compute_2body_fock(shells, D);
 
 // TODO
 #if 1
@@ -964,18 +966,16 @@ TensorType getediff_tamm = 0.0;
 
               F1tmp.put(it, tbuf);
             };
-                  block_for(ec->pg(), F1tmp(), comp_2bf_lambda);
+                  
                 //---------------------------END COMPUTE 2-BODY FOCK USING
                 // TAMM------------------
 #endif
-
+        block_for(ec->pg(), F1tmp(), comp_2bf_lambda);
         // sch(F1tmp() = 0).execute();
         // eigen_to_tamm_tensor(F1tmp, Ftmp);
 
-        sch(F1(mu, nu) = 0)
-           (F1(mu, nu) += H1(mu, nu)).execute();
-
-        F += Ftmp;
+        sch(F1(mu, nu) = H1(mu, nu)).execute();
+        // F += Ftmp;
         sch(F1(mu, nu) += F1tmp(mu, nu)).execute();
 
         // print_tensor(F1tmp);
@@ -986,10 +986,10 @@ TensorType getediff_tamm = 0.0;
         //  print_tensor(F1tmp);
         // }
 
-        auto F1_eigen = tamm_to_eigen_tensor<TensorType, 2>(F1);
-        for(size_t i = 0; i < N; i++)
-            for(size_t j = 0; j < N; j++) F(i, j) = F1_eigen(i, j);
-        F1_eigen.resize(0, 0);
+        // auto F1_eigen = tamm_to_eigen_tensor<TensorType, 2>(F1);
+        // for(size_t i = 0; i < N; i++)
+        //     for(size_t j = 0; j < N; j++) F(i, j) = F1_eigen(i, j);
+        // F1_eigen.resize(0, 0);
 
         //  if (iter>1 && simple_convergence) {
         //    F = alpha * F + (1.0-alpha)*F_old;
@@ -1002,10 +1002,9 @@ TensorType getediff_tamm = 0.0;
         Matrix Sm12 = S.pow(-0.5);
         Matrix Sp12 = S.pow(0.5);
 
-        Matrix FSm12 = F * Sm12;
-        Matrix Sp12D = Sp12 * D_last;
-        Matrix SpFS  = Sp12D * FSm12;
-
+        // Matrix FSm12 = F * Sm12;
+        // Matrix Sp12D = Sp12 * D_last;
+        // Matrix SpFS  = Sp12D * FSm12;
 
         eigen_to_tamm_tensor(Sm12_tamm,Sm12);
         eigen_to_tamm_tensor(Sp12_tamm,Sp12);
@@ -1019,14 +1018,13 @@ TensorType getediff_tamm = 0.0;
 
         sch(FSm12_tamm() = 0)(FSm12_tamm(mu,nu) += F1(mu,ku) * Sm12_tamm(ku,nu)).execute();
         sch(Sp12D_tamm() = 0)(Sp12D_tamm(mu,nu) += Sp12_tamm(mu,ku) * D_last_tamm(ku,nu)).execute();
-        
         sch(SpFS_tamm() = 0)(SpFS_tamm(mu,nu)  += Sp12D_tamm(mu,ku) * FSm12_tamm(ku,nu)).execute();
 
         //  cout << "For SpFS: ";
         //     compare_eigen_tamm_tensors(SpFS_tamm,SpFS);
 
         // Assemble: S^(-1/2)*F*D*S^(1/2) - S^(1/2)*D*F*S^(-1/2)
-        Matrix err_mat = SpFS.transpose() - SpFS;
+        // Matrix err_mat = SpFS.transpose() - SpFS;
 
         
         sch(err_mat_tamm(mu,nu) = SpFS_tamm(nu,mu))
@@ -1045,6 +1043,9 @@ TensorType getediff_tamm = 0.0;
         //  endl; }
 
         //if(iter >= 1 && !simple_convergence) {
+        tamm_to_eigen_tensor(F1,F);
+        tamm_to_eigen_tensor(err_mat_tamm,err_mat);
+
         if(iter > 2) {
             ++idiis;
             diis(F, err_mat, iter, max_hist, idiis,
@@ -1073,54 +1074,40 @@ TensorType getediff_tamm = 0.0;
         eigen_to_tamm_tensor(D_tamm,D);
 
         // compute HF energy 
-        ehf = 0.0;
-        for(size_t i = 0; i < nao; i++)
-            for(size_t j = 0; j < nao; j++)
-                ehf += D(i, j) * (H(i, j) + F(i, j));
+        // ehf = 0.0;
+        // for(size_t i = 0; i < nao; i++)
+        //     for(size_t j = 0; j < nao; j++)
+        //         ehf += D(i, j) * (H(i, j) + F(i, j));
 
-        // compute difference with last iteration
-        ediff = ehf - ehf_last;
-        rmsd  = (D - D_last).norm();
+
 
         // cout << "For F1: ";
         // compare_eigen_tamm_tensors(D_tamm,D);
 
+        // compute difference with last iteration
+        //ediff = ehf - ehf_last;
+        rmsd  = (D - D_last).norm();
+
         getehf_tamm = 0.0;
         sch(ehf_tamm()=0)
-           (ehf_tmp()=0)
-           (ehf_tmp(mu,nu) += H1(mu,nu))
+           (ehf_tmp(mu,nu) = H1(mu,nu))
            (ehf_tmp(mu,nu) += F1(mu,nu))
-           (ehf_tamm() += D_tamm() * ehf_tmp())
-           (rmsd_tamm() = rmsd).execute();
+           (ehf_tamm() += D_tamm() * ehf_tmp()).execute();
+        //    (rmsd_tamm() = rmsd).execute();
+
 
         ehf_tamm.get({}, {&getehf_tamm, 1});
-        // ehf_last_tamm.get({}, {&getehf_last_tamm, 1});
-
-        sch(ediff_tamm() = getehf_tamm)
-            (ediff_tamm() -= getehf_last_tamm)
-            .execute();
-        // sch(ediff_tamm() = ediff).execute();
-
-        // if(fabs(ehf - getehf_tamm) > 1e-10)
-        //     std::cout << "eigen== " << ehf << " tamm== " << getehf_tamm << "\n";
-
-        // ediff_tamm.get({}, {&getediff_tamm, 1});
-        getediff_tamm = getehf_tamm - getehf_last_tamm;
-
-        // std::cout << "ehf,ehf_last = " << ehf << ":" << ehf_last << std::endl;
-        // std::cout << "ehf,ehf_last tamm = " << getehf_tamm << ":" << getehf_last_tamm << std::endl;
-        // if(fabs(ediff - getediff_tamm) > 1e-10)
-        //     std::cout << "eigen== " << ediff << " tamm== " << getediff_tamm << "\n";
+        ediff = getehf_tamm - ehf_last;
         
         ehf = getehf_tamm;
-        ehf_last = getehf_last_tamm;
-        ediff = getediff_tamm;
+        // ehf_last = ehf_last_tamm;
+        // ediff = ediff_tamm;
 
         cout << "----------------------------------------------------"
                 "-------------"
                 "--------\n";
         cout << "iter, ehf, ediff, rmsd = " << iter << "," << ehf
-            << ", " << ediff << "," << rmsd << "\n";
+            << ", " << ediff << ", " << rmsd << "\n";
         const auto tstop = std::chrono::high_resolution_clock::now();
         const std::chrono::duration<double> time_elapsed =
         tstop - tstart;
@@ -1151,7 +1138,7 @@ TensorType getediff_tamm = 0.0;
     // cout << eps << endl;
 
     Tensor<TensorType>::deallocate(H1, F1, F1_old, D_tamm, ehf_tmp, 
-                    ehf_tamm, ediff_tamm, rmsd_tamm, ehf_last_tamm);
+                    ehf_tamm, rmsd_tamm);
     Tensor<TensorType>::deallocate(F1tmp,Sm12_tamm, Sp12_tamm,
     D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
     return std::make_tuple(ndocc, nao, ehf + enuc, shells);

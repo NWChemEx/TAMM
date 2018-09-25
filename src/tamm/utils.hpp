@@ -3,6 +3,7 @@
 
 #include "tamm/errors.hpp"
 #include "tamm/tiled_index_space.hpp"
+#include "tamm/labeled_tensor.hpp"
 #include "tamm/types.hpp"
 
 #include <vector>

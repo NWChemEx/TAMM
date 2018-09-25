@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include <catch/catch.hpp>
 
-#include <tamm/labeled_tensor.hpp>
+#include <tamm/tamm.hpp>
 #include <iostream>
 
 using namespace tamm;

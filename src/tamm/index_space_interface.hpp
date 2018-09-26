@@ -193,6 +193,8 @@ public:
 
     virtual IndexSpace root_index_space() const = 0;
 
+    virtual size_t hash() const = 0;
+
 protected:
     std::weak_ptr<IndexSpaceInterface> this_weak_ptr_;
 
@@ -399,6 +401,36 @@ public:
         return named_subspaces_;
     }
 
+    size_t hash() const override {
+
+        // hash of the indices
+        std::size_t result = num_indices();
+        for(const auto& i : (*this)) {
+            internal::hash_combine(result, i);
+        }
+/*
+        // hash of named subspaces
+        std::size_t subspace_hash = named_subspaces_.size();
+        for(const auto& str_is : named_subspaces_) {
+            internal::hash_combine(subspace_hash, str_is.first);
+            internal::hash_combine(subspace_hash, str_is.second.hash());
+        }
+
+        internal::hash_combine(result, subspace_hash);
+
+        // hash of spin attributes
+        if(has_spin()){
+            internal::hash_combine(result, spin_);
+        }
+        
+        // hash of spatial attributes
+        if(has_spatial()){
+            internal::hash_combine(result, spatial_);
+        }
+*/
+        return result;
+    }
+
 protected:
     IndexVector indices_;
     NameToRangeMap named_ranges_;
@@ -517,7 +549,12 @@ public:
      * @param [in] named_ranges
      */
     SubSpaceImpl(const IndexSpace& is, const IndexVector& indices,
-                 const NameToRangeMap& named_ranges) {}
+                 const NameToRangeMap& named_ranges) :
+        ref_space_{is},
+        indices_{indices},
+        named_ranges_{named_ranges},
+        named_subspaces_{construct_subspaces(named_ranges)},
+        root_space_{is.root_index_space()} {}
 
     // @todo do we need these copy/move constructor/operators
     SubSpaceImpl(SubSpaceImpl&&)      = default;
@@ -593,6 +630,26 @@ public:
     const std::map<std::string, IndexSpace>& map_named_sub_index_spaces()
       const override {
         return named_subspaces_;
+    }
+
+    size_t hash() const override {
+
+        // hash of the indices
+        std::size_t result = num_indices();
+        for(const auto& i : (*this)) {
+            internal::hash_combine(result, i);
+        }
+/*
+        // hash of named subspaces
+        std::size_t subspace_hash = named_subspaces_.size();
+        for(const auto& str_is : named_subspaces_) {
+            internal::hash_combine(subspace_hash, str_is.first);
+            internal::hash_combine(subspace_hash, str_is.second.hash());
+        }
+
+        internal::hash_combine(result, subspace_hash);
+*/        
+        return result;
     }
 
 protected:
@@ -783,6 +840,26 @@ public:
         return named_subspaces_;
     }
 
+    size_t hash() const override {
+
+        // hash of the indices
+        std::size_t result = num_indices();
+        for(const auto& i : (*this)) {
+            internal::hash_combine(result, i);
+        }
+/* 
+        // hash of named subspaces
+        std::size_t subspace_hash = named_subspaces_.size();
+        for(const auto& str_is : named_subspaces_) {
+            internal::hash_combine(subspace_hash, str_is.first);
+            internal::hash_combine(subspace_hash, str_is.second.hash());
+        }
+
+        internal::hash_combine(result, subspace_hash);
+ */        
+        return result;
+    }
+
 protected:
     std::vector<IndexSpace> ref_spaces_;
     IndexVector indices_;
@@ -808,7 +885,8 @@ protected:
         for(const auto& space : ref_spaces) {
             named_subspaces_.insert({ref_names[i], space});
             named_ranges_.insert(
-              {ref_names[i], {range(curr_idx, curr_idx + space.num_indices())}});
+              {ref_names[i],
+               {range(curr_idx, curr_idx + space.num_indices())}});
             i++;
             curr_idx += space.num_indices();
         }
@@ -1001,7 +1079,7 @@ public:
         NOT_ALLOWED();
         return IndexIterator();
     }
-    
+
     // Not allowed to call end on dependent index space
     IndexIterator end() const override {
         NOT_ALLOWED();
@@ -1076,6 +1154,23 @@ public:
     const std::map<std::string, IndexSpace>& map_named_sub_index_spaces()
       const override {
         return empty_named_subspace_map_;
+    }
+
+    // @todo: what is hash of dependent index space?
+    size_t hash() const override {
+        auto dep_relation = map_tiled_index_spaces();
+        std::size_t result = dep_relation.size();
+        for(const auto& rel : dep_relation) {
+            size_t n_hash = rel.first.size();
+
+            for(const auto& idx : rel.first) {
+                internal::hash_combine(n_hash, idx);
+            }
+            
+            internal::hash_combine(n_hash, rel.second.hash());
+            internal::hash_combine(result, n_hash);
+        }
+        return result;
     }
 
 protected:

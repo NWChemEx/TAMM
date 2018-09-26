@@ -32,6 +32,14 @@ constexpr decltype(auto) apply(F&& f, Tuple&& t) {
 #endif
 // End Free functions
 
+namespace internal {
+template<typename T>
+void hash_combine(size_t& seed, T const& v) {
+    seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+} // namespace internal
+
+
 using TAMM_SIZE = uint64_t;
 // IndexSpace related type definitions
 using Index         = uint32_t;

@@ -12,18 +12,21 @@ IndexSpace::IndexSpace(const IndexVector& indices,
                                               spatial)
 
   } {
+    hash_value_ = impl_->hash();
     impl_->set_weak_ptr(impl_);
 }
 
 IndexSpace::IndexSpace(const IndexSpace& is, const Range& range,
                        const NameToRangeMap& named_subspaces) :
   impl_{std::make_shared<SubSpaceImpl>(is, range, named_subspaces)} {
+    hash_value_ = impl_->hash();    
     impl_->set_weak_ptr(impl_);
 }
 
 IndexSpace::IndexSpace(const IndexSpace& is, const IndexVector& indices,
                        const NameToRangeMap& named_subspaces) :
   impl_{std::make_shared<SubSpaceImpl>(is, indices, named_subspaces)} {
+    hash_value_ = impl_->hash();    
     impl_->set_weak_ptr(impl_);
 }
 
@@ -33,6 +36,7 @@ IndexSpace::IndexSpace(
   const std::map<std::string, std::vector<std::string>>& subspace_references) :
   impl_{std::make_shared<AggregateSpaceImpl>(spaces, names, named_subspaces,
                                              subspace_references)} {
+    hash_value_ = impl_->hash();    
     impl_->set_weak_ptr(impl_);
 }
 
@@ -42,9 +46,9 @@ IndexSpace::IndexSpace(const std::vector<TiledIndexSpace>& indep_spaces,
     for(const auto& kv : dep_space_relation) {
         ret.insert({construct_index_vector(kv.first), kv.second});
     }
-    std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
 
     impl_ = std::make_shared<DependentIndexSpaceImpl>(indep_spaces, ret);
+    hash_value_ = impl_->hash();
     impl_->set_weak_ptr(impl_);
 }
 
@@ -53,6 +57,7 @@ IndexSpace::IndexSpace(
   const std::map<IndexVector, IndexSpace>& dep_space_relation) :
   impl_{std::make_shared<DependentIndexSpaceImpl>(indep_spaces,
                                                   dep_space_relation)} {
+    hash_value_ = impl_->hash();    
     impl_->set_weak_ptr(impl_);
 }
 
@@ -61,6 +66,7 @@ IndexSpace::IndexSpace(
   const std::map<IndexVector, IndexSpace>& dep_space_relation) :
   impl_{std::make_shared<DependentIndexSpaceImpl>(indep_spaces, ref_space,
                                                   dep_space_relation)} {
+    hash_value_ = impl_->hash();    
     impl_->set_weak_ptr(impl_);
 }
 
@@ -74,6 +80,7 @@ IndexSpace::IndexSpace(const std::vector<TiledIndexSpace>& indep_spaces,
 
     impl_ =
       std::make_shared<DependentIndexSpaceImpl>(indep_spaces, ref_space, ret);
+    hash_value_ = impl_->hash();    
     impl_->set_weak_ptr(impl_);
 }
 

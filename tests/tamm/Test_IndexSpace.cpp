@@ -11,6 +11,95 @@ void check_indices(IndexSpace is, IndexVector iv) {
     for(const auto& index : is) { REQUIRE(index == iv[i++]); }
 }
 
+TEST_CASE("/* Test Case Description */") {
+    IndexSpace is1{range(10)};
+    IndexSpace is2{range(0,10)};
+    IndexSpace is3{range(0,20)};
+    IndexSpace is4{range(0,20,2)};
+    IndexSpace is5{range(10),
+                   {{"occ", {range(0, 5)}},
+                    {"virt", {range(5, 10)}}}};
+
+    IndexSpace is6{is3, range(10)};
+    IndexSpace is7{{is5("occ"), is5("virt")}};
+
+    REQUIRE(is1 == is1);
+    if(is1 == is1){
+        std::cout << "self-comparison" << std::endl;
+    }
+
+    REQUIRE(is1 == is2);
+    if (is1 == is2) {
+        std::cout << "is1 == is2" << std::endl;
+    }
+
+    REQUIRE(is1 != is3);
+    if (is1 != is3) {
+        std::cout << "is1 != is2" << std::endl;
+    }   
+
+    REQUIRE(is1 != is4);
+    if (is1 != is4) {
+        std::cout << "is1 != is4" << std::endl;
+    }
+
+    REQUIRE(is3 != is4);
+    if (is3 != is4) {
+        std::cout << "is3 != is4" << std::endl;
+    }
+
+    REQUIRE(is1 == is5);
+    if (is1 == is5) {
+        std::cout << "is1 == is5" << std::endl;
+    }
+
+    REQUIRE(is1 == is6);
+    if (is1 == is6) {
+        std::cout << "is1 == is6" << std::endl;
+    }
+
+    REQUIRE(is1 == is7);
+    if (is1 == is7) {
+        std::cout << "is1 == is7" << std::endl;
+    }
+
+    REQUIRE(is2 == is5);
+    if (is2 == is5) {
+        std::cout << "is2 == is5" << std::endl;
+    }
+
+    REQUIRE(is2 == is6);
+    if (is2 == is6) {
+        std::cout << "is2 == is6" << std::endl;
+    }
+
+    REQUIRE(is2 == is7);
+    if (is2 == is7) {
+        std::cout << "is2 == is7" << std::endl;
+    }
+
+    REQUIRE(is5 == is5);
+    if (is5 == is5) {
+        std::cout << "is5 == is5" << std::endl;
+    }
+
+    REQUIRE(is5 == is6);
+    if (is5 == is6) {
+        std::cout << "is5 == is6" << std::endl;
+    }
+
+    REQUIRE(is5 == is7);
+    if (is5 == is7) {
+        std::cout << "is5 == is7" << std::endl;
+    }
+
+    REQUIRE(is6 == is7);
+    if (is6 == is7) {
+        std::cout << "is6 == is7" << std::endl;
+    }
+
+}
+
 TEST_CASE("IndexSpace construction with ranges ") {
     IndexSpace is{range(10)};
     IndexVector iv{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};

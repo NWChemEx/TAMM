@@ -6,23 +6,21 @@
 #include "ga.h"
 #include "macdecls.h"
 #include "mpi.h"
-#include "tamm/tamm.hpp"
+#include <tamm/tamm.hpp>
 
 using namespace tamm;
 
 using T = double;
 
-ExecutionContext make_execution_context(){
+ExecutionContext make_execution_context() {
     ProcGroup pg{GA_MPI_Comm()};
-    auto *pMM = MemoryManagerLocal::create_coll(pg);
+    auto* pMM             = MemoryManagerLocal::create_coll(pg);
     Distribution_NW* dist = new Distribution_NW();
     return ExecutionContext(pg, dist, pMM);
 }
 
 void lambda_function(const IndexVector& blockid, span<T> buff) {
-    for (size_t i = 0; i < buff.size(); i++) {
-                buff[i] = 42;
-            }
+    for(size_t i = 0; i < buff.size(); i++) { buff[i] = 42; }
 }
 
 template<typename T>
@@ -91,318 +89,6 @@ void tensor_contruction(const TiledIndexSpace& T_AO,
     Q(A, r, s) += 0.5 * C(mu_A(A), s) * SC(mu_A(A), r);
 }
 
-#if 0
-TEST_CASE("Dependent Index construction and usage") {
-    IndexSpace AO{range(0, 20)};
-    IndexSpace MO{range(0, 40)};
-    IndexSpace ATOM{{0, 1, 2, 3, 4}};
-
-    std::map<IndexVector, IndexSpace> ao_atom_relation{
-      /*atom 0*/ {IndexVector{0}, IndexSpace{AO, IndexVector{3, 4, 7}}},
-      /*atom 1*/ {IndexVector{1}, IndexSpace{AO, IndexVector{1, 5, 7}}},
-      /*atom 2*/ {IndexVector{2}, IndexSpace{AO, IndexVector{1, 9, 11}}},
-      /*atom 3*/ {IndexVector{3}, IndexSpace{AO, IndexVector{11, 14}}},
-      /*atom 4*/ {IndexVector{4}, IndexSpace{AO, IndexVector{2, 5, 13, 17}}}};
-
-    IndexSpace AO_ATOM{/*dependent spaces*/ {ATOM},
-                       /*reference space*/ AO,
-                       /*relation*/ ao_atom_relation};
-
-    TiledIndexSpace T_AO{AO}, T_MO{MO}, T_ATOM{ATOM}, T_AO_ATOM{AO_ATOM};
-
-    CHECK_NOTHROW(tensor_contruction<double>(T_AO, T_MO, T_ATOM, T_AO_ATOM));
-}
-
-TEST_CASE("Tensor Declaration Syntax") {
-    using Tensor = Tensor<double>;
-
-    {
-        // Scalar value
-        Tensor T{};
-    }
-
-    {
-        // Vector of length 10
-        IndexSpace is{range(10)};
-        TiledIndexSpace tis{is};
-
-        Tensor T{tis};
-    }
-
-    {
-        // Matrix of size 10X20
-        IndexSpace is1{range(10)};
-        IndexSpace is2{range(20)};
-        TiledIndexSpace tis1{is1};
-        TiledIndexSpace tis2{is2};
-
-        Tensor T{tis1, tis2};
-    }
-
-    {
-        // Matrix of size 10X20X30
-        IndexSpace is1{range(10)};
-        IndexSpace is2{range(20)};
-        IndexSpace is3{range(30)};
-
-        TiledIndexSpace tis1{is1}, tis2{is2}, tis3{is3};
-
-        Tensor T{tis1, tis2, tis3};
-    }
-
-    {
-        // Vector from two different subspaces
-        IndexSpace is{range(10)};
-        IndexSpace is1{is, range(0, 4)};
-        IndexSpace is2{is, range(4, is.size())};
-
-        IndexSpace is3{{is1, is2}};
-
-        TiledIndexSpace tis{is3};
-
-        Tensor T{tis};
-    }
-
-    {
-        // Matrix with split rows -- subspaces of lengths 4 and 6
-        IndexSpace is1{range(10)};
-        IndexSpace is2{is1, range(0, 4)};
-        IndexSpace is3{is1, range(4, is1.size())};
-
-        IndexSpace is4{{is2, is3}};
-        IndexSpace is5{range(20)};
-
-        TiledIndexSpace tis4{is4}, tis5{is5};
-
-        Tensor T{tis4, tis5};
-    }
-
-    {
-        // Matrix with split columns -- subspaces of lengths 12 and 8
-        IndexSpace is1{range(10)};
-        IndexSpace is2{range(20)};
-        IndexSpace is3{is2, range(0, 12)};
-        IndexSpace is4{is2, range(12, is2.size())};
-
-        IndexSpace is5{{is3, is4}};
-
-        TiledIndexSpace tis1{is1}, tis5{is5};
-
-        Tensor T{tis1, tis5};
-    }
-
-    {
-        // Matrix with split rows and columns
-        IndexSpace is1{range(10)};
-        IndexSpace is2{is1, range(0, 4)};
-        IndexSpace is3{is1, range(4, is1.size())};
-
-        IndexSpace is4{{is2, is3}};
-
-        IndexSpace is5{range(20)};
-        IndexSpace is6{is5, range(0, 12)};
-        IndexSpace is7{is5, range(12, is5.size())};
-
-        IndexSpace is8{{is6, is7}};
-
-        TiledIndexSpace tis4{is4}, tis8{is8};
-
-        Tensor T{tis4, tis8};
-    }
-
-    {
-        // Tensor with first dimension split -- subspaces of lengths 4 and 6
-        IndexSpace is1{range(10)};
-        IndexSpace is2{is1, range(0, 4)};
-        IndexSpace is3{is1, range(4, is1.size())};
-
-        IndexSpace is4{{is2, is3}};
-        IndexSpace is5{range(20)};
-        IndexSpace is6{range(30)};
-
-        TiledIndexSpace tis4{is4}, tis5{is5}, tis6{is6};
-
-        Tensor T{tis4, tis5, tis6};
-    }
-
-    {
-        // Tensor with second dimension split -- subspaces of lengths 12 and 8
-        IndexSpace is1{range(10)};
-        IndexSpace is2{range(20)};
-        IndexSpace is3{is2, range(0, 12)};
-        IndexSpace is4{is2, range(12, is2.size())};
-
-        IndexSpace is5{{is3, is4}};
-        IndexSpace is6{range(30)};
-
-        TiledIndexSpace tis1{is1}, tis5{is5}, tis6{is6};
-
-        Tensor T{tis1, tis5, tis6};
-    }
-
-    {
-        // Tensor with third dimension split -- subspaces of lengths 13 and 17
-        IndexSpace is1{range(10)};
-        IndexSpace is2{range(20)};
-        IndexSpace is3{range(30)};
-
-        IndexSpace is4{is3, range(0, 13)};
-        IndexSpace is5{is3, range(13, is3.size())};
-
-        IndexSpace is6{{is4, is5}};
-
-        TiledIndexSpace tis1{is1}, tis2{is2}, tis6{is6};
-
-        Tensor T{tis1, tis2, tis6};
-    }
-
-    {
-        // Tensor with first and second dimensions split
-        IndexSpace is1{range(10)};
-        IndexSpace is2{is1, range(0, 4)};
-        IndexSpace is3{is1, range(4, is1.size())};
-
-        IndexSpace is4{{is2, is3}};
-
-        IndexSpace is5{range(20)};
-        IndexSpace is6{is5, range(0, 12)};
-        IndexSpace is7{is5, range(12, is5.size())};
-
-        IndexSpace is8{{is6, is7}};
-
-        IndexSpace is9{range(30)};
-
-        TiledIndexSpace tis4{is4}, tis8{is8}, tis9{is9};
-
-        Tensor T{tis4, tis8, tis9};
-    }
-
-    {
-        // Tensor with first and third dimensions split
-        IndexSpace is1{range(10)};
-        IndexSpace is2{is1, range(0, 4)};
-        IndexSpace is3{is1, range(4, is1.size())};
-
-        IndexSpace is4{{is2, is3}};
-
-        IndexSpace is5{range(20)};
-        IndexSpace is6{range(30)};
-        IndexSpace is7{is6, range(0, 13)};
-        IndexSpace is8{is5, range(13, is6.size())};
-
-        IndexSpace is9{{is7, is8}};
-
-        TiledIndexSpace tis4{is4}, tis5{is5}, tis9{is9};
-
-        Tensor T{tis4, tis5, tis9};
-    }
-
-    {
-        // Tensor with second and third dimensions split
-        IndexSpace is1{range(10)};
-        IndexSpace is2{range(20)};
-        IndexSpace is3{is2, range(0, 12)};
-        IndexSpace is4{is2, range(12, is2.size())};
-
-        IndexSpace is5{{is3, is4}};
-
-        IndexSpace is6{range(30)};
-        IndexSpace is7{is6, range(0, 13)};
-        IndexSpace is8{is5, range(13, is6.size())};
-
-        IndexSpace is9{{is7, is8}};
-
-        TiledIndexSpace tis1{is1}, tis5{is5}, tis9{is9};
-
-        Tensor T{tis1, tis5, tis9};
-    }
-
-    {
-        // Tensor with first, second and third dimensions split
-        IndexSpace is1{range(10)};
-        IndexSpace is2{is1, range(0, 4)};
-        IndexSpace is3{is1, range(4, is1.size())};
-
-        IndexSpace is4{{is2, is3}};
-
-        IndexSpace is5{range(20)};
-        IndexSpace is6{is5, range(0, 12)};
-        IndexSpace is7{is5, range(12, is5.size())};
-
-        IndexSpace is8{{is6, is7}};
-
-        IndexSpace is9{range(30)};
-        IndexSpace is10{is9, range(0, 13)};
-        IndexSpace is11{is9, range(13, is9.size())};
-        IndexSpace is12{{is10, is11}};
-
-        TiledIndexSpace tis4{is4}, tis8{is8}, tis12{is12};
-
-        Tensor T{tis4, tis8, tis12};
-    }
-
-    {
-        // Vector with more than one split of subspaces
-        IndexSpace is1{range(10)};
-
-        IndexSpace is2{is1, range(0, 4)};
-        IndexSpace is3{is1, range(4, is1.size())};
-
-        IndexSpace is4{is2, range(0, 1)};
-        IndexSpace is5{is2, range(1, is2.size())};
-
-        IndexSpace is{{is4, is5, is3}};
-        TiledIndexSpace tis{is};
-        Tensor T{tis};
-    }
-
-    {
-        // Matrix with more than one split of first dimension
-        IndexSpace is1{range(10)};
-
-        IndexSpace is2{is1, range(0, 4)};
-        IndexSpace is3{is1, range(4, is1.size())};
-
-        IndexSpace is4{is2, range(0, 1)};
-        IndexSpace is5{is2, range(1, is2.size())};
-
-        IndexSpace is6{{is4, is5, is3}};
-
-        IndexSpace is7{range(20)};
-
-        IndexSpace is8{is7, range(0, 12)};
-        IndexSpace is9{is7, range(12, is7.size())};
-
-        IndexSpace is10{{is8, is9}};
-
-        TiledIndexSpace tis6{is6}, tis10{is10};
-        Tensor T{tis6, tis10};
-    }
-
-    {
-        // Vector with odd number elements from one space and even number
-        // elements from another
-        IndexSpace is1{range(0, 10, 2)};
-        IndexSpace is2{range(1, 10, 2)};
-        IndexSpace is{{is1, is2}};
-        TiledIndexSpace tis{is};
-        Tensor T{tis};
-    }
-
-    {
-        // Matrix with odd rows from one space and even from another
-        IndexSpace is1{range(0, 10, 2)};
-        IndexSpace is2{range(1, 10, 2)};
-        IndexSpace is3{{is1, is2}};
-
-        IndexSpace is4{range(20)};
-
-        TiledIndexSpace tis3{is3}, tis4{is4};
-        Tensor T{tis3, tis4};
-    }
-}
-#endif
-
 TEST_CASE("Spin Tensor Construction") {
     using T = double;
     IndexSpace SpinIS{range(0, 20),
@@ -452,37 +138,7 @@ TEST_CASE("Spin Tensor Construction") {
         failed = true;
     }
     REQUIRE(!failed);
-#if 0
-    failed = false;
-    try {
-        IndexLabelVec t_lbls{k, l};
-        Tensor<T> tensor{t_lbls, spin_mask_2D};
-    } catch(const std::string& e) {
-        std::cerr << e << '\n';
-        failed = true;
-    }
-    REQUIRE(failed);
 
-    failed = false;
-    try {
-        TiledIndexSpaceVec t_spaces{TIS, SpinTIS};
-        Tensor<T> tensor{t_spaces, spin_mask_2D};
-    } catch(const std::string& e) {
-        std::cerr << e << '\n';
-        failed = true;
-    }
-    REQUIRE(failed);
-
-    failed = false;
-    try {
-        IndexLabelVec t_lbls{i, k};
-        Tensor<T> tensor{t_lbls, spin_mask_2D};
-    } catch(const std::string& e) {
-        std::cerr << e << '\n';
-        failed = true;
-    }
-    REQUIRE(failed);
-#endif
     {
         REQUIRE((SpinTIS.spin(0) == Spin{1}));
         REQUIRE((SpinTIS.spin(1) == Spin{2}));
@@ -644,13 +300,11 @@ TEST_CASE("Spin Tensor Construction") {
     failed = false;
     try {
         auto lambda = [&](const IndexVector& blockid, span<T> buff) {
-            for (size_t i = 0; i < buff.size(); i++) {
-                buff[i] = 42;
-            }
+            for(size_t i = 0; i < buff.size(); i++) { buff[i] = 42; }
         };
         TiledIndexSpaceVec t_spaces{TIS, TIS};
         Tensor<T> t{t_spaces, lambda};
-        
+
         auto lt = t();
         for(auto it : t.loop_nest()) {
             auto blockid   = internal::translate_blockid(it, lt);
@@ -671,22 +325,18 @@ TEST_CASE("Spin Tensor Construction") {
     failed = false;
     try {
         auto lambda = [](const IndexVector& blockid, span<T> buff) {
-            for (size_t i = 0; i < buff.size(); i++) {
-                buff[i] = 42;
-            }
+            for(size_t i = 0; i < buff.size(); i++) { buff[i] = 42; }
         };
         // TiledIndexSpaceVec t_spaces{TIS, TIS};
         Tensor<T> S{{TIS, TIS}, lambda};
         Tensor<T> T1{{TIS, TIS}};
-        
+
         T1.allocate(ec);
 
-        Scheduler{ec}
-            (T1() = 0)
-            (T1() += 2 * S()).execute();
-        
+        Scheduler{ec}(T1() = 0)(T1() += 2 * S()).execute();
+
         check_value(T1, (T)84);
-        
+
     } catch(const std::string& e) {
         std::cerr << e << std::endl;
         failed = true;
@@ -695,55 +345,54 @@ TEST_CASE("Spin Tensor Construction") {
 
     failed = false;
     try {
-    
         Tensor<T> S{{TIS, TIS}, lambda_function};
         Tensor<T> T1{{TIS, TIS}};
-        
+
         T1.allocate(ec);
 
-        Scheduler{ec}
-            (T1() = 0)
-            (T1() += 2 * S()).execute();
-        
+        Scheduler{ec}(T1() = 0)(T1() += 2 * S()).execute();
+
         check_value(T1, (T)84);
-        
+
     } catch(const std::string& e) {
         std::cerr << e << std::endl;
         failed = true;
     }
     REQUIRE(!failed);
-    
-    failed=false;
+
+    failed = false;
     try {
         std::vector<Tensor<T>> x1(5);
         std::vector<Tensor<T>> x2(5);
-        for (int i =0;i<5;i++){
-           x1[i] = Tensor<T>{TIS,TIS};
-           x2[i] = Tensor<T>{TIS,TIS};
-           Tensor<T>::allocate(ec,x1[i],x2[i]);
+        for(int i = 0; i < 5; i++) {
+            x1[i] = Tensor<T>{TIS, TIS};
+            x2[i] = Tensor<T>{TIS, TIS};
+            Tensor<T>::allocate(ec, x1[i], x2[i]);
         }
-            
-        auto deallocate_vtensors = [&](auto&& ...vecx){
-                //(std::for_each(vecx.begin(), vecx.end(), std::mem_fun(&Tensor<T>::deallocate)), ...);
-                //(std::for_each(vecx.begin(), vecx.end(), Tensor<T>::deallocate), ...);
+
+        auto deallocate_vtensors = [&](auto&&... vecx) {
+            //(std::for_each(vecx.begin(), vecx.end(),
+            // std::mem_fun(&Tensor<T>::deallocate)), ...);
+            //(std::for_each(vecx.begin(), vecx.end(), Tensor<T>::deallocate),
+            //...);
         };
-        deallocate_vtensors(x1,x2); 
+        deallocate_vtensors(x1, x2);
     } catch(const std::string& e) {
         std::cerr << e << std::endl;
         failed = true;
-    }    
+    }
     REQUIRE(!failed);
 
     failed = false;
-    try{
-        IndexSpace MO_IS{range(0,7)};
-        TiledIndexSpace MO{MO_IS, {1,1,3,1,1}};
+    try {
+        IndexSpace MO_IS{range(0, 7)};
+        TiledIndexSpace MO{MO_IS, {1, 1, 3, 1, 1}};
 
-        IndexSpace MO_IS2{range(0,7)};
-        TiledIndexSpace MO2{MO_IS2, {1,1,3,1,1}};
+        IndexSpace MO_IS2{range(0, 7)};
+        TiledIndexSpace MO2{MO_IS2, {1, 1, 3, 1, 1}};
 
-        Tensor<T> pT{MO,MO};
-        Tensor<T> pV{MO2,MO2};
+        Tensor<T> pT{MO, MO};
+        Tensor<T> pV{MO2, MO2};
 
         pT.allocate(ec);
         pV.allocate(ec);
@@ -754,71 +403,102 @@ TEST_CASE("Spin Tensor Construction") {
 
         auto h_tis = H.tiled_index_spaces();
 
-        Scheduler{ec}
-            (H("mu", "nu") = pT("mu", "nu"))
-            (H("mu", "nu") += pV("mu", "nu"))
-            .execute();
+        Scheduler{ec}(H("mu", "nu") = pT("mu", "nu"))(H("mu", "nu") +=
+                                                      pV("mu", "nu"))
+          .execute();
 
     } catch(const std::string& e) {
         std::cerr << e << std::endl;
         failed = true;
     }
-    REQUIRE(failed);
+    REQUIRE(!failed);
 
-    failed = false; 
+    failed = false;
     try {
         IndexSpace IS{range(10)};
-        TiledIndexSpace TIS{IS,2};
+        TiledIndexSpace TIS{IS, 2};
 
         Tensor<T> A{TIS, TIS};
         auto ec = make_execution_context();
         A.allocate(&ec);
-    }
-    catch (const std::string& e) {
+    } catch(const std::string& e) {
         std::cerr << e << std::endl;
         failed = true;
     }
     REQUIRE(!failed);
 
-
     failed = false;
     try {
         IndexSpace AO_IS{range(10)};
-        TiledIndexSpace AO{AO_IS,2};
+        TiledIndexSpace AO{AO_IS, 2};
         IndexSpace MO_IS{range(10)};
-        TiledIndexSpace MO{MO_IS,2};
+        TiledIndexSpace MO{MO_IS, 2};
 
         Tensor<T> C{AO, MO};
         auto ec_temp = make_execution_context();
         C.allocate(&ec_temp);
         // Scheduler{&ec}.allocate(C)
         //     (C() = 42.0).execute();
-        
 
         const auto AOs = C.tiled_index_spaces()[0];
         const auto MOs = C.tiled_index_spaces()[1];
-        auto [mu, nu] = AOs.labels<2>("all");
+        auto [mu, nu]  = AOs.labels<2>("all");
 
-        //TODO: Take the slice of C that is for the occupied orbitals
-        auto [p]  = MOs.labels<1>("all");
+        // TODO: Take the slice of C that is for the occupied orbitals
+        auto [p] = MOs.labels<1>("all");
         Tensor<T> rho{AOs, AOs};
 
         tamm::ProcGroup pg{GA_MPI_Comm()};
-        auto *pMM = tamm::MemoryManagerLocal::create_coll(pg);
+        auto* pMM = tamm::MemoryManagerLocal::create_coll(pg);
         tamm::Distribution_NW dist;
         tamm::ExecutionContext ec(pg, &dist, pMM);
         tamm::Scheduler sch{&ec};
 
-        sch.allocate(rho)
-        (rho() = 0)
-        (rho(mu, nu) += C(mu, p) * C(nu, p)).execute();
-        
-    }
-    catch (const std::string& e) {
+        sch.allocate(rho)(rho() = 0)(rho(mu, nu) += C(mu, p) * C(nu, p))
+          .execute();
+
+    } catch(const std::string& e) {
         std::cerr << e << std::endl;
         failed = true;
     }
     REQUIRE(!failed);
+}
+
+TEST_CASE("Hash Based Equality and Compatibility Check") {
+    
+
+    IndexSpace is1{range(0, 20),
+                   {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
+    IndexSpace is2{range(0, 10)};
+    IndexSpace is1_occ = is1("occ");
+
+    TiledIndexSpace tis1{is1};
+    TiledIndexSpace tis2{is2};
+    TiledIndexSpace tis3{is1_occ};
+    TiledIndexSpace sub_tis1{tis1, range(0, 10)};
+
+    REQUIRE(tis2 == tis3);
+    REQUIRE(tis2 == tis1("occ"));
+    REQUIRE(tis3 == tis1("occ"));
+    REQUIRE(tis1 != tis2);
+    REQUIRE(tis1 != tis3);
+    REQUIRE(tis2 != tis1("virt"));
+    REQUIRE(tis3 != tis1("virt"));
+
+    // sub-TIS vs TIS from same IS
+    REQUIRE(sub_tis1 == tis2);
+    REQUIRE(sub_tis1 == tis3);
+    REQUIRE(sub_tis1 == tis1("occ"));
+    REQUIRE(sub_tis1 != tis1);
+    REQUIRE(sub_tis1 != tis1("virt"));
+
+
+    REQUIRE(sub_tis1.is_compatible_with(tis1));
+    REQUIRE(sub_tis1.is_compatible_with(tis1("occ")));
+    REQUIRE(sub_tis1.is_compatible_with(tis2));
+    REQUIRE(sub_tis1.is_compatible_with(tis3));
+    REQUIRE(!sub_tis1.is_compatible_with(tis1("virt")));
+    
 }
 
 int main(int argc, char* argv[]) {

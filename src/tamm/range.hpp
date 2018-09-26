@@ -215,4 +215,23 @@ using AttributeToRangeMap = std::map<AttributeType, std::vector<Range>>;
 
 } // namespace tamm
 
+
+namespace std {
+template<>
+struct hash<tamm::Range> {
+    typedef tamm::Range argument_type;
+    typedef std::size_t result_type;
+    result_type operator()(argument_type const& range) const noexcept {
+        using tamm::internal::hash_combine;
+
+        result_type result = (range.hi() - range.lo()) / range.step();
+        hash_combine(result, range.lo());
+        hash_combine(result, range.hi());
+        hash_combine(result, range.step());
+
+        return result;
+    }
+};
+}
+
 #endif // TAMM_RANGE_HPP_

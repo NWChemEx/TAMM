@@ -282,7 +282,7 @@ public:
      * @return true if this index space is idential to @param rhs
      */
     bool is_identical(const IndexSpace& rhs) const {
-        return impl_ == rhs.impl_;
+        return (hash_value_ == rhs.hash());
     }
 
     /**
@@ -316,6 +316,10 @@ public:
         return -1;
     }
 
+    size_t hash() const {
+        return hash_value_;
+    }
+
     // Comparison operators
     friend bool operator==(const IndexSpace& lhs, const IndexSpace& rhs);
     friend bool operator<(const IndexSpace& lhs, const IndexSpace& rhs);
@@ -326,6 +330,7 @@ public:
 
 protected:
     std::shared_ptr<IndexSpaceInterface> impl_;
+    size_t hash_value_;
 }; // class IndexSpace
 
 } // namespace tamm

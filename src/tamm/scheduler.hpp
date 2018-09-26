@@ -151,8 +151,11 @@ public:
     }
 
     void execute() {
-        for(auto& op : ops_) { op->execute(ec()->pg()); }
-        ops_.clear();
+        // for(auto& op : ops_) { op->execute(ec()->pg()); }
+        for(size_t i = start_idx_; i < ops_.size(); i++){
+            ops_[i]->execute(ec()->pg());
+            start_idx_++;
+        }
     }
 
     template<typename Func, typename... Args>
@@ -199,6 +202,7 @@ private:
     // MemoryManager* default_memory_manager_;
     // ProcGroup pg_;
     std::vector<std::shared_ptr<Op>> ops_;
+    size_t start_idx_ = 0;
     // std::vector<TensorHolder> tensors_;
     // std::vector<TensorHolder> live_in_tensors_;
     // std::vector<TensorHolder> live_out_tensors_;

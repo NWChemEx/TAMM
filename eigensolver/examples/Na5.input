@@ -1,0 +1,9 @@
+hmatrix /project/projectdirs/m1027/Matrix/CHB/HL_Na5.chb
+smatrix /project/projectdirs/m1027/Matrix/CHB/SL_Na5.chb
+logfile Na5
+nev     100
+nshifts 10
+maxiter 5
+maxscf  3
+maxlan  20
+tol     1e-6

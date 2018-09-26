@@ -1,0 +1,8 @@
+MKLROOT = /opt/intel/compilers_and_libraries_2018/linux/mkl
+MKL = -Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_intel_thread.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group -liomp5 -lpthread -lm -ldl
+
+CXX = CC
+CXXFLAGS = -O3 -std=c++11 -DEIGEN_USE_MKL_ALL -DUSE_MPI -I ../include -I /global/common/cori/software/eigen3/3.3.3/include/eigen3 -I${MKLROOT}/include -openmp -axMIC-AVX512
+
+.cpp.o: 
+	${CXX} ${CXXFLAGS} -c $< 

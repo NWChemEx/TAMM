@@ -1,0 +1,21 @@
+1. make appropriate changes to make.inc to define BLAS/LAPACK or MKL library, Eigen, C++ compiler (with MPI)
+
+
+2. cd into src, and type 
+make lib
+
+3. cd into examples, and type 
+
+make runscf1
+
+or 
+
+make runslicing
+
+4. To run the examples
+
+mpirun -np 4 ./runscf1 Si2.input
+
+or 
+
+mpirun -np 4 ./runslicing Si2.input

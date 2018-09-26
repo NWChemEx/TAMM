@@ -1,0 +1,9 @@
+hmatrix HL_SWNT66.chb
+smatrix SL_SWNT66.chb
+logfile SWNT66
+nev     200
+nshifts 20
+maxiter 5
+maxscf  2
+maxlan  20
+tol     1e-6

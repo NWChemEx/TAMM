@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <map>
 #include <vector>
+#include <functional>
 
 namespace tamm {
 /**
@@ -111,6 +112,51 @@ protected:
 }; // Attribute
 using SpinAttribute    = Attribute<Spin>;
 using SpatialAttribute = Attribute<Spatial>;
+
 } // namespace tamm
+
+namespace std {
+template <>
+struct hash<tamm::SpinAttribute> {
+    typedef tamm::SpinAttribute argument_type;
+    typedef std::size_t result_type;
+    result_type operator()(argument_type const& attribute) const noexcept {
+        using tamm::internal::hash_combine;
+        const auto& attr_map = attribute.get_map();
+        result_type result = attr_map.size();
+        
+        for(const auto& att_ranges : attr_map) {
+            hash_combine(result, att_ranges.first.value());
+            hash_combine(result, att_ranges.second.size());
+            for(const auto& range : att_ranges.second) {
+                hash_combine(result, range);
+            }
+        }
+
+        return result;
+    }
+};
+
+template <>
+struct hash<tamm::SpatialAttribute> {
+    typedef tamm::SpatialAttribute argument_type;
+    typedef std::size_t result_type;
+    result_type operator()(argument_type const& attribute) const noexcept {
+        using tamm::internal::hash_combine;
+        const auto& attr_map = attribute.get_map();
+        result_type result = attr_map.size();
+        
+        for(const auto& att_ranges : attr_map) {
+            hash_combine(result, att_ranges.first.value());
+            hash_combine(result, att_ranges.second.size());
+            for(const auto& range : att_ranges.second) {
+                hash_combine(result, range);
+            }
+        }
+
+        return result;
+    }
+};
+} // namespace std
 
 #endif // TAMM_ATTRIBUTE_HPP_

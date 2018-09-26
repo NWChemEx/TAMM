@@ -152,6 +152,7 @@ public:
 
     void execute() {
         for(auto& op : ops_) { op->execute(ec()->pg()); }
+        ops_.clear();
     }
 
     template<typename Func, typename... Args>

@@ -33,9 +33,10 @@ public:
       root_tiled_info_{tiled_info_},
       parent_tis_{nullptr} {
         EXPECTS(input_tile_size > 0);
-
+        compute_hash();
         // construct tiling for named subspaces
         tile_named_subspaces(is);
+        
     }
 
     /**
@@ -52,14 +53,16 @@ public:
       root_tiled_info_{tiled_info_},
       parent_tis_{nullptr} {
         for(const auto& in_tsize : input_tile_sizes) { EXPECTS(in_tsize > 0); }
+        compute_hash();
+        
         // construct tiling for named subspaces
-        tile_named_subspaces(is);
+        tile_named_subspaces(is);   
     }
 
     /**
      * @brief Construct a new sub TiledIndexSpace object from
      * a sub-space of a reference TiledIndexSpace
-     *
+     *=
      * @param [in] t_is reference TiledIndexSpace
      * @param [in] range Range of the reference TiledIndexSpace
      */
@@ -76,21 +79,35 @@ public:
     TiledIndexSpace(const TiledIndexSpace& t_is, const IndexVector& indices) :
       root_tiled_info_{t_is.root_tiled_info_},
       parent_tis_{std::make_shared<TiledIndexSpace>(t_is)} {
+        EXPECTS(parent_tis_ != nullptr);
         IndexVector new_indices, new_offsets;
 
-        for(const auto& idx : indices) {
-            new_indices.push_back(
-              t_is.info_translate(idx, (*root_tiled_info_.lock())));
-        }
-
+        IndexVector is_indices;
+        auto root_tis = parent_tis_;
+        while(root_tis->parent_tis_ != nullptr){
+            root_tis = root_tis->parent_tis_;
+        } 
+        
         new_offsets.push_back(0);
         for(const auto& idx : indices) {
+            auto new_idx = t_is.info_translate(idx, (*root_tiled_info_.lock()));
+            new_indices.push_back(new_idx);
             new_offsets.push_back(new_offsets.back() +
-                                  root_tiled_info_.lock()->tile_size(idx));
+                                  root_tiled_info_.lock()->tile_size(new_idx));
+
+            for (auto i = root_tis->block_begin(new_idx); i != root_tis->block_end(new_idx); i++) {
+                is_indices.push_back((*i));
+            }
         }
 
+        IndexSpace sub_is{root_tis->index_space(), is_indices};
+
         tiled_info_ = std::make_shared<TiledIndexSpaceInfo>(
-          (*t_is.root_tiled_info_.lock()), new_offsets, new_indices);
+          (*t_is.root_tiled_info_.lock()), sub_is, new_offsets, new_indices);
+        // tiled_info_ = std::make_shared<TiledIndexSpaceInfo>(
+        //   (*t_is.root_tiled_info_.lock()), new_offsets, new_indices);
+        
+        compute_hash();
     }
 
     /**
@@ -105,7 +122,9 @@ public:
       tiled_info_{std::make_shared<TiledIndexSpace::TiledIndexSpaceInfo>(
         (*t_is.tiled_info_), dep_map)},
       root_tiled_info_{t_is.root_tiled_info_},
-      parent_tis_{std::make_shared<TiledIndexSpace>(t_is)} {}
+      parent_tis_{std::make_shared<TiledIndexSpace>(t_is)} {
+          compute_hash();
+      }
 
     // /**
     //  * @brief Construct a new TiledIndexSpace object from a reference
@@ -221,7 +240,7 @@ public:
      * TiledIndexSpaces
      */
     bool is_identical(const TiledIndexSpace& rhs) const {
-        return (tiled_info_ == rhs.tiled_info_);
+        return (hash_value_ == rhs.hash());
     }
 
     /**
@@ -250,7 +269,7 @@ public:
      * TiledIndexSpaces
      */
     bool is_compatible_with(const TiledIndexSpace& tis) const {
-        return (this->root_tiled_info_.lock() == tis.root_tiled_info_.lock()) &&
+        return /* (this->root_tiled_info_.lock() == tis.root_tiled_info_.lock()) && */
                (is_subset_of(tis));
     }
 
@@ -431,6 +450,10 @@ public:
      */
     const bool is_dependent() const { return tiled_info_->is_.is_dependent(); }
 
+    size_t hash() const { 
+        return hash_value_;
+    }
+
     /**
      * @brief Equality comparison operator
      *
@@ -580,6 +603,22 @@ protected:
                             const IndexVector& offsets,
                             const IndexVector& indices) :
           is_{root.is_},
+          input_tile_size_{root.input_tile_size_},
+          input_tile_sizes_{root.input_tile_sizes_},
+          tile_offsets_{offsets},
+          ref_indices_{indices} {
+            for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
+                simple_vec_.push_back(i);
+            }
+            compute_max_num_tiles();
+            validate();
+        }
+
+        TiledIndexSpaceInfo(const TiledIndexSpaceInfo& root,
+                            const IndexSpace& is,
+                            const IndexVector& offsets,
+                            const IndexVector& indices) :
+          is_{is},
           input_tile_size_{root.input_tile_size_},
           input_tile_sizes_{root.input_tile_sizes_},
           tile_offsets_{offsets},
@@ -812,6 +851,46 @@ protected:
                 EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
             }
         }
+
+        size_t hash() {
+            // get hash of IndexSpace as seed
+            size_t result = is_.hash();
+
+            // combine hash with tile size(s)
+            internal::hash_combine(result, input_tile_size_);
+            // if there are mutliple tiles
+            if(input_tile_sizes_.size() > 0) {
+                // combine hash with number of tile sizes 
+                internal::hash_combine(result, input_tile_sizes_.size());
+                // combine hash with each tile size
+                for(const auto& tile : input_tile_sizes_) {
+                    internal::hash_combine(result, tile);
+                }
+            }
+
+            // combine hash with reference indices
+            // for(const auto& idx : ref_indices_) {
+            //     internal::hash_combine(result, idx);
+            // }
+
+            // if it is a dependent TiledIndexSpace
+            if(!tiled_dep_map_.empty()) {
+                for(const auto& iv_is : tiled_dep_map_) {
+                    const auto& iv = iv_is.first;
+                    const auto& is = iv_is.second;
+                    // combine hash with size of index vector
+                    internal::hash_combine(result, iv.size());
+                    // combine hash with each key element
+                    for(const auto& idx : iv) {
+                        internal::hash_combine(result, idx);
+                    }
+                    // combine hash with dependent index space hash
+                    internal::hash_combine(result, is.hash());
+                }
+            }
+
+            return result;
+        }
     }; // struct TiledIndexSpaceInfo
 
     std::shared_ptr<TiledIndexSpaceInfo>
@@ -822,6 +901,7 @@ protected:
     std::shared_ptr<TiledIndexSpace>
       parent_tis_; /**< Weak pointer to the parent
                     TiledIndexSpace object*/
+    size_t hash_value_;
 
     /**
      * @brief Return the corresponding tile position of an index for a give
@@ -874,6 +954,10 @@ protected:
         tiled_info_ = tiled_info;
     }
 
+    void compute_hash() {
+        hash_value_ = tiled_info_->hash();
+    }
+
     /**
      * @brief Method for tiling all the named subspaces in an IndexSpace
      *
@@ -912,10 +996,11 @@ protected:
             }
             TiledIndexSpace tempTIS{};
             tempTIS.set_tiled_info(std::make_shared<TiledIndexSpaceInfo>(
-              (*root_tiled_info_.lock()), new_offsets, indices));
+              (*root_tiled_info_.lock()), named_is, new_offsets, indices));
             tempTIS.set_root(tiled_info_);
             tempTIS.set_parent(std::make_shared<TiledIndexSpace>(*this));
-
+            tempTIS.compute_hash();
+            
             tiled_info_->tiled_named_subspaces_.insert(
               {str_subis.first, tempTIS});
         }
@@ -1193,7 +1278,6 @@ public:
      */
     const TileLabelElement& primary_label() const {
         return primary_label_;
-        ;
     }
 
     /**

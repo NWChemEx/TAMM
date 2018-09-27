@@ -33,6 +33,13 @@ TEST_CASE("HartreeFock testcase") {
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+    // MPI_Barrier(MPI_COMM_WORLD);
+    //GA_Sync();
+    int mpi_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+    if(mpi_rank == 0)
     std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
 }
 

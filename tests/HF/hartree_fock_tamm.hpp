@@ -1023,6 +1023,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         // const std::chrono::duration<double> time_elapsed =
         // tstop - tstart;
 
+        GA_Sync();
+
     }
     while(((fabs(ediff) > conv) || (fabs(rmsd) > conv)))
         ;

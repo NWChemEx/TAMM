@@ -6,10 +6,10 @@ using Eigen::MatrixXd;
 //using Eigen::LDLT;
 //using Eigen::LLT;
 
-#ifdef USE_MPI
-MatrixXd sisubit(MPI_Comm comm, const MatrixXd &HS, const MatrixXd &S, MatrixXd &X0, int *ipiv, int maxiter)
-#else
+#ifdef NO_MPI
 MatrixXd sisubit(const MatrixXd &HS, const MatrixXd &S, MatrixXd &X0, int *ipiv, int maxiter)
+#else
+MatrixXd sisubit(MPI_Comm comm, const MatrixXd &HS, const MatrixXd &S, MatrixXd &X0, int *ipiv, int maxiter)
 #endif
 {
    const double *hsdata = HS.data();

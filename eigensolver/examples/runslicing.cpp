@@ -11,7 +11,7 @@ std::ofstream logOFS;
 
 int main(int argc, char *argv[]) {
 
-   int n, nev, nshifts, maxcnt, maxiter, maxscf;
+   int n, nev, nshifts, maxcnt, maxiter, maxscf, nevf;
    int args[6];
    char logfname[200];
    VectorXd shifts;
@@ -150,13 +150,15 @@ int main(int argc, char *argv[]) {
       // needed by SCF
       evals.resize(nev);
       resnrms.resize(nev);
-      //evecs.resize(n,nev);
+      evecs.resize(n,nev);
     
-      collectevs(nshifts, SPs, evals, resnrms); 
-      if (rank == 0) print_results(resultsfile,iter,evals,resnrms);
+      nevf = collectevs(comm, nshifts, SPs, evals, evecs, resnrms); 
 
-
-
+      if (rank == 0) {
+         VectorXd evals1 = evals.head(nevf);
+         VectorXd resnrm1 = resnrms.head(nevf);
+         print_results(resultsfile,iter,evals1,resnrm1);
+      }
 #ifdef KMEANS
       if (iter < maxscf-1) {
          kmeans(shifts,evals);

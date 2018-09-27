@@ -7,18 +7,18 @@
 
 using Eigen::Map;
 
-void hsdiag(MPI_Comm comm, int iterscf, Matrix &H, Matrix &S, int nev, int nshifts, Matrix &eps, Matrix &evecs) {
+void hsdiag(MPI_Comm comm, int iterscf, Matrix &H, Matrix &S, int nev, Matrix &eps, Matrix &evecs) {
    int rank;
    std::ofstream resultsfile;
    MPI_Comm_rank(comm, &rank);
    double t1 = MPI_Wtime();
 
-   VectorXd resnrms;
 
    if (rank == 0) cout << "running spectrum slicing" << endl;
    if (rank == 0) resultsfile.open("results.txt");
 
    int n = H.rows();
+   int nshifts = std::ceil(nev/10.0);
 
    VectorXd shifts;
    int subdim, maxcnt = 0;
@@ -47,8 +47,6 @@ void hsdiag(MPI_Comm comm, int iterscf, Matrix &H, Matrix &S, int nev, int nshif
 
    sync_slices(comm, &nshifts, SPs);
 
-   inds = new VectorXi[nshifts];
-
    // returns the indices of the selcted eigenvalues in inds
    // and the total number of selected eigenvalues in nev
    evalidate(comm, SPs, nshifts, n, nev);
@@ -58,27 +56,29 @@ void hsdiag(MPI_Comm comm, int iterscf, Matrix &H, Matrix &S, int nev, int nshif
    // needed by SCF
    VectorXd evals;
    evals.resize(nev);
+   MatrixXd evecmat;
+   evecmat.resize(n,nev);
+   VectorXd resnrms;
    resnrms.resize(nev);
-   //evecs.resize(n,nev);
-    
-   collectevs(nshifts, SPs, evals, resnrms); 
-   if (rank == 0) print_results(resultsfile,0,evals,resnrms);
+  
+   // nevf maybe less than nev
+   int nevf = collectevs(comm, nshifts, SPs, evals, evecmat, resnrms); 
+ 
+   if (rank == 0) {
+      VectorXd evalsf = evals.head(nevf);
+      VectorXd resnrmf = resnrms.head(nevf);
+      print_results(resultsfile,0,evalsf,resnrmf);
+   }
 
    MPI_Barrier(comm);
 
    if (rank == 0) resultsfile.close();
 
-   // delete slices;
-   // delete inds;
-
    // convert evals to a Matrix
-   Map<Matrix> evalmat(evals.data(),evals.size(),1); 
+   Map<Matrix> evalmat(evals.data(),nevf,1); 
    eps = evalmat;
+   evecs = evecmat.block(0,0,n,nevf);
 
    double t2 = MPI_Wtime();
    if (rank == 0) cout << "ELASPSED TIME: " << t2-t1 << endl;
-/*
-   MPI_Finalize();
-   exit(0);
-*/
 }

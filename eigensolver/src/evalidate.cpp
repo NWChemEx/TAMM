@@ -1,24 +1,18 @@
 #include "evalidate.hpp"
 
 void evalidate(MPI_Comm comm, SpectralProbe *SPs, int nslices, int n, int nev) {
-   int nwant, spnev, nvalid, accleft, tvalid, iprev;
+   int nwant, spnev, nvalid, accleft, tselect, iprev;
    double midpt;
 
    VectorXd sliceevals, sliceresnrms, tempresnrms;
-   VectorXi lengths = VectorXi::Zero(nslices);
-   VectorXi originds, tempvec;
-/*
-   for (int ip = 0; ip < nslices; ip++) {
-      inds[ip].resize(nev);
-   }
-*/
+   VectorXi originds;
 
    // initialize each probe's valid index array
    for (int ip = 0; ip < nslices; ip++)  {
       spnev = SPs[ip].evals.size();
-      (SPs[ip].valind).resize(spnev);
-      (SPs[ip].valind).setZero();
-      SPs[ip].nvalid = 0;
+      (SPs[ip].selind).resize(spnev);
+      (SPs[ip].selind).setZero();
+      SPs[ip].nselect = 0;
    }
 
    for (int ip = 0; ip < nslices; ip++) {
@@ -27,7 +21,7 @@ void evalidate(MPI_Comm comm, SpectralProbe *SPs, int nslices, int n, int nev) {
          logOFS << "validating the leftmost slice" << endl;
          nwant = SPs[ip].nev_below_shift; // inertia count for the interval (-inf,shifts(0))
          spnev = SPs[ip].evals.size(); // number of eigenvalues within the leftmost probe 
-         nvalid = 0; tvalid = 0;
+         nvalid = 0; tselect = 0;
 
          sliceevals.resize(spnev);
          sliceevals.setZero();
@@ -38,7 +32,6 @@ void evalidate(MPI_Comm comm, SpectralProbe *SPs, int nslices, int n, int nev) {
 
          // pick out the approximate eigenvalues to the left of the shift
          // from the leftmost probe; save the corresponding residuals
-         logOFS << "  validating eigenvalues" << endl;
          for (int j = 0; j < SPs[ip].evals.size(); j++) {
             if (SPs[ip].evals(j) < SPs[ip].shift) {
                sliceevals(nvalid) = SPs[ip].evals(j);
@@ -58,18 +51,16 @@ void evalidate(MPI_Comm comm, SpectralProbe *SPs, int nslices, int n, int nev) {
          // copy the original indices of the selected eigenvalues in 
          // the leftmost probe 
          for (int j = 0; j < min(nwant,nvalid); j++) {
-//chao            inds[ip](lengths(ip)) = originds(resinds[j]);
-//
-            SPs[ip].valind(SPs[ip].nvalid) = originds(resinds[j]); 
-            logOFS << "n: " << tvalid << ", slice: " << 0 << ", ind: " << originds(resinds[j]) << ", eval: " << sliceevals[resinds[j]] << ", resnrm: " << sliceresnrms[resinds[j]] << endl;
-            tvalid++;
-            lengths(ip)++;
-            SPs[ip].nvalid++;
+            SPs[ip].selind(SPs[ip].nselect) = originds(resinds[j]); 
+            logOFS << "n: " << tselect << ", probe: " << ip << ", ind: " << originds(resinds[j]) << ", eval: " << sliceevals[resinds[j]] << ", resnrm: " << sliceresnrms[resinds[j]] << endl;
+            tselect++;
+            SPs[ip].nselect++;
          }
       }
       else {
          // all other probes
          // expected number of eigenvalues between shifts(iprev) and shifts(ip) (inertial count
+         logOFS << "validating other slices" << endl;
          iprev = SPs[ip].prev;
          nwant = SPs[ip].nev_below_shift - SPs[iprev].nev_below_shift;
          // the total number of eigenvalues from targest probe i-1 and i
@@ -94,7 +85,7 @@ void evalidate(MPI_Comm comm, SpectralProbe *SPs, int nslices, int n, int nev) {
             }
          }
          // select eigenvalues within the interval [shift(i-1),shifts(i)]
-         // from the target slice i
+         // from probe ip
          for (int j = 0; j < SPs[ip].evals.size(); j++) {
             if (SPs[ip].evals(j) >= midpt && SPs[ip].evals(j) < SPs[ip].shift) {
                sliceevals(nvalid) = SPs[ip].evals(j);
@@ -107,69 +98,63 @@ void evalidate(MPI_Comm comm, SpectralProbe *SPs, int nslices, int n, int nev) {
          logOFS << "### slice: " << ip << ", right shift: " << SPs[ip].shift << ", num in slice: " << nvalid << ", inertial count: " << nwant << std::endl;
 
          // sort the residual norms associated with the selected 
-         // eigenvalues and return the sorted indices
+         // eigenvalues and return the indices in the order of sorted
+         // residuals
          VectorXi resinds = sortinds(sliceresnrms.head(nvalid));
 
          // copy the eigenvectors associated with the converged eigenvalues 
          // back to target SPs to prepare the starting guess for 
          // the next SCF iteration
-         if (tvalid + min(nvalid,nwant) <= nev) { 
+         if (tselect + min(nvalid,nwant) <= nev) { 
             logOFS << scientific; 
             for (int j = 0; j < min(nvalid,nwant); j++) {
                if (resinds[j] < accleft) {
-//chao                  inds[iprev](lengths(iprev)) = originds(resinds[j]);
-                  (SPs[iprev]).valind(SPs[iprev].nvalid) = originds(resinds[j]);
-                  SPs[iprev].nvalid++;
-                  lengths(iprev)++;
-                  logOFS << "n: " << tvalid << ", slice: " << iprev << ", ind: " << originds(resinds[j]) << ", eval: " << sliceevals(resinds[j]) << ", resnrm: " << sliceresnrms[resinds[j]] << endl;
+                  (SPs[iprev]).selind(SPs[iprev].nselect) = originds(resinds[j]);
+                  SPs[iprev].nselect++;
+                  logOFS << "n: " << tselect << ", probe: " << iprev << ", ind: " << originds(resinds[j]) << ", eval: " << sliceevals(resinds[j]) << ", resnrm: " << sliceresnrms[resinds[j]] << endl;
                }
                else {
-//chao                  inds[ip](lengths(ip)) = originds(resinds[j]);  
-                  SPs[ip].valind(SPs[ip].nvalid) = originds(resinds[j]);  
-                  SPs[ip].nvalid++;
-                  lengths(ip)++;
-                  logOFS << "n: " << tvalid << ", slice: " << ip << ", ind: " << originds(resinds[j]) << ", eval: " << sliceevals[resinds[j]] << ", resnrm: " << sliceresnrms[resinds[j]] << endl;
+                  SPs[ip].selind(SPs[ip].nselect) = originds(resinds[j]);  
+                  SPs[ip].nselect++;
+                  logOFS << "n: " << tselect << ", probe: " << ip << ", ind: " << originds(resinds[j]) << ", eval: " << sliceevals[resinds[j]] << ", resnrm: " << sliceresnrms[resinds[j]] << endl;
                }
-               tvalid++;
+               tselect++;
             }
          }
          else {
+            // the last slice?
             /*for (int j = 0; j < nvalid; j++) {
             cout << "--- eval: " << sliceevals[j] << ", resnrm: " << sliceresnrms[j] << endl;
             }*/
             // look at the remaining eigenvalues and pick ones with
             // small residual norms?
-            VectorXi evalinds = sortinds(sliceevals.head(nvalid));
+            VectorXi eselinds = sortinds(sliceevals.head(nvalid));
             /*cout << "resinds: " << endl;
             cout << resinds << endl;
-            cout << "evalinds: " << endl;
-            cout << evalinds << endl;*/
+            cout << "eselinds: " << endl;
+            cout << eselinds << endl;*/
             int j = 0; 
             logOFS << scientific; 
             bool accept;
-            while (tvalid < nev && j < nvalid) {
+            while (tselect < nev && j < nvalid) {
                accept = false;
                for (int l = 0; l < min(nvalid,nwant); l++){
-                  if (evalinds[j] == resinds[l]) {
+                  if (eselinds[j] == resinds[l]) {
                      accept = true;
                   }
                }
                if (accept) {
-                  if (evalinds[j] < accleft) {
-//Chao                     inds[iprev](lengths(iprev)) = originds(evalinds[j]);
-                     SPs[iprev].valind(SPs[iprev].nvalid) = originds(evalinds[j]);
-                     SPs[iprev].nvalid++;
-                     lengths(iprev)++;
-                     logOFS << "n: " << tvalid << ", slice: " << iprev << ", ind: " << originds(evalinds[j]) << ", eval: " << sliceevals[evalinds[j]] << ", resnrm: " << sliceresnrms[evalinds[j]] << endl;
+                  if (eselinds[j] < accleft) {
+                     SPs[iprev].selind(SPs[iprev].nselect) = originds(eselinds[j]);
+                     SPs[iprev].nselect++;
+                     logOFS << "n: " << tselect << ", probe: " << iprev << ", ind: " << originds(eselinds[j]) << ", eval: " << sliceevals[eselinds[j]] << ", resnrm: " << sliceresnrms[eselinds[j]] << endl;
                   }
                   else {
-//                     inds[ip](lengths(ip)) = originds(evalinds[j]);  
-                     SPs[ip].valind(SPs[ip].nvalid) = originds(evalinds[j]);  
-                     SPs[ip].nvalid++;
-                     lengths(ip)++;
-                     logOFS << "n: " << tvalid << ", slice: " << ip << ", ind: " << originds(evalinds[j]) << ", eval: " << sliceevals[evalinds[j]] << ", resnrm: " << sliceresnrms[evalinds[j]] << endl;
+                     SPs[ip].selind(SPs[ip].nselect) = originds(eselinds[j]);  
+                     SPs[ip].nselect++;
+                     logOFS << "n: " << tselect << ", probe: " << ip << ", ind: " << originds(eselinds[j]) << ", eval: " << sliceevals[eselinds[j]] << ", resnrm: " << sliceresnrms[eselinds[j]] << endl;
                   }
-                  tvalid++;
+                  tselect++;
                }
                j++;
             }
@@ -177,12 +162,5 @@ void evalidate(MPI_Comm comm, SpectralProbe *SPs, int nslices, int n, int nev) {
          }
       } // end if (ip == 0)
    }  // end for ip
-/*
-   for (int i = 0; i < nslices; i++) {
-      tempvec.resize(lengths(i));
-      tempvec = inds[i].head(lengths(i));
-      inds[i] = tempvec;
-   }
-*/
 }
 

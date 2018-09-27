@@ -573,6 +573,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     auto rmsd          = 0.0;
     auto ediff         = 0.0;
     auto ehf           = 0.0;
+    auto is_conv       = true;
     //  Matrix C;
     //  Matrix F;
     
@@ -585,15 +586,12 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     std::vector<Matrix> diis_hist;
     std::vector<Matrix> fock_hist;
 
-    Tensor<TensorType> ehf_tamm{}, rmsd_tamm{};
     Tensor<TensorType> ehf_tmp{tAO, tAO};
+    Tensor<TensorType> ehf_tamm{}, rmsd_tamm{};
 
     Tensor<TensorType> F1{tAO, tAO};
-    Tensor<TensorType> F1_old{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, F1, F1_old,ehf_tmp);
-
     Tensor<TensorType> F1tmp{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, F1tmp, ehf_tamm, rmsd_tamm);
+    Tensor<TensorType>::allocate(ec, F1, F1tmp, ehf_tmp, ehf_tamm, rmsd_tamm);
 
     Tensor<TensorType> Sm12_tamm{tAO, tAO}; 
     Tensor<TensorType> Sp12_tamm{tAO, tAO};
@@ -1005,18 +1003,15 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         //    (rmsd_tamm() = rmsd).execute();
 
         if(ec->pg().rank() == 0) {
-            
-            // cout << "iter, ehf, ediff, rmsd = " << iter << ", " << ehf
-                // << ", " << ediff << ", " << rmsd << "\n";
             std::cout << std::setw(5) << iter << "  " << std::setw(14);
             std::cout << std::fixed << std::setprecision(10) << ehf;
             std::cout << ' ' << std::setw(16)  << ediff;
             std::cout << ' ' << std::setw(15)  << rmsd << ' ' << "\n";
+        }
 
-            if(iter > maxiter) {
-                std::cerr << "HF Does not converge!!!\n";
-                exit(0);
-            }
+        if(iter > maxiter) {                
+            is_conv = false;
+            break;
         }
                     
         // const auto tstop = std::chrono::high_resolution_clock::now();
@@ -1027,12 +1022,20 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     while(((fabs(ediff) > conv) || (fabs(rmsd) > conv)))
         ;
 
+    // GA_Sync(); 
     if(ec->pg().rank() == 0) {
         std::cout.precision(13);
-        printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
+        if (is_conv)
+            cout << "\n** Hartree-Fock energy = " << ehf + enuc << endl;
+        else {
+            cout << endl << std::string(50, '*') << endl;
+            cout << std::string(10, ' ') << 
+                    "ERROR: HF Does not converge!!!\n";
+            cout << std::string(50, '*') << endl;
+        }        
     }
 
-    Tensor<TensorType>::deallocate(H1, F1, F1_old, D_tamm, ehf_tmp, 
+    Tensor<TensorType>::deallocate(H1, F1, D_tamm, ehf_tmp, 
                     ehf_tamm, rmsd_tamm);
     Tensor<TensorType>::deallocate(F1tmp,Sm12_tamm, Sp12_tamm,
     D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
@@ -1041,184 +1044,163 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     delete ec;
 
     return std::make_tuple(ndocc, nao, ehf + enuc, shells);
+}
+
+void diis(Matrix& F, Matrix& err_mat, int iter, int max_hist, int ndiis,
+          std::vector<Matrix>& diis_hist, std::vector<Matrix>& fock_hist) {
+    using Vector =
+      Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+
+    const int N = F.rows();
+    // const int epos = ((ndiis-1) % max_hist) + 1;
+    int epos = ndiis - 1;
+    if(ndiis > max_hist) {
+        diis_hist.erase(diis_hist.begin());
+        fock_hist.erase(fock_hist.begin());
+    }
+    diis_hist.push_back(err_mat);
+    fock_hist.push_back(F);
+
+    // ----- Construct error metric -----
+    const int idim = std::min(ndiis, max_hist);
+    Matrix A       = Matrix::Zero(idim + 1, idim + 1);
+    Vector b       = Vector::Zero(idim + 1, 1);
+
+    for(int i = 0; i < idim; i++) {
+        for(int j = i; j < idim; j++) {
+            A(i, j) = (diis_hist[i].transpose() * diis_hist[j]).trace();
+        }
     }
 
-    void
-    diis(Matrix & F, Matrix & err_mat, int iter,
-            int max_hist, int ndiis, std::vector<Matrix>& diis_hist,
-            std::vector<Matrix>& fock_hist) {
-        using Vector = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic,
-                                        Eigen::RowMajor>;
-
-        const int N = F.rows();
-        // const int epos = ((ndiis-1) % max_hist) + 1;
-        int epos = ndiis - 1;
-        if(ndiis > max_hist) {
-            diis_hist.erase(diis_hist.begin());
-            fock_hist.erase(fock_hist.begin());
-        }
-        diis_hist.push_back(err_mat);
-        fock_hist.push_back(F);
-
-        // --------------------- Construct error metric
-        // -------------------------------
-        const int idim = std::min(ndiis, max_hist);
-        Matrix A       = Matrix::Zero(idim + 1, idim + 1);
-        Vector b       = Vector::Zero(idim + 1, 1);
-
-        for(int i = 0; i < idim; i++) {
-            for(int j = i; j < idim; j++) {
-                A(i, j) = (diis_hist[i].transpose() * diis_hist[j]).trace();
-            }
-        }
-
-        for(int i = 0; i < idim; i++) {
-            for(int j = i; j < idim; j++) { A(j, i) = A(i, j); }
-        }
-        for(int i = 0; i < idim; i++) {
-            A(i, idim) = -1.0;
-            A(idim, i) = -1.0;
-        }
-
-        b(idim, 0) = -1;
-
-        Vector x = A.lu().solve(b);
-
-        F.setZero();
-        for(int j = 0; j < idim; j++) { F += x(j, 0) * fock_hist[j]; }
-
-        // cout << "-----------iter:" << iter << "--------------\n";
-        // cout << err_mat << endl;
+    for(int i = 0; i < idim; i++) {
+        for(int j = i; j < idim; j++) { A(j, i) = A(i, j); }
+    }
+    for(int i = 0; i < idim; i++) {
+        A(i, idim) = -1.0;
+        A(idim, i) = -1.0;
     }
 
+    b(idim, 0) = -1;
 
+    Vector x = A.lu().solve(b);
 
-Matrix compute_2body_fock(const std::vector<libint2::Shell> &shells,
-                          const Matrix &D) {
+    F.setZero();
+    for(int j = 0; j < idim; j++) { F += x(j, 0) * fock_hist[j]; }
 
-  using libint2::Shell;
-  using libint2::Engine;
-  using libint2::Operator;
+    // cout << "-----------iter:" << iter << "--------------\n";
+    // cout << err_mat << endl;
+}
 
-  std::chrono::duration<double> time_elapsed = std::chrono::duration<double>::zero();
+Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
+                          const Matrix& D) {
+    using libint2::Shell;
+    using libint2::Engine;
+    using libint2::Operator;
 
-  const auto n = nbasis(shells);
-  Matrix G = Matrix::Zero(n, n);
+    std::chrono::duration<double> time_elapsed =
+      std::chrono::duration<double>::zero();
 
-  // construct the 2-electron repulsion integrals engine
-  Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
+    const auto n = nbasis(shells);
+    Matrix G     = Matrix::Zero(n, n);
 
-  auto shell2bf = map_shell_to_basis_function(shells);
+    // construct the 2-electron repulsion integrals engine
+    Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
 
-  const auto &buf = engine.results();
+    auto shell2bf = map_shell_to_basis_function(shells);
 
-  // The problem with the simple Fock builder is that permutational symmetries of the Fock,
-  // density, and two-electron integrals are not taken into account to reduce the cost.
-  // To make the simple Fock builder efficient we must rearrange our computation.
-  // The most expensive step in Fock matrix construction is the evaluation of 2-e integrals;
-  // hence we must minimize the number of computed integrals by taking advantage of their permutational
-  // symmetry. Due to the multiplicative and Hermitian nature of the Coulomb kernel (and realness
-  // of the Gaussians) the permutational symmetry of the 2-e ints is given by the following relations:
-  //
-  // (12|34) = (21|34) = (12|43) = (21|43) = (34|12) = (43|12) = (34|21) = (43|21)
-  //
-  // (here we use chemists' notation for the integrals, i.e in (ab|cd) a and b correspond to
-  // electron 1, and c and d -- to electron 2).
-  //
-  // It is easy to verify that the following set of nested loops produces a permutationally-unique
-  // set of integrals:
-  // foreach a = 0 .. n-1
-  //   foreach b = 0 .. a
-  //     foreach c = 0 .. a
-  //       foreach d = 0 .. (a == c ? b : c)
-  //         compute (ab|cd)
-  //
-  // The only complication is that we must compute integrals over shells. But it's not that complicated ...
-  //
-  // The real trick is figuring out to which matrix elements of the Fock matrix each permutationally-unique
-  // (ab|cd) contributes. STOP READING and try to figure it out yourself. (to check your answer see below)
+    const auto& buf = engine.results();
 
-  // loop over permutationally-unique set of shells
-  for (size_t s1 = 0; s1 != shells.size(); ++s1) {
+    // loop over permutationally-unique set of shells
+    for(size_t s1 = 0; s1 != shells.size(); ++s1) {
+        auto bf1_first = shell2bf[s1]; // first basis function in this shell
+        auto n1 = shells[s1].size(); // number of basis functions in this shell
 
-    auto bf1_first = shell2bf[s1]; // first basis function in this shell
-    auto n1 = shells[s1].size();   // number of basis functions in this shell
+        for(size_t s2 = 0; s2 <= s1; ++s2) {
+            auto bf2_first = shell2bf[s2];
+            auto n2        = shells[s2].size();
 
-    for (size_t s2 = 0; s2 <= s1; ++s2) {
+            for(size_t s3 = 0; s3 <= s1; ++s3) {
+                auto bf3_first = shell2bf[s3];
+                auto n3        = shells[s3].size();
 
-      auto bf2_first = shell2bf[s2];
-      auto n2 = shells[s2].size();
+                const auto s4_max = (s1 == s3) ? s2 : s3;
+                for(size_t s4 = 0; s4 <= s4_max; ++s4) {
+                    auto bf4_first = shell2bf[s4];
+                    auto n4        = shells[s4].size();
 
-      for (size_t s3 = 0; s3 <= s1; ++s3) {
+                    // compute the permutational degeneracy (i.e. # of
+                    // equivalents) of the given shell set
+                    auto s12_deg    = (s1 == s2) ? 1.0 : 2.0;
+                    auto s34_deg    = (s3 == s4) ? 1.0 : 2.0;
+                    auto s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1.0 : 2.0) : 2.0;
+                    auto s1234_deg  = s12_deg * s34_deg * s12_34_deg;
 
-        auto bf3_first = shell2bf[s3];
-        auto n3 = shells[s3].size();
+                    const auto tstart =
+                      std::chrono::high_resolution_clock::now();
 
-        const auto s4_max = (s1 == s3) ? s2 : s3;
-        for (size_t s4 = 0; s4 <= s4_max; ++s4) {
+                    engine.compute(shells[s1], shells[s2], shells[s3],
+                                   shells[s4]);
+                    const auto* buf_1234 = buf[0];
+                    if(buf_1234 == nullptr)
+                        continue; // if all integrals screened out, skip to
+                                  // next quartet
 
-          auto bf4_first = shell2bf[s4];
-          auto n4 = shells[s4].size();
+                    const auto tstop =
+                      std::chrono::high_resolution_clock::now();
+                    time_elapsed += tstop - tstart;
 
-          // compute the permutational degeneracy (i.e. # of equivalents) of the given shell set
-          auto s12_deg = (s1 == s2) ? 1.0 : 2.0;
-          auto s34_deg = (s3 == s4) ? 1.0 : 2.0;
-          auto s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1.0 : 2.0) : 2.0;
-          auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
+                    // ANSWER
+                    // 1) each shell set of integrals contributes up to 6
+                    // shell sets of the Fock matrix:
+                    //    F(a,b) += (ab|cd) * D(c,d)
+                    //    F(c,d) += (ab|cd) * D(a,b)
+                    //    F(b,d) -= 1/4 * (ab|cd) * D(a,c)
+                    //    F(b,c) -= 1/4 * (ab|cd) * D(a,d)
+                    //    F(a,c) -= 1/4 * (ab|cd) * D(b,d)
+                    //    F(a,d) -= 1/4 * (ab|cd) * D(b,c)
+                    // 2) each permutationally-unique integral (shell set)
+                    // must be scaled by its degeneracy,
+                    //    i.e. the number of the integrals/sets equivalent
+                    //    to it
+                    // 3) the end result must be symmetrized
+                    for(size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                        const auto bf1 = f1 + bf1_first;
+                        for(size_t f2 = 0; f2 != n2; ++f2) {
+                            const auto bf2 = f2 + bf2_first;
+                            for(size_t f3 = 0; f3 != n3; ++f3) {
+                                const auto bf3 = f3 + bf3_first;
+                                for(size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
+                                    const auto bf4 = f4 + bf4_first;
 
-          const auto tstart = std::chrono::high_resolution_clock::now();
+                                    const auto value = buf_1234[f1234];
 
-          engine.compute(shells[s1], shells[s2], shells[s3], shells[s4]);
-          const auto *buf_1234 = buf[0];
-          if (buf_1234 == nullptr)
-            continue; // if all integrals screened out, skip to next quartet
+                                    const auto value_scal_by_deg =
+                                      value * s1234_deg;
 
-          const auto tstop = std::chrono::high_resolution_clock::now();
-          time_elapsed += tstop - tstart;
-
-          // ANSWER
-          // 1) each shell set of integrals contributes up to 6 shell sets of the Fock matrix:
-          //    F(a,b) += (ab|cd) * D(c,d)
-          //    F(c,d) += (ab|cd) * D(a,b)
-          //    F(b,d) -= 1/4 * (ab|cd) * D(a,c)
-          //    F(b,c) -= 1/4 * (ab|cd) * D(a,d)
-          //    F(a,c) -= 1/4 * (ab|cd) * D(b,d)
-          //    F(a,d) -= 1/4 * (ab|cd) * D(b,c)
-          // 2) each permutationally-unique integral (shell set) must be scaled by its degeneracy,
-          //    i.e. the number of the integrals/sets equivalent to it
-          // 3) the end result must be symmetrized
-          for (size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
-            const auto bf1 = f1 + bf1_first;
-            for (size_t f2 = 0; f2 != n2; ++f2) {
-              const auto bf2 = f2 + bf2_first;
-              for (size_t f3 = 0; f3 != n3; ++f3) {
-                const auto bf3 = f3 + bf3_first;
-                for (size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
-                  const auto bf4 = f4 + bf4_first;
-
-                  const auto value = buf_1234[f1234];
-
-                  const auto value_scal_by_deg = value * s1234_deg;
-
-                  G(bf1, bf2) += D(bf3, bf4) * value_scal_by_deg;
-                  G(bf3, bf4) += D(bf1, bf2) * value_scal_by_deg;
-                  G(bf1, bf3) -= 0.25 * D(bf2, bf4) * value_scal_by_deg;
-                  G(bf2, bf4) -= 0.25 * D(bf1, bf3) * value_scal_by_deg;
-                  G(bf1, bf4) -= 0.25 * D(bf2, bf3) * value_scal_by_deg;
-                  G(bf2, bf3) -= 0.25 * D(bf1, bf4) * value_scal_by_deg;
+                                    G(bf1, bf2) +=
+                                      D(bf3, bf4) * value_scal_by_deg;
+                                    G(bf3, bf4) +=
+                                      D(bf1, bf2) * value_scal_by_deg;
+                                    G(bf1, bf3) -=
+                                      0.25 * D(bf2, bf4) * value_scal_by_deg;
+                                    G(bf2, bf4) -=
+                                      0.25 * D(bf1, bf3) * value_scal_by_deg;
+                                    G(bf1, bf4) -=
+                                      0.25 * D(bf2, bf3) * value_scal_by_deg;
+                                    G(bf2, bf3) -=
+                                      0.25 * D(bf1, bf4) * value_scal_by_deg;
+                                }
+                            }
+                        }
+                    }
                 }
-              }
             }
-          }
-
         }
-      }
     }
-  }
 
-  // symmetrize the result and return
-  Matrix Gt = G.transpose();
-  return 0.5 * (G + Gt);
+    // symmetrize the result and return
+    Matrix Gt = G.transpose();
+    return 0.5 * (G + Gt);
 }
 
 #endif // TAMM_TESTS_HF_TAMM_HPP_

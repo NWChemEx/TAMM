@@ -24,8 +24,8 @@ using Eigen::VectorXd;
 using Eigen::VectorXi;
 using Eigen::MatrixXd;
 
-//using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
+using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+//using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
 
 // vector, numeric and other commonly used class 
 #include <vector>

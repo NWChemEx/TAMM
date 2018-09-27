@@ -13,6 +13,8 @@ void hsdiag(MPI_Comm comm, int iterscf, Matrix &H, Matrix &S, int nev, Matrix &e
    MPI_Comm_rank(comm, &rank);
    double t1 = MPI_Wtime();
 
+   // change to column major order
+   MatrixXd HC, SC;
 
    if (rank == 0) cout << "running spectrum slicing" << endl;
    if (rank == 0) resultsfile.open("results.txt");
@@ -23,7 +25,10 @@ void hsdiag(MPI_Comm comm, int iterscf, Matrix &H, Matrix &S, int nev, Matrix &e
    VectorXd shifts;
    int subdim, maxcnt = 0;
 
-   shifts = getshifts(comm, H, S, nev, nshifts, &maxcnt);
+   HC = H;
+   SC = S;
+
+   shifts = getshifts(comm, HC, SC, nev, nshifts, &maxcnt);
    subdim = 2*maxcnt;
 
    if (rank == 0) {

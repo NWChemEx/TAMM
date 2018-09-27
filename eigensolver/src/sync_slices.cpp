@@ -9,6 +9,8 @@ void sync_slices(MPI_Comm comm, int *nslices, SpectralProbe *SPs)
    MPI_Comm_rank(comm, &rank);
    MPI_Comm_size(comm, &nprocs);
 
+   int n = (SPs[0].evecs).rows();
+
    // sync up inertial counts
    bufloc.setZero();
    bufglb.setZero();
@@ -52,6 +54,7 @@ void sync_slices(MPI_Comm comm, int *nslices, SpectralProbe *SPs)
             evalsloc(nevoffset(j)+k) = SPs[j].evals(k);
             resnmloc(nevoffset(j)+k) = SPs[j].resnrms(k);
          }
+         
    }
    MPI_Allreduce(evalsloc.data(),allevals.data(),nevsum,MPI_DOUBLE,MPI_SUM,comm);
    MPI_Allreduce(resnmloc.data(),allresnm.data(),nevsum,MPI_DOUBLE,MPI_SUM,comm);

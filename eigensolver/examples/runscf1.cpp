@@ -102,9 +102,14 @@ int main(int argc, char *argv[]) {
    Matrix evecs;
 
    int iterscf = 0;
-   int nshifts = std::ceil(nev/10.0);
 
-   hsdiag(comm, iterscf, H, S, nev, nshifts, eps, evecs);
+   hsdiag(comm, iterscf, H, S, nev, eps, evecs);
+/*
+   VectorXd rvec(n);
+   rvec = H*evecs.col(0) - eps(0)*(S*evecs.col(0));
+   double rnrm = rvec.norm();
+   cout << "eval = " << eps(0) << " rnrm = " << rnrm << endl;
+*/
 
    logOFS.close();
    return MPI_Finalize(); 

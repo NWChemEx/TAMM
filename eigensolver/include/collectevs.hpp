@@ -4,7 +4,7 @@
 #include "utilities.hpp"
 #include "slicing.hpp"
 
-void collectevs(int nshifts, SpectralProbe *SPs, VectorXd &evals, VectorXd &resnrms);
+int collectevs(MPI_Comm comm, int nshifts, SpectralProbe *SPs, VectorXd &evals, MatrixXd &evecs, VectorXd &resnrms);
 
 #endif
 

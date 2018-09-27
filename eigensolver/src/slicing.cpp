@@ -30,12 +30,12 @@ void slicing(MPI_Comm comm, const MatrixXd &H, const MatrixXd &S, int n, int nev
          // generate random initial guess of the eigenvector
          // only if no valid eigenvalue approximation is 
          // available from the previous SCF (outer) cycles
-         if (SPs[i].nvalid == -1) { 
+         if (SPs[i].nselect == -1) { 
             SPs[i].evecs = MatrixXd::Random(n,dim);
          }
          SPs[i].ind = i;
-         SPs[i].evals.resize(nevloc);
-         SPs[i].resnrms.resize(nevloc);
+         SPs[i].evals.resize(dim);
+         SPs[i].resnrms.resize(dim);
 
          logOFS << "slice: " << i << ", rank: " << rank << ", shift: " << SPs[i].shift << ", subspace dim: " << dim << std::endl;
          
@@ -60,7 +60,7 @@ void Init_SPs(MPI_Comm comm, SpectralProbe *SPs, VectorXd &shifts)
       SPs[i].nev_below_shift=-1;
       SPs[i].ind = 0;
       SPs[i].shift = shifts(i);
-      SPs[i].nvalid = -1;
+      SPs[i].nselect = -1;
       if (i==0) {
          SPs[i].prev = -1;
       }

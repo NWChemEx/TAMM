@@ -1036,6 +1036,10 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
                     ehf_tamm, rmsd_tamm);
     Tensor<TensorType>::deallocate(F1tmp,Sm12_tamm, Sp12_tamm,
     D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
+
+    MemoryManagerGA::destroy_coll(mgr);
+    delete ec;
+
     return std::make_tuple(ndocc, nao, ehf + enuc, shells);
     }
 

@@ -20,7 +20,6 @@ using std::noshowpos;
 
 // Eigen classes
 #include <Eigen/Dense>
-#include <Eigen/Eigenvalues> 
 using Eigen::VectorXd;
 using Eigen::VectorXi;
 using Eigen::MatrixXd;
@@ -56,6 +55,8 @@ using std::max;
 
 // input parsing parameters
 #include "parseinput.hpp"
+#undef I
+
  #ifdef __cplusplus
  extern "C"
  {

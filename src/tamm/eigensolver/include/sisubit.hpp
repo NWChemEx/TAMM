@@ -1,6 +1,5 @@
 #include <iostream>
 #include <Eigen/Dense>
-#include <Eigen/Eigenvalues> 
 #include <omp.h>
 #ifdef USE_MPI
 #include <mpi.h>

@@ -252,6 +252,12 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   using libint2::Shell;
   using libint2::Engine;
   using libint2::Operator;
+//Chao
+  MPI_Comm comm = GA_MPI_Comm();
+  int rank, nprocs;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &nprocs);
+  cout << " rank = " << rank << " nprocs = " << nprocs << endl; 
 
   /*** =========================== ***/
   /*** initialize molecule         ***/
@@ -284,7 +290,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
       auto r = sqrt(r2);
       enuc += atoms[i].atomic_number * atoms[j].atomic_number / r;
     }
-  cout << "\tNuclear repulsion energy = " << enuc << endl;
+//Chao
+  if (rank==0) cout << "\tNuclear repulsion energy = " << enuc << endl;
 
   // initializes the Libint integrals library ... now ready to compute
   libint2::initialize();
@@ -365,7 +372,8 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    std::cout << "\nTime taken 1st stage: " << hf_time << " secs\n";
+    if (rank == 0) 
+       std::cout << "\nTime taken 1st stage: " << hf_time << " secs\n";
 
   /*** =========================== ***/
   /*** main iterative loop         ***/
@@ -387,12 +395,8 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
 
 // Chao
   std::ofstream resultsfile, hmatfile, smatfile;
-  MPI_Comm comm = GA_MPI_Comm();
-  int rank, nprocs;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &nprocs);
-  cout << " rank = " << rank << " nproces = " << nprocs << endl; 
-  cout << " matrix dimension = " << S.rows() << " ndocc = " << ndocc << endl; 
+  if (rank == 0) 
+     cout << " matrix dimension = " << S.rows() << " ndocc = " << ndocc << endl; 
 /*
   if (rank == 0) {
      smatfile.open("smat.txt");
@@ -407,6 +411,7 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
   std::vector<Matrix> diis_hist;
   std::vector<Matrix> fock_hist;
 
+  if (rank == 0) {
         std::cout << "\n\n";
         std::cout << " Hartree-Fock iterations" << std::endl;
         std::cout << std::string(60, '-') << std::endl;
@@ -414,6 +419,7 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
             " Iter     Energy            E-Diff           RMSD" 
                 << std::endl;
         std::cout << std::string(60, '-') << std::endl;
+  }
 
   do {
     const auto tstart = std::chrono::high_resolution_clock::now();
@@ -496,10 +502,12 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
 
    
     // cout << "iter, ehf, ediff, rmsd = " << iter << "," << ehf <<", " << ediff <<  "," <<rmsd << "\n";
-                std::cout << std::setw(5) << iter << "  " << std::setw(14);
+    if (rank == 0) {
+            std::cout << std::setw(5) << iter << "  " << std::setw(14);
             std::cout << std::fixed << std::setprecision(10) << ehf;
             std::cout << ' ' << std::setw(16)  << ediff;
             std::cout << ' ' << std::setw(15)  << rmsd << ' ' << "\n";
+    }
 
     const auto tstop = std::chrono::high_resolution_clock::now();
     const std::chrono::duration<double> time_elapsed = tstop - tstart;
@@ -519,7 +527,8 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
   } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)));
 
   std::cout.precision(15);
-  printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
+  if (rank == 0) 
+     printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
 
   // cout << "\n** Eigen Values:\n";
   // cout << eps << endl;

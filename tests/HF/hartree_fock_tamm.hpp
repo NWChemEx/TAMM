@@ -52,6 +52,8 @@ void diis(Matrix& F, Matrix& S, int iter, int max_hist,
 Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
                           const Matrix& D);
 
+template <class T> T &unconst_cast(const T &v) { return const_cast<T &>(v); }
+
 template<typename T>
 std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
     os << "[";
@@ -313,6 +315,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     using libint2::Operator;
     using libint2::Shell;
 
+    auto hf_t1 = std::chrono::high_resolution_clock::now();
+
     /*** =========================== ***/
     /*** initialize molecule         ***/
     /*** =========================== ***/
@@ -364,21 +368,16 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     const size_t N = nbasis(shells);
     assert(N == nao);
 
+    if(GA_Nodeid()==0) cout << "Number of basis functions: " << N << endl;
+
     /*** =========================== ***/
     /*** compute 1-e integrals       ***/
     /*** =========================== ***/
 
-    // compute overlap integrals
-    auto one_body_overlap_integral_lambda = [&](const IndexVector& blockid,
+    Engine engine(Operator::overlap, max_nprim(shells), max_l(shells), 0);
+    auto& buf = unconst_cast(engine.results());
+    auto compute_1body_ints_lambda = [&](const IndexVector& blockid,
                                                 span<TensorType> tbuf) {
-        // construct the overlap integrals engine
-        Engine engine(Operator::overlap, max_nprim(shells), max_l(shells), 0);
-
-        // buf[0] points to the target shell set after every call  to
-        // engine.compute()
-      
-        auto shell2bf   = map_shell_to_basis_function(shells);
-        const auto& buf = engine.results();
 
         auto s1 = blockid[0];
         // auto bf1 = shell2bf[s1]; //shell2bf[s1]; // first basis function in
@@ -387,6 +386,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
         // for (size_t s2 = 0; s2 <= s1; ++s2) {
         auto s2 = blockid[1];
+
+        //if (s2>s1) return;
         // if(s1<s2) return; //TODO
         // auto bf2 = shell2bf[s2];
         auto n2 = shells[s2].size();
@@ -397,118 +398,61 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         // corresponding blocks of the result
         Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
         // result.block(bf1, bf2, n1, n2) = buf_mat;
-        for(size_t i = 0; i < n1; i++)
-            for(size_t j = 0; j < n2; j++) tbuf[i * n2 + j] = buf_mat(i, j);
+        // for(size_t i = 0; i < n1; i++)
+        //     for(size_t j = 0; j < n2; j++) tbuf[i * n2 + j] = buf_mat(i, j);
+        //std::memcpy(tbuf.data(),buf, sizeof(TensorType)*n1*n2);
+        Eigen::Map<Matrix>(tbuf.data(),n1,n2) = buf_mat;
+
+        // if(s1!=s2){
+        //     std::vector<T> ttbuf(n1*n2);
+        //     Eigen::Map<Matrix>(ttbuf.data(),n2,n1) = buf_mat.transpose();
+        //     put({s2,s1}, ttbuf);
+        // }
+    };
+
+    Tensor<TensorType> tensor1e;
+    auto compute_1body_ints = [&](const IndexVector& blockid) {
+
+        auto s1 = blockid[0];
+        // auto bf1 = shell2bf[s1]; //shell2bf[s1]; // first basis function in
+        // this shell
+        auto n1 = shells[s1].size();
+
+        // for (size_t s2 = 0; s2 <= s1; ++s2) {
+        auto s2 = blockid[1];
+
+        if (s2>s1) return;
+        // auto bf2 = shell2bf[s2];
+        auto n2 = shells[s2].size();
+
+        std::vector<TensorType> tbuf(n1*n2);
+
+        // compute shell pair; return is the pointer to the buffer
+        engine.compute(shells[s1], shells[s2]);
+        // "map" buffer to a const Eigen Matrix, and copy it to the
+        // corresponding blocks of the result
+        Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
+        // result.block(bf1, bf2, n1, n2) = buf_mat;
+        // for(size_t i = 0; i < n1; i++)
+        //     for(size_t j = 0; j < n2; j++) tbuf[i * n2 + j] = buf_mat(i, j);
+        //std::memcpy(tbuf.data(),buf, sizeof(TensorType)*n1*n2);
+        Eigen::Map<Matrix>(tbuf.data(),n1,n2) = buf_mat;
+
+        tensor1e.put(blockid, tbuf);
+
+        if(s1!=s2){
+            std::vector<TensorType> ttbuf(n1*n2);
+            Eigen::Map<Matrix>(ttbuf.data(),n2,n1) = buf_mat.transpose();
+            tensor1e.put({s2,s1}, ttbuf);
+        }
     };
     
-    // compute nuclear-attraction integrals
-    auto one_body_nuclear_integral_lambda = [&](const IndexVector& blockid,
-                                                span<TensorType> tbuf) {
-        // construct the overlap integrals engine
-        Engine engine(Operator::nuclear, max_nprim(shells), max_l(shells), 0);
-
-        // buf[0] points to the target shell set after every call  to
-        // engine.compute()
-        std::vector<std::pair<double, std::array<double, 3>>> q;
-        for(const auto& atom : atoms) {
-            q.push_back({static_cast<double>(atom.atomic_number),
-                         {{atom.x, atom.y, atom.z}}});
-        }
-        engine.set_params(q);
-
-        auto shell2bf   = map_shell_to_basis_function(shells);
-        const auto& buf = engine.results();
-
-        auto s1 = blockid[0];
-        // auto bf1 = shell2bf[s1]; //shell2bf[s1]; // first basis function in
-        // this shell
-        auto n1 = shells[s1].size();
-
-        // for (size_t s2 = 0; s2 <= s1; ++s2) {
-        auto s2 = blockid[1];
-        // if(s1<s2) return; //TODO
-        // auto bf2 = shell2bf[s2];
-        auto n2 = shells[s2].size();
-
-        // compute shell pair; return is the pointer to the buffer
-        engine.compute(shells[s1], shells[s2]);
-        // "map" buffer to a const Eigen Matrix, and copy it to the
-        // corresponding blocks of the result
-        Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
-        // result.block(bf1, bf2, n1, n2) = buf_mat;
-        for(size_t i = 0; i < n1; i++)
-            for(size_t j = 0; j < n2; j++) tbuf[i * n2 + j] = buf_mat(i, j);
-    };
-
-    // compute kinetic-energy integrals
-    auto one_body_kinetic_integral_lambda = [&](const IndexVector& blockid,
-                                                span<TensorType> tbuf) {
-        // construct the overlap integrals engine
-        Engine engine(Operator::kinetic, max_nprim(shells), max_l(shells), 0);
-        auto shell2bf = map_shell_to_basis_function(shells);
-
-        // buf[0] points to the target shell set after every call  to
-        // engine.compute()
-        const auto& buf = engine.results();
-
-        // loop over unique shell pairs, {s1,s2} such that s1 >= s2
-        // this is due to the permutational symmetry of the real integrals over
-        // Hermitian operators: (1|2) = (2|1) for (size_t s1 = 0; s1 !=
-        // shells.size(); ++s1) {
-
-        auto s1 = blockid[0];
-        // auto bf1 = shell2bf[s1]; //shell2bf[s1]; // first basis function in
-        // this shell
-        auto n1 = shells[s1].size();
-
-        // for (size_t s2 = 0; s2 <= s1; ++s2) {
-        auto s2 = blockid[1];
-        // if(s1<s2) return; //TODO
-        // auto bf2 = shell2bf[s2];
-        auto n2 = shells[s2].size();
-
-        // compute shell pair; return is the pointer to the buffer
-        engine.compute(shells[s1], shells[s2]);
-        // "map" buffer to a const Eigen Matrix, and copy it to the
-        // corresponding blocks of the result
-        Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
-        // result.block(bf1, bf2, n1, n2) = buf_mat;
-        for(size_t i = 0; i < n1; i++)
-            for(size_t j = 0; j < n2; j++) tbuf[i * n2 + j] = buf_mat(i, j);
-
-        // cout << "s1,s2 == " << s1 << "," << s2 << endl;
-        // cout << "n1,n2 == " << n1 << "," << n2 << endl;
-        // cout << "bufs, tbufs == " << buf.size() << "," << tbuf.size() <<
-        // endl; cout << "bufmat\n----------\n"; cout << buf_mat << endl;
-
-        // assert(n1*n2 == tbuf.size());
-
-        // cout << "buf\n----------\n";
-        //                 for (size_t i = 0; i < n1; i++)
-        //                 for (size_t j = 0; j < n2; j++)
-        //                 cout << tmp[i*n2+j] << endl;
-
-        // TODO
-        // if (s1 != s2) // if s1 >= s2, copy {s1,s2} to the corresponding
-        // {s2,s1} block, note the transpose!
-        //   {  // result.block(bf2, bf1, n2, n1) = buf_mat.transpose();
-        //     for (size_t i = 0; i < n1; i++) {
-        //       for (size_t j = 0; j < n2; j++) {
-        //         tbuf[i * n2 + j] = tmp[j*n2+i];
-        //       }
-        //     }
-        //   }
-
-        // }
-        // }
-    };
-
-    auto hf_t1 = std::chrono::high_resolution_clock::now();
-
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    auto rank = ec->pg().rank();
+    auto debug = false;
 
     IndexSpace AO{range(0, N)};
     std::vector<unsigned int> AO_tiles;
@@ -516,35 +460,80 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     TiledIndexSpace tAO{AO, AO_tiles};
     auto [mu, nu, ku] = tAO.labels<3>("all");
 
-    Tensor<TensorType> S1{{tAO, tAO}, one_body_overlap_integral_lambda};
-    Tensor<TensorType> T1{{tAO, tAO}, one_body_kinetic_integral_lambda};
-    Tensor<TensorType> V1{{tAO, tAO}, one_body_nuclear_integral_lambda};
+    // Tensor<TensorType> SL1{{tAO, tAO}, compute_1body_ints};
+    // Tensor<TensorType> T1{{tAO, tAO}, compute_1body_ints};
+    // Tensor<TensorType> V1{{tAO, tAO}, compute_1body_ints};
 
     Tensor<TensorType> H1{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, H1);
-
+    Tensor<TensorType> S1{tAO, tAO};
+    Tensor<TensorType> T1{tAO, tAO};
+    Tensor<TensorType> V1{tAO, tAO};
+    Tensor<TensorType>::allocate(ec, H1, S1, T1, V1);
 
     Matrix H, S; 
     H.setZero(N, N);
     S.setZero(N, N);
+
+    auto hf_t2 = std::chrono::high_resolution_clock::now();
+
+    double hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    if(rank == 0) std::cout << "\nTime taken for initial setup: " << hf_time << " secs\n";
 
     // auto T = compute_1body_ints(shells, Operator::kinetic);
     // auto S = compute_1body_ints(shells, Operator::overlap);
     // Matrix V = compute_1body_ints(shells, Operator::nuclear, atoms);
     // Matrix H = T;
 
+    hf_t1 = std::chrono::high_resolution_clock::now();
+
+    // Scheduler{ec}(S1(mu, nu) = SL1(mu, nu)).execute();
+    tensor1e = S1;
+    block_for(ec->pg(), S1(), compute_1body_ints);
+
+    engine.set(Operator::kinetic);
+    buf = engine.results();
     // Core Hamiltonian = T + V
+    tensor1e = T1;
+    block_for(ec->pg(), T1(), compute_1body_ints);
     Scheduler{ec}(H1(mu, nu) = T1(mu, nu)).execute();
+
+    engine.set(Operator::nuclear);
+    std::vector<std::pair<double, std::array<double, 3>>> q;
+    for(const auto& atom : atoms) {
+        q.push_back({static_cast<double>(atom.atomic_number),
+                        {{atom.x, atom.y, atom.z}}});
+    }
+    engine.set_params(q);
+    buf = engine.results();
     //H =  H + V;
+    tensor1e = V1;
+    block_for(ec->pg(), V1(), compute_1body_ints);
     Scheduler{ec}(H1(mu, nu) += V1(mu, nu)).execute();
+
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+    if(rank == 0) std::cout << "\nTime taken for H=T+V, S: " << hf_time << " secs\n";
+
+    hf_t1 = std::chrono::high_resolution_clock::now();
 
     tamm_to_eigen_tensor(H1, H);
     tamm_to_eigen_tensor(S1, S);
+
+
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+    if(rank == 0) std::cout << "\nTime taken for tamm to eigen - H,S: " << hf_time << " secs\n";
     
     /*** =========================== ***/
     /*** build initial-guess density ***/
     /*** =========================== ***/
 
+    hf_t1 = std::chrono::high_resolution_clock::now();
     // hcore guess
     // solve H C = e S C
     Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(H, S);
@@ -557,12 +546,15 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     
     //  cout << "\n\tInitial Density Matrix:\n";
     //  cout << D << endl;
-    auto hf_t2 = std::chrono::high_resolution_clock::now();
 
-    double hf_time =
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    std::cout << "\nTime taken for 1st stage: " << hf_time << " secs\n";
 
+    if(rank == 0) std::cout << "\nTime taken for eigen_solve(H,S): " << hf_time << " secs\n";
+
+
+    hf_t1 = std::chrono::high_resolution_clock::now();
     /*** =========================== ***/
     /*** main iterative loop         ***/
     /*** =========================== ***/
@@ -580,7 +572,6 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     double alpha = 0.75;
     // Matrix F_old;
 
-    const bool simple_convergence = false;
     int idiis                     = 0;
     int max_hist                  = 10;
     std::vector<Matrix> diis_hist;
@@ -612,20 +603,29 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     F.setZero(N,N);
     Matrix err_mat = Matrix::Zero(N,N);
 
-    if(ec->pg().rank() == 0) {
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+   // GA_Sync();
+    if(rank == 0) std::cout << "\nTime taken to setup main loop: " << hf_time << " secs\n";
+
+    if(rank == 0) {
         std::cout << "\n\n";
         std::cout << " Hartree-Fock iterations" << std::endl;
-        std::cout << std::string(60, '-') << std::endl;
+        std::cout << std::string(70, '-') << std::endl;
         std::cout <<
-            " Iter     Energy            E-Diff           RMSD" 
+            " Iter     Energy            E-Diff           RMSD           Time" 
                 << std::endl;
-        std::cout << std::string(60, '-') << std::endl;
+        std::cout << std::string(70, '-') << std::endl;
     }
+
+    std::cout << std::fixed << std::setprecision(2);
 
     do {
 
         // Scheduler sch{ec};
-        const auto tstart = std::chrono::high_resolution_clock::now();
+        const auto loop_start = std::chrono::high_resolution_clock::now();
         ++iter;
 
         // Save a copy of the energy and the density
@@ -638,6 +638,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         // build a new Fock matrix
         // F           = H;
         // Matrix Ftmp = compute_2body_fock(shells, D);
+
+            hf_t1 = std::chrono::high_resolution_clock::now();
 
 // TODO
 #if 1
@@ -936,9 +938,25 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         block_for(ec->pg(), F1tmp(), comp_2bf_lambda);
         // eigen_to_tamm_tensor(F1tmp, Ftmp);
 
+        hf_t2 = std::chrono::high_resolution_clock::now();
+        hf_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+        if(rank == 0 && debug) std::cout << "2BF:" << hf_time << "s, ";
+
+        hf_t1 = std::chrono::high_resolution_clock::now();
         // F += Ftmp;
         Scheduler{ec}(F1(mu, nu) = H1(mu, nu))
                      (F1(mu, nu) += F1tmp(mu, nu)).execute();
+
+
+        hf_t2 = std::chrono::high_resolution_clock::now();
+        hf_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+        if(rank == 0 && debug) std::cout << "F=H+2BF:" << hf_time << "s, ";
+
+        hf_t1 = std::chrono::high_resolution_clock::now();
 
         // S^-1/2
         Matrix Sm12 = S.pow(-0.5);
@@ -952,6 +970,14 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         eigen_to_tamm_tensor(Sp12_tamm,Sp12);
         // eigen_to_tamm_tensor(D_last_tamm,D_last);
 
+        hf_t2 = std::chrono::high_resolution_clock::now();
+        hf_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+        if(rank == 0 && debug) std::cout << "SQ(S)-copy:" << hf_time << "s, ";
+
+        hf_t1 = std::chrono::high_resolution_clock::now();
+
         Scheduler{ec}(FSm12_tamm() = 0)(FSm12_tamm(mu,nu) += F1(mu,ku) * Sm12_tamm(ku,nu))
         (Sp12D_tamm() = 0)(Sp12D_tamm(mu,nu) += Sp12_tamm(mu,ku) * D_last_tamm(ku,nu))
         (SpFS_tamm() = 0)(SpFS_tamm(mu,nu)  += Sp12D_tamm(mu,ku) * FSm12_tamm(ku,nu))
@@ -959,9 +985,17 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         // err_mat = SpFS.transpose() - SpFS;        
         (err_mat_tamm(mu,nu) = SpFS_tamm(nu,mu))
         (err_mat_tamm(mu,nu) += -1.0 * SpFS_tamm(mu,nu)).execute();
+
+        hf_t2 = std::chrono::high_resolution_clock::now();
+        hf_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+        if(rank == 0 && debug) std::cout << "err_mat:" << hf_time << "s, ";        
  
         tamm_to_eigen_tensor(F1,F);
         tamm_to_eigen_tensor(err_mat_tamm,err_mat);
+
+        hf_t1 = std::chrono::high_resolution_clock::now();
 
         if(iter > 2) {
             ++idiis;
@@ -969,6 +1003,13 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
                 diis_hist, fock_hist);
         }
     
+        hf_t2 = std::chrono::high_resolution_clock::now();
+        hf_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+        if(rank == 0 && debug) std::cout << "diis:" << hf_time << "s, ";    
+
+        hf_t1 = std::chrono::high_resolution_clock::now();
         // solve F C = e S C
         Eigen::GeneralizedSelfAdjointEigenSolver<Matrix>
         gen_eig_solver(F, S);
@@ -981,9 +1022,24 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         auto C_occ = C.leftCols(ndocc);
         D          = C_occ * C_occ.transpose();
 
+        hf_t2 = std::chrono::high_resolution_clock::now();
+        hf_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+        if(rank == 0 && debug) std::cout << "eigen_solve:" << hf_time << "s, ";    
+
+        hf_t1 = std::chrono::high_resolution_clock::now();
+
         eigen_to_tamm_tensor(D_tamm,D);
         eigen_to_tamm_tensor(F1,F);
 
+        hf_t2 = std::chrono::high_resolution_clock::now();
+        hf_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+        if(rank == 0 && debug) std::cout << "E2T-D,F:" << hf_time << "s,";    
+
+        hf_t1 = std::chrono::high_resolution_clock::now();
         // compute HF energy 
         // e = D * (H+F);
         getehf_tamm = 0.0;
@@ -1002,28 +1058,36 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         rmsd  = (D - D_last).norm();
         //    (rmsd_tamm() = rmsd).execute();
 
-        if(ec->pg().rank() == 0) {
+        hf_t2 = std::chrono::high_resolution_clock::now();
+        hf_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+        if(rank == 0 && debug) std::cout << "HF-Energy:" << hf_time << "s\n";    
+
+        const auto loop_stop = std::chrono::high_resolution_clock::now();
+        const auto loop_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((loop_stop - loop_start)).count();
+
+        if(rank == 0) {
             std::cout << std::setw(5) << iter << "  " << std::setw(14);
             std::cout << std::fixed << std::setprecision(10) << ehf;
             std::cout << ' ' << std::setw(16)  << ediff;
-            std::cout << ' ' << std::setw(15)  << rmsd << ' ' << "\n";
+            std::cout << ' ' << std::setw(15)  << rmsd << ' ';
+            std::cout << std::fixed << std::setprecision(2);
+            std::cout << ' ' << std::setw(12)  << loop_time << ' ' << "\n";
         }
 
         if(iter > maxiter) {                
             is_conv = false;
             break;
         }
-                    
-        // const auto tstop = std::chrono::high_resolution_clock::now();
-        // const std::chrono::duration<double> time_elapsed =
-        // tstop - tstart;
 
     }
     while(((fabs(ediff) > conv) || (fabs(rmsd) > conv)))
         ;
 
     // GA_Sync(); 
-    if(ec->pg().rank() == 0) {
+    if(rank == 0) {
         std::cout.precision(13);
         if (is_conv)
             cout << "\n** Hartree-Fock energy = " << ehf + enuc << endl;
@@ -1035,7 +1099,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         }        
     }
 
-    Tensor<TensorType>::deallocate(H1, F1, D_tamm, ehf_tmp, 
+    Tensor<TensorType>::deallocate(H1, S1, T1, V1, F1, D_tamm, ehf_tmp, 
                     ehf_tamm, rmsd_tamm);
     Tensor<TensorType>::deallocate(F1tmp,Sm12_tamm, Sp12_tamm,
     D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
@@ -1202,5 +1266,142 @@ Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
     Matrix Gt = G.transpose();
     return 0.5 * (G + Gt);
 }
+
+
+    // // compute overlap integrals
+    // auto one_body_overlap_integral_lambda = [&](const IndexVector& blockid,
+    //                                             span<TensorType> tbuf) {
+    //     // construct the overlap integrals engine
+    //     Engine engine(Operator::overlap, max_nprim(shells), max_l(shells), 0);
+
+    //     // buf[0] points to the target shell set after every call  to
+    //     // engine.compute()
+      
+    //     auto shell2bf   = map_shell_to_basis_function(shells);
+    //     const auto& buf = engine.results();
+
+    //     auto s1 = blockid[0];
+    //     // auto bf1 = shell2bf[s1]; //shell2bf[s1]; // first basis function in
+    //     // this shell
+    //     auto n1 = shells[s1].size();
+
+    //     // for (size_t s2 = 0; s2 <= s1; ++s2) {
+    //     auto s2 = blockid[1];
+    //     // if(s1<s2) return; //TODO
+    //     // auto bf2 = shell2bf[s2];
+    //     auto n2 = shells[s2].size();
+
+    //     // compute shell pair; return is the pointer to the buffer
+    //     engine.compute(shells[s1], shells[s2]);
+    //     // "map" buffer to a const Eigen Matrix, and copy it to the
+    //     // corresponding blocks of the result
+    //     Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
+    //     // result.block(bf1, bf2, n1, n2) = buf_mat;
+    //     for(size_t i = 0; i < n1; i++)
+    //         for(size_t j = 0; j < n2; j++) tbuf[i * n2 + j] = buf_mat(i, j);
+    // };
+    
+    // // compute nuclear-attraction integrals
+    // auto one_body_nuclear_integral_lambda = [&](const IndexVector& blockid,
+    //                                             span<TensorType> tbuf) {
+    //     // construct the overlap integrals engine
+    //     Engine engine(Operator::nuclear, max_nprim(shells), max_l(shells), 0);
+
+    //     // buf[0] points to the target shell set after every call  to
+    //     // engine.compute()
+    //     std::vector<std::pair<double, std::array<double, 3>>> q;
+    //     for(const auto& atom : atoms) {
+    //         q.push_back({static_cast<double>(atom.atomic_number),
+    //                      {{atom.x, atom.y, atom.z}}});
+    //     }
+    //     engine.set_params(q);
+
+    //     auto shell2bf   = map_shell_to_basis_function(shells);
+    //     const auto& buf = engine.results();
+
+    //     auto s1 = blockid[0];
+    //     // auto bf1 = shell2bf[s1]; //shell2bf[s1]; // first basis function in
+    //     // this shell
+    //     auto n1 = shells[s1].size();
+
+    //     // for (size_t s2 = 0; s2 <= s1; ++s2) {
+    //     auto s2 = blockid[1];
+    //     // if(s1<s2) return; //TODO
+    //     // auto bf2 = shell2bf[s2];
+    //     auto n2 = shells[s2].size();
+
+    //     // compute shell pair; return is the pointer to the buffer
+    //     engine.compute(shells[s1], shells[s2]);
+    //     // "map" buffer to a const Eigen Matrix, and copy it to the
+    //     // corresponding blocks of the result
+    //     Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
+    //     // result.block(bf1, bf2, n1, n2) = buf_mat;
+    //     for(size_t i = 0; i < n1; i++)
+    //         for(size_t j = 0; j < n2; j++) tbuf[i * n2 + j] = buf_mat(i, j);
+    // };
+
+    // // compute kinetic-energy integrals
+    // auto one_body_kinetic_integral_lambda = [&](const IndexVector& blockid,
+    //                                             span<TensorType> tbuf) {
+    //     // construct the overlap integrals engine
+    //     Engine engine(Operator::kinetic, max_nprim(shells), max_l(shells), 0);
+    //     auto shell2bf = map_shell_to_basis_function(shells);
+
+    //     // buf[0] points to the target shell set after every call  to
+    //     // engine.compute()
+    //     const auto& buf = engine.results();
+
+    //     // loop over unique shell pairs, {s1,s2} such that s1 >= s2
+    //     // this is due to the permutational symmetry of the real integrals over
+    //     // Hermitian operators: (1|2) = (2|1) for (size_t s1 = 0; s1 !=
+    //     // shells.size(); ++s1) {
+
+    //     auto s1 = blockid[0];
+    //     // auto bf1 = shell2bf[s1]; //shell2bf[s1]; // first basis function in
+    //     // this shell
+    //     auto n1 = shells[s1].size();
+
+    //     // for (size_t s2 = 0; s2 <= s1; ++s2) {
+    //     auto s2 = blockid[1];
+    //     // if(s1<s2) return; //TODO
+    //     // auto bf2 = shell2bf[s2];
+    //     auto n2 = shells[s2].size();
+
+    //     // compute shell pair; return is the pointer to the buffer
+    //     engine.compute(shells[s1], shells[s2]);
+    //     // "map" buffer to a const Eigen Matrix, and copy it to the
+    //     // corresponding blocks of the result
+    //     Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
+    //     // result.block(bf1, bf2, n1, n2) = buf_mat;
+    //     for(size_t i = 0; i < n1; i++)
+    //         for(size_t j = 0; j < n2; j++) tbuf[i * n2 + j] = buf_mat(i, j);
+
+    //     // cout << "s1,s2 == " << s1 << "," << s2 << endl;
+    //     // cout << "n1,n2 == " << n1 << "," << n2 << endl;
+    //     // cout << "bufs, tbufs == " << buf.size() << "," << tbuf.size() <<
+    //     // endl; cout << "bufmat\n----------\n"; cout << buf_mat << endl;
+
+    //     // assert(n1*n2 == tbuf.size());
+
+    //     // cout << "buf\n----------\n";
+    //     //                 for (size_t i = 0; i < n1; i++)
+    //     //                 for (size_t j = 0; j < n2; j++)
+    //     //                 cout << tmp[i*n2+j] << endl;
+
+    //     // TODO
+    //     // if (s1 != s2) // if s1 >= s2, copy {s1,s2} to the corresponding
+    //     // {s2,s1} block, note the transpose!
+    //     //   {  // result.block(bf2, bf1, n2, n1) = buf_mat.transpose();
+    //     //     for (size_t i = 0; i < n1; i++) {
+    //     //       for (size_t j = 0; j < n2; j++) {
+    //     //         tbuf[i * n2 + j] = tmp[j*n2+i];
+    //     //       }
+    //     //     }
+    //     //   }
+
+    //     // }
+    //     // }
+    // };
+
 
 #endif // TAMM_TESTS_HF_TAMM_HPP_

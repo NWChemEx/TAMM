@@ -441,14 +441,13 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     //    F = alpha * F + (1.0-alpha)*F_old;
     //  }
 
+    hf_t1 = std::chrono::high_resolution_clock::now();
      // S^-1/2
      Matrix Sm12 = S.pow(-0.5);
      Matrix Sp12 = S.pow(0.5);
 
     //  Eigen::EigenSolver<Matrix> sm12_diag(Sm12);
     //  Eigen::EigenSolver<Matrix> sp12_diag(Sp12);
-
-    hf_t1 = std::chrono::high_resolution_clock::now();
 
      Matrix FSm12 = F * Sm12;
      Matrix Sp12D = Sp12 * D_last;

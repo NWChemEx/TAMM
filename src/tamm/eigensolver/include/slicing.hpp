@@ -21,5 +21,5 @@ class SpectralProbe {
 void slicing(MPI_Comm comm, const MatrixXd &H, const MatrixXd &S, int n, int nev, int nevloc, int maxiter, int nslices, SpectralProbe *SPs);
 void hsdiag(MPI_Comm comm, int iterscf, Matrix &H, Matrix &S, int nev, Matrix &evals, Matrix &evecs);
 void Init_SPs(MPI_Comm comm, SpectralProbe *SPs, VectorXd &shifts);
-
+Matrix SquareRoot(Matrix &H);
 #endif

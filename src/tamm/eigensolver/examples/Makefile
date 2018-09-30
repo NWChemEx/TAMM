@@ -12,5 +12,8 @@ runscf1: runscf1.o ../src/libslice.a
 runmockscf: runmockscf.o ../src/libslice.a 
 	$(CXX) ${CXXFLAGS} -o runmockscf runmockscf.o ../src/libslice.a $(MKL)
 
+runsqrt: runsqrt.o ../src/libslice.a 
+	$(CXX) ${CXXFLAGS} -o runsqrt runsqrt.o ../src/libslice.a $(MKL)
+
 clean:
-	rm -f runsisubit runslicing *.o *.a runscf1 runmockscf
+	rm -f runsisubit runslicing *.o *.a runscf1 runmockscf runsqrt

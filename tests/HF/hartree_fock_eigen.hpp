@@ -290,11 +290,14 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   for (size_t s = 0; s < shells.size(); ++s)
     nao += shells[s].size();
 
+  const size_t N = nbasis(shells);
+  assert(N == nao);
+
   /*** =========================== ***/
   /*** compute 1-e integrals       ***/
   /*** =========================== ***/
 
-auto hf_t1 = std::chrono::high_resolution_clock::now();
+  auto hf_t1 = std::chrono::high_resolution_clock::now();
 
   // compute overlap integrals
   auto S = compute_1body_ints(shells, Operator::overlap);
@@ -315,10 +318,17 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
 //  cout << "\n\tNuclear Attraction Integrals:\n";
 //  cout << V << endl;
 
+
   // Core Hamiltonian = T + V
   Matrix H = T + V;
 //  cout << "\n\tCore Hamiltonian:\n";
 //  cout << H << endl;
+
+  auto hf_t2 = std::chrono::high_resolution_clock::now();
+
+  double hf_time =
+    std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+  std::cout << "\nTime taken for H = T+V, S: " << hf_time << " secs\n";
 
   // T and V no longer needed, free up the memory
   T.resize(0, 0);
@@ -327,6 +337,8 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
   /*** =========================== ***/
   /*** build initial-guess density ***/
   /*** =========================== ***/
+
+  hf_t1 = std::chrono::high_resolution_clock::now();
 
   const auto use_hcore_guess = true;  // use core Hamiltonian eigenstates to guess density?
   // set to true to match the result of versions 0, 1, and 2 of the code
@@ -348,14 +360,15 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
     D = compute_soad(atoms);
   }
 
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+    std::cout << "\nTime taken for eigen_solve(H,S): " << hf_time << " secs\n";
+
 //  cout << "\n\tInitial Density Matrix:\n";
 //  cout << D << endl;
 
-    auto hf_t2 = std::chrono::high_resolution_clock::now();
-
-    double hf_time =
-      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    std::cout << "\nTime taken 1st stage: " << hf_time << " secs\n";
 
   /*** =========================== ***/
   /*** main iterative loop         ***/
@@ -372,8 +385,7 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
   Matrix eps;
   double alpha = 0.75;
   Matrix F_old;
-
-  const int N = F.rows();
+  const auto debug = false;
 
   const bool simple_convergence = false;
   int idiis = 0;
@@ -381,16 +393,19 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
   std::vector<Matrix> diis_hist;
   std::vector<Matrix> fock_hist;
 
-        std::cout << "\n\n";
-        std::cout << " Hartree-Fock iterations" << std::endl;
-        std::cout << std::string(60, '-') << std::endl;
-        std::cout <<
-            " Iter     Energy            E-Diff           RMSD" 
-                << std::endl;
-        std::cout << std::string(60, '-') << std::endl;
+  std::cout << "\n\n";
+  std::cout << " Hartree-Fock iterations" << std::endl;
+  std::cout << std::string(70, '-') << std::endl;
+  std::cout <<
+      " Iter     Energy            E-Diff           RMSD           Time" 
+          << std::endl;
+  std::cout << std::string(70, '-') << std::endl;
+  std::cout << std::fixed << std::setprecision(2);
 
   do {
-    const auto tstart = std::chrono::high_resolution_clock::now();
+
+        // Scheduler sch{ec};
+    const auto loop_start = std::chrono::high_resolution_clock::now();
     ++iter;
 
     // Save a copy of the energy and the density
@@ -400,19 +415,40 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
     // build a new Fock matrix
     //auto F = H;
     //F += compute_2body_fock_simple(shells, D);
-    F = H;
-    F += compute_2body_fock(shells, D);
+    hf_t1 = std::chrono::high_resolution_clock::now();
 
-     if (iter>1 && simple_convergence) {
-       F = alpha * F + (1.0-alpha)*F_old;
-     }
+    Matrix Ftmp = compute_2body_fock(shells, D);
+
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+    std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+    if(debug) std::cout << "2BF:" << hf_time << "s, ";
+
+    hf_t1 = std::chrono::high_resolution_clock::now();
+
+    F = H;
+    F += Ftmp;
+
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+    std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+    if(debug) std::cout << "F=H+2BF:" << hf_time << "s, ";
+
+
+    //  if (iter>1 && simple_convergence) {
+    //    F = alpha * F + (1.0-alpha)*F_old;
+    //  }
 
      // S^-1/2
      Matrix Sm12 = S.pow(-0.5);
      Matrix Sp12 = S.pow(0.5);
 
-     Eigen::EigenSolver<Matrix> sm12_diag(Sm12);
-     Eigen::EigenSolver<Matrix> sp12_diag(Sp12);
+    //  Eigen::EigenSolver<Matrix> sm12_diag(Sm12);
+    //  Eigen::EigenSolver<Matrix> sp12_diag(Sp12);
+
+    hf_t1 = std::chrono::high_resolution_clock::now();
 
      Matrix FSm12 = F * Sm12;
      Matrix Sp12D = Sp12 * D_last;
@@ -424,14 +460,27 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
 
     //  if(iter <= 3 || simple_convergence) { cout << err_mat << endl; }
 
-     if(iter >= 1 && !simple_convergence) {
-         if(iter > 2) {
-             ++idiis;
-             diis(F, err_mat, D_last, iter, max_hist, idiis, diis_hist,
-                  fock_hist);
-         }
-   }
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+    std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    if(debug) std::cout << "err_mat:" << hf_time << "s, ";    
 
+    hf_t1 = std::chrono::high_resolution_clock::now();
+
+    if(iter > 2) {
+      ++idiis;
+      diis(F, err_mat, D_last, iter, max_hist, idiis, diis_hist,
+          fock_hist);
+    }
+
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+    std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+    if(debug) std::cout << "diis:" << hf_time << "s, ";    
+
+
+    hf_t1 = std::chrono::high_resolution_clock::now();
     // solve F C = e S C
     Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);
     //auto
@@ -443,7 +492,12 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
     auto C_occ = C.leftCols(ndocc);
     D = C_occ * C_occ.transpose();
 
-    
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+    std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    if(debug) std::cout << "eigen_solve:" << hf_time << "s, "; 
+
+    hf_t1 = std::chrono::high_resolution_clock::now();
     // compute HF energy
     ehf = 0.0;
     for (size_t i = 0; i < nao; i++)
@@ -454,28 +508,30 @@ auto hf_t1 = std::chrono::high_resolution_clock::now();
     ediff = ehf - ehf_last;
     rmsd = (D - D_last).norm();
 
-   
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+    std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+    if(debug) std::cout << "HF-Energy:" << hf_time << "s\n";    
+
+    const auto loop_stop = std::chrono::high_resolution_clock::now();
+    const auto loop_time =
+    std::chrono::duration_cast<std::chrono::duration<double>>((loop_stop - loop_start)).count();
+
     // cout << "iter, ehf, ediff, rmsd = " << iter << "," << ehf <<", " << ediff <<  "," <<rmsd << "\n";
-                std::cout << std::setw(5) << iter << "  " << std::setw(14);
-            std::cout << std::fixed << std::setprecision(10) << ehf;
-            std::cout << ' ' << std::setw(16)  << ediff;
-            std::cout << ' ' << std::setw(15)  << rmsd << ' ' << "\n";
-
-    const auto tstop = std::chrono::high_resolution_clock::now();
-    const std::chrono::duration<double> time_elapsed = tstop - tstart;
-
-    // if (iter == 1)
-    //   std::cout <<
-    //   "\n\n Iter        E(elec)              E(tot)               Delta(E)             RMS(D)         Time(s)\n";
-    // printf(" %02d %20.12f %20.12f %20.12f %20.12f %10.5lf\n", iter, ehf, ehf + enuc,
-    //        ediff, rmsd, time_elapsed.count());
+    std::cout << std::setw(5) << iter << "  " << std::setw(14);
+    std::cout << std::fixed << std::setprecision(10) << ehf;
+    std::cout << ' ' << std::setw(16)  << ediff;
+    std::cout << ' ' << std::setw(15)  << rmsd << ' ';
+    std::cout << std::fixed << std::setprecision(2);
+    std::cout << ' ' << std::setw(12)  << loop_time << ' ' << "\n";    
 
    if(iter > maxiter) {
      std::cerr << "HF Does not converge!!!\n";
      exit(0);
    }
 
-   if(simple_convergence) F_old = F;
+  //  if(simple_convergence) F_old = F;
   } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)));
 
   std::cout.precision(15);

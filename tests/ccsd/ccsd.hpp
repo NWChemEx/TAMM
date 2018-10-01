@@ -1,5 +1,5 @@
 
-#include "HF/hartree_fock.hpp"
+#include "HF/hartree_fock_eigen.hpp"
 #include "diis.hpp"
 #include "4index_transform.hpp"
 #include "tamm/tamm.hpp"

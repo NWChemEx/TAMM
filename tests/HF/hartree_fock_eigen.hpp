@@ -402,8 +402,11 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   std::cout << std::string(70, '-') << std::endl;
   std::cout << std::fixed << std::setprecision(2);
 
-  do {
+  // S^-1/2
+  Matrix Sm12 = S.pow(-0.5);
+  Matrix Sp12 = S.pow(0.5);
 
+  do {
         // Scheduler sch{ec};
     const auto loop_start = std::chrono::high_resolution_clock::now();
     ++iter;
@@ -442,9 +445,6 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     //  }
 
     hf_t1 = std::chrono::high_resolution_clock::now();
-     // S^-1/2
-     Matrix Sm12 = S.pow(-0.5);
-     Matrix Sp12 = S.pow(0.5);
 
     //  Eigen::EigenSolver<Matrix> sm12_diag(Sm12);
     //  Eigen::EigenSolver<Matrix> sp12_diag(Sp12);

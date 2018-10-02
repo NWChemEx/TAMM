@@ -59,7 +59,7 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
 
     sch(i0(p2, h1) = f1(p2, h1));
 
-    for(auto x = 0; x < chol.size(); x++) {
+    for(auto x = 0U; x < chol.size(); x++) {
         Tensor<T>& cholx = (*(chol.at(x)));
         sch 
           (_a001(h2, h1) = 0)
@@ -146,7 +146,7 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
         (i0_temp(p3, p4, h1, h2) = 0)
         ;
     
-    for(auto x = 0; x < chol.size(); x++) {
+    for(auto x = 0U; x < chol.size(); x++) {
         Tensor<T>& cholx = (*(chol.at(x)));
 
         sch (_a007() = 0)
@@ -381,7 +381,6 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
   (d_r2() = 0)
   .execute();
 
-  double corr = 0;
   double residual = 0.0;
   double energy = 0.0;
 
@@ -505,7 +504,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     }
   }
 
-  for(size_t i=0; i<ndiis; i++) {
+  for(auto i=0; i<ndiis; i++) {
     Tensor<T>::deallocate(*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
   d_r1s.clear();

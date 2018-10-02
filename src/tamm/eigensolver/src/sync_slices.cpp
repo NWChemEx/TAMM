@@ -9,8 +9,6 @@ void sync_slices(MPI_Comm comm, int *nslices, SpectralProbe *SPs)
    MPI_Comm_rank(comm, &rank);
    MPI_Comm_size(comm, &nprocs);
 
-   int n = (SPs[0].evecs).rows();
-
    // sync up inertial counts
    bufloc.setZero();
    bufglb.setZero();

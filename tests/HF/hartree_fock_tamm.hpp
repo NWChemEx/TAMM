@@ -115,10 +115,10 @@ std::vector<size_t> map_basis_function_to_shell(
     std::vector<size_t> result(nbasis(shells));
 
     auto shell2bf = map_shell_to_basis_function(shells);
-    for(auto s1 = 0; s1 != shells.size(); ++s1) {
+    for(size_t s1 = 0; s1 != shells.size(); ++s1) {
         auto bf1_first = shell2bf[s1]; // first basis function in this shell
         auto n1        = shells[s1].size();
-        for(auto f1 = 0; f1 != n1; ++f1) {
+        for(size_t f1 = 0; f1 != n1; ++f1) {
             const auto bf1 = f1 + bf1_first;
             result[bf1]    = s1;
         }
@@ -492,7 +492,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     //  Matrix C;
     //  Matrix F;
     
-    double alpha = 0.75;
+    // double alpha = 0.75;
     // Matrix F_old;
 
     int idiis                     = 0;
@@ -731,9 +731,9 @@ void diis(Matrix& F, Matrix& err_mat, int iter, int max_hist, int ndiis,
     using Vector =
       Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
-    const int N = F.rows();
+    // const int N = F.rows();
     // const int epos = ((ndiis-1) % max_hist) + 1;
-    int epos = ndiis - 1;
+    // int epos = ndiis - 1;
     if(ndiis > max_hist) {
         diis_hist.erase(diis_hist.begin());
         fock_hist.erase(fock_hist.begin());

@@ -76,9 +76,9 @@ class AtomicCounterGA : public AtomicCounter {
    * @param num_counters Number of counters (i.e., size of the global array)
    */
   AtomicCounterGA(const ProcGroup& pg, int64_t num_counters)
-      : pg_{pg},
-        allocated_{false},
-        num_counters_{num_counters} { }
+      : allocated_{false},
+        num_counters_{num_counters},
+        pg_{pg} { }
 
   /**
    * @brief Allocate the global array of counters and initialize all of them.
@@ -137,7 +137,7 @@ class AtomicCounterGA : public AtomicCounter {
    * @copydoc AtomicCounter::~AtomicCounter()
    */
   ~AtomicCounterGA() {
-    EXPECTS(allocated_ == false);
+    EXPECTS_NOTHROW(allocated_ == false);
   }
 
  private:

@@ -13,8 +13,6 @@ using namespace tamm;
 std::string filename;
 
 TEST_CASE("HartreeFock testcase") {
-    using T = double;
-
     Matrix C;
     Matrix F;
     // Tensor4D V2;

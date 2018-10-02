@@ -383,11 +383,9 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 //  Matrix C;
 //  Matrix F;
   Matrix eps;
-  double alpha = 0.75;
   Matrix F_old;
   const auto debug = false;
 
-  const bool simple_convergence = false;
   int idiis = 0;
   int max_hist = 5; 
   std::vector<Matrix> diis_hist;
@@ -548,9 +546,7 @@ void diis(Matrix& F, Matrix& err_mat, Matrix& D_last, int iter, int max_hist,
       Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
  
 
-  const int N = F.rows();
   // const int epos = ((ndiis-1) % max_hist) + 1;
-  int epos = ndiis - 1;
   if(ndiis > max_hist) { 
     diis_hist.erase(diis_hist.begin());
     fock_hist.erase(fock_hist.begin());

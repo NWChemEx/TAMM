@@ -6,7 +6,7 @@ extern "C" {
 int parseinput(char *filename, sislice_param *params)
 {
    int info = 0;
-   int hmatrix_ready = 0, smatrix_ready = 0, shift_ready = 0;
+   int hmatrix_ready = 0, smatrix_ready = 0;
    int n, hnnz, snnz;
    FILE *fp=NULL, *fhmat=NULL, *fsmat=NULL;
    char key[100], value[100];
@@ -180,7 +180,6 @@ int parse_scf_input(char *filename, scf_param *params)
 
    fclose(fp);
 
-EXIT:
    return info;
 }
 

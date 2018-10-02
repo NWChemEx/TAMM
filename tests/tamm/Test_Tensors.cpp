@@ -20,7 +20,7 @@ ExecutionContext make_execution_context() {
 }
 
 void lambda_function(const IndexVector& blockid, span<T> buff) {
-    for(size_t i = 0; i < buff.size(); i++) { buff[i] = 42; }
+    for(size_t i = 0; i < static_cast<size_t>(buff.size()); i++) { buff[i] = 42; }
 }
 
 template<typename T>
@@ -300,7 +300,7 @@ TEST_CASE("Spin Tensor Construction") {
     failed = false;
     try {
         auto lambda = [&](const IndexVector& blockid, span<T> buff) {
-            for(size_t i = 0; i < buff.size(); i++) { buff[i] = 42; }
+            for(size_t i = 0; i < static_cast<size_t>(buff.size()); i++) { buff[i] = 42; }
         };
         TiledIndexSpaceVec t_spaces{TIS, TIS};
         Tensor<T> t{t_spaces, lambda};
@@ -325,7 +325,7 @@ TEST_CASE("Spin Tensor Construction") {
     failed = false;
     try {
         auto lambda = [](const IndexVector& blockid, span<T> buff) {
-            for(size_t i = 0; i < buff.size(); i++) { buff[i] = 42; }
+            for(size_t i = 0; i < static_cast<size_t>(buff.size()); i++) { buff[i] = 42; }
         };
         // TiledIndexSpaceVec t_spaces{TIS, TIS};
         Tensor<T> S{{TIS, TIS}, lambda};

@@ -376,7 +376,7 @@ TEST_CASE("CCSD T2") {
 
             // const int ndim = 2;
             // std::array<int, ndim> block_offset;
-            auto& tiss      = tensor.tiled_index_spaces();
+            // auto& tiss      = tensor.tiled_index_spaces();
             auto block_dims = tensor.block_dims(it);
             // for(auto i = 0; i < ndim; i++) {
             //     block_offset[i] = tiss[i].tile_offset(it[i]);

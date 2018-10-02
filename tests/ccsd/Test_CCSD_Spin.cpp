@@ -400,9 +400,9 @@ template<typename T>
 void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_f1, Tensor<T>& d_v2,
-                   int maxiter, double thresh,
+                   size_t maxiter, double thresh,
                    double zshiftl,
-                   int ndiis, double hf_energy,
+                   size_t ndiis, double hf_energy,
                    long int total_orbitals, const TAMM_SIZE& noab) {
 
     const TiledIndexSpace& O = MO("occ");
@@ -472,7 +472,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
    
   std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
 
-  for(int i=0; i<ndiis; i++) {
+  for(size_t i=0; i<ndiis; i++) {
     d_r1s.push_back(new Tensor<T>{{V,O}, {1,1}});
     d_r2s.push_back(new Tensor<T>{{V,V,O,O}, {2,2}});
     d_t1s.push_back(new Tensor<T>{{V,O}, {1,1}});
@@ -489,7 +489,6 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
   (d_r2() = 0)
   .execute();
 
-  double corr = 0;
   double residual = 0.0;
   double energy = 0.0;
 
@@ -519,8 +518,8 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
       block_for(ec->pg(), d_f1(), lambda2);
   }
 
-  for(int titer = 0; titer < maxiter; titer += ndiis) {
-      for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
+  for(size_t titer = 0; titer < maxiter; titer += ndiis) {
+      for(size_t iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
           int off = iter - titer;
 
           Tensor<T> d_e{};

@@ -818,7 +818,7 @@ Matrix compute_2body_fock(const std::vector<libint2::Shell>& shells,
                     const auto tstart =
                       std::chrono::high_resolution_clock::now();
 
-                    engine.compute(shells[s1], shells[s2], shells[s3],
+                    engine.compute2<Operator::coulomb, libint2::BraKet::xx_xx, 0>(shells[s1], shells[s2], shells[s3],
                                    shells[s4]);
                     const auto* buf_1234 = buf[0];
                     if(buf_1234 == nullptr)

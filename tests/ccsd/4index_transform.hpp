@@ -76,6 +76,7 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
   //V_prqs.setConstant(0.0d);
   //cout << t << endl;
 
+  libint2::initialize();
   //cout << "num_basis: " << n << endl;
   // construct the electron repulsion integrals engine
   Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
@@ -97,8 +98,8 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
   spin_t.block(0,2*n_alpha,1, n_beta) = spin_3;
   spin_t.block(0,2*n_alpha+n_beta,1, n_beta) = spin_4;
 
-  cout << "\n\t spin_t\n";
-  cout << spin_t << endl;
+  // cout << "\n\t spin_t\n";
+  // cout << spin_t << endl;
 
   if(unfused_4index) {
     Eigen::Tensor<double, 4, Eigen::RowMajor> I0(v2dim, v2dim, v2dim, v2dim);

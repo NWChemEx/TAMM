@@ -389,7 +389,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
   const bool simple_convergence = false;
   int idiis = 0;
-  int max_hist = 10;
+  int max_hist = 5; 
   std::vector<Matrix> diis_hist;
   std::vector<Matrix> fock_hist;
 

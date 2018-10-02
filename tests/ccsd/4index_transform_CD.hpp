@@ -4,11 +4,13 @@
 
 #include "HF/hartree_fock_eigen.hpp"
 
-std::tuple<Tensor4D> four_index_transform(
+void four_index_transform(
   const uint64_t ndocc, const uint64_t nao, const uint64_t freeze_core,
   const uint64_t freeze_virtual, const Matrix& C, Matrix& F,
-  libint2::BasisSet& shells, Tensor3D& CholVpr, std::vector<std::pair<Matrix,Eigen::RowVectorXd>>& evs) {
+  libint2::BasisSet& shells, Tensor3D& CholVpr, std::vector<Eigen::RowVectorXd> &evec,
+   Tensor3D &Vpsigma) {
 
+  std::vector<std::pair<Matrix,Eigen::RowVectorXd>> evs;
     using libint2::Atom;
     using libint2::Shell;
     using libint2::Engine;
@@ -88,6 +90,8 @@ std::tuple<Tensor4D> four_index_transform(
   ScrCol.setZero();
   bf2shell.setZero();
 
+  libint2::initialize();
+
   // Generate bf to shell map
   auto shell2bf = map_shell_to_basis_function(shells);
   for (auto s1 = 0; s1 != shells.size(); ++s1) {
@@ -122,7 +126,7 @@ std::tuple<Tensor4D> four_index_transform(
           const auto bf2 = f2 + bf2_first;
           auto f1212 = f1*n2*n1*n2 + f2*n1*n2 + f1*n2 + f2;
           DiagInt(bf1, bf2) = buf_1212[f1212];
-          cout << f1212 << " " << s1 << s2 << "(" << bf1 << bf2 << "|" << bf1 << bf2 << ") = " << DiagInt(bf1, bf2) << endl;
+          // cout << f1212 << " " << s1 << s2 << "(" << bf1 << bf2 << "|" << bf1 << bf2 << ") = " << DiagInt(bf1, bf2) << endl;
         }
       }
     }
@@ -157,8 +161,8 @@ std::tuple<Tensor4D> four_index_transform(
         }
       }
       //cout << "count = " << count << endl;
-      cout << "max: (" << bfu << bfv << "|" << bfu << bfv << ") = " << max << sqrt(max) << endl;
-      cout << "shells: " << bf2shell(bfu) << " " << bf2shell(bfv) << endl;
+      // cout << "max: (" << bfu << bfv << "|" << bfu << bfv << ") = " << max << sqrt(max) << endl;
+      // cout << "shells: " << bf2shell(bfu) << " " << bf2shell(bfv) << endl;
     }
     
     // Compute all (**|uv)'s for given shells
@@ -231,7 +235,7 @@ std::tuple<Tensor4D> four_index_transform(
   } while (max > diagtol && count <= (8*nao)); // At most 8*ao CholVec's. For vast majority cases, this is way
                                               //   more than enough. For very large basis, it can be increased.
   
-  cout << "# of Cholesky vectors: " << count << " max: " << max << "(" << diagtol << ")" << endl;
+  // cout << "# of Cholesky vectors: " << count << " max: " << max << "(" << diagtol << ")" << endl;
   /*
   // reproduce ao2eint and compare it with libint results -- for test only!
   Eigen::Tensor<double, 4, Eigen::RowMajor> CholV2(nao,nao,nao,nao);
@@ -258,6 +262,7 @@ std::tuple<Tensor4D> four_index_transform(
 
   // std::vector<std::pair<Matrix,Eigen::RowVectorXd>> evs(count);
   evs.resize(count);
+  evec.resize(count);
 
   Matrix testev = Matrix::Random(nao,nao);
   for (auto i=0;i<count;i++) {
@@ -269,13 +274,14 @@ std::tuple<Tensor4D> four_index_transform(
 
     Eigen::SelfAdjointEigenSolver<Matrix> es(Vuvi);
     evs[i] = std::make_pair(es.eigenvectors(),es.eigenvalues());
+    evec[i] = es.eigenvalues();
   }
 
 
   //End SVD
 
   const auto v2dim =  2 * nao - 2 * freeze_core - 2 * freeze_virtual;
-  Eigen::Tensor<double, 3, Eigen::RowMajor> Vpsigma(v2dim,nao,count);
+  Vpsigma = Tensor3D(v2dim,nao,count);
   CholVpr = Tensor3D(v2dim,v2dim,count);
   Vpsigma.setZero();
   CholVpr.setZero();
@@ -325,6 +331,7 @@ std::tuple<Tensor4D> four_index_transform(
 
   //Bo-ends----------------------------
 
+#if 0
   Eigen::Tensor<double, 4, Eigen::RowMajor> V2_unfused(v2dim,v2dim,v2dim,v2dim);
   V2_unfused.setZero();
 
@@ -338,8 +345,8 @@ std::tuple<Tensor4D> four_index_transform(
 
   // Transform CholVuv to CholVpq
   if (unfused_4index) {
-    Eigen::Tensor<double, 4, Eigen::RowMajor> V2_FromCholV(v2dim,v2dim,v2dim,v2dim);
-    V2_FromCholV.setZero();
+    // Eigen::Tensor<double, 4, Eigen::RowMajor> V2_FromCholV(v2dim,v2dim,v2dim,v2dim);
+    // V2_FromCholV.setZero();
 
 
     // Form (pr|qs)
@@ -373,7 +380,7 @@ std::tuple<Tensor4D> four_index_transform(
   //Start 4-index transform
   //const auto n = nbasis(shells);
 
-#if 0
+
   Eigen::Tensor<double, 4, Eigen::RowMajor> V2_fully_fused(v2dim,v2dim,v2dim,v2dim);
   V2_fully_fused.setZero();
 
@@ -719,7 +726,7 @@ std::tuple<Tensor4D> four_index_transform(
 
 //  Eigen::Tensor<double, 4, Eigen::RowMajor> V_psqr = V_prqs.shuffle(psqr_shuffle);
   // Eigen::Tensor<double, 4, Eigen::RowMajor> V_pqrs = V_prqs - V_psqr;
-
+#if 0
   Eigen::Tensor<double, 4, Eigen::RowMajor> A2(v2dim,v2dim,v2dim,v2dim);
 
   //cout << "\n\t V_pqrs tensor\n";
@@ -767,12 +774,12 @@ std::tuple<Tensor4D> four_index_transform(
   //   }
   // }
 
-  libint2::finalize(); // done with libint
-
   //std::cout << "MAX COEFF A2 == " << A2.maximum() << std::endl;
 
   //return CCSD inputs
   return std::make_tuple(A2);
+#endif
+  libint2::finalize(); // done with libint
 
 }
 

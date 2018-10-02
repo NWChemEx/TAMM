@@ -13,10 +13,13 @@ using namespace tamm;
 template<typename T>
 void ccsd_e(ExecutionContext &ec,
             const TiledIndexSpace& MO, Tensor<T>& de, const Tensor<T>& t1,
-            const Tensor<T>& t2, const Tensor<T>& f1){ //, const Tensor<T>& v2) {
+            const Tensor<T>& t2, const Tensor<T>& f1, std::vector<Tensor<T> *> &chol){ //, const Tensor<T>& v2) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
     Tensor<T> i1{{O,V},{1,1}};
+    Tensor<T> _a01{};
+    Tensor<T> _a02{{O,O},{1,1}};
+    Tensor<T> _a03{{O,V},{1,1}};
 
     TiledIndexLabel p1, p2, p3, p4, p5;
     TiledIndexLabel h3, h4, h5, h6;
@@ -24,14 +27,26 @@ void ccsd_e(ExecutionContext &ec,
     std::tie(p1, p2, p3, p4, p5) = MO.labels<5>("virt");
     std::tie(h3, h4, h5, h6)     = MO.labels<4>("occ");
 
-    Scheduler{&ec}.allocate(i1)
-        (i1(h6, p5) = f1(h6, p5))
-        // (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
-        (de() = 0)
-        (de() += t1(p5, h6) * i1(h6, p5))
-        // (de() += 0.25 * t2(p1, p2, h3, h4) * v2(h3, h4, p1, p2))
-        .deallocate(i1)
-        .execute();
+    Scheduler sch{&ec};
+    sch.allocate(i1,_a01,_a02,_a03);
+    //sch (i1(h6, p5) = f1(h6, p5));
+    //sch (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
+    
+    sch (de() = 0);
+    for(auto x = 0U; x < chol.size(); x++) {
+        Tensor<T>& cholx = (*(chol.at(x)));
+        sch (_a01() = 0)
+            (_a02(h4, h6) = 0)
+            (_a03(h4, p2) = 0)
+            (_a01() += t1(p3, h4) * cholx(h4, p3))
+            (_a02(h4, h6) += t1(p3, h4) * cholx(h6, p3))
+            (de() +=  0.5 * _a01() * _a01())
+            (de() += -0.5 * _a02(h4, h6) * _a02(h6, h4))
+            (_a03(h4, p2) += t2(p1, p2, h3, h4) * cholx(h3, p1))
+            (de() += 0.5 * _a03(h4, p1) * cholx(h4, p1));
+    }
+    sch.deallocate(i1,_a01,_a02,_a03);
+    sch.execute();
 }
 
 template<typename T>
@@ -426,7 +441,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
           Scheduler{ec}((*d_t1s[off])() = d_t1())((*d_t2s[off])() = d_t2())
             .execute();
 
-          ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1);
+          ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1, chol);
           ccsd_t1(*ec, MO, d_r1, d_t1, d_t2, d_f1, chol);
           ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, chol);
 

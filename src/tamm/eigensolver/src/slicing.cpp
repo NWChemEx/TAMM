@@ -6,7 +6,7 @@
 void slicing(MPI_Comm comm, const MatrixXd &H, const MatrixXd &S, int n, int nev, int nevloc, int maxiter, int nshifts, SpectralProbe *SPs)
 {
    MatrixXd tempmat;
-   int nthreads, nev_below_shift;
+   int nthreads;
 
    int rank;
    MPI_Comm_rank(comm, &rank);
@@ -14,14 +14,15 @@ void slicing(MPI_Comm comm, const MatrixXd &H, const MatrixXd &S, int n, int nev
    MPI_Comm_size(comm, &nproc);
 
    int dim;
-   double lb, ub;
 
    logOFS << endl;
    for (int i = 0; i < nshifts; i++) {  
       // work on the shift that belongs to me
       if (i%nproc == rank) {
          logOFS << "rank " << rank << " building random basis" << endl;
+         #if defined(_OPENMP)
          #pragma omp parallel
+         #endif
          {
             nthreads = omp_get_num_threads();
          }

@@ -94,10 +94,10 @@ void four_index_transform(
 
   // Generate bf to shell map
   auto shell2bf = map_shell_to_basis_function(shells);
-  for (auto s1 = 0; s1 != shells.size(); ++s1) {
+  for (size_t s1 = 0; s1 != shells.size(); ++s1) {
     auto bf1_first = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();
-    for (auto f1 = 0; f1 != n1; ++f1) {
+    for (size_t f1 = 0; f1 != n1; ++f1) {
       const auto bf1 = f1 + bf1_first;
       bf2shell(bf1) = s1;
     }
@@ -107,11 +107,11 @@ void four_index_transform(
   Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
   const auto &buf = engine.results();  
 
-  for (auto s1 = 0; s1 != shells.size(); ++s1) {
+  for (size_t s1 = 0; s1 != shells.size(); ++s1) {
     auto bf1_first = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();
 
-    for (auto s2 = 0; s2 != shells.size(); ++s2) {
+    for (size_t s2 = 0; s2 != shells.size(); ++s2) {
       auto bf2_first = shell2bf[s2];
       auto n2 = shells[s2].size();
 
@@ -120,9 +120,9 @@ void four_index_transform(
       if (buf_1212 == nullptr)
         continue; // if all integrals screened out, skip to next quartet
 
-      for (auto f1 = 0; f1 != n1; ++f1) {
+      for (size_t f1 = 0; f1 != n1; ++f1) {
         const auto bf1 = f1 + bf1_first;
-        for (auto f2 = 0; f2 != n2; ++f2) {
+        for (size_t f2 = 0; f2 != n2; ++f2) {
           const auto bf2 = f2 + bf2_first;
           auto f1212 = f1*n2*n1*n2 + f2*n1*n2 + f1*n2 + f2;
           DiagInt(bf1, bf2) = buf_1212[f1212];
@@ -133,7 +133,7 @@ void four_index_transform(
   }
 
   auto max = 0.0;
-  auto count = 0;
+  auto count = 0U;
   auto bfu = 0; // basis function pair |uv) corresponding to 
   auto bfv = 0; //  maximun diagonal.
   auto s1 = bf2shell(bfu);
@@ -150,8 +150,8 @@ void four_index_transform(
 
     if (count == 0) {
       // Find maximum in DiagInt 
-      for (auto indi = 0; indi != nao; ++indi) {
-        for (auto indj = 0; indj!= nao; ++indj) {
+      for (size_t indi = 0; indi != nao; ++indi) {
+        for (size_t indj = 0; indj!= nao; ++indj) {
           //max = std::max(DiagInt(indi,indj), max);
           if (DiagInt(indi,indj) > max) {
             max = DiagInt(indi,indj);
@@ -175,11 +175,11 @@ void four_index_transform(
     f2 = bfv - shell2bf[s2];
     ind12 = f1*n2 + f2;
 
-    for (auto s3 = 0; s3 != shells.size(); ++s3) {
+    for (size_t s3 = 0; s3 != shells.size(); ++s3) {
       auto bf3_first = shell2bf[s3]; // first basis function in this shell
       auto n3 = shells[s3].size();
 
-      for (auto s4 = 0; s4 != shells.size(); ++s4) {
+      for (size_t s4 = 0; s4 != shells.size(); ++s4) {
         auto bf4_first = shell2bf[s4];
         auto n4 = shells[s4].size();
 
@@ -188,14 +188,14 @@ void four_index_transform(
         if (buf_3412 == nullptr)
           continue; // if all integrals screened out, skip to next quartet
 
-        for (auto f3 = 0; f3 != n3; ++f3) {
+        for (size_t f3 = 0; f3 != n3; ++f3) {
           const auto bf3 = f3 + bf3_first;
-          for (auto f4 = 0; f4 != n4; ++f4) {
+          for (size_t f4 = 0; f4 != n4; ++f4) {
             const auto bf4 = f4 + bf4_first;
 
             auto f3412 = f3*n4*n12 + f4*n12 + ind12;
             ScrCol(bf3, bf4) = buf_3412[f3412];
-            for (auto icount = 0; icount != count; ++icount) {
+            for (auto icount = 0U; icount != count; ++icount) {
               ScrCol(bf3, bf4) -= CholVuv(bf3,bf4,icount)*CholVuv(bfu,bfv,icount);
             }
             CholVuv(bf3, bf4, count) = ScrCol(bf3, bf4)/sqrt(max);
@@ -206,8 +206,8 @@ void four_index_transform(
     }
   
     // Update diagonals
-    for (auto indi = 0; indi != nao; ++indi) {
-      for (auto indj = 0; indj!= nao; ++indj) {
+    for (size_t indi = 0; indi != nao; ++indi) {
+      for (size_t indj = 0; indj!= nao; ++indj) {
         //cout << indi << " " << indj << " " << DiagInt(indi, indj) << endl;
         //cout << CholVuv(indi, indj, count) << endl;
         DiagInt(indi, indj) -= CholVuv(indi, indj, count)*CholVuv(indi, indj, count);
@@ -219,8 +219,8 @@ void four_index_transform(
 
     // Find maximum in DiagInt 
     max = 0.0;
-    for (auto indi = 0; indi != nao; ++indi) {
-      for (auto indj = 0; indj!= nao; ++indj) {
+    for (size_t indi = 0; indi != nao; ++indi) {
+      for (size_t indj = 0; indj!= nao; ++indj) {
         //max = std::max(DiagInt(indi,indj), max);
         if (DiagInt(indi,indj) > max) {
           max = DiagInt(indi,indj);
@@ -265,10 +265,10 @@ void four_index_transform(
   evec.resize(count);
 
   Matrix testev = Matrix::Random(nao,nao);
-  for (auto i=0;i<count;i++) {
+  for (auto i=0U;i<count;i++) {
     Matrix Vuvi(nao, nao);
-    for (auto x = 0; x < nao; x++) {
-    for (auto y = 0; y<nao; y++)
+    for (auto x = 0U; x < nao; x++) {
+    for (auto y = 0U; y<nao; y++)
       Vuvi(x, y) = CholVuv(x, y, i);
     }
 
@@ -302,10 +302,10 @@ void four_index_transform(
   spin_t.block(0,2*n_alpha+n_beta,1, n_beta) = spin_4;
 
       // From evs to Vpsigma
-    for (auto p = 0; p < v2dim; p++) {
-      for (auto fu = 0; fu != nao; ++fu) {
-        for (auto fs = 0; fs != nao; ++fs) {
-          for (auto icount = 0; icount != count; ++icount) {
+    for (auto p = 0U; p < v2dim; p++) {
+      for (auto fu = 0U; fu != nao; ++fu) {
+        for (auto fs = 0U; fs != nao; ++fs) {
+          for (auto icount = 0U; icount != count; ++icount) {
             //CD: CholVpv(p, fv, icount) += CTiled(fu, p) * CholVuv(fu, fv, icount);
             Vpsigma(p, fs, icount) += CTiled(fu, p) * evs.at(icount).first(fu, fs);
           }
@@ -314,14 +314,14 @@ void four_index_transform(
     }
 
     // From evs to CholVpr
-    for (auto p = 0; p < v2dim; p++) {
-      for (auto r = 0; r < v2dim; r++) {
+    for (auto p = 0U; p < v2dim; p++) {
+      for (auto r = 0U; r < v2dim; r++) {
         if (spin_t(p) != spin_t(r)) {
           continue;
         }
 
-        for (auto fs = 0; fs != nao; ++fs) {
-          for (auto icount = 0; icount != count; ++icount) {
+        for (auto fs = 0U; fs != nao; ++fs) {
+          for (auto icount = 0U; icount != count; ++icount) {
             //CD: CholVpr(p, r, icount) += CTiled(fv, r) * CholVpv(p, fv, icount);
             CholVpr(p, r, icount) += Vpsigma(p,fs,icount)*Vpsigma(r,fs,icount)*evs.at(icount).second(fs);
           }

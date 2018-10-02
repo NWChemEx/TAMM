@@ -82,7 +82,7 @@ VectorXd getshifts(MPI_Comm comm, MatrixXd &H, MatrixXd &S, int nev, int nshifts
    int nPts = 5000;
    DOS.domain = linspace( evbnds(0), evbnds(1), nPts+2 );
    // Remove end points
-   for( int64_t j = 1; j < DOS.domain.size(); ++j )
+   for( size_t j = 1; j < DOS.domain.size(); ++j )
       DOS.domain[j-1] = DOS.domain[j];
    DOS.domain.pop_back();
    DOS.domain.pop_back();

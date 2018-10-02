@@ -11,7 +11,7 @@ void hsdiag(MPI_Comm comm, int iterscf, Matrix &H, Matrix &S, int nev, Matrix &e
    int rank;
    std::ofstream resultsfile;
    MPI_Comm_rank(comm, &rank);
-   double t1 = MPI_Wtime();
+   // double t1 = MPI_Wtime();
 
    const int limit = 500;
 
@@ -33,7 +33,7 @@ void hsdiag(MPI_Comm comm, int iterscf, Matrix &H, Matrix &S, int nev, Matrix &e
       VectorXd ev1(n);
 
       char  lower = 'U', needv = 'V';
-      int   gtype = 1, lgvdwork = n*n, info = 0, ierr;
+      int   gtype = 1, lgvdwork = n*n, ierr;
       double *gvdwork;
       gvdwork = new double[lgvdwork];
 
@@ -63,8 +63,6 @@ void hsdiag(MPI_Comm comm, int iterscf, Matrix &H, Matrix &S, int nev, Matrix &e
       SpectralProbe *SPs;
       SPs = new SpectralProbe[nshifts];
       Init_SPs(comm, SPs, shifts);
-
-      VectorXi *inds = NULL;
 
       int maxiter = 5; // hard code for now
       logOFS << "rank " << rank << " starting slicing" << endl;
@@ -106,6 +104,6 @@ void hsdiag(MPI_Comm comm, int iterscf, Matrix &H, Matrix &S, int nev, Matrix &e
       eps = evalmat;
       evecs = evecmat.block(0,0,n,nevf);
    } // endif (n <= 500)
-   double t2 = MPI_Wtime();
+   // double t2 = MPI_Wtime();
    // if (rank == 0) cout << "ELASPSED TIME: " << t2-t1 << endl;
 }

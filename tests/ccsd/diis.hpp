@@ -37,16 +37,16 @@ inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
             auto jsize = rblock_dims[1];
 
             if(!transpose) {
-                for(int i = 0, c = 0; i < isize; i++) {
-                    for(int j = 0; j < jsize; j++, c++) {
+                for(auto i = 0U, c = 0U; i < isize; i++) {
+                    for(auto j = 0U; j < jsize; j++, c++) {
                         tbuf[c] =
                           rbuf[c] / (-p_evl_sorted_virt[ioff + i] +
                                      p_evl_sorted_occ[joff + j] + shift);
                     }
                 }
             } else {
-                for(int i = 0, c = 0; i < isize; i++) {
-                    for(int j = 0; j < jsize; j++, c++) {
+                for(auto i = 0U, c = 0U; i < isize; i++) {
+                    for(auto j = 0U; j < jsize; j++, c++) {
                         tbuf[c] =
                           rbuf[c] / (p_evl_sorted_occ[ioff + i] -
                                      p_evl_sorted_virt[joff + j] + shift);
@@ -64,10 +64,10 @@ inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
             for(auto x : rblock_dims) { isize.push_back(x); }
 
             if(!transpose) {
-                for(int i0 = 0, c = 0; i0 < isize[0]; i0++) {
-                    for(int i1 = 0; i1 < isize[1]; i1++) {
-                        for(int i2 = 0; i2 < isize[2]; i2++) {
-                            for(int i3 = 0; i3 < isize[3]; i3++, c++) {
+                for(auto i0 = 0U, c = 0U; i0 < isize[0]; i0++) {
+                    for(auto i1 = 0U; i1 < isize[1]; i1++) {
+                        for(auto i2 = 0U; i2 < isize[2]; i2++) {
+                            for(auto i3 = 0U; i3 < isize[3]; i3++, c++) {
                                 tbuf[c] =
                                   rbuf[c] /
                                   (-p_evl_sorted_virt[ioff[0] + i0] -
@@ -79,10 +79,10 @@ inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
                     }
                 }
             } else {
-                for(int i0 = 0, c = 0; i0 < isize[0]; i0++) {
-                    for(int i1 = 0; i1 < isize[1]; i1++) {
-                        for(int i2 = 0; i2 < isize[2]; i2++) {
-                            for(int i3 = 0; i3 < isize[3]; i3++, c++) {
+                for(auto i0 = 0U, c = 0U; i0 < isize[0]; i0++) {
+                    for(auto i1 = 0U; i1 < isize[1]; i1++) {
+                        for(auto i2 = 0U; i2 < isize[2]; i2++) {
+                            for(auto i3 = 0U; i3 < isize[3]; i3++, c++) {
                                 tbuf[c] =
                                   rbuf[c] /
                                   (p_evl_sorted_occ[ioff[0] + i0] +
@@ -152,11 +152,11 @@ inline void diis(ExecutionContext& ec,
                  std::vector<Tensor<T>*> d_t) {
 
     EXPECTS(d_t.size() == d_rs.size());
-    int ntensors = d_t.size();
+    size_t ntensors = d_t.size();
     EXPECTS(ntensors > 0);
-    int ndiis = d_rs[0]->size();
+    size_t ndiis = d_rs[0]->size();
     EXPECTS(ndiis > 0);
-    for(int i = 0; i < ntensors; i++) { EXPECTS(d_rs[i]->size() == ndiis); }
+    for(auto i = 0U; i < ntensors; i++) { EXPECTS(d_rs[i]->size() == ndiis); }
 
     using Matrix =
       Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
@@ -164,9 +164,9 @@ inline void diis(ExecutionContext& ec,
       Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
     Matrix A = Matrix::Zero(ndiis + 1, ndiis + 1);
     Vector b = Vector::Zero(ndiis + 1, 1);
-    for(int k = 0; k < ntensors; k++) {
-        for(int i = 0; i < ndiis; i++) {
-            for(int j = i; j < ndiis; j++) {
+    for(auto k = 0U; k < ntensors; k++) {
+        for(auto i = 0U; i < ndiis; i++) {
+            for(auto j = i; j < ndiis; j++) {
                 Tensor<T> d_r1{};
                 Tensor<T>::allocate(&ec,d_r1);
                 Tensor<T>& t1 = *d_rs[k]->at(i);
@@ -183,10 +183,10 @@ inline void diis(ExecutionContext& ec,
         }
     }
 
-    for(int i = 0; i < ndiis; i++) {
-        for(int j = i; j < ndiis; j++) { A(j, i) = A(i, j); }
+    for(auto i = 0U; i < ndiis; i++) {
+        for(auto j = i; j < ndiis; j++) { A(j, i) = A(i, j); }
     }
-    for(int i = 0; i < ndiis; i++) {
+    for(auto i = 0U; i < ndiis; i++) {
         A(i, ndiis) = -1.0;
         A(ndiis, i) = -1.0;
     }
@@ -199,10 +199,10 @@ inline void diis(ExecutionContext& ec,
     Vector x = A.lu().solve(b);
 
     auto sch = Scheduler{&ec};
-    for(int k = 0; k < ntensors; k++) {
+    for(auto k = 0U; k < ntensors; k++) {
         Tensor<T>& dt = *d_t[k];
         sch(dt() = 0);
-        for(int j = 0; j < ndiis; j++) {
+        for(auto j = 0U; j < ndiis; j++) {
             auto& tb = *d_ts[k]->at(j);
             sch(dt() += x(j, 0) * tb());
         }

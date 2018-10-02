@@ -38,8 +38,8 @@ VectorXd getevbnd(const VectorXd &d, const MatrixXd &S, const double &beta);
 
     std::vector< double > y( x.size(), 0 );
 
-    for( auto iX = 0; iX < x.size();       ++iX )
-    for( auto iG = 0; iG < DOS.exp.size(); ++iG ) {
+    for( size_t iX = 0; iX < x.size();       ++iX )
+    for( size_t iG = 0; iG < DOS.exp.size(); ++iG ) {
 
       y[iX] += DOS.prefactor[iG] *
                std::exp( -DOS.exp[iG] *
@@ -60,8 +60,8 @@ VectorXd getevbnd(const VectorXd &d, const MatrixXd &S, const double &beta);
 
     std::vector< double > y( x.size(), 0 );
 
-    for( auto iX = 0; iX < x.size();       ++iX )
-    for( auto iG = 0; iG < DOS.exp.size(); ++iG ) {
+    for( size_t iX = 0; iX < x.size();       ++iX )
+    for( size_t iG = 0; iG < DOS.exp.size(); ++iG ) {
 
       double sqrt_fact = std::sqrt(DOS.exp[iG]);
       double shift_cen = x[iX] - DOS.center[iG];
@@ -76,7 +76,7 @@ VectorXd getevbnd(const VectorXd &d, const MatrixXd &S, const double &beta);
 
     }
 
-    for( auto iX = 0; iX < x.size(); ++iX )
+    for( size_t iX = 0; iX < x.size(); ++iX )
        y.at(iX) = y.at(iX)*sqrt(M_PI) / 2.;
 
     return y;

@@ -214,7 +214,7 @@ class IndexLoopNest {
                                   return a.primary_label() == slbl;
                               });
           EXPECTS(it != labels.end());
-          EXPECTS(it - labels.begin() < pos);
+          EXPECTS(it - labels.begin() < static_cast<decltype(it-labels.begin())>(pos));
           indep_indices_.back().push_back(it - labels.begin());
           pos += 1;
       }
@@ -306,7 +306,7 @@ class IndexLoopNest {
 
 
    private:
-    int rollback(int index) {
+    int rollback(const size_t index) {
       int i;
       for(i = index; i >= 0 && itrs_[i]+1 == ends_[i]; i--) {
         //no-op
@@ -314,20 +314,18 @@ class IndexLoopNest {
       return i;
     }
 
-    int size() const {
+    size_t size() const {
       return loop_nest_->size();
     }
     
-    void reset_forward(int index) {
-      EXPECTS(index >= 0);
-
+    void reset_forward(const size_t index) {
       int i = index;
-      while (i >=0 && i < size()) {
+      while (i >=0 && i < static_cast<int>(size())) {
         std::vector<Index> indep_vals;
-        EXPECTS(i< loop_nest_->indep_indices_.size());
+        EXPECTS(i < static_cast<int>(loop_nest_->indep_indices_.size()));
         for (const auto& id : loop_nest_->indep_indices_[i]) {
           EXPECTS(id>=0 && id<itrs_.size() && id<bases_.size());
-          EXPECTS(id < i);
+          EXPECTS(static_cast<int>(id) < i);
           indep_vals.push_back(*(bases_[id]+itrs_[id]));
         }
         IndexIterator cbeg, cend;

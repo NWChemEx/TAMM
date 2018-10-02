@@ -44,8 +44,8 @@ public:
      */
     TensorBase(const std::vector<TiledIndexSpace>& block_indices) :
       block_indices_{block_indices},
-      num_modes_{block_indices.size()},
-      allocation_status_{AllocationStatus::invalid} {    
+      allocation_status_{AllocationStatus::invalid},
+      num_modes_{block_indices.size()} {    
           for(const auto& tis: block_indices_) {
               EXPECTS(!tis.is_dependent());
           }
@@ -62,8 +62,8 @@ public:
      * tensor
      */
     TensorBase(const std::vector<TiledIndexLabel>& lbls) :
-      num_modes_{lbls.size()},
-      allocation_status_{AllocationStatus::invalid} {
+      allocation_status_{AllocationStatus::invalid},
+            num_modes_{lbls.size()} {
         for(const auto& lbl : lbls) {
             block_indices_.push_back(lbl.tiled_index_space());
             //tlabels_.push_back(lbl);

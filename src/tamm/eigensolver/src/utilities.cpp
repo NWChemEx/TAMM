@@ -87,7 +87,7 @@ int MPI_Bcast_scf_params(MPI_Comm comm, scf_param *params)
 
 Matrix ReadAndBcastMatrix(MPI_Comm comm, char *filename)
 {
-   int rank, n, nnz, irow, jcol, ierr, info=0;
+   int rank, n, nnz, irow, info=0;
    MPI_Comm_rank(comm, &rank);
    FILE *fpmat = NULL;
    int *colptr, *rowind;
@@ -115,9 +115,9 @@ Matrix ReadAndBcastMatrix(MPI_Comm comm, char *filename)
       }
    }
 
-   ierr = MPI_Bcast(&info, 1, MPI_INT, 0, comm);
+   MPI_Bcast(&info, 1, MPI_INT, 0, comm);
    if (!info) {
-      ierr = MPI_Bcast(&n, 1, MPI_INT, 0, comm);
+      MPI_Bcast(&n, 1, MPI_INT, 0, comm);
       MatrixXd A(n,n);
       if (rank == 0) {
          A.setZero();
@@ -159,7 +159,7 @@ VectorXi sortinds(VectorXd xs) {
 
    VectorXi inds(m);
 
-   int numless, equal = 0;
+   int numless;
 
    for (int i = 0; i < m; i++) {
       numless = 0;

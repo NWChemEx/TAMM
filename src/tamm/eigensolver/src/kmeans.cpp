@@ -3,7 +3,6 @@
 void kmeans(VectorXd &shifts, VectorXd &eigvals)
 {
     int maxiter = 5, kcluster;
-    double tol = 1e-6;
     double dist, mindist, csum;
    
     int nshifts = shifts.size(); 

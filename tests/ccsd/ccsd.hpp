@@ -391,7 +391,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 
     Scheduler sch{ec};
   /// @todo: make it a tamm tensor
-  std::cout << "Total orbitals = " << total_orbitals << std::endl;
+  if(GA_Nodeid()==0) std::cout << "Total orbitals = " << total_orbitals << std::endl;
   //std::vector<double> p_evl_sorted(total_orbitals);
 
     // Tensor<T> d_evl{N};
@@ -426,11 +426,11 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 //   }
 //   ec->pg().barrier();
 
-  if(ec->pg().rank() == 0) {
-    std::cout << "p_evl_sorted:" << '\n';
-    for(size_t p = 0; p < p_evl_sorted.size(); p++)
-      std::cout << p_evl_sorted[p] << '\n';
-  }
+//   if(ec->pg().rank() == 0) {
+//     std::cout << "p_evl_sorted:" << '\n';
+//     for(size_t p = 0; p < p_evl_sorted.size(); p++)
+//       std::cout << p_evl_sorted[p] << '\n';
+//   }
 
   if(ec->pg().rank() == 0) {
     std::cout << "\n\n";
@@ -619,7 +619,7 @@ void tce_ccsd(std::string filename) {
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
+    if(GA_Nodeid()==0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
 
     hf_t1        = std::chrono::high_resolution_clock::now();
     std::tie(V2) = four_index_transform(ov_alpha, nao, freeze_core,
@@ -627,18 +627,18 @@ void tce_ccsd(std::string filename) {
     hf_t2        = std::chrono::high_resolution_clock::now();
     double two_4index_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    std::cout << "\nTime taken for 4-index transform: " << two_4index_time
+    if(GA_Nodeid()==0) std::cout << "\nTime taken for 4-index transform: " << two_4index_time
               << " secs\n";
 
     TAMM_SIZE ov_beta{nao - ov_alpha};
 
-    std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
+    if(GA_Nodeid()==0) std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
     sizes = {ov_alpha - freeze_core, ov_alpha - freeze_core,
              ov_beta - freeze_virtual, ov_beta - freeze_virtual};
 
-    std::cout << "sizes vector -- \n";
-    for(const auto& x : sizes) std::cout << x << ", ";
-    std::cout << "\n";
+    // std::cout << "sizes vector -- \n";
+    // for(const auto& x : sizes) std::cout << x << ", ";
+    // std::cout << "\n";
 
     const long int total_orbitals = 2*ov_alpha+2*ov_beta;
     
@@ -739,7 +739,7 @@ void tce_ccsd(std::string filename) {
 
   double ccsd_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-  std::cout << "\nTime taken for CCSD: " << ccsd_time << " secs\n";
+  if(GA_Nodeid()==0) std::cout << "\nTime taken for CCSD: " << ccsd_time << " secs\n";
 
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
   MemoryManagerGA::destroy_coll(mgr);

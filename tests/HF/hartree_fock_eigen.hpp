@@ -310,7 +310,7 @@ std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
   std::tie(X, Xinv, obs_rank, S_condition_number, XtX_condition_number) =
       gensqrtinv(S, false, S_condition_number_threshold);
   auto obs_nbf_omitted = (long)S.rows() - (long)obs_rank;
-  std::cout << "overlap condition number = " << S_condition_number;
+  // std::cout << "overlap condition number = " << S_condition_number;
   if (obs_nbf_omitted > 0)
     std::cout << " (dropped " << obs_nbf_omitted << " "
               << (obs_nbf_omitted > 1 ? "fns" : "fn") << " to reduce to "
@@ -470,7 +470,9 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     auto D_minbs = compute_soad(atoms);  // compute guess in minimal basis
     BasisSet minbs("STO-3G", atoms);
 
-    std::cout << "\nProjecting minimal basis SOAD onto specified basis set...\n";
+    std::cout <<
+    "\nProjecting minimal basis SOAD onto basis set specified (" << basis << ")\n";
+
     auto F = H;
 
     F += compute_2body_fock_general(
@@ -499,7 +501,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   hf_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-  std::cout << "\nTime taken for computing initial guess: " << hf_time << " secs\n";
+  std::cout << "\nTime taken to compute initial guess: " << hf_time << " secs\n";
 
 //  cout << "\n\tInitial Density Matrix:\n";
 //  cout << D << endl;

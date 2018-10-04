@@ -26,6 +26,10 @@
 #include <libint2/basis.h>
 #include <libint2/chemistry/sto3g_atomic_density.h>
 
+using shellpair_list_t = std::unordered_map<size_t, std::vector<size_t>>;
+shellpair_list_t obs_shellpair_list;  // shellpair list for OBS
+using shellpair_data_t = std::vector<std::vector<std::shared_ptr<libint2::ShellPair>>>;  // in same order as shellpair_list_t
+shellpair_data_t obs_shellpair_data;  // shellpair data for OBS
 
 #ifdef _OPENMP
   #include <omp.h>
@@ -49,6 +53,18 @@ Matrix compute_soad(const std::vector<libint2::Atom> &atoms);
 void diis(Matrix& F, Matrix& S, Matrix& D_last, int iter, int max_hist, int idiis,
 std::vector<Matrix> &diis_hist, std::vector<Matrix> &fock_hist); 
 
+std::tuple<shellpair_list_t,shellpair_data_t>
+compute_shellpairs(const libint2::BasisSet& bs1,
+                   const libint2::BasisSet& bs2 = libint2::BasisSet(),
+                   double threshold = 1e-12);
+
+template <libint2::Operator Kernel = libint2::Operator::coulomb>
+Matrix compute_schwarz_ints(
+    const libint2::BasisSet& bs1, const libint2::BasisSet& bs2 = libint2::BasisSet(),
+    bool use_2norm = false,  // use infty norm by default
+    typename libint2::operator_traits<Kernel>::oper_params_type params =
+        libint2::operator_traits<Kernel>::default_params());
+
 // an Fock builder that can accept densities expressed a separate basis
 Matrix compute_2body_fock_general(
     const libint2::BasisSet& obs, const Matrix& D, const libint2::BasisSet& D_bs,
@@ -58,8 +74,17 @@ Matrix compute_2body_fock_general(
     );
 
 // an efficient Fock builder; *integral-driven* hence computes permutationally-unique ints once
-Matrix compute_2body_fock(const std::vector<libint2::Shell> &shells,
+Matrix compute_2body_fock_orig(const std::vector<libint2::Shell> &shells,
                           const Matrix &D);
+
+
+Matrix compute_2body_fock(
+    const libint2::BasisSet& obs, const Matrix& D,
+    double precision = std::numeric_limits<
+        double>::epsilon(),  // discard contributions smaller than this
+    const Matrix& Schwarz = Matrix()  // K_ij = sqrt(||(ij|ij)||_\infty); if
+                                       // empty, do not Schwarz screen
+    );
 
 // returns {X,X^{-1},S_condition_number_after_conditioning}, where
 // X is the generalized square-root-inverse such that X.transpose() * S * X = I
@@ -103,6 +128,8 @@ std::vector<size_t> map_shell_to_basis_function(const std::vector<libint2::Shell
 
   return result;
 }
+
+const auto max_engine_precision = std::numeric_limits<double>::epsilon() / 1e10;
 
 using libint2::Atom;
 
@@ -327,6 +354,102 @@ std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
   return std::make_tuple(X, Xinv, XtX_condition_number);
 }
 
+std::tuple<shellpair_list_t,shellpair_data_t>
+compute_shellpairs(const libint2::BasisSet& bs1,
+                   const libint2::BasisSet& _bs2,
+                   const double threshold) {
+
+  using libint2::Engine;
+  using libint2::BasisSet;
+  using libint2::Operator;
+  using libint2::BraKet;
+
+  const BasisSet& bs2 = (_bs2.empty() ? bs1 : _bs2);
+  const auto nsh1 = bs1.size();
+  const auto nsh2 = bs2.size();
+  const auto bs1_equiv_bs2 = (&bs1 == &bs2);
+
+  // construct the 2-electron repulsion integrals engine
+
+  Engine engine(Operator::overlap,
+                       std::max(bs1.max_nprim(), bs2.max_nprim()),
+                       std::max(bs1.max_l(), bs2.max_l()), 0);
+
+
+  std::cout << "computing non-negligible shell-pair list ... ";
+
+  libint2::Timers<1> timer;
+  timer.set_now_overhead(25);
+  timer.start(0);
+
+  shellpair_list_t splist;
+
+  // std::mutex mx;
+
+    const auto& buf = engine.results();
+
+    // loop over permutationally-unique set of shells
+    for (auto s1 = 0l, s12 = 0l; s1 != nsh1; ++s1) {
+      // mx.lock();
+      if (splist.find(s1) == splist.end())
+        splist.insert(std::make_pair(s1, std::vector<size_t>()));
+      // mx.unlock();
+
+      auto n1 = bs1[s1].size();  // number of basis functions in this shell
+
+      auto s2_max = bs1_equiv_bs2 ? s1 : nsh2 - 1;
+      for (auto s2 = 0; s2 <= s2_max; ++s2, ++s12) {
+        // if (s12 % nthreads != thread_id) continue;
+
+        auto on_same_center = (bs1[s1].O == bs2[s2].O);
+        bool significant = on_same_center;
+        if (not on_same_center) {
+          auto n2 = bs2[s2].size();
+          engine.compute(bs1[s1], bs2[s2]);
+          Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
+          auto norm = buf_mat.norm();
+          significant = (norm >= threshold);
+        }
+
+        if (significant) {
+          // mx.lock();
+          splist[s1].emplace_back(s2);
+          // mx.unlock();
+        }
+      }
+    }
+  
+
+
+  // resort shell list in increasing order, i.e. splist[s][s1] < splist[s][s2] if s1 < s2
+  // N.B. only parallelized over 1 shell index
+    for (auto s1 = 0l; s1 != nsh1; ++s1) {
+      // if (s1 % nthreads == thread_id) {
+        auto& list = splist[s1];
+        std::sort(list.begin(), list.end());
+      }
+    // }
+
+
+  // compute shellpair data assuming that we are computing to default_epsilon
+  // N.B. only parallelized over 1 shell index
+  const auto ln_max_engine_precision = std::log(max_engine_precision);
+  shellpair_data_t spdata(splist.size());
+  
+    for (auto s1 = 0l; s1 != nsh1; ++s1) {
+      // if (s1 % nthreads == thread_id) {
+        for(const auto& s2 : splist[s1]) {
+          spdata[s1].emplace_back(std::make_shared<libint2::ShellPair>(bs1[s1],bs2[s2],ln_max_engine_precision));
+        }
+      // }
+    }
+  
+  timer.stop(0);
+  std::cout << "done (" << timer.read(0) << " s)" << std::endl;
+
+  return std::make_tuple(splist,spdata);
+}
+
 std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filename, Matrix &C, Matrix &F) {
 
   // Perform the simple HF calculation (Ed) and 2,4-index transform to get the inputs for CCSD
@@ -379,12 +502,27 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   // LIBINT_INSTALL_DIR/share/libint/2.4.0-beta.1/basis
   libint2::BasisSet shells(std::string(basis), atoms);
   //auto shells = make_sto3g_basis(atoms);
+
+      // compute OBS non-negligible shell-pair list
+    {
+      std::tie(obs_shellpair_list, obs_shellpair_data) = compute_shellpairs(shells);
+      size_t nsp = 0;
+      for (auto& sp : obs_shellpair_list) {
+        nsp += sp.second.size();
+      }
+      std::cout << "# of {all,non-negligible} shell-pairs = {"
+                << shells.size() * (shells.size() + 1) / 2 << "," << nsp << "}"
+                << std::endl;
+    }
+
   size_t nao = 0;
   for (size_t s = 0; s < shells.size(); ++s)
     nao += shells[s].size();
 
   const size_t N = nbasis(shells);
   assert(N == nao);
+
+  cout << "\nNumber of basis functions: " << N << endl;
 
   /*** =========================== ***/
   /*** compute 1-e integrals       ***/
@@ -514,7 +652,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   const auto maxiter = 100;
   const auto conv = 1e-7;
   auto iter = 0;
-  auto rmsd = 0.0;
+  auto rmsd = 1.0;
   auto ediff = 0.0;
   auto ehf = 0.0;
 //  Matrix C;
@@ -527,6 +665,13 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   std::vector<Matrix> diis_hist;
   std::vector<Matrix> fock_hist;
 
+  // S^-1/2
+  Matrix Sm12 = S.pow(-0.5);
+  Matrix Sp12 = S.pow(0.5);
+
+  // pre-compute data for Schwarz bounds
+  auto SchwarzK = compute_schwarz_ints<>(shells);
+
   std::cout << "\n\n";
   std::cout << " Hartree-Fock iterations" << std::endl;
   std::cout << std::string(70, '-') << std::endl;
@@ -535,10 +680,6 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
           << std::endl;
   std::cout << std::string(70, '-') << std::endl;
   std::cout << std::fixed << std::setprecision(2);
-
-  // S^-1/2
-  Matrix Sm12 = S.pow(-0.5);
-  Matrix Sp12 = S.pow(0.5);
 
   do {
         // Scheduler sch{ec};
@@ -553,7 +694,11 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     //auto F = H;
     hf_t1 = std::chrono::high_resolution_clock::now();
 
-    Matrix Ftmp = compute_2body_fock(shells, D);
+    const auto precision_F = std::min(
+        std::min(1e-3 / XtX_condition_number, 1e-7),
+        std::max(rmsd / 1e4, std::numeric_limits<double>::epsilon()));
+
+    Matrix Ftmp = compute_2body_fock(shells, D, precision_F, SchwarzK);
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
@@ -613,12 +758,20 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
 
     hf_t1 = std::chrono::high_resolution_clock::now();
+
     // solve F C = e S C
-    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);
-    //auto
-    eps = gen_eig_solver.eigenvalues();
-    C = gen_eig_solver.eigenvectors();
-    //auto C1 = gen_eig_solver.eigenvectors();
+    // Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);
+    // //auto
+    // eps = gen_eig_solver.eigenvalues();
+    // C = gen_eig_solver.eigenvectors();
+    
+    // solve F C = e S C by (conditioned) transformation to F' C' = e C',
+    // where
+    // F' = X.transpose() . F . X; the original C is obtained as C = X . C'
+    Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * F *
+                                                      X);
+    //eps = eig_solver.eigenvalues();
+    C = X * eig_solver.eigenvectors();
 
     // compute density, D = C(occ) . C(occ)T
     auto C_occ = C.leftCols(ndocc);
@@ -680,11 +833,22 @@ void diis(Matrix& F, Matrix& err_mat, Matrix& D_last, int iter, int max_hist,
       using Vector =
       Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
  
+  // std::vector<double> max_err(diis_hist.size());
+  // std::cout << "max_err vector: \n";
+  // for (auto i=0; i<diis_hist.size(); i++){
+  //   max_err[i] = diis_hist[i].norm();
+  //   cout << max_err[i] << ",";
+  // }
+
+  // auto maxe = std::distance(max_err.begin(), 
+  //           std::max_element(max_err.begin(),max_err.end()));
+
+  // std::cout << "\nmax index: " << maxe << endl;
 
   // const int epos = ((ndiis-1) % max_hist) + 1;
   if(ndiis > max_hist) { 
-    diis_hist.erase(diis_hist.begin());
-    fock_hist.erase(fock_hist.begin());
+    diis_hist.erase(diis_hist.begin()); //+maxe);
+    fock_hist.erase(fock_hist.begin()); //+maxe);
     
   }
   diis_hist.push_back(err_mat);
@@ -748,6 +912,257 @@ Matrix compute_soad(const std::vector<Atom>& atoms) {
   }
 
   return D * 0.5;  // we use densities normalized to # of electrons/2
+}
+
+template <libint2::Operator Kernel>
+Matrix compute_schwarz_ints(
+    const libint2::BasisSet& bs1, const libint2::BasisSet& _bs2, bool use_2norm,
+    typename libint2::operator_traits<Kernel>::oper_params_type params) {
+
+  using libint2::BasisSet;
+  using libint2::Engine;
+  using libint2::BraKet;
+
+  const BasisSet& bs2 = (_bs2.empty() ? bs1 : _bs2);
+  const auto nsh1 = bs1.size();
+  const auto nsh2 = bs2.size();
+  const auto bs1_equiv_bs2 = (&bs1 == &bs2);
+
+  Matrix K = Matrix::Zero(nsh1, nsh2);
+
+  // construct the 2-electron repulsion integrals engine
+  // !!! very important: cannot screen primitives in Schwarz computation !!!
+  auto epsilon = 0.0;
+  Engine engine = Engine(Kernel, std::max(bs1.max_nprim(), bs2.max_nprim()),
+                      std::max(bs1.max_l(), bs2.max_l()), 0, epsilon, params);
+
+  std::cout << "computing Schwarz bound prerequisites (kernel=" << (int)Kernel
+            << ") ... ";
+
+  libint2::Timers<1> timer;
+  timer.set_now_overhead(25);
+  timer.start(0);
+
+    const auto& buf = engine.results();
+
+    // loop over permutationally-unique set of shells
+    for (auto s1 = 0l, s12 = 0l; s1 != nsh1; ++s1) {
+      auto n1 = bs1[s1].size();  // number of basis functions in this shell
+
+      auto s2_max = bs1_equiv_bs2 ? s1 : nsh2 - 1;
+      for (auto s2 = 0; s2 <= s2_max; ++s2, ++s12) {
+        // if (s12 % nthreads != thread_id) continue;
+
+        auto n2 = bs2[s2].size();
+        auto n12 = n1 * n2;
+
+        engine.compute2<Kernel, BraKet::xx_xx, 0>(bs1[s1], bs2[s2],
+                                                              bs1[s1], bs2[s2]);
+        assert(buf[0] != nullptr &&
+               "to compute Schwarz ints turn off primitive screening");
+
+        // to apply Schwarz inequality to individual integrals must use the diagonal elements
+        // to apply it to sets of functions (e.g. shells) use the whole shell-set of ints here
+        Eigen::Map<const Matrix> buf_mat(buf[0], n12, n12);
+        auto norm2 = use_2norm ? buf_mat.norm()
+                               : buf_mat.lpNorm<Eigen::Infinity>();
+        K(s1, s2) = std::sqrt(norm2);
+        if (bs1_equiv_bs2) K(s2, s1) = K(s1, s2);
+      }
+    }
+
+
+
+  timer.stop(0);
+  std::cout << "done (" << timer.read(0) << " s)" << std::endl;
+
+  return K;
+}
+
+
+Matrix compute_shellblock_norm(const libint2::BasisSet& obs, const Matrix& A) {
+  const auto nsh = obs.size();
+  Matrix Ash(nsh, nsh);
+
+  auto shell2bf = obs.shell2bf();
+  for (size_t s1 = 0; s1 != nsh; ++s1) {
+    const auto& s1_first = shell2bf[s1];
+    const auto& s1_size = obs[s1].size();
+    for (size_t s2 = 0; s2 != nsh; ++s2) {
+      const auto& s2_first = shell2bf[s2];
+      const auto& s2_size = obs[s2].size();
+
+      Ash(s1, s2) = A.block(s1_first, s2_first, s1_size, s2_size)
+                        .lpNorm<Eigen::Infinity>();
+    }
+  }
+
+  return Ash;
+}
+
+Matrix compute_2body_fock(const libint2::BasisSet& obs, const Matrix& D,
+                          double precision, const Matrix& Schwarz) {
+
+  using libint2::Operator;                            
+  const auto n = obs.nbf();
+  const auto nshells = obs.size();
+  Matrix G = Matrix::Zero(n, n);
+
+  const auto do_schwarz_screen = Schwarz.cols() != 0 && Schwarz.rows() != 0;
+  Matrix D_shblk_norm =
+      compute_shellblock_norm(obs, D);  // matrix of infty-norms of shell blocks
+
+  auto fock_precision = precision;
+  // engine precision controls primitive truncation, assume worst-case scenario
+  // (all primitive combinations add up constructively)
+  auto max_nprim = obs.max_nprim();
+  auto max_nprim4 = max_nprim * max_nprim * max_nprim * max_nprim;
+  auto engine_precision = std::min(fock_precision / D_shblk_norm.maxCoeff(),
+                                   std::numeric_limits<double>::epsilon()) /
+                          max_nprim4;
+  assert(engine_precision > max_engine_precision &&
+      "using precomputed shell pair data limits the max engine precision"
+  " ... make max_engine_precision smaller and recompile");
+
+  // construct the 2-electron repulsion integrals engine pool
+  using libint2::Engine;
+  Engine engine(Operator::coulomb, obs.max_nprim(), obs.max_l(), 0);
+  engine.set_precision(engine_precision);  // shellset-dependent precision
+                                               // control will likely break
+                                               // positive definiteness
+                                               // stick with this simple recipe
+  // std::cout << "compute_2body_fock:precision = " << precision << std::endl;
+  // std::cout << "Engine::precision = " << engine.precision() << std::endl;
+  // for (size_t i = 1; i != nthreads; ++i) {
+  //   engines[i] = engines[0];
+  // }
+  std::atomic<size_t> num_ints_computed{0};
+
+
+  auto shell2bf = obs.shell2bf();
+
+    const auto& buf = engine.results();
+
+    // loop over permutationally-unique set of shells
+    for (auto s1 = 0l, s1234 = 0l; s1 != nshells; ++s1) {
+      auto bf1_first = shell2bf[s1];  // first basis function in this shell
+      auto n1 = obs[s1].size();       // number of basis functions in this shell
+
+      auto sp12_iter = obs_shellpair_data.at(s1).begin();
+
+      for (const auto& s2 : obs_shellpair_list[s1]) {
+        auto bf2_first = shell2bf[s2];
+        auto n2 = obs[s2].size();
+
+        const auto* sp12 = sp12_iter->get();
+        ++sp12_iter;
+
+        const auto Dnorm12 = do_schwarz_screen ? D_shblk_norm(s1, s2) : 0.;
+
+        for (auto s3 = 0; s3 <= s1; ++s3) {
+          auto bf3_first = shell2bf[s3];
+          auto n3 = obs[s3].size();
+
+          const auto Dnorm123 =
+              do_schwarz_screen
+                  ? std::max(D_shblk_norm(s1, s3),
+                             std::max(D_shblk_norm(s2, s3), Dnorm12))
+                  : 0.;
+
+          auto sp34_iter = obs_shellpair_data.at(s3).begin();
+
+          const auto s4_max = (s1 == s3) ? s2 : s3;
+          for (const auto& s4 : obs_shellpair_list[s3]) {
+            if (s4 > s4_max)
+              break;  // for each s3, s4 are stored in monotonically increasing
+                      // order
+
+            // must update the iter even if going to skip s4
+            const auto* sp34 = sp34_iter->get();
+            ++sp34_iter;
+
+            // if ((s1234++) % nthreads != thread_id) continue;
+
+            const auto Dnorm1234 =
+                do_schwarz_screen
+                    ? std::max(
+                          D_shblk_norm(s1, s4),
+                          std::max(D_shblk_norm(s2, s4),
+                                   std::max(D_shblk_norm(s3, s4), Dnorm123)))
+                    : 0.;
+
+            if (do_schwarz_screen &&
+                Dnorm1234 * Schwarz(s1, s2) * Schwarz(s3, s4) <
+                    fock_precision)
+              continue;
+
+            auto bf4_first = shell2bf[s4];
+            auto n4 = obs[s4].size();
+
+            num_ints_computed += n1 * n2 * n3 * n4;
+
+            // compute the permutational degeneracy (i.e. # of equivalents) of
+            // the given shell set
+            auto s12_deg = (s1 == s2) ? 1 : 2;
+            auto s34_deg = (s3 == s4) ? 1 : 2;
+            auto s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1 : 2) : 2;
+            auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
+
+            engine.compute2<Operator::coulomb, libint2::BraKet::xx_xx, 0>(
+                obs[s1], obs[s2], obs[s3], obs[s4], sp12, sp34);
+            const auto* buf_1234 = buf[0];
+            if (buf_1234 == nullptr)
+              continue; // if all integrals screened out, skip to next quartet
+
+
+
+            // 1) each shell set of integrals contributes up to 6 shell sets of
+            // the Fock matrix:
+            //    F(a,b) += (ab|cd) * D(c,d)
+            //    F(c,d) += (ab|cd) * D(a,b)
+            //    F(b,d) -= 1/4 * (ab|cd) * D(a,c)
+            //    F(b,c) -= 1/4 * (ab|cd) * D(a,d)
+            //    F(a,c) -= 1/4 * (ab|cd) * D(b,d)
+            //    F(a,d) -= 1/4 * (ab|cd) * D(b,c)
+            // 2) each permutationally-unique integral (shell set) must be
+            // scaled by its degeneracy,
+            //    i.e. the number of the integrals/sets equivalent to it
+            // 3) the end result must be symmetrized
+            for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+              const auto bf1 = f1 + bf1_first;
+              for (auto f2 = 0; f2 != n2; ++f2) {
+                const auto bf2 = f2 + bf2_first;
+                for (auto f3 = 0; f3 != n3; ++f3) {
+                  const auto bf3 = f3 + bf3_first;
+                  for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
+                    const auto bf4 = f4 + bf4_first;
+
+                    const auto value = buf_1234[f1234];
+
+                    const auto value_scal_by_deg = value * s1234_deg;
+
+                    G(bf1, bf2) += D(bf3, bf4) * value_scal_by_deg;
+                    G(bf3, bf4) += D(bf1, bf2) * value_scal_by_deg;
+                    G(bf1, bf3) -= 0.25 * D(bf2, bf4) * value_scal_by_deg;
+                    G(bf2, bf4) -= 0.25 * D(bf1, bf3) * value_scal_by_deg;
+                    G(bf1, bf4) -= 0.25 * D(bf2, bf3) * value_scal_by_deg;
+                    G(bf2, bf3) -= 0.25 * D(bf1, bf4) * value_scal_by_deg;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+  // };  // end of lambda
+
+  // std::cout << "# of integrals = " << num_ints_computed << std::endl;
+  // symmetrize the result and return
+   Matrix GG = 0.5 * (G + G.transpose());
+
+  return GG;
 }
 
 
@@ -864,7 +1279,7 @@ Matrix compute_2body_fock_general(const libint2::BasisSet& obs, const Matrix& D,
 }
 
 
-Matrix compute_2body_fock(const std::vector<libint2::Shell> &shells,
+Matrix compute_2body_fock_orig(const std::vector<libint2::Shell> &shells,
                           const Matrix &D) {
 
   using libint2::Shell;
@@ -991,5 +1406,6 @@ Matrix compute_2body_fock(const std::vector<libint2::Shell> &shells,
   Matrix Gt = G.transpose();
   return 0.5 * (G + Gt);
 }
+
 
 #endif //TAMM_TESTS_HF_HPP_

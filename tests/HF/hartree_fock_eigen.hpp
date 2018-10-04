@@ -61,6 +61,13 @@ Matrix compute_2body_fock_general(
 Matrix compute_2body_fock(const std::vector<libint2::Shell> &shells,
                           const Matrix &D);
 
+// returns {X,X^{-1},S_condition_number_after_conditioning}, where
+// X is the generalized square-root-inverse such that X.transpose() * S * X = I
+// columns of Xinv is the basis conditioned such that
+// the condition number of its metric (Xinv.transpose . Xinv) <
+// S_condition_number_threshold
+std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
+    const Matrix& S, double S_condition_number_threshold);
 
 size_t nbasis(const std::vector<libint2::Shell> &shells) {
   size_t n = 0;
@@ -241,6 +248,85 @@ Matrix compute_1body_ints(const std::vector<libint2::Shell> &shells,
   return result;
 }
 
+// returns {X,X^{-1},rank,A_condition_number,result_A_condition_number}, where
+// X is the generalized square-root-inverse such that X.transpose() * A * X = I
+//
+// if symmetric is true, produce "symmetric" sqrtinv: X = U . A_evals_sqrtinv .
+// U.transpose()),
+// else produce "canonical" sqrtinv: X = U . A_evals_sqrtinv
+// where U are eigenvectors of A
+// rows and cols of symmetric X are equivalent; for canonical X the rows are
+// original basis (AO),
+// cols are transformed basis ("orthogonal" AO)
+//
+// A is conditioned to max_condition_number
+std::tuple<Matrix, Matrix, size_t, double, double> gensqrtinv(
+    const Matrix& S, bool symmetric = false,
+    double max_condition_number = 1e8) {
+  Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(S);
+  auto U = eig_solver.eigenvectors();
+  auto s = eig_solver.eigenvalues();
+  auto s_max = s.maxCoeff();
+  auto condition_number = std::min(
+      s_max / std::max(s.minCoeff(), std::numeric_limits<double>::min()),
+      1.0 / std::numeric_limits<double>::epsilon());
+  auto threshold = s_max / max_condition_number;
+  long n = s.rows();
+  long n_cond = 0;
+  for (long i = n - 1; i >= 0; --i) {
+    if (s(i) >= threshold) {
+      ++n_cond;
+    } else
+      i = 0;  // skip rest since eigenvalues are in ascending order
+  }
+
+  auto sigma = s.bottomRows(n_cond);
+  auto result_condition_number = sigma.maxCoeff() / sigma.minCoeff();
+  auto sigma_sqrt = sigma.array().sqrt().matrix().asDiagonal();
+  auto sigma_invsqrt = sigma.array().sqrt().inverse().matrix().asDiagonal();
+
+  // make canonical X/Xinv
+  auto U_cond = U.block(0, n - n_cond, n, n_cond);
+  Matrix X = U_cond * sigma_invsqrt;
+  Matrix Xinv = U_cond * sigma_sqrt;
+  // convert to symmetric, if needed
+  if (symmetric) {
+    X = X * U_cond.transpose();
+    Xinv = Xinv * U_cond.transpose();
+  }
+  return std::make_tuple(X, Xinv, size_t(n_cond), condition_number,
+                         result_condition_number);
+}
+
+std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
+    const Matrix& S, double S_condition_number_threshold) {
+  size_t obs_rank;
+  double S_condition_number;
+  double XtX_condition_number;
+  Matrix X, Xinv;
+
+  assert(S.rows() == S.cols());
+
+  std::tie(X, Xinv, obs_rank, S_condition_number, XtX_condition_number) =
+      gensqrtinv(S, false, S_condition_number_threshold);
+  auto obs_nbf_omitted = (long)S.rows() - (long)obs_rank;
+  std::cout << "overlap condition number = " << S_condition_number;
+  if (obs_nbf_omitted > 0)
+    std::cout << " (dropped " << obs_nbf_omitted << " "
+              << (obs_nbf_omitted > 1 ? "fns" : "fn") << " to reduce to "
+              << XtX_condition_number << ")";
+  std::cout << std::endl;
+
+  if (obs_nbf_omitted > 0) {
+    Matrix should_be_I = X.transpose() * S * X;
+    Matrix I = Matrix::Identity(should_be_I.rows(), should_be_I.cols());
+    std::cout << "||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
+              << " (should be 0)" << std::endl;
+  }
+
+  return std::make_tuple(X, Xinv, XtX_condition_number);
+}
+
 std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filename, Matrix &C, Matrix &F) {
 
   // Perform the simple HF calculation (Ed) and 2,4-index transform to get the inputs for CCSD
@@ -347,6 +433,22 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
   hf_t1 = std::chrono::high_resolution_clock::now();
 
+    // compute orthogonalizer X such that X.transpose() . S . X = I
+    Matrix X, Xinv;
+    double XtX_condition_number;  // condition number of "re-conditioned"
+                                  // overlap obtained as Xinv.transpose() . Xinv
+    // one should think of columns of Xinv as the conditioned basis
+    // Re: name ... cond # (Xinv.transpose() . Xinv) = cond # (X.transpose() .
+    // X)
+    // by default assume can manage to compute with condition number of S <=
+    // 1/eps
+    // this is probably too optimistic, but in well-behaved cases even 10^11 is
+    // OK
+    double S_condition_number_threshold =
+        1.0 / std::numeric_limits<double>::epsilon();
+    std::tie(X, Xinv, XtX_condition_number) =
+        conditioning_orthogonalizer(S, S_condition_number_threshold);
+
   const auto use_hcore_guess = false;  // use core Hamiltonian eigenstates to guess density?
   // set to true to match the result of versions 0, 1, and 2 of the code
   // HOWEVER !!! even for medium-size molecules hcore will usually fail !!!
@@ -377,9 +479,15 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
                                                 // to be cheaper
         );
 
-    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);
-    auto eps = gen_eig_solver.eigenvalues();
-    auto C = gen_eig_solver.eigenvectors();
+    // Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(F, S);
+    // auto eps = gen_eig_solver.eigenvalues();
+    // auto C = gen_eig_solver.eigenvectors();
+
+    // solve F C = e S C by (conditioned) transformation to F' C' = e C',
+    // where
+    // F' = X.transpose() . F . X; the original C is obtained as C = X . C'
+    Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * F * X);
+    auto C = X * eig_solver.eigenvectors();
 
     // compute density, D = C(occ) . C(occ)T
     auto C_occ = C.leftCols(ndocc);

@@ -498,9 +498,117 @@ TEST_CASE("Hash Based Equality and Compatibility Check") {
     REQUIRE(sub_tis1.is_compatible_with(tis2));
     REQUIRE(sub_tis1.is_compatible_with(tis3));
     REQUIRE(!sub_tis1.is_compatible_with(tis1("virt")));
-    
+   
 }
+/* 
+// Z_i_mu-prime^x = E_mu_v^X * C_i^mu * C_mu-prime^v-prime
+// Z_i_mu-prime-i^x-prime-i = (E_mu-i_v-prime-i^x-prime-i * C_i^mu-i) * C_mu-prime-i^v-prime-i
+// {X-prime-i} = sum over j in j(i) {X_j}
+// {Mu-prime-i} = sum over j in j(i) {Mu-prime_j}
+// (i, mu-prime-i | x-prime-i)
+TEST_CASE("DLPNO") {
 
+    IndexSpace MU{};
+    IndexSpace X{};
+    IndexSpace dependent_X{};
+    IndexSpace dependent_MU{};
+
+    TiledIndexSpace t_Atom{Atom};
+    TiledIndexSpace t_dependent_X{dependent_X};
+    TiledIndexSpace t_dependent_MU{dependent_MU};
+
+    Tensor<double> Z{};
+    Tensor<double> C{};
+    Tensor<double> E{};
+
+    auto ec = make_execution_context();
+
+    auto i = t_Atom.labels<1>("all");
+    auto [mu, mu_prime, nu_prime] = t_dependent_MU.labels<4>("all");
+    auto x_prime = t_dependent_X.labels<1>("all");
+
+    Scheduler{ec}
+    (T() = 0.0)
+    (T(i, nu(i), x(i)) += E(i, nu(i), x(i)) * C(i, mu(i)))
+    (Z(i, nu(i), x(i)) += T(i, nu(i), x(i)) * C(nu(i), nu_prime(i))
+    .execute();
+
+    // Scheduler{ec}
+    // (T(i, nu_prime(i), x_prime(i)) += E(mu(i), nu_prime(i), x_prime(i)) * C(i,mu(i))
+    // (Z(i, mu_prime(i), x_prime(i)) += T(i, nu_prime(i), x_prime(i)) * C(mu_prime(i), nu_prime(i)))
+    // .execute();
+
+}
+ */
+
+TEST_CASE("PNO-MP2") {
+    // IndexSpace for i, j values (can be different IndexSpaces)
+    IndexSpace IS{range(10)};
+    // Dependent IndexSpace for a, b ranges
+    IndexSpace IS_DEP{range(0,6)};
+
+    // Default tiling for IndexSpace for i, j values (can be different IndexSpaces)
+    TiledIndexSpace tIS{IS};      
+
+    // Dependency relation between (i, j) pairs and labels a, b
+    std::map<IndexVector, IndexSpace> dep_relation;
+
+    // Set the dependency for each (i, j) pair and labels a, b
+    // here the dependency set on the IS_DEP named subspaces 
+    // but it can be done in any way. Assumption is that this  
+    // will be passed to the method
+    for(const auto& i : IS) {
+        for(const auto& j : IS) {
+            dep_relation.insert({{i, j}, IS_DEP});
+        }
+    }
+
+    // Dependent IndexSpace s constructed for a and b labels
+    IndexSpace dep_IS{{tIS, tIS}, dep_relation};
+
+    // Default tiling for these dependent IndexSpace s 
+    TiledIndexSpace tdep_IS(dep_IS);
+
+    // Construct labels for the operations
+    auto [i, j] = tIS.labels<2>("all");
+    auto [a, b] = tdep_IS.labels<2>("all");
+
+
+    // Main computation tensors (can be passed as parameters)
+    Tensor<double> EMP2{i, j, a(i,j), b(i,j)};
+    Tensor<double> R{i, j, a(i,j), b(i,j)};
+    Tensor<double> G{i, j, a(i,j), b(i,j)};
+    Tensor<double> T{i, j, a(i,j), b(i,j)};
+
+    // Temporary tensors
+    Tensor<double> T_prime{i, j, a(i,j), b(i,j)};
+    Tensor<double> Temp{i, j, a(i,j), b(i,j)}; 
+    
+    // Construct an ExecutionContext 
+    auto ec = make_execution_context();
+    // Construct a Scheduler
+    Scheduler sch{&ec};
+    // Assuming these tensors are filled (here we fill them with some values)
+    sch.allocate(R, G, T)
+        (R() = 42.0)
+        (G() = 10.0)
+        (T() = 1.0)
+    .execute();
+
+    // Main computation for calculating closed-shell PNO-MP2 energy
+    // auto EMP2 = (G("i,j")("a,b") + R("i,j")("a,b")).dot(2 * T("i,j")("a,b") - T("i,j")("b,a"));
+    sch.allocate(EMP2, T_prime, Temp)
+        (EMP2() = 0.0)
+        (T_prime() = 0.0)
+        (Temp() = 0.0)
+        (T_prime(i, j, a(i,j), b(i,j)) = 2.0 * T(i, j, a(i,j), b(i,j)))
+        (T_prime(i, j, a(i,j), b(i,j)) -= T(i, j, b(i,j), a(i,j)))
+        (Temp(i, j, a(i,j), b(i,j)) = G(i, j, a(i,j), b(i,j)))
+        (Temp(i, j, a(i,j), b(i,j)) += R(i, j, a(i,j), b(i,j)))
+        (EMP2(i, j, a(i,j), b(i,j)) += Temp(i, j, a(i,j), b(i,j)) * T_prime(i, j, a(i,j), b(i,j)))
+    .execute();
+
+}
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
     GA_Initialize();

@@ -19,23 +19,6 @@ std::ostream& operator << (std::ostream &os, std::vector<T>& vec){
     return os;
 }
 
-template<typename T>
-void print_tensor(Tensor<T> &t){
-    for (auto it: t.loop_nest())
-    {
-        TAMM_SIZE size = t.block_size(it);
-        std::vector<T> buf(size);
-        t.get(it, buf);
-        std::cout << "block" << it;
-        for (TAMM_SIZE i = 0; i < size;i++)
-      if (buf[i]>0.0000000000001||buf[i]<-0.0000000000001) {
-//        std::cout << buf[i] << " ";
-         std::cout << buf[i] << endl;
-//        std::cout << std::endl;
-      }
-    }
-}
-
 // This will go away when the CCSD routine is replaced by a call to the seperated code.
 template<typename T>
 void ccsd_e(ExecutionContext &ec,
@@ -839,7 +822,6 @@ void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
   const auto hbardim = nroots*microeomiter;
   const auto microdim = nroots;
 
-
 Matrix hbar = Matrix::Zero(hbardim,hbardim);
 
 auto populate_vector_of_tensors = [&] (std::vector<Tensor<T>> &vec, bool is2D=true){
@@ -872,24 +854,25 @@ using std::vector;
   vector<Tensor<T>> r2(microdim);
   populate_vector_of_tensors(r2,false);
   
-/////  FUTURE: The {x1,x2} and {xp1,xp2} tensors will be
-/////  dimension of '# of initial guess + nroots*(microeomiter-1)'
-/////  for the first microcycle and nroots*microeomiter for the remaining. The
-/////  {xc1,xc2} and {r1,r2} tensors will still be 'nroots'
-
-  int nxtrials = nroots;
+//TO DO: NXTRIALS IS SET TO NROOTS BECAUSE WE ONLY ALLOW #NROOTS# INITIAL GUESSES
+//       WHEN THE EOM_GUESS ROUTINE IS UPDATED TO BE LIKE THE INITIAL GUESS IN TCE
+//       THEN THE FOLLOWING LINE WILL BE "INT NXTRIALS = INITVECS", WHERE INITVEC 
+//       IS THE NUMBER OF INITIAL VECTORS. THE {X1,X2} AND {XP1,XP2} TENSORS WILL 
+//       BE OF DIMENSION (INITVECS + NROOTS*(MICROEOMITER-1)) FOR THE FIRST 
+//       MICROCYCLE AND (NROOTS*MICROEOMITER) FOR THE REMAINING.
+  int nxtrials = nroots; 
 
 //################################################################################
-//  Call the eom_guess routine (external routine)
+//  CALL THE EOM_GUESS ROUTINE (EXTERNAL ROUTINE)
 //################################################################################
-eom_guess(nroots,noab,p_evl_sorted,x1);
+  eom_guess(nroots,noab,p_evl_sorted,x1);
 
-
-
+//################################################################################
+//  PRINT THE HEADER FOR THE EOM ITERATIONS
+//################################################################################
   if(ec->pg().rank() == 0) {
     std::cout << "\n\n";
-    // FUTURE: The number of initial vectors will be determined in the 
-    // eom_guess routine.
+//TO DO: THE NUMBER OF INITIAL VECTORS WILL BE DETERMINED IN THE EOM_GUESS ROUTINE.
     std::cout << " No. of initial right vectors " << nxtrials << std::endl;
     std::cout << "\n";
     std::cout << " EOM-CCSD right-hand side iterations" << std::endl;
@@ -906,21 +889,25 @@ eom_guess(nroots,noab,p_evl_sorted,x1);
 
   for(int iter = 0; iter < maxeomiter;){
      for(int micro = 0; micro < microeomiter; iter++, micro++){
+std::cout<< "######################## 'Iter'ation(+1) " << iter+1 << "#############" << std::endl; 
         nxtrials = (micro+1)*nroots;
         for(int root= 0; root < nroots; root++){
-//################################################################################
-        //***CALL x1 and x2 routines for the (xtrials-nroots+root)-th
-        //***update. (Assumes the counting for roots starts at zero)
-        //***This produces xp1 and xp2 vectors. 
+
         auto counter = nxtrials-nroots+root;
 
+//std::cout << "@@@@@@@@@@@@@ X1 @@@@@@@@@@@@@" << std::endl;
+//        print_tensor_all(x1.at(counter));
+//std::cout << "@@@@@@@@@@@@@ X2 @@@@@@@@@@@@@" << std::endl;
+//        print_tensor(x2.at(counter));
         eomccsd_x1(*ec, MO, xp1.at(counter), t1, t2, x1.at(counter), x2.at(counter), f1, v2);
         eomccsd_x2(*ec, MO, xp2.at(counter), t1, t2, x1.at(counter), x2.at(counter), f1, v2);
-//################################################################################
+//std::cout << "@@@@@@@@@@@@@ XP1 @@@@@@@@@@@@@" << std::endl;
+//        print_tensor_all(xp1.at(counter));
+//std::cout << "@@@@@@@@@@@@@ XP2 @@@@@@@@@@@@@" << std::endl;
+//        print_tensor(xp2.at(counter));
 
         std::cout << iter << " " << micro << " COUNTER  " << counter << std::endl;
         }
-
 
 //***Update hbar which is a matrix of dot products between the x and xp vectors.
            if(micro == 0){
@@ -935,6 +922,7 @@ eom_guess(nroots,noab,p_evl_sorted,x1);
                T r1;
                d_r1.get({}, {&r1, 1});
                hbar(ivec,jvec) = r1;
+//           std::cout << hbar(ivec,jvec) << std::endl;
 //################################################################################
                  }
               }
@@ -966,7 +954,7 @@ eom_guess(nroots,noab,p_evl_sorted,x1);
                  }
               }
            } 
-
+//           std::cout << hbar << std::endl;
 
 #if 1
 
@@ -978,8 +966,17 @@ std::vector<T> omegar(nev);
 for (auto x=0; x<nev;x++)
  omegar[x] = real(omegar1(x));
 
+std::cout << omegar << std::endl;
+
+//################################################################################
+//Sort the eigenvectors and corresponding eigenvalues 
+//################################################################################
+
 std::vector<size_t> omegar_sorted_order = sort_indexes(omegar);
 std::sort(omegar.begin(), omegar.end());
+
+std::cout << "Sorted eigenvalues" << std::endl;
+std::cout << omegar << std::endl;
 
 // for (auto x: omegar) std::cout << x << " ";
 // std::cout << std::endl;
@@ -992,7 +989,11 @@ Matrix hbar_right(nev,nev);
 hbar_right.setZero();
 
 for (auto x=0;x<nev;x++)
-    hbar_right(x) = hbar_right1(omegar_sorted_order[x]).real();
+    hbar_right.col(x) = hbar_right1.col(omegar_sorted_order[x]).real();
+
+std::cout << hbar_right1.real() << std::endl;
+std::cout << "Sorted eigenvectors" << std::endl;
+std::cout << hbar_right << std::endl;
 
 //################################################################################
 //--From the lowest nroots number of eigenvalues and vectors, form xc's which 
@@ -1008,7 +1009,8 @@ for (auto x=0;x<nev;x++)
     (r1.at(root)()        = 0)
     (r2.at(root)()        = 0).execute();
     for(int i = 0; i < nxtrials; i++){
-        T hbr_scalar = hbar_right(root,i);
+//    std::cout << i << hbar_right(i,root) << std::endl;
+        T hbr_scalar = hbar_right(i,root);
        sch(xc1.at(root)()       += hbr_scalar * x1.at(i)()) 
           (xc2.at(root)() += hbr_scalar * x2.at(i)()).execute();
     }  
@@ -1018,25 +1020,40 @@ for (auto x=0;x<nev;x++)
     T omegar_scalar = -1 * omegar[root];
     sch(r1.at(root)()        += omegar_scalar * xc1.at(root)() )
     (r2.at(root)() += omegar_scalar * xc2.at(root)() ).execute();
+//    std::cout << "xc1" << std::endl;
+//    print_tensor_all(xc1.at(root));
+//    std::cout << "omega*xc1" << std::endl;
+//    print_tensor_all(r1.at(root));
     for(int i = 0; i < nxtrials; i++){
-       T hbr_scalar = hbar_right(root,i);
+        T hbr_scalar = hbar_right(i,root);
        sch(r1.at(root)()        += hbr_scalar * xp1.at(i)())
        (r2.at(root)() += hbr_scalar *xp2.at(i)()).execute();
     }  
+//                sch(d_r1()  = 0)
+//                  (d_r1() += r1.at(root)() * r1.at(root)())
+//                  (d_r1() += r2.at(root)() * r2.at(root)()).execute();
+// std::cout << "Residual^^2= " << std::endl;
+// print_tensor(d_r1);
  }
  #endif
 //################################################################################
 
-//################################################################################
-//Sort the eigenvectors and corresponding eigenvalues 
-//################################################################################
 
 //################################################################################
 //***Call jacobi with the r1/r2's to form the new set of x1/x2's
-// for(auto root = 0; root < nroots; root++){
-//     jacobi(*ec, r1.at(root), x1.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
-//     jacobi(*ec, r2.at(root), x2.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
-// }
+ std::cout << "nxtrials before jacobi = " << nxtrials << std::endl;
+ for(auto root = 0; root < nroots; root++){
+// std::cout << "  BEFORE JACOBI   r1.at(root)()= at root "<< root << std::endl;
+// print_tensor(r1.at(root));
+// std::cout << "  BEFORE JACOBI   r2.at(root)()= at root "<< root << std::endl;
+// print_tensor(r2.at(root));
+     jacobi(*ec, r1.at(root), x1.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
+     jacobi(*ec, r2.at(root), x2.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
+// std::cout << "  AFTER JACOBI     x1.at(nxtrials+root) at root "<< root << std::endl;
+// print_tensor(x1.at(nxtrials+root));
+// std::cout << "  AFTER JACOBI     x2.at(nxtrials+root) at root "<< root << std::endl;
+// print_tensor(x2.at(nxtrials+root));
+ }
 //
 // FUTURE: Thee will be a specific Jacobi for x's which accounts for symmetry
 //################################################################################
@@ -1045,38 +1062,66 @@ for (auto x=0;x<nev;x++)
 //Right now u1 and u2 are allocated to be seperate. It is a seperate array to only 
 //store and work with the vector that is currently being orthoginalized. 
 //To save some memory, you can use any one of the xc vectors as a workspace.  
+//***ACTUALLY just have r1 and r2 overwrite themselves in jacobi!!!!!!!!!!!!!!!!!!
+   const TiledIndexSpace &O = MO("occ");
+   const TiledIndexSpace &V = MO("virt");
 
+   auto [h1, h2] = MO.labels<2>("occ");
+   auto [p3, p4] = MO.labels<2>("virt");
 
-
-   if(micro > 0){
-      for(int ivec = nxtrials-nroots; ivec<nxtrials; ivec++){
+   std::cout << "IN ORTHOGONALIZATION, MICRO = " << micro << std::endl;
+   //if(micro > 0){
+      for(int ivec = nxtrials; ivec<nxtrials+nroots; ivec++){
           Tensor<T> u1 = x1.at(ivec);
           Tensor<T> u2 = x2.at(ivec);
+//          std::cout << "X1 BEFORE REMOVING OVERLAP"<< ivec << std::endl;
+//          print_tensor(u1);
+//          std::cout << "X2 BEFORE REMOVING OVERLAP"<< ivec << std::endl;
+//          print_tensor(u2);
           for(int jvec = 0; jvec<ivec; jvec++){
-             std::cout << ivec << " " << jvec << std::endl;
+//             std::cout << ivec << " " << jvec << std::endl;
+//          std::cout << "X1 Entering orthogonalization" << std::endl;
+//          std::cout << "X1 at ivec"<< ivec << std::endl;
+//          print_tensor_all(x1.at(ivec));
+//          std::cout << "X1 at jvec"<< jvec << std::endl;
+//          print_tensor_all(x1.at(jvec));
              sch(oscalar() = 0)
                 (oscalar() += x1.at(ivec)() * x1.at(jvec)())
                 (oscalar() += x2.at(ivec)() * x2.at(jvec)()).execute();
               T tmps;
               oscalar.get({}, {&tmps,1});
-              sch(u1() = tmps * x1.at(jvec)())
-              (u2() = tmps * x2.at(jvec)()).execute();
+//         std::cout << "TMPS 1= " << tmps << std::endl;
+              sch(u1() += -1 * tmps * x1.at(jvec)())
+                 (u2() += -1 * tmps * x2.at(jvec)()).execute();
           }
-          // T norm = u1 * u1
+   //@@@@@@@@@@@@@@@ START FIX ME @@@@@@@@@@@@@@@@@@@@
+   std::cout << "THIS IS FOR IVEC = "<< ivec << std::endl;
+   std::cout << "X1 (U1) AFTER REMOVING OVERLAP" << std::endl;
+   print_tensor(u1);
+   std::cout << "X2 (U1) AFTER REMOVING OVERLAP" << std::endl;
+   print_tensor(u2);
           sch(oscalar() = 0)
-          (oscalar() += u1() * u1());
-      //    norm += u2 * u2
-          sch(oscalar() += u2() * u2()).execute();
-      //    scalar = 1/norm
-          T tmps;
-          oscalar.get({}, {&tmps,1});
+             (oscalar() += u1() * u1())
+             (oscalar() += u2() * u2()).execute();
+//          T tmps;
+//          oscalar.get({}, {&tmps,1});
+          T tmps = get_scalar(oscalar);
+   std::cout << "TMPS 2= " << tmps << std::endl;
           T newsc = 1/sqrt(tmps);
-          sch(x1.at(ivec)() = 0)
-          (x1.at(ivec)() += newsc * u1())
-          (x2.at(ivec)() = 0)
-          (x2.at(ivec)() += newsc * u2()).execute(); 
+   std::cout << "SCALING= " << newsc << std::endl;
+          sch(x1.at(ivec)(p3,h1) = 0)
+             (x2.at(ivec)(p4,p3,h1,h2) = 0)
+             (x1.at(ivec)(p3,h1) += newsc * u1(p3,h1))
+             (x2.at(ivec)(p4,p3,h1,h2) += newsc * u2(p4,p3,h1,h2)).execute(); 
+//             (x1.at(ivec)() += newsc * u1())
+//             (x2.at(ivec)() += newsc * u2()).execute(); 
+   std::cout << "X1 AFTER NORMALIZATION" << std::endl;
+   print_tensor(x1.at(ivec));
+   std::cout << "X2 AFTER NORMALIZATION" << std::endl;
+   print_tensor(x2.at(ivec));
+   //@@@@@@@@@@@@@@@ END FIX ME @@@@@@@@@@@@@@@@@@@@
       }
-   }
+   //}
 
  
 
@@ -1249,7 +1294,6 @@ TEST_CASE("CCSD Driver") {
       (d_f1() = 0)
       (d_v2() = 0)
     .execute();
-
 
   //Tensor Map 
   block_for(ec->pg(), d_f1(), [&](IndexVector it) {

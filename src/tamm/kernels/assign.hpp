@@ -175,7 +175,8 @@ void ipacc4(const SizeVec& loop_dims, T* dst, const SizeVec& loop_dld, T scale,
     }
 }
 
-inline size_t idx(int n, const size_t* id, const Size* sz, const PermVector& p) {
+inline size_t idx(int n, const size_t* id, const Size* sz,
+                  const PermVector& p) {
     Size idx = 0;
     for(int i = 0; i < n - 1; i++) { idx = (idx + id[p[i]]) * sz[p[i + 1]]; }
     if(n > 0) { idx += id[p[n - 1]]; }
@@ -184,7 +185,7 @@ inline size_t idx(int n, const size_t* id, const Size* sz, const PermVector& p) 
 
 template<typename T>
 void index_permute_acc(T* dbuf, const T* sbuf, const PermVector& perm_to_dest,
-                   const SizeVec& ddims, T scale) {
+                       const SizeVec& ddims, T scale) {
     EXPECTS(dbuf != nullptr && sbuf != nullptr);
     EXPECTS(perm_to_dest.size() == ddims.size());
 
@@ -232,7 +233,6 @@ void index_permute_acc(T* dbuf, const T* sbuf, const PermVector& perm_to_dest,
         NOT_IMPLEMENTED();
     }
 }
-
 
 template<typename T>
 void index_permute(T* dbuf, const T* sbuf, const PermVector& perm_to_dest,
@@ -290,9 +290,9 @@ void ip_gen(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
             const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
             bool is_assign = true) {
     IntLabelVec unique_labels = unique_entries(dlabels);
-    const auto& dperm_map = perm_map_compute(unique_labels, dlabels);
-    const auto& sperm_map = perm_map_compute(unique_labels, slabels);
-    const auto& dinv_pm   = perm_map_compute(dlabels, unique_labels);
+    const auto& dperm_map     = perm_map_compute(unique_labels, dlabels);
+    const auto& sperm_map     = perm_map_compute(unique_labels, slabels);
+    const auto& dinv_pm       = perm_map_compute(dlabels, unique_labels);
 
     auto idx = [](const auto& index_vec, const auto& dims_vec) {
         Size ret = 0, ld = 1;
@@ -325,9 +325,9 @@ void ip_gen_loop(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
                  const IntLabelVec& slabels, bool is_assign = true) {
     const size_t ndim = ddims.size();
 
-    assert(ddims.size() == sdims.size());
-    assert(ddims.size() == dlabels.size());
-    assert(sdims.size() == slabels.size());
+    // assert(ddims.size() == sdims.size());
+    // assert(ddims.size() == dlabels.size());
+    // assert(sdims.size() == slabels.size());
 
     SizeVec sld{sdims}, dld{ddims};
     sld.insert(sld.end(), 1);
@@ -402,9 +402,9 @@ void ip_gen_loop(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
 }
 
 template<typename T>
-void ip_hptt(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
-                 T scale, const T* src, const SizeVec& sdims,
-                 const IntLabelVec& slabels, bool is_assign = true) {
+void ip_hptt(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
+             const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
+             bool is_assign = true) {
     // EXPECTS(ddims.size() == dlabels.size());
     // EXPECTS(sdims.size() == slabels.size());
     // EXPECTS(ddims.size() == sdims.size());
@@ -414,15 +414,13 @@ void ip_hptt(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels,
     const int ndim = ddims.size();
     int perm[ndim];
     int size[ndim];
-    T beta = is_assign ? 0 : 1;
+    T beta         = is_assign ? 0 : 1;
     int numThreads = 1;
-    for(size_t i=0; i<sdims.size(); i++) {
-      size[i] = sdims[i].value();
-    }
-    for(size_t i=0; i<dlabels.size(); i++) {
-      auto it = std::find(slabels.begin(), slabels.end(), dlabels[i]);
-      EXPECTS(it != slabels.end());
-      perm[i] = it - slabels.begin();
+    for(size_t i = 0; i < sdims.size(); i++) { size[i] = sdims[i].value(); }
+    for(size_t i = 0; i < dlabels.size(); i++) {
+        auto it = std::find(slabels.begin(), slabels.end(), dlabels[i]);
+        EXPECTS(it != slabels.end());
+        perm[i] = it - slabels.begin();
     }
     // create a plan (shared_ptr)
     auto plan = hptt::create_plan(perm, ndim, scale, src, size, NULL, beta, dst,
@@ -443,90 +441,29 @@ void assign(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
             bool is_assign = true) {
     const size_t ndim = ddims.size();
 
-    assert(ddims.size() == sdims.size());
-    assert(ddims.size() == dlabels.size());
-    assert(sdims.size() == slabels.size());
+    // assert(ddims.size() == sdims.size());
+    // assert(ddims.size() == dlabels.size());
+    // assert(sdims.size() == slabels.size());
 
     if(internal::are_permutations(slabels, dlabels)) {
-if (ndim == 0) {
-        auto perm_to_dest = internal::perm_compute(dlabels, slabels);
-        if(is_assign) {
-            internal::index_permute(dst, src, perm_to_dest, ddims, scale);
-        } else {
-            internal::index_permute_acc(dst, src, perm_to_dest, ddims, scale);
-        }
-}
-else
-        internal::ip_hptt(dst, ddims, dlabels, scale, src, sdims, slabels,
-                          is_assign);
+        if(ndim == 0) {
+            auto perm_to_dest = internal::perm_compute(dlabels, slabels);
+            if(is_assign) {
+                internal::index_permute(dst, src, perm_to_dest, ddims, scale);
+            } else {
+                internal::index_permute_acc(dst, src, perm_to_dest, ddims,
+                                            scale);
+            }
+        } else
+            internal::ip_hptt(dst, ddims, dlabels, scale, src, sdims, slabels,
+                              is_assign);
     } else {
-#if 0
-        internal::ip_gen(dst, ddims, dlabels, scale, src, sdims, slabels,
-                         is_assign);
-#else
         internal::ip_gen_loop(dst, ddims, dlabels, scale, src, sdims, slabels,
                               is_assign);
-#endif
     }
 }
+
 } // namespace kernels
-
-// int main() {
-//   int ret = 0;
-//   std::vector<double> src(N*N*N*N, 1.4), dst(N*N*N*N, 3.2);
-
-//   {
-//     auto start = std::chrono::high_resolution_clock::now();
-//     //ip(dst.data(),{N*N*N*N}, {0,1,2,3}, 1.0, src.data(), {N*N*N*N},
-//     {0,1,2,3}); ip(dst.data(),{N*N*N*N}, {0}, 8.1, src.data(), {N*N*N*N},
-//     {0}); auto end = std::chrono::high_resolution_clock::now();
-//     std::cerr<<"Time =
-//     "<<std::chrono::duration_cast<std::chrono::milliseconds>(end -
-//     start).count()<< "ms.\n";
-//   }
-
-//   {
-//     auto start = std::chrono::high_resolution_clock::now();
-//     //ip(dst.data(),{N*N*N*N}, {0,1,2,3}, 1.0, src.data(), {N*N*N*N},
-//     {0,1,2,3}); ip(dst.data(),{N*N,N*N}, {0,1}, 8.1, src.data(), {N*N,N*N},
-//     {0,1}); auto end = std::chrono::high_resolution_clock::now();
-//     std::cerr<<"Time =
-//     "<<std::chrono::duration_cast<std::chrono::milliseconds>(end -
-//     start).count()<< "ms.\n";
-//   }
-
-//   {
-//     auto start = std::chrono::high_resolution_clock::now();
-//     //ip(dst.data(),{N*N*N*N}, {0,1,2,3}, 1.0, src.data(), {N*N*N*N},
-//     {0,1,2,3}); ip(dst.data(),{N*N,N*N}, {1,0}, 8.1, src.data(), {N*N,N*N},
-//     {1,0}); auto end = std::chrono::high_resolution_clock::now();
-//     std::cerr<<"Time =
-//     "<<std::chrono::duration_cast<std::chrono::milliseconds>(end -
-//     start).count()<< "ms.\n";
-//   }
-
-//   {
-//     auto start = std::chrono::high_resolution_clock::now();
-//     //ip(dst.data(),{N*N*N*N}, {0,1,2,3}, 1.0, src.data(), {N*N*N*N},
-//     {0,1,2,3}); ip(dst.data(),{N*N,N*N}, {0,1}, 8.1, src.data(), {N*N,N*N},
-//     {1,0}); auto end = std::chrono::high_resolution_clock::now();
-//     std::cerr<<"Time =
-//     "<<std::chrono::duration_cast<std::chrono::milliseconds>(end -
-//     start).count()<< "ms.\n";
-//   }
-
-//   {
-//     auto start = std::chrono::high_resolution_clock::now();
-//     //ip(dst.data(),{N*N*N*N}, {0,1,2,3}, 1.0, src.data(), {N*N*N*N},
-//     {0,1,2,3}); ip(dst.data(),{N*N,N*N}, {1,0}, 8.1, src.data(), {N*N,N*N},
-//     {0,1}); auto end = std::chrono::high_resolution_clock::now();
-//     std::cerr<<"Time =
-//     "<<std::chrono::duration_cast<std::chrono::milliseconds>(end -
-//     start).count()<< "ms.\n";
-//   }
-
-//   return int(dst[0]);
-// }
 
 } // namespace tamm
 

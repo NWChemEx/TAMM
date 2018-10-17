@@ -2,8 +2,8 @@
 #define TAMM_MULTIPLY_H_
 
 #include "tamm/errors.hpp"
-#include "tamm/types.hpp"
 #include "tamm/kernels/assign.hpp"
+#include "tamm/types.hpp"
 
 #include <algorithm>
 #include <cblas.h>
@@ -15,39 +15,39 @@ namespace tamm {
 
 namespace internal {
 template<typename T>
-void gemm_wrapper(const  CBLAS_ORDER Order,
-                  const  CBLAS_TRANSPOSE TransA,
-                  const  CBLAS_TRANSPOSE TransB, const int M, const int N,
+void gemm_wrapper(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,
+                  const CBLAS_TRANSPOSE TransB, const int M, const int N,
                   const int K, T alpha, const T* A, const int lda, const T* B,
                   const int ldb, T beta, T* C, const int ldc);
 
 template<>
-inline void gemm_wrapper<double>(const  CBLAS_ORDER Order,
-                          const  CBLAS_TRANSPOSE TransA,
-                          const  CBLAS_TRANSPOSE TransB, const int M,
-                          const int N, const int K, double alpha,
-                          const double* A, const int lda, const double* B,
-                          const int ldb, double beta, double* C,
-                          const int ldc) {
+inline void gemm_wrapper<double>(const CBLAS_ORDER Order,
+                                 const CBLAS_TRANSPOSE TransA,
+                                 const CBLAS_TRANSPOSE TransB, const int M,
+                                 const int N, const int K, double alpha,
+                                 const double* A, const int lda,
+                                 const double* B, const int ldb, double beta,
+                                 double* C, const int ldc) {
     cblas_dgemm(Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C,
                 ldc);
 }
 
 template<>
-inline void gemm_wrapper<float>(const  CBLAS_ORDER Order,
-                         const  CBLAS_TRANSPOSE TransA,
-                         const  CBLAS_TRANSPOSE TransB, const int M,
-                         const int N, const int K, float alpha, const float* A,
-                         const int lda, const float* B, const int ldb,
-                         float beta, float* C, const int ldc) {
+inline void gemm_wrapper<float>(const CBLAS_ORDER Order,
+                                const CBLAS_TRANSPOSE TransA,
+                                const CBLAS_TRANSPOSE TransB, const int M,
+                                const int N, const int K, float alpha,
+                                const float* A, const int lda, const float* B,
+                                const int ldb, float beta, float* C,
+                                const int ldc) {
     cblas_sgemm(Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C,
                 ldc);
 }
 
 template<>
 inline void gemm_wrapper<std::complex<float>>(
-  const  CBLAS_ORDER Order, const  CBLAS_TRANSPOSE TransA,
-  const  CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+  const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,
+  const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
   std::complex<float> alpha, const std::complex<float>* A, const int lda,
   const std::complex<float>* B, const int ldb, std::complex<float> beta,
   std::complex<float>* C, const int ldc) {
@@ -57,8 +57,8 @@ inline void gemm_wrapper<std::complex<float>>(
 
 template<>
 inline void gemm_wrapper<std::complex<double>>(
-  const  CBLAS_ORDER Order, const  CBLAS_TRANSPOSE TransA,
-  const  CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
+  const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,
+  const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
   std::complex<double> alpha, const std::complex<double>* A, const int lda,
   const std::complex<double>* B, const int ldb, std::complex<double> beta,
   std::complex<double>* C, const int ldc) {
@@ -72,15 +72,14 @@ namespace kernels {
 template<typename T>
 void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
                     const IntLabelVec& alabels, const T* bbuf,
-                    const SizeVec& bdims, const IntLabelVec& blabels, 
-                    T beta, T* cbuf,
-                    const SizeVec& cdims, const IntLabelVec& clabels) {
-    const Size asize =
-      std::accumulate(adims.begin(), adims.end(), Size{1}, std::multiplies<Size>());
-    const Size bsize =
-      std::accumulate(bdims.begin(), bdims.end(), Size{1}, std::multiplies<Size>());
-    const Size csize =
-      std::accumulate(cdims.begin(), cdims.end(), Size{1}, std::multiplies<Size>());
+                    const SizeVec& bdims, const IntLabelVec& blabels, T beta,
+                    T* cbuf, const SizeVec& cdims, const IntLabelVec& clabels) {
+    const Size asize = std::accumulate(adims.begin(), adims.end(), Size{1},
+                                       std::multiplies<Size>());
+    const Size bsize = std::accumulate(bdims.begin(), bdims.end(), Size{1},
+                                       std::multiplies<Size>());
+    const Size csize = std::accumulate(cdims.begin(), cdims.end(), Size{1},
+                                       std::multiplies<Size>());
 
     EXPECTS(abuf != nullptr && bbuf != nullptr && cbuf != nullptr);
 
@@ -89,12 +88,6 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     std::sort(asorted_labels.begin(), asorted_labels.end());
     std::sort(bsorted_labels.begin(), bsorted_labels.end());
     std::sort(csorted_labels.begin(), csorted_labels.end());
-
-    // IndexLabelVec all_labels;
-    // all_sorted_labels.insert(all_sorted_labels.end(), clabels.begin(), clabels.end());
-    // all_sorted_labels.insert(all_sorted_labels.end(), alabels.begin(), alabels.end());
-    // all_sorted_labels.insert(all_sorted_labels.end(), blabels.begin(), blabels.end());
-    // std::sort(all_sorted_labels.begin(), all_sorted_labels.end());
 
     std::vector<IntLabel> inner_labels, aouter_labels, bouter_labels,
       batch_labels, areduce_labels, breduce_labels;
@@ -167,7 +160,7 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
 
     std::vector<IntLabel> ainter_labels{areduce_labels};
     ainter_labels.insert(ainter_labels.end(), batch_labels.begin(),
-                        batch_labels.end());
+                         batch_labels.end());
     ainter_labels.insert(ainter_labels.end(), aouter_labels.begin(),
                          aouter_labels.end());
     ainter_labels.insert(ainter_labels.end(), inner_labels.begin(),
@@ -175,7 +168,7 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
 
     std::vector<IntLabel> binter_labels{breduce_labels};
     binter_labels.insert(binter_labels.end(), batch_labels.begin(),
-                  batch_labels.end());
+                         batch_labels.end());
     binter_labels.insert(binter_labels.end(), inner_labels.begin(),
                          inner_labels.end());
     binter_labels.insert(binter_labels.end(), bouter_labels.begin(),
@@ -188,8 +181,7 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
                          bouter_labels.end());
 
     SizeVec ainter_dims{areduce_dims};
-    ainter_dims.insert(ainter_dims.end(), batch_dims.begin(),
-                       batch_dims.end());
+    ainter_dims.insert(ainter_dims.end(), batch_dims.begin(), batch_dims.end());
     ainter_dims.insert(ainter_dims.end(), aouter_dims.begin(),
                        aouter_dims.end());
     ainter_dims.insert(ainter_dims.end(), inner_dims.begin(), inner_dims.end());
@@ -209,22 +201,21 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     std::vector<T> ainter_buf(static_cast<size_t>(asize.value())),
       binter_buf(static_cast<size_t>(bsize.value())),
       cinter_buf(static_cast<size_t>(csize.value()));
-    assign(ainter_buf.data(), ainter_dims, ainter_labels, T{1}, abuf, adims, alabels,
-           true);
-    assign(binter_buf.data(), binter_dims, binter_labels, T{1}, bbuf, bdims, blabels,
-           true);
-    auto transA   = CblasNoTrans;
-    auto transB   = CblasNoTrans;
-    int ainter_ld = K;
-    int binter_ld = N;
-    int cinter_ld = N;
+    assign(ainter_buf.data(), ainter_dims, ainter_labels, T{1}, abuf, adims,
+           alabels, true);
+    assign(binter_buf.data(), binter_dims, binter_labels, T{1}, bbuf, bdims,
+           blabels, true);
+    auto transA    = CblasNoTrans;
+    auto transB    = CblasNoTrans;
+    int ainter_ld  = K;
+    int binter_ld  = N;
+    int cinter_ld  = N;
     int cbatch_ld  = M * N;
     int abatch_ld  = M * K;
     int bbatch_ld  = K * N;
     int areduce_ld = B * abatch_ld;
     int breduce_ld = B * bbatch_ld;
 
-    //std::cerr<<"M="<<M<<" N="<<N<<" K="<<K<<" B="<<B<<" alpha="<<alpha<<" beta="<<beta<<"\n";
     // dgemm
     for(size_t ari = 0; ari < AR; ari++) {
         for(size_t bri = 0; bri < BR; bri++) {
@@ -239,10 +230,9 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
             }
         }
     }
-    // std::cerr<<"A[0]="<<ainter_buf[0]<<" B[0]="<<binter_buf[0]<<"
     // C[0]="<<cinter_buf[0]<<"\n";
-    assign(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims, cinter_labels,
-           true);
+    assign(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,
+           cinter_labels, true);
 } // block_multiply()
 
 } // namespace kernels

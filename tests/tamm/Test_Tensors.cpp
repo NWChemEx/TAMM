@@ -448,7 +448,7 @@ TEST_CASE("Spin Tensor Construction") {
         auto [p] = MOs.labels<1>("all");
         Tensor<T> rho{AOs, AOs};
 
-        tamm::ProcGroup pg{GA_MPI_Comm()};
+        ProcGroup pg{GA_MPI_Comm()};
         auto* pMM = tamm::MemoryManagerLocal::create_coll(pg);
         tamm::Distribution_NW dist;
         tamm::ExecutionContext ec(pg, &dist, pMM);
@@ -609,6 +609,107 @@ TEST_CASE("PNO-MP2") {
     .execute();
 
 }
+
+TEST_CASE("GitHub Issues") {
+
+    tamm::ProcGroup pg{GA_MPI_Comm()};
+    auto *pMM = tamm::MemoryManagerLocal::create_coll(pg);
+    tamm::Distribution_NW dist;
+    tamm::ExecutionContext ec(pg, &dist, pMM);
+
+    tamm::TiledIndexSpace X{tamm::IndexSpace{tamm::range(0, 4)}};
+    tamm::TiledIndexSpace Y{tamm::IndexSpace{tamm::range(0, 3)}};
+    auto [i,j] = X.labels<2>("all");
+    auto [a] = Y.labels<1>("all");
+
+    Tensor<double> A{X,X,Y};
+    Tensor<double> B{X,X};
+
+    tamm::Scheduler{&ec}.allocate(A,B)
+    (A() = 3.0)
+    (B() = 0.0)
+    (B(i,j) = A(i,j,a))
+    // (B(i,j) += A(i,j,a))
+    .execute();
+
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    print_tensor(B);
+}
+
+TEST_CASE("Slack Issues") {
+    using tensor_type = Tensor<double>;
+    std::cerr << "Slack Issue Start" << std::endl;
+    auto ec = make_execution_context();
+    Scheduler sch{&ec};
+
+    tensor_type initialMO_state;
+
+    IndexSpace AOs_{range(0, 10)};
+    IndexSpace MOs_{range(0, 10),
+                   {{"O", {range(0, 5)}},
+                   {"V", {range(5, 10)}}
+    }};
+
+    TiledIndexSpace tAOs{AOs_};
+    TiledIndexSpace tMOs{MOs_};
+    TiledIndexSpace tXYZ{IndexSpace{range(0,3)}};
+
+    tensor_type D{tXYZ, tAOs, tAOs};
+    tensor_type C{tAOs,tMOs};
+    tensor_type W{tMOs("O"),tMOs("O")};
+
+    sch.allocate(C, W, D)
+        (C() = 42.0)
+        (W() = 1.0)
+        (D() = 1.0)
+    .execute();
+
+    auto xyz = tXYZ;
+    auto AOs = C.tiled_index_spaces()[0];
+    auto MOs = C.tiled_index_spaces()[1]("O");
+    
+    initialMO_state = tensor_type{xyz, MOs, MOs};
+    tensor_type tmp{xyz, AOs, MOs};
+
+    auto [x] = xyz.labels<1>("all");
+    auto [mu, nu] = AOs.labels<2>("all");
+    auto [i, j] = MOs.labels<2>("all");     
+    
+    sch.allocate(initialMO_state, tmp)
+        (tmp() = 0)
+        (initialMO_state() = 0)
+        (tmp(x, mu, i) += D(x, mu, nu) * C(nu, i))
+        (initialMO_state(x, i, j) += C(mu, i) * tmp(x, mu, j))
+    .execute();
+
+    // print_tensor(initialMO_state);
+
+    auto X = initialMO_state.tiled_index_spaces()[0];
+    auto n_MOs = W.tiled_index_spaces()[0];
+    auto n_LMOs = W.tiled_index_spaces()[1];
+
+    auto [x_] = X.labels<1>("all");
+    auto [r_,s_,i_,j_] = n_MOs.labels<4>("all");
+    // auto [i_,j_] = n_LMOs.labels<2>("all");
+
+    tensor_type initW{X, n_MOs, n_LMOs};
+    tensor_type WinitW{X, n_LMOs, n_LMOs};
+    // tensor_type W{n_MOs, n_LMOs};
+
+    sch.allocate(initW, WinitW)
+        // (initW() = 0)
+        (WinitW() = 0)
+        (initW(x_,r_,i_) = initialMO_state(x_,r_,s_) * W(s_,i_))
+        (WinitW(x_,i_,j_) += W(r_,i_) * initW(x_,r_,j_))
+    .execute();
+
+    // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    // print_tensor(initW);
+
+    // print_tensor(WinitW);
+}
+
+
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
     GA_Initialize();

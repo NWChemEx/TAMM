@@ -43,7 +43,6 @@ public:
     Tensor(std::vector<TiledIndexLabel> til_vec) :
       impl_{std::make_shared<TensorImpl<T>>(til_vec)} {}
 
-#if 1
     // SpinTensor Constructors
 
     Tensor(TiledIndexSpaceVec t_spaces, SpinMask spin_mask) :
@@ -72,7 +71,6 @@ public:
     Tensor(std::initializer_list<TiledIndexSpace> t_spaces, Func lambda) :
       impl_{std::make_shared<LambdaTensorImpl<T>>(t_spaces, lambda)} {}
 
-#endif
     /**
      * @brief Construct a new Tensor object from a set of TiledIndexSpace
      * objects as modes of the Tensor

@@ -54,7 +54,6 @@ public:
       parent_tis_{nullptr} {
         for(const auto& in_tsize : input_tile_sizes) { EXPECTS(in_tsize > 0); }
         compute_hash();
-        
         // construct tiling for named subspaces
         tile_named_subspaces(is);   
     }
@@ -103,10 +102,7 @@ public:
         IndexSpace sub_is{root_tis->index_space(), is_indices};
 
         tiled_info_ = std::make_shared<TiledIndexSpaceInfo>(
-          (*t_is.root_tiled_info_.lock()), sub_is, new_offsets, new_indices);
-        // tiled_info_ = std::make_shared<TiledIndexSpaceInfo>(
-        //   (*t_is.root_tiled_info_.lock()), new_offsets, new_indices);
-        
+          (*t_is.root_tiled_info_.lock()), sub_is, new_offsets, new_indices);        
         compute_hash();
     }
 
@@ -125,18 +121,6 @@ public:
       parent_tis_{std::make_shared<TiledIndexSpace>(t_is)} {
           compute_hash();
       }
-
-    // /**
-    //  * @brief Construct a new TiledIndexSpace object from a reference
-    //  * TiledIndexSpace and named subspace
-    //  *
-    //  * @param [in] t_is reference TiledIndexSpace
-    //  * @param [in] id name string for the corresponding subspace
-    //  * @param [in] size Tile size (default: 1)
-    //  */
-    // TiledIndexSpace(const TiledIndexSpace& t_is, const std::string& id,
-    //                 Tile size = 1) :
-    //   TiledIndexSpace((*t_is.tiled_info_).is_(id), size) {}
 
     /**
      * @brief Get a TiledIndexLabel for a specific subspace of the
@@ -269,8 +253,7 @@ public:
      * TiledIndexSpaces
      */
     bool is_compatible_with(const TiledIndexSpace& tis) const {
-        return /* (this->root_tiled_info_.lock() == tis.root_tiled_info_.lock()) && */
-               (is_subset_of(tis));
+        return is_subset_of(tis);
     }
 
     /**
@@ -868,11 +851,6 @@ protected:
                 }
             }
 
-            // combine hash with reference indices
-            // for(const auto& idx : ref_indices_) {
-            //     internal::hash_combine(result, idx);
-            // }
-
             // if it is a dependent TiledIndexSpace
             if(!tiled_dep_map_.empty()) {
                 for(const auto& iv_is : tiled_dep_map_) {
@@ -1218,46 +1196,12 @@ public:
         return {*this, secondary_labels};
     }
 
-    /**
-     * @brief Boolean method for checking if two TiledIndexLabels are identical.
-     * Checks if the label, dependent labels and TiledIndexSpace objects are
-     * identical
-     *
-     * @param [in] rhs input TiledIndexLabel object
-     * @returns true if the label, dependent labels and TiledIndexSpaces are
-     * identicals
-     */
-    // bool is_identical(const TiledIndexLabel& rhs) const {
-    //     return primary_label() == rhs.primary_label() &&
-    //     (std::tie(label_, dep_labels_, tis_) ==
-    //             std::tie(rhs.label_, rhs.dep_labels_, rhs.tis_));
-    // }
-
-    /**
-     * @brief Boolean method for checking if this label is less then a reference
-     * TiledIndexLabel
-     *
-     * @param [in] rhs reference TiledIndexLabel object
-     * @returns true if reference TiledIndexSpace of rhs is less than or the
-     * label is less than this label
-     */
-    // bool is_less_than(const TiledIndexLabel& rhs) const {
-    //     return (tis_ < rhs.tis_) ||
-    //            ((tis_ == rhs.tis_) && (label_ < rhs.label_));
-    // }
-
     Label label() const { return primary_label_.label(); }
 
     /// @todo: this is never called from outside currently, should this be
     /// private and used internally?
     bool is_compatible_with(const TiledIndexSpace& tis) const {
         return tiled_index_space().is_compatible_with(tis);
-        // const auto& key_tiss = tis.index_space().key_tiled_index_spaces();
-        // EXPECTS(key_tiss.size() == dep_labels().size());
-        // for(size_t i = 0; i < dep_labels().size(); i++) {
-        //     dep_labels()[i].tiled_index_space().is_compatible_with(key_tiss[i]);
-        // }
-        // return true;
     }
 
     /**
@@ -1390,8 +1334,6 @@ inline bool operator>=(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
     return (rhs <= lhs);
 }
 
-
-
 ///////////////////////////////////////////////////////////
 
 inline TiledIndexLabel TiledIndexSpace::label(std::string id, Label lbl) const {
@@ -1399,7 +1341,6 @@ inline TiledIndexLabel TiledIndexSpace::label(std::string id, Label lbl) const {
     return TiledIndexLabel{(*this)(id), lbl};
 }
 
-// @todo: have a static label value for labeling?
 template<std::size_t... Is>
 auto TiledIndexSpace::labels_impl(std::string id, Label start,
                                   std::index_sequence<Is...>) const {

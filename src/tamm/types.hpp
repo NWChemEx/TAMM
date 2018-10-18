@@ -136,60 +136,6 @@ static inline constexpr size_t element_size(ElementType eltype) {
     return ret;
 }
 
-// enum class DimType {
-//   o  = 0b0011,
-//   v  = 0b1100,
-//   oa = 0b0001,
-//   ob = 0b0010,
-//   va = 0b0100,
-//   vb = 0b1000,
-//   n  = 0b1111,
-//   c  = 0b0000,
-//   inv = 0b11111,
-// };
-
-// inline bool
-// is_dim_subset(DimType superset, DimType subset) {
-//   auto sup = static_cast<unsigned>(superset);
-//   auto sub = static_cast<unsigned>(subset);
-//   return (sup & sub) == sub;
-// }
-
-// inline std::string
-// to_string(DimType dt) {
-//   switch(dt) {
-//     case DimType::o:
-//       return "o";
-//       break;
-//     case DimType::v:
-//       return "v";
-//       break;
-//     case DimType::oa:
-//       return "oa";
-//       break;
-//     case DimType::ob:
-//       return "ob";
-//       break;
-//     case DimType::va:
-//       return "va";
-//       break;
-//     case DimType::vb:
-//       return "vb";
-//       break;
-//     case DimType::n:
-//       return "n";
-//       break;
-//     default:
-//       UNREACHABLE();
-//   }
-// }
-
-// inline std::ostream&
-// operator << (std::ostream& os, DimType dt) {
-//   os << to_string(dt);
-//   return os;
-// }
-
 const TensorRank maxrank{8};
 
 template<typename T>
@@ -216,19 +162,6 @@ namespace SpinType {
 const Spin alpha{1};
 const Spin beta{2};
 }; // namespace SpinType
-
-// /**
-//  * @brief Signature of a tensor addition operation in NWChem TCE
-//  */
-// typedef void add_fn(MPI_Fint *ta, MPI_Fint *offseta,
-//                     MPI_Fint *tc, MPI_Fint *offsetc);
-
-// /**
-//  * @brief Signature of a tensor addition operation in NWChem TCE
-//  */
-// typedef void mult_fn(MPI_Fint *ta, MPI_Fint *offseta,
-//                      MPI_Fint *tb, MPI_Fint *offsetb,
-//                      MPI_Fint *tc, MPI_Fint *offsetc);
 
 } // namespace tamm
 

@@ -31,59 +31,6 @@ protected:
     Proc nproc_;
 };
 
-#if 0
-// @fixme Can this code be cleaned up?
-class DistributionFactory {
- public:
-  DistributionFactory() = delete;
-  DistributionFactory(const DistributionFactory&) = delete;
-
-  template<typename DistributionType>
-  static std::shared_ptr<Distribution> make_distribution(const TensorBase* tensor_structure,
-                                                         Proc nproc) {
-    static_assert(std::is_base_of<Distribution, DistributionType>(),
-                  "Distribution type being created is not a subclass of Distribution");
-    auto name = DistributionType::class_name; // DistributionType().name();
-    auto itr = std::get<0>(
-        distributions_.emplace(std::make_tuple(name, *tensor_structure, nproc),
-                               std::make_shared<DistributionType>(tensor_structure, nproc)));
-    return itr->second;
-  }
-
-  static std::shared_ptr<Distribution> make_distribution(const Distribution& distribution,
-                                                         const TensorBase* tensor_structure,
-                                                         Proc nproc) {
-    auto name = distribution.name();
-    auto key = std::make_tuple(name, *tensor_structure, nproc);
-    if(distributions_.find(key) != distributions_.end()) {
-      return distributions_.find(key)->second;
-    }
-    auto dist = std::shared_ptr<Distribution>{distribution.clone(tensor_structure, nproc)};
-    distributions_[key] = dist;
-    // return std::get<0>(distributions_.insert(key, std::shared_ptr<Distribution>(dist)))->second;
-    return dist;
-  }
-
- private:
-  using Key = std::tuple<std::string,TensorBase,Proc>;
-  struct KeyLessThan {
-   public:
-    bool operator() (const Key& lhs, const Key& rhs) const {
-      auto lname = std::get<0>(lhs);
-      auto lts = std::get<1>(lhs);
-      auto lproc = std::get<2>(lhs);
-      auto rname = std::get<0>(rhs);
-      auto rts = std::get<1>(rhs);
-      auto rproc = std::get<2>(rhs);
-      return (lname < rname) ||
-          (lname == rname && lts < rts) ||
-          (lname == rname && lts == rts && lproc < rproc);
-    }
-  };
-  static std::map<Key, std::shared_ptr<Distribution>,KeyLessThan> distributions_;
-};  // class DistributionFactory
-#endif
-
 class Distribution_NW : public Distribution {
 public:
     static const std::string class_name; // = "Distribution_NW";
@@ -105,23 +52,6 @@ public:
         return new Distribution_NW(tensor_structure, nproc);
     }
 
-#if 0
-  std::pair<Proc,Offset> locate(const IndexVector& blockid) {
-    auto key = compute_key(blockid);
-    auto length = hash_[0];
-    auto ptr = std::lower_bound(&hash_[1], &hash_[length + 1], key);
-    EXPECTS (ptr != &hash_[length + 1]);
-    EXPECTS (key == *ptr);
-    EXPECTS (ptr != &hash_[length + 1] && key == *ptr);
-    auto ioffset = *(ptr + length);
-    auto pptr = std::upper_bound(std::begin(proc_offsets_), std::end(proc_offsets_), Offset{ioffset});
-    EXPECTS(pptr != std::begin(proc_offsets_));
-    auto proc = Proc{pptr - std::begin(proc_offsets_)};
-    proc -= 1;
-    auto offset = Offset{ioffset - proc_offsets_[proc.value()].value()};
-    return {proc, offset};
-  }
-#else
     std::pair<Proc, Offset> locate(const IndexVector& blockid) {
         auto key = compute_key(blockid);
         auto itr = std::lower_bound(
@@ -140,7 +70,6 @@ public:
         auto offset = Offset{ioffset - proc_offsets_[proc.value()].value()};
         return {proc, offset};
     }
-#endif
 
     Size buf_size(Proc proc) const {
         EXPECTS(proc >= 0);
@@ -160,7 +89,7 @@ public:
         for(const auto& blockid : tensor_structure_->loop_nest()) {
             if(tensor_structure_->is_non_zero(blockid))
                 hash_.push_back({compute_key(blockid),
-                            tensor_structure_->block_size(blockid)});
+                                 tensor_structure_->block_size(blockid)});
         }
         EXPECTS(hash_.size() > 0);
 
@@ -170,18 +99,17 @@ public:
                   });
 
         Offset offset = 0;
-        for(size_t i=0; i<hash_.size(); i++) {
-          auto sz = hash_[i].offset_;
-          hash_[i].offset_ = offset;
-          offset += sz;
+        for(size_t i = 0; i < hash_.size(); i++) {
+            auto sz          = hash_[i].offset_;
+            hash_[i].offset_ = offset;
+            offset += sz;
         }
         EXPECTS(offset > 0);
         total_size_ = offset;
 
-        Offset per_proc_size =
-          std::max(offset / nproc.value(), Offset{1});
-        auto itr      = hash_.begin();
-        auto itr_last = hash_.end();
+        Offset per_proc_size = std::max(offset / nproc.value(), Offset{1});
+        auto itr             = hash_.begin();
+        auto itr_last        = hash_.end();
         for(int i = 0; i < nproc.value(); i++) {
             if(itr != itr_last) {
                 proc_offsets_.push_back(Offset{itr->offset_});
@@ -197,10 +125,6 @@ public:
         EXPECTS(proc_offsets_.size() == static_cast<uint64_t>(nproc.value()));
         proc_offsets_.push_back(total_size_);
     }
-
-    // const std::vector<Integer>& hash() const {
-    //   return hash_;
-    // }
 
 private:
     struct KeyOffsetPair {

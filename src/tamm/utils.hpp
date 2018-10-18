@@ -2,8 +2,8 @@
 #define TAMM_UTILS_HPP_
 
 #include "tamm/errors.hpp"
-#include "tamm/tiled_index_space.hpp"
 #include "tamm/labeled_tensor.hpp"
+#include "tamm/tiled_index_space.hpp"
 #include "tamm/types.hpp"
 
 #include <vector>
@@ -79,16 +79,11 @@ bool are_permutations(const std::vector<T>& vec1, const std::vector<T>& vec2) {
 template<typename T>
 std::vector<T> unique_entries(const std::vector<T>& input_vec) {
     std::vector<T> ret;
-#if 1
+
     for(const auto& val : input_vec) {
         auto it = std::find(ret.begin(), ret.end(), val);
         if(it == ret.end()) { ret.push_back(val); }
     }
-#else
-    ret = input_vec;
-    std::sort(ret.begin(), ret.end());
-    std::unique(ret.begin(), ret.end());
-#endif
     return ret;
 }
 
@@ -155,15 +150,12 @@ inline IndexLabelVec sort_on_dependence(const IndexLabelVec& labels) {
 template<typename T>
 bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
     EXPECTS(itr.size() == end.size());
-    // if(!std::lexicographical_compare(itr.begin(), itr.end(), end.begin(),
-    //                                  end.end())) {
-    //     return false;
-    // }
+
     int i;
     for(i = -1 + itr.size(); i >= 0 && itr[i] + 1 == end[i]; i--) {
         itr[i] = T{0};
     }
-    // EXPECTS(itr.size() == 0 || i>=0);
+
     if(i >= 0) {
         ++itr[i];
         return true;
@@ -171,8 +163,9 @@ bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
     return false;
 }
 
-inline IndexVector indep_values(const IndexVector& blockid, const Index& idx,
-                         const std::map<size_t, std::vector<size_t>>& dep_map) {
+inline IndexVector indep_values(
+  const IndexVector& blockid, const Index& idx,
+  const std::map<size_t, std::vector<size_t>>& dep_map) {
     IndexVector ret{};
     if(dep_map.find(idx) != dep_map.end()) {
         for(const auto& dep_id : dep_map.at(idx)) {
@@ -192,7 +185,8 @@ IndexVector translate_blockid(const IndexVector& blockid,
     IndexVector translate_blockid;
     for(size_t i = 0; i < blockid.size(); i++) {
         auto indep_vals = indep_values(blockid, i, dep_map);
-        const auto& label_tis  = ltensor.labels()[i].tiled_index_space()(indep_vals);
+        const auto& label_tis =
+          ltensor.labels()[i].tiled_index_space()(indep_vals);
         const auto& tensor_tis = tensor.tiled_index_spaces()[i](indep_vals);
         Index val              = label_tis.translate(blockid[i], tensor_tis);
         translate_blockid.push_back(val);
@@ -202,7 +196,7 @@ IndexVector translate_blockid(const IndexVector& blockid,
 } // namespace internal
 
 template<typename T>
-T get_scalar(Tensor<T>& tensor){
+T get_scalar(Tensor<T>& tensor) {
     T scalar;
     EXPECTS(tensor.num_modes() == 0);
     tensor.get({}, {&scalar, 1});

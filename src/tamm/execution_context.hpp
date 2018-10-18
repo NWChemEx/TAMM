@@ -5,15 +5,15 @@
 //#include "tamm/tensor_impl.hpp"
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"
-#include <vector>
-#include <iterator>
 #include <algorithm>
+#include <iterator>
+#include <vector>
 
 namespace tamm {
 
 /**
  * @todo Create a proper forward declarations file.
- * 
+ *
  */
 
 class Distribution;
@@ -44,21 +44,13 @@ public:
       default_distribution_{default_distribution},
       default_memory_manager_{default_memory_manager} {
         pg_self_ = ProcGroup{MPI_COMM_SELF};
-       
+
         // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
     }
 
     ~ExecutionContext() {
         // MemoryManagerLocal::destroy_coll(memory_manager_local_);
     }
-
-    /**
-     * Construct a scheduler object
-     * @return Scheduler object
-     */
-    // Scheduler& scheduler() {
-    //   // return Scheduler{};
-    // }
 
     void allocate() {
         // no-op
@@ -160,27 +152,28 @@ public:
     }
 
     /**
-     * @brief Flush communication in this execution context, synchronize, and 
-     * delete any tensors allocated in this execution context that have gone 
+     * @brief Flush communication in this execution context, synchronize, and
+     * delete any tensors allocated in this execution context that have gone
      * out of scope.
-     * 
+     *
      * @bug @fixme @todo Actually perform a communication/RMA fence
-     * 
+     *
      */
     void flush_and_sync() {
         pg_.barrier();
         std::sort(mem_regs_to_dealloc_.begin(), mem_regs_to_dealloc_.end());
         std::sort(unregistered_mem_regs_.begin(), unregistered_mem_regs_.end());
         std::vector<MemoryRegion*> result;
-        std::set_difference(mem_regs_to_dealloc_.begin(), mem_regs_to_dealloc_.end(),
-            unregistered_mem_regs_.begin(), unregistered_mem_regs_.end(),
-            std::inserter(result, result.begin()));
+        std::set_difference(
+          mem_regs_to_dealloc_.begin(), mem_regs_to_dealloc_.end(),
+          unregistered_mem_regs_.begin(), unregistered_mem_regs_.end(),
+          std::inserter(result, result.begin()));
         mem_regs_to_dealloc_.clear();
         unregistered_mem_regs_.clear();
         for(auto mem_reg : result) {
             EXPECTS(mem_reg->allocation_status() == AllocationStatus::created ||
                     mem_reg->allocation_status() == AllocationStatus::orphaned);
-            if (mem_reg->allocation_status() == AllocationStatus::orphaned) {
+            if(mem_reg->allocation_status() == AllocationStatus::orphaned) {
                 mem_reg->dealloc_coll();
                 delete mem_reg;
             } else {

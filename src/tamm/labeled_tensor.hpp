@@ -1,12 +1,10 @@
 #ifndef TAMM_LABELED_TENSOR_HPP_
 #define TAMM_LABELED_TENSOR_HPP_
 
-#include <type_traits>
 #include "tamm/ops.hpp"
+#include <type_traits>
 
 namespace tamm {
-
-#if 1 //__cplusplus >= 201703L
 
 namespace internal {
 template<typename>
@@ -17,16 +15,6 @@ template<typename T>
 inline constexpr bool is_tuple_v = is_tuple<T>::value;
 } // namespace internal
 
-// template<typename T1, typename T2>
-// auto operator*(T1&& left, T2&& right) {
-//     using internal::is_tuple_v;
-//     if constexpr(is_tuple_v<T1>)
-//         return std::tuple_cat(left, std::forward_as_tuple(right));
-//     else
-//         return std::tuple_cat(std::forward_as_tuple(left),
-//                               std::forward_as_tuple(right));
-// }
-
 template<typename T>
 class Tensor;
 
@@ -36,10 +24,6 @@ public:
     using element_type                  = T;
     LabeledTensor()                     = default;
     LabeledTensor(const LabeledTensor&) = default;
-
-    // LabeledTensor(const Tensor<T>& tensor, const IndexLabelVec& ilv) :
-    //   tensor_{tensor},
-    //   ilv_{ilv} {}
 
     template<typename... Args>
     LabeledTensor(const Tensor<T>& tensor, Args... args) :
@@ -104,10 +88,10 @@ public:
 
             if constexpr(tuple_size_v<T1> == 2) {
                 // LT = alpha * LT
-                if constexpr((is_convertible_v<rhs0_t, T>) &&
-                             is_same_v<rhs1_t, LTT>)
-                    return AddOp{*this, static_cast<T>(sub_v * get<0>(rhs)), get<1>(rhs),
-                                 is_assign};
+                if constexpr((is_convertible_v<rhs0_t, T>)&&is_same_v<rhs1_t,
+                                                                      LTT>)
+                    return AddOp{*this, static_cast<T>(sub_v * get<0>(rhs)),
+                                 get<1>(rhs), is_assign};
                 //  LT = LT * LT
                 else if constexpr(is_same_v<rhs0_t, LTT> &&
                                   is_same_v<rhs1_t, LTT>)
@@ -120,11 +104,11 @@ public:
                 using rhs2_t =
                   typename remove_reference<decltype(get<2>(rhs))>::type;
                 static_assert(
-                  (is_convertible_v<rhs0_t, T>)
-                   && is_same_v<rhs1_t, LTT> && is_same_v<rhs2_t, LTT>,
+                  (is_convertible_v<rhs0_t, T>)&&is_same_v<rhs1_t, LTT> &&
+                    is_same_v<rhs2_t, LTT>,
                   "Operation can only be of the form c [+-] = [alpha *] a * b");
-                return MultOp{*this, static_cast<T>(sub_v * get<0>(rhs)), get<1>(rhs),
-                              get<2>(rhs), is_assign};
+                return MultOp{*this, static_cast<T>(sub_v * get<0>(rhs)),
+                              get<1>(rhs), get<2>(rhs), is_assign};
             }
         }
     } // end make_op
@@ -181,7 +165,7 @@ private:
      * same dimension positions. E.g., with a declaration T{i, a(i), k}, the use
      * T(x, y(z),z) is invalid. For now, we will check that the label is over
      * the same tiled index space as the dimension.
-     * 
+     *
      * 8. No self dependences. e.g., label 'i(i)', are not allowed.
      *
      */
@@ -232,18 +216,20 @@ private:
             }
         }
 
-        const std::map<size_t,std::vector<size_t>>& dep_map = tensor_.dep_map();
-        for(auto itr = dep_map.begin(); itr!=dep_map.end(); ++itr){
+        const std::map<size_t, std::vector<size_t>>& dep_map =
+          tensor_.dep_map();
+        for(auto itr = dep_map.begin(); itr != dep_map.end(); ++itr) {
             const auto& dep_iv = itr->second;
-            auto dc_ = 0;
-            for(auto &dlpos: dep_iv) {
+            auto dc_           = 0;
+            for(auto& dlpos : dep_iv) {
                 EXPECTS(str_map_[dlpos] == false);
                 const auto& ltis = ilv_[dlpos].tiled_index_space();
-                Label llbl = ilv_[dlpos].label();
+                Label llbl       = ilv_[dlpos].label();
                 EXPECTS(ilv_[itr->first].secondary_labels().size() > 0);
-                const auto& rtis = ilv_[itr->first].secondary_labels()[dc_].tiled_index_space();
+                const auto& rtis =
+                  ilv_[itr->first].secondary_labels()[dc_].tiled_index_space();
                 Label rlbl = ilv_[itr->first].secondary_labels()[dc_].label();
-                EXPECTS(ltis==rtis && llbl==rlbl);
+                EXPECTS(ltis == rtis && llbl == rlbl);
                 dc_++;
             }
         }
@@ -257,17 +243,16 @@ private:
 
     void unpack(size_t index) {
         if(index == 0) {
-            int lc=0;
-            for (size_t i=0;i < ilv_.size();i++) 
+            int lc = 0;
+            for(size_t i = 0; i < ilv_.size(); i++)
                 ilv_[i] = tensor_.tiled_index_spaces()[i].label(--lc);
             for(size_t i = 0; i < ilv_.size(); i++) {
                 auto dep_map = tensor_.dep_map();
-                auto itr = dep_map.find(i);
-                if(itr != dep_map.end()){
+                auto itr     = dep_map.find(i);
+                if(itr != dep_map.end()) {
                     IndexLabelVec tempv;
-                    for(auto idx: itr->second)
-                        tempv.push_back(ilv_[idx]);  
-                    ilv_[i] = TiledIndexLabel{ilv_[i],tempv};
+                    for(auto idx : itr->second) tempv.push_back(ilv_[idx]);
+                    ilv_[i] = TiledIndexLabel{ilv_[i], tempv};
                 }
                 str_map_[i] = false;
             }
@@ -295,10 +280,9 @@ private:
         unpack(++index, rest...);
     }
 
-    
     void unpack(size_t index, const IndexLabelVec& labels) {
         EXPECTS(index < tensor_.num_modes());
-        for(auto label: labels){
+        for(auto label : labels) {
             ilv_[index]     = label;
             str_map_[index] = false;
             ++index;
@@ -323,317 +307,6 @@ inline std::tuple<LabeledTensor<T>, LabeledTensor<T>> operator*(
   const LabeledTensor<T>& rhs1, const LabeledTensor<T>& rhs2) {
     return {rhs1, rhs2};
 }
-
-
-#endif
-
-#if 0
-
-template<typename T>
-class Tensor;
-
-// class LoopSpec {
-//     public:
-//     LoopSpec() : has_oll_{false}, has_ill_{false}, has_symm_factor_{false} {}
-
-//     LoopSpec(const LoopSpec&) = default;
-
-//     LoopSpec(const OuterLabeledLoop& oll) : LoopSpec{} { set_oll(oll); }
-
-//     LoopSpec(const InnerLabeledLoop& ill) : LoopSpec{} { set_ill(ill); }
-
-//     LoopSpec(const SymmFactor& sf) : LoopSpec{} { set_symm_factor(sf); }
-
-//     LoopSpec& set_oll(const OuterLabeledLoop& oll) {
-//         oll_     = oll;
-//         has_oll_ = true;
-//         return *this;
-//     }
-
-//     LoopSpec& set_ill(const InnerLabeledLoop& ill) {
-//         ill_     = ill;
-//         has_ill_ = true;
-//         return *this;
-//     }
-
-//     LoopSpec& set_symm_factor(const SymmFactor& sf) {
-//         symm_factor_     = sf;
-//         has_symm_factor_ = true;
-//         return *this;
-//     }
-
-//     bool has_oll() const { return has_oll_; }
-
-//     bool has_ill() const { return has_ill_; }
-
-//     bool has_symm_factor() const { return has_symm_factor_; }
-
-//     OuterLabeledLoop oll() const { return oll_; }
-
-//     InnerLabeledLoop ill() const { return ill_; }
-
-//     SymmFactor symm_factor() const { return symm_factor_; }
-
-//     private:
-//     OuterLabeledLoop oll_;
-//     InnerLabeledLoop ill_;
-//     SymmFactor symm_factor_;
-
-//     bool has_oll_;
-//     bool has_ill_;
-//     bool has_symm_factor_;
-// };
-
-template<typename T>
-class LabeledTensor {
-public:
-    using element_type                  = T;
-    LabeledTensor()                     = default;
-    LabeledTensor(const LabeledTensor&) = default;
-
-    template<typename... Args>
-    LabeledTensor(const Tensor<T>& tensor, Args... args) :
-      tensor_{tensor},
-      ilv_{IndexLabelVec(tensor_.num_modes())},
-      slv_{StringLabelVec(tensor_.num_modes())},
-      str_map_{std::vector<bool>(tensor_.num_modes())} {
-        unpack(0, args...);
-        validate();
-    }
-
-    LabeledTensor(const Tensor<T>& tensor, const std::vector<TiledIndexSpace>& labels) :
-      tensor_{tensor},
-      ilv_{IndexLabelVec(tensor_.num_modes())},
-      slv_{StringLabelVec(tensor_.num_modes())},
-      str_map_{std::vector<bool>(tensor_.num_modes())} {
-        unpack(0, labels);
-        validate();
-    }
-
-    Tensor<T> tensor() const { return tensor_; }
-    const IndexLabelVec& labels() const { return ilv_; }
-    const StringLabelVec& str_labels() const { return slv_; }
-    const std::vector<bool>& str_map() const { return str_map_; }
-    void set_labels(const IndexLabelVec& ilv) {
-        EXPECTS(ilv_.size() == ilv.size());
-        ilv_ = ilv;
-        slv_.clear();
-        slv_.resize(ilv_.size());
-        str_map_ = std::vector<bool>(ilv_.size(), false);
-    }
-
-    AddOp<T, LabeledTensor<T>> operator+=(const LabeledTensor<T> rhs) {
-        return construct_addop(std::make_tuple(static_cast<T>(1.0), rhs), false);
-    }
-
-    SetOp<T, LabeledTensor<T>> operator+=(const T& rhs) {
-        return construct_setop(rhs, false);
-    }
-
-    AddOp<T, LabeledTensor<T>> operator-=(const LabeledTensor<T> rhs) {
-        return construct_addop(std::make_tuple(static_cast<T>(-1.0), rhs), false);
-    }
-
-    SetOp<T, LabeledTensor<T>> operator-=(const T& rhs) {
-        return construct_setop(rhs, false);
-    }
-
-    SetOp<T, LabeledTensor<T>> operator=(const T& rhs) {
-        return construct_setop(rhs, true);
-    }
-
-    template<typename T1,
-             typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-    AddOp<T, LabeledTensor<T>> operator+=(
-      const std::tuple<T1, LabeledTensor<T>>& rhs) {
-        return construct_addop(
-          std::make_tuple(static_cast<T>((std::get<0>(rhs)*1.0)), std::get<1>(rhs)), false);
-    }
-
-    template<typename T1,
-             typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-    AddOp<T, LabeledTensor<T>> operator-=(
-      const std::tuple<T1, LabeledTensor<T>>& rhs) {
-        return construct_addop(
-          std::make_tuple(static_cast<T>((std::get<0>(rhs) * -1.0)), std::get<1>(rhs)), false);
-    }
-
-    template<typename T1,
-             typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-    AddOp<T, LabeledTensor<T>> operator=(
-      const std::tuple<T1, LabeledTensor<T>>& rhs) {
-        return construct_addop(
-          std::make_tuple(static_cast<T>((std::get<0>(rhs)*1.0)), std::get<1>(rhs)), true);
-    }
-
-    AddOp<T, LabeledTensor<T>> operator=(const LabeledTensor<T> rhs) {
-        return construct_addop(std::make_tuple(static_cast<T>(1.0), rhs), true);
-    }
-
-    template<typename T1,
-             typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-    MultOp<T, LabeledTensor<T>> operator+=(
-      const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return construct_multop(
-          std::make_tuple(static_cast<T>((std::get<0>(rhs)*1.0)), std::get<1>(rhs), std::get<2>(rhs)),
-          false);
-    }
-
-    // @to-do: implement.
-    template<typename T1,
-             typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-    MultOp<T, LabeledTensor<T>> operator-=(
-      const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return construct_multop(std::make_tuple(static_cast<T>(-1.0 * std::get<0>(rhs)),
-                                                std::get<1>(rhs),
-                                                std::get<2>(rhs)),
-                                false);
-    }
-
-    template<typename T1,
-             typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-    MultOp<T, LabeledTensor<T>> operator=(
-      const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return construct_multop(
-          std::make_tuple(static_cast<T>((std::get<0>(rhs)*1.0)), std::get<1>(rhs), std::get<2>(rhs)),
-          true);
-    }
-
-    MultOp<T, LabeledTensor<T>> operator+=(
-      const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return construct_multop(
-          std::make_tuple(static_cast<T>(1.0), std::get<0>(rhs), std::get<1>(rhs)), false);
-    }
-
-    MultOp<T, LabeledTensor<T>> operator-=(
-      const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return construct_multop(
-          std::make_tuple(static_cast<T>(-1.0), std::get<0>(rhs), std::get<1>(rhs)), false);
-    }
-
-    MultOp<T, LabeledTensor<T>> operator=(
-      const std::tuple<LabeledTensor<T>, LabeledTensor<T>>& rhs) {
-        return construct_multop(
-          std::make_tuple(static_cast<T>(1.0), std::get<0>(rhs), std::get<1>(rhs)), true);
-    }
-
-protected:
-    Tensor<T> tensor_;
-    IndexLabelVec ilv_;
-    StringLabelVec slv_;
-    std::vector<bool> str_map_;
-
-    SetOp<T, LabeledTensor<T>> construct_setop(const T& rhs, bool is_assign) {
-        return {*this, rhs, is_assign};
-    }
-
-    template<typename T1,
-             //not needed since T1 is static cast to T before calling construct_addop
-             //typename = std::enable_if_t<std::is_arithmetic<T1>::value>
-             typename = std::enable_if_t<std::is_same_v<T1,T>> >
-    AddOp<T1, LabeledTensor<T>> construct_addop(
-      const std::tuple<T1, LabeledTensor<T>>& rhs, bool is_assign) {
-        addop_validate(*this,
-                       std::make_tuple(std::get<0>(rhs), std::get<1>(rhs)));
-        T1 alpha         = std::get<0>(rhs);
-        auto& rhs_tensor = std::get<1>(rhs);
-        return {*this, alpha, rhs_tensor, is_assign};
-    }
-
-    template<typename T1,
-             //not needed since T1 is static cast to T before calling construct_multop
-             //typename = std::enable_if_t<std::is_arithmetic<T1>::value>
-             typename = std::enable_if_t<std::is_same_v<T1,T>> >
-    MultOp<T1, LabeledTensor<T>> construct_multop(
-      const std::tuple<T1, LabeledTensor<T>, LabeledTensor<T>>& rhs,
-      bool is_assign) {
-        multop_validate(*this,
-                        std::make_tuple(std::get<0>(rhs), std::get<1>(rhs),
-                                        std::get<2>(rhs)));
-
-        return {*this, std::get<0>(rhs), std::get<1>(rhs), std::get<2>(rhs),
-                is_assign};
-    }
-
-    // OuterLabeledLoop loop_nest() const {
-    //     // return {labels(),
-    //     tensor().perm_group().unique_loop_nest(labels())};
-    //   return {};
-    // }
-
-    // template<typename T1>
-    // static InnerLabeledLoop inner_loop_nest(const LabeledTensor<T1>&
-    // ltensor1,
-    //                                         const LabeledTensor<T1>&
-    //                                         ltensor2) {
-    //     using Itr = IndexSpace::Iterator;
-    //     IndexLabelVec labels1{ltensor1.labels()};
-    //     IndexLabelVec labels2{ltensor2.labels()};
-
-    //     std::sort(labels1.begin(), labels1.end());
-    //     std::sort(labels2.begin(), labels2.end());
-
-    //     IndexLabelVec inner_labels;
-    //     std::set_intersection(labels1.begin(), labels1.end(),
-    //     labels2.begin(),
-    //                           labels2.end(),
-    //                           std::back_inserter(inner_labels));
-    //     std::vector<Itr> begins, ends;
-    //     // for(const auto& il : inner_labels) {
-    //     //     begins.push_back(il.ir().begin());
-    //     //     ends.push_back(il.ir().end());
-    //     // }
-    //     return InnerLabeledLoop{inner_labels, begins, ends, {}};
-    // }
-  
-};
-
-// inline LoopSpec operator*(LoopSpec ls, const InnerLabeledLoop& ill) {
-//     return ls.set_ill(ill);
-// }
-
-// inline LoopSpec operator*(LoopSpec ls, const SymmFactor& sf) {
-//     return ls.set_symm_factor(sf);
-// }
-
-// template<typename T>
-// inline std::tuple<LoopSpec, T> operator*(LoopSpec ls, T rhs) {
-//     return {ls, rhs};
-// }
-
-template<typename... Types, typename T>
-inline std::tuple<Types..., T> operator*(std::tuple<Types...> lhs, T rhs) {
-    return std::tuple_cat(lhs, std::forward_as_tuple(rhs));
-}
-
-// @to-do: implement properly
-template<typename T>
-inline std::tuple<LabeledTensor<T>, LabeledTensor<T>> operator-(
-  LabeledTensor<T> lhs, LabeledTensor<T> rhs) {
-    return {lhs, rhs};
-}
-
-template<typename T1, typename T2,
-         typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
-inline std::tuple<T1, LabeledTensor<T2>> operator*(
-  T1 val, const LabeledTensor<T2>& rhs) {
-    return {val, rhs};
-}
-
-template<typename T>
-inline std::tuple<LabeledTensor<T>, LabeledTensor<T>> operator*(
-  const LabeledTensor<T>& rhs1, const LabeledTensor<T>& rhs2) {
-    return {rhs1, rhs2};
-}
-
-// inline void validate_slicing(const TensorVec<IndexRange>& index_ranges,
-//                              const IndexLabelVec& label) {
-//     for(size_t i = 0; i < index_ranges.size(); i++) {
-//         EXPECTS(index_ranges[i].is_superset_of(label[i].ir()));
-//     }
-// }
-
-#endif
 
 } // namespace tamm
 #endif // LABELED_TENSOR_HPP_

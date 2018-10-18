@@ -1,144 +1,136 @@
 #ifndef TAMM_INDEX_LOOP_NEST_HPP_
 #define TAMM_INDEX_LOOP_NEST_HPP_
 
-#include "tamm/tiled_index_space.hpp"
 #include "tamm/errors.hpp"
+#include "tamm/tiled_index_space.hpp"
 #include "tamm/utils.hpp"
-#include <iostream>
-#include <vector>
-#include <map>
 #include <algorithm>
+#include <iostream>
+#include <map>
+#include <vector>
 
 namespace tamm {
 
 /**
  * @brief Bound class for tiled index loop nest.
- * The bounds are defined in terms of index labels: the label for this 
- * loop index (say i) and labels for lower bounds (say lo1, lo2, ..) and 
+ * The bounds are defined in terms of index labels: the label for this
+ * loop index (say i) and labels for lower bounds (say lo1, lo2, ..) and
  * upper bounds (say hi1, hi2, ..). A loop bound specifies the range:
- * 
+ *
  * max(lb, lo1, lo2, ...) <= i < min(ub, hi1, h2, ..)
- * 
- * where lb and ub are the lower and upper bouhd for the range of indices 
+ *
+ * where lb and ub are the lower and upper bouhd for the range of indices
  * for index label i's index space.
  */
 class IndexLoopBound {
- public:
-  /**
-   * @brief Index loop bound constructor
-   * 
-   * @paramn [in] this_label Label for which the bound is being specified
-   * @param [in] lb_labels List of lower bound labels
-   * @param [in] ub_labels List of upper bound labels
-   */
-  IndexLoopBound(TiledIndexLabel this_label,
-                const std::vector<TiledIndexLabel>& lb_labels = {},
-                const std::vector<TiledIndexLabel>& ub_labels = {})
-      : this_label_{this_label},
-        lb_labels_{lb_labels},
-        ub_labels_{ub_labels} {}
+public:
+    /**
+     * @brief Index loop bound constructor
+     *
+     * @paramn [in] this_label Label for which the bound is being specified
+     * @param [in] lb_labels List of lower bound labels
+     * @param [in] ub_labels List of upper bound labels
+     */
+    IndexLoopBound(TiledIndexLabel this_label,
+                   const std::vector<TiledIndexLabel>& lb_labels = {},
+                   const std::vector<TiledIndexLabel>& ub_labels = {}) :
+      this_label_{this_label},
+      lb_labels_{lb_labels},
+      ub_labels_{ub_labels} {}
 
-  /**
-   * @brief Access this index loop bound's label
-   * 
-   * @return this loop bound's label
-   */
-  TiledIndexLabel this_label() const noexcept {
-    return this_label_;
-  }
+    /**
+     * @brief Access this index loop bound's label
+     *
+     * @return this loop bound's label
+     */
+    TiledIndexLabel this_label() const noexcept { return this_label_; }
 
-  /**
-   * @brief Access this index loop bound's label
-   * 
-   * @return this loop bound's label
-   */
-  constexpr const std::vector<TiledIndexLabel>& lb_labels() const noexcept {
-    return lb_labels_;
-  }
+    /**
+     * @brief Access this index loop bound's label
+     *
+     * @return this loop bound's label
+     */
+    constexpr const std::vector<TiledIndexLabel>& lb_labels() const noexcept {
+        return lb_labels_;
+    }
 
-  /**
-   * @brief Access this index loop bound's label
-   * 
-   * @return this loop bound's label
-   */
-  constexpr const std::vector<TiledIndexLabel>& ub_labels() const noexcept {
-    return ub_labels_;
-  }
-  
- private:
-  TiledIndexLabel this_label_; /**< Index label for this loop*/
-  std::vector<TiledIndexLabel> lb_labels_; /**< Index labels of lower bounds*/
-  std::vector<TiledIndexLabel> ub_labels_; /**<Index labels of upper bounds*/
+    /**
+     * @brief Access this index loop bound's label
+     *
+     * @return this loop bound's label
+     */
+    constexpr const std::vector<TiledIndexLabel>& ub_labels() const noexcept {
+        return ub_labels_;
+    }
 
-  std::vector<TiledIndexLabel>& lb_labels() {
-     return lb_labels_;
-  }
+private:
+    TiledIndexLabel this_label_;             /**< Index label for this loop*/
+    std::vector<TiledIndexLabel> lb_labels_; /**< Index labels of lower bounds*/
+    std::vector<TiledIndexLabel> ub_labels_; /**<Index labels of upper bounds*/
 
-  std::vector<TiledIndexLabel>& ub_labels() {
-    return ub_labels_;
-  }
+    std::vector<TiledIndexLabel>& lb_labels() { return lb_labels_; }
 
-  friend IndexLoopBound operator + (IndexLoopBound ilb1,  const IndexLoopBound& ilb2);
+    std::vector<TiledIndexLabel>& ub_labels() { return ub_labels_; }
+
+    friend IndexLoopBound operator+(IndexLoopBound ilb1,
+                                    const IndexLoopBound& ilb2);
 }; // class IndexLoopBound
-
 
 /**
  * @brief Specify an upper bound
- * 
+ *
  * @param [in] ref the index label for which upper bound is being specified
  * @param [in] ub the upper bound index label
- * 
+ *
  * @return index loop bound corresponding to ref < ub
  */
-inline IndexLoopBound
-operator <= (const IndexLoopBound& ref, const IndexLoopBound& ub) {
-  EXPECTS(ref.lb_labels().size() == 0);
-  EXPECTS(ref.ub_labels().size() == 0);
-  EXPECTS(ub.lb_labels().size() == 0);
-  EXPECTS(ub.ub_labels().size() == 0);
-  return {ref.this_label(), {}, {ub.this_label()}};
+inline IndexLoopBound operator<=(const IndexLoopBound& ref,
+                                 const IndexLoopBound& ub) {
+    EXPECTS(ref.lb_labels().size() == 0);
+    EXPECTS(ref.ub_labels().size() == 0);
+    EXPECTS(ub.lb_labels().size() == 0);
+    EXPECTS(ub.ub_labels().size() == 0);
+    return {ref.this_label(), {}, {ub.this_label()}};
 }
 
 /**
  * @brief Specify an lower bound
- * 
+ *
  * @param [in] ref the index label for which lower bound is being specified
  * @param [in] ub the lower bound index label
- * 
+ *
  * @return index loop bound corresponding to ref >= lb
  */
-inline IndexLoopBound
-operator >= (const IndexLoopBound& ref, const IndexLoopBound& lb) {
-  EXPECTS(ref.lb_labels().size() == 0);
-  EXPECTS(ref.ub_labels().size() == 0);
-  EXPECTS(lb.lb_labels().size() == 0);
-  EXPECTS(lb.ub_labels().size() == 0);
-  return {ref.this_label(), {lb.this_label()}, {}};
+inline IndexLoopBound operator>=(const IndexLoopBound& ref,
+                                 const IndexLoopBound& lb) {
+    EXPECTS(ref.lb_labels().size() == 0);
+    EXPECTS(ref.ub_labels().size() == 0);
+    EXPECTS(lb.lb_labels().size() == 0);
+    EXPECTS(lb.ub_labels().size() == 0);
+    return {ref.this_label(), {lb.this_label()}, {}};
 }
 
 /**
- * @brief Combine index loop bounds. Both bounds are to be on the same index 
+ * @brief Combine index loop bounds. Both bounds are to be on the same index
  * label. The lower and upper bounds from both conditions are combined to create
  * a new index loop bound.
- * 
- * @param [in] ilb1 first loop bound 
+ *
+ * @param [in] ilb1 first loop bound
  * @param [in] ilb2 second loop bound
- * 
+ *
  * @pre @code ilb1.this_label() == ilb2.this_label() @endcode
- * 
- * @return index loop bound that satisfies the loop conditions in both @param 
+ *
+ * @return index loop bound that satisfies the loop conditions in both @param
  * ilb1 and @param ilb2
  */
-inline IndexLoopBound
-operator + (IndexLoopBound ilb1, const IndexLoopBound& ilb2) {
-  EXPECTS(ilb1.this_label() == ilb2.this_label());
-  ilb1.lb_labels().insert(ilb1.lb_labels().end(),
-                          ilb2.lb_labels().begin(),
-                          ilb2.lb_labels().end());
-  ilb1.ub_labels().insert(ilb1.ub_labels().end(),
-                          ilb2.ub_labels().begin(),
-                          ilb2.ub_labels().end());
-  return ilb1;
+inline IndexLoopBound operator+(IndexLoopBound ilb1,
+                                const IndexLoopBound& ilb2) {
+    EXPECTS(ilb1.this_label() == ilb2.this_label());
+    ilb1.lb_labels().insert(ilb1.lb_labels().end(), ilb2.lb_labels().begin(),
+                            ilb2.lb_labels().end());
+    ilb1.ub_labels().insert(ilb1.ub_labels().end(), ilb2.ub_labels().begin(),
+                            ilb2.ub_labels().end());
+    return ilb1;
 }
 
 /**
@@ -150,277 +142,249 @@ operator + (IndexLoopBound ilb1, const IndexLoopBound& ilb2) {
  * @return index loop bound conditions for the two loop variables i and j such
  * that the only iterated values are (i,j) such that i==j.
  */
-inline IndexLoopBound
-operator == (const IndexLoopBound& lhs, const IndexLoopBound& rhs) {
-  return (lhs <= rhs) + (lhs >= rhs);
+inline IndexLoopBound operator==(const IndexLoopBound& lhs,
+                                 const IndexLoopBound& rhs) {
+    return (lhs <= rhs) + (lhs >= rhs);
 }
-  
 
 class IndexLoopNest {
- public:
-  /**
-   * @brief Construct a new Index Loop Nest object
-   *
-   */
-  IndexLoopNest() {
-    reset();
-  }
-  
-  IndexLoopNest(const IndexLoopNest&) = default;
-  IndexLoopNest(IndexLoopNest&&) = default;
-  ~IndexLoopNest() = default;
-  IndexLoopNest& operator = (const IndexLoopNest&) = default;
-  IndexLoopNest& operator = (IndexLoopNest&&) = default;
+public:
+    /**
+     * @brief Construct a new Index Loop Nest object
+     *
+     */
+    IndexLoopNest() { reset(); }
 
-  IndexLoopNest(const std::vector<TiledIndexSpace>& iss,
-                const std::vector<std::vector<size_t>>& lb_indices,
-                const std::vector<std::vector<size_t>>& ub_indices,
-                const std::vector<std::vector<size_t>>& indep_indices)
-      : iss_{iss},
-        lb_indices_{lb_indices},
-        ub_indices_{ub_indices},
-        indep_indices_{indep_indices} {
-          EXPECTS(indep_indices.size() == 0 || indep_indices_.size() == iss.size());
+    IndexLoopNest(const IndexLoopNest&) = default;
+    IndexLoopNest(IndexLoopNest&&)      = default;
+    ~IndexLoopNest()                    = default;
+    IndexLoopNest& operator=(const IndexLoopNest&) = default;
+    IndexLoopNest& operator=(IndexLoopNest&&) = default;
+
+    IndexLoopNest(const std::vector<TiledIndexSpace>& iss,
+                  const std::vector<std::vector<size_t>>& lb_indices,
+                  const std::vector<std::vector<size_t>>& ub_indices,
+                  const std::vector<std::vector<size_t>>& indep_indices) :
+      iss_{iss},
+      lb_indices_{lb_indices},
+      ub_indices_{ub_indices},
+      indep_indices_{indep_indices} {
+        EXPECTS(indep_indices.size() == 0 ||
+                indep_indices_.size() == iss.size());
         lb_indices_.resize(iss_.size());
         ub_indices_.resize(iss_.size());
         indep_indices_.resize(iss_.size());
 
-        for(size_t i=0; i<indep_indices_.size();i++) {
-          for(const auto id : indep_indices_[i]) {
-            EXPECTS(id < i);
-          }
+        for(size_t i = 0; i < indep_indices_.size(); i++) {
+            for(const auto id : indep_indices_[i]) { EXPECTS(id < i); }
         }
         reset();
-        }  
-  
-  template<typename... Args>
-  IndexLoopNest(const IndexLoopBound& ibc, Args&&... args)
-      : IndexLoopNest{std::vector<IndexLoopBound>{ibc, std::forward<Args>(args)...}} {
-  }
+    }
 
-  IndexLoopNest(const std::vector<IndexLoopBound>& ibcs) {
-    std::vector<TiledIndexLabel> labels;
+    template<typename... Args>
+    IndexLoopNest(const IndexLoopBound& ibc, Args&&... args) :
+      IndexLoopNest{
+        std::vector<IndexLoopBound>{ibc, std::forward<Args>(args)...}} {}
 
-    for(const auto& ibc: ibcs) {
-      //every label is unique
-      EXPECTS(std::find(labels.begin(), labels.end(), ibc.this_label()) == labels.end());
-      labels.push_back(ibc.this_label());
-      iss_.push_back(ibc.this_label().tiled_index_space());
-      indep_indices_.push_back({});
-      size_t pos = 0;
-      for(const TileLabelElement& slbl : ibc.this_label().secondary_labels()) {
-          auto it = std::find_if(labels.begin(), labels.end(),
-                              [&](const TiledIndexLabel& a) -> bool {
-                                  return a.primary_label() == slbl;
-                              });
-          EXPECTS(it != labels.end());
-          EXPECTS(it - labels.begin() < static_cast<decltype(it-labels.begin())>(pos));
-          indep_indices_.back().push_back(it - labels.begin());
-          pos += 1;
-      }
-      /*
-        //indep labels
-        for(const auto& is : ibc.this_label().is().indep_is()) {
-        //check that thay are already in existing list of labels
+    IndexLoopNest(const std::vector<IndexLoopBound>& ibcs) {
+        std::vector<TiledIndexLabel> labels;
+
+        for(const auto& ibc : ibcs) {
+            // every label is unique
+            EXPECTS(std::find(labels.begin(), labels.end(), ibc.this_label()) ==
+                    labels.end());
+            labels.push_back(ibc.this_label());
+            iss_.push_back(ibc.this_label().tiled_index_space());
+            indep_indices_.push_back({});
+            size_t pos = 0;
+            for(const TileLabelElement& slbl :
+                ibc.this_label().secondary_labels()) {
+                auto it = std::find_if(labels.begin(), labels.end(),
+                                       [&](const TiledIndexLabel& a) -> bool {
+                                           return a.primary_label() == slbl;
+                                       });
+                EXPECTS(it != labels.end());
+                EXPECTS(it - labels.begin() <
+                        static_cast<decltype(it - labels.begin())>(pos));
+                indep_indices_.back().push_back(it - labels.begin());
+                pos += 1;
+            }
+
+            ub_indices_.push_back({});
+            for(const auto& lbl : ibc.ub_labels()) {
+                auto itr = std::find(labels.begin(), labels.end(), lbl);
+                // upper bound label exists
+                EXPECTS(itr != labels.end());
+                ub_indices_.back().push_back(itr - labels.begin());
+            }
+            lb_indices_.push_back({});
+            for(const auto& lbl : ibc.lb_labels()) {
+                auto itr = std::find(labels.begin(), labels.end(), lbl);
+                // lower bound label exists
+                EXPECTS(itr != labels.end());
+                lb_indices_.back().push_back(itr - labels.begin());
+            }
         }
-      */
-      ub_indices_.push_back({});
-      for(const auto& lbl: ibc.ub_labels()) {
-        auto itr = std::find(labels.begin(), labels.end(), lbl);
-        //upper bound label exists
-        EXPECTS(itr != labels.end());
-        ub_indices_.back().push_back(itr - labels.begin());
-      }
-      lb_indices_.push_back({});
-      for(const auto& lbl: ibc.lb_labels()) {
-        auto itr = std::find(labels.begin(), labels.end(), lbl);
-        //lower bound label exists
-        EXPECTS(itr != labels.end());
-        lb_indices_.back().push_back(itr - labels.begin());
-      }
-    }
-    reset();
-  }
-
-  class Iterator {
-   public:
-    Iterator() = default;
-    Iterator(const Iterator&) = default;    
-    Iterator(Iterator&&) = default;
-    ~Iterator() = default;
-    Iterator& operator = (const Iterator&) = default;
-    Iterator& operator = (Iterator&&) = default;
-
-    Iterator(IndexLoopNest* loop_nest)
-        : loop_nest_{loop_nest} {
-      bases_.resize(size());
-      itrs_.resize(size());
-      begins_.resize(size());
-      ends_.resize(size());
-      done_ = false;
-      reset_forward(0);
-    }
-     
-    bool operator == (const Iterator& rhs) const {
-      return loop_nest_ == rhs.loop_nest_ &&
-          done_ == rhs.done_ &&
-          itrs_ == rhs.itrs_;
+        reset();
     }
 
-    bool operator != (const Iterator& rhs) const {
-      return !(*this == rhs);
-    }
+    class Iterator {
+    public:
+        Iterator()                = default;
+        Iterator(const Iterator&) = default;
+        Iterator(Iterator&&)      = default;
+        ~Iterator()               = default;
+        Iterator& operator=(const Iterator&) = default;
+        Iterator& operator=(Iterator&&) = default;
 
-    virtual IndexVector operator * () const {
-      EXPECTS(!done_);
-      EXPECTS(itrs_.size() == bases_.size());
-      
-      IndexVector ret;
-      for(int i=0; i<(int)itrs_.size(); i++) {
-        ret.push_back(*(bases_[i]+itrs_[i]));
-      }
-      return ret;
-    }
-    
-    Iterator operator ++ () {
-      int i = rollback(size()-1);
-      if (i<0) {
-        set_end();
-      } else {
-        itrs_[i]++;
-        reset_forward(i+1);
-      }
-      return *this;
-    }
-
-    Iterator operator ++ (int) {
-      Iterator ret{*this};
-      ++(*this);
-      return ret;
-    }
-    
-    void set_end() {
-      itrs_.clear();
-      done_ = true;
-    }
-
-
-   private:
-    int rollback(const size_t index) {
-      int i;
-      for(i = index; i >= 0 && itrs_[i]+1 == ends_[i]; i--) {
-        //no-op
-      }
-      return i;
-    }
-
-    size_t size() const {
-      return loop_nest_->size();
-    }
-    
-    void reset_forward(const size_t index) {
-      int i = index;
-      while (i >=0 && i < static_cast<int>(size())) {
-        std::vector<Index> indep_vals;
-        EXPECTS(i < static_cast<int>(loop_nest_->indep_indices_.size()));
-        for (const auto& id : loop_nest_->indep_indices_[i]) {
-          EXPECTS(id>=0 && id<itrs_.size() && id<bases_.size());
-          EXPECTS(static_cast<int>(id) < i);
-          indep_vals.push_back(*(bases_[id]+itrs_[id]));
+        Iterator(IndexLoopNest* loop_nest) : loop_nest_{loop_nest} {
+            bases_.resize(size());
+            itrs_.resize(size());
+            begins_.resize(size());
+            ends_.resize(size());
+            done_ = false;
+            reset_forward(0);
         }
-        IndexIterator cbeg, cend;
-        //EXPECTS(indep_vals.size()==0); //@bug no support for dependent index spaces yet
-#if 0
-        std::tie(cbeg, cend) =  loop_nest_->iss_[i].construct_iterators(indep_vals);
-#else
-        cbeg = loop_nest_->iss_[i](indep_vals).begin();
-        cend = loop_nest_->iss_[i](indep_vals).end();
-#endif
-        bases_[i] = cbeg;
-        begins_[i] = 0;
-        ends_[i] = std::distance(cbeg, cend);
-        for (const auto& id: loop_nest_->lb_indices_[i]) {
-          EXPECTS(static_cast<int>(id) < i);
-          begins_[i] = std::max(begins_[i], itrs_[id]);
+
+        bool operator==(const Iterator& rhs) const {
+            return loop_nest_ == rhs.loop_nest_ && done_ == rhs.done_ &&
+                   itrs_ == rhs.itrs_;
         }
-        for (const auto& id: loop_nest_->ub_indices_[i]) {
-          EXPECTS(static_cast<int>(id) < i);
-          ends_[i] = std::min(ends_[i], itrs_[id]+1);
+
+        bool operator!=(const Iterator& rhs) const { return !(*this == rhs); }
+
+        virtual IndexVector operator*() const {
+            EXPECTS(!done_);
+            EXPECTS(itrs_.size() == bases_.size());
+
+            IndexVector ret;
+            for(int i = 0; i < (int)itrs_.size(); i++) {
+                ret.push_back(*(bases_[i] + itrs_[i]));
+            }
+            return ret;
         }
-        if (begins_[i] < ends_[i]) {
-          itrs_[i] = begins_[i];
-          i++;
-        } else { 
-          i = rollback(i-1);
-          if(i>=0) {
-            itrs_[i]++;
-            i++;
-          }
+
+        Iterator operator++() {
+            int i = rollback(size() - 1);
+            if(i < 0) {
+                set_end();
+            } else {
+                itrs_[i]++;
+                reset_forward(i + 1);
+            }
+            return *this;
         }
-      }
-      if (i < 0) {
-        set_end();
-      }
+
+        Iterator operator++(int) {
+            Iterator ret{*this};
+            ++(*this);
+            return ret;
+        }
+
+        void set_end() {
+            itrs_.clear();
+            done_ = true;
+        }
+
+    private:
+        int rollback(const size_t index) {
+            int i;
+            for(i = index; i >= 0 && itrs_[i] + 1 == ends_[i]; i--) {
+                // no-op
+            }
+            return i;
+        }
+
+        size_t size() const { return loop_nest_->size(); }
+
+        void reset_forward(const size_t index) {
+            int i = index;
+            while(i >= 0 && i < static_cast<int>(size())) {
+                std::vector<Index> indep_vals;
+                EXPECTS(i <
+                        static_cast<int>(loop_nest_->indep_indices_.size()));
+                for(const auto& id : loop_nest_->indep_indices_[i]) {
+                    EXPECTS(id >= 0 && id < itrs_.size() && id < bases_.size());
+                    EXPECTS(static_cast<int>(id) < i);
+                    indep_vals.push_back(*(bases_[id] + itrs_[id]));
+                }
+                IndexIterator cbeg, cend;
+
+                cbeg = loop_nest_->iss_[i](indep_vals).begin();
+                cend = loop_nest_->iss_[i](indep_vals).end();
+
+                bases_[i]  = cbeg;
+                begins_[i] = 0;
+                ends_[i]   = std::distance(cbeg, cend);
+                for(const auto& id : loop_nest_->lb_indices_[i]) {
+                    EXPECTS(static_cast<int>(id) < i);
+                    begins_[i] = std::max(begins_[i], itrs_[id]);
+                }
+                for(const auto& id : loop_nest_->ub_indices_[i]) {
+                    EXPECTS(static_cast<int>(id) < i);
+                    ends_[i] = std::min(ends_[i], itrs_[id] + 1);
+                }
+                if(begins_[i] < ends_[i]) {
+                    itrs_[i] = begins_[i];
+                    i++;
+                } else {
+                    i = rollback(i - 1);
+                    if(i >= 0) {
+                        itrs_[i]++;
+                        i++;
+                    }
+                }
+            }
+            if(i < 0) { set_end(); }
+        }
+
+        std::vector<IndexIterator> bases_;
+        IndexVector itrs_;
+        IndexVector begins_; // current begin
+        IndexVector ends_;   // current end
+        IndexLoopNest* loop_nest_;
+        bool done_;
+        friend class IndexLoopNest;
+    };
+
+    const Iterator& begin() const { return itbegin_; }
+
+    const Iterator& end() const { return itend_; }
+
+    bool is_valid() const {
+        bool ret = true;
+        ret      = ret && iss_.size() != lb_indices_.size();
+        ret      = ret && iss_.size() != ub_indices_.size();
+        ret      = ret && iss_.size() != indep_indices_.size();
+
+        for(size_t i = 0; i < ub_indices_.size(); i++) {
+            for(const auto uid : ub_indices_[i]) {
+                ret = ret && uid >= 0 && uid < i;
+            }
+        }
+        for(size_t i = 0; i < lb_indices_.size(); i++) {
+            for(const auto lid : lb_indices_[i]) {
+                ret = ret && lid >= 0 && lid < i;
+            }
+        }
+        return ret;
     }
 
-    std::vector<IndexIterator> bases_;
-    IndexVector itrs_;
-    IndexVector begins_; //current begin
-    IndexVector ends_; //current end
-    IndexLoopNest* loop_nest_;
-    bool done_;
-    friend class IndexLoopNest;
-  };  
+    int size() const { return iss_.size(); }
 
-  const Iterator& begin() const {
-    return itbegin_;
-  }
-
-  const Iterator& end() const {
-    return itend_;
-  }  
-
-  bool is_valid() const {
-    bool ret = true;
-    ret = ret && iss_.size() != lb_indices_.size();
-    ret = ret && iss_.size() != ub_indices_.size();
-    ret = ret && iss_.size() != indep_indices_.size();
-    /*
-        //indep spaces
-        for(const auto& is : ibc.this_label().is().indep_is()) {
-        //check that thay are already in existing list of labels
-        }
-    */
-    for(size_t i=0; i<ub_indices_.size(); i++) {
-      for(const auto uid : ub_indices_[i]) {
-        ret = ret && uid >=0 && uid < i;
-      }
+    void reset() {
+        itbegin_ = Iterator{this};
+        itend_   = Iterator{this};
+        itend_.set_end();
     }
-    for(size_t i=0; i<lb_indices_.size(); i++) {
-      for(const auto lid : lb_indices_[i]) {
-        ret = ret && lid >=0 && lid < i;
-      }
-    }
-    return ret;
-  }
 
-  int size() const {
-    return iss_.size();
-  }
-
-  void reset() {
-    itbegin_ = Iterator{this};
-    itend_ = Iterator{this};
-    itend_.set_end();
-  }
-  
-  std::vector<TiledIndexSpace> iss_;
-  std::vector<std::vector<size_t>> lb_indices_;
-  std::vector<std::vector<size_t>> ub_indices_;
-  std::vector<std::vector<size_t>> indep_indices_;
-  Iterator itbegin_;
-  Iterator itend_;
-};  // class IndexLoopNest
+    std::vector<TiledIndexSpace> iss_;
+    std::vector<std::vector<size_t>> lb_indices_;
+    std::vector<std::vector<size_t>> ub_indices_;
+    std::vector<std::vector<size_t>> indep_indices_;
+    Iterator itbegin_;
+    Iterator itend_;
+}; // class IndexLoopNest
 
 class LabelLoopNest {
 public:
@@ -434,10 +398,10 @@ public:
       input_labels_{input_labels} {
         const IndexLabelVec& unique_labels =
           internal::unique_entries(input_labels_);
-        //std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
-        // @to-do: when the labels are not from the same TiledIndexSpace the unique label
-        // check fails causing the loop nest to be constructed over all labels. We should
-        // fix this problem after updating compatibility check for TiledIndexSpaces
+        // @to-do: when the labels are not from the same TiledIndexSpace the
+        // unique label check fails causing the loop nest to be constructed over
+        // all labels. We should fix this problem after updating compatibility
+        // check for TiledIndexSpaces
         sorted_unique_labels_ = internal::sort_on_dependence(unique_labels);
 
         perm_map_input_to_sorted_labels_ =
@@ -449,20 +413,15 @@ public:
         for(const auto& lbl : sorted_unique_labels_) {
             iss.push_back(lbl.tiled_index_space());
         }
-        //std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
         std::vector<std::vector<size_t>> indep_indices =
           construct_dep_map(sorted_unique_labels_);
 
-        for(size_t i=0; i<indep_indices.size();i++) {
-          for(const auto id : indep_indices[i]) {
-            EXPECTS(id < i);
-          }
+        for(size_t i = 0; i < indep_indices.size(); i++) {
+            for(const auto id : indep_indices[i]) { EXPECTS(id < i); }
         }
 
         index_loop_nest_ = IndexLoopNest{iss, {}, {}, indep_indices};
-        //std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
         reset();
-        //std::cerr<<__FUNCTION__<<" "<<__LINE__<<"\n";
     }
 
     class Iterator {
@@ -518,10 +477,7 @@ private:
       const IndexLabelVec& labels) {
         std::vector<std::vector<size_t>> dep_map(labels.size());
         size_t til = labels.size();
-        // std::vector<TiledIndexSpace> iss;
-        // for(const auto& lbl: labels) {
-        //   iss.push_back(lbl.tiled_index_space());
-        // }
+
         for(size_t i = 0; i < til; i++) {
             auto il  = labels[i];
             auto tis = labels[i].tiled_index_space();
@@ -535,7 +491,7 @@ private:
                     size_t pos = 0;
                     for(pos = 0; pos < labels.size(); pos++) {
                         if(labels[pos].primary_label() == dep) {
-                          EXPECTS(pos < i);
+                            EXPECTS(pos < i);
                             dep_map[i].push_back(pos);
                             break;
                         }
@@ -564,12 +520,11 @@ private:
 
 template<typename... Args>
 inline IndexLoopNest loop_spec(Args... args) {
-  IndexLoopNest iln{args...};
-  EXPECTS(iln.is_valid());
-  return iln;
+    IndexLoopNest iln{args...};
+    EXPECTS(iln.is_valid());
+    return iln;
 }
 
-} //namespace tamm
+} // namespace tamm
 
 #endif // TAMM_INDEX_LOOP_NEST_HPP_
-

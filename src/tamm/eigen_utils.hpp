@@ -9,7 +9,7 @@
 
 //include <variant>
 
-using namespace tamm;
+// using namespace tamm;
 
 template<typename T, int ndim>
 void
@@ -104,7 +104,7 @@ patch_copy(std::vector<T> &sbuf, Eigen::Tensor<T, 4, Eigen::RowMajor> &etensor,
 
 template<typename T, int ndim>
 Eigen::Tensor<T, ndim, Eigen::RowMajor>
-tamm_to_eigen_tensor(Tensor <T> &tensor){
+tamm_to_eigen_tensor(tamm::Tensor<T> &tensor){
     std::array<long, ndim> dims;
     const auto &tindices = tensor.tiled_index_spaces();
     for (int i = 0; i < ndim; i++) {
@@ -114,7 +114,7 @@ tamm_to_eigen_tensor(Tensor <T> &tensor){
     etensor.setZero();
 
     for(const auto& blockid : tensor.loop_nest()) {
-        const TAMM_SIZE size = tensor.block_size(blockid);
+        const tamm::TAMM_SIZE size = tensor.block_size(blockid);
         std::vector<T> buf(size);
         tensor.get(blockid, buf);
         auto block_dims   = tensor.block_dims(blockid);
@@ -127,9 +127,9 @@ tamm_to_eigen_tensor(Tensor <T> &tensor){
 
 template<typename T>
 void
-tamm_to_eigen_tensor(Tensor <T> &tensor, Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& etensor) {
+tamm_to_eigen_tensor(tamm::Tensor<T> &tensor, Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& etensor) {
     for(const auto& blockid : tensor.loop_nest()) {
-        const TAMM_SIZE size = tensor.block_size(blockid);
+        const tamm::TAMM_SIZE size = tensor.block_size(blockid);
         std::vector<T> buf(size);
         tensor.get(blockid, buf);
         auto block_dims   = tensor.block_dims(blockid);
@@ -140,9 +140,9 @@ tamm_to_eigen_tensor(Tensor <T> &tensor, Eigen::Matrix<T, Eigen::Dynamic, Eigen:
 
 template<typename T, int ndim>
 void
-tamm_to_eigen_tensor(Tensor <T> &tensor, Eigen::Tensor<T, ndim, Eigen::RowMajor>& etensor) {
+tamm_to_eigen_tensor(tamm::Tensor<T> &tensor, Eigen::Tensor<T, ndim, Eigen::RowMajor>& etensor) {
     for(const auto& blockid : tensor.loop_nest()) {
-        const TAMM_SIZE size = tensor.block_size(blockid);
+        const tamm::TAMM_SIZE size = tensor.block_size(blockid);
         std::vector<T> buf(size);
         tensor.get(blockid, buf);
         auto block_dims   = tensor.block_dims(blockid);
@@ -154,9 +154,9 @@ tamm_to_eigen_tensor(Tensor <T> &tensor, Eigen::Tensor<T, ndim, Eigen::RowMajor>
 
 template<typename T, int ndim>
 void
-eigen_to_tamm_tensor(Tensor <T> &tensor, Eigen::Tensor<T, ndim, Eigen::RowMajor>& etensor) {
+eigen_to_tamm_tensor(tamm::Tensor<T> &tensor, Eigen::Tensor<T, ndim, Eigen::RowMajor>& etensor) {
     for(const auto& blockid : tensor.loop_nest()) {
-        const TAMM_SIZE size = tensor.block_size(blockid);
+        const tamm::TAMM_SIZE size = tensor.block_size(blockid);
         std::vector<T> buf(size);
         // tensor.get(blockid, buf);
         auto block_dims   = tensor.block_dims(blockid);
@@ -169,9 +169,9 @@ eigen_to_tamm_tensor(Tensor <T> &tensor, Eigen::Tensor<T, ndim, Eigen::RowMajor>
 
 template<typename T>
 void
-eigen_to_tamm_tensor(Tensor <T> &tensor, Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& etensor) {
+eigen_to_tamm_tensor(tamm::Tensor<T> &tensor, Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& etensor) {
     for(const auto& blockid : tensor.loop_nest()) {
-        const TAMM_SIZE size = tensor.block_size(blockid);
+        const tamm::TAMM_SIZE size = tensor.block_size(blockid);
         std::vector<T> buf(size);
         // tensor.get(blockid, buf);
         auto block_dims   = tensor.block_dims(blockid);

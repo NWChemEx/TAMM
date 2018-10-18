@@ -15,79 +15,8 @@
 
 namespace tamm {
 
-// template<typename T>
-// struct span;
 using gsl::span;
 
-#if 0
-namespace detail {
-    template <class T>
-    struct is_span_helper : std::false_type {};
-    template <class T>
-    struct is_span_helper<span<T>> : std::true_type {};
-    template <class T>
-    struct is_span : public is_span_helper<std::remove_cv_t<T>> {};
-    template <class T>
-    struct is_std_array_helper : std::false_type {};
-    template <class T, std::size_t N>
-    struct is_std_array_helper<std::array<T, N>> : std::true_type {};
-    template <class T>
-    struct is_std_array : public is_std_array_helper<std::remove_cv_t<T>> { };
-}
-
-/**
- * @brief A struct for mimicing use of \c gsl::span and \c std::span
- *
- * @note This class will be made compatible with C++20 \c std::span or it
- * will be replaced by it.
- *
- * @tparam T Element type; must be a complete type that is not an abstract class
- * type.
- */
-template<typename T>
-struct span {
-public:
-    /**
-     * @brief Construct a new span object from a pointer and a size
-     * 
-     * @param ref Pointer to elements.
-     * @param size The amount of elements stored.
-     */
-    span(T* ref, size_t size) : ref_{ref}, size_{size} {}
-
-    /**
-     * @brief Construct a new span object from a container
-     *
-     * @note In C++17, we would use \c std::data() and \c std::size()
-     * instead of member functions
-     *
-     * @tparam Type of the container The container to construct the span from.  
-     * @param c The container to construct the span from.
-     */
-    template<typename Container,
-             typename = std::enable_if_t<
-                        !detail::is_span<Container>::value && !detail::is_std_array<Container>::value &&
-                        std::is_convertible<typename Container::pointer, T*>::value &&
-                        std::is_convertible<typename Container::pointer,
-                                            decltype(std::declval<Container>().data())>::value>>
-    span(Container& c) : ref_{c.data()}, size_{c.size()} {}
-
-    const T* ref() const { return ref_; }
-
-    T* ref() { return ref_; }
-    
-    size_t size() const { return size_; }
-
-private:
-    T* ref_;
-    size_t size_;
-};
-// C++17 deduction guides
-// template<class Container>
-// span(Container&) -> span<typename Container::value_type>;
-// template<class Container>
-// span(const Container&) -> span<const typename Container::value_type>;
-#endif
 template<typename T>
 class LabeledTensor;
 
@@ -141,7 +70,6 @@ public:
         has_spin_symmetry_ = false;
     }
 
-#if 1
     // SpinTensor related constructors
     /**
      * @brief Construct a new SpinTensorImpl object using set of TiledIndexSpace
@@ -255,7 +183,6 @@ public:
         has_spin_symmetry_ = true;
         // spin_total_        = calculate_spin();
     }
-#endif
 
     // Copy/Move Ctors and Assignment Operators
     TensorImpl(TensorImpl&&)      = default;

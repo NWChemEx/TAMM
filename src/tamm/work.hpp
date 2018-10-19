@@ -25,8 +25,8 @@ enum class ExecutionPolicy {
  Loser* @param fn Function to be applied on each iterator element
  */
 template<typename Itr, typename Fn>
-void parallel_work_ga(ProcGroup& ec_pg, Itr first, Itr last, Fn fn) {
-    AtomicCounter* ac = new AtomicCounterGA(ec_pg, 1);
+void parallel_work_ga(ExecutionContext& ec, Itr first, Itr last, Fn fn) {
+    AtomicCounter* ac = new AtomicCounterGA(ec.pg(), 1);
     ac->allocate(0);
     int64_t next = ac->fetch_add(0, 1);
     for(int64_t count = 0; first != last; ++first, ++count) {
@@ -35,7 +35,7 @@ void parallel_work_ga(ProcGroup& ec_pg, Itr first, Itr last, Fn fn) {
             next = ac->fetch_add(0, 1);
         }
     }
-    ec_pg.barrier();
+    ec.pg().barrier();
     ac->deallocate();
     delete ac;
 }
@@ -46,8 +46,8 @@ void parallel_work_ga(ProcGroup& ec_pg, Itr first, Itr last, Fn fn) {
  * @copydetails parallel_work_ga()
  */
 template<typename Itr, typename Fn>
-void parallel_work(ProcGroup& ec_pg, Itr first, Itr last, Fn fn) {
-    parallel_work_ga(ec_pg, first, last, fn);
+void parallel_work(ExecutionContext& ec, Itr first, Itr last, Fn fn) {
+    parallel_work_ga(ec, first, last, fn);
     // Select other types of parallel work in some way
 }
 
@@ -56,7 +56,7 @@ void parallel_work(ProcGroup& ec_pg, Itr first, Itr last, Fn fn) {
  * @copydetails parallel_work()
  */
 template<typename Itr, typename Fn>
-void seq_work(ProcGroup& ec_pg, Itr first, Itr last, Fn fn) {
+void seq_work(ExecutionContext& ec, Itr first, Itr last, Fn fn) {
     for(; first != last; ++first) { fn(*first); }
 }
 
@@ -66,39 +66,39 @@ void seq_work(ProcGroup& ec_pg, Itr first, Itr last, Fn fn) {
  * @param exec_policy Execution policy
  */
 template<typename Itr, typename Fn>
-void do_work(ProcGroup& ec_pg, Itr first, Itr last, Fn fn,
+void do_work(ExecutionContext& ec, Itr first, Itr last, Fn fn,
              const ExecutionPolicy exec_policy = ExecutionPolicy::parallel) {
     if(exec_policy == ExecutionPolicy::sequential_replicated) {
-        seq_work(ec_pg, first, last, fn);
+        seq_work(ec, first, last, fn);
     } else {
-        parallel_work(ec_pg, first, last, fn);
+        parallel_work(ec, first, last, fn);
     }
 }
 
 template<typename Iterable, typename Fn>
-void do_work(ProcGroup& ec_pg, Iterable& iterable, Fn fn,
+void do_work(ExecutionContext& ec, Iterable& iterable, Fn fn,
              const ExecutionPolicy exec_policy = ExecutionPolicy::parallel) {
-    do_work(ec_pg, iterable.begin(), iterable.end(), fn, exec_policy);
+    do_work(ec, iterable.begin(), iterable.end(), fn, exec_policy);
 }
 
 /**
  * Iterate over all blocks in a labeled tensor and apply a given function
  * @tparam T Type of element in each tensor
  * @tparam Lambda Function to be applied on each block
- * @param ec_pg Process group in which this call is invoked
+ * @param ec Process group in which this call is invoked
  * @param ltc Labeled tensor whose blocks are to be iterated
  * @param func Function to be applied on each block
  * @param exec_policy Execution policy to be used
  */
 template<typename T, typename Lambda>
-void block_for(ProcGroup ec_pg, LabeledTensor<T> ltc, Lambda func,
+void block_for(ExecutionContext& ec, LabeledTensor<T> ltc, Lambda func,
                ExecutionPolicy exec_policy = ExecutionPolicy::parallel) {
     LabelLoopNest loop_nest{ltc.labels()};
 
     if(exec_policy == ExecutionPolicy::sequential_replicated) {
-        seq_work(ec_pg, loop_nest.begin(), loop_nest.end(), func);
+        seq_work(ec, loop_nest.begin(), loop_nest.end(), func);
     } else {
-        parallel_work(ec_pg, loop_nest.begin(), loop_nest.end(), func);
+        parallel_work(ec, loop_nest.begin(), loop_nest.end(), func);
     }
 }
 

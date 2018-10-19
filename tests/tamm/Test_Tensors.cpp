@@ -185,7 +185,7 @@ TEST_CASE("Spin Tensor Construction") {
         TiledIndexSpaceVec t_spaces{tis_3, tis_3};
         Tensor<T> tensor{t_spaces, spin_mask_2D};
         tensor.allocate(ec);
-        Scheduler{ec}(tensor() = 42).execute();
+        Scheduler{*ec}(tensor() = 42).execute();
         check_value(tensor, (T)42);
         tensor.deallocate();
     } catch(const std::string& e) {
@@ -200,7 +200,7 @@ TEST_CASE("Spin Tensor Construction") {
         Tensor<T> tensor{t_spaces, spin_mask_2D};
         tensor.allocate(ec);
 
-        Scheduler{ec}(tensor() = 42).execute();
+        Scheduler{*ec}(tensor() = 42).execute();
         check_value(tensor, (T)42);
         tensor.deallocate();
     } catch(const std::string& e) {
@@ -217,7 +217,7 @@ TEST_CASE("Spin Tensor Construction") {
         T1.allocate(ec);
         T2.allocate(ec);
 
-        Scheduler{ec}(T2() = 3)(T1() = T2()).execute();
+        Scheduler{*ec}(T2() = 3)(T1() = T2()).execute();
         check_value(T2, (T)3);
         check_value(T1, (T)3);
 
@@ -237,7 +237,7 @@ TEST_CASE("Spin Tensor Construction") {
         T1.allocate(ec);
         T2.allocate(ec);
 
-        Scheduler{ec}(T1() = 42)(T2() = 3)(T1() += T2()).execute();
+        Scheduler{*ec}(T1() = 42)(T2() = 3)(T1() += T2()).execute();
         check_value(T2, (T)3);
         check_value(T1, (T)45);
 
@@ -257,7 +257,7 @@ TEST_CASE("Spin Tensor Construction") {
         T1.allocate(ec);
         T2.allocate(ec);
 
-        Scheduler{ec}(T1() = 42)(T2() = 3)(T1() += 2 * T2()).execute();
+        Scheduler{*ec}(T1() = 42)(T2() = 3)(T1() += 2 * T2()).execute();
         check_value(T2, (T)3);
         check_value(T1, (T)48);
 
@@ -282,7 +282,7 @@ TEST_CASE("Spin Tensor Construction") {
 
         Tensor<T> T4 = T3;
 
-        Scheduler{ec}(T1() = 42)(T2() = 3)(T3() = 4)(T1() += T4() * T2())
+        Scheduler{*ec}(T1() = 42)(T2() = 3)(T3() = 4)(T1() += T4() * T2())
           .execute();
         check_value(T3, (T)4);
         check_value(T2, (T)3);
@@ -333,7 +333,7 @@ TEST_CASE("Spin Tensor Construction") {
 
         T1.allocate(ec);
 
-        Scheduler{ec}(T1() = 0)(T1() += 2 * S()).execute();
+        Scheduler{*ec}(T1() = 0)(T1() += 2 * S()).execute();
 
         check_value(T1, (T)84);
 
@@ -350,7 +350,7 @@ TEST_CASE("Spin Tensor Construction") {
 
         T1.allocate(ec);
 
-        Scheduler{ec}(T1() = 0)(T1() += 2 * S()).execute();
+        Scheduler{*ec}(T1() = 0)(T1() += 2 * S()).execute();
 
         check_value(T1, (T)84);
 
@@ -403,7 +403,7 @@ TEST_CASE("Spin Tensor Construction") {
 
         auto h_tis = H.tiled_index_spaces();
 
-        Scheduler{ec}(H("mu", "nu") = pT("mu", "nu"))(H("mu", "nu") +=
+        Scheduler{*ec}(H("mu", "nu") = pT("mu", "nu"))(H("mu", "nu") +=
                                                       pV("mu", "nu"))
           .execute();
 
@@ -452,7 +452,7 @@ TEST_CASE("Spin Tensor Construction") {
         auto* pMM = tamm::MemoryManagerLocal::create_coll(pg);
         tamm::Distribution_NW dist;
         tamm::ExecutionContext ec(pg, &dist, pMM);
-        tamm::Scheduler sch{&ec};
+        tamm::Scheduler sch{ec};
 
         sch.allocate(rho)(rho() = 0)(rho(mu, nu) += C(mu, p) * C(nu, p))
           .execute();
@@ -587,7 +587,7 @@ TEST_CASE("PNO-MP2") {
     // Construct an ExecutionContext 
     auto ec = make_execution_context();
     // Construct a Scheduler
-    Scheduler sch{&ec};
+    Scheduler sch{ec};
     // Assuming these tensors are filled (here we fill them with some values)
     sch.allocate(R, G, T)
         (R() = 42.0)
@@ -625,7 +625,7 @@ TEST_CASE("GitHub Issues") {
     Tensor<double> A{X,X,Y};
     Tensor<double> B{X,X};
 
-    tamm::Scheduler{&ec}.allocate(A,B)
+    tamm::Scheduler{ec}.allocate(A,B)
     (A() = 3.0)
     (B() = 0.0)
     (B(i,j) = A(i,j,a))
@@ -640,7 +640,7 @@ TEST_CASE("Slack Issues") {
     using tensor_type = Tensor<double>;
     std::cerr << "Slack Issue Start" << std::endl;
     auto ec = make_execution_context();
-    Scheduler sch{&ec};
+    Scheduler sch{ec};
 
     tensor_type initialMO_state;
 

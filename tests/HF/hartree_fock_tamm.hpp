@@ -654,14 +654,14 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     // Scheduler{ec}(S1(mu, nu) = SL1(mu, nu)).execute();
     tensor1e = S1;
-    block_for(ec->pg(), S1(), compute_1body_ints);
+    block_for(*ec, S1(), compute_1body_ints);
 
     engine.set(Operator::kinetic);
     buf = engine.results();
     // Core Hamiltonian = T + V
     tensor1e = T1;
-    block_for(ec->pg(), T1(), compute_1body_ints);
-    Scheduler{ec}(H1P(mup, nup) = T1(mup, nup)).execute();
+    block_for(*ec, T1(), compute_1body_ints);
+    Scheduler{*ec}(H1P(mup, nup) = T1(mup, nup)).execute();
 
     engine.set(Operator::nuclear);
     std::vector<std::pair<double, std::array<double, 3>>> q;
@@ -673,8 +673,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     buf = engine.results();
     //H =  H + V;
     tensor1e = V1;
-    block_for(ec->pg(), V1(), compute_1body_ints);
-    Scheduler{ec}(H1P(mup, nup) += V1(mup, nup)).execute();
+    block_for(*ec, V1(), compute_1body_ints);
+    Scheduler{*ec}(H1P(mup, nup) += V1(mup, nup)).execute();
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
@@ -845,7 +845,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         auto ehf_last = ehf;
         auto D_last   = D;
 
-        Scheduler{ec} //(F1tmp() = 0)
+        Scheduler{*ec} //(F1tmp() = 0)
            (D_last_tamm(mu,nu) = D_tamm(mu,nu)).execute();
 
         // build a new Fock matrix
@@ -1166,7 +1166,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
         hf_t1 = std::chrono::high_resolution_clock::now();
         // F += Ftmp;
-        Scheduler{ec}(F1(mu, nu) = H1(mu, nu))
+        Scheduler{*ec}(F1(mu, nu) = H1(mu, nu))
                      (F1(mu, nu) += F1tmp(mu, nu)).execute();
 
 
@@ -1188,7 +1188,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
         hf_t1 = std::chrono::high_resolution_clock::now();
 
-        Scheduler{ec}(FSm12_tamm() = 0)(FSm12_tamm(mu,nu) += F1(mu,ku) * Sm12_tamm(ku,nu))
+        Scheduler{*ec}(FSm12_tamm() = 0)(FSm12_tamm(mu,nu) += F1(mu,ku) * Sm12_tamm(ku,nu))
         (Sp12D_tamm() = 0)(Sp12D_tamm(mu,nu) += Sp12_tamm(mu,ku) * D_last_tamm(ku,nu))
         (SpFS_tamm() = 0)(SpFS_tamm(mu,nu)  += Sp12D_tamm(mu,ku) * FSm12_tamm(ku,nu))
     
@@ -1258,7 +1258,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         hf_t1 = std::chrono::high_resolution_clock::now();
         // compute HF energy 
         // e = D * (H+F);
-        Scheduler{ec}(ehf_tamm()=0)
+        Scheduler{*ec}(ehf_tamm()=0)
            (ehf_tmp(mu,nu) = H1(mu,nu))
            (ehf_tmp(mu,nu) += F1(mu,nu))
            (ehf_tamm() += D_tamm() * ehf_tmp()).execute();

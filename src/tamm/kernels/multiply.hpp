@@ -2,8 +2,9 @@
 #define TAMM_MULTIPLY_H_
 
 #include "tamm/errors.hpp"
-#include "tamm/kernels/assign.hpp"
 #include "tamm/types.hpp"
+#include "tamm/kernels/assign.hpp"
+
 
 #include <algorithm>
 #include <cblas.h>

@@ -2,9 +2,9 @@
 #define TAMM_EIGEN_UTILS_HPP_
 
 // Eigen matrix algebra library
-#include "tamm/tamm.hpp"
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
+#include "tamm/tamm.hpp"
 
 template<typename T, int ndim>
 void patch_copy(std::vector<T>& sbuf,

@@ -347,6 +347,7 @@ public:
         using TensorElType = typename LabeledTensorT::element_type;
         LabelLoopNest loop_nest{lhs_.labels()};
 
+        TaskEngine te;
         auto lambda = [&](const IndexVector& blockid) {
             auto tensor = lhs_.tensor();
             EXPECTS(blockid.size() == lhs_.labels().size());
@@ -355,15 +356,23 @@ public:
               internal::translate_blockid(blockid, lhs_);
 
             const size_t size = tensor.block_size(translated_blockid);
-            std::vector<TensorElType> buf(size,
-                                          static_cast<TensorElType>(alpha()));
+            
+            //std::vector<TensorElType> buf(size,
+            //                              static_cast<TensorElType>(alpha()));
+            BlockId tempbuf(size);
             if(is_assign_) {
+                    te.submitTask(function_definition, {WRITE(tensor(translated_blockid)), TEMP(tempbuf)}, alpha())
                 tensor.put(translated_blockid, buf);
             } else {
                 tensor.add(translated_blockid, buf);
             }
         };
-        do_work(ec, loop_nest, lambda);
+
+        RuntimeEngine& runtime_engine = ec.re();
+        runtime_engine.executeAllThreads(te);
+        //Forloop(loop_nest)
+        //submit task(lambda, 
+        //do_work(ec, loop_nest, lambda);
     }
 
 protected:

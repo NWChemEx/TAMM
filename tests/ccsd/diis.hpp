@@ -11,7 +11,7 @@ template<typename T>
 inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
                    T shift, bool transpose, std::vector<double>& evl_sorted, const TAMM_SIZE& noab) {
     // EXPECTS(transpose == false);
-    block_for(ec.pg(), d_r(), [&](IndexVector blockid) {
+    block_for(ec, d_r(), [&](IndexVector blockid) {
         const TAMM_SIZE rsize = d_r.block_size(blockid);
         std::vector<T> rbuf(rsize);
         d_r.get(blockid, rbuf);
@@ -171,9 +171,9 @@ inline void diis(ExecutionContext& ec,
                 Tensor<T>::allocate(&ec,d_r1);
                 Tensor<T>& t1 = *d_rs[k]->at(i);
                 Tensor<T>& t2 = *d_rs[k]->at(j);
-                Scheduler{&ec}(d_r1() = 0).execute();
+                Scheduler{ec}(d_r1() = 0).execute();
                 //A(i, j) += ddot(ec, (*d_rs[k]->at(i))(), (*d_rs[k]->at(j))());                
-                Scheduler{&ec}(d_r1() += t1() * t2()).execute();
+                Scheduler{ec}(d_r1() += t1() * t2()).execute();
 
                 T r1;
                 d_r1.get({}, {&r1, 1});
@@ -198,7 +198,7 @@ inline void diis(ExecutionContext& ec,
     // Vector x = A.colPivHouseholderQr().solve(b);
     Vector x = A.lu().solve(b);
 
-    auto sch = Scheduler{&ec};
+    auto sch = Scheduler{ec};
     for(auto k = 0U; k < ntensors; k++) {
         Tensor<T>& dt = *d_t[k];
         sch(dt() = 0);

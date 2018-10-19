@@ -365,7 +365,7 @@ tamm_assign(ExecutionContext &ec,
   auto &al = alabel;
   auto &cl = clabel;
   
-  Scheduler{&ec}
+  Scheduler{ec}
       ((tc)(cl) += alpha * (ta)(al))
     .execute();
 }
@@ -440,7 +440,7 @@ test_eigen_assign_no_n(ExecutionContext &ec,
 
   Tensor<double>::allocate(&ec,ta, tc1, tc2);
 
-  Scheduler{&ec}
+  Scheduler{ec}
       (ta() = 0)
       (tc1() = 0)
       (tc2() = 0)
@@ -498,7 +498,7 @@ tamm_mult(ExecutionContext &ec,
   auto &bl = blabel;
   auto &cl = clabel;
 
-  Scheduler{&ec}
+  Scheduler{ec}
       ((tc)() = 0.0)
       ((tc)(cl) += alpha * (ta)(al) * (tb)(bl))
     .execute();
@@ -605,7 +605,7 @@ test_eigen_mult_no_n(ExecutionContext &ec,
 
   Tensor<double>::allocate(&ec,ta, tb, tc1, tc2);
 
-  Scheduler{&ec}
+  Scheduler{ec}
       (ta() = 0)
       (tb() = 0)
       (tc1() = 0)
@@ -719,7 +719,7 @@ test_initval_no_n(ExecutionContext &ec,
   double init_val = 9.1;
 
   Tensor<double>::allocate(&ec,xta, xtc);
-  Scheduler{&ec}
+  Scheduler{ec}
       (xta() = init_val)
       (xtc() = xta())
     .execute();
@@ -887,7 +887,7 @@ ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
   double init_val_a = 9.1, init_val_c = 8.2, alpha = 3.5;
 
   Tensor<double>::allocate(ec, xta, xtc);
-  Scheduler{ec}
+  Scheduler{*ec}
   (xta() = init_val_a)
   (xtc() = init_val_c)
   (xtc() += alpha *xta())
@@ -2091,7 +2091,7 @@ Tensor<double> xtb{};
 double alpha1 = 0.91, alpha2 = 0.56;
 
 Tensor<double>::allocate(ec,xta, xtb, xtc);
-Scheduler{ec}
+Scheduler{*ec}
   (xta() = alpha1)
   (xtb() = alpha2)
   //fixme shud be =
@@ -2107,7 +2107,7 @@ auto lambda = [&](Tensor<T>& t, const IndexVector& iv, std::vector<T>& buf) {
     status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
 
-Scheduler{ec}
+Scheduler{*ec}
 .gop(xtc(), lambda)
 .execute();
 
@@ -2134,7 +2134,7 @@ Tensor<double> xtb{O};
 double alpha1 = 0.91, alpha2 = 0.56;
 
 Tensor<double>::allocate(ec,xta, xtb, xtc);
-Scheduler{ec}
+Scheduler{*ec}
 (xta() = alpha1)
 (xtb() = alpha2)
 (xtc() = 0)
@@ -2151,7 +2151,7 @@ auto lambda = [&](Tensor<T>& t, const IndexVector& iv, std::vector<T>& buf) {
     status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
 
-Scheduler{ec}
+Scheduler{*ec}
 .gop(xtc(), lambda)
 .execute();
 
@@ -2174,7 +2174,7 @@ Tensor<double> xtb{O};
 double alpha1 = 0.91, alpha2 = 0.56;
 
 Tensor<double>::allocate(ec,xta, xtb, xtc);
-Scheduler{ec}
+Scheduler{*ec}
 (xta() = alpha1)
 (xtb() = alpha2)
 //fixme =
@@ -2190,7 +2190,7 @@ auto lambda = [&](Tensor<T>& t, const IndexVector& iv, std::vector<T>& buf) {
     status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
 
-Scheduler{ec}
+Scheduler{*ec}
   .gop(xtc(), lambda)
 .execute();
 
@@ -2213,7 +2213,7 @@ Tensor<double> xtb{};
 double alpha1 = 0.91, alpha2 = 0.56;
 
 Tensor<double>::allocate(ec,xta, xtb, xtc);
-Scheduler{ec}
+Scheduler{*ec}
 (xta() = alpha1)
 (xtb() = alpha2)
 //fixme =
@@ -2230,7 +2230,7 @@ auto lambda = [&](Tensor<T>& t, const IndexVector& iv, std::vector<T>& buf) {
 };
 
 
-Scheduler{ec}
+Scheduler{*ec}
 .gop(xtc(), lambda)
 .execute();
 
@@ -2253,7 +2253,7 @@ Tensor<double> xtb{};
 double alpha1 = 0.91, alpha2 = 0.56;
 
 Tensor<double>::allocate(ec,xta, xtb, xtc);
-Scheduler{ec}
+Scheduler{*ec}
   (xta() = alpha1)
   (xtb() = alpha2)
   //fixme =
@@ -2269,7 +2269,7 @@ auto lambda = [&](Tensor<T>& t, const IndexVector& iv, std::vector<T>& buf) {
     status &= (std::abs(val - alpha1 * alpha2) < threshold);
 };
 
-Scheduler{ec}
+Scheduler{*ec}
   .gop(xtc(), lambda)
   .execute();
 

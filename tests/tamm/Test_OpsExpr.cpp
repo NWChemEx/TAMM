@@ -254,7 +254,7 @@ TEST_CASE("SCF Commutator declarations") {
         comm(mu, lambda) += -1.0*temp(mu, nu)*F(nu, lambda);//FDS - SDF
          */
 
-        Scheduler{ec}(temp(mu, lambda) += F(mu, nu) * D(nu, lambda)) // FD
+        Scheduler{*ec}(temp(mu, lambda) += F(mu, nu) * D(nu, lambda)) // FD
           (comm(mu, lambda) += temp(mu, nu) * S(nu, lambda))         // FDS
           (temp(mu, lambda) += S(mu, nu) * D(nu, lambda))            // SD
           (comm(mu, lambda) += -1.0 * temp(mu, nu) * F(nu, lambda)) // FDS - SDF
@@ -321,7 +321,7 @@ TEST_CASE("SCF JK declarations") {
         tensor_type::allocate(ec, L, Linv, Itemp, D, d, J, K);
 
         // Itemp(Q, i, nu) = MOs.Cdagger(i, mu) * I(Q, mu, nu);
-        Scheduler{ec}(D(P, i, mu) += Linv(P, Q) * Itemp(Q, i, mu))
+        Scheduler{*ec}(D(P, i, mu) += Linv(P, Q) * Itemp(Q, i, mu))
           // d(P) = D(P, i, mu) * MOs.Cdagger(i, mu);
           //@TODO cannot use itemp this way
           //(Itemp(Q) = d(P) * Linv(P, Q))
@@ -366,9 +366,9 @@ TEST_CASE("CCSD T2") {
         std::tie(h1, h2, h3, h4) = MO.labels<4>("occ");
         std::tie(p1, p2, p3, p4) = MO.labels<4>("virt");
 
-        Scheduler{ec}(d_r1() = 0).execute();
+        Scheduler{*ec}(d_r1() = 0).execute();
 
-        block_for(ec->pg(), d_f1(), [&](IndexVector it) {
+        block_for(*ec, d_f1(), [&](IndexVector it) {
             Tensor<T> tensor     = d_f1().tensor();
             const TAMM_SIZE size = tensor.block_size(it);
 
@@ -396,7 +396,7 @@ TEST_CASE("CCSD T2") {
             d_f1.put(it, buf);
         });
 
-        Scheduler{ec}(d_r1(h1, h2) = d_f1(h1, h2)).execute();
+        Scheduler{*ec}(d_r1(h1, h2) = d_f1(h1, h2)).execute();
 
         // std::cout << "d_f1\n";
         // print_tensor(d_f1);
@@ -570,7 +570,7 @@ TEST_CASE("Tensor operations on named subspaces") {
 
 
         try {
-            Scheduler{ec}
+            Scheduler{*ec}
               .allocate(T1, T2, T3, T4, T5, T6, T7)
               (T1() = 1)(T2() = 2)
               (T3() = 3)(T4() = 4)
@@ -610,7 +610,7 @@ TEST_CASE("Tensor operations on named subspaces") {
         Tensor<T> T7{V, N};
 
         try {
-            Scheduler{ec}
+            Scheduler{*ec}
               .allocate(T1, T2, T3, T4, T5, T6, T7)
               (T1() = 1)(T2() = 2)
               (T3() = 3)(T4() = 4)
@@ -625,7 +625,7 @@ TEST_CASE("Tensor operations on named subspaces") {
             std::tie(p,o) = N.labels<2>("occ");
             std::tie(k,l) = N.labels<2>("virt");
             
-            Scheduler{ec}
+            Scheduler{*ec}
               (T1(p,o) += T2(p,o))
               (T6(p,o) += T2(p,o))
               (T7(k,l) += T3(k,l))
@@ -655,7 +655,7 @@ TEST_CASE("Tensor operations on named subspaces") {
         Tensor<T> T7{V, N};
 
         try {
-            Scheduler{ec}
+            Scheduler{*ec}
               .allocate(T1, T2, T3, T4, T5, T6, T7)
               (T1() = 1)(T2() = 2)
               (T3() = 3)(T4() = 4)
@@ -670,7 +670,7 @@ TEST_CASE("Tensor operations on named subspaces") {
             std::tie(p,o) = N.labels<2>("occ");
             std::tie(k,l) = N.labels<2>("virt");
             
-            Scheduler{ec}
+            Scheduler{*ec}
               (T2(p,o) = T3(k,l))
               (T2(p,o) += T3(k,l))
               .execute();

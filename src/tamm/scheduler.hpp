@@ -33,7 +33,7 @@ public:
     Scheduler& operator=(const Scheduler&) = default;
     Scheduler& operator=(Scheduler&&) = default;
 
-    Scheduler(ExecutionContext* ec) : ec_{ec} {}
+    Scheduler(ExecutionContext& ec) : ec_{ec} {}
 
     template<typename OpType>
     Scheduler& operator()(const OpType& op) {
@@ -45,7 +45,7 @@ public:
 
     Scheduler& allocate() { return *this; }
 
-    ExecutionContext* ec() { return ec_; }
+    ExecutionContext& ec() { return ec_; }
 
     template<typename TensorType, typename... Args>
     Scheduler& allocate(TensorType tensor, Args&... tensors) {
@@ -64,7 +64,7 @@ public:
     void execute() {
         // for(auto& op : ops_) { op->execute(ec()->pg()); }
         for(size_t i = start_idx_; i < ops_.size(); i++) {
-            ops_[i]->execute(ec()->pg());
+            ops_[i]->execute(ec());
             start_idx_++;
         }
     }
@@ -92,7 +92,7 @@ public:
     }
 
 private:
-    ExecutionContext* ec_;
+    ExecutionContext& ec_;
     // void validate() {
     //     // 1. every tensor used by operarions should be listed in tensors_
 

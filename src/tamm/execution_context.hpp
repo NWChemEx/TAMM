@@ -191,6 +191,7 @@ public:
     }
 
 private:
+    //RuntimeEngine re_;
     ProcGroup pg_;
     ProcGroup pg_self_;
     Distribution* default_distribution_;

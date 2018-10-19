@@ -300,7 +300,7 @@ class OpList;
 class Op {
 public:
     virtual std::shared_ptr<Op> clone() const = 0;
-    virtual void execute(ProcGroup ec_pg)     = 0;
+    virtual void execute(ExecutionContext& ec)     = 0;
     virtual OpList canonicalize() const       = 0;
     virtual ~Op() {}
 };
@@ -343,7 +343,7 @@ public:
         return std::shared_ptr<Op>(new SetOp<T, LabeledTensorT>{*this});
     }
 
-    void execute(ProcGroup ec_pg) override {
+    void execute(ExecutionContext& ec) override {
         using TensorElType = typename LabeledTensorT::element_type;
         LabelLoopNest loop_nest{lhs_.labels()};
 
@@ -363,7 +363,7 @@ public:
                 tensor.add(translated_blockid, buf);
             }
         };
-        do_work(ec_pg, loop_nest, lambda);
+        do_work(ec, loop_nest, lambda);
     }
 
 protected:
@@ -435,7 +435,7 @@ public:
         return std::shared_ptr<Op>(new ScanOp<LabeledTensorT, Func>{*this});
     }
 
-    void execute(ProcGroup ec_pg) override {
+    void execute(ExecutionContext& ec) override {
         using TensorElType = typename LabeledTensorT::element_type;
         // the iterator to generate the tasks
         const auto& tensor = lhs_.tensor();
@@ -464,7 +464,7 @@ public:
         };
         // ec->...(loop_nest, lambda);
         //@todo use a scheduler
-        do_work(ec_pg, loop_nest, lambda);
+        do_work(ec, loop_nest, lambda);
     }
 
 protected:
@@ -550,7 +550,7 @@ public:
         return std::shared_ptr<Op>(new MapOp<LabeledTensorT, Func, N>{*this});
     }
 
-    void execute(ProcGroup ec_pg) override {
+    void execute(ExecutionContext& ec) override {
         using TensorElType = typename LabeledTensorT::element_type;
 
         IndexLabelVec merged_labels{lhs_.labels()};
@@ -589,7 +589,7 @@ public:
             ltensor.put(lblockid, lbuf);
         };
         //@todo use a scheduler
-        do_work(ec_pg, loop_nest, lambda);
+        do_work(ec, loop_nest, lambda);
     }
 
 protected:
@@ -692,7 +692,7 @@ public:
         return std::shared_ptr<Op>(new AddOp<T, LabeledTensorT>{*this});
     }
 
-    void execute(ProcGroup ec_pg) override {
+    void execute(ExecutionContext& ec) override {
         using TensorElType = typename LabeledTensorT::element_type;
 
         IndexLabelVec merged_labels{lhs_.labels()};
@@ -737,7 +737,7 @@ public:
 
         //@todo use a scheduler
         //@todo make parallel
-        do_work(ec_pg, loop_nest, lambda);
+        do_work(ec, loop_nest, lambda);
     }
 
 protected:
@@ -888,7 +888,7 @@ public:
         return std::shared_ptr<Op>(new MultOp{*this});
     }
 
-    void execute(ProcGroup ec_pg) override {
+    void execute(ExecutionContext& ec) override {
         EXPECTS(!is_assign_);
         using TensorElType = typename LabeledTensorT::element_type;
         // determine set of all labels
@@ -954,7 +954,7 @@ public:
         };
         //@todo use a scheduler
         //@todo make parallel
-        do_work(ec_pg, loop_nest, lambda);
+        do_work(ec, loop_nest, lambda);
     }
 
 protected:
@@ -1056,7 +1056,7 @@ protected:
 template<typename TensorType>
 class AllocOp : public Op {
 public:
-    AllocOp(TensorType tensor, ExecutionContext* ec) :
+    AllocOp(TensorType tensor, ExecutionContext& ec) :
       tensor_{tensor},
       ec_{ec} {}
 
@@ -1070,11 +1070,11 @@ public:
         return std::shared_ptr<Op>(new AllocOp{*this});
     }
 
-    void execute(ProcGroup ec_pg) override { tensor_.allocate(ec_); }
+    void execute(ExecutionContext& ec) override { tensor_.allocate(&ec_); }
 
 protected:
     TensorType tensor_;
-    ExecutionContext* ec_;
+    ExecutionContext& ec_;
 }; // class AllocOp
 
 template<typename TensorType>
@@ -1092,7 +1092,7 @@ public:
         return std::shared_ptr<Op>(new DeallocOp{*this});
     }
 
-    void execute(ProcGroup ec_pg) override { tensor_.deallocate(); }
+    void execute(ExecutionContext& ec) override { tensor_.deallocate(); }
 
 protected:
     TensorType tensor_;

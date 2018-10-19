@@ -101,7 +101,7 @@ void test_ops(const TiledIndexSpace& MO) {
     // Tensor<T>::allocate(ec,xt1,xt2,xt3);
 
 #if 1
-    Scheduler{ec}
+    Scheduler{*ec}
       .allocate(xt1, xt2, xt3)(xt1("n1", "n2") = 2.2)(xt2("n1", "n2") =
                                                         2.0 * xt1("n1", "n2"))
       //(xt3("n1","n2") = 2.0*xt1("n1","nk")*xt2("nk","n2")) //no-op
@@ -170,7 +170,7 @@ TEST_CASE("Zero-dimensional ops") {
     {
         Tensor<T> T1{};
         Tensor<T>::allocate(ec, T1);
-        Scheduler{ec}(T1() = 42).execute();
+        Scheduler{*ec}(T1() = 42).execute();
         check_value(T1, (T)42.0);
         Tensor<T>::deallocate(T1);
     }
@@ -195,16 +195,16 @@ TEST_CASE("Zero-dimensional ops") {
             }
         };
 
-        Scheduler{ec}(T1() = 42)(T2() = 43)(T3() = 44).execute();
+        Scheduler{*ec}(T1() = 42)(T2() = 43)(T3() = 44).execute();
         // ScanOp
-        Scheduler{ec}.gop(T1(), lambda1).execute();
+        Scheduler{*ec}.gop(T1(), lambda1).execute();
         check_value(T1, (T)42);
         // MapOp
-        Scheduler{ec}
+        Scheduler{*ec}
           .gop(T1(), std::array<decltype(T2()), 1>{T2()}, lambda2)
           .execute();
         check_value(T1, (T)43);
-        Scheduler{ec}
+        Scheduler{*ec}
           .gop(T1(), std::array<decltype(T2()), 2>{T2(), T3()}, lambda3)
           .execute();
         check_value(T1, (T)43 + 44);
@@ -213,7 +213,7 @@ TEST_CASE("Zero-dimensional ops") {
 
     {
         Tensor<T> T1{}, T2{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T2() = 42)(T1() = T2())
           .deallocate(T2)
           .execute();
@@ -223,7 +223,7 @@ TEST_CASE("Zero-dimensional ops") {
 
     {
         Tensor<T> T1{}, T2{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T1() = 3)(T2() = 42)(T1() += T2())
           .deallocate(T2)
           .execute();
@@ -233,7 +233,7 @@ TEST_CASE("Zero-dimensional ops") {
 
     {
         Tensor<T> T1{}, T2{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T1() = 42)(T2() = 3)(T1() += 2.5 * T2())
           .deallocate(T2)
           .execute();
@@ -243,7 +243,7 @@ TEST_CASE("Zero-dimensional ops") {
 
     {
         Tensor<T> T1{}, T2{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T1() = 42)(T2() = 3)(T1() -= T2())
           .deallocate(T2)
           .execute();
@@ -253,7 +253,7 @@ TEST_CASE("Zero-dimensional ops") {
 
     {
         Tensor<T> T1{}, T2{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T1() = 42)(T2() = 3)(T1() -= 4 * T2())
           .deallocate(T2)
           .execute();
@@ -263,7 +263,7 @@ TEST_CASE("Zero-dimensional ops") {
 
     {
         Tensor<T> T1{}, T2{}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 3)(T3() = 5)(T1() += T2() * T3())
           .deallocate(T2, T3)
@@ -290,7 +290,7 @@ TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
     {
         Tensor<T> T1{};
         Tensor<T>::allocate(ec, T1);
-        Scheduler{ec}(T1() = 42).execute();
+        Scheduler{*ec}(T1() = 42).execute();
         check_value(T1, (T)42.0);
     }
 
@@ -316,16 +316,16 @@ TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
             }
         };
 
-        Scheduler{ec}(T1() = 42)(T2() = 43)(T3() = 44).execute();
+        Scheduler{*ec}(T1() = 42)(T2() = 43)(T3() = 44).execute();
         // ScanOp
-        Scheduler{ec}.gop(T1(), lambda1).execute();
+        Scheduler{*ec}.gop(T1(), lambda1).execute();
         check_value(T1, (T)42);
         // MapOp
-        Scheduler{ec}
+        Scheduler{*ec}
           .gop(T1(), std::array<decltype(T2()), 1>{T2()}, lambda2)
           .execute();
         check_value(T1, (T)43);
-        Scheduler{ec}
+        Scheduler{*ec}
           .gop(T1(), std::array<decltype(T2()), 2>{T2(), T3()}, lambda3)
           .execute();
         check_value(T1, (T)43 + 44);
@@ -335,7 +335,7 @@ TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
 
     {
         Tensor<T> T1{}, T2{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T2() = 42)(T1() = T2())
           .deallocate(T2)
           .execute();
@@ -346,7 +346,7 @@ TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
 
     {
         Tensor<T> T1{}, T2{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T1() = 3)(T2() = 42)(T1() += T2())
           .deallocate(T2)
           .execute();
@@ -358,7 +358,7 @@ TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
 
     {
         Tensor<T> T1{}, T2{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T1() = 42)(T2() = 3)(T1() += 2.5 * T2())
           .deallocate(T2)
           .execute();
@@ -369,7 +369,7 @@ TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
 
     {
         Tensor<T> T1{}, T2{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T1() = 42)(T2() = 3)(T1() -= T2())
           .deallocate(T2)
           .execute();
@@ -378,7 +378,7 @@ TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
 
     {
         Tensor<T> T1{}, T2{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T1() = 42)(T2() = 3)(T1() -= 4 * T2())
           .deallocate(T2)
           .execute();
@@ -387,7 +387,7 @@ TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
 
     {
         Tensor<T> T1{}, T2{}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 3)(T3() = 5)(T1() += T2() * T3())
           .deallocate(T2, T3)
@@ -408,7 +408,7 @@ bool test_setop(ExecutionContext* ec, Tensor<T> T1, LabeledTensor<T> LT1,
     try {
         Tensor<T>::allocate(ec, T1);
         try {
-            Scheduler{ec}(T1() = -1.0)(LT1 = 42).execute();
+            Scheduler{*ec}(T1() = -1.0)(LT1 = 42).execute();
             check_value(LT1, (T)42.0);
             for(auto lt : rest_lts) { check_value(lt, (T)-1.0); }
         } catch(std::string& e) {
@@ -439,7 +439,7 @@ bool test_mapop(ExecutionContext* ec, Tensor<T> T1, LabeledTensor<T> LT1,
                 std::copy(rhs_buf[0].begin(), rhs_buf[0].end(),
                           lhs_buf.begin());
             };
-            Scheduler{ec}(T1() = -1.0)(T2() = 1.0)
+            Scheduler{*ec}(T1() = -1.0)(T2() = 1.0)
               .gop(LT1, std::array<decltype(LT2), 1>{LT2}, lambda)
               .execute();
             check_value(LT1, (T)1);
@@ -465,7 +465,7 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
     Tensor<T>::allocate(ec, T1, T2);
 
     try {
-        Scheduler{ec}(T1() = -1.0)(LT2 = 42)(LT1 = LT2).execute();
+        Scheduler{*ec}(T1() = -1.0)(LT2 = 42)(LT1 = LT2).execute();
         check_value(LT1, (T)42.0);
         for(const auto& lt : rest_lts) { check_value(lt, (T)-1.0); }
     } catch(std::string& e) {
@@ -475,7 +475,7 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
 
     try {
         success = true;
-        Scheduler{ec}(T1() = -1.0)(LT1 = 4)(LT2 = 42)(LT1 += LT2).execute();
+        Scheduler{*ec}(T1() = -1.0)(LT1 = 4)(LT2 = 42)(LT1 += LT2).execute();
         check_value(LT1, (T)46.0);
         for(const auto& lt : rest_lts) { check_value(lt, (T)-1.0); }
     } catch(std::string& e) {
@@ -485,7 +485,7 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
 
     try {
         success = true;
-        Scheduler{ec}(T1() = -1.0)(LT1 = 4)(LT2 = 42)(LT1 += 3 * LT2).execute();
+        Scheduler{*ec}(T1() = -1.0)(LT1 = 4)(LT2 = 42)(LT1 += 3 * LT2).execute();
         check_value(T1, (T)130.0);
         for(const auto& lt : rest_lts) { check_value(lt, (T)-1.0); }
     } catch(std::string& e) {
@@ -495,7 +495,7 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
 
     try {
         success = true;
-        Scheduler{ec}(T1() = -1.0)(T1() = 4)(T2() = 42)(T1() -= T2()).execute();
+        Scheduler{*ec}(T1() = -1.0)(T1() = 4)(T2() = 42)(T1() -= T2()).execute();
         check_value(T1, (T)-38.0);
         for(const auto& lt : rest_lts) { check_value(lt, (T)-1.0); }
     } catch(std::string& e) {
@@ -505,7 +505,7 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
 
     try {
         success = true;
-        Scheduler{ec}(T1() = -1.0)(T1() = 4)(T2() = 42)(T1() += -3.1 * T2())
+        Scheduler{*ec}(T1() = -1.0)(T1() = 4)(T2() = 42)(T1() += -3.1 * T2())
           .execute();
         check_value(T1, (T)-126.2);
         for(const auto& lt : rest_lts) { check_value(lt, (T)-1.0); }
@@ -516,7 +516,7 @@ bool test_addop(ExecutionContext* ec, Tensor<T> T1, Tensor<T> T2,
 
     try {
         success = true;
-        Scheduler{ec}(T1() = -1.0)(T1() = 4)(T2() = 42)(T1() -= 3.1 * T2())
+        Scheduler{*ec}(T1() = -1.0)(T1() = 4)(T2() = 42)(T1() -= 3.1 * T2())
           .execute();
         check_value(T1, (T)-126.2);
         for(const auto& lt : rest_lts) { check_value(lt, (T)-1.0); }
@@ -751,7 +751,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{}, T2{}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
           .deallocate(T2, T3)
@@ -767,7 +767,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{}, T2{}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() -= T2() * T3())
           .deallocate(T2, T3)
@@ -783,7 +783,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{}, T2{}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
           .deallocate(T2, T3)
@@ -799,7 +799,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{}, T2{}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() -= 1.5 * T3() * T2())
           .deallocate(T2, T3)
@@ -815,7 +815,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{}, T2{}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
           .deallocate(T1, T2)
@@ -831,7 +831,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{}, T2{}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() -= 1.5 * T1() * T2())
           .deallocate(T1, T2)
@@ -853,7 +853,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
           .deallocate(T2, T3)
@@ -869,7 +869,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() -= T2() * T3())
           .deallocate(T2, T3)
@@ -885,7 +885,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
           .deallocate(T2, T3)
@@ -901,7 +901,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() -= 1.5 * T3() * T2())
           .deallocate(T2, T3)
@@ -917,7 +917,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
           .deallocate(T1, T2)
@@ -933,7 +933,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() -= 1.5 * T1() * T2())
           .deallocate(T1, T2)
@@ -955,7 +955,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
           .deallocate(T2, T3)
@@ -971,7 +971,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() -= T2() * T3())
           .deallocate(T2, T3)
@@ -987,7 +987,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
           .deallocate(T2, T3)
@@ -1003,7 +1003,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() -= 1.5 * T3() * T2())
           .deallocate(T2, T3)
@@ -1019,7 +1019,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
           .deallocate(T1, T2)
@@ -1035,7 +1035,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() -= 1.5 * T1() * T2())
           .deallocate(T1, T2)
@@ -1057,7 +1057,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
           .deallocate(T2, T3)
@@ -1073,7 +1073,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() -= T2() * T3())
           .deallocate(T2, T3)
@@ -1089,7 +1089,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
           .deallocate(T2, T3)
@@ -1105,7 +1105,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() -= 1.5 * T3() * T2())
           .deallocate(T2, T3)
@@ -1121,7 +1121,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
           .deallocate(T1, T2)
@@ -1137,7 +1137,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() -= 1.5 * T1() * T2())
           .deallocate(T1, T2)
@@ -1159,7 +1159,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
           .deallocate(T2, T3)
@@ -1175,7 +1175,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() -= T2() * T3())
           .deallocate(T2, T3)
@@ -1191,7 +1191,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
           .deallocate(T2, T3)
@@ -1207,7 +1207,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() -= 1.5 * T3() * T2())
           .deallocate(T2, T3)
@@ -1223,7 +1223,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
           .deallocate(T1, T2)
@@ -1239,7 +1239,7 @@ void test_addop_with_T(unsigned tilesize) {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() -= 1.5 * T1() * T2())
           .deallocate(T1, T2)
@@ -1352,7 +1352,7 @@ TEST_CASE("Two-dimensional ops") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
           .deallocate(T2, T3)
@@ -1368,7 +1368,7 @@ TEST_CASE("Two-dimensional ops") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
           .deallocate(T2, T3)
@@ -1384,7 +1384,7 @@ TEST_CASE("Two-dimensional ops") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
           .deallocate(T1, T2)
@@ -1435,7 +1435,7 @@ TEST_CASE("Two-dimensional ops with flush and sync") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
           .deallocate(T2, T3)
@@ -1450,7 +1450,7 @@ TEST_CASE("Two-dimensional ops with flush and sync") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
           .deallocate(T2, T3)
@@ -1465,7 +1465,7 @@ TEST_CASE("Two-dimensional ops with flush and sync") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
           .deallocate(T1, T2)
@@ -1520,7 +1520,7 @@ TEST_CASE("One-dimensional ops") {
     try {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 0)(T2() = 8)(T3() = 4)(T1() += T2() * T3())
           .deallocate(T2, T3)
@@ -1536,7 +1536,7 @@ TEST_CASE("One-dimensional ops") {
     try {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T1() += 1.5 * T3() * T2())
           .deallocate(T2, T3)
@@ -1552,7 +1552,7 @@ TEST_CASE("One-dimensional ops") {
     try {
         failed = false;
         Tensor<T> T1{TIS}, T2{TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 9)(T2() = 8)(T3() = 4)(T3() += 1.5 * T1() * T2())
           .deallocate(T1, T2)
@@ -1589,7 +1589,7 @@ TEST_CASE("Three-dimensional mult ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 2)(T2() = 3)(T3() = 4)(T1() += 6.9 * T2() * T3())
           .deallocate(T2, T3)
@@ -1606,7 +1606,7 @@ TEST_CASE("Three-dimensional mult ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 2)(T2() = 3)(T3() = 4)(T1() += 1.7 * T3() * T2())
           .deallocate(T2, T3)
@@ -1623,7 +1623,7 @@ TEST_CASE("Three-dimensional mult ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS}, T3{TIS};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
             T1(i, j, k) += 1.7 * T2(i, j) * T3(k))
           .deallocate(T2, T3)
@@ -1642,7 +1642,7 @@ TEST_CASE("Three-dimensional mult ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{TIS, TIS, TIS};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
             T1(i, j, k) += 1.7 * T2(j, l, i) * T3(l, i, k))
           .deallocate(T2, T3)
@@ -1678,7 +1678,7 @@ TEST_CASE("Four-dimensional mult ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 2)(T2() = 3)(T3() = 4)(T1() += 6.9 * T2() * T3())
           .deallocate(T2, T3)
@@ -1695,7 +1695,7 @@ TEST_CASE("Four-dimensional mult ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2,
                     T3)(T1() = 2)(T2() = 3)(T3() = 4)(T1() += 1.7 * T3() * T2())
           .deallocate(T2, T3)
@@ -1712,7 +1712,7 @@ TEST_CASE("Four-dimensional mult ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS}, T3{TIS, TIS};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
             T1(i, j, k, l) += 1.7 * T2(i, j) * T3(k, l))
           .deallocate(T2, T3)
@@ -1731,7 +1731,7 @@ TEST_CASE("Four-dimensional mult ops part I") {
         failed = false;
         Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS},
           T3{TIS, TIS, TIS, TIS};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 2)(T2() = 3)(T3() = 4)(
             T1(i, j, k, l) += 1.7 * T2(j, l, k, m) * T3(l, i, k, m))
           .deallocate(T2, T3)
@@ -1765,7 +1765,7 @@ TEST_CASE("Two-dimensional ops part I") {
     {
         Tensor<T> T1{TIS, TIS};
         Tensor<T>::allocate(ec, T1);
-        Scheduler{ec}(T1() = 42).execute();
+        Scheduler{*ec}(T1() = 42).execute();
         check_value(T1, (T)42.0);
         Tensor<T>::deallocate(T1);
     }
@@ -1774,7 +1774,7 @@ TEST_CASE("Two-dimensional ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T2() = 42)(T1() = T2())
           .deallocate(T2)
           .execute();
@@ -1789,7 +1789,7 @@ TEST_CASE("Two-dimensional ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T1() = 4)(T2() = 42)(T1() += T2())
           .deallocate(T2)
           .execute();
@@ -1804,7 +1804,7 @@ TEST_CASE("Two-dimensional ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T1() = 4)(T2() = 42)(T1() += 3 * T2())
           .deallocate(T2)
           .execute();
@@ -1819,7 +1819,7 @@ TEST_CASE("Two-dimensional ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T1() = 4)(T2() = 42)(T1() -= T2())
           .deallocate(T2)
           .execute();
@@ -1834,7 +1834,7 @@ TEST_CASE("Two-dimensional ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2)(T1() = 4)(T2() = 42)(T1() += -3.1 * T2())
           .deallocate(T2)
           .execute();
@@ -1850,7 +1850,7 @@ TEST_CASE("Two-dimensional ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 4)(T2() = 42)(T3() = 5)(
             T1() += -3.1 * T2() * T3())
           .deallocate(T2, T3)
@@ -1866,7 +1866,7 @@ TEST_CASE("Two-dimensional ops part I") {
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 4)(T2() = 42)(T3() = 5)(
             T1() -= -3.1 * T2() * T3())
           .deallocate(T2, T3)
@@ -1882,7 +1882,7 @@ TEST_CASE("Two-dimensional ops part I") {
     try {
         failed = false;
         Tensor<T> T1{}, T2{TIS, TIS}, T3{TIS, TIS};
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 4)(T2() = 42)(T3() = 5)(
             T1() += -3.1 * T2() * T3())
           .deallocate(T2, T3)
@@ -1901,7 +1901,7 @@ TEST_CASE("Two-dimensional ops part I") {
         Tensor<T> T1{TIS, TIS}, T2{TIS}, T3{TIS};
         TiledIndexLabel i, j;
         std::tie(i, j) = TIS.labels<2>("all");
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 4)(T2() = 42)(T3() = 5)(
             T1(i, j) += -3.1 * T2(i) * T3(j))
           .deallocate(T2, T3)
@@ -1920,7 +1920,7 @@ TEST_CASE("Two-dimensional ops part I") {
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{TIS};
         TiledIndexLabel i, j;
         std::tie(i, j) = TIS.labels<2>("all");
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 4)(T2() = 42)(T3() = 5)(
             T1(i, j) += -3.1 * T2(i, j) * T3(i))
           .deallocate(T2, T3)
@@ -1938,7 +1938,7 @@ TEST_CASE("Two-dimensional ops part I") {
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{TIS};
         TiledIndexLabel i, j;
         std::tie(i, j) = TIS.labels<2>("all");
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 4)(T2() = 42)(T3() = 5)(
             T1(i, j) += -3.1 * T2(j, i) * T3(i))
           .deallocate(T2, T3)
@@ -1956,7 +1956,7 @@ TEST_CASE("Two-dimensional ops part I") {
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{TIS};
         TiledIndexLabel i, j;
         std::tie(i, j) = TIS.labels<2>("all");
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 4)(T2() = 42)(T3() = 5)(
             T1(i, j) += -3.1 * T2(i, j) * T3(j))
           .deallocate(T2, T3)
@@ -1974,7 +1974,7 @@ TEST_CASE("Two-dimensional ops part I") {
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{TIS};
         TiledIndexLabel i, j;
         std::tie(i, j) = TIS.labels<2>("all");
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 4)(T2() = 42)(T3() = 5)(
             T1(i, j) += -3.1 * T3(j) * T2(j, i))
           .deallocate(T2, T3)
@@ -1993,7 +1993,7 @@ TEST_CASE("Two-dimensional ops part I") {
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{TIS, TIS};
         TiledIndexLabel i, j, k;
         std::tie(i, j, k) = TIS.labels<3>("all");
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 4)(T2() = 42)(T3() = 5)(
             T1(i, j) += -3.1 * T2(i, j) * T3(i, j))
           .deallocate(T2, T3)
@@ -2011,7 +2011,7 @@ TEST_CASE("Two-dimensional ops part I") {
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS}, T3{TIS, TIS};
         TiledIndexLabel i, j, k;
         std::tie(i, j, k) = TIS.labels<3>("all");
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 4)(T2() = 42)(T3() = 5)(
             T1(i, j) += -3.1 * T2(i, k) * T3(j, k))
           .deallocate(T2, T3)
@@ -2043,7 +2043,7 @@ TEST_CASE("MultOp with RHS reduction") {
         Tensor<T> T1{}, T2{TIS}, T3{};
         TiledIndexLabel i, j, k;
         std::tie(i, j, k) = TIS.labels<3>("all");
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 4)(T2() = 3)(T3() = 5)(
             T1() += -3.1 * T2(i) * T3())
           .deallocate(T2, T3)
@@ -2061,7 +2061,7 @@ TEST_CASE("MultOp with RHS reduction") {
         Tensor<T> T1{}, T2{}, T3{TIS};
         TiledIndexLabel i, j, k;
         std::tie(i, j, k) = TIS.labels<3>("all");
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 4)(T2() = 3)(T3() = 5)(
             T1() += -3.1 * T2() * T3(j))
           .deallocate(T2, T3)
@@ -2079,7 +2079,7 @@ TEST_CASE("MultOp with RHS reduction") {
         Tensor<T> T1{}, T2{TIS}, T3{TIS};
         TiledIndexLabel i, j, k;
         std::tie(i, j, k) = TIS.labels<3>("all");
-        Scheduler{ec}
+        Scheduler{*ec}
           .allocate(T1, T2, T3)(T1() = 4)(T2() = 3)(T3() = 5)(
             T1() += -3.2 * T2(i) * T3(j))
           .deallocate(T2, T3)
@@ -2118,7 +2118,7 @@ TEST_CASE("MultOp with RHS reduction") {
         Tensor<T> sc2{};
 
         Tensor<T>::allocate(ec,sc1,sc2,res,res1,tmp1,tmp2,t1,CV3D,CV2D);
-        Scheduler sch{ec};
+        Scheduler sch{*ec};
         
         sch(CV3D() = 42)
         (CV2D() = 42)

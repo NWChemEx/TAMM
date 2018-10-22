@@ -632,8 +632,8 @@ TEST_CASE("GitHub Issues") {
     // (B(i,j) += A(i,j,a))
     .execute();
 
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-    print_tensor(B);
+    // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    // print_tensor(B);
 }
 
 TEST_CASE("Slack Issues") {
@@ -676,37 +676,99 @@ TEST_CASE("Slack Issues") {
     auto [i, j] = MOs.labels<2>("all");     
     
     sch.allocate(initialMO_state, tmp)
-        (tmp() = 0)
-        (initialMO_state() = 0)
-        (tmp(x, mu, i) += D(x, mu, nu) * C(nu, i))
-        (initialMO_state(x, i, j) += C(mu, i) * tmp(x, mu, j))
+        (tmp(x, mu, i) = D(x, mu, nu) * C(nu, i))
+        (initialMO_state(x, i, j) = C(mu, i) * tmp(x, mu, j))
     .execute();
 
-    // print_tensor(initialMO_state);
+    print_tensor(initialMO_state);
 
     auto X = initialMO_state.tiled_index_spaces()[0];
     auto n_MOs = W.tiled_index_spaces()[0];
     auto n_LMOs = W.tiled_index_spaces()[1];
 
     auto [x_] = X.labels<1>("all");
-    auto [r_,s_,i_,j_] = n_MOs.labels<4>("all");
-    // auto [i_,j_] = n_LMOs.labels<2>("all");
+    auto [r_,s_] = n_MOs.labels<2>("all",0);
+    auto [i_,j_] = n_LMOs.labels<2>("all",10);
 
     tensor_type initW{X, n_MOs, n_LMOs};
     tensor_type WinitW{X, n_LMOs, n_LMOs};
-    // tensor_type W{n_MOs, n_LMOs};
 
     sch.allocate(initW, WinitW)
-        // (initW() = 0)
-        (WinitW() = 0)
         (initW(x_,r_,i_) = initialMO_state(x_,r_,s_) * W(s_,i_))
-        (WinitW(x_,i_,j_) += W(r_,i_) * initW(x_,r_,j_))
+        (WinitW(x_,i_,j_) = W(r_,i_) * initW(x_,r_,j_))
+    .execute();
+}
+
+TEST_CASE("Slicing examples") {
+    IndexSpace AOs{range(0, 10)};
+    IndexSpace MOs{range(0, 10),
+                   {{"O", {range(0, 5)}},
+                   {"V", {range(5, 10)}}
+    }};
+
+    TiledIndexSpace tAOs{AOs};
+    TiledIndexSpace tMOs{MOs};
+
+    Tensor<double> A{tMOs};
+    Tensor<double> B{tMOs, tMOs};
+
+    auto ec = make_execution_context();
+
+    Scheduler sch{ec};
+
+    sch.allocate(A, B)
+        (A() = 0.0)
+        (B() = 4.0)
+    .execute();
+    
+    auto [i] = tMOs.labels<1>("all");
+    auto [j] = tMOs.labels<1>("O");
+    auto [k] = tMOs.labels<1>("V");
+
+    sch
+        (B(j,j) = 42.0)
+        (B(k,k) = 21.0)
+        (A(i) = B(i, i))
+        // (A() = B(i, i))
+        // (B(i,i) = A(i))
     .execute();
 
-    // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-    // print_tensor(initW);
+    print_tensor(A);
+    print_tensor(B);
+}
 
-    // print_tensor(WinitW);
+TEST_CASE("Fill tensors using lambda functions") {
+    IndexSpace AOs{range(0, 10)};
+    IndexSpace MOs{range(0, 10),
+                   {{"O", {range(0, 5)}},
+                   {"V", {range(5, 10)}}
+    }};
+
+    TiledIndexSpace tAOs{AOs};
+    TiledIndexSpace tMOs{MOs};
+
+    Tensor<double> A{tAOs, tAOs};
+    Tensor<double> B{tMOs, tMOs};
+
+    auto ec = make_execution_context();
+
+    A.allocate(&ec);
+    B.allocate(&ec);
+
+    fill(A(), lambda_function);
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    print_tensor(A);
+
+    Scheduler{ec}
+        (A() = 0.0)
+    .execute();
+
+
+    auto i = tAOs.label("all");
+
+    fill(A(i,i), lambda_function);
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    print_tensor(A);
 }
 
 

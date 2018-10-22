@@ -5,6 +5,7 @@
 
 #include "tamm/atomic_counter.h"
 
+
 namespace tamm {
 
 /**
@@ -100,6 +101,22 @@ void block_for(ExecutionContext& ec, LabeledTensor<T> ltc, Lambda func,
     } else {
         parallel_work(ec, loop_nest.begin(), loop_nest.end(), func);
     }
+}
+
+
+template<typename T, typename Func> 
+void fill(LabeledTensor<T> lt, Func lambda){
+    LabelLoopNest loop_nest{lt.labels()};
+
+    for(const auto& itval : loop_nest) {
+        const IndexVector blockid = internal::translate_blockid(itval, lt);  
+        size_t size               = lt.tensor().block_size(blockid);
+        std::vector<T> buf(size);
+
+        lambda(blockid, buf);
+
+        lt.tensor().put(blockid, buf);
+    }  
 }
 
 } // namespace tamm

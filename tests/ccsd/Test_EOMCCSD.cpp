@@ -34,7 +34,7 @@ void ccsd_e(ExecutionContext &ec,
     std::tie(p1, p2, p3, p4, p5) = MO.labels<5>("virt");
     std::tie(h3, h4, h5, h6)     = MO.labels<4>("occ");
 
-    Scheduler{&ec}.allocate(i1)
+    Scheduler{ec}.allocate(i1)
         (i1(h6, p5) = f1(h6, p5))
         (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
         (de() = 0)
@@ -63,7 +63,7 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     std::tie(p2, p3, p4, p5, p6, p7) = MO.labels<6>("virt");
     std::tie(h1, h4, h5, h6, h7, h8) = MO.labels<6>("occ");
 
-    Scheduler sch{&ec};
+    Scheduler sch{ec};
     sch
       .allocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
       (t1_2_1(h7, h1) = 0)
@@ -124,7 +124,7 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     std::tie(p1, p2, p3, p4, p5, p6, p7, p8, p9) = MO.labels<9>("virt");
     std::tie(h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11) = MO.labels<11>("occ");
 
-    Scheduler sch{&ec};
+    Scheduler sch{ec};
     sch.allocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
              t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1,vt1t1_1_temp,t2_2_2_1_temp,
              t2_2_1_temp,i0_temp,t2_temp,t2_6_1_temp)
@@ -306,7 +306,7 @@ std::pair<double,double> rest(ExecutionContext& ec,
                               const TAMM_SIZE& noab, bool transpose=false) {
 
     T residual, energy;
-    Scheduler sch{&ec};
+    Scheduler sch{ec};
     Tensor<T> d_r1_residual{}, d_r2_residual{};
     Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
     sch
@@ -365,7 +365,7 @@ void iteration_print_lambda(const ProcGroup& pg, int iter, double residual) {
 
 
 template<typename T>
-void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
+void ccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_f1, Tensor<T>& d_v2,
                    int maxiter, double thresh,
@@ -385,13 +385,13 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 
   std::vector<double> p_evl_sorted = d_f1.diagonal();
 
-  if(ec->pg().rank() == 0) {
+  if(ec.pg().rank() == 0) {
     std::cout << "p_evl_sorted:" << '\n';
     for(size_t p = 0; p < p_evl_sorted.size(); p++)
       std::cout << p_evl_sorted[p] << '\n';
   }
 
-  if(ec->pg().rank() == 0) {
+  if(ec.pg().rank() == 0) {
     std::cout << "\n\n";
     std::cout << " CCSD iterations" << std::endl;
     std::cout << std::string(66, '-') << std::endl;
@@ -408,12 +408,12 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     d_r2s.push_back(new Tensor<T>{V,V,O,O});
     d_t1s.push_back(new Tensor<T>{V,O});
     d_t2s.push_back(new Tensor<T>{V,V,O,O});
-    Tensor<T>::allocate(ec,*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
+    Tensor<T>::allocate(&ec,*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
  
   Tensor<T> d_r1{V,O};
   Tensor<T> d_r2{V,V,O,O};
-  Tensor<T>::allocate(ec,d_r1, d_r2);
+  Tensor<T>::allocate(&ec,d_r1, d_r2);
 
   Scheduler{ec}   
   (d_r1() = 0)
@@ -447,7 +447,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
               d_f1.put(blockid, buf);
           }
       };
-      block_for(ec->pg(), d_f1(), lambda2);
+      block_for(ec, d_f1(), lambda2);
   }
 
   for(int titer = 0; titer < maxiter; titer += ndiis) {
@@ -458,7 +458,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
           Tensor<T> d_r1_residual{};
           Tensor<T> d_r2_residual{};
 
-          Tensor<T>::allocate(ec, d_e, d_r1_residual, d_r2_residual);
+          Tensor<T>::allocate(&ec, d_e, d_r1_residual, d_r2_residual);
 
           Scheduler{ec}(d_e() = 0)(d_r1_residual() = 0)(d_r2_residual() = 0)
             .execute();
@@ -466,11 +466,11 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
           Scheduler{ec}((*d_t1s[off])() = d_t1())((*d_t2s[off])() = d_t2())
             .execute();
 
-          ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
-          ccsd_t1(*ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
-          ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
+          ccsd_e(ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
+          ccsd_t1(ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
+          ccsd_t2(ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
 
-          std::tie(residual, energy) = rest(*ec, MO, d_r1, d_r2, d_t1, d_t2,
+          std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
                                             d_e, p_evl_sorted, zshiftl, noab);
 
           {
@@ -503,20 +503,20 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
                       d_r2.put(blockid, buf);
                   }
               };
-              block_for(ec->pg(), d_r2(), lambdar2);
+              block_for(ec, d_r2(), lambdar2);
           }
 
           Scheduler{ec}((*d_r1s[off])() = d_r1())((*d_r2s[off])() = d_r2())
             .execute();
 
-          iteration_print(ec->pg(), iter, residual, energy);
+          iteration_print(ec.pg(), iter, residual, energy);
           Tensor<T>::deallocate(d_e, d_r1_residual, d_r2_residual);
 
           if(residual < thresh) { break; }
       }
 
       if(residual < thresh || titer + ndiis >= maxiter) { break; }
-      if(ec->pg().rank() == 0) {
+      if(ec.pg().rank() == 0) {
           std::cout << " MICROCYCLE DIIS UPDATE:";
           std::cout.width(21);
           std::cout << std::right << std::min(titer + ndiis, maxiter) + 1;
@@ -527,10 +527,10 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
       std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
       std::vector<std::vector<Tensor<T>*>*> ts{&d_t1s, &d_t2s};
       std::vector<Tensor<T>*> next_t{&d_t1, &d_t2};
-      diis<T>(*ec, rs, ts, next_t);
+      diis<T>(ec, rs, ts, next_t);
   }
 
-  if(ec->pg().rank() == 0) {
+  if(ec.pg().rank() == 0) {
     std::cout << std::string(66, '-') << std::endl;
     if(residual < thresh) {
         std::cout << " Iterations converged" << std::endl;
@@ -576,7 +576,7 @@ void eomccsd_x1(ExecutionContext& ec, const TiledIndexSpace& MO,
    Tensor<T> i_7   {O, V};
    Tensor<T> i_8   {O, O, O, V};
 
-   Scheduler sch{&ec};
+   Scheduler sch{ec};
 
    sch
      .allocate(i_1,i_1_1,i_2,i_3,i_4,i_5_1,i_5_2,i_5,i_6,i_7,i_8)
@@ -661,7 +661,7 @@ void eomccsd_x2(ExecutionContext& ec, const TiledIndexSpace& MO,
    Tensor<T> i_10    {V, V};
    Tensor<T> i_11    {O, V, O, V};
 
-   Scheduler sch{&ec};
+   Scheduler sch{ec};
 
    sch
      .allocate(i_1,i_1_1,i_1_2,i_1_3,i_2,i_2_1,i_3,i_4,i_4_1,i_5,
@@ -790,7 +790,7 @@ std::vector<size_t> sort_indexes(std::vector<T>& v){
 }
 
 template<typename T>
-void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
+void eomccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
                    Tensor<T>& t1, Tensor<T>& t2,
                    Tensor<T>& f1, Tensor<T>& v2,
                    int nroots, int maxeomiter,
@@ -815,7 +815,7 @@ auto populate_vector_of_tensors = [&] (std::vector<Tensor<T>> &vec, bool is2D=tr
      for(auto x=0;x<vec.size();x++){
         if(is2D) vec[x] = Tensor<T>{V,O};
         else     vec[x] = Tensor<T>{V,V,O,O};
-        Tensor<T>::allocate(ec,vec[x]);
+        Tensor<T>::allocate(&ec,vec[x]);
      }
 };
 
@@ -833,7 +833,7 @@ auto populate_vector_of_tensors = [&] (std::vector<Tensor<T>> &vec, bool is2D=tr
   Tensor<T> u2{V, V, O, O};
   Tensor<T> uu2{V, V, O, O};
   Tensor<T> uuu2{V, V, O, O};
-  Tensor<T>::allocate(ec,u1,u2,uu2,uuu2);
+  Tensor<T>::allocate(&ec,u1,u2,uu2,uuu2);
 
 using std::vector;
 
@@ -868,7 +868,7 @@ using std::vector;
 //################################################################################
 //  PRINT THE HEADER FOR THE EOM ITERATIONS
 //################################################################################
-  if(ec->pg().rank() == 0) {
+  if(ec.pg().rank() == 0) {
     std::cout << "\n\n";
 //TO DO: THE NUMBER OF INITIAL VECTORS WILL BE DETERMINED IN THE EOM_GUESS ROUTINE.
     std::cout << " No. of initial right vectors " << nxtrials << std::endl;
@@ -883,7 +883,7 @@ using std::vector;
 
   Tensor<T> d_r1{};
   Tensor<T> oscalar{};
-  Tensor<T>::allocate(ec, d_r1, oscalar);
+  Tensor<T>::allocate(&ec, d_r1, oscalar);
 
   for(int iter = 0; iter < maxeomiter;){
      for(int micro = 0; micro < microeomiter; iter++, micro++){
@@ -893,8 +893,8 @@ std::cout<< "######################## 'Iter'ation(+1) " << iter+1 << "##########
 
         auto counter = nxtrials-nroots+root;
 
-        eomccsd_x1(*ec, MO, xp1.at(counter), t1, t2, x1.at(counter), x2.at(counter), f1, v2);
-        eomccsd_x2(*ec, MO, xp2.at(counter), t1, t2, x1.at(counter), x2.at(counter), f1, v2);
+        eomccsd_x1(ec, MO, xp1.at(counter), t1, t2, x1.at(counter), x2.at(counter), f1, v2);
+        eomccsd_x2(ec, MO, xp2.at(counter), t1, t2, x1.at(counter), x2.at(counter), f1, v2);
 
         }
 
@@ -937,7 +937,7 @@ std::cout<< "######################## 'Iter'ation(+1) " << iter+1 << "##########
                       u2.put(blockid, buf);
                   }
               };
-              block_for(ec->pg(), u2(), lambdar2);
+              block_for(ec, u2(), lambdar2);
           }
           {
               auto lambdar2 = [&](const IndexVector& blockid) { 
@@ -969,7 +969,7 @@ std::cout<< "######################## 'Iter'ation(+1) " << iter+1 << "##########
                       uu2.put(blockid, buf);
                   }
               };
-              block_for(ec->pg(), uu2(), lambdar2);
+              block_for(ec, uu2(), lambdar2);
           }
 
 
@@ -1021,7 +1021,7 @@ std::cout<< "######################## 'Iter'ation(+1) " << iter+1 << "##########
                       u2.put(blockid, buf);
                   }
               };
-              block_for(ec->pg(), u2(), lambdar2);
+              block_for(ec, u2(), lambdar2);
           }
           {
               auto lambdar2 = [&](const IndexVector& blockid) { 
@@ -1053,7 +1053,7 @@ std::cout<< "######################## 'Iter'ation(+1) " << iter+1 << "##########
                       uu2.put(blockid, buf);
                   }
               };
-              block_for(ec->pg(), uu2(), lambdar2);
+              block_for(ec, uu2(), lambdar2);
           }
 
 //          if(ivec ==4 && jvec ==4){
@@ -1109,7 +1109,7 @@ std::cout<< "######################## 'Iter'ation(+1) " << iter+1 << "##########
                       u2.put(blockid, buf);
                   }
               };
-              block_for(ec->pg(), u2(), lambdar2);
+              block_for(ec, u2(), lambdar2);
           }
           {
               auto lambdar2 = [&](const IndexVector& blockid) { 
@@ -1141,7 +1141,7 @@ std::cout<< "######################## 'Iter'ation(+1) " << iter+1 << "##########
                       uu2.put(blockid, buf);
                   }
               };
-              block_for(ec->pg(), uu2(), lambdar2);
+              block_for(ec, uu2(), lambdar2);
           }
 
 
@@ -1234,8 +1234,8 @@ for (auto x=0;x<nev;x++)
  //print_tensor(r1.at(root));
  //std::cout << "  BEFORE JACOBI   r2.at(root)()= at root "<< root << std::endl;
  //print_tensor(r2.at(root));
-     jacobi(*ec, r1.at(root), x1.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
-     jacobi(*ec, r2.at(root), x2.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
+     jacobi(ec, r1.at(root), x1.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
+     jacobi(ec, r2.at(root), x2.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
 
              sch(u1() = r1.at(root)())
                 (u2() = r2.at(root)()).execute();
@@ -1269,7 +1269,7 @@ for (auto x=0;x<nev;x++)
                       u2.put(blockid, buf);
                   }
               };
-              block_for(ec->pg(), u2(), lambdar2);
+              block_for(ec, u2(), lambdar2);
           }
           sch(oscalar() = 0)
              (oscalar() += u1() * u1())
@@ -1334,7 +1334,7 @@ for (auto x=0;x<nev;x++)
                       uu2.put(blockid, buf);
                   }
               };
-              block_for(ec->pg(), uu2(), lambdar2);
+              block_for(ec, uu2(), lambdar2);
           }
           {
               auto lambdar2 = [&](const IndexVector& blockid) {
@@ -1366,7 +1366,7 @@ for (auto x=0;x<nev;x++)
                       uuu2.put(blockid, buf);
                   }
               };
-              block_for(ec->pg(), uuu2(), lambdar2);
+              block_for(ec, uuu2(), lambdar2);
           }
 
 
@@ -1418,7 +1418,7 @@ for (auto x=0;x<nev;x++)
                       u2.put(blockid, buf);
                   }
               };
-              block_for(ec->pg(), u2(), lambdar2);
+              block_for(ec, u2(), lambdar2);
           }
 
           sch(oscalar() = 0)
@@ -1610,7 +1610,7 @@ TEST_CASE("CCSD Driver") {
 //  Tensor<double>::allocate(ec,d_t1,d_t2,d_x1,d_x2,d_f1,d_v2);
 //  Tensor<double>::allocate(ec,d_t1,d_t2,d_y1,d_y2,d_f1,d_v2);
 
-  Scheduler{ec}
+  Scheduler{*ec}
       (d_t1() = 0)
       (d_t2() = 0)
 //      (d_x1() = 0)
@@ -1622,7 +1622,7 @@ TEST_CASE("CCSD Driver") {
     .execute();
 
   //Tensor Map 
-  block_for(ec->pg(), d_f1(), [&](IndexVector it) {
+  block_for(*ec, d_f1(), [&](IndexVector it) {
     Tensor<T> tensor = d_f1().tensor();
     const TAMM_SIZE size = tensor.block_size(it);
     
@@ -1641,7 +1641,7 @@ TEST_CASE("CCSD Driver") {
     d_f1.put(it,buf);
   });
 
-  block_for(ec->pg(), d_v2(), [&](IndexVector it) {
+  block_for(*ec, d_v2(), [&](IndexVector it) {
       Tensor<T> tensor     = d_v2().tensor();
       const TAMM_SIZE size = tensor.block_size(it);
 
@@ -1670,7 +1670,7 @@ TEST_CASE("CCSD Driver") {
 //!!!(This can be removed and replaced by a call to the seperated CCSD routine)!!!
   auto cc_t1 = std::chrono::high_resolution_clock::now();
 
-  CHECK_NOTHROW(ccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_v2, maxiter, thresh,
+  CHECK_NOTHROW(ccsd_driver<T>(*ec, MO, d_t1, d_t2, d_f1, d_v2, maxiter, thresh,
                                zshiftl, ndiis, hf_energy, total_orbitals,
                                2 * ov_alpha));
 
@@ -1683,7 +1683,7 @@ TEST_CASE("CCSD Driver") {
 //EOMCCSD Routine:
   cc_t1 = std::chrono::high_resolution_clock::now();
 
-  CHECK_NOTHROW(eomccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_v2,
+  CHECK_NOTHROW(eomccsd_driver<T>(*ec, MO, d_t1, d_t2, d_f1, d_v2,
 //                                  d_x1, d_x2,
                                   nroots, maxeomiter, eomthresh, microeomiter,
                                   total_orbitals, 2 * ov_alpha));

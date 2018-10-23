@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <complex>
 #include "tamm/eigen_utils.hpp"
-
+using namespace tamm;
 
 template<typename T>
 void print_tensor(Tensor<T> &t){
@@ -39,7 +39,7 @@ void print_tensor_all(Tensor<T> &t){
 }
 
 template<typename T>
-void eom_guess(int nroots, const TAMM_SIZE& noab, std::vector<T>& p_evl_sorted, std::vector<Tensor<T>>& x1){
+void eom_guess(int& nroots, const TAMM_SIZE& noab, std::vector<T>& p_evl_sorted, std::vector<Tensor<T>>& x1){
 
 
 

@@ -24,7 +24,7 @@ void ccsd_e(ExecutionContext &ec,
     std::tie(p1, p2, p3, p4, p5) = MO.labels<5>("virt");
     std::tie(h3, h4, h5, h6)     = MO.labels<4>("occ");
 
-    Scheduler{&ec}.allocate(i1)
+    Scheduler{ec}.allocate(i1)
         (i1(h6, p5) = f1(h6, p5))
         // (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
         (de() = 0)
@@ -56,7 +56,7 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
     std::tie(p1, p2, p3, p4, p5, p6, p7, p8) = MO.labels<8>("virt");
     std::tie(h1, h2, h3, h4, h5, h6, h7, h8) = MO.labels<8>("occ");
 
-    Scheduler sch{&ec};
+    Scheduler sch{ec};
     sch
         .allocate(_a01, _a02, _a03, _a04, _a05, _a06)
         (i0(p2, h1) = f1(p2, h1))
@@ -93,7 +93,7 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
     std::tie(p2, p3, p4, p5, p6, p7) = MO.labels<6>("virt");
     std::tie(h1, h4, h5, h6, h7, h8) = MO.labels<6>("occ");
 
-    Scheduler sch{&ec};
+    Scheduler sch{ec};
     sch
       .allocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
       (t1_2_1(h7, h1) = 0)
@@ -138,7 +138,7 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
     std::tie(h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11) = MO.labels<11>("occ");
     std::tie(cind) = CI.labels<1>("all");
 
-    Scheduler sch{&ec};
+    Scheduler sch{ec};
 
     Tensor<T> _a001{{V,V}, {1,1}};
     Tensor<T> _a002{{V,V}, {1,1}};
@@ -281,7 +281,7 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
     std::tie(p1, p2, p3, p4, p5, p6, p7, p8, p9) = MO.labels<9>("virt");
     std::tie(h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11) = MO.labels<11>("occ");
 
-    Scheduler sch{&ec};
+    Scheduler sch{ec};
     sch.allocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
              t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1,vt1t1_1_temp,t2_2_2_1_temp,
              t2_2_1_temp,i0_temp,t2_temp,t2_6_1_temp)
@@ -431,7 +431,7 @@ std::pair<double,double> rest(ExecutionContext& ec,
                               const TAMM_SIZE& noab) {
 
     T residual, energy;
-    Scheduler sch{&ec};
+    Scheduler sch{ec};
     Tensor<T> d_r1_residual{}, d_r2_residual{};
     Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
     sch
@@ -479,7 +479,7 @@ void iteration_print(const ProcGroup& pg, int iter, double residual, double ener
 }
 
 template<typename T>
-void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
+void ccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
                     const TiledIndexSpace& CI,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_f1, //Tensor<T>& d_v2,
@@ -530,9 +530,9 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
               }
           }
       };
-      block_for(ec->pg(), d_f1(), lambda);
+      block_for(ec, d_f1(), lambda);
   }
-  ec->pg().barrier();
+  ec.pg().barrier();
 
 //   if(ec->pg().rank() == 0) {
 //     std::cout << "p_evl_sorted:" << '\n';
@@ -540,7 +540,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 //       std::cout << p_evl_sorted[p] << '\n';
 //   }
 
-  if(ec->pg().rank() == 0) {
+  if(ec.pg().rank() == 0) {
     std::cout << "\n\n";
     std::cout << " CCSD iterations" << std::endl;
     std::cout << std::string(66, '-') << std::endl;
@@ -557,12 +557,12 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     d_r2s.push_back(new Tensor<T>{V,V,O,O});
     d_t1s.push_back(new Tensor<T>{V,O});
     d_t2s.push_back(new Tensor<T>{V,V,O,O});
-    Tensor<T>::allocate(ec,*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
+    Tensor<T>::allocate(&ec,*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
  
   Tensor<T> d_r1{V,O};
   Tensor<T> d_r2{V,V,O,O};
-  Tensor<T>::allocate(ec,d_r1, d_r2);
+  Tensor<T>::allocate(&ec,d_r1, d_r2);
 
   Scheduler{ec}   
   (d_r1() = 0)
@@ -596,7 +596,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
               d_f1.put(blockid, buf);
           }
       };
-      block_for(ec->pg(), d_f1(), lambda2);
+      block_for(ec, d_f1(), lambda2);
   }
 
   for(int titer = 0; titer < maxiter; titer += ndiis) {
@@ -607,7 +607,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
           Tensor<T> d_r1_residual{};
           Tensor<T> d_r2_residual{};
 
-          Tensor<T>::allocate(ec, d_e, d_r1_residual, d_r2_residual);
+          Tensor<T>::allocate(&ec, d_e, d_r1_residual, d_r2_residual);
 
           Scheduler{ec}(d_e() = 0)(d_r1_residual() = 0)(d_r2_residual() = 0)
             .execute();
@@ -615,11 +615,11 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
           Scheduler{ec}((*d_t1s[off])() = d_t1())((*d_t2s[off])() = d_t2())
             .execute();
 
-          ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1);
-          ccsd_t1(*ec, MO, CI, d_r1, d_t1, d_t2, d_f1, chol, cv3d);
-          ccsd_t2(*ec, MO, CI, d_r2, d_t1, d_t2, d_f1, chol, cv3d);
+          ccsd_e(ec, MO, d_e, d_t1, d_t2, d_f1);
+          ccsd_t1(ec, MO, CI, d_r1, d_t1, d_t2, d_f1, chol, cv3d);
+          ccsd_t2(ec, MO, CI, d_r2, d_t1, d_t2, d_f1, chol, cv3d);
 
-          std::tie(residual, energy) = rest(*ec, MO, d_r1, d_r2, d_t1, d_t2,
+          std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
                                             d_e, p_evl_sorted, zshiftl, noab);
 
           {
@@ -652,20 +652,20 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
                       d_r2.put(blockid, buf);
                   }
               };
-              block_for(ec->pg(), d_r2(), lambdar2);
+              block_for(ec, d_r2(), lambdar2);
           }
 
           Scheduler{ec}((*d_r1s[off])() = d_r1())((*d_r2s[off])() = d_r2())
             .execute();
 
-          iteration_print(ec->pg(), iter, residual, energy);
+          iteration_print(ec.pg(), iter, residual, energy);
           Tensor<T>::deallocate(d_e, d_r1_residual, d_r2_residual);
 
           if(residual < thresh) { break; }
       }
 
       if(residual < thresh || titer + ndiis >= maxiter) { break; }
-      if(ec->pg().rank() == 0) {
+      if(ec.pg().rank() == 0) {
           std::cout << " MICROCYCLE DIIS UPDATE:";
           std::cout.width(21);
           std::cout << std::right << std::min(titer + ndiis, maxiter) + 1;
@@ -676,10 +676,10 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
       std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
       std::vector<std::vector<Tensor<T>*>*> ts{&d_t1s, &d_t2s};
       std::vector<Tensor<T>*> next_t{&d_t1, &d_t2};
-      diis<T>(*ec, rs, ts, next_t);
+      diis<T>(ec, rs, ts, next_t);
   }
 
-  if(ec->pg().rank() == 0) {
+  if(ec.pg().rank() == 0) {
     std::cout << std::string(66, '-') << std::endl;
     if(residual < thresh) {
         std::cout << " Iterations converged" << std::endl;
@@ -828,7 +828,7 @@ TEST_CASE("CCSD Driver") {
 
   Tensor<double>::allocate(ec,d_t1,d_t2,d_f1);//,d_v2);
 
-  Scheduler{ec}
+  Scheduler{*ec}
       (d_t1() = 0)
       (d_t2() = 0)
       (d_f1() = 0)
@@ -844,12 +844,12 @@ TEST_CASE("CCSD Driver") {
   for(auto x = 0; x < chol_count; x++) {
       Tensor<T>* cholvec = new Tensor<T>{{N,N},{1,1}};
       Tensor<T>::allocate(ec, *cholvec);
-      Scheduler{ec}((*cholvec)() = 0).execute();
+      Scheduler{*ec}((*cholvec)() = 0).execute();
       chol_vecs[x] = cholvec;
   }
 
   //Tensor Map 
-  block_for(ec->pg(), d_f1(), [&](IndexVector it) {
+  block_for(*ec, d_f1(), [&](IndexVector it) {
     Tensor<T> tensor = d_f1().tensor();
     const TAMM_SIZE size = tensor.block_size(it);
     
@@ -868,7 +868,7 @@ TEST_CASE("CCSD Driver") {
     d_f1.put(it,buf);
   });
 
-//   block_for(ec->pg(), d_v2(), [&](IndexVector it) {
+//   block_for(ec, d_v2(), [&](IndexVector it) {
 //       Tensor<T> tensor     = d_v2().tensor();
 //       const TAMM_SIZE size = tensor.block_size(it);
 
@@ -896,7 +896,7 @@ TEST_CASE("CCSD Driver") {
   for(auto x = 0; x < chol_count; x++) {
       Tensor<T>* cholvec = chol_vecs.at(x);
 
-      block_for(ec->pg(), (*cholvec)(), [&](IndexVector it) {
+      block_for(*ec, (*cholvec)(), [&](IndexVector it) {
           Tensor<T> tensor     = (*cholvec)().tensor();
           const TAMM_SIZE size = tensor.block_size(it);
 
@@ -921,9 +921,9 @@ TEST_CASE("CCSD Driver") {
       TiledIndexSpace CV{cvec,1};
       Tensor<T> CV3D{{N,N,CV},{1,1}};
       Tensor<T>::allocate(ec,CV3D);
-      Scheduler{ec}(CV3D() = 0).execute();
+      Scheduler{*ec}(CV3D() = 0).execute();
 
-      block_for(ec->pg(), CV3D(), [&](IndexVector it) {
+      block_for(*ec, CV3D(), [&](IndexVector it) {
           Tensor<T> tensor     = CV3D().tensor();
           const TAMM_SIZE size = tensor.block_size(it);
 
@@ -948,7 +948,7 @@ TEST_CASE("CCSD Driver") {
 
   auto cc_t1 = std::chrono::high_resolution_clock::now();
 
-  CHECK_NOTHROW(ccsd_driver<T>(ec, MO, CV, d_t1, d_t2, d_f1, chol_vecs,
+  CHECK_NOTHROW(ccsd_driver<T>(*ec, MO, CV, d_t1, d_t2, d_f1, chol_vecs,
                                maxiter, thresh, zshiftl, ndiis, hf_energy,
                                total_orbitals, 2 * ov_alpha, CV3D));
 

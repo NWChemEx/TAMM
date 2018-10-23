@@ -793,47 +793,47 @@ template<typename T>
 void eomccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
                    Tensor<T>& t1, Tensor<T>& t2,
                    Tensor<T>& f1, Tensor<T>& v2,
-//                   Tensor<T>& d_x1, Tensor<T>& d_x2,
                    int nroots, int maxeomiter,
                    double eomthresh, int microeomiter,
                    long int total_orbitals, const TAMM_SIZE& noab) {
 
-    const TiledIndexSpace& O = MO("occ");
-    const TiledIndexSpace& V = MO("virt");
-    const TiledIndexSpace& N = MO("all");
+  const TiledIndexSpace& O = MO("occ");
+  const TiledIndexSpace& V = MO("virt");
+  const TiledIndexSpace& N = MO("all");
 
-    std::cout.precision(15);
+  auto [h1, h2] = MO.labels<2>("occ");
+  auto [p3, p4] = MO.labels<2>("virt");
 
-    Scheduler sch{ec};
+  std::cout.precision(15);
+
+  Scheduler sch{ec};
   /// @todo: make it a tamm tensor
-  std::cout << "Total orbitals = " << total_orbitals << std::endl;
 
   std::vector<double> p_evl_sorted = f1.diagonal();
 
-  if(ec->pg().rank() == 0) {
-    std::cout << "p_evl_sorted:" << '\n';
-    for(size_t p = 0; p < p_evl_sorted.size(); p++)
-      std::cout << p_evl_sorted[p] << '\n';
-  }
-
-//For jacobi step.
-  double zshiftl = 0;
-  bool transpose=false;
-  const auto hbardim = nroots*microeomiter;
-  const auto microdim = nroots;
-
-Matrix hbar = Matrix::Zero(hbardim,hbardim);
-
 auto populate_vector_of_tensors = [&] (std::vector<Tensor<T>> &vec, bool is2D=true){
-    for (auto x=0;x<vec.size();x++){
+     for(auto x=0;x<vec.size();x++){
         if(is2D) vec[x] = Tensor<T>{V,O};
-        else vec[x] = Tensor<T>{V,V,O,O};
-
+        else     vec[x] = Tensor<T>{V,V,O,O};
         Tensor<T>::allocate(ec,vec[x]);
-    }
+     }
 };
 
+//FOR JACOBI STEP
+  double zshiftl = 0;
+  bool transpose=false;
 
+//INITIAL GUESS WILL MOVE TO HERE
+  int nxtrials = nroots;
+  const auto hbardim = nxtrials + nroots*(microeomiter-1);
+
+  Matrix hbar = Matrix::Zero(hbardim,hbardim);
+
+  Tensor<T> u1{V, O};
+  Tensor<T> u2{V, V, O, O};
+  Tensor<T> uu2{V, V, O, O};
+  Tensor<T> uuu2{V, V, O, O};
+  Tensor<T>::allocate(ec,u1,u2,uu2,uuu2);
 
 using std::vector;
 
@@ -845,28 +845,26 @@ using std::vector;
   populate_vector_of_tensors(xp1);
   vector<Tensor<T>> xp2(hbardim);
   populate_vector_of_tensors(xp2,false);
-  vector<Tensor<T>> xc1(microdim);
+  vector<Tensor<T>> xc1(nroots);
   populate_vector_of_tensors(xc1);
-  vector<Tensor<T>> xc2(microdim);
+  vector<Tensor<T>> xc2(nroots);
   populate_vector_of_tensors(xc2,false);
-  vector<Tensor<T>> r1(microdim);
+  vector<Tensor<T>> r1(nroots);
   populate_vector_of_tensors(r1);
-  vector<Tensor<T>> r2(microdim);
+  vector<Tensor<T>> r2(nroots);
   populate_vector_of_tensors(r2,false);
-  
 //TO DO: NXTRIALS IS SET TO NROOTS BECAUSE WE ONLY ALLOW #NROOTS# INITIAL GUESSES
 //       WHEN THE EOM_GUESS ROUTINE IS UPDATED TO BE LIKE THE INITIAL GUESS IN TCE
 //       THEN THE FOLLOWING LINE WILL BE "INT NXTRIALS = INITVECS", WHERE INITVEC 
 //       IS THE NUMBER OF INITIAL VECTORS. THE {X1,X2} AND {XP1,XP2} TENSORS WILL 
 //       BE OF DIMENSION (INITVECS + NROOTS*(MICROEOMITER-1)) FOR THE FIRST 
 //       MICROCYCLE AND (NROOTS*MICROEOMITER) FOR THE REMAINING.
-  int nxtrials = nroots; 
 
 //################################################################################
 //  CALL THE EOM_GUESS ROUTINE (EXTERNAL ROUTINE)
 //################################################################################
   eom_guess(nroots,noab,p_evl_sorted,x1);
-
+ 
 //################################################################################
 //  PRINT THE HEADER FOR THE EOM ITERATIONS
 //################################################################################
@@ -895,66 +893,273 @@ std::cout<< "######################## 'Iter'ation(+1) " << iter+1 << "##########
 
         auto counter = nxtrials-nroots+root;
 
-//std::cout << "@@@@@@@@@@@@@ X1 @@@@@@@@@@@@@" << std::endl;
-//        print_tensor_all(x1.at(counter));
-//std::cout << "@@@@@@@@@@@@@ X2 @@@@@@@@@@@@@" << std::endl;
-//        print_tensor(x2.at(counter));
         eomccsd_x1(*ec, MO, xp1.at(counter), t1, t2, x1.at(counter), x2.at(counter), f1, v2);
         eomccsd_x2(*ec, MO, xp2.at(counter), t1, t2, x1.at(counter), x2.at(counter), f1, v2);
-//std::cout << "@@@@@@@@@@@@@ XP1 @@@@@@@@@@@@@" << std::endl;
-//        print_tensor_all(xp1.at(counter));
-//std::cout << "@@@@@@@@@@@@@ XP2 @@@@@@@@@@@@@" << std::endl;
-//        print_tensor(xp2.at(counter));
 
-        std::cout << iter << " " << micro << " COUNTER  " << counter << std::endl;
         }
 
 //***Update hbar which is a matrix of dot products between the x and xp vectors.
            if(micro == 0){
-           std::cout << "HERE" << std::endl;
+//           std::cout << "HERE" << std::endl;
               for(int ivec = 0; ivec < nroots; ivec++){
                  for(int jvec = 0; jvec < nroots; jvec++){
-                 std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
+//                 std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
 //################################################################################
+          sch(u2()  = xp2.at(ivec)())
+             (uu2() = x2.at(jvec)()).execute();
+          {
+              auto lambdar2 = [&](const IndexVector& blockid) {
+                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+                      Tensor<T> tensor     = u2;
+                      const TAMM_SIZE size = tensor.block_size(blockid);
+
+                      std::vector<T> buf(size);
+                      tensor.get(blockid, buf);
+
+                      auto block_dims   = tensor.block_dims(blockid);
+                      auto block_offset = tensor.block_offsets(blockid);
+
+                      TAMM_SIZE c = 0;
+                      for(auto i = block_offset[0];
+                          i < block_offset[0] + block_dims[0]; i++) {
+                          for(auto j = block_offset[1];
+                              j < block_offset[1] + block_dims[1]; j++) {
+                              for(auto k = block_offset[2];
+                                  k < block_offset[2] + block_dims[2]; k++) {
+                                  for(auto l = block_offset[3];
+                                      l < block_offset[3] + block_dims[3];
+                                      l++, c++) {
+                                      buf[c] = 0;
+                                  }
+                              }
+                          }
+                      }
+                      u2.put(blockid, buf);
+                  }
+              };
+              block_for(ec->pg(), u2(), lambdar2);
+          }
+          {
+              auto lambdar2 = [&](const IndexVector& blockid) { 
+                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+                      Tensor<T> tensor     = uu2;
+                      const TAMM_SIZE size = tensor.block_size(blockid);
+
+                      std::vector<T> buf(size);
+                      tensor.get(blockid, buf);
+
+                      auto block_dims   = tensor.block_dims(blockid);
+                      auto block_offset = tensor.block_offsets(blockid);
+
+                      TAMM_SIZE c = 0;
+                      for(auto i = block_offset[0];
+                          i < block_offset[0] + block_dims[0]; i++) {
+                          for(auto j = block_offset[1];
+                              j < block_offset[1] + block_dims[1]; j++) {
+                              for(auto k = block_offset[2];
+                                  k < block_offset[2] + block_dims[2]; k++) {
+                                  for(auto l = block_offset[3];
+                                      l < block_offset[3] + block_dims[3];
+                                      l++, c++) {
+                                      buf[c] = 0;
+                                  }
+                              }
+                          }
+                      }
+                      uu2.put(blockid, buf);
+                  }
+              };
+              block_for(ec->pg(), uu2(), lambdar2);
+          }
+
+
                sch(d_r1()  = 0) 
                   (d_r1() += xp1.at(ivec)() * x1.at(jvec)()) 
-                  (d_r1() += xp2.at(ivec)() * x2.at(jvec)()).execute();
+                  (d_r1() += u2() * uu2()).execute();
+//                  (d_r1() += xp2.at(ivec)() * x2.at(jvec)()).execute();
                T r1;
                d_r1.get({}, {&r1, 1});
-               hbar(ivec,jvec) = r1;
-//           std::cout << hbar(ivec,jvec) << std::endl;
+               hbar(jvec,ivec) = r1;
+//           std::cout << hbar(jvec,ivec) << std::endl;
 //################################################################################
                  }
               }
            } else {
               for(int ivec = 0; ivec < nxtrials; ivec++){
                  for(int jvec = micro*nroots; jvec < nxtrials; jvec++){
-                 std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
+//                 std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
 //################################################################################
+          sch(u2()  = xp2.at(ivec)())
+             (uu2() = x2.at(jvec)()).execute();
+          {
+              auto lambdar2 = [&](const IndexVector& blockid) {
+                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+                      Tensor<T> tensor     = u2;
+                      const TAMM_SIZE size = tensor.block_size(blockid);
+
+                      std::vector<T> buf(size);
+                      tensor.get(blockid, buf);
+
+                      auto block_dims   = tensor.block_dims(blockid);
+                      auto block_offset = tensor.block_offsets(blockid);
+
+                      TAMM_SIZE c = 0;
+                      for(auto i = block_offset[0];
+                          i < block_offset[0] + block_dims[0]; i++) {
+                          for(auto j = block_offset[1];
+                              j < block_offset[1] + block_dims[1]; j++) {
+                              for(auto k = block_offset[2];
+                                  k < block_offset[2] + block_dims[2]; k++) {
+                                  for(auto l = block_offset[3];
+                                      l < block_offset[3] + block_dims[3];
+                                      l++, c++) {
+                                      buf[c] = 0;
+                                  }
+                              }
+                          }
+                      }
+                      u2.put(blockid, buf);
+                  }
+              };
+              block_for(ec->pg(), u2(), lambdar2);
+          }
+          {
+              auto lambdar2 = [&](const IndexVector& blockid) { 
+                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+                      Tensor<T> tensor     = uu2;
+                      const TAMM_SIZE size = tensor.block_size(blockid);
+
+                      std::vector<T> buf(size);
+                      tensor.get(blockid, buf);
+
+                      auto block_dims   = tensor.block_dims(blockid);
+                      auto block_offset = tensor.block_offsets(blockid);
+
+                      TAMM_SIZE c = 0;
+                      for(auto i = block_offset[0];
+                          i < block_offset[0] + block_dims[0]; i++) {
+                          for(auto j = block_offset[1];
+                              j < block_offset[1] + block_dims[1]; j++) {
+                              for(auto k = block_offset[2];
+                                  k < block_offset[2] + block_dims[2]; k++) {
+                                  for(auto l = block_offset[3];
+                                      l < block_offset[3] + block_dims[3];
+                                      l++, c++) {
+                                      buf[c] = 0;
+                                  }
+                              }
+                          }
+                      }
+                      uu2.put(blockid, buf);
+                  }
+              };
+              block_for(ec->pg(), uu2(), lambdar2);
+          }
+
+//          if(ivec ==4 && jvec ==4){
+//          print_tensor(u2);
+//          print_tensor(uu2);
+//          }
+
+
                sch(d_r1()  = 0) 
                   (d_r1() += xp1.at(ivec)() * x1.at(jvec)()) 
-                  (d_r1() += xp2.at(ivec)() * x2.at(jvec)()).execute();
+                  (d_r1() += u2() * uu2()).execute();
+//                  (d_r1() += xp2.at(ivec)() * x2.at(jvec)()).execute();
                T r1;
                d_r1.get({}, {&r1, 1});
-               hbar(ivec,jvec) = r1;
+               hbar(jvec,ivec) = r1;
+//           std::cout << hbar(jvec,ivec) << std::endl;
 //################################################################################
                  }
               }
               for(int ivec = micro*nroots; ivec < nxtrials; ivec++){
                  for(int jvec = 0; jvec < micro*nroots; jvec++){
-                 std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
+//                 std::cout << "PRODUCT " << ivec << " " << jvec << std::endl;
 //################################################################################
+          sch(u2()  = xp2.at(ivec)())
+             (uu2() = x2.at(jvec)()).execute();
+          {
+              auto lambdar2 = [&](const IndexVector& blockid) {
+                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+                      Tensor<T> tensor     = u2;
+                      const TAMM_SIZE size = tensor.block_size(blockid);
+
+                      std::vector<T> buf(size);
+                      tensor.get(blockid, buf);
+
+                      auto block_dims   = tensor.block_dims(blockid);
+                      auto block_offset = tensor.block_offsets(blockid);
+
+                      TAMM_SIZE c = 0;
+                      for(auto i = block_offset[0];
+                          i < block_offset[0] + block_dims[0]; i++) {
+                          for(auto j = block_offset[1];
+                              j < block_offset[1] + block_dims[1]; j++) {
+                              for(auto k = block_offset[2];
+                                  k < block_offset[2] + block_dims[2]; k++) {
+                                  for(auto l = block_offset[3];
+                                      l < block_offset[3] + block_dims[3];
+                                      l++, c++) {
+                                      buf[c] = 0;
+                                  }
+                              }
+                          }
+                      }
+                      u2.put(blockid, buf);
+                  }
+              };
+              block_for(ec->pg(), u2(), lambdar2);
+          }
+          {
+              auto lambdar2 = [&](const IndexVector& blockid) { 
+                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+                      Tensor<T> tensor     = uu2;
+                      const TAMM_SIZE size = tensor.block_size(blockid);
+
+                      std::vector<T> buf(size);
+                      tensor.get(blockid, buf);
+
+                      auto block_dims   = tensor.block_dims(blockid);
+                      auto block_offset = tensor.block_offsets(blockid);
+
+                      TAMM_SIZE c = 0;
+                      for(auto i = block_offset[0];
+                          i < block_offset[0] + block_dims[0]; i++) {
+                          for(auto j = block_offset[1];
+                              j < block_offset[1] + block_dims[1]; j++) {
+                              for(auto k = block_offset[2];
+                                  k < block_offset[2] + block_dims[2]; k++) {
+                                  for(auto l = block_offset[3];
+                                      l < block_offset[3] + block_dims[3];
+                                      l++, c++) {
+                                      buf[c] = 0;
+                                  }
+                              }
+                          }
+                      }
+                      uu2.put(blockid, buf);
+                  }
+              };
+              block_for(ec->pg(), uu2(), lambdar2);
+          }
+
+
+
+
                 sch(d_r1()  = 0) 
                   (d_r1() += xp1.at(ivec)() * x1.at(jvec)()) 
-                  (d_r1() += xp2.at(ivec)() * x2.at(jvec)()).execute();
+                  (d_r1() += u2() * uu2()).execute();
+//                  (d_r1() += xp2.at(ivec)() * x2.at(jvec)()).execute();
                T r1;
                d_r1.get({}, {&r1, 1});
-               hbar(ivec,jvec) = r1;
+               hbar(jvec,ivec) = r1;
+//           std::cout << hbar(jvec,ivec) << std::endl;
 //################################################################################
                  }
               }
            } 
-//           std::cout << hbar << std::endl;
+//           std::cout << hbar.block(0,0,nxtrials,nxtrials) << std::endl;
 
 #if 1
 
@@ -966,7 +1171,7 @@ std::vector<T> omegar(nev);
 for (auto x=0; x<nev;x++)
  omegar[x] = real(omegar1(x));
 
-std::cout << omegar << std::endl;
+//std::cout << omegar << std::endl;
 
 //################################################################################
 //Sort the eigenvectors and corresponding eigenvalues 
@@ -978,11 +1183,6 @@ std::sort(omegar.begin(), omegar.end());
 std::cout << "Sorted eigenvalues" << std::endl;
 std::cout << omegar << std::endl;
 
-// for (auto x: omegar) std::cout << x << " ";
-// std::cout << std::endl;
-// for (auto x: omegar_sorted_order) std::cout << x << " ";
-// std::cout << std::endl;
-
 auto hbar_right1 = hbardiag.eigenvectors();
 assert(hbar_right1.rows() == nev && hbar_right1.cols() == nev);
 Matrix hbar_right(nev,nev);
@@ -990,10 +1190,6 @@ hbar_right.setZero();
 
 for (auto x=0;x<nev;x++)
     hbar_right.col(x) = hbar_right1.col(omegar_sorted_order[x]).real();
-
-std::cout << hbar_right1.real() << std::endl;
-std::cout << "Sorted eigenvectors" << std::endl;
-std::cout << hbar_right << std::endl;
 
 //################################################################################
 //--From the lowest nroots number of eigenvalues and vectors, form xc's which 
@@ -1020,20 +1216,11 @@ std::cout << hbar_right << std::endl;
     T omegar_scalar = -1 * omegar[root];
     sch(r1.at(root)()        += omegar_scalar * xc1.at(root)() )
     (r2.at(root)() += omegar_scalar * xc2.at(root)() ).execute();
-//    std::cout << "xc1" << std::endl;
-//    print_tensor_all(xc1.at(root));
-//    std::cout << "omega*xc1" << std::endl;
-//    print_tensor_all(r1.at(root));
     for(int i = 0; i < nxtrials; i++){
         T hbr_scalar = hbar_right(i,root);
        sch(r1.at(root)()        += hbr_scalar * xp1.at(i)())
        (r2.at(root)() += hbr_scalar *xp2.at(i)()).execute();
     }  
-//                sch(d_r1()  = 0)
-//                  (d_r1() += r1.at(root)() * r1.at(root)())
-//                  (d_r1() += r2.at(root)() * r2.at(root)()).execute();
-// std::cout << "Residual^^2= " << std::endl;
-// print_tensor(d_r1);
  }
  #endif
 //################################################################################
@@ -1041,18 +1228,62 @@ std::cout << hbar_right << std::endl;
 
 //################################################################################
 //***Call jacobi with the r1/r2's to form the new set of x1/x2's
- std::cout << "nxtrials before jacobi = " << nxtrials << std::endl;
+ //std::cout << "nxtrials before jacobi = " << nxtrials << std::endl;
  for(auto root = 0; root < nroots; root++){
-// std::cout << "  BEFORE JACOBI   r1.at(root)()= at root "<< root << std::endl;
-// print_tensor(r1.at(root));
-// std::cout << "  BEFORE JACOBI   r2.at(root)()= at root "<< root << std::endl;
-// print_tensor(r2.at(root));
+ //std::cout << "  BEFORE JACOBI   r1.at(root)()= at root "<< root << std::endl;
+ //print_tensor(r1.at(root));
+ //std::cout << "  BEFORE JACOBI   r2.at(root)()= at root "<< root << std::endl;
+ //print_tensor(r2.at(root));
      jacobi(*ec, r1.at(root), x1.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
      jacobi(*ec, r2.at(root), x2.at(nxtrials+root), 0.0, false, p_evl_sorted, noab);
-// std::cout << "  AFTER JACOBI     x1.at(nxtrials+root) at root "<< root << std::endl;
-// print_tensor(x1.at(nxtrials+root));
-// std::cout << "  AFTER JACOBI     x2.at(nxtrials+root) at root "<< root << std::endl;
-// print_tensor(x2.at(nxtrials+root));
+
+             sch(u1() = r1.at(root)())
+                (u2() = r2.at(root)()).execute();
+          {
+              auto lambdar2 = [&](const IndexVector& blockid) {
+                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+                      Tensor<T> tensor     = u2;
+                      const TAMM_SIZE size = tensor.block_size(blockid);
+
+                      std::vector<T> buf(size);
+                      tensor.get(blockid, buf);
+
+                      auto block_dims   = tensor.block_dims(blockid);
+                      auto block_offset = tensor.block_offsets(blockid);
+
+                      TAMM_SIZE c = 0;
+                      for(auto i = block_offset[0];
+                          i < block_offset[0] + block_dims[0]; i++) {
+                          for(auto j = block_offset[1];
+                              j < block_offset[1] + block_dims[1]; j++) {
+                              for(auto k = block_offset[2];
+                                  k < block_offset[2] + block_dims[2]; k++) {
+                                  for(auto l = block_offset[3];
+                                      l < block_offset[3] + block_dims[3];
+                                      l++, c++) {
+                                      buf[c] = 0;
+                                  }
+                              }
+                          }
+                      }
+                      u2.put(blockid, buf);
+                  }
+              };
+              block_for(ec->pg(), u2(), lambdar2);
+          }
+          sch(oscalar() = 0)
+             (oscalar() += u1() * u1())
+             (oscalar() += u2() * u2()).execute();
+          T tmps = get_scalar(oscalar);
+          T newsc = 1/sqrt(tmps);
+
+          sch(u1() = 0)
+             (u2() = 0)
+             (u1() += newsc * x1.at(nxtrials+root)())
+             (u2() += newsc * x2.at(nxtrials+root)())
+             (x1.at(nxtrials+root)() = u1())
+             (x2.at(nxtrials+root)() = u2()).execute();
+ 
  }
 //
 // FUTURE: Thee will be a specific Jacobi for x's which accounts for symmetry
@@ -1063,62 +1294,156 @@ std::cout << hbar_right << std::endl;
 //store and work with the vector that is currently being orthoginalized. 
 //To save some memory, you can use any one of the xc vectors as a workspace.  
 //***ACTUALLY just have r1 and r2 overwrite themselves in jacobi!!!!!!!!!!!!!!!!!!
-   const TiledIndexSpace &O = MO("occ");
-   const TiledIndexSpace &V = MO("virt");
 
-   auto [h1, h2] = MO.labels<2>("occ");
-   auto [p3, p4] = MO.labels<2>("virt");
-
-   std::cout << "IN ORTHOGONALIZATION, MICRO = " << micro << std::endl;
-   //if(micro > 0){
       for(int ivec = nxtrials; ivec<nxtrials+nroots; ivec++){
-          Tensor<T> u1 = x1.at(ivec);
-          Tensor<T> u2 = x2.at(ivec);
-//          std::cout << "X1 BEFORE REMOVING OVERLAP"<< ivec << std::endl;
-//          print_tensor(u1);
-//          std::cout << "X2 BEFORE REMOVING OVERLAP"<< ivec << std::endl;
-//          print_tensor(u2);
+
+          sch(u1() = x1.at(ivec)())
+          (u2() = x2.at(ivec)()).execute();
           for(int jvec = 0; jvec<ivec; jvec++){
-//             std::cout << ivec << " " << jvec << std::endl;
-//          std::cout << "X1 Entering orthogonalization" << std::endl;
-//          std::cout << "X1 at ivec"<< ivec << std::endl;
-//          print_tensor_all(x1.at(ivec));
-//          std::cout << "X1 at jvec"<< jvec << std::endl;
-//          print_tensor_all(x1.at(jvec));
+             sch(uu2() = x2.at(ivec)())
+                (uuu2() = x2.at(jvec)()).execute();
+
+
+          {
+              auto lambdar2 = [&](const IndexVector& blockid) {
+                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+                      Tensor<T> tensor     = uu2;
+                      const TAMM_SIZE size = tensor.block_size(blockid);
+
+                      std::vector<T> buf(size);
+                      tensor.get(blockid, buf);
+
+                      auto block_dims   = tensor.block_dims(blockid);
+                      auto block_offset = tensor.block_offsets(blockid);
+
+                      TAMM_SIZE c = 0;
+                      for(auto i = block_offset[0];
+                          i < block_offset[0] + block_dims[0]; i++) {
+                          for(auto j = block_offset[1];
+                              j < block_offset[1] + block_dims[1]; j++) {
+                              for(auto k = block_offset[2];
+                                  k < block_offset[2] + block_dims[2]; k++) {
+                                  for(auto l = block_offset[3];
+                                      l < block_offset[3] + block_dims[3];
+                                      l++, c++) {
+                                      buf[c] = 0;
+                                  }
+                              }
+                          }
+                      }
+                      uu2.put(blockid, buf);
+                  }
+              };
+              block_for(ec->pg(), uu2(), lambdar2);
+          }
+          {
+              auto lambdar2 = [&](const IndexVector& blockid) {
+                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+                      Tensor<T> tensor     = uuu2;
+                      const TAMM_SIZE size = tensor.block_size(blockid);
+
+                      std::vector<T> buf(size);
+                      tensor.get(blockid, buf);
+
+                      auto block_dims   = tensor.block_dims(blockid);
+                      auto block_offset = tensor.block_offsets(blockid);
+
+                      TAMM_SIZE c = 0;
+                      for(auto i = block_offset[0];
+                          i < block_offset[0] + block_dims[0]; i++) {
+                          for(auto j = block_offset[1];
+                              j < block_offset[1] + block_dims[1]; j++) {
+                              for(auto k = block_offset[2];
+                                  k < block_offset[2] + block_dims[2]; k++) {
+                                  for(auto l = block_offset[3];
+                                      l < block_offset[3] + block_dims[3];
+                                      l++, c++) {
+                                      buf[c] = 0;
+                                  }
+                              }
+                          }
+                      }
+                      uuu2.put(blockid, buf);
+                  }
+              };
+              block_for(ec->pg(), uuu2(), lambdar2);
+          }
+
+
              sch(oscalar() = 0)
                 (oscalar() += x1.at(ivec)() * x1.at(jvec)())
-                (oscalar() += x2.at(ivec)() * x2.at(jvec)()).execute();
+                (oscalar() += uu2() * uuu2()).execute();
               T tmps;
               oscalar.get({}, {&tmps,1});
-//         std::cout << "TMPS 1= " << tmps << std::endl;
-              sch(u1() += -1 * tmps * x1.at(jvec)())
-                 (u2() += -1 * tmps * x2.at(jvec)()).execute();
+              sch(u1(p3,h1) += -1 * tmps * x1.at(jvec)(p3,h1))
+                 (u2(p4,p3,h1,h2) += -1 * tmps * x2.at(jvec)(p4,p3,h1,h2)).execute();
           }
    //@@@@@@@@@@@@@@@ START FIX ME @@@@@@@@@@@@@@@@@@@@
-   std::cout << "THIS IS FOR IVEC = "<< ivec << std::endl;
-   std::cout << "X1 (U1) AFTER REMOVING OVERLAP" << std::endl;
-   print_tensor(u1);
-   std::cout << "X2 (U1) AFTER REMOVING OVERLAP" << std::endl;
-   print_tensor(u2);
+//   std::cout << "THIS IS FOR IVEC = "<< ivec << std::endl;
+//   std::cout << "X1 (U1) AFTER REMOVING OVERLAP" << std::endl;
+//   print_tensor(u1);
+//   std::cout << "X2 (U1) AFTER REMOVING OVERLAP" << std::endl;
+//   print_tensor(u2);
+// THIS MUST BE FIXED VVVVV
+          sch(x1.at(ivec)() = u1())
+          (x2.at(ivec)() = u2()).execute();
+// THIS MUST BE FIXED ^^^^^
+          {
+              auto lambdar2 = [&](const IndexVector& blockid) {
+                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+                      Tensor<T> tensor     = u2;
+                      const TAMM_SIZE size = tensor.block_size(blockid);
+
+                      std::vector<T> buf(size);
+                      tensor.get(blockid, buf);
+
+                      auto block_dims   = tensor.block_dims(blockid);
+                      auto block_offset = tensor.block_offsets(blockid);
+
+                      TAMM_SIZE c = 0;
+                      for(auto i = block_offset[0];
+                          i < block_offset[0] + block_dims[0]; i++) {
+                          for(auto j = block_offset[1];
+                              j < block_offset[1] + block_dims[1]; j++) {
+                              for(auto k = block_offset[2];
+                                  k < block_offset[2] + block_dims[2]; k++) {
+                                  for(auto l = block_offset[3];
+                                      l < block_offset[3] + block_dims[3];
+                                      l++, c++) {
+                                      buf[c] = 0;
+                                  }
+                              }
+                          }
+                      }
+                      u2.put(blockid, buf);
+                  }
+              };
+              block_for(ec->pg(), u2(), lambdar2);
+          }
+
           sch(oscalar() = 0)
              (oscalar() += u1() * u1())
              (oscalar() += u2() * u2()).execute();
+// THIS MUST BE FIXED VVVVV
+          sch(u1() = x1.at(ivec)())
+          (u2() = x2.at(ivec)()).execute();
+// THIS MUST BE FIXED ^^^^^
 //          T tmps;
 //          oscalar.get({}, {&tmps,1});
           T tmps = get_scalar(oscalar);
-   std::cout << "TMPS 2= " << tmps << std::endl;
+//   std::cout << "TMPS 2= " << tmps << std::endl;
           T newsc = 1/sqrt(tmps);
-   std::cout << "SCALING= " << newsc << std::endl;
+//   std::cout << "SCALING= " << newsc << std::endl;
           sch(x1.at(ivec)(p3,h1) = 0)
              (x2.at(ivec)(p4,p3,h1,h2) = 0)
              (x1.at(ivec)(p3,h1) += newsc * u1(p3,h1))
              (x2.at(ivec)(p4,p3,h1,h2) += newsc * u2(p4,p3,h1,h2)).execute(); 
 //             (x1.at(ivec)() += newsc * u1())
 //             (x2.at(ivec)() += newsc * u2()).execute(); 
-   std::cout << "X1 AFTER NORMALIZATION" << std::endl;
-   print_tensor(x1.at(ivec));
-   std::cout << "X2 AFTER NORMALIZATION" << std::endl;
-   print_tensor(x2.at(ivec));
+//   std::cout << "X1 AFTER NORMALIZATION" << std::endl;
+//   print_tensor(x1.at(ivec));
+//   std::cout << "X2 AFTER NORMALIZATION" << std::endl;
+//   print_tensor(x2.at(ivec));
    //@@@@@@@@@@@@@@@ END FIX ME @@@@@@@@@@@@@@@@@@@@
       }
    //}
@@ -1141,6 +1466,7 @@ std::cout << hbar_right << std::endl;
 
   }
 
+  Tensor<T>::deallocate(u1,u2,uu2,uuu2);
   Tensor<T>::deallocate(d_r1);
   Tensor<T>::deallocate(oscalar);
 
@@ -1278,7 +1604,7 @@ TEST_CASE("CCSD Driver") {
 //    int eomsolver        = 1; //Indicates which solver to use. (LATER IMPLEMENTATION)
     double eomthresh     = 1.0e-10;
 //    double x2guessthresh = 0.6; //Threshold for x2 initial guess (LATER IMPLEMENTATION)
-    size_t microeomiter  = 5; //Number of iterations in a microcycle
+    size_t microeomiter  = 25; //Number of iterations in a microcycle
     
   Tensor<double>::allocate(ec,d_t1,d_t2,d_f1,d_v2);
 //  Tensor<double>::allocate(ec,d_t1,d_t2,d_x1,d_x2,d_f1,d_v2);

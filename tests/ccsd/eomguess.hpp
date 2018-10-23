@@ -88,12 +88,12 @@ std::cout << "root = " << root << " for " << x <<" " << y<< std::endl;
            et(y,x) = 1;
            eigen_to_tamm_tensor(t,et);
            root++;
-           std::cout << "//////" << std::endl;
-           std::cout << et(y,x) << std::endl;
-           std::cout << "^^^^^^" << std::endl;
-           std::cout << et << std::endl;
-           std::cout << "******" << std::endl;
-           print_tensor(t);
+//           std::cout << "//////" << std::endl;
+//           std::cout << et(y,x) << std::endl;
+//           std::cout << "^^^^^^" << std::endl;
+//           std::cout << et << std::endl;
+//           std::cout << "******" << std::endl;
+//           print_tensor(t);
         }
     }
 }

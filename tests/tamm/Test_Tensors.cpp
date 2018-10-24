@@ -23,27 +23,7 @@ void lambda_function(const IndexVector& blockid, span<T> buff) {
     for(size_t i = 0; i < static_cast<size_t>(buff.size()); i++) { buff[i] = 42; }
 }
 
-template<typename T>
-std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
-    os << "[";
-    for(auto& x : vec) os << x << ",";
-    os << "]\n";
-    return os;
-}
 
-template<typename T>
-void print_tensor(Tensor<T>& t) {
-    auto lt = t();
-    for(auto it : t.loop_nest()) {
-        auto blockid   = internal::translate_blockid(it, lt);
-        TAMM_SIZE size = t.block_size(blockid);
-        std::vector<T> buf(size);
-        t.get(blockid, buf);
-        std::cout << "block" << blockid;
-        for(TAMM_SIZE i = 0; i < size; i++) std::cout << buf[i] << " ";
-        std::cout << std::endl;
-    }
-}
 
 template<typename T>
 void check_value(LabeledTensor<T> lt, T val) {

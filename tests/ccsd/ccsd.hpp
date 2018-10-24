@@ -2,36 +2,10 @@
 #include "HF/hartree_fock_eigen.hpp"
 #include "diis.hpp"
 #include "4index_transform.hpp"
-#include "tamm/tamm.hpp"
-#include "macdecls.h"
-#include "ga-mpi.h"
+#include "ccsd_util.hpp"
 
 
 using namespace tamm;
-
-template<typename T>
-std::ostream& operator << (std::ostream &os, std::vector<T>& vec){
-    os << "[";
-    for(auto &x: vec)
-        os << x << ",";
-    os << "]\n";
-    return os;
-}
-
-template<typename T>
-void print_tensor(Tensor<T> &t){
-    for (auto it: t.loop_nest())
-    {
-        TAMM_SIZE size = t.block_size(it);
-        std::vector<T> buf(size);
-        t.get(it, buf);
-        std::cout << "block" << it;
-        for (TAMM_SIZE i = 0; i < size;i++)
-         std::cout << buf[i] << " ";
-        std::cout << std::endl;
-    }
-
-}
 
 template<typename T>
 void ccsd_e(ExecutionContext &ec,
@@ -463,6 +437,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 
   double residual = 0.0;
   double energy = 0.0;
+
 
   {
       auto lambda2 = [&](const IndexVector& blockid) {

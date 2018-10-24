@@ -10,14 +10,6 @@
 
 using namespace tamm;
 
-template<typename T>
-std::ostream& operator << (std::ostream &os, std::vector<T>& vec){
-    os << "[";
-    for(auto &x: vec)
-        os << x << ",";
-    os << "]\n";
-    return os;
-}
 
 // This will go away when the CCSD routine is replaced by a call to the seperated code.
 template<typename T>

@@ -1,13 +1,6 @@
 #ifndef TAMM_UTILS_HPP_
 #define TAMM_UTILS_HPP_
 
-#include "tamm/errors.hpp"
-#include "tamm/tiled_index_space.hpp"
-#include "tamm/labeled_tensor.hpp"
-#include "tamm/types.hpp"
-
-#include <vector>
-
 namespace tamm {
 
 namespace internal {
@@ -194,37 +187,6 @@ IndexVector translate_blockid(const IndexVector& blockid,
     return translate_blockid;
 }
 } // namespace internal
-
-template<typename T>
-T get_scalar(Tensor<T>& tensor) {
-    T scalar;
-    EXPECTS(tensor.num_modes() == 0);
-    tensor.get({}, {&scalar, 1});
-    return scalar;
-}
-
-template<typename T>
-std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
-    os << "[";
-    for(auto& x : vec) os << x << ",";
-    os << "]\n";
-    return os;
-}
-
-template<typename T>
-void print_tensor(const Tensor<T>& t) {
-    auto lt = t();
-    for(auto it : t.loop_nest()) {
-        auto blockid   = internal::translate_blockid(it, lt);
-        TAMM_SIZE size = t.block_size(blockid);
-        std::vector<T> buf(size);
-        t.get(blockid, buf);
-        std::cout << "block" << blockid;
-        // if (buf[i]>0.0000000000001||buf[i]<-0.0000000000001)
-        for(TAMM_SIZE i = 0; i < size; i++) std::cout << buf[i] << " ";
-        std::cout << std::endl;
-    }
-}
 
 } // namespace tamm
 

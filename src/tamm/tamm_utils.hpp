@@ -45,8 +45,8 @@ void update_tensor(LabeledTensor<T> lt, Func lambda){
         size_t size               = lt.tensor().block_size(blockid);
         std::vector<T> buf(size);
 
+        lt.tensor().get(blockid,buf);
         lambda(blockid, buf);
-
         lt.tensor().put(blockid, buf);
     }  
 }

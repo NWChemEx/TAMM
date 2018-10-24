@@ -54,6 +54,7 @@ set(tamm_INCLUDES
     memory_manager_local.hpp
     index_loop_nest.hpp
     utils.hpp
+    tamm_utils.hpp
     eigen_utils.hpp
     runtime_engine.hpp
     task_engine.hpp

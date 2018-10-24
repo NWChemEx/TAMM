@@ -735,7 +735,7 @@ TEST_CASE("Fill tensors using lambda functions") {
     A.allocate(&ec);
     B.allocate(&ec);
 
-    fill(A(), lambda_function);
+    update_tensor(A(), lambda_function);
     std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
     print_tensor(A);
 
@@ -746,7 +746,7 @@ TEST_CASE("Fill tensors using lambda functions") {
 
     auto i = tAOs.label("all");
 
-    fill(A(i,i), lambda_function);
+    update_tensor(A(i,i), lambda_function);
     std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
     print_tensor(A);
 }

@@ -26,7 +26,7 @@ void ccsd_e(ExecutionContext &ec,
             const Tensor<T>& t2, const Tensor<T>& f1, const Tensor<T>& v2) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
-    Tensor<T> i1{O, V};
+    Tensor<T> i1{{O, V},{1,1}};
 
     TiledIndexLabel p1, p2, p3, p4, p5;
     TiledIndexLabel h3, h4, h5, h6;
@@ -51,11 +51,11 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
              const Tensor<T>& v2) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
-    Tensor<T> t1_2_1{O, O};
-    Tensor<T> t1_2_2_1{O, V};
-    Tensor<T> t1_3_1{V, V};
-    Tensor<T> t1_5_1{O, V};
-    Tensor<T> t1_6_1{O, O, O, V};
+    Tensor<T> t1_2_1{{O, O},{1,1}};
+    Tensor<T> t1_2_2_1{{O, V},{1,1}};
+    Tensor<T> t1_3_1{{V, V},{1,1}};
+    Tensor<T> t1_5_1{{O, V},{1,1}};
+    Tensor<T> t1_6_1{{O, O, O, V},{2,2}};
 
     TiledIndexLabel p2, p3, p4, p5, p6, p7;
     TiledIndexLabel h1, h4, h5, h6, h7, h8;
@@ -99,24 +99,24 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     const TiledIndexSpace &O = MO("occ");
     const TiledIndexSpace &V = MO("virt");
 
-    Tensor<T> i0_temp{V, V, O, O};
-    Tensor<T> t2_temp{V, V, O, O};
-    Tensor<T> t2_2_1{O, V, O, O};
-    Tensor<T> t2_2_1_temp{O, V, O, O};
-    Tensor<T> t2_2_2_1{O, O, O, O};
-    Tensor<T> t2_2_2_1_temp{O, O, O, O};
-    Tensor<T> t2_2_2_2_1{O, O, O, V};
-    Tensor<T> t2_2_4_1{O, V};
-    Tensor<T> t2_2_5_1{O, O, O, V};
-    Tensor<T> t2_4_1{O, O};
-    Tensor<T> t2_4_2_1{O, V};
-    Tensor<T> t2_5_1{V, V};
-    Tensor<T> t2_6_1{O, O, O, O};
-    Tensor<T> t2_6_1_temp{O, O, O, O};
-    Tensor<T> t2_6_2_1{O, O, O, V};
-    Tensor<T> t2_7_1{O, V, O, V};
-    Tensor<T> vt1t1_1{O, V, O, O};
-    Tensor<T> vt1t1_1_temp{O, V, O, O};
+    Tensor<T> i0_temp{{V, V, O, O},{2,2}};
+    Tensor<T> t2_temp{{V, V, O, O},{2,2}};
+    Tensor<T> t2_2_1{{O, V, O, O},{2,2}};
+    Tensor<T> t2_2_1_temp{{O, V, O, O},{2,2}};
+    Tensor<T> t2_2_2_1{{O, O, O, O},{2,2}};
+    Tensor<T> t2_2_2_1_temp{{O, O, O, O},{2,2}};
+    Tensor<T> t2_2_2_2_1{{O, O, O, V},{2,2}};
+    Tensor<T> t2_2_4_1{{O, V},{1,1}};
+    Tensor<T> t2_2_5_1{{O, O, O, V},{2,2}};
+    Tensor<T> t2_4_1{{O, O},{1,1}};
+    Tensor<T> t2_4_2_1{{O, V},{1,1}};
+    Tensor<T> t2_5_1{{V, V},{1,1}};
+    Tensor<T> t2_6_1{{O, O, O, O},{2,2}};
+    Tensor<T> t2_6_1_temp{{O, O, O, O},{2,2}};
+    Tensor<T> t2_6_2_1{{O, O, O, V},{2,2}};
+    Tensor<T> t2_7_1{{O, V, O, V},{2,2}};
+    Tensor<T> vt1t1_1{{O, V, O, O},{2,2}};
+    Tensor<T> vt1t1_1_temp{{O, V, O, O},{2,2}};
 
     TiledIndexLabel p1, p2, p3, p4, p5, p6, p7, p8, p9;
     TiledIndexLabel h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11;
@@ -404,15 +404,15 @@ void ccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
   std::vector<Tensor<T>*> d_r1s, d_r2s, d_t1s, d_t2s;
 
   for(int i=0; i<ndiis; i++) {
-    d_r1s.push_back(new Tensor<T>{V,O});
-    d_r2s.push_back(new Tensor<T>{V,V,O,O});
-    d_t1s.push_back(new Tensor<T>{V,O});
-    d_t2s.push_back(new Tensor<T>{V,V,O,O});
+    d_r1s.push_back(new Tensor<T>{{V,O},{1,1}});
+    d_r2s.push_back(new Tensor<T>{{V,V,O,O},{2,2}});
+    d_t1s.push_back(new Tensor<T>{{V,O},{1,1}});
+    d_t2s.push_back(new Tensor<T>{{V,V,O,O},{2,2}});
     Tensor<T>::allocate(&ec,*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
  
-  Tensor<T> d_r1{V,O};
-  Tensor<T> d_r2{V,V,O,O};
+  Tensor<T> d_r1{{V,O},{1,1}};
+  Tensor<T> d_r2{{V,V,O,O},{2,2}};
   Tensor<T>::allocate(&ec,d_r1, d_r2);
 
   Scheduler{ec}   
@@ -564,17 +564,17 @@ void eomccsd_x1(ExecutionContext& ec, const TiledIndexSpace& MO,
    auto [h1, h3, h4, h5, h6, h8] = MO.labels<6>("occ");
    auto [p2, p3, p4, p5, p6, p7] = MO.labels<6>("virt");
 
-   Tensor<T> i_1   {O, O};
-   Tensor<T> i_1_1 {O, V};
-   Tensor<T> i_2   {V, V};
-   Tensor<T> i_3   {O, V};
-   Tensor<T> i_4   {O, O, O, V};
-   Tensor<T> i_5_1 {O, V};
-   Tensor<T> i_5   {O, O};
-   Tensor<T> i_5_2 {O, V};
-   Tensor<T> i_6   {V, V};
-   Tensor<T> i_7   {O, V};
-   Tensor<T> i_8   {O, O, O, V};
+   Tensor<T> i_1   {{O, O},{1,1}};
+   Tensor<T> i_1_1 {{O, V},{1,1}};
+   Tensor<T> i_2   {{V, V},{1,1}};
+   Tensor<T> i_3   {{O, V},{1,1}};
+   Tensor<T> i_4   {{O, O, O, V},{2,2}};
+   Tensor<T> i_5_1 {{O, V},{1,1}};
+   Tensor<T> i_5   {{O, O},{1,1}};
+   Tensor<T> i_5_2 {{O, V},{1,1}};
+   Tensor<T> i_6   {{V, V},{1,1}};
+   Tensor<T> i_7   {{O, V},{1,1}};
+   Tensor<T> i_8   {{O, O, O, V},{2,2}};
 
    Scheduler sch{ec};
 
@@ -632,34 +632,34 @@ void eomccsd_x2(ExecutionContext& ec, const TiledIndexSpace& MO,
    std::tie(h1, h2, h5, h6, h7, h8, h9, h10) = MO.labels<8>("occ");
    std::tie(p3, p4, p5, p6, p7, p8, p9) = MO.labels<7>("virt");
 
-   Tensor<T> i_1     {O, V, O, O};
-   Tensor<T> i_1_1   {O, V, O, V};
-   Tensor<T> i_1_2   {O, V};
-   Tensor<T> i_1_3   {O, O, O, V};
-   Tensor<T> i_2     {O, O};
-   Tensor<T> i_2_1   {O, V};
-   Tensor<T> i_3     {V, V};
-   Tensor<T> i_4     {O, O, O, O};
-   Tensor<T> i_4_1   {O, O, O, V};
-   Tensor<T> i_5     {O, V, O, V};
-   Tensor<T> i_6_1   {O, O, O, O};
-   Tensor<T> i_6_1_1 {O, O, O, V};
-   Tensor<T> i_6     {O, V, O, O};
-   Tensor<T> i_6_2   {O, V};
-   Tensor<T> i_6_3   {O, O, O, V};
-   Tensor<T> i_6_4   {O, O, O, O};
-   Tensor<T> i_6_4_1 {O, O, O, V};
-   Tensor<T> i_6_5   {O, V, O, V};
-   Tensor<T> i_6_6   {O, V};
-   Tensor<T> i_6_7   {O, O, O, V};
-   Tensor<T> i_7     {V, V, O, V};
-   Tensor<T> i_8_1   {O, V};
-   Tensor<T> i_8     {O, O};
-   Tensor<T> i_8_2   {O, V};
-   Tensor<T> i_9     {O, O, O, O};
-   Tensor<T> i_9_1   {O, O, O, V};
-   Tensor<T> i_10    {V, V};
-   Tensor<T> i_11    {O, V, O, V};
+   Tensor<T> i_1     {{O, V, O, O},{2,2}};
+   Tensor<T> i_1_1   {{O, V, O, V},{2,2}};
+   Tensor<T> i_1_2   {{O, V},{1,1}};
+   Tensor<T> i_1_3   {{O, O, O, V},{2,2}};
+   Tensor<T> i_2     {{O, O},{1,1}};
+   Tensor<T> i_2_1   {{O, V},{1,1}};
+   Tensor<T> i_3     {{V, V},{1,1}};
+   Tensor<T> i_4     {{O, O, O, O},{2,2}};
+   Tensor<T> i_4_1   {{O, O, O, V},{2,2}};
+   Tensor<T> i_5     {{O, V, O, V},{2,2}};
+   Tensor<T> i_6_1   {{O, O, O, O},{2,2}};
+   Tensor<T> i_6_1_1 {{O, O, O, V},{2,2}};
+   Tensor<T> i_6     {{O, V, O, O},{2,2}};
+   Tensor<T> i_6_2   {{O, V},{1,1}};
+   Tensor<T> i_6_3   {{O, O, O, V},{2,2}};
+   Tensor<T> i_6_4   {{O, O, O, O},{2,2}};
+   Tensor<T> i_6_4_1 {{O, O, O, V},{2,2}};
+   Tensor<T> i_6_5   {{O, V, O, V},{2,2}};
+   Tensor<T> i_6_6   {{O, V},{1,1}};
+   Tensor<T> i_6_7   {{O, O, O, V},{2,2}};
+   Tensor<T> i_7     {{V, V, O, V},{2,2}};
+   Tensor<T> i_8_1   {{O, V},{1,1}};
+   Tensor<T> i_8     {{O, O},{1,1}};
+   Tensor<T> i_8_2   {{O, V},{1,1}};
+   Tensor<T> i_9     {{O, O, O, O},{2,2}};
+   Tensor<T> i_9_1   {{O, O, O, V},{2,2}};
+   Tensor<T> i_10    {{V, V},{1,1}};
+   Tensor<T> i_11    {{O, V, O, V},{2,2}};
 
    Scheduler sch{ec};
 
@@ -813,8 +813,8 @@ void eomccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
 
 auto populate_vector_of_tensors = [&] (std::vector<Tensor<T>> &vec, bool is2D=true){
      for(auto x=0;x<vec.size();x++){
-        if(is2D) vec[x] = Tensor<T>{V,O};
-        else     vec[x] = Tensor<T>{V,V,O,O};
+        if(is2D) vec[x] = Tensor<T>{{V,O},{1,1}};
+        else     vec[x] = Tensor<T>{{V,V,O,O},{2,2}};
         Tensor<T>::allocate(&ec,vec[x]);
      }
 };
@@ -829,10 +829,10 @@ auto populate_vector_of_tensors = [&] (std::vector<Tensor<T>> &vec, bool is2D=tr
 
   Matrix hbar = Matrix::Zero(hbardim,hbardim);
 
-  Tensor<T> u1{V, O};
-  Tensor<T> u2{V, V, O, O};
-  Tensor<T> uu2{V, V, O, O};
-  Tensor<T> uuu2{V, V, O, O};
+  Tensor<T> u1{{V, O},{1,1}};
+  Tensor<T> u2{{V, V, O, O},{2,2}};
+  Tensor<T> uu2{{V, V, O, O},{2,2}};
+  Tensor<T> uuu2{{V, V, O, O},{2,2}};
   Tensor<T>::allocate(&ec,u1,u2,uu2,uuu2);
 
 using std::vector;
@@ -1561,9 +1561,20 @@ TEST_CASE("CCSD Driver") {
     
     // Construction of tiled index space MO
 
+//    IndexSpace MO_IS{range(0, total_orbitals),
+//                    {{"occ", {range(0, 2*ov_alpha)}},
+//                     {"virt", {range(2*ov_alpha, total_orbitals)}}}};
+
     IndexSpace MO_IS{range(0, total_orbitals),
-                    {{"occ", {range(0, 2*ov_alpha)}},
-                     {"virt", {range(2*ov_alpha, total_orbitals)}}}};
+                    {
+                     {"occ", {range(0, 2*ov_alpha)}},
+                     {"virt", {range(2*ov_alpha, total_orbitals)}}
+                    },
+                    {
+                     {Spin{1}, {range(0, ov_alpha), range(2*ov_alpha,2*ov_alpha+ov_beta)}},
+                     {Spin{2}, {range(ov_alpha, 2*ov_alpha), range(2*ov_alpha+ov_beta, total_orbitals)}}
+                    }
+                     };
 
     // IndexSpace MO_IS{range(0, total_orbitals),
     //                 {{"occ", {range(0, ov_alpha+ov_beta)}}, //0-7
@@ -1584,14 +1595,14 @@ TEST_CASE("CCSD Driver") {
     TiledIndexSpace V = MO("virt");
     TiledIndexSpace N = MO("all");
 
-    Tensor<T> d_t1{V, O};
-    Tensor<T> d_t2{V, V, O, O};
+    Tensor<T> d_t1{{V, O},{1,1}};
+    Tensor<T> d_t2{{V, V, O, O},{2,2}};
 //    Tensor<T> d_x1{V, O};
 //    Tensor<T> d_x2{V, V, O, O};
 //    Tensor<T> d_y1{O,V};
 //    Tensor<T> d_y2{O,O,V,V};
-    Tensor<T> d_f1{N, N};
-    Tensor<T> d_v2{N, N, N, N};
+    Tensor<T> d_f1{{N, N},{1,1}};
+    Tensor<T> d_v2{{N, N, N, N},{2,2}};
 
 //CCSD Variables
     int maxiter    = 50;

@@ -674,7 +674,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   /*** =========================== ***/
 
   const auto maxiter = 100;
-  const auto conv = 1e-7;
+  const auto conve = 1e-7;
+  const auto convd = 1e-5;
   auto iter = 0;
   auto rmsd = 1.0;
   auto ediff = 0.0;
@@ -840,7 +841,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
    }
 
   //  if(simple_convergence) F_old = F;
-  } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)));
+  } while (((fabs(ediff) > conve) || (fabs(rmsd) > convd)));
 
   std::cout.precision(15);
   printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);

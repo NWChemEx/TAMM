@@ -1,6 +1,5 @@
 
 #include "tamm/tamm.hpp"
-#include "tamm/tamm_utils.hpp"
 #include "macdecls.h"
 #include "ga-mpi.h"
 

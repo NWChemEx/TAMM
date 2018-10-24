@@ -3,6 +3,7 @@
 #include "diis.hpp"
 #include "4index_transform_CD.hpp"
 #include "catch/catch.hpp"
+#include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
 #include "macdecls.h"
 #include "ga-mpi.h"
@@ -575,31 +576,19 @@ void ccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
   double residual = 0.0;
   double energy = 0.0;
 
-  {
-      auto lambda2 = [&](const IndexVector& blockid) {
-          if(blockid[0] != blockid[1]) {
-              Tensor<T> tensor     = d_f1;
-              const TAMM_SIZE size = tensor.block_size(blockid);
+auto lambda2 = [&](const IndexVector& blockid, span<T> buf){
+    if(blockid[0] != blockid[1]) {
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+    }
+};
 
-              std::vector<T> buf(size);
-              tensor.get(blockid, buf);
+update_tensor(d_f1(),lambda2);
 
-              auto block_dims   = tensor.block_dims(blockid);
-              auto block_offset = tensor.block_offsets(blockid);
-
-              TAMM_SIZE c = 0;
-              for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
-                  i++) {
-                  for(auto j = block_offset[1];
-                      j < block_offset[1] + block_dims[1]; j++, c++) {
-                      buf[c] = 0;
-                  }
-              }
-              d_f1.put(blockid, buf);
-          }
-      };
-      block_for(ec, d_f1(), lambda2);
-  }
+auto lambdar2 = [&](const IndexVector& blockid, span<T> buf){
+    if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+    }
+};
 
   for(int titer = 0; titer < maxiter; titer += ndiis) {
       for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
@@ -624,38 +613,7 @@ void ccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
           std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
                                             d_e, p_evl_sorted, zshiftl, noab);
 
-          {
-              auto lambdar2 = [&](const IndexVector& blockid) {
-                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-                      Tensor<T> tensor     = d_r2;
-                      const TAMM_SIZE size = tensor.block_size(blockid);
-
-                      std::vector<T> buf(size);
-                      tensor.get(blockid, buf);
-
-                      auto block_dims   = tensor.block_dims(blockid);
-                      auto block_offset = tensor.block_offsets(blockid);
-
-                      TAMM_SIZE c = 0;
-                      for(auto i = block_offset[0];
-                          i < block_offset[0] + block_dims[0]; i++) {
-                          for(auto j = block_offset[1];
-                              j < block_offset[1] + block_dims[1]; j++) {
-                              for(auto k = block_offset[2];
-                                  k < block_offset[2] + block_dims[2]; k++) {
-                                  for(auto l = block_offset[3];
-                                      l < block_offset[3] + block_dims[3];
-                                      l++, c++) {
-                                      buf[c] = 0;
-                                  }
-                              }
-                          }
-                      }
-                      d_r2.put(blockid, buf);
-                  }
-              };
-              block_for(ec, d_r2(), lambdar2);
-          }
+          update_tensor(d_r2(), lambdar2);
 
           Scheduler{ec}((*d_r1s[off])() = d_r1())((*d_r2s[off])() = d_r2())
             .execute();
@@ -695,7 +653,7 @@ void ccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
     }
   }
 
-  for(size_t i=0; i<ndiis; i++) {
+  for(auto i=0; i<ndiis; i++) {
     Tensor<T>::deallocate(*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
   d_r1s.clear();
@@ -851,49 +809,7 @@ TEST_CASE("CCSD Driver") {
   }
 
   //Tensor Map 
-  block_for(*ec, d_f1(), [&](IndexVector it) {
-    Tensor<T> tensor = d_f1().tensor();
-    const TAMM_SIZE size = tensor.block_size(it);
-    
-    std::vector<T> buf(size);
-
-    auto block_offset = tensor.block_offsets(it);
-    auto block_dims = tensor.block_dims(it);
-
-    TAMM_SIZE c=0;
-    for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-      for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
-           j++, c++) {
-        buf[c] = F(i, j);
-      }
-    }
-    d_f1.put(it,buf);
-  });
-
-//   block_for(*ec, d_v2(), [&](IndexVector it) {
-//       Tensor<T> tensor     = d_v2().tensor();
-//       const TAMM_SIZE size = tensor.block_size(it);
-
-//       std::vector<T> buf(size);
-
-//       auto block_dims = tensor.block_dims(it);
-//       auto block_offset = tensor.block_offsets(it);
-
-//       TAMM_SIZE c = 0;
-//       for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-//           for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
-//               j++) {
-//               for(auto k = block_offset[2]; k < block_offset[2] + block_dims[2];
-//                   k++) {
-//                   for(auto l = block_offset[3];
-//                       l < block_offset[3] + block_dims[3]; l++, c++) {
-//                       buf[c] = V2(i,j,k,l);
-//                   }
-//               }
-//           }
-//       }
-//       d_v2.put(it, buf);
-//   });
+  eigen_to_tamm_tensor(d_f1, F);
 
   for(auto x = 0; x < chol_count; x++) {
       Tensor<T>* cholvec = chol_vecs.at(x);

@@ -416,31 +416,19 @@ void ccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
   double residual = 0.0;
   double energy = 0.0;
 
-  {
-      auto lambda2 = [&](const IndexVector& blockid) {
-          if(blockid[0] != blockid[1]) {
-              Tensor<T> tensor     = d_f1;
-              const TAMM_SIZE size = tensor.block_size(blockid);
+auto lambda2 = [&](const IndexVector& blockid, span<T> buf){
+    if(blockid[0] != blockid[1]) {
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+    }
+};
 
-              std::vector<T> buf(size);
-              tensor.get(blockid, buf);
+update_tensor(d_f1(), lambda2);
 
-              auto block_dims   = tensor.block_dims(blockid);
-              auto block_offset = tensor.block_offsets(blockid);
-
-              TAMM_SIZE c = 0;
-              for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
-                  i++) {
-                  for(auto j = block_offset[1];
-                      j < block_offset[1] + block_dims[1]; j++, c++) {
-                      buf[c] = 0;
-                  }
-              }
-              d_f1.put(blockid, buf);
-          }
-      };
-      block_for(ec, d_f1(), lambda2);
-  }
+auto lambdar2 = [&](const IndexVector& blockid, span<T> buf){
+    if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+    }
+};
 
   for(int titer = 0; titer < maxiter; titer += ndiis) {
       for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
@@ -465,38 +453,7 @@ void ccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
           std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
                                             d_e, p_evl_sorted, zshiftl, noab);
 
-          {
-              auto lambdar2 = [&](const IndexVector& blockid) {
-                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-                      Tensor<T> tensor     = d_r2;
-                      const TAMM_SIZE size = tensor.block_size(blockid);
-
-                      std::vector<T> buf(size);
-                      tensor.get(blockid, buf);
-
-                      auto block_dims   = tensor.block_dims(blockid);
-                      auto block_offset = tensor.block_offsets(blockid);
-
-                      TAMM_SIZE c = 0;
-                      for(auto i = block_offset[0];
-                          i < block_offset[0] + block_dims[0]; i++) {
-                          for(auto j = block_offset[1];
-                              j < block_offset[1] + block_dims[1]; j++) {
-                              for(auto k = block_offset[2];
-                                  k < block_offset[2] + block_dims[2]; k++) {
-                                  for(auto l = block_offset[3];
-                                      l < block_offset[3] + block_dims[3];
-                                      l++, c++) {
-                                      buf[c] = 0;
-                                  }
-                              }
-                          }
-                      }
-                      d_r2.put(blockid, buf);
-                  }
-              };
-              block_for(ec, d_r2(), lambdar2);
-          }
+          update_tensor(d_r2(), lambdar2);
 
           Scheduler{ec}((*d_r1s[off])() = d_r1())((*d_r2s[off])() = d_r2())
             .execute();
@@ -877,6 +834,12 @@ using std::vector;
   Tensor<T> oscalar{};
   Tensor<T>::allocate(&ec, d_r1, oscalar);
 
+    auto lambdar2 = [&](const IndexVector& blockid, span<T> buf){
+        if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+            for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+        }
+    };
+
   for(int iter = 0; iter < maxeomiter;){
      for(int micro = 0; micro < microeomiter; iter++, micro++){
 std::cout<< "######################## 'Iter'ation(+1) " << iter+1 << "#############" << std::endl; 
@@ -899,71 +862,9 @@ std::cout<< "######################## 'Iter'ation(+1) " << iter+1 << "##########
 //################################################################################
           sch(u2()  = xp2.at(ivec)())
              (uu2() = x2.at(jvec)()).execute();
-          {
-              auto lambdar2 = [&](const IndexVector& blockid) {
-                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-                      Tensor<T> tensor     = u2;
-                      const TAMM_SIZE size = tensor.block_size(blockid);
-
-                      std::vector<T> buf(size);
-                      tensor.get(blockid, buf);
-
-                      auto block_dims   = tensor.block_dims(blockid);
-                      auto block_offset = tensor.block_offsets(blockid);
-
-                      TAMM_SIZE c = 0;
-                      for(auto i = block_offset[0];
-                          i < block_offset[0] + block_dims[0]; i++) {
-                          for(auto j = block_offset[1];
-                              j < block_offset[1] + block_dims[1]; j++) {
-                              for(auto k = block_offset[2];
-                                  k < block_offset[2] + block_dims[2]; k++) {
-                                  for(auto l = block_offset[3];
-                                      l < block_offset[3] + block_dims[3];
-                                      l++, c++) {
-                                      buf[c] = 0;
-                                  }
-                              }
-                          }
-                      }
-                      u2.put(blockid, buf);
-                  }
-              };
-              block_for(ec, u2(), lambdar2);
-          }
-          {
-              auto lambdar2 = [&](const IndexVector& blockid) { 
-                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-                      Tensor<T> tensor     = uu2;
-                      const TAMM_SIZE size = tensor.block_size(blockid);
-
-                      std::vector<T> buf(size);
-                      tensor.get(blockid, buf);
-
-                      auto block_dims   = tensor.block_dims(blockid);
-                      auto block_offset = tensor.block_offsets(blockid);
-
-                      TAMM_SIZE c = 0;
-                      for(auto i = block_offset[0];
-                          i < block_offset[0] + block_dims[0]; i++) {
-                          for(auto j = block_offset[1];
-                              j < block_offset[1] + block_dims[1]; j++) {
-                              for(auto k = block_offset[2];
-                                  k < block_offset[2] + block_dims[2]; k++) {
-                                  for(auto l = block_offset[3];
-                                      l < block_offset[3] + block_dims[3];
-                                      l++, c++) {
-                                      buf[c] = 0;
-                                  }
-                              }
-                          }
-                      }
-                      uu2.put(blockid, buf);
-                  }
-              };
-              block_for(ec, uu2(), lambdar2);
-          }
-
+          
+              update_tensor(u2(), lambdar2);
+              update_tensor(uu2(), lambdar2);
 
                sch(d_r1()  = 0) 
                   (d_r1() += xp1.at(ivec)() * x1.at(jvec)()) 
@@ -983,76 +884,14 @@ std::cout<< "######################## 'Iter'ation(+1) " << iter+1 << "##########
 //################################################################################
           sch(u2()  = xp2.at(ivec)())
              (uu2() = x2.at(jvec)()).execute();
-          {
-              auto lambdar2 = [&](const IndexVector& blockid) {
-                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-                      Tensor<T> tensor     = u2;
-                      const TAMM_SIZE size = tensor.block_size(blockid);
 
-                      std::vector<T> buf(size);
-                      tensor.get(blockid, buf);
-
-                      auto block_dims   = tensor.block_dims(blockid);
-                      auto block_offset = tensor.block_offsets(blockid);
-
-                      TAMM_SIZE c = 0;
-                      for(auto i = block_offset[0];
-                          i < block_offset[0] + block_dims[0]; i++) {
-                          for(auto j = block_offset[1];
-                              j < block_offset[1] + block_dims[1]; j++) {
-                              for(auto k = block_offset[2];
-                                  k < block_offset[2] + block_dims[2]; k++) {
-                                  for(auto l = block_offset[3];
-                                      l < block_offset[3] + block_dims[3];
-                                      l++, c++) {
-                                      buf[c] = 0;
-                                  }
-                              }
-                          }
-                      }
-                      u2.put(blockid, buf);
-                  }
-              };
-              block_for(ec, u2(), lambdar2);
-          }
-          {
-              auto lambdar2 = [&](const IndexVector& blockid) { 
-                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-                      Tensor<T> tensor     = uu2;
-                      const TAMM_SIZE size = tensor.block_size(blockid);
-
-                      std::vector<T> buf(size);
-                      tensor.get(blockid, buf);
-
-                      auto block_dims   = tensor.block_dims(blockid);
-                      auto block_offset = tensor.block_offsets(blockid);
-
-                      TAMM_SIZE c = 0;
-                      for(auto i = block_offset[0];
-                          i < block_offset[0] + block_dims[0]; i++) {
-                          for(auto j = block_offset[1];
-                              j < block_offset[1] + block_dims[1]; j++) {
-                              for(auto k = block_offset[2];
-                                  k < block_offset[2] + block_dims[2]; k++) {
-                                  for(auto l = block_offset[3];
-                                      l < block_offset[3] + block_dims[3];
-                                      l++, c++) {
-                                      buf[c] = 0;
-                                  }
-                              }
-                          }
-                      }
-                      uu2.put(blockid, buf);
-                  }
-              };
-              block_for(ec, uu2(), lambdar2);
-          }
+          update_tensor(u2(), lambdar2);
+          update_tensor(uu2(), lambdar2);
 
 //          if(ivec ==4 && jvec ==4){
 //          print_tensor(u2);
 //          print_tensor(uu2);
 //          }
-
 
                sch(d_r1()  = 0) 
                   (d_r1() += xp1.at(ivec)() * x1.at(jvec)()) 
@@ -1071,73 +910,9 @@ std::cout<< "######################## 'Iter'ation(+1) " << iter+1 << "##########
 //################################################################################
           sch(u2()  = xp2.at(ivec)())
              (uu2() = x2.at(jvec)()).execute();
-          {
-              auto lambdar2 = [&](const IndexVector& blockid) {
-                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-                      Tensor<T> tensor     = u2;
-                      const TAMM_SIZE size = tensor.block_size(blockid);
-
-                      std::vector<T> buf(size);
-                      tensor.get(blockid, buf);
-
-                      auto block_dims   = tensor.block_dims(blockid);
-                      auto block_offset = tensor.block_offsets(blockid);
-
-                      TAMM_SIZE c = 0;
-                      for(auto i = block_offset[0];
-                          i < block_offset[0] + block_dims[0]; i++) {
-                          for(auto j = block_offset[1];
-                              j < block_offset[1] + block_dims[1]; j++) {
-                              for(auto k = block_offset[2];
-                                  k < block_offset[2] + block_dims[2]; k++) {
-                                  for(auto l = block_offset[3];
-                                      l < block_offset[3] + block_dims[3];
-                                      l++, c++) {
-                                      buf[c] = 0;
-                                  }
-                              }
-                          }
-                      }
-                      u2.put(blockid, buf);
-                  }
-              };
-              block_for(ec, u2(), lambdar2);
-          }
-          {
-              auto lambdar2 = [&](const IndexVector& blockid) { 
-                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-                      Tensor<T> tensor     = uu2;
-                      const TAMM_SIZE size = tensor.block_size(blockid);
-
-                      std::vector<T> buf(size);
-                      tensor.get(blockid, buf);
-
-                      auto block_dims   = tensor.block_dims(blockid);
-                      auto block_offset = tensor.block_offsets(blockid);
-
-                      TAMM_SIZE c = 0;
-                      for(auto i = block_offset[0];
-                          i < block_offset[0] + block_dims[0]; i++) {
-                          for(auto j = block_offset[1];
-                              j < block_offset[1] + block_dims[1]; j++) {
-                              for(auto k = block_offset[2];
-                                  k < block_offset[2] + block_dims[2]; k++) {
-                                  for(auto l = block_offset[3];
-                                      l < block_offset[3] + block_dims[3];
-                                      l++, c++) {
-                                      buf[c] = 0;
-                                  }
-                              }
-                          }
-                      }
-                      uu2.put(blockid, buf);
-                  }
-              };
-              block_for(ec, uu2(), lambdar2);
-          }
-
-
-
+          
+          update_tensor(u2(), lambdar2);
+          update_tensor(uu2(), lambdar2);
 
                 sch(d_r1()  = 0) 
                   (d_r1() += xp1.at(ivec)() * x1.at(jvec)()) 
@@ -1231,38 +1006,9 @@ for (auto x=0;x<nev;x++)
 
              sch(u1() = r1.at(root)())
                 (u2() = r2.at(root)()).execute();
-          {
-              auto lambdar2 = [&](const IndexVector& blockid) {
-                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-                      Tensor<T> tensor     = u2;
-                      const TAMM_SIZE size = tensor.block_size(blockid);
-
-                      std::vector<T> buf(size);
-                      tensor.get(blockid, buf);
-
-                      auto block_dims   = tensor.block_dims(blockid);
-                      auto block_offset = tensor.block_offsets(blockid);
-
-                      TAMM_SIZE c = 0;
-                      for(auto i = block_offset[0];
-                          i < block_offset[0] + block_dims[0]; i++) {
-                          for(auto j = block_offset[1];
-                              j < block_offset[1] + block_dims[1]; j++) {
-                              for(auto k = block_offset[2];
-                                  k < block_offset[2] + block_dims[2]; k++) {
-                                  for(auto l = block_offset[3];
-                                      l < block_offset[3] + block_dims[3];
-                                      l++, c++) {
-                                      buf[c] = 0;
-                                  }
-                              }
-                          }
-                      }
-                      u2.put(blockid, buf);
-                  }
-              };
-              block_for(ec, u2(), lambdar2);
-          }
+          
+          update_tensor(u2(), lambdar2);
+          
           sch(oscalar() = 0)
              (oscalar() += u1() * u1())
              (oscalar() += u2() * u2()).execute();
@@ -1295,71 +1041,8 @@ for (auto x=0;x<nev;x++)
              sch(uu2() = x2.at(ivec)())
                 (uuu2() = x2.at(jvec)()).execute();
 
-
-          {
-              auto lambdar2 = [&](const IndexVector& blockid) {
-                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-                      Tensor<T> tensor     = uu2;
-                      const TAMM_SIZE size = tensor.block_size(blockid);
-
-                      std::vector<T> buf(size);
-                      tensor.get(blockid, buf);
-
-                      auto block_dims   = tensor.block_dims(blockid);
-                      auto block_offset = tensor.block_offsets(blockid);
-
-                      TAMM_SIZE c = 0;
-                      for(auto i = block_offset[0];
-                          i < block_offset[0] + block_dims[0]; i++) {
-                          for(auto j = block_offset[1];
-                              j < block_offset[1] + block_dims[1]; j++) {
-                              for(auto k = block_offset[2];
-                                  k < block_offset[2] + block_dims[2]; k++) {
-                                  for(auto l = block_offset[3];
-                                      l < block_offset[3] + block_dims[3];
-                                      l++, c++) {
-                                      buf[c] = 0;
-                                  }
-                              }
-                          }
-                      }
-                      uu2.put(blockid, buf);
-                  }
-              };
-              block_for(ec, uu2(), lambdar2);
-          }
-          {
-              auto lambdar2 = [&](const IndexVector& blockid) {
-                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-                      Tensor<T> tensor     = uuu2;
-                      const TAMM_SIZE size = tensor.block_size(blockid);
-
-                      std::vector<T> buf(size);
-                      tensor.get(blockid, buf);
-
-                      auto block_dims   = tensor.block_dims(blockid);
-                      auto block_offset = tensor.block_offsets(blockid);
-
-                      TAMM_SIZE c = 0;
-                      for(auto i = block_offset[0];
-                          i < block_offset[0] + block_dims[0]; i++) {
-                          for(auto j = block_offset[1];
-                              j < block_offset[1] + block_dims[1]; j++) {
-                              for(auto k = block_offset[2];
-                                  k < block_offset[2] + block_dims[2]; k++) {
-                                  for(auto l = block_offset[3];
-                                      l < block_offset[3] + block_dims[3];
-                                      l++, c++) {
-                                      buf[c] = 0;
-                                  }
-                              }
-                          }
-                      }
-                      uuu2.put(blockid, buf);
-                  }
-              };
-              block_for(ec, uuu2(), lambdar2);
-          }
+            update_tensor(uu2(), lambdar2);
+            update_tensor(uuu2(), lambdar2);
 
 
              sch(oscalar() = 0)
@@ -1380,38 +1063,7 @@ for (auto x=0;x<nev;x++)
           sch(x1.at(ivec)() = u1())
           (x2.at(ivec)() = u2()).execute();
 // THIS MUST BE FIXED ^^^^^
-          {
-              auto lambdar2 = [&](const IndexVector& blockid) {
-                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-                      Tensor<T> tensor     = u2;
-                      const TAMM_SIZE size = tensor.block_size(blockid);
-
-                      std::vector<T> buf(size);
-                      tensor.get(blockid, buf);
-
-                      auto block_dims   = tensor.block_dims(blockid);
-                      auto block_offset = tensor.block_offsets(blockid);
-
-                      TAMM_SIZE c = 0;
-                      for(auto i = block_offset[0];
-                          i < block_offset[0] + block_dims[0]; i++) {
-                          for(auto j = block_offset[1];
-                              j < block_offset[1] + block_dims[1]; j++) {
-                              for(auto k = block_offset[2];
-                                  k < block_offset[2] + block_dims[2]; k++) {
-                                  for(auto l = block_offset[3];
-                                      l < block_offset[3] + block_dims[3];
-                                      l++, c++) {
-                                      buf[c] = 0;
-                                  }
-                              }
-                          }
-                      }
-                      u2.put(blockid, buf);
-                  }
-              };
-              block_for(ec, u2(), lambdar2);
-          }
+          update_tensor(u2(), lambdar2);
 
           sch(oscalar() = 0)
              (oscalar() += u1() * u1())
@@ -1625,49 +1277,8 @@ TEST_CASE("CCSD Driver") {
     .execute();
 
   //Tensor Map 
-  block_for(*ec, d_f1(), [&](IndexVector it) {
-    Tensor<T> tensor = d_f1().tensor();
-    const TAMM_SIZE size = tensor.block_size(it);
-    
-    std::vector<T> buf(size);
-
-    auto block_offset = tensor.block_offsets(it);
-    auto block_dims = tensor.block_dims(it);
-
-    TAMM_SIZE c=0;
-    for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-      for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
-           j++, c++) {
-        buf[c] = F(i, j);
-      }
-    }
-    d_f1.put(it,buf);
-  });
-
-  block_for(*ec, d_v2(), [&](IndexVector it) {
-      Tensor<T> tensor     = d_v2().tensor();
-      const TAMM_SIZE size = tensor.block_size(it);
-
-      std::vector<T> buf(size);
-
-      auto block_dims = tensor.block_dims(it);
-      auto block_offset = tensor.block_offsets(it);
-
-      TAMM_SIZE c = 0;
-      for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-          for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
-              j++) {
-              for(auto k = block_offset[2]; k < block_offset[2] + block_dims[2];
-                  k++) {
-                  for(auto l = block_offset[3];
-                      l < block_offset[3] + block_dims[3]; l++, c++) {
-                      buf[c] = V2(i,j,k,l);
-                  }
-              }
-          }
-      }
-      d_v2.put(it, buf);
-  });
+  eigen_to_tamm_tensor(d_f1, F);
+  eigen_to_tamm_tensor(d_v2, V2);
 
 //CCSD Routine:
 //!!!(This can be removed and replaced by a call to the seperated CCSD routine)!!!

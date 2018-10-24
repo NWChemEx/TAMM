@@ -2,7 +2,7 @@
 #include "HF/hartree_fock_eigen.hpp"
 #include "diis.hpp"
 #include "4index_transform.hpp"
-#include "eigen_utils.hpp"
+#include "tamm/eigen_utils.hpp"
 #include "ccsd_util.hpp"
 
 using namespace tamm;

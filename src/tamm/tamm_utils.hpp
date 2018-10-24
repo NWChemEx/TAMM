@@ -22,8 +22,12 @@ void print_tensor(const Tensor<T>& t) {
         std::vector<T> buf(size);
         t.get(blockid, buf);
         std::cout << "block" << blockid;
-        // if (buf[i]>0.0000000000001||buf[i]<-0.0000000000001)
-        for(TAMM_SIZE i = 0; i < size; i++) std::cout << buf[i] << " ";
+        
+        for(TAMM_SIZE i = 0; i < size; i++) {
+            if (buf[i]>0.0000000000001||buf[i]<-0.0000000000001)
+            std::cout << buf[i] << " ";
+        }
+
         std::cout << std::endl;
     }
 }

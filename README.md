@@ -29,6 +29,9 @@ cmake .. \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMM \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild 
 
+#GlobalArrays options
+[-DARMCI_NETWORK=MPI3] #Default is MPI-PR
+
 #Optional - Set if compiler executable names are different or in non-standard path
 [-DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran] 
 

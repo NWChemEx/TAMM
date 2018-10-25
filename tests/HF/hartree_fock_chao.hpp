@@ -603,6 +603,10 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
         1.0 / std::numeric_limits<double>::epsilon();
     std::tie(X, Xinv, XtX_condition_number) =
         conditioning_orthogonalizer(S, S_condition_number_threshold);
+        
+        
+  // pre-compute data for Schwarz bounds
+  auto SchwarzK = compute_schwarz_ints<>(shells);
 
   const auto use_hcore_guess = false;  // use core Hamiltonian eigenstates to guess density?
   // set to true to match the result of versions 0, 1, and 2 of the code
@@ -610,6 +614,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   // thus set to false to use Superposition-Of-Atomic-Densities (SOAD) guess
   Matrix D;
   if (use_hcore_guess) { // hcore guess
+
     // solve H C = e S C
     Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(H, S);
     auto eps = gen_eig_solver.eigenvalues();
@@ -620,6 +625,25 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     // compute density, D = C(occ) . C(occ)T
     auto C_occ = C.leftCols(ndocc);
     D = C_occ * C_occ.transpose();
+
+     F = H;
+
+    // F += compute_2body_fock_general(
+    //     shells, D, shells, true /* SOAD_D_is_shelldiagonal */,
+    //     std::numeric_limits<double>::epsilon()  // this is cheap, no reason
+    //                                             // to be cheaper
+    //     );
+
+    F+=    compute_2body_fock(shells, D, 1e-8, SchwarzK);
+
+
+    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver1(F, S);
+    eps = gen_eig_solver1.eigenvalues();
+    C = gen_eig_solver1.eigenvectors();
+    // compute density, D = C(occ) . C(occ)T
+    C_occ = C.leftCols(ndocc);
+    D = C_occ * C_occ.transpose();
+
   } else {  // SOAD as the guess density
 
     auto D_minbs = compute_soad(atoms);  // compute guess in minimal basis
@@ -667,7 +691,11 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   /*** =========================== ***/
 
   const auto maxiter = 100;
-  const auto conv = 1e-7;
+  const auto conve = 1e-6;
+  const auto convd = 1e-5;
+  //bool simple_convergence = false;
+  double tol_int = 1e-10;
+  //double alpha = 0.5;
   auto iter = 0;
   auto rmsd = 1.0;
   auto ediff = 0.0;
@@ -682,7 +710,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
      cout << " matrix dimension = " << S.rows() << " ndocc = " << ndocc << endl; 
 
   int idiis = 0;
-  int max_hist = 8; 
+  int max_hist = 10; 
   std::vector<Matrix> diis_hist;
   std::vector<Matrix> fock_hist;
 
@@ -690,8 +718,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   Matrix Sm12 = S.pow(-0.5);
   Matrix Sp12 = S.pow(0.5);
 
-  // pre-compute data for Schwarz bounds
-  auto SchwarzK = compute_schwarz_ints<>(shells);
+
 
   std::cout << "\n\n";
   std::cout << " Hartree-Fock iterations" << std::endl;
@@ -715,11 +742,12 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     //auto F = H;
     hf_t1 = std::chrono::high_resolution_clock::now();
 
-    const auto precision_F = std::min(
-        std::min(1e-3 / XtX_condition_number, 1e-7),
-        std::max(rmsd / 1e4, std::numeric_limits<double>::epsilon()));
+    //const auto precision_F = std::min(
+    //    std::min(1e-3 / XtX_condition_number, 1e-7),
+    //    std::max(rmsd / 1e4, std::numeric_limits<double>::epsilon()));
 
-    Matrix Ftmp = compute_2body_fock(shells, D, precision_F, SchwarzK);
+    //Matrix Ftmp = compute_2body_fock(shells, D, precision_F, SchwarzK);
+    Matrix Ftmp = compute_2body_fock(shells, D, tol_int, SchwarzK);
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
@@ -765,7 +793,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
     hf_t1 = std::chrono::high_resolution_clock::now();
 
-    if(iter > 2) {
+    if(iter > 1) {
       ++idiis;
       diis(F, err_mat, D_last, iter, max_hist, idiis, diis_hist,
           fock_hist);
@@ -847,7 +875,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
    }
 
   //  if(simple_convergence) F_old = F;
-  } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)));
+
+  } while (((fabs(ediff) > conve) || (fabs(rmsd) > convd)));
 
   std::cout.precision(15);
   printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
@@ -863,22 +892,23 @@ void diis(Matrix& F, Matrix& err_mat, Matrix& D_last, int iter, int max_hist,
       using Vector =
       Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
  
-  // std::vector<double> max_err(diis_hist.size());
-  // std::cout << "max_err vector: \n";
-  // for (auto i=0; i<diis_hist.size(); i++){
-  //   max_err[i] = diis_hist[i].norm();
-  //   cout << max_err[i] << ",";
-  // }
+  // const int epos = ((ndiis-1) % max_hist) + 1;
+  if(ndiis >  max_hist) { 
 
-  // auto maxe = std::distance(max_err.begin(), 
-  //           std::max_element(max_err.begin(),max_err.end()));
+  std::vector<double> max_err(diis_hist.size());
+  // std::cout << "max_err vector: \n";
+  for (auto i=0; i<diis_hist.size(); i++){
+    max_err[i] = diis_hist[i].norm();
+    // cout << max_err[i] << ",";
+  }
+
+  auto maxe = std::distance(max_err.begin(), 
+            std::max_element(max_err.begin(),max_err.end()));
 
   // std::cout << "\nmax index: " << maxe << endl;
 
-  // const int epos = ((ndiis-1) % max_hist) + 1;
-  if(ndiis > max_hist) { 
-    diis_hist.erase(diis_hist.begin()); //+maxe);
-    fock_hist.erase(fock_hist.begin()); //+maxe);
+    diis_hist.erase(diis_hist.begin()+maxe);
+    fock_hist.erase(fock_hist.begin()+maxe);
     
   }
   diis_hist.push_back(err_mat);

@@ -103,29 +103,6 @@ std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
 
 template <class T> T &unconst_cast(const T &v) { return const_cast<T &>(v); }
 
-template<typename T>
-std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
-    os << "[";
-    for(auto& x : vec) os << x << ",";
-    os << "]\n";
-    return os;
-}
-
-template<typename T>
-void print_tensor(Tensor<T>& t) {
-    auto lt = t();
-    for(auto it : t.loop_nest()) {
-        auto blockid   = internal::translate_blockid(it, lt);
-        TAMM_SIZE size = t.block_size(blockid);
-        std::vector<T> buf(size);
-        t.get(blockid, buf);
-        std::cout << "block = " << blockid;
-        // std::cout << "size= " << size << endl;
-        for(TAMM_SIZE i = 0; i < size; i++) std::cout << buf[i] << " ";
-        std::cout << endl;
-    }
-}
-
 size_t nbasis(const std::vector<libint2::Shell>& shells) {
     size_t n = 0;
     for(const auto& shell : shells) n += shell.size();
@@ -366,16 +343,17 @@ std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
       gensqrtinv(S, false, S_condition_number_threshold);
   auto obs_nbf_omitted = (long)S.rows() - (long)obs_rank;
 //   std::cout << "overlap condition number = " << S_condition_number;
-  if (obs_nbf_omitted > 0)
-    std::cout << " (dropped " << obs_nbf_omitted << " "
+  if (obs_nbf_omitted > 0){
+    if(GA_Nodeid()==0) std::cout << " (dropped " << obs_nbf_omitted << " "
               << (obs_nbf_omitted > 1 ? "fns" : "fn") << " to reduce to "
               << XtX_condition_number << ")";
-  std::cout << std::endl;
+  }
+  if(GA_Nodeid()==0) std::cout << std::endl;
 
   if (obs_nbf_omitted > 0) {
     Matrix should_be_I = X.transpose() * S * X;
     Matrix I = Matrix::Identity(should_be_I.rows(), should_be_I.cols());
-    std::cout << "||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
+    if(GA_Nodeid()==0) std::cout << "||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
               << " (should be 0)" << std::endl;
   }
 
@@ -404,8 +382,9 @@ compute_shellpairs(const libint2::BasisSet& bs1,
                        std::max(bs1.max_l(), bs2.max_l()), 0);
 
 
-  std::cout << "computing non-negligible shell-pair list ... ";
-
+  if(GA_Nodeid()==0)
+    std::cout << "computing non-negligible shell-pair list ... ";
+    
   libint2::Timers<1> timer;
   timer.set_now_overhead(25);
   timer.start(0);
@@ -473,7 +452,8 @@ compute_shellpairs(const libint2::BasisSet& bs1,
     }
   
   timer.stop(0);
-  std::cout << "done (" << timer.read(0) << " s)" << std::endl;
+  if(GA_Nodeid()==0)     
+    std::cout << "done (" << timer.read(0) << " s)" << std::endl;
 
   return std::make_tuple(splist,spdata);
 }
@@ -544,7 +524,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
       for (auto& sp : obs_shellpair_list) {
         nsp += sp.second.size();
       }
-      std::cout << "# of {all,non-negligible} shell-pairs = {"
+      if(GA_Nodeid()==0) std::cout << "# of {all,non-negligible} shell-pairs = {"
                 << shells.size() * (shells.size() + 1) / 2 << "," << nsp << "}"
                 << std::endl;
     }
@@ -1454,13 +1434,14 @@ Matrix compute_schwarz_ints(
   Engine engine = Engine(Kernel, std::max(bs1.max_nprim(), bs2.max_nprim()),
                       std::max(bs1.max_l(), bs2.max_l()), 0, epsilon, params);
 
-  std::cout << "computing Schwarz bound prerequisites (kernel=" << (int)Kernel
-            << ") ... ";
+  if(GA_Nodeid()==0)
+    std::cout << "computing Schwarz bound prerequisites (kernel=" 
+          << (int)Kernel << ") ... ";
 
-  libint2::Timers<1> timer;
-  timer.set_now_overhead(25);
-  timer.start(0);
-
+    libint2::Timers<1> timer;
+    timer.set_now_overhead(25);
+    timer.start(0);
+  
     const auto& buf = engine.results();
 
     // loop over permutationally-unique set of shells
@@ -1489,11 +1470,10 @@ Matrix compute_schwarz_ints(
       }
     }
 
-
-
   timer.stop(0);
-  std::cout << "done (" << timer.read(0) << " s)" << std::endl;
-
+  if(GA_Nodeid()==0) 
+    std::cout << "done (" << timer.read(0) << " s)" << std::endl;
+ 
   return K;
 }
 

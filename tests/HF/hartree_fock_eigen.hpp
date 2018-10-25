@@ -674,8 +674,11 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   /*** =========================== ***/
 
   const auto maxiter = 100;
-  const auto conve = 1e-7;
+  const auto conve = 1e-6;
   const auto convd = 1e-5;
+  bool simple_convergence = false;
+  double tol_int = 1e-10;
+  double alpha = 0.5;
   auto iter = 0;
   auto rmsd = 1.0;
   auto ediff = 0.0;
@@ -718,11 +721,12 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     //auto F = H;
     hf_t1 = std::chrono::high_resolution_clock::now();
 
-    const auto precision_F = std::min(
-        std::min(1e-3 / XtX_condition_number, 1e-7),
-        std::max(rmsd / 1e4, std::numeric_limits<double>::epsilon()));
+    //const auto precision_F = std::min(
+    //    std::min(1e-3 / XtX_condition_number, 1e-7),
+    //    std::max(rmsd / 1e4, std::numeric_limits<double>::epsilon()));
 
-    Matrix Ftmp = compute_2body_fock(shells, D, precision_F, SchwarzK);
+    //Matrix Ftmp = compute_2body_fock(shells, D, precision_F, SchwarzK);
+    Matrix Ftmp = compute_2body_fock(shells, D, tol_int, SchwarzK);
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
@@ -742,9 +746,9 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     if(debug) std::cout << "F=H+2BF:" << hf_time << "s, ";
 
 
-    //  if (iter>1 && simple_convergence) {
-    //    F = alpha * F + (1.0-alpha)*F_old;
-    //  }
+    if (simple_convergence && iter>1) {
+        F = alpha * F + (1.0-alpha)*F_old;
+    }
 
     hf_t1 = std::chrono::high_resolution_clock::now();
 
@@ -768,10 +772,9 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
     hf_t1 = std::chrono::high_resolution_clock::now();
 
-    if(iter > 2) {
+    if(iter > 1) {
       ++idiis;
-      diis(F, err_mat, D_last, iter, max_hist, idiis, diis_hist,
-          fock_hist);
+      diis(F, err_mat, D_last, iter, max_hist, idiis, diis_hist, fock_hist);
     }
 
     hf_t2 = std::chrono::high_resolution_clock::now();
@@ -840,7 +843,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
      exit(0);
    }
 
-  //  if(simple_convergence) F_old = F;
+    if(simple_convergence) F_old = F;
+
   } while (((fabs(ediff) > conve) || (fabs(rmsd) > convd)));
 
   std::cout.precision(15);
@@ -858,7 +862,7 @@ void diis(Matrix& F, Matrix& err_mat, Matrix& D_last, int iter, int max_hist,
       Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
  
   // const int epos = ((ndiis-1) % max_hist) + 1;
-  if(ndiis > max_hist) { 
+  if(ndiis >  max_hist) { 
 
   std::vector<double> max_err(diis_hist.size());
   // std::cout << "max_err vector: \n";

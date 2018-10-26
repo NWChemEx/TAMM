@@ -653,26 +653,47 @@ TEST_CASE("CCSD Driver") {
   for(auto x = 0; x < chol_count; x++) {
       Tensor<T>* cholvec = chol_vecs.at(x);
 
-      block_for(*ec, (*cholvec)(), [&](IndexVector it) {
-          Tensor<T> tensor     = (*cholvec)().tensor();
-          const TAMM_SIZE size = tensor.block_size(it);
+        auto lambdacv = [&](Tensor<T> tensor, const IndexVector& blockid, span<T> buf){
+            auto block_dims = tensor.block_dims(blockid);
+            auto block_offset = tensor.block_offsets(blockid);
+                
+            TAMM_SIZE c = 0;
+            for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+                    j++, c++) {
+                buf[c] = CholVpr(i,j,x);
+                }
+            }
+        };
+    update_tensor_general((*cholvec)(), lambdacv);
+   }
 
-          std::vector<T> buf(size);
 
-          auto block_offset = tensor.block_offsets(it);
-          auto block_dims   = tensor.block_dims(it);
 
-          TAMM_SIZE c = 0;
-          for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
-              i++) {
-              for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
-                  j++, c++) {
-                  buf[c] = CholVpr(i,j,x);;
-              }
-          }
-          (*cholvec).put(it, buf);
-      });
-  }
+//   for(auto x = 0; x < chol_count; x++) {
+//       Tensor<T>* cholvec = chol_vecs.at(x);
+
+//       block_for(*ec, (*cholvec)(), [&](IndexVector it) {
+//           Tensor<T> tensor     = (*cholvec)().tensor();
+//           const TAMM_SIZE size = tensor.block_size(it);
+
+//           std::vector<T> buf(size);
+
+//           auto block_offset = tensor.block_offsets(it);
+//           auto block_dims   = tensor.block_dims(it);
+
+//           TAMM_SIZE c = 0;
+//           for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
+//               i++) {
+//               for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+//                   j++, c++) {
+//                   buf[c] = CholVpr(i,j,x);;
+//               }
+//           }
+//           (*cholvec).put(it, buf);
+//       });
+//   }
 
   auto cc_t1 = std::chrono::high_resolution_clock::now();
 

@@ -677,7 +677,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   const auto conve = 1e-6;
   const auto convd = 1e-5;
   bool simple_convergence = false;
-  double tol_int = 1e-10;
+  double tol_int = 1e-8;
   double alpha = 0.5;
   auto iter = 0;
   auto rmsd = 1.0;
@@ -703,7 +703,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   std::cout << " Hartree-Fock iterations" << std::endl;
   std::cout << std::string(70, '-') << std::endl;
   std::cout <<
-      " Iter     Energy            E-Diff           RMSD           Time" 
+      " Iter     Energy            E-Diff            RMSD            Time" 
           << std::endl;
   std::cout << std::string(70, '-') << std::endl;
   std::cout << std::fixed << std::setprecision(2);

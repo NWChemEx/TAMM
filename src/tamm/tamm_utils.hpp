@@ -55,6 +55,21 @@ void update_tensor(LabeledTensor<T> lt, Func lambda){
     }  
 }
 
+template<typename T, typename Func> 
+void update_tensor_general(LabeledTensor<T> lt, Func lambda){
+    LabelLoopNest loop_nest{lt.labels()};
+
+    for(const auto& itval : loop_nest) {
+        const IndexVector blockid = internal::translate_blockid(itval, lt);  
+        size_t size               = lt.tensor().block_size(blockid);
+        std::vector<T> buf(size);
+
+        lt.tensor().get(blockid,buf);
+        lambda(lt.tensor(), blockid, buf);
+        lt.tensor().put(blockid, buf);
+    }  
+}
+
 } // namespace tamm
 
 #endif // TAMM_TAMM_UTILS_HPP_

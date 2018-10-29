@@ -347,7 +347,7 @@ public:
         using TensorElType = typename LabeledTensorT::element_type;
         LabelLoopNest loop_nest{lhs_.labels()};
 
-        TaskEngine te;
+//previous implementation
         auto lambda = [&](const IndexVector& blockid) {
             auto tensor = lhs_.tensor();
             EXPECTS(blockid.size() == lhs_.labels().size());
@@ -357,22 +357,54 @@ public:
 
             const size_t size = tensor.block_size(translated_blockid);
             
-            //std::vector<TensorElType> buf(size,
-            //                              static_cast<TensorElType>(alpha()));
-            BlockId tempbuf(size);
+            std::vector<TensorElType> buf(size, static_cast<TensorElType>(alpha()));
+
             if(is_assign_) {
-                    te.submitTask(function_definition, {WRITE(tensor(translated_blockid)), TEMP(tempbuf)}, alpha())
                 tensor.put(translated_blockid, buf);
             } else {
                 tensor.add(translated_blockid, buf);
             }
         };
 
+        do_work(ec, loop_nest, lambda);
+// New task-based implementation
+       auto cpulambda = [&](const IndexVector& translated_blockid, RuntimeSummary *rs) {
+            auto tensor = lhs_.tensor();
+
+            const size_t size = tensor.block_size(translated_blockid);
+            auto buf = static_cast<TensorElType*> (rs.get_buffer(size* sizeof(TensorElType)));
+            //TODO: something similar to the following line
+            //std::vector<TensorElType> buf(size, static_cast<TensorElType>(alpha()));
+            //std::fill(std::begin(buf), std::end(buf), alpha());
+            std::fill(buf, buf+size, alpha());
+            BlockId tempbuf(size);
+
+            if(is_assign_) {
+                tensor.put(translated_blockid, buf);
+            } else {
+                tensor.add(translated_blockid, buf);
+            }
+            rs.release(buf);
+        };
+        auto gpulambda = nullptr;
+        FunctionDefinition function_definition(cpulambda, gpulambda);
+
+        auto tensor = lhs_.tensor();
+
+        auto first = loop_nest.begin();
+        auto last = loop_nst.end();
+
+        TaskEngine te;
+        for(; first!= last; ++first) {
+            auto blockid =  *first;
+            EXPECTS(blockid.size() == lhs_.labels().size());
+            EXPECTS(blockid.size() == tensor.num_modes());
+            const auto& translated_blockid =
+              internal::translate_blockid(blockid, lhs_);
+            te.submitTask(function_definition, {WRITE(tensor(translated_blockid))}, alpha());
+        }
         RuntimeEngine& runtime_engine = ec.re();
         runtime_engine.executeAllThreads(te);
-        //Forloop(loop_nest)
-        //submit task(lambda, 
-        //do_work(ec, loop_nest, lambda);
     }
 
 protected:

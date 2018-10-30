@@ -368,7 +368,9 @@ public:
 
         do_work(ec, loop_nest, lambda);
 // New task-based implementation
-       auto cpulambda = [&](const IndexVector& translated_blockid, RuntimeSummary *rs) {
+//TODO: parameter list would be buffer pointer and other parameters
+// Buffer pointer ---> tensor(translated_blockid)
+       auto cpulambda = [&](const IndexVector& translated_blockid, RuntimeSummary& rs) {
             auto tensor = lhs_.tensor();
 
             const size_t size = tensor.block_size(translated_blockid);
@@ -377,11 +379,12 @@ public:
             //std::vector<TensorElType> buf(size, static_cast<TensorElType>(alpha()));
             //std::fill(std::begin(buf), std::end(buf), alpha());
             std::fill(buf, buf+size, alpha());
-            BlockId tempbuf(size);
 
             if(is_assign_) {
+                //copy buf to tensor buffer
                 tensor.put(translated_blockid, buf);
             } else {
+                // add buf to tensor buffer
                 tensor.add(translated_blockid, buf);
             }
             rs.release(buf);

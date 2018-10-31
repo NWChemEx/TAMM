@@ -133,7 +133,24 @@ const auto max_engine_precision = std::numeric_limits<double>::epsilon() / 1e10;
 
 using libint2::Atom;
 
-inline std::tuple<std::vector<Atom>, std::string>
+string read_option(std::istream& is, string optionstr, string optiontype){
+  while (std::getline(is, optionstr)){
+    if (optionstr.empty()) continue;
+    else {
+        std::istringstream oss(optionstr);
+        std::vector<std::string> option_string{
+          std::istream_iterator<std::string>{oss},
+          std::istream_iterator<std::string>{}};
+        assert(option_string.size() == 2);
+        assert(option_string[0] == optiontype);
+        optionstr = option_string[1];
+        break;
+    }
+  }
+  return optionstr;
+}
+
+inline std::tuple<std::vector<Atom>, std::string, int, double, double, double, int>
    read_input_xyz(std::istream& is)
 {
   const double angstrom_to_bohr = 1.889725989; //1 / bohr_to_angstrom; //1.889726125
@@ -203,22 +220,20 @@ inline std::tuple<std::vector<Atom>, std::string>
   }
 
   std::string basis_set="sto-3g";
-  while (std::getline(is, basis_set)){
-    if (basis_set.empty()) continue;
-    else {
-        std::istringstream bss(basis_set);
-        std::vector<std::string> basis_string{
-          std::istream_iterator<std::string>{bss},
-          std::istream_iterator<std::string>{}};
-        assert(basis_string.size() == 2);
-        assert(basis_string[0] == "basis");
-        basis_set = basis_string[1];
-       // cout << basis_set << endl;
-        break;
-    }
-  }
+  basis_set = read_option(is, basis_set, "basis");
 
-  return std::make_tuple(atoms,basis_set);
+  string read_maxiter = "100";
+  int maxiter = stoi(read_option(is, read_maxiter, "maxiter"));
+  string read_tol_int = "1e-8";
+  double tol_int = stod(read_option(is, read_tol_int, "tol_int"));
+  string read_conve = "1e-6";
+  double conve = stod(read_option(is, read_conve, "conve"));
+  string read_convd = "1e-5";
+  double convd = stod(read_option(is, read_convd, "convd"));
+  string read_diis_hist = "10";
+  int diis_hist = stod(read_option(is, read_diis_hist, "diis_hist"));
+
+  return std::make_tuple(atoms, basis_set, maxiter, tol_int, conve, convd, diis_hist);
 }
 
 Matrix compute_1body_ints(const std::vector<libint2::Shell> &shells,
@@ -467,7 +482,24 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   auto is = std::ifstream(filename);
   std::vector<Atom> atoms;
   std::string basis;
-  std::tie(atoms,basis) = read_input_xyz(is);
+
+  int maxiter = 50;
+  double conve = 1e-6;
+  double convd = 1e-5;
+  double tol_int = 1e-8;
+  int max_hist = 10; 
+
+  std::tie(atoms,basis,maxiter, tol_int, conve, convd, max_hist) = read_input_xyz(is);
+
+  cout << "\n----------------------------------";
+  cout << "\nBasis set = " << basis;
+  cout << "\nmax iterations = " << maxiter;
+  cout << "\nIntegral tolerance = " << tol_int;
+  cout << "\nEnergy convergence = " << conve;
+  cout << "\nDensity convergence = " << convd;
+  cout << "\ndiis hist = " << max_hist;
+  cout << "\n----------------------------------";
+
   const auto debug = false;
 
 //  std::cout << "Geometries in bohr units \n";
@@ -668,16 +700,12 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 //  cout << "\n\tInitial Density Matrix:\n";
 //  cout << D << endl;
 
-
   /*** =========================== ***/
   /*** main iterative loop         ***/
   /*** =========================== ***/
 
-  const auto maxiter = 100;
-  const auto conve = 1e-6;
-  const auto convd = 1e-5;
   bool simple_convergence = false;
-  double tol_int = 1e-8;
+  
   double alpha = 0.5;
   auto iter = 0;
   auto rmsd = 1.0;
@@ -689,15 +717,13 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   Matrix F_old;
 
   int idiis = 0;
-  int max_hist = 10; 
+  
   std::vector<Matrix> diis_hist;
   std::vector<Matrix> fock_hist;
 
   // S^-1/2
   Matrix Sm12 = S.pow(-0.5);
   Matrix Sp12 = S.pow(0.5);
-
-
 
   std::cout << "\n\n";
   std::cout << " Hartree-Fock iterations" << std::endl;

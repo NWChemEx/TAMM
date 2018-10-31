@@ -491,13 +491,15 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
   std::tie(atoms,basis,maxiter, tol_int, conve, convd, max_hist) = read_input_xyz(is);
 
+  tol_int = std::min(1e-8, 0.01 * conve);
+
   cout << "\n----------------------------------";
+  cout << "\ndiis hist = " << max_hist;
   cout << "\nBasis set = " << basis;
   cout << "\nmax iterations = " << maxiter;
   cout << "\nIntegral tolerance = " << tol_int;
   cout << "\nEnergy convergence = " << conve;
   cout << "\nDensity convergence = " << convd;
-  cout << "\ndiis hist = " << max_hist;
   cout << "\n----------------------------------";
 
   const auto debug = false;

@@ -4,7 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-std::ofstream logOFS; // logfile stream
+static std::ofstream logOFS; // logfile stream
 
 using std::cout;
 using std::endl;

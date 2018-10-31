@@ -38,7 +38,7 @@ H -9.424475 -1.395251 0.207369
 basis 6-31g*
 maxiter 50
 tol_int 1e-8
-conve 1e-7
+conve 1e-6
 convd 1e-5
 diis_hist 10
 

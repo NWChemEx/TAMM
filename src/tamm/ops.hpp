@@ -345,8 +345,8 @@ public:
 
     void execute(ExecutionContext& ec) override {
         using TensorElType = typename LabeledTensorT::element_type;
-        LabelLoopNest loop_nest{lhs_.labels()};
-
+        
+#if 0
 //previous implementation
         auto lambda = [&](const IndexVector& blockid) {
             auto tensor = lhs_.tensor();
@@ -365,12 +365,47 @@ public:
                 tensor.add(translated_blockid, buf);
             }
         };
-
         do_work(ec, loop_nest, lambda);
+#endif
+        // default: only CPU lambda
+        ec.re().submitTask(
+            [=](RuntimeEngine& re){
+                LabelLoopNest loop_nest{lhs_.labels()};
+                auto first = loop_nest.begin();
+                auto last = loop_nst.end();
+                auto tensor = lhs_tensor();
+
+                for(; first!= last; ++first) {
+                    auto blockid =  *first;
+                    EXPECTS(blockid.size() == lhs_.labels().size());
+                    EXPECTS(blockid.size() == tensor.num_modes());
+                    const auto translated_blockid =
+                    internal::translate_blockid(blockid, lhs_);
+                    re.submitTask([=](Runtime& re){
+                        if(is_assign_) {
+                            BlockBuffer bf = re.temp_write_buf(tensor, translated_blockid);
+                            std::fill(bf.buf().begin(), bf.buf().end(), alpha());
+                            bf.put();
+                        } else {
+                            BlockBuffer bf = re.temp_accum_buf(tensor, translated_blockid);
+                            std::fill(bf.buf().begin(), bf.buf().end(), alpha());
+                            bf.accum();
+                        }
+                    }, is_assign_ ? 
+                       WriteAccess{IndexedTensor{tensor, translated_blockid}} :
+                       AccumAccess{IndexedTensor{tensor, translated_blockid}},
+                       alpha());
+                }
+            }, WriteAccess{lhs_}
+        );
+
+        // We do not execute runtime engine here explicitly.  This will be done later by whoever created the execution context.
+
+#if 0
 // New task-based implementation
 //TODO: parameter list would be buffer pointer and other parameters
 // Buffer pointer ---> tensor(translated_blockid)
-       auto cpulambda = [&](const IndexVector& translated_blockid, RuntimeSummary& rs) {
+       auto cpulambda = [=](const IndexVector& translated_blockid, RuntimeSummary& rs) {
             auto tensor = lhs_.tensor();
 
             const size_t size = tensor.block_size(translated_blockid);
@@ -394,20 +429,10 @@ public:
 
         auto tensor = lhs_.tensor();
 
-        auto first = loop_nest.begin();
-        auto last = loop_nst.end();
 
-        TaskEngine te;
-        for(; first!= last; ++first) {
-            auto blockid =  *first;
-            EXPECTS(blockid.size() == lhs_.labels().size());
-            EXPECTS(blockid.size() == tensor.num_modes());
-            const auto& translated_blockid =
-              internal::translate_blockid(blockid, lhs_);
-            te.submitTask(function_definition, {WRITE(tensor(translated_blockid))}, alpha());
-        }
         RuntimeEngine& runtime_engine = ec.re();
         runtime_engine.executeAllThreads(te);
+#endif
     }
 
 protected:

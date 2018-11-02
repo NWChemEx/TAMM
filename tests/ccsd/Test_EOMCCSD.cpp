@@ -770,7 +770,7 @@ void eomccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
 
   auto lambdar2 = [&](const IndexVector& blockid, span<T> buf){
       if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-         for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+         for(auto i = 0U; i < buf.size(); i++) buf[i] = 0;
       }
   };
 
@@ -781,15 +781,16 @@ void eomccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
 //INITIAL GUESS WILL MOVE TO HERE
 //TO DO: NXTRIALS IS SET TO NROOTS BECAUSE WE ONLY ALLOW #NROOTS# INITIAL GUESSES
 //       WHEN THE EOM_GUESS ROUTINE IS UPDATED TO BE LIKE THE INITIAL GUESS IN TCE
-//       THEN THE FOLLOWING LINE WILL BE "INT NXTRIALS = INITVECS", WHERE INITVEC 
-//       IS THE NUMBER OF INITIAL VECTORS. THE {X1,X2} AND {XP1,XP2} TENSORS WILL 
-//       BE OF DIMENSION (ninitvecs + NROOTS*(MICROEOMITER-1)) FOR THE FIRST 
+//       THEN THE FOLLOWING LINE WILL BE "INT NXTRIALS = INITVECS", WHERE INITVEC
+//       IS THE NUMBER OF INITIAL VECTORS. THE {X1,X2} AND {XP1,XP2} TENSORS WILL
+//       BE OF DIMENSION (ninitvecs + NROOTS*(MICROEOMITER-1)) FOR THE FIRST
 //       MICROCYCLE AND (NROOTS*MICROEOMITER) FOR THE REMAINING.
 
   int ninitvecs = nroots;
   const auto hbardim = ninitvecs + nroots*(microeomiter-1);
 
   Matrix hbar = Matrix::Zero(hbardim,hbardim);
+  Matrix hbar_right;
 
   Tensor<T> u1{{V, O},{1,1}};
   Tensor<T> u2{{V, V, O, O},{2,2}};
@@ -820,13 +821,14 @@ void eomccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
   Tensor<T> oscalar{};
   Tensor<T>::allocate(&ec, d_r1, oscalar);
   bool convflag=false;
+  double au2ev = 27.2113961;
 
 //################################################################################
 //  CALL THE EOM_GUESS ROUTINE (EXTERNAL ROUTINE)
 //################################################################################
 
   eom_guess(nroots,noab,p_evl_sorted,x1);
- 
+
 //################################################################################
 //  PRINT THE HEADER FOR THE EOM ITERATIONS
 //################################################################################
@@ -861,187 +863,252 @@ void eomccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
 
         }
 
-//***Update hbar which is a matrix of dot products between the x and xp vectors.
-         if(micro == 0){
+//################################################################################
+//  UPDATE HBAR: ELEMENTS FOR THE NEWEST X AND XP VECTORS ARE COMPUTED
+//################################################################################
+
+        if(micro == 0){
+
            for(int ivec = 0; ivec < newnxtrials; ivec++){
+
               for(int jvec = 0; jvec < newnxtrials; jvec++){
 
-          sch(u2()  = xp2.at(jvec)())
-             (uu2() = x2.at(ivec)()).execute();
-          
-              update_tensor(u2(), lambdar2);
-              update_tensor(uu2(), lambdar2);
+                 sch(u2()  = xp2.at(jvec)())
+                    (uu2() = x2.at(ivec)()).execute();
 
-               sch(d_r1()  = 0) 
-                  (d_r1() += xp1.at(jvec)() * x1.at(ivec)()) 
-                  (d_r1() += u2() * uu2()).execute();
-               T r1;
-               d_r1.get({}, {&r1, 1});
-               hbar(ivec,jvec) = r1;
+                 update_tensor(u2(), lambdar2);
+                 update_tensor(uu2(), lambdar2);
+
+                 sch(d_r1()  = 0)
+                    (d_r1() += xp1.at(jvec)() * x1.at(ivec)())
+                    (d_r1() += u2() * uu2()).execute();
+                 T r1;
+                 d_r1.get({}, {&r1, 1});
+
+                 hbar(ivec,jvec) = r1;
+              }
+           }
+        } else {
+
+           for(int ivec = 0; ivec < newnxtrials; ivec++){
+
+              for(int jvec = nxtrials; jvec < newnxtrials; jvec++){
+
+                 sch(u2()  = xp2.at(jvec)())
+                    (uu2() = x2.at(ivec)()).execute();
+
+                    update_tensor(u2(), lambdar2);
+                    update_tensor(uu2(), lambdar2);
+
+                    sch(d_r1()  = 0)
+                       (d_r1() += xp1.at(jvec)() * x1.at(ivec)())
+                       (d_r1() += u2() * uu2()).execute();
+                    T r1;
+                    d_r1.get({}, {&r1, 1});
+
+                    hbar(ivec,jvec) = r1;
+              }
+           }
+
+           for(int ivec = nxtrials; ivec < newnxtrials; ivec++){
+              for(int jvec = 0; jvec < nxtrials; jvec++){
+
+                 sch(u2()  = xp2.at(jvec)())
+                    (uu2() = x2.at(ivec)()).execute();
+
+                 update_tensor(u2(), lambdar2);
+                 update_tensor(uu2(), lambdar2);
+
+                 sch(d_r1()  = 0)
+                    (d_r1() += xp1.at(jvec)() * x1.at(ivec)())
+                    (d_r1() += u2() * uu2()).execute();
+                 T r1;
+                 d_r1.get({}, {&r1, 1});
+
+                 hbar(ivec,jvec) = r1;
+              }
+           }
+        }
+
+//################################################################################
+//  DIAGONALIZE HBAR
+//################################################################################
+
+  Eigen::EigenSolver<Matrix> hbardiag(hbar.block(0,0,newnxtrials,newnxtrials));
+  auto omegar1 = hbardiag.eigenvalues();
+
+  const auto nev = omegar1.rows();
+  std::vector<T> omegar(nev);
+  for (auto x=0; x<nev;x++)
+  omegar[x] = real(omegar1(x));
+
+//################################################################################
+//  SORT THE EIGENVECTORS AND CORRESPONDING EIGENVALUES
+//################################################################################
+
+  std::vector<size_t> omegar_sorted_order = sort_indexes(omegar);
+  std::sort(omegar.begin(), omegar.end());
+
+  auto hbar_right1 = hbardiag.eigenvectors();
+  assert(hbar_right1.rows() == nev && hbar_right1.cols() == nev);
+  hbar_right.resize(nev,nev);
+  hbar_right.setZero();
+
+  for(auto x=0;x<nev;x++)
+     hbar_right.col(x) = hbar_right1.col(omegar_sorted_order[x]).real();
+
+        if(ec.pg().rank() == 0) {
+          std::cout << "\n";
+          std::cout << " Iteration " << iter+1 << " using "
+                    << newnxtrials << " trial vectors"<< std::endl;
+        }
+
+        nxtrials = newnxtrials;
+
+        for(auto root = 0; root < nroots; root++){
+//################################################################################
+//  FORM RESIDUAL VECTORS
+//################################################################################
+
+           sch(r1.at(root)()  = 0)
+              (r2.at(root)()  = 0).execute();
+
+           for(int i = 0; i < nxtrials; i++){
+
+              T omegar_hbar_scalar = -1 * omegar[root] * hbar_right(i,root);
+
+              sch(r1.at(root)() += omegar_hbar_scalar * x1.at(i)())
+                 (r2.at(root)() += omegar_hbar_scalar * x2.at(i)())
+                 (r1.at(root)() += hbar_right(i,root) * xp1.at(i)())
+                 (r2.at(root)() += hbar_right(i,root) * xp2.at(i)()).execute();
+           }
+
+           sch(u1() = r1.at(root)())
+              (u2() = r2.at(root)()).execute();
+
+           update_tensor(u2(), lambdar2);
+
+           sch(oscalar() = 0)
+              (oscalar() += u1() * u1())
+              (oscalar() += u2() * u2()).execute();
+
+           T tmps = get_scalar(oscalar);
+           T xresidual = sqrt(tmps);
+           T newsc = 1/sqrt(tmps);
+
+           if(ec.pg().rank() == 0) {
+             std::cout.precision(13);
+             std::cout << "   " << xresidual << "   " << omegar[root]
+                       << "    "
+                       << omegar[root]*au2ev << std::endl;
+           }
+
+//################################################################################
+//  EXPAND ITERATIVE SPACE WITH NEW ORTHONORMAL VECTORS
+//################################################################################
+           if(xresidual > eomthresh){
+             int ivec=newnxtrials;
+             newnxtrials++;
+
+             if(newnxtrials <= hbardim){
+               sch(u1() = 0 )
+                  (u2() = 0 ).execute();
+
+               jacobi(ec, r1.at(root), u1, 0.0, false, p_evl_sorted, noab);
+               jacobi(ec, r2.at(root), u2, 0.0, false, p_evl_sorted, noab);
+
+               sch(x1.at(ivec)() = newsc * u1())
+                  (x2.at(ivec)() = newsc * u2()).execute();
+
+               sch(u1() = x1.at(ivec)())
+                  (u2() = x2.at(ivec)())
+                  (uu2() = x2.at(ivec)()).execute();
+
+                  update_tensor(uu2(), lambdar2);
+
+               for(int jvec = 0; jvec<ivec; jvec++){
+
+                  sch(uuu2() = x2.at(jvec)()).execute();
+
+                  update_tensor(uuu2(), lambdar2);
+
+                  sch(oscalar() = 0)
+                     (oscalar() += x1.at(ivec)() * x1.at(jvec)())
+                     (oscalar() += uu2() * uuu2()).execute();
+
+                  T tmps = get_scalar(oscalar);
+
+                  sch(u1() += -1 * tmps * x1.at(jvec)())
+                     (u2() += -1 * tmps * x2.at(jvec)()).execute();
                }
-              }
-           } else {
-              for(int ivec = 0; ivec < newnxtrials; ivec++){
-                 for(int jvec = nxtrials; jvec < newnxtrials; jvec++){
 
-          sch(u2()  = xp2.at(jvec)())
-             (uu2() = x2.at(ivec)()).execute();
+               sch(x1.at(ivec)() = u1())
+                  (x2.at(ivec)() = u2()).execute();
 
-          update_tensor(u2(), lambdar2);
-          update_tensor(uu2(), lambdar2);
+               update_tensor(u2(), lambdar2);
 
-               sch(d_r1()  = 0) 
-                  (d_r1() += xp1.at(jvec)() * x1.at(ivec)()) 
-                  (d_r1() += u2() * uu2()).execute();
-               T r1;
-               d_r1.get({}, {&r1, 1});
-               hbar(ivec,jvec) = r1;
-                 }
-              }
-              for(int ivec = nxtrials; ivec < newnxtrials; ivec++){
-                 for(int jvec = 0; jvec < nxtrials; jvec++){
+               sch(oscalar() = 0)
+                  (oscalar() += u1() * u1())
+                  (oscalar() += u2() * u2()).execute();
 
-          sch(u2()  = xp2.at(jvec)())
-             (uu2() = x2.at(ivec)()).execute();
-          
-          update_tensor(u2(), lambdar2);
-          update_tensor(uu2(), lambdar2);
+               sch(u1() = x1.at(ivec)())
+                  (u2() = x2.at(ivec)()).execute();
 
-                sch(d_r1()  = 0) 
-                  (d_r1() += xp1.at(jvec)() * x1.at(ivec)()) 
-                  (d_r1() += u2() * uu2()).execute();
-               T r1;
-               d_r1.get({}, {&r1, 1});
-               hbar(ivec,jvec) = r1;
-                 }
-              }
-           } 
+               T tmps = get_scalar(oscalar);
+               T newsc = 1/sqrt(tmps);
 
-Eigen::EigenSolver<Matrix> hbardiag(hbar.block(0,0,newnxtrials,newnxtrials));
-auto omegar1 = hbardiag.eigenvalues();
+               sch(x1.at(ivec)() = 0)
+                  (x2.at(ivec)() = 0)
+                  (x1.at(ivec)() += newsc * u1())
+                  (x2.at(ivec)() += newsc * u2()).execute();
 
-const auto nev = omegar1.rows();
-std::vector<T> omegar(nev);
-for (auto x=0; x<nev;x++)
-omegar[x] = real(omegar1(x));
+             }
+           }
+        }
 
 //################################################################################
-//  SORT THE EIGENVECTORS AND CORRESPONDING EIGENVALUES 
+//  CHECK CONVERGENGE
 //################################################################################
+        if(nxtrials == newnxtrials){
+           std::cout << std::string(62, '-') << std::endl;
+           std::cout << " Iterations converged" << std::endl;
+           convflag = true;
+           break;
+        }
 
-std::vector<size_t> omegar_sorted_order = sort_indexes(omegar);
-std::sort(omegar.begin(), omegar.end());
+     } //END MICRO
 
-auto hbar_right1 = hbardiag.eigenvectors();
-assert(hbar_right1.rows() == nev && hbar_right1.cols() == nev);
-Matrix hbar_right(nev,nev);
-hbar_right.setZero();
+  if(convflag) break;
 
-for(auto x=0;x<nev;x++)
-   hbar_right.col(x) = hbar_right1.col(omegar_sorted_order[x]).real();
-
-
-
-
-  if(ec.pg().rank() == 0) {
-    std::cout << "\n";
-    std::cout << " Iteration " << iter+1 << " using "
-              << newnxtrials << " trial vectors"<< std::endl;
+//################################################################################
+//  FORM INITAL VECTORS FOR NEWEST MICRO INTERATIONS
+//################################################################################
+  if(ec.pg().rank() == 0){
+    std::cout << " END OF MICROITERATIONS: COLLAPSING WITH NEW INITAL VECTORS" << std::endl;
   }
- 
- nxtrials = newnxtrials;
- for(auto root = 0; root < nroots; root++){
-    sch(r1.at(root)()  = 0)
-       (r2.at(root)()  = 0).execute();
-    for(int i = 0; i < nxtrials; i++){
-       T omegar_hbar_scalar = -1 * omegar[root] * hbar_right(i,root);
-       sch(r1.at(root)() += omegar_hbar_scalar * x1.at(i)())
-          (r2.at(root)() += omegar_hbar_scalar * x2.at(i)())
-          (r1.at(root)() += hbar_right(i,root) * xp1.at(i)())
-          (r2.at(root)() += hbar_right(i,root) * xp2.at(i)()).execute();
-    }
 
-     sch(u1() = r1.at(root)())
-        (u2() = r2.at(root)()).execute();
-     
-     update_tensor(u2(), lambdar2);
-     
-     sch(oscalar() = 0)
-        (oscalar() += u1() * u1())
-        (oscalar() += u2() * u2()).execute();
-     T tmps = get_scalar(oscalar);
-     T xresidual = sqrt(tmps);
-     T newsc = 1/sqrt(tmps);
-
-  if(ec.pg().rank() == 0) {
-    std::cout << xresidual << "  " << omegar[root] << std::endl;
-  } 
-
-   if(xresidual > eomthresh){
-     int ivec=newnxtrials;
-
-     sch(u1() = 0 )
-        (u2() = 0 ).execute();
-
-     jacobi(ec, r1.at(root), u1, 0.0, false, p_evl_sorted, noab);
-     jacobi(ec, r2.at(root), u2, 0.0, false, p_evl_sorted, noab);
-
-     sch(x1.at(ivec)() = newsc * u1())
-        (x2.at(ivec)() = newsc * u2()).execute();
-
-     sch(u1() = x1.at(ivec)())
-        (u2() = x2.at(ivec)())
-        (uu2() = x2.at(ivec)()).execute();
-
-        update_tensor(uu2(), lambdar2);
-     
-     for(int jvec = 0; jvec<ivec; jvec++){
-
-        sch(uuu2() = x2.at(jvec)()).execute();
-
-        update_tensor(uuu2(), lambdar2);
-
-        sch(oscalar() = 0)
-           (oscalar() += x1.at(ivec)() * x1.at(jvec)())
-           (oscalar() += uu2() * uuu2()).execute();
-        T tmps = get_scalar(oscalar);
-        sch(u1() += -1 * tmps * x1.at(jvec)())
-           (u2() += -1 * tmps * x2.at(jvec)()).execute();
-     } 
-     sch(x1.at(ivec)() = u1())
-        (x2.at(ivec)() = u2()).execute();
-
-     update_tensor(u2(), lambdar2);
-
-     sch(oscalar() = 0)
-        (oscalar() += u1() * u1())
-        (oscalar() += u2() * u2()).execute();
-
-     sch(u1() = x1.at(ivec)())
-        (u2() = x2.at(ivec)()).execute();
-
-     T tmps = get_scalar(oscalar);
-     T newsc = 1/sqrt(tmps);
-
-     sch(x1.at(ivec)() = 0)
-        (x2.at(ivec)() = 0)
-        (x1.at(ivec)() += newsc * u1())
-        (x2.at(ivec)() += newsc * u2()).execute(); 
-
-     newnxtrials++;
-   }
- }
-          if(nxtrials == newnxtrials){ 
-             std::cout << " Iterations converged" << std::endl;
-             convflag = true;
-             break; 
-          }
-     } //end micro
-   if(convflag) break; 
   ninitvecs = nroots;
 
-  //TO DO: ADD collapse functionality
-  std::cout << "COLLAPSE" << std::endl;
+  for(auto root = 0; root < nroots; root++){
+
+     sch(xc1.at(root)() = 0)
+        (xc2.at(root)() = 0).execute();
+
+     for(int i = 0; i < nxtrials; i++){
+
+        T hbr_scalar = hbar_right(i,root);
+
+        sch(xc1.at(root)() += hbr_scalar * x1.at(i)())
+           (xc2.at(root)() += hbr_scalar * x2.at(i)()).execute();
+     }
+  }
+
+  for(auto root = 0; root < nroots; root++){
+
+     sch(x1.at(root)() = xc1.at(root)())
+        (x2.at(root)() = xc2.at(root)()).execute();
+
+  }
 
   }
 
@@ -1055,8 +1122,6 @@ for(auto x=0;x<nev;x++)
   };
   deallocate_vtensors(x1, x2, xp1, xp2, xc1, xc2, r1, r2);
 
-  //   Tensor<T>::deallocate(hbar);
-
 }
 
 std::string filename; //bad, but no choice
@@ -1068,7 +1133,7 @@ int main( int argc, char* argv[] )
     }
 
     filename = std::string(argv[1]);
-    std::ifstream testinput(filename); 
+    std::ifstream testinput(filename);
     if(!testinput){
         std::cout << "Input file provided [" << filename << "] does not exist!\n";
         return 1;
@@ -1077,12 +1142,12 @@ int main( int argc, char* argv[] )
     MPI_Init(&argc,&argv);
     GA_Initialize();
     MA_init(MT_DBL, 8000000, 20000000);
-    
+
     int mpi_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
     int res = Catch::Session().run();
-    
+
     GA_Terminate();
     MPI_Finalize();
 
@@ -1137,7 +1202,7 @@ TEST_CASE("CCSD Driver") {
     std::cout << "\n";
 
     const long int total_orbitals = 2*ov_alpha+2*ov_beta;
-    
+
     // Construction of tiled index space MO
 
 //    IndexSpace MO_IS{range(0, total_orbitals),
@@ -1159,7 +1224,7 @@ TEST_CASE("CCSD Driver") {
     //                 {{"occ", {range(0, ov_alpha+ov_beta)}}, //0-7
     //                  {"virt", {range(total_orbitals/2, total_orbitals)}}, //7-14
     //                  {"alpha", {range(0, ov_alpha),range(ov_alpha+ov_beta,2*ov_alpha+ov_beta)}}, //0-5,7-12
-    //                  {"beta", {range(ov_alpha,ov_alpha+ov_beta), range(2*ov_alpha+ov_beta,total_orbitals)}} //5-7,12-14   
+    //                  {"beta", {range(ov_alpha,ov_alpha+ov_beta), range(2*ov_alpha+ov_beta,total_orbitals)}} //5-7,12-14
     //                  }};
     const unsigned int ova = static_cast<unsigned int>(ov_alpha);
     const unsigned int ovb = static_cast<unsigned int>(ov_beta);
@@ -1188,27 +1253,21 @@ TEST_CASE("CCSD Driver") {
 //EOMCCSD Variables
     int nroots           = 4;
     int maxeomiter       = 50;
-//    int eomsolver        = 1; //Indicates which solver to use. (LATER IMPLEMENTATION)
+//    int eomsolver        = 1; //INDICATES WHICH SOLVER TO USE. (LATER IMPLEMENTATION)
     double eomthresh     = 1.0e-10;
-//    double x2guessthresh = 0.6; //Threshold for x2 initial guess (LATER IMPLEMENTATION)
+//    double x2guessthresh = 0.6; //THRESHOLD FOR X2 INITIAL GUESS (LATER IMPLEMENTATION)
     size_t microeomiter  = 25; //Number of iterations in a microcycle
-    
+
   Tensor<double>::allocate(ec,d_t1,d_t2,d_f1,d_v2);
-//  Tensor<double>::allocate(ec,d_t1,d_t2,d_x1,d_x2,d_f1,d_v2);
-//  Tensor<double>::allocate(ec,d_t1,d_t2,d_y1,d_y2,d_f1,d_v2);
 
   Scheduler{*ec}
       (d_t1() = 0)
       (d_t2() = 0)
-//      (d_x1() = 0)
-//      (d_x2() = 0)
-//      (d_y1() = 0)
-//      (d_y2() = 0)
       (d_f1() = 0)
       (d_v2() = 0)
     .execute();
 
-  //Tensor Map 
+  //Tensor Map
   eigen_to_tamm_tensor(d_f1, F);
   eigen_to_tamm_tensor(d_v2, V2);
 
@@ -1230,7 +1289,6 @@ TEST_CASE("CCSD Driver") {
   cc_t1 = std::chrono::high_resolution_clock::now();
 
   CHECK_NOTHROW(eomccsd_driver<T>(*ec, MO, d_t1, d_t2, d_f1, d_v2,
-//                                  d_x1, d_x2,
                                   nroots, maxeomiter, eomthresh, microeomiter,
                                   total_orbitals, 2 * ov_alpha));
 
@@ -1241,8 +1299,6 @@ TEST_CASE("CCSD Driver") {
   std::cout << "\nTime taken for EOMCCSD: " << ccsd_time << " secs\n";
 
   Tensor<T>::deallocate(d_t1, d_t2, d_f1, d_v2);
-//  Tensor<T>::deallocate(d_t1, d_t2, d_x1, d_x2, d_f1, d_v2);
-//  Tensor<T>::deallocate(d_t1, d_t2, d_y1, d_y2, d_f1, d_v2);
   MemoryManagerGA::destroy_coll(mgr);
   delete ec;
 

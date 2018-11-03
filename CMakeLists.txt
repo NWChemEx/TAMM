@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.11)
 project(tamm VERSION 0.0.0 LANGUAGES C CXX Fortran)
 include(${PROJECT_SOURCE_DIR}/cmake/check_user_env.cmake)
 set(NWX_PROJECTS tamm)

@@ -3,7 +3,7 @@ Prerequisites
 -------------
 - Git
 - autotools
-- cmake >= 3.10
+- cmake >= 3.11
 - MPI Library
 - C++17 compiler
 

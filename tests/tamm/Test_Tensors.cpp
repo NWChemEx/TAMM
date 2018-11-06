@@ -23,6 +23,20 @@ void lambda_function(const IndexVector& blockid, span<T> buff) {
     for(size_t i = 0; i < static_cast<size_t>(buff.size()); i++) { buff[i] = 42; }
 }
 
+template<size_t last_idx>
+void l_func(const IndexVector& blockid, span<T> buf){
+    if(blockid[0] == last_idx || blockid[1] == last_idx){
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = -1; 
+    }
+    else {
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+    }
+
+    if(blockid[0] == last_idx && blockid[1] == last_idx){
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+    }
+};
+
 
 
 template<typename T>
@@ -523,46 +537,138 @@ TEST_CASE("DLPNO") {
 
 TEST_CASE("PNO-MP2") {
     // IndexSpace for i, j values (can be different IndexSpaces)
-    IndexSpace IS{range(10)};
+    IndexSpace IS{range(10),
+                  {{"occ", {range(0, 5)}},
+                   {"virt", {range(5, 10)}}
+    }};
     // Dependent IndexSpace for a, b ranges
-    IndexSpace IS_DEP{range(0,6)};
+    // IndexSpace IS_DEP{range(0,6)};
+    IndexSpace MOs{range(0, 6),
+                   {{"O", {range(0, 3)}},
+                   {"V", {range(3, 6)}}
+    }};
+
+    auto IS_DEP = MOs("O");
+    auto IS_DEP2 = MOs("V");
 
     // Default tiling for IndexSpace for i, j values (can be different IndexSpaces)
     TiledIndexSpace tIS{IS};      
 
-    // Dependency relation between (i, j) pairs and labels a, b
-    std::map<IndexVector, IndexSpace> dep_relation;
+   
+    // Dependency relation between i values and label j
+    std::map<IndexVector, IndexSpace> dep_relation_j;
 
     // Set the dependency for each (i, j) pair and labels a, b
     // here the dependency set on the IS_DEP named subspaces 
     // but it can be done in any way. Assumption is that this  
     // will be passed to the method
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    
     for(const auto& i : IS) {
-        for(const auto& j : IS) {
-            dep_relation.insert({{i, j}, IS_DEP});
+        if(i%2 == 0){
+            dep_relation_j.insert({{i}, IS_DEP});
         }
+        else {
+            dep_relation_j.insert({{i}, IS_DEP2});
+        }
+
     }
 
-    // Dependent IndexSpace s constructed for a and b labels
-    IndexSpace dep_IS{{tIS, tIS}, dep_relation};
+    std::cerr << "(i) -> IndexSpace" << std::endl;
+    for(const auto& [key, value] : dep_relation_j) {
+        for(const auto& var : key) {
+            std::cerr << var << " ";
+        }
+        std::cerr << "-> { ";
 
+        for(const auto& i : value) {
+            std::cerr << i << " ";
+        }
+        
+        std::cerr << "}" << std::endl;
+
+    }
+
+    // Dependent IndexSpace for j
+    IndexSpace dep_IS_J{{tIS}, dep_relation_j};
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+
+    // Dependency relation between (i, j) pairs and labels a, b
+    std::map<IndexVector, IndexSpace> dep_relation;
+    for(const auto& i : IS) {
+        if(i%2 == 0) {
+            for(Index j = 0; j < 3; j++) {
+                dep_relation.insert({{i, j}, IS_DEP2});
+            }
+        } else {
+            for(Index j = 0; j < 3; j++) {
+                dep_relation.insert({{i, j}, IS_DEP});
+            }            
+        }
+    }
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+
+    std::cerr << "(i, j) -> IndexSpace" << std::endl;
+    for(const auto& [key, value] : dep_relation) {
+        for(const auto& var : key) {
+            std::cerr << var << " ";
+        }
+
+        std::cerr << "-> { ";
+
+        for(const auto& i : value) {
+            std::cerr << i << " ";
+        }
+
+        std::cerr << "}" << std::endl;
+    }
+
+    // Default tiling for these dependent IndexSpace s 
+    TiledIndexSpace tdepJ(dep_IS_J);
+    
+
+    // Dependent IndexSpace s constructed for a and b labels
+    IndexSpace dep_IS{{tIS, tdepJ}, dep_relation};
+
+    
     // Default tiling for these dependent IndexSpace s 
     TiledIndexSpace tdep_IS(dep_IS);
 
     // Construct labels for the operations
-    auto [i, j] = tIS.labels<2>("all");
+    auto [i] = tIS.labels<1>("all");
+    auto [k] = tIS.labels<1>("virt");
+    auto [j] = tdepJ.labels<1>("all");
     auto [a, b] = tdep_IS.labels<2>("all");
 
 
     // Main computation tensors (can be passed as parameters)
-    Tensor<double> EMP2{i, j, a(i,j), b(i,j)};
-    Tensor<double> R{i, j, a(i,j), b(i,j)};
-    Tensor<double> G{i, j, a(i,j), b(i,j)};
-    Tensor<double> T{i, j, a(i,j), b(i,j)};
+#if 0
+    Tensor<double> EMP2{i, j(i), a(i,j), b(i,j)};
+    Tensor<double> R{i, j(i), a(i,j), b(i,j)};
+
+    auto ec = make_execution_context();
+    EMP2.allocate(&ec);
+    R.allocate(&ec);
+
+    Scheduler{ec}
+        (EMP2() = 1.0)
+        (EMP2(k, j(k), a(k,j), b(k,j)) = 42.0)
+        (R(i, j(i), a(i,j), b(i,j)) = 2 * EMP2(i, j(i), a(i,j), b(i,j)))
+    .execute();
+
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    print_tensor(EMP2);
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    print_tensor(R);
+#else
+    Tensor<double> EMP2{i, j(i), a(i,j), b(i,j)};
+    Tensor<double> R{i, j(i), a(i,j), b(i,j)};
+    Tensor<double> G{i, j(i), a(i,j), b(i,j)};
+    Tensor<double> T{i, j(i), a(i,j), b(i,j)};
 
     // Temporary tensors
-    Tensor<double> T_prime{i, j, a(i,j), b(i,j)};
-    Tensor<double> Temp{i, j, a(i,j), b(i,j)}; 
+    Tensor<double> T_prime{i, j(i), a(i,j), b(i,j)};
+    Tensor<double> Temp{i, j(i), a(i,j), b(i,j)}; 
     
     // Construct an ExecutionContext 
     auto ec = make_execution_context();
@@ -578,16 +684,16 @@ TEST_CASE("PNO-MP2") {
     // Main computation for calculating closed-shell PNO-MP2 energy
     // auto EMP2 = (G("i,j")("a,b") + R("i,j")("a,b")).dot(2 * T("i,j")("a,b") - T("i,j")("b,a"));
     sch.allocate(EMP2, T_prime, Temp)
-        (EMP2() = 0.0)
-        (T_prime() = 0.0)
-        (Temp() = 0.0)
-        (T_prime(i, j, a(i,j), b(i,j)) = 2.0 * T(i, j, a(i,j), b(i,j)))
-        (T_prime(i, j, a(i,j), b(i,j)) -= T(i, j, b(i,j), a(i,j)))
-        (Temp(i, j, a(i,j), b(i,j)) = G(i, j, a(i,j), b(i,j)))
-        (Temp(i, j, a(i,j), b(i,j)) += R(i, j, a(i,j), b(i,j)))
-        (EMP2(i, j, a(i,j), b(i,j)) += Temp(i, j, a(i,j), b(i,j)) * T_prime(i, j, a(i,j), b(i,j)))
+        (T_prime(i, j(i), a(i,j), b(i,j)) = 2.0 * T(i, j(i), a(i,j), b(i,j)))
+        (T_prime(i, j(i), a(i,j), b(i,j)) -= T(i, j(i), b(i,j), a(i,j)))
+        (Temp(i, j(i), a(i,j), b(i,j)) = G(i, j(i), a(i,j), b(i,j)))
+        (Temp(i, j(i), a(i,j), b(i,j)) += R(i, j(i), a(i,j), b(i,j)))
+        (EMP2(i, j(i), a(i,j), b(i,j)) += Temp(i, j(i), a(i,j), b(i,j)) * T_prime(i, j(i), a(i,j), b(i,j)))
     .execute();
 
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    print_tensor(EMP2);
+#endif
 }
 
 TEST_CASE("GitHub Issues") {
@@ -613,7 +719,7 @@ TEST_CASE("GitHub Issues") {
     .execute();
 
     // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-    // print_tensor(B);
+    //print_tensor(B);
 }
 
 TEST_CASE("Slack Issues") {
@@ -660,7 +766,7 @@ TEST_CASE("Slack Issues") {
         (initialMO_state(x, i, j) = C(mu, i) * tmp(x, mu, j))
     .execute();
 
-    print_tensor(initialMO_state);
+    //print_tensor(initialMO_state);
 
     auto X = initialMO_state.tiled_index_spaces()[0];
     auto n_MOs = W.tiled_index_spaces()[0];
@@ -713,8 +819,8 @@ TEST_CASE("Slicing examples") {
         // (B(i,i) = A(i))
     .execute();
 
-    print_tensor(A);
-    print_tensor(B);
+    //print_tensor(A);
+    //print_tensor(B);
 }
 
 TEST_CASE("Fill tensors using lambda functions") {
@@ -735,20 +841,27 @@ TEST_CASE("Fill tensors using lambda functions") {
     A.allocate(&ec);
     B.allocate(&ec);
 
+
     update_tensor(A(), lambda_function);
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-    print_tensor(A);
+    // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    //print_tensor(A);
 
     Scheduler{ec}
-        (A() = 0.0)
+        (A() = 0)
     .execute();
+    // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    //print_tensor(A);
 
+
+    update_tensor(A(), l_func<9>);
+    // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    // print_tensor(A);
 
     auto i = tAOs.label("all");
 
     update_tensor(A(i,i), lambda_function);
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-    print_tensor(A);
+    // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    //print_tensor(A);
 }
 
 

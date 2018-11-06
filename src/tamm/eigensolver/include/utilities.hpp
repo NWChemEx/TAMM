@@ -62,12 +62,15 @@ using std::max;
 //  {
 //  #endif
 
+extern "C"
+{
  //BLAS
  void dtrsm_(const char *side, const char *uplo,
                               const char *transa, const char *diag,
                               const int *m, const int *n, const double *alpha,
                               const double *a, const int *lda,
                               double *b, const int *ldb);
+}
 
 /* Routines for inverting matrices */
 void dgetrf_(int *m, int *n, double *A, int *lda, int *ipiv, int *info);

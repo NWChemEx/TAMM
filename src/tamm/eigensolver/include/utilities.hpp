@@ -16,7 +16,7 @@ using std::noshowpos;
 // MPI and OpenMP
 #include <omp.h>
 #include <mpi.h>
-#include "lapacke.h"
+#include LAPACKE_HEADER
 
 // Eigen classes
 #include <Eigen/Dense>
@@ -57,10 +57,10 @@ using std::max;
 #include "parseinput.hpp"
 #undef I
 
- #ifdef __cplusplus
- extern "C"
- {
- #endif
+//  #ifdef __cplusplus
+//  extern "C"
+//  {
+//  #endif
 
  //BLAS
  void dtrsm_(const char *side, const char *uplo,
@@ -103,9 +103,9 @@ void dgeqrf_(int *m, int *n, double *A, int *lda, double *tau, double *work,
 void dgerqf_(int *m, int *n, double *A, int *lda, double *tau, double *work, 
 	     int *lwork, int *info);
 
-  #ifdef __cplusplus
- }
- #endif
+//   #ifdef __cplusplus
+//  }
+//  #endif
 
 // utility functions
 VectorXi sortinds(VectorXd xs);

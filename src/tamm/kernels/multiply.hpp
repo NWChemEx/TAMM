@@ -7,7 +7,7 @@
 
 
 #include <algorithm>
-#include <cblas.h>
+#include CBLAS_HEADER
 #include <complex>
 #include <numeric>
 #include <vector>

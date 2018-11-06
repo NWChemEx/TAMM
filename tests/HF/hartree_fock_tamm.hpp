@@ -502,14 +502,16 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     tol_int = std::min(1e-8, 0.01 * conve);
     
-    cout << "\n----------------------------------";
-    cout << "\ndiis hist = " << max_hist;
-    cout << "\nBasis set = " << basis;
-    cout << "\nmax iterations = " << maxiter;
-    cout << "\nIntegral tolerance = " << tol_int;
-    cout << "\nEnergy convergence = " << conve;
-    cout << "\nDensity convergence = " << convd;
-    cout << "\n----------------------------------";
+    if(GA_Nodeid()==0){
+      cout << "\n----------------------------------";
+      cout << "\ndiis hist = " << max_hist;
+      cout << "\nBasis set = " << basis;
+      cout << "\nmax iterations = " << maxiter;
+      cout << "\nIntegral tolerance = " << tol_int;
+      cout << "\nEnergy convergence = " << conve;
+      cout << "\nDensity convergence = " << convd;
+      cout << "\n----------------------------------";
+    }
 
     auto debug = false;
 

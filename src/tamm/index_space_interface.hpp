@@ -1,3 +1,13 @@
+/**
+ * @file index_space_interface.hpp
+ * @author Erdal Mutlu (erdal.mutlu@pnnl.gov)
+ * @brief Interface for different IndexSpace implementations
+ * @version 0.1
+ * @date 2018-11-06
+ * 
+ * @copyright Copyright (c) 2018, Pacific Northwest National Laboratory
+ * 
+ */
 #ifndef TAMM_INDEX_SPACE_INTERFACE_HPP_
 #define TAMM_INDEX_SPACE_INTERFACE_HPP_
 
@@ -9,6 +19,7 @@
 
 namespace tamm {
 /**
+ * @ingroup index_space
  * @class IndexSpaceInterface
  * @brief Base abstract implementation class as an interface
  *        for the different IndexSpace implementations
@@ -35,7 +46,7 @@ public:
                         const IndexVector& indep_index = {}) const = 0;
 
     /**
-     * @brief
+     * @brief Operator overload for accessing indices in the IndexSpace
      *
      * @param [in] idx input Index value
      * @returns an Index value from the IndexSpace for the corresponding input
@@ -44,12 +55,13 @@ public:
     virtual Index operator[](Index idx) const = 0;
 
     /**
-     * @brief operator () for accessing IndexSpace objects associated with the
+     * @brief Operator overload for accessing IndexSpace objects associated with the
      * interface implementation
      *
      * @param [in] indep_index dependent Index values (mainly used for dependent
      * IndexSpaces)
      * @returns an IndexSpace object
+     * @warning The method returns this IndexSpace if it is an independent IndexSpace
      */
     virtual IndexSpace operator()(
       const IndexVector& indep_index = {}) const = 0;
@@ -99,7 +111,7 @@ public:
     /**
      * @brief Index spaces this index space depends on
      *
-     * @return The index spaces this index space depends on
+     * @returns The index spaces this index space depends on
      */
     virtual const std::vector<TiledIndexSpace>& key_tiled_index_spaces()
       const = 0;
@@ -107,7 +119,7 @@ public:
     /**
      * @brief Number of index spaces this index space depends on
      *
-     * @return Number of index spaces this index space depends on
+     * @returns Number of index spaces this index space depends on
      */
     virtual size_t num_key_tiled_index_spaces() const = 0;
 
@@ -157,13 +169,13 @@ public:
     virtual const std::vector<Range>& spatial_ranges(Spatial spatial) const = 0;
 
     /**
-     * @brief Boolean method for checking if an IndexSpace has SpinAttribute
+     * @brief Checks if an IndexSpace has SpinAttribute
      *
      * @returns true if there is a SpinAttribute associated with the IndexSpace
      */
     virtual bool has_spin() const = 0;
     /**
-     * @brief Boolean method for checking if an IndexSpace has SpatialAttribute
+     * @brief Checks if an IndexSpace has SpatialAttribute
      *
      * @returns true if there is a SpatialAttribute associated with the
      * IndexSpace
@@ -173,14 +185,14 @@ public:
     /**
      * @brief Get the spin attribute object associated with IndexSpace
      *
-     * @returns const reference to associated SpinAttribute
+     * @returns associated SpinAttribute
      */
     virtual SpinAttribute get_spin() const = 0;
 
     /**
      * @brief Get the spatial attribute object associated with IndexSpace
      *
-     * @returns const reference to associated SpatialAttribute
+     * @returns associated SpatialAttribute
      */
     virtual SpatialAttribute get_spatial() const = 0;
 
@@ -191,12 +203,22 @@ public:
      */
     virtual const NameToRangeMap& get_named_ranges() const = 0;
 
+    /**
+     * @brief Get the root IndexSpace
+     * 
+     * @returns root IndexSpace
+     */
     virtual IndexSpace root_index_space() const = 0;
 
+    /**
+     * @brief Calculate the hash of the IndexSpace
+     * 
+     * @returns calculated hash value
+     */
     virtual size_t hash() const = 0;
 
 protected:
-    std::weak_ptr<IndexSpaceInterface> this_weak_ptr_;
+    std::weak_ptr<IndexSpaceInterface> this_weak_ptr_; /**< weak pointer to itself*/
 
     /**
      * @brief Helper methods for string manupulation, the main use
@@ -248,9 +270,8 @@ protected:
      * @tparam AttributeType an attribute type (e.g. Spin, Spatial)
      * @param indices set of indices to check against
      * @param att attribute map to check for validity
-     * @return true if there is no overlap on the ranges and fully covers
+     * @returns true if there is no overlap on the ranges and fully covers
      *              indices
-     * @return false otherwise
      */
     template<typename AttributeType>
     bool is_valid_attribute(const IndexVector& indices,
@@ -294,14 +315,13 @@ private:
 }; // IndexSpaceInterface
 
 /**
+ * @ingroup index_space
  * @brief IndexSpace implementation for range based
  *        IndexSpace construction.
  *
  */
 class RangeIndexSpaceImpl : public IndexSpaceInterface {
 public:
-    // @todo do we need a default constructor?
-    // RangeIndexSpaceImpl() = default;
 
     /**
      * @brief Construct a new RangeIndexSpaceImpl object
@@ -408,26 +428,7 @@ public:
         for(const auto& i : (*this)) {
             internal::hash_combine(result, i);
         }
-/*
-        // hash of named subspaces
-        std::size_t subspace_hash = named_subspaces_.size();
-        for(const auto& str_is : named_subspaces_) {
-            internal::hash_combine(subspace_hash, str_is.first);
-            internal::hash_combine(subspace_hash, str_is.second.hash());
-        }
 
-        internal::hash_combine(result, subspace_hash);
-
-        // hash of spin attributes
-        if(has_spin()){
-            internal::hash_combine(result, spin_);
-        }
-        
-        // hash of spatial attributes
-        if(has_spatial()){
-            internal::hash_combine(result, spatial_);
-        }
-*/
         return result;
     }
 
@@ -446,7 +447,7 @@ protected:
      *
      * @param [in] in_map NameToRangeMap argument holding string to Range vector
      * map
-     * @return std::map<std::string, IndexSpace> returns the map from
+     * @returns std::map<std::string, IndexSpace> returns the map from
      *                                           strings to subspaces
      */
     std::map<std::string, IndexSpace> construct_subspaces(
@@ -493,7 +494,7 @@ protected:
      *
      * @param [in] spatial a Spatial value to Range map that is used for
      *             constructing Spin attribute
-     * @return [in] SpinAttribute returns a Spin attribute
+     * @returns [in] SpinAttribute returns a Spin attribute
      */
     SpatialAttribute construct_spatial(
       const AttributeToRangeMap<Spatial>& spatial) {
@@ -511,6 +512,7 @@ protected:
 }; // RangeIndexSpaceImpl
 
 /**
+ * @ingroup index_space
  * @brief IndexSpace implementation for subspace based
  *        IndexSpace construction.
  *
@@ -667,7 +669,7 @@ protected:
      *
      * @param ref_space reference IndexSpace argument
      * @param range     Range argument for generating the subspace
-     * @return IndexVector returns a vector of Indicies
+     * @returns IndexVector returns a vector of Indicies
      */
     IndexVector construct_indices(const IndexSpace& ref_space,
                                   const Range& range) {
@@ -685,7 +687,7 @@ protected:
      *        constructing the subspaces.
      *
      * @param in_map NameToRangeMap argument holding string to Range map
-     * @return std::map<std::string, IndexSpace> returns the map from
+     * @returns std::map<std::string, IndexSpace> returns the map from
      *                                           strings to subspaces
      */
     std::map<std::string, IndexSpace> construct_subspaces(
@@ -707,6 +709,7 @@ protected:
 }; // SubSpaceImpl
 
 /**
+ * @ingroup index_space
  * @brief IndexSpace implementation for aggregation
  *        based IndexSpace construction.
  *
@@ -988,6 +991,7 @@ protected:
 }; // AggregateSpaceImpl
 
 /**
+ * @ingroup index_space
  * @brief IndexSpace implementation for constructing
  *        dependent IndexSpaces
  *
@@ -1051,7 +1055,7 @@ public:
      *
      * @param i an Index argument
      * @param indep_index a vector of Index
-     * @return Index an Index value from the dependent IndexSpace
+     * @returns Index an Index value from the dependent IndexSpace
      */
     Index index(Index i, const IndexVector& indep_index = {}) const override {
         return dep_space_relation_.at(indep_index)[i];

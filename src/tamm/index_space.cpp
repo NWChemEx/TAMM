@@ -1,3 +1,13 @@
+/**
+ * @file index_space.cpp
+ * @author Erdal Mutlu (erdal.mutlu@pnnl.gov)
+ * @brief Implementation of IndexSpace class methods
+ * @version 0.1
+ * @date 2018-11-06
+ * 
+ * @copyright Copyright (c) 2018, Pacific Northwest National Laboratory
+ * 
+ */
 #include "tamm/index_space_interface.hpp"
 #include "tamm/tiled_index_space.hpp"
 

@@ -71,11 +71,11 @@ public:
 
         // LT = alpha
         if constexpr(is_convertible_v<T1, T>)
-            return SetOp{*this, static_cast<T>(sub_v * rhs), is_assign};
+            return SetOp<T,LTT>{*this, static_cast<T>(sub_v * rhs), is_assign};
 
         // LT = LT
         else if constexpr(is_same_v<T1, LTT>)
-            return AddOp{*this, static_cast<T>(sub_v), rhs, is_assign};
+            return AddOp<T,LTT>{*this, static_cast<T>(sub_v), rhs, is_assign};
 
         else if constexpr(is_tuple_v<T1>) {
             static_assert(
@@ -90,12 +90,12 @@ public:
                 // LT = alpha * LT
                 if constexpr((is_convertible_v<rhs0_t, T>)&&is_same_v<rhs1_t,
                                                                       LTT>)
-                    return AddOp{*this, static_cast<T>(sub_v * get<0>(rhs)),
+                    return AddOp<T,LTT>{*this, static_cast<T>(sub_v * get<0>(rhs)),
                                  get<1>(rhs), is_assign};
                 //  LT = LT * LT
                 else if constexpr(is_same_v<rhs0_t, LTT> &&
                                   is_same_v<rhs1_t, LTT>)
-                    return MultOp{*this, static_cast<T>(sub_v), get<0>(rhs),
+                    return MultOp<T,LTT>{*this, static_cast<T>(sub_v), get<0>(rhs),
                                   get<1>(rhs), is_assign};
             }
 
@@ -107,7 +107,7 @@ public:
                   (is_convertible_v<rhs0_t, T>)&&is_same_v<rhs1_t, LTT> &&
                     is_same_v<rhs2_t, LTT>,
                   "Operation can only be of the form c [+-] = [alpha *] a * b");
-                return MultOp{*this, static_cast<T>(sub_v * get<0>(rhs)),
+                return MultOp<T,LTT>{*this, static_cast<T>(sub_v * get<0>(rhs)),
                               get<1>(rhs), get<2>(rhs), is_assign};
             }
         }

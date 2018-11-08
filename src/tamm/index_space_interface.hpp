@@ -4,9 +4,9 @@
  * @brief Interface for different IndexSpace implementations
  * @version 0.1
  * @date 2018-11-06
- * 
+ *
  * @copyright Copyright (c) 2018, Pacific Northwest National Laboratory
- * 
+ *
  */
 #ifndef TAMM_INDEX_SPACE_INTERFACE_HPP_
 #define TAMM_INDEX_SPACE_INTERFACE_HPP_
@@ -55,13 +55,14 @@ public:
     virtual Index operator[](Index idx) const = 0;
 
     /**
-     * @brief Operator overload for accessing IndexSpace objects associated with the
-     * interface implementation
+     * @brief Operator overload for accessing IndexSpace objects associated with
+     * the interface implementation
      *
      * @param [in] indep_index dependent Index values (mainly used for dependent
      * IndexSpaces)
      * @returns an IndexSpace object
-     * @warning The method returns this IndexSpace if it is an independent IndexSpace
+     * @warning The method returns this IndexSpace if it is an independent
+     * IndexSpace
      */
     virtual IndexSpace operator()(
       const IndexVector& indep_index = {}) const = 0;
@@ -205,23 +206,24 @@ public:
 
     /**
      * @brief Get the root IndexSpace
-     * 
+     *
      * @returns root IndexSpace
      */
     virtual IndexSpace root_index_space() const = 0;
 
     /**
      * @brief Calculate the hash of the IndexSpace
-     * 
+     *
      * @returns calculated hash value
      */
     virtual size_t hash() const = 0;
 
 protected:
-    std::weak_ptr<IndexSpaceInterface> this_weak_ptr_; /**< weak pointer to itself*/
+    std::weak_ptr<IndexSpaceInterface>
+      this_weak_ptr_; /**< weak pointer to itself*/
 
     /**
-     * @brief Helper methods for string manupulation, the main use
+     * @brief Helper methods for string manipulation, the main use
      *        is to split a string into vector of strings with
      *        respect to a deliminator
 
@@ -265,7 +267,7 @@ protected:
     /**
      * @brief Check if the input attributes is valid:
      *        - no-overlap between attribute ranges
-     *        - covers all indicies
+     *        - covers all indices
      *
      * @tparam AttributeType an attribute type (e.g. Spin, Spatial)
      * @param indices set of indices to check against
@@ -322,7 +324,6 @@ private:
  */
 class RangeIndexSpaceImpl : public IndexSpaceInterface {
 public:
-
     /**
      * @brief Construct a new RangeIndexSpaceImpl object
      *
@@ -347,7 +348,7 @@ public:
         EXPECTS(has_duplicate<IndexVector>(indices_));
     }
 
-    // @todo do we need these copy/move constructor/operators?
+    /// @todo do we need these copy/move constructor/operators?
     RangeIndexSpaceImpl(RangeIndexSpaceImpl&&)      = default;
     RangeIndexSpaceImpl(const RangeIndexSpaceImpl&) = default;
     RangeIndexSpaceImpl& operator=(RangeIndexSpaceImpl&&) = default;
@@ -422,24 +423,25 @@ public:
     }
 
     size_t hash() const override {
-
         // hash of the indices
         std::size_t result = num_indices();
-        for(const auto& i : (*this)) {
-            internal::hash_combine(result, i);
-        }
+        for(const auto& i : (*this)) { internal::hash_combine(result, i); }
 
         return result;
     }
 
 protected:
-    IndexVector indices_;
-    NameToRangeMap named_ranges_;
-    std::map<std::string, IndexSpace> named_subspaces_;
-    SpinAttribute spin_;
-    SpatialAttribute spatial_;
-    std::vector<TiledIndexSpace> empty_vec_;
-    std::map<IndexVector, IndexSpace> empty_map_;
+    IndexVector indices_;         /**< Indices for the IndexSpace */
+    NameToRangeMap named_ranges_; /**< Map from name to subspace ranges*/
+    std::map<std::string, IndexSpace>
+      named_subspaces_;  /**< Map from names to (sub) IndexSpaces */
+    SpinAttribute spin_; /**< Spin attribute associated with the IndexSpace */
+    SpatialAttribute
+      spatial_; /**< Spatial attribute associated with the IndexSpace */
+    std::vector<TiledIndexSpace>
+      empty_vec_; /**< Empty vector for dependencies */
+    std::map<IndexVector, IndexSpace>
+      empty_map_; /**< Empty map for dependency relations */
 
     /**
      * @brief Helper method for generating the map between string values to
@@ -519,9 +521,6 @@ protected:
  */
 class SubSpaceImpl : public IndexSpaceInterface {
 public:
-    // @todo do we need a default constructor?
-    // SubSpaceImpl() = default;
-
     /**
      * @brief Construct a new SubSpaceImpl object
      *
@@ -542,23 +541,21 @@ public:
       root_space_{is.root_index_space()} {}
 
     /**
-     * @brief
+     * @brief Construct a new SubSpaceImpl object
      *
-     * @todo: Implement
-     *
-     * @param [in] is
-     * @param [in] indices
-     * @param [in] named_ranges
+     * @param [in] is reference IndexSpace
+     * @param [in] indices set of indices for sub IndexSpace
+     * @param [in] named_ranges new named IndexSpace
      */
     SubSpaceImpl(const IndexSpace& is, const IndexVector& indices,
                  const NameToRangeMap& named_ranges) :
-        ref_space_{is},
-        indices_{indices},
-        named_ranges_{named_ranges},
-        named_subspaces_{construct_subspaces(named_ranges)},
-        root_space_{is.root_index_space()} {}
+      ref_space_{is},
+      indices_{indices},
+      named_ranges_{named_ranges},
+      named_subspaces_{construct_subspaces(named_ranges)},
+      root_space_{is.root_index_space()} {}
 
-    // @todo do we need these copy/move constructor/operators
+    /// @todo do we need these copy/move constructor/operators
     SubSpaceImpl(SubSpaceImpl&&)      = default;
     SubSpaceImpl(const SubSpaceImpl&) = default;
     SubSpaceImpl& operator=(SubSpaceImpl&&) = default;
@@ -635,34 +632,25 @@ public:
     }
 
     size_t hash() const override {
-
         // hash of the indices
         std::size_t result = num_indices();
-        for(const auto& i : (*this)) {
-            internal::hash_combine(result, i);
-        }
-/*
-        // hash of named subspaces
-        std::size_t subspace_hash = named_subspaces_.size();
-        for(const auto& str_is : named_subspaces_) {
-            internal::hash_combine(subspace_hash, str_is.first);
-            internal::hash_combine(subspace_hash, str_is.second.hash());
-        }
+        for(const auto& i : (*this)) { internal::hash_combine(result, i); }
 
-        internal::hash_combine(result, subspace_hash);
-*/        
         return result;
     }
 
 protected:
-    IndexSpace ref_space_;
-    Range ref_range_;
-    IndexVector indices_;
-    NameToRangeMap named_ranges_;
-    std::map<std::string, IndexSpace> named_subspaces_;
-    IndexSpace root_space_;
-    std::vector<TiledIndexSpace> empty_vec_;
-    std::map<IndexVector, IndexSpace> empty_map_;
+    IndexSpace ref_space_; /**< Reference IndexSpace for the (sub) IndexSpace */
+    Range ref_range_;      /**< Range used from the reference IndexSpace */
+    IndexVector indices_;  /**< Indices for the IndexSpace */
+    NameToRangeMap named_ranges_; /**< Map from name to subspace ranges*/
+    std::map<std::string, IndexSpace>
+      named_subspaces_;     /**< Map from names to (sub) IndexSpaces */
+    IndexSpace root_space_; /**< Root IndexSpace */
+    std::vector<TiledIndexSpace>
+      empty_vec_; /**< Empty vector for dependencies */
+    std::map<IndexVector, IndexSpace>
+      empty_map_; /**< Empty map for dependency relations */
     /**
      * @brief Helper method for constructing the new set of
      *        indicies from the reference IndexSpace
@@ -716,9 +704,6 @@ protected:
  */
 class AggregateSpaceImpl : public IndexSpaceInterface {
 public:
-    // @todo do we need a default constructor?
-    // AggregateSpaceImpl() = default;
-
     /**
      * @brief Construct a new Aggregate Space Impl object
      *
@@ -744,7 +729,7 @@ public:
         }
     }
 
-    // @todo do we need these constructor/operators
+    /// @todo do we need these constructor/operators
     AggregateSpaceImpl(AggregateSpaceImpl&&)      = default;
     AggregateSpaceImpl(const AggregateSpaceImpl&) = default;
     AggregateSpaceImpl& operator=(AggregateSpaceImpl&&) = default;
@@ -787,8 +772,8 @@ public:
     }
 
     size_t num_key_tiled_index_spaces() const override { return 0; }
-    // @todo what should these return? Currently, it returns the
-    // first reference space's spin and spatial attributes.
+    //// @todo what should these return? Currently, it returns the first
+    ///reference space's spin and spatial attributes.
     // Attribute Accessors
     Spin spin(Index idx) const override {
         NOT_ALLOWED();
@@ -844,33 +829,35 @@ public:
     }
 
     size_t hash() const override {
-
         // hash of the indices
         std::size_t result = num_indices();
-        for(const auto& i : (*this)) {
-            internal::hash_combine(result, i);
-        }
-/* 
-        // hash of named subspaces
-        std::size_t subspace_hash = named_subspaces_.size();
-        for(const auto& str_is : named_subspaces_) {
-            internal::hash_combine(subspace_hash, str_is.first);
-            internal::hash_combine(subspace_hash, str_is.second.hash());
-        }
+        for(const auto& i : (*this)) { internal::hash_combine(result, i); }
+        /*
+                // hash of named subspaces
+                std::size_t subspace_hash = named_subspaces_.size();
+                for(const auto& str_is : named_subspaces_) {
+                    internal::hash_combine(subspace_hash, str_is.first);
+                    internal::hash_combine(subspace_hash, str_is.second.hash());
+                }
 
-        internal::hash_combine(result, subspace_hash);
- */        
+                internal::hash_combine(result, subspace_hash);
+         */
         return result;
     }
 
 protected:
-    std::vector<IndexSpace> ref_spaces_;
-    IndexVector indices_;
-    NameToRangeMap named_ranges_;
-    std::map<std::string, IndexSpace> named_subspaces_;
-    std::vector<Range> empty_range_;
-    std::vector<TiledIndexSpace> empty_vec_;
-    std::map<IndexVector, IndexSpace> empty_map_;
+    std::vector<IndexSpace>
+      ref_spaces_;        /**< Reference spaces for the aggregated IndexSpace */
+    IndexVector indices_; /**< Indices for the IndexSpace */
+    NameToRangeMap named_ranges_; /**< Map from name to subspace ranges*/
+    std::map<std::string, IndexSpace>
+      named_subspaces_; /**< Map from names to (sub) IndexSpaces */
+    std::vector<Range>
+      empty_range_; /**< Empty range vector for spin relation */
+    std::vector<TiledIndexSpace>
+      empty_vec_; /**< Empty vector for dependencies */
+    std::map<IndexVector, IndexSpace>
+      empty_map_; /**< Empty map for dependency relations */
 
     /**
      * @brief Add subspaces reference names foreach aggregated
@@ -998,10 +985,6 @@ protected:
  */
 class DependentIndexSpaceImpl : public IndexSpaceInterface {
 public:
-    // @todo do we need a default constructor?
-    // @todo validate the dependency relation map!
-    // DependentIndexSpaceImpl() = default;
-
     /**
      * @brief Construct a new Dependent Index Space Impl object
      *
@@ -1040,7 +1023,7 @@ public:
       dep_space_relation_{dep_space_relation},
       named_ranges_{} {}
 
-    // @todo do we need these constructor/operators
+    /// @todo do we need these constructor/operators
     DependentIndexSpaceImpl(DependentIndexSpaceImpl&&)      = default;
     DependentIndexSpaceImpl(const DependentIndexSpaceImpl&) = default;
     DependentIndexSpaceImpl& operator=(DependentIndexSpaceImpl&&) = default;
@@ -1061,7 +1044,7 @@ public:
         return dep_space_relation_.at(indep_index)[i];
     }
 
-    // @todo what should ve returned?
+    /// @todo what should we returned?
     Index operator[](Index i) const override {
         NOT_ALLOWED();
         return Index{0};
@@ -1072,7 +1055,7 @@ public:
         return dep_space_relation_.at(indep_index);
     }
 
-    // @todo What should this return, currently returning itself
+    /// @todo What should this return, currently returning itself
     IndexSpace operator()(const std::string& named_subspace_id) const override {
         return IndexSpace{this_weak_ptr_.lock()};
     }
@@ -1160,9 +1143,9 @@ public:
         return empty_named_subspace_map_;
     }
 
-    // @todo: what is hash of dependent index space?
+    /// @todo: what is hash of dependent index space?
     size_t hash() const override {
-        auto dep_relation = map_tiled_index_spaces();
+        auto dep_relation  = map_tiled_index_spaces();
         std::size_t result = dep_relation.size();
         for(const auto& rel : dep_relation) {
             size_t n_hash = rel.first.size();
@@ -1170,7 +1153,7 @@ public:
             for(const auto& idx : rel.first) {
                 internal::hash_combine(n_hash, idx);
             }
-            
+
             internal::hash_combine(n_hash, rel.second.hash());
             internal::hash_combine(result, n_hash);
         }
@@ -1178,14 +1161,18 @@ public:
     }
 
 protected:
-    std::vector<TiledIndexSpace> dep_spaces_;
-    IndexSpace ref_space_;
-    std::map<IndexVector, IndexSpace> dep_space_relation_;
-    NameToRangeMap named_ranges_;
-    std::size_t max_size_;
-    std::vector<Range> empty_range_;
-    std::map<std::string, IndexSpace> empty_named_subspace_map_;
-}; // DependentIndexSpaceImpl
+    std::vector<TiledIndexSpace> dep_spaces_; /**< Dependent TiledIndexSpaces */
+    IndexSpace ref_space_;                    /**< Reference IndexSpace */
+    std::map<IndexVector, IndexSpace>
+      dep_space_relation_; /**< Dependency relation between set of indices to
+                              IndexSpace */
+    NameToRangeMap named_ranges_; /**< Map from name to subspace ranges*/
+    std::size_t max_size_;        /**< Maximum size for the dependent indices */
+    std::vector<Range>
+      empty_range_; /**< Empty range vector for spin relation */
+    std::map<std::string, IndexSpace>
+      empty_named_subspace_map_; /**< Empty map for named (sub) IndexSpaces */
+};                               // DependentIndexSpaceImpl
 
 } // namespace tamm
 

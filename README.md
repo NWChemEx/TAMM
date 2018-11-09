@@ -9,13 +9,12 @@ TAMM_INSTALL_PATH=/opt/NWChemEx/install
 git clone https://github.com/NWChemEx-Project/CMakeBuild.git
 cd CMakeBuild
 mkdir build && cd build
-cmake .. \ 
--DBUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/CMakeBuild
+cmake .. -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/CMakeBuild
 
 #Optional - Set if compiler executable names are different or in non-standard path
 [-DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran] 
 
-make -j3
+make -j2
 make install
 ```
 

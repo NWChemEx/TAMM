@@ -10,6 +10,11 @@ namespace tamm {
 template<typename T>
 using IndexedTensor = std::pair<tensor<T>, IndexVector>;
 
+/** @defgroup PERMISSIONS Permission related classes
+ * 
+ * @{
+ */
+
 enum class AccessMode {
     KR, KW, KRW, AC
 };
@@ -55,14 +60,25 @@ class AccumAccess : public Permission<T> {
     AccumAccess(T t) : Permission(T t, AccessMode::AC) {}
 }
 
+/** 
+ * @}
+ */
+
+
+
 class RuntimeEngine {
 public:
     RuntimeEngine() = default;
     RuntimeEngine(TaskEngine* taskengine);
 
+    template<typename FD, typename ...Args>
+        void submitTask(FD& fd, Args... args) {
+
+            
+        }
+
     ~RuntimeEngine();
-    void executeAllthreads(TaskEngine* taskengine);
-    void executeAllthreads();
+    void executeAll();
 
 private:
 };

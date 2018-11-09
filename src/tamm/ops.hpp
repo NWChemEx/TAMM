@@ -14,6 +14,7 @@
 #include "tamm/types.hpp"
 #include "tamm/utils.hpp"
 #include "tamm/work.hpp"
+#include "tamm/runtime_engine.hpp"
 
 namespace tamm {
 
@@ -368,33 +369,32 @@ public:
         do_work(ec, loop_nest, lambda);
 #endif
         // default: only CPU lambda
-        ec.re().submitTask(
+        ec.re()->submitTask(
             [=](RuntimeEngine& re){
                 LabelLoopNest loop_nest{lhs_.labels()};
                 auto first = loop_nest.begin();
                 auto last = loop_nst.end();
-                auto tensor = lhs_tensor();
+                auto tensor = lhs_.tensor();
 
                 for(; first!= last; ++first) {
                     auto blockid =  *first;
                     EXPECTS(blockid.size() == lhs_.labels().size());
                     EXPECTS(blockid.size() == tensor.num_modes());
-                    const auto translated_blockid =
-                    internal::translate_blockid(blockid, lhs_);
-                    re.submitTask([=](Runtime& re){
-                        if(is_assign_) {
-                            BlockBuffer bf = re.temp_write_buf(tensor, translated_blockid);
-                            std::fill(bf.buf().begin(), bf.buf().end(), alpha());
-                            bf.put();
-                        } else {
-                            BlockBuffer bf = re.temp_accum_buf(tensor, translated_blockid);
-                            std::fill(bf.buf().begin(), bf.buf().end(), alpha());
-                            bf.accum();
-                        }
-                    }, is_assign_ ? 
-                       WriteAccess{IndexedTensor{tensor, translated_blockid}} :
-                       AccumAccess{IndexedTensor{tensor, translated_blockid}},
-                       alpha());
+                    const auto translated_blockid = internal::translate_blockid(blockid, lhs_);
+                    re.submitTask([=](RunimeEngine& re){
+                            if(is_assign_) {
+                                BlockBuffer bf = re.temp_buf(tensor, translated_blockid);
+                                std::fill(bf.buf().begin(), bf.buf().end(), alpha_);
+                                bf.put();  // goes through runtime (may be lazy)
+                            } else {
+                                BlockBuffer bf = re.temp_buf(tensor, translated_blockid);
+                                std::fill(bf.buf().begin(), bf.buf().end(), alpha_);
+                                bf.add();
+                            }
+                        }, is_assign_ ? 
+                           WriteAccess{IndexedTensor{tensor, translated_blockid}} :
+                           AccumAccess{IndexedTensor{tensor, translated_blockid}}
+                    )
                 }
             }, WriteAccess{lhs_}
         );

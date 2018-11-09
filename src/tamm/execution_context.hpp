@@ -20,6 +20,7 @@ class Distribution;
 class Scheduler;
 template<typename T>
 class Tensor;
+class RuntimeEngine;
 /**
  * @brief Wrapper class to hold information during execution.
  *
@@ -39,10 +40,11 @@ public:
 
     /** @todo use shared pointers for solving GitHub issue #43*/
     ExecutionContext(ProcGroup pg, Distribution* default_distribution,
-                     MemoryManager* default_memory_manager) :
+                     MemoryManager* default_memory_manager, RuntimeEngine* re) :
       pg_{pg},
       default_distribution_{default_distribution},
-      default_memory_manager_{default_memory_manager} {
+      default_memory_manager_{default_memory_manager},
+      re_(re) {
         pg_self_ = ProcGroup{MPI_COMM_SELF};
 
         // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
@@ -151,6 +153,12 @@ public:
         default_memory_manager_ = memory_manager;
     }
 
+    RuntimeEngine* re() const { return re_; }
+
+    void set_re(RuntimeEngine* re) {
+        re_ = re;
+    }
+
     /**
      * @brief Flush communication in this execution context, synchronize, and
      * delete any tensors allocated in this execution context that have gone
@@ -191,12 +199,12 @@ public:
     }
 
 private:
-    //RuntimeEngine re_;
     ProcGroup pg_;
     ProcGroup pg_self_;
     Distribution* default_distribution_;
     MemoryManager* default_memory_manager_;
     MemoryManagerLocal* memory_manager_local_;
+    RuntimeEngine* re_;
 
     std::vector<MemoryRegion*> mem_regs_to_dealloc_;
     std::vector<MemoryRegion*> unregistered_mem_regs_;

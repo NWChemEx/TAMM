@@ -695,6 +695,7 @@ int main( int argc, char* argv[] )
 
 TEST_CASE("CCSD Driver") {
 
+    auto rank = GA_Nodeid();
     // std::cout << "Input file provided = " << filename << std::endl;
 
     using T = double;
@@ -719,7 +720,7 @@ TEST_CASE("CCSD Driver") {
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(GA_Nodeid()==0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
 
     hf_t1        = std::chrono::high_resolution_clock::now();
     std::vector<Eigen::RowVectorXd> evec;
@@ -730,12 +731,12 @@ TEST_CASE("CCSD Driver") {
     hf_t2        = std::chrono::high_resolution_clock::now();
     double two_4index_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(GA_Nodeid()==0) std::cout << "\nTime taken for CD: " << two_4index_time
+    if(rank == 0) std::cout << "\nTime taken for CD: " << two_4index_time
               << " secs\n";
 
     TAMM_SIZE ov_beta{nao - ov_alpha};
 
-    if(GA_Nodeid()==0) std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
+    if(rank == 0) std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
     sizes = {ov_alpha - freeze_core, ov_alpha - freeze_core,
              ov_beta - freeze_virtual, ov_beta - freeze_virtual};
 
@@ -798,7 +799,7 @@ TEST_CASE("CCSD Driver") {
   // CD
   auto chol_dims = CholVpr.dimensions();
   auto chol_count = chol_dims[2];
-  if(GA_Nodeid()==0) cout << "Number of cholesky vectors:" << chol_count << endl;
+  if(rank == 0) cout << "Number of cholesky vectors:" << chol_count << endl;
   std::vector<Tensor<T> *> chol_vecs(chol_count);
 
   for(auto x = 0; x < chol_count; x++) {
@@ -945,7 +946,7 @@ TEST_CASE("CCSD Driver") {
 
   double ccsd_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-  if(GA_Nodeid()==0) std::cout << "\nTime taken for Cholesky CCSD: " << ccsd_time << " secs\n";
+  if(rank == 0) std::cout << "\nTime taken for Cholesky CCSD: " << ccsd_time << " secs\n";
 
   Tensor<T>::deallocate(d_t1, d_t2, d_f1); //, d_v2);
   for (auto x = 0; x < chol_count; x++) Tensor<T>::deallocate(*chol_vecs[x]);

@@ -1,14 +1,3 @@
-/**
- * @file index_space.hpp
- * @author Erdal Mutlu (erdal.mutlu@pnnl.gov)
- * @brief User facing IndexSpace class used for constructing
- * IndexSpaces
- * @version 0.1
- * @date 2018-11-06
- *
- * @copyright Copyright (c) 2018, Pacific Northwest National Laboratory
- *
- */
 #ifndef TAMM_INDEX_SPACE_HPP_
 #define TAMM_INDEX_SPACE_HPP_
 
@@ -24,8 +13,7 @@
 /**
  * @defgroup index_space IndexSpace
  *
- * @file index_space
- * @brief user facing object for constructing IndexSpaces
+ * User facing object for constructing IndexSpace
  *
  */
 namespace tamm {

@@ -7,7 +7,9 @@
 #include "tamm/execution_context.hpp"
 
 /**
- * @defgroup tensors
+ * @defgroup tensors Tensors
+ * 
+ * 
  */
 
 namespace tamm {
@@ -88,26 +90,6 @@ public:
         construct_dep_map();
         // tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 - block_indices_.size()));
     }
-
-    /**
-     * @brief Construct a new TensorBase object from a single TiledIndexSpace
-     * object and a lambda expression
-     * 
-     * @todo: Fix case for variadic template calls
-     *
-     * @tparam Func template for lambda expression
-     * @param [in] tis TiledIndexSpace object used as the mode of the tensor
-     * @param [in] func lambda expression
-     */
-    // template<typename Func>
-    // TensorBase(const TiledIndexSpace& tis, const Func& func) {
-    //     std::cout << "TensorBase func"	<< std::endl;
-    //     EXPECTS(!tis.is_dependent());
-    //     block_indices_.insert(block_indices_.begin(), tis);
-    //     //tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1));
-    //     fillin_tlabels();
-    //     construct_dep_map();
-    // }
 
     // Dtor
     virtual ~TensorBase(){
@@ -313,24 +295,15 @@ protected:
     /// dependent index space.
     std::map<size_t, std::vector<size_t>> dep_map_;
     ExecutionContext *ec_;
-    // std::vector<IndexPosition> ipmask_;
-    // PermGroup perm_groups_;
-    // Irrep irrep_;
     std::vector<SpinPosition> spin_mask_;
 }; // TensorBase
 
 inline bool operator<=(const TensorBase& lhs, const TensorBase& rhs) {
     return (lhs.tindices() <= rhs.tindices());
-    //&& (lhs.nupper_indices() <= rhs.nupper_indices())
-    //&& (lhs.irrep() < rhs.irrep())
-    //&& (lhs.spin_restricted () < rhs.spin_restricted());
 }
 
 inline bool operator==(const TensorBase& lhs, const TensorBase& rhs) {
     return (lhs.tindices() == rhs.tindices());
-    //&& (lhs.nupper_indices() == rhs.nupper_indices())
-    //&& (lhs.irrep() < rhs.irrep())
-    //&& (lhs.spin_restricted () < rhs.spin_restricted());
 }
 
 inline bool operator!=(const TensorBase& lhs, const TensorBase& rhs) {

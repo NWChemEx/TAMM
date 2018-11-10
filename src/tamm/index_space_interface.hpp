@@ -1,13 +1,3 @@
-/**
- * @file index_space_interface.hpp
- * @author Erdal Mutlu (erdal.mutlu@pnnl.gov)
- * @brief Interface for different IndexSpace implementations
- * @version 0.1
- * @date 2018-11-06
- *
- * @copyright Copyright (c) 2018, Pacific Northwest National Laboratory
- *
- */
 #ifndef TAMM_INDEX_SPACE_INTERFACE_HPP_
 #define TAMM_INDEX_SPACE_INTERFACE_HPP_
 

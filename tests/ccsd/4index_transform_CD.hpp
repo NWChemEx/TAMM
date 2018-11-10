@@ -16,8 +16,10 @@ void four_index_transform(
     using libint2::Engine;
     using libint2::Operator;
 
+    auto rank = GA_Nodeid();
+
     // 2-index transform
-    cout << "\n\n** Number of electrons: " << ndocc << endl;
+    if(rank == 0) cout << "\n\n** Number of electrons: " << ndocc << endl;
 
     //  cout << "\n\t C Matrix:\n";
     //  cout << C << endl;
@@ -26,7 +28,7 @@ void four_index_transform(
     //  cout << F << endl;
 
     // std::cout << "C Cols = " << C_cols << std::endl;
-    std::cout << "nao, ndocc = " << nao << " : " << ndocc << std::endl;
+    if(rank == 0) std::cout << "nao, ndocc = " << nao << " : " << ndocc << std::endl;
 
     auto ov_alpha_freeze = ndocc - freeze_core;
     auto ov_beta_freeze  = nao - ndocc - freeze_virtual;
@@ -71,9 +73,11 @@ void four_index_transform(
   //
 //-Bo-starts-----Cholesky-decomposition---------------
 //
+if(rank == 0) {
   cout << "\n--------------------\n" << endl;
   cout << "Cholesky Decomposition" << endl;
   cout << "nao = " << nao << endl;
+}
 
   /* 
   DiagInt stores the diagonal integrals, i.e. (uv|uv)'s
@@ -90,7 +94,7 @@ void four_index_transform(
   ScrCol.setZero();
   bf2shell.setZero();
 
-  libint2::initialize();
+  libint2::initialize(false);
 
   // Generate bf to shell map
   auto shell2bf = map_shell_to_basis_function(shells);

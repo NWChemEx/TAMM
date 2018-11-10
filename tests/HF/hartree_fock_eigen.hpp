@@ -26,6 +26,11 @@
 #include <libint2/basis.h>
 #include <libint2/chemistry/sto3g_atomic_density.h>
 
+#include "catch/catch.hpp"
+#include "tamm/tamm.hpp"
+#include "macdecls.h"
+#include "ga-mpi.h"
+
 using shellpair_list_t = std::unordered_map<size_t, std::vector<size_t>>;
 shellpair_list_t obs_shellpair_list;  // shellpair list for OBS
 using shellpair_data_t = std::vector<std::vector<std::shared_ptr<libint2::ShellPair>>>;  // in same order as shellpair_list_t
@@ -364,15 +369,15 @@ std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
   auto obs_nbf_omitted = (long)S.rows() - (long)obs_rank;
   // std::cout << "overlap condition number = " << S_condition_number;
   if (obs_nbf_omitted > 0)
-    std::cout << " (dropped " << obs_nbf_omitted << " "
+    if(GA_Nodeid()==0) std::cout << " (dropped " << obs_nbf_omitted << " "
               << (obs_nbf_omitted > 1 ? "fns" : "fn") << " to reduce to "
               << XtX_condition_number << ")";
-  std::cout << std::endl;
+  if(GA_Nodeid()==0) std::cout << std::endl;
 
   if (obs_nbf_omitted > 0) {
     Matrix should_be_I = X.transpose() * S * X;
     Matrix I = Matrix::Identity(should_be_I.rows(), should_be_I.cols());
-    std::cout << "||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
+    if(GA_Nodeid()==0) std::cout << "||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
               << " (should be 0)" << std::endl;
   }
 
@@ -401,7 +406,7 @@ compute_shellpairs(const libint2::BasisSet& bs1,
                        std::max(bs1.max_l(), bs2.max_l()), 0);
 
 
-  std::cout << "computing non-negligible shell-pair list ... ";
+  if(GA_Nodeid()==0) std::cout << "\ncomputing non-negligible shell-pair list ... ";
 
   libint2::Timers<1> timer;
   timer.set_now_overhead(25);
@@ -470,7 +475,7 @@ compute_shellpairs(const libint2::BasisSet& bs1,
     }
   
   timer.stop(0);
-  std::cout << "done (" << timer.read(0) << " s)" << std::endl;
+  if(GA_Nodeid()==0) std::cout << "done (" << timer.read(0) << " s)" << std::endl;
 
   return std::make_tuple(splist,spdata);
 }
@@ -503,14 +508,18 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
   tol_int = std::min(1e-8, 0.01 * conve);
 
-  cout << "\n----------------------------------";
-  cout << "\ndiis hist = " << max_hist;
-  cout << "\nBasis set = " << basis;
-  cout << "\nmax iterations = " << maxiter;
-  cout << "\nIntegral tolerance = " << tol_int;
-  cout << "\nEnergy convergence = " << conve;
-  cout << "\nDensity convergence = " << convd;
-  cout << "\n----------------------------------";
+  auto rank = GA_Nodeid();
+
+  if(rank == 0) {
+    cout << "\n----------------------------------";
+    cout << "\ndiis hist = " << max_hist;
+    cout << "\nBasis set = " << basis;
+    cout << "\nmax iterations = " << maxiter;
+    cout << "\nIntegral tolerance = " << tol_int;
+    cout << "\nEnergy convergence = " << conve;
+    cout << "\nDensity convergence = " << convd;
+    cout << "\n----------------------------------";
+  }
 
   const auto debug = false;
 
@@ -534,14 +543,17 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
       auto r = sqrt(r2);
       enuc += atoms[i].atomic_number * atoms[j].atomic_number / r;
     }
-  cout << "\nNuclear repulsion energy = " << enuc << endl;
-
-  // initializes the Libint integrals library ... now ready to compute
-  libint2::initialize(debug);
+  
+  if(rank == 0) cout << "\nNuclear repulsion energy = " << enuc << endl;
 
   /*** =========================== ***/
   /*** create basis set            ***/
   /*** =========================== ***/
+
+  //libint2::Shell::do_enforce_unit_normalization(false);
+
+  // initializes the Libint integrals library ... now ready to compute
+  libint2::initialize(debug);
 
   // LIBINT_INSTALL_DIR/share/libint/2.4.0-beta.1/basis
   libint2::BasisSet shells(std::string(basis), atoms);
@@ -554,10 +566,10 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
       for (auto& sp : obs_shellpair_list) {
         nsp += sp.second.size();
       }
-      std::cout << "# of {all,non-negligible} shell-pairs = {"
+      if(rank == 0) std::cout << "# of {all,non-negligible} shell-pairs = {"
                 << shells.size() * (shells.size() + 1) / 2 << "," << nsp << "}"
                 << std::endl;
-    }
+    } 
 
   size_t nao = 0;
   for (size_t s = 0; s < shells.size(); ++s)
@@ -566,7 +578,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   const size_t N = nbasis(shells);
   assert(N == nao);
 
-  cout << "\nNumber of basis functions: " << N << endl;
+  if(rank == 0) cout << "\nNumber of basis functions: " << N << endl;
 
   /*** =========================== ***/
   /*** compute 1-e integrals       ***/
@@ -581,14 +593,14 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
   // Core Hamiltonian = T + V
   Matrix H = T + V;
-//  cout << "\n\tCore Hamiltonian:\n";
-//  cout << H << endl;
+  // cout << "\n\tCore Hamiltonian:\n";
+  // cout << H << endl;
 
   auto hf_t2 = std::chrono::high_resolution_clock::now();
 
   double hf_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  std::cout << "\nTime taken for H = T+V, S: " << hf_time << " secs\n";
+  if(rank == 0) std::cout << "\nTime taken for H = T+V, S: " << hf_time << " secs\n";
 
   // T and V no longer needed, free up the memory
   T.resize(0, 0);
@@ -615,7 +627,6 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
         1.0 / std::numeric_limits<double>::epsilon();
     std::tie(X, Xinv, XtX_condition_number) =
         conditioning_orthogonalizer(S, S_condition_number_threshold);
-
 
   // pre-compute data for Schwarz bounds
   auto SchwarzK = compute_schwarz_ints<>(shells);        
@@ -661,7 +672,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     auto D_minbs = compute_soad(atoms);  // compute guess in minimal basis
     BasisSet minbs("STO-3G", atoms);
 
-    std::cout <<
+    if(rank == 0) std::cout <<
     "\nProjecting minimal basis SOAD onto basis set specified (" << basis << ")\n";
 
     auto F = H;
@@ -692,7 +703,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   hf_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-  std::cout << "\nTime taken to compute initial guess: " << hf_time << " secs\n";
+  if(rank == 0) std::cout << "\nTime taken to compute initial guess: " << hf_time << " secs\n";
 
 //  cout << "\n\tInitial Density Matrix:\n";
 //  cout << D << endl;
@@ -722,14 +733,16 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   Matrix Sm12 = S.pow(-0.5);
   Matrix Sp12 = S.pow(0.5);
 
-  std::cout << "\n\n";
-  std::cout << " Hartree-Fock iterations" << std::endl;
-  std::cout << std::string(70, '-') << std::endl;
-  std::cout <<
-      " Iter     Energy            E-Diff            RMSD            Time" 
-          << std::endl;
-  std::cout << std::string(70, '-') << std::endl;
-  std::cout << std::fixed << std::setprecision(2);
+  if(rank == 0) {
+    std::cout << "\n\n";
+    std::cout << " Hartree-Fock iterations" << std::endl;
+    std::cout << std::string(70, '-') << std::endl;
+    std::cout <<
+        " Iter     Energy            E-Diff            RMSD            Time" 
+            << std::endl;
+    std::cout << std::string(70, '-') << std::endl;
+    std::cout << std::fixed << std::setprecision(2);
+  }
 
   do {
         // Scheduler sch{ec};
@@ -755,7 +768,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     hf_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-    if(debug) std::cout << "2BF:" << hf_time << "s, ";
+    if(rank==0 && debug) std::cout << "2BF:" << hf_time << "s, ";
 
     hf_t1 = std::chrono::high_resolution_clock::now();
 
@@ -766,7 +779,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     hf_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-    if(debug) std::cout << "F=H+2BF:" << hf_time << "s, ";
+    if(rank==0 && debug) std::cout << "F=H+2BF:" << hf_time << "s, ";
 
 
     if (simple_convergence && iter>1) {
@@ -791,7 +804,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(debug) std::cout << "err_mat:" << hf_time << "s, ";    
+    if(rank==0 && debug) std::cout << "err_mat:" << hf_time << "s, ";    
 
     hf_t1 = std::chrono::high_resolution_clock::now();
 
@@ -804,7 +817,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     hf_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-    if(debug) std::cout << "diis:" << hf_time << "s, ";    
+    if(rank==0 && debug) std::cout << "diis:" << hf_time << "s, ";    
 
 
     hf_t1 = std::chrono::high_resolution_clock::now();
@@ -830,7 +843,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(debug) std::cout << "eigen_solve:" << hf_time << "s, "; 
+    if(rank==0 && debug) std::cout << "eigen_solve:" << hf_time << "s, "; 
 
     hf_t1 = std::chrono::high_resolution_clock::now();
     // compute HF energy
@@ -847,22 +860,24 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     hf_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-    if(debug) std::cout << "HF-Energy:" << hf_time << "s\n";    
+    if(rank==0 && debug) std::cout << "HF-Energy:" << hf_time << "s\n";    
 
     const auto loop_stop = std::chrono::high_resolution_clock::now();
     const auto loop_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((loop_stop - loop_start)).count();
 
     // cout << "iter, ehf, ediff, rmsd = " << iter << "," << ehf <<", " << ediff <<  "," <<rmsd << "\n";
-    std::cout << std::setw(5) << iter << "  " << std::setw(14);
-    std::cout << std::fixed << std::setprecision(10) << ehf + enuc;
-    std::cout << ' ' << std::setw(16)  << ediff;
-    std::cout << ' ' << std::setw(15)  << rmsd << ' ';
-    std::cout << std::fixed << std::setprecision(2);
-    std::cout << ' ' << std::setw(12)  << loop_time << ' ' << "\n";    
+    if(rank == 0) {
+      std::cout << std::setw(5) << iter << "  " << std::setw(14);
+      std::cout << std::fixed << std::setprecision(10) << ehf + enuc;
+      std::cout << ' ' << std::setw(16)  << ediff;
+      std::cout << ' ' << std::setw(15)  << rmsd << ' ';
+      std::cout << std::fixed << std::setprecision(2);
+      std::cout << ' ' << std::setw(12)  << loop_time << ' ' << "\n";    
+    }
 
    if(iter > maxiter) {
-     std::cerr << "HF Does not converge!!!\n";
+     if(rank==0) std::cerr << "HF Does not converge!!!\n";
      exit(0);
    }
 
@@ -871,7 +886,9 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   } while (((fabs(ediff) > conve) || (fabs(rmsd) > convd)));
 
   std::cout.precision(15);
-  printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
+  if(rank == 0) printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
+
+  GA_Sync();
 
   // cout << "\n** Eigen Values:\n";
   // cout << eps << endl;
@@ -988,8 +1005,8 @@ Matrix compute_schwarz_ints(
   Engine engine = Engine(Kernel, std::max(bs1.max_nprim(), bs2.max_nprim()),
                       std::max(bs1.max_l(), bs2.max_l()), 0, epsilon, params);
 
-  std::cout << "computing Schwarz bound prerequisites (kernel=" << (int)Kernel
-            << ") ... ";
+  if(GA_Nodeid()==0) std::cout << "computing Schwarz bound prerequisites (kernel="
+   << (int)Kernel << ") ... ";
 
   libint2::Timers<1> timer;
   timer.set_now_overhead(25);
@@ -1023,10 +1040,8 @@ Matrix compute_schwarz_ints(
       }
     }
 
-
-
   timer.stop(0);
-  std::cout << "done (" << timer.read(0) << " s)" << std::endl;
+  if(GA_Nodeid()==0) std::cout << "done (" << timer.read(0) << " s)" << std::endl;
 
   return K;
 }

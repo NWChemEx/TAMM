@@ -14,10 +14,13 @@ using namespace tamm;
 template<typename T>
 void ccsd_e(ExecutionContext &ec,
             const TiledIndexSpace& MO, Tensor<T>& de, const Tensor<T>& t1,
-            const Tensor<T>& t2, const Tensor<T>& f1){ //, const Tensor<T>& v2) {
+            const Tensor<T>& t2, const Tensor<T>& f1, std::vector<Tensor<T> *> &chol){ //, const Tensor<T>& v2) {
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
     Tensor<T> i1{{O,V},{1,1}};
+    Tensor<T> _a01{};
+    Tensor<T> _a02{{O,O},{1,1}};
+    Tensor<T> _a03{{O,V},{1,1}};
 
     TiledIndexLabel p1, p2, p3, p4, p5;
     TiledIndexLabel h3, h4, h5, h6;
@@ -25,14 +28,26 @@ void ccsd_e(ExecutionContext &ec,
     std::tie(p1, p2, p3, p4, p5) = MO.labels<5>("virt");
     std::tie(h3, h4, h5, h6)     = MO.labels<4>("occ");
 
-    Scheduler{ec}.allocate(i1)
-        (i1(h6, p5) = f1(h6, p5))
-        // (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
-        (de() = 0)
-        (de() += t1(p5, h6) * i1(h6, p5))
-        // (de() += 0.25 * t2(p1, p2, h3, h4) * v2(h3, h4, p1, p2))
-        .deallocate(i1)
-        .execute();
+    Scheduler sch{ec};
+    sch.allocate(i1,_a01,_a02,_a03);
+    //sch (i1(h6, p5) = f1(h6, p5));
+    //sch (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
+    
+    sch (de() = 0);
+    for(auto x = 0U; x < chol.size(); x++) {
+        Tensor<T>& cholx = (*(chol.at(x)));
+        sch (_a01() = 0)
+            (_a02(h4, h6) = 0)
+            (_a03(h4, p2) = 0)
+            (_a01() += t1(p3, h4) * cholx(h4, p3))
+            (_a02(h4, h6) += t1(p3, h4) * cholx(h6, p3))
+            (de() +=  0.5 * _a01() * _a01())
+            (de() += -0.5 * _a02(h4, h6) * _a02(h6, h4))
+            (_a03(h4, p2) += t2(p1, p2, h3, h4) * cholx(h3, p1))
+            (de() += 0.5 * _a03(h4, p1) * cholx(h4, p1));
+    }
+    sch.deallocate(i1,_a01,_a02,_a03);
+    sch.execute();
 }
 
 template<typename T>
@@ -256,160 +271,6 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
     
     sch.execute();
 
-    /*
-    Tensor<T> i0_temp{{V, V, O, O},{2,2}};
-    Tensor<T> t2_temp{{V, V, O, O},{2,2}};
-    Tensor<T> t2_2_1{{O, V, O, O},{2,2}};
-    Tensor<T> t2_2_1_temp{{O, V, O, O},{2,2}};
-    Tensor<T> t2_2_2_1{{O, O, O, O},{2,2}};
-    Tensor<T> t2_2_2_1_temp{{O, O, O, O},{2,2}};
-    Tensor<T> t2_2_2_2_1{{O, O, O, V},{2,2}};
-    Tensor<T> t2_2_4_1{{O, V},{1,1}};
-    Tensor<T> t2_2_5_1{{O, O, O, V},{2,2}};
-    Tensor<T> t2_4_1{{O, O},{1,1}};
-    Tensor<T> t2_4_2_1{{O, V},{1,1}};
-    Tensor<T> t2_5_1{{V, V},{1,1}};
-    Tensor<T> t2_6_1{{O, O, O, O},{2,2}};
-    Tensor<T> t2_6_1_temp{{O, O, O, O},{2,2}};
-    Tensor<T> t2_6_2_1{{O, O, O, V},{2,2}};
-    Tensor<T> t2_7_1{{O, V, O, V},{2,2}};
-    Tensor<T> vt1t1_1{{O, V, O, O},{2,2}};
-    Tensor<T> vt1t1_1_temp{{O, V, O, O},{2,2}};
-
-    TiledIndexLabel p1, p2, p3, p4, p5, p6, p7, p8, p9;
-    TiledIndexLabel h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11;
-
-    std::tie(p1, p2, p3, p4, p5, p6, p7, p8, p9) = MO.labels<9>("virt");
-    std::tie(h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11) = MO.labels<11>("occ");
-
-    Scheduler sch{ec};
-    sch.allocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
-             t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1,vt1t1_1_temp,t2_2_2_1_temp,
-             t2_2_1_temp,i0_temp,t2_temp,t2_6_1_temp)
-    (i0(p3, p4, h1, h2) = v2(p3, p4, h1, h2))
-    (t2_4_1(h9, h1) = 0)
-    (t2_5_1(p3, p5) = 0)
-    (t2_2_1(h10, p3, h1, h2) = v2(h10, p3, h1, h2))
-
-    (t2_2_2_1(h10, h11, h1, h2) = -1 * v2(h10, h11, h1, h2))
-    (t2_2_2_2_1(h10, h11, h1, p5) = v2(h10, h11, h1, p5))
-    (t2_2_2_2_1(h10, h11, h1, p5) += -0.5 * t1(p6, h1) * v2(h10, h11, p5, p6))
-
-    (t2_2_2_1_temp(h10, h11, h1, h2) = 0)
-    (t2_2_2_1_temp(h10, h11, h1, h2) += t1(p5, h1) * t2_2_2_2_1(h10, h11, h2, p5))
-    (t2_2_2_1(h10, h11, h1, h2) += t2_2_2_1_temp(h10, h11, h1, h2))
-    (t2_2_2_1(h10, h11, h2, h1) += -1 * t2_2_2_1_temp(h10, h11, h1, h2)) //perm symm
-
-    (t2_2_2_1(h10, h11, h1, h2) += -0.5 * t2(p7, p8, h1, h2) * v2(h10, h11, p7, p8))
-    (t2_2_1(h10, p3, h1, h2) += 0.5 * t1(p3, h11) * t2_2_2_1(h10, h11, h1, h2))
-    
-    (t2_2_4_1(h10, p5) = f1(h10, p5))
-    (t2_2_4_1(h10, p5) += -1 * t1(p6, h7) * v2(h7, h10, p5, p6))
-    (t2_2_1(h10, p3, h1, h2) += -1 * t2(p3, p5, h1, h2) * t2_2_4_1(h10, p5))
-    (t2_2_5_1(h7, h10, h1, p9) = v2(h7, h10, h1, p9))
-    (t2_2_5_1(h7, h10, h1, p9) += t1(p5, h1) * v2(h7, h10, p5, p9))
-
-    (t2_2_1_temp(h10, p3, h1, h2) = 0)
-    (t2_2_1_temp(h10, p3, h1, h2) += t2(p3, p9, h1, h7) * t2_2_5_1(h7, h10, h2, p9))
-    (t2_2_1(h10, p3, h1, h2) += t2_2_1_temp(h10, p3, h1, h2))
-    (t2_2_1(h10, p3, h2, h1) += -1 * t2_2_1_temp(h10, p3, h1, h2)) //perm symm
-
-    (t2_temp(p1, p2, h3, h4) = 0)
-    (t2_temp(p1, p2, h3, h4) += 0.5 * t1(p1, h3) * t1(p2, h4))
-    (t2(p1, p2, h3, h4) += t2_temp(p1, p2, h3, h4))
-    (t2(p1, p2, h4, h3) += -1 * t2_temp(p1, p2, h3, h4)) //4 perms
-    (t2(p2, p1, h3, h4) += -1 * t2_temp(p1, p2, h3, h4)) //perm
-    (t2(p2, p1, h4, h3) += t2_temp(p1, p2, h3, h4)) //perm
-
-    (t2_2_1(h10, p3, h1, h2) += 0.5 * t2(p5, p6, h1, h2) * v2(h10, p3, p5, p6))
-    (t2(p1, p2, h3, h4) += -1 * t2_temp(p1, p2, h3, h4))
-    (t2(p1, p2, h4, h3) += t2_temp(p1, p2, h3, h4)) //4 perms
-    (t2(p2, p1, h3, h4) += t2_temp(p1, p2, h3, h4)) //perm
-    (t2(p2, p1, h4, h3) += -1 * t2_temp(p1, p2, h3, h4)) //perm
-    
-
-    (i0_temp(p3, p4, h1, h2) = 0)
-    (i0_temp(p3, p4, h1, h2) += t1(p3, h10) * t2_2_1(h10, p4, h1, h2))
-    (i0(p3, p4, h1, h2) += -1 * i0_temp(p3, p4, h1, h2))
-    (i0(p4, p3, h1, h2) += i0_temp(p3, p4, h1, h2)) //perm sym
-
-    (i0_temp(p3, p4, h1, h2) = 0)
-    (i0_temp(p3, p4, h1, h2) += t1(p5, h1) * v2(p3, p4, h2, p5))
-    (i0(p3, p4, h1, h2) += -1 * i0_temp(p3, p4, h1, h2))
-    (i0(p3, p4, h2, h1) += i0_temp(p3, p4, h1, h2)) //perm sym
-
-    (t2_4_1(h9, h1) = f1(h9, h1))
-    (t2_4_2_1(h9, p8) = f1(h9, p8))
-    (t2_4_2_1(h9, p8) += t1(p6, h7) * v2(h7, h9, p6, p8))
-    (t2_4_1(h9, h1) += t1(p8, h1) * t2_4_2_1(h9, p8))
-    (t2_4_1(h9, h1) += -1 * t1(p6, h7) * v2(h7, h9, h1, p6))
-    (t2_4_1(h9, h1) += -0.5 * t2(p6, p7, h1, h8) * v2(h8, h9, p6, p7))
-
-    (i0_temp(p3, p4, h1, h2) = 0)
-    (i0_temp(p3, p4, h1, h2) += t2(p3, p4, h1, h9) * t2_4_1(h9, h2))
-    (i0(p3, p4, h1, h2) += -1 * i0_temp(p3, p4, h1, h2))
-    (i0(p3, p4, h2, h1) += i0_temp(p3, p4, h1, h2)) //perm sym
-
-
-    (t2_5_1(p3, p5) = f1(p3, p5))
-    (t2_5_1(p3, p5) += -1 * t1(p6, h7) * v2(h7, p3, p5, p6))
-    (t2_5_1(p3, p5) += -0.5 * t2(p3, p6, h7, h8) * v2(h7, h8, p5, p6))
-
-    (i0_temp(p3, p4, h1, h2) = 0)
-    (i0_temp(p3, p4, h1, h2) += t2(p3, p5, h1, h2) * t2_5_1(p4, p5))
-    (i0(p3, p4, h1, h2) += i0_temp(p3, p4, h1, h2))
-    (i0(p4, p3, h1, h2) += -1 * i0_temp(p3, p4, h1, h2)) //perm sym
-
-    (t2_6_1(h9, h11, h1, h2) = -1 * v2(h9, h11, h1, h2))
-    (t2_6_2_1(h9, h11, h1, p8) = v2(h9, h11, h1, p8))
-    (t2_6_2_1(h9, h11, h1, p8) += 0.5 * t1(p6, h1) * v2(h9, h11, p6, p8))
-    
-    (t2_6_1_temp(h9, h11, h1, h2) = 0)
-    (t2_6_1_temp(h9, h11, h1, h2) += t1(p8, h1) * t2_6_2_1(h9, h11, h2, p8))
-    (t2_6_1(h9, h11, h1, h2) += t2_6_1_temp(h9, h11, h1, h2))
-    (t2_6_1(h9, h11, h2, h1) += -1 * t2_6_1_temp(h9, h11, h1, h2)) //perm symm
-
-    (t2_6_1(h9, h11, h1, h2) += -0.5 * t2(p5, p6, h1, h2) * v2(h9, h11, p5, p6))
-    (i0(p3, p4, h1, h2) += -0.5 * t2(p3, p4, h9, h11) * t2_6_1(h9, h11, h1, h2))
-
-    (t2_7_1(h6, p3, h1, p5) = v2(h6, p3, h1, p5))
-    (t2_7_1(h6, p3, h1, p5) += -1 * t1(p7, h1) * v2(h6, p3, p5, p7))
-    (t2_7_1(h6, p3, h1, p5) += -0.5 * t2(p3, p7, h1, h8) * v2(h6, h8, p5, p7))
-
-    (i0_temp(p3, p4, h1, h2) = 0)
-    (i0_temp(p3, p4, h1, h2) += t2(p3, p5, h1, h6) * t2_7_1(h6, p4, h2, p5))
-    (i0(p3, p4, h1, h2) += -1 * i0_temp(p3, p4, h1, h2))
-    (i0(p3, p4, h2, h1) +=  1 * i0_temp(p3, p4, h1, h2)) //4 perms
-    (i0(p4, p3, h1, h2) +=  1 * i0_temp(p3, p4, h1, h2)) //perm
-    (i0(p4, p3, h2, h1) += -1 * i0_temp(p3, p4, h1, h2)) //perm
-
-    (vt1t1_1_temp()=0)
-    (vt1t1_1_temp(h5, p3, h1, h2) += t1(p6, h1) * v2(h5, p3, h2, p6))
-    (vt1t1_1(h5, p3, h1, h2) = -2 * vt1t1_1_temp(h5, p3, h1, h2))
-    (vt1t1_1(h5, p3, h2, h1) += 2 * vt1t1_1_temp(h5, p3, h1, h2)) //perm symm
-
-    (i0_temp(p3, p4, h1, h2) = 0)
-    (i0_temp(p3, p4, h1, h2) += -0.5 * t1(p3, h5) * vt1t1_1(h5, p4, h1, h2))
-    (i0(p3, p4, h1, h2) += i0_temp(p3, p4, h1, h2))
-    (i0(p4, p3, h1, h2) += -1 * i0_temp(p3, p4, h1, h2)) //perm symm
-
-    (t2(p1, p2, h3, h4) += t2_temp(p1, p2, h3, h4))
-    (t2(p1, p2, h4, h3) += -1 * t2_temp(p1, p2, h3, h4)) //4 perms
-    (t2(p2, p1, h3, h4) += -1 * t2_temp(p1, p2, h3, h4)) //perm
-    (t2(p2, p1, h4, h3) += t2_temp(p1, p2, h3, h4)) //perm
-
-    (i0(p3, p4, h1, h2) += 0.5 * t2(p5, p6, h1, h2) * v2(p3, p4, p5, p6))
-    
-    (t2(p1, p2, h3, h4) += -1 * t2_temp(p1, p2, h3, h4))
-    (t2(p1, p2, h4, h3) += t2_temp(p1, p2, h3, h4)) //4 perms
-    (t2(p2, p1, h3, h4) += t2_temp(p1, p2, h3, h4)) //perms
-    (t2(p2, p1, h4, h3) += -1 * t2_temp(p1, p2, h3, h4)) //perms
-
-    .deallocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
-              t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1,vt1t1_1_temp,t2_2_2_1_temp,
-              t2_2_1_temp,i0_temp,t2_temp,t2_6_1_temp);
-    sch.execute();
-    */
 }
 
 
@@ -510,30 +371,18 @@ void ccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
     // sch(d_evl(n1) = 0.0)
     // .execute();
 
-  {
-      auto lambda = [&](const IndexVector& blockid) {
-          if(blockid[0] == blockid[1]) {
-              Tensor<T> tensor     = d_f1;
-              const TAMM_SIZE size = tensor.block_size(blockid);
-
-              std::vector<T> buf(size);
-              tensor.get(blockid, buf);
-
+    auto lambda = [&](Tensor<T> tensor, const IndexVector& blockid, span<T> buf){
+        if(blockid[0] == blockid[1]) {
             auto block_dims = tensor.block_dims(blockid);
             auto block_offset = tensor.block_offsets(blockid);
-
-
-              auto dim    = block_dims[0];
-              auto offset = block_offset[0];
-              TAMM_SIZE i = 0;
-              for(auto p = offset; p < offset + dim; p++, i++) {
-                  p_evl_sorted[p] = buf[i * dim + i];
-              }
-          }
-      };
-      block_for(ec, d_f1(), lambda);
-  }
-  ec.pg().barrier();
+            auto dim    = block_dims[0];
+            auto offset = block_offset[0];
+            TAMM_SIZE i = 0;
+            for(auto p = offset; p < offset + dim; p++, i++)
+                p_evl_sorted[p] = buf[i * dim + i]; 
+        }
+    };
+    update_tensor_general(d_f1(), lambda);
 
 //   if(ec->pg().rank() == 0) {
 //     std::cout << "p_evl_sorted:" << '\n';
@@ -604,7 +453,7 @@ auto lambdar2 = [&](const IndexVector& blockid, span<T> buf){
           Scheduler{ec}((*d_t1s[off])() = d_t1())((*d_t2s[off])() = d_t2())
             .execute();
 
-          ccsd_e(ec, MO, d_e, d_t1, d_t2, d_f1);
+          ccsd_e(ec, MO, d_e, d_t1, d_t2, d_f1, chol);
           ccsd_t1(ec, MO, CI, d_r1, d_t1, d_t2, d_f1, chol, cv3d);
           ccsd_t2(ec, MO, CI, d_r2, d_t1, d_t2, d_f1, chol, cv3d);
 
@@ -693,6 +542,7 @@ int main( int argc, char* argv[] )
 
 TEST_CASE("CCSD Driver") {
 
+    auto rank = GA_Nodeid();
     // std::cout << "Input file provided = " << filename << std::endl;
 
     using T = double;
@@ -717,7 +567,7 @@ TEST_CASE("CCSD Driver") {
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(GA_Nodeid()==0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
 
     hf_t1        = std::chrono::high_resolution_clock::now();
     std::vector<Eigen::RowVectorXd> evec;
@@ -728,12 +578,12 @@ TEST_CASE("CCSD Driver") {
     hf_t2        = std::chrono::high_resolution_clock::now();
     double two_4index_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(GA_Nodeid()==0) std::cout << "\nTime taken for CD: " << two_4index_time
+    if(rank == 0) std::cout << "\nTime taken for CD: " << two_4index_time
               << " secs\n";
 
     TAMM_SIZE ov_beta{nao - ov_alpha};
 
-    if(GA_Nodeid()==0) std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
+    //if(rank == 0) std::cout << "ov_alpha,nao === " << ov_alpha << ":" << nao << std::endl;
     sizes = {ov_alpha - freeze_core, ov_alpha - freeze_core,
              ov_beta - freeze_virtual, ov_beta - freeze_virtual};
 
@@ -796,7 +646,7 @@ TEST_CASE("CCSD Driver") {
   // CD
   auto chol_dims = CholVpr.dimensions();
   auto chol_count = chol_dims[2];
-  if(GA_Nodeid()==0) cout << "Number of cholesky vectors:" << chol_count << endl;
+  if(rank == 0) cout << "Number of cholesky vectors:" << chol_count << endl;
   std::vector<Tensor<T> *> chol_vecs(chol_count);
 
   for(auto x = 0; x < chol_count; x++) {
@@ -812,55 +662,50 @@ TEST_CASE("CCSD Driver") {
   for(auto x = 0; x < chol_count; x++) {
       Tensor<T>* cholvec = chol_vecs.at(x);
 
-      block_for(*ec, (*cholvec)(), [&](IndexVector it) {
-          Tensor<T> tensor     = (*cholvec)().tensor();
-          const TAMM_SIZE size = tensor.block_size(it);
-
-          std::vector<T> buf(size);
-
-          auto block_offset = tensor.block_offsets(it);
-          auto block_dims   = tensor.block_dims(it);
-
-          TAMM_SIZE c = 0;
-          for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
-              i++) {
-              for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
-                  j++, c++) {
-                  buf[c] = CholVpr(i,j, x);;
-              }
-          }
-          (*cholvec).put(it, buf);
-      });
-  }
+        auto lambdacv = [&](Tensor<T> tensor, const IndexVector& blockid, span<T> buf){
+            auto block_dims = tensor.block_dims(blockid);
+            auto block_offset = tensor.block_offsets(blockid);
+                
+            TAMM_SIZE c = 0;
+            for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+                    j++, c++) {
+                buf[c] = CholVpr(i,j,x);
+                }
+            }
+        };
+    update_tensor_general((*cholvec)(), lambdacv);
+   }
 
       IndexSpace cvec{range(0,chol_count)};
       TiledIndexSpace CV{cvec,1};
       Tensor<T> CV3D{{N,N,CV},{1,1}};
       Tensor<T>::allocate(ec,CV3D);
       Scheduler{*ec}(CV3D() = 0).execute();
+      eigen_to_tamm_tensor(CV3D,CholVpr);
+    //   block_for(*ec, CV3D(), [&](IndexVector it) {
+    //       Tensor<T> tensor     = CV3D().tensor();
+    //       const TAMM_SIZE size = tensor.block_size(it);
 
-      block_for(*ec, CV3D(), [&](IndexVector it) {
-          Tensor<T> tensor     = CV3D().tensor();
-          const TAMM_SIZE size = tensor.block_size(it);
+    //       std::vector<T> buf(size);
 
-          std::vector<T> buf(size);
+    //       auto block_offset = tensor.block_offsets(it);
+    //       auto block_dims   = tensor.block_dims(it);
 
-          auto block_offset = tensor.block_offsets(it);
-          auto block_dims   = tensor.block_dims(it);
-
-          TAMM_SIZE c = 0;
-          for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
-              i++) {
-              for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
-                  j++) {
-                    for(auto k = block_offset[2]; k < block_offset[2] + block_dims[2];
-                        k++,c++) {
-                  buf[c] = CholVpr(i,j,k);
-                  }
-              }
-          }
-          CV3D.put(it, buf);
-      });
+    //       TAMM_SIZE c = 0;
+    //       for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
+    //           i++) {
+    //           for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+    //               j++) {
+    //                 for(auto k = block_offset[2]; k < block_offset[2] + block_dims[2];
+    //                     k++,c++) {
+    //               buf[c] = CholVpr(i,j,k);
+    //               }
+    //           }
+    //       }
+    //       CV3D.put(it, buf);
+    //   });
 
   auto cc_t1 = std::chrono::high_resolution_clock::now();
 
@@ -872,7 +717,7 @@ TEST_CASE("CCSD Driver") {
 
   double ccsd_time = 
     std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-  if(GA_Nodeid()==0) std::cout << "\nTime taken for Cholesky CCSD: " << ccsd_time << " secs\n";
+  if(rank == 0) std::cout << "\nTime taken for Cholesky CCSD: " << ccsd_time << " secs\n";
 
   Tensor<T>::deallocate(d_t1, d_t2, d_f1);//, d_v2);
   for (auto x = 0; x < chol_count; x++) Tensor<T>::deallocate(*chol_vecs[x]);

@@ -589,8 +589,11 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
         // for (size_t s2 = 0; s2 <= s1; ++s2) {
         auto s2 = blockid[1];
-
         if (s2>s1) return;
+
+        auto s2spl = obs_shellpair_list[s1];
+        if(std::find(s2spl.begin(),s2spl.end(),s2) == s2spl.end()) return;
+
         // auto bf2 = shell2bf[s2];
         auto n2 = shells[s2].size();
 
@@ -901,11 +904,266 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         // std::max(rmsd / 1e4, std::numeric_limits<double>::epsilon()));
 
         Matrix Ftmp = compute_2body_fock(shells, D, tol_int, SchwarzK);
-
         eigen_to_tamm_tensor(F1tmp, Ftmp);
 
+        double precision = tol_int;
+        auto obs = shells;
+        auto Schwarz = SchwarzK;
+        const auto nshells = obs.size();
+        Matrix G = Matrix::Zero(N,N);
+        auto bf2shell = map_basis_function_to_shell(shells);
+
+
+#if 0
+    auto comp_2bf_lambda = [&](IndexVector it) {
+        Tensor<TensorType> tensor = F1tmp;
+        const TAMM_SIZE size      = tensor.block_size(it);
+
+        std::vector<TensorType> tbuf(size);
+
+        auto block_dims   = tensor.block_dims(it);
+        auto block_offset = tensor.block_offsets(it);
+
+        using libint2::Shell;
+        using libint2::Engine;
+        using libint2::Operator;
+
+        const auto do_schwarz_screen = Schwarz.cols() != 0 && Schwarz.rows() != 0;
+      Matrix D_shblk_norm =  compute_shellblock_norm(obs, D);  // matrix of infty-norms of shell blocks
+
+      auto fock_precision = precision;
+      // engine precision controls primitive truncation, assume worst-case scenario
+      // (all primitive combinations add up constructively)
+      auto max_nprim = obs.max_nprim();
+      auto max_nprim4 = max_nprim * max_nprim * max_nprim * max_nprim;
+      auto engine_precision = std::min(fock_precision / D_shblk_norm.maxCoeff(),
+                                      std::numeric_limits<double>::epsilon()) /
+                              max_nprim4;
+      assert(engine_precision > max_engine_precision &&
+          "using precomputed shell pair data limits the max engine precision"
+      " ... make max_engine_precision smaller and recompile");
+
+      // construct the 2-electron repulsion integrals engine pool
+      using libint2::Engine;
+      Engine engine(Operator::coulomb, obs.max_nprim(), obs.max_l(), 0);
+
+      engine.set_precision(engine_precision);
+      std::atomic<size_t> num_ints_computed{0};
+      auto shell2bf = obs.shell2bf();
+      const auto& buf = engine.results();
+
+      for(auto i = block_offset[0];i < (block_offset[0] + block_dims[0]);i++){
+        auto s1 = bf2shell[i];
+        auto bf1_first = shell2bf[s1]; 
+        auto n1        = shells[s1].size();
+
+          auto sp12_iter = obs_shellpair_data.at(s1).begin();
+
+      for(auto j = block_offset[1];j < (block_offset[1] + block_dims[1]);j++){
+        auto s2 = obs_shellpair_list[bf2shell[j]];
+        auto bf2_first = shell2bf[s2];
+        auto n2        = shells[s2].size();
+
+                const auto* sp12 = sp12_iter->get();
+            ++sp12_iter;
+
+      const auto Dnorm12 = do_schwarz_screen ? D_shblk_norm(s1, s2) : 0.;
+
+        for (auto s3 = 0; s3 <= s1; ++s3) {
+          auto bf3_first = shell2bf[s3];
+          auto n3 = obs[s3].size();
+
+          const auto Dnorm123 =
+              do_schwarz_screen
+                  ? std::max(D_shblk_norm(s1, s3),
+                             std::max(D_shblk_norm(s2, s3), Dnorm12))
+                  : 0.;
+
+          auto sp34_iter = obs_shellpair_data.at(s3).begin();
+
+          const auto s4_max = (s1 == s3) ? s2 : s3;
+          for (const auto& s4 : obs_shellpair_list[s3]) {
+            if (s4 > s4_max)
+              break;  // for each s3, s4 are stored in monotonically increasing
+                      // order
+
+            // must update the iter even if going to skip s4
+            const auto* sp34 = sp34_iter->get();
+            ++sp34_iter;
+
+            // if ((s1234++) % nthreads != thread_id) continue;
+
+            const auto Dnorm1234 =
+                do_schwarz_screen
+                    ? std::max(
+                          D_shblk_norm(s1, s4),
+                          std::max(D_shblk_norm(s2, s4),
+                                   std::max(D_shblk_norm(s3, s4), Dnorm123)))
+                    : 0.;
+
+            if (do_schwarz_screen &&
+                Dnorm1234 * Schwarz(s1, s2) * Schwarz(s3, s4) <
+                    fock_precision)
+              continue;
+
+            auto bf4_first = shell2bf[s4];
+            auto n4 = obs[s4].size();
+
+            num_ints_computed += n1 * n2 * n3 * n4;
+
+                auto f1 = i - bf1_first;
+                auto f2 = j - bf2_first;
+                auto s4_max = (s1 == s2) ? s3 : s2;
+                auto s4p_max = (s1 == s2) ? s3 : s1;
+                auto s1_max = (s4 == s2) ? s3 : s4;
+                auto s2_max = (s4 == s1) ? s3 : s4;
+                auto s2p_max = (s1 == s3) ? s4 : s1;
+                auto s1p_max = (s3 == s2) ? s4 : s2;
+                auto s4x_max = (s1 == s3) ? s2 : s3;
+                auto s4px_max = (s2 == s3) ? s1 : s3;
+                auto con1 = (s3<=s1 && s4 <= s4_max && s2<=s1);
+                auto con2 = (s3<=s2 && s4 <= s4p_max && s1<=s2);
+                auto con3 = (s3<=s2 && s1 <= s1_max && s4<=s2);
+                auto con4 = (s3<=s1 && s2 <= s2_max && s4<=s1);
+                auto conx = (s2 <= s2p_max && s3 >= s1 && s4 <= s3);
+                auto cony = (s1 <=s1p_max && s3 >= s2 && s4<=s3);
+                auto con0 = (s3<=s1 && s4 <=s4x_max && s2 <= s1);
+                auto conz = (s3<=s2 && s4 <=s4px_max && s1 <= s2);
+              
+                decltype(s1) _s1 = -1;
+                decltype(s1) _s2 = -1;
+                decltype(s1) _s3 = -1;
+                decltype(s1) _s4 = -1;
+                decltype(s1) _n1 = -1;
+                decltype(s1) _n2 = -1;
+                decltype(s1) _n3 = -1;
+                decltype(s1) _n4 = -1;
+
+                decltype(f1) _f1 = -1;
+                decltype(f1) _f2 = -1;
+                decltype(f1) _f3 = -1;
+                decltype(f1) _f4 = -1;
+
+              auto lambda_2e = [&](std::vector<int> bf_order, double pf=1.0){
+              
+                auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
+                auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
+                auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
+                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
+                 
+                // engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
+                engine.compute2<Operator::coulomb, libint2::BraKet::xx_xx, 0>(
+                obs[s1], obs[s2], obs[s3], obs[s4], sp12, sp34);
+                
+                const auto* buf_1234 = buf[0];
+                if(buf_1234 == nullptr) return; 
+
+                for(size_t f3 = 0; f3 != n3; ++f3) {
+                  const auto bf3 = f3 + bf3_first;
+                  for(size_t f4 = 0; f4 != n4; ++f4) {
+                    const auto bf4 = f4 + bf4_first;
+                     std::vector<decltype(f1)> fxs{f1,f2,f3,f4};
+                    _f1 = fxs.at(bf_order[0]);
+                    _f2 = fxs.at(bf_order[1]);
+                    _f3 = fxs.at(bf_order[2]);
+                    _f4 = fxs.at(bf_order[3]);
+                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
+                    const auto value = buf_1234[f1234];
+                    const auto value_scal_by_deg = value * s1234_deg;
+                    G(i,j) += pf * D(bf3, bf4) * value_scal_by_deg;
+                  }
+                }
+
+                };
+
+              if (con0){
+                _s1 = s1; _s2 = s2; _s3 = s3; _s4 = s4; _n1 = n1; _n2 = n2; _n3 = n3; _n4 = n4;
+                lambda_2e({0,1,2,3});
+              }
+              
+              if (conz){
+                _s1 = s2; _s2 = s1; _s3 = s3; _s4 = s4; _n1 = n2; _n2 = n1; _n3 = n3; _n4 = n4;
+                lambda_2e({1,0,2,3});
+              }
+
+              if (conx){
+	              _s1 = s3;_s2 = s4;_s3 = s1;_s4 = s2;_n1 = n3;_n2 = n4;_n3 = n1;_n4 = n2;
+                lambda_2e({2,3,0,1});
+              }
+
+              if (cony){
+	              _s1 = s3;_s2 = s4;_s3 = s2;_s4 = s1;_n1 = n3;_n2 = n4;_n3 = n2;_n4 = n1;
+                lambda_2e({2,3,1,0});
+              }
+
+	          if (con1) {	
+              _s1 = s1;_s2 = s3;_s3 = s2;_s4 = s4;_n1 = n1;_n2 = n3;_n3 = n2;_n4 = n4;
+              lambda_2e({0,2,1,3}, -0.25);
+              }
+
+	          if (con2) {	
+              _s1 = s2;_s2 = s3;_s3 = s1;_s4 = s4;_n1 = n2;_n2 = n3;_n3 = n1;_n4 = n4;
+                lambda_2e({1,2,0,3}, -0.25);
+              }
+
+	          if (con3){
+                _s1 = s2;_s2 = s3;_s3 = s4;_s4 = s1;_n1 = n2;_n2 = n3;_n3 = n4;_n4 = n1;
+                lambda_2e({1,2,3,0}, -0.25);
+              }
+
+	          if (con4){
+              _s1 = s1;_s2 = s3;_s3 = s4;_s4 = s2;_n1 = n1;_n2 = n3;_n3 = n4;_n4 = n2;
+              lambda_2e({0,2,3,1}, -0.25);
+              }
+
+                 s1p_max = (s3 == s4) ? s2 : s4;
+                auto con5 = (s1<=s1p_max && s2<=s3 && s4 <= s3);
+                 s2p_max = (s3 == s4) ? s1 : s4;
+                auto con6 = (s2<=s2p_max && s1<=s3 && s4 <= s3);
+                 s4_max = (s3 == s2) ? s1 : s2;
+                auto con7 = (s4<=s4_max && s1<=s3 && s2 <= s3);
+                 s4p_max = (s3 == s1) ? s2 : s1;
+                auto con8 = (s4<=s4p_max && s2<=s3 && s1 <= s3);
+ 
+              if (con5){
+                _s1 = s3;_s2 = s2;_s3 = s4;_s4 = s1;_n1 = n3;_n2 = n2;_n3 = n4;_n4 = n1;
+                lambda_2e({2,1,3,0}, -0.25);
+              }
+
+              if (con6){
+                _s1 = s3;_s2 = s1;_s3 = s4;_s4 = s2;_n1 = n3;_n2 = n1;_n3 = n4;_n4 = n2;
+                lambda_2e({2,0,3,1}, -0.25);
+              }
+
+              if (con7){
+                _s1 = s3;_s2 = s1;_s3 = s2;_s4 = s4;_n1 = n3;_n2 = n1;_n3 = n2;_n4 = n4;
+                lambda_2e({2,0,1,3}, -0.25);
+              }
+
+              if (con8){ 
+                _s1 = s3;_s2 = s2;_s3 = s1;_s4 = s4;_n1 = n3;_n2 = n2;_n3 = n1;_n4 = n4;
+                lambda_2e({2,1,0,3}, -0.25);
+              }
+
+              }
+              }
+              }
+              }
+
+      TAMM_SIZE c = 0;
+      for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
+        for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++, c++) {
+          tbuf[c] = 0.5*G(i, j);
+        }
+      }
+
+      F1tmp.put(it, tbuf);
+  };
+  
+  //block_for(*ec, F1tmp(), comp_2bf_lambda);
+#endif
         // TODO
-#if 1
+#if 0
         //-------------------------COMPUTE 2 BODY FOCK USING
         // TAMM------------------
         auto comp_2bf_lambda =
@@ -1004,10 +1262,10 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
                   for(size_t f4 = 0; f4 != n4; ++f4) {
                     const auto bf4 = f4 + bf4_first;
                      std::vector<decltype(f1)> fxs{f1,f2,f3,f4};
-                     _f1 = fxs.at(bf_order[0]);
-                     _f2 = fxs.at(bf_order[1]);
-                     _f3 = fxs.at(bf_order[2]);
-	                   _f4 = fxs.at(bf_order[3]);
+     _f1 = fxs.at(bf_order[0]);
+     _f2 = fxs.at(bf_order[1]);
+     _f3 = fxs.at(bf_order[2]);
+	   _f4 = fxs.at(bf_order[3]);
                     auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
                     const auto value = buf_1234[f1234];
                     const auto value_scal_by_deg = value * s1234_deg;
@@ -1018,103 +1276,63 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
                 };
 
               if (con0){
-                 _s1 = s1;
-                 _s2 = s2;
-                 _s3 = s3;
-                 _s4 = s4;
-                 _n1 = n1;
-                 _n2 = n2;
-                 _n3 = n3;
-                 _n4 = n4;
+ _s1 = s1;
+ _s2 = s2;
+ _s3 = s3;
+ _s4 = s4;
+ _n1 = n1;
+ _n2 = n2;
+ _n3 = n3;
+ _n4 = n4;
                 lambda_2e({0,1,2,3});
               }
               
               if (conz){
-                 _s1 = s2;
-                 _s2 = s1;
-                 _s3 = s3;
-                 _s4 = s4;
-                 _n1 = n2;
-                 _n2 = n1;
-                 _n3 = n3;
-                 _n4 = n4;
+ _s1 = s2;
+ _s2 = s1;
+ _s3 = s3;
+ _s4 = s4;
+ _n1 = n2;
+ _n2 = n1;
+ _n3 = n3;
+ _n4 = n4;
                 lambda_2e({1,0,2,3});
               }
 
               if (conx){
 	              _s1 = s3;
-	              _s2 = s4;
-                _s3 = s1;
-                _s4 = s2;
-                _n1 = n3;
-                _n2 = n4;
-                _n3 = n1;
-                _n4 = n2;
+	              _s2 = s4;_s3 = s1;_s4 = s2;_n1 = n3;_n2 = n4;_n3 = n1;_n4 = n2;
                 lambda_2e({2,3,0,1});
                 
               }
 
               if (cony){
 	              _s1 = s3;
-	              _s2 = s4;
-                _s3 = s2;
-                _s4 = s1;
-                _n1 = n3;
-                _n2 = n4;
-                _n3 = n2;
-                _n4 = n1;
+	              _s2 = s4;_s3 = s2;_s4 = s1;_n1 = n3;_n2 = n4;_n3 = n2;_n4 = n1;
 
                 lambda_2e({2,3,1,0});
               }
 
 	          if (con1) {	
-                _s1 = s1;
-                _s2 = s3;
-                _s3 = s2;
-                _s4 = s4;
-                _n1 = n1;
-                _n2 = n3;
-                _n3 = n2;
-                _n4 = n4;
+_s1 = s1;_s2 = s3;_s3 = s2;_s4 = s4;_n1 = n1;_n2 = n3;_n3 = n2;_n4 = n4;
 
                 lambda_2e({0,2,1,3}, -0.25);
               }
 
 	          if (con2) {	
-                _s1 = s2;
-                _s2 = s3;
-                _s3 = s1;
-                _s4 = s4;
-                _n1 = n2;
-                _n2 = n3;
-                _n3 = n1;
-                _n4 = n4;
+_s1 = s2;_s2 = s3;_s3 = s1;_s4 = s4;_n1 = n2;_n2 = n3;_n3 = n1;_n4 = n4;
 
                 lambda_2e({1,2,0,3}, -0.25);
               }
 
 	          if (con3){
-                _s1 = s2;
-                _s2 = s3;
-                _s3 = s4;
-                _s4 = s1;
-                _n1 = n2;
-                _n2 = n3;
-                _n3 = n4;
-                _n4 = n1;
+_s1 = s2;_s2 = s3;_s3 = s4;_s4 = s1;_n1 = n2;_n2 = n3;_n3 = n4;_n4 = n1;
 
                 lambda_2e({1,2,3,0}, -0.25);
               }
 
 	          if (con4){
-                _s1 = s1;
-                _s2 = s3;
-                _s3 = s4;
-                _s4 = s2;
-                _n1 = n1;
-                _n2 = n3;
-                _n3 = n4;
-                _n4 = n2;
+_s1 = s1;_s2 = s3;_s3 = s4;_s4 = s2;_n1 = n1;_n2 = n3;_n3 = n4;_n4 = n2;
 
                 lambda_2e({0,2,3,1}, -0.25);
               }
@@ -1129,53 +1347,25 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
                 auto con8 = (s4<=s4p_max && s2<=s3 && s1 <= s3);
  
               if (con5){
-                _s1 = s3;
-                _s2 = s2;
-                _s3 = s4;
-                _s4 = s1;
-                _n1 = n3;
-                _n2 = n2;
-                _n3 = n4;
-                _n4 = n1;
+_s1 = s3;_s2 = s2;_s3 = s4;_s4 = s1;_n1 = n3;_n2 = n2;_n3 = n4;_n4 = n1;
  
                 lambda_2e({2,1,3,0}, -0.25);
               }
 
               if (con6){
-                _s1 = s3;
-                _s2 = s1;
-                _s3 = s4;
-                _s4 = s2;
-                _n1 = n3;
-                _n2 = n1;
-                _n3 = n4;
-                _n4 = n2;
+_s1 = s3;_s2 = s1;_s3 = s4;_s4 = s2;_n1 = n3;_n2 = n1;_n3 = n4;_n4 = n2;
  
                 lambda_2e({2,0,3,1}, -0.25);
               }
 
               if (con7){
-                _s1 = s3;
-                _s2 = s1;
-                _s3 = s2;
-                _s4 = s4;
-                _n1 = n3;
-                _n2 = n1;
-                _n3 = n2;
-                _n4 = n4;
+_s1 = s3;_s2 = s1;_s3 = s2;_s4 = s4;_n1 = n3;_n2 = n1;_n3 = n2;_n4 = n4;
  
                 lambda_2e({2,0,1,3}, -0.25);
               }
 
               if (con8){
-                _s1 = s3;
-                _s2 = s2;
-                _s3 = s1;
-                _s4 = s4;
-                _n1 = n3;
-                _n2 = n2;
-                _n3 = n1;
-                _n4 = n4;
+_s1 = s3;_s2 = s2;_s3 = s1;_s4 = s4;_n1 = n3;_n2 = n2;_n3 = n1;_n4 = n4;
  
                 lambda_2e({2,1,0,3}, -0.25);
               }

@@ -7,7 +7,10 @@ set(tamm_DEPENDENCIES NWX_MPI MSGSL Eigen3 GlobalArrays LibInt CBLAS LAPACKE HPT
 set(tamm_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/tamm)
 set(tamm_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/)
 
-set (CMAKE_BUILD_TYPE Release)
+if(NOT DEFINED CMAKE_BUILD_TYPE)
+    set (CMAKE_BUILD_TYPE Release)
+endif()
+
 set (BUILD_TESTS ON)
 
 find_package(CMakeBuild)

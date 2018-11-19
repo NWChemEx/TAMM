@@ -12,73 +12,70 @@
 
 namespace tamm {
 
-class TensorBase;
-
+/**
+ * @brief Base class representing Distribution of tensor structure
+ *
+ */
 class Distribution {
 public:
+    /**
+     * @brief Destroy the Distribution object
+     *
+     */
     virtual ~Distribution() {}
+    /**
+     * @brief Locate the tensor data for a given block id
+     *
+     * @param [in] blockid identifier for the block to be located
+     * @returns a pair of process id and offset for the location of the block
+     */
     virtual std::pair<Proc, Offset> locate(const IndexVector& blockid) = 0;
-    virtual Size buf_size(Proc proc) const                             = 0;
-    // virtual std::string name() const = 0;
-    virtual Distribution* clone(const TensorBase*, Proc) const = 0;
 
+    /**
+     * @brief Get the buffer size for a process
+     *
+     * @param [in] proc process id to get the buffer size
+     * @returns size of the buffer
+     */
+    virtual Size buf_size(Proc proc) const = 0;
+
+    /**
+     * @brief Clones a Distribution with a given tensor structure and process id
+     *
+     * @param [in] tensor_structure TensorBase object
+     * @param [in] nproc number of processes
+     * @returns A pointer to the Distribution object constructed with the inputs
+     */
+    virtual Distribution* clone(const TensorBase* tensor_structure,
+                                Proc nproc) const = 0;
+
+    /**
+     * @brief Construct a new Distribution object using a TensorBase object and
+     * number of processes
+     *
+     * @param [in] tensor_structure TensorBase object
+     * @param [in] nproc number of processes
+     */
     Distribution(const TensorBase* tensor_structure, Proc nproc) :
       tensor_structure_{tensor_structure},
       nproc_{nproc} {}
 
 protected:
-    const TensorBase* tensor_structure_;
-    Proc nproc_;
-};
+    const TensorBase* tensor_structure_; /**< TensorBase object for the
+                                            corresponding Tensor structure */
+    Proc nproc_;                         /**< Number of processes */
 
+}; // class Distribution
+
+/**
+ * @brief Implementation of the Distribution object for NWChem
+ *
+ */
 class Distribution_NW : public Distribution {
 public:
-    static const std::string class_name; // = "Distribution_NW";
-
-    using HashValue = Integer;
+    using HashValue = size_t;
     using Key       = HashValue;
 
-    std::string name() const {
-        return "Distribution_NW"; // Distribution_NW::class_name;
-    }
-
-    Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const {
-        /** \warning
-         *  totalview LD on following statement
-         *  back traced to tamm::Tensor<double>::alloc shared_ptr_base.h
-         *  backtraced to ccsd_driver<double> execution_context.h
-         *  back traced to main
-         */
-        return new Distribution_NW(tensor_structure, nproc);
-    }
-
-    std::pair<Proc, Offset> locate(const IndexVector& blockid) {
-        auto key = compute_key(blockid);
-        auto itr = std::lower_bound(
-          hash_.begin(), hash_.end(), KeyOffsetPair{key, 0},
-          [](const KeyOffsetPair& lhs, const KeyOffsetPair& rhs) {
-              return lhs.key_ < rhs.key_;
-          });
-        EXPECTS(itr != hash_.end());
-        EXPECTS(key == itr->key_);
-        auto ioffset = itr->offset_;
-        auto pptr    = std::upper_bound(std::begin(proc_offsets_),
-                                     std::end(proc_offsets_), Offset{ioffset});
-        EXPECTS(pptr != std::begin(proc_offsets_));
-        auto proc = Proc{pptr - std::begin(proc_offsets_)};
-        proc -= 1;
-        auto offset = Offset{ioffset - proc_offsets_[proc.value()].value()};
-        return {proc, offset};
-    }
-
-    Size buf_size(Proc proc) const {
-        EXPECTS(proc >= 0);
-        EXPECTS(proc < nproc_);
-        EXPECTS(proc_offsets_.size() > static_cast<uint64_t>(proc.value()) + 1);
-        return proc_offsets_[proc.value() + 1] - proc_offsets_[proc.value()];
-    }
-
-public:
     Distribution_NW(const TensorBase* tensor_structure = nullptr,
                     Proc nproc                         = Proc{1}) :
       Distribution{tensor_structure, nproc} {
@@ -126,11 +123,56 @@ public:
         proc_offsets_.push_back(total_size_);
     }
 
+    Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const {
+        /** @warning
+         *  totalview LD on following statement
+         *  back traced to tamm::Tensor<double>::alloc shared_ptr_base.h
+         *  backtraced to ccsd_driver<double> execution_context.h
+         *  back traced to main
+         */
+        return new Distribution_NW(tensor_structure, nproc);
+    }
+
+    std::pair<Proc, Offset> locate(const IndexVector& blockid) {
+        auto key = compute_key(blockid);
+        auto itr = std::lower_bound(
+          hash_.begin(), hash_.end(), KeyOffsetPair{key, 0},
+          [](const KeyOffsetPair& lhs, const KeyOffsetPair& rhs) {
+              return lhs.key_ < rhs.key_;
+          });
+        EXPECTS(itr != hash_.end());
+        EXPECTS(key == itr->key_);
+        auto ioffset = itr->offset_;
+        auto pptr    = std::upper_bound(std::begin(proc_offsets_),
+                                     std::end(proc_offsets_), Offset{ioffset});
+        EXPECTS(pptr != std::begin(proc_offsets_));
+        auto proc = Proc{pptr - std::begin(proc_offsets_)};
+        proc -= 1;
+        auto offset = Offset{ioffset - proc_offsets_[proc.value()].value()};
+        return {proc, offset};
+    }
+
+    Size buf_size(Proc proc) const {
+        EXPECTS(proc >= 0);
+        EXPECTS(proc < nproc_);
+        EXPECTS(proc_offsets_.size() > static_cast<uint64_t>(proc.value()) + 1);
+        return proc_offsets_[proc.value() + 1] - proc_offsets_[proc.value()];
+    }
+
 private:
+    /**
+     * @brief Struct for pair of HashValue and Offset
+     *
+     */
     struct KeyOffsetPair {
         HashValue key_;
         Offset offset_;
     };
+
+    /**
+     * @brief Computes offset for each key value
+     *
+     */
     void compute_key_offsets() {
         const auto& tis_list = tensor_structure_->tindices();
         int rank             = tis_list.size();
@@ -142,6 +184,12 @@ private:
         }
     }
 
+    /**
+     * @brief Computes the key value for a given block id
+     *
+     * @param [in] blockid identifier for the tensor block
+     * @returns a key value
+     */
     Key compute_key(const IndexVector& blockid) const {
         Key key{0};
         auto rank = tensor_structure_->tindices().size();
@@ -151,12 +199,11 @@ private:
         return key;
     }
 
-    Offset total_size_;
-    std::vector<KeyOffsetPair> hash_;
-    std::vector<Offset> proc_offsets_;
-    std::vector<Offset> key_offsets_;
+    Offset total_size_;                /**< Total size of the distribution */
+    std::vector<KeyOffsetPair> hash_;  /**< Vector of key and offset pairs  */
+    std::vector<Offset> proc_offsets_; /**< Vector of offsets for each process */
+    std::vector<Offset> key_offsets_;  /**< Vector of offsets for each key value */
 
-    friend class DistributionFactory;
 }; // class Distribution_NW
 
 } // namespace tamm

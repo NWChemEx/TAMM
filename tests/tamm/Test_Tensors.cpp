@@ -12,13 +12,6 @@ using namespace tamm;
 
 using T = double;
 
-ExecutionContext make_execution_context() {
-    ProcGroup pg{GA_MPI_Comm()};
-    auto* pMM             = MemoryManagerLocal::create_coll(pg);
-    Distribution_NW* dist = new Distribution_NW();
-    return ExecutionContext(pg, dist, pMM);
-}
-
 void lambda_function(const IndexVector& blockid, span<T> buff) {
     for(size_t i = 0; i < static_cast<size_t>(buff.size()); i++) { buff[i] = 42; }
 }

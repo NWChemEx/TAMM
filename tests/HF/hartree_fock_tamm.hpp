@@ -836,8 +836,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     Tensor<TensorType> ehf_tamm{}, rmsd_tamm{};
 
     Tensor<TensorType> F1{tAO, tAO};
-    Tensor<TensorType> F1tmp{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, F1, F1tmp, ehf_tmp, ehf_tamm, rmsd_tamm);
+    Tensor<TensorType> F1tmp1{tAO, tAO};
+    Tensor<TensorType> F1tmp{tAOt, tAOt};
+    Tensor<TensorType>::allocate(ec, F1, F1tmp, F1tmp1, ehf_tmp, ehf_tamm, rmsd_tamm);
 
     Tensor<TensorType> Sm12_tamm{tAO, tAO}; 
     Tensor<TensorType> Sp12_tamm{tAO, tAO};
@@ -850,7 +851,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     Tensor<TensorType> Sp12D_tamm{tAO, tAO};
     Tensor<TensorType> SpFS_tamm{tAO, tAO};
     Tensor<TensorType> err_mat_tamm{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
+    Tensor<TensorType> G_tamm{tAOt, tAOt};
+
+    Tensor<TensorType>::allocate(ec, FSm12_tamm, G_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
 
     eigen_to_tamm_tensor(D_tamm,D);
     F.setZero(N,N);
@@ -891,7 +894,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         auto ehf_last = ehf;
         auto D_last   = D;
 
-        Scheduler{*ec} //(F1tmp() = 0)
+        Scheduler{*ec} (G_tamm() = 0)
+        (F1tmp() = 0)
+        // (F1tmp1() = 0)
            (D_last_tamm(mu,nu) = D_tamm(mu,nu)).execute();
 
         // build a new Fock matrix
@@ -903,33 +908,16 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         // std::min(1e-3 / XtX_condition_number, 1e-7),
         // std::max(rmsd / 1e4, std::numeric_limits<double>::epsilon()));
 
-        Matrix Ftmp = compute_2body_fock(shells, D, tol_int, SchwarzK);
-        eigen_to_tamm_tensor(F1tmp, Ftmp);
+        // Matrix Ftmp = compute_2body_fock(shells, D, tol_int, SchwarzK);
+        // eigen_to_tamm_tensor(F1tmp, Ftmp);
 
         double precision = tol_int;
-        auto obs = shells;
-        auto Schwarz = SchwarzK;
-        const auto nshells = obs.size();
+        const libint2::BasisSet& obs = shells;
+        // assert(N==obs.nbf());
         Matrix G = Matrix::Zero(N,N);
-        auto bf2shell = map_basis_function_to_shell(shells);
 
-
-#if 0
-    auto comp_2bf_lambda = [&](IndexVector it) {
-        Tensor<TensorType> tensor = F1tmp;
-        const TAMM_SIZE size      = tensor.block_size(it);
-
-        std::vector<TensorType> tbuf(size);
-
-        auto block_dims   = tensor.block_dims(it);
-        auto block_offset = tensor.block_offsets(it);
-
-        using libint2::Shell;
-        using libint2::Engine;
-        using libint2::Operator;
-
-        const auto do_schwarz_screen = Schwarz.cols() != 0 && Schwarz.rows() != 0;
-      Matrix D_shblk_norm =  compute_shellblock_norm(obs, D);  // matrix of infty-norms of shell blocks
+        const auto do_schwarz_screen = SchwarzK.cols() != 0 && SchwarzK.rows() != 0;
+        Matrix D_shblk_norm =  compute_shellblock_norm(obs, D);  // matrix of infty-norms of shell blocks
 
       auto fock_precision = precision;
       // engine precision controls primitive truncation, assume worst-case scenario
@@ -951,23 +939,44 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
       std::atomic<size_t> num_ints_computed{0};
       auto shell2bf = obs.shell2bf();
       const auto& buf = engine.results();
+      // const auto nshells = obs.size();
 
-      for(auto i = block_offset[0];i < (block_offset[0] + block_dims[0]);i++){
-        auto s1 = bf2shell[i];
+#if 1
+    auto comp_2bf_lambda = [&](IndexVector blockid1) {
+
+      const IndexVector blockid = 
+          internal::translate_blockid(blockid1, F1tmp());
+        Tensor<TensorType> tensor = F1tmp;
+        const TAMM_SIZE size      = tensor.block_size(blockid);
+        std::vector<TensorType> tbuf(size);
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+
+        using libint2::Engine;
+ 
+        auto s1 = blockid[0];
         auto bf1_first = shell2bf[s1]; 
-        auto n1        = shells[s1].size();
+        auto n1 = obs[s1].size();
 
-          auto sp12_iter = obs_shellpair_data.at(s1).begin();
+        auto sp12_iter = obs_shellpair_data.at(s1).begin();
 
-      for(auto j = block_offset[1];j < (block_offset[1] + block_dims[1]);j++){
-        auto s2 = obs_shellpair_list[bf2shell[j]];
+        //for (const auto& s2 : obs_shellpair_list[s1]) {
+        auto s2 = blockid[1];
+
+        
+        auto s2spl = obs_shellpair_list[s1];
+        auto s2_itr = std::find(s2spl.begin(),s2spl.end(),s2);
+        if(s2_itr == s2spl.end()) return;
+        auto s2_pos = std::distance(s2spl.begin(),s2_itr);
+
         auto bf2_first = shell2bf[s2];
-        auto n2        = shells[s2].size();
+        auto n2 = obs[s2].size();
 
-                const auto* sp12 = sp12_iter->get();
-            ++sp12_iter;
+        std::advance(sp12_iter,s2_pos);
+        const auto* sp12 = sp12_iter->get();
+        //++sp12_iter;
 
-      const auto Dnorm12 = do_schwarz_screen ? D_shblk_norm(s1, s2) : 0.;
+        const auto Dnorm12 = do_schwarz_screen ? D_shblk_norm(s1, s2) : 0.;
 
         for (auto s3 = 0; s3 <= s1; ++s3) {
           auto bf3_first = shell2bf[s3];
@@ -1002,7 +1011,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
                     : 0.;
 
             if (do_schwarz_screen &&
-                Dnorm1234 * Schwarz(s1, s2) * Schwarz(s3, s4) <
+                Dnorm1234 * SchwarzK(s1, s2) * SchwarzK(s3, s4) <
                     fock_precision)
               continue;
 
@@ -1011,385 +1020,72 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
             num_ints_computed += n1 * n2 * n3 * n4;
 
-                auto f1 = i - bf1_first;
-                auto f2 = j - bf2_first;
-                auto s4_max = (s1 == s2) ? s3 : s2;
-                auto s4p_max = (s1 == s2) ? s3 : s1;
-                auto s1_max = (s4 == s2) ? s3 : s4;
-                auto s2_max = (s4 == s1) ? s3 : s4;
-                auto s2p_max = (s1 == s3) ? s4 : s1;
-                auto s1p_max = (s3 == s2) ? s4 : s2;
-                auto s4x_max = (s1 == s3) ? s2 : s3;
-                auto s4px_max = (s2 == s3) ? s1 : s3;
-                auto con1 = (s3<=s1 && s4 <= s4_max && s2<=s1);
-                auto con2 = (s3<=s2 && s4 <= s4p_max && s1<=s2);
-                auto con3 = (s3<=s2 && s1 <= s1_max && s4<=s2);
-                auto con4 = (s3<=s1 && s2 <= s2_max && s4<=s1);
-                auto conx = (s2 <= s2p_max && s3 >= s1 && s4 <= s3);
-                auto cony = (s1 <=s1p_max && s3 >= s2 && s4<=s3);
-                auto con0 = (s3<=s1 && s4 <=s4x_max && s2 <= s1);
-                auto conz = (s3<=s2 && s4 <=s4px_max && s1 <= s2);
-              
-                decltype(s1) _s1 = -1;
-                decltype(s1) _s2 = -1;
-                decltype(s1) _s3 = -1;
-                decltype(s1) _s4 = -1;
-                decltype(s1) _n1 = -1;
-                decltype(s1) _n2 = -1;
-                decltype(s1) _n3 = -1;
-                decltype(s1) _n4 = -1;
+            // compute the permutational degeneracy (i.e. # of equivalents) of
+            // the given shell set
+            auto s12_deg = (s1 == s2) ? 1 : 2;
+            auto s34_deg = (s3 == s4) ? 1 : 2;
+            auto s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1 : 2) : 2;
+            auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
 
-                decltype(f1) _f1 = -1;
-                decltype(f1) _f2 = -1;
-                decltype(f1) _f3 = -1;
-                decltype(f1) _f4 = -1;
-
-              auto lambda_2e = [&](std::vector<int> bf_order, double pf=1.0){
-              
-                auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-                 
-                // engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                engine.compute2<Operator::coulomb, libint2::BraKet::xx_xx, 0>(
-                obs[s1], obs[s2], obs[s3], obs[s4], sp12, sp34);
+            engine.compute2<Operator::coulomb, libint2::BraKet::xx_xx, 0>(
+              obs[s1], obs[s2], obs[s3], obs[s4], sp12, sp34); 
+            // engine.compute(obs[s1], obs[s2], obs[s3], obs[s4]);
                 
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) return; 
+            const auto* buf_1234 = buf[0];
+            if (buf_1234 == nullptr)
+              continue; // if all integrals screened out, skip to next quartet
 
-                for(size_t f3 = 0; f3 != n3; ++f3) {
+            // 1) each shell set of integrals contributes up to 6 shell sets of
+            // the Fock matrix:
+            //    F(a,b) += (ab|cd) * D(c,d)
+            //    F(c,d) += (ab|cd) * D(a,b)
+            //    F(b,d) -= 1/4 * (ab|cd) * D(a,c)
+            //    F(b,c) -= 1/4 * (ab|cd) * D(a,d)
+            //    F(a,c) -= 1/4 * (ab|cd) * D(b,d)
+            //    F(a,d) -= 1/4 * (ab|cd) * D(b,c)
+            // 2) each permutationally-unique integral (shell set) must be
+            // scaled by its degeneracy,
+            //    i.e. the number of the integrals/sets equivalent to it
+            // 3) the end result must be symmetrized
+            for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+              const auto bf1 = f1 + bf1_first;
+              for (auto f2 = 0; f2 != n2; ++f2) {
+                const auto bf2 = f2 + bf2_first;
+                for (auto f3 = 0; f3 != n3; ++f3) {
                   const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
+                  for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
                     const auto bf4 = f4 + bf4_first;
-                     std::vector<decltype(f1)> fxs{f1,f2,f3,f4};
-                    _f1 = fxs.at(bf_order[0]);
-                    _f2 = fxs.at(bf_order[1]);
-                    _f3 = fxs.at(bf_order[2]);
-                    _f4 = fxs.at(bf_order[3]);
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
+
                     const auto value = buf_1234[f1234];
                     const auto value_scal_by_deg = value * s1234_deg;
-                    G(i,j) += pf * D(bf3, bf4) * value_scal_by_deg;
+
+                    G(bf1, bf2) += D(bf3, bf4) * value_scal_by_deg;
+                    G(bf3, bf4) += D(bf1, bf2) * value_scal_by_deg;
+                    G(bf1, bf3) -= 0.25 * D(bf2, bf4) * value_scal_by_deg;
+                    G(bf2, bf4) -= 0.25 * D(bf1, bf3) * value_scal_by_deg;
+                    G(bf1, bf4) -= 0.25 * D(bf2, bf3) * value_scal_by_deg;
+                    G(bf2, bf3) -= 0.25 * D(bf1, bf4) * value_scal_by_deg;
+
                   }
                 }
-
-                };
-
-              if (con0){
-                _s1 = s1; _s2 = s2; _s3 = s3; _s4 = s4; _n1 = n1; _n2 = n2; _n3 = n3; _n4 = n4;
-                lambda_2e({0,1,2,3});
               }
-              
-              if (conz){
-                _s1 = s2; _s2 = s1; _s3 = s3; _s4 = s4; _n1 = n2; _n2 = n1; _n3 = n3; _n4 = n4;
-                lambda_2e({1,0,2,3});
-              }
-
-              if (conx){
-	              _s1 = s3;_s2 = s4;_s3 = s1;_s4 = s2;_n1 = n3;_n2 = n4;_n3 = n1;_n4 = n2;
-                lambda_2e({2,3,0,1});
-              }
-
-              if (cony){
-	              _s1 = s3;_s2 = s4;_s3 = s2;_s4 = s1;_n1 = n3;_n2 = n4;_n3 = n2;_n4 = n1;
-                lambda_2e({2,3,1,0});
-              }
-
-	          if (con1) {	
-              _s1 = s1;_s2 = s3;_s3 = s2;_s4 = s4;_n1 = n1;_n2 = n3;_n3 = n2;_n4 = n4;
-              lambda_2e({0,2,1,3}, -0.25);
-              }
-
-	          if (con2) {	
-              _s1 = s2;_s2 = s3;_s3 = s1;_s4 = s4;_n1 = n2;_n2 = n3;_n3 = n1;_n4 = n4;
-                lambda_2e({1,2,0,3}, -0.25);
-              }
-
-	          if (con3){
-                _s1 = s2;_s2 = s3;_s3 = s4;_s4 = s1;_n1 = n2;_n2 = n3;_n3 = n4;_n4 = n1;
-                lambda_2e({1,2,3,0}, -0.25);
-              }
-
-	          if (con4){
-              _s1 = s1;_s2 = s3;_s3 = s4;_s4 = s2;_n1 = n1;_n2 = n3;_n3 = n4;_n4 = n2;
-              lambda_2e({0,2,3,1}, -0.25);
-              }
-
-                 s1p_max = (s3 == s4) ? s2 : s4;
-                auto con5 = (s1<=s1p_max && s2<=s3 && s4 <= s3);
-                 s2p_max = (s3 == s4) ? s1 : s4;
-                auto con6 = (s2<=s2p_max && s1<=s3 && s4 <= s3);
-                 s4_max = (s3 == s2) ? s1 : s2;
-                auto con7 = (s4<=s4_max && s1<=s3 && s2 <= s3);
-                 s4p_max = (s3 == s1) ? s2 : s1;
-                auto con8 = (s4<=s4p_max && s2<=s3 && s1 <= s3);
- 
-              if (con5){
-                _s1 = s3;_s2 = s2;_s3 = s4;_s4 = s1;_n1 = n3;_n2 = n2;_n3 = n4;_n4 = n1;
-                lambda_2e({2,1,3,0}, -0.25);
-              }
-
-              if (con6){
-                _s1 = s3;_s2 = s1;_s3 = s4;_s4 = s2;_n1 = n3;_n2 = n1;_n3 = n4;_n4 = n2;
-                lambda_2e({2,0,3,1}, -0.25);
-              }
-
-              if (con7){
-                _s1 = s3;_s2 = s1;_s3 = s2;_s4 = s4;_n1 = n3;_n2 = n1;_n3 = n2;_n4 = n4;
-                lambda_2e({2,0,1,3}, -0.25);
-              }
-
-              if (con8){ 
-                _s1 = s3;_s2 = s2;_s3 = s1;_s4 = s4;_n1 = n3;_n2 = n2;_n3 = n1;_n4 = n4;
-                lambda_2e({2,1,0,3}, -0.25);
-              }
-
-              }
-              }
-              }
-              }
-
-      TAMM_SIZE c = 0;
-      for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-        for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++, c++) {
-          tbuf[c] = 0.5*G(i, j);
+            }
+          }
         }
-      }
 
-      F1tmp.put(it, tbuf);
-  };
-  
-  //block_for(*ec, F1tmp(), comp_2bf_lambda);
+      Matrix Gt = 0.5*(G + G.transpose());
+      G = Gt;
+    };
+
+    block_for(*ec, F1tmp(), comp_2bf_lambda);
+    // GA_Sync();
+    eigen_to_tamm_tensor_acc(F1tmp,G);
+    Matrix F1tmp1_eigen(N,N);
+    tamm_to_eigen_tensor(F1tmp,F1tmp1_eigen);
+    eigen_to_tamm_tensor(F1tmp1,F1tmp1_eigen);
+    // if(GA_Nodeid()==0) cout << "F_2bf==\n" << F1tmp1_eigen << endl;
+    // GA_Sync();
 #endif
-        // TODO
-#if 0
-        //-------------------------COMPUTE 2 BODY FOCK USING
-        // TAMM------------------
-        auto comp_2bf_lambda =
-          [&](IndexVector it) {
-              Tensor<TensorType> tensor = F1tmp;
-              const TAMM_SIZE size      = tensor.block_size(it);
-
-              std::vector<TensorType> tbuf(size);
-
-              auto block_dims   = tensor.block_dims(it);
-              auto block_offset = tensor.block_offsets(it);
-
-              using libint2::Shell;
-              using libint2::Engine;
-              using libint2::Operator;
-            
-            //   std::cout << "blockdims = " << block_dims[0] << ":" << block_dims[1] << std::endl;
-              Matrix G = Matrix::Zero(N,N);
-              auto ns  = shells.size();
-
-              // construct the 2-electron repulsion integrals engine
-              Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells),
-                            0);
-
-              auto shell2bf = map_shell_to_basis_function(shells);
-              auto bf2shell = map_basis_function_to_shell(shells);
-
-              const auto& buf = engine.results();
-
-              // loop over permutationally-unique set of shells
-
-              for(auto i = block_offset[0];i < (block_offset[0] + block_dims[0]);i++){
-                auto s1 = bf2shell[i];
-                auto bf1_first = shell2bf[s1]; 
-                auto n1        = shells[s1].size();
-
-              for(auto j = block_offset[1];j < (block_offset[1] + block_dims[1]);j++){
-                auto s2 = bf2shell[j];
-                auto bf2_first = shell2bf[s2];
-                auto n2        = shells[s2].size();
-                
-              for(size_t s3 = 0; s3 != shells.size(); ++s3) {
-                auto bf3_first = shell2bf[s3];
-                auto n3        = shells[s3].size();
-
-              for(size_t s4 = 0; s4 != shells.size(); ++s4) {
-                auto bf4_first = shell2bf[s4];
-                auto n4        = shells[s4].size();
-
-                auto f1 = i - bf1_first;
-                auto f2 = j - bf2_first;
-                auto s4_max = (s1 == s2) ? s3 : s2;
-                auto s4p_max = (s1 == s2) ? s3 : s1;
-                auto s1_max = (s4 == s2) ? s3 : s4;
-                auto s2_max = (s4 == s1) ? s3 : s4;
-                auto s2p_max = (s1 == s3) ? s4 : s1;
-                auto s1p_max = (s3 == s2) ? s4 : s2;
-                auto s4x_max = (s1 == s3) ? s2 : s3;
-                auto s4px_max = (s2 == s3) ? s1 : s3;
-                auto con1 = (s3<=s1 && s4 <= s4_max && s2<=s1);
-                auto con2 = (s3<=s2 && s4 <= s4p_max && s1<=s2);
-                auto con3 = (s3<=s2 && s1 <= s1_max && s4<=s2);
-                auto con4 = (s3<=s1 && s2 <= s2_max && s4<=s1);
-                auto conx = (s2 <= s2p_max && s3 >= s1 && s4 <= s3);
-                auto cony = (s1 <=s1p_max && s3 >= s2 && s4<=s3);
-                auto con0 = (s3<=s1 && s4 <=s4x_max && s2 <= s1);
-                auto conz = (s3<=s2 && s4 <=s4px_max && s1 <= s2);
-              
-                decltype(s1) _s1 = -1;
-                decltype(s1) _s2 = -1;
-                decltype(s1) _s3 = -1;
-                decltype(s1) _s4 = -1;
-                decltype(s1) _n1 = -1;
-                decltype(s1) _n2 = -1;
-                decltype(s1) _n3 = -1;
-                decltype(s1) _n4 = -1;
-
-                decltype(f1) _f1 = -1;
-                decltype(f1) _f2 = -1;
-                decltype(f1) _f3 = -1;
-                decltype(f1) _f4 = -1;
-
-              auto lambda_2e = [&](std::vector<int> bf_order, double pf=1.0){
-              
-                auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-                 
-                engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) return; 
-
-                for(size_t f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
-                    const auto bf4 = f4 + bf4_first;
-                     std::vector<decltype(f1)> fxs{f1,f2,f3,f4};
-     _f1 = fxs.at(bf_order[0]);
-     _f2 = fxs.at(bf_order[1]);
-     _f3 = fxs.at(bf_order[2]);
-	   _f4 = fxs.at(bf_order[3]);
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
-                    const auto value = buf_1234[f1234];
-                    const auto value_scal_by_deg = value * s1234_deg;
-                    G(i,j) += pf * D(bf3, bf4) * value_scal_by_deg;
-                  }
-                }
-
-                };
-
-              if (con0){
- _s1 = s1;
- _s2 = s2;
- _s3 = s3;
- _s4 = s4;
- _n1 = n1;
- _n2 = n2;
- _n3 = n3;
- _n4 = n4;
-                lambda_2e({0,1,2,3});
-              }
-              
-              if (conz){
- _s1 = s2;
- _s2 = s1;
- _s3 = s3;
- _s4 = s4;
- _n1 = n2;
- _n2 = n1;
- _n3 = n3;
- _n4 = n4;
-                lambda_2e({1,0,2,3});
-              }
-
-              if (conx){
-	              _s1 = s3;
-	              _s2 = s4;_s3 = s1;_s4 = s2;_n1 = n3;_n2 = n4;_n3 = n1;_n4 = n2;
-                lambda_2e({2,3,0,1});
-                
-              }
-
-              if (cony){
-	              _s1 = s3;
-	              _s2 = s4;_s3 = s2;_s4 = s1;_n1 = n3;_n2 = n4;_n3 = n2;_n4 = n1;
-
-                lambda_2e({2,3,1,0});
-              }
-
-	          if (con1) {	
-_s1 = s1;_s2 = s3;_s3 = s2;_s4 = s4;_n1 = n1;_n2 = n3;_n3 = n2;_n4 = n4;
-
-                lambda_2e({0,2,1,3}, -0.25);
-              }
-
-	          if (con2) {	
-_s1 = s2;_s2 = s3;_s3 = s1;_s4 = s4;_n1 = n2;_n2 = n3;_n3 = n1;_n4 = n4;
-
-                lambda_2e({1,2,0,3}, -0.25);
-              }
-
-	          if (con3){
-_s1 = s2;_s2 = s3;_s3 = s4;_s4 = s1;_n1 = n2;_n2 = n3;_n3 = n4;_n4 = n1;
-
-                lambda_2e({1,2,3,0}, -0.25);
-              }
-
-	          if (con4){
-_s1 = s1;_s2 = s3;_s3 = s4;_s4 = s2;_n1 = n1;_n2 = n3;_n3 = n4;_n4 = n2;
-
-                lambda_2e({0,2,3,1}, -0.25);
-              }
-
-                 s1p_max = (s3 == s4) ? s2 : s4;
-                auto con5 = (s1<=s1p_max && s2<=s3 && s4 <= s3);
-                 s2p_max = (s3 == s4) ? s1 : s4;
-                auto con6 = (s2<=s2p_max && s1<=s3 && s4 <= s3);
-                 s4_max = (s3 == s2) ? s1 : s2;
-                auto con7 = (s4<=s4_max && s1<=s3 && s2 <= s3);
-                 s4p_max = (s3 == s1) ? s2 : s1;
-                auto con8 = (s4<=s4p_max && s2<=s3 && s1 <= s3);
- 
-              if (con5){
-_s1 = s3;_s2 = s2;_s3 = s4;_s4 = s1;_n1 = n3;_n2 = n2;_n3 = n4;_n4 = n1;
- 
-                lambda_2e({2,1,3,0}, -0.25);
-              }
-
-              if (con6){
-_s1 = s3;_s2 = s1;_s3 = s4;_s4 = s2;_n1 = n3;_n2 = n1;_n3 = n4;_n4 = n2;
- 
-                lambda_2e({2,0,3,1}, -0.25);
-              }
-
-              if (con7){
-_s1 = s3;_s2 = s1;_s3 = s2;_s4 = s4;_n1 = n3;_n2 = n1;_n3 = n2;_n4 = n4;
- 
-                lambda_2e({2,0,1,3}, -0.25);
-              }
-
-              if (con8){
-_s1 = s3;_s2 = s2;_s3 = s1;_s4 = s4;_n1 = n3;_n2 = n2;_n3 = n1;_n4 = n4;
- 
-                lambda_2e({2,1,0,3}, -0.25);
-              }
-
-              }
-              }
-              }
-              }
-
-              TAMM_SIZE c = 0;
-              for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-                for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++, c++) {
-                  tbuf[c] = 0.5*G(i, j);
-                }
-              }
-
-              F1tmp.put(it, tbuf);
-            };
-                  
-                //---------------------------END COMPUTE 2-BODY FOCK USING
-                // TAMM------------------
-#endif
-        //block_for(ec->pg(), F1tmp(), comp_2bf_lambda);
-
 
         hf_t2 = std::chrono::high_resolution_clock::now();
         hf_time =
@@ -1400,7 +1096,7 @@ _s1 = s3;_s2 = s2;_s3 = s1;_s4 = s4;_n1 = n3;_n2 = n2;_n3 = n1;_n4 = n4;
         hf_t1 = std::chrono::high_resolution_clock::now();
         // F += Ftmp;
         Scheduler{*ec}(F1(mu, nu) = H1(mu, nu))
-                     (F1(mu, nu) += F1tmp(mu, nu)).execute();
+                     (F1(mu, nu) += F1tmp1(mu, nu)).execute();
 
 
         hf_t2 = std::chrono::high_resolution_clock::now();
@@ -1544,7 +1240,7 @@ _s1 = s3;_s2 = s2;_s3 = s1;_s4 = s4;_n1 = n3;_n2 = n2;_n3 = n1;_n4 = n4;
 
     Tensor<TensorType>::deallocate(H1, H1P, S1, T1, V1, F1, D_tamm, ehf_tmp, 
                     ehf_tamm, rmsd_tamm);
-    Tensor<TensorType>::deallocate(F1tmp,Sm12_tamm, Sp12_tamm,
+    Tensor<TensorType>::deallocate(F1tmp,F1tmp1,G_tamm, Sm12_tamm, Sp12_tamm,
     D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
 
     MemoryManagerGA::destroy_coll(mgr);
@@ -1601,8 +1297,6 @@ void diis(Matrix& F, Matrix& err_mat, int iter, int max_hist, int ndiis,
     // cout << "-----------iter:" << iter << "--------------\n";
     // cout << err_mat << endl;
 }
-
-
 
 // computes Superposition-Of-Atomic-Densities guess for the molecular density
 // matrix
@@ -1830,8 +1524,6 @@ Matrix compute_2body_fock(const libint2::BasisSet& obs, const Matrix& D,
             if (buf_1234 == nullptr)
               continue; // if all integrals screened out, skip to next quartet
 
-
-
             // 1) each shell set of integrals contributes up to 6 shell sets of
             // the Fock matrix:
             //    F(a,b) += (ab|cd) * D(c,d)
@@ -1992,151 +1684,5 @@ Matrix compute_2body_fock_general(const libint2::BasisSet& obs, const Matrix& D,
   // symmetrize the result and return
   return 0.5 * (G + G.transpose());
 }
-
-    // auto compute_1body_ints_lambda = [&](const IndexVector& blockid,
-    //                                             span<TensorType> tbuf) {
-
-    //     auto s1 = blockid[0];
-    //     // auto bf1 = shell2bf[s1]; //shell2bf[s1]; // first basis function in
-    //     // this shell
-    //     auto n1 = shells[s1].size();
-
-    //     // for (size_t s2 = 0; s2 <= s1; ++s2) {
-    //     auto s2 = blockid[1];
-
-    //     //if (s2>s1) return;
-    //     // if(s1<s2) return; //TODO
-    //     // auto bf2 = shell2bf[s2];
-    //     auto n2 = shells[s2].size();
-
-    //     // compute shell pair; return is the pointer to the buffer
-    //     engine.compute(shells[s1], shells[s2]);
-    //     // "map" buffer to a const Eigen Matrix, and copy it to the
-    //     // corresponding blocks of the result
-    //     Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
-    //     // result.block(bf1, bf2, n1, n2) = buf_mat;
-    //     // for(size_t i = 0; i < n1; i++)
-    //     //     for(size_t j = 0; j < n2; j++) tbuf[i * n2 + j] = buf_mat(i, j);
-    //     //std::memcpy(tbuf.data(),buf, sizeof(TensorType)*n1*n2);
-    //     Eigen::Map<Matrix>(tbuf.data(),n1,n2) = buf_mat;
-
-    //     // if(s1!=s2){
-    //     //     std::vector<T> ttbuf(n1*n2);
-    //     //     Eigen::Map<Matrix>(ttbuf.data(),n2,n1) = buf_mat.transpose();
-    //     //     put({s2,s1}, ttbuf);
-    //     // }
-    // };
-
-// Matrix compute_2body_fock_orig(const std::vector<libint2::Shell>& shells,
-//                           const Matrix& D) {
-//     using libint2::Shell;
-//     using libint2::Engine;
-//     using libint2::Operator;
-
-//     std::chrono::duration<double> time_elapsed =
-//       std::chrono::duration<double>::zero();
-
-//     const auto n = nbasis(shells);
-//     Matrix G     = Matrix::Zero(n, n);
-
-//     // construct the 2-electron repulsion integrals engine
-//     Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
-
-//     auto shell2bf = map_shell_to_basis_function(shells);
-
-//     const auto& buf = engine.results();
-
-//     // loop over permutationally-unique set of shells
-//     for(size_t s1 = 0; s1 != shells.size(); ++s1) {
-//         auto bf1_first = shell2bf[s1]; // first basis function in this shell
-//         auto n1 = shells[s1].size(); // number of basis functions in this shell
-
-//         for(size_t s2 = 0; s2 <= s1; ++s2) {
-//             auto bf2_first = shell2bf[s2];
-//             auto n2        = shells[s2].size();
-
-//             for(size_t s3 = 0; s3 <= s1; ++s3) {
-//                 auto bf3_first = shell2bf[s3];
-//                 auto n3        = shells[s3].size();
-
-//                 const auto s4_max = (s1 == s3) ? s2 : s3;
-//                 for(size_t s4 = 0; s4 <= s4_max; ++s4) {
-//                     auto bf4_first = shell2bf[s4];
-//                     auto n4        = shells[s4].size();
-
-//                     // compute the permutational degeneracy (i.e. # of
-//                     // equivalents) of the given shell set
-//                     auto s12_deg    = (s1 == s2) ? 1.0 : 2.0;
-//                     auto s34_deg    = (s3 == s4) ? 1.0 : 2.0;
-//                     auto s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1.0 : 2.0) : 2.0;
-//                     auto s1234_deg  = s12_deg * s34_deg * s12_34_deg;
-
-//                     const auto tstart =
-//                       std::chrono::high_resolution_clock::now();
-
-//                     engine.compute2<Operator::coulomb, libint2::BraKet::xx_xx, 0>(shells[s1], shells[s2], shells[s3],
-//                                    shells[s4]);
-//                     const auto* buf_1234 = buf[0];
-//                     if(buf_1234 == nullptr)
-//                         continue; // if all integrals screened out, skip to
-//                                   // next quartet
-
-//                     const auto tstop =
-//                       std::chrono::high_resolution_clock::now();
-//                     time_elapsed += tstop - tstart;
-
-//                     // ANSWER
-//                     // 1) each shell set of integrals contributes up to 6
-//                     // shell sets of the Fock matrix:
-//                     //    F(a,b) += (ab|cd) * D(c,d)
-//                     //    F(c,d) += (ab|cd) * D(a,b)
-//                     //    F(b,d) -= 1/4 * (ab|cd) * D(a,c)
-//                     //    F(b,c) -= 1/4 * (ab|cd) * D(a,d)
-//                     //    F(a,c) -= 1/4 * (ab|cd) * D(b,d)
-//                     //    F(a,d) -= 1/4 * (ab|cd) * D(b,c)
-//                     // 2) each permutationally-unique integral (shell set)
-//                     // must be scaled by its degeneracy,
-//                     //    i.e. the number of the integrals/sets equivalent
-//                     //    to it
-//                     // 3) the end result must be symmetrized
-//                     for(size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
-//                         const auto bf1 = f1 + bf1_first;
-//                         for(size_t f2 = 0; f2 != n2; ++f2) {
-//                             const auto bf2 = f2 + bf2_first;
-//                             for(size_t f3 = 0; f3 != n3; ++f3) {
-//                                 const auto bf3 = f3 + bf3_first;
-//                                 for(size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
-//                                     const auto bf4 = f4 + bf4_first;
-
-//                                     const auto value = buf_1234[f1234];
-
-//                                     const auto value_scal_by_deg =
-//                                       value * s1234_deg;
-
-//                                     G(bf1, bf2) +=
-//                                       D(bf3, bf4) * value_scal_by_deg;
-//                                     G(bf3, bf4) +=
-//                                       D(bf1, bf2) * value_scal_by_deg;
-//                                     G(bf1, bf3) -=
-//                                       0.25 * D(bf2, bf4) * value_scal_by_deg;
-//                                     G(bf2, bf4) -=
-//                                       0.25 * D(bf1, bf3) * value_scal_by_deg;
-//                                     G(bf1, bf4) -=
-//                                       0.25 * D(bf2, bf3) * value_scal_by_deg;
-//                                     G(bf2, bf3) -=
-//                                       0.25 * D(bf1, bf4) * value_scal_by_deg;
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//     }
-
-//     // symmetrize the result and return
-//     Matrix Gt = G.transpose();
-//     return 0.5 * (G + Gt);
-// }
 
 #endif // TAMM_TESTS_HF_TAMM_HPP_

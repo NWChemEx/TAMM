@@ -45,6 +45,9 @@ using Tensor3D   = Eigen::Tensor<double, 3, Eigen::RowMajor>;
 using Tensor4D   = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 using TensorType = double;
 
+// #define EIGEN_USE_BLAS
+// #define EIGEN_USE_LAPACKE
+// #define EIGEN_USE_MKL_ALL
 
 using shellpair_list_t = std::unordered_map<size_t, std::vector<size_t>>;
 shellpair_list_t obs_shellpair_list;  // shellpair list for OBS
@@ -787,6 +790,141 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
                                                 // to be cheaper
         );
 
+#if 0
+  double precision = std::numeric_limits<double>::epsilon();
+  bool D_is_shelldiagonal = true;
+  const libint2::BasisSet& obs = shells;
+  const libint2::BasisSet& D_bs = minbs;
+  // const Matrix& D = D_minbs; 
+
+  Matrix G = Matrix::Zero(N,N);
+  Tensor<TensorType> F1tmp{tAOt, tAOt};
+  Tensor<TensorType>::allocate(ec, F1tmp);
+
+  // construct the 2-electron repulsion integrals engine
+  using libint2::Operator;
+  using libint2::BraKet;
+  using libint2::Engine;
+
+  Engine engine(libint2::Operator::coulomb,
+                      std::max(obs.max_nprim(), D_bs.max_nprim()),
+                      std::max(obs.max_l(), D_bs.max_l()), 0);
+  engine.set_precision(precision);  // shellset-dependent precision control
+                                        // will likely break positive
+                                        // definiteness
+                                        // stick with this simple recipe
+
+  auto shell2bf = obs.shell2bf();
+  auto shell2bf_D = D_bs.shell2bf();
+  const auto& buf = engine.results();
+
+    auto compute_2body_fock_general_lambda = [&](IndexVector blockid1) {
+
+      const IndexVector blockid = 
+          internal::translate_blockid(blockid1, F1tmp());
+        // Tensor<TensorType> tensor = F1tmp;
+        // const TAMM_SIZE size      = tensor.block_size(blockid);
+        // std::vector<TensorType> tbuf(size);
+        // auto block_dims   = tensor.block_dims(blockid);
+        // auto block_offset = tensor.block_offsets(blockid);
+
+        using libint2::Engine;
+ 
+        auto s1 = blockid[0];
+        auto bf1_first = shell2bf[s1];  // first basis function in this shell
+        auto n1 = obs[s1].size();       // number of basis functions in this shell
+
+        auto s2 = blockid[1];
+        if(s2>s1) return;
+
+        auto bf2_first = shell2bf[s2];
+        auto n2 = obs[s2].size();
+
+        for (auto s3 = 0; s3 < D_bs.size(); ++s3) {
+          auto bf3_first = shell2bf_D[s3];
+          auto n3 = D_bs[s3].size();
+
+          auto s4_begin = D_is_shelldiagonal ? s3 : 0;
+          auto s4_fence = D_is_shelldiagonal ? s3 + 1 : D_bs.size();
+
+          for (auto s4 = s4_begin; s4 != s4_fence; ++s4) {
+
+            auto bf4_first = shell2bf_D[s4];
+            auto n4 = D_bs[s4].size();
+
+            // compute the permutational degeneracy (i.e. # of equivalents) of
+            // the given shell set
+            auto s12_deg = (s1 == s2) ? 1.0 : 2.0;
+
+            if (s3 >= s4) {
+              auto s34_deg = (s3 == s4) ? 1.0 : 2.0;
+              auto s1234_deg = s12_deg * s34_deg;
+              // auto s1234_deg = s12_deg;
+              engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
+                  obs[s1], obs[s2], D_bs[s3], D_bs[s4]);
+              const auto* buf_1234 = buf[0];
+              if (buf_1234 != nullptr) {
+                for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                  const auto bf1 = f1 + bf1_first;
+                  for (auto f2 = 0; f2 != n2; ++f2) {
+                    const auto bf2 = f2 + bf2_first;
+                    for (auto f3 = 0; f3 != n3; ++f3) {
+                      const auto bf3 = f3 + bf3_first;
+                      for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
+                        const auto bf4 = f4 + bf4_first;
+
+                        const auto value = buf_1234[f1234];
+                        const auto value_scal_by_deg = value * s1234_deg;
+                        G(bf1, bf2) += 2.0 * D_minbs(bf3, bf4) * value_scal_by_deg;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
+                obs[s1], D_bs[s3], obs[s2], D_bs[s4]);
+            const auto* buf_1324 = buf[0];
+            if (buf_1324 == nullptr)
+              continue; // if all integrals screened out, skip to next quartet
+
+            for (auto f1 = 0, f1324 = 0; f1 != n1; ++f1) {
+              const auto bf1 = f1 + bf1_first;
+              for (auto f3 = 0; f3 != n3; ++f3) {
+                const auto bf3 = f3 + bf3_first;
+                for (auto f2 = 0; f2 != n2; ++f2) {
+                  const auto bf2 = f2 + bf2_first;
+                  for (auto f4 = 0; f4 != n4; ++f4, ++f1324) {
+                    const auto bf4 = f4 + bf4_first;
+
+                    const auto value = buf_1324[f1324];
+                    const auto value_scal_by_deg = value * s12_deg;
+                    G(bf1, bf2) -= D_minbs(bf3, bf4) * value_scal_by_deg;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+      // symmetrize the result and return
+      Matrix Gt = 0.5 * (G + G.transpose());
+      G = Gt;
+    };
+
+    Scheduler{*ec}(F1tmp() = 0).execute();
+
+    block_for(*ec, F1tmp(), compute_2body_fock_general_lambda);
+    eigen_to_tamm_tensor_acc(F1tmp,G);
+    GA_Sync();
+    Matrix F1tmp1_eigen(N,N);
+    tamm_to_eigen_tensor(F1tmp,F1tmp1_eigen);
+    Ft += F1tmp1_eigen;
+    F1tmp1_eigen.resize(0,0);
+    Tensor<TensorType>::deallocate(F1tmp);
+  #endif
+
     // Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(Ft, S);
     // auto eps = gen_eig_solver.eigenvalues();
     // C = gen_eig_solver.eigenvectors();
@@ -866,9 +1004,15 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
    // GA_Sync();
     if(rank == 0) std::cout << "\nTime taken to setup main loop: " << hf_time << " secs\n";
 
+    hf_t1 = std::chrono::high_resolution_clock::now();
     // S^-1/2
     Matrix Sm12 = S.pow(-0.5);
     Matrix Sp12 = S.pow(0.5);
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    if(rank == 0) std::cout << "\nTime taken for +- sqrt(S): " << hf_time << " secs\n";
+
     eigen_to_tamm_tensor(Sm12_tamm,Sm12);
     eigen_to_tamm_tensor(Sp12_tamm,Sp12);    
 
@@ -946,11 +1090,11 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
       const IndexVector blockid = 
           internal::translate_blockid(blockid1, F1tmp());
-        Tensor<TensorType> tensor = F1tmp;
-        const TAMM_SIZE size      = tensor.block_size(blockid);
-        std::vector<TensorType> tbuf(size);
-        auto block_dims   = tensor.block_dims(blockid);
-        auto block_offset = tensor.block_offsets(blockid);
+        // Tensor<TensorType> tensor = F1tmp;
+        // const TAMM_SIZE size      = tensor.block_size(blockid);
+        // std::vector<TensorType> tbuf(size);
+        // auto block_dims   = tensor.block_dims(blockid);
+        // auto block_offset = tensor.block_offsets(blockid);
 
         using libint2::Engine;
  

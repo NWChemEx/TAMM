@@ -1129,6 +1129,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
         if(rank == 0 && debug) std::cout << "err_mat:" << hf_time << "s, ";        
+
+        GA_Sync();
         tamm_to_eigen_tensor(err_mat_tamm,err_mat);
         tamm_to_eigen_tensor(F1,F);
 

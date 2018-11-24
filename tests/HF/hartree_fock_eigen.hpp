@@ -50,6 +50,10 @@ using Tensor2D = Eigen::Tensor<double, 2, Eigen::RowMajor>;
 using Tensor3D = Eigen::Tensor<double, 3, Eigen::RowMajor>;
 using Tensor4D = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 
+// #define EIGEN_USE_BLAS
+// #define EIGEN_USE_LAPACKE
+// #define EIGEN_USE_MKL_ALL
+
 // import dense, dynamically sized Matrix type from Eigen;
 // this is a matrix with row-major storage (http://en.wikipedia.org/wiki/Row-major_order)
 // to meet the layout of the integrals returned by the Libint integral library

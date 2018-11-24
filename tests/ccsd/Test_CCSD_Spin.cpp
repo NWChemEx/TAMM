@@ -503,6 +503,7 @@ auto lambdar2 = [&](const IndexVector& blockid, span<T> buf){
           ccsd_t1(*ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
           ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
 
+          GA_Sync();
           std::tie(residual, energy) = rest(*ec, MO, d_r1, d_r2, d_t1, d_t2,
                                             d_e, p_evl_sorted, zshiftl, noab);
 

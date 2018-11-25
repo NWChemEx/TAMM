@@ -167,7 +167,7 @@ string read_option(std::istream& is, string optionstr, string optiontype){
   return optionstr;
 }
 
-inline std::tuple<std::vector<Atom>, std::string, int, double, double, double, int>
+inline std::tuple<std::vector<Atom>, std::string, bool, int, double, double, double, int>
    read_input_xyz(std::istream& is)
 {
   const double angstrom_to_bohr = 1.889725989; //1 / bohr_to_angstrom; //1.889726125
@@ -239,6 +239,10 @@ inline std::tuple<std::vector<Atom>, std::string, int, double, double, double, i
   std::string basis_set="sto-3g";
   basis_set = read_option(is, basis_set, "basis");
 
+  string read_debug = "false";
+  read_debug = read_option(is, read_debug, "debug");
+  bool debug = false;
+  if(read_debug == "true") debug = true;
   string read_maxiter = "100";
   int maxiter = stoi(read_option(is, read_maxiter, "maxiter"));
   string read_tol_int = "1e-8";
@@ -250,7 +254,7 @@ inline std::tuple<std::vector<Atom>, std::string, int, double, double, double, i
   string read_diis_hist = "10";
   int diis_hist = stod(read_option(is, read_diis_hist, "diis_hist"));
 
-  return std::make_tuple(atoms, basis_set, maxiter, tol_int, conve, convd, diis_hist);
+  return std::make_tuple(atoms, basis_set, debug, maxiter, tol_int, conve, convd, diis_hist);
 }
 
 
@@ -516,8 +520,9 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   double convd = 1e-5;
   double tol_int = 1e-8;
   int max_hist = 10; 
+  auto debug = false;
 
-  std::tie(atoms,basis,maxiter, tol_int, conve, convd, max_hist) = read_input_xyz(is);
+  std::tie(atoms, basis, debug, maxiter, tol_int, conve, convd, max_hist) = read_input_xyz(is);
 
   tol_int = std::min(1e-8, 0.01 * conve);
   
@@ -529,8 +534,6 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   cout << "\nEnergy convergence = " << conve;
   cout << "\nDensity convergence = " << convd;
   cout << "\n----------------------------------";
-
-  const auto debug = false;
 
 //  std::cout << "Geometries in bohr units \n";
 //  for (auto i = 0; i < atoms.size(); ++i)
@@ -741,10 +744,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   std::vector<Matrix> fock_hist;
 
   // S^-1/2
-  Matrix Sm12 = S.pow(-0.5);
-  Matrix Sp12 = S.pow(0.5);
-
-
+  Matrix Sp12 = S.sqrt();
+  Matrix Sm12 = Sp12.inverse();
 
   std::cout << "\n\n";
   std::cout << " Hartree-Fock iterations" << std::endl;

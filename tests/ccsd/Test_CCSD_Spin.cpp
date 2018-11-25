@@ -362,13 +362,14 @@ std::pair<double,double> rest(ExecutionContext& ec,
     return {residual, energy};
 }
 
-void iteration_print(const ProcGroup& pg, int iter, double residual, double energy) {
+void iteration_print(const ProcGroup& pg, int iter, double residual, double energy, double time) {
   if(pg.rank() == 0) {
     std::cout.width(6); std::cout << std::right << iter+1 << "  ";
     std::cout << std::setprecision(13) << residual << "  ";
     std::cout << std::fixed << std::setprecision(13) << energy << " ";
+    std::cout << std::fixed << std::setprecision(2);
     std::cout << std::string(4, ' ') << "0.0";
-    std::cout << std::string(5, ' ') << "0.0";
+    std::cout << std::string(5, ' ') << time;
     std::cout << std::string(5, ' ') << "0.0" << std::endl;
   }
 }
@@ -485,6 +486,9 @@ auto lambdar2 = [&](const IndexVector& blockid, span<T> buf){
 
   for(size_t titer = 0; titer < maxiter; titer += ndiis) {
       for(size_t iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
+
+          const auto timer_start = std::chrono::high_resolution_clock::now();
+          
           int off = iter - titer;
 
           Tensor<T> d_e{};
@@ -512,7 +516,10 @@ auto lambdar2 = [&](const IndexVector& blockid, span<T> buf){
           Scheduler{*ec}((*d_r1s[off])() = d_r1())((*d_r2s[off])() = d_r2())
             .execute();
 
-          iteration_print(ec->pg(), iter, residual, energy);
+          const auto timer_end = std::chrono::high_resolution_clock::now();
+          auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
+
+          iteration_print(ec->pg(), iter, residual, energy, iter_time);
           Tensor<T>::deallocate(d_e, d_r1_residual, d_r2_residual);
 
           if(residual < thresh) { break; }

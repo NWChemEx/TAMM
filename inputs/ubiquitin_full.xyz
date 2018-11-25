@@ -1235,6 +1235,7 @@ H         39.43295       39.92894       33.30960
 H         41.76077       39.11904       35.91137
 
 basis sto-3g
+debug false
 maxiter 50
 tol_int 1e-8
 conve 1e-6

@@ -175,7 +175,7 @@ string read_option(std::istream& is, string optionstr, string optiontype){
   return optionstr;
 }
 
-inline std::tuple<std::vector<Atom>, std::string, int, double, double, double, int>
+inline std::tuple<std::vector<Atom>, std::string, bool, int, double, double, double, int>
    read_input_xyz(std::istream& is) {
     const double angstrom_to_bohr =
       1.889725989; // 1 / bohr_to_angstrom; //1.889726125
@@ -248,6 +248,10 @@ inline std::tuple<std::vector<Atom>, std::string, int, double, double, double, i
     std::string basis_set = "sto-3g";
     basis_set = read_option(is, basis_set, "basis");
 
+    string read_debug = "false";
+    read_debug = read_option(is, read_debug, "debug");
+    bool debug = false;
+    if(read_debug == "true") debug = true;
     string read_maxiter = "100";
     int maxiter = stoi(read_option(is, read_maxiter, "maxiter"));
     string read_tol_int = "1e-8";
@@ -259,7 +263,7 @@ inline std::tuple<std::vector<Atom>, std::string, int, double, double, double, i
     string read_diis_hist = "10";
     int diis_hist = stod(read_option(is, read_diis_hist, "diis_hist"));
 
-    return std::make_tuple(atoms, basis_set, maxiter, tol_int, conve, convd, diis_hist);
+    return std::make_tuple(atoms, basis_set, debug, maxiter, tol_int, conve, convd, diis_hist);
 }
 
 void compare_eigen_tamm_tensors(Tensor<TensorType>& tamm_tensor,
@@ -499,8 +503,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     double convd = 1e-5;
     double tol_int = 1e-8;
     int max_hist = 10; 
+    auto debug = false;
 
-    std::tie(atoms,basis,maxiter, tol_int, conve, convd, max_hist) = read_input_xyz(is);
+    std::tie(atoms, basis, debug, maxiter, tol_int, conve, convd, max_hist) = read_input_xyz(is);
 
     tol_int = std::min(1e-8, 0.01 * conve);
     
@@ -514,8 +519,6 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
       cout << "\nDensity convergence = " << convd;
       cout << "\n----------------------------------";
     }
-
-    auto debug = false;
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
@@ -701,14 +704,14 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     tamm_to_eigen_tensor(S1, S);
     eigen_to_tamm_tensor(H1, H);
 
-    Tensor<TensorType>::deallocate(H1P, S1, T1, V1);
-
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
     if(rank == 0) std::cout << "\nTime taken for tamm to eigen - H,S: " << hf_time << " secs\n";
     
+    Tensor<TensorType>::deallocate(H1P, S1, T1, V1);
+
     /*** =========================== ***/
     /*** build initial-guess density ***/
     /*** =========================== ***/
@@ -995,25 +998,32 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     Tensor<TensorType>::allocate(ec, FSm12_tamm, G_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
 
-    eigen_to_tamm_tensor(D_tamm,D);
-    F.setZero(N,N);
-    Matrix err_mat = Matrix::Zero(N,N);
-
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
    // GA_Sync();
-    if(rank == 0) std::cout << "\nTime taken to setup tamm tensors: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime taken to setup tensors for iterative loop: " << hf_time << " secs\n";
+
+    eigen_to_tamm_tensor(D_tamm,D);
+    F.setZero(N,N);
+    Matrix err_mat = Matrix::Zero(N,N);
 
     hf_t1 = std::chrono::high_resolution_clock::now();
-    // S^-1/2
-    Matrix Sm12 = S.pow(-0.5);
-    Matrix Sp12 = S.pow(0.5);
+    // S^1/2
+    Matrix Sp12 = S.sqrt(); //pow(0.5);
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime taken for +- sqrt(S): " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime taken for S^1/2: " << hf_time << " secs\n";
+
+    hf_t1 = std::chrono::high_resolution_clock::now();
+    // S^-1/2
+    Matrix Sm12 = Sp12.inverse();
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    if(rank == 0) std::cout << "Time taken for S^-1/2: " << hf_time << " secs\n";
 
     eigen_to_tamm_tensor(Sm12_tamm,Sm12);
     eigen_to_tamm_tensor(Sp12_tamm,Sp12);    
@@ -1229,7 +1239,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     Matrix F1tmp1_eigen(N,N);
     tamm_to_eigen_tensor(F1tmp,F1tmp1_eigen);
     eigen_to_tamm_tensor(F1tmp1,F1tmp1_eigen);
-    // GA_Sync();
+    F1tmp1_eigen.resize(0,0);
 #endif
 
         hf_t2 = std::chrono::high_resolution_clock::now();
@@ -1385,10 +1395,17 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         }        
     }
 
+    hf_t1 = std::chrono::high_resolution_clock::now();
+
     Tensor<TensorType>::deallocate(H1, F1, D_tamm, ehf_tmp, 
                     ehf_tamm, rmsd_tamm);
     Tensor<TensorType>::deallocate(F1tmp,F1tmp1,G_tamm, Sm12_tamm, Sp12_tamm,
     D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
+
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    if(rank == 0 && debug) std::cout << "\nTime taken to deallocate tamm tensors: " << hf_time << " secs\n";
 
     MemoryManagerGA::destroy_coll(mgr);
     delete ec;

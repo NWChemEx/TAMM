@@ -243,7 +243,7 @@ geometry units angstrom
   C    -0.688217    0.906082   -7.207108
 
 basis sto-3g
-
+debug false
 maxiter 50
 tol_int 1e-8
 conve 1e-6

@@ -536,6 +536,7 @@ H             0.95653         -15.96877           0.67569
 O             4.79531          -2.23995          12.48454
 
 basis 6-31g*
+debug false
 maxiter 50
 tol_int 1e-8
 conve 1e-6

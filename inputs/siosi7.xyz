@@ -292,6 +292,7 @@ geometry units angstrom
  H     6.80656     -6.31862     13.9585
 
 basis 6-31g*
+debug false
 maxiter 50
 tol_int 1e-8
 conve 1e-6

@@ -14,6 +14,10 @@
 #include <tuple>
 #include <vector>
 
+// #define EIGEN_USE_BLAS
+// #define EIGEN_USE_LAPACKE
+// #define EIGEN_USE_MKL_ALL
+
 // Eigen matrix algebra library
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
@@ -24,7 +28,6 @@
 #include <libint2.hpp>
 #include <libint2/basis.h>
 #include <libint2/chemistry/sto3g_atomic_density.h>
-
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -44,10 +47,6 @@ using Tensor2D   = Eigen::Tensor<double, 2, Eigen::RowMajor>;
 using Tensor3D   = Eigen::Tensor<double, 3, Eigen::RowMajor>;
 using Tensor4D   = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 using TensorType = double;
-
-// #define EIGEN_USE_BLAS
-// #define EIGEN_USE_LAPACKE
-// #define EIGEN_USE_MKL_ALL
 
 using shellpair_list_t = std::unordered_map<size_t, std::vector<size_t>>;
 shellpair_list_t obs_shellpair_list;  // shellpair list for OBS
@@ -566,12 +565,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
                 << std::endl;
     }
 
-    size_t nao = 0;
-
-    for(size_t s = 0; s < shells.size(); ++s) nao += shells[s].size();
-
     const size_t N = nbasis(shells);
-    assert(N == nao);
+    size_t nao = N;
 
     if(GA_Nodeid()==0) cout << "\nNumber of basis functions: " << N << endl;
 
@@ -632,10 +627,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     IndexSpace AO{range(0, N)};
     std::vector<unsigned int> AO_tiles;
     for(auto s : shells) AO_tiles.push_back(s.size());
-    // if(rank==0){
-    //     // cout << "AO tiles = " << AO_tiles << endl;
-    //     cout << "Number of AO tiles = " << AO_tiles.size() << endl;
-    // }
+    if(rank==0) cout << "Number of AO tiles = " << AO_tiles.size() << endl;
+
     tamm::Tile tile_size = 6; 
     if(N>=30) tile_size = 30;
     TiledIndexSpace tAO{AO, tile_size};
@@ -708,6 +701,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     tamm_to_eigen_tensor(S1, S);
     eigen_to_tamm_tensor(H1, H);
 
+    Tensor<TensorType>::deallocate(H1P, S1, T1, V1);
+
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
@@ -737,9 +732,16 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         conditioning_orthogonalizer(S, S_condition_number_threshold);
 
     // TODO Redeclare TAMM S1 with new dims?
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+    if(rank == 0) std::cout << "Time for computing orthogonalizer: " << hf_time << " secs\n\n";
 
     // pre-compute data for Schwarz bounds
     auto SchwarzK = compute_schwarz_ints<>(shells);
+
+    hf_t1 = std::chrono::high_resolution_clock::now();
 
   const auto use_hcore_guess = false;  // use core Hamiltonian eigenstates to guess density?
   // set to true to match the result of versions 0, 1, and 2 of the code
@@ -923,7 +925,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     Ft += F1tmp1_eigen;
     F1tmp1_eigen.resize(0,0);
     Tensor<TensorType>::deallocate(F1tmp);
-  #endif
+#endif
 
     // Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(Ft, S);
     // auto eps = gen_eig_solver.eigenvalues();
@@ -1002,7 +1004,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
    // GA_Sync();
-    if(rank == 0) std::cout << "\nTime taken to setup main loop: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime taken to setup tamm tensors: " << hf_time << " secs\n";
 
     hf_t1 = std::chrono::high_resolution_clock::now();
     // S^-1/2
@@ -1028,8 +1030,20 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     std::cout << std::fixed << std::setprecision(2);
 
-    do {
+    double precision = tol_int;
+    const libint2::BasisSet& obs = shells;
+    // assert(N==obs.nbf());
+    Matrix G = Matrix::Zero(N,N);
+    const auto do_schwarz_screen = SchwarzK.cols() != 0 && SchwarzK.rows() != 0;
+    auto fock_precision = precision;
+    // engine precision controls primitive truncation, assume worst-case scenario
+    // (all primitive combinations add up constructively)
+    auto max_nprim = obs.max_nprim();
+    auto max_nprim4 = max_nprim * max_nprim * max_nprim * max_nprim;
+    auto shell2bf = obs.shell2bf();
+    // const auto nshells = obs.size();
 
+    do {
         // Scheduler sch{ec};
         const auto loop_start = std::chrono::high_resolution_clock::now();
         ++iter;
@@ -1055,23 +1069,15 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         // Matrix Ftmp = compute_2body_fock(shells, D, tol_int, SchwarzK);
         // eigen_to_tamm_tensor(F1tmp, Ftmp);
 
-        double precision = tol_int;
-        const libint2::BasisSet& obs = shells;
-        // assert(N==obs.nbf());
-        Matrix G = Matrix::Zero(N,N);
-
-        const auto do_schwarz_screen = SchwarzK.cols() != 0 && SchwarzK.rows() != 0;
+        G.setZero(N,N);
         Matrix D_shblk_norm =  compute_shellblock_norm(obs, D);  // matrix of infty-norms of shell blocks
+      
 
-      auto fock_precision = precision;
-      // engine precision controls primitive truncation, assume worst-case scenario
-      // (all primitive combinations add up constructively)
-      auto max_nprim = obs.max_nprim();
-      auto max_nprim4 = max_nprim * max_nprim * max_nprim * max_nprim;
       auto engine_precision = std::min(fock_precision / D_shblk_norm.maxCoeff(),
                                       std::numeric_limits<double>::epsilon()) /
                               max_nprim4;
-      assert(engine_precision > max_engine_precision &&
+      if(rank == 0)
+        assert(engine_precision > max_engine_precision &&
           "using precomputed shell pair data limits the max engine precision"
       " ... make max_engine_precision smaller and recompile");
 
@@ -1080,10 +1086,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
       Engine engine(Operator::coulomb, obs.max_nprim(), obs.max_l(), 0);
 
       engine.set_precision(engine_precision);
-      std::atomic<size_t> num_ints_computed{0};
-      auto shell2bf = obs.shell2bf();
+      // std::atomic<size_t> num_ints_computed{0};
       const auto& buf = engine.results();
-      // const auto nshells = obs.size();
+      
 
 #if 1
     auto comp_2bf_lambda = [&](IndexVector blockid1) {
@@ -1095,8 +1100,6 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         // std::vector<TensorType> tbuf(size);
         // auto block_dims   = tensor.block_dims(blockid);
         // auto block_offset = tensor.block_offsets(blockid);
-
-        using libint2::Engine;
  
         auto s1 = blockid[0];
         auto bf1_first = shell2bf[s1]; 
@@ -1106,7 +1109,6 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
         //for (const auto& s2 : obs_shellpair_list[s1]) {
         auto s2 = blockid[1];
-
         
         auto s2spl = obs_shellpair_list[s1];
         auto s2_itr = std::find(s2spl.begin(),s2spl.end(),s2);
@@ -1162,7 +1164,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
             auto bf4_first = shell2bf[s4];
             auto n4 = obs[s4].size();
 
-            num_ints_computed += n1 * n2 * n3 * n4;
+            // num_ints_computed += n1 * n2 * n3 * n4;
 
             // compute the permutational degeneracy (i.e. # of equivalents) of
             // the given shell set
@@ -1227,7 +1229,6 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     Matrix F1tmp1_eigen(N,N);
     tamm_to_eigen_tensor(F1tmp,F1tmp1_eigen);
     eigen_to_tamm_tensor(F1tmp1,F1tmp1_eigen);
-    // if(GA_Nodeid()==0) cout << "F_2bf==\n" << F1tmp1_eigen << endl;
     // GA_Sync();
 #endif
 
@@ -1384,7 +1385,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         }        
     }
 
-    Tensor<TensorType>::deallocate(H1, H1P, S1, T1, V1, F1, D_tamm, ehf_tmp, 
+    Tensor<TensorType>::deallocate(H1, F1, D_tamm, ehf_tmp, 
                     ehf_tamm, rmsd_tamm);
     Tensor<TensorType>::deallocate(F1tmp,F1tmp1,G_tamm, Sm12_tamm, Sp12_tamm,
     D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);

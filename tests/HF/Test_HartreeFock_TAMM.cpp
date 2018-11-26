@@ -36,7 +36,7 @@ TEST_CASE("HartreeFock testcase") {
 
     GA_Sync();
     if(GA_Nodeid() == 0)
-    std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
+    std::cout << "\nTotal Time taken for Hartree-Fock: " << hf_time << " secs\n";
 }
 
 int main( int argc, char* argv[] )

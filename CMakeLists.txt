@@ -20,15 +20,15 @@ cpp_find_or_build_dependency(
     FIND_RECIPE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindLAPACKE.cmake
     CMAKE_ARGS CBLAS=ON LAPACKE=ON
 )
+cpp_find_or_build_dependency(
+    NAME Eigen3
+    URL github.com/eigenteam/eigen-git-mirror
+)
 
 cpp_find_dependency(
     NAME GlobalArrays
     FIND_RECIPE
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindGlobalArrays.cmake
 )
-
-set(NWX_PROJECTS tamm)
-
-set(tamm_DEPENDENCIES NWX_MPI Eigen3)
 
 add_subdirectory(src/tamm)

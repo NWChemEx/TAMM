@@ -87,8 +87,8 @@ cpp_add_library(
     tamm
     SOURCES ${tamm_SRCS}
     INCLUDES ${tamm_INCLUDES}
-    DEPENDS HPTT GlobalArrays MSGSL LAPACKE
+    DEPENDS HPTT GlobalArrays MSGSL LAPACKE Eigen3
 )
-target_include_directories(tamm PUBLIC ${PROJECT_SOURCE_DIR}/src)
-cpp_install(TARGETS tamm)
+target_include_directories(tamm PRIVATE ${PROJECT_SOURCE_DIR}/src)
+cpp_install(TARGETS tamm PREFIX_TO_STRIP ${PROJECT_SOURCE_DIR}/src)
 

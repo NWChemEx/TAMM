@@ -90,5 +90,5 @@ cpp_add_library(
     DEPENDS HPTT GlobalArrays MSGSL LAPACKE
 )
 target_include_directories(tamm PUBLIC ${PROJECT_SOURCE_DIR}/src)
-
+cpp_install(TARGETS tamm)
 

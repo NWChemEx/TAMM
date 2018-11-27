@@ -1,10 +1,6 @@
 #define CATCH_CONFIG_RUNNER
 
 #include "HF/hartree_fock_eigen.hpp"
-#include "catch/catch.hpp"
-#include "tamm/tamm.hpp"
-#include "macdecls.h"
-#include "ga-mpi.h"
 
 
 using namespace tamm;
@@ -31,7 +27,7 @@ TEST_CASE("HartreeFock testcase") {
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
+    if(GA_Nodeid()==0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
 }
 
 int main( int argc, char* argv[] )

@@ -5,10 +5,8 @@
 
 namespace tamm {
 
-template<typename T>
-class LabeledTensor;
-
 /**
+ * @ingroup tensors
  * @brief Templated Tensor class designed using PIMPL (pointer to
  * implementation) idiom. All of the implementation (except the static
  * methods) are done in TensorImpl<T> class
@@ -44,30 +42,93 @@ public:
       impl_{std::make_shared<TensorImpl<T>>(til_vec)} {}
 
     // SpinTensor Constructors
-
+    /**
+     * @brief Construct a new Tensor object with Spin attributes
+     *
+     * @param [in] t_spaces vector of TiledIndexSpace objects for each mode
+     * @param [in] spin_mask spin mask for each mode
+     */
     Tensor(TiledIndexSpaceVec t_spaces, SpinMask spin_mask) :
       impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_mask)} {}
 
-    Tensor(std::initializer_list<TiledIndexSpace> t_spaces, SpinMask spin_mask) :
+    /**
+     * @brief Construct a new Tensor object with Spin attributes
+     *
+     * @param [in] t_spaces initializer list of TiledIndexSpace objects for each
+     * mode
+     * @param [in] spin_mask spin mask for each mode
+     */
+    Tensor(std::initializer_list<TiledIndexSpace> t_spaces,
+           SpinMask spin_mask) :
       impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_mask)} {}
 
+    /**
+     * @brief Construct a new Tensor object with Spin attributes
+     *
+     * @param [in] t_lbls vector of TiledIndexLabel objects for each mode
+     * @param [in] spin_mask spin mask for each mode
+     */
     Tensor(IndexLabelVec t_lbls, SpinMask spin_mask) :
       impl_{std::make_shared<TensorImpl<T>>(t_lbls, spin_mask)} {}
 
+    /**
+     * @brief Construct a new Tensor object with Spin attributes
+     *
+     * @param [in] t_spaces vector of TiledIndexSpace objects for each mode
+     * @param [in] spin_sizes vector of sizes for each spin attribute
+     */
     Tensor(TiledIndexSpaceVec t_spaces, std::vector<size_t> spin_sizes) :
       impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_sizes)} {}
 
-    Tensor(std::initializer_list<TiledIndexSpace> t_spaces, std::vector<size_t> spin_sizes) :
+    /**
+     * @brief Construct a new Tensor object with Spin attributes
+     *
+     * @param [in] t_spaces initializer list of TiledIndexSpace objects for each
+     * mode
+     * @param [in] spin_sizes vector of sizes for each spin attribute
+     */
+    Tensor(std::initializer_list<TiledIndexSpace> t_spaces,
+           std::vector<size_t> spin_sizes) :
       impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_sizes)} {}
-      
+
+    /**
+     * @brief Construct a new Tensor object with Spin attributes
+     *
+     * @param [in] t_spaces vector of TiledIndexLabel objects for each mode
+     * @param [in] spin_sizes vector of sizes for each spin attribute
+     */
     Tensor(IndexLabelVec t_lbls, std::vector<size_t> spin_sizes) :
       impl_{std::make_shared<TensorImpl<T>>(t_lbls, spin_sizes)} {}
 
-    using Func = std::function<void(const IndexVector&, span<T>)>;
     // LambdaTensor Constructors
+    /**
+     * @brief Signature description for Lambda functor
+     *
+     */
+    using Func = std::function<void(const IndexVector&, span<T>)>;
+
+    /**
+     * @brief Construct a new Tensor object with a Lambda function
+     *
+     * @param [in] t_spaces vector of TiledIndexSpace objects for each mode
+     * @param [in] lambda Lambda function for Tensor construction
+     * @warning Tensor objects constructed using Lambda function is a read-only
+     * Tensor. It can only be on right-hand side of an equation and @param
+     * lambda will be called as a get access on the Tensor.
+     */
     Tensor(TiledIndexSpaceVec t_spaces, Func lambda) :
       impl_{std::make_shared<LambdaTensorImpl<T>>(t_spaces, lambda)} {}
 
+    /**
+     * @brief Construct a new Tensor object with a Lambda function
+     *
+     * @param [in] t_spaces initializer list  of TiledIndexSpace objects for
+     * each mode
+     * @param [in] lambda Lambda function for Tensor construction
+     * @warning Tensor objects constructed using Lambda function is a read-only
+     * Tensor. It can only be on right-hand side of an equation and @param
+     * lambda will be called as a get access on the Tensor.
+     */
     Tensor(std::initializer_list<TiledIndexSpace> t_spaces, Func lambda) :
       impl_{std::make_shared<LambdaTensorImpl<T>>(t_spaces, lambda)} {}
 
@@ -91,7 +152,7 @@ public:
       impl_{std::make_shared<TensorImpl<T>>(lbls)} {}
 
     /**
-     * @brief Construct a new Tensor object recursively with a set of
+     * @brief Constructs a new Tensor object recursively with a set of
      * TiledIndexSpace objects followed by a lambda expression
      *
      * @tparam Ts variadic template for the input arguments
@@ -155,8 +216,20 @@ public:
      */
     LabelLoopNest loop_nest() const { return impl_->loop_nest(); }
 
+    /**
+     * @brief Gets the diagonal sum of the Tensor object
+     *
+     * @returns sum of the diagonal values
+     * @warning available for tensors with 2 modes
+     */
     T trace() const { return impl_->trace(); }
 
+    /**
+     * @brief Gets the diagonal values from the Tensor object
+     *
+     * @returns a vector of values from the diagonal of Tensor
+     * @warning available for tensors with 2 modes
+     */
     std::vector<T> diagonal() const { return impl_->diagonal(); }
 
     /**
@@ -233,8 +306,6 @@ public:
     template<typename... Args>
     static void allocate(ExecutionContext* ec, Tensor<T>& tensor,
                          Args&... rest) {
-        // tensor.impl_->template allocate<T>(ec);
-        // allocate(ec, rest...);
         alloc(ec, tensor, rest...);
     }
 
@@ -246,8 +317,6 @@ public:
      */
     template<typename... Args>
     static void deallocate(Tensor<T>& tensor, Args&... rest) {
-        // tensor.impl_->deallocate();
-        // deallocate(rest...);
         dealloc(tensor, rest...);
     }
 
@@ -258,17 +327,34 @@ public:
      */
     size_t num_modes() const { return impl_->num_modes(); }
 
+    /**
+     * @brief Checks if the block is non-zero (calculated using Spin attributes)
+     *
+     * @param [in] blockid identifier for the block
+     * @returns true if the block is non-zero
+     */
     bool is_non_zero(const IndexVector& blockid) const {
         return impl_->is_non_zero(blockid);
     }
 
 private:
-    std::shared_ptr<TensorImpl<T>> impl_;
+    std::shared_ptr<TensorImpl<T>>
+      impl_; /**< Shared pointer to the implementation object */
 
     // Private allocate and de-allocate functions
-
+    /**
+     * @brief Static allocation method (used internally only)
+     *
+     * @param [in] ec ExecutionContext for the allocation
+     */
     static void alloc(const ExecutionContext* ec) {}
+
+    /**
+     * @brief Static deallocation method (used internally only)
+     *
+     */
     static void dealloc() {}
+
     /**
      * @brief Static memory allocation method for a set of Tensors
      *
@@ -278,8 +364,7 @@ private:
      * @param [in] rest set of Tensor objects to be allocated
      */
     template<typename... Args>
-    static void alloc(ExecutionContext* ec, Tensor<T>& tensor,
-                      Args&... rest) {
+    static void alloc(ExecutionContext* ec, Tensor<T>& tensor, Args&... rest) {
         tensor.impl_->allocate(ec);
         alloc(ec, rest...);
     }

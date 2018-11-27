@@ -35,7 +35,7 @@ using std::string;
 using std::cout;
 using std::cerr;
 using std::endl;
-std::ofstream logOFS;
+// std::ofstream logOFS;
 
 using shellpair_list_t = std::unordered_map<size_t, std::vector<size_t>>;
 shellpair_list_t obs_shellpair_list;  // shellpair list for OBS
@@ -75,6 +75,12 @@ Matrix compute_schwarz_ints(
     bool use_2norm = false,  // use infty norm by default
     typename libint2::operator_traits<Kernel>::oper_params_type params =
         libint2::operator_traits<Kernel>::default_params());
+
+
+template <libint2::Operator obtype, typename OperatorParams = 
+typename libint2::operator_traits<obtype>::oper_params_type>
+std::array<Matrix, libint2::operator_traits<obtype>::nopers> compute_1body_ints(
+    const libint2::BasisSet& obs, OperatorParams oparams = OperatorParams());
 
 // an Fock builder that can accept densities expressed a separate basis
 Matrix compute_2body_fock_general(
@@ -144,7 +150,24 @@ const auto max_engine_precision = std::numeric_limits<double>::epsilon() / 1e10;
 
 using libint2::Atom;
 
-inline std::tuple<std::vector<Atom>, std::string>
+string read_option(std::istream& is, string optionstr, string optiontype){
+  while (std::getline(is, optionstr)){
+    if (optionstr.empty()) continue;
+    else {
+        std::istringstream oss(optionstr);
+        std::vector<std::string> option_string{
+          std::istream_iterator<std::string>{oss},
+          std::istream_iterator<std::string>{}};
+        assert(option_string.size() == 2);
+        assert(option_string[0] == optiontype);
+        optionstr = option_string[1];
+        break;
+    }
+  }
+  return optionstr;
+}
+
+inline std::tuple<std::vector<Atom>, std::string, bool, int, double, double, double, int>
    read_input_xyz(std::istream& is)
 {
   const double angstrom_to_bohr = 1.889725989; //1 / bohr_to_angstrom; //1.889726125
@@ -214,74 +237,81 @@ inline std::tuple<std::vector<Atom>, std::string>
   }
 
   std::string basis_set="sto-3g";
-  while (std::getline(is, basis_set)){
-    if (basis_set.empty()) continue;
-    else {
-        std::istringstream bss(basis_set);
-        std::vector<std::string> basis_string{
-          std::istream_iterator<std::string>{bss},
-          std::istream_iterator<std::string>{}};
-        assert(basis_string.size() == 2);
-        assert(basis_string[0] == "basis");
-        basis_set = basis_string[1];
-       // cout << basis_set << endl;
-        break;
-    }
-  }
+  basis_set = read_option(is, basis_set, "basis");
 
-  return std::make_tuple(atoms,basis_set);
+  string read_debug = "false";
+  read_debug = read_option(is, read_debug, "debug");
+  bool debug = false;
+  if(read_debug == "true") debug = true;
+  string read_maxiter = "100";
+  int maxiter = stoi(read_option(is, read_maxiter, "maxiter"));
+  string read_tol_int = "1e-8";
+  double tol_int = stod(read_option(is, read_tol_int, "tol_int"));
+  string read_conve = "1e-6";
+  double conve = stod(read_option(is, read_conve, "conve"));
+  string read_convd = "1e-5";
+  double convd = stod(read_option(is, read_convd, "convd"));
+  string read_diis_hist = "10";
+  int diis_hist = stod(read_option(is, read_diis_hist, "diis_hist"));
+
+  return std::make_tuple(atoms, basis_set, debug, maxiter, tol_int, conve, convd, diis_hist);
 }
 
-Matrix compute_1body_ints(const std::vector<libint2::Shell> &shells,
-                          libint2::Operator obtype,
-                          const std::vector<libint2::Atom> &atoms = std::vector<libint2::Atom>()){
-  using libint2::Shell;
-  using libint2::Engine;
-  using libint2::Operator;
 
-  const auto n = nbasis(shells);
-  Matrix result(n, n);
+template <libint2::Operator obtype, typename OperatorParams>
+std::array<Matrix, libint2::operator_traits<obtype>::nopers> compute_1body_ints(
+    const libint2::BasisSet& obs, OperatorParams oparams) {
+  const auto n = obs.nbf();
+  const auto nshells = obs.size();
+  typedef std::array<Matrix, libint2::operator_traits<obtype>::nopers>
+      result_type;
+  const unsigned int nopers = libint2::operator_traits<obtype>::nopers;
+  result_type result;
+  for (auto& r : result) r = Matrix::Zero(n, n);
 
-  // construct the overlap integrals engine
-  Engine engine(obtype, max_nprim(shells), max_l(shells), 0);
+  // construct the 1-body integrals engine
+  libint2::Engine engine = libint2::Engine(obtype, obs.max_nprim(), obs.max_l(), 0);
+  // pass operator params to the engine, e.g.
   // nuclear attraction ints engine needs to know where the charges sit ...
-  // the nuclei are charges in this case; in QM/MM there will also be classical charges
-  if (obtype == Operator::nuclear) {
-    std::vector<std::pair<double, std::array<double, 3>>> q;
-    for (const auto &atom : atoms) {
-      q.push_back({static_cast<double>(atom.atomic_number), {{atom.x, atom.y, atom.z}}});
+  // the nuclei are charges in this case; in QM/MM there will also be classical
+  // charges
+  engine.set_params(oparams);
+
+  auto shell2bf = obs.shell2bf();
+
+    const auto& buf = engine.results();
+
+    // loop over unique shell pairs, {s1,s2} such that s1 >= s2
+    // this is due to the permutational symmetry of the real integrals over
+    // Hermitian operators: (1|2) = (2|1)
+    for (auto s1 = 0l, s12 = 0l; s1 != nshells; ++s1) {
+      auto bf1 = shell2bf[s1];  // first basis function in this shell
+      auto n1 = obs[s1].size();
+
+      auto s1_offset = s1 * (s1+1) / 2;
+      for (auto s2: obs_shellpair_list[s1]) {
+        auto s12 = s1_offset + s2;
+        //if (s12 % nthreads != thread_id) continue;
+
+        auto bf2 = shell2bf[s2];
+        auto n2 = obs[s2].size();
+
+        auto n12 = n1 * n2;
+
+        // compute shell pair; return is the pointer to the buffer
+        engine.compute(obs[s1], obs[s2]);
+
+        for (unsigned int op = 0; op != nopers; ++op) {
+          // "map" buffer to a const Eigen Matrix, and copy it to the
+          // corresponding blocks of the result
+          Eigen::Map<const Matrix> buf_mat(buf[op], n1, n2);
+          result[op].block(bf1, bf2, n1, n2) = buf_mat;
+          if (s1 != s2)  // if s1 >= s2, copy {s1,s2} to the corresponding
+                         // {s2,s1} block, note the transpose!
+            result[op].block(bf2, bf1, n2, n1) = buf_mat.transpose();
+        }
+      }
     }
-    engine.set_params(q);
-  }
-
-  auto shell2bf = map_shell_to_basis_function(shells);
-
-  // buf[0] points to the target shell set after every call  to engine.compute()
-  const auto &buf = engine.results();
-
-  // loop over unique shell pairs, {s1,s2} such that s1 >= s2
-  // this is due to the permutational symmetry of the real integrals over Hermitian operators: (1|2) = (2|1)
-  for (size_t s1 = 0; s1 != shells.size(); ++s1) {
-
-    auto bf1 = shell2bf[s1]; // first basis function in this shell
-    auto n1 = shells[s1].size();
-
-    for (size_t s2 = 0; s2 <= s1; ++s2) {
-
-      auto bf2 = shell2bf[s2];
-      auto n2 = shells[s2].size();
-
-      // compute shell pair; return is the pointer to the buffer
-      engine.compute(shells[s1], shells[s2]);
-
-      // "map" buffer to a const Eigen Matrix, and copy it to the corresponding blocks of the result
-      Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
-      result.block(bf1, bf2, n1, n2) = buf_mat;
-      if (s1 != s2) // if s1 >= s2, copy {s1,s2} to the corresponding {s2,s1} block, note the transpose!
-        result.block(bf2, bf1, n2, n1) = buf_mat.transpose();
-
-    }
-  }
 
   return result;
 }
@@ -484,8 +514,26 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   auto is = std::ifstream(filename);
   std::vector<Atom> atoms;
   std::string basis;
-  std::tie(atoms,basis) = read_input_xyz(is);
-  const auto debug = false;
+
+  int maxiter = 50;
+  double conve = 1e-6;
+  double convd = 1e-5;
+  double tol_int = 1e-8;
+  int max_hist = 10; 
+  auto debug = false;
+
+  std::tie(atoms, basis, debug, maxiter, tol_int, conve, convd, max_hist) = read_input_xyz(is);
+
+  tol_int = std::min(1e-8, 0.01 * conve);
+  
+  cout << "\n----------------------------------";
+  cout << "\ndiis hist = " << max_hist;
+  cout << "\nBasis set = " << basis;
+  cout << "\nmax iterations = " << maxiter;
+  cout << "\nIntegral tolerance = " << tol_int;
+  cout << "\nEnergy convergence = " << conve;
+  cout << "\nDensity convergence = " << convd;
+  cout << "\n----------------------------------";
 
 //  std::cout << "Geometries in bohr units \n";
 //  for (auto i = 0; i < atoms.size(); ++i)
@@ -547,25 +595,11 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
   auto hf_t1 = std::chrono::high_resolution_clock::now();
 
-  // compute overlap integrals
-  auto S = compute_1body_ints(shells, Operator::overlap);
-  // Eigen::EigenSolver<Matrix> diagS(S);
-  // cout << "S eigenvalues\n";
-  // cout << S.eigenvalues() << endl;
-
-//  cout << "\n\tOverlap Integrals:\n";
-//  cout << S << endl;
-
-  // compute kinetic-energy integrals
-  auto T = compute_1body_ints(shells, Operator::kinetic);
-//  cout << "\n\tKinetic-Energy Integrals:\n";
-//  cout << T << endl;
-
-  // compute nuclear-attraction integrals
-  Matrix V = compute_1body_ints(shells, Operator::nuclear, atoms);
-//  cout << "\n\tNuclear Attraction Integrals:\n";
-//  cout << V << endl;
-
+ 
+  // compute one-body integrals
+  auto S = compute_1body_ints<libint2::Operator::overlap>(shells)[0];
+  auto T = compute_1body_ints<libint2::Operator::kinetic>(shells)[0];
+  auto V = compute_1body_ints<libint2::Operator::nuclear>(shells, libint2::make_point_charges(atoms))[0];
 
   // Core Hamiltonian = T + V
   Matrix H = T + V;
@@ -603,6 +637,10 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
         1.0 / std::numeric_limits<double>::epsilon();
     std::tie(X, Xinv, XtX_condition_number) =
         conditioning_orthogonalizer(S, S_condition_number_threshold);
+        
+        
+  // pre-compute data for Schwarz bounds
+  auto SchwarzK = compute_schwarz_ints<>(shells);
 
   const auto use_hcore_guess = false;  // use core Hamiltonian eigenstates to guess density?
   // set to true to match the result of versions 0, 1, and 2 of the code
@@ -610,6 +648,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   // thus set to false to use Superposition-Of-Atomic-Densities (SOAD) guess
   Matrix D;
   if (use_hcore_guess) { // hcore guess
+
     // solve H C = e S C
     Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(H, S);
     auto eps = gen_eig_solver.eigenvalues();
@@ -620,6 +659,25 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     // compute density, D = C(occ) . C(occ)T
     auto C_occ = C.leftCols(ndocc);
     D = C_occ * C_occ.transpose();
+
+     F = H;
+
+    // F += compute_2body_fock_general(
+    //     shells, D, shells, true /* SOAD_D_is_shelldiagonal */,
+    //     std::numeric_limits<double>::epsilon()  // this is cheap, no reason
+    //                                             // to be cheaper
+    //     );
+
+    F+=    compute_2body_fock(shells, D, 1e-8, SchwarzK);
+
+
+    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver1(F, S);
+    eps = gen_eig_solver1.eigenvalues();
+    C = gen_eig_solver1.eigenvectors();
+    // compute density, D = C(occ) . C(occ)T
+    C_occ = C.leftCols(ndocc);
+    D = C_occ * C_occ.transpose();
+
   } else {  // SOAD as the guess density
 
     auto D_minbs = compute_soad(atoms);  // compute guess in minimal basis
@@ -666,8 +724,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   /*** main iterative loop         ***/
   /*** =========================== ***/
 
-  const auto maxiter = 100;
-  const auto conv = 1e-7;
+  //bool simple_convergence = false;
+  //double alpha = 0.5;
   auto iter = 0;
   auto rmsd = 1.0;
   auto ediff = 0.0;
@@ -682,22 +740,18 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
      cout << " matrix dimension = " << S.rows() << " ndocc = " << ndocc << endl; 
 
   int idiis = 0;
-  int max_hist = 8; 
   std::vector<Matrix> diis_hist;
   std::vector<Matrix> fock_hist;
 
   // S^-1/2
-  Matrix Sm12 = S.pow(-0.5);
-  Matrix Sp12 = S.pow(0.5);
-
-  // pre-compute data for Schwarz bounds
-  auto SchwarzK = compute_schwarz_ints<>(shells);
+  Matrix Sp12 = S.sqrt();
+  Matrix Sm12 = Sp12.inverse();
 
   std::cout << "\n\n";
   std::cout << " Hartree-Fock iterations" << std::endl;
   std::cout << std::string(70, '-') << std::endl;
   std::cout <<
-      " Iter     Energy            E-Diff           RMSD           Time" 
+      " Iter     Energy            E-Diff            RMSD            Time" 
           << std::endl;
   std::cout << std::string(70, '-') << std::endl;
   std::cout << std::fixed << std::setprecision(2);
@@ -715,11 +769,12 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     //auto F = H;
     hf_t1 = std::chrono::high_resolution_clock::now();
 
-    const auto precision_F = std::min(
-        std::min(1e-3 / XtX_condition_number, 1e-7),
-        std::max(rmsd / 1e4, std::numeric_limits<double>::epsilon()));
+    //const auto precision_F = std::min(
+    //    std::min(1e-3 / XtX_condition_number, 1e-7),
+    //    std::max(rmsd / 1e4, std::numeric_limits<double>::epsilon()));
 
-    Matrix Ftmp = compute_2body_fock(shells, D, precision_F, SchwarzK);
+    //Matrix Ftmp = compute_2body_fock(shells, D, precision_F, SchwarzK);
+    Matrix Ftmp = compute_2body_fock(shells, D, tol_int, SchwarzK);
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
@@ -765,7 +820,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
     hf_t1 = std::chrono::high_resolution_clock::now();
 
-    if(iter > 2) {
+    if(iter > 1) {
       ++idiis;
       diis(F, err_mat, D_last, iter, max_hist, idiis, diis_hist,
           fock_hist);
@@ -847,7 +902,8 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
    }
 
   //  if(simple_convergence) F_old = F;
-  } while (((fabs(ediff) > conv) || (fabs(rmsd) > conv)));
+
+  } while (((fabs(ediff) > conve) || (fabs(rmsd) > convd)));
 
   std::cout.precision(15);
   printf("\n** Hartree-Fock energy = %20.12f\n", ehf + enuc);
@@ -863,22 +919,23 @@ void diis(Matrix& F, Matrix& err_mat, Matrix& D_last, int iter, int max_hist,
       using Vector =
       Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
  
-  // std::vector<double> max_err(diis_hist.size());
-  // std::cout << "max_err vector: \n";
-  // for (auto i=0; i<diis_hist.size(); i++){
-  //   max_err[i] = diis_hist[i].norm();
-  //   cout << max_err[i] << ",";
-  // }
+  // const int epos = ((ndiis-1) % max_hist) + 1;
+  if(ndiis >  max_hist) { 
 
-  // auto maxe = std::distance(max_err.begin(), 
-  //           std::max_element(max_err.begin(),max_err.end()));
+  std::vector<double> max_err(diis_hist.size());
+  // std::cout << "max_err vector: \n";
+  for (auto i=0; i<diis_hist.size(); i++){
+    max_err[i] = diis_hist[i].norm();
+    // cout << max_err[i] << ",";
+  }
+
+  auto maxe = std::distance(max_err.begin(), 
+            std::max_element(max_err.begin(),max_err.end()));
 
   // std::cout << "\nmax index: " << maxe << endl;
 
-  // const int epos = ((ndiis-1) % max_hist) + 1;
-  if(ndiis > max_hist) { 
-    diis_hist.erase(diis_hist.begin()); //+maxe);
-    fock_hist.erase(fock_hist.begin()); //+maxe);
+    diis_hist.erase(diis_hist.begin()+maxe);
+    fock_hist.erase(fock_hist.begin()+maxe);
     
   }
   diis_hist.push_back(err_mat);

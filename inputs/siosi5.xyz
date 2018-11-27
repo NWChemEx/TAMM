@@ -96,4 +96,10 @@ H 9.1160407 1.2188736 8.2732227
 H 13.9990941 .3552686 .0283459 
 
 basis 6-31g*
+debug false
+maxiter 50
+tol_int 1e-8
+conve 1e-6
+convd 1e-5
+diis_hist 10
 

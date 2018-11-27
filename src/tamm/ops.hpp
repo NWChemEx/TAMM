@@ -8,13 +8,15 @@
 
 #include "tamm/boundvec.hpp"
 #include "tamm/errors.hpp"
-#include "tamm/kernels/assign.hpp"
-#include "tamm/kernels/multiply.hpp"
+
 #include "tamm/tensor.hpp"
 #include "tamm/types.hpp"
-#include "tamm/utils.hpp"
 #include "tamm/work.hpp"
 #include "tamm/runtime_engine.hpp"
+#include "tamm/utils.hpp"
+#include "tamm/kernels/assign.hpp"
+#include "tamm/kernels/multiply.hpp"
+
 
 namespace tamm {
 

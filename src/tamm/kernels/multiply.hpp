@@ -2,11 +2,12 @@
 #define TAMM_MULTIPLY_H_
 
 #include "tamm/errors.hpp"
-#include "tamm/kernels/assign.hpp"
 #include "tamm/types.hpp"
+#include "tamm/kernels/assign.hpp"
+
 
 #include <algorithm>
-#include <cblas.h>
+#include CBLAS_HEADER
 #include <complex>
 #include <numeric>
 #include <vector>
@@ -51,8 +52,8 @@ inline void gemm_wrapper<std::complex<float>>(
   std::complex<float> alpha, const std::complex<float>* A, const int lda,
   const std::complex<float>* B, const int ldb, std::complex<float> beta,
   std::complex<float>* C, const int ldc) {
-    cblas_cgemm(Order, TransA, TransB, M, N, K, &alpha, A, lda, B, ldb, &beta,
-                C, ldc);
+    cblas_cgemm(Order, TransA, TransB, M, N, K, (const float*)&alpha, (const float*)A, lda,
+               (const float*)B, ldb, (const float*)&beta, (float*)C, ldc);
 }
 
 template<>
@@ -62,8 +63,8 @@ inline void gemm_wrapper<std::complex<double>>(
   std::complex<double> alpha, const std::complex<double>* A, const int lda,
   const std::complex<double>* B, const int ldb, std::complex<double> beta,
   std::complex<double>* C, const int ldc) {
-    cblas_zgemm(Order, TransA, TransB, M, N, K, &alpha, A, lda, B, ldb, &beta,
-                C, ldc);
+    cblas_zgemm(Order, TransA, TransB, M, N, K, (const double*)&alpha, (const double*)A,
+                lda, (const double*)B, ldb, (const double*)&beta, (double*)C, ldc);
 }
 } // namespace internal
 

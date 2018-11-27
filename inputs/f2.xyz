@@ -5,3 +5,9 @@ geometry units bohr
   f 0 0  -1.33408
 
 basis sto-3g
+debug false
+maxiter 50
+tol_int 1e-8
+conve 1e-6
+convd 1e-5
+diis_hist 10

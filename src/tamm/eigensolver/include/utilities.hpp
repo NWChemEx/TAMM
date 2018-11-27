@@ -4,7 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-extern std::ofstream logOFS; // logfile stream
+static std::ofstream logOFS; // logfile stream
 
 using std::cout;
 using std::endl;
@@ -16,7 +16,7 @@ using std::noshowpos;
 // MPI and OpenMP
 #include <omp.h>
 #include <mpi.h>
-#include "lapacke.h"
+#include LAPACKE_HEADER
 
 // Eigen classes
 #include <Eigen/Dense>
@@ -57,17 +57,20 @@ using std::max;
 #include "parseinput.hpp"
 #undef I
 
- #ifdef __cplusplus
- extern "C"
- {
- #endif
+//  #ifdef __cplusplus
+//  extern "C"
+//  {
+//  #endif
 
+extern "C"
+{
  //BLAS
  void dtrsm_(const char *side, const char *uplo,
                               const char *transa, const char *diag,
                               const int *m, const int *n, const double *alpha,
                               const double *a, const int *lda,
                               double *b, const int *ldb);
+}
 
 /* Routines for inverting matrices */
 void dgetrf_(int *m, int *n, double *A, int *lda, int *ipiv, int *info);
@@ -103,9 +106,9 @@ void dgeqrf_(int *m, int *n, double *A, int *lda, double *tau, double *work,
 void dgerqf_(int *m, int *n, double *A, int *lda, double *tau, double *work, 
 	     int *lwork, int *info);
 
-  #ifdef __cplusplus
- }
- #endif
+//   #ifdef __cplusplus
+//  }
+//  #endif
 
 // utility functions
 VectorXi sortinds(VectorXd xs);

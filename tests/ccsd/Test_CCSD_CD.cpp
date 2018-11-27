@@ -3,6 +3,7 @@
 #include "diis.hpp"
 #include "4index_transform_CD.hpp"
 #include "catch/catch.hpp"
+#include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
 #include "macdecls.h"
 #include "ga-mpi.h"
@@ -296,19 +297,20 @@ std::pair<double,double> rest(ExecutionContext& ec,
     return {residual, energy};
 }
 
-void iteration_print(const ProcGroup& pg, int iter, double residual, double energy) {
+void iteration_print(const ProcGroup& pg, int iter, double residual, double energy, double time) {
   if(pg.rank() == 0) {
     std::cout.width(6); std::cout << std::right << iter+1 << "  ";
     std::cout << std::setprecision(13) << residual << "  ";
     std::cout << std::fixed << std::setprecision(13) << energy << " ";
+    std::cout << std::fixed << std::setprecision(2);
     std::cout << std::string(4, ' ') << "0.0";
-    std::cout << std::string(5, ' ') << "0.0";
+    std::cout << std::string(5, ' ') << time;
     std::cout << std::string(5, ' ') << "0.0" << std::endl;
   }
 }
 
 template<typename T>
-void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
+void ccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_f1, //Tensor<T>& d_v2,
                     std::vector<Tensor<T> *> &chol,
@@ -323,9 +325,9 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 
     std::cout.precision(15);
 
-    Scheduler sch{*ec};
+    Scheduler sch{ec};
   /// @todo: make it a tamm tensor
-  std::cout << "Total orbitals = " << total_orbitals << std::endl;
+  if(ec.pg().rank() == 0) std::cout << "Total orbitals = " << total_orbitals << std::endl;
   std::vector<double> p_evl_sorted(total_orbitals);
 
     // Tensor<T> d_evl{N};
@@ -336,30 +338,43 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     // sch(d_evl(n1) = 0.0)
     // .execute();
 
-  {
-      auto lambda = [&](const IndexVector& blockid) {
-          if(blockid[0] == blockid[1]) {
-              Tensor<T> tensor     = d_f1;
-              const TAMM_SIZE size = tensor.block_size(blockid);
-
-              std::vector<T> buf(size);
-              tensor.get(blockid, buf);
-
+    auto lambda = [&](Tensor<T> tensor, const IndexVector& blockid, span<T> buf){
+        if(blockid[0] == blockid[1]) {
             auto block_dims = tensor.block_dims(blockid);
             auto block_offset = tensor.block_offsets(blockid);
+            auto dim    = block_dims[0];
+            auto offset = block_offset[0];
+            TAMM_SIZE i = 0;
+            for(auto p = offset; p < offset + dim; p++, i++)
+                p_evl_sorted[p] = buf[i * dim + i]; 
+        }
+    };
+    update_tensor_general(d_f1(), lambda);
+
+//   {
+//       auto lambda = [&](const IndexVector& blockid) {
+//           if(blockid[0] == blockid[1]) {
+//               Tensor<T> tensor     = d_f1;
+//               const TAMM_SIZE size = tensor.block_size(blockid);
+
+//               std::vector<T> buf(size);
+//               tensor.get(blockid, buf);
+
+//             auto block_dims = tensor.block_dims(blockid);
+//             auto block_offset = tensor.block_offsets(blockid);
 
 
-              auto dim    = block_dims[0];
-              auto offset = block_offset[0];
-              TAMM_SIZE i = 0;
-              for(auto p = offset; p < offset + dim; p++, i++) {
-                  p_evl_sorted[p] = buf[i * dim + i];
-              }
-          }
-      };
-      block_for(*ec, d_f1(), lambda);
-  }
-  ec->pg().barrier();
+//               auto dim    = block_dims[0];
+//               auto offset = block_offset[0];
+//               TAMM_SIZE i = 0;
+//               for(auto p = offset; p < offset + dim; p++, i++) {
+//                   p_evl_sorted[p] = buf[i * dim + i];
+//               }
+//           }
+//       };
+//       block_for(ec, d_f1(), lambda);
+//   }
+//   ec.pg().barrier();
 
 //   if(ec->pg().rank() == 0) {
 //     std::cout << "p_evl_sorted:" << '\n';
@@ -367,7 +382,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 //       std::cout << p_evl_sorted[p] << '\n';
 //   }
 
-  if(ec->pg().rank() == 0) {
+  if(ec.pg().rank() == 0) {
     std::cout << "\n\n";
     std::cout << " CCSD iterations" << std::endl;
     std::cout << std::string(66, '-') << std::endl;
@@ -384,14 +399,14 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     d_r2s.push_back(new Tensor<T>{V,V,O,O});
     d_t1s.push_back(new Tensor<T>{V,O});
     d_t2s.push_back(new Tensor<T>{V,V,O,O});
-    Tensor<T>::allocate(ec,*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
+    Tensor<T>::allocate(&ec,*d_r1s[i], *d_r2s[i], *d_t1s[i], *d_t2s[i]);
   }
  
   Tensor<T> d_r1{V,O};
   Tensor<T> d_r2{V,V,O,O};
-  Tensor<T>::allocate(ec,d_r1, d_r2);
+  Tensor<T>::allocate(&ec,d_r1, d_r2);
 
-  Scheduler{*ec}   
+  Scheduler{ec}   
   (d_r1() = 0)
   (d_r2() = 0)
   .execute();
@@ -399,99 +414,64 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
   double residual = 0.0;
   double energy = 0.0;
 
-  {
-      auto lambda2 = [&](const IndexVector& blockid) {
-          if(blockid[0] != blockid[1]) {
-              Tensor<T> tensor     = d_f1;
-              const TAMM_SIZE size = tensor.block_size(blockid);
+auto lambda2 = [&](const IndexVector& blockid, span<T> buf){
+    if(blockid[0] != blockid[1]) {
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+    }
+};
 
-              std::vector<T> buf(size);
-              tensor.get(blockid, buf);
+update_tensor(d_f1(),lambda2);
 
-              auto block_dims   = tensor.block_dims(blockid);
-              auto block_offset = tensor.block_offsets(blockid);
-
-              TAMM_SIZE c = 0;
-              for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
-                  i++) {
-                  for(auto j = block_offset[1];
-                      j < block_offset[1] + block_dims[1]; j++, c++) {
-                      buf[c] = 0;
-                  }
-              }
-              d_f1.put(blockid, buf);
-          }
-      };
-      block_for(*ec, d_f1(), lambda2);
-  }
+auto lambdar2 = [&](const IndexVector& blockid, span<T> buf){
+    if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+    }
+};
 
   for(int titer = 0; titer < maxiter; titer += ndiis) {
       for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
+          
+          const auto timer_start = std::chrono::high_resolution_clock::now();
+
           int off = iter - titer;
 
           Tensor<T> d_e{};
           Tensor<T> d_r1_residual{};
           Tensor<T> d_r2_residual{};
 
-          Tensor<T>::allocate(ec, d_e, d_r1_residual, d_r2_residual);
+          Tensor<T>::allocate(&ec, d_e, d_r1_residual, d_r2_residual);
 
-          Scheduler{*ec}(d_e() = 0)(d_r1_residual() = 0)(d_r2_residual() = 0)
+          Scheduler{ec}(d_e() = 0)(d_r1_residual() = 0)(d_r2_residual() = 0)
             .execute();
 
-          Scheduler{*ec}((*d_t1s[off])() = d_t1())((*d_t2s[off])() = d_t2())
+          Scheduler{ec}((*d_t1s[off])() = d_t1())((*d_t2s[off])() = d_t2())
             .execute();
 
-          ccsd_e(*ec, MO, d_e, d_t1, d_t2, d_f1, chol);
-          ccsd_t1(*ec, MO, d_r1, d_t1, d_t2, d_f1, chol);
-          ccsd_t2(*ec, MO, d_r2, d_t1, d_t2, d_f1, chol);
+          ccsd_e(ec, MO, d_e, d_t1, d_t2, d_f1, chol);
+          ccsd_t1(ec, MO, d_r1, d_t1, d_t2, d_f1, chol);
+          ccsd_t2(ec, MO, d_r2, d_t1, d_t2, d_f1, chol);
 
-          std::tie(residual, energy) = rest(*ec, MO, d_r1, d_r2, d_t1, d_t2,
+          GA_Sync();
+          std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
                                             d_e, p_evl_sorted, zshiftl, noab);
 
-          {
-              auto lambdar2 = [&](const IndexVector& blockid) {
-                  if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-                      Tensor<T> tensor     = d_r2;
-                      const TAMM_SIZE size = tensor.block_size(blockid);
+          update_tensor(d_r2(), lambdar2);
+          
 
-                      std::vector<T> buf(size);
-                      tensor.get(blockid, buf);
-
-                      auto block_dims   = tensor.block_dims(blockid);
-                      auto block_offset = tensor.block_offsets(blockid);
-
-                      TAMM_SIZE c = 0;
-                      for(auto i = block_offset[0];
-                          i < block_offset[0] + block_dims[0]; i++) {
-                          for(auto j = block_offset[1];
-                              j < block_offset[1] + block_dims[1]; j++) {
-                              for(auto k = block_offset[2];
-                                  k < block_offset[2] + block_dims[2]; k++) {
-                                  for(auto l = block_offset[3];
-                                      l < block_offset[3] + block_dims[3];
-                                      l++, c++) {
-                                      buf[c] = 0;
-                                  }
-                              }
-                          }
-                      }
-                      d_r2.put(blockid, buf);
-                  }
-              };
-              block_for(*ec, d_r2(), lambdar2);
-          }
-
-          Scheduler{*ec}((*d_r1s[off])() = d_r1())((*d_r2s[off])() = d_r2())
+          Scheduler{ec}((*d_r1s[off])() = d_r1())((*d_r2s[off])() = d_r2())
             .execute();
 
-          iteration_print(ec->pg(), iter, residual, energy);
+          const auto timer_end = std::chrono::high_resolution_clock::now();
+          auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
+
+          iteration_print(ec.pg(), iter, residual, energy, iter_time);
           Tensor<T>::deallocate(d_e, d_r1_residual, d_r2_residual);
 
           if(residual < thresh) { break; }
       }
 
       if(residual < thresh || titer + ndiis >= maxiter) { break; }
-      if(ec->pg().rank() == 0) {
+      if(ec.pg().rank() == 0) {
           std::cout << " MICROCYCLE DIIS UPDATE:";
           std::cout.width(21);
           std::cout << std::right << std::min(titer + ndiis, maxiter) + 1;
@@ -502,10 +482,10 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
       std::vector<std::vector<Tensor<T>*>*> rs{&d_r1s, &d_r2s};
       std::vector<std::vector<Tensor<T>*>*> ts{&d_t1s, &d_t2s};
       std::vector<Tensor<T>*> next_t{&d_t1, &d_t2};
-      diis<T>(*ec, rs, ts, next_t);
+      diis<T>(ec, rs, ts, next_t);
   }
 
-  if(ec->pg().rank() == 0) {
+  if(ec.pg().rank() == 0) {
     std::cout << std::string(66, '-') << std::endl;
     if(residual < thresh) {
         std::cout << " Iterations converged" << std::endl;
@@ -561,6 +541,7 @@ int main( int argc, char* argv[] )
 
 TEST_CASE("CCSD Driver") {
 
+    auto rank = GA_Nodeid();
     // std::cout << "Input file provided = " << filename << std::endl;
 
     using T = double;
@@ -585,7 +566,7 @@ TEST_CASE("CCSD Driver") {
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(GA_Nodeid()==0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
 
     hf_t1        = std::chrono::high_resolution_clock::now();
     std::vector<Eigen::RowVectorXd> evec;
@@ -596,7 +577,7 @@ TEST_CASE("CCSD Driver") {
     hf_t2        = std::chrono::high_resolution_clock::now();
     double two_4index_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(GA_Nodeid()==0) std::cout << "\nTime taken for 4-index transform: " << two_4index_time
+    if(rank == 0) std::cout << "\nTime taken for 4-index transform: " << two_4index_time
               << " secs\n";
 
     TAMM_SIZE ov_beta{nao - ov_alpha};
@@ -664,7 +645,7 @@ TEST_CASE("CCSD Driver") {
   // CD
   auto chol_dims = CholVpr.dimensions();
   auto chol_count = chol_dims[2];
-  if(GA_Nodeid()==0) cout << "Number of cholesky vectors:" << chol_count << endl;
+  if(rank == 0) cout << "Number of cholesky vectors:" << chol_count << endl;
   std::vector<Tensor<T> *> chol_vecs(chol_count);
 
   for(auto x = 0; x < chol_count; x++) {
@@ -675,77 +656,57 @@ TEST_CASE("CCSD Driver") {
   }
 
   //Tensor Map 
-  block_for(*ec, d_f1(), [&](IndexVector it) {
-    Tensor<T> tensor = d_f1().tensor();
-    const TAMM_SIZE size = tensor.block_size(it);
-    
-    std::vector<T> buf(size);
-
-    auto block_offset = tensor.block_offsets(it);
-    auto block_dims = tensor.block_dims(it);
-
-    TAMM_SIZE c=0;
-    for (auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-      for (auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
-           j++, c++) {
-        buf[c] = F(i, j);
-      }
-    }
-    d_f1.put(it,buf);
-  });
-
-//   block_for(ec->pg(), d_v2(), [&](IndexVector it) {
-//       Tensor<T> tensor     = d_v2().tensor();
-//       const TAMM_SIZE size = tensor.block_size(it);
-
-//       std::vector<T> buf(size);
-
-//       auto block_dims = tensor.block_dims(it);
-//       auto block_offset = tensor.block_offsets(it);
-
-//       TAMM_SIZE c = 0;
-//       for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-//           for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
-//               j++) {
-//               for(auto k = block_offset[2]; k < block_offset[2] + block_dims[2];
-//                   k++) {
-//                   for(auto l = block_offset[3];
-//                       l < block_offset[3] + block_dims[3]; l++, c++) {
-//                       buf[c] = V2(i,j,k,l);
-//                   }
-//               }
-//           }
-//       }
-//       d_v2.put(it, buf);
-//   });
+  eigen_to_tamm_tensor(d_f1, F);
+//   eigen_to_tamm_tensor(d_v2, V2);
 
   for(auto x = 0; x < chol_count; x++) {
       Tensor<T>* cholvec = chol_vecs.at(x);
 
-      block_for(*ec, (*cholvec)(), [&](IndexVector it) {
-          Tensor<T> tensor     = (*cholvec)().tensor();
-          const TAMM_SIZE size = tensor.block_size(it);
+        auto lambdacv = [&](Tensor<T> tensor, const IndexVector& blockid, span<T> buf){
+            auto block_dims = tensor.block_dims(blockid);
+            auto block_offset = tensor.block_offsets(blockid);
+                
+            TAMM_SIZE c = 0;
+            for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+                    j++, c++) {
+                buf[c] = CholVpr(i,j,x);
+                }
+            }
+        };
+    update_tensor_general((*cholvec)(), lambdacv);
+   }
 
-          std::vector<T> buf(size);
 
-          auto block_offset = tensor.block_offsets(it);
-          auto block_dims   = tensor.block_dims(it);
 
-          TAMM_SIZE c = 0;
-          for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
-              i++) {
-              for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
-                  j++, c++) {
-                  buf[c] = CholVpr(i,j, x);;
-              }
-          }
-          (*cholvec).put(it, buf);
-      });
-  }
+//   for(auto x = 0; x < chol_count; x++) {
+//       Tensor<T>* cholvec = chol_vecs.at(x);
+
+//       block_for(*ec, (*cholvec)(), [&](IndexVector it) {
+//           Tensor<T> tensor     = (*cholvec)().tensor();
+//           const TAMM_SIZE size = tensor.block_size(it);
+
+//           std::vector<T> buf(size);
+
+//           auto block_offset = tensor.block_offsets(it);
+//           auto block_dims   = tensor.block_dims(it);
+
+//           TAMM_SIZE c = 0;
+//           for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
+//               i++) {
+//               for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
+//                   j++, c++) {
+//                   buf[c] = CholVpr(i,j,x);;
+//               }
+//           }
+//           (*cholvec).put(it, buf);
+//       });
+//   }
 
   auto cc_t1 = std::chrono::high_resolution_clock::now();
 
-  CHECK_NOTHROW(ccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, chol_vecs,
+  CHECK_NOTHROW(ccsd_driver<T>(*ec, MO, d_t1, d_t2, d_f1, chol_vecs,
                                maxiter, thresh, zshiftl, ndiis, hf_energy,
                                total_orbitals, 2 * ov_alpha));
 
@@ -753,7 +714,7 @@ TEST_CASE("CCSD Driver") {
 
   double ccsd_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-  if(GA_Nodeid()==0) std::cout << "\nTime taken for Cholesky CCSD: " << ccsd_time << " secs\n";
+  if(rank == 0) std::cout << "\nTime taken for Cholesky CCSD: " << ccsd_time << " secs\n";
 
   Tensor<T>::deallocate(d_t1, d_t2, d_f1);//, d_v2);
   for (auto x = 0; x < chol_count; x++) Tensor<T>::deallocate(*chol_vecs[x]);

@@ -2,8 +2,11 @@
 #define TAMM_BLOCK_BUFFER_HPP_
 
 #include "tamm/types.hpp"
+#include "tamm/tensor.hpp"
 
 namespace tamm {
+
+class RuntimeEngine;
 
 /**
  * @brief The class used to pass block buffers to user functions
@@ -14,10 +17,10 @@ template<typename T>
 class BlockBuffer {
 public:
   BlockBuffer() = default;
-  BlockBuffer(span<T> buf_span, Tensor<T> tensor, IndexVector id, bool allocated = false) 
-    : buf_span{buf_span}, allocated{allocated}, tensor{tensor}, id{id} {}
+  BlockBuffer(span<T> buf_span, IndexedTensor<T> indexedTensor, RuntimeEngine* re, bool allocated = false) 
+    : buf_span{buf_span}, allocated{allocated}, indexedTensor{indexedTensor}, re{re} {}
   BlockBuffer(const BlockBuffer& block_buffer) 
-    : id(block_buffer.id), tensor(block_buffer.tensor) 
+    : indexedTensor{block_buffer.indexedTensor}, re{block_buffer.re}
     {
       if (allocated) delete[] buf_span.data();
       allocated = true;
@@ -27,16 +30,16 @@ public:
       buf_span = span{buffer, size};
     }
   BlockBuffer(BlockBuffer&& block_buffer) {
-    buf_span = block_buffer.buf_span;
-    id = block_buffer.id;
-    tensor = block_buffer.tensor;
+    indexedTensor = block_buffer.indexedTensor;
+    re = block_buffer.indexedTensor;
+    indexedTensor = block_buffer.tensor;
     allocated = block_buffer.allocated;
     block_buffer.allocated = false;
     block_buffer.buffer = nullptr;
   }
   BlockBuffer& operator=(const BlockBuffer& block_buffer) {
-    id = block_buffer.id;
-    tensor = block_buffer.tensor;
+    indexedTensor = block_buffer.indexedTensor;
+    re = block_buffer.indexedTensor;
     if (allocated) delete[] buf_span.data();
     allocated = true;
     const auto size = block_buffer.buf_span.size();
@@ -50,19 +53,20 @@ public:
 
   // Whatever else is necessary to make the type regular
 
-  Tensor<T> get_tensor() const { return tensor; }
-  T* get_data() { return buffer; }
-  const T* get_data() const { return buffer; }
-  BlockIdType get_block_id() const { return id; }
-  size_t get_size() const { return size; }
-  void put() { tensor.put(id, {buffer, size}); }
-  void add() { tensor.add(id, {buffer, size}); }
+  auto begin() { return buf_span.begin(); }
+  auto begin() const { return buf_span.begin(); }
+  auto end() { return buf_span.end(); }
+  auto end() const { return buf_span.end(); }
+  span<T> get_data() { return buf_span; }
+  const span<T> get_data() const { return buf_span; }
+  void put() { indexedTensor.put(buf_span); }
+  void add() { indexedTensor.add(buf_span); }
 private:
   span<T> buf_span;
   bool allocated = false;
-  Tensor<T> tensor;
-  BlockIdType id;
-  RuntimeEngine& re;
+  IndexedTensor<T> indexedTensor;
+  // re is a pointer to allow it to be uninitialized.
+  RuntimeEngine* re;
 };
 
 template<typename T>

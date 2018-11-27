@@ -1,5 +1,5 @@
-#ifndef TAMM_EXECUTION_ENGINE_HPP_
-#define TAMM_EXECUTION_ENGINE_HPP_
+#ifndef TAMM_RUNTIME_ENGINE_HPP_
+#define TAMM_RUNTIME_ENGINE_HPP_
 
 #include "utility"
 #include "tamm/types.hpp"
@@ -139,9 +139,15 @@ public:
         return BlockBuffer<T>(span, IndexedTensor{tensor, blockid}, this, true);
     }
 
+    // More buffer functions
+    // e.g., buffer for accumulation
+    //   * "forwarded" buffers with immediate effects? No need to explicitly write back.
+    //   * Maybe special type for reference buffer.
+
     template<typename Lambda, typename ...Args>
     void submitTask(Lambda lambda, Args... args) {
         // TBD
+        // unpack and call lambda immediately (first baby step)
     }
     
 private:
@@ -149,4 +155,4 @@ private:
 
 } // namespace tamm
 
-#endif // TAMM_EXECUTION_ENGINE_HPP_
+#endif // TAMM_RUNTIME_ENGINE_HPP_

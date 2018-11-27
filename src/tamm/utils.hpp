@@ -1,13 +1,6 @@
 #ifndef TAMM_UTILS_HPP_
 #define TAMM_UTILS_HPP_
 
-#include "tamm/errors.hpp"
-#include "tamm/labeled_tensor.hpp"
-#include "tamm/tiled_index_space.hpp"
-#include "tamm/types.hpp"
-
-#include <vector>
-
 namespace tamm {
 
 namespace internal {
@@ -194,14 +187,6 @@ IndexVector translate_blockid(const IndexVector& blockid,
     return translate_blockid;
 }
 } // namespace internal
-
-template<typename T>
-T get_scalar(Tensor<T>& tensor) {
-    T scalar;
-    EXPECTS(tensor.num_modes() == 0);
-    tensor.get({}, {&scalar, 1});
-    return scalar;
-}
 
 } // namespace tamm
 

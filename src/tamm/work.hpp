@@ -5,6 +5,7 @@
 
 #include "tamm/atomic_counter.h"
 
+
 namespace tamm {
 
 /**

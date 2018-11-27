@@ -1,9 +1,9 @@
 
 Prerequisites
-------------
+-------------
 - Git
 - autotools
-- cmake >= 3.8
+- cmake >= 3.11
 - MPI Library
 - C++17 compiler
 
@@ -20,6 +20,6 @@ Supported Configurations
 - The following configurations are recommended since they are tested and are known to work:
   - GCC versions 7.2,7.3,8.x + OpenMPI-2.x/MPICH-3.x built using corresponding gcc versions.
   - LLVM Clang versions 5.x,6.x + OpenMPI-2.x/MPICH-3.x 
-  - Intel 19 + Intel MPI Library (not tested yet)
+  - Intel 19 + Intel MPI Library (work in progress)
 
 

@@ -1,3 +1,4 @@
+
 #ifndef TAMM_TENSOR_IMPL_HPP_
 #define TAMM_TENSOR_IMPL_HPP_
 
@@ -21,8 +22,10 @@ template<typename T>
 class LabeledTensor;
 
 /**
+ * @ingroup tensors
  * @brief Implementation class for TensorBase class
  *
+ * @tparam T Element type of Tensor
  */
 template<typename T>
 class TensorImpl : public TensorBase {
@@ -197,6 +200,10 @@ public:
         }
     }
 
+    /**
+     * @brief Virtual method for deallocating a Tensor
+     * 
+     */
     virtual void deallocate() {
         EXPECTS(allocation_status_ == AllocationStatus::created);
         EXPECTS(mpb_);
@@ -207,6 +214,11 @@ public:
         update_status(AllocationStatus::deallocated);
     }
 
+    /**
+     * @brief Virtual method for allocating a Tensor using an ExecutionContext
+     * 
+     * @param [in] ec ExecutionContext to be used for allocation 
+     */
     virtual void allocate(ExecutionContext* ec) {
         EXPECTS(allocation_status_ == AllocationStatus::invalid);
         Distribution* distribution    = ec->distribution();
@@ -299,7 +311,13 @@ public:
         EXPECTS(size <= buff_span.size());
         mpb_->mgr().add(*mpb_, proc, offset, Size{size}, buff_span.data());
     }
-
+    
+    /**
+     * @brief Virtual method for getting the sum of the values on the diagonal
+     * 
+     * @returns sum of the diagonal values
+     * @warning available for tensors with 2 modes
+     */
     virtual T trace() const {
         EXPECTS(num_modes() == 2);
         T ts = 0;
@@ -321,6 +339,12 @@ public:
         return ts;
     }
 
+    /**
+     * @brief Virtual method for getting the diagonal values in a Tensor
+     * 
+     * @returns a vector with the diagonal values
+     * @warning available for tensors with 2 modes
+     */
     virtual std::vector<T> diagonal() {
         EXPECTS(num_modes() == 2);
         std::vector<T> dest;
@@ -343,13 +367,20 @@ public:
     }
 
 protected:
-    std::shared_ptr<Distribution> distribution_;
-    MemoryRegion* mpb_ = nullptr;
+    std::shared_ptr<Distribution> distribution_;    /**< shared pointer to associated Distribution */
+    MemoryRegion* mpb_ = nullptr;   /**< Raw pointer memory region (default null) */
 }; // TensorImpl
 
+/**
+ * @ingroup tensors
+ * @brief Implementation class for TensorBase with Lambda function construction
+ * 
+ * @tparam T Element type of Tensor
+ */
 template<typename T>
 class LambdaTensorImpl : public TensorImpl<T> {
 public:
+    /// @brief Function signature for the Lambda method
     using Func = std::function<void(const IndexVector&, span<T>)>;
     // Ctors
     LambdaTensorImpl() = default;
@@ -360,6 +391,12 @@ public:
     LambdaTensorImpl& operator=(LambdaTensorImpl&&) = default;
     LambdaTensorImpl& operator=(const LambdaTensorImpl&) = delete;
 
+    /**
+     * @brief Construct a new LambdaTensorImpl object using a Lambda function
+     * 
+     * @param [in] tis_vec vector of TiledIndexSpace objects for each mode of the Tensor 
+     * @param [in] lambda a function for constructing the Tensor
+     */
     LambdaTensorImpl(const TiledIndexSpaceVec& tis_vec, Func lambda) :
       TensorImpl<T>(tis_vec),
       lambda_{lambda} {}
@@ -387,12 +424,8 @@ public:
         NOT_ALLOWED();
     }
 
-    T trace() const override { NOT_IMPLEMENTED(); }
-
-    std::vector<T> diagonal() override { NOT_IMPLEMENTED(); }
-
 protected:
-    Func lambda_;
+    Func lambda_;   /**< Lambda function for the Tensor */
 }; // class LambdaTensorImpl
 
 } // namespace tamm

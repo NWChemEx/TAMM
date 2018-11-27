@@ -1,8 +1,8 @@
 #ifndef TAMM_INDEX_LOOP_NEST_HPP_
 #define TAMM_INDEX_LOOP_NEST_HPP_
 
-#include "tamm/errors.hpp"
 #include "tamm/tiled_index_space.hpp"
+#include "tamm/errors.hpp"
 #include "tamm/utils.hpp"
 #include <algorithm>
 #include <iostream>

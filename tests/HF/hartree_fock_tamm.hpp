@@ -14,6 +14,10 @@
 #include <tuple>
 #include <vector>
 
+// #define EIGEN_USE_BLAS
+// #define EIGEN_USE_LAPACKE
+// #define EIGEN_USE_MKL_ALL
+
 // Eigen matrix algebra library
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
@@ -24,7 +28,6 @@
 #include <libint2.hpp>
 #include <libint2/basis.h>
 #include <libint2/chemistry/sto3g_atomic_density.h>
-
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -44,7 +47,6 @@ using Tensor2D   = Eigen::Tensor<double, 2, Eigen::RowMajor>;
 using Tensor3D   = Eigen::Tensor<double, 3, Eigen::RowMajor>;
 using Tensor4D   = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 using TensorType = double;
-
 
 using shellpair_list_t = std::unordered_map<size_t, std::vector<size_t>>;
 shellpair_list_t obs_shellpair_list;  // shellpair list for OBS
@@ -103,29 +105,6 @@ std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
 
 template <class T> T &unconst_cast(const T &v) { return const_cast<T &>(v); }
 
-template<typename T>
-std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
-    os << "[";
-    for(auto& x : vec) os << x << ",";
-    os << "]\n";
-    return os;
-}
-
-template<typename T>
-void print_tensor(Tensor<T>& t) {
-    auto lt = t();
-    for(auto it : t.loop_nest()) {
-        auto blockid   = internal::translate_blockid(it, lt);
-        TAMM_SIZE size = t.block_size(blockid);
-        std::vector<T> buf(size);
-        t.get(blockid, buf);
-        std::cout << "block = " << blockid;
-        // std::cout << "size= " << size << endl;
-        for(TAMM_SIZE i = 0; i < size; i++) std::cout << buf[i] << " ";
-        std::cout << endl;
-    }
-}
-
 size_t nbasis(const std::vector<libint2::Shell>& shells) {
     size_t n = 0;
     for(const auto& shell : shells) n += shell.size();
@@ -179,8 +158,25 @@ const auto max_engine_precision = std::numeric_limits<double>::epsilon() / 1e10;
 
 using libint2::Atom;
 
-inline std::tuple<std::vector<Atom>, std::string> read_input_xyz(
-  std::istream& is) {
+string read_option(std::istream& is, string optionstr, string optiontype){
+  while (std::getline(is, optionstr)){
+    if (optionstr.empty()) continue;
+    else {
+        std::istringstream oss(optionstr);
+        std::vector<std::string> option_string{
+          std::istream_iterator<std::string>{oss},
+          std::istream_iterator<std::string>{}};
+        assert(option_string.size() == 2);
+        assert(option_string[0] == optiontype);
+        optionstr = option_string[1];
+        break;
+    }
+  }
+  return optionstr;
+}
+
+inline std::tuple<std::vector<Atom>, std::string, bool, int, double, double, double, int>
+   read_input_xyz(std::istream& is) {
     const double angstrom_to_bohr =
       1.889725989; // 1 / bohr_to_angstrom; //1.889726125
     // first line = # of atoms
@@ -250,23 +246,24 @@ inline std::tuple<std::vector<Atom>, std::string> read_input_xyz(
     }
 
     std::string basis_set = "sto-3g";
-    while(std::getline(is, basis_set)) {
-        if(basis_set.empty())
-            continue;
-        else {
-            std::istringstream bss(basis_set);
-            std::vector<std::string> basis_string{
-              std::istream_iterator<std::string>{bss},
-              std::istream_iterator<std::string>{}};
-            assert(basis_string.size() == 2);
-            assert(basis_string[0] == "basis");
-            basis_set = basis_string[1];
-            // cout << basis_set << endl;
-            break;
-        }
-    }
+    basis_set = read_option(is, basis_set, "basis");
 
-    return std::make_tuple(atoms, basis_set);
+    string read_debug = "false";
+    read_debug = read_option(is, read_debug, "debug");
+    bool debug = false;
+    if(read_debug == "true") debug = true;
+    string read_maxiter = "100";
+    int maxiter = stoi(read_option(is, read_maxiter, "maxiter"));
+    string read_tol_int = "1e-8";
+    double tol_int = stod(read_option(is, read_tol_int, "tol_int"));
+    string read_conve = "1e-6";
+    double conve = stod(read_option(is, read_conve, "conve"));
+    string read_convd = "1e-5";
+    double convd = stod(read_option(is, read_convd, "convd"));
+    string read_diis_hist = "10";
+    int diis_hist = stod(read_option(is, read_diis_hist, "diis_hist"));
+
+    return std::make_tuple(atoms, basis_set, debug, maxiter, tol_int, conve, convd, diis_hist);
 }
 
 void compare_eigen_tamm_tensors(Tensor<TensorType>& tamm_tensor,
@@ -366,16 +363,17 @@ std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
       gensqrtinv(S, false, S_condition_number_threshold);
   auto obs_nbf_omitted = (long)S.rows() - (long)obs_rank;
 //   std::cout << "overlap condition number = " << S_condition_number;
-  if (obs_nbf_omitted > 0)
-    std::cout << " (dropped " << obs_nbf_omitted << " "
+  if (obs_nbf_omitted > 0){
+    if(GA_Nodeid()==0) std::cout << " (dropped " << obs_nbf_omitted << " "
               << (obs_nbf_omitted > 1 ? "fns" : "fn") << " to reduce to "
               << XtX_condition_number << ")";
-  std::cout << std::endl;
+  }
+  if(GA_Nodeid()==0) std::cout << std::endl;
 
   if (obs_nbf_omitted > 0) {
     Matrix should_be_I = X.transpose() * S * X;
     Matrix I = Matrix::Identity(should_be_I.rows(), should_be_I.cols());
-    std::cout << "||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
+    if(GA_Nodeid()==0) std::cout << "||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
               << " (should be 0)" << std::endl;
   }
 
@@ -404,8 +402,9 @@ compute_shellpairs(const libint2::BasisSet& bs1,
                        std::max(bs1.max_l(), bs2.max_l()), 0);
 
 
-  std::cout << "computing non-negligible shell-pair list ... ";
-
+  if(GA_Nodeid()==0)
+    std::cout << "computing non-negligible shell-pair list ... ";
+    
   libint2::Timers<1> timer;
   timer.set_now_overhead(25);
   timer.start(0);
@@ -473,7 +472,8 @@ compute_shellpairs(const libint2::BasisSet& bs1,
     }
   
   timer.stop(0);
-  std::cout << "done (" << timer.read(0) << " s)" << std::endl;
+  if(GA_Nodeid()==0)     
+    std::cout << "done (" << timer.read(0) << " s)" << std::endl;
 
   return std::make_tuple(splist,spdata);
 }
@@ -488,10 +488,6 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     using libint2::Shell;
     using libint2::BasisSet;
 
-    auto debug = false;
-
-    auto hf_t1 = std::chrono::high_resolution_clock::now();
-
     /*** =========================== ***/
     /*** initialize molecule         ***/
     /*** =========================== ***/
@@ -501,7 +497,30 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     auto is = std::ifstream(filename);
     std::vector<Atom> atoms;
     std::string basis;
-    std::tie(atoms, basis) = read_input_xyz(is);
+
+    int maxiter = 50;
+    double conve = 1e-6;
+    double convd = 1e-5;
+    double tol_int = 1e-8;
+    int max_hist = 10; 
+    auto debug = false;
+
+    std::tie(atoms, basis, debug, maxiter, tol_int, conve, convd, max_hist) = read_input_xyz(is);
+
+    tol_int = std::min(1e-8, 0.01 * conve);
+    
+    if(GA_Nodeid()==0){
+      cout << "\n----------------------------------";
+      cout << "\ndiis hist = " << max_hist;
+      cout << "\nBasis set = " << basis;
+      cout << "\nmax iterations = " << maxiter;
+      cout << "\nIntegral tolerance = " << tol_int;
+      cout << "\nEnergy convergence = " << conve;
+      cout << "\nDensity convergence = " << convd;
+      cout << "\n----------------------------------";
+    }
+
+    auto hf_t1 = std::chrono::high_resolution_clock::now();
 
     //  std::cout << "Geometries in bohr units \n";
     //  for (auto i = 0; i < atoms.size(); ++i)
@@ -544,17 +563,13 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
       for (auto& sp : obs_shellpair_list) {
         nsp += sp.second.size();
       }
-      std::cout << "# of {all,non-negligible} shell-pairs = {"
+      if(GA_Nodeid()==0) std::cout << "# of {all,non-negligible} shell-pairs = {"
                 << shells.size() * (shells.size() + 1) / 2 << "," << nsp << "}"
                 << std::endl;
     }
 
-    size_t nao = 0;
-
-    for(size_t s = 0; s < shells.size(); ++s) nao += shells[s].size();
-
     const size_t N = nbasis(shells);
-    assert(N == nao);
+    size_t nao = N;
 
     if(GA_Nodeid()==0) cout << "\nNumber of basis functions: " << N << endl;
 
@@ -575,8 +590,11 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
         // for (size_t s2 = 0; s2 <= s1; ++s2) {
         auto s2 = blockid[1];
-
         if (s2>s1) return;
+
+        auto s2spl = obs_shellpair_list[s1];
+        if(std::find(s2spl.begin(),s2spl.end(),s2) == s2spl.end()) return;
+
         // auto bf2 = shell2bf[s2];
         auto n2 = shells[s2].size();
 
@@ -613,10 +631,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     IndexSpace AO{range(0, N)};
     std::vector<unsigned int> AO_tiles;
     for(auto s : shells) AO_tiles.push_back(s.size());
-    // if(rank==0){
-    //     // cout << "AO tiles = " << AO_tiles << endl;
-    //     cout << "Number of AO tiles = " << AO_tiles.size() << endl;
-    // }
+    if(rank==0) cout << "Number of AO tiles = " << AO_tiles.size() << endl;
+
     tamm::Tile tile_size = 6; 
     if(N>=30) tile_size = 30;
     TiledIndexSpace tAO{AO, tile_size};
@@ -695,6 +711,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     if(rank == 0) std::cout << "\nTime taken for tamm to eigen - H,S: " << hf_time << " secs\n";
     
+    Tensor<TensorType>::deallocate(H1P, S1, T1, V1);
+
     /*** =========================== ***/
     /*** build initial-guess density ***/
     /*** =========================== ***/
@@ -718,10 +736,51 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         conditioning_orthogonalizer(S, S_condition_number_threshold);
 
     // TODO Redeclare TAMM S1 with new dims?
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-    // solve F C = e S C
-    // Minimal basis SOAD as the guess density
-    Matrix D;
+    if(rank == 0) std::cout << "Time for computing orthogonalizer: " << hf_time << " secs\n\n";
+
+    // pre-compute data for Schwarz bounds
+    auto SchwarzK = compute_schwarz_ints<>(shells);
+
+    hf_t1 = std::chrono::high_resolution_clock::now();
+
+  const auto use_hcore_guess = false;  // use core Hamiltonian eigenstates to guess density?
+  // set to true to match the result of versions 0, 1, and 2 of the code
+  // HOWEVER !!! even for medium-size molecules hcore will usually fail !!!
+  // thus set to false to use Superposition-Of-Atomic-Densities (SOAD) guess
+  Matrix D;
+  if (use_hcore_guess) { // hcore guess
+
+    // solve H C = e S C
+    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(H, S);
+    auto eps = gen_eig_solver.eigenvalues();
+    C = gen_eig_solver.eigenvectors();
+
+    // compute density, D = C(occ) . C(occ)T
+    auto C_occ = C.leftCols(ndocc);
+    D = C_occ * C_occ.transpose();
+
+     F = H;
+
+    // F += compute_2body_fock_general(
+    //     shells, D, shells, true /* SOAD_D_is_shelldiagonal */,
+    //     std::numeric_limits<double>::epsilon()  // this is cheap, no reason
+    //                                             // to be cheaper
+    //     );
+
+    F +=    compute_2body_fock(shells, D, 1e-8, SchwarzK);
+
+    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver1(F, S);
+    eps = gen_eig_solver1.eigenvalues();
+    C = gen_eig_solver1.eigenvectors();
+    // compute density, D = C(occ) . C(occ)T
+    C_occ = C.leftCols(ndocc);
+    D = C_occ * C_occ.transpose();
+
+  } else {  // SOAD as the guess density
     
     auto D_minbs = compute_soad(atoms);  // compute guess in minimal basis
     BasisSet minbs("STO-3G", atoms);
@@ -737,6 +796,141 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
                                                 // to be cheaper
         );
 
+#if 0
+  double precision = std::numeric_limits<double>::epsilon();
+  bool D_is_shelldiagonal = true;
+  const libint2::BasisSet& obs = shells;
+  const libint2::BasisSet& D_bs = minbs;
+  // const Matrix& D = D_minbs; 
+
+  Matrix G = Matrix::Zero(N,N);
+  Tensor<TensorType> F1tmp{tAOt, tAOt};
+  Tensor<TensorType>::allocate(ec, F1tmp);
+
+  // construct the 2-electron repulsion integrals engine
+  using libint2::Operator;
+  using libint2::BraKet;
+  using libint2::Engine;
+
+  Engine engine(libint2::Operator::coulomb,
+                      std::max(obs.max_nprim(), D_bs.max_nprim()),
+                      std::max(obs.max_l(), D_bs.max_l()), 0);
+  engine.set_precision(precision);  // shellset-dependent precision control
+                                        // will likely break positive
+                                        // definiteness
+                                        // stick with this simple recipe
+
+  auto shell2bf = obs.shell2bf();
+  auto shell2bf_D = D_bs.shell2bf();
+  const auto& buf = engine.results();
+
+    auto compute_2body_fock_general_lambda = [&](IndexVector blockid1) {
+
+      const IndexVector blockid = 
+          internal::translate_blockid(blockid1, F1tmp());
+        // Tensor<TensorType> tensor = F1tmp;
+        // const TAMM_SIZE size      = tensor.block_size(blockid);
+        // std::vector<TensorType> tbuf(size);
+        // auto block_dims   = tensor.block_dims(blockid);
+        // auto block_offset = tensor.block_offsets(blockid);
+
+        using libint2::Engine;
+ 
+        auto s1 = blockid[0];
+        auto bf1_first = shell2bf[s1];  // first basis function in this shell
+        auto n1 = obs[s1].size();       // number of basis functions in this shell
+
+        auto s2 = blockid[1];
+        if(s2>s1) return;
+
+        auto bf2_first = shell2bf[s2];
+        auto n2 = obs[s2].size();
+
+        for (auto s3 = 0; s3 < D_bs.size(); ++s3) {
+          auto bf3_first = shell2bf_D[s3];
+          auto n3 = D_bs[s3].size();
+
+          auto s4_begin = D_is_shelldiagonal ? s3 : 0;
+          auto s4_fence = D_is_shelldiagonal ? s3 + 1 : D_bs.size();
+
+          for (auto s4 = s4_begin; s4 != s4_fence; ++s4) {
+
+            auto bf4_first = shell2bf_D[s4];
+            auto n4 = D_bs[s4].size();
+
+            // compute the permutational degeneracy (i.e. # of equivalents) of
+            // the given shell set
+            auto s12_deg = (s1 == s2) ? 1.0 : 2.0;
+
+            if (s3 >= s4) {
+              auto s34_deg = (s3 == s4) ? 1.0 : 2.0;
+              auto s1234_deg = s12_deg * s34_deg;
+              // auto s1234_deg = s12_deg;
+              engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
+                  obs[s1], obs[s2], D_bs[s3], D_bs[s4]);
+              const auto* buf_1234 = buf[0];
+              if (buf_1234 != nullptr) {
+                for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                  const auto bf1 = f1 + bf1_first;
+                  for (auto f2 = 0; f2 != n2; ++f2) {
+                    const auto bf2 = f2 + bf2_first;
+                    for (auto f3 = 0; f3 != n3; ++f3) {
+                      const auto bf3 = f3 + bf3_first;
+                      for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
+                        const auto bf4 = f4 + bf4_first;
+
+                        const auto value = buf_1234[f1234];
+                        const auto value_scal_by_deg = value * s1234_deg;
+                        G(bf1, bf2) += 2.0 * D_minbs(bf3, bf4) * value_scal_by_deg;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
+                obs[s1], D_bs[s3], obs[s2], D_bs[s4]);
+            const auto* buf_1324 = buf[0];
+            if (buf_1324 == nullptr)
+              continue; // if all integrals screened out, skip to next quartet
+
+            for (auto f1 = 0, f1324 = 0; f1 != n1; ++f1) {
+              const auto bf1 = f1 + bf1_first;
+              for (auto f3 = 0; f3 != n3; ++f3) {
+                const auto bf3 = f3 + bf3_first;
+                for (auto f2 = 0; f2 != n2; ++f2) {
+                  const auto bf2 = f2 + bf2_first;
+                  for (auto f4 = 0; f4 != n4; ++f4, ++f1324) {
+                    const auto bf4 = f4 + bf4_first;
+
+                    const auto value = buf_1324[f1324];
+                    const auto value_scal_by_deg = value * s12_deg;
+                    G(bf1, bf2) -= D_minbs(bf3, bf4) * value_scal_by_deg;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+      // symmetrize the result and return
+      Matrix Gt = 0.5 * (G + G.transpose());
+      G = Gt;
+    };
+
+    Scheduler{*ec}(F1tmp() = 0).execute();
+
+    block_for(*ec, F1tmp(), compute_2body_fock_general_lambda);
+    eigen_to_tamm_tensor_acc(F1tmp,G);
+    GA_Sync();
+    Matrix F1tmp1_eigen(N,N);
+    tamm_to_eigen_tensor(F1tmp,F1tmp1_eigen);
+    Ft += F1tmp1_eigen;
+    F1tmp1_eigen.resize(0,0);
+    Tensor<TensorType>::deallocate(F1tmp);
+#endif
+
     // Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(Ft, S);
     // auto eps = gen_eig_solver.eigenvalues();
     // C = gen_eig_solver.eigenvectors();
@@ -751,8 +945,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     auto C_occ = C.leftCols(ndocc);
     D = C_occ * C_occ.transpose();
 
-    //  cout << "\n\tInitial Density Matrix:\n";
-    //  cout << D << endl;
+  }
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
@@ -766,8 +959,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     /*** main iterative loop         ***/
     /*** =========================== ***/
 
-    const auto maxiter = 100;
-    const auto conv    = 1e-7;
+    // bool simple_convergence = false;
+    // double alpha = 0.5;
     auto iter          = 0;
     auto rmsd          = 1.0;
     auto ediff         = 0.0;
@@ -780,7 +973,6 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     // Matrix F_old;
 
     int idiis                     = 0;
-    int max_hist                  = 8;
     std::vector<Matrix> diis_hist;
     std::vector<Matrix> fock_hist;
 
@@ -788,8 +980,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     Tensor<TensorType> ehf_tamm{}, rmsd_tamm{};
 
     Tensor<TensorType> F1{tAO, tAO};
-    Tensor<TensorType> F1tmp{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, F1, F1tmp, ehf_tmp, ehf_tamm, rmsd_tamm);
+    Tensor<TensorType> F1tmp1{tAO, tAO};
+    Tensor<TensorType> F1tmp{tAOt, tAOt};
+    Tensor<TensorType>::allocate(ec, F1, F1tmp, F1tmp1, ehf_tmp, ehf_tamm, rmsd_tamm);
 
     Tensor<TensorType> Sm12_tamm{tAO, tAO}; 
     Tensor<TensorType> Sp12_tamm{tAO, tAO};
@@ -802,42 +995,66 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     Tensor<TensorType> Sp12D_tamm{tAO, tAO};
     Tensor<TensorType> SpFS_tamm{tAO, tAO};
     Tensor<TensorType> err_mat_tamm{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
+    Tensor<TensorType> G_tamm{tAOt, tAOt};
 
-    eigen_to_tamm_tensor(D_tamm,D);
-    F.setZero(N,N);
-    Matrix err_mat = Matrix::Zero(N,N);
+    Tensor<TensorType>::allocate(ec, FSm12_tamm, G_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
    // GA_Sync();
-    if(rank == 0) std::cout << "\nTime taken to setup main loop: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime taken to setup tensors for iterative loop: " << hf_time << " secs\n";
 
+    eigen_to_tamm_tensor(D_tamm,D);
+    F.setZero(N,N);
+    Matrix err_mat = Matrix::Zero(N,N);
+
+    hf_t1 = std::chrono::high_resolution_clock::now();
+    // S^1/2
+    Matrix Sp12 = S.sqrt(); //pow(0.5);
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    if(rank == 0) std::cout << "\nTime taken for S^1/2: " << hf_time << " secs\n";
+
+    hf_t1 = std::chrono::high_resolution_clock::now();
     // S^-1/2
-    Matrix Sm12 = S.pow(-0.5);
-    Matrix Sp12 = S.pow(0.5);
+    Matrix Sm12 = Sp12.inverse();
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    if(rank == 0) std::cout << "Time taken for S^-1/2: " << hf_time << " secs\n";
+
     eigen_to_tamm_tensor(Sm12_tamm,Sm12);
     eigen_to_tamm_tensor(Sp12_tamm,Sp12);    
-
-    // pre-compute data for Schwarz bounds
-    auto SchwarzK = compute_schwarz_ints<>(shells);
 
     if(rank == 0) {
         std::cout << "\n\n";
         std::cout << " Hartree-Fock iterations" << std::endl;
         std::cout << std::string(70, '-') << std::endl;
         std::cout <<
-            " Iter     Energy            E-Diff           RMSD           Time" 
+            " Iter     Energy            E-Diff            RMSD            Time" 
                 << std::endl;
         std::cout << std::string(70, '-') << std::endl;
     }
 
     std::cout << std::fixed << std::setprecision(2);
 
-    do {
+    double precision = tol_int;
+    const libint2::BasisSet& obs = shells;
+    // assert(N==obs.nbf());
+    Matrix G = Matrix::Zero(N,N);
+    const auto do_schwarz_screen = SchwarzK.cols() != 0 && SchwarzK.rows() != 0;
+    auto fock_precision = precision;
+    // engine precision controls primitive truncation, assume worst-case scenario
+    // (all primitive combinations add up constructively)
+    auto max_nprim = obs.max_nprim();
+    auto max_nprim4 = max_nprim * max_nprim * max_nprim * max_nprim;
+    auto shell2bf = obs.shell2bf();
+    // const auto nshells = obs.size();
 
+    do {
         // Scheduler sch{ec};
         const auto loop_start = std::chrono::high_resolution_clock::now();
         ++iter;
@@ -846,7 +1063,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         auto ehf_last = ehf;
         auto D_last   = D;
 
-        Scheduler{*ec} //(F1tmp() = 0)
+        Scheduler{*ec} (G_tamm() = 0)
+        (F1tmp() = 0)
+        // (F1tmp1() = 0)
            (D_last_tamm(mu,nu) = D_tamm(mu,nu)).execute();
 
         // build a new Fock matrix
@@ -854,310 +1073,175 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
         hf_t1 = std::chrono::high_resolution_clock::now();
         
-        const auto precision_F = std::min(
-        std::min(1e-3 / XtX_condition_number, 1e-7),
-        std::max(rmsd / 1e4, std::numeric_limits<double>::epsilon()));
+        // const auto precision_F = std::min(
+        // std::min(1e-3 / XtX_condition_number, 1e-7),
+        // std::max(rmsd / 1e4, std::numeric_limits<double>::epsilon()));
 
-        Matrix Ftmp = compute_2body_fock(shells, D, precision_F, SchwarzK);
+        // Matrix Ftmp = compute_2body_fock(shells, D, tol_int, SchwarzK);
+        // eigen_to_tamm_tensor(F1tmp, Ftmp);
 
-        eigen_to_tamm_tensor(F1tmp, Ftmp);
+        G.setZero(N,N);
+        Matrix D_shblk_norm =  compute_shellblock_norm(obs, D);  // matrix of infty-norms of shell blocks
+      
 
-        // TODO
+      auto engine_precision = std::min(fock_precision / D_shblk_norm.maxCoeff(),
+                                      std::numeric_limits<double>::epsilon()) /
+                              max_nprim4;
+      if(rank == 0)
+        assert(engine_precision > max_engine_precision &&
+          "using precomputed shell pair data limits the max engine precision"
+      " ... make max_engine_precision smaller and recompile");
+
+      // construct the 2-electron repulsion integrals engine pool
+      using libint2::Engine;
+      Engine engine(Operator::coulomb, obs.max_nprim(), obs.max_l(), 0);
+
+      engine.set_precision(engine_precision);
+      // std::atomic<size_t> num_ints_computed{0};
+      const auto& buf = engine.results();
+      
+
 #if 1
-        //-------------------------COMPUTE 2 BODY FOCK USING
-        // TAMM------------------
-        auto comp_2bf_lambda =
-          [&](IndexVector it) {
-              Tensor<TensorType> tensor = F1tmp;
-              const TAMM_SIZE size      = tensor.block_size(it);
+    auto comp_2bf_lambda = [&](IndexVector blockid1) {
 
-              std::vector<TensorType> tbuf(size);
+      const IndexVector blockid = 
+          internal::translate_blockid(blockid1, F1tmp());
+        // Tensor<TensorType> tensor = F1tmp;
+        // const TAMM_SIZE size      = tensor.block_size(blockid);
+        // std::vector<TensorType> tbuf(size);
+        // auto block_dims   = tensor.block_dims(blockid);
+        // auto block_offset = tensor.block_offsets(blockid);
+ 
+        auto s1 = blockid[0];
+        auto bf1_first = shell2bf[s1]; 
+        auto n1 = obs[s1].size();
 
-              auto block_dims   = tensor.block_dims(it);
-              auto block_offset = tensor.block_offsets(it);
+        auto sp12_iter = obs_shellpair_data.at(s1).begin();
 
-              using libint2::Shell;
-              using libint2::Engine;
-              using libint2::Operator;
-            
-            //   std::cout << "blockdims = " << block_dims[0] << ":" << block_dims[1] << std::endl;
-              Matrix G = Matrix::Zero(N,N);
-              auto ns  = shells.size();
+        //for (const auto& s2 : obs_shellpair_list[s1]) {
+        auto s2 = blockid[1];
+        
+        auto s2spl = obs_shellpair_list[s1];
+        auto s2_itr = std::find(s2spl.begin(),s2spl.end(),s2);
+        if(s2_itr == s2spl.end()) return;
+        auto s2_pos = std::distance(s2spl.begin(),s2_itr);
 
-              // construct the 2-electron repulsion integrals engine
-              Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells),
-                            0);
+        auto bf2_first = shell2bf[s2];
+        auto n2 = obs[s2].size();
 
-              auto shell2bf = map_shell_to_basis_function(shells);
-              auto bf2shell = map_basis_function_to_shell(shells);
+        std::advance(sp12_iter,s2_pos);
+        const auto* sp12 = sp12_iter->get();
+        //++sp12_iter;
 
-              const auto& buf = engine.results();
+        const auto Dnorm12 = do_schwarz_screen ? D_shblk_norm(s1, s2) : 0.;
 
-              // loop over permutationally-unique set of shells
+        for (auto s3 = 0; s3 <= s1; ++s3) {
+          auto bf3_first = shell2bf[s3];
+          auto n3 = obs[s3].size();
 
-              for(auto i = block_offset[0];i < (block_offset[0] + block_dims[0]);i++){
-                auto s1 = bf2shell[i];
-                auto bf1_first = shell2bf[s1]; 
-                auto n1        = shells[s1].size();
+          const auto Dnorm123 =
+              do_schwarz_screen
+                  ? std::max(D_shblk_norm(s1, s3),
+                             std::max(D_shblk_norm(s2, s3), Dnorm12))
+                  : 0.;
 
-              for(auto j = block_offset[1];j < (block_offset[1] + block_dims[1]);j++){
-                auto s2 = bf2shell[j];
-                auto bf2_first = shell2bf[s2];
-                auto n2        = shells[s2].size();
+          auto sp34_iter = obs_shellpair_data.at(s3).begin();
+
+          const auto s4_max = (s1 == s3) ? s2 : s3;
+          for (const auto& s4 : obs_shellpair_list[s3]) {
+            if (s4 > s4_max)
+              break;  // for each s3, s4 are stored in monotonically increasing
+                      // order
+
+            // must update the iter even if going to skip s4
+            const auto* sp34 = sp34_iter->get();
+            ++sp34_iter;
+
+            // if ((s1234++) % nthreads != thread_id) continue;
+
+            const auto Dnorm1234 =
+                do_schwarz_screen
+                    ? std::max(
+                          D_shblk_norm(s1, s4),
+                          std::max(D_shblk_norm(s2, s4),
+                                   std::max(D_shblk_norm(s3, s4), Dnorm123)))
+                    : 0.;
+
+            if (do_schwarz_screen &&
+                Dnorm1234 * SchwarzK(s1, s2) * SchwarzK(s3, s4) <
+                    fock_precision)
+              continue;
+
+            auto bf4_first = shell2bf[s4];
+            auto n4 = obs[s4].size();
+
+            // num_ints_computed += n1 * n2 * n3 * n4;
+
+            // compute the permutational degeneracy (i.e. # of equivalents) of
+            // the given shell set
+            auto s12_deg = (s1 == s2) ? 1 : 2;
+            auto s34_deg = (s3 == s4) ? 1 : 2;
+            auto s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1 : 2) : 2;
+            auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
+
+            engine.compute2<Operator::coulomb, libint2::BraKet::xx_xx, 0>(
+              obs[s1], obs[s2], obs[s3], obs[s4], sp12, sp34); 
+            // engine.compute(obs[s1], obs[s2], obs[s3], obs[s4]);
                 
-              for(size_t s3 = 0; s3 != shells.size(); ++s3) {
-                auto bf3_first = shell2bf[s3];
-                auto n3        = shells[s3].size();
+            const auto* buf_1234 = buf[0];
+            if (buf_1234 == nullptr)
+              continue; // if all integrals screened out, skip to next quartet
 
-              for(size_t s4 = 0; s4 != shells.size(); ++s4) {
-                auto bf4_first = shell2bf[s4];
-                auto n4        = shells[s4].size();
-
-                auto f1 = i - bf1_first;
-                auto f2 = j - bf2_first;
-                auto s4_max = (s1 == s2) ? s3 : s2;
-                auto s4p_max = (s1 == s2) ? s3 : s1;
-                auto s1_max = (s4 == s2) ? s3 : s4;
-                auto s2_max = (s4 == s1) ? s3 : s4;
-                auto s2p_max = (s1 == s3) ? s4 : s1;
-                auto s1p_max = (s3 == s2) ? s4 : s2;
-                auto s4x_max = (s1 == s3) ? s2 : s3;
-                auto s4px_max = (s2 == s3) ? s1 : s3;
-                auto con1 = (s3<=s1 && s4 <= s4_max && s2<=s1);
-                auto con2 = (s3<=s2 && s4 <= s4p_max && s1<=s2);
-                auto con3 = (s3<=s2 && s1 <= s1_max && s4<=s2);
-                auto con4 = (s3<=s1 && s2 <= s2_max && s4<=s1);
-                auto conx = (s2 <= s2p_max && s3 >= s1 && s4 <= s3);
-                auto cony = (s1 <=s1p_max && s3 >= s2 && s4<=s3);
-                auto con0 = (s3<=s1 && s4 <=s4x_max && s2 <= s1);
-                auto conz = (s3<=s2 && s4 <=s4px_max && s1 <= s2);
-              
-                decltype(s1) _s1 = -1;
-                decltype(s1) _s2 = -1;
-                decltype(s1) _s3 = -1;
-                decltype(s1) _s4 = -1;
-                decltype(s1) _n1 = -1;
-                decltype(s1) _n2 = -1;
-                decltype(s1) _n3 = -1;
-                decltype(s1) _n4 = -1;
-
-                decltype(f1) _f1 = -1;
-                decltype(f1) _f2 = -1;
-                decltype(f1) _f3 = -1;
-                decltype(f1) _f4 = -1;
-
-              auto lambda_2e = [&](std::vector<int> bf_order, double pf=1.0){
-              
-                auto s12_deg = (_s1 == _s2) ? 1.0 : 2.0;
-                auto s34_deg = (_s3 == _s4) ? 1.0 : 2.0;
-                auto s12_34_deg = (_s1 == _s3) ? (_s2 == _s4 ? 1.0 : 2.0) : 2.0;
-                auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-                 
-                engine.compute(shells[_s1], shells[_s2], shells[_s3], shells[_s4]);
-                const auto* buf_1234 = buf[0];
-                if(buf_1234 == nullptr) return; 
-
-                for(size_t f3 = 0; f3 != n3; ++f3) {
+            // 1) each shell set of integrals contributes up to 6 shell sets of
+            // the Fock matrix:
+            //    F(a,b) += (ab|cd) * D(c,d)
+            //    F(c,d) += (ab|cd) * D(a,b)
+            //    F(b,d) -= 1/4 * (ab|cd) * D(a,c)
+            //    F(b,c) -= 1/4 * (ab|cd) * D(a,d)
+            //    F(a,c) -= 1/4 * (ab|cd) * D(b,d)
+            //    F(a,d) -= 1/4 * (ab|cd) * D(b,c)
+            // 2) each permutationally-unique integral (shell set) must be
+            // scaled by its degeneracy,
+            //    i.e. the number of the integrals/sets equivalent to it
+            // 3) the end result must be symmetrized
+            for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+              const auto bf1 = f1 + bf1_first;
+              for (auto f2 = 0; f2 != n2; ++f2) {
+                const auto bf2 = f2 + bf2_first;
+                for (auto f3 = 0; f3 != n3; ++f3) {
                   const auto bf3 = f3 + bf3_first;
-                  for(size_t f4 = 0; f4 != n4; ++f4) {
+                  for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
                     const auto bf4 = f4 + bf4_first;
-                     std::vector<decltype(f1)> fxs{f1,f2,f3,f4};
-                     _f1 = fxs.at(bf_order[0]);
-                     _f2 = fxs.at(bf_order[1]);
-                     _f3 = fxs.at(bf_order[2]);
-	                   _f4 = fxs.at(bf_order[3]);
-                    auto f1234 = _n4*(_n3*(_n2*_f1+_f2)+_f3)+_f4;
+
                     const auto value = buf_1234[f1234];
                     const auto value_scal_by_deg = value * s1234_deg;
-                    G(i,j) += pf * D(bf3, bf4) * value_scal_by_deg;
+
+                    G(bf1, bf2) += D(bf3, bf4) * value_scal_by_deg;
+                    G(bf3, bf4) += D(bf1, bf2) * value_scal_by_deg;
+                    G(bf1, bf3) -= 0.25 * D(bf2, bf4) * value_scal_by_deg;
+                    G(bf2, bf4) -= 0.25 * D(bf1, bf3) * value_scal_by_deg;
+                    G(bf1, bf4) -= 0.25 * D(bf2, bf3) * value_scal_by_deg;
+                    G(bf2, bf3) -= 0.25 * D(bf1, bf4) * value_scal_by_deg;
+
                   }
                 }
-
-                };
-
-              if (con0){
-                 _s1 = s1;
-                 _s2 = s2;
-                 _s3 = s3;
-                 _s4 = s4;
-                 _n1 = n1;
-                 _n2 = n2;
-                 _n3 = n3;
-                 _n4 = n4;
-                lambda_2e({0,1,2,3});
               }
-              
-              if (conz){
-                 _s1 = s2;
-                 _s2 = s1;
-                 _s3 = s3;
-                 _s4 = s4;
-                 _n1 = n2;
-                 _n2 = n1;
-                 _n3 = n3;
-                 _n4 = n4;
-                lambda_2e({1,0,2,3});
-              }
+            }
+          }
+        }
 
-              if (conx){
-	              _s1 = s3;
-	              _s2 = s4;
-                _s3 = s1;
-                _s4 = s2;
-                _n1 = n3;
-                _n2 = n4;
-                _n3 = n1;
-                _n4 = n2;
-                lambda_2e({2,3,0,1});
-                
-              }
+      Matrix Gt = 0.5*(G + G.transpose());
+      G = Gt;
+    };
 
-              if (cony){
-	              _s1 = s3;
-	              _s2 = s4;
-                _s3 = s2;
-                _s4 = s1;
-                _n1 = n3;
-                _n2 = n4;
-                _n3 = n2;
-                _n4 = n1;
-
-                lambda_2e({2,3,1,0});
-              }
-
-	          if (con1) {	
-                _s1 = s1;
-                _s2 = s3;
-                _s3 = s2;
-                _s4 = s4;
-                _n1 = n1;
-                _n2 = n3;
-                _n3 = n2;
-                _n4 = n4;
-
-                lambda_2e({0,2,1,3}, -0.25);
-              }
-
-	          if (con2) {	
-                _s1 = s2;
-                _s2 = s3;
-                _s3 = s1;
-                _s4 = s4;
-                _n1 = n2;
-                _n2 = n3;
-                _n3 = n1;
-                _n4 = n4;
-
-                lambda_2e({1,2,0,3}, -0.25);
-              }
-
-	          if (con3){
-                _s1 = s2;
-                _s2 = s3;
-                _s3 = s4;
-                _s4 = s1;
-                _n1 = n2;
-                _n2 = n3;
-                _n3 = n4;
-                _n4 = n1;
-
-                lambda_2e({1,2,3,0}, -0.25);
-              }
-
-	          if (con4){
-                _s1 = s1;
-                _s2 = s3;
-                _s3 = s4;
-                _s4 = s2;
-                _n1 = n1;
-                _n2 = n3;
-                _n3 = n4;
-                _n4 = n2;
-
-                lambda_2e({0,2,3,1}, -0.25);
-              }
-
-                 s1p_max = (s3 == s4) ? s2 : s4;
-                auto con5 = (s1<=s1p_max && s2<=s3 && s4 <= s3);
-                 s2p_max = (s3 == s4) ? s1 : s4;
-                auto con6 = (s2<=s2p_max && s1<=s3 && s4 <= s3);
-                 s4_max = (s3 == s2) ? s1 : s2;
-                auto con7 = (s4<=s4_max && s1<=s3 && s2 <= s3);
-                 s4p_max = (s3 == s1) ? s2 : s1;
-                auto con8 = (s4<=s4p_max && s2<=s3 && s1 <= s3);
- 
-              if (con5){
-                _s1 = s3;
-                _s2 = s2;
-                _s3 = s4;
-                _s4 = s1;
-                _n1 = n3;
-                _n2 = n2;
-                _n3 = n4;
-                _n4 = n1;
- 
-                lambda_2e({2,1,3,0}, -0.25);
-              }
-
-              if (con6){
-                _s1 = s3;
-                _s2 = s1;
-                _s3 = s4;
-                _s4 = s2;
-                _n1 = n3;
-                _n2 = n1;
-                _n3 = n4;
-                _n4 = n2;
- 
-                lambda_2e({2,0,3,1}, -0.25);
-              }
-
-              if (con7){
-                _s1 = s3;
-                _s2 = s1;
-                _s3 = s2;
-                _s4 = s4;
-                _n1 = n3;
-                _n2 = n1;
-                _n3 = n2;
-                _n4 = n4;
- 
-                lambda_2e({2,0,1,3}, -0.25);
-              }
-
-              if (con8){
-                _s1 = s3;
-                _s2 = s2;
-                _s3 = s1;
-                _s4 = s4;
-                _n1 = n3;
-                _n2 = n2;
-                _n3 = n1;
-                _n4 = n4;
- 
-                lambda_2e({2,1,0,3}, -0.25);
-              }
-
-              }
-              }
-              }
-              }
-
-              TAMM_SIZE c = 0;
-              for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-                for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++, c++) {
-                  tbuf[c] = 0.5*G(i, j);
-                }
-              }
-
-              F1tmp.put(it, tbuf);
-            };
-                  
-                //---------------------------END COMPUTE 2-BODY FOCK USING
-                // TAMM------------------
+    block_for(*ec, F1tmp(), comp_2bf_lambda);
+    // GA_Sync();
+    eigen_to_tamm_tensor_acc(F1tmp,G);
+    Matrix F1tmp1_eigen(N,N);
+    tamm_to_eigen_tensor(F1tmp,F1tmp1_eigen);
+    eigen_to_tamm_tensor(F1tmp1,F1tmp1_eigen);
+    F1tmp1_eigen.resize(0,0);
 #endif
-        //block_for(ec->pg(), F1tmp(), comp_2bf_lambda);
-
 
         hf_t2 = std::chrono::high_resolution_clock::now();
         hf_time =
@@ -1168,7 +1252,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         hf_t1 = std::chrono::high_resolution_clock::now();
         // F += Ftmp;
         Scheduler{*ec}(F1(mu, nu) = H1(mu, nu))
-                     (F1(mu, nu) += F1tmp(mu, nu)).execute();
+                     (F1(mu, nu) += F1tmp1(mu, nu)).execute();
 
 
         hf_t2 = std::chrono::high_resolution_clock::now();
@@ -1201,12 +1285,14 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
         if(rank == 0 && debug) std::cout << "err_mat:" << hf_time << "s, ";        
+
+        GA_Sync();
         tamm_to_eigen_tensor(err_mat_tamm,err_mat);
         tamm_to_eigen_tensor(F1,F);
 
         hf_t1 = std::chrono::high_resolution_clock::now();
 
-        if(iter > 2) {
+        if(iter > 1) {
             ++idiis;
             diis(F, err_mat, iter, max_hist, idiis,
                 diis_hist, fock_hist);
@@ -1295,9 +1381,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
             break;
         }
 
-    }
-    while(((fabs(ediff) > conv) || (fabs(rmsd) > conv)))
-        ;
+    } while (((fabs(ediff) > conve) || (fabs(rmsd) > convd)));
 
     // GA_Sync(); 
     if(rank == 0) {
@@ -1312,10 +1396,17 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         }        
     }
 
-    Tensor<TensorType>::deallocate(H1, H1P, S1, T1, V1, F1, D_tamm, ehf_tmp, 
+    hf_t1 = std::chrono::high_resolution_clock::now();
+
+    Tensor<TensorType>::deallocate(H1, F1, D_tamm, ehf_tmp, 
                     ehf_tamm, rmsd_tamm);
-    Tensor<TensorType>::deallocate(F1tmp,Sm12_tamm, Sp12_tamm,
+    Tensor<TensorType>::deallocate(F1tmp,F1tmp1,G_tamm, Sm12_tamm, Sp12_tamm,
     D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
+
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    if(rank == 0 && debug) std::cout << "\nTime taken to deallocate tamm tensors: " << hf_time << " secs\n";
 
     MemoryManagerGA::destroy_coll(mgr);
     delete ec;
@@ -1328,13 +1419,17 @@ void diis(Matrix& F, Matrix& err_mat, int iter, int max_hist, int ndiis,
     using Vector =
       Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
-    // const int N = F.rows();
-    // const int epos = ((ndiis-1) % max_hist) + 1;
-    // int epos = ndiis - 1;
-    if(ndiis > max_hist) {
-        diis_hist.erase(diis_hist.begin());
-        fock_hist.erase(fock_hist.begin());
-    }
+  if(ndiis > max_hist) { 
+    std::vector<double> max_err(diis_hist.size());
+    for (auto i=0; i<diis_hist.size(); i++)
+      max_err[i] = diis_hist[i].norm();
+
+    auto maxe = std::distance(max_err.begin(), 
+              std::max_element(max_err.begin(),max_err.end()));
+
+    diis_hist.erase(diis_hist.begin()+maxe);
+    fock_hist.erase(fock_hist.begin()+maxe);      
+  }
     diis_hist.push_back(err_mat);
     fock_hist.push_back(F);
 
@@ -1367,8 +1462,6 @@ void diis(Matrix& F, Matrix& err_mat, int iter, int max_hist, int ndiis,
     // cout << "-----------iter:" << iter << "--------------\n";
     // cout << err_mat << endl;
 }
-
-
 
 // computes Superposition-Of-Atomic-Densities guess for the molecular density
 // matrix
@@ -1419,13 +1512,14 @@ Matrix compute_schwarz_ints(
   Engine engine = Engine(Kernel, std::max(bs1.max_nprim(), bs2.max_nprim()),
                       std::max(bs1.max_l(), bs2.max_l()), 0, epsilon, params);
 
-  std::cout << "computing Schwarz bound prerequisites (kernel=" << (int)Kernel
-            << ") ... ";
+  if(GA_Nodeid()==0)
+    std::cout << "computing Schwarz bound prerequisites (kernel=" 
+          << (int)Kernel << ") ... ";
 
-  libint2::Timers<1> timer;
-  timer.set_now_overhead(25);
-  timer.start(0);
-
+    libint2::Timers<1> timer;
+    timer.set_now_overhead(25);
+    timer.start(0);
+  
     const auto& buf = engine.results();
 
     // loop over permutationally-unique set of shells
@@ -1454,11 +1548,10 @@ Matrix compute_schwarz_ints(
       }
     }
 
-
-
   timer.stop(0);
-  std::cout << "done (" << timer.read(0) << " s)" << std::endl;
-
+  if(GA_Nodeid()==0) 
+    std::cout << "done (" << timer.read(0) << " s)" << std::endl;
+ 
   return K;
 }
 
@@ -1595,8 +1688,6 @@ Matrix compute_2body_fock(const libint2::BasisSet& obs, const Matrix& D,
             const auto* buf_1234 = buf[0];
             if (buf_1234 == nullptr)
               continue; // if all integrals screened out, skip to next quartet
-
-
 
             // 1) each shell set of integrals contributes up to 6 shell sets of
             // the Fock matrix:
@@ -1758,151 +1849,5 @@ Matrix compute_2body_fock_general(const libint2::BasisSet& obs, const Matrix& D,
   // symmetrize the result and return
   return 0.5 * (G + G.transpose());
 }
-
-    // auto compute_1body_ints_lambda = [&](const IndexVector& blockid,
-    //                                             span<TensorType> tbuf) {
-
-    //     auto s1 = blockid[0];
-    //     // auto bf1 = shell2bf[s1]; //shell2bf[s1]; // first basis function in
-    //     // this shell
-    //     auto n1 = shells[s1].size();
-
-    //     // for (size_t s2 = 0; s2 <= s1; ++s2) {
-    //     auto s2 = blockid[1];
-
-    //     //if (s2>s1) return;
-    //     // if(s1<s2) return; //TODO
-    //     // auto bf2 = shell2bf[s2];
-    //     auto n2 = shells[s2].size();
-
-    //     // compute shell pair; return is the pointer to the buffer
-    //     engine.compute(shells[s1], shells[s2]);
-    //     // "map" buffer to a const Eigen Matrix, and copy it to the
-    //     // corresponding blocks of the result
-    //     Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
-    //     // result.block(bf1, bf2, n1, n2) = buf_mat;
-    //     // for(size_t i = 0; i < n1; i++)
-    //     //     for(size_t j = 0; j < n2; j++) tbuf[i * n2 + j] = buf_mat(i, j);
-    //     //std::memcpy(tbuf.data(),buf, sizeof(TensorType)*n1*n2);
-    //     Eigen::Map<Matrix>(tbuf.data(),n1,n2) = buf_mat;
-
-    //     // if(s1!=s2){
-    //     //     std::vector<T> ttbuf(n1*n2);
-    //     //     Eigen::Map<Matrix>(ttbuf.data(),n2,n1) = buf_mat.transpose();
-    //     //     put({s2,s1}, ttbuf);
-    //     // }
-    // };
-
-// Matrix compute_2body_fock_orig(const std::vector<libint2::Shell>& shells,
-//                           const Matrix& D) {
-//     using libint2::Shell;
-//     using libint2::Engine;
-//     using libint2::Operator;
-
-//     std::chrono::duration<double> time_elapsed =
-//       std::chrono::duration<double>::zero();
-
-//     const auto n = nbasis(shells);
-//     Matrix G     = Matrix::Zero(n, n);
-
-//     // construct the 2-electron repulsion integrals engine
-//     Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
-
-//     auto shell2bf = map_shell_to_basis_function(shells);
-
-//     const auto& buf = engine.results();
-
-//     // loop over permutationally-unique set of shells
-//     for(size_t s1 = 0; s1 != shells.size(); ++s1) {
-//         auto bf1_first = shell2bf[s1]; // first basis function in this shell
-//         auto n1 = shells[s1].size(); // number of basis functions in this shell
-
-//         for(size_t s2 = 0; s2 <= s1; ++s2) {
-//             auto bf2_first = shell2bf[s2];
-//             auto n2        = shells[s2].size();
-
-//             for(size_t s3 = 0; s3 <= s1; ++s3) {
-//                 auto bf3_first = shell2bf[s3];
-//                 auto n3        = shells[s3].size();
-
-//                 const auto s4_max = (s1 == s3) ? s2 : s3;
-//                 for(size_t s4 = 0; s4 <= s4_max; ++s4) {
-//                     auto bf4_first = shell2bf[s4];
-//                     auto n4        = shells[s4].size();
-
-//                     // compute the permutational degeneracy (i.e. # of
-//                     // equivalents) of the given shell set
-//                     auto s12_deg    = (s1 == s2) ? 1.0 : 2.0;
-//                     auto s34_deg    = (s3 == s4) ? 1.0 : 2.0;
-//                     auto s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1.0 : 2.0) : 2.0;
-//                     auto s1234_deg  = s12_deg * s34_deg * s12_34_deg;
-
-//                     const auto tstart =
-//                       std::chrono::high_resolution_clock::now();
-
-//                     engine.compute2<Operator::coulomb, libint2::BraKet::xx_xx, 0>(shells[s1], shells[s2], shells[s3],
-//                                    shells[s4]);
-//                     const auto* buf_1234 = buf[0];
-//                     if(buf_1234 == nullptr)
-//                         continue; // if all integrals screened out, skip to
-//                                   // next quartet
-
-//                     const auto tstop =
-//                       std::chrono::high_resolution_clock::now();
-//                     time_elapsed += tstop - tstart;
-
-//                     // ANSWER
-//                     // 1) each shell set of integrals contributes up to 6
-//                     // shell sets of the Fock matrix:
-//                     //    F(a,b) += (ab|cd) * D(c,d)
-//                     //    F(c,d) += (ab|cd) * D(a,b)
-//                     //    F(b,d) -= 1/4 * (ab|cd) * D(a,c)
-//                     //    F(b,c) -= 1/4 * (ab|cd) * D(a,d)
-//                     //    F(a,c) -= 1/4 * (ab|cd) * D(b,d)
-//                     //    F(a,d) -= 1/4 * (ab|cd) * D(b,c)
-//                     // 2) each permutationally-unique integral (shell set)
-//                     // must be scaled by its degeneracy,
-//                     //    i.e. the number of the integrals/sets equivalent
-//                     //    to it
-//                     // 3) the end result must be symmetrized
-//                     for(size_t f1 = 0, f1234 = 0; f1 != n1; ++f1) {
-//                         const auto bf1 = f1 + bf1_first;
-//                         for(size_t f2 = 0; f2 != n2; ++f2) {
-//                             const auto bf2 = f2 + bf2_first;
-//                             for(size_t f3 = 0; f3 != n3; ++f3) {
-//                                 const auto bf3 = f3 + bf3_first;
-//                                 for(size_t f4 = 0; f4 != n4; ++f4, ++f1234) {
-//                                     const auto bf4 = f4 + bf4_first;
-
-//                                     const auto value = buf_1234[f1234];
-
-//                                     const auto value_scal_by_deg =
-//                                       value * s1234_deg;
-
-//                                     G(bf1, bf2) +=
-//                                       D(bf3, bf4) * value_scal_by_deg;
-//                                     G(bf3, bf4) +=
-//                                       D(bf1, bf2) * value_scal_by_deg;
-//                                     G(bf1, bf3) -=
-//                                       0.25 * D(bf2, bf4) * value_scal_by_deg;
-//                                     G(bf2, bf4) -=
-//                                       0.25 * D(bf1, bf3) * value_scal_by_deg;
-//                                     G(bf1, bf4) -=
-//                                       0.25 * D(bf2, bf3) * value_scal_by_deg;
-//                                     G(bf2, bf3) -=
-//                                       0.25 * D(bf1, bf4) * value_scal_by_deg;
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//     }
-
-//     // symmetrize the result and return
-//     Matrix Gt = G.transpose();
-//     return 0.5 * (G + Gt);
-// }
 
 #endif // TAMM_TESTS_HF_TAMM_HPP_

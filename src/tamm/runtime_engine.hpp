@@ -136,7 +136,7 @@ public:
         // TBD: figure out memory space: do we need GPU/CPU buffer?
         const size_t size = tensor.block_size(blockid);
         span<T> span(new T[size], size);
-        return BlockBuffer<T>(span, tensor, blockid, true);
+        return BlockBuffer<T>(span, IndexedTensor{tensor, blockid}, this, true);
     }
 
     template<typename Lambda, typename ...Args>

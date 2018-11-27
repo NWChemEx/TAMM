@@ -383,20 +383,23 @@ public:
                     EXPECTS(blockid.size() == tensor.num_modes());
                     const auto translated_blockid = internal::translate_blockid(blockid, lhs_);
                     if(is_assign_) {
+                        // should be RuntimeSummary or similar everywhere. We
+                        // need to know Runtime + context description, not just
+                        // runtime.
                         re.submitTask([=](RuntimeEngine& re){
                             BlockBuffer bf = re.temp_buf(tensor, translated_blockid);
                             std::fill(bf.begin(), bf.end(), alpha_);
                             bf.put();  // goes through runtime (may be lazy)
-                        }, WriteAccess{IndexedTensor{tensor, translated_blockid}});
+                        }, WritePermission{IndexedTensor{tensor, translated_blockid}});
                     } else {
                         re.submitTask([=](RuntimeEngine& re){
                             BlockBuffer bf = re.temp_buf(tensor, translated_blockid);
                             std::fill(bf.begin(), bf.end(), alpha_);
                             bf.add();
-                        }, AccumAccess{IndexedTensor{tensor, translated_blockid}});
+                        }, AccumPermission{IndexedTensor{tensor, translated_blockid}});
                     }
                 }
-            }, WriteAccess{lhs_}
+            }, WritePermission{lhs_}
         );
 
         // We do not execute runtime engine here explicitly.  This will be done later by whoever created the execution context.

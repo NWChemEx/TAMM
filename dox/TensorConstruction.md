@@ -1,9 +1,10 @@
 ## Tensor Construction Syntax
-**Using TiledIndexSpace** 
-The main construction for `Tensor` objects are based on a list of `TiledIndexSpace` objects for each mode (dimension) of the tensor. Users can use operator overloads to get a specific portion of `TiledIndexSpace` (i.e. occ, virt etc.) while constructing Tensor objects. Note that the generated `TiledIndexSpace` will have the same tiling size as the parent index space. 
+#### Using TiledIndexSpace 
+The main construction for `Tensor` objects are based on a list of `TiledIndexSpace` objects for each mode (dimension) of the tensor. Users can use operator overloads to get a specific portion of `TiledIndexSpace` (any named sub-space specified in index space is tiled as well e.g. `occ`, `virt` etc.) while constructing Tensor objects. Note that the generated `TiledIndexSpace` will have the same tiling size as the parent index space. 
 
 ```c++
-// Create TiledIndexSpace objects
+// Create TiledIndexSpace objects assuming an index space 
+// for AO and MO is constructed 
 TiledIndexSpace MO{MO_is, 10}, AO{AO_is, 10};
 
 Tensor<double> A{MO, AO}; // 2-mode tensor (MO by AO index space) with double elements
@@ -13,8 +14,8 @@ Tensor<double> B{AO, AO, AO}; // 3-mode tensor (AO index space for all three mod
 Tensor<double> C{MO("occ"), AO}; // 2-mode tensor (occupied MO by AO) with double elements
 ```
 
-**Using TiledIndexLabel**
-Users can also construct a `Tensor` object using `TiledIndexLabel` object related to a `TiledIndexSpace`. This is just a convenience constructor internally `Tensor` object will use `TiledIndexSpace` objects. 
+#### Using TiledIndexLabel
+Users can also construct a `Tensor` object using `TiledIndexLabel` object related to a `TiledIndexSpace`. This is just a convenience constructor for independent index spaces, internally `Tensor` object will use `TiledIndexSpace` objects. 
 
 
 ```c++
@@ -40,7 +41,8 @@ Tensor<double> B{a, a, a}; // 3-mode tensor (AO index space for all three modes)
 Tensor<double> C{k, a}; // 2-mode tensor (occupied MO by AO) with double elements
 ```
 
-For `Tensor` objects over **dependent** `TiledIndexSpace`s can only be done using `TiledIndexLabel`s as the construction will dependent on the relation between `TiledIndexSpaces`
+For `Tensor` objects over **dependent** index spaces can only be done using `TiledIndexLabel`s as the construction will dependent on the relation between `TiledIndexSpace`s.
+
 ```c++
 // Creating index spaces MO, AO, and Atom
 IndexSpace MO_is{range(0, 100),
@@ -68,11 +70,11 @@ TiledIndexLabel a = T_subMO_Atom.label("all");
 TiledIndexLabel i = T_Atom.label("all");
 
 // 2-mode tensor (subMO_Atom by Atom index space) with double elements
-Tensor<double> T{a(i), i}; 
+Tensor<double> T{i, a(i)}; 
 ```
 
-**Specialized constructors**
-For now only specialization for `Tensor` object construction is having a lambda expression for special calculations over `Tensor` data. The lambda expression will be stored and can be invoked through `Tensor` interface.
+#### Specialized constructors
+For now only specialization for `Tensor` object construction is having a lambda expression for on-the-fly calculated `Tensor`s. **Note that** these tensors are not stored in memory, they are only read-only objects that can only by on the right hand side of a computation.
 
 ```c++
 // Create TiledIndexSpace objects 
@@ -80,14 +82,14 @@ TiledIndexSpace MO{MO_is, 10}, AO{AO_is, 10};
 
 // 2-mode tensor (MO by AO index space) with 
 // double elements and specialized lambda expression
-Tensor<double> A{MO, AO, [] (auto val){ /* lambda body*/ }};
+Tensor<double> A{{MO, AO}, [] (const IndexVector& block_id, span<T> buf){ /* lambda body*/ }};
 
 // Lambda expression definition
-auto one_body_overlap_integral_lambda = [] (auto val) { /* lambda body*/ };
+auto one_body_overlap_integral_lambda = [] (const IndexVector& block_id, span<T> buf) { /* lambda body*/ };
 
 // 2-mode tensor (AO by MO index space) with
 // double elements and specialized lambda expression
-Tensor<double> B{AO, MO, one_body_overlap_integral_lambda};
+Tensor<double> B{{AO, MO}, one_body_overlap_integral_lambda};
 ```
 ----
 ## Tensor Allocation and Deallocation
@@ -102,11 +104,16 @@ auto manager = MemoryManagerGA::create_coll(pg);
 Distribution_NW distribution{};
 ExecutionContext ec{pg, &distribution, manager};
 
+// We also provide a utility function that constructs 
+// an ExecutionContext object with default process group, 
+// memory manager and distribution
+auto ec_default = tamm::make_execution_context(); 
+
 TiledIndexSpace MO{/*...*/};
 
-TiledIndexSpace O = MO("occ");
-TiledIndexSpace V = MO("virt");
-TiledIndexSpace N = MO("all");
+auto O = MO("occ");
+auto V = MO("virt");
+auto N = MO("all");
 
 Tensor<double> d_f1{N, N, N, N};
 Tensor<double> d_r1{O, O, O, O};
@@ -285,7 +292,7 @@ void ccsd_driver() {
 ``` -->
 ---
 
-### Examples from Comments on Documentation
+### Example Tensor Constructions
 > 1. scalar
 
 ```c++
@@ -293,7 +300,7 @@ void ccsd_driver() {
 Tensor T_1{};
 ```
 
-> 2. vector of say length 10
+> 2. vector of length 10
 
 ```c++
 // Create an index space of length 10
@@ -304,7 +311,7 @@ TiledIndexSpace tis_2{is_2};
 Tensor T_2{tis_2};
 ```
 
-> 3. matrix that is say 10 by 20
+> 3. matrix that is 10 by 20
 
 ```c++
 // Create an index space of length 10 and 20
@@ -316,7 +323,7 @@ TiledIndexSpace tis1_3{is1_3}, tis2_3{is2_3};
 Tensor T_3{tis1_3, tis2_3};
 ```
 
-> 4. order 3 tensor that is say 10 by 20 by 30
+> 4. order 3 tensor that is 10 by 20 by 30
 
 ```c++
 // Create an index space of length 10, 20 and 30
@@ -345,7 +352,6 @@ Tensor T_5{tis1_5};
 
 > 6. matrix from 3 whose rows are split into two subspaces of length 4 and 6
 
-- **Do you mean this?**
 
 ```c++
 // Spliting is1_3 from 3 into two sub-spaces with 4 and 6 elements
@@ -359,7 +365,6 @@ TiledIndexSpace tis_6{is3_6};
 // columns on tis2_3 from 3
 Tensor T_6{tis_6, tis2_3};
 ```
-- **In general, split cannot be post-facto. They need to be specified during construction. Or we end up with a new index space.**
 
 > 7. matrix from 3 whose columns are split into two subspaces of lengths 12 and 8
 
@@ -521,7 +526,7 @@ TiledIndexSpace tis1_20{is6_20};
 // from 3 a columns
 Tensor T20{tis1_20, tis2_3};
 ```
-
+<!-- 
 ### Canonical CCSD E
 
 ```c++
@@ -569,6 +574,7 @@ void driver() {
 	ccsd_e(MO, de, t1, t2, f1, v2);
 }
 ```
+
 ----
 
 ### Canonical  T1
@@ -942,4 +948,4 @@ for i, k in AO {
   } // for A
 } //for i, k
 
-```
+``` -->

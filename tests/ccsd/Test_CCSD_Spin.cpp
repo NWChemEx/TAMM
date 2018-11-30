@@ -2,7 +2,7 @@
 
 #include "HF/hartree_fock_eigen.hpp"
 #include "diis.hpp"
-#include "4index_transform.hpp"
+#include "CD_SVD.hpp"
 #include "catch/catch.hpp"
 #include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
@@ -604,7 +604,7 @@ TEST_CASE("CCSD Driver") {
 
     Matrix C;
     Matrix F;
-    Tensor4D V2;
+    
     TAMM_SIZE ov_alpha{0};
     TAMM_SIZE freeze_core    = 0;
     TAMM_SIZE freeze_virtual = 0;
@@ -624,8 +624,73 @@ TEST_CASE("CCSD Driver") {
     if(rank == 0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
 
     hf_t1        = std::chrono::high_resolution_clock::now();
-    std::tie(V2) = four_index_transform(ov_alpha, nao, freeze_core,
-                                        freeze_virtual, C, F, shells);
+
+    Tensor3D CholVpr;
+    //std::tie(V2) = 
+    cd_svd(ov_alpha, nao, freeze_core, freeze_virtual, C, F, shells, CholVpr);
+
+  auto chol_dims = CholVpr.dimensions();
+  auto chol_count = chol_dims[2];
+    auto ndocc = ov_alpha;
+    auto ov_alpha_freeze = ndocc - freeze_core;
+    auto ov_beta_freeze  = nao - ndocc - freeze_virtual;
+  const int n_alpha = ov_alpha_freeze;
+  const int n_beta = ov_beta_freeze;
+  // buf[0] points to the target shell set after every call  to engine.compute()
+  // const auto &buf = engine.results();
+  Matrix spin_t = Matrix::Zero(1, 2 * nao - 2 * freeze_core - 2 * freeze_virtual);
+  Matrix spin_1 = Matrix::Ones(1,n_alpha);
+  Matrix spin_2 = Matrix::Constant(1,n_alpha,2);
+  Matrix spin_3 = Matrix::Constant(1,n_beta,1);
+  Matrix spin_4 = Matrix::Constant(1,n_beta,2);
+  //spin_t << 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 2, 2; - water
+  spin_t.block(0,0,1,n_alpha) = spin_1;
+  spin_t.block(0,n_alpha,1,n_alpha) = spin_2;
+  spin_t.block(0,2*n_alpha,1, n_beta) = spin_3;
+  spin_t.block(0,2*n_alpha+n_beta,1, n_beta) = spin_4;
+
+  const auto v2dim =  2 * nao - 2 * freeze_core - 2 * freeze_virtual;
+    Tensor4D A2(v2dim,v2dim,v2dim,v2dim);
+    A2.setZero();
+    Tensor4D V2(v2dim,v2dim,v2dim,v2dim);
+
+
+    // Form (pr|qs)
+    for (auto p = 0; p < v2dim; p++) {
+      for (auto r = 0; r < v2dim; r++) {
+        if (spin_t(p) != spin_t(r)) {
+          continue;
+        }
+
+        for (auto q = 0; q < v2dim; q++) {
+          for (auto s = 0; s < v2dim; s++) {
+            if (spin_t(q) != spin_t(s)) {
+              continue;
+            }
+
+            for (auto icount = 0; icount != chol_count; ++icount) {
+              A2(p, r, q, s) += CholVpr(p, r, icount) * CholVpr(q, s, icount);
+              //V2_FromCholV(p, r, q, s) += CholVpr(p, r, icount) * CholVpr(q, s, icount);
+            }
+            //cout << p << " " << r << " " << q << " " << s << " " << V2_unfused(p, r, q, s) << "\n" << endl;
+          }
+        }
+      }
+    }
+
+
+          for (size_t p = 0; p < v2dim; p++) {
+        for (size_t q = 0; q < v2dim; q++) {
+          for (size_t r = 0; r < v2dim; r++) {
+            for (size_t s = 0; s < v2dim; s++) {
+              V2(p, q, r, s) = A2(p, r, q, s) - A2(p, s, q, r);
+            }
+          }
+        }
+      }
+
+    // std::tie(V2) = four_index_transform(ov_alpha, nao, freeze_core,
+    //                                     freeze_virtual, C, F, shells);
     hf_t2        = std::chrono::high_resolution_clock::now();
     double two_4index_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();

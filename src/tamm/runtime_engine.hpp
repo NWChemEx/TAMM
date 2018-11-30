@@ -1,28 +1,28 @@
 #ifndef TAMM_RUNTIME_ENGINE_HPP_
 #define TAMM_RUNTIME_ENGINE_HPP_
 
-#include "utility"
-#include "tamm/types.hpp"
-#include "tamm/tensor.hpp"
 #include "tamm/block_buffer.hpp"
+#include "tamm/tensor.hpp"
+#include "tamm/types.hpp"
+#include "utility"
 
 namespace tamm {
 
-enum class AccessMode {
-    KR, KW, KRW, AC
-};
+enum class AccessMode { KR, KW, KRW, AC };
 
 class PermissionBase {
     // Whatever polymorphic interface is needed, if any
     // Inherit from this class to mark a class as a permission
 };
 
-template<typename T> class Permission;
+template<typename T>
+class Permission;
 
 template<typename T>
 class Permission<LabeledTensor<T>> : public PermissionBase {
 public:
     Permission(LabeledTensor<T> lt, AccessMode acc) : lt(lt), acc(acc) {}
+
 private:
     LabeledTensor<T> lt;
     AccessMode acc;
@@ -32,9 +32,12 @@ template<typename T>
 class Permission<IndexedTensor<T>> : public PermissionBase {
 public:
     Permission(IndexedTensor<T> lt, AccessMode acc) : lt(lt) {}
-    Permission(typename IndexedTensor<T>::first_type tensor, 
+    Permission(typename IndexedTensor<T>::first_type tensor,
                typename IndexedTensor<T>::second_type index_vector,
-               AccessMode acc) : lt(tensor, index_vector), acc(acc) {}
+               AccessMode acc) :
+      lt(tensor, index_vector),
+      acc(acc) {}
+
 private:
     IndexedTensor<T> lt;
     AccessMode acc;
@@ -64,12 +67,13 @@ public:
     AccumPermission(T t) : Permission<T>(t, AccessMode::AC) {}
 };
 
-// TBD: We need a way to consolidate IndexedTensors with LabeledTensors to compute dependencies
+// TBD: We need a way to consolidate IndexedTensors with LabeledTensors to
+// compute dependencies
 //
 // class Task {
 // public:
 //   virtual ~Task() = default;
-//   Task(const Task&) = delete; 
+//   Task(const Task&) = delete;
 //   Task& operator=(const Task&) = delete;
 //   Task(Task&&) = delete;
 //   Task& operator=(Task&&) = delete;
@@ -103,16 +107,16 @@ public:
 //   TaskImpl(Lambda lambda, Args ...args)
 //     : lambda_{lambda}, args_(args...) {}
 
-//   void execute() override { execute_helper(std::index_sequence_for<Args...>{}); }
-//   template<typename LocalLambda>
-//   void for_blocks(LocalLambda local_lambda) {
+//   void execute() override {
+//   execute_helper(std::index_sequence_for<Args...>{}); } template<typename
+//   LocalLambda> void for_blocks(LocalLambda local_lambda) {
 //     for_blocks_helper(local_lambda, std::index_sequence_for<Args...>{});
 //   }
 //   std::vector<BlockDescAccessPair> blocks() override {
 //     std::vector<BlockDescAccessPair> block_access_pairs{};
-//     for_blocks([&](auto access_wrapper){ 
-//       block_access_pairs.push_back({access_wrapper.get_block().get_block_desc(), access_wrapper.get_mode()});
-//       return;
+//     for_blocks([&](auto access_wrapper){
+//       block_access_pairs.push_back({access_wrapper.get_block().get_block_desc(),
+//       access_wrapper.get_mode()}); return;
 //     });
 //     return block_access_pairs;
 //   }
@@ -121,28 +125,33 @@ public:
 //   std::tuple<Args...> args_;
 //   template<size_t... Is>
 //   void execute_helper(std::index_sequence<Is...>) {
-//     lambda_(AccessVisitor{[](auto access_wrapper) { return access_wrapper.get_buffer(); } }(std::get<Is>(args_))...);
+//     lambda_(AccessVisitor{[](auto access_wrapper) { return
+//     access_wrapper.get_buffer(); } }(std::get<Is>(args_))...);
 //   }
 //   template<typename BlocksLambda, std::size_t... Is>
-//   void for_blocks_helper(BlocksLambda blocks_lambda, std::index_sequence<Is...>) {
-//     (AccessVisitor{[=](auto access_wrapper) { return blocks_lambda(access_wrapper); } }(std::get<Is>(args_)), ...);
+//   void for_blocks_helper(BlocksLambda blocks_lambda,
+//   std::index_sequence<Is...>) {
+//     (AccessVisitor{[=](auto access_wrapper) { return
+//     blocks_lambda(access_wrapper); } }(std::get<Is>(args_)), ...);
 //   }
 // };
 
 class RuntimeEngine {
 public:
     class RuntimeContext {
-        public:
+    public:
         RuntimeContext(RuntimeEngine& re) : re(re) {}
         auto& runtimeEngine() { return re; }
         template<typename T>
         BlockBuffer<T> temp_buf(Tensor<T> tensor, IndexVector blockid) {
-        // TBD: figure out memory space: do we need GPU/CPU buffer?
-        const size_t size = tensor.block_size(blockid);
-        span<T> span(new T[size], size);
-        return BlockBuffer<T>(span, IndexedTensor{tensor, blockid}, &re, true);
-    }
-        private:
+            // TBD: figure out memory space: do we need GPU/CPU buffer?
+            const size_t size = tensor.block_size(blockid);
+            span<T> span(new T[size], size);
+            return BlockBuffer<T>(span, IndexedTensor{tensor, blockid}, &re,
+                                  true);
+        }
+
+    private:
         RuntimeEngine& re;
     };
 
@@ -153,21 +162,24 @@ public:
 
     // More buffer functions
     // e.g., buffer for accumulation
-    //   * "forwarded" buffers with immediate effects? No need to explicitly write back.
+    //   * "forwarded" buffers with immediate effects? No need to explicitly
+    //   write back.
     //   * Maybe special type for reference buffer.
 
-    template<typename Lambda, typename ...Args>
+    template<typename Lambda, typename... Args>
     void submitTask(Lambda lambda, Args&&... args) {
-        std::apply(lambda, std::tuple_cat(std::make_tuple(RuntimeContext{*this}), std::tuple_cat([&](){
-                if constexpr (std::is_base_of_v<Args, PermissionBase>) {
+        std::apply(
+          lambda,
+          std::tuple_cat(
+            std::make_tuple(RuntimeContext{*this}), std::tuple_cat([&]() {
+                if constexpr(std::is_base_of_v<Args, PermissionBase>) {
                     return std::forward_as_tuple<Args>(args);
                 } else {
                     return std::tuple{};
                 }
-            }()...
-        )));
+            }()...)));
     }
-    
+
 private:
 };
 

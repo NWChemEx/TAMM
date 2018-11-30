@@ -11,10 +11,8 @@ using namespace tamm;
 void cd_svd(
   const uint64_t ndocc, const uint64_t nao, const uint64_t freeze_core,
   const uint64_t freeze_virtual, const Matrix& C, Matrix& F,
-  libint2::BasisSet& shells, Tensor3D& CholVpr, std::vector<Eigen::RowVectorXd> &evec,
-   Tensor3D &Vpsigma) {
+  libint2::BasisSet& shells, Tensor3D& CholVpr) {
 
-  std::vector<std::pair<Matrix,Eigen::RowVectorXd>> evs;
     using libint2::Atom;
     using libint2::Shell;
     using libint2::Engine;
@@ -107,14 +105,14 @@ std::vector<unsigned int> AO_tiles;
     TiledIndexSpace tAOt{AO, AO_tiles};
     TiledIndexSpace tCI{CI, 8*nao};
     auto [mu, nu, ku] = tAO.labels<3>("all");
-    auto [cindex] = tAO.labels<1>("all");
+    auto [cindex] = tCI.labels<1>("all");
     auto [mup, nup, kup] = tAOt.labels<3>("all");
 
-  Eigen::Tensor<double, 3, Eigen::RowMajor> CholVuv(nao,nao,8*nao);
+  // Eigen::Tensor<double, 3, Eigen::RowMajor> CholVuv(nao,nao,8*nao);
   // Eigen::Tensor<double, 2, Eigen::RowMajor> DiagInt(nao,nao);
   // Eigen::Tensor<int, 1, Eigen::RowMajor> bf2shell(nao);
   
-  CholVuv.setZero();
+  // CholVuv.setZero();
   // DiagInt.setZero();
   // bf2shell.setZero();
 
@@ -131,7 +129,7 @@ std::vector<unsigned int> AO_tiles;
   //   }
   // }
 
-
+  auto hf_t1 = std::chrono::high_resolution_clock::now();
   Tensor<TensorType> DiagInt_tamm{tAOt, tAOt};
   // Tensor<TensorType> DiagInt_tamm{tAO, tAO};
   Tensor<TensorType>::allocate(ec, DiagInt_tamm);
@@ -235,9 +233,17 @@ do {
     f2 = bfv - shell2bf[s2];
     ind12 = f1*n2 + f2;
 
+    IndexVector di = {s1,s2,0};
+    const tamm::TAMM_SIZE dec = CholVuv_tamm.block_size(di);
+    std::vector<TensorType> vuvbuf(dec);
+    CholVuv_tamm.get(di, vuvbuf);
+    auto block_dims_vuv   = CholVuv_tamm.block_dims(di);
+
    std::vector<TensorType> delems(count);
+   auto depos = ind12*block_dims_vuv[2];
    for (auto icount = 0U; icount != count; ++icount) 
-     delems[icount] = CholVuv(bfu,bfv,icount);
+     //delems[icount] = CholVuv(bfu,bfv,icount);
+     delems[icount] = vuvbuf[depos+icount];
   // if(count > 0) CholVuv_tamm.get({bfu,bfv,count},delems);
 
 
@@ -286,8 +292,7 @@ do {
 
   block_for(*ec, CholVuv_tamm(), update_columns);
   delems.clear();
-  tamm_to_eigen_tensor(CholVuv_tamm, CholVuv);
-  GA_Sync();
+  // tamm_to_eigen_tensor(CholVuv_tamm, CholVuv);
   
     count += 1;
 
@@ -307,36 +312,22 @@ do {
 
 } while (max > diagtol && count <= (8*nao)); // At most 8*ao CholVec's. For vast majority cases, this is way
                                               //   more than enough. For very large basis, it can be increased.
-  Tensor<TensorType>::deallocate(DiagInt_tamm,CholVuv_tamm);
-
-  // cout << "# of Cholesky vectors: " << count << " max: " << max << "(" << diagtol << ")" << endl;
-  /*
-  // reproduce ao2eint and compare it with libint results -- for test only!
-  Eigen::Tensor<double, 4, Eigen::RowMajor> CholV2(nao,nao,nao,nao);
-  CholV2.setZero();
-  for (auto indu = 0; indu != nao; ++indu) {
-    for (auto indv = 0; indv != nao; ++indv) {
-      for (auto indr = 0; indr != nao; ++indr) {
-        for (auto inds = 0; inds != nao; ++inds) {
-          for (auto indc = 0; indc != count; ++indc) {
-            CholV2 (indu,indv,indr,inds) += CholVuv(indu,indv,indc)*CholVuv(indr,inds,indc);
-          }
-          cout << indu << " " << indv << " " << indr << " " << inds << " " << CholV2 (indu,indv,indr,inds) << "\n" << endl;
-        }
-      }
-    }
-  }
-  */
+  Tensor<TensorType>::deallocate(DiagInt_tamm);
 
   //
   //CD-ends----------------------------
   //
+    auto hf_t2 = std::chrono::high_resolution_clock::now();
 
+    double hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    if(rank == 0) std::cout << "\nTime taken for CD: " << hf_time << " secs\n";
+
+#if 0
   // Start SVD
 
-  // std::vector<std::pair<Matrix,Eigen::RowVectorXd>> evs(count);
-  evs.resize(count);
-  evec.resize(count);
+  std::vector<std::pair<Matrix,Eigen::RowVectorXd>> evs(count);
+  // std::vector<Eigen::RowVectorXd> evec(count);
 
   Matrix testev = Matrix::Random(nao,nao);
   for (auto i=0U;i<count;i++) {
@@ -351,13 +342,19 @@ do {
     evec[i] = es.eigenvalues();
   }
 
-
   //End SVD
+#endif
+
+hf_t1 = std::chrono::high_resolution_clock::now();
+  //  IndexSpace CIp{range(0, count)};
+  //   TiledIndexSpace tCIp{CIp, count};
+  //   auto [cindexp] = tCIp.labels<1>("all");
 
   const auto v2dim =  2 * nao - 2 * freeze_core - 2 * freeze_virtual;
-  Vpsigma = Tensor3D(v2dim,nao,count);
+  // Tensor3D Vpsigma(v2dim,nao,count);
+  
   CholVpr = Tensor3D(v2dim,v2dim,count);
-  Vpsigma.setZero();
+  // Vpsigma.setZero();
   CholVpr.setZero();
 
   const int n_alpha = ov_alpha_freeze;
@@ -375,36 +372,112 @@ do {
   spin_t.block(0,2*n_alpha,1, n_beta) = spin_3;
   spin_t.block(0,2*n_alpha+n_beta,1, n_beta) = spin_4;
 
+
+  Tensor<TensorType> CholVuv_opt{tAO, tAO, tCI};
+  Tensor<TensorType>::allocate(ec, CholVuv_opt);
+
+  //Tensor3D CholVuv(nao,nao,8*nao);
+  // tamm_to_eigen_tensor(CholVuv_tamm, CholVuv);
+  // eigen_to_tamm_tensor(CholVuv_opt, CholVuv);
+  
+    auto ov_alpha = ndocc;
+    TAMM_SIZE ov_beta{nao - ov_alpha};
+    const long int total_orbitals = v2dim; //2*ov_alpha+2*ov_beta;
+    
+    // Construction of tiled index space MO
+
+    IndexSpace MO_IS{range(0, total_orbitals),
+                    {
+                     {"occ", {range(0, 2*ov_alpha)}},
+                     {"virt", {range(2*ov_alpha, total_orbitals)}}
+                    },
+                     { 
+                      {Spin{1}, {range(0, ov_alpha), range(2*ov_alpha,2*ov_alpha+ov_beta)}},
+                      {Spin{2}, {range(ov_alpha, 2*ov_alpha), range(2*ov_alpha+ov_beta, total_orbitals)}} 
+                     }
+                     };
+
+    const unsigned int ova = static_cast<unsigned int>(ov_alpha);
+    const unsigned int ovb = static_cast<unsigned int>(ov_beta);
+    TiledIndexSpace tMO{MO_IS, {ova,ova,ovb,ovb}};   
+    auto [pmo,rmo] = tMO.labels<2>("all");                  
+
+  Tensor<TensorType> CTiled_tamm{tAOt,tMO};
+  Tensor<TensorType> CholVpv_tamm{tMO,tAOt,tCI};
+
+  Tensor<TensorType>::allocate(ec, CholVpv_tamm, CTiled_tamm);
+  eigen_to_tamm_tensor(CTiled_tamm,CTiled);
+  GA_Sync();
+
+  Tensor3D CholVpv(v2dim,nao,8*nao);
+  Scheduler{*ec}
+  (CholVpv_tamm(pmo,mup,cindex) += CTiled_tamm(nup, pmo) * CholVuv_tamm(nup, mup, cindex)).execute();
+  // tamm_to_eigen_tensor(CholVpv_tamm,CholVpv);
+  GA_Sync();
+
       // From evs to Vpsigma
-    for (auto p = 0U; p < v2dim; p++) {
-      for (auto fu = 0U; fu != nao; ++fu) {
-        for (auto fs = 0U; fs != nao; ++fs) {
-          for (auto icount = 0U; icount != count; ++icount) {
-            //CD: CholVpv(p, fv, icount) += CTiled(fu, p) * CholVuv(fu, fv, icount);
-            Vpsigma(p, fs, icount) += CTiled(fu, p) * evs.at(icount).first(fu, fs);
-          }
-        }
-      }
+    // for (auto p = 0U; p < v2dim; p++) {
+    //   for (auto fu = 0U; fu != nao; ++fu) {
+    //     for (auto fs = 0U; fs != nao; ++fs) {
+    //       for (auto icount = 0U; icount != count; ++icount) {
+    //         CholVpv(p, fv, icount) += CTiled(fu, p) * CholVuv(fu, fv, icount);
+    //         // SVD: Vpsigma(p, fs, icount) += CTiled(fu, p) * evs.at(icount).first(fu, fs);
+    //       }
+    //     }
+    //   }
+    // }
+
+  Tensor<TensorType> CholVpr_tamm{tMO,tMO,tCI};
+  Tensor<TensorType>::allocate(ec, CholVpr_tamm);
+  Scheduler{*ec}
+  (CholVpr_tamm(pmo,rmo,cindex) += CTiled_tamm(mup, rmo) * CholVpv_tamm(pmo, mup, cindex)).execute();
+  // tamm_to_eigen_tensor(CholVpr_tamm,CholVpr);
+
+      hf_t2 = std::chrono::high_resolution_clock::now();
+
+     hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    if(rank == 0) std::cout << "\nTime taken for CholVpr: " << hf_time << " secs\n";
+
+      for(const auto& blockid : CholVpr_tamm.loop_nest()) {
+        const tamm::TAMM_SIZE size = CholVpr_tamm.block_size(blockid);
+        std::vector<TensorType> buf(size);
+        CholVpr_tamm.get(blockid, buf);
+        auto block_dims   = CholVpr_tamm.block_dims(blockid);
+        auto block_offset = CholVpr_tamm.block_offsets(blockid);
+            size_t c = 0;
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
+                for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1];
+                    j++) {
+                    for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2];
+                        k++, c++) {
+                          if(k >= count) continue;
+                            CholVpr(i, j, k) = buf[c];
+                    }
+                }
+            }
     }
 
-    // From evs to CholVpr
-    for (auto p = 0U; p < v2dim; p++) {
-      for (auto r = 0U; r < v2dim; r++) {
-        if (spin_t(p) != spin_t(r)) {
-          continue;
-        }
+    // // From evs to CholVpr
+    // for (auto p = 0U; p < v2dim; p++) {
+    //   for (auto r = 0U; r < v2dim; r++) {
+    //     if (spin_t(p) != spin_t(r)) {
+    //       continue;
+    //     }
 
-        for (auto fs = 0U; fs != nao; ++fs) {
-          for (auto icount = 0U; icount != count; ++icount) {
-            //CD: CholVpr(p, r, icount) += CTiled(fv, r) * CholVpv(p, fv, icount);
-            CholVpr(p, r, icount) += Vpsigma(p,fs,icount)*Vpsigma(r,fs,icount)*evs.at(icount).second(fs);
-          }
-        }
-      }
-    }
+    //     for (auto fs = 0U; fs != nao; ++fs) {
+    //       for (auto icount = 0U; icount != count; ++icount) {
+    //         CholVpr(p, r, icount) += CTiled(fs, r) * CholVpv(p, fs, icount);
+    //         // SVD: CholVpr(p, r, icount) += Vpsigma(p,fs,icount)*Vpsigma(r,fs,icount)*evs.at(icount).second(fs);
+    //       }
+    //     }
+    //   }
+    // }
 
   //Bo-ends----------------------------
-
+  // CholVuv.resize(0,0,0);
+  Tensor<TensorType>::deallocate(CholVpv_tamm,CTiled_tamm,CholVuv_tamm);
+  GA_Sync();
   //Need to explicitly create an array that contains the permutation
   //Eigen::array<std::ptrdiff_t, 4> psqr_shuffle = {{0, 3, 2, 1}};
 

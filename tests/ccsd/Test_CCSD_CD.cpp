@@ -571,11 +571,9 @@ void ccsd_driver() {
     if(rank == 0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
 
     hf_t1        = std::chrono::high_resolution_clock::now();
-    std::vector<Eigen::RowVectorXd> evec;
-    Tensor3D Vpsigma;
     //std::tie(V2) = 
     cd_svd(ov_alpha, nao, freeze_core,
-                                        freeze_virtual, C, F, shells, CholVpr, evec, Vpsigma);
+                                        freeze_virtual, C, F, shells, CholVpr);
     hf_t2        = std::chrono::high_resolution_clock::now();
     double two_4index_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();

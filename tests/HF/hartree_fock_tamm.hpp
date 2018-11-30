@@ -696,21 +696,53 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-
+    //GA_Sync();
     if(rank == 0) std::cout << "\nTime taken for H=T+V, S: " << hf_time << " secs\n";
 
     hf_t1 = std::chrono::high_resolution_clock::now();
 
-    tamm_to_eigen_tensor(H1P, H);
-    tamm_to_eigen_tensor(S1, S);
-    eigen_to_tamm_tensor(H1, H);
+    //TODO: These copies are expensive since we are reshaping blocks of H1P to get H1
+    //copy H1P to H using rank 0 and broadcast to get better performance
+    if(rank == 0)
+      tamm_to_eigen_tensor(H1P, H);
+    GA_Sync();
+    std::vector<TensorType> Hbufv(N*N);
+    TensorType *Hbuf = Hbufv.data();
+    Eigen::Map<Matrix>(Hbuf,N,N) = H;  
+    GA_Brdcst(Hbuf,N*N*sizeof(TensorType),0);
+    H = Eigen::Map<Matrix>(Hbuf,N,N);
+    Hbufv.clear();
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+   
+    if(rank == 0) std::cout << "\nTime taken for tamm to eigen - H1P-H: " << hf_time << " secs\n";
 
-    if(rank == 0) std::cout << "\nTime taken for tamm to eigen - H,S: " << hf_time << " secs\n";
-    
+    hf_t1 = std::chrono::high_resolution_clock::now();
+    // tamm_to_eigen_tensor(S1, S);
+    if(rank == 0)
+      tamm_to_eigen_tensor(S1, S);
+    GA_Sync();
+    std::vector<TensorType> Sbufv(N*N);
+    TensorType *Sbuf = Sbufv.data();
+    Eigen::Map<Matrix>(Sbuf,N,N) = S;  
+    GA_Brdcst(Sbuf,N*N*sizeof(TensorType),0);
+    S = Eigen::Map<Matrix>(Sbuf,N,N);
+    Sbufv.clear();
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    GA_Sync();
+    if(rank == 0) std::cout << "\nTime taken for tamm to eigen - S1-S: " << hf_time << " secs\n";
+
+    hf_t1 = std::chrono::high_resolution_clock::now();
+    eigen_to_tamm_tensor(H1, H);
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    if(rank == 0) std::cout << "\nTime taken for eigen to tamm - H-H1: " << hf_time << " secs\n";
+
     Tensor<TensorType>::deallocate(H1P, S1, T1, V1);
 
     /*** =========================== ***/
@@ -804,8 +836,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
   // const Matrix& D = D_minbs; 
 
   Matrix G = Matrix::Zero(N,N);
-  Tensor<TensorType> F1tmp{tAOt, tAOt};
-  Tensor<TensorType>::allocate(ec, F1tmp);
+  Tensor<TensorType> F1tmp{tAOt, tAOt}; //not allocated
+  Tensor<TensorType> F1tmp1{tAO, tAO};
+  Tensor<TensorType>::allocate(ec, F1tmp1);
 
   // construct the 2-electron repulsion integrals engine
   using libint2::Operator;
@@ -824,15 +857,10 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
   auto shell2bf_D = D_bs.shell2bf();
   const auto& buf = engine.results();
 
-    auto compute_2body_fock_general_lambda = [&](IndexVector blockid1) {
+    auto compute_2body_fock_general_lambda = [&](IndexVector blockid) {
 
-      const IndexVector blockid = 
-          internal::translate_blockid(blockid1, F1tmp());
-        // Tensor<TensorType> tensor = F1tmp;
-        // const TAMM_SIZE size      = tensor.block_size(blockid);
-        // std::vector<TensorType> tbuf(size);
-        // auto block_dims   = tensor.block_dims(blockid);
-        // auto block_offset = tensor.block_offsets(blockid);
+      //const IndexVector blockid = 
+        //  internal::translate_blockid(blockid1, F1tmp());
 
         using libint2::Engine;
  
@@ -919,18 +947,18 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
       G = Gt;
     };
 
-    Scheduler{*ec}(F1tmp() = 0).execute();
+    Scheduler{*ec}(F1tmp1() = 0).execute();
 
     block_for(*ec, F1tmp(), compute_2body_fock_general_lambda);
-    eigen_to_tamm_tensor_acc(F1tmp,G);
+    eigen_to_tamm_tensor_acc(F1tmp1,G);
     GA_Sync();
-    Matrix F1tmp1_eigen(N,N);
-    tamm_to_eigen_tensor(F1tmp,F1tmp1_eigen);
-    Ft += F1tmp1_eigen;
-    F1tmp1_eigen.resize(0,0);
-    Tensor<TensorType>::deallocate(F1tmp);
+    tamm_to_eigen_tensor(F1tmp1,G);
+    Ft += G;
+    G.resize(0,0);
+    Tensor<TensorType>::deallocate(F1tmp1);
 #endif
 
+    D_minbs.resize(0,0);
     // Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(Ft, S);
     // auto eps = gen_eig_solver.eigenvalues();
     // C = gen_eig_solver.eigenvectors();
@@ -947,10 +975,12 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
   }
 
+    H.resize(0,0);
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
+    GA_Sync();
     if(rank == 0) std::cout << "\nTime taken to compute initial guess: " << hf_time << " secs\n";
 
 
@@ -981,8 +1011,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     Tensor<TensorType> F1{tAO, tAO};
     Tensor<TensorType> F1tmp1{tAO, tAO};
-    Tensor<TensorType> F1tmp{tAOt, tAOt};
-    Tensor<TensorType>::allocate(ec, F1, F1tmp, F1tmp1, ehf_tmp, ehf_tamm, rmsd_tamm);
+    Tensor<TensorType> F1tmp{tAOt, tAOt}; //not allocated
+    Tensor<TensorType>::allocate(ec, F1, F1tmp1, ehf_tmp, ehf_tamm, rmsd_tamm);
 
     Tensor<TensorType> Sm12_tamm{tAO, tAO}; 
     Tensor<TensorType> Sp12_tamm{tAO, tAO};
@@ -995,16 +1025,14 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     Tensor<TensorType> Sp12D_tamm{tAO, tAO};
     Tensor<TensorType> SpFS_tamm{tAO, tAO};
     Tensor<TensorType> err_mat_tamm{tAO, tAO};
-    Tensor<TensorType> G_tamm{tAOt, tAOt};
 
-    Tensor<TensorType>::allocate(ec, FSm12_tamm, G_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
+    Tensor<TensorType>::allocate(ec, FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-
-   // GA_Sync();
-    if(rank == 0) std::cout << "\nTime taken to setup tensors for iterative loop: " << hf_time << " secs\n";
+    //GA_Sync();
+    if(rank == 0 && debug) std::cout << "\nTime taken to setup tensors for iterative loop: " << hf_time << " secs\n";
 
     eigen_to_tamm_tensor(D_tamm,D);
     F.setZero(N,N);
@@ -1012,22 +1040,19 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     hf_t1 = std::chrono::high_resolution_clock::now();
     // S^1/2
-    Matrix Sp12 = S.sqrt(); //pow(0.5);
-    hf_t2 = std::chrono::high_resolution_clock::now();
-    hf_time =
-      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime taken for S^1/2: " << hf_time << " secs\n";
-
-    hf_t1 = std::chrono::high_resolution_clock::now();
+    Matrix Sp12 = S.sqrt();
+    S.resize(0,0);
     // S^-1/2
     Matrix Sm12 = Sp12.inverse();
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "Time taken for S^-1/2: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime taken to compute S^1/2, S^-1/2: " << hf_time << " secs\n";
 
     eigen_to_tamm_tensor(Sm12_tamm,Sm12);
-    eigen_to_tamm_tensor(Sp12_tamm,Sp12);    
+    eigen_to_tamm_tensor(Sp12_tamm,Sp12);   
+    Sp12.resize(0,0);
+    Sm12.resize(0,0);
 
     if(rank == 0) {
         std::cout << "\n\n";
@@ -1063,9 +1088,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         auto ehf_last = ehf;
         auto D_last   = D;
 
-        Scheduler{*ec} (G_tamm() = 0)
-        (F1tmp() = 0)
-        // (F1tmp1() = 0)
+        Scheduler{*ec}
+           (F1tmp1() = 0)
            (D_last_tamm(mu,nu) = D_tamm(mu,nu)).execute();
 
         // build a new Fock matrix
@@ -1102,15 +1126,10 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
       
 
 #if 1
-    auto comp_2bf_lambda = [&](IndexVector blockid1) {
+    auto comp_2bf_lambda = [&](IndexVector blockid) {
 
-      const IndexVector blockid = 
-          internal::translate_blockid(blockid1, F1tmp());
-        // Tensor<TensorType> tensor = F1tmp;
-        // const TAMM_SIZE size      = tensor.block_size(blockid);
-        // std::vector<TensorType> tbuf(size);
-        // auto block_dims   = tensor.block_dims(blockid);
-        // auto block_offset = tensor.block_offsets(blockid);
+      // const IndexVector blockid = 
+      //     internal::translate_blockid(blockid1, F1tmp());
  
         auto s1 = blockid[0];
         auto bf1_first = shell2bf[s1]; 
@@ -1236,11 +1255,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     block_for(*ec, F1tmp(), comp_2bf_lambda);
     // GA_Sync();
-    eigen_to_tamm_tensor_acc(F1tmp,G);
-    Matrix F1tmp1_eigen(N,N);
-    tamm_to_eigen_tensor(F1tmp,F1tmp1_eigen);
-    eigen_to_tamm_tensor(F1tmp1,F1tmp1_eigen);
-    F1tmp1_eigen.resize(0,0);
+    eigen_to_tamm_tensor_acc(F1tmp1,G);
 #endif
 
         hf_t2 = std::chrono::high_resolution_clock::now();
@@ -1396,17 +1411,10 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         }        
     }
 
-    hf_t1 = std::chrono::high_resolution_clock::now();
-
     Tensor<TensorType>::deallocate(H1, F1, D_tamm, ehf_tmp, 
                     ehf_tamm, rmsd_tamm);
-    Tensor<TensorType>::deallocate(F1tmp,F1tmp1,G_tamm, Sm12_tamm, Sp12_tamm,
+    Tensor<TensorType>::deallocate(F1tmp1,Sm12_tamm, Sp12_tamm,
     D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
-
-    hf_t2 = std::chrono::high_resolution_clock::now();
-    hf_time =
-      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0 && debug) std::cout << "\nTime taken to deallocate tamm tensors: " << hf_time << " secs\n";
 
     MemoryManagerGA::destroy_coll(mgr);
     delete ec;

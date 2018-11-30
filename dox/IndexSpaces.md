@@ -52,8 +52,8 @@
   IndexSpace is7{{is5, is3}};   // indices => {5,6,7,8,9,0,1,2,3,4}
 
   // IndexSpace aggregation with named sub-spaces
-  IndexSpace is9{{is3, is5},        // is9("all") => {0,1,2,3,4,5,6,7,8,9}
-                 {"occ", "virt"}   // is9("occ") => {0,1,2,3,4}
+  IndexSpace is9{{is3, is5},        // indices    => {0,1,2,3,4,5,6,7,8,9}
+                 {"occ", "virt"}    // is9("occ") => {0,1,2,3,4}
                 };                  // is9("virt")=> {5,6,7,8,9}
   ```
 
@@ -89,7 +89,14 @@
                   {{"occ", {range(0,3)}},            // is14("occ") => {0,2,4} 
                    {"virt", {range(3,5)}}}};         // is14("virt")=> {6,8}
   ```
-
+  - **Accessing sub-spaces:** Sub-spaces of an index space can be accessed using the names used to describe them. Keyword `all` is for accessing the whole index space.
+    ```c++
+    // Accessing the named sub-spaces of an index space
+    auto is14_all  = is14("all");   // indices => {0,2,4,6,8}
+    auto is14_occ  = is14("occ");   // indices => {0,2,4}
+    auto is14_virt = is14("virt");  // indices => {6,8}
+    ```
+  
   **NOTE:** An index space is treated as a read-only object after it is constructed.
 
 ----
@@ -185,7 +192,7 @@
     TiledIndexSpace& N = tis_mo("all");   // tis_mo("all")  =>  [{0,1,2},{3,4},{5,6,7},{8,9}]
     ```
 
-- **Dependent index space:** An index space can depend on other tiled index spaces. In this case, the index space becomes a relation that, given a specific value of its dependent index spaces, returns an index space.
+- **Dependent index space:** An index space can depend on other tiled index spaces. In this case, the index space becomes a relation that, given a specific value of its dependent index spaces, returns an index space. **Note that** the dependency map used to construct the dependent index space is based on tiles from a tiled index space to another index space. 
   ```c++
   // Creating index spaces MO, AO, and Atom
   IndexSpace MO{range(0, 100),

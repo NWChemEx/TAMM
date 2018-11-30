@@ -1,8 +1,8 @@
-#define CATCH_CONFIG_RUNNER
+// #define CATCH_CONFIG_RUNNER
 
 #include "diis.hpp"
-#include "4index_transform_CD.hpp"
-#include "catch/catch.hpp"
+#include "CD_SVD.hpp"
+// #include "catch/catch.hpp"
 #include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
 #include "macdecls.h"
@@ -508,6 +508,8 @@ auto lambdar2 = [&](const IndexVector& blockid, span<T> buf){
 
 }
 
+void ccsd_driver();
+
 std::string filename; //bad, but no choice
 int main( int argc, char* argv[] )
 {
@@ -530,16 +532,16 @@ int main( int argc, char* argv[] )
     int mpi_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
-    int res = Catch::Session().run();
+    ccsd_driver();
     
     GA_Terminate();
     MPI_Finalize();
 
-    return res;
+    return 0;
 }
 
 
-TEST_CASE("CCSD Driver") {
+void ccsd_driver() {
 
     auto rank = GA_Nodeid();
     // std::cout << "Input file provided = " << filename << std::endl;
@@ -572,7 +574,7 @@ TEST_CASE("CCSD Driver") {
     std::vector<Eigen::RowVectorXd> evec;
     Tensor3D Vpsigma;
     //std::tie(V2) = 
-    four_index_transform(ov_alpha, nao, freeze_core,
+    cd_svd(ov_alpha, nao, freeze_core,
                                         freeze_virtual, C, F, shells, CholVpr, evec, Vpsigma);
     hf_t2        = std::chrono::high_resolution_clock::now();
     double two_4index_time =
@@ -706,7 +708,7 @@ TEST_CASE("CCSD Driver") {
 
   auto cc_t1 = std::chrono::high_resolution_clock::now();
 
-  CHECK_NOTHROW(ccsd_driver<T>(*ec, MO, d_t1, d_t2, d_f1, chol_vecs,
+  (ccsd_driver<T>(*ec, MO, d_t1, d_t2, d_f1, chol_vecs,
                                maxiter, thresh, zshiftl, ndiis, hf_energy,
                                total_orbitals, 2 * ov_alpha));
 

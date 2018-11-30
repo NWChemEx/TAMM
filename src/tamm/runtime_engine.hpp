@@ -131,18 +131,25 @@ public:
 
 class RuntimeEngine {
 public:
+    class RuntimeContext {
+        public:
+        RuntimeContext(RuntimeEngine& re) : re(re) {}
+        auto& runtimeEngine() { return re; }
+        template<typename T>
+        BlockBuffer<T> temp_buf(Tensor<T> tensor, IndexVector blockid) {
+        // TBD: figure out memory space: do we need GPU/CPU buffer?
+        const size_t size = tensor.block_size(blockid);
+        span<T> span(new T[size], size);
+        return BlockBuffer<T>(span, IndexedTensor{tensor, blockid}, &re, true);
+    }
+        private:
+        RuntimeEngine& re;
+    };
+
     RuntimeEngine() = default;
 
     ~RuntimeEngine();
     void executeAllthreads();
-
-    template<typename T>
-    BlockBuffer<T> temp_buf(Tensor<T> tensor, IndexVector blockid) {
-        // TBD: figure out memory space: do we need GPU/CPU buffer?
-        const size_t size = tensor.block_size(blockid);
-        span<T> span(new T[size], size);
-        return BlockBuffer<T>(span, IndexedTensor{tensor, blockid}, this, true);
-    }
 
     // More buffer functions
     // e.g., buffer for accumulation
@@ -151,7 +158,7 @@ public:
 
     template<typename Lambda, typename ...Args>
     void submitTask(Lambda lambda, Args&&... args) {
-        std::apply(lambda, std::tuple_cat(std::make_tuple(std::reference_wrapper(*this)), std::tuple_cat([&](){
+        std::apply(lambda, std::tuple_cat(std::make_tuple(RuntimeContext{*this}), std::tuple_cat([&](){
                 if constexpr (std::is_base_of_v<Args, PermissionBase>) {
                     return std::forward_as_tuple<Args>(args);
                 } else {

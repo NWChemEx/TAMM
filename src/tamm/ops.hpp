@@ -371,7 +371,7 @@ public:
 #endif
         // default: only CPU lambda
         ec.re()->submitTask(
-            [=](RuntimeEngine& re){
+            [=](RuntimeEngine::RuntimeContext rc){
                 LabelLoopNest loop_nest{lhs_.labels()};
                 auto first = loop_nest.begin();
                 auto last = loop_nest.end();
@@ -386,14 +386,14 @@ public:
                         // should be RuntimeSummary or similar everywhere. We
                         // need to know Runtime + context description, not just
                         // runtime.
-                        re.submitTask([=](RuntimeEngine& re){
-                            BlockBuffer bf = re.temp_buf(tensor, translated_blockid);
+                        rc.runtimeEngine().submitTask([=](RuntimeEngine::RuntimeContext rc){
+                            BlockBuffer bf = rc.temp_buf(tensor, translated_blockid);
                             std::fill(bf.begin(), bf.end(), alpha_);
                             bf.put();  // goes through runtime (may be lazy)
                         }, WritePermission{IndexedTensor{tensor, translated_blockid}});
                     } else {
-                        re.submitTask([=](RuntimeEngine& re){
-                            BlockBuffer bf = re.temp_buf(tensor, translated_blockid);
+                        rc.runtimeEngine().submitTask([=](RuntimeEngine::RuntimeContext rc){
+                            BlockBuffer bf = rc.temp_buf(tensor, translated_blockid);
                             std::fill(bf.begin(), bf.end(), alpha_);
                             bf.add();
                         }, AccumPermission{IndexedTensor{tensor, translated_blockid}});

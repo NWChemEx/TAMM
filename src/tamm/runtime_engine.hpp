@@ -12,10 +12,15 @@ enum class AccessMode {
     KR, KW, KRW, AC
 };
 
+class PermissionBase {
+    // Whatever polymorphic interface is needed, if any
+    // Inherit from this class to mark a class as a permission
+};
+
 template<typename T> class Permission;
 
 template<typename T>
-class Permission<LabeledTensor<T>> {
+class Permission<LabeledTensor<T>> : public PermissionBase {
 public:
     Permission(LabeledTensor<T> lt, AccessMode acc) : lt(lt), acc(acc) {}
 private:
@@ -24,7 +29,7 @@ private:
 };
 
 template<typename T>
-class Permission<IndexedTensor<T>> {
+class Permission<IndexedTensor<T>> : public PermissionBase {
 public:
     Permission(IndexedTensor<T> lt, AccessMode acc) : lt(lt) {}
     Permission(typename IndexedTensor<T>::first_type tensor, 
@@ -36,27 +41,27 @@ private:
 };
 
 template<typename T>
-class ReadAccess : public Permission<T> {
+class ReadPermission : public Permission<T> {
 public:
-    ReadAccess(T t) : Permission<T>(t, AccessMode::KR) {}
+    ReadPermission(T t) : Permission<T>(t, AccessMode::KR) {}
 };
 
 template<typename T>
-class ReadWriteAccess : public Permission<T> {
+class ReadWritePermission : public Permission<T> {
 public:
-    ReadWriteAccess(T t) : Permission<T>(t, AccessMode::KRW) {}
+    ReadWritePermission(T t) : Permission<T>(t, AccessMode::KRW) {}
 };
 
 template<typename T>
-class WriteAccess : public Permission<T> {
+class WritePermission : public Permission<T> {
 public:
-    WriteAccess(T t) : Permission<T>(t, AccessMode::KW) {}
+    WritePermission(T t) : Permission<T>(t, AccessMode::KW) {}
 };
 
 template<typename T>
-class AccumAccess : public Permission<T> {
+class AccumPermission : public Permission<T> {
 public:
-    AccumAccess(T t) : Permission<T>(t, AccessMode::AC) {}
+    AccumPermission(T t) : Permission<T>(t, AccessMode::AC) {}
 };
 
 // TBD: We need a way to consolidate IndexedTensors with LabeledTensors to compute dependencies
@@ -145,9 +150,15 @@ public:
     //   * Maybe special type for reference buffer.
 
     template<typename Lambda, typename ...Args>
-    void submitTask(Lambda lambda, Args... args) {
-        // TBD
-        // unpack and call lambda immediately (first baby step)
+    void submitTask(Lambda lambda, Args&&... args) {
+        std::apply(lambda, std::tuple_cat(std::make_tuple(std::reference_wrapper(*this)), std::tuple_cat([&](){
+                if constexpr (std::is_base_of_v<Args, PermissionBase>) {
+                    return std::forward_as_tuple<Args>(args);
+                } else {
+                    return std::tuple{};
+                }
+            }()...
+        )));
     }
     
 private:

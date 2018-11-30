@@ -13,7 +13,8 @@ VectorXd HSLanczos1(const MatrixXd &H, const MatrixXd &S, const VectorXd &v0, Ma
    R = S;
   
    int ierr = 0;
-   dpotrf_(&lower, &n, R.data(), &n, &ierr);   
+   //dpotrf_(&lower, &n, R.data(), &n, &ierr);   
+   ierr = LAPACKE_dpotrf(LAPACK_COL_MAJOR, lower, n, R.data(), n);   
    if (ierr) {
       std::cout << " dpotrf failure, ierr = " << ierr << std::endl;
       exit(1);
@@ -31,7 +32,9 @@ VectorXd HSLanczos1(const MatrixXd &H, const MatrixXd &S, const VectorXd &v0, Ma
       // MATVEC with inv(R')
       V.block(0,iter,n,1) = v;
       SiHv = H*v;
-      dpotrs(&lower, &n, &nrhs, R.data(), &n, SiHv.data(), &n, &ierr);  
+      // dpotrs(&lower, &n, &nrhs, R.data(), &n, SiHv.data(), &n, &ierr);  
+      ierr = LAPACKE_dpotrs(LAPACK_COL_MAJOR, lower, n, nrhs, R.data(), n, 
+                            SiHv.data(), n);  
       T.block(0,iter,iter+1,1) = V.block(0,0,n,iter+1).transpose() *(S*SiHv);
       f = SiHv - V.block(0,0,n,iter+1)*T.block(0,iter,iter+1,1);
       beta = sqrt(f.dot(S*f));

@@ -7,9 +7,9 @@ using Eigen::MatrixXd;
 //using Eigen::LLT;
 
 #ifdef NO_MPI
-MatrixXd sisubit(const MatrixXd &HS, const MatrixXd &S, MatrixXd &X0, int *ipiv, int maxiter)
+MatrixXd sisubit(const MatrixXd &HS, const MatrixXd &S, MatrixXd &X0, TAMM_LAPACK_INT *ipiv, int maxiter)
 #else
-MatrixXd sisubit(MPI_Comm comm, const MatrixXd &HS, const MatrixXd &S, MatrixXd &X0, int *ipiv, int maxiter)
+MatrixXd sisubit(MPI_Comm comm, const MatrixXd &HS, const MatrixXd &S, MatrixXd &X0, TAMM_LAPACK_INT *ipiv, int maxiter)
 #endif
 {
    const double *hsdata = HS.data();

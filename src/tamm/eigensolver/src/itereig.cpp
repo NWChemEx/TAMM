@@ -14,9 +14,9 @@ void itereig(MPI_Comm comm, const MatrixXd &H, const MatrixXd &S, int n, int max
   int lwork = 100*n;
   int ierr;
   double *work;
-  int *ipiv;
+  TAMM_LAPACK_INT *ipiv;
   work = new double[lwork];
-  ipiv = new int [n];
+  ipiv = new TAMM_LAPACK_INT [n];
   char lower = 'L';
 
   // A = new double[n*n];

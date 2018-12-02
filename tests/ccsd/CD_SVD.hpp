@@ -93,17 +93,19 @@ void cd_svd(
     cout << "nao = " << nao << endl;
   }
 
+  tamm::Tile ci_tile = 8*nao;
   IndexSpace AO{range(0, nao)};
-  IndexSpace CI{range(0, 8*nao)};
+  IndexSpace CI{range(0, ci_tile)};
 
 std::vector<unsigned int> AO_tiles;
   for(auto s : shells) AO_tiles.push_back(s.size());
 
   tamm::Tile tile_size = 6; 
+   
   if(nao>=30) tile_size = 30;
     TiledIndexSpace tAO{AO, tile_size};
     TiledIndexSpace tAOt{AO, AO_tiles};
-    TiledIndexSpace tCI{CI, 8*nao};
+    TiledIndexSpace tCI{CI, ci_tile};
     auto [mu, nu, ku] = tAO.labels<3>("all");
     auto [cindex] = tCI.labels<1>("all");
     auto [mup, nup, kup] = tAOt.labels<3>("all");
@@ -322,6 +324,9 @@ do {
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
     if(rank == 0) std::cout << "\nTime taken for CD: " << hf_time << " secs\n";
+
+    //CholVuv_tamm -> CholVuv_tamm_optimized{30,30,30}
+    //Ctiled_eigen -> Ctiled_tamm{30,30}
 
 #if 0
   // Start SVD

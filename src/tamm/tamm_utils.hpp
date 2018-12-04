@@ -125,6 +125,84 @@ ExecutionContext make_execution_context() {
     return ExecutionContext(pg, dist, pMM);
 }
 
+template<typename TensorType>
+TensorType norm(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
+
+    TensorType lsumsq=0;
+    TensorType gsumsq=0;
+
+    Tensor<TensorType> tensor = ltensor.tensor();
+    // TODO: works for 2D case only, generalize it for n-d case
+    EXPECTS(tensor.num_modes() == 2);
+
+    auto getnorm = [&](const IndexVector& bid) {
+        const IndexVector blockid =
+          internal::translate_blockid(bid, ltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+        size_t c = 0;
+        for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
+            for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1];
+                j++, c++) {
+                    lsumsq += dbuf[c]*dbuf[c];
+            }
+        } 
+    };
+    block_for(ec, ltensor, getnorm);
+    MPI_Allreduce(&lsumsq, &gsumsq, 1, MPI::DOUBLE, MPI_SUM, ec.pg().comm());
+    return std::sqrt(gsumsq);
+}
+
+//returns max_element, blockids, global coordinates
+template<typename TensorType>
+std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
+    TensorType max = 0.0;
+    IndexVector maxblockid;
+    std::vector<size_t> bfuv(2);
+    std::vector<TensorType> lmax(2,0);
+    std::vector<TensorType> gmax(2,0);
+
+    Tensor<TensorType> tensor = ltensor.tensor();
+    // TODO: works for 2D case only, generalize it for n-d case
+    EXPECTS(tensor.num_modes() == 2);
+
+    auto getmax = [&](const IndexVector& bid) {
+        const IndexVector blockid =
+          internal::translate_blockid(bid, ltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+        size_t c = 0;
+        for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
+            for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1];
+                j++, c++) {
+                if(lmax[0] < dbuf[c]) {
+                    lmax[0] = dbuf[c];
+                    lmax[1] = GA_Nodeid();
+                    bfuv[0] = i;
+                    bfuv[1] = j;
+                    maxblockid = {blockid[0],blockid[1]};
+                }
+            }
+        } 
+    };
+    block_for(ec, ltensor, getmax);
+
+    MPI_Allreduce(lmax.data(), gmax.data(), 1, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, ec.pg().comm());
+    MPI_Bcast(maxblockid.data(),2,MPI_UNSIGNED,gmax[1],ec.pg().comm());
+    MPI_Bcast(bfuv.data(),2,MPI_UNSIGNED_LONG,gmax[1],ec.pg().comm());
+    // bfu = bfuv[0];
+    // bfv = bfuv[1];
+    // max = gmax[0];
+
+    return std::make_tuple(gmax[0], maxblockid, bfuv);
+}
+
 } // namespace tamm
 
 #endif // TAMM_TAMM_UTILS_HPP_

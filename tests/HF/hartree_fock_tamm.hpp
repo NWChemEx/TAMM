@@ -53,9 +53,9 @@ shellpair_list_t obs_shellpair_list;  // shellpair list for OBS
 using shellpair_data_t = std::vector<std::vector<std::shared_ptr<libint2::ShellPair>>>;  // in same order as shellpair_list_t
 shellpair_data_t obs_shellpair_data;  // shellpair data for OBS
 
-void diis(Matrix& F, Matrix& S, int iter, int max_hist,
-          int idiis, std::vector<Matrix>& diis_hist,
-          std::vector<Matrix>& fock_hist);
+void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, Tensor<TensorType> E, int iter, int max_hist,
+          int idiis, std::vector<Tensor<TensorType>>& diis_hist,
+          std::vector<tamm::Tensor<TensorType>>& fock_hist);
 
 Matrix compute_soad(const std::vector<libint2::Atom> &atoms);
 
@@ -508,7 +508,10 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     std::tie(atoms, basis, debug, maxiter, tol_int, conve, convd, max_hist) = read_input_xyz(is);
 
     tol_int = std::min(1e-8, 0.01 * conve);
-    
+
+    cout << "\nNumber of GA ranks: " << GA_Nnodes();
+    cout << "\nreading geometry from file: " << filename;
+
     if(GA_Nodeid()==0){
       cout << "\n----------------------------------";
       cout << "\ndiis hist = " << max_hist;
@@ -1002,8 +1005,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     // Matrix F_old;
 
     int idiis                     = 0;
-    std::vector<Matrix> diis_hist;
-    std::vector<Matrix> fock_hist;
+    std::vector<tamm::Tensor<TensorType>> diis_hist;
+    std::vector<tamm::Tensor<TensorType>> fock_hist;
 
     Tensor<TensorType> ehf_tmp{tAO, tAO};
     Tensor<TensorType> ehf_tamm{}, rmsd_tamm{};
@@ -1023,9 +1026,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     Tensor<TensorType> FSm12_tamm{tAO, tAO}; 
     Tensor<TensorType> Sp12D_tamm{tAO, tAO};
     Tensor<TensorType> SpFS_tamm{tAO, tAO};
-    Tensor<TensorType> err_mat_tamm{tAO, tAO};
+    // Tensor<TensorType> err_mat_tamm{tAO, tAO};
 
-    Tensor<TensorType>::allocate(ec, FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
+    Tensor<TensorType>::allocate(ec, FSm12_tamm, Sp12D_tamm, SpFS_tamm);//,err_mat_tamm);
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
@@ -1035,7 +1038,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     eigen_to_tamm_tensor(D_tamm,D);
     F.setZero(N,N);
-    Matrix err_mat = Matrix::Zero(N,N);
+    // Matrix err_mat = Matrix::Zero(N,N);
 
     hf_t1 = std::chrono::high_resolution_clock::now();
     // S^1/2
@@ -1268,7 +1271,6 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         Scheduler{*ec}(F1(mu, nu) = H1(mu, nu))
                      (F1(mu, nu) += F1tmp1(mu, nu)).execute();
 
-
         hf_t2 = std::chrono::high_resolution_clock::now();
         hf_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
@@ -1285,8 +1287,11 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
         // eigen_to_tamm_tensor(D_last_tamm,D_last);
 
-        hf_t1 = std::chrono::high_resolution_clock::now();
+        Tensor<TensorType> err_mat_tamm{tAO, tAO};
+        Tensor<TensorType>::allocate(ec, err_mat_tamm);
 
+        hf_t1 = std::chrono::high_resolution_clock::now();
+        
         Scheduler{*ec}(FSm12_tamm() = 0)(FSm12_tamm(mu,nu) += F1(mu,ku) * Sm12_tamm(ku,nu))
         (Sp12D_tamm() = 0)(Sp12D_tamm(mu,nu) += Sp12_tamm(mu,ku) * D_last_tamm(ku,nu))
         (SpFS_tamm() = 0)(SpFS_tamm(mu,nu)  += Sp12D_tamm(mu,ku) * FSm12_tamm(ku,nu))
@@ -1301,14 +1306,14 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         if(rank == 0 && debug) std::cout << "err_mat:" << hf_time << "s, ";        
 
         GA_Sync();
-        tamm_to_eigen_tensor(err_mat_tamm,err_mat);
-        tamm_to_eigen_tensor(F1,F);
+        //tamm_to_eigen_tensor(err_mat_tamm,err_mat);
+        //tamm_to_eigen_tensor(F1,F);
 
         hf_t1 = std::chrono::high_resolution_clock::now();
 
         if(iter > 1) {
             ++idiis;
-            diis(F, err_mat, iter, max_hist, idiis,
+            diis(*ec, tAO, F1, err_mat_tamm, iter, max_hist, idiis,
                 diis_hist, fock_hist);
         }
     
@@ -1317,6 +1322,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
         if(rank == 0 && debug) std::cout << "diis:" << hf_time << "s, ";    
+        tamm_to_eigen_tensor(F1,F);
 
         hf_t1 = std::chrono::high_resolution_clock::now();
         // solve F C = e S C
@@ -1348,7 +1354,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         hf_t1 = std::chrono::high_resolution_clock::now();
 
         eigen_to_tamm_tensor(D_tamm,D);
-        eigen_to_tamm_tensor(F1,F);
+        // eigen_to_tamm_tensor(F1,F);
 
         hf_t2 = std::chrono::high_resolution_clock::now();
         hf_time =
@@ -1410,10 +1416,13 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         }        
     }
 
+    for (auto x: diis_hist) Tensor<TensorType>::deallocate(x);
+    for (auto x: fock_hist) Tensor<TensorType>::deallocate(x);
+
     Tensor<TensorType>::deallocate(H1, F1, D_tamm, ehf_tmp, 
                     ehf_tamm, rmsd_tamm);
     Tensor<TensorType>::deallocate(F1tmp1,Sm12_tamm, Sp12_tamm,
-    D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm,err_mat_tamm);
+    D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm);//,err_mat_tamm);
 
     MemoryManagerGA::destroy_coll(mgr);
     delete ec;
@@ -1421,15 +1430,21 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     return std::make_tuple(ndocc, nao, ehf + enuc, shells);
 }
 
-void diis(Matrix& F, Matrix& err_mat, int iter, int max_hist, int ndiis,
-          std::vector<Matrix>& diis_hist, std::vector<Matrix>& fock_hist) {
+void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, Tensor<TensorType> err_mat, int iter, int max_hist, int ndiis,
+          std::vector<Tensor<TensorType>>& diis_hist, std::vector<tamm::Tensor<TensorType>>& fock_hist) {
     using Vector =
-      Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+      Eigen::Matrix<TensorType, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
-  if(ndiis > max_hist) { 
-    std::vector<double> max_err(diis_hist.size());
-    for (auto i=0; i<diis_hist.size(); i++)
-      max_err[i] = diis_hist[i].norm();
+  tamm::Scheduler sch{ec};
+
+  if(ndiis > max_hist) {
+    std::vector<TensorType> max_err(diis_hist.size());
+    for (auto i=0; i<diis_hist.size(); i++) {
+      max_err[i] = tamm::norm(ec, diis_hist[i]());
+      // Matrix dhist = Matrix::Zero(F.rows(),F.cols());
+      // tamm_to_eigen_tensor(diis_hist[i],dhist);
+      // cout << "tamm norm, eigen norm = " << max_err[i] << " , " << dhist.norm() << endl;
+    }
 
     auto maxe = std::distance(max_err.begin(), 
               std::max_element(max_err.begin(),max_err.end()));
@@ -1437,19 +1452,33 @@ void diis(Matrix& F, Matrix& err_mat, int iter, int max_hist, int ndiis,
     diis_hist.erase(diis_hist.begin()+maxe);
     fock_hist.erase(fock_hist.begin()+maxe);      
   }
+
+    Tensor<TensorType> Fcopy{tAO, tAO};
+    Tensor<TensorType>::allocate(&ec,Fcopy);
+    sch(Fcopy() = F()).execute();
+
     diis_hist.push_back(err_mat);
-    fock_hist.push_back(F);
+    fock_hist.push_back(Fcopy);
 
     // ----- Construct error metric -----
     const int idim = std::min(ndiis, max_hist);
     Matrix A       = Matrix::Zero(idim + 1, idim + 1);
     Vector b       = Vector::Zero(idim + 1, 1);
 
+    Tensor<TensorType> dhi_trans{tAO, tAO};
+    Tensor<TensorType> dhi_trace{};
+    auto [mu, nu, ku] = tAO.labels<3>("all");
+    Tensor<TensorType>::allocate(&ec, dhi_trans,dhi_trace);
+
     for(int i = 0; i < idim; i++) {
         for(int j = i; j < idim; j++) {
-            A(i, j) = (diis_hist[i].transpose() * diis_hist[j]).trace();
+            //A(i, j) = (diis_hist[i].transpose() * diis_hist[j]).trace();
+            sch(dhi_trace() = diis_hist[i](nu,mu) * diis_hist[j](mu,nu)).execute();
+            A(i,j) = get_scalar(dhi_trace); //dhi_trace.trace();
         }
     }
+
+    Tensor<TensorType>::deallocate(dhi_trans,dhi_trace);
 
     for(int i = 0; i < idim; i++) {
         for(int j = i; j < idim; j++) { A(j, i) = A(i, j); }
@@ -1463,8 +1492,14 @@ void diis(Matrix& F, Matrix& err_mat, int iter, int max_hist, int ndiis,
 
     Vector x = A.lu().solve(b);
 
-    F.setZero();
-    for(int j = 0; j < idim; j++) { F += x(j, 0) * fock_hist[j]; }
+    // F.setZero();
+    // for(int j = 0; j < idim; j++) { F += x(j, 0) * fock_hist[j]; }
+    
+    sch(F() = 0).execute();
+    for(int j = 0; j < idim; j++) { 
+      sch(F() += x(j, 0) * fock_hist[j]()); 
+    }
+    sch.execute();
 
     // cout << "-----------iter:" << iter << "--------------\n";
     // cout << err_mat << endl;

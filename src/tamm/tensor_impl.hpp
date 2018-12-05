@@ -313,58 +313,31 @@ public:
     }
     
     /**
-     * @brief Virtual method for getting the sum of the values on the diagonal
-     * 
-     * @returns sum of the diagonal values
-     * @warning available for tensors with 2 modes
-     */
-    virtual T trace() const {
-        EXPECTS(num_modes() == 2);
-        T ts = 0;
-        for(const IndexVector& blockid : loop_nest()) {
-            if(blockid[0] == blockid[1]) {
-                const TAMM_SIZE size = block_size(blockid);
-                std::vector<T> buf(size);
-                get(blockid, buf);
-                auto block_dims1  = block_dims(blockid);
-                auto block_offset = block_offsets(blockid);
-                auto dim          = block_dims1[0];
-                auto offset       = block_offset[0];
-                size_t i          = 0;
-                for(auto p = offset; p < offset + dim; p++, i++) {
-                    ts += buf[i * dim + i];
-                }
-            }
-        }
-        return ts;
-    }
-
-    /**
      * @brief Virtual method for getting the diagonal values in a Tensor
      * 
      * @returns a vector with the diagonal values
      * @warning available for tensors with 2 modes
      */
-    virtual std::vector<T> diagonal() {
-        EXPECTS(num_modes() == 2);
-        std::vector<T> dest;
-        for(const IndexVector& blockid : loop_nest()) {
-            if(blockid[0] == blockid[1]) {
-                const TAMM_SIZE size = block_size(blockid);
-                std::vector<T> buf(size);
-                get(blockid, buf);
-                auto block_dims1  = block_dims(blockid);
-                auto block_offset = block_offsets(blockid);
-                auto dim          = block_dims1[0];
-                auto offset       = block_offset[0];
-                size_t i          = 0;
-                for(auto p = offset; p < offset + dim; p++, i++) {
-                    dest.push_back(buf[i * dim + i]);
-                }
-            }
-        }
-        return dest;
-    }
+    // virtual std::vector<T> diagonal() {
+    //     EXPECTS(num_modes() == 2);
+    //     std::vector<T> dest;
+    //     for(const IndexVector& blockid : loop_nest()) {
+    //         if(blockid[0] == blockid[1]) {
+    //             const TAMM_SIZE size = block_size(blockid);
+    //             std::vector<T> buf(size);
+    //             get(blockid, buf);
+    //             auto block_dims1  = block_dims(blockid);
+    //             auto block_offset = block_offsets(blockid);
+    //             auto dim          = block_dims1[0];
+    //             auto offset       = block_offset[0];
+    //             size_t i          = 0;
+    //             for(auto p = offset; p < offset + dim; p++, i++) {
+    //                 dest.push_back(buf[i * dim + i]);
+    //             }
+    //         }
+    //     }
+    //     return dest;
+    // }
 
 protected:
     std::shared_ptr<Distribution> distribution_;    /**< shared pointer to associated Distribution */

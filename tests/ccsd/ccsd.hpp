@@ -376,7 +376,7 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
 
     // sch(d_evl(n1) = 0.0).execute();
 
-    std::vector<double> p_evl_sorted = d_f1.diagonal();
+    std::vector<double> p_evl_sorted = tamm::diagonal(*ec,d_f1());
 
     //print_tensor(d_evl);
 

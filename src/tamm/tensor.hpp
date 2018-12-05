@@ -217,22 +217,6 @@ public:
     LabelLoopNest loop_nest() const { return impl_->loop_nest(); }
 
     /**
-     * @brief Gets the diagonal sum of the Tensor object
-     *
-     * @returns sum of the diagonal values
-     * @warning available for tensors with 2 modes
-     */
-    T trace() const { return impl_->trace(); }
-
-    /**
-     * @brief Gets the diagonal values from the Tensor object
-     *
-     * @returns a vector of values from the diagonal of Tensor
-     * @warning available for tensors with 2 modes
-     */
-    std::vector<T> diagonal() const { return impl_->diagonal(); }
-
-    /**
      * @brief Get the size of a block
      *
      * @param [in] blockid The id of the block

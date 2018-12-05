@@ -509,10 +509,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     tol_int = std::min(1e-8, 0.01 * conve);
 
-    cout << "\nNumber of GA ranks: " << GA_Nnodes();
-    cout << "\nreading geometry from file: " << filename;
-
     if(GA_Nodeid()==0){
+      cout << "\nNumber of GA ranks: " << GA_Nnodes();
+      cout << "\nreading geometry from file: " << filename;
       cout << "\n----------------------------------";
       cout << "\ndiis hist = " << max_hist;
       cout << "\nBasis set = " << basis;

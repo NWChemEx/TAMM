@@ -384,41 +384,8 @@ void ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     Scheduler sch{*ec};
   /// @todo: make it a tamm tensor
   std::cout << "Total orbitals = " << total_orbitals << std::endl;
-  //std::vector<double> p_evl_sorted(total_orbitals);
 
-    // Tensor<T> d_evl{N};
-    // Tensor<T>::allocate(ec, d_evl);
-    // TiledIndexLabel n1;
-    // std::tie(n1) = MO.labels<1>("all");
-
-    // sch(d_evl(n1) = 0.0)
-    // .execute();
-
-    std::vector<double> p_evl_sorted = d_f1.diagonal();
-//   {
-//       for(const auto& blockid : d_f1.loop_nest()) {
-//           if(blockid[0] == blockid[1]) {
-//               const TAMM_SIZE size = d_f1.block_size(blockid);
-//               std::vector<T> buf(size);
-//               d_f1.get(blockid, buf);
-//               auto block_dims   = d_f1.block_dims(blockid);
-//               auto block_offset = d_f1.block_offsets(blockid);
-//               auto dim          = block_dims[0];
-//               auto offset       = block_offset[0];
-//               size_t i          = 0;
-//               for(auto p = offset; p < offset + dim; p++, i++) {
-//                   p_evl_sorted[p] = buf[i * dim + i];
-//               }
-//           }
-//       }
-//   }
-//   ec->pg().barrier();
-
-//   if(ec->pg().rank() == 0) {
-//     std::cout << "p_evl_sorted:" << '\n';
-//     for(size_t p = 0; p < p_evl_sorted.size(); p++)
-//       std::cout << p_evl_sorted[p] << '\n';
-//   }
+  std::vector<double> p_evl_sorted = tamm::diagonal(*ec,d_f1());
 
   if(ec->pg().rank() == 0) {
     std::cout << "\n\n";
@@ -855,42 +822,8 @@ void lambda_ccsd_driver(ExecutionContext* ec, const TiledIndexSpace& MO,
     Scheduler sch{*ec};
   /// @todo: make it a tamm tensor
   std::cout << "Total orbitals = " << total_orbitals << std::endl;
-  //std::vector<double> p_evl_sorted(total_orbitals);
 
-    // Tensor<T> d_evl{N};
-    // Tensor<T>::allocate(ec, d_evl);
-    // TiledIndexLabel n1;
-    // std::tie(n1) = MO.labels<1>("all");
-
-    // sch(d_evl(n1) = 0.0)
-    // .execute();
-
-      std::vector<double> p_evl_sorted = d_f1.diagonal();
-
-//   {
-//       for(const auto& blockid : d_f1.loop_nest()) {
-//           if(blockid[0] == blockid[1]) {
-//               const TAMM_SIZE size = d_f1.block_size(blockid);
-//               std::vector<T> buf(size);
-//               d_f1.get(blockid, buf);
-//               auto block_dims   = d_f1.block_dims(blockid);
-//               auto block_offset = d_f1.block_offsets(blockid);
-//               auto dim          = block_dims[0];
-//               auto offset       = block_offset[0];
-//               size_t i          = 0;
-//               for(auto p = offset; p < offset + dim; p++, i++) {
-//                   p_evl_sorted[p] = buf[i * dim + i];
-//               }
-//           }
-//       }
-//   }
-//   ec->pg().barrier();
-
-  if(ec->pg().rank() == 0) {
-    std::cout << "p_evl_sorted:" << '\n';
-    for(size_t p = 0; p < p_evl_sorted.size(); p++)
-      std::cout << p_evl_sorted[p] << '\n';
-  }
+  std::vector<double> p_evl_sorted = tamm::diagonal(*ec,d_f1());
 
 // TO DO: LAMBDA DOES NOT HAVE THE SAME ITERATION CONVERGENCE PROTOCOL
 //        AND NEEDS TO BE UPDATED.

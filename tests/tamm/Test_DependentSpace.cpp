@@ -148,7 +148,8 @@ void test_setop_with_T(unsigned tilesize) {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
 
     IndexSpace IS{range(0, 10),
                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
@@ -239,7 +240,8 @@ void test_addop_with_T(unsigned tilesize) {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
 
     IndexSpace IS{range(0, 10),
                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
@@ -520,7 +522,8 @@ void test_dependent_space_with_T(Index tilesize) {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
 
     IndexSpace IS{range(0, 10)};
     TiledIndexSpace T_IS{IS, tilesize};

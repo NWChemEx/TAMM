@@ -203,16 +203,32 @@ std::vector<TensorType> diagonal(ExecutionContext &ec, LabeledTensor<TensorType>
 }
 
 
+template<typename TensorType>
+void scale(ExecutionContext &ec, LabeledTensor<TensorType> ltensor, TensorType alpha){
+
+    Tensor<TensorType> tensor = ltensor.tensor();
+
+    auto scaletensor = [&](const IndexVector& bid) {
+        const IndexVector blockid =
+          internal::translate_blockid(bid, ltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+        for(size_t c = 0; c < dsize; c++) 
+            dbuf[c] = alpha * dbuf[c];
+        tensor.put(blockid,dbuf);
+    };
+    block_for(ec, ltensor, scaletensor);
+    
+}
+
 
 template<typename TensorType>
 TensorType norm(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
 
     TensorType lsumsq=0;
     TensorType gsumsq=0;
-
     Tensor<TensorType> tensor = ltensor.tensor();
-    // TODO: works for 2D case only, generalize it for n-d case
-    EXPECTS(tensor.num_modes() == 2);
 
     auto getnorm = [&](const IndexVector& bid) {
         const IndexVector blockid =
@@ -220,15 +236,9 @@ TensorType norm(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
         std::vector<TensorType> dbuf(dsize);
         tensor.get(blockid, dbuf);
-        auto block_dims   = tensor.block_dims(blockid);
-        auto block_offset = tensor.block_offsets(blockid);
-        size_t c = 0;
-        for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-            for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1];
-                j++, c++) {
-                    lsumsq += dbuf[c]*dbuf[c];
-            }
-        } 
+        for(auto val: dbuf) 
+            lsumsq += val * val;
+            
     };
     block_for(ec, ltensor, getnorm);
     MPI_Allreduce(&lsumsq, &gsumsq, 1, MPI_DOUBLE, MPI_SUM, ec.pg().comm());
@@ -240,13 +250,15 @@ template<typename TensorType>
 std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
     TensorType max = 0.0;
     IndexVector maxblockid;
-    std::vector<size_t> bfuv(2);
+    
+    Tensor<TensorType> tensor = ltensor.tensor();
+    auto nmodes = tensor.num_modes();
+     //Works for only upto 6D tensors
+    EXPECTS(tensor.num_modes() <= 6);
+
+    std::vector<size_t> bfuv(nmodes);
     std::vector<TensorType> lmax(2,0);
     std::vector<TensorType> gmax(2,0);
-
-    Tensor<TensorType> tensor = ltensor.tensor();
-    // TODO: works for 2D case only, generalize it for n-d case
-    EXPECTS(tensor.num_modes() == 2);
 
     auto getmax = [&](const IndexVector& bid) {
         const IndexVector blockid =
@@ -256,28 +268,144 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionCo
         tensor.get(blockid, dbuf);
         auto block_dims   = tensor.block_dims(blockid);
         auto block_offset = tensor.block_offsets(blockid);
+       
         size_t c = 0;
-        for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-            for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1];
-                j++, c++) {
+
+        if(nmodes == 1) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++, c++) {
                 if(lmax[0] < dbuf[c]) {
-                    lmax[0] = dbuf[c];
-                    lmax[1] = GA_Nodeid();
-                    bfuv[0] = i;
-                    bfuv[1] = j;
-                    maxblockid = {blockid[0],blockid[1]};
+                    lmax[0]    = dbuf[c];
+                    lmax[1]    = GA_Nodeid();
+                    bfuv[0]    = i;
+                    maxblockid = {blockid[0]};
                 }
             }
-        } 
+        } else if(nmodes == 2) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++, c++) {
+                    if(lmax[0] < dbuf[c]) {
+                        lmax[0]    = dbuf[c];
+                        lmax[1]    = GA_Nodeid();
+                        bfuv[0]    = i;
+                        bfuv[1]    = j;
+                        maxblockid = {blockid[0], blockid[1]};
+                    }
+                }
+            }
+        } else if(nmodes == 3) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++) {
+                    for(size_t k = block_offset[2];
+                        k < block_offset[2] + block_dims[2]; k++, c++) {
+                        if(lmax[0] < dbuf[c]) {
+                            lmax[0]    = dbuf[c];
+                            lmax[1]    = GA_Nodeid();
+                            bfuv[0]    = i;
+                            bfuv[1]    = j;
+                            bfuv[2]    = k;
+                            maxblockid = {blockid[0], blockid[1], blockid[2]};
+                        }
+                    }
+                }
+            }
+        } else if(nmodes == 4) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++) {
+                    for(size_t k = block_offset[2];
+                        k < block_offset[2] + block_dims[2]; k++) {
+                        for(size_t l = block_offset[3];
+                            l < block_offset[3] + block_dims[3]; l++, c++) {
+                            if(lmax[0] < dbuf[c]) {
+                                lmax[0]    = dbuf[c];
+                                lmax[1]    = GA_Nodeid();
+                                bfuv[0]    = i;
+                                bfuv[1]    = j;
+                                bfuv[2]    = k;
+                                bfuv[3]    = l;
+                                maxblockid = {blockid[0], blockid[1],
+                                              blockid[2], blockid[3]};
+                            }
+                        }
+                    }
+                }
+            }
+        } else if(nmodes == 5) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++) {
+                    for(size_t k = block_offset[2];
+                        k < block_offset[2] + block_dims[2]; k++) {
+                        for(size_t l = block_offset[3];
+                            l < block_offset[3] + block_dims[3]; l++) {
+                            for(size_t m = block_offset[4];
+                                m < block_offset[4] + block_dims[4]; m++, c++) {
+                                if(lmax[0] < dbuf[c]) {
+                                    lmax[0]    = dbuf[c];
+                                    lmax[1]    = GA_Nodeid();
+                                    bfuv[0]    = i;
+                                    bfuv[1]    = j;
+                                    bfuv[2]    = k;
+                                    bfuv[3]    = l;
+                                    bfuv[4]    = m;
+                                    maxblockid = {blockid[0], blockid[1],
+                                                  blockid[2], blockid[3],
+                                                  blockid[4]};
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        else if(nmodes == 6) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++) {
+                    for(size_t k = block_offset[2];
+                        k < block_offset[2] + block_dims[2]; k++) {
+                        for(size_t l = block_offset[3];
+                            l < block_offset[3] + block_dims[3]; l++) {
+                            for(size_t m = block_offset[4];
+                                m < block_offset[4] + block_dims[4]; m++) {
+                                for(size_t n = block_offset[5];
+                                    n < block_offset[5] + block_dims[5];
+                                    n++, c++) {
+                                    if(lmax[0] < dbuf[c]) {
+                                        lmax[0]    = dbuf[c];
+                                        lmax[1]    = GA_Nodeid();
+                                        bfuv[0]    = i;
+                                        bfuv[1]    = j;
+                                        bfuv[2]    = k;
+                                        bfuv[3]    = l;
+                                        bfuv[4]    = m;
+                                        bfuv[5]    = n;
+                                        maxblockid = {blockid[0], blockid[1],
+                                                      blockid[2], blockid[3],
+                                                      blockid[4], blockid[5]};
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }              
     };
     block_for(ec, ltensor, getmax);
 
     MPI_Allreduce(lmax.data(), gmax.data(), 1, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, ec.pg().comm());
     MPI_Bcast(maxblockid.data(),2,MPI_UNSIGNED,gmax[1],ec.pg().comm());
     MPI_Bcast(bfuv.data(),2,MPI_UNSIGNED_LONG,gmax[1],ec.pg().comm());
-    // bfu = bfuv[0];
-    // bfv = bfuv[1];
-    // max = gmax[0];
 
     return std::make_tuple(gmax[0], maxblockid, bfuv);
 }
@@ -288,13 +416,15 @@ template<typename TensorType>
 std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
     TensorType min = 0.0;
     IndexVector minblockid;
+
+    Tensor<TensorType> tensor = ltensor.tensor();
+    auto nmodes = tensor.num_modes();
+     //Works for only upto 6D tensors
+    EXPECTS(tensor.num_modes() <= 6);
+
     std::vector<size_t> bfuv(2);
     std::vector<TensorType> lmin(2,0);
     std::vector<TensorType> gmin(2,0);
-
-    Tensor<TensorType> tensor = ltensor.tensor();
-    // TODO: works for 2D case only, generalize it for n-d case
-    EXPECTS(tensor.num_modes() == 2);
 
     auto getmin = [&](const IndexVector& bid) {
         const IndexVector blockid =
@@ -305,27 +435,143 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionCo
         auto block_dims   = tensor.block_dims(blockid);
         auto block_offset = tensor.block_offsets(blockid);
         size_t c = 0;
-        for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-            for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1];
-                j++, c++) {
+
+        if(nmodes == 1) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++, c++) {
                 if(lmin[0] > dbuf[c]) {
-                    lmin[0] = dbuf[c];
-                    lmin[1] = GA_Nodeid();
-                    bfuv[0] = i;
-                    bfuv[1] = j;
-                    minblockid = {blockid[0],blockid[1]};
+                    lmin[0]    = dbuf[c];
+                    lmin[1]    = GA_Nodeid();
+                    bfuv[0]    = i;
+                    minblockid = {blockid[0]};
                 }
             }
-        } 
+        } else if(nmodes == 2) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++, c++) {
+                    if(lmin[0] > dbuf[c]) {
+                        lmin[0]    = dbuf[c];
+                        lmin[1]    = GA_Nodeid();
+                        bfuv[0]    = i;
+                        bfuv[1]    = j;
+                        minblockid = {blockid[0], blockid[1]};
+                    }
+                }
+            }
+        } else if(nmodes == 3) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++) {
+                    for(size_t k = block_offset[2];
+                        k < block_offset[2] + block_dims[2]; k++, c++) {
+                        if(lmin[0] > dbuf[c]) {
+                            lmin[0]    = dbuf[c];
+                            lmin[1]    = GA_Nodeid();
+                            bfuv[0]    = i;
+                            bfuv[1]    = j;
+                            bfuv[2]    = k;
+                            minblockid = {blockid[0], blockid[1], blockid[2]};
+                        }
+                    }
+                }
+            }
+        } else if(nmodes == 4) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++) {
+                    for(size_t k = block_offset[2];
+                        k < block_offset[2] + block_dims[2]; k++) {
+                        for(size_t l = block_offset[3];
+                            l < block_offset[3] + block_dims[3]; l++, c++) {
+                            if(lmin[0] > dbuf[c]) {
+                                lmin[0]    = dbuf[c];
+                                lmin[1]    = GA_Nodeid();
+                                bfuv[0]    = i;
+                                bfuv[1]    = j;
+                                bfuv[2]    = k;
+                                bfuv[3]    = l;
+                                minblockid = {blockid[0], blockid[1],
+                                              blockid[2], blockid[3]};
+                            }
+                        }
+                    }
+                }
+            }
+        } else if(nmodes == 5) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++) {
+                    for(size_t k = block_offset[2];
+                        k < block_offset[2] + block_dims[2]; k++) {
+                        for(size_t l = block_offset[3];
+                            l < block_offset[3] + block_dims[3]; l++) {
+                            for(size_t m = block_offset[4];
+                                m < block_offset[4] + block_dims[4]; m++, c++) {
+                                if(lmin[0] > dbuf[c]) {
+                                    lmin[0]    = dbuf[c];
+                                    lmin[1]    = GA_Nodeid();
+                                    bfuv[0]    = i;
+                                    bfuv[1]    = j;
+                                    bfuv[2]    = k;
+                                    bfuv[3]    = l;
+                                    bfuv[4]    = m;
+                                    minblockid = {blockid[0], blockid[1],
+                                                  blockid[2], blockid[3],
+                                                  blockid[4]};
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        else if(nmodes == 6) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++) {
+                    for(size_t k = block_offset[2];
+                        k < block_offset[2] + block_dims[2]; k++) {
+                        for(size_t l = block_offset[3];
+                            l < block_offset[3] + block_dims[3]; l++) {
+                            for(size_t m = block_offset[4];
+                                m < block_offset[4] + block_dims[4]; m++) {
+                                for(size_t n = block_offset[5];
+                                    n < block_offset[5] + block_dims[5];
+                                    n++, c++) {
+                                    if(lmin[0] > dbuf[c]) {
+                                        lmin[0]    = dbuf[c];
+                                        lmin[1]    = GA_Nodeid();
+                                        bfuv[0]    = i;
+                                        bfuv[1]    = j;
+                                        bfuv[2]    = k;
+                                        bfuv[3]    = l;
+                                        bfuv[4]    = m;
+                                        bfuv[5]    = n;
+                                        minblockid = {blockid[0], blockid[1],
+                                                      blockid[2], blockid[3],
+                                                      blockid[4], blockid[5]};
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
     };
     block_for(ec, ltensor, getmin);
 
     MPI_Allreduce(lmin.data(), gmin.data(), 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, ec.pg().comm());
     MPI_Bcast(minblockid.data(),2,MPI_UNSIGNED,gmin[1],ec.pg().comm());
     MPI_Bcast(bfuv.data(),2,MPI_UNSIGNED_LONG,gmin[1],ec.pg().comm());
-    // bfu = bfuv[0];
-    // bfv = bfuv[1];
-    // min = gmin[0];
 
     return std::make_tuple(gmin[0], minblockid, bfuv);
 }

@@ -165,7 +165,8 @@ TEST_CASE("Spin Tensor Construction") {
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
 
     failed = false;
     try {
@@ -438,7 +439,8 @@ TEST_CASE("Spin Tensor Construction") {
         ProcGroup pg{GA_MPI_Comm()};
         auto* pMM = tamm::MemoryManagerLocal::create_coll(pg);
         tamm::Distribution_NW dist;
-        tamm::ExecutionContext ec(pg, &dist, pMM);
+        RuntimeEngine re;
+        tamm::ExecutionContext ec(pg, &dist, pMM, &re);
         tamm::Scheduler sch{ec};
 
         sch.allocate(rho)(rho() = 0)(rho(mu, nu) += C(mu, p) * C(nu, p))
@@ -694,7 +696,8 @@ TEST_CASE("GitHub Issues") {
     tamm::ProcGroup pg{GA_MPI_Comm()};
     auto *pMM = tamm::MemoryManagerLocal::create_coll(pg);
     tamm::Distribution_NW dist;
-    tamm::ExecutionContext ec(pg, &dist, pMM);
+    RuntimeEngine re;
+    tamm::ExecutionContext ec(pg, &dist, pMM, &re);
 
     tamm::TiledIndexSpace X{tamm::IndexSpace{tamm::range(0, 4)}};
     tamm::TiledIndexSpace Y{tamm::IndexSpace{tamm::range(0, 3)}};

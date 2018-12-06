@@ -624,7 +624,8 @@ void tce_ccsd(std::string filename) {
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
+    RuntimeEngine re;
+    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr,&re};
 
     TiledIndexSpace O = MO("occ");
     TiledIndexSpace V = MO("virt");

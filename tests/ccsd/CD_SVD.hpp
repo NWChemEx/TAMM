@@ -190,43 +190,10 @@ std::vector<unsigned int> AO_tiles;
   Tensor<TensorType> CholVuv_tamm{tAOt, tAOt, tCI};
   Tensor<TensorType>::allocate(ec, CholVuv_tamm);
 
-  // TensorType max = 0.0;
-  // TensorType lmax[2] = {0};
-  // TensorType gmax[2] = {0};
-  //   IndexVector maxblockid;
-  // std::vector<size_t> bfuv(2);
-
-  // auto getmax = [&](const IndexVector& blockid) {
-  //     const tamm::TAMM_SIZE dsize = DiagInt_tamm.block_size(blockid);
-  //     std::vector<TensorType> dbuf(dsize);
-  //     DiagInt_tamm.get(blockid, dbuf);
-  //       auto block_dims   = DiagInt_tamm.block_dims(blockid);
-  //       auto block_offset = DiagInt_tamm.block_offsets(blockid);
-  //       size_t c = 0;
-  //       for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
-  //         for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1];
-  //           j++, c++) {
-  //             if(lmax[0] < dbuf[c]) {
-  //               lmax[0] = dbuf[c];
-  //               lmax[1] = GA_Nodeid();
-  //               bfuv[0] = i;
-  //               bfuv[1] = j;
-  //               maxblockid = {blockid[0],blockid[1]};
-  //             }
-  //        }
-  //       } 
-  // };
-  // block_for(*ec, DiagInt_tamm(), getmax);
-
-  // MPI_Allreduce(&lmax, &gmax, 1, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, pg.comm());
-  // MPI_Bcast(maxblockid.data(),2,MPI_UNSIGNED,gmax[1],pg.comm());
-  // MPI_Bcast(bfuv.data(),2,MPI_UNSIGNED_LONG,gmax[1],pg.comm());
-  // bfu = bfuv[0];
-  // bfv = bfuv[1];
-  // max = gmax[0];
-  // GA_Sync();
-
-  auto [max,maxblockid,bfuv] = max_element(*ec, DiagInt_tamm());
+  TensorType max=0;
+  std::vector<size_t> bfuv;
+  IndexVector maxblockid;
+  std::tie(max,maxblockid,bfuv) = max_element(*ec, DiagInt_tamm());
   bfu = bfuv[0];
   bfv = bfuv[1];
 
@@ -311,16 +278,6 @@ do {
     bfu = bfuv[0];
     bfv = bfuv[1];
 
-    //   max = 0.0;
-    // lmax[0] = 0;
-    // block_for(*ec, DiagInt_tamm(), getmax);
-
-    // MPI_Allreduce(&lmax, &gmax, 1, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, pg.comm());
-    // MPI_Bcast(maxblockid.data(),2,MPI_UNSIGNED,gmax[1],pg.comm());
-    // MPI_Bcast(bfuv.data(),2,MPI_UNSIGNED_LONG,gmax[1],pg.comm());
-    // bfu = bfuv[0];
-    // bfv = bfuv[1];
-    // max = gmax[0];
     //cout << "max: (" << bfu << bfv << "|" << bfu << bfv << ") = " << max << " " << sqrt(max) << endl;
     //cout << "shells: " << bf2shell(bfu) << " " << bf2shell(bfv) << endl;
 

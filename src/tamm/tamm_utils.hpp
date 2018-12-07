@@ -202,13 +202,108 @@ std::vector<TensorType> diagonal(ExecutionContext &ec, LabeledTensor<TensorType>
     return dest;
 }
 
+template<typename TensorType>
+void square(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
+
+    Tensor<TensorType> tensor = ltensor.tensor();
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid =
+          internal::translate_blockid(bid, ltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+        for(size_t c = 0; c < dsize; c++) 
+            dbuf[c] *= dbuf[c];
+        tensor.put(blockid,dbuf);
+    };
+    block_for(ec, ltensor, lambda);
+    
+}
+
+
+template<typename TensorType>
+void log10(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
+
+    Tensor<TensorType> tensor = ltensor.tensor();
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid =
+          internal::translate_blockid(bid, ltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+        for(size_t c = 0; c < dsize; c++) 
+            dbuf[c] = std::log10(dbuf[c]);
+        tensor.put(blockid,dbuf);
+    };
+    block_for(ec, ltensor, lambda);
+    
+}
+
+template<typename TensorType>
+void log(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
+
+    Tensor<TensorType> tensor = ltensor.tensor();
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid =
+          internal::translate_blockid(bid, ltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+        for(size_t c = 0; c < dsize; c++) 
+            dbuf[c] = std::log(dbuf[c]);
+        tensor.put(blockid,dbuf);
+    };
+    block_for(ec, ltensor, lambda);
+    
+}
+
+template<typename TensorType>
+void inverse(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
+
+    Tensor<TensorType> tensor = ltensor.tensor();
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid =
+          internal::translate_blockid(bid, ltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+        for(size_t c = 0; c < dsize; c++) 
+            dbuf[c] = 1/dbuf[c];
+        tensor.put(blockid,dbuf);
+    };
+    block_for(ec, ltensor, lambda);
+    
+}
+
+template<typename TensorType>
+void pow(ExecutionContext &ec, LabeledTensor<TensorType> ltensor, TensorType alpha){
+
+    Tensor<TensorType> tensor = ltensor.tensor();
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid =
+          internal::translate_blockid(bid, ltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+        for(size_t c = 0; c < dsize; c++) 
+            dbuf[c] = std::pow(dbuf[c], alpha);
+        tensor.put(blockid,dbuf);
+    };
+    block_for(ec, ltensor, lambda);
+    
+}
 
 template<typename TensorType>
 void scale(ExecutionContext &ec, LabeledTensor<TensorType> ltensor, TensorType alpha){
 
     Tensor<TensorType> tensor = ltensor.tensor();
 
-    auto scaletensor = [&](const IndexVector& bid) {
+    auto lambda = [&](const IndexVector& bid) {
         const IndexVector blockid =
           internal::translate_blockid(bid, ltensor);
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
@@ -218,10 +313,9 @@ void scale(ExecutionContext &ec, LabeledTensor<TensorType> ltensor, TensorType a
             dbuf[c] = alpha * dbuf[c];
         tensor.put(blockid,dbuf);
     };
-    block_for(ec, ltensor, scaletensor);
+    block_for(ec, ltensor, lambda);
     
 }
-
 
 template<typename TensorType>
 TensorType norm(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){

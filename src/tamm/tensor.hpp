@@ -119,6 +119,9 @@ public:
     Tensor(TiledIndexSpaceVec t_spaces, Func lambda) :
       impl_{std::make_shared<LambdaTensorImpl<T>>(t_spaces, lambda)} {}
 
+    Tensor(IndexLabelVec t_labels, Func lambda) :
+      impl_{std::make_shared<LambdaTensorImpl<T>>(t_labels, lambda)} {}
+
     /**
      * @brief Construct a new Tensor object with a Lambda function
      *
@@ -131,6 +134,9 @@ public:
      */
     Tensor(std::initializer_list<TiledIndexSpace> t_spaces, Func lambda) :
       impl_{std::make_shared<LambdaTensorImpl<T>>(t_spaces, lambda)} {}
+
+    Tensor(std::initializer_list<TiledIndexLabel> t_labels, Func lambda) :
+      impl_{std::make_shared<LambdaTensorImpl<T>>(t_labels, lambda)} {}
 
     /**
      * @brief Construct a new Tensor object from a set of TiledIndexSpace

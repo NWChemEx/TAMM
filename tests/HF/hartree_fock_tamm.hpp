@@ -661,7 +661,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime taken for initial setup: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime for initial setup: " << hf_time << " secs\n";
 
     // auto T = compute_1body_ints(shells, Operator::kinetic);
     // auto S = compute_1body_ints(shells, Operator::overlap);
@@ -676,7 +676,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     engine.set(Operator::kinetic);
     buf = engine.results();
-    // Core Hamiltonian = T + V
+    
     tensor1e = T1;
     block_for(*ec, T1(), compute_1body_ints);
     Scheduler{*ec}(H1P(mup, nup) = T1(mup, nup)).execute();
@@ -689,16 +689,24 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     }
     engine.set_params(q);
     buf = engine.results();
-    //H =  H + V;
     tensor1e = V1;
     block_for(*ec, V1(), compute_1body_ints);
-    Scheduler{*ec}(H1P(mup, nup) += V1(mup, nup)).execute();
-
+    
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    //GA_Sync();
-    if(rank == 0) std::cout << "\nTime taken for H=T+V, S: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime for computing 1-e integrals T, V, S: " << hf_time << " secs\n";
+
+    hf_t1 = std::chrono::high_resolution_clock::now();
+    // Core Hamiltonian = T + V
+    Scheduler{*ec}
+      (H1P(mup, nup) = T1(mup, nup))
+      (H1P(mup, nup) += V1(mup, nup)).execute();
+    hf_t2 = std::chrono::high_resolution_clock::now();
+    hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    if(rank == 0) std::cout << "\nTime for computing Core Hamiltonian H=T+V: " << hf_time << " secs\n";
+
 
     hf_t1 = std::chrono::high_resolution_clock::now();
 
@@ -718,7 +726,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
    
-    if(rank == 0) std::cout << "\nTime taken for tamm to eigen - H1P-H: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime for tamm to eigen - H1P-H: " << hf_time << " secs\n";
 
     hf_t1 = std::chrono::high_resolution_clock::now();
     // tamm_to_eigen_tensor(S1, S);
@@ -735,14 +743,14 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
     GA_Sync();
-    if(rank == 0) std::cout << "\nTime taken for tamm to eigen - S1-S: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime for tamm to eigen - S1-S: " << hf_time << " secs\n";
 
     hf_t1 = std::chrono::high_resolution_clock::now();
     eigen_to_tamm_tensor(H1, H);
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime taken for eigen to tamm - H-H1: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime for eigen to tamm - H-H1: " << hf_time << " secs\n";
 
     Tensor<TensorType>::deallocate(H1P, S1, T1, V1);
 
@@ -772,6 +780,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+    //TODO: not used ?
+    Xinv.resize(0,0);
 
     if(rank == 0) std::cout << "Time for computing orthogonalizer: " << hf_time << " secs\n\n";
 
@@ -982,7 +993,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
     GA_Sync();
-    if(rank == 0) std::cout << "\nTime taken to compute initial guess: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime to compute initial guess: " << hf_time << " secs\n";
 
 
     hf_t1 = std::chrono::high_resolution_clock::now();
@@ -1033,7 +1044,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
     //GA_Sync();
-    if(rank == 0 && debug) std::cout << "\nTime taken to setup tensors for iterative loop: " << hf_time << " secs\n";
+    if(rank == 0 && debug) std::cout << "\nTime to setup tensors for iterative loop: " << hf_time << " secs\n";
 
     eigen_to_tamm_tensor(D_tamm,D);
     F.setZero(N,N);

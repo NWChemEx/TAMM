@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.11)
 project(tamm VERSION 0.0.0)
 include(${PROJECT_SOURCE_DIR}/cmake/check_user_env.cmake)
 find_package(CPP REQUIRED)
+cpp_option(BUILD_TESTS ON)
 
-cpp_find_or_build_dependency(NAME Catch2 URL github.com/catchorg/Catch2)
 cpp_find_or_build_dependency(
     NAME HPTT
     URL github.com/ajaypanyala/hptt
@@ -30,4 +30,14 @@ cpp_find_dependency(
     FIND_MODULE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindGlobalArrays.cmake
 )
 
+cpp_find_dependency(
+    NAME MPI
+    FIND_MODULE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindMPI.cmake
+)
+
 add_subdirectory(src/tamm)
+
+if(BUILD_TESTS)
+    cpp_find_or_build_dependency(NAME Catch2 URL github.com/catchorg/Catch2)
+    #add_subdirectory(tests)
+endif()

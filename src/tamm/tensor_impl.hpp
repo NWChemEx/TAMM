@@ -374,6 +374,11 @@ public:
       TensorImpl<T>(tis_vec),
       lambda_{lambda} {}
 
+
+    LambdaTensorImpl(const IndexLabelVec& til_vec, Func lambda) : 
+        TensorImpl<T>(til_vec),
+        lambda_{lambda} {}
+
     // Dtor
     ~LambdaTensorImpl() = default;
 

@@ -1,5 +1,5 @@
 set(mpi_languages C CXX)
-foreach(mpi_lang ${mpi_langugages})
+foreach(mpi_lang ${mpi_languages})
     _cpp_is_true(have_lang ${mpi_lang})
     if(have_lang)
        list(APPEND MPI_LIBRARIES ${MPI_${mpi_lang}_LIBRARIES})

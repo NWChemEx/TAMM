@@ -765,6 +765,70 @@ public:
     }
 
     void execute(ExecutionContext& ec) override {
+
+
+        
+        #if 0
+         ec.re()->submitTask(
+            [=](RuntimeContext& rc){
+        IndexLabelVec merged_labels{lhs_.labels()};
+        merged_labels.insert(merged_labels.end(), rhs_.labels().begin(),
+                             rhs_.labels().end());
+
+        LabelLoopNest loop_nest{merged_labels};
+        auto ltensor = lhs_.tensor();
+        auto rtensor = rhs_.tensor();
+
+        auto first = loop_nest.begin();
+        auto last = loop_nest.end();
+
+        for(; first!= last; ++first) {
+             auto blockid =  *first;
+             IndexVector lblockid, rblockid;
+            split_block_id(lblockid, rblockid, lhs_.labels().size(),
+                           rhs_.labels().size(), blockid);
+            const auto translated_lblockid = internal::translate_blockid(lblockid, lhs_);
+            const auto translated_rblockid = internal::translate_blockid(rblockid, rhs_);
+
+            // Check if lhs is non-zero
+            if(!ltensor.is_non_zero(translated_lblockid) ||
+               !rtensor.is_non_zero(translated_rblockid)) {
+                return;
+            }
+
+            if(is_assign_) {
+
+                rc.submitTask([=](RuntimeContext& rc_recursive){
+                BlockBuffer lbf = rc.get_org_buffer(tensor, translated_lblockid);
+                BlockBuffer rbf = rc.get_org_buffer(tensor, translated_rblockid);
+
+                //TODO: Need more understanding
+
+                const auto& ldims = lhs_.tensor().block_dims(translated_lblockid);
+                const auto& rdims = rhs_.tensor().block_dims(translated_rblockid);
+
+                SizeVec ldims_sz, rdims_sz;
+                for(const auto v : ldims) { ldims_sz.push_back(v); }
+                for(const auto v : rdims) { rdims_sz.push_back(v); }
+                kernels::assign(&lbf[0], ldims_sz, lhs_int_labels_, alpha_,
+                                &rbf[0], rdims_sz, rhs_int_labels_, is_assign_);
+                lbf.put();
+                rbf.release();
+                }, WritePermission{IndexedTensor{tensor, translated_lblockid}}, 
+                ReadPermission{IndexedTensor{tensor, translated_rblockid}}, 
+                Access(IndexedTensor{tensor, translated_lblockid}, W), 
+                Access(IndexedTensor{tensor, translated_rblockid}, R) ); 
+            }
+            else
+            {
+                //TODO: Need understanding of this implementation
+
+            }
+         
+        }, WritePermission{lhs_}, ReadPermission{rhs_});
+
+        #endif
+        
         using TensorElType = typename LabeledTensorT::element_type;
 
         IndexLabelVec merged_labels{lhs_.labels()};

@@ -147,16 +147,16 @@ inline T ddot(ExecutionContext& ec, LabeledTensor<T> lta,
  */
 template<typename T>
 inline void diis(ExecutionContext& ec,
-                 std::vector<std::vector<Tensor<T>*>*>& d_rs,
-                 std::vector<std::vector<Tensor<T>*>*>& d_ts,
-                 std::vector<Tensor<T>*> d_t) {
+                 std::vector<std::vector<Tensor<T>>>& d_rs,
+                 std::vector<std::vector<Tensor<T>>>& d_ts,
+                 std::vector<Tensor<T>> d_t) {
 
     EXPECTS(d_t.size() == d_rs.size());
     size_t ntensors = d_t.size();
     EXPECTS(ntensors > 0);
-    size_t ndiis = d_rs[0]->size();
+    size_t ndiis = d_rs[0].size();
     EXPECTS(ndiis > 0);
-    for(auto i = 0U; i < ntensors; i++) { EXPECTS(d_rs[i]->size() == ndiis); }
+    for(auto i = 0U; i < ntensors; i++) { EXPECTS(d_rs[i].size() == ndiis); }
 
     using Matrix =
       Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
@@ -169,15 +169,12 @@ inline void diis(ExecutionContext& ec,
             for(auto j = i; j < ndiis; j++) {
                 Tensor<T> d_r1{};
                 Tensor<T>::allocate(&ec,d_r1);
-                Tensor<T>& t1 = *d_rs[k]->at(i);
-                Tensor<T>& t2 = *d_rs[k]->at(j);
-                Scheduler{ec}(d_r1() = 0).execute();
+                Tensor<T>& t1 = d_rs[k].at(i);
+                Tensor<T>& t2 = d_rs[k].at(j);
                 //A(i, j) += ddot(ec, (*d_rs[k]->at(i))(), (*d_rs[k]->at(j))());                
-                Scheduler{ec}(d_r1() += t1() * t2()).execute();
+                Scheduler{ec}(d_r1() = t1() * t2()).execute();
 
-                T r1;
-                d_r1.get({}, {&r1, 1});
-                A(i,j) += r1;
+                A(i,j) += get_scalar(d_r1);
                 Tensor<T>::deallocate(d_r1);
             }
         }
@@ -200,10 +197,10 @@ inline void diis(ExecutionContext& ec,
 
     auto sch = Scheduler{ec};
     for(auto k = 0U; k < ntensors; k++) {
-        Tensor<T>& dt = *d_t[k];
+        Tensor<T>& dt = d_t[k];
         sch(dt() = 0);
         for(auto j = 0U; j < ndiis; j++) {
-            auto& tb = *d_ts[k]->at(j);
+            auto& tb = d_ts[k].at(j);
             sch(dt() += x(j, 0) * tb());
         }
     }

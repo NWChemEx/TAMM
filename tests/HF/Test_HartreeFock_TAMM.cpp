@@ -13,28 +13,26 @@ using namespace tamm;
 std::string filename;
 
 TEST_CASE("HartreeFock testcase") {
-    // using T = double;
+    // Matrix C;
+    // Matrix F;
 
-    Matrix C;
-    Matrix F;
-    // Tensor4D V2;
-    // TAMM_SIZE ov_alpha{0};
-    // TAMM_SIZE freeze_core    = 0;
-    // TAMM_SIZE freeze_virtual = 0;
-
-    // double hf_energy{0.0};
-    // libint2::BasisSet shells;
-    // TAMM_SIZE nao{0};
-
+    ProcGroup pg{GA_MPI_Comm()};
+    auto mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    
     auto hf_t1 = std::chrono::high_resolution_clock::now();
     // std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename, C, F);
-    CHECK_NOTHROW(hartree_fock(filename, C, F));
+    CHECK_NOTHROW(hartree_fock(ec, filename));
     auto hf_t2 = std::chrono::high_resolution_clock::now();
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-    GA_Sync();
+    ec->flush_and_sync();
+    MemoryManagerGA::destroy_coll(mgr);
+    delete ec;
+
     if(GA_Nodeid() == 0)
     std::cout << "\nTotal Time taken for Hartree-Fock: " << hf_time << " secs\n";
 }

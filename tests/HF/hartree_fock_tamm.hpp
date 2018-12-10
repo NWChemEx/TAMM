@@ -21,7 +21,7 @@
 // Eigen matrix algebra library
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
-#include <unsupported/Eigen/CXX11/Tensor>
+// #include <unsupported/Eigen/CXX11/Tensor>
 #include <unsupported/Eigen/MatrixFunctions>
 
 // Libint Gaussian integrals library
@@ -43,9 +43,7 @@ using std::string;
 
 using Matrix =
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-using Tensor2D   = Eigen::Tensor<double, 2, Eigen::RowMajor>;
-using Tensor3D   = Eigen::Tensor<double, 3, Eigen::RowMajor>;
-using Tensor4D   = Eigen::Tensor<double, 4, Eigen::RowMajor>;
+
 using TensorType = double;
 
 using shellpair_list_t = std::unordered_map<size_t, std::vector<size_t>>;
@@ -53,7 +51,8 @@ shellpair_list_t obs_shellpair_list;  // shellpair list for OBS
 using shellpair_data_t = std::vector<std::vector<std::shared_ptr<libint2::ShellPair>>>;  // in same order as shellpair_list_t
 shellpair_data_t obs_shellpair_data;  // shellpair data for OBS
 
-void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, Tensor<TensorType> E, int iter, int max_hist,
+void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, 
+          Tensor<TensorType> E, int iter, int max_hist,
           int idiis, std::vector<Tensor<TensorType>>& diis_hist,
           std::vector<tamm::Tensor<TensorType>>& fock_hist);
 
@@ -478,8 +477,8 @@ compute_shellpairs(const libint2::BasisSet& bs1,
   return std::make_tuple(splist,spdata);
 }
 
-std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
-  const string filename, Matrix& C, Matrix& F) {
+std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace> 
+    hartree_fock(ExecutionContext *ec, const string filename) {
     // Perform the simple HF calculation (Ed) and 2,4-index transform to get the
     // inputs for CCSD
     using libint2::Atom;
@@ -509,7 +508,8 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     tol_int = std::min(1e-8, 0.01 * conve);
 
-    if(GA_Nodeid()==0){
+    auto rank = ec->pg().rank();
+    if(rank==0){
       cout << "\nNumber of GA ranks: " << GA_Nnodes();
       cout << "\nreading geometry from file: " << filename;
       cout << "\n----------------------------------";
@@ -622,11 +622,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
         }
     };
     
-    ProcGroup pg{GA_MPI_Comm()};
-    auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
-    auto rank = ec->pg().rank();
+
     
 
     IndexSpace AO{range(0, N)};
@@ -796,6 +792,9 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
   // HOWEVER !!! even for medium-size molecules hcore will usually fail !!!
   // thus set to false to use Superposition-Of-Atomic-Densities (SOAD) guess
   Matrix D;
+  Matrix C;
+  Matrix F;
+
   if (use_hcore_guess) { // hcore guess
 
     // solve H C = e S C
@@ -807,7 +806,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     auto C_occ = C.leftCols(ndocc);
     D = C_occ * C_occ.transpose();
 
-     F = H;
+    F = H;
 
     // F += compute_2body_fock_general(
     //     shells, D, shells, true /* SOAD_D_is_shelldiagonal */,
@@ -1047,7 +1046,6 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     if(rank == 0 && debug) std::cout << "\nTime to setup tensors for iterative loop: " << hf_time << " secs\n";
 
     eigen_to_tamm_tensor(D_tamm,D);
-    F.setZero(N,N);
     // Matrix err_mat = Matrix::Zero(N,N);
 
     hf_t1 = std::chrono::high_resolution_clock::now();
@@ -1078,6 +1076,7 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
 
     std::cout << std::fixed << std::setprecision(2);
 
+    F.setZero(N,N);
     double precision = tol_int;
     const libint2::BasisSet& obs = shells;
     // assert(N==obs.nbf());
@@ -1429,16 +1428,18 @@ std::tuple<int, int, double, libint2::BasisSet> hartree_fock(
     for (auto x: diis_hist) Tensor<TensorType>::deallocate(x);
     for (auto x: fock_hist) Tensor<TensorType>::deallocate(x);
 
-    Tensor<TensorType>::deallocate(H1, F1, D_tamm, ehf_tmp, 
-                    ehf_tamm, rmsd_tamm);
+    Tensor<TensorType>::deallocate(H1, D_tamm, ehf_tmp, 
+                    ehf_tamm, rmsd_tamm); //F1
     Tensor<TensorType>::deallocate(F1tmp1,Sm12_tamm, Sp12_tamm,
     D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm);//,err_mat_tamm);
 
-    ec->flush_and_sync();
-    MemoryManagerGA::destroy_coll(mgr);
-    delete ec;
+    Tensor<TensorType> C_tamm{tAO,tAO};
+    Tensor<TensorType>::allocate(ec,C_tamm);
+    eigen_to_tamm_tensor(C_tamm,C);
+    GA_Sync();
 
-    return std::make_tuple(ndocc, nao, ehf + enuc, shells);
+    //F1, C are not deallocated.
+    return std::make_tuple(ndocc, nao, ehf + enuc, shells, C_tamm, F1, tAO, tAOt);
 }
 
 void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, Tensor<TensorType> err_mat, int iter, int max_hist, int ndiis,

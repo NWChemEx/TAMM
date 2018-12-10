@@ -355,14 +355,15 @@ void ccsd_driver() {
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
-    auto rank = ec->pg().rank();
+    ExecutionContext ec{pg, &distribution, mgr};
+    auto rank = ec.pg().rank();
 
     //TODO: read from input file, assume no freezing for now
     TAMM_SIZE freeze_core    = 0;
     TAMM_SIZE freeze_virtual = 0;
 
-    auto [ov_alpha, nao, hf_energy, shells, C_AO, F_AO, AO_opt, AO_tis] = hartree_fock_driver<T>(ec,filename);
+    auto [ov_alpha, nao, hf_energy, shells, C_AO, F_AO, AO_opt, AO_tis] 
+                    = hartree_fock_driver<T>(ec,filename);
 
     auto [MO,total_orbitals] = setupMOIS(nao,ov_alpha,freeze_core,freeze_virtual);
 
@@ -383,7 +384,7 @@ void ccsd_driver() {
     //   TiledIndexSpace tsc{tCIp, range(x,x+1)};
     //   auto [sc] = tsc.labels<1>("all");
       Tensor<T> cholvec{{N,N},{1,1}};
-      Tensor<T>::allocate(ec, cholvec);
+      Tensor<T>::allocate(&ec, cholvec);
       chol_vecs[x] = cholvec;
   }
 
@@ -417,7 +418,7 @@ void ccsd_driver() {
             tensor.put(blockid, dbuf);
         };
 
-        block_for(*ec, cholvec(), lambdacv);
+        block_for(ec, cholvec(), lambdacv);
    }
 
   Tensor<T>::deallocate(cholVpr);
@@ -426,7 +427,7 @@ void ccsd_driver() {
 
   auto cc_t1 = std::chrono::high_resolution_clock::now();
 
-  auto [residual, energy] = ccsd_driver<T>(*ec, MO, d_t1, d_t2, d_f1, d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, p_evl_sorted, chol_vecs,
+  auto [residual, energy] = ccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, p_evl_sorted, chol_vecs,
                                maxiter, thresh, zshiftl, ndiis, 2 * ov_alpha);
 
   ccsd_stats(ec, hf_energy,residual,energy,thresh);
@@ -436,12 +437,13 @@ void ccsd_driver() {
     std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
   if(rank == 0) std::cout << "\nTime taken for Cholesky CCSD: " << ccsd_time << " secs\n";
 
-  freeTensors(ndiis,d_r1, d_r2, d_t1, d_t2, d_f1, d_r1s, d_r2s, d_t1s, d_t2s);
+  free_tensors(d_r1, d_r2, d_t1, d_t2, d_f1);
+  free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s, chol_vecs);
 
-  for (auto x = 0; x < chol_count; x++) Tensor<T>::deallocate(chol_vecs[x]);
+//   for (auto x = 0; x < chol_count; x++) Tensor<T>::deallocate(chol_vecs[x]);
 
-  ec->flush_and_sync();
+  ec.flush_and_sync();
   MemoryManagerGA::destroy_coll(mgr);
-  delete ec;
+//   delete ec;
 
 }

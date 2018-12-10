@@ -19,7 +19,7 @@ TEST_CASE("HartreeFock testcase") {
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    ExecutionContext ec{pg, &distribution, mgr};
     
     auto hf_t1 = std::chrono::high_resolution_clock::now();
     // std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename, C, F);
@@ -29,9 +29,9 @@ TEST_CASE("HartreeFock testcase") {
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-    ec->flush_and_sync();
+    ec.flush_and_sync();
     MemoryManagerGA::destroy_coll(mgr);
-    delete ec;
+    // delete ec;
 
     if(GA_Nodeid() == 0)
     std::cout << "\nTotal Time taken for Hartree-Fock: " << hf_time << " secs\n";

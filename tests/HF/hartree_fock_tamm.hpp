@@ -478,7 +478,7 @@ compute_shellpairs(const libint2::BasisSet& bs1,
 }
 
 std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace> 
-    hartree_fock(ExecutionContext *ec, const string filename) {
+    hartree_fock(ExecutionContext &exc, const string filename) {
     // Perform the simple HF calculation (Ed) and 2,4-index transform to get the
     // inputs for CCSD
     using libint2::Atom;
@@ -486,6 +486,8 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
     using libint2::Operator;
     using libint2::Shell;
     using libint2::BasisSet;
+
+    ExecutionContext *ec = &exc;
 
     /*** =========================== ***/
     /*** initialize molecule         ***/

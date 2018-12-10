@@ -44,8 +44,7 @@ void cd_svd_driver() {
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
-    auto rank = ec->pg().rank();
+    ExecutionContext ec{pg, &distribution, mgr};
 
     //TODO: read from input file, assume no freezing for now
     TAMM_SIZE freeze_core    = 0;
@@ -62,8 +61,8 @@ void cd_svd_driver() {
 
     Tensor<T>::deallocate(d_f1,cholVpr);
 
-    ec->flush_and_sync();
+    ec.flush_and_sync();
     MemoryManagerGA::destroy_coll(mgr);
-    delete ec;
+    // delete ec;
 
 }

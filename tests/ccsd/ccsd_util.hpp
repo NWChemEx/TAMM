@@ -47,6 +47,16 @@ void iteration_print(const ProcGroup& pg, int iter, double residual, double ener
   }
 }
 
+void iteration_print_lambda(const ProcGroup& pg, int iter, double residual, double time) {
+  if(pg.rank() == 0) {
+    std::cout.width(6); std::cout << std::right << iter+1 << "  ";
+    std::cout << std::setprecision(13) << residual << "  ";
+    std::cout << std::fixed << std::setprecision(2);
+    std::cout << std::string(8, ' ') << "0.0";
+    std::cout << std::string(5, ' ') << time << std::endl;
+  }
+}
+
 /**
  *
  * @tparam T
@@ -63,7 +73,7 @@ std::pair<double,double> rest(ExecutionContext& ec,
                                Tensor<T>& d_t2,
                                Tensor<T>& de,
                               std::vector<T>& p_evl_sorted, T zshiftl, 
-                              const TAMM_SIZE& noab) {
+                              const TAMM_SIZE& noab,bool transpose=false) {
 
     T residual, energy;
     Scheduler sch{ec};
@@ -84,10 +94,10 @@ std::pair<double,double> rest(ExecutionContext& ec,
       };
 
       auto l1 =  [&]() {
-        jacobi(ec, d_r1, d_t1, -1.0 * zshiftl, false, p_evl_sorted,noab);
+        jacobi(ec, d_r1, d_t1, -1.0 * zshiftl, transpose, p_evl_sorted,noab);
       };
       auto l2 = [&]() {
-        jacobi(ec, d_r2, d_t2, -2.0 * zshiftl, false, p_evl_sorted,noab);
+        jacobi(ec, d_r2, d_t2, -2.0 * zshiftl, transpose, p_evl_sorted,noab);
       };
 
       l0();
@@ -137,15 +147,14 @@ std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(TAMM_SIZE nao, TAMM_SIZE ov_alph
 template<typename T>
 std::tuple<std::vector<T>, Tensor<T>,Tensor<T>,Tensor<T>,Tensor<T>,
 std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>>
- setupTensors(ExecutionContext *ec, TiledIndexSpace& MO, Tensor<T> d_f1, size_t ndiis) {
+ setupTensors(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> d_f1, size_t ndiis) {
 
-    auto rank = ec->pg().rank();
+    auto rank = ec.pg().rank();
 
     TiledIndexSpace O = MO("occ");
     TiledIndexSpace V = MO("virt");
-    TiledIndexSpace N = MO("all");
  
-    std::vector<T> p_evl_sorted = tamm::diagonal(*ec,d_f1());
+    std::vector<T> p_evl_sorted = tamm::diagonal(ec,d_f1());
 
     auto lambda2 = [&](const IndexVector& blockid, span<T> buf){
         if(blockid[0] != blockid[1]) {
@@ -155,7 +164,7 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
 
     update_tensor(d_f1(),lambda2);
 
-  if(rank == 0) {
+ if(rank == 0) {
     std::cout << "\n\n";
     std::cout << " CCSD iterations" << std::endl;
     std::cout << std::string(66, '-') << std::endl;
@@ -168,24 +177,20 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
   std::vector<Tensor<T>> d_r1s, d_r2s, d_t1s, d_t2s;
 
   for(int i=0; i<ndiis; i++) {
-    d_r1s.push_back(Tensor<T>{V,O});
-    d_r2s.push_back(Tensor<T>{V,V,O,O});
-    d_t1s.push_back(Tensor<T>{V,O});
-    d_t2s.push_back(Tensor<T>{V,V,O,O});
-    Tensor<T>::allocate(ec,d_r1s[i], d_r2s[i], d_t1s[i], d_t2s[i]);
+    d_r1s.push_back(Tensor<T>{{V,O},{1,1}});
+    d_r2s.push_back(Tensor<T>{{V,V,O,O},{2,2}});
+    d_t1s.push_back(Tensor<T>{{V,O},{1,1}});
+    d_t2s.push_back(Tensor<T>{{V,V,O,O},{2,2}});
+    Tensor<T>::allocate(&ec,d_r1s[i], d_r2s[i], d_t1s[i], d_t2s[i]);
   }
 
-    // Tensor<T> d_v2{{N,N,N,N},{2,2}};
+  Tensor<T> d_t1{{V,O},{1,1}};
+  Tensor<T> d_t2{{V,V,O,O},{2,2}};
+  Tensor<T> d_r1{{V,O},{1,1}};
+  Tensor<T> d_r2{{V,V,O,O},{2,2}};
+  Tensor<T>::allocate(&ec,d_r1,d_r2,d_t1,d_t2);
 
-    Tensor<T> d_t1{{V,O},{1,1}};
-    Tensor<T> d_t2{{V,V,O,O},{2,2}};
-    Tensor<T>::allocate(ec,d_t1,d_t2);//,d_v2);
-
-  Tensor<T> d_r1{V,O};
-  Tensor<T> d_r2{V,V,O,O};
-  Tensor<T>::allocate(ec,d_r1, d_r2);
-
-  Scheduler{*ec}   
+  Scheduler{ec}   
   (d_r1() = 0)
   (d_r2() = 0)
   (d_t1() = 0)
@@ -197,9 +202,9 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
 
 template<typename T>
 std::tuple<TAMM_SIZE, TAMM_SIZE, double, libint2::BasisSet, Tensor<T>, Tensor<T>, TiledIndexSpace, TiledIndexSpace> 
-    hartree_fock_driver(ExecutionContext *ec, const string filename) {
+    hartree_fock_driver(ExecutionContext &ec, const string filename) {
 
-    auto rank = ec->pg().rank();
+    auto rank = ec.pg().rank();
     TAMM_SIZE ov_alpha{0};
     double hf_energy{0.0};
     libint2::BasisSet shells;
@@ -223,7 +228,7 @@ std::tuple<TAMM_SIZE, TAMM_SIZE, double, libint2::BasisSet, Tensor<T>, Tensor<T>
 
 
 template<typename T> 
-std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(ExecutionContext *ec, TiledIndexSpace& MO,
+std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(ExecutionContext& ec, TiledIndexSpace& MO,
     TiledIndexSpace& AO_tis,
   const TAMM_SIZE ov_alpha, const TAMM_SIZE nao, const TAMM_SIZE freeze_core,
   const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
@@ -231,11 +236,11 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(ExecutionCo
 
     tamm::Tile max_cvecs = 8*nao;
 
-    auto rank = ec->pg().rank();
+    auto rank = ec.pg().rank();
     TiledIndexSpace N = MO("all");
 
     Tensor<T> d_f1{{N,N},{1,1}};
-    Tensor<T>::allocate(ec,d_f1);
+    Tensor<T>::allocate(&ec,d_f1);
 
     auto hf_t1        = std::chrono::high_resolution_clock::now();
     TAMM_SIZE chol_count = 0;
@@ -264,9 +269,9 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(ExecutionCo
 
 }
 
-void ccsd_stats(ExecutionContext *ec, double hf_energy,double residual,double energy,double thresh){
+void ccsd_stats(ExecutionContext& ec, double hf_energy,double residual,double energy,double thresh){
 
-    auto rank = ec->pg().rank();
+    auto rank = ec.pg().rank();
       if(rank == 0) {
     std::cout << std::string(66, '-') << std::endl;
     if(residual < thresh) {
@@ -283,24 +288,85 @@ void ccsd_stats(ExecutionContext *ec, double hf_energy,double residual,double en
 
 }
 
-template<typename T> 
-void freeTensors(size_t ndiis, Tensor<T>& d_r1, Tensor<T>& d_r2, Tensor<T>& d_t1, Tensor<T>& d_t2,
-                   Tensor<T>& d_f1, std::vector<Tensor<T>>& d_r1s, 
-                   std::vector<Tensor<T>>& d_r2s, std::vector<Tensor<T>>& d_t1s, 
-                   std::vector<Tensor<T>>& d_t2s) {
+// template<typename T> 
+// void freeTensors(size_t ndiis, Tensor<T>& d_r1, Tensor<T>& d_r2, Tensor<T>& d_t1, Tensor<T>& d_t2,
+//                    Tensor<T>& d_f1, std::vector<Tensor<T>>& d_r1s, 
+//                    std::vector<Tensor<T>>& d_r2s, std::vector<Tensor<T>>& d_t1s, 
+//                    std::vector<Tensor<T>>& d_t2s) {
 
-  for(auto i=0; i<ndiis; i++)
-    Tensor<T>::deallocate(d_r1s[i], d_r2s[i], d_t1s[i], d_t2s[i]);
-  d_r1s.clear(); d_r2s.clear();
-  d_t1s.clear(); d_t2s.clear();
-  Tensor<T>::deallocate(d_r1, d_r2, d_t1, d_t2, d_f1);//, d_v2);
-}
+//   for(auto i=0; i<ndiis; i++)
+//     Tensor<T>::deallocate(d_r1s[i], d_r2s[i], d_t1s[i], d_t2s[i]);
+//   d_r1s.clear(); d_r2s.clear();
+//   d_t1s.clear(); d_t2s.clear();
+//   Tensor<T>::deallocate(d_r1, d_r2, d_t1, d_t2, d_f1);//, d_v2);
+// }
+
+
+  auto free_vec_tensors = [&](auto&&... vecx) {
+      (std::for_each(vecx.begin(), vecx.end(), [](auto& t) { t.deallocate(); }),
+       ...);
+  };
+
+  auto free_tensors = [&](auto&&... t) {
+      ( (t.deallocate()), ...);
+  };
+
 
 template<typename T>
-Tensor<T> setupV2(ExecutionContext *ec, TiledIndexSpace& MO, Tensor<T> cholVpr, const tamm::Tile max_cvecs,
+std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,Tensor<T>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,
+std::vector<Tensor<T>>,std::vector<Tensor<T>>> 
+setupLambdaTensors(ExecutionContext& ec, TiledIndexSpace& MO, size_t ndiis) {
+
+    TiledIndexSpace O = MO("occ");
+    TiledIndexSpace V = MO("virt");
+    
+     auto rank = ec.pg().rank();
+
+  Tensor<T> d_r1{{O,V},{1,1}};
+  Tensor<T> d_r2{{O,O,V,V},{2,2}};
+    Tensor<T> d_y1{{O,V},{1,1}};
+    Tensor<T> d_y2{{O,O,V,V},{2,2}};
+
+    Tensor<T>::allocate(&ec,d_r1, d_r2,d_y1,d_y2);
+
+  Scheduler{ec}
+      (d_y1() = 0)
+      (d_y2() = 0)      
+      (d_r1() = 0)
+      (d_r2() = 0)
+    .execute();
+
+  if(rank == 0) {
+    std::cout << "\n\n";
+    std::cout << " Lambda CCSD iterations" << std::endl;
+    std::cout << std::string(44, '-') << std::endl;
+    std::cout <<
+        " Iter          Residuum          Cpu    Wall"
+              << std::endl;
+    std::cout << std::string(44, '-') << std::endl;
+  }
+
+  std::vector<Tensor<T>> d_r1s,d_r2s,d_y1s, d_y2s;
+
+  for(size_t i=0; i<ndiis; i++) {
+    d_r1s.push_back(Tensor<T>{{O,V},{1,1}});
+    d_r2s.push_back(Tensor<T>{{O,O,V,V},{2,2}});
+
+    d_y1s.push_back(Tensor<T>{{O,V},{1,1}});
+    d_y2s.push_back(Tensor<T>{{O,O,V,V},{2,2}});
+    Tensor<T>::allocate(&ec,d_r1s[i],d_r2s[i],d_y1s[i], d_y2s[i]);
+  }
+
+    return std::make_tuple(d_r1,d_r2,d_y1,d_y2,d_r1s,d_r2s,d_y1s,d_y2s);
+
+}
+
+
+template<typename T>
+Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> cholVpr, const tamm::Tile max_cvecs,
                  const TAMM_SIZE total_orbitals, TAMM_SIZE n_alpha, TAMM_SIZE n_beta) {
 
-    auto rank = ec->pg().rank();
+    auto rank = ec.pg().rank();
 
     TiledIndexSpace N = MO("all");
 
@@ -312,9 +378,9 @@ Tensor<T> setupV2(ExecutionContext *ec, TiledIndexSpace& MO, Tensor<T> cholVpr, 
 
     Tensor<T> d_a2{{N,N,N,N},{2,2}};
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
-    Tensor<T>::allocate(ec,d_a2,d_v2);
+    Tensor<T>::allocate(&ec,d_a2,d_v2);
 
-    // Scheduler{*ec}(d_a2(p, r, q, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex)).execute();
+    // Scheduler{ec}(d_a2(p, r, q, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex)).execute();
 
   const auto v2dim =  total_orbitals;
 //   const int n_alpha = 5;
@@ -359,7 +425,7 @@ Tensor<T> setupV2(ExecutionContext *ec, TiledIndexSpace& MO, Tensor<T> cholVpr, 
     // A2.resize(0,0,0,0);
     GA_Sync();
 
-    // Scheduler{*ec}(d_v2(p, q, r, s) = d_a2(p,r,q,s))
+    // Scheduler{ec}(d_v2(p, q, r, s) = d_a2(p,r,q,s))
     //               (d_v2(p, q, r, s) -= d_a2(p,s,q,r))
     //               .execute();
 

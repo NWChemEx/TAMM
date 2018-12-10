@@ -9,7 +9,7 @@
 using namespace tamm;
 using TensorType = double;
 
-Tensor<TensorType> cd_svd(ExecutionContext *ec, TiledIndexSpace& tMO, TiledIndexSpace& tAOt,
+Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndexSpace& tAOt,
   const TAMM_SIZE ndocc, const TAMM_SIZE nao, const TAMM_SIZE freeze_core,
   const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
   Tensor<TensorType> F_MO, TAMM_SIZE& chol_count, const tamm::Tile max_cvecs, libint2::BasisSet& shells) {
@@ -19,7 +19,7 @@ Tensor<TensorType> cd_svd(ExecutionContext *ec, TiledIndexSpace& tMO, TiledIndex
     using libint2::Engine;
     using libint2::Operator;
 
-    auto rank = ec->pg().rank();
+    auto rank = ec.pg().rank();
 
 
     if(rank == 0){
@@ -46,7 +46,7 @@ Tensor<TensorType> cd_svd(ExecutionContext *ec, TiledIndexSpace& tMO, TiledIndex
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
     Tensor<TensorType> CTiled_tamm{tAOt,tMO};
-    Tensor<TensorType>::allocate(ec, CTiled_tamm);
+    Tensor<TensorType>::allocate(&ec, CTiled_tamm);
 
     if(rank == 0){
 
@@ -117,7 +117,7 @@ Tensor<TensorType> cd_svd(ExecutionContext *ec, TiledIndexSpace& tMO, TiledIndex
   */
   Tensor<TensorType> DiagInt_tamm{tAOt, tAOt};
   // Tensor<TensorType> DiagInt_tamm{tAO, tAO};
-  Tensor<TensorType>::allocate(ec, DiagInt_tamm);
+  Tensor<TensorType>::allocate(&ec, DiagInt_tamm);
 
   // Compute diagonals
   Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
@@ -150,7 +150,7 @@ Tensor<TensorType> cd_svd(ExecutionContext *ec, TiledIndexSpace& tMO, TiledIndex
         }
         DiagInt_tamm.put(blockid,tbuf);
   };
-  block_for(*ec, DiagInt_tamm(),compute_diagonals);
+  block_for(ec, DiagInt_tamm(),compute_diagonals);
 
   auto count = 0U;
   size_t bfu = 0; // basis function pair |uv) corresponding to 
@@ -166,12 +166,12 @@ Tensor<TensorType> cd_svd(ExecutionContext *ec, TiledIndexSpace& tMO, TiledIndex
   auto diagtol = 1.0e-6; // tolerance for the max. diagonal
 
   Tensor<TensorType> CholVuv_tamm{tAOt, tAOt, tCI};
-  Tensor<TensorType>::allocate(ec, CholVuv_tamm);
+  Tensor<TensorType>::allocate(&ec, CholVuv_tamm);
 
   TensorType max=0;
   std::vector<size_t> bfuv;
   IndexVector maxblockid;
-  std::tie(max,maxblockid,bfuv) = max_element(*ec, DiagInt_tamm());
+  std::tie(max,maxblockid,bfuv) = max_element(ec, DiagInt_tamm());
   bfu = bfuv[0];
   bfv = bfuv[1];
 
@@ -244,13 +244,13 @@ Tensor<TensorType> cd_svd(ExecutionContext *ec, TiledIndexSpace& tMO, TiledIndex
         CholVuv_tamm.put({s3,s4,blockid[2]}, tbuf);
   };
 
-  block_for(*ec, CholVuv_tamm(), update_columns);
+  block_for(ec, CholVuv_tamm(), update_columns);
   delems.clear();
   
     count += 1;
 
     // Find maximum in DiagInt 
-    std::tie(max,maxblockid,bfuv) = max_element(*ec, DiagInt_tamm());
+    std::tie(max,maxblockid,bfuv) = max_element(ec, DiagInt_tamm());
     bfu = bfuv[0];
     bfv = bfuv[1];
 
@@ -298,9 +298,9 @@ Tensor<TensorType> cd_svd(ExecutionContext *ec, TiledIndexSpace& tMO, TiledIndex
   hf_t1 = std::chrono::high_resolution_clock::now();
  
   Tensor<TensorType> CholVpv_tamm{tMO,tAOt,tCI};
-  Tensor<TensorType>::allocate(ec, CholVpv_tamm);
+  Tensor<TensorType>::allocate(&ec, CholVpv_tamm);
 
-  Scheduler{*ec}
+  Scheduler{ec}
   (CholVpv_tamm(pmo,mup,cindex) += CTiled_tamm(nup, pmo) * CholVuv_tamm(nup, mup, cindex)).execute();
   
   hf_t2 = std::chrono::high_resolution_clock::now();
@@ -325,8 +325,8 @@ Tensor<TensorType> cd_svd(ExecutionContext *ec, TiledIndexSpace& tMO, TiledIndex
   hf_t1 = std::chrono::high_resolution_clock::now();
 
   Tensor<TensorType> CholVpr_tamm{{tMO,tMO,tCI},{1,1}};
-  Tensor<TensorType>::allocate(ec, CholVpr_tamm);
-  Scheduler{*ec}
+  Tensor<TensorType>::allocate(&ec, CholVpr_tamm);
+  Scheduler{ec}
   (CholVpr_tamm(pmo,rmo,cindex) += CTiled_tamm(mup, rmo) * CholVpv_tamm(pmo, mup, cindex)).execute();
 
     hf_t2 = std::chrono::high_resolution_clock::now();
@@ -341,7 +341,7 @@ Tensor<TensorType> cd_svd(ExecutionContext *ec, TiledIndexSpace& tMO, TiledIndex
   //   auto [cindexp] = tCIp.labels<1>("all");
   
   // Tensor<TensorType> CholVpr_opt{{tMO,tMO,tCIp},{1,1}};
-  // Tensor<TensorType>::allocate(ec, CholVpr_opt);
+  // Tensor<TensorType>::allocate(&ec, CholVpr_opt);
 
   // auto lambdacv = [&](const IndexVector& bid){
   //     const IndexVector blockid =
@@ -372,7 +372,7 @@ Tensor<TensorType> cd_svd(ExecutionContext *ec, TiledIndexSpace& tMO, TiledIndex
   //     CholVpr_opt.put(blockid, dbuf);
   // };
 
-  // block_for(*ec, CholVpr_opt(), lambdacv);
+  // block_for(ec, CholVpr_opt(), lambdacv);
 
   // Tensor<TensorType>::deallocate(CholVpr_tamm);
 

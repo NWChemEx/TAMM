@@ -6,7 +6,7 @@
 
 
 using namespace tamm;
-// using Tensor2D   = Eigen::Tensor<double, 2, Eigen::RowMajor>;
+using Tensor2D   = Eigen::Tensor<double, 2, Eigen::RowMajor>;
 using Tensor3D   = Eigen::Tensor<double, 3, Eigen::RowMajor>;
 using Tensor4D   = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 

@@ -1,11 +1,9 @@
 #ifndef TAMM_TESTS_EOMGUESS_HPP_
 #define TAMM_TESTS_EOMGUESS_HPP_
 
-
-#include "tamm/tamm.hpp"
+#include "ccsd_common.hpp"
 #include <algorithm>
 #include <complex>
-#include "tamm/eigen_utils.hpp"
 using namespace tamm;
 
 template<typename T>

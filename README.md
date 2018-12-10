@@ -62,6 +62,28 @@ cmake \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
 
+
 make -j3
 make install
+```
+
+Using GCC+ESSL
+--------------
+
+```
+export TAMM_INSTALL_PATH=/opt/NWChemEx/install
+export ESSL_INC=/sw/summit/essl/6.1.0-1/essl/6.1/include
+export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-1/essl/6.1/lib64/libesslsmp.so"
+export NETLIB_BLAS_LIBS="/opt/lapacke/lib64"
+
+cmake \
+-DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran \
+-DCBLAS_INCLUDE_DIRS=$ESSL_INC \
+-DLAPACKE_INCLUDE_DIRS=$ESSL_INC \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMMESSL \
+-DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
+-DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
+-DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
+-DTAMM_EXTRA_LIBS="$NETLIB_BLAS_LIBS/liblapacke.a;$NETLIB_BLAS_LIBS/liblapack.a" ..
+
 ```

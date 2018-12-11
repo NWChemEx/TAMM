@@ -799,8 +799,8 @@ public:
             if(is_assign_) {
 
                 rc.submitTask([=](RuntimeContext& rc_recursive){
-                BlockBuffer lbf = rc.get_org_buffer(tensor, translated_lblockid);
-                BlockBuffer rbf = rc.get_org_buffer(tensor, translated_rblockid);
+                BlockBuffer lbf = rc_recursive.get_org_buffer(tensor, translated_lblockid);
+                BlockBuffer rbf = rc_recursive.get_org_buffer(tensor, translated_rblockid);
 
                 //TODO: Need more understanding
 
@@ -814,10 +814,8 @@ public:
                                 &rbf[0], rdims_sz, rhs_int_labels_, is_assign_);
                 lbf.put();
                 rbf.release();
-                }, WritePermission{IndexedTensor{tensor, translated_lblockid}}, 
-                ReadPermission{IndexedTensor{tensor, translated_rblockid}}, 
-                Access(IndexedTensor{tensor, translated_lblockid}, W), 
-                Access(IndexedTensor{tensor, translated_rblockid}, R) ); 
+                }, WriteAccess(IndexedTensor{tensor, translated_lblockid}), 
+                   ReadAccess(IndexedTensor{tensor, translated_rblockid})); 
             }
             else
             {

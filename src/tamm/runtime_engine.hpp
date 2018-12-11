@@ -8,6 +8,10 @@
 
 namespace tamm {
 
+// TBD We need ReadAccess, WriteAccess, CancellableWriteAccess, and some
+// accumulate accesseses (?). Accumulate accesses will probably be only
+// cancellable.
+
 enum class AccessMode { KR, KW, KRW, AC };
 
 class PermissionBase {

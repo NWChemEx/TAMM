@@ -363,88 +363,28 @@ setupLambdaTensors(ExecutionContext& ec, TiledIndexSpace& MO, size_t ndiis) {
 
 
 template<typename T>
-Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> cholVpr, const tamm::Tile max_cvecs,
+Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> cholVpr, const tamm::Tile chol_count,
                  const TAMM_SIZE total_orbitals, TAMM_SIZE n_alpha, TAMM_SIZE n_beta) {
 
     auto rank = ec.pg().rank();
 
     TiledIndexSpace N = MO("all");
 
-    IndexSpace CI{range(0, max_cvecs)};
-    TiledIndexSpace tCI{CI, max_cvecs};
+    IndexSpace CI{range(0, chol_count)};
+    TiledIndexSpace tCI{CI, chol_count};
     auto [cindex] = tCI.labels<1>("all");
 
     auto [p,q,r,s] = MO.labels<4>("all");
 
-    Tensor<T> d_a2{{N,N,N,N},{2,2}};
+    Tensor<T> d_a2{N,N,N,N}; //Spin here requires spin(p)=spin(q) and spin(r)=spin(s) which is not supported by TAMM currently
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
     Tensor<T>::allocate(&ec,d_a2,d_v2);
 
-    // Scheduler{ec}(d_a2(p, r, q, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex)).execute();
+    Scheduler{ec}(d_a2(p, r, q, s) = cholVpr(cindex, p, r) * cholVpr(cindex, q, s)).execute();
 
-  const auto v2dim =  total_orbitals;
-//   const int n_alpha = 5;
-//   const int n_beta = 2;
-  Matrix spin_t = Matrix::Zero(1, v2dim);
-  Matrix spin_1 = Matrix::Ones(1,n_alpha);
-  Matrix spin_2 = Matrix::Constant(1,n_alpha,2);
-  Matrix spin_3 = Matrix::Constant(1,n_beta,1);
-  Matrix spin_4 = Matrix::Constant(1,n_beta,2);
-  //spin_t << 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 2, 2; - water
-  spin_t.block(0,0,1,n_alpha) = spin_1;
-  spin_t.block(0,n_alpha,1,n_alpha) = spin_2;
-  spin_t.block(0,2*n_alpha,1, n_beta) = spin_3;
-  spin_t.block(0,2*n_alpha+n_beta,1, n_beta) = spin_4;
-
-    Tensor3D CholVpr(v2dim,v2dim,max_cvecs);
-    tamm_to_eigen_tensor(cholVpr, CholVpr);
-    Tensor4D A2(v2dim,v2dim,v2dim,v2dim);
-    A2.setZero();
-    GA_Sync();
-        // Form (pr|qs)
-    for (auto p = 0; p < v2dim; p++) {
-      for (auto r = 0; r < v2dim; r++) {
-        if (spin_t(p) != spin_t(r)) {
-          continue;
-        }
-
-        for (auto q = 0; q < v2dim; q++) {
-          for (auto s = 0; s < v2dim; s++) {
-            if (spin_t(q) != spin_t(s)) {
-              continue;
-            }
-
-            for (auto icount = 0; icount != max_cvecs; ++icount) 
-              A2(p, r, q, s) += CholVpr(p, r, icount) * CholVpr(q, s, icount);
-          }
-        }
-      }
-    }
-    eigen_to_tamm_tensor(d_a2,A2);
-    CholVpr.resize(0,0,0);
-    // A2.resize(0,0,0,0);
-    GA_Sync();
-
-    // Scheduler{ec}(d_v2(p, q, r, s) = d_a2(p,r,q,s))
-    //               (d_v2(p, q, r, s) -= d_a2(p,s,q,r))
-    //               .execute();
-
-    // size_t v2dim = 14;
-    // Tensor4D A2(v2dim,v2dim,v2dim,v2dim);
-    // tamm_to_eigen_tensor(d_a2,A2);
-    Tensor4D V2(v2dim,v2dim,v2dim,v2dim);
-
-    for (size_t p = 0; p < v2dim; p++) {
-        for (size_t q = 0; q < v2dim; q++) {
-          for (size_t r = 0; r < v2dim; r++) {
-            for (size_t s = 0; s < v2dim; s++) {
-              V2(p, q, r, s) = A2(p, r, q, s) - A2(p, s, q, r);
-            }
-          }
-        }
-    }
-
-    eigen_to_tamm_tensor(d_v2,V2);
+    Scheduler{ec}(d_v2(p, q, r, s) = d_a2(p,r,q,s))
+                  (d_v2(p, q, r, s) -= d_a2(p,s,q,r))
+                  .execute();
 
     Tensor<T>::deallocate(d_a2);
     return d_v2;

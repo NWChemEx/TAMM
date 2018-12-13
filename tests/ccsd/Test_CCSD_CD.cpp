@@ -402,17 +402,18 @@ void ccsd_driver() {
             const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
             std::vector<TensorType> dbuf(dsize);
 
-            const tamm::TAMM_SIZE ssize = cholVpr.block_size({blockid[0],blockid[1],0});
+            IndexVector cvpriv = {0,blockid[0],blockid[1]};
+            const tamm::TAMM_SIZE ssize = cholVpr.block_size(cvpriv);
             std::vector<TensorType> sbuf(ssize);
 
-            cholVpr.get({blockid[0],blockid[1],0}, sbuf);
+            cholVpr.get(cvpriv, sbuf);
                 
             TAMM_SIZE c = 0;
             for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
                 i++) {
                 for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
                     j++, c++) {
-                dbuf[c] = sbuf[c*max_cvecs+x];
+                dbuf[c] = sbuf[(x*block_dims[0]+(i-block_offset[0]))*block_dims[1]+(j-block_offset[1])];
                 }
             }
             tensor.put(blockid, dbuf);

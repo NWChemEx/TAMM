@@ -192,8 +192,13 @@
     TiledIndexSpace& N = tis_mo("all");   // tis_mo("all")  =>  [{0,1,2},{3,4},{5,6,7},{8,9}]
     ```
 
-- **Dependent index space:** An index space can depend on other tiled index spaces. In this case, the index space becomes a relation that, given a specific value of its dependent index spaces, returns an index space. **Note that** the dependency map used to construct the dependent index space is based on tiles from a tiled index space to another index space. 
+- **Dependent index space:** An index space can depend on other tiled index spaces. In this case, the index space becomes a relation that, given a specific value of its dependent index space tiles, returns an index space. **Note that** the dependency map used to construct the dependent index space is based on tiles from a tiled index space to another index space. 
   ```c++
+  // @summary 
+  // In this example, we try to explain a MO space where the
+  // span of indices are dependent on the Atom tiled space.
+  
+
   // Creating index spaces MO, AO, and Atom
   IndexSpace MO{range(0, 100),
                 {{"occ", range(0, 50)},
@@ -204,18 +209,24 @@
   // Tile Atom space with default tiling
   TiledIndexSpace T_Atom{Atom};
 
-  // Construct dependency relation for Atom indices
+  // Construct dependency relation for Atom tiled indices
+  // as the tiles are of size 1, we describe the dependency
+  // over each index in Atom space.
   std::map<IndexVector, IndexSpace> dep_relation{
         {IndexVector{0}, MO("occ")},                   
         {IndexVector{1}, MO("virt")},
-        {IndexVector{2}, AO},
-        {IndexVector{3}, MO("all")},
-        {IndexVector{4}, IndexSpace{AO, range(0, 40)}}};
+        {IndexVector{2}, MO("occ")},
+        {IndexVector{3}, MO("virt")},
+        {IndexVector{4}, MO("occ")}};
 
   // IndexSpace(const std::vector<TiledIndexSpace>& dep_spaces,
   //            const std::map<IndexVector, IndexSpace> dep_relation)
+  
+  // Constructed index space will span over different portions
+  // of MO space 
   IndexSpace subMO_atom{{T_Atom}, dep_relation};
   ```
+
 
 - **[Tiling a DependentIndex]:** If input IndexSpace to a TiledIndexSpace is a dependent IndexSpace, the tiling spans over the dependency relation. While constructing a sub-TiledIndexSpace from tiled dependent index space, users will have to construct the new dependency out of the tiled dependency
   ```c++
@@ -263,6 +274,6 @@
     a = subMO_atom.label("all")
 
     // Use labels for Tensor construction or Tensor Operations
-    Tensor<double> T1{i, a(i)};  // a(i) will construct a depedent TiledIndexLabel which internally is validated
+    Tensor<double> T1{i, a(i)};  // a(i) will construct a dependent TiledIndexLabel which internally is validated
   ```
 

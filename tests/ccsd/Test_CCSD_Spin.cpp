@@ -73,7 +73,7 @@ void ccsd_driver() {
   auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
                         = setupTensors(ec,MO,d_f1,ndiis);
 
-  Tensor<T> d_v2 = setupV2<T>(ec,MO,cholVpr,max_cvecs, total_orbitals, ov_alpha, nao - ov_alpha);
+  Tensor<T> d_v2 = setupV2<T>(ec,MO,cholVpr,chol_count, total_orbitals, ov_alpha, nao - ov_alpha);
   Tensor<T>::deallocate(cholVpr);
 
   auto cc_t1 = std::chrono::high_resolution_clock::now();

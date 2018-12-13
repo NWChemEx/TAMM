@@ -234,7 +234,10 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(ExecutionCo
   const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
   libint2::BasisSet& shells){
 
+    // At most 8*ao CholVec's. For vast majority cases, this is way
+    //   more than enough. For very large basis, it can be increased.
     tamm::Tile max_cvecs = 8*nao;
+    auto diagtol = 1.0e-6; // tolerance for the max. diagonal
 
     auto rank = ec.pg().rank();
     TiledIndexSpace N = MO("all");
@@ -247,7 +250,7 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(ExecutionCo
 
     //std::tie(V2) = 
     Tensor<T> cholVpr = cd_svd(ec, MO, AO_tis, ov_alpha, nao, freeze_core, freeze_virtual,
-                                C_AO, F_AO, d_f1, chol_count, max_cvecs, shells);
+                                C_AO, F_AO, d_f1, chol_count, max_cvecs, diagtol, shells);
     auto hf_t2        = std::chrono::high_resolution_clock::now();
     double cd_svd_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();

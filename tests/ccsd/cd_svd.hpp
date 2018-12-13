@@ -12,7 +12,8 @@ using TensorType = double;
 Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndexSpace& tAOt,
   const TAMM_SIZE ndocc, const TAMM_SIZE nao, const TAMM_SIZE freeze_core,
   const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
-  Tensor<TensorType> F_MO, TAMM_SIZE& chol_count, const tamm::Tile max_cvecs, libint2::BasisSet& shells) {
+  Tensor<TensorType> F_MO, TAMM_SIZE& chol_count, const tamm::Tile max_cvecs, double diagtol,
+  libint2::BasisSet& shells) {
 
     using libint2::Atom;
     using libint2::Shell;
@@ -163,19 +164,26 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
   size_t f1 = 0;
   size_t f2 = 0;
   size_t ind12 = 0;
-  auto diagtol = 1.0e-6; // tolerance for the max. diagonal
-
+  
   Tensor<TensorType> CholVuv_tamm{tCI, tAOt, tAOt};
   Tensor<TensorType>::allocate(&ec, CholVuv_tamm);
 
   TensorType max=0;
   std::vector<size_t> bfuv;
   IndexVector maxblockid;
-  std::tie(max,maxblockid,bfuv) = max_element(ec, DiagInt_tamm());
-  bfu = bfuv[0];
-  bfv = bfuv[1];
+
+  auto citer = 0;
+  auto debug = false;
 
   do {
+
+    auto cd_t1 = std::chrono::high_resolution_clock::now();
+
+    citer++;
+    // Find maximum in DiagInt 
+    std::tie(max,maxblockid,bfuv) = max_element(ec, DiagInt_tamm());
+    bfu = bfuv[0];
+    bfv = bfuv[1];
 
     // Compute all (**|uv)'s for given shells
     s1 = maxblockid[0]; //bf2shell(bfu);
@@ -186,6 +194,8 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
     f1 = bfu - shell2bf[s1];
     f2 = bfv - shell2bf[s2];
     ind12 = f1*n2 + f2;
+
+    auto init_t1 = std::chrono::high_resolution_clock::now();
 
     IndexVector di = {0,s1,s2};
     const tamm::TAMM_SIZE dec = CholVuv_tamm.block_size(di);
@@ -202,6 +212,13 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
   // if(count > 0) CholVuv_tamm.get({bfu,bfv,count},delems);
 
 
+    auto init_t2 = std::chrono::high_resolution_clock::now();
+
+    if(rank==0 && debug) {
+      cout << "time for computing delems = " << 
+      std::chrono::duration_cast<std::chrono::duration<double>>((init_t2 - init_t1)).count() << "secs" << endl;
+    }
+
   auto update_columns = [&](const IndexVector& blockid) {
       auto s3 = blockid[1];
       // auto bf3_first = shell2bf[s3]; // first basis function in this shell
@@ -213,7 +230,17 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
 
         std::vector<TensorType> tbuf(n3*n4*max_cvecs);
         std::vector<TensorType> dibuf(n3*n4);
+
+        auto get_t1 = std::chrono::high_resolution_clock::now();
+
         CholVuv_tamm.get({blockid[0],s3,s4}, tbuf);
+
+         auto get_t2 = std::chrono::high_resolution_clock::now();
+
+        if(rank==0 && debug) {
+          cout << "time for get chol-vuv = " << 
+          std::chrono::duration_cast<std::chrono::duration<double>>((get_t2 - get_t1)).count() << "secs" << endl;
+        }
 
         DiagInt_tamm.get({s3,s4}, dibuf);
 
@@ -221,6 +248,8 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
         const auto *buf_3412 = buf[0];
         if (buf_3412 == nullptr)
           return; // if all integrals screened out, skip to next quartet
+
+        auto loop_t1 = std::chrono::high_resolution_clock::now();
 
         for (size_t f3 = 0; f3 != n3; ++f3) {
           // const auto bf3 = f3 + bf3_first;
@@ -242,38 +271,58 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
             //cout << bf3 << " " << bf4 << " " << bfu << " " << bfv << " " <<  buf_3412[f3412] << "\n" << endl;
           }
         }
+
+        auto loop_t2 = std::chrono::high_resolution_clock::now();
+
+        if(rank==0 && debug) {
+          cout << "loop time = " <<  
+          std::chrono::duration_cast<std::chrono::duration<double>>((loop_t2 - loop_t1)).count() << "secs" << endl;
+        }
+
         DiagInt_tamm.put({s3,s4}, dibuf);
+
+        auto put_t1 = std::chrono::high_resolution_clock::now();
+
         CholVuv_tamm.put({blockid[0],s3,s4}, tbuf);
+
+        auto put_t2 = std::chrono::high_resolution_clock::now();
+
+        if(rank==0 && debug) {
+          cout << "time for put chol-vuv = " << 
+          std::chrono::duration_cast<std::chrono::duration<double>>((put_t2 - put_t1)).count() << "secs" << endl;
+        }
   };
 
   block_for(ec, CholVuv_tamm(), update_columns);
   delems.clear();
   
-    count += 1;
+  count += 1;
 
-    // Find maximum in DiagInt 
-    std::tie(max,maxblockid,bfuv) = max_element(ec, DiagInt_tamm());
-    bfu = bfuv[0];
-    bfv = bfuv[1];
+  auto cd_t2 = std::chrono::high_resolution_clock::now();
+
+  if(rank==0 && debug) {
+    cout << "time for CD iter " << citer << " = " << 
+    std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count() << "secs" << endl;
+    cout << "----------------------------------------------------------\n";
+  }
 
     //cout << "max: (" << bfu << bfv << "|" << bfu << bfv << ") = " << max << " " << sqrt(max) << endl;
     //cout << "shells: " << bf2shell(bfu) << " " << bf2shell(bfv) << endl;
 
-} while (max > diagtol && count <= max_cvecs);  // At most 8*ao CholVec's. For vast majority cases, this is way
-                                              //   more than enough. For very large basis, it can be increased.
+} while (max > diagtol && count <= max_cvecs);  
   Tensor<TensorType>::deallocate(DiagInt_tamm);
 
   chol_count = count;
 
-    hf_t2 = std::chrono::high_resolution_clock::now();
+  hf_t2 = std::chrono::high_resolution_clock::now();
 
-    hf_time =
-      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) {
-      cout << "... End Cholesky Decomposition" << endl;
-      cout << "\nNumber of cholesky vectors = " << chol_count << endl;
-      cout << "Time taken for Cholesky Decomposition: " << hf_time << " secs\n";
-    }
+  hf_time =
+    std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+  if(rank == 0) {
+    cout << "... End Cholesky Decomposition" << endl;
+    cout << "\nNumber of cholesky vectors = " << chol_count << endl;
+    cout << "Time taken for Cholesky Decomposition: " << hf_time << " secs\n";
+  }
 
   #if 0
     // Start SVD

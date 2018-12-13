@@ -58,6 +58,18 @@ public:
         tile_named_subspaces(is);   
     }
 
+    TiledIndexSpace(const IndexSpace& is,
+                    const std::map<IndexVector, std::vector<Tile>>& dep_tile_sizes) :
+      tiled_info_{std::make_shared<TiledIndexSpace::TiledIndexSpaceInfo>(
+        is, dep_tile_sizes)},
+      root_tiled_info_{tiled_info_},
+      parent_tis_{nullptr} {
+        for(const auto& [idx_vec, tile_sizes] : dep_tile_sizes) { EXPECTS(tile_sizes.size() > 0); }
+        compute_hash();
+        // construct tiling for named subspaces
+        // tile_named_subspaces(is);
+    }
+
     /**
      * @brief Construct a new sub TiledIndexSpace object from
      * a sub-space of a reference TiledIndexSpace
@@ -516,6 +528,7 @@ protected:
         Tile input_tile_size_; /**< User-specified tile size*/
         std::vector<Tile>
           input_tile_sizes_;       /**< User-specified multiple tile sizes*/
+        std::map<IndexVector, std::vector<Tile>> dep_tile_sizes_;
         IndexVector tile_offsets_; /**< Tile offsets */
         IndexVector ref_indices_;  /**< Reference indices to root */
         IndexVector simple_vec_;   /**< vector where at(i) = i*/
@@ -569,6 +582,26 @@ protected:
                     ref_indices_.push_back(i);
                 }
             }
+            compute_max_num_tiles();
+            validate();
+        }
+
+        TiledIndexSpaceInfo(IndexSpace is, std::map<IndexVector, std::vector<Tile>> dep_tile_sizes) :
+          is_{is},
+          input_tile_size_{0},
+          input_tile_sizes_{{}},
+          dep_tile_sizes_{dep_tile_sizes} {
+            
+            EXPECTS(is.is_dependent());
+            // construct dependency according to tile size
+            for(const auto& kv : is.map_tiled_index_spaces()) {
+                EXPECTS(dep_tile_sizes.find(kv.first) != dep_tile_sizes.end());
+                
+                tiled_dep_map_.insert(
+                    std::pair<IndexVector, TiledIndexSpace>{
+                    kv.first, TiledIndexSpace{kv.second, dep_tile_sizes[kv.first]}});
+            }
+
             compute_max_num_tiles();
             validate();
         }
@@ -866,6 +899,8 @@ protected:
                     internal::hash_combine(result, is.hash());
                 }
             }
+
+            /// @to-do add dep_tile_sizes stuff
 
             return result;
         }

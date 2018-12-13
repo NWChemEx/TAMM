@@ -45,6 +45,19 @@ void print_tensor(const Tensor<T>& tensor) {
     }
 }
 
+template<typename T>
+void print_tensor_all(Tensor<T> &t){
+    for (auto it: t.loop_nest())
+    {
+        TAMM_SIZE size = t.block_size(it);
+        std::vector<T> buf(size);
+        t.get(it, buf);
+        std::cout << "block" << it;
+        for (TAMM_SIZE i = 0; i < size;i++)
+         std::cout << buf[i] << std::endl;
+    }
+}
+
 /**
  * @brief Get the scalar value from the Tensor
  *
@@ -62,6 +75,7 @@ T get_scalar(Tensor<T>& tensor) {
     tensor.get({}, {&scalar, 1});
     return scalar;
 }
+
 
 /**
  * @brief Update input LabeledTensor object with a lambda function

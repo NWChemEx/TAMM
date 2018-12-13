@@ -165,7 +165,7 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
   size_t ind12 = 0;
   auto diagtol = 1.0e-6; // tolerance for the max. diagonal
 
-  Tensor<TensorType> CholVuv_tamm{tAOt, tAOt, tCI};
+  Tensor<TensorType> CholVuv_tamm{tCI, tAOt, tAOt};
   Tensor<TensorType>::allocate(&ec, CholVuv_tamm);
 
   TensorType max=0;
@@ -187,32 +187,33 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
     f2 = bfv - shell2bf[s2];
     ind12 = f1*n2 + f2;
 
-    IndexVector di = {s1,s2,0};
+    IndexVector di = {0,s1,s2};
     const tamm::TAMM_SIZE dec = CholVuv_tamm.block_size(di);
     std::vector<TensorType> vuvbuf(dec);
     CholVuv_tamm.get(di, vuvbuf);
     auto block_dims_vuv   = CholVuv_tamm.block_dims(di);
 
    std::vector<TensorType> delems(count);
-   auto depos = ind12*block_dims_vuv[2];
+   auto depos = ind12*block_dims_vuv[0];
    for (auto icount = 0U; icount != count; ++icount) 
+      delems[icount] = vuvbuf[(icount*n1+f1)*n2+f2];
      //delems[icount] = CholVuv(bfu,bfv,icount);
-     delems[icount] = vuvbuf[depos+icount];
+    //  delems[icount] = vuvbuf[depos+icount];
   // if(count > 0) CholVuv_tamm.get({bfu,bfv,count},delems);
 
 
   auto update_columns = [&](const IndexVector& blockid) {
-      auto s3 = blockid[0];
+      auto s3 = blockid[1];
       // auto bf3_first = shell2bf[s3]; // first basis function in this shell
       auto n3 = shells[s3].size();
 
-        auto s4 = blockid[1];
+        auto s4 = blockid[2];
         // auto bf4_first = shell2bf[s4];
         auto n4 = shells[s4].size();
 
         std::vector<TensorType> tbuf(n3*n4*max_cvecs);
         std::vector<TensorType> dibuf(n3*n4);
-        CholVuv_tamm.get({s3,s4,blockid[2]}, tbuf);
+        CholVuv_tamm.get({blockid[0],s3,s4}, tbuf);
 
         DiagInt_tamm.get({s3,s4}, dibuf);
 
@@ -230,18 +231,19 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
             auto x = buf_3412[f3412];
             for (auto icount = 0U; icount != count; ++icount) {
               // x -= CholVuv(bf3,bf4,icount)*delems[icount];
-              x -= tbuf[(f3*n4+f4)*max_cvecs+icount]*delems[icount];
+              //x -= tbuf[(f3*n4+f4)+icount]*delems[icount];
+              x -= tbuf[(icount*n3+f3)*n4+f4]*delems[icount];
             }
             // CholVuv(bf3, bf4, count) = x/sqrt(max);
             auto vtmp = x/sqrt(max);
             dibuf[f3*n4+f4] -=  vtmp*vtmp;
-            tbuf[(f3*n4+f4)*max_cvecs+count] = vtmp;
+            tbuf[(count*n3+f3)*n4+f4] = vtmp;
 
             //cout << bf3 << " " << bf4 << " " << bfu << " " << bfv << " " <<  buf_3412[f3412] << "\n" << endl;
           }
         }
         DiagInt_tamm.put({s3,s4}, dibuf);
-        CholVuv_tamm.put({s3,s4,blockid[2]}, tbuf);
+        CholVuv_tamm.put({blockid[0],s3,s4}, tbuf);
   };
 
   block_for(ec, CholVuv_tamm(), update_columns);
@@ -257,7 +259,7 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
     //cout << "max: (" << bfu << bfv << "|" << bfu << bfv << ") = " << max << " " << sqrt(max) << endl;
     //cout << "shells: " << bf2shell(bfu) << " " << bf2shell(bfv) << endl;
 
-} while (max > diagtol && count <= max_cvecs); // At most 8*ao CholVec's. For vast majority cases, this is way
+} while (max > diagtol && count <= max_cvecs);  // At most 8*ao CholVec's. For vast majority cases, this is way
                                               //   more than enough. For very large basis, it can be increased.
   Tensor<TensorType>::deallocate(DiagInt_tamm);
 
@@ -295,20 +297,63 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
     //End SVD
   #endif
 
+  IndexSpace CIp{range(0, count)};
+  TiledIndexSpace tCIp{CIp, count};
+  auto [cindexp] = tCIp.labels<1>("all");
+
+  Tensor<TensorType> CholVuv_opt{tCIp, tAOt, tAOt};
+  Tensor<TensorType>::allocate(&ec, CholVuv_opt);
+
+    auto lambdacv = [&](const IndexVector& bid){
+
+          Tensor<TensorType> tensor = CholVuv_opt;
+          const IndexVector blockid =
+          internal::translate_blockid(bid, tensor());
+
+          auto block_dims   = tensor.block_dims(blockid);
+          auto block_offset = tensor.block_offsets(blockid);
+
+          const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+          std::vector<TensorType> dbuf(dsize);
+
+          IndexVector cvpriv = {0,blockid[1],blockid[2]};
+          const tamm::TAMM_SIZE ssize = CholVuv_tamm.block_size(cvpriv);
+          std::vector<TensorType> sbuf(ssize);
+
+          CholVuv_tamm.get(cvpriv, sbuf);
+              
+          TAMM_SIZE c = 0;
+          for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
+              i++) {
+              for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];j++) {
+                for(auto k = block_offset[2]; k < block_offset[2] + block_dims[2];k++,c++) {
+              dbuf[c] = sbuf[c];
+              }
+          }
+          tensor.put(blockid, dbuf);
+              }
+    };
+
+    block_for(ec, CholVuv_opt(), lambdacv);
+
+
+  Tensor<TensorType>::deallocate(CholVuv_tamm);
+
   hf_t1 = std::chrono::high_resolution_clock::now();
- 
-  Tensor<TensorType> CholVpv_tamm{tMO,tAOt,tCI};
+
+  Tensor<TensorType> CholVpv_tamm{tCIp,tMO,tAOt};
   Tensor<TensorType>::allocate(&ec, CholVpv_tamm);
 
+  //CD: CholVpv(p, fv, icount) += CTiled(fu, p) * CholVuv(fu, fv, icount);
   Scheduler{ec}
-  (CholVpv_tamm(pmo,mup,cindex) += CTiled_tamm(nup, pmo) * CholVuv_tamm(nup, mup, cindex)).execute();
+  (CholVpv_tamm(cindexp,pmo,mup) = CTiled_tamm(nup, pmo) * CholVuv_opt(cindexp, nup, mup)).execute();
   
   hf_t2 = std::chrono::high_resolution_clock::now();
   hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
   if(rank == 0) std::cout << "\nTime taken for computing CholVpv: " << hf_time << " secs\n";
 
-  Tensor<TensorType>::deallocate(CholVuv_tamm);
+  Tensor<TensorType>::deallocate(CholVuv_opt);
   
     // From evs to Vpsigma
     // for (auto p = 0U; p < v2dim; p++) {
@@ -324,10 +369,10 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
 
   hf_t1 = std::chrono::high_resolution_clock::now();
 
-  Tensor<TensorType> CholVpr_tamm{{tMO,tMO,tCI},{1,1}};
+  Tensor<TensorType> CholVpr_tamm{{tCIp,tMO,tMO},{SpinPosition::ignore,SpinPosition::upper,SpinPosition::lower}};
   Tensor<TensorType>::allocate(&ec, CholVpr_tamm);
   Scheduler{ec}
-  (CholVpr_tamm(pmo,rmo,cindex) += CTiled_tamm(mup, rmo) * CholVpv_tamm(pmo, mup, cindex)).execute();
+  (CholVpr_tamm(cindexp,pmo,rmo) += CTiled_tamm(mup, rmo) * CholVpv_tamm(cindexp, pmo, mup)).execute();
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =

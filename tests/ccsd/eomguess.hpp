@@ -7,34 +7,6 @@
 using namespace tamm;
 
 template<typename T>
-void print_tensor(Tensor<T> &t){
-    for (auto it: t.loop_nest())
-    {
-        TAMM_SIZE size = t.block_size(it);
-        std::vector<T> buf(size);
-        t.get(it, buf);
-        std::cout << "block" << it;
-        for (TAMM_SIZE i = 0; i < size;i++)
-      if (buf[i]>0.0000000000001||buf[i]<-0.0000000000001) {
-         std::cout << buf[i] << endl;
-      }
-    }
-}
-
-template<typename T>
-void print_tensor_all(Tensor<T> &t){
-    for (auto it: t.loop_nest())
-    {
-        TAMM_SIZE size = t.block_size(it);
-        std::vector<T> buf(size);
-        t.get(it, buf);
-        std::cout << "block" << it;
-        for (TAMM_SIZE i = 0; i < size;i++)
-         std::cout << buf[i] << endl;
-    }
-}
-
-template<typename T>
 void eom_guess(int& nroots, const TAMM_SIZE& noab, std::vector<T>& p_evl_sorted, std::vector<Tensor<T>>& x1){
 
 std::vector<T> minlist(nroots);

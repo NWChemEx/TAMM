@@ -81,7 +81,7 @@ public:
      * @param [in] t_spaces
      * @param [in] spin_mask
      */
-    TensorImpl(TiledIndexSpaceVec t_spaces, SpinMask spin_mask) :
+    TensorImpl(TiledIndexSpaceVec t_spaces, SpinMask spin_mask, SpinType spin_type) :
       TensorBase(t_spaces) {
         EXPECTS(t_spaces.size() == spin_mask.size());
 
@@ -89,6 +89,7 @@ public:
 
         spin_mask_         = spin_mask;
         has_spin_symmetry_ = true;
+        spin_type_         = spin_type;
         // spin_total_        = calculate_spin();
     }
 
@@ -99,7 +100,7 @@ public:
      * @param [in] t_labels
      * @param [in] spin_mask
      */
-    TensorImpl(IndexLabelVec t_labels, SpinMask spin_mask) :
+    TensorImpl(IndexLabelVec t_labels, SpinMask spin_mask, SpinType spin_type) :
       TensorBase(t_labels) {
         EXPECTS(t_labels.size() == spin_mask.size());
         // for(const auto& tlbl : t_labels) {
@@ -107,6 +108,7 @@ public:
         // }
         spin_mask_         = spin_mask;
         has_spin_symmetry_ = true;
+        spin_type_         = spin_type;
         // spin_total_        = calculate_spin();
     }
 
@@ -117,11 +119,12 @@ public:
      * @param [in] t_spaces
      * @param [in] spin_mask
      */
-    TensorImpl(TiledIndexSpaceVec t_spaces, std::vector<size_t> spin_sizes) :
+    TensorImpl(TiledIndexSpaceVec t_spaces, std::vector<size_t> spin_sizes, SpinType spin_type) :
       TensorBase(t_spaces) {
         // EXPECTS(t_spaces.size() == spin_mask.size());
         EXPECTS(spin_sizes.size() > 0);
         // for(const auto& tis : t_spaces) { EXPECTS(tis.has_spin()); }
+        
         SpinMask spin_mask;
         size_t upper = spin_sizes[0];
         size_t lower =
@@ -144,6 +147,7 @@ public:
 
         spin_mask_         = spin_mask;
         has_spin_symmetry_ = true;
+        spin_type_         = spin_type;
         // spin_total_        = calculate_spin();
     }
 
@@ -154,7 +158,7 @@ public:
      * @param [in] t_labels
      * @param [in] spin_mask
      */
-    TensorImpl(IndexLabelVec t_labels, std::vector<size_t> spin_sizes) :
+    TensorImpl(IndexLabelVec t_labels, std::vector<size_t> spin_sizes, SpinType spin_type) :
       TensorBase(t_labels) {
         // EXPECTS(t_labels.size() == spin_mask.size());
         EXPECTS(spin_sizes.size() > 0);
@@ -184,6 +188,7 @@ public:
 
         spin_mask_         = spin_mask;
         has_spin_symmetry_ = true;
+        spin_type_         = spin_type;
         // spin_total_        = calculate_spin();
     }
 

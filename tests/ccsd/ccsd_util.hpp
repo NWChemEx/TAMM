@@ -379,7 +379,9 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> cholVpr, 
 
     auto [p,q,r,s] = MO.labels<4>("all");
 
-    Tensor<T> d_a2{N,N,N,N}; //Spin here requires spin(p)=spin(q) and spin(r)=spin(s) which is not supported by TAMM currently
+    //Spin here requires spin(p)=spin(q) and spin(r)=spin(s)
+    Tensor<T> d_a2{{N,N,N,N},{2,2},tamm::SpinType::ao_spin};
+    //For V2, spin(p)+spin(q) == spin(r)+spin(s)
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
     Tensor<T>::allocate(&ec,d_a2,d_v2);
 

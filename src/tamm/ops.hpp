@@ -766,7 +766,137 @@ public:
 
     void execute(ExecutionContext& ec) override {
 
+#if 0
+        using TensorElType = typename LabeledTensorT::element_type;
 
+        auto ltensor = lhs_.tensor();
+        auto rtensor = rhs_.tensor();
+
+        assert(lhs_labels().size() == rhs_.labels().size());
+
+        LabelLoopNest lhs_loop_nest{lhs_.labels()};
+        LabelLoopNest rhs_loop_nest{rhs_.labels()};
+
+        auto rhs_first = rhs_loop_nest.begin();
+        auto rhs_last = rhs_loop_nest.end();
+
+        for(; rhs_first!= rhs_last; ++rhs_first) {
+            auto rblockid =  *rhs_first;
+            const auto translated_rblockid = internal::translate_blockid(rblockid, rhs_);
+
+            if(!rtensor.is_non_zero(translated_rblockid))
+                continue;
+
+            auto lhs_first = lhs_loop_nest.begin();
+            auto lhs_last = lhs_loop_nest.end();
+
+            for(; lhs_first!= lhs_last; ++lhs_first) {
+                auto lblockid =  *lhs_first;
+                const auto translated_lblockid = internal::translate_blockid(lblockid, lhs_);
+
+                if(!ltensor.is_non_zero(translated_lblockid))
+                    continue;
+
+                const size_t size = ltensor.block_size(translated_lblockid);
+                std::vector<TensorElType> rbuf(size);
+                std::vector<TensorElType> lbuf(size);
+                rtensor.get(translated_rblockid, rbuf);
+                const auto& ldims = lhs_.tensor().block_dims(translated_lblockid);
+                const auto& rdims = rhs_.tensor().block_dims(translated_rblockid);
+
+                SizeVec ldims_sz, rdims_sz;
+                for(const auto v : ldims) { ldims_sz.push_back(v); }
+                for(const auto v : rdims) { rdims_sz.push_back(v); }
+                kernels::assign(&lbuf[0], ldims_sz, lhs_int_labels_, alpha_,
+                        &rbuf[0], rdims_sz, rhs_int_labels_, is_assign_);
+                if(is_assign_)
+                    ltensor.put(translated_lblockid, lbuf);
+                else
+                    ltensor.add(translated_lblockid, lbuf);
+            }
+        }
+#endif
+
+#if 0
+        using TensorElType = typename LabeledTensorT::element_type;
+
+        auto ltensor = lhs_.tensor();
+        auto rtensor = rhs_.tensor();
+
+        assert(lhs_labels().size() == rhs_.labels().size());
+
+        LabelLoopNest lhs_loop_nest{lhs_.labels()};
+        LabelLoopNest rhs_loop_nest{rhs_.labels()};
+
+        //Verify: block_size of each block of a tensor is constant
+        //Verify: block_dimension of each block of a tensor is constant
+        size_t size;
+        SizeVec ldims_sz, rdims_sz;
+
+        {
+            auto lhs_first = lhs_loop_nest.begin();
+            auto lhs_last = lhs_loop_nest.end();
+
+            for(; lhs_first!= lhs_last; ++lhs_first) {
+                auto lblockid =  *lhs_first;
+                const auto translated_lblockid = internal::translate_blockid(lblockid, lhs_);
+                if(ltensor.is_non_zero(translated_lblockid))
+                {
+                    size = ltensor.block_size(translated_lblockid);
+                    const auto& ldims = lhs_.tensor().block_dims(translated_lblockid);
+                    for(const auto v : ldims) { ldims_sz.push_back(v); }
+
+                    break;
+                }
+            }
+            auto rhs_first = rhs_loop_nest.begin();
+            auto rhs_last = rhs_loop_nest.end();
+
+            for(; rhs_first!= rhs_last; ++rhs_first) {
+                auto rblockid =  *rhs_first;
+                const auto translated_rblockid = internal::translate_blockid(rblockid, rhs_);
+
+                if(rtensor.is_non_zero(translated_rblockid))
+                {
+                    const auto& rdims = rhs_.tensor().block_dims(translated_rblockid);
+                    for(const auto v : rdims) { rdims_sz.push_back(v); }
+                    break;
+                }
+            }
+        }
+        auto rhs_first = rhs_loop_nest.begin();
+        auto rhs_last = rhs_loop_nest.end();
+
+        for(; rhs_first!= rhs_last; ++rhs_first) {
+            auto rblockid =  *rhs_first;
+            const auto translated_rblockid = internal::translate_blockid(rblockid, rhs_);
+
+            if(!rtensor.is_non_zero(translated_rblockid))
+                continue;
+            std::vector<TensorElType> rbuf(size);
+            std::vector<TensorElType> lbuf(size);
+            rtensor.get(translated_rblockid, rbuf);
+            kernels::assign(&lbuf[0], ldims_sz, lhs_int_labels_, alpha_,
+                        &rbuf[0], rdims_sz, rhs_int_labels_, is_assign_);
+       
+            auto lhs_first = lhs_loop_nest.begin();
+            auto lhs_last = lhs_loop_nest.end();
+
+            for(; lhs_first!= lhs_last; ++lhs_first) {
+                auto lblockid =  *lhs_first;
+                const auto translated_lblockid = internal::translate_blockid(lblockid, lhs_);
+
+                if(!ltensor.is_non_zero(translated_lblockid))
+                    continue;
+
+                if(is_assign_)
+                    ltensor.put(translated_lblockid, lbuf);
+                else
+                    ltensor.add(translated_lblockid, lbuf);
+            }
+        }
+
+#endif
         
         #if 0
          ec.re()->submitTask(

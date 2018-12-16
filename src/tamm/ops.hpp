@@ -929,10 +929,9 @@ public:
             if(is_assign_) {
 
                 rc.submitTask([=](RuntimeContext& rc_recursive){
-                BlockBuffer lbf = rc_recursive.get_org_buffer(tensor, translated_lblockid);
-                BlockBuffer rbf = rc_recursive.get_org_buffer(tensor, translated_rblockid);
-
-                //TODO: Need more understanding
+                BlockBuffer lbf = rc_recursive.get_tmp_buffer(tensor, translated_lblockid);
+                //TODO: Verify : size of rbuf would depend on lhs_ or rhs_ tensor
+                BlockBuffer rbf = rc_recursive.get_buffer(tensor, translated_rblockid);
 
                 const auto& ldims = lhs_.tensor().block_dims(translated_lblockid);
                 const auto& rdims = rhs_.tensor().block_dims(translated_rblockid);
@@ -943,14 +942,56 @@ public:
                 kernels::assign(&lbf[0], ldims_sz, lhs_int_labels_, alpha_,
                                 &rbf[0], rdims_sz, rhs_int_labels_, is_assign_);
                 lbf.put();
+                //TODO: Future Plan (Write back not through): remove explicit release statement 
                 rbf.release();
-                }, WriteAccess(IndexedTensor{tensor, translated_lblockid}), 
+                }, TempAccess(IndexedTensor{tensor, translated_lblockid}), 
                    ReadAccess(IndexedTensor{tensor, translated_rblockid})); 
             }
             else
             {
-                //TODO: Need understanding of this implementation
+                rc.submitTask([=](RuntimeContext& rc_recursive){
+                BlockBuffer lbf = rc_recursive.get_tmp_buffer(tensor, translated_lblockid);
+                //TODO: Verify : size of rbuf would depend on lhs_ or rhs_ tensor
+                BlockBuffer rbf = rc_recursive.get_buffer(tensor, translated_rblockid);
 
+                const auto& ldims = lhs_.tensor().block_dims(translated_lblockid);
+                const auto& rdims = rhs_.tensor().block_dims(translated_rblockid);
+
+                SizeVec ldims_sz, rdims_sz;
+                for(const auto v : ldims) { ldims_sz.push_back(v); }
+                for(const auto v : rdims) { rdims_sz.push_back(v); }
+                kernels::assign(&lbf[0], ldims_sz, lhs_int_labels_, alpha_,
+                                &rbf[0], rdims_sz, rhs_int_labels_, is_assign_);
+                lbf.acc();
+                //TODO: Future Plan (Write back not through): remove explicit release statement 
+                rbf.release();
+                }, TempAccess(IndexedTensor{tensor, translated_lblockid}), 
+                   ReadAccess(IndexedTensor{tensor, translated_rblockid})); 
+                
+                //TODO: future syntax
+                /*******
+                 rc.submitTask([=](RuntimeContext& rc_recursive){
+                BlockBuffer lbf = rc_recursive.get_tmp_buffer(tensor, translated_lblockid);
+                BlockBuffer rbf = rc_recursive.get_buffer(tensor, translated_rblockid);
+
+                const auto& ldims = lhs_.tensor().block_dims(translated_lblockid);
+                const auto& rdims = rhs_.tensor().block_dims(translated_rblockid);
+
+                SizeVec ldims_sz, rdims_sz;
+                for(const auto v : ldims) { ldims_sz.push_back(v); }
+                for(const auto v : rdims) { rdims_sz.push_back(v); }
+                kernels::assign(&lbf[0], ldims_sz, lhs_int_labels_, alpha_,
+                                &rbf[0], rdims_sz, rhs_int_labels_, is_assign_);
+
+                BlockBuffer lbf_accum = rc_recursive.get_buffer(tensor, translated_lblockid);
+                lbf_accum += lbf;
+
+                }, AccumAccess(IndexedTensor{tensor, translated_lblockid}), 
+                   TempAccess(IndexedTensor{tensor, translated_lblockid}), 
+                   ReadAccess(IndexedTensor{tensor, translated_rblockid})); 
+                  
+                *******/
+           
             }
          
         }, WritePermission{lhs_}, ReadPermission{rhs_});

@@ -577,6 +577,38 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
 
     if(GA_Nodeid()==0) cout << "\nNumber of basis functions: " << N << endl;
 
+    tamm::Tile tile_size = 30; 
+    
+    IndexSpace AO{range(0, N)};
+    std::vector<unsigned int> AO_tiles;
+    for(auto s : shells) AO_tiles.push_back(s.size());
+    if(rank==0) 
+      cout << "Number of AO tiles = " << AO_tiles.size() << endl;
+
+    tamm::Tile est_ts = 0;
+    std::vector<tamm::Tile> AO_opttiles;
+    std::vector<size_t> shell_tile_map;
+    for(auto s=0U;s<shells.size();s++){
+      est_ts += shells[s].size();
+      if(est_ts>=30) {
+        AO_opttiles.push_back(est_ts);
+        shell_tile_map.push_back(s); //shell id specifying tile boundary
+        est_ts=0;
+      }
+    }
+    if(est_ts>0){
+      AO_opttiles.push_back(est_ts);
+      shell_tile_map.push_back(shells.size()-1);
+    }
+
+    // std::vector<int> vtc(AO_tiles.size());
+    // std::iota (std::begin(vtc), std::end(vtc), 0);
+    // cout << "AO tile indexes = " << vtc;
+    // cout << "orig AO tiles = " << AO_tiles;
+    
+    // cout << "print new opt AO tiles = " << AO_opttiles;
+    // cout << "print shell-tile map = " << shell_tile_map;
+
     /*** =========================== ***/
     /*** compute 1-e integrals       ***/
     /*** =========================== ***/
@@ -587,69 +619,111 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
     Tensor<TensorType> tensor1e;
     auto compute_1body_ints = [&](const IndexVector& blockid) {
 
-        auto s1 = blockid[0];
+        auto bi0 = blockid[0];
+        auto bi1 = blockid[1];
+
+        const TAMM_SIZE size = tensor1e.block_size(blockid);
+        auto block_dims   = tensor1e.block_dims(blockid);
+        std::vector<TensorType> dbuf(size);
+
+        auto bd1 = block_dims[1];
+
+        // cout << "blockid: [" << blockid[0] <<"," << blockid[1] << "], dims(0,1) = " <<
+        //  block_dims[0] << ", " << block_dims[1] << endl;
+
+        // auto s1 = blockid[0];
+        auto s1range_start = 0l;
+        auto s1range_end = shell_tile_map[bi0];
+        if (bi0>0) s1range_start = shell_tile_map[bi0-1]+1;
+        
+        // cout << "s1-start,end = " << s1range_start << ", " << s1range_end << endl; 
+        for (auto s1 = s1range_start; s1 <= s1range_end; ++s1) {
         // auto bf1 = shell2bf[s1]; //shell2bf[s1]; // first basis function in
         // this shell
-        auto n1 = shells[s1].size();
+          auto n1 = shells[s1].size();
 
-        // for (size_t s2 = 0; s2 <= s1; ++s2) {
-        auto s2 = blockid[1];
-        if (s2>s1) return;
+        auto s2range_start = 0l;
+        auto s2range_end = shell_tile_map[bi1];
+        if (bi1>0) s2range_start = shell_tile_map[bi1-1]+1;
 
-        auto s2spl = obs_shellpair_list[s1];
-        if(std::find(s2spl.begin(),s2spl.end(),s2) == s2spl.end()) return;
+        // cout << "s2-start,end = " << s2range_start << ", " << s2range_end << endl; 
 
-        // auto bf2 = shell2bf[s2];
-        auto n2 = shells[s2].size();
+          // cout << "screend shell pair list = " << s2spl << endl;
+          for (size_t s2 = s2range_start; s2 <= s2range_end; ++s2) {
+          // for (auto s2: obs_shellpair_list[s1]) {
+          // auto s2 = blockid[1];
+          // if (s2>s1) continue;
+          
+          if(s2>s1){
+            auto s2spl = obs_shellpair_list[s2];
+            if(std::find(s2spl.begin(),s2spl.end(),s1) == s2spl.end()) continue;
+          }
+          else{
+            auto s2spl = obs_shellpair_list[s1];
+            if(std::find(s2spl.begin(),s2spl.end(),s2) == s2spl.end()) continue;
+          }
 
-        std::vector<TensorType> tbuf(n1*n2);
+          // auto bf2 = shell2bf[s2];
+          auto n2 = shells[s2].size();
 
-        // compute shell pair; return is the pointer to the buffer
-        engine.compute(shells[s1], shells[s2]);
-        // "map" buffer to a const Eigen Matrix, and copy it to the
-        // corresponding blocks of the result
-        Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
-        // result.block(bf1, bf2, n1, n2) = buf_mat;
-        // for(size_t i = 0; i < n1; i++)
-        //     for(size_t j = 0; j < n2; j++) tbuf[i * n2 + j] = buf_mat(i, j);
-        //std::memcpy(tbuf.data(),buf, sizeof(TensorType)*n1*n2);
-        Eigen::Map<Matrix>(tbuf.data(),n1,n2) = buf_mat;
+          std::vector<TensorType> tbuf(n1*n2);
+          // cout << "s1,s2,n1,n2 = "  << s1 << "," << s2 << 
+          //       "," << n1 <<"," << n2 <<endl;
 
-        tensor1e.put(blockid, tbuf);
+          // compute shell pair; return is the pointer to the buffer
+          engine.compute(shells[s1], shells[s2]);
+          // "map" buffer to a const Eigen Matrix, and copy it to the
+          // corresponding blocks of the result
+          Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
+          Eigen::Map<Matrix>(tbuf.data(),n1,n2) = buf_mat;
+          // tensor1e.put(blockid, tbuf);
 
-        if(s1!=s2){
-            std::vector<TensorType> ttbuf(n1*n2);
-            Eigen::Map<Matrix>(ttbuf.data(),n2,n1) = buf_mat.transpose();
-            tensor1e.put({s2,s1}, ttbuf);
+          auto curshelloffset_i = 0U;
+          auto curshelloffset_j = 0U;
+          for(auto x=s1range_start;x<s1;x++) curshelloffset_i += AO_tiles[x];
+          for(auto x=s2range_start;x<s2;x++) curshelloffset_j += AO_tiles[x];
+
+          size_t c = 0;
+          auto dimi =  curshelloffset_i + AO_tiles[s1];
+          auto dimj =  curshelloffset_j + AO_tiles[s2];
+
+          // cout << "curshelloffset_i,curshelloffset_j,dimi,dimj = "  << curshelloffset_i << "," << curshelloffset_j << 
+          //       "," << dimi <<"," << dimj <<endl;
+
+          for(size_t i = curshelloffset_i; i < dimi; i++) {
+          for(size_t j = curshelloffset_j; j < dimj; j++, c++) {
+                  dbuf[i*bd1+j] = tbuf[c];
+                }
+          }
+
+          // if(s1!=s2){
+          //     std::vector<TensorType> ttbuf(n1*n2);
+          //     Eigen::Map<Matrix>(ttbuf.data(),n2,n1) = buf_mat.transpose();
+          //     // Matrix buf_mat_trans = buf_mat.transpose();
+          //     size_t c = 0;
+          //     for(size_t j = curshelloffset_j; j < dimj; j++) {
+          //       for(size_t i = curshelloffset_i; i < dimi; i++, c++) {
+          //             dbuf[j*block_dims[0]+i] = ttbuf[c];
+          //       }
+          //     }
+          // }
+              // tensor1e.put({s2,s1}, ttbuf);
+          }
         }
+        tensor1e.put(blockid,dbuf);
     };
-    
 
-    
-
-    IndexSpace AO{range(0, N)};
-    std::vector<unsigned int> AO_tiles;
-    for(auto s : shells) AO_tiles.push_back(s.size());
-    if(rank==0) cout << "Number of AO tiles = " << AO_tiles.size() << endl;
-
-    tamm::Tile tile_size = 6; 
-    if(N>=30) tile_size = 30;
-    TiledIndexSpace tAO{AO, tile_size};
+    TiledIndexSpace tAO{AO, AO_opttiles};
     TiledIndexSpace tAOt{AO, AO_tiles};
     auto [mu, nu, ku] = tAO.labels<3>("all");
     auto [mup, nup, kup] = tAOt.labels<3>("all");
 
-    // Tensor<TensorType> SL1{{tAO, tAO}, compute_1body_ints};
-    // Tensor<TensorType> T1{{tAO, tAO}, compute_1body_ints};
-    // Tensor<TensorType> V1{{tAO, tAO}, compute_1body_ints};
-
     Tensor<TensorType> H1{tAO, tAO};
 
-    Tensor<TensorType> H1P{tAOt, tAOt};
-    Tensor<TensorType> S1{tAOt, tAOt};
-    Tensor<TensorType> T1{tAOt, tAOt};
-    Tensor<TensorType> V1{tAOt, tAOt};
-    Tensor<TensorType>::allocate(ec, H1, H1P, S1, T1, V1);
+    Tensor<TensorType> S1{tAO, tAO};
+    Tensor<TensorType> T1{tAO, tAO};
+    Tensor<TensorType> V1{tAO, tAO};
+    Tensor<TensorType>::allocate(ec, H1, S1, T1, V1);
 
     Matrix H, S; 
     H.setZero(N, N);
@@ -677,7 +751,6 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
     
     tensor1e = T1;
     block_for(*ec, T1(), compute_1body_ints);
-    Scheduler{*ec}(H1P(mup, nup) = T1(mup, nup)).execute();
 
     engine.set(Operator::nuclear);
     std::vector<std::pair<double, std::array<double, 3>>> q;
@@ -698,8 +771,8 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
     hf_t1 = std::chrono::high_resolution_clock::now();
     // Core Hamiltonian = T + V
     Scheduler{*ec}
-      (H1P(mup, nup) = T1(mup, nup))
-      (H1P(mup, nup) += V1(mup, nup)).execute();
+      (H1(mu, nu) = T1(mu, nu))
+      (H1(mu, nu) += V1(mu, nu)).execute();
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
@@ -711,7 +784,7 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
     //TODO: These copies are expensive since we are reshaping blocks of H1P to get H1
     //copy H1P to H using rank 0 and broadcast to get better performance
     if(rank == 0)
-      tamm_to_eigen_tensor(H1P, H);
+      tamm_to_eigen_tensor(H1, H);
     GA_Sync();
     std::vector<TensorType> Hbufv(N*N);
     TensorType *Hbuf = Hbufv.data();
@@ -724,7 +797,7 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
    
-    if(rank == 0) std::cout << "\nTime for tamm to eigen - H1P-H: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime for tamm to eigen - H1-H: " << hf_time << " secs\n";
 
     hf_t1 = std::chrono::high_resolution_clock::now();
     // tamm_to_eigen_tensor(S1, S);
@@ -743,14 +816,9 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
     GA_Sync();
     if(rank == 0) std::cout << "\nTime for tamm to eigen - S1-S: " << hf_time << " secs\n";
 
-    hf_t1 = std::chrono::high_resolution_clock::now();
-    eigen_to_tamm_tensor(H1, H);
-    hf_t2 = std::chrono::high_resolution_clock::now();
-    hf_time =
-      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime for eigen to tamm - H-H1: " << hf_time << " secs\n";
+    // eigen_to_tamm_tensor(H1, H);
 
-    Tensor<TensorType>::deallocate(H1P, S1, T1, V1);
+    Tensor<TensorType>::deallocate(S1, T1, V1);
 
     /*** =========================== ***/
     /*** build initial-guess density ***/
@@ -833,15 +901,17 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
     if(rank == 0) std::cout << 
     "\nProjecting minimal basis SOAD onto basis set specified (" << basis << ")\n";
     
+    auto ig1 = std::chrono::high_resolution_clock::now();
+
     auto Ft = H;
 
-    Ft += compute_2body_fock_general(
-        shells, D_minbs, minbs, true /* SOAD_D_is_shelldiagonal */,
-        std::numeric_limits<double>::epsilon()  // this is cheap, no reason
-                                                // to be cheaper
-        );
+    // Ft += compute_2body_fock_general(
+    //     shells, D_minbs, minbs, true /* SOAD_D_is_shelldiagonal */,
+    //     std::numeric_limits<double>::epsilon()  // this is cheap, no reason
+    //                                             // to be cheaper
+    //     );
 
-#if 0
+#if 1
   double precision = std::numeric_limits<double>::epsilon();
   bool D_is_shelldiagonal = true;
   const libint2::BasisSet& obs = shells;
@@ -960,18 +1030,43 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
       G = Gt;
     };
 
-    Scheduler{*ec}(F1tmp1() = 0).execute();
-
     block_for(*ec, F1tmp(), compute_2body_fock_general_lambda);
+    auto ig2 = std::chrono::high_resolution_clock::now();
+    auto igtime =
+      std::chrono::duration_cast<std::chrono::duration<double>>((ig2 - ig1)).count();
+
+    if(rank == 0) std::cout << "\nInitial guess: Time to compute guess: " << igtime << " secs\n";
+
+    ig1 = std::chrono::high_resolution_clock::now();
+
+    Scheduler{*ec}(F1tmp1() = 0).execute();
     eigen_to_tamm_tensor_acc(F1tmp1,G);
     GA_Sync();
-    tamm_to_eigen_tensor(F1tmp1,G);
-    Ft += G;
+
+    if(rank == 0){
+      tamm_to_eigen_tensor(F1tmp1,G);
+      Ft += G;
+    }
     G.resize(0,0);
+    GA_Sync();
+    std::vector<TensorType> Fbufv(N*N);
+    TensorType *Fbuf = Fbufv.data();
+    Eigen::Map<Matrix>(Fbuf,N,N) = Ft;  
+    GA_Brdcst(Fbuf,N*N*sizeof(TensorType),0);
+    Ft = Eigen::Map<Matrix>(Fbuf,N,N);
+    Fbufv.clear();
     Tensor<TensorType>::deallocate(F1tmp1);
+
+    ig2 = std::chrono::high_resolution_clock::now();
+    igtime =
+      std::chrono::duration_cast<std::chrono::duration<double>>((ig2 - ig1)).count();
+    if(rank == 0) std::cout << "Initial guess: time to compute, broadcast Ft: " << igtime << " secs\n";
+
 #endif
 
     D_minbs.resize(0,0);
+
+    ig1 = std::chrono::high_resolution_clock::now();
     // Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(Ft, S);
     // auto eps = gen_eig_solver.eigenvalues();
     // C = gen_eig_solver.eigenvectors();
@@ -986,6 +1081,12 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
     auto C_occ = C.leftCols(ndocc);
     D = C_occ * C_occ.transpose();
 
+    ig2 = std::chrono::high_resolution_clock::now();
+    igtime =
+      std::chrono::duration_cast<std::chrono::duration<double>>((ig2 - ig1)).count();
+
+    if(rank == 0) std::cout << "Initial guess: Time to compute density: " << igtime << " secs\n";
+
   }
 
     H.resize(0,0);
@@ -994,7 +1095,7 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
     GA_Sync();
-    if(rank == 0) std::cout << "\nTime to compute initial guess: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "Total Time to compute initial guess: " << hf_time << " secs\n";
 
 
     hf_t1 = std::chrono::high_resolution_clock::now();
@@ -1030,8 +1131,9 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
     Tensor<TensorType> Sm12_tamm{tAO, tAO}; 
     Tensor<TensorType> Sp12_tamm{tAO, tAO};
     Tensor<TensorType> D_tamm{tAO, tAO};
+    Tensor<TensorType> D_diff{tAO, tAO};
     Tensor<TensorType> D_last_tamm{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, Sm12_tamm, Sp12_tamm, D_tamm, D_last_tamm);
+    Tensor<TensorType>::allocate(ec, Sm12_tamm, Sp12_tamm, D_tamm, D_diff, D_last_tamm);
 
     // FSm12,Sp12D,SpFS
     Tensor<TensorType> FSm12_tamm{tAO, tAO}; 
@@ -1092,6 +1194,9 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
     auto shell2bf = obs.shell2bf();
     // const auto nshells = obs.size();
 
+    Scheduler{*ec}
+        (D_diff(mu,nu) = D_tamm(mu,nu)).execute();
+
     do {
         // Scheduler sch{ec};
         const auto loop_start = std::chrono::high_resolution_clock::now();
@@ -1099,7 +1204,7 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
 
         // Save a copy of the energy and the density
         auto ehf_last = ehf;
-        auto D_last   = D;
+        // auto D_last   = D;
 
         Scheduler{*ec}
            (F1tmp1() = 0)
@@ -1303,9 +1408,9 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
 
         hf_t1 = std::chrono::high_resolution_clock::now();
         
-        Scheduler{*ec}(FSm12_tamm() = 0)(FSm12_tamm(mu,nu) += F1(mu,ku) * Sm12_tamm(ku,nu))
-        (Sp12D_tamm() = 0)(Sp12D_tamm(mu,nu) += Sp12_tamm(mu,ku) * D_last_tamm(ku,nu))
-        (SpFS_tamm() = 0)(SpFS_tamm(mu,nu)  += Sp12D_tamm(mu,ku) * FSm12_tamm(ku,nu))
+        Scheduler{*ec}(FSm12_tamm(mu,nu) = F1(mu,ku) * Sm12_tamm(ku,nu))
+        (Sp12D_tamm(mu,nu) = Sp12_tamm(mu,ku) * D_last_tamm(ku,nu))
+        (SpFS_tamm(mu,nu)  = Sp12D_tamm(mu,ku) * FSm12_tamm(ku,nu))
     
         (err_mat_tamm(mu,nu) = SpFS_tamm(nu,mu))
         (err_mat_tamm(mu,nu) += -1.0 * SpFS_tamm(mu,nu)).execute();
@@ -1371,22 +1476,24 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
         hf_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-        if(rank == 0 && debug) std::cout << "E2T-D,F:" << hf_time << "s, ";    
+        if(rank == 0 && debug) std::cout << "E2T-D:" << hf_time << "s, ";    
 
         hf_t1 = std::chrono::high_resolution_clock::now();
         // compute HF energy 
         // e = D * (H+F);
-        Scheduler{*ec}(ehf_tamm()=0)
+        Scheduler{*ec}
            (ehf_tmp(mu,nu) = H1(mu,nu))
            (ehf_tmp(mu,nu) += F1(mu,nu))
-           (ehf_tamm() += D_tamm() * ehf_tmp()).execute();
+           (ehf_tamm() = D_tamm() * ehf_tmp()).execute();
 
         ehf = get_scalar(ehf_tamm);
 
         // compute difference with last iteration
         ediff = ehf - ehf_last;
-        rmsd  = (D - D_last).norm();
-        //    (rmsd_tamm() = rmsd).execute();
+        // rmsd  = (D - D_last).norm();
+        Scheduler{*ec}(D_diff()=D_tamm())
+                      (D_diff()-=D_last_tamm()).execute();
+        rmsd = norm(*ec, D_diff());
 
         hf_t2 = std::chrono::high_resolution_clock::now();
         hf_time =
@@ -1433,7 +1540,7 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
     Tensor<TensorType>::deallocate(H1, D_tamm, ehf_tmp, 
                     ehf_tamm, rmsd_tamm); //F1
     Tensor<TensorType>::deallocate(F1tmp1,Sm12_tamm, Sp12_tamm,
-    D_last_tamm,FSm12_tamm, Sp12D_tamm, SpFS_tamm);//,err_mat_tamm);
+    D_last_tamm, D_diff, FSm12_tamm, Sp12D_tamm, SpFS_tamm);//,err_mat_tamm);
 
     Tensor<TensorType> C_tamm{tAO,tAO};
     Tensor<TensorType>::allocate(ec,C_tamm);

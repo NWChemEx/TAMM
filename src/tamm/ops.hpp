@@ -967,7 +967,7 @@ public:
                    ReadAccess(IndexedTensor{tensor, translated_rblockid})); 
            
             }
-         
+          }
         }, WritePermission{lhs_}, ReadPermission{rhs_});
 
         #if 0

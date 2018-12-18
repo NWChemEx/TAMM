@@ -57,8 +57,10 @@ public:
   auto begin() const { return buf_span.begin(); }
   auto end() { return buf_span.end(); }
   auto end() const { return buf_span.end(); }
-  span<T> get_data() { return buf_span; }
-  const span<T> get_data() const { return buf_span; }
+  auto get_span() { return buf_span; }
+  const auto get_span() const { return buf_span; }
+  auto data() { return buf_span.data(); }
+  const auto data() const { return buf_span.data(); }
   void put() { indexedTensor.put(buf_span); }
   void add() { indexedTensor.add(buf_span); }
 private:

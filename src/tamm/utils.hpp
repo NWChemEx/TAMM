@@ -1,5 +1,6 @@
 #ifndef TAMM_UTILS_HPP_
 #define TAMM_UTILS_HPP_
+#include "tamm/types.hpp"
 
 namespace tamm {
 

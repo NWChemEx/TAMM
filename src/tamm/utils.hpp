@@ -1,6 +1,6 @@
 #ifndef TAMM_UTILS_HPP_
 #define TAMM_UTILS_HPP_
-#include "tamm/types.hpp"
+#include "tamm/tiled_index_space.hpp"
 
 namespace tamm {
 

@@ -895,11 +895,9 @@ public:
                     ltensor.add(translated_lblockid, lbuf);
             }
         }
-
-#endif
+        #endif
         
-        #if 0
-         ec.re()->submitTask(
+        ec.re()->submitTask(
             [=](RuntimeContext& rc){
         IndexLabelVec merged_labels{lhs_.labels()};
         merged_labels.insert(merged_labels.end(), rhs_.labels().begin(),
@@ -939,11 +937,11 @@ public:
                 SizeVec ldims_sz, rdims_sz;
                 for(const auto v : ldims) { ldims_sz.push_back(v); }
                 for(const auto v : rdims) { rdims_sz.push_back(v); }
-                kernels::assign(&lbf[0], ldims_sz, lhs_int_labels_, alpha_,
-                                &rbf[0], rdims_sz, rhs_int_labels_, is_assign_);
+                kernels::assign(lbf.data(), ldims_sz, lhs_int_labels_, alpha_,
+                                rbf.data(), rdims_sz, rhs_int_labels_, is_assign_);
                 lbf.put();
                 //TODO: Future Plan (Write back not through): remove explicit release statement 
-                rbf.release();
+                // rbf.release();
                 }, TempAccess(IndexedTensor{tensor, translated_lblockid}), 
                    ReadAccess(IndexedTensor{tensor, translated_rblockid})); 
             }
@@ -960,43 +958,19 @@ public:
                 SizeVec ldims_sz, rdims_sz;
                 for(const auto v : ldims) { ldims_sz.push_back(v); }
                 for(const auto v : rdims) { rdims_sz.push_back(v); }
-                kernels::assign(&lbf[0], ldims_sz, lhs_int_labels_, alpha_,
-                                &rbf[0], rdims_sz, rhs_int_labels_, is_assign_);
-                lbf.acc();
+                kernels::assign(lbf.data(), ldims_sz, lhs_int_labels_, alpha_,
+                                rbf.data(), rdims_sz, rhs_int_labels_, is_assign_);
+                lbf.add();
                 //TODO: Future Plan (Write back not through): remove explicit release statement 
-                rbf.release();
+                // rbf.release();
                 }, TempAccess(IndexedTensor{tensor, translated_lblockid}), 
                    ReadAccess(IndexedTensor{tensor, translated_rblockid})); 
-                
-                //TODO: future syntax
-                /*******
-                 rc.submitTask([=](RuntimeContext& rc_recursive){
-                BlockBuffer lbf = rc_recursive.get_tmp_buffer(tensor, translated_lblockid);
-                BlockBuffer rbf = rc_recursive.get_buffer(tensor, translated_rblockid);
-
-                const auto& ldims = lhs_.tensor().block_dims(translated_lblockid);
-                const auto& rdims = rhs_.tensor().block_dims(translated_rblockid);
-
-                SizeVec ldims_sz, rdims_sz;
-                for(const auto v : ldims) { ldims_sz.push_back(v); }
-                for(const auto v : rdims) { rdims_sz.push_back(v); }
-                kernels::assign(&lbf[0], ldims_sz, lhs_int_labels_, alpha_,
-                                &rbf[0], rdims_sz, rhs_int_labels_, is_assign_);
-
-                BlockBuffer lbf_accum = rc_recursive.get_buffer(tensor, translated_lblockid);
-                lbf_accum += lbf;
-
-                }, AccumAccess(IndexedTensor{tensor, translated_lblockid}), 
-                   TempAccess(IndexedTensor{tensor, translated_lblockid}), 
-                   ReadAccess(IndexedTensor{tensor, translated_rblockid})); 
-                  
-                *******/
            
             }
          
         }, WritePermission{lhs_}, ReadPermission{rhs_});
 
-        #endif
+        #if 0
         
         using TensorElType = typename LabeledTensorT::element_type;
 
@@ -1043,6 +1017,7 @@ public:
         //@todo use a scheduler
         //@todo make parallel
         do_work(ec, loop_nest, lambda);
+        #endif
     }
 
 protected:

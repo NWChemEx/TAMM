@@ -676,7 +676,7 @@ void ccsd_driver() {
 
     //deallocates F_AO, C_AO
     auto [cholVpr,d_f1,chol_count, max_cvecs] = cd_svd_driver<T>
-                        (ec, MO, AO_tis, ov_alpha, nao, freeze_core,
+                        (ec, MO, AO_opt, ov_alpha, nao, freeze_core,
                                 freeze_virtual, C_AO, F_AO, shells);
 
 

@@ -358,13 +358,13 @@ TensorType norm(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
 template<typename TensorType>
 std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
     TensorType max = 0.0;
-    IndexVector maxblockid;
     
     Tensor<TensorType> tensor = ltensor.tensor();
     auto nmodes = tensor.num_modes();
      //Works for only upto 6D tensors
     EXPECTS(tensor.num_modes() <= 6);
 
+    IndexVector maxblockid(nmodes);
     std::vector<size_t> bfuv(nmodes);
     std::vector<TensorType> lmax(2,0);
     std::vector<TensorType> gmax(2,0);
@@ -527,13 +527,13 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionCo
 template<typename TensorType>
 std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
     TensorType min = 0.0;
-    IndexVector minblockid;
 
     Tensor<TensorType> tensor = ltensor.tensor();
     auto nmodes = tensor.num_modes();
      //Works for only upto 6D tensors
     EXPECTS(tensor.num_modes() <= 6);
 
+    IndexVector minblockid(nmodes);
     std::vector<size_t> bfuv(2);
     std::vector<TensorType> lmin(2,0);
     std::vector<TensorType> gmin(2,0);

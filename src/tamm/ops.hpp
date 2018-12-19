@@ -387,13 +387,13 @@ public:
                         // need to know Runtime + context description, not just
                         // runtime.
                         rc.runtimeEngine().submitTask([=](RuntimeEngine::RuntimeContext rc){
-                            BlockBuffer bf = rc.temp_buf(tensor, translated_blockid);
+                            BlockBuffer bf = rc.get_tmp_buffer(tensor, translated_blockid);
                             std::fill(bf.begin(), bf.end(), alpha_);
                             bf.put();  // goes through runtime (may be lazy)
                         }, WritePermission{IndexedTensor{tensor, translated_blockid}});
                     } else {
                         rc.runtimeEngine().submitTask([=](RuntimeEngine::RuntimeContext rc){
-                            BlockBuffer bf = rc.temp_buf(tensor, translated_blockid);
+                            BlockBuffer bf = rc.get_tmp_buffer(tensor, translated_blockid);
                             std::fill(bf.begin(), bf.end(), alpha_);
                             bf.add();
                         }, AccumPermission{IndexedTensor{tensor, translated_blockid}});
@@ -898,7 +898,7 @@ public:
         #endif
         
         ec.re()->submitTask(
-            [=](RuntimeContext& rc){
+            [=](RuntimeEngine::RuntimeContext& rc){
         IndexLabelVec merged_labels{lhs_.labels()};
         merged_labels.insert(merged_labels.end(), rhs_.labels().begin(),
                              rhs_.labels().end());
@@ -926,10 +926,10 @@ public:
 
             if(is_assign_) {
 
-                rc.submitTask([=](RuntimeContext& rc_recursive){
-                BlockBuffer lbf = rc_recursive.get_tmp_buffer(tensor, translated_lblockid);
+                rc.submitTask([=](RuntimeEngine::RuntimeContext& rc_recursive){
+                BlockBuffer lbf = rc_recursive.get_tmp_buffer(ltensor, translated_lblockid);
                 //TODO: Verify : size of rbuf would depend on lhs_ or rhs_ tensor
-                BlockBuffer rbf = rc_recursive.get_buffer(tensor, translated_rblockid);
+                BlockBuffer rbf = rc_recursive.get_buffer(rtensor, translated_rblockid);
 
                 const auto& ldims = lhs_.tensor().block_dims(translated_lblockid);
                 const auto& rdims = rhs_.tensor().block_dims(translated_rblockid);
@@ -942,15 +942,15 @@ public:
                 lbf.put();
                 //TODO: Future Plan (Write back not through): remove explicit release statement 
                 // rbf.release();
-                }, TempAccess(IndexedTensor{tensor, translated_lblockid}), 
-                   ReadAccess(IndexedTensor{tensor, translated_rblockid})); 
+                }, TempAccess(IndexedTensor{ltensor, translated_lblockid}), 
+                   ReadAccess(IndexedTensor{rtensor, translated_rblockid})); 
             }
             else
             {
-                rc.submitTask([=](RuntimeContext& rc_recursive){
-                BlockBuffer lbf = rc_recursive.get_tmp_buffer(tensor, translated_lblockid);
+                rc.submitTask([=](RuntimeEngine::RuntimeContext& rc_recursive){
+                BlockBuffer lbf = rc_recursive.get_tmp_buffer(ltensor, translated_lblockid);
                 //TODO: Verify : size of rbuf would depend on lhs_ or rhs_ tensor
-                BlockBuffer rbf = rc_recursive.get_buffer(tensor, translated_rblockid);
+                BlockBuffer rbf = rc_recursive.get_buffer(rtensor, translated_rblockid);
 
                 const auto& ldims = lhs_.tensor().block_dims(translated_lblockid);
                 const auto& rdims = rhs_.tensor().block_dims(translated_rblockid);
@@ -963,8 +963,8 @@ public:
                 lbf.add();
                 //TODO: Future Plan (Write back not through): remove explicit release statement 
                 // rbf.release();
-                }, TempAccess(IndexedTensor{tensor, translated_lblockid}), 
-                   ReadAccess(IndexedTensor{tensor, translated_rblockid})); 
+                }, TempAccess(IndexedTensor{ltensor, translated_lblockid}), 
+                   ReadAccess(IndexedTensor{rtensor, translated_rblockid})); 
            
             }
           }

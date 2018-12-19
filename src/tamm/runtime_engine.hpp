@@ -147,12 +147,22 @@ public:
         RuntimeContext(RuntimeEngine& re) : re(re) {}
         auto& runtimeEngine() { return re; }
         template<typename T>
-        BlockBuffer<T> temp_buf(Tensor<T> tensor, IndexVector blockid) {
+        BlockBuffer<T> get_tmp_buffer(Tensor<T> tensor, IndexVector blockid) {
             // TBD: figure out memory space: do we need GPU/CPU buffer?
             const size_t size = tensor.block_size(blockid);
             span<T> span(new T[size], size);
             return BlockBuffer<T>(span, IndexedTensor{tensor, blockid}, &re,
                                   true);
+        }
+
+        template<typename T>
+        BlockBuffer<T> get_buffer(Tensor<T> tensor, IndexVector blockid) {
+            // TBD
+        }
+
+        template<typename Lambda, typename... Args>
+        void submitTask(Lambda lambda, Args&&... args) {
+            re.submitTask(lambda, std::forward_as_tuple<Args...>(args...));
         }
 
     private:

@@ -182,7 +182,7 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
   auto tensor1e = DiagInt_tamm;
 
     auto compute_diagonals = [&](const IndexVector& blockid) {
-        
+       
         auto bi0 = blockid[0];
         auto bi1 = blockid[1];
 
@@ -221,13 +221,13 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
           const auto *buf_1212 = buf[0];
           if (buf_1212 == nullptr) continue;
           
-          std::vector<TensorType> tbuf(n1*n2);
-          for (size_t f1 = 0; f1 != n1; ++f1) {
-          for (size_t f2 = 0; f2 != n2; ++f2) {
-            auto f1212 = f1*n2*n1*n2 + f2*n1*n2 + f1*n2 + f2;
-            tbuf[f1*n2+f2] = buf_1212[f1212];
-          }
-        }
+        //   std::vector<TensorType> tbuf(n1*n2);
+        //   for (size_t f1 = 0; f1 != n1; ++f1) {
+        //   for (size_t f2 = 0; f2 != n2; ++f2) {
+        //     auto f1212 = f1*n2*n1*n2 + f2*n1*n2 + f1*n2 + f2;
+        //     tbuf[f1*n2+f2] = buf_1212[f1212];
+        //   }
+        // }
 
           auto curshelloffset_i = 0U;
           auto curshelloffset_j = 0U;
@@ -240,7 +240,11 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
 
           for(size_t i = curshelloffset_i; i < dimi; i++) {
           for(size_t j = curshelloffset_j; j < dimj; j++, c++) {
-                  dbuf[i*bd1+j] = tbuf[c];
+                  auto f1 = i - curshelloffset_i;
+                  auto f2 = j - curshelloffset_j;
+                   auto f1212 = f1*n2*n1*n2 + f2*n1*n2 + f1*n2 + f2;
+                  dbuf[i*bd1+j] = buf_1212[f1212];
+                  
                 }
           }
           }
@@ -411,7 +415,7 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
   
   count += 1;
 
-} while (max > diagtol && count <= max_cvecs);  
+} while (max > diagtol && count < max_cvecs);  
   Tensor<TensorType>::deallocate(DiagInt_tamm);
 
   chol_count = count;

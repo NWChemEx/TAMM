@@ -16,7 +16,7 @@
 
 // #define EIGEN_USE_BLAS
 // #define EIGEN_USE_LAPACKE
-// #define EIGEN_USE_MKL_ALL
+//#define EIGEN_USE_MKL_ALL
 
 // Eigen matrix algebra library
 #include <Eigen/Dense>
@@ -48,8 +48,10 @@ using TensorType = double;
 
 using shellpair_list_t = std::unordered_map<size_t, std::vector<size_t>>;
 shellpair_list_t obs_shellpair_list;  // shellpair list for OBS
+shellpair_list_t minbs_shellpair_list;  // shellpair list for minBS
 using shellpair_data_t = std::vector<std::vector<std::shared_ptr<libint2::ShellPair>>>;  // in same order as shellpair_list_t
 shellpair_data_t obs_shellpair_data;  // shellpair data for OBS
+shellpair_data_t minbs_shellpair_data;  // shellpair data for minBS
 
 void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, 
           Tensor<TensorType> E, int iter, int max_hist,
@@ -898,6 +900,8 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     auto D_minbs = compute_soad(atoms);  // compute guess in minimal basis
     BasisSet minbs("STO-3G", atoms);
 
+    //std::tie(minbs_shellpair_list, minbs_shellpair_data) = compute_shellpairs(minbs);
+
     if(rank == 0) std::cout << 
     "\nProjecting minimal basis SOAD onto basis set specified (" << basis << ")\n";
     
@@ -973,7 +977,17 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
           auto s4_begin = D_is_shelldiagonal ? s3 : 0;
           auto s4_fence = D_is_shelldiagonal ? s3 + 1 : D_bs.size();
 
+          //auto sp34_iter = minbs_shellpair_data.at(s3).begin();
+
           for (auto s4 = s4_begin; s4 != s4_fence; ++s4) {
+
+            // auto s4spl = minbs_shellpair_list[s3];
+            // auto s4_itr = std::find(s4spl.begin(),s4spl.end(),s4);
+            // if(s4_itr == s4spl.end()) continue;
+            // auto s4_pos = std::distance(s4spl.begin(),s4_itr);
+
+            // std::advance(sp34_iter,s4_pos);
+            // const auto* sp34 = sp34_iter->get();
 
             auto bf4_first = shell2bf_D[s4];
             auto n4 = D_bs[s4].size();
@@ -987,7 +1001,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
               auto s1234_deg = s12_deg * s34_deg;
               // auto s1234_deg = s12_deg;
               engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
-                  obs[s1], obs[s2], D_bs[s3], D_bs[s4],sp12);
+                  obs[s1], obs[s2], D_bs[s3], D_bs[s4],sp12); //,sp34);
               const auto* buf_1234 = buf[0];
               if (buf_1234 != nullptr) {
                 for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {

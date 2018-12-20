@@ -25,9 +25,11 @@ cpp_find_or_build_dependency(
     URL github.com/eigenteam/eigen-git-mirror
 )
 
-cpp_find_dependency(
+cpp_find_or_build_dependency(
     NAME GlobalArrays
     FIND_MODULE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindGlobalArrays.cmake
+    BUILD_MODULE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildGlobalArrays.cmake
+    URL github.com/GlobalArrays/ga
 )
 
 cpp_find_dependency(

@@ -399,13 +399,15 @@ void ccsd_driver() {
     TAMM_SIZE freeze_core    = 0;
     TAMM_SIZE freeze_virtual = 0;
 
-    auto [ov_alpha, nao, hf_energy, shells, C_AO, F_AO, AO_opt, AO_tis] = hartree_fock_driver<T>(ec,filename);
+    auto [ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis] 
+                    = hartree_fock_driver<T>(ec,filename);
 
     auto [MO,total_orbitals] = setupMOIS(nao,ov_alpha,freeze_core,freeze_virtual);
 
     //deallocates F_AO, C_AO
-    auto [cholVpr,d_f1,chol_count, max_cvecs] = cd_svd_driver<T>(ec, MO, AO_opt, ov_alpha, nao, freeze_core,
-                                freeze_virtual, C_AO, F_AO, shells);
+    auto [cholVpr,d_f1,chol_count, max_cvecs] = cd_svd_driver<T>
+                        (ec, MO, AO_opt, ov_alpha, nao, freeze_core,
+                                freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
 
 
     int maxiter    = 50;
@@ -438,17 +440,18 @@ void ccsd_driver() {
             const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
             std::vector<TensorType> dbuf(dsize);
 
-            const tamm::TAMM_SIZE ssize = cholVpr.block_size({blockid[0],blockid[1],0});
+            IndexVector cvpriv = {0,blockid[0],blockid[1]};
+            const tamm::TAMM_SIZE ssize = cholVpr.block_size(cvpriv);
             std::vector<TensorType> sbuf(ssize);
 
-            cholVpr.get({blockid[0],blockid[1],0}, sbuf);
+            cholVpr.get(cvpriv, sbuf);
                 
             TAMM_SIZE c = 0;
             for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
                 i++) {
                 for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
                     j++, c++) {
-                dbuf[c] = sbuf[c*max_cvecs+x];
+                dbuf[c] = sbuf[(x*block_dims[0]+(i-block_offset[0]))*block_dims[1]+(j-block_offset[1])];
                 }
             }
             tensor.put(blockid, dbuf);
@@ -457,7 +460,8 @@ void ccsd_driver() {
         block_for(ec, cholvec(), lambdacv);
     }
 
-    Tensor3D cholVpr_eigen(total_orbitals,total_orbitals,max_cvecs);
+    //TODO: The following needs cleanup CV3D should be replaced by cholVpr
+    Tensor3D cholVpr_eigen(total_orbitals,total_orbitals,chol_count);
     tamm_to_eigen_tensor(cholVpr,cholVpr_eigen);
 
     Tensor<T>::deallocate(cholVpr);

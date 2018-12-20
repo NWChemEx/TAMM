@@ -48,7 +48,7 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
   const TAMM_SIZE ndocc, const TAMM_SIZE nao, const TAMM_SIZE freeze_core,
   const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
   Tensor<TensorType> F_MO, TAMM_SIZE& chol_count, const tamm::Tile max_cvecs, double diagtol,
-  libint2::BasisSet& shells) {
+  libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map) {
 
     using libint2::Atom;
     using libint2::Shell;
@@ -57,24 +57,11 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
 
     auto rank = ec.pg().rank();
 
-    IndexSpace AO{range(0, nao)};
     std::vector<unsigned int> AO_tiles;
     for(auto s : shells) AO_tiles.push_back(s.size());
 
-    tamm::Tile est_ts = 0;
-    std::vector<size_t> shell_tile_map;
-    for(auto s=0U;s<shells.size();s++){
-      est_ts += shells[s].size();
-      if(est_ts>=30) {
-        shell_tile_map.push_back(s); //shell id specifying tile boundary
-        est_ts=0;
-      }
-    }
-    if(est_ts>0){
-    shell_tile_map.push_back(shells.size()-1);
-    }
-
     auto [mu, nu, ku] = tAO.labels<3>("all");
+    auto [pmo, rmo] = tMO.labels<2>("all");
 
 
     if(rank == 0){
@@ -91,10 +78,6 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
     const int n_beta  = ov_beta_freeze;
     auto ov_alpha     = ndocc;
     TAMM_SIZE ov_beta{nao - ov_alpha};
-
-    // auto [mup, nup, kup] = tAOt.labels<3>("all");
-
-    auto [pmo, rmo] = tMO.labels<2>("all");
 
     // 2-index transform
 
@@ -253,6 +236,13 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
   };
   block_for(ec, DiagInt_tamm(),compute_diagonals);
 
+   hf_t2 = std::chrono::high_resolution_clock::now();
+  hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+  if(rank == 0) std::cout << "\nTime taken for computing diagonals: " << hf_time << " secs\n";
+
+
+  hf_t1 = std::chrono::high_resolution_clock::now();
 
   auto count = 0U;
   size_t bfu = 0; // basis function pair |uv) corresponding to 
@@ -276,15 +266,18 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
   auto citer = 0;
   auto debug = false;
 
+    // Find maximum in DiagInt 
+  std::tie(max,maxblockid,bfuv) = max_element(ec, DiagInt_tamm());
+  bfu = bfuv[0];
+  bfv = bfuv[1];
+
   do {
+
+    // GA_Sync();
 
     auto cd_t1 = std::chrono::high_resolution_clock::now();
 
     citer++;
-    // Find maximum in DiagInt 
-    std::tie(max,maxblockid,bfuv) = max_element(ec, DiagInt_tamm());
-    bfu = bfuv[0];
-    bfv = bfuv[1];
 
     auto curshelloffset_i = 0U;
     auto curshelloffset_j = 0U;
@@ -415,7 +408,17 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
   
   count += 1;
 
+  std::tie(max,maxblockid,bfuv) = max_element(ec, DiagInt_tamm());
+  bfu = bfuv[0];
+  bfv = bfuv[1];
+
+  auto cd_t2 = std::chrono::high_resolution_clock::now();
+  auto cd_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count();
+  if(rank == 0 && debug) std::cout << "Time taken for iter " << citer << ": " << cd_time << " secs\n";
+
 } while (max > diagtol && count < max_cvecs);  
+
   Tensor<TensorType>::deallocate(DiagInt_tamm);
 
   chol_count = count;
@@ -425,6 +428,12 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
     cout << "\nNumber of cholesky vectors = " << chol_count << endl;
   }
  //end CD
+
+   hf_t2 = std::chrono::high_resolution_clock::now();
+  hf_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+  if(rank == 0) std::cout << "\nTime taken for Cholesky Decomposition: " << hf_time << " secs\n";
+
 
   #if 0
     // Start SVD
@@ -461,9 +470,6 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
           const IndexVector blockid =
           internal::translate_blockid(bid, tensor());
 
-          auto block_dims   = tensor.block_dims(blockid);
-          auto block_offset = tensor.block_offsets(blockid);
-
           const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
           std::vector<TensorType> dbuf(dsize);
 
@@ -473,16 +479,10 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
 
           CholVuv_tamm.get(cvpriv, sbuf);
               
-          TAMM_SIZE c = 0;
-          for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
-              i++) {
-              for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];j++) {
-                for(auto k = block_offset[2]; k < block_offset[2] + block_dims[2];k++,c++) {
-              dbuf[c] = sbuf[c];
-              }
-          }
+          for(auto i = 0U; i < dsize; i++) 
+              dbuf[i] = sbuf[i];
+
           tensor.put(blockid, dbuf);
-          }
     };
 
     block_for(ec, CholVuv_opt(), lambdacv);

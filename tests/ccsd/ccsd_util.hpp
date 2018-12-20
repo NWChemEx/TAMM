@@ -201,7 +201,7 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
 }
 
 template<typename T>
-std::tuple<TAMM_SIZE, TAMM_SIZE, double, libint2::BasisSet, Tensor<T>, Tensor<T>, TiledIndexSpace, TiledIndexSpace> 
+std::tuple<TAMM_SIZE, TAMM_SIZE, double, libint2::BasisSet, std::vector<size_t>, Tensor<T>, Tensor<T>, TiledIndexSpace, TiledIndexSpace> 
     hartree_fock_driver(ExecutionContext &ec, const string filename) {
 
     auto rank = ec.pg().rank();
@@ -213,17 +213,18 @@ std::tuple<TAMM_SIZE, TAMM_SIZE, double, libint2::BasisSet, Tensor<T>, Tensor<T>
     Tensor<T> F_AO;
     TiledIndexSpace tAO; //Fixed Tilesize AO
     TiledIndexSpace tAOt; //original AO TIS
+    std::vector<size_t> shell_tile_map;
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
-    std::tie(ov_alpha, nao, hf_energy, shells, C_AO, F_AO, tAO, tAOt) = hartree_fock(ec, filename);
+    std::tie(ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, tAO, tAOt) = hartree_fock(ec, filename);
     auto hf_t2 = std::chrono::high_resolution_clock::now();
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
     if(rank == 0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
 
-    return std::make_tuple(ov_alpha, nao, hf_energy, shells, C_AO, F_AO, tAO, tAOt);
+    return std::make_tuple(ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, tAO, tAOt);
 }
 
 
@@ -232,7 +233,7 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(ExecutionCo
     TiledIndexSpace& AO_tis,
   const TAMM_SIZE ov_alpha, const TAMM_SIZE nao, const TAMM_SIZE freeze_core,
   const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
-  libint2::BasisSet& shells){
+  libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map){
 
     // At most 8*ao CholVec's. For vast majority cases, this is way
     //   more than enough. For very large basis, it can be increased.
@@ -250,7 +251,7 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(ExecutionCo
 
     //std::tie(V2) = 
     Tensor<T> cholVpr = cd_svd(ec, MO, AO_tis, ov_alpha, nao, freeze_core, freeze_virtual,
-                                C_AO, F_AO, d_f1, chol_count, max_cvecs, diagtol, shells);
+                                C_AO, F_AO, d_f1, chol_count, max_cvecs, diagtol, shells, shell_tile_map);
     auto hf_t2        = std::chrono::high_resolution_clock::now();
     double cd_svd_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
@@ -379,8 +380,8 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> cholVpr, 
 
     auto [p,q,r,s] = MO.labels<4>("all");
 
-    //Spin here requires spin(p)=spin(q) and spin(r)=spin(s)
-    Tensor<T> d_a2{{N,N,N,N},{2,2},tamm::SpinType::ao_spin};
+    //Spin here is defined as spin(p)=spin(q) and spin(r)=spin(s) which is not currently not supported by TAMM.
+    Tensor<T> d_a2{N,N,N,N};
     //For V2, spin(p)+spin(q) == spin(r)+spin(s)
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
     Tensor<T>::allocate(&ec,d_a2,d_v2);

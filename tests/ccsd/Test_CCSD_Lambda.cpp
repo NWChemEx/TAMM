@@ -430,14 +430,15 @@ void ccsd_driver() {
     TAMM_SIZE freeze_core    = 0;
     TAMM_SIZE freeze_virtual = 0;
 
-    auto [ov_alpha, nao, hf_energy, shells, C_AO, F_AO, AO_opt, AO_tis] = hartree_fock_driver<T>(ec,filename);
+    auto [ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis] 
+                    = hartree_fock_driver<T>(ec,filename);
 
     auto [MO,total_orbitals] = setupMOIS(nao,ov_alpha,freeze_core,freeze_virtual);
 
     //deallocates F_AO, C_AO
     auto [cholVpr,d_f1,chol_count, max_cvecs] = cd_svd_driver<T>
-            (ec, MO, AO_opt, ov_alpha, nao, freeze_core,
-             freeze_virtual, C_AO, F_AO, shells);
+                        (ec, MO, AO_opt, ov_alpha, nao, freeze_core,
+                                freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
 
 
   int maxiter    = 50;
@@ -448,7 +449,7 @@ void ccsd_driver() {
   auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s]
        = setupTensors(ec,MO,d_f1,ndiis);
 
-  Tensor<T> d_v2 = setupV2<T>(ec,MO,cholVpr,max_cvecs, total_orbitals, ov_alpha, nao - ov_alpha);
+  Tensor<T> d_v2 = setupV2<T>(ec,MO,cholVpr, chol_count, total_orbitals, ov_alpha, nao - ov_alpha);
   Tensor<T>::deallocate(cholVpr);
 
   auto cc_t1 = std::chrono::high_resolution_clock::now();

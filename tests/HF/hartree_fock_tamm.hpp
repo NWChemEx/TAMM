@@ -477,7 +477,7 @@ compute_shellpairs(const libint2::BasisSet& bs1,
   return std::make_tuple(splist,spdata);
 }
 
-std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace> 
+std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace> 
     hartree_fock(ExecutionContext &exc, const string filename) {
     // Perform the simple HF calculation (Ed) and 2,4-index transform to get the
     // inputs for CCSD
@@ -952,7 +952,16 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
         auto n1 = obs[s1].size();       // number of basis functions in this shell
 
         auto s2 = blockid[1];
-        if(s2>s1) return;
+        // if(s2>s1) return;
+
+        auto sp12_iter = obs_shellpair_data.at(s1).begin();
+        auto s2spl = obs_shellpair_list[s1];
+        auto s2_itr = std::find(s2spl.begin(),s2spl.end(),s2);
+        if(s2_itr == s2spl.end()) return;
+        auto s2_pos = std::distance(s2spl.begin(),s2_itr);
+
+        std::advance(sp12_iter,s2_pos);
+        const auto* sp12 = sp12_iter->get();
 
         auto bf2_first = shell2bf[s2];
         auto n2 = obs[s2].size();
@@ -978,7 +987,7 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
               auto s1234_deg = s12_deg * s34_deg;
               // auto s1234_deg = s12_deg;
               engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
-                  obs[s1], obs[s2], D_bs[s3], D_bs[s4]);
+                  obs[s1], obs[s2], D_bs[s3], D_bs[s4],sp12);
               const auto* buf_1234 = buf[0];
               if (buf_1234 != nullptr) {
                 for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
@@ -1548,7 +1557,7 @@ std::tuple<int, int, double, libint2::BasisSet, Tensor<double>, Tensor<double>, 
     GA_Sync();
 
     //F1, C are not deallocated.
-    return std::make_tuple(ndocc, nao, ehf + enuc, shells, C_tamm, F1, tAO, tAOt);
+    return std::make_tuple(ndocc, nao, ehf + enuc, shells, shell_tile_map, C_tamm, F1, tAO, tAOt);
 }
 
 void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, Tensor<TensorType> err_mat, int iter, int max_hist, int ndiis,

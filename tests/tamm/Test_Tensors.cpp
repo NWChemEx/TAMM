@@ -857,6 +857,73 @@ TEST_CASE("Fill tensors using lambda functions") {
     //print_tensor(A);
 }
 
+TEST_CASE("SCF Example Implementation") {
+
+    using tensor_type = Tensor<double>;
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    std::cerr << "SCF Example Implementation" << std::endl;
+
+    IndexSpace AUXs_{range(0, 7)};
+    IndexSpace AOs_{range(0, 7)};
+    IndexSpace MOs_{range(0, 10),
+                   {{"O", {range(0, 5)}},
+                    {"V", {range(5, 10)}}
+    }};
+
+    TiledIndexSpace Aux{AUXs_};
+    TiledIndexSpace AOs{AOs_};
+    TiledIndexSpace tMOs{MOs_};
+
+    std::map<IndexVector, IndexSpace> dep_relation;
+    for(const auto& idx : MOs_) {
+        if(idx%2 == 0)
+            dep_relation.insert({{idx}, IndexSpace{AOs_, range(0,3)}});
+        else 
+            dep_relation.insert({{idx}, IndexSpace{AOs_, range(3,7)}});
+    }
+
+    IndexSpace subAO_MO{{tMOs}, AOs_, dep_relation};
+
+    TiledIndexSpace tSubAO_MO{subAO_MO};
+
+    auto [P, Q] = Aux.labels<2>("all",0); 
+    auto [mu, nu] = tSubAO_MO.labels<2>("all",2);
+    auto [i] = tMOs.labels<1>("O");
+
+    tensor_type pI{Aux, AOs, AOs};
+    tensor_type C{AOs, tMOs};
+    tensor_type Linv{Aux, Aux};
+
+    tensor_type CI{Aux, tMOs, AOs};
+    tensor_type D{Aux, tMOs, AOs};
+    tensor_type d{Aux};
+    tensor_type dL{Aux};
+    tensor_type J{AOs, AOs};
+    tensor_type K{AOs, AOs};
+    
+    auto ec = make_execution_context();
+    Scheduler sch{ec};
+
+    // if(mu.tiled_index_space().is_compatible_with(pI.tiled_index_spaces()[1]))
+    //     std::cout << "mu - AOs" << std::endl;
+    // if(nu.tiled_index_space().is_compatible_with(pI.tiled_index_spaces()[2]))
+    //     std::cout << "nu - AOs" << std::endl;
+
+    // sch.allocate(CI/* , D, d, dL, J, K */)
+    // (CI() = 1.0)
+    // (CI(Q, i, nu(i)) = 42.0)
+    // (CI(Q, i, nu(i)) = C(mu(i), i) * pI(Q, mu(i), nu(i)))
+    // (D(P, i, mu) = Linv(P, Q) * CI(Q, i, mu))
+    // (d(P) = D(P, i, mu) * C(mu, i))
+    // (dL(Q) = d(P) * Linv(P, Q))
+    // (J(mu, nu) = dL(P) * pI(P, mu, nu))
+    // (K(mu, nu) = D(P, i, mu) * D(P, i, nu))
+    // .execute();
+
+    // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    // print_tensor(CI);
+}
+
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);

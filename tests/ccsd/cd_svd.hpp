@@ -217,12 +217,11 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
           for(auto x=s1range_start;x<s1;x++) curshelloffset_i += AO_tiles[x];
           for(auto x=s2range_start;x<s2;x++) curshelloffset_j += AO_tiles[x];
 
-          size_t c = 0;
           auto dimi =  curshelloffset_i + AO_tiles[s1];
           auto dimj =  curshelloffset_j + AO_tiles[s2];
 
           for(size_t i = curshelloffset_i; i < dimi; i++) {
-          for(size_t j = curshelloffset_j; j < dimj; j++, c++) {
+          for(size_t j = curshelloffset_j; j < dimj; j++) {
                   auto f1 = i - curshelloffset_i;
                   auto f2 = j - curshelloffset_j;
                    auto f1212 = f1*n2*n1*n2 + f2*n1*n2 + f1*n2 + f2;
@@ -273,7 +272,8 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
 
   do {
 
-    // GA_Sync();
+    double get_time=0;
+    double put_time=0;
 
     auto cd_t1 = std::chrono::high_resolution_clock::now();
 
@@ -325,8 +325,15 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
         auto bd0 = block_dims[1];
         auto bd1 = block_dims[2];
 
+        auto l_t1 = std::chrono::high_resolution_clock::now();
+
         CholVuv_tamm.get(blockid, vuvbuf);
         DiagInt_tamm.get({bi0,bi1}, dibuf);
+
+        auto l_t2 = std::chrono::high_resolution_clock::now();
+        auto l_time =
+            std::chrono::duration_cast<std::chrono::duration<double>>((l_t2 - l_t1)).count();
+        get_time+=l_time;
 
         auto s3range_start = 0l;
         auto s3range_end = shell_tile_map[bi0];
@@ -341,14 +348,14 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
 
           for (Index s4 = s4range_start; s4 <= s4range_end; ++s4) {
 
-          // if(s4>s3){
-          //   auto s2spl = obs_shellpair_list[s4];
-          //   if(std::find(s2spl.begin(),s2spl.end(),s3) == s2spl.end()) continue;
-          // }
-          // else{
-          //   auto s2spl = obs_shellpair_list[s3];
-          //   if(std::find(s2spl.begin(),s2spl.end(),s4) == s2spl.end()) continue;
-          // }
+          if(s4>s3){
+            auto s2spl = obs_shellpair_list[s4];
+            if(std::find(s2spl.begin(),s2spl.end(),s3) == s2spl.end()) continue;
+          }
+          else{
+            auto s2spl = obs_shellpair_list[s3];
+            if(std::find(s2spl.begin(),s2spl.end(),s4) == s2spl.end()) continue;
+          }
           
           auto n4 = shells[s4].size();
 
@@ -366,41 +373,50 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
           auto dimi =  curshelloffset_i + AO_tiles[s3];
           auto dimj =  curshelloffset_j + AO_tiles[s4];
 
-        std::vector<TensorType> cbuf(n3*n4);
+        // std::vector<TensorType> cbuf(n3*n4);
 
-        for (size_t f3 = 0; f3 != n3; ++f3) {
-          // const auto bf3 = f3 + bf3_first;
-          for (size_t f4 = 0; f4 != n4; ++f4) {
-            // const auto bf4 = f4 + bf4_first;
+        // for (size_t f3 = 0; f3 != n3; ++f3) {
+        //   for (size_t f4 = 0; f4 != n4; ++f4) {
+        //     auto f3412 = f3*n4*n12 + f4*n12 + ind12;
+        //     auto x = buf_3412[f3412];
+        //     for (auto icount = 0U; icount != count; ++icount) {
+        //       x -= vuvbuf[(icount*bd0+f3+curshelloffset_i)*bd1+f4+curshelloffset_j]*delems[icount];
+        //     }
+        //     auto vtmp = x/sqrt(max);
+        //     cbuf[f3*n4+f4] = vtmp;
+        //   }
+        // }
 
-            auto f3412 = f3*n4*n12 + f4*n12 + ind12;
-            auto x = buf_3412[f3412];
-            for (auto icount = 0U; icount != count; ++icount) {
-              // x -= CholVuv(bf3,bf4,icount)*delems[icount];
-              //x -= tbuf[(f3*n4+f4)+icount]*delems[icount];
-              x -= vuvbuf[(icount*bd0+f3+curshelloffset_i)*bd1+f4+curshelloffset_j]*delems[icount];
-              // cout << "x, delems[" << icount << "] = " << x << ", " << delems[icount] << endl;
-            }
-            // CholVuv(bf3, bf4, count) = x/sqrt(max);
-            auto vtmp = x/sqrt(max);
-            cbuf[f3*n4+f4] = vtmp;
-          }
-        }
-
-          size_t c = 0;
           for(size_t i = curshelloffset_i; i < dimi; i++) {
-          for(size_t j = curshelloffset_j; j < dimj; j++, c++) {
-                  auto dval = cbuf[c];
-                  vuvbuf[(count*bd0+i)*bd1+j] = dval;
-                  dibuf[i*bd1+j] -= dval*dval;
-                }
+          for(size_t j = curshelloffset_j; j < dimj; j++) {
+              auto f3 = i - curshelloffset_i;
+              auto f4 = j - curshelloffset_j;
+              auto f3412 = f3*n4*n12 + f4*n12 + ind12;
+              auto x = buf_3412[f3412];
+              for (auto icount = 0U; icount != count; ++icount) {
+                x -= vuvbuf[(icount*bd0+f3+curshelloffset_i)*bd1+f4+curshelloffset_j]*delems[icount];
+              }
+
+              auto vtmp = x/sqrt(max);
+              vuvbuf[(count*bd0+i)*bd1+j] = vtmp;
+              dibuf[i*bd1+j] -= vtmp*vtmp;
+            }
           }
           
-        } //s4
+          } //s4
         } //s3
+
+        l_t1 = std::chrono::high_resolution_clock::now();
 
         CholVuv_tamm.put(blockid, vuvbuf);
         DiagInt_tamm.put({bi0,bi1}, dibuf);
+
+        l_t2 = std::chrono::high_resolution_clock::now();
+        l_time =
+            std::chrono::duration_cast<std::chrono::duration<double>>((l_t2 - l_t1)).count();
+
+        put_time+=l_time;
+
   };
 
   block_for(ec, CholVuv_tamm(), update_columns);
@@ -415,7 +431,11 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
   auto cd_t2 = std::chrono::high_resolution_clock::now();
   auto cd_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count();
-  if(rank == 0 && debug) std::cout << "Time taken for iter " << citer << ": " << cd_time << " secs\n";
+  if(rank == 0 && debug) {
+    std::cout << "----------Time taken for iter " << citer << ": " << cd_time << " secs---------\n";
+    std::cout << "Time taken for puts : " << put_time << " secs\n";
+    std::cout << "Time taken for gets: " << get_time << " secs\n";
+  }
 
 } while (max > diagtol && count < max_cvecs);  
 
@@ -429,7 +449,7 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
   }
  //end CD
 
-   hf_t2 = std::chrono::high_resolution_clock::now();
+  hf_t2 = std::chrono::high_resolution_clock::now();
   hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
   if(rank == 0) std::cout << "\nTime taken for Cholesky Decomposition: " << hf_time << " secs\n";

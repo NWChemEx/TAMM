@@ -48,8 +48,8 @@ public:
      * @param [in] t_spaces vector of TiledIndexSpace objects for each mode
      * @param [in] spin_mask spin mask for each mode
      */
-    Tensor(TiledIndexSpaceVec t_spaces, SpinMask spin_mask, SpinType spin_type = SpinType::mo_spin) :
-      impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_mask, spin_type)} {}
+    Tensor(TiledIndexSpaceVec t_spaces, SpinMask spin_mask) :
+      impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_mask)} {}
 
     /**
      * @brief Construct a new Tensor object with Spin attributes
@@ -59,8 +59,8 @@ public:
      * @param [in] spin_mask spin mask for each mode
      */
     Tensor(std::initializer_list<TiledIndexSpace> t_spaces,
-           SpinMask spin_mask, SpinType spin_type = SpinType::mo_spin) :
-      impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_mask, spin_type)} {}
+           SpinMask spin_mask) :
+      impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_mask)} {}
 
     /**
      * @brief Construct a new Tensor object with Spin attributes
@@ -68,8 +68,8 @@ public:
      * @param [in] t_lbls vector of TiledIndexLabel objects for each mode
      * @param [in] spin_mask spin mask for each mode
      */
-    Tensor(IndexLabelVec t_lbls, SpinMask spin_mask, SpinType spin_type = SpinType::mo_spin) :
-      impl_{std::make_shared<TensorImpl<T>>(t_lbls, spin_mask, spin_type)} {}
+    Tensor(IndexLabelVec t_lbls, SpinMask spin_mask) :
+      impl_{std::make_shared<TensorImpl<T>>(t_lbls, spin_mask)} {}
 
     /**
      * @brief Construct a new Tensor object with Spin attributes
@@ -77,8 +77,8 @@ public:
      * @param [in] t_spaces vector of TiledIndexSpace objects for each mode
      * @param [in] spin_sizes vector of sizes for each spin attribute
      */
-    Tensor(TiledIndexSpaceVec t_spaces, std::vector<size_t> spin_sizes, SpinType spin_type = SpinType::mo_spin) :
-      impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_sizes, spin_type)} {}
+    Tensor(TiledIndexSpaceVec t_spaces, std::vector<size_t> spin_sizes) :
+      impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_sizes)} {}
 
     /**
      * @brief Construct a new Tensor object with Spin attributes
@@ -88,8 +88,8 @@ public:
      * @param [in] spin_sizes vector of sizes for each spin attribute
      */
     Tensor(std::initializer_list<TiledIndexSpace> t_spaces,
-           std::vector<size_t> spin_sizes, SpinType spin_type = SpinType::mo_spin) :
-      impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_sizes, spin_type)} {}
+           std::vector<size_t> spin_sizes) :
+      impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_sizes)} {}
 
     /**
      * @brief Construct a new Tensor object with Spin attributes
@@ -97,8 +97,8 @@ public:
      * @param [in] t_spaces vector of TiledIndexLabel objects for each mode
      * @param [in] spin_sizes vector of sizes for each spin attribute
      */
-    Tensor(IndexLabelVec t_lbls, std::vector<size_t> spin_sizes, SpinType spin_type = SpinType::mo_spin) :
-      impl_{std::make_shared<TensorImpl<T>>(t_lbls, spin_sizes, spin_type)} {}
+    Tensor(IndexLabelVec t_lbls, std::vector<size_t> spin_sizes) :
+      impl_{std::make_shared<TensorImpl<T>>(t_lbls, spin_sizes)} {}
 
     // LambdaTensor Constructors
     /**

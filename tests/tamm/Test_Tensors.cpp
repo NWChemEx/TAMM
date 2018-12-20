@@ -909,19 +909,19 @@ TEST_CASE("SCF Example Implementation") {
     // if(nu.tiled_index_space().is_compatible_with(pI.tiled_index_spaces()[2]))
     //     std::cout << "nu - AOs" << std::endl;
 
-    sch.allocate(CI/* , D, d, dL, J, K */)
-    (CI() = 1.0)
-    (CI(Q, i, nu(i)) = 42.0)
+    // sch.allocate(CI/* , D, d, dL, J, K */)
+    // (CI() = 1.0)
+    // (CI(Q, i, nu(i)) = 42.0)
     // (CI(Q, i, nu(i)) = C(mu(i), i) * pI(Q, mu(i), nu(i)))
     // (D(P, i, mu) = Linv(P, Q) * CI(Q, i, mu))
     // (d(P) = D(P, i, mu) * C(mu, i))
     // (dL(Q) = d(P) * Linv(P, Q))
     // (J(mu, nu) = dL(P) * pI(P, mu, nu))
     // (K(mu, nu) = D(P, i, mu) * D(P, i, nu))
-    .execute();
+    // .execute();
 
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-    print_tensor(CI);
+    // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    // print_tensor(CI);
 }
 
 

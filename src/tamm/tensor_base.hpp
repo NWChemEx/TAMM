@@ -248,65 +248,28 @@ public:
         }
 
         EXPECTS(blockid.size() == num_modes());
-        bool ret = true;
+
         size_t rank = num_modes();
-        if(spin_type_ == SpinType::mo_spin) {
-            Spin upper_total = 0, lower_total = 0, other_total = 0;
-            for (size_t i = 0; i < rank; i++) {
-                IndexVector dep_idx_vals{};
-                if(dep_map_.find(i) != dep_map_.end()) {
-                    for(const auto& pos : dep_map_.at(i)) {
-                        dep_idx_vals.push_back(blockid[pos]);
-                    }
-                }
-                
-                const auto& tis = block_indices_[i](dep_idx_vals);
-                
-                if(spin_mask_[i] == SpinPosition::upper){
-                    upper_total += tis.spin(blockid[i]);
-                } else if(spin_mask_[i] == SpinPosition::lower){
-                    lower_total += tis.spin(blockid[i]);
-                } else {
-                    other_total += tis.spin(blockid[i]);
+        Spin upper_total = 0, lower_total = 0, other_total = 0;
+        for (size_t i = 0; i < rank; i++) {
+            IndexVector dep_idx_vals{};
+            if(dep_map_.find(i) != dep_map_.end()) {
+                for(const auto& pos : dep_map_.at(i)) {
+                    dep_idx_vals.push_back(blockid[pos]);
                 }
             }
-            ret = (upper_total == lower_total);
-        }
-        else if (spin_type_ == SpinType::ao_spin){
-            Spin upper = 0, lower = 0;
-            for (size_t i = 0; i < rank; i++) {
-                IndexVector dep_idx_vals{};
-                if(dep_map_.find(i) != dep_map_.end()) {
-                    for(const auto& pos : dep_map_.at(i)) {
-                        dep_idx_vals.push_back(blockid[pos]);
-                    }
-                }
-                
-                const auto& tis = block_indices_[i](dep_idx_vals);
-                
-                if(spin_mask_[i] == SpinPosition::upper){
-                    if(upper == 0){
-                        upper = tis.spin(blockid[i]);
-                    } else {
-                        if(upper != tis.spin(blockid[i])){
-                            return true;
-                        }
-                    }
-                } else if(spin_mask_[i] == SpinPosition::lower){
-                    if(lower == 0){
-                        lower = tis.spin(blockid[i]);
-                    } else {
-                        if(lower != tis.spin(blockid[i])){
-                            return true;
-                        }
-                    }
-                } 
+
+            const auto& tis = block_indices_[i](dep_idx_vals);
+            if(spin_mask_[i] == SpinPosition::upper){
+                upper_total += tis.spin(blockid[i]);
+            } else if(spin_mask_[i] == SpinPosition::lower){
+                lower_total += tis.spin(blockid[i]);
+            } else {
+                other_total += tis.spin(blockid[i]);
             }
-            // all upper/lower/ignore have same spin (among themselves)
-            ret = false;
         }
-            
-        return ret;
+        
+        return (upper_total == lower_total);
     }
 
 protected:
@@ -321,7 +284,6 @@ protected:
     Spin spin_total_;
     bool has_spatial_symmetry_;
     bool has_spin_symmetry_;
-    SpinType spin_type_;
     AllocationStatus allocation_status_;
 
     TensorRank num_modes_;

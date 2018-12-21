@@ -185,6 +185,15 @@ public:
     }
 
     // Tensor Accessors
+
+    /**
+     * Access the underying global array
+     * @return Handle to underlying global array
+     */
+    int ga_handle() {
+        return impl_->ga_handle();
+    }
+
     /**
      * @brief Get method for Tensor values
      *

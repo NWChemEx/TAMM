@@ -339,6 +339,11 @@ public:
     //     return dest;
     // }
 
+    virtual int ga_handle() {
+        const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(*mpb_);
+        return mr.ga();
+    }
+
 protected:
     std::shared_ptr<Distribution> distribution_;    /**< shared pointer to associated Distribution */
     MemoryRegion* mpb_ = nullptr;   /**< Raw pointer memory region (default null) */

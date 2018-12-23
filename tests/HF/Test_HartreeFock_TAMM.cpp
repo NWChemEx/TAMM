@@ -3,14 +3,12 @@
 #include "HF/hartree_fock_tamm.hpp"
 #include "catch/catch.hpp"
 #include "tamm/tamm.hpp"
-#include "macdecls.h"
-#include "ga-mpi.h"
-
 
 using namespace tamm;
 
 
 std::string filename;
+bool restart=false;
 
 TEST_CASE("HartreeFock testcase") {
     // Matrix C;
@@ -23,7 +21,7 @@ TEST_CASE("HartreeFock testcase") {
     
     auto hf_t1 = std::chrono::high_resolution_clock::now();
     // std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename, C, F);
-    CHECK_NOTHROW(hartree_fock(ec, filename));
+    CHECK_NOTHROW(hartree_fock(ec, filename, restart));
     auto hf_t2 = std::chrono::high_resolution_clock::now();
 
     double hf_time =
@@ -45,6 +43,9 @@ int main( int argc, char* argv[] )
     }
 
     filename = std::string(argv[1]);
+    if(argc==3)
+        if (std::atoi(argv[2])==1) restart = true;
+
     std::ifstream testinput(filename); 
     if(!testinput){
         std::cout << "Input file provided [" << filename << "] does not exist!\n";

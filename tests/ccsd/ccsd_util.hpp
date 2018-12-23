@@ -235,8 +235,7 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(ExecutionCo
   const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
   libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map){
 
-    // At most 8*ao CholVec's. For vast majority cases, this is way
-    //   more than enough. For very large basis, it can be increased.
+
     tamm::Tile max_cvecs = 8*nao;
     auto diagtol = 1.0e-6; // tolerance for the max. diagonal
 

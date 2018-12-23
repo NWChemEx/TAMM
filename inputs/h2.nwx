@@ -1,0 +1,15 @@
+2
+
+H    0.000000000000000   0.000000000000000   0.387
+H    0.000000000000000   0.000000000000000  -0.387
+
+COMMON {  
+    basis sto-3g
+    geometry units angstrom
+}
+
+SCF 
+{ 
+    tilesize 30
+    restart false
+}

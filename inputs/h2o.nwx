@@ -1,0 +1,39 @@
+
+3
+
+H    0.000000000000000   1.579252144093028   2.174611055780858
+O    0.000000000000000   0.000000000000000   0.000000000000000
+H    0.000000000000000   1.579252144093028  -2.174611055780858
+
+COMMON {  
+    basis 6-31g*
+    maxiter 500
+    geometry units angstrom
+    //debug true
+}
+
+//Following sections can be specified in any order 
+
+SCF 
+{  //start of scf section
+
+    tol_int 1e-11 
+    conve 1e-9
+    convd 1e-8
+    diis_hist 12
+    tilesize 20
+    debug true
+    restart true
+}
+
+CD {
+    diagtol 1e-8
+    max_cvecs 8 //factor*nao
+    debug false
+}
+
+//CCSD {
+//    threshold 1e-10
+//    debug false
+//}
+

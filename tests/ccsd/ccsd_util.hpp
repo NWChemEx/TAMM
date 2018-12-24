@@ -201,7 +201,8 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
 }
 
 template<typename T>
-std::tuple<TAMM_SIZE, TAMM_SIZE, double, libint2::BasisSet, std::vector<size_t>, Tensor<T>, Tensor<T>, TiledIndexSpace, TiledIndexSpace> 
+std::tuple<std::unordered_map<std::string, Options>, TAMM_SIZE, TAMM_SIZE, double, 
+  libint2::BasisSet, std::vector<size_t>, Tensor<T>, Tensor<T>, TiledIndexSpace, TiledIndexSpace> 
     hartree_fock_driver(ExecutionContext &ec, const string filename) {
 
     auto rank = ec.pg().rank();
@@ -215,31 +216,40 @@ std::tuple<TAMM_SIZE, TAMM_SIZE, double, libint2::BasisSet, std::vector<size_t>,
     TiledIndexSpace tAOt; //original AO TIS
     std::vector<size_t> shell_tile_map;
 
+    // read geometry from a .nwx file 
+    auto is = std::ifstream(filename);
+    std::vector<Atom> atoms;
+    std::unordered_map<std::string, Options> options_map;
+    std::tie(atoms, options_map) = read_input_nwx(is);
+
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
-    std::tie(ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, tAO, tAOt) = hartree_fock(ec, filename);
+    std::tie(ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, tAO, tAOt) = hartree_fock(ec, filename, atoms, options_map);
     auto hf_t2 = std::chrono::high_resolution_clock::now();
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
     if(rank == 0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
 
-    return std::make_tuple(ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, tAO, tAOt);
+    return std::make_tuple(options_map,ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, tAO, tAOt);
 }
 
 
 template<typename T> 
-std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(ExecutionContext& ec, TiledIndexSpace& MO,
-    TiledIndexSpace& AO_tis,
+std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(std::unordered_map<std::string, Options> options_map,
+ ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& AO_tis,
   const TAMM_SIZE ov_alpha, const TAMM_SIZE nao, const TAMM_SIZE freeze_core,
   const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
   libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map){
 
+    CDOptions cd_options = options_map["CD"];
+    tamm::Tile max_cvecs = cd_options.max_cvecs_factor * nao;
+    auto diagtol = cd_options.diagtol; // tolerance for the max. diagonal
 
-    tamm::Tile max_cvecs = 8*nao;
-    auto diagtol = 1.0e-6; // tolerance for the max. diagonal
-
+    std::cout << std::defaultfloat;
     auto rank = ec.pg().rank();
+    if(rank==0) cd_options.print();
+
     TiledIndexSpace N = MO("all");
 
     Tensor<T> d_f1{{N,N},{1,1}};

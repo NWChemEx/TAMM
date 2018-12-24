@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <unordered_map>
+
 
 // Libint Gaussian integrals library
 #include <libint2.hpp>
@@ -21,7 +23,7 @@ using std::endl;
 using std::string;
 using libint2::Atom;
 
-const int nwx_max_section_options = 20;
+// const int nwx_max_section_options = 20;
 
 void print_bool(std::string str, bool val){
   if(val) cout << str << " = true" << endl;
@@ -233,8 +235,11 @@ void unknown_option(const std::string line, const std::string section){
   }
 }
 
-inline std::tuple<std::vector<Atom>, std::string, bool, int, double, double, double, int>
+inline std::tuple<std::vector<Atom>, std::unordered_map<std::string, Options>>
    read_input_nwx(std::istream& is) {
+
+    std::unordered_map<std::string, Options> options_map;
+
     const double angstrom_to_bohr =
       1.889725989; // 1 / bohr_to_angstrom; //1.889726125
     // first line = # of atoms
@@ -423,13 +428,17 @@ inline std::tuple<std::vector<Atom>, std::string, bool, int, double, double, dou
 
     if(GA_Nodeid()==0){
       options.print();
-      scf_options.print();
-      cd_options.print();
-      ccsd_options.print();
+      // scf_options.print();
+      // cd_options.print();
+      // ccsd_options.print();
     }
 
-    return std::make_tuple(atoms, options.basis, options.debug, options.maxiter, 
-      scf_options.tol_int, scf_options.conve, scf_options.convd, scf_options.diis_hist);
+    options_map["COMMON"] = options;
+    options_map["SCF"] = scf_options;
+    options_map["CD"] = cd_options;
+    options_map["CCSD"] = ccsd_options;
+
+    return std::make_tuple(atoms, options_map);
 }
 
 

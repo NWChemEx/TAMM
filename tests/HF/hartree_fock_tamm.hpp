@@ -29,7 +29,7 @@ void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F
 
 
 std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace> 
-    hartree_fock(ExecutionContext &exc, const string filename, bool restart=false) {
+    hartree_fock(ExecutionContext &exc, const string filename,std::vector<libint2::Atom> atoms,std::unordered_map<std::string, Options> options_map) {
     // Perform the simple HF calculation (Ed) and 2,4-index transform to get the
     // inputs for CCSD
     using libint2::Atom;
@@ -44,36 +44,27 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     /*** initialize molecule         ***/
     /*** =========================== ***/
 
-    // read geometry from a file; by default read from h2o.xyz, else take
-    // filename (.xyz) from the command line
-    auto is = std::ifstream(filename);
-    std::vector<Atom> atoms;
-    std::string basis;
 
-    int maxiter = 50;
-    double conve = 1e-6;
-    double convd = 1e-5;
-    double tol_int = 1e-8;
-    int max_hist = 10; 
-    auto debug = false;
 
-    std::tie(atoms, basis, debug, maxiter, tol_int, conve, convd, max_hist) = read_input_nwx(is);
+  auto rank = ec->pg().rank();
+  SCFOptions scf_options = options_map["SCF"];
 
-    tol_int = std::min(1e-8, 0.01 * conve);
+  if(rank == 0) {
+    cout << "\nNumber of GA ranks: " << GA_Nnodes() << endl;
+    scf_options.print();
+  }
 
-    auto rank = ec->pg().rank();
-    if(rank==0){
-      cout << "\nNumber of GA ranks: " << GA_Nnodes();
-      cout << "\nreading geometry from file: " << filename;
-      cout << "\n----------------------------------";
-      cout << "\ndiis hist = " << max_hist;
-      cout << "\nBasis set = " << basis;
-      cout << "\nmax iterations = " << maxiter;
-      cout << "\nIntegral tolerance = " << tol_int;
-      cout << "\nEnergy convergence = " << conve;
-      cout << "\nDensity convergence = " << convd;
-      cout << "\n----------------------------------";
-    }
+  std::string basis = scf_options.basis;
+  int maxiter = scf_options.maxiter;
+  double conve = scf_options.conve;
+  double convd = scf_options.convd;
+  double tol_int = scf_options.tol_int;
+  int max_hist = scf_options.diis_hist; 
+  auto debug = scf_options.debug;
+  auto restart = scf_options.restart;
+  Tile tilesize = static_cast<Tile>(scf_options.AO_tilesize);
+
+  tol_int = std::min(1e-8, 0.01 * conve);
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 

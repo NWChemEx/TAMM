@@ -23,7 +23,8 @@
 void diis(Matrix& F, Matrix& S, Matrix& D_last, int iter, int max_hist, int idiis,
 std::vector<Matrix> &diis_hist, std::vector<Matrix> &fock_hist); 
 
-std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filename, Matrix &C, Matrix &F) {
+std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filename, 
+  std::vector<libint2::Atom> atoms,std::unordered_map<std::string, Options> options_map) {
 
   // Perform the simple HF calculation (Ed) and 2,4-index transform to get the inputs for CCSD
   using libint2::Atom;
@@ -32,38 +33,29 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   using libint2::BasisSet;
   using libint2::Operator;
 
+  Matrix C, F;
+
   /*** =========================== ***/
   /*** initialize molecule         ***/
   /*** =========================== ***/
 
-  // read geometry from a file; by default read from h2o.xyz, else take filename (.xyz) from the command line
-  auto is = std::ifstream(filename);
-  std::vector<Atom> atoms;
-  std::string basis;
+  auto rank = GA_Nodeid();
+  SCFOptions scf_options = options_map["SCF"];
 
-  int maxiter = 50;
-  double conve = 1e-6;
-  double convd = 1e-5;
-  double tol_int = 1e-8;
-  int max_hist = 10; 
-  auto debug = false;
-
-  std::tie(atoms, basis, debug, maxiter, tol_int, conve, convd, max_hist) = read_input_nwx(is);
+  if(rank == 0) 
+    scf_options.print();
+  
+  std::string basis = scf_options.basis;
+  int maxiter = scf_options.maxiter;
+  double conve = scf_options.conve;
+  double convd = scf_options.convd;
+  double tol_int = scf_options.tol_int;
+  int max_hist = scf_options.diis_hist; 
+  auto debug = scf_options.debug;
+  auto restart = scf_options.restart;
+  Tile tilesize = static_cast<Tile>(scf_options.AO_tilesize);
 
   tol_int = std::min(1e-8, 0.01 * conve);
-
-  auto rank = GA_Nodeid();
-
-  if(rank == 0) {
-    cout << "\n----------------------------------";
-    cout << "\ndiis hist = " << max_hist;
-    cout << "\nBasis set = " << basis;
-    cout << "\nmax iterations = " << maxiter;
-    cout << "\nIntegral tolerance = " << tol_int;
-    cout << "\nEnergy convergence = " << conve;
-    cout << "\nDensity convergence = " << convd;
-    cout << "\n----------------------------------";
-  }
 
 //  std::cout << "Geometries in bohr units \n";
 //  for (auto i = 0; i < atoms.size(); ++i)

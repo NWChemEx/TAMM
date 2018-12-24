@@ -8,7 +8,6 @@ using namespace tamm;
 
 
 std::string filename;
-bool restart=false;
 
 TEST_CASE("HartreeFock testcase") {
     // Matrix C;
@@ -21,7 +20,14 @@ TEST_CASE("HartreeFock testcase") {
     
     auto hf_t1 = std::chrono::high_resolution_clock::now();
     // std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename, C, F);
-    CHECK_NOTHROW(hartree_fock(ec, filename, restart));
+
+    // read geometry from a .nwx file 
+    auto is = std::ifstream(filename);
+    std::vector<libint2::Atom> atoms;
+    std::unordered_map<std::string, Options> options_map;
+    std::tie(atoms, options_map) = read_input_nwx(is);
+
+    CHECK_NOTHROW(hartree_fock(ec, filename, atoms, options_map));
     auto hf_t2 = std::chrono::high_resolution_clock::now();
 
     double hf_time =
@@ -43,8 +49,6 @@ int main( int argc, char* argv[] )
     }
 
     filename = std::string(argv[1]);
-    if(argc==3)
-        if (std::atoi(argv[2])==1) restart = true;
 
     std::ifstream testinput(filename); 
     if(!testinput){

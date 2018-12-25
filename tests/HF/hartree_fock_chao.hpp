@@ -44,11 +44,11 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   // read geometry from a .nwx file 
   auto is = std::ifstream(filename);
   std::vector<Atom> atoms;
-  std::unordered_map<std::string, Options> options_map;
+  OptionsMap options_map;
   std::tie(atoms, options_map) = read_input_nwx(is);
 
   auto rank = ec->pg().rank();
-  SCFOptions scf_options = options_map["SCF"];
+  SCFOptions scf_options = options_map.scf_options;
 
   if(rank == 0) {
     cout << "\nNumber of GA ranks: " << GA_Nnodes() << endl;

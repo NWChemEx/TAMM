@@ -201,7 +201,7 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
 }
 
 template<typename T>
-std::tuple<std::unordered_map<std::string, Options>, TAMM_SIZE, TAMM_SIZE, double, 
+std::tuple<OptionsMap, TAMM_SIZE, TAMM_SIZE, double, 
   libint2::BasisSet, std::vector<size_t>, Tensor<T>, Tensor<T>, TiledIndexSpace, TiledIndexSpace> 
     hartree_fock_driver(ExecutionContext &ec, const string filename) {
 
@@ -219,7 +219,7 @@ std::tuple<std::unordered_map<std::string, Options>, TAMM_SIZE, TAMM_SIZE, doubl
     // read geometry from a .nwx file 
     auto is = std::ifstream(filename);
     std::vector<Atom> atoms;
-    std::unordered_map<std::string, Options> options_map;
+    OptionsMap options_map;
     std::tie(atoms, options_map) = read_input_nwx(is);
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
@@ -236,13 +236,13 @@ std::tuple<std::unordered_map<std::string, Options>, TAMM_SIZE, TAMM_SIZE, doubl
 
 
 template<typename T> 
-std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(std::unordered_map<std::string, Options> options_map,
+std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(OptionsMap options_map,
  ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& AO_tis,
   const TAMM_SIZE ov_alpha, const TAMM_SIZE nao, const TAMM_SIZE freeze_core,
   const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
   libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map){
 
-    CDOptions cd_options = options_map["CD"];
+    CDOptions cd_options = options_map.cd_options;
     tamm::Tile max_cvecs = cd_options.max_cvecs_factor * nao;
     auto diagtol = cd_options.diagtol; // tolerance for the max. diagonal
 

@@ -441,7 +441,7 @@ void ccsd_driver() {
                                 freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
 
 
-    CCSDOptions ccsd_options = options_map["CCSD"];
+    CCSDOptions ccsd_options = options_map.ccsd_options;
     if(rank == 0) ccsd_options.print();
 
     int maxiter    = ccsd_options.maxiter;

@@ -394,7 +394,8 @@ void ccsd_driver() {
   for(auto x = 0; x < chol_count; x++) {
       Tensor<T> cholvec = chol_vecs.at(x);
         Tensor<T> tensor = cholvec;
-
+	Tensor<T> cvpr = cholVpr;
+	
         auto lambdacv = [&](const IndexVector& bid){
             const IndexVector blockid =
             internal::translate_blockid(bid, tensor());
@@ -406,10 +407,10 @@ void ccsd_driver() {
             std::vector<TensorType> dbuf(dsize);
 
             IndexVector cvpriv = {0,blockid[0],blockid[1]};
-            const tamm::TAMM_SIZE ssize = cholVpr.block_size(cvpriv);
+            const tamm::TAMM_SIZE ssize = cvpr.block_size(cvpriv);
             std::vector<TensorType> sbuf(ssize);
 
-            cholVpr.get(cvpriv, sbuf);
+            cvpr.get(cvpriv, sbuf);
                 
             TAMM_SIZE c = 0;
             for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];

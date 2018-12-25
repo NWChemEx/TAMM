@@ -11,7 +11,7 @@ using Tensor3D   = Eigen::Tensor<double, 3, Eigen::RowMajor>;
 using Tensor4D   = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 
 
-  auto lambdar2 = [&](const IndexVector& blockid, span<double> buf){
+  auto lambdar2 = [](const IndexVector& blockid, span<double> buf){
       if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
           for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
       }
@@ -315,12 +315,12 @@ void ccsd_stats(ExecutionContext& ec, double hf_energy,double residual,double en
 // }
 
 
-  auto free_vec_tensors = [&](auto&&... vecx) {
+  auto free_vec_tensors = [](auto&&... vecx) {
       (std::for_each(vecx.begin(), vecx.end(), [](auto& t) { t.deallocate(); }),
        ...);
   };
 
-  auto free_tensors = [&](auto&&... t) {
+  auto free_tensors = [](auto&&... t) {
       ( (t.deallocate()), ...);
   };
 

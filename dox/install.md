@@ -121,7 +121,28 @@ module load PrgEnv-gnu/6.0.4
 module load gcc/7.3.0 cray-mpich/7.7.0
 module load cmake/3.11.4
 ```
-Remaining setup the same as in GCC+MKL section with the following change:
- - Remove the compiler options from the cmake line or change them to:  
+
+- CMakeBuild repository should be built with the following compiler options.
+  - Remove the compiler options from the cmake line or change them to:  
  -DCMAKE_C_COMPILER=cc -DCMAKE_CXX_COMPILER=CC -DCMAKE_Fortran_COMPILER=ftn
- - CMakeBuild repository should be built with the same compiler options.
+
+ 
+```
+export TAMM_INSTALL_PATH=/global/homes/p/user/code/NWChemEx/install
+export INTEL_ROOT=/opt/intel/compilers_and_libraries_2018.1.163
+
+export MKL_INC=$INTEL_ROOT/linux/mkl/include
+export MKL_LIBS=$INTEL_ROOT/linux/mkl/lib/intel64
+export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_ilp64.a;$MKL_LIBS/libmkl_blas95_ilp64.a;$MKL_LIBS/libmkl_gnu_thread.a;$MKL_LIBS/libmkl_core.a;-lgomp;-lpthread;-ldl"
+
+cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC \
+-DLAPACKE_INCLUDE_DIRS=$MKL_INC \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMMGCCMKL \
+-DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
+-DTAMM_CXX_FLAGS="-DMKL_ILP64 -m64" \
+-DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
+-DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
+
+```
+
+

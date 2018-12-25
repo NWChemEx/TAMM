@@ -13,7 +13,7 @@ TEST_CASE("HartreeFock testcase") {
     // read geometry from a .nwx file 
     auto is = std::ifstream(filename);
     std::vector<libint2::Atom> atoms;
-    std::unordered_map<std::string, Options> options_map;
+    OptionsMap options_map;
     std::tie(atoms, options_map) = read_input_nwx(is);
 
     CHECK_NOTHROW(hartree_fock(filename, atoms, options_map));

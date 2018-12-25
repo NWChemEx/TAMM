@@ -59,6 +59,7 @@ class Options {
 class SCFOptions: public Options {
 
   public:
+    SCFOptions() = default;
     SCFOptions(Options o): Options(o)
     {
       tol_int = 1e-8;
@@ -93,6 +94,7 @@ class SCFOptions: public Options {
 class CDOptions: public Options {
 
   public:
+    CDOptions() = default;
     CDOptions(Options o): Options(o)
     {
       diagtol = 1e-6;
@@ -116,6 +118,7 @@ class CDOptions: public Options {
 
 class CCSDOptions: public Options {
   public:
+  CCSDOptions() = default;
   CCSDOptions(Options o): Options(o)
   {
     threshold = 1e-10;
@@ -130,6 +133,16 @@ class CCSDOptions: public Options {
     cout << "}\n";
   }
 
+};
+
+class OptionsMap
+{
+  public:
+    OptionsMap() = default;
+    Options options;
+    SCFOptions scf_options;
+    CDOptions cd_options;
+    CCSDOptions ccsd_options;
 };
 
 
@@ -235,15 +248,10 @@ void unknown_option(const std::string line, const std::string section){
   }
 }
 
-inline std::tuple<std::vector<Atom>, std::unordered_map<std::string, Options>>
-   read_input_nwx(std::istream& is) {
 
-    std::unordered_map<std::string, Options> options_map;
-
-    const double angstrom_to_bohr =
-      1.889725989; // 1 / bohr_to_angstrom; //1.889726125
+std::vector<Atom> read_atoms(std::istream& is) {
+    
     // first line = # of atoms
-
     skip_empty_lines(is);
     size_t natom;
     is >> natom;
@@ -290,7 +298,11 @@ inline std::tuple<std::vector<Atom>, std::unordered_map<std::string, Options>>
 
     }
 
-    //Can have blank/comment lines after atom list
+    return atoms;
+}
+
+std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istream& is) {
+      //Can have blank/comment lines after atom list
     skip_empty_lines(is);
 
     std::string line;
@@ -404,10 +416,23 @@ inline std::tuple<std::vector<Atom>, std::unordered_map<std::string, Options>>
 
         }
       }
-
       //else ignore 
-
     }
+
+    return std::make_tuple(options, scf_options, cd_options, ccsd_options);
+
+}
+
+
+inline std::tuple<std::vector<Atom>, OptionsMap>
+   read_input_nwx(std::istream& is) {
+
+    const double angstrom_to_bohr =
+      1.889725989; // 1 / bohr_to_angstrom; //1.889726125
+    
+    auto atoms = read_atoms(is);
+
+    auto [options, scf_options, cd_options, ccsd_options] = read_nwx_file(is);
 
     //Done parsing input file
     {
@@ -433,10 +458,11 @@ inline std::tuple<std::vector<Atom>, std::unordered_map<std::string, Options>>
       // ccsd_options.print();
     }
 
-    options_map["COMMON"] = options;
-    options_map["SCF"] = scf_options;
-    options_map["CD"] = cd_options;
-    options_map["CCSD"] = ccsd_options;
+    OptionsMap options_map;
+    options_map.options = options;
+    options_map.scf_options = scf_options;
+    options_map.cd_options = cd_options;
+    options_map.ccsd_options = ccsd_options;
 
     return std::make_tuple(atoms, options_map);
 }

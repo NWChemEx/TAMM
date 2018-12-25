@@ -29,7 +29,7 @@ void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F
 
 
 std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace> 
-    hartree_fock(ExecutionContext &exc, const string filename,std::vector<libint2::Atom> atoms,std::unordered_map<std::string, Options> options_map) {
+    hartree_fock(ExecutionContext &exc, const string filename,std::vector<libint2::Atom> atoms, OptionsMap options_map) {
     // Perform the simple HF calculation (Ed) and 2,4-index transform to get the
     // inputs for CCSD
     using libint2::Atom;
@@ -47,7 +47,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
 
   auto rank = ec->pg().rank();
-  SCFOptions scf_options = options_map["SCF"];
+  SCFOptions scf_options = options_map.scf_options;
 
   if(rank == 0) {
     cout << "\nNumber of GA ranks: " << GA_Nnodes() << endl;

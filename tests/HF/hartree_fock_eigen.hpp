@@ -24,7 +24,7 @@ void diis(Matrix& F, Matrix& S, Matrix& D_last, int iter, int max_hist, int idii
 std::vector<Matrix> &diis_hist, std::vector<Matrix> &fock_hist); 
 
 std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filename, 
-  std::vector<libint2::Atom> atoms,std::unordered_map<std::string, Options> options_map) {
+  std::vector<libint2::Atom> atoms, OptionsMap options_map) {
 
   // Perform the simple HF calculation (Ed) and 2,4-index transform to get the inputs for CCSD
   using libint2::Atom;
@@ -40,7 +40,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   /*** =========================== ***/
 
   auto rank = GA_Nodeid();
-  SCFOptions scf_options = options_map["SCF"];
+  SCFOptions scf_options = options_map.scf_options;
 
   if(rank == 0) 
     scf_options.print();

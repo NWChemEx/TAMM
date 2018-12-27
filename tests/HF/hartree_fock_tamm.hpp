@@ -44,8 +44,6 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     /*** initialize molecule         ***/
     /*** =========================== ***/
 
-
-
   auto rank = ec->pg().rank();
   SCFOptions scf_options = options_map.scf_options;
 
@@ -443,7 +441,8 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     if(rank==0) 
     {
       cout << "Reading orbitals from file... ";
-      std::string orbitalsfile = getfilename(filename)+".orbitals";
+      std::string orbitalsfile = getfilename(filename) +
+        "." + scf_options.basis + ".orbitals";
 
       std::vector<TensorType> Cbuf(N*N);
       TensorType *Hbuf = Cbuf.data();
@@ -805,7 +804,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         // build a new Fock matrix
         // F           = H;
 
-        hf_t1 = std::chrono::high_resolution_clock::now();
+        auto do_t1 = std::chrono::high_resolution_clock::now();
         
         // const auto precision_F = std::min(
         // std::min(1e-3 / XtX_condition_number, 1e-7),
@@ -968,20 +967,20 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     eigen_to_tamm_tensor_acc(F1tmp1,G);
 #endif
 
-        hf_t2 = std::chrono::high_resolution_clock::now();
-        hf_time =
-        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+        auto do_t2 = std::chrono::high_resolution_clock::now();
+        auto do_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
         if(rank == 0 && debug) std::cout << "2BF:" << hf_time << "s, ";
 
-        hf_t1 = std::chrono::high_resolution_clock::now();
+        do_t1 = std::chrono::high_resolution_clock::now();
         // F += Ftmp;
         Scheduler{*ec}(F1(mu, nu) = H1(mu, nu))
                      (F1(mu, nu) += F1tmp1(mu, nu)).execute();
 
-        hf_t2 = std::chrono::high_resolution_clock::now();
-        hf_time =
-        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+        do_t2 = std::chrono::high_resolution_clock::now();
+        do_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
         if(rank == 0 && debug) std::cout << "F=H+2BF:" << hf_time << "s, ";
 
@@ -998,7 +997,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         Tensor<TensorType> err_mat_tamm{tAO, tAO};
         Tensor<TensorType>::allocate(ec, err_mat_tamm);
 
-        hf_t1 = std::chrono::high_resolution_clock::now();
+        do_t1 = std::chrono::high_resolution_clock::now();
         
         Scheduler{*ec}(FSm12_tamm(mu,nu) = F1(mu,ku) * Sm12_tamm(ku,nu))
         (Sp12D_tamm(mu,nu) = Sp12_tamm(mu,ku) * D_last_tamm(ku,nu))
@@ -1007,9 +1006,9 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         (err_mat_tamm(mu,nu) = SpFS_tamm(nu,mu))
         (err_mat_tamm(mu,nu) += -1.0 * SpFS_tamm(mu,nu)).execute();
 
-        hf_t2 = std::chrono::high_resolution_clock::now();
-        hf_time =
-        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+        do_t2 = std::chrono::high_resolution_clock::now();
+        do_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
         if(rank == 0 && debug) std::cout << "err_mat:" << hf_time << "s, ";        
 
@@ -1017,7 +1016,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         //tamm_to_eigen_tensor(err_mat_tamm,err_mat);
         //tamm_to_eigen_tensor(F1,F);
 
-        hf_t1 = std::chrono::high_resolution_clock::now();
+        do_t1 = std::chrono::high_resolution_clock::now();
 
         if(iter > 1) {
             ++idiis;
@@ -1025,14 +1024,14 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
                 diis_hist, fock_hist);
         }
     
-        hf_t2 = std::chrono::high_resolution_clock::now();
-        hf_time =
-        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+        do_t2 = std::chrono::high_resolution_clock::now();
+        do_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
         if(rank == 0 && debug) std::cout << "diis:" << hf_time << "s, ";    
         tamm_to_eigen_tensor(F1,F);
 
-        hf_t1 = std::chrono::high_resolution_clock::now();
+        do_t1 = std::chrono::high_resolution_clock::now();
         // solve F C = e S C
         // Eigen::GeneralizedSelfAdjointEigenSolver<Matrix>
         // gen_eig_solver(F, S);
@@ -1053,24 +1052,24 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         auto C_occ = C.leftCols(ndocc);
         D          = C_occ * C_occ.transpose();
 
-        hf_t2 = std::chrono::high_resolution_clock::now();
-        hf_time =
-        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+        do_t2 = std::chrono::high_resolution_clock::now();
+        do_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
         if(rank == 0 && debug) std::cout << "eigen_solve:" << hf_time << "s, ";    
 
-        hf_t1 = std::chrono::high_resolution_clock::now();
+        do_t1 = std::chrono::high_resolution_clock::now();
 
         eigen_to_tamm_tensor(D_tamm,D);
         // eigen_to_tamm_tensor(F1,F);
 
-        hf_t2 = std::chrono::high_resolution_clock::now();
-        hf_time =
-        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+        do_t2 = std::chrono::high_resolution_clock::now();
+        do_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
         if(rank == 0 && debug) std::cout << "E2T-D:" << hf_time << "s, ";    
 
-        hf_t1 = std::chrono::high_resolution_clock::now();
+        do_t1 = std::chrono::high_resolution_clock::now();
         // compute HF energy 
         // e = D * (H+F);
         Scheduler{*ec}
@@ -1087,9 +1086,9 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
                       (D_diff()-=D_last_tamm()).execute();
         rmsd = norm(*ec, D_diff());
 
-        hf_t2 = std::chrono::high_resolution_clock::now();
-        hf_time =
-        std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+        do_t2 = std::chrono::high_resolution_clock::now();
+        do_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
         if(rank == 0 && debug) std::cout << "HF-Energy:" << hf_time << "s\n";    
 
@@ -1136,7 +1135,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     if(rank==0 && !restart) {
      cout << "writing orbitals to file... ";
-     writeC(C,filename,restart);
+     writeC(C,filename,options_map);
      cout << "done.\n";
     }
 

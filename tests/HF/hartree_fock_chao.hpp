@@ -90,7 +90,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   if (rank == 0) cout << "\nNuclear repulsion energy = " << enuc << endl;
 
   // initializes the Libint integrals library ... now ready to compute
-  libint2::initialize(debug);
+  libint2::initialize(false);
 
   /*** =========================== ***/
   /*** create basis set            ***/

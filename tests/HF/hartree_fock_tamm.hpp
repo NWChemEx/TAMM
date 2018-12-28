@@ -90,7 +90,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     if(GA_Nodeid()==0) cout << "\nNuclear repulsion energy = " << enuc << endl;
 
     // initializes the Libint integrals library ... now ready to compute
-    libint2::initialize(debug);
+    libint2::initialize(false);
 
     /*** =========================== ***/
     /*** create basis set            ***/

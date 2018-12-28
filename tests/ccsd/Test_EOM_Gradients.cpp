@@ -101,7 +101,7 @@ void ccsd_driver() {
     size_t microeomiter  = 25; //Number of iterations in a microcycle
 
 
-//EOMCCSD Routine:
+//Right EOMCCSD Routine:
   cc_t1 = std::chrono::high_resolution_clock::now();
 
   auto [xc1,xc2] = right_eomccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_v2, p_evl_sorted,
@@ -114,8 +114,27 @@ void ccsd_driver() {
     std::chrono::duration_cast<std::chrono::duration<T>>((cc_t2 - cc_t1)).count();
   if(rank==0) std::cout << "\nTime taken for EOMCCSD: " << ccsd_time << " secs\n";
 
-  free_tensors(d_r1, d_r2, d_t1, d_t2, d_f1, d_v2);
-  free_vec_tensors(xc1,xc2);
+  //Left EOMCCSD Routine:
+  cc_t1 = std::chrono::high_resolution_clock::now();
+
+  auto [yc1,yc2] = left_eomccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_v2, p_evl_sorted,
+                      nroots, maxeomiter, eomthresh, microeomiter,
+                      total_orbitals, 2 * ov_alpha);
+
+  cc_t2 = std::chrono::high_resolution_clock::now();
+
+  ccsd_time =
+    std::chrono::duration_cast<std::chrono::duration<T>>((cc_t2 - cc_t1)).count();
+  if(rank==0) std::cout << "\nTime taken for Left-Eigenstate EOMCCSD: " << ccsd_time << " secs\n";
+
+  free_tensors(d_r1, d_r2, d_f1, d_v2);
+
+  // *************** BEGIN GRADIENTS CODE ************************* //
+
+  // *************** END GRADIENTS CODE ************************* //
+
+  free_tensors(d_t1,d_t2);
+  free_vec_tensors(xc1,xc2,yc1,yc2);
   
   ec.flush_and_sync();
   MemoryManagerGA::destroy_coll(mgr);

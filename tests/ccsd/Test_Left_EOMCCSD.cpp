@@ -599,6 +599,19 @@ void eomccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
              std::cout << " Iterations converged" << std::endl;
            }
            convflag = true;
+           for(auto root = 0; root < nroots; root++){
+
+              sch(yc1.at(root)() = 0)
+                 (yc2.at(root)() = 0).execute();
+
+              for(int i = 0; i < nxtrials; i++){
+
+                 T hbr_scalar = hbar_right(i,root);
+
+                 sch(yc1.at(root)() += hbr_scalar * y1.at(i)())
+                    (yc2.at(root)() += hbr_scalar * y2.at(i)()).execute();
+              }
+           }
            break;
         }
 

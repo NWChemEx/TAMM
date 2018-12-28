@@ -256,9 +256,6 @@ void eomccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
   const TiledIndexSpace& V = MO("virt");
   const TiledIndexSpace& N = MO("all");
 
-  auto [h1, h2] = MO.labels<2>("occ");
-  auto [p3, p4] = MO.labels<2>("virt");
-
   std::cout.precision(15);
 
   Scheduler sch{ec};

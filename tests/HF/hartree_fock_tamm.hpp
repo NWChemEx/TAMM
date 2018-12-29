@@ -337,7 +337,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     if(rank == 0) std::cout << "\nTime for tamm to eigen - H1-H: " << hf_time << " secs\n";
 
     hf_t1 = std::chrono::high_resolution_clock::now();
-    if(rank == 0)
+   if(rank == 0)
       tamm_to_eigen_tensor(S1, S);
     GA_Sync();
     std::vector<TensorType> Sbufv(N*N);
@@ -959,15 +959,22 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     };
 
     block_for(*ec, F1tmp(), comp_2bf_lambda);
+
+    auto do_t2 = std::chrono::high_resolution_clock::now();
+    auto do_time =
+    std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
+
+    if(rank == 0 && debug) std::cout << "2BF:" << do_time << "s, ";
     // GA_Sync();
+
+    do_t1 = std::chrono::high_resolution_clock::now();
     eigen_to_tamm_tensor_acc(F1tmp1,G);
+    do_t2 = std::chrono::high_resolution_clock::now();
+    do_time =
+    std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
+
+    if(rank == 0 && debug) std::cout << "E2T-ACC-G-F1:" << do_time << "s, ";
 #endif
-
-        auto do_t2 = std::chrono::high_resolution_clock::now();
-        auto do_time =
-        std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
-
-        if(rank == 0 && debug) std::cout << "2BF:" << do_time << "s, ";
 
         do_t1 = std::chrono::high_resolution_clock::now();
         // F += Ftmp;
@@ -978,7 +985,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         do_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
-        if(rank == 0 && debug) std::cout << "F=H+2BF:" << hf_time << "s, ";
+        if(rank == 0 && debug) std::cout << "F=H+2BF:" << do_time << "s, ";
 
         // tamm_to_eigen_tensor(F1,F);
         // Matrix FSm12 = F * Sm12;

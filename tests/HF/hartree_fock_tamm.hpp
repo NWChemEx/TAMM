@@ -318,11 +318,8 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
     if(rank == 0) std::cout << "\nTime for computing Core Hamiltonian H=T+V: " << hf_time << " secs\n";
 
-
     hf_t1 = std::chrono::high_resolution_clock::now();
 
-    //TODO: These copies are expensive since we are reshaping blocks of H1P to get H1
-    //copy H1P to H using rank 0 and broadcast to get better performance
     if(rank == 0)
       tamm_to_eigen_tensor(H1, H);
     GA_Sync();
@@ -340,7 +337,6 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     if(rank == 0) std::cout << "\nTime for tamm to eigen - H1-H: " << hf_time << " secs\n";
 
     hf_t1 = std::chrono::high_resolution_clock::now();
-    // tamm_to_eigen_tensor(S1, S);
     if(rank == 0)
       tamm_to_eigen_tensor(S1, S);
     GA_Sync();
@@ -971,7 +967,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         auto do_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
-        if(rank == 0 && debug) std::cout << "2BF:" << hf_time << "s, ";
+        if(rank == 0 && debug) std::cout << "2BF:" << do_time << "s, ";
 
         do_t1 = std::chrono::high_resolution_clock::now();
         // F += Ftmp;
@@ -1010,7 +1006,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         do_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
-        if(rank == 0 && debug) std::cout << "err_mat:" << hf_time << "s, ";        
+        if(rank == 0 && debug) std::cout << "err_mat:" << do_time << "s, ";        
 
         GA_Sync();
         //tamm_to_eigen_tensor(err_mat_tamm,err_mat);
@@ -1028,7 +1024,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         do_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
-        if(rank == 0 && debug) std::cout << "diis:" << hf_time << "s, ";    
+        if(rank == 0 && debug) std::cout << "diis:" << do_time << "s, ";    
         tamm_to_eigen_tensor(F1,F);
 
         do_t1 = std::chrono::high_resolution_clock::now();
@@ -1056,7 +1052,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         do_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
-        if(rank == 0 && debug) std::cout << "eigen_solve:" << hf_time << "s, ";    
+        if(rank == 0 && debug) std::cout << "eigen_solve:" << do_time << "s, ";    
 
         do_t1 = std::chrono::high_resolution_clock::now();
 
@@ -1067,7 +1063,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         do_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
-        if(rank == 0 && debug) std::cout << "E2T-D:" << hf_time << "s, ";    
+        if(rank == 0 && debug) std::cout << "E2T-D:" << do_time << "s, ";    
 
         do_t1 = std::chrono::high_resolution_clock::now();
         // compute HF energy 
@@ -1090,7 +1086,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         do_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
-        if(rank == 0 && debug) std::cout << "HF-Energy:" << hf_time << "s\n";    
+        if(rank == 0 && debug) std::cout << "HF-Energy:" << do_time << "s\n";    
 
         const auto loop_stop = std::chrono::high_resolution_clock::now();
         const auto loop_time =

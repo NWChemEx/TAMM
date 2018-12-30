@@ -337,7 +337,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     if(rank == 0) std::cout << "\nTime for tamm to eigen - H1-H: " << hf_time << " secs\n";
 
     hf_t1 = std::chrono::high_resolution_clock::now();
-   if(rank == 0)
+    if(rank == 0)
       tamm_to_eigen_tensor(S1, S);
     GA_Sync();
     std::vector<TensorType> Sbufv(N*N);
@@ -611,13 +611,13 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
             }
           }
         }
-
-      // symmetrize the result and return
-      Matrix Gt = 0.5 * (G + G.transpose());
-      G = Gt;
     };
 
     block_for(*ec, F1tmp(), compute_2body_fock_general_lambda);
+    // symmetrize the result and return
+    Matrix Gt = 0.5 * (G + G.transpose());
+    G = Gt;
+    Gt.resize(0,0);
     auto ig2 = std::chrono::high_resolution_clock::now();
     auto igtime =
       std::chrono::duration_cast<std::chrono::duration<double>>((ig2 - ig1)).count();
@@ -936,7 +936,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
                   const auto bf3 = f3 + bf3_first;
                   for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
                     const auto bf4 = f4 + bf4_first;
-
+  
                     const auto value = buf_1234[f1234];
                     const auto value_scal_by_deg = value * s1234_deg;
 
@@ -954,12 +954,14 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
           }
         }
 
-      Matrix Gt = 0.5*(G + G.transpose());
-      G = Gt;
+      // Matrix Gt = 0.5*(G + G.transpose());
+      // G = Gt;
     };
 
     block_for(*ec, F1tmp(), comp_2bf_lambda);
-
+    Matrix Gt = 0.5*(G + G.transpose());
+    G = Gt;
+    Gt.resize(0,0);
     auto do_t2 = std::chrono::high_resolution_clock::now();
     auto do_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
@@ -1107,6 +1109,9 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
             std::cout << std::fixed << std::setprecision(2);
             std::cout << ' ' << std::setw(12)  << loop_time << ' ' << "\n";
         }
+
+        // if(rank==0 && !restart)
+        //   writeC(C,filename,options_map);
 
         if(iter > maxiter) {                
             is_conv = false;

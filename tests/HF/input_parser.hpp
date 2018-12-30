@@ -161,7 +161,7 @@ string read_option(string line){
   std::vector<std::string> option_string{
     std::istream_iterator<std::string>{oss},
     std::istream_iterator<std::string>{}};
-  assert(option_string.size() == 2);
+  // assert(option_string.size() == 2);
   
   return option_string[1];
 }

@@ -169,7 +169,14 @@ void writeC(Matrix& C, std::string filename, OptionsMap options){
   out.close();
 }
 
+template<typename T>
+std::vector<size_t> sort_indexes(std::vector<T>& v){
+    std::vector<size_t> idx(v.size());
+    iota(idx.begin(),idx.end(),0);
+    sort(idx.begin(),idx.end(),[&v](size_t x, size_t y) {return v[x] < v[y];});
 
+    return idx;
+}
 
 template<typename ...Args>
 auto print_2e(Args&&... args){

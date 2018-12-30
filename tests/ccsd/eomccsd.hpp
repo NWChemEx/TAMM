@@ -235,15 +235,6 @@ void eomccsd_x2(ExecutionContext& ec, const TiledIndexSpace& MO,
 }
 
 template<typename T>
-std::vector<size_t> sort_indexes(std::vector<T>& v){
-    std::vector<size_t> idx(v.size());
-    iota(idx.begin(),idx.end(),0);
-    sort(idx.begin(),idx.end(),[&v](size_t x, size_t y) {return v[x] < v[y];});
-
-    return idx;
-}
-
-template<typename T>
 std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> right_eomccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
                    Tensor<T>& t1, Tensor<T>& t2,
                    Tensor<T>& f1, Tensor<T>& v2,

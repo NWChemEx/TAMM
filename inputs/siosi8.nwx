@@ -1,6 +1,5 @@
 533
 
-geometry units angstrom
 O             4.78800          -3.99500           4.48600
 Si            3.23700          -3.83600           4.19900
 Si            6.30100          -3.91100           3.98200
@@ -535,11 +534,14 @@ H             8.72772           2.37325          -3.32646
 H             0.95653         -15.96877           0.67569
 O             4.79531          -2.23995          12.48454
 
-basis 6-31g*
-debug false
-maxiter 50
-tol_int 1e-8
-conve 1e-6
-convd 1e-5
-diis_hist 10
+COMMON {  
+    basis 6-31g*
+    geometry units angstrom
+}
+
+SCF 
+{ 
+    tilesize 30
+    restart false
+}
 

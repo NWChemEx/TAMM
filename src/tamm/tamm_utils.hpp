@@ -45,6 +45,19 @@ void print_tensor(const Tensor<T>& tensor) {
     }
 }
 
+template<typename T>
+void print_tensor_all(Tensor<T> &t){
+    for (auto it: t.loop_nest())
+    {
+        TAMM_SIZE size = t.block_size(it);
+        std::vector<T> buf(size);
+        t.get(it, buf);
+        std::cout << "block" << it;
+        for (TAMM_SIZE i = 0; i < size;i++)
+         std::cout << buf[i] << std::endl;
+    }
+}
+
 /**
  * @brief Get the scalar value from the Tensor
  *
@@ -62,6 +75,7 @@ T get_scalar(Tensor<T>& tensor) {
     tensor.get({}, {&scalar, 1});
     return scalar;
 }
+
 
 /**
  * @brief Update input LabeledTensor object with a lambda function
@@ -339,17 +353,18 @@ TensorType norm(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
     return std::sqrt(gsumsq);
 }
 
-//returns max_element, blockids, global coordinates
+
+//returns max_element, blockids, coordinates of max element in the block
 template<typename TensorType>
 std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
     TensorType max = 0.0;
-    IndexVector maxblockid;
     
     Tensor<TensorType> tensor = ltensor.tensor();
     auto nmodes = tensor.num_modes();
      //Works for only upto 6D tensors
     EXPECTS(tensor.num_modes() <= 6);
 
+    IndexVector maxblockid(nmodes);
     std::vector<size_t> bfuv(nmodes);
     std::vector<TensorType> lmax(2,0);
     std::vector<TensorType> gmax(2,0);
@@ -371,37 +386,40 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionCo
                 if(lmax[0] < dbuf[c]) {
                     lmax[0]    = dbuf[c];
                     lmax[1]    = GA_Nodeid();
-                    bfuv[0]    = i;
+                    bfuv[0]    = i - block_offset[0];
                     maxblockid = {blockid[0]};
                 }
             }
         } else if(nmodes == 2) {
-            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                auto dimi = block_offset[0] + block_dims[0];
+                auto dimj = block_offset[1] + block_dims[1];
+            for(size_t i = block_offset[0]; i < dimi;
                 i++) {
                 for(size_t j = block_offset[1];
-                    j < block_offset[1] + block_dims[1]; j++, c++) {
+                    j < dimj; j++, c++) {
                     if(lmax[0] < dbuf[c]) {
                         lmax[0]    = dbuf[c];
                         lmax[1]    = GA_Nodeid();
-                        bfuv[0]    = i;
-                        bfuv[1]    = j;
+                        bfuv[0]    = i-block_offset[0];
+                        bfuv[1]    = j-block_offset[1];
                         maxblockid = {blockid[0], blockid[1]};
                     }
                 }
             }
         } else if(nmodes == 3) {
-            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
-                i++) {
-                for(size_t j = block_offset[1];
-                    j < block_offset[1] + block_dims[1]; j++) {
-                    for(size_t k = block_offset[2];
-                        k < block_offset[2] + block_dims[2]; k++, c++) {
+            auto dimi = block_offset[0] + block_dims[0];
+            auto dimj = block_offset[1] + block_dims[1];
+            auto dimk = block_offset[2] + block_dims[2];
+
+            for(size_t i = block_offset[0]; i < dimi; i++) {
+                for(size_t j = block_offset[1]; j < dimj; j++) {
+                    for(size_t k = block_offset[2]; k < dimk; k++, c++) {
                         if(lmax[0] < dbuf[c]) {
                             lmax[0]    = dbuf[c];
                             lmax[1]    = GA_Nodeid();
-                            bfuv[0]    = i;
-                            bfuv[1]    = j;
-                            bfuv[2]    = k;
+                            bfuv[0]    = i - block_offset[0];
+                            bfuv[1]    = j - block_offset[1];
+                            bfuv[2]    = k - block_offset[2];
                             maxblockid = {blockid[0], blockid[1], blockid[2]};
                         }
                     }
@@ -419,10 +437,10 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionCo
                             if(lmax[0] < dbuf[c]) {
                                 lmax[0]    = dbuf[c];
                                 lmax[1]    = GA_Nodeid();
-                                bfuv[0]    = i;
-                                bfuv[1]    = j;
-                                bfuv[2]    = k;
-                                bfuv[3]    = l;
+                                bfuv[0]    = i - block_offset[0];
+                                bfuv[1]    = j - block_offset[1];
+                                bfuv[2]    = k - block_offset[2];
+                                bfuv[3]    = l - block_offset[3];
                                 maxblockid = {blockid[0], blockid[1],
                                               blockid[2], blockid[3]};
                             }
@@ -444,11 +462,11 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionCo
                                 if(lmax[0] < dbuf[c]) {
                                     lmax[0]    = dbuf[c];
                                     lmax[1]    = GA_Nodeid();
-                                    bfuv[0]    = i;
-                                    bfuv[1]    = j;
-                                    bfuv[2]    = k;
-                                    bfuv[3]    = l;
-                                    bfuv[4]    = m;
+                                    bfuv[0]    = i - block_offset[0];
+                                    bfuv[1]    = j - block_offset[1];
+                                    bfuv[2]    = k - block_offset[2];
+                                    bfuv[3]    = l - block_offset[3];
+                                    bfuv[4]    = m - block_offset[4];
                                     maxblockid = {blockid[0], blockid[1],
                                                   blockid[2], blockid[3],
                                                   blockid[4]};
@@ -477,12 +495,12 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionCo
                                     if(lmax[0] < dbuf[c]) {
                                         lmax[0]    = dbuf[c];
                                         lmax[1]    = GA_Nodeid();
-                                        bfuv[0]    = i;
-                                        bfuv[1]    = j;
-                                        bfuv[2]    = k;
-                                        bfuv[3]    = l;
-                                        bfuv[4]    = m;
-                                        bfuv[5]    = n;
+                                        bfuv[0]    = i - block_offset[0];
+                                        bfuv[1]    = j - block_offset[1];
+                                        bfuv[2]    = k - block_offset[2];
+                                        bfuv[3]    = l - block_offset[3];
+                                        bfuv[4]    = m - block_offset[4];
+                                        bfuv[5]    = n - block_offset[5];
                                         maxblockid = {blockid[0], blockid[1],
                                                       blockid[2], blockid[3],
                                                       blockid[4], blockid[5]};
@@ -505,17 +523,17 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionCo
 }
 
 
-//returns min_element, blockids, global coordinates
+//returns min_element, blockids, coordinates of min element in the block
 template<typename TensorType>
 std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
     TensorType min = 0.0;
-    IndexVector minblockid;
 
     Tensor<TensorType> tensor = ltensor.tensor();
     auto nmodes = tensor.num_modes();
      //Works for only upto 6D tensors
     EXPECTS(tensor.num_modes() <= 6);
 
+    IndexVector minblockid(nmodes);
     std::vector<size_t> bfuv(2);
     std::vector<TensorType> lmin(2,0);
     std::vector<TensorType> gmin(2,0);
@@ -536,7 +554,7 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionCo
                 if(lmin[0] > dbuf[c]) {
                     lmin[0]    = dbuf[c];
                     lmin[1]    = GA_Nodeid();
-                    bfuv[0]    = i;
+                    bfuv[0]    = i - block_offset[0];
                     minblockid = {blockid[0]};
                 }
             }
@@ -548,8 +566,8 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionCo
                     if(lmin[0] > dbuf[c]) {
                         lmin[0]    = dbuf[c];
                         lmin[1]    = GA_Nodeid();
-                        bfuv[0]    = i;
-                        bfuv[1]    = j;
+                        bfuv[0]    = i - block_offset[0];
+                        bfuv[1]    = j - block_offset[1];
                         minblockid = {blockid[0], blockid[1]};
                     }
                 }
@@ -564,9 +582,9 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionCo
                         if(lmin[0] > dbuf[c]) {
                             lmin[0]    = dbuf[c];
                             lmin[1]    = GA_Nodeid();
-                            bfuv[0]    = i;
-                            bfuv[1]    = j;
-                            bfuv[2]    = k;
+                            bfuv[0]    = i - block_offset[0];
+                            bfuv[1]    = j - block_offset[1];
+                            bfuv[2]    = k - block_offset[2];
                             minblockid = {blockid[0], blockid[1], blockid[2]};
                         }
                     }
@@ -584,10 +602,10 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionCo
                             if(lmin[0] > dbuf[c]) {
                                 lmin[0]    = dbuf[c];
                                 lmin[1]    = GA_Nodeid();
-                                bfuv[0]    = i;
-                                bfuv[1]    = j;
-                                bfuv[2]    = k;
-                                bfuv[3]    = l;
+                                bfuv[0]    = i - block_offset[0];
+                                bfuv[1]    = j - block_offset[1];
+                                bfuv[2]    = k - block_offset[2];
+                                bfuv[3]    = l - block_offset[3];
                                 minblockid = {blockid[0], blockid[1],
                                               blockid[2], blockid[3]};
                             }
@@ -609,11 +627,11 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionCo
                                 if(lmin[0] > dbuf[c]) {
                                     lmin[0]    = dbuf[c];
                                     lmin[1]    = GA_Nodeid();
-                                    bfuv[0]    = i;
-                                    bfuv[1]    = j;
-                                    bfuv[2]    = k;
-                                    bfuv[3]    = l;
-                                    bfuv[4]    = m;
+                                    bfuv[0]    = i - block_offset[0];
+                                    bfuv[1]    = j - block_offset[1];
+                                    bfuv[2]    = k - block_offset[2];
+                                    bfuv[3]    = l - block_offset[3];
+                                    bfuv[4]    = m - block_offset[4];
                                     minblockid = {blockid[0], blockid[1],
                                                   blockid[2], blockid[3],
                                                   blockid[4]};
@@ -642,12 +660,12 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionCo
                                     if(lmin[0] > dbuf[c]) {
                                         lmin[0]    = dbuf[c];
                                         lmin[1]    = GA_Nodeid();
-                                        bfuv[0]    = i;
-                                        bfuv[1]    = j;
-                                        bfuv[2]    = k;
-                                        bfuv[3]    = l;
-                                        bfuv[4]    = m;
-                                        bfuv[5]    = n;
+                                        bfuv[0]    = i - block_offset[0];
+                                        bfuv[1]    = j - block_offset[1];
+                                        bfuv[2]    = k - block_offset[2];
+                                        bfuv[3]    = l - block_offset[3];
+                                        bfuv[4]    = m - block_offset[4];
+                                        bfuv[5]    = n - block_offset[5];
                                         minblockid = {blockid[0], blockid[1],
                                                       blockid[2], blockid[3],
                                                       blockid[4], blockid[5]};

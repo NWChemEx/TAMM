@@ -235,7 +235,7 @@ void eomccsd_x2(ExecutionContext& ec, const TiledIndexSpace& MO,
 }
 
 template<typename T>
-std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> right_eomccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
+std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> right_eomccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
                    Tensor<T>& t1, Tensor<T>& t2,
                    Tensor<T>& f1, Tensor<T>& v2,
                    std::vector<T> p_evl_sorted,
@@ -335,6 +335,8 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> right_eomccsd_driver(E
 //  MAIN ITERATION LOOP
 //################################################################################
 
+  std::vector<T> omegar;
+
   for(int iter = 0; iter < maxeomiter;){
 
      int nxtrials = 0;
@@ -424,7 +426,7 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> right_eomccsd_driver(E
   auto omegar1 = hbardiag.eigenvalues();
 
   const auto nev = omegar1.rows();
-  std::vector<T> omegar(nev);
+  omegar.resize(nev);
   for (auto x=0; x<nev;x++)
   omegar[x] = real(omegar1(x));
 
@@ -619,7 +621,7 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> right_eomccsd_driver(E
 
   free_vec_tensors(x1, x2, xp1, xp2, r1, r2);
 
-  return std::make_tuple(xc1,xc2);
+  return std::make_tuple(xc1,xc2, omegar);
 
 }
 
@@ -884,7 +886,7 @@ void eomccsd_y2(ExecutionContext& ec, const TiledIndexSpace& MO,
 
 
 template<typename T>
-std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> left_eomccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
+std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> left_eomccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
                    Tensor<T>& t1, Tensor<T>& t2,
                    Tensor<T>& f1, Tensor<T>& v2,
                    std::vector<T> p_evl_sorted,
@@ -925,7 +927,7 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> left_eomccsd_driver(Ex
   const auto hbardim = ninitvecs + nroots*(microeomiter-1);
 
   Matrix hbar = Matrix::Zero(hbardim,hbardim);
-  Matrix hbar_right;
+  Matrix hbar_left;
 
   Tensor<T> u1{{O, V},{1,1}};
   Tensor<T> u2{{O, O, V, V},{2,2}};
@@ -983,6 +985,8 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> left_eomccsd_driver(Ex
 //################################################################################
 //  MAIN ITERATION LOOP
 //################################################################################
+
+  std::vector<T> omegal;
 
   for(int iter = 0; iter < maxeomiter;){
 
@@ -1070,27 +1074,27 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> left_eomccsd_driver(Ex
 //################################################################################
 
   Eigen::EigenSolver<Matrix> hbardiag(hbar.block(0,0,newnxtrials,newnxtrials));
-  auto omegar1 = hbardiag.eigenvalues();
+  auto omegal1 = hbardiag.eigenvalues();
 
-  const auto nev = omegar1.rows();
-  std::vector<T> omegar(nev);
+  const auto nev = omegal1.rows();
+  omegal.resize(nev);
   for (auto x=0; x<nev;x++)
-  omegar[x] = real(omegar1(x));
+  omegal[x] = real(omegal1(x));
 
 //################################################################################
 //  SORT THE EIGENVECTORS AND CORRESPONDING EIGENVALUES
 //################################################################################
 
-  std::vector<size_t> omegar_sorted_order = sort_indexes(omegar);
-  std::sort(omegar.begin(), omegar.end());
+  std::vector<size_t> omegal_sorted_order = sort_indexes(omegal);
+  std::sort(omegal.begin(), omegal.end());
 
-  auto hbar_right1 = hbardiag.eigenvectors();
-  assert(hbar_right1.rows() == nev && hbar_right1.cols() == nev);
-  hbar_right.resize(nev,nev);
-  hbar_right.setZero();
+  auto hbar_left1 = hbardiag.eigenvectors();
+  assert(hbar_left1.rows() == nev && hbar_left1.cols() == nev);
+  hbar_left.resize(nev,nev);
+  hbar_left.setZero();
 
   for(auto x=0;x<nev;x++)
-     hbar_right.col(x) = hbar_right1.col(omegar_sorted_order[x]).real();
+     hbar_left.col(x) = hbar_left1.col(omegal_sorted_order[x]).real();
 
         if(ec.pg().rank() == 0) {
           std::cout << "\n";
@@ -1110,12 +1114,12 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> left_eomccsd_driver(Ex
 
            for(int i = 0; i < nxtrials; i++){
 
-              T omegar_hbar_scalar = -1 * omegar[root] * hbar_right(i,root);
+              T omegal_hbar_scalar = -1 * omegal[root] * hbar_left(i,root);
 
-              sch(r1.at(root)() += omegar_hbar_scalar * y1.at(i)())
-                 (r2.at(root)() += omegar_hbar_scalar * y2.at(i)())
-                 (r1.at(root)() += hbar_right(i,root) * yp1.at(i)())
-                 (r2.at(root)() += hbar_right(i,root) * yp2.at(i)()).execute();
+              sch(r1.at(root)() += omegal_hbar_scalar * y1.at(i)())
+                 (r2.at(root)() += omegal_hbar_scalar * y2.at(i)())
+                 (r1.at(root)() += hbar_left(i,root) * yp1.at(i)())
+                 (r2.at(root)() += hbar_left(i,root) * yp2.at(i)()).execute();
            }
 
            sch(u1() = r1.at(root)())
@@ -1133,9 +1137,9 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> left_eomccsd_driver(Ex
 
            if(ec.pg().rank() == 0) {
              std::cout.precision(13);
-             std::cout << "   " << xresidual << "   " << omegar[root]
+             std::cout << "   " << xresidual << "   " << omegal[root]
                        << "    "
-                       << omegar[root]*au2ev << std::endl;
+                       << omegal[root]*au2ev << std::endl;
            }
 
 //################################################################################
@@ -1217,7 +1221,7 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> left_eomccsd_driver(Ex
 
               for(int i = 0; i < nxtrials; i++){
 
-                 T hbr_scalar = hbar_right(i,root);
+                 T hbr_scalar = hbar_left(i,root);
 
                  sch(yc1.at(root)() += hbr_scalar * y1.at(i)())
                     (yc2.at(root)() += hbr_scalar * y2.at(i)()).execute();
@@ -1246,7 +1250,7 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> left_eomccsd_driver(Ex
 
      for(int i = 0; i < nxtrials; i++){
 
-        T hbr_scalar = hbar_right(i,root);
+        T hbr_scalar = hbar_left(i,root);
 
         sch(yc1.at(root)() += hbr_scalar * y1.at(i)())
            (yc2.at(root)() += hbr_scalar * y2.at(i)()).execute();
@@ -1268,7 +1272,6 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>> left_eomccsd_driver(Ex
 
   free_vec_tensors(y1, y2, yp1, yp2, r1, r2);
 
-  return std::make_tuple(yc1, yc2);
+  return std::make_tuple(yc1, yc2, omegal);
 
 }
-

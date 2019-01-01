@@ -122,13 +122,23 @@ class CCSDOptions: public Options {
   CCSDOptions(Options o): Options(o)
   {
     threshold = 1e-10;
+    eom_nroots = 1;
+    eom_threshold = 1e-10;
+    eom_microiter = o.maxiter;
   }
+
+  int eom_nroots;
+  int eom_microiter;
   double threshold;
+  double eom_threshold;
 
   void print() {
     cout << "\nCCSD Options\n";
     cout << "{\n";
     cout << " threshold = " << threshold << endl;
+    cout << " eom_nroots = " << eom_nroots << endl;
+    cout << " eom_microiter = " << eom_microiter << endl;
+    cout << " eom_threshold = " << eom_threshold << endl;
     print_bool(" debug", debug); 
     cout << "}\n";
   }
@@ -407,7 +417,13 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           skip_empty_lines(is);
           std::getline(is, line);
 
-          if(is_in_line("threshold",line)) 
+          if(is_in_line("eom_nroots",line)) 
+            ccsd_options.eom_nroots = std::stoi(read_option(line));  
+          else if(is_in_line("eom_microiter",line)) 
+            ccsd_options.eom_microiter = std::stoi(read_option(line));              
+          else if(is_in_line("eom_threshold",line)) 
+            ccsd_options.eom_threshold = std::stod(read_option(line));              
+          else if(is_in_line("threshold",line)) 
             ccsd_options.threshold = std::stod(read_option(line));  
           else if(is_in_line("debug",line))
             ccsd_options.debug = to_bool(read_option(line));                               
@@ -462,6 +478,11 @@ inline std::tuple<std::vector<Atom>, OptionsMap>
     options_map.options = options;
     options_map.scf_options = scf_options;
     options_map.cd_options = cd_options;
+
+    if(ccsd_options.eom_microiter < ccsd_options.maxiter &&
+       ccsd_options.eom_microiter == options.maxiter) 
+       ccsd_options.eom_microiter = ccsd_options.maxiter;
+
     options_map.ccsd_options = ccsd_options;
 
     return std::make_tuple(atoms, options_map);

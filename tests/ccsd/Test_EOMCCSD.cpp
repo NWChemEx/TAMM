@@ -93,18 +93,18 @@ void ccsd_driver() {
   free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);
 
 //EOMCCSD Variables
-    int nroots           = 4;
-    int maxeomiter       = 50;
+    int nroots           = ccsd_options.eom_nroots;
+    int maxeomiter       = ccsd_options.maxiter;
 //    int eomsolver        = 1; //INDICATES WHICH SOLVER TO USE. (LATER IMPLEMENTATION)
-    double eomthresh     = 1.0e-10;
+    double eomthresh     = ccsd_options.eom_threshold;
 //    double x2guessthresh = 0.6; //THRESHOLD FOR X2 INITIAL GUESS (LATER IMPLEMENTATION)
-    size_t microeomiter  = 25; //Number of iterations in a microcycle
+    size_t microeomiter  = ccsd_options.eom_microiter; //Number of iterations in a microcycle
 
 
 //EOMCCSD Routine:
   cc_t1 = std::chrono::high_resolution_clock::now();
 
-  auto [xc1,xc2] = right_eomccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_v2, p_evl_sorted,
+  auto [xc1,xc2,omegar] = right_eomccsd_driver<T>(ec, MO, d_t1, d_t2, d_f1, d_v2, p_evl_sorted,
                       nroots, maxeomiter, eomthresh, microeomiter,
                       total_orbitals, 2 * ov_alpha);
 

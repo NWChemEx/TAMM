@@ -375,6 +375,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
 
           if(is_in_line("tol_int",line)) 
             scf_options.tol_int = std::stod(read_option(line));
+          else if(is_in_line("tol_lindep",line)) 
+            scf_options.tol_lindep = std::stod(read_option(line));
           else if(is_in_line("conve",line)) 
             scf_options.conve = std::stod(read_option(line));
           else if(is_in_line("convd",line)) 

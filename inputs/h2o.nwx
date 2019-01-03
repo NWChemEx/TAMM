@@ -18,6 +18,7 @@ SCF
 {  //start of scf section
 
     tol_int 1e-8
+    tol_lindep 1e-6
     conve 1e-6
     convd 1e-5
     diis_hist 10

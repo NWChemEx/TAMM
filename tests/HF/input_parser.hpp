@@ -63,6 +63,7 @@ class SCFOptions: public Options {
     SCFOptions(Options o): Options(o)
     {
       tol_int = 1e-8;
+      tol_lindep = 1e-6;
       conve = 1e-6;
       convd = 1e-5;
       diis_hist = 10;
@@ -71,6 +72,7 @@ class SCFOptions: public Options {
     }
 
   double tol_int; //tolerance for integral engine
+  double tol_lindep; //tolerance for linear dependencies
   double conve; //energy convergence
   double convd; //density convergence
   int diis_hist; //number of diis history entries
@@ -81,6 +83,7 @@ class SCFOptions: public Options {
       cout << "\nSCF Options\n";
       cout << "{\n";
       cout << " tol_int = " << tol_int << endl;
+      cout << " tol_lindep = " << tol_lindep << endl;
       cout << " conve = " << conve << endl;
       cout << " convd = " << convd << endl;
       cout << " diis_hist = " << diis_hist << endl;

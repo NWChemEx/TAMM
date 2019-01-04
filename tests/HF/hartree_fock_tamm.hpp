@@ -60,7 +60,6 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
   int max_hist = scf_options.diis_hist; 
   auto debug = scf_options.debug;
   auto restart = scf_options.restart;
-  Tile tilesize = static_cast<Tile>(scf_options.AO_tilesize);
 
   tol_int = std::min(tol_int, 0.01 * conve);
 
@@ -87,7 +86,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
             auto r   = sqrt(r2);
             enuc += atoms[i].atomic_number * atoms[j].atomic_number / r;
         }
-    if(GA_Nodeid()==0) cout << "\nNuclear repulsion energy = " << enuc << endl;
+    if(rank==0) cout << "\nNuclear repulsion energy = " << enuc << endl;
 
     // initializes the Libint integrals library ... now ready to compute
     libint2::initialize(false);
@@ -107,7 +106,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       for (auto& sp : obs_shellpair_list) {
         nsp += sp.second.size();
       }
-      if(GA_Nodeid()==0) std::cout << "# of {all,non-negligible} shell-pairs = {"
+      if(rank==0) std::cout << "# of {all,non-negligible} shell-pairs = {"
                 << shells.size() * (shells.size() + 1) / 2 << "," << nsp << "}"
                 << std::endl;
     }
@@ -115,9 +114,15 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     const size_t N = nbasis(shells);
     size_t nao = N;
 
-    if(GA_Nodeid()==0) cout << "\nNumber of basis functions: " << N << endl;
+    if(rank==0) cout << "\nNumber of basis functions: " << N << endl;
 
     tamm::Tile tile_size = scf_options.AO_tilesize; 
+  
+    //heuristic to set tilesize to atleast 5% of nbf
+    // if(tile_size < N*0.05) {
+    //   tile_size = std::ceil(N*0.05);
+    //   if(rank == 0) cout << "***** Reset tilesize to nbf*5% = " << tile_size << endl;
+    // }
     
     IndexSpace AO{range(0, N)};
     std::vector<unsigned int> AO_tiles;

@@ -16,11 +16,11 @@
 
 // #define EIGEN_USE_BLAS
 // #define EIGEN_USE_LAPACKE
-//#define EIGEN_USE_MKL_ALL
+// #define EIGEN_USE_MKL_ALL
 
 #include "hf_common.hpp"
 
-//TODO: UHF,ROHF,diis
+//TODO: UHF,ROHF,diis,3c,dft
 
 void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, 
           Tensor<TensorType> E, int iter, int max_hist,
@@ -60,9 +60,8 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
   int max_hist = scf_options.diis_hist; 
   auto debug = scf_options.debug;
   auto restart = scf_options.restart;
-  Tile tilesize = static_cast<Tile>(scf_options.AO_tilesize);
 
-  tol_int = std::min(1e-8, 0.01 * conve);
+  tol_int = std::min(tol_int, 0.01 * conve);
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
@@ -87,7 +86,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
             auto r   = sqrt(r2);
             enuc += atoms[i].atomic_number * atoms[j].atomic_number / r;
         }
-    if(GA_Nodeid()==0) cout << "\nNuclear repulsion energy = " << enuc << endl;
+    if(rank==0) cout << "\nNuclear repulsion energy = " << enuc << endl;
 
     // initializes the Libint integrals library ... now ready to compute
     libint2::initialize(false);
@@ -107,7 +106,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       for (auto& sp : obs_shellpair_list) {
         nsp += sp.second.size();
       }
-      if(GA_Nodeid()==0) std::cout << "# of {all,non-negligible} shell-pairs = {"
+      if(rank==0) std::cout << "# of {all,non-negligible} shell-pairs = {"
                 << shells.size() * (shells.size() + 1) / 2 << "," << nsp << "}"
                 << std::endl;
     }
@@ -115,9 +114,15 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     const size_t N = nbasis(shells);
     size_t nao = N;
 
-    if(GA_Nodeid()==0) cout << "\nNumber of basis functions: " << N << endl;
+    if(rank==0) cout << "\nNumber of basis functions: " << N << endl;
 
-    tamm::Tile tile_size = 30; 
+    tamm::Tile tile_size = scf_options.AO_tilesize; 
+  
+    //heuristic to set tilesize to atleast 5% of nbf
+    // if(tile_size < N*0.05) {
+    //   tile_size = std::ceil(N*0.05);
+    //   if(rank == 0) cout << "***** Reset tilesize to nbf*5% = " << tile_size << endl;
+    // }
     
     IndexSpace AO{range(0, N)};
     std::vector<unsigned int> AO_tiles;
@@ -130,7 +135,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     std::vector<size_t> shell_tile_map;
     for(auto s=0U;s<shells.size();s++){
       est_ts += shells[s].size();
-      if(est_ts>=30) {
+      if(est_ts>=tile_size) {
         AO_opttiles.push_back(est_ts);
         shell_tile_map.push_back(s); //shell id specifying tile boundary
         est_ts=0;
@@ -354,7 +359,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     // eigen_to_tamm_tensor(H1, H);
 
-    Tensor<TensorType>::deallocate(S1, T1, V1);
+    Tensor<TensorType>::deallocate(T1, V1);
 
     /*** =========================== ***/
     /*** build initial-guess density ***/
@@ -373,8 +378,8 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     // 1/eps
     // this is probably too optimistic, but in well-behaved cases even 10^11 is
     // OK
-    double S_condition_number_threshold =
-        1.0 / std::numeric_limits<double>::epsilon();
+    double S_condition_number_threshold = 1.0 / scf_options.tol_lindep;
+        //1.0 / std::numeric_limits<double>::epsilon();
     std::tie(X, Xinv, XtX_condition_number) =
         conditioning_orthogonalizer(S, S_condition_number_threshold);
 
@@ -715,20 +720,20 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     Tensor<TensorType> F1tmp{tAOt, tAOt}; //not allocated
     Tensor<TensorType>::allocate(ec, F1, F1tmp1, ehf_tmp, ehf_tamm, rmsd_tamm);
 
-    Tensor<TensorType> Sm12_tamm{tAO, tAO}; 
-    Tensor<TensorType> Sp12_tamm{tAO, tAO};
+    //Tensor<TensorType> Sm12_tamm{tAO, tAO}; 
+    //Tensor<TensorType> Sp12_tamm{tAO, tAO};
     Tensor<TensorType> D_tamm{tAO, tAO};
     Tensor<TensorType> D_diff{tAO, tAO};
     Tensor<TensorType> D_last_tamm{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, Sm12_tamm, Sp12_tamm, D_tamm, D_diff, D_last_tamm);
+    Tensor<TensorType>::allocate(ec, D_tamm, D_diff, D_last_tamm);
 
     // FSm12,Sp12D,SpFS
-    Tensor<TensorType> FSm12_tamm{tAO, tAO}; 
-    Tensor<TensorType> Sp12D_tamm{tAO, tAO};
-    Tensor<TensorType> SpFS_tamm{tAO, tAO};
+    Tensor<TensorType> FD_tamm{tAO, tAO}; 
+    //Tensor<TensorType> Sp12D_tamm{tAO, tAO};
+    Tensor<TensorType> FDS_tamm{tAO, tAO};
     // Tensor<TensorType> err_mat_tamm{tAO, tAO};
 
-    Tensor<TensorType>::allocate(ec, FSm12_tamm, Sp12D_tamm, SpFS_tamm);//,err_mat_tamm);
+    Tensor<TensorType>::allocate(ec, FD_tamm, FDS_tamm);//,err_mat_tamm);
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
@@ -739,21 +744,21 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     eigen_to_tamm_tensor(D_tamm,D);
     // Matrix err_mat = Matrix::Zero(N,N);
 
-    hf_t1 = std::chrono::high_resolution_clock::now();
-    // S^1/2
-    Matrix Sp12 = S.sqrt();
-    S.resize(0,0);
-    // S^-1/2
-    Matrix Sm12 = Sp12.inverse();
-    hf_t2 = std::chrono::high_resolution_clock::now();
-    hf_time =
-      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime taken to compute S^1/2, S^-1/2: " << hf_time << " secs\n";
+    // hf_t1 = std::chrono::high_resolution_clock::now();
+    // // S^1/2
+    // Matrix Sp12 = Xinv; //S.sqrt();
+    // S.resize(0,0);
+    // // S^-1/2
+    // Matrix Sm12 = X; //Sp12.inverse();
+    // hf_t2 = std::chrono::high_resolution_clock::now();
+    // hf_time =
+    //   std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+    // if(rank == 0) std::cout << "\nTime taken to compute S^1/2, S^-1/2: " << hf_time << " secs\n";
 
-    eigen_to_tamm_tensor(Sm12_tamm,Sm12);
-    eigen_to_tamm_tensor(Sp12_tamm,Sp12);   
-    Sp12.resize(0,0);
-    Sm12.resize(0,0);
+    // eigen_to_tamm_tensor(Sm12_tamm,Sm12);
+    // eigen_to_tamm_tensor(Sp12_tamm,Sp12);   
+    // Sp12.resize(0,0);
+    // Sm12.resize(0,0);
 
     if(rank == 0) {
         std::cout << "\n\n";
@@ -1004,18 +1009,22 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
         do_t1 = std::chrono::high_resolution_clock::now();
         
-        Scheduler{*ec}(FSm12_tamm(mu,nu) = F1(mu,ku) * Sm12_tamm(ku,nu))
-        (Sp12D_tamm(mu,nu) = Sp12_tamm(mu,ku) * D_last_tamm(ku,nu))
-        (SpFS_tamm(mu,nu)  = Sp12D_tamm(mu,ku) * FSm12_tamm(ku,nu))
+        // Scheduler{*ec}(FD_tamm(mu,nu) = F1(mu,ku) * Sm12_tamm(ku,nu))
+        // (Sp12D_tamm(mu,nu) = Sp12_tamm(mu,ku) * D_last_tamm(ku,nu))
+        // (FDS_tamm(mu,nu)  = Sp12D_tamm(mu,ku) * FD_tamm(ku,nu))
+
+        Scheduler{*ec}(FD_tamm(mu,nu) = F1(mu,ku) * D_last_tamm(ku,nu))
+        (FDS_tamm(mu,nu)  = FD_tamm(mu,ku) * S1(ku,nu))
     
-        (err_mat_tamm(mu,nu) = SpFS_tamm(nu,mu))
-        (err_mat_tamm(mu,nu) += -1.0 * SpFS_tamm(mu,nu)).execute();
+        //FDS-SDF
+        (err_mat_tamm(mu,nu) = FDS_tamm(mu,nu))
+        (err_mat_tamm(mu,nu) -= FDS_tamm(nu,mu)).execute();
 
         do_t2 = std::chrono::high_resolution_clock::now();
         do_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
-        if(rank == 0 && debug) std::cout << "err_mat:" << do_time << "s, ";        
+        if(rank == 0 && debug) std::cout << "FDS-SDF:" << do_time << "s, ";        
 
         GA_Sync();
         //tamm_to_eigen_tensor(err_mat_tamm,err_mat);
@@ -1110,7 +1119,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
             std::cout << ' ' << std::setw(12)  << loop_time << ' ' << "\n";
         }
 
-        // if(rank==0 && !restart)
+        // if(rank==0)
         //   writeC(C,filename,options_map);
 
         if(iter > maxiter) {                
@@ -1136,10 +1145,10 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     for (auto x: diis_hist) Tensor<TensorType>::deallocate(x);
     for (auto x: fock_hist) Tensor<TensorType>::deallocate(x);
 
-    Tensor<TensorType>::deallocate(H1, D_tamm, ehf_tmp, 
+    Tensor<TensorType>::deallocate(H1, S1, D_tamm, ehf_tmp, 
                     ehf_tamm, rmsd_tamm); //F1
-    Tensor<TensorType>::deallocate(F1tmp1,Sm12_tamm, Sp12_tamm,
-    D_last_tamm, D_diff, FSm12_tamm, Sp12D_tamm, SpFS_tamm);//,err_mat_tamm);
+    Tensor<TensorType>::deallocate(F1tmp1, //Sm12_tamm, Sp12_tamm,
+    D_last_tamm, D_diff, FD_tamm, FDS_tamm);//Sp12D_tamm,err_mat_tamm);
 
     if(rank==0 && !restart) {
      cout << "writing orbitals to file... ";

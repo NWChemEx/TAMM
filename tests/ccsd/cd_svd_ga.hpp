@@ -1,6 +1,6 @@
 
-#ifndef TAMM_CD_SVD_HPP_
-#define TAMM_CD_SVD_HPP_
+#ifndef TAMM_CD_SVD_GA_HPP_
+#define TAMM_CD_SVD_GA_HPP_
 
 #include "HF/hartree_fock_tamm.hpp"
 #include "tamm/eigen_utils.hpp"
@@ -44,7 +44,7 @@ using TensorType = double;
     return std::make_tuple(s1,s2,curshelloffset_i,curshelloffset_j);
   }
 
-Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndexSpace& tAO,
+Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndexSpace& tAO,
   const TAMM_SIZE ndocc, const TAMM_SIZE nao, const TAMM_SIZE freeze_core,
   const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
   Tensor<TensorType> F_MO, TAMM_SIZE& chol_count, const tamm::Tile max_cvecs, double diagtol,
@@ -64,11 +64,11 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
     auto [pmo, rmo] = tMO.labels<2>("all");
 
 
-    // if(rank == 0){
-    //   cout << "\n-----------------------------------------------------\n";
-    //   cout << "Begin Cholesky Decomposition ... " << endl;
-    //   cout << "\n#AOs, #electrons = " << nao << " , " << ndocc << endl;
-    // }
+    if(rank == 0){
+      cout << "\n-----------------------------------------------------\n";
+      cout << "Begin Cholesky Decomposition ... " << endl;
+      cout << "\n#AOs, #electrons = " << nao << " , " << ndocc << endl;
+    }
 
     auto ov_alpha_freeze = ndocc - freeze_core;
     auto ov_beta_freeze  = nao - ndocc - freeze_virtual;
@@ -141,7 +141,7 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
     
 
   IndexSpace CI{range(0, max_cvecs)};
-  TiledIndexSpace tCI{CI, max_cvecs};
+  TiledIndexSpace tCI{CI, 1};
   auto [cindex] = tCI.labels<1>("all");
 
   libint2::initialize(false);
@@ -258,22 +258,69 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
   Tensor<TensorType> CholVuv_tamm{tCI, tAO, tAO};
   Tensor<TensorType>::allocate(&ec, CholVuv_tamm);
 
+  std::vector<Tensor<TensorType>> cvecs;
+
+  int CholVuv_ga = CholVuv_tamm.ga_handle();
+  int DiagInt_ga = DiagInt_tamm.ga_handle();
+
   TensorType max=0;
   std::vector<size_t> bfuv;
   IndexVector maxblockid;
 
   auto citer = 0;
-  auto debug = false;
+  auto debug = true;
 
     // Find maximum in DiagInt 
   std::tie(max,maxblockid,bfuv) = max_element(ec, DiagInt_tamm());
   bfu = bfuv[0];
   bfv = bfuv[1];
 
+  // tamm::Tile est_ts = 0;
+  std::vector<tamm::Tile> AO_opttiles;
+  // for(auto s=0U;s<shells.size();s++){
+  //   est_ts += shells[s].size();
+  //   if(est_ts>=30) {
+  //     AO_opttiles.push_back(est_ts);
+  //     est_ts=0;
+  //   }
+  // }
+  // if(est_ts>0){
+  //   AO_opttiles.push_back(est_ts);
+  // }
+
+      Tensor<TensorType> tensor = DiagInt_tamm;
+    // Defined only for NxN tensors
+    EXPECTS(tensor.num_modes() == 2);
+
+    LabelLoopNest loop_nest{tensor().labels()};
+    std::vector<TensorType> dest;
+
+    for(const IndexVector& bid : loop_nest) {
+        const IndexVector blockid =
+          internal::translate_blockid(bid, tensor());
+
+          const TAMM_SIZE size = tensor.block_size(blockid);
+          AO_opttiles.push_back(size);
+    }
+
+  IndexSpace AO1D{range(0, nao*nao)};
+  TiledIndexSpace tAO1D{AO1D, AO_opttiles};
+
+  // Tensor<TensorType> DInt_GA{tAO1D};
+  // Tensor<TensorType>::allocate(&ec,DInt_GA);
+  // int DI_GA_handle = DInt_GA.ga_handle();
+  // Tensor2D diagint_eigen = tamm_to_eigen_tensor<TensorType,2>(DiagInt_tamm);
+  // eigen_to_tamm_tensor(DInt_GA, diagint_eigen);
+
   do {
 
-    double get_time=0;
-    double put_time=0;
+    Tensor<TensorType> tmp1{tAO,tAO}; //not allocated
+    Tensor<TensorType> tmp{tAO1D};
+    Tensor<TensorType>::allocate(&ec,tmp);
+    cvecs.push_back(tmp);
+
+    int tmp_ga = tmp.ga_handle();
+    cout << "tmp_ga = " << tmp_ga << endl;
 
     auto cd_t1 = std::chrono::high_resolution_clock::now();
 
@@ -296,57 +343,89 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
 
         // cout << "new update cols --- s1,s2,n1,n2 = "  << s1 << "," << s2 << "," << n1 <<"," << n2 <<endl;
 
-    IndexVector di = {0,maxblockid[0],maxblockid[1]};
-    const tamm::TAMM_SIZE dec = CholVuv_tamm.block_size(di);
-    std::vector<TensorType> cvuvbuf(dec);
-    CholVuv_tamm.get(di, cvuvbuf);
-    auto block_dims_vuv   = CholVuv_tamm.block_dims(di);
+     IndexVector di = {maxblockid[0],maxblockid[1]};
+  //   const tamm::TAMM_SIZE dec = CholVuv_tamm.block_size(di);
+  //   std::vector<TensorType> cvuvbuf(dec);
+  //   CholVuv_tamm.get(di, cvuvbuf);
+     auto block_offsets_di   = DiagInt_tamm.block_offsets(di);
 
-   std::vector<TensorType> delems(count);
-  //  auto depos = ind12*block_dims_vuv[0];
+  std::vector<TensorType> delems(count);
+  // //  auto depos = ind12*block_dims_vuv[0];
+
+    // for (auto icount = 0U; icount != count; ++icount) {
+    //     delems[icount] = cvuvbuf[(icount*block_dims_vuv[1]+bfu)*
+    //         block_dims_vuv[2]+bfv];
+    // }
+
+    int64_t diag_ga_offset = block_offsets_di[0]*nao; 
+    for(Index y=0; y<maxblockid[1];y++){
+      diag_ga_offset += DiagInt_tamm.block_size({maxblockid[0],y});
+    }
+    diag_ga_offset += bfu*DiagInt_tamm.block_dims(di)[1]+bfv;
+
+    int64_t lo = diag_ga_offset, hi = diag_ga_offset+1, ld = -1;
+    cout << "lo,hi,diag_ga_offset = "  << lo << "," << hi <<"," << diag_ga_offset << endl;
 
     for (auto icount = 0U; icount != count; ++icount) {
-        delems[icount] = cvuvbuf[(icount*block_dims_vuv[1]+bfu)*
-            block_dims_vuv[2]+bfv];
+        int prevc_ga = cvecs[icount].ga_handle();
+        cout << "prevc_Ga = " << prevc_ga << endl;
+        TensorType to_buf=0;
+        cout << "inside lo,hi = "  << lo << "," << hi <<"," << endl;
+        NGA_Get64(prevc_ga, &lo, &hi, (void*)(&to_buf), &ld);
+        delems[icount] = to_buf;
     }
 
-    auto tensor1e = CholVuv_tamm;
+    if(citer==2||citer==3) cout << "delems = " << delems << endl;
 
   auto update_columns = [&](const IndexVector& blockid) {
 
-        auto bi0 = blockid[1];
-        auto bi1 = blockid[2];
+        auto bi0 = blockid[0];
+        auto bi1 = blockid[1];
 
-        const TAMM_SIZE size = tensor1e.block_size(blockid);
-        auto block_dims   = tensor1e.block_dims(blockid);
-        std::vector<TensorType> vuvbuf(size);
+        const TAMM_SIZE size = tmp1.block_size(blockid);
+        auto block_dims   = tmp1.block_dims(blockid);
+        auto block_offsets   = tmp1.block_offsets(blockid);
+        // std::vector<TensorType> vuvbuf(size);
         std::vector<TensorType> dibuf(DiagInt_tamm.block_size({bi0,bi1}));
 
-        auto bd0 = block_dims[1];
-        auto bd1 = block_dims[2];
+        auto bd0 = block_dims[0];
+        auto bd1 = block_dims[1];
+        EXPECTS(size==bd0*bd1);
 
-        auto l_t1 = std::chrono::high_resolution_clock::now();
+        std::vector<TensorType> cbuf(bd0*bd1);
 
-        CholVuv_tamm.get(blockid, vuvbuf);
+        // cout << "bi0,bi1,bd0,bd1,boffset,nao = " << bi0 << "," << bi1 << "," << bd0 << "," << bd1 << 
+        // "," << block_offsets[0] << " , " << nao << endl;
+        int64_t ga_shell_offset = block_offsets[0]*nao;
+        for(Index y=0; y<bi1;y++){
+          // cout << "bi0,bi1,size = " << y << "," << bi1 << "," << tmp1.block_size({bi0,y}) << endl;
+          ga_shell_offset += tmp1.block_size({bi0,y});
+        }
+
+        // auto l_t1 = std::chrono::high_resolution_clock::now();
+
+        // CholVuv_tamm.get(blockid, vuvbuf);
         DiagInt_tamm.get({bi0,bi1}, dibuf);
 
-        auto l_t2 = std::chrono::high_resolution_clock::now();
-        auto l_time =
-            std::chrono::duration_cast<std::chrono::duration<double>>((l_t2 - l_t1)).count();
-        get_time+=l_time;
+        // auto l_t2 = std::chrono::high_resolution_clock::now();
+        // auto l_time =
+        //     std::chrono::duration_cast<std::chrono::duration<double>>((l_t2 - l_t1)).count();
+        // get_time+=l_time;
 
         auto s3range_start = 0l;
         auto s3range_end = shell_tile_map[bi0];
         if (bi0>0) s3range_start = shell_tile_map[bi0-1]+1;
+
+        
         
         for (Index s3 = s3range_start; s3 <= s3range_end; ++s3) {
           auto n3 = shells[s3].size();
 
-        auto s4range_start = 0l;
-        auto s4range_end = shell_tile_map[bi1];
-        if (bi1>0) s4range_start = shell_tile_map[bi1-1]+1;
+          auto s4range_start = 0l;
+          auto s4range_end = shell_tile_map[bi1];
+          if (bi1>0) s4range_start = shell_tile_map[bi1-1]+1;
 
-          for (Index s4 = s4range_start; s4 <= s4range_end; ++s4) {
+        for (Index s4 = s4range_start; s4 <= s4range_end; ++s4) {
 
           if(s4>s3){
             auto s2spl = obs_shellpair_list[s4];
@@ -360,67 +439,90 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
           auto n4 = shells[s4].size();
 
         // cout << "s1,s2,s3,s4 = [" << s1 << "," << s2 << "," << s3 << "," << s4 << "]\n";
-        engine.compute(shells[s3], shells[s4], shells[s1], shells[s2]);
-        const auto *buf_3412 = buf[0];
-        if (buf_3412 == nullptr)
-          continue; // if all integrals screened out, skip to next quartet
+          engine.compute(shells[s3], shells[s4], shells[s1], shells[s2]);
+          const auto *buf_3412 = buf[0];
+          if (buf_3412 == nullptr)
+            continue; // if all integrals screened out, skip to next quartet
 
-          auto curshelloffset_i = 0U;
-          auto curshelloffset_j = 0U;
-          for(auto x=s3range_start;x<s3;x++) curshelloffset_i += AO_tiles[x];
-          for(auto x=s4range_start;x<s4;x++) curshelloffset_j += AO_tiles[x];
+            auto curshelloffset_i = 0U;
+            auto curshelloffset_j = 0U;
+            for(auto x=s3range_start;x<s3;x++) curshelloffset_i += AO_tiles[x];
+            for(auto x=s4range_start;x<s4;x++) curshelloffset_j += AO_tiles[x];
 
-          auto dimi =  curshelloffset_i + AO_tiles[s3];
-          auto dimj =  curshelloffset_j + AO_tiles[s4];
+            auto dimi =  curshelloffset_i + AO_tiles[s3];
+            auto dimj =  curshelloffset_j + AO_tiles[s4];
 
-        // std::vector<TensorType> cbuf(n3*n4);
+        
 
-        // for (size_t f3 = 0; f3 != n3; ++f3) {
-        //   for (size_t f4 = 0; f4 != n4; ++f4) {
-        //     auto f3412 = f3*n4*n12 + f4*n12 + ind12;
-        //     auto x = buf_3412[f3412];
-        //     for (auto icount = 0U; icount != count; ++icount) {
-        //       x -= vuvbuf[(icount*bd0+f3+curshelloffset_i)*bd1+f4+curshelloffset_j]*delems[icount];
-        //     }
-        //     auto vtmp = x/sqrt(max);
-        //     cbuf[f3*n4+f4] = vtmp;
-        //   }
-        // }
+        for (size_t f3 = 0; f3 != n3; ++f3) {
+          auto bf3 = shell2bf[s3]+f3;
+          for (size_t f4 = 0; f4 != n4; ++f4) {
+            auto bf4 = shell2bf[s4]+f4;
 
-          for(size_t i = curshelloffset_i; i < dimi; i++) {
-          for(size_t j = curshelloffset_j; j < dimj; j++) {
-              auto f3 = i - curshelloffset_i;
-              auto f4 = j - curshelloffset_j;
-              auto f3412 = f3*n4*n12 + f4*n12 + ind12;
-              auto x = buf_3412[f3412];
-              for (auto icount = 0U; icount != count; ++icount) {
-                x -= vuvbuf[(icount*bd0+f3+curshelloffset_i)*bd1+f4+curshelloffset_j]*delems[icount];
-              }
+            auto f3412 = f3*n4*n12 + f4*n12 + ind12;
+            auto x = buf_3412[f3412];
+            int64_t prevgaso = ga_shell_offset + f3*n4+f4;
 
-              auto vtmp = x/sqrt(max);
-              vuvbuf[(count*bd0+i)*bd1+j] = vtmp;
-              dibuf[i*bd1+j] -= vtmp*vtmp;
+            int64_t lo = prevgaso, hi = prevgaso+1, ld = -1;
+            TensorType to_buf = 0;
+
+            for (auto icount = 0U; icount != count; ++icount) {
+                int prevc_ga = cvecs[icount].ga_handle();
+                NGA_Get64(prevc_ga, &lo, &hi, (void*)(&to_buf), &ld);
+                x -= to_buf *delems[icount];
+            //   x -= vuvbuf[(f3+curshelloffset_i)*bd1+f4+curshelloffset_j]*delems[icount];
             }
+            auto vtmp = x/sqrt(max);
+            auto boffset = (f3+curshelloffset_i)*bd1+f4+curshelloffset_j;
+            cbuf[boffset] = vtmp;
+            dibuf[boffset] -= vtmp*vtmp;
           }
+        }
+
+
+          // for(size_t i = curshelloffset_i; i < dimi; i++) {
+          // for(size_t j = curshelloffset_j; j < dimj; j++) {
+          //     auto f3 = i - curshelloffset_i;
+          //     auto f4 = j - curshelloffset_j;
+          //     auto f3412 = f3*n4*n12 + f4*n12 + ind12;
+          //     auto x = buf_3412[f3412];
+          //     for (auto icount = 0U; icount != count; ++icount) {
+          //       x -= vuvbuf[(icount*bd0+f3+curshelloffset_i)*bd1+f4+curshelloffset_j]*delems[icount];
+          //     }
+
+          //     auto vtmp = x/sqrt(max);
+          //     vuvbuf[(count*bd0+i)*bd1+j] = vtmp;
+          //     dibuf[i*bd1+j] -= vtmp*vtmp;
+          //   }
+          // }
           
           } //s4
         } //s3
 
-        l_t1 = std::chrono::high_resolution_clock::now();
+        // cout << "ga_shell_offset = " << ga_shell_offset << endl;
 
-        CholVuv_tamm.put(blockid, vuvbuf);
+
+
+        int64_t lo = ga_shell_offset, hi = ga_shell_offset+size -1, ld = -1;
+        // cout << "lo,hi = " << lo << "," << hi << endl;
+        const void* from_buf = cbuf.data();
+        NGA_Put64(tmp_ga, &lo, &hi, const_cast<void*>(from_buf), &ld);
+
+        // l_t1 = std::chrono::high_resolution_clock::now();
+
+        // CholVuv_tamm.put(blockid, vuvbuf);
         DiagInt_tamm.put({bi0,bi1}, dibuf);
 
-        l_t2 = std::chrono::high_resolution_clock::now();
-        l_time =
-            std::chrono::duration_cast<std::chrono::duration<double>>((l_t2 - l_t1)).count();
+        // l_t2 = std::chrono::high_resolution_clock::now();
+        // l_time =
+        //     std::chrono::duration_cast<std::chrono::duration<double>>((l_t2 - l_t1)).count();
 
-        put_time+=l_time;
+        // put_time+=l_time;
 
   };
 
-  block_for(ec, CholVuv_tamm(), update_columns);
-  delems.clear();
+  block_for(ec, tmp1(), update_columns);
+  // delems.clear();
   
   count += 1;
 
@@ -431,16 +533,20 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
   auto cd_t2 = std::chrono::high_resolution_clock::now();
   auto cd_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count();
-  // if(rank == 0 && debug) {
-  //   std::cout << "----------Time taken for iter " << citer << ": " << cd_time << " secs---------\n";
-  //   std::cout << "Time taken for puts : " << put_time << " secs\n";
-  //   std::cout << "Time taken for gets: " << get_time << " secs\n";
-  // }
-  // if(count<=2) {
-  //   print_tensor(CholVuv_tamm);
-  //   print_tensor(DiagInt_tamm);
-  //   cout << "max,bfu,bfv == " << max << "," << bfu << "," << bfv << endl;
-  // }
+  if(rank == 0 && debug) {
+    std::cout << "----------Time taken for iter " << citer << ": " << cd_time << " secs---------\n";
+  
+  
+    // std::cout << "Time taken for puts : " << put_time << " secs\n";
+    // std::cout << "Time taken for gets: " << get_time << " secs\n";
+  }
+
+  if(count <= 2){
+  print_tensor(tmp);
+  print_tensor(DiagInt_tamm);
+  cout << "max,bfu,bfv == " << max << "," << bfu << "," << bfv << endl;
+  }
+
 
 } while (max > diagtol && count < max_cvecs);  
 

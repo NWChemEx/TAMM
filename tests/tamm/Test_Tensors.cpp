@@ -486,8 +486,8 @@ TEST_CASE("Hash Based Equality and Compatibility Check") {
     REQUIRE(sub_tis1.is_compatible_with(tis3));
     REQUIRE(!sub_tis1.is_compatible_with(tis1("virt")));
    
-}
-/* 
+} 
+/*
 // Z_i_mu-prime^x = E_mu_v^X * C_i^mu * C_mu-prime^v-prime
 // Z_i_mu-prime-i^x-prime-i = (E_mu-i_v-prime-i^x-prime-i * C_i^mu-i) * C_mu-prime-i^v-prime-i
 // {X-prime-i} = sum over j in j(i) {X_j}
@@ -526,7 +526,7 @@ TEST_CASE("DLPNO") {
     // .execute();
 
 }
- */
+
 
 TEST_CASE("PNO-MP2") {
     // IndexSpace for i, j values (can be different IndexSpaces)
@@ -688,6 +688,7 @@ TEST_CASE("PNO-MP2") {
     print_tensor(EMP2);
 #endif
 }
+*/
 
 TEST_CASE("GitHub Issues") {
 
@@ -857,6 +858,7 @@ TEST_CASE("Fill tensors using lambda functions") {
     //print_tensor(A);
 }
 
+
 TEST_CASE("SCF Example Implementation") {
 
     using tensor_type = Tensor<double>;
@@ -874,27 +876,112 @@ TEST_CASE("SCF Example Implementation") {
     TiledIndexSpace AOs{AOs_};
     TiledIndexSpace tMOs{MOs_};
 
-    std::map<IndexVector, IndexSpace> dep_relation;
+#if 1
+    std::map<IndexVector, TiledIndexSpace> dep_nu_mu_q{
+        {
+            {{0}, TiledIndexSpace{AOs, IndexVector{0,3,4}}},
+            {{1}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
+            {{2}, TiledIndexSpace{AOs, IndexVector{0,2}}},
+            {{3}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
+            {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
+            {{5}, TiledIndexSpace{AOs, IndexVector{1,2}}},
+            {{6}, TiledIndexSpace{AOs, IndexVector{2}}},
+
+        }
+    };
+
+    std::map<IndexVector, TiledIndexSpace> dep_nu_mu_d{
+        {
+            {{0}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
+            {{1}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
+            {{2}, TiledIndexSpace{AOs, IndexVector{0,2,4}}},
+            {{3}, TiledIndexSpace{AOs, IndexVector{1,6}}},
+            {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
+            {{5}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
+            {{6}, TiledIndexSpace{AOs, IndexVector{0,1,2}}}
+        }
+    };
+
+    std::map<IndexVector, TiledIndexSpace> dep_nu_mu_c{
+        {
+            {{0}, TiledIndexSpace{AOs, IndexVector{3}}},
+            {{1}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
+            {{2}, TiledIndexSpace{AOs, IndexVector{0,2}}},
+            {{3}, TiledIndexSpace{AOs, IndexVector{1}}},
+            {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
+            {{5}, TiledIndexSpace{AOs, IndexVector{1,2}}},
+            {{6}, TiledIndexSpace{AOs, IndexVector{2}}}
+        }
+    };
+
+    TiledIndexSpace tSubAO_AO_Q{AOs, {AOs}, dep_nu_mu_q};
+
+    TiledIndexSpace tSubAO_AO_D{AOs, {AOs}, dep_nu_mu_d};
+
+    TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
+
+    auto X = Aux.label("all",0);
+    auto mu = AOs.label("all",1);
+    auto nu_for_Q = tSubAO_AO_Q.label("all",0);
+    auto nu_for_D = tSubAO_AO_D.label("all",0);
+    auto nu_for_C = tSubAO_AO_C.label("all",0);
+
+    tensor_type D{mu, nu_for_D(mu)};
+    tensor_type Q{X, mu, nu_for_Q(mu)};
+    tensor_type C{X, mu, nu_for_C(mu)};
+
+    auto ec = make_execution_context();
+    Scheduler sch{ec};
+
+    sch.allocate(D, Q, C)
+    (D() = 42.0)
+    (Q() = 2.0)
+    (C(X, mu, nu_for_C(mu)) = Q(X, mu, nu_for_C(mu)) * D(mu, nu_for_C(mu)))
+    .execute();
+
+    std::cerr << "Tensor C:" << std::endl;
+    print_tensor(C);
+    std::cerr << "Tensor D" << std::endl;
+    print_tensor(D);
+    std::cerr << "Tensor Q" << std::endl;
+    print_tensor(Q);
+
+#else
+    std::map<IndexVector, IndexSpace> dep_mu_i;
     for(const auto& idx : MOs_) {
         if(idx%2 == 0)
-            dep_relation.insert({{idx}, IndexSpace{AOs_, range(0,3)}});
+            dep_mu_i.insert({{idx}, IndexSpace{AOs_, range(0,3)}});
         else 
-            dep_relation.insert({{idx}, IndexSpace{AOs_, range(3,7)}});
+            dep_mu_i.insert({{idx}, IndexSpace{AOs_, range(3,7)}});
     }
 
-    IndexSpace subAO_MO{{tMOs}, AOs_, dep_relation};
+    std::map<IndexVector, IndexSpace> dep_nu_mu ;
+    for(const auto& idx : AOs){
+        if(idx < 4)
+            dep_nu_mu.insert({{idx}, IndexSpace{AOs_, range(3,7)}});
+        else
+            dep_nu_mu.insert({{idx}, IndexSpace{AOs_, range(0,3)}});
+    }
+
+    IndexSpace subAO_MO{{tMOs}, AOs_, dep_mu_i};
+    IndexSpace subAO_AO{{AOs}, AOs_, dep_nu_mu};
 
     TiledIndexSpace tSubAO_MO{subAO_MO};
+    TiledIndexSpace tSubAO_AO{subAO_AO};
 
     auto [P, Q] = Aux.labels<2>("all",0); 
-    auto [mu, nu] = tSubAO_MO.labels<2>("all",2);
+    auto [mu] = tSubAO_MO.labels<1>("all",2);
+    auto [nu] = tSubAO_AO.labels<1>("all",3);
     auto [i] = tMOs.labels<1>("O");
 
-    tensor_type pI{Aux, AOs, AOs};
-    tensor_type C{AOs, tMOs};
+    tensor_type pI{Q, mu, nu(mu)};
+    tensor_type C{mu(i), i};
+
+    tensor_type CI{Q, i, nu(i)};
+    
     tensor_type Linv{Aux, Aux};
 
-    tensor_type CI{Aux, tMOs, AOs};
+    
     tensor_type D{Aux, tMOs, AOs};
     tensor_type d{Aux};
     tensor_type dL{Aux};
@@ -904,24 +991,24 @@ TEST_CASE("SCF Example Implementation") {
     auto ec = make_execution_context();
     Scheduler sch{ec};
 
-    // if(mu.tiled_index_space().is_compatible_with(pI.tiled_index_spaces()[1]))
-    //     std::cout << "mu - AOs" << std::endl;
-    // if(nu.tiled_index_space().is_compatible_with(pI.tiled_index_spaces()[2]))
-    //     std::cout << "nu - AOs" << std::endl;
+    // Q(X, mu, nu_for_Q(mu)) * D(mu, nu_for_D(mu));
+    // Q(X, mu, nu) * D(mu, nu_for_D(mu));
 
-    // sch.allocate(CI/* , D, d, dL, J, K */)
-    // (CI() = 1.0)
-    // (CI(Q, i, nu(i)) = 42.0)
-    // (CI(Q, i, nu(i)) = C(mu(i), i) * pI(Q, mu(i), nu(i)))
+    // sch.allocate(CI, D, d, dL, J, K)
+    // (CI(Q, i, nu(i)) = C(mu(i), i) * pI(Q, mu(i), nu(mu))
     // (D(P, i, mu) = Linv(P, Q) * CI(Q, i, mu))
     // (d(P) = D(P, i, mu) * C(mu, i))
     // (dL(Q) = d(P) * Linv(P, Q))
+    // (J(mu, nu) = dL(P) * pI(P, mu, nu))
     // (J(mu, nu) = dL(P) * pI(P, mu, nu))
     // (K(mu, nu) = D(P, i, mu) * D(P, i, nu))
     // .execute();
 
     // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
     // print_tensor(CI);
+
+#endif
+
 }
 
 

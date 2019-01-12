@@ -1170,6 +1170,78 @@ public:
 
     void execute(ExecutionContext& ec) override {
         EXPECTS(!is_assign_);
+    
+    
+    #if 0
+
+        using TensorElType = typename LabeledTensorT::element_type;
+
+        ec.re()->submitTask(
+        [=](RuntimeEngine::RuntimeContext& rc){
+            
+        // determine set of all labels
+        IndexLabelVec all_labels{lhs_.labels()};
+        all_labels.insert(all_labels.end(), rhs1_.labels().begin(),
+                rhs1_.labels().end());
+        all_labels.insert(all_labels.end(), rhs2_.labels().begin(),
+                rhs2_.labels().end());
+        LabelLoopNest loop_nest{all_labels};
+
+        auto ctensor = lhs_.tensor();
+        auto atensor = rhs1_.tensor();
+        auto btensor = rhs2_.tensor();
+
+        auto first = loop_nest.begin();
+        auto last = loop_nest.end();
+
+        for(; first!= last; ++first) {
+        auto blockid =  *first;
+
+        auto it = first.begin();
+        IndexVector cblockid{it, it + lhs_.labels().size()};
+
+        it += lhs_.labels().size();
+        IndexVector ablockid{it, it + rhs1_.labels().size()};
+
+        it += rhs1_.labels().size();
+        IndexVector bblockid{it, it + rhs2_.labels().size()};
+
+        const auto translated_cblockid = internal::translate_blockid(cblockid, lhs_);
+        const auto translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
+        const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
+        if(!ctensor.is_non_zero(translated_cblockid) || !atensor.is_non_zero(translated_ablockid) ||
+                !btensor.is_non_zero(translated_bblockid)) 
+            return;
+
+        rc.submitTask([=](RuntimeEngine::RuntimeContext& rc_recursive){
+                BlockBuffer cbuf = rc_recursive.get_tmp_buffer(ctensor, translated_cblockid);
+                BlockBuffer abuf = rc_recursive.get_buffer(atensor, translated_ablockid);
+                BlockBuffer bbuf = rc_recursive.get_buffer(btensor, translated_bblockid);
+                // double cscale = is_assign_ ? 0 : 1;
+                TensorElType cscale{0};
+
+                SizeVec adims_sz, bdims_sz, cdims_sz;
+                for(const auto v : adims) { adims_sz.push_back(v); }
+                for(const auto v : bdims) { bdims_sz.push_back(v); }
+                for(const auto v : cdims) { cdims_sz.push_back(v); }
+                kernels::block_multiply(alpha_, abuf.data(), adims_sz,
+                        rhs1_int_labels_, bbuf.data(), bdims_sz,
+                        rhs2_int_labels_, cscale, cbuf.data(),
+                        cdims_sz, lhs_int_labels_);
+
+                // add the computed update to the tensor
+                cbuf.add();
+
+                }, TempAccess(IndexedTensor{ctensor, translated_cblockid}), 
+                ReadAccess(IndexedTensor{atensor, translated_ablockid}), 
+                ReadAccess(IndexedTensor{btensor, translated_bblockid})); 
+
+        }
+        }, WritePermission{lhs_}, ReadPermission{rhs1_}, ReadPermission{rhs2_});
+
+    #endif
+
+
         using TensorElType = typename LabeledTensorT::element_type;
         // determine set of all labels
         IndexLabelVec all_labels{lhs_.labels()};

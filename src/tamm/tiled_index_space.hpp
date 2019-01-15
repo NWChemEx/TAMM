@@ -135,12 +135,9 @@ public:
         (*t_is.tiled_info_), dep_vec, dep_map)},
       root_tiled_info_{t_is.root_tiled_info_},
       parent_tis_{std::make_shared<TiledIndexSpace>(t_is)} {
-
         // validate dependency map
         std::vector<std::size_t> tis_sizes;
-        for(const auto& tis : dep_vec) {
-            tis_sizes.push_back(tis.num_tiles());
-        }
+        for(const auto& tis : dep_vec) { tis_sizes.push_back(tis.num_tiles()); }
 
         for(const auto& [key, value] : dep_map) {
             EXPECTS(key.size() == dep_vec.size());
@@ -203,6 +200,10 @@ public:
         if(dep_idx_vec.empty()) { return (*this); }
         const auto& t_dep_map = tiled_info_->tiled_dep_map_;
         EXPECTS(t_dep_map.find(dep_idx_vec) != t_dep_map.end());
+        // if(t_dep_map.find(dep_idx_vec) == t_dep_map.end()){
+        //     return TiledIndexSpace{IndexSpace{{}}};
+        // }
+
         return t_dep_map.at(dep_idx_vec);
     }
 
@@ -269,12 +270,12 @@ public:
         if(this->is_identical(tis)) {
             return true;
         } else if(this->is_dependent()) {
-            if(tis.is_dependent()){
+            if(tis.is_dependent()) {
                 return (this->parent_tis_->is_subset_of((*tis.parent_tis_)));
             } else {
                 return (this->parent_tis_->is_subset_of(tis));
             }
-            
+
         } else if(this->parent_tis_ != nullptr) {
             return (this->parent_tis_->is_subset_of(tis));
         }
@@ -478,7 +479,7 @@ public:
     size_t hash() const { return hash_value_; }
 
     size_t num_key_tiled_index_spaces() const {
-        if(tiled_info_->is_.is_dependent()){
+        if(tiled_info_->is_.is_dependent()) {
             return tiled_info_->is_.num_key_tiled_index_spaces();
         }
         return tiled_info_->dep_vec_.size();
@@ -569,9 +570,9 @@ protected:
         IndexVector simple_vec_;   /**< vector where at(i) = i*/
         std::size_t
           max_num_tiles_; /**<Maximum number of tiles in this tiled space*/
+        TiledIndexSpaceVec dep_vec_;
         std::map<IndexVector, TiledIndexSpace>
           tiled_dep_map_; /**< Tiled dependency map for dependent index spaces*/
-        TiledIndexSpaceVec dep_vec_;
         std::map<std::string, TiledIndexSpace>
           tiled_named_subspaces_; /**< Tiled named subspaces map string ids*/
 
@@ -708,6 +709,17 @@ protected:
             //     EXPECTS(root_dep.find(key) != root_dep.end());
             //     EXPECTS(dep_tis.is_compatible_with(root_dep.at(key)));
             // }
+            std::vector<IndexVector> result;
+            IndexVector acc;
+            combinations_tis(result, acc, dep_vec, 0);
+            IndexSpace empty_is{IndexVector{}};
+            TiledIndexSpace empty_tis{empty_is};
+
+            for(const auto& iv : result) {
+                if(tiled_dep_map_.find(iv) == tiled_dep_map_.end()){
+                    tiled_dep_map_[iv] = empty_tis;
+                }
+            }
 
             compute_max_num_tiles();
             validate();
@@ -867,6 +879,7 @@ protected:
          * @returns the size of the tile at the corresponding index
          */
         std::size_t tile_size(Index idx) const {
+            // std::cerr << "idx: " << idx << std::endl;
             EXPECTS(idx >= 0 && idx < tile_offsets_.size() - 1);
             return tile_offsets_[idx + 1] - tile_offsets_[idx];
         }
@@ -901,6 +914,22 @@ protected:
             EXPECTS(simple_vec_.size() == ref_indices_.size());
             if(tiled_dep_map_.empty()) {
                 EXPECTS(simple_vec_.size() + 1 == tile_offsets_.size());
+            }
+        }
+
+        void combinations_tis(std::vector<IndexVector>& res,
+                              const IndexVector& accum,
+                              const TiledIndexSpaceVec& tis_vec, size_t i) {
+            if(i == tis_vec.size()) {
+                res.push_back(accum);
+            } else {
+                auto tis = tis_vec[i];
+
+                for(const auto& tile_id : tis) {
+                    IndexVector tmp{accum};
+                    tmp.push_back(tile_id);
+                    combinations_tis(res, tmp, tis_vec, i + 1);
+                }
             }
         }
 
@@ -1263,7 +1292,7 @@ public:
      */
     TiledIndexLabel operator()(
       const std::vector<TileLabelElement>& secondary_labels) {
-        EXPECTS(this->tiled_index_space().is_dependent());  
+        EXPECTS(this->tiled_index_space().is_dependent());
         return {*this, secondary_labels};
     }
 

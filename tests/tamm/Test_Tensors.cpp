@@ -76,6 +76,7 @@ void tensor_contruction(const TiledIndexSpace& T_AO,
     Q(A, r, s) += 0.5 * C(mu_A(A), s) * SC(mu_A(A), r);
 }
 
+#if 1
 TEST_CASE("Spin Tensor Construction") {
     using T = double;
     IndexSpace SpinIS{range(0, 20),
@@ -857,8 +858,7 @@ TEST_CASE("Fill tensors using lambda functions") {
     // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
     //print_tensor(A);
 }
-
-
+#endif
 TEST_CASE("SCF Example Implementation") {
 
     using tensor_type = Tensor<double>;
@@ -877,10 +877,10 @@ TEST_CASE("SCF Example Implementation") {
     TiledIndexSpace tMOs{MOs_};
 
 #if 1
+
     std::map<IndexVector, TiledIndexSpace> dep_nu_mu_q{
         {
-            {{0}, TiledIndexSpace{AOs, IndexVector{0,3,4}}},
-            {{1}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
+            {{0}, TiledIndexSpace{AOs, IndexVector{0,3,4}}},           
             {{2}, TiledIndexSpace{AOs, IndexVector{0,2}}},
             {{3}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
             {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
@@ -897,7 +897,7 @@ TEST_CASE("SCF Example Implementation") {
             {{2}, TiledIndexSpace{AOs, IndexVector{0,2,4}}},
             {{3}, TiledIndexSpace{AOs, IndexVector{1,6}}},
             {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
-            {{5}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
+            // {{5}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
             {{6}, TiledIndexSpace{AOs, IndexVector{0,1,2}}}
         }
     };
@@ -905,11 +905,10 @@ TEST_CASE("SCF Example Implementation") {
     std::map<IndexVector, TiledIndexSpace> dep_nu_mu_c{
         {
             {{0}, TiledIndexSpace{AOs, IndexVector{3}}},
-            {{1}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
             {{2}, TiledIndexSpace{AOs, IndexVector{0,2}}},
             {{3}, TiledIndexSpace{AOs, IndexVector{1}}},
             {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
-            {{5}, TiledIndexSpace{AOs, IndexVector{1,2}}},
+            // {{5}, TiledIndexSpace{AOs, IndexVector{1,2}}},
             {{6}, TiledIndexSpace{AOs, IndexVector{2}}}
         }
     };
@@ -926,17 +925,21 @@ TEST_CASE("SCF Example Implementation") {
     auto nu_for_D = tSubAO_AO_D.label("all",0);
     auto nu_for_C = tSubAO_AO_C.label("all",0);
 
-    tensor_type D{mu, nu_for_D(mu)};
     tensor_type Q{X, mu, nu_for_Q(mu)};
+    tensor_type D{mu, nu_for_D(mu)};
     tensor_type C{X, mu, nu_for_C(mu)};
 
     auto ec = make_execution_context();
     Scheduler sch{ec};
+    
+    Q.allocate(&ec);
+    D.allocate(&ec);
+    C.allocate(&ec);
 
-    sch.allocate(D, Q, C)
-    (D() = 42.0)
-    (Q() = 2.0)
-    (C(X, mu, nu_for_C(mu)) = Q(X, mu, nu_for_C(mu)) * D(mu, nu_for_C(mu)))
+    sch
+        (D() = 42.0)
+        (Q() = 2.0)
+        (C(X, mu, nu_for_C(mu)) = Q(X, mu, nu_for_C(mu)) * D(mu, nu_for_C(mu)))
     .execute();
 
     std::cerr << "Tensor C:" << std::endl;

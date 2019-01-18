@@ -18,7 +18,8 @@ VectorXd HSLanczos(const MatrixXd &H, const MatrixXd &S, const VectorXd &v0, Mat
  
    double t1, t2, t3, t4; 
    t1 = omp_get_wtime();
-   dpotrf_(&lower, &n, R.data(), &n, &ierr);   
+   // dpotrf_(&lower, &n, R.data(), &n, &ierr);   
+   ierr = LAPACKE_dpotrf(LAPACK_COL_MAJOR, lower, n, R.data(), n);   
    t2 = omp_get_wtime();
    logOFS << "Cholesky factorization time = " <<  t2-t1 << std::endl;
    if (ierr) {
@@ -35,10 +36,13 @@ VectorXd HSLanczos(const MatrixXd &H, const MatrixXd &S, const VectorXd &v0, Mat
       // MATVEC with inv(L)*H*inv(L')
       V.block(0,iter,n,1) = v;
       t3 = omp_get_wtime();
-      dtrsm_(&left, &lower, &trans, &nunit, &n, &nrhs, &done, R.data(), &n, v.data(), &n);  
+      // dtrsm_(&left, &lower, &trans, &nunit, &n, &nrhs, &done, R.data(), &n, v.data(), &n);  
+      cblas_dtrsm(CblasColMajor, CblasLeft, CblasLower, CblasTrans, 
+                  CblasNonUnit, n, nrhs, done, R.data(), n, v.data(), n);  
       t4 = omp_get_wtime();
       SiHv = H*v;
-      dtrsm_(&left, &lower, &notrans, &nunit, &n, &nrhs, &done, R.data(), &n, SiHv.data(), &n);  
+      cblas_dtrsm(CblasColMajor, CblasLeft, CblasLower, CblasNoTrans,
+                  CblasNonUnit, n, nrhs, done, R.data(), n, SiHv.data(), n);  
       // orthogonalization 
       T.block(0,iter,iter+1,1) = V.block(0,0,n,iter+1).transpose() *SiHv;
       f = SiHv - V.block(0,0,n,iter+1)*T.block(0,iter,iter+1,1);

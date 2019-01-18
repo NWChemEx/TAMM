@@ -7,9 +7,9 @@ using Eigen::MatrixXd;
 //using Eigen::LLT;
 
 #ifdef NO_MPI
-MatrixXd sisubit(const MatrixXd &HS, const MatrixXd &S, MatrixXd &X0, int *ipiv, int maxiter)
+MatrixXd sisubit(const MatrixXd &HS, const MatrixXd &S, MatrixXd &X0, TAMM_LAPACK_INT *ipiv, int maxiter)
 #else
-MatrixXd sisubit(MPI_Comm comm, const MatrixXd &HS, const MatrixXd &S, MatrixXd &X0, int *ipiv, int maxiter)
+MatrixXd sisubit(MPI_Comm comm, const MatrixXd &HS, const MatrixXd &S, MatrixXd &X0, TAMM_LAPACK_INT *ipiv, int maxiter)
 #endif
 {
    const double *hsdata = HS.data();
@@ -24,7 +24,10 @@ MatrixXd sisubit(MPI_Comm comm, const MatrixXd &HS, const MatrixXd &S, MatrixXd 
    for (int iter=0; iter<maxiter; iter++) {
       // std::cout << "iter = " << iter << std::endl;
       X = S*X0;
-      dsytrs_(&lower, &n, &ncols, hsdata, &n, ipiv, X.data(), &n, &ierr);  
+      // dsytrs_(&lower, &n, &ncols, hsdata, &n, ipiv, X.data(), &n, &ierr);  
+      ierr = LAPACKE_dsytrs(LAPACK_COL_MAJOR, lower, n, ncols, hsdata, n, 
+                            ipiv, X.data(), n);  
+
       X0 = cholQR(S,X);
    }
    double t2 = omp_get_wtime();

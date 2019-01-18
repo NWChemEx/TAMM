@@ -10,12 +10,20 @@
 #include <memory>
 #include <sstream>
 
+/**
+ * @defgroup index_space IndexSpace
+ *
+ * User facing object for constructing IndexSpace
+ *
+ */
 namespace tamm {
-
+/// Forward declaration for IndexSpaceInterface
 class IndexSpaceInterface;
+/// Forward declaration for TiledIndexSpace
 class TiledIndexSpace;
 
 /**
+ * @ingroup index_space
  * @class IndexSpace
  * @brief Main IndexSpace class that clients will be actively
  *        using for constructing Tensors via TiledIndexSpaces.
@@ -24,9 +32,7 @@ class TiledIndexSpace;
  */
 class IndexSpace {
 public:
-    /**
-     * @brief Type alias for iterators from this index space
-     */
+    /// Type alias for iterators from this IndexSpace
     using Iterator = IndexIterator;
     // Constructors
     IndexSpace() = default;
@@ -38,7 +44,7 @@ public:
     IndexSpace& operator=(IndexSpace&&) = default;
 
     /**
-     * @brief Construct a new Index Space object using initializer list of
+     * @brief Construct a new IndexSpace object using initializer list of
      * indices.
      *
      * @param [in] indices input Index values
@@ -47,7 +53,7 @@ public:
       IndexSpace{indices, {}, {}, {}} {}
 
     /**
-     * @brief Construct a new Index Space object using a range, named subspaces
+     * @brief Construct a new IndexSpace object using a range, named subspaces
      * and attributes
      *
      * @param [in] range Range object that is being used to construct indices
@@ -81,11 +87,11 @@ public:
 
     /**
      * @brief Construct a new (Sub-)IndexSpace object by getting a range from
-     * the reference index space
+     * the reference IndexSpace
      *
-     * Sub-space. no inherited named subspaces from the reference index space
+     * Sub-space. no inherited named subspaces from the reference IndexSpace
      * To iterate over the ranges into which an attribute partitions this
-     * index space, the parent space's attributes are accessed by using the
+     * IndexSpace, the parent space's attributes are accessed by using the
      * input Range.
      *
      * @param [in] is reference IndexSpace
@@ -96,7 +102,7 @@ public:
                const NameToRangeMap& named_subspaces = {});
     /**
      * @brief Construct a new (Sub-)IndexSpace object by getting a set of
-     * indices from the reference index space
+     * indices from the reference IndexSpace
      *
      * @param [in] is reference IndexSpace
      * @param [in] indices set of indices used for constructing the sub space
@@ -106,12 +112,12 @@ public:
                const NameToRangeMap& named_subspaces = {});
 
     /**
-     * @brief Construct a new (Aggregated) Index Space object by aggregating
-     * other index spaces
+     * @brief Construct a new (Aggregated) IndexSpace object by aggregating
+     * other IndexSpaces
      *
      * Aggregate. named subspaces  and attributes from all spaces in
      * input IndexSpaces with a non-empty name/attributes are accessible through
-     * the reference index spaces
+     * the reference IndexSpaces
      *
      * @todo we could have functions to get "named" subspaces by position.
      * Basically fn(i) returns spaces[i].
@@ -122,7 +128,7 @@ public:
      * @param [in] named_subspaces additional named subspaces by a map from
      * strings to vector of Ranges
      * @param [in] subspace_references additional named subspaces defined over
-     * reference index spaces by a map from strings to ':' separated strings
+     * reference IndexSpaces by a map from strings to ':' separated strings
      */
     IndexSpace(const std::vector<IndexSpace>& spaces,
                const std::vector<std::string>& names = {},
@@ -132,11 +138,11 @@ public:
 
     /**
      * @brief Construct a new (Dependent) IndexSpace object using a vector of
-     * dependent index spaces.
+     * dependent IndexSpaces.
      *
      * Dependent: named subspaces and attributes for all dependent spaces in
      * input dependent IndexSpaces with a non-empty name/attributes are
-     * accessible through the dependent index spaces
+     * accessible through the dependent IndexSpaces
      *
      * @param [in] indep_spaces dependent TiledIndexSpaces used for construction
      * @param [in] dep_space_relation relation between each set of indices on
@@ -146,7 +152,7 @@ public:
                const std::map<IndexVector, IndexSpace>& dep_space_relation);
     /**
      * @brief Construct a new (Dependent) IndexSpace object using a vector of
-     * dependent index spaces and a specific reference index space
+     * dependent IndexSpaces and a specific reference IndexSpace
      *
      * @param [in] indep_spaces dependent TiledIndexSpaces used for construction
      * @param [in] ref_space reference IndexSpace
@@ -156,15 +162,31 @@ public:
     IndexSpace(const std::vector<TiledIndexSpace>& indep_spaces,
                const IndexSpace& ref_space,
                const std::map<IndexVector, IndexSpace>& dep_space_relation);
-
+    /**
+     * @brief Construct a new (Dependent) IndexSpace object using a vector of
+     * dependent IndexSpaces
+     *
+     * @param [in] indep_spaces dependent TiledIndexSpace used for construction
+     * @param [in] dep_space_relation a map between a range of indices and a
+     * dependent IndexSpace
+     */
     IndexSpace(const std::vector<TiledIndexSpace>& indep_spaces,
                const std::map<Range, IndexSpace>& dep_space_relation);
 
+    /**
+     * @brief Construct a new (Dependent) IndexSpace object using a vector of
+     * dependent IndexSpaces and a reference IndexSpace
+     *
+     * @param [in] indep_spaces dependent TiledIndexSpace used for construction
+     * @param [in] ref_space reference IndexSpace
+     * @param [in] dep_space_relation a map between a range of indices and a
+     * dependent IndexSpace
+     */
     IndexSpace(const std::vector<TiledIndexSpace>& indep_spaces,
                const IndexSpace& ref_space,
                const std::map<Range, IndexSpace>& dep_space_relation);
     /**
-     * @brief Construct a new Index Space object by using a shared_ptr
+     * @brief Construct a new IndexSpace object by using a shared_ptr
      *
      * Used for constructing reference IndexSpace object from the
      * implementations
@@ -175,30 +197,76 @@ public:
       impl_{impl} {}
 
     // Index Accessors
+    /**
+     * @brief Accessor method for accessing an index on an IndexSpace
+     *
+     * @param [in] i index to be accessed
+     * @param [in] indep_index dependent indices if IndexSpace objects
+     * is dependent on other IndexSpaces
+     * @returns value for the corresponding index
+     */
     Index index(Index i, const IndexVector& indep_index = {});
+
+    /**
+     * @brief Operator overload for accessing an index on an IndexSpace
+     *
+     *
+     * @param [in] i index to be accessed
+     * @returns value for the corresponding index
+     *
+     * @warning This method is not implemented for dependent IndexSpaces
+     */
     Index operator[](Index i) const;
 
     // Subspace Accessors
+    /**
+     * @brief Operator overload for getting dependent IndexSpaces
+     *
+     * @param [in] indep_index index values for the dependent IndexSpace
+     * @returns an IndexSpace that is dependent on for given indices
+     * @warning This method will return itself if it is not a dependent
+     * IndexSpace
+     */
     IndexSpace operator()(const IndexVector& indep_index = {}) const;
+
+    /**
+     * @brief Operator overload for getting named sub IndexSpaces
+     *
+     * @param [in] named_subspace_id name of the sub IndexSpace
+     * @returns an IndexSpace for the named sub space
+     */
     IndexSpace operator()(const std::string& named_subspace_id) const;
 
     // Iterators
+    /**
+     * @brief Iterator overload for begin method
+     *
+     * @returns a std::vector<Index>::const_iterator pointing to the beginning
+     * of indices
+     */
     IndexIterator begin() const;
+
+    /**
+     * @brief Iterator overload for end method
+     *
+     * @returns a std::vector<Index>::const_iterator pointing to the end of
+     * indices
+     */
     IndexIterator end() const;
 
     /**
-     * @brief Number of indices in this index space in terms of the number of
+     * @brief Number of indices in this IndexSpace in terms of the number of
      * indices in it
      *
-     * @return number of indices in the index space
+     * @returns number of indices in the IndexSpace
      */
     std::size_t num_indices() const;
 
     /**
-     * @brief Maximum number of indices in this index space for any value of
-     * indices this index space depends on
+     * @brief Maximum number of indices in this IndexSpace for any value of
+     * indices this IndexSpace depends on
      *
-     * @return maximum number of indices in the index space
+     * @returns maximum number of indices in the IndexSpace
      */
     std::size_t max_num_indices() const;
 
@@ -207,7 +275,7 @@ public:
      *
      * @param [in] idx Index value
      *
-     * @return spin attribute
+     * @returns spin attribute
      */
     Spin spin(Index idx) const;
 
@@ -216,7 +284,7 @@ public:
      *
      * @param [in] idx Index value
      *
-     * @return spatial attribute
+     * @returns spatial attribute
      */
     Spatial spatial(Index idx) const;
 
@@ -225,7 +293,7 @@ public:
      *
      * @param [in] spin Spin value
      *
-     * @return Ranges of indices with the given spin value
+     * @returns Ranges of indices with the given spin value
      */
     const std::vector<Range>& spin_ranges(Spin spin) const;
 
@@ -234,80 +302,162 @@ public:
      *
      * @param [in] spatial Spatial  value
      *
-     * @return Ranges of indices with the given spatial value
+     * @returns Ranges of indices with the given spatial value
      */
     const std::vector<Range>& spatial_ranges(Spatial spatial) const;
 
     /**
-     * @brief Does this index space have spin attribute
+     * @brief Does this IndexSpace have spin attribute
      *
-     * @return true if this index space has spin attribute
+     * @returns true if this IndexSpace has spin attribute
      */
     bool has_spin() const;
 
     /**
-     * @brief Does this index space have spatial attribute
+     * @brief Does this IndexSpace have spatial attribute
      *
-     * @return true if this index space has spatial attribute
+     * @returns true if this IndexSpace has spatial attribute
      */
     bool has_spatial() const;
 
     /**
-     * @brief Access the named ranges in this index space
+     * @brief Access the named ranges in this IndexSpace
      *
-     * @return Map of named ranges
+     * @returns Map of named ranges
      */
     const NameToRangeMap& get_named_ranges() const;
 
+    /**
+     * @brief Getter method for the root IndexSpace
+     *
+     * @returns the root IndexSpace object
+     */
     IndexSpace root_index_space() const;
 
+    /**
+     * @brief Getter method for dependent IndexSpace
+     *
+     * @returns vector of TiledIndexSpace's that this IndexSpace depends on
+     * @warning returns an empty vector if it is an independent IndexSpace
+     */
     const std::vector<TiledIndexSpace>& key_tiled_index_spaces() const;
 
     /**
-     * @brief Number of index spaces this index space depends on
+     * @brief Number of IndexSpaces this IndexSpace depends on
      *
-     * @return Number of index spaces this index space depends on
+     * @returns Number of IndexSpaces this IndexSpace depends on
      */
     size_t num_key_tiled_index_spaces() const;
 
+    /**
+     * @brief Getter method for the dependency map
+     *
+     * @returns a map between set of indices and dependent IndexSpace
+     * @warning This method returns an empty map if it is an independent
+     * IndexSpace
+     */
     const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces() const;
 
+    /**
+     * @brief Getter method for the named subspace map
+     *
+     * @returns a map between a string and an IndexSpace
+     * @warning This method returns an empty map if there is no named subspace
+     * associated with it
+     */
     const std::map<std::string, IndexSpace>& map_named_sub_index_spaces() const;
 
     /**
-     * @brief Are two index spaces identical
+     * @brief Checks if two IndexSpaces are identical using hash values
      *
-     * @param [in] rhs Index space to be compared with
+     * @param [in] rhs IndexSpace to be compared with
      *
-     * @return true if this index space is idential to @param rhs
+     * @returns true if this IndexSpace is identical to @param rhs
      */
     bool is_identical(const IndexSpace& rhs) const {
         return (hash_value_ == rhs.hash());
     }
 
     /**
+     * @brief Checks if @param rhs is created before this IndexSpace
+     *
+     * @param [in] rhs IndexSpace to be compared
+     * @returns true if @param rhs is constructed before this
      * @todo @bug Do we need this routine?
+     * @warning Currently this check is implemented by comparing the addresses
      */
     bool is_less_than(const IndexSpace& rhs) const { return impl_ < rhs.impl_; }
 
-    // @todo Re-visit later
+    /**
+     * @brief Checks if @param rhs is compatible with this IndexSpace
+     *
+     * @param [in] rhs IndexSpace to be compared
+     * @returns true if two IndexSpaces are identical
+     * @todo Update compatibility check
+     * @warning Currently this check is using identical, it will be updated
+     * later.
+     */
     bool is_compatible(const IndexSpace& rhs) const {
         return is_identical(rhs);
     }
 
+    /**
+     * @brief Checks if @param rhs and this IndexSpace have the same root
+     * IndexSpace
+     *
+     * @param [in] rhs IndexSpace to be compared
+     * @returns true if two IndexSpaces have the same root IndexSpace
+     */
     bool is_identical_reference(const IndexSpace& rhs) const {
         return (*this).root_index_space().is_identical(rhs.root_index_space());
     }
 
+    /**
+     * @brief Checks if @param rhs and this IndexSpace have compatible root
+     * IndexSpaces
+     *
+     * @param [in] rhs IndexSpace sto be compared
+     * @returns true if two IndexSpaces have compatible root IndexSpaces
+     */
     bool is_compatible_reference(const IndexSpace& rhs) const {
         return (*this).root_index_space().is_compatible(rhs.root_index_space());
     }
 
+    /**
+     * @brief Checks if this is a dependent IndexSpace
+     *
+     * @returns true if this IndexSpace depends on some other IndexSpace
+     */
     bool is_dependent() const { return (num_key_tiled_index_spaces() > 0); }
 
+    /**
+     * @brief Getter method for the SpinAttribute object associated with this
+     * IndexSpace
+     *
+     * @returns SpinAttribute associated with this IndexSpace
+     * @warning This method will return a default SpinAttribute if there is no
+     * spin associated with this IndexSpace
+     */
     SpinAttribute get_spin() const;
+
+    /**
+     * @brief Getter method for the SpatialAttribute object associated with this
+     * IndexSpace
+     *
+     * @returns SpatialAttribute associated with this IndexSpace
+     * @warning This method will return a default SpatialAttribute if there is
+     * no spatial associated with this IndexSpace
+     */
     SpatialAttribute get_spatial() const;
 
+    /**
+     * @brief Finds the position of Index @param idx
+     *
+     * @param [in] idx Index to be searched
+     * @returns position of Index @param idx if it is among the indices
+     * @warning This method will return -1 if Index being searched is not in the
+     * IndexSpace
+     */
     int find_pos(Index idx) const {
         int pos = 0;
         for(auto i = begin(); i != end(); i++, pos++) {
@@ -316,9 +466,12 @@ public:
         return -1;
     }
 
-    size_t hash() const {
-        return hash_value_;
-    }
+    /**
+     * @brief Getter method for the hash value of this IndexSpace
+     *
+     * @returns a hash value associated with this IndexSpace
+     */
+    size_t hash() const { return hash_value_; }
 
     // Comparison operators
     friend bool operator==(const IndexSpace& lhs, const IndexSpace& rhs);
@@ -329,9 +482,10 @@ public:
     friend bool operator>=(const IndexSpace& lhs, const IndexSpace& rhs);
 
 protected:
-    std::shared_ptr<IndexSpaceInterface> impl_;
-    size_t hash_value_;
-}; // class IndexSpace
+    std::shared_ptr<IndexSpaceInterface>
+      impl_;            /**< shared pointer to the implementation */
+    size_t hash_value_; /**< hash value associated with the IndexSpace */
+};                      // class IndexSpace
 
 } // namespace tamm
 

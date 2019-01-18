@@ -1,6 +1,5 @@
 93
 
-geometry units bohr
 O .0000000 .0000000 .0000000 
 Si -2.9007302 -.8182516 -.0831480 
 Si 2.8704946 -.9202968 -.0793685 
@@ -95,10 +94,13 @@ H 7.1828505 5.1551739 8.2184206
 H 9.1160407 1.2188736 8.2732227 
 H 13.9990941 .3552686 .0283459 
 
-basis 6-31g*
-maxiter 50
-tol_int 1e-8
-conve 1e-6
-convd 1e-5
-diis_hist 10
+COMMON {  
+    basis 6-31g*
+    geometry units bohr
+}
 
+SCF 
+{ 
+    tilesize 30
+    restart false
+}

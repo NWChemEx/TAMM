@@ -1,7 +1,6 @@
 
 1231
 
-geometry units angstrom
 N         27.34000       24.43000        2.61400
 C         26.26600       25.41300        2.84200
 C         26.91300       26.63900        3.53100
@@ -1234,9 +1233,13 @@ H         41.13053       40.60310       33.62542
 H         39.43295       39.92894       33.30960
 H         41.76077       39.11904       35.91137
 
-basis sto-3g
-maxiter 50
-tol_int 1e-8
-conve 1e-6
-convd 1e-5
-diis_hist 10
+COMMON {  
+    basis sto-3g
+    geometry units angstrom
+}
+
+SCF 
+{ 
+    tilesize 30
+    restart false
+}

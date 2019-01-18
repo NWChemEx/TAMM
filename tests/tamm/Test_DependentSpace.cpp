@@ -687,47 +687,6 @@ void test_dependent_space_with_T(Index tilesize) {
     }
     REQUIRE(success);
 
-    std::cerr << "Finished default dependent space"	<< std::endl;
-    {
-        std::map<IndexVector, TiledIndexSpace> tiled_dep_map = T_DIS.tiled_dep_map();
-        std::map<IndexVector, TiledIndexSpace> sub_relation1, sub_relation2;
-
-        // std::cerr << "tile_count" << tile_count << " half "  << tile_count / 2<< std::endl;
-        for(const auto& kv : tiled_dep_map) {
-            sub_relation1.insert({kv.first, TiledIndexSpace{kv.second, range(0,tile_count/2)}});
-            sub_relation2.insert({kv.first, TiledIndexSpace{kv.second, range(tile_count/2,tile_count)}});        
-        }
-
-        // Creating sub tiled spaces Dependent-TiledIndexSpace
-        {
-            success = true;
-            try
-            {
-                TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
-                TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};            
-            }
-            catch(const std::string& e)
-            {
-                std::cerr << "Caught exception: " << e << "\n";
-                success = false;
-            }
-            REQUIRE(success);
-        }
-
-        TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
-        TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};
-
-        TiledIndexLabel sub_a1, sub_a2;
-
-        sub_a1 = Sub_TDIS1.label("all");
-        sub_a2 = Sub_TDIS2.label("all");
-
-        // SetOp with sub dependent spaces 
-        {
-            Tensor<T> T1{a(i),i};
-            REQUIRE(test_setop(ec, T1, T1(sub_a1(i), i), {T1(sub_a2(i), i)}));
-        } 
-    }
     ///////////////////////////////////////////////////////////////
     
     // 3-dimensional tests
@@ -876,46 +835,6 @@ void test_dependent_space_with_T(Index tilesize) {
 
     std::cerr << "Finished default dependent space"	<< std::endl;
 
-    {    
-        std::map<IndexVector, TiledIndexSpace> tiled_dep_map = T_DIS.tiled_dep_map();
-        std::map<IndexVector, TiledIndexSpace> sub_relation1, sub_relation2;
-
-        // std::cerr << "tile_count" << tile_count << " half "  << tile_count / 2<< std::endl;
-        for(const auto& kv : tiled_dep_map) {
-            sub_relation1.insert({kv.first, TiledIndexSpace{kv.second, range(0,tile_count/2)}});
-            sub_relation2.insert({kv.first, TiledIndexSpace{kv.second, range(tile_count/2,tile_count)}});        
-        }
-
-        // Creating sub tiled spaces Dependent-TiledIndexSpace
-        {
-            success = true;
-            try
-            {
-                TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
-                TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};            
-            }
-            catch(const std::string& e)
-            {
-                std::cerr << "Caught exception: " << e << "\n";
-                success = false;
-            }
-            REQUIRE(success);
-        }
-
-        TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
-        TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};
-
-        TiledIndexLabel sub_a1, sub_a2;
-
-        sub_a1 = Sub_TDIS1.label("all");
-        sub_a2 = Sub_TDIS2.label("all");
-
-        // SetOp with sub dependent spaces 
-        {
-            Tensor<T> T1{a(i), i, j};
-            REQUIRE(test_setop(ec, T1, T1(sub_a1(i), i, j), {T1(sub_a2(i), i, j)}));
-        } 
-    }
     ///////////////////////////////////////////////////////////////
     
     // 4-dimensional tests
@@ -1064,46 +983,6 @@ void test_dependent_space_with_T(Index tilesize) {
 
     std::cerr << "Finished default dependent space"	<< std::endl;
 
-    {    
-        std::map<IndexVector, TiledIndexSpace> tiled_dep_map = T_DIS.tiled_dep_map();
-        std::map<IndexVector, TiledIndexSpace> sub_relation1, sub_relation2;
-
-        // std::cerr << "tile_count" << tile_count << " half "  << tile_count / 2<< std::endl;
-        for(const auto& kv : tiled_dep_map) {
-            sub_relation1.insert({kv.first, TiledIndexSpace{kv.second, range(0,tile_count/2)}});
-            sub_relation2.insert({kv.first, TiledIndexSpace{kv.second, range(tile_count/2,tile_count)}});        
-        }
-
-        // Creating sub tiled spaces Dependent-TiledIndexSpace
-        {
-            success = true;
-            try
-            {
-                TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
-                TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};            
-            }
-            catch(const std::string& e)
-            {
-                std::cerr << "Caught exception: " << e << "\n";
-                success = false;
-            }
-            REQUIRE(success);
-        }
-
-        TiledIndexSpace Sub_TDIS1{T_DIS, sub_relation1};
-        TiledIndexSpace Sub_TDIS2{T_DIS, sub_relation2};
-
-        TiledIndexLabel sub_a1, sub_a2;
-
-        sub_a1 = Sub_TDIS1.label("all");
-        sub_a2 = Sub_TDIS2.label("all");
-
-        // SetOp with sub dependent spaces 
-        {
-            Tensor<T> T1{a(i), i, b(j), j};
-            REQUIRE(test_setop(ec, T1, T1(sub_a1(i), i, b(j), j), {T1(sub_a2(i), i, b(j), j)}));
-        } 
-    }
     ///////////////////////////////////////////////////////////////
 
     MemoryManagerGA::destroy_coll(mgr);

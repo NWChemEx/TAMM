@@ -12,8 +12,10 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
   using libint2::Engine;
   using libint2::Operator;
 
+  auto rank = GA_Nodeid();
+
   // 2-index transform
-  cout << "\n\n** Number of electrons: " << ndocc << endl;
+  if(rank == 0) cout << "\n\n** Number of electrons: " << ndocc << endl;
 
 //  cout << "\n\t C Matrix:\n";
 //  cout << C << endl;
@@ -22,7 +24,7 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
 //  cout << F << endl;
 
   //std::cout << "C Cols = " << C_cols << std::endl;
-  std::cout << "nao, ndocc = " << nao << " : " << ndocc << std::endl;
+  if(rank == 0) std::cout << "nao, ndocc = " << nao << " : " << ndocc << std::endl;
 
   auto ov_alpha_freeze = ndocc - freeze_core;
   auto ov_beta_freeze = nao - ndocc - freeze_virtual;
@@ -76,7 +78,7 @@ std::tuple<Tensor4D> four_index_transform(const uint64_t ndocc, const uint64_t n
   //V_prqs.setConstant(0.0d);
   //cout << t << endl;
 
-  libint2::initialize();
+  libint2::initialize(false);
   //cout << "num_basis: " << n << endl;
   // construct the electron repulsion integrals engine
   Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);

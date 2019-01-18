@@ -1,0 +1,17 @@
+2
+
+ n 0 0   -1.034
+ n 0 0    1.034
+
+
+COMMON {  
+    basis sto-3g
+    geometry units bohr
+}
+
+SCF 
+{ 
+    tilesize 30
+    restart false
+}
+

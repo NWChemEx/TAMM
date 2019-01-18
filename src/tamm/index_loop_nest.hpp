@@ -1,8 +1,8 @@
 #ifndef TAMM_INDEX_LOOP_NEST_HPP_
 #define TAMM_INDEX_LOOP_NEST_HPP_
 
-#include "tamm/tiled_index_space.hpp"
 #include "tamm/errors.hpp"
+#include "tamm/tiled_index_space.hpp"
 #include "tamm/utils.hpp"
 #include <algorithm>
 #include <iostream>
@@ -484,9 +484,7 @@ private:
             if(tis.is_dependent()) {
                 /// @todo do we need this check here?
                 EXPECTS(il.secondary_labels().size() ==
-                        il.tiled_index_space()
-                          .index_space()
-                          .num_key_tiled_index_spaces());
+                        il.tiled_index_space().num_key_tiled_index_spaces());
                 for(auto& dep : il.secondary_labels()) {
                     size_t pos = 0;
                     for(pos = 0; pos < labels.size(); pos++) {

@@ -13,7 +13,7 @@ void hsdiag(MPI_Comm comm, int iterscf, Matrix &H, Matrix &S, int nev, Matrix &e
    MPI_Comm_rank(comm, &rank);
    // double t1 = MPI_Wtime();
 
-   const int limit = 500;
+   const int limit = 4000;
 
    // change to column major order
    MatrixXd HC, SC;
@@ -35,11 +35,14 @@ void hsdiag(MPI_Comm comm, int iterscf, Matrix &H, Matrix &S, int nev, Matrix &e
       char  lower = 'U', needv = 'V';
       int   gtype = 1, lgvdwork = n*n, ierr;
       double *gvdwork;
-      gvdwork = new double[lgvdwork];
+      // gvdwork = new double[lgvdwork];
+      //dsygv_(&gtype,&needv,&lower,&n,HC.data(),&n,SC.data(),&n,ev1.data(),
+      //       gvdwork,&lgvdwork,&ierr);
 
-      dsygv_(&gtype,&needv,&lower,&n,HC.data(),&n,SC.data(),&n,ev1.data(),
-             gvdwork,&lgvdwork,&ierr);
-      delete [] gvdwork;
+      ierr = LAPACKE_dsygv(LAPACK_COL_MAJOR, gtype, needv, lower, n, 
+                           HC.data(), n, SC.data(), n, ev1.data());
+      // delete [] gvdwork;
+
       // convert evals to a Matrix
       Map<Matrix> evalmat1(ev1.data(),n,1); 
       eps = evalmat1;

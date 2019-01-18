@@ -2,12 +2,14 @@
 #define TAMM_TENSOR_BASE_HPP_
 
 #include "tamm/errors.hpp"
+#include "tamm/execution_context.hpp"
 #include "tamm/index_loop_nest.hpp"
 #include "tamm/utils.hpp"
-#include "tamm/execution_context.hpp"
 
 /**
- * @defgroup tensors
+ * @defgroup tensors Tensors
+ *
+ *
  */
 
 namespace tamm {
@@ -45,10 +47,8 @@ public:
     TensorBase(const std::vector<TiledIndexSpace>& block_indices) :
       block_indices_{block_indices},
       allocation_status_{AllocationStatus::invalid},
-      num_modes_{block_indices.size()} {    
-          for(const auto& tis: block_indices_) {
-              EXPECTS(!tis.is_dependent());
-          }
+      num_modes_{block_indices.size()} {
+        for(const auto& tis : block_indices_) { EXPECTS(!tis.is_dependent()); }
         fillin_tlabels();
         construct_dep_map();
     }
@@ -63,10 +63,10 @@ public:
      */
     TensorBase(const std::vector<TiledIndexLabel>& lbls) :
       allocation_status_{AllocationStatus::invalid},
-            num_modes_{lbls.size()} {
+      num_modes_{lbls.size()} {
         for(const auto& lbl : lbls) {
             block_indices_.push_back(lbl.tiled_index_space());
-            //tlabels_.push_back(lbl);
+            // tlabels_.push_back(lbl);
         }
         tlabels_ = lbls;
         construct_dep_map();
@@ -82,36 +82,17 @@ public:
      */
     template<class... Ts>
     TensorBase(const TiledIndexSpace& tis, Ts... rest) : TensorBase{rest...} {
-        EXPECTS(!tis.is_dependent()); 
+        EXPECTS(!tis.is_dependent());
         block_indices_.insert(block_indices_.begin(), tis);
         fillin_tlabels();
         construct_dep_map();
-        // tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 - block_indices_.size()));
+        // tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 -
+        // block_indices_.size()));
     }
-
-    /**
-     * @brief Construct a new TensorBase object from a single TiledIndexSpace
-     * object and a lambda expression
-     * 
-     * @todo: Fix case for variadic template calls
-     *
-     * @tparam Func template for lambda expression
-     * @param [in] tis TiledIndexSpace object used as the mode of the tensor
-     * @param [in] func lambda expression
-     */
-    // template<typename Func>
-    // TensorBase(const TiledIndexSpace& tis, const Func& func) {
-    //     std::cout << "TensorBase func"	<< std::endl;
-    //     EXPECTS(!tis.is_dependent());
-    //     block_indices_.insert(block_indices_.begin(), tis);
-    //     //tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1));
-    //     fillin_tlabels();
-    //     construct_dep_map();
-    // }
 
     // Dtor
     virtual ~TensorBase(){
-        //EXPECTS(allocation_status_ == AllocationStatus::invalid);
+      // EXPECTS(allocation_status_ == AllocationStatus::invalid);
     };
 
     /**
@@ -150,13 +131,13 @@ public:
                     dep_idx_vals.push_back(blockid[pos]);
                 }
             }
-            ret.push_back(block_indices_[i](dep_idx_vals).tile_size(blockid[i]));
+            ret.push_back(
+              block_indices_[i](dep_idx_vals).tile_size(blockid[i]));
         }
         return ret;
     }
 
     std::vector<size_t> block_offsets(const IndexVector& blockid) const {
-
         std::vector<size_t> ret;
         EXPECTS(blockid.size() == num_modes());
         size_t rank = num_modes();
@@ -167,45 +148,45 @@ public:
                     dep_idx_vals.push_back(blockid[pos]);
                 }
             }
-            ret.push_back(block_indices_[i](dep_idx_vals).tile_offset(blockid[i]));
+            ret.push_back(
+              block_indices_[i](dep_idx_vals).tile_offset(blockid[i]));
         }
         return ret;
-
     }
 
-    LabelLoopNest loop_nest() const {
-        return LabelLoopNest{tlabels()};
-    }
+    LabelLoopNest loop_nest() const { return LabelLoopNest{tlabels()}; }
 
     const std::vector<TiledIndexSpace>& tiled_index_spaces() const {
         return block_indices_;
     }
 
-    const std::vector<TiledIndexLabel>& tlabels() const {
-        return tlabels_;
-    }
+    const std::vector<TiledIndexLabel>& tlabels() const { return tlabels_; }
 
-    const std::map<size_t, std::vector<size_t>>& dep_map() const { return dep_map_; }
+    const std::map<size_t, std::vector<size_t>>& dep_map() const {
+        return dep_map_;
+    }
 
     /// @todo The following methods could be refactored.
     size_t find_dep(const TileLabelElement& til) {
         size_t bis = tlabels_.size();
         for(size_t i = 0; i < bis; i++) {
-            if(block_indices_[i].is_identical(til.tiled_index_space()) && til == tlabels_[i].primary_label())
+            if(block_indices_[i].is_identical(til.tiled_index_space()) &&
+               til == tlabels_[i].primary_label())
                 return i;
         }
         return bis;
     }
 
     /// @todo refactor
-    bool check_duplicates(){
+    bool check_duplicates() {
         size_t til = tlabels_.size();
         for(size_t i1 = 0; i1 < til; i1++) {
-            for(size_t i2 = i1+1; i2 < til; i2++) {
+            for(size_t i2 = i1 + 1; i2 < til; i2++) {
                 auto tl1 = tlabels_[i1];
                 auto tl2 = tlabels_[i2];
-                EXPECTS(!(tl1.tiled_index_space().is_identical(tl2.tiled_index_space())
-                        && tl1 == tl2));
+                EXPECTS(!(tl1.tiled_index_space().is_identical(
+                            tl2.tiled_index_space()) &&
+                          tl1 == tl2));
             }
         }
         return true;
@@ -221,9 +202,7 @@ public:
             if(tis.is_dependent()) {
                 /// @todo do we need this check here?
                 EXPECTS(il.secondary_labels().size() ==
-                        il.tiled_index_space()
-                          .index_space()
-                          .num_key_tiled_index_spaces());
+                        il.tiled_index_space().num_key_tiled_index_spaces());
                 for(auto& dep : il.secondary_labels()) {
                     size_t pos = find_dep(dep);
                     EXPECTS(pos != til);
@@ -232,7 +211,8 @@ public:
                         // if(dep_map_.find(i) != dep_map_.end())
                         //     dep_map_[i].push_back(pos);
                         // else
-                        //     dep_map_[i].push_back({pos});// = IndexVector{pos};
+                        //     dep_map_[i].push_back({pos});// =
+                        //     IndexVector{pos};
                     }
                 }
                 EXPECTS(dep_map_.find(i) != dep_map_.end());
@@ -240,36 +220,24 @@ public:
         }
     }
 
-    AllocationStatus allocation_status() {
-        return allocation_status_;
-    }
+    AllocationStatus allocation_status() { return allocation_status_; }
 
-    void update_status(AllocationStatus status) {
-        allocation_status_ = status;
-    }
+    void update_status(AllocationStatus status) { allocation_status_ = status; }
 
-    bool has_spin() const {
-        return has_spin_symmetry_;
-    }
+    bool has_spin() const { return has_spin_symmetry_; }
 
-    bool has_spatial() const {
-        return has_spatial_symmetry_;
-    }
+    bool has_spatial() const { return has_spatial_symmetry_; }
 
-    Spin spin_total() const {
-        return spin_total_;
-    }
+    Spin spin_total() const { return spin_total_; }
 
     bool is_non_zero(const IndexVector& blockid) const {
-        if(!has_spin()){
-            return true;
-        }
+        if(!has_spin()) { return true; }
 
         EXPECTS(blockid.size() == num_modes());
 
-        size_t rank = num_modes();
+        size_t rank      = num_modes();
         Spin upper_total = 0, lower_total = 0, other_total = 0;
-        for (size_t i = 0; i < rank; i++) {
+        for(size_t i = 0; i < rank; i++) {
             IndexVector dep_idx_vals{};
             if(dep_map_.find(i) != dep_map_.end()) {
                 for(const auto& pos : dep_map_.at(i)) {
@@ -278,23 +246,23 @@ public:
             }
 
             const auto& tis = block_indices_[i](dep_idx_vals);
-            if(spin_mask_[i] == SpinPosition::upper){
+            if(spin_mask_[i] == SpinPosition::upper) {
                 upper_total += tis.spin(blockid[i]);
-            } else if(spin_mask_[i] == SpinPosition::lower){
+            } else if(spin_mask_[i] == SpinPosition::lower) {
                 lower_total += tis.spin(blockid[i]);
             } else {
                 other_total += tis.spin(blockid[i]);
             }
         }
-        
+
         return (upper_total == lower_total);
     }
 
 protected:
     void fillin_tlabels() {
         tlabels_.clear();
-        for(size_t i=0; i < block_indices_.size(); i++) {
-            tlabels_.push_back(block_indices_[i].label(-1-i));
+        for(size_t i = 0; i < block_indices_.size(); i++) {
+            tlabels_.push_back(block_indices_[i].label(-1 - i));
         }
     }
 
@@ -312,25 +280,16 @@ protected:
     /// Map that maintains position of dependent index space(s) for a given
     /// dependent index space.
     std::map<size_t, std::vector<size_t>> dep_map_;
-    ExecutionContext *ec_;
-    // std::vector<IndexPosition> ipmask_;
-    // PermGroup perm_groups_;
-    // Irrep irrep_;
+    ExecutionContext* ec_;
     std::vector<SpinPosition> spin_mask_;
 }; // TensorBase
 
 inline bool operator<=(const TensorBase& lhs, const TensorBase& rhs) {
     return (lhs.tindices() <= rhs.tindices());
-    //&& (lhs.nupper_indices() <= rhs.nupper_indices())
-    //&& (lhs.irrep() < rhs.irrep())
-    //&& (lhs.spin_restricted () < rhs.spin_restricted());
 }
 
 inline bool operator==(const TensorBase& lhs, const TensorBase& rhs) {
     return (lhs.tindices() == rhs.tindices());
-    //&& (lhs.nupper_indices() == rhs.nupper_indices())
-    //&& (lhs.irrep() < rhs.irrep())
-    //&& (lhs.spin_restricted () < rhs.spin_restricted());
 }
 
 inline bool operator!=(const TensorBase& lhs, const TensorBase& rhs) {

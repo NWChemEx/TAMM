@@ -186,4 +186,49 @@ void eigen_to_tamm_tensor(
     }
 }
 
+template<typename T>
+void eigen_to_tamm_tensor_acc(
+  tamm::Tensor<T>& tensor,
+  Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& etensor) {
+    for(const auto& blockid : tensor.loop_nest()) {
+        const tamm::TAMM_SIZE size = tensor.block_size(blockid);
+        std::vector<T> buf(size);
+        // tensor.get(blockid, buf);
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+        patch_copy<T>(buf, etensor, block_dims, block_offset, false);
+        tensor.add(blockid, buf);
+    }
+}
+
+template<typename T>
+void eigen_to_tamm_tensor_acc(
+  tamm::Tensor<T>& tensor,
+  Eigen::Tensor<double, 2, Eigen::RowMajor>& etensor) {
+    for(const auto& blockid : tensor.loop_nest()) {
+        const tamm::TAMM_SIZE size = tensor.block_size(blockid);
+        std::vector<T> buf(size);
+        // tensor.get(blockid, buf);
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+        patch_copy<T>(buf, etensor, block_dims, block_offset, false);
+        tensor.add(blockid, buf);
+    }
+}
+
+template<typename T>
+void eigen_to_tamm_tensor_acc(
+  tamm::Tensor<T>& tensor,
+  Eigen::Tensor<double, 3, Eigen::RowMajor>& etensor) {
+    for(const auto& blockid : tensor.loop_nest()) {
+        const tamm::TAMM_SIZE size = tensor.block_size(blockid);
+        std::vector<T> buf(size);
+        // tensor.get(blockid, buf);
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+        patch_copy<T>(buf, etensor, block_dims, block_offset, false);
+        tensor.add(blockid, buf);
+    }
+}
+
 #endif // TAMM_EIGEN_UTILS_HPP_

@@ -1,13 +1,18 @@
 3
 
-geometry units bohr
 O   0.0000000000        0.0000000000        0.0000000000
 O   0.0000000000       -2.0473224350       -1.2595211660
 O   0.0000000000        2.0473224350       -1.2595211660
 
-basis sto-3g
-maxiter 50
-tol_int 1e-8
-conve 1e-6
-convd 1e-5
-diis_hist 10
+
+COMMON {  
+    basis sto-3g
+    geometry units bohr
+}
+
+SCF 
+{ 
+    tilesize 30
+    restart false
+}
+

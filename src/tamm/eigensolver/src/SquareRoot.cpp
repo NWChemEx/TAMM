@@ -20,14 +20,15 @@ Matrix SquareRoot(Matrix &H) {
    int   ierr=0;
    double *dwork;
    int    *iwork;
-   dwork = new double[ldwork];
-   iwork = new int[liwork];
+   // dwork = new double[ldwork];
+   // iwork = new int[liwork];
+   // dsyevd_(&needv,&lower,&n,HC.data(),&n,ev.data(),
+   //        dwork,&ldwork,iwork,&liwork,&ierr);
+   ierr = LAPACKE_dsyevd(LAPACK_COL_MAJOR, needv, lower, n, HC.data(), n,
+                         ev.data());
 
-   dsyevd_(&needv,&lower,&n,HC.data(),&n,ev.data(),
-           dwork,&ldwork,iwork,&liwork,&ierr);
-
-   delete [] dwork;
-   delete [] iwork;
+   // delete [] dwork;
+   // delete [] iwork;
  
    for (int j = 0; j < n; j++) {
       if (ev(j) >= 0.0) {

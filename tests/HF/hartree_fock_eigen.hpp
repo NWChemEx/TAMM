@@ -114,6 +114,19 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
   if(rank == 0) cout << "\nNumber of basis functions: " << N << endl;
 
+      //DENSITY FITTING
+  const auto dfbasisname = scf_options.dfbasis;
+  bool do_density_fitting = false;
+  if(!dfbasisname.empty()) do_density_fitting = true;
+
+  BasisSet dfbs;
+  if (do_density_fitting) {
+    dfbs = BasisSet(dfbasisname, atoms);
+    if (rank==0) cout << "density-fitting basis set rank = " << dfbs.nbf() << endl;
+  }
+  std::unique_ptr<DFFockEngine> dffockengine(
+        do_density_fitting ? new DFFockEngine(shells, dfbs) : nullptr);
+
   /*** =========================== ***/
   /*** compute 1-e integrals       ***/
   /*** =========================== ***/
@@ -170,6 +183,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
   // HOWEVER !!! even for medium-size molecules hcore will usually fail !!!
   // thus set to false to use Superposition-Of-Atomic-Densities (SOAD) guess
   Matrix D;
+  Matrix C_occ;
   if (use_hcore_guess) { // hcore guess
 
     // solve H C = e S C
@@ -180,7 +194,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 //    cout << C << endl;
 
     // compute density, D = C(occ) . C(occ)T
-    auto C_occ = C.leftCols(ndocc);
+    C_occ = C.leftCols(ndocc);
     D = C_occ * C_occ.transpose();
 
      F = H;
@@ -228,7 +242,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     auto C = X * eig_solver.eigenvectors();
 
     // compute density, D = C(occ) . C(occ)T
-    auto C_occ = C.leftCols(ndocc);
+    C_occ = C.leftCols(ndocc);
     D = C_occ * C_occ.transpose();
 
   }
@@ -296,7 +310,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     //    std::max(rmsd / 1e4, std::numeric_limits<double>::epsilon()));
 
     //Matrix Ftmp = compute_2body_fock(shells, D, precision_F, SchwarzK);
-    Matrix Ftmp = compute_2body_fock(shells, D, tol_int, SchwarzK);
+    // Matrix Ftmp = compute_2body_fock(shells, D, tol_int, SchwarzK);
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
@@ -306,8 +320,10 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
 
     hf_t1 = std::chrono::high_resolution_clock::now();
 
-    F = H;
-    F += Ftmp;
+    if(!do_density_fitting)
+      F = H + compute_2body_fock(shells, D, tol_int, SchwarzK);
+    else F = H + dffockengine->compute_2body_fock_dfC(C_occ);
+
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
@@ -371,7 +387,7 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     C = X * eig_solver.eigenvectors();
 
     // compute density, D = C(occ) . C(occ)T
-    auto C_occ = C.leftCols(ndocc);
+    C_occ = C.leftCols(ndocc);
     D = C_occ * C_occ.transpose();
 
     hf_t2 = std::chrono::high_resolution_clock::now();

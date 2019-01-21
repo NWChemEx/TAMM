@@ -39,9 +39,11 @@ using Tensor4D = Eigen::Tensor<TensorType, 4, Eigen::RowMajor>;
 
 using shellpair_list_t = std::unordered_map<size_t, std::vector<size_t>>;
 shellpair_list_t obs_shellpair_list;  // shellpair list for OBS
+shellpair_list_t dfbs_shellpair_list;  // shellpair list for DFBS
 shellpair_list_t minbs_shellpair_list;  // shellpair list for minBS
 using shellpair_data_t = std::vector<std::vector<std::shared_ptr<libint2::ShellPair>>>;  // in same order as shellpair_list_t
 shellpair_data_t obs_shellpair_data;  // shellpair data for OBS
+shellpair_data_t dfbs_shellpair_data;  // shellpair data for DFBS
 shellpair_data_t minbs_shellpair_data;  // shellpair data for minBS
 
 //DENSITY FITTING
@@ -984,7 +986,7 @@ Matrix DFFockEngine::compute_2body_fock_dfC(const Matrix& Cocc) {
     K(i,j) = Linv_t(i,j);
 
 
-    // btas::contract(1.0, Zxy, {1, 2, 3}, K, {1, 4}, 0.0, xyK, {2, 3, 4});
+    //contract(1.0, Zxy, {1, 2, 3}, K, {1, 4}, 0.0, xyK, {2, 3, 4});
     //xyK = Tensor3D(n, n, ndf);
     xyK = Zxy.contract(K,aidx_00); 
     Zxy.resize(0, 0, 0);  // release memory
@@ -1000,7 +1002,7 @@ Matrix DFFockEngine::compute_2body_fock_dfC(const Matrix& Cocc) {
     Co(i,j) = Cocc(i,j);
 
   // Tensor3D xiK(n, nocc, ndf);
-  // btas::contract(1.0, xyK, {1, 2, 3}, Co, {2, 4}, 0.0, xiK, {1, 4, 3});
+  // contract(1.0, xyK, {1, 2, 3}, Co, {2, 4}, 0.0, xiK, {1, 4, 3});
   Tensor3D xiK_p = xyK.contract(Co, aidx_10); 
   //n,ndf,nocc
   std::array<long int, 3> idx_shuffle({0,2,1});
@@ -1009,14 +1011,14 @@ Matrix DFFockEngine::compute_2body_fock_dfC(const Matrix& Cocc) {
   // compute Coulomb
   Tensor1D Jtmp(ndf);
   Jtmp.setZero(); 
-  //btas::contract(1.0, xiK, {1, 2, 3}, Co, {1, 2}, 0.0, Jtmp, {3});
+  //contract(1.0, xiK, {1, 2, 3}, Co, {1, 2}, 0.0, Jtmp, {3});
   Jtmp = xiK.contract(Co,idx_0011); 
 
-  // btas::contract(1.0, xiK, {1, 2, 3}, xiK, {4, 2, 3}, 0.0, G, {1, 4});
+  //contract(1.0, xiK, {1, 2, 3}, xiK, {4, 2, 3}, 0.0, G, {1, 4});
   Tensor2D K_ret = xiK.contract(xiK,idx_1122); 
   xiK.resize(0, 0, 0);
 
-  //btas::contract(2.0, xyK, {1, 2, 3}, Jtmp, {3}, -1.0, G, {1, 2});
+  //contract(2.0, xyK, {1, 2, 3}, Jtmp, {3}, -1.0, G, {1, 2});
   Tensor2D J_ret = xyK.contract(Jtmp,aidx_20);
 
   Tensor2D G = 2.0*J_ret - K_ret;

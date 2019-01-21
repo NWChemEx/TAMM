@@ -144,7 +144,7 @@ public:
             for(size_t i = 0; i < key.size(); i++) {
                 EXPECTS(key[i] < tis_sizes[i]);
             }
-            EXPECTS(value.is_subset_of(t_is));
+            EXPECTS(value.num_tiles() == 0 || value.is_subset_of(t_is));
         }
 
         compute_hash();
@@ -485,6 +485,95 @@ public:
         return tiled_info_->dep_vec_.size();
     }
 
+    TiledIndexSpace intersect_tis(const TiledIndexSpace& rhs) const {
+        EXPECTS(is_dependent() == rhs.is_dependent());
+
+        if(is_dependent()) { return intersect_dep(rhs); }
+
+        if(num_tiles() == 0) {
+            return (*this);
+        } else if(rhs.num_tiles() == 0) {
+            return rhs;
+        }
+
+        EXPECTS(root_tiled_info_.lock() == rhs.root_tiled_info_.lock());
+
+        if(is_dependent()) {
+            EXPECTS(rhs.is_dependent());
+
+            return intersect_dep(rhs);
+        }
+
+        auto lhs_depth = tis_depth();
+        auto rhs_depth = rhs.tis_depth();
+
+        auto common_tis = common_ancestor(rhs);
+
+        // if common ancestor is empty return it
+        if(common_tis.num_tiles() == 0) { return common_tis; }
+
+        if(common_tis == (*this) || common_tis == rhs) {
+            if(lhs_depth > rhs_depth) {
+                return (*this);
+            } else {
+                return rhs;
+            }
+        }
+        const auto& lhs_ref  = this->tiled_info_->ref_indices_;
+        const auto& rhs_ref  = rhs.tiled_info_->ref_indices_;
+        std::size_t tot_size = lhs_ref.size() + rhs_ref.size();
+        IndexVector new_indices(tot_size);
+
+        auto it =
+          std::set_intersection(lhs_ref.begin(), lhs_ref.end(), rhs_ref.begin(),
+                                rhs_ref.end(), new_indices.begin());
+
+        new_indices.resize(it - new_indices.begin());
+
+        TiledIndexSpace root = (*this);
+        while(root.parent_tis_) { root = *root.parent_tis_; }
+
+        IndexVector translated_indices;
+        for(const auto& id : new_indices) {
+            translated_indices.push_back(root.translate(id, common_tis));
+        }
+
+        return TiledIndexSpace{common_tis, translated_indices};
+    }
+
+    std::size_t tis_depth() const {
+        std::size_t res = 0;
+        auto tmp        = parent_tis_;
+        while(tmp) {
+            tmp = tmp->parent_tis_;
+            res++;
+        }
+        return res;
+    }
+
+    TiledIndexSpace common_ancestor(const TiledIndexSpace& tis) const {
+        auto lhs_depth = tis_depth();
+        auto rhs_depth = tis.tis_depth();
+
+        if(lhs_depth == rhs_depth) {
+            if((*this) != tis) {
+                if(lhs_depth == 0 && rhs_depth == 0) {
+                    return TiledIndexSpace{IndexSpace{{}}};
+                } else {
+                    return parent_tis_->common_ancestor((*tis.parent_tis_));
+                }
+            } else {
+                return (*this);
+            }
+        }
+
+        if(lhs_depth > rhs_depth) {
+            return parent_tis_->common_ancestor(tis);
+        } else {
+            return common_ancestor((*tis.parent_tis_));
+        }
+    }
+
     /**
      * @brief Equality comparison operator
      *
@@ -716,7 +805,7 @@ protected:
             TiledIndexSpace empty_tis{empty_is};
 
             for(const auto& iv : result) {
-                if(tiled_dep_map_.find(iv) == tiled_dep_map_.end()){
+                if(tiled_dep_map_.find(iv) == tiled_dep_map_.end()) {
                     tiled_dep_map_[iv] = empty_tis;
                 }
             }
@@ -1080,6 +1169,24 @@ protected:
             tiled_info_->tiled_named_subspaces_.insert(
               {str_subis.first, tempTIS});
         }
+    }
+
+    TiledIndexSpace intersect_dep(const TiledIndexSpace& rhs) const {
+        EXPECTS(is_dependent() == rhs.is_dependent());
+        EXPECTS(tiled_info_->dep_vec_ == rhs.tiled_info_->dep_vec_);
+
+        auto common_tis = parent_tis_->common_ancestor(*rhs.parent_tis_);
+
+        std::map<IndexVector, TiledIndexSpace> new_dep;
+        const auto& lhs_dep = tiled_info_->tiled_dep_map_;
+        const auto& rhs_dep = rhs.tiled_info_->tiled_dep_map_;
+
+        for(const auto& [key, dep_tis] : lhs_dep) {
+            new_dep.insert(new_dep.begin(),
+                           {key, dep_tis.intersect_tis(rhs_dep.at(key))});
+        }
+
+        return TiledIndexSpace{common_tis, tiled_info_->dep_vec_, new_dep};
     }
 
     template<std::size_t... Is>

@@ -13,24 +13,23 @@ using namespace tamm;
 using T = double;
 
 void lambda_function(const IndexVector& blockid, span<T> buff) {
-    for(size_t i = 0; i < static_cast<size_t>(buff.size()); i++) { buff[i] = 42; }
+    for(size_t i = 0; i < static_cast<size_t>(buff.size()); i++) {
+        buff[i] = 42;
+    }
 }
 
 template<size_t last_idx>
-void l_func(const IndexVector& blockid, span<T> buf){
-    if(blockid[0] == last_idx || blockid[1] == last_idx){
-        for(auto i = 0U; i < buf.size(); i++) buf[i] = -1; 
-    }
-    else {
-        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+void l_func(const IndexVector& blockid, span<T> buf) {
+    if(blockid[0] == last_idx || blockid[1] == last_idx) {
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = -1;
+    } else {
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0;
     }
 
-    if(blockid[0] == last_idx && blockid[1] == last_idx){
-        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+    if(blockid[0] == last_idx && blockid[1] == last_idx) {
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0;
     }
 };
-
-
 
 template<typename T>
 void check_value(LabeledTensor<T> lt, T val) {
@@ -858,7 +857,9 @@ TEST_CASE("Fill tensors using lambda functions") {
     // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
     //print_tensor(A);
 }
+
 #endif
+
 TEST_CASE("SCF Example Implementation") {
 
     using tensor_type = Tensor<double>;
@@ -917,7 +918,8 @@ TEST_CASE("SCF Example Implementation") {
 
     TiledIndexSpace tSubAO_AO_D{AOs, {AOs}, dep_nu_mu_d};
 
-    TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
+    // TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
+    TiledIndexSpace tSubAO_AO_C = tSubAO_AO_Q.intersect_tis(tSubAO_AO_D);
 
     auto X = Aux.label("all",0);
     auto mu = AOs.label("all",1);
@@ -1011,9 +1013,110 @@ TEST_CASE("SCF Example Implementation") {
     // print_tensor(CI);
 
 #endif
-
 }
 
+TEST_CASE("TiledIndexSpace common ancestor test") {
+    TiledIndexSpace root1{IndexSpace{range(10)}};
+    TiledIndexSpace root2{IndexSpace{range(10, 20)}};
+
+    TiledIndexSpace child1{root1, range(5)};
+    TiledIndexSpace child2{root1, range(3, 8)};
+
+    TiledIndexSpace grandchild1{child1, range(2, 4)};
+    TiledIndexSpace grandchild2{child2, range(0, 3)};
+
+    auto common = grandchild2.common_ancestor(grandchild1);
+
+    REQUIRE(common == root1);
+
+    common = grandchild2.common_ancestor(child2);
+
+    REQUIRE(common == child2);
+
+    common = grandchild1.common_ancestor(grandchild2);
+
+    REQUIRE(common == root1);
+
+    common = child1.common_ancestor(child2);
+
+    REQUIRE(common == root1);
+
+    common = child1.common_ancestor(child1);
+    REQUIRE(common == child1);
+
+    common = grandchild1.common_ancestor(child1);
+    REQUIRE(common == child1);
+
+    common = root1.common_ancestor(child1);
+    REQUIRE(common == root1);
+
+    common = root1.common_ancestor(grandchild1);
+    REQUIRE(common == root1);
+
+    TiledIndexSpace empty{IndexSpace{{}}};
+    common = root1.common_ancestor(root2);
+    REQUIRE(common == empty);
+
+    auto intersection = root1.intersect_tis(child1);
+    REQUIRE(intersection == child1);
+
+    intersection = root1.intersect_tis(child2);
+    REQUIRE(intersection == child2);
+
+    intersection = child1.intersect_tis(child2);
+    REQUIRE(intersection == TiledIndexSpace{root1, range(3,5)});
+
+    intersection = grandchild1.intersect_tis(grandchild2);
+    REQUIRE(intersection == TiledIndexSpace{root1, range(3,4)});
+
+
+    TiledIndexSpace AOs{IndexSpace{range(7)}};
+
+    std::map<IndexVector, TiledIndexSpace> dep_nu_mu_q{
+        {
+            {{0}, TiledIndexSpace{AOs, IndexVector{0,3,4}}},           
+            {{2}, TiledIndexSpace{AOs, IndexVector{0,2}}},
+            {{3}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
+            {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
+            {{5}, TiledIndexSpace{AOs, IndexVector{1,2}}},
+            {{6}, TiledIndexSpace{AOs, IndexVector{2}}},
+
+        }
+    };
+
+    std::map<IndexVector, TiledIndexSpace> dep_nu_mu_d{
+        {
+            {{0}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
+            {{1}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
+            {{2}, TiledIndexSpace{AOs, IndexVector{0,2,4}}},
+            {{3}, TiledIndexSpace{AOs, IndexVector{1,6}}},
+            {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
+            // {{5}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
+            {{6}, TiledIndexSpace{AOs, IndexVector{0,1,2}}}
+        }
+    };
+
+    std::map<IndexVector, TiledIndexSpace> dep_nu_mu_c{
+        {
+            {{0}, TiledIndexSpace{AOs, IndexVector{3}}},
+            {{2}, TiledIndexSpace{AOs, IndexVector{0,2}}},
+            {{3}, TiledIndexSpace{AOs, IndexVector{1}}},
+            {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
+            // {{5}, TiledIndexSpace{AOs, IndexVector{1,2}}},
+            {{6}, TiledIndexSpace{AOs, IndexVector{2}}}
+        }
+    };
+
+    TiledIndexSpace tSubAO_AO_Q{AOs, {AOs}, dep_nu_mu_q};
+
+    TiledIndexSpace tSubAO_AO_D{AOs, {AOs}, dep_nu_mu_d};
+
+    TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
+
+    auto intersect = tSubAO_AO_Q.intersect_tis(tSubAO_AO_D);
+    REQUIRE(intersect == tSubAO_AO_C);
+    
+}
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);

@@ -919,7 +919,8 @@ TEST_CASE("SCF Example Implementation") {
     TiledIndexSpace tSubAO_AO_D{AOs, {AOs}, dep_nu_mu_d};
 
     // TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
-    TiledIndexSpace tSubAO_AO_C = tSubAO_AO_Q.intersect_tis(tSubAO_AO_D);
+    auto tSubAO_AO_C = tSubAO_AO_Q.intersect_tis(tSubAO_AO_D);
+    // auto tSubAO_AO_C = tSubAO_AO_D.intersect_tis(tSubAO_AO_Q);
 
     auto X = Aux.label("all",0);
     auto mu = AOs.label("all",1);
@@ -939,9 +940,9 @@ TEST_CASE("SCF Example Implementation") {
     C.allocate(&ec);
 
     sch
-        (D() = 42.0)
-        (Q() = 2.0)
-        (C(X, mu, nu_for_C(mu)) = Q(X, mu, nu_for_C(mu)) * D(mu, nu_for_C(mu)))
+    (D() = 42.0)
+    (Q() = 2.0)
+    (C(X, mu, nu_for_C(mu)) = Q(X, mu, nu_for_C(mu)) * D(mu, nu_for_C(mu)))
     .execute();
 
     std::cerr << "Tensor C:" << std::endl;

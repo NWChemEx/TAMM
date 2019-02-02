@@ -768,7 +768,7 @@ public:
 
     void execute(ExecutionContext& ec) override {    
         ec.re()->submitTask(
-            [=](RuntimeEngine::RuntimeContext& rc){
+            [=](RuntimeEngine::RuntimeContext rc){
         IndexLabelVec merged_labels{lhs_.labels()};
         merged_labels.insert(merged_labels.end(), rhs_.labels().begin(),
                              rhs_.labels().end());
@@ -796,7 +796,7 @@ public:
 
             if(is_assign_) {
 
-                rc.submitTask([=](RuntimeEngine::RuntimeContext& rc_recursive){
+                rc.submitTask([=](RuntimeEngine::RuntimeContext rc_recursive){
                 BlockBuffer lbf = rc_recursive.get_tmp_buffer(ltensor, translated_lblockid);
                 //TODO: Verify : size of rbuf would depend on lhs_ or rhs_ tensor
                 BlockBuffer rbf = rc_recursive.get_buffer(rtensor, translated_rblockid);
@@ -818,7 +818,7 @@ public:
             }
             else
             {
-                rc.submitTask([=](RuntimeEngine::RuntimeContext& rc_recursive){
+                rc.submitTask([=](RuntimeEngine::RuntimeContext rc_recursive){
                 BlockBuffer lbf = rc_recursive.get_tmp_buffer(ltensor, translated_lblockid);
                 //TODO: Verify : size of rbuf would depend on lhs_ or rhs_ tensor
                 BlockBuffer rbf = rc_recursive.get_buffer(rtensor, translated_rblockid);
@@ -1046,7 +1046,7 @@ public:
         using TensorElType = typename LabeledTensorT::element_type;
 
         ec.re()->submitTask(
-        [=](RuntimeEngine::RuntimeContext& rc){
+        [=](RuntimeEngine::RuntimeContext rc){
             
         // determine set of all labels
         IndexLabelVec all_labels{lhs_.labels()};
@@ -1066,7 +1066,7 @@ public:
         for(; first != last; ++first) {
         auto blockid = *first;
 
-        auto it = first.begin();
+        auto it = blockid.begin();
         IndexVector cblockid{it, it + lhs_.labels().size()};
 
         it += lhs_.labels().size();
@@ -1082,7 +1082,7 @@ public:
                 !btensor.is_non_zero(translated_bblockid)) 
             return;
 
-        rc.submitTask([=](RuntimeEngine::RuntimeContext& rc_recursive){
+        rc.submitTask([=](RuntimeEngine::RuntimeContext rc_recursive){
                 BlockBuffer cbuf = rc_recursive.get_tmp_buffer(ctensor, translated_cblockid);
                 BlockBuffer abuf = rc_recursive.get_buffer(atensor, translated_ablockid);
                 BlockBuffer bbuf = rc_recursive.get_buffer(btensor, translated_bblockid);
@@ -1090,9 +1090,9 @@ public:
                 TensorElType cscale{0};
 
                 SizeVec adims_sz, bdims_sz, cdims_sz;
-                for(const auto v : adims) { adims_sz.push_back(v); }
-                for(const auto v : bdims) { bdims_sz.push_back(v); }
-                for(const auto v : cdims) { cdims_sz.push_back(v); }
+                for(const auto v : abuf.block_dims()) { adims_sz.push_back(v); }
+                for(const auto v : bbuf.block_dims()) { bdims_sz.push_back(v); }
+                for(const auto v : cbuf.block_dims()) { cdims_sz.push_back(v); }
                 kernels::block_multiply(alpha_, abuf.data(), adims_sz,
                         rhs1_int_labels_, bbuf.data(), bdims_sz,
                         rhs2_int_labels_, cscale, cbuf.data(),

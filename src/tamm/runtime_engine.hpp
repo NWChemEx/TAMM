@@ -8,15 +8,24 @@
 
 namespace tamm {
 
-// TBD We need ReadAccess, WriteAccess, CancellableWriteAccess, and some
-// accumulate accesseses (?). Accumulate accesses will probably be only
-// cancellable.
-
-enum class AccessMode { KR, KW, KRW, AC };
+/**
+ * @brief Mode values.
+ * 
+ */
+enum class Mode { 
+    PW,  /**< Write Permission */
+    PR,  /**< Read Permission */
+    PA,  /**< Accumulate Permission */
+    AR,  /**< Read Access */
+    AW,  /**< Write Access */
+    ACW, /**< Cancellable Write Access */
+    AA,  /**< Accumulate Access */
+    AT   /**< Temporary Access */
+};
 
 class PermissionBase {
-    // Whatever polymorphic interface is needed, if any
-    // Inherit from this class to mark a class as a permission
+public:
+    virtual Mode getMode() = 0;
 };
 
 template<typename T>
@@ -25,50 +34,78 @@ class Permission;
 template<typename T>
 class Permission<LabeledTensor<T>> : public PermissionBase {
 public:
-    Permission(LabeledTensor<T> lt, AccessMode acc) : lt(lt), acc(acc) {}
+    Permission(LabeledTensor<T> lt, Mode mode) : lt(lt), mode(mode) {}
 
+    Mode getMode() override { return mode; }
+    
 private:
     LabeledTensor<T> lt;
-    AccessMode acc;
+    Mode mode;
 };
 
 template<typename T>
 class Permission<IndexedTensor<T>> : public PermissionBase {
 public:
-    Permission(IndexedTensor<T> lt, AccessMode acc) : lt(lt) {}
+    Permission(IndexedTensor<T> lt, Mode mode) : lt(lt), mode(mode) {}
     Permission(typename IndexedTensor<T>::first_type tensor,
                typename IndexedTensor<T>::second_type index_vector,
-               AccessMode acc) :
+               Mode mode) :
       lt(tensor, index_vector),
-      acc(acc) {}
+      mode(mode) {}
+
+    Mode getMode() override { return mode; }
 
 private:
     IndexedTensor<T> lt;
-    AccessMode acc;
+    Mode mode;
 };
 
 template<typename T>
 class ReadPermission : public Permission<T> {
 public:
-    ReadPermission(T t) : Permission<T>(t, AccessMode::KR) {}
-};
-
-template<typename T>
-class ReadWritePermission : public Permission<T> {
-public:
-    ReadWritePermission(T t) : Permission<T>(t, AccessMode::KRW) {}
+    ReadPermission(T t) : Permission<T>(t, Mode::PR) {}
 };
 
 template<typename T>
 class WritePermission : public Permission<T> {
 public:
-    WritePermission(T t) : Permission<T>(t, AccessMode::KW) {}
+    WritePermission(T t) : Permission<T>(t, Mode::PW) {}
 };
 
 template<typename T>
 class AccumPermission : public Permission<T> {
 public:
-    AccumPermission(T t) : Permission<T>(t, AccessMode::AC) {}
+    AccumPermission(T t) : Permission<T>(t, Mode::PA) {}
+};
+
+template<typename T>
+class ReadAccess : public Permission<T> {
+public:
+    ReadAccess(T t) : Permission<T>(t, Mode::AR) {}
+};
+
+template<typename T>
+class WriteAccess : public Permission<T> {
+public:
+    WriteAccess(T t) : Permission<T>(t, Mode::AW) {}
+};
+
+template<typename T>
+class CancellableWriteAccess : public Permission<T> {
+public:
+    CancellableWriteAccess(T t) : Permission<T>(t, Mode::ACW) {}
+};
+
+template<typename T>
+class AccumAccess : public Permission<T> {
+public:
+    AccumAccess(T t) : Permission<T>(t, Mode::AA) {}
+};
+
+template<typename T>
+class TempAccess : public Permission<T> {
+public:
+    TempAccess(T t) : Permission<T>(t, Mode::AA) {}
 };
 
 // TBD: We need a way to consolidate IndexedTensors with LabeledTensors to
@@ -162,7 +199,7 @@ public:
 
         template<typename Lambda, typename... Args>
         void submitTask(Lambda lambda, Args&&... args) {
-            re.submitTask(lambda, std::forward_as_tuple<Args...>(args...));
+            re.submitTask(lambda, std::forward<Args>(args)...);
         }
 
     private:

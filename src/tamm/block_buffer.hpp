@@ -63,6 +63,7 @@ public:
   const auto data() const { return buf_span.data(); }
   void put() { indexedTensor.put(buf_span); }
   void add() { indexedTensor.add(buf_span); }
+  std::vector<size_t> block_dims() { return indexedTensor.first.block_dims(indexedTensor.second); }
 private:
   span<T> buf_span;
   bool allocated = false;

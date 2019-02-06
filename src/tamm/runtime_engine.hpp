@@ -13,14 +13,17 @@ namespace tamm {
  * 
  */
 enum class Mode { 
-    PW,  /**< Write Permission */
-    PR,  /**< Read Permission */
-    PA,  /**< Accumulate Permission */
-    AR,  /**< Read Access */
-    AW,  /**< Write Access */
-    ACW, /**< Cancellable Write Access */
-    AA,  /**< Accumulate Access */
-    AT   /**< Temporary Access */
+    PW,   /**< Write Permission */
+    PR,   /**< Read Permission */
+    PRW,  /**< Read/Write Permission */
+    PA,   /**< Accumulate Permission */
+    AR,   /**< Read Access */
+    AW,   /**< Write Access */
+    ACW,  /**< Cancellable Write Access */
+    ARW,  /**< Read/Write Access */
+    ACRW, /**< Cancellable Read/Write Access */
+    AA,   /**< Accumulate Access */
+    AT    /**< Temporary Access */
 };
 
 class PermissionBase {
@@ -60,53 +63,41 @@ private:
     Mode mode;
 };
 
-template<typename T>
-class ReadPermission : public Permission<T> {
-public:
-    ReadPermission(T t) : Permission<T>(t, Mode::PR) {}
+#define GET_PERMISSION_MACRO(_1,_2,_3,NAME,...) NAME
+#define DECLARE_PERMISSION(...) GET_PERMISSION_MACRO(__VA_ARGS__, DECLARE_CANCELLABLE_ACCESS, DECLARE_PERMISSION2)(__VA_ARGS__)
+
+#define DECLARE_ACCESS(Name, ModeName) \
+template<typename T> \
+class Name ## Access : public Permission<T> { \
+public: \
+    Name ## Access(T t) : Permission<T>(t, Mode::A ## ModeName) {} \
 };
 
-template<typename T>
-class WritePermission : public Permission<T> {
-public:
-    WritePermission(T t) : Permission<T>(t, Mode::PW) {}
+#define DECLARE_PERMISSION2(Name, ModeName) \
+template<typename T> \
+class Name ## Permission : public Permission<T> { \
+public: \
+    Name ##  Permission(T t) : Permission<T>(t, Mode::P ## ModeName) {} \
+}; \
+DECLARE_ACCESS(Name, ModeName)
+
+#define DECLARE_CANCELLABLE_ACCESS(Name, ModeName, _1) \
+DECLARE_PERMISSION2(Name, ModeName) \
+template<typename T> \
+class Cancellable ## Name ## Access : public Permission<T> { \
+public: \
+    Cancellable ## Name ## Access(T t) : Permission<T>(t, Mode::AC ## ModeName) {} \
 };
 
-template<typename T>
-class AccumPermission : public Permission<T> {
-public:
-    AccumPermission(T t) : Permission<T>(t, Mode::PA) {}
-};
+DECLARE_PERMISSION(Write, W, cancellable)
+DECLARE_PERMISSION(Read,  R)
+DECLARE_PERMISSION(ReadWrite, RW, cancellable)
+DECLARE_PERMISSION(Accum, A)
+DECLARE_ACCESS(Temp, T)
 
-template<typename T>
-class ReadAccess : public Permission<T> {
-public:
-    ReadAccess(T t) : Permission<T>(t, Mode::AR) {}
-};
-
-template<typename T>
-class WriteAccess : public Permission<T> {
-public:
-    WriteAccess(T t) : Permission<T>(t, Mode::AW) {}
-};
-
-template<typename T>
-class CancellableWriteAccess : public Permission<T> {
-public:
-    CancellableWriteAccess(T t) : Permission<T>(t, Mode::ACW) {}
-};
-
-template<typename T>
-class AccumAccess : public Permission<T> {
-public:
-    AccumAccess(T t) : Permission<T>(t, Mode::AA) {}
-};
-
-template<typename T>
-class TempAccess : public Permission<T> {
-public:
-    TempAccess(T t) : Permission<T>(t, Mode::AA) {}
-};
+#undef DECLARE_PERMISSION2
+#undef DECLARE_CALLABLE_ACCESS
+#undef DECLARE_PERMISSION
 
 // TBD: We need a way to consolidate IndexedTensors with LabeledTensors to
 // compute dependencies
@@ -184,7 +175,7 @@ public:
         RuntimeContext(RuntimeEngine& re) : re(re) {}
         auto& runtimeEngine() { return re; }
         template<typename T>
-        BlockBuffer<T> get_tmp_buffer(Tensor<T> tensor, IndexVector blockid) {
+        BlockBuffer<T> get_buf_tmp(Tensor<T> tensor, IndexVector blockid) {
             // TBD: figure out memory space: do we need GPU/CPU buffer?
             const size_t size = tensor.block_size(blockid);
             span<T> span(new T[size], size);
@@ -193,8 +184,28 @@ public:
         }
 
         template<typename T>
-        BlockBuffer<T> get_buffer(Tensor<T> tensor, IndexVector blockid) {
-            // TBD
+        BlockBuffer<T> get_buf_read(Tensor<T> tensor, IndexVector blockid) {
+            return BlockBuffer(tensor, blockid);
+        }
+
+        template<typename T>
+        BlockBuffer<T> get_buf_readwrite(Tensor<T> tensor, IndexVector blockid) {
+            return BlockBuffer(tensor, blockid);   
+        }
+
+        template<typename T>
+        BlockBuffer<T> get_buf_creadwrite(Tensor<T> tensor, IndexVector blockid) {
+            return BlockBuffer(tensor, blockid);
+        }
+
+        template<typename T>
+        BlockBuffer<T> get_buf_write(Tensor<T> tensor, IndexVector blockid) {
+            return BlockBuffer(tensor, blockid);
+        }
+
+        template<typename T>
+        BlockBuffer<T> get_buf_cwrite(Tensor<T> tensor, IndexVector blockid) {
+            return BlockBuffer(tensor, blockid);
         }
 
         template<typename Lambda, typename... Args>

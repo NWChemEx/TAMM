@@ -47,6 +47,13 @@ public:
     std::copy(block_buffer.buf_span.begin(), block_buffer.buf_span.end(), buffer);
     buf_span = span{buffer, size};
   }
+  BlockBuffer(Tensor<T> tensor, IndexVector blockid) {
+    const size_t size = tensor.block_size(blockid);
+    T* buffer = new T[size];
+    buf_span = span{buffer, size};
+    allocated = true;
+    tensor.get(blockid, buf_span);
+  }
   ~BlockBuffer() {
     if (allocated) delete[] buf_span.data();
   }
@@ -61,8 +68,16 @@ public:
   const auto get_span() const { return buf_span; }
   auto data() { return buf_span.data(); }
   const auto data() const { return buf_span.data(); }
-  void put() { indexedTensor.put(buf_span); }
-  void add() { indexedTensor.add(buf_span); }
+  void release_put() { indexedTensor.put(buf_span); release(); }
+  void release_put(Tensor<T> tensor, IndexVector blockid) { tensor.put(blockid, buf_span); release(); }
+  void release_add() { indexedTensor.add(buf_span); release(); }
+  void release_add(Tensor<T> tensor, IndexVector blockid) { tensor.add(blockid, buf_span); release(); }
+  void release() { 
+    if (allocated) {
+      delete[] buf_span.data();
+      allocated = false;
+    }
+  }
   std::vector<size_t> block_dims() { return indexedTensor.first.block_dims(indexedTensor.second); }
 private:
   span<T> buf_span;

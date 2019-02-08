@@ -1479,6 +1479,13 @@ public:
         unpack(secondary_labels, il1, rest...);
         return {*this, secondary_labels};
     }
+    
+    /// @todo: Implement 
+    TiledIndexLabel operator()(Index id){
+      TiledIndexLabel res;
+
+      return res;
+    }
 
     /**
      * @brief Operator overload for () to construct dependent TiledIndexLabel

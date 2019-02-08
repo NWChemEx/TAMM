@@ -1225,7 +1225,7 @@ TEST_CASE("Sample code for Local HF") {
 
     //Construct matrix of Coulomb metric, J, only compute for AB pairs which share an lmo
     auto fit_to_lmo = invert_tis(A(i));               // i(A)
-    auto fit_to_ao  = compose_tis(fit_to_lmo, mu(i));  // mu(A)
+    auto fit_to_ao  = compose_tis(fit_to_lmo, mu(i)); // mu(A)
     auto fit_to_fit = compose_tis(fit_to_lmo, A(i));  // B(A)
 
     auto [B_p] = fit_to_fit.labels<1>("all");

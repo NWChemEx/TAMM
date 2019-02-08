@@ -100,17 +100,22 @@ TEST_CASE("Sample code for Local HF") {
 
     sch.allocate(Q, QB, K);
     // foreach i value:
-    for(auto i_val : TMO){
+    for(Index i_val : TMO){
         Tensor J_i{A(i_val), B(i_val)};
         Tensor G_i_inv{A(i_val), B(i_val)};
         sch
         .allocate(J_i, G_i_inv)         // Q: how to allocate within a loop?
             (Q(A(i_val), mu(i_val), i_val) = X(A(i_val), mu(i_val), nu(i_val)) * C(nu(i_val), i_val))
-            (J_i(A(i_val), B(i_val)) = J(A(i_val), B(i_val))) 
-            (G_i_inv() = invert_tensor(cholesky(J_i()))
+            (J_i(A(i_val), B(i_val)) = J(A(i_val), B(i_val)))
+        .execute();
+
+        G_i_inv = invert_tensor(cholesky(J_i;
+        
+        sch
             (QB(B(i_val), mu(i_val), i_val) += G_i_inv(B(i_val), A(i_val)) * Q(A(i_val), mu(i_val), i_val))
             // (K(mu, nu(mu)) += QB(A(i), mu(i), i) * QB(A(i), nu(i), i)) //nu(mu) is a dependent representation of the sparsity
             (K(mu(i_val), nu(i_val)) += QB(A(i_val), mu(i_val), i_val) * QB(A(i_val), nu(i_val), i_val))
+        .deallocate(J_i, G_i_inv)
         .execute();
     }
 

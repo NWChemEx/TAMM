@@ -5,7 +5,7 @@ TEST_CASE("Sample code for Local HF") {
     
     // TAMM Scheduler construction
     auto ec = tamm::make_execution_context();
-    Scheduler sch{&ec};
+    Scheduler sch{ec};
 
     // Dummy TiledIndexSpaces
     TiledIndexSpace TAO{IndexSpace{range(10)}};
@@ -23,9 +23,9 @@ TEST_CASE("Sample code for Local HF") {
     TiledIndexSpace lmo_domain{TAO, {TMO}, lmo_dep_map}; //construct using explicit loop
     
     //LMO_renormalize() {
-        auto i = TMO.labels<1>("all");
+        auto [i] = TMO.labels<1>("all");
         auto [mu, nu] = lmo_domain.labels<2>("all");
-        auto mu_p = TAO.labels<1>("all");
+        auto [mu_p] = TAO.labels<1>("all");
 
         Tensor S_A{i, mu(i), mu(i)};
         Tensor S_v{i, mu_p, mu(i)};
@@ -50,7 +50,7 @@ TEST_CASE("Sample code for Local HF") {
     TiledIndexSpace ao_int_screening{TAO, {TAO}, ao_screen_dep_map};
 
     //chain_maps(): compose lmo->ao and ao->ao
-    auto nu_p = ao_int_screening.labels<1>("all");
+    auto [nu_p] = ao_int_screening.labels<1>("all");
 
     // TiledIndexSpace ao_domain{nu(i)}; //mo->ao
     // compose using labels
@@ -86,7 +86,7 @@ TEST_CASE("Sample code for Local HF") {
     auto fit_to_lmo = invert_tis(A(i));         // i(A)
     auto fit_to_fit = compose_tis(i(A), A(i));  // B(A)
 
-    auto B_p = fit_to_fit.labels<1>("all");
+    auto [B_p] = fit_to_fit.labels<1>("all");
 
     // Input X (tensor with lamda function that calls libint)
     Tensor X{A(i), mu(i), nu(i)} // internally project on i ?
@@ -109,7 +109,7 @@ TEST_CASE("Sample code for Local HF") {
             (J_i(A(i_val), B(i_val)) = J(A(i_val), B(i_val)))
         .execute();
 
-        G_i_inv = invert_tensor(cholesky(J_i;
+        G_i_inv = invert_tensor(cholesky(J_i));
         
         sch
             (QB(B(i_val), mu(i_val), i_val) += G_i_inv(B(i_val), A(i_val)) * Q(A(i_val), mu(i_val), i_val))

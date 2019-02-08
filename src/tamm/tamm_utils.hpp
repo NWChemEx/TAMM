@@ -688,6 +688,44 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionCo
     return std::make_tuple(gmin[0], minblockid, bfuv);
 }
 
+//// @todo: Implement 
+template <typename... Args>
+TiledIndexSpace compose_tis(const TiledIndexLabel& lbl, Args... rest) {
+    TiledIndexSpace res{IndexSpace{}};
+
+    return res;
+}
+
+/// @todo: Implement 
+template <typename... Args>
+TiledIndexSpace compose_tis(const TiledIndexSpace& tis, Args... rest) {
+    TiledIndexSpace res{IndexSpace{}};
+
+    return res;
+}
+
+/// @todo: Implement 
+TiledIndexSpace invert_tis(const TiledIndexLabel& lbl) {
+    TiledIndexSpace res{IndexSpace{}};
+
+    return res;
+}
+
+/// @todo: Implement 
+TiledIndexSpace invert_tis(const TiledIndexSpace& tis) {
+    TiledIndexSpace res{IndexSpace{}};
+
+    return res;
+}
+
+/// @todo: Implement 
+template<typename TensorType> 
+TensorType invert_tensor(TensorType tens) {
+    TensorType res;
+
+    return res;
+}
+
 } // namespace tamm
 
 #endif // TAMM_TAMM_UTILS_HPP_

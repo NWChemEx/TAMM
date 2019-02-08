@@ -281,6 +281,15 @@ private:
         unpack(++index, rest...);
     }
 
+    /// @todo: Implement 
+    template<typename... Args>
+    void unpack(size_t index, const Index& idx, Args... rest) {
+        // EXPECTS(index < tensor_.num_modes());
+        // ilv_[index]     = label;
+        // str_map_[index] = false;
+        // unpack(++index, rest...);
+    }
+
     void unpack(size_t index, const IndexLabelVec& labels) {
         EXPECTS(index < tensor_.num_modes());
         for(auto label : labels) {

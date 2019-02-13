@@ -5,6 +5,8 @@ node{
     def nwxJenkins
     stage('Build CMakeBuild'){
         sh """
+	   set +x
+	   source /etc/profile
 	   module load gcc/7.3.0-xyzezhj
 	   git clone https://github.com/NWChemEx-Project/CMakeBuild.git
 	   cd CMakeBuild

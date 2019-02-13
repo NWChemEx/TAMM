@@ -4,6 +4,7 @@ def buildModuleMatrix = [
 node{
     def nwxJenkins
     stage('Build CMakeBuild'){
+      def installRoot="${WORKSPACE}/install"    
         sh """
 	   set +x
 	   source /etc/profile
@@ -14,10 +15,12 @@ node{
 	   git clone https://NWXJenkins:\${gh_token}@github.com/NWChemEx-Project/CMakeBuild.git
 	   cd CMakeBuild
 	   cmake -H. -Bbuild -DBUILD_TESTS=OFF \
-	   	     	     -DCMAKE_INSTALL_PREFIX=${WORKSPACE}/install
+	   	     	     -DCMAKE_INSTALL_PREFIX=${installRoot}
 	   cmake --build build --target install
 	   """
     }
+
+
     stage('Import Jenkins Commands'){
         sh """
            rm -rf ~/.cpp_cache

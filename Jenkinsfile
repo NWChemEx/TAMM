@@ -16,7 +16,8 @@ node{
 	   cd CMakeBuild
 	   cmake -H. -Bbuild -DBUILD_TESTS=OFF \
 	   	     	     -DCMAKE_INSTALL_PREFIX=${installRoot}
-	   cmake --build build --target install
+	   cd build
+	   make && make install
 	   """
     }
 

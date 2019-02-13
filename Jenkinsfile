@@ -8,7 +8,8 @@ node{
 	   set +x
 	   source /etc/profile
 	   module load gcc/7.3.0-xyzezhj
-	   git clone https://github.com/NWChemEx-Project/CMakeBuild.git
+	   git clone https://NWXJenkins:4dfc676f4c5a2b1b9c3\
+	   f17bc2c3ebda1efa5f4e9@github.com/NWChemEx-Project/CMakeBuild.git
 	   cd CMakeBuild
 	   cmake -H. -Bbuild -DBUILD_TESTS=OFF \
 	   	     	     -DCMAKE_INSTALL_PREFIX=${WORKSPACE}/install

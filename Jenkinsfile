@@ -7,7 +7,7 @@ node{
         sh """
 	   set +x
 	   source /etc/profile
-	   module load gcc/7.3.0-xyzezhj
+	   module load gcc/7.3.0-xyzezhj cmake
 	   gh_token=4dfc676f4c5a2b1b9c3
 	   gh_token+=f17bc2c3ebda1efa5f4e9
 	   git clone https://NWXJenkins:\${gh_token}@github.com/NWChemEx-Project/CMakeBuild.git

@@ -132,7 +132,7 @@ void update_tensor_general(LabeledTensor<T> labeled_tensor, Func lambda) {
  * @todo there is possible memory leak as distribution will not be unallocated
  * when Execution context is destructed
  */
-ExecutionContext make_execution_context() {
+inline ExecutionContext make_execution_context() {
     ProcGroup pg{GA_MPI_Comm()};
     auto* pMM             = MemoryManagerLocal::create_coll(pg);
     Distribution_NW* dist = new Distribution_NW();

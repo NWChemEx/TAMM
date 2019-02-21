@@ -1,28 +1,22 @@
 #define CATCH_CONFIG_RUNNER
 
 #include "HF/hartree_fock_eigen.hpp"
-
-
+#include "catch/catch.hpp"
 using namespace tamm;
 
 
 std::string filename;
 
 TEST_CASE("HartreeFock testcase") {
-    Matrix C;
-    Matrix F;
-    // Tensor4D V2;
-    // TAMM_SIZE ov_alpha{0};
-    // TAMM_SIZE freeze_core    = 0;
-    // TAMM_SIZE freeze_virtual = 0;
-
-    // double hf_energy{0.0};
-    // libint2::BasisSet shells;
-    // TAMM_SIZE nao{0};
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
-    // std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename, C, F);
-    CHECK_NOTHROW(hartree_fock(filename, C, F));
+    // read geometry from a .nwx file 
+    auto is = std::ifstream(filename);
+    std::vector<libint2::Atom> atoms;
+    OptionsMap options_map;
+    std::tie(atoms, options_map) = read_input_nwx(is);
+
+    CHECK_NOTHROW(hartree_fock(filename, atoms, options_map));
     auto hf_t2 = std::chrono::high_resolution_clock::now();
 
     double hf_time =

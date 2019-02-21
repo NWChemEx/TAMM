@@ -14,16 +14,18 @@ void itereig(MPI_Comm comm, const MatrixXd &H, const MatrixXd &S, int n, int max
   int lwork = 100*n;
   int ierr;
   double *work;
-  int *ipiv;
+  TAMM_LAPACK_INT *ipiv;
   work = new double[lwork];
-  ipiv = new int [n];
+  ipiv = new TAMM_LAPACK_INT [n];
   char lower = 'L';
 
   // A = new double[n*n];
   // Map<MatrixXd>(A,n,n) = HS;
   // std::cout << "computing LDLT factorization" << std::endl;
   double t1 = omp_get_wtime();
-  dsytrf_(&lower, &n, HS.data(), &n, ipiv, work, &lwork, &ierr);  
+  //dsytrf_(&lower, &n, HS.data(), &n, ipiv, work, &lwork, &ierr);  
+  ierr = LAPACKE_dsytrf(LAPACK_COL_MAJOR, lower, n, HS.data(), n, ipiv);  
+
   double t2 = omp_get_wtime();
   logOFS << "factorization complete, time = " <<  t2-t1 << std::endl;
   int i = 0;

@@ -119,6 +119,9 @@ public:
     Tensor(TiledIndexSpaceVec t_spaces, Func lambda) :
       impl_{std::make_shared<LambdaTensorImpl<T>>(t_spaces, lambda)} {}
 
+    Tensor(IndexLabelVec t_labels, Func lambda) :
+      impl_{std::make_shared<LambdaTensorImpl<T>>(t_labels, lambda)} {}
+
     /**
      * @brief Construct a new Tensor object with a Lambda function
      *
@@ -131,6 +134,9 @@ public:
      */
     Tensor(std::initializer_list<TiledIndexSpace> t_spaces, Func lambda) :
       impl_{std::make_shared<LambdaTensorImpl<T>>(t_spaces, lambda)} {}
+
+    Tensor(std::initializer_list<TiledIndexLabel> t_labels, Func lambda) :
+      impl_{std::make_shared<LambdaTensorImpl<T>>(t_labels, lambda)} {}
 
     /**
      * @brief Construct a new Tensor object from a set of TiledIndexSpace
@@ -179,6 +185,15 @@ public:
     }
 
     // Tensor Accessors
+
+    /**
+     * Access the underying global array
+     * @return Handle to underlying global array
+     */
+    int ga_handle() {
+        return impl_->ga_handle();
+    }
+
     /**
      * @brief Get method for Tensor values
      *
@@ -215,22 +230,6 @@ public:
      * @returns a LabelLoopNest for the Tensor
      */
     LabelLoopNest loop_nest() const { return impl_->loop_nest(); }
-
-    /**
-     * @brief Gets the diagonal sum of the Tensor object
-     *
-     * @returns sum of the diagonal values
-     * @warning available for tensors with 2 modes
-     */
-    T trace() const { return impl_->trace(); }
-
-    /**
-     * @brief Gets the diagonal values from the Tensor object
-     *
-     * @returns a vector of values from the diagonal of Tensor
-     * @warning available for tensors with 2 modes
-     */
-    std::vector<T> diagonal() const { return impl_->diagonal(); }
 
     /**
      * @brief Get the size of a block

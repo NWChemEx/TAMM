@@ -155,13 +155,15 @@ using RangeValue = int64_t;
 enum class SpinPosition { ignore, upper, lower };
 enum class IndexPosition { upper, lower, neither };
 
+enum class SpinType { ao_spin, mo_spin };
+
 using SpinMask = std::vector<SpinPosition>;
 //////////////////
 
-namespace SpinType {
-const Spin alpha{1};
-const Spin beta{2};
-}; // namespace SpinType
+// namespace SpinType {
+// const Spin alpha{1};
+// const Spin beta{2};
+// }; // namespace SpinType
 
 } // namespace tamm
 

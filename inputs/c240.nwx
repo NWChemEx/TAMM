@@ -1,6 +1,5 @@
 240
 
-geometry units angstrom
   C    -2.281342    4.587967    4.598389
   C    -2.163620    5.608307    3.610657
   C    -3.035400    5.630814    2.448380
@@ -242,10 +241,13 @@ geometry units angstrom
   C    -0.737030    3.172806   -6.246613
   C    -0.688217    0.906082   -7.207108
 
-basis sto-3g
-debug false
-maxiter 50
-tol_int 1e-8
-conve 1e-6
-convd 1e-5
-diis_hist 10
+COMMON {  
+    basis sto-3g
+    geometry units angstrom
+}
+
+SCF 
+{ 
+    tilesize 30
+    restart false
+}

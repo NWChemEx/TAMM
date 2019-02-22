@@ -858,8 +858,6 @@ TEST_CASE("Fill tensors using lambda functions") {
     //print_tensor(A);
 }
 
-#endif
-
 TEST_CASE("SCF Example Implementation") {
 
     using tensor_type = Tensor<double>;
@@ -1015,6 +1013,7 @@ TEST_CASE("SCF Example Implementation") {
 
 #endif
 }
+#endif
 
 TEST_CASE("TiledIndexSpace common ancestor test") {
     TiledIndexSpace root1{IndexSpace{range(10)}};
@@ -1072,15 +1071,17 @@ TEST_CASE("TiledIndexSpace common ancestor test") {
 
 
     TiledIndexSpace AOs{IndexSpace{range(7)}};
+    TiledIndexSpace MOs{IndexSpace{range(4)}};
+
 
     std::map<IndexVector, TiledIndexSpace> dep_nu_mu_q{
         {
             {{0}, TiledIndexSpace{AOs, IndexVector{0,3,4}}},           
-            {{2}, TiledIndexSpace{AOs, IndexVector{0,2}}},
-            {{3}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
-            {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
-            {{5}, TiledIndexSpace{AOs, IndexVector{1,2}}},
-            {{6}, TiledIndexSpace{AOs, IndexVector{2}}},
+            {{1}, TiledIndexSpace{AOs, IndexVector{0,3,6}}},
+            {{2}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
+            // {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
+            // {{5}, TiledIndexSpace{AOs, IndexVector{1,2}}},
+            // {{6}, TiledIndexSpace{AOs, IndexVector{2}}},
 
         }
     };
@@ -1108,18 +1109,20 @@ TEST_CASE("TiledIndexSpace common ancestor test") {
         }
     };
 
-    TiledIndexSpace tSubAO_AO_Q{AOs, {AOs}, dep_nu_mu_q};
+    TiledIndexSpace tSubAO_AO_Q{AOs, {MOs}, dep_nu_mu_q};
 
     TiledIndexSpace tSubAO_AO_D{AOs, {AOs}, dep_nu_mu_d};
 
-    TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
+    // TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
 
-    auto intersect = tSubAO_AO_Q.intersect_tis(tSubAO_AO_D);
-    REQUIRE(intersect == tSubAO_AO_C);
+    // auto intersect = tSubAO_AO_Q.intersect_tis(tSubAO_AO_D);
+    // REQUIRE(intersect == tSubAO_AO_C);
+    auto inv_tSubAO_AO_Q = invert_tis(tSubAO_AO_Q);
+    auto comp_tSubAO_AO_Q_D = compose_tis(tSubAO_AO_Q, tSubAO_AO_D);
     
 }
 
-#if 1
+#if 0
 using DepMap= std::map<IndexVector, TiledIndexSpace>;
 
 DepMap LMO_domain(){
@@ -1198,9 +1201,9 @@ TEST_CASE("Sample code for Local HF") {
 
     // TiledIndexSpace ao_domain{nu(i)}; //mo->ao
     // compose using labels
-    auto ao_domain = compose_tis(mu(i), nu_p(mu)); // nu(i)
+    auto ao_domain = compose_lbl(mu(i), nu_p(mu)); // nu(i) -> return label 
     // compose using TiledIndexSpaces
-    // auto ao_domain = compose_tis(lmo_domain, ao_int_screening);
+    // auto ao_domain = compose_tis(lmo_domain, ao_int_screening); // -> return tis
 
     //fitting domain
     // IndexSpace fb; //fitting basis. this is already available and used as input
@@ -1215,7 +1218,7 @@ TEST_CASE("Sample code for Local HF") {
 
     // TiledIndexSpace ao_to_lmo{i(mu)}; // 
     // invert using labels
-    auto ao_to_lmo= invert_tis(mu(i)); // i(mu)
+    auto ao_to_lmo= invert_lbl(mu(i)); // i(mu)
     // invert using TiledIndexSpaces
     // auto ao_to_lmo= invert_tis(lmo_domain);
 
@@ -1224,13 +1227,14 @@ TEST_CASE("Sample code for Local HF") {
 
 
     //Construct matrix of Coulomb metric, J, only compute for AB pairs which share an lmo
-    auto fit_to_lmo = invert_tis(A(i));               // i(A)
-    auto fit_to_ao  = compose_tis(fit_to_lmo, mu(i)); // mu(A)
-    auto fit_to_fit = compose_tis(fit_to_lmo, A(i));  // B(A)
+    auto fit_to_lmo = invert_lbl(A(i));               // i(A)
+   
+    auto fit_to_ao  = compose_lbl(fit_to_lmo, mu(i)); // mu(A)
+    auto B_p = compose_lbl(fit_to_lmo, A(i));  // B(A)
 
-    auto [B_p] = fit_to_fit.labels<1>("all");
+    // auto [B_p] = fit_to_fit.labels<1>("all");
 
-    // Input X (tensor with lamda function that calls libint)
+    // Input X (tensor with lambda function that calls libint)
     Tensor<T> X{A(i), mu(i), nu(i)}; // internally project on i ?
     // input J
     Tensor<T> J{A, B_p(A)};

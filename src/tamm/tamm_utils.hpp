@@ -689,33 +689,32 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionCo
 }
 
 //// @todo: Implement 
-template <typename... Args>
-TiledIndexSpace compose_tis(const TiledIndexLabel& lbl, Args... rest) {
-    TiledIndexSpace res{IndexSpace{}};
+TiledIndexLabel compose_lbl(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
+    auto lhs_tis = lhs.tiled_index_space();
+    auto rhs_tis = rhs.tiled_index_space();
 
-    return res;
+    auto res_tis = lhs_tis.compose_tis(rhs_tis);
+
+    return res_tis.label("all");
 }
 
 /// @todo: Implement 
-template <typename... Args>
-TiledIndexSpace compose_tis(const TiledIndexSpace& tis, Args... rest) {
-    TiledIndexSpace res{IndexSpace{}};
-
-    return res;
+TiledIndexSpace compose_tis(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
+    
+    return lhs.compose_tis(rhs);
 }
 
 /// @todo: Implement 
-TiledIndexSpace invert_tis(const TiledIndexLabel& lbl) {
-    TiledIndexSpace res{IndexSpace{}};
+TiledIndexLabel invert_lbl(const TiledIndexLabel& lhs) {
+    auto lhs_tis = lhs.tiled_index_space();
 
-    return res;
+    return lhs_tis.label("all");
 }
 
 /// @todo: Implement 
-TiledIndexSpace invert_tis(const TiledIndexSpace& tis) {
-    TiledIndexSpace res{IndexSpace{}};
+TiledIndexSpace invert_tis(const TiledIndexSpace& lhs) {
 
-    return res;
+    return lhs.invert_tis();
 }
 
 /// @todo: Implement 

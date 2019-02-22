@@ -9,6 +9,7 @@
 using namespace tamm;
 using TensorType = double;
 
+#if 0
   std::tuple<Index, Index, size_t,size_t> get_shell_ids
     (const std::vector<size_t> &shell_tile_map, const IndexVector& AO_tiles,
      IndexVector& maxblockid, size_t bfu, size_t bfv) {
@@ -43,6 +44,7 @@ using TensorType = double;
 
     return std::make_tuple(s1,s2,curshelloffset_i,curshelloffset_j);
   }
+#endif
 
 Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndexSpace& tAO,
   const TAMM_SIZE ndocc, const TAMM_SIZE nao, const TAMM_SIZE freeze_core,
@@ -131,6 +133,239 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
     }
 
   GA_Sync();
+
+  //rank = iproc
+  int iproc = rank.value();
+  int ndim = 3;
+  auto pref = max_cvecs;
+  auto nbf = nao;
+
+  int dims[3] = {nbf,nbf,pref*nbf};
+  int chnk[3] = {-1,-1,pref*nbf};
+  int nblock[GA_MAX_DIM]; 
+
+  auto eltype   = tensor_element_type<TensorType>();
+  int ga_eltype = C_DBL; //TODO: MemoryManagerGA::to_ga_eltype(eltype);
+  int g_test = NGA_Create(ga_eltype,ndim,dims,const_cast<char*>("CholVecTmp"),chnk);
+  int itype;
+  NGA_Inquire(g_test,&itype,&ndim,dims);
+  NGA_Nblock(g_test,nblock);
+  NGA_Destroy(g_test);
+
+  int size_map = nblock[0]+nblock[1]+nblock[2];
+  std::vector<int> k_map(size_map);
+
+  auto mi=0;
+  for (auto count_dim=0;count_dim<2;count_dim++){
+    auto size_blk = dims[count_dim]/nblock[count_dim];
+    for (auto i=0;i<nblock[count_dim];i++){
+      k_map[mi] = size_blk*i;
+      mi++;
+    }
+  }
+  k_map[mi] = 0;
+
+  int g_chol = NGA_Create_irreg(ga_eltype,3,dims,const_cast<char*>("CholX"),nblock,&k_map[0]);
+
+  //util_eri_cholesky(rtdb,tol,g_chol,k,int_mb(k_map),nblock)
+  GA_Zero(g_chol);
+
+  //line 103-112
+  NGA_Inquire(g_chol,&itype,&ndim,dims);
+
+  int dims2[2] = {nbf,nbf};
+  int nblock2[2] = {nblock[0],nblock[1]};
+  //TODO: Check k_map;
+  int g_d = NGA_Create_irreg(ga_eltype,2,dims2,const_cast<char*>("ERI Diag"), nblock2, &k_map[0]);
+  int g_r = NGA_Create_irreg(ga_eltype,2,dims2,const_cast<char*>("ERI Res"), nblock2, &k_map[nblock[0]]);
+
+  int lo_b[GA_MAX_DIM]; // The lower limits of blocks of B
+  int lo_r[GA_MAX_DIM]; // The lower limits of blocks of R
+  int lo_d[GA_MAX_DIM]; // The lower limits of blocks of D
+  int hi_b[GA_MAX_DIM]; // The upper limits of blocks of B
+  int hi_r[GA_MAX_DIM]; // The upper limits of blocks of R
+  int hi_d[GA_MAX_DIM]; // The upper limits of blocks of D
+  int ld_b[GA_MAX_DIM]; // The leading dims of blocks of B
+  int ld_r[GA_MAX_DIM]; // The leading dims of blocks of R
+  int ld_d[GA_MAX_DIM]; // The leading dims of blocks of D
+
+  // Distribution Check
+  NGA_Distribution(g_chol,iproc,lo_b,hi_b);
+  NGA_Distribution(g_d,iproc,lo_d,hi_d);
+  NGA_Distribution(g_r,iproc,lo_r,hi_r);
+
+  cout << "debug0\n";
+
+  auto count = 0U; //Step A. Initialize chol vector count
+
+  auto shell2bf = map_shell_to_basis_function(shells);
+  auto bf2shell = map_basis_function_to_shell(shells);
+
+  // Step B. Compute the diagonal
+  Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
+  const auto &buf = engine.results();  
+
+  for (size_t s1 = 0; s1 != shells.size(); ++s1) {
+    auto bf1_first = shell2bf[s1]; // first basis function in this shell
+    auto n1 = shells[s1].size();
+
+    for (size_t s2 = 0; s2 != shells.size(); ++s2) {
+      auto bf2_first = shell2bf[s2];
+      auto n2 = shells[s2].size();
+
+      //TODO:Screening
+      engine.compute(shells[s1], shells[s2], shells[s1], shells[s2]);
+      const auto *buf_1212 = buf[0];
+      if (buf_1212 == nullptr)
+        continue; // if all integrals screened out, skip to next quartet
+
+      std::vector<TensorType> k_eri(n1*n2);
+      for (size_t f1 = 0; f1 != n1; ++f1) {
+        const auto bf1 = f1 + bf1_first;
+        for (size_t f2 = 0; f2 != n2; ++f2) {
+          const auto bf2 = f2 + bf2_first;
+          auto f1212 = f1*n2*n1*n2 + f2*n1*n2 + f1*n2 + f2;
+          k_eri[f1*n2+f2] = buf_1212[f1212];
+          // cout << f1212 << " " << s1 << s2 << "(" << bf1 << bf2 << "|" << bf1 << bf2 << ") = " << DiagInt(bf1, bf2) << endl;
+        }
+      }
+      int ibflo[2] = {bf1_first,bf2_first};
+      int ibfhi[2] = {bf1_first+n1-1,bf2_first+n2-1};
+      int ld[2] = {-1,-1};
+      //int ld = 5;
+      const void *from_buf = k_eri.data();
+      NGA_Put(g_d,ibflo,ibfhi,const_cast<void*>(from_buf),ld);
+    }
+  }
+
+  cout << "debug1\n";
+
+// Step C. Find the coordinates of the maximum element of the diagonal.
+
+  int indx_d0[GA_MAX_DIM];
+  TensorType val_d0;
+  NGA_Select_elem(g_d,const_cast<char*>("max"),&val_d0,indx_d0);
+
+  cout << "debug2\n";
+
+  int lo_x[GA_MAX_DIM]; // The lower limits of blocks
+  int hi_x[GA_MAX_DIM]; // The upper limits of blocks
+  int ld_x[GA_MAX_DIM]; // The leading dims of blocks
+
+//     Step D. Start the while loop
+
+  while(val_d0 > diagtol && count < max_cvecs){
+    NGA_Zero(g_r);
+    auto bfu = indx_d0[0];
+    auto bfv = indx_d0[1];
+    auto s1 = bf2shell[bfu];
+    auto n1 = shells[s1].size();
+    auto s2 = bf2shell[bfv];
+    auto n2 = shells[s2].size();
+    auto n12 = n1*n2;
+    auto f1 = bfu - shell2bf[s1];
+    auto f2 = bfv - shell2bf[s2];
+    auto ind12 = f1*n2 + f2;
+
+    for (size_t s3 = 0; s3 != shells.size(); ++s3) {
+      auto bf3_first = shell2bf[s3]; // first basis function in this shell
+      auto n3 = shells[s3].size();
+
+      for (size_t s4 = 0; s4 != shells.size(); ++s4) {
+        auto bf4_first = shell2bf[s4];
+        auto n4 = shells[s4].size();
+
+        engine.compute(shells[s3], shells[s4], shells[s1], shells[s2]);
+        const auto *buf_3412 = buf[0];
+        if (buf_3412 == nullptr)
+          continue; // if all integrals screened out, skip to next quartet
+
+        for (size_t f3 = 0; f3 != n3; ++f3) {
+          const auto bf3 = f3 + bf3_first;
+          for (size_t f4 = 0; f4 != n4; ++f4) {
+            const auto bf4 = f4 + bf4_first;
+
+            auto f3412 = f3*n4*n12 + f4*n12 + ind12;
+
+            int ibflo[2] = {bf3_first,bf4_first};
+            int ibfhi[2] = {bf3_first+n3-1,bf4_first+n4-1};
+            int ld[2] = {n3,-1};
+            auto from_buf = buf_3412[f3412];
+            const void *fbuf = &from_buf;
+            //TODO
+            NGA_Put(g_r,ibflo,ibfhi,const_cast<void*>(fbuf),ld);
+
+          }
+        }
+      }
+    }
+    NGA_Sync();
+
+    cout << "debug3\n";
+
+//  Step F. Update the residual
+    lo_x[0] = indx_d0[0];
+    lo_x[1] = indx_d0[1];
+    lo_x[2] = 0;
+    hi_x[0] = indx_d0[1]-1;
+    hi_x[1] = indx_d0[2]-1;
+    hi_x[2] = count>0? count : 0;
+    ld_x[1] = -1;
+    ld_x[2] = -1;
+
+    int indx_b, indx_d, indx_r;
+    std::vector<TensorType> k_elems(max_cvecs);
+    void* k_row = &k_elems[0];
+    NGA_Get(g_chol, lo_x, hi_x, k_row, ld_x);
+    cout << "debug3-1\n";
+    NGA_Access(g_r, lo_r, hi_r, &indx_r, ld_r);
+    cout << "debug3-2\n";
+    NGA_Access(g_chol, lo_b, hi_b, &indx_b, ld_b);
+    cout << "debug3-3\n";
+
+    for(auto icount =0;icount < count; icount++){
+      for(auto i = 0;i< hi_r[0] - lo_r[0];i++) {
+      for(auto j = 0; j< hi_r[1] - lo_r[1];j++) {
+
+      }
+      }
+    }
+
+    cout << "debug4\n";
+
+    NGA_Release(g_chol,lo_b,hi_b);
+    NGA_Release_update(g_r,lo_r,hi_r);
+
+   // Step G. Compute the new Cholesky vector
+  //  NGA_Access(g_r,lo_r,hi_r,&indx_r,ld_r);
+  //  NGA_Access(g_chol,lo_b,hi_b,&indx_b,ld_b);
+
+  //     for(auto i = 0;i< hi_r[0] - lo_r[0];i++) {
+  //     for(auto j = 0; j< hi_r[1] - lo_r[1];j++) {
+
+  //     }
+  //     }
+
+
+
+    //Step H. Increment count
+    count++;
+
+    //Step I. Update the diagonal
+    NGA_Access(g_d,lo_d,hi_d,&indx_d,ld_d);
+    NGA_Access(g_chol,lo_b,hi_b,&indx_b,ld_b);
+      for(auto i = 0;i< hi_d[0] - lo_d[0];i++) {
+      for(auto j = 0; j< hi_d[1] - lo_d[1];j++) {
+      }
+    }
+
+
+  //Step J. Find the coordinates of the maximum element of the diagonal.
+  NGA_Select_elem(g_d,const_cast<char*>("max"),&val_d0,indx_d0);
+
+  }
+  
+  #if 0
 
   auto hf_t2 = std::chrono::high_resolution_clock::now();
 
@@ -726,7 +961,16 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
 //  Eigen::Tensor<double, 4, Eigen::RowMajor> V_psqr = V_prqs.shuffle(psqr_shuffle);
   // Eigen::Tensor<double, 4, Eigen::RowMajor> V_pqrs = V_prqs - V_psqr;
   libint2::finalize(); // done with libint
+#endif
 
+  IndexSpace CIp{range(0, count)};
+  TiledIndexSpace tCIp{CIp, count};
+  auto [cindexp] = tCIp.labels<1>("all");
+  Tensor<TensorType> CholVpr_tamm{{tCIp,tMO,tMO},{SpinPosition::ignore,SpinPosition::upper,SpinPosition::lower}};
+  Tensor<TensorType>::allocate(&ec, CholVpr_tamm);
+
+
+  NGA_Destroy(g_chol);
   return CholVpr_tamm;
 }
 

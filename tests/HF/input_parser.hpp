@@ -52,6 +52,7 @@ class Options {
       cout << "{\n";
       cout << " max iter = " << maxiter << endl;
       cout << " basis = " << basis << endl;
+      if(!dfbasis.empty()) cout << " dfbasis = " << dfbasis << endl;
       cout << " geom_units = " << geom_units << endl;
       print_bool(" debug", debug);
       cout << "}\n";
@@ -84,7 +85,6 @@ class SCFOptions: public Options {
     void print() {
       cout << "\nSCF Options\n";
       cout << "{\n";
-      if(!dfbasis.empty()) cout << " dfbasis = " << dfbasis << endl;
       cout << " tol_int = " << tol_int << endl;
       cout << " tol_lindep = " << tol_lindep << endl;
       cout << " conve = " << conve << endl;

@@ -597,9 +597,9 @@ public:
                     new_key.insert(new_key.end(), lhs_key.begin(),
                                    lhs_key.end());
                     new_key.insert(new_key.end(), swap_it + 1, rhs_key.end());
-                    idx_vec_map[new_key].insert(                                                rhs_val.tiled_info_->ref_indices_.begin(),
-                                                rhs_val.tiled_info_->ref_indices_.end());
-
+                    idx_vec_map[new_key].insert(
+                      rhs_val.tiled_info_->ref_indices_.begin(),
+                      rhs_val.tiled_info_->ref_indices_.end());
                 }
             }
         }
@@ -607,9 +607,9 @@ public:
         std::map<IndexVector, TiledIndexSpace> new_dep;
 
         for(const auto& [key, val] : idx_vec_map) {
-            new_dep[key] = TiledIndexSpace{(*rhs.parent_tis_), IndexVector(val.begin(), val.end())};
+            new_dep[key] = TiledIndexSpace{(*rhs.parent_tis_),
+                                           IndexVector(val.begin(), val.end())};
         }
-        
 
         TiledIndexSpaceVec new_dep_vec(rhs.tiled_info_->dep_vec_.begin(), it);
         new_dep_vec.insert(new_dep_vec.end(), tiled_info_->dep_vec_.begin(),

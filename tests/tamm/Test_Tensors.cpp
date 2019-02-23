@@ -1015,6 +1015,26 @@ TEST_CASE("SCF Example Implementation") {
 }
 #endif
 
+
+void print_dependency(const TiledIndexSpace& tis) {
+    auto dep_map = tis.tiled_dep_map();
+    std::cerr << "Dependency Map" << std::endl;
+   
+    for(const auto& [key, subtis] : dep_map) {
+        std::cerr << "( ";
+        for(const auto& idx : key) {
+            std::cerr << idx << " ";
+        }
+        std::cerr << ") -> ";
+
+        std::cerr << "{ ";
+        for(const auto& idx : subtis.ref_indices()) {
+            std::cerr << idx << " ";
+        }
+        std::cerr << "}" << std::endl;
+    }
+}
+
 TEST_CASE("TiledIndexSpace common ancestor test") {
     TiledIndexSpace root1{IndexSpace{range(10)}};
     TiledIndexSpace root2{IndexSpace{range(10, 20)}};
@@ -1117,8 +1137,18 @@ TEST_CASE("TiledIndexSpace common ancestor test") {
 
     // auto intersect = tSubAO_AO_Q.intersect_tis(tSubAO_AO_D);
     // REQUIRE(intersect == tSubAO_AO_C);
+    std::cerr << "tSubAO_AO_Q ";
+    print_dependency(tSubAO_AO_Q);
+    
     auto inv_tSubAO_AO_Q = invert_tis(tSubAO_AO_Q);
+    std::cerr << "inv_tSubAO_AO_Q ";
+    print_dependency(inv_tSubAO_AO_Q);
+
     auto comp_tSubAO_AO_Q_D = compose_tis(tSubAO_AO_Q, tSubAO_AO_D);
+    std::cerr << "tSubAO_AO_D ";
+    print_dependency(tSubAO_AO_D);
+    std::cerr << "comp_tSubAO_AO_Q_D ";
+    print_dependency(comp_tSubAO_AO_Q_D);
     
 }
 

@@ -11,7 +11,9 @@ if(NOT DEFINED CMAKE_BUILD_TYPE)
     set (CMAKE_BUILD_TYPE Release)
 endif()
 
-set (BUILD_TESTS ON)
+if(NOT DEFINED BUILD_TESTS)
+       set (BUILD_TESTS ON)
+endif()       
 
 find_package(CMakeBuild)
 build_nwchemex_module(${CMAKE_CURRENT_LIST_DIR})

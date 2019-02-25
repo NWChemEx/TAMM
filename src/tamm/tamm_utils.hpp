@@ -645,8 +645,8 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionCo
     return std::make_tuple(gmin[0], minblockid, bfuv);
 }
 
-//// @todo: Implement 
-TiledIndexLabel compose_lbl(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
+
+inline TiledIndexLabel compose_lbl(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
     auto lhs_tis = lhs.tiled_index_space();
     auto rhs_tis = rhs.tiled_index_space();
 
@@ -655,28 +655,26 @@ TiledIndexLabel compose_lbl(const TiledIndexLabel& lhs, const TiledIndexLabel& r
     return res_tis.label("all");
 }
 
-/// @todo: Implement 
-TiledIndexSpace compose_tis(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
+inline TiledIndexSpace compose_tis(const TiledIndexSpace& lhs, const TiledIndexSpace& rhs) {
     
     return lhs.compose_tis(rhs);
 }
 
-/// @todo: Implement 
-TiledIndexLabel invert_lbl(const TiledIndexLabel& lhs) {
+inline TiledIndexLabel invert_lbl(const TiledIndexLabel& lhs) {
     auto lhs_tis = lhs.tiled_index_space();
 
     return lhs_tis.label("all");
 }
 
-/// @todo: Implement 
-TiledIndexSpace invert_tis(const TiledIndexSpace& lhs) {
+
+inline TiledIndexSpace invert_tis(const TiledIndexSpace& lhs) {
 
     return lhs.invert_tis();
 }
 
 /// @todo: Implement 
 template<typename TensorType> 
-TensorType invert_tensor(TensorType tens) {
+inline TensorType invert_tensor(TensorType tens) {
     TensorType res;
 
     return res;

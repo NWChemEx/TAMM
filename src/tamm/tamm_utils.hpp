@@ -132,7 +132,7 @@ void update_tensor_general(LabeledTensor<T> labeled_tensor, Func lambda) {
  * @todo there is possible memory leak as distribution will not be unallocated
  * when Execution context is destructed
  */
-ExecutionContext make_execution_context() {
+inline ExecutionContext make_execution_context() {
     ProcGroup pg{GA_MPI_Comm()};
     auto* pMM             = MemoryManagerLocal::create_coll(pg);
     Distribution_NW* dist = new Distribution_NW();
@@ -216,119 +216,76 @@ std::vector<TensorType> diagonal(ExecutionContext &ec, LabeledTensor<TensorType>
     return dest;
 }
 
+/**
+ * @brief applies a function elementwise to a tensor
+ *
+ * @tparam TensorType the type of the elements in the tensor
+ * @param ec Execution context used in the blockfor
+ * @param ltensor tensor to operate on
+ * @param func function to be applied to each element
+ */
 template<typename TensorType>
-void square(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
+void apply_ewise(ExecutionContext &ec, LabeledTensor<TensorType> ltensor,
+                 std::function<TensorType(TensorType)> func){
 
     Tensor<TensorType> tensor = ltensor.tensor();
 
     auto lambda = [&](const IndexVector& bid) {
         const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
+                internal::translate_blockid(bid, ltensor);
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
         std::vector<TensorType> dbuf(dsize);
         tensor.get(blockid, dbuf);
-        for(size_t c = 0; c < dsize; c++) 
-            dbuf[c] *= dbuf[c];
+        for(size_t c = 0; c < dsize; c++)
+            dbuf[c] = func(dbuf[c]);
         tensor.put(blockid,dbuf);
     };
     block_for(ec, ltensor, lambda);
-    
+
+}
+
+// Several convenience functions using apply_ewise
+template<typename TensorType>
+void square(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
+    std::function<TensorType(TensorType)> func = [&](TensorType a){return a*a;};
+    apply_ewise(ec, ltensor, func);
 }
 
 
 template<typename TensorType>
 void log10(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
-
-    Tensor<TensorType> tensor = ltensor.tensor();
-
-    auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-        for(size_t c = 0; c < dsize; c++) 
-            dbuf[c] = std::log10(dbuf[c]);
-        tensor.put(blockid,dbuf);
-    };
-    block_for(ec, ltensor, lambda);
-    
+    std::function<TensorType(TensorType)> func = [&](TensorType a){return std::log10(a);};
+    apply_ewise(ec, ltensor, func);
 }
 
 template<typename TensorType>
 void log(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
-
-    Tensor<TensorType> tensor = ltensor.tensor();
-
-    auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-        for(size_t c = 0; c < dsize; c++) 
-            dbuf[c] = std::log(dbuf[c]);
-        tensor.put(blockid,dbuf);
-    };
-    block_for(ec, ltensor, lambda);
-    
+    std::function<TensorType(TensorType)> func = [&](TensorType a){return std::log(a);};
+    apply_ewise(ec, ltensor, func);
 }
 
 template<typename TensorType>
 void inverse(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
-
-    Tensor<TensorType> tensor = ltensor.tensor();
-
-    auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-        for(size_t c = 0; c < dsize; c++) 
-            dbuf[c] = 1/dbuf[c];
-        tensor.put(blockid,dbuf);
-    };
-    block_for(ec, ltensor, lambda);
-    
+    std::function<TensorType(TensorType)> func = [&](TensorType a){return 1/a;};
+    apply_ewise(ec, ltensor, func);
 }
 
 template<typename TensorType>
 void pow(ExecutionContext &ec, LabeledTensor<TensorType> ltensor, TensorType alpha){
-
-    Tensor<TensorType> tensor = ltensor.tensor();
-
-    auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-        for(size_t c = 0; c < dsize; c++) 
-            dbuf[c] = std::pow(dbuf[c], alpha);
-        tensor.put(blockid,dbuf);
-    };
-    block_for(ec, ltensor, lambda);
-    
+    std::function<TensorType(TensorType)> func = [&](TensorType a){return std::pow(a, alpha);};
+    apply_ewise(ec, ltensor, func);
 }
 
 template<typename TensorType>
 void scale(ExecutionContext &ec, LabeledTensor<TensorType> ltensor, TensorType alpha){
+    std::function<TensorType(TensorType)> func = [&](TensorType a){return alpha*a;};
+    apply_ewise(ec, ltensor, func);
+}
 
-    Tensor<TensorType> tensor = ltensor.tensor();
-
-    auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-        for(size_t c = 0; c < dsize; c++) 
-            dbuf[c] = alpha * dbuf[c];
-        tensor.put(blockid,dbuf);
-    };
-    block_for(ec, ltensor, lambda);
-    
+template<typename TensorType>
+void sqrt(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
+    std::function<TensorType(TensorType)> func = [&](TensorType a){return std::sqrt(a);};
+    apply_ewise(ec, ltensor, func);
 }
 
 template<typename TensorType>

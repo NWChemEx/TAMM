@@ -1093,6 +1093,15 @@ TEST_CASE("TiledIndexSpace common ancestor test") {
     TiledIndexSpace AOs{IndexSpace{range(7)}};
     TiledIndexSpace MOs{IndexSpace{range(4)}};
 
+    std::map<IndexVector, TiledIndexSpace> new_dep{
+        {
+            {{0, 0}, TiledIndexSpace{AOs, IndexVector{0,3,4}}},           
+            {{1, 5}, TiledIndexSpace{AOs, IndexVector{0,3,6}}},
+            {{2, 0}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
+            {{2, 5}, TiledIndexSpace{AOs, IndexVector{0,5}}}
+        }
+    };
+
 
     std::map<IndexVector, TiledIndexSpace> dep_nu_mu_q{
         {
@@ -1129,11 +1138,13 @@ TEST_CASE("TiledIndexSpace common ancestor test") {
         }
     };
 
+    TiledIndexSpace test_tis{AOs, {MOs, AOs}, new_dep};
+
     TiledIndexSpace tSubAO_AO_Q{AOs, {MOs}, dep_nu_mu_q};
 
     TiledIndexSpace tSubAO_AO_D{AOs, {AOs}, dep_nu_mu_d};
 
-    // TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
+    TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
 
     // auto intersect = tSubAO_AO_Q.intersect_tis(tSubAO_AO_D);
     // REQUIRE(intersect == tSubAO_AO_C);
@@ -1149,7 +1160,31 @@ TEST_CASE("TiledIndexSpace common ancestor test") {
     print_dependency(tSubAO_AO_D);
     std::cerr << "comp_tSubAO_AO_Q_D ";
     print_dependency(comp_tSubAO_AO_Q_D);
-    
+
+    auto union_tSubAO_AO_D_C = union_tis(tSubAO_AO_D, tSubAO_AO_C);
+    std::cerr << "tSubAO_AO_D ";
+    print_dependency(tSubAO_AO_D);
+    std::cerr << "tSubAO_AO_C ";
+    print_dependency(tSubAO_AO_C);
+    std::cerr << "union_tSubAO_AO_D_C ";
+    print_dependency(union_tSubAO_AO_D_C);
+
+    auto project_test_tis = project_tis(test_tis, MOs);
+    std::cerr << "test_tis ";
+    print_dependency(test_tis);
+    std::cerr << "project_test_tis ";
+    print_dependency(project_test_tis);
+
+    auto project_MO_Q = project_tis(tSubAO_AO_Q, MOs);
+    std::cerr << "tSubAO_AO_Q ";
+    print_dependency(tSubAO_AO_Q);
+    std::cerr << "project_MO_Q " << std::endl;
+    std::cerr << "{ ";
+    for(const auto& idx : project_MO_Q.ref_indices()) {
+        std::cerr << idx << " ";
+    }
+    std::cerr << "}" << std::endl;
+
 }
 
 #if 0

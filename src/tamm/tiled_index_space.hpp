@@ -664,9 +664,10 @@ public:
             for(const auto& [lhs_key, lhs_val] : lhs_dep_map) {
                 IndexVector new_vec(lhs_key);
                 new_vec.erase(new_vec.begin() + p_idx);
-                
-                idx_vec_map[new_vec].insert(lhs_val.tiled_info_->ref_indices_.begin(),
-                                            lhs_val.tiled_info_->ref_indices_.end());
+
+                idx_vec_map[new_vec].insert(
+                  lhs_val.tiled_info_->ref_indices_.begin(),
+                  lhs_val.tiled_info_->ref_indices_.end());
             }
 
             std::map<IndexVector, TiledIndexSpace> new_dep;
@@ -690,35 +691,46 @@ public:
     }
 
     TiledIndexSpace union_tis(const TiledIndexSpace& rhs) const {
-        EXPECTS(is_dependent() && rhs.is_dependent());
-        EXPECTS(!common_ancestor(rhs).empty());
-
         EXPECTS(root_tiled_info_.lock() == rhs.root_tiled_info_.lock());
-        EXPECTS(tiled_info_->dep_vec_ == rhs.tiled_info_->dep_vec_);
 
-        const auto& lhs_dep_map = tiled_dep_map();
-        const auto& rhs_dep_map = rhs.tiled_dep_map();
+        TiledIndexSpace res;
+        if(is_dependent() && rhs.is_dependent()) {
+            EXPECTS(tiled_info_->dep_vec_ == rhs.tiled_info_->dep_vec_);
+            const auto& lhs_dep_map = tiled_dep_map();
+            const auto& rhs_dep_map = rhs.tiled_dep_map();
 
-        std::map<IndexVector, std::set<Index>> idx_vec_map;
-        for(const auto& [rhs_key, rhs_val] : rhs_dep_map) {
-            idx_vec_map[rhs_key].insert(
-              rhs_val.tiled_info_->ref_indices_.begin(),
-              rhs_val.tiled_info_->ref_indices_.end());
+            std::map<IndexVector, std::set<Index>> idx_vec_map;
+            for(const auto& [rhs_key, rhs_val] : rhs_dep_map) {
+                idx_vec_map[rhs_key].insert(
+                  rhs_val.tiled_info_->ref_indices_.begin(),
+                  rhs_val.tiled_info_->ref_indices_.end());
+            }
+
+            for(const auto& [lhs_key, lhs_val] : lhs_dep_map) {
+                idx_vec_map[lhs_key].insert(
+                  lhs_val.tiled_info_->ref_indices_.begin(),
+                  lhs_val.tiled_info_->ref_indices_.end());
+            }
+
+            std::map<IndexVector, TiledIndexSpace> new_dep;
+            for(const auto& [key, val] : idx_vec_map) {
+                new_dep[key] = TiledIndexSpace{
+                  root_tis(), IndexVector(val.begin(), val.end())};
+            }
+
+            res = TiledIndexSpace{root_tis(), tiled_info_->dep_vec_, new_dep};
+        } else {
+            std::set<Index> new_refs;
+            auto lhs_ref = ref_indices();
+            auto rhs_ref = rhs.ref_indices();
+            new_refs.insert(lhs_ref.begin(), lhs_ref.end());
+            new_refs.insert(rhs_ref.begin(), rhs_ref.end());
+
+            res = TiledIndexSpace{
+              root_tis(), IndexVector(new_refs.begin(), new_refs.end())};
         }
 
-        for(const auto& [lhs_key, lhs_val] : lhs_dep_map) {
-            idx_vec_map[lhs_key].insert(
-              lhs_val.tiled_info_->ref_indices_.begin(),
-              lhs_val.tiled_info_->ref_indices_.end());
-        }
-
-        std::map<IndexVector, TiledIndexSpace> new_dep;
-        for(const auto& [key, val] : idx_vec_map) {
-            new_dep[key] =
-              TiledIndexSpace{root_tis(), IndexVector(val.begin(), val.end())};
-        }
-
-        return TiledIndexSpace{root_tis(), tiled_info_->dep_vec_, new_dep};
+        return res;
     }
 
     /**

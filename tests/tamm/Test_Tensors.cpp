@@ -1036,59 +1036,6 @@ void print_dependency(const TiledIndexSpace& tis) {
 }
 
 TEST_CASE("TiledIndexSpace common ancestor test") {
-    TiledIndexSpace root1{IndexSpace{range(10)}};
-    TiledIndexSpace root2{IndexSpace{range(10, 20)}};
-
-    TiledIndexSpace child1{root1, range(5)};
-    TiledIndexSpace child2{root1, range(3, 8)};
-
-    TiledIndexSpace grandchild1{child1, range(2, 4)};
-    TiledIndexSpace grandchild2{child2, range(0, 3)};
-
-    auto common = grandchild2.common_ancestor(grandchild1);
-
-    REQUIRE(common == root1);
-
-    common = grandchild2.common_ancestor(child2);
-
-    REQUIRE(common == child2);
-
-    common = grandchild1.common_ancestor(grandchild2);
-
-    REQUIRE(common == root1);
-
-    common = child1.common_ancestor(child2);
-
-    REQUIRE(common == root1);
-
-    common = child1.common_ancestor(child1);
-    REQUIRE(common == child1);
-
-    common = grandchild1.common_ancestor(child1);
-    REQUIRE(common == child1);
-
-    common = root1.common_ancestor(child1);
-    REQUIRE(common == root1);
-
-    common = root1.common_ancestor(grandchild1);
-    REQUIRE(common == root1);
-
-    TiledIndexSpace empty{IndexSpace{{}}};
-    common = root1.common_ancestor(root2);
-    REQUIRE(common == empty);
-
-    auto intersection = root1.intersect_tis(child1);
-    REQUIRE(intersection == child1);
-
-    intersection = root1.intersect_tis(child2);
-    REQUIRE(intersection == child2);
-
-    intersection = child1.intersect_tis(child2);
-    REQUIRE(intersection == TiledIndexSpace{root1, range(3,5)});
-
-    intersection = grandchild1.intersect_tis(grandchild2);
-    REQUIRE(intersection == TiledIndexSpace{root1, range(3,4)});
-
 
     TiledIndexSpace AOs{IndexSpace{range(7)}};
     TiledIndexSpace MOs{IndexSpace{range(4)}};
@@ -1185,6 +1132,16 @@ TEST_CASE("TiledIndexSpace common ancestor test") {
     }
     std::cerr << "}" << std::endl;
 
+    TiledIndexSpace tis_1{AOs, IndexVector{1,2,5}};
+    TiledIndexSpace tis_2{AOs, IndexVector{2,3,6}};
+
+    auto u_tis12 = union_tis(tis_1, tis_2);
+    std::cerr << "u_tis12 " << std::endl;
+    std::cerr << "{ ";
+    for(const auto& idx : u_tis12.ref_indices()) {
+        std::cerr << idx << " ";
+    }
+    std::cerr << "}" << std::endl;
 }
 
 #if 0

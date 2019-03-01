@@ -9,6 +9,8 @@
 using namespace tamm;
 using TensorType = double;
 
+bool cd_debug = true;
+
 #if 0
   std::tuple<Index, Index, size_t,size_t> get_shell_ids
     (const std::vector<size_t> &shell_tile_map, const IndexVector& AO_tiles,
@@ -137,27 +139,30 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   //rank = iproc
   int iproc = rank.value();
   int ndim = 3;
-  auto pref = max_cvecs;
+  // auto pref = max_cvecs;
   auto nbf = nao;
 
-  int dims[3] = {nbf,nbf,pref*nbf};
-  int chnk[3] = {-1,-1,pref*nbf};
+  int dims[3] = {nbf,nbf,max_cvecs};
+  int chnk[3] = {-1,-1,max_cvecs};
   int nblock[GA_MAX_DIM]; 
 
   auto eltype   = tensor_element_type<TensorType>();
   int ga_eltype = C_DBL; //TODO: MemoryManagerGA::to_ga_eltype(eltype);
   int g_test = NGA_Create(ga_eltype,ndim,dims,const_cast<char*>("CholVecTmp"),chnk);
-  int itype;
-  NGA_Inquire(g_test,&itype,&ndim,dims);
+  // int itype;
+  // NGA_Inquire(g_test,&itype,&ndim,dims);
   NGA_Nblock(g_test,nblock);
   NGA_Destroy(g_test);
 
   int size_map = nblock[0]+nblock[1]+nblock[2];
   std::vector<int> k_map(size_map);
 
+  // cout << "size_map = " << size_map << endl;
+
   auto mi=0;
   for (auto count_dim=0;count_dim<2;count_dim++){
     auto size_blk = dims[count_dim]/nblock[count_dim];
+    // cout << "cdim,size_blk,nb(cd) = " << count_dim << ", " << size_blk << "," << nblock[count_dim] << endl;
     for (auto i=0;i<nblock[count_dim];i++){
       k_map[mi] = size_blk*i;
       mi++;
@@ -165,19 +170,26 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   }
   k_map[mi] = 0;
 
+  // cout << "print k_map\n";
+  // for (auto x=0;x<=mi;x++)
+  // cout << k_map[x] << ",";
+  // cout << endl;
+
   int g_chol = NGA_Create_irreg(ga_eltype,3,dims,const_cast<char*>("CholX"),nblock,&k_map[0]);
 
   //util_eri_cholesky(rtdb,tol,g_chol,k,int_mb(k_map),nblock)
   GA_Zero(g_chol);
 
   //line 103-112
-  NGA_Inquire(g_chol,&itype,&ndim,dims);
+  // NGA_Inquire(g_chol,&itype,&ndim,dims);
+  // cout << "dims = " << dims[0] << "," << dims[1] << "," << dims[2] << "\n";
 
   int dims2[2] = {nbf,nbf};
   int nblock2[2] = {nblock[0],nblock[1]};
+  
   //TODO: Check k_map;
   int g_d = NGA_Create_irreg(ga_eltype,2,dims2,const_cast<char*>("ERI Diag"), nblock2, &k_map[0]);
-  int g_r = NGA_Create_irreg(ga_eltype,2,dims2,const_cast<char*>("ERI Res"), nblock2, &k_map[nblock[0]]);
+  int g_r = NGA_Create_irreg(ga_eltype,2,dims2,const_cast<char*>("ERI Res"), nblock2, &k_map[0]);
 
   int lo_b[GA_MAX_DIM]; // The lower limits of blocks of B
   int lo_r[GA_MAX_DIM]; // The lower limits of blocks of R
@@ -194,8 +206,19 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   NGA_Distribution(g_d,iproc,lo_d,hi_d);
   NGA_Distribution(g_r,iproc,lo_r,hi_r);
 
-  cout << "debug0\n";
+  // auto lo_hi_print = [] (auto& lo_b, auto& hi_b, string arr){
+  //   cout << "lo_" << arr << ", hi_" << arr << " = ";
+  //   cout << "[" << lo_b[0] << " " << lo_b[1] << "], [";
+  //   cout << hi_b[0] << " " << hi_b[1] << "]\n";
+  // };
 
+  // if(cd_debug){
+  //   lo_hi_print(lo_b,hi_b,"b");
+  //   lo_hi_print(lo_d,hi_d,"d");
+  //   lo_hi_print(lo_r,hi_r,"r");
+  //   cout << "------debug0-----\n";
+  // }
+  
   auto count = 0U; //Step A. Initialize chol vector count
 
   auto shell2bf = map_shell_to_basis_function(shells);
@@ -208,37 +231,41 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   for (size_t s1 = 0; s1 != shells.size(); ++s1) {
     auto bf1_first = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();
+    if(lo_d[0] <= bf1_first && bf1_first <= hi_d[0]){
 
-    for (size_t s2 = 0; s2 != shells.size(); ++s2) {
-      auto bf2_first = shell2bf[s2];
-      auto n2 = shells[s2].size();
+      for (size_t s2 = 0; s2 != shells.size(); ++s2) {
+        auto bf2_first = shell2bf[s2];
+        auto n2 = shells[s2].size();
 
-      //TODO:Screening
-      engine.compute(shells[s1], shells[s2], shells[s1], shells[s2]);
-      const auto *buf_1212 = buf[0];
-      if (buf_1212 == nullptr)
-        continue; // if all integrals screened out, skip to next quartet
+         if(lo_d[1] <= bf2_first && bf2_first <= hi_d[1]){
 
-      std::vector<TensorType> k_eri(n1*n2);
-      for (size_t f1 = 0; f1 != n1; ++f1) {
-        const auto bf1 = f1 + bf1_first;
-        for (size_t f2 = 0; f2 != n2; ++f2) {
-          const auto bf2 = f2 + bf2_first;
-          auto f1212 = f1*n2*n1*n2 + f2*n1*n2 + f1*n2 + f2;
-          k_eri[f1*n2+f2] = buf_1212[f1212];
-          // cout << f1212 << " " << s1 << s2 << "(" << bf1 << bf2 << "|" << bf1 << bf2 << ") = " << DiagInt(bf1, bf2) << endl;
-        }
-      }
-      int ibflo[2] = {bf1_first,bf2_first};
-      int ibfhi[2] = {bf1_first+n1-1,bf2_first+n2-1};
-      int ld[2] = {-1,-1};
-      //int ld = 5;
-      const void *from_buf = k_eri.data();
-      NGA_Put(g_d,ibflo,ibfhi,const_cast<void*>(from_buf),ld);
-    }
-  }
+          //TODO:Screening
+          engine.compute(shells[s1], shells[s2], shells[s1], shells[s2]);
+          const auto *buf_1212 = buf[0];
+          if (buf_1212 == nullptr)
+            continue; // if all integrals screened out, skip to next quartet
 
-  cout << "debug1\n";
+          std::vector<TensorType> k_eri(n1*n2);
+          for (size_t f1 = 0; f1 != n1; ++f1) {
+            const auto bf1 = f1 + bf1_first;
+            for (size_t f2 = 0; f2 != n2; ++f2) {
+              const auto bf2 = f2 + bf2_first;
+              auto f1212 = f1*n2*n1*n2 + f2*n1*n2 + f1*n2 + f2;
+              k_eri[f1*n2+f2] = buf_1212[f1212];
+              // cout << f1212 << " " << s1 << s2 << "(" << bf1 << bf2 << "|" << bf1 << bf2 << ") = " << DiagInt(bf1, bf2) << endl;
+            }
+          }
+          int ibflo[2] = {bf1_first,bf2_first};
+          int ibfhi[2] = {bf1_first+n1-1,bf2_first+n2-1};
+          int ld[1] = {n2};
+          const void *from_buf = k_eri.data();
+          NGA_Put(g_d,ibflo,ibfhi,const_cast<void*>(from_buf),ld);
+        } //if s2
+      } //s2
+    } //#if s1
+  } //s1
+
+  // if(cd_debug) cout << "debug1\n";
 
 // Step C. Find the coordinates of the maximum element of the diagonal.
 
@@ -246,7 +273,7 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   TensorType val_d0;
   NGA_Select_elem(g_d,const_cast<char*>("max"),&val_d0,indx_d0);
 
-  cout << "debug2\n";
+  // cout << "debug2\n";
 
   int lo_x[GA_MAX_DIM]; // The lower limits of blocks
   int hi_x[GA_MAX_DIM]; // The upper limits of blocks
@@ -255,6 +282,10 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
 //     Step D. Start the while loop
 
   while(val_d0 > diagtol && count < max_cvecs){
+
+      // cout << "iter, maxval, max_indx = " << count << ", " << val_d0 << 
+      // ", [" << indx_d0[0] << "," << indx_d0[1] << "]\n";
+
     NGA_Zero(g_r);
     auto bfu = indx_d0[0];
     auto bfv = indx_d0[1];
@@ -267,85 +298,108 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
     auto f2 = bfv - shell2bf[s2];
     auto ind12 = f1*n2 + f2;
 
+    // cout << "s1,s2 = " << s1 <<"," << s2 << endl;
+
     for (size_t s3 = 0; s3 != shells.size(); ++s3) {
       auto bf3_first = shell2bf[s3]; // first basis function in this shell
       auto n3 = shells[s3].size();
 
-      for (size_t s4 = 0; s4 != shells.size(); ++s4) {
-        auto bf4_first = shell2bf[s4];
-        auto n4 = shells[s4].size();
+      if(lo_r[0] <= bf3_first && bf3_first <= hi_r[0]){
 
-        engine.compute(shells[s3], shells[s4], shells[s1], shells[s2]);
-        const auto *buf_3412 = buf[0];
-        if (buf_3412 == nullptr)
-          continue; // if all integrals screened out, skip to next quartet
+        for (size_t s4 = 0; s4 != shells.size(); ++s4) {
+          auto bf4_first = shell2bf[s4];
+          auto n4 = shells[s4].size();
 
-        for (size_t f3 = 0; f3 != n3; ++f3) {
-          const auto bf3 = f3 + bf3_first;
-          for (size_t f4 = 0; f4 != n4; ++f4) {
-            const auto bf4 = f4 + bf4_first;
+          if(lo_r[1] <= bf4_first && bf4_first <= hi_r[1]){
 
-            auto f3412 = f3*n4*n12 + f4*n12 + ind12;
+            engine.compute(shells[s3], shells[s4], shells[s1], shells[s2]);
+            const auto *buf_3412 = buf[0];
+            if (buf_3412 == nullptr)
+              continue; // if all integrals screened out, skip to next quartet
 
+            std::vector<TensorType> k_eri(n3*n4);
+            for (size_t f3 = 0; f3 != n3; ++f3) {
+              const auto bf3 = f3 + bf3_first;
+              for (size_t f4 = 0; f4 != n4; ++f4) {
+                const auto bf4 = f4 + bf4_first;
+
+                auto f3412 = f3*n4*n12 + f4*n12 + ind12;
+                k_eri[f3*n4+f4] = buf_3412[f3412];
+              }
+            }
+                
+            const void *fbuf = &k_eri[0];
+            //TODO
             int ibflo[2] = {bf3_first,bf4_first};
             int ibfhi[2] = {bf3_first+n3-1,bf4_first+n4-1};
-            int ld[2] = {n3,-1};
-            auto from_buf = buf_3412[f3412];
-            const void *fbuf = &from_buf;
-            //TODO
+            int ld[1] = {n4}; //n3                  
+            // cout << "ld_x = " << ld[0] << endl;
+            //lo_hi_print(ibflo,ibfhi,"ibf");
             NGA_Put(g_r,ibflo,ibfhi,const_cast<void*>(fbuf),ld);
-
-          }
-        }
-      }
-    }
+            } //if s4
+          } //s4
+      } //if s3
+    } //s3
     NGA_Sync();
 
-    cout << "debug3\n";
+    // if(cd_debug) cout << "debug3\n";
 
 //  Step F. Update the residual
     lo_x[0] = indx_d0[0];
     lo_x[1] = indx_d0[1];
     lo_x[2] = 0;
-    hi_x[0] = indx_d0[1]-1;
-    hi_x[1] = indx_d0[2]-1;
-    hi_x[2] = count>0? count : 0;
-    ld_x[1] = -1;
-    ld_x[2] = -1;
+    hi_x[0] = indx_d0[0];
+    hi_x[1] = indx_d0[1];
+    hi_x[2] = count; //count>0? count : 0;
+    ld_x[0] = 1;
+    ld_x[1] = hi_x[2]+1;
 
-    int indx_b, indx_d, indx_r;
+    TensorType *indx_b, *indx_d, *indx_r;
     std::vector<TensorType> k_elems(max_cvecs);
-    void* k_row = &k_elems[0];
+    TensorType* k_row = &k_elems[0];
     NGA_Get(g_chol, lo_x, hi_x, k_row, ld_x);
-    cout << "debug3-1\n";
     NGA_Access(g_r, lo_r, hi_r, &indx_r, ld_r);
-    cout << "debug3-2\n";
     NGA_Access(g_chol, lo_b, hi_b, &indx_b, ld_b);
-    cout << "debug3-3\n";
+
+    // cout << "lo_r,hi_r = [" << lo_r[0] << "," << lo_r[1]
+    // << "], [" << hi_r[0] << "," << hi_r[1] << "]\n";
+
+    // cout << "lo_b,hi_b = [" << lo_b[0] << "," << lo_b[1] << "," << lo_b[2]
+    // << "], [" << hi_b[0] << "," << hi_b[1] << "," << hi_b[2] << "]\n";
+
+    // cout << "ld_r,ld_b = [" << ld_r[0] << "," << ld_r[1]
+    // << "], [" << ld_b[0] << "," << ld_b[1] << "]\n";
 
     for(auto icount =0;icount < count; icount++){
-      for(auto i = 0;i< hi_r[0] - lo_r[0];i++) {
-      for(auto j = 0; j< hi_r[1] - lo_r[1];j++) {
-
-      }
+      for(auto i = 0;i<= hi_r[0] - lo_r[0];i++) {
+        for(auto j = 0; j<= hi_r[1] - lo_r[1];j++) {
+          indx_r[i*ld_r[0] + j] -= indx_b[icount+j*ld_b[1] + i*ld_b[1]*ld_b[0]]
+              * k_row[icount];
+        }
       }
     }
 
-    cout << "debug4\n";
+    // if(cd_debug) cout << "debug4: end update res\n";
 
     NGA_Release(g_chol,lo_b,hi_b);
     NGA_Release_update(g_r,lo_r,hi_r);
 
    // Step G. Compute the new Cholesky vector
-  //  NGA_Access(g_r,lo_r,hi_r,&indx_r,ld_r);
-  //  NGA_Access(g_chol,lo_b,hi_b,&indx_b,ld_b);
+   NGA_Access(g_r,lo_r,hi_r,&indx_r,ld_r);
+   NGA_Access(g_chol,lo_b,hi_b,&indx_b,ld_b);
 
-  //     for(auto i = 0;i< hi_r[0] - lo_r[0];i++) {
-  //     for(auto j = 0; j< hi_r[1] - lo_r[1];j++) {
+    //    cout << "ld_r,ld_b = [" << ld_r[0] << "," << ld_r[1]
+    // << "], [" << ld_b[0] << "," << ld_b[1] << "]\n";
 
-  //     }
-  //     }
+    for(auto i = 0; i <= hi_r[0] - lo_r[0]; i++) {
+      for(auto j = 0; j <= hi_r[1] - lo_r[1]; j++) {
+      auto tmp = indx_r[i*ld_r[0]+j]/sqrt(val_d0);
+      indx_b[count+j*ld_b[1]+i*ld_b[1]*ld_b[0]] = tmp;
+      }
+    }
 
+    NGA_Release_update(g_chol,lo_b,hi_b);
+    NGA_Release(g_r,lo_r,hi_r);
 
 
     //Step H. Increment count
@@ -354,16 +408,32 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
     //Step I. Update the diagonal
     NGA_Access(g_d,lo_d,hi_d,&indx_d,ld_d);
     NGA_Access(g_chol,lo_b,hi_b,&indx_b,ld_b);
-      for(auto i = 0;i< hi_d[0] - lo_d[0];i++) {
-      for(auto j = 0; j< hi_d[1] - lo_d[1];j++) {
+
+    // cout << "ld_d,ld_b = [" << ld_d[0] << "," << ld_d[1]
+    // << "], [" << ld_b[0] << "," << ld_b[1] << "]\n";
+
+    for(auto i = 0;i<= hi_d[0] - lo_d[0];i++) {
+      for(auto j = 0; j<= hi_d[1] - lo_d[1];j++) {
+        auto tmp = indx_b[count-1 + j*ld_b[1] + i*ld_b[1]*ld_b[0]];
+        //cout << "tmp = " << tmp << endl;
+        indx_d[i*ld_d[0]+j] -= tmp*tmp;
       }
     }
+
+    NGA_Release(g_chol,lo_b,hi_b);
+    NGA_Release_update(g_d,lo_d,hi_d);
 
 
   //Step J. Find the coordinates of the maximum element of the diagonal.
   NGA_Select_elem(g_d,const_cast<char*>("max"),&val_d0,indx_d0);
 
+  // cout << "-----------------------------------------\n";
+
   }
+
+  if (iproc == 0) cout << "number of cholesky vectors = " << count << endl;
+  NGA_Destroy(g_r);
+  NGA_Destroy(g_d);
   
   #if 0
 

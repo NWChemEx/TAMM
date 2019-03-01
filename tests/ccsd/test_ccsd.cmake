@@ -1,6 +1,7 @@
 
 include(TargetMacros)
 add_mpi_unit_test(Test_CD_SVD 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
+#add_mpi_unit_test(Test_CD_SVD_GA 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
 add_mpi_unit_test(Test_CCSD_CD 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
 # add_mpi_unit_test(Test_CCSD_CD_RM 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
 # add_mpi_unit_test(Test_CCSD_CD_SVD 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")

@@ -2,6 +2,7 @@
 #define TAMM_TILED_INDEX_SPACE_HPP_
 
 #include "tamm/index_space.hpp"
+#include <set>
 
 namespace tamm {
 
@@ -570,6 +571,168 @@ public:
         return TiledIndexSpace{common_tis, translated_indices};
     }
 
+    TiledIndexSpace compose_tis(const TiledIndexSpace& rhs) const {
+        EXPECTS(is_dependent() && rhs.is_dependent());
+
+        const auto& lhs_dep_map = tiled_dep_map();
+        const auto& rhs_dep_map = rhs.tiled_dep_map();
+
+        auto it = std::find(rhs.tiled_info_->dep_vec_.begin(),
+                            rhs.tiled_info_->dep_vec_.end(), (*parent_tis_));
+        EXPECTS(it != rhs.tiled_info_->dep_vec_.end());
+
+        size_t dep_id = std::distance(rhs.tiled_info_->dep_vec_.begin(), it);
+
+        std::map<IndexVector, std::set<Index>> idx_vec_map;
+        for(const auto& [rhs_key, rhs_val] : rhs_dep_map) {
+            auto dep_val = rhs_key[dep_id];
+
+            for(const auto& [lhs_key, lhs_val] : lhs_dep_map) {
+                const auto& ref_indices = lhs_val.tiled_info_->ref_indices_;
+                auto ref_it =
+                  std::find(ref_indices.begin(), ref_indices.end(), dep_val);
+                if(ref_it != ref_indices.end()) {
+                    auto swap_it = rhs_key.begin() + dep_id;
+                    IndexVector new_key(rhs_key.begin(), swap_it);
+                    new_key.insert(new_key.end(), lhs_key.begin(),
+                                   lhs_key.end());
+                    new_key.insert(new_key.end(), swap_it + 1, rhs_key.end());
+                    idx_vec_map[new_key].insert(
+                      rhs_val.tiled_info_->ref_indices_.begin(),
+                      rhs_val.tiled_info_->ref_indices_.end());
+                }
+            }
+        }
+
+        std::map<IndexVector, TiledIndexSpace> new_dep;
+
+        for(const auto& [key, val] : idx_vec_map) {
+            new_dep[key] = TiledIndexSpace{rhs.root_tis(),
+                                           IndexVector(val.begin(), val.end())};
+        }
+
+        TiledIndexSpaceVec new_dep_vec(rhs.tiled_info_->dep_vec_.begin(), it);
+        new_dep_vec.insert(new_dep_vec.end(), tiled_info_->dep_vec_.begin(),
+                           tiled_info_->dep_vec_.end());
+        new_dep_vec.insert(new_dep_vec.end(), it + 1,
+                           rhs.tiled_info_->dep_vec_.end());
+
+        return TiledIndexSpace{rhs.root_tis(), new_dep_vec, new_dep};
+    }
+
+    TiledIndexSpace invert_tis() const {
+        EXPECTS(is_dependent() && num_key_tiled_index_spaces() == 1);
+
+        std::map<IndexVector, TiledIndexSpace> new_dep;
+        const auto& lhs_dep = tiled_info_->tiled_dep_map_;
+        auto ref_tis        = tiled_info_->dep_vec_[0];
+        std::map<Index, IndexVector> new_map;
+
+        for(const auto& [key, dep_tis] : lhs_dep) {
+            for(const auto& idx : dep_tis.tiled_info_->ref_indices_) {
+                new_map[idx].emplace_back(key[0]);
+            }
+        }
+
+        for(const auto& [idx, idx_vec] : new_map) {
+            TiledIndexSpace val_tis{ref_tis, idx_vec};
+            new_dep[IndexVector{idx}] = val_tis;
+        }
+
+        return TiledIndexSpace{ref_tis, {(*parent_tis_)}, new_dep};
+    }
+
+    TiledIndexSpace project_tis(const TiledIndexSpace& rhs) const {
+        EXPECTS(is_dependent());
+        EXPECTS(!rhs.is_dependent());
+
+        auto tis_it = std::find(tiled_info_->dep_vec_.begin(),
+                                tiled_info_->dep_vec_.end(), rhs);
+        EXPECTS(tis_it != tiled_info_->dep_vec_.end());
+
+        size_t p_idx = std::distance(tiled_info_->dep_vec_.begin(), tis_it);
+
+        const auto& lhs_dep_map = tiled_dep_map();
+
+        TiledIndexSpace res;
+
+        if(num_key_tiled_index_spaces() > 1) {
+            TiledIndexSpaceVec new_dep_vec(tiled_info_->dep_vec_);
+            new_dep_vec.erase(new_dep_vec.begin() + p_idx);
+
+            std::map<IndexVector, std::set<Index>> idx_vec_map;
+            for(const auto& [lhs_key, lhs_val] : lhs_dep_map) {
+                IndexVector new_vec(lhs_key);
+                new_vec.erase(new_vec.begin() + p_idx);
+
+                idx_vec_map[new_vec].insert(
+                  lhs_val.tiled_info_->ref_indices_.begin(),
+                  lhs_val.tiled_info_->ref_indices_.end());
+            }
+
+            std::map<IndexVector, TiledIndexSpace> new_dep;
+            for(const auto& [key, val] : idx_vec_map) {
+                new_dep[key] = TiledIndexSpace{
+                  root_tis(), IndexVector(val.begin(), val.end())};
+            }
+            res = TiledIndexSpace{root_tis(), new_dep_vec, new_dep};
+        } else {
+            std::set<Index> all_idx;
+            for(const auto& [lhs_key, lhs_val] : lhs_dep_map) {
+                all_idx.insert(lhs_val.tiled_info_->ref_indices_.begin(),
+                               lhs_val.tiled_info_->ref_indices_.end());
+            }
+
+            res = TiledIndexSpace{root_tis(),
+                                  IndexVector(all_idx.begin(), all_idx.end())};
+        }
+
+        return res;
+    }
+
+    TiledIndexSpace union_tis(const TiledIndexSpace& rhs) const {
+        EXPECTS(root_tiled_info_.lock() == rhs.root_tiled_info_.lock());
+
+        TiledIndexSpace res;
+        if(is_dependent() && rhs.is_dependent()) {
+            EXPECTS(tiled_info_->dep_vec_ == rhs.tiled_info_->dep_vec_);
+            const auto& lhs_dep_map = tiled_dep_map();
+            const auto& rhs_dep_map = rhs.tiled_dep_map();
+
+            std::map<IndexVector, std::set<Index>> idx_vec_map;
+            for(const auto& [rhs_key, rhs_val] : rhs_dep_map) {
+                idx_vec_map[rhs_key].insert(
+                  rhs_val.tiled_info_->ref_indices_.begin(),
+                  rhs_val.tiled_info_->ref_indices_.end());
+            }
+
+            for(const auto& [lhs_key, lhs_val] : lhs_dep_map) {
+                idx_vec_map[lhs_key].insert(
+                  lhs_val.tiled_info_->ref_indices_.begin(),
+                  lhs_val.tiled_info_->ref_indices_.end());
+            }
+
+            std::map<IndexVector, TiledIndexSpace> new_dep;
+            for(const auto& [key, val] : idx_vec_map) {
+                new_dep[key] = TiledIndexSpace{
+                  root_tis(), IndexVector(val.begin(), val.end())};
+            }
+
+            res = TiledIndexSpace{root_tis(), tiled_info_->dep_vec_, new_dep};
+        } else {
+            std::set<Index> new_refs;
+            auto lhs_ref = ref_indices();
+            auto rhs_ref = rhs.ref_indices();
+            new_refs.insert(lhs_ref.begin(), lhs_ref.end());
+            new_refs.insert(rhs_ref.begin(), rhs_ref.end());
+
+            res = TiledIndexSpace{
+              root_tis(), IndexVector(new_refs.begin(), new_refs.end())};
+        }
+
+        return res;
+    }
+
     /**
      * @brief Gets the depth of TiledIndexSpace hierarchy
      *
@@ -613,6 +776,17 @@ public:
         } else {
             return common_ancestor((*tis.parent_tis_));
         }
+    }
+
+    bool empty() const { return (tiled_info_->simple_vec_.size() == 1); }
+
+    TiledIndexSpace root_tis() const {
+        if(!parent_tis_) { return (*this); }
+
+        auto tmp = parent_tis_;
+        while(tmp->parent_tis_) { tmp = tmp->parent_tis_; }
+
+        return (*tmp);
     }
 
     /**
@@ -1145,7 +1319,7 @@ protected:
       root_tiled_info_; /**< Weak pointer to the root TiledIndexSpaceInfo
                            object*/
     std::shared_ptr<TiledIndexSpace>
-      parent_tis_; /**< Weak pointer to the parent
+      parent_tis_; /**< Shared pointer to the parent
                     TiledIndexSpace object*/
     size_t hash_value_;
 
@@ -1265,7 +1439,7 @@ protected:
         EXPECTS(is_dependent() == rhs.is_dependent());
         EXPECTS(tiled_info_->dep_vec_ == rhs.tiled_info_->dep_vec_);
 
-        auto common_tis = parent_tis_->common_ancestor(*rhs.parent_tis_);
+        auto common_tis = parent_tis_->common_ancestor(rhs.root_tis());
 
         std::map<IndexVector, TiledIndexSpace> new_dep;
         const auto& lhs_dep = tiled_info_->tiled_dep_map_;
@@ -1479,13 +1653,20 @@ public:
         unpack(secondary_labels, il1, rest...);
         return {*this, secondary_labels};
     }
-    
-    /// @todo: Implement 
-    TiledIndexLabel operator()(Index id){
-      TiledIndexLabel res;
 
-      return res;
+    /// @todo: Implement
+    template <typename... Args>
+    TiledIndexLabel operator()(Index id, Args... rest) {
+        IndexVector idx_vec;
+        idx_vec.push_back(id);
+        internal::unfold_vec(idx_vec, rest...);
+        return tiled_index_space()(idx_vec).label();
     }
+
+    // template <typename... Args>
+    // void unfold_indices(IndexVector& vec, Args&&... args) {
+    //     (vec.push_back(std::forward<Args>(args)), ...);
+    // }
 
     /**
      * @brief Operator overload for () to construct dependent TiledIndexLabel

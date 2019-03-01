@@ -861,8 +861,6 @@ TEST_CASE("Fill tensors using lambda functions") {
     //print_tensor(A);
 }
 
-#endif
-
 TEST_CASE("SCF Example Implementation") {
 
     using tensor_type = Tensor<double>;
@@ -1018,72 +1016,51 @@ TEST_CASE("SCF Example Implementation") {
 
 #endif
 }
+#endif
 
-TEST_CASE("TiledIndexSpace common ancestor test") {
-    TiledIndexSpace root1{IndexSpace{range(10)}};
-    TiledIndexSpace root2{IndexSpace{range(10, 20)}};
 
-    TiledIndexSpace child1{root1, range(5)};
-    TiledIndexSpace child2{root1, range(3, 8)};
+void print_dependency(const TiledIndexSpace& tis) {
+    auto dep_map = tis.tiled_dep_map();
+    std::cerr << "Dependency Map" << std::endl;
+   
+    for(const auto& [key, subtis] : dep_map) {
+        std::cerr << "( ";
+        for(const auto& idx : key) {
+            std::cerr << idx << " ";
+        }
+        std::cerr << ") -> ";
 
-    TiledIndexSpace grandchild1{child1, range(2, 4)};
-    TiledIndexSpace grandchild2{child2, range(0, 3)};
+        std::cerr << "{ ";
+        for(const auto& idx : subtis.ref_indices()) {
+            std::cerr << idx << " ";
+        }
+        std::cerr << "}" << std::endl;
+    }
+}
 
-    auto common = grandchild2.common_ancestor(grandchild1);
-
-    REQUIRE(common == root1);
-
-    common = grandchild2.common_ancestor(child2);
-
-    REQUIRE(common == child2);
-
-    common = grandchild1.common_ancestor(grandchild2);
-
-    REQUIRE(common == root1);
-
-    common = child1.common_ancestor(child2);
-
-    REQUIRE(common == root1);
-
-    common = child1.common_ancestor(child1);
-    REQUIRE(common == child1);
-
-    common = grandchild1.common_ancestor(child1);
-    REQUIRE(common == child1);
-
-    common = root1.common_ancestor(child1);
-    REQUIRE(common == root1);
-
-    common = root1.common_ancestor(grandchild1);
-    REQUIRE(common == root1);
-
-    TiledIndexSpace empty{IndexSpace{{}}};
-    common = root1.common_ancestor(root2);
-    REQUIRE(common == empty);
-
-    auto intersection = root1.intersect_tis(child1);
-    REQUIRE(intersection == child1);
-
-    intersection = root1.intersect_tis(child2);
-    REQUIRE(intersection == child2);
-
-    intersection = child1.intersect_tis(child2);
-    REQUIRE(intersection == TiledIndexSpace{root1, range(3,5)});
-
-    intersection = grandchild1.intersect_tis(grandchild2);
-    REQUIRE(intersection == TiledIndexSpace{root1, range(3,4)});
-
+TEST_CASE("TiledIndexSpace operations test") {
 
     TiledIndexSpace AOs{IndexSpace{range(7)}};
+    TiledIndexSpace MOs{IndexSpace{range(4)}};
+
+    std::map<IndexVector, TiledIndexSpace> new_dep{
+        {
+            {{0, 0}, TiledIndexSpace{AOs, IndexVector{0,3,4}}},           
+            {{1, 5}, TiledIndexSpace{AOs, IndexVector{0,3,6}}},
+            {{2, 0}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
+            {{2, 5}, TiledIndexSpace{AOs, IndexVector{0,5}}}
+        }
+    };
+
 
     std::map<IndexVector, TiledIndexSpace> dep_nu_mu_q{
         {
             {{0}, TiledIndexSpace{AOs, IndexVector{0,3,4}}},           
-            {{2}, TiledIndexSpace{AOs, IndexVector{0,2}}},
-            {{3}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
-            {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
-            {{5}, TiledIndexSpace{AOs, IndexVector{1,2}}},
-            {{6}, TiledIndexSpace{AOs, IndexVector{2}}},
+            {{1}, TiledIndexSpace{AOs, IndexVector{0,3,6}}},
+            {{2}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
+            // {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
+            // {{5}, TiledIndexSpace{AOs, IndexVector{1,2}}},
+            // {{6}, TiledIndexSpace{AOs, IndexVector{2}}},
 
         }
     };
@@ -1111,18 +1088,76 @@ TEST_CASE("TiledIndexSpace common ancestor test") {
         }
     };
 
-    TiledIndexSpace tSubAO_AO_Q{AOs, {AOs}, dep_nu_mu_q};
+    TiledIndexSpace test_tis{AOs, {MOs, AOs}, new_dep};
+
+    TiledIndexSpace tSubAO_AO_Q{AOs, {MOs}, dep_nu_mu_q};
 
     TiledIndexSpace tSubAO_AO_D{AOs, {AOs}, dep_nu_mu_d};
 
     TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
 
-    auto intersect = tSubAO_AO_Q.intersect_tis(tSubAO_AO_D);
-    REQUIRE(intersect == tSubAO_AO_C);
+    // auto intersect = tSubAO_AO_Q.intersect_tis(tSubAO_AO_D);
+    // REQUIRE(intersect == tSubAO_AO_C);
+    std::cerr << "tSubAO_AO_Q ";
+    print_dependency(tSubAO_AO_Q);
     
+    auto inv_tSubAO_AO_Q = invert_tis(tSubAO_AO_Q);
+    std::cerr << "inv_tSubAO_AO_Q ";
+    print_dependency(inv_tSubAO_AO_Q);
+
+    auto comp_tSubAO_AO_Q_D = compose_tis(tSubAO_AO_Q, tSubAO_AO_D);
+    std::cerr << "tSubAO_AO_D ";
+    print_dependency(tSubAO_AO_D);
+    std::cerr << "comp_tSubAO_AO_Q_D ";
+    print_dependency(comp_tSubAO_AO_Q_D);
+
+    auto union_tSubAO_AO_D_C = union_tis(tSubAO_AO_D, tSubAO_AO_C);
+    std::cerr << "tSubAO_AO_D ";
+    print_dependency(tSubAO_AO_D);
+    std::cerr << "tSubAO_AO_C ";
+    print_dependency(tSubAO_AO_C);
+    std::cerr << "union_tSubAO_AO_D_C ";
+    print_dependency(union_tSubAO_AO_D_C);
+
+    auto project_test_tis = project_tis(test_tis, MOs);
+    std::cerr << "test_tis ";
+    print_dependency(test_tis);
+    std::cerr << "project_test_tis ";
+    print_dependency(project_test_tis);
+
+    auto project_MO_Q = project_tis(tSubAO_AO_Q, MOs);
+    std::cerr << "tSubAO_AO_Q ";
+    print_dependency(tSubAO_AO_Q);
+    std::cerr << "project_MO_Q " << std::endl;
+    std::cerr << "{ ";
+    for(const auto& idx : project_MO_Q.ref_indices()) {
+        std::cerr << idx << " ";
+    }
+    std::cerr << "}" << std::endl;
+
+    TiledIndexSpace tis_1{AOs, IndexVector{1,2,5}};
+    TiledIndexSpace tis_2{AOs, IndexVector{2,3,6}};
+
+    auto u_tis12 = union_tis(tis_1, tis_2);
+    std::cerr << "u_tis12 " << std::endl;
+    std::cerr << "{ ";
+    for(const auto& idx : u_tis12.ref_indices()) {
+        std::cerr << idx << " ";
+    }
+    std::cerr << "}" << std::endl;
+
+    TiledIndexLabel A = tSubAO_AO_Q.label();
+    for(Index i : MOs) {
+        std::cerr << "{ ";
+        for(const auto& idx : A(i).tiled_index_space().ref_indices()) {
+            std::cerr << idx << " ";
+        }
+        std::cerr << "}" << std::endl;
+        // Tensor<double> t1{};
+    }
 }
 
-#if 1
+#if 0
 using DepMap= std::map<IndexVector, TiledIndexSpace>;
 
 DepMap LMO_domain(){
@@ -1201,9 +1236,9 @@ TEST_CASE("Sample code for Local HF") {
 
     // TiledIndexSpace ao_domain{nu(i)}; //mo->ao
     // compose using labels
-    auto ao_domain = compose_tis(mu(i), nu_p(mu)); // nu(i)
+    auto ao_domain = compose_lbl(mu(i), nu_p(mu)); // nu(i) -> return label 
     // compose using TiledIndexSpaces
-    // auto ao_domain = compose_tis(lmo_domain, ao_int_screening);
+    // auto ao_domain = compose_tis(lmo_domain, ao_int_screening); // -> return tis
 
     //fitting domain
     // IndexSpace fb; //fitting basis. this is already available and used as input
@@ -1218,7 +1253,7 @@ TEST_CASE("Sample code for Local HF") {
 
     // TiledIndexSpace ao_to_lmo{i(mu)}; // 
     // invert using labels
-    auto ao_to_lmo= invert_tis(mu(i)); // i(mu)
+    auto ao_to_lmo= invert_lbl(mu(i)); // i(mu)
     // invert using TiledIndexSpaces
     // auto ao_to_lmo= invert_tis(lmo_domain);
 
@@ -1227,13 +1262,14 @@ TEST_CASE("Sample code for Local HF") {
 
 
     //Construct matrix of Coulomb metric, J, only compute for AB pairs which share an lmo
-    auto fit_to_lmo = invert_tis(A(i));               // i(A)
-    auto fit_to_ao  = compose_tis(fit_to_lmo, mu(i)); // mu(A)
-    auto fit_to_fit = compose_tis(fit_to_lmo, A(i));  // B(A)
+    auto fit_to_lmo = invert_lbl(A(i));               // i(A)
+   
+    auto fit_to_ao  = compose_lbl(fit_to_lmo, mu(i)); // mu(A)
+    auto B_p = compose_lbl(fit_to_lmo, A(i));  // B(A)
 
-    auto [B_p] = fit_to_fit.labels<1>("all");
+    // auto [B_p] = fit_to_fit.labels<1>("all");
 
-    // Input X (tensor with lamda function that calls libint)
+    // Input X (tensor with lambda function that calls libint)
     Tensor<T> X{A(i), mu(i), nu(i)}; // internally project on i ?
     // input J
     Tensor<T> J{A, B_p(A)};

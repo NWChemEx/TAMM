@@ -2,7 +2,7 @@
 #include <catch/catch.hpp>
 
 #include <iostream>
-#include <tamm/tiled_index_space.hpp>
+#include <tamm/tamm.hpp>
 
 using namespace tamm;
 
@@ -13,6 +13,26 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
     os << "]" << std::endl;
     return os;
 }
+
+void print_dependency(const TiledIndexSpace& tis) {
+    auto dep_map = tis.tiled_dep_map();
+    std::cerr << "Dependency Map" << std::endl;
+   
+    for(const auto& [key, subtis] : dep_map) {
+        std::cerr << "( ";
+        for(const auto& idx : key) {
+            std::cerr << idx << " ";
+        }
+        std::cerr << ") -> ";
+
+        std::cerr << "{ ";
+        for(const auto& idx : subtis.ref_indices()) {
+            std::cerr << idx << " ";
+        }
+        std::cerr << "}" << std::endl;
+    }
+}
+
 
 TEST_CASE("TiledIndexSpace construction") {
     IndexSpace is{{10, 11, 12, 13, 14, 15, 16, 17, 18, 19},
@@ -335,4 +355,106 @@ TEST_CASE("TiledIndexSpace construction with Spin attributes") {
 
     }
     
+}
+
+TEST_CASE("TiledIndexSpace operations") {
+
+    TiledIndexSpace AOs{IndexSpace{range(7)}};
+    TiledIndexSpace MOs{IndexSpace{range(4)}};
+
+    std::map<IndexVector, TiledIndexSpace> new_dep{
+        {
+            {{0, 0}, TiledIndexSpace{AOs, IndexVector{0,3,4}}},           
+            {{1, 5}, TiledIndexSpace{AOs, IndexVector{0,3,6}}},
+            {{2, 0}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
+            {{2, 5}, TiledIndexSpace{AOs, IndexVector{0,5}}}
+        }
+    };
+
+    std::map<IndexVector, TiledIndexSpace> dep_nu_mu_q{
+        {
+            {{0}, TiledIndexSpace{AOs, IndexVector{0,3,4}}},           
+            {{1}, TiledIndexSpace{AOs, IndexVector{0,3,6}}},
+            {{2}, TiledIndexSpace{AOs, IndexVector{1,3,5}}}
+        }
+    };
+
+    std::map<IndexVector, TiledIndexSpace> dep_nu_mu_d{
+        {
+            {{0}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
+            {{1}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
+            {{2}, TiledIndexSpace{AOs, IndexVector{0,2,4}}},
+            {{3}, TiledIndexSpace{AOs, IndexVector{1,6}}},
+            {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
+            // {{5}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
+            {{6}, TiledIndexSpace{AOs, IndexVector{0,1,2}}}
+        }
+    };
+
+    std::map<IndexVector, TiledIndexSpace> dep_nu_mu_c{
+        {
+            {{0}, TiledIndexSpace{AOs, IndexVector{3}}},
+            {{2}, TiledIndexSpace{AOs, IndexVector{0,2}}},
+            {{3}, TiledIndexSpace{AOs, IndexVector{1}}},
+            {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
+            {{6}, TiledIndexSpace{AOs, IndexVector{2}}}
+        }
+    };
+
+    TiledIndexSpace test_tis{AOs, {MOs, AOs}, new_dep};
+
+    TiledIndexSpace tSubAO_AO_Q{AOs, {MOs}, dep_nu_mu_q};
+
+    TiledIndexSpace tSubAO_AO_D{AOs, {AOs}, dep_nu_mu_d};
+
+    TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
+
+    std::cerr << "tSubAO_AO_Q ";
+    print_dependency(tSubAO_AO_Q);
+    
+    auto inv_tSubAO_AO_Q = invert_tis(tSubAO_AO_Q);
+    std::cerr << "inv_tSubAO_AO_Q ";
+    print_dependency(inv_tSubAO_AO_Q);
+
+    auto comp_tSubAO_AO_Q_D = compose_tis(tSubAO_AO_Q, tSubAO_AO_D);
+    std::cerr << "tSubAO_AO_D ";
+    print_dependency(tSubAO_AO_D);
+    std::cerr << "comp_tSubAO_AO_Q_D ";
+    print_dependency(comp_tSubAO_AO_Q_D);
+
+    auto union_tSubAO_AO_D_C = union_tis(tSubAO_AO_D, tSubAO_AO_C);
+    std::cerr << "tSubAO_AO_D ";
+    print_dependency(tSubAO_AO_D);
+    std::cerr << "tSubAO_AO_C ";
+    print_dependency(tSubAO_AO_C);
+    std::cerr << "union_tSubAO_AO_D_C ";
+    print_dependency(union_tSubAO_AO_D_C);
+
+    auto project_test_tis = project_tis(test_tis, MOs);
+    std::cerr << "test_tis ";
+    print_dependency(test_tis);
+    std::cerr << "project_test_tis ";
+    print_dependency(project_test_tis);
+
+    auto project_MO_Q = project_tis(tSubAO_AO_Q, MOs);
+    std::cerr << "tSubAO_AO_Q ";
+    print_dependency(tSubAO_AO_Q);
+    std::cerr << "project_MO_Q " << std::endl;
+    std::cerr << "{ ";
+    for(const auto& idx : project_MO_Q.ref_indices()) {
+        std::cerr << idx << " ";
+    }
+    std::cerr << "}" << std::endl;
+
+    TiledIndexSpace tis_1{AOs, IndexVector{1,2,5}};
+    TiledIndexSpace tis_2{AOs, IndexVector{2,3,6}};
+
+    auto u_tis12 = union_tis(tis_1, tis_2);
+    std::cerr << "u_tis12 " << std::endl;
+    std::cerr << "{ ";
+    for(const auto& idx : u_tis12.ref_indices()) {
+        std::cerr << idx << " ";
+    }
+    std::cerr << "}" << std::endl;
+
 }

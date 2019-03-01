@@ -165,6 +165,15 @@ using SpinMask = std::vector<SpinPosition>;
 // const Spin beta{2};
 // }; // namespace SpinType
 
+namespace internal {
+    template<typename T, typename... Args>
+    void unfold_vec(std::vector<T>& v, Args&&... args) {
+        static_assert((std::is_constructible_v<T, Args&&> && ...));
+        (v.push_back(std::forward<Args>(args)), ...);
+    }
+} // namespace internal
+
+
 } // namespace tamm
 
 #endif // TAMM_TYPES_HPP_

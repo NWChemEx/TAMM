@@ -1035,63 +1035,19 @@ void print_dependency(const TiledIndexSpace& tis) {
     }
 }
 
-TEST_CASE("TiledIndexSpace common ancestor test") {
-    TiledIndexSpace root1{IndexSpace{range(10)}};
-    TiledIndexSpace root2{IndexSpace{range(10, 20)}};
-
-    TiledIndexSpace child1{root1, range(5)};
-    TiledIndexSpace child2{root1, range(3, 8)};
-
-    TiledIndexSpace grandchild1{child1, range(2, 4)};
-    TiledIndexSpace grandchild2{child2, range(0, 3)};
-
-    auto common = grandchild2.common_ancestor(grandchild1);
-
-    REQUIRE(common == root1);
-
-    common = grandchild2.common_ancestor(child2);
-
-    REQUIRE(common == child2);
-
-    common = grandchild1.common_ancestor(grandchild2);
-
-    REQUIRE(common == root1);
-
-    common = child1.common_ancestor(child2);
-
-    REQUIRE(common == root1);
-
-    common = child1.common_ancestor(child1);
-    REQUIRE(common == child1);
-
-    common = grandchild1.common_ancestor(child1);
-    REQUIRE(common == child1);
-
-    common = root1.common_ancestor(child1);
-    REQUIRE(common == root1);
-
-    common = root1.common_ancestor(grandchild1);
-    REQUIRE(common == root1);
-
-    TiledIndexSpace empty{IndexSpace{{}}};
-    common = root1.common_ancestor(root2);
-    REQUIRE(common == empty);
-
-    auto intersection = root1.intersect_tis(child1);
-    REQUIRE(intersection == child1);
-
-    intersection = root1.intersect_tis(child2);
-    REQUIRE(intersection == child2);
-
-    intersection = child1.intersect_tis(child2);
-    REQUIRE(intersection == TiledIndexSpace{root1, range(3,5)});
-
-    intersection = grandchild1.intersect_tis(grandchild2);
-    REQUIRE(intersection == TiledIndexSpace{root1, range(3,4)});
-
+TEST_CASE("TiledIndexSpace operations test") {
 
     TiledIndexSpace AOs{IndexSpace{range(7)}};
     TiledIndexSpace MOs{IndexSpace{range(4)}};
+
+    std::map<IndexVector, TiledIndexSpace> new_dep{
+        {
+            {{0, 0}, TiledIndexSpace{AOs, IndexVector{0,3,4}}},           
+            {{1, 5}, TiledIndexSpace{AOs, IndexVector{0,3,6}}},
+            {{2, 0}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
+            {{2, 5}, TiledIndexSpace{AOs, IndexVector{0,5}}}
+        }
+    };
 
 
     std::map<IndexVector, TiledIndexSpace> dep_nu_mu_q{
@@ -1129,11 +1085,13 @@ TEST_CASE("TiledIndexSpace common ancestor test") {
         }
     };
 
+    TiledIndexSpace test_tis{AOs, {MOs, AOs}, new_dep};
+
     TiledIndexSpace tSubAO_AO_Q{AOs, {MOs}, dep_nu_mu_q};
 
     TiledIndexSpace tSubAO_AO_D{AOs, {AOs}, dep_nu_mu_d};
 
-    // TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
+    TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
 
     // auto intersect = tSubAO_AO_Q.intersect_tis(tSubAO_AO_D);
     // REQUIRE(intersect == tSubAO_AO_C);
@@ -1149,7 +1107,51 @@ TEST_CASE("TiledIndexSpace common ancestor test") {
     print_dependency(tSubAO_AO_D);
     std::cerr << "comp_tSubAO_AO_Q_D ";
     print_dependency(comp_tSubAO_AO_Q_D);
-    
+
+    auto union_tSubAO_AO_D_C = union_tis(tSubAO_AO_D, tSubAO_AO_C);
+    std::cerr << "tSubAO_AO_D ";
+    print_dependency(tSubAO_AO_D);
+    std::cerr << "tSubAO_AO_C ";
+    print_dependency(tSubAO_AO_C);
+    std::cerr << "union_tSubAO_AO_D_C ";
+    print_dependency(union_tSubAO_AO_D_C);
+
+    auto project_test_tis = project_tis(test_tis, MOs);
+    std::cerr << "test_tis ";
+    print_dependency(test_tis);
+    std::cerr << "project_test_tis ";
+    print_dependency(project_test_tis);
+
+    auto project_MO_Q = project_tis(tSubAO_AO_Q, MOs);
+    std::cerr << "tSubAO_AO_Q ";
+    print_dependency(tSubAO_AO_Q);
+    std::cerr << "project_MO_Q " << std::endl;
+    std::cerr << "{ ";
+    for(const auto& idx : project_MO_Q.ref_indices()) {
+        std::cerr << idx << " ";
+    }
+    std::cerr << "}" << std::endl;
+
+    TiledIndexSpace tis_1{AOs, IndexVector{1,2,5}};
+    TiledIndexSpace tis_2{AOs, IndexVector{2,3,6}};
+
+    auto u_tis12 = union_tis(tis_1, tis_2);
+    std::cerr << "u_tis12 " << std::endl;
+    std::cerr << "{ ";
+    for(const auto& idx : u_tis12.ref_indices()) {
+        std::cerr << idx << " ";
+    }
+    std::cerr << "}" << std::endl;
+
+    TiledIndexLabel A = tSubAO_AO_Q.label();
+    for(Index i : MOs) {
+        std::cerr << "{ ";
+        for(const auto& idx : A(i).tiled_index_space().ref_indices()) {
+            std::cerr << idx << " ";
+        }
+        std::cerr << "}" << std::endl;
+        // Tensor<double> t1{};
+    }
 }
 
 #if 0

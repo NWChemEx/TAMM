@@ -1655,11 +1655,18 @@ public:
     }
 
     /// @todo: Implement
-    TiledIndexLabel operator()(Index id) {
-        TiledIndexLabel res;
-
-        return res;
+    template <typename... Args>
+    TiledIndexLabel operator()(Index id, Args... rest) {
+        IndexVector idx_vec;
+        idx_vec.push_back(id);
+        internal::unfold_vec(idx_vec, rest...);
+        return tiled_index_space()(idx_vec).label();
     }
+
+    // template <typename... Args>
+    // void unfold_indices(IndexVector& vec, Args&&... args) {
+    //     (vec.push_back(std::forward<Args>(args)), ...);
+    // }
 
     /**
      * @brief Operator overload for () to construct dependent TiledIndexLabel

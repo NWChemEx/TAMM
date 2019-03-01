@@ -1035,7 +1035,7 @@ void print_dependency(const TiledIndexSpace& tis) {
     }
 }
 
-TEST_CASE("TiledIndexSpace common ancestor test") {
+TEST_CASE("TiledIndexSpace operations test") {
 
     TiledIndexSpace AOs{IndexSpace{range(7)}};
     TiledIndexSpace MOs{IndexSpace{range(4)}};
@@ -1142,6 +1142,16 @@ TEST_CASE("TiledIndexSpace common ancestor test") {
         std::cerr << idx << " ";
     }
     std::cerr << "}" << std::endl;
+
+    TiledIndexLabel A = tSubAO_AO_Q.label();
+    for(Index i : MOs) {
+        std::cerr << "{ ";
+        for(const auto& idx : A(i).tiled_index_space().ref_indices()) {
+            std::cerr << idx << " ";
+        }
+        std::cerr << "}" << std::endl;
+        // Tensor<double> t1{};
+    }
 }
 
 #if 0

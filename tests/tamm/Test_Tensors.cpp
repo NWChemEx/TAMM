@@ -13,24 +13,23 @@ using namespace tamm;
 using T = double;
 
 void lambda_function(const IndexVector& blockid, span<T> buff) {
-    for(size_t i = 0; i < static_cast<size_t>(buff.size()); i++) { buff[i] = 42; }
+    for(size_t i = 0; i < static_cast<size_t>(buff.size()); i++) {
+        buff[i] = 42;
+    }
 }
 
 template<size_t last_idx>
-void l_func(const IndexVector& blockid, span<T> buf){
-    if(blockid[0] == last_idx || blockid[1] == last_idx){
-        for(auto i = 0U; i < buf.size(); i++) buf[i] = -1; 
-    }
-    else {
-        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+void l_func(const IndexVector& blockid, span<T> buf) {
+    if(blockid[0] == last_idx || blockid[1] == last_idx) {
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = -1;
+    } else {
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0;
     }
 
-    if(blockid[0] == last_idx && blockid[1] == last_idx){
-        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+    if(blockid[0] == last_idx && blockid[1] == last_idx) {
+        for(auto i = 0U; i < buf.size(); i++) buf[i] = 0;
     }
 };
-
-
 
 template<typename T>
 void check_value(LabeledTensor<T> lt, T val) {
@@ -858,7 +857,7 @@ TEST_CASE("Fill tensors using lambda functions") {
     // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
     //print_tensor(A);
 }
-#endif
+
 TEST_CASE("SCF Example Implementation") {
 
     using tensor_type = Tensor<double>;
@@ -917,7 +916,9 @@ TEST_CASE("SCF Example Implementation") {
 
     TiledIndexSpace tSubAO_AO_D{AOs, {AOs}, dep_nu_mu_d};
 
-    TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
+    // TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
+    auto tSubAO_AO_C = tSubAO_AO_Q.intersect_tis(tSubAO_AO_D);
+    // auto tSubAO_AO_C = tSubAO_AO_D.intersect_tis(tSubAO_AO_Q);
 
     auto X = Aux.label("all",0);
     auto mu = AOs.label("all",1);
@@ -935,11 +936,11 @@ TEST_CASE("SCF Example Implementation") {
     Q.allocate(&ec);
     D.allocate(&ec);
     C.allocate(&ec);
-
-    sch
-        (D() = 42.0)
-        (Q() = 2.0)
-        (C(X, mu, nu_for_C(mu)) = Q(X, mu, nu_for_C(mu)) * D(mu, nu_for_C(mu)))
+    
+    sch  
+    (D() = 42.0)
+    (Q() = 2.0)
+    (C(X, mu, nu_for_C(mu)) = Q(X, mu, nu_for_C(mu)) * D(mu, nu_for_C(mu)))
     .execute();
 
     std::cerr << "Tensor C:" << std::endl;
@@ -1011,9 +1012,156 @@ TEST_CASE("SCF Example Implementation") {
     // print_tensor(CI);
 
 #endif
+}
+#endif
 
+
+#if 0
+using DepMap= std::map<IndexVector, TiledIndexSpace>;
+
+DepMap LMO_domain(){
+    DepMap res;
+    // DepMap computation
+    return res;
 }
 
+DepMap AO_domain(){
+    DepMap res;
+    // DepMap computation
+    return res;
+}
+
+DepMap fitting_domain(){
+    DepMap res;
+    // DepMap computation
+    return res;
+}
+
+Tensor<T> cholesky(const Tensor<T>& tens){
+    Tensor<T> res;
+
+    return res;
+}
+
+TEST_CASE("Sample code for Local HF") {
+    // TAMM Scheduler construction
+    auto ec = tamm::make_execution_context();
+    Scheduler sch{ec};
+
+    // Dummy TiledIndexSpaces
+    TiledIndexSpace TAO{IndexSpace{range(10)}};
+    TiledIndexSpace TMO{IndexSpace{range(5)}};
+
+    // Local SCF TAMM Pseudo-code
+    
+    // Input dense C tensor
+    Tensor<T> LMO{TAO, TMO};  //dense
+
+    //LMO_domain(): chooses AOs i -> mu 
+    auto lmo_dep_map = LMO_domain();
+
+    // TiledIndexSpace lmo_domain{mu(i)}; //construct using explicit loop
+    TiledIndexSpace lmo_domain{TAO, {TMO}, lmo_dep_map}; //construct using explicit loop
+    
+    //LMO_renormalize() {
+        auto [i] = TMO.labels<1>("all");
+        auto [mu, nu] = lmo_domain.labels<2>("all");
+        auto [mu_p] = TAO.labels<1>("all");
+
+        Tensor<T> S_A{i, mu(i), nu(i)};
+        Tensor<T> S_v{i, mu_p, mu(i)};
+        Tensor<T> C{i, mu_p};   //column of LMO
+
+        //solved using Eigen
+
+        // Sparsified LMO 
+        Tensor<T> LMO_renorm{mu(i), i}; //sparsified LMO
+        
+        sch
+        .allocate(LMO_renorm)
+            (LMO_renorm(mu(i), i) = LMO(mu(i), i))
+        .execute();
+    // }
+
+
+    //AO_domain(): constructs ao->ao index space
+    auto ao_screen_dep_map = AO_domain();
+
+    // TiledIndexSpace ao_int_screening{nu(mu)}; //ao->ao
+    TiledIndexSpace ao_int_screening{TAO, {TAO}, ao_screen_dep_map};
+
+    // //chain_maps(): compose lmo->ao and ao->ao
+    auto [nu_p] = ao_int_screening.labels<1>("all");
+
+    // TiledIndexSpace ao_domain{nu(i)}; //mo->ao
+    // compose using labels
+    auto ao_domain = compose_lbl(mu(i), nu_p(mu)); // nu(i) -> return label 
+    // compose using TiledIndexSpaces
+    // auto ao_domain = compose_tis(lmo_domain, ao_int_screening); // -> return tis
+
+    //fitting domain
+    // IndexSpace fb; //fitting basis. this is already available and used as input
+
+    auto lmo_to_fit_dep_map = fitting_domain();
+    lmo_to_fit_dep_map.insert({IndexVector{0}, TiledIndexSpace{TAO, IndexVector{0,1,2}}});
+
+    // Output:
+    // TiledIndexSpace lmo_to_fit{A(i)}; // mo-> fitting basis
+    TiledIndexSpace lmo_to_fit{TAO, {TMO}, lmo_to_fit_dep_map}; //mo->fitting basis
+
+    //continuing with build_K. first contraction “transformation step”
+
+    // TiledIndexSpace ao_to_lmo{i(mu)}; // 
+    // invert using labels
+    auto ao_to_lmo= invert_lbl(mu(i)); // i(mu)
+    // invert using TiledIndexSpaces
+    // auto ao_to_lmo= invert_tis(lmo_domain);
+
+    // IndexLabel i(mu);//ao_to_lmo
+    auto [A, B] = lmo_to_fit.labels<2>("all");
+
+
+    //Construct matrix of Coulomb metric, J, only compute for AB pairs which share an lmo
+    auto fit_to_lmo = invert_lbl(A(i));               // i(A)
+   
+    auto fit_to_ao  = compose_lbl(fit_to_lmo, mu(i)); // mu(A)
+    auto B_p = compose_lbl(fit_to_lmo, A(i));  // B(A)
+
+    // auto [B_p] = fit_to_fit.labels<1>("all");
+
+    // Input X (tensor with lambda function that calls libint)
+    Tensor<T> X{A(i), mu(i), nu(i)}; // internally project on i ?
+    // input J
+    Tensor<T> J{A, B_p(A)};
+
+    // results
+    Tensor<T> Q{A(i), mu(i), i};
+    Tensor<T> QB{B(i), mu(i), i};
+    Tensor<T> K{mu(i), nu(i)};
+
+    sch.allocate(Q, QB, K);
+    // foreach Index i in TMO:
+    for(Index i_val : TMO){
+        Tensor<T> J_i{A(i_val), B(i_val)};
+        Tensor<T> G_i_inv{A(i_val), B(i_val)};
+        sch
+        .allocate(J_i, G_i_inv)         // Q: how to allocate within a loop?
+            (Q(A(i_val), mu(i_val), i_val) = X(A(i_val), mu(i_val), nu(i_val)) * C(nu(i_val), i_val))
+            (J_i(A(i_val), B(i_val)) = J(A(i_val), B(i_val))) 
+        .execute();
+
+        G_i_inv = invert_tensor(cholesky(J_i));
+
+        sch
+            (QB(B(i_val), mu(i_val), i_val) += G_i_inv(B(i_val), A(i_val)) * Q(A(i_val), mu(i_val), i_val))
+            // (K(mu, nu(mu)) += QB(A(i), mu(i), i) * QB(A(i), nu(i), i)) //nu(mu) is a dependent representation of the sparsity
+            (K(mu(i_val), nu(i_val)) += QB(A(i_val), mu(i_val), i_val) * QB(A(i_val), nu(i_val), i_val))
+        .deallocate(J_i, G_i_inv)
+        .execute();
+    }
+
+}
+#endif
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);

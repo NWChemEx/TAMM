@@ -1050,7 +1050,7 @@ TEST_CASE("Sample code for Local HF") {
 
     // Dummy TiledIndexSpaces
     TiledIndexSpace TAO{IndexSpace{range(10)}};
-    TiledIndexSpace TMO{IndexSpace{range(10)}};
+    TiledIndexSpace TMO{IndexSpace{range(5)}};
 
     // Local SCF TAMM Pseudo-code
     
@@ -1068,7 +1068,7 @@ TEST_CASE("Sample code for Local HF") {
         auto [mu, nu] = lmo_domain.labels<2>("all");
         auto [mu_p] = TAO.labels<1>("all");
 
-        Tensor<T> S_A{i, mu(i), mu(i)};
+        Tensor<T> S_A{i, mu(i), nu(i)};
         Tensor<T> S_v{i, mu_p, mu(i)};
         Tensor<T> C{i, mu_p};   //column of LMO
 
@@ -1103,6 +1103,7 @@ TEST_CASE("Sample code for Local HF") {
     // IndexSpace fb; //fitting basis. this is already available and used as input
 
     auto lmo_to_fit_dep_map = fitting_domain();
+    lmo_to_fit_dep_map.insert({IndexVector{0}, TiledIndexSpace{TAO, IndexVector{0,1,2}}});
 
     // Output:
     // TiledIndexSpace lmo_to_fit{A(i)}; // mo-> fitting basis

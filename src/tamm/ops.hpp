@@ -805,7 +805,7 @@ public:
                       // Check if lhs is non-zero
                       if(!ltensor.is_non_zero(translated_lblockid) ||
                          !rtensor.is_non_zero(translated_rblockid)) {
-                          return;
+                          continue;
                       }
 
                       rc.submitTask(
@@ -871,7 +871,7 @@ public:
                       // Check if lhs is non-zero
                       if(!ltensor.is_non_zero(translated_lblockid) ||
                          !rtensor.is_non_zero(translated_rblockid)) {
-                          return;
+                          continue;
                       }
                       rc.submitTask(
                         [=](RuntimeEngine::RuntimeContext rc_recursive) {
@@ -1147,7 +1147,7 @@ public:
             const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
             if(!ctensor.is_non_zero(translated_cblockid) || !atensor.is_non_zero(translated_ablockid) ||
                     !btensor.is_non_zero(translated_bblockid)) 
-                return;
+                continue;
 
             rc.submitTask([=](RuntimeEngine::RuntimeContext rc_recursive){
                     BlockBuffer cbuf = rc_recursive.get_buf_tmp(ctensor, translated_cblockid);

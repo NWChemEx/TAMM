@@ -147,7 +147,7 @@ class MemoryManagerGA : public MemoryManager {
    *
    * @todo Use a possibly more efficient fence
    */
-  void fence(MemoryRegion& mr) {
+  void fence(MemoryRegion& mr) override {
     ARMCI_AllFence();
   }
 

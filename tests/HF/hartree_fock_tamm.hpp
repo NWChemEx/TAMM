@@ -250,7 +250,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
           // "map" buffer to a const Eigen Matrix, and copy it to the
           // corresponding blocks of the result
           Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
-          Eigen::Map<Matrix>(tbuf.data(),n1,n2) = buf_mat;
+          Eigen::Map<Matrix>(&tbuf[0],n1,n2) = buf_mat;
           // tensor1e.put(blockid, tbuf);
 
           auto curshelloffset_i = 0U;
@@ -359,11 +359,11 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       tamm_to_eigen_tensor(H1, H);
     GA_Sync();
     std::vector<TensorType> Hbufv(N*N);
-    TensorType *Hbuf = Hbufv.data();
+    TensorType *Hbuf = &Hbufv[0];//Hbufv.data();
     Eigen::Map<Matrix>(Hbuf,N,N) = H;  
     GA_Brdcst(Hbuf,N*N*sizeof(TensorType),0);
     H = Eigen::Map<Matrix>(Hbuf,N,N);
-    Hbufv.clear();
+    Hbufv.clear(); Hbufv.shrink_to_fit();
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
@@ -376,11 +376,11 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       tamm_to_eigen_tensor(S1, S);
     GA_Sync();
     std::vector<TensorType> Sbufv(N*N);
-    TensorType *Sbuf = Sbufv.data();
+    TensorType *Sbuf = &Sbufv[0];
     Eigen::Map<Matrix>(Sbuf,N,N) = S;  
     GA_Brdcst(Sbuf,N*N*sizeof(TensorType),0);
     S = Eigen::Map<Matrix>(Sbuf,N,N);
-    Sbufv.clear();
+    Sbufv.clear(); Sbufv.shrink_to_fit();
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
@@ -469,7 +469,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
   
   else if (restart){
     std::vector<TensorType> Dbuf(N*N);
-    TensorType *Dbufp = Dbuf.data();
+    TensorType *Dbufp = &Dbuf[0];//.data();
     if(rank==0) 
     {
       cout << "Reading orbitals from file... ";
@@ -477,7 +477,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         "." + scf_options.basis + ".orbitals";
 
       std::vector<TensorType> Cbuf(N*N);
-      TensorType *Hbuf = Cbuf.data();
+      TensorType *Hbuf = &Cbuf[0];//.data();
       std::ifstream in(orbitalsfile, std::ios::in | std::ios::binary);
       in.read((char *) Hbuf, sizeof(TensorType)*N*N);
       C = Eigen::Map<Matrix>(Hbuf,N,N);
@@ -490,7 +490,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     }
     GA_Brdcst(Dbufp,N*N*sizeof(TensorType),0);
     D = Eigen::Map<Matrix>(Dbufp,N,N);
-    Dbuf.clear();
+    //Dbuf.clear();
     GA_Sync();
 
   }
@@ -673,11 +673,11 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     G.resize(0,0);
     GA_Sync();
     std::vector<TensorType> Fbufv(N*N);
-    TensorType *Fbuf = Fbufv.data();
+    TensorType *Fbuf = &Fbufv[0]; //.data();
     Eigen::Map<Matrix>(Fbuf,N,N) = Ft;  
     GA_Brdcst(Fbuf,N*N*sizeof(TensorType),0);
     Ft = Eigen::Map<Matrix>(Fbuf,N,N);
-    Fbufv.clear();
+    Fbufv.clear(); Fbufv.shrink_to_fit();
     Tensor<TensorType>::deallocate(F1tmp1);
 
     ig2 = std::chrono::high_resolution_clock::now();
@@ -1207,7 +1207,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
           engine.compute(dfbs[s1], dfbs[s2]);
           if (buf2[0] == nullptr) continue;
           Eigen::Map<const Matrix> buf_mat(buf2[0], n1, n2);
-          Eigen::Map<Matrix>(tbuf.data(),n1,n2) = buf_mat;
+          Eigen::Map<Matrix>(&tbuf[0],n1,n2) = buf_mat;
 
           auto curshelloffset_i = 0U;
           auto curshelloffset_j = 0U;

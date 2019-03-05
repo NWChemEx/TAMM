@@ -396,7 +396,7 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> cholVpr, 
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
     Tensor<T>::allocate(&ec,d_a2,d_v2);
 
-    Scheduler{ec}(d_a2(p, r, q, s) = cholVpr(cindex, p, r) * cholVpr(cindex, q, s)).execute();
+    Scheduler{ec}(d_a2(p, r, q, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex)).execute();
 
     Scheduler{ec}(d_v2(p, q, r, s) = d_a2(p,r,q,s))
                   (d_v2(p, q, r, s) -= d_a2(p,s,q,r))

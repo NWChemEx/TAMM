@@ -46,15 +46,13 @@ void print_tensor(const Tensor<T>& tensor) {
 }
 
 template<typename T>
-void print_tensor_all(Tensor<T> &t){
-    for (auto it: t.loop_nest())
-    {
+void print_tensor_all(Tensor<T>& t) {
+    for(auto it : t.loop_nest()) {
         TAMM_SIZE size = t.block_size(it);
         std::vector<T> buf(size);
         t.get(it, buf);
         std::cout << "block" << it;
-        for (TAMM_SIZE i = 0; i < size;i++)
-         std::cout << buf[i] << std::endl;
+        for(TAMM_SIZE i = 0; i < size; i++) std::cout << buf[i] << std::endl;
     }
 }
 
@@ -75,7 +73,6 @@ T get_scalar(Tensor<T>& tensor) {
     tensor.get({}, {&scalar, 1});
     return scalar;
 }
-
 
 /**
  * @brief Update input LabeledTensor object with a lambda function
@@ -132,7 +129,7 @@ void update_tensor_general(LabeledTensor<T> labeled_tensor, Func lambda) {
  * @todo there is possible memory leak as distribution will not be unallocated
  * when Execution context is destructed
  */
-ExecutionContext make_execution_context() {
+inline ExecutionContext make_execution_context() {
     ProcGroup pg{GA_MPI_Comm()};
     auto* pMM             = MemoryManagerLocal::create_coll(pg);
     Distribution_NW* dist = new Distribution_NW();
@@ -141,52 +138,49 @@ ExecutionContext make_execution_context() {
 
 /**
  * @brief method for getting the sum of the values on the diagonal
- * 
+ *
  * @returns sum of the diagonal values
- * @warning only defined for NxN tensors 
+ * @warning only defined for NxN tensors
  */
 template<typename TensorType>
-TensorType trace(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
-
-    TensorType lsumd=0;
-    TensorType gsumd=0;
+TensorType trace(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+    TensorType lsumd = 0;
+    TensorType gsumd = 0;
 
     Tensor<TensorType> tensor = ltensor.tensor();
     // Defined only for NxN tensors
     EXPECTS(tensor.num_modes() == 2);
 
     auto gettrace = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
+        const IndexVector blockid = internal::translate_blockid(bid, ltensor);
         if(blockid[0] == blockid[1]) {
-                const TAMM_SIZE size = tensor.block_size(blockid);
-                std::vector<TensorType> buf(size);
-                tensor.get(blockid, buf);
-                auto block_dims   = tensor.block_dims(blockid);
-                auto block_offset = tensor.block_offsets(blockid);
-                auto dim          = block_dims[0];
-                auto offset       = block_offset[0];
-                size_t i          = 0;
-                for(auto p = offset; p < offset + dim; p++, i++) {
-                    lsumd += buf[i * dim + i];
-                }
+            const TAMM_SIZE size = tensor.block_size(blockid);
+            std::vector<TensorType> buf(size);
+            tensor.get(blockid, buf);
+            auto block_dims   = tensor.block_dims(blockid);
+            auto block_offset = tensor.block_offsets(blockid);
+            auto dim          = block_dims[0];
+            auto offset       = block_offset[0];
+            size_t i          = 0;
+            for(auto p = offset; p < offset + dim; p++, i++) {
+                lsumd += buf[i * dim + i];
             }
+        }
     };
     block_for(ec, ltensor, gettrace);
     MPI_Allreduce(&lsumd, &gsumd, 1, MPI_DOUBLE, MPI_SUM, ec.pg().comm());
     return gsumd;
 }
 
-
 /**
  * @brief method for getting the diagonal values in a Tensor
- * 
+ *
  * @returns the diagonal values
- * @warning only defined for NxN tensors 
+ * @warning only defined for NxN tensors
  */
 template<typename TensorType>
-std::vector<TensorType> diagonal(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
-
+std::vector<TensorType> diagonal(ExecutionContext& ec,
+                                 LabeledTensor<TensorType> ltensor) {
     Tensor<TensorType> tensor = ltensor.tensor();
     // Defined only for NxN tensors
     EXPECTS(tensor.num_modes() == 2);
@@ -195,189 +189,151 @@ std::vector<TensorType> diagonal(ExecutionContext &ec, LabeledTensor<TensorType>
     std::vector<TensorType> dest;
 
     for(const IndexVector& bid : loop_nest) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
+        const IndexVector blockid = internal::translate_blockid(bid, ltensor);
 
         if(blockid[0] == blockid[1]) {
-                const TAMM_SIZE size = tensor.block_size(blockid);
-                std::vector<TensorType> buf(size);
-                tensor.get(blockid, buf);
-                auto block_dims   = tensor.block_dims(blockid);
-                auto block_offset = tensor.block_offsets(blockid);
-                auto dim          = block_dims[0];
-                auto offset       = block_offset[0];
-                size_t i          = 0;
-                for(auto p = offset; p < offset + dim; p++, i++) {
-                    dest.push_back(buf[i * dim + i]);
-                }
+            const TAMM_SIZE size = tensor.block_size(blockid);
+            std::vector<TensorType> buf(size);
+            tensor.get(blockid, buf);
+            auto block_dims   = tensor.block_dims(blockid);
+            auto block_offset = tensor.block_offsets(blockid);
+            auto dim          = block_dims[0];
+            auto offset       = block_offset[0];
+            size_t i          = 0;
+            for(auto p = offset; p < offset + dim; p++, i++) {
+                dest.push_back(buf[i * dim + i]);
             }
+        }
     }
 
     return dest;
 }
 
+/**
+ * @brief applies a function elementwise to a tensor
+ *
+ * @tparam TensorType the type of the elements in the tensor
+ * @param ec Execution context used in the blockfor
+ * @param ltensor tensor to operate on
+ * @param func function to be applied to each element
+ */
 template<typename TensorType>
-void square(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
-
+void apply_ewise(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
+                 std::function<TensorType(TensorType)> func) {
     Tensor<TensorType> tensor = ltensor.tensor();
 
     auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
         std::vector<TensorType> dbuf(dsize);
         tensor.get(blockid, dbuf);
-        for(size_t c = 0; c < dsize; c++) 
-            dbuf[c] *= dbuf[c];
-        tensor.put(blockid,dbuf);
+        for(size_t c = 0; c < dsize; c++) dbuf[c] = func(dbuf[c]);
+        tensor.put(blockid, dbuf);
     };
     block_for(ec, ltensor, lambda);
-    
 }
 
-
+// Several convenience functions using apply_ewise
 template<typename TensorType>
-void log10(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
-
-    Tensor<TensorType> tensor = ltensor.tensor();
-
-    auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-        for(size_t c = 0; c < dsize; c++) 
-            dbuf[c] = std::log10(dbuf[c]);
-        tensor.put(blockid,dbuf);
+void square(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return a * a;
     };
-    block_for(ec, ltensor, lambda);
-    
+    apply_ewise(ec, ltensor, func);
 }
 
 template<typename TensorType>
-void log(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
-
-    Tensor<TensorType> tensor = ltensor.tensor();
-
-    auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-        for(size_t c = 0; c < dsize; c++) 
-            dbuf[c] = std::log(dbuf[c]);
-        tensor.put(blockid,dbuf);
+void log10(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return std::log10(a);
     };
-    block_for(ec, ltensor, lambda);
-    
+    apply_ewise(ec, ltensor, func);
 }
 
 template<typename TensorType>
-void inverse(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
-
-    Tensor<TensorType> tensor = ltensor.tensor();
-
-    auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-        for(size_t c = 0; c < dsize; c++) 
-            dbuf[c] = 1/dbuf[c];
-        tensor.put(blockid,dbuf);
+void log(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return std::log(a);
     };
-    block_for(ec, ltensor, lambda);
-    
+    apply_ewise(ec, ltensor, func);
 }
 
 template<typename TensorType>
-void pow(ExecutionContext &ec, LabeledTensor<TensorType> ltensor, TensorType alpha){
-
-    Tensor<TensorType> tensor = ltensor.tensor();
-
-    auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-        for(size_t c = 0; c < dsize; c++) 
-            dbuf[c] = std::pow(dbuf[c], alpha);
-        tensor.put(blockid,dbuf);
+void inverse(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return 1 / a;
     };
-    block_for(ec, ltensor, lambda);
-    
+    apply_ewise(ec, ltensor, func);
 }
 
 template<typename TensorType>
-void scale(ExecutionContext &ec, LabeledTensor<TensorType> ltensor, TensorType alpha){
-
-    Tensor<TensorType> tensor = ltensor.tensor();
-
-    auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-        for(size_t c = 0; c < dsize; c++) 
-            dbuf[c] = alpha * dbuf[c];
-        tensor.put(blockid,dbuf);
+void pow(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
+         TensorType alpha) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return std::pow(a, alpha);
     };
-    block_for(ec, ltensor, lambda);
-    
+    apply_ewise(ec, ltensor, func);
 }
 
 template<typename TensorType>
-TensorType norm(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
+void scale(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
+           TensorType alpha) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return alpha * a;
+    };
+    apply_ewise(ec, ltensor, func);
+}
 
-    TensorType lsumsq=0;
-    TensorType gsumsq=0;
+template<typename TensorType>
+void sqrt(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return std::sqrt(a);
+    };
+    apply_ewise(ec, ltensor, func);
+}
+
+template<typename TensorType>
+TensorType norm(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+    TensorType lsumsq         = 0;
+    TensorType gsumsq         = 0;
     Tensor<TensorType> tensor = ltensor.tensor();
 
     auto getnorm = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
         std::vector<TensorType> dbuf(dsize);
         tensor.get(blockid, dbuf);
-        for(auto val: dbuf) 
-            lsumsq += val * val;
-            
+        for(auto val : dbuf) lsumsq += val * val;
     };
     block_for(ec, ltensor, getnorm);
     MPI_Allreduce(&lsumsq, &gsumsq, 1, MPI_DOUBLE, MPI_SUM, ec.pg().comm());
     return std::sqrt(gsumsq);
 }
 
-
-//returns max_element, blockids, coordinates of max element in the block
+// returns max_element, blockids, coordinates of max element in the block
 template<typename TensorType>
-std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
+std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(
+  ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
     TensorType max = 0.0;
-    
+
     Tensor<TensorType> tensor = ltensor.tensor();
-    auto nmodes = tensor.num_modes();
-     //Works for only upto 6D tensors
+    auto nmodes               = tensor.num_modes();
+    // Works for only upto 6D tensors
     EXPECTS(tensor.num_modes() <= 6);
 
     IndexVector maxblockid(nmodes);
     std::vector<size_t> bfuv(nmodes);
-    std::vector<TensorType> lmax(2,0);
-    std::vector<TensorType> gmax(2,0);
+    std::vector<TensorType> lmax(2, 0);
+    std::vector<TensorType> gmax(2, 0);
 
     auto getmax = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
         std::vector<TensorType> dbuf(dsize);
         tensor.get(blockid, dbuf);
         auto block_dims   = tensor.block_dims(blockid);
         auto block_offset = tensor.block_offsets(blockid);
-       
+
         size_t c = 0;
 
         if(nmodes == 1) {
@@ -391,17 +347,15 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionCo
                 }
             }
         } else if(nmodes == 2) {
-                auto dimi = block_offset[0] + block_dims[0];
-                auto dimj = block_offset[1] + block_dims[1];
-            for(size_t i = block_offset[0]; i < dimi;
-                i++) {
-                for(size_t j = block_offset[1];
-                    j < dimj; j++, c++) {
+            auto dimi = block_offset[0] + block_dims[0];
+            auto dimj = block_offset[1] + block_dims[1];
+            for(size_t i = block_offset[0]; i < dimi; i++) {
+                for(size_t j = block_offset[1]; j < dimj; j++, c++) {
                     if(lmax[0] < dbuf[c]) {
                         lmax[0]    = dbuf[c];
                         lmax[1]    = GA_Nodeid();
-                        bfuv[0]    = i-block_offset[0];
-                        bfuv[1]    = j-block_offset[1];
+                        bfuv[0]    = i - block_offset[0];
+                        bfuv[1]    = j - block_offset[1];
                         maxblockid = {blockid[0], blockid[1]};
                     }
                 }
@@ -511,42 +465,42 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(ExecutionCo
                     }
                 }
             }
-        }              
+        }
     };
     block_for(ec, ltensor, getmax);
 
-    MPI_Allreduce(lmax.data(), gmax.data(), 1, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, ec.pg().comm());
-    MPI_Bcast(maxblockid.data(),2,MPI_UNSIGNED,gmax[1],ec.pg().comm());
-    MPI_Bcast(bfuv.data(),2,MPI_UNSIGNED_LONG,gmax[1],ec.pg().comm());
+    MPI_Allreduce(lmax.data(), gmax.data(), 1, MPI_2DOUBLE_PRECISION,
+                  MPI_MAXLOC, ec.pg().comm());
+    MPI_Bcast(maxblockid.data(), 2, MPI_UNSIGNED, gmax[1], ec.pg().comm());
+    MPI_Bcast(bfuv.data(), 2, MPI_UNSIGNED_LONG, gmax[1], ec.pg().comm());
 
     return std::make_tuple(gmax[0], maxblockid, bfuv);
 }
 
-
-//returns min_element, blockids, coordinates of min element in the block
+// returns min_element, blockids, coordinates of min element in the block
 template<typename TensorType>
-std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionContext &ec, LabeledTensor<TensorType> ltensor){
+std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(
+  ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
     TensorType min = 0.0;
 
     Tensor<TensorType> tensor = ltensor.tensor();
-    auto nmodes = tensor.num_modes();
-     //Works for only upto 6D tensors
+    auto nmodes               = tensor.num_modes();
+    // Works for only upto 6D tensors
     EXPECTS(tensor.num_modes() <= 6);
 
     IndexVector minblockid(nmodes);
     std::vector<size_t> bfuv(2);
-    std::vector<TensorType> lmin(2,0);
-    std::vector<TensorType> gmin(2,0);
+    std::vector<TensorType> lmin(2, 0);
+    std::vector<TensorType> gmin(2, 0);
 
     auto getmin = [&](const IndexVector& bid) {
-        const IndexVector blockid =
-          internal::translate_blockid(bid, ltensor);
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
         std::vector<TensorType> dbuf(dsize);
         tensor.get(blockid, dbuf);
         auto block_dims   = tensor.block_dims(blockid);
         auto block_offset = tensor.block_offsets(blockid);
-        size_t c = 0;
+        size_t c          = 0;
 
         if(nmodes == 1) {
             for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
@@ -677,15 +631,93 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(ExecutionCo
                 }
             }
         }
-
     };
     block_for(ec, ltensor, getmin);
 
-    MPI_Allreduce(lmin.data(), gmin.data(), 1, MPI_2DOUBLE_PRECISION, MPI_MINLOC, ec.pg().comm());
-    MPI_Bcast(minblockid.data(),2,MPI_UNSIGNED,gmin[1],ec.pg().comm());
-    MPI_Bcast(bfuv.data(),2,MPI_UNSIGNED_LONG,gmin[1],ec.pg().comm());
+    MPI_Allreduce(lmin.data(), gmin.data(), 1, MPI_2DOUBLE_PRECISION,
+                  MPI_MINLOC, ec.pg().comm());
+    MPI_Bcast(minblockid.data(), 2, MPI_UNSIGNED, gmin[1], ec.pg().comm());
+    MPI_Bcast(bfuv.data(), 2, MPI_UNSIGNED_LONG, gmin[1], ec.pg().comm());
 
     return std::make_tuple(gmin[0], minblockid, bfuv);
+}
+
+inline TiledIndexLabel compose_lbl(const TiledIndexLabel& lhs,
+                                   const TiledIndexLabel& rhs) {
+    auto lhs_tis = lhs.tiled_index_space();
+    auto rhs_tis = rhs.tiled_index_space();
+
+    auto res_tis = lhs_tis.compose_tis(rhs_tis);
+
+    return res_tis.label("all");
+}
+
+inline TiledIndexSpace compose_tis(const TiledIndexSpace& lhs,
+                                   const TiledIndexSpace& rhs) {
+    return lhs.compose_tis(rhs);
+}
+
+inline TiledIndexLabel invert_lbl(const TiledIndexLabel& lhs) {
+    auto lhs_tis = lhs.tiled_index_space().invert_tis();
+
+    return lhs_tis.label("all");
+}
+
+inline TiledIndexSpace invert_tis(const TiledIndexSpace& lhs) {
+    return lhs.invert_tis();
+}
+
+inline TiledIndexLabel intersect_lbl(const TiledIndexLabel& lhs,
+                                     const TiledIndexLabel& rhs) {
+    auto lhs_tis = lhs.tiled_index_space();
+    auto rhs_tis = rhs.tiled_index_space();
+
+    auto res_tis = lhs_tis.intersect_tis(rhs_tis);
+
+    return res_tis.label("all");
+}
+
+inline TiledIndexSpace intersect_tis(const TiledIndexSpace& lhs,
+                                     const TiledIndexSpace& rhs) {
+    return lhs.intersect_tis(rhs);
+}
+
+inline TiledIndexLabel union_lbl(const TiledIndexLabel& lhs,
+                                 const TiledIndexLabel& rhs) {
+    auto lhs_tis = lhs.tiled_index_space();
+    auto rhs_tis = rhs.tiled_index_space();
+
+    auto res_tis = lhs_tis.union_tis(rhs_tis);
+
+    return res_tis.label("all");
+}
+
+inline TiledIndexSpace union_tis(const TiledIndexSpace& lhs,
+                                 const TiledIndexSpace& rhs) {
+    return lhs.union_tis(rhs);
+}
+
+inline TiledIndexLabel project_lbl(const TiledIndexLabel& lhs,
+                                   const TiledIndexLabel& rhs) {
+    auto lhs_tis = lhs.tiled_index_space();
+    auto rhs_tis = rhs.tiled_index_space();
+
+    auto res_tis = lhs_tis.project_tis(rhs_tis);
+
+    return res_tis.label("all");
+}
+
+inline TiledIndexSpace project_tis(const TiledIndexSpace& lhs,
+                                   const TiledIndexSpace& rhs) {
+    return lhs.project_tis(rhs);
+}
+
+/// @todo: Implement
+template<typename TensorType>
+inline TensorType invert_tensor(TensorType tens) {
+    TensorType res;
+
+    return res;
 }
 
 } // namespace tamm

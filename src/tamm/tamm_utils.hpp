@@ -658,7 +658,7 @@ inline TiledIndexSpace compose_tis(const TiledIndexSpace& lhs,
 }
 
 inline TiledIndexLabel invert_lbl(const TiledIndexLabel& lhs) {
-    auto lhs_tis = lhs.tiled_index_space();
+    auto lhs_tis = lhs.tiled_index_space().invert_tis();
 
     return lhs_tis.label("all");
 }

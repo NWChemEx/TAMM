@@ -894,12 +894,12 @@ public:
                             std::cout << "rdims_sz: ";
                             for(const auto v : rdims) { rdims_sz.push_back(v); std::cout << v << " "; }
                             std::cout << std::endl;
-                            std::cout << "rbf buffer: " << rbf << std::endl;
+                            //std::cout << "rbf buffer: " << rbf << std::endl;
                             kernels::assign(lbf.data(), ldims_sz,
                                             lhs_int_labels_, alpha_, rbf.data(),
                                             rdims_sz, rhs_int_labels_,
                                             is_assign_);
-                            std::cout << "lbf buffer: " << lbf << std::endl;
+                            //std::cout << "lbf buffer: " << lbf << std::endl;
                             lbf.release_add();
                             // TODO: Future Plan (Write back not through):
                             // remove explicit release statement
@@ -1161,11 +1161,20 @@ public:
                     BlockBuffer bbuf = rc_recursive.get_buf_read(btensor, translated_bblockid);
                     // double cscale = is_assign_ ? 0 : 1;
                     TensorElType cscale{0};
+                    const auto& cdims = ctensor.block_dims(translated_cblockid);
+                    const auto& adims = atensor.block_dims(translated_ablockid);
+                    const auto& bdims = btensor.block_dims(translated_bblockid);
 
+                    SizeVec adims_sz, bdims_sz, cdims_sz;
+                    for(const auto v : adims) { adims_sz.push_back(v); }
+                    for(const auto v : bdims) { bdims_sz.push_back(v); }
+                    for(const auto v : cdims) { cdims_sz.push_back(v); }
+                    /*
                     SizeVec adims_sz, bdims_sz, cdims_sz;
                     for(const auto v : abuf.block_dims()) { adims_sz.push_back(v); }
                     for(const auto v : bbuf.block_dims()) { bdims_sz.push_back(v); }
                     for(const auto v : cbuf.block_dims()) { cdims_sz.push_back(v); }
+                    */
                     kernels::block_multiply(alpha_, abuf.data(), adims_sz,
                             rhs1_int_labels_, bbuf.data(), bdims_sz,
                             rhs2_int_labels_, cscale, cbuf.data(),

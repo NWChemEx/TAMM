@@ -179,6 +179,8 @@ public:
             // TBD: figure out memory space: do we need GPU/CPU buffer?
             const size_t size = tensor.block_size(blockid);
             span<T> span(new T[size], size);
+            for(auto i=0; i<size; i++)
+                span.data()[i] = 0;
             return BlockBuffer<T>(span, IndexedTensor{tensor, blockid}, &re,
                                   true);
         }

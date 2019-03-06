@@ -405,7 +405,7 @@ void ccsd_driver() {
     auto [MO,total_orbitals] = setupMOIS(nao,ov_alpha,freeze_core,freeze_virtual);
 
     //deallocates F_AO, C_AO
-    auto [cholVpr,d_f1,chol_count, max_cvecs] = cd_svd_driver<T>
+    auto [cholVpr,d_f1,chol_count, max_cvecs] = cd_svd_ga_driver<T>
                         (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
                                 freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
 
@@ -421,18 +421,17 @@ void ccsd_driver() {
     TiledIndexSpace N = MO("all");
     std::vector<Tensor<T>> chol_vecs(chol_count);
 
-  for(auto x = 0; x < chol_count; x++) {
-    //   TiledIndexSpace tsc{tCIp, range(x,x+1)};
-    //   auto [sc] = tsc.labels<1>("all");
+    for(auto x = 0; x < chol_count; x++) {
       Tensor<T> cholvec{{N,N},{1,1}};
       Tensor<T>::allocate(&ec, cholvec);
       chol_vecs[x] = cholvec;
-  }
+    }
 
     for(auto x = 0; x < chol_count; x++) {
       Tensor<T> cholvec = chol_vecs.at(x);
-        Tensor<T> tensor = cholvec;
-
+      Tensor<T> tensor = cholvec;
+	  Tensor<T> cvpr = cholVpr;
+	
         auto lambdacv = [&](const IndexVector& bid){
             const IndexVector blockid =
             internal::translate_blockid(bid, tensor());
@@ -443,40 +442,40 @@ void ccsd_driver() {
             const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
             std::vector<TensorType> dbuf(dsize);
 
-            IndexVector cvpriv = {0,blockid[0],blockid[1]};
-            const tamm::TAMM_SIZE ssize = cholVpr.block_size(cvpriv);
+            IndexVector cvpriv = {blockid[0],blockid[1],0};
+            const tamm::TAMM_SIZE ssize = cvpr.block_size(cvpriv);
             std::vector<TensorType> sbuf(ssize);
 
-            cholVpr.get(cvpriv, sbuf);
+            cvpr.get(cvpriv, sbuf);
                 
             TAMM_SIZE c = 0;
             for(auto i = block_offset[0]; i < block_offset[0] + block_dims[0];
                 i++) {
                 for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
                     j++, c++) {
-                dbuf[c] = sbuf[(x*block_dims[0]+(i-block_offset[0]))*block_dims[1]+(j-block_offset[1])];
+                dbuf[c] = sbuf[c*chol_count+x];
                 }
             }
             tensor.put(blockid, dbuf);
         };
 
         block_for(ec, cholvec(), lambdacv);
-    }
+   }
 
     //TODO: The following needs cleanup CV3D should be replaced by cholVpr
-    Tensor3D cholVpr_eigen(total_orbitals,total_orbitals,chol_count);
-    tamm_to_eigen_tensor(cholVpr,cholVpr_eigen);
+    // Tensor3D cholVpr_eigen(total_orbitals,total_orbitals,chol_count);
+    // tamm_to_eigen_tensor(cholVpr,cholVpr_eigen);
 
-    Tensor<T>::deallocate(cholVpr);
+    // Tensor<T>::deallocate(cholVpr);
 
     IndexSpace cvec{range(0,chol_count)};
-    TiledIndexSpace CV{cvec,1};
-    Tensor<T> CV3D{{N,N,CV},{1,1}};
-    Tensor<T>::allocate(&ec,CV3D);
-    Scheduler{ec}(CV3D() = 0).execute();
-    eigen_to_tamm_tensor(CV3D,cholVpr_eigen);
+    TiledIndexSpace CV{cvec,chol_count};
+    // Tensor<T> CV3D{{N,N,CV},{1,1}};
+    // Tensor<T>::allocate(&ec,CV3D);
+    // Scheduler{ec}(CV3D() = 0).execute();
+    // eigen_to_tamm_tensor(CV3D,cholVpr_eigen);
 
-    cholVpr_eigen.resize(0,0,0);
+    // cholVpr_eigen.resize(0,0,0);
 
     auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
             = setupTensors(ec,MO,d_f1,ndiis);
@@ -488,7 +487,7 @@ void ccsd_driver() {
         d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
         p_evl_sorted, chol_vecs,
         maxiter, thresh, zshiftl, ndiis, 
-        2 * ov_alpha, CV3D);
+        2 * ov_alpha, cholVpr);
 
   ccsd_stats(ec, hf_energy,residual,energy,thresh);
 
@@ -497,7 +496,7 @@ void ccsd_driver() {
     std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
   if(rank == 0) std::cout << "\nTime taken for Cholesky (RM) CCSD: " << ccsd_time << " secs\n";
 
-  free_tensors(d_r1, d_r2, d_t1, d_t2, d_f1, CV3D);
+  free_tensors(d_r1, d_r2, d_t1, d_t2, d_f1, cholVpr);
   free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s, chol_vecs);
 
 //   for (auto x = 0; x < chol_count; x++) Tensor<T>::deallocate(chol_vecs[x]);

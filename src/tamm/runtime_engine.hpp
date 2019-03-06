@@ -234,10 +234,10 @@ public:
           lambda,
           std::tuple_cat(
             std::make_tuple(RuntimeContext{*this}), std::tuple_cat([&]() {
-                if constexpr(std::is_base_of_v<Args, PermissionBase>) {
-                    return std::forward_as_tuple<Args>(args);
-                } else {
+                if constexpr(std::is_base_of_v<PermissionBase, Args>) {
                     return std::tuple{};
+                } else {
+                    return std::forward_as_tuple<Args>(args);
                 }
             }()...)));
     }

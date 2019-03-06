@@ -511,8 +511,8 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
       #if DO_SVD
         //uplotri
         for(auto i=0;i<nbf;i++)
-        for(auto j=0;j<i;j++)
-          k_ij[j*nbf+i] = 0;
+        for(auto j=0;j<i-1;j++)
+          k_ij[i*nbf+j] = 0;
 
         //TODO
         LAPACKE_dsyevd(LAPACK_ROW_MAJOR,'V','L',(TAMM_LAPACK_INT)nbf,
@@ -540,10 +540,10 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
         for(auto x=0;x<N*m;x++) k_qj[x] = k_pi[x]; 
 
         //ma_scale
-        for(auto i=0;i<m;i++){
+        for(auto i=0;i<N;i++){
           auto sf = k_eval_r[i];
-          for (auto x=0;x<N;x++)
-            k_pi[N*i+x] *= sf;
+          for (auto j=0;j<m;j++)
+            k_pi[i*m+j] *= sf;
         }
 
         cblas_dgemm(CblasRowMajor,CblasNoTrans,CblasTrans,N,N,m,

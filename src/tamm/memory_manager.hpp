@@ -396,7 +396,7 @@ class MemoryRegionImpl : public MemoryRegion {
 
   virtual ~MemoryRegionImpl() {}
 
-  ProcGroup pg() const {
+  ProcGroup pg() const override {
     return mgr_.pg();
   }
 

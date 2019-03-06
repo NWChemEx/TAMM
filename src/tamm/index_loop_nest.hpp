@@ -359,12 +359,12 @@ public:
 
         for(size_t i = 0; i < ub_indices_.size(); i++) {
             for(const auto uid : ub_indices_[i]) {
-                ret = ret && uid >= 0 && uid < i;
+                ret = ret && uid < i;
             }
         }
         for(size_t i = 0; i < lb_indices_.size(); i++) {
             for(const auto lid : lb_indices_[i]) {
-                ret = ret && lid >= 0 && lid < i;
+                ret = ret && lid < i;
             }
         }
         return ret;

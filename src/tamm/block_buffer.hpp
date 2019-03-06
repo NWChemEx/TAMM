@@ -3,6 +3,7 @@
 
 #include "tamm/types.hpp"
 #include "tamm/tensor.hpp"
+#include <iterator>
 
 namespace tamm {
 
@@ -93,6 +94,14 @@ bool operator==(const BlockBuffer<T> lhs, const BlockBuffer<T> rhs) {
     std::equal(lhs.get_data(), lhs.get_data() + lhs.get_size(), rhs.get_data()) &&
     lhs.get_tensor() == rhs.get_tensor() &&
     lhs.get_block_id() == rhs.get_block_id();
+}
+
+template<typename T>
+inline std::ostream& operator<<(std::ostream& os, BlockBuffer<T> bf) {
+    // std::copy(bf.begin(), bf.end(), std::ostream_iterator<T>(os, " "));
+    for (auto it = bf.begin(); it != bf.end(); ++it) {
+        os << *it << " ";
+    }
 }
 
 } // namespace tamm

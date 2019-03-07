@@ -368,7 +368,7 @@ void ccsd_driver() {
     auto [MO,total_orbitals] = setupMOIS(nao,ov_alpha,freeze_core,freeze_virtual);
 
     //deallocates F_AO, C_AO
-    auto [cholVpr,d_f1,chol_count, max_cvecs] = cd_svd_ga_driver<T>
+    auto [cholVpr,d_f1,chol_count, max_cvecs, CV] = cd_svd_ga_driver<T>
                         (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
                                 freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
 

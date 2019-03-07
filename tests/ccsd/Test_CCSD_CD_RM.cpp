@@ -10,14 +10,15 @@ using namespace tamm;
 
 template<typename T>
 void ccsd_e(ExecutionContext &ec,
-            const TiledIndexSpace& MO, Tensor<T>& de, const Tensor<T>& t1,
-            const Tensor<T>& t2, const Tensor<T>& f1, std::vector<Tensor<T>> &chol){ //, const Tensor<T>& v2) {
+            const TiledIndexSpace& MO, const TiledIndexSpace& CI, Tensor<T>& de, const Tensor<T>& t1,
+            const Tensor<T>& t2, const Tensor<T>& f1, std::vector<Tensor<T>> &chol,
+            Tensor<T>& chol3d) { 
     const TiledIndexSpace& O = MO("occ");
     const TiledIndexSpace& V = MO("virt");
     Tensor<T> i1{{O,V},{1,1}};
-    Tensor<T> _a01{};
-    Tensor<T> _a02{{O,O},{1,1}};
-    Tensor<T> _a03{{O,V},{1,1}};
+    Tensor<T> _a01{CI};
+    Tensor<T> _a02{{O,O,CI},{1,1}};
+    Tensor<T> _a03{{O,V,CI},{1,1}};
 
     TiledIndexLabel p1, p2, p3, p4, p5;
     TiledIndexLabel h3, h4, h5, h6;
@@ -25,24 +26,36 @@ void ccsd_e(ExecutionContext &ec,
     std::tie(p1, p2, p3, p4, p5) = MO.labels<5>("virt");
     std::tie(h3, h4, h5, h6)     = MO.labels<4>("occ");
 
+    auto [cind] = CI.labels<1>("all");
+
     Scheduler sch{ec};
     sch.allocate(i1,_a01,_a02,_a03);
     //sch (i1(h6, p5) = f1(h6, p5));
     //sch (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
     
-    sch (de() = 0);
-    for(auto x = 0U; x < chol.size(); x++) {
-        Tensor<T>& cholx = chol.at(x);
-        sch (_a01() = 0)
-            (_a02(h4, h6) = 0)
-            (_a03(h4, p2) = 0)
-            (_a01() += t1(p3, h4) * cholx(h4, p3))
-            (_a02(h4, h6) += t1(p3, h4) * cholx(h6, p3))
-            (de() +=  0.5 * _a01() * _a01())
-            (de() += -0.5 * _a02(h4, h6) * _a02(h6, h4))
-            (_a03(h4, p2) += t2(p1, p2, h3, h4) * cholx(h3, p1))
-            (de() += 0.5 * _a03(h4, p1) * cholx(h4, p1));
-    }
+    // sch (de() = 0);
+    // for(auto x = 0U; x < chol.size(); x++) {
+    //     Tensor<T>& cholx = chol.at(x);
+    //     sch (_a01() = 0)
+    //         (_a02(h4, h6) = 0)
+    //         (_a03(h4, p2) = 0)
+    //         (_a01() += t1(p3, h4) * cholx(h4, p3))
+    //         (_a02(h4, h6) += t1(p3, h4) * cholx(h6, p3))
+    //         (de() +=  0.5 * _a01() * _a01())
+    //         (de() += -0.5 * _a02(h4, h6) * _a02(h6, h4))
+    //         (_a03(h4, p2) += t2(p1, p2, h3, h4) * cholx(h3, p1))
+    //         (de() += 0.5 * _a03(h4, p1) * cholx(h4, p1));
+    // }
+
+    sch 
+        (_a01(cind) = t1(p3, h4) * chol3d(h4, p3,cind))
+        (_a02(h4, h6, cind) = t1(p3, h4) * chol3d(h6, p3, cind))
+        (de() =  0.5 * _a01() * _a01())
+        (de() += -0.5 * _a02(h4, h6, cind) * _a02(h6, h4, cind))
+        (_a03(h4, p2, cind) = t2(p1, p2, h3, h4) * chol3d(h3, p1, cind))
+        (de() += 0.5 * _a03(h4, p1, cind) * chol3d(h4, p1, cind));
+        ;
+    
     sch.deallocate(i1,_a01,_a02,_a03);
     sch.execute();
 }
@@ -155,7 +168,8 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
 
     Tensor<T> _a001{{V,V}, {1,1}};
     Tensor<T> _a002{{V,V}, {1,1}};
-    Tensor<T> _a004{{V,O,O,O}, {2,2}};
+    Tensor<T> _a004{{V,V,O,O}, {2,2}};
+    // Tensor<T> _a004_old{{V,O,O,O}, {2,2}};
     Tensor<T> _a006{{O,O}, {1,1}};
     Tensor<T> _a007{CI};
     Tensor<T> _a008{{O,O,CI}, {1,1}};
@@ -164,14 +178,14 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
     Tensor<T> _a019{{O,O,O,O}, {2,2}};
     Tensor<T> _a020{{V,O,V,O}, {2,2}};
     Tensor<T> _a021{{V,V,CI}, {1,1}};
-    Tensor<T> _a022{{V,V,O,O}, {2,2}};
+    Tensor<T> _a022{{V,V,V,V}, {2,2}};
+    // Tensor<T> _a022_old{{V,V,O,O}, {2,2}};
     Tensor<T> i0_temp{{V,V,O,O}, {2,2}};
-    //Tensor<T> cholx{{N,N}, {1,1}};
     
  //------------------------------CD------------------------------
     sch.allocate(_a001, _a002, _a004, _a006, _a007, 
                  _a008, _a009, _a017, _a019, _a020, _a021,
-                 _a022,
+                 _a022, //_a022_old,_a004_old,
                  i0_temp);
 
     sch (_a001(p1, p2) = 0)
@@ -214,28 +228,39 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
         ;
     
             
-    for(auto x = 0; x < chol.size(); x++) {
-        Tensor<T>& cholx = chol.at(x);
-        // Tensor<T>& _a002 = (*(_a021.at(x)));
-        TiledIndexSpace tsc{CI, range(x,x+1)};
-        auto [sc] = tsc.labels<1>("all");
-        sch(_a002(p3,p1) = _a021(p3,p1,sc));
+    // for(auto x = 0; x < chol.size(); x++) {
+    //     Tensor<T>& cholx = chol.at(x);
+    //     // Tensor<T>& _a002 = (*(_a021.at(x)));
+    //     // TiledIndexSpace tsc{CI, range(x,x+1)};
+    //     // auto [sc] = tsc.labels<1>("all");
+    //     // sch(_a002(p3,p1) = _a021(p3,p1,sc));
 
-        sch //(_a002(p3, p1) = 0)
-            //(_a002(p3, p1) += -0.5 * cholx(h3, p1) * t1(p3, h3))
-            //(_a002(p3, p1) +=  0.5 * cholx(p3, p1))
-            (_a022(p1, p4, h1, h2) = 0)
-            (_a022(p2, p3, h1, h2)   += 1.0 * t2(p2, p1, h1, h2) * _a002(p3, p1))
-            (i0_temp(p3, p4, h1, h2) += 1.0 * _a002(p3, p1) * _a022(p1, p4, h1, h2))
+    //     sch (_a002(p3, p1) = 0)
+    //         (_a002(p3, p1) += -0.5 * cholx(h3, p1) * t1(p3, h3))
+    //         (_a002(p3, p1) +=  0.5 * cholx(p3, p1))
+    //         (_a022_old(p1, p4, h1, h2) = 0)
+    //         (_a022_old(p2, p3, h1, h2)   += 1.0 * t2(p2, p1, h1, h2) * _a002(p3, p1))
+    //         (i0_temp(p3, p4, h1, h2) += 1.0 * _a002(p3, p1) * _a022_old(p1, p4, h1, h2))
             
-            (_a004(p1, h4, h1, h2) = 0)
-            (_a004(p1, h3, h1, h2) +=  1.0   * cholx(p2, h3) * t2(p1, p2, h1, h2))
-            (_a019(h3, h4, h1, h2) += -0.125 * cholx(p1, h4) * _a004(p1, h3, h1, h2))
-            (_a020(p3, h1, p4, h2) +=  0.5   * cholx(p4, h4) * _a004(p3, h1, h4, h2))
-            ;            
-    }
+    //         // (_a004_old(p1, h4, h1, h2) = 0)
+    //         // (_a004_old(p1, h3, h1, h2) +=  1.0   * cholx(p2, h3) * t2(p1, p2, h1, h2))
+    //         //(_a019(h3, h4, h1, h2) += -0.125 * cholx(p1, h4) * _a004_old(p1, h3, h1, h2))
+    //         //(_a020(p3, h1, p4, h2) +=  0.5   * cholx(p4, h4) * _a004_old(p3, h1, h4, h2))
+    //         ;            
+    // }
 
-    // 
+
+    sch
+        (_a022(p3,p4,p2,p1) = 0)
+        (_a022(p3,p4,p2,p1) += _a021(p3,p2,cind) * _a021(p4,p1,cind))
+        (i0_temp(p3, p4, h1, h2) += 1.0 * _a022(p3, p4, p2, p1) * t2(p2,p1,h1,h2))
+
+             (_a004(p1, p2, h4, h3) = 0)
+             (_a004(p1, p2, h4, h3) +=  1.0   * chol3d(p1, h4, cind) * chol3d(p2, h3, cind))
+             (_a019(h3, h4, h1, h2) += -0.125 * _a004(p1, p2, h4, h3) * t2(p1,p2,h1,h2))
+             (_a020(p1, h3, p4, h2) +=  0.5   * _a004(p2, p4, h3, h1) * t2(p1,p2,h1,h2)) 
+            ;
+
     sch (_a001(p4, p1) += -1 * f1(p4, p1))
         (i0_temp(p3, p4, h1, h2) += -0.5 * t2(p3, p2, h1, h2) * _a001(p4, p2))
 
@@ -308,7 +333,7 @@ std::cout.precision(15);
           Scheduler{ec}((d_t1s[off])() = d_t1())((d_t2s[off])() = d_t2())
             .execute();
 
-          ccsd_e(ec, MO, d_e, d_t1, d_t2, d_f1, chol);
+          ccsd_e(ec, MO, CI, d_e, d_t1, d_t2, d_f1, chol, cv3d);
           ccsd_t1(ec, MO, CI, d_r1, d_t1, d_t2, d_f1, chol, cv3d);
           ccsd_t2(ec, MO, CI, d_r2, d_t1, d_t2, d_f1, chol, cv3d);
 
@@ -405,7 +430,7 @@ void ccsd_driver() {
     auto [MO,total_orbitals] = setupMOIS(nao,ov_alpha,freeze_core,freeze_virtual);
 
     //deallocates F_AO, C_AO
-    auto [cholVpr,d_f1,chol_count, max_cvecs] = cd_svd_ga_driver<T>
+    auto [cholVpr,d_f1,chol_count, max_cvecs, CV] = cd_svd_ga_driver<T>
                         (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
                                 freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
 
@@ -468,8 +493,7 @@ void ccsd_driver() {
 
     // Tensor<T>::deallocate(cholVpr);
 
-    IndexSpace cvec{range(0,chol_count)};
-    TiledIndexSpace CV{cvec,chol_count};
+
     // Tensor<T> CV3D{{N,N,CV},{1,1}};
     // Tensor<T>::allocate(&ec,CV3D);
     // Scheduler{ec}(CV3D() = 0).execute();

@@ -179,10 +179,15 @@ public:
             // TBD: figure out memory space: do we need GPU/CPU buffer?
             const size_t size = tensor.block_size(blockid);
             span<T> span(new T[size], size);
-            for(auto i=0; i<size; i++)
-                span.data()[i] = 0;
             return BlockBuffer<T>(span, IndexedTensor{tensor, blockid}, &re,
                                   true);
+        }
+
+        template<typename T, typename V>
+        BlockBuffer<T> get_buf_tmp(Tensor<T> tensor, IndexVector blockid, V val) {
+            auto buf = get_buf_tmp(tensor, blockid);
+            buf = val;
+            return buf;
         }
 
         template<typename T>

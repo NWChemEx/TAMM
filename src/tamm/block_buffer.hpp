@@ -30,14 +30,7 @@ public:
       std::copy(block_buffer.buf_span.begin(), block_buffer.buf_span.end(), buffer);
       buf_span = span{buffer, size};
     }
-  BlockBuffer(BlockBuffer&& block_buffer) {
-    indexedTensor = block_buffer.indexedTensor;
-    re = block_buffer.indexedTensor;
-    indexedTensor = block_buffer.tensor;
-    allocated = block_buffer.allocated;
-    block_buffer.allocated = false;
-    block_buffer.buffer = nullptr;
-  }
+  BlockBuffer(BlockBuffer&& block_buffer) = default;
   BlockBuffer& operator=(const BlockBuffer& block_buffer) {
     indexedTensor = block_buffer.indexedTensor;
     re = block_buffer.indexedTensor;
@@ -48,11 +41,11 @@ public:
     std::copy(block_buffer.buf_span.begin(), block_buffer.buf_span.end(), buffer);
     buf_span = span{buffer, size};
   }
-  BlockBuffer(Tensor<T> tensor, IndexVector blockid) {
+  BlockBuffer(Tensor<T> tensor, IndexVector blockid) 
+    : allocated{true}, indexedTensor{tensor, blockid} {
     const size_t size = tensor.block_size(blockid);
     T* buffer = new T[size];
     buf_span = span{buffer, size};
-    allocated = true;
     tensor.get(blockid, buf_span);
   }
   ~BlockBuffer() {
@@ -80,6 +73,10 @@ public:
     }
   }
   std::vector<size_t> block_dims() { return indexedTensor.first.block_dims(indexedTensor.second); }
+  template<typename V>
+  BlockBuffer& operator=(const V val) {
+    std::fill(begin(), end(), val);
+  }
 private:
   span<T> buf_span;
   bool allocated = false;
@@ -96,12 +93,13 @@ bool operator==(const BlockBuffer<T> lhs, const BlockBuffer<T> rhs) {
     lhs.get_block_id() == rhs.get_block_id();
 }
 
-template<typename T>
-inline std::ostream& operator<<(std::ostream& os, BlockBuffer<T> bf) {
+template<typename T, typename Stream>
+inline auto& operator<<(Stream& os, BlockBuffer<T> bf) {
     // std::copy(bf.begin(), bf.end(), std::ostream_iterator<T>(os, " "));
     for (auto it = bf.begin(); it != bf.end(); ++it) {
         os << *it << " ";
     }
+    return os;
 }
 
 } // namespace tamm

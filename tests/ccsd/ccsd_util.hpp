@@ -469,7 +469,7 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> cholVpr, 
 }
 
 template<typename T> 
-std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_ga_driver(OptionsMap options_map,
+std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_ga_driver(OptionsMap options_map,
  ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& AO_tis,
   const TAMM_SIZE ov_alpha, const TAMM_SIZE nao, const TAMM_SIZE freeze_core,
   const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
@@ -503,5 +503,9 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_ga_driver(OptionsM
 
     Tensor<T>::deallocate(C_AO,F_AO);
 
-    return std::make_tuple(cholVpr, d_f1, chol_count, max_cvecs);
+    //TODO: tile size comes from input file
+    IndexSpace chol_is{range(0,chol_count)};
+    TiledIndexSpace CI{chol_is,static_cast<tamm::Tile>(chol_count)}; 
+
+    return std::make_tuple(cholVpr, d_f1, chol_count, max_cvecs, CI);
 }

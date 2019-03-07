@@ -876,7 +876,7 @@ public:
                       rc.submitTask(
                         [=](RuntimeEngine::RuntimeContext rc_recursive) {
                             BlockBuffer lbf = rc_recursive.get_buf_tmp(
-                              ltensor, translated_lblockid);
+                              ltensor, translated_lblockid, 0);
                             // TODO: Verify : size of rbuf would depend on lhs_
                             // or rhs_ tensor
                             BlockBuffer rbf = rc_recursive.get_buf_read(
@@ -1161,20 +1161,11 @@ public:
                     BlockBuffer bbuf = rc_recursive.get_buf_read(btensor, translated_bblockid);
                     // double cscale = is_assign_ ? 0 : 1;
                     TensorElType cscale{0};
-                    const auto& cdims = ctensor.block_dims(translated_cblockid);
-                    const auto& adims = atensor.block_dims(translated_ablockid);
-                    const auto& bdims = btensor.block_dims(translated_bblockid);
 
-                    SizeVec adims_sz, bdims_sz, cdims_sz;
-                    for(const auto v : adims) { adims_sz.push_back(v); }
-                    for(const auto v : bdims) { bdims_sz.push_back(v); }
-                    for(const auto v : cdims) { cdims_sz.push_back(v); }
-                    /*
                     SizeVec adims_sz, bdims_sz, cdims_sz;
                     for(const auto v : abuf.block_dims()) { adims_sz.push_back(v); }
                     for(const auto v : bbuf.block_dims()) { bdims_sz.push_back(v); }
                     for(const auto v : cbuf.block_dims()) { cdims_sz.push_back(v); }
-                    */
                     kernels::block_multiply(alpha_, abuf.data(), adims_sz,
                             rhs1_int_labels_, bbuf.data(), bdims_sz,
                             rhs2_int_labels_, cscale, cbuf.data(),

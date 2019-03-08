@@ -96,7 +96,7 @@ DECLARE_PERMISSION(Accum, A)
 DECLARE_ACCESS(Temp, T)
 
 #undef DECLARE_PERMISSION2
-#undef DECLARE_CALLABLE_ACCESS
+#undef DECLARE_CANCELLABLE_ACCESS
 #undef DECLARE_PERMISSION
 
 // TBD: We need a way to consolidate IndexedTensors with LabeledTensors to
@@ -178,8 +178,8 @@ public:
         BlockBuffer<T> get_buf_tmp(Tensor<T> tensor, IndexVector blockid) {
             // TBD: figure out memory space: do we need GPU/CPU buffer?
             const size_t size = tensor.block_size(blockid);
-            span<T> span(new T[size], size);
-            return BlockBuffer<T>(span, IndexedTensor{tensor, blockid}, &re,
+            span span(new T[size], size);
+            return BlockBuffer(span, IndexedTensor{tensor, blockid}, &re,
                                   true);
         }
 

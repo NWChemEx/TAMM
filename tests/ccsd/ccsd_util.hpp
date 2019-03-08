@@ -1,6 +1,7 @@
 
 
 #include "cd_svd.hpp"
+#include "cd_svd_ga.hpp"
 #include "macdecls.h"
 #include "ga-mpi.h"
 
@@ -395,7 +396,7 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> cholVpr, 
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
     Tensor<T>::allocate(&ec,d_a2,d_v2);
 
-    Scheduler{ec}(d_a2(p, r, q, s) = cholVpr(cindex, p, r) * cholVpr(cindex, q, s)).execute();
+    Scheduler{ec}(d_a2(p, r, q, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex)).execute();
 
     Scheduler{ec}(d_v2(p, q, r, s) = d_a2(p,r,q,s))
                   (d_v2(p, q, r, s) -= d_a2(p,s,q,r))
@@ -465,4 +466,46 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> cholVpr, 
     }
  #endif
 
+}
+
+template<typename T> 
+std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_ga_driver(OptionsMap options_map,
+ ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& AO_tis,
+  const TAMM_SIZE ov_alpha, const TAMM_SIZE nao, const TAMM_SIZE freeze_core,
+  const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
+  libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map){
+
+    CDOptions cd_options = options_map.cd_options;
+    tamm::Tile max_cvecs = cd_options.max_cvecs_factor * nao;
+    auto diagtol = cd_options.diagtol; // tolerance for the max. diagonal
+
+    std::cout << std::defaultfloat;
+    auto rank = ec.pg().rank();
+    if(rank==0) cd_options.print();
+
+    TiledIndexSpace N = MO("all");
+
+    Tensor<T> d_f1{{N,N},{1,1}};
+    Tensor<T>::allocate(&ec,d_f1);
+
+    auto hf_t1        = std::chrono::high_resolution_clock::now();
+    TAMM_SIZE chol_count = 0;
+
+    //std::tie(V2) = 
+    Tensor<T> cholVpr = cd_svd_ga(ec, MO, AO_tis, ov_alpha, nao, freeze_core, freeze_virtual,
+                                C_AO, F_AO, d_f1, chol_count, max_cvecs, diagtol, shells, shell_tile_map);
+    auto hf_t2        = std::chrono::high_resolution_clock::now();
+    double cd_svd_time =
+      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+
+    if(rank == 0) std::cout << "\nTotal Time taken for CD (+SVD): " << cd_svd_time
+              << " secs\n";
+
+    Tensor<T>::deallocate(C_AO,F_AO);
+
+    //TODO: tile size comes from input file
+    IndexSpace chol_is{range(0,chol_count)};
+    TiledIndexSpace CI{chol_is,static_cast<tamm::Tile>(chol_count)}; 
+
+    return std::make_tuple(cholVpr, d_f1, chol_count, max_cvecs, CI);
 }

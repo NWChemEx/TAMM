@@ -37,12 +37,14 @@ class Options {
       maxiter = 50;
       debug = false;
       basis = "sto-3g";
+      dfbasis = "";
       geom_units = "bohr";
     }
 
     bool debug;
     int maxiter;
     std::string basis;
+    std::string dfbasis;
     std::string geom_units;
 
     void print() {
@@ -50,6 +52,7 @@ class Options {
       cout << "{\n";
       cout << " max iter = " << maxiter << endl;
       cout << " basis = " << basis << endl;
+      if(!dfbasis.empty()) cout << " dfbasis = " << dfbasis << endl;
       cout << " geom_units = " << geom_units << endl;
       print_bool(" debug", debug);
       cout << "}\n";
@@ -199,6 +202,12 @@ bool is_in_line(const std::string str, const std::string line){
   else if (line.find(str_u) == std::string::npos &&
       line.find(str_l) == std::string::npos) found = false;
 
+  //TODO
+  if (str_l == "basis"){
+    if(line.find("dfbasis") != std::string::npos || 
+       line.find("DFBASIS") != std::string::npos) found=false;
+  }
+
   return found;
 }
 
@@ -335,12 +344,13 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
       std::getline(is, line);
 
       if(is_in_line("basis",line)) 
-        options.basis = read_option(line);
+        options.basis = read_option(line);      
       else if(is_in_line("maxiter",line))
         options.maxiter = std::stoi(read_option(line));
       else if(is_in_line("debug",line))
         options.debug = to_bool(read_option(line));        
-
+      else if(is_in_line("dfbasis",line)) 
+        options.dfbasis = read_option(line);    
       else if(is_in_line("geometry",line)){
         //geometry units
         std::istringstream iss(line);
@@ -374,7 +384,7 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           std::getline(is, line);
 
           if(is_in_line("tol_int",line)) 
-            scf_options.tol_int = std::stod(read_option(line));
+            scf_options.tol_int = std::stod(read_option(line));   
           else if(is_in_line("tol_lindep",line)) 
             scf_options.tol_lindep = std::stod(read_option(line));
           else if(is_in_line("conve",line)) 
@@ -388,7 +398,7 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("restart",line))
             scf_options.restart = to_bool(read_option(line));        
           else if(is_in_line("debug",line))
-            scf_options.debug = to_bool(read_option(line));                               
+            scf_options.debug = to_bool(read_option(line));                                           
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line,"SCF");
           

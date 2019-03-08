@@ -32,16 +32,34 @@ const auto max_engine_precision = std::numeric_limits<double>::epsilon() / 1e10;
 
 
 using Matrix   = Eigen::Matrix<TensorType, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+using Tensor1D = Eigen::Tensor<TensorType, 1, Eigen::RowMajor>;
 using Tensor2D = Eigen::Tensor<TensorType, 2, Eigen::RowMajor>;
 using Tensor3D = Eigen::Tensor<TensorType, 3, Eigen::RowMajor>;
 using Tensor4D = Eigen::Tensor<TensorType, 4, Eigen::RowMajor>;
 
 using shellpair_list_t = std::unordered_map<size_t, std::vector<size_t>>;
 shellpair_list_t obs_shellpair_list;  // shellpair list for OBS
+shellpair_list_t dfbs_shellpair_list;  // shellpair list for DFBS
 shellpair_list_t minbs_shellpair_list;  // shellpair list for minBS
 using shellpair_data_t = std::vector<std::vector<std::shared_ptr<libint2::ShellPair>>>;  // in same order as shellpair_list_t
 shellpair_data_t obs_shellpair_data;  // shellpair data for OBS
+shellpair_data_t dfbs_shellpair_data;  // shellpair data for DFBS
 shellpair_data_t minbs_shellpair_data;  // shellpair data for minBS
+
+//DENSITY FITTING
+struct DFFockEngine {
+  const libint2::BasisSet& obs;
+  const libint2::BasisSet& dfbs;
+  DFFockEngine(const libint2::BasisSet& _obs, const libint2::BasisSet& _dfbs)
+      : obs(_obs), dfbs(_dfbs) {}
+
+  // typedef btas::RangeNd<CblasRowMajor, std::array<long, 3>> Range3d;
+  // typedef btas::Tensor<double, Range3d> Tensor3d;
+  Tensor3D xyK;
+
+  // a DF-based builder, using coefficients of occupied MOs
+  Matrix compute_2body_fock_dfC(const Matrix& Cocc);
+};
 
 Matrix compute_soad(const std::vector<libint2::Atom> &atoms);
 
@@ -806,6 +824,214 @@ Matrix compute_2body_fock_general(const libint2::BasisSet& obs, const Matrix& D,
 
   // symmetrize the result and return
   return 0.5 * (G + G.transpose());
+}
+
+Matrix compute_2body_2index_ints(const libint2::BasisSet& bs) {
+  const auto n = bs.nbf();
+  const auto nshells = bs.size();
+  Matrix result = Matrix::Zero(n, n);
+
+  // build engines for each thread
+  using libint2::Engine;
+  using libint2::BraKet;
+  
+  auto engine =
+      Engine(libint2::Operator::coulomb, bs.max_nprim(), bs.max_l(), 0);
+  engine.set(BraKet::xs_xs);
+  
+  auto shell2bf = bs.shell2bf();
+  auto unitshell = libint2::Shell::unit();
+
+    const auto& buf = engine.results();
+
+    // loop over unique shell pairs, {s1,s2} such that s1 >= s2
+    // this is due to the permutational symmetry of the real integrals over
+    // Hermitian operators: (1|2) = (2|1)
+    for (auto s1 = 0l, s12 = 0l; s1 != nshells; ++s1) {
+      auto bf1 = shell2bf[s1];  // first basis function in this shell
+      auto n1 = bs[s1].size();
+
+      for (auto s2 = 0; s2 <= s1; ++s2, ++s12) {
+        // if (s12 % nthreads != thread_id) continue;
+
+        auto bf2 = shell2bf[s2];
+        auto n2 = bs[s2].size();
+
+        // compute shell pair; return is the pointer to the buffer
+        engine.compute(bs[s1], bs[s2]);
+        if (buf[0] == nullptr)
+          continue; // if all integrals screened out, skip to next shell set
+
+        // "map" buffer to a const Eigen Matrix, and copy it to the
+        // corresponding blocks of the result
+        Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
+        result.block(bf1, bf2, n1, n2) = buf_mat;
+        if (s1 != s2)  // if s1 >= s2, copy {s1,s2} to the corresponding {s2,s1}
+                       // block, note the transpose!
+          result.block(bf2, bf1, n2, n1) = buf_mat.transpose();
+      }
+    }
+ 
+
+  return result;
+}
+
+Matrix DFFockEngine::compute_2body_fock_dfC(const Matrix& Cocc) {
+
+  using libint2::Operator;
+  using libint2::BraKet;
+  using libint2::Engine;
+
+  const auto n = obs.nbf();
+  const auto ndf = dfbs.nbf();
+
+      using idx_pair = std::pair<long int, long int>;
+    idx_pair idx_20({2,0}),idx_00({0, 0}),idx_11({1,1}),
+            idx_22({2,2}),idx_10({1,0}),idx_21({2,1});
+    std::array<idx_pair,1> aidx_00({idx_00}),aidx_10({idx_10}),aidx_20({idx_20});
+    std::array<idx_pair,2> idx_1122({idx_11,idx_22}),idx_0022({idx_00,idx_22}),
+                           idx_1021({idx_10,idx_21}),idx_0011({idx_00,idx_11});
+
+  // using first time? compute 3-center ints and transform to inv sqrt
+  // representation
+  // if (xyK.size() == 0) {
+
+    const auto nshells = obs.size();
+    const auto nshells_df = dfbs.size();
+    const auto& unitshell = libint2::Shell::unit();
+
+    // construct the 2-electron 3-center repulsion integrals engine
+    // since the code assumes (xx|xs) braket, and Engine/libint only produces
+    // (xs|xx), use 4-center engine
+    
+    auto engine = libint2::Engine(libint2::Operator::coulomb,
+                                 std::max(obs.max_nprim(), dfbs.max_nprim()),
+                                 std::max(obs.max_l(), dfbs.max_l()), 0);
+    engine.set(libint2::BraKet::xs_xx);
+
+    auto shell2bf = obs.shell2bf();
+    auto shell2bf_df = dfbs.shell2bf();
+
+    Tensor3D Zxy(ndf, n, n);
+    Zxy.setZero();
+
+      const auto& results = engine.results();
+
+      // loop over permutationally-unique set of shells
+      for (auto s1 = 0l, s123 = 0l; s1 != nshells_df; ++s1) {
+        auto bf1_first = shell2bf_df[s1];  // first basis function in this shell
+        auto n1 = dfbs[s1].size();  // number of basis functions in this shell
+
+        for (auto s2 = 0; s2 != nshells; ++s2) {
+          auto bf2_first = shell2bf[s2];
+          auto n2 = obs[s2].size();
+          const auto n12 = n1 * n2;
+
+          for (auto s3 = 0; s3 != nshells; ++s3, ++s123) {
+            // if (s123 % nthreads != thread_id) continue;
+
+            auto bf3_first = shell2bf[s3];
+            auto n3 = obs[s3].size();
+            const auto n123 = n12 * n3;
+
+            engine.compute2<Operator::coulomb, BraKet::xs_xx, 0>(
+                dfbs[s1], unitshell, obs[s2], obs[s3]);
+            const auto* buf = results[0];
+            if (buf == nullptr)
+              continue;
+
+          
+            auto lower_bound = {bf1_first, bf2_first, bf3_first};
+            auto upper_bound = {bf1_first + n1, bf2_first + n2, bf3_first + n3};
+            // auto view = btas::make_view(
+            //     Zxy.range().slice(lower_bound, upper_bound), Zxy.storage());
+            // std::copy(buf, buf + n123, view.begin());
+
+            for (auto f1 = 0, f123 = 0; f1 != n1; ++f1) {
+                const auto bf1 = f1 + bf1_first;
+              for (auto f2 = 0; f2 != n2; ++f2) {
+                const auto bf2 = f2 + bf2_first;
+                for (auto f3 = 0; f3 != n3; ++f3,++f123) {
+                  const auto bf3 = f3 + bf3_first;
+                    
+                    Zxy(bf1, bf2,bf3) = buf[f123]; 
+                  }
+                }
+              }
+            
+
+          }  // s3
+        }    // s2
+      }      // s1
+
+    Matrix V = compute_2body_2index_ints(dfbs);
+    Eigen::LLT<Matrix> V_LLt(V);
+    Matrix I = Matrix::Identity(ndf, ndf);
+    auto L = V_LLt.matrixL();
+    Matrix V_L = L;
+    Matrix Linv_t = L.solve(I).transpose();
+    // check
+    //  std::cout << "||V - L L^t|| = " << (V - V_L * V_L.transpose()).norm() <<
+    //  std::endl;
+    //  std::cout << "||I - L L^-1|| = " << (I - V_L *
+    //  Linv_t.transpose()).norm() << std::endl;
+    //  std::cout << "||V^-1 - L^-1^t L^-1|| = " << (V.inverse() - Linv_t *
+    //  Linv_t.transpose()).norm() << std::endl;
+
+    Tensor2D K(ndf, ndf);
+    K.setZero();
+    // std::copy(Linv_t.data(), Linv_t.data() + ndf * ndf, K.begin());
+    for (auto i = 0; i<ndf;i++)
+    for(auto j=0;j<ndf;j++)
+    K(i,j) = Linv_t(i,j);
+
+
+    //contract(1.0, Zxy, {1, 2, 3}, K, {1, 4}, 0.0, xyK, {2, 3, 4});
+    //xyK = Tensor3D(n, n, ndf);
+    xyK = Zxy.contract(K,aidx_00); 
+    Zxy.resize(0, 0, 0);  // release memory
+
+  //}  // if (xyK.size() == 0)
+
+  const auto nocc = Cocc.cols();
+  Tensor2D Co(n, nocc);
+  Co.setZero();
+  // std::copy(Cocc.data(), Cocc.data() + n * nocc, Co.begin());
+  for (auto i = 0; i<n;i++)
+    for(auto j=0;j<nocc;j++)
+    Co(i,j) = Cocc(i,j);
+
+  // Tensor3D xiK(n, nocc, ndf);
+  // contract(1.0, xyK, {1, 2, 3}, Co, {2, 4}, 0.0, xiK, {1, 4, 3});
+  Tensor3D xiK_p = xyK.contract(Co, aidx_10); 
+  //n,ndf,nocc
+  std::array<long int, 3> idx_shuffle({0,2,1});
+  Tensor3D xiK = xiK_p.shuffle(idx_shuffle);
+
+  // compute Coulomb
+  Tensor1D Jtmp(ndf);
+  Jtmp.setZero(); 
+  //contract(1.0, xiK, {1, 2, 3}, Co, {1, 2}, 0.0, Jtmp, {3});
+  Jtmp = xiK.contract(Co,idx_0011); 
+
+  //contract(1.0, xiK, {1, 2, 3}, xiK, {4, 2, 3}, 0.0, G, {1, 4});
+  Tensor2D K_ret = xiK.contract(xiK,idx_1122); 
+  xiK.resize(0, 0, 0);
+
+  //contract(2.0, xyK, {1, 2, 3}, Jtmp, {3}, -1.0, G, {1, 2});
+  Tensor2D J_ret = xyK.contract(Jtmp,aidx_20);
+
+  Tensor2D G = 2.0*J_ret - K_ret;
+
+  // copy result to an Eigen::Matrix
+  Matrix result(n, n);
+  result.setZero();
+  // std::copy(G.cbegin(), G.cend(), result.data());
+  for (auto i = 0; i<n;i++)
+    for(auto j=0;j<n;j++)
+    result(i,j) = G(i,j);
+
+  return result;
 }
 
 #endif // TAMM_TESTS_HF_COMMON_HPP_

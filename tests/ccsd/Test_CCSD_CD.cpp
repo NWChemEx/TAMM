@@ -279,7 +279,7 @@ std::tuple<double,double> ccsd_driver(ExecutionContext& ec, const TiledIndexSpac
           std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
                                             d_e, p_evl_sorted, zshiftl, noab);
 
-          update_tensor(d_r2(), lambdar2);
+          //update_tensor(d_r2(), lambdar2);
           
 
           Scheduler{ec}((d_r1s[off])() = d_r1())((d_r2s[off])() = d_r2())
@@ -368,7 +368,7 @@ void ccsd_driver() {
     auto [MO,total_orbitals] = setupMOIS(nao,ov_alpha,freeze_core,freeze_virtual);
 
     //deallocates F_AO, C_AO
-    auto [cholVpr,d_f1,chol_count, max_cvecs] = cd_svd_driver<T>
+    auto [cholVpr,d_f1,chol_count, max_cvecs, CV] = cd_svd_ga_driver<T>
                         (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
                                 freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
 
@@ -393,8 +393,8 @@ void ccsd_driver() {
 
   for(auto x = 0; x < chol_count; x++) {
       Tensor<T> cholvec = chol_vecs.at(x);
-        Tensor<T> tensor = cholvec;
-	Tensor<T> cvpr = cholVpr;
+      Tensor<T> tensor = cholvec;
+	  Tensor<T> cvpr = cholVpr;
 	
         auto lambdacv = [&](const IndexVector& bid){
             const IndexVector blockid =
@@ -406,7 +406,7 @@ void ccsd_driver() {
             const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
             std::vector<TensorType> dbuf(dsize);
 
-            IndexVector cvpriv = {0,blockid[0],blockid[1]};
+            IndexVector cvpriv = {blockid[0],blockid[1],0};
             const tamm::TAMM_SIZE ssize = cvpr.block_size(cvpriv);
             std::vector<TensorType> sbuf(ssize);
 
@@ -417,7 +417,7 @@ void ccsd_driver() {
                 i++) {
                 for(auto j = block_offset[1]; j < block_offset[1] + block_dims[1];
                     j++, c++) {
-                dbuf[c] = sbuf[(x*block_dims[0]+(i-block_offset[0]))*block_dims[1]+(j-block_offset[1])];
+                dbuf[c] = sbuf[c*chol_count+x];
                 }
             }
             tensor.put(blockid, dbuf);

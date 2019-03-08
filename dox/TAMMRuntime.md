@@ -135,19 +135,19 @@ There is also a release function to release a buffer without committing the effe
 ```c++
 auto cpulambda = [=](RuntimeEngine::RuntimeContext rc_recursive) {
 
+        //retrieving tensor blocks
+
         BlockBuffer lbf = rc_recursive.get_buf_tmp(ltensor, lblockid);
 
         BlockBuffer rbf = rc_recursive.get_buf_read(rtensor, rblockid);
 
-        const auto& ldims = lhs_.tensor().block_dims(lblockid);
-
-        const auto& rdims = rhs_.tensor().block_dims(rblockid);
-
         SizeVec ldims_sz, rdims_sz;
 
-        for(const auto v : ldims) { ldims_sz.push_back(v); }
+        //dimensions of tensor blocks
 
-        for(const auto v : rdims) { rdims_sz.push_back(v); }
+        for(const auto v : lbf.block_dims()) { ldims_sz.push_back(v); }
+
+        for(const auto v : rbf.block_dims()) { rdims_sz.push_back(v); }
 
         kernels::assign(lbf.data(), ldims_sz,
 
@@ -157,6 +157,7 @@ auto cpulambda = [=](RuntimeEngine::RuntimeContext rc_recursive) {
 
                 is_assign_);
 
+        //releasing output buffer
         lbf.release_put();
 
         };

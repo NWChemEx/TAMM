@@ -336,6 +336,10 @@ public:
         return impl_->is_non_zero(blockid);
     }
 
+    TensorBase* base_ptr() const {
+      return static_cast<TensorBase*>(impl_.get());
+    }
+
 private:
     std::shared_ptr<TensorImpl<T>>
       impl_; /**< Shared pointer to the implementation object */

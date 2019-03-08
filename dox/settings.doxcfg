@@ -24,4 +24,4 @@ PROJECT_BRIEF          = "Tensor Algebra for many-body methods (TAMM)"
 # spaces.
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = dox/mainpage.md dox/IndexSpaces.md dox/TAMMRuntime.md dox/TensorOperations.md dox/TensorConstruction.md src/tamm/
+INPUT                  = dox/mainpage.md dox/IndexSpaces.md dox/TISOperations.md dox/TAMMRuntime.md dox/TensorOperations.md dox/TensorConstruction.md src/tamm/

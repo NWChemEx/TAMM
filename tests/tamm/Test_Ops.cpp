@@ -77,7 +77,8 @@ void test_ops(const TiledIndexSpace& MO) {
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
 
     Tensor<T> T1{N, N, N};
     Tensor<T>::allocate(ec, T1);
@@ -143,7 +144,8 @@ TEST_CASE("Tensor Allocation and Deallocation") {
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr};
+    RuntimeEngine re;
+    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr,&re};
 
     {
         Tensor<double> tensor{};
@@ -161,7 +163,8 @@ TEST_CASE("Zero-dimensional ops") {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
     using T              = double;
 
     IndexSpace IS{range(0, 10)};
@@ -281,7 +284,8 @@ TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
     using T              = double;
 
     IndexSpace IS{range(0, 10)};
@@ -538,7 +542,8 @@ void test_setop_with_T(unsigned tilesize) {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
 
     IndexSpace IS{range(0, 10),
                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
@@ -638,7 +643,8 @@ void test_mapop_with_T(unsigned tilesize) {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
 
     IndexSpace IS{range(0, 10),
                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
@@ -737,7 +743,8 @@ void test_addop_with_T(unsigned tilesize) {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
 
     IndexSpace IS{range(0, 10),
                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
@@ -1322,7 +1329,8 @@ TEST_CASE("Two-dimensional ops") {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
     using T              = double;
 
     IndexSpace IS{range(0, 10),
@@ -1405,7 +1413,8 @@ TEST_CASE("Two-dimensional ops with flush and sync") {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
     using T              = double;
 
     IndexSpace IS{range(0, 10),
@@ -1488,7 +1497,8 @@ TEST_CASE("One-dimensional ops") {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
     using T              = double;
 
     IndexSpace IS{range(0, 10),
@@ -1574,7 +1584,8 @@ TEST_CASE("Three-dimensional mult ops part I") {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec  = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec  = new ExecutionContext{pg, &distribution, mgr, &re};
     using T               = double;
     const size_t tilesize = 1;
 
@@ -1664,7 +1675,8 @@ TEST_CASE("Four-dimensional mult ops part I") {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec  = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec  = new ExecutionContext{pg, &distribution, mgr, &re};
     using T               = double;
     const size_t tilesize = 1;
 
@@ -1754,7 +1766,8 @@ TEST_CASE("Two-dimensional ops part I") {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
     using T              = double;
 
     IndexSpace IS{range(0, 10),
@@ -2031,7 +2044,8 @@ TEST_CASE("MultOp with RHS reduction") {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
     using T              = double;
 
     IndexSpace IS{range(0, 4),

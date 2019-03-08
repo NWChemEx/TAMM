@@ -76,6 +76,7 @@ public:
   template<typename V>
   BlockBuffer& operator=(const V val) {
     std::fill(begin(), end(), val);
+    return *this;
   }
 private:
   span<T> buf_span;

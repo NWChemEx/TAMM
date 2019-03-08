@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 
+
 #include "tamm/boundvec.hpp"
 #include "tamm/errors.hpp"
 
@@ -301,9 +302,12 @@ class OpList;
 
 class Op {
 public:
-    virtual std::shared_ptr<Op> clone() const = 0;
+    virtual TensorBase* writes() const             = 0;
+    virtual std::vector<TensorBase*> reads() const = 0;
+    virtual bool is_memory_barrier() const         = 0;
+    virtual std::shared_ptr<Op> clone() const      = 0;
     virtual void execute(ExecutionContext& ec)     = 0;
-    virtual OpList canonicalize() const       = 0;
+    virtual OpList canonicalize() const            = 0;
     virtual ~Op() {}
 };
 
@@ -367,6 +371,22 @@ public:
         };
         do_work(ec, loop_nest, lambda);
     }
+
+    TensorBase* writes() const {
+        
+        return lhs_.base_ptr();
+    }
+
+    std::vector<TensorBase*> reads() const {
+        std::vector<TensorBase*> res; 
+
+        return res;
+    }
+
+    bool is_memory_barrier() const {
+        return false;
+    }
+
 
 protected:
     void fillin_labels() {
@@ -467,6 +487,20 @@ public:
         // ec->...(loop_nest, lambda);
         //@todo use a scheduler
         do_work(ec, loop_nest, lambda);
+    }
+
+    TensorBase* writes() const {
+        return lhs_.base_ptr();
+    }
+
+    std::vector<TensorBase*> reads() const {
+        std::vector<TensorBase*> res; 
+
+        return res;
+    }
+
+    bool is_memory_barrier() const {
+        return false;
     }
 
 protected:
@@ -592,6 +626,22 @@ public:
         };
         //@todo use a scheduler
         do_work(ec, loop_nest, lambda);
+    }
+
+    TensorBase* writes() const {
+        return lhs_.base_ptr();
+    }
+
+    std::vector<TensorBase*> reads() const {
+        std::vector<TensorBase*> res; 
+        for(const auto& lt : rhs_) {
+            res.push_back(lt.base_ptr());
+        }
+        return res;
+    }
+
+    bool is_memory_barrier() const {
+        return false;
     }
 
 protected:
@@ -740,6 +790,21 @@ public:
         //@todo use a scheduler
         //@todo make parallel
         do_work(ec, loop_nest, lambda);
+    }
+
+    TensorBase* writes() const {
+        return lhs_.base_ptr();
+    }
+
+    std::vector<TensorBase*> reads() const {
+        std::vector<TensorBase*> res; 
+        res.push_back(rhs_.base_ptr());
+
+        return res;
+    }
+
+    bool is_memory_barrier() const {
+        return false;
     }
 
 protected:
@@ -959,6 +1024,22 @@ public:
         do_work(ec, loop_nest, lambda);
     }
 
+    TensorBase* writes() const {
+        return lhs_.base_ptr();
+    }
+
+    std::vector<TensorBase*> reads() const {
+        std::vector<TensorBase*> res; 
+        res.push_back(rhs1_.base_ptr());
+        res.push_back(rhs2_.base_ptr());
+
+        return res;
+    }
+
+    bool is_memory_barrier() const {
+        return false;
+    }
+
 protected:
     void fillin_labels() {
         using internal::fillin_tensor_label_from_map;
@@ -1074,6 +1155,20 @@ public:
 
     void execute(ExecutionContext& ec) override { tensor_.allocate(&ec_); }
 
+    TensorBase* writes() const {
+        return tensor_.base_ptr();
+    }
+
+    std::vector<TensorBase*> reads() const {
+        std::vector<TensorBase*> res; 
+
+        return res;
+    }
+
+    bool is_memory_barrier() const {
+        return false;
+    }
+
 protected:
     TensorType tensor_;
     ExecutionContext& ec_;
@@ -1095,6 +1190,20 @@ public:
     }
 
     void execute(ExecutionContext& ec) override { tensor_.deallocate(); }
+
+    TensorBase* writes() const {
+        return tensor_.base_ptr();
+    }
+
+    std::vector<TensorBase*> reads() const {
+        std::vector<TensorBase*> res; 
+
+        return res;
+    }
+
+    bool is_memory_barrier() const {
+        return false;
+    }
 
 protected:
     TensorType tensor_;

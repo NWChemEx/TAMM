@@ -878,19 +878,12 @@ public:
                         [=](RuntimeEngine::RuntimeContext rc_recursive) {
                             BlockBuffer lbf = rc_recursive.get_buf_tmp(
                               ltensor, translated_lblockid);
-                            // TODO: Verify : size of rbuf would depend on lhs_
-                            // or rhs_ tensor
                             BlockBuffer rbf = rc_recursive.get_buf_read(
                               rtensor, translated_rblockid);
 
-                            const auto& ldims =
-                              lhs_.tensor().block_dims(translated_lblockid);
-                            const auto& rdims =
-                              rhs_.tensor().block_dims(translated_rblockid);
-
                             SizeVec ldims_sz, rdims_sz;
-                            for(const auto v : ldims) { ldims_sz.push_back(v); }
-                            for(const auto v : rdims) { rdims_sz.push_back(v); }
+                            for(const auto v : lbf.block_dims()) { ldims_sz.push_back(v); }
+                            for(const auto v : rbf.block_dims()) { rdims_sz.push_back(v); }
                             kernels::assign(lbf.data(), ldims_sz,
                                             lhs_int_labels_, alpha_, rbf.data(),
                                             rdims_sz, rhs_int_labels_,
@@ -943,24 +936,16 @@ public:
                         [=](RuntimeEngine::RuntimeContext rc_recursive) {
                             BlockBuffer lbf = rc_recursive.get_buf_tmp(
                               ltensor, translated_lblockid, 0);
-                            // TODO: Verify : size of rbuf would depend on lhs_
-                            // or rhs_ tensor
                             BlockBuffer rbf = rc_recursive.get_buf_read(
                               rtensor, translated_rblockid);
 
-                            const auto& ldims =
-                              lhs_.tensor().block_dims(translated_lblockid);
-                            const auto& rdims =
-                              rhs_.tensor().block_dims(translated_rblockid);
-
                             SizeVec ldims_sz, rdims_sz;
-                            for(const auto v : ldims) { ldims_sz.push_back(v); }
-                            for(const auto v : rdims) { rdims_sz.push_back(v); }
+                            for(const auto v : lbf.block_dims()) { ldims_sz.push_back(v); }
+                            for(const auto v : rbf.block_dims()) { rdims_sz.push_back(v); }
                             kernels::assign(lbf.data(), ldims_sz,
                                             lhs_int_labels_, alpha_, rbf.data(),
                                             rdims_sz, rhs_int_labels_,
                                             is_assign_);
-                            //std::cout << "lbf buffer: " << lbf << std::endl;
                             lbf.release_add();
                             // TODO: Future Plan (Write back not through):
                             // remove explicit release statement

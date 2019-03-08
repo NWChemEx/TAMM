@@ -30,7 +30,13 @@ public:
       std::copy(block_buffer.buf_span.begin(), block_buffer.buf_span.end(), buffer);
       buf_span = span{buffer, size};
     }
-  BlockBuffer(BlockBuffer&& block_buffer) = default;
+  BlockBuffer(BlockBuffer&& block_buffer){
+    buf_span = std::move(block_buffer.buf_span);
+    allocated = false;
+    indexedTensor = std::move(block_buffer.indexedTensor);
+    re = block_buffer.re;
+    block_buffer.re = nullptr;
+  }
   BlockBuffer& operator=(const BlockBuffer& block_buffer) {
     indexedTensor = block_buffer.indexedTensor;
     re = block_buffer.indexedTensor;

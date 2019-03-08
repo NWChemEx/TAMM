@@ -133,7 +133,8 @@ inline ExecutionContext make_execution_context() {
     ProcGroup pg{GA_MPI_Comm()};
     auto* pMM             = MemoryManagerLocal::create_coll(pg);
     Distribution_NW* dist = new Distribution_NW();
-    return ExecutionContext(pg, dist, pMM);
+    RuntimeEngine* re = new RuntimeEngine{};
+    return ExecutionContext(pg, dist, pMM, re);
 }
 
 /**

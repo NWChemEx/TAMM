@@ -16,7 +16,8 @@ TEST_CASE("HartreeFock testcase") {
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext ec{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext ec{pg, &distribution, mgr, &re};
     
     auto hf_t1 = std::chrono::high_resolution_clock::now();
     // std::tie(ov_alpha, nao, hf_energy, shells) = hartree_fock(filename, C, F);

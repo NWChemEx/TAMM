@@ -5,12 +5,20 @@
 //#include "tamm/tensor_impl.hpp"
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"
+#include "tamm/atomic_counter.h"
+
 #include <algorithm>
 #include <iterator>
 #include <vector>
 
 namespace tamm {
 
+struct IndexedAC {
+    AtomicCounter* ac_;
+    size_t idx_;
+
+    IndexedAC(AtomicCounter* ac, size_t idx): ac_{ac}, idx_{idx} {}
+};
 /**
  * @todo Create a proper forward declarations file.
  *
@@ -31,7 +39,7 @@ class Tensor;
  */
 class ExecutionContext {
 public:
-    ExecutionContext() { pg_self_ = ProcGroup{MPI_COMM_SELF}; };
+    ExecutionContext() : ac_{IndexedAC{nullptr, 0}} { pg_self_ = ProcGroup{MPI_COMM_SELF}; };
     // ExecutionContext(const ExecutionContext&) = default;
     // ExecutionContext(ExecutionContext&&) = default;
     // ExecutionContext& operator=(const ExecutionContext&) = default;
@@ -42,7 +50,8 @@ public:
                      MemoryManager* default_memory_manager) :
       pg_{pg},
       default_distribution_{default_distribution},
-      default_memory_manager_{default_memory_manager} {
+      default_memory_manager_{default_memory_manager},
+      ac_{IndexedAC{nullptr, 0}} {
         pg_self_ = ProcGroup{MPI_COMM_SELF};
 
         // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
@@ -190,13 +199,18 @@ public:
         unregistered_mem_regs_.push_back(mem_reg);
     }
 
+    IndexedAC ac() const { return ac_; }
+
+    void set_ac(IndexedAC ac) { ac_ = ac; }
+
 private:
-    //RuntimeEngine re_;
+    // RuntimeEngine re_;
     ProcGroup pg_;
     ProcGroup pg_self_;
     Distribution* default_distribution_;
     MemoryManager* default_memory_manager_;
     MemoryManagerLocal* memory_manager_local_;
+    IndexedAC ac_;
 
     std::vector<MemoryRegion*> mem_regs_to_dealloc_;
     std::vector<MemoryRegion*> unregistered_mem_regs_;

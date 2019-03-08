@@ -4,9 +4,13 @@ TAMM Runtime
 
 # Introduction
 
-The purpose of the TAMM runtime engine is to execute tensor operations in parallel, according to the dependencies between them. Programmer submits tasks to the runtime system, and then runtime manages data allocations/deallocations on different memories, data transfers, scheduling of tasks, communication-computation overlap.
+The purpose of the TAMM runtime engine is to enable automated communication management (including communication overlap and caching), memory management (including memory bounded execution), reordering and parallelization based on dependence anlaysis, and an abstraction for execution on multiple compute devices (e.g., CPU vs GPU).
 
-In the TAMM runtime, tasks are structured around permissions and access patterns on blocks of memory. Tasks are expressed at the level of labeled tensor and particular tensor blocks (IndexTensor(tensor, blockid)). The permissions determine which parts of tensors tasks are allowed to process, and access patterns inform the runtime which of the allowed blocks will actually be accessed in any given task. Tasks can be submitted recursively, and the child tasks can request permissions that are a subset of parent permissions. Access patterns of a task have to be a subset of its permissions. The declared permissions allow the runtime to determine the dependencies between tasks and to execute them without conflicts, and the access patterns support efficient memory management.
+The runtime engine operates on the following abstractions: tasks, data collections (primarily tensors),  data blocks.
+
+Programmer submits tasks to the runtime engine, and then runtime manages data allocations/deallocations on different memories, data transfers, scheduling of tasks, communication-computation overlap. Tasks are submitted with a specific permission on data collections and request accesses to data blocks from data collections in various modes. The runtime schedules tasks when the task's dependences have been satisfied and data or buffer to which the task requested access are available in the desired mode.
+
+Tasks are structured around permissions and access patterns on blocks of memory. Tasks are expressed at the level of labeled tensor and particular tensor blocks (IndexTensor(tensor, blockid)). The permissions determine which parts of tensors tasks are allowed to process, and access patterns inform the runtime which of the allowed blocks will actually be accessed in any given task. Tasks can be submitted recursively (including possible tail recursion), and the child tasks can request permissions that are a subset of parent permissions. Access patterns of a task have to be a subset of its permissions. The declared permissions allow the runtime to determine the dependencies between tasks and to execute them without conflicts, and the access patterns support efficient memory and communication management.
 
 This document describes high-level ideas. Specific APIs are described in detail in the generated code documentation.
 
@@ -22,9 +26,9 @@ Permissions denote the blocks that a task can operate on and what operations can
 
 * **Accumulate**.
 
-A read/write permission is provided explicitly in the runtime for convenience, but it is equivalent to requesting read and write permissions separately.
+A read+write permission is provided explicitly in the runtime for convenience, but it is equivalent to requesting read and write permissions separately.
 
-Permissions define dependencies between tasks, that are then used to execute independent tasks in parallel. All block accesses in a task are check against the permissions, and nested tasks cannot execute outside the permissions of their parents.
+Permissions define dependencies between tasks, that are then used to execute independent tasks in parallel. All block accesses in a task are checked against the permissions, and nested tasks cannot exceed the permissions of their parents. [This inclusive specification allows the runtime to guarantee sequential semantics while enabling dependence analysis at a coarse level]
 
 Permissions can be requested for specific blocks of tensors, or for whole tensors or their slices. A permission to a particular block is specified by a tensor and a block id in the tensor, and access to a larger portion of a tensor is specified as a labeled tensor.
 
@@ -36,11 +40,11 @@ To actually access a buffer, a task must request access to a buffer. Access requ
 
 * **Write**: Request write access to a block. All elements in the block are assumed to be overwritten.
 
-* **Read/Write**: Request read and writes to a block. First reads a portion of data block and then also updates the data block.
+* **Read/Write**: Request read and writes to a block. First reads a portion of data block and then also writes the data block.
 
 * **Accum**: Accumulate to a data block. The buffer is assumed to be initialized.
 
-* **Temp**: A temporary local copy of a data block. It does not impact the tensor’s data block until explicitly requested to do so. TempAccess does not conflict with any other modes and any number of simultaneous TempAccess accesses are allowed. Temporary blocks can be read, written, or accumulated according to task permissions.
+* **Temp**: A temporary local copy of a data block. It does not impact the tensor’s data block until explicitly requested to do so. Temp access does not conflict with any other modes and any number of simultaneous Temp access accesses are allowed. Temporary blocks can be read, written, or accumulated according to task permissions.
 
 Access modes inform the runtime ahead of time which buffers will be accessed in what way, but the actual creation of local buffers is performed by access functions corresponding to the access modes. Access modes are used by the runtime system to prepare data in the appropriate memory before the task execution starts. It allows to achieve maximum communication-computation overlap. The local buffers are populated with tensor data for Read and Read/Write accesses. For all other access patterns, the block must be populated by the user.
 
@@ -50,28 +54,25 @@ Any of the modifying access (Write, Read/Write, and Accum) can be requested in a
 
 Runtime Engine executes tasks and manages block buffers memory. The runtime engine maintains all the state necessary to perform these tasks. A runtime engine is associated with execution context and it is accessed in the following way:
 
+```c++
 ExecutionContext ec;
 
 RuntimeEngine *re = ec.re();
+```
 
-a task once it begins execution, does not block
-
-if a task needs access to a block, ideally it does not just get a block, especially a ready copy.
-
-it would request access and submit a continuation
-
-all such access requests are processed and the blocks are in ready state before a task is executed
+A task, once it begins execution, does not block. If a task needs access to a block, ideally it does not just get a block, especially a ready copy. it would request access and submit a continuation. All such access requests are processed and the blocks are ensured to be in ready state before a task is executed.
 
 ## Task Submission
 
-submitTask: This function is used to submit tasks to the runtime system. It requires to specify at least one execution lambda, access modes and permissions on the required data blocks, and any additional arguments that a task requires. For example:
+`submitTask`: This function is used to submit tasks to the runtime system. It requires to specify at least one execution lambda, access modes and permissions on the required data blocks, and any additional arguments that a task requires. For example:
 
-submitTask(cpuLambda, ReadPermission(A), WritePermission(B), ReadAccess(C), AccumAccess(D))
+`submitTask(cpuLambda, ReadPermission(A), WritePermission(B), ReadAccess(C), AccumAccess(D))`
 
 Once submitted, a task is executed when no other tasks with overlapping permissions execute. The task is guaranteed to execute to completion. While the buffer access functions may result in data movement, they are guaranteed not to block. Buffers requested at task submission time with access mode may be optimized by the runtime and may be prefetched so no data movement occurs during task execution. While a task can access blocks that it did not explicitly request with an access mode, such accesses may be highly inefficient because the runtime is not given a chance to optimize them. Because of that, if a task contains branches or other control flow mechanisms, the branches should be submitted as continuation tasks with appropriate access requests.
 
 Currently, the task submission interface takes a single function. However, this is a point of extension for future execution on heterogeneous hardware. When executing on heterogeneous hardware, the task may have to be specialized into multiple code versions, one for every type of the hardware (e.g., CPU function, CUDA function, OpenCL function). One possible implementation of such interface will involve a function wrapper that can be instantiated with versions of code for different devices:
 
+```c++
 Class FunctionDefinition; // one lambda for each architecture
 
 FunctionDefinition lambdas;
@@ -80,11 +81,12 @@ Lambdas.cpu = [...](...){...}; // Some CPU code
 
 Lambdas.gpu = gpuFunction; // Some GPU code
 
-submitTask(lambdas, ReadPermission(Block1), WriteAccess(Block2))
+submitTask(lambdas, ReadPermission(Block1), WriteAccess(Block2));
+```
 
 ## RuntimeContext
 
-First argument of each lambda function is  runtime context. It is created by the runtime system when scheduling decision for a task is made. runtime context contains information about the memory node of the worker where task is scheduled for execution and details of  present task. Runtime context allows  a task to retrieve updated copy of buffer on local memory (it may be device memory). It also allows tasks to submit nested tasks while maintaining dependencies among  other tasks.
+First argument of each lambda function is  runtime context. It is created by the runtime system when scheduling decision for a task is made. Runtime context contains information about the memory node of the worker where task is scheduled for execution and details of  present task. Runtime context allows  a task to retrieve updated copy of buffer on local memory (it may be device memory). It also allows tasks to submit nested tasks while maintaining dependencies among  other tasks.
 
 # Blocks and Buffers
 
@@ -106,15 +108,15 @@ A tensor consists of blocks of memory that can only be accessed as a whole. Thes
 
 A task can retrieve buffers (on the memory node where the  task is scheduled) using tensor and blockid. When a buffer is created, it has the the information about corresponding (tensor, blockid).
 
-get_buf_tmp : a temporary buffer is returned (can be filled with initial value).
+`get_buf_tmp` : a temporary buffer is returned (can be filled with initial value).
 
-get_buf_read:  an updated copy of (tensor,blockid) is returned.
+`get_buf_read`:  an updated copy of (tensor,blockid) is returned.
 
-get_buf_write: an uninitialized buffer for (tensor,blockid) is returned (can be filled with initial value).
+`get_buf_write`: an uninitialized buffer for (tensor,blockid) is returned (can be filled with initial value).
 
-get_buf_read_write: an updated buffer containing a copy of (tensor,blockid) is returned and this buffer is later modified.
+`get_buf_read_write`: an updated buffer containing a copy of (tensor,blockid) is returned and this buffer is later modified.
 
-get_buf_cwrite, get_buf_creadwrite: these functions request cancellable versions of writable buffers. A cancellable buffer can be modified, and it is guaranteed that the modifications do not take place until explicitly committed. Also, cancellable buffers can be committed from any copy of the buffer while non-cancellable buffers must be committed from the buffer obtained from the runtime.
+`get_buf_cwrite`, `get_buf_creadwrite`: these functions request cancellable versions of writable buffers. A cancellable buffer can be modified, and it is guaranteed that the modifications do not take place until explicitly committed. Also, cancellable buffers can be committed from any copy of the buffer while non-cancellable buffers must be committed from the buffer obtained from the runtime.
 
 If some buffers are accessed in a task which are not indicated using access modes, then runtime synchronously prepares buffers for those accesses. Other buffers are prepared before the task execution starts. Because of that, buffers should be requested in task submission whenever possible. In practice, this means that tasks have to often be written in a continuation style where the next task requests the buffers necessary for the continuation.
 
@@ -122,14 +124,15 @@ If some buffers are accessed in a task which are not indicated using access mode
 
 Block buffers must be explicitly released to commit memory effects. Currently, there are two interfaces that correspond to functions on tensor blocks. This list will be expanded as necessary to reflect all the possible operations.
 
-release_put : This updates the global (tensor,blockid)  tensor with the current content of buffer.
+`release_put` : This updates the global (tensor,blockid)  tensor with the current content of buffer.
 
-release_add: This appends the current content of buffer to global (tensor,blockid) tensor.
+`release_add`: This appends the current content of buffer to global (tensor,blockid) tensor.
 
 There is also a release function to release a buffer without committing the effects (invalid to call on non-cancellable buffers).
 
 ### An example from AddOp
 
+```c++
 auto cpulambda = [=](RuntimeEngine::RuntimeContext rc_recursive) {
 
         BlockBuffer lbf = rc_recursive.get_buf_tmp(ltensor, lblockid);
@@ -165,6 +168,7 @@ re.submitTask(cpulambda,
         WritePermission(IndexedTensor{ltensor, lblockid}),
 
         ReadAccess(IndexedTensor{rtensor, rblockid}));
+```
 
 # **Ongoing Work**
 
@@ -194,11 +198,11 @@ In beginning, we start with a simple heuristic. Each idle worker pops a task and
 
 There are more memory operations we are considering to allow more optimizations:
 
-* CANCEL: This cancels the an access to that data block without performing the stated operation. Canceling accesses is important if a user requested modify access (READ, RW, ACC) and does not end up doing the operation.
+* `CANCEL`: This cancels the an access to that data block without performing the stated operation. Canceling accesses is important if a user requested modify access (READ, RW, ACC) and does not end up doing the operation.
 
-* EVICT: Evict a block. To be used by internal runtime managing the memory block.
+* `EVICT`: Evict a block. To be used by internal runtime managing the memory block.
 
-* FLUSH: Flush a local changes in a block to remote. This is to be used to ensure ordering and completion semantics.
+* `FLUSH`: Flush a local changes in a block to remote. This is to be used to ensure ordering and completion semantics.
 
 ## Permissions Checks
 

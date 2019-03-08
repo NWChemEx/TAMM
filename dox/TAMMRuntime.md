@@ -210,7 +210,21 @@ A task has effects and accesses. Any access mode requested should be compatible 
 
 Effect specification (or permission) for a block can be: ReadPermission, WritePermission, ReadWritePermission, AccumPermission
 
-<table>
+|   | ReadPermission |  WritePermission   | ReadWritePermission | AccumPermission |
+|---|:-:|:-:|:-:|:-:|
+| READ    | ok | ok | ok |    |
+| WRITE   |    | ok | ok |    |
+|  RW     |    | ok | ok |    |
+| ACC     |    | ok | ok | ok |
+| TMP     |    |    |    |    |
+| RELEASE | ok | ok | ok | ok |
+| CANCEL  | ok | ok | ok | ok |
+| EVICT   | *  | *  | *  | *  |
+| FLUSH   | ok | ok | ok | ok |
+| DONE_WAITING  | * | * |  | * |
+
+
+<!-- <table>
   <tr>
     <td></td>
     <td>Effect</td>
@@ -219,7 +233,7 @@ Effect specification (or permission) for a block can be: ReadPermission, WritePe
     <td></td>
   </tr>
   <tr>
-    <td>Permissible Operation</td>
+    <td>Operations</td>
     <td>ReadPermission</td>
     <td>WritePermission</td>
     <td>ReadWritePermission</td>
@@ -296,7 +310,7 @@ WAITING</td>
     <td></td>
     <td>*</td>
   </tr>
-</table>
+</table> -->
 
 
 EVICT and DONE_WAITING are runtime internal access requests and are not affected by the access modes.

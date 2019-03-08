@@ -45,7 +45,8 @@ void ccsd_driver() {
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext ec{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext ec{pg, &distribution, mgr, &re};
     auto rank = ec.pg().rank();
 
     //TODO: read from input file, assume no freezing for now

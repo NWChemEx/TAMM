@@ -44,7 +44,8 @@ void cd_svd_driver() {
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext ec{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext ec{pg, &distribution, mgr, &re};
 
     //TODO: read from input file, assume no freezing for now
     TAMM_SIZE freeze_core    = 0;

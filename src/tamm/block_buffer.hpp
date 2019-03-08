@@ -46,6 +46,7 @@ public:
     T* buffer = new T[size]; // that will need to be more complicated once we get device buffers
     std::copy(block_buffer.buf_span.begin(), block_buffer.buf_span.end(), buffer);
     buf_span = span{buffer, size};
+    return *this;
   }
   BlockBuffer(Tensor<T> tensor, IndexVector blockid) 
     : allocated{true}, indexedTensor{tensor, blockid} {

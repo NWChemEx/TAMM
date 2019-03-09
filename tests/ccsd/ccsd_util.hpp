@@ -12,11 +12,30 @@ using Tensor3D   = Eigen::Tensor<double, 3, Eigen::RowMajor>;
 using Tensor4D   = Eigen::Tensor<double, 4, Eigen::RowMajor>;
 
 
-  auto lambdar2 = [](const IndexVector& blockid, span<double> buf){
-      if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-          for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
-      }
-  };
+  // auto lambdar2 = [](const IndexVector& blockid, span<double> buf){
+  //     if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+  //         for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+  //     }
+  // };
+
+template<typename TensorType>
+void update_r2(ExecutionContext& ec, 
+              LabeledTensor<TensorType> ltensor) {
+    Tensor<TensorType> tensor = ltensor.tensor();
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+        if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+          const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+          std::vector<TensorType> dbuf(dsize);
+          tensor.get(blockid, dbuf);
+          // func(blockid, dbuf);
+          for(auto i = 0U; i < dsize; i++) dbuf[i] = 0; 
+          tensor.put(blockid, dbuf);
+        }
+    };
+    block_for(ec, ltensor, lambda);
+}
 
 std::string ccsd_test( int argc, char* argv[] )
 {

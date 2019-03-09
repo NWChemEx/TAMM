@@ -938,13 +938,8 @@ public:
                               rhs_.tensor().block_dims(translated_rblockid);
 
                             SizeVec ldims_sz, rdims_sz;
-                            std::cout << "ldims_sz: ";
-                            for(const auto v : ldims) { ldims_sz.push_back(v); std::cout << v << " "; }
-                            std::cout << std::endl;
-                            std::cout << "rdims_sz: ";
-                            for(const auto v : rdims) { rdims_sz.push_back(v); std::cout << v << " "; }
-                            std::cout << std::endl;
-                            //std::cout << "rbf buffer: " << rbf << std::endl;
+                            for(const auto v : ldims) { ldims_sz.push_back(v); }
+                            for(const auto v : rdims) { rdims_sz.push_back(v); }
                             kernels::assign(lbf.data(), ldims_sz,
                                             lhs_int_labels_, alpha_, rbf.data(),
                                             rdims_sz, rhs_int_labels_,

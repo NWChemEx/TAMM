@@ -279,7 +279,7 @@ std::tuple<double,double> ccsd_driver(ExecutionContext& ec, const TiledIndexSpac
           std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
                                             d_e, p_evl_sorted, zshiftl, noab);
 
-          //update_tensor(d_r2(), lambdar2);
+          update_r2(ec, d_r2());
           
 
           Scheduler{ec}((d_r1s[off])() = d_r1())((d_r2s[off])() = d_r2())

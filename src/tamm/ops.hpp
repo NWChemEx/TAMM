@@ -352,8 +352,11 @@ public:
 
     void execute(ExecutionContext& ec) override {
         
-#if 0
+#if 1
 //previous implementation
+        using TensorElType = typename LabeledTensorT::element_type;
+        LabelLoopNest loop_nest{lhs_.labels()};
+
         auto lambda = [&](const IndexVector& blockid) {
             auto tensor = lhs_.tensor();
             EXPECTS(blockid.size() == lhs_.labels().size());
@@ -373,6 +376,7 @@ public:
         };
         do_work(ec, loop_nest, lambda);
 #endif
+#if 0
         if(is_assign_) {
             ec.re()->submitTask(
                 [=](RuntimeEngine::RuntimeContext rc) {
@@ -418,7 +422,7 @@ public:
         }
 
         // We do not execute runtime engine here explicitly.  This will be done later by whoever created the execution context.
-
+#endif
 #if 0
 // New task-based implementation
 //TODO: parameter list would be buffer pointer and other parameters
@@ -827,6 +831,7 @@ public:
 
     void execute(ExecutionContext& ec) override {
         // Write (is_assign_ is true)
+        #if 0
         if(is_assign_) {
             ec.re()->submitTask(
               [=](RuntimeEngine::RuntimeContext rc) {
@@ -960,7 +965,7 @@ public:
               AccumPermission{lhs_}, ReadPermission{rhs_});
         }
 
-#if 0
+#else
         
         using TensorElType = typename LabeledTensorT::element_type;
 
@@ -1175,7 +1180,7 @@ public:
 
     void execute(ExecutionContext& ec) override {
         EXPECTS(!is_assign_);
-
+        #if 0
         using TensorElType = typename LabeledTensorT::element_type;
 
         ec.re()->submitTask(
@@ -1241,7 +1246,7 @@ public:
         }
         }, AccumPermission{lhs_}, ReadPermission{rhs1_}, ReadPermission{rhs2_});
 
-    #if 0
+    #else
 
 
         using TensorElType = typename LabeledTensorT::element_type;

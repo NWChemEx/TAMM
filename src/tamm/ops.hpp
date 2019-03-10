@@ -304,6 +304,7 @@ class OpList;
 class Op {
 public:
     virtual TensorBase* writes() const             = 0;
+    virtual TensorBase* accumulates() const        = 0;
     virtual std::vector<TensorBase*> reads() const = 0;
     virtual bool is_memory_barrier() const         = 0;
     virtual std::shared_ptr<Op> clone() const      = 0;
@@ -454,16 +455,25 @@ public:
     }
 
     TensorBase* writes() const {
-        
-        return lhs_.base_ptr();
+        if(is_assign()) {
+            return lhs_.base_ptr();
+        } else {
+            return nullptr;
+        }
     }
 
     std::vector<TensorBase*> reads() const {
-        std::vector<TensorBase*> res; 
-
+        std::vector<TensorBase*> res;
         return res;
     }
 
+    TensorBase* accumulates() const {
+        if(is_assign()) {
+            return nullptr;
+        } else {
+            return lhs_.base_ptr();
+        }
+    }
     bool is_memory_barrier() const {
         return false;
     }
@@ -571,13 +581,15 @@ public:
     }
 
     TensorBase* writes() const {
-        return lhs_.base_ptr();
+        return nullptr;
     }
 
     std::vector<TensorBase*> reads() const {
-        std::vector<TensorBase*> res; 
+        return {lhs_.base_ptr()};
+    }
 
-        return res;
+    TensorBase* accumulates() const {
+        return nullptr;
     }
 
     bool is_memory_barrier() const {
@@ -711,6 +723,10 @@ public:
 
     TensorBase* writes() const {
         return lhs_.base_ptr();
+    }
+
+    TensorBase* accumulates() const {
+        return nullptr;
     }
 
     std::vector<TensorBase*> reads() const {
@@ -1011,7 +1027,19 @@ public:
     }
 
     TensorBase* writes() const {
-        return lhs_.base_ptr();
+        if(is_assign()) {
+            return lhs_.base_ptr();
+        } else {
+            return nullptr;
+        }
+    }
+
+    TensorBase* accumulates() const {
+        if(!is_assign()) {
+            return lhs_.base_ptr();
+        } else {
+            return nullptr;
+        }
     }
 
     std::vector<TensorBase*> reads() const {
@@ -1314,7 +1342,19 @@ public:
     }
 
     TensorBase* writes() const {
-        return lhs_.base_ptr();
+        if(is_assign()) {
+            return lhs_.base_ptr();
+        } else {
+            return nullptr;
+        }
+    }
+
+    TensorBase* accumulates() const {
+        if(!is_assign()) {
+            return lhs_.base_ptr();
+        } else {
+            return nullptr;
+        }
     }
 
     std::vector<TensorBase*> reads() const {
@@ -1448,10 +1488,12 @@ public:
         return tensor_.base_ptr();
     }
 
-    std::vector<TensorBase*> reads() const {
-        std::vector<TensorBase*> res; 
+    TensorBase* accumulates() const {
+        return nullptr;
+    }
 
-        return res;
+    std::vector<TensorBase*> reads() const {
+        return {};
     }
 
     bool is_memory_barrier() const {
@@ -1485,9 +1527,11 @@ public:
     }
 
     std::vector<TensorBase*> reads() const {
-        std::vector<TensorBase*> res; 
+        return {};
+    }
 
-        return res;
+    TensorBase* accumulates() const {
+        return {};
     }
 
     bool is_memory_barrier() const {

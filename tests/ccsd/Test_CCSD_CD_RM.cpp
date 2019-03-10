@@ -8,6 +8,8 @@
 
 using namespace tamm;
 
+bool debug = false;
+
 template<typename T>
 void ccsd_e(ExecutionContext &ec,
             const TiledIndexSpace& MO, const TiledIndexSpace& CI, Tensor<T>& de, const Tensor<T>& t1,
@@ -131,6 +133,8 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
         (_a009(h3, h2, cind) = 0)
         (_a017(p3, h2, cind) = 0)
         (_a021(p3, p1, cind) = 0)
+        (_a022(p3,p4,p2,p1) = 0)
+        (_a004(p1, p2, h4, h3) = 0)
         ;
 
     sch (_a017(p3, h2, cind) += -1.0 * t2(p1, p3, h3, h2) * chol3d(h3, p1, cind))
@@ -157,12 +161,8 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
         (i0_temp(p3, p4, h1, h2) +=  0.5 * _a017(p3, h1, cind) * _a017(p4, h2, cind))
         ;
     
-            
-    sch (_a022(p3,p4,p2,p1) = 0)
-        (_a022(p3,p4,p2,p1) += _a021(p3,p2,cind) * _a021(p4,p1,cind))
+    sch (_a022(p3,p4,p2,p1) += _a021(p3,p2,cind) * _a021(p4,p1,cind))
         (i0_temp(p3, p4, h1, h2) += 1.0 * _a022(p3, p4, p2, p1) * t2(p2,p1,h1,h2))
-
-        (_a004(p1, p2, h4, h3) = 0)
         (_a004(p1, p2, h4, h3) +=  1.0   * chol3d(p1, h4, cind) * chol3d(p2, h3, cind))
         (_a019(h3, h4, h1, h2) += -0.125 * _a004(p1, p2, h4, h3) * t2(p1,p2,h1,h2))
         (_a020(p1, h3, p4, h2) +=  0.5   * _a004(p2, p4, h3, h1) * t2(p1,p2,h1,h2)) 
@@ -231,9 +231,24 @@ std::tuple<double,double> ccsd_driver(ExecutionContext& ec, const TiledIndexSpac
           Scheduler{ec}((d_t1s[off])() = d_t1())((d_t2s[off])() = d_t2())
             .execute();
 
+          auto ct1 = std::chrono::high_resolution_clock::now();
           ccsd_e(ec, MO, CI, d_e, d_t1, d_t2, d_f1, cv3d);
+          auto ct2 = std::chrono::high_resolution_clock::now();
+          auto ct_time = std::chrono::duration_cast<std::chrono::duration<double>>((ct2 - ct1)).count();
+          if(debug && ec.pg().rank() == 0) cout << "ccsd_e_time = " << ct_time  << endl;
+
+          ct1 = std::chrono::high_resolution_clock::now();
           ccsd_t1(ec, MO, CI, d_r1, d_t1, d_t2, d_f1, cv3d);
+          ct2 = std::chrono::high_resolution_clock::now();
+          ct_time = std::chrono::duration_cast<std::chrono::duration<double>>((ct2 - ct1)).count();
+          if(debug && ec.pg().rank() == 0) cout << "ccsd_t1_time = " << ct_time  << endl;
+          ct1 = std::chrono::high_resolution_clock::now();
+
+          ct1 = std::chrono::high_resolution_clock::now();
           ccsd_t2(ec, MO, CI, d_r2, d_t1, d_t2, d_f1, cv3d);
+          ct2 = std::chrono::high_resolution_clock::now();
+          ct_time = std::chrono::duration_cast<std::chrono::duration<double>>((ct2 - ct1)).count();
+          if(debug && ec.pg().rank() == 0) cout << "ccsd_t2_time = " << ct_time  << endl;
 
           GA_Sync();
           std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
@@ -335,6 +350,7 @@ void ccsd_driver() {
 
 
     CCSDOptions ccsd_options = options_map.ccsd_options;
+    debug = ccsd_options.debug;
     if(rank == 0) ccsd_options.print();
 
     int maxiter    = ccsd_options.maxiter;

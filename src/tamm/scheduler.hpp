@@ -114,8 +114,12 @@ public:
         for(size_t i = start_id; i < end_id; i++) {
             std::vector<TensorBase*> reads, writes, accums;
             reads = std::vector<TensorBase*>(ops[i]->reads());
-            writes = std::vector<TensorBase*>{ops[i]->writes()};
-            accums = std::vector<TensorBase*>{ops[i]->accumulates()};
+            if(auto wr = ops[i]->writes(); wr != nullptr) {
+                writes = std::vector<TensorBase*>{wr};
+            }
+            if(auto ac = ops[i]->accumulates(); ac != nullptr) {
+                accums = std::vector<TensorBase*>{ac};
+            }
 
             if(ops[i]->is_memory_barrier() ||
                has_dependence(group_reads, group_writes, group_accums, reads,

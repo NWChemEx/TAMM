@@ -85,6 +85,22 @@ public:
                 has_intersect(W1, W2) );
     }
 
+    bool has_dependence(const std::vector<TensorBase*>& R1,
+                        const std::vector<TensorBase*>& W1,
+                        const std::vector<TensorBase*>& A1,
+                        const std::vector<TensorBase*>& R2,
+                        const std::vector<TensorBase*>& W2,
+                        const std::vector<TensorBase*>& A2) {
+        return (has_intersect(R1, W2) ||
+                has_intersect(W1, R2) ||
+                has_intersect(W1, W2) ||
+                has_intersect(R1, A2) ||
+                has_intersect(W1, A2) ||
+                has_intersect(R2, A1) ||
+                has_intersect(W2, A1)
+                );
+    }
+
     std::vector<size_t> levelize(const std::vector<std::shared_ptr<Op>>& ops,
                                  size_t start_id,
                                  size_t end_id) {
@@ -94,23 +110,29 @@ public:
         std::vector<size_t> groups;
 
         size_t group_start = start_id;
-        std::vector<TensorBase*> group_reads, group_writes;
+        std::vector<TensorBase*> group_reads, group_writes, group_accums;
         for(size_t i = start_id; i < end_id; i++) {
-            std::vector<TensorBase*> reads, writes;
+            std::vector<TensorBase*> reads, writes, accums;
             reads = std::vector<TensorBase*>(ops[i]->reads());
-            writes = std::vector<TensorBase*>{ops[i]->writes()};
-            
+            if(auto wr = ops[i]->writes(); wr != nullptr) {
+                writes = std::vector<TensorBase*>{wr};
+            }
+            if(auto ac = ops[i]->accumulates(); ac != nullptr) {
+                accums = std::vector<TensorBase*>{ac};
+            }
+
             if(ops[i]->is_memory_barrier() ||
-               has_dependence(group_reads, group_writes, reads, writes)) {
-            
+               has_dependence(group_reads, group_writes, group_accums, reads,
+                              writes, accums)) {
                 groups.push_back(i - group_start);
                 group_start = i;
                 group_reads = reads;
                 group_writes = writes;
-            
+                group_accums = accums;
             } else {
                 group_reads.insert(group_reads.end(), reads.begin(), reads.end());
                 group_writes.insert(group_writes.end(), writes.begin(), writes.end());
+                group_accums.insert(group_accums.end(), accums.begin(), accums.end());
             }
         }
 

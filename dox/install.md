@@ -32,6 +32,8 @@ cmake \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran ..
 
+#CUDA Options
+[-DTAMM_CUDA=ON] #Disabled by Default
 #GlobalArrays options
 [-DARMCI_NETWORK=MPI3] #Default is MPI-PR
 

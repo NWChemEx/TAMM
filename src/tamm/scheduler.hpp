@@ -143,7 +143,7 @@ public:
         return groups;
     }
 
-    bool has_depencence(const Op* op1, const Op* op2) {
+    bool op_has_dependence(const Op* op1, const Op* op2) {
         std::vector<TensorBase*> R1, W1, A1;
         R1 = op1->reads();
         if(auto wr = op1->writes(); wr != nullptr) {
@@ -160,10 +160,10 @@ public:
         if(auto ac = op2->accumulates(); ac != nullptr) {
             A2 = std::vector<TensorBase*>{ac};
         }
-        return has_depencence(R1, W1, A1, R2, W2, A2);
+        return has_dependence(R1, W1, A1, R2, W2, A2);
     }
 
-    std::vector<size_t> levelize_and_order(
+    std::vector<std::pair<size_t, size_t>> levelize_and_order(
       const std::vector<std::shared_ptr<Op>>& ops, size_t start_id,
       size_t end_id) {
         EXPECTS(start_id >= 0 && start_id <= ops.size());
@@ -176,9 +176,9 @@ public:
         }
         for(size_t i = 0; i < end_id - start_id - 1; i++) {
             for(size_t j = i + 1; j < end_id - start_id; j++) {
-                if(has_dependence(ops[start_id + i], ops[start_id + j])) {
-                    order[j]->first =
-                      std::max(order[i]->first + 1, order[j]->first);
+                if(op_has_dependence(ops[start_id + i].get(), ops[start_id + j].get())) {
+                    order[j].first =
+                      std::max(order[i].first + 1, order[j].first);
                 }
             }
         }

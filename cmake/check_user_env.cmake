@@ -47,6 +47,12 @@ check_compiler_version(C PGI 18)
 check_compiler_version(CXX PGI 18)
 check_compiler_version(Fortran PGI 18)
 
-
+if(TAMM_CUDA)
+    find_package(CUDA QUIET)
+    if(CUDA_VERSION VERSION_LESS 10.0)
+        message(FATAL_ERROR "CUDA version provided (${CUDA_VERSION}) \
+    is insufficient. Need CUDA >= 10)")
+    endif()
+endif()
 
 

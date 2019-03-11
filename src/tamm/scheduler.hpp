@@ -191,18 +191,19 @@ public:
     void execute() {
 #if 1
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());
+        assert(order.size() == ops_.size() - start_idx_);
         int lvl    = 0;
         AtomicCounter* ac =
-          new AtomicCounterGA(ec().pg(), ops_.size() - start_idx_);
+          new AtomicCounterGA(ec().pg(), order.size());
         ac->allocate(0);
-        for(size_t i = start_idx_; i < ops_.size(); i++) {
-            if(order[i - start_idx_].first != lvl) {
-                assert(order[i - start_idx_] == lvl + 1);
+        for(size_t i = 0; i < order.size(); i++) {
+            if(order[i].first != lvl) {
+                assert(order[i].first == lvl + 1);
                 ec().pg().barrier();
                 lvl += 1;
             }
-            ec().set_ac(IndexedAC(ac, i - start_idx_));
-            ops_[i]->execute(ec());
+            ec().set_ac(IndexedAC(ac, i));
+            ops_[order[i].second]->execute(ec());
         }
         ec().pg().barrier();
         start_idx_ = ops_.size();

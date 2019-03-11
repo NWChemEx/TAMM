@@ -191,7 +191,7 @@ public:
     void execute() {
 #if 1
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());
-        assert(order.size() == ops_.size() - start_idx_);
+        EXPECTS(order.size() == ops_.size() - start_idx_);
         int lvl    = 0;
         AtomicCounter* ac =
           new AtomicCounterGA(ec().pg(), order.size());

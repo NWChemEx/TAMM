@@ -205,6 +205,7 @@ public:
             ops_[i]->execute(ec());
         }
         ec().pg().barrier();
+        start_idx_ = ops.size();
         ec().set_ac(IndexedAC(nullptr, 0));
         ac->deallocate();
         delete ac;

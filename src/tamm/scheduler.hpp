@@ -196,15 +196,15 @@ public:
           new AtomicCounterGA(ec().pg(), ops_.size() - start_idx_);
         ac->allocate(0);
         for(size_t i = start_idx_; i < ops_.size(); i++) {
-            if(order[i - start_idx_].first == lvl) {
-                ec().set_ac(IndexedAC(ac, i - start_idx_));
-                ops_[i]->execute(ec());
-            } else {
-                ec().pg().barrier();
+            if(order[i - start_idx_].first != lvl) {
                 assert(order[i - start_idx_] == lvl + 1);
+                ec().pg().barrier();
                 lvl += 1;
             }
+            ec().set_ac(IndexedAC(ac, i - start_idx_));
+            ops_[i]->execute(ec());
         }
+        ec().pg().barrier();
         ec().set_ac(IndexedAC(nullptr, 0));
         ac->deallocate();
         delete ac;

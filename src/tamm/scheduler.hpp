@@ -143,7 +143,69 @@ public:
         return groups;
     }
 
+    bool has_depencence(const Op* op1, const Op* op2) {
+        std::vector<TensorBase*> R1, W1, A1;
+        R1 = op1->reads();
+        if(auto wr = op1->writes(); wr != nullptr) {
+            W1 = std::vector<TensorBase*>{wr};
+        }
+        if(auto ac = op1->accumulates(); ac != nullptr) {
+            A1 = std::vector<TensorBase*>{ac};
+        }
+        std::vector<TensorBase*> R2, W2, A2;
+        R2 = op2->reads();
+        if(auto wr = op2->writes(); wr != nullptr) {
+            W2 = std::vector<TensorBase*>{wr};
+        }
+        if(auto ac = op2->accumulates(); ac != nullptr) {
+            A2 = std::vector<TensorBase*>{ac};
+        }
+        return has_depencence(R1, W1, A1, R2, W2, A2);
+    }
+
+    std::vector<size_t> levelize_and_order(
+      const std::vector<std::shared_ptr<Op>>& ops, size_t start_id,
+      size_t end_id) {
+        EXPECTS(start_id >= 0 && start_id <= ops.size());
+        EXPECTS(end_id >= start_id && end_id <= ops.size());
+
+        std::vector<std::pair<size_t, size_t>> order;
+
+        for(size_t i = start_id; i < end_id; i++) {
+            order.push_back(std::make_pair(0, i));
+        }
+        for(size_t i = 0; i < end_id - start_id - 1; i++) {
+            for(size_t j = i + 1; j < end_id - start_id; j++) {
+                if(has_dependence(ops[start_id + i], ops[start_id + j])) {
+                    order[j]->first =
+                      std::max(order[i]->first + 1, order[j]->first);
+                }
+            }
+        }
+        std::sort(order.begin(), order.end(), [](const auto& lhs, const auto& rhs) {
+            return lhs.first < rhs.first;
+        });
+        return order;
+    }
+
     void execute() {
+#if 1
+        auto order = levelize_and_order(ops_, start_idx_, ops_.size());
+        int lvl    = 0;
+        AtomicCounter* ac =
+          new AtomicCounterGA(ec().pg(), ops_.size() - start_idx_);
+        ac->allocate(0);
+        for(size_t i = start_idx_; i < ops_.size(); i++) {
+            if(order[i - start_idx_].first == lvl) {
+                ec().set_ac(IndexedAC(ac, i - start_idx_));
+                ops_[i]->execute(ec());
+            } else {
+                ec().pg().barrier();
+                assert(order[i - start_idx_] == lvl + 1);
+                lvl += 1;
+            }
+        }
+#else
         auto groups = levelize(ops_, start_idx_, ops_.size());
         // std::cerr << "Groups: [ ";
         // for(const auto& sz : groups) {
@@ -183,6 +245,7 @@ public:
         //     ops_[i]->execute(ec());
         //     start_idx_++;
         // }
+#endif
     }
 
     template<typename Func, typename... Args>

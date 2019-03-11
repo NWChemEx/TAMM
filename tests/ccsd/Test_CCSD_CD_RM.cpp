@@ -63,6 +63,12 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO,const TiledIndexSpa
     Scheduler sch{ec};
     sch
         .allocate(_a01, _a02, _a03, _a04, _a05, _a06)
+        (_a01() = 0)
+        (_a02() = 0)
+        (_a03() = 0)
+        (_a04() = 0)
+        (_a05() = 0)
+        (_a06() = 0)
         (i0(p2, h1) = f1(p2, h1))
         (_a01(h2, h1, cind) +=  1.0 * t1(p1, h1) * chol3d(h2, p1, cind))         // ovm
         (_a02(cind)         +=  1.0 * t1(p3, h3) * chol3d(h3, p3, cind))         // ovm

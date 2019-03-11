@@ -205,6 +205,9 @@ public:
                 lvl += 1;
             }
         }
+        ec().set_ac(IndexedAC(nullptr, 0));
+        ac->deallocate();
+        delete ac;
 #else
         auto groups = levelize(ops_, start_idx_, ops_.size());
         // std::cerr << "Groups: [ ";

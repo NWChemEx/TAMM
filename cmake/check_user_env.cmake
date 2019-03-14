@@ -33,9 +33,9 @@ endmacro()
 check_compiler_version(C Clang 5)
 check_compiler_version(CXX Clang 5)
 
-check_compiler_version(C GNU 8.1)
-check_compiler_version(CXX GNU 8.1)
-check_compiler_version(Fortran GNU 8.1)
+check_compiler_version(C GNU 7.2)
+check_compiler_version(CXX GNU 7.2)
+check_compiler_version(Fortran GNU 7.2)
 
 #TODO:Check for GCC>=7 compatibility
 # check_compiler_version(C Intel 19)

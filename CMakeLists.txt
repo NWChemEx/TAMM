@@ -3,12 +3,7 @@ project(tamm VERSION 0.0.0 LANGUAGES C CXX Fortran)
 include(${PROJECT_SOURCE_DIR}/cmake/check_user_env.cmake)
 set(NWX_PROJECTS tamm)
 
-if(TAMM_CUDA) 
-    set(ENABLE_CUDA NWXCUDA)
-    #enable_language(CUDA)
-endif()
-
-set(tamm_DEPENDENCIES NWX_MPI MSGSL Eigen3 GlobalArrays LibInt CBLAS LAPACKE HPTT ${ENABLE_CUDA})
+set(tamm_DEPENDENCIES NWX_MPI MSGSL Eigen3 GlobalArrays LibInt CBLAS LAPACKE HPTT)
 
 set(tamm_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/tamm)
 set(tamm_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/)
@@ -18,7 +13,7 @@ if(NOT DEFINED CMAKE_BUILD_TYPE)
 endif()
 
 if(NOT DEFINED BUILD_TESTS)
-       set (BUILD_TESTS ON)
+    set (BUILD_TESTS ON)
 endif()       
 
 find_package(CMakeBuild)

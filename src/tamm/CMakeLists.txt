@@ -6,23 +6,23 @@ include(TargetMacros) #For nwchemex_add_library
 set(tamm_SRCS tamm.cpp index_space.cpp
 
 #Chao Eigensolver
-    # eigensolver/src/cholQR.cpp 
-    # eigensolver/src/sisubit.cpp 
-    # eigensolver/src/RayleighRitz.cpp 
-    # eigensolver/src/GetEigvals.cpp 
-    # eigensolver/src/GetResiduals.cpp 
-    # eigensolver/src/itereig.cpp 
-    # eigensolver/src/evalidate.cpp 
-    # eigensolver/src/HSLanczos.cpp 
-    # eigensolver/src/getevbnd.cpp 
-    # eigensolver/src/parseinput.cpp 
-    # eigensolver/src/utilities.cpp 
-    # eigensolver/src/getshifts.cpp 
-    # eigensolver/src/slicing.cpp 
-    # eigensolver/src/collectevs.cpp 
-    # eigensolver/src/sync_slices.cpp 
-    # eigensolver/src/hsdiag.cpp 
-    # eigensolver/src/kmeans.cpp
+    eigensolver/src/cholQR.cpp 
+    eigensolver/src/sisubit.cpp 
+    eigensolver/src/RayleighRitz.cpp 
+    eigensolver/src/GetEigvals.cpp 
+    eigensolver/src/GetResiduals.cpp 
+    eigensolver/src/itereig.cpp 
+    eigensolver/src/evalidate.cpp 
+    eigensolver/src/HSLanczos.cpp 
+    eigensolver/src/getevbnd.cpp 
+    eigensolver/src/parseinput.cpp 
+    eigensolver/src/utilities.cpp 
+    eigensolver/src/getshifts.cpp 
+    eigensolver/src/slicing.cpp 
+    eigensolver/src/collectevs.cpp 
+    eigensolver/src/sync_slices.cpp 
+    eigensolver/src/hsdiag.cpp 
+    eigensolver/src/kmeans.cpp
 )
 
 #Add the current directory's header files to the list
@@ -63,17 +63,17 @@ set(tamm_INCLUDES
     # spin_tensor.hpp
 
     #Chao Eigensolver
-    # eigensolver/include/collectevs.hpp
-    # eigensolver/include/enforcecounts.hpp
-    # eigensolver/include/evalidate.hpp
-    # eigensolver/include/getshifts.hpp
-    # eigensolver/include/itereig.hpp
-    # eigensolver/include/parseinput.hpp
-    # eigensolver/include/partev.hpp
-    # eigensolver/include/sisubit.hpp
-    # eigensolver/include/slicing.hpp
-    # eigensolver/include/sync_slices.hpp
-    # eigensolver/include/utilities.hpp
+    eigensolver/include/collectevs.hpp
+    eigensolver/include/enforcecounts.hpp
+    eigensolver/include/evalidate.hpp
+    eigensolver/include/getshifts.hpp
+    eigensolver/include/itereig.hpp
+    eigensolver/include/parseinput.hpp
+    eigensolver/include/partev.hpp
+    eigensolver/include/sisubit.hpp
+    eigensolver/include/slicing.hpp
+    eigensolver/include/sync_slices.hpp
+    eigensolver/include/utilities.hpp
    )
 
 set(tamm_DEFINITIONS )

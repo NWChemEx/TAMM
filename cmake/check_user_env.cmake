@@ -47,12 +47,25 @@ check_compiler_version(C PGI 18)
 check_compiler_version(CXX PGI 18)
 check_compiler_version(Fortran PGI 18)
 
-if(TAMM_CUDA)
-    find_package(CUDA QUIET)
-    if(CUDA_VERSION VERSION_LESS 9.2)
-        message(FATAL_ERROR "CUDA version provided (${CUDA_VERSION}) \
-    is insufficient. Need CUDA >= 9.2)")
+if(NWX_CUDA)
+    include(CheckLanguage)
+    check_language(CUDA)
+    if(CMAKE_CUDA_COMPILER)
+        enable_language(CUDA)
+    else()
+       if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "7.4")
+         get_compiler_exec_name("${CMAKE_CXX_COMPILER}")
+         message(FATAL_ERROR "${comp_exec_name} version provided (${CMAKE_CXX_COMPILER_VERSION}) \
+       is not supported by CUDA version provided. Need ${comp_exec_name} = 7.x for building TAMM with GPU support.")
+       endif()
+       message(FATAL_ERROR "CUDA Toolkit not found.")
     endif()
+    if(CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 9.2)
+        message(FATAL_ERROR "CUDA version provided \
+         (${CMAKE_CUDA_COMPILER_VERSION}) \
+         is insufficient. Need CUDA >= 9.2)")
+    endif()
+    
 endif()
 
 

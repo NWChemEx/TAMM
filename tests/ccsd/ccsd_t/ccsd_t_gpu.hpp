@@ -90,11 +90,14 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
 
                       //TODO:chk args, d_t1 should be local
                       
-                      ccsd_t_singles_gpu(ec,MO,
+                      ccsd_t_singles_gpu(ec,MO,k_spin,
                           k_singles, d_t1, d_v2, k_evl_sorted,
-                          k_range,t_h1b, t_h2b, t_h3b, t_p4b, t_p5b, t_p6b, has_GPU);
-                      // ccsd_t_doubles_gpu(ec,MO,&k_doubles[0],d_t2,d_v2, k_evl_sorted,
-                      //     &k_range,t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b, has_GPU); 
+                          k_range,t_h1b, t_h2b, t_h3b, t_p4b, 
+                          t_p5b, t_p6b, has_GPU);
+                      ccsd_t_doubles_gpu(ec,MO,noab,nvab,
+                          k_spin,k_doubles,d_t2,d_v2,
+                          k_evl_sorted,k_range,t_h1b,t_h2b,t_h3b,
+                          t_p4b,t_p5b,t_p6b, has_GPU); 
 
                       double factor = 0.0;
 

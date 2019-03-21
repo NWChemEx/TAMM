@@ -16,3 +16,15 @@ SCF
     restart false
 }
 
+CD {
+    diagtol 1e-6
+    max_cvecs 8 //factor*nao
+    //debug false
+}
+
+CCSD {
+    threshold 1e-10
+    tilesize 30
+    debug false
+}
+

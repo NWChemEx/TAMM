@@ -80,7 +80,8 @@ void ccsd_driver() {
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext ec{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext ec{pg, &distribution, mgr, &re};
     auto rank = ec.pg().rank();
 
     //TODO: read from input file, assume no freezing for now
@@ -90,14 +91,6 @@ void ccsd_driver() {
     auto [options_map, ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis] 
                     = hartree_fock_driver<T>(ec,filename);
 
-    auto [MO,total_orbitals] = setupMOIS(nao,ov_alpha,freeze_core,freeze_virtual);
-
-    //deallocates F_AO, C_AO
-    auto [cholVpr,d_f1,chol_count, max_cvecs] = cd_svd_driver<T>
-                        (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
-                                freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
-
-
     CCSDOptions ccsd_options = options_map.ccsd_options;
     if(rank == 0) ccsd_options.print();
 
@@ -105,6 +98,15 @@ void ccsd_driver() {
     double thresh  = ccsd_options.threshold;
     double zshiftl = 0.0;
     size_t ndiis   = 5;
+
+    auto [MO,total_orbitals] = setupMOIS(ccsd_options.tilesize,
+                  nao,ov_alpha,freeze_core,freeze_virtual);
+
+    //deallocates F_AO, C_AO
+    auto [cholVpr,d_f1,chol_count, max_cvecs] = cd_svd_driver<T>
+                        (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
+                                freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
+
 
   auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
                         = setupTensors(ec,MO,d_f1,ndiis);

@@ -337,14 +337,6 @@ void ccsd_driver() {
     auto [options_map, ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis] 
                     = hartree_fock_driver<T>(ec,filename);
 
-    auto [MO,total_orbitals] = setupMOIS(nao,ov_alpha,freeze_core,freeze_virtual);
-
-    //deallocates F_AO, C_AO
-    auto [cholVpr,d_f1,chol_count, max_cvecs, CV] = cd_svd_ga_driver<T>
-                        (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
-                                freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
-
-
     CCSDOptions ccsd_options = options_map.ccsd_options;
     debug = ccsd_options.debug;
     if(rank == 0) ccsd_options.print();
@@ -352,7 +344,15 @@ void ccsd_driver() {
     int maxiter    = ccsd_options.maxiter;
     double thresh  = ccsd_options.threshold;
     double zshiftl = 0.0;
-    size_t ndiis   = 5;
+    size_t ndiis   = 5;                    
+
+    auto [MO,total_orbitals] = setupMOIS(ccsd_options.tilesize,
+                nao,ov_alpha,freeze_core,freeze_virtual);
+
+    //deallocates F_AO, C_AO
+    auto [cholVpr,d_f1,chol_count, max_cvecs, CV] = cd_svd_ga_driver<T>
+                        (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
+                                freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
 
     TiledIndexSpace N = MO("all");
 

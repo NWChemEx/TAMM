@@ -364,8 +364,10 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> right_
                  sch(u2()  = xp2.at(jvec)())
                     (uu2() = x2.at(ivec)()).execute();
 
-                 update_tensor(u2(), lambdar2);
-                 update_tensor(uu2(), lambdar2);
+                  update_r2(ec, u2());
+                  update_r2(ec, uu2());
+               //   update_tensor(u2(), lambdar2);
+               //   update_tensor(uu2(), lambdar2);
 
                  sch(d_r1()  = 0)
                     (d_r1() += xp1.at(jvec)() * x1.at(ivec)())
@@ -385,8 +387,10 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> right_
                  sch(u2()  = xp2.at(jvec)())
                     (uu2() = x2.at(ivec)()).execute();
 
-                    update_tensor(u2(), lambdar2);
-                    update_tensor(uu2(), lambdar2);
+                     update_r2(ec, u2());
+                     update_r2(ec, uu2());
+                  //   update_tensor(u2(), lambdar2);
+                  //   update_tensor(uu2(), lambdar2);
 
                     sch(d_r1()  = 0)
                        (d_r1() += xp1.at(jvec)() * x1.at(ivec)())
@@ -404,8 +408,10 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> right_
                  sch(u2()  = xp2.at(jvec)())
                     (uu2() = x2.at(ivec)()).execute();
 
-                 update_tensor(u2(), lambdar2);
-                 update_tensor(uu2(), lambdar2);
+                  update_r2(ec, u2());
+                  update_r2(ec, uu2());
+               //   update_tensor(u2(), lambdar2);
+               //   update_tensor(uu2(), lambdar2);
 
                  sch(d_r1()  = 0)
                     (d_r1() += xp1.at(jvec)() * x1.at(ivec)())
@@ -474,7 +480,8 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> right_
            sch(u1() = r1.at(root)())
               (u2() = r2.at(root)()).execute();
 
-           update_tensor(u2(), lambdar2);
+            update_r2(ec, u2());
+         //   update_tensor(u2(), lambdar2);
 
            sch(oscalar() = 0)
               (oscalar() += u1() * u1())
@@ -512,13 +519,15 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> right_
                   (u2() = x2.at(ivec)())
                   (uu2() = x2.at(ivec)()).execute();
 
-                  update_tensor(uu2(), lambdar2);
+                  update_r2(ec, uu2());
+                  // update_tensor(uu2(), lambdar2);
 
                for(int jvec = 0; jvec<ivec; jvec++){
 
                   sch(uuu2() = x2.at(jvec)()).execute();
 
-                  update_tensor(uuu2(), lambdar2);
+                  update_r2(ec, uuu2());
+                  // update_tensor(uuu2(), lambdar2);
 
                   sch(oscalar() = 0)
                      (oscalar() += x1.at(ivec)() * x1.at(jvec)())
@@ -533,7 +542,8 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> right_
                sch(x1.at(ivec)() = u1())
                   (x2.at(ivec)() = u2()).execute();
 
-               update_tensor(u2(), lambdar2);
+               update_r2(ec, u2());
+               // update_tensor(u2(), lambdar2);
 
                sch(oscalar() = 0)
                   (oscalar() += u1() * u1())
@@ -1015,8 +1025,10 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> left_e
                  sch(u2()  = yp2.at(jvec)())
                     (uu2() = y2.at(ivec)()).execute();
 
-                 update_tensor(u2(), lambdar2);
-                 update_tensor(uu2(), lambdar2);
+                  update_r2(ec, u2());
+                  update_r2(ec, uu2());
+               //   update_tensor(u2(), lambdar2);
+               //   update_tensor(uu2(), lambdar2);
 
                  sch(d_r1()  = 0)
                     (d_r1() += yp1.at(jvec)() * y1.at(ivec)())
@@ -1036,8 +1048,10 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> left_e
                  sch(u2()  = yp2.at(jvec)())
                     (uu2() = y2.at(ivec)()).execute();
 
-                    update_tensor(u2(), lambdar2);
-                    update_tensor(uu2(), lambdar2);
+                  update_r2(ec, u2());
+                  update_r2(ec, uu2());
+                  //   update_tensor(u2(), lambdar2);
+                  //   update_tensor(uu2(), lambdar2);
 
                  sch(d_r1()  = 0)
                     (d_r1() += yp1.at(jvec)() * y1.at(ivec)())
@@ -1055,8 +1069,10 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> left_e
                  sch(u2()  = yp2.at(jvec)())
                     (uu2() = y2.at(ivec)()).execute();
 
-                 update_tensor(u2(), lambdar2);
-                 update_tensor(uu2(), lambdar2);
+                  update_r2(ec, u2());
+                  update_r2(ec, uu2());
+               //   update_tensor(u2(), lambdar2);
+               //   update_tensor(uu2(), lambdar2);
 
                  sch(d_r1()  = 0)
                     (d_r1() += yp1.at(jvec)() * y1.at(ivec)())
@@ -1125,7 +1141,8 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> left_e
            sch(u1() = r1.at(root)())
               (u2() = r2.at(root)()).execute();
 
-           update_tensor(u2(), lambdar2);
+                  update_r2(ec, u2());
+         //   update_tensor(u2(), lambdar2);
 
            sch(oscalar() = 0)
               (oscalar() += u1() * u1())
@@ -1163,13 +1180,15 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> left_e
                   (u2() = y2.at(ivec)())
                   (uu2() = y2.at(ivec)()).execute();
 
-                  update_tensor(uu2(), lambdar2);
+                  update_r2(ec, uu2());
+                  // update_tensor(uu2(), lambdar2);
 
                for(int jvec = 0; jvec<ivec; jvec++){
 
                   sch(uuu2() = y2.at(jvec)()).execute();
 
-                  update_tensor(uuu2(), lambdar2);
+                  update_r2(ec, uuu2());
+                  // update_tensor(uuu2(), lambdar2);
 
                   sch(oscalar() = 0)
                      (oscalar() += y1.at(ivec)() * y1.at(jvec)())
@@ -1184,7 +1203,8 @@ std::tuple<std::vector<Tensor<T>>,std::vector<Tensor<T>>, std::vector<T>> left_e
                sch(y1.at(ivec)() = u1())
                   (y2.at(ivec)() = u2()).execute();
 
-               update_tensor(u2(), lambdar2);
+                  update_r2(ec, u2());
+               // update_tensor(u2(), lambdar2);
 
                sch(oscalar() = 0)
                   (oscalar() += u1() * u1())

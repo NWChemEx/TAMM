@@ -60,6 +60,8 @@ export MKL_LIBS=$INTEL_ROOT/linux/mkl/lib/intel64
 
 export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_ilp64.a;$MKL_LIBS/libmkl_blas95_ilp64.a;$MKL_LIBS/libmkl_intel_thread.a;$MKL_LIBS/libmkl_core.a;$INTEL_ROOT/linux/compiler/lib/intel64/libiomp5.a;-lpthread;-ldl"
 
+<!-- export TAMM_BLASLIBS="-Wl,--start-group $MKL_LIBS/libmkl_intel_ilp64.a $MKL_LIBS/libmkl_intel_thread.a $MKL_LIBS/libmkl_core.a --end-group;$INTEL_ROOT/linux/compiler/lib/intel64/libiomp5.a;-lpthread;-ldl" -->
+
 cmake \
 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran \
 -DCBLAS_INCLUDE_DIRS=$MKL_INC \

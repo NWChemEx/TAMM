@@ -100,7 +100,7 @@ void ccsd_t2(/* ExecutionContext& ec, */
              Scheduler& sch,
              const TiledIndexSpace& MO,const TiledIndexSpace& CI, 
              Tensor<T>& i0, const Tensor<T>& t1, Tensor<T>& t2, 
-             const Tensor<T>& f1, Tensor<T>& chol3d) {
+             const Tensor<T>& f1, Tensor<T>& chol3d, Tensor<T>& _a004) {
                  
     const TiledIndexSpace &O = MO("occ");
     const TiledIndexSpace &V = MO("virt");
@@ -114,7 +114,7 @@ void ccsd_t2(/* ExecutionContext& ec, */
 
     Tensor<T> _a001{{V,V}, {1,1}};
     Tensor<T> _a002{{V,V}, {1,1}};
-    Tensor<T> _a004{{V,V,O,O}, {2,2}};
+    // Tensor<T> _a004{{V,V,O,O}, {2,2}};
     Tensor<T> _a006{{O,O}, {1,1}};
     Tensor<T> _a007{CI};
     Tensor<T> _a008{{O,O,CI}, {1,1}};
@@ -127,9 +127,9 @@ void ccsd_t2(/* ExecutionContext& ec, */
     Tensor<T> i0_temp{{V,V,O,O}, {2,2}};
 
  //------------------------------CD------------------------------
-    sch.allocate(_a001, _a002, _a004, _a006, _a007, 
+    sch.allocate(_a001, _a002, _a006, _a007, 
                  _a008, _a009, _a017, _a019, _a020, _a021,
-                 _a022, i0_temp);
+                 _a022, i0_temp); // _a004
 
     sch (_a001(p1, p2) = 0)
         (_a006(h3, h2) = 0)
@@ -145,7 +145,7 @@ void ccsd_t2(/* ExecutionContext& ec, */
         (_a017(p3, h2, cind) = 0)
         (_a021(p3, p1, cind) = 0)
         (_a022(p3,p4,p2,p1) = 0)
-        (_a004(p1, p2, h4, h3) = 0)
+        // (_a004(p1, p2, h4, h3) = 0)
         ;
 
     sch (_a017(p3, h2, cind) += -1.0 * t2(p1, p3, h3, h2) * chol3d(h3, p1, cind))
@@ -174,7 +174,7 @@ void ccsd_t2(/* ExecutionContext& ec, */
     
     sch (_a022(p3,p4,p2,p1) += _a021(p3,p2,cind) * _a021(p4,p1,cind))
         (i0_temp(p3, p4, h1, h2) += 1.0 * _a022(p3, p4, p2, p1) * t2(p2,p1,h1,h2))
-        (_a004(p1, p2, h4, h3) +=  1.0   * chol3d(p1, h4, cind) * chol3d(p2, h3, cind))
+        // (_a004(p1, p2, h4, h3) +=  1.0   * chol3d(p1, h4, cind) * chol3d(p2, h3, cind))
         (_a019(h3, h4, h1, h2) += -0.125 * _a004(p1, p2, h4, h3) * t2(p1,p2,h1,h2))
         (_a020(p1, h3, p4, h2) +=  0.5   * _a004(p2, p4, h3, h1) * t2(p1,p2,h1,h2)) 
         ;
@@ -195,10 +195,9 @@ void ccsd_t2(/* ExecutionContext& ec, */
         (i0(p4, p3, h2, h1) +=  1.0 * i0_temp(p3, p4, h1, h2))    
         ;
 
-    sch.deallocate(_a001, _a004, _a006, _a007, 
+    sch.deallocate(_a001, _a006, _a007, 
                  _a008, _a009, _a017, _a019, _a020, _a021,
-                 _a022,
-                 i0_temp);
+                 _a022, i0_temp); //_a004
     //-----------------------------CD----------------------------------
     
     // sch.execute();
@@ -224,6 +223,18 @@ std::tuple<double,double> ccsd_driver(ExecutionContext& ec, const TiledIndexSpac
     double residual = 0.0;
     double energy = 0.0;
 
+    const TiledIndexSpace &O = MO("occ");
+    const TiledIndexSpace &V = MO("virt");
+    auto [cind] = CI.labels<1>("all");
+    auto [p1, p2] = MO.labels<2>("virt");
+    auto [h3, h4] = MO.labels<2>("occ");
+
+    Scheduler sch{ec};
+    Tensor<T> _a004{{V,V,O,O}, {2,2}};
+    sch.allocate(_a004)
+    (_a004(p1, p2, h4, h3) = 1.0 * cv3d(p1, h4, cind) * cv3d(p2, h3, cind))
+    .execute();
+
     for(int titer = 0; titer < maxiter; titer += ndiis) {
       for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
           const auto timer_start = std::chrono::high_resolution_clock::now();
@@ -235,7 +246,6 @@ std::tuple<double,double> ccsd_driver(ExecutionContext& ec, const TiledIndexSpac
           Tensor<T> d_r2_residual{};
 
           Tensor<T>::allocate(&ec, d_e, d_r1_residual, d_r2_residual);
-          Scheduler sch{ec};
 
           sch(d_e() = 0)(d_r1_residual() = 0)(d_r2_residual() = 0)
              ((d_t1s[off])() = d_t1())((d_t2s[off])() = d_t2())
@@ -243,7 +253,7 @@ std::tuple<double,double> ccsd_driver(ExecutionContext& ec, const TiledIndexSpac
 
           ccsd_e(/* ec,  */sch, MO, CI, d_e, d_t1, d_t2, d_f1, cv3d);
           ccsd_t1(/* ec,  */sch, MO, CI, d_r1, d_t1, d_t2, d_f1, cv3d);
-          ccsd_t2(/* ec,  */sch, MO, CI, d_r2, d_t1, d_t2, d_f1, cv3d);
+          ccsd_t2(/* ec,  */sch, MO, CI, d_r2, d_t1, d_t2, d_f1, cv3d, _a004);
 
           sch.execute();
         //   GA_Sync();
@@ -278,6 +288,7 @@ std::tuple<double,double> ccsd_driver(ExecutionContext& ec, const TiledIndexSpac
       std::vector<Tensor<T>> next_t{d_t1, d_t2};
       diis<T>(ec, rs, ts, next_t);
   }
+  sch.deallocate(_a004).execute();
 
   return std::make_tuple(residual,energy);
 
@@ -337,14 +348,6 @@ void ccsd_driver() {
     auto [options_map, ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis] 
                     = hartree_fock_driver<T>(ec,filename);
 
-    auto [MO,total_orbitals] = setupMOIS(nao,ov_alpha,freeze_core,freeze_virtual);
-
-    //deallocates F_AO, C_AO
-    auto [cholVpr,d_f1,chol_count, max_cvecs, CV] = cd_svd_ga_driver<T>
-                        (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
-                                freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
-
-
     CCSDOptions ccsd_options = options_map.ccsd_options;
     debug = ccsd_options.debug;
     if(rank == 0) ccsd_options.print();
@@ -353,6 +356,14 @@ void ccsd_driver() {
     double thresh  = ccsd_options.threshold;
     double zshiftl = 0.0;
     size_t ndiis   = 5;
+
+    auto [MO,total_orbitals] = setupMOIS(ccsd_options.tilesize,
+                    nao,ov_alpha,freeze_core,freeze_virtual);
+
+    //deallocates F_AO, C_AO
+    auto [cholVpr,d_f1,chol_count, max_cvecs, CV] = cd_svd_ga_driver<T>
+                        (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
+                                freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
 
     TiledIndexSpace N = MO("all");
 

@@ -372,23 +372,22 @@ void ccsd_driver() {
 
     auto cc_t1 = std::chrono::high_resolution_clock::now();
 
-    auto [residual, energy] = ccsd_driver<T>(
+    auto [residual, corr_energy] = ccsd_driver<T>(
             ec, MO, CV, d_t1, d_t2, d_f1, 
             d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
             p_evl_sorted, 
             maxiter, thresh, zshiftl, ndiis, 
             2 * ov_alpha, cholVpr);
 
-    ccsd_stats(ec, hf_energy,residual,energy,thresh);
+    ccsd_stats(ec, hf_energy,residual,corr_energy,thresh);
 
     auto cc_t2 = std::chrono::high_resolution_clock::now();
     double ccsd_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-    if(rank == 0) std::cout << "\nTime taken for Cholesky (RM) CCSD: " << ccsd_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime taken for Cholesky CCSD: " << ccsd_time << " secs\n";
 
     free_tensors(d_r1, d_r2, d_t1, d_t2, d_f1, cholVpr);
     free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);
-
 
     ec.flush_and_sync();
     MemoryManagerGA::destroy_coll(mgr);

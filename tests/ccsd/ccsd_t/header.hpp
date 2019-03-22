@@ -40,6 +40,4 @@ void finalizeMemModule();
 
 // }
 
-
 #endif /*__header_hpp__*/
-/* $Id$ */

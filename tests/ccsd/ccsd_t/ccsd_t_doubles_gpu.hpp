@@ -25,17 +25,25 @@ void sd_t_d2_7_cuda(int,int,int,int,int,int,int,double*,double*,double*);
 void sd_t_d2_8_cuda(int,int,int,int,int,int,int,double*,double*,double*);
 void sd_t_d2_9_cuda(int,int,int,int,int,int,int,double*,double*,double*);
 
+// template <typename Arg, typename... Args>
+// void dprint(Arg&& arg, Args&&... args)
+// {
+//     cout << std::forward<Arg>(arg);
+//     ((cout << ',' << std::forward<Args>(args)), ...);
+//     cout << "\n";
+// }
 
 template<typename T>
 void ccsd_t_doubles_gpu(ExecutionContext& ec,
                    const TiledIndexSpace& MO,
-                   const size_t noab, const size_t nvab,
-                   Matrix& k_spin,
+                   const Index noab, const Index nvab,
+                   std::vector<int>& k_spin,
                    std::vector<T>& a_c,
                    Tensor<T>& d_t2, //d_a
                    Tensor<T>& d_v2, //d_b
                    std::vector<T>& p_evl_sorted,
-                   std::vector<int>& k_range,int t_h1b, int t_h2b, int t_h3b,
+                   std::vector<int>& k_range,
+                   int t_h1b, int t_h2b, int t_h3b,
                    int t_p4b, int t_p5b, int t_p6b,
                    int usedevice=1) {
 
@@ -110,7 +118,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
     auto notset=1;
 
     for (auto ia6=0; ia6<8; ia6++){
-      if(a3(ia6,1) != 0) {
+      if(a3(ia6,0) != 0) {
       for (auto ja6=ia6+1;ja6<9;ja6++) { //TODO: ja6 start ?
       if((a3(ia6,0) == a3(ja6,0)) && (a3(ia6,1) == a3(ja6,1))
        && (a3(ia6,2) == a3(ja6,2)) && (a3(ia6,3) == a3(ja6,3))
@@ -127,8 +135,8 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
       }
     }
 
-    int p4b,p5b,p6b,h1b,h2b,h3b;
-    for (auto ia6=0; ia6<8; ia6++){ 
+    Index p4b,p5b,p6b,h1b,h2b,h3b;
+    for (auto ia6=0; ia6<9; ia6++){ 
       p4b=a3(ia6,0);
       p5b=a3(ia6,1);
       p6b=a3(ia6,2);
@@ -136,6 +144,8 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
       h2b=a3(ia6,4);
       h3b=a3(ia6,5);
     
+      // cout << "p456,h123= ";
+      // dprint(p4b,p5b,p6b,h1b,h2b,h3b);
 
       if ((usedevice==1)&&(notset==1)) {
        dev_mem_d(k_range[t_h1b],k_range[t_h2b],
@@ -146,18 +156,18 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
 
 
     if( (p4b<=p5b) && (h2b<=h3b) && p4b!=0){ 
-      if(k_spin(p4b)+k_spin(p5b)+k_spin(p6b)
-         +k_spin(h1b)+k_spin(h2b)+k_spin(h3b)!=12){
-         if(k_spin(p4b)+k_spin(p5b)+k_spin(p6b)
-         == k_spin(h1b)+k_spin(h2b)+k_spin(h3b)) {
+      if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
+         +k_spin[h1b]+k_spin[h2b]+k_spin[h3b]!=12){
+         if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
+         == k_spin[h1b]+k_spin[h2b]+k_spin[h3b]) {
 
            auto dimc=k_range[p4b]*k_range[p5b]*k_range[p6b]*
                      k_range[h1b]*k_range[h2b]*k_range[h3b];
 
-          for (size_t h7b=0;h7b<noab;h7b++){
+          for (Index h7b=0;h7b<noab;h7b++){
 
-            if(k_spin(p4b)+k_spin(p5b)
-              == k_spin(h1b)+k_spin(h7b)) {
+            if(k_spin[p4b]+k_spin[p5b]
+              == k_spin[h1b]+k_spin[h7b]) {
 
                 auto dim_common = k_range[h7b];
                 auto dima_sort = k_range[p4b]*k_range[p5b]*k_range[h1b];
@@ -169,114 +179,139 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
                   std::vector<T> k_a(dima);
                   std::vector<T> k_a_sort(dima);
 
+              // cout << "spin1,2 = ";
+              // dprint(k_spin[p4b]+k_spin[p5b], k_spin[h1b]+k_spin[h7b]);
+
+              // cout << "h7b,h1b=";
+              // dprint(h7b,h1b);
 
                   //TODO
-    //   IF ((h7b .lt. h1b)) THEN
-    //   CALL GET_HASH_BLOCK(d_a,dbl_mb(k_a),dima,int_mb(k_a_offset),(h1b_1
-    //  & - 1 + noab * (h7b_1 - 1 + noab * (p5b_1 - noab - 1 + nvab * (p4b_
-    //  &1 - noab - 1)))))
-    //   CALL TCE_SORT_4(dbl_mb(k_a),dbl_mb(k_a_sort),int_mb(k_range+p4b-1)
-    //  &,int_mb(k_range+p5b-1),int_mb(k_range+h7b-1),int_mb(k_range+h1b-1)
-    //  &,4,2,1,3,-1.0d0)
-    //   END IF
-    //       IF ((h1b .le. h7b)) THEN
-    //   CALL GET_HASH_BLOCK(d_a,dbl_mb(k_a),dima,int_mb(k_a_offset),(h7b_1
-    //  & - 1 + noab * (h1b_1 - 1 + noab * (p5b_1 - noab - 1 + nvab * (p4b_
-    //  &1 - noab - 1)))))
-    //   CALL TCE_SORT_4(dbl_mb(k_a),dbl_mb(k_a_sort),int_mb(k_range+p4b-1)
-    //  &,int_mb(k_range+p5b-1),int_mb(k_range+h1b-1),int_mb(k_range+h7b-1)
-    //  &,3,2,1,4,1.0d0)
-    //   END IF
+                  if(h7b<h1b) {
+
+                    d_t2.get({h1b,h7b,p5b-noab,p4b-noab},k_a);
+                    int perm[4]={3,1,0,2}; //3,1,0,2
+                    int size[4]={k_range[p4b],k_range[p5b],k_range[h7b],k_range[h1b]};
+                    // int size[4]={k_range[h7b],k_range[p4b],k_range[p5b],k_range[h1b]}; //1,3,2,0
+                    // int size[4]={k_range[h1b],k_range[p5b],k_range[p4b],k_range[h7b]}; //0,2,3,1
+                    
+                    auto plan = hptt::create_plan
+                    (perm, 4, -1.0, &k_a[0], size, NULL, 0, &k_a_sort[0],
+                        NULL, hptt::ESTIMATE, 1, NULL, true);
+                    plan->execute();
+                  }
+                  if(h1b<=h7b){
+
+                    d_t2.get({h7b,h1b,p5b-noab,p4b-noab},k_a);
+                    int perm[4]={2,1,0,3}; //2,1,0,3
+                    // int size[4]={k_range[p4b],k_range[p5b],k_range[h1b],k_range[h7b]};
+                    int size[4]={k_range[p4b],k_range[p5b],k_range[h1b],k_range[h7b]};
+                    // int size[4]={k_range[h7b],k_range[p4b],k_range[p5b],k_range[h1b]}; //0,3,2,1
+                    // int size[4]={k_range[h1b],k_range[p5b],k_range[p4b],k_range[h7b]}; //1,2,3,0
+                    
+                    auto plan = hptt::create_plan
+                    (perm, 4, 1.0, &k_a[0], size, NULL, 0, &k_a_sort[0],
+                        NULL, hptt::ESTIMATE, 1, NULL, true);
+                    plan->execute();
+                  }
+
 
     std::vector<T> k_b_sort(dimb);
-    //       IF ((h7b .le. p6b)) THEN
-    //   if(.not.intorb) then
-    //   CALL GET_HASH_BLOCK(d_b,dbl_mb(k_b_sort),
-    //  &dimb,int_mb(k_b_offset),(h3b_2
-    //  & - 1 + (noab+nvab) * (h2b_2 - 1 + (noab+nvab) * (p6b_2 - 1 + (noab
-    //  &+nvab) * (h7b_2 - 1)))))
+    if(h7b <= p6b){
+      d_v2.get({h3b,h2b,p6b,h7b},k_b_sort);
 
- if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
+
+    if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b)) 
      {
+      //  dprint(1);
+      //  cout << k_a_sort << endl;
         sd_t_d1_1_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
 
- if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
+    if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h2b) && (t_h2b == h1b) && (t_h3b == h3b))
       {
+        // dprint(2);
            sd_t_d1_2_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
       }
 
-  if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
+    if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h2b) && (t_h2b == h3b) && (t_h3b == h1b)) 
      {
+      //  dprint(3);
        sd_t_d1_3_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
 
-  if ((t_p4b == p6b) && (t_p5b == p4b) && (t_p6b == p5b)
+    if ((t_p4b == p6b) && (t_p5b == p4b) && (t_p6b == p5b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b)) 
       {
+        // dprint(4);
         sd_t_d1_4_cuda(k_range[h1b],k_range[h2b],
                 k_range[h3b],k_range[h7b],k_range[p4b],
                 k_range[p5b],k_range[p6b],
                 &a_c[0],&k_a_sort[0],&k_b_sort[0]);
       }
 
- if ((t_p4b == p6b) && (t_p5b == p4b) && (t_p6b == p5b)
+    if ((t_p4b == p6b) && (t_p5b == p4b) && (t_p6b == p5b)
      && (t_h1b == h2b) && (t_h2b == h1b) && (t_h3b == h3b))
       {
+        // dprint(5);
        sd_t_d1_5_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
   
- if ((t_p4b == p6b) && (t_p5b == p4b) && (t_p6b == p5b)
+   if ((t_p4b == p6b) && (t_p5b == p4b) && (t_p6b == p5b)
      && (t_h1b == h2b) && (t_h2b == h3b) && (t_h3b == h1b))
      {
+      //  dprint(6);
           sd_t_d1_6_cuda(k_range[h1b],k_range[h2b],
                          k_range[h3b],k_range[h7b],k_range[p4b],
                          k_range[p5b],k_range[p6b],
                        &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
 
-  if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
+    if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b)) 
       {
+        // dprint(7);
         sd_t_d1_7_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
 
- if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
+    if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
      && (t_h1b == h2b) && (t_h2b == h1b) && (t_h3b == h3b))
       {
+        // dprint(8);
         sd_t_d1_8_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
 
-if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
+    if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
      && (t_h1b == h2b) && (t_h2b == h3b) && (t_h3b == h1b)) 
       {
+        // dprint(9);
          sd_t_d1_9_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
 
+    }
      }}}
     }}}
 
@@ -350,7 +385,7 @@ if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
 
 
     for (auto ia6=0; ia6<8; ia6++){
-      if(a3(ia6,1) != 0) {
+      if(a3(ia6,0) != 0) {
       for (auto ja6=ia6+1;ja6<9;ja6++) { //TODO: ja6 start ?
       if((a3(ia6,0) == a3(ja6,0)) && (a3(ia6,1) == a3(ja6,1))
        && (a3(ia6,2) == a3(ja6,2)) && (a3(ia6,3) == a3(ja6,3))
@@ -368,7 +403,7 @@ if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
     }
 
     // int p4b,p5b,p6b,h1b,h2b,h3b;
-    for (auto ia6=0; ia6<8; ia6++){ 
+    for (auto ia6=0; ia6<9; ia6++){ 
       p4b=a3(ia6,0);
       p5b=a3(ia6,1);
       p6b=a3(ia6,2);
@@ -377,18 +412,18 @@ if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
       h3b=a3(ia6,5);
     
       if( (p5b<=p6b) && (h1b<=h2b) && p4b!=0){ 
-      if(k_spin(p4b)+k_spin(p5b)+k_spin(p6b)
-         +k_spin(h1b)+k_spin(h2b)+k_spin(h3b)!=12){
-         if(k_spin(p4b)+k_spin(p5b)+k_spin(p6b)
-         == k_spin(h1b)+k_spin(h2b)+k_spin(h3b)) {
+      if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
+         +k_spin[h1b]+k_spin[h2b]+k_spin[h3b]!=12){
+         if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
+         == k_spin[h1b]+k_spin[h2b]+k_spin[h3b]) {
 
            auto dimc=k_range[p4b]*k_range[p5b]*k_range[p6b]*
                      k_range[h1b]*k_range[h2b]*k_range[h3b];
 
-          for (size_t p7b=noab+1;p7b<noab+nvab;p7b++){
+          for (Index p7b=noab;p7b<noab+nvab;p7b++){
 
-            if(k_spin(p4b)+k_spin(p7b)
-              == k_spin(h1b)+k_spin(h2b)) {
+            if(k_spin[p4b]+k_spin[p7b]
+              == k_spin[h1b]+k_spin[h2b]) {
 
                 auto dim_common = k_range[p7b];
                 auto dima_sort = k_range[p4b]*k_range[h1b]*k_range[h2b];
@@ -400,31 +435,33 @@ if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
                   std::vector<T> k_a(dima);
                   std::vector<T> k_a_sort(dima);
 
-                  //TODO
-    //                     IF ((p7b .lt. p4b)) THEN
-    //   CALL GET_HASH_BLOCK(d_a,dbl_mb(k_a),dima,int_mb(k_a_offset),(h2b_1
-    //  & - 1 + noab * (h1b_1 - 1 + noab * (p4b_1 - noab - 1 + nvab * (p7b_
-    //  &1 - noab - 1)))))
-    //   CALL TCE_SORT_4(dbl_mb(k_a),dbl_mb(k_a_sort),int_mb(k_range+p7b-1)
-    //  &,int_mb(k_range+p4b-1),int_mb(k_range+h1b-1),int_mb(k_range+h2b-1)
-    //  &,4,3,2,1,-1.0d0)
-    //   END IF
-    //   IF ((p4b .le. p7b)) THEN
-    //   CALL GET_HASH_BLOCK(d_a,dbl_mb(k_a),dima,int_mb(k_a_offset),(h2b_1
-    //  & - 1 + noab * (h1b_1 - 1 + noab * (p7b_1 - noab - 1 + nvab * (p4b_
-    //  &1 - noab - 1)))))
-    //   CALL TCE_SORT_4(dbl_mb(k_a),dbl_mb(k_a_sort),int_mb(k_range+p4b-1)
-    //  &,int_mb(k_range+p7b-1),int_mb(k_range+h1b-1),int_mb(k_range+h2b-1)
-    //  &,4,3,1,2,1.0d0)
-    //   END IF
+                  if(p7b<p4b) {
+
+                    d_t2.get({h2b,h1b,p4b-noab,p7b-noab},k_a);
+                    // for (auto x=0;x<dima;x++) k_a_sort[x] = -1 * k_a[x];
+                    int perm[4]={3,2,1,0};
+                    int size[4]={k_range[p7b],k_range[p4b],k_range[h1b],k_range[h2b]};
+                    
+                    auto plan = hptt::create_plan
+                    (perm, 4, -1.0, &k_a[0], size, NULL, 0, &k_a_sort[0],
+                        NULL, hptt::ESTIMATE, 1, NULL, true);
+                    plan->execute();
+                  }
+                  if(p4b<=p7b) {
+
+                    d_t2.get({h2b,h1b,p7b-noab,p4b-noab},k_a);
+                    int perm[4]={3,2,0,1}; //0,1,3,2
+                    int size[4]={k_range[p4b],k_range[p7b],k_range[h1b],k_range[h2b]};
+                    
+                    auto plan = hptt::create_plan
+                    (perm, 4, 1.0, &k_a[0], size, NULL, 0, &k_a_sort[0],
+                        NULL, hptt::ESTIMATE, 1, NULL, true);
+                    plan->execute();
+                  }
 
     std::vector<T> k_b_sort(dimb);
-    //   IF ((h3b .le. p7b)) THEN
-    //   if(.not.intorb) then
-    //   CALL GET_HASH_BLOCK(d_b,dbl_mb(k_b_sort),dimb,
-    //  &int_mb(k_b_offset),(p7b_2
-    //  & - 1 + (noab+nvab) * (h3b_2 - 1 + (noab+nvab) * (p6b_2 - 1 + (noab
-    //  &+nvab) * (p5b_2 - 1)))))
+    if(h3b <= p7b){
+      d_v2.get({p7b,h3b,p6b,p5b},k_b_sort);
 
 
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
@@ -437,7 +474,7 @@ if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
         
      }
 
-if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
+    if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h3b) && (t_h2b == h1b) && (t_h3b == h2b))
       {
            sd_t_d2_2_cuda(k_range[h1b],k_range[h2b],
@@ -446,7 +483,7 @@ if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
       }
 
-if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
+    if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h1b) && (t_h2b == h3b) && (t_h3b == h2b)) 
      {
        sd_t_d2_3_cuda(k_range[h1b],k_range[h2b],
@@ -455,7 +492,7 @@ if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
 
-   if ((t_p4b == p5b) && (t_p5b == p4b) && (t_p6b == p6b)
+    if ((t_p4b == p5b) && (t_p5b == p4b) && (t_p6b == p6b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))
       {
         sd_t_d2_4_cuda(k_range[h1b],k_range[h2b],
@@ -464,7 +501,7 @@ if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
                 &a_c[0],&k_a_sort[0],&k_b_sort[0]);
       }
 
- if ((t_p4b == p5b) && (t_p5b == p4b) && (t_p6b == p6b)
+    if ((t_p4b == p5b) && (t_p5b == p4b) && (t_p6b == p6b)
      && (t_h1b == h3b) && (t_h2b == h1b) && (t_h3b == h2b))
       {
        sd_t_d2_5_cuda(k_range[h1b],k_range[h2b],
@@ -473,7 +510,7 @@ if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
   
- if ((t_p4b == p5b) && (t_p5b == p4b) && (t_p6b == p6b)
+    if ((t_p4b == p5b) && (t_p5b == p4b) && (t_p6b == p6b)
      && (t_h1b == h1b) && (t_h2b == h3b) && (t_h3b == h2b))
      {
           sd_t_d2_6_cuda(k_range[h1b],k_range[h2b],
@@ -482,7 +519,7 @@ if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
                        &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
 
- if ((t_p4b == p5b) && (t_p5b == p6b) && (t_p6b == p4b)
+    if ((t_p4b == p5b) && (t_p5b == p6b) && (t_p6b == p4b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))
       {
         sd_t_d2_7_cuda(k_range[h1b],k_range[h2b],
@@ -491,7 +528,7 @@ if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
 
- if ((t_p4b == p5b) && (t_p5b == p6b) && (t_p6b == p4b)
+     if ((t_p4b == p5b) && (t_p5b == p6b) && (t_p6b == p4b)
      && (t_h1b == h3b) && (t_h2b == h1b) && (t_h3b == h2b))
       {
         sd_t_d2_8_cuda(k_range[h1b],k_range[h2b],
@@ -500,7 +537,7 @@ if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
 
-if ((t_p4b == p5b) && (t_p5b == p6b) && (t_p6b == p4b)
+    if ((t_p4b == p5b) && (t_p5b == p6b) && (t_p6b == p4b)
      && (t_h1b == h1b) && (t_h2b == h3b) && (t_h3b == h2b))
       {
          sd_t_d2_9_cuda(k_range[h1b],k_range[h2b],
@@ -509,7 +546,8 @@ if ((t_p4b == p5b) && (t_p5b == p6b) && (t_p6b == p4b)
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
 
-        }}}
+    }
+    }}}
     }}}
 
     } //end ia6

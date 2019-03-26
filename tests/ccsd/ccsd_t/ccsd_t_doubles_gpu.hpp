@@ -145,7 +145,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
       h3b=a3(ia6,5);
     
       // cout << "p456,h123= ";
-      // dprint(p4b,p5b,p6b,h1b,h2b,h3b);
+      ////dprint(p4b,p5b,p6b,h1b,h2b,h3b);
 
       if ((usedevice==1)&&(notset==1)) {
        dev_mem_d(k_range[t_h1b],k_range[t_h2b],
@@ -180,10 +180,10 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
                   std::vector<T> k_a_sort(dima);
 
               // cout << "spin1,2 = ";
-              // dprint(k_spin[p4b]+k_spin[p5b], k_spin[h1b]+k_spin[h7b]);
+             //dprint(k_spin[p4b]+k_spin[p5b], k_spin[h1b]+k_spin[h7b]);
 
               // cout << "h7b,h1b=";
-              // dprint(h7b,h1b);
+              ////dprint(h7b,h1b);
 
                   //TODO
                   if(h7b<h1b) {
@@ -217,14 +217,14 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
 
     std::vector<T> k_b_sort(dimb);
     if(h7b <= p6b){
-      d_v2.get({h3b,h2b,p6b,h7b},k_b_sort);
+      d_v2.get({h7b,p6b,h2b,h3b},k_b_sort); //h3b,h2b,p6b,h7b
 
 
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b)) 
      {
-      //  dprint(1);
-      //  cout << k_a_sort << endl;
+      //dprint(1);
+      //  cout << k_b_sort << endl;
         sd_t_d1_1_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
@@ -234,7 +234,8 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h2b) && (t_h2b == h1b) && (t_h3b == h3b))
       {
-        // dprint(2);
+       //dprint(2);
+        // cout << k_a_sort << endl;
            sd_t_d1_2_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
@@ -244,7 +245,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h2b) && (t_h2b == h3b) && (t_h3b == h1b)) 
      {
-      //  dprint(3);
+      // //dprint(3);
        sd_t_d1_3_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
@@ -254,7 +255,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
     if ((t_p4b == p6b) && (t_p5b == p4b) && (t_p6b == p5b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b)) 
       {
-        // dprint(4);
+        ////dprint(4);
         sd_t_d1_4_cuda(k_range[h1b],k_range[h2b],
                 k_range[h3b],k_range[h7b],k_range[p4b],
                 k_range[p5b],k_range[p6b],
@@ -264,7 +265,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
     if ((t_p4b == p6b) && (t_p5b == p4b) && (t_p6b == p5b)
      && (t_h1b == h2b) && (t_h2b == h1b) && (t_h3b == h3b))
       {
-        // dprint(5);
+        ////dprint(5);
        sd_t_d1_5_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
@@ -274,7 +275,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
    if ((t_p4b == p6b) && (t_p5b == p4b) && (t_p6b == p5b)
      && (t_h1b == h2b) && (t_h2b == h3b) && (t_h3b == h1b))
      {
-      //  dprint(6);
+      // //dprint(6);
           sd_t_d1_6_cuda(k_range[h1b],k_range[h2b],
                          k_range[h3b],k_range[h7b],k_range[p4b],
                          k_range[p5b],k_range[p6b],
@@ -284,7 +285,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
     if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b)) 
       {
-        // dprint(7);
+        ////dprint(7);
         sd_t_d1_7_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
@@ -294,7 +295,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
     if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
      && (t_h1b == h2b) && (t_h2b == h1b) && (t_h3b == h3b))
       {
-        // dprint(8);
+        ////dprint(8);
         sd_t_d1_8_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
@@ -304,7 +305,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
     if ((t_p4b == p4b) && (t_p5b == p6b) && (t_p6b == p5b)
      && (t_h1b == h2b) && (t_h2b == h3b) && (t_h3b == h1b)) 
       {
-        // dprint(9);
+        ////dprint(9);
          sd_t_d1_9_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
@@ -319,7 +320,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
 
     //--------------------------------BEGIN DOUBLES-2----------------------------//
 
-
+  #if 1
     a3(0,0)=t_p4b;
     a3(0,1)=t_p5b;
     a3(0,2)=t_p6b;
@@ -461,7 +462,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
 
     std::vector<T> k_b_sort(dimb);
     if(h3b <= p7b){
-      d_v2.get({p7b,h3b,p6b,p5b},k_b_sort);
+      d_v2.get({p5b,p6b,h3b,p7b},k_b_sort); //p7b,h3b,p6b,p5b
 
 
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
@@ -551,6 +552,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
     }}}
 
     } //end ia6
+    #endif
 
 
 } //end double_gpu_driver

@@ -14,13 +14,13 @@ void dev_release();
 void finalizememmodule();
 void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,int h1d, int h2d, int h3d, int p4d, int p5d,int p6d, double* host1, double* host2);
 
-// template <typename Arg, typename... Args>
-// void dprint1(Arg&& arg, Args&&... args)
-// {
-//     cout << std::forward<Arg>(arg);
-//     ((cout << ',' << std::forward<Args>(args)), ...);
-//     cout << "\n";
-// }
+template <typename Arg, typename... Args>
+void dprint1(Arg&& arg, Args&&... args)
+{
+    cout << std::forward<Arg>(arg);
+    ((cout << ',' << std::forward<Args>(args)), ...);
+    cout << "\n";
+}
 
 template<typename T>
 std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
@@ -145,6 +145,8 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
                       // if (restricted) 
                         factor = 2.0;
                       //  else factor = 1.0;
+
+                      // cout << "restricted = " << factor << endl;
                       
 
                       if ((t_p4b == t_p5b) && (t_p5b == t_p6b)) {
@@ -159,6 +161,7 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
                         factor /= 2.0;
                       }
                       
+                      #if 0
                       auto indx = 0;
                       for (auto t_p4=0;t_p4 < k_range[t_p4b];t_p4++)
                       for (auto t_p5=0;t_p5 < k_range[t_p5b];t_p5++)
@@ -186,7 +189,7 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
 
                         indx++;
                       }
-                      #if 0
+                      #else
                       auto factor_l = factor;
 
                       // cout << "doubles size = " << size << endl;
@@ -195,24 +198,32 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
 
                       // cout << "factor-l=" << factor_l << endl;
                       // cout << "k_evl_sorted_full=" << k_evl_sorted << endl;
-                      cout << "h123,p456= ";
-                      dprint1(t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b);
+                      // cout << "h123,p456= ";
+                      // dprint1(t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b);
 
-                      cout << "factor-l=" << factor_l << endl;
-                      cout << "energy-l=" << energy_l << endl;
+                      // cout << "factor-l=" << factor_l << endl;
+                      // cout << "energy-l=" << energy_l << endl;
 
-                       cout << "k-range of h123,p456= ";
-                       dprint1(k_range[t_h1b],k_range[t_h2b],
-                                  k_range[t_h3b],k_range[t_p4b],
-                                  k_range[t_p5b],k_range[t_p6b]);
+                      //  cout << "k-range of h123,p456= ";
+                      //  dprint1(k_range[t_h1b],k_range[t_h2b],
+                      //             k_range[t_h3b],k_range[t_p4b],
+                      //             k_range[t_p5b],k_range[t_p6b]);
 
-                      cout << "k_evl_sorted= ";
-                      dprint1(    k_evl_sorted[k_offset[t_h1b]],
-                                  k_evl_sorted[k_offset[t_h2b]],
-                                  k_evl_sorted[k_offset[t_h3b]],
-                                  k_evl_sorted[k_offset[t_p4b]],
-                                  k_evl_sorted[k_offset[t_p5b]],
-                                  k_evl_sorted[k_offset[t_p6b]]);
+                      // cout << "k_evl_sorted= ";
+                      // dprint1(    k_evl_sorted[k_offset[t_h1b]],
+                      //             k_evl_sorted[k_offset[t_h2b]],
+                      //             k_evl_sorted[k_offset[t_h3b]],
+                      //             k_evl_sorted[k_offset[t_p4b]],
+                      //             k_evl_sorted[k_offset[t_p5b]],
+                      //             k_evl_sorted[k_offset[t_p6b]]);
+
+                      // cout << "k_offset= ";
+                      // dprint1(    k_offset[t_h1b],
+                      //             k_offset[t_h2b],
+                      //             k_offset[t_h3b],
+                      //             k_offset[t_p4b],
+                      //             k_offset[t_p5b],
+                      //             k_offset[t_p6b]);                                  
 
                       
                       //TODO
@@ -227,7 +238,7 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
                                   k_range[t_h3b],k_range[t_p4b],
                                   k_range[t_p5b],k_range[t_p6b],
                                   &k_doubles[0], &k_singles[0]);
-                      cout << "AFTER energy-l=" << energy_l << endl;                                  
+                      // cout << "AFTER energy-l=" << energy_l << endl;                                  
                       energy1 += energy_l[0];
                       energy2 += energy_l[1];
                       #endif

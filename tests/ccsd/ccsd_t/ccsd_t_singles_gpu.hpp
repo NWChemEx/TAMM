@@ -190,13 +190,13 @@ void ccsd_t_singles_gpu(ExecutionContext& ec,
             plan->execute();
 
             std::vector<T> k_b_sort(dimb);
-            d_v2.get({h3b,h2b,p6b,p5b},k_b_sort);
+            d_v2.get({p5b,p6b,h2b,h3b},k_b_sort); //h3b,h2b,p6b,p5b
 
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
       && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))
      {
         // dprint(1);
-        // cout << k_a_sort << endl;
+        // cout << k_b_sort << endl;
         sd_t_s1_1_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[p4b],
                     k_range[p5b],k_range[p6b],

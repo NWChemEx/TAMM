@@ -210,6 +210,30 @@ std::vector<TensorType> diagonal(ExecutionContext& ec,
 }
 
 /**
+ * @brief uses a function to fill in elements of a tensor
+ *
+ * @tparam TensorType the type of the elements in the tensor
+ * @param ec Execution context used in the blockfor
+ * @param ltensor tensor to operate on
+ * @param func function to fill in the tensor with
+ */
+template<typename TensorType>
+void fill_tensor(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
+                 std::function<void(const IndexVector&, span<TensorType>)> func) {
+    Tensor<TensorType> tensor = ltensor.tensor();
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+        func(blockid,dbuf);
+        tensor.put(blockid, dbuf);
+    };
+    block_for(ec, ltensor, lambda);
+}
+
+/**
  * @brief applies a function elementwise to a tensor
  *
  * @tparam TensorType the type of the elements in the tensor

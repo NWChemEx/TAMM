@@ -18955,7 +18955,7 @@ __global__ void sd_t_d1_1_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d1_1_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_1_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p6ld_triplesx,p5ld_triplesx,p4ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
@@ -19007,14 +19007,14 @@ __global__ void sd_t_d1_1_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_1_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_1_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
-    // printf ("d1_1: %d, %d, %d, %d, %d, %d, %d\n", (int)*h3d, (int)*h2d, (int)*h1d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*h7d);
+    // printf ("d1_1: %d, %d, %d, %d, %d, %d, %d\n", h3d, h2d, h1d, p6d, p5d, p4d, h7d);
 #ifndef KERNEL_MA
-    jk_ccsd_t_d1_1_if_fusion((int)*h3d, (int)*h2d, (int)*h1d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
-    // jk_ccsd_t_d1_1_fusion((int)*h3d, (int)*h2d, (int)*h1d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
+    jk_ccsd_t_d1_1_if_fusion(h3d, h2d, h1d, p6d, p5d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
+    // jk_ccsd_t_d1_1_fusion(h3d, h2d, h1d, p6d, p5d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_1_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_1_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -19247,7 +19247,7 @@ __global__ void sd_t_d1_2_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
   }
   __syncthreads();
 }
- void sd_t_d1_2_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_2_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 
 
@@ -19320,7 +19320,7 @@ __global__ void sd_t_d1_2_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
     cudaEventSynchronize(stop);
     float ms = 0.0;
     cudaEventElapsedTime(&ms, start, stop);
-    printf (">(ma)> d1_2: %f\n", ms);
+    // printf (">(ma)> d1_2: %f\n", ms);
 
 
 
@@ -19328,7 +19328,7 @@ __global__ void sd_t_d1_2_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_2_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_2_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
     // cudaEvent_t start, stop;
     // cudaEventCreate(&start);
@@ -19336,11 +19336,11 @@ __global__ void sd_t_d1_2_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
 
     // cudaEventRecord(start);
 #ifndef KERNEL_MA
-    // jk_ccsd_t_d1_2_fusion((int)*h3d, (int)*h1d, (int)*h2d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*h7d,triplesx, t2sub, v2sub, 1, 1);
-    jk_ccsd_t_d1_2_if_fusion((int)*h3d, (int)*h1d, (int)*h2d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*h7d,triplesx, t2sub, v2sub, 1, 1);
+    // jk_ccsd_t_d1_2_fusion(h3d, h1d, h2d, p6d, p5d, p4d, h7d,triplesx, t2sub, v2sub, 1, 1);
+    jk_ccsd_t_d1_2_if_fusion(h3d, h1d, h2d, p6d, p5d, p4d, h7d,triplesx, t2sub, v2sub, 1, 1);
 #else
-    // jk_ccsd_t_d1_2_if_fusion((int)*h3d, (int)*h1d, (int)*h2d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*h7d,triplesx, t2sub, v2sub, 1, 1);
-    sd_t_d1_2_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    // jk_ccsd_t_d1_2_if_fusion(h3d, h1d, h2d, p6d, p5d, p4d, h7d,triplesx, t2sub, v2sub, 1, 1);
+    sd_t_d1_2_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
 #endif
     // cudaEventRecord(stop);
     // cudaEventSynchronize(stop);
@@ -19570,7 +19570,7 @@ __global__ void sd_t_d1_3_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int h7l
   }
   __syncthreads();
 }
- void sd_t_d1_3_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_3_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   h3d=h3d*p6d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p4ld_triplesx;
@@ -19621,13 +19621,13 @@ __global__ void sd_t_d1_3_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int h7l
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_3_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_3_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d1_3_if_fusion((int)*h1d, (int)*h3d, (int)*h2d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
-    // jk_ccsd_t_d1_3_fusion((int)*h1d, (int)*h3d, (int)*h2d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
+    jk_ccsd_t_d1_3_if_fusion(h1d, h3d, h2d, p6d, p5d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
+    // jk_ccsd_t_d1_3_fusion((int)*h1d, h3d, h2d, p6d, p5d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_3_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_3_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -19860,7 +19860,7 @@ __global__ void sd_t_d1_4_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d1_4_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_4_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
@@ -19912,14 +19912,14 @@ __global__ void sd_t_d1_4_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_4_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_4_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d1_4_if_fusion((int)*h3d, (int)*h2d, (int)*h1d, (int)*p5d, (int)*p4d, (int)*p6d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
-    // jk_ccsd_t_d1_4_fusion((int)*h3d, (int)*h2d, (int)*h1d, (int)*p5d, (int)*p4d, (int)*p6d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
+    jk_ccsd_t_d1_4_if_fusion(h3d, h2d, h1d, p5d, p4d, p6d, h7d, triplesx, t2sub, v2sub, 1, 1);
+    // jk_ccsd_t_d1_4_fusion(h3d, h2d, h1d, p5d, p4d, p6d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_4_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
-    // jk_ccsd_t_d1_4_if_fusion((int)*h3d, (int)*h2d, (int)*h1d, (int)*p5d, (int)*p4d, (int)*p6d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
+    sd_t_d1_4_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    // jk_ccsd_t_d1_4_if_fusion(h3d, h2d, h1d, p5d, p4d, p6d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -20160,7 +20160,7 @@ __global__ void sd_t_d1_5_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
   }
   __syncthreads();
 }
- void sd_t_d1_5_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_5_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
   cudaStream_t *streams;
@@ -20213,12 +20213,12 @@ __global__ void sd_t_d1_5_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_5_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_5_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d1_5_fusion((int)*h3d, (int)*h1d, (int)*h2d, (int)*p5d, (int)*p4d, (int)*p6d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
+    jk_ccsd_t_d1_5_fusion(h3d, h1d, h2d, p5d, p4d, p6d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_5_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_5_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -20451,7 +20451,7 @@ __global__ void sd_t_d1_6_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d1_6_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_6_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
@@ -20503,13 +20503,13 @@ __global__ void sd_t_d1_6_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_6_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_6_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d1_6_if_fusion((int)*h1d, (int)*h3d, (int)*h2d, (int)*p5d, (int)*p4d, (int)*p6d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
-    // jk_ccsd_t_d1_6_fusion((int)*h1d, (int)*h3d, (int)*h2d, (int)*p5d, (int)*p4d, (int)*p6d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
+    jk_ccsd_t_d1_6_if_fusion(h1d, h3d, h2d, p5d, p4d, p6d, h7d, triplesx, t2sub, v2sub, 1, 1);
+    // jk_ccsd_t_d1_6_fusion((int)*h1d, h3d, h2d, p5d, p4d, p6d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_6_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_6_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -20742,7 +20742,7 @@ __global__ void sd_t_d1_7_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d1_7_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_7_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
@@ -20794,13 +20794,13 @@ __global__ void sd_t_d1_7_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_7_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_7_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d1_7_if_fusion((int)*h3d, (int)*h2d, (int)*h1d, (int)*p5d, (int)*p6d, (int)*p4d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
-    // jk_ccsd_t_d1_7_fusion((int)*h3d, (int)*h2d, (int)*h1d, (int)*p5d, (int)*p6d, (int)*p4d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
+    jk_ccsd_t_d1_7_if_fusion(h3d, h2d, h1d, p5d, p6d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
+    // jk_ccsd_t_d1_7_fusion(h3d, h2d, h1d, p5d, p6d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_7_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_7_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -21041,7 +21041,7 @@ __global__ void sd_t_d1_8_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
   }
   __syncthreads();
 }
- void sd_t_d1_8_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_8_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
   cudaStream_t *streams;
@@ -21094,12 +21094,12 @@ __global__ void sd_t_d1_8_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_8_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_8_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d1_8_fusion((int)*h3d, (int)*h1d, (int)*h2d, (int)*p5d, (int)*p6d, (int)*p4d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
+    jk_ccsd_t_d1_8_fusion(h3d, h1d, h2d, p5d, p6d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_8_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_8_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -21332,7 +21332,7 @@ __global__ void sd_t_d1_9_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d1_9_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_9_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
@@ -21384,13 +21384,13 @@ __global__ void sd_t_d1_9_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_9_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_9_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d1_9_if_fusion((int)*h1d, (int)*h3d, (int)*h2d, (int)*p5d, (int)*p6d, (int)*p4d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
-    // jk_ccsd_t_d1_9_fusion((int)*h1d, (int)*h3d, (int)*h2d, (int)*p5d, (int)*p6d, (int)*p4d, (int)*h7d, triplesx, t2sub, v2sub, 1, 1);
+    jk_ccsd_t_d1_9_if_fusion(h1d, h3d, h2d, p5d, p6d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
+    // jk_ccsd_t_d1_9_fusion((int)*h1d, h3d, h2d, p5d, p6d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_9_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_9_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 
@@ -39391,7 +39391,7 @@ __global__ void sd_t_d2_1_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
   }
   __syncthreads();
 }
- void sd_t_d2_1_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_1_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
   p6d=p6d*p5d;
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
@@ -39445,13 +39445,13 @@ __global__ void sd_t_d2_1_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_1_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_1_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d2_1_if_fusion((int)*h3d, (int)*h2d, (int)*h1d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*p7d, t3, t2, v2, 1, 1);
-    // jk_ccsd_t_d2_1_fusion((int)*h3d, (int)*h2d, (int)*h1d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*p7d, t3, t2, v2, 1, 1);
+    jk_ccsd_t_d2_1_if_fusion(h3d, h2d, h1d, p6d, p5d, p4d, p7d, t3, t2, v2, 1, 1);
+    // jk_ccsd_t_d2_1_fusion(h3d, h2d, h1d, p6d, p5d, p4d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_1_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_1_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -39676,7 +39676,7 @@ __global__ void sd_t_d2_2_kernel(int h1d,int h2d,int h3d,int p4d,int p7d,int p7l
   }
   __syncthreads();
 }
- void sd_t_d2_2_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_2_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
   h3d=h3d*p6d;
   h3d=h3d*p5d;
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3;
@@ -39729,13 +39729,13 @@ __global__ void sd_t_d2_2_kernel(int h1d,int h2d,int h3d,int p4d,int p7d,int p7l
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_2_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_2_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
-    // jk_ccsd_t_d2_2_fusion((int)*h2d, (int)*h1d, (int)*h3d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*p7d, t3, t2, v2, 1, 1);
-    jk_ccsd_t_d2_2_if_fusion((int)*h2d, (int)*h1d, (int)*h3d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*p7d, t3, t2, v2, 1, 1);
+    // jk_ccsd_t_d2_2_fusion(h2d, h1d, h3d, p6d, p5d, p4d, p7d, t3, t2, v2, 1, 1);
+    jk_ccsd_t_d2_2_if_fusion(h2d, h1d, h3d, p6d, p5d, p4d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_2_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_2_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -39968,7 +39968,7 @@ __global__ void sd_t_d2_3_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
   }
   __syncthreads();
 }
- void sd_t_d2_3_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_3_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
   p6d=p6d*p5d;
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p6ld_t3,p4ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
@@ -40022,13 +40022,13 @@ __global__ void sd_t_d2_3_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_3_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_3_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d2_3_if_fusion((int)*h2d, (int)*h3d, (int)*h1d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*p7d, t3, t2, v2, 1, 1);
-    // jk_ccsd_t_d2_3_fusion((int)*h2d, (int)*h3d, (int)*h1d, (int)*p6d, (int)*p5d, (int)*p4d, (int)*p7d, t3, t2, v2, 1, 1);
+    jk_ccsd_t_d2_3_if_fusion(h2d, h3d, h1d, p6d, p5d, p4d, p7d, t3, t2, v2, 1, 1);
+    // jk_ccsd_t_d2_3_fusion(h2d, h3d, h1d, p6d, p5d, p4d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_3_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_3_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -40269,7 +40269,7 @@ __global__ void sd_t_d2_4_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d2_4_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_4_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,p5ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
   cudaStream_t *streams;
@@ -40324,12 +40324,12 @@ __global__ void sd_t_d2_4_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_4_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_4_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d2_4_fusion((int)*h3d, (int)*h2d, (int)*h1d, (int)*p6d, (int)*p4d, (int)*p5d, (int)*p7d, t3, t2, v2, 1, 1);
+    jk_ccsd_t_d2_4_fusion(h3d, h2d, h1d, p6d, p4d, p5d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_4_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_4_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -40562,7 +40562,7 @@ __global__ void sd_t_d2_5_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p7d
   }
   __syncthreads();
 }
- void sd_t_d2_5_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_5_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
   h3d=h3d*p6d;
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p5ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,p5ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
@@ -40616,13 +40616,13 @@ __global__ void sd_t_d2_5_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p7d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_5_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_5_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d2_5_if_fusion((int)*h2d, (int)*h1d, (int)*h3d, (int)*p6d, (int)*p4d, (int)*p5d, (int)*p7d, t3, t2, v2, 1, 1);
-    // jk_ccsd_t_d2_5_fusion((int)*h2d, (int)*h1d, (int)*h3d, (int)*p6d, (int)*p4d, (int)*p5d, (int)*p7d, t3, t2, v2, 1, 1);
+    jk_ccsd_t_d2_5_if_fusion(h2d, h1d, h3d, p6d, p4d, p5d, p7d, t3, t2, v2, 1, 1);
+    // jk_ccsd_t_d2_5_fusion(h2d, h1d, h3d, p6d, p4d, p5d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_5_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_5_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -40863,7 +40863,7 @@ __global__ void sd_t_d2_6_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d2_6_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_6_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,p5ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
   cudaStream_t *streams;
@@ -40918,12 +40918,12 @@ __global__ void sd_t_d2_6_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_6_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2)
+ void sd_t_d2_6_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2)
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d2_6_fusion_((int)*h2d, (int)*h3d, (int)*h1d, (int)*p6d, (int)*p4d, (int)*p5d, (int)*p7d, t3, t2, v2, 1, 1);
+    jk_ccsd_t_d2_6_fusion_(h2d, h3d, h1d, p6d, p4d, p5d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_6_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_6_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -41164,7 +41164,7 @@ __global__ void sd_t_d2_7_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d2_7_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_7_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p4ld_t3,p6ld_t3,p5ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
   cudaStream_t *streams;
@@ -41219,12 +41219,12 @@ __global__ void sd_t_d2_7_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_7_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_7_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d2_7_fusion((int)*h3d, (int)*h2d, (int)*h1d, (int)*p4d, (int)*p6d, (int)*p5d, (int)*p7d, t3, t2, v2, 1, 1);
+    jk_ccsd_t_d2_7_fusion(h3d, h2d, h1d, p4d, p6d, p5d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_7_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_7_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -41465,7 +41465,7 @@ __global__ void sd_t_d2_8_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d2_8_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_8_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
     // printf ("d2_8\n");
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,p6ld_t3,p5ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
@@ -41521,12 +41521,12 @@ __global__ void sd_t_d2_8_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_8_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_8_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d2_8_fusion((int)*h2d, (int)*h1d, (int)*h3d, (int)*p4d, (int)*p6d, (int)*p5d, (int)*p7d, t3, t2, v2, 1, 1);
+    jk_ccsd_t_d2_8_fusion(h2d, h1d, h3d, p4d, p6d, p5d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_8_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_8_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -41767,7 +41767,7 @@ __global__ void sd_t_d2_9_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d2_9_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_9_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p4ld_t3,p6ld_t3,p5ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
   cudaStream_t *streams;
@@ -41820,12 +41820,12 @@ __global__ void sd_t_d2_9_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   free(streams);
 }
 
- void sd_t_d2_9_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_9_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
-    jk_ccsd_t_d2_9_fusion((int)* h2d, (int)* h3d, (int)* h1d, (int)* p4d, (int)* p6d, (int)* p5d, (int)* p7d, t3, t2, v2, 1, 1);
+    jk_ccsd_t_d2_9_fusion(h2d, h3d, h1d, p4d, p6d, p5d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_9_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_9_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
 #endif
 }
 

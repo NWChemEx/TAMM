@@ -177,7 +177,7 @@ void ccsd_t_singles_gpu(ExecutionContext& ec,
             std::vector<T> k_a(dima);
             std::vector<T> k_a_sort(dima);
             //TODO 
-            IndexVector bids = {h1b,p4b-noab};
+            IndexVector bids = {p4b-noab,h1b};
             d_t1.get(bids,k_a);
 
             const int ndim = 2;
@@ -196,7 +196,7 @@ void ccsd_t_singles_gpu(ExecutionContext& ec,
       && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))
      {
         // dprint(1);
-        // cout << k_b_sort << endl;
+        // cout << k_a_sort << endl;
         sd_t_s1_1_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[p4b],
                     k_range[p5b],k_range[p6b],

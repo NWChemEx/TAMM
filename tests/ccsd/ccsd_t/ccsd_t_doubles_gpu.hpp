@@ -188,7 +188,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
                   //TODO
                   if(h7b<h1b) {
 
-                    d_t2.get({h1b,h7b,p5b-noab,p4b-noab},k_a);
+                    d_t2.get({p4b-noab,p5b-noab,h7b,h1b},k_a); //h1b,h7b,p5b-noab,p4b-noab
                     int perm[4]={3,1,0,2}; //3,1,0,2
                     int size[4]={k_range[p4b],k_range[p5b],k_range[h7b],k_range[h1b]};
                     // int size[4]={k_range[h7b],k_range[p4b],k_range[p5b],k_range[h1b]}; //1,3,2,0
@@ -201,7 +201,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
                   }
                   if(h1b<=h7b){
 
-                    d_t2.get({h7b,h1b,p5b-noab,p4b-noab},k_a);
+                    d_t2.get({p4b-noab,p5b-noab,h1b,h7b},k_a); //h7b,h1b,p5b-noab,p4b-noab
                     int perm[4]={2,1,0,3}; //2,1,0,3
                     // int size[4]={k_range[p4b],k_range[p5b],k_range[h1b],k_range[h7b]};
                     int size[4]={k_range[p4b],k_range[p5b],k_range[h1b],k_range[h7b]};
@@ -219,12 +219,11 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
     if(h7b <= p6b){
       d_v2.get({h7b,p6b,h2b,h3b},k_b_sort); //h3b,h2b,p6b,h7b
 
-
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b)) 
      {
       //dprint(1);
-      //  cout << k_b_sort << endl;
+      //  cout << k_a_sort << endl;
         sd_t_d1_1_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[h7b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
@@ -311,7 +310,6 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
                     k_range[p5b],k_range[p6b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
-
     }
      }}}
     }}}
@@ -438,7 +436,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
 
                   if(p7b<p4b) {
 
-                    d_t2.get({h2b,h1b,p4b-noab,p7b-noab},k_a);
+                    d_t2.get({p7b-noab,p4b-noab,h1b,h2b},k_a); //h2b,h1b,p4b-noab,p7b-noab
                     // for (auto x=0;x<dima;x++) k_a_sort[x] = -1 * k_a[x];
                     int perm[4]={3,2,1,0};
                     int size[4]={k_range[p7b],k_range[p4b],k_range[h1b],k_range[h2b]};
@@ -450,7 +448,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
                   }
                   if(p4b<=p7b) {
 
-                    d_t2.get({h2b,h1b,p7b-noab,p4b-noab},k_a);
+                    d_t2.get({p4b-noab,p7b-noab,h1b,h2b},k_a); //h2b,h1b,p7b-noab,p4b-noab
                     int perm[4]={3,2,0,1}; //0,1,3,2
                     int size[4]={k_range[p4b],k_range[p7b],k_range[h1b],k_range[h2b]};
                     

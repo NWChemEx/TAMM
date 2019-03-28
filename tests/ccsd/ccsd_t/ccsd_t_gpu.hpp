@@ -46,9 +46,9 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
     auto tnvirt = 2*nvirt; 
     auto total_orbitals = tnocc+tnvirt;
     auto mo_tiles = MO.input_tile_sizes();
-    std::vector<int> k_range;
-    std::vector<int> k_offset;
-    int sum = 0;
+    std::vector<size_t> k_range;
+    std::vector<size_t> k_offset;
+    size_t sum = 0;
     for (auto x: mo_tiles){
       k_range.push_back(x);
       k_offset.push_back(sum);
@@ -57,6 +57,7 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
 
     // cout << "k_spin = " << k_spin << endl;
     // cout << "k_range = " << k_range << endl;
+    cout << "MO Tiles = " << mo_tiles << endl;
 
     //Check if node has number of devices specified in input file
     int dev_count_check;
@@ -116,8 +117,10 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
                       size_t size = k_range[t_p4b] * k_range[t_p5b] *
                                     k_range[t_p6b] * k_range[t_h1b] *
                                     k_range[t_h2b] * k_range[t_h3b];
-                      std::vector<double> k_singles(size, 0.0);
-                      std::vector<double> k_doubles(size, 0.0);
+
+                      //TODO: cpu buffers not needed for gpu code path                                    
+                      std::vector<double> k_singles(2);/*size*/
+                      std::vector<double> k_doubles(2);
                       has_GPU = check_device(icuda);
                       if (has_GPU==1) {
                         initmemmodule();

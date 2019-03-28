@@ -55,9 +55,11 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
       sum+=x;
     } 
 
-    // cout << "k_spin = " << k_spin << endl;
-    // cout << "k_range = " << k_range << endl;
-    cout << "MO Tiles = " << mo_tiles << endl;
+    if(nodezero){
+      // cout << "k_spin = " << k_spin << endl;
+      // cout << "k_range = " << k_range << endl;
+      cout << "MO Tiles = " << mo_tiles << endl;
+    }
 
     //Check if node has number of devices specified in input file
     int dev_count_check;

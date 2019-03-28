@@ -35,7 +35,7 @@ void ccsd_t_singles_gpu(ExecutionContext& ec,
                    Tensor<T>& d_t1, 
                    Tensor<T>& d_v2,
                    std::vector<T>& p_evl_sorted,
-                   std::vector<int>& k_range, 
+                   std::vector<size_t>& k_range, 
                    int t_h1b, int t_h2b, int t_h3b, 
                    int t_p4b, int t_p5b, int t_p6b, int usedevice=1) {
 

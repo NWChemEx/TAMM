@@ -42,7 +42,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
                    Tensor<T>& d_t2, //d_a
                    Tensor<T>& d_v2, //d_b
                    std::vector<T>& p_evl_sorted,
-                   std::vector<int>& k_range,
+                   std::vector<size_t>& k_range,
                    int t_h1b, int t_h2b, int t_h3b,
                    int t_p4b, int t_p5b, int t_p6b,
                    int usedevice=1) {

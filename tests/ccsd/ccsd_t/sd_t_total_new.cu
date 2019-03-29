@@ -5,9 +5,9 @@ __device__ double* t3_d;
 
 // #define KERNEL_MA
 
- void dev_mem_d(int h1d, int h2d, int h3d, int p4d, int p5d,int p6d)
+ void dev_mem_d(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d)
 {
-    int size_t3;
+    size_t size_t3;
     size_t3 = h1d*h2d*h3d*p4d*p5d*p6d;
     t3_d = (double *) getGpuMem(size_t3*sizeof(double));
     cudaMemset(t3_d,0,size_t3*sizeof(double));
@@ -15,7 +15,7 @@ __device__ double* t3_d;
 //           void
 // dev_mem_d_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d)
 // {
-//     set_dev_mem_d((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d);
+//     set_dev_mem_d((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d);
 // }
 void
 dev_release()
@@ -53,45 +53,45 @@ dev_release()
 #define CEIL(a, b) 		(((a) + (b) - 1) / (b))
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_b, int size_c, int size_d, int size_e, int size_f, int size_g, int numBlk_a, int numBlk_b, int numBlk_c, int numBlk_d, int numBlk_e, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_b, size_t numBlk_c, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x % JK_CCSD_T_D1_1_SIZE_SLICE_1_A;
-	int idx_d = threadIdx.x / JK_CCSD_T_D1_1_SIZE_SLICE_1_A;
-	int idx_f = threadIdx.y % JK_CCSD_T_D1_1_SIZE_SLICE_1_F;
-	int idx_c = threadIdx.y / JK_CCSD_T_D1_1_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x % JK_CCSD_T_D1_1_SIZE_SLICE_1_A;
+	size_t idx_d = threadIdx.x / JK_CCSD_T_D1_1_SIZE_SLICE_1_A;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_1_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_1_SIZE_SLICE_1_F;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_c * numBlk_b * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
+	size_t blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a);
 
-	int blk_idx_b = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_b = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D1_1_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_1_SIZE_SLICE_1_B + (blk_idx_c * JK_CCSD_T_D1_1_SIZE_SLICE_1_C + idx_c + (blk_idx_d * JK_CCSD_T_D1_1_SIZE_SLICE_1_D + idx_d + (blk_idx_e * JK_CCSD_T_D1_1_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_c) * size_b) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_1_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_1_SIZE_SLICE_1_B + (blk_idx_c * JK_CCSD_T_D1_1_SIZE_SLICE_1_C + idx_c + (blk_idx_d * JK_CCSD_T_D1_1_SIZE_SLICE_1_D + idx_d + (blk_idx_e * JK_CCSD_T_D1_1_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_c) * size_b) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_b, rng_c, rng_d, rng_e, rng_f;
+	size_t rng_a, rng_b, rng_c, rng_d, rng_e, rng_f;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_1_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_1_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D1_1_SIZE_SLICE_1_A;
@@ -145,13 +145,13 @@ __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'b', 'd', 'g']], '-=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_1_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_1_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_1_SIZE_INT_UNIT_1) - size_internal;
@@ -162,7 +162,7 @@ __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_1_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -173,7 +173,7 @@ __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_1_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_b; ll++)
+		for (size_t ll = 0; ll < rng_b; ll++)
 		{
 			// ['a', 'b', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
@@ -189,7 +189,7 @@ __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_1_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_1_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + 0];
 			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + 8];
@@ -200,7 +200,7 @@ __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + 48];
 			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_1_SIZE_SLICE_1_A + (xx * 16)];
 
@@ -1430,22 +1430,22 @@ __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d1_1_fusion(int size_a, int size_b, int size_c, int size_d, int size_e, int size_f, int size_g, 
-    double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_1_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, 
+    double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_1_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D1_1_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D1_1_SIZE_SLICE_1_C) * CEIL(size_d, JK_CCSD_T_D1_1_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D1_1_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_1_SIZE_SLICE_1_F);
     
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
@@ -1459,7 +1459,7 @@ __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -1469,24 +1469,24 @@ __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_1_SIZE_TB_1_X, JK_CCSD_T_D1_1_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_b = stride_output_a * size_a;
-	int stride_output_c = stride_output_b * size_b;
-	int stride_output_d = stride_output_c * size_c;
-	int stride_output_e = stride_output_d * size_d;
-	int stride_output_f = stride_output_e * size_e;
+	size_t stride_output_a = 1;
+	size_t stride_output_b = stride_output_a * size_a;
+	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_d = stride_output_c * size_c;
+	size_t stride_output_e = stride_output_d * size_d;
+	size_t stride_output_f = stride_output_e * size_e;
 
-	int stride_reg_x_1 = stride_output_b;
-	int stride_reg_y_1 = stride_output_e;
+	size_t stride_reg_x_1 = stride_output_b;
+	size_t stride_reg_y_1 = stride_output_e;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_b * size_d;
     
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         jk_ccsd_t_d1_1_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_a, size_b, size_c, size_d, size_e, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_1_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D1_1_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D1_1_SIZE_SLICE_1_C), CEIL(size_d, JK_CCSD_T_D1_1_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D1_1_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_1_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -1495,7 +1495,7 @@ __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -1504,7 +1504,7 @@ __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d1_1_fusion_(int size_a, int size_b, int size_c, int size_d, int size_e, int size_f, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_1_fusion_(size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d1_1_fusion(size_a, size_b, size_c, size_d, size_e, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -1526,42 +1526,42 @@ __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 #define JK_CCSD_T_D1_1_IF_SIZE_REG_1_Y 	JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_1_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_c, int size_d, int size_e, int size_f, int size_g, int numBlk_a, int numBlk_c, int numBlk_d, int numBlk_e, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_1_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 1
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x;
-	int idx_f = threadIdx.y % JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F;
-	int idx_c = threadIdx.y / JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_c * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_c * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_d * numBlk_c * numBlk_a);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_c * numBlk_a);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_a);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_d * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_c) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_d * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_c) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_c, rng_d, rng_e, rng_f;
+	size_t rng_a, rng_c, rng_d, rng_e, rng_f;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A;
@@ -1607,13 +1607,13 @@ __global__ void jk_ccsd_t_d1_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'd', 'g']], '-=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_1_IF_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_1_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_1_IF_SIZE_INT_UNIT_1) - size_internal;
@@ -1624,7 +1624,7 @@ __global__ void jk_ccsd_t_d1_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_1_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -1635,7 +1635,7 @@ __global__ void jk_ccsd_t_d1_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && threadIdx.y < JK_CCSD_T_D1_1_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['a', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
@@ -1651,7 +1651,7 @@ __global__ void jk_ccsd_t_d1_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_1_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_1_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + 0];
 			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + 8];
@@ -1662,7 +1662,7 @@ __global__ void jk_ccsd_t_d1_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + 48];
 			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_b[ll][idx_a + (xx * 16)];
 
@@ -1684,9 +1684,9 @@ __global__ void jk_ccsd_t_d1_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
 	if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
-	for (int i = 0; i < 8; i++)
+	for (size_t i = 0; i < 8; i++)
 	{
-		for (int j = 0; j < 4; j++)
+		for (size_t j = 0; j < 4; j++)
 		{
 			if(i < rng_e && j < rng_d)
 			{
@@ -2908,9 +2908,9 @@ __global__ void jk_ccsd_t_d1_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 
 // written by tc_interface.tc_gen_code_interface_Header()
 
-void jk_ccsd_t_d1_1_if_fusion(int size_a, int size_b, int size_c, int size_d, int size_e, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+void jk_ccsd_t_d1_1_if_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     size_a = size_a * size_b;
 
@@ -2919,12 +2919,12 @@ void jk_ccsd_t_d1_1_if_fusion(int size_a, int size_b, int size_c, int size_d, in
 	double* dev_v2;
 
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C) * CEIL(size_d, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F);
 
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_a;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_c * size_d * size_e * size_f);
@@ -2935,7 +2935,7 @@ void jk_ccsd_t_d1_1_if_fusion(int size_a, int size_b, int size_c, int size_d, in
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -2951,24 +2951,24 @@ void jk_ccsd_t_d1_1_if_fusion(int size_a, int size_b, int size_c, int size_d, in
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_1_IF_SIZE_TB_1_X, JK_CCSD_T_D1_1_IF_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_c = stride_output_a * size_a;
-	int stride_output_d = stride_output_c * size_c;
-	int stride_output_e = stride_output_d * size_d;
-	int stride_output_f = stride_output_e * size_e;
+	size_t stride_output_a = 1;
+	size_t stride_output_c = stride_output_a * size_a;
+	size_t stride_output_d = stride_output_c * size_c;
+	size_t stride_output_e = stride_output_d * size_d;
+	size_t stride_output_f = stride_output_e * size_e;
 
-	int stride_reg_x_1 = stride_output_d;
-	int stride_reg_y_1 = stride_output_e;
+	size_t stride_reg_x_1 = stride_output_d;
+	size_t stride_reg_y_1 = stride_output_e;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_d;
 
     // New Caller
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d1_1_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_a, size_c, size_d, size_e, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C), CEIL(size_d, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -2980,7 +2980,7 @@ void jk_ccsd_t_d1_1_if_fusion(int size_a, int size_b, int size_c, int size_d, in
     // cudaFree(dev_t2);	cudaFree(dev_v2);
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -3007,45 +3007,45 @@ void jk_ccsd_t_d1_1_if_fusion(int size_a, int size_b, int size_c, int size_d, in
 #define JK_CCSD_T_D1_2_SIZE_REG_1_Y 	JK_CCSD_T_D1_2_SIZE_SLICE_1_E
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_c, int size_b, int size_d, int size_e, int size_f, int size_g, int numBlk_a, int numBlk_c, int numBlk_b, int numBlk_d, int numBlk_e, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_b, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x % JK_CCSD_T_D1_2_SIZE_SLICE_1_A;
-	int idx_d = threadIdx.x / JK_CCSD_T_D1_2_SIZE_SLICE_1_A;
-	int idx_f = threadIdx.y % JK_CCSD_T_D1_2_SIZE_SLICE_1_F;
-	int idx_c = threadIdx.y / JK_CCSD_T_D1_2_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x % JK_CCSD_T_D1_2_SIZE_SLICE_1_A;
+	size_t idx_d = threadIdx.x / JK_CCSD_T_D1_2_SIZE_SLICE_1_A;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_2_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_2_SIZE_SLICE_1_F;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_b * numBlk_c * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_b * numBlk_c * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_d * numBlk_b * numBlk_c * numBlk_a);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_b * numBlk_c * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_b * numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_b * numBlk_c * numBlk_a);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_b * numBlk_c * numBlk_a);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_b * numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_c * numBlk_a);
 
-	int blk_idx_b = tmp_blkIdx / (numBlk_c * numBlk_a);
+	size_t blk_idx_b = tmp_blkIdx / (numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D1_2_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_2_SIZE_SLICE_1_C + idx_c + (blk_idx_b * JK_CCSD_T_D1_2_SIZE_SLICE_1_B + (blk_idx_d * JK_CCSD_T_D1_2_SIZE_SLICE_1_D + idx_d + (blk_idx_e * JK_CCSD_T_D1_2_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_b) * size_c) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_2_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_2_SIZE_SLICE_1_C + idx_c + (blk_idx_b * JK_CCSD_T_D1_2_SIZE_SLICE_1_B + (blk_idx_d * JK_CCSD_T_D1_2_SIZE_SLICE_1_D + idx_d + (blk_idx_e * JK_CCSD_T_D1_2_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_b) * size_c) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_c, rng_b, rng_d, rng_e, rng_f;
+	size_t rng_a, rng_c, rng_b, rng_d, rng_e, rng_f;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_2_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_2_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D1_2_SIZE_SLICE_1_A;
@@ -3099,13 +3099,13 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'b', 'd', 'g']], '-=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_2_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_2_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_2_SIZE_INT_UNIT_1) - size_internal;
@@ -3116,7 +3116,7 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_2_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -3127,7 +3127,7 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_2_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_b; ll++)
+		for (size_t ll = 0; ll < rng_b; ll++)
 		{
 			// ['a', 'b', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
@@ -3143,7 +3143,7 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_2_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_2_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + 0];
 			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + 8];
@@ -3154,7 +3154,7 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + 48];
 			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_2_SIZE_SLICE_1_A + (xx * 16)];
 
@@ -4384,21 +4384,21 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d1_2_fusion(int size_a, int size_c, int size_b, int size_d, int size_e, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_2_fusion(size_t size_a, size_t size_c, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_2_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_2_SIZE_SLICE_1_C) * CEIL(size_b, JK_CCSD_T_D1_2_SIZE_SLICE_1_B) * CEIL(size_d, JK_CCSD_T_D1_2_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D1_2_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_2_SIZE_SLICE_1_F);
     
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
@@ -4412,7 +4412,7 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -4422,24 +4422,24 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_2_SIZE_TB_1_X, JK_CCSD_T_D1_2_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_c = stride_output_a * size_a;
-	int stride_output_b = stride_output_c * size_c;
-	int stride_output_d = stride_output_b * size_b;
-	int stride_output_e = stride_output_d * size_d;
-	int stride_output_f = stride_output_e * size_e;
+	size_t stride_output_a = 1;
+	size_t stride_output_c = stride_output_a * size_a;
+	size_t stride_output_b = stride_output_c * size_c;
+	size_t stride_output_d = stride_output_b * size_b;
+	size_t stride_output_e = stride_output_d * size_d;
+	size_t stride_output_f = stride_output_e * size_e;
 
-	int stride_reg_x_1 = stride_output_b;
-	int stride_reg_y_1 = stride_output_e;
+	size_t stride_reg_x_1 = stride_output_b;
+	size_t stride_reg_y_1 = stride_output_e;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-    int stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_int_t2 = 1;
+    size_t stride_int_v2 = size_a * size_b * size_d;
     
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d1_2_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_a, size_c, size_b, size_d, size_e, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_2_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_2_SIZE_SLICE_1_C), CEIL(size_b, JK_CCSD_T_D1_2_SIZE_SLICE_1_B), CEIL(size_d, JK_CCSD_T_D1_2_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D1_2_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_2_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -4447,7 +4447,7 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     // cudaFree(dev_t2);	cudaFree(dev_v2);
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -4456,7 +4456,7 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d1_2_fusion_(int size_a, int size_c, int size_b, int size_d, int size_e, int size_f, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_2_fusion_(size_t size_a, size_t size_c, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d1_2_fusion(size_a, size_c, size_b, size_d, size_e, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -4479,42 +4479,42 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_2_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_c, int size_b, int size_e, int size_f, int size_g, int numBlk_a, int numBlk_c, int numBlk_b, int numBlk_e, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_2_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_b, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 1
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x;
-	int idx_f = threadIdx.y % JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F;
-	int idx_c = threadIdx.y / JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_e * numBlk_b * numBlk_c * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_b * numBlk_c * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_b * numBlk_c * numBlk_a);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_b * numBlk_c * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_b * numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_c * numBlk_a);
 
-	int blk_idx_b = tmp_blkIdx / (numBlk_c * numBlk_a);
+	size_t blk_idx_b = tmp_blkIdx / (numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_b * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B + (blk_idx_e * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + idx_f) * size_e) * size_b) * size_c) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_b * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B + (blk_idx_e * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + idx_f) * size_e) * size_b) * size_c) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_c, rng_b, rng_e, rng_f;
+	size_t rng_a, rng_c, rng_b, rng_e, rng_f;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A;
@@ -4560,13 +4560,13 @@ __global__ void jk_ccsd_t_d1_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'b', 'g']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + SIZE_INT_UNIT_1) - size_internal;
@@ -4577,7 +4577,7 @@ __global__ void jk_ccsd_t_d1_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -4588,7 +4588,7 @@ __global__ void jk_ccsd_t_d1_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && threadIdx.y < SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_b; ll++)
+		for (size_t ll = 0; ll < rng_b; ll++)
 		{
 			// ['a', 'b', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
@@ -4604,7 +4604,7 @@ __global__ void jk_ccsd_t_d1_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + 0];
 			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + 8];
@@ -4615,7 +4615,7 @@ __global__ void jk_ccsd_t_d1_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + 48];
 			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_b[ll][idx_a + (xx * 16)];
 
@@ -4637,9 +4637,9 @@ __global__ void jk_ccsd_t_d1_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
 	if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
-	for (int i = 0; i < 8; i++)
+	for (size_t i = 0; i < 8; i++)
 	{
-		for (int j = 0; j < 4; j++)
+		for (size_t j = 0; j < 4; j++)
 		{
 			if(i < rng_e && j < rng_b)
 			{
@@ -5863,7 +5863,7 @@ __global__ void jk_ccsd_t_d1_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 
 // written by tc_interface.tc_gen_code_interface_Header()
 
-void jk_ccsd_t_d1_2_if_fusion(int size_a, int size_c, int size_b, int size_d, int size_e, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+void jk_ccsd_t_d1_2_if_fusion(size_t size_a, size_t size_c, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
     // cudaEvent_t start, stop;
     // cudaEventCreate(&start);
@@ -5871,9 +5871,9 @@ void jk_ccsd_t_d1_2_if_fusion(int size_a, int size_c, int size_b, int size_d, in
 
     // cudaEventRecord(start);
 
-    int num_thread_blocks_kernel_1;
+    size_t num_thread_blocks_kernel_1;
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
     size_b = size_b * size_d;
 
@@ -5883,8 +5883,8 @@ void jk_ccsd_t_d1_2_if_fusion(int size_a, int size_c, int size_b, int size_d, in
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C) * CEIL(size_b, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B) * CEIL(size_e, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F);
     
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_b * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_b * size_a;
     
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_c * size_b * size_e * size_f);
@@ -5896,7 +5896,7 @@ void jk_ccsd_t_d1_2_if_fusion(int size_a, int size_c, int size_b, int size_d, in
     
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -5910,7 +5910,7 @@ void jk_ccsd_t_d1_2_if_fusion(int size_a, int size_c, int size_b, int size_d, in
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-	// long long int tmp_operations = 2 * (long long int)(size_a * size_c * size_b * size_e * size_f) * size_g;
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_a * size_c * size_b * size_e * size_f) * size_g;
 	// printf ("========================================= fusedKernels =============================================\n");
 	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
 	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_2_IF_SIZE_TB_1_X, JK_CCSD_T_D1_2_IF_SIZE_TB_1_Y);
@@ -5921,19 +5921,19 @@ void jk_ccsd_t_d1_2_if_fusion(int size_a, int size_c, int size_b, int size_d, in
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_2_IF_SIZE_TB_1_X, JK_CCSD_T_D1_2_IF_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_c = stride_output_a * size_a;
-	int stride_output_b = stride_output_c * size_c;
-	int stride_output_e = stride_output_b * size_b;
-	int stride_output_f = stride_output_e * size_e;
+	size_t stride_output_a = 1;
+	size_t stride_output_c = stride_output_a * size_a;
+	size_t stride_output_b = stride_output_c * size_c;
+	size_t stride_output_e = stride_output_b * size_b;
+	size_t stride_output_f = stride_output_e * size_e;
 
-	int stride_reg_x_1 = stride_output_b;
-	int stride_reg_y_1 = stride_output_e;
+	size_t stride_reg_x_1 = stride_output_b;
+	size_t stride_reg_y_1 = stride_output_e;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_b;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_b;
 
     // New Caller
     // dev_t3 = t3_d;
@@ -5944,7 +5944,7 @@ void jk_ccsd_t_d1_2_if_fusion(int size_a, int size_c, int size_b, int size_d, in
     // cudaEventElapsedTime(&ms, start, stop);
     // printf (">(jk-t)> d1_2: %f\n", ms);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         jk_ccsd_t_d1_2_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(t3_d, dev_t2, dev_v2, size_a, size_c, size_b, size_e, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C), CEIL(size_b, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B), CEIL(size_e, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -5963,7 +5963,7 @@ void jk_ccsd_t_d1_2_if_fusion(int size_a, int size_c, int size_b, int size_d, in
 	// cudaFree()
     // cudaFree(dev_t3);	
     
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -6000,45 +6000,45 @@ void jk_ccsd_t_d1_2_if_fusion(int size_a, int size_c, int size_b, int size_d, in
 #define JK_CCSD_T_D1_3_SIZE_REG_1_Y 	JK_CCSD_T_D1_3_SIZE_SLICE_1_B
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_c, int size_a, int size_b, int size_d, int size_e, int size_f, int size_g, int numBlk_c, int numBlk_a, int numBlk_b, int numBlk_d, int numBlk_e, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_b, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_c = threadIdx.x % JK_CCSD_T_D1_3_SIZE_SLICE_1_C;
-	int idx_e = threadIdx.x / JK_CCSD_T_D1_3_SIZE_SLICE_1_C;
-	int idx_a = threadIdx.y % JK_CCSD_T_D1_3_SIZE_SLICE_1_A;
-	int idx_d = threadIdx.y / JK_CCSD_T_D1_3_SIZE_SLICE_1_A;
+	size_t idx_c = threadIdx.x % JK_CCSD_T_D1_3_SIZE_SLICE_1_C;
+	size_t idx_e = threadIdx.x / JK_CCSD_T_D1_3_SIZE_SLICE_1_C;
+	size_t idx_a = threadIdx.y % JK_CCSD_T_D1_3_SIZE_SLICE_1_A;
+	size_t idx_d = threadIdx.y / JK_CCSD_T_D1_3_SIZE_SLICE_1_A;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_b * numBlk_a * numBlk_c);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_b * numBlk_a * numBlk_c);
 	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_d * numBlk_b * numBlk_a * numBlk_c);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_b * numBlk_a * numBlk_c);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_b * numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_b * numBlk_a * numBlk_c);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_b * numBlk_a * numBlk_c);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_b * numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a * numBlk_c);
 
-	int blk_idx_b = tmp_blkIdx / (numBlk_a * numBlk_c);
+	size_t blk_idx_b = tmp_blkIdx / (numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c);
 
-	int blk_idx_a = tmp_blkIdx / numBlk_c;
+	size_t blk_idx_a = tmp_blkIdx / numBlk_c;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c);
 
-	int  blk_idx_c = tmp_blkIdx;
+	size_t  blk_idx_c = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_c * JK_CCSD_T_D1_3_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_3_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_3_SIZE_SLICE_1_B + (blk_idx_d * JK_CCSD_T_D1_3_SIZE_SLICE_1_D + idx_d + (blk_idx_e * JK_CCSD_T_D1_3_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D1_3_SIZE_SLICE_1_F) * size_e) * size_d) * size_b) * size_a) * size_c;
+	size_t t3_base_thread = blk_idx_c * JK_CCSD_T_D1_3_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_3_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_3_SIZE_SLICE_1_B + (blk_idx_d * JK_CCSD_T_D1_3_SIZE_SLICE_1_D + idx_d + (blk_idx_e * JK_CCSD_T_D1_3_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D1_3_SIZE_SLICE_1_F) * size_e) * size_d) * size_b) * size_a) * size_c;
 
 	// need to support partial tiles
-	int rng_c, rng_a, rng_b, rng_d, rng_e, rng_f;
+	size_t rng_c, rng_a, rng_b, rng_d, rng_e, rng_f;
 	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_3_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_3_SIZE_SLICE_1_C)
 	{
 		rng_c = JK_CCSD_T_D1_3_SIZE_SLICE_1_C;
@@ -6092,13 +6092,13 @@ __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[4];
 	double reg_tile[4][4];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['a', 'b', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_3_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_3_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_3_SIZE_INT_UNIT_1) - size_internal;
@@ -6109,7 +6109,7 @@ __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_e && idx_a < rng_c && threadIdx.x < JK_CCSD_T_D1_3_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_f; ll++)
+		for (size_t ll = 0; ll < rng_f; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -6120,7 +6120,7 @@ __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_c < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_3_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_b; ll++)
+		for (size_t ll = 0; ll < rng_b; ll++)
 		{
 			// ['a', 'b', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l
@@ -6132,14 +6132,14 @@ __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_3_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_3_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_3_SIZE_SLICE_1_A + 0];
 			temp_bv[1] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_3_SIZE_SLICE_1_A + 16];
 			temp_bv[2] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_3_SIZE_SLICE_1_A + 32];
 			temp_bv[3] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_3_SIZE_SLICE_1_A + 48];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_a[ll][idx_e + (idx_c) * JK_CCSD_T_D1_3_SIZE_SLICE_1_E + (xx * 16)];
 
@@ -6539,21 +6539,21 @@ __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d1_3_fusion(int size_c, int size_a, int size_b, int size_d, int size_e, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_3_fusion(size_t size_c, size_t size_a, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_c, JK_CCSD_T_D1_3_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D1_3_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D1_3_SIZE_SLICE_1_B) * CEIL(size_d, JK_CCSD_T_D1_3_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D1_3_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_3_SIZE_SLICE_1_F);
 
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
@@ -6567,7 +6567,7 @@ __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -6575,24 +6575,24 @@ __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_3_SIZE_TB_1_X, JK_CCSD_T_D1_3_SIZE_TB_1_Y);
 
-	int stride_output_c = 1;
-	int stride_output_a = stride_output_c * size_c;
-	int stride_output_b = stride_output_a * size_a;
-	int stride_output_d = stride_output_b * size_b;
-	int stride_output_e = stride_output_d * size_d;
-	int stride_output_f = stride_output_e * size_e;
+	size_t stride_output_c = 1;
+	size_t stride_output_a = stride_output_c * size_c;
+	size_t stride_output_b = stride_output_a * size_a;
+	size_t stride_output_d = stride_output_b * size_b;
+	size_t stride_output_e = stride_output_d * size_d;
+	size_t stride_output_f = stride_output_e * size_e;
 
-	int stride_reg_x_1 = stride_output_f;
-	int stride_reg_y_1 = stride_output_b;
+	size_t stride_reg_x_1 = stride_output_f;
+	size_t stride_reg_y_1 = stride_output_b;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_b * size_d;
 
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         jk_ccsd_t_d1_3_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_c, size_a, size_b, size_d, size_e, size_f, size_g, CEIL(size_c, JK_CCSD_T_D1_3_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D1_3_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D1_3_SIZE_SLICE_1_B), CEIL(size_d, JK_CCSD_T_D1_3_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D1_3_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_3_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -6601,7 +6601,7 @@ __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -6610,7 +6610,7 @@ __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d1_3_fusion_(int size_c, int size_a, int size_b, int size_d, int size_e, int size_f, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_3_fusion_(size_t size_c, size_t size_a, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
     // Call An Application
     // printf (">> d1_3: a, b, c, d, e, f, g = %d, %d, %d, %d, %d, %d, %d\n", size_a, size_b, size_c, size_d, size_e, size_f, size_g);
@@ -6633,42 +6633,42 @@ __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 #define JK_CCSD_T_D1_3_IF_SIZE_REG_1_Y 	JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_3_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_c, int size_a, int size_d, int size_e, int size_f, int size_g, int numBlk_c, int numBlk_a, int numBlk_d, int numBlk_e, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_3_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 1
-	int idx_c = threadIdx.x % JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C;
-	int idx_e = threadIdx.x / JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C;
-	int idx_a = threadIdx.y;
+	size_t idx_c = threadIdx.x % JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C;
+	size_t idx_e = threadIdx.x / JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C;
+	size_t idx_a = threadIdx.y;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_a * numBlk_c);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_a * numBlk_c);
 	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_d * numBlk_a * numBlk_c);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_a * numBlk_c);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_a * numBlk_c);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_a * numBlk_c);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c);
 
-	int blk_idx_a = tmp_blkIdx / numBlk_c;
+	size_t blk_idx_a = tmp_blkIdx / numBlk_c;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c);
 
-	int  blk_idx_c = tmp_blkIdx;
+	size_t  blk_idx_c = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_c * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_d * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F) * size_e) * size_d) * size_a) * size_c;
+	size_t t3_base_thread = blk_idx_c * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_d * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F) * size_e) * size_d) * size_a) * size_c;
 
 	// need to support partial tiles
-	int rng_c, rng_a, rng_d, rng_e, rng_f;
+	size_t rng_c, rng_a, rng_d, rng_e, rng_f;
 	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C)
 	{
 		rng_c = JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C;
@@ -6714,13 +6714,13 @@ __global__ void jk_ccsd_t_d1_3_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	double temp_bv[4];
 	double reg_tile[4][4];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['a', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_3_IF_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_3_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_3_IF_SIZE_INT_UNIT_1) - size_internal;
@@ -6731,7 +6731,7 @@ __global__ void jk_ccsd_t_d1_3_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_e && idx_a < rng_c && threadIdx.x < JK_CCSD_T_D1_3_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_f; ll++)
+		for (size_t ll = 0; ll < rng_f; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -6742,7 +6742,7 @@ __global__ void jk_ccsd_t_d1_3_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_c < rng_a && threadIdx.y < JK_CCSD_T_D1_3_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['a', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l
@@ -6754,14 +6754,14 @@ __global__ void jk_ccsd_t_d1_3_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_3_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_3_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_b[ll][idx_a + 0];
 			temp_bv[1] = sm_b[ll][idx_a + 16];
 			temp_bv[2] = sm_b[ll][idx_a + 32];
 			temp_bv[3] = sm_b[ll][idx_a + 48];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_a[ll][idx_e + (idx_c) * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E + (xx * 16)];
 
@@ -6779,9 +6779,9 @@ __global__ void jk_ccsd_t_d1_3_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
 	if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a)
-	for (int i = 0; i < 4; i++)
+	for (size_t i = 0; i < 4; i++)
 	{
-		for (int j = 0; j < 4; j++)
+		for (size_t j = 0; j < 4; j++)
 		{
 			if(i < rng_d && j < rng_f)
 			{
@@ -7179,11 +7179,11 @@ __global__ void jk_ccsd_t_d1_3_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 
 // written by tc_interface.tc_gen_code_interface_Header()
 
-void jk_ccsd_t_d1_3_if_fusion(int size_c, int size_a, int size_b, int size_d, int size_e, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+void jk_ccsd_t_d1_3_if_fusion(size_t size_c, size_t size_a, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-    int num_thread_blocks_kernel_1;
+    size_t num_thread_blocks_kernel_1;
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
     size_a = size_a * size_b;
 
@@ -7191,8 +7191,8 @@ void jk_ccsd_t_d1_3_if_fusion(int size_c, int size_a, int size_b, int size_d, in
 	double* dev_t2;
     double* dev_v2;
     
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_a;
 
 	num_thread_blocks_kernel_1 = CEIL(size_c, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A) * CEIL(size_d, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F);
 	// cudaMalloc()
@@ -7209,7 +7209,7 @@ void jk_ccsd_t_d1_3_if_fusion(int size_c, int size_a, int size_b, int size_d, in
     
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -7219,24 +7219,24 @@ void jk_ccsd_t_d1_3_if_fusion(int size_c, int size_a, int size_b, int size_d, in
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_3_IF_SIZE_TB_1_X, JK_CCSD_T_D1_3_IF_SIZE_TB_1_Y);
 
-	int stride_output_c = 1;
-	int stride_output_a = stride_output_c * size_c;
-	int stride_output_d = stride_output_a * size_a;
-	int stride_output_e = stride_output_d * size_d;
-	int stride_output_f = stride_output_e * size_e;
+	size_t stride_output_c = 1;
+	size_t stride_output_a = stride_output_c * size_c;
+	size_t stride_output_d = stride_output_a * size_a;
+	size_t stride_output_e = stride_output_d * size_d;
+	size_t stride_output_f = stride_output_e * size_e;
 
-	int stride_reg_x_1 = stride_output_f;
-	int stride_reg_y_1 = stride_output_d;
+	size_t stride_reg_x_1 = stride_output_f;
+	size_t stride_reg_y_1 = stride_output_d;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_d;
 
     dev_t3 = t3_d;
 
     // New Caller
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         jk_ccsd_t_d1_3_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_c, size_a, size_d, size_e, size_f, size_g, CEIL(size_c, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A), CEIL(size_d, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -7249,7 +7249,7 @@ void jk_ccsd_t_d1_3_if_fusion(int size_c, int size_a, int size_b, int size_d, in
     // cudaFree(dev_t2);	cudaFree(dev_v2);
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -7278,45 +7278,45 @@ void jk_ccsd_t_d1_3_if_fusion(int size_c, int size_a, int size_b, int size_d, in
 
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_b, int size_c, int size_e, int size_f, int size_d, int size_g, int numBlk_a, int numBlk_b, int numBlk_c, int numBlk_e, int numBlk_f, int numBlk_d, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_a, size_t numBlk_b, size_t numBlk_c, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x % JK_CCSD_T_D1_4_SIZE_SLICE_1_A;
-	int idx_d = threadIdx.x / JK_CCSD_T_D1_4_SIZE_SLICE_1_A;
-	int idx_f = threadIdx.y % JK_CCSD_T_D1_4_SIZE_SLICE_1_F;
-	int idx_c = threadIdx.y / JK_CCSD_T_D1_4_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x % JK_CCSD_T_D1_4_SIZE_SLICE_1_A;
+	size_t idx_d = threadIdx.x / JK_CCSD_T_D1_4_SIZE_SLICE_1_A;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_4_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_4_SIZE_SLICE_1_F;
 
-	int tmp_blkIdx;
-	int blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_c * numBlk_b * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_f * numBlk_e * numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
+	size_t blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a);
 
-	int blk_idx_b = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_b = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D1_4_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_4_SIZE_SLICE_1_B + (blk_idx_c * JK_CCSD_T_D1_4_SIZE_SLICE_1_C + idx_c + (blk_idx_e * JK_CCSD_T_D1_4_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D1_4_SIZE_SLICE_1_D + idx_d) * size_f) * size_e) * size_c) * size_b) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_4_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_4_SIZE_SLICE_1_B + (blk_idx_c * JK_CCSD_T_D1_4_SIZE_SLICE_1_C + idx_c + (blk_idx_e * JK_CCSD_T_D1_4_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D1_4_SIZE_SLICE_1_D + idx_d) * size_f) * size_e) * size_c) * size_b) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_b, rng_c, rng_e, rng_f, rng_d;
+	size_t rng_a, rng_b, rng_c, rng_e, rng_f, rng_d;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_4_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_4_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D1_4_SIZE_SLICE_1_A;
@@ -7370,13 +7370,13 @@ __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'b', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_4_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_4_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_4_SIZE_INT_UNIT_1) - size_internal;
@@ -7387,7 +7387,7 @@ __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_4_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -7398,7 +7398,7 @@ __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_4_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_b; ll++)
+		for (size_t ll = 0; ll < rng_b; ll++)
 		{
 			// ['a', 'b', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
@@ -7414,7 +7414,7 @@ __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_4_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_4_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + 0];
 			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + 8];
@@ -7425,7 +7425,7 @@ __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + 48];
 			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_4_SIZE_SLICE_1_A + (xx * 16)];
 
@@ -8654,21 +8654,21 @@ __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d1_4_fusion(int size_a, int size_b, int size_c, int size_e, int size_f, int size_d, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_4_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-    int num_thread_blocks_kernel_1;
+    size_t num_thread_blocks_kernel_1;
     
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_4_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D1_4_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D1_4_SIZE_SLICE_1_C) * CEIL(size_e, JK_CCSD_T_D1_4_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_4_SIZE_SLICE_1_F) * CEIL(size_d, JK_CCSD_T_D1_4_SIZE_SLICE_1_D);
     
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
     
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
@@ -8682,7 +8682,7 @@ __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -8690,24 +8690,24 @@ __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_4_SIZE_TB_1_X, JK_CCSD_T_D1_4_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_b = stride_output_a * size_a;
-	int stride_output_c = stride_output_b * size_b;
-	int stride_output_e = stride_output_c * size_c;
-	int stride_output_f = stride_output_e * size_e;
-	int stride_output_d = stride_output_f * size_f;
+	size_t stride_output_a = 1;
+	size_t stride_output_b = stride_output_a * size_a;
+	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_e = stride_output_c * size_c;
+	size_t stride_output_f = stride_output_e * size_e;
+	size_t stride_output_d = stride_output_f * size_f;
 
-	int stride_reg_x_1 = stride_output_b;
-	int stride_reg_y_1 = stride_output_e;
+	size_t stride_reg_x_1 = stride_output_b;
+	size_t stride_reg_y_1 = stride_output_e;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_b * size_d;
 
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d1_4_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_a, size_b, size_c, size_e, size_f, size_d, size_g, CEIL(size_a, JK_CCSD_T_D1_4_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D1_4_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D1_4_SIZE_SLICE_1_C), CEIL(size_e, JK_CCSD_T_D1_4_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_4_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D1_4_SIZE_SLICE_1_D), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -8716,7 +8716,7 @@ __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -8725,7 +8725,7 @@ __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d1_4_fusion_(int size_a, int size_b, int size_c, int size_e, int size_f, int size_d, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_4_fusion_(size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
     // Call An Application
 	jk_ccsd_t_d1_4_fusion(size_a, size_b, size_c, size_e, size_f, size_d, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -8747,42 +8747,42 @@ __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 #define JK_CCSD_T_D1_4_IF_SIZE_REG_1_Y 	JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_4_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_c, int size_e, int size_f, int size_d, int size_g, int numBlk_a, int numBlk_c, int numBlk_e, int numBlk_f, int numBlk_d, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_4_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 1
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x;
-	int idx_f = threadIdx.y % JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F;
-	int idx_c = threadIdx.y / JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F;
 
-	int tmp_blkIdx;
-	int blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_c * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_c * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_f * numBlk_e * numBlk_c * numBlk_a);
 
-	int blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_c * numBlk_a);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_c * numBlk_a);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_c * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_e * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D) * size_f) * size_e) * size_c) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_e * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D) * size_f) * size_e) * size_c) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_c, rng_e, rng_f, rng_d;
+	size_t rng_a, rng_c, rng_e, rng_f, rng_d;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A;
@@ -8828,13 +8828,13 @@ __global__ void jk_ccsd_t_d1_4_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_4_IF_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_4_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_4_IF_SIZE_INT_UNIT_1) - size_internal;
@@ -8845,7 +8845,7 @@ __global__ void jk_ccsd_t_d1_4_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_4_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -8856,7 +8856,7 @@ __global__ void jk_ccsd_t_d1_4_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && threadIdx.y < JK_CCSD_T_D1_4_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['a', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
@@ -8872,7 +8872,7 @@ __global__ void jk_ccsd_t_d1_4_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_4_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_4_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + 0];
 			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + 8];
@@ -8883,7 +8883,7 @@ __global__ void jk_ccsd_t_d1_4_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + 48];
 			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_b[ll][idx_a + (xx * 16)];
 
@@ -8905,9 +8905,9 @@ __global__ void jk_ccsd_t_d1_4_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
 	if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
-	for (int i = 0; i < 8; i++)
+	for (size_t i = 0; i < 8; i++)
 	{
-		for (int j = 0; j < 4; j++)
+		for (size_t j = 0; j < 4; j++)
 		{
 			if(i < rng_e && j < rng_d)
 			{
@@ -10130,14 +10130,14 @@ __global__ void jk_ccsd_t_d1_4_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 
 // written by tc_interface.tc_gen_code_interface_Header()
 
-void jk_ccsd_t_d1_4_if_fusion(int size_a, int size_b, int size_c, int size_e, int size_f, int size_d, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+void jk_ccsd_t_d1_4_if_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-    int num_thread_blocks_kernel_1;
+    size_t num_thread_blocks_kernel_1;
 
     size_a = size_a * size_b;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	double* dev_t3;
 	double* dev_t2;
@@ -10145,8 +10145,8 @@ void jk_ccsd_t_d1_4_if_fusion(int size_a, int size_b, int size_c, int size_e, in
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C) * CEIL(size_e, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F) * CEIL(size_d, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D);
 
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_a;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_c * size_e * size_f * size_d);
@@ -10157,7 +10157,7 @@ void jk_ccsd_t_d1_4_if_fusion(int size_a, int size_b, int size_c, int size_e, in
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -10169,7 +10169,7 @@ void jk_ccsd_t_d1_4_if_fusion(int size_a, int size_b, int size_c, int size_e, in
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-	// long long int tmp_operations = 2 * (long long int)(size_a * size_c * size_e * size_f * size_d) * size_g;
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_a * size_c * size_e * size_f * size_d) * size_g;
 	// printf ("========================================= fusedKernels =============================================\n");
 	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
 	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_4_IF_SIZE_TB_1_X, JK_CCSD_T_D1_4_IF_SIZE_TB_1_Y);
@@ -10180,23 +10180,23 @@ void jk_ccsd_t_d1_4_if_fusion(int size_a, int size_b, int size_c, int size_e, in
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_4_IF_SIZE_TB_1_X, JK_CCSD_T_D1_4_IF_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_c = stride_output_a * size_a;
-	int stride_output_e = stride_output_c * size_c;
-	int stride_output_f = stride_output_e * size_e;
-	int stride_output_d = stride_output_f * size_f;
+	size_t stride_output_a = 1;
+	size_t stride_output_c = stride_output_a * size_a;
+	size_t stride_output_e = stride_output_c * size_c;
+	size_t stride_output_f = stride_output_e * size_e;
+	size_t stride_output_d = stride_output_f * size_f;
 
-	int stride_reg_x_1 = stride_output_d;
-	int stride_reg_y_1 = stride_output_e;
+	size_t stride_reg_x_1 = stride_output_d;
+	size_t stride_reg_y_1 = stride_output_e;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_d;
 
     // New Caller
     dev_t3 = t3_d;
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         jk_ccsd_t_d1_4_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_a, size_c, size_e, size_f, size_d, size_g, CEIL(size_a, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C), CEIL(size_e, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -10209,7 +10209,7 @@ void jk_ccsd_t_d1_4_if_fusion(int size_a, int size_b, int size_c, int size_e, in
     // cudaFree(dev_t2);	cudaFree(dev_v2);
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -10239,45 +10239,45 @@ void jk_ccsd_t_d1_4_if_fusion(int size_a, int size_b, int size_c, int size_e, in
 #define JK_CCSD_T_D1_5_SIZE_REG_1_Y 	JK_CCSD_T_D1_5_SIZE_SLICE_1_E
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_c, int size_b, int size_e, int size_f, int size_d, int size_g, int numBlk_a, int numBlk_c, int numBlk_b, int numBlk_e, int numBlk_f, int numBlk_d, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_b, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x % JK_CCSD_T_D1_5_SIZE_SLICE_1_A;
-	int idx_d = threadIdx.x / JK_CCSD_T_D1_5_SIZE_SLICE_1_A;
-	int idx_f = threadIdx.y % JK_CCSD_T_D1_5_SIZE_SLICE_1_F;
-	int idx_c = threadIdx.y / JK_CCSD_T_D1_5_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x % JK_CCSD_T_D1_5_SIZE_SLICE_1_A;
+	size_t idx_d = threadIdx.x / JK_CCSD_T_D1_5_SIZE_SLICE_1_A;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_5_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_5_SIZE_SLICE_1_F;
 
-	int tmp_blkIdx;
-	int blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_b * numBlk_c * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_b * numBlk_c * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_f * numBlk_e * numBlk_b * numBlk_c * numBlk_a);
 
-	int blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_b * numBlk_c * numBlk_a);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_b * numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_b * numBlk_c * numBlk_a);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_b * numBlk_c * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_b * numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_c * numBlk_a);
 
-	int blk_idx_b = tmp_blkIdx / (numBlk_c * numBlk_a);
+	size_t blk_idx_b = tmp_blkIdx / (numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D1_5_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_5_SIZE_SLICE_1_C + idx_c + (blk_idx_b * JK_CCSD_T_D1_5_SIZE_SLICE_1_B + (blk_idx_e * JK_CCSD_T_D1_5_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_5_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D1_5_SIZE_SLICE_1_D + idx_d) * size_f) * size_e) * size_b) * size_c) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_5_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_5_SIZE_SLICE_1_C + idx_c + (blk_idx_b * JK_CCSD_T_D1_5_SIZE_SLICE_1_B + (blk_idx_e * JK_CCSD_T_D1_5_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_5_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D1_5_SIZE_SLICE_1_D + idx_d) * size_f) * size_e) * size_b) * size_c) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_c, rng_b, rng_e, rng_f, rng_d;
+	size_t rng_a, rng_c, rng_b, rng_e, rng_f, rng_d;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_5_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_5_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D1_5_SIZE_SLICE_1_A;
@@ -10331,13 +10331,13 @@ __global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'b', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_5_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_5_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_5_SIZE_INT_UNIT_1) - size_internal;
@@ -10348,7 +10348,7 @@ __global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_5_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -10359,7 +10359,7 @@ __global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_5_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_b; ll++)
+		for (size_t ll = 0; ll < rng_b; ll++)
 		{
 			// ['a', 'b', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
@@ -10375,7 +10375,7 @@ __global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_5_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_5_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_5_SIZE_SLICE_1_F + 0];
 			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_5_SIZE_SLICE_1_F + 8];
@@ -10386,7 +10386,7 @@ __global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_5_SIZE_SLICE_1_F + 48];
 			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_5_SIZE_SLICE_1_F + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_5_SIZE_SLICE_1_A + (xx * 16)];
 
@@ -11616,21 +11616,21 @@ __global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d1_5_fusion(int size_a, int size_c, int size_b, int size_e, int size_f, int size_d, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_5_fusion(size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_5_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_5_SIZE_SLICE_1_C) * CEIL(size_b, JK_CCSD_T_D1_5_SIZE_SLICE_1_B) * CEIL(size_e, JK_CCSD_T_D1_5_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_5_SIZE_SLICE_1_F) * CEIL(size_d, JK_CCSD_T_D1_5_SIZE_SLICE_1_D);
     
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
@@ -11644,7 +11644,7 @@ __global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -11654,24 +11654,24 @@ __global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_5_SIZE_TB_1_X, JK_CCSD_T_D1_5_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_c = stride_output_a * size_a;
-	int stride_output_b = stride_output_c * size_c;
-	int stride_output_e = stride_output_b * size_b;
-	int stride_output_f = stride_output_e * size_e;
-	int stride_output_d = stride_output_f * size_f;
+	size_t stride_output_a = 1;
+	size_t stride_output_c = stride_output_a * size_a;
+	size_t stride_output_b = stride_output_c * size_c;
+	size_t stride_output_e = stride_output_b * size_b;
+	size_t stride_output_f = stride_output_e * size_e;
+	size_t stride_output_d = stride_output_f * size_f;
 
-	int stride_reg_x_1 = stride_output_b;
-	int stride_reg_y_1 = stride_output_e;
+	size_t stride_reg_x_1 = stride_output_b;
+	size_t stride_reg_y_1 = stride_output_e;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_b * size_d;
 
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d1_5_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_a, size_c, size_b, size_e, size_f, size_d, size_g, CEIL(size_a, JK_CCSD_T_D1_5_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_5_SIZE_SLICE_1_C), CEIL(size_b, JK_CCSD_T_D1_5_SIZE_SLICE_1_B), CEIL(size_e, JK_CCSD_T_D1_5_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_5_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D1_5_SIZE_SLICE_1_D), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -11680,7 +11680,7 @@ __global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -11689,7 +11689,7 @@ __global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d1_5_fusion_(int size_a, int size_c, int size_b, int size_e, int size_f, int size_d, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_5_fusion_(size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d1_5_fusion(size_a, size_c, size_b, size_e, size_f, size_d, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -11717,45 +11717,45 @@ __global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_c, int size_a, int size_b, int size_e, int size_f, int size_d, int size_g, int numBlk_c, int numBlk_a, int numBlk_b, int numBlk_e, int numBlk_f, int numBlk_d, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_b, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_c = threadIdx.x % JK_CCSD_T_D1_6_SIZE_SLICE_1_C;
-	int idx_e = threadIdx.x / JK_CCSD_T_D1_6_SIZE_SLICE_1_C;
-	int idx_a = threadIdx.y % JK_CCSD_T_D1_6_SIZE_SLICE_1_A;
-	int idx_d = threadIdx.y / JK_CCSD_T_D1_6_SIZE_SLICE_1_A;
+	size_t idx_c = threadIdx.x % JK_CCSD_T_D1_6_SIZE_SLICE_1_C;
+	size_t idx_e = threadIdx.x / JK_CCSD_T_D1_6_SIZE_SLICE_1_C;
+	size_t idx_a = threadIdx.y % JK_CCSD_T_D1_6_SIZE_SLICE_1_A;
+	size_t idx_d = threadIdx.y / JK_CCSD_T_D1_6_SIZE_SLICE_1_A;
 
-	int tmp_blkIdx;
-	int blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_b * numBlk_a * numBlk_c);
+	size_t tmp_blkIdx;
+	size_t blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_b * numBlk_a * numBlk_c);
 	tmp_blkIdx = blockIdx.x % (numBlk_f * numBlk_e * numBlk_b * numBlk_a * numBlk_c);
 
-	int blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_b * numBlk_a * numBlk_c);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_b * numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_b * numBlk_a * numBlk_c);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_b * numBlk_a * numBlk_c);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_b * numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a * numBlk_c);
 
-	int blk_idx_b = tmp_blkIdx / (numBlk_a * numBlk_c);
+	size_t blk_idx_b = tmp_blkIdx / (numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c);
 
-	int blk_idx_a = tmp_blkIdx / numBlk_c;
+	size_t blk_idx_a = tmp_blkIdx / numBlk_c;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c);
 
-	int  blk_idx_c = tmp_blkIdx;
+	size_t  blk_idx_c = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_c * JK_CCSD_T_D1_6_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_6_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_6_SIZE_SLICE_1_B + (blk_idx_e * JK_CCSD_T_D1_6_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D1_6_SIZE_SLICE_1_F + (blk_idx_d * JK_CCSD_T_D1_6_SIZE_SLICE_1_D + idx_d) * size_f) * size_e) * size_b) * size_a) * size_c;
+	size_t t3_base_thread = blk_idx_c * JK_CCSD_T_D1_6_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_6_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_6_SIZE_SLICE_1_B + (blk_idx_e * JK_CCSD_T_D1_6_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D1_6_SIZE_SLICE_1_F + (blk_idx_d * JK_CCSD_T_D1_6_SIZE_SLICE_1_D + idx_d) * size_f) * size_e) * size_b) * size_a) * size_c;
 
 	// need to support partial tiles
-	int rng_c, rng_a, rng_b, rng_e, rng_f, rng_d;
+	size_t rng_c, rng_a, rng_b, rng_e, rng_f, rng_d;
 	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_6_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_6_SIZE_SLICE_1_C)
 	{
 		rng_c = JK_CCSD_T_D1_6_SIZE_SLICE_1_C;
@@ -11809,13 +11809,13 @@ __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[4];
 	double reg_tile[4][4];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['a', 'b', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_6_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_6_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_6_SIZE_INT_UNIT_1) - size_internal;
@@ -11826,7 +11826,7 @@ __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_e && idx_a < rng_c && threadIdx.x < JK_CCSD_T_D1_6_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_f; ll++)
+		for (size_t ll = 0; ll < rng_f; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -11837,7 +11837,7 @@ __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_c < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_6_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_b; ll++)
+		for (size_t ll = 0; ll < rng_b; ll++)
 		{
 			// ['a', 'b', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l
@@ -11849,14 +11849,14 @@ __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_6_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_6_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_6_SIZE_SLICE_1_A + 0];
 			temp_bv[1] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_6_SIZE_SLICE_1_A + 16];
 			temp_bv[2] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_6_SIZE_SLICE_1_A + 32];
 			temp_bv[3] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_6_SIZE_SLICE_1_A + 48];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_a[ll][idx_e + (idx_c) * JK_CCSD_T_D1_6_SIZE_SLICE_1_E + (xx * 16)];
 
@@ -12256,21 +12256,21 @@ __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d1_6_fusion(int size_c, int size_a, int size_b, int size_e, int size_f, int size_d, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_6_fusion(size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_c, JK_CCSD_T_D1_6_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D1_6_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D1_6_SIZE_SLICE_1_B) * CEIL(size_e, JK_CCSD_T_D1_6_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_6_SIZE_SLICE_1_F) * CEIL(size_d, JK_CCSD_T_D1_6_SIZE_SLICE_1_D);
 
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
     // cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_b * size_a);
@@ -12279,7 +12279,7 @@ __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -12293,24 +12293,24 @@ __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_6_SIZE_TB_1_X, JK_CCSD_T_D1_6_SIZE_TB_1_Y);
 
-	int stride_output_c = 1;
-	int stride_output_a = stride_output_c * size_c;
-	int stride_output_b = stride_output_a * size_a;
-	int stride_output_e = stride_output_b * size_b;
-	int stride_output_f = stride_output_e * size_e;
-	// int stride_output_d = stride_output_f * size_f;
+	size_t stride_output_c = 1;
+	size_t stride_output_a = stride_output_c * size_c;
+	size_t stride_output_b = stride_output_a * size_a;
+	size_t stride_output_e = stride_output_b * size_b;
+	size_t stride_output_f = stride_output_e * size_e;
+	// size_t stride_output_d = stride_output_f * size_f;
 
-	int stride_reg_x_1 = stride_output_f;
-	int stride_reg_y_1 = stride_output_b;
+	size_t stride_reg_x_1 = stride_output_f;
+	size_t stride_reg_y_1 = stride_output_b;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_b * size_d;
 
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         jk_ccsd_t_d1_6_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_c, size_a, size_b, size_e, size_f, size_d, size_g, CEIL(size_c, JK_CCSD_T_D1_6_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D1_6_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D1_6_SIZE_SLICE_1_B), CEIL(size_e, JK_CCSD_T_D1_6_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_6_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D1_6_SIZE_SLICE_1_D), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -12319,7 +12319,7 @@ __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -12328,7 +12328,7 @@ __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d1_6_fusion_(int size_c, int size_a, int size_b, int size_e, int size_f, int size_d, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_6_fusion_(size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d1_6_fusion(size_c, size_a, size_b, size_e, size_f, size_d, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -12350,42 +12350,42 @@ __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 #define JK_CCSD_T_D1_6_IF_SIZE_REG_1_Y 	JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_6_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_c, int size_a, int size_e, int size_f, int size_d, int size_g, int numBlk_c, int numBlk_a, int numBlk_e, int numBlk_f, int numBlk_d, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_6_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 1
-	int idx_c = threadIdx.x % JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C;
-	int idx_e = threadIdx.x / JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C;
-	int idx_a = threadIdx.y;
+	size_t idx_c = threadIdx.x % JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C;
+	size_t idx_e = threadIdx.x / JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C;
+	size_t idx_a = threadIdx.y;
 
-	int tmp_blkIdx;
-	int blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_a * numBlk_c);
+	size_t tmp_blkIdx;
+	size_t blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_a * numBlk_c);
 	tmp_blkIdx = blockIdx.x % (numBlk_f * numBlk_e * numBlk_a * numBlk_c);
 
-	int blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_a * numBlk_c);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_a * numBlk_c);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_a * numBlk_c);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c);
 
-	int blk_idx_a = tmp_blkIdx / numBlk_c;
+	size_t blk_idx_a = tmp_blkIdx / numBlk_c;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c);
 
-	int  blk_idx_c = tmp_blkIdx;
+	size_t  blk_idx_c = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_c * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_e * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F + (blk_idx_d * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D) * size_f) * size_e) * size_a) * size_c;
+	size_t t3_base_thread = blk_idx_c * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_e * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F + (blk_idx_d * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D) * size_f) * size_e) * size_a) * size_c;
 
 	// need to support partial tiles
-	int rng_c, rng_a, rng_e, rng_f, rng_d;
+	size_t rng_c, rng_a, rng_e, rng_f, rng_d;
 	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C)
 	{
 		rng_c = JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C;
@@ -12431,13 +12431,13 @@ __global__ void jk_ccsd_t_d1_6_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	double temp_bv[4];
 	double reg_tile[4][4];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['a', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_6_IF_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_6_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_6_IF_SIZE_INT_UNIT_1) - size_internal;
@@ -12448,7 +12448,7 @@ __global__ void jk_ccsd_t_d1_6_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_e && idx_a < rng_c && threadIdx.x < JK_CCSD_T_D1_6_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_f; ll++)
+		for (size_t ll = 0; ll < rng_f; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -12459,7 +12459,7 @@ __global__ void jk_ccsd_t_d1_6_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_c < rng_a && threadIdx.y < JK_CCSD_T_D1_6_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['a', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l
@@ -12471,14 +12471,14 @@ __global__ void jk_ccsd_t_d1_6_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_6_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_6_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_b[ll][idx_a + 0];
 			temp_bv[1] = sm_b[ll][idx_a + 16];
 			temp_bv[2] = sm_b[ll][idx_a + 32];
 			temp_bv[3] = sm_b[ll][idx_a + 48];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_a[ll][idx_e + (idx_c) * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E + (xx * 16)];
 
@@ -12496,9 +12496,9 @@ __global__ void jk_ccsd_t_d1_6_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
 	if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a)
-	for (int i = 0; i < 4; i++)
+	for (size_t i = 0; i < 4; i++)
 	{
-		for (int j = 0; j < 4; j++)
+		for (size_t j = 0; j < 4; j++)
 		{
 			if(i < rng_d && j < rng_f)
 			{
@@ -12896,9 +12896,9 @@ __global__ void jk_ccsd_t_d1_6_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 
 // written by tc_interface.tc_gen_code_interface_Header()
 
-void jk_ccsd_t_d1_6_if_fusion(int size_c, int size_a, int size_b, int size_e, int size_f, int size_d, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+void jk_ccsd_t_d1_6_if_fusion(size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     size_a = size_a * size_b;
 
@@ -12907,10 +12907,10 @@ void jk_ccsd_t_d1_6_if_fusion(int size_c, int size_a, int size_b, int size_e, in
 	double* dev_v2;
 
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_a;
 
 	num_thread_blocks_kernel_1 = CEIL(size_c, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A) * CEIL(size_e, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F) * CEIL(size_d, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D);
 	// cudaMalloc()
@@ -12922,7 +12922,7 @@ void jk_ccsd_t_d1_6_if_fusion(int size_c, int size_a, int size_b, int size_e, in
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -12934,7 +12934,7 @@ void jk_ccsd_t_d1_6_if_fusion(int size_c, int size_a, int size_b, int size_e, in
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-	// long long int tmp_operations = 2 * (long long int)(size_c * size_a * size_e * size_f * size_d) * size_g;
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_c * size_a * size_e * size_f * size_d) * size_g;
 	// printf ("========================================= fusedKernels =============================================\n");
 	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
 	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_6_IF_SIZE_TB_1_X, JK_CCSD_T_D1_6_IF_SIZE_TB_1_Y);
@@ -12945,24 +12945,24 @@ void jk_ccsd_t_d1_6_if_fusion(int size_c, int size_a, int size_b, int size_e, in
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_6_IF_SIZE_TB_1_X, JK_CCSD_T_D1_6_IF_SIZE_TB_1_Y);
 
-	int stride_output_c = 1;
-	int stride_output_a = stride_output_c * size_c;
-	int stride_output_e = stride_output_a * size_a;
-	int stride_output_f = stride_output_e * size_e;
-	int stride_output_d = stride_output_f * size_f;
+	size_t stride_output_c = 1;
+	size_t stride_output_a = stride_output_c * size_c;
+	size_t stride_output_e = stride_output_a * size_a;
+	size_t stride_output_f = stride_output_e * size_e;
+	size_t stride_output_d = stride_output_f * size_f;
 
-	int stride_reg_x_1 = stride_output_f;
-	int stride_reg_y_1 = stride_output_d;
+	size_t stride_reg_x_1 = stride_output_f;
+	size_t stride_reg_y_1 = stride_output_d;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_d;
 
     // New Caller
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         jk_ccsd_t_d1_6_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_c, size_a, size_e, size_f, size_d, size_g, CEIL(size_c, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A), CEIL(size_e, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -12978,7 +12978,7 @@ void jk_ccsd_t_d1_6_if_fusion(int size_c, int size_a, int size_b, int size_e, in
 
 	// Shoule be Fixed
 	// HostFree
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -13006,45 +13006,45 @@ void jk_ccsd_t_d1_6_if_fusion(int size_c, int size_a, int size_b, int size_e, in
 #define JK_CCSD_T_D1_7_SIZE_REG_1_Y 	JK_CCSD_T_D1_7_SIZE_SLICE_1_E
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_b, int size_c, int size_e, int size_d, int size_f, int size_g, int numBlk_a, int numBlk_b, int numBlk_c, int numBlk_e, int numBlk_d, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_b, size_t numBlk_c, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x % JK_CCSD_T_D1_7_SIZE_SLICE_1_A;
-	int idx_d = threadIdx.x / JK_CCSD_T_D1_7_SIZE_SLICE_1_A;
-	int idx_f = threadIdx.y % JK_CCSD_T_D1_7_SIZE_SLICE_1_F;
-	int idx_c = threadIdx.y / JK_CCSD_T_D1_7_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x % JK_CCSD_T_D1_7_SIZE_SLICE_1_A;
+	size_t idx_d = threadIdx.x / JK_CCSD_T_D1_7_SIZE_SLICE_1_A;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_7_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_7_SIZE_SLICE_1_F;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_c * numBlk_b * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_e * numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
+	size_t blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a);
 
-	int blk_idx_b = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_b = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D1_7_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_7_SIZE_SLICE_1_B + (blk_idx_c * JK_CCSD_T_D1_7_SIZE_SLICE_1_C + idx_c + (blk_idx_e * JK_CCSD_T_D1_7_SIZE_SLICE_1_E + (blk_idx_d * JK_CCSD_T_D1_7_SIZE_SLICE_1_D + idx_d + (blk_idx_f * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + idx_f) * size_d) * size_e) * size_c) * size_b) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_7_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_7_SIZE_SLICE_1_B + (blk_idx_c * JK_CCSD_T_D1_7_SIZE_SLICE_1_C + idx_c + (blk_idx_e * JK_CCSD_T_D1_7_SIZE_SLICE_1_E + (blk_idx_d * JK_CCSD_T_D1_7_SIZE_SLICE_1_D + idx_d + (blk_idx_f * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + idx_f) * size_d) * size_e) * size_c) * size_b) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_b, rng_c, rng_e, rng_d, rng_f;
+	size_t rng_a, rng_b, rng_c, rng_e, rng_d, rng_f;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_7_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_7_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D1_7_SIZE_SLICE_1_A;
@@ -13098,13 +13098,13 @@ __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'b', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_7_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_7_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_7_SIZE_INT_UNIT_1) - size_internal;
@@ -13115,7 +13115,7 @@ __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_7_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -13126,7 +13126,7 @@ __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_7_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_b; ll++)
+		for (size_t ll = 0; ll < rng_b; ll++)
 		{
 			// ['a', 'b', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
@@ -13142,7 +13142,7 @@ __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_7_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_7_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + 0];
 			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + 8];
@@ -13153,7 +13153,7 @@ __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + 48];
 			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_7_SIZE_SLICE_1_A + (xx * 16)];
 
@@ -14384,21 +14384,21 @@ __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d1_7_fusion(int size_a, int size_b, int size_c, int size_e, int size_d, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_7_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_7_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D1_7_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D1_7_SIZE_SLICE_1_C) * CEIL(size_e, JK_CCSD_T_D1_7_SIZE_SLICE_1_E) * CEIL(size_d, JK_CCSD_T_D1_7_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D1_7_SIZE_SLICE_1_F);
     
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
@@ -14412,7 +14412,7 @@ __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -14422,24 +14422,24 @@ __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_7_SIZE_TB_1_X, JK_CCSD_T_D1_7_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_b = stride_output_a * size_a;
-	int stride_output_c = stride_output_b * size_b;
-	int stride_output_e = stride_output_c * size_c;
-	// int stride_output_d = stride_output_e * size_e;
-	// int stride_output_f = stride_output_d * size_d;
+	size_t stride_output_a = 1;
+	size_t stride_output_b = stride_output_a * size_a;
+	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_e = stride_output_c * size_c;
+	// size_t stride_output_d = stride_output_e * size_e;
+	// size_t stride_output_f = stride_output_d * size_d;
 
-	int stride_reg_x_1 = stride_output_b;
-	int stride_reg_y_1 = stride_output_e;
+	size_t stride_reg_x_1 = stride_output_b;
+	size_t stride_reg_y_1 = stride_output_e;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_b * size_d;
 
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d1_7_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_a, size_b, size_c, size_e, size_d, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_7_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D1_7_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D1_7_SIZE_SLICE_1_C), CEIL(size_e, JK_CCSD_T_D1_7_SIZE_SLICE_1_E), CEIL(size_d, JK_CCSD_T_D1_7_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D1_7_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -14448,7 +14448,7 @@ __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -14457,7 +14457,7 @@ __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d1_7_fusion_(int size_a, int size_b, int size_c, int size_e, int size_d, int size_f, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_7_fusion_(size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d1_7_fusion(size_a, size_b, size_c, size_e, size_d, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -14480,42 +14480,42 @@ __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_7_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_c, int size_e, int size_d, int size_f, int size_g, int numBlk_a, int numBlk_c, int numBlk_e, int numBlk_d, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_7_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 1
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x;
-	int idx_f = threadIdx.y % JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F;
-	int idx_c = threadIdx.y / JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_c * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_c * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_e * numBlk_c * numBlk_a);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_c * numBlk_a);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_c * numBlk_a);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_c * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_e * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E + (blk_idx_d * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + idx_f) * size_d) * size_e) * size_c) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_e * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E + (blk_idx_d * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + idx_f) * size_d) * size_e) * size_c) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_c, rng_e, rng_d, rng_f;
+	size_t rng_a, rng_c, rng_e, rng_d, rng_f;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A;
@@ -14561,13 +14561,13 @@ __global__ void jk_ccsd_t_d1_7_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_7_IF_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_7_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_7_IF_SIZE_INT_UNIT_1) - size_internal;
@@ -14578,7 +14578,7 @@ __global__ void jk_ccsd_t_d1_7_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_7_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -14589,7 +14589,7 @@ __global__ void jk_ccsd_t_d1_7_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && threadIdx.y < JK_CCSD_T_D1_7_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['a', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
@@ -14605,7 +14605,7 @@ __global__ void jk_ccsd_t_d1_7_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_7_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_7_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + 0];
 			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + 8];
@@ -14616,7 +14616,7 @@ __global__ void jk_ccsd_t_d1_7_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + 48];
 			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_b[ll][idx_a + (xx * 16)];
 
@@ -14638,9 +14638,9 @@ __global__ void jk_ccsd_t_d1_7_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
 	if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
-	for (int i = 0; i < 8; i++)
+	for (size_t i = 0; i < 8; i++)
 	{
-		for (int j = 0; j < 4; j++)
+		for (size_t j = 0; j < 4; j++)
 		{
 			if(i < rng_e && j < rng_d)
 			{
@@ -15863,9 +15863,9 @@ __global__ void jk_ccsd_t_d1_7_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 
 // written by tc_interface.tc_gen_code_interface_Header()
 
-void jk_ccsd_t_d1_7_if_fusion(int size_a, int size_b, int size_c, int size_e, int size_d, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+void jk_ccsd_t_d1_7_if_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-    int num_thread_blocks_kernel_1;
+    size_t num_thread_blocks_kernel_1;
     
     size_a = size_a * size_b;
 
@@ -15874,12 +15874,12 @@ void jk_ccsd_t_d1_7_if_fusion(int size_a, int size_b, int size_c, int size_e, in
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C) * CEIL(size_e, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E) * CEIL(size_d, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F);
     
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_a;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_c * size_e * size_d * size_f);
@@ -15890,7 +15890,7 @@ void jk_ccsd_t_d1_7_if_fusion(int size_a, int size_b, int size_c, int size_e, in
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -15902,7 +15902,7 @@ void jk_ccsd_t_d1_7_if_fusion(int size_a, int size_b, int size_c, int size_e, in
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-	// long long int tmp_operations = 2 * (long long int)(size_a * size_c * size_e * size_d * size_f) * size_g;
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_a * size_c * size_e * size_d * size_f) * size_g;
 	// printf ("========================================= fusedKernels =============================================\n");
 	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
 	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_7_IF_SIZE_TB_1_X, JK_CCSD_T_D1_7_IF_SIZE_TB_1_Y);
@@ -15913,24 +15913,24 @@ void jk_ccsd_t_d1_7_if_fusion(int size_a, int size_b, int size_c, int size_e, in
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_7_IF_SIZE_TB_1_X, JK_CCSD_T_D1_7_IF_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_c = stride_output_a * size_a;
-	int stride_output_e = stride_output_c * size_c;
-	int stride_output_d = stride_output_e * size_e;
-	int stride_output_f = stride_output_d * size_d;
+	size_t stride_output_a = 1;
+	size_t stride_output_c = stride_output_a * size_a;
+	size_t stride_output_e = stride_output_c * size_c;
+	size_t stride_output_d = stride_output_e * size_e;
+	size_t stride_output_f = stride_output_d * size_d;
 
-	int stride_reg_x_1 = stride_output_d;
-	int stride_reg_y_1 = stride_output_e;
+	size_t stride_reg_x_1 = stride_output_d;
+	size_t stride_reg_y_1 = stride_output_e;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_d;
 
     // New Caller
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d1_7_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_a, size_c, size_e, size_d, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C), CEIL(size_e, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E), CEIL(size_d, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -15946,7 +15946,7 @@ void jk_ccsd_t_d1_7_if_fusion(int size_a, int size_b, int size_c, int size_e, in
 
 	// Shoule be Fixed
 	// HostFree
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -15974,45 +15974,45 @@ void jk_ccsd_t_d1_7_if_fusion(int size_a, int size_b, int size_c, int size_e, in
 #define JK_CCSD_T_D1_8_SIZE_REG_1_Y 	JK_CCSD_T_D1_8_SIZE_SLICE_1_E
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_c, int size_b, int size_e, int size_d, int size_f, int size_g, int numBlk_a, int numBlk_c, int numBlk_b, int numBlk_e, int numBlk_d, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_b, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x % JK_CCSD_T_D1_8_SIZE_SLICE_1_A;
-	int idx_d = threadIdx.x / JK_CCSD_T_D1_8_SIZE_SLICE_1_A;
-	int idx_f = threadIdx.y % JK_CCSD_T_D1_8_SIZE_SLICE_1_F;
-	int idx_c = threadIdx.y / JK_CCSD_T_D1_8_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x % JK_CCSD_T_D1_8_SIZE_SLICE_1_A;
+	size_t idx_d = threadIdx.x / JK_CCSD_T_D1_8_SIZE_SLICE_1_A;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_8_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_8_SIZE_SLICE_1_F;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_b * numBlk_c * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_b * numBlk_c * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_e * numBlk_b * numBlk_c * numBlk_a);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_b * numBlk_c * numBlk_a);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_b * numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_b * numBlk_c * numBlk_a);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_b * numBlk_c * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_b * numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_c * numBlk_a);
 
-	int blk_idx_b = tmp_blkIdx / (numBlk_c * numBlk_a);
+	size_t blk_idx_b = tmp_blkIdx / (numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D1_8_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_8_SIZE_SLICE_1_C + idx_c + (blk_idx_b * JK_CCSD_T_D1_8_SIZE_SLICE_1_B + (blk_idx_e * JK_CCSD_T_D1_8_SIZE_SLICE_1_E + (blk_idx_d * JK_CCSD_T_D1_8_SIZE_SLICE_1_D + idx_d + (blk_idx_f * JK_CCSD_T_D1_8_SIZE_SLICE_1_F + idx_f) * size_d) * size_e) * size_b) * size_c) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_8_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_8_SIZE_SLICE_1_C + idx_c + (blk_idx_b * JK_CCSD_T_D1_8_SIZE_SLICE_1_B + (blk_idx_e * JK_CCSD_T_D1_8_SIZE_SLICE_1_E + (blk_idx_d * JK_CCSD_T_D1_8_SIZE_SLICE_1_D + idx_d + (blk_idx_f * JK_CCSD_T_D1_8_SIZE_SLICE_1_F + idx_f) * size_d) * size_e) * size_b) * size_c) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_c, rng_b, rng_e, rng_d, rng_f;
+	size_t rng_a, rng_c, rng_b, rng_e, rng_d, rng_f;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_8_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_8_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D1_8_SIZE_SLICE_1_A;
@@ -16066,13 +16066,13 @@ __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'b', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_8_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_8_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_8_SIZE_INT_UNIT_1) - size_internal;
@@ -16083,7 +16083,7 @@ __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_8_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -16094,7 +16094,7 @@ __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_8_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_b; ll++)
+		for (size_t ll = 0; ll < rng_b; ll++)
 		{
 			// ['a', 'b', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
@@ -16110,7 +16110,7 @@ __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_8_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_8_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_8_SIZE_SLICE_1_F + 0];
 			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_8_SIZE_SLICE_1_F + 8];
@@ -16121,7 +16121,7 @@ __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_8_SIZE_SLICE_1_F + 48];
 			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_8_SIZE_SLICE_1_F + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_8_SIZE_SLICE_1_A + (xx * 16)];
 
@@ -17352,21 +17352,21 @@ __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d1_8_fusion(int size_a, int size_c, int size_b, int size_e, int size_d, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_8_fusion(size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-    int num_thread_blocks_kernel_1;
+    size_t num_thread_blocks_kernel_1;
     
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_8_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_8_SIZE_SLICE_1_C) * CEIL(size_b, JK_CCSD_T_D1_8_SIZE_SLICE_1_B) * CEIL(size_e, JK_CCSD_T_D1_8_SIZE_SLICE_1_E) * CEIL(size_d, JK_CCSD_T_D1_8_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D1_8_SIZE_SLICE_1_F);
     
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
@@ -17380,7 +17380,7 @@ __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -17390,24 +17390,24 @@ __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_8_SIZE_TB_1_X, JK_CCSD_T_D1_8_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_c = stride_output_a * size_a;
-	int stride_output_b = stride_output_c * size_c;
-	int stride_output_e = stride_output_b * size_b;
-	int stride_output_d = stride_output_e * size_e;
-	int stride_output_f = stride_output_d * size_d;
+	size_t stride_output_a = 1;
+	size_t stride_output_c = stride_output_a * size_a;
+	size_t stride_output_b = stride_output_c * size_c;
+	size_t stride_output_e = stride_output_b * size_b;
+	size_t stride_output_d = stride_output_e * size_e;
+	size_t stride_output_f = stride_output_d * size_d;
 
-	int stride_reg_x_1 = stride_output_b;
-	int stride_reg_y_1 = stride_output_e;
+	size_t stride_reg_x_1 = stride_output_b;
+	size_t stride_reg_y_1 = stride_output_e;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_b * size_d;
 
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d1_8_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_a, size_c, size_b, size_e, size_d, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_8_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_8_SIZE_SLICE_1_C), CEIL(size_b, JK_CCSD_T_D1_8_SIZE_SLICE_1_B), CEIL(size_e, JK_CCSD_T_D1_8_SIZE_SLICE_1_E), CEIL(size_d, JK_CCSD_T_D1_8_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D1_8_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -17416,7 +17416,7 @@ __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -17425,7 +17425,7 @@ __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d1_8_fusion_(int size_a, int size_c, int size_b, int size_e, int size_d, int size_f, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_8_fusion_(size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d1_8_fusion(size_a, size_c, size_b, size_e, size_d, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -17453,45 +17453,45 @@ __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_c, int size_a, int size_b, int size_e, int size_d, int size_f, int size_g, int numBlk_c, int numBlk_a, int numBlk_b, int numBlk_e, int numBlk_d, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_b, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_c = threadIdx.x % JK_CCSD_T_D1_9_SIZE_SLICE_1_C;
-	int idx_e = threadIdx.x / JK_CCSD_T_D1_9_SIZE_SLICE_1_C;
-	int idx_a = threadIdx.y % JK_CCSD_T_D1_9_SIZE_SLICE_1_A;
-	int idx_d = threadIdx.y / JK_CCSD_T_D1_9_SIZE_SLICE_1_A;
+	size_t idx_c = threadIdx.x % JK_CCSD_T_D1_9_SIZE_SLICE_1_C;
+	size_t idx_e = threadIdx.x / JK_CCSD_T_D1_9_SIZE_SLICE_1_C;
+	size_t idx_a = threadIdx.y % JK_CCSD_T_D1_9_SIZE_SLICE_1_A;
+	size_t idx_d = threadIdx.y / JK_CCSD_T_D1_9_SIZE_SLICE_1_A;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_b * numBlk_a * numBlk_c);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_b * numBlk_a * numBlk_c);
 	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_e * numBlk_b * numBlk_a * numBlk_c);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_b * numBlk_a * numBlk_c);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_b * numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_b * numBlk_a * numBlk_c);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_b * numBlk_a * numBlk_c);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_b * numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a * numBlk_c);
 
-	int blk_idx_b = tmp_blkIdx / (numBlk_a * numBlk_c);
+	size_t blk_idx_b = tmp_blkIdx / (numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c);
 
-	int blk_idx_a = tmp_blkIdx / numBlk_c;
+	size_t blk_idx_a = tmp_blkIdx / numBlk_c;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c);
 
-	int  blk_idx_c = tmp_blkIdx;
+	size_t  blk_idx_c = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_c * JK_CCSD_T_D1_9_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_9_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_9_SIZE_SLICE_1_B + (blk_idx_e * JK_CCSD_T_D1_9_SIZE_SLICE_1_E + idx_e + (blk_idx_d * JK_CCSD_T_D1_9_SIZE_SLICE_1_D + idx_d + (blk_idx_f * JK_CCSD_T_D1_9_SIZE_SLICE_1_F) * size_d) * size_e) * size_b) * size_a) * size_c;
+	size_t t3_base_thread = blk_idx_c * JK_CCSD_T_D1_9_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_9_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_9_SIZE_SLICE_1_B + (blk_idx_e * JK_CCSD_T_D1_9_SIZE_SLICE_1_E + idx_e + (blk_idx_d * JK_CCSD_T_D1_9_SIZE_SLICE_1_D + idx_d + (blk_idx_f * JK_CCSD_T_D1_9_SIZE_SLICE_1_F) * size_d) * size_e) * size_b) * size_a) * size_c;
 
 	// need to support partial tiles
-	int rng_c, rng_a, rng_b, rng_e, rng_d, rng_f;
+	size_t rng_c, rng_a, rng_b, rng_e, rng_d, rng_f;
 	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_9_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_9_SIZE_SLICE_1_C)
 	{
 		rng_c = JK_CCSD_T_D1_9_SIZE_SLICE_1_C;
@@ -17545,13 +17545,13 @@ __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[4];
 	double reg_tile[4][4];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['a', 'b', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_9_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_9_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_9_SIZE_INT_UNIT_1) - size_internal;
@@ -17562,7 +17562,7 @@ __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_e && idx_a < rng_c && threadIdx.x < JK_CCSD_T_D1_9_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_f; ll++)
+		for (size_t ll = 0; ll < rng_f; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -17573,7 +17573,7 @@ __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_c < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_9_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_b; ll++)
+		for (size_t ll = 0; ll < rng_b; ll++)
 		{
 			// ['a', 'b', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l
@@ -17585,14 +17585,14 @@ __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_9_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_9_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_9_SIZE_SLICE_1_A + 0];
 			temp_bv[1] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_9_SIZE_SLICE_1_A + 16];
 			temp_bv[2] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_9_SIZE_SLICE_1_A + 32];
 			temp_bv[3] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_9_SIZE_SLICE_1_A + 48];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_a[ll][idx_e + (idx_c) * JK_CCSD_T_D1_9_SIZE_SLICE_1_E + (xx * 16)];
 
@@ -17992,19 +17992,19 @@ __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d1_9_fusion(int size_c, int size_a, int size_b, int size_e, int size_d, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_9_fusion(size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
 
 	num_thread_blocks_kernel_1 = CEIL(size_c, JK_CCSD_T_D1_9_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D1_9_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D1_9_SIZE_SLICE_1_B) * CEIL(size_e, JK_CCSD_T_D1_9_SIZE_SLICE_1_E) * CEIL(size_d, JK_CCSD_T_D1_9_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D1_9_SIZE_SLICE_1_F);
     
@@ -18020,7 +18020,7 @@ __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -18030,24 +18030,24 @@ __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_9_SIZE_TB_1_X, JK_CCSD_T_D1_9_SIZE_TB_1_Y);
 
-	int stride_output_c = 1;
-	int stride_output_a = stride_output_c * size_c;
-	int stride_output_b = stride_output_a * size_a;
-	int stride_output_e = stride_output_b * size_b;
-	int stride_output_d = stride_output_e * size_e;
-	int stride_output_f = stride_output_d * size_d;
+	size_t stride_output_c = 1;
+	size_t stride_output_a = stride_output_c * size_c;
+	size_t stride_output_b = stride_output_a * size_a;
+	size_t stride_output_e = stride_output_b * size_b;
+	size_t stride_output_d = stride_output_e * size_e;
+	size_t stride_output_f = stride_output_d * size_d;
 
-	int stride_reg_x_1 = stride_output_f;
-	int stride_reg_y_1 = stride_output_b;
+	size_t stride_reg_x_1 = stride_output_f;
+	size_t stride_reg_y_1 = stride_output_b;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_b * size_d;
 
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d1_9_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_c, size_a, size_b, size_e, size_d, size_f, size_g, CEIL(size_c, JK_CCSD_T_D1_9_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D1_9_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D1_9_SIZE_SLICE_1_B), CEIL(size_e, JK_CCSD_T_D1_9_SIZE_SLICE_1_E), CEIL(size_d, JK_CCSD_T_D1_9_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D1_9_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -18056,7 +18056,7 @@ __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
     
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -18065,7 +18065,7 @@ __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d1_9_fusion_(int size_c, int size_a, int size_b, int size_e, int size_d, int size_f, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d1_9_fusion_(size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d1_9_fusion(size_c, size_a, size_b, size_e, size_d, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -18087,42 +18087,42 @@ __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 #define JK_CCSD_T_D1_9_IF_SIZE_REG_1_Y 	JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_9_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_c, int size_a, int size_e, int size_d, int size_f, int size_g, int numBlk_c, int numBlk_a, int numBlk_e, int numBlk_d, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d1_9_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 1
-	int idx_c = threadIdx.x % JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C;
-	int idx_e = threadIdx.x / JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C;
-	int idx_a = threadIdx.y;
+	size_t idx_c = threadIdx.x % JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C;
+	size_t idx_e = threadIdx.x / JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C;
+	size_t idx_a = threadIdx.y;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_a * numBlk_c);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_a * numBlk_c);
 	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_e * numBlk_a * numBlk_c);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_a * numBlk_c);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_a * numBlk_c);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_a * numBlk_c);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c);
 
-	int blk_idx_a = tmp_blkIdx / numBlk_c;
+	size_t blk_idx_a = tmp_blkIdx / numBlk_c;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c);
 
-	int  blk_idx_c = tmp_blkIdx;
+	size_t  blk_idx_c = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_c * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_e * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E + idx_e + (blk_idx_d * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F) * size_d) * size_e) * size_a) * size_c;
+	size_t t3_base_thread = blk_idx_c * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_e * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E + idx_e + (blk_idx_d * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F) * size_d) * size_e) * size_a) * size_c;
 
 	// need to support partial tiles
-	int rng_c, rng_a, rng_e, rng_d, rng_f;
+	size_t rng_c, rng_a, rng_e, rng_d, rng_f;
 	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C)
 	{
 		rng_c = JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C;
@@ -18168,13 +18168,13 @@ __global__ void jk_ccsd_t_d1_9_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	double temp_bv[4];
 	double reg_tile[4][4];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['a', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D1_9_IF_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_9_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D1_9_IF_SIZE_INT_UNIT_1) - size_internal;
@@ -18185,7 +18185,7 @@ __global__ void jk_ccsd_t_d1_9_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_e && idx_a < rng_c && threadIdx.x < JK_CCSD_T_D1_9_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_f; ll++)
+		for (size_t ll = 0; ll < rng_f; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -18196,7 +18196,7 @@ __global__ void jk_ccsd_t_d1_9_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_c < rng_a && threadIdx.y < JK_CCSD_T_D1_9_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['a', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l
@@ -18208,14 +18208,14 @@ __global__ void jk_ccsd_t_d1_9_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D1_9_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_9_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_b[ll][idx_a + 0];
 			temp_bv[1] = sm_b[ll][idx_a + 16];
 			temp_bv[2] = sm_b[ll][idx_a + 32];
 			temp_bv[3] = sm_b[ll][idx_a + 48];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_a[ll][idx_e + (idx_c) * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E + (xx * 16)];
 
@@ -18233,9 +18233,9 @@ __global__ void jk_ccsd_t_d1_9_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
 	if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a)
-	for (int i = 0; i < 4; i++)
+	for (size_t i = 0; i < 4; i++)
 	{
-		for (int j = 0; j < 4; j++)
+		for (size_t j = 0; j < 4; j++)
 		{
 			if(i < rng_d && j < rng_f)
 			{
@@ -18633,9 +18633,9 @@ __global__ void jk_ccsd_t_d1_9_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 
 // written by tc_interface.tc_gen_code_interface_Header()
 
-void jk_ccsd_t_d1_9_if_fusion(int size_c, int size_a, int size_b, int size_e, int size_d, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+void jk_ccsd_t_d1_9_if_fusion(size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
     
     size_a = size_a * size_b;
 
@@ -18644,12 +18644,12 @@ void jk_ccsd_t_d1_9_if_fusion(int size_c, int size_a, int size_b, int size_e, in
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_c, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A) * CEIL(size_e, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E) * CEIL(size_d, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F);
     
-    int size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_g * size_d * size_a;
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_a;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_c * size_a * size_e * size_d * size_f);
@@ -18660,7 +18660,7 @@ void jk_ccsd_t_d1_9_if_fusion(int size_c, int size_a, int size_b, int size_e, in
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -18674,7 +18674,7 @@ void jk_ccsd_t_d1_9_if_fusion(int size_c, int size_a, int size_b, int size_e, in
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-	// long long int tmp_operations = 2 * (long long int)(size_c * size_a * size_e * size_d * size_f) * size_g;
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_c * size_a * size_e * size_d * size_f) * size_g;
 	// printf ("========================================= fusedKernels =============================================\n");
 	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
 	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_9_IF_SIZE_TB_1_X, JK_CCSD_T_D1_9_IF_SIZE_TB_1_Y);
@@ -18685,24 +18685,24 @@ void jk_ccsd_t_d1_9_if_fusion(int size_c, int size_a, int size_b, int size_e, in
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_9_IF_SIZE_TB_1_X, JK_CCSD_T_D1_9_IF_SIZE_TB_1_Y);
 
-	int stride_output_c = 1;
-	int stride_output_a = stride_output_c * size_c;
-	int stride_output_e = stride_output_a * size_a;
-	int stride_output_d = stride_output_e * size_e;
-	int stride_output_f = stride_output_d * size_d;
+	size_t stride_output_c = 1;
+	size_t stride_output_a = stride_output_c * size_c;
+	size_t stride_output_e = stride_output_a * size_a;
+	size_t stride_output_d = stride_output_e * size_e;
+	size_t stride_output_f = stride_output_d * size_d;
 
-	int stride_reg_x_1 = stride_output_f;
-	int stride_reg_y_1 = stride_output_d;
+	size_t stride_reg_x_1 = stride_output_f;
+	size_t stride_reg_y_1 = stride_output_d;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = size_a * size_d;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = size_a * size_d;
 
     // New Caller
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d1_9_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_c, size_a, size_e, size_d, size_f, size_g, CEIL(size_c, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A), CEIL(size_e, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E), CEIL(size_d, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -18718,7 +18718,7 @@ void jk_ccsd_t_d1_9_if_fusion(int size_c, int size_a, int size_b, int size_e, in
 
 	// Shoule be Fixed
 	// HostFree
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -18731,19 +18731,19 @@ void jk_ccsd_t_d1_9_if_fusion(int size_c, int size_a, int size_b, int size_e, in
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d1_1_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d,int h7ld_t2sub,int p4ld_t2sub,int p5ld_t2sub,int h1ld_t2sub,int h3ld_v2sub,int p6ld_v2sub,int h7ld_v2sub,int h3ld_triplesx,int h1ld_triplesx,int p6ld_triplesx,int p5ld_triplesx,int p4ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
+__global__ void sd_t_d1_1_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,size_t p5d,size_t p6d,size_t h7ld_t2sub,size_t p4ld_t2sub,size_t p5ld_t2sub,size_t h1ld_t2sub,size_t h3ld_v2sub,size_t p6ld_v2sub,size_t h7ld_v2sub,size_t h3ld_triplesx,size_t h1ld_triplesx,size_t p6ld_triplesx,size_t p5ld_triplesx,size_t p4ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,h7l,h7T;
+  size_t in1_idxl,in2_idxl,h7l,h7T;
   __shared__ double t2sub_shm[4*T1][Tcomm];
   __shared__ double v2sub_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -18802,7 +18802,7 @@ __global__ void sd_t_d1_1_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   rest_y=rest_y/p5d;
   p4_3=rest_y;
   p6_3=rest_x;
-  int t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){int h7l_hi;
+  size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
     h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+p6_0*p6ld_v2sub;
@@ -18955,7 +18955,7 @@ __global__ void sd_t_d1_1_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d1_1_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_1_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p6ld_triplesx,p5ld_triplesx,p4ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
@@ -18990,8 +18990,8 @@ __global__ void sd_t_d1_1_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   p6ld_triplesx=h1d*h3d;
   p5ld_triplesx=p6d*h1d*h3d;
   p4ld_triplesx=p5d*p6d*h1d*h3d;
-  int total_x = h3d*p6d*1;
-  int total_y = p4d*p5d*h1d;
+  size_t total_x = h3d*p6d*1;
+  size_t total_y = p4d*p5d*h1d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d1_1_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p6ld_triplesx,p5ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
@@ -19007,14 +19007,14 @@ __global__ void sd_t_d1_1_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_1_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
     // printf ("d1_1: %d, %d, %d, %d, %d, %d, %d\n", h3d, h2d, h1d, p6d, p5d, p4d, h7d);
 #ifndef KERNEL_MA
     jk_ccsd_t_d1_1_if_fusion(h3d, h2d, h1d, p6d, p5d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
     // jk_ccsd_t_d1_1_fusion(h3d, h2d, h1d, p6d, p5d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_1_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_1_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -19023,19 +19023,19 @@ __global__ void sd_t_d1_1_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d1_2_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d,int h7ld_t2sub,int p4ld_t2sub,int p5ld_t2sub,int h1ld_t2sub,int h3ld_v2sub,int h2ld_v2sub,int h7ld_v2sub,int h3ld_triplesx,int h1ld_triplesx,int h2ld_triplesx,int p5ld_triplesx,int p4ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3;
+__global__ void sd_t_d1_2_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,size_t p4d,size_t p5d,size_t h7ld_t2sub,size_t p4ld_t2sub,size_t p5ld_t2sub,size_t h1ld_t2sub,size_t h3ld_v2sub,size_t h2ld_v2sub,size_t h7ld_v2sub,size_t h3ld_triplesx,size_t h1ld_triplesx,size_t h2ld_triplesx,size_t p5ld_triplesx,size_t p4ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,h7l,h7T;
+  size_t in1_idxl,in2_idxl,h7l,h7T;
   __shared__ double t2sub_shm[4*T1][Tcomm];
   __shared__ double v2sub_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -19094,7 +19094,7 @@ __global__ void sd_t_d1_2_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
   rest_y=rest_y/p5d;
   p4_3=rest_y;
   h2_3=rest_x;
-  int t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){int h7l_hi;
+  size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
     h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+h2_0*h2ld_v2sub;
@@ -19247,7 +19247,7 @@ __global__ void sd_t_d1_2_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
   }
   __syncthreads();
 }
- void sd_t_d1_2_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_2_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 
 
@@ -19287,8 +19287,8 @@ __global__ void sd_t_d1_2_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
     h2ld_triplesx=h1d*h3d;
     p5ld_triplesx=h2d*h1d*h3d;
     p4ld_triplesx=p5d*h2d*h1d*h3d;
-    int total_x = h3d*h2d*1;
-    int total_y = p4d*p5d*h1d;
+    size_t total_x = h3d*h2d*1;
+    size_t total_y = p4d*p5d*h1d;
     //printf("Blocks %d %d\n", total_x, total_y); 
     //fflush(stdout);    
     dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
@@ -19328,7 +19328,7 @@ __global__ void sd_t_d1_2_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_2_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_2_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
     // cudaEvent_t start, stop;
     // cudaEventCreate(&start);
@@ -19340,7 +19340,7 @@ __global__ void sd_t_d1_2_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
     jk_ccsd_t_d1_2_if_fusion(h3d, h1d, h2d, p6d, p5d, p4d, h7d,triplesx, t2sub, v2sub, 1, 1);
 #else
     // jk_ccsd_t_d1_2_if_fusion(h3d, h1d, h2d, p6d, p5d, p4d, h7d,triplesx, t2sub, v2sub, 1, 1);
-    sd_t_d1_2_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_2_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 #endif
     // cudaEventRecord(stop);
     // cudaEventSynchronize(stop);
@@ -19354,19 +19354,19 @@ __global__ void sd_t_d1_2_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d1_3_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int h7ld_t2sub,int p4ld_t2sub,int p5ld_t2sub,int h1ld_t2sub,int h3ld_v2sub,int h7ld_v2sub,int h1ld_triplesx,int h3ld_triplesx,int p5ld_triplesx,int p4ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3;
+__global__ void sd_t_d1_3_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,size_t p5d,size_t h7ld_t2sub,size_t p4ld_t2sub,size_t p5ld_t2sub,size_t h1ld_t2sub,size_t h3ld_v2sub,size_t h7ld_v2sub,size_t h1ld_triplesx,size_t h3ld_triplesx,size_t p5ld_triplesx,size_t p4ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,h7l,h7T;
+  size_t in1_idxl,in2_idxl,h7l,h7T;
   __shared__ double t2sub_shm[4*T1][Tcomm];
   __shared__ double v2sub_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -19417,7 +19417,7 @@ __global__ void sd_t_d1_3_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int h7l
   rest_y=rest_y/p5d;
   p4_3=rest_y;
   h3_3=rest_x;
-  int t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){int h7l_hi;
+  size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
     h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub;
@@ -19570,7 +19570,7 @@ __global__ void sd_t_d1_3_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int h7l
   }
   __syncthreads();
 }
- void sd_t_d1_3_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_3_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   h3d=h3d*p6d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p4ld_triplesx;
@@ -19604,8 +19604,8 @@ __global__ void sd_t_d1_3_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int h7l
   h3ld_triplesx=h1d;
   p5ld_triplesx=h3d*h1d;
   p4ld_triplesx=p5d*h3d*h1d;
-  int total_x = h3d*1;
-  int total_y = p4d*p5d*h1d;
+  size_t total_x = h3d*1;
+  size_t total_y = p4d*p5d*h1d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d1_3_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h3d,h7d,p4d,p5d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
@@ -19621,13 +19621,13 @@ __global__ void sd_t_d1_3_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int h7l
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_3_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_3_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d1_3_if_fusion(h1d, h3d, h2d, p6d, p5d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
-    // jk_ccsd_t_d1_3_fusion((int)*h1d, h3d, h2d, p6d, p5d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
+    // jk_ccsd_t_d1_3_fusion((size_t)*h1d, h3d, h2d, p6d, p5d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_3_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_3_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -19636,19 +19636,19 @@ __global__ void sd_t_d1_3_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int h7l
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d1_4_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d,int h7ld_t2sub,int p4ld_t2sub,int p5ld_t2sub,int h1ld_t2sub,int h3ld_v2sub,int p6ld_v2sub,int h7ld_v2sub,int h3ld_triplesx,int h1ld_triplesx,int p5ld_triplesx,int p4ld_triplesx,int p6ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
+__global__ void sd_t_d1_4_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,size_t p5d,size_t p6d,size_t h7ld_t2sub,size_t p4ld_t2sub,size_t p5ld_t2sub,size_t h1ld_t2sub,size_t h3ld_v2sub,size_t p6ld_v2sub,size_t h7ld_v2sub,size_t h3ld_triplesx,size_t h1ld_triplesx,size_t p5ld_triplesx,size_t p4ld_triplesx,size_t p6ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,h7l,h7T;
+  size_t in1_idxl,in2_idxl,h7l,h7T;
   __shared__ double t2sub_shm[4*T1][Tcomm];
   __shared__ double v2sub_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -19707,7 +19707,7 @@ __global__ void sd_t_d1_4_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   rest_y=rest_y/p5d;
   p4_3=rest_y;
   p6_3=rest_x;
-  int t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){int h7l_hi;
+  size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
     h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+p6_0*p6ld_v2sub;
@@ -19860,7 +19860,7 @@ __global__ void sd_t_d1_4_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d1_4_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_4_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
@@ -19895,8 +19895,8 @@ __global__ void sd_t_d1_4_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   p5ld_triplesx=h1d*h3d;
   p4ld_triplesx=p5d*h1d*h3d;
   p6ld_triplesx=p4d*p5d*h1d*h3d;
-  int total_x = h3d*p6d*1;
-  int total_y = p4d*p5d*h1d;
+  size_t total_x = h3d*p6d*1;
+  size_t total_y = p4d*p5d*h1d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d1_4_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
@@ -19912,13 +19912,13 @@ __global__ void sd_t_d1_4_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_4_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d1_4_if_fusion(h3d, h2d, h1d, p5d, p4d, p6d, h7d, triplesx, t2sub, v2sub, 1, 1);
     // jk_ccsd_t_d1_4_fusion(h3d, h2d, h1d, p5d, p4d, p6d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_4_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_4_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
     // jk_ccsd_t_d1_4_if_fusion(h3d, h2d, h1d, p5d, p4d, p6d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #endif
 }
@@ -19928,19 +19928,19 @@ __global__ void sd_t_d1_4_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d1_5_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d,int p6d,int h7ld_t2sub,int p4ld_t2sub,int p5ld_t2sub,int h1ld_t2sub,int h3ld_v2sub,int h2ld_v2sub,int p6ld_v2sub,int h7ld_v2sub,int h3ld_triplesx,int h1ld_triplesx,int h2ld_triplesx,int p5ld_triplesx,int p4ld_triplesx,int p6ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
+__global__ void sd_t_d1_5_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,size_t p4d,size_t p5d,size_t p6d,size_t h7ld_t2sub,size_t p4ld_t2sub,size_t p5ld_t2sub,size_t h1ld_t2sub,size_t h3ld_v2sub,size_t h2ld_v2sub,size_t p6ld_v2sub,size_t h7ld_v2sub,size_t h3ld_triplesx,size_t h1ld_triplesx,size_t h2ld_triplesx,size_t p5ld_triplesx,size_t p4ld_triplesx,size_t p6ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,h7l,h7T;
+  size_t in1_idxl,in2_idxl,h7l,h7T;
   __shared__ double t2sub_shm[4*T1][Tcomm];
   __shared__ double v2sub_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -20007,7 +20007,7 @@ __global__ void sd_t_d1_5_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
   rest_y=rest_y/p5d;
   p4_3=rest_y;
   p6_3=rest_x;
-  int t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){int h7l_hi;
+  size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
     h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+h2_0*h2ld_v2sub+p6_0*p6ld_v2sub;
@@ -20160,7 +20160,7 @@ __global__ void sd_t_d1_5_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
   }
   __syncthreads();
 }
- void sd_t_d1_5_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_5_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
   cudaStream_t *streams;
@@ -20196,8 +20196,8 @@ __global__ void sd_t_d1_5_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
   p5ld_triplesx=h2d*h1d*h3d;
   p4ld_triplesx=p5d*h2d*h1d*h3d;
   p6ld_triplesx=p4d*p5d*h2d*h1d*h3d;
-  int total_x = h3d*h2d*p6d*1;
-  int total_y = p4d*p5d*h1d;
+  size_t total_x = h3d*h2d*p6d*1;
+  size_t total_y = p4d*p5d*h1d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d1_5_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
@@ -20213,12 +20213,12 @@ __global__ void sd_t_d1_5_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_5_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_5_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d1_5_fusion(h3d, h1d, h2d, p5d, p4d, p6d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_5_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_5_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -20227,19 +20227,19 @@ __global__ void sd_t_d1_5_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d1_6_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d,int h7ld_t2sub,int p4ld_t2sub,int p5ld_t2sub,int h1ld_t2sub,int h3ld_v2sub,int p6ld_v2sub,int h7ld_v2sub,int h1ld_triplesx,int h3ld_triplesx,int p5ld_triplesx,int p4ld_triplesx,int p6ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
+__global__ void sd_t_d1_6_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,size_t p5d,size_t p6d,size_t h7ld_t2sub,size_t p4ld_t2sub,size_t p5ld_t2sub,size_t h1ld_t2sub,size_t h3ld_v2sub,size_t p6ld_v2sub,size_t h7ld_v2sub,size_t h1ld_triplesx,size_t h3ld_triplesx,size_t p5ld_triplesx,size_t p4ld_triplesx,size_t p6ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,h7l,h7T;
+  size_t in1_idxl,in2_idxl,h7l,h7T;
   __shared__ double t2sub_shm[4*T1][Tcomm];
   __shared__ double v2sub_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -20298,7 +20298,7 @@ __global__ void sd_t_d1_6_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   rest_y=rest_y/p5d;
   p4_3=rest_y;
   p6_3=rest_x;
-  int t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){int h7l_hi;
+  size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
     h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+p6_0*p6ld_v2sub;
@@ -20451,7 +20451,7 @@ __global__ void sd_t_d1_6_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d1_6_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_6_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
@@ -20486,8 +20486,8 @@ __global__ void sd_t_d1_6_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   p5ld_triplesx=h3d*h1d;
   p4ld_triplesx=p5d*h3d*h1d;
   p6ld_triplesx=p4d*p5d*h3d*h1d;
-  int total_x = h3d*p6d*1;
-  int total_y = p4d*p5d*h1d;
+  size_t total_x = h3d*p6d*1;
+  size_t total_y = p4d*p5d*h1d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d1_6_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
@@ -20503,13 +20503,13 @@ __global__ void sd_t_d1_6_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_6_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_6_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d1_6_if_fusion(h1d, h3d, h2d, p5d, p4d, p6d, h7d, triplesx, t2sub, v2sub, 1, 1);
-    // jk_ccsd_t_d1_6_fusion((int)*h1d, h3d, h2d, p5d, p4d, p6d, h7d, triplesx, t2sub, v2sub, 1, 1);
+    // jk_ccsd_t_d1_6_fusion((size_t)*h1d, h3d, h2d, p5d, p4d, p6d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_6_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_6_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -20518,19 +20518,19 @@ __global__ void sd_t_d1_6_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d1_7_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d,int h7ld_t2sub,int p4ld_t2sub,int p5ld_t2sub,int h1ld_t2sub,int h3ld_v2sub,int p6ld_v2sub,int h7ld_v2sub,int h3ld_triplesx,int h1ld_triplesx,int p5ld_triplesx,int p6ld_triplesx,int p4ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
+__global__ void sd_t_d1_7_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,size_t p5d,size_t p6d,size_t h7ld_t2sub,size_t p4ld_t2sub,size_t p5ld_t2sub,size_t h1ld_t2sub,size_t h3ld_v2sub,size_t p6ld_v2sub,size_t h7ld_v2sub,size_t h3ld_triplesx,size_t h1ld_triplesx,size_t p5ld_triplesx,size_t p6ld_triplesx,size_t p4ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,h7l,h7T;
+  size_t in1_idxl,in2_idxl,h7l,h7T;
   __shared__ double t2sub_shm[4*T1][Tcomm];
   __shared__ double v2sub_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -20589,7 +20589,7 @@ __global__ void sd_t_d1_7_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   rest_y=rest_y/p5d;
   p4_3=rest_y;
   p6_3=rest_x;
-  int t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){int h7l_hi;
+  size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
     h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+p6_0*p6ld_v2sub;
@@ -20742,7 +20742,7 @@ __global__ void sd_t_d1_7_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d1_7_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_7_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
@@ -20777,8 +20777,8 @@ __global__ void sd_t_d1_7_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   p5ld_triplesx=h1d*h3d;
   p6ld_triplesx=p5d*h1d*h3d;
   p4ld_triplesx=p6d*p5d*h1d*h3d;
-  int total_x = h3d*p6d*1;
-  int total_y = p4d*p5d*h1d;
+  size_t total_x = h3d*p6d*1;
+  size_t total_y = p4d*p5d*h1d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d1_7_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
@@ -20794,13 +20794,13 @@ __global__ void sd_t_d1_7_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_7_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_7_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d1_7_if_fusion(h3d, h2d, h1d, p5d, p6d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
     // jk_ccsd_t_d1_7_fusion(h3d, h2d, h1d, p5d, p6d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_7_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_7_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -20809,19 +20809,19 @@ __global__ void sd_t_d1_7_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d1_8_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d,int p6d,int h7ld_t2sub,int p4ld_t2sub,int p5ld_t2sub,int h1ld_t2sub,int h3ld_v2sub,int h2ld_v2sub,int p6ld_v2sub,int h7ld_v2sub,int h3ld_triplesx,int h1ld_triplesx,int h2ld_triplesx,int p5ld_triplesx,int p6ld_triplesx,int p4ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
+__global__ void sd_t_d1_8_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,size_t p4d,size_t p5d,size_t p6d,size_t h7ld_t2sub,size_t p4ld_t2sub,size_t p5ld_t2sub,size_t h1ld_t2sub,size_t h3ld_v2sub,size_t h2ld_v2sub,size_t p6ld_v2sub,size_t h7ld_v2sub,size_t h3ld_triplesx,size_t h1ld_triplesx,size_t h2ld_triplesx,size_t p5ld_triplesx,size_t p6ld_triplesx,size_t p4ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,h7l,h7T;
+  size_t in1_idxl,in2_idxl,h7l,h7T;
   __shared__ double t2sub_shm[4*T1][Tcomm];
   __shared__ double v2sub_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -20888,7 +20888,7 @@ __global__ void sd_t_d1_8_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
   rest_y=rest_y/p5d;
   p4_3=rest_y;
   p6_3=rest_x;
-  int t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){int h7l_hi;
+  size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
     h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+h2_0*h2ld_v2sub+p6_0*p6ld_v2sub;
@@ -21041,7 +21041,7 @@ __global__ void sd_t_d1_8_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
   }
   __syncthreads();
 }
- void sd_t_d1_8_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_8_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
   cudaStream_t *streams;
@@ -21077,8 +21077,8 @@ __global__ void sd_t_d1_8_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
   p5ld_triplesx=h2d*h1d*h3d;
   p6ld_triplesx=p5d*h2d*h1d*h3d;
   p4ld_triplesx=p6d*p5d*h2d*h1d*h3d;
-  int total_x = h3d*h2d*p6d*1;
-  int total_y = p4d*p5d*h1d;
+  size_t total_x = h3d*h2d*p6d*1;
+  size_t total_y = p4d*p5d*h1d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d1_8_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
@@ -21094,12 +21094,12 @@ __global__ void sd_t_d1_8_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_8_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_8_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d1_8_fusion(h3d, h1d, h2d, p5d, p6d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_8_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_8_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -21108,19 +21108,19 @@ __global__ void sd_t_d1_8_kernel(int h1d,int h2d,int h3d,int h7d,int p4d,int p5d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d1_9_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d,int h7ld_t2sub,int p4ld_t2sub,int p5ld_t2sub,int h1ld_t2sub,int h3ld_v2sub,int p6ld_v2sub,int h7ld_v2sub,int h1ld_triplesx,int h3ld_triplesx,int p5ld_triplesx,int p6ld_triplesx,int p4ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
+__global__ void sd_t_d1_9_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,size_t p5d,size_t p6d,size_t h7ld_t2sub,size_t p4ld_t2sub,size_t p5ld_t2sub,size_t h1ld_t2sub,size_t h3ld_v2sub,size_t p6ld_v2sub,size_t h7ld_v2sub,size_t h1ld_triplesx,size_t h3ld_triplesx,size_t p5ld_triplesx,size_t p6ld_triplesx,size_t p4ld_triplesx,double *triplesx_d, double *t2sub_d, double *v2sub_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h3_0,h3_1,h3_2,h3_3,h7,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,h7l,h7T;
+  size_t in1_idxl,in2_idxl,h7l,h7T;
   __shared__ double t2sub_shm[4*T1][Tcomm];
   __shared__ double v2sub_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -21179,7 +21179,7 @@ __global__ void sd_t_d1_9_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   rest_y=rest_y/p5d;
   p4_3=rest_y;
   p6_3=rest_x;
-  int t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){int h7l_hi;
+  size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
     h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+p6_0*p6ld_v2sub;
@@ -21332,7 +21332,7 @@ __global__ void sd_t_d1_9_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d1_9_cuda_ma(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) {
+ void sd_t_d1_9_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx;
   size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
@@ -21367,8 +21367,8 @@ __global__ void sd_t_d1_9_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
   p5ld_triplesx=h3d*h1d;
   p6ld_triplesx=p5d*h3d*h1d;
   p4ld_triplesx=p6d*p5d*h3d*h1d;
-  int total_x = h3d*p6d*1;
-  int total_y = p4d*p5d*h1d;
+  size_t total_x = h3d*p6d*1;
+  size_t total_y = p4d*p5d*h1d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d1_9_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
@@ -21384,13 +21384,13 @@ __global__ void sd_t_d1_9_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d1_9_cuda(int h1d, int h2d, int h3d, int h7d, int p4d, int p5d, int p6d, double *triplesx, double *t2sub, double *v2sub) 
+ void sd_t_d1_9_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d1_9_if_fusion(h1d, h3d, h2d, p5d, p6d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
-    // jk_ccsd_t_d1_9_fusion((int)*h1d, h3d, h2d, p5d, p6d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
+    // jk_ccsd_t_d1_9_fusion((size_t)*h1d, h3d, h2d, p5d, p6d, p4d, h7d, triplesx, t2sub, v2sub, 1, 1);
 #else
-    sd_t_d1_9_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+    sd_t_d1_9_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 #endif
 }
 
@@ -21418,45 +21418,45 @@ __global__ void sd_t_d1_9_kernel(int h1d,int h3d,int h7d,int p4d,int p5d,int p6d
 #define JK_CCSD_T_D2_1_SIZE_REG_1_Y 	JK_CCSD_T_D2_1_SIZE_SLICE_1_B
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_b, int size_c, int size_d, int size_e, int size_f, int size_g, int numBlk_a, int numBlk_b, int numBlk_c, int numBlk_d, int numBlk_e, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_b, size_t numBlk_c, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[8][64];
 	__shared__ double sm_b[8][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x % JK_CCSD_T_D2_1_SIZE_SLICE_1_A;
-	int idx_d = threadIdx.x / JK_CCSD_T_D2_1_SIZE_SLICE_1_A;
-	int idx_c = threadIdx.y % JK_CCSD_T_D2_1_SIZE_SLICE_1_C;
-	int idx_f = threadIdx.y / JK_CCSD_T_D2_1_SIZE_SLICE_1_C;
+	size_t idx_a = threadIdx.x % JK_CCSD_T_D2_1_SIZE_SLICE_1_A;
+	size_t idx_d = threadIdx.x / JK_CCSD_T_D2_1_SIZE_SLICE_1_A;
+	size_t idx_c = threadIdx.y % JK_CCSD_T_D2_1_SIZE_SLICE_1_C;
+	size_t idx_f = threadIdx.y / JK_CCSD_T_D2_1_SIZE_SLICE_1_C;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_c * numBlk_b * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
+	size_t blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a);
 
-	int blk_idx_b = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_b = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D2_1_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D2_1_SIZE_SLICE_1_B + (blk_idx_c * JK_CCSD_T_D2_1_SIZE_SLICE_1_C + idx_c + (blk_idx_d * JK_CCSD_T_D2_1_SIZE_SLICE_1_D + idx_d + (blk_idx_e * JK_CCSD_T_D2_1_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D2_1_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_c) * size_b) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D2_1_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D2_1_SIZE_SLICE_1_B + (blk_idx_c * JK_CCSD_T_D2_1_SIZE_SLICE_1_C + idx_c + (blk_idx_d * JK_CCSD_T_D2_1_SIZE_SLICE_1_D + idx_d + (blk_idx_e * JK_CCSD_T_D2_1_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D2_1_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_c) * size_b) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_b, rng_c, rng_d, rng_e, rng_f;
+	size_t rng_a, rng_b, rng_c, rng_d, rng_e, rng_f;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D2_1_SIZE_SLICE_1_A)) >= JK_CCSD_T_D2_1_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D2_1_SIZE_SLICE_1_A;
@@ -21510,13 +21510,13 @@ __global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[4][8];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 8; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 8; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'c', 'b']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['g', 'a', 'd', 'e']], '-=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D2_1_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D2_1_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D2_1_SIZE_INT_UNIT_1) - size_internal;
@@ -21527,7 +21527,7 @@ __global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_f && idx_c < rng_c && threadIdx.x < JK_CCSD_T_D2_1_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_b; ll++)
+		for (size_t ll = 0; ll < rng_b; ll++)
 		{
 			// ['g', 'f', 'c', 'b']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -21538,7 +21538,7 @@ __global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_c < rng_a && 0 < rng_d && threadIdx.x < JK_CCSD_T_D2_1_SIZE_INT_UNIT_1 - internal_upperbound && threadIdx.y < 8)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'a', 'd', 'e']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -21550,7 +21550,7 @@ __global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D2_1_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D2_1_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D2_1_SIZE_SLICE_1_A + 0];
 			temp_bv[1] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D2_1_SIZE_SLICE_1_A + 8];
@@ -21561,7 +21561,7 @@ __global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D2_1_SIZE_SLICE_1_A + 48];
 			temp_bv[7] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D2_1_SIZE_SLICE_1_A + 56];
 
-			for (int yy = 0; yy < 4; yy++) // (2)
+			for (size_t yy = 0; yy < 4; yy++) // (2)
 			{
 				temp_av = sm_a[ll][idx_c + (idx_f) * JK_CCSD_T_D2_1_SIZE_SLICE_1_C + (yy * 16)];
 
@@ -21583,9 +21583,9 @@ __global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
         // Part: Generalized Threads
         // Part: Generalized Register-Tiling
         if (idx_a < rng_a && idx_d < rng_d && idx_c < rng_c && idx_f < rng_f)
-        for (int i = 0; i < 4; i++)
+        for (size_t i = 0; i < 4; i++)
         {
-            for (int j = 0; j < 8; j++)
+            for (size_t j = 0; j < 8; j++)
             {
                 if(i < rng_b && j < rng_e)
                 {
@@ -22645,9 +22645,9 @@ __global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d2_1_fusion(int size_a, int size_b, int size_c, int size_d, int size_e, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_1_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
@@ -22655,12 +22655,12 @@ __global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
    
     cudaStream_t *streams;
     cudaFuncSetCacheConfig(jk_ccsd_t_d2_1_kernel__4_1, cudaFuncCachePreferShared);
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D2_1_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D2_1_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D2_1_SIZE_SLICE_1_C) * CEIL(size_d, JK_CCSD_T_D2_1_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D2_1_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D2_1_SIZE_SLICE_1_F);
     
-    int size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
+    size_t size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_b * size_c * size_f * size_g);
@@ -22670,7 +22670,7 @@ __global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -22684,24 +22684,24 @@ __global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D2_1_SIZE_TB_1_X, JK_CCSD_T_D2_1_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_b = stride_output_a * size_a;
-	int stride_output_c = stride_output_b * size_b;
-	int stride_output_d = stride_output_c * size_c;
-	int stride_output_e = stride_output_d * size_d;
-	int stride_output_f = stride_output_e * size_e;
+	size_t stride_output_a = 1;
+	size_t stride_output_b = stride_output_a * size_a;
+	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_d = stride_output_c * size_c;
+	size_t stride_output_e = stride_output_d * size_d;
+	size_t stride_output_f = stride_output_e * size_e;
 
-	int stride_reg_x_1 = stride_output_e;
-	int stride_reg_y_1 = stride_output_b;
+	size_t stride_reg_x_1 = stride_output_e;
+	size_t stride_reg_y_1 = stride_output_b;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = 1;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = 1;
     
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         jk_ccsd_t_d2_1_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_a, size_b, size_c, size_d, size_e, size_f, size_g, CEIL(size_a, JK_CCSD_T_D2_1_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D2_1_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D2_1_SIZE_SLICE_1_C), CEIL(size_d, JK_CCSD_T_D2_1_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D2_1_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D2_1_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -22710,7 +22710,7 @@ __global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
     
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -22718,7 +22718,7 @@ __global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d2_1_fusion_(int size_a, int size_b, int size_c, int size_d, int size_e, int size_f, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_1_fusion_(size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	jk_ccsd_t_d2_1_fusion(size_a, size_b, size_c, size_d, size_e, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
 }
@@ -22739,42 +22739,42 @@ __global__ void jk_ccsd_t_d2_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 #define JK_CCSD_T_D2_1_IF_SIZE_REG_1_Y 	JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_C
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d2_1_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_b, int size_c, int size_d, int size_f, int size_g, int numBlk_a, int numBlk_b, int numBlk_c, int numBlk_d, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d2_1_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_b, size_t numBlk_c, size_t numBlk_d, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 1
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x;
-	int idx_f = threadIdx.y % JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_F;
-	int idx_b = threadIdx.y / JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_F;
+	size_t idx_b = threadIdx.y / JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_F;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
+	size_t blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a);
 
-	int blk_idx_b = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_b = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_C + (blk_idx_d * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_F + idx_f) * size_d) * size_c) * size_b) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_C + (blk_idx_d * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_F + idx_f) * size_d) * size_c) * size_b) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_b, rng_c, rng_d, rng_f;
+	size_t rng_a, rng_b, rng_c, rng_d, rng_f;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_A)) >= JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_A;
@@ -22820,13 +22820,13 @@ __global__ void jk_ccsd_t_d2_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'c', 'b']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['g', 'a', 'd']], '-=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D2_1_IF_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D2_1_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D2_1_IF_SIZE_INT_UNIT_1) - size_internal;
@@ -22837,7 +22837,7 @@ __global__ void jk_ccsd_t_d2_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_f < rng_f && 0 < rng_b && threadIdx.x < JK_CCSD_T_D2_1_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_c; ll++)
+		for (size_t ll = 0; ll < rng_c; ll++)
 		{
 			// ['g', 'f', 'c', 'b']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -22848,7 +22848,7 @@ __global__ void jk_ccsd_t_d2_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_f < rng_a && threadIdx.x < JK_CCSD_T_D2_1_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['g', 'a', 'd']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -22864,7 +22864,7 @@ __global__ void jk_ccsd_t_d2_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D2_1_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D2_1_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_f + (idx_b) * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_F + 0];
 			temp_bv[1] = sm_a[ll][idx_f + (idx_b) * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_F + 8];
@@ -22875,7 +22875,7 @@ __global__ void jk_ccsd_t_d2_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 			temp_bv[6] = sm_a[ll][idx_f + (idx_b) * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_F + 48];
 			temp_bv[7] = sm_a[ll][idx_f + (idx_b) * JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_F + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_b[ll][idx_a + (xx * 16)];
 
@@ -22897,9 +22897,9 @@ __global__ void jk_ccsd_t_d2_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
 	if (idx_a < rng_a && idx_f < rng_f && idx_b < rng_b)
-	for (int i = 0; i < 8; i++)
+	for (size_t i = 0; i < 8; i++)
 	{
-		for (int j = 0; j < 4; j++)
+		for (size_t j = 0; j < 4; j++)
 		{
 			if(i < rng_c && j < rng_d)
 			{
@@ -24122,9 +24122,9 @@ __global__ void jk_ccsd_t_d2_1_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 
 // written by tc_interface.tc_gen_code_interface_Header()
 
-void jk_ccsd_t_d2_1_if_fusion(int size_a, int size_b, int size_c, int size_d, int size_e, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+void jk_ccsd_t_d2_1_if_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-    int num_thread_blocks_kernel_1;
+    size_t num_thread_blocks_kernel_1;
     
     size_d = size_d * size_e;
 
@@ -24134,12 +24134,12 @@ void jk_ccsd_t_d2_1_if_fusion(int size_a, int size_b, int size_c, int size_d, in
     
     cudaStream_t *streams;
     cudaFuncSetCacheConfig(jk_ccsd_t_d2_1_kernel__4_1, cudaFuncCachePreferShared);
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_C) * CEIL(size_d, JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_F);
 
-    int size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_d * size_a * size_g;
+    size_t size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_d * size_a * size_g;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_b * size_c * size_d * size_f);
@@ -24150,7 +24150,7 @@ void jk_ccsd_t_d2_1_if_fusion(int size_a, int size_b, int size_c, int size_d, in
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -24162,7 +24162,7 @@ void jk_ccsd_t_d2_1_if_fusion(int size_a, int size_b, int size_c, int size_d, in
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-	// long long int tmp_operations = 2 * (long long int)(size_a * size_b * size_c * size_d * size_f) * size_g;
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_a * size_b * size_c * size_d * size_f) * size_g;
 	// printf ("========================================= fusedKernels =============================================\n");
 	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
 	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D2_1_IF_SIZE_TB_1_X, JK_CCSD_T_D2_1_IF_SIZE_TB_1_Y);
@@ -24173,24 +24173,24 @@ void jk_ccsd_t_d2_1_if_fusion(int size_a, int size_b, int size_c, int size_d, in
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D2_1_IF_SIZE_TB_1_X, JK_CCSD_T_D2_1_IF_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_b = stride_output_a * size_a;
-	int stride_output_c = stride_output_b * size_b;
-	int stride_output_d = stride_output_c * size_c;
-	int stride_output_f = stride_output_d * size_d;
+	size_t stride_output_a = 1;
+	size_t stride_output_b = stride_output_a * size_a;
+	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_d = stride_output_c * size_c;
+	size_t stride_output_f = stride_output_d * size_d;
 
-	int stride_reg_x_1 = stride_output_d;
-	int stride_reg_y_1 = stride_output_c;
+	size_t stride_reg_x_1 = stride_output_d;
+	size_t stride_reg_y_1 = stride_output_c;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = 1;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = 1;
 
     // New Caller
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d2_1_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_a, size_b, size_c, size_d, size_f, size_g, CEIL(size_a, JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_C), CEIL(size_d, JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D2_1_IF_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -24206,7 +24206,7 @@ void jk_ccsd_t_d2_1_if_fusion(int size_a, int size_b, int size_c, int size_d, in
 
 	// Shoule be Fixed
 	// HostFree
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -24233,45 +24233,45 @@ void jk_ccsd_t_d2_1_if_fusion(int size_a, int size_b, int size_c, int size_d, in
 #define JK_CCSD_T_D2_2_SIZE_REG_1_Y 	JK_CCSD_T_D2_2_SIZE_SLICE_1_D
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d2_2_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_b, int size_c, int size_a, int size_d, int size_e, int size_f, int size_g, int numBlk_b, int numBlk_c, int numBlk_a, int numBlk_d, int numBlk_e, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int JK_CCSD_T_D2_2_SIZE_INTernal)
+__global__ void jk_ccsd_t_d2_2_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_b, size_t size_c, size_t size_a, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_b, size_t numBlk_c, size_t numBlk_a, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t JK_CCSD_T_D2_2_SIZE_INTernal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[8][64];
 	__shared__ double sm_b[8][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_b = threadIdx.x % JK_CCSD_T_D2_2_SIZE_SLICE_1_B;
-	int idx_f = threadIdx.x / JK_CCSD_T_D2_2_SIZE_SLICE_1_B;
-	int idx_a = threadIdx.y % JK_CCSD_T_D2_2_SIZE_SLICE_1_A;
-	int idx_e = threadIdx.y / JK_CCSD_T_D2_2_SIZE_SLICE_1_A;
+	size_t idx_b = threadIdx.x % JK_CCSD_T_D2_2_SIZE_SLICE_1_B;
+	size_t idx_f = threadIdx.x / JK_CCSD_T_D2_2_SIZE_SLICE_1_B;
+	size_t idx_a = threadIdx.y % JK_CCSD_T_D2_2_SIZE_SLICE_1_A;
+	size_t idx_e = threadIdx.y / JK_CCSD_T_D2_2_SIZE_SLICE_1_A;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_a * numBlk_c * numBlk_b);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_a * numBlk_c * numBlk_b);
 	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_d * numBlk_a * numBlk_c * numBlk_b);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_a * numBlk_c * numBlk_b);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_a * numBlk_c * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_a * numBlk_c * numBlk_b);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_a * numBlk_c * numBlk_b);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_a * numBlk_c * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c * numBlk_b);
 
-	int blk_idx_a = tmp_blkIdx / (numBlk_c * numBlk_b);
+	size_t blk_idx_a = tmp_blkIdx / (numBlk_c * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b);
 
-	int blk_idx_c = tmp_blkIdx / numBlk_b;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_b;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b);
 
-	int  blk_idx_b = tmp_blkIdx;
+	size_t  blk_idx_b = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_b * JK_CCSD_T_D2_2_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_2_SIZE_SLICE_1_C + (blk_idx_a * JK_CCSD_T_D2_2_SIZE_SLICE_1_A + idx_a + (blk_idx_d * JK_CCSD_T_D2_2_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D2_2_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D2_2_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_a) * size_c) * size_b;
+	size_t t3_base_thread = blk_idx_b * JK_CCSD_T_D2_2_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_2_SIZE_SLICE_1_C + (blk_idx_a * JK_CCSD_T_D2_2_SIZE_SLICE_1_A + idx_a + (blk_idx_d * JK_CCSD_T_D2_2_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D2_2_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D2_2_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_a) * size_c) * size_b;
 
 	// need to support partial tiles
-	int rng_b, rng_c, rng_a, rng_d, rng_e, rng_f;
+	size_t rng_b, rng_c, rng_a, rng_d, rng_e, rng_f;
 	if ((size_b - (blk_idx_b * JK_CCSD_T_D2_2_SIZE_SLICE_1_B)) >= JK_CCSD_T_D2_2_SIZE_SLICE_1_B)
 	{
 		rng_b = JK_CCSD_T_D2_2_SIZE_SLICE_1_B;
@@ -24325,13 +24325,13 @@ __global__ void jk_ccsd_t_d2_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[4][8];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 8; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 8; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'c', 'b']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['g', 'a', 'd', 'e']], '-=']
 	#pragma unroll 1
-	for (int l = 0; l < JK_CCSD_T_D2_2_SIZE_INTernal; l += JK_CCSD_T_D2_2_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < JK_CCSD_T_D2_2_SIZE_INTernal; l += JK_CCSD_T_D2_2_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D2_2_SIZE_INT_UNIT_1) - JK_CCSD_T_D2_2_SIZE_INTernal;
@@ -24342,7 +24342,7 @@ __global__ void jk_ccsd_t_d2_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_f && idx_a < rng_b && threadIdx.x < JK_CCSD_T_D2_2_SIZE_INT_UNIT_1 - internal_upperbound && threadIdx.y < 8)
-		for (int ll = 0; ll < rng_c; ll++)
+		for (size_t ll = 0; ll < rng_c; ll++)
 		{
 			// ['g', 'f', 'c', 'b']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -24353,7 +24353,7 @@ __global__ void jk_ccsd_t_d2_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && 0 < rng_e && threadIdx.x < JK_CCSD_T_D2_2_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['g', 'a', 'd', 'e']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -24365,7 +24365,7 @@ __global__ void jk_ccsd_t_d2_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D2_2_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D2_2_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_2_SIZE_SLICE_1_B + 0];
 			temp_bv[1] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_2_SIZE_SLICE_1_B + 8];
@@ -24376,7 +24376,7 @@ __global__ void jk_ccsd_t_d2_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_2_SIZE_SLICE_1_B + 48];
 			temp_bv[7] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_2_SIZE_SLICE_1_B + 56];
 
-			for (int yy = 0; yy < 4; yy++) // (2)
+			for (size_t yy = 0; yy < 4; yy++) // (2)
 			{
 				temp_av = sm_b[ll][idx_a + (idx_e) * JK_CCSD_T_D2_2_SIZE_SLICE_1_A + (yy * 16)];
 
@@ -25443,21 +25443,21 @@ __global__ void jk_ccsd_t_d2_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d2_2_fusion(int size_b, int size_c, int size_a, int size_d, int size_e, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_2_fusion(size_t size_b, size_t size_c, size_t size_a, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_b, JK_CCSD_T_D2_2_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D2_2_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D2_2_SIZE_SLICE_1_A) * CEIL(size_d, JK_CCSD_T_D2_2_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D2_2_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D2_2_SIZE_SLICE_1_F);
 
-    int size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
+    size_t size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_b * size_c * size_f * size_g);
@@ -25471,7 +25471,7 @@ __global__ void jk_ccsd_t_d2_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -25481,24 +25481,24 @@ __global__ void jk_ccsd_t_d2_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D2_2_SIZE_TB_1_X, JK_CCSD_T_D2_2_SIZE_TB_1_Y);
 
-	int stride_output_b = 1;
-	int stride_output_c = stride_output_b * size_b;
-	int stride_output_a = stride_output_c * size_c;
-	int stride_output_d = stride_output_a * size_a;
-	int stride_output_e = stride_output_d * size_d;
-	int stride_output_f = stride_output_e * size_e;
+	size_t stride_output_b = 1;
+	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_a = stride_output_c * size_c;
+	size_t stride_output_d = stride_output_a * size_a;
+	size_t stride_output_e = stride_output_d * size_d;
+	size_t stride_output_f = stride_output_e * size_e;
 
-	int stride_reg_x_1 = stride_output_c;
-	int stride_reg_y_1 = stride_output_d;
+	size_t stride_reg_x_1 = stride_output_c;
+	size_t stride_reg_y_1 = stride_output_d;
 
-	int JK_CCSD_T_D2_2_SIZE_INTernal = size_g;
+	size_t JK_CCSD_T_D2_2_SIZE_INTernal = size_g;
 
-	int stride_int_t2 = 1;
-    int stride_int_v2 = 1;
+	size_t stride_int_t2 = 1;
+    size_t stride_int_v2 = 1;
     
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         jk_ccsd_t_d2_2_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_b, size_c, size_a, size_d, size_e, size_f, size_g, CEIL(size_b, JK_CCSD_T_D2_2_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D2_2_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D2_2_SIZE_SLICE_1_A), CEIL(size_d, JK_CCSD_T_D2_2_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D2_2_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D2_2_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, JK_CCSD_T_D2_2_SIZE_INTernal);
     }
@@ -25507,7 +25507,7 @@ __global__ void jk_ccsd_t_d2_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -25515,7 +25515,7 @@ __global__ void jk_ccsd_t_d2_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // This is written by tc_interface.tc_gen_code_interface()
- void jk_ccsd_t_d2_2_fusion_(int size_b, int size_c, int size_a, int size_d, int size_e, int size_f, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_2_fusion_(size_t size_b, size_t size_c, size_t size_a, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	jk_ccsd_t_d2_2_fusion(size_b, size_c, size_a, size_d, size_e, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
 }
@@ -25536,42 +25536,42 @@ __global__ void jk_ccsd_t_d2_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 #define JK_CCSD_T_D2_2_IF_SIZE_REG_1_Y 	JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_E
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d2_2_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_b, int size_c, int size_a, int size_e, int size_f, int size_g, int numBlk_b, int numBlk_c, int numBlk_a, int numBlk_e, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d2_2_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_b, size_t size_c, size_t size_a, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_b, size_t numBlk_c, size_t numBlk_a, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 1
-	int idx_b = threadIdx.x % JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_B;
-	int idx_c = threadIdx.x / JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_B;
-	int idx_a = threadIdx.y;
+	size_t idx_b = threadIdx.x % JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_B;
+	size_t idx_c = threadIdx.x / JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_B;
+	size_t idx_a = threadIdx.y;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_e * numBlk_a * numBlk_c * numBlk_b);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_a * numBlk_c * numBlk_b);
 	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_a * numBlk_c * numBlk_b);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_a * numBlk_c * numBlk_b);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_a * numBlk_c * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c * numBlk_b);
 
-	int blk_idx_a = tmp_blkIdx / (numBlk_c * numBlk_b);
+	size_t blk_idx_a = tmp_blkIdx / (numBlk_c * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b);
 
-	int blk_idx_c = tmp_blkIdx / numBlk_b;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_b;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b);
 
-	int  blk_idx_b = tmp_blkIdx;
+	size_t  blk_idx_b = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_b * JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_e * JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_F) * size_e) * size_a) * size_c) * size_b;
+	size_t t3_base_thread = blk_idx_b * JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_e * JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_F) * size_e) * size_a) * size_c) * size_b;
 
 	// need to support partial tiles
-	int rng_b, rng_c, rng_a, rng_e, rng_f;
+	size_t rng_b, rng_c, rng_a, rng_e, rng_f;
 	if ((size_b - (blk_idx_b * JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_B)) >= JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_B)
 	{
 		rng_b = JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_B;
@@ -25617,13 +25617,13 @@ __global__ void jk_ccsd_t_d2_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'c', 'b']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['g', 'a', 'e']], '-=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D2_2_IF_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D2_2_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D2_2_IF_SIZE_INT_UNIT_1) - size_internal;
@@ -25634,7 +25634,7 @@ __global__ void jk_ccsd_t_d2_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_c && idx_a < rng_b && threadIdx.x < JK_CCSD_T_D2_2_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_f; ll++)
+		for (size_t ll = 0; ll < rng_f; ll++)
 		{
 			// ['g', 'f', 'c', 'b']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -25649,7 +25649,7 @@ __global__ void jk_ccsd_t_d2_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && threadIdx.x < JK_CCSD_T_D2_2_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'a', 'e']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -25661,7 +25661,7 @@ __global__ void jk_ccsd_t_d2_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D2_2_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D2_2_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_b[ll][idx_a + 0];
 			temp_bv[1] = sm_b[ll][idx_a + 8];
@@ -25672,7 +25672,7 @@ __global__ void jk_ccsd_t_d2_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 			temp_bv[6] = sm_b[ll][idx_a + 48];
 			temp_bv[7] = sm_b[ll][idx_a + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_a[ll][idx_c + (idx_b) * JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_C + (xx * 16)];
 
@@ -25694,9 +25694,9 @@ __global__ void jk_ccsd_t_d2_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
 	if (idx_b < rng_b && idx_c < rng_c && idx_a < rng_a)
-	for (int i = 0; i < 8; i++)
+	for (size_t i = 0; i < 8; i++)
 	{
-		for (int j = 0; j < 4; j++)
+		for (size_t j = 0; j < 4; j++)
 		{
 			if(i < rng_e && j < rng_f)
 			{
@@ -26919,9 +26919,9 @@ __global__ void jk_ccsd_t_d2_2_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 
 // written by tc_interface.tc_gen_code_interface_Header()
 
-void jk_ccsd_t_d2_2_if_fusion(int size_b, int size_c, int size_a, int size_d, int size_e, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+void jk_ccsd_t_d2_2_if_fusion(size_t size_b, size_t size_c, size_t size_a, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-    int num_thread_blocks_kernel_1;
+    size_t num_thread_blocks_kernel_1;
     
     size_a = size_a * size_d;
 
@@ -26930,13 +26930,13 @@ void jk_ccsd_t_d2_2_if_fusion(int size_b, int size_c, int size_a, int size_d, in
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
     num_thread_blocks_kernel_1 = CEIL(size_b, JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_A) * CEIL(size_e, JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_F);
     
     
-    int size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_e * size_a * size_g;
+    size_t size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_e * size_a * size_g;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_b * size_c * size_a * size_e * size_f);
@@ -26947,7 +26947,7 @@ void jk_ccsd_t_d2_2_if_fusion(int size_b, int size_c, int size_a, int size_d, in
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -26959,7 +26959,7 @@ void jk_ccsd_t_d2_2_if_fusion(int size_b, int size_c, int size_a, int size_d, in
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-	// long long int tmp_operations = 2 * (long long int)(size_b * size_c * size_a * size_e * size_f) * size_g;
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_b * size_c * size_a * size_e * size_f) * size_g;
 	// printf ("========================================= fusedKernels =============================================\n");
 	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
 	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D2_2_IF_SIZE_TB_1_X, JK_CCSD_T_D2_2_IF_SIZE_TB_1_Y);
@@ -26970,23 +26970,23 @@ void jk_ccsd_t_d2_2_if_fusion(int size_b, int size_c, int size_a, int size_d, in
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D2_2_IF_SIZE_TB_1_X, JK_CCSD_T_D2_2_IF_SIZE_TB_1_Y);
 
-	int stride_output_b = 1;
-	int stride_output_c = stride_output_b * size_b;
-	int stride_output_a = stride_output_c * size_c;
-	int stride_output_e = stride_output_a * size_a;
-	int stride_output_f = stride_output_e * size_e;
+	size_t stride_output_b = 1;
+	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_a = stride_output_c * size_c;
+	size_t stride_output_e = stride_output_a * size_a;
+	size_t stride_output_f = stride_output_e * size_e;
 
-	int stride_reg_x_1 = stride_output_f;
-	int stride_reg_y_1 = stride_output_e;
+	size_t stride_reg_x_1 = stride_output_f;
+	size_t stride_reg_y_1 = stride_output_e;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-    int stride_int_v2 = 1;
+	size_t stride_int_t2 = 1;
+    size_t stride_int_v2 = 1;
     
     dev_t3 = t3_d;
 
-	for(int i=0;i<nstreams;++i)
+	for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d2_2_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_b, size_c, size_a, size_e, size_f, size_g, CEIL(size_b, JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_A), CEIL(size_e, JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D2_2_IF_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -27002,7 +27002,7 @@ void jk_ccsd_t_d2_2_if_fusion(int size_b, int size_c, int size_a, int size_d, in
 
 	// Shoule be Fixed
 	// HostFree
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -27031,45 +27031,45 @@ void jk_ccsd_t_d2_2_if_fusion(int size_b, int size_c, int size_a, int size_d, in
 #define JK_CCSD_T_D2_3_SIZE_REG_1_Y 	JK_CCSD_T_D2_3_SIZE_SLICE_1_D
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d2_3_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_b, int size_a, int size_c, int size_d, int size_e, int size_f, int size_g, int numBlk_b, int numBlk_a, int numBlk_c, int numBlk_d, int numBlk_e, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int JK_CCSD_T_D2_3_SIZE_INTernal)
+__global__ void jk_ccsd_t_d2_3_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_b, size_t size_a, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_b, size_t numBlk_a, size_t numBlk_c, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t JK_CCSD_T_D2_3_SIZE_INTernal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[8][64];
 	__shared__ double sm_b[8][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_b = threadIdx.x % JK_CCSD_T_D2_3_SIZE_SLICE_1_B;
-	int idx_f = threadIdx.x / JK_CCSD_T_D2_3_SIZE_SLICE_1_B;
-	int idx_a = threadIdx.y % JK_CCSD_T_D2_3_SIZE_SLICE_1_A;
-	int idx_e = threadIdx.y / JK_CCSD_T_D2_3_SIZE_SLICE_1_A;
+	size_t idx_b = threadIdx.x % JK_CCSD_T_D2_3_SIZE_SLICE_1_B;
+	size_t idx_f = threadIdx.x / JK_CCSD_T_D2_3_SIZE_SLICE_1_B;
+	size_t idx_a = threadIdx.y % JK_CCSD_T_D2_3_SIZE_SLICE_1_A;
+	size_t idx_e = threadIdx.y / JK_CCSD_T_D2_3_SIZE_SLICE_1_A;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_c * numBlk_a * numBlk_b);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_c * numBlk_a * numBlk_b);
 	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_d * numBlk_c * numBlk_a * numBlk_b);
 
-	int blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_a * numBlk_b);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_a * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_c * numBlk_a * numBlk_b);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_a * numBlk_b);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_a * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a * numBlk_b);
 
-	int blk_idx_c = tmp_blkIdx / (numBlk_a * numBlk_b);
+	size_t blk_idx_c = tmp_blkIdx / (numBlk_a * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_b);
 
-	int blk_idx_a = tmp_blkIdx / numBlk_b;
+	size_t blk_idx_a = tmp_blkIdx / numBlk_b;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b);
 
-	int  blk_idx_b = tmp_blkIdx;
+	size_t  blk_idx_b = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_b * JK_CCSD_T_D2_3_SIZE_SLICE_1_B + idx_b + (blk_idx_a * JK_CCSD_T_D2_3_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D2_3_SIZE_SLICE_1_C + (blk_idx_d * JK_CCSD_T_D2_3_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D2_3_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D2_3_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_c) * size_a) * size_b;
+	size_t t3_base_thread = blk_idx_b * JK_CCSD_T_D2_3_SIZE_SLICE_1_B + idx_b + (blk_idx_a * JK_CCSD_T_D2_3_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D2_3_SIZE_SLICE_1_C + (blk_idx_d * JK_CCSD_T_D2_3_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D2_3_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D2_3_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_c) * size_a) * size_b;
 
 	// need to support partial tiles
-	int rng_b, rng_a, rng_c, rng_d, rng_e, rng_f;
+	size_t rng_b, rng_a, rng_c, rng_d, rng_e, rng_f;
 	if ((size_b - (blk_idx_b * JK_CCSD_T_D2_3_SIZE_SLICE_1_B)) >= JK_CCSD_T_D2_3_SIZE_SLICE_1_B)
 	{
 		rng_b = JK_CCSD_T_D2_3_SIZE_SLICE_1_B;
@@ -27123,13 +27123,13 @@ __global__ void jk_ccsd_t_d2_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[4][8];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 8; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 8; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'c', 'b']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['g', 'a', 'd', 'e']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < JK_CCSD_T_D2_3_SIZE_INTernal; l += JK_CCSD_T_D2_3_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < JK_CCSD_T_D2_3_SIZE_INTernal; l += JK_CCSD_T_D2_3_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D2_3_SIZE_INT_UNIT_1) - JK_CCSD_T_D2_3_SIZE_INTernal;
@@ -27140,7 +27140,7 @@ __global__ void jk_ccsd_t_d2_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_f && idx_a < rng_b && threadIdx.x < JK_CCSD_T_D2_3_SIZE_INT_UNIT_1 - internal_upperbound && threadIdx.y < 8)
-		for (int ll = 0; ll < rng_c; ll++)
+		for (size_t ll = 0; ll < rng_c; ll++)
 		{
 			// ['g', 'f', 'c', 'b']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -27151,7 +27151,7 @@ __global__ void jk_ccsd_t_d2_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && 0 < rng_e && threadIdx.x < JK_CCSD_T_D2_3_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['g', 'a', 'd', 'e']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -27163,7 +27163,7 @@ __global__ void jk_ccsd_t_d2_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D2_3_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D2_3_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_3_SIZE_SLICE_1_B + 0];
 			temp_bv[1] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_3_SIZE_SLICE_1_B + 8];
@@ -27174,7 +27174,7 @@ __global__ void jk_ccsd_t_d2_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_3_SIZE_SLICE_1_B + 48];
 			temp_bv[7] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_3_SIZE_SLICE_1_B + 56];
 
-			for (int yy = 0; yy < 4; yy++) // (2)
+			for (size_t yy = 0; yy < 4; yy++) // (2)
 			{
 				temp_av = sm_b[ll][idx_a + (idx_e) * JK_CCSD_T_D2_3_SIZE_SLICE_1_A + (yy * 16)];
 
@@ -28242,21 +28242,21 @@ __global__ void jk_ccsd_t_d2_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d2_3_fusion(int size_b, int size_a, int size_c, int size_d, int size_e, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_3_fusion(size_t size_b, size_t size_a, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_b, JK_CCSD_T_D2_3_SIZE_SLICE_1_B) * CEIL(size_a, JK_CCSD_T_D2_3_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D2_3_SIZE_SLICE_1_C) * CEIL(size_d, JK_CCSD_T_D2_3_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D2_3_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D2_3_SIZE_SLICE_1_F);
     
-    int size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
+    size_t size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_b * size_c * size_f * size_g);
     // cudaMalloc((void**) &dev_v2, sizeof(double) * size_e * size_d * size_a * size_g);
@@ -28269,7 +28269,7 @@ __global__ void jk_ccsd_t_d2_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -28279,24 +28279,24 @@ __global__ void jk_ccsd_t_d2_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D2_3_SIZE_TB_1_X, JK_CCSD_T_D2_3_SIZE_TB_1_Y);
 
-	int stride_output_b = 1;
-	int stride_output_a = stride_output_b * size_b;
-	int stride_output_c = stride_output_a * size_a;
-	int stride_output_d = stride_output_c * size_c;
-	int stride_output_e = stride_output_d * size_d;
-	int stride_output_f = stride_output_e * size_e;
+	size_t stride_output_b = 1;
+	size_t stride_output_a = stride_output_b * size_b;
+	size_t stride_output_c = stride_output_a * size_a;
+	size_t stride_output_d = stride_output_c * size_c;
+	size_t stride_output_e = stride_output_d * size_d;
+	size_t stride_output_f = stride_output_e * size_e;
 
-	int stride_reg_x_1 = stride_output_c;
-	int stride_reg_y_1 = stride_output_d;
+	size_t stride_reg_x_1 = stride_output_c;
+	size_t stride_reg_y_1 = stride_output_d;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-    int stride_int_v2 = 1;
+	size_t stride_int_t2 = 1;
+    size_t stride_int_v2 = 1;
     
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d2_3_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_b, size_a, size_c, size_d, size_e, size_f, size_g, CEIL(size_b, JK_CCSD_T_D2_3_SIZE_SLICE_1_B), CEIL(size_a, JK_CCSD_T_D2_3_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D2_3_SIZE_SLICE_1_C), CEIL(size_d, JK_CCSD_T_D2_3_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D2_3_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D2_3_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -28305,7 +28305,7 @@ __global__ void jk_ccsd_t_d2_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -28314,7 +28314,7 @@ __global__ void jk_ccsd_t_d2_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d2_3_fusion_(int size_b, int size_a, int size_c, int size_d, int size_e, int size_f, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_3_fusion_(size_t size_b, size_t size_a, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d2_3_fusion(size_b, size_a, size_c, size_d, size_e, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -28336,42 +28336,42 @@ __global__ void jk_ccsd_t_d2_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 #define JK_CCSD_T_D2_3_IF_SIZE_REG_1_Y 	JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_D
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d2_3_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_b, int size_a, int size_c, int size_d, int size_f, int size_g, int numBlk_b, int numBlk_a, int numBlk_c, int numBlk_d, int numBlk_f, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d2_3_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_b, size_t size_a, size_t size_c, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_b, size_t numBlk_a, size_t numBlk_c, size_t numBlk_d, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 1
-	int idx_b = threadIdx.x % JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_B;
-	int idx_c = threadIdx.x / JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_B;
-	int idx_a = threadIdx.y;
+	size_t idx_b = threadIdx.x % JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_B;
+	size_t idx_c = threadIdx.x / JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_B;
+	size_t idx_a = threadIdx.y;
 
-	int tmp_blkIdx;
-	int blk_idx_f = blockIdx.x / (numBlk_d * numBlk_c * numBlk_a * numBlk_b);
+	size_t tmp_blkIdx;
+	size_t blk_idx_f = blockIdx.x / (numBlk_d * numBlk_c * numBlk_a * numBlk_b);
 	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_c * numBlk_a * numBlk_b);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_a * numBlk_b);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_a * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a * numBlk_b);
 
-	int blk_idx_c = tmp_blkIdx / (numBlk_a * numBlk_b);
+	size_t blk_idx_c = tmp_blkIdx / (numBlk_a * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_b);
 
-	int blk_idx_a = tmp_blkIdx / numBlk_b;
+	size_t blk_idx_a = tmp_blkIdx / numBlk_b;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b);
 
-	int  blk_idx_b = tmp_blkIdx;
+	size_t  blk_idx_b = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_b * JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_B + idx_b + (blk_idx_a * JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_d * JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_F) * size_d) * size_c) * size_a) * size_b;
+	size_t t3_base_thread = blk_idx_b * JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_B + idx_b + (blk_idx_a * JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_d * JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_F) * size_d) * size_c) * size_a) * size_b;
 
 	// need to support partial tiles
-	int rng_b, rng_a, rng_c, rng_d, rng_f;
+	size_t rng_b, rng_a, rng_c, rng_d, rng_f;
 	if ((size_b - (blk_idx_b * JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_B)) >= JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_B)
 	{
 		rng_b = JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_B;
@@ -28417,13 +28417,13 @@ __global__ void jk_ccsd_t_d2_3_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'c', 'b']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['g', 'a', 'd']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D2_3_IF_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D2_3_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D2_3_IF_SIZE_INT_UNIT_1) - size_internal;
@@ -28434,7 +28434,7 @@ __global__ void jk_ccsd_t_d2_3_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_c && idx_a < rng_b && threadIdx.x < JK_CCSD_T_D2_3_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_f; ll++)
+		for (size_t ll = 0; ll < rng_f; ll++)
 		{
 			// ['g', 'f', 'c', 'b']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -28449,7 +28449,7 @@ __global__ void jk_ccsd_t_d2_3_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && threadIdx.x < JK_CCSD_T_D2_3_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['g', 'a', 'd']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -28461,7 +28461,7 @@ __global__ void jk_ccsd_t_d2_3_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D2_3_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D2_3_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_b[ll][idx_a + 0];
 			temp_bv[1] = sm_b[ll][idx_a + 8];
@@ -28472,7 +28472,7 @@ __global__ void jk_ccsd_t_d2_3_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 			temp_bv[6] = sm_b[ll][idx_a + 48];
 			temp_bv[7] = sm_b[ll][idx_a + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_a[ll][idx_c + (idx_b) * JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_C + (xx * 16)];
 
@@ -28494,9 +28494,9 @@ __global__ void jk_ccsd_t_d2_3_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
 	if (idx_b < rng_b && idx_c < rng_c && idx_a < rng_a)
-	for (int i = 0; i < 8; i++)
+	for (size_t i = 0; i < 8; i++)
 	{
-		for (int j = 0; j < 4; j++)
+		for (size_t j = 0; j < 4; j++)
 		{
 			if(i < rng_d && j < rng_f)
 			{
@@ -29719,9 +29719,9 @@ __global__ void jk_ccsd_t_d2_3_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 
 // written by tc_interface.tc_gen_code_interface_Header()
 
-void jk_ccsd_t_d2_3_if_fusion(int size_b, int size_a, int size_c, int size_d, int size_e, int size_f, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+void jk_ccsd_t_d2_3_if_fusion(size_t size_b, size_t size_a, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     size_d = size_d * size_e;
 
@@ -29730,13 +29730,13 @@ void jk_ccsd_t_d2_3_if_fusion(int size_b, int size_a, int size_c, int size_d, in
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_b, JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_B) * CEIL(size_a, JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_C) * CEIL(size_d, JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_F);
     
     
-    int size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_d * size_a * size_g;
+    size_t size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_d * size_a * size_g;
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_b * size_a * size_c * size_d * size_f);
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_b * size_c * size_f * size_g);
@@ -29746,7 +29746,7 @@ void jk_ccsd_t_d2_3_if_fusion(int size_b, int size_a, int size_c, int size_d, in
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -29758,7 +29758,7 @@ void jk_ccsd_t_d2_3_if_fusion(int size_b, int size_a, int size_c, int size_d, in
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-	// long long int tmp_operations = 2 * (long long int)(size_b * size_a * size_c * size_d * size_f) * size_g;
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_b * size_a * size_c * size_d * size_f) * size_g;
 	// printf ("========================================= fusedKernels =============================================\n");
 	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
 	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D2_3_IF_SIZE_TB_1_X, JK_CCSD_T_D2_3_IF_SIZE_TB_1_Y);
@@ -29769,24 +29769,24 @@ void jk_ccsd_t_d2_3_if_fusion(int size_b, int size_a, int size_c, int size_d, in
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D2_3_IF_SIZE_TB_1_X, JK_CCSD_T_D2_3_IF_SIZE_TB_1_Y);
 
-	int stride_output_b = 1;
-	int stride_output_a = stride_output_b * size_b;
-	int stride_output_c = stride_output_a * size_a;
-	int stride_output_d = stride_output_c * size_c;
-	int stride_output_f = stride_output_d * size_d;
+	size_t stride_output_b = 1;
+	size_t stride_output_a = stride_output_b * size_b;
+	size_t stride_output_c = stride_output_a * size_a;
+	size_t stride_output_d = stride_output_c * size_c;
+	size_t stride_output_f = stride_output_d * size_d;
 
-	int stride_reg_x_1 = stride_output_f;
-	int stride_reg_y_1 = stride_output_d;
+	size_t stride_reg_x_1 = stride_output_f;
+	size_t stride_reg_y_1 = stride_output_d;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = 1;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = 1;
 
     // New Caller
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         jk_ccsd_t_d2_3_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_b, size_a, size_c, size_d, size_f, size_g, CEIL(size_b, JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_B), CEIL(size_a, JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_C), CEIL(size_d, JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D2_3_IF_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -29802,7 +29802,7 @@ void jk_ccsd_t_d2_3_if_fusion(int size_b, int size_a, int size_c, int size_d, in
 
 	// Shoule be Fixed
 	// HostFree
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -29831,45 +29831,45 @@ void jk_ccsd_t_d2_3_if_fusion(int size_b, int size_a, int size_c, int size_d, in
 #define JK_CCSD_T_D2_4_SIZE_REG_1_Y 	JK_CCSD_T_D2_4_SIZE_SLICE_1_C
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d2_4_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_b, int size_c, int size_d, int size_f, int size_e, int size_g, int numBlk_a, int numBlk_b, int numBlk_c, int numBlk_d, int numBlk_f, int numBlk_e, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d2_4_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_f, size_t size_e, size_t size_g, size_t numBlk_a, size_t numBlk_b, size_t numBlk_c, size_t numBlk_d, size_t numBlk_f, size_t numBlk_e, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[8][64];
 	__shared__ double sm_b[8][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x % JK_CCSD_T_D2_4_SIZE_SLICE_1_A;
-	int idx_d = threadIdx.x / JK_CCSD_T_D2_4_SIZE_SLICE_1_A;
-	int idx_b = threadIdx.y % JK_CCSD_T_D2_4_SIZE_SLICE_1_B;
-	int idx_f = threadIdx.y / JK_CCSD_T_D2_4_SIZE_SLICE_1_B;
+	size_t idx_a = threadIdx.x % JK_CCSD_T_D2_4_SIZE_SLICE_1_A;
+	size_t idx_d = threadIdx.x / JK_CCSD_T_D2_4_SIZE_SLICE_1_A;
+	size_t idx_b = threadIdx.y % JK_CCSD_T_D2_4_SIZE_SLICE_1_B;
+	size_t idx_f = threadIdx.y / JK_CCSD_T_D2_4_SIZE_SLICE_1_B;
 
-	int tmp_blkIdx;
-	int blk_idx_e = blockIdx.x / (numBlk_f * numBlk_d * numBlk_c * numBlk_b * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_e = blockIdx.x / (numBlk_f * numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_f * numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_f = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
+	size_t blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a);
 
-	int blk_idx_b = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_b = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D2_4_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D2_4_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_4_SIZE_SLICE_1_C + (blk_idx_d * JK_CCSD_T_D2_4_SIZE_SLICE_1_D + idx_d + (blk_idx_f * JK_CCSD_T_D2_4_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D2_4_SIZE_SLICE_1_E) * size_f) * size_d) * size_c) * size_b) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D2_4_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D2_4_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_4_SIZE_SLICE_1_C + (blk_idx_d * JK_CCSD_T_D2_4_SIZE_SLICE_1_D + idx_d + (blk_idx_f * JK_CCSD_T_D2_4_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D2_4_SIZE_SLICE_1_E) * size_f) * size_d) * size_c) * size_b) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_b, rng_c, rng_d, rng_f, rng_e;
+	size_t rng_a, rng_b, rng_c, rng_d, rng_f, rng_e;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D2_4_SIZE_SLICE_1_A)) >= JK_CCSD_T_D2_4_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D2_4_SIZE_SLICE_1_A;
@@ -29923,13 +29923,13 @@ __global__ void jk_ccsd_t_d2_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[4][8];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 8; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 8; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'c', 'b']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['g', 'a', 'd', 'e']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D2_4_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D2_4_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D2_4_SIZE_INT_UNIT_1) - size_internal;
@@ -29940,7 +29940,7 @@ __global__ void jk_ccsd_t_d2_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_f && idx_b < rng_b && threadIdx.x < JK_CCSD_T_D2_4_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_c; ll++)
+		for (size_t ll = 0; ll < rng_c; ll++)
 		{
 			// ['g', 'f', 'c', 'b']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -29951,7 +29951,7 @@ __global__ void jk_ccsd_t_d2_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_b < rng_a && 0 < rng_d && threadIdx.x < JK_CCSD_T_D2_4_SIZE_INT_UNIT_1 - internal_upperbound && threadIdx.y < 8)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'a', 'd', 'e']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -29963,7 +29963,7 @@ __global__ void jk_ccsd_t_d2_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D2_4_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D2_4_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D2_4_SIZE_SLICE_1_A + 0];
 			temp_bv[1] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D2_4_SIZE_SLICE_1_A + 8];
@@ -29974,7 +29974,7 @@ __global__ void jk_ccsd_t_d2_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D2_4_SIZE_SLICE_1_A + 48];
 			temp_bv[7] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D2_4_SIZE_SLICE_1_A + 56];
 
-			for (int yy = 0; yy < 4; yy++) // (2)
+			for (size_t yy = 0; yy < 4; yy++) // (2)
 			{
 				temp_av = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_4_SIZE_SLICE_1_B + (yy * 16)];
 
@@ -31041,21 +31041,21 @@ __global__ void jk_ccsd_t_d2_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d2_4_fusion(int size_a, int size_b, int size_c, int size_d, int size_f, int size_e, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_4_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_f, size_t size_e, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D2_4_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D2_4_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D2_4_SIZE_SLICE_1_C) * CEIL(size_d, JK_CCSD_T_D2_4_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D2_4_SIZE_SLICE_1_F) * CEIL(size_e, JK_CCSD_T_D2_4_SIZE_SLICE_1_E);
     
-    int size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
+    size_t size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_b * size_c * size_f * size_g);
@@ -31069,7 +31069,7 @@ __global__ void jk_ccsd_t_d2_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -31079,24 +31079,24 @@ __global__ void jk_ccsd_t_d2_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D2_4_SIZE_TB_1_X, JK_CCSD_T_D2_4_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_b = stride_output_a * size_a;
-	int stride_output_c = stride_output_b * size_b;
-	int stride_output_d = stride_output_c * size_c;
-	int stride_output_f = stride_output_d * size_d;
-	int stride_output_e = stride_output_f * size_f;
+	size_t stride_output_a = 1;
+	size_t stride_output_b = stride_output_a * size_a;
+	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_d = stride_output_c * size_c;
+	size_t stride_output_f = stride_output_d * size_d;
+	size_t stride_output_e = stride_output_f * size_f;
 
-	int stride_reg_x_1 = stride_output_e;
-	int stride_reg_y_1 = stride_output_c;
+	size_t stride_reg_x_1 = stride_output_e;
+	size_t stride_reg_y_1 = stride_output_c;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = 1;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = 1;
 
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d2_4_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_a, size_b, size_c, size_d, size_f, size_e, size_g, CEIL(size_a, JK_CCSD_T_D2_4_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D2_4_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D2_4_SIZE_SLICE_1_C), CEIL(size_d, JK_CCSD_T_D2_4_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D2_4_SIZE_SLICE_1_F), CEIL(size_e, JK_CCSD_T_D2_4_SIZE_SLICE_1_E), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -31105,7 +31105,7 @@ __global__ void jk_ccsd_t_d2_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -31114,7 +31114,7 @@ __global__ void jk_ccsd_t_d2_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d2_4_fusion_(int size_a, int size_b, int size_c, int size_d, int size_f, int size_e, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_4_fusion_(size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_f, size_t size_e, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d2_4_fusion(size_a, size_b, size_c, size_d, size_f, size_e, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -31142,46 +31142,46 @@ __global__ void jk_ccsd_t_d2_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d2_5_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_b, int size_c, int size_a, int size_d, int size_f, int size_e, int size_g, int numBlk_b, int numBlk_c, int numBlk_a, int numBlk_d, int numBlk_f, int numBlk_e, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d2_5_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_b, size_t size_c, size_t size_a, size_t size_d, size_t size_f, size_t size_e, size_t size_g, size_t numBlk_b, size_t numBlk_c, size_t numBlk_a, size_t numBlk_d, size_t numBlk_f, size_t numBlk_e, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[8][64];
 	__shared__ double sm_b[8][64];
 
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_b = threadIdx.x % JK_CCSD_T_D2_5_SIZE_SLICE_1_B;
-	int idx_f = threadIdx.x / JK_CCSD_T_D2_5_SIZE_SLICE_1_B;
-	int idx_a = threadIdx.y % JK_CCSD_T_D2_5_SIZE_SLICE_1_A;
-	int idx_e = threadIdx.y / JK_CCSD_T_D2_5_SIZE_SLICE_1_A;
+	size_t idx_b = threadIdx.x % JK_CCSD_T_D2_5_SIZE_SLICE_1_B;
+	size_t idx_f = threadIdx.x / JK_CCSD_T_D2_5_SIZE_SLICE_1_B;
+	size_t idx_a = threadIdx.y % JK_CCSD_T_D2_5_SIZE_SLICE_1_A;
+	size_t idx_e = threadIdx.y / JK_CCSD_T_D2_5_SIZE_SLICE_1_A;
 
-	int tmp_blkIdx;
-	int blk_idx_e = blockIdx.x / (numBlk_f * numBlk_d * numBlk_a * numBlk_c * numBlk_b);
+	size_t tmp_blkIdx;
+	size_t blk_idx_e = blockIdx.x / (numBlk_f * numBlk_d * numBlk_a * numBlk_c * numBlk_b);
 	tmp_blkIdx = blockIdx.x % (numBlk_f * numBlk_d * numBlk_a * numBlk_c * numBlk_b);
 
-	int blk_idx_f = tmp_blkIdx / (numBlk_d * numBlk_a * numBlk_c * numBlk_b);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_d * numBlk_a * numBlk_c * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_a * numBlk_c * numBlk_b);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_a * numBlk_c * numBlk_b);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_a * numBlk_c * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c * numBlk_b);
 
-	int blk_idx_a = tmp_blkIdx / (numBlk_c * numBlk_b);
+	size_t blk_idx_a = tmp_blkIdx / (numBlk_c * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b);
 
-	int blk_idx_c = tmp_blkIdx / numBlk_b;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_b;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b);
 
-	int  blk_idx_b = tmp_blkIdx;
+	size_t  blk_idx_b = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_b * JK_CCSD_T_D2_5_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_5_SIZE_SLICE_1_C + (blk_idx_a * JK_CCSD_T_D2_5_SIZE_SLICE_1_A + idx_a + (blk_idx_d * JK_CCSD_T_D2_5_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D2_5_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D2_5_SIZE_SLICE_1_E + idx_e) * size_f) * size_d) * size_a) * size_c) * size_b;
+	size_t t3_base_thread = blk_idx_b * JK_CCSD_T_D2_5_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_5_SIZE_SLICE_1_C + (blk_idx_a * JK_CCSD_T_D2_5_SIZE_SLICE_1_A + idx_a + (blk_idx_d * JK_CCSD_T_D2_5_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D2_5_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D2_5_SIZE_SLICE_1_E + idx_e) * size_f) * size_d) * size_a) * size_c) * size_b;
 
 	// need to support partial tiles
-	int rng_b, rng_c, rng_a, rng_d, rng_f, rng_e;
+	size_t rng_b, rng_c, rng_a, rng_d, rng_f, rng_e;
 	if ((size_b - (blk_idx_b * JK_CCSD_T_D2_5_SIZE_SLICE_1_B)) >= JK_CCSD_T_D2_5_SIZE_SLICE_1_B)
 	{
 		rng_b = JK_CCSD_T_D2_5_SIZE_SLICE_1_B;
@@ -31235,13 +31235,13 @@ __global__ void jk_ccsd_t_d2_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[4][8];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 8; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 8; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'c', 'b']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['g', 'a', 'd', 'e']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D2_5_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D2_5_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D2_5_SIZE_INT_UNIT_1) - size_internal;
@@ -31252,7 +31252,7 @@ __global__ void jk_ccsd_t_d2_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_f && idx_a < rng_b && threadIdx.x < JK_CCSD_T_D2_5_SIZE_INT_UNIT_1 - internal_upperbound && threadIdx.y < 8)
-		for (int ll = 0; ll < rng_c; ll++)
+		for (size_t ll = 0; ll < rng_c; ll++)
 		{
 			// ['g', 'f', 'c', 'b']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -31263,7 +31263,7 @@ __global__ void jk_ccsd_t_d2_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && 0 < rng_e && threadIdx.x < JK_CCSD_T_D2_5_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['g', 'a', 'd', 'e']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -31275,7 +31275,7 @@ __global__ void jk_ccsd_t_d2_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D2_5_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D2_5_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_5_SIZE_SLICE_1_B + 0];
 			temp_bv[1] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_5_SIZE_SLICE_1_B + 8];
@@ -31286,7 +31286,7 @@ __global__ void jk_ccsd_t_d2_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_5_SIZE_SLICE_1_B + 48];
 			temp_bv[7] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_5_SIZE_SLICE_1_B + 56];
 
-			for (int yy = 0; yy < 4; yy++) // (2)
+			for (size_t yy = 0; yy < 4; yy++) // (2)
 			{
 				temp_av = sm_b[ll][idx_a + (idx_e) * JK_CCSD_T_D2_5_SIZE_SLICE_1_A + (yy * 16)];
 
@@ -32353,21 +32353,21 @@ __global__ void jk_ccsd_t_d2_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d2_5_fusion(int size_b, int size_c, int size_a, int size_d, int size_f, int size_e, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_5_fusion(size_t size_b, size_t size_c, size_t size_a, size_t size_d, size_t size_f, size_t size_e, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_b, JK_CCSD_T_D2_5_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D2_5_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D2_5_SIZE_SLICE_1_A) * CEIL(size_d, JK_CCSD_T_D2_5_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D2_5_SIZE_SLICE_1_F) * CEIL(size_e, JK_CCSD_T_D2_5_SIZE_SLICE_1_E);
 
-    int size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
+    size_t size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_b * size_c * size_f * size_g);
@@ -32381,7 +32381,7 @@ __global__ void jk_ccsd_t_d2_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -32391,23 +32391,23 @@ __global__ void jk_ccsd_t_d2_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D2_5_SIZE_TB_1_X, JK_CCSD_T_D2_5_SIZE_TB_1_Y);
 
-	int stride_output_b = 1;
-	int stride_output_c = stride_output_b * size_b;
-	int stride_output_a = stride_output_c * size_c;
-	int stride_output_d = stride_output_a * size_a;
-	int stride_output_f = stride_output_d * size_d;
-	int stride_output_e = stride_output_f * size_f;
+	size_t stride_output_b = 1;
+	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_a = stride_output_c * size_c;
+	size_t stride_output_d = stride_output_a * size_a;
+	size_t stride_output_f = stride_output_d * size_d;
+	size_t stride_output_e = stride_output_f * size_f;
 
-	int stride_reg_x_1 = stride_output_c;
-	int stride_reg_y_1 = stride_output_d;
+	size_t stride_reg_x_1 = stride_output_c;
+	size_t stride_reg_y_1 = stride_output_d;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = 1;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = 1;
 
     dev_t3 = t3_d;
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         jk_ccsd_t_d2_5_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_b, size_c, size_a, size_d, size_f, size_e, size_g, CEIL(size_b, JK_CCSD_T_D2_5_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D2_5_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D2_5_SIZE_SLICE_1_A), CEIL(size_d, JK_CCSD_T_D2_5_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D2_5_SIZE_SLICE_1_F), CEIL(size_e, JK_CCSD_T_D2_5_SIZE_SLICE_1_E), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -32416,7 +32416,7 @@ __global__ void jk_ccsd_t_d2_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -32425,7 +32425,7 @@ __global__ void jk_ccsd_t_d2_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d2_5_fusion_(int size_b, int size_c, int size_a, int size_d, int size_f, int size_e, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_5_fusion_(size_t size_b, size_t size_c, size_t size_a, size_t size_d, size_t size_f, size_t size_e, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d2_5_fusion(size_b, size_c, size_a, size_d, size_f, size_e, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -32447,42 +32447,42 @@ __global__ void jk_ccsd_t_d2_5_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 #define JK_CCSD_T_D2_5_IF_SIZE_REG_1_Y 	JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_E
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d2_5_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_b, int size_c, int size_a, int size_f, int size_e, int size_g, int numBlk_b, int numBlk_c, int numBlk_a, int numBlk_f, int numBlk_e, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d2_5_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_b, size_t size_c, size_t size_a, size_t size_f, size_t size_e, size_t size_g, size_t numBlk_b, size_t numBlk_c, size_t numBlk_a, size_t numBlk_f, size_t numBlk_e, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64];
 	__shared__ double sm_b[16][64];
 
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 1
-	int idx_b = threadIdx.x % JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_B;
-	int idx_c = threadIdx.x / JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_B;
-	int idx_a = threadIdx.y;
+	size_t idx_b = threadIdx.x % JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_B;
+	size_t idx_c = threadIdx.x / JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_B;
+	size_t idx_a = threadIdx.y;
 
-	int tmp_blkIdx;
-	int blk_idx_e = blockIdx.x / (numBlk_f * numBlk_a * numBlk_c * numBlk_b);
+	size_t tmp_blkIdx;
+	size_t blk_idx_e = blockIdx.x / (numBlk_f * numBlk_a * numBlk_c * numBlk_b);
 	tmp_blkIdx = blockIdx.x % (numBlk_f * numBlk_a * numBlk_c * numBlk_b);
 
-	int blk_idx_f = tmp_blkIdx / (numBlk_a * numBlk_c * numBlk_b);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_a * numBlk_c * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c * numBlk_b);
 
-	int blk_idx_a = tmp_blkIdx / (numBlk_c * numBlk_b);
+	size_t blk_idx_a = tmp_blkIdx / (numBlk_c * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b);
 
-	int blk_idx_c = tmp_blkIdx / numBlk_b;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_b;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b);
 
-	int  blk_idx_b = tmp_blkIdx;
+	size_t  blk_idx_b = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_b * JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_f * JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_F + (blk_idx_e * JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_E) * size_f) * size_a) * size_c) * size_b;
+	size_t t3_base_thread = blk_idx_b * JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_f * JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_F + (blk_idx_e * JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_E) * size_f) * size_a) * size_c) * size_b;
 
 	// need to support partial tiles
-	int rng_b, rng_c, rng_a, rng_f, rng_e;
+	size_t rng_b, rng_c, rng_a, rng_f, rng_e;
 	if ((size_b - (blk_idx_b * JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_B)) >= JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_B)
 	{
 		rng_b = JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_B;
@@ -32528,13 +32528,13 @@ __global__ void jk_ccsd_t_d2_5_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	double temp_bv[8];
 	double reg_tile[8][4];
 
-	for (int i = 0; i < 8; i++)
-	for (int j = 0; j < 4; j++)
+	for (size_t i = 0; i < 8; i++)
+	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'c', 'b']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['g', 'a', 'e']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D2_5_IF_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D2_5_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D2_5_IF_SIZE_INT_UNIT_1) - size_internal;
@@ -32545,7 +32545,7 @@ __global__ void jk_ccsd_t_d2_5_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_c && idx_a < rng_b && threadIdx.x < JK_CCSD_T_D2_5_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_f; ll++)
+		for (size_t ll = 0; ll < rng_f; ll++)
 		{
 			// ['g', 'f', 'c', 'b']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -32560,7 +32560,7 @@ __global__ void jk_ccsd_t_d2_5_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && threadIdx.x < JK_CCSD_T_D2_5_IF_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_e; ll++)
+		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'a', 'e']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -32572,7 +32572,7 @@ __global__ void jk_ccsd_t_d2_5_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D2_5_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D2_5_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_b[ll][idx_a + 0];
 			temp_bv[1] = sm_b[ll][idx_a + 8];
@@ -32583,7 +32583,7 @@ __global__ void jk_ccsd_t_d2_5_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 			temp_bv[6] = sm_b[ll][idx_a + 48];
 			temp_bv[7] = sm_b[ll][idx_a + 56];
 
-			for (int xx = 0; xx < 4; xx++) // (1)
+			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
 				temp_av = sm_a[ll][idx_c + (idx_b) * JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_C + (xx * 16)];
 
@@ -32605,9 +32605,9 @@ __global__ void jk_ccsd_t_d2_5_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
 	if (idx_b < rng_b && idx_c < rng_c && idx_a < rng_a)
-	for (int i = 0; i < 8; i++)
+	for (size_t i = 0; i < 8; i++)
 	{
-		for (int j = 0; j < 4; j++)
+		for (size_t j = 0; j < 4; j++)
 		{
 			if(i < rng_e && j < rng_f)
 			{
@@ -33830,9 +33830,9 @@ __global__ void jk_ccsd_t_d2_5_if_kernel__4_1(double* dev_t3, double* dev_t2, do
 
 // written by tc_interface.tc_gen_code_interface_Header()
 
-void jk_ccsd_t_d2_5_if_fusion(int size_b, int size_c, int size_a, int size_d, int size_f, int size_e, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+void jk_ccsd_t_d2_5_if_fusion(size_t size_b, size_t size_c, size_t size_a, size_t size_d, size_t size_f, size_t size_e, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-    int num_thread_blocks_kernel_1;
+    size_t num_thread_blocks_kernel_1;
     
     size_a = size_a * size_d;
 
@@ -33841,12 +33841,12 @@ void jk_ccsd_t_d2_5_if_fusion(int size_b, int size_c, int size_a, int size_d, in
 	double* dev_v2;
 
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_b, JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_A) * CEIL(size_f, JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_F) * CEIL(size_e, JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_E);
     
-    int size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_e * size_a * size_g;
+    size_t size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_e * size_a * size_g;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_b * size_c * size_a * size_f * size_e);
@@ -33857,7 +33857,7 @@ void jk_ccsd_t_d2_5_if_fusion(int size_b, int size_c, int size_a, int size_d, in
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -33869,7 +33869,7 @@ void jk_ccsd_t_d2_5_if_fusion(int size_b, int size_c, int size_a, int size_d, in
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-	// long long int tmp_operations = 2 * (long long int)(size_b * size_c * size_a * size_f * size_e) * size_g;
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_b * size_c * size_a * size_f * size_e) * size_g;
 	// printf ("========================================= fusedKernels =============================================\n");
 	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
 	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D2_5_IF_SIZE_TB_1_X, JK_CCSD_T_D2_5_IF_SIZE_TB_1_Y);
@@ -33880,23 +33880,23 @@ void jk_ccsd_t_d2_5_if_fusion(int size_b, int size_c, int size_a, int size_d, in
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D2_5_IF_SIZE_TB_1_X, JK_CCSD_T_D2_5_IF_SIZE_TB_1_Y);
 
-	int stride_output_b = 1;
-	int stride_output_c = stride_output_b * size_b;
-	int stride_output_a = stride_output_c * size_c;
-	int stride_output_f = stride_output_a * size_a;
-	int stride_output_e = stride_output_f * size_f;
+	size_t stride_output_b = 1;
+	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_a = stride_output_c * size_c;
+	size_t stride_output_f = stride_output_a * size_a;
+	size_t stride_output_e = stride_output_f * size_f;
 
-	int stride_reg_x_1 = stride_output_f;
-	int stride_reg_y_1 = stride_output_e;
+	size_t stride_reg_x_1 = stride_output_f;
+	size_t stride_reg_y_1 = stride_output_e;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = 1;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = 1;
 
     // New Caller
     dev_t3 = t3_d;
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d2_5_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_b, size_c, size_a, size_f, size_e, size_g, CEIL(size_b, JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_A), CEIL(size_f, JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_F), CEIL(size_e, JK_CCSD_T_D2_5_IF_SIZE_SLICE_1_E), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -33912,7 +33912,7 @@ void jk_ccsd_t_d2_5_if_fusion(int size_b, int size_c, int size_a, int size_d, in
 
 	// Shoule be Fixed
 	// HostFree
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -33941,45 +33941,45 @@ void jk_ccsd_t_d2_5_if_fusion(int size_b, int size_c, int size_a, int size_d, in
 #define JK_CCSD_T_D2_6_SIZE_REG_1_Y 	JK_CCSD_T_D2_6_SIZE_SLICE_1_D
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d2_6_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_b, int size_a, int size_c, int size_d, int size_f, int size_e, int size_g, int numBlk_b, int numBlk_a, int numBlk_c, int numBlk_d, int numBlk_f, int numBlk_e, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d2_6_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_b, size_t size_a, size_t size_c, size_t size_d, size_t size_f, size_t size_e, size_t size_g, size_t numBlk_b, size_t numBlk_a, size_t numBlk_c, size_t numBlk_d, size_t numBlk_f, size_t numBlk_e, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[8][64];
 	__shared__ double sm_b[8][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_b = threadIdx.x % JK_CCSD_T_D2_6_SIZE_SLICE_1_B;
-	int idx_f = threadIdx.x / JK_CCSD_T_D2_6_SIZE_SLICE_1_B;
-	int idx_a = threadIdx.y % JK_CCSD_T_D2_6_SIZE_SLICE_1_A;
-	int idx_e = threadIdx.y / JK_CCSD_T_D2_6_SIZE_SLICE_1_A;
+	size_t idx_b = threadIdx.x % JK_CCSD_T_D2_6_SIZE_SLICE_1_B;
+	size_t idx_f = threadIdx.x / JK_CCSD_T_D2_6_SIZE_SLICE_1_B;
+	size_t idx_a = threadIdx.y % JK_CCSD_T_D2_6_SIZE_SLICE_1_A;
+	size_t idx_e = threadIdx.y / JK_CCSD_T_D2_6_SIZE_SLICE_1_A;
 
-	int tmp_blkIdx;
-	int blk_idx_e = blockIdx.x / (numBlk_f * numBlk_d * numBlk_c * numBlk_a * numBlk_b);
+	size_t tmp_blkIdx;
+	size_t blk_idx_e = blockIdx.x / (numBlk_f * numBlk_d * numBlk_c * numBlk_a * numBlk_b);
 	tmp_blkIdx = blockIdx.x % (numBlk_f * numBlk_d * numBlk_c * numBlk_a * numBlk_b);
 
-	int blk_idx_f = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_a * numBlk_b);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_a * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_c * numBlk_a * numBlk_b);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_a * numBlk_b);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_a * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a * numBlk_b);
 
-	int blk_idx_c = tmp_blkIdx / (numBlk_a * numBlk_b);
+	size_t blk_idx_c = tmp_blkIdx / (numBlk_a * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_b);
 
-	int blk_idx_a = tmp_blkIdx / numBlk_b;
+	size_t blk_idx_a = tmp_blkIdx / numBlk_b;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b);
 
-	int  blk_idx_b = tmp_blkIdx;
+	size_t  blk_idx_b = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_b * JK_CCSD_T_D2_6_SIZE_SLICE_1_B + idx_b + (blk_idx_a * JK_CCSD_T_D2_6_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D2_6_SIZE_SLICE_1_C + (blk_idx_d * JK_CCSD_T_D2_6_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D2_6_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D2_6_SIZE_SLICE_1_E + idx_e) * size_f) * size_d) * size_c) * size_a) * size_b;
+	size_t t3_base_thread = blk_idx_b * JK_CCSD_T_D2_6_SIZE_SLICE_1_B + idx_b + (blk_idx_a * JK_CCSD_T_D2_6_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D2_6_SIZE_SLICE_1_C + (blk_idx_d * JK_CCSD_T_D2_6_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D2_6_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D2_6_SIZE_SLICE_1_E + idx_e) * size_f) * size_d) * size_c) * size_a) * size_b;
 
 	// need to support partial tiles
-	int rng_b, rng_a, rng_c, rng_d, rng_f, rng_e;
+	size_t rng_b, rng_a, rng_c, rng_d, rng_f, rng_e;
 	if ((size_b - (blk_idx_b * JK_CCSD_T_D2_6_SIZE_SLICE_1_B)) >= JK_CCSD_T_D2_6_SIZE_SLICE_1_B)
 	{
 		rng_b = JK_CCSD_T_D2_6_SIZE_SLICE_1_B;
@@ -34033,13 +34033,13 @@ __global__ void jk_ccsd_t_d2_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[4][8];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 8; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 8; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'c', 'b']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['g', 'a', 'd', 'e']], '-=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D2_6_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D2_6_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D2_6_SIZE_INT_UNIT_1) - size_internal;
@@ -34050,7 +34050,7 @@ __global__ void jk_ccsd_t_d2_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_f && idx_a < rng_b && threadIdx.x < JK_CCSD_T_D2_6_SIZE_INT_UNIT_1 - internal_upperbound && threadIdx.y < 8)
-		for (int ll = 0; ll < rng_c; ll++)
+		for (size_t ll = 0; ll < rng_c; ll++)
 		{
 			// ['g', 'f', 'c', 'b']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -34061,7 +34061,7 @@ __global__ void jk_ccsd_t_d2_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && 0 < rng_e && threadIdx.x < JK_CCSD_T_D2_6_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['g', 'a', 'd', 'e']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -34073,7 +34073,7 @@ __global__ void jk_ccsd_t_d2_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D2_6_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D2_6_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_6_SIZE_SLICE_1_B + 0];
 			temp_bv[1] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_6_SIZE_SLICE_1_B + 8];
@@ -34084,7 +34084,7 @@ __global__ void jk_ccsd_t_d2_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_6_SIZE_SLICE_1_B + 48];
 			temp_bv[7] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_6_SIZE_SLICE_1_B + 56];
 
-			for (int yy = 0; yy < 4; yy++) // (2)
+			for (size_t yy = 0; yy < 4; yy++) // (2)
 			{
 				temp_av = sm_b[ll][idx_a + (idx_e) * JK_CCSD_T_D2_6_SIZE_SLICE_1_A + (yy * 16)];
 
@@ -35152,21 +35152,21 @@ __global__ void jk_ccsd_t_d2_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d2_6_fusion(int size_b, int size_a, int size_c, int size_d, int size_f, int size_e, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_6_fusion(size_t size_b, size_t size_a, size_t size_c, size_t size_d, size_t size_f, size_t size_e, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
     num_thread_blocks_kernel_1 = CEIL(size_b, JK_CCSD_T_D2_6_SIZE_SLICE_1_B) * CEIL(size_a, JK_CCSD_T_D2_6_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D2_6_SIZE_SLICE_1_C) * CEIL(size_d, JK_CCSD_T_D2_6_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D2_6_SIZE_SLICE_1_F) * CEIL(size_e, JK_CCSD_T_D2_6_SIZE_SLICE_1_E);
     
-    int size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
+    size_t size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_b * size_c * size_f * size_g);
@@ -35180,7 +35180,7 @@ __global__ void jk_ccsd_t_d2_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -35190,23 +35190,23 @@ __global__ void jk_ccsd_t_d2_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D2_6_SIZE_TB_1_X, JK_CCSD_T_D2_6_SIZE_TB_1_Y);
 
-	int stride_output_b = 1;
-	int stride_output_a = stride_output_b * size_b;
-	int stride_output_c = stride_output_a * size_a;
-	int stride_output_d = stride_output_c * size_c;
-	int stride_output_f = stride_output_d * size_d;
-	int stride_output_e = stride_output_f * size_f;
+	size_t stride_output_b = 1;
+	size_t stride_output_a = stride_output_b * size_b;
+	size_t stride_output_c = stride_output_a * size_a;
+	size_t stride_output_d = stride_output_c * size_c;
+	size_t stride_output_f = stride_output_d * size_d;
+	size_t stride_output_e = stride_output_f * size_f;
 
-	int stride_reg_x_1 = stride_output_c;
-	int stride_reg_y_1 = stride_output_d;
+	size_t stride_reg_x_1 = stride_output_c;
+	size_t stride_reg_y_1 = stride_output_d;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = 1;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = 1;
 
     dev_t3 = t3_d;
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         jk_ccsd_t_d2_6_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_b, size_a, size_c, size_d, size_f, size_e, size_g, CEIL(size_b, JK_CCSD_T_D2_6_SIZE_SLICE_1_B), CEIL(size_a, JK_CCSD_T_D2_6_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D2_6_SIZE_SLICE_1_C), CEIL(size_d, JK_CCSD_T_D2_6_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D2_6_SIZE_SLICE_1_F), CEIL(size_e, JK_CCSD_T_D2_6_SIZE_SLICE_1_E), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -35215,7 +35215,7 @@ __global__ void jk_ccsd_t_d2_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -35224,7 +35224,7 @@ __global__ void jk_ccsd_t_d2_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d2_6_fusion_(int size_b, int size_a, int size_c, int size_d, int size_f, int size_e, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_6_fusion_(size_t size_b, size_t size_a, size_t size_c, size_t size_d, size_t size_f, size_t size_e, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d2_6_fusion(size_b, size_a, size_c, size_d, size_f, size_e, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -35251,46 +35251,46 @@ __global__ void jk_ccsd_t_d2_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 #define JK_CCSD_T_D2_7_SIZE_REG_1_Y 	JK_CCSD_T_D2_7_SIZE_SLICE_1_C
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d2_7_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_a, int size_b, int size_c, int size_f, int size_d, int size_e, int size_g, int numBlk_a, int numBlk_b, int numBlk_c, int numBlk_f, int numBlk_d, int numBlk_e, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d2_7_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_b, size_t size_c, size_t size_f, size_t size_d, size_t size_e, size_t size_g, size_t numBlk_a, size_t numBlk_b, size_t numBlk_c, size_t numBlk_f, size_t numBlk_d, size_t numBlk_e, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[8][64];
 	__shared__ double sm_b[8][64];
 
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_a = threadIdx.x % JK_CCSD_T_D2_7_SIZE_SLICE_1_A;
-	int idx_e = threadIdx.x / JK_CCSD_T_D2_7_SIZE_SLICE_1_A;
-	int idx_b = threadIdx.y % JK_CCSD_T_D2_7_SIZE_SLICE_1_B;
-	int idx_f = threadIdx.y / JK_CCSD_T_D2_7_SIZE_SLICE_1_B;
+	size_t idx_a = threadIdx.x % JK_CCSD_T_D2_7_SIZE_SLICE_1_A;
+	size_t idx_e = threadIdx.x / JK_CCSD_T_D2_7_SIZE_SLICE_1_A;
+	size_t idx_b = threadIdx.y % JK_CCSD_T_D2_7_SIZE_SLICE_1_B;
+	size_t idx_f = threadIdx.y / JK_CCSD_T_D2_7_SIZE_SLICE_1_B;
 
-	int tmp_blkIdx;
-	int blk_idx_e = blockIdx.x / (numBlk_d * numBlk_f * numBlk_c * numBlk_b * numBlk_a);
+	size_t tmp_blkIdx;
+	size_t blk_idx_e = blockIdx.x / (numBlk_d * numBlk_f * numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_f * numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_f * numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_f * numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_f * numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_f = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b * numBlk_a);
 
-	int blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
+	size_t blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a);
 
-	int blk_idx_b = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_b = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
-	int  blk_idx_a = tmp_blkIdx;
+	size_t  blk_idx_a = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_a * JK_CCSD_T_D2_7_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D2_7_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_7_SIZE_SLICE_1_C + (blk_idx_f * JK_CCSD_T_D2_7_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D2_7_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D2_7_SIZE_SLICE_1_E + idx_e) * size_d) * size_f) * size_c) * size_b) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D2_7_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D2_7_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_7_SIZE_SLICE_1_C + (blk_idx_f * JK_CCSD_T_D2_7_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D2_7_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D2_7_SIZE_SLICE_1_E + idx_e) * size_d) * size_f) * size_c) * size_b) * size_a;
 
 	// need to support partial tiles
-	int rng_a, rng_b, rng_c, rng_f, rng_d, rng_e;
+	size_t rng_a, rng_b, rng_c, rng_f, rng_d, rng_e;
 	if ((size_a - (blk_idx_a * JK_CCSD_T_D2_7_SIZE_SLICE_1_A)) >= JK_CCSD_T_D2_7_SIZE_SLICE_1_A)
 	{
 		rng_a = JK_CCSD_T_D2_7_SIZE_SLICE_1_A;
@@ -35344,13 +35344,13 @@ __global__ void jk_ccsd_t_d2_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[4][8];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 8; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 8; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'c', 'b']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['g', 'a', 'd', 'e']], '-=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D2_7_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D2_7_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D2_7_SIZE_INT_UNIT_1) - size_internal;
@@ -35361,7 +35361,7 @@ __global__ void jk_ccsd_t_d2_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_f && idx_b < rng_b && threadIdx.x < JK_CCSD_T_D2_7_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_c; ll++)
+		for (size_t ll = 0; ll < rng_c; ll++)
 		{
 			// ['g', 'f', 'c', 'b']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -35372,7 +35372,7 @@ __global__ void jk_ccsd_t_d2_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_b < rng_a && 0 < rng_e && threadIdx.x < JK_CCSD_T_D2_7_SIZE_INT_UNIT_1 - internal_upperbound && threadIdx.y < 8)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['g', 'a', 'd', 'e']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -35384,7 +35384,7 @@ __global__ void jk_ccsd_t_d2_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D2_7_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D2_7_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_b[ll][idx_a + (idx_e) * JK_CCSD_T_D2_7_SIZE_SLICE_1_A + 0];
 			temp_bv[1] = sm_b[ll][idx_a + (idx_e) * JK_CCSD_T_D2_7_SIZE_SLICE_1_A + 8];
@@ -35395,7 +35395,7 @@ __global__ void jk_ccsd_t_d2_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_b[ll][idx_a + (idx_e) * JK_CCSD_T_D2_7_SIZE_SLICE_1_A + 48];
 			temp_bv[7] = sm_b[ll][idx_a + (idx_e) * JK_CCSD_T_D2_7_SIZE_SLICE_1_A + 56];
 
-			for (int yy = 0; yy < 4; yy++) // (2)
+			for (size_t yy = 0; yy < 4; yy++) // (2)
 			{
 				temp_av = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_7_SIZE_SLICE_1_B + (yy * 16)];
 
@@ -36463,21 +36463,21 @@ __global__ void jk_ccsd_t_d2_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d2_7_fusion(int size_a, int size_b, int size_c, int size_f, int size_d, int size_e, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_7_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_f, size_t size_d, size_t size_e, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
     num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D2_7_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D2_7_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D2_7_SIZE_SLICE_1_C) * CEIL(size_f, JK_CCSD_T_D2_7_SIZE_SLICE_1_F) * CEIL(size_d, JK_CCSD_T_D2_7_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D2_7_SIZE_SLICE_1_E);
     
-    int size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
+    size_t size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_b * size_c * size_f * size_g);
@@ -36491,7 +36491,7 @@ __global__ void jk_ccsd_t_d2_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -36501,24 +36501,24 @@ __global__ void jk_ccsd_t_d2_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D2_7_SIZE_TB_1_X, JK_CCSD_T_D2_7_SIZE_TB_1_Y);
 
-	int stride_output_a = 1;
-	int stride_output_b = stride_output_a * size_a;
-	int stride_output_c = stride_output_b * size_b;
-	int stride_output_f = stride_output_c * size_c;
-	int stride_output_d = stride_output_f * size_f;
-	int stride_output_e = stride_output_d * size_d;
+	size_t stride_output_a = 1;
+	size_t stride_output_b = stride_output_a * size_a;
+	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_f = stride_output_c * size_c;
+	size_t stride_output_d = stride_output_f * size_f;
+	size_t stride_output_e = stride_output_d * size_d;
 
-	int stride_reg_x_1 = stride_output_d;
-	int stride_reg_y_1 = stride_output_c;
+	size_t stride_reg_x_1 = stride_output_d;
+	size_t stride_reg_y_1 = stride_output_c;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = 1;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = 1;
 
     dev_t3 = t3_d;
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         jk_ccsd_t_d2_7_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_a, size_b, size_c, size_f, size_d, size_e, size_g, CEIL(size_a, JK_CCSD_T_D2_7_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D2_7_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D2_7_SIZE_SLICE_1_C), CEIL(size_f, JK_CCSD_T_D2_7_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D2_7_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D2_7_SIZE_SLICE_1_E), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -36527,7 +36527,7 @@ __global__ void jk_ccsd_t_d2_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -36536,7 +36536,7 @@ __global__ void jk_ccsd_t_d2_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d2_7_fusion_(int size_a, int size_b, int size_c, int size_f, int size_d, int size_e, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_7_fusion_(size_t size_a, size_t size_b, size_t size_c, size_t size_f, size_t size_d, size_t size_e, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d2_7_fusion(size_a, size_b, size_c, size_f, size_d, size_e, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -36563,45 +36563,45 @@ __global__ void jk_ccsd_t_d2_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 #define JK_CCSD_T_D2_8_SIZE_REG_1_Y 	JK_CCSD_T_D2_8_SIZE_SLICE_1_D
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d2_8_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, int size_b, int size_c, int size_a, int size_f, int size_d, int size_e, int size_g, int numBlk_b, int numBlk_c, int numBlk_a, int numBlk_f, int numBlk_d, int numBlk_e, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int size_internal)
+__global__ void jk_ccsd_t_d2_8_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_b, size_t size_c, size_t size_a, size_t size_f, size_t size_d, size_t size_e, size_t size_g, size_t numBlk_b, size_t numBlk_c, size_t numBlk_a, size_t numBlk_f, size_t numBlk_d, size_t numBlk_e, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[8][64];
 	__shared__ double sm_b[8][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_b = threadIdx.x % JK_CCSD_T_D2_8_SIZE_SLICE_1_B;
-	int idx_f = threadIdx.x / JK_CCSD_T_D2_8_SIZE_SLICE_1_B;
-	int idx_a = threadIdx.y % JK_CCSD_T_D2_8_SIZE_SLICE_1_A;
-	int idx_e = threadIdx.y / JK_CCSD_T_D2_8_SIZE_SLICE_1_A;
+	size_t idx_b = threadIdx.x % JK_CCSD_T_D2_8_SIZE_SLICE_1_B;
+	size_t idx_f = threadIdx.x / JK_CCSD_T_D2_8_SIZE_SLICE_1_B;
+	size_t idx_a = threadIdx.y % JK_CCSD_T_D2_8_SIZE_SLICE_1_A;
+	size_t idx_e = threadIdx.y / JK_CCSD_T_D2_8_SIZE_SLICE_1_A;
 
-	int tmp_blkIdx;
-	int blk_idx_e = blockIdx.x / (numBlk_d * numBlk_f * numBlk_a * numBlk_c * numBlk_b);
+	size_t tmp_blkIdx;
+	size_t blk_idx_e = blockIdx.x / (numBlk_d * numBlk_f * numBlk_a * numBlk_c * numBlk_b);
 	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_f * numBlk_a * numBlk_c * numBlk_b);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_f * numBlk_a * numBlk_c * numBlk_b);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_f * numBlk_a * numBlk_c * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_f * numBlk_a * numBlk_c * numBlk_b);
 
-	int blk_idx_f = tmp_blkIdx / (numBlk_a * numBlk_c * numBlk_b);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_a * numBlk_c * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c * numBlk_b);
 
-	int blk_idx_a = tmp_blkIdx / (numBlk_c * numBlk_b);
+	size_t blk_idx_a = tmp_blkIdx / (numBlk_c * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b);
 
-	int blk_idx_c = tmp_blkIdx / numBlk_b;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_b;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b);
 
-	int  blk_idx_b = tmp_blkIdx;
+	size_t  blk_idx_b = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_b * JK_CCSD_T_D2_8_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_8_SIZE_SLICE_1_C + (blk_idx_a * JK_CCSD_T_D2_8_SIZE_SLICE_1_A + idx_a + (blk_idx_f * JK_CCSD_T_D2_8_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D2_8_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D2_8_SIZE_SLICE_1_E + idx_e) * size_d) * size_f) * size_a) * size_c) * size_b;
+	size_t t3_base_thread = blk_idx_b * JK_CCSD_T_D2_8_SIZE_SLICE_1_B + idx_b + (blk_idx_c * JK_CCSD_T_D2_8_SIZE_SLICE_1_C + (blk_idx_a * JK_CCSD_T_D2_8_SIZE_SLICE_1_A + idx_a + (blk_idx_f * JK_CCSD_T_D2_8_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D2_8_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D2_8_SIZE_SLICE_1_E + idx_e) * size_d) * size_f) * size_a) * size_c) * size_b;
 
 	// need to support partial tiles
-	int rng_b, rng_c, rng_a, rng_f, rng_d, rng_e;
+	size_t rng_b, rng_c, rng_a, rng_f, rng_d, rng_e;
 	if ((size_b - (blk_idx_b * JK_CCSD_T_D2_8_SIZE_SLICE_1_B)) >= JK_CCSD_T_D2_8_SIZE_SLICE_1_B)
 	{
 		rng_b = JK_CCSD_T_D2_8_SIZE_SLICE_1_B;
@@ -36655,13 +36655,13 @@ __global__ void jk_ccsd_t_d2_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	double temp_bv[8];
 	double reg_tile[4][8];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 8; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 8; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'c', 'b']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['g', 'a', 'd', 'e']], '-=']
 	#pragma unroll 1
-	for (int l = 0; l < size_internal; l += JK_CCSD_T_D2_8_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D2_8_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D2_8_SIZE_INT_UNIT_1) - size_internal;
@@ -36672,7 +36672,7 @@ __global__ void jk_ccsd_t_d2_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_f && idx_a < rng_b && threadIdx.x < JK_CCSD_T_D2_8_SIZE_INT_UNIT_1 - internal_upperbound && threadIdx.y < 8)
-		for (int ll = 0; ll < rng_c; ll++)
+		for (size_t ll = 0; ll < rng_c; ll++)
 		{
 			// ['g', 'f', 'c', 'b']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -36683,7 +36683,7 @@ __global__ void jk_ccsd_t_d2_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && 0 < rng_e && threadIdx.x < JK_CCSD_T_D2_8_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['g', 'a', 'd', 'e']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -36695,7 +36695,7 @@ __global__ void jk_ccsd_t_d2_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D2_8_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D2_8_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_8_SIZE_SLICE_1_B + 0];
 			temp_bv[1] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_8_SIZE_SLICE_1_B + 8];
@@ -36706,7 +36706,7 @@ __global__ void jk_ccsd_t_d2_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			temp_bv[6] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_8_SIZE_SLICE_1_B + 48];
 			temp_bv[7] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_8_SIZE_SLICE_1_B + 56];
 
-			for (int yy = 0; yy < 4; yy++) // (2)
+			for (size_t yy = 0; yy < 4; yy++) // (2)
 			{
 				temp_av = sm_b[ll][idx_a + (idx_e) * JK_CCSD_T_D2_8_SIZE_SLICE_1_A + (yy * 16)];
 
@@ -37773,21 +37773,21 @@ __global__ void jk_ccsd_t_d2_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d2_8_fusion(int size_b, int size_c, int size_a, int size_f, int size_d, int size_e, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_8_fusion(size_t size_b, size_t size_c, size_t size_a, size_t size_f, size_t size_d, size_t size_e, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_b, JK_CCSD_T_D2_8_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D2_8_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D2_8_SIZE_SLICE_1_A) * CEIL(size_f, JK_CCSD_T_D2_8_SIZE_SLICE_1_F) * CEIL(size_d, JK_CCSD_T_D2_8_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D2_8_SIZE_SLICE_1_E);
     
-    int size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
+    size_t size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_b * size_c * size_f * size_g);
@@ -37801,7 +37801,7 @@ __global__ void jk_ccsd_t_d2_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -37811,23 +37811,23 @@ __global__ void jk_ccsd_t_d2_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D2_8_SIZE_TB_1_X, JK_CCSD_T_D2_8_SIZE_TB_1_Y);
 
-	int stride_output_b = 1;
-	int stride_output_c = stride_output_b * size_b;
-	int stride_output_a = stride_output_c * size_c;
-	int stride_output_f = stride_output_a * size_a;
-	int stride_output_d = stride_output_f * size_f;
-	int stride_output_e = stride_output_d * size_d;
+	size_t stride_output_b = 1;
+	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_a = stride_output_c * size_c;
+	size_t stride_output_f = stride_output_a * size_a;
+	size_t stride_output_d = stride_output_f * size_f;
+	size_t stride_output_e = stride_output_d * size_d;
 
-	int stride_reg_x_1 = stride_output_c;
-	int stride_reg_y_1 = stride_output_d;
+	size_t stride_reg_x_1 = stride_output_c;
+	size_t stride_reg_y_1 = stride_output_d;
 
-	int size_internal = size_g;
+	size_t size_internal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = 1;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = 1;
 
     dev_t3 = t3_d;
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d2_8_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_b, size_c, size_a, size_f, size_d, size_e, size_g, CEIL(size_b, JK_CCSD_T_D2_8_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D2_8_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D2_8_SIZE_SLICE_1_A), CEIL(size_f, JK_CCSD_T_D2_8_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D2_8_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D2_8_SIZE_SLICE_1_E), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
     }
@@ -37836,7 +37836,7 @@ __global__ void jk_ccsd_t_d2_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
 
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -37845,7 +37845,7 @@ __global__ void jk_ccsd_t_d2_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d2_8_fusion_(int size_b, int size_c, int size_a, int size_f, int size_d, int size_e, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_8_fusion_(size_t size_b, size_t size_c, size_t size_a, size_t size_f, size_t size_d, size_t size_e, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d2_8_fusion(size_b, size_c, size_a, size_f, size_d, size_e, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -37872,45 +37872,45 @@ __global__ void jk_ccsd_t_d2_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 #define JK_CCSD_T_D2_9_SIZE_REG_1_Y 	JK_CCSD_T_D2_9_SIZE_SLICE_1_D
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d2_9_fusion(double* dev_t3, double* dev_t2, double* dev_v2, int size_b, int size_a, int size_c, int size_f, int size_d, int size_e, int size_g, int numBlk_b, int numBlk_a, int numBlk_c, int numBlk_f, int numBlk_d, int numBlk_e, int stride_int_t2, int stride_int_v2, int stride_reg_x, int stride_reg_y, int JK_CCSD_T_D2_9_SIZE_INTernal)
+__global__ void jk_ccsd_t_d2_9_fusion(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_b, size_t size_a, size_t size_c, size_t size_f, size_t size_d, size_t size_e, size_t size_g, size_t numBlk_b, size_t numBlk_a, size_t numBlk_c, size_t numBlk_f, size_t numBlk_d, size_t numBlk_e, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t JK_CCSD_T_D2_9_SIZE_INTernal)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[8][64];
 	__shared__ double sm_b[8][64];
 
-	int internal_upperbound   = 0;
-	int internal_offset;
+	size_t internal_upperbound   = 0;
+	size_t internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
 	// # of indices mapped on TB_Y: 2
-	int idx_b = threadIdx.x % JK_CCSD_T_D2_9_SIZE_SLICE_1_B;
-	int idx_f = threadIdx.x / JK_CCSD_T_D2_9_SIZE_SLICE_1_B;
-	int idx_a = threadIdx.y % JK_CCSD_T_D2_9_SIZE_SLICE_1_A;
-	int idx_e = threadIdx.y / JK_CCSD_T_D2_9_SIZE_SLICE_1_A;
+	size_t idx_b = threadIdx.x % JK_CCSD_T_D2_9_SIZE_SLICE_1_B;
+	size_t idx_f = threadIdx.x / JK_CCSD_T_D2_9_SIZE_SLICE_1_B;
+	size_t idx_a = threadIdx.y % JK_CCSD_T_D2_9_SIZE_SLICE_1_A;
+	size_t idx_e = threadIdx.y / JK_CCSD_T_D2_9_SIZE_SLICE_1_A;
 
-	int tmp_blkIdx;
-	int blk_idx_e = blockIdx.x / (numBlk_d * numBlk_f * numBlk_c * numBlk_a * numBlk_b);
+	size_t tmp_blkIdx;
+	size_t blk_idx_e = blockIdx.x / (numBlk_d * numBlk_f * numBlk_c * numBlk_a * numBlk_b);
 	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_f * numBlk_c * numBlk_a * numBlk_b);
 
-	int blk_idx_d = tmp_blkIdx / (numBlk_f * numBlk_c * numBlk_a * numBlk_b);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_f * numBlk_c * numBlk_a * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_f * numBlk_c * numBlk_a * numBlk_b);
 
-	int blk_idx_f = tmp_blkIdx / (numBlk_c * numBlk_a * numBlk_b);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_c * numBlk_a * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a * numBlk_b);
 
-	int blk_idx_c = tmp_blkIdx / (numBlk_a * numBlk_b);
+	size_t blk_idx_c = tmp_blkIdx / (numBlk_a * numBlk_b);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_b);
 
-	int blk_idx_a = tmp_blkIdx / numBlk_b;
+	size_t blk_idx_a = tmp_blkIdx / numBlk_b;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b);
 
-	int  blk_idx_b = tmp_blkIdx;
+	size_t  blk_idx_b = tmp_blkIdx;
 
-	int t3_base_thread = blk_idx_b * JK_CCSD_T_D2_9_SIZE_SLICE_1_B + idx_b + (blk_idx_a * JK_CCSD_T_D2_9_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D2_9_SIZE_SLICE_1_C + (blk_idx_f * JK_CCSD_T_D2_9_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D2_9_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D2_9_SIZE_SLICE_1_E + idx_e) * size_d) * size_f) * size_c) * size_a) * size_b;
+	size_t t3_base_thread = blk_idx_b * JK_CCSD_T_D2_9_SIZE_SLICE_1_B + idx_b + (blk_idx_a * JK_CCSD_T_D2_9_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D2_9_SIZE_SLICE_1_C + (blk_idx_f * JK_CCSD_T_D2_9_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D2_9_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D2_9_SIZE_SLICE_1_E + idx_e) * size_d) * size_f) * size_c) * size_a) * size_b;
 
 	// need to support partial tiles
-	int rng_b, rng_a, rng_c, rng_f, rng_d, rng_e;
+	size_t rng_b, rng_a, rng_c, rng_f, rng_d, rng_e;
 	if ((size_b - (blk_idx_b * JK_CCSD_T_D2_9_SIZE_SLICE_1_B)) >= JK_CCSD_T_D2_9_SIZE_SLICE_1_B)
 	{
 		rng_b = JK_CCSD_T_D2_9_SIZE_SLICE_1_B;
@@ -37964,13 +37964,13 @@ __global__ void jk_ccsd_t_d2_9_fusion(double* dev_t3, double* dev_t2, double* de
 	double temp_bv[8];
 	double reg_tile[4][8];
 
-	for (int i = 0; i < 4; i++)
-	for (int j = 0; j < 8; j++)
+	for (size_t i = 0; i < 4; i++)
+	for (size_t j = 0; j < 8; j++)
 	reg_tile[i][j] = 0.0;
 
 	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'c', 'b']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['g', 'a', 'd', 'e']], '+=']
 	#pragma unroll 1
-	for (int l = 0; l < JK_CCSD_T_D2_9_SIZE_INTernal; l += JK_CCSD_T_D2_9_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < JK_CCSD_T_D2_9_SIZE_INTernal; l += JK_CCSD_T_D2_9_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
 		internal_offset = (l + JK_CCSD_T_D2_9_SIZE_INT_UNIT_1) - JK_CCSD_T_D2_9_SIZE_INTernal;
@@ -37981,7 +37981,7 @@ __global__ void jk_ccsd_t_d2_9_fusion(double* dev_t3, double* dev_t2, double* de
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (0 < rng_f && idx_a < rng_b && threadIdx.x < JK_CCSD_T_D2_9_SIZE_INT_UNIT_1 - internal_upperbound && threadIdx.y < 8)
-		for (int ll = 0; ll < rng_c; ll++)
+		for (size_t ll = 0; ll < rng_c; ll++)
 		{
 			// ['g', 'f', 'c', 'b']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -37992,7 +37992,7 @@ __global__ void jk_ccsd_t_d2_9_fusion(double* dev_t3, double* dev_t2, double* de
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
 		if (idx_a < rng_a && 0 < rng_e && threadIdx.x < JK_CCSD_T_D2_9_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (int ll = 0; ll < rng_d; ll++)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
 			// ['g', 'a', 'd', 'e']
 			// Exception: Temp. version!: threadIdx.x + l
@@ -38004,7 +38004,7 @@ __global__ void jk_ccsd_t_d2_9_fusion(double* dev_t3, double* dev_t2, double* de
 		
 
 		// Part: Generalized Threads
-		for (int ll = 0; ll < JK_CCSD_T_D2_9_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D2_9_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
 			temp_bv[0] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_9_SIZE_SLICE_1_B + 0];
 			temp_bv[1] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_9_SIZE_SLICE_1_B + 8];
@@ -38015,7 +38015,7 @@ __global__ void jk_ccsd_t_d2_9_fusion(double* dev_t3, double* dev_t2, double* de
 			temp_bv[6] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_9_SIZE_SLICE_1_B + 48];
 			temp_bv[7] = sm_a[ll][idx_b + (idx_f) * JK_CCSD_T_D2_9_SIZE_SLICE_1_B + 56];
 
-			for (int yy = 0; yy < 4; yy++) // (2)
+			for (size_t yy = 0; yy < 4; yy++) // (2)
 			{
 				temp_av = sm_b[ll][idx_a + (idx_e) * JK_CCSD_T_D2_9_SIZE_SLICE_1_A + (yy * 16)];
 
@@ -39082,21 +39082,21 @@ __global__ void jk_ccsd_t_d2_9_fusion(double* dev_t3, double* dev_t2, double* de
 }
 
 // written by tc_interface.tc_gen_code_interface_Header()
- void jk_ccsd_t_d2_9_fusion(int size_b, int size_a, int size_c, int size_f, int size_d, int size_e, int size_g, double* t3, double* host_t2, double* host_v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_9_fusion(size_t size_b, size_t size_a, size_t size_c, size_t size_f, size_t size_d, size_t size_e, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	int num_thread_blocks_kernel_1;
+	size_t num_thread_blocks_kernel_1;
 
     double* dev_t3;
 	double* dev_t2;
     double* dev_v2;
     
     cudaStream_t *streams;
-    int nstreams = 1;
+    size_t nstreams = 1;
 
     num_thread_blocks_kernel_1 = CEIL(size_b, JK_CCSD_T_D2_9_SIZE_SLICE_1_B) * CEIL(size_a, JK_CCSD_T_D2_9_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D2_9_SIZE_SLICE_1_C) * CEIL(size_f, JK_CCSD_T_D2_9_SIZE_SLICE_1_F) * CEIL(size_d, JK_CCSD_T_D2_9_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D2_9_SIZE_SLICE_1_E);
     
-    int size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
-    int size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
+    size_t size_tensor_A = sizeof(double) * size_b * size_c * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_e * size_d * size_a * size_g;
 
     // cudaMalloc()
 	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_b * size_c * size_f * size_g);
@@ -39110,7 +39110,7 @@ __global__ void jk_ccsd_t_d2_9_fusion(double* dev_t3, double* dev_t2, double* de
 
     streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
     // assert(streams!= NULL);
-    for (int i=0;i<nstreams;++i) 
+    for (size_t i=0;i<nstreams;++i) 
     {
         cudaStreamCreate(&streams[i]);
     }
@@ -39120,23 +39120,23 @@ __global__ void jk_ccsd_t_d2_9_fusion(double* dev_t3, double* dev_t2, double* de
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D2_9_SIZE_TB_1_X, JK_CCSD_T_D2_9_SIZE_TB_1_Y);
 
-	int stride_output_b = 1;
-	int stride_output_a = stride_output_b * size_b;
-	int stride_output_c = stride_output_a * size_a;
-	int stride_output_f = stride_output_c * size_c;
-	int stride_output_d = stride_output_f * size_f;
-	int stride_output_e = stride_output_d * size_d;
+	size_t stride_output_b = 1;
+	size_t stride_output_a = stride_output_b * size_b;
+	size_t stride_output_c = stride_output_a * size_a;
+	size_t stride_output_f = stride_output_c * size_c;
+	size_t stride_output_d = stride_output_f * size_f;
+	size_t stride_output_e = stride_output_d * size_d;
 
-	int stride_reg_x_1 = stride_output_c;
-	int stride_reg_y_1 = stride_output_d;
+	size_t stride_reg_x_1 = stride_output_c;
+	size_t stride_reg_y_1 = stride_output_d;
 
-	int JK_CCSD_T_D2_9_SIZE_INTernal = size_g;
+	size_t JK_CCSD_T_D2_9_SIZE_INTernal = size_g;
 
-	int stride_int_t2 = 1;
-	int stride_int_v2 = 1;
+	size_t stride_int_t2 = 1;
+	size_t stride_int_v2 = 1;
 
     dev_t3 = t3_d;
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
 	    jk_ccsd_t_d2_9_fusion<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_b, size_a, size_c, size_f, size_d, size_e, size_g, CEIL(size_b, JK_CCSD_T_D2_9_SIZE_SLICE_1_B), CEIL(size_a, JK_CCSD_T_D2_9_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D2_9_SIZE_SLICE_1_C), CEIL(size_f, JK_CCSD_T_D2_9_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D2_9_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D2_9_SIZE_SLICE_1_E), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, JK_CCSD_T_D2_9_SIZE_INTernal);
     }
@@ -39145,7 +39145,7 @@ __global__ void jk_ccsd_t_d2_9_fusion(double* dev_t3, double* dev_t2, double* de
     freeGpuMem(dev_t2);
     freeGpuMem(dev_v2);
     
-    for(int i=0;i<nstreams;++i)
+    for(size_t i=0;i<nstreams;++i)
     {
         cudaStreamDestroy(streams[i]);
     }
@@ -39154,7 +39154,7 @@ __global__ void jk_ccsd_t_d2_9_fusion(double* dev_t3, double* dev_t2, double* de
 
 // This is written by tc_interface.tc_gen_code_interface()
 // This Interface Should be Called to Run the Kernels
- void jk_ccsd_t_d2_9_fusion_(int size_b, int size_a, int size_c, int size_f, int size_d, int size_e, int size_g, double* t3, double* t2, double* v2, int cond_kernel_1, int opt_register_transpose)
+ void jk_ccsd_t_d2_9_fusion_(size_t size_b, size_t size_a, size_t size_c, size_t size_f, size_t size_d, size_t size_e, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d2_9_fusion(size_b, size_a, size_c, size_f, size_d, size_e, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -39167,19 +39167,19 @@ __global__ void jk_ccsd_t_d2_9_fusion(double* dev_t3, double* dev_t2, double* de
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d2_1_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d,int p7ld_t2,int p4ld_t2,int h1ld_t2,int h2ld_t2,int p7ld_v2,int h3ld_v2,int p6ld_v2,int h3ld_t3,int h2ld_t3,int h1ld_t3,int p6ld_t3,int p4ld_t3,double *t3d, double *t2_d, double *v2_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p6_0,p6_1,p6_2,p6_3,p7;
+__global__ void sd_t_d2_1_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p6d,size_t p7d,size_t p7ld_t2,size_t p4ld_t2,size_t h1ld_t2,size_t h2ld_t2,size_t p7ld_v2,size_t h3ld_v2,size_t p6ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p4ld_t3,double *t3d, double *t2_d, double *v2_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p6_0,p6_1,p6_2,p6_3,p7;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,p7l,p7T;
+  size_t in1_idxl,in2_idxl,p7l,p7T;
   __shared__ double t2_shm[4*T1][Tcomm];
   __shared__ double v2_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -39238,7 +39238,7 @@ __global__ void sd_t_d2_1_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
   rest_y=rest_y/h1d;
   p4_3=rest_y;
   p6_3=rest_x;
-  int t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){int p7l_hi;
+  size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
     p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2;
@@ -39391,7 +39391,7 @@ __global__ void sd_t_d2_1_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
   }
   __syncthreads();
 }
- void sd_t_d2_1_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_1_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   p6d=p6d*p5d;
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
@@ -39427,8 +39427,8 @@ __global__ void sd_t_d2_1_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
   h1ld_t3=h2d*h3d;
   p6ld_t3=h1d*h2d*h3d;
   p4ld_t3=p6d*h1d*h2d*h3d;
-  int total_x = h3d*p6d;
-  int total_y = p4d*h1d*h2d;
+  size_t total_x = h3d*p6d;
+  size_t total_y = p4d*h1d*h2d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d2_1_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
@@ -39445,13 +39445,13 @@ __global__ void sd_t_d2_1_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_1_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d2_1_if_fusion(h3d, h2d, h1d, p6d, p5d, p4d, p7d, t3, t2, v2, 1, 1);
     // jk_ccsd_t_d2_1_fusion(h3d, h2d, h1d, p6d, p5d, p4d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_1_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_1_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -39460,19 +39460,19 @@ __global__ void sd_t_d2_1_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d2_2_kernel(int h1d,int h2d,int h3d,int p4d,int p7d,int p7ld_t2,int p4ld_t2,int h1ld_t2,int h2ld_t2,int p7ld_v2,int h3ld_v2,int h2ld_t3,int h1ld_t3,int h3ld_t3,int p4ld_t3,double *t3d, double *t2_d, double *v2_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p7;
+__global__ void sd_t_d2_2_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p7d,size_t p7ld_t2,size_t p4ld_t2,size_t h1ld_t2,size_t h2ld_t2,size_t p7ld_v2,size_t h3ld_v2,size_t h2ld_t3,size_t h1ld_t3,size_t h3ld_t3,size_t p4ld_t3,double *t3d, double *t2_d, double *v2_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p7;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,p7l,p7T;
+  size_t in1_idxl,in2_idxl,p7l,p7T;
   __shared__ double t2_shm[4*T1][Tcomm];
   __shared__ double v2_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -39523,7 +39523,7 @@ __global__ void sd_t_d2_2_kernel(int h1d,int h2d,int h3d,int p4d,int p7d,int p7l
   rest_y=rest_y/h1d;
   p4_3=rest_y;
   h3_3=rest_x;
-  int t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){int p7l_hi;
+  size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
     p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2;
@@ -39676,7 +39676,7 @@ __global__ void sd_t_d2_2_kernel(int h1d,int h2d,int h3d,int p4d,int p7d,int p7l
   }
   __syncthreads();
 }
- void sd_t_d2_2_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_2_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   h3d=h3d*p6d;
   h3d=h3d*p5d;
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3;
@@ -39711,8 +39711,8 @@ __global__ void sd_t_d2_2_kernel(int h1d,int h2d,int h3d,int p4d,int p7d,int p7l
   h1ld_t3=h2d;
   h3ld_t3=h1d*h2d;
   p4ld_t3=h3d*h1d*h2d;
-  int total_x = h3d;
-  int total_y = p4d*h1d*h2d;
+  size_t total_x = h3d;
+  size_t total_y = p4d*h1d*h2d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d2_2_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
@@ -39729,13 +39729,13 @@ __global__ void sd_t_d2_2_kernel(int h1d,int h2d,int h3d,int p4d,int p7d,int p7l
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_2_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_2_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
     // jk_ccsd_t_d2_2_fusion(h2d, h1d, h3d, p6d, p5d, p4d, p7d, t3, t2, v2, 1, 1);
     jk_ccsd_t_d2_2_if_fusion(h2d, h1d, h3d, p6d, p5d, p4d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_2_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_2_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -39744,19 +39744,19 @@ __global__ void sd_t_d2_2_kernel(int h1d,int h2d,int h3d,int p4d,int p7d,int p7l
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d2_3_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d,int p7ld_t2,int p4ld_t2,int h1ld_t2,int h2ld_t2,int p7ld_v2,int h3ld_v2,int p6ld_v2,int h2ld_t3,int h3ld_t3,int h1ld_t3,int p6ld_t3,int p4ld_t3,double *t3d, double *t2_d, double *v2_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p6_0,p6_1,p6_2,p6_3,p7;
+__global__ void sd_t_d2_3_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p6d,size_t p7d,size_t p7ld_t2,size_t p4ld_t2,size_t h1ld_t2,size_t h2ld_t2,size_t p7ld_v2,size_t h3ld_v2,size_t p6ld_v2,size_t h2ld_t3,size_t h3ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p4ld_t3,double *t3d, double *t2_d, double *v2_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p6_0,p6_1,p6_2,p6_3,p7;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,p7l,p7T;
+  size_t in1_idxl,in2_idxl,p7l,p7T;
   __shared__ double t2_shm[4*T1][Tcomm];
   __shared__ double v2_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -39815,7 +39815,7 @@ __global__ void sd_t_d2_3_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
   rest_y=rest_y/h1d;
   p4_3=rest_y;
   p6_3=rest_x;
-  int t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){int p7l_hi;
+  size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
     p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2;
@@ -39968,7 +39968,7 @@ __global__ void sd_t_d2_3_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
   }
   __syncthreads();
 }
- void sd_t_d2_3_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_3_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   p6d=p6d*p5d;
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p6ld_t3,p4ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
@@ -40004,8 +40004,8 @@ __global__ void sd_t_d2_3_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
   h1ld_t3=h3d*h2d;
   p6ld_t3=h1d*h3d*h2d;
   p4ld_t3=p6d*h1d*h3d*h2d;
-  int total_x = h3d*p6d;
-  int total_y = p4d*h1d*h2d;
+  size_t total_x = h3d*p6d;
+  size_t total_y = p4d*h1d*h2d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d2_3_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
@@ -40022,13 +40022,13 @@ __global__ void sd_t_d2_3_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_3_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_3_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d2_3_if_fusion(h2d, h3d, h1d, p6d, p5d, p4d, p7d, t3, t2, v2, 1, 1);
     // jk_ccsd_t_d2_3_fusion(h2d, h3d, h1d, p6d, p5d, p4d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_3_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_3_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -40037,19 +40037,19 @@ __global__ void sd_t_d2_3_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p7d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d2_4_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d,int p7d,int p7ld_t2,int p4ld_t2,int h1ld_t2,int h2ld_t2,int p7ld_v2,int h3ld_v2,int p6ld_v2,int p5ld_v2,int h3ld_t3,int h2ld_t3,int h1ld_t3,int p6ld_t3,int p4ld_t3,int p5ld_t3,double *t3d, double *t2_d, double *v2_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3,p7;
+__global__ void sd_t_d2_4_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p6d,size_t p7d,size_t p7ld_t2,size_t p4ld_t2,size_t h1ld_t2,size_t h2ld_t2,size_t p7ld_v2,size_t h3ld_v2,size_t p6ld_v2,size_t p5ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p4ld_t3,size_t p5ld_t3,double *t3d, double *t2_d, double *v2_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3,p7;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,p7l,p7T;
+  size_t in1_idxl,in2_idxl,p7l,p7T;
   __shared__ double t2_shm[4*T1][Tcomm];
   __shared__ double v2_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -40116,7 +40116,7 @@ __global__ void sd_t_d2_4_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   rest_x=rest_x/p6d;
   p4_3=rest_y;
   p5_3=rest_x;
-  int t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){int p7l_hi;
+  size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
     p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2+p5_0*p5ld_v2;
@@ -40269,7 +40269,7 @@ __global__ void sd_t_d2_4_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d2_4_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_4_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,p5ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
   cudaStream_t *streams;
@@ -40306,8 +40306,8 @@ __global__ void sd_t_d2_4_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   p6ld_t3=h1d*h2d*h3d;
   p4ld_t3=p6d*h1d*h2d*h3d;
   p5ld_t3=p4d*p6d*h1d*h2d*h3d;
-  int total_x = h3d*p6d*p5d;
-  int total_y = p4d*h1d*h2d;
+  size_t total_x = h3d*p6d*p5d;
+  size_t total_y = p4d*h1d*h2d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d2_4_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
@@ -40324,12 +40324,12 @@ __global__ void sd_t_d2_4_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_4_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d2_4_fusion(h3d, h2d, h1d, p6d, p4d, p5d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_4_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_4_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -40338,19 +40338,19 @@ __global__ void sd_t_d2_4_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d2_5_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p7d,int p7ld_t2,int p4ld_t2,int h1ld_t2,int h2ld_t2,int p7ld_v2,int h3ld_v2,int p5ld_v2,int h2ld_t3,int h1ld_t3,int h3ld_t3,int p4ld_t3,int p5ld_t3,double *t3d, double *t2_d, double *v2_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p7;
+__global__ void sd_t_d2_5_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p7d,size_t p7ld_t2,size_t p4ld_t2,size_t h1ld_t2,size_t h2ld_t2,size_t p7ld_v2,size_t h3ld_v2,size_t p5ld_v2,size_t h2ld_t3,size_t h1ld_t3,size_t h3ld_t3,size_t p4ld_t3,size_t p5ld_t3,double *t3d, double *t2_d, double *v2_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p7;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,p7l,p7T;
+  size_t in1_idxl,in2_idxl,p7l,p7T;
   __shared__ double t2_shm[4*T1][Tcomm];
   __shared__ double v2_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -40409,7 +40409,7 @@ __global__ void sd_t_d2_5_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p7d
   rest_x=rest_x/h3d;
   p4_3=rest_y;
   p5_3=rest_x;
-  int t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){int p7l_hi;
+  size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
     p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p5_0*p5ld_v2;
@@ -40562,7 +40562,7 @@ __global__ void sd_t_d2_5_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p7d
   }
   __syncthreads();
 }
- void sd_t_d2_5_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_5_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   h3d=h3d*p6d;
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p5ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,p5ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
@@ -40598,8 +40598,8 @@ __global__ void sd_t_d2_5_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p7d
   h3ld_t3=h1d*h2d;
   p4ld_t3=h3d*h1d*h2d;
   p5ld_t3=p4d*h3d*h1d*h2d;
-  int total_x = h3d*p5d;
-  int total_y = p4d*h1d*h2d;
+  size_t total_x = h3d*p5d;
+  size_t total_y = p4d*h1d*h2d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d2_5_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p5ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
@@ -40616,13 +40616,13 @@ __global__ void sd_t_d2_5_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p7d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_5_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_5_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d2_5_if_fusion(h2d, h1d, h3d, p6d, p4d, p5d, p7d, t3, t2, v2, 1, 1);
     // jk_ccsd_t_d2_5_fusion(h2d, h1d, h3d, p6d, p4d, p5d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_5_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_5_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -40631,19 +40631,19 @@ __global__ void sd_t_d2_5_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p7d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d2_6_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d,int p7d,int p7ld_t2,int p4ld_t2,int h1ld_t2,int h2ld_t2,int p7ld_v2,int h3ld_v2,int p6ld_v2,int p5ld_v2,int h2ld_t3,int h3ld_t3,int h1ld_t3,int p6ld_t3,int p4ld_t3,int p5ld_t3,double *t3d, double *t2_d, double *v2_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3,p7;
+__global__ void sd_t_d2_6_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p6d,size_t p7d,size_t p7ld_t2,size_t p4ld_t2,size_t h1ld_t2,size_t h2ld_t2,size_t p7ld_v2,size_t h3ld_v2,size_t p6ld_v2,size_t p5ld_v2,size_t h2ld_t3,size_t h3ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p4ld_t3,size_t p5ld_t3,double *t3d, double *t2_d, double *v2_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3,p7;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,p7l,p7T;
+  size_t in1_idxl,in2_idxl,p7l,p7T;
   __shared__ double t2_shm[4*T1][Tcomm];
   __shared__ double v2_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -40710,7 +40710,7 @@ __global__ void sd_t_d2_6_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   rest_x=rest_x/p6d;
   p4_3=rest_y;
   p5_3=rest_x;
-  int t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){int p7l_hi;
+  size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
     p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2+p5_0*p5ld_v2;
@@ -40863,7 +40863,7 @@ __global__ void sd_t_d2_6_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d2_6_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_6_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,p5ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
   cudaStream_t *streams;
@@ -40900,8 +40900,8 @@ __global__ void sd_t_d2_6_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   p6ld_t3=h1d*h3d*h2d;
   p4ld_t3=p6d*h1d*h3d*h2d;
   p5ld_t3=p4d*p6d*h1d*h3d*h2d;
-  int total_x = h3d*p6d*p5d;
-  int total_y = p4d*h1d*h2d;
+  size_t total_x = h3d*p6d*p5d;
+  size_t total_y = p4d*h1d*h2d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d2_6_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
@@ -40918,12 +40918,12 @@ __global__ void sd_t_d2_6_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_6_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2)
+ void sd_t_d2_6_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2)
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d2_6_fusion_(h2d, h3d, h1d, p6d, p4d, p5d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_6_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_6_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -40932,19 +40932,19 @@ __global__ void sd_t_d2_6_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d2_7_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d,int p7d,int p7ld_t2,int p4ld_t2,int h1ld_t2,int h2ld_t2,int p7ld_v2,int h3ld_v2,int p6ld_v2,int p5ld_v2,int h3ld_t3,int h2ld_t3,int h1ld_t3,int p4ld_t3,int p6ld_t3,int p5ld_t3,double *t3d, double *t2_d, double *v2_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3,p7;
+__global__ void sd_t_d2_7_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p6d,size_t p7d,size_t p7ld_t2,size_t p4ld_t2,size_t h1ld_t2,size_t h2ld_t2,size_t p7ld_v2,size_t h3ld_v2,size_t p6ld_v2,size_t p5ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p4ld_t3,size_t p6ld_t3,size_t p5ld_t3,double *t3d, double *t2_d, double *v2_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3,p7;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,p7l,p7T;
+  size_t in1_idxl,in2_idxl,p7l,p7T;
   __shared__ double t2_shm[4*T1][Tcomm];
   __shared__ double v2_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -41011,7 +41011,7 @@ __global__ void sd_t_d2_7_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   rest_x=rest_x/p6d;
   p4_3=rest_y;
   p5_3=rest_x;
-  int t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){int p7l_hi;
+  size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
     p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2+p5_0*p5ld_v2;
@@ -41164,7 +41164,7 @@ __global__ void sd_t_d2_7_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d2_7_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_7_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p4ld_t3,p6ld_t3,p5ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
   cudaStream_t *streams;
@@ -41201,8 +41201,8 @@ __global__ void sd_t_d2_7_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   p4ld_t3=h1d*h2d*h3d;
   p6ld_t3=p4d*h1d*h2d*h3d;
   p5ld_t3=p6d*p4d*h1d*h2d*h3d;
-  int total_x = h3d*p6d*p5d;
-  int total_y = p4d*h1d*h2d;
+  size_t total_x = h3d*p6d*p5d;
+  size_t total_y = p4d*h1d*h2d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d2_7_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p4ld_t3,p6ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
@@ -41219,12 +41219,12 @@ __global__ void sd_t_d2_7_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_7_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_7_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d2_7_fusion(h3d, h2d, h1d, p4d, p6d, p5d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_7_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_7_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -41233,19 +41233,19 @@ __global__ void sd_t_d2_7_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d2_8_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d,int p7d,int p7ld_t2,int p4ld_t2,int h1ld_t2,int h2ld_t2,int p7ld_v2,int h3ld_v2,int p6ld_v2,int p5ld_v2,int h2ld_t3,int h1ld_t3,int h3ld_t3,int p4ld_t3,int p6ld_t3,int p5ld_t3,double *t3d, double *t2_d, double *v2_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3,p7;
+__global__ void sd_t_d2_8_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p6d,size_t p7d,size_t p7ld_t2,size_t p4ld_t2,size_t h1ld_t2,size_t h2ld_t2,size_t p7ld_v2,size_t h3ld_v2,size_t p6ld_v2,size_t p5ld_v2,size_t h2ld_t3,size_t h1ld_t3,size_t h3ld_t3,size_t p4ld_t3,size_t p6ld_t3,size_t p5ld_t3,double *t3d, double *t2_d, double *v2_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3,p7;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,p7l,p7T;
+  size_t in1_idxl,in2_idxl,p7l,p7T;
   __shared__ double t2_shm[4*T1][Tcomm];
   __shared__ double v2_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -41312,7 +41312,7 @@ __global__ void sd_t_d2_8_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   rest_x=rest_x/p6d;
   p4_3=rest_y;
   p5_3=rest_x;
-  int t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){int p7l_hi;
+  size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
     p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2+p5_0*p5ld_v2;
@@ -41465,7 +41465,7 @@ __global__ void sd_t_d2_8_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d2_8_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_8_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
     // printf ("d2_8\n");
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,p6ld_t3,p5ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
@@ -41503,8 +41503,8 @@ __global__ void sd_t_d2_8_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   p4ld_t3=h3d*h1d*h2d;
   p6ld_t3=p4d*h3d*h1d*h2d;
   p5ld_t3=p6d*p4d*h3d*h1d*h2d;
-  int total_x = h3d*p6d*p5d;
-  int total_y = p4d*h1d*h2d;
+  size_t total_x = h3d*p6d*p5d;
+  size_t total_y = p4d*h1d*h2d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d2_8_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,p6ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
@@ -41521,12 +41521,12 @@ __global__ void sd_t_d2_8_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 #undef T1
 #undef T2
 #undef Tcomm
- void sd_t_d2_8_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_8_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d2_8_fusion(h2d, h1d, h3d, p4d, p6d, p5d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_8_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_8_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 #endif
 }
 /*----------------------------------------------------------------------*
@@ -41535,19 +41535,19 @@ __global__ void sd_t_d2_8_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_d2_9_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d,int p7d,int p7ld_t2,int p4ld_t2,int h1ld_t2,int h2ld_t2,int p7ld_v2,int h3ld_v2,int p6ld_v2,int p5ld_v2,int h2ld_t3,int h3ld_t3,int h1ld_t3,int p4ld_t3,int p6ld_t3,int p5ld_t3,double *t3d, double *t2_d, double *v2_d,int unused_idx, int total_x, int total_y) {
-  int h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3,p7;
+__global__ void sd_t_d2_9_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p6d,size_t p7d,size_t p7ld_t2,size_t p4ld_t2,size_t h1ld_t2,size_t h2ld_t2,size_t p7ld_v2,size_t h3ld_v2,size_t p6ld_v2,size_t p5ld_v2,size_t h2ld_t3,size_t h3ld_t3,size_t h1ld_t3,size_t p4ld_t3,size_t p6ld_t3,size_t p5ld_t3,double *t3d, double *t2_d, double *v2_d,size_t unused_idx, size_t total_x, size_t total_y) {
+  size_t h1_0,h1_1,h1_2,h1_3,h2_0,h2_1,h2_2,h2_3,h3_0,h3_1,h3_2,h3_3,p4_0,p4_1,p4_2,p4_3,p5_0,p5_1,p5_2,p5_3,p6_0,p6_1,p6_2,p6_3,p7;
   double a1,b1;
   double a2,b2;
   double a3,b3;
   double a4,b4;
-  int in1_idxl,in2_idxl,p7l,p7T;
+  size_t in1_idxl,in2_idxl,p7l,p7T;
   __shared__ double t2_shm[4*T1][Tcomm];
   __shared__ double v2_shm[Tcomm][4*T2];
-  int rest_x=blockIdx.x;
-  int rest_y=blockIdx.y;
-  int thread_x = T2*4 * rest_x + threadIdx.x;
-  int thread_y = T1*4 * rest_y + threadIdx.y;
+  size_t rest_x=blockIdx.x;
+  size_t rest_y=blockIdx.y;
+  size_t thread_x = T2*4 * rest_x + threadIdx.x;
+  size_t thread_y = T1*4 * rest_y + threadIdx.y;
   in1_idxl=threadIdx.y;
   in2_idxl=threadIdx.x ;
   double tlocal1=0;
@@ -41614,7 +41614,7 @@ __global__ void sd_t_d2_9_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   rest_x=rest_x/p6d;
   p4_3=rest_y;
   p5_3=rest_x;
-  int t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){int p7l_hi;
+  size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
     p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2+p5_0*p5ld_v2;
@@ -41767,7 +41767,7 @@ __global__ void sd_t_d2_9_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   }
   __syncthreads();
 }
- void sd_t_d2_9_cuda_ma(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) {
+ void sd_t_d2_9_cuda_ma(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p4ld_t3,p6ld_t3,p5ld_t3;
   size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
   cudaStream_t *streams;
@@ -41804,8 +41804,8 @@ __global__ void sd_t_d2_9_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   p4ld_t3=h1d*h3d*h2d;
   p6ld_t3=p4d*h1d*h3d*h2d;
   p5ld_t3=p6d*p4d*h1d*h3d*h2d;
-  int total_x = h3d*p6d*p5d;
-  int total_y = p4d*h1d*h2d;
+  size_t total_x = h3d*p6d*p5d;
+  size_t total_y = p4d*h1d*h2d;
   dim3 dimBlock(T2,T1);dim3 dimGrid(DIV_UB(total_x,(4*T2)), DIV_UB(total_y,(4*T1)));
   for(i=0;i<nstreams;++i){
     sd_t_d2_9_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p4ld_t3,p6ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
@@ -41820,12 +41820,12 @@ __global__ void sd_t_d2_9_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
   free(streams);
 }
 
- void sd_t_d2_9_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, int p7d, double *t3, double *t2, double *v2) 
+ void sd_t_d2_9_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) 
 {
 #ifndef KERNEL_MA
     jk_ccsd_t_d2_9_fusion(h2d, h3d, h1d, p4d, p6d, p5d, p7d, t3, t2, v2, 1, 1);
 #else
-    sd_t_d2_9_cuda_ma((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+    sd_t_d2_9_cuda_ma((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 #endif
 }
 
@@ -41834,17 +41834,17 @@ __global__ void sd_t_d2_9_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 /* IMPORTANT!!!!
 t3_d must be passed as parameter to kernel function. A __global__ function can't access the global variable directly*/
 
-__global__ void compute_energy_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d,double* eval1,double* eval2,double* eval3,double* eval4,double* eval5,double* eval6, double* energy, double factor, int total_size, double* t3d, double* t3_sd)
+__global__ void compute_energy_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p6d,double* eval1,double* eval2,double* eval3,double* eval4,double* eval5,double* eval6, double* energy, double factor, size_t total_size, double* t3d, double* t3_sd)
 {
-  int h1,h2,p6,p4,p5, h3,i=0;
+  size_t h1,h2,p6,p4,p5, h3,i=0;
   double e1,e2,e4,e5,e6;
 //  __shared__ double t2_shm[MAX_h3];
   __shared__ double energy_s[T1];
   __shared__ double energy2_s[T1];
   double inner_fac;
-  int limit;
-  int rest_x=blockIdx.x;
-  int thread_x = T2*T1 * rest_x + threadIdx.x;
+  size_t limit;
+  size_t rest_x=blockIdx.x;
+  size_t thread_x = T2*T1 * rest_x + threadIdx.x;
   if(threadIdx.x==0)
   {
         energy[blockIdx.x]=0;
@@ -41853,7 +41853,7 @@ __global__ void compute_energy_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,in
         energy2_s[threadIdx.x] = 0.0;
   }
 
-  for(int j =0; j<T2*T1;j++) {
+  for(size_t j =0; j<T2*T1;j++) {
     thread_x = T2*T1*blockIdx.x + j;  
     rest_x = thread_x;
     __syncthreads();
@@ -41886,7 +41886,7 @@ __global__ void compute_energy_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,in
                     }
 */
     if(thread_x<total_size)
-    for(int i=0;i<h3d;i++)
+    for(size_t i=0;i<h3d;i++)
     {
         inner_fac = -e4-e5-e6+e1+e2+eval3[i]; //t2_shm[i];
 //ckbn avoid e1 in case we need just (T)
@@ -41899,7 +41899,7 @@ __global__ void compute_energy_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,in
   {
 /*	  limit = blockDim.x;
       if (blockIdx.x == (gridDim.x-1)) limit = total_size%blockDim.x;
-      for(int i=0;i<limit;i++)
+      for(size_t i=0;i<limit;i++)
       {
         energy[blockIdx.x]+=energy_s[i];
         energy[blockIdx.x+gridDim.x]+=energy2_s[i];
@@ -41912,19 +41912,19 @@ __global__ void compute_energy_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,in
 
 }
 
-   void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,int h1d, int h2d, int h3d, int p4d, int p5d,int p6d, double* host1, double* host2)
+   void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* host1, double* host2)
 //ckbn en_comment, double* total_d, double* total_s)
 {
     double* energy_d, *energy_h;
     double* eval_d1,*eval_d2,*eval_d3,*eval_d4,*eval_d5,*eval_d6;
-    int size_energy = 2*sizeof(double);
-    int total_block = DIV_UB((h1d*h2d*p4d*p5d*p6d), (T2*T1));
+    size_t size_energy = 2*sizeof(double);
+    size_t total_block = DIV_UB((h1d*h2d*p4d*p5d*p6d), (T2*T1));
 
-//    int total_block = 1;
-    int total_elements = h1d*h2d*p4d*p5d*p6d;
+//    size_t total_block = 1;
+    size_t total_elements = h1d*h2d*p4d*p5d*p6d;
 
     energy_d = (double*)getGpuMem(size_energy*total_block*2);
-    int i=0,in; 
+    size_t i=0,in; 
     double* t3 = (double*)malloc(sizeof(double)*h3d*total_elements);
     double* ts3 = (double*)malloc(sizeof(double)*h3d*total_elements);
 
@@ -41954,7 +41954,7 @@ __global__ void compute_energy_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,in
     CUDA_SAFE(cudaMemcpy(((char *) energy_h) , ((char *) energy_d) , 
     size_energy*total_block*2, cudaMemcpyDeviceToHost));
 
-    for(int i=1;i<dimGrid.x;i++)
+    for(size_t i=1;i<dimGrid.x;i++)
       {
         energy_h[0]+=energy_h[i];
         energy_h[dimGrid.x]+=energy_h[i+dimGrid.x];
@@ -41966,7 +41966,7 @@ __global__ void compute_energy_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,in
     CUDA_SAFE(cudaMemcpy(((char *) t3) , ((char *) t3_d) , sizeof(double)*h3d*total_elements, cudaMemcpyDeviceToHost));
     CUDA_SAFE(cudaMemcpy(((char *) ts3) , ((char *) t3_s_d) , sizeof(double)*h3d*total_elements, cudaMemcpyDeviceToHost));
     total_s[0]=0.0, total_d[0]=0.0;
-    for(int i=0;i<h3d*total_elements;i++) {
+    for(size_t i=0;i<h3d*total_elements;i++) {
         total_s[0] += ts3[i];
         total_d[0] += t3[i];
     }
@@ -41987,14 +41987,14 @@ __global__ void compute_energy_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,in
 compute_en_(double * factor, double * energy, double * eval1,double* eval2,double* eval3,double* eval4,double* eval5,double* eval6, Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d, double* host1, double* host2)
 //ckbn en_comment,double* total_d, double* total_s)
 {
-    compute_energy((double) *factor, energy, eval1,eval2, eval3, eval4, eval5, eval6,(int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d, host1, host2);
+    compute_energy((double) *factor, energy, eval1,eval2, eval3, eval4, eval5, eval6,(size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d, host1, host2);
 //ckbn en_comment    ,total_d, total_s);
 }
 
 //__device__ double* t3_d; 
- void dev_mem_s(int h1d, int h2d, int h3d, int p4d, int p5d,int p6d)
+ void dev_mem_s(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d)
 {
-    int size_t3;
+    size_t size_t3;
     size_t3 = h1d*h2d*h3d*p4d*p5d*p6d;
     t3_s_d = (double *) getGpuMem(size_t3*sizeof(double));
     cudaMemset(t3_s_d,0,size_t3*sizeof(double));
@@ -42005,7 +42005,7 @@ compute_en_(double * factor, double * energy, double * eval1,double* eval2,doubl
 //           void
 // dev_mem_s_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d)
 // {
-//     set_dev_mem_s((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d);
+//     set_dev_mem_s((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d);
 // }
 
 /*----------------------------------------------------------------------*
@@ -42014,19 +42014,19 @@ compute_en_(double * factor, double * energy, double * eval1,double* eval2,doubl
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_s1_1_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p4ld_t2,int h1ld_t2,int h3ld_v2,int h2ld_v2,int p6ld_v2,int h3ld_t3,int h2ld_t3,int h1ld_t3,int p6ld_t3,int p4ld_t3, double *t2_d, double *v2_d,int p4, int total_x, double* t3d) {
-  int h1,h2,h3,p6;
+__global__ void sd_t_s1_1_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p6d,size_t p4ld_t2,size_t h1ld_t2,size_t h3ld_v2,size_t h2ld_v2,size_t p6ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p4ld_t3, double *t2_d, double *v2_d,size_t p4, size_t total_x, double* t3d) {
+  size_t h1,h2,h3,p6;
   __shared__ double t2_shm[T1*2*Tcomm];
   
-  for(int i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
+  for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
   if(i<h1d*p4d)
   t2_shm[i] = t2_d[i];
-  int rest_x=blockIdx.x;
-  int thread_x = T2*T1 * rest_x + threadIdx.x;
+  size_t rest_x=blockIdx.x;
+  size_t thread_x = T2*T1 * rest_x + threadIdx.x;
   rest_x = thread_x;
     __syncthreads();
 /* the following computation may need to happen inside the loop */
-  for(int i=0;i<total_x;i+=gridDim.x*blockDim.x)
+  for(size_t i=0;i<total_x;i+=gridDim.x*blockDim.x)
   {
     rest_x += i;
   	h3=rest_x%h3d;
@@ -42046,7 +42046,7 @@ __global__ void sd_t_s1_1_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p4l
 }
 
           void 
-sd_t_s1_1_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, double *t3, double *t2, double *v2)
+sd_t_s1_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, double *t3, double *t2, double *v2)
 {
     double st, et;
 //ckbn    st = timer(); 
@@ -42058,7 +42058,7 @@ sd_t_s1_1_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, double *t3,
 	cudaStream_t   *streams;
 	size_t          nstreams, i;
 	double         *t2_d, *v2_d, *t3_p;
-	size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
+	//size_t3 = h3d* h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
@@ -42070,7 +42070,7 @@ sd_t_s1_1_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, double *t3,
 //	t3_d = (double *) getGpuMem(size_t3);
 	t2_d = (double *) getGpuMem(size_t2);
 	v2_d = (double *) getGpuMem(size_v2);
-	t3_p = (double *) getHostMem(size_t3);
+	//t3_p = (double *) getHostMem(size_t3);
 	streams = (cudaStream_t *) malloc(nstreams * sizeof(cudaStream_t));
 	assert(streams != NULL);
 	for (i = 0; i < nstreams; ++i) {
@@ -42092,7 +42092,7 @@ sd_t_s1_1_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, double *t3,
 	p6ld_t3 = h1d * h2d * h3d;
 //	p5ld_t3 = p6d * h1d * h2d * h3d;
 	p4ld_t3 = p5d * p6d * h1d * h2d * h3d;
-  int total_x = h3d*h2d*p6d*p5d;
+  size_t total_x = h3d*h2d*p6d*p5d;
   dim3 dimBlock(T2*T1);dim3 dimGrid(DIV_UB(total_x,T2*T1), 1);
   for(i=0;i<nstreams;++i){
     sd_t_s1_1_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d*p6d,p4ld_t2,h1ld_t2,h3ld_v2,h2ld_v2,p6ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,t2_d,v2_d,i,total_x, t3_s_d);
@@ -42126,7 +42126,7 @@ sd_t_s1_1_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, double *t3,
 	freeGpuMem(v2_d);
    //  cudaFree(t2_d);
    //  cudaFree(v2_d);
-	freeHostMem(t3_p);
+	//freeHostMem(t3_p);
 	free(streams);
 }
 #undef T1
@@ -42135,7 +42135,7 @@ sd_t_s1_1_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, double *t3,
           void 
 sd_t_s1_1_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d, double *t3, double *t2, double *v2)
 {
-	sd_t_s1_1_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d,  t3, t2, v2);
+	sd_t_s1_1_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d,  t3, t2, v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h3,h1,h2,p6,p5,p4] -= t2[p4,h1] * v2[h3,h2,p6,p5]
@@ -42143,19 +42143,19 @@ sd_t_s1_1_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Inte
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_s1_2_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p4ld_t2,int h1ld_t2,int h3ld_v2,int h2ld_v2,int p6ld_v2,int h3ld_t3,int h2ld_t3,int h1ld_t3,int p6ld_t3,int p4ld_t3,double *t2_d, double *v2_d,int p4, int total_x, double* t3d) {
-  int h1,h2,h3,p6;
+__global__ void sd_t_s1_2_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p6d,size_t p4ld_t2,size_t h1ld_t2,size_t h3ld_v2,size_t h2ld_v2,size_t p6ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p4ld_t3,double *t2_d, double *v2_d,size_t p4, size_t total_x, double* t3d) {
+  size_t h1,h2,h3,p6;
   __shared__ double t2_shm[T1*2*Tcomm];
   
-  for(int i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
+  for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
   if(i<h1d*p4d)
   t2_shm[i] = t2_d[i];
-  int rest_x=blockIdx.x;
-  int thread_x = T2*T1 * rest_x + threadIdx.x;
+  size_t rest_x=blockIdx.x;
+  size_t thread_x = T2*T1 * rest_x + threadIdx.x;
   rest_x = thread_x;
     __syncthreads();
 /* the following computation may need to happen inside the loop */
-  for(int i=0;i<total_x;i+=gridDim.x*blockDim.x)
+  for(size_t i=0;i<total_x;i+=gridDim.x*blockDim.x)
   {
     rest_x += i;
   	h3=rest_x%h3d;
@@ -42175,7 +42175,7 @@ __global__ void sd_t_s1_2_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p4l
 }
 
           void 
-sd_t_s1_2_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, double *t3, double *t2, double *v2)
+sd_t_s1_2_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, double *t3, double *t2, double *v2)
 {
     double st, et;
 //ckbn    st = timer(); 
@@ -42187,7 +42187,7 @@ sd_t_s1_2_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, double *t3,
 	cudaStream_t   *streams;
 	size_t          nstreams, i;
 	double         *t2_d, *v2_d, *t3_p;
-	size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
+	//size_t3 = h3d* h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
@@ -42203,7 +42203,7 @@ sd_t_s1_2_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, double *t3,
 //CUDA_SAFE(cudaMalloc((void**) &v2_d, size_v2));
 	t2_d = (double *) getGpuMem(size_t2);
 	v2_d = (double *) getGpuMem(size_v2);
-	t3_p = (double *) getHostMem(size_t3);
+	//t3_p = (double *) getHostMem(size_t3);
 	streams = (cudaStream_t *) malloc(nstreams * sizeof(cudaStream_t));
 /*	assert(streams != NULL);
 	for (i = 0; i < nstreams; ++i) {
@@ -42225,7 +42225,7 @@ sd_t_s1_2_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, double *t3,
 	p6ld_t3 = h1d * h2d * h3d;
 //	p5ld_t3 = p6d * h1d * h2d * h3d;
 	p4ld_t3 = p5d * p6d * h1d * h2d * h3d;
-  int total_x = h3d*h2d*p6d*p5d;
+  size_t total_x = h3d*h2d*p6d*p5d;
   dim3 dimBlock(T2*T1);dim3 dimGrid(DIV_UB(total_x,T2*T1), 1);
 //  for(i=0;i<nstreams;++i){
 
@@ -42255,16 +42255,16 @@ sd_t_s1_2_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d, double *t3,
 	}*/
 	freeGpuMem(t2_d);
 	freeGpuMem(v2_d);
-	freeHostMem(t3_p);
+	//freeHostMem(t3_p);
 	free(streams);
 }
           void 
 sd_t_s1_2_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d, double *t3, double *t2, double *v2)
 {
-	sd_t_s1_2_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d,  t3, t2, v2);
+	sd_t_s1_2_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d,  t3, t2, v2);
 }
           void 
-sd_t_s1_3_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3, double *t2, double *v2)
+sd_t_s1_3_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
     double st, et;
 //ckbn    st = timer(); 
@@ -42276,7 +42276,7 @@ sd_t_s1_3_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	cudaStream_t   *streams;
 	size_t          nstreams, i;
 	double         *t2_d, *v2_d, *t3_p;
-	size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
+	//size_t3 = h3d* h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
@@ -42291,7 +42291,7 @@ sd_t_s1_3_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 */
 	t2_d = (double *) getGpuMem(size_t2);
 	v2_d = (double *) getGpuMem(size_v2);
-	t3_p = (double *) getHostMem(size_t3);
+	//t3_p = (double *) getHostMem(size_t3);
 	streams = (cudaStream_t *) malloc(nstreams * sizeof(cudaStream_t));
 	assert(streams != NULL);
 	for (i = 0; i < nstreams; ++i) {
@@ -42313,7 +42313,7 @@ sd_t_s1_3_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	p6ld_t3 = h1d * h2d * h3d;
 //	p5ld_t3 = p6d * h1d * h2d * h3d;
 	p4ld_t3 = p5d * p6d * h1d * h2d * h3d;
-  int total_x = h3d*h2d*p6d*p5d;
+  size_t total_x = h3d*h2d*p6d*p5d;
   dim3 dimBlock(T2*T1);dim3 dimGrid(DIV_UB(total_x,T2*T1), 1);
   for(i=0;i<nstreams;++i){
     sd_t_s1_1_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d*p6d,p4ld_t2,h1ld_t2,h3ld_v2,h2ld_v2,p6ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,t2_d,v2_d,i,total_x, t3_s_d);
@@ -42343,7 +42343,7 @@ sd_t_s1_3_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 //	freeGpuMem(t3_d);
 	freeGpuMem(t2_d);
 	freeGpuMem(v2_d);
-	freeHostMem(t3_p);
+	//freeHostMem(t3_p);
 	free(streams);
 }
 #undef T1
@@ -42352,7 +42352,7 @@ sd_t_s1_3_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
           void 
 sd_t_s1_3_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d,  double *t3, double *t2, double *v2)
 {
-	sd_t_s1_3_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d, t3, t2, v2);
+	sd_t_s1_3_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d, t3, t2, v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h3,h2,h1,p6,p4,p5] -= t2[p4,h1] * v2[h3,h2,p6,p5]
@@ -42360,19 +42360,19 @@ sd_t_s1_3_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Inte
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_s1_4_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d,int p4ld_t2,int h1ld_t2,int h3ld_v2,int h2ld_v2,int p6ld_v2,int p5ld_v2,int h3ld_t3,int h2ld_t3,int h1ld_t3,int p6ld_t3,int p5ld_t3,int p4ld_t3,double *t3d, double *t2_d, double *v2_d,int p4, int total_x) {
-  int h1,h2,h3,p6,p5;
+__global__ void sd_t_s1_4_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p6d,size_t p4ld_t2,size_t h1ld_t2,size_t h3ld_v2,size_t h2ld_v2,size_t p6ld_v2,size_t p5ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p5ld_t3,size_t p4ld_t3,double *t3d, double *t2_d, double *v2_d,size_t p4, size_t total_x) {
+  size_t h1,h2,h3,p6,p5;
   __shared__ double t2_shm[T1*2*Tcomm];
   
-  for(int i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
+  for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
   if(i<h1d*p4d)
   t2_shm[i] = t2_d[i];
-  int rest_x=blockIdx.x;
-  int thread_x = T2*T1 * rest_x + threadIdx.x;
+  size_t rest_x=blockIdx.x;
+  size_t thread_x = T2*T1 * rest_x + threadIdx.x;
   rest_x = thread_x;
     __syncthreads();
 /* the following computation may need to happen inside the loop */
-  for(int i=0;i<total_x;i+=gridDim.x*blockDim.x)
+  for(size_t i=0;i<total_x;i+=gridDim.x*blockDim.x)
   {
     rest_x += i;
   	h3=rest_x%h3d;
@@ -42394,7 +42394,7 @@ __global__ void sd_t_s1_4_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 }
 
           void 
-sd_t_s1_4_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3, double *t2, double *v2)
+sd_t_s1_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
     double st, et;
 //ckbn    st = timer(); 
@@ -42406,7 +42406,7 @@ sd_t_s1_4_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	cudaStream_t   *streams;
 	size_t          nstreams, i;
 	double         *t2_d, *v2_d, *t3_p;
-	size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
+	//size_t3 = h3d* h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
@@ -42422,7 +42422,7 @@ sd_t_s1_4_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 //	t3_d = (double *) getGpuMem(size_t3);
 	t2_d = (double *) getGpuMem(size_t2);
 	v2_d = (double *) getGpuMem(size_v2);
-	t3_p = (double *) getHostMem(size_t3);
+	//t3_p = (double *) getHostMem(size_t3);
 	streams = (cudaStream_t *) malloc(nstreams * sizeof(cudaStream_t));
 /*	assert(streams != NULL);
 	for (i = 0; i < nstreams; ++i) {
@@ -42444,7 +42444,7 @@ sd_t_s1_4_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	p6ld_t3 = h1d * h2d * h3d;
 	p4ld_t3 = p6d * h1d * h2d * h3d;
 	p5ld_t3 = p4d * p6d * h1d * h2d * h3d;
-  int total_x = h3d*h2d*p6d*p5d;
+  size_t total_x = h3d*h2d*p6d*p5d;
   dim3 dimBlock(T2*T1);dim3 dimGrid(DIV_UB(total_x,T2*T1), 1);
    i=0;
  // for(i=0;i<nstreams;++i){
@@ -42476,7 +42476,7 @@ sd_t_s1_4_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 //	freeGpuMem(t3_d);
 	freeGpuMem(t2_d);
 	freeGpuMem(v2_d);
-	freeHostMem(t3_p);
+	//freeHostMem(t3_p);
 	free(streams);
 }
 #undef T1
@@ -42485,7 +42485,7 @@ sd_t_s1_4_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
           void 
 sd_t_s1_4_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d, double *t3, double *t2, double *v2)
 {
-	sd_t_s1_4_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d,  t3, t2, v2);
+	sd_t_s1_4_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d,  t3, t2, v2);
 }
 
 /*----------------------------------------------------------------------*
@@ -42494,19 +42494,19 @@ sd_t_s1_4_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Inte
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_s1_5_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d,int p4ld_t2,int h1ld_t2,int h3ld_v2,int h2ld_v2,int p6ld_v2,int p5ld_v2,int h3ld_t3,int h2ld_t3,int h1ld_t3,int p6ld_t3,int p5ld_t3,int p4ld_t3,double *t3d, double *t2_d, double *v2_d,int p4, int total_x) {
-  int h1,h2,h3,p6,p5;
+__global__ void sd_t_s1_5_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p6d,size_t p4ld_t2,size_t h1ld_t2,size_t h3ld_v2,size_t h2ld_v2,size_t p6ld_v2,size_t p5ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p5ld_t3,size_t p4ld_t3,double *t3d, double *t2_d, double *v2_d,size_t p4, size_t total_x) {
+  size_t h1,h2,h3,p6,p5;
   __shared__ double t2_shm[T1*2*Tcomm];
   
-  for(int i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
+  for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
   if(i<h1d*p4d)
   t2_shm[i] = t2_d[i];
-  int rest_x=blockIdx.x;
-  int thread_x = T2*T1 * rest_x + threadIdx.x;
+  size_t rest_x=blockIdx.x;
+  size_t thread_x = T2*T1 * rest_x + threadIdx.x;
   rest_x = thread_x;
     __syncthreads();
 /* the following computation may need to happen inside the loop */
-  for(int i=0;i<total_x;i+=gridDim.x*blockDim.x)
+  for(size_t i=0;i<total_x;i+=gridDim.x*blockDim.x)
   {
     rest_x += i;
   	h3=rest_x%h3d;
@@ -42528,7 +42528,7 @@ __global__ void sd_t_s1_5_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 }
 
           void 
-sd_t_s1_5_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3, double *t2, double *v2)
+sd_t_s1_5_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
     double st, et;
 //ckbn    st = timer(); 
@@ -42540,7 +42540,7 @@ sd_t_s1_5_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	cudaStream_t   *streams;
 	size_t          nstreams, i;
 	double         *t2_d, *v2_d, *t3_p;
-	size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
+	//size_t3 = h3d* h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
@@ -42556,7 +42556,7 @@ sd_t_s1_5_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 //	t3_d = (double *) getGpuMem(size_t3);
 	t2_d = (double *) getGpuMem(size_t2);
 	v2_d = (double *) getGpuMem(size_v2);
-	t3_p = (double *) getHostMem(size_t3);
+	//t3_p = (double *) getHostMem(size_t3);
 	streams = (cudaStream_t *) malloc(nstreams * sizeof(cudaStream_t));
 	assert(streams != NULL);
 	for (i = 0; i < nstreams; ++i) {
@@ -42578,7 +42578,7 @@ sd_t_s1_5_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	p6ld_t3 = h1d * h2d * h3d;
 	p4ld_t3 = p6d * h1d * h2d * h3d;
 	p5ld_t3 = p4d * p6d * h1d * h2d * h3d;
-  int total_x = h3d*h2d*p6d*p5d;
+  size_t total_x = h3d*h2d*p6d*p5d;
   dim3 dimBlock(T2*T1);dim3 dimGrid(DIV_UB(total_x,T2*T1), 1);
   for(i=0;i<nstreams;++i){
     sd_t_s1_5_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p6d,p4ld_t2,h1ld_t2,h3ld_v2,h2ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p5ld_t3,p4ld_t3,t3_s_d,t2_d,v2_d,i,total_x);
@@ -42609,7 +42609,7 @@ sd_t_s1_5_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 //	freeGpuMem(t3_d);
 	freeGpuMem(t2_d);
 	freeGpuMem(v2_d);
-	freeHostMem(t3_p);
+	//freeHostMem(t3_p);
 	free(streams);
 }
 #undef T1
@@ -42618,7 +42618,7 @@ sd_t_s1_5_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
           void 
 sd_t_s1_5_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d,  double *t3, double *t2, double *v2)
 {
-	sd_t_s1_5_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d,  t3, t2, v2);
+	sd_t_s1_5_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d,  t3, t2, v2);
 }
 
 /*----------------------------------------------------------------------*
@@ -42627,19 +42627,19 @@ sd_t_s1_5_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Inte
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_s1_6_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d,int p4ld_t2,int h1ld_t2,int h3ld_v2,int h2ld_v2,int p6ld_v2,int p5ld_v2,int h3ld_t3,int h2ld_t3,int h1ld_t3,int p6ld_t3,int p5ld_t3,int p4ld_t3,double *t3d, double *t2_d, double *v2_d,int p4, int total_x) {
-  int h1,h2,h3,p6,p5;
+__global__ void sd_t_s1_6_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p6d,size_t p4ld_t2,size_t h1ld_t2,size_t h3ld_v2,size_t h2ld_v2,size_t p6ld_v2,size_t p5ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p5ld_t3,size_t p4ld_t3,double *t3d, double *t2_d, double *v2_d,size_t p4, size_t total_x) {
+  size_t h1,h2,h3,p6,p5;
   __shared__ double t2_shm[T1*2*Tcomm];
   
-  for(int i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
+  for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
   if(i<h1d*p4d)
   t2_shm[i] = t2_d[i];
-  int rest_x=blockIdx.x;
-  int thread_x = T2*T1 * rest_x + threadIdx.x;
+  size_t rest_x=blockIdx.x;
+  size_t thread_x = T2*T1 * rest_x + threadIdx.x;
   rest_x = thread_x;
     __syncthreads();
 /* the following computation may need to happen inside the loop */
-  for(int i=0;i<total_x;i+=gridDim.x*blockDim.x)
+  for(size_t i=0;i<total_x;i+=gridDim.x*blockDim.x)
   {
     rest_x += i;
   	h3=rest_x%h3d;
@@ -42661,7 +42661,7 @@ __global__ void sd_t_s1_6_kernel(int h1d,int h2d,int h3d,int p4d,int p5d,int p6d
 }
 
           void 
-sd_t_s1_6_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3, double *t2, double *v2)
+sd_t_s1_6_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
     double st, et;
 //ckbn    st = timer(); 
@@ -42673,7 +42673,7 @@ sd_t_s1_6_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	cudaStream_t   *streams;
 	size_t          nstreams, i;
 	double          *t2_d, *v2_d, *t3_p;
-	size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
+	//size_t3 = h3d* h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
@@ -42689,7 +42689,7 @@ sd_t_s1_6_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 //	t3_d = (double *) getGpuMem(size_t3);
 	t2_d = (double *) getGpuMem(size_t2);
 	v2_d = (double *) getGpuMem(size_v2);
-	t3_p = (double *) getHostMem(size_t3);
+	//t3_p = (double *) getHostMem(size_t3);
 	streams = (cudaStream_t *) malloc(nstreams * sizeof(cudaStream_t));
 	assert(streams != NULL);
 	for (i = 0; i < nstreams; ++i) {
@@ -42711,7 +42711,7 @@ sd_t_s1_6_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	p6ld_t3 = h1d * h2d * h3d;
 	p4ld_t3 = p6d * h1d * h2d * h3d;
 	p5ld_t3 = p4d * p6d * h1d * h2d * h3d;
-  int total_x = h3d*h2d*p6d*p5d;
+  size_t total_x = h3d*h2d*p6d*p5d;
   dim3 dimBlock(T2*T1);dim3 dimGrid(DIV_UB(total_x,T2*T1), 1);
   for(i=0;i<nstreams;++i){
     sd_t_s1_6_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p6d,p4ld_t2,h1ld_t2,h3ld_v2,h2ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p5ld_t3,p4ld_t3,t3_s_d,t2_d,v2_d,i,total_x);
@@ -42740,7 +42740,7 @@ sd_t_s1_6_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 //	freeGpuMem(t3_d);
 	freeGpuMem(t2_d);
 	freeGpuMem(v2_d);
-	freeHostMem(t3_p);
+	//freeHostMem(t3_p);
 	free(streams);
 }
 #undef T1
@@ -42749,7 +42749,7 @@ sd_t_s1_6_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
           void 
 sd_t_s1_6_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d, double *t3, double *t2, double *v2)
 {
-	sd_t_s1_6_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d, t3, t2, v2);
+	sd_t_s1_6_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d, t3, t2, v2);
 }
 
 
@@ -42766,19 +42766,19 @@ sd_t_s1_6_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Inte
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_s1_7_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p4ld_t2,int h1ld_t2,int h3ld_v2,int h2ld_v2,int p6ld_v2,int h3ld_t3,int h2ld_t3,int h1ld_t3,int p6ld_t3,int p4ld_t3,double *t3d, double *t2_d, double *v2_d,int p4, int total_x) {
-  int h1,h2,h3,p6;
+__global__ void sd_t_s1_7_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p6d,size_t p4ld_t2,size_t h1ld_t2,size_t h3ld_v2,size_t h2ld_v2,size_t p6ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p4ld_t3,double *t3d, double *t2_d, double *v2_d,size_t p4, size_t total_x) {
+  size_t h1,h2,h3,p6;
   __shared__ double t2_shm[T1*2*Tcomm];
   
-  for(int i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
+  for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
   if(i<h1d*p4d)
   t2_shm[i] = t2_d[i];
-  int rest_x=blockIdx.x;
-  int thread_x = T2*T1 * rest_x + threadIdx.x;
+  size_t rest_x=blockIdx.x;
+  size_t thread_x = T2*T1 * rest_x + threadIdx.x;
   rest_x = thread_x;
     __syncthreads();
 /* the following computation may need to happen inside the loop */
-  for(int i=0;i<total_x;i+=gridDim.x*blockDim.x)
+  for(size_t i=0;i<total_x;i+=gridDim.x*blockDim.x)
   {
     rest_x += i;
   	h3=rest_x%h3d;
@@ -42797,7 +42797,7 @@ __global__ void sd_t_s1_7_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p4l
     __syncthreads();
 }
           void 
-sd_t_s1_7_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3, double *t2, double *v2)
+sd_t_s1_7_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
     double st, et;
 //ckbn    st = timer(); 
@@ -42809,7 +42809,7 @@ sd_t_s1_7_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	cudaStream_t   *streams;
 	size_t          nstreams, i;
 	double         *t2_d, *v2_d, *t3_p;
-	size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
+	//size_t3 = h3d* h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
@@ -42825,7 +42825,7 @@ sd_t_s1_7_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 //	t3_d = (double *) getGpuMem(size_t3);
 	t2_d = (double *) getGpuMem(size_t2);
 	v2_d = (double *) getGpuMem(size_v2);
-	t3_p = (double *) getHostMem(size_t3);
+	//t3_p = (double *) getHostMem(size_t3);
 	streams = (cudaStream_t *) malloc(nstreams * sizeof(cudaStream_t));
 	assert(streams != NULL);
 	for (i = 0; i < nstreams; ++i) {
@@ -42847,7 +42847,7 @@ sd_t_s1_7_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	p4ld_t3 = h1d * h2d * h3d;
 //	p5ld_t3 = p6d * h1d * h2d * h3d;
 	p6ld_t3 = p4d * h1d * h2d * h3d;
-  int total_x = h3d*h2d*p6d*p5d;
+  size_t total_x = h3d*h2d*p6d*p5d;
   dim3 dimBlock(T2*T1);dim3 dimGrid(DIV_UB(total_x,T2*T1), 1);
   for(i=0;i<nstreams;++i){
     sd_t_s1_7_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d*p6d,p4ld_t2,h1ld_t2,h3ld_v2,h2ld_v2,p6ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,t3_s_d,t2_d,v2_d,i,total_x);
@@ -42877,7 +42877,7 @@ sd_t_s1_7_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 //	freeGpuMem(t3_d);
 	freeGpuMem(t2_d);
 	freeGpuMem(v2_d);
-	freeHostMem(t3_p);
+	//freeHostMem(t3_p);
 	free(streams);
 }
 #undef T1
@@ -42886,24 +42886,24 @@ sd_t_s1_7_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
           void 
 sd_t_s1_7_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d, double *t3, double *t2, double *v2)
 {
-	sd_t_s1_7_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d, t3, t2, v2);
+	sd_t_s1_7_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d, t3, t2, v2);
 }
 #define T1 16
 #define T2 16
 #define Tcomm 16
-__global__ void sd_t_s1_8_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p4ld_t2,int h1ld_t2,int h3ld_v2,int h2ld_v2,int p6ld_v2,int h3ld_t3,int h2ld_t3,int h1ld_t3,int p6ld_t3,int p4ld_t3,double *t3d, double *t2_d, double *v2_d,int p4, int total_x) {
-  int h1,h2,h3,p6;
+__global__ void sd_t_s1_8_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p6d,size_t p4ld_t2,size_t h1ld_t2,size_t h3ld_v2,size_t h2ld_v2,size_t p6ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p4ld_t3,double *t3d, double *t2_d, double *v2_d,size_t p4, size_t total_x) {
+  size_t h1,h2,h3,p6;
   __shared__ double t2_shm[T1*2*Tcomm];
   
-  for(int i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
+  for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
   if(i<h1d*p4d)
   t2_shm[i] = t2_d[i];
-  int rest_x=blockIdx.x;
-  int thread_x = T2*T1 * rest_x + threadIdx.x;
+  size_t rest_x=blockIdx.x;
+  size_t thread_x = T2*T1 * rest_x + threadIdx.x;
   rest_x = thread_x;
     __syncthreads();
 /* the following computation may need to happen inside the loop */
-  for(int i=0;i<total_x;i+=gridDim.x*blockDim.x)
+  for(size_t i=0;i<total_x;i+=gridDim.x*blockDim.x)
   {
     rest_x += i;
   	h3=rest_x%h3d;
@@ -42928,7 +42928,7 @@ __global__ void sd_t_s1_8_kernel(int h1d,int h2d,int h3d,int p4d,int p6d,int p4l
 #define T2 16
 #define Tcomm 16
           void 
-sd_t_s1_8_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3, double *t2, double *v2)
+sd_t_s1_8_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
     double st, et;
 //ckbn    st = timer(); 
@@ -42940,7 +42940,7 @@ sd_t_s1_8_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	cudaStream_t   *streams;
 	size_t          nstreams, i;
 	double          *t2_d, *v2_d, *t3_p;
-	size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
+	//size_t3 = h3d* h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
@@ -42956,7 +42956,7 @@ sd_t_s1_8_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 //	t3_d = (double *) getGpuMem(size_t3);
 	t2_d = (double *) getGpuMem(size_t2);
 	v2_d = (double *) getGpuMem(size_v2);
-	t3_p = (double *) getHostMem(size_t3);
+	//t3_p = (double *) getHostMem(size_t3);
 	streams = (cudaStream_t *) malloc(nstreams * sizeof(cudaStream_t));
 	assert(streams != NULL);
 	for (i = 0; i < nstreams; ++i) {
@@ -42978,7 +42978,7 @@ sd_t_s1_8_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	p4ld_t3 = h1d * h2d * h3d;
 //	p5ld_t3 = p6d * h1d * h2d * h3d;
 	p6ld_t3 = p4d * h1d * h2d * h3d;
-  int total_x = h3d*h2d*p6d*p5d;
+  size_t total_x = h3d*h2d*p6d*p5d;
   dim3 dimBlock(T2*T1);dim3 dimGrid(DIV_UB(total_x,T2*T1), 1);
   for(i=0;i<nstreams;++i){
     sd_t_s1_8_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d*p6d,p4ld_t2,h1ld_t2,h3ld_v2,h2ld_v2,p6ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,t3_s_d,t2_d,v2_d,i,total_x);
@@ -43007,19 +43007,19 @@ sd_t_s1_8_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 //	freeGpuMem(t3_d);
 	freeGpuMem(t2_d);
 	freeGpuMem(v2_d);
-	freeHostMem(t3_p);
+	//freeHostMem(t3_p);
 	free(streams);
 }
           void 
 sd_t_s1_8_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d, double *t3, double *t2, double *v2)
 {
-	sd_t_s1_8_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d, t3, t2, v2);
+	sd_t_s1_8_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d, t3, t2, v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h1,h3,h2,p4,p6,p5] -= t2[p4,h1] * v2[h3,h2,p6,p5]
  *----------------------------------------------------------------------*/
           void 
-sd_t_s1_9_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3, double *t2, double *v2)
+sd_t_s1_9_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
     double st, et;
 //ckbn    st = timer(); 
@@ -43031,7 +43031,7 @@ sd_t_s1_9_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	cudaStream_t   *streams;
 	size_t          nstreams, i;
 	double          *t2_d, *v2_d, *t3_p;
-	size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
+	//size_t3 = h3d* h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
@@ -43047,7 +43047,7 @@ sd_t_s1_9_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 //	t3_d = (double *) getGpuMem(size_t3);
 	t2_d = (double *) getGpuMem(size_t2);
 	v2_d = (double *) getGpuMem(size_v2);
-	t3_p = (double *) getHostMem(size_t3);
+	//t3_p = (double *) getHostMem(size_t3);
 	streams = (cudaStream_t *) malloc(nstreams * sizeof(cudaStream_t));
 	assert(streams != NULL);
 	for (i = 0; i < nstreams; ++i) {
@@ -43069,7 +43069,7 @@ sd_t_s1_9_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	p4ld_t3 = h1d * h2d * h3d;
 //	p5ld_t3 = p6d * h1d * h2d * h3d;
 	p6ld_t3 = p4d * h1d * h2d * h3d;
-  int total_x = h3d*h2d*p6d*p5d;
+  size_t total_x = h3d*h2d*p6d*p5d;
   dim3 dimBlock(T2*T1);dim3 dimGrid(DIV_UB(total_x,T2*T1), 1);
   for(i=0;i<nstreams;++i){
     sd_t_s1_7_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d*p6d,p4ld_t2,h1ld_t2,h3ld_v2,h2ld_v2,p6ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,t3_s_d,t2_d,v2_d,i,total_x);
@@ -43099,11 +43099,11 @@ sd_t_s1_9_cuda(int h1d, int h2d, int h3d, int p4d, int p5d, int p6d,  double *t3
 	//freeGpuMem(t3_d);
 	freeGpuMem(t2_d);
 	freeGpuMem(v2_d);
-	freeHostMem(t3_p);
+	//freeHostMem(t3_p);
 	free(streams);
 }
           void 
 sd_t_s1_9_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d,  double *t3, double *t2, double *v2)
 {
-	sd_t_s1_9_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d,  t3, t2, v2);
+	sd_t_s1_9_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d,  t3, t2, v2);
 }

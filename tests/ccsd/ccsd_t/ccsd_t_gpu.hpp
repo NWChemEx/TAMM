@@ -12,7 +12,8 @@ int check_device(long);
 int device_init(long icuda,int *cuda_device_number );
 void dev_release();
 void finalizememmodule();
-void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,int h1d, int h2d, int h3d, int p4d, int p5d,int p6d, double* host1, double* host2);
+void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,
+size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* host1, double* host2);
 
 template <typename Arg, typename... Args>
 void dprint1(Arg&& arg, Args&&... args)
@@ -44,7 +45,7 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
 
     auto tnocc = 2*nocc;
     auto tnvirt = 2*nvirt; 
-    auto total_orbitals = tnocc+tnvirt;
+    // auto total_orbitals = tnocc+tnvirt;
     auto mo_tiles = MO.input_tile_sizes();
     std::vector<size_t> k_range;
     std::vector<size_t> k_offset;
@@ -56,6 +57,7 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
     } 
 
     if(nodezero){
+      cout << "noab,nvab = " << noab << ", " << nvab << endl;
       // cout << "k_spin = " << k_spin << endl;
       // cout << "k_range = " << k_range << endl;
       cout << "MO Tiles = " << mo_tiles << endl;
@@ -116,9 +118,9 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
                 //                                       k_sym[t_h3b])))))
                 //     ) {
               if (next == taskcount) {
-                      size_t size = k_range[t_p4b] * k_range[t_p5b] *
-                                    k_range[t_p6b] * k_range[t_h1b] *
-                                    k_range[t_h2b] * k_range[t_h3b];
+                      // size_t size = k_range[t_p4b] * k_range[t_p5b] *
+                      //               k_range[t_p6b] * k_range[t_h1b] *
+                      //               k_range[t_h2b] * k_range[t_h3b];
 
                       //TODO: cpu buffers not needed for gpu code path                                    
                       std::vector<double> k_singles(2);/*size*/
@@ -126,6 +128,16 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
                       has_GPU = check_device(icuda);
                       if (has_GPU==1) {
                         initmemmodule();
+                      }
+
+                      if ((has_GPU==1)) {
+                        dev_mem_s(k_range[t_h1b],k_range[t_h2b],
+                                  k_range[t_h3b],k_range[t_p4b],
+                                  k_range[t_p5b],k_range[t_p6b]);
+           
+                        dev_mem_d(k_range[t_h1b],k_range[t_h2b],
+                                  k_range[t_h3b],k_range[t_p4b],
+                                  k_range[t_p5b],k_range[t_p6b]);
                       }
 
                       //TODO:chk args, d_t1 should be local
@@ -252,7 +264,7 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
                       // cout << "-----------------------------------------\n";
                       dev_release();
                       finalizememmodule();
-                    
+
                       next = ac->fetch_add(0, 1); 
                     }
                       

@@ -5,25 +5,25 @@
 using namespace tamm;
 
 
-void sd_t_d1_1_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d1_2_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d1_3_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d1_4_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d1_5_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d1_6_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d1_7_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d1_8_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d1_9_cuda(int,int,int,int,int,int,int,double*,double*,double*);
+void sd_t_d1_1_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d1_2_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d1_3_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d1_4_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d1_5_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d1_6_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d1_7_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d1_8_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d1_9_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 
-void sd_t_d2_1_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d2_2_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d2_3_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d2_4_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d2_5_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d2_6_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d2_7_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d2_8_cuda(int,int,int,int,int,int,int,double*,double*,double*);
-void sd_t_d2_9_cuda(int,int,int,int,int,int,int,double*,double*,double*);
+void sd_t_d2_1_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d2_2_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d2_3_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d2_4_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d2_5_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d2_6_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d2_7_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d2_8_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+void sd_t_d2_9_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 
 // template <typename Arg, typename... Args>
 // void dprint(Arg&& arg, Args&&... args)
@@ -43,13 +43,13 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
                    Tensor<T>& d_v2, //d_b
                    std::vector<T>& p_evl_sorted,
                    std::vector<size_t>& k_range,
-                   int t_h1b, int t_h2b, int t_h3b,
-                   int t_p4b, int t_p5b, int t_p6b,
-                   int usedevice=1) {
+                   size_t t_h1b, size_t t_h2b, size_t t_h3b,
+                   size_t t_p4b, size_t t_p5b, size_t t_p6b,
+                   int usedevice) {
 
     // initmemmodule();
 
-    Eigen::Matrix<int, 9,6, Eigen::RowMajor> a3;
+    Eigen::Matrix<size_t, 9,6, Eigen::RowMajor> a3;
     a3.setZero();
 
     a3(0,0)=t_p4b;
@@ -115,7 +115,7 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
     a3(8,4)=t_h1b;
     a3(8,5)=t_h2b;
 
-    auto notset=1;
+    // auto notset=1;
 
     for (auto ia6=0; ia6<8; ia6++){
       if(a3(ia6,0) != 0) {
@@ -147,12 +147,12 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
       // cout << "p456,h123= ";
       ////dprint(p4b,p5b,p6b,h1b,h2b,h3b);
 
-      if ((usedevice==1)&&(notset==1)) {
-       dev_mem_d(k_range[t_h1b],k_range[t_h2b],
-                    k_range[t_h3b],k_range[t_p4b],
-                    k_range[t_p5b],k_range[t_p6b]);
-       notset=0;
-      }
+      // if ((usedevice==1)&&(notset==1)) {
+      //  dev_mem_d(k_range[t_h1b],k_range[t_h2b],
+      //               k_range[t_h3b],k_range[t_p4b],
+      //               k_range[t_p5b],k_range[t_p6b]);
+      //  notset=0;
+      // }
 
 
     if( (p4b<=p5b) && (h2b<=h3b) && p4b!=0){ 
@@ -161,19 +161,19 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
          if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          == k_spin[h1b]+k_spin[h2b]+k_spin[h3b]) {
 
-           auto dimc=k_range[p4b]*k_range[p5b]*k_range[p6b]*
-                     k_range[h1b]*k_range[h2b]*k_range[h3b];
+          //  size_t dimc=k_range[p4b]*k_range[p5b]*k_range[p6b]*
+          //            k_range[h1b]*k_range[h2b]*k_range[h3b];
 
           for (Index h7b=0;h7b<noab;h7b++){
 
             if(k_spin[p4b]+k_spin[p5b]
               == k_spin[h1b]+k_spin[h7b]) {
 
-                auto dim_common = k_range[h7b];
-                auto dima_sort = k_range[p4b]*k_range[p5b]*k_range[h1b];
-                auto dima = dim_common*dima_sort;
-                auto dimb_sort = k_range[p6b]*k_range[h2b]*k_range[h3b];
-                auto dimb = dim_common*dimb_sort;
+                size_t dim_common = k_range[h7b];
+                size_t dima_sort = k_range[p4b]*k_range[p5b]*k_range[h1b];
+                size_t dima = dim_common*dima_sort;
+                size_t dimb_sort = k_range[p6b]*k_range[h2b]*k_range[h3b];
+                size_t dimb = dim_common*dimb_sort;
                 
                 if(dima > 0 && dimb > 0) {
                   std::vector<T> k_a(dima);
@@ -416,19 +416,19 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
          if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          == k_spin[h1b]+k_spin[h2b]+k_spin[h3b]) {
 
-           auto dimc=k_range[p4b]*k_range[p5b]*k_range[p6b]*
-                     k_range[h1b]*k_range[h2b]*k_range[h3b];
+          //  size_t dimc=k_range[p4b]*k_range[p5b]*k_range[p6b]*
+          //            k_range[h1b]*k_range[h2b]*k_range[h3b];
 
           for (Index p7b=noab;p7b<noab+nvab;p7b++){
 
             if(k_spin[p4b]+k_spin[p7b]
               == k_spin[h1b]+k_spin[h2b]) {
 
-                auto dim_common = k_range[p7b];
-                auto dima_sort = k_range[p4b]*k_range[h1b]*k_range[h2b];
-                auto dima = dim_common*dima_sort;
-                auto dimb_sort = k_range[p5b]*k_range[p6b]*k_range[h3b];
-                auto dimb = dim_common*dimb_sort;
+                size_t dim_common = k_range[p7b];
+                size_t dima_sort = k_range[p4b]*k_range[h1b]*k_range[h2b];
+                size_t dima = dim_common*dima_sort;
+                size_t dimb_sort = k_range[p5b]*k_range[p6b]*k_range[h3b];
+                size_t dimb = dim_common*dimb_sort;
                 
                 if(dima > 0 && dimb > 0) {
                   std::vector<T> k_a(dima);

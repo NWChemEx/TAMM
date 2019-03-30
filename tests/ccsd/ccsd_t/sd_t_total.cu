@@ -5423,10 +5423,10 @@ __global__ void sd_t_s1_1_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   size_t h2ld_v2,size_t p6ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p4ld_t3, double *t2_d, double *v2_d,
   size_t p4, size_t total_x, double* t3d) {
   size_t h1,h2,h3,p6;
-  __shared__ double t2_shm[T1*2*Tcomm];
+  __shared__ double t2_shm[T1*4*Tcomm];
   
   for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
-  if(i<h1d*p4d)
+  if(i<h1d*p4d) 
   t2_shm[i] = t2_d[i];
   size_t rest_x=blockIdx.x;
   size_t thread_x = T2*T1 * rest_x + threadIdx.x;
@@ -5552,7 +5552,7 @@ sd_t_s1_1_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Inte
 #define Tcomm 16
 __global__ void sd_t_s1_2_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p6d,size_t p4ld_t2,size_t h1ld_t2,size_t h3ld_v2,size_t h2ld_v2,size_t p6ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p4ld_t3,double *t2_d, double *v2_d,size_t p4, size_t total_x, double* t3d) {
   size_t h1,h2,h3,p6;
-  __shared__ double t2_shm[T1*2*Tcomm];
+  __shared__ double t2_shm[T1*4*Tcomm];
   
   for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
   if(i<h1d*p4d)
@@ -5769,7 +5769,7 @@ sd_t_s1_3_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Inte
 #define Tcomm 16
 __global__ void sd_t_s1_4_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p6d,size_t p4ld_t2,size_t h1ld_t2,size_t h3ld_v2,size_t h2ld_v2,size_t p6ld_v2,size_t p5ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p5ld_t3,size_t p4ld_t3,double *t3d, double *t2_d, double *v2_d,size_t p4, size_t total_x) {
   size_t h1,h2,h3,p6,p5;
-  __shared__ double t2_shm[T1*2*Tcomm];
+  __shared__ double t2_shm[T1*4*Tcomm];
   
   for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
   if(i<h1d*p4d)
@@ -5903,7 +5903,7 @@ sd_t_s1_4_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Inte
 #define Tcomm 16
 __global__ void sd_t_s1_5_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p6d,size_t p4ld_t2,size_t h1ld_t2,size_t h3ld_v2,size_t h2ld_v2,size_t p6ld_v2,size_t p5ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p5ld_t3,size_t p4ld_t3,double *t3d, double *t2_d, double *v2_d,size_t p4, size_t total_x) {
   size_t h1,h2,h3,p6,p5;
-  __shared__ double t2_shm[T1*2*Tcomm];
+  __shared__ double t2_shm[T1*4*Tcomm];
   
   for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
   if(i<h1d*p4d)
@@ -6036,7 +6036,7 @@ sd_t_s1_5_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Inte
 #define Tcomm 16
 __global__ void sd_t_s1_6_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p6d,size_t p4ld_t2,size_t h1ld_t2,size_t h3ld_v2,size_t h2ld_v2,size_t p6ld_v2,size_t p5ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p5ld_t3,size_t p4ld_t3,double *t3d, double *t2_d, double *v2_d,size_t p4, size_t total_x) {
   size_t h1,h2,h3,p6,p5;
-  __shared__ double t2_shm[T1*2*Tcomm];
+  __shared__ double t2_shm[T1*4*Tcomm];
   
   for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
   if(i<h1d*p4d)
@@ -6175,7 +6175,7 @@ sd_t_s1_6_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Inte
 #define Tcomm 16
 __global__ void sd_t_s1_7_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p6d,size_t p4ld_t2,size_t h1ld_t2,size_t h3ld_v2,size_t h2ld_v2,size_t p6ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p4ld_t3,double *t3d, double *t2_d, double *v2_d,size_t p4, size_t total_x) {
   size_t h1,h2,h3,p6;
-  __shared__ double t2_shm[T1*2*Tcomm];
+  __shared__ double t2_shm[T1*4*Tcomm];
   
   for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
   if(i<h1d*p4d)
@@ -6300,7 +6300,7 @@ sd_t_s1_7_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Inte
 #define Tcomm 16
 __global__ void sd_t_s1_8_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p6d,size_t p4ld_t2,size_t h1ld_t2,size_t h3ld_v2,size_t h2ld_v2,size_t p6ld_v2,size_t h3ld_t3,size_t h2ld_t3,size_t h1ld_t3,size_t p6ld_t3,size_t p4ld_t3,double *t3d, double *t2_d, double *v2_d,size_t p4, size_t total_x) {
   size_t h1,h2,h3,p6;
-  __shared__ double t2_shm[T1*2*Tcomm];
+  __shared__ double t2_shm[T1*4*Tcomm];
   
   for(size_t i=threadIdx.x;i<h1d*p4d;i+=blockDim.x)
   if(i<h1d*p4d)

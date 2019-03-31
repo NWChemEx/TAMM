@@ -30,6 +30,14 @@ macro(check_compiler_version lang_arg comp_type comp_version)
     endif()
 endmacro()
 
+set(ARMCI_NETWORK_TAMM OPENIB MPI-PR MPI-TS)
+if(DEFINED ARMCI_NETWORK)
+    list(FIND ARMCI_NETWORK_TAMM ${ARMCI_NETWORK} _index)
+    if(${_index} EQUAL -1)
+        message(FATAL_ERROR "TAMM only supports building GA using one of ${ARMCI_NETWORK_TAMM}, default is MPI-PR")
+    endif()
+endif()
+
 check_compiler_version(C Clang 5)
 check_compiler_version(CXX Clang 5)
 

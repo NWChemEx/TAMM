@@ -4,8 +4,8 @@
 #include <vector>
 // typedef long Integer;
 
-extern double* t3_s_d;
-extern double* t3_d;
+extern __device__ double* t3_s_d;
+extern __device__ double* t3_d;
 
 /*----------------------------------------------------------------------*
  *  [d1][1] triplesx[h3,h1,p6,p5,p4] -= t2sub[h7,p4,p5,h1] * v2sub[h3,p6,h7]
@@ -33,8 +33,8 @@ extern double* t3_d;
 __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_b, size_t numBlk_c, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[16][64];
-	__shared__ double sm_b[16][64];
+	__shared__ double sm_a[32][64];
+	__shared__ double sm_b[32][64];
 
 
 	size_t internal_upperbound   = 0;
@@ -313,8 +313,8 @@ void jk_ccsd_t_d1_1_fusion_(size_t size_a, size_t size_b, size_t size_c, size_t 
 __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_b, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[16][64];
-	__shared__ double sm_b[16][64];
+	__shared__ double sm_a[32][64];
+	__shared__ double sm_b[32][64];
 
 
 	size_t internal_upperbound   = 0;
@@ -587,8 +587,8 @@ void jk_ccsd_t_d1_2_fusion_(size_t size_a, size_t size_c, size_t size_b, size_t 
 __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_b, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[16][64];
-	__shared__ double sm_b[16][64];
+	__shared__ double sm_a[32][64];
+	__shared__ double sm_b[32][64];
 
 
 	size_t internal_upperbound   = 0;
@@ -855,8 +855,8 @@ void jk_ccsd_t_d1_3_fusion_(size_t size_c, size_t size_a, size_t size_b, size_t 
 __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_a, size_t numBlk_b, size_t numBlk_c, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[16][64];
-	__shared__ double sm_b[16][64];
+	__shared__ double sm_a[32][64];
+	__shared__ double sm_b[32][64];
 
 	size_t internal_upperbound   = 0;
 	size_t internal_offset;
@@ -1131,8 +1131,8 @@ void jk_ccsd_t_d1_4_fusion_(size_t size_a, size_t size_b, size_t size_c, size_t 
 __global__ void jk_ccsd_t_d1_4_kernel__5_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_b, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[16][64];
-	__shared__ double sm_b[16][64];
+	__shared__ double sm_a[32][64];
+	__shared__ double sm_b[32][64];
 
 	size_t internal_upperbound   = 0;
 	size_t internal_offset;
@@ -1420,8 +1420,8 @@ void jk_ccsd_t_d1_5_fusion_(size_t size_a, size_t size_c, size_t size_b, size_t 
 __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_b, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[16][64];
-	__shared__ double sm_b[16][64];
+	__shared__ double sm_a[32][64];
+	__shared__ double sm_b[32][64];
 
 	size_t internal_upperbound   = 0;
 	size_t internal_offset;
@@ -1687,8 +1687,8 @@ void jk_ccsd_t_d1_6_fusion_(size_t size_c, size_t size_a, size_t size_b, size_t 
 __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_b, size_t numBlk_c, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[16][64];
-	__shared__ double sm_b[16][64];
+	__shared__ double sm_a[32][64];
+	__shared__ double sm_b[32][64];
 
 
 	size_t internal_upperbound   = 0;
@@ -1969,8 +1969,8 @@ void jk_ccsd_t_d1_7_fusion_(size_t size_a, size_t size_b, size_t size_c, size_t 
 __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_b, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[16][64];
-	__shared__ double sm_b[16][64];
+	__shared__ double sm_a[32][64];
+	__shared__ double sm_b[32][64];
 
 	size_t internal_upperbound   = 0;
 	size_t internal_offset;
@@ -2245,8 +2245,8 @@ void jk_ccsd_t_d1_8_fusion_(size_t size_a, size_t size_c, size_t size_b, size_t 
 __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_b, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[16][64];
-	__shared__ double sm_b[16][64];
+	__shared__ double sm_a[32][64];
+	__shared__ double sm_b[32][64];
 
 
 	size_t internal_upperbound   = 0;
@@ -2792,7 +2792,7 @@ __global__ void kernel_ccsdT_sd1_fully_fused_partial_partial(double* t3,
 	//
 	if (threadIdx.y < 4)						// 0, 1, 2, 3
 	{
-		// sm_a[16][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
+		// sm_a[32][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
 		sm_a[0 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[0][0];
 		sm_a[1 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[1][0];
 		sm_a[2 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[2][0];
@@ -3487,7 +3487,7 @@ __global__ void kernel_ccsdT_sd1_fully_fused_partial_full(double* t3,
 	//
 	if (threadIdx.y < 4)						// 0, 1, 2, 3
 	{
-		// sm_a[16][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
+		// sm_a[32][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
 		sm_a[0 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[0][0];
 		sm_a[1 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[1][0];
 		sm_a[2 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[2][0];
@@ -4143,7 +4143,7 @@ __global__ void kernel_ccsdT_sd1_fully_fused_full_full(double* t3,
 	//
 	if (threadIdx.y < 4)						// 0, 1, 2, 3
 	{
-		// sm_a[16][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
+		// sm_a[32][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
 		sm_a[0 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[0][0];
 		sm_a[1 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[1][0];
 		sm_a[2 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[2][0];

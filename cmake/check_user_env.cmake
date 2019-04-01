@@ -1,13 +1,15 @@
 if(CMAKE_CXX_COMPILER_ID STREQUAL "XL"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "Cray"
-    OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        message(FATAL_ERROR "TAMM does not support ${CMAKE_CXX_COMPILER_ID} compilers.")
+    OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"
+    OR CMAKE_CXX_COMPILER_ID STREQUAL "Intel" 
+    OR CMAKE_CXX_COMPILER_ID STREQUAL "PGI")
+        message(FATAL_ERROR "TAMM cannot be currently built with ${CMAKE_CXX_COMPILER_ID} compilers.")
 endif()
 
 if("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
     if (TAMM_ENABLE_GPU)
         message(FATAL_ERROR "TAMM does not support building with GPU support \
-        on MACOSX. Please use TAMM_ENABLE_GPU=OFF for MACOSX builds.")
+        on MACOSX. Please use NWX_CUDA=OFF for MACOSX builds.")
     endif()
     
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" 
@@ -29,6 +31,14 @@ macro(check_compiler_version lang_arg comp_type comp_version)
         endif()
     endif()
 endmacro()
+
+set(ARMCI_NETWORK_TAMM OPENIB MPI-PR MPI-TS)
+if(DEFINED ARMCI_NETWORK)
+    list(FIND ARMCI_NETWORK_TAMM ${ARMCI_NETWORK} _index)
+    if(${_index} EQUAL -1)
+        message(FATAL_ERROR "TAMM only supports building GA using one of ${ARMCI_NETWORK_TAMM}, default is MPI-PR")
+    endif()
+endif()
 
 check_compiler_version(C Clang 5)
 check_compiler_version(CXX Clang 5)

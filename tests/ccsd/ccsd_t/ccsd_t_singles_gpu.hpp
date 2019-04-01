@@ -6,7 +6,7 @@
 
 // #include "header.hpp"
 #include "tamm/tamm.hpp"
-using namespace tamm;
+// using namespace tamm;
 
 
 void initmemmodule();

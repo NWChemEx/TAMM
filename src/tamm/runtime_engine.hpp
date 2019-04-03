@@ -237,6 +237,7 @@ public:
 
     template<typename Lambda, typename... Args>
     void submitTask(Lambda lambda, Args&&... args) {
+        /* g++-7 does not support apply function
         std::apply(
           lambda,
           std::tuple_cat(
@@ -247,6 +248,17 @@ public:
                     return std::forward_as_tuple<Args>(args);
                 }
             }()...)));
+         */
+        lambda(
+            std::tuple_cat(
+                std::make_tuple(RuntimeContext{*this}), std::tuple_cat([&]() {
+                    if constexpr(std::is_base_of_v<PermissionBase, Args>) {
+                    return std::tuple{};
+                    } else {
+                    return std::forward_as_tuple<Args>(args);
+                    }
+                }()...)));
+
     }
 
 private:

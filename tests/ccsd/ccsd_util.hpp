@@ -129,7 +129,7 @@ std::pair<double,double> rest(ExecutionContext& ec,
     return {residual, energy};
 }
 
-std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(TAMM_SIZE nao, TAMM_SIZE ov_alpha, TAMM_SIZE freeze_core, TAMM_SIZE freeze_virtual){
+std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(Tile tce_tile, TAMM_SIZE nao, TAMM_SIZE ov_alpha, TAMM_SIZE freeze_core, TAMM_SIZE freeze_virtual){
 
     TAMM_SIZE ov_beta{nao - ov_alpha};
 
@@ -139,6 +139,10 @@ std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(TAMM_SIZE nao, TAMM_SIZE ov_alph
 
     const TAMM_SIZE total_orbitals = 2*ov_alpha+2*ov_beta - 2 * freeze_core - 2 * freeze_virtual;
     
+    // cout << "total orb = " <<total_orbitals << endl;
+    // cout << "oab = " << ov_alpha << endl;
+    // cout << "vab = " << ov_beta << endl;
+
     // Construction of tiled index space MO
     IndexSpace MO_IS{range(0, total_orbitals),
                     {
@@ -151,6 +155,24 @@ std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(TAMM_SIZE nao, TAMM_SIZE ov_alph
                      }
                      };
 
+    std::vector<Tile> mo_tiles;
+    
+    tamm::Tile est_nt = ov_alpha/tce_tile;
+    tamm::Tile last_tile = ov_alpha%tce_tile;
+    for (auto x=0;x<est_nt;x++)mo_tiles.push_back(tce_tile);
+    if(last_tile>0) mo_tiles.push_back(last_tile);
+    for (auto x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
+    if(last_tile>0) mo_tiles.push_back(last_tile);
+
+    est_nt = ov_beta/tce_tile;
+    last_tile = ov_beta%tce_tile;
+    for (auto x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
+    if(last_tile>0) mo_tiles.push_back(last_tile);
+    for (auto x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
+    if(last_tile>0) mo_tiles.push_back(last_tile);
+
+    // cout << "mo-tiles=" << mo_tiles << endl;
+
     // IndexSpace MO_IS{range(0, total_orbitals),
     //                 {{"occ", {range(0, ov_alpha+ov_beta)}}, //0-7
     //                  {"virt", {range(total_orbitals/2, total_orbitals)}}, //7-14
@@ -159,7 +181,7 @@ std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(TAMM_SIZE nao, TAMM_SIZE ov_alph
     //                  }};
     const unsigned int ova = static_cast<unsigned int>(ov_alpha);
     const unsigned int ovb = static_cast<unsigned int>(ov_beta);
-    TiledIndexSpace MO{MO_IS, {ova,ova,ovb,ovb}};
+    TiledIndexSpace MO{MO_IS, mo_tiles}; //{ova,ova,ovb,ovb}};
 
     return std::make_tuple(MO,total_orbitals);
 }

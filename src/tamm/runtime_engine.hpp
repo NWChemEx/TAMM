@@ -217,7 +217,7 @@ public:
 
         template<typename Lambda, typename... Args>
         void submitTask(Lambda lambda, Args&&... args) {
-            //re.submitTask(lambda, std::forward<Args>(args)...);
+            re.submitTask(lambda, std::forward<Args>(args)...);
         }
 
     private:
@@ -237,16 +237,16 @@ public:
 
     template<typename Lambda, typename... Args>
     void submitTask(Lambda lambda, Args&&... args) {
-        // std::apply(
-        //   lambda,
-        //   std::tuple_cat(
-        //     std::make_tuple(RuntimeContext{*this}), std::tuple_cat([&]() {
-        //         if constexpr(std::is_base_of_v<PermissionBase, Args>) {
-        //             return std::tuple{};
-        //         } else {
-        //             return std::forward_as_tuple<Args>(args);
-        //         }
-        //     }()...)));
+        std::apply(
+          lambda,
+          std::tuple_cat(
+            std::make_tuple(RuntimeContext{*this}), std::tuple_cat([&]() {
+                if constexpr(std::is_base_of_v<PermissionBase, Args>) {
+                    return std::tuple{};
+                } else {
+                    return std::forward_as_tuple<Args>(args);
+                }
+            }()...)));
     }
 
 private:

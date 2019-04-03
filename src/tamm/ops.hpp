@@ -353,7 +353,7 @@ public:
 
     void execute(ExecutionContext& ec) override {
         
-#if 1
+#if 0
 //previous implementation
         using TensorElType = typename LabeledTensorT::element_type;
         LabelLoopNest loop_nest{lhs_.labels()};
@@ -373,6 +373,32 @@ public:
                 tensor.put(translated_blockid, buf);
             } else {
                 tensor.add(translated_blockid, buf);
+            }
+        };
+        do_work(ec, loop_nest, lambda);
+#endif
+#if 1
+        LabelLoopNest loop_nest{lhs_.labels()};
+
+        auto lambda = [=](const IndexVector& blockid) {
+            auto tensor = lhs_.tensor();
+            EXPECTS(blockid.size() == lhs_.labels().size());
+            EXPECTS(blockid.size() == tensor.num_modes());
+            const auto translated_blockid = internal::translate_blockid(blockid, lhs_);
+            if(is_assign_) {
+                ec.re()->submitTask([=](RuntimeEngine::RuntimeContext rc) {
+                        BlockBuffer bf = rc.get_buf_tmp(tensor, translated_blockid);
+                        std::fill(bf.begin(), bf.end(), alpha_);
+                        bf.release_put();  // goes through runtime (may be lazy)
+                        }, TempAccess{IndexedTensor{tensor, translated_blockid}},
+                        WritePermission{IndexedTensor{tensor, translated_blockid}});
+            } else {
+                ec.re()->submitTask([=](RuntimeEngine::RuntimeContext rc) {
+                        BlockBuffer bf = rc.get_buf_tmp(tensor, translated_blockid);
+                        std::fill(bf.begin(), bf.end(), alpha_);
+                        bf.release_add();
+                        }, TempAccess{IndexedTensor{tensor, translated_blockid}},
+                        AccumPermission{IndexedTensor{tensor, translated_blockid}});
             }
         };
         do_work(ec, loop_nest, lambda);
@@ -422,39 +448,6 @@ public:
             );
         }
 
-        // We do not execute runtime engine here explicitly.  This will be done later by whoever created the execution context.
-#endif
-#if 0
-// New task-based implementation
-//TODO: parameter list would be buffer pointer and other parameters
-// Buffer pointer ---> tensor(translated_blockid)
-       auto cpulambda = [=](const IndexVector& translated_blockid, RuntimeSummary& rs) {
-            auto tensor = lhs_.tensor();
-
-            const size_t size = tensor.block_size(translated_blockid);
-            auto buf = static_cast<TensorElType*> (rs.get_buffer(size* sizeof(TensorElType)));
-            //TODO: something similar to the following line
-            //std::vector<TensorElType> buf(size, static_cast<TensorElType>(alpha()));
-            //std::fill(std::begin(buf), std::end(buf), alpha());
-            std::fill(buf, buf+size, alpha());
-
-            if(is_assign_) {
-                //copy buf to tensor buffer
-                tensor.put(translated_blockid, buf);
-            } else {
-                // add buf to tensor buffer
-                tensor.add(translated_blockid, buf);
-            }
-            rs.release(buf);
-        };
-        auto gpulambda = nullptr;
-        FunctionDefinition function_definition(cpulambda, gpulambda);
-
-        auto tensor = lhs_.tensor();
-
-
-        RuntimeEngine& runtime_engine = ec.re();
-        runtime_engine.executeAllThreads(te);
 #endif
     }
 
@@ -846,8 +839,69 @@ public:
     }
 
     void execute(ExecutionContext& ec) override {
-        // Write (is_assign_ is true)
-        #if 0
+#if 1
+        
+
+        IndexLabelVec merged_labels{lhs_.labels()};
+        merged_labels.insert(merged_labels.end(), rhs_.labels().begin(),
+                             rhs_.labels().end());
+
+        LabelLoopNest loop_nest{merged_labels};
+
+        auto lambda = [=](const IndexVector& blockid) {
+            auto ltensor = lhs_.tensor();
+            auto rtensor = rhs_.tensor();
+            IndexVector lblockid, rblockid;
+            split_block_id(lblockid, rblockid, lhs_.labels().size(),
+                    rhs_.labels().size(), blockid);
+            const auto translated_lblockid = internal::translate_blockid(lblockid, lhs_);
+            const auto translated_rblockid = internal::translate_blockid(rblockid, rhs_);
+
+            // Check if lhs is non-zero
+            if(!ltensor.is_non_zero(translated_lblockid) ||
+                    !rtensor.is_non_zero(translated_rblockid)) {
+                return;
+            }
+
+            if(is_assign_) {
+
+                ec.re()->submitTask([=](RuntimeEngine::RuntimeContext rc) {
+                        BlockBuffer lbf = rc.get_buf_tmp(ltensor, translated_lblockid);
+                        BlockBuffer rbf = rc.get_buf_read(rtensor, translated_rblockid);
+
+                        SizeVec ldims_sz, rdims_sz;
+                        for(const auto v : lbf.block_dims()) { ldims_sz.push_back(v); }
+                        for(const auto v : rbf.block_dims()) { rdims_sz.push_back(v); }
+                        kernels::assign(lbf.data(), ldims_sz, lhs_int_labels_, alpha_, rbf.data(),
+                                rdims_sz, rhs_int_labels_, is_assign_);
+                        lbf.release_put();
+                        },
+                        TempAccess(IndexedTensor{ltensor, translated_lblockid}),
+                        WritePermission(IndexedTensor{ltensor, translated_lblockid}),
+                        ReadAccess(IndexedTensor{rtensor, translated_rblockid}));
+            } else {
+                ec.re()->submitTask([=](RuntimeEngine::RuntimeContext rc) {
+                        BlockBuffer lbf = rc.get_buf_tmp(ltensor, translated_lblockid, 0);
+                        BlockBuffer rbf = rc.get_buf_read(rtensor, translated_rblockid);
+
+                        SizeVec ldims_sz, rdims_sz;
+                        for(const auto v : lbf.block_dims()) { ldims_sz.push_back(v); }
+                        for(const auto v : rbf.block_dims()) { rdims_sz.push_back(v); }
+                        kernels::assign(lbf.data(), ldims_sz, lhs_int_labels_, alpha_, rbf.data(),
+                                rdims_sz, rhs_int_labels_, is_assign_);
+                        lbf.release_add();
+                        },
+                        TempAccess(IndexedTensor{ltensor, translated_lblockid}),
+                        AccumPermission(IndexedTensor{ltensor, translated_lblockid}),
+                        ReadAccess(IndexedTensor{rtensor, translated_rblockid}));
+            }
+        };
+
+        //@todo use a scheduler
+        do_work(ec, loop_nest, lambda);
+#endif
+#if 0
+
         if(is_assign_) {
             ec.re()->submitTask(
               [=](RuntimeEngine::RuntimeContext rc) {
@@ -883,19 +937,12 @@ public:
                         [=](RuntimeEngine::RuntimeContext rc_recursive) {
                             BlockBuffer lbf = rc_recursive.get_buf_tmp(
                               ltensor, translated_lblockid);
-                            // TODO: Verify : size of rbuf would depend on lhs_
-                            // or rhs_ tensor
                             BlockBuffer rbf = rc_recursive.get_buf_read(
                               rtensor, translated_rblockid);
 
-                            const auto& ldims =
-                              lhs_.tensor().block_dims(translated_lblockid);
-                            const auto& rdims =
-                              rhs_.tensor().block_dims(translated_rblockid);
-
                             SizeVec ldims_sz, rdims_sz;
-                            for(const auto v : ldims) { ldims_sz.push_back(v); }
-                            for(const auto v : rdims) { rdims_sz.push_back(v); }
+                            for(const auto v : lbf.block_dims()) { ldims_sz.push_back(v); }
+                            for(const auto v : rbf.block_dims()) { rdims_sz.push_back(v); }
                             kernels::assign(lbf.data(), ldims_sz,
                                             lhs_int_labels_, alpha_, rbf.data(),
                                             rdims_sz, rhs_int_labels_,
@@ -948,24 +995,16 @@ public:
                         [=](RuntimeEngine::RuntimeContext rc_recursive) {
                             BlockBuffer lbf = rc_recursive.get_buf_tmp(
                               ltensor, translated_lblockid, 0);
-                            // TODO: Verify : size of rbuf would depend on lhs_
-                            // or rhs_ tensor
                             BlockBuffer rbf = rc_recursive.get_buf_read(
                               rtensor, translated_rblockid);
 
-                            const auto& ldims =
-                              lhs_.tensor().block_dims(translated_lblockid);
-                            const auto& rdims =
-                              rhs_.tensor().block_dims(translated_rblockid);
-
                             SizeVec ldims_sz, rdims_sz;
-                            for(const auto v : ldims) { ldims_sz.push_back(v); }
-                            for(const auto v : rdims) { rdims_sz.push_back(v); }
+                            for(const auto v : lbf.block_dims()) { ldims_sz.push_back(v); }
+                            for(const auto v : rbf.block_dims()) { rdims_sz.push_back(v); }
                             kernels::assign(lbf.data(), ldims_sz,
                                             lhs_int_labels_, alpha_, rbf.data(),
                                             rdims_sz, rhs_int_labels_,
                                             is_assign_);
-                            //std::cout << "lbf buffer: " << lbf << std::endl;
                             lbf.release_add();
                             // TODO: Future Plan (Write back not through):
                             // remove explicit release statement
@@ -980,8 +1019,8 @@ public:
               },
               AccumPermission{lhs_}, ReadPermission{rhs_});
         }
-
-#else
+#endif
+#if 0
         
         using TensorElType = typename LabeledTensorT::element_type;
 
@@ -1208,7 +1247,65 @@ public:
 
     void execute(ExecutionContext& ec) override {
         EXPECTS(!is_assign_);
-        #if 0
+#if 1
+        using TensorElType = typename LabeledTensorT::element_type;
+        // determine set of all labels
+        IndexLabelVec all_labels{lhs_.labels()};
+        all_labels.insert(all_labels.end(), rhs1_.labels().begin(),
+                          rhs1_.labels().end());
+        all_labels.insert(all_labels.end(), rhs2_.labels().begin(),
+                          rhs2_.labels().end());
+        LabelLoopNest loop_nest{all_labels};
+        // function to compute one block
+        auto lambda = [=](const IndexVector itval) {
+            auto ctensor = lhs_.tensor();
+            auto atensor = rhs1_.tensor();
+            auto btensor = rhs2_.tensor();
+            // compute blockids from the loop indices. itval is the loop index
+            auto it = itval.begin();
+            IndexVector cblockid{it, it + lhs_.labels().size()};
+            it += lhs_.labels().size();
+            IndexVector ablockid{it, it + rhs1_.labels().size()};
+            it += rhs1_.labels().size();
+            IndexVector bblockid{it, it + rhs2_.labels().size()};
+
+            const auto translated_cblockid = internal::translate_blockid(cblockid, lhs_);
+            const auto translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
+            const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
+            if(!ctensor.is_non_zero(translated_cblockid) || !atensor.is_non_zero(translated_ablockid) ||
+                    !btensor.is_non_zero(translated_bblockid)) 
+                return;
+
+            ec.re()->submitTask([=](RuntimeEngine::RuntimeContext rc){
+                    BlockBuffer cbuf = rc.get_buf_tmp(ctensor, translated_cblockid);
+                    BlockBuffer abuf = rc.get_buf_read(atensor, translated_ablockid);
+                    BlockBuffer bbuf = rc.get_buf_read(btensor, translated_bblockid);
+                    // double cscale = is_assign_ ? 0 : 1;
+                    TensorElType cscale{0};
+
+                    SizeVec adims_sz, bdims_sz, cdims_sz;
+                    for(const auto v : abuf.block_dims()) { adims_sz.push_back(v); }
+                    for(const auto v : bbuf.block_dims()) { bdims_sz.push_back(v); }
+                    for(const auto v : cbuf.block_dims()) { cdims_sz.push_back(v); }
+                    kernels::block_multiply(alpha_, abuf.data(), adims_sz,
+                            rhs1_int_labels_, bbuf.data(), bdims_sz,
+                            rhs2_int_labels_, cscale, cbuf.data(),
+                            cdims_sz, lhs_int_labels_);
+
+                    // add the computed update to the tensor
+                    cbuf.release_add();
+
+                    }, TempAccess{IndexedTensor{ctensor, translated_cblockid}},
+                    AccumPermission{IndexedTensor{ctensor, translated_cblockid}}, 
+                    ReadAccess{IndexedTensor{atensor, translated_ablockid}}, 
+                    ReadAccess{IndexedTensor{btensor, translated_bblockid}}); 
+                };
+        //@todo use a scheduler
+        //@todo make parallel
+        do_work(ec, loop_nest, lambda);
+#endif
+
+#if 0
         using TensorElType = typename LabeledTensorT::element_type;
 
         ec.re()->submitTask(
@@ -1274,7 +1371,8 @@ public:
         }
         }, AccumPermission{lhs_}, ReadPermission{rhs1_}, ReadPermission{rhs2_});
 
-    #else
+#endif
+#if 0
 
 
         using TensorElType = typename LabeledTensorT::element_type;

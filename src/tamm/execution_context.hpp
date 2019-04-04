@@ -38,6 +38,7 @@ class RuntimeEngine;
  * @todo Should spin_restricted be wrapper by this class? Or should it always
  * default to false?
  */
+class RuntimeEngine;
 class ExecutionContext {
 public:
     ExecutionContext() : ac_{IndexedAC{nullptr, 0}} { pg_self_ = ProcGroup{MPI_COMM_SELF}; };
@@ -48,19 +49,27 @@ public:
 
     /** @todo use shared pointers for solving GitHub issue #43*/
     ExecutionContext(ProcGroup pg, Distribution* default_distribution,
-                     MemoryManager* default_memory_manager, RuntimeEngine* re) :
+                     MemoryManager* default_memory_manager, RuntimeEngine* re =nullptr) :
       pg_{pg},
       default_distribution_{default_distribution},
       default_memory_manager_{default_memory_manager},
       ac_{IndexedAC{nullptr, 0}},
       re_(re) {
+          if (re == nullptr)
+          {
+              re_ = runtime_ptr();
+              deallocate_re = true;
+          }
         pg_self_ = ProcGroup{MPI_COMM_SELF};
 
         // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
     }
+    RuntimeEngine* runtime_ptr();
 
     ~ExecutionContext() {
         // MemoryManagerLocal::destroy_coll(memory_manager_local_);
+        if(deallocate_re)
+            delete re_;
     }
 
     void allocate() {
@@ -219,6 +228,7 @@ private:
     MemoryManagerLocal* memory_manager_local_;
     IndexedAC ac_;
     RuntimeEngine* re_;
+    bool deallocate_re = false;
 
     std::vector<MemoryRegion*> mem_regs_to_dealloc_;
     std::vector<MemoryRegion*> unregistered_mem_regs_;

@@ -65,11 +65,12 @@ public:
         // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
     }
     RuntimeEngine* runtime_ptr();
+    void delete_runtime_ptr(RuntimeEngine*);
 
     ~ExecutionContext() {
         // MemoryManagerLocal::destroy_coll(memory_manager_local_);
         if(deallocate_re)
-            delete re_;
+	    delete_runtime_ptr(re_);
     }
 
     void allocate() {

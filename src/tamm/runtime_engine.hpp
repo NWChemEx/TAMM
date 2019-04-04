@@ -7,6 +7,7 @@
 #include "tamm/tensor.hpp"
 #include "tamm/types.hpp"
 #include "utility"
+#include "execution_context.hpp"
 
 namespace tamm {
 
@@ -270,6 +271,12 @@ public:
 private:
 };
 
+RuntimeEngine* ExecutionContext::runtime_ptr()
+{
+    return new RuntimeEngine();
+}
+
 } // namespace tamm
+
 
 #endif // TAMM_RUNTIME_ENGINE_HPP_

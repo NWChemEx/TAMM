@@ -276,6 +276,11 @@ RuntimeEngine* ExecutionContext::runtime_ptr()
     return new RuntimeEngine();
 }
 
+void ExecutionContext::delete_runtime_ptr(RuntimeEngine* re)
+{
+    delete re;
+}
+
 } // namespace tamm
 
 

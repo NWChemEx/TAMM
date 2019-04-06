@@ -1,10 +1,13 @@
 #ifndef TAMM_RUNTIME_ENGINE_HPP_
 #define TAMM_RUNTIME_ENGINE_HPP_
 
+#include <type_traits>
+
 #include "tamm/block_buffer.hpp"
 #include "tamm/tensor.hpp"
 #include "tamm/types.hpp"
 #include "utility"
+#include "execution_context.hpp"
 
 namespace tamm {
 
@@ -30,6 +33,19 @@ class PermissionBase {
 public:
     virtual Mode getMode() = 0;
 };
+
+namespace detail {
+  class PermissionVisitor {
+  public:
+    template<typename Permission, typename = std::enable_if_t<std::is_base_of<PermissionBase, Permission>::value>>
+    auto operator()(Permission& aw) const {
+	return std::tuple{};
+    }
+
+    template<typename T>
+    auto operator()(T&& value) const { return std::forward_as_tuple<T>(value); }
+  };
+} // namespace detail
 
 template<typename T>
 class Permission;
@@ -237,33 +253,35 @@ public:
 
     template<typename Lambda, typename... Args>
     void submitTask(Lambda lambda, Args&&... args) {
-        /* g++-7 does not support apply function
-        std::apply(
-          lambda,
-          std::tuple_cat(
-            std::make_tuple(RuntimeContext{*this}), std::tuple_cat([&]() {
-                if constexpr(std::is_base_of_v<PermissionBase, Args>) {
-                    return std::tuple{};
-                } else {
-                    return std::forward_as_tuple<Args>(args);
-                }
-            }()...)));
-         */
-        lambda(
-            std::tuple_cat(
-                std::make_tuple(RuntimeContext{*this}), std::tuple_cat([&]() {
-                    if constexpr(std::is_base_of_v<PermissionBase, Args>) {
-                    return std::tuple{};
-                    } else {
-                    return std::forward_as_tuple<Args>(args);
-                    }
-                }()...)));
-
+      // g++-7 does not support constexpr if in this context
+        // std::apply(
+        //   lambda,
+        //   std::tuple_cat(
+        //     std::make_tuple(RuntimeContext{*this}), std::tuple_cat([&]() {
+        //         if constexpr(std::is_base_of_v<PermissionBase, Args>) {
+        //             return std::tuple{};
+        //         } else {
+        //             return std::forward_as_tuple<Args>(args);
+        //         }
+        //     }()...)));
+      std::apply(lambda,
+	   std::tuple_cat(std::make_tuple(RuntimeContext{*this}), detail::PermissionVisitor{}(args)...));
     }
 
 private:
 };
 
+RuntimeEngine* ExecutionContext::runtime_ptr()
+{
+    return new RuntimeEngine();
+}
+
+void ExecutionContext::delete_runtime_ptr(RuntimeEngine* re)
+{
+    delete re;
+}
+
 } // namespace tamm
+
 
 #endif // TAMM_RUNTIME_ENGINE_HPP_

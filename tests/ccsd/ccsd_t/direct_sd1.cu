@@ -2,121 +2,108 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <vector>
-// typedef long Integer;
+#include "header.hpp"
 
 extern __device__ double* t3_s_d;
 extern __device__ double* t3_d;
+
+#define NUM_INDEX 		6
+#define CEIL(a, b) 		(((a) + (b) - 1) / (b))
 
 /*----------------------------------------------------------------------*
  *  [d1][1] triplesx[h3,h1,p6,p5,p4] -= t2sub[h7,p4,p5,h1] * v2sub[h3,p6,h7]
  *----------------------------------------------------------------------*/
 // created by tc_gen_definition_new()
-#define JK_CCSD_T_D1_1_SIZE_SLICE_1_G 16
-#define JK_CCSD_T_D1_1_SIZE_SLICE_1_A 16
-#define JK_CCSD_T_D1_1_SIZE_SLICE_1_B 4
-#define JK_CCSD_T_D1_1_SIZE_SLICE_1_D 1
-#define JK_CCSD_T_D1_1_SIZE_SLICE_1_F 8
-#define JK_CCSD_T_D1_1_SIZE_SLICE_1_E 8
-#define JK_CCSD_T_D1_1_SIZE_SLICE_1_C 1
+#define JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_G 16
+#define JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A 16
+#define JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D 4
+#define JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F 8
+#define JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E 8
+#define JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C 1
 
-#define JK_CCSD_T_D1_1_SIZE_INT_UNIT_1 JK_CCSD_T_D1_1_SIZE_SLICE_1_G
+#define JK_CCSD_T_D1_1_IF_SIZE_INT_UNIT_1 JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_G
 
-#define JK_CCSD_T_D1_1_SIZE_TB_1_X 	JK_CCSD_T_D1_1_SIZE_SLICE_1_A * JK_CCSD_T_D1_1_SIZE_SLICE_1_D
-#define JK_CCSD_T_D1_1_SIZE_TB_1_Y 	JK_CCSD_T_D1_1_SIZE_SLICE_1_F * JK_CCSD_T_D1_1_SIZE_SLICE_1_C
-#define JK_CCSD_T_D1_1_SIZE_REG_1_X 	JK_CCSD_T_D1_1_SIZE_SLICE_1_B
-#define JK_CCSD_T_D1_1_SIZE_REG_1_Y 	JK_CCSD_T_D1_1_SIZE_SLICE_1_E
-
-#define NUM_INDEX 		6
-#define CEIL(a, b) 		(((a) + (b) - 1) / (b))
+#define JK_CCSD_T_D1_1_IF_SIZE_TB_1_X 	JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A
+#define JK_CCSD_T_D1_1_IF_SIZE_TB_1_Y 	JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C
+#define JK_CCSD_T_D1_1_IF_SIZE_REG_1_X 	JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D
+#define JK_CCSD_T_D1_1_IF_SIZE_REG_1_Y 	JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_b, size_t numBlk_c, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
+__global__ void jk_ccsd_t_d1_1_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_size_t_t2, size_t stride_size_t_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[32][64];
-	__shared__ double sm_b[32][64];
+	__shared__ double sm_a[16][64];
+	__shared__ double sm_b[16][64];
 
 
-	size_t internal_upperbound   = 0;
-	size_t internal_offset;
+	int internal_upperbound   = 0;
+	int internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
-	// # of indices mapped on TB_X: 2
+	// # of indices mapped on TB_X: 1
 	// # of indices mapped on TB_Y: 2
-	size_t idx_a = threadIdx.x % JK_CCSD_T_D1_1_SIZE_SLICE_1_A;
-	size_t idx_d = threadIdx.x / JK_CCSD_T_D1_1_SIZE_SLICE_1_A;
-	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_1_SIZE_SLICE_1_F;
-	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_1_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F;
 
 	size_t tmp_blkIdx;
-	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_c * numBlk_b * numBlk_a);
-	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_d * numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_c * numBlk_a);
+	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_d * numBlk_c * numBlk_a);
 
-	size_t blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_c * numBlk_a);
+	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_c * numBlk_a);
 
-	size_t blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_c * numBlk_a);
+	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a);
 
-	size_t blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a);
-
-	size_t blk_idx_b = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
 	size_t  blk_idx_a = tmp_blkIdx;
 
-	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_1_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_1_SIZE_SLICE_1_B + (blk_idx_c * JK_CCSD_T_D1_1_SIZE_SLICE_1_C + idx_c + (blk_idx_d * JK_CCSD_T_D1_1_SIZE_SLICE_1_D + idx_d + (blk_idx_e * JK_CCSD_T_D1_1_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_c) * size_b) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_d * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_c) * size_a;
 
 	// need to support partial tiles
-	size_t rng_a, rng_b, rng_c, rng_d, rng_e, rng_f;
-	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_1_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_1_SIZE_SLICE_1_A)
+	size_t rng_a, rng_c, rng_d, rng_e, rng_f;
+	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A)
 	{
-		rng_a = JK_CCSD_T_D1_1_SIZE_SLICE_1_A;
+		rng_a = JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A;
 	}
 	else
 	{
-		rng_a = size_a % JK_CCSD_T_D1_1_SIZE_SLICE_1_A;
+		rng_a = size_a % JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A;
 	}
-	if ((size_b - (blk_idx_b * JK_CCSD_T_D1_1_SIZE_SLICE_1_B)) >= JK_CCSD_T_D1_1_SIZE_SLICE_1_B)
+	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C)
 	{
-		rng_b = JK_CCSD_T_D1_1_SIZE_SLICE_1_B;
-	}
-	else
-	{
-		rng_b = size_b % JK_CCSD_T_D1_1_SIZE_SLICE_1_B;
-	}
-	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_1_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_1_SIZE_SLICE_1_C)
-	{
-		rng_c = JK_CCSD_T_D1_1_SIZE_SLICE_1_C;
+		rng_c = JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C;
 	}
 	else
 	{
-		rng_c = size_c % JK_CCSD_T_D1_1_SIZE_SLICE_1_C;
+		rng_c = size_c % JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C;
 	}
-	if ((size_d - (blk_idx_d * JK_CCSD_T_D1_1_SIZE_SLICE_1_D)) >= JK_CCSD_T_D1_1_SIZE_SLICE_1_D)
+	if ((size_d - (blk_idx_d * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D)) >= JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D)
 	{
-		rng_d = JK_CCSD_T_D1_1_SIZE_SLICE_1_D;
-	}
-	else
-	{
-		rng_d = size_d % JK_CCSD_T_D1_1_SIZE_SLICE_1_D;
-	}
-	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_1_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_1_SIZE_SLICE_1_E)
-	{
-		rng_e = JK_CCSD_T_D1_1_SIZE_SLICE_1_E;
+		rng_d = JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D;
 	}
 	else
 	{
-		rng_e = size_e % JK_CCSD_T_D1_1_SIZE_SLICE_1_E;
+		rng_d = size_d % JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D;
 	}
-	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_1_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_1_SIZE_SLICE_1_F)
+	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E)
 	{
-		rng_f = JK_CCSD_T_D1_1_SIZE_SLICE_1_F;
+		rng_e = JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E;
 	}
 	else
 	{
-		rng_f = size_f % JK_CCSD_T_D1_1_SIZE_SLICE_1_F;
+		rng_e = size_e % JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E;
+	}
+	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F)
+	{
+		rng_f = JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F;
+	}
+	else
+	{
+		rng_f = size_f % JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F;
 	}
 
 	double temp_av;
@@ -127,60 +114,60 @@ __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
-	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'b', 'd', 'g']], '-=']
+	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'd', 'g']], '-=']
 	#pragma unroll 1
-	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_1_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_1_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
-		internal_offset = (l + JK_CCSD_T_D1_1_SIZE_INT_UNIT_1) - size_internal;
+		internal_offset = (l + JK_CCSD_T_D1_1_IF_SIZE_INT_UNIT_1) - size_internal;
 		if (internal_offset > 0) internal_upperbound = internal_offset;
 
 		//---------------------------------------------------------------------------------------------------
 		// This is for the new version
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_1_SIZE_INT_UNIT_1 - internal_upperbound)
+		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_1_IF_SIZE_INT_UNIT_1 - internal_upperbound)
 		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
 			// Exception: Temp. version!: idx_f < rng_f
-			sm_a[threadIdx.x][threadIdx.y + ll * 8] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D1_1_SIZE_SLICE_1_E + ll + (blk_idx_c * JK_CCSD_T_D1_1_SIZE_SLICE_1_C + 0) * size_e) * size_f) * size_g + (threadIdx.x + l)];
+			sm_a[threadIdx.x][threadIdx.y + ll * 8] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E + ll + (blk_idx_c * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C + 0) * size_e) * size_f) * size_g + (threadIdx.x + l)];
 		}
 		
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (idx_a < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_1_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (size_t ll = 0; ll < rng_b; ll++)
+		if (idx_a < rng_a && threadIdx.y < JK_CCSD_T_D1_1_IF_SIZE_INT_UNIT_1 - internal_upperbound)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
-			// ['a', 'b', 'd', 'g']
+			// ['a', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
 			// Exception: Temp. version!: idx_a < rng_a
-			sm_b[threadIdx.y + 0][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_1_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_1_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_1_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 0) * stride_int_v2];
+			sm_b[threadIdx.y + 0][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_d * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D + ll) * size_a + (threadIdx.y + l + 0) * stride_size_t_v2];
 			// Exception: Temp. version!: threadIdx.y + l + 8
 			// Exception: Temp. version!: idx_a < rng_a
 			if (threadIdx.y + l + 8 < size_internal && idx_a < rng_a) 
-			sm_b[threadIdx.y + 8][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_1_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_1_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_1_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 8) * stride_int_v2];
+			sm_b[threadIdx.y + 8][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_d * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D + ll) * size_a + (threadIdx.y + l + 8) * stride_size_t_v2];
 		}
 		__syncthreads();
 		//---------------------------------------------------------------------------------------------------
 		
 
 		// Part: Generalized Threads
-		for (size_t ll = 0; ll < JK_CCSD_T_D1_1_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_1_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
-			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + 0];
-			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + 8];
-			temp_bv[2] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + 16];
-			temp_bv[3] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + 24];
-			temp_bv[4] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + 32];
-			temp_bv[5] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + 40];
-			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + 48];
-			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_SIZE_SLICE_1_F + 56];
+			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + 0];
+			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + 8];
+			temp_bv[2] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + 16];
+			temp_bv[3] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + 24];
+			temp_bv[4] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + 32];
+			temp_bv[5] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + 40];
+			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + 48];
+			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F + 56];
 
 			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
-				temp_av = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_1_SIZE_SLICE_1_A + (xx * 16)];
+				temp_av = sm_b[ll][idx_a + (xx * 16)];
 
 				reg_tile[0][xx] -= temp_av * temp_bv[0];
 				reg_tile[1][xx] -= temp_av * temp_bv[1];
@@ -195,147 +182,1341 @@ __global__ void jk_ccsd_t_d1_1_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		__syncthreads();
 	}
 
+    //  instructions-reoderings
+    if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
+    {
+        if (rng_e == 8)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
 
-	// Store Results (Registers) to Global Memory
-	// Part: Generalized Threads
-	// Part: Generalized Register-Tiling
-	if (idx_a < rng_a && idx_d < rng_d && idx_f < rng_f && idx_c < rng_c)
-	for (size_t i = 0; i < 8; i++)
-	{
-		for (size_t j = 0; j < 4; j++)
-		{
-			if(i < rng_e && j < rng_b)
-			{
-			    dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
-			}
-		}
-	}
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[7][2] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[6][3] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[7][2] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[7][3] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 7)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[6][3] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 6)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];\
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 5)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 4)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 3)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 2)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 1)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+    }
+
+    if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
+    {   
+        if (rng_e == 8)
+        {   
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[7][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[6][3];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[7][2];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[7][3];
+            }
+        } 
+
+        if (rng_e == 7)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[6][3];   
+            }
+        }
+
+        if (rng_e == 6)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+            }
+        }
+
+        if (rng_e == 5)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+            }
+        }
+
+        if (rng_e == 4)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+            }
+        }
+
+        if (rng_e == 3)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+            }
+        }
+
+        if (rng_e == 2)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            }
+        }
+
+        if (rng_e == 1)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+            }
+            
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+            } 
+
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+            }
+        
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+            }
+        }
+    }
 }
 
-// written by tc_interface.tc_gen_code_interface_Header()
- 
-void jk_ccsd_t_d1_1_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
+// written by tc_size_terface.tc_gen_code_size_terface_Header()
+extern "C"
+void jk_ccsd_t_d1_1_if_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	size_t num_thread_blocks_kernel_1;
+
+    size_a = size_a * size_b;
 
 	double* dev_t3;
 	double* dev_t2;
 	double* dev_v2;
 
-	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_1_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D1_1_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D1_1_SIZE_SLICE_1_C) * CEIL(size_d, JK_CCSD_T_D1_1_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D1_1_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_1_SIZE_SLICE_1_F);
-    
+    cudaStream_t *streams;
+    size_t nstreams = 1;
+
+	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C) * CEIL(size_d, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F);
+
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_a;
+
     // cudaMalloc()
-	//cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_b * size_c * size_d * size_e * size_f);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_b * size_a);
+	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_c * size_d * size_e * size_f);
+	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_a);
+    dev_t2=(double*)getGpuMem(size_tensor_A);
+    dev_v2=(double*)getGpuMem(size_tensor_B);
+
+    streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
+    // assert(streams!= NULL);
+    for (size_t i=0;i<nstreams;++i) 
+    {
+        cudaStreamCreate(&streams[i]);
+    }
 
 	// cudaMemcpy()
-	//cudaMemcpy(dev_t3, t3, sizeof(double) * size_a * size_b * size_c * size_d * size_e * size_f, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_c * size_e * size_f * size_g, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_v2, host_v2, sizeof(double) * size_g * size_d * size_b * size_a, cudaMemcpyHostToDevice);
+	// cudaMemcpy(dev_t3, t3, sizeof(double) * size_a * size_c * size_d * size_e * size_f, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_t2, host_t2, size_tensor_A, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_v2, host_v2, size_tensor_B, cudaMemcpyHostToDevice);
+
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-    long long int tmp_operations = 2 * (long long int)(size_a * size_b * size_c * size_d * size_e * size_f) * size_g;
-    /*
-	printf ("========================================= fusedKernels =============================================\n");
-	printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
-	printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_1_SIZE_TB_1_X, JK_CCSD_T_D1_1_SIZE_TB_1_Y);
-	printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_1_SIZE_REG_1_X, JK_CCSD_T_D1_1_SIZE_REG_1_Y);
-	printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_1_SIZE_TB_1_X * JK_CCSD_T_D1_1_SIZE_REG_1_X, JK_CCSD_T_D1_1_SIZE_TB_1_Y * JK_CCSD_T_D1_1_SIZE_REG_1_Y);
-	printf ("		# of Operations: %lld\n", tmp_operations);
-    printf ("====================================================================================================\n");
-    */
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
-	dim3 blocksize_1(JK_CCSD_T_D1_1_SIZE_TB_1_X, JK_CCSD_T_D1_1_SIZE_TB_1_Y);
+	dim3 blocksize_1(JK_CCSD_T_D1_1_IF_SIZE_TB_1_X, JK_CCSD_T_D1_1_IF_SIZE_TB_1_Y);
 
 	size_t stride_output_a = 1;
-	size_t stride_output_b = stride_output_a * size_a;
-	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_c = stride_output_a * size_a;
 	size_t stride_output_d = stride_output_c * size_c;
 	size_t stride_output_e = stride_output_d * size_d;
 	size_t stride_output_f = stride_output_e * size_e;
 
-	size_t stride_reg_x_1 = stride_output_b;
+	size_t stride_reg_x_1 = stride_output_d;
 	size_t stride_reg_y_1 = stride_output_e;
 
 	size_t size_internal = size_g;
 
-	size_t stride_int_t2 = 1;
-	size_t stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_size_t_t2 = 1;
+	size_t stride_size_t_v2 = size_a * size_d;
 
+    // New Caller
     dev_t3 = t3_d;
 
-	// New Caller
-	jk_ccsd_t_d1_1_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_a, size_b, size_c, size_d, size_e, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_1_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D1_1_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D1_1_SIZE_SLICE_1_C), CEIL(size_d, JK_CCSD_T_D1_1_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D1_1_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_1_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
-
+    for(size_t i=0;i<nstreams;++i)
+    {
+	    jk_ccsd_t_d1_1_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_a, size_c, size_d, size_e, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_C), CEIL(size_d, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_1_IF_SIZE_SLICE_1_F), stride_size_t_t2, stride_size_t_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    }
 	// Copy the Result from Device to Host
-	//cudaMemcpy(t3, dev_t3, sizeof(double) * (size_a * size_b * size_c * size_d * size_e * size_f), cudaMemcpyDeviceToHost);
+	// cudaMemcpy(t3, dev_t3, sizeof(double) * (size_a * size_c * size_d * size_e * size_f), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
-	//cudaFree(dev_t3);	
-    cudaFree(dev_t2);	cudaFree(dev_v2);
-
-	// Shoule be Fixed
-	// HostFree
-
-}
-
-// This is written by tc_interface.tc_gen_code_interface()
-// This Interface Should be Called to Run the Kernels
- 
-void jk_ccsd_t_d1_1_fusion_(size_t size_a, size_t size_b, size_t size_c, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
-{
-	// Call An Application
-	jk_ccsd_t_d1_1_fusion(size_a, size_b, size_c, size_d, size_e, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
+    // cudaFree(dev_t3);	
+    // cudaFree(dev_t2);	cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+    freeGpuMem(dev_v2);
+    for(size_t i=0;i<nstreams;++i)
+    {
+        cudaStreamDestroy(streams[i]);
+    }
+    free(streams);
 }
 
 /*----------------------------------------------------------------------*
  *  [d1][2] triplesx[h3,h1,h2,p5,p4] += t2sub[h7,p4,p5,h1] * v2sub[h3,h2,h7]
  *----------------------------------------------------------------------*/
 // created by tc_gen_definition_new()
-#define JK_CCSD_T_D1_2_SIZE_SLICE_1_G   16
-#define JK_CCSD_T_D1_2_SIZE_SLICE_1_A   16
-#define JK_CCSD_T_D1_2_SIZE_SLICE_1_B   4
-#define JK_CCSD_T_D1_2_SIZE_SLICE_1_D   1
-#define JK_CCSD_T_D1_2_SIZE_SLICE_1_F   8
-#define JK_CCSD_T_D1_2_SIZE_SLICE_1_E   8
-#define JK_CCSD_T_D1_2_SIZE_SLICE_1_C   1
+#define JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_G 16
+#define JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A 16
+#define JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B 4
+#define JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F 8
+#define JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E 8
+#define JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C 1
 
-#define JK_CCSD_T_D1_2_SIZE_INT_UNIT_1  JK_CCSD_T_D1_2_SIZE_SLICE_1_G
+#define SIZE_INT_UNIT_1 JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_G
 
-#define JK_CCSD_T_D1_2_SIZE_TB_1_X 	    JK_CCSD_T_D1_2_SIZE_SLICE_1_A * JK_CCSD_T_D1_2_SIZE_SLICE_1_D
-#define JK_CCSD_T_D1_2_SIZE_TB_1_Y 	    JK_CCSD_T_D1_2_SIZE_SLICE_1_F * JK_CCSD_T_D1_2_SIZE_SLICE_1_C
-#define JK_CCSD_T_D1_2_SIZE_REG_1_X 	JK_CCSD_T_D1_2_SIZE_SLICE_1_B
-#define JK_CCSD_T_D1_2_SIZE_REG_1_Y 	JK_CCSD_T_D1_2_SIZE_SLICE_1_E
+#define JK_CCSD_T_D1_2_IF_SIZE_TB_1_X 	JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A
+#define JK_CCSD_T_D1_2_IF_SIZE_TB_1_Y 	JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C
+#define JK_CCSD_T_D1_2_IF_SIZE_REG_1_X 	JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B
+#define JK_CCSD_T_D1_2_IF_SIZE_REG_1_Y 	JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E
+
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_b, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
+__global__ void jk_ccsd_t_d1_2_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_b, size_t numBlk_e, size_t numBlk_f, size_t stride_size_t_t2, size_t stride_size_t_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[32][64];
-	__shared__ double sm_b[32][64];
+	__shared__ double sm_a[16][64];
+	__shared__ double sm_b[16][64];
 
 
-	size_t internal_upperbound   = 0;
-	size_t internal_offset;
+	int internal_upperbound   = 0;
+	int internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
-	// # of indices mapped on TB_X: 2
+	// # of indices mapped on TB_X: 1
 	// # of indices mapped on TB_Y: 2
-	size_t idx_a = threadIdx.x % JK_CCSD_T_D1_2_SIZE_SLICE_1_A;
-	size_t idx_d = threadIdx.x / JK_CCSD_T_D1_2_SIZE_SLICE_1_A;
-	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_2_SIZE_SLICE_1_F;
-	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_2_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F;
 
 	size_t tmp_blkIdx;
-	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_b * numBlk_c * numBlk_a);
-	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_d * numBlk_b * numBlk_c * numBlk_a);
+	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_b * numBlk_c * numBlk_a);
+	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_b * numBlk_c * numBlk_a);
 
-	size_t blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_b * numBlk_c * numBlk_a);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_b * numBlk_c * numBlk_a);
-
-	size_t blk_idx_d = tmp_blkIdx / (numBlk_b * numBlk_c * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_b * numBlk_c * numBlk_a);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_c * numBlk_a);
 
 	size_t blk_idx_b = tmp_blkIdx / (numBlk_c * numBlk_a);
@@ -346,57 +1527,49 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 	size_t  blk_idx_a = tmp_blkIdx;
 
-	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_2_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_2_SIZE_SLICE_1_C + idx_c + (blk_idx_b * JK_CCSD_T_D1_2_SIZE_SLICE_1_B + (blk_idx_d * JK_CCSD_T_D1_2_SIZE_SLICE_1_D + idx_d + (blk_idx_e * JK_CCSD_T_D1_2_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + idx_f) * size_e) * size_d) * size_b) * size_c) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_b * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B + (blk_idx_e * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + idx_f) * size_e) * size_b) * size_c) * size_a;
 
 	// need to support partial tiles
-	size_t rng_a, rng_c, rng_b, rng_d, rng_e, rng_f;
-	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_2_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_2_SIZE_SLICE_1_A)
+	size_t rng_a, rng_c, rng_b, rng_e, rng_f;
+	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A)
 	{
-		rng_a = JK_CCSD_T_D1_2_SIZE_SLICE_1_A;
+		rng_a = JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A;
 	}
 	else
 	{
-		rng_a = size_a % JK_CCSD_T_D1_2_SIZE_SLICE_1_A;
+		rng_a = size_a % JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A;
 	}
-	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_2_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_2_SIZE_SLICE_1_C)
+	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C)
 	{
-		rng_c = JK_CCSD_T_D1_2_SIZE_SLICE_1_C;
-	}
-	else
-	{
-		rng_c = size_c % JK_CCSD_T_D1_2_SIZE_SLICE_1_C;
-	}
-	if ((size_b - (blk_idx_b * JK_CCSD_T_D1_2_SIZE_SLICE_1_B)) >= JK_CCSD_T_D1_2_SIZE_SLICE_1_B)
-	{
-		rng_b = JK_CCSD_T_D1_2_SIZE_SLICE_1_B;
+		rng_c = JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C;
 	}
 	else
 	{
-		rng_b = size_b % JK_CCSD_T_D1_2_SIZE_SLICE_1_B;
+		rng_c = size_c % JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C;
 	}
-	if ((size_d - (blk_idx_d * JK_CCSD_T_D1_2_SIZE_SLICE_1_D)) >= JK_CCSD_T_D1_2_SIZE_SLICE_1_D)
+	if ((size_b - (blk_idx_b * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B)) >= JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B)
 	{
-		rng_d = JK_CCSD_T_D1_2_SIZE_SLICE_1_D;
-	}
-	else
-	{
-		rng_d = size_d % JK_CCSD_T_D1_2_SIZE_SLICE_1_D;
-	}
-	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_2_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_2_SIZE_SLICE_1_E)
-	{
-		rng_e = JK_CCSD_T_D1_2_SIZE_SLICE_1_E;
+		rng_b = JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B;
 	}
 	else
 	{
-		rng_e = size_e % JK_CCSD_T_D1_2_SIZE_SLICE_1_E;
+		rng_b = size_b % JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B;
 	}
-	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_2_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_2_SIZE_SLICE_1_F)
+	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E)
 	{
-		rng_f = JK_CCSD_T_D1_2_SIZE_SLICE_1_F;
+		rng_e = JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E;
 	}
 	else
 	{
-		rng_f = size_f % JK_CCSD_T_D1_2_SIZE_SLICE_1_F;
+		rng_e = size_e % JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E;
+	}
+	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F)
+	{
+		rng_f = JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F;
+	}
+	else
+	{
+		rng_f = size_f % JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F;
 	}
 
 	double temp_av;
@@ -407,60 +1580,60 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
-	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'b', 'd', 'g']], '-=']
+	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'b', 'g']], '+=']
 	#pragma unroll 1
-	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_2_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
-		internal_offset = (l + JK_CCSD_T_D1_2_SIZE_INT_UNIT_1) - size_internal;
+		internal_offset = (l + SIZE_INT_UNIT_1) - size_internal;
 		if (internal_offset > 0) internal_upperbound = internal_offset;
 
 		//---------------------------------------------------------------------------------------------------
 		// This is for the new version
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_2_SIZE_INT_UNIT_1 - internal_upperbound)
+		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < SIZE_INT_UNIT_1 - internal_upperbound)
 		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
 			// Exception: Temp. version!: idx_f < rng_f
-			sm_a[threadIdx.x][threadIdx.y + ll * 8] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D1_2_SIZE_SLICE_1_E + ll + (blk_idx_c * JK_CCSD_T_D1_2_SIZE_SLICE_1_C + 0) * size_e) * size_f) * size_g + (threadIdx.x + l)];
+			sm_a[threadIdx.x][threadIdx.y + ll * 8] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E + ll + (blk_idx_c * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C + 0) * size_e) * size_f) * size_g + (threadIdx.x + l)];
 		}
 		
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (idx_a < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_2_SIZE_INT_UNIT_1 - internal_upperbound)
+		if (idx_a < rng_a && threadIdx.y < SIZE_INT_UNIT_1 - internal_upperbound)
 		for (size_t ll = 0; ll < rng_b; ll++)
 		{
-			// ['a', 'b', 'd', 'g']
+			// ['a', 'b', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
 			// Exception: Temp. version!: idx_a < rng_a
-			sm_b[threadIdx.y + 0][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_2_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_2_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_2_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 0) * stride_int_v2];
+			sm_b[threadIdx.y + 0][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B + ll) * size_a + (threadIdx.y + l + 0) * stride_size_t_v2];
 			// Exception: Temp. version!: threadIdx.y + l + 8
 			// Exception: Temp. version!: idx_a < rng_a
 			if (threadIdx.y + l + 8 < size_internal && idx_a < rng_a) 
-			sm_b[threadIdx.y + 8][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_2_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_2_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_2_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 8) * stride_int_v2];
+			sm_b[threadIdx.y + 8][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B + ll) * size_a + (threadIdx.y + l + 8) * stride_size_t_v2];
 		}
 		__syncthreads();
 		//---------------------------------------------------------------------------------------------------
 		
 
 		// Part: Generalized Threads
-		for (size_t ll = 0; ll < JK_CCSD_T_D1_2_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
-			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + 0];
-			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + 8];
-			temp_bv[2] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + 16];
-			temp_bv[3] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + 24];
-			temp_bv[4] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + 32];
-			temp_bv[5] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + 40];
-			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + 48];
-			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_SIZE_SLICE_1_F + 56];
+			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + 0];
+			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + 8];
+			temp_bv[2] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + 16];
+			temp_bv[3] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + 24];
+			temp_bv[4] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + 32];
+			temp_bv[5] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + 40];
+			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + 48];
+			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F + 56];
 
 			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
-				temp_av = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_2_SIZE_SLICE_1_A + (xx * 16)];
+				temp_av = sm_b[ll][idx_a + (xx * 16)];
 
 				reg_tile[0][xx] += temp_av * temp_bv[0];
 				reg_tile[1][xx] += temp_av * temp_bv[1];
@@ -475,65 +1648,1299 @@ __global__ void jk_ccsd_t_d1_2_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		__syncthreads();
 	}
 
-
+    /*
 	// Store Results (Registers) to Global Memory
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
-	if (idx_a < rng_a && idx_d < rng_d && idx_f < rng_f && idx_c < rng_c)
+	if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
 	for (size_t i = 0; i < 8; i++)
 	{
 		for (size_t j = 0; j < 4; j++)
 		{
 			if(i < rng_e && j < rng_b)
 			{
-			dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
+			    dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
 			}
 		}
-	}
+    }
+    */
+
+    if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
+    {
+        if (rng_e == 8)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[7][2] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[6][3] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[7][2] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[7][3] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 7)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[6][3] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 6)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];\
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 5)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 4)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 3)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 2)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 1)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+    }
+
+    if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
+    {   
+        //if(i < rng_d && j < rng_f)
+        if (rng_e == 8)
+        {   
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[7][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[6][3];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[7][2];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[7][3];
+            }
+        } 
+
+        if (rng_e == 7)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[6][3];   
+            }
+        }
+
+        if (rng_e == 6)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+            }
+        }
+
+        if (rng_e == 5)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+            }
+        }
+
+        if (rng_e == 4)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+            }
+        }
+
+        if (rng_e == 3)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+            }
+        }
+
+        if (rng_e == 2)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            }
+        }
+
+        if (rng_e == 1)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+            }
+            
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+            } 
+
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+            }
+        
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+            }
+        }
+    }
 }
 
-// written by tc_interface.tc_gen_code_interface_Header()
- 
-void jk_ccsd_t_d1_2_fusion(size_t size_a, size_t size_c, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
+// written by tc_size_terface.tc_gen_code_size_terface_Header()
+extern "C"
+void jk_ccsd_t_d1_2_if_fusion(size_t size_a, size_t size_c, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	size_t num_thread_blocks_kernel_1;
+    // cudaEvent_t start, stop;
+    // cudaEventCreate(&start);
+    // cudaEventCreate(&stop);
+
+    // cudaEventRecord(start);
+
+    size_t num_thread_blocks_kernel_1;
+    cudaStream_t *streams;
+    size_t nstreams = 1;
+
+    size_b = size_b * size_d;
 
 	double* dev_t3;
 	double* dev_t2;
 	double* dev_v2;
 
-	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_2_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_2_SIZE_SLICE_1_C) * CEIL(size_b, JK_CCSD_T_D1_2_SIZE_SLICE_1_B) * CEIL(size_d, JK_CCSD_T_D1_2_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D1_2_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_2_SIZE_SLICE_1_F);
+	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C) * CEIL(size_b, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B) * CEIL(size_e, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F);
+    
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_b * size_a;
     
     // cudaMalloc()
-	//cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_c * size_b * size_d * size_e * size_f);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_b * size_a);
+	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_c * size_b * size_e * size_f);
+	// cudaMalloc((void**) &dev_t2, size_tensor_A);
+    // cudaMalloc((void**) &dev_v2, size_tensor_B);
+    
+    dev_t2=(double*)getGpuMem(size_tensor_A);
+    dev_v2=(double*)getGpuMem(size_tensor_B);
+    
+    streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
+    // assert(streams!= NULL);
+    for (size_t i=0;i<nstreams;++i) 
+    {
+        cudaStreamCreate(&streams[i]);
+    }
 
 	// cudaMemcpy()
-	//cudaMemcpy(dev_t3, t3, sizeof(double) * size_a * size_c * size_b * size_d * size_e * size_f, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_c * size_e * size_f * size_g, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_v2, host_v2, sizeof(double) * size_g * size_d * size_b * size_a, cudaMemcpyHostToDevice);
+	// cudaMemcpy(dev_t3, t3, sizeof(double) * size_a * size_c * size_b * size_e * size_f, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_t2, host_t2, size_tensor_A, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_v2, host_v2, size_tensor_B, cudaMemcpyHostToDevice);
+
+
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-    long long int tmp_operations = 2 * (long long int)(size_a * size_c * size_b * size_d * size_e * size_f) * size_g;
-    /*
-	printf ("========================================= fusedKernels =============================================\n");
-	printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
-	printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_2_SIZE_TB_1_X, JK_CCSD_T_D1_2_SIZE_TB_1_Y);
-	printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_2_SIZE_REG_1_X, JK_CCSD_T_D1_2_SIZE_REG_1_Y);
-	printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_2_SIZE_TB_1_X * JK_CCSD_T_D1_2_SIZE_REG_1_X, JK_CCSD_T_D1_2_SIZE_TB_1_Y * JK_CCSD_T_D1_2_SIZE_REG_1_Y);
-	printf ("		# of Operations: %lld\n", tmp_operations);
-    printf ("====================================================================================================\n");
-    */
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_a * size_c * size_b * size_e * size_f) * size_g;
+	// printf ("========================================= fusedKernels =============================================\n");
+	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
+	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_2_IF_SIZE_TB_1_X, JK_CCSD_T_D1_2_IF_SIZE_TB_1_Y);
+	// printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_2_IF_SIZE_REG_1_X, JK_CCSD_T_D1_2_IF_SIZE_REG_1_Y);
+	// printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_2_IF_SIZE_TB_1_X * JK_CCSD_T_D1_2_IF_SIZE_REG_1_X, JK_CCSD_T_D1_2_IF_SIZE_TB_1_Y * JK_CCSD_T_D1_2_IF_SIZE_REG_1_Y);
+	// printf ("		# of Operations: %lld\n", tmp_operations);
+	// printf ("====================================================================================================\n");
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
-	dim3 blocksize_1(JK_CCSD_T_D1_2_SIZE_TB_1_X, JK_CCSD_T_D1_2_SIZE_TB_1_Y);
+	dim3 blocksize_1(JK_CCSD_T_D1_2_IF_SIZE_TB_1_X, JK_CCSD_T_D1_2_IF_SIZE_TB_1_Y);
 
 	size_t stride_output_a = 1;
 	size_t stride_output_c = stride_output_a * size_a;
 	size_t stride_output_b = stride_output_c * size_c;
-	size_t stride_output_d = stride_output_b * size_b;
-	size_t stride_output_e = stride_output_d * size_d;
+	size_t stride_output_e = stride_output_b * size_b;
 	size_t stride_output_f = stride_output_e * size_e;
 
 	size_t stride_reg_x_1 = stride_output_b;
@@ -541,78 +2948,98 @@ void jk_ccsd_t_d1_2_fusion(size_t size_a, size_t size_c, size_t size_b, size_t s
 
 	size_t size_internal = size_g;
 
-	size_t stride_int_t2 = 1;
-    size_t stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_size_t_t2 = 1;
+	size_t stride_size_t_v2 = size_a * size_b;
+
+    // New Caller
+    // dev_t3 = t3_d;
+
+    // cudaEventRecord(stop);
+    // cudaEventSynchronize(stop);
+    // float ms = 0.0;
+    // cudaEventElapsedTime(&ms, start, stop);
+    // printf (">(jk-t)> d1_2: %f\n", ms);
+
+    for(size_t i=0;i<nstreams;++i)
+    {
+        jk_ccsd_t_d1_2_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(t3_d, dev_t2, dev_v2, size_a, size_c, size_b, size_e, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_C), CEIL(size_b, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_B), CEIL(size_e, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_2_IF_SIZE_SLICE_1_F), stride_size_t_t2, stride_size_t_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    }
+
     
-	// New Caller
-	jk_ccsd_t_d1_2_kernel__4_1<<<gridsize_1, blocksize_1>>>(t3_d, dev_t2, dev_v2, size_a, size_c, size_b, size_d, size_e, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_2_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_2_SIZE_SLICE_1_C), CEIL(size_b, JK_CCSD_T_D1_2_SIZE_SLICE_1_B), CEIL(size_d, JK_CCSD_T_D1_2_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D1_2_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_2_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    // cudaEvent_t start, stop;
+    // cudaEventCreate(&start);
+    // cudaEventCreate(&stop);
+
+    // cudaEventRecord(start);
+    // cudaThreadSynchronize();
 
 	// Copy the Result from Device to Host
-	//cudaMemcpy(t3, dev_t3, sizeof(double) * (size_a * size_c * size_b * size_d * size_e * size_f), cudaMemcpyDeviceToHost);
+	// cudaMemcpy(t3, dev_t3, sizeof(double) * (size_a * size_c * size_b * size_e * size_f), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
-    //cudaFree(dev_t3);	
-    cudaFree(dev_t2);	cudaFree(dev_v2);
+    // cudaFree(dev_t3);	
+    
+    for(size_t i=0;i<nstreams;++i)
+    {
+        cudaStreamDestroy(streams[i]);
+    }
+    // cudaFree(dev_t2);	cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+    freeGpuMem(dev_v2);
+    free(streams);
+	
+    // cudaEventRecord(stop);
+    // cudaEventSynchronize(stop);
+    // float ms = 0.0;
+    // cudaEventElapsedTime(&ms, start, stop);
+    // printf (">(jk-b)> d1_2: %f\n", ms);
 }
 
-// This is written by tc_interface.tc_gen_code_interface()
-// This Interface Should be Called to Run the Kernels
- 
-void jk_ccsd_t_d1_2_fusion_(size_t size_a, size_t size_c, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
-{
-	// Call An Application
-	jk_ccsd_t_d1_2_fusion(size_a, size_c, size_b, size_d, size_e, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
-}
 
 /*----------------------------------------------------------------------*
  *  [d1][3] triplesx[h1,h3,p5,p4] -= t2sub[h7,p4,p5,h1] * v2sub[h3,h7]
  *----------------------------------------------------------------------*/
 // created by tc_gen_definition_new()
-#define JK_CCSD_T_D1_3_SIZE_SLICE_1_G   16
-#define JK_CCSD_T_D1_3_SIZE_SLICE_1_C   16
-#define JK_CCSD_T_D1_3_SIZE_SLICE_1_F   4
-#define JK_CCSD_T_D1_3_SIZE_SLICE_1_E   1
-#define JK_CCSD_T_D1_3_SIZE_SLICE_1_A   16
-#define JK_CCSD_T_D1_3_SIZE_SLICE_1_B   4
-#define JK_CCSD_T_D1_3_SIZE_SLICE_1_D   1
+#define JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_G 16
+#define JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C 16
+#define JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F 4
+#define JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E 1
+#define JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A 16
+#define JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D 4
 
-#define JK_CCSD_T_D1_3_SIZE_INT_UNIT_1  JK_CCSD_T_D1_3_SIZE_SLICE_1_G
+#define JK_CCSD_T_D1_3_IF_SIZE_INT_UNIT_1 JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_G
 
-#define JK_CCSD_T_D1_3_SIZE_TB_1_X 	    JK_CCSD_T_D1_3_SIZE_SLICE_1_C * JK_CCSD_T_D1_3_SIZE_SLICE_1_E
-#define JK_CCSD_T_D1_3_SIZE_TB_1_Y 	    JK_CCSD_T_D1_3_SIZE_SLICE_1_A * JK_CCSD_T_D1_3_SIZE_SLICE_1_D
-#define JK_CCSD_T_D1_3_SIZE_REG_1_X 	JK_CCSD_T_D1_3_SIZE_SLICE_1_F
-#define JK_CCSD_T_D1_3_SIZE_REG_1_Y 	JK_CCSD_T_D1_3_SIZE_SLICE_1_B
+#define JK_CCSD_T_D1_3_IF_SIZE_TB_1_X 	JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E
+#define JK_CCSD_T_D1_3_IF_SIZE_TB_1_Y 	JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A
+#define JK_CCSD_T_D1_3_IF_SIZE_REG_1_X 	JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F
+#define JK_CCSD_T_D1_3_IF_SIZE_REG_1_Y 	JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_b, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
+__global__ void jk_ccsd_t_d1_3_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_d, size_t size_e, size_t size_f, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_d, size_t numBlk_e, size_t numBlk_f, size_t stride_size_t_t2, size_t stride_size_t_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[32][64];
-	__shared__ double sm_b[32][64];
+	__shared__ double sm_a[16][64];
+	__shared__ double sm_b[16][64];
 
 
-	size_t internal_upperbound   = 0;
-	size_t internal_offset;
+	int internal_upperbound   = 0;
+	int internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
-	// # of indices mapped on TB_Y: 2
-	size_t idx_c = threadIdx.x % JK_CCSD_T_D1_3_SIZE_SLICE_1_C;
-	size_t idx_e = threadIdx.x / JK_CCSD_T_D1_3_SIZE_SLICE_1_C;
-	size_t idx_a = threadIdx.y % JK_CCSD_T_D1_3_SIZE_SLICE_1_A;
-	size_t idx_d = threadIdx.y / JK_CCSD_T_D1_3_SIZE_SLICE_1_A;
+	// # of indices mapped on TB_Y: 1
+	size_t idx_c = threadIdx.x % JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C;
+	size_t idx_e = threadIdx.x / JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C;
+	size_t idx_a = threadIdx.y;
 
 	size_t tmp_blkIdx;
-	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_b * numBlk_a * numBlk_c);
-	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_d * numBlk_b * numBlk_a * numBlk_c);
+	size_t blk_idx_f = blockIdx.x / (numBlk_e * numBlk_d * numBlk_a * numBlk_c);
+	tmp_blkIdx = blockIdx.x % (numBlk_e * numBlk_d * numBlk_a * numBlk_c);
 
-	size_t blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_b * numBlk_a * numBlk_c);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_b * numBlk_a * numBlk_c);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_d * numBlk_a * numBlk_c);
+	tmp_blkIdx = tmp_blkIdx % (numBlk_d * numBlk_a * numBlk_c);
 
-	size_t blk_idx_d = tmp_blkIdx / (numBlk_b * numBlk_a * numBlk_c);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a * numBlk_c);
-
-	size_t blk_idx_b = tmp_blkIdx / (numBlk_a * numBlk_c);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c);
 
 	size_t blk_idx_a = tmp_blkIdx / numBlk_c;
@@ -620,57 +3047,49 @@ __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 	size_t  blk_idx_c = tmp_blkIdx;
 
-	size_t t3_base_thread = blk_idx_c * JK_CCSD_T_D1_3_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_3_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_3_SIZE_SLICE_1_B + (blk_idx_d * JK_CCSD_T_D1_3_SIZE_SLICE_1_D + idx_d + (blk_idx_e * JK_CCSD_T_D1_3_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D1_3_SIZE_SLICE_1_F) * size_e) * size_d) * size_b) * size_a) * size_c;
+	size_t t3_base_thread = blk_idx_c * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_d * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D + (blk_idx_e * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F) * size_e) * size_d) * size_a) * size_c;
 
 	// need to support partial tiles
-	size_t rng_c, rng_a, rng_b, rng_d, rng_e, rng_f;
-	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_3_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_3_SIZE_SLICE_1_C)
+	size_t rng_c, rng_a, rng_d, rng_e, rng_f;
+	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C)
 	{
-		rng_c = JK_CCSD_T_D1_3_SIZE_SLICE_1_C;
+		rng_c = JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C;
 	}
 	else
 	{
-		rng_c = size_c % JK_CCSD_T_D1_3_SIZE_SLICE_1_C;
+		rng_c = size_c % JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C;
 	}
-	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_3_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_3_SIZE_SLICE_1_A)
+	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A)
 	{
-		rng_a = JK_CCSD_T_D1_3_SIZE_SLICE_1_A;
-	}
-	else
-	{
-		rng_a = size_a % JK_CCSD_T_D1_3_SIZE_SLICE_1_A;
-	}
-	if ((size_b - (blk_idx_b * JK_CCSD_T_D1_3_SIZE_SLICE_1_B)) >= JK_CCSD_T_D1_3_SIZE_SLICE_1_B)
-	{
-		rng_b = JK_CCSD_T_D1_3_SIZE_SLICE_1_B;
+		rng_a = JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A;
 	}
 	else
 	{
-		rng_b = size_b % JK_CCSD_T_D1_3_SIZE_SLICE_1_B;
+		rng_a = size_a % JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A;
 	}
-	if ((size_d - (blk_idx_d * JK_CCSD_T_D1_3_SIZE_SLICE_1_D)) >= JK_CCSD_T_D1_3_SIZE_SLICE_1_D)
+	if ((size_d - (blk_idx_d * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D)) >= JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D)
 	{
-		rng_d = JK_CCSD_T_D1_3_SIZE_SLICE_1_D;
-	}
-	else
-	{
-		rng_d = size_d % JK_CCSD_T_D1_3_SIZE_SLICE_1_D;
-	}
-	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_3_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_3_SIZE_SLICE_1_E)
-	{
-		rng_e = JK_CCSD_T_D1_3_SIZE_SLICE_1_E;
+		rng_d = JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D;
 	}
 	else
 	{
-		rng_e = size_e % JK_CCSD_T_D1_3_SIZE_SLICE_1_E;
+		rng_d = size_d % JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D;
 	}
-	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_3_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_3_SIZE_SLICE_1_F)
+	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E)
 	{
-		rng_f = JK_CCSD_T_D1_3_SIZE_SLICE_1_F;
+		rng_e = JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E;
 	}
 	else
 	{
-		rng_f = size_f % JK_CCSD_T_D1_3_SIZE_SLICE_1_F;
+		rng_e = size_e % JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E;
+	}
+	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F)
+	{
+		rng_f = JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F;
+	}
+	else
+	{
+		rng_f = size_f % JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F;
 	}
 
 	double temp_av;
@@ -681,52 +3100,52 @@ __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
-	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['a', 'b', 'd', 'g']], '+=']
+	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['a', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_3_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_3_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
-		internal_offset = (l + JK_CCSD_T_D1_3_SIZE_INT_UNIT_1) - size_internal;
+		internal_offset = (l + JK_CCSD_T_D1_3_IF_SIZE_INT_UNIT_1) - size_internal;
 		if (internal_offset > 0) internal_upperbound = internal_offset;
 
 		//---------------------------------------------------------------------------------------------------
 		// This is for the new version
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (0 < rng_e && idx_a < rng_c && threadIdx.x < JK_CCSD_T_D1_3_SIZE_INT_UNIT_1 - internal_upperbound)
+		if (0 < rng_e && idx_a < rng_c && threadIdx.x < JK_CCSD_T_D1_3_IF_SIZE_INT_UNIT_1 - internal_upperbound)
 		for (size_t ll = 0; ll < rng_f; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
 			// Exception: Temp. version!: 0 < rng_e
-			sm_a[threadIdx.x][threadIdx.y + ll * 16] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_3_SIZE_SLICE_1_F + ll + (blk_idx_e * JK_CCSD_T_D1_3_SIZE_SLICE_1_E + 0 + (blk_idx_c * JK_CCSD_T_D1_3_SIZE_SLICE_1_C + idx_a) * size_e) * size_f) * size_g + (threadIdx.x + l)];
+			sm_a[threadIdx.x][threadIdx.y + ll * 16] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F + ll + (blk_idx_e * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E + 0 + (blk_idx_c * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C + idx_a) * size_e) * size_f) * size_g + (threadIdx.x + l)];
 		}
 		
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (idx_c < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_3_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (size_t ll = 0; ll < rng_b; ll++)
+		if (idx_c < rng_a && threadIdx.y < JK_CCSD_T_D1_3_IF_SIZE_INT_UNIT_1 - internal_upperbound)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
-			// ['a', 'b', 'd', 'g']
+			// ['a', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l
 			// Exception: Temp. version!: idx_c < rng_a
-			sm_b[threadIdx.y][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_3_SIZE_SLICE_1_A + idx_c + (blk_idx_b * JK_CCSD_T_D1_3_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_3_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l) * stride_int_v2];
+			sm_b[threadIdx.y][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A + idx_c + (blk_idx_d * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D + ll) * size_a + (threadIdx.y + l) * stride_size_t_v2];
 		}
 		__syncthreads();
 		//---------------------------------------------------------------------------------------------------
 		
 
 		// Part: Generalized Threads
-		for (size_t ll = 0; ll < JK_CCSD_T_D1_3_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_3_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
-			temp_bv[0] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_3_SIZE_SLICE_1_A + 0];
-			temp_bv[1] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_3_SIZE_SLICE_1_A + 16];
-			temp_bv[2] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_3_SIZE_SLICE_1_A + 32];
-			temp_bv[3] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_3_SIZE_SLICE_1_A + 48];
+			temp_bv[0] = sm_b[ll][idx_a + 0];
+			temp_bv[1] = sm_b[ll][idx_a + 16];
+			temp_bv[2] = sm_b[ll][idx_a + 32];
+			temp_bv[3] = sm_b[ll][idx_a + 48];
 
 			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
-				temp_av = sm_a[ll][idx_e + (idx_c) * JK_CCSD_T_D1_3_SIZE_SLICE_1_E + (xx * 16)];
+				temp_av = sm_a[ll][idx_e + (idx_c) * JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E + (xx * 16)];
 
 				reg_tile[0][xx] -= temp_av * temp_bv[0];
 				reg_tile[1][xx] -= temp_av * temp_bv[1];
@@ -737,207 +3156,583 @@ __global__ void jk_ccsd_t_d1_3_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		__syncthreads();
 	}
 
-
+    /*
 	// Store Results (Registers) to Global Memory
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
-	if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a && idx_d < rng_d)
+	if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a)
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t j = 0; j < 4; j++)
 		{
-			if(i < rng_b && j < rng_f)
+			if(i < rng_d && j < rng_f)
 			{
 			    dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
 			}
 		}
-	}
+    }
+    */
+    
+    if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a)
+    {
+        if (rng_d == 4)
+        {
+            if (rng_f == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_f == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_f == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_f == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_d == 3)
+        {
+            if (rng_f == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_f == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_f == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_f == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_d == 2)
+        {
+            if (rng_f == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_f == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_f == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_f == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_d == 1)
+        {
+            if (rng_f == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_f == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_f == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_f == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+    }
+
+    if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a)
+    {   
+        if (rng_d == 4)
+        {
+            if (rng_f == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+            }
+            if (rng_f == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+            }
+            if (rng_f == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+            }
+            if (rng_f == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+            }
+        }
+
+        if (rng_d == 3)
+        {
+            if (rng_f == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+            }
+            if (rng_f == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+            }
+            if (rng_f == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+            }
+            if (rng_f == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+            }
+        }
+
+        if (rng_d == 2)
+        {
+            if (rng_f == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            }
+            if (rng_f == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            }
+            if (rng_f == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            }
+            if (rng_f == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            }
+        }
+
+        if (rng_d == 1)
+        {
+            if (rng_f == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+            }
+            
+            if (rng_f == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+            } 
+
+            if (rng_f == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+            }
+        
+            if (rng_f == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+            }
+        }
+    }
 }
 
-// written by tc_interface.tc_gen_code_interface_Header()
- 
-void jk_ccsd_t_d1_3_fusion(size_t size_c, size_t size_a, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
+// written by tc_size_terface.tc_gen_code_size_terface_Header()
+extern "C"
+void jk_ccsd_t_d1_3_if_fusion(size_t size_c, size_t size_a, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	size_t num_thread_blocks_kernel_1;
+    size_t num_thread_blocks_kernel_1;
+    cudaStream_t *streams;
+    size_t nstreams = 1;
+
+    size_a = size_a * size_b;
 
 	double* dev_t3;
 	double* dev_t2;
-	double* dev_v2;
+    double* dev_v2;
+    
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_a;
 
-	num_thread_blocks_kernel_1 = CEIL(size_c, JK_CCSD_T_D1_3_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D1_3_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D1_3_SIZE_SLICE_1_B) * CEIL(size_d, JK_CCSD_T_D1_3_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D1_3_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_3_SIZE_SLICE_1_F);
-
-    // cudaMalloc()
-	//cudaMalloc((void**) &dev_t3, sizeof(double) * size_c * size_a * size_b * size_d * size_e * size_f);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_b * size_a);
+	num_thread_blocks_kernel_1 = CEIL(size_c, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A) * CEIL(size_d, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D) * CEIL(size_e, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F);
+	// cudaMalloc()
+	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_c * size_a * size_d * size_e * size_f);
+	// cudaMalloc((void**) &dev_t2, size_tensor_A);
+    // cudaMalloc((void**) &dev_v2, size_tensor_B);
+    dev_t2=(double*)getGpuMem(size_tensor_A);
+    dev_v2=(double*)getGpuMem(size_tensor_B);
 
 	// cudaMemcpy()
-	//cudaMemcpy(dev_t3, t3, sizeof(double) * size_c * size_a * size_b * size_d * size_e * size_f, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_c * size_e * size_f * size_g, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_v2, host_v2, sizeof(double) * size_g * size_d * size_b * size_a, cudaMemcpyHostToDevice);
+	// cudaMemcpy(dev_t3, t3, sizeof(double) * size_c * size_a * size_d * size_e * size_f, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_t2, host_t2, size_tensor_A, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_v2, host_v2, size_tensor_B, cudaMemcpyHostToDevice);
+    
+    streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
+    // assert(streams!= NULL);
+    for (size_t i=0;i<nstreams;++i) 
+    {
+        cudaStreamCreate(&streams[i]);
+    }
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-    long long int tmp_operations = 2 * (long long int)(size_c * size_a * size_b * size_d * size_e * size_f) * size_g;
-    /*
-	printf ("========================================= fusedKernels =============================================\n");
-	printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
-	printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_3_SIZE_TB_1_X, JK_CCSD_T_D1_3_SIZE_TB_1_Y);
-	printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_3_SIZE_REG_1_X, JK_CCSD_T_D1_3_SIZE_REG_1_Y);
-	printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_3_SIZE_TB_1_X * JK_CCSD_T_D1_3_SIZE_REG_1_X, JK_CCSD_T_D1_3_SIZE_TB_1_Y * JK_CCSD_T_D1_3_SIZE_REG_1_Y);
-	printf ("		# of Operations: %lld\n", tmp_operations);
-    printf ("====================================================================================================\n");
-    */
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
-	dim3 blocksize_1(JK_CCSD_T_D1_3_SIZE_TB_1_X, JK_CCSD_T_D1_3_SIZE_TB_1_Y);
+	dim3 blocksize_1(JK_CCSD_T_D1_3_IF_SIZE_TB_1_X, JK_CCSD_T_D1_3_IF_SIZE_TB_1_Y);
 
 	size_t stride_output_c = 1;
 	size_t stride_output_a = stride_output_c * size_c;
-	size_t stride_output_b = stride_output_a * size_a;
-	size_t stride_output_d = stride_output_b * size_b;
+	size_t stride_output_d = stride_output_a * size_a;
 	size_t stride_output_e = stride_output_d * size_d;
 	size_t stride_output_f = stride_output_e * size_e;
 
 	size_t stride_reg_x_1 = stride_output_f;
-	size_t stride_reg_y_1 = stride_output_b;
+	size_t stride_reg_y_1 = stride_output_d;
 
 	size_t size_internal = size_g;
 
-	size_t stride_int_t2 = 1;
-	size_t stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_size_t_t2 = 1;
+	size_t stride_size_t_v2 = size_a * size_d;
 
     dev_t3 = t3_d;
 
-	// New Caller
-	jk_ccsd_t_d1_3_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_c, size_a, size_b, size_d, size_e, size_f, size_g, CEIL(size_c, JK_CCSD_T_D1_3_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D1_3_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D1_3_SIZE_SLICE_1_B), CEIL(size_d, JK_CCSD_T_D1_3_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D1_3_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_3_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    // New Caller
+    for(size_t i=0;i<nstreams;++i)
+    {
+        jk_ccsd_t_d1_3_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_c, size_a, size_d, size_e, size_f, size_g, CEIL(size_c, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_A), CEIL(size_d, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_D), CEIL(size_e, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_3_IF_SIZE_SLICE_1_F), stride_size_t_t2, stride_size_t_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    }
 
 	// Copy the Result from Device to Host
-	//cudaMemcpy(t3, dev_t3, sizeof(double) * (size_c * size_a * size_b * size_d * size_e * size_f), cudaMemcpyDeviceToHost);
+	// cudaMemcpy(t3, dev_t3, sizeof(double) * (size_c * size_a * size_d * size_e * size_f), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
-    //cudaFree(dev_t3);	
-    cudaFree(dev_t2);	cudaFree(dev_v2);
+    // cudaFree(dev_t3);	
+    // cudaFree(dev_t2);	cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+    freeGpuMem(dev_v2);
+    for(size_t i=0;i<nstreams;++i)
+    {
+        cudaStreamDestroy(streams[i]);
+    }
+    free(streams);
 }
 
-// This is written by tc_interface.tc_gen_code_interface()
-// This Interface Should be Called to Run the Kernels
- 
-void jk_ccsd_t_d1_3_fusion_(size_t size_c, size_t size_a, size_t size_b, size_t size_d, size_t size_e, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
-{
-	// Pre-Processing for Split
-	// Based on Tile-Sizes and Problem-Size
-	// Currently, one index can be split into two indices
-
-	// Call An Application
-	jk_ccsd_t_d1_3_fusion(size_c, size_a, size_b, size_d, size_e, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
-}
 
 /*----------------------------------------------------------------------*
  *  [d1][4] triplesx[h3,h1,p5,p4,p6] -= t2sub[h7,p4,p5,h1] * v2sub[h3,p6,h7]
  *----------------------------------------------------------------------*/
 // created by tc_gen_definition_new()
-#define JK_CCSD_T_D1_4_SIZE_SLICE_1_G   16
-#define JK_CCSD_T_D1_4_SIZE_SLICE_1_A   16
-#define JK_CCSD_T_D1_4_SIZE_SLICE_1_B   4
-#define JK_CCSD_T_D1_4_SIZE_SLICE_1_D   1
-#define JK_CCSD_T_D1_4_SIZE_SLICE_1_F   8
-#define JK_CCSD_T_D1_4_SIZE_SLICE_1_E   8
-#define JK_CCSD_T_D1_4_SIZE_SLICE_1_C   1
+#define JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_G 16
+#define JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A 16
+#define JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D 4
+#define JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F 8
+#define JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E 8
+#define JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C 1
 
-#define JK_CCSD_T_D1_4_SIZE_INT_UNIT_1  JK_CCSD_T_D1_4_SIZE_SLICE_1_G
+#define JK_CCSD_T_D1_4_IF_SIZE_INT_UNIT_1 JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_G
 
-#define JK_CCSD_T_D1_4_SIZE_TB_1_X 	    JK_CCSD_T_D1_4_SIZE_SLICE_1_A * JK_CCSD_T_D1_4_SIZE_SLICE_1_D
-#define JK_CCSD_T_D1_4_SIZE_TB_1_Y 	    JK_CCSD_T_D1_4_SIZE_SLICE_1_F * JK_CCSD_T_D1_4_SIZE_SLICE_1_C
-#define JK_CCSD_T_D1_4_SIZE_REG_1_X 	JK_CCSD_T_D1_4_SIZE_SLICE_1_B
-#define JK_CCSD_T_D1_4_SIZE_REG_1_Y 	JK_CCSD_T_D1_4_SIZE_SLICE_1_E
+#define JK_CCSD_T_D1_4_IF_SIZE_TB_1_X 	JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A
+#define JK_CCSD_T_D1_4_IF_SIZE_TB_1_Y 	JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C
+#define JK_CCSD_T_D1_4_IF_SIZE_REG_1_X 	JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D
+#define JK_CCSD_T_D1_4_IF_SIZE_REG_1_Y 	JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_a, size_t numBlk_b, size_t numBlk_c, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
+__global__ void jk_ccsd_t_d1_4_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_size_t_t2, size_t stride_size_t_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[32][64];
-	__shared__ double sm_b[32][64];
+	__shared__ double sm_a[16][64];
+	__shared__ double sm_b[16][64];
 
-	size_t internal_upperbound   = 0;
-	size_t internal_offset;
+
+	int internal_upperbound   = 0;
+	int internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
-	// # of indices mapped on TB_X: 2
+	// # of indices mapped on TB_X: 1
 	// # of indices mapped on TB_Y: 2
-	size_t idx_a = threadIdx.x % JK_CCSD_T_D1_4_SIZE_SLICE_1_A;
-	size_t idx_d = threadIdx.x / JK_CCSD_T_D1_4_SIZE_SLICE_1_A;
-	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_4_SIZE_SLICE_1_F;
-	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_4_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F;
 
 	size_t tmp_blkIdx;
-	size_t blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_c * numBlk_b * numBlk_a);
-	tmp_blkIdx = blockIdx.x % (numBlk_f * numBlk_e * numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_c * numBlk_a);
+	tmp_blkIdx = blockIdx.x % (numBlk_f * numBlk_e * numBlk_c * numBlk_a);
 
-	size_t blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_c * numBlk_b * numBlk_a);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_c * numBlk_a);
+	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_c * numBlk_a);
 
-	size_t blk_idx_e = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_c * numBlk_a);
+	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a);
 
-	size_t blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a);
-
-	size_t blk_idx_b = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
 	size_t  blk_idx_a = tmp_blkIdx;
 
-	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_4_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_4_SIZE_SLICE_1_B + (blk_idx_c * JK_CCSD_T_D1_4_SIZE_SLICE_1_C + idx_c + (blk_idx_e * JK_CCSD_T_D1_4_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D1_4_SIZE_SLICE_1_D + idx_d) * size_f) * size_e) * size_c) * size_b) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_e * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E + (blk_idx_f * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + idx_f + (blk_idx_d * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D) * size_f) * size_e) * size_c) * size_a;
 
 	// need to support partial tiles
-	size_t rng_a, rng_b, rng_c, rng_e, rng_f, rng_d;
-	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_4_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_4_SIZE_SLICE_1_A)
+	size_t rng_a, rng_c, rng_e, rng_f, rng_d;
+	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A)
 	{
-		rng_a = JK_CCSD_T_D1_4_SIZE_SLICE_1_A;
+		rng_a = JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A;
 	}
 	else
 	{
-		rng_a = size_a % JK_CCSD_T_D1_4_SIZE_SLICE_1_A;
+		rng_a = size_a % JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A;
 	}
-	if ((size_b - (blk_idx_b * JK_CCSD_T_D1_4_SIZE_SLICE_1_B)) >= JK_CCSD_T_D1_4_SIZE_SLICE_1_B)
+	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C)
 	{
-		rng_b = JK_CCSD_T_D1_4_SIZE_SLICE_1_B;
-	}
-	else
-	{
-		rng_b = size_b % JK_CCSD_T_D1_4_SIZE_SLICE_1_B;
-	}
-	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_4_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_4_SIZE_SLICE_1_C)
-	{
-		rng_c = JK_CCSD_T_D1_4_SIZE_SLICE_1_C;
+		rng_c = JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C;
 	}
 	else
 	{
-		rng_c = size_c % JK_CCSD_T_D1_4_SIZE_SLICE_1_C;
+		rng_c = size_c % JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C;
 	}
-	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_4_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_4_SIZE_SLICE_1_E)
+	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E)
 	{
-		rng_e = JK_CCSD_T_D1_4_SIZE_SLICE_1_E;
-	}
-	else
-	{
-		rng_e = size_e % JK_CCSD_T_D1_4_SIZE_SLICE_1_E;
-	}
-	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_4_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_4_SIZE_SLICE_1_F)
-	{
-		rng_f = JK_CCSD_T_D1_4_SIZE_SLICE_1_F;
+		rng_e = JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E;
 	}
 	else
 	{
-		rng_f = size_f % JK_CCSD_T_D1_4_SIZE_SLICE_1_F;
+		rng_e = size_e % JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E;
 	}
-	if ((size_d - (blk_idx_d * JK_CCSD_T_D1_4_SIZE_SLICE_1_D)) >= JK_CCSD_T_D1_4_SIZE_SLICE_1_D)
+	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F)
 	{
-		rng_d = JK_CCSD_T_D1_4_SIZE_SLICE_1_D;
+		rng_f = JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F;
 	}
 	else
 	{
-		rng_d = size_d % JK_CCSD_T_D1_4_SIZE_SLICE_1_D;
+		rng_f = size_f % JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F;
+	}
+	if ((size_d - (blk_idx_d * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D)) >= JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D)
+	{
+		rng_d = JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D;
+	}
+	else
+	{
+		rng_d = size_d % JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D;
 	}
 
 	double temp_av;
@@ -948,60 +3743,60 @@ __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
-	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'b', 'd', 'g']], '+=']
+	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_4_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_4_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
-		internal_offset = (l + JK_CCSD_T_D1_4_SIZE_INT_UNIT_1) - size_internal;
+		internal_offset = (l + JK_CCSD_T_D1_4_IF_SIZE_INT_UNIT_1) - size_internal;
 		if (internal_offset > 0) internal_upperbound = internal_offset;
 
 		//---------------------------------------------------------------------------------------------------
 		// This is for the new version
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_4_SIZE_INT_UNIT_1 - internal_upperbound)
+		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_4_IF_SIZE_INT_UNIT_1 - internal_upperbound)
 		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
 			// Exception: Temp. version!: idx_f < rng_f
-			sm_a[threadIdx.x][threadIdx.y + ll * 8] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D1_4_SIZE_SLICE_1_E + ll + (blk_idx_c * JK_CCSD_T_D1_4_SIZE_SLICE_1_C + 0) * size_e) * size_f) * size_g + (threadIdx.x + l)];
+			sm_a[threadIdx.x][threadIdx.y + ll * 8] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E + ll + (blk_idx_c * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C + 0) * size_e) * size_f) * size_g + (threadIdx.x + l)];
 		}
 		
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (idx_a < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_4_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (size_t ll = 0; ll < rng_b; ll++)
+		if (idx_a < rng_a && threadIdx.y < JK_CCSD_T_D1_4_IF_SIZE_INT_UNIT_1 - internal_upperbound)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
-			// ['a', 'b', 'd', 'g']
+			// ['a', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
 			// Exception: Temp. version!: idx_a < rng_a
-			sm_b[threadIdx.y + 0][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_4_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_4_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_4_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 0) * stride_int_v2];
+			sm_b[threadIdx.y + 0][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_d * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D + ll) * size_a + (threadIdx.y + l + 0) * stride_size_t_v2];
 			// Exception: Temp. version!: threadIdx.y + l + 8
 			// Exception: Temp. version!: idx_a < rng_a
 			if (threadIdx.y + l + 8 < size_internal && idx_a < rng_a) 
-			sm_b[threadIdx.y + 8][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_4_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_4_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_4_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 8) * stride_int_v2];
+			sm_b[threadIdx.y + 8][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_d * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D + ll) * size_a + (threadIdx.y + l + 8) * stride_size_t_v2];
 		}
 		__syncthreads();
 		//---------------------------------------------------------------------------------------------------
 		
 
 		// Part: Generalized Threads
-		for (size_t ll = 0; ll < JK_CCSD_T_D1_4_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_4_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
-			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + 0];
-			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + 8];
-			temp_bv[2] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + 16];
-			temp_bv[3] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + 24];
-			temp_bv[4] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + 32];
-			temp_bv[5] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + 40];
-			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + 48];
-			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_SIZE_SLICE_1_F + 56];
+			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + 0];
+			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + 8];
+			temp_bv[2] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + 16];
+			temp_bv[3] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + 24];
+			temp_bv[4] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + 32];
+			temp_bv[5] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + 40];
+			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + 48];
+			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F + 56];
 
 			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
-				temp_av = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_4_SIZE_SLICE_1_A + (xx * 16)];
+				temp_av = sm_b[ll][idx_a + (xx * 16)];
 
 				reg_tile[0][xx] -= temp_av * temp_bv[0];
 				reg_tile[1][xx] -= temp_av * temp_bv[1];
@@ -1016,97 +3811,1324 @@ __global__ void jk_ccsd_t_d1_4_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		__syncthreads();
 	}
 
-
+    /*
 	// Store Results (Registers) to Global Memory
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
-	if (idx_a < rng_a && idx_d < rng_d && idx_f < rng_f && idx_c < rng_c)
+	if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
 	for (size_t i = 0; i < 8; i++)
 	{
 		for (size_t j = 0; j < 4; j++)
 		{
-			if(i < rng_e && j < rng_b)
+			if(i < rng_e && j < rng_d)
 			{
-			    dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
+			dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] = reg_tile[i][j];
 			}
 		}
-	}
+    }
+    */
+
+    if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
+    {
+        if (rng_e == 8)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[7][2] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[6][3] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[7][2] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[7][3] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 7)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[6][3] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 6)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];\
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 5)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 4)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 3)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 2)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 1)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+    }
+
+    if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
+    {   
+        if (rng_e == 8)
+        {   
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[7][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[6][3];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[7][2];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[7][3];
+            }
+        } 
+
+        if (rng_e == 7)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[6][3];   
+            }
+        }
+
+        if (rng_e == 6)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+            }
+        }
+
+        if (rng_e == 5)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+            }
+        }
+
+        if (rng_e == 4)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+            }
+        }
+
+        if (rng_e == 3)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+            }
+        }
+
+        if (rng_e == 2)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            }
+        }
+
+        if (rng_e == 1)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+            }
+            
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+            } 
+
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+            }
+        
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+            }
+        }
+    }
 }
 
-// written by tc_interface.tc_gen_code_interface_Header()
- 
-void jk_ccsd_t_d1_4_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
+// written by tc_size_terface.tc_gen_code_size_terface_Header()
+extern "C"
+void jk_ccsd_t_d1_4_if_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	size_t num_thread_blocks_kernel_1;
+    size_t num_thread_blocks_kernel_1;
+
+    size_a = size_a * size_b;
+    
+    cudaStream_t *streams;
+    size_t nstreams = 1;
 
 	double* dev_t3;
 	double* dev_t2;
 	double* dev_v2;
 
-	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_4_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D1_4_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D1_4_SIZE_SLICE_1_C) * CEIL(size_e, JK_CCSD_T_D1_4_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_4_SIZE_SLICE_1_F) * CEIL(size_d, JK_CCSD_T_D1_4_SIZE_SLICE_1_D);
-    
+	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C) * CEIL(size_e, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F) * CEIL(size_d, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D);
+
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_a;
+
     // cudaMalloc()
-	//cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_b * size_c * size_e * size_f * size_d);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_b * size_a);
+	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_c * size_e * size_f * size_d);
+	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
+	// cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_a);
+    dev_t2=(double*)getGpuMem(size_tensor_A);
+    dev_v2=(double*)getGpuMem(size_tensor_B);
+
+    streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
+    // assert(streams!= NULL);
+    for (size_t i=0;i<nstreams;++i) 
+    {
+        cudaStreamCreate(&streams[i]);
+    }
 
 	// cudaMemcpy()
-	// cudaMemcpy(dev_t3, t3, sizeof(double) * size_a * size_b * size_c * size_e * size_f * size_d, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_c * size_e * size_f * size_g, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_v2, host_v2, sizeof(double) * size_g * size_d * size_b * size_a, cudaMemcpyHostToDevice);
+	// cudaMemcpy(dev_t3, t3, sizeof(double) * size_a * size_c * size_e * size_f * size_d, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_t2, host_t2, size_tensor_A, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_v2, host_v2, size_tensor_B, cudaMemcpyHostToDevice);
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-    long long int tmp_operations = 2 * (long long int)(size_a * size_b * size_c * size_e * size_f * size_d) * size_g;
-    /*
-	printf ("========================================= fusedKernels =============================================\n");
-	printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
-	printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_4_SIZE_TB_1_X, JK_CCSD_T_D1_4_SIZE_TB_1_Y);
-	printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_4_SIZE_REG_1_X, JK_CCSD_T_D1_4_SIZE_REG_1_Y);
-	printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_4_SIZE_TB_1_X * JK_CCSD_T_D1_4_SIZE_REG_1_X, JK_CCSD_T_D1_4_SIZE_TB_1_Y * JK_CCSD_T_D1_4_SIZE_REG_1_Y);
-	printf ("		# of Operations: %lld\n", tmp_operations);
-    printf ("====================================================================================================\n");
-    */
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_a * size_c * size_e * size_f * size_d) * size_g;
+	// printf ("========================================= fusedKernels =============================================\n");
+	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
+	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_4_IF_SIZE_TB_1_X, JK_CCSD_T_D1_4_IF_SIZE_TB_1_Y);
+	// printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_4_IF_SIZE_REG_1_X, JK_CCSD_T_D1_4_IF_SIZE_REG_1_Y);
+	// printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_4_IF_SIZE_TB_1_X * JK_CCSD_T_D1_4_IF_SIZE_REG_1_X, JK_CCSD_T_D1_4_IF_SIZE_TB_1_Y * JK_CCSD_T_D1_4_IF_SIZE_REG_1_Y);
+	// printf ("		# of Operations: %lld\n", tmp_operations);
+	// printf ("====================================================================================================\n");
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
-	dim3 blocksize_1(JK_CCSD_T_D1_4_SIZE_TB_1_X, JK_CCSD_T_D1_4_SIZE_TB_1_Y);
+	dim3 blocksize_1(JK_CCSD_T_D1_4_IF_SIZE_TB_1_X, JK_CCSD_T_D1_4_IF_SIZE_TB_1_Y);
 
 	size_t stride_output_a = 1;
-	size_t stride_output_b = stride_output_a * size_a;
-	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_c = stride_output_a * size_a;
 	size_t stride_output_e = stride_output_c * size_c;
 	size_t stride_output_f = stride_output_e * size_e;
 	size_t stride_output_d = stride_output_f * size_f;
 
-	size_t stride_reg_x_1 = stride_output_b;
+	size_t stride_reg_x_1 = stride_output_d;
 	size_t stride_reg_y_1 = stride_output_e;
 
 	size_t size_internal = size_g;
 
-	size_t stride_int_t2 = 1;
-	size_t stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_size_t_t2 = 1;
+	size_t stride_size_t_v2 = size_a * size_d;
 
+    // New Caller
     dev_t3 = t3_d;
-	// New Caller
-	jk_ccsd_t_d1_4_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_a, size_b, size_c, size_e, size_f, size_d, size_g, CEIL(size_a, JK_CCSD_T_D1_4_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D1_4_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D1_4_SIZE_SLICE_1_C), CEIL(size_e, JK_CCSD_T_D1_4_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_4_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D1_4_SIZE_SLICE_1_D), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    for(size_t i=0;i<nstreams;++i)
+    {
+        jk_ccsd_t_d1_4_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_a, size_c, size_e, size_f, size_d, size_g, CEIL(size_a, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_C), CEIL(size_e, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D1_4_IF_SIZE_SLICE_1_D), stride_size_t_t2, stride_size_t_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    }
 
 	// Copy the Result from Device to Host
-	//cudaMemcpy(t3, dev_t3, sizeof(double) * (size_a * size_b * size_c * size_e * size_f * size_d), cudaMemcpyDeviceToHost);
+	// cudaMemcpy(t3, dev_t3, sizeof(double) * (size_a * size_c * size_e * size_f * size_d), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
-    //cudaFree(dev_t3);	
-    cudaFree(dev_t2);	cudaFree(dev_v2);
+    // cudaFree(dev_t3);	
+    // cudaFree(dev_t2);	cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+    freeGpuMem(dev_v2);
+    for(size_t i=0;i<nstreams;++i)
+    {
+        cudaStreamDestroy(streams[i]);
+    }
+    free(streams);
+	// Shoule be Fixed
+	// HostFree
+
 }
-
-// This is written by tc_interface.tc_gen_code_interface()
-// This Interface Should be Called to Run the Kernels
- 
-void jk_ccsd_t_d1_4_fusion_(size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
-{
-	// Call An Application
-	jk_ccsd_t_d1_4_fusion(size_a, size_b, size_c, size_e, size_f, size_d, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
-}
-
-
 
 /*----------------------------------------------------------------------*
  *  [d1][5] triplesx[h3,h1,h2,p5,p4,p6] += t2sub[h7,p4,p5,h1] * v2sub[h3,h2,p6,h7]
@@ -1128,14 +5150,14 @@ void jk_ccsd_t_d1_4_fusion_(size_t size_a, size_t size_b, size_t size_c, size_t 
 #define JK_CCSD_T_D1_5_SIZE_REG_1_Y 	JK_CCSD_T_D1_5_SIZE_SLICE_1_E
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_4_kernel__5_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_b, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
+__global__ void jk_ccsd_t_d1_5_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_b, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_size_t_t2, size_t stride_size_t_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[32][64];
-	__shared__ double sm_b[32][64];
+	__shared__ double sm_a[16][64];
+	__shared__ double sm_b[16][64];
 
-	size_t internal_upperbound   = 0;
-	size_t internal_offset;
+	int internal_upperbound   = 0;
+	int internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
@@ -1253,13 +5275,11 @@ __global__ void jk_ccsd_t_d1_4_kernel__5_1(double* dev_t3, double* dev_t2, doubl
 			// ['a', 'b', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
 			// Exception: Temp. version!: idx_a < rng_a
-			sm_b[threadIdx.y + 0][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_5_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_5_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_5_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 0) * stride_int_v2];
+			sm_b[threadIdx.y + 0][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_5_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_5_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_5_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 0) * stride_size_t_v2];
 			// Exception: Temp. version!: threadIdx.y + l + 8
 			// Exception: Temp. version!: idx_a < rng_a
 			if (threadIdx.y + l + 8 < size_internal && idx_a < rng_a) 
-            sm_b[threadIdx.y + 8][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_5_SIZE_SLICE_1_A + idx_a + 
-                                                                 (blk_idx_b * JK_CCSD_T_D1_5_SIZE_SLICE_1_B + ll + 
-                                                                 (blk_idx_d * JK_CCSD_T_D1_5_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 8) * stride_int_v2];
+			sm_b[threadIdx.y + 8][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_5_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_5_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_5_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 8) * stride_size_t_v2];
 		}
 		__syncthreads();
 		//---------------------------------------------------------------------------------------------------
@@ -1294,57 +5314,1254 @@ __global__ void jk_ccsd_t_d1_4_kernel__5_1(double* dev_t3, double* dev_t2, doubl
 		__syncthreads();
 	}
 
+    if (idx_a < rng_a && idx_d < rng_d && idx_f < rng_f && idx_c < rng_c)
+    {
+        if (rng_e == 8)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
 
-	// Store Results (Registers) to Global Memory
-	// Part: Generalized Threads
-	// Part: Generalized Register-Tiling
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[7][2] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[6][3] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[7][2] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[7][3] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 7)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[6][3] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 6)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];\
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 5)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 4)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 3)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 2)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 1)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+    }
+
 	if (idx_a < rng_a && idx_d < rng_d && idx_f < rng_f && idx_c < rng_c)
-	for (size_t i = 0; i < 8; i++)
-	{
-		for (size_t j = 0; j < 4; j++)
-		{
-			if(i < rng_e && j < rng_b)
-			{
-			    dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
-			}
-		}
-	}
+    {   
+        //if(i < rng_d && j < rng_f)
+        if (rng_e == 8)
+        {   
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[7][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[6][3];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[7][2];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[7][3];
+            }
+        } 
+
+        if (rng_e == 7)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[6][3];   
+            }
+        }
+
+        if (rng_e == 6)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+            }
+        }
+
+        if (rng_e == 5)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+            }
+        }
+
+        if (rng_e == 4)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+            }
+        }
+
+        if (rng_d == 3)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+            }
+        }
+
+        if (rng_e == 2)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            }
+        }
+
+        if (rng_e == 1)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+            }
+            
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+            } 
+
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+            }
+        
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+            }
+        }
+    }
 }
 
-// written by tc_interface.tc_gen_code_interface_Header()
- 
-void jk_ccsd_t_d1_5_fusion(size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
+// written by tc_size_terface.tc_gen_code_size_terface_Header()
+extern "C" void jk_ccsd_t_d1_5_fusion(size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	size_t num_thread_blocks_kernel_1;
 
-	// double* dev_t3;
+    double* dev_t3;
 	double* dev_t2;
-	double* dev_v2;
+    double* dev_v2;
+    
+    cudaStream_t *streams;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_5_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_5_SIZE_SLICE_1_C) * CEIL(size_b, JK_CCSD_T_D1_5_SIZE_SLICE_1_B) * CEIL(size_e, JK_CCSD_T_D1_5_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_5_SIZE_SLICE_1_F) * CEIL(size_d, JK_CCSD_T_D1_5_SIZE_SLICE_1_D);
     
-    // cudaMalloc()
-	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_c * size_b * size_e * size_f * size_d);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_b * size_a);
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
 
-	// cudaMemcpy()
-	// cudaMemcpy(dev_t3, t3, sizeof(double) * size_a * size_c * size_b * size_e * size_f * size_d, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_c * size_e * size_f * size_g, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_v2, host_v2, sizeof(double) * size_g * size_d * size_b * size_a, cudaMemcpyHostToDevice);
+    // cudaMalloc()
+	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_b * size_a);
+    dev_t2=(double*)getGpuMem(size_tensor_A);
+    dev_v2=(double*)getGpuMem(size_tensor_B);
+
+    // cudaMemcpy()
+	cudaMemcpy(dev_t2, host_t2, size_tensor_A, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_v2, host_v2, size_tensor_B, cudaMemcpyHostToDevice);
+
+    streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
+    // assert(streams!= NULL);
+    for (size_t i=0;i<nstreams;++i) 
+    {
+        cudaStreamCreate(&streams[i]);
+    }
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-    long long int tmp_operations = 2 * (long long int)(size_a * size_c * size_b * size_e * size_f * size_d) * size_g;
-    /*
-	printf ("========================================= fusedKernels =============================================\n");
-	printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
-	printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_5_SIZE_TB_1_X, JK_CCSD_T_D1_5_SIZE_TB_1_Y);
-	printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_5_SIZE_REG_1_X, JK_CCSD_T_D1_5_SIZE_REG_1_Y);
-	printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_5_SIZE_TB_1_X * JK_CCSD_T_D1_5_SIZE_REG_1_X, JK_CCSD_T_D1_5_SIZE_TB_1_Y * JK_CCSD_T_D1_5_SIZE_REG_1_Y);
-	printf ("		# of Operations: %lld\n", tmp_operations);
-    printf ("====================================================================================================\n");
-    */
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_5_SIZE_TB_1_X, JK_CCSD_T_D1_5_SIZE_TB_1_Y);
 
@@ -1360,91 +6577,80 @@ void jk_ccsd_t_d1_5_fusion(size_t size_a, size_t size_c, size_t size_b, size_t s
 
 	size_t size_internal = size_g;
 
-	size_t stride_int_t2 = 1;
-	size_t stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_size_t_t2 = 1;
+	size_t stride_size_t_v2 = size_a * size_b * size_d;
 
-	// New Caller
-	jk_ccsd_t_d1_4_kernel__5_1<<<gridsize_1, blocksize_1>>>(t3_d, dev_t2, dev_v2, size_a, size_c, size_b, size_e, size_f, size_d, size_g, CEIL(size_a, JK_CCSD_T_D1_5_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_5_SIZE_SLICE_1_C), CEIL(size_b, JK_CCSD_T_D1_5_SIZE_SLICE_1_B), CEIL(size_e, JK_CCSD_T_D1_5_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_5_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D1_5_SIZE_SLICE_1_D), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    dev_t3 = t3_d;
 
-	// Copy the Result from Device to Host
-	// cudaMemcpy(t3, dev_t3, sizeof(double) * (size_a * size_c * size_b * size_e * size_f * size_d), cudaMemcpyDeviceToHost);
+    for(size_t i=0;i<nstreams;++i)
+    {
+	    jk_ccsd_t_d1_5_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_a, size_c, size_b, size_e, size_f, size_d, size_g, CEIL(size_a, JK_CCSD_T_D1_5_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_5_SIZE_SLICE_1_C), CEIL(size_b, JK_CCSD_T_D1_5_SIZE_SLICE_1_B), CEIL(size_e, JK_CCSD_T_D1_5_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_5_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D1_5_SIZE_SLICE_1_D), stride_size_t_t2, stride_size_t_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    }
 
-	// cudaFree()
-    // cudaFree(dev_t3);	
-    cudaFree(dev_t2);	cudaFree(dev_v2);
+    // cudaFree(dev_t2);	cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+    freeGpuMem(dev_v2);
 
-	// Shoule be Fixed
-	// HostFree
-
+    for(size_t i=0;i<nstreams;++i)
+    {
+        cudaStreamDestroy(streams[i]);
+    }
+    free(streams);
 }
 
-// This is written by tc_interface.tc_gen_code_interface()
+// This is written by tc_size_terface.tc_gen_code_size_terface()
 // This Interface Should be Called to Run the Kernels
- 
-void jk_ccsd_t_d1_5_fusion_(size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
+extern "C" void jk_ccsd_t_d1_5_fusion_(size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	// Pre-Processing for Split
-	// Based on Tile-Sizes and Problem-Size
-	// Currently, one index can be split into two indices
-
 	// Call An Application
 	jk_ccsd_t_d1_5_fusion(size_a, size_c, size_b, size_e, size_f, size_d, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
 }
-
-
 
 
 /*----------------------------------------------------------------------*
  *  [d1][6] triplesx[h1,h3,p5,p4,p6] -= t2sub[h7,p4,p5,h1] * v2sub[h3,p6,h7]
  *----------------------------------------------------------------------*/
 // created by tc_gen_definition_new()
-#define JK_CCSD_T_D1_6_SIZE_SLICE_1_G 16
-#define JK_CCSD_T_D1_6_SIZE_SLICE_1_C 16
-#define JK_CCSD_T_D1_6_SIZE_SLICE_1_F 4
-#define JK_CCSD_T_D1_6_SIZE_SLICE_1_E 1
-#define JK_CCSD_T_D1_6_SIZE_SLICE_1_A 16
-#define JK_CCSD_T_D1_6_SIZE_SLICE_1_B 4
-#define JK_CCSD_T_D1_6_SIZE_SLICE_1_D 1
+#define JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_G 16
+#define JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C 16
+#define JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F 4
+#define JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E 1
+#define JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A 16
+#define JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D 4
 
-#define JK_CCSD_T_D1_6_SIZE_INT_UNIT_1 JK_CCSD_T_D1_6_SIZE_SLICE_1_G
+#define JK_CCSD_T_D1_6_IF_SIZE_INT_UNIT_1 JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_G
 
-#define JK_CCSD_T_D1_6_SIZE_TB_1_X 	JK_CCSD_T_D1_6_SIZE_SLICE_1_C * JK_CCSD_T_D1_6_SIZE_SLICE_1_E
-#define JK_CCSD_T_D1_6_SIZE_TB_1_Y 	JK_CCSD_T_D1_6_SIZE_SLICE_1_A * JK_CCSD_T_D1_6_SIZE_SLICE_1_D
-#define JK_CCSD_T_D1_6_SIZE_REG_1_X 	JK_CCSD_T_D1_6_SIZE_SLICE_1_F
-#define JK_CCSD_T_D1_6_SIZE_REG_1_Y 	JK_CCSD_T_D1_6_SIZE_SLICE_1_B
-
-#define NUM_INDEX 		6
-#define CEIL(a, b) 		(((a) + (b) - 1) / (b))
+#define JK_CCSD_T_D1_6_IF_SIZE_TB_1_X 	JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E
+#define JK_CCSD_T_D1_6_IF_SIZE_TB_1_Y 	JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A
+#define JK_CCSD_T_D1_6_IF_SIZE_REG_1_X 	JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F
+#define JK_CCSD_T_D1_6_IF_SIZE_REG_1_Y 	JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_b, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
+__global__ void jk_ccsd_t_d1_6_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_e, size_t size_f, size_t size_d, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_e, size_t numBlk_f, size_t numBlk_d, size_t stride_size_t_t2, size_t stride_size_t_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[32][64];
-	__shared__ double sm_b[32][64];
+	__shared__ double sm_a[16][64];
+	__shared__ double sm_b[16][64];
 
-	size_t internal_upperbound   = 0;
-	size_t internal_offset;
+
+	int internal_upperbound   = 0;
+	int internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
-	// # of indices mapped on TB_Y: 2
-	size_t idx_c = threadIdx.x % JK_CCSD_T_D1_6_SIZE_SLICE_1_C;
-	size_t idx_e = threadIdx.x / JK_CCSD_T_D1_6_SIZE_SLICE_1_C;
-	size_t idx_a = threadIdx.y % JK_CCSD_T_D1_6_SIZE_SLICE_1_A;
-	size_t idx_d = threadIdx.y / JK_CCSD_T_D1_6_SIZE_SLICE_1_A;
+	// # of indices mapped on TB_Y: 1
+	size_t idx_c = threadIdx.x % JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C;
+	size_t idx_e = threadIdx.x / JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C;
+	size_t idx_a = threadIdx.y;
 
 	size_t tmp_blkIdx;
-	size_t blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_b * numBlk_a * numBlk_c);
-	tmp_blkIdx = blockIdx.x % (numBlk_f * numBlk_e * numBlk_b * numBlk_a * numBlk_c);
+	size_t blk_idx_d = blockIdx.x / (numBlk_f * numBlk_e * numBlk_a * numBlk_c);
+	tmp_blkIdx = blockIdx.x % (numBlk_f * numBlk_e * numBlk_a * numBlk_c);
 
-	size_t blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_b * numBlk_a * numBlk_c);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_b * numBlk_a * numBlk_c);
+	size_t blk_idx_f = tmp_blkIdx / (numBlk_e * numBlk_a * numBlk_c);
+	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_a * numBlk_c);
 
-	size_t blk_idx_e = tmp_blkIdx / (numBlk_b * numBlk_a * numBlk_c);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a * numBlk_c);
-
-	size_t blk_idx_b = tmp_blkIdx / (numBlk_a * numBlk_c);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c);
 
 	size_t blk_idx_a = tmp_blkIdx / numBlk_c;
@@ -1452,57 +6658,49 @@ __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 	size_t  blk_idx_c = tmp_blkIdx;
 
-	size_t t3_base_thread = blk_idx_c * JK_CCSD_T_D1_6_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_6_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_6_SIZE_SLICE_1_B + (blk_idx_e * JK_CCSD_T_D1_6_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D1_6_SIZE_SLICE_1_F + (blk_idx_d * JK_CCSD_T_D1_6_SIZE_SLICE_1_D + idx_d) * size_f) * size_e) * size_b) * size_a) * size_c;
+	size_t t3_base_thread = blk_idx_c * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_e * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E + idx_e + (blk_idx_f * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F + (blk_idx_d * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D) * size_f) * size_e) * size_a) * size_c;
 
 	// need to support partial tiles
-	size_t rng_c, rng_a, rng_b, rng_e, rng_f, rng_d;
-	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_6_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_6_SIZE_SLICE_1_C)
+	size_t rng_c, rng_a, rng_e, rng_f, rng_d;
+	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C)
 	{
-		rng_c = JK_CCSD_T_D1_6_SIZE_SLICE_1_C;
+		rng_c = JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C;
 	}
 	else
 	{
-		rng_c = size_c % JK_CCSD_T_D1_6_SIZE_SLICE_1_C;
+		rng_c = size_c % JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C;
 	}
-	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_6_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_6_SIZE_SLICE_1_A)
+	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A)
 	{
-		rng_a = JK_CCSD_T_D1_6_SIZE_SLICE_1_A;
-	}
-	else
-	{
-		rng_a = size_a % JK_CCSD_T_D1_6_SIZE_SLICE_1_A;
-	}
-	if ((size_b - (blk_idx_b * JK_CCSD_T_D1_6_SIZE_SLICE_1_B)) >= JK_CCSD_T_D1_6_SIZE_SLICE_1_B)
-	{
-		rng_b = JK_CCSD_T_D1_6_SIZE_SLICE_1_B;
+		rng_a = JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A;
 	}
 	else
 	{
-		rng_b = size_b % JK_CCSD_T_D1_6_SIZE_SLICE_1_B;
+		rng_a = size_a % JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A;
 	}
-	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_6_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_6_SIZE_SLICE_1_E)
+	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E)
 	{
-		rng_e = JK_CCSD_T_D1_6_SIZE_SLICE_1_E;
-	}
-	else
-	{
-		rng_e = size_e % JK_CCSD_T_D1_6_SIZE_SLICE_1_E;
-	}
-	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_6_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_6_SIZE_SLICE_1_F)
-	{
-		rng_f = JK_CCSD_T_D1_6_SIZE_SLICE_1_F;
+		rng_e = JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E;
 	}
 	else
 	{
-		rng_f = size_f % JK_CCSD_T_D1_6_SIZE_SLICE_1_F;
+		rng_e = size_e % JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E;
 	}
-	if ((size_d - (blk_idx_d * JK_CCSD_T_D1_6_SIZE_SLICE_1_D)) >= JK_CCSD_T_D1_6_SIZE_SLICE_1_D)
+	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F)
 	{
-		rng_d = JK_CCSD_T_D1_6_SIZE_SLICE_1_D;
+		rng_f = JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F;
 	}
 	else
 	{
-		rng_d = size_d % JK_CCSD_T_D1_6_SIZE_SLICE_1_D;
+		rng_f = size_f % JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F;
+	}
+	if ((size_d - (blk_idx_d * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D)) >= JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D)
+	{
+		rng_d = JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D;
+	}
+	else
+	{
+		rng_d = size_d % JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D;
 	}
 
 	double temp_av;
@@ -1513,52 +6711,52 @@ __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
-	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['a', 'b', 'd', 'g']], '+=']
+	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['a', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_6_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_6_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
-		internal_offset = (l + JK_CCSD_T_D1_6_SIZE_INT_UNIT_1) - size_internal;
+		internal_offset = (l + JK_CCSD_T_D1_6_IF_SIZE_INT_UNIT_1) - size_internal;
 		if (internal_offset > 0) internal_upperbound = internal_offset;
 
 		//---------------------------------------------------------------------------------------------------
 		// This is for the new version
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (0 < rng_e && idx_a < rng_c && threadIdx.x < JK_CCSD_T_D1_6_SIZE_INT_UNIT_1 - internal_upperbound)
+		if (0 < rng_e && idx_a < rng_c && threadIdx.x < JK_CCSD_T_D1_6_IF_SIZE_INT_UNIT_1 - internal_upperbound)
 		for (size_t ll = 0; ll < rng_f; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
 			// Exception: Temp. version!: 0 < rng_e
-			sm_a[threadIdx.x][threadIdx.y + ll * 16] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_6_SIZE_SLICE_1_F + ll + (blk_idx_e * JK_CCSD_T_D1_6_SIZE_SLICE_1_E + 0 + (blk_idx_c * JK_CCSD_T_D1_6_SIZE_SLICE_1_C + idx_a) * size_e) * size_f) * size_g + (threadIdx.x + l)];
+			sm_a[threadIdx.x][threadIdx.y + ll * 16] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F + ll + (blk_idx_e * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E + 0 + (blk_idx_c * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C + idx_a) * size_e) * size_f) * size_g + (threadIdx.x + l)];
 		}
 		
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (idx_c < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_6_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (size_t ll = 0; ll < rng_b; ll++)
+		if (idx_c < rng_a && threadIdx.y < JK_CCSD_T_D1_6_IF_SIZE_INT_UNIT_1 - internal_upperbound)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
-			// ['a', 'b', 'd', 'g']
+			// ['a', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l
 			// Exception: Temp. version!: idx_c < rng_a
-			sm_b[threadIdx.y][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_6_SIZE_SLICE_1_A + idx_c + (blk_idx_b * JK_CCSD_T_D1_6_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_6_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l) * stride_int_v2];
+			sm_b[threadIdx.y][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A + idx_c + (blk_idx_d * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D + ll) * size_a + (threadIdx.y + l) * stride_size_t_v2];
 		}
 		__syncthreads();
 		//---------------------------------------------------------------------------------------------------
 		
 
 		// Part: Generalized Threads
-		for (size_t ll = 0; ll < JK_CCSD_T_D1_6_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_6_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
-			temp_bv[0] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_6_SIZE_SLICE_1_A + 0];
-			temp_bv[1] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_6_SIZE_SLICE_1_A + 16];
-			temp_bv[2] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_6_SIZE_SLICE_1_A + 32];
-			temp_bv[3] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_6_SIZE_SLICE_1_A + 48];
+			temp_bv[0] = sm_b[ll][idx_a + 0];
+			temp_bv[1] = sm_b[ll][idx_a + 16];
+			temp_bv[2] = sm_b[ll][idx_a + 32];
+			temp_bv[3] = sm_b[ll][idx_a + 48];
 
 			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
-				temp_av = sm_a[ll][idx_e + (idx_c) * JK_CCSD_T_D1_6_SIZE_SLICE_1_E + (xx * 16)];
+				temp_av = sm_a[ll][idx_e + (idx_c) * JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E + (xx * 16)];
 
 				reg_tile[0][xx] -= temp_av * temp_bv[0];
 				reg_tile[1][xx] -= temp_av * temp_bv[1];
@@ -1569,95 +6767,498 @@ __global__ void jk_ccsd_t_d1_6_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		__syncthreads();
 	}
 
-
+    /*
 	// Store Results (Registers) to Global Memory
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
-	if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a && idx_d < rng_d)
+	if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a)
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t j = 0; j < 4; j++)
 		{
-			if(i < rng_b && j < rng_f)
+			if(i < rng_d && j < rng_f)
 			{
-			    dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
+			dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] = reg_tile[i][j];
 			}
 		}
-	}
+    }
+    */
+
+    if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a)
+    {
+        if (rng_d == 4)
+        {
+            if (rng_f == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_f == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_f == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_f == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_d == 3)
+        {
+            if (rng_f == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_f == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_f == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_f == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_d == 2)
+        {
+            if (rng_f == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_f == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_f == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_f == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_d == 1)
+        {
+            if (rng_f == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_f == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_f == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_f == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+    }
+
+    if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a)
+    {   
+        if (rng_d == 4)
+        {
+            if (rng_f == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+            }
+            if (rng_f == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+            }
+            if (rng_f == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+            }
+            if (rng_f == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+            }
+        }
+
+        if (rng_d == 3)
+        {
+            if (rng_f == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+            }
+            if (rng_f == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+            }
+            if (rng_f == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+            }
+            if (rng_f == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+            }
+        }
+
+        if (rng_d == 2)
+        {
+            if (rng_f == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            }
+            if (rng_f == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            }
+            if (rng_f == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            }
+            if (rng_f == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            }
+        }
+
+        if (rng_d == 1)
+        {
+            if (rng_f == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+            }
+            
+            if (rng_f == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+            } 
+
+            if (rng_f == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+            }
+        
+            if (rng_f == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+            }
+        }
+    }
 }
 
-// written by tc_interface.tc_gen_code_interface_Header()
- 
-void jk_ccsd_t_d1_6_fusion(size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
+// written by tc_size_terface.tc_gen_code_size_terface_Header()
+extern "C"
+void jk_ccsd_t_d1_6_if_fusion(size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	size_t num_thread_blocks_kernel_1;
+
+    size_a = size_a * size_b;
 
 	double* dev_t3;
 	double* dev_t2;
 	double* dev_v2;
 
-	num_thread_blocks_kernel_1 = CEIL(size_c, JK_CCSD_T_D1_6_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D1_6_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D1_6_SIZE_SLICE_1_B) * CEIL(size_e, JK_CCSD_T_D1_6_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_6_SIZE_SLICE_1_F) * CEIL(size_d, JK_CCSD_T_D1_6_SIZE_SLICE_1_D);
+    cudaStream_t *streams;
+    size_t nstreams = 1;
 
-    // cudaMalloc()
-	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_c * size_a * size_b * size_e * size_f * size_d);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_b * size_a);
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_a;
 
+	num_thread_blocks_kernel_1 = CEIL(size_c, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A) * CEIL(size_e, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E) * CEIL(size_f, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F) * CEIL(size_d, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D);
+	// cudaMalloc()
+	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_c * size_a * size_e * size_f * size_d);
+	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_a);
+    dev_t2=(double*)getGpuMem(size_tensor_A);
+    dev_v2=(double*)getGpuMem(size_tensor_B);
+
+    streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
+    // assert(streams!= NULL);
+    for (size_t i=0;i<nstreams;++i) 
+    {
+        cudaStreamCreate(&streams[i]);
+    }
 	// cudaMemcpy()
-	// cudaMemcpy(dev_t3, t3, sizeof(double) * size_c * size_a * size_b * size_e * size_f * size_d, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_c * size_e * size_f * size_g, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_v2, host_v2, sizeof(double) * size_g * size_d * size_b * size_a, cudaMemcpyHostToDevice);
+	// cudaMemcpy(dev_t3, t3, sizeof(double) * size_c * size_a * size_e * size_f * size_d, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_t2, host_t2, size_tensor_A, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_v2, host_v2, size_tensor_B, cudaMemcpyHostToDevice);
+
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-    long long int tmp_operations = 2 * (long long int)(size_c * size_a * size_b * size_e * size_f * size_d) * size_g;
-    /*
-	printf ("========================================= fusedKernels =============================================\n");
-	printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
-	printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_6_SIZE_TB_1_X, JK_CCSD_T_D1_6_SIZE_TB_1_Y);
-	printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_6_SIZE_REG_1_X, JK_CCSD_T_D1_6_SIZE_REG_1_Y);
-	printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_6_SIZE_TB_1_X * JK_CCSD_T_D1_6_SIZE_REG_1_X, JK_CCSD_T_D1_6_SIZE_TB_1_Y * JK_CCSD_T_D1_6_SIZE_REG_1_Y);
-	printf ("		# of Operations: %lld\n", tmp_operations);
-    printf ("====================================================================================================\n");
-    */
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_c * size_a * size_e * size_f * size_d) * size_g;
+	// printf ("========================================= fusedKernels =============================================\n");
+	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
+	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_6_IF_SIZE_TB_1_X, JK_CCSD_T_D1_6_IF_SIZE_TB_1_Y);
+	// printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_6_IF_SIZE_REG_1_X, JK_CCSD_T_D1_6_IF_SIZE_REG_1_Y);
+	// printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_6_IF_SIZE_TB_1_X * JK_CCSD_T_D1_6_IF_SIZE_REG_1_X, JK_CCSD_T_D1_6_IF_SIZE_TB_1_Y * JK_CCSD_T_D1_6_IF_SIZE_REG_1_Y);
+	// printf ("		# of Operations: %lld\n", tmp_operations);
+	// printf ("====================================================================================================\n");
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
-	dim3 blocksize_1(JK_CCSD_T_D1_6_SIZE_TB_1_X, JK_CCSD_T_D1_6_SIZE_TB_1_Y);
+	dim3 blocksize_1(JK_CCSD_T_D1_6_IF_SIZE_TB_1_X, JK_CCSD_T_D1_6_IF_SIZE_TB_1_Y);
 
 	size_t stride_output_c = 1;
 	size_t stride_output_a = stride_output_c * size_c;
-	size_t stride_output_b = stride_output_a * size_a;
-	size_t stride_output_e = stride_output_b * size_b;
+	size_t stride_output_e = stride_output_a * size_a;
 	size_t stride_output_f = stride_output_e * size_e;
 	size_t stride_output_d = stride_output_f * size_f;
 
 	size_t stride_reg_x_1 = stride_output_f;
-	size_t stride_reg_y_1 = stride_output_b;
+	size_t stride_reg_y_1 = stride_output_d;
 
 	size_t size_internal = size_g;
 
-	size_t stride_int_t2 = 1;
-	size_t stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_size_t_t2 = 1;
+	size_t stride_size_t_v2 = size_a * size_d;
 
+    // New Caller
     dev_t3 = t3_d;
 
-	// New Caller
-	jk_ccsd_t_d1_6_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_c, size_a, size_b, size_e, size_f, size_d, size_g, CEIL(size_c, JK_CCSD_T_D1_6_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D1_6_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D1_6_SIZE_SLICE_1_B), CEIL(size_e, JK_CCSD_T_D1_6_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_6_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D1_6_SIZE_SLICE_1_D), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    for(size_t i=0;i<nstreams;++i)
+    {
+        jk_ccsd_t_d1_6_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_c, size_a, size_e, size_f, size_d, size_g, CEIL(size_c, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_A), CEIL(size_e, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_E), CEIL(size_f, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_F), CEIL(size_d, JK_CCSD_T_D1_6_IF_SIZE_SLICE_1_D), stride_size_t_t2, stride_size_t_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    }
 
 	// Copy the Result from Device to Host
-	// cudaMemcpy(t3, dev_t3, sizeof(double) * (size_c * size_a * size_b * size_e * size_f * size_d), cudaMemcpyDeviceToHost);
+	// cudaMemcpy(t3, dev_t3, sizeof(double) * (size_c * size_a * size_e * size_f * size_d), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
     // cudaFree(dev_t3);	
-    cudaFree(dev_t2);	cudaFree(dev_v2);
-}
+    // cudaFree(dev_t2);	cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+    freeGpuMem(dev_v2);
 
-// This is written by tc_interface.tc_gen_code_interface()
-// This Interface Should be Called to Run the Kernels
- 
-void jk_ccsd_t_d1_6_fusion_(size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_f, size_t size_d, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
-{
-	// Call An Application
-	jk_ccsd_t_d1_6_fusion(size_c, size_a, size_b, size_e, size_f, size_d, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
+	// Shoule be Fixed
+	// HostFree
+    for(size_t i=0;i<nstreams;++i)
+    {
+        cudaStreamDestroy(streams[i]);
+    }
+    free(streams);
 }
 
 
@@ -1665,112 +7266,97 @@ void jk_ccsd_t_d1_6_fusion_(size_t size_c, size_t size_a, size_t size_b, size_t 
  *  [d1][7] triplesx[h3,h1,p5,p6,p4] += t2sub[h7,p4,p5,h1] * v2sub[h3,p6,h7]
  *----------------------------------------------------------------------*/
 // created by tc_gen_definition_new()
-#define JK_CCSD_T_D1_7_SIZE_SLICE_1_G 16
-#define JK_CCSD_T_D1_7_SIZE_SLICE_1_A 16
-#define JK_CCSD_T_D1_7_SIZE_SLICE_1_B 4
-#define JK_CCSD_T_D1_7_SIZE_SLICE_1_D 1
-#define JK_CCSD_T_D1_7_SIZE_SLICE_1_F 8
-#define JK_CCSD_T_D1_7_SIZE_SLICE_1_E 8
-#define JK_CCSD_T_D1_7_SIZE_SLICE_1_C 1
+#define JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_G 16
+#define JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A 16
+#define JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D 4
+#define JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F 8
+#define JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E 8
+#define JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C 1
 
-#define JK_CCSD_T_D1_7_SIZE_INT_UNIT_1 JK_CCSD_T_D1_7_SIZE_SLICE_1_G
+#define JK_CCSD_T_D1_7_IF_SIZE_INT_UNIT_1 JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_G
 
-#define JK_CCSD_T_D1_7_SIZE_TB_1_X 	JK_CCSD_T_D1_7_SIZE_SLICE_1_A * JK_CCSD_T_D1_7_SIZE_SLICE_1_D
-#define JK_CCSD_T_D1_7_SIZE_TB_1_Y 	JK_CCSD_T_D1_7_SIZE_SLICE_1_F * JK_CCSD_T_D1_7_SIZE_SLICE_1_C
-#define JK_CCSD_T_D1_7_SIZE_REG_1_X 	JK_CCSD_T_D1_7_SIZE_SLICE_1_B
-#define JK_CCSD_T_D1_7_SIZE_REG_1_Y 	JK_CCSD_T_D1_7_SIZE_SLICE_1_E
+#define JK_CCSD_T_D1_7_IF_SIZE_TB_1_X 	JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A
+#define JK_CCSD_T_D1_7_IF_SIZE_TB_1_Y 	JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C
+#define JK_CCSD_T_D1_7_IF_SIZE_REG_1_X 	JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D
+#define JK_CCSD_T_D1_7_IF_SIZE_REG_1_Y 	JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E
 
-#define NUM_INDEX 		6
-#define CEIL(a, b) 		(((a) + (b) - 1) / (b))
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_b, size_t numBlk_c, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
+__global__ void jk_ccsd_t_d1_7_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_size_t_t2, size_t stride_size_t_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[32][64];
-	__shared__ double sm_b[32][64];
+	__shared__ double sm_a[16][64];
+	__shared__ double sm_b[16][64];
 
 
-	size_t internal_upperbound   = 0;
-	size_t internal_offset;
+	int internal_upperbound   = 0;
+	int internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
-	// # of indices mapped on TB_X: 2
+	// # of indices mapped on TB_X: 1
 	// # of indices mapped on TB_Y: 2
-	size_t idx_a = threadIdx.x % JK_CCSD_T_D1_7_SIZE_SLICE_1_A;
-	size_t idx_d = threadIdx.x / JK_CCSD_T_D1_7_SIZE_SLICE_1_A;
-	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_7_SIZE_SLICE_1_F;
-	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_7_SIZE_SLICE_1_F;
+	size_t idx_a = threadIdx.x;
+	size_t idx_f = threadIdx.y % JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F;
+	size_t idx_c = threadIdx.y / JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F;
 
 	size_t tmp_blkIdx;
-	size_t blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_c * numBlk_b * numBlk_a);
-	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_e * numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_c * numBlk_a);
+	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_e * numBlk_c * numBlk_a);
 
-	size_t blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_c * numBlk_b * numBlk_a);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_c * numBlk_a);
+	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_c * numBlk_a);
 
-	size_t blk_idx_e = tmp_blkIdx / (numBlk_c * numBlk_b * numBlk_a);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_b * numBlk_a);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_c * numBlk_a);
+	tmp_blkIdx = tmp_blkIdx % (numBlk_c * numBlk_a);
 
-	size_t blk_idx_c = tmp_blkIdx / (numBlk_b * numBlk_a);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a);
-
-	size_t blk_idx_b = tmp_blkIdx / numBlk_a;
+	size_t blk_idx_c = tmp_blkIdx / numBlk_a;
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a);
 
 	size_t  blk_idx_a = tmp_blkIdx;
 
-	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_7_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_7_SIZE_SLICE_1_B + (blk_idx_c * JK_CCSD_T_D1_7_SIZE_SLICE_1_C + idx_c + (blk_idx_e * JK_CCSD_T_D1_7_SIZE_SLICE_1_E + (blk_idx_d * JK_CCSD_T_D1_7_SIZE_SLICE_1_D + idx_d + (blk_idx_f * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + idx_f) * size_d) * size_e) * size_c) * size_b) * size_a;
+	size_t t3_base_thread = blk_idx_a * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_c * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_e * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E + (blk_idx_d * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + idx_f) * size_d) * size_e) * size_c) * size_a;
 
 	// need to support partial tiles
-	size_t rng_a, rng_b, rng_c, rng_e, rng_d, rng_f;
-	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_7_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_7_SIZE_SLICE_1_A)
+	size_t rng_a, rng_c, rng_e, rng_d, rng_f;
+	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A)
 	{
-		rng_a = JK_CCSD_T_D1_7_SIZE_SLICE_1_A;
+		rng_a = JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A;
 	}
 	else
 	{
-		rng_a = size_a % JK_CCSD_T_D1_7_SIZE_SLICE_1_A;
+		rng_a = size_a % JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A;
 	}
-	if ((size_b - (blk_idx_b * JK_CCSD_T_D1_7_SIZE_SLICE_1_B)) >= JK_CCSD_T_D1_7_SIZE_SLICE_1_B)
+	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C)
 	{
-		rng_b = JK_CCSD_T_D1_7_SIZE_SLICE_1_B;
-	}
-	else
-	{
-		rng_b = size_b % JK_CCSD_T_D1_7_SIZE_SLICE_1_B;
-	}
-	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_7_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_7_SIZE_SLICE_1_C)
-	{
-		rng_c = JK_CCSD_T_D1_7_SIZE_SLICE_1_C;
+		rng_c = JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C;
 	}
 	else
 	{
-		rng_c = size_c % JK_CCSD_T_D1_7_SIZE_SLICE_1_C;
+		rng_c = size_c % JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C;
 	}
-	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_7_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_7_SIZE_SLICE_1_E)
+	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E)
 	{
-		rng_e = JK_CCSD_T_D1_7_SIZE_SLICE_1_E;
-	}
-	else
-	{
-		rng_e = size_e % JK_CCSD_T_D1_7_SIZE_SLICE_1_E;
-	}
-	if ((size_d - (blk_idx_d * JK_CCSD_T_D1_7_SIZE_SLICE_1_D)) >= JK_CCSD_T_D1_7_SIZE_SLICE_1_D)
-	{
-		rng_d = JK_CCSD_T_D1_7_SIZE_SLICE_1_D;
+		rng_e = JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E;
 	}
 	else
 	{
-		rng_d = size_d % JK_CCSD_T_D1_7_SIZE_SLICE_1_D;
+		rng_e = size_e % JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E;
 	}
-	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_7_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_7_SIZE_SLICE_1_F)
+	if ((size_d - (blk_idx_d * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D)) >= JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D)
 	{
-		rng_f = JK_CCSD_T_D1_7_SIZE_SLICE_1_F;
+		rng_d = JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D;
 	}
 	else
 	{
-		rng_f = size_f % JK_CCSD_T_D1_7_SIZE_SLICE_1_F;
+		rng_d = size_d % JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D;
+	}
+	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F)
+	{
+		rng_f = JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F;
+	}
+	else
+	{
+		rng_f = size_f % JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F;
 	}
 
 	double temp_av;
@@ -1781,60 +7367,60 @@ __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
-	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'b', 'd', 'g']], '+=']
+	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'y', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'x', 'v2', ['a', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_7_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_7_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
-		internal_offset = (l + JK_CCSD_T_D1_7_SIZE_INT_UNIT_1) - size_internal;
+		internal_offset = (l + JK_CCSD_T_D1_7_IF_SIZE_INT_UNIT_1) - size_internal;
 		if (internal_offset > 0) internal_upperbound = internal_offset;
 
 		//---------------------------------------------------------------------------------------------------
 		// This is for the new version
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_7_SIZE_INT_UNIT_1 - internal_upperbound)
+		if (idx_f < rng_f && 0 < rng_c && threadIdx.x < JK_CCSD_T_D1_7_IF_SIZE_INT_UNIT_1 - internal_upperbound)
 		for (size_t ll = 0; ll < rng_e; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
 			// Exception: Temp. version!: idx_f < rng_f
-			sm_a[threadIdx.x][threadIdx.y + ll * 8] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D1_7_SIZE_SLICE_1_E + ll + (blk_idx_c * JK_CCSD_T_D1_7_SIZE_SLICE_1_C + 0) * size_e) * size_f) * size_g + (threadIdx.x + l)];
+			sm_a[threadIdx.x][threadIdx.y + ll * 8] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + idx_f + (blk_idx_e * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E + ll + (blk_idx_c * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C + 0) * size_e) * size_f) * size_g + (threadIdx.x + l)];
 		}
 		
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (idx_a < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_7_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (size_t ll = 0; ll < rng_b; ll++)
+		if (idx_a < rng_a && threadIdx.y < JK_CCSD_T_D1_7_IF_SIZE_INT_UNIT_1 - internal_upperbound)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
-			// ['a', 'b', 'd', 'g']
+			// ['a', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
 			// Exception: Temp. version!: idx_a < rng_a
-			sm_b[threadIdx.y + 0][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_7_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_7_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_7_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 0) * stride_int_v2];
+			sm_b[threadIdx.y + 0][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_d * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D + ll) * size_a + (threadIdx.y + l + 0) * stride_size_t_v2];
 			// Exception: Temp. version!: threadIdx.y + l + 8
 			// Exception: Temp. version!: idx_a < rng_a
 			if (threadIdx.y + l + 8 < size_internal && idx_a < rng_a) 
-			sm_b[threadIdx.y + 8][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_7_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_7_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_7_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 8) * stride_int_v2];
+			sm_b[threadIdx.y + 8][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_d * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D + ll) * size_a + (threadIdx.y + l + 8) * stride_size_t_v2];
 		}
 		__syncthreads();
 		//---------------------------------------------------------------------------------------------------
 		
 
 		// Part: Generalized Threads
-		for (size_t ll = 0; ll < JK_CCSD_T_D1_7_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_7_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
-			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + 0];
-			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + 8];
-			temp_bv[2] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + 16];
-			temp_bv[3] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + 24];
-			temp_bv[4] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + 32];
-			temp_bv[5] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + 40];
-			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + 48];
-			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_SIZE_SLICE_1_F + 56];
+			temp_bv[0] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + 0];
+			temp_bv[1] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + 8];
+			temp_bv[2] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + 16];
+			temp_bv[3] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + 24];
+			temp_bv[4] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + 32];
+			temp_bv[5] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + 40];
+			temp_bv[6] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + 48];
+			temp_bv[7] = sm_a[ll][idx_f + (idx_c) * JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F + 56];
 
 			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
-				temp_av = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_7_SIZE_SLICE_1_A + (xx * 16)];
+				temp_av = sm_b[ll][idx_a + (xx * 16)];
 
 				reg_tile[0][xx] += temp_av * temp_bv[0];
 				reg_tile[1][xx] += temp_av * temp_bv[1];
@@ -1849,131 +7435,1355 @@ __global__ void jk_ccsd_t_d1_7_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		__syncthreads();
 	}
 
-
+    /*
 	// Store Results (Registers) to Global Memory
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
-	if (idx_a < rng_a && idx_d < rng_d && idx_f < rng_f && idx_c < rng_c)
+	if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
 	for (size_t i = 0; i < 8; i++)
 	{
 		for (size_t j = 0; j < 4; j++)
 		{
-			if(i < rng_e && j < rng_b)
+			if(i < rng_e && j < rng_d)
 			{
-		    	dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
+			dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] = reg_tile[i][j];
 			}
 		}
-	}
+    }
+    */
+
+    if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
+    {
+        if (rng_e == 8)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[7][2] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[6][3] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[7][2] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[7][3] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 7)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[6][3] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 6)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];\
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 5)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 4)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 3)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 2)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 1)
+        {
+            if (rng_d == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_d == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_d == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_d == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+    }
+
+    if (idx_a < rng_a && idx_f < rng_f && idx_c < rng_c)
+    {   
+        if (rng_e == 8)
+        {   
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[7][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[6][3];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[7][2];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[7][3];
+            }
+        } 
+
+        if (rng_e == 7)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[6][3];   
+            }
+        }
+
+        if (rng_e == 6)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+            }
+        }
+
+        if (rng_e == 5)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+            }
+        }
+
+        if (rng_e == 4)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+            }
+        }
+
+        if (rng_e == 3)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+            }
+        }
+
+        if (rng_e == 2)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            }
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            }
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            }
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            }
+        }
+
+        if (rng_e == 1)
+        {
+            if (rng_d == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+            }
+            
+            if (rng_d == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+            } 
+
+            if (rng_d == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+            }
+        
+            if (rng_d == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+            }
+        }
+    }
 }
 
-// written by tc_interface.tc_gen_code_interface_Header()
- 
-void jk_ccsd_t_d1_7_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
+// written by tc_size_terface.tc_gen_code_size_terface_Header()
+extern "C"
+void jk_ccsd_t_d1_7_if_fusion(size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	size_t num_thread_blocks_kernel_1;
+    size_t num_thread_blocks_kernel_1;
+    
+    size_a = size_a * size_b;
 
 	double* dev_t3;
 	double* dev_t2;
-	double* dev_v2;
-
-	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_7_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D1_7_SIZE_SLICE_1_B) * CEIL(size_c, JK_CCSD_T_D1_7_SIZE_SLICE_1_C) * CEIL(size_e, JK_CCSD_T_D1_7_SIZE_SLICE_1_E) * CEIL(size_d, JK_CCSD_T_D1_7_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D1_7_SIZE_SLICE_1_F);
+    double* dev_v2;
     
-    // cudaMalloc()
-	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_b * size_c * size_e * size_d * size_f);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_b * size_a);
+    cudaStream_t *streams;
+    size_t nstreams = 1;
 
+	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C) * CEIL(size_e, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E) * CEIL(size_d, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F);
+    
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_a;
+
+    // cudaMalloc()
+	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_c * size_e * size_d * size_f);
+	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
+	// cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_a);
+    dev_t2=(double*)getGpuMem(size_tensor_A);
+    dev_v2=(double*)getGpuMem(size_tensor_B);
+
+    streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
+    // assert(streams!= NULL);
+    for (size_t i=0;i<nstreams;++i) 
+    {
+        cudaStreamCreate(&streams[i]);
+    }
 	// cudaMemcpy()
-	// cudaMemcpy(dev_t3, t3, sizeof(double) * size_a * size_b * size_c * size_e * size_d * size_f, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_c * size_e * size_f * size_g, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_v2, host_v2, sizeof(double) * size_g * size_d * size_b * size_a, cudaMemcpyHostToDevice);
+	// cudaMemcpy(dev_t3, t3, sizeof(double) * size_a * size_c * size_e * size_d * size_f, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_t2, host_t2, size_tensor_A, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_v2, host_v2, size_tensor_B, cudaMemcpyHostToDevice);
+
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-    long long int tmp_operations = 2 * (long long int)(size_a * size_b * size_c * size_e * size_d * size_f) * size_g;
-    /*
-	printf ("========================================= fusedKernels =============================================\n");
-	printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
-	printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_7_SIZE_TB_1_X, JK_CCSD_T_D1_7_SIZE_TB_1_Y);
-	printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_7_SIZE_REG_1_X, JK_CCSD_T_D1_7_SIZE_REG_1_Y);
-	printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_7_SIZE_TB_1_X * JK_CCSD_T_D1_7_SIZE_REG_1_X, JK_CCSD_T_D1_7_SIZE_TB_1_Y * JK_CCSD_T_D1_7_SIZE_REG_1_Y);
-	printf ("		# of Operations: %lld\n", tmp_operations);
-    printf ("====================================================================================================\n");
-    */
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_a * size_c * size_e * size_d * size_f) * size_g;
+	// printf ("========================================= fusedKernels =============================================\n");
+	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
+	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_7_IF_SIZE_TB_1_X, JK_CCSD_T_D1_7_IF_SIZE_TB_1_Y);
+	// printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_7_IF_SIZE_REG_1_X, JK_CCSD_T_D1_7_IF_SIZE_REG_1_Y);
+	// printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_7_IF_SIZE_TB_1_X * JK_CCSD_T_D1_7_IF_SIZE_REG_1_X, JK_CCSD_T_D1_7_IF_SIZE_TB_1_Y * JK_CCSD_T_D1_7_IF_SIZE_REG_1_Y);
+	// printf ("		# of Operations: %lld\n", tmp_operations);
+	// printf ("====================================================================================================\n");
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
-	dim3 blocksize_1(JK_CCSD_T_D1_7_SIZE_TB_1_X, JK_CCSD_T_D1_7_SIZE_TB_1_Y);
+	dim3 blocksize_1(JK_CCSD_T_D1_7_IF_SIZE_TB_1_X, JK_CCSD_T_D1_7_IF_SIZE_TB_1_Y);
 
 	size_t stride_output_a = 1;
-	size_t stride_output_b = stride_output_a * size_a;
-	size_t stride_output_c = stride_output_b * size_b;
+	size_t stride_output_c = stride_output_a * size_a;
 	size_t stride_output_e = stride_output_c * size_c;
 	size_t stride_output_d = stride_output_e * size_e;
 	size_t stride_output_f = stride_output_d * size_d;
 
-	size_t stride_reg_x_1 = stride_output_b;
+	size_t stride_reg_x_1 = stride_output_d;
 	size_t stride_reg_y_1 = stride_output_e;
 
 	size_t size_internal = size_g;
 
-	size_t stride_int_t2 = 1;
-	size_t stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_size_t_t2 = 1;
+	size_t stride_size_t_v2 = size_a * size_d;
 
+    // New Caller
     dev_t3 = t3_d;
 
-	// New Caller
-	jk_ccsd_t_d1_7_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_a, size_b, size_c, size_e, size_d, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_7_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D1_7_SIZE_SLICE_1_B), CEIL(size_c, JK_CCSD_T_D1_7_SIZE_SLICE_1_C), CEIL(size_e, JK_CCSD_T_D1_7_SIZE_SLICE_1_E), CEIL(size_d, JK_CCSD_T_D1_7_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D1_7_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    for(size_t i=0;i<nstreams;++i)
+    {
+	    jk_ccsd_t_d1_7_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_a, size_c, size_e, size_d, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_C), CEIL(size_e, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_E), CEIL(size_d, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D1_7_IF_SIZE_SLICE_1_F), stride_size_t_t2, stride_size_t_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    }
 
 	// Copy the Result from Device to Host
-	// cudaMemcpy(t3, dev_t3, sizeof(double) * (size_a * size_b * size_c * size_e * size_d * size_f), cudaMemcpyDeviceToHost);
+	// cudaMemcpy(t3, dev_t3, sizeof(double) * (size_a * size_c * size_e * size_d * size_f), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
     // cudaFree(dev_t3);	
-    cudaFree(dev_t2);	cudaFree(dev_v2);
+    // cudaFree(dev_t2);	cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+    freeGpuMem(dev_v2);
 
 	// Shoule be Fixed
 	// HostFree
-
+    for(size_t i=0;i<nstreams;++i)
+    {
+        cudaStreamDestroy(streams[i]);
+    }
+    free(streams);
 }
-
-// This is written by tc_interface.tc_gen_code_interface()
-// This Interface Should be Called to Run the Kernels
- 
-void jk_ccsd_t_d1_7_fusion_(size_t size_a, size_t size_b, size_t size_c, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
-{
-	// Call An Application
-	jk_ccsd_t_d1_7_fusion(size_a, size_b, size_c, size_e, size_d, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
-}
-
 
 
 /*----------------------------------------------------------------------*
  *  [d1][8] triplesx[h3,h1,h2,p5,p6,p4] -= t2sub[h7,p4,p5,h1] * v2sub[h3,h2,p6,h7]
  *----------------------------------------------------------------------*/
 // created by tc_gen_definition_new()
-#define JK_CCSD_T_D1_8_SIZE_SLICE_1_G   16
-#define JK_CCSD_T_D1_8_SIZE_SLICE_1_A   16
-#define JK_CCSD_T_D1_8_SIZE_SLICE_1_B   4
-#define JK_CCSD_T_D1_8_SIZE_SLICE_1_D   1
-#define JK_CCSD_T_D1_8_SIZE_SLICE_1_F   8
-#define JK_CCSD_T_D1_8_SIZE_SLICE_1_E   8
-#define JK_CCSD_T_D1_8_SIZE_SLICE_1_C   1
+#define JK_CCSD_T_D1_8_SIZE_SLICE_1_G 16
+#define JK_CCSD_T_D1_8_SIZE_SLICE_1_A 16
+#define JK_CCSD_T_D1_8_SIZE_SLICE_1_B 4
+#define JK_CCSD_T_D1_8_SIZE_SLICE_1_D 1
+#define JK_CCSD_T_D1_8_SIZE_SLICE_1_F 8
+#define JK_CCSD_T_D1_8_SIZE_SLICE_1_E 8
+#define JK_CCSD_T_D1_8_SIZE_SLICE_1_C 1
 
-#define JK_CCSD_T_D1_8_SIZE_INT_UNIT_1  JK_CCSD_T_D1_8_SIZE_SLICE_1_G
+#define JK_CCSD_T_D1_8_SIZE_INT_UNIT_1 JK_CCSD_T_D1_8_SIZE_SLICE_1_G
 
-#define JK_CCSD_T_D1_8_SIZE_TB_1_X 	    JK_CCSD_T_D1_8_SIZE_SLICE_1_A * JK_CCSD_T_D1_8_SIZE_SLICE_1_D
-#define JK_CCSD_T_D1_8_SIZE_TB_1_Y 	    JK_CCSD_T_D1_8_SIZE_SLICE_1_F * JK_CCSD_T_D1_8_SIZE_SLICE_1_C
+#define JK_CCSD_T_D1_8_SIZE_TB_1_X 	JK_CCSD_T_D1_8_SIZE_SLICE_1_A * JK_CCSD_T_D1_8_SIZE_SLICE_1_D
+#define JK_CCSD_T_D1_8_SIZE_TB_1_Y 	JK_CCSD_T_D1_8_SIZE_SLICE_1_F * JK_CCSD_T_D1_8_SIZE_SLICE_1_C
 #define JK_CCSD_T_D1_8_SIZE_REG_1_X 	JK_CCSD_T_D1_8_SIZE_SLICE_1_B
 #define JK_CCSD_T_D1_8_SIZE_REG_1_Y 	JK_CCSD_T_D1_8_SIZE_SLICE_1_E
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_b, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
+__global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_a, size_t numBlk_c, size_t numBlk_b, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_size_t_t2, size_t stride_size_t_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[32][64];
-	__shared__ double sm_b[32][64];
+	__shared__ double sm_a[16][64];
+	__shared__ double sm_b[16][64];
 
-	size_t internal_upperbound   = 0;
-	size_t internal_offset;
+	int internal_upperbound   = 0;
+	int internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
@@ -2091,11 +8901,11 @@ __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 			// ['a', 'b', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l + 0
 			// Exception: Temp. version!: idx_a < rng_a
-			sm_b[threadIdx.y + 0][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_8_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_8_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_8_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 0) * stride_int_v2];
+			sm_b[threadIdx.y + 0][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_8_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_8_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_8_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 0) * stride_size_t_v2];
 			// Exception: Temp. version!: threadIdx.y + l + 8
 			// Exception: Temp. version!: idx_a < rng_a
 			if (threadIdx.y + l + 8 < size_internal && idx_a < rng_a) 
-			sm_b[threadIdx.y + 8][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_8_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_8_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_8_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 8) * stride_int_v2];
+			sm_b[threadIdx.y + 8][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_8_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_8_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_8_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l + 8) * stride_size_t_v2];
 		}
 		__syncthreads();
 		//---------------------------------------------------------------------------------------------------
@@ -2130,57 +8940,1255 @@ __global__ void jk_ccsd_t_d1_8_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		__syncthreads();
 	}
 
+    
+    if (idx_a < rng_a && idx_d < rng_d && idx_f < rng_f && idx_c < rng_c)
+    {
+        if (rng_e == 8)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
 
-	// Store Results (Registers) to Global Memory
-	// Part: Generalized Threads
-	// Part: Generalized Register-Tiling
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[7][2] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[6][3] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[7][0] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[7][1] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[7][2] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[7][3] += dev_t3[t3_base_thread + (7 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 7)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[6][0] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[6][1] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[6][2] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[6][3] += dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 6)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];\
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[5][0] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[5][1] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[5][2] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[5][3] += dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 5)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[4][0] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[4][1] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[4][2] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[4][3] += dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 4)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 3)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 2)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_e == 1)
+        {
+            if (rng_b == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_b == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_b == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_b == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+    }
+
 	if (idx_a < rng_a && idx_d < rng_d && idx_f < rng_f && idx_c < rng_c)
-	for (size_t i = 0; i < 8; i++)
-	{
-		for (size_t j = 0; j < 4; j++)
-		{
-			if(i < rng_e && j < rng_b)
-			{
-			    dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
-			}
-		}
-	}
+    {   
+        //if(i < rng_d && j < rng_f)
+        if (rng_e == 8)
+        {   
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[7][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[6][3];
+
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[7][0];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[7][1];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[7][2];
+                dev_t3[t3_base_thread + (7 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[7][3];
+            }
+        } 
+
+        if (rng_e == 7)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[6][0];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[6][1];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[6][2];
+                dev_t3[t3_base_thread + (6 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[6][3];   
+            }
+        }
+
+        if (rng_e == 6)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[5][0];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[5][1];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[5][2];
+                dev_t3[t3_base_thread + (5 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[5][3];
+            }
+        }
+
+        if (rng_e == 5)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[4][0];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[4][1];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[4][2];
+                dev_t3[t3_base_thread + (4 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[4][3];
+            }
+        }
+
+        if (rng_e == 4)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+            }
+        }
+
+        if (rng_d == 3)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+            }
+        }
+
+        if (rng_e == 2)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            }
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            }
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            }
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            }
+        }
+
+        if (rng_e == 1)
+        {
+            if (rng_b == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+            }
+            
+            if (rng_b == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+            } 
+
+            if (rng_b == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+            }
+        
+            if (rng_b == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+            }
+        }
+    }
 }
 
-// written by tc_interface.tc_gen_code_interface_Header()
- 
-void jk_ccsd_t_d1_8_fusion(size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
+// written by tc_size_terface.tc_gen_code_size_terface_Header()
+extern "C" void jk_ccsd_t_d1_8_fusion(size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
-	size_t num_thread_blocks_kernel_1;
-
-	double* dev_t3;
+    size_t num_thread_blocks_kernel_1;
+    
+    double* dev_t3;
 	double* dev_t2;
-	double* dev_v2;
+    double* dev_v2;
+    
+    cudaStream_t *streams;
+    size_t nstreams = 1;
 
 	num_thread_blocks_kernel_1 = CEIL(size_a, JK_CCSD_T_D1_8_SIZE_SLICE_1_A) * CEIL(size_c, JK_CCSD_T_D1_8_SIZE_SLICE_1_C) * CEIL(size_b, JK_CCSD_T_D1_8_SIZE_SLICE_1_B) * CEIL(size_e, JK_CCSD_T_D1_8_SIZE_SLICE_1_E) * CEIL(size_d, JK_CCSD_T_D1_8_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D1_8_SIZE_SLICE_1_F);
     
-    // cudaMalloc()
-	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_a * size_c * size_b * size_e * size_d * size_f);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_b * size_a);
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_b * size_a;
 
-	// cudaMemcpy()
-	// cudaMemcpy(dev_t3, t3, sizeof(double) * size_a * size_c * size_b * size_e * size_d * size_f, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_c * size_e * size_f * size_g, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_v2, host_v2, sizeof(double) * size_g * size_d * size_b * size_a, cudaMemcpyHostToDevice);
+    // cudaMalloc()
+	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_b * size_a);
+    dev_t2=(double*)getGpuMem(size_tensor_A);
+    dev_v2=(double*)getGpuMem(size_tensor_B);
+
+    // cudaMemcpy()
+	cudaMemcpy(dev_t2, host_t2, size_tensor_A, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_v2, host_v2, size_tensor_B, cudaMemcpyHostToDevice);
+
+    streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
+    // assert(streams!= NULL);
+    for (size_t i=0;i<nstreams;++i) 
+    {
+        cudaStreamCreate(&streams[i]);
+    }
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-    long long int tmp_operations = 2 * (long long int)(size_a * size_c * size_b * size_e * size_d * size_f) * size_g;
-    /*
-	printf ("========================================= fusedKernels =============================================\n");
-	printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
-	printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_8_SIZE_TB_1_X, JK_CCSD_T_D1_8_SIZE_TB_1_Y);
-	printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_8_SIZE_REG_1_X, JK_CCSD_T_D1_8_SIZE_REG_1_Y);
-	printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_8_SIZE_TB_1_X * JK_CCSD_T_D1_8_SIZE_REG_1_X, JK_CCSD_T_D1_8_SIZE_TB_1_Y * JK_CCSD_T_D1_8_SIZE_REG_1_Y);
-	printf ("		# of Operations: %lld\n", tmp_operations);
-	printf ("====================================================================================================\n");
-    */
     dim3 gridsize_1(num_thread_blocks_kernel_1);
 	dim3 blocksize_1(JK_CCSD_T_D1_8_SIZE_TB_1_X, JK_CCSD_T_D1_8_SIZE_TB_1_Y);
 
@@ -2196,26 +10204,30 @@ void jk_ccsd_t_d1_8_fusion(size_t size_a, size_t size_c, size_t size_b, size_t s
 
 	size_t size_internal = size_g;
 
-	size_t stride_int_t2 = 1;
-	size_t stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_size_t_t2 = 1;
+	size_t stride_size_t_v2 = size_a * size_b * size_d;
 
     dev_t3 = t3_d;
 
-	// New Caller
-	jk_ccsd_t_d1_8_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_a, size_c, size_b, size_e, size_d, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_8_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_8_SIZE_SLICE_1_C), CEIL(size_b, JK_CCSD_T_D1_8_SIZE_SLICE_1_B), CEIL(size_e, JK_CCSD_T_D1_8_SIZE_SLICE_1_E), CEIL(size_d, JK_CCSD_T_D1_8_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D1_8_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    for(size_t i=0;i<nstreams;++i)
+    {
+	    jk_ccsd_t_d1_8_kernel__4_1<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, dev_t2, dev_v2, size_a, size_c, size_b, size_e, size_d, size_f, size_g, CEIL(size_a, JK_CCSD_T_D1_8_SIZE_SLICE_1_A), CEIL(size_c, JK_CCSD_T_D1_8_SIZE_SLICE_1_C), CEIL(size_b, JK_CCSD_T_D1_8_SIZE_SLICE_1_B), CEIL(size_e, JK_CCSD_T_D1_8_SIZE_SLICE_1_E), CEIL(size_d, JK_CCSD_T_D1_8_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D1_8_SIZE_SLICE_1_F), stride_size_t_t2, stride_size_t_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    }
 
-	// Copy the Result from Device to Host
-	// cudaMemcpy(t3, dev_t3, sizeof(double) * (size_a * size_c * size_b * size_e * size_d * size_f), cudaMemcpyDeviceToHost);
+    // cudaFree(dev_t2);	cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+    freeGpuMem(dev_v2);
 
-	// cudaFree()
-    // cudaFree(dev_t3);	
-    cudaFree(dev_t2);	cudaFree(dev_v2);
+    for(size_t i=0;i<nstreams;++i)
+    {
+        cudaStreamDestroy(streams[i]);
+    }
+    free(streams);
 }
 
-// This is written by tc_interface.tc_gen_code_interface()
+// This is written by tc_size_terface.tc_gen_code_size_terface()
 // This Interface Should be Called to Run the Kernels
- 
-void jk_ccsd_t_d1_8_fusion_(size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
+extern "C" void jk_ccsd_t_d1_8_fusion_(size_t size_a, size_t size_c, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	// Call An Application
 	jk_ccsd_t_d1_8_fusion(size_a, size_c, size_b, size_e, size_d, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
@@ -2226,51 +10238,46 @@ void jk_ccsd_t_d1_8_fusion_(size_t size_a, size_t size_c, size_t size_b, size_t 
  *  [d1][9] triplesx[h1,h3,p5,p6,p4] += t2sub[h7,p4,p5,h1] * v2sub[h3,p6,h7]
  *----------------------------------------------------------------------*/
 // created by tc_gen_definition_new()
-#define JK_CCSD_T_D1_9_SIZE_SLICE_1_G 16
-#define JK_CCSD_T_D1_9_SIZE_SLICE_1_C 16
-#define JK_CCSD_T_D1_9_SIZE_SLICE_1_F 4
-#define JK_CCSD_T_D1_9_SIZE_SLICE_1_E 1
-#define JK_CCSD_T_D1_9_SIZE_SLICE_1_A 16
-#define JK_CCSD_T_D1_9_SIZE_SLICE_1_B 4
-#define JK_CCSD_T_D1_9_SIZE_SLICE_1_D 1
+#define JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_G 16
+#define JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C 16
+#define JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F 4
+#define JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E 1
+#define JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A 16
+#define JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D 4
 
-#define JK_CCSD_T_D1_9_SIZE_INT_UNIT_1 JK_CCSD_T_D1_9_SIZE_SLICE_1_G
+#define JK_CCSD_T_D1_9_IF_SIZE_INT_UNIT_1 JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_G
 
-#define JK_CCSD_T_D1_9_SIZE_TB_1_X 	JK_CCSD_T_D1_9_SIZE_SLICE_1_C * JK_CCSD_T_D1_9_SIZE_SLICE_1_E
-#define JK_CCSD_T_D1_9_SIZE_TB_1_Y 	JK_CCSD_T_D1_9_SIZE_SLICE_1_A * JK_CCSD_T_D1_9_SIZE_SLICE_1_D
-#define JK_CCSD_T_D1_9_SIZE_REG_1_X 	JK_CCSD_T_D1_9_SIZE_SLICE_1_F
-#define JK_CCSD_T_D1_9_SIZE_REG_1_Y 	JK_CCSD_T_D1_9_SIZE_SLICE_1_B
+#define JK_CCSD_T_D1_9_IF_SIZE_TB_1_X 	JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E
+#define JK_CCSD_T_D1_9_IF_SIZE_TB_1_Y 	JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A
+#define JK_CCSD_T_D1_9_IF_SIZE_REG_1_X 	JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F
+#define JK_CCSD_T_D1_9_IF_SIZE_REG_1_Y 	JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D
 
 // created by tc_gen_code_Kernel()
-__global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_b, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_int_t2, size_t stride_int_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
+__global__ void jk_ccsd_t_d1_9_if_kernel__4_1(double* dev_t3, double* dev_t2, double* dev_v2, size_t size_c, size_t size_a, size_t size_e, size_t size_d, size_t size_f, size_t size_g, size_t numBlk_c, size_t numBlk_a, size_t numBlk_e, size_t numBlk_d, size_t numBlk_f, size_t stride_size_t_t2, size_t stride_size_t_v2, size_t stride_reg_x, size_t stride_reg_y, size_t size_internal)
 {
 	// For Shared Memory,
-	__shared__ double sm_a[32][64];
-	__shared__ double sm_b[32][64];
+	__shared__ double sm_a[16][64];
+	__shared__ double sm_b[16][64];
 
 
-	size_t internal_upperbound   = 0;
-	size_t internal_offset;
+	int internal_upperbound   = 0;
+	int internal_offset;
 
 	// when opt_pre_computed == -1, all indices will be calculated manually
 	// # of indices mapped on TB_X: 2
-	// # of indices mapped on TB_Y: 2
-	size_t idx_c = threadIdx.x % JK_CCSD_T_D1_9_SIZE_SLICE_1_C;
-	size_t idx_e = threadIdx.x / JK_CCSD_T_D1_9_SIZE_SLICE_1_C;
-	size_t idx_a = threadIdx.y % JK_CCSD_T_D1_9_SIZE_SLICE_1_A;
-	size_t idx_d = threadIdx.y / JK_CCSD_T_D1_9_SIZE_SLICE_1_A;
+	// # of indices mapped on TB_Y: 1
+	size_t idx_c = threadIdx.x % JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C;
+	size_t idx_e = threadIdx.x / JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C;
+	size_t idx_a = threadIdx.y;
 
 	size_t tmp_blkIdx;
-	size_t blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_b * numBlk_a * numBlk_c);
-	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_e * numBlk_b * numBlk_a * numBlk_c);
+	size_t blk_idx_f = blockIdx.x / (numBlk_d * numBlk_e * numBlk_a * numBlk_c);
+	tmp_blkIdx = blockIdx.x % (numBlk_d * numBlk_e * numBlk_a * numBlk_c);
 
-	size_t blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_b * numBlk_a * numBlk_c);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_b * numBlk_a * numBlk_c);
+	size_t blk_idx_d = tmp_blkIdx / (numBlk_e * numBlk_a * numBlk_c);
+	tmp_blkIdx = tmp_blkIdx % (numBlk_e * numBlk_a * numBlk_c);
 
-	size_t blk_idx_e = tmp_blkIdx / (numBlk_b * numBlk_a * numBlk_c);
-	tmp_blkIdx = tmp_blkIdx % (numBlk_b * numBlk_a * numBlk_c);
-
-	size_t blk_idx_b = tmp_blkIdx / (numBlk_a * numBlk_c);
+	size_t blk_idx_e = tmp_blkIdx / (numBlk_a * numBlk_c);
 	tmp_blkIdx = tmp_blkIdx % (numBlk_a * numBlk_c);
 
 	size_t blk_idx_a = tmp_blkIdx / numBlk_c;
@@ -2278,57 +10285,49 @@ __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 
 	size_t  blk_idx_c = tmp_blkIdx;
 
-	size_t t3_base_thread = blk_idx_c * JK_CCSD_T_D1_9_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_9_SIZE_SLICE_1_A + idx_a + (blk_idx_b * JK_CCSD_T_D1_9_SIZE_SLICE_1_B + (blk_idx_e * JK_CCSD_T_D1_9_SIZE_SLICE_1_E + idx_e + (blk_idx_d * JK_CCSD_T_D1_9_SIZE_SLICE_1_D + idx_d + (blk_idx_f * JK_CCSD_T_D1_9_SIZE_SLICE_1_F) * size_d) * size_e) * size_b) * size_a) * size_c;
+	size_t t3_base_thread = blk_idx_c * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C + idx_c + (blk_idx_a * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A + idx_a + (blk_idx_e * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E + idx_e + (blk_idx_d * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D + (blk_idx_f * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F) * size_d) * size_e) * size_a) * size_c;
 
 	// need to support partial tiles
-	size_t rng_c, rng_a, rng_b, rng_e, rng_d, rng_f;
-	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_9_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_9_SIZE_SLICE_1_C)
+	size_t rng_c, rng_a, rng_e, rng_d, rng_f;
+	if ((size_c - (blk_idx_c * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C)) >= JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C)
 	{
-		rng_c = JK_CCSD_T_D1_9_SIZE_SLICE_1_C;
+		rng_c = JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C;
 	}
 	else
 	{
-		rng_c = size_c % JK_CCSD_T_D1_9_SIZE_SLICE_1_C;
+		rng_c = size_c % JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C;
 	}
-	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_9_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_9_SIZE_SLICE_1_A)
+	if ((size_a - (blk_idx_a * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A)) >= JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A)
 	{
-		rng_a = JK_CCSD_T_D1_9_SIZE_SLICE_1_A;
-	}
-	else
-	{
-		rng_a = size_a % JK_CCSD_T_D1_9_SIZE_SLICE_1_A;
-	}
-	if ((size_b - (blk_idx_b * JK_CCSD_T_D1_9_SIZE_SLICE_1_B)) >= JK_CCSD_T_D1_9_SIZE_SLICE_1_B)
-	{
-		rng_b = JK_CCSD_T_D1_9_SIZE_SLICE_1_B;
+		rng_a = JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A;
 	}
 	else
 	{
-		rng_b = size_b % JK_CCSD_T_D1_9_SIZE_SLICE_1_B;
+		rng_a = size_a % JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A;
 	}
-	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_9_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_9_SIZE_SLICE_1_E)
+	if ((size_e - (blk_idx_e * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E)) >= JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E)
 	{
-		rng_e = JK_CCSD_T_D1_9_SIZE_SLICE_1_E;
-	}
-	else
-	{
-		rng_e = size_e % JK_CCSD_T_D1_9_SIZE_SLICE_1_E;
-	}
-	if ((size_d - (blk_idx_d * JK_CCSD_T_D1_9_SIZE_SLICE_1_D)) >= JK_CCSD_T_D1_9_SIZE_SLICE_1_D)
-	{
-		rng_d = JK_CCSD_T_D1_9_SIZE_SLICE_1_D;
+		rng_e = JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E;
 	}
 	else
 	{
-		rng_d = size_d % JK_CCSD_T_D1_9_SIZE_SLICE_1_D;
+		rng_e = size_e % JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E;
 	}
-	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_9_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_9_SIZE_SLICE_1_F)
+	if ((size_d - (blk_idx_d * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D)) >= JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D)
 	{
-		rng_f = JK_CCSD_T_D1_9_SIZE_SLICE_1_F;
+		rng_d = JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D;
 	}
 	else
 	{
-		rng_f = size_f % JK_CCSD_T_D1_9_SIZE_SLICE_1_F;
+		rng_d = size_d % JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D;
+	}
+	if ((size_f - (blk_idx_f * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F)) >= JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F)
+	{
+		rng_f = JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F;
+	}
+	else
+	{
+		rng_f = size_f % JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F;
 	}
 
 	double temp_av;
@@ -2339,52 +10338,52 @@ __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 	for (size_t j = 0; j < 4; j++)
 	reg_tile[i][j] = 0.0;
 
-	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['a', 'b', 'd', 'g']], '+=']
+	// tensor contraction: [[16, 'STR_SD2_T2_H7', 'x', 't2', ['g', 'f', 'e', 'c']], [16, 'STR_SD2_V2_H7', 'y', 'v2', ['a', 'd', 'g']], '+=']
 	#pragma unroll 1
-	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_9_SIZE_INT_UNIT_1)
+	for (size_t l = 0; l < size_internal; l += JK_CCSD_T_D1_9_IF_SIZE_INT_UNIT_1)
 	{
 		// Part: Generalized Contraction Index (p7b)
-		internal_offset = (l + JK_CCSD_T_D1_9_SIZE_INT_UNIT_1) - size_internal;
+		internal_offset = (l + JK_CCSD_T_D1_9_IF_SIZE_INT_UNIT_1) - size_internal;
 		if (internal_offset > 0) internal_upperbound = internal_offset;
 
 		//---------------------------------------------------------------------------------------------------
 		// This is for the new version
 		// This Part is for Loading Input-Left
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (0 < rng_e && idx_a < rng_c && threadIdx.x < JK_CCSD_T_D1_9_SIZE_INT_UNIT_1 - internal_upperbound)
+		if (0 < rng_e && idx_a < rng_c && threadIdx.x < JK_CCSD_T_D1_9_IF_SIZE_INT_UNIT_1 - internal_upperbound)
 		for (size_t ll = 0; ll < rng_f; ll++)
 		{
 			// ['g', 'f', 'e', 'c']
 			// Exception: Temp. version!: threadIdx.x + l
 			// Exception: Temp. version!: 0 < rng_e
-			sm_a[threadIdx.x][threadIdx.y + ll * 16] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_9_SIZE_SLICE_1_F + ll + (blk_idx_e * JK_CCSD_T_D1_9_SIZE_SLICE_1_E + 0 + (blk_idx_c * JK_CCSD_T_D1_9_SIZE_SLICE_1_C + idx_a) * size_e) * size_f) * size_g + (threadIdx.x + l)];
+			sm_a[threadIdx.x][threadIdx.y + ll * 16] = dev_t2[(blk_idx_f * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F + ll + (blk_idx_e * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E + 0 + (blk_idx_c * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C + idx_a) * size_e) * size_f) * size_g + (threadIdx.x + l)];
 		}
 		
 		// This Part is for Loading Input-Right
 		// tc_gen_code_Kernel_Load_Inputs_Abstracts()
-		if (idx_c < rng_a && 0 < rng_d && threadIdx.y < JK_CCSD_T_D1_9_SIZE_INT_UNIT_1 - internal_upperbound)
-		for (size_t ll = 0; ll < rng_b; ll++)
+		if (idx_c < rng_a && threadIdx.y < JK_CCSD_T_D1_9_IF_SIZE_INT_UNIT_1 - internal_upperbound)
+		for (size_t ll = 0; ll < rng_d; ll++)
 		{
-			// ['a', 'b', 'd', 'g']
+			// ['a', 'd', 'g']
 			// Exception: Temp. version!: threadIdx.y + l
 			// Exception: Temp. version!: idx_c < rng_a
-			sm_b[threadIdx.y][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_9_SIZE_SLICE_1_A + idx_c + (blk_idx_b * JK_CCSD_T_D1_9_SIZE_SLICE_1_B + ll + (blk_idx_d * JK_CCSD_T_D1_9_SIZE_SLICE_1_D + 0) * size_b) * size_a + (threadIdx.y + l) * stride_int_v2];
+			sm_b[threadIdx.y][threadIdx.x + ll * 16] = dev_v2[blk_idx_a * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A + idx_c + (blk_idx_d * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D + ll) * size_a + (threadIdx.y + l) * stride_size_t_v2];
 		}
 		__syncthreads();
 		//---------------------------------------------------------------------------------------------------
 		
 
 		// Part: Generalized Threads
-		for (size_t ll = 0; ll < JK_CCSD_T_D1_9_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
+		for (size_t ll = 0; ll < JK_CCSD_T_D1_9_IF_SIZE_INT_UNIT_1 - internal_upperbound; ll++)
 		{
-			temp_bv[0] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_9_SIZE_SLICE_1_A + 0];
-			temp_bv[1] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_9_SIZE_SLICE_1_A + 16];
-			temp_bv[2] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_9_SIZE_SLICE_1_A + 32];
-			temp_bv[3] = sm_b[ll][idx_a + (idx_d) * JK_CCSD_T_D1_9_SIZE_SLICE_1_A + 48];
+			temp_bv[0] = sm_b[ll][idx_a + 0];
+			temp_bv[1] = sm_b[ll][idx_a + 16];
+			temp_bv[2] = sm_b[ll][idx_a + 32];
+			temp_bv[3] = sm_b[ll][idx_a + 48];
 
 			for (size_t xx = 0; xx < 4; xx++) // (1)
 			{
-				temp_av = sm_a[ll][idx_e + (idx_c) * JK_CCSD_T_D1_9_SIZE_SLICE_1_E + (xx * 16)];
+				temp_av = sm_a[ll][idx_e + (idx_c) * JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E + (xx * 16)];
 
 				reg_tile[0][xx] += temp_av * temp_bv[0];
 				reg_tile[1][xx] += temp_av * temp_bv[1];
@@ -2395,103 +10394,505 @@ __global__ void jk_ccsd_t_d1_9_kernel__4_1(double* dev_t3, double* dev_t2, doubl
 		__syncthreads();
 	}
 
-
+    /*
 	// Store Results (Registers) to Global Memory
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
-	if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a && idx_d < rng_d)
+	if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a)
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t j = 0; j < 4; j++)
 		{
-			if(i < rng_b && j < rng_f)
+			if(i < rng_d && j < rng_f)
 			{
-			    dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
+			dev_t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] = reg_tile[i][j];
 			}
 		}
-	}
+    }
+    */
+    
+    if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a)
+    {
+        if (rng_d == 4)
+        {
+            if (rng_f == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_f == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_f == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_f == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_d == 3)
+        {
+            if (rng_f == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_f == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_f == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_f == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_d == 2)
+        {
+            if (rng_f == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_f == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_f == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_f == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+
+        if (rng_d == 1)
+        {
+            if (rng_f == 1)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_f == 2)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_f == 3)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_f == 4)
+            {
+                reg_tile[0][0] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+    }
+
+    if (idx_c < rng_c && idx_e < rng_e && idx_a < rng_a)
+    {   
+        if (rng_d == 4)
+        {
+            if (rng_f == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+            }
+            if (rng_f == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+            }
+            if (rng_f == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+            }
+            if (rng_f == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                dev_t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+            }
+        }
+
+        if (rng_d == 3)
+        {
+            if (rng_f == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+            }
+            if (rng_f == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+            }
+            if (rng_f == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+            }
+            if (rng_f == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                dev_t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];  
+            }
+        }
+
+        if (rng_d == 2)
+        {
+            if (rng_f == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            }
+            if (rng_f == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            }
+            if (rng_f == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            }
+            if (rng_f == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                dev_t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            }
+        }
+
+        if (rng_d == 1)
+        {
+            if (rng_f == 1)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+            }
+            
+            if (rng_f == 2)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+            } 
+
+            if (rng_f == 3)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+            }
+        
+            if (rng_f == 4)
+            {
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                dev_t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+            }
+        }
+    }
 }
 
-// written by tc_interface.tc_gen_code_interface_Header()
- 
-void jk_ccsd_t_d1_9_fusion(size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
+// written by tc_size_terface.tc_gen_code_size_terface_Header()
+extern "C"
+void jk_ccsd_t_d1_9_if_fusion(size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* host_t2, double* host_v2, size_t cond_kernel_1, size_t opt_register_transpose)
 {
 	size_t num_thread_blocks_kernel_1;
+    
+    size_a = size_a * size_b;
 
 	double* dev_t3;
 	double* dev_t2;
-	double* dev_v2;
-
-	num_thread_blocks_kernel_1 = CEIL(size_c, JK_CCSD_T_D1_9_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D1_9_SIZE_SLICE_1_A) * CEIL(size_b, JK_CCSD_T_D1_9_SIZE_SLICE_1_B) * CEIL(size_e, JK_CCSD_T_D1_9_SIZE_SLICE_1_E) * CEIL(size_d, JK_CCSD_T_D1_9_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D1_9_SIZE_SLICE_1_F);
+    double* dev_v2;
     
+    cudaStream_t *streams;
+    size_t nstreams = 1;
+
+	num_thread_blocks_kernel_1 = CEIL(size_c, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C) * CEIL(size_a, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A) * CEIL(size_e, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E) * CEIL(size_d, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D) * CEIL(size_f, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F);
+    
+    size_t size_tensor_A = sizeof(double) * size_c * size_e * size_f * size_g;
+    size_t size_tensor_B = sizeof(double) * size_g * size_d * size_a;
+
     // cudaMalloc()
-	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_c * size_a * size_b * size_e * size_d * size_f);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_b * size_a);
+	// cudaMalloc((void**) &dev_t3, sizeof(double) * size_c * size_a * size_e * size_d * size_f);
+	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_c * size_e * size_f * size_g);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_g * size_d * size_a);
+    dev_t2=(double*)getGpuMem(size_tensor_A);
+    dev_v2=(double*)getGpuMem(size_tensor_B);
+
+    streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
+    // assert(streams!= NULL);
+    for (size_t i=0;i<nstreams;++i) 
+    {
+        cudaStreamCreate(&streams[i]);
+    }
 
 	// cudaMemcpy()
-	// cudaMemcpy(dev_t3, t3, sizeof(double) * size_c * size_a * size_b * size_e * size_d * size_f, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_c * size_e * size_f * size_g, cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_v2, host_v2, sizeof(double) * size_g * size_d * size_b * size_a, cudaMemcpyHostToDevice);
+	// cudaMemcpy(dev_t3, t3, sizeof(double) * size_c * size_a * size_e * size_d * size_f, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_t2, host_t2, size_tensor_A, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_v2, host_v2, size_tensor_B, cudaMemcpyHostToDevice);
+    
+
 
 	// Related to Kernels
 	// There are 1 Basic Kernels
-    long long int tmp_operations = 2 * (long long int)(size_c * size_a * size_b * size_e * size_d * size_f) * size_g;
-    /*
-	printf ("========================================= fusedKernels =============================================\n");
-	printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
-	printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_9_SIZE_TB_1_X, JK_CCSD_T_D1_9_SIZE_TB_1_Y);
-	printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_9_SIZE_REG_1_X, JK_CCSD_T_D1_9_SIZE_REG_1_Y);
-	printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_9_SIZE_TB_1_X * JK_CCSD_T_D1_9_SIZE_REG_1_X, JK_CCSD_T_D1_9_SIZE_TB_1_Y * JK_CCSD_T_D1_9_SIZE_REG_1_Y);
-	printf ("		# of Operations: %lld\n", tmp_operations);
-    printf ("====================================================================================================\n");
-    */
+	// long long size_t tmp_operations = 2 * (long long size_t)(size_c * size_a * size_e * size_d * size_f) * size_g;
+	// printf ("========================================= fusedKernels =============================================\n");
+	// printf ("		Grid Size  : %6d (1D)\n", num_thread_blocks_kernel_1);
+	// printf ("		Block-size : %2d, %2d (2D)\n", JK_CCSD_T_D1_9_IF_SIZE_TB_1_X, JK_CCSD_T_D1_9_IF_SIZE_TB_1_Y);
+	// printf ("		Reg.-size  : %2d, %2d (2D)\n", JK_CCSD_T_D1_9_IF_SIZE_REG_1_X, JK_CCSD_T_D1_9_IF_SIZE_REG_1_Y);
+	// printf ("		A thread deals with (%d x %d) elements (basically)\n", JK_CCSD_T_D1_9_IF_SIZE_TB_1_X * JK_CCSD_T_D1_9_IF_SIZE_REG_1_X, JK_CCSD_T_D1_9_IF_SIZE_TB_1_Y * JK_CCSD_T_D1_9_IF_SIZE_REG_1_Y);
+	// printf ("		# of Operations: %lld\n", tmp_operations);
+	// printf ("====================================================================================================\n");
 	dim3 gridsize_1(num_thread_blocks_kernel_1);
-	dim3 blocksize_1(JK_CCSD_T_D1_9_SIZE_TB_1_X, JK_CCSD_T_D1_9_SIZE_TB_1_Y);
+	dim3 blocksize_1(JK_CCSD_T_D1_9_IF_SIZE_TB_1_X, JK_CCSD_T_D1_9_IF_SIZE_TB_1_Y);
 
 	size_t stride_output_c = 1;
 	size_t stride_output_a = stride_output_c * size_c;
-	size_t stride_output_b = stride_output_a * size_a;
-	size_t stride_output_e = stride_output_b * size_b;
+	size_t stride_output_e = stride_output_a * size_a;
 	size_t stride_output_d = stride_output_e * size_e;
 	size_t stride_output_f = stride_output_d * size_d;
 
 	size_t stride_reg_x_1 = stride_output_f;
-	size_t stride_reg_y_1 = stride_output_b;
+	size_t stride_reg_y_1 = stride_output_d;
 
 	size_t size_internal = size_g;
 
-	size_t stride_int_t2 = 1;
-	size_t stride_int_v2 = size_a * size_b * size_d;
+	size_t stride_size_t_t2 = 1;
+	size_t stride_size_t_v2 = size_a * size_d;
 
+    // New Caller
     dev_t3 = t3_d;
 
-	// New Caller
-	jk_ccsd_t_d1_9_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_c, size_a, size_b, size_e, size_d, size_f, size_g, CEIL(size_c, JK_CCSD_T_D1_9_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D1_9_SIZE_SLICE_1_A), CEIL(size_b, JK_CCSD_T_D1_9_SIZE_SLICE_1_B), CEIL(size_e, JK_CCSD_T_D1_9_SIZE_SLICE_1_E), CEIL(size_d, JK_CCSD_T_D1_9_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D1_9_SIZE_SLICE_1_F), stride_int_t2, stride_int_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    for(size_t i=0;i<nstreams;++i)
+    {
+	    jk_ccsd_t_d1_9_if_kernel__4_1<<<gridsize_1, blocksize_1>>>(dev_t3, dev_t2, dev_v2, size_c, size_a, size_e, size_d, size_f, size_g, CEIL(size_c, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_C), CEIL(size_a, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_A), CEIL(size_e, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_E), CEIL(size_d, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_D), CEIL(size_f, JK_CCSD_T_D1_9_IF_SIZE_SLICE_1_F), stride_size_t_t2, stride_size_t_v2, stride_reg_x_1, stride_reg_y_1, size_internal);
+    }
 
 	// Copy the Result from Device to Host
-	// cudaMemcpy(t3, dev_t3, sizeof(double) * (size_c * size_a * size_b * size_e * size_d * size_f), cudaMemcpyDeviceToHost);
+	// cudaMemcpy(t3, dev_t3, sizeof(double) * (size_c * size_a * size_e * size_d * size_f), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
     // cudaFree(dev_t3);	
-    cudaFree(dev_t2);	cudaFree(dev_v2);
+    // cudaFree(dev_t2);	cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+    freeGpuMem(dev_v2);
+
+	// Shoule be Fixed
+	// HostFree
+    for(size_t i=0;i<nstreams;++i)
+    {
+        cudaStreamDestroy(streams[i]);
+    }
+    free(streams);
 }
 
-// This is written by tc_interface.tc_gen_code_interface()
-// This Interface Should be Called to Run the Kernels
- 
-void jk_ccsd_t_d1_9_fusion_(size_t size_c, size_t size_a, size_t size_b, size_t size_e, size_t size_d, size_t size_f, size_t size_g, double* t3, double* t2, double* v2, size_t cond_kernel_1, size_t opt_register_transpose)
-{
-	// Pre-Processing for Split
-	// Based on Tile-Sizes and Problem-Size
-	// Currently, one index can be split into two indices
 
-	// Call An Application
-	jk_ccsd_t_d1_9_fusion(size_c, size_a, size_b, size_e, size_d, size_f, size_g, t3, t2, v2, cond_kernel_1, opt_register_transpose);
-}
 
-/*
-*/
 // created by tc_gen_definition()
 #define FUSION_SIZE_SLICE_1_H3 4
 #define FUSION_SIZE_SLICE_1_H2 4
@@ -2547,8 +10948,8 @@ __global__ void kernel_ccsdT_sd1_fully_fused_partial_partial(double* t3,
 	__shared__ double sm_a[16][64 + 1];
     __shared__ double sm_b[16][64 + 1];
     
-	size_t internal_upperbound   = 0;
-	size_t internal_offset;
+	int internal_upperbound   = 0;
+	int internal_offset;
 
 	// should support for non-full tiles
 	size_t idx_h3 = threadIdx.x % FUSION_SIZE_SLICE_1_H3;
@@ -2792,7 +11193,7 @@ __global__ void kernel_ccsdT_sd1_fully_fused_partial_partial(double* t3,
 	//
 	if (threadIdx.y < 4)						// 0, 1, 2, 3
 	{
-		// sm_a[32][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
+		// sm_a[16][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
 		sm_a[0 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[0][0];
 		sm_a[1 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[1][0];
 		sm_a[2 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[2][0];
@@ -3265,19 +11666,381 @@ __global__ void kernel_ccsdT_sd1_fully_fused_partial_partial(double* t3,
 		__syncthreads();
 	}
 
+    if (idx_h3 < rng_h3 && idx_h2 < rng_h2 && idx_p6 < rng_p6 && idx_h1 < rng_h1)
+    {
+        if (rng_p4 == 1)
+        {
+            if (rng_p5 == 1)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_p5 == 2)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_p5 == 3)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_p5 == 4)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+        if (rng_p4 == 2)
+        {
+            if (rng_p5 == 1)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
 
-	// Store Results (Registers) to Global Memory
-	// Part: Generalized Threads
-	// Part: Generalized Register-Tiling
-	if (idx_h3 < rng_h3 && idx_h2 < rng_h2 && idx_p6 < rng_p6 && idx_h1 < rng_h1)
-	for (size_t i = 0; i < 4; i++)
-	{
-		for (size_t j = 0; j < 4; j++)
-		{
-			if(i < rng_p4 && j < rng_p5)
-			t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] = reg_tile[i][j];
-		}
-	}
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_p5 == 2)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_p5 == 3)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_p5 == 4)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+        if (rng_p4 == 3)
+        {
+            if (rng_p5 == 1)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_p5 == 2)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_p5 == 3)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_p5 == 4)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+        if (rng_p4 == 4)
+        {
+            if (rng_p5 == 1)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_p5 == 2)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_p5 == 3)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_p5 == 4)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+    }
+
+    if (idx_h3 < rng_h3 && idx_h2 < rng_h2 && idx_p6 < rng_p6 && idx_h1 < rng_h1)
+    {
+        if (rng_p4 == 1)
+        {
+            if (rng_p5 == 1)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+            }
+            if (rng_p5 == 2)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+            }
+            if (rng_p5 == 3)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+            }
+            if (rng_p5 == 4)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+            }
+        }
+        if (rng_p4 == 2)
+        {
+            if (rng_p5 == 1)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            }
+            if (rng_p5 == 2)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            }
+            if (rng_p5 == 3)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            }
+            if (rng_p5 == 4)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            }
+        }
+        if (rng_p4 == 3)
+        {
+            if (rng_p5 == 1)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+            }
+            if (rng_p5 == 2)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+            }
+            if (rng_p5 == 3)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+            }
+            if (rng_p5 == 4)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];
+            }
+        }
+        if (rng_p4 == 4)
+        {
+            if (rng_p5 == 1)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+            }
+            if (rng_p5 == 2)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+
+                t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+            }
+            if (rng_p5 == 3)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+
+                t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+            }
+            if (rng_p5 == 4)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];
+
+                t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+            }
+        }
+    }
 }
 
 // created by tc_gen_code_Kernel()
@@ -3298,8 +12061,8 @@ __global__ void kernel_ccsdT_sd1_fully_fused_partial_full(double* t3,
 	__shared__ double sm_a[16][64 + 1];
 	__shared__ double sm_b[16][64 + 1];
 
-	size_t internal_upperbound   = 0;
-	size_t internal_offset;
+	int internal_upperbound   = 0;
+	int internal_offset;
 
     // should support for non-full tiles
 	size_t idx_h3 = threadIdx.x % FUSION_SIZE_SLICE_1_H3;
@@ -3487,7 +12250,7 @@ __global__ void kernel_ccsdT_sd1_fully_fused_partial_full(double* t3,
 	//
 	if (threadIdx.y < 4)						// 0, 1, 2, 3
 	{
-		// sm_a[32][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
+		// sm_a[16][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
 		sm_a[0 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[0][0];
 		sm_a[1 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[1][0];
 		sm_a[2 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[2][0];
@@ -3959,17 +12722,47 @@ __global__ void kernel_ccsdT_sd1_fully_fused_partial_full(double* t3,
 		__syncthreads();
 	}
 
+    //
+    reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
 
-	// Store Results (Registers) to Global Memory
-	// Part: Generalized Threads
-	// Part: Generalized Register-Tiling
-	for (size_t i = 0; i < 4; i++)
-	{
-		for (size_t j = 0; j < 4; j++)
-		{
-			t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] = reg_tile[i][j];
-		}
-	}
+    reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[2][3] += t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[3][2] += t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[3][3] += t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+    //
+    t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+    t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+    t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+    t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+    t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+    t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+    t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+
+    t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+    t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+    t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+    t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];
+
+    t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+    t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+    t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+    t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
 }
 
 // created by tc_gen_code_Kernel()
@@ -4143,7 +12936,7 @@ __global__ void kernel_ccsdT_sd1_fully_fused_full_full(double* t3,
 	//
 	if (threadIdx.y < 4)						// 0, 1, 2, 3
 	{
-		// sm_a[32][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
+		// sm_a[16][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
 		sm_a[0 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[0][0];
 		sm_a[1 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[1][0];
 		sm_a[2 + threadIdx.y * 4][threadIdx.x] 			= reg_tile[2][0];
@@ -4543,21 +13336,52 @@ __global__ void kernel_ccsdT_sd1_fully_fused_full_full(double* t3,
 		__syncthreads();
 	}
 
+    
+    //
+    reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
 
-	// Store Results (Registers) to Global Memory
-	// Part: Generalized Threads
-	// Part: Generalized Register-Tiling
-	for (size_t i = 0; i < 4; i++)
-	{
-		for (size_t j = 0; j < 4; j++)
-		{
-			t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] = reg_tile[i][j];
-		}
-	}
+    reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[2][3] += t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[3][2] += t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[3][3] += t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+    //
+    t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+    t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+    t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+    t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+    t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+    t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+    t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+
+    t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+    t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+    t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+    t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];
+
+    t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+    t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+    t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+    t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
 }
 
 //
-//  Partially-Fused Kernels (al_internal)
+//  Partially-Fused Kernels (external_internal)
 //      (1) sd1_456789
 //      (2) sd1_123
 //
@@ -4577,8 +13401,8 @@ __global__ void kernel_ccsdT_sd1_456789_partial_partial(double* t3,
 	__shared__ double sm_b[16][64 + 1];
 
 	//size_t l_idx_t3                = threadIdx.x + threadIdx.y * FUSION_SIZE_TB_1_X;
-	size_t internal_upperbound     = 0;
-	size_t internal_offset;
+	int internal_upperbound     = 0;
+	int internal_offset;
 
 	// should support for non-full tiles
 	size_t idx_h3 = threadIdx.x % FUSION_SIZE_SLICE_1_H3;
@@ -4956,18 +13780,394 @@ __global__ void kernel_ccsdT_sd1_456789_partial_partial(double* t3,
 	}
 
 
-	// Store Results (Registers) to Global Memory
-	// Part: Generalized Threads
-	// Part: Generalized Register-Tiling
-	if (idx_h3 < rng_h3 && idx_h2 < rng_h2 && idx_p6 < rng_p6 && idx_h1 < rng_h1)
-	for (size_t i = 0; i < 4; i++)
-	{
-		for (size_t j = 0; j < 4; j++)
-		{
-			if(i < rng_p4 && j < rng_p5)
-			t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] = reg_tile[i][j];
-		}
-	}
+	// // Store Results (Registers) to Global Memory
+	// // Part: Generalized Threads
+	// // Part: Generalized Register-Tiling
+	// if (idx_h3 < rng_h3 && idx_h2 < rng_h2 && idx_p6 < rng_p6 && idx_h1 < rng_h1)
+	// for (size_t i = 0; i < 4; i++)
+	// {
+	// 	for (size_t j = 0; j < 4; j++)
+	// 	{
+	// 		if(i < rng_p4 && j < rng_p5)
+	// 		t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
+	// 	}
+    // }
+    
+    if (idx_h3 < rng_h3 && idx_h2 < rng_h2 && idx_p6 < rng_p6 && idx_h1 < rng_h1)
+    {
+        if (rng_p4 == 1)
+        {
+            if (rng_p5 == 1)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_p5 == 2)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_p5 == 3)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_p5 == 4)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+        if (rng_p4 == 2)
+        {
+            if (rng_p5 == 1)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_p5 == 2)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_p5 == 3)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_p5 == 4)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+        if (rng_p4 == 3)
+        {
+            if (rng_p5 == 1)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_p5 == 2)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_p5 == 3)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_p5 == 4)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+        if (rng_p4 == 4)
+        {
+            if (rng_p5 == 1)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_p5 == 2)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_p5 == 3)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_p5 == 4)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+    }
+
+    if (idx_h3 < rng_h3 && idx_h2 < rng_h2 && idx_p6 < rng_p6 && idx_h1 < rng_h1)
+    {
+        if (rng_p4 == 1)
+        {
+            if (rng_p5 == 1)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+            }
+            if (rng_p5 == 2)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+            }
+            if (rng_p5 == 3)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+            }
+            if (rng_p5 == 4)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+            }
+        }
+        if (rng_p4 == 2)
+        {
+            if (rng_p5 == 1)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            }
+            if (rng_p5 == 2)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            }
+            if (rng_p5 == 3)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            }
+            if (rng_p5 == 4)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            }
+        }
+        if (rng_p4 == 3)
+        {
+            if (rng_p5 == 1)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+            }
+            if (rng_p5 == 2)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+            }
+            if (rng_p5 == 3)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+            }
+            if (rng_p5 == 4)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];
+            }
+        }
+        if (rng_p4 == 4)
+        {
+            if (rng_p5 == 1)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+            }
+            if (rng_p5 == 2)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+
+                t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+            }
+            if (rng_p5 == 3)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+
+                t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+            }
+            if (rng_p5 == 4)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];
+
+                t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+            }
+        }
+    }
 }
 
 // created by tc_gen_code_Kernel()
@@ -4986,8 +14186,8 @@ __global__ void kernel_ccsdT_sd1_456789_partial_full(double* t3,
 	__shared__ double sm_a[16][64 + 1];
 	__shared__ double sm_b[16][64 + 1];
 
-	size_t internal_upperbound   = 0;
-    size_t internal_offset;
+	int internal_upperbound   = 0;
+    int internal_offset;
     
     // should support for non-full tiles
 	size_t idx_h3 = threadIdx.x % FUSION_SIZE_SLICE_1_H3;
@@ -5308,16 +14508,58 @@ __global__ void kernel_ccsdT_sd1_456789_partial_full(double* t3,
 	}
 
 
-	// Store Results (Registers) to Global Memory
-	// Part: Generalized Threads
-	// Part: Generalized Register-Tiling
-	for (size_t i = 0; i < 4; i++)
-	{
-		for (size_t j = 0; j < 4; j++)
-		{
-			t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] = reg_tile[i][j];
-		}
-	}
+	// // Store Results (Registers) to Global Memory
+	// // Part: Generalized Threads
+	// // Part: Generalized Register-Tiling
+	// for (size_t i = 0; i < 4; i++)
+	// {
+	// 	for (size_t j = 0; j < 4; j++)
+	// 	{
+	// 		t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] = reg_tile[i][j];
+	// 	}
+    // }
+    
+    //
+    reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[2][3] += t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[3][2] += t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[3][3] += t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+    //
+    t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+    t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+    t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+    t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+    t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+    t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+    t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+
+    t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+    t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+    t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+    t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];
+
+    t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+    t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+    t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+    t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
 }
 
 // created by tc_gen_code_Kernel()
@@ -5616,17 +14858,58 @@ __global__ void kernel_ccsdT_sd1_456789_full_full(double* t3,
 		__syncthreads();
 	}
 
+	// // Store Results (Registers) to Global Memory
+	// // Part: Generalized Threads
+	// // Part: Generalized Register-Tiling
+	// for (size_t i = 0; i < 4; i++)
+	// {
+	// 	for (size_t j = 0; j < 4; j++)
+	// 	{
+	// 		t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] = reg_tile[i][j];
+	// 	}
+    // }
+    
+    //
+    reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
 
-	// Store Results (Registers) to Global Memory
-	// Part: Generalized Threads
-	// Part: Generalized Register-Tiling
-	for (size_t i = 0; i < 4; i++)
-	{
-		for (size_t j = 0; j < 4; j++)
-		{
-			t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] = reg_tile[i][j];
-		}
-	}
+    reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[2][3] += t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[3][2] += t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[3][3] += t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+    //
+    t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+    t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+    t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+    t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+    t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+    t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+    t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+
+    t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+    t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+    t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+    t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];
+
+    t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+    t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+    t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+    t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
 }
 
 // created by tc_gen_code_Kernel()
@@ -5645,8 +14928,8 @@ __global__ void kernel_ccsdT_sd1_123_partial_partial(double* t3,
 	__shared__ double sm_a[16][64 + 1];
 	__shared__ double sm_b[16][64 + 1];
 
-	size_t internal_upperbound   = 0;
-	size_t internal_offset;
+	int internal_upperbound   = 0;
+	int internal_offset;
 
 	// should support for non-full tiles
 	size_t idx_h3 = threadIdx.x % FUSION_SIZE_SLICE_2_H3;
@@ -5888,7 +15171,7 @@ __global__ void kernel_ccsdT_sd1_123_partial_partial(double* t3,
 		__syncthreads();
 	}
 
-
+    /*
 	// Store Results (Registers) to Global Memory
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
@@ -5900,7 +15183,383 @@ __global__ void kernel_ccsdT_sd1_123_partial_partial(double* t3,
 			if(i < rng_p6 && j < rng_p5)
 			t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
 		}
-	}
+    }
+    */
+    if (idx_h3 < rng_h3 && idx_h2 < rng_h2 && idx_p4 < rng_p4 && idx_h1 < rng_h1)
+    {
+        if (rng_p6 == 1)
+        {
+            if (rng_p5 == 1)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_p5 == 2)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_p5 == 3)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_p5 == 4)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+        if (rng_p6 == 2)
+        {
+            if (rng_p5 == 1)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_p5 == 2)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_p5 == 3)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_p5 == 4)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+        if (rng_p6 == 3)
+        {
+            if (rng_p5 == 1)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_p5 == 2)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_p5 == 3)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_p5 == 4)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+        if (rng_p6 == 4)
+        {
+            if (rng_p5 == 1)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+
+                reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+            }
+            if (rng_p5 == 2)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+
+                reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+            }
+            if (rng_p5 == 3)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+
+                reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+            }
+            if (rng_p5 == 4)
+            {
+                reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[2][3] += t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+                reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+                reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+                reg_tile[3][2] += t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+                reg_tile[3][3] += t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+            }
+        }
+    }
+
+    if (idx_h3 < rng_h3 && idx_h2 < rng_h2 && idx_p4 < rng_p4 && idx_h1 < rng_h1)
+    {
+        if (rng_p6 == 1)
+        {
+            if (rng_p5 == 1)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+            }
+            if (rng_p5 == 2)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+            }
+            if (rng_p5 == 3)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+            }
+            if (rng_p5 == 4)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+            }
+        }
+        if (rng_p6 == 2)
+        {
+            if (rng_p5 == 1)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+            }
+            if (rng_p5 == 2)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+            }
+            if (rng_p5 == 3)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+            }
+            if (rng_p5 == 4)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+            }
+        }
+        if (rng_p6 == 3)
+        {
+            if (rng_p5 == 1)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+            }
+            if (rng_p5 == 2)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+            }
+            if (rng_p5 == 3)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+            }
+            if (rng_p5 == 4)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];
+            }
+        }
+        if (rng_p6 == 4)
+        {
+            if (rng_p5 == 1)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+
+                t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+            }
+            if (rng_p5 == 2)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+
+                t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+            }
+            if (rng_p5 == 3)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+
+                t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+            }
+            if (rng_p5 == 4)
+            {
+                t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+                t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+                t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+                t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+                t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+                t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+                t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+                t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+
+                t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+                t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+                t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+                t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];
+
+                t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+                t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+                t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+                t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
+            }
+        }
+    }
 }
 
 // created by tc_gen_code_Kernel()
@@ -5914,8 +15573,8 @@ __global__ void kernel_ccsdT_sd1_123_partial_full(double* t3, double* d_t2_1, do
 	__shared__ double sm_a[16][64 + 1];
 	__shared__ double sm_b[16][64 + 1];
 
-	size_t internal_upperbound   = 0;
-    size_t internal_offset;
+	int internal_upperbound   = 0;
+    int internal_offset;
 
     // should support for non-full tiles
 	size_t idx_h3 = threadIdx.x % FUSION_SIZE_SLICE_2_H3;
@@ -6097,6 +15756,7 @@ __global__ void kernel_ccsdT_sd1_123_partial_full(double* t3, double* d_t2_1, do
 		__syncthreads();
 	}
 
+    /*
 	// Store Results (Registers) to Global Memory
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
@@ -6106,7 +15766,49 @@ __global__ void kernel_ccsdT_sd1_123_partial_full(double* t3, double* d_t2_1, do
 		{
 			t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
 		}
-	}
+    }
+    */
+    //
+    reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[2][3] += t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[3][2] += t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[3][3] += t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+    //
+    t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+    t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+    t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+    t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+    t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+    t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+    t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+
+    t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+    t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+    t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+    t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];
+
+    t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+    t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+    t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+    t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
 }
 
 // created by tc_gen_code_Kernel()
@@ -6283,7 +15985,7 @@ __global__ void kernel_ccsdT_sd1_123_full_full(double* t3, double* d_t2_1, doubl
 		__syncthreads();
 	}
 
-
+    /*
 	// Store Results (Registers) to Global Memory
 	// Part: Generalized Threads
 	// Part: Generalized Register-Tiling
@@ -6293,11 +15995,53 @@ __global__ void kernel_ccsdT_sd1_123_full_full(double* t3, double* d_t2_1, doubl
 		{
 			t3[t3_base_thread + (i * stride_reg_y) + (j * stride_reg_x)] += reg_tile[i][j];
 		}
-	}
+    }
+    */
+    //
+    reg_tile[0][0] += t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[0][1] += t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[0][2] += t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[0][3] += t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[1][0] += t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[1][1] += t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[1][2] += t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[1][3] += t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[2][0] += t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[2][1] += t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[2][2] += t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[2][3] += t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)];
+
+    reg_tile[3][0] += t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)];
+    reg_tile[3][1] += t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)];
+    reg_tile[3][2] += t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)];
+    reg_tile[3][3] += t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)];
+
+    //
+    t3[t3_base_thread + (0 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[0][0];
+    t3[t3_base_thread + (0 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[0][1];
+    t3[t3_base_thread + (0 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[0][2];
+    t3[t3_base_thread + (0 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[0][3];
+
+    t3[t3_base_thread + (1 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[1][0];
+    t3[t3_base_thread + (1 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[1][1];
+    t3[t3_base_thread + (1 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[1][2];
+    t3[t3_base_thread + (1 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[1][3];
+
+    t3[t3_base_thread + (2 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[2][0];
+    t3[t3_base_thread + (2 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[2][1];
+    t3[t3_base_thread + (2 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[2][2];
+    t3[t3_base_thread + (2 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[2][3];
+
+    t3[t3_base_thread + (3 * stride_reg_y) + (0 * stride_reg_x)] = reg_tile[3][0];
+    t3[t3_base_thread + (3 * stride_reg_y) + (1 * stride_reg_x)] = reg_tile[3][1];
+    t3[t3_base_thread + (3 * stride_reg_y) + (2 * stride_reg_x)] = reg_tile[3][2];
+    t3[t3_base_thread + (3 * stride_reg_y) + (3 * stride_reg_x)] = reg_tile[3][3];
 }
 
 //
- 
+extern "C"
 void sd_t_d1_all_cuda(size_t* sizes, 
 	//size_t size_h3, size_t size_h2, size_t size_h1, size_t size_p6, size_t size_p5, size_t size_p4, size_t size_h7,
 		double* t3,
@@ -6315,8 +16059,11 @@ void sd_t_d1_all_cuda(size_t* sizes,
 
     // printf (">>> sd_t_d1_all_cuda(...)\n");
 	// # of Blocks for Each Kernel
-	int	 num_blocks_kernel_1,		num_blocks_kernel_2;
-	size_t  size_internal = size_h7;
+	size_t	 num_blocks_kernel_1,		num_blocks_kernel_2;
+    size_t  size_internal = size_h7;
+    
+    cudaStream_t *streams;
+    size_t nstreams = 1;
 
 	// Device Memory for Inputs and Output
     double *dev_t3;
@@ -6327,25 +16074,45 @@ void sd_t_d1_all_cuda(size_t* sizes,
     dev_t3 = t3_d;
     
     // cudaMalloc((void**) &dev_t3,   sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-	cudaMalloc((void**) &dev_t2_4, sizeof(double) * size_h1 * size_p6 * size_p5 * size_h7);
-	cudaMalloc((void**) &dev_v2_4, sizeof(double) * size_h7 * size_p4 * size_h2 * size_h3);
-	cudaMalloc((void**) &dev_t2_5, sizeof(double) * size_h2 * size_p6 * size_p5 * size_h7);
-	cudaMalloc((void**) &dev_v2_5, sizeof(double) * size_h7 * size_p4 * size_h1 * size_h3);
-	cudaMalloc((void**) &dev_t2_6, sizeof(double) * size_h3 * size_p6 * size_p5 * size_h7);
-	cudaMalloc((void**) &dev_v2_6, sizeof(double) * size_h7 * size_p4 * size_h1 * size_h2);
-	cudaMalloc((void**) &dev_t2_7, sizeof(double) * size_h1 * size_p6 * size_p4 * size_h7);
-	cudaMalloc((void**) &dev_v2_7, sizeof(double) * size_h7 * size_p5 * size_h2 * size_h3);
-	cudaMalloc((void**) &dev_t2_8, sizeof(double) * size_h2 * size_p6 * size_p4 * size_h7);
-	cudaMalloc((void**) &dev_v2_8, sizeof(double) * size_h7 * size_p5 * size_h1 * size_h3);
-	cudaMalloc((void**) &dev_t2_9, sizeof(double) * size_h3 * size_p6 * size_p4 * size_h7);
-    cudaMalloc((void**) &dev_v2_9, sizeof(double) * size_h7 * size_p5 * size_h1 * size_h2);
+	// cudaMalloc((void**) &dev_t2_4, sizeof(double) * size_h1 * size_p6 * size_p5 * size_h7);
+	// cudaMalloc((void**) &dev_v2_4, sizeof(double) * size_h7 * size_p4 * size_h2 * size_h3);
+	// cudaMalloc((void**) &dev_t2_5, sizeof(double) * size_h2 * size_p6 * size_p5 * size_h7);
+	// cudaMalloc((void**) &dev_v2_5, sizeof(double) * size_h7 * size_p4 * size_h1 * size_h3);
+	// cudaMalloc((void**) &dev_t2_6, sizeof(double) * size_h3 * size_p6 * size_p5 * size_h7);
+	// cudaMalloc((void**) &dev_v2_6, sizeof(double) * size_h7 * size_p4 * size_h1 * size_h2);
+	// cudaMalloc((void**) &dev_t2_7, sizeof(double) * size_h1 * size_p6 * size_p4 * size_h7);
+	// cudaMalloc((void**) &dev_v2_7, sizeof(double) * size_h7 * size_p5 * size_h2 * size_h3);
+	// cudaMalloc((void**) &dev_t2_8, sizeof(double) * size_h2 * size_p6 * size_p4 * size_h7);
+	// cudaMalloc((void**) &dev_v2_8, sizeof(double) * size_h7 * size_p5 * size_h1 * size_h3);
+	// cudaMalloc((void**) &dev_t2_9, sizeof(double) * size_h3 * size_p6 * size_p4 * size_h7);
+    // cudaMalloc((void**) &dev_v2_9, sizeof(double) * size_h7 * size_p5 * size_h1 * size_h2);
     
-	cudaMalloc((void**) &dev_t2_1, sizeof(double) * size_h1 * size_p5 * size_p4 * size_h7);
-	cudaMalloc((void**) &dev_v2_1, sizeof(double) * size_h7 * size_p6 * size_h2 * size_h3);
-	cudaMalloc((void**) &dev_t2_2, sizeof(double) * size_h2 * size_p5 * size_p4 * size_h7);
-	cudaMalloc((void**) &dev_v2_2, sizeof(double) * size_h7 * size_p6 * size_h1 * size_h3);
-	cudaMalloc((void**) &dev_t2_3, sizeof(double) * size_h3 * size_p5 * size_p4 * size_h7);
-    cudaMalloc((void**) &dev_v2_3, sizeof(double) * size_h7 * size_p6 * size_h1 * size_h2);
+	// cudaMalloc((void**) &dev_t2_1, sizeof(double) * size_h1 * size_p5 * size_p4 * size_h7);
+	// cudaMalloc((void**) &dev_v2_1, sizeof(double) * size_h7 * size_p6 * size_h2 * size_h3);
+	// cudaMalloc((void**) &dev_t2_2, sizeof(double) * size_h2 * size_p5 * size_p4 * size_h7);
+	// cudaMalloc((void**) &dev_v2_2, sizeof(double) * size_h7 * size_p6 * size_h1 * size_h3);
+	// cudaMalloc((void**) &dev_t2_3, sizeof(double) * size_h3 * size_p5 * size_p4 * size_h7);
+    // cudaMalloc((void**) &dev_v2_3, sizeof(double) * size_h7 * size_p6 * size_h1 * size_h2);
+
+    dev_t2_4 = (double*)getGpuMem(sizeof(double) * size_h1 * size_p6 * size_p5 * size_h7);
+	dev_v2_4 = (double*)getGpuMem(sizeof(double) * size_h7 * size_p4 * size_h2 * size_h3);
+	dev_t2_5 = (double*)getGpuMem(sizeof(double) * size_h2 * size_p6 * size_p5 * size_h7);
+	dev_v2_5 = (double*)getGpuMem(sizeof(double) * size_h7 * size_p4 * size_h1 * size_h3);
+	dev_t2_6 = (double*)getGpuMem(sizeof(double) * size_h3 * size_p6 * size_p5 * size_h7);
+	dev_v2_6 = (double*)getGpuMem(sizeof(double) * size_h7 * size_p4 * size_h1 * size_h2);
+	dev_t2_7 = (double*)getGpuMem(sizeof(double) * size_h1 * size_p6 * size_p4 * size_h7);
+	dev_v2_7 = (double*)getGpuMem(sizeof(double) * size_h7 * size_p5 * size_h2 * size_h3);
+	dev_t2_8 = (double*)getGpuMem(sizeof(double) * size_h2 * size_p6 * size_p4 * size_h7);
+	dev_v2_8 = (double*)getGpuMem(sizeof(double) * size_h7 * size_p5 * size_h1 * size_h3);
+	dev_t2_9 = (double*)getGpuMem(sizeof(double) * size_h3 * size_p6 * size_p4 * size_h7);
+    dev_v2_9 = (double*)getGpuMem(sizeof(double) * size_h7 * size_p5 * size_h1 * size_h2);
+    
+	dev_t2_1 = (double*)getGpuMem(sizeof(double) * size_h1 * size_p5 * size_p4 * size_h7);
+	dev_v2_1 = (double*)getGpuMem(sizeof(double) * size_h7 * size_p6 * size_h2 * size_h3);
+	dev_t2_2 = (double*)getGpuMem(sizeof(double) * size_h2 * size_p5 * size_p4 * size_h7);
+	dev_v2_2 = (double*)getGpuMem(sizeof(double) * size_h7 * size_p6 * size_h1 * size_h3);
+	dev_t2_3 = (double*)getGpuMem(sizeof(double) * size_h3 * size_p5 * size_p4 * size_h7);
+    dev_v2_3 = (double*)getGpuMem(sizeof(double) * size_h7 * size_p6 * size_h1 * size_h2);
     
     // cudaMemcpy(dev_t3, 	 t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, 	cudaMemcpyHostToDevice);
 
@@ -6371,6 +16138,13 @@ void sd_t_d1_all_cuda(size_t* sizes,
     num_blocks_kernel_1 = CEIL(size_h3, FUSION_SIZE_SLICE_1_H3) * CEIL(size_h2, FUSION_SIZE_SLICE_1_H2) * CEIL(size_h1, FUSION_SIZE_SLICE_1_H1) * CEIL(size_p6, FUSION_SIZE_SLICE_1_P6) * CEIL(size_p5, FUSION_SIZE_SLICE_1_P5) * CEIL(size_p4, FUSION_SIZE_SLICE_1_P4);
     num_blocks_kernel_2 = CEIL(size_h3, FUSION_SIZE_SLICE_2_H3) * CEIL(size_h2, FUSION_SIZE_SLICE_2_H2) * CEIL(size_h1, FUSION_SIZE_SLICE_2_H1) * CEIL(size_p6, FUSION_SIZE_SLICE_2_P6) * CEIL(size_p5, FUSION_SIZE_SLICE_2_P5) * CEIL(size_p4, FUSION_SIZE_SLICE_2_P4);
 
+    streams=(cudaStream_t*)malloc(nstreams * sizeof(cudaStream_t));
+    // assert(streams!= NULL);
+    for (size_t i=0;i<nstreams;++i) 
+    {
+        cudaStreamCreate(&streams[i]);
+    }
+
 	// Depends on # of Fused Kernel
 	dim3 gridsize_1(num_blocks_kernel_1);
 	dim3 blocksize_1(FUSION_SIZE_TB_1_X, FUSION_SIZE_TB_1_Y);
@@ -6378,7 +16152,7 @@ void sd_t_d1_all_cuda(size_t* sizes,
 	dim3 gridsize_2(num_blocks_kernel_2);
 	dim3 blocksize_2(FUSION_SIZE_TB_2_X, FUSION_SIZE_TB_2_Y);
 
-	int	str_sd2_t3_h3 = 1;
+	size_t	str_sd2_t3_h3 = 1;
 	size_t str_sd2_t3_h2 = str_sd2_t3_h3 * size_h3;
 	size_t str_sd2_t3_h1 = str_sd2_t3_h2 * size_h2;
 	size_t str_sd2_t3_p6 = str_sd2_t3_h1 * size_h1;
@@ -6390,7 +16164,7 @@ void sd_t_d1_all_cuda(size_t* sizes,
 	size_t str_reg_x_2 = str_sd2_t3_p5;	// STR_SD2_T3_P5
 	size_t str_reg_y_2 = str_sd2_t3_p6;	// SDT_SD2_T3_P6
 
-    int* list_stride_sd1_v2_1 = (int*)malloc(sizeof(int) * 9);
+    size_t* list_stride_sd1_v2_1 = (size_t*)malloc(sizeof(size_t) * 9);
     list_stride_sd1_v2_1[0] = size_p4 * size_h2 * size_h3;
 	list_stride_sd1_v2_1[1] = size_p4 * size_h1 * size_h3;
 	list_stride_sd1_v2_1[2] = size_p4 * size_h1 * size_h2; 
@@ -6402,7 +16176,7 @@ void sd_t_d1_all_cuda(size_t* sizes,
     list_stride_sd1_v2_1[7] = size_p6 * size_h1 * size_h3;
     list_stride_sd1_v2_1[8] = size_p6 * size_h1 * size_h2;
 
-    cudaMemcpyToSymbol(list_stride_v2, list_stride_sd1_v2_1, sizeof(int) * 9);
+    cudaMemcpyToSymbol(list_stride_v2, list_stride_sd1_v2_1, sizeof(size_t) * 9);
 
     // sd1: [1] 4,5,6,7,8,9     [2] 1,2,3
     if (kernel_1 || kernel_2 || kernel_3)
@@ -6415,52 +16189,61 @@ void sd_t_d1_all_cuda(size_t* sizes,
             {
                 if (size_h7 % FUSION_SIZE_INT_UNIT == 0)
                 {
-                    kernel_ccsdT_sd1_fully_fused_full_full<<<gridsize_1, blocksize_1>>>(dev_t3, 
-                    dev_t2_4, dev_t2_5, dev_t2_6, dev_t2_7, dev_t2_8, dev_t2_9, 
-                    dev_v2_4, dev_v2_5, dev_v2_6, dev_v2_7, dev_v2_8, dev_v2_9, 
-                    dev_t2_1, dev_t2_2, dev_t2_3, 
-                    dev_v2_1, dev_v2_2, dev_v2_3, 
-                    size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
-                    CEIL(size_h3, FUSION_SIZE_SLICE_2_H3),CEIL(size_h2, FUSION_SIZE_SLICE_2_H2),CEIL(size_h1, FUSION_SIZE_SLICE_2_H1),
-                    CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
-                    kernel_1, kernel_2, kernel_3,
-                    kernel_4, kernel_5, kernel_6,
-                    kernel_7, kernel_8, kernel_9,
-                    str_reg_x_1, str_reg_y_1,
-                    size_internal);
+                    for(size_t i=0;i<nstreams;++i)
+                    {
+                        kernel_ccsdT_sd1_fully_fused_full_full<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, 
+                        dev_t2_4, dev_t2_5, dev_t2_6, dev_t2_7, dev_t2_8, dev_t2_9, 
+                        dev_v2_4, dev_v2_5, dev_v2_6, dev_v2_7, dev_v2_8, dev_v2_9, 
+                        dev_t2_1, dev_t2_2, dev_t2_3, 
+                        dev_v2_1, dev_v2_2, dev_v2_3, 
+                        size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
+                        CEIL(size_h3, FUSION_SIZE_SLICE_2_H3),CEIL(size_h2, FUSION_SIZE_SLICE_2_H2),CEIL(size_h1, FUSION_SIZE_SLICE_2_H1),
+                        CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
+                        kernel_1, kernel_2, kernel_3,
+                        kernel_4, kernel_5, kernel_6,
+                        kernel_7, kernel_8, kernel_9,
+                        str_reg_x_1, str_reg_y_1,
+                        size_internal);
+                    }
                 }
                 else
                 {
-                    kernel_ccsdT_sd1_fully_fused_partial_full<<<gridsize_1, blocksize_1>>>(dev_t3, 
-                    dev_t2_4, dev_t2_5, dev_t2_6, dev_t2_7, dev_t2_8, dev_t2_9, 
-                    dev_v2_4, dev_v2_5, dev_v2_6, dev_v2_7, dev_v2_8, dev_v2_9, 
-                    dev_t2_1, dev_t2_2, dev_t2_3, 
-                    dev_v2_1, dev_v2_2, dev_v2_3, 
-                    size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
-                    CEIL(size_h3, FUSION_SIZE_SLICE_2_H3),CEIL(size_h2, FUSION_SIZE_SLICE_2_H2),CEIL(size_h1, FUSION_SIZE_SLICE_2_H1),
-                    CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
-                    kernel_1, kernel_2, kernel_3,
-                    kernel_4, kernel_5, kernel_6,
-                    kernel_7, kernel_8, kernel_9,
-                    str_reg_x_1, str_reg_y_1,
-                    size_internal);
+                    for(size_t i=0;i<nstreams;++i)
+                    {
+                        kernel_ccsdT_sd1_fully_fused_partial_full<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, 
+                        dev_t2_4, dev_t2_5, dev_t2_6, dev_t2_7, dev_t2_8, dev_t2_9, 
+                        dev_v2_4, dev_v2_5, dev_v2_6, dev_v2_7, dev_v2_8, dev_v2_9, 
+                        dev_t2_1, dev_t2_2, dev_t2_3, 
+                        dev_v2_1, dev_v2_2, dev_v2_3, 
+                        size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
+                        CEIL(size_h3, FUSION_SIZE_SLICE_2_H3),CEIL(size_h2, FUSION_SIZE_SLICE_2_H2),CEIL(size_h1, FUSION_SIZE_SLICE_2_H1),
+                        CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
+                        kernel_1, kernel_2, kernel_3,
+                        kernel_4, kernel_5, kernel_6,
+                        kernel_7, kernel_8, kernel_9,
+                        str_reg_x_1, str_reg_y_1,
+                        size_internal);
+                    }
                 }
             }
             else
             {
-                kernel_ccsdT_sd1_fully_fused_partial_partial<<<gridsize_1, blocksize_1>>>(dev_t3, 
-                dev_t2_4, dev_t2_5, dev_t2_6, dev_t2_7, dev_t2_8, dev_t2_9, 
-                dev_v2_4, dev_v2_5, dev_v2_6, dev_v2_7, dev_v2_8, dev_v2_9, 
-                dev_t2_1, dev_t2_2, dev_t2_3, 
-                dev_v2_1, dev_v2_2, dev_v2_3, 
-                size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
-                CEIL(size_h3, FUSION_SIZE_SLICE_2_H3),CEIL(size_h2, FUSION_SIZE_SLICE_2_H2),CEIL(size_h1, FUSION_SIZE_SLICE_2_H1),
-                CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
-                kernel_1, kernel_2, kernel_3,
-                kernel_4, kernel_5, kernel_6,
-                kernel_7, kernel_8, kernel_9,
-                str_reg_x_1, str_reg_y_1,
-                size_internal);
+                for(size_t i=0;i<nstreams;++i)
+                {
+                    kernel_ccsdT_sd1_fully_fused_partial_partial<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, 
+                    dev_t2_4, dev_t2_5, dev_t2_6, dev_t2_7, dev_t2_8, dev_t2_9, 
+                    dev_v2_4, dev_v2_5, dev_v2_6, dev_v2_7, dev_v2_8, dev_v2_9, 
+                    dev_t2_1, dev_t2_2, dev_t2_3, 
+                    dev_v2_1, dev_v2_2, dev_v2_3, 
+                    size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
+                    CEIL(size_h3, FUSION_SIZE_SLICE_2_H3),CEIL(size_h2, FUSION_SIZE_SLICE_2_H2),CEIL(size_h1, FUSION_SIZE_SLICE_2_H1),
+                    CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
+                    kernel_1, kernel_2, kernel_3,
+                    kernel_4, kernel_5, kernel_6,
+                    kernel_7, kernel_8, kernel_9,
+                    str_reg_x_1, str_reg_y_1,
+                    size_internal);
+                }
             }
         }
         else
@@ -6470,46 +16253,55 @@ void sd_t_d1_all_cuda(size_t* sizes,
             {
                 if (size_h7 % FUSION_SIZE_INT_UNIT == 0)
                 {
-                    kernel_ccsdT_sd1_123_full_full<<<gridsize_2, blocksize_2>>>(dev_t3, 
-                    dev_t2_1, dev_t2_2, dev_t2_3, 
-                    dev_v2_1, dev_v2_2, dev_v2_3, 
-                    size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
-                    CEIL(size_h3, FUSION_SIZE_SLICE_2_H3),CEIL(size_h2, FUSION_SIZE_SLICE_2_H2),CEIL(size_h1, FUSION_SIZE_SLICE_2_H1),
-                    CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
-                    kernel_1, kernel_2, kernel_3,
-                    kernel_4, kernel_5, kernel_6,
-                    kernel_7, kernel_8, kernel_9,
-                    str_reg_x_2, str_reg_y_2,
-                    size_internal);
+                    for(size_t i=0;i<nstreams;++i)
+                    {
+                        kernel_ccsdT_sd1_123_full_full<<<gridsize_2, blocksize_2, 0, streams[i]>>>(dev_t3, 
+                        dev_t2_1, dev_t2_2, dev_t2_3, 
+                        dev_v2_1, dev_v2_2, dev_v2_3, 
+                        size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
+                        CEIL(size_h3, FUSION_SIZE_SLICE_2_H3),CEIL(size_h2, FUSION_SIZE_SLICE_2_H2),CEIL(size_h1, FUSION_SIZE_SLICE_2_H1),
+                        CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
+                        kernel_1, kernel_2, kernel_3,
+                        kernel_4, kernel_5, kernel_6,
+                        kernel_7, kernel_8, kernel_9,
+                        str_reg_x_2, str_reg_y_2,
+                        size_internal);
+                    }
                 }
                 else
                 {
-                    kernel_ccsdT_sd1_123_partial_full<<<gridsize_2, blocksize_2>>>(dev_t3, 
-                    dev_t2_1, dev_t2_2, dev_t2_3, 
-                    dev_v2_1, dev_v2_2, dev_v2_3, 
-                    size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
-                    CEIL(size_h3, FUSION_SIZE_SLICE_2_H3),CEIL(size_h2, FUSION_SIZE_SLICE_2_H2),CEIL(size_h1, FUSION_SIZE_SLICE_2_H1),
-                    CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
-                    kernel_1, kernel_2, kernel_3,
-                    kernel_4, kernel_5, kernel_6,
-                    kernel_7, kernel_8, kernel_9,
-                    str_reg_x_2, str_reg_y_2,
-                    size_internal);
+                    for(size_t i=0;i<nstreams;++i)
+                    {
+                        kernel_ccsdT_sd1_123_partial_full<<<gridsize_2, blocksize_2, 0, streams[i]>>>(dev_t3, 
+                        dev_t2_1, dev_t2_2, dev_t2_3, 
+                        dev_v2_1, dev_v2_2, dev_v2_3, 
+                        size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
+                        CEIL(size_h3, FUSION_SIZE_SLICE_2_H3),CEIL(size_h2, FUSION_SIZE_SLICE_2_H2),CEIL(size_h1, FUSION_SIZE_SLICE_2_H1),
+                        CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
+                        kernel_1, kernel_2, kernel_3,
+                        kernel_4, kernel_5, kernel_6,
+                        kernel_7, kernel_8, kernel_9,
+                        str_reg_x_2, str_reg_y_2,
+                        size_internal);
+                    }
                 }
             }
             else
             {
-                kernel_ccsdT_sd1_123_partial_partial<<<gridsize_2, blocksize_2>>>(dev_t3, 
-                dev_t2_1, dev_t2_2, dev_t2_3, 
-                dev_v2_1, dev_v2_2, dev_v2_3, 
-                size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
-                CEIL(size_h3, FUSION_SIZE_SLICE_2_H3),CEIL(size_h2, FUSION_SIZE_SLICE_2_H2),CEIL(size_h1, FUSION_SIZE_SLICE_2_H1),
-                CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
-                kernel_1, kernel_2, kernel_3,
-                kernel_4, kernel_5, kernel_6,
-                kernel_7, kernel_8, kernel_9,
-                str_reg_x_2, str_reg_y_2,
-                size_internal);
+                for(size_t i=0;i<nstreams;++i)
+                {
+                    kernel_ccsdT_sd1_123_partial_partial<<<gridsize_2, blocksize_2, 0, streams[i]>>>(dev_t3, 
+                    dev_t2_1, dev_t2_2, dev_t2_3, 
+                    dev_v2_1, dev_v2_2, dev_v2_3, 
+                    size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
+                    CEIL(size_h3, FUSION_SIZE_SLICE_2_H3),CEIL(size_h2, FUSION_SIZE_SLICE_2_H2),CEIL(size_h1, FUSION_SIZE_SLICE_2_H1),
+                    CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
+                    kernel_1, kernel_2, kernel_3,
+                    kernel_4, kernel_5, kernel_6,
+                    kernel_7, kernel_8, kernel_9,
+                    str_reg_x_2, str_reg_y_2,
+                    size_internal);
+                }
             }
         }
     }
@@ -6523,46 +16315,55 @@ void sd_t_d1_all_cuda(size_t* sizes,
             {
                 if (size_h7 % FUSION_SIZE_INT_UNIT == 0)
                 {
-                    kernel_ccsdT_sd1_456789_full_full<<<gridsize_1, blocksize_1>>>(dev_t3, 
-                    dev_t2_4, dev_t2_5, dev_t2_6, dev_t2_7, dev_t2_8, dev_t2_9, 
-                    dev_v2_4, dev_v2_5, dev_v2_6, dev_v2_7, dev_v2_8, dev_v2_9, 
-                    size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
-                    CEIL(size_h3, FUSION_SIZE_SLICE_1_H3),CEIL(size_h2, FUSION_SIZE_SLICE_1_H2),CEIL(size_h1, FUSION_SIZE_SLICE_1_H1),
-                    CEIL(size_p6, FUSION_SIZE_SLICE_1_P6),CEIL(size_p5, FUSION_SIZE_SLICE_1_P5),CEIL(size_p4, FUSION_SIZE_SLICE_1_P4),
-                    kernel_1, kernel_2, kernel_3,
-                    kernel_4, kernel_5, kernel_6,
-                    kernel_7, kernel_8, kernel_9,
-                    str_reg_x_1, str_reg_y_1,
-                    size_internal);
+                    for(size_t i=0;i<nstreams;++i)
+                    {
+                        kernel_ccsdT_sd1_456789_full_full<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, 
+                        dev_t2_4, dev_t2_5, dev_t2_6, dev_t2_7, dev_t2_8, dev_t2_9, 
+                        dev_v2_4, dev_v2_5, dev_v2_6, dev_v2_7, dev_v2_8, dev_v2_9, 
+                        size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
+                        CEIL(size_h3, FUSION_SIZE_SLICE_1_H3),CEIL(size_h2, FUSION_SIZE_SLICE_1_H2),CEIL(size_h1, FUSION_SIZE_SLICE_1_H1),
+                        CEIL(size_p6, FUSION_SIZE_SLICE_1_P6),CEIL(size_p5, FUSION_SIZE_SLICE_1_P5),CEIL(size_p4, FUSION_SIZE_SLICE_1_P4),
+                        kernel_1, kernel_2, kernel_3,
+                        kernel_4, kernel_5, kernel_6,
+                        kernel_7, kernel_8, kernel_9,
+                        str_reg_x_1, str_reg_y_1,
+                        size_internal);
+                    }
                 }
                 else
                 {
-                    kernel_ccsdT_sd1_456789_partial_full<<<gridsize_1, blocksize_1>>>(dev_t3, 
-                    dev_t2_4, dev_t2_5, dev_t2_6, dev_t2_7, dev_t2_8, dev_t2_9, 
-                    dev_v2_4, dev_v2_5, dev_v2_6, dev_v2_7, dev_v2_8, dev_v2_9, 
-                    size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
-                    CEIL(size_h3, FUSION_SIZE_SLICE_1_H3),CEIL(size_h2, FUSION_SIZE_SLICE_1_H2),CEIL(size_h1, FUSION_SIZE_SLICE_1_H1),
-                    CEIL(size_p6, FUSION_SIZE_SLICE_1_P6),CEIL(size_p5, FUSION_SIZE_SLICE_1_P5),CEIL(size_p4, FUSION_SIZE_SLICE_1_P4),
-                    kernel_1, kernel_2, kernel_3,
-                    kernel_4, kernel_5, kernel_6,
-                    kernel_7, kernel_8, kernel_9,
-                    str_reg_x_1, str_reg_y_1,
-                    size_internal);
+                    for(size_t i=0;i<nstreams;++i)
+                    {
+                        kernel_ccsdT_sd1_456789_partial_full<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, 
+                        dev_t2_4, dev_t2_5, dev_t2_6, dev_t2_7, dev_t2_8, dev_t2_9, 
+                        dev_v2_4, dev_v2_5, dev_v2_6, dev_v2_7, dev_v2_8, dev_v2_9, 
+                        size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
+                        CEIL(size_h3, FUSION_SIZE_SLICE_1_H3),CEIL(size_h2, FUSION_SIZE_SLICE_1_H2),CEIL(size_h1, FUSION_SIZE_SLICE_1_H1),
+                        CEIL(size_p6, FUSION_SIZE_SLICE_1_P6),CEIL(size_p5, FUSION_SIZE_SLICE_1_P5),CEIL(size_p4, FUSION_SIZE_SLICE_1_P4),
+                        kernel_1, kernel_2, kernel_3,
+                        kernel_4, kernel_5, kernel_6,
+                        kernel_7, kernel_8, kernel_9,
+                        str_reg_x_1, str_reg_y_1,
+                        size_internal);
+                    }
                 }
             }
             else
             {
-                kernel_ccsdT_sd1_456789_partial_partial<<<gridsize_1, blocksize_1>>>(dev_t3, 
-                dev_t2_4, dev_t2_5, dev_t2_6, dev_t2_7, dev_t2_8, dev_t2_9, 
-                dev_v2_4, dev_v2_5, dev_v2_6, dev_v2_7, dev_v2_8, dev_v2_9, 
-                size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
-                CEIL(size_h3, FUSION_SIZE_SLICE_1_H3),CEIL(size_h2, FUSION_SIZE_SLICE_1_H2),CEIL(size_h1, FUSION_SIZE_SLICE_1_H1),
-                CEIL(size_p6, FUSION_SIZE_SLICE_1_P6),CEIL(size_p5, FUSION_SIZE_SLICE_1_P5),CEIL(size_p4, FUSION_SIZE_SLICE_1_P4),
-                kernel_1, kernel_2, kernel_3,
-                kernel_4, kernel_5, kernel_6,
-                kernel_7, kernel_8, kernel_9,
-                str_reg_x_1, str_reg_y_1,
-                size_internal);
+                for(size_t i=0;i<nstreams;++i)
+                {
+                    kernel_ccsdT_sd1_456789_partial_partial<<<gridsize_1, blocksize_1, 0, streams[i]>>>(dev_t3, 
+                    dev_t2_4, dev_t2_5, dev_t2_6, dev_t2_7, dev_t2_8, dev_t2_9, 
+                    dev_v2_4, dev_v2_5, dev_v2_6, dev_v2_7, dev_v2_8, dev_v2_9, 
+                    size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
+                    CEIL(size_h3, FUSION_SIZE_SLICE_1_H3),CEIL(size_h2, FUSION_SIZE_SLICE_1_H2),CEIL(size_h1, FUSION_SIZE_SLICE_1_H1),
+                    CEIL(size_p6, FUSION_SIZE_SLICE_1_P6),CEIL(size_p5, FUSION_SIZE_SLICE_1_P5),CEIL(size_p4, FUSION_SIZE_SLICE_1_P4),
+                    kernel_1, kernel_2, kernel_3,
+                    kernel_4, kernel_5, kernel_6,
+                    kernel_7, kernel_8, kernel_9,
+                    str_reg_x_1, str_reg_y_1,
+                    size_internal);
+                }
             }
         }
         else
@@ -6578,15 +16379,17 @@ void sd_t_d1_all_cuda(size_t* sizes,
     // cudaFree(dev_t3);
 
 	// (Temporary)
-	cudaFree(dev_t2_1);	cudaFree(dev_t2_2);	cudaFree(dev_t2_3);	
-    cudaFree(dev_t2_4);	cudaFree(dev_t2_5);	cudaFree(dev_t2_6);	
-    cudaFree(dev_t2_7);	cudaFree(dev_t2_8);	cudaFree(dev_t2_9);	
-	cudaFree(dev_v2_1);	cudaFree(dev_v2_2);	cudaFree(dev_v2_3);	
-    cudaFree(dev_v2_4);	cudaFree(dev_v2_5);	cudaFree(dev_v2_6);	
-    cudaFree(dev_v2_7);	cudaFree(dev_v2_8);	cudaFree(dev_v2_9);
+	freeGpuMem(dev_t2_1);	freeGpuMem(dev_t2_2);	freeGpuMem(dev_t2_3);	freeGpuMem(dev_t2_4);	freeGpuMem(dev_t2_5);	freeGpuMem(dev_t2_6);	freeGpuMem(dev_t2_7);	freeGpuMem(dev_t2_8);	freeGpuMem(dev_t2_9);	
+    freeGpuMem(dev_v2_1);	freeGpuMem(dev_v2_2);	freeGpuMem(dev_v2_3);	freeGpuMem(dev_v2_4);	freeGpuMem(dev_v2_5);	freeGpuMem(dev_v2_6);	freeGpuMem(dev_v2_7);	freeGpuMem(dev_v2_8);	freeGpuMem(dev_v2_9);
+
+    for(size_t i=0;i<nstreams;++i)
+    {
+        cudaStreamDestroy(streams[i]);
+    }
+    free(streams);
 }
 
- 
+extern "C"
 void sd_t_d1_all_cuda_master(size_t *sizes,
 	    //size_t size_h3, size_t size_h2, size_t size_h1, 
 		//size_t size_p6, size_t size_p5, size_t size_p4, size_t size_h7,
@@ -6610,7 +16413,7 @@ void sd_t_d1_all_cuda_master(size_t *sizes,
         && (sizes[6] == sizes[6 + 7] == sizes[6 + 14] == sizes[6 + 21] == sizes[6 + 28] == sizes[6 + 35] == sizes[6 + 42] == sizes[6 + 49] == sizes[6 + 56]))
     {
         // printf (">>[d1][fusion]>> %d, %d, %d, %d, %d, %d, %d, %d, %d\n", kernel_1, kernel_2, kernel_3, kernel_4, kernel_5, kernel_6, kernel_7, kernel_8, kernel_9);
-        // printf (">>[d1][fusion]>> %d, %d, %d, %d, %d, %d, %d\n", size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7);
+        //printf (">>[d1][fusion]>> %d, %d, %d, %d, %d, %d, %d\n", sizes[0], sizes[1], sizes[2], sizes[3], sizes[4], sizes[5], sizes[6]);
         sd_t_d1_all_cuda(sizes,
         //size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
         t3, 
@@ -6624,9 +16427,6 @@ void sd_t_d1_all_cuda_master(size_t *sizes,
 	else
 	#endif
     {
-        // printf (">>[d1][non-fusion]>> %d, %d, %d, %d, %d, %d, %d, %d, %d\n", kernel_1, kernel_2, kernel_3, kernel_4, kernel_5, kernel_6, kernel_7, kernel_8, kernel_9);
-        // printf (">>[d1][non-fusion]>> %d, %d, %d, %d, %d, %d, %d\n", size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7);
-        
         if (kernel_1){
 			size_t size_h1 = sizes[0];
 			size_t size_h2 = sizes[1];
@@ -6635,9 +16435,9 @@ void sd_t_d1_all_cuda_master(size_t *sizes,
 			size_t size_p4 = sizes[4];
 			size_t size_p5 = sizes[5];
 			size_t size_p6 = sizes[6];
-			jk_ccsd_t_d1_1_fusion_(size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7, t3, t2_1, v2_1, 1, 0);
+			jk_ccsd_t_d1_1_if_fusion(size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7, t3, t2_1, v2_1, 1, 0);
 		}
-        
+         
         if (kernel_2){
 			size_t size_h1 = sizes[7];
 			size_t size_h2 = sizes[8];
@@ -6646,7 +16446,7 @@ void sd_t_d1_all_cuda_master(size_t *sizes,
 			size_t size_p4 = sizes[11];
 			size_t size_p5 = sizes[12];
 			size_t size_p6 = sizes[13];
-			jk_ccsd_t_d1_2_fusion_(size_h3, size_h1, size_h2, size_p6, size_p5, size_p4, size_h7, t3, t2_2, v2_2, 1, 0);
+			jk_ccsd_t_d1_2_if_fusion(size_h3, size_h1, size_h2, size_p6, size_p5, size_p4, size_h7, t3, t2_2, v2_2, 1, 0);
 		}
         
         if (kernel_3){
@@ -6657,7 +16457,7 @@ void sd_t_d1_all_cuda_master(size_t *sizes,
 			size_t size_p4 = sizes[18];
 			size_t size_p5 = sizes[19];
 			size_t size_p6 = sizes[20];
-			jk_ccsd_t_d1_3_fusion_(size_h1, size_h3, size_h2, size_p6, size_p5, size_p4, size_h7, t3, t2_3, v2_3, 1, 0);    
+			jk_ccsd_t_d1_3_if_fusion(size_h1, size_h3, size_h2, size_p6, size_p5, size_p4, size_h7, t3, t2_3, v2_3, 1, 0);    
 		}
         
         if (kernel_4){
@@ -6668,7 +16468,7 @@ void sd_t_d1_all_cuda_master(size_t *sizes,
 			size_t size_p4 = sizes[25];
 			size_t size_p5 = sizes[26];
 			size_t size_p6 = sizes[27]; 
-			jk_ccsd_t_d1_4_fusion_(size_h3, size_h2, size_h1, size_p5, size_p4, size_p6, size_h7, t3, t2_4, v2_4, 1, 0);
+			jk_ccsd_t_d1_4_if_fusion(size_h3, size_h2, size_h1, size_p5, size_p4, size_p6, size_h7, t3, t2_4, v2_4, 1, 0);
 		}
         
         if (kernel_5){
@@ -6679,7 +16479,7 @@ void sd_t_d1_all_cuda_master(size_t *sizes,
 			size_t size_p4 = sizes[32];
 			size_t size_p5 = sizes[33];
 			size_t size_p6 = sizes[34];  
-			jk_ccsd_t_d1_5_fusion_(size_h3, size_h1, size_h2, size_p5, size_p4, size_p6, size_h7, t3, t2_5, v2_5, 1, 0);
+			jk_ccsd_t_d1_5_fusion(size_h3, size_h1, size_h2, size_p5, size_p4, size_p6, size_h7, t3, t2_5, v2_5, 1, 0);
 		}
 
         if (kernel_6){
@@ -6690,7 +16490,7 @@ void sd_t_d1_all_cuda_master(size_t *sizes,
 			size_t size_p4 = sizes[39];
 			size_t size_p5 = sizes[40];
 			size_t size_p6 = sizes[41];
-			jk_ccsd_t_d1_6_fusion_(size_h1, size_h3, size_h2, size_p5, size_p4, size_p6, size_h7, t3, t2_6, v2_6, 1, 0);
+			jk_ccsd_t_d1_6_if_fusion(size_h1, size_h3, size_h2, size_p5, size_p4, size_p6, size_h7, t3, t2_6, v2_6, 1, 0);
 		}
         
         if (kernel_7){
@@ -6701,7 +16501,7 @@ void sd_t_d1_all_cuda_master(size_t *sizes,
 			size_t size_p4 = sizes[46];
 			size_t size_p5 = sizes[47];
 			size_t size_p6 = sizes[48];   
-			jk_ccsd_t_d1_7_fusion_(size_h3, size_h2, size_h1, size_p5, size_p6, size_p4, size_h7, t3, t2_7, v2_7, 1, 0);
+			jk_ccsd_t_d1_7_if_fusion(size_h3, size_h2, size_h1, size_p5, size_p6, size_p4, size_h7, t3, t2_7, v2_7, 1, 0);
 		}
         
         if (kernel_8){
@@ -6712,7 +16512,7 @@ void sd_t_d1_all_cuda_master(size_t *sizes,
 			size_t size_p4 = sizes[53];
 			size_t size_p5 = sizes[54];
 			size_t size_p6 = sizes[55];  
-			jk_ccsd_t_d1_8_fusion_(size_h3, size_h1, size_h2, size_p5, size_p6, size_p4, size_h7, t3, t2_8, v2_8, 1, 0);
+			jk_ccsd_t_d1_8_fusion(size_h3, size_h1, size_h2, size_p5, size_p6, size_p4, size_h7, t3, t2_8, v2_8, 1, 0);
 		}
         
         if (kernel_9){
@@ -6723,13 +16523,13 @@ void sd_t_d1_all_cuda_master(size_t *sizes,
 			size_t size_p4 = sizes[60];
 			size_t size_p5 = sizes[61];
 			size_t size_p6 = sizes[62]; 
-			jk_ccsd_t_d1_9_fusion_(size_h1, size_h3, size_h2, size_p5, size_p6, size_p4, size_h7, t3, t2_9, v2_9, 1, 0);        
+			jk_ccsd_t_d1_9_if_fusion(size_h1, size_h3, size_h2, size_p5, size_p6, size_p4, size_h7, t3, t2_9, v2_9, 1, 0);        
 		}
+    
     }
 }
 
 //
- 
 void sd_t_d1_all_cuda_tgen(size_t *sizes,
 	//size_t* p_size_h3, size_t* p_size_h2, size_t* p_size_h1, size_t* p_size_p6, size_t* p_size_p5, size_t* p_size_p4, size_t* p_size_h7,
 				double* t3, 

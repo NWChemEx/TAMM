@@ -45,6 +45,9 @@ using shellpair_data_t = std::vector<std::vector<std::shared_ptr<libint2::ShellP
 shellpair_data_t obs_shellpair_data;  // shellpair data for OBS
 shellpair_data_t dfbs_shellpair_data;  // shellpair data for DFBS
 shellpair_data_t minbs_shellpair_data;  // shellpair data for minBS
+tamm::TiledIndexSpace tAO, tAOt;
+SCFOptions scf_options;
+int idiis  = 0;
 
 //DENSITY FITTING
 struct DFFockEngine {

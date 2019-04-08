@@ -35,6 +35,9 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
     auto rank = GA_Nodeid();
     bool nodezero = rank==0;
 
+    size_t kcalls=0;
+    size_t kcalls_fused=0;
+
     if(icuda==0) {
       if(nodezero)std::cout << "\nERROR: Please specify number of cuda devices to use in the input file!\n\n"; //TODO
       return std::make_tuple(-999,-999);
@@ -175,7 +178,8 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
                       ccsd_t_doubles_gpu_tgen(ec,MO,noab,nvab,
                         k_spin,k_doubles,d_t2,d_v2,
                         k_evl_sorted,k_range,t_h1b,t_h2b,t_h3b,
-                        t_p4b,t_p5b,t_p6b, k_abuf1,k_bbuf1,k_abuf2,k_bbuf2, has_GPU); 
+                        t_p4b,t_p5b,t_p6b, k_abuf1,k_bbuf1,k_abuf2,k_bbuf2, 
+                        has_GPU, kcalls, kcalls_fused); 
                           
 
                       //  cout << "singles = " << k_singles << endl;
@@ -314,6 +318,15 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
     ec.pg().barrier();
     ac->deallocate();
     delete ac;
+
+    size_t global_kcalls;
+    size_t global_kcalls_fused;
+    MPI_Reduce(&kcalls, &global_kcalls, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
+           ec.pg().comm());
+    MPI_Reduce(&kcalls_fused, &global_kcalls_fused, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
+           ec.pg().comm());
+
+  if(rank == 0) cout << "Total kernel (doubles) calls = " << global_kcalls << ", #fused calls = " << global_kcalls_fused << endl;
 
   return std::make_tuple(energy1,energy2);
  

@@ -62,6 +62,20 @@ if(NWX_CUDA)
     check_language(CUDA)
     if(CMAKE_CUDA_COMPILER)
         enable_language(CUDA)
+            
+        set(OUTPUTFILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cuda_script) # No suffix required
+        set(CUDAFILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cuda_arch_detect.cu)
+        execute_process(COMMAND nvcc ${CUDA_CUDART_LIBRARY} ${CUDAFILE} -o ${OUTPUTFILE})
+        execute_process(COMMAND ${OUTPUTFILE}
+                        RESULT_VARIABLE CUDA_RETURN_CODE
+                        OUTPUT_VARIABLE ARCH)
+        if(${CUDA_RETURN_CODE} EQUAL 0)
+            message(STATUS "CUDA Architecture: ${ARCH}")     
+            set(NWX_GPU_ARCH ${ARCH})                   
+        else()
+            message(WARNING "Setting CUDA Architecture to: 35")  
+            set(NWX_GPU_ARCH 35)
+        endif()
     else()
        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "7.4")
          get_compiler_exec_name("${CMAKE_CXX_COMPILER}")

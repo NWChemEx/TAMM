@@ -3,11 +3,11 @@
 
 #include <set>
 
+#include "ga-mpi.h"
 #include "tamm/dag_impl.hpp"
 #include "tamm/execution_context.hpp"
 #include "tamm/ops.hpp"
 #include "tamm/tensor.hpp"
-#include "ga-mpi.h"
 
 namespace tamm {
 
@@ -63,14 +63,11 @@ public:
         return deallocate(tensors...);
     }
 
-    template <typename T>
-    bool has_intersect(const std::vector<T>& lhs,
-                       const std::vector<T>& rhs) {
-        
+    template<typename T>
+    bool has_intersect(const std::vector<T>& lhs, const std::vector<T>& rhs) {
         for(const auto& l_item : lhs) {
             for(const auto& r_item : rhs) {
-                if(l_item == r_item)
-                    return true;
+                if(l_item == r_item) return true;
             }
         }
         return false;
@@ -79,10 +76,8 @@ public:
                         const std::vector<TensorBase*>& W1,
                         const std::vector<TensorBase*>& R2,
                         const std::vector<TensorBase*>& W2) {
-        
-        return (has_intersect(R1, W2) || 
-                has_intersect(W1, R2) ||
-                has_intersect(W1, W2) );
+        return (has_intersect(R1, W2) || has_intersect(W1, R2) ||
+                has_intersect(W1, W2));
     }
 
     bool has_dependence(const std::vector<TensorBase*>& R1,
@@ -91,19 +86,14 @@ public:
                         const std::vector<TensorBase*>& R2,
                         const std::vector<TensorBase*>& W2,
                         const std::vector<TensorBase*>& A2) {
-        return (has_intersect(R1, W2) ||
-                has_intersect(W1, R2) ||
-                has_intersect(W1, W2) ||
-                has_intersect(R1, A2) ||
-                has_intersect(W1, A2) ||
-                has_intersect(R2, A1) ||
-                has_intersect(W2, A1)
-                );
+        return (has_intersect(R1, W2) || has_intersect(W1, R2) ||
+                has_intersect(W1, W2) || has_intersect(R1, A2) ||
+                has_intersect(W1, A2) || has_intersect(R2, A1) ||
+                has_intersect(W2, A1));
     }
 
     std::vector<size_t> levelize(const std::vector<std::shared_ptr<Op>>& ops,
-                                 size_t start_id,
-                                 size_t end_id) {
+                                 size_t start_id, size_t end_id) {
         EXPECTS(start_id >= 0 && start_id <= ops.size());
         EXPECTS(end_id >= start_id && end_id <= ops.size());
 
@@ -125,20 +115,21 @@ public:
                has_dependence(group_reads, group_writes, group_accums, reads,
                               writes, accums)) {
                 groups.push_back(i - group_start);
-                group_start = i;
-                group_reads = reads;
+                group_start  = i;
+                group_reads  = reads;
                 group_writes = writes;
                 group_accums = accums;
             } else {
-                group_reads.insert(group_reads.end(), reads.begin(), reads.end());
-                group_writes.insert(group_writes.end(), writes.begin(), writes.end());
-                group_accums.insert(group_accums.end(), accums.begin(), accums.end());
+                group_reads.insert(group_reads.end(), reads.begin(),
+                                   reads.end());
+                group_writes.insert(group_writes.end(), writes.begin(),
+                                    writes.end());
+                group_accums.insert(group_accums.end(), accums.begin(),
+                                    accums.end());
             }
         }
 
-        if(group_start < end_id) {
-            groups.push_back(end_id - group_start);
-        }
+        if(group_start < end_id) { groups.push_back(end_id - group_start); }
 
         return groups;
     }
@@ -176,25 +167,27 @@ public:
         }
         for(size_t i = 0; i < end_id - start_id - 1; i++) {
             for(size_t j = i + 1; j < end_id - start_id; j++) {
-                if(op_has_dependence(ops[start_id + i].get(), ops[start_id + j].get())) {
+                if(op_has_dependence(ops[start_id + i].get(),
+                                     ops[start_id + j].get())) {
                     order[j].first =
                       std::max(order[i].first + 1, order[j].first);
                 }
             }
         }
-        std::sort(order.begin(), order.end(), [](const auto& lhs, const auto& rhs) {
-            return lhs.first < rhs.first;
-        });
+        std::sort(order.begin(), order.end(),
+                  [](const auto& lhs, const auto& rhs) {
+                      return lhs.first < rhs.first;
+                  });
         return order;
     }
 
     void execute() {
+        if(start_idx_ == ops_.size()) return;
 #if 1
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());
         EXPECTS(order.size() == ops_.size() - start_idx_);
-        int lvl    = 0;
-        AtomicCounter* ac =
-          new AtomicCounterGA(ec().pg(), order.size());
+        int lvl           = 0;
+        AtomicCounter* ac = new AtomicCounterGA(ec().pg(), order.size());
         ac->allocate(0);
         for(size_t i = 0; i < order.size(); i++) {
             if(order[i].first != lvl) {
@@ -218,9 +211,9 @@ public:
         // }
         // std::cerr << "]" << std::endl;
 
-        // AtomicCounter* ac = new AtomicCounterGA(ec().pg(), ops_.size() - start_idx_);
-        // ac->allocate(0);
-        
+        // AtomicCounter* ac = new AtomicCounterGA(ec().pg(), ops_.size() -
+        // start_idx_); ac->allocate(0);
+
         size_t off = start_idx_;
         for(size_t g : groups) {
             EXPECTS(g > 0);
@@ -236,10 +229,9 @@ public:
             ac->deallocate();
             delete ac;
 
-            
-            //memory fence. for now GA_Sync()
+            // memory fence. for now GA_Sync()
             // GA_Sync();
-            //pg.barrier()
+            // pg.barrier()
             ec().pg().barrier();
             off += g;
         }

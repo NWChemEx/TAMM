@@ -109,7 +109,7 @@ void patch_copy(std::vector<T>& sbuf,
 
 template<typename T, int ndim>
 Eigen::Tensor<T, ndim, Eigen::RowMajor> tamm_to_eigen_tensor(
-  tamm::Tensor<T>& tensor) {
+    const tamm::Tensor<T>& tensor) {
     std::array<long, ndim> dims;
     const auto& tindices = tensor.tiled_index_spaces();
     for(int i = 0; i < ndim; i++) {
@@ -132,7 +132,7 @@ Eigen::Tensor<T, ndim, Eigen::RowMajor> tamm_to_eigen_tensor(
 
 template<typename T>
 void tamm_to_eigen_tensor(
-  tamm::Tensor<T>& tensor,
+  const tamm::Tensor<T>& tensor,
   Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& etensor) {
     for(const auto& blockid : tensor.loop_nest()) {
         const tamm::TAMM_SIZE size = tensor.block_size(blockid);
@@ -145,7 +145,7 @@ void tamm_to_eigen_tensor(
 }
 
 template<typename T, int ndim>
-void tamm_to_eigen_tensor(tamm::Tensor<T>& tensor,
+void tamm_to_eigen_tensor(const tamm::Tensor<T>& tensor,
                           Eigen::Tensor<T, ndim, Eigen::RowMajor>& etensor) {
     for(const auto& blockid : tensor.loop_nest()) {
         const tamm::TAMM_SIZE size = tensor.block_size(blockid);

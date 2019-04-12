@@ -73,7 +73,8 @@ public:
             deallocate_re = false;
             delete_runtime_ptr(re_);
         }
-
+    }
+    
     void allocate() {
         // no-op
     }

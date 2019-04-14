@@ -2,7 +2,6 @@
 #ifndef CCSD_T_GPU_TGEN_HPP_
 #define CCSD_T_GPU_TGEN_HPP_
 
-#include "../ccsd_util.hpp"
 #include "ccsd_t_singles_gpu.hpp"
 #include "ccsd_t_doubles_gpu_tgen.hpp"
 
@@ -37,6 +36,7 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
 
     size_t kcalls=0;
     size_t kcalls_fused=0;
+    size_t kcalls_pfused=0;
 
     if(icuda==0) {
       if(nodezero)std::cout << "\nERROR: Please specify number of cuda devices to use in the input file!\n\n"; //TODO
@@ -179,7 +179,7 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
                         k_spin,k_doubles,d_t2,d_v2,
                         k_evl_sorted,k_range,t_h1b,t_h2b,t_h3b,
                         t_p4b,t_p5b,t_p6b, k_abuf1,k_bbuf1,k_abuf2,k_bbuf2, 
-                        has_GPU, kcalls, kcalls_fused); 
+                        has_GPU, kcalls, kcalls_fused, kcalls_pfused); 
                           
 
                       //  cout << "singles = " << k_singles << endl;
@@ -321,12 +321,15 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
 
     size_t global_kcalls;
     size_t global_kcalls_fused;
+    size_t global_kcalls_pfused;
     MPI_Reduce(&kcalls, &global_kcalls, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
            ec.pg().comm());
     MPI_Reduce(&kcalls_fused, &global_kcalls_fused, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
            ec.pg().comm());
+    MPI_Reduce(&kcalls_pfused, &global_kcalls_pfused, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
+           ec.pg().comm());           
 
-  if(rank == 0) cout << "Total kernel (doubles) calls = " << global_kcalls << ", #fused calls = " << global_kcalls_fused << endl;
+  if(rank == 0) cout << "Total kernel (doubles) calls = " << global_kcalls << ", #fused calls = " << global_kcalls_fused << ", #partial fused calls = " << global_kcalls_pfused << endl;
 
   return std::make_tuple(energy1,energy2);
  

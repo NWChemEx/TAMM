@@ -40,7 +40,7 @@ void ccsd_t_doubles_gpu_tgen(ExecutionContext& ec,
                    size_t t_p4b, size_t t_p5b, size_t t_p6b,
                    std::vector<T>& k_abuf1, std::vector<T>& k_bbuf1,
                    std::vector<T>& k_abuf2, std::vector<T>& k_bbuf2,
-                   int usedevice,size_t& kcalls, size_t& kcalls_fused) {
+                   int usedevice,size_t& kcalls, size_t& kcalls_fused, size_t& kcalls_pfused) {
 
     // initmemmodule();
 
@@ -374,6 +374,9 @@ void ccsd_t_doubles_gpu_tgen(ExecutionContext& ec,
     } //end ia6
 
     if(std::all_of(sd_t_d1_exec.begin(),sd_t_d1_exec.end(), [](bool x){return x;})) kcalls_fused++;
+    int npfused = std::count_if(sd_t_d1_exec.begin(), sd_t_d1_exec.end(), [](bool x){ return x; });
+    if(npfused > 1 && npfused < 9) kcalls_pfused++;
+
     if(std::any_of(sd_t_d1_exec.begin(),sd_t_d1_exec.end(), [](bool x){return x;})) {
             kcalls++;
             sd_t_d1_all_cuda_tgen(&sd_t_d1_args[0], &a_c[0],
@@ -702,6 +705,9 @@ void ccsd_t_doubles_gpu_tgen(ExecutionContext& ec,
     } //end ia6
 
   if(std::all_of(sd_t_d2_exec.begin(),sd_t_d2_exec.end(), [](bool x){return x;}))  kcalls_fused++;
+  int npfused = std::count_if(sd_t_d2_exec.begin(), sd_t_d2_exec.end(), [](bool x){ return x; });
+  if(npfused > 1 && npfused < 9) kcalls_pfused++;
+
     if(std::any_of(sd_t_d2_exec.begin(),sd_t_d2_exec.end(), [](bool x){return x;})) {
         kcalls++;
         sd_t_d2_all_cuda_tgen(&sd_t_d2_args[0], &a_c[0],

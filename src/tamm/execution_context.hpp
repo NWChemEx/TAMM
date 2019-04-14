@@ -69,10 +69,12 @@ public:
 
     ~ExecutionContext() {
         // MemoryManagerLocal::destroy_coll(memory_manager_local_);
-        if(deallocate_re)
-	    delete_runtime_ptr(re_);
+        if(deallocate_re) {
+            deallocate_re = false;
+            delete_runtime_ptr(re_);
+        }
     }
-
+    
     void allocate() {
         // no-op
     }

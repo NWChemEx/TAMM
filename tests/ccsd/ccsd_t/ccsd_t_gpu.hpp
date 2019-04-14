@@ -2,7 +2,6 @@
 #ifndef CCSD_T_GPU_HPP_
 #define CCSD_T_GPU_HPP_
 
-#include "../ccsd_util.hpp"
 #include "ccsd_t_singles_gpu.hpp"
 #include "ccsd_t_doubles_gpu.hpp"
 

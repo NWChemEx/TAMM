@@ -42,7 +42,33 @@ class RuntimeEngine;
 class ExecutionContext {
 public:
     ExecutionContext() : ac_{IndexedAC{nullptr, 0}} { pg_self_ = ProcGroup{MPI_COMM_SELF}; };
-    // ExecutionContext(const ExecutionContext&) = default;
+    ExecutionContext(const ExecutionContext& other)
+	: pg_(other.pg_), pg_self_(other.pg_self_),
+	  default_distribution_(other.default_distribution_),
+	  default_memory_manager_(other.default_memory_manager_),
+	  memory_manager_local_(other.memory_manager_local_),
+	  ac_(other.ac_),
+	  mem_regs_to_dealloc_(other.mem_regs_to_dealloc_),
+	  unregistered_mem_regs_(other.unregistered_mem_regs_)
+    {
+	re_ = runtime_ptr(other.re_);
+	deallocate_re = true;
+    }
+
+    ExecutionContext& operator=(const ExecutionContext& other) {
+	pg_ = other.pg_;
+	pg_self_ = other.pg_self_;
+	default_distribution_ = other.default_distribution_;
+	default_memory_manager_ = other.default_memory_manager_;
+	memory_manager_local_ = other.memory_manager_local_;
+	ac_ = other.ac_;
+	mem_regs_to_dealloc_ = other.mem_regs_to_dealloc_;
+	unregistered_mem_regs_ = other.unregistered_mem_regs_;
+	re_ = runtime_ptr(other.re_);
+	deallocate_re = true;
+	return *this;
+    }
+
     // ExecutionContext(ExecutionContext&&) = default;
     // ExecutionContext& operator=(const ExecutionContext&) = default;
     // ExecutionContext& operator=(ExecutionContext&&) = default;
@@ -65,6 +91,7 @@ public:
         // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
     }
     RuntimeEngine* runtime_ptr();
+    RuntimeEngine* runtime_ptr(const RuntimeEngine*);
     void delete_runtime_ptr(RuntimeEngine*);
 
     ~ExecutionContext() {
@@ -74,7 +101,7 @@ public:
             delete_runtime_ptr(re_);
         }
     }
-    
+
     void allocate() {
         // no-op
     }

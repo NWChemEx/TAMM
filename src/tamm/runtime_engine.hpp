@@ -13,9 +13,9 @@ namespace tamm {
 
 /**
  * @brief Mode values.
- * 
+ *
  */
-enum class Mode { 
+enum class Mode {
     PW,   /**< Write Permission */
     PR,   /**< Read Permission */
     PRW,  /**< Read/Write Permission */
@@ -56,7 +56,7 @@ public:
     Permission(LabeledTensor<T> lt, Mode mode) : lt(lt), mode(mode) {}
 
     Mode getMode() override { return mode; }
-    
+
 private:
     LabeledTensor<T> lt;
     Mode mode;
@@ -213,7 +213,7 @@ public:
 
         template<typename T>
         BlockBuffer<T> get_buf_readwrite(Tensor<T> tensor, IndexVector blockid) {
-            return BlockBuffer(tensor, blockid);   
+            return BlockBuffer(tensor, blockid);
         }
 
         template<typename T>
@@ -274,6 +274,11 @@ private:
 RuntimeEngine* ExecutionContext::runtime_ptr()
 {
     return new RuntimeEngine();
+}
+
+RuntimeEngine* ExecutionContext::runtime_ptr(const RuntimeEngine* re)
+{
+    return new RuntimeEngine(*re);
 }
 
 void ExecutionContext::delete_runtime_ptr(RuntimeEngine* re)

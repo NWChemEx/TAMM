@@ -5,12 +5,20 @@
 //#include "tamm/tensor_impl.hpp"
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"
+#include "tamm/atomic_counter.h"
+
 #include <algorithm>
 #include <iterator>
 #include <vector>
 
 namespace tamm {
 
+struct IndexedAC {
+    AtomicCounter* ac_;
+    size_t idx_;
+
+    IndexedAC(AtomicCounter* ac, size_t idx): ac_{ac}, idx_{idx} {}
+};
 /**
  * @todo Create a proper forward declarations file.
  *
@@ -20,6 +28,7 @@ class Distribution;
 class Scheduler;
 template<typename T>
 class Tensor;
+class RuntimeEngine;
 /**
  * @brief Wrapper class to hold information during execution.
  *
@@ -29,27 +38,68 @@ class Tensor;
  * @todo Should spin_restricted be wrapper by this class? Or should it always
  * default to false?
  */
+class RuntimeEngine;
 class ExecutionContext {
 public:
-    ExecutionContext() { pg_self_ = ProcGroup{MPI_COMM_SELF}; };
-    // ExecutionContext(const ExecutionContext&) = default;
+    ExecutionContext() : ac_{IndexedAC{nullptr, 0}} { pg_self_ = ProcGroup{MPI_COMM_SELF}; };
+    ExecutionContext(const ExecutionContext& other)
+	: pg_(other.pg_), pg_self_(other.pg_self_),
+	  default_distribution_(other.default_distribution_),
+	  default_memory_manager_(other.default_memory_manager_),
+	  memory_manager_local_(other.memory_manager_local_),
+	  ac_(other.ac_),
+	  mem_regs_to_dealloc_(other.mem_regs_to_dealloc_),
+	  unregistered_mem_regs_(other.unregistered_mem_regs_)
+    {
+	re_ = runtime_ptr(other.re_);
+	deallocate_re = true;
+    }
+
+    ExecutionContext& operator=(const ExecutionContext& other) {
+	pg_ = other.pg_;
+	pg_self_ = other.pg_self_;
+	default_distribution_ = other.default_distribution_;
+	default_memory_manager_ = other.default_memory_manager_;
+	memory_manager_local_ = other.memory_manager_local_;
+	ac_ = other.ac_;
+	mem_regs_to_dealloc_ = other.mem_regs_to_dealloc_;
+	unregistered_mem_regs_ = other.unregistered_mem_regs_;
+	re_ = runtime_ptr(other.re_);
+	deallocate_re = true;
+	return *this;
+    }
+
     // ExecutionContext(ExecutionContext&&) = default;
     // ExecutionContext& operator=(const ExecutionContext&) = default;
     // ExecutionContext& operator=(ExecutionContext&&) = default;
 
     /** @todo use shared pointers for solving GitHub issue #43*/
     ExecutionContext(ProcGroup pg, Distribution* default_distribution,
-                     MemoryManager* default_memory_manager) :
+                     MemoryManager* default_memory_manager, RuntimeEngine* re =nullptr) :
       pg_{pg},
       default_distribution_{default_distribution},
-      default_memory_manager_{default_memory_manager} {
+      default_memory_manager_{default_memory_manager},
+      ac_{IndexedAC{nullptr, 0}},
+      re_(re) {
+          if (re == nullptr)
+          {
+              re_ = runtime_ptr();
+              deallocate_re = true;
+          }
         pg_self_ = ProcGroup{MPI_COMM_SELF};
 
         // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
     }
+    RuntimeEngine* runtime_ptr();
+    RuntimeEngine* runtime_ptr(const RuntimeEngine*);
+    void delete_runtime_ptr(RuntimeEngine*);
 
     ~ExecutionContext() {
         // MemoryManagerLocal::destroy_coll(memory_manager_local_);
+        if(deallocate_re) {
+            deallocate_re = false;
+            delete_runtime_ptr(re_);
+        }
     }
 
     void allocate() {
@@ -151,6 +201,12 @@ public:
         default_memory_manager_ = memory_manager;
     }
 
+    RuntimeEngine* re() const { return re_; }
+
+    void set_re(RuntimeEngine* re) {
+        re_ = re;
+    }
+
     /**
      * @brief Flush communication in this execution context, synchronize, and
      * delete any tensors allocated in this execution context that have gone
@@ -190,13 +246,19 @@ public:
         unregistered_mem_regs_.push_back(mem_reg);
     }
 
+    IndexedAC ac() const { return ac_; }
+
+    void set_ac(IndexedAC ac) { ac_ = ac; }
+
 private:
-    //RuntimeEngine re_;
     ProcGroup pg_;
     ProcGroup pg_self_;
     Distribution* default_distribution_;
     MemoryManager* default_memory_manager_;
     MemoryManagerLocal* memory_manager_local_;
+    IndexedAC ac_;
+    RuntimeEngine* re_;
+    bool deallocate_re = false;
 
     std::vector<MemoryRegion*> mem_regs_to_dealloc_;
     std::vector<MemoryRegion*> unregistered_mem_regs_;

@@ -23,22 +23,40 @@ enum class ExecutionPolicy {
  * @tparam Fn Function type to be applied on each iterated element
  * @param first Begin task iterator
  * @param last End task iterator
- Loser* @param fn Function to be applied on each iterator element
+ * @param fn Function to be applied on each iterator element
+ * 
+ * @todo fix scheduler hacks for parallel execution 
  */
 template<typename Itr, typename Fn>
 void parallel_work_ga(ExecutionContext& ec, Itr first, Itr last, Fn fn) {
-    AtomicCounter* ac = new AtomicCounterGA(ec.pg(), 1);
-    ac->allocate(0);
-    int64_t next = ac->fetch_add(0, 1);
-    for(int64_t count = 0; first != last; ++first, ++count) {
-        if(next == count) {
-            fn(*first);
-            next = ac->fetch_add(0, 1);
+    
+    if(ec.ac().ac_) {
+        AtomicCounter* ac = ec.ac().ac_;
+        size_t idx = ec.ac().idx_;
+        int64_t next = ac->fetch_add(idx, 1);
+        for(int64_t count = 0; first != last; ++first, ++count) {
+            if(next == count) {
+                fn(*first);
+                next = ac->fetch_add(idx, 1);
+            }
         }
+    } else {
+        AtomicCounter* ac = new AtomicCounterGA(ec.pg(), 1);
+        ac->allocate(0);
+        int64_t next = ac->fetch_add(0, 1);
+        for(int64_t count = 0; first != last; ++first, ++count) {
+            if(next == count) {
+                fn(*first);
+                next = ac->fetch_add(0, 1);
+            }
+        }
+        ac->deallocate();
+        delete ac;
+        ec.pg().barrier();
     }
-    ec.pg().barrier();
-    ac->deallocate();
-    delete ac;
+        
+    // ec.pg().barrier();
+
 }
 
 /**

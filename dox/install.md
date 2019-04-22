@@ -32,6 +32,8 @@ cmake \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran ..
 
+#CUDA Options
+[-DNWX_CUDA=ON] #Disabled by Default
 #GlobalArrays options
 [-DARMCI_NETWORK=MPI3] #Default is MPI-PR
 
@@ -57,6 +59,8 @@ export MKL_INC=$INTEL_ROOT/linux/mkl/include
 export MKL_LIBS=$INTEL_ROOT/linux/mkl/lib/intel64
 
 export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_ilp64.a;$MKL_LIBS/libmkl_blas95_ilp64.a;$MKL_LIBS/libmkl_intel_thread.a;$MKL_LIBS/libmkl_core.a;$INTEL_ROOT/linux/compiler/lib/intel64/libiomp5.a;-lpthread;-ldl"
+
+<!-- export TAMM_BLASLIBS="-Wl,--start-group $MKL_LIBS/libmkl_intel_ilp64.a $MKL_LIBS/libmkl_intel_thread.a $MKL_LIBS/libmkl_core.a --end-group;$INTEL_ROOT/linux/compiler/lib/intel64/libiomp5.a;-lpthread;-ldl" -->
 
 cmake \
 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran \
@@ -96,8 +100,8 @@ Build instructions for Summit (using GCC+ESSL)
 
 ```
 export TAMM_INSTALL_PATH=/opt/NWChemEx/install
-export ESSL_INC=/sw/summit/essl/6.1.0-1/essl/6.1/include
-export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-1/essl/6.1/lib64/libesslsmp.so"
+export ESSL_INC=/sw/summit/essl/6.1.0-2/essl/6.1/include
+export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp6464.so"
 export NETLIB_BLAS_LIBS="/opt/lapacke/lib64"
 
 cmake \
@@ -108,6 +112,7 @@ cmake \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
+-DTAMM_CXX_FLAGS="-m64 -mtune=native -ffast-math" \
 -DTAMM_EXTRA_LIBS="$NETLIB_BLAS_LIBS/liblapacke.a;$NETLIB_BLAS_LIBS/liblapack.a" ..
 
 ```

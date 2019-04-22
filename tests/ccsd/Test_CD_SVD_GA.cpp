@@ -54,11 +54,10 @@ void cd_svd_driver() {
     auto [options_map, ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis] 
                     = hartree_fock_driver<T>(ec,filename);
 
-    auto [MO,total_orbitals] = setupMOIS(options_map.ccsd_options.tilesize,
-                        nao,ov_alpha,freeze_core,freeze_virtual);
+    auto [MO,total_orbitals] = setupMOIS(options_map.ccsd_options.tilesize,nao,ov_alpha,freeze_core,freeze_virtual);
 
     //deallocates F_AO, C_AO
-    auto [cholVpr,d_f1,chol_count, max_cvecs] = cd_svd_driver<T>
+    auto [cholVpr,d_f1,chol_count, max_cvecs, CV] = cd_svd_ga_driver<T>
                         (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
                                 freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
 

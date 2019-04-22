@@ -336,6 +336,10 @@ public:
         return impl_->is_non_zero(blockid);
     }
 
+    TensorBase* base_ptr() const {
+      return static_cast<TensorBase*>(impl_.get());
+    }
+
 private:
     std::shared_ptr<TensorImpl<T>>
       impl_; /**< Shared pointer to the implementation object */
@@ -380,6 +384,25 @@ private:
         dealloc(rest...);
     }
 };
+
+// This class inherits from pair ranther than using an alias because deduction
+// guides are not supported for aliases in C++17 (see
+// https://stackoverflow.com/questions/41008092/class-template-argument-deduction-not-working-with-alias-template)
+template<typename T>
+class IndexedTensor : public std::pair<Tensor<T>, IndexVector> 
+{
+    public:
+    using std::pair<Tensor<T>, IndexVector>::pair;
+    auto& tensor() { return this->first; }
+    auto& tensor() const { return this->first; }
+    auto& indexVector() { return this->second; }
+    auto& indexVector() const { return this->second; }
+    void put(span<T> span) { tensor().put(indexVector(), span); }
+    void add(span<T> span) { tensor().add(indexVector(), span); }
+};
+
+template<typename T>
+IndexedTensor(Tensor<T>, IndexVector) -> IndexedTensor<T>;
 
 } // namespace tamm
 

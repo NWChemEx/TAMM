@@ -130,6 +130,9 @@ public:
         return make_op(std::move(rhs), false, -1);
     } // operator -=
 
+    TensorBase* base_ptr() const {
+        return tensor_.base_ptr();
+    }
 protected:
     Tensor<T> tensor_;
     IndexLabelVec ilv_;

@@ -3,6 +3,7 @@
 
 #include <set>
 
+#include "ga-mpi.h"
 #include "tamm/dag_impl.hpp"
 #include "tamm/execution_context.hpp"
 #include "tamm/ops.hpp"
@@ -11,6 +12,7 @@
 namespace tamm {
 
 using internal::DAGImpl;
+
 /**
  * @brief Scheduler to execute a list of operations.
  * @ingroup operations
@@ -61,12 +63,186 @@ public:
         return deallocate(tensors...);
     }
 
-    void execute() {
-        // for(auto& op : ops_) { op->execute(ec()->pg()); }
-        for(size_t i = start_idx_; i < ops_.size(); i++) {
-            ops_[i]->execute(ec());
-            start_idx_++;
+    template<typename T>
+    bool has_intersect(const std::vector<T>& lhs, const std::vector<T>& rhs) {
+        for(const auto& l_item : lhs) {
+            for(const auto& r_item : rhs) {
+                if(l_item == r_item) return true;
+            }
         }
+        return false;
+    }
+    bool has_dependence(const std::vector<TensorBase*>& R1,
+                        const std::vector<TensorBase*>& W1,
+                        const std::vector<TensorBase*>& R2,
+                        const std::vector<TensorBase*>& W2) {
+        return (has_intersect(R1, W2) || has_intersect(W1, R2) ||
+                has_intersect(W1, W2));
+    }
+
+    bool has_dependence(const std::vector<TensorBase*>& R1,
+                        const std::vector<TensorBase*>& W1,
+                        const std::vector<TensorBase*>& A1,
+                        const std::vector<TensorBase*>& R2,
+                        const std::vector<TensorBase*>& W2,
+                        const std::vector<TensorBase*>& A2) {
+        return (has_intersect(R1, W2) || has_intersect(W1, R2) ||
+                has_intersect(W1, W2) || has_intersect(R1, A2) ||
+                has_intersect(W1, A2) || has_intersect(R2, A1) ||
+                has_intersect(W2, A1));
+    }
+
+    std::vector<size_t> levelize(const std::vector<std::shared_ptr<Op>>& ops,
+                                 size_t start_id, size_t end_id) {
+        EXPECTS(start_id >= 0 && start_id <= ops.size());
+        EXPECTS(end_id >= start_id && end_id <= ops.size());
+
+        std::vector<size_t> groups;
+
+        size_t group_start = start_id;
+        std::vector<TensorBase*> group_reads, group_writes, group_accums;
+        for(size_t i = start_id; i < end_id; i++) {
+            std::vector<TensorBase*> reads, writes, accums;
+            reads = std::vector<TensorBase*>(ops[i]->reads());
+            if(auto wr = ops[i]->writes(); wr != nullptr) {
+                writes = std::vector<TensorBase*>{wr};
+            }
+            if(auto ac = ops[i]->accumulates(); ac != nullptr) {
+                accums = std::vector<TensorBase*>{ac};
+            }
+
+            if(ops[i]->is_memory_barrier() ||
+               has_dependence(group_reads, group_writes, group_accums, reads,
+                              writes, accums)) {
+                groups.push_back(i - group_start);
+                group_start  = i;
+                group_reads  = reads;
+                group_writes = writes;
+                group_accums = accums;
+            } else {
+                group_reads.insert(group_reads.end(), reads.begin(),
+                                   reads.end());
+                group_writes.insert(group_writes.end(), writes.begin(),
+                                    writes.end());
+                group_accums.insert(group_accums.end(), accums.begin(),
+                                    accums.end());
+            }
+        }
+
+        if(group_start < end_id) { groups.push_back(end_id - group_start); }
+
+        return groups;
+    }
+
+    bool op_has_dependence(const Op* op1, const Op* op2) {
+        std::vector<TensorBase*> R1, W1, A1;
+        R1 = op1->reads();
+        if(auto wr = op1->writes(); wr != nullptr) {
+            W1 = std::vector<TensorBase*>{wr};
+        }
+        if(auto ac = op1->accumulates(); ac != nullptr) {
+            A1 = std::vector<TensorBase*>{ac};
+        }
+        std::vector<TensorBase*> R2, W2, A2;
+        R2 = op2->reads();
+        if(auto wr = op2->writes(); wr != nullptr) {
+            W2 = std::vector<TensorBase*>{wr};
+        }
+        if(auto ac = op2->accumulates(); ac != nullptr) {
+            A2 = std::vector<TensorBase*>{ac};
+        }
+        return has_dependence(R1, W1, A1, R2, W2, A2);
+    }
+
+    std::vector<std::pair<size_t, size_t>> levelize_and_order(
+      const std::vector<std::shared_ptr<Op>>& ops, size_t start_id,
+      size_t end_id) {
+        EXPECTS(start_id >= 0 && start_id <= ops.size());
+        EXPECTS(end_id >= start_id && end_id <= ops.size());
+
+        std::vector<std::pair<size_t, size_t>> order;
+
+        for(size_t i = start_id; i < end_id; i++) {
+            order.push_back(std::make_pair(0, i));
+        }
+        for(size_t i = 0; i < end_id - start_id - 1; i++) {
+            for(size_t j = i + 1; j < end_id - start_id; j++) {
+                if(op_has_dependence(ops[start_id + i].get(),
+                                     ops[start_id + j].get())) {
+                    order[j].first =
+                      std::max(order[i].first + 1, order[j].first);
+                }
+            }
+        }
+        std::sort(order.begin(), order.end(),
+                  [](const auto& lhs, const auto& rhs) {
+                      return lhs.first < rhs.first;
+                  });
+        return order;
+    }
+
+    void execute() {
+        if(start_idx_ == ops_.size()) return;
+#if 1
+        auto order = levelize_and_order(ops_, start_idx_, ops_.size());
+        EXPECTS(order.size() == ops_.size() - start_idx_);
+        int lvl           = 0;
+        AtomicCounter* ac = new AtomicCounterGA(ec().pg(), order.size());
+        ac->allocate(0);
+        for(size_t i = 0; i < order.size(); i++) {
+            if(order[i].first != lvl) {
+                assert(order[i].first == lvl + 1);
+                ec().pg().barrier();
+                lvl += 1;
+            }
+            ec().set_ac(IndexedAC(ac, i));
+            ops_[order[i].second]->execute(ec());
+        }
+        ec().pg().barrier();
+        start_idx_ = ops_.size();
+        ec().set_ac(IndexedAC(nullptr, 0));
+        ac->deallocate();
+        delete ac;
+#else
+        auto groups = levelize(ops_, start_idx_, ops_.size());
+        // std::cerr << "Groups: [ ";
+        // for(const auto& sz : groups) {
+        //     std::cerr << sz << " ";
+        // }
+        // std::cerr << "]" << std::endl;
+
+        // AtomicCounter* ac = new AtomicCounterGA(ec().pg(), ops_.size() -
+        // start_idx_); ac->allocate(0);
+
+        size_t off = start_idx_;
+        for(size_t g : groups) {
+            EXPECTS(g > 0);
+            AtomicCounter* ac = new AtomicCounterGA(ec().pg(), g);
+            ac->allocate(0);
+
+            for(size_t i = off; i < off + g; i++, start_idx_++) {
+                ec().set_ac(IndexedAC(ac, i - off));
+                ops_[i]->execute(ec());
+            }
+
+            ec().set_ac(IndexedAC(nullptr, 0));
+            ac->deallocate();
+            delete ac;
+
+            // memory fence. for now GA_Sync()
+            // GA_Sync();
+            // pg.barrier()
+            ec().pg().barrier();
+            off += g;
+        }
+        // ac->deallocate();
+        // delete ac;
+        // // for(auto& op : ops_) { op->execute(ec()->pg()); }
+        // for(size_t i = start_idx_; i < ops_.size(); i++) {
+        //     ops_[i]->execute(ec());
+        //     start_idx_++;
+        // }
+#endif
     }
 
     template<typename Func, typename... Args>

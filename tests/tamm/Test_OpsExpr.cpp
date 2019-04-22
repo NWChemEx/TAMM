@@ -213,7 +213,8 @@ TEST_CASE("SCF Commutator declarations") {
         ProcGroup pg{GA_MPI_Comm()};
         auto mgr = MemoryManagerGA::create_coll(pg);
         Distribution_NW distribution;
-        ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+        RuntimeEngine re;
+        ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
 
         IndexSpace is{range(10)};
         space_type tis{is};
@@ -273,7 +274,8 @@ TEST_CASE("SCF JK declarations") {
         ProcGroup pg{GA_MPI_Comm()};
         auto mgr = MemoryManagerGA::create_coll(pg);
         Distribution_NW distribution;
-        ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+        RuntimeEngine re;
+        ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
 
         IndexSpace is{range(10)};
         tamm::TiledIndexSpace tis{is};
@@ -325,7 +327,8 @@ TEST_CASE("CCSD T2") {
         ProcGroup pg{GA_MPI_Comm()};
         auto mgr = MemoryManagerGA::create_coll(pg);
         Distribution_NW distribution;
-        ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+        RuntimeEngine re;
+        ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
 
         IndexSpace MO_IS{range(0, 14),
                          {{"occ", {range(0, 10)}}, {"virt", {range(10, 14)}}}};
@@ -460,7 +463,8 @@ TEST_CASE("Tensor operations on named subspaces") {
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    RuntimeEngine re;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
 
     {
         bool failed = false;

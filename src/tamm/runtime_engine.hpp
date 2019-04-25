@@ -276,16 +276,6 @@ inline RuntimeEngine* ExecutionContext::runtime_ptr()
     return new RuntimeEngine();
 }
 
-inline RuntimeEngine* ExecutionContext::runtime_ptr(const RuntimeEngine* re)
-{
-    return new RuntimeEngine(*re);
-}
-
-inline void ExecutionContext::delete_runtime_ptr(RuntimeEngine* re)
-{
-    delete re;
-}
-
 } // namespace tamm
 
 

@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <iterator>
 #include <vector>
+#include <memory>
 
 namespace tamm {
 
@@ -51,8 +52,7 @@ public:
 	  mem_regs_to_dealloc_(other.mem_regs_to_dealloc_),
 	  unregistered_mem_regs_(other.unregistered_mem_regs_)
     {
-	re_ = runtime_ptr(other.re_);
-	deallocate_re = true;
+	re_ = other.re_;
     }
 
     ExecutionContext& operator=(const ExecutionContext& other) {
@@ -64,8 +64,7 @@ public:
 	ac_ = other.ac_;
 	mem_regs_to_dealloc_ = other.mem_regs_to_dealloc_;
 	unregistered_mem_regs_ = other.unregistered_mem_regs_;
-	re_ = runtime_ptr(other.re_);
-	deallocate_re = true;
+	re_ = other.re_;
 	return *this;
     }
 
@@ -79,27 +78,21 @@ public:
       pg_{pg},
       default_distribution_{default_distribution},
       default_memory_manager_{default_memory_manager},
-      ac_{IndexedAC{nullptr, 0}},
-      re_(re) {
-          if (re == nullptr)
-          {
-              re_ = runtime_ptr();
-              deallocate_re = true;
-          }
-        pg_self_ = ProcGroup{MPI_COMM_SELF};
+      ac_{IndexedAC{nullptr, 0}}
+      {
+          if (re == nullptr) {
+	      re_.reset(runtime_ptr());
+	  } else {
+	      re_.reset(re, [](auto){});
+	  }
+	  pg_self_ = ProcGroup{MPI_COMM_SELF};
 
         // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
     }
     RuntimeEngine* runtime_ptr();
-    RuntimeEngine* runtime_ptr(const RuntimeEngine*);
-    void delete_runtime_ptr(RuntimeEngine*);
 
     ~ExecutionContext() {
         // MemoryManagerLocal::destroy_coll(memory_manager_local_);
-        if(deallocate_re) {
-            deallocate_re = false;
-            delete_runtime_ptr(re_);
-        }
     }
 
     void allocate() {
@@ -201,10 +194,10 @@ public:
         default_memory_manager_ = memory_manager;
     }
 
-    RuntimeEngine* re() const { return re_; }
+    RuntimeEngine* re() const { return re_.get(); }
 
     void set_re(RuntimeEngine* re) {
-        re_ = re;
+        re_.reset(re);
     }
 
     /**
@@ -257,7 +250,7 @@ private:
     MemoryManager* default_memory_manager_;
     MemoryManagerLocal* memory_manager_local_;
     IndexedAC ac_;
-    RuntimeEngine* re_;
+    std::shared_ptr<RuntimeEngine> re_;
     bool deallocate_re = false;
 
     std::vector<MemoryRegion*> mem_regs_to_dealloc_;

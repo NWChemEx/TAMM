@@ -2,8 +2,13 @@ cmake_minimum_required(VERSION ${CMAKE_VERSION})
 project(tamm VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For nwchemex_add_library
 
+if(NWX_CUDA)
+    set(tamm_cuda_SRCS cuda_memory_allocator.cu cudamemset.cu)
+    set(tamm_cuda_INCS cuda_memory_allocator.hpp cudamemset.hpp talsh_tamm.hpp)
+endif()
+
 #Add the current directory's sources to the list
-set(tamm_SRCS tamm.cpp index_space.cpp
+set(tamm_SRCS tamm.cpp index_space.cpp "${tamm_cuda_SRCS}"
 
 #Chao Eigensolver
     eigensolver/src/cholQR.cpp 
@@ -60,6 +65,7 @@ set(tamm_INCLUDES
     block_buffer.hpp
     kernels/assign.hpp
     kernels/multiply.hpp
+    "${tamm_cuda_INCS}"
     # spin_tensor.hpp
 
     #Chao Eigensolver

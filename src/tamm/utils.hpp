@@ -186,6 +186,125 @@ IndexVector translate_blockid(const IndexVector& blockid,
     }
     return translate_blockid;
 }
+
+template<typename Iter>
+inline std::string
+join(Iter begin, Iter end, const std::string& sep) {
+    std::ostringstream oss;
+    if (begin != end) {
+        oss << *begin;
+        ++begin;
+    }
+    while (begin != end) {
+        oss << sep << *begin;
+        begin++;
+    }
+    return oss.str();
+}
+
+template<typename Container>
+inline std::string
+join(const Container& c, const std::string& sep) {
+  return join(c.begin(), c.end(), sep);
+}
+
+// inline std::string
+// talsh_mult_op_string(const IndexLabelVec& clabel,
+//         const IndexLabelVec& alabel,
+//         const IndexLabelVec& blabel)
+inline std::string
+talsh_mult_op_string(const std::vector<IntLabel>& clabel,
+        const std::vector<IntLabel>& alabel,
+        const std::vector<IntLabel>& blabel) {
+  std::vector<char> c_label;
+  std::vector<char> a_label;
+  std::vector<char> b_label;
+  const std::string sep = ",";
+
+  char talsh_index_base = 'a';
+  int label_count = 0;
+  std::map<IntLabel, char> imap;
+  for (auto &l : clabel) {
+      imap[l] = talsh_index_base + label_count;
+      label_count += 1;
+  }
+  for (auto &l : alabel) {
+      if (imap.find(l) == imap.end()) {
+          imap[l] = talsh_index_base + label_count;
+          label_count += 1;
+      }
+  }
+
+  for (auto &l : clabel) {
+      c_label.push_back(imap[l]);
+  }
+  for (auto &l : alabel) {
+      a_label.push_back(imap[l]);
+  }
+  for (auto &l : blabel) {
+      b_label.push_back(imap[l]);
+  }
+
+  std::reverse(a_label.begin(),a_label.end());
+  std::reverse(b_label.begin(),b_label.end());
+  std::reverse(c_label.begin(),c_label.end());
+
+  std::ostringstream oss;
+  if(c_label.size() == 0) {
+    /// inner-product leading to a scalar
+    oss << "C()+="
+            << "A(" <<join(a_label, ",") << ")"
+            << "*B(" << join(b_label, ",") << ")";
+  } else {
+    /// normal mult operation
+    oss << "C(" << join(c_label, ",") << ")+="
+            << "A(" <<join(a_label, ",") << ")"
+            << "*B(" << join(b_label, ",") << ")";
+  }
+  return oss.str();
+}
+
+inline std::string
+talsh_add_op_string(const IndexLabelVec& clabel,
+        const IndexLabelVec& alabel) {
+  std::vector<char> c_label;
+  std::vector<char> a_label;
+  const std::string sep = ",";
+
+  char talsh_index_base = 'a';
+  int label_count = 0;
+  std::map<TiledIndexLabel, char> imap;
+  for (auto &l : clabel) {
+      imap[l] = talsh_index_base + label_count;
+      label_count += 1;
+  }
+  for (auto &l : alabel) {
+      if (imap.find(l) == imap.end()) {
+          imap[l] = talsh_index_base + label_count;
+          label_count += 1;
+      }
+  }
+
+  for (auto &l : clabel) {
+      c_label.push_back(imap[l]);
+  }
+  for (auto &l : alabel) {
+      a_label.push_back(imap[l]);
+  }
+
+  std::ostringstream oss;
+  if(c_label.size() == 0) {
+    /// scalar addition
+    oss << "C()+="
+            << "A(" <<join(a_label, ",") << ")"; 
+  } else {
+    /// normal add operation
+    oss << "C(" << join(c_label, ",") << ")+="
+            << "A(" <<join(a_label, ",") << ")"; 
+  }
+  return oss.str();
+}
+
 } // namespace internal
 
 } // namespace tamm

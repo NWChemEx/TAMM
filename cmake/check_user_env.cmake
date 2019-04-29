@@ -63,7 +63,7 @@ if(NWX_CUDA)
     if(CMAKE_CUDA_COMPILER)
         enable_language(CUDA)
             
-        set(OUTPUTFILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cuda_script) # No suffix required
+        set(OUTPUTFILE ${CMAKE_CURRENT_BINARY_DIR}/cuda_arch_detect_script) 
         set(CUDAFILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cuda_arch_detect.cu)
         execute_process(COMMAND nvcc ${CUDA_CUDART_LIBRARY} ${CUDAFILE} -o ${OUTPUTFILE})
         execute_process(COMMAND ${OUTPUTFILE}

@@ -5,16 +5,29 @@
 #include "tamm/types.hpp"
 #include "tamm/kernels/assign.hpp"
 
-
 #include <algorithm>
 #include CBLAS_HEADER
 #include <complex>
 #include <numeric>
 #include <vector>
 
+#include "tamm/talsh_tamm.hpp"
+#include "tamm/cuda_memory_allocator.hpp"
+using tensor_handle = talsh_tens_t;
+
+#undef C0
+#undef C4
+#undef C5
+#undef C6
+#undef C7
+#undef C8
+#undef C9
+#undef C10
+
 namespace tamm {
 
 namespace internal {
+
 template<typename T>
 void gemm_wrapper(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,
                   const CBLAS_TRANSPOSE TransB, const int M, const int N,
@@ -217,6 +230,7 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     int areduce_ld = B * abatch_ld;
     int breduce_ld = B * bbatch_ld;
 
+    #if 0
     // dgemm
     for(size_t ari = 0; ari < AR; ari++) {
         for(size_t bri = 0; bri < BR; bri++) {
@@ -228,12 +242,55 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
                   binter_buf.data() + bri * breduce_ld + i * bbatch_ld,
                   binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
                   cinter_ld);
+
             }
         }
     }
-    // C[0]="<<cinter_buf[0]<<"\n";
-    assign(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,
-           cinter_labels, true);
+    #else
+    int tal_ainter_dims[ainter_dims.size()];
+    int tal_binter_dims[binter_dims.size()];
+    int tal_cinter_dims[cinter_dims.size()];
+    for(auto i = 0; i < ainter_dims.size(); ++i)
+        tal_ainter_dims[i] = (int)ainter_dims[i].value();
+    for(auto i = 0; i < binter_dims.size(); ++i)
+        tal_binter_dims[i] = (int)binter_dims[i].value();
+    for(auto i = 0; i < cinter_dims.size(); ++i)
+        tal_cinter_dims[i] = (int)cinter_dims[i].value();
+
+    auto talsh_op_string = internal::talsh_mult_op_string(
+        cinter_labels, ainter_labels, binter_labels); 
+    // std::cout << talsh_op_string << std::endl;
+
+    // adata, bdata, cdata will have to be created 
+    // using pinned memory else where for now using 
+    // regular memory
+    // double *adata = host_pinned_memory(abatch_ld*sizeof(double)); 
+    // double *bdata = host_pinned_memory(bbatch_ld*sizeof(double)); 
+    // double *cdata = host_pinned_memory(cbatch_ld*sizeof(double)); 
+
+    TALSH gpu_mult;
+    // Create tensor objects 
+    tensor_handle T1 = gpu_mult.host_block(ainter_dims.size(), 
+        tal_ainter_dims, 
+        ainter_buf.data()); //  + ari * areduce_ld + i * abatch_ld);
+    tensor_handle T2 = gpu_mult.host_block(binter_dims.size(), 
+        tal_binter_dims, 
+        binter_buf.data()); //  + bri * breduce_ld + i * bbatch_ld);
+    tensor_handle T3 = gpu_mult.host_block(cinter_dims.size(), 
+        tal_cinter_dims, 
+        cinter_buf.data()); //  + i * cbatch_ld);
+      // double dalpha = std::abs(alpha);
+      // std::cout << "dalpha:[" << dalpha <<std::endl;
+      gpu_mult.mult_block(T3, T1, T2, talsh_op_string, 
+        alpha, COPY_TTT); 
+
+    // free_host_pinned_memory(adata);
+    // free_host_pinned_memory(bdata);
+    // free_host_pinned_memory(cdata);
+    #endif
+  // C[0]="<<cinter_buf[0]<<"\n";
+  assign(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,
+         cinter_labels, true);
 } // block_multiply()
 
 } // namespace kernels

@@ -9,6 +9,7 @@
 #include <Eigen/Eigenvalues>
 // #include <unsupported/Eigen/CXX11/Tensor>
 #include <unsupported/Eigen/MatrixFunctions>
+#undef I
 
 #include "input_parser.hpp"
 
@@ -19,6 +20,8 @@
 #include "tamm/tamm.hpp"
 #include "macdecls.h"
 #include "ga-mpi.h"
+
+#include LAPACKE_HEADER
 
 using namespace tamm;
 using std::cerr;
@@ -476,7 +479,7 @@ Matrix compute_schwarz_ints(
 
 Matrix compute_shellblock_norm(const libint2::BasisSet& obs, const Matrix& A) {
   const auto nsh = obs.size();
-  Matrix Ash(nsh, nsh);
+  Matrix Ash = Matrix::Zero(nsh, nsh);
 
   auto shell2bf = obs.shell2bf();
   for (size_t s1 = 0; s1 != nsh; ++s1) {

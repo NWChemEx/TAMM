@@ -1,4 +1,5 @@
-
+#ifndef TESTS_CCSD_UTIL_HPP_
+#define TESTS_CCSD_UTIL_HPP_
 
 #include "cd_svd.hpp"
 #include "cd_svd_ga.hpp"
@@ -550,3 +551,5 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_g
 
     return std::make_tuple(cholVpr, d_f1, chol_count, max_cvecs, CI);
 }
+
+#endif //TESTS_CCSD_UTIL_HPP_

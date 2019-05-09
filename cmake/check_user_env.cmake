@@ -2,7 +2,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "XL"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "Cray"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "Intel" 
-    OR CMAKE_CXX_COMPILER_ID STREQUAL "PGI")
+    OR CMAKE_CXX_COMPILER_ID STREQUAL "PGI"
+    OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
         message(FATAL_ERROR "TAMM cannot be currently built with ${CMAKE_CXX_COMPILER_ID} compilers.")
 endif()
 
@@ -63,7 +64,7 @@ if(NWX_CUDA)
     if(CMAKE_CUDA_COMPILER)
         enable_language(CUDA)
             
-        set(OUTPUTFILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cuda_script) # No suffix required
+        set(OUTPUTFILE ${CMAKE_CURRENT_BINARY_DIR}/cuda_arch_detect_script) 
         set(CUDAFILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cuda_arch_detect.cu)
         execute_process(COMMAND nvcc ${CUDA_CUDART_LIBRARY} ${CUDAFILE} -o ${OUTPUTFILE})
         execute_process(COMMAND ${OUTPUTFILE}

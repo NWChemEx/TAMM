@@ -20,6 +20,18 @@
 
 #include "hf_tamm_common.hpp"
 
+// CXXBLACS BLACS/ScaLAPACK wrapper
+// #define SCALAPACK 
+#ifdef SCALAPACK
+  #define CXXBLACS_HAS_LAPACK
+  #define CB_INT TAMM_LAPACK_INT
+  #define CXXBLACS_LAPACK_Complex16 TAMM_LAPACK_COMPLEX16
+  #define CXXBLACS_LAPACK_Complex8 TAMM_LAPACK_COMPLEX8
+  
+  #include <cxxblacs.hpp>
+#endif
+
+#define SCALE_DOWN_RESOURCES_HF 0
 
 std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace> 
     hartree_fock(ExecutionContext &exc, const string filename,std::vector<libint2::Atom> atoms, OptionsMap options_map) {
@@ -30,19 +42,11 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     using libint2::Shell;
     using libint2::BasisSet;
 
-    ExecutionContext *ec = &exc;
-
     /*** =========================== ***/
     /*** initialize molecule         ***/
     /*** =========================== ***/
 
-    auto rank = ec->pg().rank();
     scf_options = options_map.scf_options;
-
-    if(rank == 0) {
-      cout << "\nNumber of GA ranks: " << GA_Nnodes() << endl;
-      scf_options.print();
-    }
 
     std::string basis = scf_options.basis;
     int maxiter = scf_options.maxiter;
@@ -57,8 +61,6 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
-    auto [ndocc, enuc]  = compute_NRE(*ec, atoms);
-
     // const auto ndocc1 = ndocc; //TODO: uhf
 
     // initializes the Libint integrals library ... now ready to compute
@@ -71,12 +73,35 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     // LIBINT_INSTALL_DIR/share/libint/2.4.0-beta.1/basis
     libint2::BasisSet shells(std::string(basis), atoms);
     // auto shells = make_sto3g_basis(atoms);
-
-    // compute OBS non-negligible shell-pair list
-    compute_shellpair_list(exc, shells);
-
     const size_t N = nbasis(shells);
     size_t nao = N;
+    auto rank = exc.pg().rank();
+
+    auto nnodes = GA_Cluster_nnodes();
+    auto [hf_nnodes,ppn,hf_nranks] = get_hf_nranks(N);
+    int ranks[hf_nranks];
+    for (int i = 0; i < hf_nranks; i++) ranks[i] = i;
+
+    #if SCALE_DOWN_RESOURCES_HF
+      auto gcomm = exc.pg().comm();
+      MPI_Group wgroup;
+      MPI_Comm_group(gcomm,&wgroup);
+      MPI_Group hfgroup;
+      MPI_Group_incl(wgroup,hf_nranks,ranks,&hfgroup);
+      MPI_Comm hf_comm;
+      MPI_Comm_create(gcomm,hfgroup,&hf_comm);
+    #endif
+
+    
+    if(rank == 0) {
+      cout << "\nNumber of nodes, mpi ranks per node provided: " << nnodes << ", " << ppn << endl;
+      cout << "Number of nodes, mpi ranks per node used for SCF calculation: " << hf_nnodes << ", " << ppn << endl;
+      scf_options.print();
+    }
+
+    auto [ndocc, enuc]  = compute_NRE(exc, atoms);
+    // compute OBS non-negligible shell-pair list
+    compute_shellpair_list(exc, shells);
 
     if(rank==0) cout << "\nNumber of basis functions: " << N << endl;
 
@@ -123,12 +148,45 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
     if(rank == 0) std::cout << "\nTime for initial setup: " << hf_time << " secs\n";
 
+    Matrix C, F;
+    TensorType ehf           = 0.0;
+
+    exc.pg().barrier();
+
+    #if SCALE_DOWN_RESOURCES_HF
+    if (rank < hf_nranks) {
+
+      int hrank;
+      EXPECTS(hf_comm != MPI_COMM_NULL);
+      MPI_Comm_rank(hf_comm,&hrank);
+      EXPECTS(rank==hrank);
+      // cout << "rank,hrank = " << rank << "," << hrank << endl;
+
+      ProcGroup pg{hf_comm};
+      auto mgr = MemoryManagerGA::create_coll(pg);
+      Distribution_NW distribution;
+      RuntimeEngine re;
+      ExecutionContext ec{pg, &distribution, mgr, &re};
+    #else 
+      ExecutionContext& ec = exc;
+    #endif
+
+    #ifdef SCALAPACK
+
+      // Get MPI Comm
+      // MPI_Comm comm = ec.pg().comm();
+
+      // Define a BLACS grid
+      const CB_INT MB = 128; // TODO: add toggle
+      CXXBLACS::BlacsGrid blacs_grid(  ec.pg().comm(), MB, MB );
+      
+    #endif
 
     /*** =========================== ***/
     /*** compute 1-e integrals       ***/
     /*** =========================== ***/
 
-    auto [H, S, H1, S1] = compute_hamiltonian<TensorType>(*ec,atoms,shells,shell_tile_map,AO_tiles);
+    auto [H, S, H1, S1] = compute_hamiltonian<TensorType>(ec,atoms,shells,shell_tile_map,AO_tiles);
 
     //auto H_down = H; //TODO
 
@@ -136,7 +194,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     /*** build initial-guess density ***/
     /*** =========================== ***/
 
-    Matrix X = compute_orthogonalizer(exc, S);
+    Matrix X = compute_orthogonalizer(ec, S);
 
     // pre-compute data for Schwarz bounds
     auto SchwarzK = compute_schwarz_ints<>(shells);
@@ -148,9 +206,9 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     // thus set to false to use Superposition-Of-Atomic-Densities (SOAD) guess
 
     Matrix D;
-    Matrix C;
+    // Matrix C;
     Matrix C_occ;
-    Matrix F;
+    // Matrix F;
 
   //     Matrix C_down; //TODO: all are array of 2 vectors
   // Matrix D_down;
@@ -162,9 +220,9 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     if (use_hcore_guess) 
       compute_hcore_guess(ndocc, shells, SchwarzK, H, S, F, C, C_occ, D);
     else if (restart)
-        scf_restart(exc, N, filename, ndocc, C, D);
+        scf_restart(ec, N, filename, ndocc, C, D);
     else   // SOAD as the guess density
-      compute_initial_guess<TensorType>(*ec, ndocc, atoms, shells, basis, X, H, C, C_occ, D);
+      compute_initial_guess<TensorType>(ec, ndocc, atoms, shells, basis, X, H, C, C_occ, D);
     
 
     //     C_down = C;
@@ -176,7 +234,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-    ec->pg().barrier();
+    ec.pg().barrier();
     if(rank == 0) std::cout << "Total Time to compute initial guess: " << hf_time << " secs\n";
 
 
@@ -188,7 +246,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     auto iter          = 0;
     auto rmsd          = 1.0;
     auto ediff         = 0.0;
-    auto ehf           = 0.0;
+    // auto ehf           = 0.0;
     auto is_conv       = true;
 
     // int idiis                     = 0;
@@ -201,40 +259,30 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     Tensor<TensorType> F1{tAO, tAO};
     Tensor<TensorType> F1tmp1{tAO, tAO};
     Tensor<TensorType> F1tmp{tAOt, tAOt}; //not allocated
-    Tensor<TensorType>::allocate(ec, F1, F1tmp1, ehf_tmp, ehf_tamm);
+    Tensor<TensorType>::allocate(&ec, F1, F1tmp1, ehf_tmp, ehf_tamm);
 
     Tensor<TensorType> D_tamm{tAO, tAO};
     Tensor<TensorType> D_diff{tAO, tAO};
     Tensor<TensorType> D_last_tamm{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, D_tamm, D_diff, D_last_tamm);
+    Tensor<TensorType>::allocate(&ec, D_tamm, D_diff, D_last_tamm);
 
     // FSm12,Sp12D,SpFS
     Tensor<TensorType> FD_tamm{tAO, tAO}; 
     Tensor<TensorType> FDS_tamm{tAO, tAO};
-    Tensor<TensorType>::allocate(ec, FD_tamm, FDS_tamm);//,err_mat_tamm);
+    Tensor<TensorType>::allocate(&ec, FD_tamm, FDS_tamm);//,err_mat_tamm);
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    //ec->pg().barrier();
+    //ec.pg().barrier();
     if(rank == 0 && debug) std::cout << "\nTime to setup tensors for iterative loop: " << hf_time << " secs\n";
 
     eigen_to_tamm_tensor(D_tamm,D);
     // Matrix err_mat = Matrix::Zero(N,N);
 
-    if(rank == 0) {
-        std::cout << "\n\n";
-        std::cout << " Hartree-Fock iterations" << std::endl;
-        std::cout << std::string(70, '-') << std::endl;
-        std::cout <<
-            " Iter     Energy            E-Diff            RMSD            Time" 
-                << std::endl;
-        std::cout << std::string(70, '-') << std::endl;
-    }
 
-    std::cout << std::fixed << std::setprecision(2);
 
-    F.setZero(N,N);
+    F = Matrix::Zero(N,N);
     // double precision = tol_int;
     const libint2::BasisSet& obs = shells;
     // assert(N==obs.nbf());
@@ -248,7 +296,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     auto shell2bf = obs.shell2bf();
     // const auto nshells = obs.size();
 
-    Scheduler{*ec}
+    Scheduler{ec}
         (D_diff(mu,nu) = D_tamm(mu,nu)).execute();
 
     //DF basis
@@ -269,7 +317,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
       ndf = dfbs.nbf();
       dfAO = IndexSpace{range(0, ndf)};
-      std::tie(df_shell_tile_map, dfAO_tiles, dfAO_opttiles) = compute_AO_tiles(exc,dfbs);
+      std::tie(df_shell_tile_map, dfAO_tiles, dfAO_opttiles) = compute_AO_tiles(ec,dfbs);
       // if(rank==0 && debug) 
       // cout << "Number of dfAO tiles = " << dfAO_tiles.size() << endl;
 
@@ -285,9 +333,21 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     if(do_density_fitting) {
       xyK_tamm = Tensor<TensorType>{tAO, tAO, tdfAO}; //n,n,ndf
       C_occ_tamm = Tensor<TensorType>{tAO,tdfCocc}; //n,nocc
-      Tensor<TensorType>::allocate(ec, xyK_tamm,C_occ_tamm);
+      Tensor<TensorType>::allocate(&ec, xyK_tamm,C_occ_tamm);
     }
     //df basis
+
+    if(rank == 0) {
+        std::cout << "\n\n";
+        std::cout << " Hartree-Fock iterations" << std::endl;
+        std::cout << std::string(70, '-') << std::endl;
+        std::cout <<
+            " Iter     Energy            E-Diff            RMSD            Time" 
+                << std::endl;
+        std::cout << std::string(70, '-') << std::endl;
+    }
+
+    std::cout << std::fixed << std::setprecision(2);
 
     do {
         // Scheduler sch{ec};
@@ -298,17 +358,17 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         auto ehf_last = ehf;
         // auto D_last   = D;
 
-        Scheduler{*ec}
+        Scheduler{ec}
            (F1tmp1() = 0)
            (D_last_tamm(mu,nu) = D_tamm(mu,nu)).execute();
 
         // build a new Fock matrix
         // F           = H;
 
-        compute_2bf(*ec, obs, do_schwarz_screen, shell2bf, SchwarzK, 
+        compute_2bf(ec, obs, do_schwarz_screen, shell2bf, SchwarzK, 
                     G, D, F1tmp, F1tmp1, max_nprim4);
 
-        std::tie(ehf,rmsd) = scf_iter_body<TensorType>(*ec, iter, ndocc, X, F, C, C_occ, D,
+        std::tie(ehf,rmsd) = scf_iter_body<TensorType>(ec, iter, ndocc, X, F, C, C_occ, D,
                         S1, F1, H1, F1tmp1,FD_tamm, FDS_tamm, D_tamm, D_last_tamm, D_diff,
                         ehf_tmp, ehf_tamm, diis_hist, fock_hist);
 
@@ -338,7 +398,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     } while (((fabs(ediff) > conve) || (fabs(rmsd) > convd)));
 
-    // ec->pg().barrier(); 
+    // ec.pg().barrier(); 
     if(rank == 0) {
         std::cout.precision(13);
         if (is_conv)
@@ -358,19 +418,47 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     Tensor<TensorType>::deallocate(H1, S1, D_tamm, ehf_tmp, ehf_tamm); 
     Tensor<TensorType>::deallocate(F1tmp1, D_last_tamm, D_diff, FD_tamm, FDS_tamm);
 
+    if(!is_conv) {
+      nwx_terminate("Please check SCF input parameters");
+    }
+
     if(rank==0 && !restart) {
      cout << "writing orbitals to file... ";
      writeC(C,filename,options_map);
      cout << "done.\n";
     }
 
-    Tensor<TensorType> C_tamm{tAO,tAO};
-    Tensor<TensorType>::allocate(ec,C_tamm);
-    eigen_to_tamm_tensor(C_tamm,C);
-    ec->pg().barrier();
+      if(rank == 0) tamm_to_eigen_tensor(F1,F);
 
-    //F1, C are not deallocated.
-    return std::make_tuple(ndocc, nao, ehf + enuc, shells, shell_tile_map, C_tamm, F1, tAO, tAOt);
+      Tensor<TensorType>::deallocate(F1); //deallocate using ec
+
+    #if SCALE_DOWN_RESOURCES_HF
+      ec.flush_and_sync();
+      //MemoryManagerGA::destroy_coll(mgr);
+
+      } //end scaled down process group
+
+      // MPI_Group_free(&wgroup);
+      // MPI_Group_free(&hfgroup);
+      // MPI_Comm_free(&hf_comm);
+    #endif
+
+    //C,F1 is not allocated for ranks > hf_nranks 
+    exc.pg().barrier(); 
+
+    GA_Brdcst(&ehf,sizeof(TensorType),0);
+    Tensor<TensorType> C_tamm{tAO,tAO};
+    Tensor<TensorType> F_tamm{tAO,tAO};
+    Tensor<TensorType>::allocate(&exc,C_tamm,F_tamm);
+    if (rank == 0) {
+      eigen_to_tamm_tensor(C_tamm,C);
+      eigen_to_tamm_tensor(F_tamm,F);
+    }
+
+    exc.pg().barrier();
+
+    //F, C are not deallocated.
+    return std::make_tuple(ndocc, nao, ehf + enuc, shells, shell_tile_map, C_tamm, F_tamm, tAO, tAOt);
 }
 
 

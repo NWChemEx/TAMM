@@ -48,6 +48,7 @@ class Options {
     std::string geom_units;
 
     void print() {
+      std::cout << std::defaultfloat;
       cout << "\nCommon Options\n";
       cout << "{\n";
       cout << " max iter = " << maxiter << endl;
@@ -83,6 +84,7 @@ class SCFOptions: public Options {
   bool restart; //Read orbitals from disk
 
     void print() {
+      std::cout << std::defaultfloat;
       cout << "\nSCF Options\n";
       cout << "{\n";
       cout << " tol_int = " << tol_int << endl;
@@ -113,6 +115,7 @@ class CDOptions: public Options {
   int max_cvecs_factor;
 
   void print() {
+    std::cout << std::defaultfloat;
     cout << "\nCD Options\n";
     cout << "{\n";
     cout << " diagtol = " << diagtol << endl;
@@ -143,6 +146,7 @@ class CCSDOptions: public Options {
   double eom_threshold;
 
   void print() {
+    std::cout << std::defaultfloat;
     cout << "\nCCSD Options\n";
     cout << "{\n";
     cout << " #cuda = " << icuda << endl;
@@ -169,10 +173,10 @@ class OptionsMap
 
 
 void nwx_terminate(std::string msg){
-    std::cerr << msg << " ... terminating program.\n";
+    if(GA_Nodeid()==0) std::cerr << msg << " ... terminating program.\n\n";
     GA_Terminate();
     MPI_Finalize();
-    exit(1);
+    exit(0);
 }
 
 void to_upper(std::string& str) { std::transform(str.begin(), str.end(), str.begin(), ::toupper); }

@@ -15,6 +15,20 @@ void compute_1body_ints(ExecutionContext& ec, Tensor<TensorType>& tensor1e,
       std::vector<libint2::Atom>& atoms, libint2::BasisSet& shells, libint2::Operator otype,
       std::vector<size_t>& shell_tile_map, std::vector<Tile>& AO_tiles);
 
+std::tuple<int,int,int> get_hf_nranks(const size_t N){
+
+    auto nranks = GA_Nnodes();
+    auto nnodes = GA_Cluster_nnodes();
+    auto ppn = GA_Cluster_nprocs(0);
+
+    int hf_guessranks = std::ceil(0.1*N);
+    int hf_nnodes = hf_guessranks/ppn;
+    if(hf_guessranks%ppn>0 || hf_nnodes==0) hf_nnodes++;
+    if(hf_nnodes > nnodes) hf_nnodes = nnodes;
+    int hf_nranks = hf_nnodes * ppn;
+
+    return std::make_tuple(hf_nnodes,ppn,hf_nranks);
+}
 
 template<typename T, int ndim>
 void t2e_hf_helper(const ExecutionContext& ec, tamm::Tensor<T>& ttensor,Matrix& etensor,
@@ -104,11 +118,10 @@ std::tuple<std::vector<size_t>, std::vector<Tile>, std::vector<Tile>>
       auto N = nbasis(shells);
   
     //heuristic to set tilesize to atleast 5% of nbf
-    // if(tile_size < N*0.05) {
-    //   tile_size = std::ceil(N*0.05);
-    //   if(rank == 0) cout << "***** Reset tilesize to nbf*5% = " << tile_size << endl;
-    // }
-    
+    if(tile_size < N*0.05) {
+      tile_size = std::ceil(N*0.05);
+      if(rank == 0) cout << "***** Reset tilesize to nbf*5% = " << tile_size << endl;
+    }
     
     std::vector<Tile> AO_tiles;
     for(auto s : shells) AO_tiles.push_back(s.size());
@@ -196,11 +209,8 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
 
     auto [mu, nu, ku] = tAO.labels<3>("all");
 
-    Matrix H, S; 
-    H.setZero(N, N);
-    S.setZero(N, N);
-
-
+    Matrix H = Matrix::Zero(N,N);
+    Matrix S = Matrix::Zero(N,N);
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
@@ -238,25 +248,30 @@ void scf_restart(const ExecutionContext& ec, const size_t& N, const std::string&
     const auto rank = ec.pg().rank();
 
     std::vector<TensorType> Dbuf(N*N);
-    TensorType *Dbufp = &Dbuf[0];//.data();
+    TensorType *Dbufp = &Dbuf[0];
+    int rstatus = 0;
+    std::string orbitalsfile = getfilename(filename) +
+       "." + scf_options.basis + ".orbitals";
+
     if(rank==0) 
     {
       cout << "Reading orbitals from file... ";
-      std::string orbitalsfile = getfilename(filename) +
-        "." + scf_options.basis + ".orbitals";
-
       std::vector<TensorType> Cbuf(N*N);
-      TensorType *Hbuf = &Cbuf[0];//.data();
+      TensorType *Hbuf = &Cbuf[0];
       std::ifstream in(orbitalsfile, std::ios::in | std::ios::binary);
-      in.read((char *) Hbuf, sizeof(TensorType)*N*N);
-      C = Eigen::Map<Matrix>(Hbuf,N,N);
-
-      if(rank==0) cout << "done\n";
-
-      auto C_occ = C.leftCols(ndocc);
-      D = C_occ * C_occ.transpose();
-      Eigen::Map<Matrix>(Dbufp,N,N)=D;
+      if(in.is_open()) rstatus = 1;
+      if(rstatus == 1){
+        in.read((char *) Hbuf, sizeof(TensorType)*N*N);
+        C = Eigen::Map<Matrix>(Hbuf,N,N);
+        cout << "done\n";
+        auto C_occ = C.leftCols(ndocc);
+        D = C_occ * C_occ.transpose();
+        Eigen::Map<Matrix>(Dbufp,N,N)=D;
+      }
     }
+    ec.pg().barrier();
+    GA_Brdcst(&rstatus,sizeof(int),0);
+    if(rstatus == 0) nwx_terminate("Error reading " + orbitalsfile);
     GA_Brdcst(Dbufp,N*N*sizeof(TensorType),0);
     D = Eigen::Map<Matrix>(Dbufp,N,N);
     //Dbuf.clear();
@@ -308,6 +323,8 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       std::vector<tamm::Tensor<TensorType>>& diis_hist, 
       std::vector<tamm::Tensor<TensorType>>& fock_hist){
 
+        Scheduler sch{ec};
+
         auto rank = ec.pg().rank(); 
         auto debug = scf_options.debug;
         auto [mu, nu, ku] = tAO.labels<3>("all"); //TODO
@@ -315,8 +332,8 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
 
         auto do_t1 = std::chrono::high_resolution_clock::now();
         // F += Ftmp;
-        Scheduler{ec}(F1(mu, nu) = H1(mu, nu))
-                     (F1(mu, nu) += F1tmp1(mu, nu)).execute();
+        sch(F1(mu, nu) = H1(mu, nu))
+           (F1(mu, nu) += F1tmp1(mu, nu)).execute();
 
         auto do_t2 = std::chrono::high_resolution_clock::now();
         auto do_time =
@@ -343,8 +360,8 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         // (Sp12D_tamm(mu,nu) = Sp12_tamm(mu,ku) * D_last_tamm(ku,nu))
         // (FDS_tamm(mu,nu)  = Sp12D_tamm(mu,ku) * FD_tamm(ku,nu))
 
-        Scheduler{ec}(FD_tamm(mu,nu) = F1(mu,ku) * D_last_tamm(ku,nu))
-        (FDS_tamm(mu,nu)  = FD_tamm(mu,ku) * S1(ku,nu))
+        sch(FD_tamm(mu,nu) = F1(mu,ku) * D_last_tamm(ku,nu))
+           (FDS_tamm(mu,nu)  = FD_tamm(mu,ku) * S1(ku,nu))
     
         //FDS-SDF
         (err_mat_tamm(mu,nu) = FDS_tamm(mu,nu))
@@ -387,10 +404,85 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         // solve F C = e S C by (conditioned) transformation to F' C' = e C',
         // where
         // F' = X.transpose() . F . X; the original C is obtained as C = X . C'
-        Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * F *
-                                                        X);
-        //eps = eig_solver.eigenvalues();
-        C = X * eig_solver.eigenvectors();
+        #ifdef SCALAPACK
+
+                // Allocate space for C_ortho
+                decltype( F ) C_ortho( F.rows(), F.cols() );
+                
+                { // Scope temp data
+
+                decltype( F ) F_ortho = X.transpose() * F * X;
+                auto [MLoc, NLoc] = blacs_grid.getLocalDims( N, N );
+
+
+                std::vector< double > F_ortho_loc( MLoc*NLoc );
+                std::vector< double > C_ortho_loc( MLoc*NLoc );
+                std::vector< double > F_eig( F.rows() );
+
+                auto DescF = blacs_grid.descInit( N, N, 0, 0, MLoc );
+
+                // Scatter copy of F_ortho from root rank to all ranks
+                // FIXME: should just grab local data from replicated 
+                //   matrix
+                blacs_grid.Scatter( N, N, F_ortho.data(), N, 
+                                    F_ortho_loc.data(), MLoc,
+                                    0, 0 );
+
+                // Diagonalize
+                CB_INT LWORK = -1;
+                std::vector<TensorType> WORK(5);
+                auto scalapack_diag = [&]() {
+                  return
+                  CXXBLACS::PSYEV( 'V', 'U', N, 
+                                  F_ortho_loc.data(), 1, 1, DescF,
+                                  F_eig.data(),
+                                  C_ortho_loc.data(), 1, 1, DescF,
+                                  WORK.data(), LWORK );
+                };
+
+                // Get LWORK
+                scalapack_diag();
+                LWORK = WORK[0];
+                WORK.resize(LWORK);
+
+                // Perform diagonalization
+                auto info = scalapack_diag();
+
+
+                // Gather the eigenvectors to root process and replicate
+                blacs_grid.Gather( N, N, C_ortho.data(), N, 
+                                  C_ortho_loc.data(), MLoc,
+                                  0,0 );
+
+                MPI_Bcast( C_ortho.data(), C_ortho.size(), MPI_DOUBLE,
+                          0, comm );
+                          
+
+                C_ortho.transposeInPlace(); // Col -> Row Major
+                
+
+                } // ScaLAPACK Scope
+
+
+                // Backtransform C
+                C = X * C_ortho;
+
+        #elif defined(EIGEN_DIAG)
+                Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * F *
+                                                                X);
+                //eps = eig_solver.eigenvalues();
+                C = X * eig_solver.eigenvectors();
+        #else
+            { // Scope temp vars
+                Matrix F_ortho = X.transpose() * F * X;
+                const auto n = F_ortho.rows(); 
+                std::vector<TensorType> F_eig(n);
+                auto INFO = LAPACKE_dsyevd(LAPACK_ROW_MAJOR, 'V', 'L', 
+                  n, F_ortho.data(), n, &F_eig[0]);
+
+                C = X * F_ortho; //.transpose(); // col -> row major
+            }
+        #endif
 
         // compute density, D = C(occ) . C(occ)T
         C_occ = C.leftCols(ndocc);
@@ -416,7 +508,7 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
          do_t1 = std::chrono::high_resolution_clock::now();
         // compute HF energy 
         // e = D * (H+F);
-        Scheduler{ec}
+        sch
            (ehf_tmp(mu,nu) = H1(mu,nu))
            (ehf_tmp(mu,nu) += F1(mu,nu))
            (ehf_tamm() = D_tamm() * ehf_tmp()).execute();
@@ -424,8 +516,8 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         auto ehf = get_scalar(ehf_tamm);
 
         // rmsd  = (D - D_last).norm();
-        Scheduler{ec}(D_diff()=D_tamm())
-                      (D_diff()-=D_last_tamm()).execute();
+        sch(D_diff() = D_tamm())
+           (D_diff() -= D_last_tamm()).execute();
         auto rmsd = norm(ec, D_diff());
 
         do_t2 = std::chrono::high_resolution_clock::now();
@@ -886,7 +978,9 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     auto D_minbs = compute_soad(atoms);  // compute guess in minimal basis
     libint2::BasisSet minbs("STO-3G", atoms);
 
-      //std::tie(minbs_shellpair_list, minbs_shellpair_data) = compute_shellpairs(minbs);
+    #ifndef NDEBUG
+      std::tie(minbs_shellpair_list, minbs_shellpair_data) = compute_shellpairs(minbs);
+    #endif
 
       if(rank == 0) std::cout << 
     "\nProjecting minimal basis SOAD onto basis set specified (" << basis << ")\n";
@@ -962,17 +1056,21 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
           auto s4_begin = D_is_shelldiagonal ? s3 : 0;
           auto s4_fence = D_is_shelldiagonal ? s3 + 1 : D_bs.size();
 
-          //auto sp34_iter = minbs_shellpair_data.at(s3).begin();
+          #ifndef NDEBUG
+            auto sp34_iter = minbs_shellpair_data.at(s3).begin();
+          #endif
 
           for (auto s4 = s4_begin; s4 != s4_fence; ++s4) {
 
-            // auto s4spl = minbs_shellpair_list[s3];
-            // auto s4_itr = std::find(s4spl.begin(),s4spl.end(),s4);
-            // if(s4_itr == s4spl.end()) continue;
-            // auto s4_pos = std::distance(s4spl.begin(),s4_itr);
+            #ifndef NDEBUG
+              auto s4spl = minbs_shellpair_list[s3];
+              auto s4_itr = std::find(s4spl.begin(),s4spl.end(),s4);
+              if(s4_itr == s4spl.end()) continue;
+              auto s4_pos = std::distance(s4spl.begin(),s4_itr);
 
-            // std::advance(sp34_iter,s4_pos);
-            // const auto* sp34 = sp34_iter->get();
+              std::advance(sp34_iter,s4_pos);
+              const auto* sp34 = sp34_iter->get();
+            #endif 
 
             auto bf4_first = shell2bf_D[s4];
             auto n4 = D_bs[s4].size();
@@ -985,8 +1083,14 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
               auto s34_deg = (s3 == s4) ? 1.0 : 2.0;
               auto s1234_deg = s12_deg * s34_deg;
               // auto s1234_deg = s12_deg;
-              engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
+              #ifndef NDEBUG
+                engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
+                  obs[s1], obs[s2], D_bs[s3], D_bs[s4],sp12,sp34);
+              #else
+                engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
                   obs[s1], obs[s2], D_bs[s3], D_bs[s4],sp12); //,sp34);
+              #endif
+
               const auto* buf_1234 = buf[0];
               if (buf_1234 != nullptr) {
                 for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
@@ -1081,8 +1185,21 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     // solve F C = e S C by (conditioned) transformation to F' C' = e C',
     // where
     // F' = X.transpose() . F . X; the original C is obtained as C = X . C'
-    Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * Ft * X);
-    C = X * eig_solver.eigenvectors();
+
+    #ifdef EIGEN_DIAG
+      Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * Ft * X);
+      C = X * eig_solver.eigenvectors();
+    #else
+      { 
+        Matrix F_ortho = X.transpose() * Ft * X;
+        const auto n = F_ortho.rows(); 
+        std::vector<TensorType> F_eig(n);
+        auto INFO = LAPACKE_dsyevd(LAPACK_ROW_MAJOR, 'V', 'L', 
+          n, F_ortho.data(), n, &F_eig[0]);
+
+        C = X * F_ortho; //.transpose(); // col -> row major
+      }
+    #endif 
 
     // compute density, D = C(occ) . C(occ)T
     C_occ = C.leftCols(ndocc);

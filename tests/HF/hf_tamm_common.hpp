@@ -266,13 +266,40 @@ void scf_restart(const ExecutionContext& ec, const size_t& N, const std::string&
 
 void compute_hcore_guess(const int& ndocc,
       const libint2::BasisSet& shells,
-      const Matrix& SchwarzK, const Matrix& H, const Matrix& S,
+      const Matrix& SchwarzK, const Matrix& H, const Matrix& X,
       Matrix& F, Matrix& C, Matrix& C_occ, Matrix& D){
 
-      // solve H C = e S C
-    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(H, S);
-    auto eps = gen_eig_solver.eigenvalues();
-    C = gen_eig_solver.eigenvectors();
+    const int64_t N = H.rows();
+    const int64_t Northo = X.cols();
+    assert( N == Northo );
+
+#if 0
+    // solve H C = e S C
+    Eigen::SelfAdjointEigenSolver<Matrix> gen_eig_solver(X.transpose() * H * X);
+    auto eps_H = gen_eig_solver.eigenvalues();
+    C = X * gen_eig_solver.eigenvectors();
+#else
+
+    { // Scope temps
+    Matrix Hp = H;
+
+    C.resize(N, N);
+    linalg::blas::gemm( 'N', 'T', N, Northo, N,
+                        1., Hp.data(), N, X.data(), Northo, 
+                        0., C.data(), N );
+    linalg::blas::gemm( 'N', 'N', Northo, Northo, N,
+                        1., X.data(), Northo, C.data(), N, 
+                        0., Hp.data(), Northo );
+
+    std::vector<double> eps_H(Northo);
+    linalg::lapack::syevd( 'V', 'L', Northo, Hp.data(), Northo, eps_H.data() );
+
+    C.resize(N, Northo);
+    linalg::blas::gemm( 'T', 'N', Northo, N, Northo, 1., Hp.data(), Northo, X.data(), Northo, 0., C.data(), Northo );
+    }
+
+
+#endif
 
     // compute density, D = C(occ) . C(occ)T
     C_occ = C.leftCols(ndocc);
@@ -288,9 +315,31 @@ void compute_hcore_guess(const int& ndocc,
 
     F +=    compute_2body_fock(shells, D, 1e-8, SchwarzK);
 
-    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver1(F, S);
-    eps = gen_eig_solver1.eigenvalues();
-    C = gen_eig_solver1.eigenvectors();
+#if 0
+    Eigen::SelfAdjointEigenSolver<Matrix> gen_eig_solver1(X.transpose() * F * X);
+    auto eps_F = gen_eig_solver1.eigenvalues();
+    C = X * gen_eig_solver1.eigenvectors();
+#else
+
+    { // Scope temps
+    Matrix Fp = F;
+
+    C.resize(N, N);
+    linalg::blas::gemm( 'N', 'T', N, Northo, N,
+                        1., Fp.data(), N, X.data(), Northo, 
+                        0., C.data(), N );
+    linalg::blas::gemm( 'N', 'N', Northo, Northo, N,
+                        1., X.data(), Northo, C.data(), N, 
+                        0., Fp.data(), Northo );
+
+    std::vector<double> eps_F(Northo);
+    linalg::lapack::syevd( 'V', 'L', Northo, Fp.data(), Northo, eps_F.data() );
+
+    C.resize(N, Northo);
+    linalg::blas::gemm( 'T', 'N', Northo, N, Northo, 1., Fp.data(), Northo, X.data(), Northo, 0., C.data(), Northo );
+    }
+
+#endif
     // compute density, D = C(occ) . C(occ)T
     C_occ = C.leftCols(ndocc);
     D = C_occ * C_occ.transpose();
@@ -387,10 +436,43 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         // solve F C = e S C by (conditioned) transformation to F' C' = e C',
         // where
         // F' = X.transpose() . F . X; the original C is obtained as C = X . C'
+#if 0
         Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * F *
                                                         X);
         //eps = eig_solver.eigenvalues();
         C = X * eig_solver.eigenvectors();
+#else
+        const int64_t N = F.rows();
+        const int64_t Northo = X.cols();
+        assert( N == Northo );
+
+        Matrix Fp = F; // XXX: Can F be destroyed?
+        // TODO: Check for linear dep case
+
+        // Take into account row major
+        // X -> X**T
+        // Ft is [N,N]
+        // X**T is [Northo, N]
+        C.resize(N,N);
+        linalg::blas::gemm( 'N', 'T', N, Northo, N,
+                            1., Fp.data(), N, X.data(), Northo, 
+                            0., C.data(), N );
+        linalg::blas::gemm( 'N', 'N', Northo, Northo, N,
+                            1., X.data(), Northo, C.data(), N, 
+                            0., Fp.data(), Northo );
+
+        std::vector<double> eps(Northo);
+        linalg::lapack::syevd( 'V', 'L', Northo, Fp.data(), Northo, eps.data() );
+        // Take into account row major
+        // X -> X**T
+        // C -> C**T = Ft**T * X**T
+        // X**T is [Northo, N]
+        // Fp is [Northo, Northo]
+        // C**T is [Northo, N] 
+        C.resize(N, Northo);
+        linalg::blas::gemm( 'T', 'N', Northo, N, Northo, 1., Fp.data(), Northo, X.data(), Northo, 0., C.data(), Northo );
+
+#endif
 
         // compute density, D = C(occ) . C(occ)T
         C_occ = C.leftCols(ndocc);
@@ -1081,8 +1163,43 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     // solve F C = e S C by (conditioned) transformation to F' C' = e C',
     // where
     // F' = X.transpose() . F . X; the original C is obtained as C = X . C'
+#if 0
     Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * Ft * X);
     C = X * eig_solver.eigenvectors();
+#else
+
+    const int64_t Northo = X.cols();
+    assert( N == Northo );
+
+    // TODO: Check for linear dep case
+
+    // Take into account row major
+    // X -> X**T
+    // Ft is [N,N]
+    // X**T is [Northo, N]
+    C.resize(N,N);
+    linalg::blas::gemm( 'N', 'T', N, Northo, N,
+                        1., Ft.data(), N, X.data(), Northo, 
+                        0., C.data(), N );
+    linalg::blas::gemm( 'N', 'N', Northo, Northo, N,
+                        1., X.data(), Northo, C.data(), N, 
+                        0., Ft.data(), Northo );
+
+    //Ft = X.transpose() * Ft * X;
+
+    std::vector<double> eps(Northo);
+    linalg::lapack::syevd( 'V', 'L', Northo, Ft.data(), Northo, eps.data() );
+    // Take into account row major
+    // X -> X**T
+    // C -> C**T = Ft**T * X**T
+    // X**T is [Northo, N]
+    // Ft is [Northo, Northo]
+    // C**T is [Northo, N] 
+    C.resize(N, Northo);
+    linalg::blas::gemm( 'T', 'N', Northo, N, Northo, 1., Ft.data(), Northo, X.data(), Northo, 0., C.data(), Northo );
+
+#endif
+
 
     // compute density, D = C(occ) . C(occ)T
     C_occ = C.leftCols(ndocc);

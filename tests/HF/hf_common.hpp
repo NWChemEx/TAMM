@@ -10,6 +10,9 @@
 // #include <unsupported/Eigen/CXX11/Tensor>
 #include <unsupported/Eigen/MatrixFunctions>
 
+#define LINALG_ILP64
+#include "linalg.hpp"
+
 #include "input_parser.hpp"
 
 #ifdef _OPENMP
@@ -219,6 +222,7 @@ auto print_2e(Args&&... args){
 std::tuple<Matrix, Matrix, size_t, double, double> gensqrtinv(
     const Matrix& S, bool symmetric = false,
     double max_condition_number = 1e8) {
+#if 0
   Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(S);
   auto U = eig_solver.eigenvectors();
   auto s = eig_solver.eigenvalues();
@@ -250,6 +254,61 @@ std::tuple<Matrix, Matrix, size_t, double, double> gensqrtinv(
     X = X * U_cond.transpose();
     Xinv = Xinv * U_cond.transpose();
   }
+#else
+
+  // Eigendecompose S -> VsV**T
+  Eigen::MatrixXd V = S;
+  const int64_t N = S.rows();
+  std::vector<double> s(N);
+  linalg::lapack::syevd( 'V', 'L', N, V.data(), N, s.data() );
+
+  const auto condition_number = std::min(
+    s.back() / std::max( s.front(), std::numeric_limits<double>::min() ),
+    1.       / std::numeric_limits<double>::epsilon()
+  );
+
+  const auto threshold = s.back() / max_condition_number;
+  auto first_above_thresh = std::find_if( s.begin(), s.end(), [&](const auto& x){ return x >= threshold; } );
+  const auto result_condition_number = s.back() / *first_above_thresh;
+
+  const int64_t n_illcond = std::distance( s.begin(), first_above_thresh );
+  const int64_t n_cond    = N - n_illcond;
+
+  assert( n_cond == N ); //TODO: fix
+
+  auto* V_cond = V.data() + n_illcond * N;
+  Matrix X( N, n_cond ), Xinv( N, n_cond );
+
+  // Form canonical X/Xinv
+  for( auto i = 0; i < n_cond; ++i ) {
+
+    const auto srt = std::sqrt( *(first_above_thresh + i) );
+
+    // X is row major....
+    auto* X_col    = X.data()    + i;
+    auto* Xinv_col = Xinv.data() + i;
+
+    linalg::blas::copy( N, V_cond + i*N, 1, X_col,    N );
+    linalg::blas::copy( N, V_cond + i*N, 1, Xinv_col, N );
+    linalg::blas::scal( N, 1./srt, X_col,    N );
+    linalg::blas::scal( N, srt,    Xinv_col, N );
+
+  }  
+
+  if( symmetric ) {
+
+    assert( not symmetric );
+
+/*
+    // X is row major, thus we need to form X**T = V_cond * X**T
+    Matrix TMP = X;
+    X.resize( N, N );
+    linalg::blas::gemm( 'N', 'N', N, N, n_cond, 1., V_cond, N, TMP.data(), n_cond, 0., X.data(), N );
+*/
+
+  }
+
+#endif
   return std::make_tuple(X, Xinv, size_t(n_cond), condition_number,
                          result_condition_number);
 }

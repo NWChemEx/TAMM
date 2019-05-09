@@ -160,7 +160,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     hf_t1 = std::chrono::high_resolution_clock::now();
 
     if (use_hcore_guess) 
-      compute_hcore_guess(ndocc, shells, SchwarzK, H, S, F, C, C_occ, D);
+      compute_hcore_guess(ndocc, shells, SchwarzK, H, X, F, C, C_occ, D);
     else if (restart)
         scf_restart(exc, N, filename, ndocc, C, D);
     else   // SOAD as the guess density

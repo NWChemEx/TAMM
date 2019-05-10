@@ -273,6 +273,11 @@ void compute_hcore_guess(const int& ndocc,
     const int64_t Northo = X.cols();
     assert( N == Northo );
 
+    auto world = GA_MPI_Comm();
+    int world_rank, world_size;
+    MPI_Comm_rank( world, &world_rank );
+    MPI_Comm_size( world, &world_size );
+
 #if 0
     // solve H C = e S C
     Eigen::SelfAdjointEigenSolver<Matrix> gen_eig_solver(X.transpose() * H * X);
@@ -280,7 +285,8 @@ void compute_hcore_guess(const int& ndocc,
     C = X * gen_eig_solver.eigenvectors();
 #else
 
-    { // Scope temps
+    if( world_rank == 0 ) {
+
     Matrix Hp = H;
 
     C.resize(N, N);
@@ -296,8 +302,11 @@ void compute_hcore_guess(const int& ndocc,
 
     C.resize(N, Northo);
     linalg::blas::gemm( 'T', 'N', Northo, N, Northo, 1., Hp.data(), Northo, X.data(), Northo, 0., C.data(), Northo );
-    }
 
+    } else C.resize(N, Northo);
+
+    if( world_size > 1 )
+      MPI_Bcast( C.data(), C.size(), MPI_DOUBLE, 0, world );
 
 #endif
 
@@ -321,7 +330,7 @@ void compute_hcore_guess(const int& ndocc,
     C = X * gen_eig_solver1.eigenvectors();
 #else
 
-    { // Scope temps
+    if( world_rank == 0 ) {
     Matrix Fp = F;
 
     C.resize(N, N);
@@ -337,7 +346,10 @@ void compute_hcore_guess(const int& ndocc,
 
     C.resize(N, Northo);
     linalg::blas::gemm( 'T', 'N', Northo, N, Northo, 1., Fp.data(), Northo, X.data(), Northo, 0., C.data(), Northo );
-    }
+    } else C.resize(N, Northo);
+
+    if( world_size > 1 )
+      MPI_Bcast( C.data(), C.size(), MPI_DOUBLE, 0, world );
 
 #endif
     // compute density, D = C(occ) . C(occ)T
@@ -446,6 +458,7 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         const int64_t Northo = X.cols();
         assert( N == Northo );
 
+        if( rank == 0 ) {
         Matrix Fp = F; // XXX: Can F be destroyed?
         // TODO: Check for linear dep case
 
@@ -472,6 +485,11 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         C.resize(N, Northo);
         linalg::blas::gemm( 'T', 'N', Northo, N, Northo, 1., Fp.data(), Northo, X.data(), Northo, 0., C.data(), Northo );
 
+        } else C.resize( N, Northo );
+
+
+        if( ec.pg().size() > 1 )
+          MPI_Bcast( C.data(), C.size(), MPI_DOUBLE, 0, ec.pg().comm() );
 #endif
 
         // compute density, D = C(occ) . C(occ)T
@@ -962,7 +980,8 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
       const std::string& basis, const Matrix& X, const Matrix& H, 
       Matrix& C, Matrix& C_occ, Matrix& D){
 
-    const auto rank = ec.pg().rank();
+    const auto rank       = ec.pg().rank();
+    const auto world_size = ec.pg().size();
     const auto N = nbasis(shells);
     
     auto D_minbs = compute_soad(atoms);  // compute guess in minimal basis
@@ -1171,6 +1190,8 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     const int64_t Northo = X.cols();
     assert( N == Northo );
 
+    if( rank == 0 ) {
+
     // TODO: Check for linear dep case
 
     // Take into account row major
@@ -1197,6 +1218,11 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     // C**T is [Northo, N] 
     C.resize(N, Northo);
     linalg::blas::gemm( 'T', 'N', Northo, N, Northo, 1., Ft.data(), Northo, X.data(), Northo, 0., C.data(), Northo );
+
+    } else C.resize(N, Northo);
+
+    if( world_size > 1 ) 
+      MPI_Bcast( C.data(), C.size(), MPI_DOUBLE, 0, ec.pg().comm() );
 
 #endif
 

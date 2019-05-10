@@ -20,17 +20,6 @@
 
 #include "hf_tamm_common.hpp"
 
-// CXXBLACS BLACS/ScaLAPACK wrapper
-// #define SCALAPACK 
-#ifdef SCALAPACK
-  #define CXXBLACS_HAS_LAPACK
-  #define CB_INT TAMM_LAPACK_INT
-  #define CXXBLACS_LAPACK_Complex16 TAMM_LAPACK_COMPLEX16
-  #define CXXBLACS_LAPACK_Complex8 TAMM_LAPACK_COMPLEX8
-  
-  #include <cxxblacs.hpp>
-#endif
-
 #define SCALE_DOWN_RESOURCES_HF 0
 
 std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace> 
@@ -174,14 +163,9 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     #endif
 
     #ifdef SCALAPACK
-
-      // Get MPI Comm
-      // MPI_Comm comm = ec.pg().comm();
-
       // Define a BLACS grid
       const CB_INT MB = 128; // TODO: add toggle
-      CXXBLACS::BlacsGrid blacs_grid(  ec.pg().comm(), MB, MB );
-      
+      blacs_grid = new CXXBLACS::BlacsGrid(  ec.pg().comm(), MB, MB );
     #endif
 
     /*** =========================== ***/

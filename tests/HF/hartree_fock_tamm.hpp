@@ -95,7 +95,9 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     
     if(rank == 0) {
       cout << "\nNumber of nodes, mpi ranks per node provided: " << nnodes << ", " << ppn << endl;
-      cout << "Number of nodes, mpi ranks per node used for SCF calculation: " << hf_nnodes << ", " << ppn << endl;
+      #if SCALE_DOWN_RESOURCES_HF
+        cout << "Number of nodes, mpi ranks per node used for SCF calculation: " << hf_nnodes << ", " << ppn << endl;
+      #endif
       scf_options.print();
     }
 
@@ -218,7 +220,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     hf_t1 = std::chrono::high_resolution_clock::now();
 
     if (use_hcore_guess) 
-      compute_hcore_guess(ndocc, shells, SchwarzK, H, S, F, C, C_occ, D);
+      compute_hcore_guess(ndocc, shells, SchwarzK, H, X, F, C, C_occ, D);
     else if (restart)
         scf_restart(ec, N, filename, ndocc, C, D);
     else   // SOAD as the guess density
@@ -280,8 +282,6 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     eigen_to_tamm_tensor(D_tamm,D);
     // Matrix err_mat = Matrix::Zero(N,N);
 
-
-
     F = Matrix::Zero(N,N);
     // double precision = tol_int;
     const libint2::BasisSet& obs = shells;
@@ -295,9 +295,6 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     auto max_nprim4 = max_nprim * max_nprim * max_nprim * max_nprim;
     auto shell2bf = obs.shell2bf();
     // const auto nshells = obs.size();
-
-    Scheduler{ec}
-        (D_diff(mu,nu) = D_tamm(mu,nu)).execute();
 
     //DF basis
     IndexSpace dfCocc{range(0,ndocc)}; 

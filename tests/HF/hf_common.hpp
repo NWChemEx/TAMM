@@ -21,7 +21,7 @@
 #include "macdecls.h"
 #include "ga-mpi.h"
 
-#include LAPACKE_HEADER
+#include "linalg.hpp"
 
 using namespace tamm;
 using std::cerr;
@@ -222,6 +222,7 @@ auto print_2e(Args&&... args){
 std::tuple<Matrix, Matrix, size_t, double, double> gensqrtinv(
     const Matrix& S, bool symmetric = false,
     double max_condition_number = 1e8) {
+#if 0
   Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(S);
   auto U = eig_solver.eigenvectors();
   auto s = eig_solver.eigenvalues();
@@ -253,6 +254,90 @@ std::tuple<Matrix, Matrix, size_t, double, double> gensqrtinv(
     X = X * U_cond.transpose();
     Xinv = Xinv * U_cond.transpose();
   }
+#else
+
+  auto world = GA_MPI_Comm();
+  int world_rank, world_size;
+  MPI_Comm_rank( world, &world_rank );
+  MPI_Comm_size( world, &world_size );
+
+  int64_t n_cond;
+  double condition_number, result_condition_number;
+  Matrix X, Xinv;
+
+  const int64_t N = S.rows();
+
+  if( world_rank == 0 ) {
+
+  // Eigendecompose S -> VsV**T
+  Eigen::MatrixXd V = S;
+  std::vector<double> s(N);
+  linalg::lapack::syevd( 'V', 'L', N, V.data(), N, s.data() );
+
+  condition_number = std::min(
+    s.back() / std::max( s.front(), std::numeric_limits<double>::min() ),
+    1.       / std::numeric_limits<double>::epsilon()
+  );
+
+  const auto threshold = s.back() / max_condition_number;
+  auto first_above_thresh = std::find_if( s.begin(), s.end(), [&](const auto& x){ return x >= threshold; } );
+  result_condition_number = s.back() / *first_above_thresh;
+
+  const int64_t n_illcond = std::distance( s.begin(), first_above_thresh );
+  n_cond    = N - n_illcond;
+
+  assert( n_cond == N ); //TODO: fix
+
+  auto* V_cond = V.data() + n_illcond * N;
+  X.resize( N, n_cond ); Xinv.resize( N, n_cond );
+
+  // Form canonical X/Xinv
+  for( auto i = 0; i < n_cond; ++i ) {
+
+    const auto srt = std::sqrt( *(first_above_thresh + i) );
+
+    // X is row major....
+    auto* X_col    = X.data()    + i;
+    auto* Xinv_col = Xinv.data() + i;
+
+    linalg::blas::copy( N, V_cond + i*N, 1, X_col,    N );
+    linalg::blas::copy( N, V_cond + i*N, 1, Xinv_col, N );
+    linalg::blas::scal( N, 1./srt, X_col,    N );
+    linalg::blas::scal( N, srt,    Xinv_col, N );
+
+  }  
+
+  if( symmetric ) {
+
+    assert( not symmetric );
+
+/*
+    // X is row major, thus we need to form X**T = V_cond * X**T
+    Matrix TMP = X;
+    X.resize( N, N );
+    linalg::blas::gemm( 'N', 'N', N, N, n_cond, 1., V_cond, N, TMP.data(), n_cond, 0., X.data(), N );
+*/
+
+  }
+  } // compute on root 
+
+
+  if( world_size > 1 ) {
+
+    // TODO: Should buffer this
+    MPI_Bcast( &n_cond,                  1, MPI_INT64_T, 0, world );
+    MPI_Bcast( &condition_number,        1, MPI_DOUBLE,  0, world );
+    MPI_Bcast( &result_condition_number, 1, MPI_DOUBLE,  0, world );
+
+    if( world_rank != 0 ) {
+      X.resize( N, n_cond ); Xinv.resize(N, n_cond);
+    }
+
+    MPI_Bcast( X.data(),    X.size(),    MPI_DOUBLE, 0, world );
+    MPI_Bcast( Xinv.data(), Xinv.size(), MPI_DOUBLE, 0, world );
+  }
+
+#endif
   return std::make_tuple(X, Xinv, size_t(n_cond), condition_number,
                          result_condition_number);
 }

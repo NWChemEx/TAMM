@@ -293,11 +293,17 @@ void compute_hcore_guess(const int& ndocc,
     MPI_Comm_rank( world, &world_rank );
     MPI_Comm_size( world, &world_size );
 
-#if 0
+#ifdef SCALAPACK 
+    //TODO
     // solve H C = e S C
     Eigen::SelfAdjointEigenSolver<Matrix> gen_eig_solver(X.transpose() * H * X);
     auto eps_H = gen_eig_solver.eigenvalues();
     C = X * gen_eig_solver.eigenvectors();
+#elif defined(EIGEN_DIAG)
+    // solve H C = e S C
+    Eigen::SelfAdjointEigenSolver<Matrix> gen_eig_solver(X.transpose() * H * X);
+    auto eps_H = gen_eig_solver.eigenvalues();
+    C = X * gen_eig_solver.eigenvectors();    
 #else
 
     if( world_rank == 0 ) {
@@ -339,7 +345,11 @@ void compute_hcore_guess(const int& ndocc,
 
     F +=    compute_2body_fock(shells, D, 1e-8, SchwarzK);
 
-#if 0
+#ifdef SCALAPACK
+    Eigen::SelfAdjointEigenSolver<Matrix> gen_eig_solver1(X.transpose() * F * X);
+    auto eps_F = gen_eig_solver1.eigenvalues();
+    C = X * gen_eig_solver1.eigenvectors();
+#elif defined(EIGEN_DIAG)
     Eigen::SelfAdjointEigenSolver<Matrix> gen_eig_solver1(X.transpose() * F * X);
     auto eps_F = gen_eig_solver1.eigenvalues();
     C = X * gen_eig_solver1.eigenvectors();
@@ -385,6 +395,8 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       std::vector<tamm::Tensor<TensorType>>& fock_hist){
 
         Scheduler sch{ec};
+
+        const int64_t N = F.rows();
 
         auto rank = ec.pg().rank(); 
         auto debug = scf_options.debug;
@@ -468,24 +480,24 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         #ifdef SCALAPACK
 
                 // Allocate space for C_ortho
-                decltype( F ) C_ortho( F.rows(), F.cols() );
+                Matrix C_ortho( F.rows(), F.cols() );
                 
                 { // Scope temp data
 
-                decltype( F ) F_ortho = X.transpose() * F * X;
-                auto [MLoc, NLoc] = blacs_grid.getLocalDims( N, N );
+                Matrix F_ortho = X.transpose() * F * X;
+                auto [MLoc, NLoc] = (*blacs_grid).getLocalDims( N, N );
 
 
                 std::vector< double > F_ortho_loc( MLoc*NLoc );
                 std::vector< double > C_ortho_loc( MLoc*NLoc );
                 std::vector< double > F_eig( F.rows() );
 
-                auto DescF = blacs_grid.descInit( N, N, 0, 0, MLoc );
+                auto DescF = (*blacs_grid).descInit( N, N, 0, 0, MLoc );
 
                 // Scatter copy of F_ortho from root rank to all ranks
                 // FIXME: should just grab local data from replicated 
                 //   matrix
-                blacs_grid.Scatter( N, N, F_ortho.data(), N, 
+                (*blacs_grid).Scatter( N, N, F_ortho.data(), N, 
                                     F_ortho_loc.data(), MLoc,
                                     0, 0 );
 
@@ -507,16 +519,17 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
                 WORK.resize(LWORK);
 
                 // Perform diagonalization
-                auto info = scalapack_diag();
+                //auto info = 
+                scalapack_diag();
 
 
                 // Gather the eigenvectors to root process and replicate
-                blacs_grid.Gather( N, N, C_ortho.data(), N, 
+                (*blacs_grid).Gather( N, N, C_ortho.data(), N, 
                                   C_ortho_loc.data(), MLoc,
                                   0,0 );
 
                 MPI_Bcast( C_ortho.data(), C_ortho.size(), MPI_DOUBLE,
-                          0, comm );
+                          0, ec.pg().comm() );
                           
 
                 C_ortho.transposeInPlace(); // Col -> Row Major
@@ -537,7 +550,6 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         
         #else
         
-          const int64_t N = F.rows();
           const int64_t Northo = X.cols();
           assert( N == Northo );
 
@@ -1278,7 +1290,12 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     // where
     // F' = X.transpose() . F . X; the original C is obtained as C = X . C'
 
-    #ifdef EIGEN_DIAG
+    #ifdef SCALAPACK
+      //TODO
+      Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * Ft * X);
+      C = X * eig_solver.eigenvectors();
+
+    #elif defined(EIGEN_DIAG)
       Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * Ft * X);
       C = X * eig_solver.eigenvectors();
     

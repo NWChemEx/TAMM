@@ -21,7 +21,19 @@
 #include "macdecls.h"
 #include "ga-mpi.h"
 
-#include "linalg.hpp"
+// #define SCALAPACK 
+#ifndef SCALAPACK
+  #include "linalg.hpp"
+#else
+  // CXXBLACS BLACS/ScaLAPACK wrapper
+  #include LAPACKE_HEADER
+  #define CXXBLACS_HAS_LAPACK
+  #define CB_INT TAMM_LAPACK_INT
+  #define CXXBLACS_LAPACK_Complex16 TAMM_LAPACK_COMPLEX16
+  #define CXXBLACS_LAPACK_Complex8 TAMM_LAPACK_COMPLEX8
+  #include <cxxblacs.hpp>
+  CXXBLACS::BlacsGrid *blacs_grid;
+#endif
 
 using namespace tamm;
 using std::cerr;
@@ -222,7 +234,7 @@ auto print_2e(Args&&... args){
 std::tuple<Matrix, Matrix, size_t, double, double> gensqrtinv(
     const Matrix& S, bool symmetric = false,
     double max_condition_number = 1e8) {
-#if 0
+#ifdef SCALAPACK
   Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(S);
   auto U = eig_solver.eigenvectors();
   auto s = eig_solver.eigenvalues();

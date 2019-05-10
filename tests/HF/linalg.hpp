@@ -144,11 +144,13 @@ extern "C" {
 //                 const linalg::nwx_lapack_int*, double*, 
 //                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int* );
 
-//   void dsyevd_( char*, char*, 
-//                 const linalg::nwx_lapack_int*, double*,
-//                 const linalg::nwx_lapack_int*, double*, double*, 
-//                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int*,
-//                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int* );
+ #if __essl
+  void dsyevd_( char*, char*, 
+                const linalg::nwx_lapack_int*, double*,
+                const linalg::nwx_lapack_int*, double*, double*, 
+                const linalg::nwx_lapack_int*, linalg::nwx_lapack_int*,
+                const linalg::nwx_lapack_int*, linalg::nwx_lapack_int* );
+ #endif
 
 //   void dsygvd_( const linalg::nwx_lapack_int*, char*, 
 //                 char*, const linalg::nwx_lapack_int*, double*,

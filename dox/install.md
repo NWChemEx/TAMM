@@ -146,6 +146,8 @@ module load cuda/9.2
 
  
 ```
+export CRAYPE_LINK_TYPE=dynamic
+
 export TAMM_INSTALL_PATH=/global/homes/p/user/code/NWChemEx/install
 export INTEL_ROOT=/opt/intel/compilers_and_libraries_2018.1.163
 
@@ -165,5 +167,3 @@ cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC \
 For CUDA build, add -DNWX_CUDA=ON
 
 ```
-
-

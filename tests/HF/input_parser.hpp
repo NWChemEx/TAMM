@@ -136,12 +136,15 @@ class CCSDOptions: public Options {
     icuda = 0;
     eom_threshold = 1e-10;
     eom_microiter = o.maxiter;
+    writet = false;
+    readt = false;
   }
 
   int eom_nroots;
   int tilesize;
   int icuda;
   int eom_microiter;
+  bool readt, writet;
   double threshold;
   double eom_threshold;
 
@@ -152,6 +155,8 @@ class CCSDOptions: public Options {
     cout << " #cuda = " << icuda << endl;
     cout << " threshold = " << threshold << endl;
     cout << " tilesize = " << tilesize << endl;
+    cout << " readt = " << readt << endl;
+    cout << " writet = " << writet << endl;
     cout << " eom_nroots = " << eom_nroots << endl;
     cout << " eom_microiter = " << eom_microiter << endl;
     cout << " eom_threshold = " << eom_threshold << endl;
@@ -455,7 +460,11 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("cuda",line))
             ccsd_options.icuda = std::stoi(read_option(line));            
           else if(is_in_line("debug",line))
-            ccsd_options.debug = to_bool(read_option(line));                               
+            ccsd_options.debug = to_bool(read_option(line)); 
+          else if(is_in_line("readt",line))
+            ccsd_options.readt = to_bool(read_option(line)); 
+          else if(is_in_line("writet",line))
+            ccsd_options.writet = to_bool(read_option(line));                                                       
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line, "CCSD");
 

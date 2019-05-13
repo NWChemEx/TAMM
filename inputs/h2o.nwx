@@ -24,7 +24,7 @@ SCF
     diis_hist 10
     tilesize 30
     //debug true
-    //restart true
+    restart true
 }
 
 CD {
@@ -36,7 +36,10 @@ CD {
 CCSD {
     //cuda 2
     threshold 1e-10
-    debug false
+    tilesize 30
+    //readt true
+    //writet true
+    //debug true
     //eom_nroots 4
     //eom_threshold 1e-10
     //eom_microiter 25

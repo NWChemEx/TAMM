@@ -235,6 +235,101 @@ void fill_tensor(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
 }
 
 /**
+ * @brief write tensor to disk
+ *
+ * @tparam TensorType the type of the elements in the tensor
+ * @param ec Execution context used in the blockfor
+ * @param tensor to write to disk
+ * @param filename to write to disk
+ */
+template<typename TensorType>
+void write_to_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::string& filename) {
+
+    MPI_File fh;
+    MPI_Info info;
+    MPI_Info_create(&info);
+    MPI_Info_set(info,"romio_cb_write", "enable");
+    MPI_Info_set(info,"striping_unit","4194304");                    
+    MPI_File_open(ec.pg().comm(), filename.c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY,
+                 info, &fh);
+    MPI_Info_free(&info);                 
+
+    auto ltensor = tensor();
+    LabelLoopNest loop_nest{ltensor.labels()};
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+        const auto ndims = block_dims.size();
+
+        auto file_offset = 0;
+        for(const IndexVector& pbid : loop_nest) {
+            if(pbid==blockid) break;
+            file_offset += tensor.block_size(pbid);
+        }
+
+        file_offset = file_offset*sizeof(TensorType);
+
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+        MPI_File_write_at_all(fh,file_offset,&dbuf[0],dsize,MPI_DOUBLE,MPI_STATUS_IGNORE);
+    };
+    block_for(ec, ltensor, lambda);
+
+    MPI_File_close(&fh);
+}
+
+
+/**
+ * @brief read tensor from disk
+ *
+ * @tparam TensorType the type of the elements in the tensor
+ * @param ec Execution context used in the blockfor
+ * @param tensor to read into 
+ * @param filename to read from disk
+ */
+template<typename TensorType>
+void read_from_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::string& filename) {
+
+    MPI_File fh;
+    MPI_Info info;
+    MPI_Info_create(&info);
+    MPI_Info_set(info,"romio_cb_read", "enable");
+    MPI_Info_set(info,"striping_unit","4194304"); 
+
+    MPI_File_open(ec.pg().comm(), filename.c_str(), MPI_MODE_RDONLY,
+                    info, &fh);
+    MPI_Info_free(&info);                     
+
+    auto ltensor = tensor();
+    LabelLoopNest loop_nest{ltensor.labels()};                    
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+
+        auto file_offset = 0;
+        for(const IndexVector& pbid : loop_nest) {
+            if(pbid==blockid) break;
+            file_offset += tensor.block_size(pbid);
+        }
+
+        file_offset = file_offset*sizeof(TensorType);
+
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        MPI_File_read_at_all(fh,file_offset,&dbuf[0],dsize,MPI_DOUBLE,MPI_STATUS_IGNORE);
+        tensor.put(blockid,dbuf);
+    };
+    block_for(ec, ltensor, lambda);
+
+    MPI_File_close(&fh);
+}
+
+/**
  * @brief applies a function elementwise to a tensor
  *
  * @tparam TensorType the type of the elements in the tensor

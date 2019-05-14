@@ -73,6 +73,8 @@ class SCFOptions: public Options {
       diis_hist = 10;
       AO_tilesize = 30;
       restart = false;
+      scalapack_nb = 1;
+      scalapack_nranks = 1;
     }
 
   double tol_int; //tolerance for integral engine
@@ -81,7 +83,9 @@ class SCFOptions: public Options {
   double convd; //density convergence
   int diis_hist; //number of diis history entries
   int AO_tilesize; 
-  bool restart; //Read orbitals from disk
+  bool restart; //Read movecs from disk
+  int scalapack_nb;
+  int scalapack_nranks;  
 
     void print() {
       std::cout << std::defaultfloat;
@@ -92,7 +96,9 @@ class SCFOptions: public Options {
       cout << " conve = " << conve << endl;
       cout << " convd = " << convd << endl;
       cout << " diis_hist = " << diis_hist << endl;
-      cout << " AO_tilesize = " << AO_tilesize << endl;      
+      cout << " AO_tilesize = " << AO_tilesize << endl;     
+      if(scalapack_nb>1) cout << " scalapack_nb = " << scalapack_nb << endl;
+      if(scalapack_nranks>1) cout << " scalapack_nranks = " << scalapack_nranks << endl;
       print_bool(" restart", restart);
       print_bool(" debug", debug); 
       cout << "}\n";
@@ -136,12 +142,15 @@ class CCSDOptions: public Options {
     icuda = 0;
     eom_threshold = 1e-10;
     eom_microiter = o.maxiter;
+    writet = false;
+    readt = false;
   }
 
   int eom_nroots;
   int tilesize;
   int icuda;
   int eom_microiter;
+  bool readt, writet;
   double threshold;
   double eom_threshold;
 
@@ -152,6 +161,8 @@ class CCSDOptions: public Options {
     cout << " #cuda = " << icuda << endl;
     cout << " threshold = " << threshold << endl;
     cout << " tilesize = " << tilesize << endl;
+    cout << " readt = " << readt << endl;
+    cout << " writet = " << writet << endl;
     cout << " eom_nroots = " << eom_nroots << endl;
     cout << " eom_microiter = " << eom_microiter << endl;
     cout << " eom_threshold = " << eom_threshold << endl;
@@ -408,7 +419,11 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("restart",line))
             scf_options.restart = to_bool(read_option(line));        
           else if(is_in_line("debug",line))
-            scf_options.debug = to_bool(read_option(line));                                           
+            scf_options.debug = to_bool(read_option(line));         
+          else if(is_in_line("scalapack_nb",line)) 
+            scf_options.scalapack_nb = std::stoi(read_option(line));   
+          else if(is_in_line("scalapack_nranks",line)) 
+            scf_options.scalapack_nranks = std::stoi(read_option(line));                                                             
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line,"SCF");
           
@@ -455,7 +470,11 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("cuda",line))
             ccsd_options.icuda = std::stoi(read_option(line));            
           else if(is_in_line("debug",line))
-            ccsd_options.debug = to_bool(read_option(line));                               
+            ccsd_options.debug = to_bool(read_option(line)); 
+          else if(is_in_line("readt",line))
+            ccsd_options.readt = to_bool(read_option(line)); 
+          else if(is_in_line("writet",line))
+            ccsd_options.writet = to_bool(read_option(line));                                                       
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line, "CCSD");
 

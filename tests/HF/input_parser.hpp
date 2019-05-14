@@ -73,6 +73,8 @@ class SCFOptions: public Options {
       diis_hist = 10;
       AO_tilesize = 30;
       restart = false;
+      scalapack_nb = 1;
+      scalapack_nranks = 1;
     }
 
   double tol_int; //tolerance for integral engine
@@ -81,7 +83,9 @@ class SCFOptions: public Options {
   double convd; //density convergence
   int diis_hist; //number of diis history entries
   int AO_tilesize; 
-  bool restart; //Read orbitals from disk
+  bool restart; //Read movecs from disk
+  int scalapack_nb;
+  int scalapack_nranks;  
 
     void print() {
       std::cout << std::defaultfloat;
@@ -92,7 +96,9 @@ class SCFOptions: public Options {
       cout << " conve = " << conve << endl;
       cout << " convd = " << convd << endl;
       cout << " diis_hist = " << diis_hist << endl;
-      cout << " AO_tilesize = " << AO_tilesize << endl;      
+      cout << " AO_tilesize = " << AO_tilesize << endl;     
+      if(scalapack_nb>1) cout << " scalapack_nb = " << scalapack_nb << endl;
+      if(scalapack_nranks>1) cout << " scalapack_nranks = " << scalapack_nranks << endl;
       print_bool(" restart", restart);
       print_bool(" debug", debug); 
       cout << "}\n";
@@ -413,7 +419,11 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("restart",line))
             scf_options.restart = to_bool(read_option(line));        
           else if(is_in_line("debug",line))
-            scf_options.debug = to_bool(read_option(line));                                           
+            scf_options.debug = to_bool(read_option(line));         
+          else if(is_in_line("scalapack_nb",line)) 
+            scf_options.scalapack_nb = std::stoi(read_option(line));   
+          else if(is_in_line("scalapack_nranks",line)) 
+            scf_options.scalapack_nranks = std::stoi(read_option(line));                                                             
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line,"SCF");
           

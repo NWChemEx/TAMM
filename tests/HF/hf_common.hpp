@@ -34,6 +34,7 @@
   #include <cxxblacs.hpp>
   CXXBLACS::BlacsGrid *blacs_grid;
 #endif
+#undef I
 
 using namespace tamm;
 using std::cerr;

@@ -164,7 +164,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     #ifdef SCALAPACK
       // Define a BLACS grid
-      const CB_INT MB = 128; // TODO: add toggle
+      const CB_INT MB = scf_options.scalapack_nb; 
       blacs_grid = new CXXBLACS::BlacsGrid(  ec.pg().comm(), MB, MB );
     #endif
 

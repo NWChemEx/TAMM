@@ -372,6 +372,14 @@ void ccsd_driver() {
 
     auto cc_t1 = std::chrono::high_resolution_clock::now();
 
+    std::string t1file = getfilename(filename)+"."+ccsd_options.basis+".t1amp";
+    std::string t2file = getfilename(filename)+"."+ccsd_options.basis+".t2amp";
+    
+    if(ccsd_options.readt) {
+        read_from_disk(ec,d_t1,t1file);
+        read_from_disk(ec,d_t2,t2file);
+    }
+
     auto [residual, corr_energy] = ccsd_driver<T>(
             ec, MO, CV, d_t1, d_t2, d_f1, 
             d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
@@ -380,6 +388,11 @@ void ccsd_driver() {
             2 * ov_alpha, cholVpr);
 
     ccsd_stats(ec, hf_energy,residual,corr_energy,thresh);
+
+    if(ccsd_options.writet) {
+        write_to_disk(ec,d_t1,t1file);
+        write_to_disk(ec,d_t2,t2file);
+    }
 
     auto cc_t2 = std::chrono::high_resolution_clock::now();
     double ccsd_time = 

@@ -27,7 +27,7 @@
 #else
   // CXXBLACS BLACS/ScaLAPACK wrapper
   #include LAPACKE_HEADER
-  #define CXXBLACS_HAS_LAPACK
+  // #define CXXBLACS_HAS_LAPACK
   #define CB_INT TAMM_LAPACK_INT
   #define CXXBLACS_LAPACK_Complex16 TAMM_LAPACK_COMPLEX16
   #define CXXBLACS_LAPACK_Complex8 TAMM_LAPACK_COMPLEX8
@@ -190,7 +190,7 @@ std::string getfilename(std::string filename){
 void writeC(Matrix& C, std::string filename, OptionsMap options){
   if(options.scf_options.restart) return;
   std::string outputfile = getfilename(filename) +
-        "." + options.scf_options.basis + ".orbitals";
+        "." + options.scf_options.basis + ".movecs";
   const auto N = C.rows();
   std::vector<TensorType> Cbuf(N*N);
   TensorType *Hbuf = Cbuf.data();

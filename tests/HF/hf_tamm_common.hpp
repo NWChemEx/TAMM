@@ -250,15 +250,15 @@ void scf_restart(const ExecutionContext& ec, const size_t& N, const std::string&
     std::vector<TensorType> Dbuf(N*N);
     TensorType *Dbufp = &Dbuf[0];
     int rstatus = 0;
-    std::string orbitalsfile = getfilename(filename) +
-       "." + scf_options.basis + ".orbitals";
+    std::string movecsfile = getfilename(filename) +
+       "." + scf_options.basis + ".movecs";
 
     if(rank==0) 
     {
-      cout << "Reading orbitals from file... ";
+      cout << "Reading movecs from file... ";
       std::vector<TensorType> Cbuf(N*N);
       TensorType *Hbuf = &Cbuf[0];
-      std::ifstream in(orbitalsfile, std::ios::in | std::ios::binary);
+      std::ifstream in(movecsfile, std::ios::in | std::ios::binary);
       if(in.is_open()) rstatus = 1;
       if(rstatus == 1){
         in.read((char *) Hbuf, sizeof(TensorType)*N*N);
@@ -271,7 +271,7 @@ void scf_restart(const ExecutionContext& ec, const size_t& N, const std::string&
     }
     ec.pg().barrier();
     GA_Brdcst(&rstatus,sizeof(int),0);
-    if(rstatus == 0) nwx_terminate("Error reading " + orbitalsfile);
+    if(rstatus == 0) nwx_terminate("Error reading " + movecsfile);
     GA_Brdcst(Dbufp,N*N*sizeof(TensorType),0);
     D = Eigen::Map<Matrix>(Dbufp,N,N);
     //Dbuf.clear();

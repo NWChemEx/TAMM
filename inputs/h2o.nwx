@@ -24,7 +24,9 @@ SCF
     diis_hist 10
     tilesize 30
     //debug true
-    restart true
+    //restart true
+    //scalapack_nb 1
+    //scalapack_nranks 1
 }
 
 CD {

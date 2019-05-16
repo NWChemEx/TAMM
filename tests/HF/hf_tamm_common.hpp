@@ -118,7 +118,7 @@ std::tuple<std::vector<size_t>, std::vector<Tile>, std::vector<Tile>>
       auto N = nbasis(shells);
   
     //heuristic to set tilesize to atleast 5% of nbf
-    if(tile_size < N*0.05) {
+    if(tile_size < N*0.05 && !scf_options.force_tilesize) {
       tile_size = std::ceil(N*0.05);
       if(rank == 0) cout << "***** Reset tilesize to nbf*5% = " << tile_size << endl;
     }

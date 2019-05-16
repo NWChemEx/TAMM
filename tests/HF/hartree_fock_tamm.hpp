@@ -366,7 +366,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
             std::cout << ' ' << std::setw(16)  << ediff;
             std::cout << ' ' << std::setw(15)  << rmsd << ' ';
             std::cout << std::fixed << std::setprecision(2);
-            std::cout << ' ' << std::setw(12)  << loop_time << ' ' << "\n";
+            std::cout << ' ' << std::setw(12)  << loop_time << ' ' << "\n" << std::flush;
         }
 
         // if(rank==0)

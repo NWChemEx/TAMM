@@ -21,7 +21,7 @@
 #include "macdecls.h"
 #include "ga-mpi.h"
 
-// #define SCALAPACK 
+// #define EIGEN_DIAG 
 #ifndef SCALAPACK
   #include "linalg.hpp"
 #else
@@ -34,7 +34,7 @@
   #include <cxxblacs.hpp>
   CXXBLACS::BlacsGrid *blacs_grid;
 #endif
-#undef I
+#undef I 
 
 using namespace tamm;
 using std::cerr;

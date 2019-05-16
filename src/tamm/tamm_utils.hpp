@@ -2,6 +2,7 @@
 #define TAMM_TAMM_UTILS_HPP_
 
 #include <vector>
+#include <chrono>
 
 namespace tamm {
 /**
@@ -245,40 +246,52 @@ void fill_tensor(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
 template<typename TensorType>
 void write_to_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::string& filename) {
 
+    auto io_t1 = std::chrono::high_resolution_clock::now();
+
     MPI_File fh;
     MPI_Info info;
+    MPI_Status status;
+    MPI_Offset file_offset;
     MPI_Info_create(&info);
-    MPI_Info_set(info,"romio_cb_write", "enable");
-    MPI_Info_set(info,"striping_unit","4194304");                    
+    // MPI_Info_set(info,"romio_cb_write", "enable");
+    // MPI_Info_set(info,"striping_unit","4194304");                    
+    MPI_Info_set(info,"cb_nodes",std::to_string(GA_Cluster_nnodes()).c_str());    
     MPI_File_open(ec.pg().comm(), filename.c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY,
                  info, &fh);
     MPI_Info_free(&info);                 
-
+    
     auto ltensor = tensor();
-    LabelLoopNest loop_nest{ltensor.labels()};
+    LabelLoopNest loop_nest{ltensor.labels()};    
 
     auto lambda = [&](const IndexVector& bid) {
         const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
-        auto block_dims   = tensor.block_dims(blockid);
-        auto block_offset = tensor.block_offsets(blockid);
-        const auto ndims = block_dims.size();
 
-        auto file_offset = 0;
+        file_offset = 0;
         for(const IndexVector& pbid : loop_nest) {
             if(pbid==blockid) break;
             file_offset += tensor.block_size(pbid);
         }
 
         file_offset = file_offset*sizeof(TensorType);
-
+        
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
         std::vector<TensorType> dbuf(dsize);
         tensor.get(blockid, dbuf);
-        MPI_File_write_at_all(fh,file_offset,&dbuf[0],dsize,MPI_DOUBLE,MPI_STATUS_IGNORE);
+
+        MPI_File_write_at(fh,file_offset,reinterpret_cast<void*>(&dbuf[0]),
+                          static_cast<int>(dsize),MPI_DOUBLE,&status);
+
     };
     block_for(ec, ltensor, lambda);
 
     MPI_File_close(&fh);
+
+    auto io_t2 = std::chrono::high_resolution_clock::now();
+
+    double io_time = 
+        std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
+    if(ec.pg().rank() == 0) std::cout << "Time for writing " << filename << " to disk: " << io_time << " secs\n";
+
 }
 
 
@@ -293,11 +306,16 @@ void write_to_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::s
 template<typename TensorType>
 void read_from_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::string& filename) {
 
+    auto io_t1 = std::chrono::high_resolution_clock::now();
+
     MPI_File fh;
     MPI_Info info;
+    MPI_Status status;
+    MPI_Offset file_offset;
     MPI_Info_create(&info);
-    MPI_Info_set(info,"romio_cb_read", "enable");
-    MPI_Info_set(info,"striping_unit","4194304"); 
+    // MPI_Info_set(info,"romio_cb_read", "enable");
+    // MPI_Info_set(info,"striping_unit","4194304"); 
+    MPI_Info_set(info,"cb_nodes",std::to_string(GA_Cluster_nnodes()).c_str());    
 
     MPI_File_open(ec.pg().comm(), filename.c_str(), MPI_MODE_RDONLY,
                     info, &fh);
@@ -308,10 +326,7 @@ void read_from_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::
 
     auto lambda = [&](const IndexVector& bid) {
         const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
-        auto block_dims   = tensor.block_dims(blockid);
-        auto block_offset = tensor.block_offsets(blockid);
-
-        auto file_offset = 0;
+        file_offset = 0;
         for(const IndexVector& pbid : loop_nest) {
             if(pbid==blockid) break;
             file_offset += tensor.block_size(pbid);
@@ -321,12 +336,20 @@ void read_from_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::
 
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
         std::vector<TensorType> dbuf(dsize);
-        MPI_File_read_at_all(fh,file_offset,&dbuf[0],dsize,MPI_DOUBLE,MPI_STATUS_IGNORE);
+
+        MPI_File_read_at(fh,file_offset,reinterpret_cast<void*>(&dbuf[0]),
+                        static_cast<int>(dsize),MPI_DOUBLE,&status);
         tensor.put(blockid,dbuf);
     };
     block_for(ec, ltensor, lambda);
 
     MPI_File_close(&fh);
+
+    auto io_t2 = std::chrono::high_resolution_clock::now();
+
+    double io_time = 
+        std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
+    if(ec.pg().rank() == 0) std::cout << "Time for reading " << filename << " from disk: " << io_time << " secs\n";
 }
 
 /**

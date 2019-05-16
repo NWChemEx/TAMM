@@ -75,6 +75,7 @@ class SCFOptions: public Options {
       restart = false;
       scalapack_nb = 1;
       scalapack_nranks = 1;
+      force_tilesize = false;
     }
 
   double tol_int; //tolerance for integral engine
@@ -84,6 +85,7 @@ class SCFOptions: public Options {
   int diis_hist; //number of diis history entries
   int AO_tilesize; 
   bool restart; //Read movecs from disk
+  bool force_tilesize;
   int scalapack_nb;
   int scalapack_nranks;  
 
@@ -414,6 +416,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             scf_options.convd = std::stod(read_option(line));            
           else if(is_in_line("diis_hist",line)) 
             scf_options.diis_hist = std::stoi(read_option(line));    
+          else if(is_in_line("force_tilesize",line)) 
+            scf_options.force_tilesize = to_bool(read_option(line));  
           else if(is_in_line("tilesize",line)) 
             scf_options.AO_tilesize = std::stod(read_option(line));  
           else if(is_in_line("restart",line))

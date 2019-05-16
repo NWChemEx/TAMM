@@ -9,3 +9,5 @@ add_mpi_unit_test(Test_OpsExpr 2 "")
 add_cxx_unit_test(Test_TiledIndexSpace)
 add_mpi_unit_test(Test_DependentSpace 2 "")
 add_mpi_unit_test(Test_Eigen 2 "")
+
+add_mpi_unit_test(Test_Mult_Ops 2 "" )

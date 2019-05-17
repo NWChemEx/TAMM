@@ -163,9 +163,37 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     #endif
 
     #ifdef SCALAPACK
+
+      // Sanity checks
+      int scalapack_nranks = 
+        scf_options.scalapack_np_row *
+        scf_options.scalapack_np_col;
+
+      int world_size;
+      MPI_Comm_size( ec.pg().comm(), &world_size );
+      assert( world_size >= scalapack_nranks );
+
+      if( not scalapack_nranks ) scalapack_nranks = world_size;
+      std::vector<int> scalapack_ranks( scalapack_nranks );
+      std::iota( scalapack_ranks.begin(), scalapack_ranks.end(), 0 );
+
+      MPI_Group world_group, scalapack_group;
+      MPI_Comm scalapack_comm;
+      MPI_Comm_group( ec.pg().comm(), &world_group );
+      MPI_Group_incl( world_group, scalapack_nranks, scalapack_ranks.data(), &scalapack_group );
+      MPI_Comm_create( ec.pg().comm(), scalapack_group, &scalapack_comm );
+      
+      
+
       // Define a BLACS grid
       const CB_INT MB = scf_options.scalapack_nb; 
-      blacs_grid = new CXXBLACS::BlacsGrid(  ec.pg().comm(), MB, MB );
+      const CB_INT NPR = scf_options.scalapack_np_row;
+      const CB_INT NPC = scf_options.scalapack_np_col;
+      std::unique_ptr<CXXBLACS::BlacsGrid> blacs_grid = 
+        scalapack_comm == MPI_COMM_NULL ? nullptr :
+        std::make_unique<CXXBLACS::BlacsGrid>( scalapack_comm, MB, MB, NPR, NPC );
+
+      if(blacs_grid) blacs_grid->printCoord( std::cout );
     #endif
 
     /*** =========================== ***/
@@ -349,7 +377,11 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         compute_2bf(ec, obs, do_schwarz_screen, shell2bf, SchwarzK, 
                     G, D, F1tmp, F1tmp1, max_nprim4);
 
-        std::tie(ehf,rmsd) = scf_iter_body<TensorType>(ec, iter, ndocc, X, F, C, C_occ, D,
+        std::tie(ehf,rmsd) = scf_iter_body<TensorType>(ec, 
+#ifdef SCALAPACK
+                        blacs_grid.get(),
+#endif
+                        iter, ndocc, X, F, C, C_occ, D,
                         S1, F1, H1, F1tmp1,FD_tamm, FDS_tamm, D_tamm, D_last_tamm, D_diff,
                         ehf_tmp, ehf_tamm, diis_hist, fock_hist);
 

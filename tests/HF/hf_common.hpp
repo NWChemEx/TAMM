@@ -32,7 +32,7 @@
   #define CXXBLACS_LAPACK_Complex16 TAMM_LAPACK_COMPLEX16
   #define CXXBLACS_LAPACK_Complex8 TAMM_LAPACK_COMPLEX8
   #include <cxxblacs.hpp>
-  CXXBLACS::BlacsGrid *blacs_grid;
+//std::unique_ptr<CXXBLACS::BlacsGrid> blacs_grid;
 #endif
 #undef I 
 
